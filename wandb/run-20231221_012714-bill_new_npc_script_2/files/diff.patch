@@ -1,0 +1,420 @@
+diff --git a/.gitignore b/.gitignore
+old mode 100644
+new mode 100755
+diff --git a/LICENSE b/LICENSE
+old mode 100644
+new mode 100755
+diff --git a/README.md b/README.md
+old mode 100644
+new mode 100755
+diff --git a/clean_pufferl.py b/clean_pufferl.py
+old mode 100644
+new mode 100755
+diff --git a/cleanrl_ppo_atari.py b/cleanrl_ppo_atari.py
+old mode 100644
+new mode 100755
+diff --git a/config.py b/config.py
+old mode 100644
+new mode 100755
+diff --git a/demo.py b/demo.py
+old mode 100644
+new mode 100755
+diff --git a/kanto_map_dsv.png b/kanto_map_dsv.png
+index d46b2a3..d160efc 100644
+Binary files a/kanto_map_dsv.png and b/kanto_map_dsv.png differ
+diff --git a/pufferlib/__init__.py b/pufferlib/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/args.py b/pufferlib/args.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/emulation.py b/pufferlib/emulation.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/__init__.py b/pufferlib/environments/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/atari/__init__.py b/pufferlib/environments/atari/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/atari/environment.py b/pufferlib/environments/atari/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/atari/torch.py b/pufferlib/environments/atari/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/butterfly/__init__.py b/pufferlib/environments/butterfly/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/butterfly/environment.py b/pufferlib/environments/butterfly/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/butterfly/torch.py b/pufferlib/environments/butterfly/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/classic_control/__init__.py b/pufferlib/environments/classic_control/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/classic_control/environment.py b/pufferlib/environments/classic_control/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/classic_control/torch.py b/pufferlib/environments/classic_control/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/crafter/__init__.py b/pufferlib/environments/crafter/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/crafter/environment.py b/pufferlib/environments/crafter/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/crafter/torch.py b/pufferlib/environments/crafter/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/dm_control/__init__.py b/pufferlib/environments/dm_control/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/dm_control/environment.py b/pufferlib/environments/dm_control/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/dm_control/torch.py b/pufferlib/environments/dm_control/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/dm_lab/__init__.py b/pufferlib/environments/dm_lab/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/dm_lab/environment.py b/pufferlib/environments/dm_lab/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/dm_lab/torch.py b/pufferlib/environments/dm_lab/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/griddly/__init__.py b/pufferlib/environments/griddly/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/griddly/environment.py b/pufferlib/environments/griddly/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/griddly/torch.py b/pufferlib/environments/griddly/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/links_awaken/__init__.py b/pufferlib/environments/links_awaken/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/links_awaken/environment.py b/pufferlib/environments/links_awaken/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/links_awaken/torch.py b/pufferlib/environments/links_awaken/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/magent/__init__.py b/pufferlib/environments/magent/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/magent/environment.py b/pufferlib/environments/magent/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/magent/torch.py b/pufferlib/environments/magent/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/microrts/__init__.py b/pufferlib/environments/microrts/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/microrts/environment.py b/pufferlib/environments/microrts/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/microrts/torch.py b/pufferlib/environments/microrts/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minerl/__init__.py b/pufferlib/environments/minerl/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minerl/environment.py b/pufferlib/environments/minerl/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minerl/torch.py b/pufferlib/environments/minerl/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minigrid/__init__.py b/pufferlib/environments/minigrid/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minigrid/environment.py b/pufferlib/environments/minigrid/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minigrid/torch.py b/pufferlib/environments/minigrid/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minihack/__init__.py b/pufferlib/environments/minihack/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minihack/environment.py b/pufferlib/environments/minihack/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/minihack/torch.py b/pufferlib/environments/minihack/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/nethack/__init__.py b/pufferlib/environments/nethack/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/nethack/environment.py b/pufferlib/environments/nethack/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/nethack/torch.py b/pufferlib/environments/nethack/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/nmmo/__init__.py b/pufferlib/environments/nmmo/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/nmmo/environment.py b/pufferlib/environments/nmmo/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/nmmo/torch.py b/pufferlib/environments/nmmo/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/open_spiel/__init__.py b/pufferlib/environments/open_spiel/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/open_spiel/environment.py b/pufferlib/environments/open_spiel/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/open_spiel/gymnasium_environment.py b/pufferlib/environments/open_spiel/gymnasium_environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/open_spiel/pettingzoo_environment.py b/pufferlib/environments/open_spiel/pettingzoo_environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/open_spiel/torch.py b/pufferlib/environments/open_spiel/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/open_spiel/utils.py b/pufferlib/environments/open_spiel/utils.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/pokemon_red/__init__.py b/pufferlib/environments/pokemon_red/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/pokemon_red/environment.py b/pufferlib/environments/pokemon_red/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/pokemon_red/torch.py b/pufferlib/environments/pokemon_red/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/procgen/__init__.py b/pufferlib/environments/procgen/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/procgen/environment.py b/pufferlib/environments/procgen/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/procgen/torch.py b/pufferlib/environments/procgen/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/smac/__init__.py b/pufferlib/environments/smac/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/smac/environment.py b/pufferlib/environments/smac/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/smac/torch.py b/pufferlib/environments/smac/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/squared/__init__.py b/pufferlib/environments/squared/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/squared/environment.py b/pufferlib/environments/squared/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/squared/squared.py b/pufferlib/environments/squared/squared.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/squared/torch.py b/pufferlib/environments/squared/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/stable-retro/__init__.py b/pufferlib/environments/stable-retro/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/stable-retro/environment.py b/pufferlib/environments/stable-retro/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/stable-retro/torch.py b/pufferlib/environments/stable-retro/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/test/__init__.py b/pufferlib/environments/test/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/test/environment.py b/pufferlib/environments/test/environment.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/test/mock_environments.py b/pufferlib/environments/test/mock_environments.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/environments/test/torch.py b/pufferlib/environments/test/torch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/evaluation.py b/pufferlib/evaluation.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/exceptions.py b/pufferlib/exceptions.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/extensions.c b/pufferlib/extensions.c
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/extensions.pyx b/pufferlib/extensions.pyx
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/frameworks/__init__.py b/pufferlib/frameworks/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/frameworks/cleanrl.py b/pufferlib/frameworks/cleanrl.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/frameworks/rllib.py b/pufferlib/frameworks/rllib.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/models.py b/pufferlib/models.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/namespace.py b/pufferlib/namespace.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/policy_pool.py b/pufferlib/policy_pool.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/policy_ranker.py b/pufferlib/policy_ranker.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/policy_store.py b/pufferlib/policy_store.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/pytorch.py b/pufferlib/pytorch.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/rating.py b/pufferlib/rating.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/spaces.py b/pufferlib/spaces.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/utils.py b/pufferlib/utils.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/__init__.py b/pufferlib/vectorization/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/gym_multi_env.py b/pufferlib/vectorization/gym_multi_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/multi_env.py b/pufferlib/vectorization/multi_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/multiprocessing_vec_env.py b/pufferlib/vectorization/multiprocessing_vec_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/pettingzoo_multi_env.py b/pufferlib/vectorization/pettingzoo_multi_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/ray_vec_env.py b/pufferlib/vectorization/ray_vec_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/serial_vec_env.py b/pufferlib/vectorization/serial_vec_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/vectorization/vec_env.py b/pufferlib/vectorization/vec_env.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/version.py b/pufferlib/version.py
+old mode 100644
+new mode 100755
+diff --git a/pufferlib/wrappers.py b/pufferlib/wrappers.py
+old mode 100644
+new mode 100755
+diff --git a/pyproject.toml b/pyproject.toml
+old mode 100644
+new mode 100755
+diff --git a/rllib_ppo.py b/rllib_ppo.py
+old mode 100644
+new mode 100755
+diff --git a/run_baselines.sh b/run_baselines.sh
+old mode 100644
+new mode 100755
+diff --git a/setup.py b/setup.py
+old mode 100644
+new mode 100755
+diff --git a/test_pokemon_red.py b/test_pokemon_red.py
+old mode 100644
+new mode 100755
+diff --git a/tests/__init__.py b/tests/__init__.py
+old mode 100644
+new mode 100755
+diff --git a/tests/mock_environments.py b/tests/mock_environments.py
+old mode 100644
+new mode 100755
+diff --git a/tests/pool/envpool_results.npy b/tests/pool/envpool_results.npy
+old mode 100644
+new mode 100755
+diff --git a/tests/pool/plot_packing.py b/tests/pool/plot_packing.py
+old mode 100644
+new mode 100755
+diff --git a/tests/pool/test_basic_multprocessing.py b/tests/pool/test_basic_multprocessing.py
+old mode 100644
+new mode 100755
+diff --git a/tests/pool/test_envpool.py b/tests/pool/test_envpool.py
+old mode 100644
+new mode 100755
+diff --git a/tests/pool/test_multiprocessing.py b/tests/pool/test_multiprocessing.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_atari_reset.py b/tests/test_atari_reset.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_cleanrl_utils.py b/tests/test_cleanrl_utils.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_docs_nmmo.py b/tests/test_docs_nmmo.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_emulation.py b/tests/test_emulation.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_environments.py b/tests/test_environments.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_error_handling.py b/tests/test_error_handling.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_extensions.py b/tests/test_extensions.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_flatten.py b/tests/test_flatten.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_import_performance.py b/tests/test_import_performance.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_namespace.py b/tests/test_namespace.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_policy_pool.py b/tests/test_policy_pool.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_policy_ranker.py b/tests/test_policy_ranker.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_policy_store.py b/tests/test_policy_store.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_registry.sh b/tests/test_registry.sh
+old mode 100644
+new mode 100755
+diff --git a/tests/test_serialize.py b/tests/test_serialize.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_teams.py b/tests/test_teams.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_tournament.py b/tests/test_tournament.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_utils.py b/tests/test_utils.py
+old mode 100644
+new mode 100755
+diff --git a/tests/test_vectorization.py b/tests/test_vectorization.py
+old mode 100644
+new mode 100755

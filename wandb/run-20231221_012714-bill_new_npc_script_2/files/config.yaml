@@ -1,0 +1,83 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.7
+    code_path: code/demo.py
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.10.13
+    start_time: 1703143634.429512
+    t:
+      1:
+      - 1
+      - 55
+      2:
+      - 1
+      - 55
+      3:
+      - 2
+      - 13
+      - 14
+      - 16
+      - 23
+      4: 3.10.13
+      5: 0.13.7
+      8:
+      - 5
+cleanrl:
+  desc: null
+  value:
+    anneal_lr: true
+    batch_rows: 128
+    batch_size: 32768
+    bptt_horizon: 16
+    checkpoint_interval: 200
+    clip_coef: 0.1
+    clip_vloss: true
+    cpu_offload: true
+    data_dir: experiments
+    device: cuda
+    ent_coef: 0.01
+    envs_per_batch: null
+    envs_per_worker: 1
+    gae_lambda: 0.95
+    gamma: 0.998
+    learning_rate: 0.00025
+    max_grad_norm: 0.5
+    norm_adv: true
+    num_envs: 64
+    num_minibatches: 4
+    num_steps: 128
+    pool_kernel:
+    - 0
+    seed: 1
+    synchroneous: false
+    target_kl: null
+    torch_deterministic: true
+    total_timesteps: 100000000
+    update_epochs: 3
+    verbose: true
+    vf_clip_coef: 0.1
+    vf_coef: 0.5
+env:
+  desc: null
+  value:
+    headless: true
+    state_path: null
+policy:
+  desc: null
+  value:
+    flat_size: 1920
+    framestack: 4
+    hidden_size: 512
+    input_size: 512
+    output_size: 512
+recurrent:
+  desc: null
+  value:
+    hidden_size: 512
+    input_size: 512
+    num_layers: 1

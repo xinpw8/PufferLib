@@ -1,0 +1,132 @@
+{
+    "os": "Linux-5.15.133.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "python": "3.10.13",
+    "heartbeatAt": "2023-12-19T06:17:04.283809",
+    "startedAt": "2023-12-19T06:17:03.475661",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--train",
+        "--track",
+        "--vectorization",
+        "multiprocessing",
+        "--exp-name",
+        "bill_test_1"
+    ],
+    "state": "running",
+    "program": "/home/daa/puffer0.5.2_iron/bill/pufferlib/demo.py",
+    "codePath": "demo.py",
+    "git": {
+        "remote": "https://github.com/xinpw8/PufferLib.git",
+        "commit": "24b45f64ccdcf7e0240dd6b57a7f15ffcb716ae6"
+    },
+    "email": "scab.nft+github@gmail.com",
+    "root": "/home/daa/puffer0.5.2_iron/bill/pufferlib",
+    "host": "D21",
+    "username": "daa",
+    "executable": "/usr/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 16,
+    "cpu_freq": {
+        "current": 3599.9959999999996,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "total": 1006.853931427002,
+        "used": 147.11367416381836
+    },
+    "gpu": "NVIDIA GeForce RTX 2080 SUPER",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 2080 SUPER",
+            "memory_total": 8589934592
+        }
+    ],
+    "memory": {
+        "total": 39.11161804199219
+    }
+}
