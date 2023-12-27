@@ -232,4 +232,3 @@ if __name__ == '__main__':
     else:
         rollout(env_module.make_env, args.env_kwargs,
             args.evaluate, device=args.args.device)
-
