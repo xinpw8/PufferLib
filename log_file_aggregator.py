@@ -13,7 +13,7 @@ unique_pokemon = set()
 unique_moves = set()
 
 # Output file path
-output_file_path = "/home/daa/puffer0.5.2_iron/bill/pufferlib/comp_log.txt"
+output_file_path = "/home/daa/puffer0.5.2_iron/bill/pufferlib/poke_log.txt"
 
 # Initialize variables to track environment and current_pokemon
 current_environment = 1
@@ -59,7 +59,6 @@ def analyze_pokemon_data(data):
         'Highest Levels': {k: v for k, v in sorted(highest_levels.items())},
         'Pokemon Counts': {k: v for k, v in sorted(pokemon_counts.items())}
     }
-
 
 # Output the aggregated information to the file
 with open(output_file_path, 'w') as output_file:
@@ -115,12 +114,7 @@ with open(output_file_path, 'w') as output_file:
                             # Reset current_pokemon for the next iteration
                             current_pokemon = {}
 
-
     result = analyze_pokemon_data(pokemon_summary)
-
-    # # Write the results to a file
-    # output_file.write("Unique Pokemon: " + str(result['Unique Pokemon']) + "\n\n")
-    # output_file.write("Unique Moves: " + str(result['Unique Moves']) + "\n\n")
 
     output_file.write(
         "\nUnique Pokemon       Highest Level         Number in Parties\n")
@@ -130,32 +124,12 @@ with open(output_file_path, 'w') as output_file:
         level = result['Highest Levels'][pokemon]
         count = result['Pokemon Counts'].get(pokemon, 0)
         output_file.write(f"{pokemon.ljust(24)}{str(level).ljust(24)}{str(count)}\n")
-
-    # output_file.write("\nUnique Pokemon: Highest Level: Number Caught\n")
-    # for pokemon, level in result['Highest Levels'].items():
-    #     for pokemon, count in result['Pokemon Counts'].items():
-    #         output_file.write(f"  {pokemon}: {level}: {count}\n")
-
-    # output_file.write("\nPokemon Counts:\n")
-    # for pokemon, count in result['Pokemon Counts'].items():
-    #     output_file.write(f"  {pokemon}: {count}\n")
     
     output_file.write("\n\nUnique Moves         Instances of Move\n")
     output_file.write(
         "------------         -----------------\n")
     for move, count in result['Move Counts'].items():
         output_file.write(f"{move.ljust(20)} {str(count).ljust(20)}\n")
-    # Write the unique Pokémon seen at the top of the file
-    # output_file.write("Unique Pokemon Caught:\n")
-    # for pokemon in sorted(unique_pokemon):
-    #     output_file.write(f"{pokemon}\n")
-    # output_file.write("\n")
-
-    # Write the unique moves seen
-    # output_file.write("Unique Moves List:\n")
-    # for move in sorted(unique_moves):
-    #     output_file.write(f"{move}\n")
-    # output_file.write("\n")
     output_file.write("\n\n\n")
     
     # Write the environment and Pokémon information
@@ -173,26 +147,3 @@ with open(output_file_path, 'w') as output_file:
                 output_file.write(f"Name: {party.get('name', 'empty')}\n")
                 output_file.write(f"Level: {party.get('level', '0')}\n")
                 output_file.write(f"Moves: {', '.join(party.get('moves', ['empty']))}\n\n")
-                
-
-    # result = analyze_pokemon_data(pokemon_summary)
-
-    # # Write the results to a file
-    # output_file_path = "pokemon_analysis_results.txt"
-    # with open(output_file_path, 'w') as output_file:
-    #     output_file.write("Unique Pokemon: " + str(result['Unique Pokemon']) + "\n\n")
-    #     output_file.write("Unique Moves: " + str(result['Unique Moves']) + "\n\n")
-
-    #     output_file.write("Move Counts:\n")
-    #     for move, count in result['Move Counts'].items():
-    #         output_file.write(f"  {move}: {count}\n")
-
-    #     output_file.write("\nHighest Levels:\n")
-    #     for pokemon, level in result['Highest Levels'].items():
-    #         output_file.write(f"  {pokemon}: {level}\n")
-
-    #     output_file.write("\nPokemon Counts:\n")
-    #     for pokemon, count in result['Pokemon Counts'].items():
-    #         output_file.write(f"  {pokemon}: {count}\n")
-
-    # print(f"Results have been written to: {output_file_path}")    
