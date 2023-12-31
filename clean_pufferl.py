@@ -356,10 +356,16 @@ def train(data):
     train_profiler.start()
 
     if config.anneal_lr:
-        frac = 1.0 - (data.update - 1.0) / data.total_updates
-        lrnow = frac * config.learning_rate
-        data.optimizer.param_groups[0]["lr"] = lrnow
-
+        # frac = 1.0 - (data.update - 1.0) / data.total_updates
+        frac = -0.000000000002495 * (data.total_updates * 32786.88525) + 0.00025
+        if frac <= 0.0002112:
+            frac = 0.0002112
+            lrnow = frac * config.learning_rate
+            data.optimizer.param_groups[0]["lr"] = lrnow
+        else:
+            lrnow = frac * config.learning_rate
+            data.optimizer.param_groups[0]["lr"] = lrnow
+                   
     num_minibatches = config.batch_size // config.bptt_horizon // config.batch_rows
     idxs = sorted(range(len(data.sort_keys)), key=data.sort_keys.__getitem__)
     data.sort_keys = []

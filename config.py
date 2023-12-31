@@ -125,7 +125,7 @@ def pokegym():
         gamma=0.998,
         batch_size=2**15,
         batch_rows=128,
-        learning_rate=1.28e-4,
+        learning_rate=2.5e-4,
     )
     return args, make_sweep_config()
 
