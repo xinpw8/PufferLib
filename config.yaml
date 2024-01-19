@@ -2,15 +2,15 @@ train:
   seed: 1
   torch_deterministic: True
   device: cuda
-  total_timesteps: 10_000_000
+  total_timesteps: 100_000_000
   learning_rate: 2.5e-4
-  num_envs: 8
+  num_envs: 64
   num_steps: 128
   anneal_lr: True
-  gamma: 0.99
+  gamma: 0.998
   gae_lambda: 0.95
   num_minibatches: 4
-  update_epochs: 4
+  update_epochs: 3
   norm_adv: True
   clip_coef: 0.1
   clip_vloss: True
@@ -19,7 +19,7 @@ train:
   max_grad_norm: 0.5
   target_kl: ~
 
-  num_envs: 8
+  env_pool_batch_size: 24
   envs_per_worker: 1
   envs_per_batch: ~
   env_pool: True
@@ -28,8 +28,8 @@ train:
   checkpoint_interval: 200
   cpu_offload: True
   pool_kernel: [0]
-  batch_size: 1024
-  batch_rows: 32
+  batch_size: 32768
+  batch_rows: 128
   bptt_horizon: 16 #8
   vf_clip_coef: 0.1
 
@@ -604,14 +604,14 @@ openspiel:
 pokemon_red:
   package: pokemon_red
   train:
-    total_timesteps: 100_000_000
-    num_envs: 4
+    total_timesteps: 100_000_000 # 100_000_000
+    num_envs: 64
     envs_per_worker: 1
-    envpool_batch_size: 4
-    update_epochs: 3
+    envpool_batch_size: 32
+    update_epochs: 3 # epoch sps 3, 4==no change; 8==1500; 16==1000
     gamma: 0.998
-    batch_size: 1024
-    batch_rows: 16
+    batch_size: 32768
+    batch_rows: 128
 pokemon-red:
   package: pokemon_red
 pokemonred:
