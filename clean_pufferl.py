@@ -455,7 +455,21 @@ def train(data):
     train_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True)
     train_profiler.start()
 
-    # Anneal learning rate
+    # # Anneal learning rate
+    # # Cosine annealing test
+    # # torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max, eta_min=0, last_epoch=-1, verbose=False)
+    # cosine_anneal = torch.optim.lr_scheduler.CosineAnnealingLR(data.optimizer, data.total_updates, eta_min=0.000047, last_epoch=-1, verbose=True)
+    # # print(f'cosine_anneal.get_last_lr()={cosine_anneal.get_last_lr()}')
+    # lrnow = int(cosine_anneal.get_last_lr()[0]) * int(config.learning_rate)
+    # data.optimizer.param_groups[0]["lr"] = lrnow
+
+    # if config.anneal_lr:
+    #     cosine_anneal = torch.optim.lr_scheduler.CosineAnnealingLR(data.optimizer, data.total_updates, eta_min=0.000047, last_epoch=-1, verbose=True)
+    #     # print(f'cosine_anneal.get_last_lr()={cosine_anneal.get_last_lr()}')
+    #     lrnow = int(cosine_anneal.get_last_lr()[0]) * int(config.learning_rate)
+    #     data.optimizer.param_groups[0]["lr"] = lrnow
+    
+    # Default lr    
     frac = 1.0 - (data.update - 1.0) / data.total_updates
     lrnow = frac * config.learning_rate
     data.optimizer.param_groups[0]["lr"] = lrnow
