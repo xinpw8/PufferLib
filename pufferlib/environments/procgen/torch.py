@@ -10,6 +10,7 @@ import pufferlib.models
 
 # taken from https://github.com/AIcrowd/neurips2020-procgen-starter-kit/blob/142d09586d2272a17f44481a115c4bd817cf6a94/models/impala_cnn_torch.py
 # Updated with parameters from MSRL https://arxiv.org/pdf/2103.15332.pdf
+# 
 class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()

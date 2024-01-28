@@ -17,7 +17,7 @@ def sample_logits(logits, action=None):
     if action is None:
         action = torch.stack([c.sample() for c in multi_categorical])
     else:
-        action = action.view(batch, -1).T
+        action = action.reshape(batch, -1).T  # action.view=()
 
     assert len(multi_categorical) == len(action)
     logprob = torch.stack([c.log_prob(a) for c, a in zip(multi_categorical, action)]).T.sum(1)

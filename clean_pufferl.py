@@ -25,6 +25,11 @@ import pufferlib.vectorization
 import pufferlib.frameworks.cleanrl
 import pufferlib.policy_pool
 
+# from torch.profiler import profile, ProfilerActivity, schedule
+from copy_file import *
+from pokegym import checkpoint_tracker
+from cv_test import create_data_image
+
 
 @pufferlib.dataclass
 class Performance:
@@ -89,21 +94,9 @@ def init(
     
     # Jerry-rigged logging to experiments/uuid8/sessions folder
     exp_path = Path(f'running_experiment').with_suffix('.txt')
-    # exp_path = Path(f'test_exp').with_suffix('.txt') # for testing video writing BET
+    # exp_path = Path(f'test_exp').with_suffix('.txt') # uncomment for testing while run is currently running; comment 116 and do same line 116-118 environment
     with open(config.data_dir / exp_path, 'w') as file:
         file.write(f"{exp_name}")
-         
-    # env_id = Path(f'session_{str(uuid.uuid4())[:8]}')
-    # s_path = Path(f'{str(exp_name)}/dicks/{str(env_id)}')
-    # base_dir = s_path
-    # base_dir.mkdir(parents=True, exist_ok=True)
-    # full_name = Path(f'heatmap_video_{exp_name}').with_suffix('.mp4')
-    # full_frame_writer = media.VideoWriter(base_dir / full_name, (7104, 6976), fps=60)
-    # full_frame_writer.__enter__()
-
-    # print(f's_path={s_path}\nbase_dir={base_dir}\nfull_name={full_name}\n')
-
-    # os.chmod(base_dir, 0o777)
     
     wandb = None
     if track:
@@ -137,12 +130,17 @@ def init(
     resume_state = {}
     path = os.path.join(config.data_dir, exp_name)
     if os.path.exists(path):
-        trainer_path = os.path.join(path, 'trainer_state.pt')
-        resume_state = torch.load(trainer_path)
-        model_path = os.path.join(path, resume_state["model_name"])
-        agent = torch.load(model_path, map_location=device)
-        print(f'Resumed from update {resume_state["update"]} '
-              f'with policy {resume_state["model_name"]}')
+        try:
+            trainer_path = os.path.join(path, 'trainer_state.pt')
+            # resume_state = torch.load(trainer_path)
+            model_path = os.path.join(path, resume_state["model_name"])
+            # agent = torch.load(model_path, map_location=device)
+            # print(f'Resumed from update {resume_state["update"]} '
+            #     f'with policy {resume_state["model_name"]}')
+        except FileNotFoundError as e:
+            print(f'Error: {e}. Creating new trainer.pt file...')
+            agent = pufferlib.emulation.make_object(
+                agent, agent_creator, [pool.driver_env], agent_kwargs)
     else:
         agent = pufferlib.emulation.make_object(
             agent, agent_creator, [pool.driver_env], agent_kwargs)
@@ -306,7 +304,6 @@ def evaluate(data):
                 data.dones[ptr] = d[idx]
             ptr += 1
 
-
         for policy_name, policy_i in i.items():
             for agent_i in policy_i:
                 for name, dat in unroll_nested_dict(agent_i):
@@ -314,6 +311,8 @@ def evaluate(data):
 
         with env_profiler:
             data.pool.send(actions.cpu().numpy())
+
+    data.infos = infos
 
     eval_profiler.stop()
 
@@ -334,100 +333,56 @@ def evaluate(data):
     perf.eval_pytorch_memory = eval_profiler.end_torch_mem
 
     data.stats = {}
-    
-
-
-    # print_dashboard(data.stats, data.init_performance, data.performance)
-    # base_dir = Path(data.exp_name)
-    # full_name = Path(f'heatmap_video_{str(uuid.uuid4())[:8]}').with_suffix('.mp4')
-    # full_frame_writer = media.VideoWriter(base_dir / full_name, (7104, 6976), fps=10)
-    # full_frame_writer.__enter__()
 
     for k, v in infos['learner'].items():
-        # from pokemon_red_eval import initialize_full_frame_writer
-        # initialize_full_frame_writer()
-        
-        # if 'Task_eval_fn' in k:
-        #     # Temporary hack for NMMO competition
-        #     continue
         if 'pokemon_exploration_map' in k:
             import cv2
             # from pokemon_red_eval import make_pokemon_red_overlay
             bg = cv2.imread('kanto_map_dsv.png')
             overlay = pre.make_pokemon_red_overlay(bg, sum(v))
             
-            # BET testing video writing
-            
-            # env_id = Path(f'session_{str(uuid.uuid4())[:8]}')
-            # s_path = Path(f'{str(data.exp_name)}/dicks/{str(env_id)}')
-            # base_dir = s_path
-            # base_dir.mkdir(parents=True, exist_ok=True)
-            # full_name = Path(f'heatmap_video_{data.exp_name}').with_suffix('.mp4')
-            # full_frame_writer = media.VideoWriter(base_dir / full_name, (7104, 6976), fps=60)
-            # os.chmod(base_dir, 0o777)
-    
-            # with open("experiments/test_log.txt", "a") as f:
-            #     f.write(f'LINE344 initialized full_frame_writer')
-            
-            # from pokemon_red_eval import full_frame_writer_add_image    
-            # full_frame_writer_add_image(overlay)
-            # with open("experiments/test_log.txt", "a") as f:
-            #     f.write(f'LINE365 wrote frame')
-            #     f.write(f'v={v}')
-            #     f.write(f'data=\n{data}')
-                    
+            # BET 
+            di_height = 6976 * 1.5
+            data_image = create_data_image(int(di_height), 7104)
+
+            # Define the position where the data image will be rendered
+            x_position = 6976
+            y_position = 7104
+
+            # Calculate the starting position for rendering the data image
+            start_x = x_position - data_image.shape[1]
+            start_y = y_position - data_image.shape[0]
+
+            # Ensure the data image fits within the bounds of the background image
+            end_x = min(start_x + data_image.shape[1], overlay.shape[1])
+            end_y = min(start_y + data_image.shape[0], overlay.shape[0])
+
+            # Calculate the region of interest on the background image
+            roi_start_x = max(start_x, 0)
+            roi_end_x = min(end_x, overlay.shape[1])
+            roi_start_y = max(start_y, 0)
+            roi_end_y = min(end_y, overlay.shape[0])
+
+            # Calculate the corresponding region on the data image
+            data_roi_start_x = roi_start_x - start_x
+            data_roi_end_x = data_roi_start_x + (roi_end_x - roi_start_x)
+            data_roi_start_y = roi_start_y - start_y
+            data_roi_end_y = data_roi_start_y + (roi_end_y - roi_start_y)
+
+            # Overlay the data image onto the background image
+            # bg[roi_start_y:roi_end_y, roi_start_x:roi_end_x] += data_image[data_roi_start_y:data_roi_end_y, data_roi_start_x:data_roi_end_x]
+            data_image[data_roi_start_y:data_roi_end_y, data_roi_start_x:data_roi_end_x] += overlay[roi_start_y:roi_end_y, roi_start_x:roi_end_x]
+
+            # # combined_image = cv2.addWeighted(bg, 1, data_image, 1, 2)
+            # cv2.imwrite('image_test.png',data_image)
+                
             if data.wandb is not None:
-                data.stats['Media/exploration_map'] = data.wandb.Image(overlay)
+                data.stats['Media/exploration_map'] = data.wandb.Image(data_image)
 
-    
-    # data.full_frame_writer = full_frame_writer
-    
-    # def video(counts_map_array):
-    #     array_video = counts_map_array
-    #     return array_video
-
-    # def add_video_frame():
-    #     full_frame_writer.add_image(video())
-
-
-    
-    # for k, v in infos['learner'].items():
-    #     if 'env_uuid' in k:
-    #         print(f'env_uuid={v}')
-    #         env_uuid = v
-    #         exp_path = data.exp_path
-            
-    #         s_path = Path(f'{str(exp_path)}/sessions/{str(env_uuid)}')
-             
-    #     base_dir = s_path
-    #     base_dir.mkdir(parents=True, exist_ok=True)
-    #     full_name = Path(f'heatmap_video_{env_uuid}_{data.global_step}').with_suffix('.mp4')
-    #     full_frame_writer = media.VideoWriter(base_dir / full_name, (7104, 6976), fps=60)
-        
-        
-        
-        
-        # if 'Task_eval_fn' in k:
-        #     # Temporary hack for NMMO competition
-        #     continue
-        # if 'pokemon_exploration_map' in k:
-        #     import cv2
-        #     from pokemon_red_eval import make_pokemon_red_overlay, video, add_video_frame
-        #     bg = cv2.imread('kanto_map_dsv.png')
-        #     overlay = make_pokemon_red_overlay(bg, sum(v))
-            
-            # # Video logging BET
-            # add_video_frame(overlay)  
-            # if done_training:
-            #     full_frame_writer.close()
             
         if 'logging' in k:
-            # print(f'v={v}')
-            # print(f'data=\n{data}')
-            
             if data.wandb is not None:
-                data.stats['Media/exploration_map'] = data.wandb.Image(overlay)
-            # @Leanke: Add your infos['learner']['x'] etc
+                data.stats['Media/exploration_map'] = data.wandb.Image(data_image)
         try: # TODO: Better checks on log data types
             data.stats[k] = np.mean(v)
         except:
@@ -436,6 +391,7 @@ def evaluate(data):
     if config.verbose:
         print_dashboard(data.stats, data.init_performance, data.performance)
 
+    
     return data.stats, infos
 
 @pufferlib.utils.profile
@@ -444,12 +400,6 @@ def train(data):
         raise RuntimeError(
             f"Max training updates {data.total_updates} already reached")
     
-    # from pokemon_red_eval import close_full_frame_writer
-    # if done_training:
-    #     close_full_frame_writer()
-    #     with open("experiments/test_log.txt", "a") as f:
-    #         f.write(f'LINE377 closed frame_writer')
-
     config = data.config
     # assert data.num_steps % bptt_horizon == 0, "num_steps must be divisible by bptt_horizon"
     train_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True)
@@ -520,18 +470,35 @@ def train(data):
     # Optimizing the policy and value network
     train_time = time.time()
     pg_losses, entropy_losses, v_losses, clipfracs, old_kls, kls = [], [], [], [], [], []
+    mb_obs_buffer = torch.zeros_like(b_obs[0], pin_memory=True)
+
     for epoch in range(config.update_epochs):
+        # with profile(
+        #     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        #     schedule=schedule(wait=1, warmup=0, active=2, repeat=1),
+        #     with_modules=True,
+        #     with_stack=True,
+        # ) as prof:
         lstm_state = None
         for mb in range(num_minibatches):
-            mb_obs = b_obs[mb].to(data.device)
+            # mb_obs = b_obs[mb].to(self.device, non_blocking=True)
+            mb_obs_buffer.copy_(b_obs[mb]) # , non_blocking=True)
+            mb_obs = mb_obs_buffer.to(data.device) #, non_blocking=True)
             mb_actions = b_actions[mb].contiguous()
             mb_values = b_values[mb].reshape(-1)
             mb_advantages = b_advantages[mb].reshape(-1)
             mb_returns = b_returns[mb].reshape(-1)
 
-            if hasattr(data.agent, 'lstm'):
-                _, newlogprob, entropy, newvalue, lstm_state = data.agent.get_action_and_value(
-                    mb_obs, state=lstm_state, action=mb_actions)
+            if hasattr(data.agent, "lstm"):
+                (
+                    _,
+                    newlogprob,
+                    entropy,
+                    newvalue,
+                    lstm_state,
+                ) = data.agent.get_action_and_value(
+                    mb_obs, state=lstm_state, action=mb_actions
+                )
                 lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
             else:
                 _, newlogprob, entropy, newvalue = data.agent.get_action_and_value(
@@ -591,6 +558,9 @@ def train(data):
             nn.utils.clip_grad_norm_(data.agent.parameters(), config.max_grad_norm)
             data.optimizer.step()
 
+        #     prof.step()
+        # prof.export_chrome_trace("train.json")
+        # raise
         if config.target_kl is not None:
             if approx_kl > config.target_kl:
                 break
@@ -623,8 +593,15 @@ def train(data):
         print_dashboard(data.stats, data.init_performance, data.performance)
 
     data.update += 1
+    if data.update % 5 == 0 or done_training:
+        # Jerry-rigged logging cuz lazy
+        exp_path = Path(f'run_stats').with_suffix('.txt')
+        with open(config.data_dir / exp_path, 'w') as file:
+            file.write(f"{perf.epoch_sps}")
+        
     if data.update % config.checkpoint_interval == 0 or done_training(data):
        save_checkpoint(data)
+       copy_files(data.exp_name, data.update)
 
 def close(data):
     data.pool.close()

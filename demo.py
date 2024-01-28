@@ -6,6 +6,7 @@ import os
 import importlib
 import inspect
 import yaml
+import torch
 
 import pufferlib
 import pufferlib.utils
@@ -36,6 +37,23 @@ def load_from_config(env):
         combined_config[key] = {**defaults[key], **pkg_subconfig, **env_subconfig}
 
     return pkg, pufferlib.namespace(**combined_config)
+
+# # BET speed upgrade by thatguy
+# def make_policy(env, env_module, args):
+#     policy = env_module.Policy(env, **args.policy)
+#     if args.force_recurrence or env_module.Recurrent is not None:
+#         policy = env_module.Recurrent(env, policy, **args.recurrent)
+#         policy = pufferlib.frameworks.cleanrl.RecurrentPolicy(policy)
+#     else:
+#         policy = pufferlib.frameworks.cleanrl.Policy(policy)
+
+#     mode = "default"
+#     if args.train.device == "cuda":
+#         mode = "reduce-overhead"
+#     policy = policy.to(args.train.device, non_blocking=True)
+#     policy.get_value = torch.compile(policy.get_value, dynamic=True, mode=mode)
+#     policy.get_action_and_value = torch.compile(policy.get_action_and_value, dynamic=True, mode=mode)
+#     return policy
    
 def make_policy(env, env_module, args):
     policy = env_module.Policy(env, **args.policy)

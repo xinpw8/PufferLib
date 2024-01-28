@@ -68,9 +68,18 @@ for folder in os.listdir(sessions_path):
 
     # Store the session folder associated with the current log file
     current_session_folder = folder
+    
+    # List files in session_path dir
+    files_in_session = os.listdir(session_path)
+
+    # Filter env_ log files
+    env_log_files = [file for file in files_in_session if file.startswith('env_') and file.endswith('.txt')]
+    if env_log_files:
+    # Since there can be multiple log files, just take the first one
+        match = env_log_files[0]
 
     # Read the log file for each session
-    log_file_path = os.path.join(session_path, "pokemon_party_log.txt")
+    log_file_path = os.path.join(session_path, match)
 
     # Check if the log file exists
     if os.path.isfile(log_file_path):
