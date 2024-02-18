@@ -700,7 +700,7 @@ pokemon_red:
     gamma: 0.998
     batch_size: 32768
     batch_rows: 128
-    compile: True
+    compile: False
   env:
     name: pokemon_red
 pokemon-red:
