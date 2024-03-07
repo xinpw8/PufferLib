@@ -16,7 +16,7 @@ import torch
 
 
 def load_from_config(env):
-    with open('config.yaml') as f:
+    with open('config_jsuarez.yaml') as f:
         config = yaml.safe_load(f)
 
     assert env in config, f'"{env}" not found in config.yaml. Uncommon environments that are part of larger packages may not have their own config. Specify these manually using the parent package, e.g. --config atari --env MontezumasRevengeNoFrameskip-v4.'
@@ -165,7 +165,7 @@ def train(args, env_module, make_env):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parse environment argument', add_help=False)
-    parser.add_argument('--backend', type=str, default='clean_pufferl', help='Train backend (clean_pufferl, sb3)')
+    parser.add_argument('--backend', type=str, default='sb3', help='Train backend (clean_pufferl, sb3)')
     parser.add_argument('--config', type=str, default='pokemon_red', help='Configuration in config.yaml to use')
     parser.add_argument('--env', type=str, default=None, help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train', choices='train sweep evaluate'.split())
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('--baseline', action='store_true', help='Baseline run')
     parser.add_argument('--no-render', action='store_true', help='Disable render during evaluate')
     parser.add_argument('--exp-name', type=str, default=None, help="Resume from experiment")
-    parser.add_argument('--vectorization', type=str, default='serial', choices='serial multiprocessing ray'.split())
+    parser.add_argument('--vectorization', type=str, default='multiprocessing', choices='serial multiprocessing ray'.split())
     parser.add_argument('--wandb-entity', type=str, default='xinpw8', help='WandB entity')
     parser.add_argument('--wandb-project', type=str, default='pufferlib', help='WandB project')
     parser.add_argument('--wandb-group', type=str, default='debug', help='WandB group')
