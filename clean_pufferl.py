@@ -207,7 +207,10 @@ def create(
             torch.zeros(shape, device=device),
             torch.zeros(shape, device=device),
         )
-    obs=torch.zeros(config.batch_size + 1, *obs_shape, pin_memory=True) # added , pin_memory=True)
+    
+    obs=torch.zeros(config.batch_size + 1, *obs_shape,) # pin_memory=True) # added , pin_memory=True)    
+    # BET ADDED / DISABLED because little gpu :(    
+    # obs=torch.zeros(config.batch_size + 1, *obs_shape, pin_memory=True) # added , pin_memory=True)
     actions=torch.zeros(config.batch_size + 1, *atn_shape, dtype=int)
     logprobs=torch.zeros(config.batch_size + 1)
     rewards=torch.zeros(config.batch_size + 1)
@@ -233,8 +236,16 @@ def create(
         tensor_pytorch_memory = storage_profiler.pytorch_memory,
     )
     # Load map data
-    with open('/bet_adsorption_xinpw8/back2bulba2/pokegym/pokegym/map_data.json', 'r') as file:
+    # Get the directory of the current script
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Construct the path to map_data.json relative to the current script
+    map_data_path = os.path.join(current_script_dir, '../pokegym/pokegym/map_data.json')
+    # Now use the relative path to open the file
+    with open(map_data_path, 'r') as file:
         map_data = json.load(file)
+
+    # with open('/bet_adsorption_xinpw8/back2bulba2/pokegym/pokegym/map_data.json', 'r') as file:
+    #     map_data = json.load(file)
     total_envs = map_data
  
     return pufferlib.namespace(self,        
