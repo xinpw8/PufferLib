@@ -1,6 +1,5 @@
 #!/bin/bash
-python demo.py --backend clean_pufferl --config pokemon_red --no-render --vectorization multiprocessing --mode train --track --wandb-entity xinpw8 # --exp-name pokegym_test_pufferbox3_BET_2 # --exp-name boey_test_pufferbox5_1
-
+python demo.py --backend clean_pufferl --config pokemon_red --no-render --vectorization multiprocessing --mode train # --track --wandb-entity xinpw8 # --exp-name 1b_96_1_32_65k_lr_2e-4_num_minibatches_8_box4
 # change: double max_episode_steps doesn't work! pokemon don't level up at all; all stayed in pallet or went to battle rival
 # increase event_reward from 0.3 to 0.4. Uncomment healing reward (i.e. healing reward = 0). Did not work. Very slow to Pewter; does not even start badge.
 # Revert event reward to 0.3. Comment healing reward = 0, i.e. healing reward is back! Whoops - realized healing and seen_pokemon rewards set to 0.

@@ -132,3 +132,10 @@ dmypy.json
 
 # ROMs
 *.gb
+
+# BET ADDED
+experiments/
+**/state_*/
+
+core
+/wandb/

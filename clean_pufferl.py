@@ -22,8 +22,8 @@ import pufferlib.frameworks.cleanrl
 import pufferlib.policy_pool
 
 from collections import deque
-import sys
-sys.path.append('/bet_adsorption_xinpw8/back2bulba/Pufferlib')
+# import sys
+# sys.path.append('/bet_adsorption_xinpw8/back2bulba/Pufferlib')
 from pathlib import Path
 import json
 import pokemon_red_eval
@@ -88,7 +88,7 @@ def create(
     if exp_name is None:
         exp_name = str(uuid.uuid4())[:8]   
     # Base directory path
-    required_resources_dir = Path('/bet_adsorption_xinpw8/back2bulba/PufferLib/experiments') # Path('/home/daa/puffer0.5.2_iron/obs_space_experiments/pokegym/pokegym')
+    required_resources_dir = Path('/experiments') # Path('/home/daa/puffer0.5.2_iron/obs_space_experiments/pokegym/pokegym')
     # Path for the required_resources directory
     required_resources_path = required_resources_dir / "required_resources"
     required_resources_path.mkdir(parents=True, exist_ok=True)
@@ -233,7 +233,7 @@ def create(
         tensor_pytorch_memory = storage_profiler.pytorch_memory,
     )
     # Load map data
-    with open('/bet_adsorption_xinpw8/back2bulba/pokegym/pokegym/map_data.json', 'r') as file:
+    with open('/bet_adsorption_xinpw8/back2bulba2/pokegym/pokegym/map_data.json', 'r') as file:
         map_data = json.load(file)
     total_envs = map_data
  
@@ -460,27 +460,29 @@ def evaluate(data):
     data.max_stats = {} # BET ADDED 26
     infos = infos['learner']
     
-    if 'pokemon_exploration_map' in infos and data.update % 5 == 0:
+    try:
+        if 'pokemon_exploration_map' in infos and data.update % 5 == 0: # 5
         # # Create a mapping from map ID to name
         # map_id_to_name = {int(region["id"]): region["name"] for region in data.total_envs["regions"]}
         # if data.update % 10 == 0:
-        if 'pokemon_exploration_map' in infos:
-            for idx, pmap in zip(infos['env_id'], infos['pokemon_exploration_map']):
-                if not hasattr(data, 'map_updater'):
-                    data.map_updater = pokemon_red_eval.map_updater()
-                    data.map_buffer = np.zeros((data.config.num_envs, *pmap.shape))
-                data.map_buffer[idx] = pmap
-            pokemon_map = np.sum(data.map_buffer, axis=0)
-            rendered = data.map_updater(pokemon_map)
-            data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
+            if 'pokemon_exploration_map' in infos:
+                for idx, pmap in zip(infos['env_id'], infos['pokemon_exploration_map']):
+                    if not hasattr(data, 'map_updater'):
+                        data.map_updater = pokemon_red_eval.map_updater()
+                        data.map_buffer = np.zeros((data.config.num_envs, *pmap.shape))
+                    data.map_buffer[idx] = pmap
+                pokemon_map = np.sum(data.map_buffer, axis=0)
+                rendered = data.map_updater(pokemon_map)
+                data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
+
         # Process 'stats/map' and increment map_counts
         if 'stats/map' in infos:
             for item in infos['stats/map']:
                 if isinstance(item, int):
                     data.map_counts[item] += 1
-        # # Increment env_reports for each environment ID
-        # for env_id in infos['env_id']:
-        #     data.env_reports[env_id] += 1
+        # Increment env_reports for each environment ID
+        for env_id in infos['env_id']:
+            data.env_reports[env_id] += 1
         # Calculate mean for numeric data in infos and store in data.stats
         for k, v in infos.items():
             try:
@@ -500,7 +502,9 @@ def evaluate(data):
         # })
         # data.map_counts.clear()  # Reset map_counts for the next reporting period
         # data.env_reports.clear()  # Reset env_reports as well
-
+    except:
+        pass
+        print(f'for some reason clean_pufferl can"t do the counts map...')
 
     # data.stats = {}
 
