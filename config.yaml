@@ -57,12 +57,12 @@ pokemon_red:
   package: pokemon_red
   train:
     total_timesteps: 1_000_000_000
-    num_envs: 6 # 96 # 144 # 72
+    num_envs: 96 # 96 # 144 # 72
     envs_per_worker: 1 # 1
-    envs_per_batch: 2 # 48 # 32 # 24
-    update_epochs: 3 # 3
+    envs_per_batch: 48 # 48 # 32 # 24
+    update_epochs: 1 # 3
     gamma: 0.998
-    batch_size: 16384 # 65536 # 49152
+    batch_size: 16384 # 65536 # 65536 # 49152
     batch_rows: 128 # 128
   env:
     name: pokemon_red

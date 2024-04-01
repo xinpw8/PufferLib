@@ -348,9 +348,9 @@ def evaluate(data):
                 ii['env_id'] = ee
                 
         with inference_profiler, torch.no_grad():
-            o = torch.as_tensor(o).to(device=data.device, non_blocking=True)
-            r = (torch.as_tensor(r, dtype=torch.float32).to(device=data.device, non_blocking=True).view(-1))
-            d = (torch.as_tensor(d, dtype=torch.float32).to(device=data.device, non_blocking=True).view(-1))
+            o = torch.as_tensor(o).to(device=data.device, non_blocking=False)
+            r = (torch.as_tensor(r, dtype=torch.float32).to(device=data.device, non_blocking=False).view(-1))
+            d = (torch.as_tensor(d, dtype=torch.float32).to(device=data.device, non_blocking=False).view(-1))
 
             agent_steps_collected += sum(mask)
             padded_steps_collected += len(mask)
@@ -472,7 +472,7 @@ def evaluate(data):
     infos = infos['learner']
     
     try:
-        if 'pokemon_exploration_map' in infos and data.update % 5 == 0: # 5
+        if 'pokemon_exploration_map' in infos and data.update % 1 == 0: # 5
         # # Create a mapping from map ID to name
         # map_id_to_name = {int(region["id"]): region["name"] for region in data.total_envs["regions"]}
         # if data.update % 10 == 0:
@@ -594,11 +594,11 @@ def train(data):
                 delta + config.gamma * config.gae_lambda * nextnonterminal * lastgaelam
             )
 
-    data.b_obs = b_obs = data.obs[b_idxs].to(data.device, non_blocking=True) # torch.Tensor(data.obs_ary[b_idxs])
-    b_actions = torch.Tensor(data.actions_ary[b_idxs]).to(data.device, non_blocking=True)
-    b_logprobs = torch.Tensor(data.logprobs_ary[b_idxs]).to(data.device, non_blocking=True)
-    b_dones = torch.Tensor(data.dones_ary[b_idxs]).to(data.device, non_blocking=True)
-    b_values = torch.Tensor(data.values_ary[b_idxs]).to(data.device, non_blocking=True)
+    data.b_obs = b_obs = data.obs[b_idxs].to(data.device, non_blocking=False) # torch.Tensor(data.obs_ary[b_idxs])
+    b_actions = torch.Tensor(data.actions_ary[b_idxs]).to(data.device, non_blocking=False)
+    b_logprobs = torch.Tensor(data.logprobs_ary[b_idxs]).to(data.device, non_blocking=False)
+    b_dones = torch.Tensor(data.dones_ary[b_idxs]).to(data.device, non_blocking=False)
+    b_values = torch.Tensor(data.values_ary[b_idxs]).to(data.device, non_blocking=False)
 
     b_advantages = advantages.reshape(
         config.batch_rows, num_minibatches, config.bptt_horizon

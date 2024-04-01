@@ -77,7 +77,7 @@ class StreamWrapper(gym.Wrapper):
         self.coord_list.append([x_pos, y_pos, map_n])
         
         
-        self.stream_metadata["extra"] = f"uptime: {round(self.uptime(), 2)} min, reset#: {reset_count}, {env_id}"
+        self.stream_metadata["extra"] = f"uptime: {round(self.uptime(), 2)} min; reset#: {reset_count}; env_id: {env_id}"
         self.stream_metadata["color"] = next(self.color_generator)
         
         if self.steam_step_counter >= self.upload_interval:
