@@ -13,7 +13,8 @@ def map_updater():
 
 def make_pokemon_red_overlay(bg, counts):
     nonzero = np.where(counts > 0, 1, 0)
-    scaled = np.clip(counts, 0, 1000) / 1000.0
+    scaled = np.clip(counts, 0, 100) / 100.0
+    # scaled = np.clip(counts, 0, 1000) / 1000.0
 
     # Convert counts to hue map
     hsv = np.zeros((*counts.shape, 3))

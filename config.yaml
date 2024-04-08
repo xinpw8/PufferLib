@@ -24,7 +24,7 @@ train:
   env_pool: True
   verbose: True
   data_dir: experiments
-  checkpoint_interval: 200
+  checkpoint_interval: 10
   pool_kernel: [0]
   batch_size: 1024
   batch_rows: 32
@@ -32,6 +32,7 @@ train:
   vf_clip_coef: 0.1
   compile: False
   compile_mode: reduce-overhead
+  load_optimizer_state: False
 
 sweep:
   method: random
@@ -692,13 +693,13 @@ connect4:
 pokemon_red:
   package: pokemon_red
   train:
-    total_timesteps: 100_000_000
-    num_envs: 128
-    envs_per_worker: 4
-    envs_per_batch: 48 
+    total_timesteps: 100_000_000_000_000
+    num_envs: 96
+    envs_per_worker: 1
+    envs_per_batch: 4
     update_epochs: 3
     gamma: 0.998
-    batch_size: 32768
+    batch_size: 65536 # 32768
     batch_rows: 128
     compile: False
   env:

@@ -132,3 +132,7 @@ dmypy.json
 
 # ROMs
 *.gb
+
+# Other stuff
+/wandb
+/experiments
