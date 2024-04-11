@@ -218,7 +218,7 @@ def create(
             torch.zeros(shape, device=device),
             torch.zeros(shape, device=device),
         )
-    obs=torch.zeros(config.batch_size + 1, *obs_shape, pin_memory=False) # added , pin_memory=True)
+    obs=torch.zeros(config.batch_size + 1, *obs_shape, pin_memory=True) # added , pin_memory=True)
     actions=torch.zeros(config.batch_size + 1, *atn_shape, dtype=int)
     logprobs=torch.zeros(config.batch_size + 1)
     rewards=torch.zeros(config.batch_size + 1)
