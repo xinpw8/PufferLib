@@ -23,7 +23,7 @@ import pufferlib.policy_pool
 
 from collections import deque
 import sys
-sys.path.append('/bet_adsorption_xinpw8/bulba3/Pufferlib')
+sys.path.append('/bet_total_refactor/pufferlib/clean_pufferl.py')
 from pathlib import Path
 import json
 import pokemon_red_eval
@@ -88,9 +88,10 @@ def create(
     if exp_name is None:
         exp_name = str(uuid.uuid4())[:8]   
     # Base directory path
-    required_resources_dir = Path('/bet_adsorption_xinpw8/bulba3/PufferLib/experiments') # Path('/home/daa/puffer0.5.2_iron/obs_space_experiments/pokegym/pokegym')
+    experiments_base_dir = Path('/bet_total_refactor/pufferlib/experiments')
+    experiment_dir = experiments_base_dir / exp_name
     # Path for the required_resources directory
-    required_resources_path = required_resources_dir / "required_resources"
+    required_resources_path = experiment_dir / "required_resources"
     required_resources_path.mkdir(parents=True, exist_ok=True)
     # Files to be created in the required_resources directory
     files = ["running_experiment.txt", "test_exp.txt", "stats.txt"]
