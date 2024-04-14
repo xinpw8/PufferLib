@@ -42,7 +42,7 @@ class StreamWrapper(gym.Wrapper):
         self.loop.run_until_complete(
             self.establish_wc_connection()
         )
-        self.upload_interval = 55 # 25 for 1 agent (i.e. solo play) # 150
+        self.upload_interval = 455 # 25 for 1 agent (i.e. solo play) # 150
         self.steam_step_counter = 0
         self.coord_list = []
         self.start_time = time.time()        
@@ -78,7 +78,7 @@ class StreamWrapper(gym.Wrapper):
         
         
         self.stream_metadata["extra"] = f"uptime: {round(self.uptime(), 2)} min, reset#: {reset_count}, {env_id}"
-        self.stream_metadata["color"] = next(self.color_generator)
+        # self.stream_metadata["color"] = next(self.color_generator)
         
         if self.steam_step_counter >= self.upload_interval:
             self.loop.run_until_complete(

@@ -23,11 +23,13 @@ import pufferlib.policy_pool
 
 from collections import deque
 import sys
-sys.path.append('/bet_adsorption_xinpw8/bulba3/Pufferlib')
 from pathlib import Path
+working_dir = Path.cwd()
+sys.path.append(f'{working_dir}/clean_pufferl.py')
 import json
 import pokemon_red_eval
-
+from datetime import datetime
+   
 @pufferlib.dataclass
 class Performance:
     total_uptime = 0
@@ -82,31 +84,39 @@ def create(
         policy_selector: callable = pufferlib.policy_pool.random_selector,
     ):
 
+    # Easy logic for dir struct experiments/{exp_name}/sessions
+    # Get the current date and time
+    now = datetime.now()
+    date_time = now.strftime("%Y%m%d_%H%M%S")
+    num_dirs = len([d for d in working_dir.iterdir() if d.is_dir()])
+    sequence_number = num_dirs - 1
+    filename = f"{date_time}_{sequence_number}_"
+        
+    new_exp_name = str(uuid.uuid4())[:8]
+    new_exp_name = filename + new_exp_name
+    print(f'line33 CLEANPUFFERL: {new_exp_name}')
+    experiments_base_dir = working_dir / 'experiments'
+    experiment_dir = experiments_base_dir / new_exp_name
+    required_resources_path = experiment_dir / "required_resources"
+    required_resources_path.mkdir(parents=True, exist_ok=True)
+    files = ["running_experiment.txt"] #, "test_exp.txt", "stats.txt"]
+    for file_name in files:
+        file_path = required_resources_path / file_name
+        file_path.touch(exist_ok=True)
+    running_experiment_file_path = required_resources_path / "running_experiment.txt"
+    # test_exp_file_path = required_resources_path / "test_exp.txt"
+    print(f'36 {experiments_base_dir}\n37 {experiment_dir}\n38 {required_resources_path}\n48 {running_experiment_file_path}')
+    exp_name = f"{new_exp_name}"
+    with open(running_experiment_file_path, 'w') as file:
+        file.write(f"{exp_name}")
+    
     if config is None:
         config = pufferlib.args.CleanPuffeRL() 
     # Check if exp_name is set, otherwise generate a new one
     if exp_name is None:
-        exp_name = str(uuid.uuid4())[:8]   
-    # Base directory path
-    required_resources_dir = Path('/bet_adsorption_xinpw8/bulba3/PufferLib/experiments') # Path('/home/daa/puffer0.5.2_iron/obs_space_experiments/pokegym/pokegym')
-    # Path for the required_resources directory
-    required_resources_path = required_resources_dir / "required_resources"
-    required_resources_path.mkdir(parents=True, exist_ok=True)
-    # Files to be created in the required_resources directory
-    files = ["running_experiment.txt", "test_exp.txt", "stats.txt"]
-    # Create the files if they do not exist
-    for file_name in files:
-        file_path = required_resources_path / file_name
-        file_path.touch(exist_ok=True)  # Creates the file if it doesn't exist, without erasing content if it does
-    # Now, you can correctly specify the file path for each file
-    running_experiment_file_path = required_resources_path / "running_experiment.txt"
-    test_exp_file_path = required_resources_path / "test_exp.txt"
-    # Write the experiment name to "running_experiment.txt" for environment.py folder logic
-    # TODO: write to json for easier reading
-    exp_name = f"{exp_name}"
-    with open(running_experiment_file_path, 'w') as file:
-        file.write(f"{exp_name}")
-        
+        exp_name = new_exp_name
+        # exp_name = str(uuid.uuid4())[:8]
+    
     wandb = None
     if track:
         import wandb
@@ -117,9 +127,9 @@ def create(
 
     device = config.device
 
-    # Write parsed config to file; environment.py reads for initialization
-    with open(test_exp_file_path, 'w') as file:
-        file.write(f"{config}")    
+    # # Write parsed config to file; environment.py reads for initialization
+    # with open(test_exp_file_path, 'w') as file:
+    #     file.write(f"{config}")    
 
     # Create environments, agent, and optimizer
     init_profiler = pufferlib.utils.Profiler(memory=True)
