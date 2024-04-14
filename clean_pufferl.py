@@ -23,10 +23,6 @@ import pufferlib.policy_pool
 
 from collections import deque
 import sys
-<<<<<<< HEAD
-=======
-sys.path.append('/bet_total_refactor/pufferlib/clean_pufferl.py')
->>>>>>> 95eae80b4c54b90338e7c61051575f445a25b83c
 from pathlib import Path
 working_dir = Path.cwd()
 sys.path.append(f'{working_dir}/clean_pufferl.py')
@@ -88,7 +84,6 @@ def create(
         policy_selector: callable = pufferlib.policy_pool.random_selector,
     ):
 
-<<<<<<< HEAD
     # Easy logic for dir struct experiments/{exp_name}/sessions
     # Get the current date and time
     now = datetime.now()
@@ -102,17 +97,6 @@ def create(
     print(f'line33 CLEANPUFFERL: {new_exp_name}')
     experiments_base_dir = working_dir / 'experiments'
     experiment_dir = experiments_base_dir / new_exp_name
-=======
-    if config is None:
-        config = pufferlib.args.CleanPuffeRL() 
-    # Check if exp_name is set, otherwise generate a new one
-    if exp_name is None:
-        exp_name = str(uuid.uuid4())[:8]   
-    # Base directory path
-    experiments_base_dir = Path('/bet_total_refactor/pufferlib/experiments')
-    experiment_dir = experiments_base_dir / exp_name
-    # Path for the required_resources directory
->>>>>>> 95eae80b4c54b90338e7c61051575f445a25b83c
     required_resources_path = experiment_dir / "required_resources"
     required_resources_path.mkdir(parents=True, exist_ok=True)
     files = ["running_experiment.txt"] #, "test_exp.txt", "stats.txt"]
