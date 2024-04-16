@@ -12,6 +12,8 @@ import pufferlib
 import pufferlib.utils
 
 import clean_pufferl
+from multiprocessing import Queue
+from pokegym.wrappers.async_io import AsyncWrapper
 
 
 def load_from_config(env):
@@ -105,19 +107,61 @@ def get_init_args(fn):
             args[name] = param.default if param.default is not inspect.Parameter.empty else None
     return args
 
+# def train(args, env_module, make_env):
+#     if args.backend == 'clean_pufferl':
+#         env_send_queues = [Queue() for _ in range(args.train.num_envs + 1)]
+#         env_recv_queues = [Queue() for _ in range(args.train.num_envs + 1)]
+#         data = clean_pufferl.create(
+#             config=args.train,
+#             agent_creator=make_policy,
+#             agent_kwargs={'env_module': env_module, 'args': args},
+#             env_creator=make_env,
+#             env_creator_kwargs={
+#             "env_config": args.env,  # Pass any additional required configuration for the environment
+#             "async_config": {"send_queues": env_send_queues, "recv_queues": env_recv_queues}  # Include the async_config with queues
+#         }, ##,args.env,
+#             vectorization=args.vectorization,
+#             exp_name=args.exp_name,
+#             track=args.track,
+#             async_config=dict[str, Queue],
+#         )
+
+#         while not clean_pufferl.done_training(data):
+#             clean_pufferl.evaluate(data)
+#             clean_pufferl.train(data)
+
+#         print('Done training. Saving data...')
+#         clean_pufferl.close(data)
+#         print('Run complete')
+
 def train(args, env_module, make_env):
     if args.backend == 'clean_pufferl':
+        # Initialize queues for async communication
+        env_send_queues = [Queue() for _ in range(args.train.num_envs + 1)]
+        env_recv_queues = [Queue() for _ in range(args.train.num_envs + 1)]
+        
+        # Build the env_creator_kwargs with async_config included
+        env_creator_kwargs = {
+            "env_config": args.env,  # Your existing environment configuration
+            "async_config": {
+                "send_queues": env_send_queues,
+                "recv_queues": env_recv_queues
+            }
+        }
+
+        # Create and configure the clean_pufferl training session
         data = clean_pufferl.create(
             config=args.train,
             agent_creator=make_policy,
             agent_kwargs={'env_module': env_module, 'args': args},
             env_creator=make_env,
-            env_creator_kwargs=args.env,
+            env_creator_kwargs=env_creator_kwargs,
             vectorization=args.vectorization,
             exp_name=args.exp_name,
             track=args.track,
         )
 
+        # Run the training loop
         while not clean_pufferl.done_training(data):
             clean_pufferl.evaluate(data)
             clean_pufferl.train(data)
@@ -125,6 +169,7 @@ def train(args, env_module, make_env):
         print('Done training. Saving data...')
         clean_pufferl.close(data)
         print('Run complete')
+            
     elif args.backend == 'sb3':
         from stable_baselines3 import PPO
         from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -158,6 +203,7 @@ if __name__ == '__main__':
     parser.add_argument('--wandb-group', type=str, default='debug', help='WandB group')
     parser.add_argument('--track', action='store_true', help='Track on WandB')
     parser.add_argument('--force-recurrence', action='store_true', help='Force model to be recurrent, regardless of defaults')
+    parser.add_argument('-r', '--reward-name', default='', help='The Lord helps those who help themselves...')
 
     clean_parser = argparse.ArgumentParser(parents=[parser])
     args = parser.parse_known_args()[0].__dict__

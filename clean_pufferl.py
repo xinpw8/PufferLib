@@ -29,7 +29,14 @@ sys.path.append(f'{working_dir}/clean_pufferl.py')
 import json
 import pokemon_red_eval
 from datetime import datetime
-   
+import heapq
+import math
+from datetime import timedelta
+import io
+from multiprocessing import Queue
+from typing import Any, Callable
+
+
 @pufferlib.dataclass
 class Performance:
     total_uptime = 0
@@ -84,6 +91,9 @@ def create(
         policy_selector: callable = pufferlib.policy_pool.random_selector,
     ):
 
+    env_send_queues = env_creator_kwargs["async_config"]["send_queues"]
+    env_recv_queues = env_creator_kwargs["async_config"]["recv_queues"]
+
     # Easy logic for dir struct experiments/{exp_name}/sessions
     # Get the current date and time
     now = datetime.now()
@@ -131,7 +141,21 @@ def create(
     # with open(test_exp_file_path, 'w') as file:
     #     file.write(f"{config}")    
 
-    # Create environments, agent, and optimizer
+    # # Create environments, agent, and optimizer
+    # init_profiler = pufferlib.utils.Profiler(memory=True)
+    # with init_profiler:
+    #     pool = vectorization(
+    #         env_creator,
+    #         env_kwargs=env_creator_kwargs,
+    #         num_envs=config.num_envs,
+    #         envs_per_worker=config.envs_per_worker,
+    #         envs_per_batch=config.envs_per_batch,
+    #         env_pool=config.env_pool,
+    #         mask_agents=True,
+    #     )
+    #     print(f'pool=cprl  {pool}')
+    
+        # Create environments, agent, and optimizer
     init_profiler = pufferlib.utils.Profiler(memory=True)
     with init_profiler:
         pool = vectorization(
@@ -143,7 +167,19 @@ def create(
             env_pool=config.env_pool,
             mask_agents=True,
         )
-        print(f'pool=cprl  {pool}')
+        print(f'pool created with configuration: {pool}')
+
+    # Ensure the pool has been created before using it
+    if not pool:
+        raise Exception("Failed to create pool. Check vectorization and env_creator configurations.")
+
+    # Reset the pool with the provided seed
+    try:
+        pool.async_reset(config.seed)
+        print("Pool has been reset with the seed.")
+    except AttributeError as e:
+        print(f"Error during pool reset: {e}")
+        raise
 
     obs_shape = pool.single_observation_space.shape
     atn_shape = pool.single_action_space.shape
@@ -153,6 +189,9 @@ def create(
     agent = pufferlib.emulation.make_object(
         agent, agent_creator, [pool.driver_env], agent_kwargs
         )
+
+    # env_send_queues: list[Queue] = env_creator_kwargs["async_config"]["send_queues"]
+    # env_recv_queues: list[Queue] = env_creator_kwargs["async_config"]["recv_queues"]
 
     resume_state = {}
     
@@ -215,8 +254,10 @@ def create(
         policy_selector,
     )
 
+
     # Allocate Storage
     storage_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True).start()
+    self.pool.async_reset(self.pool, config.seed)
     next_lstm_state = []
     pool.async_reset(config.seed)
     next_lstm_state = None
@@ -228,7 +269,7 @@ def create(
             torch.zeros(shape, device=device),
             torch.zeros(shape, device=device),
         )
-    obs=torch.zeros(config.batch_size + 1, *obs_shape, pin_memory=False) # added , pin_memory=True)
+    obs=torch.zeros(config.batch_size + 1, *obs_shape, pin_memory=True) # added , pin_memory=True)
     actions=torch.zeros(config.batch_size + 1, *atn_shape, dtype=int)
     logprobs=torch.zeros(config.batch_size + 1)
     rewards=torch.zeros(config.batch_size + 1)
@@ -328,7 +369,47 @@ def evaluate(data):
         
         # Log the data
         data.wandb.log(log_dict)
-
+        
+        # now for a tricky bit:
+        # if we have swarm_frequency, we will take the top swarm_pct envs and evenly distribute
+        # if we have swarm_frequency, we will take the top swarm_pct envs and evenly distribute
+        # their states to the bottom 90%.
+        # their states to the bottom 90%.
+        # we do this here so the environment can remain "pure"
+        # we do this here so the environment can remain "pure"
+        if (
+            hasattr(data.config, "swarm_frequency")
+            and hasattr(data.config, "swarm_keep_pct")
+            and data.update % data.config.swarm_frequency == 0
+            and "learner" in data.infos
+            and "stats/event" in data.infos["learner"]
+        ):
+            # collect the top swarm_keep_pct % of envs
+            largest = [
+                x[0]
+                for x in heapq.nlargest(
+                    math.ceil(data.config.num_envs * data.config.swarm_keep_pct),
+                    enumerate(data.infos["learner"]["stats/event"]),
+                    key=lambda x: x[1],
+                )
+            ]
+            print("Migrating states:")
+            waiting_for = []
+            # Need a way not to reset the env id counter for the driver env
+            # Until then env ids are 1-indexed
+            for i in range(data.config.num_envs):
+                if i not in largest:
+                    new_state = random.choice(largest)
+                    print(
+                        f'\t {i+1} -> {new_state+1}, event scores: {data.infos["learner"]["stats/event"][i]} -> {data.infos["learner"]["stats/event"][new_state]}'
+                    )
+                    data.env_recv_queues[i + 1].put(data.infos["learner"]["state"][new_state])
+                    waiting_for.append(i + 1)
+            for i in waiting_for:
+                data.env_send_queues[i].get()
+        
+        
+        
         # For diagnostic purposes, print the 'stats' part of the log_dict
         # You can't unpack in a print statement directly, so we filter the keys that start with 'stats/'
         # stats_unpacked = {k: v for k, v in log_dict.items()} # if k.startswith('stats/')}
