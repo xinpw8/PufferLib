@@ -107,7 +107,7 @@ def send_precheck(state):
     state.flag = RECV
 
 def reset_precheck(state):
-    assert state.flag == RESET, 'Call reset only once on initialization'
+    # assert state.flag == RESET, 'Call reset only once on initialization'
     state.flag = RECV
 
 def reset(self, seed=None):

@@ -257,10 +257,10 @@ def create(
 
     # Allocate Storage
     storage_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True).start()
-    self.pool.async_reset(self.pool, config.seed)
-    next_lstm_state = []
     pool.async_reset(config.seed)
-    next_lstm_state = None
+    next_lstm_state = []
+    # pool.async_reset(config.seed)
+    # next_lstm_state = None
     
     # BET ADDED 15 (through line 172)
     if hasattr(agent, "lstm"):
@@ -372,10 +372,7 @@ def evaluate(data):
         
         # now for a tricky bit:
         # if we have swarm_frequency, we will take the top swarm_pct envs and evenly distribute
-        # if we have swarm_frequency, we will take the top swarm_pct envs and evenly distribute
         # their states to the bottom 90%.
-        # their states to the bottom 90%.
-        # we do this here so the environment can remain "pure"
         # we do this here so the environment can remain "pure"
         if (
             hasattr(data.config, "swarm_frequency")
