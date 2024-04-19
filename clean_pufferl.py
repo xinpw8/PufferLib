@@ -35,6 +35,7 @@ from datetime import timedelta
 import io
 from multiprocessing import Queue
 from typing import Any, Callable
+from eval import make_pokemon_red_overlay
 
 
 @pufferlib.dataclass
@@ -91,9 +92,14 @@ def create(
         policy_selector: callable = pufferlib.policy_pool.random_selector,
     ):
 
+
     env_send_queues = env_creator_kwargs["async_config"]["send_queues"]
     env_recv_queues = env_creator_kwargs["async_config"]["recv_queues"]
 
+    # # At the end of the clean_pufferl.create function
+    # print(f"Send Queues: {data.env_send_queues}, Receive Queues: {data.env_recv_queues}")
+    
+    
     # Easy logic for dir struct experiments/{exp_name}/sessions
     # Get the current date and time
     now = datetime.now()
@@ -155,7 +161,7 @@ def create(
     #     )
     #     print(f'pool=cprl  {pool}')
     
-        # Create environments, agent, and optimizer
+    # Create environments, agent, and optimizer
     init_profiler = pufferlib.utils.Profiler(memory=True)
     with init_profiler:
         pool = vectorization(
@@ -189,10 +195,7 @@ def create(
     agent = pufferlib.emulation.make_object(
         agent, agent_creator, [pool.driver_env], agent_kwargs
         )
-
-    # env_send_queues: list[Queue] = env_creator_kwargs["async_config"]["send_queues"]
-    # env_recv_queues: list[Queue] = env_creator_kwargs["async_config"]["recv_queues"]
-
+    
     resume_state = {}
     
     # Assuming `path` is correctly set to the experiment's directory
@@ -342,6 +345,10 @@ def create(
         dones_ary = dones_ary,
         truncateds_ary = truncateds_ary,
         values_ary = values_ary,
+        
+        # Swarming
+        env_send_queues = env_send_queues,
+        env_recv_queues = env_recv_queues,
 
         # Misc
         total_updates = total_updates,
@@ -374,38 +381,65 @@ def evaluate(data):
         # if we have swarm_frequency, we will take the top swarm_pct envs and evenly distribute
         # their states to the bottom 90%.
         # we do this here so the environment can remain "pure"
+        # print(f'cleanpufferl data.infos LINE 377 {data.infos}')
+        # if "learner" in data.infos:
+        #     print(f'cleanpufferl data.infos["learner"] LINE 378 {data.infos["learner"]}')
+        # else:
+        #     print(f'learner NOT FOUND IN data.infos!!! update#{data.update}')
+        # self.badges_reward
+
         if (
-            hasattr(data.config, "swarm_frequency")
-            and hasattr(data.config, "swarm_keep_pct")
-            and data.update % data.config.swarm_frequency == 0
-            and "learner" in data.infos
-            and "stats/event" in data.infos["learner"]
+            hasattr(data.config, "swarm_frequency") and
+            hasattr(data.config, "swarm_keep_pct") and
+            "learner" in data.infos and
+            "stats/badges" in data.infos["learner"]
         ):
-            # collect the top swarm_keep_pct % of envs
-            largest = [
-                x[0]
-                for x in heapq.nlargest(
-                    math.ceil(data.config.num_envs * data.config.swarm_keep_pct),
-                    enumerate(data.infos["learner"]["stats/event"]),
-                    key=lambda x: x[1],
-                )
-            ]
-            print("Migrating states:")
-            waiting_for = []
-            # Need a way not to reset the env id counter for the driver env
-            # Until then env ids are 1-indexed
-            for i in range(data.config.num_envs):
-                if i not in largest:
-                    new_state = random.choice(largest)
-                    print(
-                        f'\t {i+1} -> {new_state+1}, event scores: {data.infos["learner"]["stats/event"][i]} -> {data.infos["learner"]["stats/event"][new_state]}'
+            badge_threshold = (data.config.swarm_frequency % 3) + 1  # Determines which badge level to check (1, 2, or 3)
+            badge_counts = data.infos["learner"]["stats/badges"]
+
+            # Calculate the percentage of environments with the current badge level or higher
+            num_envs_with_current_badge = sum(1 for badge in badge_counts if badge >= badge_threshold)
+            percentage_with_current_badge = num_envs_with_current_badge / data.config.num_envs
+            print(f'Badge Level: {badge_threshold}, Percentage with Badge >= {badge_threshold}: {percentage_with_current_badge}, Required Percentage: {data.config.swarm_keep_pct}')
+
+            # Check if the percentage of environments meeting the current badge level is enough
+            if percentage_with_current_badge >= data.config.swarm_keep_pct:
+                # Collect the top swarm_keep_pct % of envs based on badges
+                largest = [
+                    x[0]
+                    for x in heapq.nlargest(
+                        math.ceil(data.config.num_envs * data.config.swarm_keep_pct),
+                        enumerate(badge_counts),
+                        key=lambda x: x[1],
                     )
-                    data.env_recv_queues[i + 1].put(data.infos["learner"]["state"][new_state])
-                    waiting_for.append(i + 1)
-            for i in waiting_for:
-                data.env_send_queues[i].get()
-        
-        
+                ]
+                data.config.swarm_frequency += 1 
+                print("Migrating states:")
+                waiting_for = []
+                # Need a way not to reset the env id counter for the driver env
+                # Until then env ids are 1-indexed
+                for i in range(data.config.num_envs):
+                    if i not in largest:
+                        new_state = random.choice(largest)
+                        print(
+                            f'\t {i+1} -> {new_state+1}, badges scores: {data.infos["learner"]["stats/badges"][i]} -> {data.infos["learner"]["stats/badges"][new_state]}'
+                            # f'\t {i+1} -> {new_state+1}, event scores: {data.infos["learner"]["stats/event"][i]} -> {data.infos["learner"]["stats/event"][new_state]}'
+                        )
+                        # print(f"Putting state in receive queue for env {i+1}")
+                        data.env_recv_queues[i + 1].put(data.infos["learner"]["state"][new_state])
+                        # data.env_recv_queues[i + 1].put(data.infos["learner"]["state"][new_state])
+                        # print(f"State put successfully for env {i+1}")
+                        waiting_for.append(i + 1)
+            
+                for i in waiting_for:
+                    try:
+                        # print(f"Waiting to receive confirmation from env {i}")
+                        data.env_send_queues[i].get()
+
+                        # print(f"Received confirmation from env {i}")
+                    except Exception as e:
+                        # print(f"Error processing in env {i}: {e}")
+                        data.env_send_queues[i].put(None)                       
         
         # For diagnostic purposes, print the 'stats' part of the log_dict
         # You can't unpack in a print statement directly, so we filter the keys that start with 'stats/'
@@ -483,23 +517,23 @@ def evaluate(data):
             ptr += len(indices)
             
 
-            for policy_name, policy_i in i.items():
-                for agent_i in policy_i:
-                    for name, dat in unroll_nested_dict(agent_i):
-                        infos[policy_name][name].append(dat)
-
-
             # for policy_name, policy_i in i.items():
             #     for agent_i in policy_i:
             #         for name, dat in unroll_nested_dict(agent_i):
-            #             if policy_name not in data.infos:
-            #                 data.infos[policy_name] = {}
-            #             if name not in data.infos[policy_name]:
-            #                 data.infos[policy_name][name] = [
-            #                     np.zeros_like(dat)
-            #                 ] * config.num_envs
-            #             data.infos[policy_name][name][agent_i["env_id"]] = dat
-            #             # infos[policy_name][name].append(dat)
+            #             infos[policy_name][name].append(dat)
+
+
+            for policy_name, policy_i in i.items():
+                for agent_i in policy_i:
+                    for name, dat in unroll_nested_dict(agent_i):
+                        if policy_name not in data.infos:
+                            data.infos[policy_name] = {}
+                        if name not in data.infos[policy_name]:
+                            data.infos[policy_name][name] = [
+                                np.zeros_like(dat)
+                            ] * config.num_envs
+                        data.infos[policy_name][name][agent_i["env_id"]] = dat
+                        # infos[policy_name][name].append(dat)
         with env_profiler:
             data.pool.send(actions)
 
@@ -527,16 +561,16 @@ def evaluate(data):
     eval_profiler.stop()
 
     data.global_step += padded_steps_collected
-    ## thatguy steps (cuz why not?)
-    # if "learner" in data.infos and "stats/step" in data.infos["learner"]:
-    #     try:
-    #         new_step = np.mean(data.infos["learner"]["stats/step"])
-    #         if new_step > data.global_step:
-    #             data.global_step = new_step
-    #             data.log = True
-    #     except KeyError:
-    #         print(f'KeyError clean_pufferl data.infos["learner"]["stats/step"]')
-    #         pass
+    # thatguy steps (cuz why not?)
+    if "learner" in data.infos and "stats/step" in data.infos["learner"]:
+        try:
+            new_step = np.mean(data.infos["learner"]["stats/step"])
+            if new_step > data.global_step:
+                data.global_step = new_step
+                data.log = True
+        except KeyError:
+            print(f'KeyError clean_pufferl data.infos["learner"]["stats/step"]')
+            pass
 
     data.reward = float(torch.mean(data.rewards))
     data.SPS = int(padded_steps_collected / eval_profiler.elapsed)
@@ -559,35 +593,37 @@ def evaluate(data):
     data.max_stats = {} # BET ADDED 26
     infos = infos['learner']
     
-    if data.wandb is not None:
-        if 'pokemon_exploration_map' in infos and data.update % 5 == 0:
-            # # Create a mapping from map ID to name
-            # map_id_to_name = {int(region["id"]): region["name"] for region in data.total_envs["regions"]}
-            # if data.update % 10 == 0:
-            if 'pokemon_exploration_map' in infos:
-                for idx, pmap in zip(infos['env_id'], infos['pokemon_exploration_map']):
-                    if not hasattr(data, 'map_updater'):
-                        data.map_updater = pokemon_red_eval.map_updater()
-                        data.map_buffer = np.zeros((data.config.num_envs, *pmap.shape))
-                    data.map_buffer[idx] = pmap
-                pokemon_map = np.sum(data.map_buffer, axis=0)
-                rendered = data.map_updater(pokemon_map)
-                data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
-            # Process 'stats/map' and increment map_counts
-            if 'stats/map' in infos:
-                for item in infos['stats/map']:
-                    if isinstance(item, int):
-                        data.map_counts[item] += 1
-            # # Increment env_reports for each environment ID
-            # for env_id in infos['env_id']:
-            #     data.env_reports[env_id] += 1
-            # Calculate mean for numeric data in infos and store in data.stats
-            for k, v in infos.items():
-                try:
-                    if isinstance(v, list) and all(isinstance(x, (int, float)) for x in v):
-                        data.stats[k] = np.mean(v)
-                except Exception as e:
-                    print(f"Error processing {k}: {e}")
+    # if data.wandb is not None:
+    #     if 'pokemon_exploration_map' in infos and data.update % 5 == 0:
+    #         # # Create a mapping from map ID to name
+    #         # map_id_to_name = {int(region["id"]): region["name"] for region in data.total_envs["regions"]}
+    #         # if data.update % 10 == 0:
+    #         if 'pokemon_exploration_map' in infos:
+    #             for idx, pmap in zip(infos['env_id'], infos['pokemon_exploration_map']):
+    #                 if not hasattr(data, 'map_updater'):
+    #                     data.map_updater = pokemon_red_eval.map_updater()
+    #                     data.map_buffer = np.zeros((data.config.num_envs, *pmap.shape))
+    #                 data.map_buffer[idx] = pmap
+    #             pokemon_map = np.sum(data.map_buffer, axis=0)
+    #             rendered = data.map_updater(pokemon_map)
+    #             data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
+    #         # Process 'stats/map' and increment map_counts
+    #         if 'stats/map' in infos:
+    #             for item in infos['stats/map']:
+    #                 if isinstance(item, int):
+    #                     data.map_counts[item] += 1
+    #         # # Increment env_reports for each environment ID
+    #         # for env_id in infos['env_id']:
+    #         #     data.env_reports[env_id] += 1
+    #         # Calculate mean for numeric data in infos and store in data.stats
+    #         for k, v in infos.items():
+    #             try:
+    #                 if isinstance(v, list) and all(isinstance(x, (int, float)) for x in v):
+    #                     data.stats[k] = np.mean(v)
+    #             except Exception as e:
+    #                 print(f"Error processing {k}: {e}")
+                    
+                    
         # # Prepare data for the bar chart
         # labels = [f"{map_id} - {map_id_to_name.get(map_id, 'Unknown')}" for map_id in data.map_counts.keys()]
         # values = list(data.map_counts.values())
@@ -608,6 +644,34 @@ def evaluate(data):
     # # log_path = os.path.join(data.config.data_dir, data.exp_name, logging)
     # # if not os.path.exists(log_path):
     # #     os.makedirs(log_path)
+
+    data.stats = {}
+    data.max_stats = {}
+    for k, v in data.infos["learner"].items():
+        if "pokemon_exploration_map" in k:
+            if data.update % 20 == 0: # config.overlay_interval == 0:
+                overlay = make_pokemon_red_overlay(np.stack(v, axis=0))
+                if data.wandb is not None:
+                    data.stats["Media/aggregate_exploration_map"] = data.wandb.Image(overlay)
+        elif "cut_exploration_map" in k: # and config.save_overlay is True:
+            if data.update % config.overlay_interval == 0:
+                overlay = make_pokemon_red_overlay(np.stack(v, axis=0))
+                if data.wandb is not None:
+                    data.stats["Media/aggregate_cut_exploration_map"] = data.wandb.Image(
+                        overlay
+                    )
+        elif "state" in k:
+            pass
+        else:
+            try:  # TODO: Better checks on log data types
+                # data.stats[f"Histogram/{k}"] = data.wandb.Histogram(v, num_bins=16)
+                data.stats[k] = np.mean(v)
+                data.max_stats[k] = np.max(v)
+            except:  # noqa
+                continue
+
+    if config.verbose:
+        print_dashboard(data.stats, data.init_performance, data.performance)
 
     # for k, v in infos['learner'].items():
     #     if 'Task_eval_fn' in k:
@@ -877,7 +941,7 @@ def save_checkpoint(data):
     if os.path.exists(model_path):
         return model_path
 
-    # To handleboth uncompiled and compiled self.agent, when getting state_dict()
+    # To handleboth uncompiled and compiled data.agent, when getting state_dict()
     torch.save(getattr(data.agent, "_orig_mod", data.agent).state_dict(), model_path)
     # torch.save(data.uncompiled_agent, model_path)
 

@@ -134,6 +134,7 @@ def get_init_args(fn):
 #         clean_pufferl.close(data)
 #         print('Run complete')
 
+
 def train(args, env_module, make_env):
     if args.backend == 'clean_pufferl':
         # Initialize queues for async communication
@@ -218,6 +219,7 @@ if __name__ == '__main__':
     # Get the make function for the environment
     env_name = args['env'] or config.env.pop('name')
     make_env = env_module.env_creator(env_name)
+
 
     # Update config with environment defaults
     config.env = {**get_init_args(make_env), **config.env}
