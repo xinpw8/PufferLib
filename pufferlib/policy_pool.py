@@ -54,7 +54,7 @@ class PolicyPool:
         # Create ranker and storage
         self.store = pufferlib.policy_store.PolicyStore(data_dir)
         self.policy_selector = policy_selector
-        self.update_policies()
+        # self.update_policies()
 
         self.ranker = pufferlib.policy_ranker.Ranker(
             os.path.join(data_dir, "elo.db"))
@@ -120,6 +120,7 @@ class PolicyPool:
         return policy_infos
 
     def update_policies(self):
+        pass
         policy_names = self.store.policy_names()
         selected_names = self.policy_selector(policy_names, self.num_policies-1)
         self.policies = {

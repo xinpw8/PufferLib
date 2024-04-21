@@ -35,6 +35,7 @@ class StreamWrapper(gym.Wrapper):
         self.color_generator = color_generator(step=2) # step=1
         # self.ws_address = "wss://poke-ws-test-ulsjzjzwpa-ue.a.run.app/broadcast"
         self.ws_address = "wss://transdimensional.xyz/broadcast"
+        # self.ws_address = "ws://theleanke.com/broadcast"
         self.stream_metadata = stream_metadata
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -42,7 +43,7 @@ class StreamWrapper(gym.Wrapper):
         self.loop.run_until_complete(
             self.establish_wc_connection()
         )
-        self.upload_interval = 455 # 25 for 1 agent (i.e. solo play) # 150
+        self.upload_interval = 250 # 25 for 1 agent (i.e. solo play) # 150
         self.steam_step_counter = 0
         self.coord_list = []
         self.start_time = time.time()        

@@ -23,7 +23,7 @@ def env_creator(name="pokemon_red"):
 def make(name, **kwargs,):
     """Pokemon Red"""
     env = Environment(kwargs)
-    env = StreamWrapper(env, stream_metadata={"user": "checkpoings |BET|\n"})
+    env = StreamWrapper(env, stream_metadata={"user": "hileanke testingonly |BET|\n"})
     return pufferlib.emulation.GymnasiumPufferEnv(
         env=env, postprocessor_cls=pufferlib.emulation.BasicPostprocessor
     )
