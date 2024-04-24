@@ -6,6 +6,7 @@ import os
 import random
 import time
 import uuid
+import logging
 
 from collections import defaultdict
 from datetime import timedelta
@@ -115,16 +116,81 @@ def create(
     experiment_dir = experiments_base_dir / new_exp_name
     required_resources_path = experiment_dir / "required_resources"
     required_resources_path.mkdir(parents=True, exist_ok=True)
-    files = ["running_experiment.txt"] #, "test_exp.txt", "stats.txt"]
+    files = ["running_experiment.txt", "clean_pufferl_log.log", "percent_complete.txt", "eviction_trigger_fractions.json", "eviction_penalty.json"] #, "test_exp.txt", "stats.txt"]
     for file_name in files:
         file_path = required_resources_path / file_name
         file_path.touch(exist_ok=True)
     running_experiment_file_path = required_resources_path / "running_experiment.txt"
+    log_file_path = required_resources_path / "clean_pufferl_log.log"
+    percent_complete_path = required_resources_path / "percent_complete.txt"
+    trigger_fractions_path = required_resources_path / "trigger_fractions.json"
+    eviction_trigger_fractions_path = required_resources_path / "eviction_trigger_fractions.json"
+    eviction_penalty_file_path = required_resources_path / "eviction_penalty.json"
+    
     # test_exp_file_path = required_resources_path / "test_exp.txt"
-    print(f'36 {experiments_base_dir}\n37 {experiment_dir}\n38 {required_resources_path}\n48 {running_experiment_file_path}')
+    print(f'\n{experiments_base_dir}\n{experiment_dir}\n{required_resources_path}\n{running_experiment_file_path}\n{percent_complete_path}\n{trigger_fractions_path}\n')
     exp_name = f"{new_exp_name}"
     with open(running_experiment_file_path, 'w') as file:
         file.write(f"{exp_name}")
+        
+    config.swarm_trigger_condition = []
+
+    eviction_trigger_fractions_dict = {"badge_1": 0.8,
+                                        "badge_2": 0.8,
+                                        "badge_3": 0.5,
+                                        "badge_4": 0.2,
+                                        "badge_5": 0.1,
+                                        "badge_6": 0.1,
+                                        "badge_7": 0.1,
+                                        "badge_8": 0.1,
+                                        "bills_house": 0.7,
+                                        "rocket_hideout": 0.4,
+                                        "pokemon_tower": 0.2,
+                                        "silph_co": 0.1,
+                                        }
+    
+    eviction_penalty_dict = {
+                             "eviction_penalty": -0.001,
+                             "turbo_exp_boost": 0,
+                             "blackout": "", 
+                             "pokemon_1_hp_numerator": "",
+                             "pokemon_1_hp_denominator": "",
+                             "pokemon_2_hp_numerator": "",
+                             "pokemon_2_hp_denominator": "",
+                             "pokemon_3_hp_numerator": "",
+                             "pokemon_3_hp_denominator": "",
+                             "pokemon_4_hp_numerator": "",
+                             "pokemon_4_hp_denominator": "",
+                             "pokemon_5_hp_numerator": "", 
+                             "pokemon_5_hp_denominator": "",
+                             "pokemon_6_hp_numerator": "",
+                             "pokemon_6_hp_denominator": ""}
+    
+    with open(eviction_trigger_fractions_path, "w") as f:
+        json.dump(eviction_trigger_fractions_dict, f, indent=0) 
+        
+    with open(eviction_penalty_file_path, "w") as f1:
+        json.dump(eviction_penalty_dict, f1, indent=0) 
+     
+    # Set up logging
+    logger = logging.getLogger(f'')
+    logger.setLevel(logging.INFO)  # Set the base level to debug
+    
+    # Create file handler which logs even debug messages
+    fh = logging.FileHandler(log_file_path, mode='w')
+    fh.setLevel(logging.INFO)  # Set the file handler's level
+
+    # Create formatter and add it to the handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+
+    # Add the handler to the logger
+    logger.addHandler(fh)
+    logger.propagate = False
+
+    # Example of a log message
+    logger.info(f"Logging set up for {new_exp_name}") 
+    
     
     if config is None:
         config = pufferlib.args.CleanPuffeRL() 
@@ -345,6 +411,13 @@ def create(
         dones_ary = dones_ary,
         truncateds_ary = truncateds_ary,
         values_ary = values_ary,
+        # Logging
+        logger = logger,
+        percent_complete_path = percent_complete_path,
+        trigger_fractions_path = trigger_fractions_path,
+        eviction_trigger_fractions_path = eviction_trigger_fractions_path,
+        swarm_trigger_condition = config.swarm_trigger_condition,
+        eviction_penalty_file_path = eviction_penalty_file_path,
         
         # Swarming
         env_send_queues = env_send_queues,
@@ -377,74 +450,257 @@ def evaluate(data):
         # Log the data
         data.wandb.log(log_dict)
         
-        # now for a tricky bit:
-        # if we have swarm_frequency, we will take the top swarm_pct envs and evenly distribute
-        # their states to the bottom 90%.
-        # we do this here so the environment can remain "pure"
-        # print(f'cleanpufferl data.infos LINE 377 {data.infos}')
-        # if "learner" in data.infos:
-        #     print(f'cleanpufferl data.infos["learner"] LINE 378 {data.infos["learner"]}')
-        # else:
-        #     print(f'learner NOT FOUND IN data.infos!!! update#{data.update}')
-        # self.badges_reward
-
-        if (
-            hasattr(data.config, "swarm_frequency") and
-            hasattr(data.config, "swarm_keep_pct") and
-            "learner" in data.infos and
-            "stats/badges" in data.infos["learner"]
-        ):
-            badge_threshold = (data.config.swarm_frequency % 3) + 1  # Determines which badge level to check (1, 2, or 3)
-            badge_counts = data.infos["learner"]["stats/badges"]
-
-            # Calculate the percentage of environments with the current badge level or higher
-            num_envs_with_current_badge = sum(1 for badge in badge_counts if badge >= badge_threshold)
-            percentage_with_current_badge = num_envs_with_current_badge / data.config.num_envs
-            print(f'Badge Level: {badge_threshold}, Percentage with Badge >= {badge_threshold}: {percentage_with_current_badge}, Required Percentage: {data.config.swarm_keep_pct}')
-
-            # Check if the percentage of environments meeting the current badge level is enough
-            if percentage_with_current_badge >= data.config.swarm_keep_pct:
-                # Collect the top swarm_keep_pct % of envs based on badges
-                largest = [
-                    x[0]
-                    for x in heapq.nlargest(
-                        math.ceil(data.config.num_envs * data.config.swarm_keep_pct),
-                        enumerate(badge_counts),
-                        key=lambda x: x[1],
-                    )
-                ]
-                data.config.swarm_frequency += 1 
-                print("Migrating states:")
-                waiting_for = []
-                # Need a way not to reset the env id counter for the driver env
-                # Until then env ids are 1-indexed
-                for i in range(data.config.num_envs):
-                    if i not in largest:
-                        new_state = random.choice(largest)
-                        print(
-                            f'\t {i+1} -> {new_state+1}, badges scores: {data.infos["learner"]["stats/badges"][i]} -> {data.infos["learner"]["stats/badges"][new_state]}'
-                            # f'\t {i+1} -> {new_state+1}, event scores: {data.infos["learner"]["stats/event"][i]} -> {data.infos["learner"]["stats/event"][new_state]}'
-                        )
-                        # print(f"Putting state in receive queue for env {i+1}")
-                        data.env_recv_queues[i + 1].put(data.infos["learner"]["state"][new_state])
-                        # data.env_recv_queues[i + 1].put(data.infos["learner"]["state"][new_state])
-                        # print(f"State put successfully for env {i+1}")
-                        waiting_for.append(i + 1)
-            
-                for i in waiting_for:
-                    try:
-                        # print(f"Waiting to receive confirmation from env {i}")
-                        data.env_send_queues[i].get()
-
-                        # print(f"Received confirmation from env {i}")
-                    except Exception as e:
-                        # print(f"Error processing in env {i}: {e}")
-                        data.env_send_queues[i].put(None)                       
         
-        # For diagnostic purposes, print the 'stats' part of the log_dict
-        # You can't unpack in a print statement directly, so we filter the keys that start with 'stats/'
-        # stats_unpacked = {k: v for k, v in log_dict.items()} # if k.startswith('stats/')}
-        # print(f'data.stats={data.stats}, unpacked stats={stats_unpacked}')    
+        # # Default values to empty lists if keys are absent
+        # badge_counts = data.infos["learner"].get("stats/badges", [])
+        # bill_counts = data.infos["learner"].get("stats/bill_saved", [])
+        # rocket_hideout_completions = data.infos["learner"].get("stats/beat_rocket_hideout_giovanni", [])
+        # pokemon_tower_completions = data.infos["learner"].get("stats/rescued_mr_fuji", [])
+        # silph_co_completions = data.infos["learner"].get("stats/beat_silph_co_giovanni", [])
+
+        # # Calculate the percentage of environments with current badge level or higher
+        # num_envs_with_badge_1 = sum(1 for badge in badge_counts if badge >= 1)
+        # num_envs_with_badge_2 = sum(1 for badge in badge_counts if badge >= 2)
+        # num_envs_with_badge_3 = sum(1 for badge in badge_counts if badge >= 3)
+        # num_envs_with_badge_4 = sum(1 for badge in badge_counts if badge >= 4)
+        # num_envs_with_badge_5 = sum(1 for badge in badge_counts if badge >= 5)
+        # num_envs_with_badge_6 = sum(1 for badge in badge_counts if badge >= 6)
+        # num_envs_with_badge_7 = sum(1 for badge in badge_counts if badge >= 7)
+        # num_envs_with_badge_8 = sum(1 for badge in badge_counts if badge >= 8)
+        # bill_saved = sum(1 for bill in bill_counts if bill)
+        # rocket_hideout_completions = sum(1 for progress in rocket_hideout_completions if progress)
+        # pokemon_tower_completions = sum(1 for progress in pokemon_tower_completions if progress)
+        # silph_co_completions = sum(1 for progress in silph_co_completions if progress)
+        
+        # # Convert counts to percentages
+        # total_envs = data.config.num_envs
+        # completion_dict = {
+        #     "badge_1": num_envs_with_badge_1 / total_envs,
+        #     "badge_2": num_envs_with_badge_2 / total_envs,
+        #     "badge_3": num_envs_with_badge_3 / total_envs,
+        #     "badge_4": num_envs_with_badge_4 / total_envs,
+        #     "badge_5": num_envs_with_badge_5 / total_envs,
+        #     "badge_6": num_envs_with_badge_6 / total_envs,
+        #     "badge_7": num_envs_with_badge_7 / total_envs,
+        #     "badge_8": num_envs_with_badge_8 / total_envs,
+        #     "bill_saved": bill_saved / total_envs,
+        #     "beat_rocket_hideout_giovanni": rocket_hideout_completions / total_envs,
+        #     "rescued_mr_fuji": pokemon_tower_completions / total_envs,
+        #     "beat_silph_co_giovanni": silph_co_completions / total_envs,
+        # }
+        badge_counts = data.infos["learner"].get("stats/badges", [])
+        bill_counts = data.infos["learner"].get("stats/bill_saved", [])
+        rocket_hideout_completions = data.infos["learner"].get("stats/beat_rocket_hideout_giovanni", [])
+        pokemon_tower_completions = data.infos["learner"].get("stats/rescued_mr_fuji", [])
+        silph_co_completions = data.infos["learner"].get("stats/beat_silph_co_giovanni", [])
+
+        num_envs_with_badge = [sum(1 for badge in badge_counts if badge >= level) for level in range(1, 9)]
+        print(f'num_envs_with_badge={num_envs_with_badge}')
+        logging.error(f'num_envs_with_badge={num_envs_with_badge}')
+        
+        bill_saved = sum(1 for bill in bill_counts if bill)
+        rocket_hideout = sum(1 for progress in rocket_hideout_completions if progress)
+        pokemon_tower = sum(1 for progress in pokemon_tower_completions if progress)
+        silph_co = sum(1 for progress in silph_co_completions if progress)
+
+        total_envs = data.config.num_envs
+        completion_dict = {
+            "badge_1": num_envs_with_badge[0] / total_envs,
+            "badge_2": num_envs_with_badge[1] / total_envs,
+            "badge_3": num_envs_with_badge[2] / total_envs,
+            "badge_4": num_envs_with_badge[3] / total_envs,
+            "badge_5": num_envs_with_badge[4] / total_envs,
+            "badge_6": num_envs_with_badge[5] / total_envs,
+            "badge_7": num_envs_with_badge[6] / total_envs,
+            "badge_8": num_envs_with_badge[7] / total_envs,
+            "bill_saved": bill_saved / total_envs,
+            "beat_rocket_hideout_giovanni": rocket_hideout / total_envs,
+            "rescued_mr_fuji": pokemon_tower / total_envs,
+            "beat_silph_co_giovanni": silph_co / total_envs,
+        }
+        
+        print(f'completion_dict={completion_dict}')
+        logging.error(f'completion_dict={completion_dict}') 
+
+        # Retrieve leave location criteria from configuration, use the first instance as all are identical
+        leave_location_criteria = {"badge_1": data.config.badge_1_trigger_pct,
+                                   "badge_2": data.config.badge_2_trigger_pct,
+                                    "badge_3": data.config.badge_3_trigger_pct,
+                                    "badge_4": data.config.badge_4_trigger_pct,
+                                    "badge_5": data.config.badge_5_trigger_pct,
+                                    "badge_6": data.config.badge_6_trigger_pct,
+                                    "badge_7": data.config.badge_7_trigger_pct,
+                                    "badge_8": data.config.badge_8_trigger_pct,
+                                    "bill_saved": data.config.bill_saved_trigger_pct,
+                                    "beat_rocket_hideout_giovanni": data.config.beat_rocket_hideout_giovanni_trigger_pct,
+                                    "rescued_mr_fuji": data.config.rescued_mr_fuji_trigger_pct,
+                                    "beat_silph_co_giovanni": data.config.beat_silph_co_giovanni_trigger_pct,
+            }
+
+        print(f'leave_location_criteria={leave_location_criteria}')
+        logging.error(f'leave_location_criteria={leave_location_criteria}') 
+
+        print(f'data.update={data.update}: looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        logging.info(f'data.update={data.update}: looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        print(f'data.update={data.update}: looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
+        logging.info(f'data.update={data.update}: looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
+        
+        if data.update == 1:
+            # Write the trigger percents from config to a file so it can be modified later in case run is stuck
+            print(f'cprl: wrote trigger fractions from config to file: {data.trigger_fractions_path}')
+            logging.info(f'cprl: wrote trigger fractions from config to file: {data.trigger_fractions_path}')
+            
+            with open(data.trigger_fractions_path, 'w') as file:
+                json.dump(leave_location_criteria, file, indent=0) 
+
+        # Read the file to obtain the trigger percents each time        
+        if data.update % 1 == 0: # and data.update != 1:
+            with open(data.trigger_fractions_path, 'r') as file:
+                data.config.pct_complete_file_placeholder = json.load(file)
+                
+            print(f'cprl: read trigger fractions from file: trigger fractions={data.config.pct_complete_file_placeholder}, saved to variable data.config.pct_complete_file_placeholder: {data.trigger_fractions_path}')
+            logging.info(f'cprl: read trigger fractions from file: trigger fractions={data.config.pct_complete_file_placeholder}, saved to variable data.config.pct_complete_file_placeholder: {data.trigger_fractions_path}')
+
+        # Maybe not a thing, but using an intermediary variable to prevent read/write at same time
+        leave_location_criteria = data.config.pct_complete_file_placeholder
+    
+        # Write fraction completions aggregated from "learner" "stats/x" to file so envs can use x comnpletion values
+        # if data.update % 5 == 0 or data.update == 1:
+        # Write the percentage completion dictionary to a file
+        try:
+            with open(data.percent_complete_path, 'w') as file:
+                json.dump(completion_dict, file, indent=0)
+            print(f'cprl LINE 525: leave_location_criteria AFTER written to file and reloaded: {leave_location_criteria}')
+            logging.info(f'cprl LINE 525: leave_location_criteria AFTER written to file and reloaded: {leave_location_criteria}')    
+        except:
+            pass
+    
+        # Compare each completion metric with its corresponding leave location criteria
+        for key, value in completion_dict.items():
+            if key not in data.swarm_trigger_condition:
+                print(f'key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
+                logging.error(f'key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
+            
+                # If conditional is met, load up a selection of the completed states to all other envs
+                if value >= leave_location_criteria.get(key, 0):
+                    # Swarming logic below
+                    print(f'Swarming condition met for {key}: {value} >= {leave_location_criteria[key]}')
+                    logging.info(f'Swarming condition met for {key}: {value} >= {leave_location_criteria[key]}')
+
+                    # if ("learner" in data.infos and f"stats/{key}" in data.infos["learner"]):
+                    print(f'{key}: {leave_location_criteria[key]}, Percentage complete >= {leave_location_criteria[key]}: {value}, Required Percentage: {leave_location_criteria[key]}')
+                    logging.info(f'{key}: {leave_location_criteria[key]}, Percentage complete >= {leave_location_criteria[key]}: {value}, Required Percentage: {leave_location_criteria[key]}')
+                    
+                    # if ("state" in data.infos["learner"]):
+                    values = data.infos["learner"][f"stats/{key}"]
+                    print(f'cprl LINE 554: values={values}')
+                    logging.info(f'cprl LINE 554: values={values}')
+                    
+                    largest = compute_largest(data, values)
+                    print(f'cprl: LINE 594 largest={largest}')
+                    logging.info(f'cprl: LINE 594 largest={largest}')
+                    
+                    if "stats/state" in data.infos["learner"]:
+                        print(f'cprl LINE 599: "stats/state" in data.infos["learner"]!! proceeding with get/put!')
+                        logging.info(f'cprl LINE 599: "stats/state" in data.infos["learner"]!! proceeding with get/put!')
+                        
+                        i_list0, i_list, i_list2, larges = send_and_receive(data, largest, key)
+                        if i_list0:
+                            print(f'cprl 612 i_list_all_i present')   
+                            logging.info(f'cprl 612 i_list_all_i present')   
+                        else:
+                            print(f'cprl 612 i_list_all_i MISSING!!')   
+                            logging.info(f'cprl 612 i_list_all_i MISSING!!') 
+                        if i_list:
+                            print(f'cprl 612 i_list_puts present')   
+                            logging.info(f'cprl 612 i_list_puts present') 
+                        else:
+                            print(f'cprl 612 i_list_puts MISSING!!')   
+                            logging.info(f'cprl 612 i_list_puts MISSING!!')   
+                        if i_list2:
+                            print(f'cprl 612 i_list_gets present')   
+                            logging.info(f'cprl 612 i_list_gets present')
+                        else:
+                            print(f'cprl 612 i_list_gets MISSING!!')   
+                            logging.info(f'cprl 612 i_list_gets MISSING!!')  
+                        if larges:
+                            print(f'cprl 612 larges present')   
+                            logging.info(f'cprl 612 larges present')   
+                        else:
+                            print(f'cprl 612 larges MISSING!!')   
+                            logging.info(f'cprl 612 larges MISSING!!')  
+                            
+                            
+                            
+                            
+                                           
+                        # Add to list of completed triggers to avoid constantly triggering same
+                        if all([i_list0, i_list, i_list2, larges]):
+                            data.swarm_trigger_condition.append(key)
+                            logging.info(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+                            {i_list0}
+                            {i_list}
+                            {i_list2}
+                            {larges}
+                            ''')
+
+                            print(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+                            {i_list0}
+                            {i_list}
+                            {i_list2}
+                            {larges}
+                            ''')
+                        else:
+                            print(f'cprl: LINE 616 SOME OR ALL OF THE SEND/RECEIVE CONDITIONS WERENT MET!!!')
+                            logging.info(f'cprl: LINE 616 SOME OR ALL OF THE SEND/RECEIVE CONDITIONS WERENT MET!!!')
+                    else:
+                        print(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+                        logging.info(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        
+                        print(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
+                        logging.info(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')       
+            else:
+                # Check for straggler envs. After swarm event, all "state/{key}" should be 1.
+                if "stats/state" in data.infos["learner"]:
+                    envs_with_zero = data.infos["learner"][f"stats/{key}"]
+                    envs_with_zero = list(enumerate(envs_with_zero))
+                    print(f'envs_with_zero={envs_with_zero}')
+                    logging.info(f'envs_with_zero={envs_with_zero}')
+                    z_envs = []
+                    one_envs = []
+                    for v in envs_with_zero:
+                        if v[1] == 0:
+                            z_envs.append(v[0])
+                        else:
+                            one_envs.append(v[0])
+                    print(f'SPECIAL STATE TRANSFER SESSION')
+                    logging.info(f'SPECIAL STATE TRANSFER SESSION')
+                    i_list0, i_list, i_list2, larges = send_and_receive_catch_up(data, z_envs, one_envs, key)
+                    if all([i_list0, i_list, i_list2, larges]):
+                        data.swarm_trigger_condition.append(key)
+                        logging.info(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+                        {i_list0}
+                        {i_list}
+                        {i_list2}
+                        {larges}
+                        ''')
+
+                        print(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+                        {i_list0}
+                        {i_list}
+                        {i_list2}
+                        {larges}
+                        ''')
+                    updating_stats = data.infos["learner"][f"stats/{key}"]
+                    updated_values = [1.0 if value == 0 else value for value in updating_stats]
+                    print(f'updated stats: {data.infos["learner"][f"stats/{key}"]}\n{updated_values}')
+                    logging.info(f'updated stats: {data.infos["learner"][f"stats/{key}"]}\n{updated_values}')
+                    
+
+            # Else for testing only
+            # else:
+            #     print(f'cprl key in data.swarm_trigger_condition: key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
+            #     logging.error(f'cprl key in data.swarm_trigger_condition: key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
     
     data.policy_pool.update_policies()
     performance = defaultdict(list)
@@ -649,7 +905,7 @@ def evaluate(data):
     data.max_stats = {}
     for k, v in data.infos["learner"].items():
         if "pokemon_exploration_map" in k:
-            if data.update % 20 == 0: # config.overlay_interval == 0:
+            if data.update % 10 == 0: # config.overlay_interval == 0:
                 overlay = make_pokemon_red_overlay(np.stack(v, axis=0))
                 if data.wandb is not None:
                     data.stats["Media/aggregate_exploration_map"] = data.wandb.Image(overlay)
@@ -1014,692 +1270,148 @@ def print_dashboard(stats, init_performance, performance):
     print('\n'.join(output))
     time.sleep(1/20)
 
+def compute_largest(data, values):
+    if not values:
+        logging.error("No values provided to compute_largest.")
+        return []
+    # num_envs_to_keep = math.ceil(data.config.num_envs * data.config.swarm_keep_pct)
+    largest = []
+    l_length = []
+    for v in values:
+        if v > 0:
+            l_length.append(v)
+    num_envs_to_keep = len(l_length)
+    if num_envs_to_keep < 1:
+        logging.error("Number of environments to keep is less than one; adjusting to 1.")
+        num_envs_to_keep = 1
+    largest = [
+        x[0] for x in heapq.nlargest(
+            num_envs_to_keep,
+            enumerate(values),
+            key=lambda x: x[1] if isinstance(x[1], (int, float)) else float('-inf')
+        )
+    ]
+    return largest
+
+def send_and_receive(data, largest, key):
+    print("Migrating states:")
+    logging.critical("Migrating states:")
+    waiting_for = []
+    i_list_all_i = []
+    i_list_puts = []
+    i_list_gets = []
+
+    for i in range(data.config.num_envs):
+        i_list_all_i.append(i)
+        logging.info(f'cprl send_and_receive: for i (i={i}) in range(data.config.num_envs)... largest={largest}')
+        envs_with_zero = data.infos["learner"][f"stats/{key}"]
+        envs_with_zero = list(enumerate(envs_with_zero))
+        z_envs = []
+        for v in envs_with_zero:
+            if v[1] == 0:
+                z_envs.append(v[0])
+        if i not in largest or i in z_envs:
+            logging.info(f'cprl send_and_receive: if i not in largest: (i={i}) ... largest={largest} ... i in largest? {i in largest}')
+            new_state = int(random.choice(largest))
+            logging.info(f'cprl send_and_receive: Preparing to migrate state from env_{new_state} to env{i}...new_state selected randomly={new_state}')
+            # pufferlib has 1-based indexing
+            data.env_recv_queues[i + 1].put(data.infos["learner"]["stats/state"][new_state])
+            n = f'stats/{key}'
+            print(f'\t {i+1} -> {new_state+1}, {key} scores: old: {data.infos["learner"][n][i]} -> new: {data.infos["learner"][n][new_state]}')
+            logging.info(f'Successfully sent state from env {new_state} to env {i} based on {key}')
+            logging.info(f'\t env_{i+1} -> new state: {new_state+1}, {key} scores: {data.infos["learner"][n][i]} -> {data.infos["learner"][n][new_state]}')
+            waiting_for.append(i + 1)
+            i_list_puts.append(i)
+
+    for i in waiting_for:
+        data.env_send_queues[i].get()
+        print(f'Received confirmation from env {i} for {key}')
+        logging.info(f'Received confirmation from env {i} for {key}')
+        i_list_gets.append(i)
+    
+    return i_list_all_i, i_list_puts, i_list_gets, largest
 
 
-# BET ADDED WHOLE FILE BEFORE CHECKPOINT SAVING IMPLEMENTED
-# from pdb import set_trace as T
-# import numpy as np
-# import cv2
+def send_and_receive_catch_up(data, envs_to_catch_up, envs_to_load_from, key):
+    print("Migrating states:")
+    logging.critical("Migrating states:")
+    waiting_for = []
+    i_list_all_i = []
+    i_list_puts = []
+    i_list_gets = []
+    for i in envs_to_catch_up:
+        logging.info(f'cprl send_and_receive: if i not in largest: (i={i}) ... largest={envs_to_catch_up} ... i in largest? {i in envs_to_catch_up}')
+        # new_state = int(random.choice(envs_to_load_from))
+        new_state = list(zip(envs_to_load_from, envs_to_catch_up))
+        for tup in new_state:
+            if i == tup[1]:
+                load_this_state = tup[0]
+                logging.info(f'cprl send_and_receive: Preparing to migrate state from env_{load_this_state} to env{i}...new_state is going to be {load_this_state}')
+                # pufferlib has 1-based indexing
+                data.env_recv_queues[i].put(data.infos["learner"]["stats/state"][load_this_state])
+                # data.env_recv_queues[i + 1].put(data.infos["learner"]["stats/state"][new_state])
+                n = f'stats/{key}'
+                print(f'\t {i} -> {load_this_state}, {key} scores: old: {data.infos["learner"][n][i]} -> new: {data.infos["learner"][n][load_this_state]}')
+                logging.info(f'Successfully sent state from env {load_this_state} to env {i} based on {key}')
+                logging.info(f'\t env_{i} -> new state: {load_this_state}, {key} scores: {data.infos["learner"][n][i]} -> {data.infos["learner"][n][load_this_state]}')
+                waiting_for.append(i)
+                i_list_puts.append(i)
 
-# import os
-# import random
-# import time
-# import uuid
-
-# from collections import defaultdict
-# from datetime import timedelta
-
-# import torch
-# import torch.nn as nn
-# import torch.optim as optim
-
-# import pufferlib
-# import pufferlib.utils
-# import pufferlib.emulation
-# import pufferlib.vectorization
-# import pufferlib.frameworks.cleanrl
-# import pufferlib.policy_pool
+    for i in waiting_for:
+        data.env_send_queues[i].get()
+        print(f'Received confirmation from env {i} for {key}')
+        logging.info(f'Received confirmation from env {i} for {key}')
+        i_list_gets.append(i)
+    
+    return i_list_all_i, i_list_puts, i_list_gets, envs_to_catch_up
 
 
-# @pufferlib.dataclass
-# class Performance:
-#     total_uptime = 0
-#     total_updates = 0
-#     total_agent_steps = 0
-#     epoch_time = 0
-#     epoch_sps = 0
-#     evaluation_time = 0
-#     evaluation_sps = 0
-#     evaluation_memory = 0
-#     evaluation_pytorch_memory = 0
-#     env_time = 0
-#     env_sps = 0
-#     inference_time = 0
-#     inference_sps = 0
-#     train_time = 0
-#     train_sps = 0
-#     train_memory = 0
-#     train_pytorch_memory = 0
-#     misc_time = 0
-
-# @pufferlib.dataclass
-# class Losses:
-#     policy_loss = 0
-#     value_loss = 0
-#     entropy = 0
-#     old_approx_kl = 0
-#     approx_kl = 0
-#     clipfrac = 0
-#     explained_variance = 0
-
-# @pufferlib.dataclass
-# class Charts:
-#     global_step = 0
-#     SPS = 0
-#     learning_rate = 0
-
-# def create(
-#         self: object = None,
-#         config: pufferlib.namespace = None,
-#         exp_name: str = None,
-#         track: bool = False,
-
-#         # Agent
-#         agent: nn.Module = None,
-#         agent_creator: callable = None,
-#         agent_kwargs: dict = None,
-
-#         # Environment
-#         env_creator: callable = None,
-#         env_creator_kwargs: dict = None,
-#         vectorization: ... = pufferlib.vectorization.Serial,
-
-#         # Policy Pool options
-#         policy_selector: callable = pufferlib.policy_pool.random_selector,
-#     ):
-#     if config is None:
-#         config = pufferlib.args.CleanPuffeRL()
-
-#     if exp_name is None:
-#         exp_name = str(uuid.uuid4())[:8]
-
-#     wandb = None
-#     if track:
-#         import wandb
-
-#     start_time = time.time()
-#     seed_everything(config.seed, config.torch_deterministic)
-#     total_updates = config.total_timesteps // config.batch_size
-
-#     device = config.device
-
-#     # Create environments, agent, and optimizer
-#     init_profiler = pufferlib.utils.Profiler(memory=True)
-#     with init_profiler:
-#         pool = vectorization(
-#             env_creator,
-#             env_kwargs=env_creator_kwargs,
-#             num_envs=config.num_envs,
-#             envs_per_worker=config.envs_per_worker,
-#             envs_per_batch=config.envs_per_batch,
-#             env_pool=config.env_pool,
-#             mask_agents=True,
+# ## ORIGINAL TESTING FUNCTIONS BET ADDED - May or may not work!
+# def compute_largest(data, completed_value) -> list:
+#     # Collect the top % of envs based on completion of triggered condition completion_counts
+#     # Each env in completion_counts will have completed the given trigger
+#     data.config.swarm_keep_pct = completed_value
+#     largest = [
+#         x[0]
+#         for x in heapq.nlargest(
+#             math.ceil(data.config.num_envs * data.config.swarm_keep_pct),
+#             enumerate(completed_value * data.config.num_envs), # num envs that met trigger cond
+#             key=lambda x: x[1],
 #         )
-
-#     obs_shape = pool.single_observation_space.shape
-#     atn_shape = pool.single_action_space.shape
-#     num_agents = pool.agents_per_env
-#     total_agents = num_agents * config.num_envs
-
-#     # If data_dir is provided, load the resume state
-#     resume_state = {}
-#     path = os.path.join(config.data_dir, exp_name)
-#     if os.path.exists(path):
-#         trainer_path = os.path.join(path, 'trainer_state.pt')
-#         resume_state = torch.load(trainer_path)
-#         model_path = os.path.join(path, resume_state["model_name"])
-#         agent = torch.load(model_path, map_location=device)
-#         print(f'Resumed from update {resume_state["update"]} '
-#               f'with policy {resume_state["model_name"]}')
-#     else:
-#         agent = pufferlib.emulation.make_object(
-#             agent, agent_creator, [pool.driver_env], agent_kwargs)
-
-#     global_step = resume_state.get("global_step", 0)
-#     agent_step = resume_state.get("agent_step", 0)
-#     update = resume_state.get("update", 0)
-
-#     optimizer = optim.Adam(agent.parameters(),
-#         lr=config.learning_rate, eps=1e-5)
-
-#     uncompiled_agent = agent # Needed to save the model
-#     if config.compile:
-#         agent = torch.compile(agent, mode=config.compile_mode)
-
-#     if config.verbose:
-#         n_params = sum(p.numel() for p in agent.parameters() if p.requires_grad)
-#         print(f"Model Size: {n_params//1000} K parameters")
-
-#     opt_state = resume_state.get("optimizer_state_dict", None)
-#     if opt_state is not None:
-#         optimizer.load_state_dict(resume_state["optimizer_state_dict"])
-
-#     # Create policy pool
-#     pool_agents = num_agents * pool.envs_per_batch
-#     policy_pool = pufferlib.policy_pool.PolicyPool(
-#         agent, pool_agents, atn_shape, device, path,
-#         config.pool_kernel, policy_selector,
-#     )
-
-#     # Allocate Storage
-#     storage_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True).start()
-#     next_lstm_state = []
-#     pool.async_reset(config.seed)
-#     next_lstm_state = None
-#     if hasattr(agent, 'lstm'):
-#         shape = (agent.lstm.num_layers, total_agents, agent.lstm.hidden_size)
-#         next_lstm_state = (
-#             torch.zeros(shape).to(device),
-#             torch.zeros(shape).to(device),
-#         )
-#     obs=torch.zeros(config.batch_size + 1, *obs_shape)
-#     actions=torch.zeros(config.batch_size + 1, *atn_shape, dtype=int)
-#     logprobs=torch.zeros(config.batch_size + 1)
-#     rewards=torch.zeros(config.batch_size + 1)
-#     dones=torch.zeros(config.batch_size + 1)
-#     truncateds=torch.zeros(config.batch_size + 1)
-#     values=torch.zeros(config.batch_size + 1)
-
-#     obs_ary = np.asarray(obs)
-#     actions_ary = np.asarray(actions)
-#     logprobs_ary = np.asarray(logprobs)
-#     rewards_ary = np.asarray(rewards)
-#     dones_ary = np.asarray(dones)
-#     truncateds_ary = np.asarray(truncateds)
-#     values_ary = np.asarray(values)
-
-#     storage_profiler.stop()
-
-#     #"charts/actions": wandb.Histogram(b_actions.cpu().numpy()),
-#     init_performance = pufferlib.namespace(
-#         init_time = time.time() - start_time,
-#         init_env_time = init_profiler.elapsed,
-#         init_env_memory = init_profiler.memory,
-#         tensor_memory = storage_profiler.memory,
-#         tensor_pytorch_memory = storage_profiler.pytorch_memory,
-#     )
- 
-#     return pufferlib.namespace(self,
-#         # Agent, Optimizer, and Environment
-#         config=config,
-#         pool = pool,
-#         agent = agent,
-#         uncompiled_agent = uncompiled_agent,
-#         optimizer = optimizer,
-#         policy_pool = policy_pool,
-
-#         # Logging
-#         exp_name = exp_name,
-#         wandb = wandb,
-#         learning_rate=config.learning_rate,
-#         losses = Losses(),
-#         init_performance = init_performance,
-#         performance = Performance(),
-
-#         # Storage
-#         sort_keys = [],
-#         next_lstm_state = next_lstm_state,
-#         obs = obs,
-#         actions = actions,
-#         logprobs = logprobs,
-#         rewards = rewards,
-#         dones = dones,
-#         values = values,
-#         obs_ary = obs_ary,
-#         actions_ary = actions_ary,
-#         logprobs_ary = logprobs_ary,
-#         rewards_ary = rewards_ary,
-#         dones_ary = dones_ary,
-#         truncateds_ary = truncateds_ary,
-#         values_ary = values_ary,
-
-#         # Misc
-#         total_updates = total_updates,
-#         update = update,
-#         global_step = global_step,
-#         device = device,
-#         start_time = start_time,
-#     )
-
-# @pufferlib.utils.profile
-# def evaluate(data):
-#     config = data.config
-#     # TODO: Handle update on resume
-#     if data.wandb is not None and data.performance.total_uptime > 0:
-#         data.wandb.log({
-#             'SPS': data.SPS,
-#             'global_step': data.global_step,
-#             'learning_rate': data.optimizer.param_groups[0]["lr"],
-#             **{f'losses/{k}': v for k, v in data.losses.items()},
-#             **{f'performance/{k}': v
-#                 for k, v in data.performance.items()},
-#             **{f'stats/{k}': v for k, v in data.stats.items()},
-#             **{f'skillrank/{policy}': elo
-#                 for policy, elo in data.policy_pool.ranker.ratings.items()},
-#         })
-
-#     data.policy_pool.update_policies()
-#     performance = defaultdict(list)
-#     env_profiler = pufferlib.utils.Profiler()
-#     inference_profiler = pufferlib.utils.Profiler()
-#     eval_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True).start()
-#     misc_profiler = pufferlib.utils.Profiler()
-
-#     ptr = step = padded_steps_collected = agent_steps_collected = 0
-#     infos = defaultdict(lambda: defaultdict(list))
-#     while True:
-#         step += 1
-#         if ptr == config.batch_size + 1:
-#             break
-
-#         with env_profiler:
-#             o, r, d, t, i, env_id, mask = data.pool.recv()
-
-#         with misc_profiler:
-#             i = data.policy_pool.update_scores(i, "return")
-#             # TODO: Update this for policy pool
-#             for ii, ee  in zip(i['learner'], env_id):
-#                 ii['env_id'] = ee
-
-
-#         with inference_profiler, torch.no_grad():
-#             o = torch.as_tensor(o)
-#             r = torch.as_tensor(r).float().to(data.device).view(-1)
-#             d = torch.as_tensor(d).float().to(data.device).view(-1)
-
-#             agent_steps_collected += sum(mask)
-#             padded_steps_collected += len(mask)
-
-#             # Multiple policies will not work with new envpool
-#             next_lstm_state = data.next_lstm_state
-#             if next_lstm_state is not None:
-#                 next_lstm_state = (
-#                     next_lstm_state[0][:, env_id],
-#                     next_lstm_state[1][:, env_id],
-#                 )
-
-#             actions, logprob, value, next_lstm_state = data.policy_pool.forwards(
-#                     o.to(data.device), next_lstm_state)
-
-#             if next_lstm_state is not None:
-#                 h, c = next_lstm_state
-#                 data.next_lstm_state[0][:, env_id] = h
-#                 data.next_lstm_state[1][:, env_id] = c
-
-#             value = value.flatten()
-
-       
-#         with misc_profiler:
-#             actions = actions.cpu().numpy()
-     
-#             # Index alive mask with policy pool idxs...
-#             # TODO: Find a way to avoid having to do this
-#             learner_mask = torch.Tensor(mask * data.policy_pool.mask)
-
-#             # Ensure indices do not exceed batch size
-#             indices = torch.where(learner_mask)[0][:config.batch_size - ptr + 1].numpy()
-#             end = ptr + len(indices)
-
-#             # Batch indexing
-#             data.obs_ary[ptr:end] = o.cpu().numpy()[indices]
-#             data.values_ary[ptr:end] = value.cpu().numpy()[indices]
-#             data.actions_ary[ptr:end] = actions[indices]
-#             data.logprobs_ary[ptr:end] = logprob.cpu().numpy()[indices]
-#             data.rewards_ary[ptr:end] = r.cpu().numpy()[indices]
-#             data.dones_ary[ptr:end] = d.cpu().numpy()[indices]
-#             data.sort_keys.extend([(env_id[i], step) for i in indices])
-
-#             # Update pointer
-#             ptr += len(indices)
-
-#             for policy_name, policy_i in i.items():
-#                 for agent_i in policy_i:
-#                     for name, dat in unroll_nested_dict(agent_i):
-#                         infos[policy_name][name].append(dat)
-
-#         with env_profiler:
-#             data.pool.send(actions)
-
-#     eval_profiler.stop()
-
-#     data.global_step += padded_steps_collected
-#     data.reward = float(torch.mean(data.rewards))
-#     data.SPS = int(padded_steps_collected / eval_profiler.elapsed)
-
-#     perf = data.performance
-#     perf.total_uptime = int(time.time() - data.start_time)
-#     perf.total_agent_steps = data.global_step
-#     perf.env_time = env_profiler.elapsed
-#     perf.env_sps = int(agent_steps_collected / env_profiler.elapsed)
-#     perf.inference_time = inference_profiler.elapsed
-#     perf.inference_sps = int(padded_steps_collected / inference_profiler.elapsed)
-#     perf.eval_time = eval_profiler.elapsed
-#     perf.eval_sps = int(padded_steps_collected / eval_profiler.elapsed)
-#     perf.eval_memory = eval_profiler.end_mem
-#     perf.eval_pytorch_memory = eval_profiler.end_torch_mem
-#     perf.misc_time = misc_profiler.elapsed
-
-#     data.stats = {}
-#     infos = infos['learner']
-
-#     if 'pokemon_exploration_map' in infos:
-#         for idx, pmap in zip(infos['env_id'], infos['pokemon_exploration_map']):
-#             if not hasattr(data, 'pokemon'):
-#                 import pokemon_red_eval
-#                 data.map_updater = pokemon_red_eval.map_updater()
-#                 data.map_buffer = np.zeros((data.config.num_envs, *pmap.shape))
-
-#             data.map_buffer[idx] = pmap
-
-#         pokemon_map = np.sum(data.map_buffer, axis=0)
-#         rendered = data.map_updater(pokemon_map)
-#         data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
-
-#     for k, v in infos.items():
-#         if 'Task_eval_fn' in k:
-#             # Temporary hack for NMMO competitio
-#             continue
-#         try: # TODO: Better checks on log data types
-#             data.stats[k] = np.mean(v)
-#         except:
-#             continue
-
-#     if config.verbose:
-#         print_dashboard(data.stats, data.init_performance, data.performance)
-
-#     return data.stats, infos
-
-# @pufferlib.utils.profile
-# def train(data):
-#     if done_training(data):
-#         raise RuntimeError(
-#             f"Max training updates {data.total_updates} already reached")
-
-#     config = data.config
-#     # assert data.num_steps % bptt_horizon == 0, "num_steps must be divisible by bptt_horizon"
-#     train_profiler = pufferlib.utils.Profiler(memory=True, pytorch_memory=True)
-#     train_profiler.start()
-
-#     if config.anneal_lr:
-#         frac = 1.0 - (data.update - 1.0) / data.total_updates
-#         lrnow = frac * config.learning_rate
-#         data.optimizer.param_groups[0]["lr"] = lrnow
-
-#     num_minibatches = config.batch_size // config.bptt_horizon // config.batch_rows
-#     idxs = sorted(range(len(data.sort_keys)), key=data.sort_keys.__getitem__)
-#     data.sort_keys = []
-#     b_idxs = (
-#         torch.Tensor(idxs)
-#         .long()[:-1]
-#         .reshape(config.batch_rows, num_minibatches, config.bptt_horizon)
-#         .transpose(0, 1)
-#     )
-
-#     # bootstrap value if not done
-#     with torch.no_grad():
-#         advantages = torch.zeros(config.batch_size, device=data.device)
-#         lastgaelam = 0
-#         for t in reversed(range(config.batch_size)):
-#             i, i_nxt = idxs[t], idxs[t + 1]
-#             nextnonterminal = 1.0 - data.dones[i_nxt]
-#             nextvalues = data.values[i_nxt]
-#             delta = (
-#                 data.rewards[i_nxt]
-#                 + config.gamma * nextvalues * nextnonterminal
-#                 - data.values[i]
-#             )
-#             advantages[t] = lastgaelam = (
-#                 delta + config.gamma * config.gae_lambda * nextnonterminal * lastgaelam
-#             )
-
-#     # Flatten the batch
-#     data.b_obs = b_obs = torch.Tensor(data.obs_ary[b_idxs])
-#     b_actions = torch.Tensor(data.actions_ary[b_idxs]
-#         ).to(data.device, non_blocking=True)
-#     b_logprobs = torch.Tensor(data.logprobs_ary[b_idxs]
-#         ).to(data.device, non_blocking=True)
-#     b_dones = torch.Tensor(data.dones_ary[b_idxs]
-#         ).to(data.device, non_blocking=True)
-#     b_values = torch.Tensor(data.values_ary[b_idxs]
-#         ).to(data.device, non_blocking=True)
-#     b_advantages = advantages.reshape(
-#         config.batch_rows, num_minibatches, config.bptt_horizon
-#     ).transpose(0, 1)
-#     b_returns = b_advantages + b_values
-
-#     # Optimizing the policy and value network
-#     train_time = time.time()
-#     pg_losses, entropy_losses, v_losses, clipfracs, old_kls, kls = [], [], [], [], [], []
-#     mb_obs_buffer = torch.zeros_like(b_obs[0], pin_memory=(data.device=="cuda"))
-
-#     for epoch in range(config.update_epochs):
-#         lstm_state = None
-#         for mb in range(num_minibatches):
-#             mb_obs_buffer.copy_(b_obs[mb], non_blocking=True)
-#             mb_obs = mb_obs_buffer.to(data.device, non_blocking=True)
-#             #mb_obs = b_obs[mb].to(data.device, non_blocking=True)
-#             mb_actions = b_actions[mb].contiguous()
-#             mb_values = b_values[mb].reshape(-1)
-#             mb_advantages = b_advantages[mb].reshape(-1)
-#             mb_returns = b_returns[mb].reshape(-1)
-
-#             if hasattr(data.agent, 'lstm'):
-#                 _, newlogprob, entropy, newvalue, lstm_state = data.agent(
-#                     mb_obs, state=lstm_state, action=mb_actions)
-#                 lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
-#             else:
-#                 _, newlogprob, entropy, newvalue = data.agent(
-#                     mb_obs.reshape(-1, *data.pool.single_observation_space.shape),
-#                     action=mb_actions,
-#                 )
-
-#             logratio = newlogprob - b_logprobs[mb].reshape(-1)
-#             ratio = logratio.exp()
-
-#             with torch.no_grad():
-#                 # calculate approx_kl http://joschu.net/blog/kl-approx.html
-#                 old_approx_kl = (-logratio).mean()
-#                 old_kls.append(old_approx_kl.item())
-#                 approx_kl = ((ratio - 1) - logratio).mean()
-#                 kls.append(approx_kl.item())
-#                 clipfracs += [
-#                     ((ratio - 1.0).abs() > config.clip_coef).float().mean().item()
-#                 ]
-
-#             mb_advantages = mb_advantages.reshape(-1)
-#             if config.norm_adv:
-#                 mb_advantages = (mb_advantages - mb_advantages.mean()) / (
-#                     mb_advantages.std() + 1e-8
-#                 )
-
-#             # Policy loss
-#             pg_loss1 = -mb_advantages * ratio
-#             pg_loss2 = -mb_advantages * torch.clamp(
-#                 ratio, 1 - config.clip_coef, 1 + config.clip_coef
-#             )
-#             pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-#             pg_losses.append(pg_loss.item())
-
-#             # Value loss
-#             newvalue = newvalue.view(-1)
-#             if config.clip_vloss:
-#                 v_loss_unclipped = (newvalue - mb_returns) ** 2
-#                 v_clipped = mb_values + torch.clamp(
-#                     newvalue - mb_values,
-#                     -config.vf_clip_coef,
-#                     config.vf_clip_coef,
-#                 )
-#                 v_loss_clipped = (v_clipped - mb_returns) ** 2
-#                 v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-#                 v_loss = 0.5 * v_loss_max.mean()
-#             else:
-#                 v_loss = 0.5 * ((newvalue - mb_returns) ** 2).mean()
-#             v_losses.append(v_loss.item())
-
-#             entropy_loss = entropy.mean()
-#             entropy_losses.append(entropy_loss.item())
-
-#             loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
-#             data.optimizer.zero_grad()
-#             loss.backward()
-#             nn.utils.clip_grad_norm_(data.agent.parameters(), config.max_grad_norm)
-#             data.optimizer.step()
-
-#         if config.target_kl is not None:
-#             if approx_kl > config.target_kl:
-#                 break
-
-#     train_profiler.stop()
-#     y_pred, y_true = b_values.cpu().numpy(), b_returns.cpu().numpy()
-#     var_y = np.var(y_true)
-#     explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
-
-#     losses = data.losses
-#     losses.policy_loss = np.mean(pg_losses)
-#     losses.value_loss = np.mean(v_losses)
-#     losses.entropy = np.mean(entropy_losses)
-#     losses.old_approx_kl = np.mean(old_kls)
-#     losses.approx_kl = np.mean(kls)
-#     losses.clipfrac = np.mean(clipfracs)
-#     losses.explained_variance = explained_var
-
-#     perf = data.performance
-#     perf.total_uptime = int(time.time() - data.start_time)
-#     perf.total_updates = data.update + 1
-#     perf.train_time = time.time() - train_time
-#     perf.train_sps = int(config.batch_size / perf.train_time)
-#     perf.train_memory = train_profiler.end_mem
-#     perf.train_pytorch_memory = train_profiler.end_torch_mem
-#     perf.epoch_time = perf.eval_time + perf.train_time
-#     perf.epoch_sps = int(config.batch_size / perf.epoch_time)
-
-#     if config.verbose:
-#         print_dashboard(data.stats, data.init_performance, data.performance)
-
-#     data.update += 1
-#     if data.update % config.checkpoint_interval == 0 or done_training(data):
-#        save_checkpoint(data)
-
-# def close(data):
-#     data.pool.close()
-
-#     if data.wandb is not None:
-#         artifact_name = f"{data.exp_name}_model"
-#         artifact = data.wandb.Artifact(artifact_name, type="model")
-#         model_path = save_checkpoint(data)
-#         artifact.add_file(model_path)
-#         data.wandb.run.log_artifact(artifact)
-#         data.wandb.finish()
-
-# def rollout(env_creator, env_kwargs, agent_creator, agent_kwargs,
-#         model_path=None, device='cuda', verbose=True):
-#     env = env_creator(**env_kwargs)
-#     if model_path is None:
-#         agent = agent_creator(env, **agent_kwargs)
-#     else:
-#         agent = torch.load(model_path, map_location=device)
-
-#     terminal = truncated = True
- 
-#     while True:
-#         if terminal or truncated:
-#             if verbose:
-#                 print('---  Reset  ---')
-
-#             ob, info = env.reset()
-#             state = None
-#             step = 0
-#             return_val = 0
-
-#         ob = torch.tensor(ob).unsqueeze(0).to(device)
-#         with torch.no_grad():
-#             if hasattr(agent, 'lstm'):
-#                 action, _, _, _, state = agent(ob, state)
-#             else:
-#                 action, _, _, _ = agent(ob)
-
-#         ob, reward, terminal, truncated, _ = env.step(action[0].item())
-#         return_val += reward
-
-#         chars = env.render()
-#         print("\033c", end="")
-#         print(chars)
-
-#         if verbose:
-#             print(f'Step: {step} Reward: {reward:.4f} Return: {return_val:.2f}')
-
-#         time.sleep(0.5)
-#         step += 1
-
-# def done_training(data):
-#     return data.update >= data.total_updates
-
-# def save_checkpoint(data):
-#     path = os.path.join(data.config.data_dir, data.exp_name)
-#     if not os.path.exists(path):
-#         os.makedirs(path)
-
-#     model_name = f'model_{data.update:06d}.pt'
-#     model_path = os.path.join(path, model_name)
-
-#     # Already saved
-#     if os.path.exists(model_path):
-#         return model_path
-
-#     torch.save(data.uncompiled_agent, model_path)
-
-#     state = {
-#         "optimizer_state_dict": data.optimizer.state_dict(),
-#         "global_step": data.global_step,
-#         "agent_step": data.global_step,
-#         "update": data.update,
-#         "model_name": model_name,
-#     }
-
-#     if data.wandb:
-#         state['exp_name'] = data.exp_name
-
-#     state_path = os.path.join(path, 'trainer_state.pt')
-#     torch.save(state, state_path + '.tmp')
-#     os.rename(state_path + '.tmp', state_path)
-
-#     return model_path
-
-# def seed_everything(seed, torch_deterministic):
-#     random.seed(seed)
-#     np.random.seed(seed)
-#     if seed is not None:
-#         torch.manual_seed(seed)
-#     torch.backends.cudnn.deterministic = torch_deterministic
-
-# def unroll_nested_dict(d):
-#     if not isinstance(d, dict):
-#         return d
-
-#     for k, v in d.items():
-#         if isinstance(v, dict):
-#             for k2, v2 in unroll_nested_dict(v):
-#                 yield f"{k}/{k2}", v2
-#         else:
-#             yield k, v
-
-# def print_dashboard(stats, init_performance, performance):
-#     output = []
-#     data = {**stats, **init_performance, **performance}
-    
-#     grouped_data = defaultdict(dict)
-    
-#     for k, v in data.items():
-#         if k == 'total_uptime':
-#             v = timedelta(seconds=v)
-#         if 'memory' in k:
-#             v = pufferlib.utils.format_bytes(v)
-#         elif 'time' in k:
-#             try:
-#                 v = f"{v:.2f} s"
-#             except:
-#                 pass
-        
-#         first_word, *rest_words = k.split('_')
-#         rest_words = ' '.join(rest_words).title()
-        
-#         grouped_data[first_word][rest_words] = v
-    
-#     for main_key, sub_dict in grouped_data.items():
-#         output.append(f"{main_key.title()}")
-#         for sub_key, sub_value in sub_dict.items():
-#             output.append(f"    {sub_key}: {sub_value}")
-    
-#     print("\033c", end="")
-#     print('\n'.join(output))
-#     time.sleep(1/20)
+#     ]
+#     return largest
+
+# def send_and_receive(data, largest, key):
+#     # if "state" in data.infos["learner"]:
+#     print("Migrating states:")
+#     logging.critical("Migrating states:")
+#     waiting_for = []
+
+    # # # TESTING
+    # # largest = [0]
+    # for i in range(data.config.num_envs):
+    #     if i not in largest:
+    #         new_state = random.choice(largest)
+    #         n = f'stats/{key}'
+    #         print(f'\t {i+1} -> {new_state+1}, {key} scores: {data.infos["learner"][n][i]} -> {data.infos["learner"][n][new_state]}')
+    #         # print(f'\t {i+1} -> {new_state+1}, map_n={data.infos["learner"]["stats/map"][i]} -> {data.infos["learner"]["stats/map"][new_state]}')
+
+    #         # Queue handling for state and pkl
+    #         # try:
+    #         data.env_recv_queues[i + 1].put((data.infos["learner"]["state"][new_state]))
+    #         waiting_for.append(i + 1)
+    #         print(f'put states for {i} successfully')
+    #         logging.critical(f'put states for {i} successfully')
+    #         # except:
+    #         #     print(f'DID NOT put states for {i} successfully')
+    #         #     logging.critical(f'DID NOT put states for {i} successfully')
+
+    # for i in waiting_for:
+    #     # try:
+    #     data.env_send_queues[i].get()
+    #     print(f"Received confirmation from env {i}")
+    #     logging.critical(f"Received confirmation from env {i}")
+    #     # except Exception as e:
+    #     #     print(f"Error processing in env {i}: {e}")
+    #     #     logging.critical(f"Error processing in env {i}: {e}")
+    #     #     data.env_send_queues[i].put(None)

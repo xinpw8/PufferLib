@@ -32,7 +32,7 @@ def make(name, async_config, **kwargs):
     """Create an environment, wrap it with StreamWrapper and AsyncWrapper"""
     env = Environment(**kwargs)  # Assume Environment takes keyword arguments for configuration
     env = AsyncWrapper(env, async_config["send_queues"], async_config["recv_queues"])
-    env = StreamWrapper(env, stream_metadata={"user": "checkpoings |BET|\n"})
+    env = StreamWrapper(env, stream_metadata={"user": "checc_.B.E.T._poings\n"})
 
     # Ensure async_config is used properly
     if 'send_queues' not in async_config or 'recv_queues' not in async_config:
