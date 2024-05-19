@@ -363,8 +363,15 @@ def create(
         tensor_memory = storage_profiler.memory,
         tensor_pytorch_memory = storage_profiler.pytorch_memory,
     )
+    
+    # Get the current file's directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Construct the relative path to map_data.json
+    map_data_path = os.path.join(current_dir, '..', 'pokegym', 'pokegym', 'map_data.json')
+        
     # Load map data
-    with open('pokegym/pokegym/map_data.json', 'r') as file:
+    with open(map_data_path, 'r') as file:
         map_data = json.load(file)
     total_envs = map_data
  
@@ -450,251 +457,213 @@ def evaluate(data):
         # Log the data
         data.wandb.log(log_dict)
         
-        
-        # # Default values to empty lists if keys are absent
         # badge_counts = data.infos["learner"].get("stats/badges", [])
         # bill_counts = data.infos["learner"].get("stats/bill_saved", [])
         # rocket_hideout_completions = data.infos["learner"].get("stats/beat_rocket_hideout_giovanni", [])
         # pokemon_tower_completions = data.infos["learner"].get("stats/rescued_mr_fuji", [])
         # silph_co_completions = data.infos["learner"].get("stats/beat_silph_co_giovanni", [])
 
-        # # Calculate the percentage of environments with current badge level or higher
-        # num_envs_with_badge_1 = sum(1 for badge in badge_counts if badge >= 1)
-        # num_envs_with_badge_2 = sum(1 for badge in badge_counts if badge >= 2)
-        # num_envs_with_badge_3 = sum(1 for badge in badge_counts if badge >= 3)
-        # num_envs_with_badge_4 = sum(1 for badge in badge_counts if badge >= 4)
-        # num_envs_with_badge_5 = sum(1 for badge in badge_counts if badge >= 5)
-        # num_envs_with_badge_6 = sum(1 for badge in badge_counts if badge >= 6)
-        # num_envs_with_badge_7 = sum(1 for badge in badge_counts if badge >= 7)
-        # num_envs_with_badge_8 = sum(1 for badge in badge_counts if badge >= 8)
-        # bill_saved = sum(1 for bill in bill_counts if bill)
-        # rocket_hideout_completions = sum(1 for progress in rocket_hideout_completions if progress)
-        # pokemon_tower_completions = sum(1 for progress in pokemon_tower_completions if progress)
-        # silph_co_completions = sum(1 for progress in silph_co_completions if progress)
+        # num_envs_with_badge = [sum(1 for badge in badge_counts if badge >= level) for level in range(1, 9)]
+        # print(f'num_envs_with_badge={num_envs_with_badge}')
+        # logging.error(f'num_envs_with_badge={num_envs_with_badge}')
         
-        # # Convert counts to percentages
+        # bill_saved = sum(1 for bill in bill_counts if bill)
+        # rocket_hideout = sum(1 for progress in rocket_hideout_completions if progress)
+        # pokemon_tower = sum(1 for progress in pokemon_tower_completions if progress)
+        # silph_co = sum(1 for progress in silph_co_completions if progress)
+
         # total_envs = data.config.num_envs
         # completion_dict = {
-        #     "badge_1": num_envs_with_badge_1 / total_envs,
-        #     "badge_2": num_envs_with_badge_2 / total_envs,
-        #     "badge_3": num_envs_with_badge_3 / total_envs,
-        #     "badge_4": num_envs_with_badge_4 / total_envs,
-        #     "badge_5": num_envs_with_badge_5 / total_envs,
-        #     "badge_6": num_envs_with_badge_6 / total_envs,
-        #     "badge_7": num_envs_with_badge_7 / total_envs,
-        #     "badge_8": num_envs_with_badge_8 / total_envs,
+        #     "badge_1": num_envs_with_badge[0] / total_envs,
+        #     "badge_2": num_envs_with_badge[1] / total_envs,
+        #     "badge_3": num_envs_with_badge[2] / total_envs,
+        #     "badge_4": num_envs_with_badge[3] / total_envs,
+        #     "badge_5": num_envs_with_badge[4] / total_envs,
+        #     "badge_6": num_envs_with_badge[5] / total_envs,
+        #     "badge_7": num_envs_with_badge[6] / total_envs,
+        #     "badge_8": num_envs_with_badge[7] / total_envs,
         #     "bill_saved": bill_saved / total_envs,
-        #     "beat_rocket_hideout_giovanni": rocket_hideout_completions / total_envs,
-        #     "rescued_mr_fuji": pokemon_tower_completions / total_envs,
-        #     "beat_silph_co_giovanni": silph_co_completions / total_envs,
+        #     "beat_rocket_hideout_giovanni": rocket_hideout / total_envs,
+        #     "rescued_mr_fuji": pokemon_tower / total_envs,
+        #     "beat_silph_co_giovanni": silph_co / total_envs,
         # }
-        badge_counts = data.infos["learner"].get("stats/badges", [])
-        bill_counts = data.infos["learner"].get("stats/bill_saved", [])
-        rocket_hideout_completions = data.infos["learner"].get("stats/beat_rocket_hideout_giovanni", [])
-        pokemon_tower_completions = data.infos["learner"].get("stats/rescued_mr_fuji", [])
-        silph_co_completions = data.infos["learner"].get("stats/beat_silph_co_giovanni", [])
-
-        num_envs_with_badge = [sum(1 for badge in badge_counts if badge >= level) for level in range(1, 9)]
-        print(f'num_envs_with_badge={num_envs_with_badge}')
-        logging.error(f'num_envs_with_badge={num_envs_with_badge}')
         
-        bill_saved = sum(1 for bill in bill_counts if bill)
-        rocket_hideout = sum(1 for progress in rocket_hideout_completions if progress)
-        pokemon_tower = sum(1 for progress in pokemon_tower_completions if progress)
-        silph_co = sum(1 for progress in silph_co_completions if progress)
+        # print(f'completion_dict={completion_dict}')
+        # logging.error(f'completion_dict={completion_dict}') 
 
-        total_envs = data.config.num_envs
-        completion_dict = {
-            "badge_1": num_envs_with_badge[0] / total_envs,
-            "badge_2": num_envs_with_badge[1] / total_envs,
-            "badge_3": num_envs_with_badge[2] / total_envs,
-            "badge_4": num_envs_with_badge[3] / total_envs,
-            "badge_5": num_envs_with_badge[4] / total_envs,
-            "badge_6": num_envs_with_badge[5] / total_envs,
-            "badge_7": num_envs_with_badge[6] / total_envs,
-            "badge_8": num_envs_with_badge[7] / total_envs,
-            "bill_saved": bill_saved / total_envs,
-            "beat_rocket_hideout_giovanni": rocket_hideout / total_envs,
-            "rescued_mr_fuji": pokemon_tower / total_envs,
-            "beat_silph_co_giovanni": silph_co / total_envs,
-        }
+        # # Retrieve leave location criteria from configuration, use the first instance as all are identical
+        # leave_location_criteria = {"badge_1": data.config.badge_1_trigger_pct,
+        #                            "badge_2": data.config.badge_2_trigger_pct,
+        #                             "badge_3": data.config.badge_3_trigger_pct,
+        #                             "badge_4": data.config.badge_4_trigger_pct,
+        #                             "badge_5": data.config.badge_5_trigger_pct,
+        #                             "badge_6": data.config.badge_6_trigger_pct,
+        #                             "badge_7": data.config.badge_7_trigger_pct,
+        #                             "badge_8": data.config.badge_8_trigger_pct,
+        #                             "bill_saved": data.config.bill_saved_trigger_pct,
+        #                             "beat_rocket_hideout_giovanni": data.config.beat_rocket_hideout_giovanni_trigger_pct,
+        #                             "rescued_mr_fuji": data.config.rescued_mr_fuji_trigger_pct,
+        #                             "beat_silph_co_giovanni": data.config.beat_silph_co_giovanni_trigger_pct,
+        #     }
+
+        # print(f'leave_location_criteria={leave_location_criteria}')
+        # logging.error(f'leave_location_criteria={leave_location_criteria}') 
+
+        # print(f'data.update={data.update}: looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        # logging.info(f'data.update={data.update}: looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        # print(f'data.update={data.update}: looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
+        # logging.info(f'data.update={data.update}: looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
         
-        print(f'completion_dict={completion_dict}')
-        logging.error(f'completion_dict={completion_dict}') 
-
-        # Retrieve leave location criteria from configuration, use the first instance as all are identical
-        leave_location_criteria = {"badge_1": data.config.badge_1_trigger_pct,
-                                   "badge_2": data.config.badge_2_trigger_pct,
-                                    "badge_3": data.config.badge_3_trigger_pct,
-                                    "badge_4": data.config.badge_4_trigger_pct,
-                                    "badge_5": data.config.badge_5_trigger_pct,
-                                    "badge_6": data.config.badge_6_trigger_pct,
-                                    "badge_7": data.config.badge_7_trigger_pct,
-                                    "badge_8": data.config.badge_8_trigger_pct,
-                                    "bill_saved": data.config.bill_saved_trigger_pct,
-                                    "beat_rocket_hideout_giovanni": data.config.beat_rocket_hideout_giovanni_trigger_pct,
-                                    "rescued_mr_fuji": data.config.rescued_mr_fuji_trigger_pct,
-                                    "beat_silph_co_giovanni": data.config.beat_silph_co_giovanni_trigger_pct,
-            }
-
-        print(f'leave_location_criteria={leave_location_criteria}')
-        logging.error(f'leave_location_criteria={leave_location_criteria}') 
-
-        print(f'data.update={data.update}: looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
-        logging.info(f'data.update={data.update}: looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
-        print(f'data.update={data.update}: looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
-        logging.info(f'data.update={data.update}: looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
-        
-        if data.update == 1:
-            # Write the trigger percents from config to a file so it can be modified later in case run is stuck
-            print(f'cprl: wrote trigger fractions from config to file: {data.trigger_fractions_path}')
-            logging.info(f'cprl: wrote trigger fractions from config to file: {data.trigger_fractions_path}')
+        # if data.update == 1:
+        #     # Write the trigger percents from config to a file so it can be modified later in case run is stuck
+        #     print(f'cprl: wrote trigger fractions from config to file: {data.trigger_fractions_path}')
+        #     logging.info(f'cprl: wrote trigger fractions from config to file: {data.trigger_fractions_path}')
             
-            with open(data.trigger_fractions_path, 'w') as file:
-                json.dump(leave_location_criteria, file, indent=0) 
+        #     with open(data.trigger_fractions_path, 'w') as file:
+        #         json.dump(leave_location_criteria, file, indent=0) 
 
-        # Read the file to obtain the trigger percents each time        
-        if data.update % 1 == 0: # and data.update != 1:
-            with open(data.trigger_fractions_path, 'r') as file:
-                data.config.pct_complete_file_placeholder = json.load(file)
+        # # Read the file to obtain the trigger percents each time        
+        # if data.update % 1 == 0: # and data.update != 1:
+        #     with open(data.trigger_fractions_path, 'r') as file:
+        #         data.config.pct_complete_file_placeholder = json.load(file)
                 
-            print(f'cprl: read trigger fractions from file: trigger fractions={data.config.pct_complete_file_placeholder}, saved to variable data.config.pct_complete_file_placeholder: {data.trigger_fractions_path}')
-            logging.info(f'cprl: read trigger fractions from file: trigger fractions={data.config.pct_complete_file_placeholder}, saved to variable data.config.pct_complete_file_placeholder: {data.trigger_fractions_path}')
+        #     print(f'cprl: read trigger fractions from file: trigger fractions={data.config.pct_complete_file_placeholder}, saved to variable data.config.pct_complete_file_placeholder: {data.trigger_fractions_path}')
+        #     logging.info(f'cprl: read trigger fractions from file: trigger fractions={data.config.pct_complete_file_placeholder}, saved to variable data.config.pct_complete_file_placeholder: {data.trigger_fractions_path}')
 
-        # Maybe not a thing, but using an intermediary variable to prevent read/write at same time
-        leave_location_criteria = data.config.pct_complete_file_placeholder
+        # # Maybe not a thing, but using an intermediary variable to prevent read/write at same time
+        # leave_location_criteria = data.config.pct_complete_file_placeholder
     
-        # Write fraction completions aggregated from "learner" "stats/x" to file so envs can use x comnpletion values
-        # if data.update % 5 == 0 or data.update == 1:
-        # Write the percentage completion dictionary to a file
-        try:
-            with open(data.percent_complete_path, 'w') as file:
-                json.dump(completion_dict, file, indent=0)
-            print(f'cprl LINE 525: leave_location_criteria AFTER written to file and reloaded: {leave_location_criteria}')
-            logging.info(f'cprl LINE 525: leave_location_criteria AFTER written to file and reloaded: {leave_location_criteria}')    
-        except:
-            pass
+        # # Write fraction completions aggregated from "learner" "stats/x" to file so envs can use x comnpletion values
+        # # if data.update % 5 == 0 or data.update == 1:
+        # # Write the percentage completion dictionary to a file
+        # try:
+        #     with open(data.percent_complete_path, 'w') as file:
+        #         json.dump(completion_dict, file, indent=0)
+        #     print(f'cprl LINE 525: leave_location_criteria AFTER written to file and reloaded: {leave_location_criteria}')
+        #     logging.info(f'cprl LINE 525: leave_location_criteria AFTER written to file and reloaded: {leave_location_criteria}')    
+        # except:
+        #     pass
     
-        # Compare each completion metric with its corresponding leave location criteria
-        for key, value in completion_dict.items():
-            if key not in data.swarm_trigger_condition:
-                print(f'key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
-                logging.error(f'key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
+        # # Compare each completion metric with its corresponding leave location criteria
+        # for key, value in completion_dict.items():
+        #     if key not in data.swarm_trigger_condition:
+        #         print(f'key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
+        #         logging.error(f'key vs value: {key}:{value} vs {key}:{leave_location_criteria.get(key, 0)}')
             
-                # If conditional is met, load up a selection of the completed states to all other envs
-                if value >= leave_location_criteria.get(key, 0):
-                    # Swarming logic below
-                    print(f'Swarming condition met for {key}: {value} >= {leave_location_criteria[key]}')
-                    logging.info(f'Swarming condition met for {key}: {value} >= {leave_location_criteria[key]}')
+        #         # If conditional is met, load up a selection of the completed states to all other envs
+        #         if value >= leave_location_criteria.get(key, 0):
+        #             # Swarming logic below
+        #             print(f'Swarming condition met for {key}: {value} >= {leave_location_criteria[key]}')
+        #             logging.info(f'Swarming condition met for {key}: {value} >= {leave_location_criteria[key]}')
 
-                    # if ("learner" in data.infos and f"stats/{key}" in data.infos["learner"]):
-                    print(f'{key}: {leave_location_criteria[key]}, Percentage complete >= {leave_location_criteria[key]}: {value}, Required Percentage: {leave_location_criteria[key]}')
-                    logging.info(f'{key}: {leave_location_criteria[key]}, Percentage complete >= {leave_location_criteria[key]}: {value}, Required Percentage: {leave_location_criteria[key]}')
+        #             # if ("learner" in data.infos and f"stats/{key}" in data.infos["learner"]):
+        #             print(f'{key}: {leave_location_criteria[key]}, Percentage complete >= {leave_location_criteria[key]}: {value}, Required Percentage: {leave_location_criteria[key]}')
+        #             logging.info(f'{key}: {leave_location_criteria[key]}, Percentage complete >= {leave_location_criteria[key]}: {value}, Required Percentage: {leave_location_criteria[key]}')
                     
-                    # if ("state" in data.infos["learner"]):
-                    values = data.infos["learner"][f"stats/{key}"]
-                    print(f'cprl LINE 554: values={values}')
-                    logging.info(f'cprl LINE 554: values={values}')
+        #             # if ("state" in data.infos["learner"]):
+        #             values = data.infos["learner"][f"stats/{key}"]
+        #             print(f'cprl LINE 554: values={values}')
+        #             logging.info(f'cprl LINE 554: values={values}')
                     
-                    largest = compute_largest(data, values)
-                    print(f'cprl: LINE 594 largest={largest}')
-                    logging.info(f'cprl: LINE 594 largest={largest}')
+        #             largest = compute_largest(data, values)
+        #             print(f'cprl: LINE 594 largest={largest}')
+        #             logging.info(f'cprl: LINE 594 largest={largest}')
                     
-                    if "stats/state" in data.infos["learner"]:
-                        print(f'cprl LINE 599: "stats/state" in data.infos["learner"]!! proceeding with get/put!')
-                        logging.info(f'cprl LINE 599: "stats/state" in data.infos["learner"]!! proceeding with get/put!')
+        #             if "stats/state" in data.infos["learner"]:
+        #                 print(f'cprl LINE 599: "stats/state" in data.infos["learner"]!! proceeding with get/put!')
+        #                 logging.info(f'cprl LINE 599: "stats/state" in data.infos["learner"]!! proceeding with get/put!')
                         
-                        i_list0, i_list, i_list2, larges = send_and_receive(data, largest, key)
-                        if i_list0:
-                            print(f'cprl 612 i_list_all_i present')   
-                            logging.info(f'cprl 612 i_list_all_i present')   
-                        else:
-                            print(f'cprl 612 i_list_all_i MISSING!!')   
-                            logging.info(f'cprl 612 i_list_all_i MISSING!!') 
-                        if i_list:
-                            print(f'cprl 612 i_list_puts present')   
-                            logging.info(f'cprl 612 i_list_puts present') 
-                        else:
-                            print(f'cprl 612 i_list_puts MISSING!!')   
-                            logging.info(f'cprl 612 i_list_puts MISSING!!')   
-                        if i_list2:
-                            print(f'cprl 612 i_list_gets present')   
-                            logging.info(f'cprl 612 i_list_gets present')
-                        else:
-                            print(f'cprl 612 i_list_gets MISSING!!')   
-                            logging.info(f'cprl 612 i_list_gets MISSING!!')  
-                        if larges:
-                            print(f'cprl 612 larges present')   
-                            logging.info(f'cprl 612 larges present')   
-                        else:
-                            print(f'cprl 612 larges MISSING!!')   
-                            logging.info(f'cprl 612 larges MISSING!!')  
+        #                 i_list0, i_list, i_list2, larges = send_and_receive(data, largest, key)
+        #                 if i_list0:
+        #                     print(f'cprl 612 i_list_all_i present')   
+        #                     logging.info(f'cprl 612 i_list_all_i present')   
+        #                 else:
+        #                     print(f'cprl 612 i_list_all_i MISSING!!')   
+        #                     logging.info(f'cprl 612 i_list_all_i MISSING!!') 
+        #                 if i_list:
+        #                     print(f'cprl 612 i_list_puts present')   
+        #                     logging.info(f'cprl 612 i_list_puts present') 
+        #                 else:
+        #                     print(f'cprl 612 i_list_puts MISSING!!')   
+        #                     logging.info(f'cprl 612 i_list_puts MISSING!!')   
+        #                 if i_list2:
+        #                     print(f'cprl 612 i_list_gets present')   
+        #                     logging.info(f'cprl 612 i_list_gets present')
+        #                 else:
+        #                     print(f'cprl 612 i_list_gets MISSING!!')   
+        #                     logging.info(f'cprl 612 i_list_gets MISSING!!')  
+        #                 if larges:
+        #                     print(f'cprl 612 larges present')   
+        #                     logging.info(f'cprl 612 larges present')   
+        #                 else:
+        #                     print(f'cprl 612 larges MISSING!!')   
+        #                     logging.info(f'cprl 612 larges MISSING!!')  
                             
                             
                             
                             
                                            
-                        # Add to list of completed triggers to avoid constantly triggering same
-                        if all([i_list0, i_list, i_list2, larges]):
-                            data.swarm_trigger_condition.append(key)
-                            logging.info(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
-                            {i_list0}
-                            {i_list}
-                            {i_list2}
-                            {larges}
-                            ''')
+        #                 # Add to list of completed triggers to avoid constantly triggering same
+        #                 if all([i_list0, i_list, i_list2, larges]):
+        #                     data.swarm_trigger_condition.append(key)
+        #                     logging.info(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+        #                     {i_list0}
+        #                     {i_list}
+        #                     {i_list2}
+        #                     {larges}
+        #                     ''')
 
-                            print(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
-                            {i_list0}
-                            {i_list}
-                            {i_list2}
-                            {larges}
-                            ''')
-                        else:
-                            print(f'cprl: LINE 616 SOME OR ALL OF THE SEND/RECEIVE CONDITIONS WERENT MET!!!')
-                            logging.info(f'cprl: LINE 616 SOME OR ALL OF THE SEND/RECEIVE CONDITIONS WERENT MET!!!')
-                    else:
-                        print(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
-                        logging.info(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        #                     print(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+        #                     {i_list0}
+        #                     {i_list}
+        #                     {i_list2}
+        #                     {larges}
+        #                     ''')
+        #                 else:
+        #                     print(f'cprl: LINE 616 SOME OR ALL OF THE SEND/RECEIVE CONDITIONS WERENT MET!!!')
+        #                     logging.info(f'cprl: LINE 616 SOME OR ALL OF THE SEND/RECEIVE CONDITIONS WERENT MET!!!')
+        #             else:
+        #                 print(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
+        #                 logging.info(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["state"]... is "state" in data.infos["learner"]={"state" in data.infos["learner"]}')
         
-                        print(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
-                        logging.info(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')       
-            else:
-                # Check for straggler envs. After swarm event, all "state/{key}" should be 1.
-                if "stats/state" in data.infos["learner"]:
-                    envs_with_zero = data.infos["learner"][f"stats/{key}"]
-                    envs_with_zero = list(enumerate(envs_with_zero))
-                    print(f'envs_with_zero={envs_with_zero}')
-                    logging.info(f'envs_with_zero={envs_with_zero}')
-                    z_envs = []
-                    one_envs = []
-                    for v in envs_with_zero:
-                        if v[1] == 0:
-                            z_envs.append(v[0])
-                        else:
-                            one_envs.append(v[0])
-                    print(f'SPECIAL STATE TRANSFER SESSION')
-                    logging.info(f'SPECIAL STATE TRANSFER SESSION')
-                    i_list0, i_list, i_list2, larges = send_and_receive_catch_up(data, z_envs, one_envs, key)
-                    if all([i_list0, i_list, i_list2, larges]):
-                        data.swarm_trigger_condition.append(key)
-                        logging.info(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
-                        {i_list0}
-                        {i_list}
-                        {i_list2}
-                        {larges}
-                        ''')
+        #                 print(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')
+        #                 logging.info(f'cprl LINE 624: data.update={data.update}: CANNOT PROCEED with get/put! looking for data.infos["learner"]["states/state"]... is "states/state" in data.infos["learner"]={"stats/state" in data.infos["learner"]}')       
+        #     else:
+        #         # Check for straggler envs. After swarm event, all "state/{key}" should be 1.
+        #         if "stats/state" in data.infos["learner"]:
+        #             envs_with_zero = data.infos["learner"][f"stats/{key}"]
+        #             envs_with_zero = list(enumerate(envs_with_zero))
+        #             print(f'envs_with_zero={envs_with_zero}')
+        #             logging.info(f'envs_with_zero={envs_with_zero}')
+        #             z_envs = []
+        #             one_envs = []
+        #             for v in envs_with_zero:
+        #                 if v[1] == 0:
+        #                     z_envs.append(v[0])
+        #                 else:
+        #                     one_envs.append(v[0])
+        #             print(f'SPECIAL STATE TRANSFER SESSION')
+        #             logging.info(f'SPECIAL STATE TRANSFER SESSION')
+        #             i_list0, i_list, i_list2, larges = send_and_receive_catch_up(data, z_envs, one_envs, key)
+        #             if all([i_list0, i_list, i_list2, larges]):
+        #                 data.swarm_trigger_condition.append(key)
+        #                 logging.info(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+        #                 {i_list0}
+        #                 {i_list}
+        #                 {i_list2}
+        #                 {larges}
+        #                 ''')
 
-                        print(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
-                        {i_list0}
-                        {i_list}
-                        {i_list2}
-                        {larges}
-                        ''')
-                    updating_stats = data.infos["learner"][f"stats/{key}"]
-                    updated_values = [1.0 if value == 0 else value for value in updating_stats]
-                    print(f'updated stats: {data.infos["learner"][f"stats/{key}"]}\n{updated_values}')
-                    logging.info(f'updated stats: {data.infos["learner"][f"stats/{key}"]}\n{updated_values}')
+        #                 print(f'''all conditions for send_and_receive were met for key={key}! i_list_all_i, i_list_puts, i_list_gets, largest:
+        #                 {i_list0}
+        #                 {i_list}
+        #                 {i_list2}
+        #                 {larges}
+        #                 ''')
+        #             updating_stats = data.infos["learner"][f"stats/{key}"]
+        #             updated_values = [1.0 if value == 0 else value for value in updating_stats]
+        #             print(f'updated stats: {data.infos["learner"][f"stats/{key}"]}\n{updated_values}')
+        #             logging.info(f'updated stats: {data.infos["learner"][f"stats/{key}"]}\n{updated_values}')
                     
 
             # Else for testing only
