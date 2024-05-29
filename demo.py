@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
     if args.baseline:
         assert args.mode in ('train', 'eval', 'evaluate')
-        args.track = False # True
+        args.track = True
         version = '.'.join(pufferlib.__version__.split('.')[:2])
         args.exp_id = f'puf-{version}-{args.env_name}'
         args.wandb_group = f'puf-{version}-baseline'
