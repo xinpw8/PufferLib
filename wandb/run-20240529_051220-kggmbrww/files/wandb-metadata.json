@@ -1,0 +1,95 @@
+{
+    "os": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "python": "3.11.9",
+    "heartbeatAt": "2024-05-29T05:12:20.673381",
+    "startedAt": "2024-05-29T05:12:20.377486",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--mode",
+        "train",
+        "--baseline",
+        "--env",
+        "pokedebug",
+        "--vec",
+        "serial",
+        "--wandb-entity",
+        "xinpw8"
+    ],
+    "state": "running",
+    "program": "/root/bet/pyboy2/PufferLib/demo.py",
+    "codePath": "demo.py",
+    "git": {
+        "remote": "https://github.com/PufferAI/PufferLib.git",
+        "commit": "37f176d9d37fd2f89e71ea1b94b0ec3d320ff1c4"
+    },
+    "email": "paintitblack1@gmail.com",
+    "root": "/root/bet/pyboy2/PufferLib",
+    "host": "f70b4a2fcebb",
+    "username": "root",
+    "executable": "/root/.pyenv/versions/pyboy2/bin/python",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 3599.9959999999996,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3599.996,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "total": 1006.853931427002,
+        "used": 190.42869567871094
+    },
+    "gpu": "NVIDIA GeForce RTX 2080 SUPER",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 2080 SUPER",
+            "memory_total": 8589934592
+        }
+    ],
+    "memory": {
+        "total": 77.56643676757812
+    }
+}

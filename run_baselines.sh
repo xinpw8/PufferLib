@@ -33,7 +33,7 @@ case $GROUP in
         $COMMON seaquest --vec multiprocessing
         ;;
     pokemon)
-        $COMMON pokemon --vec multiprocessing
+        $COMMON pokemon --vec multiprocessing --wandb-entity xinpw8
         ;;
     crafter)
         $COMMON crafter --vec multiprocessing
@@ -44,8 +44,11 @@ case $GROUP in
     nmmo)
         $COMMON nmmo --vec multiprocessing
         ;;
+    pokedebug)
+        $COMMON pokedebug --vec serial --wandb-entity xinpw8
+        ;;
     *)
-        echo "Invalid group. Please specify 'ocean' or 'procgen_small'."
+        echo "Invalid group. Please specify 'ocean', 'procgen', 'atari', 'pokemon', 'crafter', 'nethack', 'nmmo', or 'pokedebug'."
         exit 1
         ;;
 esac

@@ -40,7 +40,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, policy_pool=False
 
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
     # TODO: Check starting point in term and draw from there with no clear
-    print_dashboard(config.env, 0, 0, profile, losses, {}, msg, clear=True)
+    # print_dashboard(config.env, 0, 0, profile, losses, {}, msg, clear=True)
 
     vecenv.async_reset(config.seed)
     obs_shape = vecenv.single_observation_space.shape
