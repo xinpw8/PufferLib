@@ -173,6 +173,7 @@ environments = {
         'pettingzoo',
         'GPUtils',
         'websockets',
+        'schedulefree',
     ],
     'procgen': [
         f'gym=={GYM_VERSION}',

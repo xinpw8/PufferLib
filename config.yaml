@@ -721,7 +721,7 @@ connect4:
 pokemon_red:
   use_rnn: True
   train:
-    total_timesteps: 1_000_000
+    total_timesteps: 3_000_000
     num_envs: 96 
     num_workers: 24
     env_batch_size: 32
@@ -731,6 +731,7 @@ pokemon_red:
     batch_size: 65536
     minibatch_size: 2048
     compile: True
+    schedulefree_optim: True
     learning_rate: 2.0e-4
     anneal_lr: False
 pokemon-red:

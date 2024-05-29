@@ -14,6 +14,7 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.policy_pool
 import pufferlib.pytorch
+import schedulefree
 
 torch.set_float32_matmul_precision('high')
 
@@ -40,7 +41,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, policy_pool=False
 
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
     # TODO: Check starting point in term and draw from there with no clear
-    # print_dashboard(config.env, 0, 0, profile, losses, {}, msg, clear=True)
+    print_dashboard(config.env, 0, 0, profile, losses, {}, msg, clear=True)
 
     vecenv.async_reset(config.seed)
     obs_shape = vecenv.single_observation_space.shape
@@ -57,7 +58,11 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, policy_pool=False
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode)
 
-    optimizer = torch.optim.Adam(policy.parameters(),
+    if config.schedulefree_optim:
+        optimizer = schedulefree.AdamWScheduleFree(policy.parameters(),
+            lr=config.learning_rate, eps=1e-5)
+    else:
+        optimizer = torch.optim.Adam(policy.parameters(),
         lr=config.learning_rate, eps=1e-5)
 
     # Wraps the policy for self-play
@@ -101,7 +106,8 @@ def evaluate(data):
         infos = defaultdict(list)
         lstm_h, lstm_c = experience.lstm_h, experience.lstm_c
 
-
+    if config.schedulefree_optim:
+        data.optimizer.eval()
     while not experience.full:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
@@ -205,6 +211,9 @@ def train(data):
     data.losses = make_losses()
     losses = data.losses
 
+    if config.schedulefree_optim:
+        data.optimizer.train()
+        
     with profile.train_misc:
         idxs = experience.sort_training_data()
         dones_np = experience.dones_np[idxs]
