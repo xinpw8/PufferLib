@@ -68,7 +68,7 @@ class StreamWrapper(gym.Wrapper):
 
         # Update stream metadata
         self.stream_metadata['extra'] = f"bet_fixed_window\n{self.pokemon_data[0][0]}: {self.pokemon_data[0][1]}\nenv_id={env_id}"
-        self.stream_metadata["color"] = "#FFA550"
+        self.stream_metadata["color"] = "#FFEE50"
 
         if self.steam_step_counter >= self.upload_interval:
             self.loop.run_until_complete(

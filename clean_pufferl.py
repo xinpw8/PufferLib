@@ -164,7 +164,7 @@ def evaluate(data):
         #infos = infos['learner']
 
         # Moves into models... maybe. Definitely moves. You could also just return infos and have it in demo
-        if 'pokemon_exploration_map' in infos:
+        if 'pokemon_exploration_map' in infos and data.epoch % config.overlay_interval == 0:
             for pmap in infos['pokemon_exploration_map']:
                 if not hasattr(data, 'pokemon_map'):
                     import pokemon_red_eval
@@ -177,11 +177,12 @@ def evaluate(data):
                 rendered = data.map_updater(data.pokemon_map)
                 data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
 
-        for k, v in infos.items():
-            try: # TODO: Better checks on log data types
-                data.stats[k] = np.mean(v)
-            except:
-                continue
+        if data.epoch % config.stats_interval == 0:
+            for k, v in infos.items():
+                try: # TODO: Better checks on log data types
+                    data.stats[k] = np.mean(v)
+                except:
+                    continue
 
 
     return data.stats, infos

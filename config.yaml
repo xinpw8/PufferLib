@@ -721,7 +721,7 @@ connect4:
 pokemon_red:
   use_rnn: True
   train:
-    total_timesteps: 3_000_000
+    total_timesteps: 3_000_000_000
     num_envs: 96 
     num_workers: 24
     env_batch_size: 32
@@ -734,6 +734,8 @@ pokemon_red:
     schedulefree_optim: True
     learning_rate: 2.0e-4
     anneal_lr: False
+    overlay_interval: 50
+    stats_interval: 50
 pokemon-red:
   package: pokemon_red
 pokemonred:
