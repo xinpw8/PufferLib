@@ -1,8 +1,8 @@
 import sys
 import os
 
-# Ensure the directory of the correct environment.py is in sys.path
-correct_path = '/puffertank/0.7/pufferlib/pokegym/pokegym/environment.py'
+# Direct file path to the MODULE (i.e. top dir pokegym)
+correct_path = '/bet_adsorption_xinpw8/pokepuff_badge_4/pokegym/'
 if correct_path not in sys.path:
     sys.path.insert(0, correct_path)
     
@@ -17,7 +17,7 @@ def env_creator(name="pokemon_red"):
 def make(name, **kwargs,):
     """Pokemon Red"""
     env = Environment(kwargs)
-    env = StreamWrapper(env, stream_metadata={"user": "localtesty |BET|\n"})
+    env = StreamWrapper(env, stream_metadata={"user": "pleasework BET\n"})
     # Looks like the following will optionally create the object for you
     # Or use the one you pass it. I'll just construct it here.
     return pufferlib.emulation.GymnasiumPufferEnv(
