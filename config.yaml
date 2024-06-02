@@ -622,12 +622,10 @@ nethack:
 nmmo:
   train:
     num_envs: 1
-    num_workers: 1
     batch_size: 4096
     minibatch_size: 2048
 
 nmmo3:
-  use_rnn: True
   train:
     total_timesteps: 10_000_000
     #total_timesteps: 10_000_000_000
@@ -646,61 +644,26 @@ nmmo3:
     #
 nmmo3laptop:
   package: nmmo3
-  policy:
-    inference_batch_size: 4096
-    train_batch_size: 16384
   train:
-    total_timesteps: 10_000_000
-    num_envs: 24
-    num_workers: 6
-    env_batch_size: 8
+    total_timesteps: 500_000
+    num_envs: 18
+    envpool_batch_size: 6
     update_epochs: 1
     gamma: 0.998
     batch_size: 32768
-    minibatch_size: 16384
-    #compile: True
+    minibatch_size: 4096
     compile: False
 
 nmmo3debug:
   package: nmmo3
-  policy:
-    inference_batch_size: 512
-    train_batch_size: 8192
   train:
-    total_timesteps: 10_000_000
+    total_timesteps: 100_000
     num_envs: 1
-    num_workers: 1
     update_epochs: 1
     gamma: 0.998
-    #ent_coef: 0.05
-    batch_size: 8192
-    minibatch_size: 8192
+    batch_size: 4096
+    minibatch_size: 2048
     compile: False
-  sweep:
-    method: random
-    name: sweep
-    metric:
-      goal: maximize
-      name: environment/reward_dist
-    # Nested parameters name required by WandB API
-    parameters:
-      train:
-        parameters:
-          gamma: {
-            'values': [0.95, 0.975, 0.99, 0.995, 0.998],
-          }
-          learning_rate: {
-            'distribution': 'log_uniform_values',
-            'min': 1e-4,
-            'max': 1e-1,
-          }
-          batch_size: {
-            'values': [8192, 16384, 32768],
-          }
-          bptt_horizon: {
-            'values': [4, 8, 16],
-          }
-
 
 
 # Ocean: PufferAI's first party environment suite
@@ -758,7 +721,7 @@ connect4:
 pokemon_red:
   use_rnn: True
   train:
-    total_timesteps: 1_000_000
+    total_timesteps: 3_000_000_000
     num_envs: 96 
     num_workers: 24
     env_batch_size: 32
@@ -768,8 +731,11 @@ pokemon_red:
     batch_size: 65536
     minibatch_size: 2048
     compile: True
+    schedulefree_optim: False
     learning_rate: 2.0e-4
     anneal_lr: False
+    overlay_interval: 10
+    stats_interval: 2
 pokemon-red:
   package: pokemon_red
 pokemonred:
@@ -786,7 +752,7 @@ pokedebug:
     env_batch_size: 2
     batch_size: 2048
     minibatch_size: 256
-    compile: True
+    compile: False
  
 links_awaken:
   package: links_awaken

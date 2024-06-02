@@ -14,6 +14,7 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.policy_pool
 import pufferlib.pytorch
+import schedulefree
 
 torch.set_float32_matmul_precision('high')
 
@@ -57,8 +58,12 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, policy_pool=False
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode)
 
-    optimizer = torch.optim.Adam(policy.parameters(),
-        lr=config.learning_rate, eps=1e-5)
+    if config.schedulefree_optim:
+        optimizer = schedulefree.AdamWScheduleFree(policy.parameters(),
+                                                   lr=config.learning_rate, eps=1e-5)
+    else:
+        optimizer = torch.optim.Adam(policy.parameters(),
+                                     lr=config.learning_rate, eps=1e-5)
 
     # Wraps the policy for self-play
     if policy_pool:
@@ -101,7 +106,9 @@ def evaluate(data):
         infos = defaultdict(list)
         lstm_h, lstm_c = experience.lstm_h, experience.lstm_c
 
-
+    if config.schedulefree_optim:
+        data.optimizer.eval()
+        
     while not experience.full:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
@@ -157,8 +164,9 @@ def evaluate(data):
         data.stats = {}
         #infos = infos['learner']
 
+
         # Moves into models... maybe. Definitely moves. You could also just return infos and have it in demo
-        if 'pokemon_exploration_map' in infos:
+        if 'pokemon_exploration_map' in infos and data.epoch % config.overlay_interval == 0:
             for pmap in infos['pokemon_exploration_map']:
                 if not hasattr(data, 'pokemon_map'):
                     import pokemon_red_eval
@@ -171,15 +179,12 @@ def evaluate(data):
                 rendered = data.map_updater(data.pokemon_map)
                 data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
 
-        for k, v in infos.items():
-            if '_map' in k and data.wandb is not None:
-                data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
-                continue
-
-            try: # TODO: Better checks on log data types
-                data.stats[k] = np.mean(v)
-            except:
-                continue
+        if data.epoch % config.stats_interval == 0:
+            for k, v in infos.items():
+                try: # TODO: Better checks on log data types
+                    data.stats[k] = np.mean(v)
+                except:
+                    continue
 
 
     return data.stats, infos
@@ -208,6 +213,9 @@ def train(data):
     config, profile, experience = data.config, data.profile, data.experience
     data.losses = make_losses()
     losses = data.losses
+    
+    if config.schedulefree_optim:
+        data.optimizer.train()
 
     with profile.train_misc:
         idxs = experience.sort_training_data()
