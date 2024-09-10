@@ -2,11 +2,9 @@ import pufferlib.emulation
 import pufferlib.postprocess
 
 
-def make_breakout(num_envs=2, render_mode="rgb_array"):
-    from .breakout import breakout
-
-    # return breakout.PufferBreakout(render_mode=render_mode)
-    return breakout.PufferBreakout()
+def make_spaces_cy(num_envs=2):
+    from .spaces_cy import spaces_cy
+    return spaces_cy.SpacesCy()
 
 def make_moba(
     num_envs=200,
@@ -173,6 +171,7 @@ def make_multiagent(**kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
 
 MAKE_FNS = {
+    'spaces_cy': make_spaces_cy,
     'moba': make_moba,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,

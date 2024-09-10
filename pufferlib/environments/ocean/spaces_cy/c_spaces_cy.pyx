@@ -23,7 +23,7 @@ cdef:
     cnp.ndarray image_sign
     # cnp.ndarray flat_sign
 
-cdef class CBreakout:
+cdef class CSpacesCy:
     cdef:
         float[:, :, :] observations  # 3D array (num_agents, obs_size, flattened_image_size + flat_size)
         unsigned char[:] dones
@@ -99,15 +99,21 @@ cdef class CBreakout:
         #     self.flat_sign[agent_idx] = 1
         # else:
         #     self.flat_sign[agent_idx] = 0
+
+        for i in range(25, 30):
+            value = np.random.randint(-1, 2)
+            obs[i] = value
+        
+        # Calculate the flat sign (sum over the entire 5-element flat observation)
+        flat_sum = np.sum(obs[25:])
+        self.flat_sign[agent_idx] = 1 if flat_sum > 0 else 0
             
     cdef void reset(self, int agent_idx):
         # returns image_sign and flat_sign (0 or 1) for each agent
         self.compute_observations(agent_idx)
         self.dones[agent_idx] = 0
 
-
         # self.scores[agent_idx] = 0
-        # self.dones[agent_idx] = 0
 
 
     def step(self, cnp.ndarray[unsigned char, ndim=1] actions):
@@ -124,8 +130,8 @@ cdef class CBreakout:
             action = actions[agent_idx]
             if self.image_sign[agent_idx] == action:
                 self.rewards[agent_idx] += 0.5
-            # if self.flat_sign[agent_idx] == action:
-            #     self.rewards[agent_idx] += 0.5
+            if self.flat_sign[agent_idx] == action:
+                self.rewards[agent_idx] += 0.5
 
         # the rest of the method is as follows:
         # info = dict(score=reward)
