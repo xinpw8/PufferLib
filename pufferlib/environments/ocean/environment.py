@@ -1,8 +1,21 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
-        reward_distance=0.05, reward_tower=3, render_mode='rgb_array'):
+
+def make_breakout(num_envs=2, render_mode="rgb_array"):
+    from .breakout import breakout
+
+    # return breakout.PufferBreakout(render_mode=render_mode)
+    return breakout.PufferBreakout()
+
+def make_moba(
+    num_envs=200,
+    reward_death=-1.0,
+    reward_xp=0.006,
+    reward_distance=0.05,
+    reward_tower=3,
+    render_mode="rgb_array",
+):
     from .moba import moba
     return moba.PufferMoba(num_envs=num_envs, reward_death=reward_death,
         reward_xp=reward_xp, reward_distance=reward_distance,
