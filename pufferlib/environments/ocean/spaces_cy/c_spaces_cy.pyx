@@ -6,11 +6,14 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 # cython: profile=False
-
+#include <numpy/arrayobject.h>
 cimport numpy as cnp
 from libc.math cimport pi, sin, cos
 from libc.stdlib cimport rand
 import numpy as np
+
+
+
 
 cdef:
     int num_agents
@@ -25,88 +28,67 @@ cdef:
 
 cdef class CSpacesCy:
     cdef:
-        float[:, :, :] observations  # 3D array (num_agents, obs_size, flattened_image_size + flat_size)
+        float[:, :, :] buffero_image_observations  # 3D array (num_agents, obs_size, flattened_image_size + flat_size) (num_agents, 5, 5)
+        signed char[:, :] buffero_flat_observations  # Change 'int[:, :]' to 'signed char[:, :]' to match np.int8
         unsigned char[:] dones
         float[:] rewards
         int[:] scores
         float[:] episodic_returns
-        int obs_size
         int num_agents
-        int[:] timesteps
         int[:] image_sign
-        # int[:] flat_sign
+        int[:] flat_sign
 
     def __init__(self, 
-                # float dt, 
-                cnp.ndarray observations, 
+                cnp.ndarray buffero_image_observations,
+                cnp.ndarray buffero_flat_observations,
                 cnp.ndarray rewards, 
                 cnp.ndarray scores, 
                 cnp.ndarray episodic_returns, 
                 cnp.ndarray dones, 
                 int num_agents,
-                int obs_size,
     ):
-        cdef int agent_idx
         self.image_sign = np.zeros(num_agents, dtype=np.int32)
-        # self.flat_sign = np.zeros(num_agents, dtype=np.int32)
+        self.flat_sign = np.zeros(num_agents, dtype=np.int32)
 
-        self.observations = observations
+        self.buffero_image_observations = buffero_image_observations
+        self.buffero_flat_observations = buffero_flat_observations
         self.rewards = rewards
         self.scores = scores
         self.episodic_returns = episodic_returns
         self.dones = dones
-        self.obs_size = obs_size
         self.num_agents = num_agents
 
         for agent_idx in range(self.num_agents):
             self.reset(agent_idx)
+            
+        # This function initializes the NumPy C API
+        self.init_numpy()
 
-    cdef void compute_observations(self, agent_idx):
-        cdef float[:, :] obs = self.observations[agent_idx, :, :]  # Use a 2D memoryview slice
+    def init_numpy(self):
+        cnp.import_array()
 
-        # Use a loop to manually assign the random values
+    cdef void compute_observations(self, int agent_idx):
+        cdef float[:, :] image_obs = self.buffero_image_observations[agent_idx, :, :]  # Image buffer
+        cdef signed char[:] flat_obs = self.buffero_flat_observations[agent_idx, :]  # Flat buffer
         cdef int i, j
-        cdef float value
+
+        # Generate image observations
         for i in range(5):
             for j in range(5):
-                value = np.random.randn()  # Generate a random float
-                obs[i, j] = value  # Assign it explicitly
+                image_obs[i, j] = np.random.randn()
 
         # Calculate the image sign (sum over the entire 5x5 observation)
-        image_sum = np.sum(obs)
+        image_sum = np.sum(image_obs)
         self.image_sign[agent_idx] = 1 if image_sum > 0 else 0
 
+        # Generate flat observations (ensure you stay within the bounds)
+        for i in range(5):  # flat_obs has 5 elements
+            flat_obs[i] = np.random.randint(-1, 2)
 
-        '''
-        continue to perform the following:
-        self.observation = {
-        'image': np.random.randn(5, 5).astype(np.float32),
-        'flat': np.random.randint(-1, 2, (5,), dtype=np.int8),
-        }
-        self.image_sign = np.sum(self.observation['image']) > 0
-        self.flat_sign = np.sum(self.observation['flat']) > 0
-        '''
-
-        # # continue to perform the above commented block, but in cython
-        # # generate flat observation (5 elements, flat)
-
-
-        # # flat_sum = 0
-        # flat_sum = np.sum(self.observations[agent_idx, 25:])
-        # # for j in range(25, 30):
-        # #     flat_sum += self.observations[agent_idx, j]
-        # if flat_sum > 0:
-        #     self.flat_sign[agent_idx] = 1
-        # else:
-        #     self.flat_sign[agent_idx] = 0
-
-        for i in range(25, 30):
-            value = np.random.randint(-1, 2)
-            obs[i] = value
-        
-        # Calculate the flat sign (sum over the entire 5-element flat observation)
-        flat_sum = np.sum(obs[25:])
+        # Calculate the flat sign (sum over the entire flat observation)
+        flat_sum = np.sum(flat_obs)
         self.flat_sign[agent_idx] = 1 if flat_sum > 0 else 0
+
             
     cdef void reset(self, int agent_idx):
         # returns image_sign and flat_sign (0 or 1) for each agent
@@ -121,11 +103,32 @@ cdef class CSpacesCy:
         cdef int agent_idx = 0
 
         self.rewards[:] = 0.0
-        
         self.scores[agent_idx] = 0
         self.dones[agent_idx] = 0
 
+        cdef int i, j, k
+        cdef int flat_dim = self.buffero_flat_observations.shape[1]
+        cdef int image_dim_1 = self.buffero_image_observations.shape[1]
+        cdef int image_dim_2 = self.buffero_image_observations.shape[2]
 
+        # Prepare space for the flattened observations
+        cdef float[:, :] concatenated_observations = np.zeros(
+            (self.num_agents, image_dim_1 * image_dim_2 + flat_dim),
+            dtype=np.float32
+        )
+
+        # Concatenate manually
+        for agent_idx in range(self.num_agents):
+            # Flatten the image observations manually
+            for i in range(image_dim_1):
+                for j in range(image_dim_2):
+                    concatenated_observations[agent_idx, i * image_dim_2 + j] = self.buffero_image_observations[agent_idx, i, j]
+
+            # Append the flat observations
+            for k in range(flat_dim):
+                concatenated_observations[agent_idx, image_dim_1 * image_dim_2 + k] = self.buffero_flat_observations[agent_idx, k]
+
+        # Process actions and rewards
         for agent_idx in range(self.num_agents):
             action = actions[agent_idx]
             if self.image_sign[agent_idx] == action:
@@ -133,8 +136,10 @@ cdef class CSpacesCy:
             if self.flat_sign[agent_idx] == action:
                 self.rewards[agent_idx] += 0.5
 
-        # the rest of the method is as follows:
-        # info = dict(score=reward)
-        # return self.observation, reward, True, False, info
-        # write it in this cython version
-        return self.observations, self.rewards, self.dones, self.scores
+        return concatenated_observations, self.rewards, self.dones, self.scores
+
+
+
+        # # info = dict(score=reward)
+
+        # return self.buffero_observations, self.rewards, self.dones, self.scores

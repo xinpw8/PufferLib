@@ -12,9 +12,9 @@ import pufferlib.vector
 import pufferlib.frameworks.cleanrl
 
 from rich_argparse import RichHelpFormatter
-from rich.console import Console
-from rich.traceback import install
-install(show_locals=False) # Rich tracebacks
+# from rich.console import Console
+# from rich.traceback import install
+# install(show_locals=False) # Rich tracebacks
 
 import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
@@ -55,7 +55,8 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
             args['train'].update(wandb.config.train)
             train(args, make_env, policy_cls, rnn_cls, wandb)
         except Exception as e:
-            Console().print_exception()
+            print(e)
+            # Console().print_exception()
 
     wandb.agent(sweep_id, main, count=100)
 

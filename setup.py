@@ -1,6 +1,7 @@
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
+import os
 
 VERSION = '1.0.0'
 
@@ -211,10 +212,41 @@ common = cleanrl + [environments[env] for env in [
     'vizdoom',
 ]]
 
+# List of Cython extensions
+ext_modules = cythonize(
+    [
+        Extension(
+            "pufferlib.extensions",
+            sources=["pufferlib/extensions.pyx"],
+            extra_compile_args=['-O3', '-march=native'],  # Add your compile flags here
+            include_dirs=[numpy.get_include()],
+        ),
+        Extension(
+            "c_gae",
+            sources=["c_gae.pyx"],
+            extra_compile_args=['-O3', '-march=native'],  # Add your compile flags here
+            include_dirs=[numpy.get_include()],
+        ),
+        Extension(
+            "pufferlib.environments.ocean.spaces_cy.c_spaces_cy",
+            sources=["pufferlib/environments/ocean/spaces_cy/c_spaces_cy.pyx"],
+            extra_compile_args=['-O3', '-march=native'],  # Add your compile flags here
+            include_dirs=[numpy.get_include()],
+        ),
+    ],
+    annotate=True,  # To generate annotated HTML files
+)
+
+# Default Gym/Gymnasium/PettingZoo versions
+GYMNASIUM_VERSION = '0.29.1'
+GYM_VERSION = '0.23'
+PETTINGZOO_VERSION = '1.24.1'
+
+# Documentation and other dependency groups omitted for brevity
+
 setup(
     name="pufferlib",
-    description="PufferAI Library"
-    "PufferAI's library of RL tools and utilities",
+    description="PufferAI Library: PufferAI's library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
     packages=find_packages(),
@@ -242,22 +274,7 @@ setup(
         'common': common,
         **environments,
     },
-    ext_modules=cythonize(
-        [
-            "pufferlib/extensions.pyx",
-            "c_gae.pyx",
-            # "pufferlib/environments/ocean/grid/c_grid.pyx",
-            # "pufferlib/environments/ocean/snake/c_snake.pyx",
-            "pufferlib/environments/ocean/spaces_cy/c_spaces_cy.pyx",
-            # "pufferlib/environments/ocean/moba/c_moba.pyx",
-            # "pufferlib/environments/ocean/moba/c_precompute_pathing.pyx",
-        ],
-        # nthreads=6,
-        annotate=True,
-        # compiler_directives={"profile": True},  # annotate=True
-    ),
-    extra_compile_args=['-O3', '-march=native'],
-    include_dirs=[numpy.get_include()],
+    ext_modules=ext_modules,  # Use the correctly set ext_modules here
     python_requires=">=3.8",
     license="MIT",
     author="Joseph Suarez",

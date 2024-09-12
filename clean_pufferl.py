@@ -775,5 +775,6 @@ def print_dashboard(env_name, utilization, global_step, epoch,
 
     with console.capture() as capture:
         console.print(dashboard)
+        pass
 
     print('\033[0;0H' + capture.get())

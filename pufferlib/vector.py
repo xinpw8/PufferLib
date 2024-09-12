@@ -65,6 +65,7 @@ def joint_space(space, n):
             high=np.repeat(space.high[None], n, axis=0),
             shape=(n, *space.shape), dtype=space.dtype)
     else:
+        breakpoint()
         raise ValueError(f'Unsupported space: {space}')
 
 class Native:
