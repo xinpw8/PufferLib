@@ -357,8 +357,8 @@ from raylib import rl, colors
 import pufferlib
 from pufferlib.environments.ocean import render
 from pufferlib.environments.ocean.spaces_cy.c_spaces_cy import CSpacesCy
-from pufferlib.emulation import GymnasiumPufferEnv, emulate_observation_space, emulate_action_space
-from pufferlib.namespace import Namespace
+from pufferlib.emulation import GymnasiumPufferEnv, emulate_observation_space, emulate_action_space, make_buffer
+from pufferlib.namespace import namespace
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -379,7 +379,7 @@ class SpacesCy(pufferlib.PufferEnv):
         self.done = False
 
         # Initialize the actions array to store agent actions
-        self.actions = np.zeros(self.num_agents, dtype=np.uint8)
+        self.actions = np.zeros((self.num_agents, 2), dtype=np.uint8)
 
         # This block required by advanced PufferLib env spec
         self.obs_size = 5*5 + 5  # image_size + flat_size
@@ -395,15 +395,27 @@ class SpacesCy(pufferlib.PufferEnv):
             'flat': flat_space,
             'image': image_space,
         })
-        raw_action_space = gymnasium.spaces.Discrete(2)
+        raw_action_space = gymnasium.spaces.MultiDiscrete([2, 2])
 
         # Emulate observation and action spaces
         self.observation_space, self.obs_dtype = emulate_observation_space(raw_observation_space)
         self.action_space, self.atn_dtype = emulate_action_space(raw_action_space)
-
+        
         self.single_observation_space = self.observation_space
         self.single_action_space = self.action_space
+        # self.num_agents = 1
 
+        self.is_obs_emulated = self.single_observation_space is not self.observation_space
+        self.is_atn_emulated = self.single_action_space is not self.action_space
+        self.emulated = pufferlib.namespace(
+            observation_dtype = self.observation_space.dtype,
+            emulated_observation_dtype = self.obs_dtype,
+        )
+        
+        self.obs, self.obs_struct = make_buffer(
+            self.single_observation_space.dtype, self.obs_dtype)
+        
+        
         # Initialize buf using a dictionary directly
         self.buffero = {
             'buffero_image_observations': self.buffero_image_observations,
@@ -416,14 +428,14 @@ class SpacesCy(pufferlib.PufferEnv):
         }
 
         print(f"self.buffero contents after initialization: {self.buffero}")
-
+        print(f'self.emulated: {self.emulated}, self.obs: {self.obs}, self.obs_struct: {self.obs_struct}')
         
         # Print the content of self.buffero to verify that it's initialized properly
-        print(f"self.buffero contents after initialization: {self.buffero}")
+        # print(f"self.buffero contents after initialization: {self.buffero}")
 
     def reset(self, seed=None):
         # Check if self.buffero has the expected structure before calling CSpacesCy
-        print(f"self.buffero contents before creating CSpacesCy: {self.buffero}")
+        # print(f"self.buffero contents before creating CSpacesCy: {self.buffero}")
         
         if self.c_env is None:
             self.c_env = CSpacesCy(
@@ -434,6 +446,7 @@ class SpacesCy(pufferlib.PufferEnv):
                 episodic_returns=self.episodic_returns,
                 dones=self.dones,
                 num_agents=self.num_agents,
+                emulated=self.emulated,
             )
 
         concatenated_observations = np.concatenate([
@@ -446,7 +459,8 @@ class SpacesCy(pufferlib.PufferEnv):
         return concatenated_observations, {}
 
     def step(self, actions):
-        self.actions[:] = actions
+        self.actions[:, :] = actions
+        # print(f'self.actions: {self.actions}')
         self.c_env.step(self.actions)
 
         info = {}

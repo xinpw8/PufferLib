@@ -23,8 +23,8 @@ class Default(nn.Module):
     '''
     def __init__(self, env, hidden_size=128):
         super().__init__()
-        self.encoder = nn.Linear(np.prod(
-            env.single_observation_space.shape), hidden_size)
+        self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
+        self.dtype = env.obs_dtype # pufferlib.pytorch.nativize_dtype(env.emulated)
 
         self.is_multidiscrete = isinstance(env.single_action_space,
                 pufferlib.spaces.MultiDiscrete)
@@ -43,6 +43,7 @@ class Default(nn.Module):
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
+        # breakpoint()
         self.value_head = nn.Linear(hidden_size, 1)
 
     def forward(self, observations):
@@ -53,6 +54,7 @@ class Default(nn.Module):
     def encode_observations(self, observations):
         '''Encodes a batch of observations into hidden states. Assumes
         no time dimension (handled by LSTM wrappers).'''
+        # observations = pufferlib.pytorch.nativize_tensor(observations, self.dtype)
         batch_size = observations.shape[0]
         observations = observations.view(batch_size, -1)
         return torch.relu(self.encoder(observations.float())), None
