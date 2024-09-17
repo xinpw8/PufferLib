@@ -1,65 +1,105 @@
-from pdb import set_trace as T
-import numpy as np
-
+import logging
+import os
 import torch
 import torch.nn as nn
-
-import pufferlib.emulation
 import pufferlib.pytorch
 import pufferlib.spaces
-
+import numpy as np
 
 class Default(nn.Module):
-    '''Default PyTorch policy. Flattens obs and applies a linear layer.
-
-    PufferLib is not a framework. It does not enforce a base class.
-    You can use any PyTorch policy that returns actions and values.
-    We structure our forward methods as encode_observations and decode_actions
-    to make it easier to wrap policies with LSTMs. You can do that and use
-    our LSTM wrapper or implement your own. To port an existing policy
-    for use with our LSTM wrapper, simply put everything from forward() before
-    the recurrent cell into encode_observations and put everything after
-    into decode_actions.
-    '''
+    '''Default PyTorch policy.'''
     def __init__(self, env, hidden_size=128):
         super().__init__()
-        self.encoder = nn.Linear(np.prod(
-            env.single_observation_space.shape), hidden_size)
 
-        self.is_multidiscrete = isinstance(env.single_action_space,
-                pufferlib.spaces.MultiDiscrete)
+        # Log start of initialization
+        # print("models.py Default after __init__()")
+        # print(f'top of policy init: {vars(env)}')
+
+        # Initialize observation and action handling
+        self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
+        self.is_multidiscrete = isinstance(env.single_action_space, pufferlib.spaces.MultiDiscrete)
+        self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
+
+        try:
+            self.is_dict_obs = isinstance(env.env.observation_space, pufferlib.spaces.Dict)
+        except Exception as e:
+            self.is_dict_obs = isinstance(env.observation_space, pufferlib.spaces.Dict)
+            # print(f'Error determining observation space type: {e}')
+
+        # Encoder initialization
+        if self.is_dict_obs:
+            input_size = sum(np.prod(v.shape) for v in env.env.observation_space.values())
+            self.encoder = nn.Linear(input_size, hidden_size)
+        else:
+            self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
+
+        # Decoder initialization
         if self.is_multidiscrete:
             action_nvec = env.single_action_space.nvec
-            self.decoder = nn.ModuleList([pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, n), std=0.01) for n in action_nvec])
+            self.decoder = nn.ModuleList([pufferlib.pytorch.layer_init(nn.Linear(hidden_size, n), std=0.01) for n in action_nvec])
+        elif not self.is_continuous:
+            self.decoder = pufferlib.pytorch.layer_init(nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
         else:
-            self.decoder = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+            self.decoder_mean = pufferlib.pytorch.layer_init(nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
+            self.decoder_logstd = nn.Parameter(torch.zeros(1, env.single_action_space.shape[0]))
 
         self.value_head = nn.Linear(hidden_size, 1)
 
+        # Log completion of initialization
+        # print(f'bottom of policy init: {vars(env)}')
+        
+        
     def forward(self, observations):
+        # Log forward call and observation shape
+        # print(f'Forward called with observations shape: {observations.shape}')
+        
         hidden, lookup = self.encode_observations(observations)
+        # print(f'Hidden state after encoding: {hidden.shape}')
+        
         actions, value = self.decode_actions(hidden, lookup)
+        # print(f'Actions: {actions} | Value: {value}')
+
         return actions, value
 
     def encode_observations(self, observations):
-        '''Encodes a batch of observations into hidden states. Assumes
-        no time dimension (handled by LSTM wrappers).'''
+        '''Encodes a batch of observations into hidden states.'''
         batch_size = observations.shape[0]
-        observations = observations.view(batch_size, -1)
-        return torch.relu(self.encoder(observations.float())), None
+
+        if self.is_dict_obs:
+            # print(f'models.py -> Observations (Dict) before nativization: {observations}')
+            observations = pufferlib.pytorch.nativize_tensor(observations, self.dtype)
+            # print(f'models.py -> Observations after nativization: {observations}')
+            observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
+        else:
+            # print(f'models.py -> Observations (Non-Dict): {observations}')
+            observations = observations.view(batch_size, -1)
+
+        encoded_obs = torch.relu(self.encoder(observations.float()))
+        # print(f'models.py -> Encoded observations: {encoded_obs.shape}')
+        return encoded_obs, None
 
     def decode_actions(self, hidden, lookup, concat=True):
-        '''Decodes a batch of hidden states into (multi)discrete actions.
-        Assumes no time dimension (handled by LSTM wrappers).'''
+        '''Decodes a batch of hidden states into actions.'''
         value = self.value_head(hidden)
+        # print(f'Value from value head: {value}')
+
         if self.is_multidiscrete:
             actions = [dec(hidden) for dec in self.decoder]
+            # print(f'Multidiscrete actions: {actions}')
             return actions, value
+        elif self.is_continuous:
+            mean = self.decoder_mean(hidden)
+            logstd = self.decoder_logstd.expand_as(mean)
+            std = torch.exp(logstd)
+            probs = torch.distributions.Normal(mean, std)
+            # print(f'Continuous action mean: {mean}, std: {std}')
+            return probs, value
 
         actions = self.decoder(hidden)
+        # print(f'Discrete actions: {actions}')
         return actions, value
+
+
 
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):

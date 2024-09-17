@@ -16,6 +16,8 @@ def env_creator(name='squared'):
         return make_stochastic
     elif name == 'multiagent':
         return make_multiagent
+    elif name == 'ocean_cy':
+        return make_ocean_cy
     elif name == 'spaces':
         return make_spaces
     elif name == 'performance':
@@ -58,6 +60,14 @@ def make_performance_empiric(count_n=0, count_std=0, bandwidth=1):
 
 def make_stochastic(p=0.7, horizon=100):
     env = ocean.Stochastic(p=p, horizon=100)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+
+def make_ocean_cy(num_envs=1): # to increase, need to change some code
+    from .ocean_cy import py_ocean as oc_cy
+    env = oc_cy.OceanCyEnv(num_envs=num_envs)
+
+    # Wrap the environment with the PufferLib framework
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 

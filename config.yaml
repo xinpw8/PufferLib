@@ -496,15 +496,30 @@ nocturne:
  
 # Ocean: PufferAI's first party environment suite
 ocean:
-  env_name: squared
-  use_rnn: True
+  env_name: ocean_cy
+  use_rnn: False
   train:
-    total_timesteps: 30_000
+    total_timesteps: 100_000_000 #30_000
     learning_rate: 0.017
-    num_envs: 8
-    num_workers: 2
-    env_batch_size: 8
-    minibatch_size: 128
+    num_envs: 4096 # 2
+    num_workers: 8 # 2
+    env_batch_size: 512 # 2
+    minibatch_size: 2048 # 128
+    batch_size: 8192
+    anneal_lr: false
+    bptt_horizon: 8
+    clip_coef: 0.10944657790889258
+    clip_vloss: true
+    ent_coef: 0.007053685467058537
+    gae_lambda: 0.9462698603300184
+    gamma: 0.9348332880396868
+    learning_rate: 0.00031617638387428646
+    max_grad_norm: 0.7705206871032715
+    norm_adv: true
+    update_epochs: 3
+    vf_clip_coef: 0.06908694316063399
+    vf_coef: 0.46530283591543886
+
     bptt_horizon: 4
     device: cpu
 bandit:
@@ -517,8 +532,15 @@ password:
   package: ocean
 performance:
   package: ocean
-spaces:
+
+ocean_cy:
   package: ocean
+  env_name: ocean_cy
+
+spaces:
+  env_name: spaces
+  package: ocean
+
 squared:
   package: ocean
 stochastic:
