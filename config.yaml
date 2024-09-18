@@ -10,7 +10,7 @@ default:
   use_rnn: False
   rnn: {}
   train:
-    seed: 1
+    seed: 42
     torch_deterministic: True
     cpu_offload: False
     device: cuda
@@ -29,15 +29,15 @@ default:
     ent_coef: 0.01
     target_kl: ~
 
-    num_envs: 8
+    num_envs: 256
     num_workers: 8
-    env_batch_size: ~
+    env_batch_size: 64
     zero_copy: True
     data_dir: experiments
-    checkpoint_interval: 200
-    batch_size: 1024
-    minibatch_size: 512
-    bptt_horizon: 16
+    checkpoint_interval: 2000
+    batch_size: 512 # 1024
+    minibatch_size: 128 # 512
+    bptt_horizon: 8 # 16
     compile: False
     compile_mode: reduce-overhead
 
@@ -499,29 +499,38 @@ ocean:
   env_name: ocean_cy
   use_rnn: False
   train:
-    total_timesteps: 100_000_000 #30_000
+    # total_timesteps: 1_600_000 #30_000
+    # learning_rate: 0.017 # 0.00031617638387428646 # 0.017
+    # num_envs: 64 # 8192 # 2
+    # num_workers: 8 # 16 # 8 # 2
+    # env_batch_size: 512 # 2
+    # minibatch_size: 2048 # 128
+    # batch_size: 8192 # 65536
+    # anneal_lr: false
+    # bptt_horizon: 8
+    # clip_coef: 0.10944657790889258
+    # clip_vloss: true
+    # ent_coef: 0.007053685467058537
+    # gae_lambda: 0.9462698603300184
+    # gamma: 0.9348332880396868
+    # max_grad_norm: 0.7705206871032715
+    # norm_adv: true
+    # update_epochs: 4 # 3
+    # vf_clip_coef: 0.06908694316063399
+    # vf_coef: 0.46530283591543886
+    # device: cpu
+    total_timesteps: 1_600_000 # 60_000
     learning_rate: 0.017
-    num_envs: 4096 # 2
-    num_workers: 8 # 2
-    env_batch_size: 512 # 2
-    minibatch_size: 2048 # 128
-    batch_size: 8192
-    anneal_lr: false
-    bptt_horizon: 8
-    clip_coef: 0.10944657790889258
-    clip_vloss: true
-    ent_coef: 0.007053685467058537
-    gae_lambda: 0.9462698603300184
-    gamma: 0.9348332880396868
-    learning_rate: 0.00031617638387428646
-    max_grad_norm: 0.7705206871032715
-    norm_adv: true
-    update_epochs: 3
-    vf_clip_coef: 0.06908694316063399
-    vf_coef: 0.46530283591543886
-
+    num_envs: 128
+    num_workers: 32
+    env_batch_size: 64 # 8
+    batch_size: 1024
+    minibatch_size: 512 # 128
     bptt_horizon: 4
     device: cpu
+
+
+
 bandit:
   package: ocean
 memory:

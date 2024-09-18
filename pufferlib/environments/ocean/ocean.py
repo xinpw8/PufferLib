@@ -4,6 +4,9 @@ import numpy as np
 import random
 import time
 
+import logging
+import os
+
 
 class Bandit(gymnasium.Env):
     '''Pufferlib Bandit environment
@@ -368,17 +371,57 @@ class Spaces(gymnasium.Env):
     def __init__(self):
         self.observation_space = gymnasium.spaces.Dict({
             'image': gymnasium.spaces.Box(
-                low=0, high=1, shape=(5, 5), dtype=np.float32),
+                low=-1, high=1, shape=(5, 5), dtype=np.float32),
             'flat': gymnasium.spaces.Box(
-                low=0, high=1, shape=(5,), dtype=np.int8),
+                low=-1, high=1, shape=(5,), dtype=np.int8),
         })
         self.action_space = gymnasium.spaces.Dict({
             'image': gymnasium.spaces.Discrete(2),
             'flat': gymnasium.spaces.Discrete(2),
         })
         self.render_mode = 'ansi'
+        
+        # logging here
+        
+        # Set up logger
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.CRITICAL)
+
+        # Clear existing handlers and add new ones
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+
+        # Log file path
+        log_file_path = os.path.join(os.getcwd(), 'models.log')
+
+        # Set up file handler
+        file_handler = logging.FileHandler(log_file_path)
+        file_handler.setLevel(logging.CRITICAL)
+        file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s [%(filename)s:%(lineno)d]')
+        file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(file_handler)
+
+        # Set up console stream handler
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.CRITICAL)
+        stream_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        stream_handler.setFormatter(stream_formatter)
+        self.logger.addHandler(stream_handler)
+
+        # Log file check
+        if os.path.exists(log_file_path):
+            self.logger.debug(f"Log file created successfully: {log_file_path}")
+        else:
+            self.logger.error(f"Failed to create log file: {log_file_path}")
+
+        # Example log
+        self.logger.debug("ocean.py -> This is a debug message to test file creation")
+        
 
     def reset(self, seed=None):
+        
+        self.logger.debug(f'ocean.py -> Top of Spaces reset() (vars(self), self.observation_space, self.action_space): {vars(self), self.observation_space, self.action_space}')        
+        
         self.observation = {
             'image': np.random.randn(5, 5).astype(np.float32),
             'flat': np.random.randint(-1, 2, (5,), dtype=np.int8),
@@ -386,9 +429,21 @@ class Spaces(gymnasium.Env):
         self.image_sign = np.sum(self.observation['image']) > 0
         self.flat_sign = np.sum(self.observation['flat']) > 0
 
+        if self.observation:
+            self.logger.debug(f'ocean.py -> Middle of Spaces reset() (self.observation, self.image_sign, self.flat_sign): {self.observation} , signs {self.image_sign, self.flat_sign}')
+        try:
+            self.logger.debug(f'ocean.py -> Bottom of Spaces reset() (self.observation, self.image_sign, self.flat_sign): {self.observation} , signs {self.image_sign, self.flat_sign}')
+        except Exception as e:
+            self.logger.error(f'ocean.py -> Error in reset(): {e}. Vars(self): {vars(self)}')
+
+
         return self.observation, {}
 
     def step(self, action):
+        
+        self.logger.debug(f'ocean.py -> Top of Spaces step() (action), vars(self): {action}, {vars(self)}')
+        
+        
         assert isinstance(action, dict)
         assert 'image' in action and action['image'] in (0, 1)
         assert 'flat' in action and action['flat'] in (0, 1)
@@ -401,6 +456,10 @@ class Spaces(gymnasium.Env):
             reward += 0.5
 
         info = dict(score=reward)
+        
+        self.logger.debug(f'ocean.py -> Bottom of Spaces step() (self.observation, reward, True, False, info), vars(self): {self.observation, reward, True, False, info}, {vars(self)}')    
+                
+        
         return self.observation, reward, True, False, info
 
 class Squared(gymnasium.Env):

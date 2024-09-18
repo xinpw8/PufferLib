@@ -5,7 +5,7 @@ from libc.stdlib cimport malloc, free
 # Define the C struct directly in the Cython file
 cdef struct COceanCyEnv:
     float* image_observations
-    int* flat_observations
+    float* flat_observations
     unsigned int* actions
     float* rewards
     unsigned char* dones
@@ -15,7 +15,7 @@ cdef struct COceanCyEnv:
     int flat_sign
 
 # Implement the C functions directly in the Cython file
-cdef COceanCyEnv* init_c_ocean_cy(float* image_observations, int* flat_observations,
+cdef COceanCyEnv* init_c_ocean_cy(float* image_observations, float* flat_observations,
                                   unsigned int* actions, float* rewards, 
                                   unsigned char* dones, int* scores, int num_agents
                                   ):
@@ -43,7 +43,7 @@ cdef void reset(COceanCyEnv* env):
     
     # Calculate the sum of the image and flat observations manually
     cdef float image_sum = 0
-    cdef int flat_sum = 0
+    cdef float flat_sum = 0
     for i in range(5):
         for j in range(5):
             image_sum += env.image_observations[i * 5 + j]
@@ -81,7 +81,7 @@ cdef class COceanCy:
 
     def __init__(self, 
                 cnp.ndarray[cnp.float32_t, ndim=3] image_observations, 
-                 cnp.ndarray[cnp.int8_t, ndim=2] flat_observations,
+                 cnp.ndarray[cnp.float32_t, ndim=2] flat_observations,
                  cnp.ndarray[cnp.uint32_t, ndim=2] actions,
                  cnp.ndarray[cnp.float32_t, ndim=2] rewards, 
                  cnp.ndarray[cnp.uint8_t, ndim=2] dones, 
@@ -90,7 +90,7 @@ cdef class COceanCy:
                  ):
         # Initialize the C environment with the data buffers
         self.env = init_c_ocean_cy(<float*>image_observations.data, 
-                                   <int*>flat_observations.data,
+                                   <float*>flat_observations.data,
                                    <unsigned int*>actions.data, 
                                    <float*>rewards.data, 
                                    <unsigned char*>dones.data,
@@ -98,6 +98,10 @@ cdef class COceanCy:
                                    num_agents
                                    )
 
+    def set_seed(self, int seed):
+        # Set the seed for the Cython environment
+        np.random.seed(seed)
+    
     def reset(self):
         # Reset the C environment
         reset(self.env)
