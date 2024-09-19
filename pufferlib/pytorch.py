@@ -102,6 +102,7 @@ def nativize_tensor(
     observation: torch.Tensor,
     native_dtype: NativeDType,
 ) -> torch.Tensor | dict[str, torch.Tensor]:
+    # print(f'pytorch.py: nativize_tensor inputs -> {observation.shape=}, {native_dtype=}')
     return _nativize_tensor(observation, native_dtype)
 
 
@@ -142,6 +143,7 @@ def _nativize_tensor(
         subviews = {}
         for name, dtype in native_dtype.items():
             subviews[name] = _nativize_tensor(observation, dtype)
+        # print(f'pytorch.py: _nativize_tensor outputs -> {subviews=}')
         return subviews
 
 

@@ -14,6 +14,47 @@ from pufferlib.namespace import Namespace
 import pufferlib.spaces
 import gymnasium
 
+import logging
+import os
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
+
+# Clear existing handlers and add new ones
+if logger.hasHandlers():
+    logger.handlers.clear()
+
+# Log file path
+log_file_path = os.path.join(os.getcwd(), 'models.log')
+
+# Set up file handler
+file_handler = logging.FileHandler(log_file_path)
+file_handler.setLevel(logging.CRITICAL)
+file_formatter = logging.Formatter(' %(name)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+# Create console stream handler
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.CRITICAL)
+stream_formatter = logging.Formatter('%(name)s - %(message)s')
+stream_handler.setFormatter(stream_formatter)
+logger.addHandler(stream_handler)
+
+
+# Log file check
+if os.path.exists(log_file_path):
+    logger.debug(f"Log file created successfully: {log_file_path}")
+else:
+    logger.error(f"Failed to create log file: {log_file_path}")
+
+# Example log
+logger.debug("vector.py -> This is a debug message to test file creation")
+
+
+
+
 RESET = 0
 STEP = 1
 SEND = 2
@@ -93,6 +134,15 @@ class Serial:
         self.initialized = False
         self.flag = RESET
         self.buf = None
+        print(f'num_envs: {num_envs}, agents_per_batch: {self.agents_per_batch}')
+        print(f'num_agents: {self.num_agents}, single_observation_space: {self.single_observation_space}')
+        print(f'single_action_space: {self.single_action_space}, action_space: {self.action_space}')
+        print(f'observation_space: {self.observation_space}, agent_ids: {self.agent_ids}')
+        print(f'initialized: {self.initialized}, flag: {self.flag}, buf: {self.buf}')
+        print(f'emulated: {self.emulated}')
+        # raise
+        
+        
 
     def _assign_buffers(self, buf):
         '''Envs handle their own data buffers'''
@@ -138,6 +188,8 @@ class Serial:
         if not actions.flags.contiguous:
             actions = np.ascontiguousarray(actions)
 
+        # logger.debug(f"vector.py -> Actions: {actions}, Shape: {actions.shape}, Dtype: {actions.dtype}")
+        
         actions = send_precheck(self, actions)
         rewards, dones, truncateds, self.infos = [], [], [], []
         ptr = 0

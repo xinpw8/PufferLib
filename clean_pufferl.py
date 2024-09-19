@@ -734,7 +734,7 @@ def print_dashboard(env_name, utilization, global_step, epoch,
     table.add_row(f' {c1}Message: {c2}{msg}')
 
     with console.capture() as capture:
-        console.print(dashboard)
-        # pass
+        # console.print(dashboard)
+        pass
 
     print('\033[0;0H' + capture.get())

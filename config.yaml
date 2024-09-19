@@ -519,13 +519,13 @@ ocean:
     # vf_clip_coef: 0.06908694316063399
     # vf_coef: 0.46530283591543886
     # device: cpu
-    total_timesteps: 1_600_000 # 60_000
+    total_timesteps: 1_600_000
     learning_rate: 0.017
-    num_envs: 128
-    num_workers: 32
-    env_batch_size: 64 # 8
+    num_envs: 2 # 128
+    num_workers: 2 # 32
+    env_batch_size: 8 # 64
     batch_size: 1024
-    minibatch_size: 512 # 128
+    minibatch_size: 512
     bptt_horizon: 4
     device: cpu
 

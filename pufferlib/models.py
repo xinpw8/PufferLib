@@ -8,7 +8,7 @@ import numpy as np
 
 class Default(nn.Module):
     '''Default PyTorch policy.'''
-    def __init__(self, env, hidden_size=256):
+    def __init__(self, env, hidden_size=128):
         super().__init__()
         self.hidden_size = hidden_size
         self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
@@ -56,6 +56,10 @@ class Default(nn.Module):
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
         else: 
             observations = observations.view(batch_size, -1)
+        
+        # if observations.shape != torch.Size([2, 30]):
+        #     print(f'models.py: encode_observations -> return {observations.shape}')
+        
         return torch.relu(self.encoder(observations.float())), None
 
     def decode_actions(self, hidden, lookup, concat=True):
@@ -175,7 +179,7 @@ class Convolutional(nn.Module):
 class ProcgenResnet(nn.Module):
     '''Procgen baseline from the AICrowd NeurIPS 2020 competition
     Based on the ResNet architecture that was used in the Impala paper.'''
-    def __init__(self, env, cnn_width=16, mlp_width=256):
+    def __init__(self, env, cnn_width=16, mlp_width=128):
         super().__init__()
         h, w, c = env.single_observation_space.shape
         shape = (c, h, w)

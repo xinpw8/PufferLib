@@ -96,7 +96,7 @@ import pufferlib
 from .cy_ocean_cy import COceanCy
 
 class OceanCyEnv(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1):
+    def __init__(self, num_envs=8):
         super().__init__()
 
         self.num_envs = num_envs
@@ -104,7 +104,8 @@ class OceanCyEnv(pufferlib.PufferEnv):
         # Initialize the buffer with necessary fields
         self.buf = pufferlib.namespace(
             image_observations=np.zeros((self.num_envs, 5, 5), dtype=np.float32),
-            flat_observations=np.zeros((self.num_envs, 5), dtype=np.float32),
+            flat_observations=np.zeros((self.num_envs, 5), dtype=np.int8),
+            # flat_observations=np.zeros((self.num_envs, 5), dtype=np.float32),
             actions=np.zeros((self.num_envs, 2), dtype=np.uint32),
             rewards=np.zeros((self.num_envs, 1), dtype=np.float32),
             dones=np.zeros((self.num_envs, 1), dtype=np.uint8),
@@ -114,7 +115,8 @@ class OceanCyEnv(pufferlib.PufferEnv):
         # Create the observation and action spaces
         self.observation_space = gymnasium.spaces.Dict({
             'image': gymnasium.spaces.Box(low=-1, high=1, shape=(5, 5), dtype=np.float32),
-            'flat': gymnasium.spaces.Box(low=-1, high=1, shape=(5,), dtype=np.float32),
+            'flat': gymnasium.spaces.Box(low=-1, high=1, shape=(5,), dtype=np.int8),
+            # 'flat': gymnasium.spaces.Box(low=-1, high=1, shape=(5,), dtype=np.float32),
         })
         self.action_space = gymnasium.spaces.Dict({
             'image': gymnasium.spaces.Discrete(2),
@@ -122,7 +124,7 @@ class OceanCyEnv(pufferlib.PufferEnv):
         })
 
         # Initialize Cython environment for each environment
-        self.c_envs = [COceanCy(self.buf.image_observations[i:i+1],  # Use buffer for observations
+        self.c_envs = [COceanCy(self.buf.image_observations[i:i+1], 
                                 self.buf.flat_observations[i:i+1],
                                 self.buf.actions[i:i+1],
                                 self.buf.rewards[i:i+1],
@@ -132,23 +134,21 @@ class OceanCyEnv(pufferlib.PufferEnv):
                        for i in range(self.num_envs)]
 
     def reset(self, seed=None):
-        # Set seed if provided
-        if seed is not None:
-            np.random.seed(seed)
-            for i, env in enumerate(self.c_envs):
-                env.set_seed(seed + i)
+        # Set seed if provided (Pufferlib does this already)
+        # if seed is not None:
+        #     np.random.seed(seed)
+        # for i, env in enumerate(self.c_envs):
+        #     env.set_seed(seed + i)
 
-        # Reset each Cython environment
         for env in self.c_envs:
             env.reset()
 
-        # Combine the observations into a single dictionary
+        # Needs to be a dict for pufferlib compatibility
         observations = {
             'image': self.buf.image_observations,
             'flat': self.buf.flat_observations
         }
 
-        # Return the observations and an empty info dictionary
         return observations, {}
 
     def step(self, actions):
@@ -157,24 +157,27 @@ class OceanCyEnv(pufferlib.PufferEnv):
             self.buf.actions[0][0] = actions['image']
             self.buf.actions[0][1] = actions['flat']
             self.c_envs[0].step()
-        else:
-            # Multi-agent case
-            for i, env in enumerate(self.c_envs):
-                self.buf.actions[i][0] = actions[i]['image']
-                self.buf.actions[i][1] = actions[i]['flat']
-                env.step()
+        # else:
+        #     # Multi-agent case (might need this, but unlikely)
+        #     for i, env in enumerate(self.c_envs):
+        #         self.buf.actions[i][0] = actions[i]['image']
+        #         self.buf.actions[i][1] = actions[i]['flat']
+        #         env.step()
 
-        # Assuming your environment terminates after a single step
+        # Environment terminates after a single step
         terminated = self.buf.dones.copy()
         truncated = np.zeros_like(terminated)  # Set truncated to False (or relevant flag)
 
+        print(f'py_ocean.py: step() return -> image_obs: {self.buf.image_observations}, flat_obs: {self.buf.flat_observations}, self.buf.rewards: {self.buf.rewards}, terminated: {terminated}, truncated: {truncated}')
+        raise
         # Return the observations, rewards, termination, truncation, and info
         return (
-            {'image': self.buf.image_observations, 'flat': self.buf.flat_observations},  # observations
-            self.buf.rewards,  # rewards
-            terminated,        # terminated
-            truncated,         # truncated (added)
-            {}                 # info
+            {'image': self.buf.image_observations, 
+             'flat': self.buf.flat_observations},
+            self.buf.rewards,
+            terminated,
+            truncated,
+            {}
         )
 
     def seed(self, seed=None):

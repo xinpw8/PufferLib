@@ -459,7 +459,8 @@ class Spaces(gymnasium.Env):
         
         self.logger.debug(f'ocean.py -> Bottom of Spaces step() (self.observation, reward, True, False, info), vars(self): {self.observation, reward, True, False, info}, {vars(self)}')    
                 
-        
+        print(f'ocean.py -> step() return -> self.observation: {self.observation}, reward: {reward}, True: {True}, False: {False}, info: {info}')
+        raise
         return self.observation, reward, True, False, info
 
 class Squared(gymnasium.Env):
