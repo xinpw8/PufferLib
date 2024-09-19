@@ -63,11 +63,9 @@ def make_stochastic(p=0.7, horizon=100):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-def make_ocean_cy(num_envs=1): # to increase, need to change some code
+def make_ocean_cy(num_envs=1):
     from .ocean_cy import py_ocean as oc_cy
     env = oc_cy.OceanCyEnv(num_envs=num_envs)
-
-    # Wrap the environment with the PufferLib framework
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
