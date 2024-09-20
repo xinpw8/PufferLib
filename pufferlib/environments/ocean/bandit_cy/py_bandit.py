@@ -11,11 +11,9 @@ class BanditCyEnv(gymnasium.Env):
         self.reward_noise = reward_noise
         self.hard_fixed_seed = hard_fixed_seed
 
-        # Setup buffers (used by the Cython environment)
         self.rewards = np.zeros((1, 1), dtype=np.float32)
         self.actions = np.zeros((1, 1), dtype=np.int32)
 
-        # Create the Cython environment
         self.c_env = CBanditCy(num_actions, 
                                reward_scale, 
                                reward_noise, 
@@ -23,25 +21,20 @@ class BanditCyEnv(gymnasium.Env):
                                self.rewards, 
                                self.actions)
 
-        # Gymnasium spaces
         self.observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(1,), dtype=np.float32)
         self.action_space = gymnasium.spaces.Discrete(num_actions)
 
     def reset(self, seed=None):
-        # Reset Cython environment
         self.c_env.reset()
         return np.ones(1, dtype=np.float32), {}
 
     def step(self, action):
-        # Pass the action into the Cython environment
         self.actions[0, 0] = action
         self.c_env.step()
 
-        # Get the solution index from Cython environment
         solution_idx = self.c_env.get_solution_idx()
 
-        # Return observation, reward, done, and info
         return np.ones(1, dtype=np.float32), self.rewards[0, 0], True, False, {'score': action == solution_idx}
 
     def render(self):

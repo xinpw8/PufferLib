@@ -34,19 +34,12 @@ def make_squared(distance_to_target=3, num_targets=1, **kwargs):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env, **kwargs)
 
+# Cython version complete (bandit_cy)
 def make_bandit(num_actions=10, reward_scale=1, reward_noise=1):
     env = ocean.Bandit(num_actions=num_actions, reward_scale=reward_scale,
         reward_noise=reward_noise)
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-def make_bandit_cy(num_actions=10, reward_scale=1, reward_noise=1):
-    from .bandit_cy import py_bandit as ba_py
-    env = ba_py.BanditCyEnv(num_actions=num_actions, reward_scale=reward_scale,
-        reward_noise=reward_noise)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
 
 def make_memory(mem_length=2, mem_delay=2):
     env = ocean.Memory(mem_length=mem_length, mem_delay=mem_delay)
@@ -73,12 +66,6 @@ def make_stochastic(p=0.7, horizon=100):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-def make_ocean_cy(num_envs=1):
-    from .ocean_cy import py_ocean as oc_cy
-    env = oc_cy.OceanCyEnv(num_envs=num_envs)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
 # Cython version complete (ocean_cy)
 def make_spaces(**kwargs):
     env = ocean.Spaces()
@@ -89,3 +76,19 @@ def make_multiagent():
     env = ocean.Multiagent()
     env = pufferlib.postprocess.MultiagentEpisodeStats(env)
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
+
+
+# Cythonized versions
+
+def make_bandit_cy(num_actions=10, reward_scale=1, reward_noise=1):
+    from .bandit_cy import py_bandit as ba_py
+    env = ba_py.BanditCyEnv(num_actions=num_actions, reward_scale=reward_scale,
+        reward_noise=reward_noise)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+
+def make_ocean_cy(num_envs=1):
+    from .ocean_cy import py_ocean as oc_cy
+    env = oc_cy.OceanCyEnv(num_envs=num_envs)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
