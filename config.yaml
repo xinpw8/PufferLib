@@ -34,7 +34,7 @@ default:
     env_batch_size: 64
     zero_copy: True
     data_dir: experiments
-    checkpoint_interval: 2000
+    checkpoint_interval: 200
     batch_size: 512 # 1024
     minibatch_size: 128 # 512
     bptt_horizon: 8 # 16
@@ -481,7 +481,6 @@ nmmo3debug:
             'values': [4, 8, 16],
           }
 
-
 nocturne:
   package: nocturne
   env_name: nocturne
@@ -494,10 +493,11 @@ nocturne:
     minibatch_size: 4096
     update_epochs: 1
  
+ 
 # Ocean: PufferAI's first party environment suite
 ocean:
-  env_name: bandit
-  use_rnn: False
+  env_name: memory_cy
+  use_rnn: True
   train:
     total_timesteps: 30_000
     learning_rate: 0.017
@@ -515,19 +515,35 @@ bandit_cy:
   train:
     total_timesteps: 300_000
     learning_rate: 0.017
-    num_envs: 128 # 2 # 128
-    num_workers: 8 # 2 # 32
-    env_batch_size: 64 # 64
+    num_envs: 128
+    num_workers: 8
+    env_batch_size: 64
     batch_size: 1024
     minibatch_size: 1024
     bptt_horizon: 4
     device: cpu
 
-bandit:
+# bandit:
+#   package: ocean
+
+memory_cy:
   package: ocean
+  env_name: memory_cy
+  use_rnn: True
+  train:
+    total_timesteps: 300_000
+    learning_rate: 0.017
+    num_envs: 128
+    num_workers: 8
+    env_batch_size: 64
+    batch_size: 1024
+    minibatch_size: 1024
+    bptt_horizon: 4
+    device: cpu
 
 memory:
   package: ocean
+
 multiagent:
   package: ocean
 password:

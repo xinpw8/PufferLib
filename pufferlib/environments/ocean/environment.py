@@ -12,6 +12,8 @@ def env_creator(name='squared'):
         return make_bandit_cy
     elif name == 'memory':
         return make_memory
+    elif name == 'memory_cy':
+        return make_memory_cy
     elif name == 'password':
         return make_password
     elif name == 'stochastic':
@@ -90,5 +92,11 @@ def make_bandit_cy(num_actions=10, reward_scale=1, reward_noise=1):
 def make_ocean_cy(num_envs=1):
     from .ocean_cy import py_ocean as oc_cy
     env = oc_cy.OceanCyEnv(num_envs=num_envs)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+
+def make_memory_cy(mem_length=2, mem_delay=2, render_mode='ansi'):
+    from .memory_cy import py_memory as me_py
+    env = me_py.MemoryCyEnv(mem_length=mem_length, mem_delay=mem_delay, render_mode=render_mode)
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
