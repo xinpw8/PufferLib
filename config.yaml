@@ -496,6 +496,48 @@ nocturne:
  
 # Ocean: PufferAI's first party environment suite
 ocean:
+  env_name: bandit
+  use_rnn: False
+  train:
+    total_timesteps: 30_000
+    learning_rate: 0.017
+    num_envs: 8
+    num_workers: 2
+    env_batch_size: 8
+    minibatch_size: 128
+    bptt_horizon: 4
+    device: cpu
+
+bandit_cy:
+  package: ocean
+  env_name: bandit_cy
+  use_rnn: False
+  train:
+    total_timesteps: 300_000
+    learning_rate: 0.017
+    num_envs: 128 # 2 # 128
+    num_workers: 8 # 2 # 32
+    env_batch_size: 64 # 64
+    batch_size: 1024
+    minibatch_size: 1024
+    bptt_horizon: 4
+    device: cpu
+
+bandit:
+  package: ocean
+
+memory:
+  package: ocean
+multiagent:
+  package: ocean
+password:
+  package: ocean
+
+# performance:
+#   package: ocean
+
+ocean_cy:
+  package: ocean
   env_name: ocean_cy
   use_rnn: True
   train:
@@ -509,24 +551,9 @@ ocean:
     bptt_horizon: 4
     device: cpu
 
-bandit:
-  package: ocean
-memory:
-  package: ocean
-multiagent:
-  package: ocean
-password:
-  package: ocean
-performance:
-  package: ocean
-
-ocean_cy:
-  package: ocean
-  env_name: ocean_cy
-
-spaces:
-  env_name: spaces
-  package: ocean
+# spaces:
+#   env_name: spaces
+#   package: ocean
 
 squared:
   package: ocean

@@ -8,6 +8,8 @@ def env_creator(name='squared'):
         return make_squared
     elif name == 'bandit':
         return make_bandit
+    elif name == 'bandit_cy':
+        return make_bandit_cy
     elif name == 'memory':
         return make_memory
     elif name == 'password':
@@ -37,6 +39,14 @@ def make_bandit(num_actions=10, reward_scale=1, reward_noise=1):
         reward_noise=reward_noise)
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+
+def make_bandit_cy(num_actions=10, reward_scale=1, reward_noise=1):
+    from .bandit_cy import py_bandit as ba_py
+    env = ba_py.BanditCyEnv(num_actions=num_actions, reward_scale=reward_scale,
+        reward_noise=reward_noise)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+
 
 def make_memory(mem_length=2, mem_delay=2):
     env = ocean.Memory(mem_length=mem_length, mem_delay=mem_delay)
@@ -69,6 +79,7 @@ def make_ocean_cy(num_envs=1):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
+# Cython version complete (ocean_cy)
 def make_spaces(**kwargs):
     env = ocean.Spaces()
     env = pufferlib.postprocess.EpisodeStats(env)
