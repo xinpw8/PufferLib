@@ -1,10 +1,10 @@
 import numpy as np
 import gymnasium
 import pufferlib
-from .cy_ocean_cy import COceanCy
+from cy_ocean_cy import COceanCy
 
 class OceanCyEnv(pufferlib.PufferEnv):
-    def __init__(self, num_envs=2048):
+    def __init__(self, num_envs=1):
         super().__init__()
 
         self.num_envs = num_envs
@@ -66,5 +66,33 @@ class OceanCyEnv(pufferlib.PufferEnv):
             {}
         )
 
-def make_ocean_cy(num_envs=2048):
+def make_ocean_cy(num_envs=1):
     return OceanCyEnv(num_envs=num_envs)
+
+
+def test_performance(num_envs=1, timeout=10, atn_cache=1024):
+    import time
+    env = make_ocean_cy(num_envs=num_envs)
+
+    env.reset()
+    
+    tick = 0
+    actions_image = np.random.randint(0, 2, (atn_cache, num_envs))
+    actions_flat = np.random.randint(0, 2, (atn_cache, num_envs))
+
+    start = time.time()
+
+    while time.time() - start < timeout:
+        atn_image = actions_image[tick % atn_cache]
+        atn_flat = actions_flat[tick % atn_cache]
+        
+        actions = {'image': atn_image, 'flat': atn_flat}
+        env.step(actions)
+        tick += 1
+
+    elapsed_time = time.time() - start
+    sps = num_envs * tick / elapsed_time
+    print(f"SPS: {sps:.2f}")
+
+if __name__ == '__main__':
+    test_performance()

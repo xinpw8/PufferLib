@@ -497,9 +497,9 @@ nocturne:
 # Ocean: PufferAI's first party environment suite
 ocean:
   env_name: ocean_cy
-  use_rnn: False
+  use_rnn: True
   train:
-    total_timesteps: 1_600_000
+    total_timesteps: 300_000
     learning_rate: 0.017
     num_envs: 2048 # 2 # 128
     num_workers: 8 # 2 # 32
