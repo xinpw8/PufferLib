@@ -55,6 +55,10 @@ def make_continuous_cy(discretize=False, **kwargs):
 
 
 # Standard below
+def make_enduro_cy(frame_skip=4):
+    from .enduro_cy import py_enduro as en_cy
+    return en_cy.EnduroCyEnv(frame_skip=frame_skip)
+
 def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
         reward_distance=0.05, reward_tower=3, render_mode='rgb_array'):
     from .moba import moba
@@ -236,6 +240,7 @@ MAKE_FNS = {
     'stochastic_cy': make_stochastic_cy,
     'continuous_cy': make_continuous_cy,
 
+    'enduro_cy': make_enduro_cy,
     'moba': make_moba,
     'my_pong': make_pong,
     'foraging': make_foraging,
