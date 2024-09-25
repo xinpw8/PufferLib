@@ -1,0 +1,48 @@
+okay good.
+now, render this exactly.
+
+
+the sky always extends from y=0 to y=51
+the road always tapers to a single-pixel point, at y=54
+
+the game always starts with the pixel the road tapers to at x=87
+the road rendering consists of two lines of pixels, each connected to its neighboring road pixels via corners only
+for the beginning scene, these are the pixel locations of each side of the road. each block of contiguous px are on a line, separated by commas.
+(87,52) (87,53) (87,54) ,
+(86,55) (86, 56) (86,57),
+ (85, 58) (85, 59) (85, 60),
+(84,61) (84,62),
+(83,63) (83,64),
+(82,65),
+(81,66) (81,67),
+(80,68),
+(79,69) (79,70),
+(78,71) (78,72).
+the remaining px for the left side of the road all are 2 px rectangles, connected by their corners.
+the last in this series is the road that touches the very bottom of the animated racing part of the screen,
+(37,154) (37,153).
+
+the car is rendered in white px as such:
+start position, by x value column (all rendered y value pixels at the given x value are reported):
+x value: 77: 147, 149, 151, 153
+x value: 78: 147, 149, 151, 153
+x value: 79:  144, 145, 146, 148, 150, 152, 154
+x value: 80:  144, 145, 146, 148, 150, 152, 154
+x values 81, 82, 87, 88: 145, 146, 148, 149, 150, 151, 152, 153
+x values 83, 84, 85, 86: all pixels within range 144 through 154 inclusive rendered white
+x values 89, 90: 144, 145, 146, 147, 149, 151, 153
+x values 91, 92: 148, 150, 152, 154
+
+the right side of the road is rendered as such for the starting position:
+(88,54) (88,55),
+(89,54) (89,57),
+(90,58) (90, 59) (90, 60),
+(91,61) (91, 62),
+(92,63) (92,64),
+(93,65),
+(94,66) (94,67),
+(95, 68) (95, 69),
+the remaining px for the right side of the road all are 2 px rectangles, connected by their corners.
+the last in this series is just above the bottom of the animated screen at 
+(137,152) (137,153).
+the right side ends in 1 pixel at location (138,154).

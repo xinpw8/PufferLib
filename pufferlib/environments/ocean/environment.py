@@ -55,9 +55,16 @@ def make_continuous_cy(discretize=False, **kwargs):
 
 
 # Standard below
-def make_enduro_cy(frame_skip=4):
-    from .enduro_cy import py_enduro as en_cy
-    return en_cy.EnduroCyEnv(frame_skip=frame_skip)
+
+
+# pufferlib/environments/ocean/environment.py
+def make_enduro_cy(frame_skip=4, **kwargs):
+    from pufferlib.environments.ocean.enduro_cy.py_enduro import EnduroEnv
+    import pufferlib
+    
+    env = EnduroEnv(frameskip=frame_skip)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
 def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
         reward_distance=0.05, reward_tower=3, render_mode='rgb_array'):

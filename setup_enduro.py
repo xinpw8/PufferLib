@@ -10,6 +10,15 @@ extensions = [
         include_dirs=[np.get_include()],
         extra_compile_args=["-O3"],
     ),
+    
+    # enduro_game
+    Extension(
+        name="pufferlib.environments.ocean.enduro_cy.enduro_game",
+        sources=["pufferlib/environments/ocean/enduro_cy/enduro_game.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"],
+    ),
+    
 ]
 
 setup(

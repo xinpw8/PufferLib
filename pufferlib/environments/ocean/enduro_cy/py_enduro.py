@@ -1,32 +1,37 @@
+# py_enduro.py
+
+import gym
 import numpy as np
-import gymnasium
-from .cy_enduro_cy import CEnduroEnv
+from pufferlib.environments.ocean.enduro_cy.cy_enduro_cy import CEnduroEnv
 
-class EnduroCyEnv(gymnasium.Env):
-    '''Enduro environment wrapped in Cython'''
+class EnduroEnv(gym.Env):  # Inherit from gym.Env
+    metadata = {"render.modes": ["human", "rgb_array"], "render_fps": 30}
 
-    def __init__(self, frame_skip=4):
-        super().__init__()
+    def __init__(self, obs_type="rgb", frameskip=4, **kwargs):
+        super(EnduroEnv, self).__init__()  # Initialize the gym.Env base class
+        self.env = CEnduroEnv(frame_skip=frameskip)
 
-        # Initialize Cython-based environment
-        self.c_env = CEnduroEnv(frame_skip)
+        # Define action and observation space (required by gym.Env)
+        self.action_space = gym.spaces.Discrete(18)  # Assuming 18 actions, modify as needed
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(210, 160, 3), dtype=np.uint8)
 
-        # Observation and action spaces
-        self.observation_space = gymnasium.spaces.Box(low=0, high=255, shape=(210, 160, 3), dtype=np.uint8)
-        self.action_space = gymnasium.spaces.Discrete(9)
-
-    def reset(self):
-        self.c_env.reset()
-        return self.c_env.get_screen(), {}
-
+    def reset(self, seed=None, options=None):
+        if seed is not None:
+            self.env.reset(seed=seed)
+        observation, info = self.env.reset(options=options)
+        return observation, info
+    
     def step(self, action):
-        screen, reward, done = self.c_env.step(action)
-        info = {"lives": self.c_env.get_lives(), "score": self.c_env.get_score()}
-        return screen, reward, done, False, info
+        """Takes a step in the environment."""
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        truncated = False  # If no truncation logic exists
+        info = {}
+        return observation, reward, terminated, truncated, info
 
-    def render(self):
-        # Render the game screen (implement this as needed)
-        return self.c_env.get_screen()
+    def render(self, mode="human"):
+        """Render the environment."""
+        return self.env.get_screen()
 
     def close(self):
-        pass
+        """Close the environment."""
+        pass  # Nothing to do here since ALE handles closing automatically
