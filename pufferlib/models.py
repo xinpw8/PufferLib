@@ -23,8 +23,6 @@ class Default(nn.Module):
     '''
     def __init__(self, env, hidden_size=128):
         super().__init__()
-        self.hidden_size = hidden_size
-        self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
         self.is_multidiscrete = isinstance(env.single_action_space,
                 pufferlib.spaces.MultiDiscrete)
         self.is_continuous = isinstance(env.single_action_space,
@@ -35,6 +33,7 @@ class Default(nn.Module):
             self.is_dict_obs = isinstance(env.observation_space, pufferlib.spaces.Dict) 
 
         if self.is_dict_obs:
+            self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
             input_size = sum(np.prod(v.shape) for v in env.env.observation_space.values())
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
@@ -69,7 +68,6 @@ class Default(nn.Module):
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
         else: 
             observations = observations.view(batch_size, -1)
-        
         return torch.relu(self.encoder(observations.float())), None
 
     def decode_actions(self, hidden, lookup, concat=True):

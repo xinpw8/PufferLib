@@ -77,6 +77,18 @@ def make_pong(num_envs=1):
     from .pong import pong
     return pong.MyPong(num_envs=num_envs)
 
+def make_breakout(num_envs=1):
+    from .breakout import breakout
+    return breakout.MyBreakout(num_envs=num_envs)
+
+def make_connect4(num_envs=1):
+    from .connect4 import connect4
+    return connect4.MyConnect4(num_envs=num_envs)
+
+def make_tripletriad(num_envs=1):
+    from .tripletriad import tripletriad
+    return tripletriad.MyTripleTriad(num_envs=num_envs)
+
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
     from .grid import grid
@@ -116,6 +128,10 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         horizon, discretize=discretize, food_reward=food_reward,
         init_fn=init_fn, reward_fn=reward_fn,
         render_mode=render_mode)
+
+def make_puffergrid(render_mode='rgb_array', vision_range=3):
+    from .grid import grid
+    return grid.PufferGrid(render_mode, vision_range)
 
 def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision=5,
         leave_corpse_on_death=None, preset='1440p-4096', render_mode=None):
@@ -250,10 +266,12 @@ MAKE_FNS = {
     'enduro_cy': make_enduro_cy,
     'moba': make_moba,
     'my_pong': make_pong,
+    'my_breakout': make_breakout,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
     'puffer': make_puffer,
+    'puffergrid': make_puffergrid,
     'snake': make_snake,
     'continuous': make_continuous,
     'squared': make_squared,
@@ -263,8 +281,16 @@ MAKE_FNS = {
     'stochastic': make_stochastic,
     'multiagent': make_multiagent,
     'spaces': make_spaces,
+<<<<<<< HEAD
     # 'performance': make_performance,
     # 'performance_empiric': make_performance_empiric,
+=======
+    'performance': make_performance,
+    'performance_empiric': make_performance_empiric,
+    'my_breakout': make_breakout,
+    'my_connect4': make_connect4,
+    'my_tripletriad': make_tripletriad,
+>>>>>>> dd3a161636cf570a6781a216d70706d51d77c118
 }
 
 def env_creator(name='squared'):
