@@ -6,20 +6,44 @@
 #include "raylib.h"
 
 // Define screen dimensions for rendering
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define TOTAL_SCREEN_WIDTH 160
+#define TOTAL_SCREEN_HEIGHT 210
+#define ACTION_SCREEN_X_START 8
+#define ACTION_SCREEN_Y_START 0
+#define ACTION_SCREEN_WIDTH 152  // from x=8 to x=160
+#define ACTION_SCREEN_HEIGHT 155 // from y=0 to y=155
 
-#define NUM_ENEMY_CARS 5
-#define ROAD_WIDTH 100.0f
-#define CAR_WIDTH 20.0f
-#define PLAYER_CAR_LENGTH 30.0f
-#define ENEMY_CAR_LENGTH 30.0f
+#define SCOREBOARD_X_START 48
+#define SCOREBOARD_Y_START 161
+#define SCOREBOARD_WIDTH 64  // from x=48 to x=112
+#define SCOREBOARD_HEIGHT 30 // from y=161 to y=191
+
+#define CARS_LEFT_X_START 72
+#define CARS_LEFT_Y_START 179
+#define CARS_LEFT_WIDTH 32  // from x=72 to x=104
+#define CARS_LEFT_HEIGHT 9  // from y=179 to y=188
+
+#define DAY_X_START 56
+#define DAY_Y_START 179
+#define DAY_WIDTH 8    // from x=56 to x=64
+#define DAY_HEIGHT 9   // from y=179 to y=188
+
+#define NUM_ENEMY_CARS 1
+#define ROAD_WIDTH 90.0f
+#define CAR_WIDTH 16.0f
+#define PLAYER_CAR_LENGTH 11.0f
+#define ENEMY_CAR_LENGTH 11.0f
 #define MAX_SPEED 100.0f
 #define MIN_SPEED -10.0f
 #define SPEED_INCREMENT 5.0f
-#define MAX_Y_POSITION 1000.0f
-#define MIN_Y_POSITION -200.0f
-#define MIN_DISTANCE_BETWEEN_CARS 50.0f  // Minimum Y distance between adjacent cars
+#define MAX_Y_POSITION ACTION_SCREEN_HEIGHT + ENEMY_CAR_LENGTH // Max Y for enemy cars
+#define MIN_Y_POSITION 0.0f // Min Y for enemy cars (spawn just above the screen)
+#define MIN_DISTANCE_BETWEEN_CARS 40.0f  // Minimum Y distance between adjacent enemy cars
+
+#define THROTTLE_MAX 120 // Maximum allowed throttle
+#define MY_YELLOW  (Color){ 255, 255, 0, 255 }  // RGBA for yellow
+#define MY_RED     (Color){ 255, 0, 0, 255 }    // RGBA for red
+#define DAY_COLOR (Color){ 255, 255, 255, 255 }  // RGBA for day color (white)
 
 typedef struct {
     float rear_bumper_y;
@@ -34,6 +58,10 @@ typedef struct {
     float speed;
 
     EnemyCar enemy_cars[NUM_ENEMY_CARS];
+    int dayNumber;
+    int carsRemainingLo;
+    int carsRemainingHi;
+    int throttleValue;
     float reward;
     bool done;
     float *observations;
@@ -56,6 +84,11 @@ void step_env(EnduroEnv *env);
 void compute_observations(EnduroEnv *env);
 void free_env(EnduroEnv *env);
 void render_env(EnduroEnv *env);
+void render_hud(EnduroEnv *env);
+void render_background(EnduroEnv *env);
+void check_collision(EnduroEnv *env);
+
+
 
 void init_env(EnduroEnv *env) {
     env->front_bumper_y = 0.0f;
@@ -241,19 +274,19 @@ void render_env(EnduroEnv *env) {
 
     // Draw road (centered, with side margins)
     float lane_width = ROAD_WIDTH / 3.0f;
-    float road_center_x = SCREEN_WIDTH / 2.0f;
+    float road_center_x = ACTION_SCREEN_WIDTH / 2.0f;
     float road_left_edge = road_center_x - ROAD_WIDTH / 2.0f;
 
     // Draw the road in gray
-    DrawRectangle(road_left_edge, 0, ROAD_WIDTH, SCREEN_HEIGHT, GRAY);
+    DrawRectangle(road_left_edge, 0, ROAD_WIDTH, ACTION_SCREEN_HEIGHT, GRAY);
     
     // Draw lane dividers
-    DrawLine(road_left_edge + lane_width, 0, road_left_edge + lane_width, SCREEN_HEIGHT, WHITE);
-    DrawLine(road_left_edge + 2 * lane_width, 0, road_left_edge + 2 * lane_width, SCREEN_HEIGHT, WHITE);
+    DrawLine(road_left_edge + lane_width, 0, road_left_edge + lane_width, ACTION_SCREEN_HEIGHT, WHITE);
+    DrawLine(road_left_edge + 2 * lane_width, 0, road_left_edge + 2 * lane_width, ACTION_SCREEN_HEIGHT, WHITE);
     
     // Draw the player's car
     float player_car_x = road_left_edge + env->left_distance_to_edge;
-    float player_car_y = SCREEN_HEIGHT - 100; // Position near the bottom of the screen
+    float player_car_y = ACTION_SCREEN_HEIGHT - 100; // Position near the bottom of the screen
     
     DrawRectangle(player_car_x, player_car_y, CAR_WIDTH, PLAYER_CAR_LENGTH, BLUE);
 
@@ -269,13 +302,16 @@ void render_env(EnduroEnv *env) {
         }
     }
 
+    // render_background(env);
+    render_hud(env);
+
     EndDrawing();
 }
 
 
 
 int main() {
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Enduro Racing");
+    InitWindow(ACTION_SCREEN_WIDTH, ACTION_SCREEN_HEIGHT, "Enduro Racing");
     SetTargetFPS(60);
 
     EnduroEnv env;
@@ -301,4 +337,32 @@ int main() {
     free_env(&env);
 
     return 0;
+}
+
+void render_background(EnduroEnv *env) {
+    // Draw sky
+    DrawRectangle(ACTION_SCREEN_X_START, ACTION_SCREEN_Y_START, ACTION_SCREEN_WIDTH, 52, BLUE);
+    // Draw grass
+    DrawRectangle(ACTION_SCREEN_X_START, 52, ACTION_SCREEN_WIDTH, 103, DARKGREEN);
+}
+
+void render_hud(EnduroEnv *env) {
+    // Draw the scoreboard background
+    DrawRectangle(SCOREBOARD_X_START, SCOREBOARD_Y_START, SCOREBOARD_WIDTH, SCOREBOARD_HEIGHT, RED);
+
+    // Render the score
+    char score[6];
+    snprintf(score, sizeof(score), "%05d", env->throttleValue);  // Using throttle as a score placeholder
+    DrawText(score, 56, 162, 10, BLACK);
+
+    // Render cars left
+    char cars_left[5];
+    int totalCarsRemaining = (env->carsRemainingHi << 8) | env->carsRemainingLo;
+    snprintf(cars_left, sizeof(cars_left), "%d", totalCarsRemaining);
+    DrawText(cars_left, CARS_LEFT_X_START, CARS_LEFT_Y_START, 10, BLACK);
+
+    // Render current day
+    char day[2];
+    snprintf(day, sizeof(day), "%d", env->dayNumber);
+    DrawText(day, DAY_X_START, DAY_Y_START, 10, BLACK);
 }
