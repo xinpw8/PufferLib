@@ -33,11 +33,10 @@
 #define CAR_WIDTH 16.0f
 #define PLAYER_CAR_LENGTH 11.0f
 #define ENEMY_CAR_LENGTH 11.0f
-#define DESPAWN_DISTANCE 33.0f
 #define MAX_SPEED 100.0f
 #define MIN_SPEED -10.0f
 #define SPEED_INCREMENT 5.0f
-#define MAX_Y_POSITION ACTION_SCREEN_HEIGHT + ENEMY_CAR_LENGTH + DESPAWN_DISTANCE // Max Y for enemy cars
+#define MAX_Y_POSITION ACTION_SCREEN_HEIGHT + ENEMY_CAR_LENGTH // Max Y for enemy cars
 #define MIN_Y_POSITION 0.0f // Min Y for enemy cars (spawn just above the screen)
 #define MIN_DISTANCE_BETWEEN_CARS 40.0f  // Minimum Y distance between adjacent enemy cars
 
@@ -45,6 +44,8 @@
 #define MY_YELLOW  (Color){ 255, 255, 0, 255 }  // RGBA for yellow
 #define MY_RED     (Color){ 255, 0, 0, 255 }    // RGBA for red
 #define DAY_COLOR (Color){ 255, 255, 255, 255 }  // RGBA for day color (white)
+
+#define PASS_THRESHOLD ACTION_SCREEN_HEIGHT  // Distance for passed cars to disappear
 
 typedef struct {
     float rear_bumper_y;
@@ -88,8 +89,7 @@ void render_env(EnduroEnv *env);
 void render_hud(EnduroEnv *env);
 void render_background(EnduroEnv *env);
 void check_collision(EnduroEnv *env);
-
-
+void apply_weather_conditions(EnduroEnv *env);  // Placeholder for future weather
 
 void init_env(EnduroEnv *env) {
     env->front_bumper_y = 0.0f;
@@ -105,6 +105,8 @@ void init_env(EnduroEnv *env) {
 
     env->reward = 0.0f;
     env->done = false;
+    env->dayNumber = 0;  // Initialize the day number
+    env->carsRemainingLo = 200;  // Initialize Cars Passed counter for Day 1
 }
 
 void reset_env(EnduroEnv *env) {
@@ -207,6 +209,13 @@ void step_env(EnduroEnv *env) {
             // Move enemy cars relative to player's speed
             env->enemy_cars[i].rear_bumper_y -= env->speed * 0.1f;
 
+            // Remove enemy cars after they pass beyond
+            // Remove enemy cars after they pass beyond the player's Y-position by more than PASS_THRESHOLD
+            if (env->enemy_cars[i].rear_bumper_y < env->front_bumper_y - PASS_THRESHOLD && env->enemy_cars[i].active) {
+                env->enemy_cars[i].active = false;  // Mark enemy car as passed and remove it
+                env->carsRemainingLo--;  // Decrement the Cars Passed counter
+            }
+
             // If enemy car passes behind the player, reset it
             if (env->enemy_cars[i].rear_bumper_y < MIN_Y_POSITION) {
                 env->enemy_cars[i].rear_bumper_y = MAX_Y_POSITION + rand() % 500;
@@ -225,6 +234,10 @@ void step_env(EnduroEnv *env) {
             bool longitudinal_overlap = !(env->front_bumper_y + PLAYER_CAR_LENGTH <= env->enemy_cars[i].rear_bumper_y || env->front_bumper_y >= enemy_front_bumper_y);
 
             if (lateral_overlap && longitudinal_overlap) {
+                // Gradually reduce speed over 30 frames (half a second at 60 FPS) on collision
+                env->speed -= (env->speed - MIN_SPEED) / 30.0f;
+                if (env->speed < MIN_SPEED)
+                    env->speed = MIN_SPEED;
                 env->reward = -10.0f;
                 env->rewards[0] = env->reward;
                 env->done = true;
@@ -239,11 +252,18 @@ void step_env(EnduroEnv *env) {
     env->reward = env->speed * 0.01f;
     env->rewards[0] = env->reward;
 
+    // Handle day progression and reset car counter
+    if (env->carsRemainingLo <= 0) {
+        env->dayNumber++;  // Increment day number
+        env->carsRemainingLo = 200;  // Reset Cars Passed counter for the new day
+    }
+
+    // Apply placeholder weather conditions
+    apply_weather_conditions(env);
+
     // Update observations
     compute_observations(env);
 }
-
-
 
 void compute_observations(EnduroEnv *env) {
     int obs_index = 0;
@@ -255,6 +275,12 @@ void compute_observations(EnduroEnv *env) {
         env->observations[obs_index++] = env->enemy_cars[i].rear_bumper_y;
         env->observations[obs_index++] = (float)env->enemy_cars[i].lane;
     }
+
+    // Add day number to the observations
+    env->observations[obs_index++] = (float)(env->dayNumber);
+
+    // Add cars remaining to the observations
+    env->observations[obs_index++] = (float)((env->carsRemainingHi << 8) | env->carsRemainingLo);
 }
 
 void free_env(EnduroEnv *env) {
@@ -285,9 +311,9 @@ void render_env(EnduroEnv *env) {
     DrawLine(road_left_edge + lane_width, 0, road_left_edge + lane_width, ACTION_SCREEN_HEIGHT, WHITE);
     DrawLine(road_left_edge + 2 * lane_width, 0, road_left_edge + 2 * lane_width, ACTION_SCREEN_HEIGHT, WHITE);
     
-    // Draw the player's car
+    // Draw the player's car directly from its calculated position in step_env
     float player_car_x = road_left_edge + env->left_distance_to_edge;
-    float player_car_y = ACTION_SCREEN_HEIGHT - 25; // Position near the bottom of the screen
+    float player_car_y = env->front_bumper_y;  // No manual adjustment needed, just use env->front_bumper_y
     
     DrawRectangle(player_car_x, player_car_y, CAR_WIDTH, PLAYER_CAR_LENGTH, BLUE);
 
@@ -296,27 +322,50 @@ void render_env(EnduroEnv *env) {
         if (env->enemy_cars[i].active) {
             float enemy_lane_center = road_left_edge + (env->enemy_cars[i].lane + 0.5f) * lane_width;
             float enemy_car_x = enemy_lane_center - CAR_WIDTH / 2.0f;
-            float enemy_car_y = player_car_y - env->enemy_cars[i].rear_bumper_y;
+            float enemy_car_y = env->enemy_cars[i].rear_bumper_y;
 
-            // Render the enemy car
+            // Render the enemy car directly from its position
             DrawRectangle(enemy_car_x, enemy_car_y, CAR_WIDTH, ENEMY_CAR_LENGTH, RED);
         }
     }
 
-    // render_background(env);
-    render_hud(env);
+    render_hud(env);  // Render HUD elements like cars passed and day number
 
     EndDrawing();
 }
 
+void render_hud(EnduroEnv *env) {
+    // Draw the scoreboard background
+    DrawRectangle(SCOREBOARD_X_START, SCOREBOARD_Y_START, SCOREBOARD_WIDTH, SCOREBOARD_HEIGHT, RED);
 
+    // Render the score
+    char score[6];
+    snprintf(score, sizeof(score), "%05d", env->throttleValue);  // Using throttle as a score placeholder
+    DrawText(score, 56, 162, 10, BLACK);
+
+    // Render cars left
+    char cars_left[5];
+    int totalCarsRemaining = (env->carsRemainingHi << 8) | env->carsRemainingLo;
+    snprintf(cars_left, sizeof(cars_left), "%d", totalCarsRemaining);
+    DrawText(cars_left, CARS_LEFT_X_START, CARS_LEFT_Y_START, 10, BLACK);
+
+    // Render current day
+    char day[2];
+    snprintf(day, sizeof(day), "%d", env->dayNumber);
+    DrawText(day, DAY_X_START, DAY_Y_START, 10, BLACK);
+}
+
+void apply_weather_conditions(EnduroEnv *env) {
+    // Placeholder for future weather conditions
+    // No effect for now
+}
 
 int main() {
     InitWindow(ACTION_SCREEN_WIDTH, ACTION_SCREEN_HEIGHT, "Enduro Racing");
     SetTargetFPS(60);
 
     EnduroEnv env;
-    int obs_size = 3 + NUM_ENEMY_CARS * 2;
+    int obs_size = 3 + NUM_ENEMY_CARS * 2 + 2;  // Adjusted for additional observations
     env.observations = (float *)malloc(sizeof(float) * obs_size);
     env.actions = (unsigned char *)malloc(sizeof(unsigned char) * 1);
     env.rewards = (float *)malloc(sizeof(float) * 1);
@@ -345,25 +394,4 @@ void render_background(EnduroEnv *env) {
     DrawRectangle(ACTION_SCREEN_X_START, ACTION_SCREEN_Y_START, ACTION_SCREEN_WIDTH, 52, BLUE);
     // Draw grass
     DrawRectangle(ACTION_SCREEN_X_START, 52, ACTION_SCREEN_WIDTH, 103, DARKGREEN);
-}
-
-void render_hud(EnduroEnv *env) {
-    // Draw the scoreboard background
-    DrawRectangle(SCOREBOARD_X_START, SCOREBOARD_Y_START, SCOREBOARD_WIDTH, SCOREBOARD_HEIGHT, RED);
-
-    // Render the score
-    char score[6];
-    snprintf(score, sizeof(score), "%05d", env->throttleValue);  // Using throttle as a score placeholder
-    DrawText(score, 56, 162, 10, BLACK);
-
-    // Render cars left
-    char cars_left[5];
-    int totalCarsRemaining = (env->carsRemainingHi << 8) | env->carsRemainingLo;
-    snprintf(cars_left, sizeof(cars_left), "%d", totalCarsRemaining);
-    DrawText(cars_left, CARS_LEFT_X_START, CARS_LEFT_Y_START, 10, BLACK);
-
-    // Render current day
-    char day[2];
-    snprintf(day, sizeof(day), "%d", env->dayNumber);
-    DrawText(day, DAY_X_START, DAY_Y_START, 10, BLACK);
 }
