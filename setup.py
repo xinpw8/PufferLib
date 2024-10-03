@@ -213,14 +213,15 @@ common = cleanrl + [environments[env] for env in [
 ]]
 
 extension_paths = [
-    'pufferlib/environments/ocean/moba/cy_moba',
-    'pufferlib/environments/ocean/snake/cy_snake',
-    'pufferlib/environments/ocean/pong/cy_pong',
+    # 'pufferlib/environments/ocean/moba/cy_moba',
+    # 'pufferlib/environments/ocean/snake/cy_snake',
+    # 'pufferlib/environments/ocean/pong/cy_pong',
     'pufferlib/environments/ocean/breakout/cy_breakout',
-    'pufferlib/environments/ocean/connect4/cy_connect4',
-    'pufferlib/environments/ocean/grid/cy_grid',
-    'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
-    'cytest/cytest',
+    'pufferlib/environments/ocean/racing/cy_racing',
+    # 'pufferlib/environments/ocean/connect4/cy_connect4',
+    # 'pufferlib/environments/ocean/grid/cy_grid',
+    # 'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
+    # 'cytest/cytest',
 ]
 
 extensions = [Extension(
@@ -264,12 +265,12 @@ setup(
     },
     ext_modules = cythonize([
         "pufferlib/extensions.pyx",
-        "c_gae.pyx",
-        "pufferlib/environments/ocean/grid/c_grid.pyx",
-        "pufferlib/environments/ocean/snake/c_snake.pyx",
-        "pufferlib/environments/ocean/moba/c_moba.pyx",
-        "pufferlib/environments/ocean/moba/puffernet.pyx",
-        "pufferlib/environments/ocean/moba/c_precompute_pathing.pyx",
+        # "c_gae.pyx",
+        # "pufferlib/environments/ocean/grid/c_grid.pyx",
+        # "pufferlib/environments/ocean/snake/c_snake.pyx",
+        # "pufferlib/environments/ocean/moba/c_moba.pyx",
+        # "pufferlib/environments/ocean/moba/puffernet.pyx",
+        # "pufferlib/environments/ocean/moba/c_precompute_pathing.pyx",
         *extensions,
     ], 
        #nthreads=6,

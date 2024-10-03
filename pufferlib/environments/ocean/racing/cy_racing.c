@@ -26,6 +26,9 @@
             "raylib-5.0_linux_amd64/lib"
         ],
         "name": "pufferlib.environments.ocean.racing.cy_racing",
+        "runtime_library_dirs": [
+            "raylib-5.0_linux_amd64/lib"
+        ],
         "sources": [
             "pufferlib/environments/ocean/racing/cy_racing.pyx"
         ]
@@ -1546,6 +1549,41 @@ static const char *__pyx_f[] = {
   #define __PYX_FORCE_INIT_THREADS 0
 #endif
 
+/* BufferFormatStructs.proto */
+struct __Pyx_StructField_;
+#define __PYX_BUF_FLAGS_PACKED_STRUCT (1 << 0)
+typedef struct {
+  const char* name;
+  struct __Pyx_StructField_* fields;
+  size_t size;
+  size_t arraysize[8];
+  int ndim;
+  char typegroup;
+  char is_unsigned;
+  int flags;
+} __Pyx_TypeInfo;
+typedef struct __Pyx_StructField_ {
+  __Pyx_TypeInfo* type;
+  const char* name;
+  size_t offset;
+} __Pyx_StructField;
+typedef struct {
+  __Pyx_StructField* field;
+  size_t parent_offset;
+} __Pyx_BufFmt_StackElem;
+typedef struct {
+  __Pyx_StructField root;
+  __Pyx_BufFmt_StackElem* head;
+  size_t fmt_offset;
+  size_t new_count, enc_count;
+  size_t struct_alignment;
+  int is_complex;
+  char enc_type;
+  char new_packmode;
+  char enc_packmode;
+  char is_valid_array;
+} __Pyx_BufFmt_Context;
+
 /* #### Code section: numeric_typedefs ### */
 
 /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":731
@@ -1764,7 +1802,7 @@ static CYTHON_INLINE __pyx_t_double_complex __pyx_t_double_complex_from_parts(do
 /* #### Code section: type_declarations ### */
 
 /*--- Type declarations ---*/
-struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing;
+struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
 
 /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":770
  * ctypedef npy_longdouble longdouble_t
@@ -1803,15 +1841,15 @@ typedef npy_clongdouble __pyx_t_5numpy_clongdouble_t;
 typedef npy_cdouble __pyx_t_5numpy_complex_t;
 
 /* "pufferlib/environments/ocean/racing/cy_racing.pyx":25
- *     void free_allocated(CRacing* env)
+ *     void render(Client* client, CEnduro* env)
  * 
- * cdef class CyRacing:             # <<<<<<<<<<<<<<
- *     cdef CRacing env
+ * cdef class CyEnduro:             # <<<<<<<<<<<<<<
+ *     cdef CEnduro env
  *     cdef Client* client
  */
-struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing {
+struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro {
   PyObject_HEAD
-  CRacing env;
+  CEnduro env;
   Client *client;
 };
 
@@ -2071,6 +2109,33 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
     PyObject **argnames[],
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name);
+
+/* ArgTypeTest.proto */
+#define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact)\
+    ((likely(__Pyx_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 :\
+        __Pyx__ArgTypeTest(obj, type, name, exact))
+static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact);
+
+/* IsLittleEndian.proto */
+static CYTHON_INLINE int __Pyx_Is_Little_Endian(void);
+
+/* BufferFormatCheck.proto */
+static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts);
+static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
+                              __Pyx_BufFmt_StackElem* stack,
+                              __Pyx_TypeInfo* type);
+
+/* BufferGetAndValidate.proto */
+#define __Pyx_GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack)\
+    ((obj == Py_None || obj == NULL) ?\
+    (__Pyx_ZeroBuffer(buf), 0) :\
+    __Pyx__GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack))
+static int  __Pyx__GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
+    __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
+static void __Pyx_ZeroBuffer(Py_buffer* buf);
+static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
+static Py_ssize_t __Pyx_minusones[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+static Py_ssize_t __Pyx_zeros[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /* KeywordStringCheck.proto */
 static int __Pyx_CheckKeywordStrings(PyObject *kw, const char* function_name, int kw_allowed);
@@ -2379,6 +2444,29 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object);
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename);
 
+/* BufferStructDeclare.proto */
+typedef struct {
+  Py_ssize_t shape, strides, suboffsets;
+} __Pyx_Buf_DimInfo;
+typedef struct {
+  size_t refcount;
+  Py_buffer pybuffer;
+} __Pyx_Buffer;
+typedef struct {
+  __Pyx_Buffer *rcbuffer;
+  char *data;
+  __Pyx_Buf_DimInfo diminfo[8];
+} __Pyx_LocalBuf_ND;
+
+#if PY_MAJOR_VERSION < 3
+    static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
+    static void __Pyx_ReleaseBuffer(Py_buffer *view);
+#else
+    #define __Pyx_GetBuffer PyObject_GetBuffer
+    #define __Pyx_ReleaseBuffer PyBuffer_Release
+#endif
+
+
 /* GCCDiagnostics.proto */
 #if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
 #define __Pyx_HAS_GCC_DIAGNOSTIC
@@ -2483,7 +2571,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #endif
 
 /* CIntFromPy.proto */
-static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *);
+static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *);
 
 /* FormatTypeName.proto */
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -2503,6 +2591,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value);
 
 /* CIntFromPy.proto */
 static CYTHON_INLINE long __Pyx_PyInt_As_long(PyObject *);
+
+/* CIntFromPy.proto */
+static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *);
 
 /* FastTypeChecks.proto */
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -2559,6 +2650,10 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
 
 /* Module declarations from "pufferlib.environments.ocean.racing.cy_racing" */
 /* #### Code section: typeinfo ### */
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t = { "float32_t", NULL, sizeof(__pyx_t_5numpy_float32_t), { 0 }, 0, 'R', 0, 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t = { "uint32_t", NULL, sizeof(__pyx_t_5numpy_uint32_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint32_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint32_t), 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t = { "uint8_t", NULL, sizeof(__pyx_t_5numpy_uint8_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint8_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint8_t), 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t = { "int32_t", NULL, sizeof(__pyx_t_5numpy_int32_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_int32_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_int32_t), 0 };
 /* #### Code section: before_global_var ### */
 #define __Pyx_MODULE_NAME "pufferlib.environments.ocean.racing.cy_racing"
 extern int __pyx_module_is_main_pufferlib__environments__ocean__racing__cy_racing;
@@ -2570,52 +2665,73 @@ static PyObject *__pyx_builtin_TypeError;
 static PyObject *__pyx_builtin_ImportError;
 /* #### Code section: string_decls ### */
 static const char __pyx_k_gc[] = "gc";
-static const char __pyx_k__10[] = "?";
+static const char __pyx_k__11[] = "?";
 static const char __pyx_k_main[] = "__main__";
 static const char __pyx_k_name[] = "__name__";
 static const char __pyx_k_self[] = "self";
 static const char __pyx_k_step[] = "step";
 static const char __pyx_k_test[] = "__test__";
+static const char __pyx_k_close[] = "close";
 static const char __pyx_k_reset[] = "reset";
 static const char __pyx_k_width[] = "width";
 static const char __pyx_k_enable[] = "enable";
 static const char __pyx_k_height[] = "height";
 static const char __pyx_k_reduce[] = "__reduce__";
 static const char __pyx_k_render[] = "render";
+static const char __pyx_k_actions[] = "actions";
 static const char __pyx_k_disable[] = "disable";
-static const char __pyx_k_CyRacing[] = "CyRacing";
+static const char __pyx_k_rewards[] = "rewards";
+static const char __pyx_k_CyEnduro[] = "CyEnduro";
 static const char __pyx_k_getstate[] = "__getstate__";
 static const char __pyx_k_setstate[] = "__setstate__";
 static const char __pyx_k_TypeError[] = "TypeError";
+static const char __pyx_k_frameskip[] = "frameskip";
 static const char __pyx_k_isenabled[] = "isenabled";
+static const char __pyx_k_max_score[] = "max_score";
 static const char __pyx_k_pyx_state[] = "__pyx_state";
 static const char __pyx_k_reduce_ex[] = "__reduce_ex__";
+static const char __pyx_k_score_day[] = "score_day";
+static const char __pyx_k_terminals[] = "terminals";
+static const char __pyx_k_player_x_y[] = "player_x_y";
 static const char __pyx_k_ImportError[] = "ImportError";
 static const char __pyx_k_is_coroutine[] = "_is_coroutine";
+static const char __pyx_k_observations[] = "observations";
+static const char __pyx_k_player_speed[] = "player_speed";
+static const char __pyx_k_player_width[] = "player_width";
 static const char __pyx_k_stringsource[] = "<stringsource>";
-static const char __pyx_k_CyRacing_step[] = "CyRacing.step";
+static const char __pyx_k_CyEnduro_step[] = "CyEnduro.step";
+static const char __pyx_k_player_height[] = "player_height";
 static const char __pyx_k_reduce_cython[] = "__reduce_cython__";
-static const char __pyx_k_CyRacing_reset[] = "CyRacing.reset";
-static const char __pyx_k_CyRacing_render[] = "CyRacing.render";
+static const char __pyx_k_CyEnduro_close[] = "CyEnduro.close";
+static const char __pyx_k_CyEnduro_reset[] = "CyEnduro.reset";
+static const char __pyx_k_base_car_speed[] = "base_car_speed";
+static const char __pyx_k_other_cars_x_y[] = "other_cars_x_y";
+static const char __pyx_k_CyEnduro_render[] = "CyEnduro.render";
+static const char __pyx_k_other_car_width[] = "other_car_width";
 static const char __pyx_k_setstate_cython[] = "__setstate_cython__";
+static const char __pyx_k_speed_increment[] = "speed_increment";
+static const char __pyx_k_max_player_speed[] = "max_player_speed";
+static const char __pyx_k_min_player_speed[] = "min_player_speed";
+static const char __pyx_k_other_car_height[] = "other_car_height";
+static const char __pyx_k_other_cars_active[] = "other_cars_active";
 static const char __pyx_k_asyncio_coroutines[] = "asyncio.coroutines";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
-static const char __pyx_k_CyRacing___reduce_cython[] = "CyRacing.__reduce_cython__";
-static const char __pyx_k_CyRacing___setstate_cython[] = "CyRacing.__setstate_cython__";
+static const char __pyx_k_CyEnduro___reduce_cython[] = "CyEnduro.__reduce_cython__";
+static const char __pyx_k_CyEnduro___setstate_cython[] = "CyEnduro.__setstate_cython__";
 static const char __pyx_k_numpy_core_multiarray_failed_to[] = "numpy.core.multiarray failed to import";
 static const char __pyx_k_numpy_core_umath_failed_to_impor[] = "numpy.core.umath failed to import";
 static const char __pyx_k_pufferlib_environments_ocean_rac[] = "pufferlib/environments/ocean/racing/cy_racing.pyx";
 static const char __pyx_k_self_client_self_env_cannot_be_c[] = "self.client,self.env cannot be converted to a Python object for pickling";
 static const char __pyx_k_pufferlib_environments_ocean_rac_2[] = "pufferlib.environments.ocean.racing.cy_racing";
 /* #### Code section: decls ### */
-static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self, int __pyx_v_width, int __pyx_v_height); /* proto */
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_2reset(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_4step(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_6render(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self); /* proto */
-static void __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_8__dealloc__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_10__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_12__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
+static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, PyArrayObject *__pyx_v_observations, PyArrayObject *__pyx_v_actions, PyArrayObject *__pyx_v_rewards, PyArrayObject *__pyx_v_terminals, PyArrayObject *__pyx_v_player_x_y, PyArrayObject *__pyx_v_other_cars_x_y, PyArrayObject *__pyx_v_other_cars_active, PyArrayObject *__pyx_v_score_day, CYTHON_UNUSED float __pyx_v_width, CYTHON_UNUSED float __pyx_v_height, CYTHON_UNUSED float __pyx_v_player_width, CYTHON_UNUSED float __pyx_v_player_height, CYTHON_UNUSED float __pyx_v_other_car_width, CYTHON_UNUSED float __pyx_v_other_car_height, CYTHON_UNUSED float __pyx_v_player_speed, CYTHON_UNUSED float __pyx_v_base_car_speed, CYTHON_UNUSED float __pyx_v_max_player_speed, CYTHON_UNUSED float __pyx_v_min_player_speed, CYTHON_UNUSED float __pyx_v_speed_increment, CYTHON_UNUSED unsigned int __pyx_v_max_score); /* proto */
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_2reset(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_4step(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_6render(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_8close(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_10__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_12__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 /* #### Code section: late_includes ### */
 /* #### Code section: module_state ### */
 typedef struct {
@@ -2680,31 +2796,48 @@ typedef struct {
   #if CYTHON_USE_MODULE_STATE
   #endif
   #if CYTHON_USE_MODULE_STATE
-  PyObject *__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing;
+  PyObject *__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
   #endif
-  PyTypeObject *__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing;
-  PyObject *__pyx_n_s_CyRacing;
-  PyObject *__pyx_n_s_CyRacing___reduce_cython;
-  PyObject *__pyx_n_s_CyRacing___setstate_cython;
-  PyObject *__pyx_n_s_CyRacing_render;
-  PyObject *__pyx_n_s_CyRacing_reset;
-  PyObject *__pyx_n_s_CyRacing_step;
+  PyTypeObject *__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
+  PyObject *__pyx_n_s_CyEnduro;
+  PyObject *__pyx_n_s_CyEnduro___reduce_cython;
+  PyObject *__pyx_n_s_CyEnduro___setstate_cython;
+  PyObject *__pyx_n_s_CyEnduro_close;
+  PyObject *__pyx_n_s_CyEnduro_render;
+  PyObject *__pyx_n_s_CyEnduro_reset;
+  PyObject *__pyx_n_s_CyEnduro_step;
   PyObject *__pyx_n_s_ImportError;
   PyObject *__pyx_n_s_TypeError;
-  PyObject *__pyx_n_s__10;
+  PyObject *__pyx_n_s__11;
+  PyObject *__pyx_n_s_actions;
   PyObject *__pyx_n_s_asyncio_coroutines;
+  PyObject *__pyx_n_s_base_car_speed;
   PyObject *__pyx_n_s_cline_in_traceback;
+  PyObject *__pyx_n_s_close;
   PyObject *__pyx_kp_u_disable;
   PyObject *__pyx_kp_u_enable;
+  PyObject *__pyx_n_s_frameskip;
   PyObject *__pyx_kp_u_gc;
   PyObject *__pyx_n_s_getstate;
   PyObject *__pyx_n_s_height;
   PyObject *__pyx_n_s_is_coroutine;
   PyObject *__pyx_kp_u_isenabled;
   PyObject *__pyx_n_s_main;
+  PyObject *__pyx_n_s_max_player_speed;
+  PyObject *__pyx_n_s_max_score;
+  PyObject *__pyx_n_s_min_player_speed;
   PyObject *__pyx_n_s_name;
   PyObject *__pyx_kp_s_numpy_core_multiarray_failed_to;
   PyObject *__pyx_kp_s_numpy_core_umath_failed_to_impor;
+  PyObject *__pyx_n_s_observations;
+  PyObject *__pyx_n_s_other_car_height;
+  PyObject *__pyx_n_s_other_car_width;
+  PyObject *__pyx_n_s_other_cars_active;
+  PyObject *__pyx_n_s_other_cars_x_y;
+  PyObject *__pyx_n_s_player_height;
+  PyObject *__pyx_n_s_player_speed;
+  PyObject *__pyx_n_s_player_width;
+  PyObject *__pyx_n_s_player_x_y;
   PyObject *__pyx_kp_s_pufferlib_environments_ocean_rac;
   PyObject *__pyx_n_s_pufferlib_environments_ocean_rac_2;
   PyObject *__pyx_n_s_pyx_state;
@@ -2713,23 +2846,28 @@ typedef struct {
   PyObject *__pyx_n_s_reduce_ex;
   PyObject *__pyx_n_s_render;
   PyObject *__pyx_n_s_reset;
+  PyObject *__pyx_n_s_rewards;
+  PyObject *__pyx_n_s_score_day;
   PyObject *__pyx_n_s_self;
   PyObject *__pyx_kp_s_self_client_self_env_cannot_be_c;
   PyObject *__pyx_n_s_setstate;
   PyObject *__pyx_n_s_setstate_cython;
+  PyObject *__pyx_n_s_speed_increment;
   PyObject *__pyx_n_s_step;
   PyObject *__pyx_kp_s_stringsource;
+  PyObject *__pyx_n_s_terminals;
   PyObject *__pyx_n_s_test;
   PyObject *__pyx_n_s_width;
   PyObject *__pyx_tuple_;
   PyObject *__pyx_tuple__2;
   PyObject *__pyx_tuple__3;
-  PyObject *__pyx_tuple__8;
+  PyObject *__pyx_tuple__9;
   PyObject *__pyx_codeobj__4;
   PyObject *__pyx_codeobj__5;
   PyObject *__pyx_codeobj__6;
   PyObject *__pyx_codeobj__7;
-  PyObject *__pyx_codeobj__9;
+  PyObject *__pyx_codeobj__8;
+  PyObject *__pyx_codeobj__10;
 } __pyx_mstate;
 
 #if CYTHON_USE_MODULE_STATE
@@ -2788,30 +2926,47 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_flexible);
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_character);
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_ufunc);
-  Py_CLEAR(clear_module_state->__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
-  Py_CLEAR(clear_module_state->__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CyRacing);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CyRacing___reduce_cython);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CyRacing___setstate_cython);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CyRacing_render);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CyRacing_reset);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CyRacing_step);
+  Py_CLEAR(clear_module_state->__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
+  Py_CLEAR(clear_module_state->__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro___reduce_cython);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro___setstate_cython);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro_close);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro_render);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro_reset);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CyEnduro_step);
   Py_CLEAR(clear_module_state->__pyx_n_s_ImportError);
   Py_CLEAR(clear_module_state->__pyx_n_s_TypeError);
-  Py_CLEAR(clear_module_state->__pyx_n_s__10);
+  Py_CLEAR(clear_module_state->__pyx_n_s__11);
+  Py_CLEAR(clear_module_state->__pyx_n_s_actions);
   Py_CLEAR(clear_module_state->__pyx_n_s_asyncio_coroutines);
+  Py_CLEAR(clear_module_state->__pyx_n_s_base_car_speed);
   Py_CLEAR(clear_module_state->__pyx_n_s_cline_in_traceback);
+  Py_CLEAR(clear_module_state->__pyx_n_s_close);
   Py_CLEAR(clear_module_state->__pyx_kp_u_disable);
   Py_CLEAR(clear_module_state->__pyx_kp_u_enable);
+  Py_CLEAR(clear_module_state->__pyx_n_s_frameskip);
   Py_CLEAR(clear_module_state->__pyx_kp_u_gc);
   Py_CLEAR(clear_module_state->__pyx_n_s_getstate);
   Py_CLEAR(clear_module_state->__pyx_n_s_height);
   Py_CLEAR(clear_module_state->__pyx_n_s_is_coroutine);
   Py_CLEAR(clear_module_state->__pyx_kp_u_isenabled);
   Py_CLEAR(clear_module_state->__pyx_n_s_main);
+  Py_CLEAR(clear_module_state->__pyx_n_s_max_player_speed);
+  Py_CLEAR(clear_module_state->__pyx_n_s_max_score);
+  Py_CLEAR(clear_module_state->__pyx_n_s_min_player_speed);
   Py_CLEAR(clear_module_state->__pyx_n_s_name);
   Py_CLEAR(clear_module_state->__pyx_kp_s_numpy_core_multiarray_failed_to);
   Py_CLEAR(clear_module_state->__pyx_kp_s_numpy_core_umath_failed_to_impor);
+  Py_CLEAR(clear_module_state->__pyx_n_s_observations);
+  Py_CLEAR(clear_module_state->__pyx_n_s_other_car_height);
+  Py_CLEAR(clear_module_state->__pyx_n_s_other_car_width);
+  Py_CLEAR(clear_module_state->__pyx_n_s_other_cars_active);
+  Py_CLEAR(clear_module_state->__pyx_n_s_other_cars_x_y);
+  Py_CLEAR(clear_module_state->__pyx_n_s_player_height);
+  Py_CLEAR(clear_module_state->__pyx_n_s_player_speed);
+  Py_CLEAR(clear_module_state->__pyx_n_s_player_width);
+  Py_CLEAR(clear_module_state->__pyx_n_s_player_x_y);
   Py_CLEAR(clear_module_state->__pyx_kp_s_pufferlib_environments_ocean_rac);
   Py_CLEAR(clear_module_state->__pyx_n_s_pufferlib_environments_ocean_rac_2);
   Py_CLEAR(clear_module_state->__pyx_n_s_pyx_state);
@@ -2820,23 +2975,28 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_reduce_ex);
   Py_CLEAR(clear_module_state->__pyx_n_s_render);
   Py_CLEAR(clear_module_state->__pyx_n_s_reset);
+  Py_CLEAR(clear_module_state->__pyx_n_s_rewards);
+  Py_CLEAR(clear_module_state->__pyx_n_s_score_day);
   Py_CLEAR(clear_module_state->__pyx_n_s_self);
   Py_CLEAR(clear_module_state->__pyx_kp_s_self_client_self_env_cannot_be_c);
   Py_CLEAR(clear_module_state->__pyx_n_s_setstate);
   Py_CLEAR(clear_module_state->__pyx_n_s_setstate_cython);
+  Py_CLEAR(clear_module_state->__pyx_n_s_speed_increment);
   Py_CLEAR(clear_module_state->__pyx_n_s_step);
   Py_CLEAR(clear_module_state->__pyx_kp_s_stringsource);
+  Py_CLEAR(clear_module_state->__pyx_n_s_terminals);
   Py_CLEAR(clear_module_state->__pyx_n_s_test);
   Py_CLEAR(clear_module_state->__pyx_n_s_width);
   Py_CLEAR(clear_module_state->__pyx_tuple_);
   Py_CLEAR(clear_module_state->__pyx_tuple__2);
   Py_CLEAR(clear_module_state->__pyx_tuple__3);
-  Py_CLEAR(clear_module_state->__pyx_tuple__8);
+  Py_CLEAR(clear_module_state->__pyx_tuple__9);
   Py_CLEAR(clear_module_state->__pyx_codeobj__4);
   Py_CLEAR(clear_module_state->__pyx_codeobj__5);
   Py_CLEAR(clear_module_state->__pyx_codeobj__6);
   Py_CLEAR(clear_module_state->__pyx_codeobj__7);
-  Py_CLEAR(clear_module_state->__pyx_codeobj__9);
+  Py_CLEAR(clear_module_state->__pyx_codeobj__8);
+  Py_CLEAR(clear_module_state->__pyx_codeobj__10);
   return 0;
 }
 #endif
@@ -2873,30 +3033,47 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_flexible);
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_character);
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_ufunc);
-  Py_VISIT(traverse_module_state->__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
-  Py_VISIT(traverse_module_state->__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CyRacing);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CyRacing___reduce_cython);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CyRacing___setstate_cython);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CyRacing_render);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CyRacing_reset);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CyRacing_step);
+  Py_VISIT(traverse_module_state->__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
+  Py_VISIT(traverse_module_state->__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro___reduce_cython);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro___setstate_cython);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro_close);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro_render);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro_reset);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CyEnduro_step);
   Py_VISIT(traverse_module_state->__pyx_n_s_ImportError);
   Py_VISIT(traverse_module_state->__pyx_n_s_TypeError);
-  Py_VISIT(traverse_module_state->__pyx_n_s__10);
+  Py_VISIT(traverse_module_state->__pyx_n_s__11);
+  Py_VISIT(traverse_module_state->__pyx_n_s_actions);
   Py_VISIT(traverse_module_state->__pyx_n_s_asyncio_coroutines);
+  Py_VISIT(traverse_module_state->__pyx_n_s_base_car_speed);
   Py_VISIT(traverse_module_state->__pyx_n_s_cline_in_traceback);
+  Py_VISIT(traverse_module_state->__pyx_n_s_close);
   Py_VISIT(traverse_module_state->__pyx_kp_u_disable);
   Py_VISIT(traverse_module_state->__pyx_kp_u_enable);
+  Py_VISIT(traverse_module_state->__pyx_n_s_frameskip);
   Py_VISIT(traverse_module_state->__pyx_kp_u_gc);
   Py_VISIT(traverse_module_state->__pyx_n_s_getstate);
   Py_VISIT(traverse_module_state->__pyx_n_s_height);
   Py_VISIT(traverse_module_state->__pyx_n_s_is_coroutine);
   Py_VISIT(traverse_module_state->__pyx_kp_u_isenabled);
   Py_VISIT(traverse_module_state->__pyx_n_s_main);
+  Py_VISIT(traverse_module_state->__pyx_n_s_max_player_speed);
+  Py_VISIT(traverse_module_state->__pyx_n_s_max_score);
+  Py_VISIT(traverse_module_state->__pyx_n_s_min_player_speed);
   Py_VISIT(traverse_module_state->__pyx_n_s_name);
   Py_VISIT(traverse_module_state->__pyx_kp_s_numpy_core_multiarray_failed_to);
   Py_VISIT(traverse_module_state->__pyx_kp_s_numpy_core_umath_failed_to_impor);
+  Py_VISIT(traverse_module_state->__pyx_n_s_observations);
+  Py_VISIT(traverse_module_state->__pyx_n_s_other_car_height);
+  Py_VISIT(traverse_module_state->__pyx_n_s_other_car_width);
+  Py_VISIT(traverse_module_state->__pyx_n_s_other_cars_active);
+  Py_VISIT(traverse_module_state->__pyx_n_s_other_cars_x_y);
+  Py_VISIT(traverse_module_state->__pyx_n_s_player_height);
+  Py_VISIT(traverse_module_state->__pyx_n_s_player_speed);
+  Py_VISIT(traverse_module_state->__pyx_n_s_player_width);
+  Py_VISIT(traverse_module_state->__pyx_n_s_player_x_y);
   Py_VISIT(traverse_module_state->__pyx_kp_s_pufferlib_environments_ocean_rac);
   Py_VISIT(traverse_module_state->__pyx_n_s_pufferlib_environments_ocean_rac_2);
   Py_VISIT(traverse_module_state->__pyx_n_s_pyx_state);
@@ -2905,23 +3082,28 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_reduce_ex);
   Py_VISIT(traverse_module_state->__pyx_n_s_render);
   Py_VISIT(traverse_module_state->__pyx_n_s_reset);
+  Py_VISIT(traverse_module_state->__pyx_n_s_rewards);
+  Py_VISIT(traverse_module_state->__pyx_n_s_score_day);
   Py_VISIT(traverse_module_state->__pyx_n_s_self);
   Py_VISIT(traverse_module_state->__pyx_kp_s_self_client_self_env_cannot_be_c);
   Py_VISIT(traverse_module_state->__pyx_n_s_setstate);
   Py_VISIT(traverse_module_state->__pyx_n_s_setstate_cython);
+  Py_VISIT(traverse_module_state->__pyx_n_s_speed_increment);
   Py_VISIT(traverse_module_state->__pyx_n_s_step);
   Py_VISIT(traverse_module_state->__pyx_kp_s_stringsource);
+  Py_VISIT(traverse_module_state->__pyx_n_s_terminals);
   Py_VISIT(traverse_module_state->__pyx_n_s_test);
   Py_VISIT(traverse_module_state->__pyx_n_s_width);
   Py_VISIT(traverse_module_state->__pyx_tuple_);
   Py_VISIT(traverse_module_state->__pyx_tuple__2);
   Py_VISIT(traverse_module_state->__pyx_tuple__3);
-  Py_VISIT(traverse_module_state->__pyx_tuple__8);
+  Py_VISIT(traverse_module_state->__pyx_tuple__9);
   Py_VISIT(traverse_module_state->__pyx_codeobj__4);
   Py_VISIT(traverse_module_state->__pyx_codeobj__5);
   Py_VISIT(traverse_module_state->__pyx_codeobj__6);
   Py_VISIT(traverse_module_state->__pyx_codeobj__7);
-  Py_VISIT(traverse_module_state->__pyx_codeobj__9);
+  Py_VISIT(traverse_module_state->__pyx_codeobj__8);
+  Py_VISIT(traverse_module_state->__pyx_codeobj__10);
   return 0;
 }
 #endif
@@ -2987,31 +3169,48 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #if CYTHON_USE_MODULE_STATE
 #endif
 #if CYTHON_USE_MODULE_STATE
-#define __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing __pyx_mstate_global->__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing
+#define __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro __pyx_mstate_global->__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro
 #endif
-#define __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing __pyx_mstate_global->__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing
-#define __pyx_n_s_CyRacing __pyx_mstate_global->__pyx_n_s_CyRacing
-#define __pyx_n_s_CyRacing___reduce_cython __pyx_mstate_global->__pyx_n_s_CyRacing___reduce_cython
-#define __pyx_n_s_CyRacing___setstate_cython __pyx_mstate_global->__pyx_n_s_CyRacing___setstate_cython
-#define __pyx_n_s_CyRacing_render __pyx_mstate_global->__pyx_n_s_CyRacing_render
-#define __pyx_n_s_CyRacing_reset __pyx_mstate_global->__pyx_n_s_CyRacing_reset
-#define __pyx_n_s_CyRacing_step __pyx_mstate_global->__pyx_n_s_CyRacing_step
+#define __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro __pyx_mstate_global->__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro
+#define __pyx_n_s_CyEnduro __pyx_mstate_global->__pyx_n_s_CyEnduro
+#define __pyx_n_s_CyEnduro___reduce_cython __pyx_mstate_global->__pyx_n_s_CyEnduro___reduce_cython
+#define __pyx_n_s_CyEnduro___setstate_cython __pyx_mstate_global->__pyx_n_s_CyEnduro___setstate_cython
+#define __pyx_n_s_CyEnduro_close __pyx_mstate_global->__pyx_n_s_CyEnduro_close
+#define __pyx_n_s_CyEnduro_render __pyx_mstate_global->__pyx_n_s_CyEnduro_render
+#define __pyx_n_s_CyEnduro_reset __pyx_mstate_global->__pyx_n_s_CyEnduro_reset
+#define __pyx_n_s_CyEnduro_step __pyx_mstate_global->__pyx_n_s_CyEnduro_step
 #define __pyx_n_s_ImportError __pyx_mstate_global->__pyx_n_s_ImportError
 #define __pyx_n_s_TypeError __pyx_mstate_global->__pyx_n_s_TypeError
-#define __pyx_n_s__10 __pyx_mstate_global->__pyx_n_s__10
+#define __pyx_n_s__11 __pyx_mstate_global->__pyx_n_s__11
+#define __pyx_n_s_actions __pyx_mstate_global->__pyx_n_s_actions
 #define __pyx_n_s_asyncio_coroutines __pyx_mstate_global->__pyx_n_s_asyncio_coroutines
+#define __pyx_n_s_base_car_speed __pyx_mstate_global->__pyx_n_s_base_car_speed
 #define __pyx_n_s_cline_in_traceback __pyx_mstate_global->__pyx_n_s_cline_in_traceback
+#define __pyx_n_s_close __pyx_mstate_global->__pyx_n_s_close
 #define __pyx_kp_u_disable __pyx_mstate_global->__pyx_kp_u_disable
 #define __pyx_kp_u_enable __pyx_mstate_global->__pyx_kp_u_enable
+#define __pyx_n_s_frameskip __pyx_mstate_global->__pyx_n_s_frameskip
 #define __pyx_kp_u_gc __pyx_mstate_global->__pyx_kp_u_gc
 #define __pyx_n_s_getstate __pyx_mstate_global->__pyx_n_s_getstate
 #define __pyx_n_s_height __pyx_mstate_global->__pyx_n_s_height
 #define __pyx_n_s_is_coroutine __pyx_mstate_global->__pyx_n_s_is_coroutine
 #define __pyx_kp_u_isenabled __pyx_mstate_global->__pyx_kp_u_isenabled
 #define __pyx_n_s_main __pyx_mstate_global->__pyx_n_s_main
+#define __pyx_n_s_max_player_speed __pyx_mstate_global->__pyx_n_s_max_player_speed
+#define __pyx_n_s_max_score __pyx_mstate_global->__pyx_n_s_max_score
+#define __pyx_n_s_min_player_speed __pyx_mstate_global->__pyx_n_s_min_player_speed
 #define __pyx_n_s_name __pyx_mstate_global->__pyx_n_s_name
 #define __pyx_kp_s_numpy_core_multiarray_failed_to __pyx_mstate_global->__pyx_kp_s_numpy_core_multiarray_failed_to
 #define __pyx_kp_s_numpy_core_umath_failed_to_impor __pyx_mstate_global->__pyx_kp_s_numpy_core_umath_failed_to_impor
+#define __pyx_n_s_observations __pyx_mstate_global->__pyx_n_s_observations
+#define __pyx_n_s_other_car_height __pyx_mstate_global->__pyx_n_s_other_car_height
+#define __pyx_n_s_other_car_width __pyx_mstate_global->__pyx_n_s_other_car_width
+#define __pyx_n_s_other_cars_active __pyx_mstate_global->__pyx_n_s_other_cars_active
+#define __pyx_n_s_other_cars_x_y __pyx_mstate_global->__pyx_n_s_other_cars_x_y
+#define __pyx_n_s_player_height __pyx_mstate_global->__pyx_n_s_player_height
+#define __pyx_n_s_player_speed __pyx_mstate_global->__pyx_n_s_player_speed
+#define __pyx_n_s_player_width __pyx_mstate_global->__pyx_n_s_player_width
+#define __pyx_n_s_player_x_y __pyx_mstate_global->__pyx_n_s_player_x_y
 #define __pyx_kp_s_pufferlib_environments_ocean_rac __pyx_mstate_global->__pyx_kp_s_pufferlib_environments_ocean_rac
 #define __pyx_n_s_pufferlib_environments_ocean_rac_2 __pyx_mstate_global->__pyx_n_s_pufferlib_environments_ocean_rac_2
 #define __pyx_n_s_pyx_state __pyx_mstate_global->__pyx_n_s_pyx_state
@@ -3020,23 +3219,28 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_reduce_ex __pyx_mstate_global->__pyx_n_s_reduce_ex
 #define __pyx_n_s_render __pyx_mstate_global->__pyx_n_s_render
 #define __pyx_n_s_reset __pyx_mstate_global->__pyx_n_s_reset
+#define __pyx_n_s_rewards __pyx_mstate_global->__pyx_n_s_rewards
+#define __pyx_n_s_score_day __pyx_mstate_global->__pyx_n_s_score_day
 #define __pyx_n_s_self __pyx_mstate_global->__pyx_n_s_self
 #define __pyx_kp_s_self_client_self_env_cannot_be_c __pyx_mstate_global->__pyx_kp_s_self_client_self_env_cannot_be_c
 #define __pyx_n_s_setstate __pyx_mstate_global->__pyx_n_s_setstate
 #define __pyx_n_s_setstate_cython __pyx_mstate_global->__pyx_n_s_setstate_cython
+#define __pyx_n_s_speed_increment __pyx_mstate_global->__pyx_n_s_speed_increment
 #define __pyx_n_s_step __pyx_mstate_global->__pyx_n_s_step
 #define __pyx_kp_s_stringsource __pyx_mstate_global->__pyx_kp_s_stringsource
+#define __pyx_n_s_terminals __pyx_mstate_global->__pyx_n_s_terminals
 #define __pyx_n_s_test __pyx_mstate_global->__pyx_n_s_test
 #define __pyx_n_s_width __pyx_mstate_global->__pyx_n_s_width
 #define __pyx_tuple_ __pyx_mstate_global->__pyx_tuple_
 #define __pyx_tuple__2 __pyx_mstate_global->__pyx_tuple__2
 #define __pyx_tuple__3 __pyx_mstate_global->__pyx_tuple__3
-#define __pyx_tuple__8 __pyx_mstate_global->__pyx_tuple__8
+#define __pyx_tuple__9 __pyx_mstate_global->__pyx_tuple__9
 #define __pyx_codeobj__4 __pyx_mstate_global->__pyx_codeobj__4
 #define __pyx_codeobj__5 __pyx_mstate_global->__pyx_codeobj__5
 #define __pyx_codeobj__6 __pyx_mstate_global->__pyx_codeobj__6
 #define __pyx_codeobj__7 __pyx_mstate_global->__pyx_codeobj__7
-#define __pyx_codeobj__9 __pyx_mstate_global->__pyx_codeobj__9
+#define __pyx_codeobj__8 __pyx_mstate_global->__pyx_codeobj__8
+#define __pyx_codeobj__10 __pyx_mstate_global->__pyx_codeobj__10
 /* #### Code section: module_code ### */
 
 /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":245
@@ -4296,19 +4500,37 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
 /* "pufferlib/environments/ocean/racing/cy_racing.pyx":29
  *     cdef Client* client
  * 
- *     def __init__(self, int width, int height):             # <<<<<<<<<<<<<<
- *         allocate(&self.env)
- *         self.env.width = width
+ *     def __init__(self,             # <<<<<<<<<<<<<<
+ *                  cnp.ndarray[cnp.float32_t, ndim=1] observations,
+ *                  cnp.ndarray[cnp.uint32_t, ndim=1] actions,
  */
 
 /* Python wrapper */
-static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
-  int __pyx_v_width;
-  int __pyx_v_height;
+static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+  PyArrayObject *__pyx_v_observations = 0;
+  PyArrayObject *__pyx_v_actions = 0;
+  PyArrayObject *__pyx_v_rewards = 0;
+  PyArrayObject *__pyx_v_terminals = 0;
+  PyArrayObject *__pyx_v_player_x_y = 0;
+  PyArrayObject *__pyx_v_other_cars_x_y = 0;
+  PyArrayObject *__pyx_v_other_cars_active = 0;
+  PyArrayObject *__pyx_v_score_day = 0;
+  CYTHON_UNUSED float __pyx_v_width;
+  CYTHON_UNUSED float __pyx_v_height;
+  CYTHON_UNUSED float __pyx_v_player_width;
+  CYTHON_UNUSED float __pyx_v_player_height;
+  CYTHON_UNUSED float __pyx_v_other_car_width;
+  CYTHON_UNUSED float __pyx_v_other_car_height;
+  CYTHON_UNUSED float __pyx_v_player_speed;
+  CYTHON_UNUSED float __pyx_v_base_car_speed;
+  CYTHON_UNUSED float __pyx_v_max_player_speed;
+  CYTHON_UNUSED float __pyx_v_min_player_speed;
+  CYTHON_UNUSED float __pyx_v_speed_increment;
+  CYTHON_UNUSED unsigned int __pyx_v_max_score;
   CYTHON_UNUSED Py_ssize_t __pyx_nargs;
   CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
-  PyObject* values[2] = {0,0};
+  PyObject* values[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -4322,10 +4544,46 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacin
   #endif
   __pyx_kwvalues = __Pyx_KwValues_VARARGS(__pyx_args, __pyx_nargs);
   {
-    PyObject **__pyx_pyargnames[] = {&__pyx_n_s_width,&__pyx_n_s_height,0};
+    PyObject **__pyx_pyargnames[] = {&__pyx_n_s_observations,&__pyx_n_s_actions,&__pyx_n_s_rewards,&__pyx_n_s_terminals,&__pyx_n_s_player_x_y,&__pyx_n_s_other_cars_x_y,&__pyx_n_s_other_cars_active,&__pyx_n_s_score_day,&__pyx_n_s_width,&__pyx_n_s_height,&__pyx_n_s_player_width,&__pyx_n_s_player_height,&__pyx_n_s_other_car_width,&__pyx_n_s_other_car_height,&__pyx_n_s_player_speed,&__pyx_n_s_base_car_speed,&__pyx_n_s_max_player_speed,&__pyx_n_s_min_player_speed,&__pyx_n_s_speed_increment,&__pyx_n_s_max_score,0};
     if (__pyx_kwds) {
       Py_ssize_t kw_args;
       switch (__pyx_nargs) {
+        case 20: values[19] = __Pyx_Arg_VARARGS(__pyx_args, 19);
+        CYTHON_FALLTHROUGH;
+        case 19: values[18] = __Pyx_Arg_VARARGS(__pyx_args, 18);
+        CYTHON_FALLTHROUGH;
+        case 18: values[17] = __Pyx_Arg_VARARGS(__pyx_args, 17);
+        CYTHON_FALLTHROUGH;
+        case 17: values[16] = __Pyx_Arg_VARARGS(__pyx_args, 16);
+        CYTHON_FALLTHROUGH;
+        case 16: values[15] = __Pyx_Arg_VARARGS(__pyx_args, 15);
+        CYTHON_FALLTHROUGH;
+        case 15: values[14] = __Pyx_Arg_VARARGS(__pyx_args, 14);
+        CYTHON_FALLTHROUGH;
+        case 14: values[13] = __Pyx_Arg_VARARGS(__pyx_args, 13);
+        CYTHON_FALLTHROUGH;
+        case 13: values[12] = __Pyx_Arg_VARARGS(__pyx_args, 12);
+        CYTHON_FALLTHROUGH;
+        case 12: values[11] = __Pyx_Arg_VARARGS(__pyx_args, 11);
+        CYTHON_FALLTHROUGH;
+        case 11: values[10] = __Pyx_Arg_VARARGS(__pyx_args, 10);
+        CYTHON_FALLTHROUGH;
+        case 10: values[9] = __Pyx_Arg_VARARGS(__pyx_args, 9);
+        CYTHON_FALLTHROUGH;
+        case  9: values[8] = __Pyx_Arg_VARARGS(__pyx_args, 8);
+        CYTHON_FALLTHROUGH;
+        case  8: values[7] = __Pyx_Arg_VARARGS(__pyx_args, 7);
+        CYTHON_FALLTHROUGH;
+        case  7: values[6] = __Pyx_Arg_VARARGS(__pyx_args, 6);
+        CYTHON_FALLTHROUGH;
+        case  6: values[5] = __Pyx_Arg_VARARGS(__pyx_args, 5);
+        CYTHON_FALLTHROUGH;
+        case  5: values[4] = __Pyx_Arg_VARARGS(__pyx_args, 4);
+        CYTHON_FALLTHROUGH;
+        case  4: values[3] = __Pyx_Arg_VARARGS(__pyx_args, 3);
+        CYTHON_FALLTHROUGH;
+        case  3: values[2] = __Pyx_Arg_VARARGS(__pyx_args, 2);
+        CYTHON_FALLTHROUGH;
         case  2: values[1] = __Pyx_Arg_VARARGS(__pyx_args, 1);
         CYTHON_FALLTHROUGH;
         case  1: values[0] = __Pyx_Arg_VARARGS(__pyx_args, 0);
@@ -4336,7 +4594,7 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacin
       kw_args = __Pyx_NumKwargs_VARARGS(__pyx_kwds);
       switch (__pyx_nargs) {
         case  0:
-        if (likely((values[0] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_width)) != 0)) {
+        if (likely((values[0] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_observations)) != 0)) {
           (void)__Pyx_Arg_NewRef_VARARGS(values[0]);
           kw_args--;
         }
@@ -4344,31 +4602,247 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacin
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
-        if (likely((values[1] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_height)) != 0)) {
+        if (likely((values[1] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_actions)) != 0)) {
           (void)__Pyx_Arg_NewRef_VARARGS(values[1]);
           kw_args--;
         }
         else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 2, 2, 1); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 1); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  2:
+        if (likely((values[2] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_rewards)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[2]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 2); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  3:
+        if (likely((values[3] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_terminals)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[3]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 3); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  4:
+        if (likely((values[4] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_player_x_y)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[4]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 4); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  5:
+        if (likely((values[5] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_other_cars_x_y)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[5]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 5); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  6:
+        if (likely((values[6] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_other_cars_active)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[6]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 6); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  7:
+        if (likely((values[7] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_score_day)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[7]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 7); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  8:
+        if (likely((values[8] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_width)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[8]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 8); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  9:
+        if (likely((values[9] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_height)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[9]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 9); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 10:
+        if (likely((values[10] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_player_width)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[10]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 10); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 11:
+        if (likely((values[11] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_player_height)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[11]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 11); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 12:
+        if (likely((values[12] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_other_car_width)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[12]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 12); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 13:
+        if (likely((values[13] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_other_car_height)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[13]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 13); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 14:
+        if (likely((values[14] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_player_speed)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[14]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 14); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 15:
+        if (likely((values[15] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_base_car_speed)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[15]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 15); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 16:
+        if (likely((values[16] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_max_player_speed)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[16]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 16); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 17:
+        if (likely((values[17] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_min_player_speed)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[17]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 17); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 18:
+        if (likely((values[18] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_speed_increment)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[18]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 18); __PYX_ERR(2, 29, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case 19:
+        if (likely((values[19] = __Pyx_GetKwValue_VARARGS(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_max_score)) != 0)) {
+          (void)__Pyx_Arg_NewRef_VARARGS(values[19]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 19); __PYX_ERR(2, 29, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
         if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__init__") < 0)) __PYX_ERR(2, 29, __pyx_L3_error)
       }
-    } else if (unlikely(__pyx_nargs != 2)) {
+    } else if (unlikely(__pyx_nargs != 20)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_Arg_VARARGS(__pyx_args, 0);
       values[1] = __Pyx_Arg_VARARGS(__pyx_args, 1);
+      values[2] = __Pyx_Arg_VARARGS(__pyx_args, 2);
+      values[3] = __Pyx_Arg_VARARGS(__pyx_args, 3);
+      values[4] = __Pyx_Arg_VARARGS(__pyx_args, 4);
+      values[5] = __Pyx_Arg_VARARGS(__pyx_args, 5);
+      values[6] = __Pyx_Arg_VARARGS(__pyx_args, 6);
+      values[7] = __Pyx_Arg_VARARGS(__pyx_args, 7);
+      values[8] = __Pyx_Arg_VARARGS(__pyx_args, 8);
+      values[9] = __Pyx_Arg_VARARGS(__pyx_args, 9);
+      values[10] = __Pyx_Arg_VARARGS(__pyx_args, 10);
+      values[11] = __Pyx_Arg_VARARGS(__pyx_args, 11);
+      values[12] = __Pyx_Arg_VARARGS(__pyx_args, 12);
+      values[13] = __Pyx_Arg_VARARGS(__pyx_args, 13);
+      values[14] = __Pyx_Arg_VARARGS(__pyx_args, 14);
+      values[15] = __Pyx_Arg_VARARGS(__pyx_args, 15);
+      values[16] = __Pyx_Arg_VARARGS(__pyx_args, 16);
+      values[17] = __Pyx_Arg_VARARGS(__pyx_args, 17);
+      values[18] = __Pyx_Arg_VARARGS(__pyx_args, 18);
+      values[19] = __Pyx_Arg_VARARGS(__pyx_args, 19);
     }
-    __pyx_v_width = __Pyx_PyInt_As_int(values[0]); if (unlikely((__pyx_v_width == (int)-1) && PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
-    __pyx_v_height = __Pyx_PyInt_As_int(values[1]); if (unlikely((__pyx_v_height == (int)-1) && PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+    __pyx_v_observations = ((PyArrayObject *)values[0]);
+    __pyx_v_actions = ((PyArrayObject *)values[1]);
+    __pyx_v_rewards = ((PyArrayObject *)values[2]);
+    __pyx_v_terminals = ((PyArrayObject *)values[3]);
+    __pyx_v_player_x_y = ((PyArrayObject *)values[4]);
+    __pyx_v_other_cars_x_y = ((PyArrayObject *)values[5]);
+    __pyx_v_other_cars_active = ((PyArrayObject *)values[6]);
+    __pyx_v_score_day = ((PyArrayObject *)values[7]);
+    __pyx_v_width = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 38, __pyx_L3_error)
+    __pyx_v_height = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 38, __pyx_L3_error)
+    __pyx_v_player_width = __pyx_PyFloat_AsFloat(values[10]); if (unlikely((__pyx_v_player_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 38, __pyx_L3_error)
+    __pyx_v_player_height = __pyx_PyFloat_AsFloat(values[11]); if (unlikely((__pyx_v_player_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 39, __pyx_L3_error)
+    __pyx_v_other_car_width = __pyx_PyFloat_AsFloat(values[12]); if (unlikely((__pyx_v_other_car_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 39, __pyx_L3_error)
+    __pyx_v_other_car_height = __pyx_PyFloat_AsFloat(values[13]); if (unlikely((__pyx_v_other_car_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 39, __pyx_L3_error)
+    __pyx_v_player_speed = __pyx_PyFloat_AsFloat(values[14]); if (unlikely((__pyx_v_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 40, __pyx_L3_error)
+    __pyx_v_base_car_speed = __pyx_PyFloat_AsFloat(values[15]); if (unlikely((__pyx_v_base_car_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 40, __pyx_L3_error)
+    __pyx_v_max_player_speed = __pyx_PyFloat_AsFloat(values[16]); if (unlikely((__pyx_v_max_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 40, __pyx_L3_error)
+    __pyx_v_min_player_speed = __pyx_PyFloat_AsFloat(values[17]); if (unlikely((__pyx_v_min_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 41, __pyx_L3_error)
+    __pyx_v_speed_increment = __pyx_PyFloat_AsFloat(values[18]); if (unlikely((__pyx_v_speed_increment == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 41, __pyx_L3_error)
+    __pyx_v_max_score = __Pyx_PyInt_As_unsigned_int(values[19]); if (unlikely((__pyx_v_max_score == (unsigned int)-1) && PyErr_Occurred())) __PYX_ERR(2, 41, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__init__", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 29, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, __pyx_nargs); __PYX_ERR(2, 29, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4378,13 +4852,25 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacin
       __Pyx_Arg_XDECREF_VARARGS(values[__pyx_temp]);
     }
   }
-  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyRacing.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyEnduro.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing___init__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self), __pyx_v_width, __pyx_v_height);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_observations), __pyx_ptype_5numpy_ndarray, 1, "observations", 0))) __PYX_ERR(2, 30, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_actions), __pyx_ptype_5numpy_ndarray, 1, "actions", 0))) __PYX_ERR(2, 31, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_rewards), __pyx_ptype_5numpy_ndarray, 1, "rewards", 0))) __PYX_ERR(2, 32, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_terminals), __pyx_ptype_5numpy_ndarray, 1, "terminals", 0))) __PYX_ERR(2, 33, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_player_x_y), __pyx_ptype_5numpy_ndarray, 1, "player_x_y", 0))) __PYX_ERR(2, 34, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other_cars_x_y), __pyx_ptype_5numpy_ndarray, 1, "other_cars_x_y", 0))) __PYX_ERR(2, 35, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other_cars_active), __pyx_ptype_5numpy_ndarray, 1, "other_cars_active", 0))) __PYX_ERR(2, 36, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_score_day), __pyx_ptype_5numpy_ndarray, 1, "score_day", 0))) __PYX_ERR(2, 37, __pyx_L1_error)
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self), __pyx_v_observations, __pyx_v_actions, __pyx_v_rewards, __pyx_v_terminals, __pyx_v_player_x_y, __pyx_v_other_cars_x_y, __pyx_v_other_cars_active, __pyx_v_score_day, __pyx_v_width, __pyx_v_height, __pyx_v_player_width, __pyx_v_player_height, __pyx_v_other_car_width, __pyx_v_other_car_height, __pyx_v_player_speed, __pyx_v_base_car_speed, __pyx_v_max_player_speed, __pyx_v_min_player_speed, __pyx_v_speed_increment, __pyx_v_max_score);
 
   /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = -1;
+  __pyx_L0:;
   {
     Py_ssize_t __pyx_temp;
     for (__pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -4395,60 +4881,253 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacin
   return __pyx_r;
 }
 
-static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self, int __pyx_v_width, int __pyx_v_height) {
+static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, PyArrayObject *__pyx_v_observations, PyArrayObject *__pyx_v_actions, PyArrayObject *__pyx_v_rewards, PyArrayObject *__pyx_v_terminals, PyArrayObject *__pyx_v_player_x_y, PyArrayObject *__pyx_v_other_cars_x_y, PyArrayObject *__pyx_v_other_cars_active, PyArrayObject *__pyx_v_score_day, CYTHON_UNUSED float __pyx_v_width, CYTHON_UNUSED float __pyx_v_height, CYTHON_UNUSED float __pyx_v_player_width, CYTHON_UNUSED float __pyx_v_player_height, CYTHON_UNUSED float __pyx_v_other_car_width, CYTHON_UNUSED float __pyx_v_other_car_height, CYTHON_UNUSED float __pyx_v_player_speed, CYTHON_UNUSED float __pyx_v_base_car_speed, CYTHON_UNUSED float __pyx_v_max_player_speed, CYTHON_UNUSED float __pyx_v_min_player_speed, CYTHON_UNUSED float __pyx_v_speed_increment, CYTHON_UNUSED unsigned int __pyx_v_max_score) {
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_actions;
+  __Pyx_Buffer __pyx_pybuffer_actions;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_observations;
+  __Pyx_Buffer __pyx_pybuffer_observations;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_other_cars_active;
+  __Pyx_Buffer __pyx_pybuffer_other_cars_active;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_other_cars_x_y;
+  __Pyx_Buffer __pyx_pybuffer_other_cars_x_y;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_player_x_y;
+  __Pyx_Buffer __pyx_pybuffer_player_x_y;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_rewards;
+  __Pyx_Buffer __pyx_pybuffer_rewards;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_score_day;
+  __Pyx_Buffer __pyx_pybuffer_score_day;
+  __Pyx_LocalBuf_ND __pyx_pybuffernd_terminals;
+  __Pyx_Buffer __pyx_pybuffer_terminals;
   int __pyx_r;
+  CEnduro __pyx_t_1;
+  char *__pyx_t_2;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __pyx_pybuffer_observations.pybuffer.buf = NULL;
+  __pyx_pybuffer_observations.refcount = 0;
+  __pyx_pybuffernd_observations.data = NULL;
+  __pyx_pybuffernd_observations.rcbuffer = &__pyx_pybuffer_observations;
+  __pyx_pybuffer_actions.pybuffer.buf = NULL;
+  __pyx_pybuffer_actions.refcount = 0;
+  __pyx_pybuffernd_actions.data = NULL;
+  __pyx_pybuffernd_actions.rcbuffer = &__pyx_pybuffer_actions;
+  __pyx_pybuffer_rewards.pybuffer.buf = NULL;
+  __pyx_pybuffer_rewards.refcount = 0;
+  __pyx_pybuffernd_rewards.data = NULL;
+  __pyx_pybuffernd_rewards.rcbuffer = &__pyx_pybuffer_rewards;
+  __pyx_pybuffer_terminals.pybuffer.buf = NULL;
+  __pyx_pybuffer_terminals.refcount = 0;
+  __pyx_pybuffernd_terminals.data = NULL;
+  __pyx_pybuffernd_terminals.rcbuffer = &__pyx_pybuffer_terminals;
+  __pyx_pybuffer_player_x_y.pybuffer.buf = NULL;
+  __pyx_pybuffer_player_x_y.refcount = 0;
+  __pyx_pybuffernd_player_x_y.data = NULL;
+  __pyx_pybuffernd_player_x_y.rcbuffer = &__pyx_pybuffer_player_x_y;
+  __pyx_pybuffer_other_cars_x_y.pybuffer.buf = NULL;
+  __pyx_pybuffer_other_cars_x_y.refcount = 0;
+  __pyx_pybuffernd_other_cars_x_y.data = NULL;
+  __pyx_pybuffernd_other_cars_x_y.rcbuffer = &__pyx_pybuffer_other_cars_x_y;
+  __pyx_pybuffer_other_cars_active.pybuffer.buf = NULL;
+  __pyx_pybuffer_other_cars_active.refcount = 0;
+  __pyx_pybuffernd_other_cars_active.data = NULL;
+  __pyx_pybuffernd_other_cars_active.rcbuffer = &__pyx_pybuffer_other_cars_active;
+  __pyx_pybuffer_score_day.pybuffer.buf = NULL;
+  __pyx_pybuffer_score_day.refcount = 0;
+  __pyx_pybuffernd_score_day.data = NULL;
+  __pyx_pybuffernd_score_day.rcbuffer = &__pyx_pybuffer_score_day;
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_observations.rcbuffer->pybuffer, (PyObject*)__pyx_v_observations, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_observations.diminfo[0].strides = __pyx_pybuffernd_observations.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_observations.diminfo[0].shape = __pyx_pybuffernd_observations.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_actions.rcbuffer->pybuffer, (PyObject*)__pyx_v_actions, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_actions.diminfo[0].strides = __pyx_pybuffernd_actions.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_actions.diminfo[0].shape = __pyx_pybuffernd_actions.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_rewards.rcbuffer->pybuffer, (PyObject*)__pyx_v_rewards, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_rewards.diminfo[0].strides = __pyx_pybuffernd_rewards.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_rewards.diminfo[0].shape = __pyx_pybuffernd_rewards.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_terminals.rcbuffer->pybuffer, (PyObject*)__pyx_v_terminals, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_terminals.diminfo[0].strides = __pyx_pybuffernd_terminals.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_terminals.diminfo[0].shape = __pyx_pybuffernd_terminals.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_player_x_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_player_x_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_player_x_y.diminfo[0].strides = __pyx_pybuffernd_player_x_y.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_player_x_y.diminfo[0].shape = __pyx_pybuffernd_player_x_y.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_other_cars_x_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_other_cars_x_y.diminfo[0].strides = __pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_other_cars_x_y.diminfo[0].shape = __pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer, (PyObject*)__pyx_v_other_cars_active, &__Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_other_cars_active.diminfo[0].strides = __pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_other_cars_active.diminfo[0].shape = __pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer.shape[0];
+  {
+    __Pyx_BufFmt_StackElem __pyx_stack[1];
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_score_day.rcbuffer->pybuffer, (PyObject*)__pyx_v_score_day, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+  }
+  __pyx_pybuffernd_score_day.diminfo[0].strides = __pyx_pybuffernd_score_day.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_score_day.diminfo[0].shape = __pyx_pybuffernd_score_day.rcbuffer->pybuffer.shape[0];
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":30
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":43
+ *                  float min_player_speed, float speed_increment, unsigned int max_score):
  * 
- *     def __init__(self, int width, int height):
- *         allocate(&self.env)             # <<<<<<<<<<<<<<
- *         self.env.width = width
- *         self.env.height = height
- */
-  allocate((&__pyx_v_self->env));
-
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":31
- *     def __init__(self, int width, int height):
- *         allocate(&self.env)
- *         self.env.width = width             # <<<<<<<<<<<<<<
- *         self.env.height = height
- *         self.client = NULL
- */
-  __pyx_v_self->env.width = __pyx_v_width;
-
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":32
- *         allocate(&self.env)
- *         self.env.width = width
- *         self.env.height = height             # <<<<<<<<<<<<<<
- *         self.client = NULL
- * 
- */
-  __pyx_v_self->env.height = __pyx_v_height;
-
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":33
- *         self.env.width = width
- *         self.env.height = height
  *         self.client = NULL             # <<<<<<<<<<<<<<
+ *         self.env = CEnduro(
+ *             observations=<float*>observations.data,
+ */
+  __pyx_v_self->client = NULL;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":45
+ *         self.client = NULL
+ *         self.env = CEnduro(
+ *             observations=<float*>observations.data,             # <<<<<<<<<<<<<<
+ *             actions=<unsigned int*>actions.data,
+ *             rewards=<float*>rewards.data,
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_observations)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 45, __pyx_L1_error)
+  __pyx_t_1.observations = ((float *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":46
+ *         self.env = CEnduro(
+ *             observations=<float*>observations.data,
+ *             actions=<unsigned int*>actions.data,             # <<<<<<<<<<<<<<
+ *             rewards=<float*>rewards.data,
+ *             terminals=<unsigned char*>terminals.data,
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_actions)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 46, __pyx_L1_error)
+  __pyx_t_1.actions = ((unsigned int *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":47
+ *             observations=<float*>observations.data,
+ *             actions=<unsigned int*>actions.data,
+ *             rewards=<float*>rewards.data,             # <<<<<<<<<<<<<<
+ *             terminals=<unsigned char*>terminals.data,
+ *             player_x_y=<float*>player_x_y.data,
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_rewards)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 47, __pyx_L1_error)
+  __pyx_t_1.rewards = ((float *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":48
+ *             actions=<unsigned int*>actions.data,
+ *             rewards=<float*>rewards.data,
+ *             terminals=<unsigned char*>terminals.data,             # <<<<<<<<<<<<<<
+ *             player_x_y=<float*>player_x_y.data,
+ *             other_cars_x_y=<float*>other_cars_x_y.data,
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_terminals)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 48, __pyx_L1_error)
+  __pyx_t_1.terminals = ((unsigned char *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":49
+ *             rewards=<float*>rewards.data,
+ *             terminals=<unsigned char*>terminals.data,
+ *             player_x_y=<float*>player_x_y.data,             # <<<<<<<<<<<<<<
+ *             other_cars_x_y=<float*>other_cars_x_y.data,
+ *             other_cars_active=<int*>other_cars_active.data,
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_player_x_y)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 49, __pyx_L1_error)
+  __pyx_t_1.player_x_y = ((float *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":50
+ *             terminals=<unsigned char*>terminals.data,
+ *             player_x_y=<float*>player_x_y.data,
+ *             other_cars_x_y=<float*>other_cars_x_y.data,             # <<<<<<<<<<<<<<
+ *             other_cars_active=<int*>other_cars_active.data,
+ *             score_day=<unsigned int*>score_day.data,
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_other_cars_x_y)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 50, __pyx_L1_error)
+  __pyx_t_1.other_cars_x_y = ((float *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":51
+ *             player_x_y=<float*>player_x_y.data,
+ *             other_cars_x_y=<float*>other_cars_x_y.data,
+ *             other_cars_active=<int*>other_cars_active.data,             # <<<<<<<<<<<<<<
+ *             score_day=<unsigned int*>score_day.data,
+ *             frameskip=4
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_other_cars_active)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 51, __pyx_L1_error)
+  __pyx_t_1.other_cars_active = ((int *)__pyx_t_2);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":52
+ *             other_cars_x_y=<float*>other_cars_x_y.data,
+ *             other_cars_active=<int*>other_cars_active.data,
+ *             score_day=<unsigned int*>score_day.data,             # <<<<<<<<<<<<<<
+ *             frameskip=4
+ *         )
+ */
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_score_day)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 52, __pyx_L1_error)
+  __pyx_t_1.score_day = ((unsigned int *)__pyx_t_2);
+  __pyx_t_1.frameskip = 4;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":44
+ * 
+ *         self.client = NULL
+ *         self.env = CEnduro(             # <<<<<<<<<<<<<<
+ *             observations=<float*>observations.data,
+ *             actions=<unsigned int*>actions.data,
+ */
+  __pyx_v_self->env = __pyx_t_1;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":55
+ *             frameskip=4
+ *         )
+ *         init(&self.env)             # <<<<<<<<<<<<<<
  * 
  *     def reset(self):
  */
-  __pyx_v_self->client = NULL;
+  init((&__pyx_v_self->env));
 
   /* "pufferlib/environments/ocean/racing/cy_racing.pyx":29
  *     cdef Client* client
  * 
- *     def __init__(self, int width, int height):             # <<<<<<<<<<<<<<
- *         allocate(&self.env)
- *         self.env.width = width
+ *     def __init__(self,             # <<<<<<<<<<<<<<
+ *                  cnp.ndarray[cnp.float32_t, ndim=1] observations,
+ *                  cnp.ndarray[cnp.uint32_t, ndim=1] actions,
  */
 
   /* function exit code */
   __pyx_r = 0;
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  { PyObject *__pyx_type, *__pyx_value, *__pyx_tb;
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    __Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_actions.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_observations.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_player_x_y.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_rewards.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_score_day.rcbuffer->pybuffer);
+    __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_terminals.rcbuffer->pybuffer);
+  __Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}
+  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyEnduro.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = -1;
+  goto __pyx_L2;
+  __pyx_L0:;
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_actions.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_observations.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_player_x_y.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_rewards.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_score_day.rcbuffer->pybuffer);
+  __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_terminals.rcbuffer->pybuffer);
+  __pyx_L2:;
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":35
- *         self.client = NULL
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
+ *         init(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
  *         reset(&self.env)
@@ -4456,15 +5135,15 @@ static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacin
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_3reset(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_3reset = {"reset", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_3reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_3reset(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset = {"reset", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4489,19 +5168,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   if (unlikely(__pyx_nargs > 0)) {
     __Pyx_RaiseArgtupleInvalid("reset", 1, 0, 0, __pyx_nargs); return NULL;}
   if (unlikely(__pyx_kwds) && __Pyx_NumKwargs_FASTCALL(__pyx_kwds) && unlikely(!__Pyx_CheckKeywordStrings(__pyx_kwds, "reset", 0))) return NULL;
-  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_2reset(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_2reset(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_2reset(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self) {
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_2reset(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("reset", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":36
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":58
  * 
  *     def reset(self):
  *         reset(&self.env)             # <<<<<<<<<<<<<<
@@ -4510,8 +5189,8 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
   reset((&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":35
- *         self.client = NULL
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
+ *         init(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
  *         reset(&self.env)
@@ -4525,7 +5204,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":38
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
  *         reset(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
@@ -4534,15 +5213,15 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_5step(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_5step = {"step", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_5step, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_5step(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step = {"step", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4567,19 +5246,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   if (unlikely(__pyx_nargs > 0)) {
     __Pyx_RaiseArgtupleInvalid("step", 1, 0, 0, __pyx_nargs); return NULL;}
   if (unlikely(__pyx_kwds) && __Pyx_NumKwargs_FASTCALL(__pyx_kwds) && unlikely(!__Pyx_CheckKeywordStrings(__pyx_kwds, "step", 0))) return NULL;
-  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_4step(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_4step(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_4step(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self) {
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_4step(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("step", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":39
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":61
  * 
  *     def step(self):
  *         step(&self.env)             # <<<<<<<<<<<<<<
@@ -4588,7 +5267,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
   step((&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":38
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
  *         reset(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
@@ -4603,24 +5282,24 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":41
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
  *         if self.client == NULL:
- *             # Assuming you have a make_client function in racing.c to create a window
+ *             self.client = make_client(&self.env)
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_7render(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_7render = {"render", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_7render, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_7render(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render = {"render", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4645,62 +5324,62 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   if (unlikely(__pyx_nargs > 0)) {
     __Pyx_RaiseArgtupleInvalid("render", 1, 0, 0, __pyx_nargs); return NULL;}
   if (unlikely(__pyx_kwds) && __Pyx_NumKwargs_FASTCALL(__pyx_kwds) && unlikely(!__Pyx_CheckKeywordStrings(__pyx_kwds, "render", 0))) return NULL;
-  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_6render(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_6render(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_6render(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self) {
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_6render(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("render", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":42
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":64
  * 
  *     def render(self):
  *         if self.client == NULL:             # <<<<<<<<<<<<<<
- *             # Assuming you have a make_client function in racing.c to create a window
  *             self.client = make_client(&self.env)
+ *         render(self.client, &self.env)
  */
   __pyx_t_1 = (__pyx_v_self->client == NULL);
   if (__pyx_t_1) {
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":44
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":65
+ *     def render(self):
  *         if self.client == NULL:
- *             # Assuming you have a make_client function in racing.c to create a window
  *             self.client = make_client(&self.env)             # <<<<<<<<<<<<<<
  *         render(self.client, &self.env)
  * 
  */
     __pyx_v_self->client = make_client((&__pyx_v_self->env));
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":42
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":64
  * 
  *     def render(self):
  *         if self.client == NULL:             # <<<<<<<<<<<<<<
- *             # Assuming you have a make_client function in racing.c to create a window
  *             self.client = make_client(&self.env)
+ *         render(self.client, &self.env)
  */
   }
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":45
- *             # Assuming you have a make_client function in racing.c to create a window
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":66
+ *         if self.client == NULL:
  *             self.client = make_client(&self.env)
  *         render(self.client, &self.env)             # <<<<<<<<<<<<<<
  * 
- *     def __dealloc__(self):
+ *     def close(self):
  */
   render(__pyx_v_self->client, (&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":41
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
  *         if self.client == NULL:
- *             # Assuming you have a make_client function in racing.c to create a window
+ *             self.client = make_client(&self.env)
  */
 
   /* function exit code */
@@ -4710,72 +5389,108 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":47
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
  *         render(self.client, &self.env)
  * 
- *     def __dealloc__(self):             # <<<<<<<<<<<<<<
- *         free_allocated(&self.env)
- *         if self.client:
+ *     def close(self):             # <<<<<<<<<<<<<<
+ *         if self.client != NULL:
+ *             close_client(self.client)
  */
 
 /* Python wrapper */
-static void __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_9__dealloc__(PyObject *__pyx_v_self); /*proto*/
-static void __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_9__dealloc__(PyObject *__pyx_v_self) {
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close(PyObject *__pyx_v_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close = {"close", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close(PyObject *__pyx_v_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
   CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("__dealloc__ (wrapper)", 0);
-  __pyx_kwvalues = __Pyx_KwValues_VARARGS(__pyx_args, __pyx_nargs);
-  __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_8__dealloc__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self));
+  __Pyx_RefNannySetupContext("close (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_MACROS
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  if (unlikely(__pyx_nargs > 0)) {
+    __Pyx_RaiseArgtupleInvalid("close", 1, 0, 0, __pyx_nargs); return NULL;}
+  if (unlikely(__pyx_kwds) && __Pyx_NumKwargs_FASTCALL(__pyx_kwds) && unlikely(!__Pyx_CheckKeywordStrings(__pyx_kwds, "close", 0))) return NULL;
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_8close(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
+  return __pyx_r;
 }
 
-static void __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_8__dealloc__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self) {
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_8close(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
   int __pyx_t_1;
+  __Pyx_RefNannySetupContext("close", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":48
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":69
  * 
- *     def __dealloc__(self):
- *         free_allocated(&self.env)             # <<<<<<<<<<<<<<
- *         if self.client:
- *             close_client(self.client)  # Add a close_client function in C if necessary
+ *     def close(self):
+ *         if self.client != NULL:             # <<<<<<<<<<<<<<
+ *             close_client(self.client)
+ *             self.client = NULL
  */
-  free_allocated((&__pyx_v_self->env));
-
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":49
- *     def __dealloc__(self):
- *         free_allocated(&self.env)
- *         if self.client:             # <<<<<<<<<<<<<<
- *             close_client(self.client)  # Add a close_client function in C if necessary
- */
-  __pyx_t_1 = (__pyx_v_self->client != 0);
+  __pyx_t_1 = (__pyx_v_self->client != NULL);
   if (__pyx_t_1) {
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":50
- *         free_allocated(&self.env)
- *         if self.client:
- *             close_client(self.client)  # Add a close_client function in C if necessary             # <<<<<<<<<<<<<<
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":70
+ *     def close(self):
+ *         if self.client != NULL:
+ *             close_client(self.client)             # <<<<<<<<<<<<<<
+ *             self.client = NULL
  */
     close_client(__pyx_v_self->client);
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":49
- *     def __dealloc__(self):
- *         free_allocated(&self.env)
- *         if self.client:             # <<<<<<<<<<<<<<
- *             close_client(self.client)  # Add a close_client function in C if necessary
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":71
+ *         if self.client != NULL:
+ *             close_client(self.client)
+ *             self.client = NULL             # <<<<<<<<<<<<<<
+ */
+    __pyx_v_self->client = NULL;
+
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":69
+ * 
+ *     def close(self):
+ *         if self.client != NULL:             # <<<<<<<<<<<<<<
+ *             close_client(self.client)
+ *             self.client = NULL
  */
   }
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":47
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
  *         render(self.client, &self.env)
  * 
- *     def __dealloc__(self):             # <<<<<<<<<<<<<<
- *         free_allocated(&self.env)
- *         if self.client:
+ *     def close(self):             # <<<<<<<<<<<<<<
+ *         if self.client != NULL:
+ *             close_client(self.client)
  */
 
   /* function exit code */
+  __pyx_r = Py_None; __Pyx_INCREF(Py_None);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
 }
 
 /* "(tree fragment)":1
@@ -4785,15 +5500,15 @@ static void __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRaci
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_11__reduce_cython__(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_11__reduce_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_11__reduce_cython__ = {"__reduce_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_11__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_11__reduce_cython__(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_11__reduce_cython__ = {"__reduce_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_11__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_11__reduce_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4818,14 +5533,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   if (unlikely(__pyx_nargs > 0)) {
     __Pyx_RaiseArgtupleInvalid("__reduce_cython__", 1, 0, 0, __pyx_nargs); return NULL;}
   if (unlikely(__pyx_kwds) && __Pyx_NumKwargs_FASTCALL(__pyx_kwds) && unlikely(!__Pyx_CheckKeywordStrings(__pyx_kwds, "__reduce_cython__", 0))) return NULL;
-  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_10__reduce_cython__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_10__reduce_cython__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_10__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self) {
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_10__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_lineno = 0;
@@ -4850,7 +5565,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyRacing.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyEnduro.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
@@ -4865,15 +5580,15 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_13__setstate_cython__(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_13__setstate_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_13__setstate_cython__ = {"__setstate_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_13__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_13__setstate_cython__(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_13__setstate_cython__ = {"__setstate_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_13__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_13__setstate_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4943,11 +5658,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       __Pyx_Arg_XDECREF_FASTCALL(values[__pyx_temp]);
     }
   }
-  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyRacing.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyEnduro.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_12__setstate_cython__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *)__pyx_v_self), __pyx_v___pyx_state);
+  __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_12__setstate_cython__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self), __pyx_v___pyx_state);
 
   /* function exit code */
   {
@@ -4960,7 +5675,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_12__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_12__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_lineno = 0;
@@ -4985,14 +5700,14 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyRacing.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pufferlib.environments.ocean.racing.cy_racing.CyEnduro.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
+static PyObject *__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
   PyObject *o;
   #if CYTHON_COMPILING_IN_LIMITED_API
   allocfunc alloc_func = (allocfunc)PyType_GetSlot(t, Py_tp_alloc);
@@ -5008,22 +5723,14 @@ static PyObject *__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racin
   return o;
 }
 
-static void __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing(PyObject *o) {
+static void __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro(PyObject *o) {
   #if CYTHON_USE_TP_FINALIZE
   if (unlikely((PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE)) && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && (!PyType_IS_GC(Py_TYPE(o)) || !__Pyx_PyObject_GC_IsFinalized(o))) {
-    if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing) {
+    if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) {
       if (PyObject_CallFinalizerFromDealloc(o)) return;
     }
   }
   #endif
-  {
-    PyObject *etype, *eval, *etb;
-    PyErr_Fetch(&etype, &eval, &etb);
-    __Pyx_SET_REFCNT(o, Py_REFCNT(o) + 1);
-    __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_9__dealloc__(o);
-    __Pyx_SET_REFCNT(o, Py_REFCNT(o) - 1);
-    PyErr_Restore(etype, eval, etb);
-  }
   #if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
   (*Py_TYPE(o)->tp_free)(o);
   #else
@@ -5034,37 +5741,38 @@ static void __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing
   #endif
 }
 
-static PyMethodDef __pyx_methods_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing[] = {
-  {"reset", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_3reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"step", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_5step, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"render", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_7render, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"__reduce_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_11__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"__setstate_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_13__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+static PyMethodDef __pyx_methods_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro[] = {
+  {"reset", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"step", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"render", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"close", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"__reduce_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_11__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"__setstate_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_13__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
 };
 #if CYTHON_USE_TYPE_SPECS
-static PyType_Slot __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing_slots[] = {
-  {Py_tp_dealloc, (void *)__pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing},
-  {Py_tp_methods, (void *)__pyx_methods_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing},
-  {Py_tp_init, (void *)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_1__init__},
-  {Py_tp_new, (void *)__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing},
+static PyType_Slot __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_slots[] = {
+  {Py_tp_dealloc, (void *)__pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro},
+  {Py_tp_methods, (void *)__pyx_methods_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro},
+  {Py_tp_init, (void *)__pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_1__init__},
+  {Py_tp_new, (void *)__pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro},
   {0, 0},
 };
-static PyType_Spec __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing_spec = {
-  "pufferlib.environments.ocean.racing.cy_racing.CyRacing",
-  sizeof(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing),
+static PyType_Spec __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec = {
+  "pufferlib.environments.ocean.racing.cy_racing.CyEnduro",
+  sizeof(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE,
-  __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing_slots,
+  __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_slots,
 };
 #else
 
-static PyTypeObject __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing = {
+static PyTypeObject __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro = {
   PyVarObject_HEAD_INIT(0, 0)
-  "pufferlib.environments.ocean.racing.cy_racing.""CyRacing", /*tp_name*/
-  sizeof(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing), /*tp_basicsize*/
+  "pufferlib.environments.ocean.racing.cy_racing.""CyEnduro", /*tp_name*/
+  sizeof(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro), /*tp_basicsize*/
   0, /*tp_itemsize*/
-  __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing, /*tp_dealloc*/
+  __pyx_tp_dealloc_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, /*tp_dealloc*/
   #if PY_VERSION_HEX < 0x030800b4
   0, /*tp_print*/
   #endif
@@ -5097,7 +5805,7 @@ static PyTypeObject __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_raci
   0, /*tp_weaklistoffset*/
   0, /*tp_iter*/
   0, /*tp_iternext*/
-  __pyx_methods_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing, /*tp_methods*/
+  __pyx_methods_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, /*tp_methods*/
   0, /*tp_members*/
   0, /*tp_getset*/
   0, /*tp_base*/
@@ -5107,9 +5815,9 @@ static PyTypeObject __pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_raci
   #if !CYTHON_USE_TYPE_SPECS
   0, /*tp_dictoffset*/
   #endif
-  __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_1__init__, /*tp_init*/
+  __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_1__init__, /*tp_init*/
   0, /*tp_alloc*/
-  __pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing, /*tp_new*/
+  __pyx_tp_new_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, /*tp_new*/
   0, /*tp_free*/
   0, /*tp_is_gc*/
   0, /*tp_bases*/
@@ -5160,28 +5868,45 @@ static PyMethodDef __pyx_methods[] = {
 
 static int __Pyx_CreateStringTabAndInitStrings(void) {
   __Pyx_StringTabEntry __pyx_string_tab[] = {
-    {&__pyx_n_s_CyRacing, __pyx_k_CyRacing, sizeof(__pyx_k_CyRacing), 0, 0, 1, 1},
-    {&__pyx_n_s_CyRacing___reduce_cython, __pyx_k_CyRacing___reduce_cython, sizeof(__pyx_k_CyRacing___reduce_cython), 0, 0, 1, 1},
-    {&__pyx_n_s_CyRacing___setstate_cython, __pyx_k_CyRacing___setstate_cython, sizeof(__pyx_k_CyRacing___setstate_cython), 0, 0, 1, 1},
-    {&__pyx_n_s_CyRacing_render, __pyx_k_CyRacing_render, sizeof(__pyx_k_CyRacing_render), 0, 0, 1, 1},
-    {&__pyx_n_s_CyRacing_reset, __pyx_k_CyRacing_reset, sizeof(__pyx_k_CyRacing_reset), 0, 0, 1, 1},
-    {&__pyx_n_s_CyRacing_step, __pyx_k_CyRacing_step, sizeof(__pyx_k_CyRacing_step), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro, __pyx_k_CyEnduro, sizeof(__pyx_k_CyEnduro), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro___reduce_cython, __pyx_k_CyEnduro___reduce_cython, sizeof(__pyx_k_CyEnduro___reduce_cython), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro___setstate_cython, __pyx_k_CyEnduro___setstate_cython, sizeof(__pyx_k_CyEnduro___setstate_cython), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro_close, __pyx_k_CyEnduro_close, sizeof(__pyx_k_CyEnduro_close), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro_render, __pyx_k_CyEnduro_render, sizeof(__pyx_k_CyEnduro_render), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro_reset, __pyx_k_CyEnduro_reset, sizeof(__pyx_k_CyEnduro_reset), 0, 0, 1, 1},
+    {&__pyx_n_s_CyEnduro_step, __pyx_k_CyEnduro_step, sizeof(__pyx_k_CyEnduro_step), 0, 0, 1, 1},
     {&__pyx_n_s_ImportError, __pyx_k_ImportError, sizeof(__pyx_k_ImportError), 0, 0, 1, 1},
     {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
-    {&__pyx_n_s__10, __pyx_k__10, sizeof(__pyx_k__10), 0, 0, 1, 1},
+    {&__pyx_n_s__11, __pyx_k__11, sizeof(__pyx_k__11), 0, 0, 1, 1},
+    {&__pyx_n_s_actions, __pyx_k_actions, sizeof(__pyx_k_actions), 0, 0, 1, 1},
     {&__pyx_n_s_asyncio_coroutines, __pyx_k_asyncio_coroutines, sizeof(__pyx_k_asyncio_coroutines), 0, 0, 1, 1},
+    {&__pyx_n_s_base_car_speed, __pyx_k_base_car_speed, sizeof(__pyx_k_base_car_speed), 0, 0, 1, 1},
     {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
+    {&__pyx_n_s_close, __pyx_k_close, sizeof(__pyx_k_close), 0, 0, 1, 1},
     {&__pyx_kp_u_disable, __pyx_k_disable, sizeof(__pyx_k_disable), 0, 1, 0, 0},
     {&__pyx_kp_u_enable, __pyx_k_enable, sizeof(__pyx_k_enable), 0, 1, 0, 0},
+    {&__pyx_n_s_frameskip, __pyx_k_frameskip, sizeof(__pyx_k_frameskip), 0, 0, 1, 1},
     {&__pyx_kp_u_gc, __pyx_k_gc, sizeof(__pyx_k_gc), 0, 1, 0, 0},
     {&__pyx_n_s_getstate, __pyx_k_getstate, sizeof(__pyx_k_getstate), 0, 0, 1, 1},
     {&__pyx_n_s_height, __pyx_k_height, sizeof(__pyx_k_height), 0, 0, 1, 1},
     {&__pyx_n_s_is_coroutine, __pyx_k_is_coroutine, sizeof(__pyx_k_is_coroutine), 0, 0, 1, 1},
     {&__pyx_kp_u_isenabled, __pyx_k_isenabled, sizeof(__pyx_k_isenabled), 0, 1, 0, 0},
     {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
+    {&__pyx_n_s_max_player_speed, __pyx_k_max_player_speed, sizeof(__pyx_k_max_player_speed), 0, 0, 1, 1},
+    {&__pyx_n_s_max_score, __pyx_k_max_score, sizeof(__pyx_k_max_score), 0, 0, 1, 1},
+    {&__pyx_n_s_min_player_speed, __pyx_k_min_player_speed, sizeof(__pyx_k_min_player_speed), 0, 0, 1, 1},
     {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
     {&__pyx_kp_s_numpy_core_multiarray_failed_to, __pyx_k_numpy_core_multiarray_failed_to, sizeof(__pyx_k_numpy_core_multiarray_failed_to), 0, 0, 1, 0},
     {&__pyx_kp_s_numpy_core_umath_failed_to_impor, __pyx_k_numpy_core_umath_failed_to_impor, sizeof(__pyx_k_numpy_core_umath_failed_to_impor), 0, 0, 1, 0},
+    {&__pyx_n_s_observations, __pyx_k_observations, sizeof(__pyx_k_observations), 0, 0, 1, 1},
+    {&__pyx_n_s_other_car_height, __pyx_k_other_car_height, sizeof(__pyx_k_other_car_height), 0, 0, 1, 1},
+    {&__pyx_n_s_other_car_width, __pyx_k_other_car_width, sizeof(__pyx_k_other_car_width), 0, 0, 1, 1},
+    {&__pyx_n_s_other_cars_active, __pyx_k_other_cars_active, sizeof(__pyx_k_other_cars_active), 0, 0, 1, 1},
+    {&__pyx_n_s_other_cars_x_y, __pyx_k_other_cars_x_y, sizeof(__pyx_k_other_cars_x_y), 0, 0, 1, 1},
+    {&__pyx_n_s_player_height, __pyx_k_player_height, sizeof(__pyx_k_player_height), 0, 0, 1, 1},
+    {&__pyx_n_s_player_speed, __pyx_k_player_speed, sizeof(__pyx_k_player_speed), 0, 0, 1, 1},
+    {&__pyx_n_s_player_width, __pyx_k_player_width, sizeof(__pyx_k_player_width), 0, 0, 1, 1},
+    {&__pyx_n_s_player_x_y, __pyx_k_player_x_y, sizeof(__pyx_k_player_x_y), 0, 0, 1, 1},
     {&__pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_k_pufferlib_environments_ocean_rac, sizeof(__pyx_k_pufferlib_environments_ocean_rac), 0, 0, 1, 0},
     {&__pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_k_pufferlib_environments_ocean_rac_2, sizeof(__pyx_k_pufferlib_environments_ocean_rac_2), 0, 0, 1, 1},
     {&__pyx_n_s_pyx_state, __pyx_k_pyx_state, sizeof(__pyx_k_pyx_state), 0, 0, 1, 1},
@@ -5190,12 +5915,16 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_reduce_ex, __pyx_k_reduce_ex, sizeof(__pyx_k_reduce_ex), 0, 0, 1, 1},
     {&__pyx_n_s_render, __pyx_k_render, sizeof(__pyx_k_render), 0, 0, 1, 1},
     {&__pyx_n_s_reset, __pyx_k_reset, sizeof(__pyx_k_reset), 0, 0, 1, 1},
+    {&__pyx_n_s_rewards, __pyx_k_rewards, sizeof(__pyx_k_rewards), 0, 0, 1, 1},
+    {&__pyx_n_s_score_day, __pyx_k_score_day, sizeof(__pyx_k_score_day), 0, 0, 1, 1},
     {&__pyx_n_s_self, __pyx_k_self, sizeof(__pyx_k_self), 0, 0, 1, 1},
     {&__pyx_kp_s_self_client_self_env_cannot_be_c, __pyx_k_self_client_self_env_cannot_be_c, sizeof(__pyx_k_self_client_self_env_cannot_be_c), 0, 0, 1, 0},
     {&__pyx_n_s_setstate, __pyx_k_setstate, sizeof(__pyx_k_setstate), 0, 0, 1, 1},
     {&__pyx_n_s_setstate_cython, __pyx_k_setstate_cython, sizeof(__pyx_k_setstate_cython), 0, 0, 1, 1},
+    {&__pyx_n_s_speed_increment, __pyx_k_speed_increment, sizeof(__pyx_k_speed_increment), 0, 0, 1, 1},
     {&__pyx_n_s_step, __pyx_k_step, sizeof(__pyx_k_step), 0, 0, 1, 1},
     {&__pyx_kp_s_stringsource, __pyx_k_stringsource, sizeof(__pyx_k_stringsource), 0, 0, 1, 0},
+    {&__pyx_n_s_terminals, __pyx_k_terminals, sizeof(__pyx_k_terminals), 0, 0, 1, 1},
     {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
     {&__pyx_n_s_width, __pyx_k_width, sizeof(__pyx_k_width), 0, 0, 1, 1},
     {0, 0, 0, 0, 0, 0, 0}
@@ -5238,42 +5967,51 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":35
- *         self.client = NULL
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
+ *         init(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
  *         reset(&self.env)
  * 
  */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(2, 35, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(2, 57, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
-  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_reset, 35, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(2, 35, __pyx_L1_error)
+  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_reset, 57, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(2, 57, __pyx_L1_error)
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":38
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
  *         reset(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
  *         step(&self.env)
  * 
  */
-  __pyx_codeobj__5 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_step, 38, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__5)) __PYX_ERR(2, 38, __pyx_L1_error)
+  __pyx_codeobj__5 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_step, 60, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__5)) __PYX_ERR(2, 60, __pyx_L1_error)
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":41
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
  *         if self.client == NULL:
- *             # Assuming you have a make_client function in racing.c to create a window
+ *             self.client = make_client(&self.env)
  */
-  __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_render, 41, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(2, 41, __pyx_L1_error)
+  __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_render, 63, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(2, 63, __pyx_L1_error)
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
+ *         render(self.client, &self.env)
+ * 
+ *     def close(self):             # <<<<<<<<<<<<<<
+ *         if self.client != NULL:
+ *             close_client(self.client)
+ */
+  __pyx_codeobj__7 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_close, 68, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__7)) __PYX_ERR(2, 68, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
  *     raise TypeError, "self.client,self.env cannot be converted to a Python object for pickling"
  * def __setstate_cython__(self, __pyx_state):
  */
-  __pyx_codeobj__7 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_reduce_cython, 1, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__7)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_reduce_cython, 1, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(0, 1, __pyx_L1_error)
 
   /* "(tree fragment)":3
  * def __reduce_cython__(self):
@@ -5281,10 +6019,10 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     raise TypeError, "self.client,self.env cannot be converted to a Python object for pickling"
  */
-  __pyx_tuple__8 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_pyx_state); if (unlikely(!__pyx_tuple__8)) __PYX_ERR(0, 3, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__8);
-  __Pyx_GIVEREF(__pyx_tuple__8);
-  __pyx_codeobj__9 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__8, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_setstate_cython, 3, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__9)) __PYX_ERR(0, 3, __pyx_L1_error)
+  __pyx_tuple__9 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_pyx_state); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 3, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__9);
+  __Pyx_GIVEREF(__pyx_tuple__9);
+  __pyx_codeobj__10 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__9, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_setstate_cython, 3, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__10)) __PYX_ERR(0, 3, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -5367,27 +6105,27 @@ static int __Pyx_modinit_type_init_code(void) {
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_init_code", 0);
   /*--- Type init code ---*/
   #if CYTHON_USE_TYPE_SPECS
-  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing_spec, NULL); if (unlikely(!__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing)) __PYX_ERR(2, 25, __pyx_L1_error)
-  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing_spec, __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec, NULL); if (unlikely(!__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro)) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec, __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
   #else
-  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing = &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing;
+  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro = &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   #endif
   #if !CYTHON_USE_TYPE_SPECS
-  if (__Pyx_PyType_Ready(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (__Pyx_PyType_Ready(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
   #endif
   #if PY_MAJOR_VERSION < 3
-  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing->tp_print = 0;
+  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro->tp_print = 0;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing->tp_dictoffset && __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing->tp_getattro == PyObject_GenericGetAttr)) {
-    __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing->tp_getattro = __Pyx_PyObject_GenericGetAttr;
+  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro->tp_dictoffset && __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro->tp_getattro == PyObject_GenericGetAttr)) {
+    __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro->tp_getattro = __Pyx_PyObject_GenericGetAttr;
   }
   #endif
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CyRacing, (PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CyEnduro, (PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if (__Pyx_setup_reduce((PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
   #endif
   __Pyx_RefNannyFinishContext();
   return 0;
@@ -5736,51 +6474,64 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
   #endif
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":35
- *         self.client = NULL
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
+ *         init(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
  *         reset(&self.env)
  * 
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_3reset, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyRacing_reset, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 35, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_reset, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 57, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing, __pyx_n_s_reset, __pyx_t_2) < 0) __PYX_ERR(2, 35, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_reset, __pyx_t_2) < 0) __PYX_ERR(2, 57, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
+  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":38
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
  *         reset(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
  *         step(&self.env)
  * 
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_5step, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyRacing_step, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__5)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 38, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_step, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__5)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 60, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing, __pyx_n_s_step, __pyx_t_2) < 0) __PYX_ERR(2, 38, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_step, __pyx_t_2) < 0) __PYX_ERR(2, 60, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
+  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":41
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
  *         if self.client == NULL:
- *             # Assuming you have a make_client function in racing.c to create a window
+ *             self.client = make_client(&self.env)
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_7render, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyRacing_render, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__6)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 41, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_render, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__6)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 63, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing, __pyx_n_s_render, __pyx_t_2) < 0) __PYX_ERR(2, 41, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_render, __pyx_t_2) < 0) __PYX_ERR(2, 63, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyRacing);
+  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
+ *         render(self.client, &self.env)
+ * 
+ *     def close(self):             # <<<<<<<<<<<<<<
+ *         if self.client != NULL:
+ *             close_client(self.client)
+ */
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_close, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__7)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 68, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_close, __pyx_t_2) < 0) __PYX_ERR(2, 68, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
   /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
  *     raise TypeError, "self.client,self.env cannot be converted to a Python object for pickling"
  * def __setstate_cython__(self, __pyx_state):
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_11__reduce_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyRacing___reduce_cython, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__7)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_11__reduce_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro___reduce_cython, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__8)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_reduce_cython, __pyx_t_2) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -5791,15 +6542,15 @@ if (!__Pyx_RefNanny) {
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     raise TypeError, "self.client,self.env cannot be converted to a Python object for pickling"
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyRacing_13__setstate_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyRacing___setstate_cython, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__9)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 3, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_13__setstate_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro___setstate_cython, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__10)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 3, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_setstate_cython, __pyx_t_2) < 0) __PYX_ERR(0, 3, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "pufferlib/environments/ocean/racing/cy_racing.pyx":1
- * cimport numpy as cnp             # <<<<<<<<<<<<<<
+ * # cy_racing.pyx             # <<<<<<<<<<<<<<
+ * cimport numpy as cnp
  * from libc.stdlib cimport free
- * 
  */
   __pyx_t_2 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
@@ -6817,8 +7568,603 @@ bad:
     return -1;
 }
 
+/* ArgTypeTest */
+static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
+{
+    __Pyx_TypeName type_name;
+    __Pyx_TypeName obj_type_name;
+    if (unlikely(!type)) {
+        PyErr_SetString(PyExc_SystemError, "Missing type object");
+        return 0;
+    }
+    else if (exact) {
+        #if PY_MAJOR_VERSION == 2
+        if ((type == &PyBaseString_Type) && likely(__Pyx_PyBaseString_CheckExact(obj))) return 1;
+        #endif
+    }
+    else {
+        if (likely(__Pyx_TypeCheck(obj, type))) return 1;
+    }
+    type_name = __Pyx_PyType_GetName(type);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+        "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
+        ", got " __Pyx_FMT_TYPENAME ")", name, type_name, obj_type_name);
+    __Pyx_DECREF_TypeName(type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
+    return 0;
+}
+
+/* IsLittleEndian */
+static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
+{
+  union {
+    uint32_t u32;
+    uint8_t u8[4];
+  } S;
+  S.u32 = 0x01020304;
+  return S.u8[0] == 4;
+}
+
+/* BufferFormatCheck */
+static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
+                              __Pyx_BufFmt_StackElem* stack,
+                              __Pyx_TypeInfo* type) {
+  stack[0].field = &ctx->root;
+  stack[0].parent_offset = 0;
+  ctx->root.type = type;
+  ctx->root.name = "buffer dtype";
+  ctx->root.offset = 0;
+  ctx->head = stack;
+  ctx->head->field = &ctx->root;
+  ctx->fmt_offset = 0;
+  ctx->head->parent_offset = 0;
+  ctx->new_packmode = '@';
+  ctx->enc_packmode = '@';
+  ctx->new_count = 1;
+  ctx->enc_count = 0;
+  ctx->enc_type = 0;
+  ctx->is_complex = 0;
+  ctx->is_valid_array = 0;
+  ctx->struct_alignment = 0;
+  while (type->typegroup == 'S') {
+    ++ctx->head;
+    ctx->head->field = type->fields;
+    ctx->head->parent_offset = 0;
+    type = type->fields->type;
+  }
+}
+static int __Pyx_BufFmt_ParseNumber(const char** ts) {
+    int count;
+    const char* t = *ts;
+    if (*t < '0' || *t > '9') {
+      return -1;
+    } else {
+        count = *t++ - '0';
+        while (*t >= '0' && *t <= '9') {
+            count *= 10;
+            count += *t++ - '0';
+        }
+    }
+    *ts = t;
+    return count;
+}
+static int __Pyx_BufFmt_ExpectNumber(const char **ts) {
+    int number = __Pyx_BufFmt_ParseNumber(ts);
+    if (number == -1)
+        PyErr_Format(PyExc_ValueError,\
+                     "Does not understand character buffer dtype format string ('%c')", **ts);
+    return number;
+}
+static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
+  PyErr_Format(PyExc_ValueError,
+               "Unexpected format string character: '%c'", ch);
+}
+static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
+  switch (ch) {
+    case '?': return "'bool'";
+    case 'c': return "'char'";
+    case 'b': return "'signed char'";
+    case 'B': return "'unsigned char'";
+    case 'h': return "'short'";
+    case 'H': return "'unsigned short'";
+    case 'i': return "'int'";
+    case 'I': return "'unsigned int'";
+    case 'l': return "'long'";
+    case 'L': return "'unsigned long'";
+    case 'q': return "'long long'";
+    case 'Q': return "'unsigned long long'";
+    case 'f': return (is_complex ? "'complex float'" : "'float'");
+    case 'd': return (is_complex ? "'complex double'" : "'double'");
+    case 'g': return (is_complex ? "'complex long double'" : "'long double'");
+    case 'T': return "a struct";
+    case 'O': return "Python object";
+    case 'P': return "a pointer";
+    case 's': case 'p': return "a string";
+    case 0: return "end";
+    default: return "unparsable format string";
+  }
+}
+static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
+    case 'h': case 'H': return 2;
+    case 'i': case 'I': case 'l': case 'L': return 4;
+    case 'q': case 'Q': return 8;
+    case 'f': return (is_complex ? 8 : 4);
+    case 'd': return (is_complex ? 16 : 8);
+    case 'g': {
+      PyErr_SetString(PyExc_ValueError, "Python does not define a standard format string size for long double ('g')..");
+      return 0;
+    }
+    case 'O': case 'P': return sizeof(void*);
+    default:
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+}
+static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
+    case 'h': case 'H': return sizeof(short);
+    case 'i': case 'I': return sizeof(int);
+    case 'l': case 'L': return sizeof(long);
+    #ifdef HAVE_LONG_LONG
+    case 'q': case 'Q': return sizeof(PY_LONG_LONG);
+    #endif
+    case 'f': return sizeof(float) * (is_complex ? 2 : 1);
+    case 'd': return sizeof(double) * (is_complex ? 2 : 1);
+    case 'g': return sizeof(long double) * (is_complex ? 2 : 1);
+    case 'O': case 'P': return sizeof(void*);
+    default: {
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+  }
+}
+typedef struct { char c; short x; } __Pyx_st_short;
+typedef struct { char c; int x; } __Pyx_st_int;
+typedef struct { char c; long x; } __Pyx_st_long;
+typedef struct { char c; float x; } __Pyx_st_float;
+typedef struct { char c; double x; } __Pyx_st_double;
+typedef struct { char c; long double x; } __Pyx_st_longdouble;
+typedef struct { char c; void *x; } __Pyx_st_void_p;
+#ifdef HAVE_LONG_LONG
+typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
+#endif
+static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
+    case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
+    case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
+    case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
+#ifdef HAVE_LONG_LONG
+    case 'q': case 'Q': return sizeof(__Pyx_st_longlong) - sizeof(PY_LONG_LONG);
+#endif
+    case 'f': return sizeof(__Pyx_st_float) - sizeof(float);
+    case 'd': return sizeof(__Pyx_st_double) - sizeof(double);
+    case 'g': return sizeof(__Pyx_st_longdouble) - sizeof(long double);
+    case 'P': case 'O': return sizeof(__Pyx_st_void_p) - sizeof(void*);
+    default:
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+}
+/* These are for computing the padding at the end of the struct to align
+   on the first member of the struct. This will probably the same as above,
+   but we don't have any guarantees.
+ */
+typedef struct { short x; char c; } __Pyx_pad_short;
+typedef struct { int x; char c; } __Pyx_pad_int;
+typedef struct { long x; char c; } __Pyx_pad_long;
+typedef struct { float x; char c; } __Pyx_pad_float;
+typedef struct { double x; char c; } __Pyx_pad_double;
+typedef struct { long double x; char c; } __Pyx_pad_longdouble;
+typedef struct { void *x; char c; } __Pyx_pad_void_p;
+#ifdef HAVE_LONG_LONG
+typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
+#endif
+static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
+    case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
+    case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
+    case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
+#ifdef HAVE_LONG_LONG
+    case 'q': case 'Q': return sizeof(__Pyx_pad_longlong) - sizeof(PY_LONG_LONG);
+#endif
+    case 'f': return sizeof(__Pyx_pad_float) - sizeof(float);
+    case 'd': return sizeof(__Pyx_pad_double) - sizeof(double);
+    case 'g': return sizeof(__Pyx_pad_longdouble) - sizeof(long double);
+    case 'P': case 'O': return sizeof(__Pyx_pad_void_p) - sizeof(void*);
+    default:
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+}
+static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
+  switch (ch) {
+    case 'c':
+        return 'H';
+    case 'b': case 'h': case 'i':
+    case 'l': case 'q': case 's': case 'p':
+        return 'I';
+    case '?': case 'B': case 'H': case 'I': case 'L': case 'Q':
+        return 'U';
+    case 'f': case 'd': case 'g':
+        return (is_complex ? 'C' : 'R');
+    case 'O':
+        return 'O';
+    case 'P':
+        return 'P';
+    default: {
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+  }
+}
+static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
+  if (ctx->head == NULL || ctx->head->field == &ctx->root) {
+    const char* expected;
+    const char* quote;
+    if (ctx->head == NULL) {
+      expected = "end";
+      quote = "";
+    } else {
+      expected = ctx->head->field->type->name;
+      quote = "'";
+    }
+    PyErr_Format(PyExc_ValueError,
+                 "Buffer dtype mismatch, expected %s%s%s but got %s",
+                 quote, expected, quote,
+                 __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex));
+  } else {
+    __Pyx_StructField* field = ctx->head->field;
+    __Pyx_StructField* parent = (ctx->head - 1)->field;
+    PyErr_Format(PyExc_ValueError,
+                 "Buffer dtype mismatch, expected '%s' but got %s in '%s.%s'",
+                 field->type->name, __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex),
+                 parent->type->name, field->name);
+  }
+}
+static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
+  char group;
+  size_t size, offset, arraysize = 1;
+  if (ctx->enc_type == 0) return 0;
+  if (ctx->head->field->type->arraysize[0]) {
+    int i, ndim = 0;
+    if (ctx->enc_type == 's' || ctx->enc_type == 'p') {
+        ctx->is_valid_array = ctx->head->field->type->ndim == 1;
+        ndim = 1;
+        if (ctx->enc_count != ctx->head->field->type->arraysize[0]) {
+            PyErr_Format(PyExc_ValueError,
+                         "Expected a dimension of size %zu, got %zu",
+                         ctx->head->field->type->arraysize[0], ctx->enc_count);
+            return -1;
+        }
+    }
+    if (!ctx->is_valid_array) {
+      PyErr_Format(PyExc_ValueError, "Expected %d dimensions, got %d",
+                   ctx->head->field->type->ndim, ndim);
+      return -1;
+    }
+    for (i = 0; i < ctx->head->field->type->ndim; i++) {
+      arraysize *= ctx->head->field->type->arraysize[i];
+    }
+    ctx->is_valid_array = 0;
+    ctx->enc_count = 1;
+  }
+  group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
+  do {
+    __Pyx_StructField* field = ctx->head->field;
+    __Pyx_TypeInfo* type = field->type;
+    if (ctx->enc_packmode == '@' || ctx->enc_packmode == '^') {
+      size = __Pyx_BufFmt_TypeCharToNativeSize(ctx->enc_type, ctx->is_complex);
+    } else {
+      size = __Pyx_BufFmt_TypeCharToStandardSize(ctx->enc_type, ctx->is_complex);
+    }
+    if (ctx->enc_packmode == '@') {
+      size_t align_at = __Pyx_BufFmt_TypeCharToAlignment(ctx->enc_type, ctx->is_complex);
+      size_t align_mod_offset;
+      if (align_at == 0) return -1;
+      align_mod_offset = ctx->fmt_offset % align_at;
+      if (align_mod_offset > 0) ctx->fmt_offset += align_at - align_mod_offset;
+      if (ctx->struct_alignment == 0)
+          ctx->struct_alignment = __Pyx_BufFmt_TypeCharToPadding(ctx->enc_type,
+                                                                 ctx->is_complex);
+    }
+    if (type->size != size || type->typegroup != group) {
+      if (type->typegroup == 'C' && type->fields != NULL) {
+        size_t parent_offset = ctx->head->parent_offset + field->offset;
+        ++ctx->head;
+        ctx->head->field = type->fields;
+        ctx->head->parent_offset = parent_offset;
+        continue;
+      }
+      if ((type->typegroup == 'H' || group == 'H') && type->size == size) {
+      } else {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return -1;
+      }
+    }
+    offset = ctx->head->parent_offset + field->offset;
+    if (ctx->fmt_offset != offset) {
+      PyErr_Format(PyExc_ValueError,
+                   "Buffer dtype mismatch; next field is at offset %" CYTHON_FORMAT_SSIZE_T "d but %" CYTHON_FORMAT_SSIZE_T "d expected",
+                   (Py_ssize_t)ctx->fmt_offset, (Py_ssize_t)offset);
+      return -1;
+    }
+    ctx->fmt_offset += size;
+    if (arraysize)
+      ctx->fmt_offset += (arraysize - 1) * size;
+    --ctx->enc_count;
+    while (1) {
+      if (field == &ctx->root) {
+        ctx->head = NULL;
+        if (ctx->enc_count != 0) {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return -1;
+        }
+        break;
+      }
+      ctx->head->field = ++field;
+      if (field->type == NULL) {
+        --ctx->head;
+        field = ctx->head->field;
+        continue;
+      } else if (field->type->typegroup == 'S') {
+        size_t parent_offset = ctx->head->parent_offset + field->offset;
+        if (field->type->fields->type == NULL) continue;
+        field = field->type->fields;
+        ++ctx->head;
+        ctx->head->field = field;
+        ctx->head->parent_offset = parent_offset;
+        break;
+      } else {
+        break;
+      }
+    }
+  } while (ctx->enc_count);
+  ctx->enc_type = 0;
+  ctx->is_complex = 0;
+  return 0;
+}
+static int
+__pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
+{
+    const char *ts = *tsp;
+    int i = 0, number, ndim;
+    ++ts;
+    if (ctx->new_count != 1) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Cannot handle repeated arrays in format string");
+        return -1;
+    }
+    if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return -1;
+    ndim = ctx->head->field->type->ndim;
+    while (*ts && *ts != ')') {
+        switch (*ts) {
+            case ' ': case '\f': case '\r': case '\n': case '\t': case '\v':  continue;
+            default:  break;
+        }
+        number = __Pyx_BufFmt_ExpectNumber(&ts);
+        if (number == -1) return -1;
+        if (i < ndim && (size_t) number != ctx->head->field->type->arraysize[i]) {
+            PyErr_Format(PyExc_ValueError,
+                        "Expected a dimension of size %zu, got %d",
+                        ctx->head->field->type->arraysize[i], number);
+            return -1;
+        }
+        if (*ts != ',' && *ts != ')') {
+            PyErr_Format(PyExc_ValueError,
+                                "Expected a comma in format string, got '%c'", *ts);
+            return -1;
+        }
+        if (*ts == ',') ts++;
+        i++;
+    }
+    if (i != ndim) {
+        PyErr_Format(PyExc_ValueError, "Expected %d dimension(s), got %d",
+                            ctx->head->field->type->ndim, i);
+        return -1;
+    }
+    if (!*ts) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unexpected end of format string, expected ')'");
+        return -1;
+    }
+    ctx->is_valid_array = 1;
+    ctx->new_count = 1;
+    *tsp = ++ts;
+    return 0;
+}
+static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
+  int got_Z = 0;
+  while (1) {
+    switch(*ts) {
+      case 0:
+        if (ctx->enc_type != 0 && ctx->head == NULL) {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return NULL;
+        }
+        if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+        if (ctx->head != NULL) {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return NULL;
+        }
+        return ts;
+      case ' ':
+      case '\r':
+      case '\n':
+        ++ts;
+        break;
+      case '<':
+        if (!__Pyx_Is_Little_Endian()) {
+          PyErr_SetString(PyExc_ValueError, "Little-endian buffer not supported on big-endian compiler");
+          return NULL;
+        }
+        ctx->new_packmode = '=';
+        ++ts;
+        break;
+      case '>':
+      case '!':
+        if (__Pyx_Is_Little_Endian()) {
+          PyErr_SetString(PyExc_ValueError, "Big-endian buffer not supported on little-endian compiler");
+          return NULL;
+        }
+        ctx->new_packmode = '=';
+        ++ts;
+        break;
+      case '=':
+      case '@':
+      case '^':
+        ctx->new_packmode = *ts++;
+        break;
+      case 'T':
+        {
+          const char* ts_after_sub;
+          size_t i, struct_count = ctx->new_count;
+          size_t struct_alignment = ctx->struct_alignment;
+          ctx->new_count = 1;
+          ++ts;
+          if (*ts != '{') {
+            PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '{' after 'T'");
+            return NULL;
+          }
+          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+          ctx->enc_type = 0;
+          ctx->enc_count = 0;
+          ctx->struct_alignment = 0;
+          ++ts;
+          ts_after_sub = ts;
+          for (i = 0; i != struct_count; ++i) {
+            ts_after_sub = __Pyx_BufFmt_CheckString(ctx, ts);
+            if (!ts_after_sub) return NULL;
+          }
+          ts = ts_after_sub;
+          if (struct_alignment) ctx->struct_alignment = struct_alignment;
+        }
+        break;
+      case '}':
+        {
+          size_t alignment = ctx->struct_alignment;
+          ++ts;
+          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+          ctx->enc_type = 0;
+          if (alignment && ctx->fmt_offset % alignment) {
+            ctx->fmt_offset += alignment - (ctx->fmt_offset % alignment);
+          }
+        }
+        return ts;
+      case 'x':
+        if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+        ctx->fmt_offset += ctx->new_count;
+        ctx->new_count = 1;
+        ctx->enc_count = 0;
+        ctx->enc_type = 0;
+        ctx->enc_packmode = ctx->new_packmode;
+        ++ts;
+        break;
+      case 'Z':
+        got_Z = 1;
+        ++ts;
+        if (*ts != 'f' && *ts != 'd' && *ts != 'g') {
+          __Pyx_BufFmt_RaiseUnexpectedChar('Z');
+          return NULL;
+        }
+        CYTHON_FALLTHROUGH;
+      case '?': case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
+      case 'l': case 'L': case 'q': case 'Q':
+      case 'f': case 'd': case 'g':
+      case 'O': case 'p':
+        if ((ctx->enc_type == *ts) && (got_Z == ctx->is_complex) &&
+            (ctx->enc_packmode == ctx->new_packmode) && (!ctx->is_valid_array)) {
+          ctx->enc_count += ctx->new_count;
+          ctx->new_count = 1;
+          got_Z = 0;
+          ++ts;
+          break;
+        }
+        CYTHON_FALLTHROUGH;
+      case 's':
+        if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+        ctx->enc_count = ctx->new_count;
+        ctx->enc_packmode = ctx->new_packmode;
+        ctx->enc_type = *ts;
+        ctx->is_complex = got_Z;
+        ++ts;
+        ctx->new_count = 1;
+        got_Z = 0;
+        break;
+      case ':':
+        ++ts;
+        while(*ts != ':') ++ts;
+        ++ts;
+        break;
+      case '(':
+        if (__pyx_buffmt_parse_array(ctx, &ts) < 0) return NULL;
+        break;
+      default:
+        {
+          int number = __Pyx_BufFmt_ExpectNumber(&ts);
+          if (number == -1) return NULL;
+          ctx->new_count = (size_t)number;
+        }
+    }
+  }
+}
+
+/* BufferGetAndValidate */
+  static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
+  if (unlikely(info->buf == NULL)) return;
+  if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
+  __Pyx_ReleaseBuffer(info);
+}
+static void __Pyx_ZeroBuffer(Py_buffer* buf) {
+  buf->buf = NULL;
+  buf->obj = NULL;
+  buf->strides = __Pyx_zeros;
+  buf->shape = __Pyx_zeros;
+  buf->suboffsets = __Pyx_minusones;
+}
+static int __Pyx__GetBufferAndValidate(
+        Py_buffer* buf, PyObject* obj,  __Pyx_TypeInfo* dtype, int flags,
+        int nd, int cast, __Pyx_BufFmt_StackElem* stack)
+{
+  buf->buf = NULL;
+  if (unlikely(__Pyx_GetBuffer(obj, buf, flags) == -1)) {
+    __Pyx_ZeroBuffer(buf);
+    return -1;
+  }
+  if (unlikely(buf->ndim != nd)) {
+    PyErr_Format(PyExc_ValueError,
+                 "Buffer has wrong number of dimensions (expected %d, got %d)",
+                 nd, buf->ndim);
+    goto fail;
+  }
+  if (!cast) {
+    __Pyx_BufFmt_Context ctx;
+    __Pyx_BufFmt_Init(&ctx, stack, dtype);
+    if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
+  }
+  if (unlikely((size_t)buf->itemsize != dtype->size)) {
+    PyErr_Format(PyExc_ValueError,
+      "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "d byte%s) does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "d byte%s)",
+      buf->itemsize, (buf->itemsize > 1) ? "s" : "",
+      dtype->name, (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
+    goto fail;
+  }
+  if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
+  return 0;
+fail:;
+  __Pyx_SafeReleaseBuffer(buf);
+  return -1;
+}
+
 /* KeywordStringCheck */
-static int __Pyx_CheckKeywordStrings(
+  static int __Pyx_CheckKeywordStrings(
     PyObject *kw,
     const char* function_name,
     int kw_allowed)
@@ -6892,7 +8238,7 @@ invalid_keyword:
 }
 
 /* FixUpExtensionType */
-#if CYTHON_USE_TYPE_SPECS
+  #if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     CYTHON_UNUSED_VAR(spec);
@@ -6965,7 +8311,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #endif
 
 /* PyFunctionFastCall */
-#if CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL
+  #if CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL
 static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
                                                PyObject *globals) {
     PyFrameObject *f;
@@ -7088,7 +8434,7 @@ done:
 #endif
 
 /* PyObjectCallMethO */
-#if CYTHON_COMPILING_IN_CPYTHON
+  #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg) {
     PyObject *self, *result;
     PyCFunction cfunc;
@@ -7113,7 +8459,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
 #endif
 
 /* PyObjectFastCall */
-#if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
+  #if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
 static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs) {
     PyObject *argstuple;
     PyObject *result = 0;
@@ -7191,19 +8537,19 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 }
 
 /* PyObjectCallNoArg */
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
+  static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
     PyObject *arg[2] = {NULL, NULL};
     return __Pyx_PyObject_FastCall(func, arg + 1, 0 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
 }
 
 /* PyObjectCallOneArg */
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+  static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
     PyObject *args[2] = {NULL, arg};
     return __Pyx_PyObject_FastCall(func, args+1, 1 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
 }
 
 /* PyObjectGetMethod */
-static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
+  static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
     PyObject *attr;
 #if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
     __Pyx_TypeName type_name;
@@ -7304,7 +8650,7 @@ try_unpack:
 }
 
 /* PyObjectCallMethod0 */
-static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
+  static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
     PyObject *method = NULL, *result = NULL;
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
@@ -7320,7 +8666,7 @@ bad:
 }
 
 /* ValidateBasesTuple */
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
+  #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
 static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases) {
     Py_ssize_t i, n;
 #if CYTHON_ASSUME_SAFE_MACROS
@@ -7405,7 +8751,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
 
 /* PyType_Ready */
-static int __Pyx_PyType_Ready(PyTypeObject *t) {
+  static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #if CYTHON_USE_TYPE_SPECS || !(CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API) || defined(PYSTON_MAJOR_VERSION)
     (void)__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
@@ -7487,7 +8833,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 }
 
 /* PyObject_GenericGetAttrNoDict */
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
+  #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
 static PyObject *__Pyx_RaiseGenericGetAttributeError(PyTypeObject *tp, PyObject *attr_name) {
     __Pyx_TypeName type_name = __Pyx_PyType_GetName(tp);
     PyErr_Format(PyExc_AttributeError,
@@ -7529,7 +8875,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj
 #endif
 
 /* PyObject_GenericGetAttr */
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
+  #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
 static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_name) {
     if (unlikely(Py_TYPE(obj)->tp_dictoffset)) {
         return PyObject_GenericGetAttr(obj, attr_name);
@@ -7539,7 +8885,7 @@ static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_nam
 #endif
 
 /* SetupReduce */
-#if !CYTHON_COMPILING_IN_LIMITED_API
+  #if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
   int ret;
   PyObject *name_attr;
@@ -7650,7 +8996,7 @@ __PYX_GOOD:
 #endif
 
 /* TypeImport */
-#ifndef __PYX_HAVE_RT_ImportType_3_0_11
+  #ifndef __PYX_HAVE_RT_ImportType_3_0_11
 #define __PYX_HAVE_RT_ImportType_3_0_11
 static PyTypeObject *__Pyx_ImportType_3_0_11(PyObject *module, const char *module_name, const char *class_name,
     size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_3_0_11 check_size)
@@ -7730,12 +9076,12 @@ bad:
 #endif
 
 /* FetchSharedCythonModule */
-static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
+  static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     return __Pyx_PyImport_AddModuleRef((char*) __PYX_ABI_MODULE_NAME);
 }
 
 /* FetchCommonType */
-static int __Pyx_VerifyCachedType(PyObject *cached_type,
+  static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
                                Py_ssize_t basicsize,
                                Py_ssize_t expected_basicsize) {
@@ -7836,7 +9182,7 @@ bad:
 #endif
 
 /* PyVectorcallFastCallDict */
-#if CYTHON_METH_FASTCALL
+  #if CYTHON_METH_FASTCALL
 static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
     PyObject *res = NULL;
@@ -7892,7 +9238,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
 #endif
 
 /* CythonFunctionShared */
-#if CYTHON_COMPILING_IN_LIMITED_API
+  #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
     if (__Pyx_CyFunction_Check(func)) {
         return PyCFunction_GetFunction(((__pyx_CyFunctionObject*)func)->func) == (PyCFunction) cfunc;
@@ -8897,7 +10243,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
 }
 
 /* CythonFunction */
-static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
+  static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
         PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType),
@@ -8910,7 +10256,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qual
 }
 
 /* PyDictVersioning */
-#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
+  #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj) {
     PyObject *dict = Py_TYPE(obj)->tp_dict;
     return likely(dict) ? __PYX_GET_DICT_VERSION(dict) : 0;
@@ -8936,7 +10282,7 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 #endif
 
 /* CLineInTraceback */
-#ifndef CYTHON_CLINE_IN_TRACEBACK
+  #ifndef CYTHON_CLINE_IN_TRACEBACK
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
@@ -8979,7 +10325,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 #endif
 
 /* CodeObjectCache */
-#if !CYTHON_COMPILING_IN_LIMITED_API
+  #if !CYTHON_COMPILING_IN_LIMITED_API
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line) {
     int start = 0, mid = 0, end = count - 1;
     if (end >= 0 && code_line > entries[end].code_line) {
@@ -9061,7 +10407,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
 #endif
 
 /* AddTraceback */
-#include "compile.h"
+  #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 #if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
@@ -9252,8 +10598,33 @@ bad:
 }
 #endif
 
-/* CIntFromPyVerify */
-#define __PYX_VERIFY_RETURN_INT(target_type, func_type, func_value)\
+#if PY_MAJOR_VERSION < 3
+static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+    __Pyx_TypeName obj_type_name;
+    if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+                 "'" __Pyx_FMT_TYPENAME "' does not have the buffer interface",
+                 obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
+    return -1;
+}
+static void __Pyx_ReleaseBuffer(Py_buffer *view) {
+    PyObject *obj = view->obj;
+    if (!obj) return;
+    if (PyObject_CheckBuffer(obj)) {
+        PyBuffer_Release(view);
+        return;
+    }
+    if ((0)) {}
+    view->obj = NULL;
+    Py_DECREF(obj);
+}
+#endif
+
+
+  /* CIntFromPyVerify */
+  #define __PYX_VERIFY_RETURN_INT(target_type, func_type, func_value)\
     __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, 0)
 #define __PYX_VERIFY_RETURN_INT_EXC(target_type, func_type, func_value)\
     __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, 1)
@@ -9275,7 +10646,7 @@ bad:
     }
 
 /* Declarations */
-#if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
+  #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
   #ifdef __cplusplus
     static CYTHON_INLINE __pyx_t_float_complex __pyx_t_float_complex_from_parts(float x, float y) {
       return ::std::complex< float >(x, y);
@@ -9295,7 +10666,7 @@ bad:
 #endif
 
 /* Arithmetic */
-#if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
+  #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
 #else
     static CYTHON_INLINE int __Pyx_c_eq_float(__pyx_t_float_complex a, __pyx_t_float_complex b) {
        return (a.real == b.real) && (a.imag == b.imag);
@@ -9429,7 +10800,7 @@ bad:
 #endif
 
 /* Declarations */
-#if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
+  #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
   #ifdef __cplusplus
     static CYTHON_INLINE __pyx_t_double_complex __pyx_t_double_complex_from_parts(double x, double y) {
       return ::std::complex< double >(x, y);
@@ -9449,7 +10820,7 @@ bad:
 #endif
 
 /* Arithmetic */
-#if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
+  #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
 #else
     static CYTHON_INLINE int __Pyx_c_eq_double(__pyx_t_double_complex a, __pyx_t_double_complex b) {
        return (a.real == b.real) && (a.imag == b.imag);
@@ -9583,34 +10954,34 @@ bad:
 #endif
 
 /* CIntFromPy */
-static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
+  static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *x) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #endif
-    const int neg_one = (int) -1, const_zero = (int) 0;
+    const unsigned int neg_one = (unsigned int) -1, const_zero = (unsigned int) 0;
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic pop
 #endif
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
-        if ((sizeof(int) < sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT(int, long, PyInt_AS_LONG(x))
+        if ((sizeof(unsigned int) < sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT(unsigned int, long, PyInt_AS_LONG(x))
         } else {
             long val = PyInt_AS_LONG(x);
             if (is_unsigned && unlikely(val < 0)) {
                 goto raise_neg_overflow;
             }
-            return (int) val;
+            return (unsigned int) val;
         }
     }
 #endif
     if (unlikely(!PyLong_Check(x))) {
-        int val;
+        unsigned int val;
         PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
-        if (!tmp) return (int) -1;
-        val = __Pyx_PyInt_As_int(tmp);
+        if (!tmp) return (unsigned int) -1;
+        val = __Pyx_PyInt_As_unsigned_int(tmp);
         Py_DECREF(tmp);
         return val;
     }
@@ -9619,35 +10990,35 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
         if (unlikely(__Pyx_PyLong_IsNeg(x))) {
             goto raise_neg_overflow;
         } else if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
+            __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
         } else {
             const digit* digits = __Pyx_PyLong_Digits(x);
             assert(__Pyx_PyLong_DigitCount(x) > 1);
             switch (__Pyx_PyLong_DigitCount(x)) {
                 case 2:
-                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) >= 2 * PyLong_SHIFT)) {
-                            return (int) (((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) >= 2 * PyLong_SHIFT)) {
+                            return (unsigned int) (((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
                         }
                     }
                     break;
                 case 3:
-                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) >= 3 * PyLong_SHIFT)) {
-                            return (int) (((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) >= 3 * PyLong_SHIFT)) {
+                            return (unsigned int) (((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
                         }
                     }
                     break;
                 case 4:
-                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) >= 4 * PyLong_SHIFT)) {
-                            return (int) (((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) >= 4 * PyLong_SHIFT)) {
+                            return (unsigned int) (((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
                         }
                     }
                     break;
@@ -9662,93 +11033,93 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
         {
             int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
             if (unlikely(result < 0))
-                return (int) -1;
+                return (unsigned int) -1;
             if (unlikely(result == 1))
                 goto raise_neg_overflow;
         }
 #endif
-        if ((sizeof(int) <= sizeof(unsigned long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned long, PyLong_AsUnsignedLong(x))
+        if ((sizeof(unsigned int) <= sizeof(unsigned long))) {
+            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned long, PyLong_AsUnsignedLong(x))
 #ifdef HAVE_LONG_LONG
-        } else if ((sizeof(int) <= sizeof(unsigned PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+        } else if ((sizeof(unsigned int) <= sizeof(unsigned PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
 #endif
         }
     } else {
 #if CYTHON_USE_PYLONG_INTERNALS
         if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+            __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
         } else {
             const digit* digits = __Pyx_PyLong_Digits(x);
             assert(__Pyx_PyLong_DigitCount(x) > 1);
             switch (__Pyx_PyLong_SignedDigitCount(x)) {
                 case -2:
-                    if ((8 * sizeof(int) - 1 > 1 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) - 1 > 1 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
-                            return (int) (((int)-1)*(((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
+                            return (unsigned int) (((unsigned int)-1)*(((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
                         }
                     }
                     break;
                 case 2:
-                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
-                            return (int) ((((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
+                            return (unsigned int) ((((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
                         }
                     }
                     break;
                 case -3:
-                    if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
-                            return (int) (((int)-1)*(((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
+                            return (unsigned int) (((unsigned int)-1)*(((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
                         }
                     }
                     break;
                 case 3:
-                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
-                            return (int) ((((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
+                            return (unsigned int) ((((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
                         }
                     }
                     break;
                 case -4:
-                    if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
-                            return (int) (((int)-1)*(((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
+                            return (unsigned int) (((unsigned int)-1)*(((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
                         }
                     }
                     break;
                 case 4:
-                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
-                            return (int) ((((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
+                            return (unsigned int) ((((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
                         }
                     }
                     break;
             }
         }
 #endif
-        if ((sizeof(int) <= sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, long, PyLong_AsLong(x))
+        if ((sizeof(unsigned int) <= sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, long, PyLong_AsLong(x))
 #ifdef HAVE_LONG_LONG
-        } else if ((sizeof(int) <= sizeof(PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, PY_LONG_LONG, PyLong_AsLongLong(x))
+        } else if ((sizeof(unsigned int) <= sizeof(PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, PY_LONG_LONG, PyLong_AsLongLong(x))
 #endif
         }
     }
     {
-        int val;
+        unsigned int val;
         int ret = -1;
 #if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
         Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
@@ -9774,14 +11145,14 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
             v = __Pyx_NewRef(x);
         } else {
             v = PyNumber_Long(x);
-            if (unlikely(!v)) return (int) -1;
+            if (unlikely(!v)) return (unsigned int) -1;
             assert(PyLong_CheckExact(v));
         }
         {
             int result = PyObject_RichCompareBool(v, Py_False, Py_LT);
             if (unlikely(result < 0)) {
                 Py_DECREF(v);
-                return (int) -1;
+                return (unsigned int) -1;
             }
             is_negative = result == 1;
         }
@@ -9792,15 +11163,15 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
             stepval = PyNumber_Invert(v);
             Py_DECREF(v);
             if (unlikely(!stepval))
-                return (int) -1;
+                return (unsigned int) -1;
         } else {
             stepval = v;
         }
         v = NULL;
-        val = (int) 0;
+        val = (unsigned int) 0;
         mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
         shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
-        for (bits = 0; bits < (int) sizeof(int) * 8 - chunk_size; bits += chunk_size) {
+        for (bits = 0; bits < (int) sizeof(unsigned int) * 8 - chunk_size; bits += chunk_size) {
             PyObject *tmp, *digit;
             long idigit;
             digit = PyNumber_And(stepval, mask);
@@ -9808,7 +11179,7 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
             idigit = PyLong_AsLong(digit);
             Py_DECREF(digit);
             if (unlikely(idigit < 0)) goto done;
-            val |= ((int) idigit) << bits;
+            val |= ((unsigned int) idigit) << bits;
             tmp = PyNumber_Rshift(stepval, shift);
             if (unlikely(!tmp)) goto done;
             Py_DECREF(stepval); stepval = tmp;
@@ -9818,13 +11189,13 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
         {
             long idigit = PyLong_AsLong(stepval);
             if (unlikely(idigit < 0)) goto done;
-            remaining_bits = ((int) sizeof(int) * 8) - bits - (is_unsigned ? 0 : 1);
+            remaining_bits = ((int) sizeof(unsigned int) * 8) - bits - (is_unsigned ? 0 : 1);
             if (unlikely(idigit >= (1L << remaining_bits)))
                 goto raise_overflow;
-            val |= ((int) idigit) << bits;
+            val |= ((unsigned int) idigit) << bits;
         }
         if (!is_unsigned) {
-            if (unlikely(val & (((int) 1) << (sizeof(int) * 8 - 1))))
+            if (unlikely(val & (((unsigned int) 1) << (sizeof(unsigned int) * 8 - 1))))
                 goto raise_overflow;
             if (is_negative)
                 val = ~val;
@@ -9836,21 +11207,21 @@ static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
         Py_XDECREF(stepval);
 #endif
         if (unlikely(ret))
-            return (int) -1;
+            return (unsigned int) -1;
         return val;
     }
 raise_overflow:
     PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to int");
-    return (int) -1;
+        "value too large to convert to unsigned int");
+    return (unsigned int) -1;
 raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to int");
-    return (int) -1;
+        "can't convert negative value to unsigned int");
+    return (unsigned int) -1;
 }
 
 /* FormatTypeName */
-#if CYTHON_COMPILING_IN_LIMITED_API
+  #if CYTHON_COMPILING_IN_LIMITED_API
 static __Pyx_TypeName
 __Pyx_PyType_GetName(PyTypeObject* tp)
 {
@@ -9859,14 +11230,14 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
         Py_XDECREF(name);
-        name = __Pyx_NewRef(__pyx_n_s__10);
+        name = __Pyx_NewRef(__pyx_n_s__11);
     }
     return name;
 }
 #endif
 
 /* CIntToPy */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value) {
+  static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -9937,7 +11308,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value) {
 }
 
 /* CIntFromPy */
-static CYTHON_INLINE long __Pyx_PyInt_As_long(PyObject *x) {
+  static CYTHON_INLINE long __Pyx_PyInt_As_long(PyObject *x) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -10203,8 +11574,275 @@ raise_neg_overflow:
     return (long) -1;
 }
 
+/* CIntFromPy */
+  static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const int neg_one = (int) -1, const_zero = (int) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+#if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_Check(x))) {
+        if ((sizeof(int) < sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT(int, long, PyInt_AS_LONG(x))
+        } else {
+            long val = PyInt_AS_LONG(x);
+            if (is_unsigned && unlikely(val < 0)) {
+                goto raise_neg_overflow;
+            }
+            return (int) val;
+        }
+    }
+#endif
+    if (unlikely(!PyLong_Check(x))) {
+        int val;
+        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
+        if (!tmp) return (int) -1;
+        val = __Pyx_PyInt_As_int(tmp);
+        Py_DECREF(tmp);
+        return val;
+    }
+    if (is_unsigned) {
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (unlikely(__Pyx_PyLong_IsNeg(x))) {
+            goto raise_neg_overflow;
+        } else if (__Pyx_PyLong_IsCompact(x)) {
+            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
+        } else {
+            const digit* digits = __Pyx_PyLong_Digits(x);
+            assert(__Pyx_PyLong_DigitCount(x) > 1);
+            switch (__Pyx_PyLong_DigitCount(x)) {
+                case 2:
+                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) >= 2 * PyLong_SHIFT)) {
+                            return (int) (((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
+                        }
+                    }
+                    break;
+                case 3:
+                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) >= 3 * PyLong_SHIFT)) {
+                            return (int) (((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
+                        }
+                    }
+                    break;
+                case 4:
+                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) >= 4 * PyLong_SHIFT)) {
+                            return (int) (((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
+                        }
+                    }
+                    break;
+            }
+        }
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
+        if (unlikely(Py_SIZE(x) < 0)) {
+            goto raise_neg_overflow;
+        }
+#else
+        {
+            int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+            if (unlikely(result < 0))
+                return (int) -1;
+            if (unlikely(result == 1))
+                goto raise_neg_overflow;
+        }
+#endif
+        if ((sizeof(int) <= sizeof(unsigned long))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned long, PyLong_AsUnsignedLong(x))
+#ifdef HAVE_LONG_LONG
+        } else if ((sizeof(int) <= sizeof(unsigned PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+#endif
+        }
+    } else {
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(x)) {
+            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+        } else {
+            const digit* digits = __Pyx_PyLong_Digits(x);
+            assert(__Pyx_PyLong_DigitCount(x) > 1);
+            switch (__Pyx_PyLong_SignedDigitCount(x)) {
+                case -2:
+                    if ((8 * sizeof(int) - 1 > 1 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
+                            return (int) (((int)-1)*(((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                        }
+                    }
+                    break;
+                case 2:
+                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
+                            return (int) ((((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                        }
+                    }
+                    break;
+                case -3:
+                    if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
+                            return (int) (((int)-1)*(((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                        }
+                    }
+                    break;
+                case 3:
+                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
+                            return (int) ((((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                        }
+                    }
+                    break;
+                case -4:
+                    if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
+                            return (int) (((int)-1)*(((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                        }
+                    }
+                    break;
+                case 4:
+                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
+                            return (int) ((((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
+                        }
+                    }
+                    break;
+            }
+        }
+#endif
+        if ((sizeof(int) <= sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, long, PyLong_AsLong(x))
+#ifdef HAVE_LONG_LONG
+        } else if ((sizeof(int) <= sizeof(PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, PY_LONG_LONG, PyLong_AsLongLong(x))
+#endif
+        }
+    }
+    {
+        int val;
+        int ret = -1;
+#if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
+        Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
+            x, &val, sizeof(val), Py_ASNATIVEBYTES_NATIVE_ENDIAN | (is_unsigned ? Py_ASNATIVEBYTES_UNSIGNED_BUFFER | Py_ASNATIVEBYTES_REJECT_NEGATIVE : 0));
+        if (unlikely(bytes_copied == -1)) {
+        } else if (unlikely(bytes_copied > (Py_ssize_t) sizeof(val))) {
+            goto raise_overflow;
+        } else {
+            ret = 0;
+        }
+#elif PY_VERSION_HEX < 0x030d0000 && !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
+        int one = 1; int is_little = (int)*(unsigned char *)&one;
+        unsigned char *bytes = (unsigned char *)&val;
+        ret = _PyLong_AsByteArray((PyLongObject *)x,
+                                    bytes, sizeof(val),
+                                    is_little, !is_unsigned);
+#else
+        PyObject *v;
+        PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
+        int bits, remaining_bits, is_negative = 0;
+        int chunk_size = (sizeof(long) < 8) ? 30 : 62;
+        if (likely(PyLong_CheckExact(x))) {
+            v = __Pyx_NewRef(x);
+        } else {
+            v = PyNumber_Long(x);
+            if (unlikely(!v)) return (int) -1;
+            assert(PyLong_CheckExact(v));
+        }
+        {
+            int result = PyObject_RichCompareBool(v, Py_False, Py_LT);
+            if (unlikely(result < 0)) {
+                Py_DECREF(v);
+                return (int) -1;
+            }
+            is_negative = result == 1;
+        }
+        if (is_unsigned && unlikely(is_negative)) {
+            Py_DECREF(v);
+            goto raise_neg_overflow;
+        } else if (is_negative) {
+            stepval = PyNumber_Invert(v);
+            Py_DECREF(v);
+            if (unlikely(!stepval))
+                return (int) -1;
+        } else {
+            stepval = v;
+        }
+        v = NULL;
+        val = (int) 0;
+        mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
+        shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
+        for (bits = 0; bits < (int) sizeof(int) * 8 - chunk_size; bits += chunk_size) {
+            PyObject *tmp, *digit;
+            long idigit;
+            digit = PyNumber_And(stepval, mask);
+            if (unlikely(!digit)) goto done;
+            idigit = PyLong_AsLong(digit);
+            Py_DECREF(digit);
+            if (unlikely(idigit < 0)) goto done;
+            val |= ((int) idigit) << bits;
+            tmp = PyNumber_Rshift(stepval, shift);
+            if (unlikely(!tmp)) goto done;
+            Py_DECREF(stepval); stepval = tmp;
+        }
+        Py_DECREF(shift); shift = NULL;
+        Py_DECREF(mask); mask = NULL;
+        {
+            long idigit = PyLong_AsLong(stepval);
+            if (unlikely(idigit < 0)) goto done;
+            remaining_bits = ((int) sizeof(int) * 8) - bits - (is_unsigned ? 0 : 1);
+            if (unlikely(idigit >= (1L << remaining_bits)))
+                goto raise_overflow;
+            val |= ((int) idigit) << bits;
+        }
+        if (!is_unsigned) {
+            if (unlikely(val & (((int) 1) << (sizeof(int) * 8 - 1))))
+                goto raise_overflow;
+            if (is_negative)
+                val = ~val;
+        }
+        ret = 0;
+    done:
+        Py_XDECREF(shift);
+        Py_XDECREF(mask);
+        Py_XDECREF(stepval);
+#endif
+        if (unlikely(ret))
+            return (int) -1;
+        return val;
+    }
+raise_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "value too large to convert to int");
+    return (int) -1;
+raise_neg_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "can't convert negative value to int");
+    return (int) -1;
+}
+
 /* FastTypeChecks */
-#if CYTHON_COMPILING_IN_CPYTHON
+  #if CYTHON_COMPILING_IN_CPYTHON
 static int __Pyx_InBases(PyTypeObject *a, PyTypeObject *b) {
     while (a) {
         a = __Pyx_PyType_GetSlot(a, tp_base, PyTypeObject*);
@@ -10320,7 +11958,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #endif
 
 /* CheckBinaryVersion */
-static unsigned long __Pyx_get_runtime_version(void) {
+  static unsigned long __Pyx_get_runtime_version(void) {
 #if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
     return Py_Version & ~0xFFUL;
 #else
@@ -10367,7 +12005,7 @@ static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt
 }
 
 /* InitStrings */
-#if PY_MAJOR_VERSION >= 3
+  #if PY_MAJOR_VERSION >= 3
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     if (t.is_unicode | t.is_str) {
         if (t.intern) {

@@ -77,9 +77,14 @@ def make_pong(num_envs=1):
     from .pong import pong
     return pong.MyPong(num_envs=num_envs)
 
+# breakout is comparison
 def make_breakout(num_envs=1):
     from .breakout import breakout
     return breakout.MyBreakout(num_envs=num_envs)
+
+def make_racing(num_envs=1):
+    from .racing import racing
+    return racing.MyRacing(num_envs=num_envs)
 
 def make_connect4(num_envs=1):
     from .connect4 import connect4
@@ -220,17 +225,17 @@ def make_password(password_length=5, **kwargs):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# def make_performance(delay_mean=0, delay_std=0, bandwidth=1, **kwargs):
-#     from . import sanity
-#     env = sanity.Performance(delay_mean=delay_mean, delay_std=delay_std, bandwidth=bandwidth)
-#     env = pufferlib.postprocess.EpisodeStats(env)
-#     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+def make_performance(delay_mean=0, delay_std=0, bandwidth=1, **kwargs):
+    from . import sanity
+    env = sanity.Performance(delay_mean=delay_mean, delay_std=delay_std, bandwidth=bandwidth)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# def make_performance_empiric(count_n=0, count_std=0, bandwidth=1, **kwargs):
-#     from . import sanity
-#     env = sanity.PerformanceEmpiric(count_n=count_n, count_std=count_std, bandwidth=bandwidth)
-#     env = pufferlib.postprocess.EpisodeStats(env)
-#     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+def make_performance_empiric(count_n=0, count_std=0, bandwidth=1, **kwargs):
+    from . import sanity
+    env = sanity.PerformanceEmpiric(count_n=count_n, count_std=count_std, bandwidth=bandwidth)
+    env = pufferlib.postprocess.EpisodeStats(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
 # Cythonized
 def make_stochastic(p=0.7, horizon=100, **kwargs):
@@ -264,9 +269,11 @@ MAKE_FNS = {
     'continuous_cy': make_continuous_cy,
 
     'enduro_cy': make_enduro_cy,
+    'racing': make_racing,
     'moba': make_moba,
     'my_pong': make_pong,
     'my_breakout': make_breakout,
+    'my_racing': make_racing,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
@@ -281,16 +288,12 @@ MAKE_FNS = {
     'stochastic': make_stochastic,
     'multiagent': make_multiagent,
     'spaces': make_spaces,
-<<<<<<< HEAD
-    # 'performance': make_performance,
-    # 'performance_empiric': make_performance_empiric,
-=======
+
     'performance': make_performance,
     'performance_empiric': make_performance_empiric,
     'my_breakout': make_breakout,
     'my_connect4': make_connect4,
     'my_tripletriad': make_tripletriad,
->>>>>>> dd3a161636cf570a6781a216d70706d51d77c118
 }
 
 def env_creator(name='squared'):
