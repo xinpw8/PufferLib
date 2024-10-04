@@ -753,3 +753,6 @@ In this directory, we'll have several files:
 # the number of cars left to pass to complete the day is rendered from (72,179) through (104, 188). displayed on it is are 4 digits, the leftmost being a little car icon, then the number of cars left to pass for the day. this number starts at 200 for day 1. it counts down each time a (new) car is passed. 
 # the day the player is on is rendered from (56, 179) through (64, 188). this is the requisite area that the rendering of a single digit occupies. only 1 digit is displayed, starting at 1 at the beginning of the game. as days are completed, this number advances in units of 1.
 
+Game over conditions: the requisite number of cars must be passed before the end of the current day, or else the game ends. 
+If the requisite number of cars is passed, then, when the current day ends, the next day begins, and the day counter increments by one.
+

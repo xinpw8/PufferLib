@@ -1,6 +1,7 @@
 from setuptools import find_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
+import numpy as np
 #  python3 setup.py built_ext --inplace
 
 VERSION = '1.0.0'
@@ -217,7 +218,6 @@ extension_paths = [
     # 'pufferlib/environments/ocean/snake/cy_snake',
     # 'pufferlib/environments/ocean/pong/cy_pong',
     'pufferlib/environments/ocean/breakout/cy_breakout',
-    'pufferlib/environments/ocean/racing/cy_racing',
     # 'pufferlib/environments/ocean/connect4/cy_connect4',
     # 'pufferlib/environments/ocean/grid/cy_grid',
     # 'pufferlib/environments/ocean/tripletriad/cy_tripletriad',

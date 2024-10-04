@@ -4,33 +4,24 @@
 {
     "distutils": {
         "depends": [
-            "/root/.local/lib/python3.11/site-packages/numpy/core/include/numpy/arrayobject.h",
-            "/root/.local/lib/python3.11/site-packages/numpy/core/include/numpy/arrayscalars.h",
-            "/root/.local/lib/python3.11/site-packages/numpy/core/include/numpy/ndarrayobject.h",
-            "/root/.local/lib/python3.11/site-packages/numpy/core/include/numpy/ndarraytypes.h",
-            "/root/.local/lib/python3.11/site-packages/numpy/core/include/numpy/ufuncobject.h",
+            "/root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/core/include/numpy/arrayobject.h",
+            "/root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/core/include/numpy/arrayscalars.h",
+            "/root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/core/include/numpy/ndarrayobject.h",
+            "/root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/core/include/numpy/ndarraytypes.h",
+            "/root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/core/include/numpy/ufuncobject.h",
             "pufferlib/environments/ocean/racing/racing.h"
         ],
         "extra_compile_args": [
-            "-DPLATFORM_DESKTOP"
+            "-O3"
         ],
         "include_dirs": [
             "pufferlib/environments/ocean/racing",
-            "/root/.local/lib/python3.11/site-packages/numpy/core/include",
-            "raylib-5.0_linux_amd64/include"
-        ],
-        "libraries": [
-            "raylib"
-        ],
-        "library_dirs": [
-            "raylib-5.0_linux_amd64/lib"
+            "/root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/core/include"
         ],
         "name": "pufferlib.environments.ocean.racing.cy_racing",
-        "runtime_library_dirs": [
-            "raylib-5.0_linux_amd64/lib"
-        ],
         "sources": [
-            "pufferlib/environments/ocean/racing/cy_racing.pyx"
+            "pufferlib/environments/ocean/racing/cy_racing.pyx",
+            "pufferlib/environments/ocean/racing/racing.c"
         ]
     },
     "module_name": "pufferlib.environments.ocean.racing.cy_racing"
@@ -1268,6 +1259,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 #include "numpy/ufuncobject.h"
 #include <stdlib.h>
 #include "racing.h"
+#include "stdbool.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif /* _OPENMP */
@@ -1586,7 +1578,7 @@ typedef struct {
 
 /* #### Code section: numeric_typedefs ### */
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":731
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":731
  * # in Cython to enable them only on the right systems.
  * 
  * ctypedef npy_int8       int8_t             # <<<<<<<<<<<<<<
@@ -1595,7 +1587,7 @@ typedef struct {
  */
 typedef npy_int8 __pyx_t_5numpy_int8_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":732
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":732
  * 
  * ctypedef npy_int8       int8_t
  * ctypedef npy_int16      int16_t             # <<<<<<<<<<<<<<
@@ -1604,7 +1596,7 @@ typedef npy_int8 __pyx_t_5numpy_int8_t;
  */
 typedef npy_int16 __pyx_t_5numpy_int16_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":733
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":733
  * ctypedef npy_int8       int8_t
  * ctypedef npy_int16      int16_t
  * ctypedef npy_int32      int32_t             # <<<<<<<<<<<<<<
@@ -1613,7 +1605,7 @@ typedef npy_int16 __pyx_t_5numpy_int16_t;
  */
 typedef npy_int32 __pyx_t_5numpy_int32_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":734
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":734
  * ctypedef npy_int16      int16_t
  * ctypedef npy_int32      int32_t
  * ctypedef npy_int64      int64_t             # <<<<<<<<<<<<<<
@@ -1622,7 +1614,7 @@ typedef npy_int32 __pyx_t_5numpy_int32_t;
  */
 typedef npy_int64 __pyx_t_5numpy_int64_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":738
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":738
  * #ctypedef npy_int128     int128_t
  * 
  * ctypedef npy_uint8      uint8_t             # <<<<<<<<<<<<<<
@@ -1631,7 +1623,7 @@ typedef npy_int64 __pyx_t_5numpy_int64_t;
  */
 typedef npy_uint8 __pyx_t_5numpy_uint8_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":739
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":739
  * 
  * ctypedef npy_uint8      uint8_t
  * ctypedef npy_uint16     uint16_t             # <<<<<<<<<<<<<<
@@ -1640,7 +1632,7 @@ typedef npy_uint8 __pyx_t_5numpy_uint8_t;
  */
 typedef npy_uint16 __pyx_t_5numpy_uint16_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":740
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":740
  * ctypedef npy_uint8      uint8_t
  * ctypedef npy_uint16     uint16_t
  * ctypedef npy_uint32     uint32_t             # <<<<<<<<<<<<<<
@@ -1649,7 +1641,7 @@ typedef npy_uint16 __pyx_t_5numpy_uint16_t;
  */
 typedef npy_uint32 __pyx_t_5numpy_uint32_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":741
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":741
  * ctypedef npy_uint16     uint16_t
  * ctypedef npy_uint32     uint32_t
  * ctypedef npy_uint64     uint64_t             # <<<<<<<<<<<<<<
@@ -1658,7 +1650,7 @@ typedef npy_uint32 __pyx_t_5numpy_uint32_t;
  */
 typedef npy_uint64 __pyx_t_5numpy_uint64_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":745
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":745
  * #ctypedef npy_uint128    uint128_t
  * 
  * ctypedef npy_float32    float32_t             # <<<<<<<<<<<<<<
@@ -1667,7 +1659,7 @@ typedef npy_uint64 __pyx_t_5numpy_uint64_t;
  */
 typedef npy_float32 __pyx_t_5numpy_float32_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":746
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":746
  * 
  * ctypedef npy_float32    float32_t
  * ctypedef npy_float64    float64_t             # <<<<<<<<<<<<<<
@@ -1676,7 +1668,7 @@ typedef npy_float32 __pyx_t_5numpy_float32_t;
  */
 typedef npy_float64 __pyx_t_5numpy_float64_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":755
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":755
  * # The int types are mapped a bit surprising --
  * # numpy.int corresponds to 'l' and numpy.long to 'q'
  * ctypedef npy_long       int_t             # <<<<<<<<<<<<<<
@@ -1685,7 +1677,7 @@ typedef npy_float64 __pyx_t_5numpy_float64_t;
  */
 typedef npy_long __pyx_t_5numpy_int_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":756
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":756
  * # numpy.int corresponds to 'l' and numpy.long to 'q'
  * ctypedef npy_long       int_t
  * ctypedef npy_longlong   long_t             # <<<<<<<<<<<<<<
@@ -1694,7 +1686,7 @@ typedef npy_long __pyx_t_5numpy_int_t;
  */
 typedef npy_longlong __pyx_t_5numpy_long_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":757
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":757
  * ctypedef npy_long       int_t
  * ctypedef npy_longlong   long_t
  * ctypedef npy_longlong   longlong_t             # <<<<<<<<<<<<<<
@@ -1703,7 +1695,7 @@ typedef npy_longlong __pyx_t_5numpy_long_t;
  */
 typedef npy_longlong __pyx_t_5numpy_longlong_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":759
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":759
  * ctypedef npy_longlong   longlong_t
  * 
  * ctypedef npy_ulong      uint_t             # <<<<<<<<<<<<<<
@@ -1712,7 +1704,7 @@ typedef npy_longlong __pyx_t_5numpy_longlong_t;
  */
 typedef npy_ulong __pyx_t_5numpy_uint_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":760
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":760
  * 
  * ctypedef npy_ulong      uint_t
  * ctypedef npy_ulonglong  ulong_t             # <<<<<<<<<<<<<<
@@ -1721,7 +1713,7 @@ typedef npy_ulong __pyx_t_5numpy_uint_t;
  */
 typedef npy_ulonglong __pyx_t_5numpy_ulong_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":761
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":761
  * ctypedef npy_ulong      uint_t
  * ctypedef npy_ulonglong  ulong_t
  * ctypedef npy_ulonglong  ulonglong_t             # <<<<<<<<<<<<<<
@@ -1730,7 +1722,7 @@ typedef npy_ulonglong __pyx_t_5numpy_ulong_t;
  */
 typedef npy_ulonglong __pyx_t_5numpy_ulonglong_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":763
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":763
  * ctypedef npy_ulonglong  ulonglong_t
  * 
  * ctypedef npy_intp       intp_t             # <<<<<<<<<<<<<<
@@ -1739,7 +1731,7 @@ typedef npy_ulonglong __pyx_t_5numpy_ulonglong_t;
  */
 typedef npy_intp __pyx_t_5numpy_intp_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":764
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":764
  * 
  * ctypedef npy_intp       intp_t
  * ctypedef npy_uintp      uintp_t             # <<<<<<<<<<<<<<
@@ -1748,7 +1740,7 @@ typedef npy_intp __pyx_t_5numpy_intp_t;
  */
 typedef npy_uintp __pyx_t_5numpy_uintp_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":766
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":766
  * ctypedef npy_uintp      uintp_t
  * 
  * ctypedef npy_double     float_t             # <<<<<<<<<<<<<<
@@ -1757,7 +1749,7 @@ typedef npy_uintp __pyx_t_5numpy_uintp_t;
  */
 typedef npy_double __pyx_t_5numpy_float_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":767
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":767
  * 
  * ctypedef npy_double     float_t
  * ctypedef npy_double     double_t             # <<<<<<<<<<<<<<
@@ -1766,7 +1758,7 @@ typedef npy_double __pyx_t_5numpy_float_t;
  */
 typedef npy_double __pyx_t_5numpy_double_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":768
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":768
  * ctypedef npy_double     float_t
  * ctypedef npy_double     double_t
  * ctypedef npy_longdouble longdouble_t             # <<<<<<<<<<<<<<
@@ -1804,7 +1796,7 @@ static CYTHON_INLINE __pyx_t_double_complex __pyx_t_double_complex_from_parts(do
 /*--- Type declarations ---*/
 struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":770
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":770
  * ctypedef npy_longdouble longdouble_t
  * 
  * ctypedef npy_cfloat      cfloat_t             # <<<<<<<<<<<<<<
@@ -1813,7 +1805,7 @@ struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
  */
 typedef npy_cfloat __pyx_t_5numpy_cfloat_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":771
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":771
  * 
  * ctypedef npy_cfloat      cfloat_t
  * ctypedef npy_cdouble     cdouble_t             # <<<<<<<<<<<<<<
@@ -1822,7 +1814,7 @@ typedef npy_cfloat __pyx_t_5numpy_cfloat_t;
  */
 typedef npy_cdouble __pyx_t_5numpy_cdouble_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":772
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":772
  * ctypedef npy_cfloat      cfloat_t
  * ctypedef npy_cdouble     cdouble_t
  * ctypedef npy_clongdouble clongdouble_t             # <<<<<<<<<<<<<<
@@ -1831,7 +1823,7 @@ typedef npy_cdouble __pyx_t_5numpy_cdouble_t;
  */
 typedef npy_clongdouble __pyx_t_5numpy_clongdouble_t;
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":774
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":774
  * ctypedef npy_clongdouble clongdouble_t
  * 
  * ctypedef npy_cdouble     complex_t             # <<<<<<<<<<<<<<
@@ -1840,12 +1832,12 @@ typedef npy_clongdouble __pyx_t_5numpy_clongdouble_t;
  */
 typedef npy_cdouble __pyx_t_5numpy_complex_t;
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":25
- *     void render(Client* client, CEnduro* env)
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":75
  * 
+ * # Define CyEnduro class that wraps CEnduro and provides methods
  * cdef class CyEnduro:             # <<<<<<<<<<<<<<
- *     cdef CEnduro env
- *     cdef Client* client
+ *     cdef:
+ *         CEnduro env
  */
 struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro {
   PyObject_HEAD
@@ -2571,7 +2563,10 @@ typedef struct {
 #endif
 
 /* CIntFromPy.proto */
-static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *);
+static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *);
+
+/* CIntToPy.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value);
 
 /* FormatTypeName.proto */
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -2591,9 +2586,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value);
 
 /* CIntFromPy.proto */
 static CYTHON_INLINE long __Pyx_PyInt_As_long(PyObject *);
-
-/* CIntFromPy.proto */
-static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *);
 
 /* FastTypeChecks.proto */
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -2651,9 +2643,9 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
 /* Module declarations from "pufferlib.environments.ocean.racing.cy_racing" */
 /* #### Code section: typeinfo ### */
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t = { "float32_t", NULL, sizeof(__pyx_t_5numpy_float32_t), { 0 }, 0, 'R', 0, 0 };
-static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t = { "uint32_t", NULL, sizeof(__pyx_t_5numpy_uint32_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint32_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint32_t), 0 };
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t = { "uint8_t", NULL, sizeof(__pyx_t_5numpy_uint8_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint8_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint8_t), 0 };
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t = { "int32_t", NULL, sizeof(__pyx_t_5numpy_int32_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_int32_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_int32_t), 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t = { "uint32_t", NULL, sizeof(__pyx_t_5numpy_uint32_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint32_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_5numpy_uint32_t), 0 };
 /* #### Code section: before_global_var ### */
 #define __Pyx_MODULE_NAME "pufferlib.environments.ocean.racing.cy_racing"
 extern int __pyx_module_is_main_pufferlib__environments__ocean__racing__cy_racing;
@@ -2724,7 +2716,7 @@ static const char __pyx_k_pufferlib_environments_ocean_rac[] = "pufferlib/enviro
 static const char __pyx_k_self_client_self_env_cannot_be_c[] = "self.client,self.env cannot be converted to a Python object for pickling";
 static const char __pyx_k_pufferlib_environments_ocean_rac_2[] = "pufferlib.environments.ocean.racing.cy_racing";
 /* #### Code section: decls ### */
-static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, PyArrayObject *__pyx_v_observations, PyArrayObject *__pyx_v_actions, PyArrayObject *__pyx_v_rewards, PyArrayObject *__pyx_v_terminals, PyArrayObject *__pyx_v_player_x_y, PyArrayObject *__pyx_v_other_cars_x_y, PyArrayObject *__pyx_v_other_cars_active, PyArrayObject *__pyx_v_score_day, CYTHON_UNUSED float __pyx_v_width, CYTHON_UNUSED float __pyx_v_height, CYTHON_UNUSED float __pyx_v_player_width, CYTHON_UNUSED float __pyx_v_player_height, CYTHON_UNUSED float __pyx_v_other_car_width, CYTHON_UNUSED float __pyx_v_other_car_height, CYTHON_UNUSED float __pyx_v_player_speed, CYTHON_UNUSED float __pyx_v_base_car_speed, CYTHON_UNUSED float __pyx_v_max_player_speed, CYTHON_UNUSED float __pyx_v_min_player_speed, CYTHON_UNUSED float __pyx_v_speed_increment, CYTHON_UNUSED unsigned int __pyx_v_max_score); /* proto */
+static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, PyArrayObject *__pyx_v_observations, PyArrayObject *__pyx_v_actions, PyArrayObject *__pyx_v_rewards, PyArrayObject *__pyx_v_terminals, PyArrayObject *__pyx_v_player_x_y, PyArrayObject *__pyx_v_other_cars_x_y, PyArrayObject *__pyx_v_other_cars_active, PyArrayObject *__pyx_v_score_day, float __pyx_v_width, float __pyx_v_height, float __pyx_v_player_width, float __pyx_v_player_height, float __pyx_v_other_car_width, float __pyx_v_other_car_height, float __pyx_v_player_speed, float __pyx_v_base_car_speed, float __pyx_v_max_player_speed, float __pyx_v_min_player_speed, float __pyx_v_speed_increment, int __pyx_v_max_score); /* proto */
 static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_2reset(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_4step(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_6render(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self); /* proto */
@@ -2827,8 +2819,8 @@ typedef struct {
   PyObject *__pyx_n_s_max_score;
   PyObject *__pyx_n_s_min_player_speed;
   PyObject *__pyx_n_s_name;
-  PyObject *__pyx_kp_s_numpy_core_multiarray_failed_to;
-  PyObject *__pyx_kp_s_numpy_core_umath_failed_to_impor;
+  PyObject *__pyx_kp_u_numpy_core_multiarray_failed_to;
+  PyObject *__pyx_kp_u_numpy_core_umath_failed_to_impor;
   PyObject *__pyx_n_s_observations;
   PyObject *__pyx_n_s_other_car_height;
   PyObject *__pyx_n_s_other_car_width;
@@ -2956,8 +2948,8 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_max_score);
   Py_CLEAR(clear_module_state->__pyx_n_s_min_player_speed);
   Py_CLEAR(clear_module_state->__pyx_n_s_name);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_numpy_core_multiarray_failed_to);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_numpy_core_umath_failed_to_impor);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_numpy_core_multiarray_failed_to);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_numpy_core_umath_failed_to_impor);
   Py_CLEAR(clear_module_state->__pyx_n_s_observations);
   Py_CLEAR(clear_module_state->__pyx_n_s_other_car_height);
   Py_CLEAR(clear_module_state->__pyx_n_s_other_car_width);
@@ -3063,8 +3055,8 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_max_score);
   Py_VISIT(traverse_module_state->__pyx_n_s_min_player_speed);
   Py_VISIT(traverse_module_state->__pyx_n_s_name);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_numpy_core_multiarray_failed_to);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_numpy_core_umath_failed_to_impor);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_numpy_core_multiarray_failed_to);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_numpy_core_umath_failed_to_impor);
   Py_VISIT(traverse_module_state->__pyx_n_s_observations);
   Py_VISIT(traverse_module_state->__pyx_n_s_other_car_height);
   Py_VISIT(traverse_module_state->__pyx_n_s_other_car_width);
@@ -3200,8 +3192,8 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_max_score __pyx_mstate_global->__pyx_n_s_max_score
 #define __pyx_n_s_min_player_speed __pyx_mstate_global->__pyx_n_s_min_player_speed
 #define __pyx_n_s_name __pyx_mstate_global->__pyx_n_s_name
-#define __pyx_kp_s_numpy_core_multiarray_failed_to __pyx_mstate_global->__pyx_kp_s_numpy_core_multiarray_failed_to
-#define __pyx_kp_s_numpy_core_umath_failed_to_impor __pyx_mstate_global->__pyx_kp_s_numpy_core_umath_failed_to_impor
+#define __pyx_kp_u_numpy_core_multiarray_failed_to __pyx_mstate_global->__pyx_kp_u_numpy_core_multiarray_failed_to
+#define __pyx_kp_u_numpy_core_umath_failed_to_impor __pyx_mstate_global->__pyx_kp_u_numpy_core_umath_failed_to_impor
 #define __pyx_n_s_observations __pyx_mstate_global->__pyx_n_s_observations
 #define __pyx_n_s_other_car_height __pyx_mstate_global->__pyx_n_s_other_car_height
 #define __pyx_n_s_other_car_width __pyx_mstate_global->__pyx_n_s_other_car_width
@@ -3243,7 +3235,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_codeobj__10 __pyx_mstate_global->__pyx_codeobj__10
 /* #### Code section: module_code ### */
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":245
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":245
  * 
  *         @property
  *         cdef inline PyObject* base(self) nogil:             # <<<<<<<<<<<<<<
@@ -3254,7 +3246,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 static CYTHON_INLINE PyObject *__pyx_f_5numpy_7ndarray_4base_base(PyArrayObject *__pyx_v_self) {
   PyObject *__pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":248
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":248
  *             """Returns a borrowed reference to the object owning the data/memory.
  *             """
  *             return PyArray_BASE(self)             # <<<<<<<<<<<<<<
@@ -3264,7 +3256,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_7ndarray_4base_base(PyArrayObject 
   __pyx_r = PyArray_BASE(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":245
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":245
  * 
  *         @property
  *         cdef inline PyObject* base(self) nogil:             # <<<<<<<<<<<<<<
@@ -3277,7 +3269,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_7ndarray_4base_base(PyArrayObject 
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":251
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":251
  * 
  *         @property
  *         cdef inline dtype descr(self):             # <<<<<<<<<<<<<<
@@ -3291,7 +3283,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
   PyArray_Descr *__pyx_t_1;
   __Pyx_RefNannySetupContext("descr", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":254
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":254
  *             """Returns an owned reference to the dtype of the array.
  *             """
  *             return <dtype>PyArray_DESCR(self)             # <<<<<<<<<<<<<<
@@ -3304,7 +3296,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
   __pyx_r = ((PyArray_Descr *)__pyx_t_1);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":251
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":251
  * 
  *         @property
  *         cdef inline dtype descr(self):             # <<<<<<<<<<<<<<
@@ -3319,7 +3311,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":257
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":257
  * 
  *         @property
  *         cdef inline int ndim(self) nogil:             # <<<<<<<<<<<<<<
@@ -3330,7 +3322,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
 static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx_v_self) {
   int __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":260
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":260
  *             """Returns the number of dimensions in the array.
  *             """
  *             return PyArray_NDIM(self)             # <<<<<<<<<<<<<<
@@ -3340,7 +3332,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx
   __pyx_r = PyArray_NDIM(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":257
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":257
  * 
  *         @property
  *         cdef inline int ndim(self) nogil:             # <<<<<<<<<<<<<<
@@ -3353,7 +3345,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":263
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":263
  * 
  *         @property
  *         cdef inline npy_intp *shape(self) nogil:             # <<<<<<<<<<<<<<
@@ -3364,7 +3356,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx
 static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObject *__pyx_v_self) {
   npy_intp *__pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":268
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":268
  *             Can return NULL for 0-dimensional arrays.
  *             """
  *             return PyArray_DIMS(self)             # <<<<<<<<<<<<<<
@@ -3374,7 +3366,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObjec
   __pyx_r = PyArray_DIMS(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":263
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":263
  * 
  *         @property
  *         cdef inline npy_intp *shape(self) nogil:             # <<<<<<<<<<<<<<
@@ -3387,7 +3379,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObjec
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":271
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":271
  * 
  *         @property
  *         cdef inline npy_intp *strides(self) nogil:             # <<<<<<<<<<<<<<
@@ -3398,7 +3390,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObjec
 static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayObject *__pyx_v_self) {
   npy_intp *__pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":275
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":275
  *             The number of elements matches the number of dimensions of the array (ndim).
  *             """
  *             return PyArray_STRIDES(self)             # <<<<<<<<<<<<<<
@@ -3408,7 +3400,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayO
   __pyx_r = PyArray_STRIDES(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":271
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":271
  * 
  *         @property
  *         cdef inline npy_intp *strides(self) nogil:             # <<<<<<<<<<<<<<
@@ -3421,7 +3413,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayO
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":278
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":278
  * 
  *         @property
  *         cdef inline npy_intp size(self) nogil:             # <<<<<<<<<<<<<<
@@ -3432,7 +3424,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayO
 static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *__pyx_v_self) {
   npy_intp __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":281
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":281
  *             """Returns the total size (in number of elements) of the array.
  *             """
  *             return PyArray_SIZE(self)             # <<<<<<<<<<<<<<
@@ -3442,7 +3434,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *
   __pyx_r = PyArray_SIZE(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":278
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":278
  * 
  *         @property
  *         cdef inline npy_intp size(self) nogil:             # <<<<<<<<<<<<<<
@@ -3455,7 +3447,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":284
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":284
  * 
  *         @property
  *         cdef inline char* data(self) nogil:             # <<<<<<<<<<<<<<
@@ -3466,7 +3458,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *
 static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__pyx_v_self) {
   char *__pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":290
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":290
  *             of `PyArray_DATA()` instead, which returns a 'void*'.
  *             """
  *             return PyArray_BYTES(self)             # <<<<<<<<<<<<<<
@@ -3476,7 +3468,7 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
   __pyx_r = PyArray_BYTES(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":284
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":284
  * 
  *         @property
  *         cdef inline char* data(self) nogil:             # <<<<<<<<<<<<<<
@@ -3489,7 +3481,7 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":776
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":776
  * ctypedef npy_cdouble     complex_t
  * 
  * cdef inline object PyArray_MultiIterNew1(a):             # <<<<<<<<<<<<<<
@@ -3506,7 +3498,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew1(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew1", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":777
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":777
  * 
  * cdef inline object PyArray_MultiIterNew1(a):
  *     return PyArray_MultiIterNew(1, <void*>a)             # <<<<<<<<<<<<<<
@@ -3520,7 +3512,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew1(PyObject *__
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":776
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":776
  * ctypedef npy_cdouble     complex_t
  * 
  * cdef inline object PyArray_MultiIterNew1(a):             # <<<<<<<<<<<<<<
@@ -3539,7 +3531,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew1(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":779
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":779
  *     return PyArray_MultiIterNew(1, <void*>a)
  * 
  * cdef inline object PyArray_MultiIterNew2(a, b):             # <<<<<<<<<<<<<<
@@ -3556,7 +3548,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew2(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew2", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":780
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":780
  * 
  * cdef inline object PyArray_MultiIterNew2(a, b):
  *     return PyArray_MultiIterNew(2, <void*>a, <void*>b)             # <<<<<<<<<<<<<<
@@ -3570,7 +3562,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew2(PyObject *__
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":779
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":779
  *     return PyArray_MultiIterNew(1, <void*>a)
  * 
  * cdef inline object PyArray_MultiIterNew2(a, b):             # <<<<<<<<<<<<<<
@@ -3589,7 +3581,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew2(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":782
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":782
  *     return PyArray_MultiIterNew(2, <void*>a, <void*>b)
  * 
  * cdef inline object PyArray_MultiIterNew3(a, b, c):             # <<<<<<<<<<<<<<
@@ -3606,7 +3598,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew3(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew3", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":783
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":783
  * 
  * cdef inline object PyArray_MultiIterNew3(a, b, c):
  *     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)             # <<<<<<<<<<<<<<
@@ -3620,7 +3612,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew3(PyObject *__
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":782
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":782
  *     return PyArray_MultiIterNew(2, <void*>a, <void*>b)
  * 
  * cdef inline object PyArray_MultiIterNew3(a, b, c):             # <<<<<<<<<<<<<<
@@ -3639,7 +3631,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew3(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":785
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":785
  *     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)
  * 
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):             # <<<<<<<<<<<<<<
@@ -3656,7 +3648,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew4(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew4", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":786
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":786
  * 
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):
  *     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)             # <<<<<<<<<<<<<<
@@ -3670,7 +3662,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew4(PyObject *__
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":785
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":785
  *     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)
  * 
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):             # <<<<<<<<<<<<<<
@@ -3689,7 +3681,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew4(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":788
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":788
  *     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)
  * 
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):             # <<<<<<<<<<<<<<
@@ -3706,7 +3698,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew5(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew5", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":789
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":789
  * 
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):
  *     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)             # <<<<<<<<<<<<<<
@@ -3720,7 +3712,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew5(PyObject *__
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":788
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":788
  *     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)
  * 
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):             # <<<<<<<<<<<<<<
@@ -3739,7 +3731,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew5(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":791
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":791
  *     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):             # <<<<<<<<<<<<<<
@@ -3753,7 +3745,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("PyDataType_SHAPE", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":792
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":792
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):
  *     if PyDataType_HASSUBARRAY(d):             # <<<<<<<<<<<<<<
@@ -3763,7 +3755,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
   __pyx_t_1 = PyDataType_HASSUBARRAY(__pyx_v_d);
   if (__pyx_t_1) {
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":793
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":793
  * cdef inline tuple PyDataType_SHAPE(dtype d):
  *     if PyDataType_HASSUBARRAY(d):
  *         return <tuple>d.subarray.shape             # <<<<<<<<<<<<<<
@@ -3775,7 +3767,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
     __pyx_r = ((PyObject*)__pyx_v_d->subarray->shape);
     goto __pyx_L0;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":792
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":792
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):
  *     if PyDataType_HASSUBARRAY(d):             # <<<<<<<<<<<<<<
@@ -3784,7 +3776,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
  */
   }
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":795
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":795
  *         return <tuple>d.subarray.shape
  *     else:
  *         return ()             # <<<<<<<<<<<<<<
@@ -3798,7 +3790,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
     goto __pyx_L0;
   }
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":791
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":791
  *     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):             # <<<<<<<<<<<<<<
@@ -3813,7 +3805,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":970
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":970
  *     int _import_umath() except -1
  * 
  * cdef inline void set_array_base(ndarray arr, object base):             # <<<<<<<<<<<<<<
@@ -3823,7 +3815,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
 
 static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_arr, PyObject *__pyx_v_base) {
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":971
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":971
  * 
  * cdef inline void set_array_base(ndarray arr, object base):
  *     Py_INCREF(base) # important to do this before stealing the reference below!             # <<<<<<<<<<<<<<
@@ -3832,7 +3824,7 @@ static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_a
  */
   Py_INCREF(__pyx_v_base);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":972
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":972
  * cdef inline void set_array_base(ndarray arr, object base):
  *     Py_INCREF(base) # important to do this before stealing the reference below!
  *     PyArray_SetBaseObject(arr, base)             # <<<<<<<<<<<<<<
@@ -3841,7 +3833,7 @@ static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_a
  */
   (void)(PyArray_SetBaseObject(__pyx_v_arr, __pyx_v_base));
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":970
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":970
  *     int _import_umath() except -1
  * 
  * cdef inline void set_array_base(ndarray arr, object base):             # <<<<<<<<<<<<<<
@@ -3852,7 +3844,7 @@ static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_a
   /* function exit code */
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":974
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":974
  *     PyArray_SetBaseObject(arr, base)
  * 
  * cdef inline object get_array_base(ndarray arr):             # <<<<<<<<<<<<<<
@@ -3867,7 +3859,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("get_array_base", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":975
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":975
  * 
  * cdef inline object get_array_base(ndarray arr):
  *     base = PyArray_BASE(arr)             # <<<<<<<<<<<<<<
@@ -3876,7 +3868,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
  */
   __pyx_v_base = PyArray_BASE(__pyx_v_arr);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":976
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":976
  * cdef inline object get_array_base(ndarray arr):
  *     base = PyArray_BASE(arr)
  *     if base is NULL:             # <<<<<<<<<<<<<<
@@ -3886,7 +3878,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   __pyx_t_1 = (__pyx_v_base == NULL);
   if (__pyx_t_1) {
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":977
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":977
  *     base = PyArray_BASE(arr)
  *     if base is NULL:
  *         return None             # <<<<<<<<<<<<<<
@@ -3897,7 +3889,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":976
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":976
  * cdef inline object get_array_base(ndarray arr):
  *     base = PyArray_BASE(arr)
  *     if base is NULL:             # <<<<<<<<<<<<<<
@@ -3906,7 +3898,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
  */
   }
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":978
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":978
  *     if base is NULL:
  *         return None
  *     return <object>base             # <<<<<<<<<<<<<<
@@ -3918,7 +3910,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   __pyx_r = ((PyObject *)__pyx_v_base);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":974
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":974
  *     PyArray_SetBaseObject(arr, base)
  * 
  * cdef inline object get_array_base(ndarray arr):             # <<<<<<<<<<<<<<
@@ -3933,7 +3925,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":982
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":982
  * # Versions of the import_* functions which are more suitable for
  * # Cython code.
  * cdef inline int import_array() except -1:             # <<<<<<<<<<<<<<
@@ -3957,7 +3949,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("import_array", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":983
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":983
  * # Cython code.
  * cdef inline int import_array() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -3973,7 +3965,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":984
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":984
  * cdef inline int import_array() except -1:
  *     try:
  *         __pyx_import_array()             # <<<<<<<<<<<<<<
@@ -3982,7 +3974,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
  */
       __pyx_t_4 = _import_array(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(1, 984, __pyx_L3_error)
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":983
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":983
  * # Cython code.
  * cdef inline int import_array() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -3996,7 +3988,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":985
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":985
  *     try:
  *         __pyx_import_array()
  *     except Exception:             # <<<<<<<<<<<<<<
@@ -4011,7 +4003,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
       __Pyx_XGOTREF(__pyx_t_6);
       __Pyx_XGOTREF(__pyx_t_7);
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":986
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":986
  *         __pyx_import_array()
  *     except Exception:
  *         raise ImportError("numpy.core.multiarray failed to import")             # <<<<<<<<<<<<<<
@@ -4026,7 +4018,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     }
     goto __pyx_L5_except_error;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":983
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":983
  * # Cython code.
  * cdef inline int import_array() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4042,7 +4034,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     __pyx_L8_try_end:;
   }
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":982
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":982
  * # Versions of the import_* functions which are more suitable for
  * # Cython code.
  * cdef inline int import_array() except -1:             # <<<<<<<<<<<<<<
@@ -4065,7 +4057,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":988
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":988
  *         raise ImportError("numpy.core.multiarray failed to import")
  * 
  * cdef inline int import_umath() except -1:             # <<<<<<<<<<<<<<
@@ -4089,7 +4081,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("import_umath", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":989
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":989
  * 
  * cdef inline int import_umath() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4105,7 +4097,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":990
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":990
  * cdef inline int import_umath() except -1:
  *     try:
  *         _import_umath()             # <<<<<<<<<<<<<<
@@ -4114,7 +4106,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
  */
       __pyx_t_4 = _import_umath(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(1, 990, __pyx_L3_error)
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":989
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":989
  * 
  * cdef inline int import_umath() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4128,7 +4120,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":991
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":991
  *     try:
  *         _import_umath()
  *     except Exception:             # <<<<<<<<<<<<<<
@@ -4143,7 +4135,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
       __Pyx_XGOTREF(__pyx_t_6);
       __Pyx_XGOTREF(__pyx_t_7);
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":992
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":992
  *         _import_umath()
  *     except Exception:
  *         raise ImportError("numpy.core.umath failed to import")             # <<<<<<<<<<<<<<
@@ -4158,7 +4150,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     }
     goto __pyx_L5_except_error;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":989
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":989
  * 
  * cdef inline int import_umath() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4174,7 +4166,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     __pyx_L8_try_end:;
   }
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":988
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":988
  *         raise ImportError("numpy.core.multiarray failed to import")
  * 
  * cdef inline int import_umath() except -1:             # <<<<<<<<<<<<<<
@@ -4197,7 +4189,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":994
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":994
  *         raise ImportError("numpy.core.umath failed to import")
  * 
  * cdef inline int import_ufunc() except -1:             # <<<<<<<<<<<<<<
@@ -4221,7 +4213,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("import_ufunc", 1);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":995
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":995
  * 
  * cdef inline int import_ufunc() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4237,7 +4229,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":996
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":996
  * cdef inline int import_ufunc() except -1:
  *     try:
  *         _import_umath()             # <<<<<<<<<<<<<<
@@ -4246,7 +4238,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
  */
       __pyx_t_4 = _import_umath(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(1, 996, __pyx_L3_error)
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":995
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":995
  * 
  * cdef inline int import_ufunc() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4260,7 +4252,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":997
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":997
  *     try:
  *         _import_umath()
  *     except Exception:             # <<<<<<<<<<<<<<
@@ -4275,7 +4267,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
       __Pyx_XGOTREF(__pyx_t_6);
       __Pyx_XGOTREF(__pyx_t_7);
 
-      /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":998
+      /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":998
  *         _import_umath()
  *     except Exception:
  *         raise ImportError("numpy.core.umath failed to import")             # <<<<<<<<<<<<<<
@@ -4290,7 +4282,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     }
     goto __pyx_L5_except_error;
 
-    /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":995
+    /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":995
  * 
  * cdef inline int import_ufunc() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -4306,7 +4298,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     __pyx_L8_try_end:;
   }
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":994
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":994
  *         raise ImportError("numpy.core.umath failed to import")
  * 
  * cdef inline int import_ufunc() except -1:             # <<<<<<<<<<<<<<
@@ -4329,7 +4321,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1001
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1001
  * 
  * 
  * cdef inline bint is_timedelta64_object(object obj):             # <<<<<<<<<<<<<<
@@ -4340,7 +4332,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
 static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_obj) {
   int __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1013
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1013
  *     bool
  *     """
  *     return PyObject_TypeCheck(obj, &PyTimedeltaArrType_Type)             # <<<<<<<<<<<<<<
@@ -4350,7 +4342,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_
   __pyx_r = PyObject_TypeCheck(__pyx_v_obj, (&PyTimedeltaArrType_Type));
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1001
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1001
  * 
  * 
  * cdef inline bint is_timedelta64_object(object obj):             # <<<<<<<<<<<<<<
@@ -4363,7 +4355,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1016
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1016
  * 
  * 
  * cdef inline bint is_datetime64_object(object obj):             # <<<<<<<<<<<<<<
@@ -4374,7 +4366,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_
 static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_obj) {
   int __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1028
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1028
  *     bool
  *     """
  *     return PyObject_TypeCheck(obj, &PyDatetimeArrType_Type)             # <<<<<<<<<<<<<<
@@ -4384,7 +4376,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_o
   __pyx_r = PyObject_TypeCheck(__pyx_v_obj, (&PyDatetimeArrType_Type));
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1016
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1016
  * 
  * 
  * cdef inline bint is_datetime64_object(object obj):             # <<<<<<<<<<<<<<
@@ -4397,7 +4389,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_o
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1031
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1031
  * 
  * 
  * cdef inline npy_datetime get_datetime64_value(object obj) nogil:             # <<<<<<<<<<<<<<
@@ -4408,7 +4400,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_o
 static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *__pyx_v_obj) {
   npy_datetime __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1038
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1038
  *     also needed.  That can be found using `get_datetime64_unit`.
  *     """
  *     return (<PyDatetimeScalarObject*>obj).obval             # <<<<<<<<<<<<<<
@@ -4418,7 +4410,7 @@ static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *
   __pyx_r = ((PyDatetimeScalarObject *)__pyx_v_obj)->obval;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1031
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1031
  * 
  * 
  * cdef inline npy_datetime get_datetime64_value(object obj) nogil:             # <<<<<<<<<<<<<<
@@ -4431,7 +4423,7 @@ static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1041
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1041
  * 
  * 
  * cdef inline npy_timedelta get_timedelta64_value(object obj) nogil:             # <<<<<<<<<<<<<<
@@ -4442,7 +4434,7 @@ static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *
 static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject *__pyx_v_obj) {
   npy_timedelta __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1045
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1045
  *     returns the int64 value underlying scalar numpy timedelta64 object
  *     """
  *     return (<PyTimedeltaScalarObject*>obj).obval             # <<<<<<<<<<<<<<
@@ -4452,7 +4444,7 @@ static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject
   __pyx_r = ((PyTimedeltaScalarObject *)__pyx_v_obj)->obval;
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1041
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1041
  * 
  * 
  * cdef inline npy_timedelta get_timedelta64_value(object obj) nogil:             # <<<<<<<<<<<<<<
@@ -4465,7 +4457,7 @@ static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject
   return __pyx_r;
 }
 
-/* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1048
+/* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1048
  * 
  * 
  * cdef inline NPY_DATETIMEUNIT get_datetime64_unit(object obj) nogil:             # <<<<<<<<<<<<<<
@@ -4476,7 +4468,7 @@ static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject
 static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObject *__pyx_v_obj) {
   NPY_DATETIMEUNIT __pyx_r;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1052
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1052
  *     returns the unit part of the dtype for a numpy datetime64 object.
  *     """
  *     return <NPY_DATETIMEUNIT>(<PyDatetimeScalarObject*>obj).obmeta.base             # <<<<<<<<<<<<<<
@@ -4484,7 +4476,7 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   __pyx_r = ((NPY_DATETIMEUNIT)((PyDatetimeScalarObject *)__pyx_v_obj)->obmeta.base);
   goto __pyx_L0;
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1048
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":1048
  * 
  * 
  * cdef inline NPY_DATETIMEUNIT get_datetime64_unit(object obj) nogil:             # <<<<<<<<<<<<<<
@@ -4497,12 +4489,12 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":29
- *     cdef Client* client
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":80
+ *         Client* client
  * 
  *     def __init__(self,             # <<<<<<<<<<<<<<
  *                  cnp.ndarray[cnp.float32_t, ndim=1] observations,
- *                  cnp.ndarray[cnp.uint32_t, ndim=1] actions,
+ *                  cnp.ndarray[cnp.uint8_t, ndim=1] actions,
  */
 
 /* Python wrapper */
@@ -4516,18 +4508,18 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
   PyArrayObject *__pyx_v_other_cars_x_y = 0;
   PyArrayObject *__pyx_v_other_cars_active = 0;
   PyArrayObject *__pyx_v_score_day = 0;
-  CYTHON_UNUSED float __pyx_v_width;
-  CYTHON_UNUSED float __pyx_v_height;
-  CYTHON_UNUSED float __pyx_v_player_width;
-  CYTHON_UNUSED float __pyx_v_player_height;
-  CYTHON_UNUSED float __pyx_v_other_car_width;
-  CYTHON_UNUSED float __pyx_v_other_car_height;
-  CYTHON_UNUSED float __pyx_v_player_speed;
-  CYTHON_UNUSED float __pyx_v_base_car_speed;
-  CYTHON_UNUSED float __pyx_v_max_player_speed;
-  CYTHON_UNUSED float __pyx_v_min_player_speed;
-  CYTHON_UNUSED float __pyx_v_speed_increment;
-  CYTHON_UNUSED unsigned int __pyx_v_max_score;
+  float __pyx_v_width;
+  float __pyx_v_height;
+  float __pyx_v_player_width;
+  float __pyx_v_player_height;
+  float __pyx_v_other_car_width;
+  float __pyx_v_other_car_height;
+  float __pyx_v_player_speed;
+  float __pyx_v_base_car_speed;
+  float __pyx_v_max_player_speed;
+  float __pyx_v_min_player_speed;
+  float __pyx_v_speed_increment;
+  int __pyx_v_max_score;
   CYTHON_UNUSED Py_ssize_t __pyx_nargs;
   CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
   PyObject* values[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -4598,7 +4590,7 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
@@ -4606,9 +4598,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[1]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 1); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 1); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
@@ -4616,9 +4608,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[2]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 2); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 2); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
@@ -4626,9 +4618,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[3]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 3); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 3); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
@@ -4636,9 +4628,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[4]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 4); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 4); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  5:
@@ -4646,9 +4638,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[5]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 5); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 5); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  6:
@@ -4656,9 +4648,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[6]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 6); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 6); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  7:
@@ -4666,9 +4658,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[7]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 7); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 7); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  8:
@@ -4676,9 +4668,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[8]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 8); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 8); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  9:
@@ -4686,9 +4678,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[9]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 9); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 9); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 10:
@@ -4696,9 +4688,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[10]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 10); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 10); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 11:
@@ -4706,9 +4698,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[11]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 11); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 11); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 12:
@@ -4716,9 +4708,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[12]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 12); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 12); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 13:
@@ -4726,9 +4718,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[13]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 13); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 13); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 14:
@@ -4736,9 +4728,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[14]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 14); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 14); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 15:
@@ -4746,9 +4738,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[15]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 15); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 15); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 16:
@@ -4756,9 +4748,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[16]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 16); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 16); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 17:
@@ -4766,9 +4758,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[17]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 17); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 17); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 18:
@@ -4776,9 +4768,9 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[18]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 18); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 18); __PYX_ERR(2, 80, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 19:
@@ -4786,14 +4778,14 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
           (void)__Pyx_Arg_NewRef_VARARGS(values[19]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 29, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 80, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 19); __PYX_ERR(2, 29, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, 19); __PYX_ERR(2, 80, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__init__") < 0)) __PYX_ERR(2, 29, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "__init__") < 0)) __PYX_ERR(2, 80, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 20)) {
       goto __pyx_L5_argtuple_error;
@@ -4827,22 +4819,22 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
     __pyx_v_other_cars_x_y = ((PyArrayObject *)values[5]);
     __pyx_v_other_cars_active = ((PyArrayObject *)values[6]);
     __pyx_v_score_day = ((PyArrayObject *)values[7]);
-    __pyx_v_width = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 38, __pyx_L3_error)
-    __pyx_v_height = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 38, __pyx_L3_error)
-    __pyx_v_player_width = __pyx_PyFloat_AsFloat(values[10]); if (unlikely((__pyx_v_player_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 38, __pyx_L3_error)
-    __pyx_v_player_height = __pyx_PyFloat_AsFloat(values[11]); if (unlikely((__pyx_v_player_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 39, __pyx_L3_error)
-    __pyx_v_other_car_width = __pyx_PyFloat_AsFloat(values[12]); if (unlikely((__pyx_v_other_car_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 39, __pyx_L3_error)
-    __pyx_v_other_car_height = __pyx_PyFloat_AsFloat(values[13]); if (unlikely((__pyx_v_other_car_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 39, __pyx_L3_error)
-    __pyx_v_player_speed = __pyx_PyFloat_AsFloat(values[14]); if (unlikely((__pyx_v_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 40, __pyx_L3_error)
-    __pyx_v_base_car_speed = __pyx_PyFloat_AsFloat(values[15]); if (unlikely((__pyx_v_base_car_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 40, __pyx_L3_error)
-    __pyx_v_max_player_speed = __pyx_PyFloat_AsFloat(values[16]); if (unlikely((__pyx_v_max_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 40, __pyx_L3_error)
-    __pyx_v_min_player_speed = __pyx_PyFloat_AsFloat(values[17]); if (unlikely((__pyx_v_min_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 41, __pyx_L3_error)
-    __pyx_v_speed_increment = __pyx_PyFloat_AsFloat(values[18]); if (unlikely((__pyx_v_speed_increment == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 41, __pyx_L3_error)
-    __pyx_v_max_score = __Pyx_PyInt_As_unsigned_int(values[19]); if (unlikely((__pyx_v_max_score == (unsigned int)-1) && PyErr_Occurred())) __PYX_ERR(2, 41, __pyx_L3_error)
+    __pyx_v_width = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 89, __pyx_L3_error)
+    __pyx_v_height = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 89, __pyx_L3_error)
+    __pyx_v_player_width = __pyx_PyFloat_AsFloat(values[10]); if (unlikely((__pyx_v_player_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 89, __pyx_L3_error)
+    __pyx_v_player_height = __pyx_PyFloat_AsFloat(values[11]); if (unlikely((__pyx_v_player_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 90, __pyx_L3_error)
+    __pyx_v_other_car_width = __pyx_PyFloat_AsFloat(values[12]); if (unlikely((__pyx_v_other_car_width == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 90, __pyx_L3_error)
+    __pyx_v_other_car_height = __pyx_PyFloat_AsFloat(values[13]); if (unlikely((__pyx_v_other_car_height == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 90, __pyx_L3_error)
+    __pyx_v_player_speed = __pyx_PyFloat_AsFloat(values[14]); if (unlikely((__pyx_v_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 91, __pyx_L3_error)
+    __pyx_v_base_car_speed = __pyx_PyFloat_AsFloat(values[15]); if (unlikely((__pyx_v_base_car_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 91, __pyx_L3_error)
+    __pyx_v_max_player_speed = __pyx_PyFloat_AsFloat(values[16]); if (unlikely((__pyx_v_max_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 91, __pyx_L3_error)
+    __pyx_v_min_player_speed = __pyx_PyFloat_AsFloat(values[17]); if (unlikely((__pyx_v_min_player_speed == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 92, __pyx_L3_error)
+    __pyx_v_speed_increment = __pyx_PyFloat_AsFloat(values[18]); if (unlikely((__pyx_v_speed_increment == (float)-1) && PyErr_Occurred())) __PYX_ERR(2, 92, __pyx_L3_error)
+    __pyx_v_max_score = __Pyx_PyInt_As_int(values[19]); if (unlikely((__pyx_v_max_score == (int)-1) && PyErr_Occurred())) __PYX_ERR(2, 92, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, __pyx_nargs); __PYX_ERR(2, 29, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__init__", 1, 20, 20, __pyx_nargs); __PYX_ERR(2, 80, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4856,14 +4848,14 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_observations), __pyx_ptype_5numpy_ndarray, 1, "observations", 0))) __PYX_ERR(2, 30, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_actions), __pyx_ptype_5numpy_ndarray, 1, "actions", 0))) __PYX_ERR(2, 31, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_rewards), __pyx_ptype_5numpy_ndarray, 1, "rewards", 0))) __PYX_ERR(2, 32, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_terminals), __pyx_ptype_5numpy_ndarray, 1, "terminals", 0))) __PYX_ERR(2, 33, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_player_x_y), __pyx_ptype_5numpy_ndarray, 1, "player_x_y", 0))) __PYX_ERR(2, 34, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other_cars_x_y), __pyx_ptype_5numpy_ndarray, 1, "other_cars_x_y", 0))) __PYX_ERR(2, 35, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other_cars_active), __pyx_ptype_5numpy_ndarray, 1, "other_cars_active", 0))) __PYX_ERR(2, 36, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_score_day), __pyx_ptype_5numpy_ndarray, 1, "score_day", 0))) __PYX_ERR(2, 37, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_observations), __pyx_ptype_5numpy_ndarray, 1, "observations", 0))) __PYX_ERR(2, 81, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_actions), __pyx_ptype_5numpy_ndarray, 1, "actions", 0))) __PYX_ERR(2, 82, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_rewards), __pyx_ptype_5numpy_ndarray, 1, "rewards", 0))) __PYX_ERR(2, 83, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_terminals), __pyx_ptype_5numpy_ndarray, 1, "terminals", 0))) __PYX_ERR(2, 84, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_player_x_y), __pyx_ptype_5numpy_ndarray, 1, "player_x_y", 0))) __PYX_ERR(2, 85, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other_cars_x_y), __pyx_ptype_5numpy_ndarray, 1, "other_cars_x_y", 0))) __PYX_ERR(2, 86, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other_cars_active), __pyx_ptype_5numpy_ndarray, 1, "other_cars_active", 0))) __PYX_ERR(2, 87, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_score_day), __pyx_ptype_5numpy_ndarray, 1, "score_day", 0))) __PYX_ERR(2, 88, __pyx_L1_error)
   __pyx_r = __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(((struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *)__pyx_v_self), __pyx_v_observations, __pyx_v_actions, __pyx_v_rewards, __pyx_v_terminals, __pyx_v_player_x_y, __pyx_v_other_cars_x_y, __pyx_v_other_cars_active, __pyx_v_score_day, __pyx_v_width, __pyx_v_height, __pyx_v_player_width, __pyx_v_player_height, __pyx_v_other_car_width, __pyx_v_other_car_height, __pyx_v_player_speed, __pyx_v_base_car_speed, __pyx_v_max_player_speed, __pyx_v_min_player_speed, __pyx_v_speed_increment, __pyx_v_max_score);
 
   /* function exit code */
@@ -4881,7 +4873,7 @@ static int __pyx_pw_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
   return __pyx_r;
 }
 
-static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, PyArrayObject *__pyx_v_observations, PyArrayObject *__pyx_v_actions, PyArrayObject *__pyx_v_rewards, PyArrayObject *__pyx_v_terminals, PyArrayObject *__pyx_v_player_x_y, PyArrayObject *__pyx_v_other_cars_x_y, PyArrayObject *__pyx_v_other_cars_active, PyArrayObject *__pyx_v_score_day, CYTHON_UNUSED float __pyx_v_width, CYTHON_UNUSED float __pyx_v_height, CYTHON_UNUSED float __pyx_v_player_width, CYTHON_UNUSED float __pyx_v_player_height, CYTHON_UNUSED float __pyx_v_other_car_width, CYTHON_UNUSED float __pyx_v_other_car_height, CYTHON_UNUSED float __pyx_v_player_speed, CYTHON_UNUSED float __pyx_v_base_car_speed, CYTHON_UNUSED float __pyx_v_max_player_speed, CYTHON_UNUSED float __pyx_v_min_player_speed, CYTHON_UNUSED float __pyx_v_speed_increment, CYTHON_UNUSED unsigned int __pyx_v_max_score) {
+static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro___init__(struct __pyx_obj_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro *__pyx_v_self, PyArrayObject *__pyx_v_observations, PyArrayObject *__pyx_v_actions, PyArrayObject *__pyx_v_rewards, PyArrayObject *__pyx_v_terminals, PyArrayObject *__pyx_v_player_x_y, PyArrayObject *__pyx_v_other_cars_x_y, PyArrayObject *__pyx_v_other_cars_active, PyArrayObject *__pyx_v_score_day, float __pyx_v_width, float __pyx_v_height, float __pyx_v_player_width, float __pyx_v_player_height, float __pyx_v_other_car_width, float __pyx_v_other_car_height, float __pyx_v_player_speed, float __pyx_v_base_car_speed, float __pyx_v_max_player_speed, float __pyx_v_min_player_speed, float __pyx_v_speed_increment, int __pyx_v_max_score) {
   __Pyx_LocalBuf_ND __pyx_pybuffernd_actions;
   __Pyx_Buffer __pyx_pybuffer_actions;
   __Pyx_LocalBuf_ND __pyx_pybuffernd_observations;
@@ -4938,47 +4930,47 @@ static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
   __pyx_pybuffernd_score_day.rcbuffer = &__pyx_pybuffer_score_day;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_observations.rcbuffer->pybuffer, (PyObject*)__pyx_v_observations, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_observations.rcbuffer->pybuffer, (PyObject*)__pyx_v_observations, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_observations.diminfo[0].strides = __pyx_pybuffernd_observations.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_observations.diminfo[0].shape = __pyx_pybuffernd_observations.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_actions.rcbuffer->pybuffer, (PyObject*)__pyx_v_actions, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_actions.rcbuffer->pybuffer, (PyObject*)__pyx_v_actions, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_actions.diminfo[0].strides = __pyx_pybuffernd_actions.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_actions.diminfo[0].shape = __pyx_pybuffernd_actions.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_rewards.rcbuffer->pybuffer, (PyObject*)__pyx_v_rewards, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_rewards.rcbuffer->pybuffer, (PyObject*)__pyx_v_rewards, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_rewards.diminfo[0].strides = __pyx_pybuffernd_rewards.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_rewards.diminfo[0].shape = __pyx_pybuffernd_rewards.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_terminals.rcbuffer->pybuffer, (PyObject*)__pyx_v_terminals, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_terminals.rcbuffer->pybuffer, (PyObject*)__pyx_v_terminals, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_terminals.diminfo[0].strides = __pyx_pybuffernd_terminals.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_terminals.diminfo[0].shape = __pyx_pybuffernd_terminals.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_player_x_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_player_x_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_player_x_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_player_x_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_player_x_y.diminfo[0].strides = __pyx_pybuffernd_player_x_y.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_player_x_y.diminfo[0].shape = __pyx_pybuffernd_player_x_y.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_other_cars_x_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_other_cars_x_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_other_cars_x_y.diminfo[0].strides = __pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_other_cars_x_y.diminfo[0].shape = __pyx_pybuffernd_other_cars_x_y.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer, (PyObject*)__pyx_v_other_cars_active, &__Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer, (PyObject*)__pyx_v_other_cars_active, &__Pyx_TypeInfo_nn___pyx_t_5numpy_int32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_other_cars_active.diminfo[0].strides = __pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_other_cars_active.diminfo[0].shape = __pyx_pybuffernd_other_cars_active.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_score_day.rcbuffer->pybuffer, (PyObject*)__pyx_v_score_day, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 29, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_score_day.rcbuffer->pybuffer, (PyObject*)__pyx_v_score_day, &__Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(2, 80, __pyx_L1_error)
   }
   __pyx_pybuffernd_score_day.diminfo[0].strides = __pyx_pybuffernd_score_day.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_score_day.diminfo[0].shape = __pyx_pybuffernd_score_day.rcbuffer->pybuffer.shape[0];
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":43
- *                  float min_player_speed, float speed_increment, unsigned int max_score):
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":94
+ *                  float min_player_speed, float speed_increment, int max_score):
  * 
  *         self.client = NULL             # <<<<<<<<<<<<<<
  *         self.env = CEnduro(
@@ -4986,111 +4978,219 @@ static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
  */
   __pyx_v_self->client = NULL;
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":45
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":96
  *         self.client = NULL
  *         self.env = CEnduro(
  *             observations=<float*>observations.data,             # <<<<<<<<<<<<<<
- *             actions=<unsigned int*>actions.data,
+ *             actions=<unsigned char*>actions.data,
  *             rewards=<float*>rewards.data,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_observations)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 45, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_observations)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 96, __pyx_L1_error)
   __pyx_t_1.observations = ((float *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":46
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":97
  *         self.env = CEnduro(
  *             observations=<float*>observations.data,
- *             actions=<unsigned int*>actions.data,             # <<<<<<<<<<<<<<
+ *             actions=<unsigned char*>actions.data,             # <<<<<<<<<<<<<<
  *             rewards=<float*>rewards.data,
  *             terminals=<unsigned char*>terminals.data,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_actions)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 46, __pyx_L1_error)
-  __pyx_t_1.actions = ((unsigned int *)__pyx_t_2);
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_actions)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 97, __pyx_L1_error)
+  __pyx_t_1.actions = ((unsigned char *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":47
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":98
  *             observations=<float*>observations.data,
- *             actions=<unsigned int*>actions.data,
+ *             actions=<unsigned char*>actions.data,
  *             rewards=<float*>rewards.data,             # <<<<<<<<<<<<<<
  *             terminals=<unsigned char*>terminals.data,
  *             player_x_y=<float*>player_x_y.data,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_rewards)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 47, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_rewards)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 98, __pyx_L1_error)
   __pyx_t_1.rewards = ((float *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":48
- *             actions=<unsigned int*>actions.data,
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":99
+ *             actions=<unsigned char*>actions.data,
  *             rewards=<float*>rewards.data,
  *             terminals=<unsigned char*>terminals.data,             # <<<<<<<<<<<<<<
  *             player_x_y=<float*>player_x_y.data,
  *             other_cars_x_y=<float*>other_cars_x_y.data,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_terminals)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 48, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_terminals)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 99, __pyx_L1_error)
   __pyx_t_1.terminals = ((unsigned char *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":49
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":100
  *             rewards=<float*>rewards.data,
  *             terminals=<unsigned char*>terminals.data,
  *             player_x_y=<float*>player_x_y.data,             # <<<<<<<<<<<<<<
  *             other_cars_x_y=<float*>other_cars_x_y.data,
  *             other_cars_active=<int*>other_cars_active.data,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_player_x_y)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 49, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_player_x_y)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 100, __pyx_L1_error)
   __pyx_t_1.player_x_y = ((float *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":50
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":101
  *             terminals=<unsigned char*>terminals.data,
  *             player_x_y=<float*>player_x_y.data,
  *             other_cars_x_y=<float*>other_cars_x_y.data,             # <<<<<<<<<<<<<<
  *             other_cars_active=<int*>other_cars_active.data,
  *             score_day=<unsigned int*>score_day.data,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_other_cars_x_y)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 50, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_other_cars_x_y)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 101, __pyx_L1_error)
   __pyx_t_1.other_cars_x_y = ((float *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":51
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":102
  *             player_x_y=<float*>player_x_y.data,
  *             other_cars_x_y=<float*>other_cars_x_y.data,
  *             other_cars_active=<int*>other_cars_active.data,             # <<<<<<<<<<<<<<
  *             score_day=<unsigned int*>score_day.data,
- *             frameskip=4
+ *             frameskip=4,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_other_cars_active)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 51, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_other_cars_active)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 102, __pyx_L1_error)
   __pyx_t_1.other_cars_active = ((int *)__pyx_t_2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":52
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":103
  *             other_cars_x_y=<float*>other_cars_x_y.data,
  *             other_cars_active=<int*>other_cars_active.data,
  *             score_day=<unsigned int*>score_day.data,             # <<<<<<<<<<<<<<
- *             frameskip=4
- *         )
+ *             frameskip=4,
+ *             width=width,
  */
-  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_score_day)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 52, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5numpy_7ndarray_4data_data(((PyArrayObject *)__pyx_v_score_day)); if (unlikely(__pyx_t_2 == ((char *)NULL) && PyErr_Occurred())) __PYX_ERR(2, 103, __pyx_L1_error)
   __pyx_t_1.score_day = ((unsigned int *)__pyx_t_2);
   __pyx_t_1.frameskip = 4;
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":44
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":105
+ *             score_day=<unsigned int*>score_day.data,
+ *             frameskip=4,
+ *             width=width,             # <<<<<<<<<<<<<<
+ *             height=height,
+ *             player_width=player_width,
+ */
+  __pyx_t_1.width = __pyx_v_width;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":106
+ *             frameskip=4,
+ *             width=width,
+ *             height=height,             # <<<<<<<<<<<<<<
+ *             player_width=player_width,
+ *             player_height=player_height,
+ */
+  __pyx_t_1.height = __pyx_v_height;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":107
+ *             width=width,
+ *             height=height,
+ *             player_width=player_width,             # <<<<<<<<<<<<<<
+ *             player_height=player_height,
+ *             other_car_width=other_car_width,
+ */
+  __pyx_t_1.player_width = __pyx_v_player_width;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":108
+ *             height=height,
+ *             player_width=player_width,
+ *             player_height=player_height,             # <<<<<<<<<<<<<<
+ *             other_car_width=other_car_width,
+ *             other_car_height=other_car_height,
+ */
+  __pyx_t_1.player_height = __pyx_v_player_height;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":109
+ *             player_width=player_width,
+ *             player_height=player_height,
+ *             other_car_width=other_car_width,             # <<<<<<<<<<<<<<
+ *             other_car_height=other_car_height,
+ *             player_speed=player_speed,
+ */
+  __pyx_t_1.other_car_width = __pyx_v_other_car_width;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":110
+ *             player_height=player_height,
+ *             other_car_width=other_car_width,
+ *             other_car_height=other_car_height,             # <<<<<<<<<<<<<<
+ *             player_speed=player_speed,
+ *             base_car_speed=base_car_speed,
+ */
+  __pyx_t_1.other_car_height = __pyx_v_other_car_height;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":111
+ *             other_car_width=other_car_width,
+ *             other_car_height=other_car_height,
+ *             player_speed=player_speed,             # <<<<<<<<<<<<<<
+ *             base_car_speed=base_car_speed,
+ *             max_player_speed=max_player_speed,
+ */
+  __pyx_t_1.player_speed = __pyx_v_player_speed;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":112
+ *             other_car_height=other_car_height,
+ *             player_speed=player_speed,
+ *             base_car_speed=base_car_speed,             # <<<<<<<<<<<<<<
+ *             max_player_speed=max_player_speed,
+ *             min_player_speed=min_player_speed,
+ */
+  __pyx_t_1.base_car_speed = __pyx_v_base_car_speed;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":113
+ *             player_speed=player_speed,
+ *             base_car_speed=base_car_speed,
+ *             max_player_speed=max_player_speed,             # <<<<<<<<<<<<<<
+ *             min_player_speed=min_player_speed,
+ *             speed_increment=speed_increment,
+ */
+  __pyx_t_1.max_player_speed = __pyx_v_max_player_speed;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":114
+ *             base_car_speed=base_car_speed,
+ *             max_player_speed=max_player_speed,
+ *             min_player_speed=min_player_speed,             # <<<<<<<<<<<<<<
+ *             speed_increment=speed_increment,
+ *             max_score=max_score
+ */
+  __pyx_t_1.min_player_speed = __pyx_v_min_player_speed;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":115
+ *             max_player_speed=max_player_speed,
+ *             min_player_speed=min_player_speed,
+ *             speed_increment=speed_increment,             # <<<<<<<<<<<<<<
+ *             max_score=max_score
+ *         )
+ */
+  __pyx_t_1.speed_increment = __pyx_v_speed_increment;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":116
+ *             min_player_speed=min_player_speed,
+ *             speed_increment=speed_increment,
+ *             max_score=max_score             # <<<<<<<<<<<<<<
+ *         )
+ *         init_env(&self.env)
+ */
+  __pyx_t_1.max_score = __pyx_v_max_score;
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":95
  * 
  *         self.client = NULL
  *         self.env = CEnduro(             # <<<<<<<<<<<<<<
  *             observations=<float*>observations.data,
- *             actions=<unsigned int*>actions.data,
+ *             actions=<unsigned char*>actions.data,
  */
   __pyx_v_self->env = __pyx_t_1;
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":55
- *             frameskip=4
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":118
+ *             max_score=max_score
  *         )
- *         init(&self.env)             # <<<<<<<<<<<<<<
+ *         init_env(&self.env)             # <<<<<<<<<<<<<<
  * 
  *     def reset(self):
  */
-  init((&__pyx_v_self->env));
+  init_env((&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":29
- *     cdef Client* client
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":80
+ *         Client* client
  * 
  *     def __init__(self,             # <<<<<<<<<<<<<<
  *                  cnp.ndarray[cnp.float32_t, ndim=1] observations,
- *                  cnp.ndarray[cnp.uint32_t, ndim=1] actions,
+ *                  cnp.ndarray[cnp.uint8_t, ndim=1] actions,
  */
 
   /* function exit code */
@@ -5126,11 +5226,11 @@ static int __pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEndur
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
- *         init(&self.env)
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":120
+ *         init_env(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
- *         reset(&self.env)
+ *         reset_env(&self.env)
  * 
  */
 
@@ -5180,20 +5280,20 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("reset", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":58
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":121
  * 
  *     def reset(self):
- *         reset(&self.env)             # <<<<<<<<<<<<<<
+ *         reset_env(&self.env)             # <<<<<<<<<<<<<<
  * 
  *     def step(self):
  */
-  reset((&__pyx_v_self->env));
+  reset_env((&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
- *         init(&self.env)
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":120
+ *         init_env(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
- *         reset(&self.env)
+ *         reset_env(&self.env)
  * 
  */
 
@@ -5204,8 +5304,8 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
- *         reset(&self.env)
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":123
+ *         reset_env(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
  *         step(&self.env)
@@ -5258,7 +5358,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("step", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":61
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":124
  * 
  *     def step(self):
  *         step(&self.env)             # <<<<<<<<<<<<<<
@@ -5267,8 +5367,8 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
   step((&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
- *         reset(&self.env)
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":123
+ *         reset_env(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
  *         step(&self.env)
@@ -5282,7 +5382,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":126
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
@@ -5337,7 +5437,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("render", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":64
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":127
  * 
  *     def render(self):
  *         if self.client == NULL:             # <<<<<<<<<<<<<<
@@ -5347,7 +5447,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   __pyx_t_1 = (__pyx_v_self->client == NULL);
   if (__pyx_t_1) {
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":65
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":128
  *     def render(self):
  *         if self.client == NULL:
  *             self.client = make_client(&self.env)             # <<<<<<<<<<<<<<
@@ -5356,7 +5456,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
     __pyx_v_self->client = make_client((&__pyx_v_self->env));
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":64
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":127
  * 
  *     def render(self):
  *         if self.client == NULL:             # <<<<<<<<<<<<<<
@@ -5365,7 +5465,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
   }
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":66
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":129
  *         if self.client == NULL:
  *             self.client = make_client(&self.env)
  *         render(self.client, &self.env)             # <<<<<<<<<<<<<<
@@ -5374,7 +5474,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
   render(__pyx_v_self->client, (&__pyx_v_self->env));
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":126
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
@@ -5389,7 +5489,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   return __pyx_r;
 }
 
-/* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
+/* "pufferlib/environments/ocean/racing/cy_racing.pyx":131
  *         render(self.client, &self.env)
  * 
  *     def close(self):             # <<<<<<<<<<<<<<
@@ -5444,7 +5544,7 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("close", 1);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":69
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":132
  * 
  *     def close(self):
  *         if self.client != NULL:             # <<<<<<<<<<<<<<
@@ -5454,22 +5554,24 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
   __pyx_t_1 = (__pyx_v_self->client != NULL);
   if (__pyx_t_1) {
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":70
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":133
  *     def close(self):
  *         if self.client != NULL:
  *             close_client(self.client)             # <<<<<<<<<<<<<<
  *             self.client = NULL
+ *         free_initialized(&self.env)
  */
     close_client(__pyx_v_self->client);
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":71
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":134
  *         if self.client != NULL:
  *             close_client(self.client)
  *             self.client = NULL             # <<<<<<<<<<<<<<
+ *         free_initialized(&self.env)
  */
     __pyx_v_self->client = NULL;
 
-    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":69
+    /* "pufferlib/environments/ocean/racing/cy_racing.pyx":132
  * 
  *     def close(self):
  *         if self.client != NULL:             # <<<<<<<<<<<<<<
@@ -5478,7 +5580,14 @@ static PyObject *__pyx_pf_9pufferlib_12environments_5ocean_6racing_9cy_racing_8C
  */
   }
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":135
+ *             close_client(self.client)
+ *             self.client = NULL
+ *         free_initialized(&self.env)             # <<<<<<<<<<<<<<
+ */
+  free_initialized((&__pyx_v_self->env));
+
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":131
  *         render(self.client, &self.env)
  * 
  *     def close(self):             # <<<<<<<<<<<<<<
@@ -5896,8 +6005,8 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_max_score, __pyx_k_max_score, sizeof(__pyx_k_max_score), 0, 0, 1, 1},
     {&__pyx_n_s_min_player_speed, __pyx_k_min_player_speed, sizeof(__pyx_k_min_player_speed), 0, 0, 1, 1},
     {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
-    {&__pyx_kp_s_numpy_core_multiarray_failed_to, __pyx_k_numpy_core_multiarray_failed_to, sizeof(__pyx_k_numpy_core_multiarray_failed_to), 0, 0, 1, 0},
-    {&__pyx_kp_s_numpy_core_umath_failed_to_impor, __pyx_k_numpy_core_umath_failed_to_impor, sizeof(__pyx_k_numpy_core_umath_failed_to_impor), 0, 0, 1, 0},
+    {&__pyx_kp_u_numpy_core_multiarray_failed_to, __pyx_k_numpy_core_multiarray_failed_to, sizeof(__pyx_k_numpy_core_multiarray_failed_to), 0, 1, 0, 0},
+    {&__pyx_kp_u_numpy_core_umath_failed_to_impor, __pyx_k_numpy_core_umath_failed_to_impor, sizeof(__pyx_k_numpy_core_umath_failed_to_impor), 0, 1, 0, 0},
     {&__pyx_n_s_observations, __pyx_k_observations, sizeof(__pyx_k_observations), 0, 0, 1, 1},
     {&__pyx_n_s_other_car_height, __pyx_k_other_car_height, sizeof(__pyx_k_other_car_height), 0, 0, 1, 1},
     {&__pyx_n_s_other_car_width, __pyx_k_other_car_width, sizeof(__pyx_k_other_car_width), 0, 0, 1, 1},
@@ -5945,66 +6054,66 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":986
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":986
  *         __pyx_import_array()
  *     except Exception:
  *         raise ImportError("numpy.core.multiarray failed to import")             # <<<<<<<<<<<<<<
  * 
  * cdef inline int import_umath() except -1:
  */
-  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_s_numpy_core_multiarray_failed_to); if (unlikely(!__pyx_tuple_)) __PYX_ERR(1, 986, __pyx_L1_error)
+  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_u_numpy_core_multiarray_failed_to); if (unlikely(!__pyx_tuple_)) __PYX_ERR(1, 986, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple_);
   __Pyx_GIVEREF(__pyx_tuple_);
 
-  /* "../../../root/.local/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":992
+  /* "../../../root/.pyenv/versions/ocean_cython/lib/python3.11/site-packages/numpy/__init__.cython-30.pxd":992
  *         _import_umath()
  *     except Exception:
  *         raise ImportError("numpy.core.umath failed to import")             # <<<<<<<<<<<<<<
  * 
  * cdef inline int import_ufunc() except -1:
  */
-  __pyx_tuple__2 = PyTuple_Pack(1, __pyx_kp_s_numpy_core_umath_failed_to_impor); if (unlikely(!__pyx_tuple__2)) __PYX_ERR(1, 992, __pyx_L1_error)
+  __pyx_tuple__2 = PyTuple_Pack(1, __pyx_kp_u_numpy_core_umath_failed_to_impor); if (unlikely(!__pyx_tuple__2)) __PYX_ERR(1, 992, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
- *         init(&self.env)
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":120
+ *         init_env(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
- *         reset(&self.env)
+ *         reset_env(&self.env)
  * 
  */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(2, 57, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(2, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
-  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_reset, 57, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(2, 57, __pyx_L1_error)
+  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_reset, 120, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(2, 120, __pyx_L1_error)
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
- *         reset(&self.env)
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":123
+ *         reset_env(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
  *         step(&self.env)
  * 
  */
-  __pyx_codeobj__5 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_step, 60, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__5)) __PYX_ERR(2, 60, __pyx_L1_error)
+  __pyx_codeobj__5 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_step, 123, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__5)) __PYX_ERR(2, 123, __pyx_L1_error)
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":126
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
  *         if self.client == NULL:
  *             self.client = make_client(&self.env)
  */
-  __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_render, 63, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(2, 63, __pyx_L1_error)
+  __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_render, 126, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(2, 126, __pyx_L1_error)
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":131
  *         render(self.client, &self.env)
  * 
  *     def close(self):             # <<<<<<<<<<<<<<
  *         if self.client != NULL:
  *             close_client(self.client)
  */
-  __pyx_codeobj__7 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_close, 68, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__7)) __PYX_ERR(2, 68, __pyx_L1_error)
+  __pyx_codeobj__7 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pufferlib_environments_ocean_rac, __pyx_n_s_close, 131, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__7)) __PYX_ERR(2, 131, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
@@ -6105,15 +6214,15 @@ static int __Pyx_modinit_type_init_code(void) {
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_init_code", 0);
   /*--- Type init code ---*/
   #if CYTHON_USE_TYPE_SPECS
-  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec, NULL); if (unlikely(!__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro)) __PYX_ERR(2, 25, __pyx_L1_error)
-  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec, __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec, NULL); if (unlikely(!__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro)) __PYX_ERR(2, 75, __pyx_L1_error)
+  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro_spec, __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 75, __pyx_L1_error)
   #else
   __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro = &__pyx_type_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   #endif
   #if !CYTHON_USE_TYPE_SPECS
-  if (__Pyx_PyType_Ready(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (__Pyx_PyType_Ready(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 75, __pyx_L1_error)
   #endif
   #if PY_MAJOR_VERSION < 3
   __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro->tp_print = 0;
@@ -6123,9 +6232,9 @@ static int __Pyx_modinit_type_init_code(void) {
     __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro->tp_getattro = __Pyx_PyObject_GenericGetAttr;
   }
   #endif
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CyEnduro, (PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CyEnduro, (PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 75, __pyx_L1_error)
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if (__Pyx_setup_reduce((PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 25, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject *) __pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro) < 0) __PYX_ERR(2, 75, __pyx_L1_error)
   #endif
   __Pyx_RefNannyFinishContext();
   return 0;
@@ -6474,55 +6583,55 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
   #endif
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":57
- *         init(&self.env)
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":120
+ *         init_env(&self.env)
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
- *         reset(&self.env)
+ *         reset_env(&self.env)
  * 
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_reset, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 57, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_3reset, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_reset, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_reset, __pyx_t_2) < 0) __PYX_ERR(2, 57, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_reset, __pyx_t_2) < 0) __PYX_ERR(2, 120, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":60
- *         reset(&self.env)
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":123
+ *         reset_env(&self.env)
  * 
  *     def step(self):             # <<<<<<<<<<<<<<
  *         step(&self.env)
  * 
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_step, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__5)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 60, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_5step, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_step, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__5)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 123, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_step, __pyx_t_2) < 0) __PYX_ERR(2, 60, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_step, __pyx_t_2) < 0) __PYX_ERR(2, 123, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":63
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":126
  *         step(&self.env)
  * 
  *     def render(self):             # <<<<<<<<<<<<<<
  *         if self.client == NULL:
  *             self.client = make_client(&self.env)
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_render, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__6)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 63, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_7render, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_render, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__6)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 126, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_render, __pyx_t_2) < 0) __PYX_ERR(2, 63, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_render, __pyx_t_2) < 0) __PYX_ERR(2, 126, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
-  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":68
+  /* "pufferlib/environments/ocean/racing/cy_racing.pyx":131
  *         render(self.client, &self.env)
  * 
  *     def close(self):             # <<<<<<<<<<<<<<
  *         if self.client != NULL:
  *             close_client(self.client)
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_close, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__7)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 68, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_9pufferlib_12environments_5ocean_6racing_9cy_racing_8CyEnduro_9close, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CyEnduro_close, NULL, __pyx_n_s_pufferlib_environments_ocean_rac_2, __pyx_d, ((PyObject *)__pyx_codeobj__7)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 131, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_close, __pyx_t_2) < 0) __PYX_ERR(2, 68, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro, __pyx_n_s_close, __pyx_t_2) < 0) __PYX_ERR(2, 131, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_9pufferlib_12environments_5ocean_6racing_9cy_racing_CyEnduro);
 
@@ -6548,9 +6657,9 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "pufferlib/environments/ocean/racing/cy_racing.pyx":1
- * # cy_racing.pyx             # <<<<<<<<<<<<<<
- * cimport numpy as cnp
+ * cimport numpy as cnp             # <<<<<<<<<<<<<<
  * from libc.stdlib cimport free
+ * 
  */
   __pyx_t_2 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
@@ -10954,34 +11063,34 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
 #endif
 
 /* CIntFromPy */
-  static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *x) {
+  static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #endif
-    const unsigned int neg_one = (unsigned int) -1, const_zero = (unsigned int) 0;
+    const int neg_one = (int) -1, const_zero = (int) 0;
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic pop
 #endif
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
-        if ((sizeof(unsigned int) < sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT(unsigned int, long, PyInt_AS_LONG(x))
+        if ((sizeof(int) < sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT(int, long, PyInt_AS_LONG(x))
         } else {
             long val = PyInt_AS_LONG(x);
             if (is_unsigned && unlikely(val < 0)) {
                 goto raise_neg_overflow;
             }
-            return (unsigned int) val;
+            return (int) val;
         }
     }
 #endif
     if (unlikely(!PyLong_Check(x))) {
-        unsigned int val;
+        int val;
         PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
-        if (!tmp) return (unsigned int) -1;
-        val = __Pyx_PyInt_As_unsigned_int(tmp);
+        if (!tmp) return (int) -1;
+        val = __Pyx_PyInt_As_int(tmp);
         Py_DECREF(tmp);
         return val;
     }
@@ -10990,35 +11099,35 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         if (unlikely(__Pyx_PyLong_IsNeg(x))) {
             goto raise_neg_overflow;
         } else if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
+            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
         } else {
             const digit* digits = __Pyx_PyLong_Digits(x);
             assert(__Pyx_PyLong_DigitCount(x) > 1);
             switch (__Pyx_PyLong_DigitCount(x)) {
                 case 2:
-                    if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) >= 2 * PyLong_SHIFT)) {
-                            return (unsigned int) (((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) >= 2 * PyLong_SHIFT)) {
+                            return (int) (((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
                         }
                     }
                     break;
                 case 3:
-                    if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) >= 3 * PyLong_SHIFT)) {
-                            return (unsigned int) (((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) >= 3 * PyLong_SHIFT)) {
+                            return (int) (((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
                         }
                     }
                     break;
                 case 4:
-                    if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) >= 4 * PyLong_SHIFT)) {
-                            return (unsigned int) (((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) >= 4 * PyLong_SHIFT)) {
+                            return (int) (((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
                         }
                     }
                     break;
@@ -11033,93 +11142,93 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         {
             int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
             if (unlikely(result < 0))
-                return (unsigned int) -1;
+                return (int) -1;
             if (unlikely(result == 1))
                 goto raise_neg_overflow;
         }
 #endif
-        if ((sizeof(unsigned int) <= sizeof(unsigned long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned long, PyLong_AsUnsignedLong(x))
+        if ((sizeof(int) <= sizeof(unsigned long))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned long, PyLong_AsUnsignedLong(x))
 #ifdef HAVE_LONG_LONG
-        } else if ((sizeof(unsigned int) <= sizeof(unsigned PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+        } else if ((sizeof(int) <= sizeof(unsigned PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
 #endif
         }
     } else {
 #if CYTHON_USE_PYLONG_INTERNALS
         if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
         } else {
             const digit* digits = __Pyx_PyLong_Digits(x);
             assert(__Pyx_PyLong_DigitCount(x) > 1);
             switch (__Pyx_PyLong_SignedDigitCount(x)) {
                 case -2:
-                    if ((8 * sizeof(unsigned int) - 1 > 1 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) - 1 > 1 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
-                            return (unsigned int) (((unsigned int)-1)*(((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
+                            return (int) (((int)-1)*(((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
                         }
                     }
                     break;
                 case 2:
-                    if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
-                            return (unsigned int) ((((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
+                            return (int) ((((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
                         }
                     }
                     break;
                 case -3:
-                    if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
-                            return (unsigned int) (((unsigned int)-1)*(((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
+                            return (int) (((int)-1)*(((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
                         }
                     }
                     break;
                 case 3:
-                    if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
-                            return (unsigned int) ((((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
+                            return (int) ((((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
                         }
                     }
                     break;
                 case -4:
-                    if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
-                            return (unsigned int) (((unsigned int)-1)*(((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
+                            return (int) (((int)-1)*(((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
                         }
                     }
                     break;
                 case 4:
-                    if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
+                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
                         if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
-                            return (unsigned int) ((((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
+                            return (int) ((((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
                         }
                     }
                     break;
             }
         }
 #endif
-        if ((sizeof(unsigned int) <= sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, long, PyLong_AsLong(x))
+        if ((sizeof(int) <= sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, long, PyLong_AsLong(x))
 #ifdef HAVE_LONG_LONG
-        } else if ((sizeof(unsigned int) <= sizeof(PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(unsigned int, PY_LONG_LONG, PyLong_AsLongLong(x))
+        } else if ((sizeof(int) <= sizeof(PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC(int, PY_LONG_LONG, PyLong_AsLongLong(x))
 #endif
         }
     }
     {
-        unsigned int val;
+        int val;
         int ret = -1;
 #if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
         Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
@@ -11145,14 +11254,14 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
             v = __Pyx_NewRef(x);
         } else {
             v = PyNumber_Long(x);
-            if (unlikely(!v)) return (unsigned int) -1;
+            if (unlikely(!v)) return (int) -1;
             assert(PyLong_CheckExact(v));
         }
         {
             int result = PyObject_RichCompareBool(v, Py_False, Py_LT);
             if (unlikely(result < 0)) {
                 Py_DECREF(v);
-                return (unsigned int) -1;
+                return (int) -1;
             }
             is_negative = result == 1;
         }
@@ -11163,15 +11272,15 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
             stepval = PyNumber_Invert(v);
             Py_DECREF(v);
             if (unlikely(!stepval))
-                return (unsigned int) -1;
+                return (int) -1;
         } else {
             stepval = v;
         }
         v = NULL;
-        val = (unsigned int) 0;
+        val = (int) 0;
         mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
         shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
-        for (bits = 0; bits < (int) sizeof(unsigned int) * 8 - chunk_size; bits += chunk_size) {
+        for (bits = 0; bits < (int) sizeof(int) * 8 - chunk_size; bits += chunk_size) {
             PyObject *tmp, *digit;
             long idigit;
             digit = PyNumber_And(stepval, mask);
@@ -11179,7 +11288,7 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
             idigit = PyLong_AsLong(digit);
             Py_DECREF(digit);
             if (unlikely(idigit < 0)) goto done;
-            val |= ((unsigned int) idigit) << bits;
+            val |= ((int) idigit) << bits;
             tmp = PyNumber_Rshift(stepval, shift);
             if (unlikely(!tmp)) goto done;
             Py_DECREF(stepval); stepval = tmp;
@@ -11189,13 +11298,13 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         {
             long idigit = PyLong_AsLong(stepval);
             if (unlikely(idigit < 0)) goto done;
-            remaining_bits = ((int) sizeof(unsigned int) * 8) - bits - (is_unsigned ? 0 : 1);
+            remaining_bits = ((int) sizeof(int) * 8) - bits - (is_unsigned ? 0 : 1);
             if (unlikely(idigit >= (1L << remaining_bits)))
                 goto raise_overflow;
-            val |= ((unsigned int) idigit) << bits;
+            val |= ((int) idigit) << bits;
         }
         if (!is_unsigned) {
-            if (unlikely(val & (((unsigned int) 1) << (sizeof(unsigned int) * 8 - 1))))
+            if (unlikely(val & (((int) 1) << (sizeof(int) * 8 - 1))))
                 goto raise_overflow;
             if (is_negative)
                 val = ~val;
@@ -11207,17 +11316,88 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         Py_XDECREF(stepval);
 #endif
         if (unlikely(ret))
-            return (unsigned int) -1;
+            return (int) -1;
         return val;
     }
 raise_overflow:
     PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to unsigned int");
-    return (unsigned int) -1;
+        "value too large to convert to int");
+    return (int) -1;
 raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to unsigned int");
-    return (unsigned int) -1;
+        "can't convert negative value to int");
+    return (int) -1;
+}
+
+/* CIntToPy */
+  static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const int neg_one = (int) -1, const_zero = (int) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+    if (is_unsigned) {
+        if (sizeof(int) < sizeof(long)) {
+            return PyInt_FromLong((long) value);
+        } else if (sizeof(int) <= sizeof(unsigned long)) {
+            return PyLong_FromUnsignedLong((unsigned long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(int) <= sizeof(unsigned PY_LONG_LONG)) {
+            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
+#endif
+        }
+    } else {
+        if (sizeof(int) <= sizeof(long)) {
+            return PyInt_FromLong((long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(int) <= sizeof(PY_LONG_LONG)) {
+            return PyLong_FromLongLong((PY_LONG_LONG) value);
+#endif
+        }
+    }
+    {
+        unsigned char *bytes = (unsigned char *)&value;
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
+        if (is_unsigned) {
+            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
+        } else {
+            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
+        }
+#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        return _PyLong_FromByteArray(bytes, sizeof(int),
+                                     little, !is_unsigned);
+#else
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        PyObject *from_bytes, *result = NULL;
+        PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
+        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
+        if (!from_bytes) return NULL;
+        py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(int));
+        if (!py_bytes) goto limited_bad;
+        order_str = PyUnicode_FromString(little ? "little" : "big");
+        if (!order_str) goto limited_bad;
+        arg_tuple = PyTuple_Pack(2, py_bytes, order_str);
+        if (!arg_tuple) goto limited_bad;
+        if (!is_unsigned) {
+            kwds = PyDict_New();
+            if (!kwds) goto limited_bad;
+            if (PyDict_SetItemString(kwds, "signed", __Pyx_NewRef(Py_True))) goto limited_bad;
+        }
+        result = PyObject_Call(from_bytes, arg_tuple, kwds);
+        limited_bad:
+        Py_XDECREF(kwds);
+        Py_XDECREF(arg_tuple);
+        Py_XDECREF(order_str);
+        Py_XDECREF(py_bytes);
+        Py_XDECREF(from_bytes);
+        return result;
+#endif
+    }
 }
 
 /* FormatTypeName */
@@ -11572,273 +11752,6 @@ raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "can't convert negative value to long");
     return (long) -1;
-}
-
-/* CIntFromPy */
-  static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const int neg_one = (int) -1, const_zero = (int) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-#if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check(x))) {
-        if ((sizeof(int) < sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT(int, long, PyInt_AS_LONG(x))
-        } else {
-            long val = PyInt_AS_LONG(x);
-            if (is_unsigned && unlikely(val < 0)) {
-                goto raise_neg_overflow;
-            }
-            return (int) val;
-        }
-    }
-#endif
-    if (unlikely(!PyLong_Check(x))) {
-        int val;
-        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
-        if (!tmp) return (int) -1;
-        val = __Pyx_PyInt_As_int(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-    if (is_unsigned) {
-#if CYTHON_USE_PYLONG_INTERNALS
-        if (unlikely(__Pyx_PyLong_IsNeg(x))) {
-            goto raise_neg_overflow;
-        } else if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
-        } else {
-            const digit* digits = __Pyx_PyLong_Digits(x);
-            assert(__Pyx_PyLong_DigitCount(x) > 1);
-            switch (__Pyx_PyLong_DigitCount(x)) {
-                case 2:
-                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) >= 2 * PyLong_SHIFT)) {
-                            return (int) (((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
-                        }
-                    }
-                    break;
-                case 3:
-                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) >= 3 * PyLong_SHIFT)) {
-                            return (int) (((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
-                        }
-                    }
-                    break;
-                case 4:
-                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) >= 4 * PyLong_SHIFT)) {
-                            return (int) (((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0]));
-                        }
-                    }
-                    break;
-            }
-        }
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
-        if (unlikely(Py_SIZE(x) < 0)) {
-            goto raise_neg_overflow;
-        }
-#else
-        {
-            int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-            if (unlikely(result < 0))
-                return (int) -1;
-            if (unlikely(result == 1))
-                goto raise_neg_overflow;
-        }
-#endif
-        if ((sizeof(int) <= sizeof(unsigned long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
-        } else if ((sizeof(int) <= sizeof(unsigned PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
-        }
-    } else {
-#if CYTHON_USE_PYLONG_INTERNALS
-        if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
-        } else {
-            const digit* digits = __Pyx_PyLong_Digits(x);
-            assert(__Pyx_PyLong_DigitCount(x) > 1);
-            switch (__Pyx_PyLong_SignedDigitCount(x)) {
-                case -2:
-                    if ((8 * sizeof(int) - 1 > 1 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
-                            return (int) (((int)-1)*(((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
-                        }
-                    }
-                    break;
-                case 2:
-                    if ((8 * sizeof(int) > 1 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
-                            return (int) ((((((int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
-                        }
-                    }
-                    break;
-                case -3:
-                    if ((8 * sizeof(int) - 1 > 2 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
-                            return (int) (((int)-1)*(((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
-                        }
-                    }
-                    break;
-                case 3:
-                    if ((8 * sizeof(int) > 2 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
-                            return (int) ((((((((int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
-                        }
-                    }
-                    break;
-                case -4:
-                    if ((8 * sizeof(int) - 1 > 3 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
-                            return (int) (((int)-1)*(((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
-                        }
-                    }
-                    break;
-                case 4:
-                    if ((8 * sizeof(int) > 3 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(int) - 1 > 4 * PyLong_SHIFT)) {
-                            return (int) ((((((((((int)digits[3]) << PyLong_SHIFT) | (int)digits[2]) << PyLong_SHIFT) | (int)digits[1]) << PyLong_SHIFT) | (int)digits[0])));
-                        }
-                    }
-                    break;
-            }
-        }
-#endif
-        if ((sizeof(int) <= sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
-        } else if ((sizeof(int) <= sizeof(PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(int, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
-        }
-    }
-    {
-        int val;
-        int ret = -1;
-#if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
-        Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
-            x, &val, sizeof(val), Py_ASNATIVEBYTES_NATIVE_ENDIAN | (is_unsigned ? Py_ASNATIVEBYTES_UNSIGNED_BUFFER | Py_ASNATIVEBYTES_REJECT_NEGATIVE : 0));
-        if (unlikely(bytes_copied == -1)) {
-        } else if (unlikely(bytes_copied > (Py_ssize_t) sizeof(val))) {
-            goto raise_overflow;
-        } else {
-            ret = 0;
-        }
-#elif PY_VERSION_HEX < 0x030d0000 && !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
-        int one = 1; int is_little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&val;
-        ret = _PyLong_AsByteArray((PyLongObject *)x,
-                                    bytes, sizeof(val),
-                                    is_little, !is_unsigned);
-#else
-        PyObject *v;
-        PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
-        int bits, remaining_bits, is_negative = 0;
-        int chunk_size = (sizeof(long) < 8) ? 30 : 62;
-        if (likely(PyLong_CheckExact(x))) {
-            v = __Pyx_NewRef(x);
-        } else {
-            v = PyNumber_Long(x);
-            if (unlikely(!v)) return (int) -1;
-            assert(PyLong_CheckExact(v));
-        }
-        {
-            int result = PyObject_RichCompareBool(v, Py_False, Py_LT);
-            if (unlikely(result < 0)) {
-                Py_DECREF(v);
-                return (int) -1;
-            }
-            is_negative = result == 1;
-        }
-        if (is_unsigned && unlikely(is_negative)) {
-            Py_DECREF(v);
-            goto raise_neg_overflow;
-        } else if (is_negative) {
-            stepval = PyNumber_Invert(v);
-            Py_DECREF(v);
-            if (unlikely(!stepval))
-                return (int) -1;
-        } else {
-            stepval = v;
-        }
-        v = NULL;
-        val = (int) 0;
-        mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
-        shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
-        for (bits = 0; bits < (int) sizeof(int) * 8 - chunk_size; bits += chunk_size) {
-            PyObject *tmp, *digit;
-            long idigit;
-            digit = PyNumber_And(stepval, mask);
-            if (unlikely(!digit)) goto done;
-            idigit = PyLong_AsLong(digit);
-            Py_DECREF(digit);
-            if (unlikely(idigit < 0)) goto done;
-            val |= ((int) idigit) << bits;
-            tmp = PyNumber_Rshift(stepval, shift);
-            if (unlikely(!tmp)) goto done;
-            Py_DECREF(stepval); stepval = tmp;
-        }
-        Py_DECREF(shift); shift = NULL;
-        Py_DECREF(mask); mask = NULL;
-        {
-            long idigit = PyLong_AsLong(stepval);
-            if (unlikely(idigit < 0)) goto done;
-            remaining_bits = ((int) sizeof(int) * 8) - bits - (is_unsigned ? 0 : 1);
-            if (unlikely(idigit >= (1L << remaining_bits)))
-                goto raise_overflow;
-            val |= ((int) idigit) << bits;
-        }
-        if (!is_unsigned) {
-            if (unlikely(val & (((int) 1) << (sizeof(int) * 8 - 1))))
-                goto raise_overflow;
-            if (is_negative)
-                val = ~val;
-        }
-        ret = 0;
-    done:
-        Py_XDECREF(shift);
-        Py_XDECREF(mask);
-        Py_XDECREF(stepval);
-#endif
-        if (unlikely(ret))
-            return (int) -1;
-        return val;
-    }
-raise_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to int");
-    return (int) -1;
-raise_neg_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to int");
-    return (int) -1;
 }
 
 /* FastTypeChecks */

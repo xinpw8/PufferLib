@@ -1,9 +1,4 @@
-'''High-perf Pong
-
-Inspired from https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1
-& https://jair.org/index.php/jair/article/view/10819/25823
-& https://www.youtube.com/watch?v=PSQt5KGv7Vk
-'''
+# breakout.py
 
 import numpy as np
 import gymnasium
