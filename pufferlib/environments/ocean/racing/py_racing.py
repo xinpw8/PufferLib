@@ -1,6 +1,8 @@
 # py_racing.py
 import numpy as np
 import gymnasium
+
+import pufferlib.environment
 from .cy_racing_cy import CRacingCy
 import pufferlib 
 import pettingzoo
@@ -52,66 +54,53 @@ PASS_THRESHOLD = ACTION_SCREEN_HEIGHT  # Distance for passed cars to disappear
 
 
 
-class RacingCyEnv():
+class RacingCyEnv(pufferlib.environment.PufferEnv):
     def __init__(self):
         super().__init__()
+        self.num_agents = 1
         self.c_env = CRacingCy()
-        # Fixed observation space for 15 cars
+        self.step_count = 0
         self.observation_space = gymnasium.spaces.Box(
             low=-1, high=MAX_Y_POSITION, shape=(37,), dtype=np.float32
         )
         self.action_space = gymnasium.spaces.Discrete(5)  # NOOP, ACCEL, DECEL, LEFT, RIGHT
-
+        
+        self.emulated = None
+        self.single_observation_space = self.observation_space
+        self.single_action_space = self.action_space
+        self.done = 0
         self.render_mode = 'human'
         self.client = None
-        self.emulated = None
-        self.possible_agents = list(range(1))
 
     def reset(self, seed=None, **kwargs):
         if seed is not None:
             np.random.seed(seed)
-
+            
+        self.step_count = 0
         self.c_env.reset()
-        return self._check_observation(self.c_env.get_state()), {}
+        return self.c_env.get_state(), {}
 
     def step(self, action):
-        
-        # print(f"Step called with action: {action}")
-        
         state, reward, done, truncated, info = self.c_env.step(action)
-        
-        # print(f"State: {state}, Reward: {reward}, Done: {done}, Truncated: {truncated}, Info: {info}")
-        
-        return self._check_observation(state), reward, done, truncated, info
+        return state, reward, done, truncated, info
 
+    # Rename this method from render_step to render
     def render(self):
         if self.client is None:
             self.client = RaylibClient()
 
+        # Capture the human-controlled action via rendering
         state = self.c_env.get_state()
-        frame, action = self.client.render(state, self.num_enemy_cars)
-        return frame
+        frame, action = self.client.render(state)  # Capture the action from the human player
+
+        # Use the captured action to step the environment
+        state, reward, done, truncated, info = self.step(action)
+
+        return frame, state, reward, done, truncated, info
 
     def close(self):
-        pass
-    
-    
-    def _check_observation(self, obs):
-        # Define valid observation ranges for all 37 elements
-        low = -100 # np.array([0.0, 0.0, MIN_SPEED, 0.0, 0.0] + [-1.0, MIN_Y_POSITION] * 15)  # Player data + 15 cars
-        high = 1000 # np.array([ROAD_WIDTH, MAX_Y_POSITION, MAX_SPEED, 30, 200] + [2.0, MAX_Y_POSITION] * 15)
-
-        # print(f"Observation: {obs}")
-
-        # Identify values outside the possible range and set those positions to -1
-        out_of_range = (obs < low) | (obs > high)
-        if np.any(out_of_range):
-            print(f"Warning: Observation out of range: {obs}")
-            obs[out_of_range] = -1
-
-        # print(f'obs after: {obs}')
-
-        return obs
+        if self.client:
+            self.client.close()
 
 
 
@@ -123,64 +112,65 @@ class RaylibClient:
         # Initialize Raylib once in the constructor
         from raylib import rl
         rl.InitWindow(width, height, "PufferLib Racing".encode())
-        rl.SetTargetFPS(60)  # Set the target frames per second once
+        rl.SetTargetFPS(60)  # Set the target frames per second
         self.rl = rl  # Store the raylib instance
-
         from cffi import FFI
         self.ffi = FFI()
 
-        # Define colors as tuples or lists (RGBA)
+        # Define colors
         self.GREEN = (0, 255, 0, 255)
         self.BLUE = (0, 121, 241, 255)
         self.RED = (230, 41, 55, 255)
         self.GRAY = (200, 200, 200, 255)
         self.WHITE = (255, 255, 255, 255)
-        self.BLACK = (0, 0, 0, 255)  # Define BLACK manually
 
-    def render(self, state, num_enemy_cars):
-        # Rendering logic (Raylib should already be initialized)
-        action = None
+    def render(self, state):
+        # Capture player input for controlling the car
+        action = ACTION_NOOP  # Default action
+
         if self.rl.IsKeyDown(self.rl.KEY_UP):
-            action = 1  # ACCEL
+            action = ACTION_ACCEL
         elif self.rl.IsKeyDown(self.rl.KEY_DOWN):
-            action = 2  # DECEL
+            action = ACTION_DECEL
         elif self.rl.IsKeyDown(self.rl.KEY_LEFT):
-            action = 3  # LEFT
+            action = ACTION_LEFT
         elif self.rl.IsKeyDown(self.rl.KEY_RIGHT):
-            action = 4  # RIGHT
+            action = ACTION_RIGHT
 
         self.rl.BeginDrawing()
-        self.rl.ClearBackground(self.GREEN)  # Use self.GREEN defined earlier
+        self.rl.ClearBackground(self.GREEN)
 
         # Draw road
         road_width = 90
         road_center_x = self.width // 2
         road_left_edge = road_center_x - road_width // 2
-        self.rl.DrawRectangle(road_left_edge, 0, road_width, self.height, self.GRAY)  # Use self.GRAY
-
-        # Draw lane dividers
-        lane_width = road_width // 3
-        self.rl.DrawLine(road_left_edge + lane_width, 0, road_left_edge + lane_width, self.height, self.WHITE)
-        self.rl.DrawLine(road_left_edge + 2 * lane_width, 0, road_left_edge + 2 * lane_width, self.height, self.WHITE)
+        self.rl.DrawRectangle(road_left_edge, 0, road_width, self.height, self.GRAY)
 
         # Draw player car
-        player_x = int(state[0] * self.width)
-        player_y = int(state[1] * self.height)
-        self.rl.DrawRectangle(player_x, player_y, 16, 11, self.BLUE)
+        player_x = int((state[0] / ROAD_WIDTH) * road_width + road_left_edge)
+        player_y = self.height - PLAYER_CAR_LENGTH - 10  # Keep player's car near the bottom
+        self.rl.DrawRectangle(player_x, int(player_y), int(CAR_WIDTH), int(PLAYER_CAR_LENGTH), self.BLUE)
 
         # Draw enemy cars
-        for i in range(num_enemy_cars):
-            enemy_x = int(state[5 + i * 2] * self.width)
-            enemy_y = int(state[6 + i * 2] * self.height)
-            self.rl.DrawRectangle(enemy_x, enemy_y, 16, 11, self.RED)
+        for i in range(15):
+            enemy_lane = state[5 + i * 2]
+            enemy_y = state[6 + i * 2]
 
-        # Draw HUD
-        self.rl.DrawRectangle(48, 161, 64, 30, self.RED)
-        self.rl.DrawText(f"Score: {int(state[2] * 1000)}".encode(), 56, 162, 10, self.BLACK)  # Encode text
-        self.rl.DrawText(f"Day: {int(state[3])}".encode(), 56, 179, 10, self.BLACK)  # Encode text
-        self.rl.DrawText(f"Cars: {int(state[4] * 200)}".encode(), 72, 179, 10, self.BLACK)  # Encode text
+            if enemy_lane != -1 and enemy_y != -1:  # Check if the car is active
+                # Calculate screen positions
+                enemy_x = int(road_left_edge + (enemy_lane * (road_width / 3)))
+                enemy_y_screen = int(self.height - (enemy_y - state[1]) - ENEMY_CAR_LENGTH)
+
+                # Only render if the car is within the visible area
+                if 0 <= enemy_y_screen < self.height:
+                    self.rl.DrawRectangle(enemy_x, enemy_y_screen, int(CAR_WIDTH), int(ENEMY_CAR_LENGTH), self.RED)
 
         self.rl.EndDrawing()
+
+        return self._cdata_to_numpy(), action
+
+
+        # Return the action for human control
         return self._cdata_to_numpy(), action
 
     def close(self):

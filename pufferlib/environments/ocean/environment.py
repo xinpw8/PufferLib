@@ -82,9 +82,13 @@ def make_breakout(num_envs=1):
     from .breakout import breakout
     return breakout.MyBreakout(num_envs=num_envs)
 
-def make_racing(num_envs=1):
-    from .racing import racing
-    return racing.MyRacing(num_envs=num_envs)
+def make_ezrace(num_envs=1):
+    from .ezrace import ezrace
+    return ezrace.MyEzrace(num_envs=num_envs)
+
+def make_racing(**kwargs):
+    from .racing import py_racing as ra_cy
+    return ra_cy.RacingCyEnv()
 
 def make_connect4(num_envs=1):
     from .connect4 import connect4
@@ -269,11 +273,11 @@ MAKE_FNS = {
     'continuous_cy': make_continuous_cy,
 
     'enduro_cy': make_enduro_cy,
-    'racing': make_racing,
     'moba': make_moba,
     'my_pong': make_pong,
     'my_breakout': make_breakout,
-    'my_racing': make_racing,
+    'ezrace': make_ezrace,
+    'racing': make_racing,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
