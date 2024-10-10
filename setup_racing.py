@@ -1,20 +1,22 @@
-from setuptools import setup, Extension
+from setuptools import setup
+from setuptools.extension import Extension
 from Cython.Build import cythonize
-import numpy as np
+import numpy
 
-ext_modules = [
+extensions = [
     Extension(
-        "pufferlib.environments.ocean.racing.cy_racing",
-        sources=["pufferlib/environments/ocean/racing/cy_racing.c",
-                 "pufferlib/environments/ocean/racing/racing.c"],
-        include_dirs=[np.get_include(), "pufferlib/environments/ocean/racing"],
-    )
+        "pufferlib.environments.ocean.enduro_clone.cy_enduro_clone",
+        ["pufferlib/environments/ocean/enduro_clone/cy_enduro_clone.pyx"],
+        include_dirs=[numpy.get_include(), 'raylib-5.0_linux_amd64/include'],
+        library_dirs=['raylib-5.0_linux_amd64/lib'],
+        libraries=["raylib"],
+        extra_compile_args=['-DPLATFORM_DESKTOP'],
+        language="c",
+    ),
 ]
 
-
 setup(
-    name="pufferlib_racing",
-    ext_modules=cythonize(ext_modules, language_level=3),
-    include_dirs=[np.get_include()]
+    name="Enduro Clone",
+    ext_modules=cythonize(extensions),
+    include_dirs=[numpy.get_include()],
 )
-

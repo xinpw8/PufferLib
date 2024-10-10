@@ -218,7 +218,7 @@ extension_paths = [
     # 'pufferlib/environments/ocean/snake/cy_snake',
     # 'pufferlib/environments/ocean/pong/cy_pong',
     # 'pufferlib/environments/ocean/breakout/cy_breakout',
-    'pufferlib/environments/ocean/racing/cy_racing_cy',
+    'pufferlib/environments/ocean/enduro_clone/cy_enduro_clone',
     # 'pufferlib/environments/ocean/connect4/cy_connect4',
     # 'pufferlib/environments/ocean/grid/cy_grid',
     # 'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
@@ -244,7 +244,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'numpy==1.23.3',
+        # 'numpy==1.23.3',
         'opencv-python==3.4.17.63',
         'cython>=3.0.0',
         'rich',
@@ -266,7 +266,7 @@ setup(
     },
     ext_modules = cythonize([
         "pufferlib/extensions.pyx",
-        # "c_gae.pyx",
+        "c_gae.pyx",
         # "pufferlib/environments/ocean/grid/c_grid.pyx",
         # "pufferlib/environments/ocean/snake/c_snake.pyx",
         # "pufferlib/environments/ocean/moba/c_moba.pyx",
