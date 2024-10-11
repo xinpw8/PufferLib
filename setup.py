@@ -219,7 +219,7 @@ extension_paths = [
     # 'pufferlib/environments/ocean/pong/cy_pong',
     # 'pufferlib/environments/ocean/breakout/cy_breakout',
     'pufferlib/environments/ocean/enduro_clone/cy_enduro_clone',
-    # 'pufferlib/environments/ocean/connect4/cy_connect4',
+    'pufferlib/environments/ocean/connect4/cy_connect4',
     # 'pufferlib/environments/ocean/grid/cy_grid',
     # 'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
     # 'cytest/cytest',

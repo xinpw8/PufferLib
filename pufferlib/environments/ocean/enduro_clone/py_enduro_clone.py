@@ -8,20 +8,26 @@ from pufferlib.environments.ocean.enduro_clone.cy_enduro_clone import CyEnduro
 
 class MyEnduro(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None,
-            width=160, height=210, frameskip=4, report_interval=128, buf=None):
+                 width=160, height=210, hud_height=55, car_width=10, car_height=10,
+                 max_enemies=10, crash_noop_duration=60, day_length=2000,
+                 initial_cars_to_pass=5, min_speed=-1.0, max_speed=10.0,
+                 frameskip=4, report_interval=128, buf=None):
+        
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(8,), dtype=np.float32)
-        self.single_action_space = gymnasium.spaces.Discrete(5)  # noop = 0, left = 1, right = 2, speed up = 3, slow down = 4
+        self.single_action_space = gymnasium.spaces.Discrete(5)  # 5 actions: noop, left, right, speed up, slow down
         self.render_mode = render_mode
         self.num_agents = num_envs
 
         self.report_interval = report_interval
         self.human_action = None
         self.tick = 0
-
-        super().__init__(buf)
+        print('buf: ', buf)
+        super().__init__(buf=buf)
         self.c_envs = CyEnduro(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, width, height, frameskip)
+            self.terminals, num_envs, width, height, hud_height, car_width,
+            car_height, max_enemies, crash_noop_duration, day_length,
+            initial_cars_to_pass, min_speed, max_speed, frameskip)
  
     def reset(self, seed=None):
         self.tick = 0

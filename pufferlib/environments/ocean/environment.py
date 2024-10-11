@@ -90,6 +90,10 @@ def make_racing(**kwargs):
     from .racing import py_racing as ra_cy
     return ra_cy.RacingCyEnv()
 
+def make_enduro_clone(num_envs=1):
+    from .enduro_clone import py_enduro_clone
+    return py_enduro_clone.MyEnduro(num_envs=num_envs)
+
 def make_connect4(num_envs=1):
     from .connect4 import connect4
     return connect4.MyConnect4(num_envs=num_envs)
@@ -271,6 +275,7 @@ MAKE_FNS = {
     'squared_cy': make_squared_cy,
     'stochastic_cy': make_stochastic_cy,
     'continuous_cy': make_continuous_cy,
+    'enduro_clone': make_enduro_clone,
 
     'enduro_cy': make_enduro_cy,
     'moba': make_moba,

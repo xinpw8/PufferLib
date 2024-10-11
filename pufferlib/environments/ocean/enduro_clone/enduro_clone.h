@@ -15,17 +15,19 @@
 #define DAY_LENGTH 2000
 #define INITIAL_CARS_TO_PASS 5
 
-typedef struct Log {
+typedef struct Log Log;
+struct Log {
     float episode_return;
     float episode_length;
     float score;
-} Log;
+};
 
-typedef struct LogBuffer {
+typedef struct LogBuffer LogBuffer;
+struct LogBuffer {
     Log* logs;
     int length;
     int idx;
-} LogBuffer;
+};
 
 LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
@@ -67,13 +69,16 @@ Log aggregate_and_clear(LogBuffer* logs) {
 }
 
 // Car structure for enemy cars
-typedef struct Car {
+typedef struct Car Car;
+struct Car{
     float x, y;
     bool passed;
-} Car;
+};
 
 // Game environment structure
-typedef struct Enduro {
+typedef struct Enduro Enduro;
+struct Enduro {
+    // RL
     float* observations;
     unsigned int* actions;
     float* rewards;
@@ -81,53 +86,75 @@ typedef struct Enduro {
     LogBuffer* log_buffer;
     Log log;
 
-    float player_x;
-    float player_y;
-    float speed;
-    float max_speed;
-    float min_speed;
-    int score;
-    int carsToPass;
-    int day;
-    int day_length;
-    int step_count;
+    // Game state
+    float player_x;        // X position of the player
+    float player_y;        // Y position of the player
+    float speed;           // Current speed of the player
+    float max_speed;       // Maximum speed
+    float min_speed;       // Minimum speed
+    int score;             // Player score
+    int carsToPass;        // Number of cars left to pass
+    int day;               // Current day
+    int day_length;        // Total number of steps in a day
+    int step_count;        // Count of steps taken so far
+    int numEnemies;        // Number of enemy cars on the screen
+    int frameskip;         // Frameskip for rendering performance
+    int collision_cooldown; // Cooldown after a collision
+    int crash_noop_duration; // Duration of no-op after a crash
     Car enemyCars[MAX_ENEMIES];
-    int numEnemies;
 
-    float width;
-    float height;
-    int frameskip;
+    // Screen and gameplay parameters
+    float width;            // Screen width
+    float height;           // Screen height
+    float hud_height;       // HUD height
+    float car_width;        // Enemy car width
+    float car_height;       // Enemy car height
+    int max_enemies;        // Maximum number of enemies
+    int initial_cars_to_pass; // Initial number of cars to pass
+    float action_height;      // Height of the action area
+};
 
-    int collision_cooldown;  // Cooldown after a collision (disables input)
-} Enduro;
-
-void init(Enduro* env) {
-    env->width = SCREEN_WIDTH;
-    env->height = SCREEN_HEIGHT;
+void init(Enduro* env, float width, float height, float hud_height, float car_width, float car_height,
+          int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass,
+          float min_speed, float max_speed) {
+    env->width = width;
+    env->height = height;
+    env->hud_height = hud_height;
+    env->car_width = car_width;
+    env->car_height = car_height;
+    env->max_enemies = max_enemies;
+    env->crash_noop_duration = crash_noop_duration;
+    env->day_length = day_length;
+    env->initial_cars_to_pass = initial_cars_to_pass;
+    env->min_speed = min_speed;
+    env->max_speed = max_speed;
 
     // Game start values
-    env->player_x = env->width / 2 - CAR_WIDTH / 2;
-    env->player_y = ACTION_HEIGHT - CAR_HEIGHT;
+    env->action_height = env->height - env->hud_height;
+    env->player_x = env->width / 2 - env->car_width / 2;
+    env->player_y = env->action_height - env->car_height;
     env->speed = 1.0f;
-    env->max_speed = 10.0f;
-    env->min_speed = -1.0f;
     env->score = 0;
-    env->carsToPass = INITIAL_CARS_TO_PASS; // 200;
+    env->carsToPass = env->initial_cars_to_pass; // 200;
     env->day = 1;
-    env->day_length = DAY_LENGTH;
+    env->day_length = env->day_length;
     env->step_count = 0;
     env->numEnemies = 0;
     env->collision_cooldown = 0;
 }
 
-void allocate(Enduro* env) {
-    init(env);
+void allocate(Enduro* env, float width, float height, float hud_height, float car_width, float car_height,
+              int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass,
+              float min_speed, float max_speed) {
+    
+    init(env, width, height, hud_height, car_width, car_height, max_enemies, crash_noop_duration,
+         day_length, initial_cars_to_pass, min_speed, max_speed);
+         
     env->observations = (float*)calloc(8, sizeof(float));
-    env->actions = (unsigned int*)calloc(5, sizeof(unsigned int)); // noop = 0, left = 1, right = 2, up = 3, down = 4
+    env->actions = (unsigned int*)calloc(5, sizeof(unsigned int)); // 5 actions: noop, left, right, speed up, slow down
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
-
 }
 
 void free_allocated(Enduro* env) {

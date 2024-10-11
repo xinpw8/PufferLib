@@ -2,18 +2,25 @@
 
 int main() {
     Enduro env = {
-        .width = SCREEN_WIDTH,
-        .height = SCREEN_HEIGHT,
-        .frameskip = 4,
+        .width = 160,
+        .height = 210,
+        .player_x = 80,
+        .player_y = 180,
+        .speed = 1.0f,
         .max_speed = 10.0f,
-        .min_speed = 2.0f,
-        .carsToPass = INITIAL_CARS_TO_PASS,
-        .day_length = DAY_LENGTH,
+        .min_speed = -1.0f,
+        .score = 0,
+        .carsToPass = 5,  // Starting number of cars to pass
+        .day = 1,
+        .day_length = 2000,
         .step_count = 0,
         .numEnemies = 0,
+        .frameskip = 4,
         .collision_cooldown = 0,
     };
-    allocate(&env);
+    allocate(&env, env.width, env.height, env.hud_height, env.car_width,
+    env.car_height, env.max_enemies, env.crash_noop_duration, env.day_length,
+    env.initial_cars_to_pass, env.min_speed, env.max_speed);  // Initialize memory and variables
 
     Client* client = make_client(&env);
 
