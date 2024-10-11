@@ -1,70 +1,10 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-# Cythonized Ocean environments
-def make_bandit_cy(num_actions=10, reward_scale=1, reward_noise=1, **kwargs):
-    from .bandit_cy import py_bandit as ba_cy
-    env = ba_cy.BanditCyEnv(num_actions=num_actions, reward_scale=reward_scale,
-        reward_noise=reward_noise)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-def make_spaces_cy(num_envs=1, **kwargs):
-    from .spaces_cy import py_spaces as sp_cy
-    env = sp_cy.SpacesCyEnv(num_envs=num_envs)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-def make_memory_cy(mem_length=2, mem_delay=2, render_mode='ansi', **kwargs):
-    from .memory_cy import py_memory as me_py
-    env = me_py.MemoryCyEnv(mem_length=mem_length, mem_delay=mem_delay, render_mode=render_mode)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-def make_multiagent_cy(**kwargs):
-    from .multiagent_cy import py_multiagent as mu_cy
-    env = mu_cy.MultiagentCyEnv()
-    env = pufferlib.postprocess.MultiagentEpisodeStats(env)
-    return pufferlib.emulation.PettingZooPufferEnv(env=env)
-
-def make_password_cy(password_length=5, **kwargs):
-    from .password_cy import py_password as pa_cy
-    env = pa_cy.PasswordCyEnv(password_length=password_length)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-def make_squared_cy(distance_to_target=3, num_targets=1, **kwargs):
-    from .squared_cy import py_squared as sq_cy
-    env = sq_cy.SquaredCyEnv(distance_to_target=distance_to_target, num_targets=num_targets, **kwargs)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env, **kwargs)
-
-def make_stochastic_cy(p=0.7, horizon=100, **kwargs):
-    from .stochastic_cy import py_stochastic as st_cy
-    env = st_cy.StochasticCyEnv(p=p, horizon=100)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-def make_continuous_cy(discretize=False, **kwargs):
-    from .continuous_cy import py_continuous as co_cy
-    env = co_cy.ContinuousCyEnv(discretize=discretize)
-    if not discretize:
-        env = pufferlib.postprocess.ClipAction(env)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
-
-
-# Standard below
-
-
-# pufferlib/environments/ocean/environment.py
-def make_enduro_cy(frame_skip=4, **kwargs):
-    from pufferlib.environments.ocean.enduro_cy.py_enduro import EnduroEnv
-    import pufferlib
-    
-    env = EnduroEnv(frameskip=frame_skip)
-    env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+from .pong import pong
+from .breakout import breakout
+from .connect4 import connect4
+from .tripletriad import tripletriad
 
 def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
         reward_distance=0.05, reward_tower=3, render_mode='rgb_array'):
@@ -72,35 +12,6 @@ def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
     return moba.PufferMoba(num_envs=num_envs, reward_death=reward_death,
         reward_xp=reward_xp, reward_distance=reward_distance,
         reward_tower=reward_tower, render_mode=render_mode)
-
-def make_pong(num_envs=1):
-    from .pong import pong
-    return pong.MyPong(num_envs=num_envs)
-
-# breakout is comparison
-def make_breakout(num_envs=1):
-    from .breakout import breakout
-    return breakout.MyBreakout(num_envs=num_envs)
-
-def make_ezrace(num_envs=1):
-    from .ezrace import ezrace
-    return ezrace.MyEzrace(num_envs=num_envs)
-
-def make_racing(**kwargs):
-    from .racing import py_racing as ra_cy
-    return ra_cy.RacingCyEnv()
-
-def make_enduro_clone(num_envs=1):
-    from .enduro_clone import py_enduro_clone
-    return py_enduro_clone.MyEnduro(num_envs=num_envs)
-
-def make_connect4(num_envs=1):
-    from .connect4 import connect4
-    return connect4.MyConnect4(num_envs=num_envs)
-
-def make_tripletriad(num_envs=1):
-    from .tripletriad import tripletriad
-    return tripletriad.MyTripleTriad(num_envs=num_envs)
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -279,10 +190,8 @@ MAKE_FNS = {
 
     'enduro_cy': make_enduro_cy,
     'moba': make_moba,
-    'my_pong': make_pong,
-    'my_breakout': make_breakout,
-    'ezrace': make_ezrace,
-    'racing': make_racing,
+    'my_pong': pong.MyPong,
+    'my_breakout': breakout.MyBreakout,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
@@ -300,9 +209,8 @@ MAKE_FNS = {
 
     'performance': make_performance,
     'performance_empiric': make_performance_empiric,
-    'my_breakout': make_breakout,
-    'my_connect4': make_connect4,
-    'my_tripletriad': make_tripletriad,
+    'my_connect4': connect4.MyConnect4,
+    'my_tripletriad': tripletriad.MyTripleTriad,
 }
 
 def env_creator(name='squared'):
