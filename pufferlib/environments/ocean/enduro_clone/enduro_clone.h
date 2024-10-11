@@ -80,7 +80,7 @@ typedef struct Enduro Enduro;
 struct Enduro {
     // RL
     float* observations;
-    unsigned int* actions;
+    unsigned char* actions;
     float* rewards;
     unsigned char* terminals;
     LogBuffer* log_buffer;
@@ -98,23 +98,22 @@ struct Enduro {
     int day_length;        // Total number of steps in a day
     int step_count;        // Count of steps taken so far
     int numEnemies;        // Number of enemy cars on the screen
-    int frameskip;         // Frameskip for rendering performance
     int collision_cooldown; // Cooldown after a collision
     int crash_noop_duration; // Duration of no-op after a crash
     Car enemyCars[MAX_ENEMIES];
 
     // Screen and gameplay parameters
-    float width;            // Screen width
-    float height;           // Screen height
-    float hud_height;       // HUD height
-    float car_width;        // Enemy car width
-    float car_height;       // Enemy car height
+    int width;            // Screen width
+    int height;           // Screen height
+    int hud_height;       // HUD height
+    int car_width;        // Enemy car width
+    int car_height;       // Enemy car height
     int max_enemies;        // Maximum number of enemies
     int initial_cars_to_pass; // Initial number of cars to pass
     float action_height;      // Height of the action area
 };
 
-void init(Enduro* env, float width, float height, float hud_height, float car_width, float car_height,
+void init(Enduro* env, int width, int height, int hud_height, int car_width, int car_height,
           int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass,
           float min_speed, float max_speed) {
     env->width = width;
@@ -143,7 +142,7 @@ void init(Enduro* env, float width, float height, float hud_height, float car_wi
     env->collision_cooldown = 0;
 }
 
-void allocate(Enduro* env, float width, float height, float hud_height, float car_width, float car_height,
+void allocate(Enduro* env, int width, int height, int hud_height, int car_width, int car_height,
               int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass,
               float min_speed, float max_speed) {
     
@@ -151,7 +150,7 @@ void allocate(Enduro* env, float width, float height, float hud_height, float ca
          day_length, initial_cars_to_pass, min_speed, max_speed);
          
     env->observations = (float*)calloc(8, sizeof(float));
-    env->actions = (unsigned int*)calloc(5, sizeof(unsigned int)); // 5 actions: noop, left, right, speed up, slow down
+    env->actions = (unsigned char*)calloc(5, sizeof(unsigned char)); // 5 actions: noop, left, right, speed up, slow down
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
@@ -223,7 +222,8 @@ void step(Enduro* env) {
     // Only allow player movement if there is no collision cooldown
     if (env->collision_cooldown == 0) {
         // Player movement logic (actions: 0 = stay, 1 = left, 2 = right)
-        unsigned int act = env->actions[0];
+        unsigned char* act = env->actions[0];
+        if (act == 0) env->player_x = env->player_x;
         if (act == 1 && env->player_x > 0) env->player_x -= 5;
         if (act == 2 && env->player_x < SCREEN_WIDTH - CAR_WIDTH) env->player_x += 5;
         if (act == 3 && env->speed < env->max_speed) env->speed += 0.1f;
@@ -284,8 +284,8 @@ void step(Enduro* env) {
 
 // Client for rendering and input
 typedef struct Client {
-    float width;
-    float height;
+    int width;
+    int height;
     Color player_color;
     Color enemy_color;
     Color road_color;
@@ -348,7 +348,7 @@ void render(Client* client, Enduro* env) {
 
 //     while (!WindowShouldClose()) {
 //         // Update game (step)
-//         unsigned int action = 0;
+//         unsigned char action = 0;
 //         // noop = 0, left = 1, right = 2, up = 3, down = 4
         
 //         if (IsKeyDown(KEY_LEFT)) action = 1;

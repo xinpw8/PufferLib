@@ -1,5 +1,16 @@
 '''High-perf Enduro Clone'''
 
+import sys
+import os
+import sys
+import os
+
+# Add the parent directory to the sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'pufferlib', 'environments', 'ocean', 'enduro_clone'))
+
+
 import numpy as np
 import gymnasium
 
@@ -8,10 +19,10 @@ from pufferlib.environments.ocean.enduro_clone.cy_enduro_clone import CyEnduro
 
 class MyEnduro(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None,
-                 width=160, height=210, hud_height=55, car_width=10, car_height=10,
+                 screen_width=160, screen_height=210, hud_height=55, car_width=10, car_height=10,
                  max_enemies=10, crash_noop_duration=60, day_length=2000,
                  initial_cars_to_pass=5, min_speed=-1.0, max_speed=10.0,
-                 frameskip=4, report_interval=128, buf=None):
+                 buf=None):
         
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(8,), dtype=np.float32)
@@ -19,15 +30,29 @@ class MyEnduro(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.num_agents = num_envs
 
-        self.report_interval = report_interval
         self.human_action = None
         self.tick = 0
-        print('buf: ', buf)
-        super().__init__(buf=buf)
+        
+        # Ensure the observations array is 2D
+        self.observations = np.zeros((num_envs, 37), dtype=np.float32)
+        self.actions = np.zeros(num_envs, dtype=np.int8)
+        self.rewards = np.zeros(num_envs, dtype=np.float32)
+        self.terminals = np.zeros(num_envs, dtype=np.uint8)
+        
+        print(f'self.observations.shape={self.observations.shape}')
+        print(f'self.actions.shape={self.actions.shape}')
+        print(f'self.rewards.shape={self.rewards.shape}')
+        print(f'self.terminals.shape={self.terminals.shape}\n')
+        print(f'Creating MyEnduro with num_envs={num_envs}')
+        print(f'init values: screen_width={screen_width}, screen_height={screen_height}, hud_height={hud_height}, car_width={car_width}, car_height={car_height}, max_enemies={max_enemies}, crash_noop_duration={crash_noop_duration}, day_length={day_length}, initial_cars_to_pass={initial_cars_to_pass}, min_speed={min_speed}, max_speed={max_speed}, buf={buf}')
+        print(self.actions.dtype)  # Should print uint8
+        print(self.terminals.dtype)  # Should print uint8
+
+        super().__init__(buf)
         self.c_envs = CyEnduro(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, width, height, hud_height, car_width,
+            self.terminals, num_envs, screen_width, screen_height, hud_height, car_width,
             car_height, max_enemies, crash_noop_duration, day_length,
-            initial_cars_to_pass, min_speed, max_speed, frameskip)
+            initial_cars_to_pass, min_speed, max_speed)
  
     def reset(self, seed=None):
         self.tick = 0
@@ -35,14 +60,16 @@ class MyEnduro(pufferlib.PufferEnv):
         return self.observations, []
 
     def step(self, actions):
+        actions = np.random.randint(0, 5, size=(1024, self.num_agents), dtype=np.uint8)
+
         self.actions[:] = actions
         self.c_envs.step()
 
         info = []
-        if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
-                info.append(log)
+
+        log = self.c_envs.log()
+        if log['episode_length'] > 0:
+            info.append(log)
 
         self.tick += 1
         return (self.observations, self.rewards,
@@ -56,7 +83,7 @@ def test_performance(timeout=10, atn_cache=1024):
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, 5, (atn_cache, env.num_envs))
+    actions = np.random.randint(0, 5, (atn_cache, env.num_envs), type=np.int8)
 
     import time
     start = time.time()

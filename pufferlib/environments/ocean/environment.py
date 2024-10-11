@@ -1,10 +1,11 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-from .pong import pong
-from .breakout import breakout
-from .connect4 import connect4
-from .tripletriad import tripletriad
+# from .pong import pong
+# from .breakout import breakout
+# from .connect4 import connect4
+# from .tripletriad import tripletriad
+from .enduro_clone import py_enduro_clone
 
 def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
         reward_distance=0.05, reward_tower=3, render_mode='rgb_array'):
@@ -105,8 +106,6 @@ def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision
         vision=vision,
     )
 
-# Sanity.py test environments
-# Cythonized
 def make_continuous(discretize=False, **kwargs):
     from . import sanity
     env = sanity.Continuous(discretize=discretize)
@@ -115,14 +114,12 @@ def make_continuous(discretize=False, **kwargs):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# Cythonized
 def make_squared(distance_to_target=3, num_targets=1, **kwargs):
     from . import sanity
     env = sanity.Squared(distance_to_target=distance_to_target, num_targets=num_targets, **kwargs)
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env, **kwargs)
 
-# Cythonized
 def make_bandit(num_actions=10, reward_scale=1, reward_noise=1):
     from . import sanity
     env = sanity.Bandit(num_actions=num_actions, reward_scale=reward_scale,
@@ -130,14 +127,12 @@ def make_bandit(num_actions=10, reward_scale=1, reward_noise=1):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# Cythonized
 def make_memory(mem_length=2, mem_delay=2, **kwargs):
     from . import sanity
     env = sanity.Memory(mem_length=mem_length, mem_delay=mem_delay)
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# Cythonized
 def make_password(password_length=5, **kwargs):
     from . import sanity
     env = sanity.Password(password_length=password_length)
@@ -156,21 +151,18 @@ def make_performance_empiric(count_n=0, count_std=0, bandwidth=1, **kwargs):
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# Cythonized
 def make_stochastic(p=0.7, horizon=100, **kwargs):
     from . import sanity
     env = sanity.Stochastic(p=p, horizon=100)
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
-# Cythonized
 def make_spaces(**kwargs):
     from . import sanity
     env = sanity.Spaces()
     env = pufferlib.postprocess.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env, **kwargs)
 
-# Cythonized
 def make_multiagent(**kwargs):
     from . import sanity
     env = sanity.Multiagent()
@@ -178,20 +170,10 @@ def make_multiagent(**kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
 
 MAKE_FNS = {
-    'bandit_cy': make_bandit_cy,
-    'spaces_cy': make_spaces_cy,
-    'memory_cy': make_memory_cy,
-    'multiagent_cy': make_multiagent_cy,
-    'password_cy': make_password_cy,
-    'squared_cy': make_squared_cy,
-    'stochastic_cy': make_stochastic_cy,
-    'continuous_cy': make_continuous_cy,
-    'enduro_clone': make_enduro_clone,
-
-    'enduro_cy': make_enduro_cy,
     'moba': make_moba,
-    'my_pong': pong.MyPong,
-    'my_breakout': breakout.MyBreakout,
+    # 'my_pong': pong.MyPong,
+    # 'my_breakout': breakout.MyBreakout,
+    'enduro_clone': py_enduro_clone.MyEnduro,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
@@ -206,11 +188,10 @@ MAKE_FNS = {
     'stochastic': make_stochastic,
     'multiagent': make_multiagent,
     'spaces': make_spaces,
-
     'performance': make_performance,
     'performance_empiric': make_performance_empiric,
-    'my_connect4': connect4.MyConnect4,
-    'my_tripletriad': tripletriad.MyTripleTriad,
+    # 'my_connect4': connect4.MyConnect4,
+    # 'my_tripletriad': tripletriad.MyTripleTriad,
 }
 
 def env_creator(name='squared'):
@@ -218,5 +199,3 @@ def env_creator(name='squared'):
         return MAKE_FNS[name]
     else:
         raise ValueError(f'Invalid environment name: {name}')
-
-

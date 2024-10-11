@@ -15,7 +15,6 @@ int main() {
         .day_length = 2000,
         .step_count = 0,
         .numEnemies = 0,
-        .frameskip = 4,
         .collision_cooldown = 0,
     };
     allocate(&env, env.width, env.height, env.hud_height, env.car_width,

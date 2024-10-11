@@ -1,5 +1,8 @@
+# cython: language_level=3
+
 cimport numpy as cnp
 from libc.stdlib cimport calloc, free
+
 
 cdef extern from "enduro_clone.h":
     LogBuffer* allocate_logbuffer(int size)
@@ -19,7 +22,7 @@ cdef extern from "enduro_clone.h":
 
     ctypedef struct Enduro:
         float* observations
-        unsigned int* actions
+        unsigned char* actions
         float* rewards
         unsigned char* terminals
         LogBuffer* log_buffer
@@ -35,14 +38,13 @@ cdef extern from "enduro_clone.h":
         int day_length
         int step_count
         int numEnemies
-        float width
-        float height
-        int frameskip
+        int width
+        int height
         int collision_cooldown
 
     ctypedef struct Client
 
-    void init(Enduro* env, float width, float height, float hud_height, float car_width, float car_height, int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass, float min_speed, float max_speed)
+    void init(Enduro* env, int width, int height, int hud_height, int car_width, int car_height, int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass, float min_speed, float max_speed)
     void reset(Enduro* env)
     void step(Enduro* env)
 
@@ -56,8 +58,8 @@ cdef class CyEnduro:
         Client* client
         LogBuffer* logs
         int num_envs
-        float width
-        float height
+        int width
+        int height
         float player_x
         float player_y
         float speed
@@ -69,54 +71,58 @@ cdef class CyEnduro:
         int day_length
         int step_count
         int numEnemies
-        int frameskip
         int collision_cooldown
 
-    def __init__(self, cnp.ndarray observations, cnp.ndarray actions,
-                cnp.ndarray rewards, cnp.ndarray terminals, int num_envs,
-                float width, float height, float hud_height, float car_width, float car_height,
-                int max_enemies, int crash_noop_duration, int day_length, int initial_cars_to_pass,
-                float min_speed, float max_speed, int frameskip=4):
+    def __init__(self, cnp.ndarray[cnp.float32_t, ndim=2] observations,
+                 cnp.ndarray[cnp.uint8_t, ndim=1] actions,  # Ensure it's uint8_t
+                 cnp.ndarray[cnp.float32_t, ndim=1] rewards,
+                 cnp.ndarray[cnp.uint8_t, ndim=1] terminals,  # Ensure it's uint8_t
+                 int width, int height, int hud_height, int car_width, int car_height,
+                 int max_enemies, int crash_noop_duration, int day_length, 
+                 int initial_cars_to_pass, float min_speed, float max_speed, int report_interval):
 
-        self.num_envs = num_envs
-        self.width = width
-        self.height = height
-        self.frameskip = frameskip
-        self.client = NULL
-        self.envs = <Enduro*> calloc(num_envs, sizeof(Enduro))
+        self.num_envs = observations.shape[0]
+
+        # Inside this function, access memoryviews from the numpy arrays.
+        cdef cnp.ndarray[cnp.uint8_t, ndim=1] actions_view, terminals_view
+        cdef cnp.ndarray[cnp.float32_t, ndim=2] obs_view
+        cdef cnp.ndarray[cnp.float32_t, ndim=1] rewards_view
+
+        # Initialize the environments
+        self.envs = <Enduro*> calloc(self.num_envs, sizeof(Enduro))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
-        cdef int i
-        for i in range(num_envs):
-            observations_i = observations[i:i+1]
-            actions_i = actions[i:i+1]
-            rewards_i = rewards[i:i+1]
-            terminals_i = terminals[i:i+1]
+        for i in range(self.num_envs):
+            obs_view = <cnp.ndarray[cnp.float32_t, ndim=2]> observations[i:i+1]
+            actions_view = <cnp.ndarray[cnp.uint8_t, ndim=1]> actions[i:i+1]    # Convert to uint8_t memoryview
+            rewards_view = <cnp.ndarray[cnp.float32_t, ndim=1]> rewards[i:i+1]
+            terminals_view = <cnp.ndarray[cnp.uint8_t, ndim=1]> terminals[i:i+1]  # Convert to uint8_t memoryview
 
+            # Pass pointers to the first element of each array
             self.envs[i] = Enduro(
-                observations=<float*> observations_i.data,
-                actions=<unsigned int*> actions_i.data,
-                rewards=<float*> rewards_i.data,
-                terminals=<unsigned char*> terminals_i.data,
-                log_buffer=self.logs,
-                
-                width=width,
-                height=height,
-                player_x=80.0,  # Initial player position
-                player_y=180.0,
-                speed=1.0,
-                max_speed=10.0,
-                min_speed=-1.0,
-                score=0,
-                carsToPass=5,
-                day=1,
-                day_length=2000,
-                step_count=0,
-                numEnemies=0,
-                frameskip=frameskip,
-                collision_cooldown=0,
+                observations = &obs_view[0, 0],
+                actions = &actions_view[0],       # Correctly pass uint8_t pointer
+                rewards = &rewards_view[0],
+                terminals = &terminals_view[0],   # Correctly pass uint8_t pointer
+                log_buffer=self.logs
             )
-            init(&self.envs[i], self.width, self.height, hud_height, car_width, car_height, max_enemies, crash_noop_duration, day_length, initial_cars_to_pass, min_speed, max_speed)
+
+                # player_x=self.player_x,
+                # player_y=self.player_y,
+                # speed=self.speed,
+                # max_speed=self.max_speed,
+                # min_speed=self.min_speed,
+                # score=self.score,
+                # carsToPass=self.carsToPass,
+                # day=self.day,
+                # day_length=self.day_length,
+                # step_count=self.step_count,
+                # numEnemies=self.numEnemies,
+                # width=self.width,
+                # height=self.height,
+                # collision_cooldown=self.collision_cooldown,
+            
+            init(&self.envs[i], width, height, hud_height, car_width, car_height, max_enemies, crash_noop_duration, day_length, initial_cars_to_pass, min_speed, max_speed)
             self.client = NULL
 
 
