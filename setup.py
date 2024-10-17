@@ -15,6 +15,8 @@ RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.0/'
 RAYLIB_NAME = 'raylib-5.0_macos' if platform.system() == "Darwin" else 'raylib-5.0_linux_amd64'
 RAYLIB_WASM_URL = RAYLIB_BASE + 'raylib-5.0_webassembly.zip'
 RAYLIB_URL = RAYLIB_BASE + RAYLIB_NAME + '.tar.gz'
+RAYLIB_INCLUDE_DIR = '/puffertank/bet/new_dev/PufferLib/raylib/include'
+RAYLIB_LIB_DIR = '/puffertank/bet/new_dev/PufferLib/raylib/lib'
 
 if not os.path.exists('raylib'):
     print("Raylib not found, downloading...")
@@ -249,22 +251,28 @@ extension_paths = [
     'pufferlib/environments/ocean/connect4/cy_connect4',
     'pufferlib/environments/ocean/grid/cy_grid',
     'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
+    'pufferlib/environments/ocean/enduro_clone/cy_enduro_clone',
 ]
 
-extensions = [Extension(
-    path.replace('/', '.'),
-    [path + '.pyx'],
-    include_dirs=[numpy.get_include(), 'raylib/include'],
-    library_dirs=['raylib/lib'],
-    libraries=["raylib"],
-    runtime_library_dirs=["raylib/lib"],
-    extra_compile_args=['-DPLATFORM_DESKTOP', '-O2'],#, '-g'],
-) for path in extension_paths]
- 
+extensions = [
+    Extension(
+        path.replace('/', '.'),
+        [path + '.pyx'],
+        include_dirs=[numpy.get_include(), RAYLIB_INCLUDE_DIR],
+        library_dirs=[RAYLIB_LIB_DIR],
+        libraries=["raylib", "m", "pthread", "dl"],  # Ensure all dependencies are listed
+        runtime_library_dirs=[RAYLIB_LIB_DIR],  # Ensure runtime path is set
+        extra_link_args=[f"-Wl,-rpath,{RAYLIB_LIB_DIR}", "-L/puffertank/bet/new_dev/PufferLib/raylib/lib", "-lraylib", "-g"],
+        extra_compile_args=['-DPLATFORM_DESKTOP', '-O2', '-g', '-O0'],  # Ensure platform flag is set
+    )
+    for path in extension_paths
+]
+
+
+# Setup Configuration
 setup(
     name="pufferlib",
-    description="PufferAI Library"
-    "PufferAI's library of RL tools and utilities",
+    description="PufferAI Library: A collection of RL tools and utilities.",
     long_description_content_type="text/markdown",
     version=VERSION,
     packages=find_packages(),
@@ -290,22 +298,8 @@ setup(
         'common': common,
         **environments,
     },
-    ext_modules = cythonize([
-        "pufferlib/extensions.pyx",
-        "c_gae.pyx",
-        "pufferlib/puffernet.pyx",
-        "pufferlib/environments/ocean/grid/c_grid.pyx",
-        "pufferlib/environments/ocean/snake/c_snake.pyx",
-        "pufferlib/environments/ocean/moba/c_moba.pyx",
-        "pufferlib/environments/ocean/enduro_clone/cy_enduro_clone.pyx",
-        "pufferlib/environments/ocean/moba/c_precompute_pathing.pyx",
-        *extensions,
-    ], 
-       #nthreads=6,
-       #annotate=True,
-       #compiler_directives={'profile': True},# annotate=True
-    ),
-    include_dirs=[numpy.get_include(), 'raylib-5.0_linux_amd64/include'],
+    ext_modules=cythonize(extensions, language_level=3, gdb_debug=True),  # Use only extensions here
+    include_dirs=[numpy.get_include(), RAYLIB_INCLUDE_DIR],
     python_requires=">=3.8",
     license="MIT",
     author="Joseph Suarez",
@@ -314,7 +308,6 @@ setup(
     keywords=["Puffer", "AI", "RL", "Reinforcement Learning"],
     classifiers=[
         "Intended Audience :: Science/Research",
-        "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",

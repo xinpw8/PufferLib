@@ -321,7 +321,7 @@ class Multiprocessing:
         obs_ctype = np.ctypeslib.as_ctypes_type(obs_dtype)
         atn_space = driver_env.single_action_space
         atn_shape = atn_space.shape
-        atn_dtype = atn_space.dtype
+        atn_dtype = np.int32 # atn_space.dtype
         atn_ctype = np.ctypeslib.as_ctypes_type(atn_dtype)
 
         self.single_observation_space = driver_env.single_observation_space
