@@ -4,20 +4,10 @@
 #include "enduro_clone.h"
 #include "raylib.h"  // Including raylib for window management and rendering
 
-// // Function to clear logs by truncating the file
-// void clear_logs(const char* filename) {
-//     FILE* file = fopen(filename, "w");  // Open in write mode to truncate
-//     if (file != NULL) {
-//         fclose(file);  // Close immediately after clearing
-//     }
-// }
+#define MAX_SPEED 10.0f
+#define MIN_SPEED -1.0f
 
 int main() {
-    // // Clear logs at the start of the game
-    // clear_logs("game_debug.log");
-
-    // printf("Starting game loop...\n"); fflush(stdout);
-
     // Initialize the Enduro environment
     Enduro env = {
         .width = SCREEN_WIDTH,
@@ -25,18 +15,12 @@ int main() {
         .hud_height = HUD_HEIGHT,
         .car_width = CAR_WIDTH,
         .car_height = CAR_HEIGHT,
-        .player_x = SCREEN_WIDTH / 2 - CAR_WIDTH / 2,
-        .player_y = SCREEN_HEIGHT - CAR_HEIGHT - HUD_HEIGHT,
-        .speed = 1.0f,
-        .max_speed = 10.0f,
-        .min_speed = -1.0f,
-        .score = 0,
-        .carsToPass = INITIAL_CARS_TO_PASS,
-        .day = 1,
+        .max_enemies = MAX_ENEMIES,
+        .crash_noop_duration = CRASH_NOOP_DURATION,
         .day_length = DAY_LENGTH,
-        .step_count = 0,
-        .numEnemies = 0,
-        .collision_cooldown = 0,
+        .initial_cars_to_pass = INITIAL_CARS_TO_PASS,
+        .min_speed = MIN_SPEED,
+        .max_speed = MAX_SPEED,
     };
 
     // Allocate resources and initialize the environment
@@ -45,7 +29,6 @@ int main() {
     // Initialize the rendering client
     Client* client = make_client(&env);
     reset(&env);
-
 
     // Main game loop
     while (!WindowShouldClose()) {
