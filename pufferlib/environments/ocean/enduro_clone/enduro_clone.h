@@ -1,5 +1,19 @@
 // enduro_clone.h
 
+    // TODO: Player y loc starts at action_height - car_height at min speed,
+    // and decreases with increased speed (i.e. moves up on the screen).
+    // TODO: Determine max speed player y loc.
+    // TODO: Drift doesn't work. Make it work.
+    // TODO: Add collisions with the road edges
+    // TODO: Clip cars to within visible area without removing them.
+    // TODO: Add scenery
+    // TODO: Add day/night cycle + pre-dawn
+// TODO: Ascertain day/night cycle logic from original
+    // TODO: Add winter/summer cycle
+// TODO: Ascertain winter/summer cycle logic from original
+    // TODO: Improve road wiggle effect
+// TODO: Ascertain road wiggle effect logic from original
+
 // TODO: Acceleration scaling
 // TODO: Compute/determine enemy car spawn frequency for each day num
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
@@ -8,6 +22,11 @@
 // TODO: Twisting road render
 // TODO: Implement RL
 // TODO: Make sure it trains
+// TODO: Engineer good policy
+// TODO: Keep player car within road bounds at all y values
+// TODO: Add original player car sprite/color
+// TODO: Add original enemy car sprites/colors
+// TODO: Ascertain original atari scoring logic and implement (differs from reward)
 
 #include <stdlib.h>
 #include <stdbool.h>
