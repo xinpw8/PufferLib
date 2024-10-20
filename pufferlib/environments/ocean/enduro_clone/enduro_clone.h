@@ -1,33 +1,5 @@
 // enduro_clone.h
 
-    // TODO: Player y loc starts at action_height - car_height at min speed,
-    // and decreases with increased speed (i.e. moves up on the screen).
-    // TODO: Determine max speed player y loc.
-    // TODO: Drift doesn't work. Make it work.
-    // TODO: Add collisions with the road edges
-    // TODO: Clip cars to within visible area without removing them.
-    // TODO: Add scenery
-    // TODO: Add day/night cycle + pre-dawn
-// TODO: Ascertain day/night cycle logic from original
-    // TODO: Add winter/summer cycle
-// TODO: Ascertain winter/summer cycle logic from original
-    // TODO: Improve road wiggle effect
-// TODO: Ascertain road wiggle effect logic from original
-
-// TODO: Acceleration scaling
-// TODO: Compute/determine enemy car spawn frequency for each day num
-// TODO: Ascertain exact atari enemy car spawn frequency per each day
-// TODO: Ascertain lane choice logic per atari original
-// TODO: Twisting road logic
-// TODO: Twisting road render
-// TODO: Implement RL
-// TODO: Make sure it trains
-// TODO: Engineer good policy
-// TODO: Keep player car within road bounds at all y values
-// TODO: Add original player car sprite/color
-// TODO: Add original enemy car sprites/colors
-// TODO: Ascertain original atari scoring logic and implement (differs from reward)
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,17 +13,37 @@
 
 #define LOG_BUFFER_SIZE 1024
 #define SCREEN_WIDTH 160
-#define SCREEN_HEIGHT 210
-#define HUD_HEIGHT 55
+#define SCREEN_HEIGHT 208
+
+#define PLAYABLE_AREA_TOP 0
+#define PLAYABLE_AREA_BOTTOM 154
+#define PLAYABLE_AREA_LEFT 8
+#define PLAYABLE_AREA_RIGHT 160
+
+#define ACTION_HEIGHT (PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP)
+
 #define CAR_WIDTH 10
 #define CAR_HEIGHT 10
 #define MAX_ENEMIES 10
 #define CRASH_NOOP_DURATION 60
 #define DAY_LENGTH 2000
 #define INITIAL_CARS_TO_PASS 5
-#define ACTION_HEIGHT (SCREEN_HEIGHT - HUD_HEIGHT) // Playable area height
 #define TOP_SPAWN_OFFSET 12.0f // Cars spawn/disappear 12 pixels from top
-#define TOP_ROAD_WIDTH 3.0f  // Min road width at the top
+
+#define ROAD_LEFT_EDGE_X 26
+#define ROAD_RIGHT_EDGE_X 127
+#define VANISHING_POINT_Y 52
+#define VANISHING_POINT_X 80 // Initial vanishing point x when going straight
+
+#define INITIAL_PLAYER_X ((ROAD_LEFT_EDGE_X + ROAD_RIGHT_EDGE_X)/2 - CAR_WIDTH/2)
+
+#define PLAYER_MAX_Y (ACTION_HEIGHT - CAR_HEIGHT) // Max y is carlengthfrom bottom
+#define PLAYER_MIN_Y (ACTION_HEIGHT - 2 * CAR_HEIGHT) // Min y is 2 carlengths from bottom
+
+#define ACCELERATION_RATE 0.05f
+#define DECELERATION_RATE 0.1f
+#define FRICTION 0.95f
+#define MIN_SPEED -1.0f
 
 typedef struct Log Log;
 struct Log {
@@ -140,25 +132,21 @@ struct Enduro {
     float player_x;
     float player_y;
     float speed;
-    
+
     // ints
     int score;
     int day;
     int step_count;
     int numEnemies;
     int carsToPass;
-    
+
     float collision_cooldown;
     float action_height;
 
     Car enemyCars[MAX_ENEMIES];
 
-    // New fields for road boundaries and lanes
-    float road_left;
-    float road_right;
-    float road_width;
-    float lane_centers[3];
-    float screen_center_x;
+    float vanishing_point_x;
+    float initial_player_x;
 
     int last_lr_action; // 0: none, 1: left, 2: right
     float road_scroll_offset;
@@ -179,7 +167,7 @@ Client* make_client(Enduro* env) {
     client->width = env->width;
     client->height = env->height;
     client->player_color = WHITE;
-    client->enemy_color = GREEN;
+    client->enemy_color = RED; // Changed to RED for better visibility
     client->road_color = DARKGREEN;
 
     InitWindow(client->width, client->height, "Enduro Clone");
@@ -192,65 +180,48 @@ void close_client(Client* client) {
     free(client);
 }
 
-// Initialize the Enduro environment
 void init(Enduro* env) {
-    // Initialize step-related fields
     env->step_count = 0;
     env->score = 0;
     env->numEnemies = 0;
     env->collision_cooldown = 0.0;
-    
-    // Calculate the action height (playable area height)
-    env->action_height = env->height - env->hud_height;
 
-    env->screen_center_x = SCREEN_WIDTH / 2.0f;
+    env->action_height = ACTION_HEIGHT;
 
-    // Road boundaries
-    env->road_left = env->width / 3.0f;
-    env->road_right = 2.0f * env->width / 3.0f;
-    env->road_width = env->road_right - env->road_left;
+    // Initialize vanishing point and player position
+    env->initial_player_x = INITIAL_PLAYER_X;
+    env->player_x = env->initial_player_x;
+    env->vanishing_point_x = VANISHING_POINT_X;
 
-    // Compute lane centers at the bottom (initial positions)
-    float lane_width = env->road_width / 3.0f;
-    for (int i = 0; i < 3; i++) {
-        env->lane_centers[i] = env->road_left + (i + 0.5f) * lane_width;
-    }
+    // Initialize player y position
+    env->player_y = PLAYER_MAX_Y;
 
-    // Initialize player car position (centered in middle lane)
-    env->player_x = env->lane_centers[1] - CAR_WIDTH / 2.0f;  // Middle lane
-    env->player_y = env->action_height - env->car_height - 10;  // Moved up by 10 pixels
-
-    // Initialize speed-related fields
+    // Speed-related fields
     env->min_speed = -1.0f;
-    env->max_speed = 10.0f;
+    env->max_speed = 3.0f;
     env->speed = env->min_speed;
-    
-    // Set cars to pass and start at day 1
+
     env->carsToPass = env->initial_cars_to_pass;
     env->day = 1;
 
-    // Initialize all enemy cars (their initial positions and state)
     for (int i = 0; i < MAX_ENEMIES; i++) {
         env->enemyCars[i].lane = 0;
         env->enemyCars[i].y = 0.0;
-        env->enemyCars[i].passed = 0;  // Reset passed flag
+        env->enemyCars[i].passed = 0;
     }
 
     env->last_lr_action = 0;
     env->road_scroll_offset = 0.0f;
 
-    // Initialize the log buffer (this should be already allocated by the caller)
     if (env->log_buffer != NULL) {
-        env->log_buffer->idx = 0;  // Reset log buffer index
+        env->log_buffer->idx = 0;
     }
 
-    // Initialize log (this resets episode-specific values)
     env->log.episode_return = 0.0;
     env->log.episode_length = 0.0;
     env->log.score = 0.0;
 }
 
-// Allocate memory for Enduro environment
 void allocate(Enduro* env) {
     init(env);
     env->observations = (float*)calloc(8 + 2 * MAX_ENEMIES, sizeof(float));
@@ -265,17 +236,14 @@ void allocate(Enduro* env) {
         return;
     }
 
-    printf("[DEBUG] Memory successfully allocated for observations, actions, and rewards\n");
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->truncateds = (unsigned char*)calloc(1, sizeof(unsigned char));
-    
+
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
 
-    // Initialize random seed
     srand(time(NULL));
 }
 
-// Free the allocated memory for Enduro environment
 void free_allocated(Enduro* env) {
     free(env->observations);
     free(env->rewards);
@@ -285,26 +253,90 @@ void free_allocated(Enduro* env) {
 }
 
 float road_left_edge_x(Enduro* env, float y) {
-    float t = y / ACTION_HEIGHT;  // 0 at top, 1 at bottom
-    return (1 - t) * (SCREEN_WIDTH / 2 - TOP_ROAD_WIDTH / 2) + t * env->road_left;
+    float x1 = ROAD_LEFT_EDGE_X;
+    float y1 = PLAYABLE_AREA_BOTTOM;
+    float vp_x = env->vanishing_point_x;
+    float vp_y = VANISHING_POINT_Y;
+    if (y >= y1) return x1;
+    return vp_x + (x1 - vp_x) * (y - vp_y) / (y1 - vp_y);
 }
 
 float road_right_edge_x(Enduro* env, float y) {
-    float t = y / ACTION_HEIGHT;
-    return (1 - t) * (SCREEN_WIDTH / 2 + TOP_ROAD_WIDTH / 2) + t * env->road_right;
+    float x2 = ROAD_RIGHT_EDGE_X;
+    float y1 = PLAYABLE_AREA_BOTTOM;
+    float vp_x = env->vanishing_point_x;
+    float vp_y = VANISHING_POINT_Y;
+    if (y >= y1) return x2;
+    return vp_x + (x2 - vp_x) * (y - vp_y) / (y1 - vp_y);
 }
 
-float lane_center_x(Enduro* env, int lane_index, float y) {
+float car_x_in_lane(Enduro* env, int lane, float y) {
     float left_edge = road_left_edge_x(env, y);
     float right_edge = road_right_edge_x(env, y);
     float lane_width = (right_edge - left_edge) / 3.0f;
-    return left_edge + lane_width * (lane_index + 0.5f);
+    return left_edge + lane_width * (lane + 0.5f);
+}
+
+void compute_observations(Enduro* env) {
+    env->observations[0] = env->player_x / SCREEN_WIDTH;
+    env->observations[1] = env->player_y / ACTION_HEIGHT;
+    env->observations[2] = env->speed / env->max_speed;
+    env->observations[3] = env->carsToPass;
+    env->observations[4] = env->day;
+    env->observations[5] = env->numEnemies;
+    env->observations[6] = env->collision_cooldown;
+    env->observations[7] = env->score;
+
+    int obs_idx = 8;
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        env->observations[obs_idx++] = env->enemyCars[i].lane / 3.0f;
+        env->observations[obs_idx++] = env->enemyCars[i].y / ACTION_HEIGHT;
+    }
+}
+
+void reset_round(Enduro* env) {
+    env->player_x = env->initial_player_x;
+    env->player_y = PLAYER_MAX_Y;
+    env->speed = env->min_speed;
+    env->numEnemies = 0;
+    env->step_count = 0;
+    env->collision_cooldown = 0;
+    env->last_lr_action = 0;
+    env->road_scroll_offset = 0.0f;
+}
+
+void reset(Enduro* env) {
+    env->log = (Log){0};
+    reset_round(env);
+    compute_observations(env);
+}
+
+// Update the check_collision function
+bool check_collision(Enduro* env, Car* car) {
+    // Compute the scale factor
+    float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+    float scale = 0.1f + 0.9f * depth;
+
+    // Compute car dimensions
+    float car_width = CAR_WIDTH * scale;
+    float car_height = CAR_HEIGHT * scale;
+
+    // Compute car x position
+    float car_center_x = car_x_in_lane(env, car->lane, car->y);
+    float car_x = car_center_x - car_width / 2.0f;
+
+    // Check collision
+    return !(env->player_x > car_x + car_width ||
+             env->player_x + CAR_WIDTH < car_x ||
+             env->player_y > car->y + car_height ||
+             env->player_y + CAR_HEIGHT < car->y);
 }
 
 int get_player_lane(Enduro* env) {
     float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
-    float left_edge = env->road_left;
-    float lane_width = (env->road_right - env->road_left) / 3.0f;
+    float left_edge = road_left_edge_x(env, env->player_y);
+    float right_edge = road_right_edge_x(env, env->player_y);
+    float lane_width = (right_edge - left_edge) / 3.0f;
 
     int lane = (int)((player_center_x - left_edge) / lane_width);
     if (lane < 0) lane = 0;
@@ -335,64 +367,24 @@ void add_enemy_car(Enduro* env) {
     env->enemyCars[env->numEnemies++] = car;
 }
 
-void compute_observations(Enduro* env) {
-    env->observations[0] = env->player_x / SCREEN_WIDTH;
-    env->observations[1] = env->player_y / ACTION_HEIGHT;
-    env->observations[2] = env->speed / env->max_speed;
-    env->observations[3] = env->carsToPass;
-    env->observations[4] = env->day;
-    env->observations[5] = env->numEnemies;
-    env->observations[6] = env->collision_cooldown;
-    env->observations[7] = env->score;
 
-    int obs_idx = 8;
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        // Compute the car's x position dynamically
-        float car_x = lane_center_x(env, env->enemyCars[i].lane, env->enemyCars[i].y);
-        env->observations[obs_idx++] = car_x / SCREEN_WIDTH;
-        env->observations[obs_idx++] = env->enemyCars[i].y / ACTION_HEIGHT;
-    }
-}
+// Player car sprite
+#define CAR_SPRITE_WIDTH 10
+#define CAR_SPRITE_HEIGHT 10
 
-// Reset the round in the Enduro environment
-void reset_round(Enduro* env) {
-    // TODO: Player y loc starts at action_height - car_height at min speed,
-    // and decreases with increased speed (i.e. moves up on the screen).
-    // TODO: Determine max speed player y loc.
-    // Initialize player car position (centered in middle lane)
-    env->player_x = env->lane_centers[1] - CAR_WIDTH / 2.0f;  // Middle lane
-    env->player_y = env->action_height - env->car_height - 10;  // Moved up by 10 pixels
+static const int car_sprite[CAR_SPRITE_HEIGHT][CAR_SPRITE_WIDTH] = {
+    {0,1,1,0,0,0,1,1,0,0},
+    {1,1,1,1,0,1,1,1,1,0},
+    {1,1,1,1,1,1,1,1,1,0},
+    {1,0,0,0,0,0,0,0,1,1},
+    {1,1,1,1,1,1,1,1,1,0},
+    {1,0,1,1,1,1,1,1,1,1},
+    {1,1,1,1,1,1,1,1,1,0},
+    {1,0,1,1,1,1,1,1,1,1},
+    {1,1,1,1,1,1,1,1,1,0},
+    {1,0,0,0,0,0,0,0,1,1}
+};
 
-    env->score = 0;
-    env->carsToPass = INITIAL_CARS_TO_PASS;
-    env->speed = env->min_speed;
-    env->numEnemies = 0;
-    env->step_count = 0;
-    env->collision_cooldown = 0;
-    env->last_lr_action = 0;
-    env->road_scroll_offset = 0.0f;
-}
-
-// Reset the entire environment
-void reset(Enduro* env) {
-    env->log = (Log){0};
-    reset_round(env);
-    compute_observations(env);
-}
-
-// Check collision between player and enemy car
-bool check_collision(Enduro* env, Car* car) {
-    // Calculate car's x position
-    float scale = (car->y + CAR_HEIGHT) / (ACTION_HEIGHT + CAR_HEIGHT);
-    float car_width_scaled = CAR_WIDTH * scale;
-    float car_x = lane_center_x(env, car->lane, car->y) - car_width_scaled / 2.0f;
-    return !(env->player_x > car_x + car_width_scaled || 
-             env->player_x + CAR_WIDTH < car_x || 
-             env->player_y > car->y + CAR_HEIGHT || 
-             env->player_y + CAR_HEIGHT < car->y);
-}
-
-// Step function
 void step(Enduro* env) {
     if (env == NULL) {
         printf("[ERROR] env is NULL! Aborting step.\n");
@@ -402,90 +394,107 @@ void step(Enduro* env) {
     env->log.episode_length += 1;
     env->terminals[0] = 0;
 
-    // Handle cooldown if active
-    if (env->collision_cooldown > 0) {
-        env->collision_cooldown -= 1;
+    // Update road scroll offset
+    env->road_scroll_offset += env->speed;
+
+    // Update enemy cars even during collision cooldown
+    for (int i = 0; i < env->numEnemies; i++) {
+        Car* car = &env->enemyCars[i];
+        // Update enemy car position
+        car->y += env->speed;
     }
 
-    // Update road scroll offset
-    if (env->speed > 0) {
-        env->road_scroll_offset += env->speed;
-    }
+
+    // Limit player's x position based on road edges at player's y position
+    float road_left = road_left_edge_x(env, env->player_y);
+    float road_right = road_right_edge_x(env, env->player_y);
 
     // Player movement logic
-    if (env->collision_cooldown == 0) {
+    if (env->collision_cooldown <= 0) {
         int act = env->actions;
         if (act == 1) {  // Move left
-            env->player_x -= 5;
-            if (env->player_x < env->road_left) env->player_x = env->road_left;
+            env->player_x -= 1;
+            if (env->player_x < road_left) env->player_x = road_left;
             env->last_lr_action = 1;
         } else if (act == 2) {  // Move right
-            env->player_x += 5;
-            if (env->player_x > env->road_right - CAR_WIDTH) env->player_x = env->road_right - CAR_WIDTH;
+            env->player_x += 1;
+            if (env->player_x > road_right - CAR_WIDTH) env->player_x = road_right - CAR_WIDTH;
             env->last_lr_action = 2;
-        } else {
-            env->last_lr_action = 0;
         }
-        if (act == 3 && env->speed < env->max_speed) env->speed += 0.1f;
-        if (act == 4 && env->speed > env->min_speed) env->speed -= 0.1f;
+        if (act == 3 && env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
+        if (act == 4 && env->speed > env->min_speed) env->speed -= DECELERATION_RATE;
+    } else {
+        env->collision_cooldown -= 1;
+        if (env->last_lr_action == 1) env->player_x -= 25;
+        if (env->last_lr_action == 2) env->player_x += 25;
+        env->speed *= FRICTION;
+        env->speed -= 0.305 * DECELERATION_RATE;
+        if (env->speed < env->min_speed) env->speed = env->min_speed;
     }
 
-    // Enemy car logic and collision handling
+    if (env->player_x < road_left) env->player_x = road_left;
+    if (env->player_x > road_right - CAR_WIDTH) env->player_x = road_right - CAR_WIDTH;
+
+    // Update vanishing point based on player's horizontal movement
+    env->vanishing_point_x = VANISHING_POINT_X - (env->player_x - env->initial_player_x);
+
+    //  else if (act != 3 && env->speed > env->min_speed) {
+    //     // Apply friction
+    //     env->speed *= FRICTION;
+    //     if (env->speed < env->min_speed) env->speed = env->min_speed;
+    // }
+
+    // Update player y position based on speed
+    env->player_y = PLAYER_MAX_Y - (env->speed - env->min_speed) / (env->max_speed - env->min_speed) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
+    // Clamp player_y
+    if (env->player_y < PLAYER_MIN_Y) env->player_y = PLAYER_MIN_Y;
+    if (env->player_y > PLAYER_MAX_Y) env->player_y = PLAYER_MAX_Y;
+
+    // Enemy car logic
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
 
-        // Update enemy car position
-        car->y += env->speed;
-
         // Check for passing logic
         if (env->speed > 0 && car->y > env->player_y + CAR_HEIGHT && !car->passed) {
-            // Player has passed the car
             env->carsToPass--;
             if (env->carsToPass < 0) env->carsToPass = 0;
             car->passed = true;
-            env->score++;
+            env->score += 10;
             env->rewards[0] += 1;
-        } else if (env->speed < 0 && car->y < env->player_y && !car->passed) {
-            // Car passes the player from behind
-            env->carsToPass++;
-            car->passed = true;
-            env->score--;
-            env->rewards[0] -= 1;
         }
 
-        // TODO: Add collisions with the road edges
         // Check for collisions between the player and the car
         if (check_collision(env, car)) {
-            env->speed = env->min_speed;
+            env->speed = env->min_speed = MIN_SPEED;
             env->collision_cooldown = CRASH_NOOP_DURATION;
 
             // TODO: Drift doesn't work. Make it work.
             // Drift the player's car
             if (env->last_lr_action == 1) {  // Last action was left
                 env->player_x -= 10;
-                if (env->player_x < env->road_left) env->player_x = env->road_left;
+                if (env->player_x < road_left) env->player_x = road_left;
             } else if (env->last_lr_action == 2) {  // Last action was right
                 env->player_x += 10;
-                if (env->player_x > env->road_right - CAR_WIDTH) env->player_x = env->road_right - CAR_WIDTH;
+                if (env->player_x > road_right - CAR_WIDTH) env->player_x = road_right - CAR_WIDTH;
             }
             env->last_lr_action = 0;
 
             // printf("[DEBUG] Collision detected with car %d. Cooldown: %f\n", i, env->collision_cooldown);
         }
 
-        // TODO: Clip cars to within visible area without removing them
         // Remove off-screen cars
-        if (car->y > ACTION_HEIGHT + CAR_HEIGHT || car->y < -CAR_HEIGHT * 2) {
+        if (car->y > PLAYABLE_AREA_BOTTOM + CAR_HEIGHT * 5) {
             // Remove car from array
             for (int j = i; j < env->numEnemies - 1; j++) {
                 env->enemyCars[j] = env->enemyCars[j + 1];
             }
             env->numEnemies--;
-            i--;  // Adjust loop index
+            i--;
         }
     }
 
-    // Add new enemy cars based on random conditions (currently 1% chance)
+    // Adjust enemy car spawn frequency based on day number
+    // Less aggressive spawning
     if (env->numEnemies < MAX_ENEMIES && rand() % 100 < 1) {
         add_enemy_car(env);
     }
@@ -496,93 +505,102 @@ void step(Enduro* env) {
         env->carsToPass = env->day * 10 + 10;
         env->speed += 0.1f;
 
-        // Log day completion
         add_log(env->log_buffer, &env->log);
 
-        // Reset rewards after day completes
         env->rewards[0] = 0;
     } else if (env->step_count >= env->day_length) {
         if (env->carsToPass > 0) {
-            env->terminals[0] = 1;  // Mark game as over
+            env->terminals[0] = 1;
             add_log(env->log_buffer, &env->log);
             reset(env);
             return;
         }
     }
 
-    // Accumulate rewards for the episode
     env->log.episode_return += env->rewards[0];
 
-    // Prepare for the next step
     env->step_count++;
     env->log.score = env->score;
 }
 
-// TODO: Add scenery
-// TODO: Add day/night cycle + pre-dawn
-// TODO: Add winter/summer cycle
-
 void render(Client* client, Enduro* env) {
     BeginDrawing();
-    ClearBackground(client->road_color);
 
-    // Render road (simplified perspective)
-    DrawTriangle((Vector2){ env->road_left, ACTION_HEIGHT }, 
-                 (Vector2){ env->road_right, ACTION_HEIGHT }, 
-                 (Vector2){ SCREEN_WIDTH / 2.0f, 0 }, GRAY);
+    // Draw sky
+    ClearBackground(SKYBLUE);
 
-    // TODO: Improve road edge wiggle effect
-    // Draw road edge lines
-    for (float y = ACTION_HEIGHT; y >= 0; y -= 5.0f) {
-        float adjusted_y = y + fmod(env->road_scroll_offset, 5.0f);
-        if (adjusted_y > ACTION_HEIGHT) continue;
+    // Draw grass (sides of the road)
+    DrawRectangle(0, VANISHING_POINT_Y, SCREEN_WIDTH, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y, DARKGREEN);
+
+    // Draw the playable area boundary
+    BeginScissorMode(PLAYABLE_AREA_LEFT, VANISHING_POINT_Y, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+
+    // Render road
+    for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y++) {
+        float left_edge = road_left_edge_x(env, y);
+        float right_edge = road_right_edge_x(env, y);
+        DrawLine(left_edge, y, right_edge, y, GRAY);
+    }
+
+    // Road edge lines
+    for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y += 5.0f) {
+        float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 5.0f);
+        if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
 
         float left_edge = road_left_edge_x(env, adjusted_y);
         float right_edge = road_right_edge_x(env, adjusted_y);
 
         // Draw left edge line
-        float left_line_length = 10.0f * (1.0f - adjusted_y / ACTION_HEIGHT);
-        DrawLineBezier((Vector2){ left_edge, adjusted_y - left_line_length / 2.0f },
-                (Vector2){ left_edge, adjusted_y + left_line_length / 2.0f },
-                1.0f, WHITE);
+        DrawPixel(left_edge, adjusted_y, WHITE);
 
         // Draw right edge line
-        float right_line_length = 10.0f * (1.0f - adjusted_y / ACTION_HEIGHT);
-        DrawLineBezier((Vector2){ right_edge, adjusted_y - right_line_length / 2.0f },
-                (Vector2){ right_edge, adjusted_y + right_line_length / 2.0f },
-                1.0f, WHITE);
+        DrawPixel(right_edge, adjusted_y, WHITE);
     }
 
-    // Render enemy cars with size adjustment
+    // Render enemy cars with scaling
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
 
-        // Calculate scaling factor based on y position
-        float scale = (car->y + CAR_HEIGHT) / (ACTION_HEIGHT + CAR_HEIGHT);
-        if (scale < 0.2f) scale = 0.2f; // Prevent cars from becoming too small
+        // Compute the scale factor based on y position
+        float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+        float scale = 0.1f + 0.9f * depth; // Scale ranges from 0.1 to 1.0
 
-        // Adjust the size of the car
-        float car_width_scaled = CAR_WIDTH * scale;
-        float car_height_scaled = CAR_HEIGHT * scale;
+        // Compute car x position in its lane
+        float car_center_x = car_x_in_lane(env, car->lane, car->y);
+        float car_x = car_center_x - (CAR_SPRITE_WIDTH * scale) / 2.0f;
 
-        // Calculate car's x position
-        float car_x = lane_center_x(env, car->lane, car->y) - car_width_scaled / 2.0f;
-        
-        // Draw the enemy car
-        DrawRectangle(car_x, car->y, car_width_scaled, car_height_scaled, client->enemy_color);
+        // Draw the scaled car sprite
+        for (int dy = 0; dy < CAR_SPRITE_HEIGHT; dy++) {
+            for (int dx = 0; dx < CAR_SPRITE_WIDTH; dx++) {
+                if (car_sprite[dy][dx]) {
+                    float pixel_x = car_x + dx * scale;
+                    float pixel_y = car->y + dy * scale;
+                    DrawPixel((int)pixel_x, (int)pixel_y, client->enemy_color);
+                }
+            }
+        }
     }
 
-    // Render player car (keep size constant)
-    DrawRectangle(env->player_x, env->player_y, CAR_WIDTH, CAR_HEIGHT, client->player_color);
+    // Render player car (no scaling since it's at the bottom)
+    for (int dy = 0; dy < CAR_SPRITE_HEIGHT; dy++) {
+        for (int dx = 0; dx < CAR_SPRITE_WIDTH; dx++) {
+            if (car_sprite[dy][dx]) {
+                DrawPixel((int)(env->player_x + dx), (int)(env->player_y + dy), client->player_color);
+            }
+        }
+    }
+
+    EndScissorMode();
 
     // Render HUD env data
-    DrawText(TextFormat("Score: %05i", env->score), 56, ACTION_HEIGHT + 10, 10, WHITE);
-    DrawText(TextFormat("Cars to Pass: %03i", env->carsToPass), 56, ACTION_HEIGHT + 25, 10, WHITE);
-    DrawText(TextFormat("Day: %i", env->day), 56, ACTION_HEIGHT + 40, 10, WHITE);
-    DrawText(TextFormat("Speed: %.2f", env->speed), 56, ACTION_HEIGHT + 55, 10, WHITE);
-    DrawText(TextFormat("Step: %i", env->step_count), 56, ACTION_HEIGHT + 70, 10, WHITE);
+    DrawText(TextFormat("Score: %05i", env->score), 10, PLAYABLE_AREA_BOTTOM + 10, 10, WHITE);
+    DrawText(TextFormat("Cars to Pass: %03i", env->carsToPass), 10, PLAYABLE_AREA_BOTTOM + 25, 10, WHITE);
+    DrawText(TextFormat("Day: %i", env->day), 10, PLAYABLE_AREA_BOTTOM + 40, 10, WHITE);
+    DrawText(TextFormat("Speed: %.2f", env->speed), 10, PLAYABLE_AREA_BOTTOM + 55, 10, WHITE);
+    DrawText(TextFormat("Step: %i", env->step_count), 10, PLAYABLE_AREA_BOTTOM + 70, 10, WHITE);
     // Box around HUD
-    DrawRectangleLines(0, ACTION_HEIGHT, SCREEN_WIDTH, HUD_HEIGHT, WHITE);
+    DrawRectangleLines(0, PLAYABLE_AREA_BOTTOM, SCREEN_WIDTH, SCREEN_HEIGHT - PLAYABLE_AREA_BOTTOM, WHITE);
 
     EndDrawing();
 }
+
