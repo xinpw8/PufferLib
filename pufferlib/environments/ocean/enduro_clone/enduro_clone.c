@@ -30,8 +30,8 @@
 #include "enduro_clone.h"
 #include "raylib.h"
 
-#define MAX_SPEED 10.0f
-#define MIN_SPEED -1.0f
+#define MAX_SPEED 3.0f
+#define MIN_SPEED -1.5f
 
 int main() {
     Enduro env = {
