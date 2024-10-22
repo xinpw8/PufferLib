@@ -629,6 +629,34 @@ void render_car(Client* client, Enduro* env) {
 
 
 
+// Color pallette (HSV), (RGB):
+// Enemy cars:
+// teal (108, 99, 105), (66, 158, 130)
+// goldenrod (40, 141, 96), (162, 162, 42)
+// gold-gray (29, 117, 103), (162, 134, 56)
+// perriwinkle (145, 123, 122), (66, 114, 194)
+
+// Grass and Road:
+// forest green (80, 240, 32), (0, 68, 0)
+// Road boundaries closest to horizon:
+// slate (160, 0, 70), (74, 74, 74)
+// Road boundaries middle:
+// gray (160, 0, 104), (111, 111, 111)
+// Road boundaries furthest from horizon:
+// lightish gray (160, 0, 181), (192, 192, 192)
+
+// Background, day mountains:
+// gold (40, 155, 77), (134, 134, 29)
+
+// HUD:
+// Background:
+// darkish red (0, 175, 91), (167, 26, 26)
+// Text backlight:
+// Brown-yellow (25, 126, 120), (195, 144, 61)
+// Text:
+// Sat black(==black, but still) (160, 0, 0), (0, 0, 0)
+// Victory flag:
+// Dark Pastel Green (82, 85, 117), (80, 168, 84)
 
 
 void render(Client* client, Enduro* env) {
@@ -651,8 +679,8 @@ void render(Client* client, Enduro* env) {
     }
 
     // Road edge lines
-    for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y += 5.0f) {
-        float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 5.0f);
+    for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
+        float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 0.75f);
         if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
 
         float left_edge = road_left_edge_x(env, adjusted_y);

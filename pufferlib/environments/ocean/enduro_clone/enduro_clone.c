@@ -1,6 +1,6 @@
 // enduro_clone.c
 
-// TODO: Too much space in road to sneak by enemies
+
     // TODO: Collision drift doesn't work. Make it work.
     // TODO: Add collisions with the road edges
     // TODO: Add scenery
@@ -22,7 +22,7 @@
 // TODO: Add original player car sprite/color
 // TODO: Add original enemy car sprites/colors
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
-
+// TODO: Slow speed player wheel animation
 
 
 #include <stdio.h>
