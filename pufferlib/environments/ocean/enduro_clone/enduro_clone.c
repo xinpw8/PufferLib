@@ -23,6 +23,9 @@
 // TODO: Add original enemy car sprites/colors
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
 // TODO: Slow speed player wheel animation
+// TODO: Combine 2 fns for leanke
+// TODO: reduce line count
+
 
 
 #include <stdio.h>
