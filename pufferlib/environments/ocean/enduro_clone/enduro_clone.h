@@ -51,7 +51,7 @@
 #define CAR_PIXEL_WIDTH 16 // 16
 
 #define CURVE_FREQUENCY 0.05f
-#define CURVE_AMPLITUDE 150.0f
+#define CURVE_AMPLITUDE 30.0f
 #define ROAD_BASE_WIDTH ROAD_RIGHT_EDGE_X - ROAD_LEFT_EDGE_X
 #define NUM_LANES 3
 
@@ -161,6 +161,9 @@ struct Enduro {
     int last_lr_action; // 0: none, 1: left, 2: right
     float road_scroll_offset;
     int car_pixels;
+
+    int current_curve_direction; // 1: Right, -1: Left, 0: Straight
+
 };
 
 // Client structure for rendering and input handling
@@ -233,6 +236,9 @@ void init(Enduro* env) {
     env->log.score = 0.0;
 
     env->car_pixels = CAR_PIXELS_COUNT;
+
+    env->current_curve_direction = 0;
+    env->vanishing_point_x = VANISHING_POINT_X;
 }
 
 void allocate(Enduro* env) {
@@ -290,78 +296,100 @@ static const int car_pixels[CAR_PIXELS_COUNT][2] = {
     {92, 148}, {92, 150}, {92, 152}, {92, 154}
 };
 
-
-// Add this helper function for the curve calculation
-float calculate_road_curve(float progress, float offset) {
-    float curveIntensity = progress * 0.5f * progress; // Square for more dramatic curve
-    return offset * curveIntensity;
+// Calculate curve offset
+float calculate_curve_offset(Enduro* env) {
+    return env->current_curve_direction * CURVE_AMPLITUDE;
 }
 
-// Modify the existing road_left_edge_x and road_right_edge_x functions
+void update_road_curve(Enduro* env) {
+    static int current_curve_stage = 0;
+    static int steps_in_current_stage = 0;
+
+    // Define the number of steps for each curve stage
+    int step_thresholds[] = {
+        250, 1000, 125, 250, 500, 800, 600, 200, 1100, 1200, 1000, 400, 200
+    };
+
+    int curve_directions[] = {
+        1, 0, -1, 0, 1, 0, -1, 0, 1, 0, 1, 0, 1  // 1: Right, -1: Left, 0: Straight
+    };
+
+    steps_in_current_stage++;
+
+    if (steps_in_current_stage >= step_thresholds[current_curve_stage]) {
+        env->current_curve_direction = curve_directions[current_curve_stage];
+
+        // Reset step counter and move to the next stage
+        steps_in_current_stage = 0;
+        current_curve_stage = (current_curve_stage + 1) % (sizeof(step_thresholds) / sizeof(int));
+    }
+}
+
+// Quadratic bezier curve helper function
+float quadratic_bezier(float p0, float p1, float p2, float t) {
+    float one_minus_t = 1.0f - t;
+    return one_minus_t * one_minus_t * p0 + 
+           2.0f * one_minus_t * t * p1 + 
+           t * t * p2;
+}
+
+// Update road_left_edge_x and road_right_edge_x functions
 float road_left_edge_x(Enduro* env, float y) {
-    float progress = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    float roadWidth = ROAD_BASE_WIDTH * progress;
-    float centerX = env->vanishing_point_x + (SCREEN_WIDTH / 2 - env->vanishing_point_x) * progress;
+    float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+
+    float curve_offset = env->current_curve_direction * CURVE_AMPLITUDE;
     
-    // Calculate curve offset
-    float xOffset = calculate_road_curve(progress, CURVE_AMPLITUDE * sinf(env->road_scroll_offset * CURVE_FREQUENCY));
+    // Start point (bottom of screen)
+    float p0 = ROAD_LEFT_EDGE_X;
     
-    return centerX - (roadWidth / 2) + xOffset;
+    // End point (vanishing point)
+    float p2 = VANISHING_POINT_X + curve_offset;
+    
+    // Control point - placed halfway between start and end points
+    // Horizontally offset based on curve direction
+    float control_y = (PLAYABLE_AREA_BOTTOM + VANISHING_POINT_Y) / 2.0f;
+    float control_x = ROAD_LEFT_EDGE_X + (p2 - ROAD_LEFT_EDGE_X) / 2.0f;
+    if (env->current_curve_direction != 0) {
+        control_x += env->current_curve_direction * CURVE_AMPLITUDE * 0.75f;
+    }
+    
+    return quadratic_bezier(p0, control_x, p2, t);
 }
 
 float road_right_edge_x(Enduro* env, float y) {
-    float progress = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    float roadWidth = ROAD_BASE_WIDTH * progress;
-    float centerX = env->vanishing_point_x + (SCREEN_WIDTH / 2 - env->vanishing_point_x) * progress;
+    float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+
+    float curve_offset = env->current_curve_direction * CURVE_AMPLITUDE;
     
-    // Calculate curve offset
-    float xOffset = calculate_road_curve(progress, CURVE_AMPLITUDE * sinf(env->road_scroll_offset * CURVE_FREQUENCY));
+    // Start point (bottom of screen)
+    float p0 = ROAD_RIGHT_EDGE_X;
     
-    return centerX + (roadWidth / 2) + xOffset;
+    // End point (vanishing point)
+    float p2 = VANISHING_POINT_X + curve_offset;
+    
+    // Control point - placed halfway between start and end points
+    // Horizontally offset based on curve direction
+    float control_y = (PLAYABLE_AREA_BOTTOM + VANISHING_POINT_Y) / 2.0f;
+    float control_x = ROAD_RIGHT_EDGE_X + (p2 - ROAD_RIGHT_EDGE_X) / 2.0f;
+    if (env->current_curve_direction != 0) {
+        control_x += env->current_curve_direction * CURVE_AMPLITUDE * 0.75f;
+    }
+    
+    return quadratic_bezier(p0, control_x, p2, t);
 }
 
-
-
-// Modify the car_x_in_lane function to account for road curve
+// Update car_x_in_lane function
 float car_x_in_lane(Enduro* env, int lane, float y) {
-    float progress = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    float centerX = env->vanishing_point_x + (SCREEN_WIDTH / 2 - env->vanishing_point_x) * progress;
-    
-    // Calculate curve offset using the same logic as road edges
-    float xOffset = calculate_road_curve(progress, CURVE_AMPLITUDE * sinf(env->road_scroll_offset * CURVE_FREQUENCY));
-    
-    // Calculate road width at this y position
-    float roadWidth = ROAD_BASE_WIDTH * progress;
-    float lane_width = roadWidth / NUM_LANES;
-    
-    // Apply curve offset to the center point, then calculate lane position
-    centerX += xOffset;
-    return centerX - (roadWidth / 2) + (lane + 0.5f) * lane_width;
+    float left_edge = road_left_edge_x(env, y);
+    float right_edge = road_right_edge_x(env, y);
+    float lane_width = (right_edge - left_edge) / NUM_LANES;
+    return left_edge + lane_width * (lane + 0.5f);
 }
 
-
-
-
-
-
-// new old??
-// float road_left_edge_x(Enduro* env, float y) {
-//     float x1 = ROAD_LEFT_EDGE_X;
-//     float y1 = PLAYABLE_AREA_BOTTOM;
-//     float vp_x = env->vanishing_point_x;
-//     float vp_y = VANISHING_POINT_Y;  // Keep this for perspective calculations
-//     if (y >= y1) return x1;
-//     return vp_x + (x1 - vp_x) * (y - vp_y) / (y1 - vp_y);
-// }
-
-// float road_right_edge_x(Enduro* env, float y) {
-//     float x2 = ROAD_RIGHT_EDGE_X;
-//     float y1 = PLAYABLE_AREA_BOTTOM;
-//     float vp_x = env->vanishing_point_x;
-//     float vp_y = VANISHING_POINT_Y;  // Keep this for perspective calculations
-//     if (y >= y1) return x2;
-//     return vp_x + (x2 - vp_x) * (y - vp_y) / (y1 - vp_y);
-// }
 
 
 // float road_left_edge_x(Enduro* env, float y) {
@@ -444,28 +472,6 @@ bool check_collision(Enduro* env, Car* car) {
              env->player_y + CAR_HEIGHT < car->y);
 }
 
-
-// // Update the check_collision function
-// bool check_collision(Enduro* env, Car* car) {
-//     // Compute the scale factor
-//     float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-//     float scale = 0.1f + 0.9f * depth;
-
-//     // Compute car dimensions
-//     float car_width = CAR_WIDTH * scale;
-//     float car_height = CAR_HEIGHT * scale;
-
-//     // Compute car x position
-//     float car_center_x = car_x_in_lane(env, car->lane, car->y);
-//     float car_x = car_center_x - car_width / 2.0f;
-
-//     // Check collision
-//     return !(env->player_x > car_x + car_width ||
-//              env->player_x + CAR_WIDTH < car_x ||
-//              env->player_y > car->y + car_height ||
-//              env->player_y + CAR_HEIGHT < car->y);
-// }
-
 int get_player_lane(Enduro* env) {
     float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
     float left_edge = road_left_edge_x(env, env->player_y);
@@ -505,48 +511,6 @@ void add_enemy_car(Enduro* env) {
 
     env->enemyCars[env->numEnemies++] = car;
 }
-
-
-void update_road_curve(Enduro* env) {
-    static int current_curve_stage = 0;
-    static int steps_in_current_stage = 0;
-
-    // Define the number of steps for each curve stage
-    int step_thresholds[] = {
-        200, 800, 100, 200, 400, 800, 600, 200, 1100, 1200, 1000, 400, 200
-    };
-
-    int curve_directions[] = {
-        1, 0, -1, 0, 1, 0, -1, 0, 1, 0, 1, 0, 1  // 1: Right, -1: Left, 0: Straight
-    };
-
-    steps_in_current_stage++;
-
-    printf("Current curve stage: %d, Steps in current stage: %d\n", current_curve_stage, steps_in_current_stage);
-
-    if (steps_in_current_stage >= step_thresholds[current_curve_stage]) {
-        env->road_scroll_offset = curve_directions[current_curve_stage];
-
-        // Log the current curve direction
-        if (curve_directions[current_curve_stage] == 1) {
-            printf("Road is curving RIGHT\n");
-        } else if (curve_directions[current_curve_stage] == -1) {
-            printf("Road is curving LEFT\n");
-        } else {
-            printf("Road is STRAIGHT\n");
-        }
-
-        // Reset step counter and move to the next stage
-        steps_in_current_stage = 0;
-        current_curve_stage++;
-
-        // Loop back to the start if we exceed the number of stages
-        if (current_curve_stage >= sizeof(step_thresholds) / sizeof(int)) {
-            current_curve_stage = 0;
-        }
-    }
-}
-
 
 
 void step(Enduro* env) {
