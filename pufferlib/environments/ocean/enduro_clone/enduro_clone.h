@@ -163,6 +163,11 @@ struct Enduro {
     int car_pixels;
 
     int current_curve_direction; // 1: Right, -1: Left, 0: Straight
+    // Variables for adjusting left edge control point when curving right
+    float left_curve_p1_x;
+    float left_curve_p1_x_increment;
+    float left_curve_p1_x_min;
+    float left_curve_p1_x_max;
 
 };
 
@@ -239,6 +244,12 @@ void init(Enduro* env) {
 
     env->current_curve_direction = 0;
     env->vanishing_point_x = VANISHING_POINT_X;
+
+        // Initialize variables for left edge control point adjustment
+    env->left_curve_p1_x = -20.0f;             // Starting offset
+    env->left_curve_p1_x_increment = 0.5f;   // Increment per step
+    env->left_curve_p1_x_min = -20.0f;         // Minimum offset
+    env->left_curve_p1_x_max = 160.0f;       // Maximum offset
 }
 
 void allocate(Enduro* env) {
@@ -307,11 +318,11 @@ void update_road_curve(Enduro* env) {
 
     // Define the number of steps for each curve stage
     int step_thresholds[] = {
-        250, 1000, 125, 250, 500, 800, 600, 200, 1100, 1200, 1000, 400, 200
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 // <--test values. actual values: 250, 1000, 125, 250, 500, 800, 600, 200, 1100, 1200, 1000, 400, 200
     };
 
     int curve_directions[] = {
-        1, 0, -1, 0, 1, 0, -1, 0, 1, 0, 1, 0, 1  // 1: Right, -1: Left, 0: Straight
+        1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1  // -1: Left, 1: Right, 0: Straight
     };
 
     steps_in_current_stage++;
@@ -325,6 +336,8 @@ void update_road_curve(Enduro* env) {
     }
 }
 
+
+// B(t)=(1−t)2P0​+2(1−t)tP1​+t2P2​,t∈[0,1]
 // Quadratic bezier curve helper function
 float quadratic_bezier(float p0, float p1, float p2, float t) {
     float one_minus_t = 1.0f - t;
@@ -333,54 +346,71 @@ float quadratic_bezier(float p0, float p1, float p2, float t) {
            t * t * p2;
 }
 
-// Update road_left_edge_x and road_right_edge_x functions
 float road_left_edge_x(Enduro* env, float y) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
 
-    float curve_offset = env->current_curve_direction * CURVE_AMPLITUDE;
-    
-    // Start point (bottom of screen)
-    float p0 = ROAD_LEFT_EDGE_X;
-    
-    // End point (vanishing point)
-    float p2 = VANISHING_POINT_X + curve_offset;
-    
-    // Control point - placed halfway between start and end points
-    // Horizontally offset based on curve direction
-    float control_y = (PLAYABLE_AREA_BOTTOM + VANISHING_POINT_Y) / 2.0f;
-    float control_x = ROAD_LEFT_EDGE_X + (p2 - ROAD_LEFT_EDGE_X) / 2.0f;
-    if (env->current_curve_direction != 0) {
-        control_x += env->current_curve_direction * CURVE_AMPLITUDE * 0.75f;
+    float x;
+
+    if (env->current_curve_direction == -1) { // Left curve
+        // Left edge Bezier curve points
+        float P0_x = ROAD_LEFT_EDGE_X;   // Start point at bottom
+        float P1_x = 81;                 // Control point x
+        float P2_x = 40;                 // End point at horizon
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
+    } else if (env->current_curve_direction == 1) { // Right curve
+        // Left edge Bezier curve points for right curve
+        float P0_x = SCREEN_WIDTH - ROAD_RIGHT_EDGE_X;                      // Start point at bottom
+        float P1_x = SCREEN_WIDTH - P0_x - 100; // 100 is magic #; (P0_x - env->left_curve_p1_x) Control point x (adjusted over time) for testing
+        float P2_x = SCREEN_WIDTH - 40;                     // End point at horizon
+
+        printf("left_curve_p1_x only: %.2f\n", env->left_curve_p1_x);
+        printf("P0_x = %.2f, P1_x = %.2f, P2_x = %.2f\n", P0_x, P1_x, P2_x);
+
+
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
+    } else { // Straight road
+        // Linear interpolation for straight road
+        float P0_x = ROAD_LEFT_EDGE_X;
+        float P2_x = VANISHING_POINT_X;
+
+        x = P0_x + (P2_x - P0_x) * t;
     }
-    
-    return quadratic_bezier(p0, control_x, p2, t);
+
+    return x;
 }
+
 
 float road_right_edge_x(Enduro* env, float y) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
 
-    float curve_offset = env->current_curve_direction * CURVE_AMPLITUDE;
-    
-    // Start point (bottom of screen)
-    float p0 = ROAD_RIGHT_EDGE_X;
-    
-    // End point (vanishing point)
-    float p2 = VANISHING_POINT_X + curve_offset;
-    
-    // Control point - placed halfway between start and end points
-    // Horizontally offset based on curve direction
-    float control_y = (PLAYABLE_AREA_BOTTOM + VANISHING_POINT_Y) / 2.0f;
-    float control_x = ROAD_RIGHT_EDGE_X + (p2 - ROAD_RIGHT_EDGE_X) / 2.0f;
-    if (env->current_curve_direction != 0) {
-        control_x += env->current_curve_direction * CURVE_AMPLITUDE * 0.75f;
+    float x;
+    if (env->current_curve_direction == -1) { // Left curve
+        // Right edge Bezier curve points
+        float P0_x = ROAD_RIGHT_EDGE_X;  // (127, 177)
+        float P1_x = 135;                // Control point x (135, 92)
+        float P2_x = 40;                 // End point x (40, 68)
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
+    } else if (env->current_curve_direction == 1) { // Right curve
+        // Mirror the right curve across the center line
+        float P0_x = SCREEN_WIDTH - ROAD_LEFT_EDGE_X; // Mirrored start point
+        float P1_x = SCREEN_WIDTH - 69; // 69 is magic #; Control point SCREEN_WIDTH - env->left_curve_p1_x (testing)
+        float P2_x = SCREEN_WIDTH - 40;               // Horizon endpoint mirrored
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
+    } else { // Straight road
+        // Linear interpolation for straight road
+        float P0_x = ROAD_RIGHT_EDGE_X;
+        float P2_x = VANISHING_POINT_X;
+
+        x = P0_x + (P2_x - P0_x) * t;
     }
-    
-    return quadratic_bezier(p0, control_x, p2, t);
+
+    return x;
 }
+
 
 // Update car_x_in_lane function
 float car_x_in_lane(Enduro* env, int lane, float y) {
@@ -520,6 +550,16 @@ void step(Enduro* env) {
     }
 
     update_road_curve(env);
+
+        // Adjust left_curve_p1_x when road is curving right
+    if (env->current_curve_direction == 1) {
+        env->left_curve_p1_x += env->left_curve_p1_x_increment;
+        if (env->left_curve_p1_x > env->left_curve_p1_x_max) {
+            env->left_curve_p1_x = env->left_curve_p1_x_min;
+        }}
+    // } else {
+    //     env->left_curve_p1_x = 0.0f;  // Reset when not curving right
+    // }
 
     env->log.episode_length += 1;
     env->terminals[0] = 0;
