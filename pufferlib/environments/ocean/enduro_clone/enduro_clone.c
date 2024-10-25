@@ -14,8 +14,6 @@
 // TODO: Compute/determine enemy car spawn frequency for each day num
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
 // TODO: Ascertain lane choice logic per atari original
-// TODO: Twisting road logic
-// TODO: Twisting road render
 // TODO: Implement RL
 // TODO: Make sure it trains
 // TODO: Engineer good policy
@@ -23,8 +21,12 @@
 // TODO: Add original enemy car sprites/colors
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
 // TODO: Slow speed player wheel animation
+// TODO: Add road bump-out effect
+
+
+// Leanke's TODOs:
 // TODO: Combine 2 fns for leanke
-// TODO: reduce line count
+// TODO: reduce line countp
 
 
 
