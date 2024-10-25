@@ -45,7 +45,7 @@
 #define DIRE_CARRY 15
 
 #define TOWER_VISION 5
-#define CREEP_VISION 5
+#define CREEP_VISION 7
 #define NEUTRAL_VISION 3
 
 #define ENTITY_PLAYER 0
@@ -71,6 +71,7 @@ const int TOWER_TIER[] = {3, 3, 3, 2, 1, 2, 2, 1, 4, 4, 2, 1, 2, 1, 2, 3, 3, 3, 
 const float TOWER_X[] = {34.6, 29.307692307692307, 14.292307692307695, 64.2, 102.87692307692308, 38.29230769230769, 17.615384615384613, 16.876923076923077, 21.06153846153846, 103.03076923076924, 65.0, 29.06153846153846, 84.2, 69.03076923076924, 112.75384615384615, 113.73846153846154, 92.32307692307693, 97.86153846153846, 105.61538461538461, 23.52307692307692, 53.12307692307692, 113.22307692307692, 107.52307692307693, 19.46153846153846};
 const float TOWER_Y[] = {112.01538461538462, 96.87692307692308, 91.21538461538461, 113.61538461538461, 112.13846153846154, 85.43076923076923, 71.70769230769231, 51.03076923076923, 102.41538461538462, 28.261538461538464, 18.723076923076924, 18.723076923076924, 48.753846153846155, 59.98461538461538, 62.04615384615384, 41.676923076923075, 20.56923076923077, 36.08461538461539, 30.907692307692308, 104.93846153846154, 75.83076923076923, 78.3, 26.53846153846154, 106.16923076923078};
 const float WAYPOINTS[][20][2] = {{{96.26153846153846, 14.04615384615385}, {93.61538461538461, 14.292307692307695}, {58.23076923076923, 16.07692307692308}, {43.4, 16.01538461538462}, {32.10769230769231, 17.584615384615383}, {24.93846153846154, 19.123076923076923}, {22.96923076923077, 20.446153846153848}, {21.06153846153846, 25.307692307692307}, {20.200000000000003, 30.47692307692308}, {19.4, 35.892307692307696}, {18.47692307692308, 43.52307692307693}, {18.04615384615385, 50.723076923076924}, {20.50769230769231, 94.66153846153847}, {27.676923076923075, 105.94615384615385}}, {{99.52307692307693, 26.47692307692308}, {98.66153846153847, 27.646153846153844}, {86.04615384615384, 41.12307692307692}, {71.33846153846154, 57.49230769230769}, {66.96923076923076, 62.23076923076923}, {64.07692307692308, 66.35384615384615}, {60.2, 72.01538461538462}, {51.892307692307696, 84.87692307692308}, {34.66153846153846, 99.4}, {28.169230769230772, 105.94615384615385}}, {{112.01538461538462, 36.93846153846154}, {112.01538461538462, 32.50769230769231}, {116.2, 68.6923076923077}, {113.73846153846154, 80.75384615384615}, {113.55384615384615, 90.53846153846155}, {113.21538461538461, 95.98461538461538}, {111.49230769230769, 100.93846153846154}, {109.06153846153846, 108.07692307692308}, {107.18461538461538, 111.36923076923077}, {101.73846153846154, 114.66153846153847}, {90.53846153846155, 111.76923076923077}, {39.4, 113.73846153846154}, {28.169230769230772, 106.43846153846154}}, {{20.446153846153848, 89.36923076923077}, {20.630769230769232, 94.66153846153847}, {18.784615384615385, 50.6}, {22.292307692307695, 24.50769230769231}, {22.815384615384616, 18.815384615384616}, {27.52307692307692, 17.03076923076923}, {35.03076923076923, 15.95384615384615}, {93.61538461538461, 14.415384615384617}, {103.64615384615385, 21.99230769230769}}, {{37.43076923076923, 96.50769230769231}, {34.53846153846154, 99.27692307692308}, {51.707692307692305, 84.38461538461539}, {59.83076923076923, 71.64615384615385}, {63.83076923076923, 66.1076923076923}, {66.72307692307692, 61.98461538461538}, {70.84615384615384, 57.246153846153845}, {98.53846153846155, 27.52307692307692}, {103.64615384615385, 22.48461538461538}}, {{36.93846153846154, 113.24615384615385}, {39.4, 113.61538461538461}, {62.292307692307695, 114.6}, {83.64615384615385, 114.6}, {90.66153846153847, 109.8}, {94.87692307692308, 112.01538461538462}, {104.26153846153846, 112.2923076923077}, {109.3076923076923, 107.83076923076922}, {112.23076923076923, 105.86153846153846}, {114.44615384615385, 72.96923076923076}, {111.8923076923077, 32.50769230769231}, {104.13846153846154, 22.48461538461538}}};
+const int WAYPOINTS_N[6] = {14, 10, 13, 9, 9, 12};
 
 #define LOG_BUFFER_SIZE 1024
 
@@ -623,6 +624,7 @@ void kill_entity(Map* map, Entity* entity) {
     map->pids[adr] = -1;
     entity->pid = -1;
     entity->target_pid = -1;
+    entity->health = 0;
     entity->last_x = 0;
     entity->last_y = 0;
     entity->x = 0;
@@ -908,6 +910,9 @@ int scan_aoe(MOBA* env, Entity* player, int radius,
 
     for (int y = player_y-radius; y <= player_y+radius; y++) {
         for (int x = player_x-radius; x <= player_x+radius; x++) {
+            if (y < 0 || y >= 128 || x < 0 || x >= 128)
+                continue;
+
             int adr = map_offset(map, y, x);
             int target_pid = map->pids[adr];
             if (target_pid == -1)
@@ -929,9 +934,14 @@ int scan_aoe(MOBA* env, Entity* player, int radius,
             if (exclude_towers && target_type == ENTITY_TOWER)
                 continue;
 
+            /*if (player->pid >= 5 && player->entity_type == ENTITY_PLAYER && target_type == ENTITY_TOWER && target->tier==5) {
+                printf("Player %i at %f, %f scanned tower %i at %f, %f\n", player->pid, player->y, player->x, target->pid, target->y, target->x);
+            }
+            */
+
             env->scanned_targets[pid][idx] = target;
             float dist_to_target = l1_distance(player->y, player->x, target->y, target->x);
-            if (dist_to_target > 15) {
+            if (dist_to_target > 20) {
                 printf("Invalid target at %f, %f\n", target->y, target->x);
                 printf("player x: %f, y: %f, target x: %f, y: %f, dist: %f\n", player->x, player->y, target->x, target->y, dist_to_target);
                 printf("player pid: %i, target pid: %i\n", player->pid, target->pid);
@@ -1059,10 +1069,11 @@ void creep_ai(MOBA* env, Entity* creep) {
         float dest_x = WAYPOINTS[lane][waypoint][1];
         move_towards(env, creep, dest_y, dest_x, env->agent_speed);
 
-        // TODO: Last waypoint?
         float dist = l1_distance(creep->y, creep->x, dest_y, dest_x);
-        if (dist < 2 && WAYPOINTS[lane][waypoint+1][0] != 0)
+        if (dist < 2 && creep->waypoint < WAYPOINTS_N[lane] - 1)
             creep->waypoint += 1;
+        //if (creep->waypoint == WAYPOINTS_N[lane] - 1)
+        //    printf("Creep %i at %f, %f, waypoint %i\n", creep->pid, creep->y, creep->x, creep->waypoint);
     }
 }
 
@@ -1445,19 +1456,23 @@ void step_players(MOBA* env) {
 
         if (env->script_opponents && pid >= 5) {
             creep_ai(env, player);
-
-            scan_aoe(env, player, env->vision_range, true, false, false, false, false);
-            Entity* target = NULL;
-            if (env->scanned_targets[pid][0] != NULL)
-                target = nearest_scanned_target(env, player);
-
-            if (player->q_timer <= 0 && env->skills[pid][0](env, player, target) == 0) {
-                log->usage_q += 1;
-            } else if (player->w_timer <= 0 && env->skills[pid][1](env, player, target) == 0) {
-                log->usage_w += 1;
-            } else if (player->e_timer <= 0 && env->skills[pid][2](env, player, target) == 0) {
-                log->usage_e += 1;
+            /*
+            if (env->scanned_targets[pid][0] != NULL) {
+                Entity* target = nearest_scanned_target(env, player);
+                float dest_y = target->y;
+                float dest_x = target->x;
+                float dist = l1_distance(player->y, player->x, dest_y, dest_x);
+                if (dist < 5) {
+                    if (player->q_timer <= 0 && env->skills[pid][0](env, player, target) == 0) {
+                        log->usage_q += 1;
+                    } else if (player->w_timer <= 0 && env->skills[pid][1](env, player, target) == 0) {
+                        log->usage_w += 1;
+                    } else if (player->e_timer <= 0 && env->skills[pid][2](env, player, target) == 0) {
+                        log->usage_e += 1;
+                    }
+                }
             }
+            */
         } else {
             int (*actions)[6] = (int(*)[6])env->actions;
             //float vel_y = (actions[pid][0] > 0) ? 1 : -1;
@@ -1776,7 +1791,7 @@ MOBA* allocate_moba(MOBA* env) {
  
 void reset(MOBA* env) {
     //map->pids[:] = -1
-    randomize_tower_hp(env);
+    //randomize_tower_hp(env);
     
     env->tick = 0;
     Map* map = env->map;
@@ -1798,7 +1813,10 @@ void reset(MOBA* env) {
         tower->y = 0;
         int adr = map_offset(map, tower->spawn_y, tower->spawn_x);
         map->grid[adr] = EMPTY;
-        move_to(env->map, tower, tower->spawn_y, tower->spawn_x);
+        int success = move_to(env->map, tower, tower->spawn_y, tower->spawn_x);
+        if (success == 1) {
+            printf("Failed to move tower %i to %f, %f\n", pid, tower->spawn_y, tower->spawn_x);
+        }
         tower->last_x = tower->x;
         tower->last_y = tower->y;
     }
@@ -1855,17 +1873,28 @@ void step(MOBA* env) {
     float radiant_victory = 0;
     float dire_victory = 0;
     Entity* ancient = &env->entities[radiant_pid];
-    if (ancient->health <= 0) {
+    if (ancient->health <= 0 || ancient->pid == -1) {
         do_reset = true;
         radiant_victory = 1;
         printf("Radiant victory\n");
+        //Print tower states
+        for (int i = 0; i < NUM_TOWERS; i++) {
+            Entity* tower = &env->entities[TOWER_OFFSET + i];
+            printf("Tower %i: %f, %f, %f\n", i, tower->health, tower->y, tower->x);
+        }
+        //Print levels and pos
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            Entity* player = &env->entities[i];
+            printf("Player %i: %i, %f, %f\n", i, player->level, player->y, player->x);
+        }
+        printf("Tick %i", env->tick);
+        exit(0);
     }
 
     ancient = &env->entities[dire_pid];
-    if (ancient->health <= 0) {
+    if (ancient->health <= 0 || ancient->pid == -1) {
         do_reset = true;
         dire_victory = 1;
-        printf("Dire victory\n");
     }
 
     if (do_reset) {
@@ -1876,14 +1905,16 @@ void step(MOBA* env) {
         for (int i = 0; i < 5; i++) {
             log.radiant_level += env->entities[i].level / 5.0f;
         }
-        for (int i = 0; i < NUM_TOWERS/2; i++) {
-            log.radiant_towers_alive += env->entities[TOWER_OFFSET + i].health > 0;
-        }
         for (int i = 5; i < 10; i++) {
             log.dire_level += env->entities[i].level / 5.0f;
         }
-        for (int i = NUM_TOWERS/2; i < NUM_TOWERS; i++) {
-            log.dire_towers_alive += env->entities[TOWER_OFFSET + i].health > 0;
+        for (int i = 0; i < NUM_TOWERS; i++) {
+            Entity* tower = &env->entities[TOWER_OFFSET + i];
+            if (TOWER_TEAM[i] == 0) {
+                log.radiant_towers_alive += tower->health > 0;
+            } else {
+                log.dire_towers_alive += tower->health > 0;
+            }
         }
         log.radiant_support = env->log[0];
         log.radiant_assassin = env->log[1];
