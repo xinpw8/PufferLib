@@ -409,6 +409,7 @@ struct MOBA {
     int tick;
 
     Map* map;
+    unsigned char* orig_grid;
     unsigned char* ai_paths;
     int* ai_path_buffer;
     unsigned char* observations;
@@ -619,6 +620,9 @@ int move_towards(MOBA* env, Entity* entity, int y_dst, int x_dst, float speed) {
 }
 
 void kill_entity(Map* map, Entity* entity) {
+    if (entity->pid == -1) {
+        return;
+    }
     int adr = map_offset(map, (int)entity->y, (int)entity->x);
     map->grid[adr] = EMPTY;
     map->pids[adr] = -1;
@@ -1578,7 +1582,9 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
 
     env->map = (Map*)calloc(1, sizeof(Map));
     env->map->grid = calloc(128*128, sizeof(unsigned char));
+    env->orig_grid = calloc(128*128, sizeof(unsigned char));
     memcpy(env->map->grid, game_map_npy, 128*128);
+    memcpy(env->orig_grid, game_map_npy, 128*128);
     if (env->map->grid == NULL) {
         printf("Failed to load game map\n");
         exit(1);
@@ -1795,6 +1801,10 @@ void reset(MOBA* env) {
     
     env->tick = 0;
     Map* map = env->map;
+    memcpy(map->grid, env->orig_grid, 128*128);
+    for (int i = 0; i < 128*128; i++) {
+        map->pids[i] = -1;
+    }
 
     // Reset scanned targets
     for (int i = 0; i < NUM_ENTITIES; i++) {
@@ -1833,6 +1843,7 @@ void reset(MOBA* env) {
     for (int idx = 0; idx < NUM_TOWERS; idx++) {
         int pid = TOWER_OFFSET + idx;
         Entity* tower = &env->entities[pid];
+        kill_entity(env->map, tower);
         tower->target_pid = -1;
         tower->pid = pid;
         tower->health = tower->max_health;
