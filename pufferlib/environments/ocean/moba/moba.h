@@ -1798,27 +1798,9 @@ void reset(MOBA* env) {
 
     // Reset scanned targets
     for (int i = 0; i < NUM_ENTITIES; i++) {
+        Entity* entity = &env->entities[i];
+        entity->target_pid = -1;
         env->scanned_targets[i][0] = NULL;
-    }
-
-    // Respawn towers
-    for (int idx = 0; idx < NUM_TOWERS; idx++) {
-        int pid = TOWER_OFFSET + idx;
-        Entity* tower = &env->entities[pid];
-        tower->target_pid = -1;
-        tower->pid = pid;
-        tower->health = tower->max_health;
-        tower->basic_attack_timer = 0;
-        tower->x = 0;
-        tower->y = 0;
-        int adr = map_offset(map, tower->spawn_y, tower->spawn_x);
-        map->grid[adr] = EMPTY;
-        int success = move_to(env->map, tower, tower->spawn_y, tower->spawn_x);
-        if (success == 1) {
-            printf("Failed to move tower %i to %f, %f\n", pid, tower->spawn_y, tower->spawn_x);
-        }
-        tower->last_x = tower->x;
-        tower->last_y = tower->y;
     }
 
     // Respawn agents
@@ -1845,6 +1827,28 @@ void reset(MOBA* env) {
         int pid = NEUTRAL_OFFSET + i;
         Entity* neutral = &env->entities[pid];
         kill_entity(env->map, neutral);
+    }
+
+    // Respawn towers
+    for (int idx = 0; idx < NUM_TOWERS; idx++) {
+        int pid = TOWER_OFFSET + idx;
+        Entity* tower = &env->entities[pid];
+        tower->target_pid = -1;
+        tower->pid = pid;
+        tower->health = tower->max_health;
+        tower->basic_attack_timer = 0;
+        tower->x = 0;
+        tower->y = 0;
+        int adr = map_offset(map, tower->spawn_y, tower->spawn_x);
+        map->grid[adr] = EMPTY;
+        int success = move_to(env->map, tower, tower->spawn_y, tower->spawn_x);
+        if (success == 1) {
+            printf("Failed to move tower %i to %f, %f\n", pid, tower->spawn_y, tower->spawn_x);
+            printf("Currently occupied by %i\n", map->pids[adr]);
+            exit(1);
+        }
+        tower->last_x = tower->x;
+        tower->last_y = tower->y;
     }
 
     compute_observations(env);
