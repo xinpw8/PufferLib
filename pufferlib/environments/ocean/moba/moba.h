@@ -407,6 +407,7 @@ struct MOBA {
     int obs_size;
     int creep_idx;
     int tick;
+    bool should_reset;
 
     Map* map;
     unsigned char* orig_grid;
@@ -569,6 +570,15 @@ int move_to(Map* map, Entity* player, float dest_y, float dest_x) {
     if (map->grid[dst] != EMPTY && map->pids[dst] != player->pid)
         return 1;
 
+    /*
+    int idest_y = dest_y;
+    int idest_x = dest_x;
+    if (idest_y == 106 && idest_x == 19 && player->pid != 205) {
+        printf("Moving player pid %i to %i, %i\n", player->pid, idest_y, idest_x);
+        exit(0);
+    }
+    */
+
     map->grid[src] = EMPTY;
     map->grid[dst] = player->grid_id;
 
@@ -667,7 +677,11 @@ void spawn_player(Map* map, Entity* entity) {
     }
     entity->last_x = x;
     entity->last_y = y;
-    move_to(map, entity, y, x);
+    int err = move_to(map, entity, y, x);
+    if (err) {
+        printf("Failed to move entity %i to %i, %i\n", entity->pid, y, x);
+        exit(0);
+    }
 }
 
 int attack(MOBA* env, Entity* player, Entity* target, float damage) {
@@ -704,6 +718,11 @@ int attack(MOBA* env, Entity* player, Entity* target, float damage) {
     player_log->damage_dealt += target->health;
     target_log->damage_received += target->health;
     target->health = 0;
+
+    if (target->pid  == 205) {
+        //printf("Killed the radiant ancient\n");
+        env->should_reset = true;
+    }
 
     int target_type = target->entity_type;
     if (target_type == ENTITY_PLAYER) {
@@ -1800,50 +1819,25 @@ void reset(MOBA* env) {
     //randomize_tower_hp(env);
     
     env->tick = 0;
-    Map* map = env->map;
-    memcpy(map->grid, env->orig_grid, 128*128);
-    for (int i = 0; i < 128*128; i++) {
-        map->pids[i] = -1;
-    }
 
     // Reset scanned targets
     for (int i = 0; i < NUM_ENTITIES; i++) {
         Entity* entity = &env->entities[i];
         entity->target_pid = -1;
         env->scanned_targets[i][0] = NULL;
+        kill_entity(env->map, entity);
     }
 
-    // Respawn agents
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        env->log[i] = (PlayerLog){0};
-        Entity* player = &env->entities[i];
-        player->target_pid = -1;
-        player->xp = 0;
-        player->level = 1;
-        //player->x = 0;
-        //player->y = 0;
-        spawn_player(env->map, player);
-    }
-
-    // Despawn creeps
-    for (int i = 0; i < NUM_CREEPS; i++) {
-        int pid = CREEP_OFFSET + i;
-        Entity* creep = &env->entities[pid];
-        kill_entity(env->map, creep);
-    }
-
-    // Despawn neutrals
-    for (int i = 0; i < NUM_NEUTRALS; i++) {
-        int pid = NEUTRAL_OFFSET + i;
-        Entity* neutral = &env->entities[pid];
-        kill_entity(env->map, neutral);
+    Map* map = env->map;
+    memcpy(map->grid, env->orig_grid, 128*128);
+    for (int i = 0; i < 128*128; i++) {
+        map->pids[i] = -1;
     }
 
     // Respawn towers
     for (int idx = 0; idx < NUM_TOWERS; idx++) {
         int pid = TOWER_OFFSET + idx;
         Entity* tower = &env->entities[pid];
-        kill_entity(env->map, tower);
         tower->target_pid = -1;
         tower->pid = pid;
         tower->health = tower->max_health;
@@ -1860,6 +1854,31 @@ void reset(MOBA* env) {
         }
         tower->last_x = tower->x;
         tower->last_y = tower->y;
+    }
+
+    Entity* rad = &env->entities[205];
+    int adr = map_offset(env->map, rad->y, rad->x);
+    if (rad->health > 0 && env->map->pids[adr] != 205) {
+        printf("glitch state\n");
+    }
+
+    // Respawn agents
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        env->log[i] = (PlayerLog){0};
+        Entity* player = &env->entities[i];
+        player->pid = i;
+        player->target_pid = -1;
+        player->xp = 0;
+        player->level = 1;
+        //player->x = 0;
+        //player->y = 0;
+        spawn_player(env->map, player);
+    }
+
+    rad = &env->entities[205];
+    adr = map_offset(env->map, rad->y, rad->x);
+    if (rad->health > 0 && env->map->pids[adr] != 205) {
+        printf("glitch state\n");
     }
 
     compute_observations(env);
@@ -1881,38 +1900,67 @@ void step(MOBA* env) {
     step_players(env);
     env->tick += 1;
 
-    int radiant_pid = TOWER_OFFSET + 22;
-    int dire_pid = TOWER_OFFSET + 23;
+    Entity* rad = &env->entities[205];
+    int adr = map_offset(env->map, rad->y, rad->x);
+    if (rad->health > 0 && env->map->pids[adr] != 205) {
+        printf("glitch state\n");
+    }
+
+    int radiant_pid = TOWER_OFFSET + 23;
+    int dire_pid = TOWER_OFFSET + 22;
 
     bool do_reset = false;
     float radiant_victory = 0;
     float dire_victory = 0;
-    Entity* ancient = &env->entities[radiant_pid];
+    Entity* ancient = &env->entities[dire_pid];
     if (ancient->health <= 0 || ancient->pid == -1) {
         do_reset = true;
         radiant_victory = 1;
+        /*
         printf("Radiant victory\n");
         //Print tower states
         for (int i = 0; i < NUM_TOWERS; i++) {
             Entity* tower = &env->entities[TOWER_OFFSET + i];
-            printf("Tower %i: %f, %f, %f\n", i, tower->health, tower->y, tower->x);
+            printf("Tower %i (%i): %f, %f, %f, %i\n", i, tower->pid, tower->health, tower->y, tower->x, tower->team);
+            int y = tower->y;
+            int x = tower->x;
+            int adr = map_offset(env->map, y, x);
+            int tile = env->map->grid[adr];
+            int pid = env->map->pids[adr];
+            printf("\ttile %i, pid %i\n", tile, pid);
         }
         //Print levels and pos
         for (int i = 0; i < NUM_PLAYERS; i++) {
             Entity* player = &env->entities[i];
-            printf("Player %i: %i, %f, %f\n", i, player->level, player->y, player->x);
+            printf("Player %i (%i): %i, %f, %f, %i\n", i, player->pid, player->level, player->y, player->x, player->team);
+            int y = player->y;
+            int x = player->x;
+            int adr = map_offset(env->map, y, x);
+            int tile = env->map->grid[adr];
+            int pid = env->map->pids[adr];
+            printf("\ttile %i, pid %i\n", tile, pid);
         }
         printf("Tick %i", env->tick);
         exit(0);
+        */
     }
 
-    ancient = &env->entities[dire_pid];
+    ancient = &env->entities[radiant_pid];
     if (ancient->health <= 0 || ancient->pid == -1) {
         do_reset = true;
         dire_victory = 1;
     }
 
+    if (!do_reset && env->should_reset) {
+        printf("We should have reset but didn't\n");
+        printf("Radiant pid: %i\n", radiant_pid);
+        Entity* radiant = &env->entities[radiant_pid];
+        printf("Radiant %i: %f, %f, %f\n", radiant->pid, radiant->y, radiant->x, radiant->health);
+        exit(0);
+    }
+
     if (do_reset) {
+        env->should_reset = false;
         Log log = {0};
         log.episode_length = env->tick;
         log.radiant_victory = radiant_victory;

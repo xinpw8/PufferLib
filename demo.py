@@ -309,10 +309,12 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
 
     policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
 
+    '''
     if env_name == 'moba':
         import torch
         os.makedirs('moba_elo', exist_ok=True)
         torch.save(policy, os.path.join('moba_elo', 'model_random.pt'))
+    '''
 
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
@@ -331,6 +333,7 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
 
     clean_pufferl.mean_and_log(data)
 
+    '''
     if env_name == 'moba':
         exp_n = len(elos)
         model_name = f'model_{exp_n}.pt'
@@ -340,6 +343,7 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
         stats['elo'] = elos[model_name]
         if wandb is not None:
             wandb.log({'environment/elo': elos[model_name]})
+    '''
 
     clean_pufferl.close(data)
     if queue is not None:
