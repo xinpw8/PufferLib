@@ -17,7 +17,7 @@ class MyPong(pufferlib.PufferEnv):
             ball_width=32, ball_height=32, paddle_speed=8,
             ball_initial_speed_x=10, ball_initial_speed_y=1,
             ball_speed_y_increment=3, ball_max_speed_y=13,
-            max_score=21, frameskip=1, report_interval=128, buf=None):
+            max_score=21, frameskip=1, report_interval=1, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(8,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(3)
@@ -48,7 +48,7 @@ class MyPong(pufferlib.PufferEnv):
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
             if log['episode_length'] > 0:
-                info.append(log)
+               info.append(log)
 
         self.tick += 1
         return (self.observations, self.rewards,

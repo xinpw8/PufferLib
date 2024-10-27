@@ -206,8 +206,8 @@ void step(Pong* env) {
                 // collision with wall: WIN
                 env->win = 1;
                 env->score_r += 1;
-                env->rewards[0] = 10.0; // agent wins
-                env->log.episode_return += 10.0;
+                env->rewards[0] = 1; // agent wins
+                env->log.episode_return += 1;
                 env->log.score += 1.0;
 
                 if (env->score_r == env->max_score) {
@@ -229,8 +229,8 @@ void step(Pong* env) {
                 // collision with paddle
                 env->ball_vx = -env->ball_vx;
                 env->n_bounces += 1;
-                env->rewards[0] = 1.0; // agent bounced the ball
-                env->log.episode_return += 1.0;
+		env->rewards[0] = 0.1; // agent bounced the ball
+                env->log.episode_return += 0.1;
                 // ball speed change
                 env->ball_vy += env->ball_speed_y_increment * env->paddle_dir;
                 env->ball_vy = fminf(fmaxf(env->ball_vy, -env->ball_max_speed_y), env->ball_max_speed_y);
