@@ -323,6 +323,8 @@ bool calc_paddle_ball_collisions(Breakout* env, CollisionInfo* collision_info) {
     env->ball_vx = sin(angle) * env->ball_speed * TICK_RATE;
     env->ball_vy = -cos(angle) * env->ball_speed * TICK_RATE;
     env->hits += 1;
+    env->rewards[0] += 0.1;
+    env->log.episode_return += 0.1;
     if (env->hits % 4 == 0 && env->ball_speed < MAX_BALL_SPEED) {
         env->ball_speed += 64;
     }
