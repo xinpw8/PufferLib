@@ -1757,7 +1757,7 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
         tower->max_health = TOWER_HEALTH[idx];
         tower->damage = TOWER_DAMAGE[idx];
         tower->tier = TOWER_TIER[idx];
-        tower->xp_on_kill = 800 * tower->tier;
+        tower->xp_on_kill = 0;//800 * tower->tier;
     }
 
     int idx = 0;
