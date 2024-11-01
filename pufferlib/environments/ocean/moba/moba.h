@@ -1423,10 +1423,12 @@ void step_towers(MOBA* env) {
         if (tower->pid == -1)
             continue;
 
+        /*
         if (tower->health < tower->max_health)
             tower->health += 10;
         if (tower->health > tower->max_health)
             tower->health = tower->max_health;
+        */
 
 
         update_cooldowns(tower);
