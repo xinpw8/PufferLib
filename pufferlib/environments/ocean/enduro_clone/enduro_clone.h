@@ -11,9 +11,9 @@
 #include <unistd.h>
 #include <time.h>
 #include <stddef.h> // For NULL
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
 #include <string.h>
+
+#include "raylib.h"
 
 // Define constants
 #define LOG_BUFFER_SIZE 1024
@@ -62,7 +62,6 @@
 #define SMOOTH_CURVE_TRANSITION_RATE 0.02f  // Controls curve transition speed
 #define MAX_CURVE_CONTROL_OFFSET 50.0f      // Maximum offset for control point to create swooping effect
 
-
 #define ROAD_BASE_WIDTH (ROAD_RIGHT_EDGE_X - ROAD_LEFT_EDGE_X)
 #define NUM_LANES 3
 
@@ -77,14 +76,6 @@
 // Digit dimensions
 #define DIGIT_WIDTH 8
 #define DIGIT_HEIGHT 9
-
-// Define Color struct
-typedef struct Color {
-    Uint8 r;
-    Uint8 g;
-    Uint8 b;
-    Uint8 a;
-} Color;
 
 // Log structures
 typedef struct Log {
@@ -108,15 +99,15 @@ typedef struct Car {
 
 // Structure to hold game state related to rendering
 typedef struct GameState {
-    SDL_Texture* backgroundTextures[16]; // 16 different backgrounds for time of day
-    SDL_Texture* digitTextures[10];      // Textures for digits 0-9
-    SDL_Texture* carDigitTexture;        // Texture for the "CAR" digit
-    SDL_Texture* mountainTextures[16];   // Mountain textures corresponding to backgrounds
+    Texture2D backgroundTextures[16]; // 16 different backgrounds for time of day
+    Texture2D digitTextures[10];      // Textures for digits 0-9
+    Texture2D carDigitTexture;        // Texture for the "CAR" digit
+    Texture2D mountainTextures[16];   // Mountain textures corresponding to backgrounds
 
-    SDL_Texture* levelCompleteFlagLeftTexture;  // Texture for left flag
-    SDL_Texture* levelCompleteFlagRightTexture; // Texture for right flag
-    SDL_Texture* greenDigitTextures[10];        // Textures for green digits
-    SDL_Texture* yellowDigitTextures[10];       // Textures for yellow digits
+    Texture2D levelCompleteFlagLeftTexture;  // Texture for left flag
+    Texture2D levelCompleteFlagRightTexture; // Texture for right flag
+    Texture2D greenDigitTextures[10];        // Textures for green digits
+    Texture2D yellowDigitTextures[10];       // Textures for yellow digits
 
     int currentBackgroundIndex;
     int previousBackgroundIndex;
@@ -208,7 +199,7 @@ typedef struct Enduro {
     // Victory flag display timer
     int victoryFlagTimer;
 
-    // Gamestate
+    // Game state
     GameState gameState;
 
 } Enduro;
@@ -220,8 +211,6 @@ typedef struct Client {
     Color player_color;
     Color enemy_color;
     Color road_color;
-
-    SDL_Renderer* renderer; // Add renderer to Client
 } Client;
 
 // Enumeration for road direction
@@ -248,7 +237,7 @@ void reset_round(Enduro* env);
 void step(Enduro* env);
 
 // Client functions
-Client* make_client(Enduro* env, SDL_Renderer* renderer);
+Client* make_client(Enduro* env);
 void close_client(Client* client);
 
 // Event handling
@@ -256,18 +245,17 @@ void handleEvents(int* running, Enduro* env);
 
 // Rendering functions
 void render(Client* client, Enduro* env);
-// void render_borders(Client* client);
 void render_car(Client* client, Enduro* env);
 
 // GameState functions
-int initSDL(SDL_Window** window, SDL_Renderer** renderer);
-void loadTextures(SDL_Renderer* renderer, GameState* gameState);
-void cleanup(SDL_Window* window, SDL_Renderer* renderer, GameState* gameState);
+void initRaylib();
+void loadTextures(GameState* gameState);
+void cleanup(GameState* gameState);
 void updateBackground(GameState* gameState, int timeOfDay);
-void renderBackground(SDL_Renderer* renderer, GameState* gameState);
-void renderScoreboard(SDL_Renderer* renderer, GameState* gameState);
+void renderBackground(GameState* gameState);
+void renderScoreboard(GameState* gameState);
 void updateMountains(GameState* gameState, RoadDirection direction);
-void renderMountains(SDL_Renderer* renderer, GameState* gameState);
+void renderMountains(GameState* gameState);
 void updateVictoryEffects(GameState* gameState);
 void updateScore(GameState* gameState);
 
@@ -446,7 +434,6 @@ void reset(Enduro* env) {
     // compute_observations(env); // Implement if needed
 }
 
-
 bool check_collision(Enduro* env, Car* car) {
     // Compute the scale factor based on vanishing point reference
     float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
@@ -516,16 +503,6 @@ void step(Enduro* env) {
     update_road_curve(env);
     // update_background_colors(env);
 
-        // Adjust left_curve_p1_x when road is curving right
-    if (env->current_curve_direction == 1) {
-        env->left_curve_p1_x += env->left_curve_p1_x_increment;
-        if (env->left_curve_p1_x > env->left_curve_p1_x_max) {
-            env->left_curve_p1_x = env->left_curve_p1_x_min;
-        }}
-    // } else {
-    //     env->left_curve_p1_x = 0.0f;  // Reset when not curving right
-    // }
-
     env->log.episode_length += 1;
     env->terminals[0] = 0;
 
@@ -542,7 +519,7 @@ void step(Enduro* env) {
 
     // Limit player's x position based on road edges at player's y position
     float road_left = road_left_edge_x(env, env->player_y);
-    float road_right = road_right_edge_x(env, env->player_y);
+    float road_right = road_right_edge_x(env, env->player_y) - CAR_WIDTH;
 
     // Player movement logic
     if (env->collision_cooldown <= 0) {
@@ -553,7 +530,7 @@ void step(Enduro* env) {
             env->last_lr_action = 1;
         } else if (act == 2) {  // Move right
             env->player_x += 2;
-            if (env->player_x > road_right - CAR_WIDTH) env->player_x = road_right - CAR_WIDTH;
+            if (env->player_x > road_right) env->player_x = road_right;
             env->last_lr_action = 2;
         }
         if (act == 3 && env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
@@ -568,10 +545,17 @@ void step(Enduro* env) {
     }
 
     if (env->player_x < road_left) env->player_x = road_left;
-    if (env->player_x > road_right - CAR_WIDTH) env->player_x = road_right - CAR_WIDTH;
+    if (env->player_x > road_right) env->player_x = road_right;
+
 
     // Update vanishing point based on player's horizontal movement
-    env->vanishing_point_x = VANISHING_POINT_X - (env->player_x - env->initial_player_x);
+    // Implementing Thing 1: Adjust vanishing_point_x inversely to player's x position
+    float player_x_min = ROAD_LEFT_EDGE_X;
+    float player_x_max = ROAD_RIGHT_EDGE_X - CAR_WIDTH;
+    float t = (env->player_x - player_x_min) / (player_x_max - player_x_min);
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    env->vanishing_point_x = 110.0f - t * 48.0f; // vanishing_point_x ranges from 110 to 62
 
     // Update player y position based on speed
     env->player_y = PLAYER_MAX_Y - (env->speed - env->min_speed) / (env->max_speed - env->min_speed) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
@@ -605,7 +589,7 @@ void step(Enduro* env) {
                 if (env->player_x < road_left) env->player_x = road_left;
             } else if (env->last_lr_action == 2) {  // Last action was right
                 env->player_x += 10;
-                if (env->player_x > road_right - CAR_WIDTH) env->player_x = road_right - CAR_WIDTH;
+                if (env->player_x > road_right) env->player_x = road_right;
             }
             env->last_lr_action = 0;
         }
@@ -661,7 +645,6 @@ void step(Enduro* env) {
     env->log.score = env->score;
 }
 
-
 void update_road_curve(Enduro* env) {
     static int current_curve_stage = 0;
     static int steps_in_current_stage = 0;
@@ -686,58 +669,78 @@ void update_road_curve(Enduro* env) {
     }
 }
 
+
 // B(t)=(1−t)2P0​+2(1−t)tP1​+t2P2​,t∈[0,1]
 // Quadratic bezier curve helper function
 float quadratic_bezier(float p0, float p1, float p2, float t) {
     float one_minus_t = 1.0f - t;
     return one_minus_t * one_minus_t * p0 + 
-           1.5f * one_minus_t * t * p1 + 
+           2.0f * one_minus_t * t * p1 + 
            t * t * p2;
 }
 
 float road_left_edge_x(Enduro* env, float y) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+
     float x;
+
     if (env->current_curve_direction == -1) { // Left curve
         // Left edge Bezier curve points
         float P0_x = ROAD_LEFT_EDGE_X;   // Start point at bottom
-        float P1_x = 81;                 // Control point x
+        float P1_x = 70;                 // Control point x
         float P2_x = 40;                 // End point at horizon
-        x = quadratic_bezier(P0_x, P1_x, P2_x, t);
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
     } else if (env->current_curve_direction == 1) { // Right curve
         // Left edge Bezier curve points for right curve
-        float P0_x = ROAD_LEFT_EDGE_X;                      // Start point at bottom
-        float P1_x = ROAD_LEFT_EDGE_X + 30;                 // Reduced curve control point
+        float P0_x = SCREEN_WIDTH - ROAD_RIGHT_EDGE_X;                      // Start point at bottom
+        float P1_x = SCREEN_WIDTH - P0_x - 70; // 70 is magic #; (P0_x - env->left_curve_p1_x) Control point x (adjusted over time) for testing
         float P2_x = SCREEN_WIDTH - 40;                     // End point at horizon
-        x = quadratic_bezier(P0_x, P1_x, P2_x, t);
+
+        printf("left_curve_p1_x only: %.2f\n", env->left_curve_p1_x);
+        printf("P0_x = %.2f, P1_x = %.2f, P2_x = %.2f\n", P0_x, P1_x, P2_x);
+
+
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
     } else { // Straight road
+        // Linear interpolation for straight road
         float P0_x = ROAD_LEFT_EDGE_X;
-        float P2_x = VANISHING_POINT_X;
+        float P2_x = env->vanishing_point_x;
+
         x = P0_x + (P2_x - P0_x) * t;
     }
+
     return x;
 }
 
+
 float road_right_edge_x(Enduro* env, float y) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+
     float x;
     if (env->current_curve_direction == -1) { // Left curve
         // Right edge Bezier curve points
-        float P0_x = ROAD_RIGHT_EDGE_X;  
-        float P1_x = 135;                // Control point x
-        float P2_x = 40;                 // End point at horizon
-        x = quadratic_bezier(P0_x, P1_x, P2_x, t);
+        float P0_x = ROAD_RIGHT_EDGE_X;  // (127, 177)
+        float P1_x = 111;                // Control point x (135, 92)
+        float P2_x = 40;                 // End point x (40, 68)
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
     } else if (env->current_curve_direction == 1) { // Right curve
-        // Right edge Bezier curve points
-        float P0_x = ROAD_RIGHT_EDGE_X;
-        float P1_x = SCREEN_WIDTH - 45;  // Keep original control point
-        float P2_x = SCREEN_WIDTH - 40;  // End point at horizon
-        x = quadratic_bezier(P0_x, P1_x, P2_x, t);
+        // Mirror the right curve across the center line
+        float P0_x = SCREEN_WIDTH - ROAD_LEFT_EDGE_X; // Mirrored start point
+        float P1_x = SCREEN_WIDTH - 69; // 69 is magic #; Control point SCREEN_WIDTH - env->left_curve_p1_x (testing)
+        float P2_x = SCREEN_WIDTH - 40;               // Horizon endpoint mirrored
+
+        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
     } else { // Straight road
+        // Linear interpolation for straight road
         float P0_x = ROAD_RIGHT_EDGE_X;
-        float P2_x = VANISHING_POINT_X;
+        float P2_x = env->vanishing_point_x;
+
         x = P0_x + (P2_x - P0_x) * t;
     }
+
     return x;
 }
 
@@ -749,9 +752,8 @@ float car_x_in_lane(Enduro* env, int lane, float y) {
     return left_edge + lane_width * (lane + 0.5f);
 }
 
-
 // Client functions
-Client* make_client(Enduro* env, SDL_Renderer* renderer) {
+Client* make_client(Enduro* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = env->width;
     client->height = env->height;
@@ -759,25 +761,17 @@ Client* make_client(Enduro* env, SDL_Renderer* renderer) {
     client->enemy_color = (Color){255, 0, 0, 255};      // RED
     client->road_color = (Color){0, 100, 0, 255};       // DARKGREEN
 
-    client->renderer = renderer;
-
     return client;
 }
 
 void close_client(Client* client) {
-    // Close SDL renderer if needed
-    if (client->renderer) {
-        SDL_DestroyRenderer(client->renderer);
-    }
     free(client);
 }
 
 // Render car
 void render_car(Client* client, Enduro* env) {
-    SDL_Renderer* renderer = client->renderer;
-
     // Set the draw color to the player's color
-    SDL_SetRenderDrawColor(renderer, client->player_color.r, client->player_color.g, client->player_color.b, client->player_color.a);
+    Color color = client->player_color;
 
     // Render the player car based on dynamic player_x and player_y, centered correctly
     for (int i = 0; i < CAR_PIXELS_COUNT; i++) {
@@ -789,100 +783,47 @@ void render_car(Client* client, Enduro* env) {
         int pixel_y = (int)(env->player_y + (dy - 144));
 
         // Draw the car's pixel at the calculated position
-        SDL_RenderDrawPoint(renderer, pixel_x, pixel_y);
+        DrawPixel(pixel_x, pixel_y, color);
     }
 }
 
 // Event handling
 void handleEvents(int* running, Enduro* env) {
-    SDL_Event event;
     env->actions = 0; // Default action is noop
-    while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
-            *running = 0;
-        } else if (event.type == SDL_KEYDOWN) {
-            switch (event.key.keysym.sym) {
-                case SDLK_LEFT:
-                    env->actions = 1; // Move left
-                    break;
-                case SDLK_RIGHT:
-                    env->actions = 2; // Move right
-                    break;
-                case SDLK_UP:
-                    env->actions = 3; // Speed up
-                    break;
-                case SDLK_DOWN:
-                    env->actions = 4; // Slow down
-                    break;
-                default:
-                    env->actions = 0; // No action
-                    break;
-            }
-        }
+    if (WindowShouldClose()) {
+        *running = 0;
+    }
+
+    if (IsKeyDown(KEY_LEFT)) {
+        env->actions = 1; // Move left
+    } else if (IsKeyDown(KEY_RIGHT)) {
+        env->actions = 2; // Move right
+    }
+
+    if (IsKeyDown(KEY_UP)) {
+        env->actions = 3; // Speed up
+    } else if (IsKeyDown(KEY_DOWN)) {
+        env->actions = 4; // Slow down
     }
 }
 
-
-int initSDL(SDL_Window** window, SDL_Renderer** renderer) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-        return -1;
-    }
-
-    // Create window with exact background size
-    *window = SDL_CreateWindow("Enduro Port Framework",
-                               SDL_WINDOWPOS_UNDEFINED,
-                               SDL_WINDOWPOS_UNDEFINED,
-                               SCREEN_WIDTH,
-                               SCREEN_HEIGHT,
-                               SDL_WINDOW_SHOWN);
-
-    if (*window == NULL) {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-        return -1;
-    }
-
-    // Create renderer without any scaling
-    *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED);
-
-    if (*renderer == NULL) {
-        printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
-        return -1;
-    }
-
-    // Initialize PNG loading
-    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
-        printf("SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
-        return -1;
-    }
-
-    return 0;
+void initRaylib() {
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Enduro Port Framework");
+    SetTargetFPS(60);
 }
 
-void loadTextures(SDL_Renderer* renderer, GameState* gameState) {
+void loadTextures(GameState* gameState) {
     // Load background and mountain textures for different times of day
     char backgroundFile[40];
     char mountainFile[40];
 
     for (int i = 0; i < 16; ++i) {
         snprintf(backgroundFile, sizeof(backgroundFile), "resources/enduro_clone/%d_bg.png", i);
-        SDL_Surface* bgSurface = IMG_Load(backgroundFile);
-        if (!bgSurface) {
-            printf("Failed to load background image %s! SDL_image Error: %s\n", backgroundFile, IMG_GetError());
-            continue;
-        }
-        gameState->backgroundTextures[i] = SDL_CreateTextureFromSurface(renderer, bgSurface);
-        SDL_FreeSurface(bgSurface);
+        gameState->backgroundTextures[i] = LoadTexture(backgroundFile);
         printf("Loaded background image: %s\n", backgroundFile);
 
         snprintf(mountainFile, sizeof(mountainFile), "resources/enduro_clone/%d_mtns.png", i);
-        SDL_Surface* mtnSurface = IMG_Load(mountainFile);
-        if (!mtnSurface) {
-            printf("Failed to load mountain image %s! SDL_image Error: %s\n", mountainFile, IMG_GetError());
-            continue;
-        }
-        gameState->mountainTextures[i] = SDL_CreateTextureFromSurface(renderer, mtnSurface);
-        SDL_FreeSurface(mtnSurface);
+        gameState->mountainTextures[i] = LoadTexture(mountainFile);
         printf("Loaded mountain image: %s\n", mountainFile);
     }
 
@@ -890,71 +831,33 @@ void loadTextures(SDL_Renderer* renderer, GameState* gameState) {
     char filename[100];
     for (int i = 0; i < 10; i++) {
         snprintf(filename, sizeof(filename), "resources/enduro_clone/digits_%d.png", i);
-        SDL_Surface* tempSurface = IMG_Load(filename);
-        if (!tempSurface) {
-            fprintf(stderr, "Unable to load image %s! SDL Error: %s\n", filename, SDL_GetError());
-            continue;
-        }
-        gameState->digitTextures[i] = SDL_CreateTextureFromSurface(renderer, tempSurface);
-        SDL_FreeSurface(tempSurface);
-        if (!gameState->digitTextures[i]) {
-            fprintf(stderr, "Unable to create texture from %s! SDL Error: %s\n", filename, SDL_GetError());
-        }
+        gameState->digitTextures[i] = LoadTexture(filename);
+        printf("Loaded digit image: %s\n", filename);
     }
 
     // Load the "CAR" digit texture
-    SDL_Surface* carSurface = IMG_Load("resources/enduro_clone/digits_car.png");
-    if (!carSurface) {
-        printf("Failed to load digit image digits_car.png! SDL_image Error: %s\n", IMG_GetError());
-    } else {
-        gameState->carDigitTexture = SDL_CreateTextureFromSurface(renderer, carSurface);
-        SDL_FreeSurface(carSurface);
-        printf("Loaded digit image: digits_car.png\n");
-    }
+    gameState->carDigitTexture = LoadTexture("resources/enduro_clone/digits_car.png");
+    printf("Loaded digit image: digits_car.png\n");
 
     // Load level complete flag textures
-    SDL_Surface* flagLeftSurface = IMG_Load("resources/enduro_clone/level_complete_flag_left.png");
-    if (!flagLeftSurface) {
-        printf("Failed to load image level_complete_flag_left.png! SDL_image Error: %s\n", IMG_GetError());
-    } else {
-        gameState->levelCompleteFlagLeftTexture = SDL_CreateTextureFromSurface(renderer, flagLeftSurface);
-        SDL_FreeSurface(flagLeftSurface);
-        printf("Loaded image: level_complete_flag_left.png\n");
-    }
+    gameState->levelCompleteFlagLeftTexture = LoadTexture("resources/enduro_clone/level_complete_flag_left.png");
+    printf("Loaded image: level_complete_flag_left.png\n");
 
-    SDL_Surface* flagRightSurface = IMG_Load("resources/enduro_clone/level_complete_flag_right.png");
-    if (!flagRightSurface) {
-        printf("Failed to load image level_complete_flag_right.png! SDL_image Error: %s\n", IMG_GetError());
-    } else {
-        gameState->levelCompleteFlagRightTexture = SDL_CreateTextureFromSurface(renderer, flagRightSurface);
-        SDL_FreeSurface(flagRightSurface);
-        printf("Loaded image: level_complete_flag_right.png\n");
-    }
+    gameState->levelCompleteFlagRightTexture = LoadTexture("resources/enduro_clone/level_complete_flag_right.png");
+    printf("Loaded image: level_complete_flag_right.png\n");
 
     // Load green digits
     for (int i = 0; i < 10; ++i) {
         snprintf(filename, sizeof(filename), "resources/enduro_clone/green_digits_%d.png", i);
-        SDL_Surface* surface = IMG_Load(filename);
-        if (!surface) {
-            printf("Failed to load image %s! SDL_image Error: %s\n", filename, IMG_GetError());
-        } else {
-            gameState->greenDigitTextures[i] = SDL_CreateTextureFromSurface(renderer, surface);
-            SDL_FreeSurface(surface);
-            printf("Loaded image: %s\n", filename);
-        }
+        gameState->greenDigitTextures[i] = LoadTexture(filename);
+        printf("Loaded image: %s\n", filename);
     }
 
     // Load yellow digits
     for (int i = 0; i < 10; ++i) {
         snprintf(filename, sizeof(filename), "resources/enduro_clone/yellow_digits_%d.png", i);
-        SDL_Surface* surface = IMG_Load(filename);
-        if (!surface) {
-            printf("Failed to load image %s! SDL_image Error: %s\n", filename, IMG_GetError());
-        } else {
-            gameState->yellowDigitTextures[i] = SDL_CreateTextureFromSurface(renderer, surface);
-            SDL_FreeSurface(surface);
-            printf("Loaded image: %s\n", filename);
-        }
+        gameState->yellowDigitTextures[i] = LoadTexture(filename);
+        printf("Loaded image: %s\n", filename);
     }
 
     // Initialize other game state variables
@@ -965,48 +868,24 @@ void loadTextures(SDL_Renderer* renderer, GameState* gameState) {
     gameState->mountainPosition = 0.0f;
 }
 
-void cleanup(SDL_Window* window, SDL_Renderer* renderer, GameState* gameState) {
-    // Destroy textures
+void cleanup(GameState* gameState) {
+    // Unload textures
     for (int i = 0; i < 16; ++i) {
-        if (gameState->backgroundTextures[i]) {
-            SDL_DestroyTexture(gameState->backgroundTextures[i]);
-        }
-        if (gameState->mountainTextures[i]) {
-            SDL_DestroyTexture(gameState->mountainTextures[i]);
-        }
+        UnloadTexture(gameState->backgroundTextures[i]);
+        UnloadTexture(gameState->mountainTextures[i]);
     }
 
     for (int i = 0; i < 10; ++i) {
-        if (gameState->digitTextures[i]) {
-            SDL_DestroyTexture(gameState->digitTextures[i]);
-        }
-        if (gameState->greenDigitTextures[i]) {
-            SDL_DestroyTexture(gameState->greenDigitTextures[i]);
-        }
-        if (gameState->yellowDigitTextures[i]) {
-            SDL_DestroyTexture(gameState->yellowDigitTextures[i]);
-        }
+        UnloadTexture(gameState->digitTextures[i]);
+        UnloadTexture(gameState->greenDigitTextures[i]);
+        UnloadTexture(gameState->yellowDigitTextures[i]);
     }
 
-    if (gameState->carDigitTexture) {
-        SDL_DestroyTexture(gameState->carDigitTexture);
-    }
+    UnloadTexture(gameState->carDigitTexture);
+    UnloadTexture(gameState->levelCompleteFlagLeftTexture);
+    UnloadTexture(gameState->levelCompleteFlagRightTexture);
 
-    if (gameState->levelCompleteFlagLeftTexture) {
-        SDL_DestroyTexture(gameState->levelCompleteFlagLeftTexture);
-    }
-
-    if (gameState->levelCompleteFlagRightTexture) {
-        SDL_DestroyTexture(gameState->levelCompleteFlagRightTexture);
-    }
-
-    // Destroy renderer and window
-    if (renderer) SDL_DestroyRenderer(renderer);
-    if (window) SDL_DestroyWindow(window);
-
-    // Quit SDL subsystems
-    IMG_Quit();
-    SDL_Quit();
+    CloseWindow();
 }
 
 void updateScore(GameState* gameState) {
@@ -1063,21 +942,20 @@ void updateBackground(GameState* gameState, int timeOfDay) {
     }
 }
 
-
-void renderBackground(SDL_Renderer* renderer, GameState* gameState) {
-    SDL_Texture* bgTexture = gameState->backgroundTextures[gameState->currentBackgroundIndex];
-    if (bgTexture) {
+void renderBackground(GameState* gameState) {
+    Texture2D bgTexture = gameState->backgroundTextures[gameState->currentBackgroundIndex];
+    if (bgTexture.id != 0) {
         // Render background at its native size without scaling
-        SDL_RenderCopy(renderer, bgTexture, NULL, NULL);
+        DrawTexture(bgTexture, 0, 0, WHITE);
     }
 }
 
-void renderScoreboard(SDL_Renderer* renderer, GameState* gameState) {
+void renderScoreboard(GameState* gameState) {
     // Positions and sizes
     int digitWidth = DIGIT_WIDTH;
     int digitHeight = DIGIT_HEIGHT;
 
-    // Convert bottom-left coordinates to SDL coordinates (top-left origin)
+    // Convert bottom-left coordinates to top-left origin
     int scoreStartX = 56 + digitWidth;
     int scoreStartY = 173 - digitHeight;
     int dayX = 56;
@@ -1085,81 +963,75 @@ void renderScoreboard(SDL_Renderer* renderer, GameState* gameState) {
     int carsX = 72;
     int carsY = 188 - digitHeight;
 
-    char scoreStr[6]; // Enough for the score plus null terminator
-    sprintf(scoreStr, "%05d", gameState->score); // Format score with leading zeros
-
     // Render score with scrolling effect
     for (int i = 0; i < SCORE_DIGITS; ++i) {
         int digitX = scoreStartX + i * digitWidth;
-        SDL_Rect destRect = { digitX, scoreStartY, digitWidth, digitHeight };
+        Rectangle destRect = { digitX, scoreStartY, digitWidth, digitHeight };
 
-        SDL_Texture* currentDigitTexture = gameState->digitTextures[gameState->scoreDigitCurrents[i]];
-        SDL_Texture* nextDigitTexture = gameState->digitTextures[gameState->scoreDigitNexts[i]];
+        Texture2D currentDigitTexture = gameState->digitTextures[gameState->scoreDigitCurrents[i]];
+        Texture2D nextDigitTexture = gameState->digitTextures[gameState->scoreDigitNexts[i]];
 
         if (gameState->scoreDigitScrolling[i]) {
             // Scrolling effect for this digit
             float offset = gameState->scoreDigitOffsets[i];
 
             // Render current digit moving up
-            SDL_Rect srcRectCurrent = { 0, 0, digitWidth, digitHeight - (int)offset };
-            SDL_Rect destRectCurrent = { digitX, scoreStartY + (int)offset, digitWidth, digitHeight - (int)offset };
-            SDL_RenderCopy(renderer, currentDigitTexture, &srcRectCurrent, &destRectCurrent);
+            Rectangle srcRectCurrent = { 0, 0, digitWidth, digitHeight - (int)offset };
+            Rectangle destRectCurrent = { digitX, scoreStartY + (int)offset, digitWidth, digitHeight - (int)offset };
+            DrawTextureRec(currentDigitTexture, srcRectCurrent, (Vector2){ destRectCurrent.x, destRectCurrent.y }, WHITE);
 
             // Render next digit coming up from below
-            SDL_Rect srcRectNext = { 0, digitHeight - (int)offset, digitWidth, (int)offset };
-            SDL_Rect destRectNext = { digitX, scoreStartY, digitWidth, (int)offset };
-            SDL_RenderCopy(renderer, nextDigitTexture, &srcRectNext, &destRectNext);
+            Rectangle srcRectNext = { 0, digitHeight - (int)offset, digitWidth, (int)offset };
+            Rectangle destRectNext = { digitX, scoreStartY, digitWidth, (int)offset };
+            DrawTextureRec(nextDigitTexture, srcRectNext, (Vector2){ destRectNext.x, destRectNext.y }, WHITE);
 
-            printf("Rendering scrolling score digit: digits_%d.png and digits_%d.png at position (%d, %d)\n",
+            printf("Rendering scrolling score digit: digits_%d.png and digits_%d.png at position (%f, %f)\n",
                    gameState->scoreDigitCurrents[i], gameState->scoreDigitNexts[i], destRect.x, destRect.y);
         } else {
             // No scrolling, render the current digit normally
-            SDL_RenderCopy(renderer, currentDigitTexture, NULL, &destRect);
+            DrawTexture(currentDigitTexture, digitX, scoreStartY, WHITE);
             printf("Rendering score digit: digits_%d.png at position (%d, %d)\n",
-                   gameState->scoreDigitCurrents[i], destRect.x, destRect.y);
+                   gameState->scoreDigitCurrents[i], digitX, scoreStartY);
         }
     }
 
     // Render day number
     int day = gameState->day % 10;
-    SDL_Rect dayRect = { dayX, dayY, digitWidth, digitHeight };
-
+    int dayTextureIndex = day;
     if (gameState->victoryAchieved) {
         // Use green digits during victory
-        SDL_Texture* greenDigitTexture = gameState->greenDigitTextures[day];
-        SDL_RenderCopy(renderer, greenDigitTexture, NULL, &dayRect);
-        printf("Rendering day digit: green_digits_%d.png at position (%d, %d)\n", day, dayRect.x, dayRect.y);
+        Texture2D greenDigitTexture = gameState->greenDigitTextures[dayTextureIndex];
+        DrawTexture(greenDigitTexture, dayX, dayY, WHITE);
+        printf("Rendering day digit: green_digits_%d.png at position (%d, %d)\n", day, dayX, dayY);
     } else {
         // Use normal digits
-        SDL_RenderCopy(renderer, gameState->digitTextures[day], NULL, &dayRect);
-        printf("Rendering day digit: digits_%d.png at position (%d, %d)\n", day, dayRect.x, dayRect.y);
+        Texture2D digitTexture = gameState->digitTextures[dayTextureIndex];
+        DrawTexture(digitTexture, dayX, dayY, WHITE);
+        printf("Rendering day digit: digits_%d.png at position (%d, %d)\n", day, dayX, dayY);
     }
 
     // Render "CAR" digit or flags for cars to pass
     if (gameState->victoryAchieved) {
         // Alternate between level_complete_flag_left and level_complete_flag_right
-        SDL_Texture* flagTexture = gameState->showLeftFlag ? gameState->levelCompleteFlagLeftTexture : gameState->levelCompleteFlagRightTexture;
-        SDL_Rect flagRect = { carsX, carsY, digitWidth * 4, digitHeight };
-        SDL_RenderCopy(renderer, flagTexture, NULL, &flagRect);
-        printf("Rendering level complete flag: %s at position (%d, %d)\n",
-               gameState->showLeftFlag ? "level_complete_flag_left.png" : "level_complete_flag_right.png", flagRect.x, flagRect.y);
+        Texture2D flagTexture = gameState->showLeftFlag ? gameState->levelCompleteFlagLeftTexture : gameState->levelCompleteFlagRightTexture;
+        Rectangle destRect = { carsX, carsY, digitWidth * 4, digitHeight };
+        DrawTextureEx(flagTexture, (Vector2){ destRect.x, destRect.y }, 0.0f, 1.0f, WHITE);
+        printf("Rendering level complete flag at position (%f, %f)\n", destRect.x, destRect.y);
     } else {
         // Render "CAR" digit for the first position in cars to pass
-        SDL_Rect carDestRect = { carsX, carsY, digitWidth, digitHeight };
-        SDL_RenderCopy(renderer, gameState->carDigitTexture, NULL, &carDestRect);
-        printf("Rendering cars to pass digit: digits_car.png at position (%d, %d)\n", carDestRect.x, carDestRect.y);
+        DrawTexture(gameState->carDigitTexture, carsX, carsY, WHITE);
+        printf("Rendering cars to pass digit: digits_car.png at position (%d, %d)\n", carsX, carsY);
 
         // Render the remaining digits for cars to pass
         int cars = gameState->carsToPass;
         for (int i = 1; i < CARS_DIGITS; ++i) {
             int digit = (cars / (int)pow(10, CARS_DIGITS - i - 1)) % 10;
-            SDL_Rect destRect = { carsX + i * digitWidth + i * 1, carsY, digitWidth, digitHeight };
-            SDL_RenderCopy(renderer, gameState->digitTextures[digit], NULL, &destRect);
-            printf("Rendering cars to pass digit: digits_%d.png at position (%d, %d)\n", digit, destRect.x, destRect.y);
+            int digitX = carsX + i * digitWidth + i * 1;
+            DrawTexture(gameState->digitTextures[digit], digitX, carsY, WHITE);
+            printf("Rendering cars to pass digit: digits_%d.png at position (%d, %d)\n", digit, digitX, carsY);
         }
     }
 }
-
 
 void updateVictoryEffects(GameState* gameState) {
     if (gameState->victoryAchieved) {
@@ -1195,7 +1067,6 @@ void updateVictoryEffects(GameState* gameState) {
     }
 }
 
-
 void updateMountains(GameState* gameState, RoadDirection direction) {
     // Adjust the mountain position based on the road direction
     float speed = 1.0f; // Adjust the speed as needed
@@ -1215,47 +1086,41 @@ void updateMountains(GameState* gameState, RoadDirection direction) {
     // If the road is straight, the mountains don't move
 }
 
-void renderMountains(SDL_Renderer* renderer, GameState* gameState) {
-    SDL_Texture* mountainTexture = gameState->mountainTextures[gameState->currentBackgroundIndex];
-    if (mountainTexture) {
+void renderMountains(GameState* gameState) {
+    Texture2D mountainTexture = gameState->mountainTextures[gameState->currentBackgroundIndex];
+    if (mountainTexture.id != 0) {
         int mountainWidth = 100;
         int mountainHeight = 6;
         int mountainX = (int)gameState->mountainPosition + 37;
         int mountainY = 45; // Corrected Y-coordinate
 
-        SDL_Rect destRect1 = { mountainX, mountainY, mountainWidth, mountainHeight };
-        SDL_RenderCopy(renderer, mountainTexture, NULL, &destRect1);
+        DrawTexture(mountainTexture, mountainX, mountainY, WHITE);
 
         // Handle wrapping
         if (mountainX > SCREEN_WIDTH - mountainWidth) {
-            SDL_Rect destRect2 = { mountainX - mountainWidth, mountainY, mountainWidth, mountainHeight };
-            SDL_RenderCopy(renderer, mountainTexture, NULL, &destRect2);
+            DrawTexture(mountainTexture, mountainX - mountainWidth, mountainY, WHITE);
         } else if (mountainX < 0) {
-            SDL_Rect destRect2 = { mountainX + mountainWidth, mountainY, mountainWidth, mountainHeight };
-            SDL_RenderCopy(renderer, mountainTexture, NULL, &destRect2);
+            DrawTexture(mountainTexture, mountainX + mountainWidth, mountainY, WHITE);
         }
     }
 }
 
-
 // Inside the render function in enduro_clone.h
 void render(Client* client, Enduro* env) {
-    SDL_Renderer* renderer = client->renderer;
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    // Render background
+    renderBackground(&env->gameState);
+
+    // Render mountains
+    renderMountains(&env->gameState);
 
     // Set clipping rectangle to the playable area
-    SDL_Rect clipRect = { PLAYABLE_AREA_LEFT, VANISHING_POINT_Y, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y };
-    SDL_RenderSetClipRect(renderer, &clipRect);
-
-    // // Render road
-    // SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); // Gray color
-    // for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y++) {
-    //     float left_edge = road_left_edge_x(env, y);
-    //     float right_edge = road_right_edge_x(env, y);
-    //     SDL_RenderDrawLine(renderer, (int)left_edge, (int)y, (int)right_edge, (int)y);
-    // }
+    Rectangle clipRect = { PLAYABLE_AREA_LEFT, VANISHING_POINT_Y, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y };
+    BeginScissorMode(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
     // Road edge lines
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White color
     for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
         float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 0.75f);
         if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
@@ -1263,8 +1128,20 @@ void render(Client* client, Enduro* env) {
         float left_edge = road_left_edge_x(env, adjusted_y);
         float right_edge = road_right_edge_x(env, adjusted_y);
 
-        SDL_RenderDrawPoint(renderer, (int)left_edge, (int)adjusted_y);
-        SDL_RenderDrawPoint(renderer, (int)right_edge, (int)adjusted_y);
+        // Implementing Thing 2: Set roadColor based on y position
+        Color roadColor;
+        if (adjusted_y >= 52 && adjusted_y < 91) {
+            roadColor = (Color){74, 74, 74, 255};
+        } else if (adjusted_y >= 91 && adjusted_y < 106) {
+            roadColor = (Color){111, 111, 111, 255};
+        } else if (adjusted_y >= 106 && adjusted_y <= 154) {
+            roadColor = (Color){170, 170, 170, 255};
+        } else {
+            roadColor = WHITE; // Default color if needed
+        }
+
+        DrawPixel((int)left_edge, (int)adjusted_y, roadColor);
+        DrawPixel((int)right_edge, (int)adjusted_y, roadColor);
     }
 
     // Render enemy cars with scaling
@@ -1280,7 +1157,7 @@ void render(Client* client, Enduro* env) {
         float car_x = car_center_x - (CAR_PIXEL_WIDTH * scale) / 2.0f;
 
         // Draw the scaled car pixels
-        SDL_SetRenderDrawColor(renderer, client->enemy_color.r, client->enemy_color.g, client->enemy_color.b, client->enemy_color.a);
+        Color enemyColor = client->enemy_color;
         for (int j = 0; j < CAR_PIXELS_COUNT; j++) {
             int dx = car_pixels[j][0] - 77; // Centering the x-offset
             int dy = car_pixels[j][1] - 144; // Centering the y-offset
@@ -1289,7 +1166,7 @@ void render(Client* client, Enduro* env) {
             float pixel_x = car_x + dx * scale;
             float pixel_y = car->y + dy * scale;
 
-            SDL_RenderDrawPoint(renderer, (int)pixel_x, (int)pixel_y);
+            DrawPixel((int)pixel_x, (int)pixel_y, enemyColor);
         }
     }
 
@@ -1297,14 +1174,12 @@ void render(Client* client, Enduro* env) {
     render_car(client, env);
 
     // Remove clipping
-    SDL_RenderSetClipRect(renderer, NULL);
-
-    // // Render borders
-    // render_borders(client);
+    EndScissorMode();
 
     // Render scoreboard with the correct GameState pointer
-    renderScoreboard(renderer, &env->gameState);
-}
+    renderScoreboard(&env->gameState);
 
+    EndDrawing();
+}
 
 #endif
