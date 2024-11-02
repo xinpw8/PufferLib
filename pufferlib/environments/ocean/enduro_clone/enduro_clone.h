@@ -35,12 +35,17 @@
 #define INITIAL_CARS_TO_PASS 5
 #define TOP_SPAWN_OFFSET 12.0f // Cars spawn/disappear 12 pixels from top
 
-#define ROAD_LEFT_EDGE_X 26
-#define ROAD_RIGHT_EDGE_X 127
+#define ROAD_LEFT_EDGE_X 60
+#define ROAD_RIGHT_EDGE_X 161
+#define VANISHING_POINT_X 110
+
+
+// #define ROAD_LEFT_EDGE_X 26
+// #define ROAD_RIGHT_EDGE_X 127
 #define VANISHING_POINT_Y 52
 #define LOGICAL_VANISHING_Y (VANISHING_POINT_Y + 12)  // Separate logical vanishing point for cars disappearing
 
-#define VANISHING_POINT_X 80 // Initial vanishing point x when going straight
+// #define VANISHING_POINT_X 80 // Initial vanishing point x when going straight
 
 #define INITIAL_PLAYER_X ((ROAD_LEFT_EDGE_X + ROAD_RIGHT_EDGE_X)/2 - CAR_WIDTH/2)
 
@@ -76,6 +81,19 @@
 // Digit dimensions
 #define DIGIT_WIDTH 8
 #define DIGIT_HEIGHT 9
+
+// Redef section for testing
+#define PLAYER_MIN_X 65.5f
+#define PLAYER_MAX_X 91.5f
+#define ROAD_LEFT_OFFSET 50.0f
+#define ROAD_RIGHT_OFFSET 51.0f
+#define VANISHING_POINT_X_LEFT 110.0f
+#define VANISHING_POINT_X_RIGHT 62.0f
+#define PLAYABLE_AREA_BOTTOM 154
+#define VANISHING_POINT_Y 52
+
+#define CURVE_VANISHING_POINT_SHIFT 55.0f  // Adjust as needed
+
 
 // Log structures
 typedef struct Log {
@@ -176,7 +194,6 @@ typedef struct Enduro {
 
     Car enemyCars[MAX_ENEMIES];
 
-    float vanishing_point_x;
     float initial_player_x;
 
     int last_lr_action; // 0: none, 1: left, 2: right
@@ -189,6 +206,17 @@ typedef struct Enduro {
     float left_curve_p1_x_increment;
     float left_curve_p1_x_min;
     float left_curve_p1_x_max;
+    float vanishing_point_x;
+    float base_vanishing_point_x;
+    float t_p;
+
+    // Logging
+    float P0_x_left_edge;
+    float P2_x_left_edge;
+    float P0_x_right_edge;
+    float P2_x_right_edge;
+    float last_road_left;
+    float last_road_right;
 
     // Current background colors
     Color currentSkyColors[5];
@@ -521,15 +549,22 @@ void step(Enduro* env) {
     float road_left = road_left_edge_x(env, env->player_y);
     float road_right = road_right_edge_x(env, env->player_y) - CAR_WIDTH;
 
+    if (env->last_road_left != road_left || env->last_road_right != road_right) {
+        printf("\n\nSTEP: road_left_x = %.2f, road_right_x = %.2f, vanishing_point = %.2f \n\n", road_left, road_right, env->vanishing_point_x);
+    }
+
+    env->last_road_left = road_left;
+    env->last_road_right = road_right;
+
     // Player movement logic
     if (env->collision_cooldown <= 0) {
         int act = env->actions;
         if (act == 1) {  // Move left
-            env->player_x -= 2;
+            env->player_x -= 0.5;
             if (env->player_x < road_left) env->player_x = road_left;
             env->last_lr_action = 1;
         } else if (act == 2) {  // Move right
-            env->player_x += 2;
+            env->player_x += 0.5;
             if (env->player_x > road_right) env->player_x = road_right;
             env->last_lr_action = 2;
         }
@@ -547,15 +582,34 @@ void step(Enduro* env) {
     if (env->player_x < road_left) env->player_x = road_left;
     if (env->player_x > road_right) env->player_x = road_right;
 
+    // Update player's horizontal position ratio
+    float t_p = (env->player_x - PLAYER_MIN_X) / (PLAYER_MAX_X - PLAYER_MIN_X);
+    t_p = fmaxf(0.0f, fminf(1.0f, t_p));
+    env->t_p = t_p;
 
-    // Update vanishing point based on player's horizontal movement
-    // Implementing Thing 1: Adjust vanishing_point_x inversely to player's x position
-    float player_x_min = ROAD_LEFT_EDGE_X;
-    float player_x_max = ROAD_RIGHT_EDGE_X - CAR_WIDTH;
-    float t = (env->player_x - player_x_min) / (player_x_max - player_x_min);
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
-    env->vanishing_point_x = 110.0f - t * 48.0f; // vanishing_point_x ranges from 110 to 62
+    // Base vanishing point based on player's horizontal movement (without curve)
+    env->base_vanishing_point_x = VANISHING_POINT_X_LEFT - t_p * (VANISHING_POINT_X_LEFT - VANISHING_POINT_X_RIGHT);
+
+    // Adjust vanishing point based on current curve
+    float curve_vanishing_point_shift = env->current_curve_direction * CURVE_VANISHING_POINT_SHIFT;
+    env->vanishing_point_x = env->base_vanishing_point_x + curve_vanishing_point_shift;
+
+    // // Store base vanishing point for use in road edge calculations
+    // env->base_vanishing_point_x = base_vanishing_point_x;
+    
+
+
+    // Logging
+    // Log road edges at the bottom of the screen to match expected values
+    float road_left_bottom = road_left_edge_x(env, PLAYABLE_AREA_BOTTOM);
+    float road_right_bottom = road_right_edge_x(env, PLAYABLE_AREA_BOTTOM);
+
+    printf("\n\nSTEP: road_left_x = %.2f, road_right_x = %.2f, vanishing_point = %.2f \n\n",
+        road_left_bottom, road_right_bottom, env->vanishing_point_x);
+    printf("Player X: %.2f, t_p: %.2f\n", env->player_x, env->t_p);
+    printf("Vanishing Point X: %.2f\n", env->vanishing_point_x);
+    printf("Road Left X at Bottom: %.2f\n", road_left_bottom);
+    printf("Road Right X at Bottom: %.2f\n", road_right_bottom);
 
     // Update player y position based on speed
     env->player_y = PLAYER_MAX_Y - (env->speed - env->min_speed) / (env->max_speed - env->min_speed) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
@@ -563,7 +617,7 @@ void step(Enduro* env) {
     if (env->player_y < PLAYER_MIN_Y) env->player_y = PLAYER_MIN_Y;
     if (env->player_y > PLAYER_MAX_Y) env->player_y = PLAYER_MAX_Y;
 
-    printf("Player position y = %.2f, speed = %.2f\n", env->player_y, env->speed);
+    // printf("Player position y = %.2f, speed = %.2f\n", env->player_y, env->speed);
 
     // Enemy car logic
     for (int i = 0; i < env->numEnemies; i++) {
@@ -602,7 +656,7 @@ void step(Enduro* env) {
             }
             env->numEnemies--;
             i--;
-            printf("Removing car %d as it went below screen\n", i);
+            // printf("Removing car %d as it went below screen\n", i);
         }
 
         // Remove cars that reach or surpass the logical vanishing point if moving up (speed negative)
@@ -613,7 +667,7 @@ void step(Enduro* env) {
             }
             env->numEnemies--;
             i--;
-            printf("Removing car %d as it reached the logical vanishing point at LOGICAL_VANISHING_Y = %.2f\n", i, (float)LOGICAL_VANISHING_Y);
+            // printf("Removing car %d as it reached the logical vanishing point at LOGICAL_VANISHING_Y = %.2f\n", i, (float)LOGICAL_VANISHING_Y);
         }
 
     }
@@ -655,7 +709,8 @@ void update_road_curve(Enduro* env) {
     };
 
     int curve_directions[] = {
-        1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 1, -1, 1, -1, 1, -1, 1  // -1: Left, 1: Right, 0: Straight
+    //    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 1, -1, 1, -1, 1, -1, 1  // -1: Left, 1: Right, 0: Straight
     };
 
     steps_in_current_stage++;
@@ -675,74 +730,76 @@ void update_road_curve(Enduro* env) {
 float quadratic_bezier(float p0, float p1, float p2, float t) {
     float one_minus_t = 1.0f - t;
     return one_minus_t * one_minus_t * p0 + 
-           2.0f * one_minus_t * t * p1 + 
+           1.5f * one_minus_t * t * p1 + 
            t * t * p2;
 }
+
 
 float road_left_edge_x(Enduro* env, float y) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
 
-    float x;
+    // Use base vanishing point for P0 (constant during curves)
+    float P0 = env->base_vanishing_point_x - ROAD_LEFT_OFFSET;
 
-    if (env->current_curve_direction == -1) { // Left curve
-        // Left edge Bezier curve points
-        float P0_x = ROAD_LEFT_EDGE_X;   // Start point at bottom
-        float P1_x = 70;                 // Control point x
-        float P2_x = 40;                 // End point at horizon
+    // Use shifted vanishing point for P2 (changes during curves)
+    float P2 = env->vanishing_point_x;
 
-        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
-    } else if (env->current_curve_direction == 1) { // Right curve
-        // Left edge Bezier curve points for right curve
-        float P0_x = SCREEN_WIDTH - ROAD_RIGHT_EDGE_X;                      // Start point at bottom
-        float P1_x = SCREEN_WIDTH - P0_x - 70; // 70 is magic #; (P0_x - env->left_curve_p1_x) Control point x (adjusted over time) for testing
-        float P2_x = SCREEN_WIDTH - 40;                     // End point at horizon
-
-        printf("left_curve_p1_x only: %.2f\n", env->left_curve_p1_x);
-        printf("P0_x = %.2f, P1_x = %.2f, P2_x = %.2f\n", P0_x, P1_x, P2_x);
-
-
-
-        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
-    } else { // Straight road
-        // Linear interpolation for straight road
-        float P0_x = ROAD_LEFT_EDGE_X;
-        float P2_x = env->vanishing_point_x;
-
-        x = P0_x + (P2_x - P0_x) * t;
+    if (env->current_curve_direction == 0) {
+        // Straight road: linear interpolation
+        return P0 + t * (P2 - P0);
+    } else {
+        float P1;
+        if (env->current_curve_direction == 1) {
+            // Right curve: Left edge curves dramatically
+            P1 = P0 + (P2 - P0) * 0.25f;
+    } else { // Left curve
+        // Left curve: Left edge curves dramatically (adjusted)
+        float P1 = P0 + (P2 - P0) * 0.75f; // Changed from 0.75f to 0.25f
+        float one_minus_t = 1.0f - t;
+        return one_minus_t * one_minus_t * P0
+             + 4.0f * one_minus_t * t * P1
+             + t * t * P2;
     }
-
-    return x;
+        // Quadratic Bezier curve calculation
+        return (1 - t) * (1 - t) * P0
+             + 1.5f * (1 - t) * t * P1
+             + t * t * P2;
+    }
 }
-
 
 float road_right_edge_x(Enduro* env, float y) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
 
-    float x;
-    if (env->current_curve_direction == -1) { // Left curve
-        // Right edge Bezier curve points
-        float P0_x = ROAD_RIGHT_EDGE_X;  // (127, 177)
-        float P1_x = 111;                // Control point x (135, 92)
-        float P2_x = 40;                 // End point x (40, 68)
+    // Use base vanishing point for P0 (constant during curves)
+    float P0 = env->base_vanishing_point_x + ROAD_RIGHT_OFFSET;
 
-        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
-    } else if (env->current_curve_direction == 1) { // Right curve
-        // Mirror the right curve across the center line
-        float P0_x = SCREEN_WIDTH - ROAD_LEFT_EDGE_X; // Mirrored start point
-        float P1_x = SCREEN_WIDTH - 69; // 69 is magic #; Control point SCREEN_WIDTH - env->left_curve_p1_x (testing)
-        float P2_x = SCREEN_WIDTH - 40;               // Horizon endpoint mirrored
+    // Use shifted vanishing point for P2 (changes during curves)
+    float P2 = env->vanishing_point_x;
 
-        x = (1 - t)*(1 - t)*P0_x + 2*(1 - t)*t*P1_x + t*t*P2_x;
-    } else { // Straight road
-        // Linear interpolation for straight road
-        float P0_x = ROAD_RIGHT_EDGE_X;
-        float P2_x = env->vanishing_point_x;
-
-        x = P0_x + (P2_x - P0_x) * t;
+    if (env->current_curve_direction == 0) {
+        // Straight road: linear interpolation
+        return P0 + t * (P2 - P0);
+    } else {
+        float P1;
+        if (env->current_curve_direction == 1) {
+            // Right curve: Right edge curves less
+            P1 = P0 + (P2 - P0) * 0.75f;
+    } else { // Left curve
+        float P1 = 40; //P0 + (P2 - P0) * 0.25f;
+        float one_minus_t = 1.0f - t;
+        return one_minus_t * one_minus_t * P0
+             + 5.5f * one_minus_t * t * P1
+             + t * t * P2;
     }
-
-    return x;
+        // Quadratic Bezier curve calculation
+        return (1 - t) * (1 - t) * P0
+             + 1.5f * (1 - t) * t * P1
+             + t * t * P2;
+    }
 }
+
+
+
 
 // car_x_in_lane
 float car_x_in_lane(Enduro* env, int lane, float y) {
@@ -930,8 +987,8 @@ void updateBackground(GameState* gameState, int timeOfDay) {
     gameState->currentBackgroundIndex = timeOfDay % 16;
 
     // Print the background and mountain images whenever they are displayed
-    printf("Background image displayed: %d_bg.png\n", gameState->currentBackgroundIndex);
-    printf("Mountain image displayed: %d_mtns.png\n", gameState->currentBackgroundIndex);
+    // printf("Background image displayed: %d_bg.png\n", gameState->currentBackgroundIndex);
+    // printf("Mountain image displayed: %d_mtns.png\n", gameState->currentBackgroundIndex);
 
     // Check for victory condition
     if (!gameState->victoryAchieved && gameState->currentBackgroundIndex == 0 && gameState->previousBackgroundIndex == 15) {
@@ -966,7 +1023,7 @@ void renderScoreboard(GameState* gameState) {
     // Render score with scrolling effect
     for (int i = 0; i < SCORE_DIGITS; ++i) {
         int digitX = scoreStartX + i * digitWidth;
-        Rectangle destRect = { digitX, scoreStartY, digitWidth, digitHeight };
+        // Rectangle destRect = { digitX, scoreStartY, digitWidth, digitHeight };
 
         Texture2D currentDigitTexture = gameState->digitTextures[gameState->scoreDigitCurrents[i]];
         Texture2D nextDigitTexture = gameState->digitTextures[gameState->scoreDigitNexts[i]];
@@ -985,13 +1042,13 @@ void renderScoreboard(GameState* gameState) {
             Rectangle destRectNext = { digitX, scoreStartY, digitWidth, (int)offset };
             DrawTextureRec(nextDigitTexture, srcRectNext, (Vector2){ destRectNext.x, destRectNext.y }, WHITE);
 
-            printf("Rendering scrolling score digit: digits_%d.png and digits_%d.png at position (%f, %f)\n",
-                   gameState->scoreDigitCurrents[i], gameState->scoreDigitNexts[i], destRect.x, destRect.y);
+            // printf("Rendering scrolling score digit: digits_%d.png and digits_%d.png at position (%f, %f)\n",
+                //    gameState->scoreDigitCurrents[i], gameState->scoreDigitNexts[i], destRect.x, destRect.y);
         } else {
             // No scrolling, render the current digit normally
             DrawTexture(currentDigitTexture, digitX, scoreStartY, WHITE);
-            printf("Rendering score digit: digits_%d.png at position (%d, %d)\n",
-                   gameState->scoreDigitCurrents[i], digitX, scoreStartY);
+            // printf("Rendering score digit: digits_%d.png at position (%d, %d)\n",
+                //    gameState->scoreDigitCurrents[i], digitX, scoreStartY);
         }
     }
 
@@ -1002,12 +1059,12 @@ void renderScoreboard(GameState* gameState) {
         // Use green digits during victory
         Texture2D greenDigitTexture = gameState->greenDigitTextures[dayTextureIndex];
         DrawTexture(greenDigitTexture, dayX, dayY, WHITE);
-        printf("Rendering day digit: green_digits_%d.png at position (%d, %d)\n", day, dayX, dayY);
+        // printf("Rendering day digit: green_digits_%d.png at position (%d, %d)\n", day, dayX, dayY);
     } else {
         // Use normal digits
         Texture2D digitTexture = gameState->digitTextures[dayTextureIndex];
         DrawTexture(digitTexture, dayX, dayY, WHITE);
-        printf("Rendering day digit: digits_%d.png at position (%d, %d)\n", day, dayX, dayY);
+        // printf("Rendering day digit: digits_%d.png at position (%d, %d)\n", day, dayX, dayY);
     }
 
     // Render "CAR" digit or flags for cars to pass
@@ -1016,11 +1073,11 @@ void renderScoreboard(GameState* gameState) {
         Texture2D flagTexture = gameState->showLeftFlag ? gameState->levelCompleteFlagLeftTexture : gameState->levelCompleteFlagRightTexture;
         Rectangle destRect = { carsX, carsY, digitWidth * 4, digitHeight };
         DrawTextureEx(flagTexture, (Vector2){ destRect.x, destRect.y }, 0.0f, 1.0f, WHITE);
-        printf("Rendering level complete flag at position (%f, %f)\n", destRect.x, destRect.y);
+        // printf("Rendering level complete flag at position (%f, %f)\n", destRect.x, destRect.y);
     } else {
         // Render "CAR" digit for the first position in cars to pass
         DrawTexture(gameState->carDigitTexture, carsX, carsY, WHITE);
-        printf("Rendering cars to pass digit: digits_car.png at position (%d, %d)\n", carsX, carsY);
+        // printf("Rendering cars to pass digit: digits_car.png at position (%d, %d)\n", carsX, carsY);
 
         // Render the remaining digits for cars to pass
         int cars = gameState->carsToPass;
@@ -1028,7 +1085,7 @@ void renderScoreboard(GameState* gameState) {
             int digit = (cars / (int)pow(10, CARS_DIGITS - i - 1)) % 10;
             int digitX = carsX + i * digitWidth + i * 1;
             DrawTexture(gameState->digitTextures[digit], digitX, carsY, WHITE);
-            printf("Rendering cars to pass digit: digits_%d.png at position (%d, %d)\n", digit, digitX, carsY);
+            // printf("Rendering cars to pass digit: digits_%d.png at position (%d, %d)\n", digit, digitX, carsY);
         }
     }
 }
@@ -1090,7 +1147,7 @@ void renderMountains(GameState* gameState) {
     Texture2D mountainTexture = gameState->mountainTextures[gameState->currentBackgroundIndex];
     if (mountainTexture.id != 0) {
         int mountainWidth = 100;
-        int mountainHeight = 6;
+        // int mountainHeight = 6;
         int mountainX = (int)gameState->mountainPosition + 37;
         int mountainY = 45; // Corrected Y-coordinate
 

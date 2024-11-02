@@ -8,6 +8,7 @@
     // TODO: Improve road wiggle effect
 // TODO: Ascertain road wiggle effect logic from original
 // TODO: Fog mode
+// TODO: Reduced handling on snow
 // TODO: Road vanishing point moves based on where player car is on road
 // TODO: Compute/determine enemy car spawn frequency for each day num
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
