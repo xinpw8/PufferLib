@@ -4,8 +4,6 @@ from pettingzoo import ParallelEnv
 from gymnasium import spaces
 from enum import Enum
 
-from pettingzoo.utils.conversions import aec_to_parallel_wrapper
-
 import pufferlib.emulation
 import pufferlib.environments
 import pufferlib.wrappers
@@ -23,14 +21,22 @@ class GridState(Enum):
 class TrashPickupEnv(ParallelEnv):
     metadata = {'render_modes': ['human'], 'name': 'TrashPickup'}
 
-    def __init__(self, grid_size=10, num_agents=2, num_trash=10, num_bins=2):
+    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
         self.grid_size = grid_size
-        self._num_agents = num_agents  # Changed here
+        self._num_agents = num_agents
         self.num_trash = num_trash
         self.num_bins = num_bins
 
         self.possible_agents = ["agent_" + str(i) for i in range(self._num_agents)]
         self.agents = self.possible_agents[:]
+
+        self.max_steps = max_steps
+        self.current_step = 0
+
+        self.total_episode_reward = 0
+
+        self.POSITIVE_REWARD = 0.5 / num_trash  # this makes the total episode reward +1 if all trash is picked up and put into bin
+        self.NEGATIVE_REWARD = 1 / (max_steps * num_agents) # this makes the max negative reward given per episode to be -1
 
         # Define the action space: 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT
         self.action_spaces = {agent: spaces.Discrete(4) for agent in self.possible_agents}
@@ -40,7 +46,7 @@ class TrashPickupEnv(ParallelEnv):
             agent: spaces.Dict({
                 'agent_position': spaces.Box(low=0, high=self.grid_size - 1, shape=(2,), dtype=np.int32),
                 'carrying_trash': spaces.Discrete(2),  # 0 or 1
-                'grid': spaces.Box(low=0, high=5, shape=(self.grid_size, self.grid_size), dtype=np.int32)
+                'grid': spaces.Box(low=0, high=4, shape=(self.grid_size, self.grid_size), dtype=np.int32)
             })
             for agent in self.possible_agents
         }
@@ -52,6 +58,9 @@ class TrashPickupEnv(ParallelEnv):
         self.reset()
 
     def reset(self, seed=None, options=None):
+        self.current_step = 0
+        self.total_episode_reward = 0
+
         # Initialize agents
         self.agents = self.possible_agents[:]
         self._agent_positions = {}
@@ -83,9 +92,13 @@ class TrashPickupEnv(ParallelEnv):
         return observations
 
     def step(self, actions):
+
+        if self.current_step > self.max_steps:
+            print("TrashPickup Env, environment did NOT reset after max steps reached...")
+            return
+
         rewards = {agent: 0 for agent in self.agents}
         dones = {agent: False for agent in self.agents}
-        truncations = {agent: False for agent in self.agents}
         infos = {agent: {} for agent in self.agents}
 
         # Remove agents from the grid to prepare for movement
@@ -116,12 +129,14 @@ class TrashPickupEnv(ParallelEnv):
                 self._agent_carrying[agent] = 1
                 self.grid[new_pos] = GridState.EMPTY.value
                 self._agent_positions[agent] = new_pos
-                rewards[agent] += 1  # Reward for picking up trash
+                rewards[agent] += self.POSITIVE_REWARD  # Reward for picking up trash
+                self.total_episode_reward += self.POSITIVE_REWARD
             elif this_grid_state == GridState.TRASH_BIN.value:
                 if carrying == 1:
                     # Deposit trash
                     self._agent_carrying[agent] = 0
-                    rewards[agent] += 1  # Reward for depositing trash
+                    rewards[agent] += self.POSITIVE_REWARD  # Reward for depositing trash
+                    self.total_episode_reward += self.POSITIVE_REWARD
                     # Agent does not move onto the bin
                     self._agent_positions[agent] = current_pos
                 else:
@@ -141,15 +156,26 @@ class TrashPickupEnv(ParallelEnv):
                 # Invalid move or occupied cell: stay in place
                 self._agent_positions[agent] = current_pos
 
-            rewards[agent] -= 0.01  # small penalty per step to encourage efficiency
+            rewards[agent] -= self.NEGATIVE_REWARD  # small penalty per step to encourage efficiency
+            self.total_episode_reward -= self.NEGATIVE_REWARD
 
         # Update agents on the grid
         for agent in self.agents:
             pos = self._agent_positions[agent]
             self.grid[pos] = GridState.AGENT.value  # Agent
 
+        if self.current_step >= self.max_steps or self.is_episode_over():
+            dones = {agent: True for agent in self.agents}
+            infos["final_info"] = {
+                "episode_reward": self.total_episode_reward, 
+                "episode_length": self.current_step,
+                "trash_remaining": np.sum(self.grid == GridState.TRASH.value),
+                "any_agent_carrying": all(carrying == 0 for carrying in self._agent_carrying.values()),
+            }
+        self.current_step += 1
+
         observations = self._get_observations()
-        return observations, rewards, dones, truncations, infos
+        return observations, rewards, dones, infos
 
     def render(self):
         # Initialize window if not already initialized
@@ -196,6 +222,16 @@ class TrashPickupEnv(ParallelEnv):
 
         pyray.end_drawing()
 
+    def is_episode_over(self):
+        # Check if there are any trash cells remaining in the grid
+        no_trash_left = not np.any(self.grid == GridState.TRASH.value)
+        
+        # Check if no agents are carrying trash
+        no_agent_carrying = all(carrying == 0 for carrying in self._agent_carrying.values())
+        
+        # The episode is over if there's no trash left and no agents are carrying trash
+        return no_trash_left and no_agent_carrying
+    
     def close(self):
         pass
 

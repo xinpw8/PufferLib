@@ -3,6 +3,9 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from copy import deepcopy
+
+from tqdm import tqdm
 
 import gymnasium as gym
 import numpy as np
@@ -38,17 +41,17 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    capture_video: bool = False
+    capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
     env_id: str = "TrashPickup"
     """the id of the environment"""
-    total_timesteps: int = 10000000
+    total_timesteps: int = 1000000000
     """total timesteps of the experiments"""
     learning_rate: float = 2.5e-4
     """the learning rate of the optimizer"""
-    num_envs: int = 48
+    num_envs: int = 16
     """the number of parallel game environments"""
     num_steps: int = 128
     """the number of steps to run in each environment per policy rollout"""
@@ -97,38 +100,58 @@ class Agent(nn.Module):
         super().__init__()
         self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
 
-        self.blstats_net = nn.Sequential(
-            nn.Embedding(256, 32),
-            nn.Flatten(),
-        )
-
-        self.char_embed = nn.Embedding(256, 32)
-        self.chars_net = nn.Sequential(
-            layer_init(nn.Conv2d(32, 32, 5, stride=(2, 3))),
+        # Define network for processing the grid with multiple channels (4 channels for 0, 1, 2, 3)
+        self.grid_net = nn.Sequential(
+            layer_init(nn.Conv2d(4, 32, 3, stride=1)),  # Now assuming grid has 4 channels
             nn.ReLU(),
-            layer_init(nn.Conv2d(32, 64, 5, stride=(1, 3))),
-            nn.ReLU(),
-            layer_init(nn.Conv2d(64, 64, 3, stride=1)),
+            layer_init(nn.Conv2d(32, 64, 3, stride=1)),
             nn.ReLU(),
             nn.Flatten(),
         )
 
-        self.proj = nn.Linear(864+960, 256)
-        self.actor = layer_init(nn.Linear(256, 8), std=0.01)
+        # Linear layers for agent position and carrying status
+        self.position_net = nn.Sequential(
+            layer_init(nn.Linear(2, 32)),
+            nn.ReLU(),
+        )
+        
+        self.carrying_net = nn.Sequential(
+            layer_init(nn.Linear(1, 32)),
+            nn.ReLU(),
+        )
+
+        # Combine outputs
+        self.proj = nn.Linear(2368, 256)  # (2368) hard-coded for now, fix later Adjusted projection layer size based on concatenated features
+        self.actor = layer_init(nn.Linear(256, 4), std=0.01)  # 4 is hard-coded for now (represents number of actions)
         self.critic = layer_init(nn.Linear(256, 1), std=1)
 
+    def preprocess_grid(self, grid):
+        # Separate grid into 4 channels for empty space, trash, bin, and agent
+        empty_space = (grid == 0).float()
+        trash = (grid == 1).float()
+        trash_bin = (grid == 2).float()
+        agent = (grid == 3).float()
+        
+        # Stack channels to create a (4, H, W) tensor
+        ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
+        return ret
+
     def hidden(self, x):
-        x = x.type(torch.uint8) # Undo bad cleanrl cast
+        x = x.type(torch.uint8)  # Undo bad cleanrl cast
         x = pufferlib.pytorch.nativize_tensor(x, self.dtype)
 
-        blstats = torch.clip(x['blstats'] + 1, 0, 255).int()
-        blstats = self.blstats_net(blstats)
+        # Process each part of the observation
+        grid = self.preprocess_grid(x['grid'])
+        grid_features = self.grid_net(grid)
 
-        chars = self.char_embed(x['chars'].int())
-        chars = torch.permute(chars, (0, 3, 1, 2))
-        chars = self.chars_net(chars)
+        position = x['agent_position'].float() / 10 # divide by 10 (grid-size) hard-coded for now... 
+        position_features = self.position_net(position)
 
-        concat = torch.cat([blstats, chars], dim=1)
+        carrying = x['carrying_trash'].float()
+        carrying_features = self.carrying_net(carrying)
+
+        # Concatenate all features and project to a fixed-size hidden representation
+        concat = torch.cat([grid_features, position_features, carrying_features], dim=1)
         return self.proj(concat)
 
     def get_value(self, x):
@@ -175,24 +198,28 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+    torch.set_printoptions(threshold=torch.inf)
 
     # PufferLib vectorization
     envs = pufferlib.vector.make(
         pufferlib.environments.trash_pickup.env_creator(),
         backend=pufferlib.vector.Multiprocessing,
         num_envs=args.num_envs,
-        num_workers=args.num_envs//2,
+        num_workers=args.num_envs,  # // 2
     )
 
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     # ALGO Logic: Storage setup
-    obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
-    actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
-    logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    values = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    num_agents = 3 # hard-coded for now, adjust this later
+    obs = torch.zeros((args.num_steps, args.num_envs, num_agents) + envs.single_observation_space.shape).to(device) 
+    actions = torch.zeros((args.num_steps, args.num_envs, num_agents) + envs.single_action_space.shape).to(device)
+    logprobs = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
+    rewards = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
+    dones = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
+    values = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
+
+    # dummy_obs = torch.zeros((args.num_steps, envs.single_observation_space.shape[0])).to(device)
 
     # Annoyance: AsyncVectorEnv does not have a driver env
     agent = Agent(envs.driver_env.emulated).to(device)
@@ -201,11 +228,10 @@ if __name__ == "__main__":
     # TRY NOT TO MODIFY: start the game
     global_step = 0
     start_time = time.time()
-    next_obs, _ = envs.reset(seed=args.seed)
-    next_obs = torch.Tensor(next_obs).to(device)
-    next_done = torch.zeros(args.num_envs).to(device)
+    next_obs, _ = envs.reset(seed=args.seed) # returns tensor of shape ([6, 120]), but we need it of shape ([3, 2, 120])
+    next_done = torch.zeros((args.num_envs, num_agents)).to(device)
 
-    for iteration in range(1, args.num_iterations + 1):
+    for iteration in tqdm(range(1, args.num_iterations + 1)):
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
             frac = 1.0 - (iteration - 1.0) / args.num_iterations
@@ -213,30 +239,47 @@ if __name__ == "__main__":
             optimizer.param_groups[0]["lr"] = lrnow
 
         for step in range(0, args.num_steps):
-            global_step += args.num_envs
-            obs[step] = next_obs
-            dones[step] = next_done
+            global_step += args.num_envs * num_agents
+            obs[step] = torch.Tensor(next_obs.reshape(args.num_envs, num_agents, envs.single_observation_space.shape[0])).to(device) # error here
+            dones[step] = torch.Tensor(next_done.reshape(args.num_envs, num_agents)).to(device)
+
+            # dummy = next_obs.reshape(args.num_envs, num_agents, envs.single_observation_space.shape[0])
+            # dummy_obs[step] = torch.Tensor(dummy[0][0]).to(device)
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                action, logprob, _, value = agent.get_action_and_value(next_obs)
-                values[step] = value.flatten()
-            actions[step] = action
-            logprobs[step] = logprob
+                action, logprob, _, value = agent.get_action_and_value(torch.Tensor(next_obs).to(device))
+                values[step] = value.reshape(args.num_envs, num_agents)
+            actions[step] = action.reshape(args.num_envs, num_agents)
+            logprobs[step] = logprob.reshape(args.num_envs, num_agents)
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
+            rewards[step] = torch.tensor(reward).to(device).view(args.num_envs, num_agents)
             next_obs = torch.as_tensor(next_obs, device=device)
             next_done = torch.as_tensor(next_done, dtype=torch.float32, device=device)
+            
+            writer.add_scalar(f"charts/mean-reward", rewards[step].mean(), global_step)
 
-            if "final_info" in infos:
-                for info in infos["final_info"]:
-                    if info and "episode" in info:
-                        print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                        writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                        writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+            episode_reward_list = []
+            episode_length_list = []
+            trash_remaining_list = []
+            for info in infos:               
+                if "final_info" in info:
+                    episode_reward_list.append(info["final_info"]["episode_reward"])
+                    episode_length_list.append(info["final_info"]["episode_length"])
+                    trash_remaining_list.append(info["final_info"]["trash_remaining"])
+
+            if len(episode_reward_list) > 0:
+                writer.add_scalar("charts/episodic_reward", np.mean(episode_reward_list), global_step)
+
+            if len(episode_length_list) > 0:
+                writer.add_scalar("charts/episodic_length", np.mean(episode_length_list), global_step)
+
+            if len(trash_remaining_list) > 0:
+                writer.add_scalar("charts/total_trash_remaining", np.mean(trash_remaining_list), global_step)
+
 
         # bootstrap value if not done
         with torch.no_grad():
@@ -248,10 +291,12 @@ if __name__ == "__main__":
                     nextnonterminal = 1.0 - next_done
                     nextvalues = next_value
                 else:
-                    nextnonterminal = 1.0 - dones[t + 1]
-                    nextvalues = values[t + 1]
-                delta = rewards[t] + args.gamma * nextvalues * nextnonterminal - values[t]
-                advantages[t] = lastgaelam = delta + args.gamma * args.gae_lambda * nextnonterminal * lastgaelam
+                    nextnonterminal = 1.0 - dones[t + 1].reshape(args.num_envs * num_agents)
+                    nextvalues = values[t + 1].reshape(args.num_envs * num_agents)
+                delta = rewards[t].reshape(args.num_envs * num_agents) + args.gamma * nextvalues * nextnonterminal - values[t].reshape(args.num_envs * num_agents)
+                if not isinstance(lastgaelam, int):
+                    lastgaelam = lastgaelam.reshape(args.num_envs * num_agents)
+                advantages[t] = lastgaelam = (delta + args.gamma * args.gae_lambda * nextnonterminal * lastgaelam).reshape(args.num_envs, num_agents)
             returns = advantages + values
 
         # flatten the batch
@@ -329,7 +374,8 @@ if __name__ == "__main__":
         writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
         writer.add_scalar("losses/explained_variance", explained_var, global_step)
-        print("SPS:", int(global_step / (time.time() - start_time)))
+        # if iteration % 5 == 0:
+            # print(f"SPS: {int(global_step / (time.time() - start_time))} | Current Iteration: {iteration} out of {args.num_iterations}")
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     envs.close()
