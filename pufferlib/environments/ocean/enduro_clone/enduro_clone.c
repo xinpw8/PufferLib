@@ -1,11 +1,11 @@
-    // TODO: Collision drift doesn't work. Make it work.
-    // TODO: Add collisions with the road edges
-    // TODO: Add scenery
-    // TODO: Add day/night cycle + pre-dawn
+// TODO: Collision drift doesn't work. Make it work.
+// TODO: Add collisions with the road edges
+// TODO: Add scenery
+// TODO: Add day/night cycle + pre-dawn
 // TODO: Ascertain day/night cycle logic from original
-    // TODO: Add winter/summer cycle
+// TODO: Add winter/summer cycle
 // TODO: Ascertain winter/summer cycle logic from original
-    // TODO: Improve road wiggle effect
+// TODO: Improve road wiggle effect
 // TODO: Ascertain road wiggle effect logic from original
 // TODO: Fog mode
 // TODO: Reduced handling on snow
@@ -59,20 +59,14 @@ int main() {
     };
 
     allocate(&env);
-
     // Initialize raylib
     initRaylib();
-
     // Create client
     Client* client = make_client(&env);
-
     // Load textures
     loadTextures(&env.gameState);
-
     reset(&env);
-
     int running = 1;
-
     // Initialize RoadDirection variable
     RoadDirection roadDirection = ROAD_STRAIGHT;
 
@@ -80,7 +74,6 @@ int main() {
     while (running) {
         // Handle events
         handleEvents(&running, &env);
-
         // Step the environment
         step(&env);
 
@@ -96,16 +89,12 @@ int main() {
         // Update game state
         updateBackground(&env.gameState, env.day % 16); // Ensure day cycles correctly
         updateMountains(&env.gameState, roadDirection);
-
         // Update victory effects
         updateVictoryEffects(&env.gameState);
-
         // Update score
         updateScore(&env.gameState);
-
         // Render everything
         render(client, &env);
-
         // Check if the window should close
         if (WindowShouldClose()) {
             running = 0;
@@ -114,9 +103,7 @@ int main() {
 
     // Cleanup
     cleanup(&env.gameState);
-
     close_client(client);
     free_allocated(&env);
-
     return 0;
 }
