@@ -3,6 +3,10 @@
 #ifndef ENDURO_CLONE_H
 #define ENDURO_CLONE_H
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -15,6 +19,7 @@
 #include "raylib.h"
 
 // Constant definitions
+#define TARGET_FPS 60 // Used to calculate wiggle spawn frequency
 #define LOG_BUFFER_SIZE 1024
 #define SCREEN_WIDTH 160
 #define SCREEN_HEIGHT 210 // Corrected to 210 as per your specifications
@@ -41,7 +46,7 @@
 #define ACCELERATION_RATE 0.05f
 #define DECELERATION_RATE 0.1f
 #define FRICTION 0.95f
-#define MIN_SPEED -1.5f
+#define MIN_SPEED -2.5f
 #define MAX_SPEED 3.0f
 #define CAR_PIXELS_COUNT 120
 #define CAR_PIXEL_HEIGHT 11
@@ -70,6 +75,10 @@
 #define PLAYABLE_AREA_BOTTOM 154
 #define VANISHING_POINT_Y 52
 #define CURVE_VANISHING_POINT_SHIFT 55.0f  // Adjust as needed
+// Constants for wiggle effect timing and amplitude
+#define MIN_WIGGLE_FREQUENCY (1.0f / 5.0f) // 5 seconds per cycle at min speed
+#define MAX_WIGGLE_FREQUENCY (1.0f / 0.3f) // 0.3 seconds per cycle at max speed
+#define WIGGLE_AMPLITUDE 8.0f              // Maximum 'bump-in' offset in pixels
 
 // Test cases and validation framework
 typedef struct {
@@ -185,6 +194,12 @@ typedef struct Enduro {
     float vanishing_point_x;
     float base_vanishing_point_x;
     float t_p;
+    // Roadside wiggle effect
+    float wiggle_y;            // Current y position of the wiggle
+    float wiggle_speed;        // Speed at which the wiggle moves down the screen
+    float wiggle_length;       // Vertical length of the wiggle effect
+    float wiggle_amplitude;    // How far into road wiggle extends
+    bool wiggle_active;        // Whether the wiggle is active
     // Logging
     float P0_x_left_edge;
     float P2_x_left_edge;
@@ -262,6 +277,7 @@ float road_edge_x(Enduro* env, float y, float offset, bool left);
 float car_x_in_lane(Enduro* env, int lane, float y);
 void update_road_curve(Enduro* env);
 void update_vanishing_point(Enduro* env, float offset);
+// float compute_wiggle_offset(float speed, float y_position, float time);
 void test_road_edges(Enduro* env);
 
 // Pixel representation of the car, stored as coordinate pairs
@@ -371,6 +387,12 @@ void init(Enduro* env) {
     env->left_curve_p1_x_max = 160.0f;       // Maximum offset
     env->victoryFlagTimer = 0;
     test_road_edges(env);
+    // Wiggle effect initialization
+    env->wiggle_y = VANISHING_POINT_Y;  // Start at the vanishing point
+    env->wiggle_speed = 10.1f;           // Adjust as needed (doesn't matter??)
+    env->wiggle_length = 26.0f; // PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y; // playable area   50.0f;  // Vertical size of the wiggle
+    env->wiggle_amplitude = 12.0f;       // Maximum 'bump-in' offset in pixels
+    env->wiggle_active = true;
 }
 
 void allocate(Enduro* env) {
@@ -535,6 +557,41 @@ void step(Enduro* env) {
     float curve_vanishing_point_shift = env->current_curve_direction * CURVE_VANISHING_POINT_SHIFT;
     env->vanishing_point_x = env->base_vanishing_point_x + curve_vanishing_point_shift;
 
+
+    // Update wiggle position
+    if (env->wiggle_active) {
+        // Calculate wiggle period based on speed
+        float min_wiggle_period = 5.8f;    // 6.25 // At minimum speed, wiggle occurs every 5 seconds
+        float max_wiggle_period = 0.3f;    // At maximum speed, wiggle occurs every 0.3 seconds
+
+        // Normalize speed between 0 (min_speed) and 1 (max_speed)
+        float speed_normalized = (env->speed - env->min_speed) / (env->max_speed - env->min_speed);
+        speed_normalized = fmaxf(0.0f, fminf(1.0f, speed_normalized));
+
+        // Calculate current wiggle period
+        float current_wiggle_period = min_wiggle_period - (min_wiggle_period - max_wiggle_period) * speed_normalized;
+
+        // Calculate wiggle speed (pixels per frame)
+        env->wiggle_speed = (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y) / (current_wiggle_period * TARGET_FPS);
+
+        // Update wiggle position
+        env->wiggle_y += env->wiggle_speed;
+
+        // Reset wiggle when it reaches the bottom
+        if (env->wiggle_y > PLAYABLE_AREA_BOTTOM) {
+            env->wiggle_y = VANISHING_POINT_Y;
+        }
+    }
+
+    // // Update wiggle position
+    // if (env->wiggle_active) {
+    //     env->wiggle_y += env->wiggle_speed;
+    //     if (env->wiggle_y > PLAYABLE_AREA_BOTTOM) {
+    //         // Reset wiggle to the vanishing point
+    //         env->wiggle_y = VANISHING_POINT_Y;
+    //     }
+    // }
+
     // // Logging
     // // Log road edges at the bottom of the screen to match expected values
     // float road_left_bottom = road_edge_x(env, PLAYABLE_AREA_BOTTOM, offset, true);
@@ -637,8 +694,8 @@ void update_road_curve(Enduro* env) {
     };
     int curve_directions[] = {
         // 1,1,1,1,1,1,1,1,1,1,1,1,1
-        -1,1,-1,1,-1,1,-1,1,-1,1,-1,1
-    //    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        // -1,1,-1,1,-1,1,-1,1,-1,1,-1,1
+       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     //    1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 1, -1, 1, -1, 1, -1, 1  // -1: Left, 1: Right, 0: Straight
     };
     steps_in_current_stage++;
@@ -659,23 +716,62 @@ float quadratic_bezier(float bottom_x, float control_x, float top_x, float t) {
            t * t * top_x;
 }
 
-float road_edge_x(Enduro* env, float y, float offset, bool is_left_edge) {
+float road_edge_x(Enduro* env, float y, float offset, bool left) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    // Offset true for left, false for right
-    float base_offset = is_left_edge ? -ROAD_LEFT_OFFSET : ROAD_RIGHT_OFFSET;
+
+    // Determine base offset for left or right edge
+    float base_offset = left ? -ROAD_LEFT_OFFSET : ROAD_RIGHT_OFFSET;
     float bottom_x = env->base_vanishing_point_x + base_offset + offset;
     float top_x = env->vanishing_point_x + offset;
-    // Straight road linear interpolation
+
+    // Calculate edge_x (either linear interpolation or Bezier curve)
+    float edge_x;
     if (env->current_curve_direction == 0) {
-        return bottom_x + t * (top_x - bottom_x);
+        edge_x = bottom_x + t * (top_x - bottom_x);
+    } else {
+        // Calculate curve amount and control point for curves
+        float curve_amount = (env->current_curve_direction == -1 ? 30.0f : -30.0f);
+        float control_x = bottom_x + (top_x - bottom_x) * 0.5f + curve_amount;
+        // Quadratic Bezier curve calculation
+        edge_x = quadratic_bezier(bottom_x, control_x, top_x, t);
     }
-    // Curve amount - greater absolute value for sharper curves; negative for right curves, positive for left curves
-    float curve_amount = (env->current_curve_direction == -1 ? 30.0f : -30.0f);
-    // Midpoint control point
-    float control_x = bottom_x + (top_x - bottom_x) * 0.5f + curve_amount;
-    // Quadratic Bezier
-    return quadratic_bezier(bottom_x, control_x, top_x, t);
+
+    // Wiggle effect
+    float wiggle_offset = 0.0f;
+    if (env->wiggle_active && y >= env->wiggle_y && y <= env->wiggle_y + env->wiggle_length) {
+        float t_wiggle = (y - env->wiggle_y) / env->wiggle_length; // Ranges from 0 to 1
+        // Trapezoidal wave calculation
+        if (t_wiggle < 0.15f) {
+            // Connection to road edge
+            wiggle_offset = env->wiggle_amplitude * (t_wiggle / 0.15f);
+        } else if (t_wiggle < 0.87f) { // 0.85f // 0.75f
+            // Flat top of wiggle
+            wiggle_offset = env->wiggle_amplitude;
+        } else {
+            // Reconnection to road edge
+            wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.13f); // 0.15f // 0.3f // 0.25f
+            // wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.25f);
+        }
+        // Wiggle towards road center
+        wiggle_offset *= (left ? 1.0f : -1.0f);
+        // Scale wiggle offset based on y position, starting at 0.03f at the vanishing point
+        float depth = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+        float scale = 0.03f + (depth * depth); 
+        if (scale > 0.3f) {
+            scale = 0.3f;
+                    // printf("Depth: %.2f, Scale: %.2f\n", depth, scale);
+        }
+        wiggle_offset *= scale;
+    }
+
+    // Apply the wiggle offset
+    edge_x += wiggle_offset;
+
+    return edge_x;
 }
+
+
+
 
 // Test cases for road edge rendering
 // Helper function to print road edges for a given y position
@@ -1059,10 +1155,12 @@ void render(Client* client, Enduro* env) {
     for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
         float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 0.75f);
         if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
+
         // Dynamically calculate the road edges for each y position
         float left_edge = road_edge_x(env, adjusted_y, 0, true);
         float right_edge = road_edge_x(env, adjusted_y, 0, false);
-        // Implementing Thing 2: Set roadColor based on y position
+
+        // Determine road color based on y position
         Color roadColor;
         if (adjusted_y >= 52 && adjusted_y < 91) {
             roadColor = (Color){74, 74, 74, 255};
@@ -1073,6 +1171,8 @@ void render(Client* client, Enduro* env) {
         } else {
             roadColor = WHITE; // Default color if needed
         }
+
+        // Draw road edges
         DrawPixel((int)left_edge, (int)adjusted_y, roadColor);
         DrawPixel((int)right_edge, (int)adjusted_y, roadColor);
     }

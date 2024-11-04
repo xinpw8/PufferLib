@@ -1,0 +1,15 @@
+11/4/24
+// TODO: Improve road wiggle effect
+// TODO: Ascertain road wiggle effect logic from original
+    // at min speed, q 5 seconds
+    // at max speed, q 0.3 seconds
+    /*road wiggle effect: the effect occurs at the same time in the left and right sides of the road. it occurs, at minimum speed, every 5 seconds. at max speed, every 0.3 seconds. the effect starts at the vanishing point where the two sides of the road meet, and propagates towards the bottom of the screen. 
+normal side of road left (37, 154, 153) (38, 152, 151) (39, 150, 149) (40, 148, 147), (41, 146, 145), (42, 144, 143), (43, 142, 141)
+'bump-in wiggle effect' begins (44, 140), (45, 139), (46, 138), at (47, 138), there is no road pixel. it is just the background color. (48, 137), (49, 136), (50, 135, 134), (51, 133, 132), (52, 131, 130), (53, 129, 128), (54, 127, 126), (55, 125, 124), (56, 123, 122), (57, 121, 120, 119), (56, 118, 117, 116, 115). 
+normal side of road left continues (57, 114, 113), (58, 112, 111), etc.
+the effect is mirrored by the right road edge.*/
+// TODO: Add road bump-out effect
+// TODO: Road vanishing point moves based on where player car is on road
+// TODO: Add scenery
+
+
