@@ -1,14 +1,9 @@
-// TODO: Black digit scoreboard
 // TODO: Replicate correct green for grass
 // TODO: Vanishing point for road should terminate in single pixel, not 2
-// TODO: Mountains move w/ road and vanishing point as player car moves left/right
 // TODO: Collision drift doesn't work. Make it work.
 // TODO: Add collisions with the road edges
-// TODO: Add day/night cycle + pre-dawn
-// TODO: Ascertain day/night cycle logic from original
-// TODO: Add winter/summer cycle
 // TODO: Ascertain winter/summer cycle logic from original
-// TODO: Fog mode
+// TODO: Fog mode - don't render road lines
 // TODO: Reduced handling on snow
 // TODO: Compute/determine enemy car spawn frequency for each day num
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
@@ -16,11 +11,9 @@
 // TODO: Implement RL
 // TODO: Make sure it trains
 // TODO: Engineer good policy
-// TODO: Add original player car sprite/color
 // TODO: Add original enemy car sprites/colors
-// TODO: Add enemy car tail lights for night
+// TODO: Add enemy car tail lights for night (2 colors??)
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
-// TODO: Slow speed player wheels animation
 
 // Leanke's TODOs:
 // TODO: Combine 2 fns for leanke
@@ -93,8 +86,9 @@ int main() {
         }
 
         // Update game state
-        updateBackground(&env.gameState, env.day % 16); // Ensure day cycles correctly
-        updateMountains(&env.gameState, roadDirection);
+        updateBackground(&env.gameState); // Ensure day cycles correctly
+        updateCarAnimation(&env.gameState, &env);
+        updateMountains(&env.gameState, &env);
         // Update victory effects
         updateVictoryEffects(&env.gameState);
         // Update score

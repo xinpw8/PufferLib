@@ -11,5 +11,9 @@ the effect is mirrored by the right road edge.*/
 // TODO: Add road bump-out effect
 // TODO: Road vanishing point moves based on where player car is on road
 // TODO: Add scenery
-
-
+// TODO: Mountains move w/ road and vanishing point as player car moves left/right
+// TODO: Black digit scoreboard
+// TODO: Slow speed player wheels animation
+// TODO: Add winter/summer cycle
+// TODO: Add day/night cycle + pre-dawn
+// TODO: Ascertain day/night cycle logic from original

@@ -126,6 +126,12 @@ typedef struct GameState {
     Texture2D levelCompleteFlagRightTexture; // Texture for right flag
     Texture2D greenDigitTextures[10];        // Textures for green digits
     Texture2D yellowDigitTextures[10];       // Textures for yellow digits
+    Texture2D playerCarLeftTreadTexture;
+    Texture2D playerCarRightTreadTexture;
+    // For car animation
+    float carAnimationTimer;
+    float carAnimationInterval;
+    bool showLeftTread;
     int currentBackgroundIndex;
     int previousBackgroundIndex;
     int score;
@@ -133,6 +139,11 @@ typedef struct GameState {
     int carsToPass;
     float mountainPosition; // Position of the mountain texture
     bool victoryAchieved;   // Flag to indicate victory condition
+    // Background state vars
+    float elapsedTime;       // Total elapsed time in seconds
+    int backgroundIndex;     // Current background index
+    // Transition times in seconds
+    float backgroundTransitionTimes[16];
     // Variables for alternating flags
     int flagTimer;
     bool showLeftFlag;
@@ -212,6 +223,8 @@ typedef struct Enduro {
     int currentSkyColorCount;
     Color currentMountainColor;
     Color currentGrassColor;
+    // Mountain rendering
+    float parallaxFactor;
     // Victory flag display timer
     int victoryFlagTimer;
     // Game state
@@ -264,11 +277,13 @@ void render_car(Client* client, Enduro* env);
 void initRaylib();
 void loadTextures(GameState* gameState);
 void cleanup(GameState* gameState);
-void updateBackground(GameState* gameState, int timeOfDay);
+void updateBackground(GameState* gameState);
+void updateCarAnimation(GameState* gameState, Enduro* env);
 void renderBackground(GameState* gameState);
 void renderScoreboard(GameState* gameState);
-void updateMountains(GameState* gameState, RoadDirection direction);
-void renderMountains(GameState* gameState);
+void updateMountains(GameState* gameState, Enduro* env);
+void renderMountains(GameState* gameState, Enduro* env);
+
 void updateVictoryEffects(GameState* gameState);
 void updateScore(GameState* gameState);
 
@@ -470,25 +485,23 @@ int get_player_lane(Enduro* env) {
 
 void add_enemy_car(Enduro* env) {
     if (env->numEnemies >= MAX_ENEMIES) return;
-    int lane = rand() % 3;
+    int lane = rand() % NUM_LANES; // Use NUM_LANES for consistency
     if (env->speed < 0) {
         int player_lane = get_player_lane(env);
         // Avoid spawning in the player's lane
         while (lane == player_lane) {
-            lane = rand() % 3;
+            lane = rand() % NUM_LANES;
         }
     }
     Car car = { .lane = lane, .passed = false };
-    // Adjust car spawning location based on player speed
     if (env->speed > 0) {
-        // Spawn cars at the vanishing point when moving forward
-        car.y = VANISHING_POINT_Y;
-        // printf("Spawning car at VANISHING_POINT_Y = %.2f\n", (float)VANISHING_POINT_Y);
+        // Spawn cars slightly below the vanishing point
+        car.y = VANISHING_POINT_Y + 10.0f; // Adjust the offset as needed
     } else {
         // Spawn cars behind the player when moving backward
-        car.y = ACTION_HEIGHT;  // Spawn at the bottom edge
-        // printf("Spawning car at ACTION_HEIGHT = %.2f\n", (float)ACTION_HEIGHT);
+        car.y = PLAYABLE_AREA_BOTTOM + CAR_HEIGHT; // Spawn off-screen at the bottom
     }
+    // printf("Adding enemy car at y = %.2f, lane = %d, x = %.2f\n", car.y, car.lane, car_x);
     env->enemyCars[env->numEnemies++] = car;
 }
 
@@ -516,9 +529,6 @@ void step(Enduro* env) {
         // printf("Updating car %d position to y = %.2f\n", i, car->y);
     }
     // // Calculate the offset based on player left right movement
-    // float offset = (env->player_x - env->initial_player_x) * 0.5f;
-    // // Update vanishing point with offset (not necessary?)
-    // update_vanishing_point(env, offset);
     float road_left = road_edge_x(env, env->player_y, 0, true);
     float road_right = road_edge_x(env, env->player_y, 0, false) - CAR_WIDTH;
     env->last_road_left = road_left;
@@ -583,29 +593,6 @@ void step(Enduro* env) {
         }
     }
 
-    // // Update wiggle position
-    // if (env->wiggle_active) {
-    //     env->wiggle_y += env->wiggle_speed;
-    //     if (env->wiggle_y > PLAYABLE_AREA_BOTTOM) {
-    //         // Reset wiggle to the vanishing point
-    //         env->wiggle_y = VANISHING_POINT_Y;
-    //     }
-    // }
-
-    // // Logging
-    // // Log road edges at the bottom of the screen to match expected values
-    // float road_left_bottom = road_edge_x(env, PLAYABLE_AREA_BOTTOM, offset, true);
-    // float road_right_bottom = road_edge_x(env, PLAYABLE_AREA_BOTTOM, offset, false);
-    // if (env->last_road_left != road_left || env->last_road_right != road_right) {
-    //     printf("\n\nSTEP: road_left_x = %.2f, road_right_x = %.2f, vanishing_point = %.2f \n\n", road_left, road_right, env->vanishing_point_x);
-    // printf("\n\nSTEP: road_left_x = %.2f, road_right_x = %.2f, vanishing_point = %.2f \n\n",
-    //     road_left_bottom, road_right_bottom, env->vanishing_point_x);
-    // printf("Player X: %.2f, t_p: %.2f\n", env->player_x, env->t_p);
-    // printf("Vanishing Point X: %.2f\n", env->vanishing_point_x);
-    // printf("Road Left X at Bottom: %.2f\n", road_left_bottom);
-    // printf("Road Right X at Bottom: %.2f\n", road_right_bottom);
-    // }
-
     // Update player y position based on speed
     env->player_y = PLAYER_MAX_Y - (env->speed - env->min_speed) / (env->max_speed - env->min_speed) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
     // Clamp player_y
@@ -615,23 +602,29 @@ void step(Enduro* env) {
     // Enemy car logic
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
+
         // Check for passing logic
         if (env->speed > 0 && car->y > env->player_y + CAR_HEIGHT && !car->passed) {
+            // Mark car as passed and increment the score
             env->carsToPass--;
-            if (env->carsToPass < 0) env->carsToPass = 0;
+            if (env->carsToPass < 0) env->carsToPass = 0; // Ensure it doesn’t go negative
             car->passed = true;
             env->score += 10;
             env->rewards[0] += 1;
+            
+            // Debugging output to confirm passing is detected
+            printf("Car passed at y = %.2f. Remaining cars to pass: %d\n", car->y, env->carsToPass);
         }
-        // Check for collisions between the player and the car
+
+        // Check for collisions between the player and the car (remaining unchanged)
         if (check_collision(env, car)) {
             env->speed = env->min_speed = MIN_SPEED;
             env->collision_cooldown = CRASH_NOOP_DURATION;
-            // Drift the player's car if there is a collision
-            if (env->last_lr_action == 1) {  // Last action was left
+            // Adjust player position if collision occurred
+            if (env->last_lr_action == 1) {
                 env->player_x -= 10;
                 if (env->player_x < road_left) env->player_x = road_left;
-            } else if (env->last_lr_action == 2) {  // Last action was right
+            } else if (env->last_lr_action == 2) {
                 env->player_x += 10;
                 if (env->player_x > road_right) env->player_x = road_right;
             }
@@ -660,10 +653,10 @@ void step(Enduro* env) {
     }
 
     // commented out enemy cars for testing
-    // // Adjust enemy car spawn frequency based on day number
-    // if (env->numEnemies < MAX_ENEMIES && rand() % 100 < 1) {
-    //     add_enemy_car(env);
-    // }
+    // Adjust enemy car spawn frequency based on day number
+    if (env->numEnemies < MAX_ENEMIES && rand() % 100 < 1) {
+        add_enemy_car(env);
+    }
 
     // Handle day completion logic
     if (env->carsToPass <= 0) {
@@ -718,12 +711,10 @@ float quadratic_bezier(float bottom_x, float control_x, float top_x, float t) {
 
 float road_edge_x(Enduro* env, float y, float offset, bool left) {
     float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-
     // Determine base offset for left or right edge
     float base_offset = left ? -ROAD_LEFT_OFFSET : ROAD_RIGHT_OFFSET;
     float bottom_x = env->base_vanishing_point_x + base_offset + offset;
     float top_x = env->vanishing_point_x + offset;
-
     // Calculate edge_x (either linear interpolation or Bezier curve)
     float edge_x;
     if (env->current_curve_direction == 0) {
@@ -735,7 +726,6 @@ float road_edge_x(Enduro* env, float y, float offset, bool left) {
         // Quadratic Bezier curve calculation
         edge_x = quadratic_bezier(bottom_x, control_x, top_x, t);
     }
-
     // Wiggle effect
     float wiggle_offset = 0.0f;
     if (env->wiggle_active && y >= env->wiggle_y && y <= env->wiggle_y + env->wiggle_length) {
@@ -744,13 +734,12 @@ float road_edge_x(Enduro* env, float y, float offset, bool left) {
         if (t_wiggle < 0.15f) {
             // Connection to road edge
             wiggle_offset = env->wiggle_amplitude * (t_wiggle / 0.15f);
-        } else if (t_wiggle < 0.87f) { // 0.85f // 0.75f
+        } else if (t_wiggle < 0.87f) {
             // Flat top of wiggle
             wiggle_offset = env->wiggle_amplitude;
         } else {
             // Reconnection to road edge
-            wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.13f); // 0.15f // 0.3f // 0.25f
-            // wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.25f);
+            wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.13f);
         }
         // Wiggle towards road center
         wiggle_offset *= (left ? 1.0f : -1.0f);
@@ -759,19 +748,13 @@ float road_edge_x(Enduro* env, float y, float offset, bool left) {
         float scale = 0.03f + (depth * depth); 
         if (scale > 0.3f) {
             scale = 0.3f;
-                    // printf("Depth: %.2f, Scale: %.2f\n", depth, scale);
         }
         wiggle_offset *= scale;
     }
-
     // Apply the wiggle offset
     edge_x += wiggle_offset;
-
     return edge_x;
 }
-
-
-
 
 // Test cases for road edge rendering
 // Helper function to print road edges for a given y position
@@ -831,12 +814,14 @@ void test_road_edges(Enduro* env) {
 
 // car_x_in_lane
 float car_x_in_lane(Enduro* env, int lane, float y) {
-    float offset = (env->player_x - env->initial_player_x) * 0.5f;
+    // Set offset to 0 to ensure enemy cars align with the road rendering
+    float offset = 0.0f;
     float left_edge = road_edge_x(env, y, offset, true);
     float right_edge = road_edge_x(env, y, offset, false);
     float lane_width = (right_edge - left_edge) / NUM_LANES;
     return left_edge + lane_width * (lane + 0.5f);
 }
+
 
 // Client functions
 Client* make_client(Enduro* env) {
@@ -855,18 +840,18 @@ void close_client(Client* client) {
 
 // Render car
 void render_car(Client* client, Enduro* env) {
-    // Set the draw color to the player's color
-    Color color = client->player_color;
-    // Render the player car based on dynamic player_x and player_y, centered correctly
-    for (int i = 0; i < CAR_PIXELS_COUNT; i++) {
-        int dx = car_pixels[i][0];
-        int dy = car_pixels[i][1];
-        // Calculate the actual position based on player's current coordinates
-        int pixel_x = (int)(env->player_x + (dx - 77));
-        int pixel_y = (int)(env->player_y + (dy - 144));
-        // Draw the car's pixel at the calculated position
-        DrawPixel(pixel_x, pixel_y, color);
+    GameState* gameState = &env->gameState;
+    Texture2D carTexture;
+
+    // Choose the texture based on the flag
+    if (gameState->showLeftTread) {
+        carTexture = gameState->playerCarLeftTreadTexture;
+    } else {
+        carTexture = gameState->playerCarRightTreadTexture;
     }
+
+    // Draw the texture at the player's position
+    DrawTexture(carTexture, (int)env->player_x, (int)env->player_y, WHITE);
 }
 
 // Event handling
@@ -931,11 +916,42 @@ void loadTextures(GameState* gameState) {
         gameState->yellowDigitTextures[i] = LoadTexture(filename);
         printf("Loaded image: %s\n", filename);
     }
+    gameState->playerCarLeftTreadTexture = LoadTexture("resources/enduro_clone/player_car_left_tread.png");
+    printf("Loaded image: player_car_left_tread.png\n");
+    gameState->playerCarRightTreadTexture = LoadTexture("resources/enduro_clone/player_car_right_tread.png");
+    printf("Loaded image: player_car_right_tread.png\n");
+
+    // Initialize the transition times (in seconds)
+    gameState->backgroundTransitionTimes[0] = 20.0f;
+    gameState->backgroundTransitionTimes[1] = 40.0f;
+    gameState->backgroundTransitionTimes[2] = 60.0f;
+    gameState->backgroundTransitionTimes[3] = 100.0f;
+    gameState->backgroundTransitionTimes[4] = 108.0f;
+    gameState->backgroundTransitionTimes[5] = 114.0f;
+    gameState->backgroundTransitionTimes[6] = 116.0f;
+    gameState->backgroundTransitionTimes[7] = 120.0f;
+    gameState->backgroundTransitionTimes[8] = 124.0f;
+    gameState->backgroundTransitionTimes[9] = 130.0f;
+    gameState->backgroundTransitionTimes[10] = 134.0f;
+    gameState->backgroundTransitionTimes[11] = 138.0f;
+    gameState->backgroundTransitionTimes[12] = 170.0f;
+    gameState->backgroundTransitionTimes[13] = 198.0f;
+    gameState->backgroundTransitionTimes[14] = 214.0f;
+    gameState->backgroundTransitionTimes[15] = 232.0f; // Last transition
+
+    // Initialize elapsed time and background index
+    gameState->elapsedTime = 0.0f;
+    gameState->backgroundIndex = 0;
+
+    // Initialize animation variables
+    gameState->carAnimationTimer = 0.0f;
+    gameState->carAnimationInterval = 1.0f; // Initial interval, will be updated based on speed
+    gameState->showLeftTread = true;
     // Initialize other game state variables
     gameState->currentBackgroundIndex = 0;
     gameState->score = 0;
     gameState->day = 1;
-    gameState->carsToPass = 200;
+    gameState->carsToPass = 10; // 200
     gameState->mountainPosition = 0.0f;
 }
 
@@ -953,7 +969,26 @@ void cleanup(GameState* gameState) {
     UnloadTexture(gameState->carDigitTexture);
     UnloadTexture(gameState->levelCompleteFlagLeftTexture);
     UnloadTexture(gameState->levelCompleteFlagRightTexture);
+    UnloadTexture(gameState->playerCarLeftTreadTexture);
+    UnloadTexture(gameState->playerCarRightTreadTexture);
     CloseWindow();
+}
+
+void updateCarAnimation(GameState* gameState, Enduro* env) {
+    // Update the animation interval based on the player's speed
+    // Faster speed means faster alternation
+    float minInterval = 0.1f;  // Minimum interval at max speed
+    float maxInterval = 1.0f;  // Maximum interval at min speed
+    float speedRatio = (env->speed - env->min_speed) / (env->max_speed - env->min_speed);
+    gameState->carAnimationInterval = maxInterval - (maxInterval - minInterval) * speedRatio;
+
+    // Update the animation timer
+    gameState->carAnimationTimer += GetFrameTime(); // Time since last frame
+
+    if (gameState->carAnimationTimer >= gameState->carAnimationInterval) {
+        gameState->carAnimationTimer = 0.0f;
+        gameState->showLeftTread = !gameState->showLeftTread; // Switch texture
+    }
 }
 
 void updateScore(GameState* gameState) {
@@ -991,16 +1026,28 @@ void updateScore(GameState* gameState) {
     }
 }
 
-void updateBackground(GameState* gameState, int timeOfDay) {
-    gameState->previousBackgroundIndex = gameState->currentBackgroundIndex;
-    gameState->currentBackgroundIndex = timeOfDay % 16;
-    // Check for victory condition
-    if (!gameState->victoryAchieved && gameState->currentBackgroundIndex == 0 && gameState->previousBackgroundIndex == 15) {
-        // Victory condition achieved
-        gameState->victoryAchieved = true;
-        gameState->carsToPass = 0; // Set cars to pass to 0
-        printf("Victory achieved!\n");
+void updateBackground(GameState* gameState) {
+    // Update elapsed time
+    gameState->elapsedTime += GetFrameTime(); // Time since last frame in seconds
+
+    // Total duration of the cycle
+    float totalDuration = gameState->backgroundTransitionTimes[15];
+
+    // If elapsed time exceeds total duration, reset it
+    if (gameState->elapsedTime >= totalDuration) {
+        gameState->elapsedTime -= totalDuration;
+        gameState->backgroundIndex = 0;
     }
+
+    // Determine the current background index
+    while (gameState->backgroundIndex < 15 &&
+           gameState->elapsedTime >= gameState->backgroundTransitionTimes[gameState->backgroundIndex]) {
+        gameState->backgroundIndex++;
+    }
+
+    gameState->currentBackgroundIndex = gameState->backgroundIndex % 16; // Ensure index is within 0-15
+
+    // No need for victory condition check here unless it's tied to background index
 }
 
 void renderBackground(GameState* gameState) {
@@ -1022,11 +1069,23 @@ void renderScoreboard(GameState* gameState) {
     int dayY = 188 - digitHeight;
     int carsX = 72;
     int carsY = 188 - digitHeight;
+
     // Render score with scrolling effect
     for (int i = 0; i < SCORE_DIGITS; ++i) {
         int digitX = scoreStartX + i * digitWidth;
-        Texture2D currentDigitTexture = gameState->digitTextures[gameState->scoreDigitCurrents[i]];
-        Texture2D nextDigitTexture = gameState->digitTextures[gameState->scoreDigitNexts[i]];
+        Texture2D currentDigitTexture;
+        Texture2D nextDigitTexture;
+
+        if (i == SCORE_DIGITS - 1) {
+            // Use yellow digits for the last digit
+            currentDigitTexture = gameState->yellowDigitTextures[gameState->scoreDigitCurrents[i]];
+            nextDigitTexture = gameState->yellowDigitTextures[gameState->scoreDigitNexts[i]];
+        } else {
+            // Use regular digits
+            currentDigitTexture = gameState->digitTextures[gameState->scoreDigitCurrents[i]];
+            nextDigitTexture = gameState->digitTextures[gameState->scoreDigitNexts[i]];
+        }
+
         if (gameState->scoreDigitScrolling[i]) {
             // Scrolling effect for this digit
             float offset = gameState->scoreDigitOffsets[i];
@@ -1056,7 +1115,6 @@ void renderScoreboard(GameState* gameState) {
         Texture2D digitTexture = gameState->digitTextures[dayTextureIndex];
         DrawTexture(digitTexture, dayX, dayY, WHITE);
     }
-
     // Render "CAR" digit or flags for cars to pass
     if (gameState->victoryAchieved) {
         // Alternate between level_complete_flag_left and level_complete_flag_right
@@ -1105,16 +1163,17 @@ void updateVictoryEffects(GameState* gameState) {
     }
 }
 
-void updateMountains(GameState* gameState, RoadDirection direction) {
-    // Adjust the mountain position based on the road direction
+void updateMountains(GameState* gameState, Enduro* env) {
+    // Adjust the mountain position based on the road's curve direction
     float speed = 1.0f; // Adjust the speed as needed
-    int mountainWidth = 100;
-    if (direction == ROAD_TURN_LEFT) {
+    int mountainWidth = gameState->mountainTextures[0].width;
+
+    if (env->current_curve_direction == -1) { // Turning left
         gameState->mountainPosition += speed;
         if (gameState->mountainPosition >= mountainWidth) {
             gameState->mountainPosition -= mountainWidth;
         }
-    } else if (direction == ROAD_TURN_RIGHT) {
+    } else if (env->current_curve_direction == 1) { // Turning right
         gameState->mountainPosition -= speed;
         if (gameState->mountainPosition <= -mountainWidth) {
             gameState->mountainPosition += mountainWidth;
@@ -1123,19 +1182,37 @@ void updateMountains(GameState* gameState, RoadDirection direction) {
     // If the road is straight, the mountains don't move
 }
 
-void renderMountains(GameState* gameState) {
+void renderMountains(GameState* gameState, Enduro* env) {
     Texture2D mountainTexture = gameState->mountainTextures[gameState->currentBackgroundIndex];
     if (mountainTexture.id != 0) {
-        int mountainWidth = 100;
-        // int mountainHeight = 6;
-        int mountainX = (int)gameState->mountainPosition + 37;
-        int mountainY = 45; // Corrected Y-coordinate
-        DrawTexture(mountainTexture, mountainX, mountainY, WHITE);
-        // Handle wrapping
-        if (mountainX > SCREEN_WIDTH - mountainWidth) {
-            DrawTexture(mountainTexture, mountainX - mountainWidth, mountainY, WHITE);
-        } else if (mountainX < 0) {
-            DrawTexture(mountainTexture, mountainX + mountainWidth, mountainY, WHITE);
+        int mountainWidth = mountainTexture.width;
+        int mountainY = 45; // Adjust as needed
+
+        // Calculate the player's offset from the center
+        float playerCenterX = (PLAYER_MIN_X + PLAYER_MAX_X) / 2.0f;
+        float playerOffset = env->player_x - playerCenterX;
+
+        // Apply a parallax factor to make the mountains move with the player
+        float parallaxFactor = 2.0f; // Adjust as needed for the desired effect
+        float adjustedOffset = -playerOffset * parallaxFactor;
+
+        // Base mountain X position (centered)
+        int baseMountainX = SCREEN_WIDTH / 2 - mountainWidth / 2;
+
+        // Adjust mountain X position
+        int mountainX = (int)(baseMountainX + adjustedOffset);
+        int mountainYPosition = mountainY; // Keep Y position consistent
+
+        // Draw the mountain texture once
+        DrawTexture(mountainTexture, mountainX, mountainYPosition, WHITE);
+
+        // Handle wrapping if necessary
+        if (mountainX > SCREEN_WIDTH) {
+            // If the mountain has moved entirely off the right edge, wrap it around to the left
+            DrawTexture(mountainTexture, mountainX - mountainWidth, mountainYPosition, WHITE);
+        } else if (mountainX + mountainWidth < 0) {
+            // If the mountain has moved entirely off the left edge, wrap it around to the right
+            DrawTexture(mountainTexture, mountainX + mountainWidth, mountainYPosition, WHITE);
         }
     }
 }
@@ -1144,10 +1221,12 @@ void renderMountains(GameState* gameState) {
 void render(Client* client, Enduro* env) {
     BeginDrawing();
     ClearBackground(BLACK);
+    BeginBlendMode(BLEND_ALPHA);
     // Render background
     renderBackground(&env->gameState);
-    // Render mountains
-    renderMountains(&env->gameState);
+    // Update and render mountains
+    updateMountains(&env->gameState, env);
+    renderMountains(&env->gameState, env);
     // Set clipping rectangle to the playable area
     Rectangle clipRect = { PLAYABLE_AREA_LEFT, VANISHING_POINT_Y, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y };
     BeginScissorMode(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
@@ -1182,7 +1261,7 @@ void render(Client* client, Enduro* env) {
         Car* car = &env->enemyCars[i];
         // Compute the scale factor based on y position
         float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-        float scale = 0.1f + 0.9f * depth; // Scale ranges from 0.1 to 1.0
+        float scale = 0.1f + 0.6f * depth; // Scale ranges from 0.1 to 1.0
         // Compute car x position in its lane
         float car_center_x = car_x_in_lane(env, car->lane, car->y);
         float car_x = car_center_x - (CAR_PIXEL_WIDTH * scale) / 2.0f;
@@ -1202,6 +1281,7 @@ void render(Client* client, Enduro* env) {
     render_car(client, env);
     // Remove clipping
     EndScissorMode();
+    EndBlendMode();
     // Render scoreboard w/ GameState pointer
     renderScoreboard(&env->gameState);
     EndDrawing();
