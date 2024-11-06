@@ -17,3 +17,4 @@ the effect is mirrored by the right road edge.*/
 // TODO: Add winter/summer cycle
 // TODO: Add day/night cycle + pre-dawn
 // TODO: Ascertain day/night cycle logic from original
+// TODO: Add original player car sprite/color
