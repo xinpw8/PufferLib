@@ -18,7 +18,7 @@ class GridState(Enum):
     TRASH_BIN = 2
     AGENT = 3
 
-class TrashPickupOldEnv(ParallelEnv):
+class PyTrashPickupEnv(ParallelEnv):
     metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
 
     def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
@@ -274,11 +274,23 @@ class TrashPickupOldEnv(ParallelEnv):
         # Return the global state (optional)
         return self.grid.copy()
 
-def env_creator():
-    return functools.partial(make)
+def env_creator(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
+    return functools.partial(make,
+        grid_size=grid_size,
+        num_agents=num_agents,
+        num_trash=num_trash,
+        num_bins=num_bins,
+        max_steps=max_steps
+    )
 
-def make():
-    env = TrashPickupOldEnv()
-    # env = aec_to_parallel_wrapper(env)
+def make(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
+    env = PyTrashPickupEnv(
+        grid_size=grid_size,
+        num_agents=num_agents,
+        num_trash=num_trash,
+        num_bins=num_bins,
+        max_steps=max_steps
+    )
+    
     env = pufferlib.wrappers.PettingZooTruncatedWrapper(env)
     return pufferlib.emulation.PettingZooPufferEnv(env=env)

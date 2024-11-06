@@ -53,7 +53,7 @@ cdef class CyTrashPickupEnv:
         # Set actions
         cdef int i
         for i in range(self.num_agents):
-            self.env.actions[i] = actions[i]
+            self.env.actions[i] = actions[f'agent_{i}']
 
         # Step the environment
         step_env(self.env)
@@ -78,7 +78,7 @@ cdef class CyTrashPickupEnv:
             for j in range(idx + 3, idx + self.obs_size):
                 grid_data.append(self.env.observations[j])
             obs['grid'] = grid_data  # You may need to reshape this into a 2D array
-            observations[f"agent-{i}"] = obs
+            observations[f"agent_{i}"] = obs
         return observations
 
     def __dealloc__(self):

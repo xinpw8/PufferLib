@@ -1,5 +1,5 @@
-# from .old_environment import env_creator, make
-from .environment import env_creator, make
+# from .cy_environment import env_creator, make # if you want to use the cython version, use this instead
+from .py_environment import env_creator, make
 
 try:
     import torch
