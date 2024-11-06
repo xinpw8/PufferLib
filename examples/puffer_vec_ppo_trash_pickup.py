@@ -43,8 +43,10 @@ class Args:
     """the entity (team) of wandb's project"""
     run_mode: str = "train"
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
-    model_save_path: str = './trash_pickup_saves/trash_pickup_model'
-    """Path to save model to this directory (file extension is automatically added, do NOT include it)"""
+    model_save_dir: str = 'examples/trash_pickup_saves/'
+    """Path to save the model to this directory"""
+    model_save_filename: str = "trash_pickup_model"
+    """Filename to save the model as (file extension is automatically added, do NOT include it)"""
     model_load_path: str = None
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
     model_save_interval: float = 1
@@ -59,7 +61,7 @@ class Args:
     """total timesteps of the experiments"""
     learning_rate: float = 5e-4
     """the learning rate of the optimizer"""
-    num_envs: int = 2
+    num_envs: int = 16
     """the number of parallel game environments"""
     num_steps: int = 512
     """the number of steps to run in each environment per policy rollout"""
@@ -201,6 +203,12 @@ class Agent(nn.Module):
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
+
+    if not os.path.isdir(args.model_save_dir):
+        print(f"Model Save Directory [{args.model_save_dir}] does not exist, exitting...")
+        print(f"Current absolute path is: {os.path.abspath('./')}")
+        exit(0)
+    
     batch_size = int(args.num_envs * args.num_steps)
     minibatch_size = int(batch_size // args.num_minibatches)
     num_iterations = args.total_timesteps // batch_size
@@ -263,7 +271,9 @@ if __name__ == "__main__":
     dones = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
 
-    model_path = args.model_load_path if args.model_load_path else args.model_save_path
+    model_save_path = os.path.join(args.model_save_dir, args.model_save_filename)
+
+    model_path = args.model_load_path if args.model_load_path else model_save_path
     if model_path and os.path.exists(model_path):
         print(f"Loading model from {model_path}...")
         agent = torch.load(model_path, map_location=device)
@@ -431,9 +441,9 @@ if __name__ == "__main__":
 
             # Save model periodically or on the final iteration
             time_since_last_save = time.time() - last_save_time
-            if (time_since_last_save >= args.model_save_interval * 60 or iteration == num_iterations) and args.model_save_path:
+            if (time_since_last_save >= args.model_save_interval * 60 or iteration == num_iterations) and model_save_path:
                 # Define a unique filename for each saved model
-                model_filename = f"{args.model_save_path}_iter_{iteration}.pt"
+                model_filename = f"{model_save_path}_iter_{iteration}.pt"
                 torch.save(agent, model_filename)
                 last_save_time = time.time()
                 # Append the new model to the saved models list
