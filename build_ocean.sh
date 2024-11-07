@@ -16,7 +16,7 @@ mkdir -p "$WEB_OUTPUT_DIR"
 
 if [ "$MODE" = "local" ]; then
     echo "Building $ENV for local testing..."
-    clang -g -O2 -Wall \
+    clang -g -O0 -Wall \
         -I./raylib/include \
         -I./pufferlib\
         "$SRC_DIR/$ENV.c" -o "$OUTPUT_DIR/$ENV" \
