@@ -1,44 +1,53 @@
+# Standard libraries for utility functions and environment management
 import functools
 import numpy as np
 from pettingzoo import ParallelEnv
 from gymnasium import spaces
 from enum import Enum
 
+# PufferLib libraries for environment emulation and wrappers
+import pufferlib
 import pufferlib.emulation
 import pufferlib.environments
 import pufferlib.wrappers
 
-import pufferlib
-
-import pyray
+import raylibpy as pyray  # Library for rendering the environment
 
 class GridState(Enum):
-    EMPTY = 0
-    TRASH = 1
-    TRASH_BIN = 2
-    AGENT = 3
+    # Enum to represent the different types of cells in the grid
+    EMPTY = 0       # An empty cell in the grid
+    TRASH = 1       # Cell containing trash that agents need to pick up
+    TRASH_BIN = 2   # Cell representing a trash bin where agents can deposit trash
+    AGENT = 3       # Cell occupied by an agent
 
 class PyTrashPickupEnv(ParallelEnv):
+    # Metadata to describe render mode and environment name
     metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
 
     def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
+        # Initialize environment parameters
         self.grid_size = grid_size
         self._num_agents = num_agents
         self.num_trash = num_trash
         self.num_bins = num_bins
 
+        # Define agent IDs
         self.possible_agents = ["agent_" + str(i) for i in range(self._num_agents)]
         self.agents = self.possible_agents[:]
 
+        # Define maximum steps per episode and track the current step
         self.max_steps = max_steps
         self.current_step = 0
 
+        # Initialize episode reward tracking
         self.total_episode_reward = 0
 
+        # Define rewards for positive (picking up or depositing trash) and negative (every environment step) outcomes
         self.POSITIVE_REWARD = 0.5 / num_trash  # this makes the total episode reward +1 if all trash is picked up and put into bin
         self.NEGATIVE_REWARD = 1 / (max_steps * num_agents) # this makes the max negative reward given per episode to be -1
 
-        # Define the action space: 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT
+        # Define action and observation spaces
+        # Action space: Discrete with 4 actions (UP, DOWN, LEFT, RIGHT)
         self.action_spaces = {agent: spaces.Discrete(4) for agent in self.possible_agents}
 
         # Observation space includes the agent's position, whether it's carrying trash, and the grid state
@@ -55,9 +64,11 @@ class PyTrashPickupEnv(ParallelEnv):
         self.window_initialized = False
         self.cell_size = 40  # Size of each cell in pixels
 
+        # Initialize environment state
         self.reset()
 
     def reset(self, seed=None, options=None):
+        # Reset episode parameters
         self.current_step = 0
         self.total_episode_reward = 0
 
@@ -88,44 +99,48 @@ class PyTrashPickupEnv(ParallelEnv):
             self._agent_carrying[agent] = 0
             self.grid[pos] = GridState.AGENT.value  # Agent
 
+        # Obtain and return initial observations
         observations = self._get_observations()
         return observations
 
     def step(self, actions):
-
+        # Check if max steps exceeded without reset
         if self.current_step > self.max_steps:
             print("TrashPickupOldEnv, environment did NOT reset after max steps reached...")
             return
 
+        # Initialize rewards, done flags, and info dictionaries for all agents
         rewards = {agent: 0 for agent in self.agents}
         dones = {agent: False for agent in self.agents}
         infos = {agent: {} for agent in self.agents}
 
-        # Remove agents from the grid to prepare for movement
+        # Prepare agents for movement by setting their current grid positions to empty
         for agent in self.agents:
             pos = self._agent_positions[agent]
             self.grid[pos] = GridState.EMPTY.value
 
-        # Process each agent's action
+        # Process each agent's action and update the grid accordingly
         for agent in self.agents:
+            # Get current state of the agent
             action = actions[agent]
             current_pos = self._agent_positions[agent]
             carrying = self._agent_carrying[agent]
 
+            # Compute new position based on the action
             new_pos = self._move(current_pos, action)
             x, y = new_pos
 
-            # Check grid boundaries
+            # Validate grid boundaries for the new position
             if not (0 <= x < self.grid_size and 0 <= y < self.grid_size):
                 new_pos = current_pos
 
+            # Check cell state and update agent's position or inventory
             this_grid_state = self.grid[new_pos]
-
             if this_grid_state == GridState.EMPTY.value:
-                # Empty cell: move agent
+                # Move to empty cell
                 self._agent_positions[agent] = new_pos
             elif this_grid_state == GridState.TRASH.value and carrying == 0:
-                # Pick up trash
+                # Pick up trash if agent is not already carrying
                 self._agent_carrying[agent] = 1
                 self.grid[new_pos] = GridState.EMPTY.value
                 self._agent_positions[agent] = new_pos
@@ -133,30 +148,29 @@ class PyTrashPickupEnv(ParallelEnv):
                 self.total_episode_reward += self.POSITIVE_REWARD
             elif this_grid_state == GridState.TRASH_BIN.value:
                 if carrying == 1:
-                    # Deposit trash
+                    # Deposit trash in the bin
                     self._agent_carrying[agent] = 0
                     rewards[agent] += self.POSITIVE_REWARD  # Reward for depositing trash
                     self.total_episode_reward += self.POSITIVE_REWARD
                     # Agent does not move onto the bin
                     self._agent_positions[agent] = current_pos
                 else:
-                    # Push bin if possible
+                    # Attempt to push the bin to a new position
                     bin_new_pos = self._move(new_pos, action)
                     bx, by = bin_new_pos
                     if (0 <= bx < self.grid_size and 0 <= by < self.grid_size) and self.grid[bin_new_pos] == GridState.EMPTY.value:
-                        # Move bin
+                        # Move the bin to the new position
                         self.grid[new_pos] = GridState.EMPTY.value
                         self.grid[bin_new_pos] = GridState.TRASH_BIN.value
-                        # Move agent into bin's old position
-                        # self._agent_positions[agent] = new_pos # actually lets make this cost a step by not moving the agent
                     else:
-                        # Bin cannot be moved
+                        # Bin can't be moved; agent stays in current position
                         self._agent_positions[agent] = current_pos
             else:
-                # Invalid move or occupied cell: stay in place
+                # Invalid move or occupied cell: agent remains in place
                 self._agent_positions[agent] = current_pos
 
-            rewards[agent] -= self.NEGATIVE_REWARD  # small penalty per step to encourage efficiency
+            # Apply step penalty to encourage efficient actions
+            rewards[agent] -= self.NEGATIVE_REWARD
             self.total_episode_reward -= self.NEGATIVE_REWARD
 
         # Update agents on the grid
@@ -164,6 +178,7 @@ class PyTrashPickupEnv(ParallelEnv):
             pos = self._agent_positions[agent]
             self.grid[pos] = GridState.AGENT.value  # Agent
 
+        # Check if the episode has ended (max steps reached or conditions met)
         if self.current_step >= self.max_steps or self.is_episode_over():
             dones = {agent: True for agent in self.agents}
             infos["final_info"] = {
@@ -172,8 +187,11 @@ class PyTrashPickupEnv(ParallelEnv):
                 "trash_remaining": np.sum(self.grid == GridState.TRASH.value),
                 "any_agent_carrying": all(carrying == 0 for carrying in self._agent_carrying.values()),
             }
+
+        # Update current_step count
         self.current_step += 1
 
+        # Return updated observations, rewards, done flags, and info
         observations = self._get_observations()
         return observations, rewards, dones, infos
 
@@ -250,7 +268,7 @@ class PyTrashPickupEnv(ParallelEnv):
             raise ValueError(f"TrashPickupOldEnv - Unexpected Move Action Received: {action}")
 
     def _random_positions(self, count, exclude=[]):
-        # Generate unique random positions on the grid
+        # Generate unique random positions on the grid, excluding specific locations
         positions = []
         while len(positions) < count:
             pos = (np.random.randint(0, self.grid_size), np.random.randint(0, self.grid_size))
@@ -283,7 +301,7 @@ def env_creator(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=
         max_steps=max_steps
     )
 
-def make(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
+def make(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300, video=False):
     env = PyTrashPickupEnv(
         grid_size=grid_size,
         num_agents=num_agents,
@@ -291,6 +309,8 @@ def make(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
         num_bins=num_bins,
         max_steps=max_steps
     )
-    
+
     env = pufferlib.wrappers.PettingZooTruncatedWrapper(env)
+    if video:
+        env = pufferlib.wrappers.RecordVideo
     return pufferlib.emulation.PettingZooPufferEnv(env=env)

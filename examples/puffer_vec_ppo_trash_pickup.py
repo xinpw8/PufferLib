@@ -1,12 +1,12 @@
-# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppo_ataripy
+# Standard libraries for file operations, randomization, time management, and data handling
 import os
 import random
 import time
 from dataclasses import dataclass
 from copy import deepcopy
 
+# Libraries for progress tracking, environments, and RL model components
 from tqdm import tqdm
-
 import gymnasium as gym
 import numpy as np
 import torch
@@ -16,9 +16,8 @@ import tyro
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
-import gym as old_gym
-import shimmy
-
+# PufferLib modules for environment emulation and agent training in a multi-agent setting
+import pufferlib
 import pufferlib.emulation
 import pufferlib.pytorch
 import pufferlib.vector
@@ -27,6 +26,7 @@ import pufferlib.environments.trash_pickup
 
 @dataclass
 class Args:
+     # Experiment configuration details, seed values, and directory paths
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
     """the name of this experiment"""
     seed: int = 1
@@ -41,20 +41,20 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    run_mode: str = "train"
+    run_mode: str = "video"
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
-    model_save_dir: str = 'examples/trash_pickup_saves/'
+    model_save_dir: str = None
     """Path to save the model to this directory"""
     model_save_filename: str = "trash_pickup_model"
     """Filename to save the model as (file extension is automatically added, do NOT include it)"""
-    model_load_path: str = None
+    model_load_path: str = 'puffertank/pufferlib/examples/trash_pickup_saves/trash_pickup_model_iter_13358.pt'
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
     model_save_interval: float = 1
     """How (roughly) often to save the model in minutes"""
     num_eval_episodes: int = 10
-    """Number of evaluation episodes to run (only for run_mode == 'evaluation')"""
+    """Number of evaluation episodes to run (only for run_mode == 'evaluate')"""
 
-    # Algorithm specific arguments
+    # PPO algorithm-specific hyperparameters like learning rate, number of timesteps, etc.
     env_id: str = "TrashPickup"
     """the id of the environment"""
     total_timesteps: int = 250_000_000
@@ -63,7 +63,7 @@ class Args:
     """the learning rate of the optimizer"""
     num_envs: int = 16
     """the number of parallel game environments"""
-    num_steps: int = 512
+    num_steps: int = 1024
     """the number of steps to run in each environment per policy rollout"""
     anneal_lr: bool = True
     """Toggle learning rate annealing for policy and value networks"""
@@ -90,7 +90,7 @@ class Args:
     target_kl: float = None
     """the target KL divergence threshold"""
 
-    # Environment Specific Variables
+    # Environment-specific parameters, such as grid size, agent count, and max steps per episode
     num_agents: int = 3
     """The number of agents in the environment"""
     grid_size: int = 10
@@ -106,6 +106,7 @@ class Args:
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+    # Initialize the layer with orthogonal weights and set bias to a constant
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
@@ -117,22 +118,23 @@ class Agent(nn.Module):
         self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
 
         def get_conv_output_size(input_shape):
-            """Calculates the size of the output from the convolution layers."""
+            """Helper function to calculate the flattened size of output from convolution layers.
+            This size will be used as the input for the linear layer following the convolutional layers."""
             dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
             output = self.conv2(self.conv1(dummy_input))  # Pass through conv layers
             return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
         
-        # Define network for processing the grid with multiple channels (4 channels for 0, 1, 2, 3)
+        # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
         input_channels = 4
         
         # Define the convolutional layers
         self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
         self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
 
-        # Calculate the output size of the conv layers
+        # Compute the output size of the convolutional layers dynamically
         conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
 
-        
+        # Sequential grid network including the calculated linear layer
         self.grid_net = nn.Sequential(
             self.conv1,
             nn.ReLU(),
@@ -154,7 +156,7 @@ class Agent(nn.Module):
             nn.ReLU(),
         )
 
-        # Combine outputs
+        # Projection layer to combine features from different sources
         self.proj = nn.Linear(32 + 32 + 32, 256)  # Adjusted projection layer size based on concatenated features
         self.actor = layer_init(nn.Linear(256, 4), std=0.01)  # 4 represents the number of possible actions
         self.critic = layer_init(nn.Linear(256, 1), std=1)  # 1 represents the value of the critic network (or sometimes called value network) 
@@ -178,7 +180,7 @@ class Agent(nn.Module):
         grid = self.preprocess_grid(x['grid'])
         grid_features = self.grid_net(grid)
 
-        position = x['agent_position'].float() / 10 # divide by 10 (grid-size) hard-coded for now... 
+        position = x['agent_position'].float() / args.grid_size
         position_features = self.position_net(position)
 
         carrying = x['carrying_trash'].float()
@@ -204,9 +206,15 @@ class Agent(nn.Module):
 if __name__ == "__main__":
     args = tyro.cli(Args)
 
-    if not os.path.isdir(args.model_save_dir):
+    # Verify that the directory for saving models exists, otherwise exit
+    if args.model_save_dir is not None and os.path.isdir(args.model_save_dir):
         print(f"Model Save Directory [{args.model_save_dir}] does not exist, exitting...")
         print(f"Current absolute path is: {os.path.abspath('./')}")
+        exit(0)
+    elif args.run_mode == 'train' and args.model_save_dir is None:
+        print(f"WARNING: Training but save location not specified. Continuing running to store training data, but model will not be saved")
+    elif (args.run_mode == 'evaluate' or args.run_mode == 'video') and args.model_load_path is None:
+        print(f"Can not run program with run_mode '{args.run_mode}' and args.model_load_path is None.")
         exit(0)
     
     batch_size = int(args.num_envs * args.num_steps)
@@ -271,7 +279,8 @@ if __name__ == "__main__":
     dones = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs, num_agents)).to(device)
 
-    model_save_path = os.path.join(args.model_save_dir, args.model_save_filename)
+    if args.model_save_dir is not None:
+        model_save_path = os.path.join(args.model_save_dir, args.model_save_filename)
 
     model_path = args.model_load_path if args.model_load_path else model_save_path
     if model_path and os.path.exists(model_path):
@@ -283,38 +292,42 @@ if __name__ == "__main__":
         agent = Agent(envs.driver_env.emulated).to(device)
 
     if args.run_mode == "train":
+        # Training mode: initialize optimizer and training variables
         optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
-        # TRY NOT TO MODIFY: start the game
+        # Start training loop
         global_step = 0
         start_time = time.time()
         next_obs, _ = envs.reset(seed=args.seed) # returns tensor of shape ([6, 120]), but we need it of shape ([3, 2, 120])
         next_done = torch.zeros((args.num_envs, num_agents)).to(device)
 
-        # List to keep track of saved models
+        # Initialize list to keep track of saved models (keeping only the latest 3 models)
         saved_models = []
         last_save_time = time.time()
 
+        # Begin training iteration loop
         for iteration in tqdm(range(1, num_iterations + 1)):
-            # Annealing the rate if instructed to do so.
+            # Annealing the learning rate if instructed to do so.
             if args.anneal_lr:
                 frac = 1.0 - (iteration - 1.0) / num_iterations
                 lrnow = frac * args.learning_rate
                 optimizer.param_groups[0]["lr"] = lrnow
 
+            # Step loop for environment interaction
             for step in range(0, args.num_steps):
+                # Update global step count and store current observations and dones
                 global_step += args.num_envs * num_agents
                 obs[step] = torch.Tensor(next_obs.reshape(args.num_envs, num_agents, envs.single_observation_space.shape[0])).to(device) # error here
                 dones[step] = torch.Tensor(next_done.reshape(args.num_envs, num_agents)).to(device)
 
-                # ALGO LOGIC: action logic
+                 # Get actions and values from agentic
                 with torch.no_grad():
                     action, logprob, _, value = agent.get_action_and_value(torch.Tensor(next_obs).to(device))
                     values[step] = value.reshape(args.num_envs, num_agents)
                 actions[step] = action.reshape(args.num_envs, num_agents)
                 logprobs[step] = logprob.reshape(args.num_envs, num_agents)
 
-                # TRY NOT TO MODIFY: execute the game and log data.
+                 # Execute the game step and collect new observations
                 next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
                 next_done = np.logical_or(terminations, truncations)
                 rewards[step] = torch.tensor(reward).to(device).view(args.num_envs, num_agents)
@@ -439,13 +452,15 @@ if __name__ == "__main__":
                 # print(f"SPS: {int(global_step / (time.time() - start_time))} | Current Iteration: {iteration} out of {num_iterations}")
             writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
-            # Save model periodically or on the final iteration
+            # (Optional) Save model periodically
+            # Check if enough time has passed or if we're at the final iteration
             time_since_last_save = time.time() - last_save_time
             if (time_since_last_save >= args.model_save_interval * 60 or iteration == num_iterations) and model_save_path:
                 # Define a unique filename for each saved model
                 model_filename = f"{model_save_path}_iter_{iteration}.pt"
                 torch.save(agent, model_filename)
                 last_save_time = time.time()
+
                 # Append the new model to the saved models list
                 saved_models.append(model_filename)
 
@@ -454,18 +469,22 @@ if __name__ == "__main__":
                     oldest_model = saved_models.pop(0)
                     if os.path.exists(oldest_model):
                         os.remove(oldest_model)
+
     elif args.run_mode == "evaluate":
+         # Evaluation mode: run episodes and log performance
         print("Evaluating loaded model")
 
-        episode_reward_list = []
-        episode_length_list = []
-        trash_remaining_list = []
+        # Track results across episodes for final metrics
+        episode_reward_list, episode_length_list, trash_remaining_list = [], [], []
 
-        for episode in range(args.num_eval_episodes):
+        # Run the environment for the specified number of evaluation episodes
+        for episode in tqdm(range(args.num_eval_episodes), desc='Evaluating Episodes...'):
             obs, _ = envs.reset()
             done = False
             episode_reward = 0
-            for step in tqdm(range(args.num_max_env_steps), desc='Evaluating...'):
+
+            # Play out one episode, logging rewards and episode information
+            for step in range(args.num_max_env_steps):
                 with torch.no_grad():
                     action, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
                 obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
@@ -480,12 +499,15 @@ if __name__ == "__main__":
                         episode_length_list.append(info["final_info"]["episode_length"])
                         trash_remaining_list.append(info["final_info"]["trash_remaining"])
 
+        # Summarize evaluation results
         print(f"Average Episode Reward: {np.mean(episode_reward_list)}")
         print(f"Average Episode Length: {np.mean(episode_length_list)}")
         print(f"Average Trash Remaining: {np.mean(trash_remaining_list)}")
+
     elif args.run_mode == "video":
         print("Generating video for loaded model")
         import imageio
+        import raylibpy as pyray  # Library for rendering the environment
 
         # Video recording loop
         obs, _ = envs.reset()
@@ -495,16 +517,26 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
             obs, _, terminations, truncations, _ = envs.step(action.cpu().numpy())
-            frame = envs.render()
+
+            # Render the environment
+            envs.driver_env.render()  # Render the frame
+
+            pyray.take_screenshot("temp_frame.png")  # Save the screenshot to a temporary file
+            frame = imageio.imread("temp_frame.png")
             frames.append(frame)
+
             done = terminations.any() or truncations.any()
         
-        # Save video file
-        video_path = "agent_run.mp4"
-        with imageio.get_writer(video_path, fps=30) as video_writer:
-            for frame in frames:
-                video_writer.append_data(frame)
+        # Save frames to video
+        video_path = 'trash_pickup_run.mp4'
+        imageio.mimsave(video_path, frames, fps=30)         
         print(f"Video saved to {video_path}")
+
+        # NOTE: If you get this error - TypeError: write_frames() got an unexpected keyword argument 'audio_path'
+        # Try the following command and then rerun: pip install --upgrade imageio imageio-ffmpeg
+
+        # Delete the temporary file
+        os.remove("temp_frame.png")
     else:
         print(f"Unhandled run_mode of: {args.run_mode}")
 
