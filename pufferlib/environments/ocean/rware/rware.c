@@ -25,8 +25,8 @@ void demo(int map_choice) {
         .width = width,
         .height = height,
         .map_choice = map_choice,
-        .num_agents = 2,
-        .num_requested_shelves = 2,
+        .num_agents = 4,
+        .num_requested_shelves = 4,
         .grid_square_size = 64,
         .human_agent_idx = 0
     };
@@ -35,12 +35,17 @@ void demo(int map_choice) {
  
     Client* client = make_client(env.width, env.height);
 
+    int patrol_step = 0;
     while (!WindowShouldClose()) {
-        // User can take control of the agent
         for (int i = 0; i < env.num_agents; i++) {
             env.actions[i] = NOOP;
         }
 
+        if (IsKeyPressed(KEY_ENTER)) {
+            for (int i = 0; i < env.num_agents; i++) {
+                env.actions[i] = FORWARD;
+            }
+        }
         // Handle keyboard input only for selected agent
         if (IsKeyPressed(KEY_UP)) {
             env.actions[env.human_agent_idx] = FORWARD;
@@ -90,7 +95,7 @@ void performance_test() {
 }
 
 int main() {
-    demo(3);
-    // performance_test();
+    // demo(1);
+    performance_test();
     return 0;
 }
