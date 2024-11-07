@@ -32,10 +32,8 @@ void demo(int map_choice) {
     };
     allocate(&env);
     reset(&env);
- 
     Client* client = make_client(env.width, env.height);
 
-    int patrol_step = 0;
     while (!WindowShouldClose()) {
         for (int i = 0; i < env.num_agents; i++) {
             env.actions[i] = NOOP;
@@ -76,7 +74,7 @@ void performance_test() {
         .width = 1280,
         .height = 704,
         .map_choice = 2,
-        .num_agents = 4,
+        .num_agents = 2,
         .num_requested_shelves = 2
     };
     allocate(&env);

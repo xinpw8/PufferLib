@@ -265,27 +265,10 @@ void generate_map(CRware* env,const int* map) {
         requested_shelves_count += request_new_shelf(env);
     }
     // set agents in center
-    // for (int i = 0; i < env->num_agents; i++) {
-    //     place_agent(env, i);
-    // }
-
-    /* let crate a 4 agent cycle*/
-    env->agent_locations[0] = 0;
-    env->agent_directions[0] = 0;
-    env->agent_states[0] = 0;
-    env->agent_locations[1] = 1;
-    env->agent_directions[1] = 1;
-    env->agent_states[1] = 0;
-    env->agent_locations[2] = 10;
-    env->agent_directions[2] = 3;
-    env->agent_states[2] = 0;
-    env->agent_locations[3] = 11;
-    env->agent_directions[3] = 2;
-    env->agent_states[3] = 0;
+    for (int i = 0; i < env->num_agents; i++) {
+        place_agent(env, i);
+    }
 }
-
-
-
 
 void init(CRware* env) {
     int map_size = env->map_choice == 1 ? 110 : env->map_choice == 2 ? 200 : 320;
@@ -374,9 +357,6 @@ void compute_observations(CRware* env) {
             obs_idx+=3;
         }
     }
-    // for (int i = 0; i < env->num_agents*27; i++) {
-    //     printf("obs[%d]: %f\n", i, env->observations[i]);
-    // }
 }
 
 void reset(CRware* env) {
@@ -683,9 +663,6 @@ void step(CRware* env) {
     //     return;
     // }
 
-    // Process each agent's actions
-    // Check if any agent is trying to move forward
-    // First handle non-movement actions for all agents
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
         int action = (int)env->actions[i];
@@ -750,6 +727,7 @@ void render(Client* client, CRware* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    BeginDrawing();
     // State 0: Empty - white
     // State 1: Shelf - dark blue
     // State 2: Requested Shelf - cyan puffer
@@ -818,11 +796,7 @@ void render(Client* client, CRware* env) {
             );
         }
     }
-
-    BeginDrawing();
-    ClearBackground(PUFF_BACKGROUND);
-
-    
+    ClearBackground(PUFF_BACKGROUND);    
     EndDrawing();
 }
 void close_client(Client* client) {
