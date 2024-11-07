@@ -4,6 +4,10 @@ import numpy as np
 from pettingzoo import ParallelEnv
 from gymnasium import spaces
 from enum import Enum
+import numpy as np
+import imageio
+import os
+import raylibpy as pyray  # Library for rendering the environment
 
 # PufferLib libraries for environment emulation and wrappers
 import pufferlib
@@ -11,7 +15,6 @@ import pufferlib.emulation
 import pufferlib.environments
 import pufferlib.wrappers
 
-import raylibpy as pyray  # Library for rendering the environment
 
 class GridState(Enum):
     # Enum to represent the different types of cells in the grid
@@ -63,6 +66,7 @@ class PyTrashPickupEnv(ParallelEnv):
         # Initialize rendering variables
         self.window_initialized = False
         self.cell_size = 40  # Size of each cell in pixels
+        self.render_mode = 'raylib'
 
         # Initialize environment state
         self.reset()
@@ -202,6 +206,22 @@ class PyTrashPickupEnv(ParallelEnv):
             pyray.init_window(window_size, window_size, "Trash Pickup Environment")
             self.window_initialized = True
 
+            agent_image = pyray.load_image("/workspaces/PufferTank/puffertank/pufferlib/pufferlib/environments/trash_pickup/single_puffer_128.png")
+
+            if agent_image.width != 0 and agent_image.height != 0:
+                # Resize the image to match the cell size
+                pyray.image_resize(agent_image, self.cell_size, self.cell_size)
+
+                # Convert the resized image to a Texture
+                self.agent_texture = pyray.load_texture_from_image(agent_image)
+                
+                self.agent_image_loaded = True
+            else:
+                self.agent_image_loaded = False
+
+            # Unload the Image from memory, as it is now loaded as a Texture
+            pyray.unload_image(agent_image)
+
         # Check if window should close
         if pyray.window_should_close():
             self.close()
@@ -234,11 +254,42 @@ class PyTrashPickupEnv(ParallelEnv):
                     pyray.draw_rectangle(int(rect.x + self.cell_size * 0.1), int(rect.y + self.cell_size * 0.1),
                                             int(self.cell_size * 0.8), int(self.cell_size * 0.8), pyray.BLUE)
                 elif cell_value == GridState.AGENT.value:
-                    # Draw agent as a red circle
-                    pyray.draw_circle(int(rect.x + self.cell_size / 2), int(rect.y + self.cell_size / 2),
-                                         self.cell_size * 0.4, pyray.RED)
+                    if self.agent_image_loaded:
+                        pyray.draw_texture(self.agent_texture, int(screen_x), int(screen_y), pyray.WHITE)
+                    else:
+                        # Draw red circle for agent as a backup.
+                        pyray.draw_circle(int(rect.x + self.cell_size / 2), int(rect.y + self.cell_size / 2),
+                                                self.cell_size * 0.4, pyray.RED)
+                    
+                    # Draw smaller brown square in lower-right corner to show agent is carrying trash
+                    for agent in self.agents:
+                        agent_pos = self._agent_positions[agent]
+                        if agent_pos[0] == x and agent_pos[1] == y:
+                            if self._agent_carrying[agent]:
+                                pyray.draw_rectangle(int(rect.x + self.cell_size * 0.5), int(rect.y + self.cell_size * 0.5),
+                                            int(self.cell_size * 0.25), int(self.cell_size * 0.25), pyray.BROWN)
+
 
         pyray.end_drawing()
+
+        # Capture screen as an Image object
+        screen_image = pyray.load_image_from_screen()
+
+        # Save the image temporarily
+        temp_filename = "temp_screen_image.png"
+        pyray.export_image(screen_image, temp_filename)
+
+        # Load it as a NumPy array
+        array_data = imageio.imread(temp_filename)
+
+        # Clean up the temporary file
+        os.remove(temp_filename)
+
+        # Unload the image from memory
+        pyray.unload_image(screen_image)
+
+        # Return the array
+        return array_data[:, :, :3]  # Returning only RGB channels
 
     def is_episode_over(self):
         # Check if there are any trash cells remaining in the grid

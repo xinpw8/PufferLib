@@ -1,5 +1,6 @@
 # Standard libraries for file operations, randomization, time management, and data handling
 import os
+import sys
 import random
 import time
 from dataclasses import dataclass
@@ -41,13 +42,13 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    run_mode: str = "video"
+    run_mode: str = "train"
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
-    model_save_dir: str = None
+    model_save_dir: str = '/workspaces/PufferTank/puffertank/pufferlib/examples/trash_pickup_saves'
     """Path to save the model to this directory"""
-    model_save_filename: str = "trash_pickup_model"
+    model_save_filename: str = "trash_pickup_model_smaller_network"
     """Filename to save the model as (file extension is automatically added, do NOT include it)"""
-    model_load_path: str = 'puffertank/pufferlib/examples/trash_pickup_saves/trash_pickup_model_iter_13358.pt'
+    model_load_path: str = None # 'examples/trash_pickup_saves/trash_pickup_model_iter_13358.pt'
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
     model_save_interval: float = 1
     """How (roughly) often to save the model in minutes"""
@@ -59,7 +60,7 @@ class Args:
     """the id of the environment"""
     total_timesteps: int = 250_000_000
     """total timesteps of the experiments"""
-    learning_rate: float = 5e-4
+    learning_rate: float = 2.5e-5
     """the learning rate of the optimizer"""
     num_envs: int = 16
     """the number of parallel game environments"""
@@ -103,8 +104,6 @@ class Args:
     """The maximum number of steps that can be taken in the environment before the episode automatically ends"""
 
 
-
-
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     # Initialize the layer with orthogonal weights and set bias to a constant
     torch.nn.init.orthogonal_(layer.weight, std)
@@ -129,7 +128,7 @@ class Agent(nn.Module):
         
         # Define the convolutional layers
         self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
-        self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
+        self.conv2 = layer_init(nn.Conv2d(32, 16, 3, stride=1))
 
         # Compute the output size of the convolutional layers dynamically
         conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
@@ -141,23 +140,23 @@ class Agent(nn.Module):
             self.conv2,
             nn.ReLU(),
             nn.Flatten(),
-            layer_init(nn.Linear(conv_output_size, 32)),
+            layer_init(nn.Linear(conv_output_size, 16)),
             nn.ReLU(),
         )
 
         # Linear layers for agent position and carrying status
         self.position_net = nn.Sequential(
-            layer_init(nn.Linear(2, 32)),
+            layer_init(nn.Linear(2, 8)),
             nn.ReLU(),
         )
         
         self.carrying_net = nn.Sequential(
-            layer_init(nn.Linear(1, 32)),
+            layer_init(nn.Linear(1, 2)),
             nn.ReLU(),
         )
 
         # Projection layer to combine features from different sources
-        self.proj = nn.Linear(32 + 32 + 32, 256)  # Adjusted projection layer size based on concatenated features
+        self.proj = nn.Linear(16 + 8 + 2, 256)  # Adjusted projection layer size based on concatenated features
         self.actor = layer_init(nn.Linear(256, 4), std=0.01)  # 4 represents the number of possible actions
         self.critic = layer_init(nn.Linear(256, 1), std=1)  # 1 represents the value of the critic network (or sometimes called value network) 
 
@@ -201,13 +200,17 @@ class Agent(nn.Module):
         if action is None:
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(hidden)
+    
+    def forward(self, x, state=None):
+        action, log_prob, entropy, value = self.get_action_and_value(x)
+        return action, log_prob, entropy, value
 
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
 
     # Verify that the directory for saving models exists, otherwise exit
-    if args.model_save_dir is not None and os.path.isdir(args.model_save_dir):
+    if args.model_save_dir is not None and not os.path.isdir(args.model_save_dir):
         print(f"Model Save Directory [{args.model_save_dir}] does not exist, exitting...")
         print(f"Current absolute path is: {os.path.abspath('./')}")
         exit(0)
@@ -234,11 +237,12 @@ if __name__ == "__main__":
             save_code=True,
         )
         
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    )
+    if args.run_mode == "train":
+        writer = SummaryWriter(f"runs/{run_name}")
+        writer.add_text(
+            "hyperparameters",
+            "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+        )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
@@ -491,8 +495,6 @@ if __name__ == "__main__":
                 done = terminations.any() or truncations.any()
                 episode_reward += reward.sum().item()
 
-                writer.add_scalar(f"charts/mean-reward", rewards[step].mean(), step)
-
                 for info in infos:               
                     if "final_info" in info:
                         episode_reward_list.append(info["final_info"]["episode_reward"])
@@ -506,37 +508,93 @@ if __name__ == "__main__":
 
     elif args.run_mode == "video":
         print("Generating video for loaded model")
-        import imageio
-        import raylibpy as pyray  # Library for rendering the environment
 
-        # Video recording loop
-        obs, _ = envs.reset()
-        frames = []
-        done = False
-        while not done:
-            with torch.no_grad():
-                action, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
-            obs, _, terminations, truncations, _ = envs.step(action.cpu().numpy())
+        # We are just using Serial vecenv to give a consistent
+        # single-agent/multi-agent API for evaluation
+        env = pufferlib.vector.make(
+            pufferlib.environments.trash_pickup.env_creator(
+                grid_size=args.grid_size,
+                num_agents=num_agents,
+                num_trash=args.num_trash,
+                num_bins=args.num_bins,
+                max_steps=args.num_max_env_steps
+            ),
+            env_kwargs={}, 
+            backend=pufferlib.vector.Multiprocessing
+        )
 
-            # Render the environment
-            envs.driver_env.render()  # Render the frame
+        agent = torch.load(model_path, map_location=device)
 
-            pyray.take_screenshot("temp_frame.png")  # Save the screenshot to a temporary file
-            frame = imageio.imread("temp_frame.png")
-            frames.append(frame)
-
-            done = terminations.any() or truncations.any()
+        driver = env.driver_env
+        driver.reset()
+        ob, info = env.reset()
         
-        # Save frames to video
-        video_path = 'trash_pickup_run.mp4'
-        imageio.mimsave(video_path, frames, fps=30)         
-        print(f"Video saved to {video_path}")
+        os.system('clear')
+        state = None
 
-        # NOTE: If you get this error - TypeError: write_frames() got an unexpected keyword argument 'audio_path'
-        # Try the following command and then rerun: pip install --upgrade imageio imageio-ffmpeg
+        frames = []
+        while True:
+            render = driver.render()
+            frames.append(render)
 
-        # Delete the temporary file
-        os.remove("temp_frame.png")
+            with torch.no_grad():
+                ob = torch.as_tensor(ob).to(device)
+                if hasattr(agent, 'lstm'):
+                    action, _, _, _, state = agent(ob, state)
+                else:
+                    action, _, _, _ = agent(ob)
+
+                action = action.cpu().numpy().reshape(env.action_space.shape)
+
+            ob, _, dones, _, _ = env.step(action)
+            driver.step(action)
+
+            any_done = False
+            for done in dones:
+                if done:
+                    any_done = True
+                    break
+            
+            if any_done:
+                break
+
+        # Save frames as gif
+        print("Frames collected, creating video...")
+        print("Warning, script may hang even after video is created, check if video is created and if so then manually terminate program.")
+        import imageio
+        imageio.mimsave('examples/trash_pickup_vid.gif', frames, fps=3, loop=0)
+
+        # import imageio
+        # import raylibpy as pyray  # Library for rendering the environment
+
+        # # Video recording loop
+        # obs, _ = envs.reset()
+        # frames = []
+        # done = False
+        # while not done:
+        #     with torch.no_grad():
+        #         action, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
+        #     obs, _, terminations, truncations, _ = envs.step(action.cpu().numpy())
+
+        #     # Render the environment
+        #     envs.driver_env.render()  # Render the frame
+
+        #     pyray.take_screenshot("temp_frame.png")  # Save the screenshot to a temporary file
+        #     frame = imageio.imread("temp_frame.png")
+        #     frames.append(frame)
+
+        #     done = terminations.any() or truncations.any()
+        
+        # # Save frames to video
+        # video_path = 'trash_pickup_run.mp4'
+        # imageio.mimsave(video_path, frames, fps=30)         
+        # print(f"Video saved to {video_path}")
+
+        # # NOTE: If you get this error - TypeError: write_frames() got an unexpected keyword argument 'audio_path'
+        # # Try the following command and then rerun: pip install --upgrade imageio imageio-ffmpeg
+
+        # # Delete the temporary file
+        # os.remove("temp_frame.png")
     else:
         print(f"Unhandled run_mode of: {args.run_mode}")
 
