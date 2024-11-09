@@ -484,10 +484,9 @@ void calculate_weights(CRware* env) {
         
         bool is_leaf = true;
         for (int j = 0; j < env->num_agents; j++) {
-            if (graph->target_positions[j] == env->agent_locations[i]) {
-                is_leaf = false;
-                break;
-            }
+            if (graph->target_positions[j] != env->agent_locations[i]) continue;
+            is_leaf = false;
+            break;
         }
         
         if (is_leaf) {
@@ -504,15 +503,15 @@ void calculate_weights(CRware* env) {
             // Find agents targeting this agent's position
             int max_child_weight = 0;
             for (int j = 0; j < env->num_agents; j++) {
-                if (graph->target_positions[j] == env->agent_locations[i]) {
-                    max_child_weight = max(max_child_weight, graph->weights[j]);
-                }
+                if (graph->target_positions[j] != env->agent_locations[i]) continue;
+                max_child_weight = max(max_child_weight, graph->weights[j]);
             }
             
-            if (max_child_weight > 0 && graph->weights[i] != max_child_weight + 1) {
-                graph->weights[i] = max_child_weight + 1;
-                changed = true;
+            if (max_child_weight == 0 || graph->weights[i] == max_child_weight + 1) {
+                continue;
             }
+            graph->weights[i] = max_child_weight + 1;
+            changed = true;
         }
     }
 }
