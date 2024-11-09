@@ -105,7 +105,6 @@ typedef struct Log Log;
 struct Log {
     float episode_return;
     float episode_length;
-    int games_played;
     float score;
 };
 
@@ -146,7 +145,6 @@ Log aggregate_and_clear(LogBuffer* logs) {
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
-        log.games_played += logs->logs[i].games_played;
         log.score += logs->logs[i].score;
     }
     log.episode_return /= logs->idx;
@@ -364,7 +362,6 @@ void compute_observations(CRware* env) {
 }
 
 void reset(CRware* env) {
-    add_log(env->log_buffer, &env->log);
     env->log = (Log){0};
     env->dones[0] = 0;
     // set agents in center
@@ -664,12 +661,11 @@ void step(CRware* env) {
     env->rewards[0] = 0.0;
     int (*actions)[1] = (int(*)[1])env->actions;
 
-    // if (env->log.episode_length >= 500) {
-    //     env->dones[0] = 1;
-    //     end_game(env);
-    //     printf("reset!\n");
-    //     return;
-    // }
+     if (env->log.episode_length >= 500) {
+         env->dones[0] = 1;
+         end_game(env);
+         return;
+     }
 
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
@@ -721,11 +717,11 @@ struct Client {
     Texture2D puffers;
 };
 
-Client* make_client(int width, int height) {
+Client* make_client(CRware* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
-    client->width = width;
-    client->height = height;
-    InitWindow(width, height, "PufferLib Ray RWare");
+    client->width = env->width;
+    client->height = env->height;
+    InitWindow(env->width, env->height, "PufferLib Ray RWare");
     SetTargetFPS(15);
     client->puffers = LoadTexture("resources/puffers_128.png");
     return client;

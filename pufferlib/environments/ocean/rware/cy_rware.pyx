@@ -19,7 +19,7 @@ cdef extern from "rware.h":
         int* weights;
         int num_cycles;
 
-    ctypedef struct Rware:
+    ctypedef struct CRware:
         float* observations;
         int* actions;
         float* rewards;
@@ -44,37 +44,38 @@ cdef extern from "rware.h":
 
     ctypedef struct Client
 
-    void allocate(Rware* env)
-    void free_allocated(Rware* env)
+    void init(CRware* env)
+    void free_allocated(CRware* env)
 
 
-    Client* make_client(Rware* env)
+    Client* make_client(CRware* env)
     void close_client(Client* client)
-    void render(Client* client, Rware* env)
-    void reset(Rware* env)
-    void step(Rware* env)
+    void render(Client* client, CRware* env)
+    void reset(CRware* env)
+    void step(CRware* env)
 
 cdef class CyRware:
     cdef:
-        Rware* envs
+        CRware* envs
         Client* client
         LogBuffer* logs
         int num_envs
 
     def __init__(self, float[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int width, int height, int map_choice, int num_agents, int num_requested_shelves, int grid_square_size, int human_agent_idx):
+            int width, int height, int map_choice, int num_agents, int num_requested_shelves, 
+            int grid_square_size, int human_agent_idx):
 
         self.client = NULL
         self.num_envs = num_envs
-        self.envs = <Rware*> calloc(num_envs, sizeof(Rware))
+        self.envs = <CRware*> calloc(num_envs, sizeof(CRware))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
         cdef int inc = num_agents
 
         cdef int i
         for i in range(num_envs):
-            self.envs[i] = Rware(
+            self.envs[i] = CRware(
                 observations=&observations[inc*i, 0],
                 actions=&actions[inc*i],
                 rewards=&rewards[inc*i],
@@ -88,7 +89,7 @@ cdef class CyRware:
                 grid_square_size=grid_square_size,
                 human_agent_idx=human_agent_idx,
             )
-            allocate(&self.envs[i])
+            init(&self.envs[i])
             self.client = NULL
 
     def reset(self):
@@ -102,7 +103,7 @@ cdef class CyRware:
             step(&self.envs[i])
 
     def render(self):
-        cdef Rware* env = &self.envs[0]
+        cdef CRware* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env)
 

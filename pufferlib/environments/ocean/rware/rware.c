@@ -32,7 +32,7 @@ void demo(int map_choice) {
     };
     allocate(&env);
     reset(&env);
-    Client* client = make_client(env.width, env.height);
+    Client* client = make_client(&env);
 
     while (!WindowShouldClose()) {
         for (int i = 0; i < env.num_agents; i++) {

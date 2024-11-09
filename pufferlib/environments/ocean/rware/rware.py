@@ -15,7 +15,7 @@ PLAYER_OBS_N = 27
 
 class MyRware(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
-            width=1200, height=800,
+            width=1280, height=1024,
             num_agents=2,
             map_choice=1,
             num_requested_shelves=2,
@@ -31,7 +31,7 @@ class MyRware(pufferlib.PufferEnv):
         self.num_obs = 27
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)
-        self.single_action_space = gymnasium.spaces.Discrete(self.num_act)
+        self.single_action_space = gymnasium.spaces.Discrete(6)
 
         super().__init__(buf=buf)
         self.c_envs = CyRware(self.observations, self.actions, self.rewards,
@@ -48,13 +48,14 @@ class MyRware(pufferlib.PufferEnv):
         self.c_envs.step()
         self.tick += 1
 
-        info = []
+        infos = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
             if log['episode_length'] > 0:
-                info.append(log)
+                infos.append(dict(pufferlib.utils.unroll_nested_dict(log)))
+
         return (self.observations, self.rewards,
-            self.terminals, self.truncations, info)
+            self.terminals, self.truncations, infos)
 
     def render(self):
         self.c_envs.render()
