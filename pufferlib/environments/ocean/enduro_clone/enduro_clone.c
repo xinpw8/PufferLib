@@ -2,19 +2,18 @@
 // TODO: Vanishing point for road should terminate in single pixel, not 2
 // TODO: Collision drift doesn't work. Make it work.
 // TODO: Add collisions with the road edges
-// TODO: Ascertain winter/summer cycle logic from original
 // TODO: Fog mode - don't render road lines
 // TODO: Reduced handling on snow
 // TODO: Compute/determine enemy car spawn frequency for each day num
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
-// TODO: Enemy cars spawning on top of each other
-// TODO: Ascertain lane choice logic per atari original
-// TODO: Implement RL
+// TODO: Ascertain top spawn lane choice logic per atari original
+// TODO: Implement RL in pufferlib
 // TODO: Make sure it trains
 // TODO: Engineer good policy
-// TODO: Add original enemy car sprites/colors
 // TODO: Add enemy car tail lights for night (2 colors??)
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
+// TODO: Fix pile spawning when speed < 0 (enemy cars spawn on top of each other)
+// TODO: Fix loss terminal logic (currently doesn't end episode)
 
 // Leanke's TODOs:
 // TODO: Combine 2 fns for leanke
