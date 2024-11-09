@@ -94,7 +94,6 @@ static const int medium_shelf_locations[144]={
     282,283,284,285,286,287,288,289,291,292,293,294,295,296,297,298   // Row 14
 };
 
-//  LD_LIBRARY_PATH=raylib/lib ./go
 #define LOG_BUFFER_SIZE 1024
 
 static inline int max(int a, int b) {
