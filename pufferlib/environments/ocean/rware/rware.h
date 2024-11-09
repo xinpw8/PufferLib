@@ -161,7 +161,6 @@ struct MovementGraph {
     int* target_positions;
     int* cycle_ids;
     int* weights;
-    bool* is_position_empty;
     int num_cycles;
 };
 
@@ -276,6 +275,8 @@ void init(CRware* env) {
     env->agent_locations = (int*)calloc(env->num_agents, sizeof(int));
     env->agent_directions = (int*)calloc(env->num_agents, sizeof(int));
     env->agent_states = (int*)calloc(env->num_agents, sizeof(int));
+    env->movement_graph = init_movement_graph(env);
+
     if (env->map_choice == 1) {
         generate_map(env, tiny_map);
     }
@@ -289,7 +290,6 @@ void init(CRware* env) {
 
 void allocate(CRware* env) {
     init(env);
-    env->movement_graph = init_movement_graph(env);
     env->observations = (float*)calloc(env->num_agents*(27), sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
@@ -302,6 +302,11 @@ void free_initialized(CRware* env) {
     free(env->agent_locations);
     free(env->agent_directions);
     free(env->agent_states);
+    free(env->movement_graph->target_positions);
+    free(env->movement_graph->cycle_ids);
+    free(env->movement_graph->weights);
+    free(env->movement_graph);
+
 }
 
 void free_allocated(CRware* env) {
@@ -315,18 +320,18 @@ void free_allocated(CRware* env) {
 
 void compute_observations(CRware* env) {
     int surround_indices[8];
-    int obs_idx =0;
     int grid_size_x = env->map_choice == 1 ? 10 : 20;  // Width of the grid
     int grid_size_y = env->map_choice == 1 ? 11 : env->map_choice == 2 ? 10 : 16;  // Height of the grid
+    unsigned char (*observations)[27] = (unsigned char(*)[27])env->observations;
     for (int i = 0; i < env->num_agents; i++) {
         // Agent location, direction, state
+        unsigned char* obs = &observations[i][0];
         int agent_location = env->agent_locations[i];
         int current_x = agent_location % grid_size_x;
         int current_y = agent_location / grid_size_x;
-        env->observations[obs_idx] = env->agent_locations[i];
-        env->observations[obs_idx+1] = env->agent_directions[i] + 1;
-        env->observations[obs_idx+2] = env->agent_states[i];
-        obs_idx+=3;
+        obs[0] = env->agent_locations[i];
+        obs[1] = env->agent_directions[i] + 1;
+        obs[2] = env->agent_states[i];
         for (int j = 0; j < 8; j++) {
             int x_offset = SURROUNDING_VECTORS[j][0];
             int y_offset = SURROUNDING_VECTORS[j][1];
@@ -339,27 +344,27 @@ void compute_observations(CRware* env) {
                     continue;
                 }
                 if(env->agent_locations[k] == surround_indices[j]){
-                    env->observations[obs_idx] = 1;
-                    env->observations[obs_idx+1] = env->agent_directions[k] + 1;
+                    obs[3 + j*3] = 1;
+                    obs[4 + j*3] = env->agent_directions[k] + 1;
                     break;
                 } else {
-                    env->observations[obs_idx] = 0;
-                    env->observations[obs_idx+1] = 0;
+                    obs[3 + j*3] = 0;
+                    obs[4 + j*3] = 0;
                     break;
                 }
             }
             // boundary check
             if (new_x < 0 || new_x >= grid_size_x || new_y < 0 || new_y >= grid_size_y) {
-                env->observations[obs_idx+2] = 0;
+                obs[5 + j*3] = 0;
             } else {
-                env->observations[obs_idx+2] = env->warehouse_states[surround_indices[j]];
+                obs[5 + j*3] = env->warehouse_states[surround_indices[j]];
             }
-            obs_idx+=3;
         }
     }
 }
 
 void reset(CRware* env) {
+    add_log(env->log_buffer, &env->log);
     env->log = (Log){0};
     env->dones[0] = 0;
     // set agents in center
@@ -592,13 +597,14 @@ void pickup_shelf(CRware* env, int agent_idx) {
         env->log.episode_return += 1.0;
         env->shelves_delivered += 1;
         int shelf_count = 0;
-        while (shelf_count < 1) {
+        while (shelf_count < env->num_requested_shelves) {
             shelf_count += request_new_shelf(env);
         }
     }
 }
 
 void process_cycle_movements(CRware* env, MovementGraph* graph) {
+    int (*actions)[1] = (int(*)[1])env->actions;
     for (int cycle = 0; cycle < graph->num_cycles; cycle++) {
         int cycle_size = 0;
         for (int i = 0; i < env->num_agents; i++) {
@@ -623,13 +629,14 @@ void process_cycle_movements(CRware* env, MovementGraph* graph) {
         if (!can_move_cycle) continue;
         for (int i = 0; i < env->num_agents; i++) {
             if (graph->cycle_ids[i] != cycle) continue;
-            if (env->actions[i] != FORWARD) continue;            
+            if (actions[i][0] != FORWARD) continue;            
             move_agent(env, i);
         }
     }
 }
 
 void process_tree_movements(CRware* env, MovementGraph* graph) {
+    int (*actions)[1] = (int(*)[1])env->actions;
     int max_weight = 0;
     for (int i = 0; i < env->num_agents; i++) {
         if (graph->cycle_ids[i] == -1 && graph->weights[i] > max_weight) {
@@ -640,7 +647,7 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
     for (int weight = max_weight; weight > 0; weight--) {
         for (int i = 0; i < env->num_agents; i++) {
             if (graph->cycle_ids[i] != -1 || graph->weights[i] != weight) continue;
-            if (env->actions[i] != FORWARD) continue;
+            if (actions[i][0] != FORWARD) continue;
 
             int new_pos = get_new_position(env, i);
             if (new_pos == -1) continue;
@@ -655,6 +662,7 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
 void step(CRware* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
+    int (*actions)[1] = (int(*)[1])env->actions;
 
     // if (env->log.episode_length >= 500) {
     //     env->dones[0] = 1;
@@ -665,7 +673,7 @@ void step(CRware* env) {
 
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
-        int action = (int)env->actions[i];
+        int action = actions[i][0];
         
         // Handle direction changes and non-movement actions
         if (action != NOOP && action != TOGGLE_LOAD) {
@@ -678,13 +686,13 @@ void step(CRware* env) {
             env->human_agent_idx = (env->human_agent_idx + 1) % env->num_agents;
             continue;
         }
-        if (env->actions[i] == FORWARD) {
+        if (action == FORWARD) {
             update_movement_graph(env, i);
         }
     }
     int is_movement=0;
     for(int i=0; i<env->num_agents; i++) {
-        if (env->actions[i] == FORWARD) is_movement++;
+        if (actions[i][0] == FORWARD) is_movement++;
     }
     if (is_movement>=1) {
         // Process movements in cycles first

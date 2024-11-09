@@ -9,28 +9,33 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.rware.cy_rware import CRware
+from pufferlib.environments.ocean.rware.cy_rware import CyRware
+
+PLAYER_OBS_N = 27
 
 class MyRware(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=1200, height=800,
+            num_agents=2,
             map_choice=1,
+            num_requested_shelves=2,
+            grid_square_size=64,
+            human_agent_idx=0,
             buf = None):
 
         # env
-        self.num_agents = num_envs
+        self.num_agents = num_envs*num_agents
         self.render_mode = render_mode
         self.report_interval = report_interval
         
-        self.num_obs = 110
-        self.num_act = 5
+        self.num_obs = 27
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(self.num_act)
 
         super().__init__(buf=buf)
-        self.c_envs = CRware(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, width, height, map_choice)
+        self.c_envs = CyRware(self.observations, self.actions, self.rewards,
+            self.terminals, num_envs, width, height, map_choice, num_agents, num_requested_shelves, grid_square_size, human_agent_idx)
 
 
     def reset(self, seed=None):
@@ -63,7 +68,7 @@ def test_performance(timeout=10, atn_cache=1024):
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs))
+    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, 5*num_envs))
 
     import time
     start = time.time()

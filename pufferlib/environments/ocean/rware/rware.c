@@ -74,7 +74,7 @@ void performance_test() {
         .width = 1280,
         .height = 704,
         .map_choice = 2,
-        .num_agents = 2,
+        .num_agents = 4,
         .num_requested_shelves = 2
     };
     allocate(&env);
@@ -93,7 +93,7 @@ void performance_test() {
 }
 
 int main() {
-    // demo(1);
-    performance_test();
+    demo(1);
+    // performance_test();
     return 0;
 }

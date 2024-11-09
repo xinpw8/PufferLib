@@ -250,6 +250,7 @@ extension_paths = [
     'pufferlib/environments/ocean/grid/cy_grid',
     'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
     'pufferlib/environments/ocean/go/cy_go',
+    'pufferlib/environments/ocean/rware/cy_rware',
 ]
 
 extensions = [Extension(
