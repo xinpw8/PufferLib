@@ -10,9 +10,30 @@
 #define LEFT 2
 #define RIGHT 3
 #define TOGGLE_LOAD 4
-#define TOGGLE_AGENT 5
 #define TICK_RATE 1.0f/60.0f
 #define NUM_DIRECTIONS 4
+
+// warehouse states
+#define EMPTY 0
+#define SHELF 1
+#define REQUESTED_SHELF 2
+#define GOAL 3
+
+// agent states
+#define UNLOADED 0
+#define HOLDING_REQUESTED_SHELF 1
+#define HOLDING_EMPTY_SHELF 2
+
+// observation types
+#define SELF_OBS 3
+#define VISION_OBS 24
+
+// Facing directions
+#define FACING_RIGHT 0
+#define FACING_DOWN 1
+#define FACING_LEFT 2
+#define FACING_UP 3
+
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS[NUM_DIRECTIONS][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 static const int SURROUNDING_VECTORS[8][2] = {{0,-1}, {1,-1}, {1,0}, {1,1}, {0,1}, {-1,1}, {-1,0}, {-1,-1}};
@@ -94,6 +115,10 @@ static const int medium_shelf_locations[144]={
     282,283,284,285,286,287,288,289,291,292,293,294,295,296,297,298   // Row 14
 };
 
+static const int map_sizes[3] = {110, 200, 320};
+static const int map_rows[3] = {11, 10, 16};
+static const int map_cols[3] = {10, 20, 20};
+static const int* maps[3] = {tiny_map, small_map, medium_map};
 #define LOG_BUFFER_SIZE 1024
 
 static inline int max(int a, int b) {
@@ -187,22 +212,6 @@ struct CRware {
     MovementGraph* movement_graph;
 };
 
-MovementGraph* init_movement_graph(CRware* env) {
-    MovementGraph* graph = (MovementGraph*)calloc(1, sizeof(MovementGraph));
-    graph->target_positions = (int*)calloc(env->num_agents, sizeof(int));
-    graph->cycle_ids = (int*)calloc(env->num_agents, sizeof(int));
-    graph->weights = (int*)calloc(env->num_agents, sizeof(int));
-    graph->num_cycles = 0;
-
-    // Initialize arrays
-    for (int i = 0; i < env->num_agents; i++) {
-        graph->target_positions[i] = -1;   // No target
-        graph->cycle_ids[i] = -1;          // Not in cycle
-        graph->weights[i] = 0;             // No weight
-    }
-    return graph;
-}
-
 int find_agent_at_position(CRware* env, int position) {
     for (int i = 0; i < env->num_agents; i++) {
         if (env->agent_locations[i] == position) {
@@ -213,13 +222,15 @@ int find_agent_at_position(CRware* env, int position) {
 }
 
 void place_agent(CRware* env, int agent_idx) {
-    int map_size = env->map_choice == 1 ? 110 : env->map_choice == 2 ? 200 : 320;
+    // map size fixed at top
+    int map_size = map_sizes[env->map_choice - 1];
     
-    while (1) {
+    int found_valid_position = 0;
+    while (!found_valid_position) {
         int random_pos = rand() % map_size;
         
         // Skip if position is not empty
-        if (env->warehouse_states[random_pos] != 0) {
+        if (env->warehouse_states[random_pos] != EMPTY) {
             continue;
         }
 
@@ -233,16 +244,27 @@ void place_agent(CRware* env, int agent_idx) {
         env->agent_locations[agent_idx] = random_pos;
         env->agent_directions[agent_idx] = rand() % 4;
         env->agent_states[agent_idx] = 0;
-        break;
+        found_valid_position = 1;
     }
 }
 
 int request_new_shelf(CRware* env) {
-    int total_shelves = env->map_choice == 1 ? 32 : env->map_choice == 2 ? 80 : 144;
+    int total_shelves;
+    const int* shelf_locations;
+    if (env->map_choice == 1) {
+        total_shelves = 32;
+        shelf_locations = tiny_shelf_locations;
+    } else if (env->map_choice == 2) {
+        total_shelves = 80;
+        shelf_locations = small_shelf_locations;
+    } else {
+        total_shelves = 144;
+        shelf_locations = medium_shelf_locations;
+    }
     int random_index = rand() % total_shelves;
-    int shelf_location = env->map_choice == 1 ? tiny_shelf_locations[random_index] : env->map_choice == 2 ? small_shelf_locations[random_index] : medium_shelf_locations[random_index];
-    if (env->warehouse_states[shelf_location] == 1) {
-        env->warehouse_states[shelf_location] = 2;
+    int shelf_location = shelf_locations[random_index];
+    if (env->warehouse_states[shelf_location] == SHELF ) {
+        env->warehouse_states[shelf_location] = REQUESTED_SHELF;
         return 1;
     }
     return 0;
@@ -251,23 +273,36 @@ int request_new_shelf(CRware* env) {
 void generate_map(CRware* env,const int* map) {
     // seed new random
     srand(time(NULL));
-    int map_size = env->map_choice == 1 ? 110 : env->map_choice == 2 ? 200 : 320;
-    for (int i = 0; i < map_size; i++) {
-        env->warehouse_states[i] = map[i];
-    }
+    int map_size = map_sizes[env->map_choice - 1];
+    memcpy(env->warehouse_states, map, map_size * sizeof(int));
 
     int requested_shelves_count = 0;
     while (requested_shelves_count < env->num_requested_shelves) {
         requested_shelves_count += request_new_shelf(env);
     }
-    // set agents in center
+    // set agents random locations
     for (int i = 0; i < env->num_agents; i++) {
         place_agent(env, i);
     }
 }
 
+MovementGraph* init_movement_graph(CRware* env) {
+    MovementGraph* graph = (MovementGraph*)calloc(1, sizeof(MovementGraph));
+    graph->target_positions = (int*)calloc(env->num_agents, sizeof(int));
+    graph->cycle_ids = (int*)calloc(env->num_agents, sizeof(int));
+    graph->weights = (int*)calloc(env->num_agents, sizeof(int));
+    graph->num_cycles = 0;
+
+    // Initialize arrays
+    for (int i = 0; i < env->num_agents; i++) {
+        graph->target_positions[i] = -1;   // No target
+        graph->cycle_ids[i] = -1;          // Not in cycle
+    }
+    return graph;
+}
+
 void init(CRware* env) {
-    int map_size = env->map_choice == 1 ? 110 : env->map_choice == 2 ? 200 : 320;
+    int map_size = map_sizes[env->map_choice - 1];
     env->warehouse_states = (int*)calloc(map_size, sizeof(int));
     env->agent_locations = (int*)calloc(env->num_agents, sizeof(int));
     env->agent_directions = (int*)calloc(env->num_agents, sizeof(int));
@@ -287,7 +322,7 @@ void init(CRware* env) {
 
 void allocate(CRware* env) {
     init(env);
-    env->observations = (float*)calloc(env->num_agents*(27), sizeof(float));
+    env->observations = (float*)calloc(env->num_agents*(SELF_OBS+VISION_OBS), sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
@@ -317,24 +352,24 @@ void free_allocated(CRware* env) {
 
 void compute_observations(CRware* env) {
     int surround_indices[8];
-    int grid_size_x = env->map_choice == 1 ? 10 : 20;  // Width of the grid
-    int grid_size_y = env->map_choice == 1 ? 11 : env->map_choice == 2 ? 10 : 16;  // Height of the grid
-    unsigned char (*observations)[27] = (unsigned char(*)[27])env->observations;
+    int cols = map_cols[env->map_choice - 1];
+    int rows = map_rows[env->map_choice - 1];
+    unsigned char (*observations)[SELF_OBS+VISION_OBS] = (unsigned char(*)[SELF_OBS+VISION_OBS])env->observations;
     for (int i = 0; i < env->num_agents; i++) {
         // Agent location, direction, state
         unsigned char* obs = &observations[i][0];
         int agent_location = env->agent_locations[i];
-        int current_x = agent_location % grid_size_x;
-        int current_y = agent_location / grid_size_x;
+        int current_x = agent_location % cols;
+        int current_y = agent_location / cols;
+        // Self observations
         obs[0] = env->agent_locations[i];
         obs[1] = env->agent_directions[i] + 1;
         obs[2] = env->agent_states[i];
+        // Vision observations
         for (int j = 0; j < 8; j++) {
-            int x_offset = SURROUNDING_VECTORS[j][0];
-            int y_offset = SURROUNDING_VECTORS[j][1];
-            int new_x = current_x + x_offset;
-            int new_y = current_y + y_offset;
-            surround_indices[j] = new_x + new_y * grid_size_x;
+            int new_x = current_x + SURROUNDING_VECTORS[j][0];
+            int new_y = current_y + SURROUNDING_VECTORS[j][1];
+            surround_indices[j] = new_x + new_y * cols;
             // other robots location and rotation if on that spot
             for (int k = 0; k < env->num_agents; k++) {
                 if(i==k){
@@ -351,7 +386,7 @@ void compute_observations(CRware* env) {
                 }
             }
             // boundary check
-            if (new_x < 0 || new_x >= grid_size_x || new_y < 0 || new_y >= grid_size_y) {
+            if (new_x < 0 || new_x >= cols || new_y < 0 || new_y >= rows) {
                 obs[5 + j*3] = 0;
             } else {
                 obs[5 + j*3] = env->warehouse_states[surround_indices[j]];
@@ -366,52 +401,56 @@ void reset(CRware* env) {
     // set agents in center
     env->shelves_delivered = 0;
     env->human_agent_idx = 0;
-    generate_map(env, env->map_choice == 1 ? tiny_map : env->map_choice == 2 ? small_map : medium_map);
+    if (env->map_choice == 1) {
+        generate_map(env, tiny_map);
+    } else if (env->map_choice == 2) {
+        generate_map(env, small_map);
+    } else {
+        generate_map(env, medium_map);
+    }
     compute_observations(env);
-}
-
-void end_game(CRware* env){
-    env->log.score = env->score;
-    env->log.episode_return += env->rewards[0];
-    add_log(env->log_buffer, &env->log);
-    reset(env);
 }
 
 int get_direction(CRware* env, int action, int agent_idx) {
     // For reference: 
     // 0 = right (initial), 1 = down, 2 = left, 3 = up
+    int current_direction = env->agent_directions[agent_idx];
     if (action == FORWARD) {
-        return env->agent_directions[agent_idx];
+        return current_direction;
     }
     else if (action == LEFT) {
         // Rotate counter-clockwise
-        return (env->agent_directions[agent_idx] + 3) % NUM_DIRECTIONS;
+        return (current_direction + 3) % NUM_DIRECTIONS;
     }
     else if (action == RIGHT) {
         // Rotate clockwise
-        return (env->agent_directions[agent_idx] + 1) % NUM_DIRECTIONS;
+        return (current_direction + 1) % NUM_DIRECTIONS;
     }
-    return env->agent_directions[agent_idx];
+    return current_direction;
 }
 
 int get_new_position(CRware* env, int agent_idx) {
-    int grid_size_x = env->map_choice == 1 ? 10 : env->map_choice == 2 ? 20 : 20;
-    int grid_size_y = env->map_choice == 1 ? 11 : env->map_choice == 2 ? 10 : 16;
-    int current_position_x = env->agent_locations[agent_idx] % grid_size_x;
-    int current_position_y = env->agent_locations[agent_idx] / grid_size_x;
-    int new_position_x = current_position_x + DIRECTION_VECTORS[env->agent_directions[agent_idx]][0];
-    int new_position_y = current_position_y + DIRECTION_VECTORS[env->agent_directions[agent_idx]][1];
-    int new_position = new_position_x + new_position_y * grid_size_x;
+    int cols = map_cols[env->map_choice - 1];
+    int rows = map_rows[env->map_choice - 1];
+    int current_position_x = env->agent_locations[agent_idx] % cols;
+    int current_position_y = env->agent_locations[agent_idx] / cols;
+    int current_direction = env->agent_directions[agent_idx];
+    int new_position_x = current_position_x + DIRECTION_VECTORS[current_direction][0];
+    int new_position_y = current_position_y + DIRECTION_VECTORS[current_direction][1];
+    int new_position = new_position_x + new_position_y * cols;
     // check boundary
-    if (new_position_x < 0 || new_position_x >= grid_size_x || new_position_y < 0 || new_position_y >= grid_size_y) {
+    if (new_position_x < 0 || new_position_x >= cols || new_position_y < 0 || new_position_y >= rows) {
         return -1;
     }
     // check if holding shelf and next position is a shelf
-    if ((env->agent_states[agent_idx] == 1 || env->agent_states[agent_idx] == 2) && (env->warehouse_states[new_position] == 1 || env->warehouse_states[new_position] == 2)) {
+    int agent_state = env->agent_states[agent_idx];
+    int warehouse_state = env->warehouse_states[new_position];
+    if ((agent_state == HOLDING_EMPTY_SHELF || agent_state == HOLDING_REQUESTED_SHELF) && 
+    (warehouse_state == SHELF || warehouse_state == REQUESTED_SHELF)) {
         return -1;
     }
     // check if agent is trying to move into a goal with empty shelf
-    if (env->agent_states[agent_idx] == 2 && env->warehouse_states[new_position] == 3) {
+    if (agent_state == HOLDING_EMPTY_SHELF && warehouse_state == GOAL) {
         return -1;
     }
     return new_position;
@@ -538,36 +577,37 @@ void update_movement_graph(CRware* env, int agent_idx) {
 }
 
 void move_agent(CRware* env, int agent_idx) {
-    /* given the direction, move the agent in that direction by 1 square
-    the positions are mapped to a 1d array on a 10x11 grid
-    */
+    
     int new_position = get_new_position(env, agent_idx);
     // check boundary
     if (new_position == -1) {
         return;
     }
-
     // if reach goal
-    if (env->warehouse_states[new_position] == 3 && env->agent_states[agent_idx]==1) {
-        if (env->warehouse_states[env->agent_locations[agent_idx]] != 3) {
-            env->warehouse_states[env->agent_locations[agent_idx]] = 0;
+    int agent_state = env->agent_states[agent_idx];
+    int agent_location = env->agent_locations[agent_idx];
+    int new_position_state = env->warehouse_states[new_position];
+    int current_position_state = env->warehouse_states[agent_location];
+    if (new_position_state == GOAL && agent_state== HOLDING_REQUESTED_SHELF) {
+        if (current_position_state != GOAL) {
+            env->warehouse_states[agent_location] = 0;
         }
         env->agent_locations[agent_idx] = new_position;
         return;
     }
     // if agent is holding requested shelf
-    if (env->agent_states[agent_idx] == 1) {
-        if (env->warehouse_states[env->agent_locations[agent_idx]] != 3) {
-            env->warehouse_states[env->agent_locations[agent_idx]] = 0;
+    if (agent_state == HOLDING_REQUESTED_SHELF) {
+        if (current_position_state != GOAL) {
+            env->warehouse_states[agent_location] = 0;
         }
-        env->warehouse_states[new_position] = 2;
+        env->warehouse_states[new_position] = REQUESTED_SHELF;
     }
     // if agent is holding empty shelf
-    if (env->agent_states[agent_idx] == 2) {
-        if (env->warehouse_states[env->agent_locations[agent_idx]] != 3){
-            env->warehouse_states[env->agent_locations[agent_idx]] = 0;
+    if (agent_state == HOLDING_EMPTY_SHELF) {
+        if (current_position_state != GOAL){
+            env->warehouse_states[agent_location] = 0;
         }
-        env->warehouse_states[new_position] = 1;
+        env->warehouse_states[new_position] = SHELF;
     }
     env->agent_locations[agent_idx] = new_position;
     env->movement_graph->target_positions[agent_idx] = -1;
@@ -575,31 +615,36 @@ void move_agent(CRware* env, int agent_idx) {
 
 void pickup_shelf(CRware* env, int agent_idx) {
     // pickup shelf
-    const int* map = env->map_choice == 1 ? tiny_map : env->map_choice == 2 ? small_map : medium_map;
-    if ((env->warehouse_states[env->agent_locations[agent_idx]] == 2) && (env->agent_states[agent_idx]==0)) {
-        env->agent_states[agent_idx]=1;
+    const int* map = maps[env->map_choice - 1];
+    int agent_location = env->agent_locations[agent_idx];
+    int agent_state = env->agent_states[agent_idx];
+    int current_position_state = env->warehouse_states[agent_location];
+    int original_map_state = map[agent_location];
+    if ((current_position_state == REQUESTED_SHELF) && (agent_state==UNLOADED)) {
+        env->agent_states[agent_idx]=HOLDING_REQUESTED_SHELF;
     }
     // return empty shelf
-    else if (env->agent_states[agent_idx] == 2 && env->warehouse_states[env->agent_locations[agent_idx]] == map[env->agent_locations[agent_idx]] 
-    && env->warehouse_states[env->agent_locations[agent_idx]] != 3) {
-        env->agent_states[agent_idx]=0;
-        env->warehouse_states[env->agent_locations[agent_idx]] = 1;
+    else if (agent_state == HOLDING_EMPTY_SHELF && current_position_state == original_map_state 
+    && original_map_state != GOAL) {
+        env->agent_states[agent_idx]=UNLOADED;
+        env->warehouse_states[agent_location] = original_map_state;
     }
     // drop shelf at goal
-    else if (env->agent_states[agent_idx] == 1 && env->warehouse_states[env->agent_locations[agent_idx]] == 3) {
-        env->agent_states[agent_idx]=2;
+    else if (agent_state == HOLDING_REQUESTED_SHELF && current_position_state == GOAL) {
+        env->agent_states[agent_idx]=HOLDING_EMPTY_SHELF;
         env->rewards[agent_idx] = 1.0;
         env->log.episode_return += 1.0;
         env->shelves_delivered += 1;
+        add_log(env->log_buffer, &env->log);
+
         int shelf_count = 0;
-        while (shelf_count < env->num_requested_shelves) {
+        while (shelf_count < 1) {
             shelf_count += request_new_shelf(env);
         }
     }
 }
 
 void process_cycle_movements(CRware* env, MovementGraph* graph) {
-    int (*actions)[1] = (int(*)[1])env->actions;
     for (int cycle = 0; cycle < graph->num_cycles; cycle++) {
         int cycle_size = 0;
         for (int i = 0; i < env->num_agents; i++) {
@@ -624,14 +669,13 @@ void process_cycle_movements(CRware* env, MovementGraph* graph) {
         if (!can_move_cycle) continue;
         for (int i = 0; i < env->num_agents; i++) {
             if (graph->cycle_ids[i] != cycle) continue;
-            if (actions[i][0] != FORWARD) continue;            
+            if (env->actions[i] != FORWARD) continue;            
             move_agent(env, i);
         }
     }
 }
 
 void process_tree_movements(CRware* env, MovementGraph* graph) {
-    int (*actions)[1] = (int(*)[1])env->actions;
     int max_weight = 0;
     for (int i = 0; i < env->num_agents; i++) {
         if (graph->cycle_ids[i] == -1 && graph->weights[i] > max_weight) {
@@ -642,7 +686,7 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
     for (int weight = max_weight; weight > 0; weight--) {
         for (int i = 0; i < env->num_agents; i++) {
             if (graph->cycle_ids[i] != -1 || graph->weights[i] != weight) continue;
-            if (actions[i][0] != FORWARD) continue;
+            if (env->actions[i] != FORWARD) continue;
 
             int new_pos = get_new_position(env, i);
             if (new_pos == -1) continue;
@@ -656,18 +700,18 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
 
 void step(CRware* env) {
     env->log.episode_length += 1;
-    env->rewards[0] = 0.0;
-    int (*actions)[1] = (int(*)[1])env->actions;
+    
+    memset(env->rewards, 0, env->num_agents * sizeof(float));
 
      if (env->log.episode_length >= 500) {
-         env->dones[0] = 1;
-         end_game(env);
+         memset(env->dones, 1, env->num_agents * sizeof(unsigned char));
+         reset(env);
          return;
      }
 
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
-        int action = actions[i][0];
+        int action = env->actions[i];
         
         // Handle direction changes and non-movement actions
         if (action != NOOP && action != TOGGLE_LOAD) {
@@ -676,17 +720,13 @@ void step(CRware* env) {
         if (action == TOGGLE_LOAD) {
             pickup_shelf(env, i);
         }
-        if (action == TOGGLE_AGENT) {
-            env->human_agent_idx = (env->human_agent_idx + 1) % env->num_agents;
-            continue;
-        }
         if (action == FORWARD) {
             update_movement_graph(env, i);
         }
     }
     int is_movement=0;
     for(int i=0; i<env->num_agents; i++) {
-        if (actions[i][0] == FORWARD) is_movement++;
+        if (env->actions[i] == FORWARD) is_movement++;
     }
     if (is_movement>=1) {
         // Process movements in cycles first
@@ -695,9 +735,6 @@ void step(CRware* env) {
         process_tree_movements(env, graph);
     }
 
-    if (env->dones[0] == 1) {
-        end_game(env);
-    }
     compute_observations(env);
 }
 
@@ -730,69 +767,70 @@ void render(Client* client, CRware* env) {
         exit(0);
     }
     BeginDrawing();
-    // State 0: Empty - white
-    // State 1: Shelf - dark blue
-    // State 2: Requested Shelf - cyan puffer
-    // State 3: Agent on map - puffer vector
-    // State 4: Agent with full shelf - red puffer
-    // State 5: Agent with empty shelf - dark blue and puffer
-    // State 6: Goal - dark gray
-    int map_size = env->map_choice == 1 ? 110 : env->map_choice == 2 ? 200 : 320;
-    int grid_size_x = env->map_choice == 1 ? 10 : 20;  // Tiny map is 10x11, small map is 20x10
+    
+    int map_size = map_sizes[env->map_choice - 1];
+    int cols = map_cols[env->map_choice - 1];
     for (int i = 0; i < map_size; i++) {
         int state = env->warehouse_states[i];
         Color color;
-        color = state == 1 ? DARKBLUE : 
-                state == 2 ? PUFF_CYAN :
-                state == 3 ? STONE_GRAY : 
+        color = state == SHELF ? DARKBLUE : 
+                state == REQUESTED_SHELF ? PUFF_CYAN :
+                state == GOAL ? STONE_GRAY : 
                 PUFF_WHITE;
-         DrawRectangle(
-            i % grid_size_x * env->grid_square_size,  // x position
-            i / grid_size_x * env->grid_square_size,  // y position
+        int x_pos = i % cols * env->grid_square_size;
+        int y_pos = i / cols * env->grid_square_size;
+        DrawRectangle(
+            x_pos,  // x position
+            y_pos,  // y position
             env->grid_square_size, 
             env->grid_square_size, 
             color
         );
         
         DrawRectangleLines(
-            i % grid_size_x * env->grid_square_size,
-            i / grid_size_x * env->grid_square_size,
+            x_pos,
+            y_pos,
             env->grid_square_size,
             env->grid_square_size,
             BLACK
         );
 
         DrawRectangleLines(
-            i % grid_size_x * env->grid_square_size + 1,
-            i / grid_size_x * env->grid_square_size + 1,
+            x_pos + 1,
+            y_pos + 1,
             env->grid_square_size - 2,
             env->grid_square_size - 2,
-            state != 0 ? WHITE : BLANK
+            state != EMPTY ? WHITE : BLANK
         );
         // draw agent
         for (int j = 0; j < env->num_agents; j++) {
             if (env->agent_locations[j] != i) {
                 continue;
             }
-            
+            int starting_sprite_x = 0;
+            int rotation = 90*env->agent_directions[j];
+            if (rotation == 180) {
+                starting_sprite_x = 128;
+                rotation = 0;
+            }
             DrawTexturePro(
                 client->puffers,
-                (Rectangle){0, 0, 128, 128},
+                (Rectangle){starting_sprite_x, 0, 128, 128},
                 (Rectangle){
-                    i % grid_size_x * env->grid_square_size + env->grid_square_size/2,
-                    i / grid_size_x * env->grid_square_size + env->grid_square_size/2,
+                    x_pos + env->grid_square_size/2,
+                    y_pos + env->grid_square_size/2,
                     env->grid_square_size,
                     env->grid_square_size
                 },
                 (Vector2){env->grid_square_size/2, env->grid_square_size/2},
-                90*env->agent_directions[j],
-                env->agent_states[j] != 0 ? RED : WHITE
+                rotation,
+                env->agent_states[j] != UNLOADED ? RED : WHITE
             );
             // put a number on top of the agent
             DrawText(
                 TextFormat("%d", j),
-                i % grid_size_x * env->grid_square_size + env->grid_square_size/2,
-                i / grid_size_x * env->grid_square_size + env->grid_square_size/2,
+                x_pos + env->grid_square_size/2,
+                y_pos + env->grid_square_size/2,
                 20,
                 WHITE
             );

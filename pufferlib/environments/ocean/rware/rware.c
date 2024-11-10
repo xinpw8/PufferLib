@@ -59,7 +59,7 @@ void demo(int map_choice) {
         }
         // Add agent switching with TAB key
         if (IsKeyPressed(KEY_TAB)) {
-            env.actions[env.human_agent_idx] = TOGGLE_AGENT;
+            env.human_agent_idx = (env.human_agent_idx + 1) % env.num_agents;
         }
         step(&env);
         render(client,&env);
@@ -83,7 +83,7 @@ void performance_test() {
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
-        env.actions[0] = rand() % 6;
+        env.actions[0] = rand() % 5;
         step(&env);
         i++;
     }
@@ -93,7 +93,7 @@ void performance_test() {
 }
 
 int main() {
-    demo(1);
+    demo(2);
     // performance_test();
     return 0;
 }
