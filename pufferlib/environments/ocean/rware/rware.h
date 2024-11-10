@@ -636,7 +636,7 @@ void pickup_shelf(CRware* env, int agent_idx) {
         env->log.episode_return += 1.0;
         env->shelves_delivered += 1;
         add_log(env->log_buffer, &env->log);
-
+	env->log.score=0;
         int shelf_count = 0;
         while (shelf_count < 1) {
             shelf_count += request_new_shelf(env);
@@ -700,14 +700,14 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
 
 void step(CRware* env) {
     env->log.episode_length += 1;
-    
+    env->log.score +=1;
     memset(env->rewards, 0, env->num_agents * sizeof(float));
 
-     if (env->log.episode_length >= 500) {
+     /*if (env->log.episode_length >= 500) {
          memset(env->dones, 1, env->num_agents * sizeof(unsigned char));
          reset(env);
          return;
-     }
+     }*/
 
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
