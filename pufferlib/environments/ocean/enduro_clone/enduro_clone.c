@@ -4,7 +4,6 @@
 // TODO: Add collisions with the road edges
 // TODO: Fog mode - don't render road lines
 // TODO: Reduced handling on snow
-// TODO: Compute/determine enemy car spawn frequency for each day num
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
 // TODO: Ascertain top spawn lane choice logic per atari original
 // TODO: Implement RL in pufferlib
@@ -19,11 +18,24 @@
 // TODO: Combine 2 fns for leanke
 // TODO: reduce line count
 
+// takes about 14 seconds to fully accelerate from min speed to max speed
+// there appear to be 4 gears with timings as follows:
+// 1. 4 seconds
+// 2. 2.5 seconds
+// 3. 3.25 seconds
+// 4. 1.5 seconds
+// at max speed, enemy cars take around 0.4 seconds to travel from the
+// spawn point at the top to the bottom of the screen
+// at min speed, enemy cars take around 0.5 seconds to
+// travel from the spawn point at the top to the bottom of the screen
+// to the vanishing point at the top
+
+
 // enduro_clone.c
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h> // For NULL
+#include <stddef.h>
 #include "enduro_clone.h"
 
 int main() {
@@ -49,8 +61,6 @@ int main() {
     loadTextures(&env.gameState);
     reset(&env);
     int running = 1;
-    // Initialize RoadDirection variable
-    RoadDirection roadDirection = ROAD_STRAIGHT;
 
     // Main game loop
     while (running) {
@@ -58,16 +68,6 @@ int main() {
         handleEvents(&running, &env);
         // Step the environment
         step(&env);
-
-        // Update roadDirection based on env.current_curve_direction
-        if (env.current_curve_direction == -1) {
-            roadDirection = ROAD_TURN_LEFT;
-        } else if (env.current_curve_direction == 1) {
-            roadDirection = ROAD_TURN_RIGHT;
-        } else {
-            roadDirection = ROAD_STRAIGHT;
-        }
-
         // Update game state
         updateBackground(&env.gameState); // Ensure day cycles correctly
         updateCarAnimation(&env.gameState, &env);
