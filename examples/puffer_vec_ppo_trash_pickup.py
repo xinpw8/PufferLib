@@ -46,9 +46,9 @@ class Args:
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
     model_save_dir: str = '/workspaces/PufferTank/puffertank/pufferlib/examples/trash_pickup_saves'
     """Path to save the model to this directory"""
-    model_save_filename: str = "trash_pickup_model_with_distance_reward"
+    model_save_filename: str = "trash_pickup_model_no_cnn"
     """Filename to save the model as (file extension is automatically added, do NOT include it)"""
-    model_load_path: str = 'examples/trash_pickup_saves/trash_pickup_model_medium_network_pretrained_sorta.pt'
+    model_load_path: str = None # 'examples/trash_pickup_saves/trash_pickup_model_with_distance_reward_iter_1861.pt'
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
     model_save_interval: float = 1
     """How (roughly) often to save the model in minutes"""
@@ -98,10 +98,12 @@ class Args:
     """The square size of the environment"""
     num_trash: int = 15
     """The amount of 'trash' to be picked up by the agents in the environment"""
-    num_bins: int = 2
+    num_bins: int = 1
     """The number of 'trash bins' to put 'trash' picked up by the agents into in the environment"""
     num_max_env_steps: int = 300
     """The maximum number of steps that can be taken in the environment before the episode automatically ends"""
+    do_distance_reward: bool = False
+    """Whether or not to add an additional reward for agents moving closer to an objective (which is trash is not carrying any trash, else a trash bin)"""
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -116,35 +118,33 @@ class Agent(nn.Module):
         super().__init__()
         self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
 
-        def get_conv_output_size(input_shape):
-            """Helper function to calculate the flattened size of output from convolution layers.
-            This size will be used as the input for the linear layer following the convolutional layers."""
-            dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
-            output = self.conv3(self.conv2(self.conv1(dummy_input)))  # Pass through conv layers
-            return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
+        # def get_conv_output_size(input_shape):
+        #     """Helper function to calculate the flattened size of output from convolution layers.
+        #     This size will be used as the input for the linear layer following the convolutional layers."""
+        #     dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
+        #     output = self.conv3(self.conv2(self.conv1(dummy_input)))  # Pass through conv layers
+        #     return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
         
-        # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
-        input_channels = 4
+        # # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
+        # input_channels = 4
         
-        # Define the convolutional layers
-        self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
-        self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
-        self.conv3 = layer_init(nn.Conv2d(64, 32, 3, stride=1))
+        # # Define the convolutional layers
+        # self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
+        # self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
+        # self.conv3 = layer_init(nn.Conv2d(64, 32, 3, stride=1))
 
-        # Compute the output size of the convolutional layers dynamically
-        conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
+        # # Compute the output size of the convolutional layers dynamically
+        # conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
 
         # Sequential grid network including the calculated linear layer
+        # Define the fully connected layers for the flattened grid
         self.grid_net = nn.Sequential(
-            self.conv1,
+            layer_init(nn.Linear(4 * args.grid_size * args.grid_size, 256)),  # 4 channels * grid size
             nn.ReLU(),
-            self.conv2,
+            layer_init(nn.Linear(256, 64)),
             nn.ReLU(),
-            self.conv3,
-            nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(conv_output_size, 16)),
-            nn.ReLU(),
+            layer_init(nn.Linear(64, 16)),
+            nn.ReLU()
         )
 
         # Linear layers for agent position and carrying status
@@ -183,14 +183,19 @@ class Agent(nn.Module):
 
     def preprocess_grid(self, grid):
         # Separate grid into 4 channels for empty space, trash, bin, and agent
-        empty_space = (grid == 0).float()
-        trash = (grid == 1).float()
-        trash_bin = (grid == 2).float()
-        agent = (grid == 3).float()
+        # empty_space = (grid == 0).float()
+        # trash = (grid == 1).float()
+        # trash_bin = (grid == 2).float()
+        # agent = (grid == 3).float()
         
-        # Stack channels to create a (4, H, W) tensor
-        ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
-        return ret
+        # # Stack channels to create a (4, H, W) tensor
+        # ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
+        # return ret
+
+        # One-hot encode each cell in the grid to a (grid_size, grid_size, 4) tensor
+        one_hot_grid = torch.nn.functional.one_hot(grid.long(), num_classes=4).float()
+        # Reshape to (batch_size, 4 * grid_size * grid_size) for fully connected layers
+        return one_hot_grid.view(-1, 4 * args.grid_size * args.grid_size)
 
     def hidden(self, x):
         x = x.type(torch.uint8)  # Undo bad cleanrl cast
@@ -287,7 +292,8 @@ if __name__ == "__main__":
             num_agents=num_agents,
             num_trash=args.num_trash,
             num_bins=args.num_bins,
-            max_steps=args.num_max_env_steps
+            max_steps=args.num_max_env_steps,
+            do_distance_reward=args.do_distance_reward
         ),
         backend=pufferlib.vector.Multiprocessing,
         num_envs=args.num_envs,

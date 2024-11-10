@@ -27,7 +27,7 @@ class PyTrashPickupEnv(ParallelEnv):
     # Metadata to describe render mode and environment name
     metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
 
-    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300, do_distance_reward=True):
+    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, do_distance_reward=True):
         # Initialize environment parameters
         self.grid_size = grid_size
         self._num_agents = num_agents
@@ -120,11 +120,6 @@ class PyTrashPickupEnv(ParallelEnv):
         dones = {agent: False for agent in self.agents}
         infos = {agent: {} for agent in self.agents}
 
-        # Prepare agents for movement by setting their current grid positions to empty
-        for agent in self.agents:
-            pos = self._agent_positions[agent]
-            self.grid[pos] = GridState.EMPTY.value
-
         # Process each agent's action and update the grid accordingly
         for agent in self.agents:
             # Get current state of the agent
@@ -132,50 +127,37 @@ class PyTrashPickupEnv(ParallelEnv):
             current_pos = self._agent_positions[agent]
             carrying = self._agent_carrying[agent]
 
-            # Compute new position based on the action
-            new_pos = self._move(current_pos, action)
-            x, y = new_pos
+            # Compute new potential position based on the action
+            new_pos = self._get_move_pos(current_pos, action)
+            new_pos_x, new_pos_y = new_pos
 
             # Validate grid boundaries for the new position
-            if not (0 <= x < self.grid_size and 0 <= y < self.grid_size):
-                new_pos = current_pos
+            if not (0 <= new_pos_x < self.grid_size and 0 <= new_pos_y < self.grid_size):
+                continue
 
             # Check cell state and update agent's position or inventory
             this_grid_state = self.grid[new_pos]
             if this_grid_state == GridState.EMPTY.value:
                 # Move to empty cell
-                self._agent_positions[agent] = new_pos
-                self.grid[new_pos] = GridState.AGENT.value
+                self._move_agent_or_bin(current_pos, new_pos, False, agent_id=agent)
             elif this_grid_state == GridState.TRASH.value and carrying == 0:
                 # Pick up trash if agent is not already carrying
                 self._agent_carrying[agent] = 1
-                self._agent_positions[agent] = new_pos
-                self.grid[new_pos] = GridState.AGENT.value
+                self._move_agent_or_bin(current_pos, new_pos, False, agent_id=agent)
                 self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
             elif this_grid_state == GridState.TRASH_BIN.value:
                 if carrying == 1:
                     # Deposit trash in the bin
                     self._agent_carrying[agent] = 0
                     self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
-                    # Agent does not move onto the bin
-                    self._agent_positions[agent] = current_pos
-                    self.grid[current_pos] = GridState.AGENT.value
                 else:
                     # Attempt to push the bin to a new position
-                    bin_new_pos = self._move(new_pos, action)
+                    bin_new_pos = self._get_move_pos(new_pos, action)
                     bx, by = bin_new_pos
                     if (0 <= bx < self.grid_size and 0 <= by < self.grid_size) and self.grid[bin_new_pos] == GridState.EMPTY.value:
-                        # Move the bin to the new position
-                        self.grid[new_pos] = GridState.EMPTY.value
-                        self.grid[bin_new_pos] = GridState.TRASH_BIN.value
-                    else:
-                        # Bin can't be moved; agent stays in current position
-                        self._agent_positions[agent] = current_pos
-                        self.grid[current_pos] = GridState.AGENT.value
-            else:
-                # Invalid move or occupied cell: agent remains in place
-                self._agent_positions[agent] = current_pos
-                self.grid[current_pos] = GridState.AGENT.value
+                        self._move_agent_or_bin(new_pos, bin_new_pos, True) # Move the bin to the new position
+                    # Else: Bin can't be moved; agent stays in current position
+            # Else: Invalid move or occupied cell: agent remains in place
 
             if self.do_distance_reward:
                 self.add_reward(agent, self.get_distance_reward(agent))
@@ -328,7 +310,7 @@ class PyTrashPickupEnv(ParallelEnv):
     def close(self):
         pass
 
-    def _move(self, position, action):
+    def _get_move_pos(self, position, action):
         # Map actions to grid movements
         x, y = position
         if action == 0:  # UP
@@ -341,6 +323,17 @@ class PyTrashPickupEnv(ParallelEnv):
             return (x + 1, y)
         else:
             raise ValueError(f"TrashPickupOldEnv - Unexpected Move Action Received: {action}")
+        
+    def _move_agent_or_bin(self, current_pos, new_pos, is_bin, agent_id=None):
+        if not is_bin and agent_id is None:
+            raise AssertionError("_move_agent_or_bin() called but is_bin is false and agent_id is not passed in")
+        
+        self.grid[current_pos] = GridState.EMPTY.value
+        self.grid[new_pos] = GridState.AGENT.value if not is_bin else GridState.TRASH_BIN.value
+
+        if not is_bin:
+            self._agent_positions[agent_id] = new_pos
+
 
     def _random_positions(self, count, exclude=[]):
         # Generate unique random positions on the grid, excluding specific locations
@@ -367,22 +360,24 @@ class PyTrashPickupEnv(ParallelEnv):
         # Return the global state (optional)
         return self.grid.copy()
 
-def env_creator(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
+def env_creator(grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, do_distance_reward=False):
     return functools.partial(make,
         grid_size=grid_size,
         num_agents=num_agents,
         num_trash=num_trash,
         num_bins=num_bins,
-        max_steps=max_steps
+        max_steps=max_steps,
+        do_distance_reward=do_distance_reward
     )
 
-def make(grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300, video=False):
+def make(grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, video=False, do_distance_reward=False):
     env = PyTrashPickupEnv(
         grid_size=grid_size,
         num_agents=num_agents,
         num_trash=num_trash,
         num_bins=num_bins,
-        max_steps=max_steps
+        max_steps=max_steps,
+        do_distance_reward=do_distance_reward
     )
 
     env = pufferlib.wrappers.PettingZooTruncatedWrapper(env)
