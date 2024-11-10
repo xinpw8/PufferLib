@@ -1,6 +1,7 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
+from .squared import squared
 from .pong import pong
 from .breakout import breakout
 from .connect4 import connect4
@@ -178,7 +179,7 @@ MAKE_FNS = {
     'snake': make_snake,
     # 'tactical': make_tactical,
     'continuous': make_continuous,
-    'squared': make_squared,
+    'squared': squared.Squared,
     'bandit': make_bandit,
     'memory': make_memory,
     'password': make_password,

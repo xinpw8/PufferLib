@@ -243,6 +243,7 @@ common = cleanrl + [environments[env] for env in [
 
 extension_paths = [
     'pufferlib/environments/ocean/moba/cy_moba',
+    'pufferlib/environments/ocean/squared/cy_squared',
     'pufferlib/environments/ocean/snake/cy_snake',
     'pufferlib/environments/ocean/pong/cy_pong',
     'pufferlib/environments/ocean/breakout/cy_breakout',
@@ -259,7 +260,7 @@ extensions = [Extension(
     library_dirs=['raylib/lib'],
     libraries=["raylib"],
     runtime_library_dirs=["raylib/lib"],
-    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-Werror', '-DPLATFORM_DESKTOP', '-O2'],#, '-g'],
+    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-Werror', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
 ) for path in extension_paths]
  
 setup(
