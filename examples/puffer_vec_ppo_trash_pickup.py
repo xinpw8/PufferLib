@@ -46,9 +46,9 @@ class Args:
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
     model_save_dir: str = '/workspaces/PufferTank/puffertank/pufferlib/examples/trash_pickup_saves'
     """Path to save the model to this directory"""
-    model_save_filename: str = "trash_pickup_model_smaller_network"
+    model_save_filename: str = "trash_pickup_model_with_distance_reward"
     """Filename to save the model as (file extension is automatically added, do NOT include it)"""
-    model_load_path: str = None # 'examples/trash_pickup_saves/trash_pickup_model_iter_13358.pt'
+    model_load_path: str = 'examples/trash_pickup_saves/trash_pickup_model_medium_network_pretrained_sorta.pt'
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
     model_save_interval: float = 1
     """How (roughly) often to save the model in minutes"""
@@ -60,11 +60,11 @@ class Args:
     """the id of the environment"""
     total_timesteps: int = 250_000_000
     """total timesteps of the experiments"""
-    learning_rate: float = 2.5e-5
+    learning_rate: float = 1e-3
     """the learning rate of the optimizer"""
     num_envs: int = 16
     """the number of parallel game environments"""
-    num_steps: int = 1024
+    num_steps: int = 4096
     """the number of steps to run in each environment per policy rollout"""
     anneal_lr: bool = True
     """Toggle learning rate annealing for policy and value networks"""
@@ -72,7 +72,7 @@ class Args:
     """the discount factor gamma"""
     gae_lambda: float = 0.95
     """the lambda for the general advantage estimation"""
-    num_minibatches: int = 4
+    num_minibatches: int = 8
     """the number of mini-batches"""
     update_epochs: int = 4
     """the K epochs to update the policy"""
@@ -82,7 +82,7 @@ class Args:
     """the surrogate clipping coefficient"""
     clip_vloss: bool = True
     """Toggles whether or not to use a clipped loss for the value function, as per the paper."""
-    ent_coef: float = 0.01
+    ent_coef: float = 0.005
     """coefficient of the entropy"""
     vf_coef: float = 0.5
     """coefficient of the value function"""
@@ -120,7 +120,7 @@ class Agent(nn.Module):
             """Helper function to calculate the flattened size of output from convolution layers.
             This size will be used as the input for the linear layer following the convolutional layers."""
             dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
-            output = self.conv2(self.conv1(dummy_input))  # Pass through conv layers
+            output = self.conv3(self.conv2(self.conv1(dummy_input)))  # Pass through conv layers
             return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
         
         # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
@@ -128,7 +128,8 @@ class Agent(nn.Module):
         
         # Define the convolutional layers
         self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
-        self.conv2 = layer_init(nn.Conv2d(32, 16, 3, stride=1))
+        self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
+        self.conv3 = layer_init(nn.Conv2d(64, 32, 3, stride=1))
 
         # Compute the output size of the convolutional layers dynamically
         conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
@@ -139,6 +140,8 @@ class Agent(nn.Module):
             nn.ReLU(),
             self.conv2,
             nn.ReLU(),
+            self.conv3,
+            nn.ReLU(),
             nn.Flatten(),
             layer_init(nn.Linear(conv_output_size, 16)),
             nn.ReLU(),
@@ -148,17 +151,35 @@ class Agent(nn.Module):
         self.position_net = nn.Sequential(
             layer_init(nn.Linear(2, 8)),
             nn.ReLU(),
+            nn.Linear(8, 16),
+            nn.ReLU()
         )
         
         self.carrying_net = nn.Sequential(
-            layer_init(nn.Linear(1, 2)),
+            layer_init(nn.Linear(1, 8)),
             nn.ReLU(),
+            nn.Linear(8, 8),
+            nn.ReLU()
         )
 
         # Projection layer to combine features from different sources
-        self.proj = nn.Linear(16 + 8 + 2, 256)  # Adjusted projection layer size based on concatenated features
-        self.actor = layer_init(nn.Linear(256, 4), std=0.01)  # 4 represents the number of possible actions
-        self.critic = layer_init(nn.Linear(256, 1), std=1)  # 1 represents the value of the critic network (or sometimes called value network) 
+        self.proj = nn.Sequential( 
+            nn.Linear(16 + 16 + 8, 32),  # Adjusted projection layer size based on concatenated features
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU()
+        )
+        self.actor = nn.Sequential(
+            layer_init(nn.Linear(16, 8)),
+            nn.ReLU(),
+            layer_init(nn.Linear(8, 4), std=0.01) # 4 represents the number of possible actions
+        )
+
+        self.critic = nn.Sequential(
+            layer_init(nn.Linear(16, 8)),
+            nn.ReLU(),
+            layer_init(nn.Linear(8, 1), std=1) # 1 represents the value of the critic network (or sometimes called value network) 
+        )  
 
     def preprocess_grid(self, grid):
         # Separate grid into 4 channels for empty space, trash, bin, and agent
@@ -599,4 +620,7 @@ if __name__ == "__main__":
         print(f"Unhandled run_mode of: {args.run_mode}")
 
     envs.close()
-    writer.close()
+    try:
+        writer.close()
+    except:
+        pass

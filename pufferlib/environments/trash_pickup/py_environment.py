@@ -27,12 +27,13 @@ class PyTrashPickupEnv(ParallelEnv):
     # Metadata to describe render mode and environment name
     metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
 
-    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300):
+    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=2, max_steps=300, do_distance_reward=True):
         # Initialize environment parameters
         self.grid_size = grid_size
         self._num_agents = num_agents
         self.num_trash = num_trash
         self.num_bins = num_bins
+        self.do_distance_reward = do_distance_reward
 
         # Define agent IDs
         self.possible_agents = ["agent_" + str(i) for i in range(self._num_agents)]
@@ -46,8 +47,9 @@ class PyTrashPickupEnv(ParallelEnv):
         self.total_episode_reward = 0
 
         # Define rewards for positive (picking up or depositing trash) and negative (every environment step) outcomes
-        self.POSITIVE_REWARD = 0.5 / num_trash  # this makes the total episode reward +1 if all trash is picked up and put into bin
-        self.NEGATIVE_REWARD = 1 / (max_steps * num_agents) # this makes the max negative reward given per episode to be -1
+        self.POSITIVE_REWARD_PICKUP_OR_DROPOFF = 0.5 / num_trash  # this adds +1 the total episode reward if all trash is picked up and put into bin
+        self.POSITIVE_REWARD_DISTANCE_TO_OBJ_MULTIPLIER = 0.001
+        self.NEGATIVE_REWARD = - (1 / (max_steps * num_agents)) # this makes the max negative reward given per episode to be -1
 
         # Define action and observation spaces
         # Action space: Discrete with 4 actions (UP, DOWN, LEFT, RIGHT)
@@ -114,7 +116,7 @@ class PyTrashPickupEnv(ParallelEnv):
             return
 
         # Initialize rewards, done flags, and info dictionaries for all agents
-        rewards = {agent: 0 for agent in self.agents}
+        self.rewards = {agent: 0 for agent in self.agents}
         dones = {agent: False for agent in self.agents}
         infos = {agent: {} for agent in self.agents}
 
@@ -143,21 +145,21 @@ class PyTrashPickupEnv(ParallelEnv):
             if this_grid_state == GridState.EMPTY.value:
                 # Move to empty cell
                 self._agent_positions[agent] = new_pos
+                self.grid[new_pos] = GridState.AGENT.value
             elif this_grid_state == GridState.TRASH.value and carrying == 0:
                 # Pick up trash if agent is not already carrying
                 self._agent_carrying[agent] = 1
-                self.grid[new_pos] = GridState.EMPTY.value
                 self._agent_positions[agent] = new_pos
-                rewards[agent] += self.POSITIVE_REWARD  # Reward for picking up trash
-                self.total_episode_reward += self.POSITIVE_REWARD
+                self.grid[new_pos] = GridState.AGENT.value
+                self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
             elif this_grid_state == GridState.TRASH_BIN.value:
                 if carrying == 1:
                     # Deposit trash in the bin
                     self._agent_carrying[agent] = 0
-                    rewards[agent] += self.POSITIVE_REWARD  # Reward for depositing trash
-                    self.total_episode_reward += self.POSITIVE_REWARD
+                    self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
                     # Agent does not move onto the bin
                     self._agent_positions[agent] = current_pos
+                    self.grid[current_pos] = GridState.AGENT.value
                 else:
                     # Attempt to push the bin to a new position
                     bin_new_pos = self._move(new_pos, action)
@@ -169,18 +171,17 @@ class PyTrashPickupEnv(ParallelEnv):
                     else:
                         # Bin can't be moved; agent stays in current position
                         self._agent_positions[agent] = current_pos
+                        self.grid[current_pos] = GridState.AGENT.value
             else:
                 # Invalid move or occupied cell: agent remains in place
                 self._agent_positions[agent] = current_pos
+                self.grid[current_pos] = GridState.AGENT.value
+
+            if self.do_distance_reward:
+                self.add_reward(agent, self.get_distance_reward(agent))
 
             # Apply step penalty to encourage efficient actions
-            rewards[agent] -= self.NEGATIVE_REWARD
-            self.total_episode_reward -= self.NEGATIVE_REWARD
-
-        # Update agents on the grid
-        for agent in self.agents:
-            pos = self._agent_positions[agent]
-            self.grid[pos] = GridState.AGENT.value  # Agent
+            self.add_reward(agent, self.NEGATIVE_REWARD)
 
         # Check if the episode has ended (max steps reached or conditions met)
         if self.current_step >= self.max_steps or self.is_episode_over():
@@ -197,7 +198,7 @@ class PyTrashPickupEnv(ParallelEnv):
 
         # Return updated observations, rewards, done flags, and info
         observations = self._get_observations()
-        return observations, rewards, dones, infos
+        return observations, self.rewards, dones, infos
 
     def render(self):
         # Initialize window if not already initialized
@@ -291,6 +292,29 @@ class PyTrashPickupEnv(ParallelEnv):
         # Return the array
         return array_data[:, :, :3]  # Returning only RGB channels
 
+    def add_reward(self, agent, val):
+        self.rewards[agent] += val
+        self.total_episode_reward += val
+
+    def get_distance_reward(self, agent):
+        # 1. Determine the target type based on whether the agent is carrying trash
+        agent_pos = self._agent_positions[agent]
+        target_type = GridState.TRASH_BIN if self._agent_carrying[agent] else GridState.TRASH
+
+        # 2. Find the distance to the nearest target of the specified type
+        target_positions = np.argwhere(self.grid == target_type.value)
+        if len(target_positions) == 0:  # If no target found, no reward
+            return 0
+
+        # Calculate Manhattan distances to all targets and get the minimum
+        distances = np.abs(target_positions - agent_pos).sum(axis=1)
+        min_distance = np.min(distances)
+
+        # 3. Calculate the distance reward
+        reward = (1 / min_distance) * self.POSITIVE_REWARD_DISTANCE_TO_OBJ_MULTIPLIER
+
+        return reward
+        
     def is_episode_over(self):
         # Check if there are any trash cells remaining in the grid
         no_trash_left = not np.any(self.grid == GridState.TRASH.value)
