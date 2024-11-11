@@ -1,6 +1,6 @@
 // TODO: Replicate correct green for grass
 // TODO: Vanishing point for road should terminate in single pixel, not 2
-// TODO: Collision drift doesn't work. Make it work.
+// TODO: Collision drift doesn't work. Make it work. Finish modifying car v car crash logic.
 // TODO: Add collisions with the road edges
 // TODO: Fog mode - don't render road lines
 // TODO: Reduced handling on snow
@@ -13,6 +13,8 @@
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
 // TODO: Fix pile spawning when speed < 0 (enemy cars spawn on top of each other)
 // TODO: Fix loss terminal logic (currently doesn't end episode)
+
+
 
 // Leanke's TODOs:
 // TODO: Combine 2 fns for leanke
