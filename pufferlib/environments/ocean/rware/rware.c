@@ -28,7 +28,8 @@ void demo(int map_choice) {
         .num_agents = 4,
         .num_requested_shelves = 4,
         .grid_square_size = 64,
-        .human_agent_idx = 0
+        .human_agent_idx = 0,
+	.reward_type = 2
     };
     allocate(&env);
     reset(&env);
@@ -75,7 +76,8 @@ void performance_test() {
         .height = 704,
         .map_choice = 2,
         .num_agents = 4,
-        .num_requested_shelves = 4
+        .num_requested_shelves = 4,
+	.reward_type = 2
     };
     allocate(&env);
     reset(&env);

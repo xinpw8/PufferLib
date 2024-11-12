@@ -21,6 +21,7 @@ class MyRware(pufferlib.PufferEnv):
             num_requested_shelves=4,
             grid_square_size=64,
             human_agent_idx=0,
+            reward_type=1,
             buf = None):
 
         # env
