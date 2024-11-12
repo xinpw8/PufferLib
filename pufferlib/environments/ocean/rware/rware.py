@@ -48,14 +48,13 @@ class MyRware(pufferlib.PufferEnv):
         self.c_envs.step()
         self.tick += 1
 
-        infos = []
+        info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
             if log['episode_length'] > 0:
-                infos.append(dict(pufferlib.utils.unroll_nested_dict(log)))
-
+                info.append(log)
         return (self.observations, self.rewards,
-            self.terminals, self.truncations, infos)
+            self.terminals, self.truncations, info)
 
     def render(self):
         self.c_envs.render()
