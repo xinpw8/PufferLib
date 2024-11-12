@@ -760,6 +760,7 @@ const Color STONE_GRAY = (Color){80, 80, 80, 255};
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
 const Color PUFF_WHITE = (Color){241, 241, 241, 241};
+const Color PUFF_GREY = (Color){128, 128, 128, 255};
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
 const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
 
@@ -775,7 +776,7 @@ Client* make_client(CRware* env) {
     client->width = env->width;
     client->height = env->height;
     InitWindow(env->width, env->height, "PufferLib Ray RWare");
-    SetTargetFPS(15);
+    SetTargetFPS(5);
     client->puffers = LoadTexture("resources/puffers_128.png");
     return client;
 }
@@ -791,10 +792,16 @@ void render(Client* client, CRware* env) {
     for (int i = 0; i < map_size; i++) {
         int state = env->warehouse_states[i];
         Color color;
-        color = state == SHELF ? DARKBLUE : 
-                state == REQUESTED_SHELF ? PUFF_CYAN :
-                state == GOAL ? STONE_GRAY : 
-                PUFF_WHITE;
+        if (state == SHELF) {
+            color = DARKBLUE;
+        } else if (state == REQUESTED_SHELF) {
+            color = PUFF_CYAN;
+        } else if (state == GOAL) {
+            color = STONE_GRAY;
+        } else {
+            color = PUFF_BACKGROUND;
+        }
+
         int x_pos = i % cols * env->grid_square_size;
         int y_pos = i / cols * env->grid_square_size;
         DrawRectangle(
@@ -810,7 +817,7 @@ void render(Client* client, CRware* env) {
             y_pos,
             env->grid_square_size,
             env->grid_square_size,
-            BLACK
+            PUFF_GREY
         );
 
         DrawRectangleLines(

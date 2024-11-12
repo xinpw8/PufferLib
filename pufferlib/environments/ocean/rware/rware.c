@@ -37,30 +37,29 @@ void demo(int map_choice) {
 
     while (!WindowShouldClose()) {
         for (int i = 0; i < env.num_agents; i++) {
-            env.actions[i] = NOOP;
+            env.actions[i] = rand() % 5;
         }
 
-        if (IsKeyPressed(KEY_ENTER)) {
-            for (int i = 0; i < env.num_agents; i++) {
-                env.actions[i] = FORWARD;
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            env.actions[env.human_agent_idx] = NOOP;
+
+            // Handle keyboard input only for selected agent
+            if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+                env.actions[env.human_agent_idx] = FORWARD;
             }
-        }
-        // Handle keyboard input only for selected agent
-        if (IsKeyPressed(KEY_UP)) {
-            env.actions[env.human_agent_idx] = FORWARD;
-        }
-        if (IsKeyPressed(KEY_LEFT)) {
-            env.actions[env.human_agent_idx] = LEFT;
-        }
-        if (IsKeyPressed(KEY_RIGHT)) {
-            env.actions[env.human_agent_idx] = RIGHT;
-        }
-        if (IsKeyPressed(KEY_SPACE)) {
-            env.actions[env.human_agent_idx] = TOGGLE_LOAD;
-        }
-        // Add agent switching with TAB key
-        if (IsKeyPressed(KEY_TAB)) {
-            env.human_agent_idx = (env.human_agent_idx + 1) % env.num_agents;
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+                env.actions[env.human_agent_idx] = LEFT;
+            }
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                env.actions[env.human_agent_idx] = RIGHT;
+            }
+            if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_ENTER)) {
+                env.actions[env.human_agent_idx] = TOGGLE_LOAD;
+            }
+            // Add agent switching with TAB key
+            if (IsKeyDown(KEY_TAB)) {
+                env.human_agent_idx = (env.human_agent_idx + 1) % env.num_agents;
+            }
         }
         step(&env);
         render(client,&env);
@@ -95,7 +94,7 @@ void performance_test() {
 }
 
 int main() {
-    //demo(2);
-    performance_test();
+    demo(2);
+    //performance_test();
     return 0;
 }
