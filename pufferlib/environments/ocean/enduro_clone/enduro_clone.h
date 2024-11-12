@@ -172,10 +172,10 @@ typedef struct Enduro {
     int numEnemies;
     int carsToPass;
     float collision_cooldown;
+    int drift_direction; // Which way player car drifts whilst noops after crash w/ other car
     float action_height;
     Car enemyCars[MAX_ENEMIES];
     float initial_player_x;
-    int last_lr_action; // 0: none, 1: left, 2: right
     float road_scroll_offset;
     // Road curve variables
     int current_curve_direction; // 1: Right, -1: Left, 0: Straight
@@ -266,6 +266,7 @@ void updateScore(GameState* gameState);
 // Additional function prototypes
 float road_edge_x(Enduro* env, float y, float offset, bool left);
 float car_x_in_lane(Enduro* env, int lane, float y);
+int calculate_which_half_of_lane(Enduro* env);
 void update_road_curve(Enduro* env);
 void update_vanishing_point(Enduro* env, float offset);
 
@@ -376,7 +377,6 @@ void reset_round(Enduro* env) {
     env->numEnemies = 0;
     env->step_count = 0;
     env->collision_cooldown = 0;
-    env->last_lr_action = 0;
     env->road_scroll_offset = 0.0f;
 }
 
@@ -411,7 +411,6 @@ void reset(Enduro* env) {
         env->enemyCars[i].y = 0.0;
         env->enemyCars[i].passed = 0;
     }
-    env->last_lr_action = 0;
     env->road_scroll_offset = 0.0f;
     if (env->log_buffer != NULL) {
         env->log_buffer->idx = 0;
@@ -471,6 +470,20 @@ int get_player_lane(Enduro* env) {
     return env->lane;
 }
 
+int calculate_which_half_of_lane(Enduro* env) {
+    // Player in the middle lane, choose based on player’s half
+    int lane = 1;
+    float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
+    float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
+                            road_edge_x(env, env->player_y, 0, false)) / 2.0f;
+    if (player_center_x < road_center_x) {
+        lane = 2;
+    } else {
+        lane = 0;
+    }
+    return lane;
+}
+
 void add_enemy_car(Enduro* env) {
     if (env->numEnemies >= MAX_ENEMIES) return;
 
@@ -479,23 +492,26 @@ void add_enemy_car(Enduro* env) {
 
     if (env->speed < 0) {
         // Player is moving backward
+        printf("Player is moving backward\n");
         if (player_lane == 0) {
             lane = 2;
         } else if (player_lane == 2) {
             lane = 0;
         } else {
-            // Player in the middle lane, choose based on player’s half
-            float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
-            float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
-                                   road_edge_x(env, env->player_y, 0, false)) / 2.0f;
-            if (player_center_x < road_center_x) {
-                lane = 2;
-            } else {
-                lane = 0;
-            }
+            lane = calculate_which_half_of_lane(env);
+            // // Player in the middle lane, divide the lane in half
+            // float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
+            // float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
+            //                        road_edge_x(env, env->player_y, 0, false)) / 2.0f;
+            // if (player_center_x < road_center_x) {
+            //     lane = 2;
+            // } else {
+            //     lane = 0;
+            // }
         }
     } else {
         // Player moving forward
+        printf("Player is moving forward\n");
         // lane = (rand() % 2 == 0) ? 0 : 2; // uncomment for no center-lane spawns for testing
         lane = rand() % 3;
     }
@@ -554,12 +570,10 @@ void step(Enduro* env) {
             case ACTION_RIGHT:
                 env->player_x += 0.5f;
                 if (env->player_x > road_right) env->player_x = road_right;
-                env->last_lr_action = 2;
                 break;
             case ACTION_LEFT:
                 env->player_x -= 0.5f;
                 if (env->player_x < road_left) env->player_x = road_left;
-                env->last_lr_action = 1;
                 break;
             case ACTION_DOWN:
                 if (env->speed > env->min_speed) env->speed -= DECELERATION_RATE; // Decelerate
@@ -568,35 +582,33 @@ void step(Enduro* env) {
                 if (env->speed > env->min_speed) env->speed -= DECELERATION_RATE;
                 env->player_x += 0.5f;
                 if (env->player_x > road_right) env->player_x = road_right;
-                env->last_lr_action = 2;
                 break;
             case ACTION_DOWNLEFT:
                 if (env->speed > env->min_speed) env->speed -= DECELERATION_RATE;
                 env->player_x -= 0.5f;
                 if (env->player_x < road_left) env->player_x = road_left;
-                env->last_lr_action = 1;
                 break;
             case ACTION_RIGHTFIRE:
                 if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
                 env->player_x += 0.5f;
                 if (env->player_x > road_right) env->player_x = road_right;
-                env->last_lr_action = 2;
                 break;
             case ACTION_LEFTFIRE:
                 if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
                 env->player_x -= 0.5f;
                 if (env->player_x < road_left) env->player_x = road_left;
-                env->last_lr_action = 1;
                 break;
         }
     } else {
-        env->collision_cooldown -= 1;
-        printf("Collision cooldown: %.2f\n", env->collision_cooldown);
-        if (env->lane == 1) env->player_x -= 0.5;
-        if (env->lane == -1) env->player_x += 0.5;
-        env->speed *= FRICTION;
-        env->speed -= 0.305f * DECELERATION_RATE;
-        if (env->speed < env->min_speed) env->speed = env->min_speed;
+    env->collision_cooldown -= 1;
+    printf("Collision cooldown: %.2f\n", env->collision_cooldown);
+    // Check initial side of the road and apply consistent drift until cooldown ends
+    if (env->drift_direction == 0) { // Drift direction
+        env->drift_direction = (env->player_x > (road_left + road_right) / 2) ? -1 : 1;
+    }    
+    // Apply drift based on initial side
+    // Drift left if on right, right if on left
+    env->player_x += env->drift_direction * 0.25f;
     }
 
     // Adjust player's x position based on the current curve
@@ -653,27 +665,18 @@ void step(Enduro* env) {
         if (env->speed > 0 && car->y > env->player_y + CAR_HEIGHT && !car->passed && env->collision_cooldown <= 0) {
             // Mark car as passed and decrement carsToPass
             env->carsToPass--;
-            if (env->carsToPass < 0) env->carsToPass = 0; // Ensure it doesn’t go negative
+            if (env->carsToPass < 0) env->carsToPass = 0; // Stops at 0; resets to 300 on new day
             car->passed = true;
             env->score += 10;
             env->rewards[0] += 1;
-            // // Debugging output to confirm passing is detected
+            // Passing debug
             // printf("Car passed at y = %.2f. Remaining cars to pass: %d\n", car->y, env->carsToPass);
         }
 
-        // Check for collisions between the player and the car
+        // Check for and handle collisions between player and enemy cars
         if (check_collision(env, car)) {
-            env->speed = env->min_speed = MIN_SPEED;
+            env->speed = env->min_speed = 1 + MIN_SPEED;
             env->collision_cooldown = CRASH_NOOP_DURATION;
-            // Collision logic per og env
-            if (env->last_lr_action == 1) {
-                env->player_x -= 10;
-                if (env->player_x < road_left) env->player_x = road_left;
-            } else if (env->last_lr_action == 2) {
-                env->player_x += 10;
-                if (env->player_x > road_right) env->player_x = road_right;
-            }
-            env->last_lr_action = 0;
         }
 
         // Remove off-screen cars that move below the screen

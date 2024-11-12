@@ -22,3 +22,5 @@ the effect is mirrored by the right road edge.*/
 // TODO: Add original enemy car sprites/colors
 // TODO: Smooth transitions between L, R, and straight road curving
 // TODO: Add movement of player's car towards outer edge of road on curves
+// TODO: Car v car crash logic better - drift appreciably close speed-wise and drift direction logic based on furthest road edge.
+
