@@ -31,12 +31,21 @@
 #define CAR_WIDTH 16
 #define CAR_HEIGHT 11
 #define MAX_ENEMIES 10
+// Enemy spawn rates and intervals
+#define SPAWN_RATE_NIGHT 1.306f
+#define SPAWN_RATE_DAY_START 0.842f
+#define SPAWN_RATE_GRASS_AFTER_SNOW 0.784f
+#define SPAWN_INTERVAL_NIGHT (1.0f / SPAWN_RATE_NIGHT)
+#define SPAWN_INTERVAL_DAY_START (1.0f / SPAWN_RATE_DAY_START)
+#define SPAWN_INTERVAL_GRASS_AFTER_SNOW (1.0f / SPAWN_RATE_GRASS_AFTER_SNOW)
+
 #define CRASH_NOOP_DURATION 120 // 60 // How long controls are disabled after car v car collision
 #define DAY_LENGTH 200000
 #define INITIAL_CARS_TO_PASS 200
 #define VANISHING_POINT_X 86 // 110
 #define VANISHING_POINT_Y 52
 #define VANISHING_POINT_TRANSITION_SPEED 1.0f
+#define CURVE_TRANSITION_SPEED 0.05f // 0.02f
 #define LOGICAL_VANISHING_Y (VANISHING_POINT_Y + 12)  // Separate logical vanishing point for cars disappearing
 #define INITIAL_PLAYER_X  86.0f // ((PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT)/2 + CAR_WIDTH/2)
 #define PLAYER_MAX_Y (ACTION_HEIGHT - CAR_HEIGHT) // Max y is car length from bottom
@@ -48,7 +57,6 @@
 #define MAX_SPEED 4.5f // 2.5f
 #define SPEED_AFTER_CRASHING -1.5f
 // Curve constants
-#define CURVE_TRANSITION_SPEED 0.02f
 #define CURVE_STRAIGHT 0
 #define CURVE_LEFT -1
 #define CURVE_RIGHT 1
@@ -73,7 +81,9 @@
 #define CURVE_VANISHING_POINT_SHIFT 55.0f
 #define CURVE_PLAYER_SHIFT_FACTOR 0.025f // Moves player car towards outside edge of curves
 // Constants for wiggle effect timing and amplitude
-#define WIGGLE_AMPLITUDE 8.0f              // Maximum 'bump-in' offset in pixels
+#define WIGGLE_AMPLITUDE 10.0f // 8.0f              // Maximum 'bump-in' offset in pixels
+#define WIGGLE_SPEED 10.1f // 10.1f                 // Speed at which the wiggle moves down the screen
+#define WIGGLE_LENGTH 26.0f // 26.0f                // Vertical length of the wiggle effect
 
 // Log structs
 typedef struct Log {
@@ -96,6 +106,13 @@ typedef struct Car {
     int colorIndex; // Index for car's color (0-5)
 } Car;
 
+typedef enum {
+    GAME_STAGE_DAY_START,
+    GAME_STAGE_NIGHT,
+    GAME_STAGE_GRASS_AFTER_SNOW,
+    // Add more stages as needed
+} GameStage;
+
 // Rendering struct
 typedef struct GameState {
     Texture2D backgroundTextures[16]; // 16 different backgrounds for time of day
@@ -109,6 +126,8 @@ typedef struct GameState {
     Texture2D playerCarLeftTreadTexture;
     Texture2D playerCarRightTreadTexture;
     Texture2D enemyCarTextures[6][2]; // [color][tread] 6 colors, 2 treads (left, right)
+    Texture2D enemyCarNightTailLightsTexture;
+    Texture2D enemyCarNightFogTailLightsTexture;
     // For car animation
     float carAnimationTimer;
     float carAnimationInterval;
@@ -121,7 +140,7 @@ typedef struct GameState {
     float mountainPosition; // Position of the mountain texture
     bool victoryAchieved;   // Flag to indicate victory condition
     // Background state vars
-    float elapsedTime;       // Total elapsed time in seconds
+    // float elapsedTime;       // Total elapsed time in seconds
     int backgroundIndex;     // Current background index
     // Transition times in seconds
     float backgroundTransitionTimes[16];
@@ -158,6 +177,7 @@ typedef struct Enduro {
     int max_enemies;
     float crash_noop_duration;
     float day_length;
+    float elapsedTime;
     int initial_cars_to_pass;
     float min_speed;
     float max_speed;
@@ -193,9 +213,23 @@ typedef struct Enduro {
     float wiggle_length;       // Vertical length of the wiggle effect
     float wiggle_amplitude;    // How far into road wiggle extends
     bool wiggle_active;        // Whether the wiggle is active
+    // Player car acceleration
+    int currentGear;
+    float gearSpeedThresholds[4]; // Speeds at which gear changes occur
+    float gearAccelerationRates[4]; // Acceleration rates per gear
+    float gearTimings[4]; // Time durations per gear
+    float gearElapsedTime; // Time spent in current gear
+    // Enemy spawning
+    GameStage currentStage;    // Enemy spawn timer
+    float enemySpawnTimer;
+    float enemySpawnInterval; // Spawn interval based on current stage
+    float elapsedStageTime;   // Time elapsed in current stage
+
     // Logging
     float last_road_left;
     float last_road_right;
+    float totalAccelerationTime; // Debug accel
+
     // Mountain rendering
     float parallaxFactor;
     // Game state
@@ -254,7 +288,7 @@ void render_car(Client* client, Enduro* env);
 void initRaylib();
 void loadTextures(GameState* gameState);
 void cleanup(GameState* gameState);
-void updateBackground(GameState* gameState);
+void updateBackground(GameState* gameState, Enduro* env);
 void updateCarAnimation(GameState* gameState, Enduro* env);
 void renderBackground(GameState* gameState);
 void renderScoreboard(GameState* gameState);
@@ -317,6 +351,15 @@ void init(Enduro* env) {
     env->numEnemies = 0;
     env->collision_cooldown = 0.0;
     env->action_height = ACTION_HEIGHT;
+    env->elapsedTime = 0.0f;
+
+    // Enemy spawning
+    env->currentStage = GAME_STAGE_DAY_START;
+    env->enemySpawnTimer = 0.0f;
+    env->enemySpawnInterval = 0.8777f; // Spawn interval in seconds
+
+    // Logging
+    env->totalAccelerationTime = 0.0f; // Debug accel
 
     // Set vanishing point to center (86) explicitly
     env->base_vanishing_point_x = 86.0f;
@@ -342,14 +385,40 @@ void init(Enduro* env) {
 
     // Wiggle effect initialization
     env->wiggle_y = VANISHING_POINT_Y;
-    env->wiggle_speed = 10.1f;
-    env->wiggle_length = 26.0f;
-    env->wiggle_amplitude = 6.0f;
+    env->wiggle_speed = WIGGLE_SPEED;
+    env->wiggle_length = WIGGLE_LENGTH;
+    env->wiggle_amplitude = WIGGLE_AMPLITUDE;
     env->wiggle_active = true;
 
     // Sync with GameState
     env->gameState.carsToPass = env->carsToPass;
     env->gameState.victoryAchieved = false;
+
+    // Player car acceleration
+        env->currentGear = 0;
+    env->gearElapsedTime = 0.0f;
+
+    // Define gear timings
+    env->gearTimings[0] = 4.0f;
+    env->gearTimings[1] = 2.5f;
+    env->gearTimings[2] = 3.25f;
+    env->gearTimings[3] = 1.5f;
+
+    // Calculate speed thresholds and acceleration rates
+    float totalSpeedRange = env->max_speed - env->min_speed;
+    float totalTime = 0.0f;
+    for (int i = 0; i < 4; i++) {
+        totalTime += env->gearTimings[i];
+    }
+
+    float cumulativeSpeed = env->min_speed;
+    for (int i = 0; i < 4; i++) {
+        float gearTime = env->gearTimings[i];
+        float gearSpeedIncrement = totalSpeedRange * (gearTime / totalTime);
+        env->gearSpeedThresholds[i] = cumulativeSpeed + gearSpeedIncrement;
+        env->gearAccelerationRates[i] = gearSpeedIncrement / (gearTime * TARGET_FPS); // per frame
+        cumulativeSpeed = env->gearSpeedThresholds[i];
+    }
 }
 
 void allocate(Enduro* env) {
@@ -402,6 +471,10 @@ void reset(Enduro* env) {
     env->min_speed = MIN_SPEED;
     env->max_speed = MAX_SPEED;
     env->speed = env->min_speed;
+    env->currentGear = 0;
+    env->gearElapsedTime = 0.0f;
+    // Enemy spawning
+    env->elapsedStageTime = 0.0f;
     env->initial_cars_to_pass = INITIAL_CARS_TO_PASS;
     env->carsToPass = env->initial_cars_to_pass;
     printf("initial cars to pass, carstopass, INITIAL_CARS_TO_PASS: %d, %d, %d\n", env->initial_cars_to_pass, env->carsToPass, INITIAL_CARS_TO_PASS);
@@ -424,9 +497,9 @@ void reset(Enduro* env) {
     env->target_curve_factor = 0.0f;
     // Wiggle effect initialization
     env->wiggle_y = VANISHING_POINT_Y;  // Start at the vanishing point
-    env->wiggle_speed = 10.1f;           // Adjust as needed (doesn't matter??)
-    env->wiggle_length = 26.0f; // PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y; // playable area   50.0f;  // Vertical size of the wiggle
-    env->wiggle_amplitude = 6.0f;       // Maximum 'bump-in' offset in pixels
+    env->wiggle_speed = WIGGLE_SPEED;           // Adjust as needed (doesn't matter??)
+    env->wiggle_length = WIGGLE_LENGTH; // PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y; // playable area   50.0f;  // Vertical size of the wiggle
+    env->wiggle_amplitude = WIGGLE_AMPLITUDE;       // Maximum 'bump-in' offset in pixels
     env->wiggle_active = true;
     // Synchronize carsToPass with GameState
     env->gameState.carsToPass = env->carsToPass;
@@ -499,15 +572,6 @@ void add_enemy_car(Enduro* env) {
             lane = 0;
         } else {
             lane = calculate_which_half_of_lane(env);
-            // // Player in the middle lane, divide the lane in half
-            // float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
-            // float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
-            //                        road_edge_x(env, env->player_y, 0, false)) / 2.0f;
-            // if (player_center_x < road_center_x) {
-            //     lane = 2;
-            // } else {
-            //     lane = 0;
-            // }
         }
     } else {
         // Player moving forward
@@ -535,11 +599,11 @@ void update_vanishing_point(Enduro* env, float offset) {
     printf("Vanishing point updated to %.2f\n", env->vanishing_point_x);
 }
 
+// 
+
 void step(Enduro* env) {
-    if (env == NULL) {
-        printf("[ERROR] env is NULL! Aborting step.\n");
-        return;
-    }
+    env->elapsedTime += (1.0f / TARGET_FPS); // Increment elapsed time by frame duration
+    updateBackground(&env->gameState, env);
 
     update_road_curve(env);
     env->log.episode_length += 1;
@@ -547,6 +611,7 @@ void step(Enduro* env) {
     env->road_scroll_offset += env->speed;
 
     // Update enemy cars positions
+    env->elapsedStageTime += (1.0f / TARGET_FPS); // Time elapsed in stage
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
         car->y += 0.5 * env->speed;
@@ -565,7 +630,25 @@ void step(Enduro* env) {
             case ACTION_NOOP:
                 break;
             case ACTION_FIRE:
-                if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE; // Accelerate
+                // Accelerate based on current gear
+                if (env->speed < env->max_speed) {
+                    // Update gear if necessary
+                    if (env->speed >= env->gearSpeedThresholds[env->currentGear] && env->currentGear < 3) {
+                        env->currentGear++;
+                        env->gearElapsedTime = 0.0f;
+                        // printf("Gear shifted up to %d at time %.2f seconds\n", env->currentGear + 1, env->totalAccelerationTime);
+                    }
+                    // Accelerate
+                    env->speed += env->gearAccelerationRates[env->currentGear];
+                    if (env->speed > env->gearSpeedThresholds[env->currentGear]) {
+                        env->speed = env->gearSpeedThresholds[env->currentGear];
+                    }
+                    // Log speed and gear
+                    // printf("Time: %.2f s, Speed: %.2f, Gear: %d\n", env->totalAccelerationTime, env->speed, env->currentGear + 1);
+
+                    // Update total acceleration time
+                    env->totalAccelerationTime += (1.0f / TARGET_FPS);
+                }
                 break;
             case ACTION_RIGHT:
                 env->player_x += 0.5f;
@@ -612,7 +695,7 @@ void step(Enduro* env) {
     }
 
     // Adjust player's x position based on the current curve
-    float curve_shift = -env->current_curve_factor * CURVE_PLAYER_SHIFT_FACTOR * env->speed;
+    float curve_shift = -env->current_curve_factor * CURVE_PLAYER_SHIFT_FACTOR * abs(env->speed);
     env->player_x += curve_shift;
 
     // Clamp player x position to within road edges
@@ -631,17 +714,16 @@ void step(Enduro* env) {
     float curve_vanishing_point_shift = env->current_curve_direction * CURVE_VANISHING_POINT_SHIFT;
     env->vanishing_point_x = env->base_vanishing_point_x + curve_vanishing_point_shift;
 
-    // Update wiggle position
     if (env->wiggle_active) {
-        // Calculate wiggle period based on speed
-        float min_wiggle_period = 5.8f;    // 5.8 seconds at minimum speed
-        float max_wiggle_period = 0.3f;    // 0.3 seconds at maximum speed
-        // Normalize speed between 0 (min_speed) and 1 (max_speed)
+        // Define wiggle period range
+        float min_wiggle_period = 5.8f; // Slow wiggle period at min speed
+        float max_wiggle_period = 0.3f; // Fast wiggle period at max speed
+        // Apply non-linear scaling for wiggle period using square root
         float speed_normalized = (env->speed - env->min_speed) / (env->max_speed - env->min_speed);
-        speed_normalized = fmaxf(0.0f, fminf(1.0f, speed_normalized));
-        // Calculate current wiggle period
-        float current_wiggle_period = min_wiggle_period - (min_wiggle_period - max_wiggle_period) * speed_normalized;
-        // Calculate wiggle speed (pixels per frame)
+        speed_normalized = fmaxf(0.0f, fminf(1.0f, speed_normalized));  // Clamp between 0 and 1
+        // Adjust wiggle period with non-linear scale
+        float current_wiggle_period = min_wiggle_period - powf(speed_normalized, 0.25) * (min_wiggle_period - max_wiggle_period);
+        // Calculate wiggle speed based on adjusted wiggle period
         env->wiggle_speed = (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y) / (current_wiggle_period * TARGET_FPS);
         // Update wiggle position
         env->wiggle_y += env->wiggle_speed;
@@ -649,7 +731,32 @@ void step(Enduro* env) {
         if (env->wiggle_y > PLAYABLE_AREA_BOTTOM) {
             env->wiggle_y = VANISHING_POINT_Y;
         }
+        printf("Speed: %.2f, Normalized Speed: %.2f, Wiggle Period: %.2f, Wiggle Speed: %.2f\n", 
+            env->speed, speed_normalized, current_wiggle_period, env->wiggle_speed);
     }
+
+    // // Update wiggle position
+    // if (env->wiggle_active) {
+    //     // Calculate wiggle period based on speed
+    //     float min_wiggle_period = 5.8f; // 5.8f;    // 5.8 seconds at minimum speed
+    //     float max_wiggle_period = 0.3f;    // 0.3 seconds at maximum speed
+    //     // Normalize speed
+    //     // float speed_normalized = (env->speed - env->min_speed) / (env->max_speed - env->min_speed);
+    //     // Map speed to the scale between 0.5 and 3.5
+    //     float speed_scale = ((abs(env->speed) / env->max_speed) * (env->max_speed - env->min_speed) + env->min_speed) * 3.0f;
+    //     printf("wiggle speed scale: %.2f\n", speed_scale);
+    //     // speed_normalized = fmaxf(0.0f, fminf(1.0f, speed_normalized));
+    //     // Calculate current wiggle period
+    //     float current_wiggle_period = min_wiggle_period - (min_wiggle_period - max_wiggle_period) + speed_scale; // speed_normalized;
+    //     // Calculate wiggle speed (pixels per frame)
+    //     env->wiggle_speed = (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y) / (current_wiggle_period * TARGET_FPS);
+    //     // Update wiggle position
+    //     env->wiggle_y += env->wiggle_speed;
+    //     // Reset wiggle when it reaches the bottom
+    //     if (env->wiggle_y > PLAYABLE_AREA_BOTTOM) {
+    //         env->wiggle_y = VANISHING_POINT_Y;
+    //     }
+    // }
 
     // Update player y position based on speed
     env->player_y = PLAYER_MAX_Y - (env->speed - env->min_speed) / (env->max_speed - env->min_speed) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
@@ -702,10 +809,21 @@ void step(Enduro* env) {
         }
     }
 
-    // Adjust enemy car spawn frequency based on day number
-    if (env->numEnemies < MAX_ENEMIES && rand() % 100 < env->day) { // Adjusted spawn rate
-        add_enemy_car(env);
+    // Update enemy spawn timer
+    env->enemySpawnTimer += (1.0f / TARGET_FPS);
+    if (env->enemySpawnTimer >= env->enemySpawnInterval) {
+        env->enemySpawnTimer -= env->enemySpawnInterval;
+        if (env->numEnemies < MAX_ENEMIES) {
+            add_enemy_car(env);
+            // Log enemy spawning
+            printf("Enemy car spawned at time %.2f seconds\n", env->elapsedTime);
+        }
     }
+
+    // // Adjust enemy car spawn frequency based on day number
+    // if (env->numEnemies < MAX_ENEMIES && rand() % 100 < env->day) { // Adjusted spawn rate
+    //     add_enemy_car(env);
+    // }
 
     // Handle victory condition
     if (env->carsToPass <= 0 && !env->gameState.victoryAchieved) {
@@ -756,7 +874,14 @@ void step(Enduro* env) {
 // An ugly dense function but it is necessary
 void update_road_curve(Enduro* env) {
     static int current_curve_stage = 0;
-    static int steps_in_current_stage = 0;    
+    static int steps_in_current_stage = 0;
+    
+    // Map speed to the scale between 0.5 and 3.5
+    float speed_scale = 0.5f + ((abs(env->speed) / env->max_speed) * (3.5f - 0.5f));
+
+    printf("speed=%.2f, speed_scale=%.2f, max_speed=%.2f\n", env->speed, speed_scale, env->max_speed);
+
+    float vanishing_point_transition_speed = VANISHING_POINT_TRANSITION_SPEED + speed_scale; 
     // Steps to curve L, R, go straight for
     int step_thresholds[] = {350, 350, 350, 350, 350, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150};
     int curve_directions[] = {0, -1, 0, 1, 0, -1, 0, 1, -1, 1, 1, 1, 1, 1, 1, 1};    
@@ -770,7 +895,7 @@ void update_road_curve(Enduro* env) {
         env->current_curve_factor = fminf(env->current_curve_factor + CURVE_TRANSITION_SPEED, env->target_curve_factor);
     } else if (env->current_curve_factor > env->target_curve_factor) {
         env->current_curve_factor = fmaxf(env->current_curve_factor - CURVE_TRANSITION_SPEED, env->target_curve_factor);
-    }    
+    }
     env->current_curve_direction = fabsf(env->current_curve_factor) < 0.1f ? CURVE_STRAIGHT 
                              : (env->current_curve_factor > 0) ? CURVE_RIGHT : CURVE_LEFT;
     // Move the vanishing point gradually
@@ -779,9 +904,9 @@ void update_road_curve(Enduro* env) {
     env->target_vanishing_point_x = env->base_target_vanishing_point_x + target_shift;
 
     if (env->current_vanishing_point_x < env->target_vanishing_point_x) {
-        env->current_vanishing_point_x = fminf(env->current_vanishing_point_x + VANISHING_POINT_TRANSITION_SPEED, env->target_vanishing_point_x);
+        env->current_vanishing_point_x = fminf(env->current_vanishing_point_x + vanishing_point_transition_speed, env->target_vanishing_point_x);
     } else if (env->current_vanishing_point_x > env->target_vanishing_point_x) {
-        env->current_vanishing_point_x = fmaxf(env->current_vanishing_point_x - VANISHING_POINT_TRANSITION_SPEED, env->target_vanishing_point_x);
+        env->current_vanishing_point_x = fmaxf(env->current_vanishing_point_x - vanishing_point_transition_speed, env->target_vanishing_point_x);
     }
     env->vanishing_point_x = env->current_vanishing_point_x;
 }
@@ -967,23 +1092,43 @@ void loadTextures(GameState* gameState) {
     gameState->playerCarRightTreadTexture = LoadTexture("resources/enduro_clone/player_car_right_tread.png");
     printf("Loaded image: player_car_right_tread.png\n");
 
-    // Transition times (seconds) from og enduro
-    gameState->backgroundTransitionTimes[0] = 20.0f;
-    gameState->backgroundTransitionTimes[1] = 40.0f;
-    gameState->backgroundTransitionTimes[2] = 60.0f;
-    gameState->backgroundTransitionTimes[3] = 100.0f;
-    gameState->backgroundTransitionTimes[4] = 108.0f;
-    gameState->backgroundTransitionTimes[5] = 114.0f;
-    gameState->backgroundTransitionTimes[6] = 116.0f;
-    gameState->backgroundTransitionTimes[7] = 120.0f;
-    gameState->backgroundTransitionTimes[8] = 124.0f;
-    gameState->backgroundTransitionTimes[9] = 130.0f;
-    gameState->backgroundTransitionTimes[10] = 134.0f;
-    gameState->backgroundTransitionTimes[11] = 138.0f;
-    gameState->backgroundTransitionTimes[12] = 170.0f;
-    gameState->backgroundTransitionTimes[13] = 198.0f;
-    gameState->backgroundTransitionTimes[14] = 214.0f;
-    gameState->backgroundTransitionTimes[15] = 232.0f; // Last transition
+    // // Transition times (seconds) from og enduro
+    // gameState->backgroundTransitionTimes[0] = 20.0f;
+    // gameState->backgroundTransitionTimes[1] = 40.0f;
+    // gameState->backgroundTransitionTimes[2] = 60.0f;
+    // gameState->backgroundTransitionTimes[3] = 100.0f;
+    // gameState->backgroundTransitionTimes[4] = 108.0f;
+    // gameState->backgroundTransitionTimes[5] = 114.0f;
+    // gameState->backgroundTransitionTimes[6] = 116.0f;
+    // gameState->backgroundTransitionTimes[7] = 120.0f;
+    // gameState->backgroundTransitionTimes[8] = 124.0f;
+    // gameState->backgroundTransitionTimes[9] = 130.0f;
+    // gameState->backgroundTransitionTimes[10] = 134.0f;
+    // gameState->backgroundTransitionTimes[11] = 138.0f;
+    // gameState->backgroundTransitionTimes[12] = 170.0f;
+    // gameState->backgroundTransitionTimes[13] = 198.0f;
+    // gameState->backgroundTransitionTimes[14] = 214.0f;
+    // gameState->backgroundTransitionTimes[15] = 232.0f; // Last transition
+
+// TESTING ONLY - Set cumulative transition times
+gameState->backgroundTransitionTimes[0] = 2.0f;   // Transition to background 1 at 2 seconds
+gameState->backgroundTransitionTimes[1] = 4.0f;   // Transition to background 2 at 4 seconds
+gameState->backgroundTransitionTimes[2] = 6.0f;   // Transition to background 3 at 6 seconds
+gameState->backgroundTransitionTimes[3] = 8.0f;   // Transition to background 4 at 8 seconds
+gameState->backgroundTransitionTimes[4] = 10.0f;  // Transition to background 5 at 10 seconds
+gameState->backgroundTransitionTimes[5] = 12.0f;  // Transition to background 6 at 12 seconds
+gameState->backgroundTransitionTimes[6] = 14.0f;  // Transition to background 7 at 14 seconds
+gameState->backgroundTransitionTimes[7] = 16.0f;  // Transition to background 8 at 16 seconds
+gameState->backgroundTransitionTimes[8] = 18.0f;  // Transition to background 9 at 18 seconds
+gameState->backgroundTransitionTimes[9] = 20.0f;  // Transition to background 10 at 20 seconds
+gameState->backgroundTransitionTimes[10] = 22.0f; // Transition to background 11 at 22 seconds
+gameState->backgroundTransitionTimes[11] = 24.0f; // Transition to background 12 at 24 seconds
+// For the next three backgrounds, use longer durations as per your requirement
+gameState->backgroundTransitionTimes[12] = 36.0f; // Transition to background 13 at 36 seconds (12-second duration)
+gameState->backgroundTransitionTimes[13] = 48.0f; // Transition to background 14 at 48 seconds (12-second duration)
+gameState->backgroundTransitionTimes[14] = 60.0f; // Transition to background 15 at 60 seconds (12-second duration)
+gameState->backgroundTransitionTimes[15] = 62.0f; // Transition to background 0 at 62 seconds (loop back)
+
 
     // Load enemy car textures for each color and tread variant
     gameState->enemyCarTextures[0][0] = LoadTexture("resources/enduro_clone/enemy_car_blue_left_tread.png");
@@ -1001,12 +1146,20 @@ void loadTextures(GameState* gameState) {
 
     printf("Loaded enemy car images for all colors and tread animations\n");
 
+    // Load enemy car night tail lights textures
+    gameState->enemyCarNightTailLightsTexture = LoadTexture("resources/enduro_clone/enemy_car_night_tail_lights.png");
+    printf("Loaded image: enemy_car_night_tail_lights.png\n");
+
+    // Load enemy car night fog tail lights texture
+    gameState->enemyCarNightFogTailLightsTexture = LoadTexture("resources/enduro_clone/enemy_car_night_fog_tail_lights.png");
+    printf("Loaded image: enemy_car_night_fog_tail_lights.png\n");
+
     // Initialize animation variables
     gameState->carAnimationTimer = 0.0f;
     gameState->carAnimationInterval = 0.5f; // Moderate animation speed
     gameState->showLeftTread = true;
     // Initialize elapsed time and background index
-    gameState->elapsedTime = 0.0f;
+    // gameState->elapsedTime = 0.0f;
     gameState->backgroundIndex = 0;
     // Initialize animation variables
     gameState->carAnimationTimer = 0.0f;
@@ -1042,6 +1195,8 @@ void cleanup(GameState* gameState) {
             UnloadTexture(gameState->enemyCarTextures[color][tread]);
         }
     }
+    UnloadTexture(gameState->enemyCarNightTailLightsTexture);
+    UnloadTexture(gameState->enemyCarNightFogTailLightsTexture);
     // Unload player car textures
     UnloadTexture(gameState->playerCarLeftTreadTexture);
     UnloadTexture(gameState->playerCarRightTreadTexture);
@@ -1099,22 +1254,27 @@ void updateScore(GameState* gameState) {
     }
 }
 
-void updateBackground(GameState* gameState) {
-    // Update elapsed time
-    gameState->elapsedTime += GetFrameTime(); // Time since last frame in seconds
+void updateBackground(GameState* gameState, Enduro* env) {
+    // Use env->elapsedTime instead of gameState->elapsedTime
+    float elapsedTime = env->elapsedTime;
+
     // Total duration of the cycle
     float totalDuration = gameState->backgroundTransitionTimes[15];
     // If elapsed time exceeds total duration, reset it
-    if (gameState->elapsedTime >= totalDuration) {
-        gameState->elapsedTime -= totalDuration;
+    if (elapsedTime >= totalDuration) {
+        elapsedTime -= totalDuration;
+        env->elapsedTime = elapsedTime; // Reset elapsed time in env
         gameState->backgroundIndex = 0;
     }
     // Determine the current background index
     while (gameState->backgroundIndex < 15 &&
-           gameState->elapsedTime >= gameState->backgroundTransitionTimes[gameState->backgroundIndex]) {
+           elapsedTime >= gameState->backgroundTransitionTimes[gameState->backgroundIndex]) {
         gameState->backgroundIndex++;
     }
     gameState->currentBackgroundIndex = gameState->backgroundIndex % 16;
+
+    // Logging for verification
+    printf("Elapsed Time: %.2f s, Background Index: %d\n", elapsedTime, gameState->currentBackgroundIndex);
 }
 
 void renderBackground(GameState* gameState) {
@@ -1224,17 +1384,21 @@ void updateVictoryEffects(GameState* gameState) {
 }
 
 void updateMountains(GameState* gameState, Enduro* env) {
-    // Adjust the mountain position based on the road's curve direction
-    float speed = 1.0f; // Speed of mountain scrolling
+    // Mountain scrolling
+    float baseSpeed = 0.0f;
+    float curveStrength = fabsf(env->current_curve_factor);
+    float speedMultiplier = 1.0f; // Scroll speed
+    float scrollSpeed = baseSpeed + curveStrength * speedMultiplier;
+
     int mountainWidth = gameState->mountainTextures[0].width;
 
-    if (env->current_curve_direction == -1) { // Turning left
-        gameState->mountainPosition += speed;
+    if (env->current_curve_direction == 1) { // Turning left
+        gameState->mountainPosition += scrollSpeed;
         if (gameState->mountainPosition >= mountainWidth) {
             gameState->mountainPosition -= mountainWidth;
         }
-    } else if (env->current_curve_direction == 1) { // Turning right
-        gameState->mountainPosition -= speed;
+    } else if (env->current_curve_direction == -1) { // Turning right
+        gameState->mountainPosition -= scrollSpeed;
         if (gameState->mountainPosition <= -mountainWidth) {
             gameState->mountainPosition += mountainWidth;
         }
@@ -1246,30 +1410,36 @@ void renderMountains(GameState* gameState, Enduro* env) {
     Texture2D mountainTexture = gameState->mountainTextures[gameState->currentBackgroundIndex];
     if (mountainTexture.id != 0) {
         int mountainWidth = mountainTexture.width;
-        int mountainY = 45; // y pos per og env
+        int mountainY = 45; // y position per original environment
+
         // Calculate the player's offset from the center
         float playerCenterX = (PLAYER_MIN_X + PLAYER_MAX_X) / 2.0f;
         float playerOffset = env->player_x - playerCenterX;
+
         // Apply a parallax factor to make the mountains move with the player
-        float parallaxFactor = 2.0f;
+        float parallaxFactor = 0.5f; // Adjust as needed
         float adjustedOffset = -playerOffset * parallaxFactor;
-        // Base mountain X position (centered)
-        int baseMountainX = SCREEN_WIDTH / 2 - mountainWidth / 2;
-        // Adjust mountain X position
-        int mountainX = (int)(baseMountainX + adjustedOffset);
-        int mountainYPosition = mountainY; // Keep Y position consistent
-        // Draw the mountain texture once
-        DrawTexture(mountainTexture, mountainX, mountainYPosition, WHITE);
-        // Handle wrapping if necessary
-        if (mountainX > SCREEN_WIDTH) {
-            // If the mountain has moved entirely off the right edge, wrap it around to the left
-            DrawTexture(mountainTexture, mountainX - mountainWidth, mountainYPosition, WHITE);
-        } else if (mountainX + mountainWidth < 0) {
-            // If the mountain has moved entirely off the left edge, wrap it around to the right
-            DrawTexture(mountainTexture, mountainX + mountainWidth, mountainYPosition, WHITE);
+
+        // Base mountain X position including mountainPosition
+        float mountainX = -gameState->mountainPosition + adjustedOffset;
+
+        // Use BeginScissorMode to prevent mountains from rendering over the left 8-pixel black space
+        BeginScissorMode(PLAYABLE_AREA_LEFT, 0, SCREEN_WIDTH - PLAYABLE_AREA_LEFT, SCREEN_HEIGHT);
+
+        // Draw the mountain textures multiple times to cover the screen width
+        for (int x = (int)mountainX; x < SCREEN_WIDTH; x += mountainWidth) {
+            DrawTexture(mountainTexture, x, mountainY, WHITE);
         }
+        // Draw additional mountain textures to the left if necessary
+        for (int x = (int)mountainX - mountainWidth; x > -mountainWidth; x -= mountainWidth) {
+            DrawTexture(mountainTexture, x, mountainY, WHITE);
+        }
+
+        // End scissor mode
+        EndScissorMode();
     }
 }
+
 
 void render(Client* client, Enduro* env) {
     BeginDrawing();
@@ -1282,16 +1452,27 @@ void render(Client* client, Enduro* env) {
     // Update and render mountains
     updateMountains(&env->gameState, env);
     renderMountains(&env->gameState, env);
+    
+    int bgIndex = env->gameState.currentBackgroundIndex;
+    bool isNightFogStage = (bgIndex == 13);
+    bool isNightStage = (bgIndex == 12 || bgIndex == 13 || bgIndex == 14);
 
-    // Set clipping rectangle to the playable area
-    Rectangle clipRect = { PLAYABLE_AREA_LEFT, VANISHING_POINT_Y, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y };
+    // // Set clipping rectangle to the playable area
+    // Rectangle clipRect = { PLAYABLE_AREA_LEFT, VANISHING_POINT_Y, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y };
+
+    // During night fog stage, clip rendering to y >= 92
+    float clipStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
+    float clipHeight = PLAYABLE_AREA_BOTTOM - clipStartY;
+    Rectangle clipRect = { PLAYABLE_AREA_LEFT, clipStartY, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, clipHeight };
     BeginScissorMode(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
     // Render road edges w/ draw vector
+    // During night fog stage, start from y=92
+    float roadStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
     Vector2 previousLeftPoint = {0}, previousRightPoint = {0};
     bool firstPoint = true;
 
-    for (float y = VANISHING_POINT_Y; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
+    for (float y = roadStartY; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
         float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 0.75f);
         if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
 
@@ -1322,9 +1503,13 @@ void render(Client* client, Enduro* env) {
         firstPoint = false;
     }
 
-    // Render enemy cars with specified scaling stages
+    // Render enemy cars scaled stages for distance/closeness effect
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
+        
+        if (isNightFogStage && car->y < 92.0f) {
+            continue; // Don't render cars in fog
+        }
 
         // Determine the car scale based on the seven-stage progression
         float car_scale;
@@ -1338,9 +1523,20 @@ void render(Client* client, Enduro* env) {
         else car_scale = 1.0f;                                // Normal size
 
         // Select the correct texture based on the car's color and current tread
-        int colorIndex = car->colorIndex; // Use the colorIndex assigned at spawn
-        int treadIndex = env->gameState.showLeftTread ? 0 : 1;
-        Texture2D carTexture = env->gameState.enemyCarTextures[colorIndex][treadIndex];
+        // Night stages use tail light textures; 13 is night fog
+        Texture2D carTexture;
+        if (isNightStage) {
+            if (bgIndex == 13) {
+                carTexture = env->gameState.enemyCarNightFogTailLightsTexture;
+            } else {
+                carTexture = env->gameState.enemyCarNightTailLightsTexture;
+            }
+        } else {
+            // Use existing enemy car textures
+            int colorIndex = car->colorIndex;
+            int treadIndex = env->gameState.showLeftTread ? 0 : 1;
+            carTexture = env->gameState.enemyCarTextures[colorIndex][treadIndex];
+        }
 
         // Compute car x position in its lane
         float car_center_x = car_x_in_lane(env, car->lane, car->y);

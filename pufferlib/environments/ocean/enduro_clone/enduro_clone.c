@@ -1,50 +1,25 @@
-// TODO: Replicate correct green for grass
+// TODO: Replicate correct green for grass (still an issue?)
 // TODO: Vanishing point for road should terminate in single pixel, not 2
-// TODO: Collision drift doesn't work. Make it work. Finish modifying car v car crash logic.
 // TODO: Add collisions with the road edges
-// TODO: Fog mode - don't render road lines
+// TODO: Speed after crashing changes to -1.5 from -2.5
 // TODO: Reduced handling on snow
 // TODO: Ascertain exact atari enemy car spawn frequency per each day
 // TODO: Ascertain top spawn lane choice logic per atari original
+
+// TODO: Fix loss terminal logic (currently doesn't end episode)
+// TODO: Ascertain original atari scoring logic and implement (differs from reward)
 // TODO: Implement RL in pufferlib
 // TODO: Make sure it trains
 // TODO: Engineer good policy
-// TODO: Add enemy car tail lights for night (2 colors??)
-// TODO: Ascertain original atari scoring logic and implement (differs from reward)
-// TODO: Fix pile spawning when speed < 0 (enemy cars spawn on top of each other)
-// TODO: Fix loss terminal logic (currently doesn't end episode)
-// TODO: Tie vanishing point transition to speed
-
 
 // Leanke's TODOs:
 // TODO: Combine 2 fns for leanke
 // TODO: reduce line count
 
 // :CURRENT TASK:
-// AFTER drift direction logic based on furthest road edge,
-// make sure no cars spawn behind player
+// TODO: make sure no cars spawn behind player
+// TODO: Fix pile spawning when speed < 0 (enemy cars spawn on top of each other)
 
-
-// Tune player speed to match original game
-// takes about 14 seconds to fully accelerate from min speed to max speed
-// there appear to be 4 gears with timings as follows:
-// 1. 4 seconds
-// 2. 2.5 seconds
-// 3. 3.25 seconds
-// 4. 1.5 seconds
-// at max speed, enemy cars take around 0.4 seconds to travel from the
-// spawn point at the top to the bottom of the screen
-// at min speed, enemy cars take around 0.5 seconds to
-// travel from the spawn point at the top to the bottom of the screen
-// to the vanishing point at the top
-
-// OG enduro car spawning measurements:
-// at min speed:
-// night: 64 cars passed the player in 49 seconds
-// day start: 32 cars per 38 seconds
-// snow 
-// grass after snow until night: 29 cars per 37 seconds
-// after night but before new day: 13 cars per 8 seconds
 
 // enduro_clone.c
 
@@ -84,9 +59,10 @@ int main() {
         // Step the environment
         step(&env);
         // Update game state
-        updateBackground(&env.gameState); // Ensure day cycles correctly
+        // updateBackground(&env.gameState); // Updated in step()
         updateCarAnimation(&env.gameState, &env);
-        updateMountains(&env.gameState, &env);
+        // updateMountains(&env.gameState, &env);
+        // renderMountains(&env.gameState, &env);
         // Update victory effects
         updateVictoryEffects(&env.gameState);
         // Update score

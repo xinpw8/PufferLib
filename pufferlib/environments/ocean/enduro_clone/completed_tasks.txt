@@ -23,4 +23,31 @@ the effect is mirrored by the right road edge.*/
 // TODO: Smooth transitions between L, R, and straight road curving
 // TODO: Add movement of player's car towards outer edge of road on curves
 // TODO: Car v car crash logic better - drift appreciably close speed-wise and drift direction logic based on furthest road edge.
+// TODO: Average approximate 0.8777 second enemy car spawn interval added
+// TODO: Drift direction logic based on furthest road edge
+// TODO: Tie vanishing point transition to speed
+// TODO: Render enemy cars at night w/ tail lights
+// TODO: Fog on road during fog stage bg_13.png
+// TODO: Enemy cars no longer render when in fog.
+// TODO: Moved background update logic to step()
 
+// Tuned player speed to match original game
+// takes about 14 seconds to fully accelerate from min speed to max speed
+// there appear to be 4 gears with timings as follows:
+// 1. 4 seconds
+// 2. 2.5 seconds
+// 3. 3.25 seconds
+// 4. 1.5 seconds
+// at max speed, enemy cars take around 0.4 seconds to travel from the
+// spawn point at the top to the bottom of the screen
+// at min speed, enemy cars take around 0.5 seconds to
+// travel from the spawn point at the top to the bottom of the screen
+// to the vanishing point at the top
+
+// OG enduro car spawning measurements:
+// at min speed:
+// night: 64 cars passed the player in 49 seconds
+// day start: 32 cars per 38 seconds
+// snow 
+// grass after snow until night: 29 cars per 37 seconds
+// after night but before new day: 13 cars per 8 seconds
