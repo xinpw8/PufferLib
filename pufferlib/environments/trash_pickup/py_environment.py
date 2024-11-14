@@ -27,7 +27,7 @@ class PyTrashPickupEnv(ParallelEnv):
     # Metadata to describe render mode and environment name
     metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
 
-    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, do_distance_reward=True):
+    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, do_distance_reward=False):
         # Initialize environment parameters
         self.grid_size = grid_size
         self._num_agents = num_agents
@@ -82,6 +82,7 @@ class PyTrashPickupEnv(ParallelEnv):
         self.agents = self.possible_agents[:]
         self._agent_positions = {}
         self._agent_carrying = {}
+        self.rewards = {agent: 0 for agent in self.agents}
 
         # Initialize the grid
         # 0: empty, 1: trash, 2: trash bin, 3: agent
@@ -132,48 +133,47 @@ class PyTrashPickupEnv(ParallelEnv):
             new_pos_x, new_pos_y = new_pos
 
             # Validate grid boundaries for the new position
-            if not (0 <= new_pos_x < self.grid_size and 0 <= new_pos_y < self.grid_size):
-                continue
-
-            # Check cell state and update agent's position or inventory
-            this_grid_state = self.grid[new_pos]
-            if this_grid_state == GridState.EMPTY.value:
-                # Move to empty cell
-                self._move_agent_or_bin(current_pos, new_pos, False, agent_id=agent)
-            elif this_grid_state == GridState.TRASH.value and carrying == 0:
-                # Pick up trash if agent is not already carrying
-                self._agent_carrying[agent] = 1
-                self._move_agent_or_bin(current_pos, new_pos, False, agent_id=agent)
-                self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
-            elif this_grid_state == GridState.TRASH_BIN.value:
-                if carrying == 1:
-                    # Deposit trash in the bin
-                    self._agent_carrying[agent] = 0
+            if (0 <= new_pos_x < self.grid_size and 0 <= new_pos_y < self.grid_size):
+                # Check cell state and update agent's position or inventory
+                this_grid_state = self.grid[new_pos]
+                if this_grid_state == GridState.EMPTY.value:
+                    # Move to empty cell
+                    self._move_agent_or_bin(current_pos, new_pos, False, agent_id=agent)
+                elif this_grid_state == GridState.TRASH.value and carrying == 0:
+                    # Pick up trash if agent is not already carrying
+                    self._agent_carrying[agent] = 1
+                    self._move_agent_or_bin(current_pos, new_pos, False, agent_id=agent)
                     self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
-                else:
-                    # Attempt to push the bin to a new position
-                    bin_new_pos = self._get_move_pos(new_pos, action)
-                    bx, by = bin_new_pos
-                    if (0 <= bx < self.grid_size and 0 <= by < self.grid_size) and self.grid[bin_new_pos] == GridState.EMPTY.value:
-                        self._move_agent_or_bin(new_pos, bin_new_pos, True) # Move the bin to the new position
-                    # Else: Bin can't be moved; agent stays in current position
-            # Else: Invalid move or occupied cell: agent remains in place
+                elif this_grid_state == GridState.TRASH_BIN.value:
+                    if carrying == 1:
+                        # Deposit trash in the bin
+                        self._agent_carrying[agent] = 0
+                        self.add_reward(agent, self.POSITIVE_REWARD_PICKUP_OR_DROPOFF)
+                    else:
+                        # Attempt to push the bin to a new position
+                        bin_new_pos = self._get_move_pos(new_pos, action)
+                        bx, by = bin_new_pos
+                        if (0 <= bx < self.grid_size and 0 <= by < self.grid_size) and self.grid[bin_new_pos] == GridState.EMPTY.value:
+                            self._move_agent_or_bin(new_pos, bin_new_pos, True) # Move the bin to the new position
+                        # Else: Bin can't be moved; agent stays in current position
+                # Else: Invalid move or occupied cell: agent remains in place
 
-            if self.do_distance_reward:
-                self.add_reward(agent, self.get_distance_reward(agent))
+                if self.do_distance_reward:
+                    self.add_reward(agent, self.get_distance_reward(agent))
 
             # Apply step penalty to encourage efficient actions
             self.add_reward(agent, self.NEGATIVE_REWARD)
 
         # Check if the episode has ended (max steps reached or conditions met)
         if self.current_step >= self.max_steps or self.is_episode_over():
+            # print(f"Ending episode: {self.current_step >= self.max_steps} | {self.is_episode_over()}")
             dones = {agent: True for agent in self.agents}
             infos["final_info"] = {
                 "episode_reward": self.total_episode_reward, 
                 "episode_length": self.current_step,
-                "trash_remaining": np.sum(self.grid == GridState.TRASH.value),
+                "trash_collected": self.num_trash - np.sum(self.grid == GridState.TRASH.value),
                 "any_agent_carrying": all(carrying == 0 for carrying in self._agent_carrying.values()),
-            }
+        }
 
         # Update current_step count
         self.current_step += 1
@@ -185,8 +185,9 @@ class PyTrashPickupEnv(ParallelEnv):
     def render(self):
         # Initialize window if not already initialized
         if not self.window_initialized:
+            self.header_offset = 60
             window_size = self.grid_size * self.cell_size
-            pyray.init_window(window_size, window_size, "Trash Pickup Environment")
+            pyray.init_window(window_size, window_size + self.header_offset, "Trash Pickup Environment")
             self.window_initialized = True
 
             agent_image = pyray.load_image("/workspaces/PufferTank/puffertank/pufferlib/pufferlib/environments/trash_pickup/single_puffer_128.png")
@@ -213,12 +214,16 @@ class PyTrashPickupEnv(ParallelEnv):
         pyray.begin_drawing()
         pyray.clear_background(pyray.WHITE)
 
+        # Draw header with current step and total episode reward
+        header_text = f"Step: {self.current_step}\nTotal Episode Reward: {self.total_episode_reward:.2f}\nTotal Trash Collected: {self.num_trash - np.sum(self.grid == GridState.TRASH.value)}"
+        pyray.draw_text(header_text, 5, 2, 10, pyray.BLACK)  # Draw header at the top-left of the screen
+
         # Draw grid cells
         for x in range(self.grid_size):
             for y in range(self.grid_size):
                 cell_value = self.grid[x, y]
                 screen_x = x * self.cell_size
-                screen_y = y * self.cell_size
+                screen_y = (y * self.cell_size) + self.header_offset
 
                 rect = pyray.Rectangle(screen_x, screen_y, self.cell_size, self.cell_size)
 
@@ -251,6 +256,9 @@ class PyTrashPickupEnv(ParallelEnv):
                             if self._agent_carrying[agent]:
                                 pyray.draw_rectangle(int(rect.x + self.cell_size * 0.5), int(rect.y + self.cell_size * 0.5),
                                             int(self.cell_size * 0.25), int(self.cell_size * 0.25), pyray.BROWN)
+                                
+                            reward_text = f"{self.rewards[agent]:.2f}"
+                            pyray.draw_text(reward_text, int(screen_x + self.cell_size * 0.25), int(screen_y + self.cell_size * 0.25), 8, pyray.ORANGE)
 
 
         pyray.end_drawing()
@@ -347,11 +355,36 @@ class PyTrashPickupEnv(ParallelEnv):
     def _get_observations(self):
         # Provide observations for each agent
         observations = {}
+        trash_positions = []
+        
+        # Prepare trash positions with presence indicator
+        for pos in self._trash_positions:
+            if self.grid[pos] == GridState.TRASH.value:
+                trash_positions.append([pos[0], pos[1], 1])  # x, y, present
+            else:
+                trash_positions.append([-1, -1, -1])  # not present
+
+        # Static bin positions
+        bin_positions = np.array([[pos[0], pos[1]] for pos in self._bin_positions], dtype=np.int32)
+
         for agent in self.agents:
+            # Get other agents' positions and carrying status
+            other_agents_positions = []
+            other_agents_carrying = []
+
+            for other_agent in self.agents:
+                if other_agent != agent:
+                    other_agents_positions.append(self._agent_positions[other_agent])
+                    other_agents_carrying.append(self._agent_carrying[other_agent])
+
             obs = {
                 'agent_position': np.array(self._agent_positions[agent], dtype=np.int32),
                 'carrying_trash': np.array(self._agent_carrying[agent], dtype=np.int32),
-                'grid': self.grid.copy()
+                'other_agent_positions': # todo
+                'other_agent_carrying_trash': # todo
+                'bin_positions' : # todo
+                'trash_positions': # todo (include an extra dimension to mark whether it is present or not present, if not present, return x, y as -1)
+                'grid': self.grid.copy() # todo, get rid of
             }
             observations[agent] = obs
         return observations

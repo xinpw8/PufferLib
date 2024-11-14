@@ -42,29 +42,29 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    run_mode: str = "train"
+    run_mode: str = "video"
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
     model_save_dir: str = '/workspaces/PufferTank/puffertank/pufferlib/examples/trash_pickup_saves'
     """Path to save the model to this directory"""
-    model_save_filename: str = "trash_pickup_model_no_cnn"
+    model_save_filename: str = "trash_pickup_model_with_cnn"
     """Filename to save the model as (file extension is automatically added, do NOT include it)"""
-    model_load_path: str = None # 'examples/trash_pickup_saves/trash_pickup_model_with_distance_reward_iter_1861.pt'
+    model_load_path: str = 'examples/trash_pickup_saves/trash_pickup_model_with_cnn_iter_405.pt'
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
-    model_save_interval: float = 1
+    model_save_interval: float = 3
     """How (roughly) often to save the model in minutes"""
-    num_eval_episodes: int = 10
-    """Number of evaluation episodes to run (only for run_mode == 'evaluate')"""
+    num_eval_video_episodes: int = 3
+    """Number of evaluation or video episodes to run (only for run_mode == 'evaluate' or 'video')"""
 
     # PPO algorithm-specific hyperparameters like learning rate, number of timesteps, etc.
     env_id: str = "TrashPickup"
     """the id of the environment"""
-    total_timesteps: int = 250_000_000
+    total_timesteps: int = 75_000_000
     """total timesteps of the experiments"""
-    learning_rate: float = 1e-3
+    learning_rate: float = 5.5e-4
     """the learning rate of the optimizer"""
     num_envs: int = 16
     """the number of parallel game environments"""
-    num_steps: int = 4096
+    num_steps: int = 2048
     """the number of steps to run in each environment per policy rollout"""
     anneal_lr: bool = True
     """Toggle learning rate annealing for policy and value networks"""
@@ -82,7 +82,7 @@ class Args:
     """the surrogate clipping coefficient"""
     clip_vloss: bool = True
     """Toggles whether or not to use a clipped loss for the value function, as per the paper."""
-    ent_coef: float = 0.005
+    ent_coef: float = 0.01
     """coefficient of the entropy"""
     vf_coef: float = 0.5
     """coefficient of the value function"""
@@ -90,6 +90,8 @@ class Args:
     """the maximum norm for the gradient clipping"""
     target_kl: float = None
     """the target KL divergence threshold"""
+    ent_coef_decay: bool = True
+    """Decays the entropy coefficient (ent_coef) from its starting value to 0 by the end of training"""
 
     # Environment-specific parameters, such as grid size, agent count, and max steps per episode
     num_agents: int = 3
@@ -118,34 +120,48 @@ class Agent(nn.Module):
         super().__init__()
         self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
 
-        # def get_conv_output_size(input_shape):
-        #     """Helper function to calculate the flattened size of output from convolution layers.
-        #     This size will be used as the input for the linear layer following the convolutional layers."""
-        #     dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
-        #     output = self.conv3(self.conv2(self.conv1(dummy_input)))  # Pass through conv layers
-        #     return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
+        def get_conv_output_size(input_shape):
+            """Helper function to calculate the flattened size of output from convolution layers.
+            This size will be used as the input for the linear layer following the convolutional layers."""
+            dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
+            output = self.conv3(self.conv2(self.conv1(dummy_input)))  # Pass through conv layers
+            return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
         
-        # # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
-        # input_channels = 4
+        # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
+        input_channels = 4
         
-        # # Define the convolutional layers
-        # self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
-        # self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
-        # self.conv3 = layer_init(nn.Conv2d(64, 32, 3, stride=1))
+        # Define the convolutional layers
+        self.conv1 = layer_init(nn.Conv2d(input_channels, 512, 3, stride=1, padding=1))
+        self.conv2 = layer_init(nn.Conv2d(512, 1024, 3, stride=1, padding=1))
+        self.conv3 = layer_init(nn.Conv2d(1024, 128, 3, stride=1, padding=1))
 
-        # # Compute the output size of the convolutional layers dynamically
-        # conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
+        # Compute the output size of the convolutional layers dynamically
+        conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
 
         # Sequential grid network including the calculated linear layer
-        # Define the fully connected layers for the flattened grid
         self.grid_net = nn.Sequential(
-            layer_init(nn.Linear(4 * args.grid_size * args.grid_size, 256)),  # 4 channels * grid size
+            self.conv1,
             nn.ReLU(),
-            layer_init(nn.Linear(256, 64)),
+            self.conv2,
             nn.ReLU(),
-            layer_init(nn.Linear(64, 16)),
-            nn.ReLU()
+            self.conv3,
+            nn.ReLU(),
+            nn.Flatten(),
+            layer_init(nn.Linear(conv_output_size, 16)),
+            nn.ReLU(),
         )
+
+        # No CNN method here
+        # Sequential grid network including the calculated linear layer
+        # Define the fully connected layers for the flattened grid
+        # self.grid_net = nn.Sequential(
+        #     layer_init(nn.Linear(4 * args.grid_size * args.grid_size, 64)),  # 4 channels * grid size
+        #     nn.ReLU(),
+        #     layer_init(nn.Linear(64, 32)),
+        #     nn.ReLU(),
+        #     layer_init(nn.Linear(32, 16)),
+        #     nn.ReLU()
+        # )
 
         # Linear layers for agent position and carrying status
         self.position_net = nn.Sequential(
@@ -183,19 +199,19 @@ class Agent(nn.Module):
 
     def preprocess_grid(self, grid):
         # Separate grid into 4 channels for empty space, trash, bin, and agent
-        # empty_space = (grid == 0).float()
-        # trash = (grid == 1).float()
-        # trash_bin = (grid == 2).float()
-        # agent = (grid == 3).float()
+        empty_space = (grid == 0).float()
+        trash = (grid == 1).float()
+        trash_bin = (grid == 2).float()
+        agent = (grid == 3).float()
         
-        # # Stack channels to create a (4, H, W) tensor
-        # ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
-        # return ret
+        # Stack channels to create a (4, H, W) tensor
+        ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
+        return ret
 
-        # One-hot encode each cell in the grid to a (grid_size, grid_size, 4) tensor
-        one_hot_grid = torch.nn.functional.one_hot(grid.long(), num_classes=4).float()
-        # Reshape to (batch_size, 4 * grid_size * grid_size) for fully connected layers
-        return one_hot_grid.view(-1, 4 * args.grid_size * args.grid_size)
+        # # One-hot encode each cell in the grid to a (grid_size, grid_size, 4) tensor
+        # one_hot_grid = torch.nn.functional.one_hot(grid.long(), num_classes=4).float()
+        # # Reshape to (batch_size, 4 * grid_size * grid_size) for fully connected layers
+        # return one_hot_grid.view(-1, 4 * args.grid_size * args.grid_size)
 
     def hidden(self, x):
         x = x.type(torch.uint8)  # Undo bad cleanrl cast
@@ -324,7 +340,7 @@ if __name__ == "__main__":
 
     if args.run_mode == "train":
         # Training mode: initialize optimizer and training variables
-        optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
+        optimizer = optim.AdamW(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
         # Start training loop
         global_step = 0
@@ -335,6 +351,10 @@ if __name__ == "__main__":
         # Initialize list to keep track of saved models (keeping only the latest 3 models)
         saved_models = []
         last_save_time = time.time()
+
+        if args.ent_coef_decay:
+            original_ent_coef = args.ent_coef
+            current_ent_coef = args.ent_coef
 
         # Begin training iteration loop
         for iteration in tqdm(range(1, num_iterations + 1)):
@@ -369,12 +389,12 @@ if __name__ == "__main__":
 
                 episode_reward_list = []
                 episode_length_list = []
-                trash_remaining_list = []
+                trash_collected_list = []
                 for info in infos:               
                     if "final_info" in info:
                         episode_reward_list.append(info["final_info"]["episode_reward"])
                         episode_length_list.append(info["final_info"]["episode_length"])
-                        trash_remaining_list.append(info["final_info"]["trash_remaining"])
+                        trash_collected_list.append(info["final_info"]["trash_collected"])
 
                 if len(episode_reward_list) > 0:
                     writer.add_scalar("charts/episodic_reward", np.mean(episode_reward_list), global_step)
@@ -382,8 +402,8 @@ if __name__ == "__main__":
                 if len(episode_length_list) > 0:
                     writer.add_scalar("charts/episodic_length", np.mean(episode_length_list), global_step)
 
-                if len(trash_remaining_list) > 0:
-                    writer.add_scalar("charts/total_trash_remaining", np.mean(trash_remaining_list), global_step)
+                if len(trash_collected_list) > 0:
+                    writer.add_scalar("charts/total_trash_collected", np.mean(trash_collected_list), global_step)
 
 
             # bootstrap value if not done
@@ -456,7 +476,10 @@ if __name__ == "__main__":
                         v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
                     entropy_loss = entropy.mean()
-                    loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef
+                    if not args.ent_coef_decay:
+                        loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef
+                    else:
+                        loss = pg_loss - current_ent_coef * entropy_loss + v_loss * args.vf_coef
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -470,11 +493,18 @@ if __name__ == "__main__":
             var_y = np.var(y_true)
             explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
+            if args.ent_coef_decay:
+                current_ent_coef -= original_ent_coef / num_iterations
+
             # TRY NOT TO MODIFY: record rewards for plotting purposes
             writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], global_step)
             writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
             writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
             writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
+            if args.ent_coef_decay:
+                writer.add_scalar("losses/entropy_coef", current_ent_coef, global_step)
+            else:
+                writer.add_scalar("losses/entropy_coef", args.ent_coef, global_step)
             writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
             writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
             writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
@@ -506,7 +536,7 @@ if __name__ == "__main__":
         print("Evaluating loaded model")
 
         # Track results across episodes for final metrics
-        episode_reward_list, episode_length_list, trash_remaining_list = [], [], []
+        episode_reward_list, episode_length_list, trash_collected_list = [], [], []
 
         # Run the environment for the specified number of evaluation episodes
         for episode in tqdm(range(args.num_eval_episodes), desc='Evaluating Episodes...'):
@@ -526,12 +556,12 @@ if __name__ == "__main__":
                     if "final_info" in info:
                         episode_reward_list.append(info["final_info"]["episode_reward"])
                         episode_length_list.append(info["final_info"]["episode_length"])
-                        trash_remaining_list.append(info["final_info"]["trash_remaining"])
+                        trash_collected_list.append(info["final_info"]["trash_remaining"])
 
         # Summarize evaluation results
         print(f"Average Episode Reward: {np.mean(episode_reward_list)}")
         print(f"Average Episode Length: {np.mean(episode_length_list)}")
-        print(f"Average Trash Remaining: {np.mean(trash_remaining_list)}")
+        print(f"Average Trash Remaining: {np.mean(trash_collected_list)}")
 
     elif args.run_mode == "video":
         print("Generating video for loaded model")
@@ -550,40 +580,39 @@ if __name__ == "__main__":
             backend=pufferlib.vector.Multiprocessing
         )
 
-        agent = torch.load(model_path, map_location=device)
+        agent_model = torch.load(model_path, map_location=device)
 
         driver = env.driver_env
-        driver.reset()
-        ob, info = env.reset()
-        
+    
         os.system('clear')
         state = None
 
         frames = []
-        while True:
-            render = driver.render()
-            frames.append(render)
+        for episode in range(args.num_eval_video_episodes):
+            driver.reset()
+            ob, info = driver.reset()
+            while True:
+                render = driver.render()
+                frames.append(render)
 
-            with torch.no_grad():
-                ob = torch.as_tensor(ob).to(device)
-                if hasattr(agent, 'lstm'):
-                    action, _, _, _, state = agent(ob, state)
-                else:
-                    action, _, _, _ = agent(ob)
+                with torch.no_grad():
+                    agent_observations = [torch.as_tensor(ob[agent_id]).to(device).unsqueeze(0) for agent_id in ob.keys()]
+                    ob_convert = torch.cat(agent_observations, dim=0)  # Batch dimension for all agents
 
-                action = action.cpu().numpy().reshape(env.action_space.shape)
 
-            ob, _, dones, _, _ = env.step(action)
-            driver.step(action)
+                    # Get actions for each agent in batch
+                    actions, _, _, _ = agent_model.get_action_and_value(ob_convert)
+                    
+                    # Convert actions back to numpy and reshape for each agent
+                    actions = actions.cpu().numpy()
+                    action_dict = {f"agent_{i}": actions[i] for i in range(num_agents)}
 
-            any_done = False
-            for done in dones:
-                if done:
-                    any_done = True
+                # ob, _, dones, _, infos = env.step(action)
+                ob, _, dones, _, infos = driver.step(action_dict)
+                
+                if dones['agent_0']: # all dones
+                    # print(f"Episode [{episode}]: {infos}")
                     break
-            
-            if any_done:
-                break
 
         # Save frames as gif
         print("Frames collected, creating video...")
@@ -591,37 +620,9 @@ if __name__ == "__main__":
         import imageio
         imageio.mimsave('examples/trash_pickup_vid.gif', frames, fps=3, loop=0)
 
-        # import imageio
-        # import raylibpy as pyray  # Library for rendering the environment
-
-        # # Video recording loop
-        # obs, _ = envs.reset()
-        # frames = []
-        # done = False
-        # while not done:
-        #     with torch.no_grad():
-        #         action, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
-        #     obs, _, terminations, truncations, _ = envs.step(action.cpu().numpy())
-
-        #     # Render the environment
-        #     envs.driver_env.render()  # Render the frame
-
-        #     pyray.take_screenshot("temp_frame.png")  # Save the screenshot to a temporary file
-        #     frame = imageio.imread("temp_frame.png")
-        #     frames.append(frame)
-
-        #     done = terminations.any() or truncations.any()
-        
-        # # Save frames to video
-        # video_path = 'trash_pickup_run.mp4'
-        # imageio.mimsave(video_path, frames, fps=30)         
-        # print(f"Video saved to {video_path}")
-
         # # NOTE: If you get this error - TypeError: write_frames() got an unexpected keyword argument 'audio_path'
         # # Try the following command and then rerun: pip install --upgrade imageio imageio-ffmpeg
 
-        # # Delete the temporary file
-        # os.remove("temp_frame.png")
     else:
         print(f"Unhandled run_mode of: {args.run_mode}")
 
