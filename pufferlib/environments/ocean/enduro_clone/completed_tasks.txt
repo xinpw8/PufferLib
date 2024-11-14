@@ -51,3 +51,13 @@ the effect is mirrored by the right road edge.*/
 // snow 
 // grass after snow until night: 29 cars per 37 seconds
 // after night but before new day: 13 cars per 8 seconds
+
+// TODO: Ascertain exact atari enemy car spawn frequency per each day at speed: Day 1: 90 cars/min (0 crashes); Day 2: 166 cars/min (1 crash); Day 3: 111 cars/min (2 crashes)
+// TODO: Ascertain top spawn lane choice logic per atari original
+// TODO: Victory terminal logic after day 1 - reset cars to pass to 300
+// TODO: make sure no cars spawn behind player in same lane as player
+// TODO: Fix pile spawning when speed < 0 (enemy cars spawn on top of each other) and otherwise bunch up
+// TODO: Disable collisions if crash_noop_duration is active, and for 1 second or so afterwards.
+// TODO: Fix loss terminal logic (currently doesn't end episode)
+// TODO: Combine 2 fns for leanke (did this forever ago)
+// TODO: reduce line count (will be done at end)
