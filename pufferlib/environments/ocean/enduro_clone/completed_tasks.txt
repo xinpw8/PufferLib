@@ -1,13 +1,6 @@
 11/4/24
 // TODO: Improve road wiggle effect
 // TODO: Ascertain road wiggle effect logic from original
-    // at min speed, q 5 seconds
-    // at max speed, q 0.3 seconds
-    /*road wiggle effect: the effect occurs at the same time in the left and right sides of the road. it occurs, at minimum speed, every 5 seconds. at max speed, every 0.3 seconds. the effect starts at the vanishing point where the two sides of the road meet, and propagates towards the bottom of the screen. 
-normal side of road left (37, 154, 153) (38, 152, 151) (39, 150, 149) (40, 148, 147), (41, 146, 145), (42, 144, 143), (43, 142, 141)
-'bump-in wiggle effect' begins (44, 140), (45, 139), (46, 138), at (47, 138), there is no road pixel. it is just the background color. (48, 137), (49, 136), (50, 135, 134), (51, 133, 132), (52, 131, 130), (53, 129, 128), (54, 127, 126), (55, 125, 124), (56, 123, 122), (57, 121, 120, 119), (56, 118, 117, 116, 115). 
-normal side of road left continues (57, 114, 113), (58, 112, 111), etc.
-the effect is mirrored by the right road edge.*/
 // TODO: Add road bump-out effect
 // TODO: Road vanishing point moves based on where player car is on road
 // TODO: Add scenery
@@ -30,28 +23,7 @@ the effect is mirrored by the right road edge.*/
 // TODO: Fog on road during fog stage bg_13.png
 // TODO: Enemy cars no longer render when in fog.
 // TODO: Moved background update logic to step()
-
-// Tuned player speed to match original game
-// takes about 14 seconds to fully accelerate from min speed to max speed
-// there appear to be 4 gears with timings as follows:
-// 1. 4 seconds
-// 2. 2.5 seconds
-// 3. 3.25 seconds
-// 4. 1.5 seconds
-// at max speed, enemy cars take around 0.4 seconds to travel from the
-// spawn point at the top to the bottom of the screen
-// at min speed, enemy cars take around 0.5 seconds to
-// travel from the spawn point at the top to the bottom of the screen
-// to the vanishing point at the top
-
-// OG enduro car spawning measurements:
-// at min speed:
-// night: 64 cars passed the player in 49 seconds
-// day start: 32 cars per 38 seconds
-// snow 
-// grass after snow until night: 29 cars per 37 seconds
-// after night but before new day: 13 cars per 8 seconds
-
+11/14/24
 // TODO: Ascertain exact atari enemy car spawn frequency per each day at speed: Day 1: 90 cars/min (0 crashes); Day 2: 166 cars/min (1 crash); Day 3: 111 cars/min (2 crashes)
 // TODO: Ascertain top spawn lane choice logic per atari original
 // TODO: Victory terminal logic after day 1 - reset cars to pass to 300
@@ -61,3 +33,7 @@ the effect is mirrored by the right road edge.*/
 // TODO: Fix loss terminal logic (currently doesn't end episode)
 // TODO: Combine 2 fns for leanke (did this forever ago)
 // TODO: reduce line count (will be done at end)
+// TODO: Check player speed. Seems like it suddenly speeds up arbitrarily
+// TODO: Enemies are still getting squished together, ending up too close by player
+// TODO: Speed after crashing changes to -1.5 from -2.5
+// TODO: Reduced handling on snow

@@ -41,10 +41,11 @@
 #define INITIAL_PLAYER_X  86.0f // ((PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT)/2 + CAR_WIDTH/2)
 #define PLAYER_MAX_Y (ACTION_HEIGHT - CAR_HEIGHT) // Max y is car length from bottom
 #define PLAYER_MIN_Y (ACTION_HEIGHT - CAR_HEIGHT - 9) // Min y is 2 car lengths from bottom
-#define ACCELERATION_RATE 0.05f
+#define ACCELERATION_RATE 0.2f // 0.05f
 #define DECELERATION_RATE 0.1f
 #define MIN_SPEED -2.5f
-#define MAX_SPEED 4.5f // 2.5f
+#define MAX_SPEED 7.5f // 5.5f
+#define ENEMY_CAR_SPEED 0.1f 
 // Curve constants
 #define CURVE_STRAIGHT 0
 #define CURVE_LEFT -1
@@ -217,6 +218,8 @@ typedef struct Enduro {
     // Logging
     float last_road_left;
     float last_road_right;
+    int closest_edge_lane;
+    int last_spawned_lane;
     float totalAccelerationTime; // Debug accel
 
     // Mountain rendering
@@ -346,6 +349,8 @@ void init(Enduro* env) {
     env->currentStage = GAME_STAGE_DAY_START;
     env->enemySpawnTimer = 0.0f;
     env->enemySpawnInterval = 0.8777f; // Spawn interval in seconds
+    env->last_spawned_lane = -1; // Null init
+    env->closest_edge_lane = -1; // Null init
 
     // Logging
     env->totalAccelerationTime = 0.0f; // Debug accel
@@ -384,7 +389,7 @@ void init(Enduro* env) {
     env->gameState.victoryAchieved = false;
 
     // Player car acceleration
-        env->currentGear = 0;
+    env->currentGear = 0;
     env->gearElapsedTime = 0.0f;
 
     // Define gear timings
@@ -499,7 +504,6 @@ void reset(Enduro* env) {
     printf("Game reset for day %d with %d cars to pass.\n", env->day, env->carsToPass);
 }
 
-
 bool check_collision(Enduro* env, Car* car) {
     // Compute the scale factor based on vanishing point reference
     float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
@@ -528,90 +532,85 @@ int get_player_lane(Enduro* env) {
         // printf("Player lane: %d\n", lane);
     if (env->lane < 0) env->lane = 0;
     if (env->lane > 2) env->lane = 2;
-
     return env->lane;
 }
 
 int calculate_which_half_of_lane(Enduro* env) {
-    // Player in the middle lane, choose based on player’s half
+    // If player in middle lane, compute closest edge lane
     int lane = 1;
     float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
     float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
                             road_edge_x(env, env->player_y, 0, false)) / 2.0f;
     if (player_center_x < road_center_x) {
-        lane = 2;
-    } else {
         lane = 0;
+    } else {
+        lane = 2;
     }
     return lane;
 }
 
+float get_car_scale(float y) {
+    float depth = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+    return fmaxf(0.1f, 0.9f * depth);
+}
+
 void add_enemy_car(Enduro* env) {
     if (env->numEnemies >= MAX_ENEMIES) return;
-
     int player_lane = get_player_lane(env);
-    int lane_to_avoid = player_lane;
     int drift_lane = -1;
-
     // Determine the lane the player will be in due to drift during collision cooldown
     if (env->collision_cooldown > 0) {
-        if (env->drift_direction == -1) {
-            // Player is drifting left
-            if (player_lane > 0) drift_lane = player_lane - 1;
-        } else if (env->drift_direction == 1) {
-            // Player is drifting right
-            if (player_lane < NUM_LANES - 1) drift_lane = player_lane + 1;
+        if (env->drift_direction == -1 && player_lane > 0) {
+            drift_lane = player_lane - 1; // Drifting left
+        } else if (env->drift_direction == 1 && player_lane < NUM_LANES - 1) {
+            drift_lane = player_lane + 1; // Drifting right
         }
     }
-
     int possible_lanes[NUM_LANES];
     int num_possible_lanes = 0;
-
-    if (env->speed < 0) {
-        // Player is moving backward
-        // Enemy cars should never spawn in the middle lane
+    if (env->speed <= 0) {
+        // Enemies pass player car, spawning from behind player
+        // No spawning in player lane nor middle lane
+        // Only spawn in lane furthest from player
+        if (player_lane == 1) {
+            env->closest_edge_lane = calculate_which_half_of_lane(env);
+        } else {
+            env->closest_edge_lane = player_lane;
+        }
         for (int i = 0; i < NUM_LANES; i++) {
-            if (i != 1 && i != lane_to_avoid && i != drift_lane) {
+            if (i != 1 && i != player_lane && i != drift_lane && i != env->closest_edge_lane) {
                 possible_lanes[num_possible_lanes++] = i;
             }
         }
     } else {
-        // Player is moving forward
+        // Enemies are passed by player car, spawning from ahead of player
         for (int i = 0; i < NUM_LANES; i++) {
-            if (i != drift_lane) {
                 possible_lanes[num_possible_lanes++] = i;
-            }
         }
     }
-
-    // If no possible lanes, do not spawn a car (rare)
     if (num_possible_lanes == 0) {
-        return;
+        return; // Rare
     }
-
-    // Randomly select a lane from possible_lanes
-    int random_index = rand() % num_possible_lanes;
-    int lane = possible_lanes[random_index];
-
-    // Configure enemy car properties
+    // Randomly select a lane
+    int lane = possible_lanes[rand() % num_possible_lanes];
+    // Preferentially spawn in the last_spawned_lane 30% of the time
+    if (rand() % 100 < 60 && env->last_spawned_lane != -1) {
+        lane = env->last_spawned_lane;
+    }
+    env->last_spawned_lane = lane;
+    // Initialize the car
     Car car = { .lane = lane, .passed = false, .colorIndex = rand() % 6 };
-    if (env->speed > 0) {
-        // Spawn cars slightly below the vanishing point when moving forward
-        car.y = VANISHING_POINT_Y + 10.0f;
-    } else {
-        // Spawn cars off-screen at the bottom when moving backward
-        car.y = PLAYABLE_AREA_BOTTOM + CAR_HEIGHT;
-    }
-
+    car.y = (env->speed > 0) ? VANISHING_POINT_Y + 10.0f : PLAYABLE_AREA_BOTTOM + CAR_HEIGHT;
     // Ensure minimum spacing between cars in the same lane
     float depth = (car.y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    float scale = fmax(0.1f, 0.9f * depth);
+    float scale = fmax(0.1f, 0.9f * depth + 0.1f);
     float scaled_car_length = CAR_HEIGHT * scale;
-    float min_spacing = 3.0f * scaled_car_length;
-
+    // Randomize min spacing between 1.0f and 6.0f car lengths
+    float dynamic_spacing_factor = rand() % 6 + 0.5f;
+    float min_spacing = dynamic_spacing_factor * scaled_car_length;
     for (int i = 0; i < env->numEnemies; i++) {
         Car* existing_car = &env->enemyCars[i];
-        if (existing_car->lane == lane) {
+        if (existing_car->lane == car.lane) {
             float y_distance = fabs(existing_car->y - car.y);
             if (y_distance < min_spacing) {
                 // Too close, do not spawn this car
@@ -620,14 +619,10 @@ void add_enemy_car(Enduro* env) {
             }
         }
     }
-
     // Ensure not occupying all lanes within vertical range
     float min_vertical_range = 6.0f * CAR_HEIGHT; // 6 car lengths
-
-    // Count number of lanes occupied within min_vertical_range of car.y
     int lanes_occupied = 0;
     bool lane_occupied[NUM_LANES] = { false };
-
     for (int i = 0; i < env->numEnemies; i++) {
         Car* existing_car = &env->enemyCars[i];
         float y_distance = fabs(existing_car->y - car.y);
@@ -635,21 +630,14 @@ void add_enemy_car(Enduro* env) {
             lane_occupied[existing_car->lane] = true;
         }
     }
-
-    // Count occupied lanes
     for (int i = 0; i < NUM_LANES; i++) {
-        if (lane_occupied[i]) {
-            lanes_occupied++;
-        }
+        if (lane_occupied[i]) lanes_occupied++;
     }
-
     if (lanes_occupied >= NUM_LANES - 1 && !lane_occupied[lane]) {
-        // Do not spawn if this car would cause all lanes to be occupied within the vertical range
         printf("Not spawning car because it would occupy all lanes within vertical range.\n");
         return;
     }
-
-    // Add the enemy car to the environment
+    // Spawn enemy car
     env->enemyCars[env->numEnemies++] = car;
 }
 
@@ -658,6 +646,35 @@ void update_vanishing_point(Enduro* env, float offset) {
     env->vanishing_point_x = env->base_vanishing_point_x + offset;
     printf("Vanishing point updated to %.2f\n", env->vanishing_point_x);
 }
+
+void accelerate(Enduro* env) {
+                    // Accelerate based on current gear
+                if (env->speed < env->max_speed) {
+                    // Update gear if necessary
+                    if (env->speed >= env->gearSpeedThresholds[env->currentGear] && env->currentGear < 3) {
+                        env->currentGear++;
+                        env->gearElapsedTime = 0.0f;
+                        // printf("Gear shifted up to %d at time %.2f seconds\n", env->currentGear + 1, env->totalAccelerationTime);
+                    }
+
+                    // Accelerate quickly out of 1st gear
+                    if (env->currentGear == 0) {
+                        env->speed += env->gearAccelerationRates[env->currentGear] * 4.0f;
+                    } else {
+                    // Accelerate
+                    env->speed += env->gearAccelerationRates[env->currentGear] * 2.0f;
+                    if (env->speed > env->gearSpeedThresholds[env->currentGear]) {
+                        env->speed = env->gearSpeedThresholds[env->currentGear];
+                    }
+                    }
+                    // Log speed and gear
+                    // printf("Time: %.2f s, Speed: %.2f, Gear: %d\n", env->totalAccelerationTime, env->speed, env->currentGear + 1);
+
+                    // Update total acceleration time
+                    env->totalAccelerationTime += (1.0f / TARGET_FPS);
+                }
+}
+
 
 void step(Enduro* env) {
     env->elapsedTime += (1.0f / TARGET_FPS); // Increment elapsed time by frame duration
@@ -668,12 +685,24 @@ void step(Enduro* env) {
     env->terminals[0] = 0;
     env->road_scroll_offset += env->speed;
 
-    // Update enemy cars positions
+    // Update enemy car positions
     env->elapsedStageTime += (1.0f / TARGET_FPS); // Time elapsed in stage
+
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
-        car->y += 0.5 * env->speed;
+
+        // Compute movement speed adjusted for scaling
+        float scale = get_car_scale(car->y);
+        float movement_speed = env->speed * scale * 0.75f;
+
+        // Update car position
+        car->y += movement_speed;
     }
+
+    // for (int i = 0; i < env->numEnemies; i++) {
+    //     Car* car = &env->enemyCars[i];
+    //     car->y += 0.35 * env->speed;
+    // }
 
     // Calculate road edges
     float road_left = road_edge_x(env, env->player_y, 0, true);
@@ -681,6 +710,13 @@ void step(Enduro* env) {
     env->last_road_left = road_left;
     env->last_road_right = road_right;
 
+    // Reduced handling on snow
+    bool isSnowStage = (env->gameState.currentBackgroundIndex == 3);
+    float movement_amount = 0.5f; // Default
+    if (isSnowStage) {
+        movement_amount = 0.3f; // Snow
+    }
+    
     // Player movement logic
     if (env->collision_cooldown <= 0) {
         int act = env->actions;
@@ -688,32 +724,14 @@ void step(Enduro* env) {
             case ACTION_NOOP:
                 break;
             case ACTION_FIRE:
-                // Accelerate based on current gear
-                if (env->speed < env->max_speed) {
-                    // Update gear if necessary
-                    if (env->speed >= env->gearSpeedThresholds[env->currentGear] && env->currentGear < 3) {
-                        env->currentGear++;
-                        env->gearElapsedTime = 0.0f;
-                        // printf("Gear shifted up to %d at time %.2f seconds\n", env->currentGear + 1, env->totalAccelerationTime);
-                    }
-                    // Accelerate
-                    env->speed += env->gearAccelerationRates[env->currentGear];
-                    if (env->speed > env->gearSpeedThresholds[env->currentGear]) {
-                        env->speed = env->gearSpeedThresholds[env->currentGear];
-                    }
-                    // Log speed and gear
-                    // printf("Time: %.2f s, Speed: %.2f, Gear: %d\n", env->totalAccelerationTime, env->speed, env->currentGear + 1);
-
-                    // Update total acceleration time
-                    env->totalAccelerationTime += (1.0f / TARGET_FPS);
-                }
+                accelerate(env);
                 break;
             case ACTION_RIGHT:
-                env->player_x += 0.5f;
+                env->player_x += movement_amount;
                 if (env->player_x > road_right) env->player_x = road_right;
                 break;
             case ACTION_LEFT:
-                env->player_x -= 0.5f;
+                env->player_x -= movement_amount;
                 if (env->player_x < road_left) env->player_x = road_left;
                 break;
             case ACTION_DOWN:
@@ -721,22 +739,24 @@ void step(Enduro* env) {
                 break;
             case ACTION_DOWNRIGHT:
                 if (env->speed > env->min_speed) env->speed -= DECELERATION_RATE;
-                env->player_x += 0.5f;
+                env->player_x += movement_amount;
                 if (env->player_x > road_right) env->player_x = road_right;
                 break;
             case ACTION_DOWNLEFT:
                 if (env->speed > env->min_speed) env->speed -= DECELERATION_RATE;
-                env->player_x -= 0.5f;
+                env->player_x -= movement_amount;
                 if (env->player_x < road_left) env->player_x = road_left;
                 break;
             case ACTION_RIGHTFIRE:
-                if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
-                env->player_x += 0.5f;
+                // if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
+                accelerate(env);
+                env->player_x += movement_amount;
                 if (env->player_x > road_right) env->player_x = road_right;
                 break;
             case ACTION_LEFTFIRE:
-                if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
-                env->player_x -= 0.5f;
+                // if (env->speed < env->max_speed) env->speed += ACCELERATION_RATE;
+                accelerate(env);
+                env->player_x -= movement_amount;
                 if (env->player_x < road_left) env->player_x = road_left;
                 break;
         }
@@ -752,6 +772,18 @@ void step(Enduro* env) {
     // Drift left if on right, right if on left
     if (env->drift_direction == 0) { // drift_direction is 0 when noop starts
         env->drift_direction = (env->player_x > (road_left + road_right) / 2) ? -1 : 1;
+        // Remove enemy cars in middle lane and lane player is drifting towards
+        // only if they are behind the player (y > player_y)
+        for (int i = 0; i < env->numEnemies; i++) {
+            Car* car = &env->enemyCars[i];
+            if ((car->lane == 1 || car->lane == env->lane + env->drift_direction) && (car->y > env->player_y)) {
+                for (int j = i; j < env->numEnemies - 1; j++) {
+                    env->enemyCars[j] = env->enemyCars[j + 1];
+                }
+                env->numEnemies--;
+                i--;
+            }
+        }
     }
     env->player_x += env->drift_direction * 0.25f;
     }
@@ -833,7 +865,7 @@ void step(Enduro* env) {
         // Check for and handle collisions between player and enemy cars
         if (env->collision_cooldown <= 0 && env->collision_invulnerability_timer <= 0) {
             if (check_collision(env, car)) {
-                env->speed = env->min_speed = 1 + MIN_SPEED;
+                env->speed = 1 + MIN_SPEED;
                 env->collision_cooldown = CRASH_NOOP_DURATION;
                 env->drift_direction = 0; // Reset drift direction
             }
@@ -892,7 +924,6 @@ void step(Enduro* env) {
     // Interpolate between min and max spawn intervals
     env->enemySpawnInterval = min_spawn_interval - speed_factor * (min_spawn_interval - max_spawn_interval);
 
-
     // Update enemy spawn timer
     env->enemySpawnTimer += (1.0f / TARGET_FPS);
     if (env->enemySpawnTimer >= env->enemySpawnInterval) {
@@ -938,6 +969,14 @@ void step(Enduro* env) {
     env->log.episode_return += env->rewards[0];
     env->step_count++;
     env->log.score = env->score;
+
+    // Print positions of every enemy car
+    printf("Positions for all enemy cars: ");
+    for (int i = 0; i < env->numEnemies; i++) {
+        printf("Enemy %d: y = %f ", i, env->enemyCars[i].y);
+    }
+    printf("\n");
+
 }
 
 // When to curve road and how to curve it, including dense smooth transitions
@@ -1184,20 +1223,20 @@ void loadTextures(GameState* gameState) {
 gameState->backgroundTransitionTimes[0] = 2.0f;   // Transition to background 1 at 2 seconds
 gameState->backgroundTransitionTimes[1] = 3.0f;   // Transition to background 2 at 4 seconds
 gameState->backgroundTransitionTimes[2] = 4.0f;   // Transition to background 3 at 6 seconds
-gameState->backgroundTransitionTimes[3] = 5.0f;   // Transition to background 4 at 8 seconds
-gameState->backgroundTransitionTimes[4] = 6.0f;  // Transition to background 5 at 10 seconds
-gameState->backgroundTransitionTimes[5] = 7.0f;  // Transition to background 6 at 12 seconds
-gameState->backgroundTransitionTimes[6] = 8.0f;  // Transition to background 7 at 14 seconds
-gameState->backgroundTransitionTimes[7] = 9.0f;  // Transition to background 8 at 16 seconds
-gameState->backgroundTransitionTimes[8] = 10.0f;  // Transition to background 9 at 18 seconds
-gameState->backgroundTransitionTimes[9] = 11.0f;  // Transition to background 10 at 20 seconds
-gameState->backgroundTransitionTimes[10] = 12.0f; // Transition to background 11 at 22 seconds
-gameState->backgroundTransitionTimes[11] = 13.0f; // Transition to background 12 at 24 seconds
+gameState->backgroundTransitionTimes[3] = 15.0f;   // Transition to background 4 at 8 seconds
+gameState->backgroundTransitionTimes[4] = 16.0f;  // Transition to background 5 at 10 seconds
+gameState->backgroundTransitionTimes[5] = 17.0f;  // Transition to background 6 at 12 seconds
+gameState->backgroundTransitionTimes[6] = 18.0f;  // Transition to background 7 at 14 seconds
+gameState->backgroundTransitionTimes[7] = 19.0f;  // Transition to background 8 at 16 seconds
+gameState->backgroundTransitionTimes[8] = 20.0f;  // Transition to background 9 at 18 seconds
+gameState->backgroundTransitionTimes[9] = 21.0f;  // Transition to background 10 at 20 seconds
+gameState->backgroundTransitionTimes[10] = 22.0f; // Transition to background 11 at 22 seconds
+gameState->backgroundTransitionTimes[11] = 23.0f; // Transition to background 12 at 24 seconds
 // For the next three backgrounds, use longer durations as per your requirement
-gameState->backgroundTransitionTimes[12] = 14.0f; // Transition to background 13 at 36 seconds (12-second duration)
-gameState->backgroundTransitionTimes[13] = 15.0f; // Transition to background 14 at 48 seconds (12-second duration)
-gameState->backgroundTransitionTimes[14] = 16.0f; // Transition to background 15 at 60 seconds (12-second duration)
-gameState->backgroundTransitionTimes[15] = 17.0f; // Transition to background 0 at 62 seconds (loop back)
+gameState->backgroundTransitionTimes[12] = 24.0f; // Transition to background 13 at 36 seconds (12-second duration)
+gameState->backgroundTransitionTimes[13] = 25.0f; // Transition to background 14 at 48 seconds (12-second duration)
+gameState->backgroundTransitionTimes[14] = 26.0f; // Transition to background 15 at 60 seconds (12-second duration)
+gameState->backgroundTransitionTimes[15] = 27.0f; // Transition to background 0 at 62 seconds (loop back)
 
 
     // Load enemy car textures for each color and tread variant
@@ -1225,7 +1264,6 @@ gameState->backgroundTransitionTimes[15] = 17.0f; // Transition to background 0 
     printf("Loaded image: enemy_car_night_fog_tail_lights.png\n");
 
     // Initialize elapsed time and background index
-    // gameState->elapsedTime = 0.0f;
     gameState->backgroundIndex = 0;
     // Initialize animation variables
     gameState->carAnimationTimer = 0.0f;
@@ -1235,7 +1273,7 @@ gameState->backgroundTransitionTimes[15] = 17.0f; // Transition to background 0 
     gameState->currentBackgroundIndex = 0;
     gameState->score = 0;
     gameState->day = 1;
-    gameState->carsToPass = 10; // 200
+    gameState->carsToPass = 1000; // 200
     gameState->mountainPosition = 0.0f;
 }
 

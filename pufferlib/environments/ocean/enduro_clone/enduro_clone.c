@@ -1,7 +1,4 @@
 // TODO: Vanishing point for road should terminate in single pixel, not 2
-// TODO: Add collisions with the road edges
-// TODO: Speed after crashing changes to -1.5 from -2.5
-// TODO: Reduced handling on snow
 
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
 // TODO: Implement RL in pufferlib
@@ -9,8 +6,8 @@
 // TODO: Engineer good policy
 
 // :CURRENT TASK:
-// TODO: Enemies are still getting squished together, ending up too close by player
-// TODO: Check player speed. Seems like it suddenly speeds up arbitrarily
+// TODO: Add collisions with the road edges
+// TODO: Make spawning closer to original (more clusters of cars, faster spawns at higher speeds)
 
 
 // enduro_clone.c
