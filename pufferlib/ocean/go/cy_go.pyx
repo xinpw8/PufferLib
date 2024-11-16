@@ -33,7 +33,7 @@ cdef extern from "go.h":
 
     ctypedef struct CGo:
         float* observations
-        unsigned short* actions
+        int* actions
         float* rewards
         unsigned char* dones
         LogBuffer* log_buffer
@@ -76,32 +76,24 @@ cdef class CyGo:
         Client* client
         LogBuffer* logs
         int num_envs
-    def __init__(self, cnp.ndarray observations, cnp.ndarray actions,
-            cnp.ndarray rewards, cnp.ndarray terminals, int num_envs,
-            int width, int height, int grid_size, int board_width, int board_height, int grid_square_size, int moves_made, float komi, float score, int last_capture_position):
+    def __init__(self, float[:, :] observations, int[:] actions,
+            float[:] rewards, unsigned char[:] terminals, int num_envs,
+            int width, int height, int grid_size, int board_width, int board_height,
+            int grid_square_size, int moves_made, float komi,
+            float score, int last_capture_position):
 
         self.num_envs = num_envs
         self.client = NULL
         self.envs = <CGo*> calloc(num_envs, sizeof(CGo))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
-        cdef:
-            cnp.ndarray observations_i
-            cnp.ndarray actions_i
-            cnp.ndarray rewards_i
-            cnp.ndarray terminals_i
-
         cdef int i
         for i in range(num_envs):
-            observations_i = observations[i:i+1]
-            actions_i = actions[i:i+1]
-            rewards_i = rewards[i:i+1]
-            terminals_i = terminals[i:i+1]
             self.envs[i] = CGo(
-                observations=<float*> observations_i.data,
-                actions=<unsigned short*> actions_i.data,
-                rewards=<float*> rewards_i.data,
-                dones=<unsigned char*> terminals_i.data,
+                observations=&observations[i, 0],
+                actions=&actions[i],
+                rewards=&rewards[i],
+                dones=&terminals[i],
                 log_buffer=self.logs,
                 width=width,
                 height=height,

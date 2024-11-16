@@ -107,7 +107,7 @@ void union_groups(Group* groups, int pos1, int pos2) {
 typedef struct CGo CGo;
 struct CGo {
     float* observations;
-    unsigned short* actions;
+    int* actions;
     float* rewards;
     unsigned char* dones;
     LogBuffer* log_buffer;
@@ -170,7 +170,7 @@ void init(CGo* env) {
 void allocate(CGo* env) {
     init(env);
     env->observations = (float*)calloc((env->grid_size)*(env->grid_size)*2 + 3, sizeof(float));
-    env->actions = (unsigned short*)calloc(1, sizeof(unsigned short));
+    env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
@@ -639,12 +639,12 @@ void step(CGo* env) {
     env->rewards[0] = 0.0;
     int action = (int)env->actions[0];
     // useful for training , can prob be a hyper param. Recommend to increase with larger board size
-    /*if (env->log.episode_length >150) {
+    if (env->log.episode_length >150) {
          env->dones[0] = 1;
          end_game(env);
          compute_observations(env);
          return;
-    }*/
+    }
     if(action == NOOP){
         env->rewards[0] -= 0.25;;
         env->log.episode_return -= 0.25;
