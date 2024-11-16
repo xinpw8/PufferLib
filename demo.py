@@ -415,8 +415,13 @@ if __name__ == '__main__':
             prev[subkey] = value
 
     import importlib
-    env_module = importlib.import_module(
-        f'pufferlib.environments.{args["base"]["package"]}')
+    package = args['base']['package']
+    if package == 'ocean':
+        env_module = importlib.import_module('pufferlib.ocean')
+    else:
+        env_module = importlib.import_module(
+            f'pufferlib.environments.{package}')
+
     make_env = env_module.env_creator(env_name)
     policy_cls = getattr(env_module.torch, args['base']['policy_name'])
     
