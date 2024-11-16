@@ -1,14 +1,12 @@
 // TODO: Vanishing point for road should terminate in single pixel, not 2
-
+// TODO: Make spawning closer to original (more clusters of cars, faster spawns at higher speeds)
 // TODO: Ascertain original atari scoring logic and implement (differs from reward)
-// TODO: Implement RL in pufferlib
+
 // TODO: Make sure it trains
 // TODO: Engineer good policy
 
 // :CURRENT TASK:
-// TODO: Add collisions with the road edges
-// TODO: Make spawning closer to original (more clusters of cars, faster spawns at higher speeds)
-
+// TODO: Implement RL in pufferlib
 
 // enduro_clone.c
 
@@ -24,7 +22,6 @@ int main() {
         .car_width = CAR_WIDTH,
         .car_height = CAR_HEIGHT,
         .max_enemies = MAX_ENEMIES,
-        .crash_noop_duration = CRASH_NOOP_DURATION,
         .initial_cars_to_pass = INITIAL_CARS_TO_PASS,
         .min_speed = MIN_SPEED,
         .max_speed = MAX_SPEED,
