@@ -75,6 +75,7 @@ class MyEnduro(pufferlib.PufferEnv):
                 info.append(log)
 
         # Return observations, rewards, terminals, and info
+        # print(f'from python: {self.observations, self.rewards, self.terminals, self.truncations, info}')
         return (self.observations, self.rewards,
                 self.terminals, self.truncations, info)
 

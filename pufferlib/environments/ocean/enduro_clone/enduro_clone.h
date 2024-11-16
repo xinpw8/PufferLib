@@ -259,6 +259,7 @@ Log aggregate_and_clear(LogBuffer* logs);
 
 // Environment functions
 void init(Enduro* env);
+void init_game_state(GameState* gameState);
 void allocate(Enduro* env);
 void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
@@ -414,6 +415,28 @@ void init(Enduro* env) {
         env->gearAccelerationRates[i] = gearSpeedIncrement / (gearTime * TARGET_FPS); // per frame
         cumulativeSpeed = env->gearSpeedThresholds[i];
     }
+
+    init_game_state(&env->gameState);
+}
+
+void init_game_state(GameState* gameState) {
+        // Transition times (cumulative, seconds) from og enduro (measured)
+    gameState->backgroundTransitionTimes[0] = 20.0f;
+    gameState->backgroundTransitionTimes[1] = 40.0f;
+    gameState->backgroundTransitionTimes[2] = 60.0f;
+    gameState->backgroundTransitionTimes[3] = 100.0f;
+    gameState->backgroundTransitionTimes[4] = 108.0f;
+    gameState->backgroundTransitionTimes[5] = 114.0f;
+    gameState->backgroundTransitionTimes[6] = 116.0f;
+    gameState->backgroundTransitionTimes[7] = 120.0f;
+    gameState->backgroundTransitionTimes[8] = 124.0f;
+    gameState->backgroundTransitionTimes[9] = 130.0f;
+    gameState->backgroundTransitionTimes[10] = 134.0f;
+    gameState->backgroundTransitionTimes[11] = 138.0f;
+    gameState->backgroundTransitionTimes[12] = 170.0f;
+    gameState->backgroundTransitionTimes[13] = 198.0f;
+    gameState->backgroundTransitionTimes[14] = 214.0f;
+    gameState->backgroundTransitionTimes[15] = 232.0f; // Last transition
 }
 
 void allocate(Enduro* env) {
@@ -1157,6 +1180,7 @@ void compute_observations(Enduro* env) {
     int idx = 6;
 
     // For each enemy car, compute normalized relative positions
+    // idx 6-15
     for (int i = 0; i < env->max_enemies; i++) {
         Car* car = &env->enemyCars[i];
 
@@ -1185,17 +1209,20 @@ void compute_observations(Enduro* env) {
     }
 
     // Add current curve direction to observations
+    // idx 16
     float curve_direction_norm = (float)(env->current_curve_direction + 1) / 2.0f;
     obs[idx++] = curve_direction_norm;
 
     // Compute normalized time of day
     // Total day length is the last background transition time
+    // idx 17-31
     float total_day_length = env->gameState.backgroundTransitionTimes[15];
     float time_of_day = fmodf(env->elapsedTime, total_day_length);
     float time_of_day_norm = time_of_day / total_day_length;
     obs[idx++] = time_of_day_norm;
 
     // Add normalized carsToPass
+    // idx 32
     float carsToPass_norm = (float)env->carsToPass / (float)env->initial_cars_to_pass;
     obs[idx++] = carsToPass_norm;
 
@@ -1206,6 +1233,13 @@ void compute_observations(Enduro* env) {
     if (idx != obs_size) {
         printf("Error: Expected idx to be %d but got %d\n", obs_size, idx);
     }
+
+    // // After computing observations, print them
+    // printf("Observations for environment:\n");
+    // for (int i = 0; i < obs_size; i++) {
+    //     printf("%f ", env->observations[i]);
+    // }
+    // printf("\n");
 }
 
 
