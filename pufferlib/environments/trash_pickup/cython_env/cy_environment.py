@@ -25,13 +25,6 @@ class CyTrashPickupEnv(ParallelEnv):
         self.num_bins = num_bins
         self.max_steps = max_steps
 
-        # self.single_observation_space = gym.spaces.Dict({
-        #     'agent_position': gym.spaces.Box(low=0, high=grid_size - 1, shape=(2,), dtype=np.float32),
-        #     'carrying_trash': gym.spaces.Discrete(2),
-        #     'grid': gym.spaces.Box(low=0, high=4, shape=(grid_size, grid_size), dtype=np.float32),
-        # })
-        # self.single_action_space = gym.spaces.Discrete(4)
-
         self._num_agents = num_agents
         self.possible_agents = ["agent_" + str(i) for i in range(self._num_agents)]
         self.agents = self.possible_agents[:]

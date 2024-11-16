@@ -94,7 +94,7 @@ class Args:
     """Decays the entropy coefficient (ent_coef) from its starting value to 0 by the end of training"""
 
     # Environment-specific parameters, such as grid size, agent count, and max steps per episode
-    num_agents: int = 4
+    num_agents: int = 3
     """The number of agents in the environment"""
     grid_size: int = 10
     """The square size of the environment"""
@@ -211,12 +211,7 @@ class Agent(nn.Module):
         # Preprocess observation
         obs = self.preprocess_observation(x)
 
-        # Conditional forward pass for trash using requires_grad
-        # if obs['trash_positions'].requires_grad:
         trash_features = self.trash_net(obs['trash_positions'])
-        # else:
-        #     trash_features = torch.zeros(16, device=device)  # 16 is the output dimension of trash_net
-
         bin_features = self.bin_net(obs['bin_positions'])
         other_agent_features = self.other_agent_net(obs['other_agent_data'])
         position_features = self.position_net(obs['agent_position'])
@@ -506,8 +501,6 @@ if __name__ == "__main__":
             writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
             writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
             writer.add_scalar("losses/explained_variance", explained_var, global_step)
-            # if iteration % 5 == 0:
-                # print(f"SPS: {int(global_step / (time.time() - start_time))} | Current Iteration: {iteration} out of {num_iterations}")
             writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
             # (Optional) Save model periodically
