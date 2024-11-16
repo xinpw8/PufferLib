@@ -9,35 +9,32 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.breakout.cy_breakout import CyBreakout
+from pufferlib.ocean.rocket_lander.cy_rocket_lander import CyRocketLander
 
-class MyBreakout(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode=None, report_interval=128,
-            frameskip=1, width=576, height=330,
-            paddle_width=62, paddle_height=8,
-            ball_width=32, ball_height=32,
-            brick_width=32, brick_height=12,
-            brick_rows=6, brick_cols=18, buf=None):
+class RocketLander(pufferlib.PufferEnv):
+    def __init__(self, num_envs=1, render_mode=None, report_interval=32, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
-            shape=(11 + brick_rows*brick_cols,), dtype=np.float32)
+            shape=(6,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(4)
-        self.report_interval = report_interval
         self.render_mode = render_mode
         self.num_agents = num_envs
+        self.report_interval = report_interval
 
         super().__init__(buf)
-        self.c_envs = CyBreakout(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, frameskip, width, height,
-            paddle_width, paddle_height, ball_width, ball_height,
-            brick_width, brick_height, brick_rows, brick_cols)
-
+        self.float_actions = np.zeros((num_envs, 3), dtype=np.float32)
+        self.c_envs = CyRocketLander(self.observations, self.float_actions, self.rewards,
+            self.terminals, self.truncations, num_envs)
+ 
     def reset(self, seed=None):
-        self.c_envs.reset()
         self.tick = 0
+        self.c_envs.reset()
         return self.observations, []
 
     def step(self, actions):
-        self.actions[:] = actions
+        self.float_actions[:, :] = 0
+        self.float_actions[:, 0] = actions == 1
+        self.float_actions[:, 1] = actions == 2
+        self.float_actions[:, 2] = actions == 3
         self.c_envs.step()
 
         info = []
@@ -57,7 +54,7 @@ class MyBreakout(pufferlib.PufferEnv):
         self.c_envs.close()
 
 def test_performance(timeout=10, atn_cache=1024):
-    env = CyBreakout(num_envs=1000)
+    env = RocketLander(num_envs=1000)
     env.reset()
     tick = 0
 

@@ -5,7 +5,7 @@ from raylib import rl
 import heapq
 
 import pufferlib
-from pufferlib.environments.ocean.tactical.c_tactical import CTactical, step_all
+from pufferlib.ocean.tactical.c_tactical import CTactical, step_all
 # from pufferlib.environments.ocean import render
 
 EMPTY = 0

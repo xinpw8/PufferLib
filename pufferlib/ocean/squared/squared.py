@@ -4,7 +4,7 @@ import gymnasium
 import numpy as np
 
 import pufferlib
-from pufferlib.environments.ocean.squared.cy_squared import CySquared
+from pufferlib.ocean.squared.cy_squared import CySquared
 
 
 class Squared(pufferlib.PufferEnv):

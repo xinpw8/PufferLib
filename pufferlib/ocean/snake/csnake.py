@@ -4,8 +4,8 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.snake.cy_snake import Snake as CSnake
-from pufferlib.environments.ocean import render
+from pufferlib.ocean.snake.cy_snake import Snake as CSnake
+from pufferlib.ocean import render
 
 class Snake(pufferlib.PufferEnv):
     def __init__(self, widths=[2560], heights=[1440], num_snakes=[4096],

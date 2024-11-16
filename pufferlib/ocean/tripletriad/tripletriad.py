@@ -2,9 +2,9 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.tripletriad.cy_tripletriad import CyTripleTriad
+from pufferlib.ocean.tripletriad.cy_tripletriad import CyTripleTriad
 
-class MyTripleTriad(pufferlib.PufferEnv):
+class TripleTriad(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=990, height=1000, piece_width=192, piece_height=224, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
@@ -42,7 +42,7 @@ class MyTripleTriad(pufferlib.PufferEnv):
         self.c_envs.render()
 
 def test_performance(timeout=10, atn_cache=1024):
-    env = MyTripleTriad(num_envs=1000)
+    env = TripleTriad(num_envs=1000)
     env.reset()
     tick = 0
 

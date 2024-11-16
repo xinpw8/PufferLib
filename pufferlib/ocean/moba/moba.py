@@ -6,13 +6,13 @@ import pettingzoo
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.moba.cy_moba import CyMOBA
-from pufferlib.environments.ocean.moba.cy_moba import entity_dtype, reward_dtype
+from pufferlib.ocean.moba.cy_moba import CyMOBA
+from pufferlib.ocean.moba.cy_moba import entity_dtype, reward_dtype
 
 MAP_OBS_N = 11*11*4
 PLAYER_OBS_N = 26
 
-class PufferMoba(pufferlib.PufferEnv):
+class Moba(pufferlib.PufferEnv):
     def __init__(self, num_envs=4, vision_range=5, agent_speed=1.0,
             discretize=True, reward_death=-1.0, reward_xp=0.006,
             reward_distance=0.05, reward_tower=3.0, report_interval=32,
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # Run with c profile
     from cProfile import run
     num_envs = 400
-    env = PufferMoba(num_envs=num_envs, report_interval=10000000)
+    env = Moba(num_envs=num_envs, report_interval=10000000)
     env.reset()
     actions = np.random.randint(0, env.single_action_space.nvec, (1024, 10*num_envs, 6))
     test_performance(20, 1024, num_envs)

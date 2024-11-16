@@ -6,8 +6,8 @@ import gymnasium
 from raylib import rl
 
 import pufferlib
-from pufferlib.environments.ocean.snake.c_snake import CSnake, step_all
-from pufferlib.environments.ocean import render
+from pufferlib.ocean.snake.c_snake import CSnake, step_all
+from pufferlib.ocean import render
 
 class Snake(pufferlib.PufferEnv):
     def __init__(self, widths=[2560], heights=[1440], num_snakes=[4096],

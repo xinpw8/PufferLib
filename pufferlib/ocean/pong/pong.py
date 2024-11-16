@@ -9,9 +9,9 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.pong.cy_pong import CyPong
+from pufferlib.ocean.pong.cy_pong import CyPong
 
-class MyPong(pufferlib.PufferEnv):
+class Pong(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None,
             width=500, height=640, paddle_width=20, paddle_height=70,
             ball_width=32, ball_height=32, paddle_speed=8,
@@ -61,7 +61,7 @@ class MyPong(pufferlib.PufferEnv):
         self.c_envs.close()
 
 def test_performance(timeout=10, atn_cache=1024):
-    env = MyPong(num_envs=1000)
+    env = Pong(num_envs=1000)
     env.reset()
     tick = 0
 

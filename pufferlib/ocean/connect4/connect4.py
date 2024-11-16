@@ -9,10 +9,10 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.connect4.cy_connect4 import CyConnect4
+from pufferlib.ocean.connect4.cy_connect4 import CyConnect4
 
 
-class MyConnect4(pufferlib.PufferEnv):
+class Connect4(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=128,
              width=672, height=576, piece_width=96, piece_height=96, buf=None):
 
@@ -56,7 +56,7 @@ class MyConnect4(pufferlib.PufferEnv):
 def test_performance(timeout=10, atn_cache=1024, num_envs=1024):
     import time
 
-    env = MyConnect4(num_envs=num_envs)
+    env = Connect4(num_envs=num_envs)
     env.reset()
     tick = 0
 

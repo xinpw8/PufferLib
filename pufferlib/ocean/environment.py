@@ -52,6 +52,7 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         render_mode=render_mode)
 
 def make_puffergrid(render_mode='rgb_array', vision_range=3):
+    assert False, 'This env is unfinished. Join our Discord and help us finish it!'
     from .grid import grid
     return grid.PufferGrid(render_mode, vision_range)
 
@@ -168,15 +169,16 @@ def make_multiagent(**kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
 
 MAKE_FNS = {
-    'moba': moba.PufferMoba,
-    'my_pong': pong.MyPong,
-    'my_breakout': breakout.MyBreakout,
+    'moba': moba.Moba,
+    'pong': pong.Pong,
+    'breakout': breakout.Breakout,
+
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
     'puffer': make_puffer,
-    'puffergrid': make_puffergrid,
+    'puffer_grid': make_puffergrid,
     'snake': make_snake,
     # 'tactical': make_tactical,
     'continuous': make_continuous,
@@ -189,11 +191,14 @@ MAKE_FNS = {
     'spaces': make_spaces,
     'performance': make_performance,
     'performance_empiric': make_performance_empiric,
-    'my_connect4': connect4.MyConnect4,
-    'my_tripletriad': tripletriad.MyTripleTriad,
-    'my_go': go.MyGo,
-    'rware': rware.MyRware,
+    'connect4': connect4.Connect4,
+    'tripletriad': tripletriad.TripleTriad,
+    'go': go.Go,
+    'rware': rware.Rware,
 }
+
+# Alias puffer_ to all names
+MAKE_FNS = {**MAKE_FNS, **{'puffer_' + k: v for k, v in MAKE_FNS.items()}}
 
 def env_creator(name='squared'):
     if name in MAKE_FNS:

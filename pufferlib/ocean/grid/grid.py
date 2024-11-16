@@ -6,8 +6,8 @@ import gymnasium
 from raylib import rl, colors
 
 import pufferlib
-from pufferlib.environments.ocean import render
-from pufferlib.environments.ocean.grid.cy_grid import CGrid
+from pufferlib.ocean import render
+from pufferlib.ocean.grid.cy_grid import CGrid
 
 EMPTY = 0
 FOOD = 1

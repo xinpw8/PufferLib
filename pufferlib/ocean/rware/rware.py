@@ -9,11 +9,11 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.rware.cy_rware import CyRware
+from pufferlib.ocean.rware.cy_rware import CyRware
 
 PLAYER_OBS_N = 27
 
-class MyRware(pufferlib.PufferEnv):
+class Rware(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=1280, height=1024,
             num_agents=4,

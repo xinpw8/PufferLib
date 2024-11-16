@@ -9,9 +9,9 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.environments.ocean.go.cy_go import CyGo
+from pufferlib.ocean.go.cy_go import CyGo
 
-class MyGo(pufferlib.PufferEnv):
+class Go(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=1200, height=800,
             grid_size=6,
@@ -66,7 +66,7 @@ class MyGo(pufferlib.PufferEnv):
 
 def test_performance(timeout=10, atn_cache=1024):
     num_envs=1000;
-    env = MyGo(num_envs=num_envs)
+    env = Go(num_envs=num_envs)
     env.reset()
     tick = 0
 
