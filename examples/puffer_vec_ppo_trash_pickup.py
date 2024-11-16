@@ -30,7 +30,7 @@ class Args:
      # Experiment configuration details, seed values, and directory paths
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
     """the name of this experiment"""
-    seed: int = 1
+    seed: int = 3
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
@@ -42,29 +42,29 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    run_mode: str = "video"
+    run_mode: str = "train"
     """'train' to train a new model and save it, 'evaluate' to load an existing model and test performance, 'video' to load an existing model and create a video"""
-    model_save_dir: str = '/workspaces/PufferTank/puffertank/pufferlib/examples/trash_pickup_saves'
+    model_save_dir: str = None # '/'
     """Path to save the model to this directory"""
-    model_save_filename: str = "trash_pickup_model_with_cnn"
+    model_save_filename: str = None # "trash_pickup_model"
     """Filename to save the model as (file extension is automatically added, do NOT include it)"""
-    model_load_path: str = 'examples/trash_pickup_saves/trash_pickup_model_with_cnn_iter_405.pt'
+    model_load_path: str = None # 'examples/trash_pickup_saves/trash_pickup_model_with_cnn_iter_1907.pt'
     """Path to load in existing model to continue training, perform evaluate, or create a video"""
     model_save_interval: float = 3
     """How (roughly) often to save the model in minutes"""
-    num_eval_video_episodes: int = 3
+    num_eval_video_episodes: int = 5
     """Number of evaluation or video episodes to run (only for run_mode == 'evaluate' or 'video')"""
 
     # PPO algorithm-specific hyperparameters like learning rate, number of timesteps, etc.
     env_id: str = "TrashPickup"
     """the id of the environment"""
-    total_timesteps: int = 75_000_000
+    total_timesteps: int = 250_000_000
     """total timesteps of the experiments"""
-    learning_rate: float = 5.5e-4
+    learning_rate: float = 1e-3
     """the learning rate of the optimizer"""
     num_envs: int = 16
     """the number of parallel game environments"""
-    num_steps: int = 2048
+    num_steps: int = 8192
     """the number of steps to run in each environment per policy rollout"""
     anneal_lr: bool = True
     """Toggle learning rate annealing for policy and value networks"""
@@ -90,11 +90,11 @@ class Args:
     """the maximum norm for the gradient clipping"""
     target_kl: float = None
     """the target KL divergence threshold"""
-    ent_coef_decay: bool = True
+    ent_coef_decay: bool = False
     """Decays the entropy coefficient (ent_coef) from its starting value to 0 by the end of training"""
 
     # Environment-specific parameters, such as grid size, agent count, and max steps per episode
-    num_agents: int = 3
+    num_agents: int = 4
     """The number of agents in the environment"""
     grid_size: int = 10
     """The square size of the environment"""
@@ -104,8 +104,6 @@ class Args:
     """The number of 'trash bins' to put 'trash' picked up by the agents into in the environment"""
     num_max_env_steps: int = 300
     """The maximum number of steps that can be taken in the environment before the episode automatically ends"""
-    do_distance_reward: bool = False
-    """Whether or not to add an additional reward for agents moving closer to an objective (which is trash is not carrying any trash, else a trash bin)"""
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -115,72 +113,53 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     return layer
 
 
+# For use with PPO controlling multiple agents, could be improved by filtering out 
+# duplicate observations from each agent (trash and trash bin positions, and 
+# 'other_agent_positions' & 'other_agent_carrying_trash' since agent_positions & carrying 
+# for each agent already contains this data)
 class Agent(nn.Module):
     def __init__(self, emulated):
         super().__init__()
         self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
 
-        def get_conv_output_size(input_shape):
-            """Helper function to calculate the flattened size of output from convolution layers.
-            This size will be used as the input for the linear layer following the convolutional layers."""
-            dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
-            output = self.conv3(self.conv2(self.conv1(dummy_input)))  # Pass through conv layers
-            return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
-        
-        # Define the neural network for grid processing with 4 input channels (empty, trash, bin, agent)
-        input_channels = 4
-        
-        # Define the convolutional layers
-        self.conv1 = layer_init(nn.Conv2d(input_channels, 512, 3, stride=1, padding=1))
-        self.conv2 = layer_init(nn.Conv2d(512, 1024, 3, stride=1, padding=1))
-        self.conv3 = layer_init(nn.Conv2d(1024, 128, 3, stride=1, padding=1))
-
-        # Compute the output size of the convolutional layers dynamically
-        conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
-
-        # Sequential grid network including the calculated linear layer
-        self.grid_net = nn.Sequential(
-            self.conv1,
+        # Trash positions 
+        self.trash_net = nn.Sequential(
+            layer_init(nn.Linear(3 * args.num_trash, 32)),  # (presence, x, y) for each trash
             nn.ReLU(),
-            self.conv2,
-            nn.ReLU(),
-            self.conv3,
-            nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(conv_output_size, 16)),
-            nn.ReLU(),
+            layer_init(nn.Linear(32, 16)),
+            nn.ReLU()
         )
 
-        # No CNN method here
-        # Sequential grid network including the calculated linear layer
-        # Define the fully connected layers for the flattened grid
-        # self.grid_net = nn.Sequential(
-        #     layer_init(nn.Linear(4 * args.grid_size * args.grid_size, 64)),  # 4 channels * grid size
-        #     nn.ReLU(),
-        #     layer_init(nn.Linear(64, 32)),
-        #     nn.ReLU(),
-        #     layer_init(nn.Linear(32, 16)),
-        #     nn.ReLU()
-        # )
+        # Bin positions
+        self.bin_net = nn.Sequential(
+            layer_init(nn.Linear(2 * args.num_bins, 8)),  # (x, y) for each bin
+            nn.ReLU(),
+            layer_init(nn.Linear(8, 4)),
+            nn.ReLU()
+        )
 
-        # Linear layers for agent position and carrying status
+        # Other agents' positions and carrying status
+        self.other_agent_net = nn.Sequential(
+            layer_init(nn.Linear(3 * (args.num_agents - 1), 16)),  # (x, y, carrying) for each other agent
+            nn.ReLU(),
+            layer_init(nn.Linear(16, 8)),
+            nn.ReLU()
+        )
+
+        # Current agent's position and carrying status
         self.position_net = nn.Sequential(
             layer_init(nn.Linear(2, 8)),
             nn.ReLU(),
-            nn.Linear(8, 16),
-            nn.ReLU()
         )
         
         self.carrying_net = nn.Sequential(
-            layer_init(nn.Linear(1, 8)),
+            layer_init(nn.Linear(1, 2)),
             nn.ReLU(),
-            nn.Linear(8, 8),
-            nn.ReLU()
         )
 
         # Projection layer to combine features from different sources
         self.proj = nn.Sequential( 
-            nn.Linear(16 + 16 + 8, 32),  # Adjusted projection layer size based on concatenated features
+            nn.Linear(16 + 4 + 8 + 8 + 2, 32),  # Adjusted projection layer size based on concatenated features
             nn.ReLU(),
             nn.Linear(32, 16),
             nn.ReLU()
@@ -197,39 +176,56 @@ class Agent(nn.Module):
             layer_init(nn.Linear(8, 1), std=1) # 1 represents the value of the critic network (or sometimes called value network) 
         )  
 
-    def preprocess_grid(self, grid):
-        # Separate grid into 4 channels for empty space, trash, bin, and agent
-        empty_space = (grid == 0).float()
-        trash = (grid == 1).float()
-        trash_bin = (grid == 2).float()
-        agent = (grid == 3).float()
-        
-        # Stack channels to create a (4, H, W) tensor
-        ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
-        return ret
+    def preprocess_observation(self, obs):
+        # Extract trash positions
+        trash_data = obs['trash_positions']  # Shape: [batch_size, num_trash, 3]
+        trash_data = trash_data.float()  # Ensure it's a float tensor
+        trash_data[:, :, 1:] /= args.grid_size  # Normalize (x, y) positions by grid size
 
-        # # One-hot encode each cell in the grid to a (grid_size, grid_size, 4) tensor
-        # one_hot_grid = torch.nn.functional.one_hot(grid.long(), num_classes=4).float()
-        # # Reshape to (batch_size, 4 * grid_size * grid_size) for fully connected layers
-        # return one_hot_grid.view(-1, 4 * args.grid_size * args.grid_size)
+        # Get batch size from trash_data to ensure consistency
+        batch_size = trash_data.size(0)
+
+        # Process bin positions and normalize
+        bin_positions = obs['bin_positions'].view(batch_size, -1).float() / args.grid_size  # Normalize positions
+
+        # Combine other agent positions and carrying status
+        other_agent_positions = obs['other_agent_positions'].float() / args.grid_size  # Shape: [batch_size, num_agents - 1, 2]
+        other_agent_carrying = obs['other_agent_carrying_trash'].float().unsqueeze(-1)  # Shape: [batch_size, num_agents - 1, 1]
+        other_agents = torch.cat([other_agent_positions, other_agent_carrying], dim=-1)  # Shape: [batch_size, num_agents - 1, 3]
+        other_agents = other_agents.view(batch_size, -1)  # Shape: [batch_size, (num_agents - 1) * 3]
+
+        # Return preprocessed observations
+        return {
+            'trash_positions': trash_data.view(batch_size, -1),  # Flatten trash data for input to network
+            'bin_positions': bin_positions,
+            'other_agent_data': other_agents,
+            'agent_position': obs['agent_position'].float() / args.grid_size,
+            'carrying_trash': obs['carrying_trash'].float()
+        }
+
 
     def hidden(self, x):
         x = x.type(torch.uint8)  # Undo bad cleanrl cast
         x = pufferlib.pytorch.nativize_tensor(x, self.dtype)
 
-        # Process each part of the observation
-        grid = self.preprocess_grid(x['grid'])
-        grid_features = self.grid_net(grid)
+        # Preprocess observation
+        obs = self.preprocess_observation(x)
 
-        position = x['agent_position'].float() / args.grid_size
-        position_features = self.position_net(position)
+        # Conditional forward pass for trash using requires_grad
+        # if obs['trash_positions'].requires_grad:
+        trash_features = self.trash_net(obs['trash_positions'])
+        # else:
+        #     trash_features = torch.zeros(16, device=device)  # 16 is the output dimension of trash_net
 
-        carrying = x['carrying_trash'].float()
-        carrying_features = self.carrying_net(carrying)
+        bin_features = self.bin_net(obs['bin_positions'])
+        other_agent_features = self.other_agent_net(obs['other_agent_data'])
+        position_features = self.position_net(obs['agent_position'])
+        carrying_features = self.carrying_net(obs['carrying_trash'])
 
         # Concatenate all features and project to a fixed-size hidden representation
-        concat = torch.cat([grid_features, position_features, carrying_features], dim=1)
-        return self.proj(concat)
+        concat = torch.cat([trash_features, bin_features, other_agent_features, position_features, carrying_features], dim=1)
+        proj = self.proj(concat)
+        return proj
 
     def get_value(self, x):
         hidden = self.hidden(x)
@@ -308,8 +304,7 @@ if __name__ == "__main__":
             num_agents=num_agents,
             num_trash=args.num_trash,
             num_bins=args.num_bins,
-            max_steps=args.num_max_env_steps,
-            do_distance_reward=args.do_distance_reward
+            max_steps=args.num_max_env_steps
         ),
         backend=pufferlib.vector.Multiprocessing,
         num_envs=args.num_envs,
@@ -328,8 +323,10 @@ if __name__ == "__main__":
 
     if args.model_save_dir is not None:
         model_save_path = os.path.join(args.model_save_dir, args.model_save_filename)
+    else:
+        model_save_path = None
 
-    model_path = args.model_load_path if args.model_load_path else model_save_path
+    model_path = args.model_load_path if args.model_load_path else None
     if model_path and os.path.exists(model_path):
         print(f"Loading model from {model_path}...")
         agent = torch.load(model_path, map_location=device)
@@ -599,7 +596,6 @@ if __name__ == "__main__":
                     agent_observations = [torch.as_tensor(ob[agent_id]).to(device).unsqueeze(0) for agent_id in ob.keys()]
                     ob_convert = torch.cat(agent_observations, dim=0)  # Batch dimension for all agents
 
-
                     # Get actions for each agent in batch
                     actions, _, _, _ = agent_model.get_action_and_value(ob_convert)
                     
@@ -607,11 +603,9 @@ if __name__ == "__main__":
                     actions = actions.cpu().numpy()
                     action_dict = {f"agent_{i}": actions[i] for i in range(num_agents)}
 
-                # ob, _, dones, _, infos = env.step(action)
                 ob, _, dones, _, infos = driver.step(action_dict)
                 
                 if dones['agent_0']: # all dones
-                    # print(f"Episode [{episode}]: {infos}")
                     break
 
         # Save frames as gif
@@ -620,9 +614,8 @@ if __name__ == "__main__":
         import imageio
         imageio.mimsave('examples/trash_pickup_vid.gif', frames, fps=3, loop=0)
 
-        # # NOTE: If you get this error - TypeError: write_frames() got an unexpected keyword argument 'audio_path'
-        # # Try the following command and then rerun: pip install --upgrade imageio imageio-ffmpeg
-
+        # NOTE: If you get this error - "TypeError: write_frames() got an unexpected keyword argument 'audio_path'""
+        # Try the following command and then rerun: pip install --upgrade imageio imageio-ffmpeg
     else:
         print(f"Unhandled run_mode of: {args.run_mode}")
 

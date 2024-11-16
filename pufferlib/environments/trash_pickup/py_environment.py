@@ -27,13 +27,12 @@ class PyTrashPickupEnv(ParallelEnv):
     # Metadata to describe render mode and environment name
     metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
 
-    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, do_distance_reward=False):
+    def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300):
         # Initialize environment parameters
         self.grid_size = grid_size
         self._num_agents = num_agents
         self.num_trash = num_trash
         self.num_bins = num_bins
-        self.do_distance_reward = do_distance_reward
 
         # Define agent IDs
         self.possible_agents = ["agent_" + str(i) for i in range(self._num_agents)]
@@ -48,7 +47,6 @@ class PyTrashPickupEnv(ParallelEnv):
 
         # Define rewards for positive (picking up or depositing trash) and negative (every environment step) outcomes
         self.POSITIVE_REWARD_PICKUP_OR_DROPOFF = 0.5 / num_trash  # this adds +1 the total episode reward if all trash is picked up and put into bin
-        self.POSITIVE_REWARD_DISTANCE_TO_OBJ_MULTIPLIER = 0.001
         self.NEGATIVE_REWARD = - (1 / (max_steps * num_agents)) # this makes the max negative reward given per episode to be -1
 
         # Define action and observation spaces
@@ -59,8 +57,11 @@ class PyTrashPickupEnv(ParallelEnv):
         self.observation_spaces = {
             agent: spaces.Dict({
                 'agent_position': spaces.Box(low=0, high=self.grid_size - 1, shape=(2,), dtype=np.int32),
-                'carrying_trash': spaces.Discrete(2),  # 0 or 1
-                'grid': spaces.Box(low=0, high=4, shape=(self.grid_size, self.grid_size), dtype=np.int32)
+                'carrying_trash': spaces.Discrete(2),  # 0 or 1 for whether the agent is carrying trash
+                'other_agent_positions': spaces.Box(low=0, high=self.grid_size - 1, shape=(self._num_agents - 1, 2), dtype=np.int32),
+                'other_agent_carrying_trash': spaces.MultiBinary(self._num_agents - 1),  # Binary indicators for other agents carrying trash
+                'bin_positions': spaces.Box(low=0, high=self.grid_size - 1, shape=(self.num_bins, 2), dtype=np.int32),
+                'trash_positions': spaces.Box(low=-1, high=self.grid_size - 1, shape=(self.num_trash, 3), dtype=np.int32)  # Presence indicator, x, y
             })
             for agent in self.possible_agents
         }
@@ -88,18 +89,20 @@ class PyTrashPickupEnv(ParallelEnv):
         # 0: empty, 1: trash, 2: trash bin, 3: agent
         self.grid = np.zeros((self.grid_size, self.grid_size), dtype=np.int32)
 
+        # Place bins
+        bin_positions = self._random_positions(self.num_bins)
+        for pos in bin_positions:
+            self.grid[pos] = GridState.TRASH_BIN.value  # Trash bin
+        self._bin_positions = bin_positions
+
         # Place trash
-        trash_positions = self._random_positions(self.num_trash)
+        trash_positions = self._random_positions(self.num_trash, exclude=bin_positions)
+        self._trash_positions = trash_positions
         for pos in trash_positions:
             self.grid[pos] = GridState.TRASH.value  # Trash
 
-        # Place bins
-        bin_positions = self._random_positions(self.num_bins, exclude=trash_positions)
-        for pos in bin_positions:
-            self.grid[pos] = GridState.TRASH_BIN.value  # Trash bin
-
         # Place agents
-        agent_positions = self._random_positions(self._num_agents, exclude=trash_positions + bin_positions)  # Changed here
+        agent_positions = self._random_positions(self._num_agents, exclude=trash_positions + bin_positions)
         for idx, agent in enumerate(self.agents):
             pos = agent_positions[idx]
             self._agent_positions[agent] = pos
@@ -158,9 +161,6 @@ class PyTrashPickupEnv(ParallelEnv):
                         # Else: Bin can't be moved; agent stays in current position
                 # Else: Invalid move or occupied cell: agent remains in place
 
-                if self.do_distance_reward:
-                    self.add_reward(agent, self.get_distance_reward(agent))
-
             # Apply step penalty to encourage efficient actions
             self.add_reward(agent, self.NEGATIVE_REWARD)
 
@@ -190,7 +190,14 @@ class PyTrashPickupEnv(ParallelEnv):
             pyray.init_window(window_size, window_size + self.header_offset, "Trash Pickup Environment")
             self.window_initialized = True
 
-            agent_image = pyray.load_image("/workspaces/PufferTank/puffertank/pufferlib/pufferlib/environments/trash_pickup/single_puffer_128.png")
+            # Get the directory of the current file (environment code file)
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+
+            # Construct the relative path to the image
+            image_path = os.path.join(current_dir, "single_puffer_128.png")
+
+            # Load the image using pyray
+            agent_image = pyray.load_image(image_path)
 
             if agent_image.width != 0 and agent_image.height != 0:
                 # Resize the image to match the cell size
@@ -285,25 +292,6 @@ class PyTrashPickupEnv(ParallelEnv):
     def add_reward(self, agent, val):
         self.rewards[agent] += val
         self.total_episode_reward += val
-
-    def get_distance_reward(self, agent):
-        # 1. Determine the target type based on whether the agent is carrying trash
-        agent_pos = self._agent_positions[agent]
-        target_type = GridState.TRASH_BIN if self._agent_carrying[agent] else GridState.TRASH
-
-        # 2. Find the distance to the nearest target of the specified type
-        target_positions = np.argwhere(self.grid == target_type.value)
-        if len(target_positions) == 0:  # If no target found, no reward
-            return 0
-
-        # Calculate Manhattan distances to all targets and get the minimum
-        distances = np.abs(target_positions - agent_pos).sum(axis=1)
-        min_distance = np.min(distances)
-
-        # 3. Calculate the distance reward
-        reward = (1 / min_distance) * self.POSITIVE_REWARD_DISTANCE_TO_OBJ_MULTIPLIER
-
-        return reward
         
     def is_episode_over(self):
         # Check if there are any trash cells remaining in the grid
@@ -336,10 +324,21 @@ class PyTrashPickupEnv(ParallelEnv):
         if not is_bin and agent_id is None:
             raise AssertionError("_move_agent_or_bin() called but is_bin is false and agent_id is not passed in")
         
+        # Clear the current position
         self.grid[current_pos] = GridState.EMPTY.value
-        self.grid[new_pos] = GridState.AGENT.value if not is_bin else GridState.TRASH_BIN.value
-
-        if not is_bin:
+        
+        # Update the grid and agent/bin positions
+        if is_bin:
+            # Update the grid and bin positions
+            self.grid[new_pos] = GridState.TRASH_BIN.value
+            # Update the bin position in self._bin_positions
+            self._bin_positions = [
+                new_pos if bin_pos == current_pos else bin_pos
+                for bin_pos in self._bin_positions
+            ]
+        else:
+            # Update the grid and agent position
+            self.grid[new_pos] = GridState.AGENT.value
             self._agent_positions[agent_id] = new_pos
 
 
@@ -360,9 +359,9 @@ class PyTrashPickupEnv(ParallelEnv):
         # Prepare trash positions with presence indicator
         for pos in self._trash_positions:
             if self.grid[pos] == GridState.TRASH.value:
-                trash_positions.append([pos[0], pos[1], 1])  # x, y, present
+                trash_positions.append([1, pos[0], pos[1]])  # present, x, y
             else:
-                trash_positions.append([-1, -1, -1])  # not present
+                trash_positions.append([0, -1, -1])  # not present
 
         # Static bin positions
         bin_positions = np.array([[pos[0], pos[1]] for pos in self._bin_positions], dtype=np.int32)
@@ -380,40 +379,32 @@ class PyTrashPickupEnv(ParallelEnv):
             obs = {
                 'agent_position': np.array(self._agent_positions[agent], dtype=np.int32),
                 'carrying_trash': np.array(self._agent_carrying[agent], dtype=np.int32),
-                'other_agent_positions': # todo
-                'other_agent_carrying_trash': # todo
-                'bin_positions' : # todo
-                'trash_positions': # todo (include an extra dimension to mark whether it is present or not present, if not present, return x, y as -1)
-                'grid': self.grid.copy() # todo, get rid of
+                'other_agent_positions': np.array(other_agents_positions, dtype=np.int32),
+                'other_agent_carrying_trash': np.array(other_agents_carrying, dtype=np.int32),
+                'bin_positions' : bin_positions,
+                'trash_positions': np.array(trash_positions, dtype=np.int32)
             }
             observations[agent] = obs
         return observations
 
-    def state(self):
-        # Return the global state (optional)
-        return self.grid.copy()
 
-def env_creator(grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, do_distance_reward=False):
+def env_creator(grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300):
     return functools.partial(make,
         grid_size=grid_size,
         num_agents=num_agents,
         num_trash=num_trash,
         num_bins=num_bins,
         max_steps=max_steps,
-        do_distance_reward=do_distance_reward
     )
 
-def make(grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300, video=False, do_distance_reward=False):
+def make(grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300):
     env = PyTrashPickupEnv(
         grid_size=grid_size,
         num_agents=num_agents,
         num_trash=num_trash,
         num_bins=num_bins,
         max_steps=max_steps,
-        do_distance_reward=do_distance_reward
     )
 
     env = pufferlib.wrappers.PettingZooTruncatedWrapper(env)
-    if video:
-        env = pufferlib.wrappers.RecordVideo
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
