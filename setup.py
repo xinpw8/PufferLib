@@ -242,16 +242,16 @@ common = cleanrl + [environments[env] for env in [
 ]]
 
 extension_paths = [
-    'pufferlib/environments/ocean/moba/cy_moba',
-    'pufferlib/environments/ocean/squared/cy_squared',
-    'pufferlib/environments/ocean/snake/cy_snake',
-    'pufferlib/environments/ocean/pong/cy_pong',
-    'pufferlib/environments/ocean/breakout/cy_breakout',
-    'pufferlib/environments/ocean/connect4/cy_connect4',
-    'pufferlib/environments/ocean/grid/cy_grid',
-    'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
-    'pufferlib/environments/ocean/go/cy_go',
-    'pufferlib/environments/ocean/rware/cy_rware',
+    'pufferlib/ocean/moba/cy_moba',
+    'pufferlib/ocean/squared/cy_squared',
+    'pufferlib/ocean/snake/cy_snake',
+    'pufferlib/ocean/pong/cy_pong',
+    'pufferlib/ocean/breakout/cy_breakout',
+    'pufferlib/ocean/connect4/cy_connect4',
+    'pufferlib/ocean/grid/cy_grid',
+    'pufferlib/ocean/tripletriad/cy_tripletriad',
+    'pufferlib/ocean/go/cy_go',
+    'pufferlib/ocean/rware/cy_rware',
 ]
 
 extensions = [Extension(
