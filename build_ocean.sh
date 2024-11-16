@@ -56,6 +56,7 @@ elif [ "$MODE" = "web" ]; then
         -Wall \
         ./raylib_wasm/lib/libraylib.a \
         -I./raylib_wasm/include \
+        -I./pufferlib\
         -L. \
         -L./raylib_wasm/lib \
         -sASSERTIONS=2 \
@@ -66,6 +67,8 @@ elif [ "$MODE" = "web" ]; then
         -sFILESYSTEM \
         -s FORCE_FILESYSTEM=1 \
         --shell-file ./minshell.html \
+        -sINITIAL_MEMORY=512MB \
+        -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB \
         -DGRAPHICS_API_OPENGL_ES3 $PRELOAD
     echo "Web build completed: $WEB_OUTPUT_DIR/game.html"

@@ -14,7 +14,8 @@ import pufferlib.postprocess
 def env_creator(name='breakout'):
     return functools.partial(make, name)
 
-def make(name, obs_type='grayscale', frameskip=4, full_action_space=False,
+def make(name, obs_type='grayscale', frameskip=4,
+        full_action_space=False, framestack=1,
         repeat_action_probability=0.0, render_mode='rgb_array'):
     '''Atari creation function'''
     pufferlib.environments.try_import('ale_py', 'AtariEnv')
@@ -40,6 +41,9 @@ def make(name, obs_type='grayscale', frameskip=4, full_action_space=False,
                     
     if render_mode != 'human':
         env = pufferlib.postprocess.ResizeObservation(env, downscale=2)
+
+    if framestack > 1:
+        env = gym.wrappers.FrameStack(env, framestack)
 
     if render_mode in ('human', 'raylib'):
         env = RaylibClient(env, action_set, frameskip, upscale)

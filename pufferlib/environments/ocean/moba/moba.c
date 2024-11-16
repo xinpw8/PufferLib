@@ -211,7 +211,7 @@ void test_bugs(float test_time) {
 
 int main() {
     //test_bugs(2.0f);
-    //demo();
-    test_performance(30.0f);
+    demo();
+    //test_performance(30.0f);
     return 0;
 }
