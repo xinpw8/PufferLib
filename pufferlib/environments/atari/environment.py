@@ -10,6 +10,7 @@ import pufferlib.environments
 import pufferlib.utils
 import pufferlib.postprocess
 import pufferlib.postprocess
+import raylib
 
 def env_creator(name='breakout'):
     return functools.partial(make, name)
@@ -25,7 +26,7 @@ def make(name, obs_type='grayscale', frameskip=4, full_action_space=False,
         obs_type = 'rgb'
         frameskip = 1
         full_action_space = True
-        upscale = 4
+        upscale = 1
     elif render_mode == 'raylib':
         ale_render_mode = 'rgb_array'
         upscale = 8

@@ -1,3 +1,5 @@
+// mtns.c (this was the separate rendering file I wrote that rendered all background elements correctly)
+// it was mostly integrated into the enduro_clone.h file, but I left it here for reference
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <stdio.h>

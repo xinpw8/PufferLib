@@ -39,9 +39,15 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
     else: # not sure what else it could be
         normalized_logits = [l - l.logsumexp(dim=-1, keepdim=True) for l in logits]
 
-
     if action is None:
-        action = torch.stack([torch.multinomial(logits_to_probs(l), 1).squeeze() for l in logits])
+        try:
+            action = torch.stack([torch.multinomial(logits_to_probs(l), 1).squeeze() for l in logits])
+        except RuntimeError as e:
+            print("Error during action sampling:", e)
+            print("Logits:", logits)
+            print("Probabilities:", [logits_to_probs(l) for l in logits])
+            raise
+        # action = torch.stack([torch.multinomial(logits_to_probs(l), 1).squeeze() for l in logits])
     else:
         batch = logits[0].shape[0]
         action = action.view(batch, -1).T
