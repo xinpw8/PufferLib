@@ -223,7 +223,7 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
         num_envs, num_agents, num_workers, worker_idx, send_pipe, recv_pipe, shm, is_native):
 
     # Environments read and write directly to shared memory
-    shape = (num_workers, num_agents)
+    shape = (num_workers, num_envs*num_agents)
     atn_arr = np.ndarray((*shape, *atn_shape),
         dtype=atn_dtype, buffer=shm.actions)[worker_idx]
     buf = namespace(

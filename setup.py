@@ -242,14 +242,16 @@ common = cleanrl + [environments[env] for env in [
 ]]
 
 extension_paths = [
-    'pufferlib/environments/ocean/moba/cy_moba',
-    'pufferlib/environments/ocean/snake/cy_snake',
-    'pufferlib/environments/ocean/pong/cy_pong',
-    'pufferlib/environments/ocean/breakout/cy_breakout',
-    'pufferlib/environments/ocean/connect4/cy_connect4',
-    'pufferlib/environments/ocean/grid/cy_grid',
-    'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
-    'pufferlib/environments/ocean/go/cy_go',
+    'pufferlib/ocean/moba/cy_moba',
+    'pufferlib/ocean/squared/cy_squared',
+    'pufferlib/ocean/snake/cy_snake',
+    'pufferlib/ocean/pong/cy_pong',
+    'pufferlib/ocean/breakout/cy_breakout',
+    'pufferlib/ocean/connect4/cy_connect4',
+    'pufferlib/ocean/grid/cy_grid',
+    'pufferlib/ocean/tripletriad/cy_tripletriad',
+    'pufferlib/ocean/go/cy_go',
+    'pufferlib/ocean/rware/cy_rware',
 ]
 
 extensions = [Extension(
@@ -259,7 +261,7 @@ extensions = [Extension(
     library_dirs=['raylib/lib'],
     libraries=["raylib"],
     runtime_library_dirs=["raylib/lib"],
-    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-Werror', '-DPLATFORM_DESKTOP', '-O2'],#, '-g'],
+    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-Werror', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
 ) for path in extension_paths]
  
 setup(
@@ -295,10 +297,10 @@ setup(
         "pufferlib/extensions.pyx",
         "c_gae.pyx",
         "pufferlib/puffernet.pyx",
-        "pufferlib/environments/ocean/grid/c_grid.pyx",
-        "pufferlib/environments/ocean/snake/c_snake.pyx",
-        "pufferlib/environments/ocean/moba/c_moba.pyx",
-        "pufferlib/environments/ocean/moba/c_precompute_pathing.pyx",
+        "pufferlib/ocean/grid/c_grid.pyx",
+        "pufferlib/ocean/snake/c_snake.pyx",
+        "pufferlib/ocean/moba/c_moba.pyx",
+        "pufferlib/ocean/moba/c_precompute_pathing.pyx",
         *extensions,
     ], 
     compiler_directives={
