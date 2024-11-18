@@ -241,7 +241,8 @@ void step(Pong* env) {
                 // collision with wall: LOSE
                 env->win = 0;
                 env->score_l += 1;
-                // env->rewards[0] = -5.0
+                env->rewards[0] = -1.0;
+                env->log.score -= 1.0;
                 if (env->score_l == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env->log_buffer, &env->log);
