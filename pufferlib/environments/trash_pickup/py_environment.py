@@ -25,14 +25,42 @@ class GridState(Enum):
 
 class PyTrashPickupEnv(ParallelEnv):
     # Metadata to describe render mode and environment name
-    metadata = {'render_modes': ['human'], 'name': 'TrashPickupOld'}
+    metadata = {'render_modes': ['human'], 'name': 'PyTrashPickup'}
 
     def __init__(self, grid_size=10, num_agents=3, num_trash=15, num_bins=1, max_steps=300):
-        # Initialize environment parameters
-        self.grid_size = grid_size
+        # Validate num_agents
+        if not isinstance(num_agents, int) or num_agents <= 0:
+            raise ValueError("num_agents must be an integer greater than 0.")
         self._num_agents = num_agents
-        self.num_trash = num_trash
-        self.num_bins = num_bins
+
+        # Handle num_trash input
+        if isinstance(num_trash, tuple):
+            if len(num_trash) != 2 or not all(isinstance(x, int) for x in num_trash) or num_trash[0] > num_trash[1] or num_trash[0] < 0:
+                raise ValueError("num_trash must be an int or a tuple of two non-negative integers where the first is <= the second.")
+            self.num_trash = np.random.randint(num_trash[0], num_trash[1] + 1)
+        elif isinstance(num_trash, int) and num_trash >= 0:
+            self.num_trash = num_trash
+        else:
+            raise ValueError("num_trash must be an int >= 0 or a tuple of two non-negative integers.")
+
+        # Handle num_bins input
+        if isinstance(num_bins, tuple):
+            if len(num_bins) != 2 or not all(isinstance(x, int) for x in num_bins) or num_bins[0] > num_bins[1] or num_bins[0] < 0:
+                raise ValueError("num_bins must be an int or a tuple of two non-negative integers where the first is <= the second.")
+            self.num_bins = np.random.randint(num_bins[0], num_bins[1] + 1)
+        elif isinstance(num_bins, int) and num_bins >= 0:
+            self.num_bins = num_bins
+        else:
+            raise ValueError("num_bins must be an int >= 0 or a tuple of two non-negative integers.")
+
+        # Calculate minimum required grid size
+        min_grid_size = int((num_agents + self.num_trash + self.num_bins) ** 0.5) + 1
+        if not isinstance(grid_size, int) or grid_size < min_grid_size:
+            raise ValueError(
+                f"grid_size must be an integer >= {min_grid_size}. "
+                f"Received grid_size={grid_size}, with num_agents={num_agents}, num_trash={self.num_trash}, and num_bins={self.num_bins}."
+            )
+        self.grid_size = grid_size
 
         # Define agent IDs
         self.possible_agents = ["agent_" + str(i) for i in range(self._num_agents)]
@@ -61,7 +89,8 @@ class PyTrashPickupEnv(ParallelEnv):
                 'other_agent_positions': spaces.Box(low=0, high=self.grid_size - 1, shape=(self._num_agents - 1, 2), dtype=np.int32),
                 'other_agent_carrying_trash': spaces.MultiBinary(self._num_agents - 1),  # Binary indicators for other agents carrying trash
                 'bin_positions': spaces.Box(low=0, high=self.grid_size - 1, shape=(self.num_bins, 2), dtype=np.int32),
-                'trash_positions': spaces.Box(low=-1, high=self.grid_size - 1, shape=(self.num_trash, 3), dtype=np.int32)  # Presence indicator, x, y
+                'trash_positions': spaces.Box(low=-1, high=self.grid_size - 1, shape=(self.num_trash, 3), dtype=np.int32),  # Presence indicator, x, y
+                'grid': spaces.Box(low=0, high=4, shape=(self.grid_size, self.grid_size), dtype=np.int32)
             })
             for agent in self.possible_agents
         }
@@ -382,7 +411,8 @@ class PyTrashPickupEnv(ParallelEnv):
                 'other_agent_positions': np.array(other_agents_positions, dtype=np.int32),
                 'other_agent_carrying_trash': np.array(other_agents_carrying, dtype=np.int32),
                 'bin_positions' : bin_positions,
-                'trash_positions': np.array(trash_positions, dtype=np.int32)
+                'trash_positions': np.array(trash_positions, dtype=np.int32),
+                'grid': self.grid.copy()
             }
             observations[agent] = obs
         return observations
