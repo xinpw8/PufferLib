@@ -77,8 +77,8 @@ class MyEnduro(pufferlib.PufferEnv):
         self.actions[:] = actions
         self.c_envs.step()
         
-        print(f'from python: obs:{self.observations}, actions:{self.actions}, rewards:{self.rewards}, terminals:{self.terminals}, truncations:{self.truncations}')
-        
+        # print(f'from python: obs:{self.observations}, actions:{self.actions}, rewards:{self.rewards}, terminals:{self.terminals}, truncations:{self.truncations}')
+        # print(f'infos: {self.c_envs.log()}')
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()

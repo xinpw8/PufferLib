@@ -426,6 +426,9 @@ void reset(Enduro* env) {
     env->carsToPass = env->initial_cars_to_pass;
 
     env->rewards[0] = 0;
+    env->log.episode_return = 0;
+    env->log.episode_length = 0;
+    env->log.score = 0;
     add_log(env->log_buffer, &env->log);
 }
 
@@ -604,7 +607,6 @@ void steppy(Enduro* env) {
                 break;
             case ACTION_FIRE:
                 accelerate(env);
-                env->rewards[0] += 0.001f;
                 break;
             case ACTION_RIGHT:
                 env->player_x += movement_amount;
@@ -745,10 +747,12 @@ void steppy(Enduro* env) {
         if (env->speed > 0 && car->y > env->player_y + CAR_HEIGHT && !car->passed && env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
             // Mark car as passed and decrement carsToPass
             env->carsToPass--;
+            add_log(env->log_buffer, &env->log);
             if (env->carsToPass < 0) env->carsToPass = 0; // Stops at 0; resets to 300 on new day
             car->passed = true;
-            env->score += 10;
+            env->score += 1;
             env->rewards[0] += 1;
+            env->log.episode_return += 1;
             // Passing debug
             // printf("Car passed at y = %.2f. Remaining cars to pass: %d\n", car->y, env->carsToPass);
         }
@@ -887,12 +891,10 @@ void steppy(Enduro* env) {
         }
     }
 
-    // Synchronize carsToPass if needed (since we removed GameState, this may not be necessary)
-
-    env->log.episode_return += env->rewards[0];
     env->step_count++;
     env->log.score = env->score;
     compute_observations(env);
+    add_log(env->log_buffer, &env->log);
 
     // // Enemy car position debugging print
     // printf("Positions for all enemy cars: ");
@@ -1139,7 +1141,6 @@ void compute_observations(Enduro* env) {
     // Compute the expected number of observations
     int obs_size = 6 + 2 * env->max_enemies + 3;
 
-    // Ensure we have filled exactly obs_size features
     if (idx != obs_size) {
         printf("Error: Expected idx to be %d but got %d\n", obs_size, idx);
     }

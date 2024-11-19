@@ -192,9 +192,7 @@ cdef class CyEnduro:
                  float max_speed, int initial_cars_to_pass):
 
         self.num_envs = num_envs
-        print("Creating", num_envs, "environments")
         self.envs = <Enduro*> calloc(num_envs, sizeof(Enduro))
-        print("Allocated memory for", num_envs, "environments")
         self.logs = allocate_logbuffer(num_envs)
 
         cdef int i
