@@ -223,7 +223,7 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
         num_envs, num_agents, num_workers, worker_idx, send_pipe, recv_pipe, shm, is_native):
 
     # Environments read and write directly to shared memory
-    shape = (num_workers, num_agents)
+    shape = (num_workers, num_envs*num_agents)
     atn_arr = np.ndarray((*shape, *atn_shape),
         dtype=atn_dtype, buffer=shm.actions)[worker_idx]
     buf = namespace(
@@ -321,7 +321,10 @@ class Multiprocessing:
         obs_ctype = np.ctypeslib.as_ctypes_type(obs_dtype)
         atn_space = driver_env.single_action_space
         atn_shape = atn_space.shape
-        atn_dtype = np.int32 # atn_space.dtype
+        atn_dtype = atn_space.dtype
+        if isinstance(atn_space, (pufferlib.spaces.Discrete, pufferlib.spaces.MultiDiscrete)):
+            atn_dtype = np.int32
+
         atn_ctype = np.ctypeslib.as_ctypes_type(atn_dtype)
 
         self.single_observation_space = driver_env.single_observation_space
@@ -620,6 +623,7 @@ class Ray():
 
 
 def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Serial, num_envs=1, **kwargs):
+    print(num_envs)
     if num_envs < 1:
         raise APIUsageError('num_envs must be at least 1')
     if num_envs != int(num_envs):

@@ -43,16 +43,15 @@ class PettingZooTruncatedWrapper:
 
     def reset(self, seed=None):
         if seed is not None:
-            ob = self.env.reset(seed=seed)
+            ob, info = self.env.reset(seed=seed)
         else:
-            ob = self.env.reset()
+            ob, info = self.env.reset()
         info = {k: {} for k in ob}
         return ob, info
 
     def step(self, actions):
-        observations, rewards, dones, infos = self.env.step(actions)
-        truncated = {k: False for k in observations}
-        return observations, rewards, dones, truncated, infos
+        observations, rewards, terminals, truncations, infos = self.env.step(actions)
+        return observations, rewards, terminals, truncations, infos
 
     def close(self):
         self.env.close()
