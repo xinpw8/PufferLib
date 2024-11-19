@@ -10,6 +10,7 @@ from .moba import moba
 from .go import go
 from .rware import rware
 #from .rocket_lander import rocket_lander
+from .trash_pickup import trash_pickup
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -195,6 +196,7 @@ MAKE_FNS = {
     'tripletriad': tripletriad.TripleTriad,
     'go': go.Go,
     'rware': rware.Rware,
+    'trash_pickup': trash_pickup.TrashPickupEnv
 }
 
 # Alias puffer_ to all names

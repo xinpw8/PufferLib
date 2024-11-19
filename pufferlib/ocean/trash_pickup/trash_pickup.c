@@ -5,7 +5,7 @@
 
 // Demo function for visualizing the TrashPickupEnv
 
-/*
+
 void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
     CTrashPickupEnv env;
     env.grid_size = grid_size;
@@ -74,7 +74,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
     CloseWindow();
     free_allocated(&env);
 }
-*/
+
 
 
 // Performance test function for benchmarking
@@ -107,7 +107,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    // demo(10, 3, 15, 1); // Visual demo
-    performance_test(); // Uncomment for benchmarking
+    demo(10, 3, 15, 1); // Visual demo
+    // performance_test(); // Uncomment for benchmarking
     return 0;
 }
