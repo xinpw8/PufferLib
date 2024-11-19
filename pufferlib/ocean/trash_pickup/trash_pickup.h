@@ -245,7 +245,7 @@ static inline void step(CTrashPickupEnv* env) {
     }
 
     env->current_step++;
-    if (env->current_step >= env->max_steps) {
+    if (env->current_step >= env->max_steps || is_episode_over(env)) {
         for (int i = 0; i < env->num_agents; i++) {
             env->dones[i] = 1;
         }

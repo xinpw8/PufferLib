@@ -3,12 +3,12 @@ This is a cython version of the trash_pickup env.
 It works but its actually slightly slower (4%) than just the normal python version.
 Figured I would keep it around as reference for anyone who wants to try multi-agent with cython bindings.
 '''
-
+import time
 import numpy as np
 from gymnasium import spaces
 
 import pufferlib
-from pufferlib.ocean.trash_pickup.cy_trash_pickup import CyTrashPickupEnv
+from pufferlib.ocean.trash_pickup.cy_trash_pickup import CyTrashPickup
 
 
 class TrashPickupEnv(pufferlib.PufferEnv):
@@ -56,7 +56,7 @@ class TrashPickupEnv(pufferlib.PufferEnv):
         self.single_action_space = spaces.Discrete(4)
 
         super().__init__(buf=buf)
-        self.c_envs = CyTrashPickupEnv(self.observations, self.actions, self.rewards, self.terminals, num_envs, num_agents, grid_size, num_trash, num_bins, max_steps)
+        self.c_envs = CyTrashPickup(self.observations, self.actions, self.rewards, self.terminals, num_envs, num_agents, grid_size, num_trash, num_bins, max_steps)
 
     def reset(self, seed=None):
         self.c_envs.reset()

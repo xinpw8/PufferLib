@@ -1,16 +1,26 @@
 #include <time.h>
 #include "trash_pickup.h"
 
+#define INDEX_C(env, x, y) ((y) * (env).grid_size + (x))
+
 // Demo function for visualizing the TrashPickupEnv
+
 /*
 void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
-    int width, height;
-
     CTrashPickupEnv env;
-    initialize_env(&env, grid_size, num_agents, num_trash, num_bins, 300);
+    env.grid_size = grid_size;
+    env.num_agents = num_agents;
+    env.num_trash = num_trash;
+    env.num_bins = num_bins;
 
-    InitWindow(width, height, "Trash Pickup Demo");
-    SetTargetFPS(10);
+    allocate(&env);
+    reset(&env);
+
+    const int CELL_SIZE = 40;
+    const int HEADER_OFFSET = 60;
+
+    InitWindow(env.grid_size * CELL_SIZE, (env.grid_size * CELL_SIZE) + HEADER_OFFSET, "Trash Pickup Demo");
+    SetTargetFPS(5);
 
     while (!WindowShouldClose()) {
         // Random actions for all agents
@@ -28,14 +38,14 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
         }
 
         // Step the environment and render the grid
-        step_env(&env);
+        step(&env);
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
         for (int x = 0; x < env.grid_size; x++) {
             for (int y = 0; y < env.grid_size; y++) {
-                int cell = env->grid[INDEX(env, x, y)];
+                int cell = env.grid[INDEX_C(env, x, y)];
                 Color cell_color;
 
                 if (cell == EMPTY) {
@@ -49,10 +59,10 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
                 }
 
                 DrawRectangle(
-                    x * (width / env.grid_size), 
-                    y * (height / env.grid_size),
-                    (width / env.grid_size),
-                    (height / env.grid_size),
+                    x * CELL_SIZE, 
+                    y * CELL_SIZE,
+                    CELL_SIZE,
+                    CELL_SIZE,
                     cell_color
                 );
             }
@@ -62,7 +72,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
     }
 
     CloseWindow();
-    free_env(&env);
+    free_allocated(&env);
 }
 */
 
@@ -97,7 +107,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    // demo(10, 4, 10, 2); // Visual demo
+    // demo(10, 3, 15, 1); // Visual demo
     performance_test(); // Uncomment for benchmarking
     return 0;
 }
