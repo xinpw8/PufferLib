@@ -289,6 +289,12 @@ class Multiprocessing:
         if num_workers is None:
             num_workers = num_envs
 
+        import psutil
+        cpu_cores = psutil.cpu_count(logical=False)
+        if num_workers > cpu_cores:
+            import warnings
+            warnings.warn(f'PufferLib strongly suggests setting num_workers {num_workers} <= hardware cores {cpu_cores}')
+
         num_batches = num_envs / batch_size
         if zero_copy and num_batches != int(num_batches):
             # This is so you can have n equal buffers

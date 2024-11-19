@@ -58,7 +58,7 @@ def make_puffergrid(render_mode='rgb_array', vision_range=3):
     return grid.PufferGrid(render_mode, vision_range)
 
 def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision=5,
-        leave_corpse_on_death=None, preset='1440p-4096', render_mode=None, buf=None):
+        leave_corpse_on_death=None, preset='720p-1024', render_mode=None, buf=None):
     # TODO: Fix render_mode
     if preset is None:
         render_mode = render_mode or 'rgb_array'
@@ -68,14 +68,14 @@ def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision
         num_snakes = num_snakes or [4096]
         num_food = num_food or [65536]
         leave_corpse_on_death = leave_corpse_on_death or True
-        render_mode = render_mode or 'rgb_array'
+        render_mode = render_mode or 'human'
     elif preset == '720p-1024':
         widths = widths or 4*[1280]
         heights = heights or 4*[720]
         num_snakes = num_snakes or 4*[1024]
         num_food = num_food or 4*[16384]
         leave_corpse_on_death = leave_corpse_on_death or True
-        render_mode = render_mode or 'rgb_array'
+        render_mode = render_mode or 'human'
     elif preset == '40p-4':
         widths = widths or 1024*[40]
         heights = heights or 1024*[40]

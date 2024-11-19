@@ -70,7 +70,7 @@ cdef class Snake:
              float reward_corpse, float reward_death):
 
         self.num_envs = len(num_snakes)
-        self.envs = <CSnake*>calloc(self.num_envs, sizeof(CSnake*))
+        self.envs = <CSnake*>calloc(self.num_envs, sizeof(CSnake))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
         self.client = NULL
 
@@ -107,10 +107,10 @@ cdef class Snake:
         for i in range(self.num_envs):
             step(&self.envs[i])
 
-    def render(self):
+    def render(self, cell_size=8):
         cdef CSnake* env = &self.envs[0]
         if self.client == NULL:
-            self.client = make_client(8, env.width, env.height)
+            self.client = make_client(cell_size, env.width, env.height)
 
         render(self.client, env)
 

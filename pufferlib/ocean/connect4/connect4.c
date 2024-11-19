@@ -7,8 +7,8 @@
 const unsigned char NOOP = 8;
 
 void interactive() {
-    Weights* weights = load_weights("resources/connect4_weights.bin", 6536);
-    Default* net = make_default(weights, 1, 42, 128, 7);
+    Weights* weights = load_weights("resources/connect4_weights.bin", 138632);
+    LinearLSTM* net = make_linearlstm(weights, 1, 42, 7);
 
     CConnect4 env = {
         .width = 672,
@@ -38,7 +38,7 @@ void interactive() {
             for (int i = 0; i < 42; i++) {
                 observations[i] = env.observations[i];
             }
-            forward_default(net, (float*)&observations, (int*)&actions);
+            forward_linearlstm(net, (float*)&observations, (int*)&actions);
             env.actions[0] = actions[0];
         }
 
@@ -49,7 +49,7 @@ void interactive() {
 
         render(client, &env);
     }
-    free_default(net);
+    free_linearlstm(net);
     free(weights);
     close_client(client);
     free_allocated_cconnect4(&env);

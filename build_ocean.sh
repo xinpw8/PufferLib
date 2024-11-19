@@ -5,7 +5,7 @@
 ENV=$1
 MODE=${2:-local}
 
-SRC_DIR="pufferlib/environments/ocean/$ENV"
+SRC_DIR="pufferlib/ocean/$ENV"
 OUTPUT_DIR="."
 WEB_OUTPUT_DIR="build_web/$ENV"
 RESOURCES_DIR="resources"
