@@ -2,8 +2,6 @@
 
 The `TrashPickup` environment is a simple yet powerful multi-agent environment for reinforcement learning (RL) research, especially tailored for investigating agent coordination and cooperation strategies. This environment allows for flexible configuration, scaling, and benchmarking in multi-agent setups, making it ideal for testing scalable algorithms and exploring emergent behaviors in cooperative settings.
 
-![Trash Pickup](./trash_pickup_vid.gif)
-
 ## Overview
 
 In the `TrashPickup` environment, multiple agents are placed in a grid world containing randomly scattered trash items and bins. Agents are rewarded for picking up trash and depositing it into bins. To maximize their rewards, agents must balance efficient movement, avoid redundant actions, and, ideally, coordinate with each other to minimize time and effort.
