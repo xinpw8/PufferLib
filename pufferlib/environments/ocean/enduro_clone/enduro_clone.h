@@ -185,7 +185,7 @@ float get_car_scale(float y);
 void add_enemy_car(Enduro* env);
 void update_vanishing_point(Enduro* env, float offset);
 void accelerate(Enduro* env);
-void step(Enduro* env);
+void steppy(Enduro* env);
 void update_road_curve(Enduro* env);
 float quadratic_bezier(float bottom_x, float control_x, float top_x, float t);
 float road_edge_x(Enduro* env, float y, float offset, unsigned char left);
@@ -562,7 +562,7 @@ void accelerate(Enduro* env) {
     }
 }
 
-void step(Enduro* env) {
+void steppy(Enduro* env) {
     // Increment elapsed time by frame duration
     // Used for rendering but incremented in step()
     env->elapsedTime += (1.0f / TARGET_FPS);

@@ -161,7 +161,7 @@ cdef extern from "enduro_clone.h":
     void add_enemy_car(Enduro* env)
     void update_vanishing_point(Enduro* env, float offset)
     void accelerate(Enduro* env)
-    void step(Enduro* env)
+    void steppy(Enduro* env)
     void update_road_curve(Enduro* env)
     float quadratic_bezier(float bottom_x, float control_x, float top_x, float t)
     float road_edge_x(Enduro* env, float y, float offset, unsigned char left)
@@ -225,7 +225,7 @@ cdef class CyEnduro:
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            steppy(&self.envs[i])
             
     def close(self):
         free_allocated(self.envs)
