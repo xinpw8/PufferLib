@@ -728,10 +728,10 @@ void step(CRware* env) {
 	
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
-	    env->scores[i] +=1;
+	env->scores[i] +=1;
         int action = env->actions[i];
         
-	    // Handle direction changes and non-movement actions
+	// Handle direction changes and non-movement actions
         if (action != NOOP && action != TOGGLE_LOAD) {
             env->agent_directions[i] = get_direction(env, action, i);
         }
