@@ -141,7 +141,7 @@ cdef extern from "enduro_clone.h":
 
     void init(Enduro* env)
     void reset(Enduro* env)
-    void step(Enduro* env)
+    void stepping(Enduro* env)
 
     Client* make_client(Enduro* env)
     void close_client(Client* client)
@@ -334,7 +334,7 @@ cdef class CyEnduro:
         for i in range(self.num_envs):
             # Update actions from the array
             self.envs[i].actions = self.actions[i]
-            step(&self.envs[i])
+            stepping(&self.envs[i])
 
     def get_observations(self):
         return self.observations.copy()

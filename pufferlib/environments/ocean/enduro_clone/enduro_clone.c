@@ -32,12 +32,11 @@ int main() {
     Client* client = make_client(&env);
     loadTextures(&env.gameState);
     reset(&env);
-    int running = 1;
 
     // Main game loop
-    while (running) {
+    while (!WindowShouldClose()) {
         // Handle events
-        handleEvents(&running, &env);
+        handleEvents(&env);
         // Step the environment
         step(&env);
         // Update game state
@@ -49,9 +48,6 @@ int main() {
         // Render everything
         render(client, &env);
         // Check if the window should close
-        if (WindowShouldClose()) {
-            running = 0;
-        }
     }
 
     // Cleanup
