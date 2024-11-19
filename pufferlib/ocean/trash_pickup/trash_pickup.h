@@ -39,7 +39,7 @@ typedef struct LogBuffer {
 } LogBuffer;
 
 // LogBuffer functions
-static inline LogBuffer* allocate_logbuffer(int size) {
+LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
     logs->logs = (Log*)calloc(size, sizeof(Log));
     logs->length = size;
@@ -47,12 +47,12 @@ static inline LogBuffer* allocate_logbuffer(int size) {
     return logs;
 }
 
-static inline void free_logbuffer(LogBuffer* buffer) {
+void free_logbuffer(LogBuffer* buffer) {
     free(buffer->logs);
     free(buffer);
 }
 
-static inline Log aggregate_and_clear(LogBuffer* logs) {
+Log aggregate_and_clear(LogBuffer* logs) {
     Log log = {0};
     if (logs->idx == 0) {
         return log;
@@ -69,7 +69,7 @@ static inline Log aggregate_and_clear(LogBuffer* logs) {
     return log;
 }
 
-static inline void add_log(LogBuffer* logs, Log* log) {
+void add_log(LogBuffer* logs, Log* log) {
     if (logs->idx < logs->length) {
         logs->logs[logs->idx++] = *log;
     }
@@ -104,7 +104,7 @@ typedef struct {
 } CTrashPickupEnv;
 
 // Helper functions
-static inline void place_random_items(CTrashPickupEnv* env, int count, int item_type) {
+void place_random_items(CTrashPickupEnv* env, int count, int item_type) {
     int placed = 0;
     int agent_id = 0;
     while (placed < count) {
@@ -124,7 +124,7 @@ static inline void place_random_items(CTrashPickupEnv* env, int count, int item_
     }
 }
 
-static inline void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
+void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
     int x = env->agent_positions[agent_idx][0];
     int y = env->agent_positions[agent_idx][1];
     int carrying = env->agent_carrying[agent_idx];
@@ -182,7 +182,7 @@ static inline void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
     env->total_episode_reward -= env->negative_reward;
 }
 
-static inline bool is_episode_over(CTrashPickupEnv* env) {
+bool is_episode_over(CTrashPickupEnv* env) {
     for (int i = 0; i < env->num_agents; i++) 
     {
         if (env->agent_carrying[i] == AGENT_IS_CARRYING) 
@@ -198,7 +198,7 @@ static inline bool is_episode_over(CTrashPickupEnv* env) {
     return true;
 }
 
-static inline void reset(CTrashPickupEnv* env) {
+void reset(CTrashPickupEnv* env) {
     env->current_step = 0;
     env->total_episode_reward = 0.0f;
 
@@ -214,7 +214,7 @@ static inline void reset(CTrashPickupEnv* env) {
 }
 
 // Environment functions
-static inline void initialize_env(CTrashPickupEnv* env) {
+void initialize_env(CTrashPickupEnv* env) {
     env->current_step = 0;
 
     env->obs_size = (env->num_trash * 3) + (env->num_bins * 2) + (env->num_agents * 3); // See .py file for why this is calculated this way
@@ -239,7 +239,7 @@ void allocate(CTrashPickupEnv* env) {
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
 }
 
-static inline void step(CTrashPickupEnv* env) {
+void step(CTrashPickupEnv* env) {
     for (int i = 0; i < env->num_agents; i++) {
         move_agent(env, i, env->actions[i]);
     }
@@ -252,13 +252,13 @@ static inline void step(CTrashPickupEnv* env) {
     }
 }
 
-static inline void free_initialized(CTrashPickupEnv* env) {
+void free_initialized(CTrashPickupEnv* env) {
     free(env->grid);
     free(env->agent_positions);
     free(env->agent_carrying);
 }
 
-static inline void free_allocated(CTrashPickupEnv* env) {
+void free_allocated(CTrashPickupEnv* env) {
     free(env->observations);
     free(env->actions);
     free(env->rewards);

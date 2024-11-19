@@ -14,13 +14,10 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
     env.num_bins = num_bins;
 
     allocate(&env);
+
+    Client* client = make_client(&env);
+
     reset(&env);
-
-    const int CELL_SIZE = 40;
-    const int HEADER_OFFSET = 60;
-
-    InitWindow(env.grid_size * CELL_SIZE, (env.grid_size * CELL_SIZE) + HEADER_OFFSET, "Trash Pickup Demo");
-    SetTargetFPS(5);
 
     while (!WindowShouldClose()) {
         // Random actions for all agents
@@ -28,51 +25,13 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
             env.actions[i] = rand() % 4; // 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT
         }
 
-        // Interactive controls for agent 0
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = -1; // NOOP for agent 0
-            if (IsKeyDown(KEY_UP)) env.actions[0] = ACTION_UP;
-            if (IsKeyDown(KEY_DOWN)) env.actions[0] = ACTION_DOWN;
-            if (IsKeyDown(KEY_LEFT)) env.actions[0] = ACTION_LEFT;
-            if (IsKeyDown(KEY_RIGHT)) env.actions[0] = ACTION_RIGHT;
-        }
-
         // Step the environment and render the grid
         step(&env);
-
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
-
-        for (int x = 0; x < env.grid_size; x++) {
-            for (int y = 0; y < env.grid_size; y++) {
-                int cell = env.grid[INDEX_C(env, x, y)];
-                Color cell_color;
-
-                if (cell == EMPTY) {
-                    cell_color = LIGHTGRAY;
-                } else if (cell == TRASH) {
-                    cell_color = RED;
-                } else if (cell == TRASH_BIN) {
-                    cell_color = GREEN;
-                } else if (cell == AGENT) {
-                    cell_color = BLUE;
-                }
-
-                DrawRectangle(
-                    x * CELL_SIZE, 
-                    y * CELL_SIZE,
-                    CELL_SIZE,
-                    CELL_SIZE,
-                    cell_color
-                );
-            }
-        }
-
-        EndDrawing();
+        render(client, &env);
     }
 
-    CloseWindow();
     free_allocated(&env);
+    close_client(client);
 }
 
 
@@ -107,7 +66,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    demo(10, 3, 15, 1); // Visual demo
-    // performance_test(); // Uncomment for benchmarking
+    // demo(10, 3, 15, 1); // Visual demo
+    performance_test(); // Uncomment for benchmarking
     return 0;
 }
