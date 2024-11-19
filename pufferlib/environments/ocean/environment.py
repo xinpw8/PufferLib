@@ -1,12 +1,12 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-def make_moba(num_envs=200, reward_death=-1.0, reward_xp=0.006,
-        reward_distance=0.05, reward_tower=3, render_mode='rgb_array'):
-    from .moba import moba
-    return moba.PufferMoba(num_envs=num_envs, reward_death=reward_death,
-        reward_xp=reward_xp, reward_distance=reward_distance,
-        reward_tower=reward_tower, render_mode=render_mode)
+from .pong import pong
+from .breakout import breakout
+from .connect4 import connect4
+from .tripletriad import tripletriad
+from .moba import moba
+from .enduro_clone import enduro_clone
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -48,6 +48,10 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         init_fn=init_fn, reward_fn=reward_fn,
         render_mode=render_mode)
 
+def make_puffergrid(render_mode='rgb_array', vision_range=3):
+    from .grid import grid
+    return grid.PufferGrid(render_mode, vision_range)
+
 def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision=5,
         leave_corpse_on_death=None, preset='1440p-4096', render_mode=None):
     # TODO: Fix render_mode
@@ -59,7 +63,7 @@ def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision
         num_snakes = num_snakes or [4096]
         num_food = num_food or [65536]
         leave_corpse_on_death = leave_corpse_on_death or True
-        render_mode = render_mode or 'human'
+        render_mode = render_mode or 'rgb_array'
     elif preset == '720p-1024':
         widths = widths or 4*[1280]
         heights = heights or 4*[720]
@@ -160,11 +164,14 @@ def make_multiagent(**kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
 
 MAKE_FNS = {
-    'moba': make_moba,
+    'moba': moba.PufferMoba,
+    'my_pong': pong.MyPong,
+    'my_breakout': breakout.MyBreakout,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
     'puffer': make_puffer,
+    'puffergrid': make_puffergrid,
     'snake': make_snake,
     'continuous': make_continuous,
     'squared': make_squared,
@@ -176,6 +183,9 @@ MAKE_FNS = {
     'spaces': make_spaces,
     'performance': make_performance,
     'performance_empiric': make_performance_empiric,
+    'my_connect4': connect4.MyConnect4,
+    'my_tripletriad': tripletriad.MyTripleTriad,
+    'my_enduro_clone': enduro_clone.MyEnduro,
 }
 
 def env_creator(name='squared'):

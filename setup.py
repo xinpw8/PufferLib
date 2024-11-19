@@ -1,11 +1,40 @@
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
+import os
+import urllib.request
+import zipfile
+import tarfile
+import platform
 
 VERSION = '1.0.0'
 
-import os
-os.environ['CFLAGS'] = '-O3 -march=native -Wall'
+# Base URL for Raylib
+RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.0/'
+RAYLIB_NAME = 'raylib-5.0_macos' if platform.system() == "Darwin" else 'raylib-5.0_linux_amd64'
+RAYLIB_WASM_URL = RAYLIB_BASE + 'raylib-5.0_webassembly.zip'
+RAYLIB_URL = RAYLIB_BASE + RAYLIB_NAME + '.tar.gz'
+
+# Check if raylib directory exists; if not, download and extract it
+if not os.path.exists('raylib'):
+    print("Raylib not found, downloading...")
+    urllib.request.urlretrieve(RAYLIB_URL, 'raylib.tar.gz')
+    with tarfile.open('raylib.tar.gz', 'r') as tar_ref:
+        tar_ref.extractall()
+        os.rename(RAYLIB_NAME, 'raylib')
+
+    os.remove('raylib.tar.gz')
+
+# Paths for Raylib include and library directories
+raylib_include_path = os.path.join('raylib', 'include')
+raylib_lib_path = os.path.join('raylib', 'lib')
+
+# Ensure the library path exists
+if not os.path.exists(raylib_lib_path):
+    raise RuntimeError("Raylib library path does not exist: " + raylib_lib_path)
+
+#import os
+#os.environ['CFLAGS'] = '-O3 -march=native -Wall'
 
 
 # Default Gym/Gymnasium/PettingZoo versions
@@ -211,10 +240,30 @@ common = cleanrl + [environments[env] for env in [
     'vizdoom',
 ]]
 
+extension_paths = [
+    'pufferlib/environments/ocean/moba/cy_moba',
+    'pufferlib/environments/ocean/snake/cy_snake',
+    'pufferlib/environments/ocean/pong/cy_pong',
+    'pufferlib/environments/ocean/breakout/cy_breakout',
+    'pufferlib/environments/ocean/connect4/cy_connect4',
+    'pufferlib/environments/ocean/grid/cy_grid',
+    'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
+    'pufferlib/environments/ocean/enduro_clone/cy_enduro_clone',
+]
+
+extensions = [Extension(
+    path.replace('/', '.'),
+    [path + '.pyx'],
+    include_dirs=[numpy.get_include(), raylib_include_path],
+    library_dirs=[raylib_lib_path],
+    libraries=["raylib"],
+    runtime_library_dirs=[os.path.abspath(raylib_lib_path)],  # Absolute path for runtime linking
+    extra_compile_args=['-DPLATFORM_DESKTOP', '-O2'],  # Additional compiler flags
+) for path in extension_paths]
+ 
 setup(
     name="pufferlib",
-    description="PufferAI Library"
-    "PufferAI's library of RL tools and utilities",
+    description="PufferAI Library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
     packages=find_packages(),
@@ -225,36 +274,45 @@ setup(
         'cython>=3.0.0',
         'rich',
         'rich_argparse',
-        f'gym<={GYM_VERSION}',
-        f'gymnasium<={GYMNASIUM_VERSION}',
-        f'pettingzoo<={PETTINGZOO_VERSION}',
+        'gym<=0.23',
+        'gymnasium<=0.29.1',
+        'pettingzoo<=1.24.1',
         'shimmy[gym-v21]',
         'psutil==5.9.5',
         'pynvml',
         'imageio',
     ],
     extras_require={
-        'docs': docs,
-        'ray': ray,
-        'cleanrl': cleanrl,
-        'common': common,
-        **environments,
+        'docs': [
+            'sphinx==5.0.0',
+            'sphinx-rtd-theme==0.5.1',
+            'sphinxcontrib-youtube==1.0.1',
+            'furo==2023.3.27',
+        ],
+        'ray': ['ray==2.23.0'],
+        'cleanrl': [
+            'stable_baselines3==2.1.0',
+            'tensorboard==2.11.2',
+            'torch',
+            'tyro==0.8.6',
+            'wandb==0.13.7',
+        ],
     },
     ext_modules = cythonize([
         "pufferlib/extensions.pyx",
         "c_gae.pyx",
+        "pufferlib/puffernet.pyx",
         "pufferlib/environments/ocean/grid/c_grid.pyx",
         "pufferlib/environments/ocean/snake/c_snake.pyx",
         "pufferlib/environments/ocean/moba/c_moba.pyx",
-        "pufferlib/environments/ocean/moba/cy_moba.pyx",
         "pufferlib/environments/ocean/moba/c_precompute_pathing.pyx",
+        *extensions,
     ], 
        #nthreads=6,
        #annotate=True,
        #compiler_directives={'profile': True},# annotate=True
     ),
-    extra_compile_args=['-O3', '-march=native'],
-    include_dirs=[numpy.get_include()],
+    include_dirs=[numpy.get_include(), raylib_include_path],
     python_requires=">=3.8",
     license="MIT",
     author="Joseph Suarez",

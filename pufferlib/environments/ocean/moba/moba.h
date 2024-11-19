@@ -5,7 +5,27 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+
+// xxd -i game_map.npy > game_map.h
+#include "game_map.h"
+
 #include "raylib.h"
+
+#if defined(PLATFORM_DESKTOP)
+    #define GLSL_VERSION 330
+#else
+    #define GLSL_VERSION 100
+#endif
+
+
+#define NUM_AGENTS 10
+#define NUM_CREEPS 100
+#define NUM_NEUTRALS 72
+#define NUM_TOWERS 24
+#define NUM_ENTITIES (NUM_AGENTS + NUM_CREEPS + NUM_NEUTRALS + NUM_TOWERS)
+#define CREEP_OFFSET NUM_AGENTS
+#define NEUTRAL_OFFSET (NUM_AGENTS + NUM_CREEPS)
+#define TOWER_OFFSET (NUM_AGENTS + NUM_CREEPS + NUM_NEUTRALS)
 
 #define EMPTY 0
 #define WALL 1
@@ -34,7 +54,6 @@
 #define ENTITY_TOWER 3
 
 #define XP_RANGE 7
-#define MAX_USES 2000000000
 
 const float XP_FOR_LEVEL[] = {0, 240, 640, 1160, 1760, 2440, 3200, 4000, 4900, 4900, 7000, 8200, 9500, 10900, 12400, 14000, 15700, 17500, 19400, 21400, 23600, 26000, 28600, 31400, 34400, 38400, 43400, 49400, 56400, 63900};
 
@@ -53,6 +72,145 @@ const float TOWER_X[] = {34.6, 29.307692307692307, 14.292307692307695, 64.2, 102
 const float TOWER_Y[] = {112.01538461538462, 96.87692307692308, 91.21538461538461, 113.61538461538461, 112.13846153846154, 85.43076923076923, 71.70769230769231, 51.03076923076923, 102.41538461538462, 28.261538461538464, 18.723076923076924, 18.723076923076924, 48.753846153846155, 59.98461538461538, 62.04615384615384, 41.676923076923075, 20.56923076923077, 36.08461538461539, 30.907692307692308, 104.93846153846154, 75.83076923076923, 78.3, 26.53846153846154, 106.16923076923078};
 const float WAYPOINTS[][20][2] = {{{96.26153846153846, 14.04615384615385}, {93.61538461538461, 14.292307692307695}, {58.23076923076923, 16.07692307692308}, {43.4, 16.01538461538462}, {32.10769230769231, 17.584615384615383}, {24.93846153846154, 19.123076923076923}, {22.96923076923077, 20.446153846153848}, {21.06153846153846, 25.307692307692307}, {20.200000000000003, 30.47692307692308}, {19.4, 35.892307692307696}, {18.47692307692308, 43.52307692307693}, {18.04615384615385, 50.723076923076924}, {20.50769230769231, 94.66153846153847}, {27.676923076923075, 105.94615384615385}}, {{99.52307692307693, 26.47692307692308}, {98.66153846153847, 27.646153846153844}, {86.04615384615384, 41.12307692307692}, {71.33846153846154, 57.49230769230769}, {66.96923076923076, 62.23076923076923}, {64.07692307692308, 66.35384615384615}, {60.2, 72.01538461538462}, {51.892307692307696, 84.87692307692308}, {34.66153846153846, 99.4}, {28.169230769230772, 105.94615384615385}}, {{112.01538461538462, 36.93846153846154}, {112.01538461538462, 32.50769230769231}, {116.2, 68.6923076923077}, {113.73846153846154, 80.75384615384615}, {113.55384615384615, 90.53846153846155}, {113.21538461538461, 95.98461538461538}, {111.49230769230769, 100.93846153846154}, {109.06153846153846, 108.07692307692308}, {107.18461538461538, 111.36923076923077}, {101.73846153846154, 114.66153846153847}, {90.53846153846155, 111.76923076923077}, {39.4, 113.73846153846154}, {28.169230769230772, 106.43846153846154}}, {{20.446153846153848, 89.36923076923077}, {20.630769230769232, 94.66153846153847}, {18.784615384615385, 50.6}, {22.292307692307695, 24.50769230769231}, {22.815384615384616, 18.815384615384616}, {27.52307692307692, 17.03076923076923}, {35.03076923076923, 15.95384615384615}, {93.61538461538461, 14.415384615384617}, {103.64615384615385, 21.99230769230769}}, {{37.43076923076923, 96.50769230769231}, {34.53846153846154, 99.27692307692308}, {51.707692307692305, 84.38461538461539}, {59.83076923076923, 71.64615384615385}, {63.83076923076923, 66.1076923076923}, {66.72307692307692, 61.98461538461538}, {70.84615384615384, 57.246153846153845}, {98.53846153846155, 27.52307692307692}, {103.64615384615385, 22.48461538461538}}, {{36.93846153846154, 113.24615384615385}, {39.4, 113.61538461538461}, {62.292307692307695, 114.6}, {83.64615384615385, 114.6}, {90.66153846153847, 109.8}, {94.87692307692308, 112.01538461538462}, {104.26153846153846, 112.2923076923077}, {109.3076923076923, 107.83076923076922}, {112.23076923076923, 105.86153846153846}, {114.44615384615385, 72.96923076923076}, {111.8923076923077, 32.50769230769231}, {104.13846153846154, 22.48461538461538}}};
 
+#define LOG_BUFFER_SIZE 1024
+
+
+typedef struct PlayerLog PlayerLog;
+struct PlayerLog {
+    float episode_return;
+    float reward_death;
+    float reward_xp;
+    float reward_distance;
+    float reward_tower;
+    float level;
+    float kills;
+    float deaths;
+    float damage_dealt;
+    float damage_received;
+    float healing_dealt;
+    float healing_received;
+    float creeps_killed;
+    float neutrals_killed;
+    float towers_killed;
+    float usage_auto;
+    float usage_q;
+    float usage_w;
+    float usage_e;
+};
+
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+    float reward_death;
+    float reward_xp;
+    float reward_distance;
+    float reward_tower;
+ 
+    float radiant_victory;
+    float radiant_level;
+    float radiant_towers_alive;
+
+    float dire_victory;
+    float dire_level;
+    float dire_towers_alive;
+   
+    PlayerLog radiant_support;
+    PlayerLog radiant_assassin;
+    PlayerLog radiant_burst;
+    PlayerLog radiant_tank;
+    PlayerLog radiant_carry;
+
+    PlayerLog dire_support;
+    PlayerLog dire_assassin;
+    PlayerLog dire_burst;
+    PlayerLog dire_tank;
+    PlayerLog dire_carry;
+};
+
+typedef struct LogBuffer LogBuffer;
+struct LogBuffer {
+    Log* logs;
+    int length;
+    int idx;
+};
+
+LogBuffer* allocate_logbuffer(int size) {
+    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
+    logs->logs = (Log*)calloc(size, sizeof(Log));
+    logs->length = size;
+    logs->idx = 0;
+    return logs;
+}
+
+void free_logbuffer(LogBuffer* buffer) {
+    free(buffer->logs);
+    free(buffer);
+}
+
+void add_log(LogBuffer* logs, Log* log) {
+    if (logs->idx == logs->length) {
+        return;
+    }
+    logs->logs[logs->idx] = *log;
+    logs->idx += 1;
+    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
+}
+
+Log aggregate_and_clear(LogBuffer* logs) {
+    Log log = {0};
+    if (logs->idx == 0) {
+        return log;
+    }
+    PlayerLog* aggregated[10] = {
+        &log.radiant_support, &log.radiant_assassin, &log.radiant_burst,
+        &log.radiant_tank, &log.radiant_carry, &log.dire_support,
+        &log.dire_assassin, &log.dire_burst, &log.dire_tank, &log.dire_carry
+    };
+    for (int i = 0; i < logs->idx; i++) {
+        log.episode_return += logs->logs[i].episode_return / logs->idx;
+        log.episode_length += logs->logs[i].episode_length / logs->idx;
+        log.reward_death += logs->logs[i].reward_death / logs->idx;
+        log.reward_xp += logs->logs[i].reward_xp / logs->idx;
+        log.reward_distance += logs->logs[i].reward_distance / logs->idx;
+        log.reward_tower += logs->logs[i].reward_tower / logs->idx;
+        log.radiant_victory += logs->logs[i].radiant_victory / logs->idx;
+        log.radiant_level += logs->logs[i].radiant_level / logs->idx;
+        log.radiant_towers_alive += logs->logs[i].radiant_towers_alive / logs->idx;
+        log.dire_victory += logs->logs[i].dire_victory / logs->idx;
+        log.dire_level += logs->logs[i].dire_level / logs->idx;
+        log.dire_towers_alive += logs->logs[i].dire_towers_alive / logs->idx;
+
+        PlayerLog* individual[10] = {
+            &logs->logs[i].radiant_support, &logs->logs[i].radiant_assassin,
+            &logs->logs[i].radiant_burst, &logs->logs[i].radiant_tank,
+            &logs->logs[i].radiant_carry, &logs->logs[i].dire_support,
+            &logs->logs[i].dire_assassin, &logs->logs[i].dire_burst,
+            &logs->logs[i].dire_tank, &logs->logs[i].dire_carry
+        };
+
+        for (int j = 0; j < 10; j++) {
+            aggregated[j]->episode_return += individual[j]->episode_return / logs->idx;
+            aggregated[j]->reward_death += individual[j]->reward_death / logs->idx;
+            aggregated[j]->reward_xp += individual[j]->reward_xp / logs->idx;
+            aggregated[j]->reward_distance += individual[j]->reward_distance / logs->idx;
+            aggregated[j]->reward_tower += individual[j]->reward_tower / logs->idx;
+            aggregated[j]->level += individual[j]->level / logs->idx;
+            aggregated[j]->kills += individual[j]->kills / logs->idx;
+            aggregated[j]->deaths += individual[j]->deaths / logs->idx;
+            aggregated[j]->damage_dealt += individual[j]->damage_dealt / logs->idx;
+            aggregated[j]->damage_received += individual[j]->damage_received / logs->idx;
+            aggregated[j]->healing_dealt += individual[j]->healing_dealt / logs->idx;
+            aggregated[j]->healing_received += individual[j]->healing_received / logs->idx;
+            aggregated[j]->usage_q += individual[j]->usage_q / logs->idx;
+            aggregated[j]->usage_w += individual[j]->usage_w / logs->idx;
+            aggregated[j]->usage_e += individual[j]->usage_e / logs->idx;
+        }
+    }
+    logs->idx = 0;
+    return log;
+}
+ 
 typedef struct MOBA MOBA;
 typedef struct Entity Entity;
 typedef int (*skill)(MOBA*, Entity*, Entity*);
@@ -81,10 +239,6 @@ struct Entity {
     int q_timer;
     int w_timer;
     int e_timer;
-    int q_uses;
-    int w_uses;
-    int e_uses;
-    int basic_attack_uses;
     int basic_attack_timer;
     int basic_attack_cd;
     int is_hit;
@@ -99,15 +253,6 @@ struct Entity {
     int hp_gain_per_level;
     int mana_gain_per_level;
     int damage_gain_per_level;
-    float damage_dealt;
-    float damage_received;
-    float healing_dealt;
-    float healing_received;
-    int deaths;
-    int heros_killed;
-    int creeps_killed;
-    int neutrals_killed;
-    int towers_killed;
     float last_x;
     float last_y;
     int target_pid;
@@ -123,6 +268,10 @@ typedef struct {
 
 static inline int map_offset(Map* map, int y, int x) {
     return y*map->width + x;
+}
+
+static inline int ai_offset(int y_dst, int x_dst, int y_src, int x_src) {
+    return y_dst*128*128*128 + x_dst*128*128 + y_src*128 + x_src;
 }
 
 typedef struct {
@@ -146,12 +295,106 @@ float fast_rng(CachedRNG* rng) {
     return val;
 }
 
+int bfs(Map *map, unsigned char *flat_paths, int* flat_buffer, int dest_r, int dest_c) {
+    int N = map->width;
+    unsigned char (*paths)[N] = (unsigned char(*)[N])flat_paths;
+    int (*buffer)[3] = (int(*)[3])flat_buffer;
+
+    int start = 0;
+    int end = 1;
+
+    int adr = map_offset(map, dest_r, dest_c);
+    if (map->grid[adr] == 1) {
+        return 1;
+    }
+
+    buffer[start][0] = 0;
+    buffer[start][1] = dest_r;
+    buffer[start][2] = dest_c;
+    while (start < end) {
+        int atn = buffer[start][0];
+        int start_r = buffer[start][1];
+        int start_c = buffer[start][2];
+        start++;
+
+        if (start_r < 0 || start_r >= N || start_c < 0 || start_c >= N) {
+            continue;
+        }
+        if (paths[start_r][start_c] != 255) {
+            continue;
+        }
+        int adr = map_offset(map, start_r, start_c);
+        if (map->grid[adr] == 1) {
+            paths[start_r][start_c] = 8;
+            continue;
+        }
+
+        paths[start_r][start_c] = atn;
+
+        buffer[end][0] = 0;
+        buffer[end][1] = start_r - 1;
+        buffer[end][2] = start_c;
+        end++;
+
+        buffer[end][0] = 1;
+        buffer[end][1] = start_r + 1;
+        buffer[end][2] = start_c;
+        end++;
+
+        buffer[end][0] = 2;
+        buffer[end][1] = start_r;
+        buffer[end][2] = start_c - 1;
+        end++;
+
+        buffer[end][0] = 3;
+        buffer[end][1] = start_r;
+        buffer[end][2] = start_c + 1;
+        end++;
+
+        buffer[end][0] = 4;
+        buffer[end][1] = start_r - 1;
+        buffer[end][2] = start_c + 1;
+        end++;
+
+        buffer[end][0] = 5;
+        buffer[end][1] = start_r + 1;
+        buffer[end][2] = start_c + 1;
+        end++;
+
+        buffer[end][0] = 6;
+        buffer[end][1] = start_r + 1;
+        buffer[end][2] = start_c - 1;
+        end++;
+
+        buffer[end][0] = 7;
+        buffer[end][1] = start_r - 1;
+        buffer[end][2] = start_c - 1;
+        end++;
+    }
+    paths[dest_r][dest_c] = 8;
+    return 0;
+}
+
+unsigned char* precompute_pathing(Map* map){
+    int N = map->width;
+    unsigned char* paths = calloc(N*N*N*N, 1);
+    int* buffer = calloc(3*8*N*N, sizeof(int));
+    for (int r = 0; r < N; r++) {
+        for (int c = 0; c < N; c++) {
+            for (int rr = 0; rr < N; rr++) {
+                for (int cc = 0; cc < N; cc++) {
+                    int adr = ai_offset(r, c, rr, cc);
+                    paths[adr] = 255;
+                }
+            }
+            int adr = ai_offset(r, c, 0, 0);
+            bfs(map, &paths[adr], buffer, r, c);
+        }
+    }
+    return paths;
+}
+
 struct MOBA {
-    int num_agents;
-    int num_creeps;
-    int num_neutrals;
-    int num_towers;
-    int num_entities;
     int vision_range;
     float agent_speed;
     bool discretize;
@@ -160,12 +403,17 @@ struct MOBA {
     int tick;
 
     Map* map;
-    unsigned char* orig_grid;
     unsigned char* ai_paths;
-    unsigned char* observations_map;
-    unsigned char* observations_extra;
+    int* ai_path_buffer;
+    unsigned char* observations;
     int* actions;
+    float* rewards;
+    unsigned char* terminals;
+    unsigned char* truncations;
     Entity* entities;
+    Reward* reward_components;
+    LogBuffer* log_buffer;
+    PlayerLog log[10];
 
     float reward_death;
     float reward_xp;
@@ -181,81 +429,71 @@ struct MOBA {
     Entity* scanned_targets[256][121];
     skill skills[10][3];
 
-    Reward* rewards;
-    float* sum_rewards;
-    float* norm_rewards;
-
     CachedRNG *rng;
 };
 
-static inline int ai_offset(int y_dst, int x_dst, int y_src, int x_src) {
-    return y_dst*128*128*128 + x_dst*128*128 + y_src*128 + x_src;
-}
-
 void free_moba(MOBA* env) {
-    free(env->rewards);
-    free(env->sum_rewards);
-    free(env->norm_rewards);
-    free(env->ai_paths);
-    free(env->map->pids);
     free(env->map->grid);
-    free(env->orig_grid);
     free(env->map);
-    free(env->observations_map);
-    free(env->observations_extra);
-    free(env->actions);
-    free(env->entities);
     free(env->rng->rng);
     free(env->rng);
     free(env);
 }
- 
+
+void free_allocated_moba(MOBA* env) {
+    free(env->rewards);
+    free(env->map->pids);
+    free(env->ai_path_buffer);
+    free(env->ai_paths);
+    free(env->observations);
+    free(env->actions);
+    free(env->entities);
+    free_moba(env);
+}
+
 void compute_observations(MOBA* env) {
-    // Does this copy?
-    unsigned char (*obs_map)[11][11][4] = (unsigned char(*)[11][11][4])env->observations_map;
-    unsigned char (*obs_extra)[26] = (unsigned char(*)[26])env->observations_extra;
-
-    // TODO: Zero out
-    //self.observations_map[:] = 0
-
-    // Probably safe to not clear this
-    //self.observations_extra[:] = 0
+    memset(env->observations, 0, NUM_AGENTS*(11*11*4 + 26)*sizeof(unsigned char));
 
     int vis = env->vision_range;
     Map* map = env->map;
 
-    for (int pid = 0; pid < env->num_agents; pid++) {
+    unsigned char (*observations)[11*11*4 + 26] = (unsigned char(*)[11*11*4 + 26])env->observations;
+    for (int pid = 0; pid < NUM_AGENTS; pid++) {
+        // Does this copy?
+        unsigned char (*obs_map)[11][4] = (unsigned char(*)[11][4])&observations[pid];
+        unsigned char* obs_extra = &observations[pid][11*11*4];
+
         Entity* player = &env->entities[pid];
-        Reward* reward = &env->rewards[pid];
+        Reward* reward = &env->reward_components[pid];
 
         int y = player->y;
         int x = player->x;
 
         // TODO: Add bounds debug checks asserts
-        obs_extra[pid][0] = 2*x;
-        obs_extra[pid][1] = 2*y;
-        obs_extra[pid][2] = 255*player->level/30.0;
-        obs_extra[pid][3] = 255*player->health/player->max_health;
-        obs_extra[pid][4] = 255*player->mana/player->max_mana;
-        obs_extra[pid][5] = player->damage;
-        obs_extra[pid][6] = 100*player->move_speed;
-        obs_extra[pid][7] = player->move_modifier*100;
-        obs_extra[pid][8] = 2*player->stun_timer;
-        obs_extra[pid][9] = 2*player->move_timer;
-        obs_extra[pid][10] = 2*player->q_timer;
-        obs_extra[pid][11] = 2*player->w_timer;
-        obs_extra[pid][12] = 2*player->e_timer;
-        obs_extra[pid][13] = 50*player->basic_attack_timer;
-        obs_extra[pid][14] = 50*player->basic_attack_cd;
-        obs_extra[pid][15] = 255*player->is_hit;
-        obs_extra[pid][16] = 255*player->team;
-        obs_extra[pid][17 + player->hero_type] = 255;
+        obs_extra[0] = 2*x;
+        obs_extra[1] = 2*y;
+        obs_extra[2] = 255*player->level/30.0;
+        obs_extra[3] = 255*player->health/player->max_health;
+        obs_extra[4] = 255*player->mana/player->max_mana;
+        obs_extra[5] = player->damage / 4.0;
+        obs_extra[6] = 100*player->move_speed;
+        obs_extra[7] = player->move_modifier*100;
+        obs_extra[8] = 2*player->stun_timer;
+        obs_extra[9] = 2*player->move_timer;
+        obs_extra[10] = 2*player->q_timer;
+        obs_extra[11] = 2*player->w_timer;
+        obs_extra[12] = 2*player->e_timer;
+        obs_extra[13] = 50*player->basic_attack_timer;
+        obs_extra[14] = 50*player->basic_attack_cd;
+        obs_extra[15] = 255*player->is_hit;
+        obs_extra[16] = 255*player->team;
+        obs_extra[17 + player->hero_type] = 255;
 
         // Assumes scaled between -1 and 1, else overflows
-        obs_extra[pid][22] = 127*reward->death + 128;
-        obs_extra[pid][23] = 25*reward->xp;
-        obs_extra[pid][24] = 127*reward->distance + 128;
-        obs_extra[pid][25] = 70*reward->tower;
+        obs_extra[22] = (reward->death == 0) ? 0 : 255;
+        obs_extra[23] = (reward->xp == 0) ? 0 : 255;
+        obs_extra[24] = (reward->distance == 0) ? 0 : 255;
+        obs_extra[25] = (reward->tower == 0) ? 0 : 255;
 
         for (int dy = -vis; dy <= vis; dy++) {
             for (int dx = -vis; dx <= vis; dx++) {
@@ -265,15 +503,22 @@ void compute_observations(MOBA* env) {
                 int ob_y = dy + vis;
 
                 int adr = map_offset(map, yy, xx);
-                obs_map[pid][ob_y][ob_x][0] = map->grid[adr];
+                int tile = map->grid[adr];
+                obs_map[ob_y][ob_x][0] = tile;
+                if (tile > 15) {
+                    printf("Invalid map value: %i at %i, %i\n", map->grid[adr], yy, xx);
+                    exit(1);
+                }
                 int target_pid = env->map->pids[adr];
                 if (target_pid == -1)
                     continue;
 
                 Entity* target = &env->entities[target_pid];
-                obs_map[pid][ob_y][ob_x][1] = 255*target->health/target->max_health;
-                obs_map[pid][ob_y][ob_x][2] = 255*target->mana/target->max_mana;
-                obs_map[pid][ob_y][ob_x][3] = target->level/30.0;
+                obs_map[ob_y][ob_x][1] = 255*target->health/target->max_health;
+                if (target->max_mana > 0) { // Towers do not have mana
+                    obs_map[ob_y][ob_x][2] = 255*target->mana/target->max_mana;
+                }
+                obs_map[ob_y][ob_x][3] = target->level/30.0;
             }
         }
     }
@@ -302,19 +547,7 @@ int calc_level(MOBA* env, int xp) {
 }
 
 Reward* get_reward(MOBA* env, int pid) {
-    return &env->rewards[pid];
-}
-
-static inline int creep_offset(MOBA* moba) {
-    return moba->num_agents;
-}
-
-static inline int neutral_offset(MOBA* moba) {
-    return moba->num_agents + moba->num_creeps;
-}
-
-static inline int tower_offset(MOBA* moba) {
-    return moba->num_agents + moba->num_creeps + moba->num_neutrals;
+    return &env->reward_components[pid];
 }
 
 int move_to(Map* map, Entity* player, float dest_y, float dest_x) {
@@ -351,6 +584,14 @@ int move_towards(MOBA* env, Entity* entity, int y_dst, int x_dst, float speed) {
 
     int adr = ai_offset(y_dst, x_dst, y_src, x_src);
     int atn = env->ai_paths[adr];
+
+    // Compute path if not cached
+    if (atn == 255) {
+        int bfs_adr = ai_offset(y_dst, x_dst, 0, 0);
+        bfs(env->map, &env->ai_paths[bfs_adr], env->ai_path_buffer, y_dst, x_dst);
+        atn = env->ai_paths[adr];
+    }
+
     if (atn >= 8)
         return 0;
 
@@ -371,24 +612,32 @@ void kill_entity(Map* map, Entity* entity) {
     map->grid[adr] = EMPTY;
     map->pids[adr] = -1;
     entity->pid = -1;
+    entity->target_pid = -1;
+    entity->last_x = 0;
+    entity->last_y = 0;
     entity->x = 0;
     entity->y = 0;
 }
 
-void respawn_player(Map* map, Entity* entity) {
+void spawn_player(Map* map, Entity* entity) {
     int pid = entity->pid;
     kill_entity(map, entity);
     entity->pid = pid;
 
-    entity->max_health = entity->base_health;
-    entity->max_mana = entity->base_mana;
+    entity->max_health = entity->base_health + entity->level*entity->hp_gain_per_level;
+    entity->max_mana = entity->base_mana + entity->level*entity->mana_gain_per_level;
+    entity->damage = entity->base_damage + entity->level*entity->damage_gain_per_level;
+ 
     entity->health = entity->max_health;
     entity->mana = entity->max_mana;
-    entity->damage = entity->base_damage;
     entity->basic_attack_timer = 0;
     entity->move_modifier = 0;
     entity->move_timer = 0;
     entity->stun_timer = 0;
+    entity->q_timer = 0;
+    entity->w_timer = 0;
+    entity->e_timer = 0;
+    entity->target_pid = -1;
     
     // TODO: Cache noise?
     // Also.. technically can infinite loop?
@@ -399,6 +648,8 @@ void respawn_player(Map* map, Entity* entity) {
         x = entity->spawn_x + rand()%15 - 7;
         valid_pos = map->grid[map_offset(map, y, x)] == EMPTY;
     }
+    entity->last_x = x;
+    entity->last_y = y;
     move_to(map, entity, y, x);
 }
 
@@ -406,34 +657,51 @@ int attack(MOBA* env, Entity* player, Entity* target, float damage) {
     if (target->pid == -1 || target->team == player->team)
         return 1;
 
-    player->target_pid = target->pid;
-    target->is_hit = 1;
+    float dist_to_target = l1_distance(player->y, player->x, target->y, target->x);
+    if (dist_to_target > 12) {
+        return 1;
+        //printf("Attacker %i at %f, %f, target %i at %f, %f, dist %f\n", player->pid, player->y, player->x, target->pid, target->y, target->x, dist_to_target);
+    }
+
+    // Dummy logs for non-player entities
+    // TODO: Improve this design
+    PlayerLog empty_log = {0};
+    PlayerLog* player_log = &empty_log;
+    if (player->entity_type == ENTITY_PLAYER) {
+        player_log = &env->log[player->pid];
+    }
+    PlayerLog* target_log = &empty_log;
+    if (target->entity_type == ENTITY_PLAYER) {
+        target_log = &env->log[target->pid];
+    }
 
     if (damage < target->health) {
-        player->damage_dealt += damage;
-        target->damage_received += damage;
+        player_log->damage_dealt += damage;
+        target_log->damage_received += damage;
         target->health -= damage;
+        player->target_pid = target->pid;
+        target->is_hit = 1;
         return 0;
     }
 
-    player->damage_dealt += target->health;
-    target->damage_received += target->health;
+    player_log->damage_dealt += target->health;
+    target_log->damage_received += target->health;
     target->health = 0;
 
     int target_type = target->entity_type;
     if (target_type == ENTITY_PLAYER) {
-        env->rewards[target->pid].death = env->reward_death;
-        player->heros_killed += 1;
-        target->deaths += 1;
-        respawn_player(env->map, target);
+        env->reward_components[target->pid].death = env->reward_death;
+        player_log->kills += 1;
+        target_log->deaths += 1;
+        spawn_player(env->map, target);
     } else if (target_type == ENTITY_CREEP) {
-        player->creeps_killed += 1;
+        player_log->creeps_killed += 1;
         kill_entity(env->map, target);
     } else if (target_type == ENTITY_NEUTRAL) {
-        player->neutrals_killed += 1;
+        player_log->neutrals_killed += 1;
         kill_entity(env->map, target);
     } else if (target_type == ENTITY_TOWER) {
-        player->towers_killed += 1;
+        player_log->towers_killed += 1;
         kill_entity(env->map, target);
     }
 
@@ -478,7 +746,7 @@ int attack(MOBA* env, Entity* player, Entity* target, float damage) {
             continue;
 
         ally->xp += xp;
-        env->rewards[first_player_on_team + i].xp = xp*env->reward_xp;
+        env->reward_components[first_player_on_team + i].xp = xp*env->reward_xp;
 
         int level = ally->level;
         ally->level = calc_level(env, ally->xp);
@@ -491,7 +759,7 @@ int attack(MOBA* env, Entity* player, Entity* target, float damage) {
     }
 
     if (target->entity_type == ENTITY_TOWER) {
-        env->rewards[player->pid].tower = env->reward_tower;
+        env->reward_components[player->pid].tower = env->reward_tower;
         env->total_towers_taken += 1;
     }
     return 0;
@@ -513,42 +781,24 @@ int heal(MOBA* env, Entity* player, Entity* target, float amount) {
     if (target->entity_type != ENTITY_PLAYER)
         return 1;
 
+    PlayerLog* player_log = &env->log[player->pid];
+    PlayerLog* target_log = &env->log[target->pid];
     int missing_health = target->max_health - target->health;
     if (amount <= missing_health) {
         target->health += amount;
-        player->healing_dealt += amount;
-        target->healing_received += amount;
+        player_log->healing_dealt += amount;
+        target_log->healing_received += amount;
         return 0;
     }
 
     target->health = target->max_health;
-    player->healing_dealt += missing_health;
-    target->healing_received += missing_health;
+    player_log->healing_dealt += missing_health;
+    target_log->healing_received += missing_health;
     return 0;
 }
 
-int respawn_creep(MOBA* env, Entity* entity, int lane) {
-    int spawn_y = WAYPOINTS[lane][0][0];
-    int spawn_x = WAYPOINTS[lane][0][1];
-
-    Map* map = env->map;
-    int y, x;
-    for (int i = 0; i < 10; i++) {
-        y = spawn_y + rand() % 7 - 3;
-        x = spawn_x + rand() % 7 - 3;
-        int adr = map_offset(map, y, x);
-        if (map->grid[adr] == EMPTY) {
-            break;
-        }
-    }
-    entity->health = entity->max_health;
-    entity->waypoint = 1;
-    return move_to(env->map, entity, y, x);
-}
-
-// TODO: Only 1 spawn needs to exist
-void spawn_creep(MOBA* env, int idx, int lane) {
-    int pid = creep_offset(env) + idx;
+int spawn_creep(MOBA* env, int idx, int lane) {
+    int pid = CREEP_OFFSET + idx;
     Entity* creep = &env->entities[pid];
 
     if (lane < 3) {
@@ -568,15 +818,34 @@ void spawn_creep(MOBA* env, int idx, int lane) {
     creep->damage = 22;
     creep->basic_attack_cd = 5;
 
-    respawn_creep(env, creep, lane);
+    int spawn_y = WAYPOINTS[lane][0][0];
+    int spawn_x = WAYPOINTS[lane][0][1];
+
+    Map* map = env->map;
+    int y, x;
+    for (int i = 0; i < 10; i++) {
+        y = spawn_y + rand() % 7 - 3;
+        x = spawn_x + rand() % 7 - 3;
+        int adr = map_offset(map, y, x);
+        if (map->grid[adr] == EMPTY) {
+            break;
+        }
+    }
+    creep->health = creep->max_health;
+    creep->target_pid = -1;
+    creep->waypoint = 1;
+    creep->last_x = x;
+    creep->last_y = y;
+    return move_to(env->map, creep, y, x);
 }
 
-int respawn_neutral(MOBA* env, int idx) {
-    int pid = neutral_offset(env) + idx;
+int spawn_neutral(MOBA* env, int idx) {
+    int pid = NEUTRAL_OFFSET + idx;
     Entity* neutral = &env->entities[pid];
     neutral->pid = pid;
     neutral->health = neutral->max_health;
     neutral->basic_attack_timer = 0;
+    neutral->target_pid = -1;
 
     // TODO: Clean up spawn regions. Some might be offset and are obscured.
     // Maybe check all valid spawn spots?
@@ -592,9 +861,12 @@ int respawn_neutral(MOBA* env, int idx) {
             break;
         }
     }
+    neutral->last_x = x;
+    neutral->last_y = y;
     return move_to(env->map, neutral, y, x);
 }
 
+// TODO: Rework spawn system
 int spawn_at(Map* map, Entity* entity, float y, float x) {
     int adr = map_offset(map, (int)y, (int)x);
 
@@ -643,6 +915,14 @@ int scan_aoe(MOBA* env, Entity* player, int radius,
                 continue;
 
             env->scanned_targets[pid][idx] = target;
+            float dist_to_target = l1_distance(player->y, player->x, target->y, target->x);
+            if (dist_to_target > 15) {
+                printf("Invalid target at %f, %f\n", target->y, target->x);
+                printf("player x: %f, y: %f, target x: %f, y: %f, dist: %f\n", player->x, player->y, target->x, target->y, dist_to_target);
+                printf("player pid: %i, target pid: %i\n", player->pid, target->pid);
+                printf("Tick: %i\n", env->tick);
+                exit(0);
+            }
             idx += 1;
         }
     }
@@ -702,7 +982,6 @@ int player_aoe_attack(MOBA* env, Entity* player,
 
     if (err != 0)
         return 1;
-
 
     aoe_scanned(env, player, target, damage, stun);
     player->target_pid = target->pid;
@@ -792,8 +1071,8 @@ void neutral_ai(MOBA* env, Entity* neutral) {
 }
 
 void randomize_tower_hp(MOBA* env) {
-    for (int i = 0; i < env->num_towers; i++) {
-        int pid = tower_offset(env) + i;
+    for (int i = 0; i < NUM_TOWERS; i++) {
+        int pid = TOWER_OFFSET + i;
         Entity* tower = &env->entities[pid];
         tower->health = rand() % (int)tower->max_health + 1;
     }
@@ -909,7 +1188,6 @@ int skill_assassin_move_buff(MOBA* env, Entity* player, Entity* target) {
     return 0;
 }
 
-
 int skill_burst_nuke(MOBA* env, Entity* player, Entity* target) {
     int mana_cost = 200;
     if (target == NULL || player->mana < mana_cost)
@@ -997,7 +1275,6 @@ int skill_carry_retreat_slow(MOBA* env, Entity* player, Entity* target) {
 
     int err = 1;
     for (int i = 0; i < 3; i++) {
-        printf("target: %i\n", target->pid);
         if (target == NULL || player->mana < mana_cost)
             return err;
 
@@ -1045,13 +1322,15 @@ void step_creeps(MOBA* env) {
     if (env->tick % 150 == 0) {
         for (int lane = 0; lane < 6; lane++) {
             for (int i = 0; i < 5; i++) {
+                int creep_pid = CREEP_OFFSET + env->creep_idx;
+                kill_entity(env->map, &env->entities[creep_pid]);
                 spawn_creep(env, env->creep_idx, lane);
-                env->creep_idx = (env->creep_idx + 1) % env->num_creeps;
+                env->creep_idx = (env->creep_idx + 1) % NUM_CREEPS;
             }
         }
     }
-    for (int idx = 0; idx < env->num_creeps; idx++) {
-        int pid = creep_offset(env) + idx;
+    for (int idx = 0; idx < NUM_CREEPS; idx++) {
+        int pid = CREEP_OFFSET + idx;
         Entity* creep = &env->entities[pid];
         if (creep->pid == -1)
             continue;
@@ -1069,12 +1348,12 @@ void step_neutrals(MOBA* env) {
     if (env->tick % 600 == 0) {
         for (int camp = 0; camp < 18; camp++) {
             for (int neut = 0; neut < 4; neut++) {
-                respawn_neutral(env, 4*camp + neut);
+                spawn_neutral(env, 4*camp + neut);
             }
         }
     }
-    for (int idx = 0; idx < env->num_neutrals; idx++) {
-        int pid = neutral_offset(env) + idx;
+    for (int idx = 0; idx < NUM_NEUTRALS; idx++) {
+        int pid = NEUTRAL_OFFSET + idx;
         Entity* neutral = &env->entities[pid];
         if (neutral->pid == -1)
             continue;
@@ -1089,8 +1368,8 @@ void step_neutrals(MOBA* env) {
 }
 
 void step_towers(MOBA* env) {
-    for (int idx = 0; idx < env->num_towers; idx++) {
-        int pid = tower_offset(env) + idx;
+    for (int idx = 0; idx < NUM_TOWERS; idx++) {
+        int pid = TOWER_OFFSET + idx;
         Entity* tower = &env->entities[pid];
         if (tower->pid == -1)
             continue;
@@ -1099,8 +1378,16 @@ void step_towers(MOBA* env) {
         if (tower->basic_attack_timer > 0)
             continue;
 
-        if (env->tick % 3 == 0) // Is this fast enough?
+        if (env->tick % 3 == 0) { // Is this fast enough?
             scan_aoe(env, tower, TOWER_VISION, true, false, false, true, true);
+            if (env->scanned_targets[tower->pid][0] != NULL) {
+                float distance_to_first_scanned = l1_distance(tower->y, tower->x, env->scanned_targets[tower->pid][0]->y, env->scanned_targets[tower->pid][0]->x);
+                if (distance_to_first_scanned > 12) {
+                    printf("Tower %i at %f, %f, target %i at %f, %f, dist %f\n", tower->pid, tower->y, tower->x, env->scanned_targets[tower->pid][0]->pid, env->scanned_targets[tower->pid][0]->y, env->scanned_targets[tower->pid][0]->x, distance_to_first_scanned);
+                }
+            }
+
+        }
 
         Entity* target = nearest_scanned_target(env, tower);
         if (target != NULL) 
@@ -1110,20 +1397,20 @@ void step_towers(MOBA* env) {
 
 void step_players(MOBA* env) {
     // Clear rewards
-    for (int pid = 0; pid < env->num_agents; pid++) {
-        Reward* reward = &env->rewards[pid];
+    for (int pid = 0; pid < NUM_AGENTS; pid++) {
+        Reward* reward = &env->reward_components[pid];
         reward->death = 0;
         reward->xp = 0;
         reward->distance = 0;
         reward->tower = 0;
-
-        env->sum_rewards[pid] = 0;
     }
 
-    for (int pid = 0; pid < env->num_agents; pid++) {
+    for (int pid = 0; pid < NUM_AGENTS; pid++) {
         Entity* player = &env->entities[pid];
-        if (rand() % 1024 == 0)
-            respawn_player(env->map, player);
+        PlayerLog* log = &env->log[pid];
+        // TODO: Is this needed?
+        //if (rand() % 1024 == 0)
+        //    spawn_player(env->map, player);
 
         if (player->mana < player->max_mana)
             player->mana += 2;
@@ -1141,8 +1428,16 @@ void step_players(MOBA* env) {
             continue;
 
         int (*actions)[6] = (int(*)[6])env->actions;
-        float vel_y = actions[pid][0] / 100.0f;
-        float vel_x = actions[pid][1] / 100.0f;
+        //float vel_y = (actions[pid][0] > 0) ? 1 : -1;
+        //float vel_x = (actions[pid][1] > 0) ? 1 : -1;
+        float vel_y = actions[pid][0] / 300.0f;
+        float vel_x = actions[pid][1] / 300.0f;
+        float mag = sqrtf(vel_y*vel_y + vel_x*vel_x);
+        if (mag > 1) {
+            vel_y /= mag;
+            vel_x /= mag;
+        }
+
         int attack_target = actions[pid][2];
         bool use_q = actions[pid][3];
         bool use_w = actions[pid][4];
@@ -1162,32 +1457,26 @@ void step_players(MOBA* env) {
             target = nearest_scanned_target(env, player);
 
         // TODO: Clean this mess
-        if (use_q && player->q_timer <= 0 && env->skills[pid][0](env, player, target) && player->q_uses < MAX_USES) {
-            player->q_uses += 1;
-        } else if (use_w && player->w_timer <= 0 && env->skills[pid][1](env, player, target) && player->w_uses < MAX_USES) {
-            player->w_uses += 1;
-        } else if (use_e && player->e_timer <= 0 && env->skills[pid][2](env, player, target) && player->e_uses < MAX_USES) {
-            player->e_uses += 1;
-        } else if (target != NULL && basic_attack(env, player, target) && player->basic_attack_uses < MAX_USES) {
-            player->basic_attack_uses += 1;
+        if (use_q && player->q_timer <= 0 && env->skills[pid][0](env, player, target) == 0) {
+            log->usage_q += 1;
+        } else if (use_w && player->w_timer <= 0 && env->skills[pid][1](env, player, target) == 0) {
+            log->usage_w += 1;
+        } else if (use_e && player->e_timer <= 0 && env->skills[pid][2](env, player, target) == 0) {
+            log->usage_e += 1;
+        } else if (target != NULL && basic_attack(env, player, target)==0) {
+            log->usage_auto += 1;
         }
 
         float dest_y = player->y + player->move_modifier*env->agent_speed*vel_y;
         float dest_x = player->x + player->move_modifier*env->agent_speed*vel_x;
         move_to(env->map, player, dest_y, dest_x);
 
-        Reward* reward = &env->rewards[pid];
-        env->sum_rewards[pid] = (
+        Reward* reward = &env->reward_components[pid];
+        env->rewards[pid] = (
             reward->death +
             reward->xp +
             reward->distance +
             reward->tower
-        );
-        env->norm_rewards[pid] = (
-            reward->death/env->reward_death +
-            reward->xp/env->reward_xp +
-            reward->distance/env->reward_distance +
-            reward->tower/env->reward_tower
         );
     }
 }
@@ -1219,56 +1508,35 @@ unsigned char* read_file(char* filename) {
     return array;
 }
 
-MOBA* init_moba(num_agents, num_creeps, num_neutrals, num_towers, vision_range,
-        agent_speed, discretize, reward_death, reward_xp, reward_distance, reward_tower) {
-    MOBA* env = (MOBA*)calloc(1, sizeof(MOBA));
-
-    env->num_agents = num_agents;
-    env->num_creeps = num_creeps;
-    env->num_neutrals = num_neutrals;
-    env->num_towers = num_towers;
-    env->num_entities = num_agents + num_creeps + num_neutrals + num_towers;
-    env->vision_range = vision_range;
-    env->agent_speed = agent_speed;
-    env->discretize = discretize;
-    env->obs_size = 2*vision_range + 1;
+void init_moba(MOBA* env, unsigned char* game_map_npy) {
+    env->obs_size = 2*env->vision_range + 1;
     env->creep_idx = 0;
-
-    env->reward_death = reward_death;
-    env->reward_xp = reward_xp;
-    env->reward_distance = reward_distance;
-    env->reward_tower = reward_tower;
     env->total_towers_taken = 0;
     env->total_levels_gained = 0;
     env->radiant_victories = 0;
     env->dire_victories = 0;
 
-    env->rewards = calloc(env->num_agents, sizeof(Reward));
-    env->sum_rewards = calloc(env->num_agents, sizeof(float));
-    env->norm_rewards = calloc(env->num_agents, sizeof(float));
+    env->entities = calloc(NUM_ENTITIES, sizeof(Entity));
+    env->reward_components = calloc(NUM_AGENTS, sizeof(Reward));
 
     env->map = (Map*)calloc(1, sizeof(Map));
-    env->map->grid = read_file("game_map.npy");
-    env->orig_grid = read_file("game_map.npy"); // TODO: Remove
+    env->map->grid = calloc(128*128, sizeof(unsigned char));
+    memcpy(env->map->grid, game_map_npy, 128*128);
+    if (env->map->grid == NULL) {
+        printf("Failed to load game map\n");
+        exit(1);
+    }
     env->map->width = 128;
     env->map->height = 128;
-    env->map->pids = calloc(env->map->width*env->map->height, sizeof(int));
-    for (int i = 0; i < env->map->width*env->map->height; i++)
+    env->map->pids = calloc(128*128, sizeof(int));
+    for (int i = 0; i < 128*128; i++)
         env->map->pids[i] = -1;
-
-    env->ai_paths = read_file("ai_paths.npy");
 
     // Zero out scanned targets
     for (int i = 0; i < 256; i++) {
         env->scanned_targets[i][0] = NULL;
         env->scanned_targets[i][1] = NULL;
     }
-
-    // TODO: Don't hardcode sizes
-    env->observations_map = calloc(env->num_agents*121*121*4, sizeof(unsigned char));
-    env->observations_extra = calloc(env->num_agents*26, sizeof(unsigned char));
-    env->actions = calloc(env->num_agents*6, sizeof(int));
-    env->entities = calloc(env->num_entities, sizeof(Entity));
 
     env->rng = (CachedRNG*)calloc(1, sizeof(CachedRNG));
     env->rng->rng_n = 10000;
@@ -1296,22 +1564,11 @@ MOBA* init_moba(num_agents, num_creeps, num_neutrals, num_towers, vision_range,
             player->team = team;
             player->spawn_y = spawn_y;
             player->spawn_x = spawn_x;
-            player->move_speed = agent_speed;
+            player->x = 0;
+            player->y = 0;
+            player->move_speed = env->agent_speed;
             player->basic_attack_cd = 8;
             player->base_damage = 50;
-            player->q_uses = 0;
-            player->w_uses = 0;
-            player->e_uses = 0;
-            player->basic_attack_uses = 0;
-            player->damage_dealt = 0;
-            player->damage_received = 0;
-            player->healing_dealt = 0;
-            player->healing_received = 0;
-            player->deaths = 0;
-            player->heros_killed = 0;
-            player->creeps_killed = 0;
-            player->neutrals_killed = 0;
-            player->towers_killed = 0;
             player->last_x = 0;
             player->last_y = 0;
         }
@@ -1398,8 +1655,8 @@ MOBA* init_moba(num_agents, num_creeps, num_neutrals, num_towers, vision_range,
     }
 
     Entity *tower;
-    for (int idx = 0; idx < env->num_towers; idx++) {
-        int pid = tower_offset(env) + idx;
+    for (int idx = 0; idx < NUM_TOWERS; idx++) {
+        int pid = TOWER_OFFSET + idx;
         tower = &env->entities[pid];
         tower->pid = pid;
         tower->entity_type = ENTITY_TOWER;
@@ -1408,6 +1665,8 @@ MOBA* init_moba(num_agents, num_creeps, num_neutrals, num_towers, vision_range,
         tower->team = TOWER_TEAM[idx];
         tower->spawn_y = TOWER_Y[idx];
         tower->spawn_x = TOWER_X[idx];
+        tower->x = 0;
+        tower->y = 0;
         tower->max_health = TOWER_HEALTH[idx];
         tower->damage = TOWER_DAMAGE[idx];
         tower->tier = TOWER_TIER[idx];
@@ -1416,10 +1675,10 @@ MOBA* init_moba(num_agents, num_creeps, num_neutrals, num_towers, vision_range,
 
     int idx = 0;
     Entity* neutral;
-    for (int camp = 0; camp < env->num_neutrals/4; camp++) {
+    for (int camp = 0; camp < NUM_NEUTRALS/4; camp++) {
         // 4 neutrals per camp
         for (int i = 0; i < 4; i++) {
-            int pid = neutral_offset(env) + idx;
+            int pid = NEUTRAL_OFFSET + idx;
             neutral = &env->entities[pid];
             // TODO: Consider initializing pid for start of game
             neutral->entity_type = ENTITY_NEUTRAL;
@@ -1428,25 +1687,59 @@ MOBA* init_moba(num_agents, num_creeps, num_neutrals, num_towers, vision_range,
             neutral->team = 2;
             neutral->spawn_y = NEUTRAL_CAMP_Y[camp];
             neutral->spawn_x = NEUTRAL_CAMP_X[camp];
+            neutral->x = 0;
+            neutral->y = 0;
             neutral->xp_on_kill = 35;
             neutral->basic_attack_cd = 5;
             neutral->damage = 22;
             idx++;
         }
     }
-    return env;
+
+    Entity* creep;
+    for (int i = 0; i < NUM_CREEPS; i++) {
+        creep = &env->entities[CREEP_OFFSET + i];
+        creep->pid = -1;
+        creep->x = 0;
+        creep->y = 0;
+    }
 }
 
+MOBA* allocate_moba(MOBA* env) {
+    // TODO: Don't hardcode sizes
+    env->observations = calloc(NUM_AGENTS*(11*11*4 + 26), sizeof(unsigned char));
+    env->actions = calloc(NUM_AGENTS*6, sizeof(int));
+    env->rewards = calloc(NUM_AGENTS, sizeof(float));
+    env->terminals = calloc(NUM_AGENTS, sizeof(unsigned char));
+    env->truncations = calloc(NUM_AGENTS, sizeof(unsigned char));
+    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+
+    unsigned char* game_map_npy = read_file("resources/moba/game_map.npy");
+    env->ai_path_buffer = calloc(3*8*128*128, sizeof(int));
+    env->ai_paths = calloc(128*128*128*128, sizeof(unsigned char));
+    for (int i = 0; i < 128*128*128*128; i++) {
+        env->ai_paths[i] = 255;
+    }
+
+    init_moba(env, game_map_npy);
+    return env;
+}
+ 
 void reset(MOBA* env) {
-    //self.grid[:] = self.orig_grid
     //map->pids[:] = -1
+    randomize_tower_hp(env);
     
     env->tick = 0;
     Map* map = env->map;
 
+    // Reset scanned targets
+    for (int i = 0; i < NUM_ENTITIES; i++) {
+        env->scanned_targets[i][0] = NULL;
+    }
+
     // Respawn towers
-    for (int idx = 0; idx < env->num_towers; idx++) {
-        int pid = tower_offset(env) + idx;
+    for (int idx = 0; idx < NUM_TOWERS; idx++) {
+        int pid = TOWER_OFFSET + idx;
         Entity* tower = &env->entities[pid];
         tower->target_pid = -1;
         tower->pid = pid;
@@ -1462,41 +1755,35 @@ void reset(MOBA* env) {
     }
 
     // Respawn agents
-    for (int i = 0; i < env->num_agents; i++) {
+    for (int i = 0; i < NUM_AGENTS; i++) {
         Entity* player = &env->entities[i];
         player->target_pid = -1;
         player->xp = 0;
         player->level = 1;
-        player->x = 0;
-        player->y = 0;
-        respawn_player(env->map, player);
+        //player->x = 0;
+        //player->y = 0;
+        spawn_player(env->map, player);
     }
 
     // Despawn creeps
-    for (int i = 0; i < env->num_creeps; i++) {
-        int pid = creep_offset(env) + i;
+    for (int i = 0; i < NUM_CREEPS; i++) {
+        int pid = CREEP_OFFSET + i;
         Entity* creep = &env->entities[pid];
-        creep->target_pid = -1;
-        creep->pid = -1;
-        creep->x = 0;
-        creep->y = 0;
+        kill_entity(env->map, creep);
     }
 
     // Despawn neutrals
-    for (int i = 0; i < env->num_neutrals; i++) {
-        int pid = neutral_offset(env) + i;
+    for (int i = 0; i < NUM_NEUTRALS; i++) {
+        int pid = NEUTRAL_OFFSET + i;
         Entity* neutral = &env->entities[pid];
-        neutral->target_pid = -1;
-        neutral->pid = -1;
-        neutral->x = 0;
-        neutral->y = 0;
+        kill_entity(env->map, neutral);
     }
+
     compute_observations(env);
 }
 
-int step(MOBA* env) {
-    int num_entities = env->num_agents + env->num_towers + env->num_creeps + env->num_neutrals;
-    for (int pid = 0; pid < num_entities; pid++) {
+void step(MOBA* env) {
+    for (int pid = 0; pid < NUM_ENTITIES; pid++) {
         Entity* entity = &env->entities[pid];
         entity->target_pid = -1;
         entity->attack_aoe = 0;
@@ -1511,25 +1798,57 @@ int step(MOBA* env) {
     step_players(env);
     env->tick += 1;
 
-    int radiant_pid = tower_offset(env) + 22;
-    int dire_pid = tower_offset(env) + 23;
+    int radiant_pid = TOWER_OFFSET + 22;
+    int dire_pid = TOWER_OFFSET + 23;
 
+    bool do_reset = false;
+    float radiant_victory = 0;
+    float dire_victory = 0;
     Entity* ancient = &env->entities[radiant_pid];
     if (ancient->health <= 0) {
-        reset(env);
-        env->radiant_victories += 1;
-        return 1;
+        do_reset = true;
+        radiant_victory = 1;
     }
 
     ancient = &env->entities[dire_pid];
     if (ancient->health <= 0) {
-        reset(env);
-        env->dire_victories += 1;
-        return 2;
+        do_reset = true;
+        dire_victory = 1;
     }
 
+    if (do_reset || rand() % 128 == 0) {
+        Log log = {0};
+        log.episode_length = env->tick;
+        log.radiant_victory = radiant_victory;
+        log.dire_victory = dire_victory;
+        for (int i = 0; i < 5; i++) {
+            log.radiant_level += env->entities[i].level / 5.0f;
+        }
+        for (int i = 0; i < NUM_TOWERS/2; i++) {
+            log.radiant_towers_alive += env->entities[TOWER_OFFSET + i].health > 0;
+        }
+        for (int i = 5; i < 10; i++) {
+            log.dire_level += env->entities[i].level / 5.0f;
+        }
+        for (int i = NUM_TOWERS/2; i < NUM_TOWERS; i++) {
+            log.dire_towers_alive += env->entities[TOWER_OFFSET + i].health > 0;
+        }
+        log.radiant_support = env->log[0];
+        log.radiant_assassin = env->log[1];
+        log.radiant_burst = env->log[2];
+        log.radiant_tank = env->log[3];
+        log.radiant_carry = env->log[4];
+        log.dire_support = env->log[5];
+        log.dire_assassin = env->log[6];
+        log.dire_burst = env->log[7];
+        log.dire_tank = env->log[8];
+        log.dire_carry = env->log[9];
+        add_log(env->log_buffer, &log);
+        if (do_reset) {
+            reset(env);
+        }
+    }
     compute_observations(env);
-    return 0;
 }
 
 // Raylib client
@@ -1603,12 +1922,15 @@ typedef struct {
     Rectangle speed_uv;
     Texture2D game_map;
     Texture2D puffer;
+    Image shader_background;
     Texture2D shader_canvas;
     Shader shader;
     float shader_x;
     float shader_y;
     double shader_start_seconds;
     float shader_seconds;
+    int shader_resolution_loc;
+    float shader_resolution[3];
     Shader bloom_shader;
     float shader_camera_x;
     float shader_camera_y;
@@ -1653,16 +1975,19 @@ GameRenderer* init_game_renderer(int cell_size, int width, int height) {
     renderer->slow_uv = (Rectangle){128, 128, 128, 128};
     renderer->speed_uv = (Rectangle){256, 128, 128, 128};
 
-    renderer->game_map = LoadTexture("dota_map.png");
-    renderer->puffer = LoadTexture("moba_assets.png");
-    renderer->shader_canvas = LoadTextureFromImage(GenImageColor(2560, 1440, (Color){0, 0, 0, 255}));
-    renderer->shader = LoadShader("", "moba_shader.fs");
-    renderer->bloom_shader = LoadShader("", "bloom_shader.fs");
+    renderer->game_map = LoadTexture("resources/moba/dota_map.png");
+    renderer->puffer = LoadTexture("resources/moba/moba_assets.png");
+    renderer->shader_background = GenImageColor(2560, 1440, (Color){0, 0, 0, 255});
+    renderer->shader_canvas = LoadTextureFromImage(renderer->shader_background);
+    renderer->shader = LoadShader("", TextFormat("resources/moba/map_shader_%i.fs", GLSL_VERSION));
+    renderer->bloom_shader = LoadShader("", TextFormat("resources/moba/bloom_shader_%i.fs", GLSL_VERSION));
 
+    // TODO: These should be int locs?
     renderer->shader_camera_x = GetShaderLocation(renderer->shader, "camera_x");
     renderer->shader_camera_y = GetShaderLocation(renderer->shader, "camera_y");
     renderer->shader_time = GetShaderLocation(renderer->shader, "time");
     renderer->shader_texture1 = GetShaderLocation(renderer->shader, "texture1");
+    renderer->shader_resolution_loc = GetShaderLocation(renderer->shader, "resolution");
     struct timespec time_spec;
     clock_gettime(CLOCK_REALTIME, &time_spec);
     renderer->shader_start_seconds = time_spec.tv_sec;
@@ -1716,284 +2041,280 @@ void draw_bars(Entity* entity, int x, int y, int width, int height, bool draw_te
     }
 }
 
-int render_game(GameRenderer* renderer, MOBA* env) {
+int render_game(GameRenderer* renderer, MOBA* env, int frame) {
     Map* map = env->map;
     Entity* my_player = &env->entities[renderer->human_player];
     int ts = renderer->cell_size;
 
-    float ay = 0;
-    float ax = 0;
-    int skill_q = 0;
-    int skill_w = 0;
-    int skill_e = 0;
-    int target_heros = 1;
+    renderer->width = GetScreenWidth() / ts;
+    renderer->height = GetScreenHeight() / ts;
+    renderer->shader_resolution[0] = renderer->width;
+    renderer->shader_resolution[1] = renderer->height;
 
-    for (int frame = 0; frame < FRAMES; frame++) {
-        renderer->width = GetScreenWidth() / ts;
-        renderer->height = GetScreenHeight() / ts;
+    float tick_frac = (float)frame / (float)FRAMES;
 
-        float tick_frac = (float)frame / (float)FRAMES;
+    float fmain_r = my_player->last_y + tick_frac*(my_player->y - my_player->last_y);
+    float fmain_c = my_player->last_x + tick_frac*(my_player->x - my_player->last_x);
 
-        float fmain_r = my_player->last_y + tick_frac*(my_player->y - my_player->last_y);
-        float fmain_c = my_player->last_x + tick_frac*(my_player->x - my_player->last_x);
+    renderer->camera.target.x = (int)((fmain_c - renderer->width/2) * ts);
+    renderer->camera.target.y = (int)((fmain_r - renderer->height/2) * ts);
 
-        renderer->camera.target.x = (int)((fmain_c - renderer->width/2) * ts);
-        renderer->camera.target.y = (int)((fmain_r - renderer->height/2) * ts);
+    int main_r = fmain_r;
+    int main_c = fmain_c;
 
-        int main_r = fmain_r;
-        int main_c = fmain_c;
+    int r_min = main_r - renderer->height/2 - 1;
+    int r_max = main_r + renderer->height/2 + 1;
+    int c_min = main_c - renderer->width/2 - 1;
+    int c_max = main_c + renderer->width/2 + 1;
 
-        int r_min = main_r - renderer->height/2 - 1;
-        int r_max = main_r + renderer->height/2 + 1;
-        int c_min = main_c - renderer->width/2 - 1;
-        int c_max = main_c + renderer->width/2 + 1;
+    Vector2 pos = GetMousePosition();
+    float raw_mouse_x = pos.x + renderer->camera.target.x;
+    float raw_mouse_y = pos.y + renderer->camera.target.y;
 
-        Vector2 pos = GetMousePosition();
-        float raw_mouse_x = pos.x + renderer->camera.target.x;
-        float raw_mouse_y = pos.y + renderer->camera.target.y;
-        int mouse_x = raw_mouse_x / ts;
-        int mouse_y = raw_mouse_y / ts;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        renderer->last_click_x = raw_mouse_x / ts;
+        renderer->last_click_y = raw_mouse_y / ts;
+    }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            renderer->last_click_x = raw_mouse_x / ts;
-            renderer->last_click_y = raw_mouse_y / ts;
+    int human = renderer->human_player;
+    int (*actions)[6] = (int(*)[6])env->actions;
+
+    // Clears so as to not let the nn spam actions
+    if (frame % 12 == 0) {
+        actions[human][0] = 0;
+        actions[human][1] = 0;
+        actions[human][2] = 0;
+        actions[human][3] = 0;
+        actions[human][4] = 0;
+        actions[human][5] = 0;
+    }
+
+    // TODO: better way to null clicks?
+    if (renderer->last_click_x != -1 && renderer->last_click_y != -1) {
+        float dest_x = renderer->last_click_x;
+        float dest_y = renderer->last_click_y;
+        float dy = dest_y - my_player->y;
+        float dx = dest_x - my_player->x;
+
+        float mag = sqrtf(dy*dy + dx*dx);
+        if (mag < 1) {
+            renderer->last_click_x = -1;
+            renderer->last_click_y = -1;
         }
+       
+        actions[human][0] = 300*dy;
+        actions[human][1] = 300*dx;
+    }
+    if (IsKeyDown(KEY_ESCAPE)) {
+        return 1;
+    }
+    if (IsKeyDown(KEY_Q) || IsKeyPressed(KEY_Q)) {
+        actions[human][3] = 1;
+    }
+    if (IsKeyDown(KEY_W) || IsKeyPressed(KEY_W)) {
+        actions[human][4] = 1;
+    }
+    if (IsKeyDown(KEY_E) || IsKeyPressed(KEY_E)) {
+        actions[human][5] = 1;
+    }
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        actions[human][2] = 2; // Target heroes
+    }
+    // Num keys toggle selected player
+    int num_pressed = GetKeyPressed();
+    if (num_pressed > KEY_ZERO && num_pressed <= KEY_NINE) {
+        renderer->human_player = num_pressed - KEY_ZERO - 1;
+    } else if (num_pressed == KEY_ZERO) {
+        renderer->human_player = 9;
+    }
 
-        // TODO: better way to null clicks?
-        if (renderer->last_click_x != -1 && renderer->last_click_y != -1) {
-            float dest_x = renderer->last_click_x;
-            float dest_y = renderer->last_click_y;
-            float dy = dest_y - my_player->y;
-            float dx = dest_x - my_player->x;
+    BeginDrawing();
+    ClearBackground(COLORS[0]);
 
-            // Rescale vector if norm > 1
-            float mag = sqrtf(dy*dy + dx*dx);
-            if (mag > 1) {
-                dy /= mag;
-                dx /= mag;
-            }
-            if (mag < 0.05) {
-                renderer->last_click_x = -1;
-                renderer->last_click_y = -1;
-            }
+    // Main environment shader
+    BeginShaderMode(renderer->shader);
+    renderer->shader_y = (fmain_r - renderer->height/2) / 128;
+    renderer->shader_x = (fmain_c - renderer->width/2) / 128;
+    struct timespec time_spec;
+    clock_gettime(CLOCK_REALTIME, &time_spec);
+    renderer->shader_seconds = time_spec.tv_sec - renderer->shader_start_seconds + time_spec.tv_nsec / 1e9;
+    SetShaderValue(renderer->shader, renderer->shader_camera_x, &renderer->shader_x, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(renderer->shader, renderer->shader_camera_y, &renderer->shader_y, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(renderer->shader, renderer->shader_time, &renderer->shader_seconds, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(renderer->shader, renderer->shader_resolution_loc, renderer->shader_resolution, SHADER_UNIFORM_VEC3);
+    SetShaderValueTexture(renderer->shader, renderer->shader_texture1, renderer->game_map);
+    DrawTexture(renderer->shader_canvas, 0, 0, WHITE);
+    EndShaderMode();
 
-            ay = 100*dy;
-            ax = 100*dx;
-        } else {
-            ay = 0;
-            ax = 0;
-        }
+    BeginMode2D(renderer->camera);
 
-        if (IsKeyDown(KEY_ESCAPE)) {
-            return 1;
-        }
-
-        if (IsKeyDown(KEY_Q) || IsKeyPressed(KEY_Q)) {
-            skill_q = 1;
-        }
-        if (IsKeyDown(KEY_W) || IsKeyPressed(KEY_W)) {
-            skill_w = 1;
-        }
-        if (IsKeyDown(KEY_E) || IsKeyPressed(KEY_E)) {
-            skill_e = 1;
-        }
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            target_heros = 2;
-        }
-
-        // Num keys toggle selected player
-        int num_pressed = GetKeyPressed();
-        if (num_pressed > KEY_ZERO && num_pressed <= KEY_NINE) {
-            renderer->human_player = num_pressed - KEY_ZERO - 1;
-        } else if (num_pressed == KEY_ZERO) {
-            renderer->human_player = 9;
-        }
-
-        // TODO: How to check for no movement?
-        int human = renderer->human_player;
-        int (*actions)[6] = (int(*)[6])env->actions;
-        actions[human][0] = ay;
-        actions[human][1] = ax;
-        actions[human][2] = target_heros;
-        actions[human][3] = skill_q;
-        actions[human][4] = skill_w;
-        actions[human][5] = skill_e;
-
-        BeginDrawing();
-        ClearBackground(COLORS[0]);
-
-        // Main environment shader
-        BeginShaderMode(renderer->shader);
-        renderer->shader_y = (fmain_r - renderer->height/2) / 128;
-        renderer->shader_x = (fmain_c - renderer->width/2) / 128;
-        struct timespec time_spec;
-        clock_gettime(CLOCK_REALTIME, &time_spec);
-        renderer->shader_seconds = time_spec.tv_sec - renderer->shader_start_seconds + time_spec.tv_nsec / 1e9;
-        SetShaderValue(renderer->shader, renderer->shader_camera_x, &renderer->shader_x, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(renderer->shader, renderer->shader_camera_y, &renderer->shader_y, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(renderer->shader, renderer->shader_time, &renderer->shader_seconds, SHADER_UNIFORM_FLOAT);
-        SetShaderValueTexture(renderer->shader, renderer->shader_texture1, renderer->game_map);
-        DrawTexture(renderer->shader_canvas, 0, 0, WHITE);
-        EndShaderMode();
-
-        BeginMode2D(renderer->camera);
-
-        int render_idx = 0;
-        for (int y = r_min; y < r_max+1; y++) {
-            for (int x = c_min; x < c_max+1; x++) {
-                if (y < 0 || y >= 128 || x < 0 || x >= 128) {
-                    continue;
-                }
-
-                int adr = map_offset(map, y, x);
-                unsigned char tile = map->grid[adr];
-                if (tile == EMPTY || tile == WALL) {
-                    continue;
-                }
-           
-                int pid = map->pids[adr];
-                if (pid == -1) {
-                    DrawRectangle(x*ts, y*ts, ts, ts, RED);
-                }
-
-                renderer->render_entities[render_idx] = pid;
-                render_idx++;
-            }
-        }
-
-        // Targeting overlays
-        for (int i = 0; i < render_idx; i++) {
-            int pid = renderer->render_entities[i];
-            if (pid == -1) {
+    int render_idx = 0;
+    for (int y = r_min; y < r_max+1; y++) {
+        for (int x = c_min; x < c_max+1; x++) {
+            if (y < 0 || y >= 128 || x < 0 || x >= 128) {
                 continue;
             }
-
-            Entity* entity = &env->entities[pid];
-            int target_pid = entity->target_pid;
-            if (target_pid == -1) {
-                continue;
-            }
-
-            Entity* target = &env->entities[target_pid];
-            float entity_x = entity->last_x + tick_frac*(entity->x - entity->last_x);
-            float entity_y = entity->last_y + tick_frac*(entity->y - entity->last_y);
-            float target_x = target->last_x + tick_frac*(target->x - target->last_x);
-            float target_y = target->last_y + tick_frac*(target->y - target->last_y);
-
-            Color base;
-            Color accent;
-            if (entity->team == 0) {
-                base = (Color){0, 128, 128, 255};
-                accent = (Color){0, 255, 255, 255};
-            } else if (entity->team == 1) {
-                base = (Color){128, 0, 0, 255};
-                accent = (Color){255, 0, 0, 255};
-            } else {
-                base = (Color){128, 128, 128, 255};
-                accent = (Color){255, 255, 255, 255};
-            }
-
-            int target_px = target_x*ts + ts/2;
-            int target_py = target_y*ts + ts/2;
-            int entity_px = entity_x*ts + ts/2;
-            int entity_py = entity_y*ts + ts/2;
-                                            
-            if (entity->attack_aoe == 0) {
-                Vector2 line_start = (Vector2){entity_px, entity_py};
-                Vector2 line_end = (Vector2){target_px, target_py};
-                DrawLineEx(line_start, line_end, ts/16, accent);
-            } else {
-                int radius = entity->attack_aoe*ts;
-                DrawRectangle(target_px - radius, target_py - radius,
-                    2*radius, 2*radius, base);
-                Rectangle rec = (Rectangle){target_px - radius,
-                    target_py - radius, 2*radius, 2*radius};
-                DrawRectangleLinesEx(rec, ts/8, accent);
-            }
-        }
-
-        // Entity renders
-        for (int i = 0; i < render_idx; i++) {
-            Color tint = (Color){255, 255, 255, 255};
-
-            int pid = renderer->render_entities[i];
-            if (pid == -1) {
-                continue;
-            }
-            Entity* entity = &env->entities[pid];
-            int y = entity->y;
-            int x = entity->x;
-
-            float entity_x = entity->last_x + tick_frac*(entity->x - entity->last_x);
-            float entity_y = entity->last_y + tick_frac*(entity->y - entity->last_y);
-            int tx = entity_x*ts;
-            int ty = entity_y*ts;
-            draw_bars(entity, tx, ty-8, ts, 4, false);
 
             int adr = map_offset(map, y, x);
-            int tile = map->grid[adr];
+            int pid = map->pids[adr];
+            //if (pid != -1) {
+            //    DrawRectangle(x*ts, y*ts, ts, ts, RED);
+            //}
 
-            // TODO: Might need a vector type
-            Rectangle source_rect = renderer->asset_map[tile];
-            Rectangle dest_rect = (Rectangle){tx, ty, ts, ts};
-
-            if (entity->is_hit) {
-                BeginShaderMode(renderer->bloom_shader);
+            unsigned char tile = map->grid[adr];
+            if (tile == EMPTY || tile == WALL) {
+                continue;
             }
-            Vector2 origin = (Vector2){0, 0};
-            DrawTexturePro(renderer->puffer, source_rect, dest_rect, origin, 0, tint);
-            if (entity->is_hit) {
-                EndShaderMode();
+       
+            pid = map->pids[adr];
+            if (pid == -1) {
+                DrawRectangle(x*ts, y*ts, ts, ts, RED);
             }
 
-            // Draw status icons
-            if (entity->stun_timer > 0) {
-                DrawTexturePro(renderer->puffer, renderer->stun_uv, dest_rect, origin, 0, tint);
-            }
-            if (entity->move_timer > 0) {
-                if (entity->move_modifier < 0) {
-                    DrawTexturePro(renderer->puffer, renderer->slow_uv, dest_rect, origin, 0, tint);
-                }
-                if (entity->move_modifier > 0) {
-                    DrawTexturePro(renderer->puffer, renderer->speed_uv, dest_rect, origin, 0, tint);
-                }
-            }
+            renderer->render_entities[render_idx] = pid;
+            render_idx++;
+        }
+    }
+
+    // Targeting overlays
+    for (int i = 0; i < render_idx; i++) {
+        int pid = renderer->render_entities[i];
+        if (pid == -1) {
+            continue;
         }
 
-        DrawCircle(ts*mouse_x + ts/2, ts*mouse_y + ts/8, ts/8, WHITE);
-        EndMode2D();
+        Entity* entity = &env->entities[pid];
+        int target_pid = entity->target_pid;
+        if (target_pid == -1) {
+            continue;
+        }
 
-        // Draw HUD
-        Entity* player = &env->entities[human];
-        DrawFPS(10, 10);
+        Entity* target = &env->entities[target_pid];
+        float entity_x = entity->last_x + tick_frac*(entity->x - entity->last_x);
+        float entity_y = entity->last_y + tick_frac*(entity->y - entity->last_y);
+        float target_x = target->last_x + tick_frac*(target->x - target->last_x);
+        float target_y = target->last_y + tick_frac*(target->y - target->last_y);
 
-        float hud_y = renderer->height*ts - 2*ts;
-        draw_bars(player, 2*ts, hud_y, 10*ts, 24, true);
+        Color base;
+        Color accent;
+        if (entity->team == 0) {
+            base = (Color){0, 128, 128, 255};
+            accent = (Color){0, 255, 255, 255};
+        } else if (entity->team == 1) {
+            base = (Color){128, 0, 0, 255};
+            accent = (Color){255, 0, 0, 255};
+        } else {
+            base = (Color){128, 128, 128, 255};
+            accent = (Color){255, 255, 255, 255};
+        }
 
-        Color off_color = (Color){255, 255, 255, 255};
-        Color on_color = (player->team == 0) ? (Color){0, 255, 255, 255} : (Color){255, 0, 0, 255};
+        int target_px = target_x*ts + ts/2;
+        int target_py = target_y*ts + ts/2;
+        int entity_px = entity_x*ts + ts/2;
+        int entity_py = entity_y*ts + ts/2;
 
-        Color q_color = (skill_q) ? on_color : off_color;
-        Color w_color = (skill_w) ? on_color : off_color;
-        Color e_color = (skill_e) ? on_color : off_color;
-
-        int q_cd = player->q_timer;
-        int w_cd = player->w_timer;
-        int e_cd = player->e_timer;
-
-        DrawText(TextFormat("Q: %i", q_cd), 13*ts, hud_y - 20, 40, q_color);
-        DrawText(TextFormat("W: %i", w_cd), 17*ts, hud_y - 20, 40, w_color);
-        DrawText(TextFormat("E: %i", e_cd), 21*ts, hud_y - 20, 40, e_color);
-        DrawText(TextFormat("Stun: %i", player->stun_timer), 25*ts, hud_y - 20, 20, (player->stun_timer > 0) ? on_color : off_color);
-        DrawText(TextFormat("Move: %i", player->move_timer), 25*ts, hud_y, 20, (player->move_timer > 0) ? on_color : off_color);
-
-        EndDrawing();
+        if (entity->attack_aoe == 0) {
+            Vector2 line_start = (Vector2){entity_px, entity_py};
+            Vector2 line_end = (Vector2){target_px, target_py};
+            DrawLineEx(line_start, line_end, ts/16, accent);
+        } else {
+            int radius = entity->attack_aoe*ts;
+            DrawRectangle(target_px - radius, target_py - radius,
+                2*radius, 2*radius, base);
+            Rectangle rec = (Rectangle){target_px - radius,
+                target_py - radius, 2*radius, 2*radius};
+            DrawRectangleLinesEx(rec, ts/8, accent);
+        }
     }
+
+    // Entity renders
+    for (int i = 0; i < render_idx; i++) {
+        Color tint = (Color){255, 255, 255, 255};
+
+        int pid = renderer->render_entities[i];
+        if (pid == -1) {
+            continue;
+        }
+        Entity* entity = &env->entities[pid];
+        int y = entity->y;
+        int x = entity->x;
+
+        float entity_x = entity->last_x + tick_frac*(entity->x - entity->last_x);
+        float entity_y = entity->last_y + tick_frac*(entity->y - entity->last_y);
+        int tx = entity_x*ts;
+        int ty = entity_y*ts;
+        draw_bars(entity, tx, ty-8, ts, 4, false);
+
+        int adr = map_offset(map, y, x);
+        int tile = map->grid[adr];
+
+        // TODO: Might need a vector type
+        Rectangle source_rect = renderer->asset_map[tile];
+        Rectangle dest_rect = (Rectangle){tx, ty, ts, ts};
+
+        if (entity->is_hit) {
+            BeginShaderMode(renderer->bloom_shader);
+        }
+        Vector2 origin = (Vector2){0, 0};
+        DrawTexturePro(renderer->puffer, source_rect, dest_rect, origin, 0, tint);
+        if (entity->is_hit) {
+            EndShaderMode();
+        }
+
+        // Draw status icons
+        if (entity->stun_timer > 0) {
+            DrawTexturePro(renderer->puffer, renderer->stun_uv, dest_rect, origin, 0, tint);
+        }
+        if (entity->move_timer > 0) {
+            if (entity->move_modifier < 0) {
+                DrawTexturePro(renderer->puffer, renderer->slow_uv, dest_rect, origin, 0, tint);
+            }
+            if (entity->move_modifier > 0) {
+                DrawTexturePro(renderer->puffer, renderer->speed_uv, dest_rect, origin, 0, tint);
+            }
+        }
+    }
+
+    //DrawCircle(ts*mouse_x + ts/2, ts*mouse_y + ts/8, ts/8, WHITE);
+    EndMode2D();
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        DrawCircle(pos.x, pos.y, ts/8, RED);
+    }
+
+    // Draw HUD
+    Entity* player = &env->entities[human];
+    DrawFPS(10, 10);
+
+    float hud_y = renderer->height*ts - 2*ts;
+    draw_bars(player, 2*ts, hud_y, 10*ts, 24, true);
+
+    Color off_color = (Color){255, 255, 255, 255};
+    Color on_color = (player->team == 0) ? (Color){0, 255, 255, 255} : (Color){255, 0, 0, 255};
+
+    Color q_color = (actions[human][3]) ? on_color : off_color;
+    Color w_color = (actions[human][4]) ? on_color : off_color;
+    Color e_color = (actions[human][5]) ? on_color : off_color;
+
+    int q_cd = player->q_timer;
+    int w_cd = player->w_timer;
+    int e_cd = player->e_timer;
+
+    DrawText(TextFormat("Q: %i", q_cd), 13*ts, hud_y - 20, 40, q_color);
+    DrawText(TextFormat("W: %i", w_cd), 17*ts, hud_y - 20, 40, w_color);
+    DrawText(TextFormat("E: %i", e_cd), 21*ts, hud_y - 20, 40, e_color);
+    DrawText(TextFormat("Stun: %i", player->stun_timer), 25*ts, hud_y - 20, 20, (player->stun_timer > 0) ? on_color : off_color);
+    DrawText(TextFormat("Move: %i", player->move_timer), 25*ts, hud_y, 20, (player->move_timer > 0) ? on_color : off_color);
+
+    EndDrawing();
     return 0;
 }
 
 void close_game_renderer(GameRenderer* renderer) {
     CloseWindow();
+    UnloadImage(renderer->shader_background);
+    UnloadShader(renderer->shader);
+    UnloadShader(renderer->bloom_shader);
     free(renderer);
 }
 

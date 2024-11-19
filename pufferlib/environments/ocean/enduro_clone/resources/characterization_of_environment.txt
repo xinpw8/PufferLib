@@ -1,0 +1,57 @@
+Enemy car scaling
+enemy cars have a distinct, 7-stage 'growing' from tiny at spawn to equal size with player's car at level of player's car. their sizes don't continuously change, but instead change in stages, depending on where they are on the road. specifically, when the front of an enemy car passes the given transition points, the car changes scale.
+
+stage 1 is top car vanishing point to 69. that is, cars with front bumpers <= y=68 are size 1x2 px until they disappear
+stage 2 is 74 >= y > 69, size is 4x2 px
+stage 3 is 86>= y > 74, size is 4x3 px
+stage 4 is 100>= y > 86, size is 6x4 px
+stage 5 is 110>= y > 100, size is 8x6 px
+stage 6 is 120>=y > 110, size is 10x8 px
+stage 7 is 135>=y > 120,  size is 12x8
+y > 135 size is normal rendered sprite size (16x10 px)
+
+// Notes:
+// Road properties
+    // General road movement behavior
+// when the player moves left or right, the entire road effectively moves the opposite direction. 
+// so, when the player's car has moved all the way to the left on the road, the vanishing point of
+// the road x position has moved to 110. and when player car is all the way right, the vanishing 
+// point has moved to x=62. this happens without respect to the road going straight or curving. if 
+// the road is straight, it stays going straight. 
+// the vanishing point x should be at 10 when the road curves left and the player's car is all the way to the right of the road,
+// and the vanishing point x should be at 158 when then road curves right and the player's car is all the way to the left of the road.
+    // Road edge color scheme
+// the lines representing the sides of the road are 3 colors y=52-90 RGB 74 74 74, 91-105 RGB  111, 111, 111, 106-155  
+// RGB 170, 170, 170. these sections of the road lines always stay these colors.
+    // Dimensions
+// Road width at the bottom-screen intercept is always 101 px.
+
+// Road wiggle effect logic from original:
+    // at min speed, q 5 seconds
+    // at max speed, q 0.3 seconds
+    /*road wiggle effect: the effect occurs at the same time in the left and right sides of the road. it occurs, at minimum speed, every 5 seconds. at max speed, every 0.3 seconds. the effect starts at the vanishing point where the two sides of the road meet, and propagates towards the bottom of the screen. 
+normal side of road left (37, 154, 153) (38, 152, 151) (39, 150, 149) (40, 148, 147), (41, 146, 145), (42, 144, 143), (43, 142, 141)
+'bump-in wiggle effect' begins (44, 140), (45, 139), (46, 138), at (47, 138), there is no road pixel. it is just the background color. (48, 137), (49, 136), (50, 135, 134), (51, 133, 132), (52, 131, 130), (53, 129, 128), (54, 127, 126), (55, 125, 124), (56, 123, 122), (57, 121, 120, 119), (56, 118, 117, 116, 115). 
+normal side of road left continues (57, 114, 113), (58, 112, 111), etc.
+the effect is mirrored by the right road edge.*/
+
+// Tuned player speed to match original game
+// takes about 14 seconds to fully accelerate from min speed to max speed
+// there appear to be 4 gears with timings as follows:
+// 1. 4 seconds
+// 2. 2.5 seconds
+// 3. 3.25 seconds
+// 4. 1.5 seconds
+// at max speed, enemy cars take around 0.4 seconds to travel from the
+// spawn point at the top to the bottom of the screen
+// at min speed, enemy cars take around 0.5 seconds to
+// travel from the spawn point at the top to the bottom of the screen
+// to the vanishing point at the top
+
+// OG enduro car spawning measurements:
+// at min speed:
+// night: 64 cars passed the player in 49 seconds
+// day start: 32 cars per 38 seconds
+// snow 
+// grass after snow until night: 29 cars per 37 seconds
+// after night but before new day: 13 cars per 8 seconds

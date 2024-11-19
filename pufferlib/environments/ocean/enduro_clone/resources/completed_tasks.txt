@@ -1,0 +1,41 @@
+11/4/24
+// TODO: Improve road wiggle effect
+// TODO: Ascertain road wiggle effect logic from original
+// TODO: Add road bump-out effect
+// TODO: Road vanishing point moves based on where player car is on road
+// TODO: Add scenery
+// TODO: Mountains move w/ road and vanishing point as player car moves left/right
+// TODO: Black digit scoreboard
+// TODO: Slow speed player wheels animation
+// TODO: Add winter/summer cycle
+// TODO: Ascertain winter/summer cycle logic from original
+// TODO: Add day/night cycle + pre-dawn
+// TODO: Ascertain day/night cycle logic from original
+// TODO: Add original player car sprite/color
+// TODO: Add original enemy car sprites/colors
+// TODO: Smooth transitions between L, R, and straight road curving
+// TODO: Add movement of player's car towards outer edge of road on curves
+// TODO: Car v car crash logic better - drift appreciably close speed-wise and drift direction logic based on furthest road edge.
+// TODO: Average approximate 0.8777 second enemy car spawn interval added
+// TODO: Drift direction logic based on furthest road edge
+// TODO: Tie vanishing point transition to speed
+// TODO: Render enemy cars at night w/ tail lights
+// TODO: Fog on road during fog stage bg_13.png
+// TODO: Enemy cars no longer render when in fog.
+// TODO: Moved background update logic to step()
+11/14/24
+// TODO: Ascertain exact atari enemy car spawn frequency per each day at speed: Day 1: 90 cars/min (0 crashes); Day 2: 166 cars/min (1 crash); Day 3: 111 cars/min (2 crashes)
+// TODO: Ascertain top spawn lane choice logic per atari original
+// TODO: Victory terminal logic after day 1 - reset cars to pass to 300
+// TODO: make sure no cars spawn behind player in same lane as player
+// TODO: Fix pile spawning when speed < 0 (enemy cars spawn on top of each other) and otherwise bunch up
+// TODO: Disable collisions if crash_noop_duration is active, and for 1 second or so afterwards.
+// TODO: Fix loss terminal logic (currently doesn't end episode)
+// TODO: Combine 2 fns for leanke (did this forever ago)
+// TODO: reduce line count (will be done at end)
+// TODO: Check player speed. Seems like it suddenly speeds up arbitrarily
+// TODO: Enemies are still getting squished together, ending up too close by player
+// TODO: Speed after crashing changes to -1.5 from -2.5
+// TODO: Reduced handling on snow
+// TODO: Add collisions with the road edges
+
