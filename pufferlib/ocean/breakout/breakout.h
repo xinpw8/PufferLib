@@ -323,6 +323,8 @@ bool calc_paddle_ball_collisions(Breakout* env, CollisionInfo* collision_info) {
     env->ball_vx = sin(angle) * env->ball_speed * TICK_RATE;
     env->ball_vy = -cos(angle) * env->ball_speed * TICK_RATE;
     env->hits += 1;
+    //env->rewards[0] += 0.1;
+    //env->log.episode_return += 0.1;
     if (env->hits % 4 == 0 && env->ball_speed < MAX_BALL_SPEED) {
         env->ball_speed += 64;
     }
@@ -375,10 +377,11 @@ void check_wall_bounds(Breakout* env) {
 }
 
 void destroy_brick(Breakout* env, int brick_idx) {
-    env->score += 7 - 3 * (brick_idx / env->brick_cols / 2);
+    float gained_points = 7 - 3 * (brick_idx / env->brick_cols / 2);
+    env->score += gained_points;
     env->brick_states[brick_idx] = 1.0;
-    env->log.episode_return += 1.0;
-    env->rewards[0] += 1.0;
+    env->log.episode_return += gained_points;
+    env->rewards[0] += gained_points;
 
     if (brick_idx / env->brick_cols < 3) {
         env->ball_speed = MAX_BALL_SPEED;

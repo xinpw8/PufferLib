@@ -13,7 +13,7 @@ from pufferlib.ocean.breakout.cy_breakout import CyBreakout
 
 class Breakout(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=128,
-            frameskip=1, width=576, height=330,
+            frameskip=4, width=576, height=330,
             paddle_width=62, paddle_height=8,
             ball_width=32, ball_height=32,
             brick_width=32, brick_height=12,
