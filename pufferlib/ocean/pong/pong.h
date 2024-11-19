@@ -230,7 +230,6 @@ void step(Pong* env) {
                 env->ball_vx = -env->ball_vx;
                 env->n_bounces += 1;
 		env->rewards[0] = 0.1; // agent bounced the ball
-                env->log.episode_return += 0.1;
                 // ball speed change
                 env->ball_vy += env->ball_speed_y_increment * env->paddle_dir;
                 env->ball_vy = fminf(fmaxf(env->ball_vy, -env->ball_max_speed_y), env->ball_max_speed_y);
@@ -243,6 +242,7 @@ void step(Pong* env) {
                 env->score_l += 1;
                 env->rewards[0] = -1.0;
                 env->log.score -= 1.0;
+                env->log.episode_return -= 1.0;
                 if (env->score_l == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env->log_buffer, &env->log);
