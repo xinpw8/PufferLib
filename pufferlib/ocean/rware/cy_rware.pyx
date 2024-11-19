@@ -90,7 +90,6 @@ cdef class CyRware:
                 human_agent_idx=human_agent_idx,
             )
             init(&self.envs[i])
-            self.client = NULL
 
     def reset(self):
         cdef int i
