@@ -9,6 +9,7 @@ def save_model_weights(model, filename):
         print(name, param.shape, param.data.cpu().numpy().ravel()[0])
     
     weights = np.concatenate(weights)
+    print('Num weights:', len(weights))
     weights.tofile(filename)
     # Save the model architecture (you may want to adjust this based on your specific model)
     #with open(filename + "_architecture.txt", "w") as f:
@@ -109,8 +110,9 @@ def test_model_forward(model):
 	
 if __name__ == '__main__':
     #test_lstm()
-    model = torch.load('moba.pt', map_location='cpu')
+    model = torch.load('connect4.pt', map_location='cpu')
     #test_model_forward(model)
     #test_model(model)
 
-    save_model_weights(model, 'moba_weights.bin')
+    save_model_weights(model, 'connect4_weights.bin')
+    print('saved')
