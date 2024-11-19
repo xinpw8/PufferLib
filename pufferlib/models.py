@@ -69,6 +69,13 @@ class Default(nn.Module):
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
         else: 
             observations = observations.view(batch_size, -1)
+            
+        # Check for nan or inf in observations
+        if torch.isnan(observations).any():
+            print("Observations contain nan values.")
+        if torch.isinf(observations).any():
+            print("Observations contain inf values.")
+        
         return torch.relu(self.encoder(observations.float())), None
 
     def decode_actions(self, hidden, lookup, concat=True):
