@@ -5,7 +5,6 @@ import gymnasium
 
 import pufferlib
 from pufferlib.ocean.snake.cy_snake import Snake as CSnake
-from pufferlib.ocean import render
 
 class Snake(pufferlib.PufferEnv):
     def __init__(self, widths=[2560], heights=[1440], num_snakes=[4096],
@@ -39,6 +38,8 @@ class Snake(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.tick = 0
 
+        self.cell_size = int(np.ceil(1280 / max(max(widths), max(heights))))
+
         super().__init__(buf)
         self.c_envs = CSnake(self.observations, self.actions,
             self.rewards, self.terminals, widths, heights,
@@ -65,7 +66,7 @@ class Snake(pufferlib.PufferEnv):
             self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        self.c_envs.render(self.cell_size)
 
 def test_performance(timeout=10, atn_cache=1024):
     env = Snake()

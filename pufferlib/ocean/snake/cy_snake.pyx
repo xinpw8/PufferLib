@@ -77,6 +77,7 @@ cdef class Snake:
         cdef int i
         cdef int n = 0
         for i in range(self.num_envs):
+            print('Num snakes:', num_snakes[i])
             self.envs[i] = CSnake(
                 observations=&observations[n, 0, 0],
                 actions=&actions[n],
@@ -107,10 +108,10 @@ cdef class Snake:
         for i in range(self.num_envs):
             step(&self.envs[i])
 
-    def render(self):
+    def render(self, cell_size=8):
         cdef CSnake* env = &self.envs[0]
         if self.client == NULL:
-            self.client = make_client(8, env.width, env.height)
+            self.client = make_client(cell_size, env.width, env.height)
 
         render(self.client, env)
 
