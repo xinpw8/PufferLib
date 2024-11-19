@@ -70,14 +70,13 @@ cdef class Snake:
              float reward_corpse, float reward_death):
 
         self.num_envs = len(num_snakes)
-        self.envs = <CSnake*>calloc(self.num_envs, sizeof(CSnake*))
+        self.envs = <CSnake*>calloc(self.num_envs, sizeof(CSnake))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
         self.client = NULL
 
         cdef int i
         cdef int n = 0
         for i in range(self.num_envs):
-            print('Num snakes:', num_snakes[i])
             self.envs[i] = CSnake(
                 observations=&observations[n, 0, 0],
                 actions=&actions[n],
