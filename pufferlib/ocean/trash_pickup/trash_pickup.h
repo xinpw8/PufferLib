@@ -114,7 +114,7 @@ void place_random_items(CTrashPickupEnv* env, int count, int item_type) {
         if (env->grid[INDEX(env, x, y)]  == EMPTY) {
             env->grid[INDEX(env, x, y)] = item_type;
             if (item_type == AGENT) {
-                int agent_idx = agent_id; // KEHOE - why would we assign this to 'placed'???
+                int agent_idx = agent_id;
                 env->agent_positions[agent_idx][0] = x;
                 env->agent_positions[agent_idx][1] = y;
                 agent_id += 1;
