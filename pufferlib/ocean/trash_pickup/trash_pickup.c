@@ -6,12 +6,13 @@
 // Demo function for visualizing the TrashPickupEnv
 
 
-void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
+void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_steps) {
     CTrashPickupEnv env;
     env.grid_size = grid_size;
     env.num_agents = num_agents;
     env.num_trash = num_trash;
     env.num_bins = num_bins;
+    env.max_steps = max_steps;
 
     allocate(&env);
 
@@ -23,6 +24,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins) {
         // Random actions for all agents
         for (int i = 0; i < env.num_agents; i++) {
             env.actions[i] = rand() % 4; // 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT
+            // printf("action: %d \n", env.actions[i]);
         }
 
         // Step the environment and render the grid
@@ -66,7 +68,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    // demo(10, 3, 15, 1); // Visual demo
-    performance_test(); // Uncomment for benchmarking
+    demo(10, 3, 15, 2, 300); // Visual demo
+    // performance_test(); // Uncomment for benchmarking
     return 0;
 }

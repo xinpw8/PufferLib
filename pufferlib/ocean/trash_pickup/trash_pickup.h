@@ -18,8 +18,8 @@
 #define ACTION_LEFT 2
 #define ACTION_RIGHT 3
 
-#define AGENT_IS_CARRYING 0
-#define AGENT_IS_NOT_CARRYING 1
+#define AGENT_IS_CARRYING 1
+#define AGENT_IS_NOT_CARRYING 0
 
 #define LOG_BUFFER_SIZE 1024
 
@@ -129,13 +129,18 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
     int y = env->agent_positions[agent_idx][1];
     int carrying = env->agent_carrying[agent_idx];
 
-    int new_x = x, new_y = y;
-    if (action == ACTION_UP) new_y -= 1;
-    if (action == ACTION_DOWN) new_y += 1;
-    if (action == ACTION_LEFT) new_x -= 1;
-    if (action == ACTION_RIGHT) new_x += 1;
+    int move_dir_x = 0;
+    int move_dir_y = 0;
+    if (action == ACTION_UP) move_dir_y = -1;
+    else if (action == ACTION_DOWN) move_dir_y = 1;
+    else if (action == ACTION_LEFT) move_dir_x = -1;
+    else if (action == ACTION_RIGHT) move_dir_x = 1;
+    else printf("Undefined action: %d", action);
 
-    if (new_x < 0 || new_x >= env->grid_size || new_y < 0 || new_y >= env->grid_size)
+    int new_x = x + move_dir_x;
+    int new_y = y + move_dir_y;
+
+    if (new_x >= 0 && new_x < env->grid_size && new_y >= 0 && new_y < env->grid_size)
     {
         int cell_state = env->grid[INDEX(env, new_x, new_y)];
         if (cell_state == EMPTY) 
@@ -148,6 +153,7 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
         else if (cell_state == TRASH && carrying == AGENT_IS_NOT_CARRYING) 
         {
             env->agent_carrying[agent_idx] = AGENT_IS_CARRYING;
+            env->grid[INDEX(env, x, y)] = EMPTY;
             env->grid[INDEX(env, new_x, new_y)] = AGENT;
             env->agent_positions[agent_idx][0] = new_x;
             env->agent_positions[agent_idx][1] = new_y;
@@ -164,15 +170,45 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
             }
             else
             {
-                int new_bin_x = x + (new_x * 2), new_bin_y = y + (new_y * 2);
-                if (new_bin_x < 0 || new_bin_x >= env->grid_size || new_bin_y < 0 || new_bin_y >= env->grid_size)
+                bool try_pull_bin = false;
+                int new_bin_x = new_x + move_dir_x;
+                int new_bin_y = new_y + move_dir_y;
+                if (new_bin_x >= 0 && new_bin_x < env->grid_size && new_bin_y >= 0 && new_bin_y < env->grid_size)
                 {
-                    // do nothing, can't push bin outside map bounds
+                    int new_bin_cell_state = env->grid[INDEX(env, new_bin_x, new_bin_y)];
+                    if (new_bin_cell_state == EMPTY)
+                    {
+                        env->grid[INDEX(env, new_x, new_y)] = EMPTY;
+                        env->grid[INDEX(env, new_bin_x, new_bin_y)] = TRASH_BIN;
+                    }
+                    else{
+                        try_pull_bin = true;
+                    }
                 }
                 else
                 {
-                    env->grid[INDEX(env, new_x, new_y)] = EMPTY;
-                    env->grid[INDEX(env, new_bin_x, new_bin_y)] = TRASH_BIN;
+                    try_pull_bin = true;
+                }
+
+                if (try_pull_bin)
+                {
+                    // pull the bin if on map border instead of push
+                    int new_agent_x = new_x - move_dir_x * 2;
+                    int new_agent_y = new_y - move_dir_y * 2;
+                    if (new_agent_x >= 0 && new_agent_x < env->grid_size && new_agent_y >= 0 && new_agent_y < env->grid_size)
+                    {
+                        // Verify there isn't another agent already occupying this slot
+                        // If its trash, lets just say the agent grabs it and puts it in the trash, env logic should handle this no problem.
+                        if (env->grid[INDEX(env, new_agent_x, new_agent_y)] != AGENT) 
+                        {
+                            env->grid[INDEX(env, new_x, new_y)] = EMPTY; // Remove trash bin from current cell
+                            env->grid[INDEX(env, x, y)] = TRASH_BIN; // Move trash bin to agent's old position
+                            env->grid[INDEX(env, new_agent_x, new_agent_y)] = AGENT; // Move agent to new position.
+
+                            env->agent_positions[agent_idx][0] = new_agent_x;
+                            env->agent_positions[agent_idx][1] = new_agent_y;
+                        }
+                    }
                 }
             }
         }
@@ -237,9 +273,18 @@ void allocate(CTrashPickupEnv* env) {
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+
+    for (int i = 0; i < env->num_agents; i++) {
+        env->rewards[i] = 0;
+    }
 }
 
 void step(CTrashPickupEnv* env) {
+    // Reset reward for each agent
+    for (int i = 0; i < env->num_agents; i++) {
+        env->rewards[i] = 0;
+    }
+
     for (int i = 0; i < env->num_agents; i++) {
         move_agent(env, i, env->actions[i]);
     }
@@ -285,7 +330,7 @@ Client* make_client(CTrashPickupEnv* env) {
     client->window_height = client->window_width + client->header_offset;
 
     InitWindow(client->window_width, client->window_height, "Trash Pickup Environment");
-    SetTargetFPS(5);
+    SetTargetFPS(4);
 
     client->agent_texture = LoadTexture("resources/puffers_128.png");
 
@@ -367,8 +412,8 @@ void render(Client* client, CTrashPickupEnv* env) {
                     client->agent_texture, 
                     (Rectangle) {0, 0, 128, 128},
                     (Rectangle) {
-                        screen_x, 
-                        screen_y,
+                        screen_x + client->cell_size / 2, 
+                        screen_y + client->cell_size / 2,
                         client->cell_size,
                         client->cell_size
                         },
