@@ -34,12 +34,12 @@ class MyEnduro(pufferlib.PufferEnv):
         # Initialize parent class
         super().__init__(buf=buf)
 
-        # Allocate arrays for observations, actions, rewards, terminals
-        self.observations = np.zeros((num_envs, self.num_obs), dtype=np.float32)
-        self.actions = np.zeros(num_envs, dtype=np.int32)
-        self.rewards = np.zeros(num_envs, dtype=np.float32)
-        self.terminals = np.zeros(num_envs, dtype=np.uint8)
-        self.truncations = np.zeros(num_envs, dtype=np.uint8)
+        # # Allocate arrays for observations, actions, rewards, terminals
+        # self.observations = np.zeros((num_envs, self.num_obs), dtype=np.float32)
+        # self.actions = np.zeros(num_envs, dtype=np.int32)
+        # self.rewards = np.zeros(num_envs, dtype=np.float32)
+        # self.terminals = np.zeros(num_envs, dtype=np.uint8)
+        # self.truncations = np.zeros(num_envs, dtype=np.uint8)
 
         # Initialize the Cython environment
         self.c_envs = CyEnduro(
@@ -75,7 +75,7 @@ class MyEnduro(pufferlib.PufferEnv):
                 info.append(log)
 
         # Return observations, rewards, terminals, and info
-        print(f'from python: {self.observations, self.rewards, self.terminals, self.truncations, info}')
+        # print(f'from python: {self.observations, self.rewards, self.terminals, self.truncations, info}')
         return (self.observations, self.rewards,
                 self.terminals, self.truncations, info)
 
@@ -85,24 +85,24 @@ class MyEnduro(pufferlib.PufferEnv):
     def close(self):
         self.c_envs.close()
 
-def test_performance(timeout=10, atn_cache=1024):
-    num_envs = 1000
-    env = MyEnduro(num_envs=num_envs)
-    env.reset()
-    tick = 0
+# def test_performance(timeout=10, atn_cache=1024):
+#     num_envs = 1000
+#     env = MyEnduro(num_envs=num_envs)
+#     env.reset()
+#     tick = 0
 
-    # Generate random actions for performance testing
-    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs))
+#     # Generate random actions for performance testing
+#     actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs))
 
-    import time
-    start = time.time()
-    while time.time() - start < timeout:
-        atn = actions[tick % atn_cache]
-        env.step(atn)
-        tick += 1
+#     import time
+#     start = time.time()
+#     while time.time() - start < timeout:
+#         atn = actions[tick % atn_cache]
+#         env.step(atn)
+#         tick += 1
 
-    sps = num_envs * tick / (time.time() - start)
-    print(f'SPS: {sps:,}')
+#     sps = num_envs * tick / (time.time() - start)
+#     print(f'SPS: {sps:,}')
 
-if __name__ == '__main__':
-    test_performance()
+# if __name__ == '__main__':
+#     test_performance()

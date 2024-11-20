@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include "enduro_clone.h"
+#include "raylib.h"
 
 int main() {
     Enduro env = {
@@ -34,29 +35,16 @@ int main() {
     reset(&env);
     int running = 1;
 
-    // Main game loop
     while (running) {
-        // Handle events
         handleEvents(&running, &env);
-        // Step the environment
-        step(&env);
-        // Update game state
-        updateCarAnimation(&env.gameState, &env);
-        // Update victory effects
-        updateVictoryEffects(&env.gameState);
-        // Update score
-        updateScore(&env.gameState);
-        // Render everything
-        render(client, &env);
-        // Check if the window should close
+        c_step(&env);
+        c_render(client, &env);
         if (WindowShouldClose()) {
             running = 0;
         }
     }
 
-    // Cleanup
     cleanup(&env.gameState);
-    close_client(client);
     free_allocated(&env);
-    return 0;
+    close_client(client, &env);
 }

@@ -20,7 +20,7 @@
 
 // Constant defs
 #define TARGET_FPS 60 // Used to calculate wiggle spawn frequency
-#define LOG_BUFFER_SIZE 1024
+#define LOG_BUFFER_SIZE 2048
 #define SCREEN_WIDTH 160
 #define SCREEN_HEIGHT 210
 #define PLAYABLE_AREA_TOP 0
@@ -81,6 +81,11 @@ typedef struct Log {
     float episode_return;
     float episode_length;
     float score;
+    float passed_cars;
+    float days_completed;
+    float days_failed;
+    float collisions_player_vs_car;
+    float collisions_player_vs_road;
 } Log;
 
 typedef struct LogBuffer {
@@ -93,6 +98,7 @@ typedef struct LogBuffer {
 typedef struct Car {
     int lane;   // Lane index: 0=left lane, 1=mid, 2=right lane
     float y;    // Current y position
+    float last_y; // y post last step
     int passed; // Flag to indicate if car has been passed by player
     int colorIndex; // Car color idx (0-5)
 } Car;
@@ -245,9 +251,6 @@ typedef enum {
 typedef struct Client {
     float width;
     float height;
-    Color player_color;
-    Color enemy_color;
-    Color road_color;
 } Client;
 
 // Prototypes
@@ -270,7 +273,7 @@ float get_car_scale(float y);
 void add_enemy_car(Enduro* env);
 void update_vanishing_point(Enduro* env, float offset);
 void accelerate(Enduro* env);
-void step(Enduro* env);
+void c_step(Enduro* env);
 void update_road_curve(Enduro* env);
 float quadratic_bezier(float bottom_x, float control_x, float top_x, float t);
 float road_edge_x(Enduro* env, float y, float offset, bool left);
@@ -279,7 +282,7 @@ void compute_observations(Enduro* env);
 
 // Client functions
 Client* make_client(Enduro* env);
-void close_client(Client* client);
+void close_client(Client* client, Enduro* env);
 void render_car(Client* client, Enduro* env);
 void handleEvents(int* running, Enduro* env);
 
@@ -295,7 +298,7 @@ void renderScoreboard(GameState* gameState);
 void updateVictoryEffects(GameState* gameState);
 void updateMountains(GameState* gameState, Enduro* env);
 void renderMountains(GameState* gameState, Enduro* env);
-void render(Client* client, Enduro* env);
+void c_render(Client* client, Enduro* env);
 
 // Function defs
 // LogBuffer functions
@@ -318,7 +321,7 @@ void add_log(LogBuffer* logs, Log* log) {
     }
     logs->logs[logs->idx] = *log;
     logs->idx += 1;
-    printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
+    // printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
 }
 
 Log aggregate_and_clear(LogBuffer* logs) {
@@ -330,10 +333,20 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
         log.score += logs->logs[i].score;
+        log.passed_cars += logs->logs[i].passed_cars;
+        log.days_completed += logs->logs[i].days_completed;
+        log.days_failed += logs->logs[i].days_failed;
+        log.collisions_player_vs_car += logs->logs[i].collisions_player_vs_car;
+        log.collisions_player_vs_road += logs->logs[i].collisions_player_vs_road;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.score /= logs->idx;
+    log.passed_cars /= logs->idx;
+    log.days_completed /= logs->idx;
+    log.days_failed /= logs->idx;
+    log.collisions_player_vs_car /= logs->idx;
+    log.collisions_player_vs_road /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -366,7 +379,7 @@ void init(Enduro* env) {
     // Set player position to center (86) explicitly
     env->initial_player_x = 86.0f;
     env->player_x = env->initial_player_x;
-    printf("Init - vanishing_point_x: %f, player_x: %f\n", env->vanishing_point_x, env->player_x); // Debug output
+    // printf("Init - vanishing_point_x: %f, player_x: %f\n", env->vanishing_point_x, env->player_x); // Debug output
 
     env->player_y = PLAYER_MAX_Y;
     env->speed = env->min_speed;
@@ -497,20 +510,29 @@ void reset(Enduro* env) {
     // Enemy spawning
     env->initial_cars_to_pass = INITIAL_CARS_TO_PASS;
     env->carsToPass = env->initial_cars_to_pass;
-    printf("initial cars to pass, carstopass, INITIAL_CARS_TO_PASS: %d, %d, %d\n", env->initial_cars_to_pass, env->carsToPass, INITIAL_CARS_TO_PASS);
+    // printf("initial cars to pass, carstopass, INITIAL_CARS_TO_PASS: %d, %d, %d\n", env->initial_cars_to_pass, env->carsToPass, INITIAL_CARS_TO_PASS);
     env->day = 1;
+
     for (int i = 0; i < MAX_ENEMIES; i++) {
         env->enemyCars[i].lane = 0;
         env->enemyCars[i].y = 0.0;
         env->enemyCars[i].passed = 0;
+        env->enemyCars[i].last_y = 0.0;
     }
-    env->road_scroll_offset = 0.0f;
+
     if (env->log_buffer != NULL) {
         env->log_buffer->idx = 0;
     }
     env->log.episode_return = 0.0;
     env->log.episode_length = 0.0;
     env->log.score = 0.0;
+    env->log.passed_cars = 0.0;
+    // env->log.days_completed = 0.0;
+    // env->log.days_failed = 0.0;
+    env->log.collisions_player_vs_car = 0.0;
+    env->log.collisions_player_vs_road = 0.0;
+
+    env->road_scroll_offset = 0.0f;
     env->current_curve_direction = 0;
     // Initialize curve variables
     env->current_curve_factor = 0.0f;
@@ -527,7 +549,7 @@ void reset(Enduro* env) {
     // Reset rewards and logs
     env->rewards[0] = 0;
     add_log(env->log_buffer, &env->log);
-    printf("Game reset for day %d with %d cars to pass.\n", env->day, env->carsToPass);
+    // printf("Game reset for day %d with %d cars to pass.\n", env->day, env->carsToPass);
 }
 
 bool check_collision(Enduro* env, Car* car) {
@@ -694,11 +716,11 @@ void accelerate(Enduro* env) {
 }
 
 
-void step(Enduro* env) {
+void c_step(Enduro* env) {
     // Increment elapsed time by frame duration
     // Used for rendering but incremented in step()
     env->elapsedTime += (1.0f / TARGET_FPS);
-    updateBackground(&env->gameState, env);
+    // updateBackground(&env->gameState, env);
 
     update_road_curve(env);
     env->log.episode_length += 1;
@@ -781,13 +803,13 @@ void step(Enduro* env) {
     env->collision_cooldown_car_vs_road -= 1;
     }
 
-    // Collision cooldown debugging print
-    if (((int)round(env->collision_cooldown_car_vs_car)) % 5 == 0 && env->collision_cooldown_car_vs_car > 0) {
-    // printf("Collision cooldown vs car: %.2f\n", env->collision_cooldown_car_vs_car);
-    }
-    if (((int)round(env->collision_cooldown_car_vs_road)) % 5 == 0 && env->collision_cooldown_car_vs_road > 0) {
-    // printf("Collision cooldown car vs road: %.2f\n", env->collision_cooldown_car_vs_road);
-    }
+    // // Collision cooldown debugging print
+    // if (((int)round(env->collision_cooldown_car_vs_car)) % 5 == 0 && env->collision_cooldown_car_vs_car > 0) {
+    // // printf("Collision cooldown vs car: %.2f\n", env->collision_cooldown_car_vs_car);
+    // }
+    // if (((int)round(env->collision_cooldown_car_vs_road)) % 5 == 0 && env->collision_cooldown_car_vs_road > 0) {
+    // // printf("Collision cooldown car vs road: %.2f\n", env->collision_cooldown_car_vs_road);
+    // }
 
     // Drift towards furthest road edge
     if (env->drift_direction == 0) { // drift_direction is 0 when noop starts
@@ -860,7 +882,9 @@ void step(Enduro* env) {
 
     // Check for and handle collisions between player and road edges
     if (env->player_x <= road_left || env->player_x >= road_right) {
-        env->speed = fmaxf((env->speed - 1.0f), MIN_SPEED);
+        env->log.collisions_player_vs_road++;
+        env->rewards[0] -= 0.01f;
+        env->speed = fmaxf((env->speed - 1.25f), MIN_SPEED);
         env->collision_cooldown_car_vs_road = CRASH_NOOP_DURATION_CAR_VS_ROAD;
         env->drift_direction = 0; // Reset drift direction, has priority over car collisions
         env->player_x = fmaxf(road_left + 1, fminf(road_right - 1, env->player_x));
@@ -873,16 +897,38 @@ void step(Enduro* env) {
         Car* car = &env->enemyCars[i];
 
         // Check for passing logic **only if not on collision cooldown**
-        if (env->speed > 0 && car->y > env->player_y + CAR_HEIGHT && !car->passed && env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
+        if (env->speed > 0 && car->last_y < env->player_y + CAR_HEIGHT && car->y >= env->player_y + CAR_HEIGHT && env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
             // Mark car as passed and decrement carsToPass
-            env->carsToPass--;
-            if (env->carsToPass < 0) env->carsToPass = 0; // Stops at 0; resets to 300 on new day
-            car->passed = true;
-            env->score += 10;
+            if (env->carsToPass <= 0) {
+                env->carsToPass = 0; // Stops at 0; resets to 300 on new day
+            } else {
+                env->carsToPass--;
+            }
+            env->log.passed_cars++;
+            env->score += 1;
             env->rewards[0] += 1;
             // Passing debug
             // printf("Car passed at y = %.2f. Remaining cars to pass: %d\n", car->y, env->carsToPass);
         }
+
+        // Check if an enemy car passes the player
+        if (env->speed < 0 && car->last_y > env->player_y  + CAR_HEIGHT && car->y <= env->player_y + CAR_HEIGHT ) {
+            // Mark car as passed by player and increment carsToPass
+            int maxCarsToPass = (env->day == 1) ? 200 : 300; // Set max based on day
+            if (env->carsToPass == maxCarsToPass) {
+                // Do nothing
+            } else {
+                env->carsToPass++;
+                env->log.passed_cars--;
+                env->score -= 1;
+                env->rewards[0] -= 1;
+            }
+            
+            // Passing debug
+            // printf("Car passed player at y = %.2f. Remaining cars to pass: %d\n", car->y, env->carsToPass);
+        }
+
+        car->last_y = car->y;
 
         // Ignore collisions for 1 second to avoid edge-case chain collisions
         if (env->collision_cooldown_car_vs_car > 0) {
@@ -897,6 +943,8 @@ void step(Enduro* env) {
         // Check for and handle collisions between player and enemy cars
         if (env->collision_cooldown_car_vs_car <= 0 && env->collision_invulnerability_timer <= 0) {
             if (check_collision(env, car)) {
+                env->log.collisions_player_vs_car++;
+                env->rewards[0] -= 20.0f;
                 env->speed = 1 + MIN_SPEED;
                 env->collision_cooldown_car_vs_car = CRASH_NOOP_DURATION_CAR_VS_CAR;
                 env->drift_direction = 0; // Reset drift direction
@@ -992,12 +1040,12 @@ void step(Enduro* env) {
         }
     }
 
-    updateVictoryEffects(&env->gameState);
+    // updateVictoryEffects(&env->gameState);
 
     // Day completed logic
     if (env->carsToPass <= 0 && !env->gameState.victoryAchieved) {
         env->gameState.victoryAchieved = true;
-        printf("Day complete! Continue racing until day ends.\n");
+        // printf("Day complete! Continue racing until day ends.\n");
     }
 
     // Handle day transition when background cycles back to 0
@@ -1005,15 +1053,17 @@ void step(Enduro* env) {
         // Background cycled back to 0
         if (env->gameState.victoryAchieved) {
             // Player has achieved victory, start new day
+            env->log.days_completed++;
             env->day++;
             env->carsToPass = 300; // Always 300 after the first day
             env->gameState.victoryAchieved = false;
-            printf("Starting day %d with %d cars to pass.\n", env->day, env->carsToPass);
+            // printf("Starting day %d with %d cars to pass.\n", env->day, env->carsToPass);
         } else {
             // Player failed to pass required cars, reset environment
+            env->log.days_failed++;
             env->terminals[0] = 1; // Signal termination
             reset(env); // Reset the game
-            printf("Day %d failed. Resetting game.\n", env->day);
+            // printf("Day %d failed. Resetting game.\n", env->day);
             return;
         }
     }
@@ -1021,10 +1071,21 @@ void step(Enduro* env) {
     // Synchronize carsToPass between Enduro and GameState
     env->gameState.carsToPass = env->carsToPass;
 
-    env->log.episode_return += env->rewards[0];
+    // printf("Speed: %.2f, Gear: %d, Cars to pass: %d, Day: %d\n", env->speed, env->currentGear + 1, env->carsToPass, env->day);
+    // Rewards/logging
+    if (env->speed > -2.50f) {
+        float reward_speed = 0;
+        reward_speed += (env->speed + 2.50f);
+        env->rewards[0] = reward_speed;
+    }
+    // printf("Reward speed: %.2f\n", reward_speed);
+    // printf("Reward 0: %.2f\n", env->rewards[0]);
+    env->log.episode_return = env->rewards[0];
+    // printf("Episode return: %.2f\n", env->log.episode_return);
     env->step_count++;
     env->log.score = env->score;
     compute_observations(env);
+    add_log(env->log_buffer, &env->log);
 
     // // Enemy car position debugging print
     // printf("Positions for all enemy cars: ");
@@ -1048,9 +1109,9 @@ void update_road_curve(Enduro* env) {
 
     float vanishing_point_transition_speed = VANISHING_POINT_TRANSITION_SPEED + speed_scale; 
     // Steps to curve L, R, go straight for
-    int step_thresholds[] = {350, 350, 350, 350, 350, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150};
-    // int curve_directions[] = {0, -1, 0, 1, 0, -1, 0, 1, -1, 1, 1, 1, 1, 1, 1, 1};   
-        int curve_directions[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};   
+    int step_thresholds[] = {350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350,350, 350, 350, 350, 350, 350, 350, 350};
+    int curve_directions[] = {0, -1, 0, 1, 0, -1, 0, 1, -1, 1, 0, 1, 1, 0, -1, 0, -1, 0, 1, -1, 1, 0, 1, 0};   
+    // int curve_directions[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};   
     steps_in_current_stage++;
     if (steps_in_current_stage >= step_thresholds[current_curve_stage]) {
         env->target_curve_factor = (float)curve_directions[current_curve_stage];
@@ -1248,13 +1309,14 @@ Client* make_client(Enduro* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = env->width;
     client->height = env->height;
-    client->player_color = (Color){255, 255, 255, 255}; // WHITE
-    client->enemy_color = (Color){255, 0, 0, 255};      // RED
-    client->road_color = (Color){0, 100, 0, 255};       // DARKGREEN
+    initRaylib();
+    loadTextures(&env->gameState);
     return client;
 }
 
-void close_client(Client* client) {
+void close_client(Client* client, Enduro* env) {
+    cleanup(&env->gameState);
+    CloseWindow();
     free(client);
 }
 
@@ -1318,17 +1380,17 @@ void loadTextures(GameState* gameState) {
     for (int i = 0; i < 16; ++i) {
         snprintf(backgroundFile, sizeof(backgroundFile), "resources/enduro_clone/%d_bg.png", i);
         gameState->backgroundTextures[i] = LoadTexture(backgroundFile);
-        printf("Loaded background image: %s\n", backgroundFile);
+        // printf("Loaded background image: %s\n", backgroundFile);
         snprintf(mountainFile, sizeof(mountainFile), "resources/enduro_clone/%d_mtns.png", i);
         gameState->mountainTextures[i] = LoadTexture(mountainFile);
-        printf("Loaded mountain image: %s\n", mountainFile);
+        // printf("Loaded mountain image: %s\n", mountainFile);
     }
     // Load digit textures 0-9
     char filename[100];
     for (int i = 0; i < 10; i++) {
         snprintf(filename, sizeof(filename), "resources/enduro_clone/digits_%d.png", i);
         gameState->digitTextures[i] = LoadTexture(filename);
-        printf("Loaded digit image: %s\n", filename);
+        // printf("Loaded digit image: %s\n", filename);
     }
     // Load the "car" digit texture
     gameState->carDigitTexture = LoadTexture("resources/enduro_clone/digits_car.png");
@@ -1342,18 +1404,18 @@ void loadTextures(GameState* gameState) {
     for (int i = 0; i < 10; ++i) {
         snprintf(filename, sizeof(filename), "resources/enduro_clone/green_digits_%d.png", i);
         gameState->greenDigitTextures[i] = LoadTexture(filename);
-        printf("Loaded image: %s\n", filename);
+        // printf("Loaded image: %s\n", filename);
     }
     // Load yellow digits for scoreboard numbers
     for (int i = 0; i < 10; ++i) {
         snprintf(filename, sizeof(filename), "resources/enduro_clone/yellow_digits_%d.png", i);
         gameState->yellowDigitTextures[i] = LoadTexture(filename);
-        printf("Loaded image: %s\n", filename);
+        // printf("Loaded image: %s\n", filename);
     }
     gameState->playerCarLeftTreadTexture = LoadTexture("resources/enduro_clone/player_car_left_tread.png");
-    printf("Loaded image: player_car_left_tread.png\n");
+    // printf("Loaded image: player_car_left_tread.png\n");
     gameState->playerCarRightTreadTexture = LoadTexture("resources/enduro_clone/player_car_right_tread.png");
-    printf("Loaded image: player_car_right_tread.png\n");
+    // printf("Loaded image: player_car_right_tread.png\n");
 
     // Transition times (cumulative, seconds) from og enduro (measured)
     gameState->backgroundTransitionTimes[0] = 20.0f;
@@ -1405,15 +1467,15 @@ void loadTextures(GameState* gameState) {
     gameState->enemyCarTextures[5][0] = LoadTexture("resources/enduro_clone/enemy_car_yellow_left_tread.png");
     gameState->enemyCarTextures[5][1] = LoadTexture("resources/enduro_clone/enemy_car_yellow_right_tread.png");
 
-    printf("Loaded enemy car images for all colors and tread animations\n");
+    // printf("Loaded enemy car images for all colors and tread animations\n");
 
     // Load enemy car night tail lights textures
     gameState->enemyCarNightTailLightsTexture = LoadTexture("resources/enduro_clone/enemy_car_night_tail_lights.png");
-    printf("Loaded image: enemy_car_night_tail_lights.png\n");
+    // printf("Loaded image: enemy_car_night_tail_lights.png\n");
 
     // Load enemy car night fog tail lights texture
     gameState->enemyCarNightFogTailLightsTexture = LoadTexture("resources/enduro_clone/enemy_car_night_fog_tail_lights.png");
-    printf("Loaded image: enemy_car_night_fog_tail_lights.png\n");
+    // printf("Loaded image: enemy_car_night_fog_tail_lights.png\n");
 
     // Initialize elapsed time and background index
     gameState->backgroundIndex = 0;
@@ -1691,11 +1753,12 @@ void renderMountains(GameState* gameState, Enduro* env) {
     }
 }
 
-void render(Client* client, Enduro* env) {
+void c_render(Client* client, Enduro* env) {
     BeginDrawing();
     ClearBackground(BLACK);
     BeginBlendMode(BLEND_ALPHA);
 
+    updateBackground(&env->gameState, env);
     renderBackground(&env->gameState);
     updateMountains(&env->gameState, env);
     renderMountains(&env->gameState, env);
@@ -1791,11 +1854,13 @@ void render(Client* client, Enduro* env) {
         DrawTextureEx(carTexture, (Vector2){car_x, car_y}, 0.0f, car_scale, WHITE);
     }
 
-    // Render player car unscaled per original game
-    render_car(client, env);
+    updateCarAnimation(&env->gameState, env);
+    render_car(client, env); // Unscaled player car
 
     EndScissorMode();
     EndBlendMode();
+    updateScore(&env->gameState);
+    updateVictoryEffects(&env->gameState);
     renderScoreboard(&env->gameState);
     EndDrawing();
 }

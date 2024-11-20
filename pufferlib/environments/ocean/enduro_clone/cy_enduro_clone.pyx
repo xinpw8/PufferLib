@@ -11,8 +11,6 @@ cdef int MAX_ENEMIES = 10
 
 cdef extern from "enduro_clone.h":
     int LOG_BUFFER_SIZE
-
-    # Constants and enums from enduro_clone.h
     int TARGET_FPS
     float INITIAL_PLAYER_X
     float PLAYER_MAX_Y
@@ -33,9 +31,13 @@ cdef extern from "enduro_clone.h":
         float episode_return
         float episode_length
         float score
+        float passed_cars
+        float days_completed
+        float days_failed
+        float collisions_player_vs_car
+        float collisions_player_vs_road
 
-    ctypedef struct LogBuffer:
-        pass
+    ctypedef struct LogBuffer
 
     LogBuffer* allocate_logbuffer(int size)
     void free_logbuffer(LogBuffer*)
@@ -47,8 +49,7 @@ cdef extern from "enduro_clone.h":
         int passed
         int colorIndex
 
-    ctypedef struct GameState:
-        pass  # Assuming GameState is not needed in Cython
+    ctypedef struct GameState
 
     ctypedef struct Enduro:
         float* observations
@@ -134,18 +135,15 @@ cdef extern from "enduro_clone.h":
         # Mountain rendering
         float parallaxFactor
 
-        GameState gameState
-
-    ctypedef struct Client:
-        pass
+    ctypedef struct Client
 
     void init(Enduro* env)
     void reset(Enduro* env)
-    void step(Enduro* env)
+    void c_step(Enduro* env)
 
     Client* make_client(Enduro* env)
-    void close_client(Client* client)
-    void render(Client* client, Enduro* env)
+    void close_client(Client* client, Enduro* env)
+    void c_render(Client* client, Enduro* env)
 
 cdef class CyEnduro:
     cdef:
@@ -319,9 +317,6 @@ cdef class CyEnduro:
             # Mountain rendering
             env.parallaxFactor = 0.0
 
-            # Initialize GameState if necessary
-
-            # Call init after setting necessary variables
             init(env)
 
     def reset(self):
@@ -332,38 +327,33 @@ cdef class CyEnduro:
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            # Update actions from the array
             self.envs[i].actions = self.actions[i]
-            step(&self.envs[i])
-
-    def get_observations(self):
-        return self.observations.copy()
-
-    def get_rewards(self):
-        return self.rewards.copy()
-
-    def get_terminals(self):
-        return self.terminals.copy()
-
-    def get_truncateds(self):
-        return self.truncateds.copy()
+            c_step(&self.envs[i])
 
     def render(self):
         cdef Enduro* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env)
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
+        cdef Enduro* env = &self.envs[0]
         if self.client != NULL:
-            close_client(self.client)
+            close_client(self.client, env)
             self.client = NULL
 
         free(self.envs)
+        free(self.logs)
         free_logbuffer(self.logs)
 
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)
         return {'episode_return': log.episode_return,
                 'episode_length': log.episode_length,
-                'score': log.score}
+                'score': log.score,
+                'passed_cars': log.passed_cars,
+                'days_completed': log.days_completed,
+                'days_failed': log.days_failed,
+                'collisions_player_vs_car': log.collisions_player_vs_car,
+                'collisions_player_vs_road': log.collisions_player_vs_road}
+
