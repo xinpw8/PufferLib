@@ -1,7 +1,8 @@
+#include <time.h>
 #include "snake.h"
 #include "puffernet.h"
 
-int main() {
+int demo() {
     CSnake env = {
         .num_snakes = 1024,
         .width = 1280,
@@ -44,3 +45,37 @@ int main() {
     return 0;
 }
 
+void test_performance(float test_time) {
+    CSnake env = {
+        .num_snakes = 1024,
+        .width = 1280,
+        .height = 720,
+        .max_snake_length = 200,
+        .food = 16384,
+        .vision = 5,
+        .leave_corpse_on_death = true,
+        .reward_food = 1.0f,
+        .reward_corpse = 0.5f,
+        .reward_death = -1.0f,
+    };
+    allocate_csnake(&env);
+    reset(&env);
+
+    int start = time(NULL);
+    int i = 0;
+    while (time(NULL) - start < test_time) {
+        for (int j = 0; j < env.num_snakes; j++) {
+            env.actions[j] = rand()%4;
+        }
+        step(&env);
+        i++;
+    }
+    int end = time(NULL);
+    printf("SPS: %f\n", (float)env.num_snakes*i / (end - start));
+}
+
+int main() {
+    //demo();
+    test_performance(30);
+    return 0;
+}
