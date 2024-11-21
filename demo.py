@@ -294,7 +294,7 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
     elif args['vec'] == 'native':
         vec = pufferlib.vector.Native
     else:
-        raise ValueError(f'Invalid --vector (serial/multiprocessing/ray).')
+        raise ValueError(f'Invalid --vector (serial/multiprocessing/ray/native).')
 
     if vecenv is None:
         vecenv = pufferlib.vector.make(
@@ -356,33 +356,29 @@ if __name__ == '__main__':
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
         ' demo options. Shows valid args for your env and policy',
         formatter_class=RichHelpFormatter, add_help=False)
-    parser.add_argument('--default-config', default='config/default.ini')
-    #parser.add_argument('--config', default='config/ocean/grid.ini')
     parser.add_argument('--env', '--environment', type=str,
-        default='squared', help='Name of specific environment to run')
+        default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
         choices='train eval evaluate sweep sweep-carbs autotune profile'.split())
-    parser.add_argument('--eval-model-path', type=str, default=None)
+    parser.add_argument('--vec', '--vector', '--vectorization', type=str,
+        default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
+    parser.add_argument('--eval-model-path', type=str, default=None,
+        help='Path to a pretrained checkpoint')
     parser.add_argument('--baseline', action='store_true',
-        help='Pretrained baseline where available')
+        help='Load pretrained model from WandB if available')
     parser.add_argument('--render-mode', type=str, default='auto',
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
-    parser.add_argument('--vec', '--vector', '--vectorization', type=str,
-        default='serial', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
-        default=None, help="Resume from experiment")
+        default=None, help='Resume from experiment')
+    parser.add_argument('--track', action='store_true', help='Track on WandB')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
-    parser.add_argument('--track', action='store_true', help='Track on WandB')
     args = parser.parse_known_args()[0]
-
-    if not os.path.exists(args.default_config):
-        raise Exception(f'Default config {args.default_config} not found')
 
     file_paths = glob.glob('config/**/*.ini', recursive=True)
     for path in file_paths:
         p = configparser.ConfigParser()
-        p.read(args.default_config)
+        p.read('config/default.ini')
 
         subconfig = os.path.join(*path.split('/')[:-1] + ['default.ini'])
         if subconfig in file_paths:
@@ -399,6 +395,10 @@ if __name__ == '__main__':
             argparse_key = f'--{section}.{key}'.replace('_', '-')
             parser.add_argument(argparse_key, default=p[section][key])
 
+    # Late add help so you get a dynamic menu based on the env
+    parser.add_argument('-h', '--help', default=argparse.SUPPRESS,
+        action='help', help='Show this help message and exit')
+
     parsed = parser.parse_args().__dict__
     args = {'env': {}, 'policy': {}, 'rnn': {}}
     env_name = parsed.pop('env')
@@ -414,13 +414,13 @@ if __name__ == '__main__':
         except:
             prev[subkey] = value
 
-    import importlib
     package = args['base']['package']
+    module_name = f'pufferlib.environments.{package}'
     if package == 'ocean':
-        env_module = importlib.import_module('pufferlib.ocean')
-    else:
-        env_module = importlib.import_module(
-            f'pufferlib.environments.{package}')
+        module_name = 'pufferlib.ocean'
+
+    import importlib
+    env_module = importlib.import_module(module_name)
 
     make_env = env_module.env_creator(env_name)
     policy_cls = getattr(env_module.torch, args['base']['policy_name'])
