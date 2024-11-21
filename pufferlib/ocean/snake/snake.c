@@ -4,11 +4,11 @@
 
 int demo() {
     CSnake env = {
-        .num_snakes = 1024,
-        .width = 1280,
-        .height = 720,
+        .num_snakes = 256,
+        .width = 640,
+        .height = 360,
         .max_snake_length = 200,
-        .food = 16384,
+        .food = 4096,
         .vision = 5,
         .leave_corpse_on_death = true,
         .reward_food = 1.0f,
@@ -20,7 +20,7 @@ int demo() {
 
     Weights* weights = load_weights("resources/snake_weights.bin", 148357);
     LinearLSTM* net = make_linearlstm(weights, env.num_snakes, env.obs_size, 4);
-    Client* client = make_client(1, env.width, env.height);
+    Client* client = make_client(2, env.width, env.height);
 
     while (!WindowShouldClose()) {
         // User can take control of the first snake
@@ -75,7 +75,7 @@ void test_performance(float test_time) {
 }
 
 int main() {
-    //demo();
-    test_performance(30);
+    demo();
+    //test_performance(30);
     return 0;
 }
