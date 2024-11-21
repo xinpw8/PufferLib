@@ -14,6 +14,7 @@ RESOURCES_DIR="resources"
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$WEB_OUTPUT_DIR"
 
+# TODO: Needs this flag on macos: -framework CoreFoundation 
 if [ "$MODE" = "local" ]; then
     echo "Building $ENV for local testing..."
     clang -g -O0 -Wall \

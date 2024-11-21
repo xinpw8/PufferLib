@@ -41,6 +41,9 @@ class TripleTriad(pufferlib.PufferEnv):
     def render(self):
         self.c_envs.render()
 
+    def close(self):
+        self.c_envs.close()
+
 def test_performance(timeout=10, atn_cache=1024):
     env = TripleTriad(num_envs=1000)
     env.reset()

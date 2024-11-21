@@ -10,7 +10,7 @@ int main() {
 
     Client* client = make_client(&env);
 
-    while (true) {
+    while (!WindowShouldClose()) {
         for (int i = 0; i < NUM_ACTIONS; i++) {
             env.actions[i] = 0;
         }
@@ -40,7 +40,7 @@ int main() {
         if (gun_delta < 5 && gun_delta > -5) env.actions[9] = 1.0;
 
 
-        if (IsKeyPressed(KEY_ESCAPE)) break;
+        //if (IsKeyPressed(KEY_ESCAPE)) break;
         if (IsKeyDown(KEY_W)) env.actions[0] = 16.0f;
         if (IsKeyDown(KEY_S)) env.actions[0] = -16.0f;
         if (IsKeyDown(KEY_A)) env.actions[1] = -2.0f;
