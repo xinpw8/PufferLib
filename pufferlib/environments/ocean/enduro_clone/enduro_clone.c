@@ -16,6 +16,16 @@
 #include "enduro_clone.h"
 #include "raylib.h"
 
+#define SCREEN_WIDTH 160
+#define SCREEN_HEIGHT 210
+#define CAR_WIDTH 16
+#define CAR_HEIGHT 11
+#define MAX_ENEMIES 10
+#define INITIAL_CARS_TO_PASS 200
+#define MIN_SPEED -2.5f
+#define MAX_SPEED 7.5f
+
+
 int main() {
     Enduro env = {
         .width = SCREEN_WIDTH,
