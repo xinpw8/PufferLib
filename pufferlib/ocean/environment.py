@@ -1,7 +1,7 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-from .snake.csnake import Snake
+from .snake.snake import Snake
 from .squared.squared import Squared
 from .pong.pong import Pong
 from .breakout.breakout import Breakout
