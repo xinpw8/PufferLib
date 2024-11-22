@@ -9,7 +9,7 @@ import os
 import pufferlib
 import pufferlib.utils
 import pufferlib.vector
-import pufferlib.frameworks.cleanrl
+import pufferlib.cleanrl
 
 from rich_argparse import RichHelpFormatter
 from rich.console import Console
@@ -25,9 +25,9 @@ def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'])
     if rnn_cls is not None:
         policy = rnn_cls(env, policy, **args['rnn'])
-        policy = pufferlib.frameworks.cleanrl.RecurrentPolicy(policy)
+        policy = pufferlib.cleanrl.RecurrentPolicy(policy)
     else:
-        policy = pufferlib.frameworks.cleanrl.Policy(policy)
+        policy = pufferlib.cleanrl.Policy(policy)
 
     return policy.to(args['train']['device'])
 
@@ -256,7 +256,6 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
                 wandb, elos=elos, vecenv=vecenv['vecenv'] if cache_vecenv else None)
             elos.update(new_elos)
         except Exception as e:
-            is_failure = True
             import traceback
             traceback.print_exc()
         else:
@@ -264,7 +263,7 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
             print('Observed value:', observed_value)
             print('Uptime:', uptime)
 
-            obs_out = carbs.observe(
+            carbs.observe(
                 ObservationInParam(
                     input=orig_suggestion,
                     output=observed_value,

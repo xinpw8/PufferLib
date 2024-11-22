@@ -10,7 +10,7 @@ import os
 from pufferlib.policy_ranker import update_elos
 from pufferlib.environments.ocean.environment import env_creator
 from pufferlib.environments.ocean.torch import MOBA, Recurrent
-import pufferlib.frameworks.cleanrl
+import pufferlib.cleanrl
 
 
 def load_policies(checkpoint_dir, n, map_location='cuda'):
