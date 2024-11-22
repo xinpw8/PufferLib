@@ -43,11 +43,11 @@ void performance_test() {
     long test_time = 10; // Test duration in seconds
 
     CTrashPickupEnv env;
-    env.grid_size = 10;
-    env.num_agents = 3;
-    env.num_trash = 15;
-    env.num_bins = 3;
-    env.max_steps = 300;
+    env.grid_size = 3;
+    env.num_agents = 1;
+    env.num_trash = 1;
+    env.num_bins = 1;
+    env.max_steps = 1000;
     env.current_step = 0;
 
     allocate(&env);
@@ -56,7 +56,7 @@ void performance_test() {
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
-        env.actions[0] = rand() % 5;
+        env.actions[0] = rand() % 4;
         step(&env);
         i++;
     }
@@ -68,7 +68,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    demo(10, 3, 15, 2, 300); // Visual demo
+    demo(10, 3, 15, 1, 300); // Visual demo
     // performance_test(); // Uncomment for benchmarking
     return 0;
 }

@@ -66,6 +66,7 @@ class TrashPickupEnv(pufferlib.PufferEnv):
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                 info.append(log)
+
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 

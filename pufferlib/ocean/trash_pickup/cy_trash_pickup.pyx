@@ -15,17 +15,12 @@ cdef extern from "trash_pickup.h":
     void free_logbuffer(LogBuffer*)
     Log aggregate_and_clear(LogBuffer*)
 
-    LogBuffer* allocate_logbuffer(int)
-    void free_logbuffer(LogBuffer*)
-    Log aggregate_and_clear(LogBuffer*)
-
     ctypedef struct CTrashPickupEnv:
         float* observations
         int* actions
         float* rewards
         unsigned char* dones
         LogBuffer* log_buffer
-        Log log
 
         int grid_size
         int num_agents
