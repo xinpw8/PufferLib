@@ -55,7 +55,7 @@ cdef extern from "snake.h":
         void render(Client* client, CSnake* env)
         void close_client(Client* client)
 
-cdef class Snake:
+cdef class CySnake:
     cdef:
         CSnake *envs
         Client* client
