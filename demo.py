@@ -304,6 +304,7 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
             num_workers=args['train']['num_workers'],
             batch_size=args['train']['env_batch_size'],
             zero_copy=args['train']['zero_copy'],
+            overwork=args['vec_overwork'],
             backend=vec,
         )
 
@@ -362,6 +363,8 @@ if __name__ == '__main__':
         choices='train eval evaluate sweep sweep-carbs autotune profile'.split())
     parser.add_argument('--vec', '--vector', '--vectorization', type=str,
         default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
+    parser.add_argument('--vec-overwork', action='store_true',
+        help='Allow vectorization to use >1 worker/core. Not recommended.')
     parser.add_argument('--eval-model-path', type=str, default=None,
         help='Path to a pretrained checkpoint')
     parser.add_argument('--baseline', action='store_true',
