@@ -172,3 +172,93 @@ class MOBA(nn.Module):
             #print('argmax samples: ', argmax_samples)
 
             return action, value
+
+
+class TrashPickup(nn.Module):
+    def __init__(self, emulated):
+        super().__init__()
+        self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
+
+        def get_conv_output_size(input_shape):
+            """Calculates the size of the output from the convolution layers."""
+            dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
+            output = self.conv2(self.conv1(dummy_input))  # Pass through conv layers
+            return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
+        
+        # Define network for processing the grid with multiple channels (4 channels for 0, 1, 2, 3)
+        input_channels = 4
+        
+        # Define the convolutional layers
+        self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
+        self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
+
+        # Calculate the output size of the conv layers
+        conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
+
+        
+        self.grid_net = nn.Sequential(
+            self.conv1,
+            nn.ReLU(),
+            self.conv2,
+            nn.ReLU(),
+            nn.Flatten(),
+            layer_init(nn.Linear(conv_output_size, 32)),
+            nn.ReLU(),
+        )
+
+        # Linear layers for agent position and carrying status
+        self.position_net = nn.Sequential(
+            layer_init(nn.Linear(2, 32)),
+            nn.ReLU(),
+        )
+        
+        self.carrying_net = nn.Sequential(
+            layer_init(nn.Linear(1, 32)),
+            nn.ReLU(),
+        )
+
+        # Combine outputs
+        self.proj = nn.Linear(32 + 32 + 32, 256)  # Adjusted projection layer size based on concatenated features
+        self.actor = layer_init(nn.Linear(256, 4), std=0.01)  # 4 represents the number of possible actions
+        self.critic = layer_init(nn.Linear(256, 1), std=1)  # 1 represents the value of the critic network (or sometimes called value network) 
+
+    def preprocess_grid(self, grid):
+        # Separate grid into 4 channels for empty space, trash, bin, and agent
+        empty_space = (grid == 0).float()
+        trash = (grid == 1).float()
+        trash_bin = (grid == 2).float()
+        agent = (grid == 3).float()
+        
+        # Stack channels to create a (4, H, W) tensor
+        ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
+        return ret
+
+    def hidden(self, x):
+        x = x.type(torch.uint8)  # Undo bad cleanrl cast
+        x = pufferlib.pytorch.nativize_tensor(x, self.dtype)
+
+        # Process each part of the observation
+        grid = self.preprocess_grid(x['grid'])
+        grid_features = self.grid_net(grid)
+
+        position = x['agent_position'].float() / 10 # divide by 10 (grid-size) hard-coded for now... 
+        position_features = self.position_net(position)
+
+        carrying = x['carrying_trash'].float()
+        carrying_features = self.carrying_net(carrying)
+
+        # Concatenate all features and project to a fixed-size hidden representation
+        concat = torch.cat([grid_features, position_features, carrying_features], dim=1)
+        return self.proj(concat)
+
+    def get_value(self, x):
+        hidden = self.hidden(x)
+        return self.critic(hidden)
+
+    def get_action_and_value(self, x, action=None):
+        hidden = self.hidden(x)
+        logits = self.actor(hidden)
+        probs = Categorical(logits=logits)
+        if action is None:
+            action = probs.sample()
+        return action, probs.log_prob(action), probs.entropy(), self.critic(hidden)

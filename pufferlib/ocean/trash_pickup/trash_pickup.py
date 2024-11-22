@@ -64,6 +64,7 @@ class TrashPickupEnv(pufferlib.PufferEnv):
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
+            # print(f"tha log: {log}")
             if log['episode_length'] > 0:
                 info.append(log)
 

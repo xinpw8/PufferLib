@@ -408,22 +408,22 @@ void step(CTrashPickupEnv* env) {
             env->dones[i] = 1;
         }
 
+        Log log = {0};
+
+        log.episode_length = env->current_step;
+        log.episode_return = env->total_episode_reward;
+
+        int total_trash_not_collected = 0;
+        for (int i = 0; i < env->num_trash; i++){
+            total_trash_not_collected += env->trash_presence[i];
+        }
+
+        log.trash_collected = (float) (env->num_trash - total_trash_not_collected);
+
+        add_log(env->log_buffer, &log);
+
         reset(env);
     }
-
-    Log log = {0};
-
-    log.episode_length = env->current_step;
-    log.episode_return = env->total_episode_reward;
-
-    int total_trash_not_collected = 0;
-    for (int i = 0; i < env->num_trash; i++){
-        total_trash_not_collected += env->trash_presence[i];
-    }
-
-    log.trash_collected = (float) (env->num_trash - total_trash_not_collected);
-
-    add_log(env->log_buffer, &log);
 
     // printf("episode ret: %f | trash collected: %f \n", log.episode_return, log.trash_collected);
 
