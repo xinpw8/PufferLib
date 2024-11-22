@@ -425,7 +425,7 @@ void step(CTrashPickupEnv* env) {
         reset(env);
     }
 
-    // printf("episode ret: %f | trash collected: %f \n", log.episode_return, log.trash_collected);
+    // printf("current step: %d | rewards: %f %f %f \n", env->current_step, env->rewards[0], env->rewards[1], env->rewards[2]);
 
     compute_observations(env);
 }

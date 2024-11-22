@@ -175,90 +175,121 @@ class MOBA(nn.Module):
 
 
 class TrashPickup(nn.Module):
-    def __init__(self, emulated):
+    def __init__(self, env):
         super().__init__()
-        self.dtype = pufferlib.pytorch.nativize_dtype(emulated)
+        self.num_trash = env.num_trash
+        self.num_bins = env.num_bins
+        self.num_agents_per_env = env.num_agents_per_env
 
-        def get_conv_output_size(input_shape):
-            """Calculates the size of the output from the convolution layers."""
-            dummy_input = torch.zeros(1, *input_shape)  # Batch size of 1 with given input shape
-            output = self.conv2(self.conv1(dummy_input))  # Pass through conv layers
-            return int(np.prod(output.shape[1:]))  # Flatten dimensions, except batch
-        
-        # Define network for processing the grid with multiple channels (4 channels for 0, 1, 2, 3)
-        input_channels = 4
-        
-        # Define the convolutional layers
-        self.conv1 = layer_init(nn.Conv2d(input_channels, 32, 3, stride=1))
-        self.conv2 = layer_init(nn.Conv2d(32, 64, 3, stride=1))
-
-        # Calculate the output size of the conv layers
-        conv_output_size = get_conv_output_size((input_channels, args.grid_size, args.grid_size))
-
-        
-        self.grid_net = nn.Sequential(
-            self.conv1,
+        self.trash_net = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(3 * env.num_trash, 32)),  # (presence, x, y) for each trash
             nn.ReLU(),
-            self.conv2,
-            nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(conv_output_size, 32)),
+            pufferlib.pytorch.layer_init(nn.Linear(32, 16)),
             nn.ReLU(),
         )
 
-        # Linear layers for agent position and carrying status
+        self.bin_net = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(2 * env.num_bins, 8)),  # (x, y) for each bin
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Linear(8, 4)),
+            nn.ReLU(),
+        )
+
+        self.other_agent_net = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(3 * (env.num_agents_per_env - 1), 16)),  # (x, y, carrying) for each other agent
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Linear(16, 8)),
+            nn.ReLU(),
+        )
+
         self.position_net = nn.Sequential(
-            layer_init(nn.Linear(2, 32)),
+            pufferlib.pytorch.layer_init(nn.Linear(2, 8)),
             nn.ReLU(),
         )
         
         self.carrying_net = nn.Sequential(
-            layer_init(nn.Linear(1, 32)),
+            pufferlib.pytorch.layer_init(nn.Linear(1, 2)),
             nn.ReLU(),
         )
 
-        # Combine outputs
-        self.proj = nn.Linear(32 + 32 + 32, 256)  # Adjusted projection layer size based on concatenated features
-        self.actor = layer_init(nn.Linear(256, 4), std=0.01)  # 4 represents the number of possible actions
-        self.critic = layer_init(nn.Linear(256, 1), std=1)  # 1 represents the value of the critic network (or sometimes called value network) 
+        self.proj = nn.Sequential( 
+            nn.Linear(16 + 4 + 8 + 8 + 2, 32),  # Combined features size
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+        )
 
-    def preprocess_grid(self, grid):
-        # Separate grid into 4 channels for empty space, trash, bin, and agent
-        empty_space = (grid == 0).float()
-        trash = (grid == 1).float()
-        trash_bin = (grid == 2).float()
-        agent = (grid == 3).float()
-        
-        # Stack channels to create a (4, H, W) tensor
-        ret = torch.stack([empty_space, trash, trash_bin, agent], dim=1)
-        return ret
+        self.actor = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(16, 8)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Linear(8, 4), std=0.01),  # 4 actions
+        )
 
-    def hidden(self, x):
-        x = x.type(torch.uint8)  # Undo bad cleanrl cast
-        x = pufferlib.pytorch.nativize_tensor(x, self.dtype)
+        self.critic = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(16, 8)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Linear(8, 1), std=1),  # Value prediction
+        )
 
-        # Process each part of the observation
-        grid = self.preprocess_grid(x['grid'])
-        grid_features = self.grid_net(grid)
+        self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
 
-        position = x['agent_position'].float() / 10 # divide by 10 (grid-size) hard-coded for now... 
-        position_features = self.position_net(position)
+    def forward(self, observations):
+        hidden, _ = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
 
-        carrying = x['carrying_trash'].float()
-        carrying_features = self.carrying_net(carrying)
+    def encode_observations(self, observations):
+        """
+        Encode observations for each agent.
+        """
 
-        # Concatenate all features and project to a fixed-size hidden representation
-        concat = torch.cat([grid_features, position_features, carrying_features], dim=1)
-        return self.proj(concat)
+        features = []
+        obs_index = 0
 
-    def get_value(self, x):
-        hidden = self.hidden(x)
-        return self.critic(hidden)
+        # Agent's own position and carrying status
+        agent_position = observations[:, obs_index : obs_index + 2]
+        carrying_status = observations[:, obs_index + 2 : obs_index + 3]
+        obs_index += 3
 
-    def get_action_and_value(self, x, action=None):
-        hidden = self.hidden(x)
-        logits = self.actor(hidden)
-        probs = Categorical(logits=logits)
-        if action is None:
-            action = probs.sample()
-        return action, probs.log_prob(action), probs.entropy(), self.critic(hidden)
+        # Other agents
+        other_agents = observations[:, obs_index : obs_index + 3 * (self.num_agents_per_env - 1)]
+        obs_index += 3 * (self.num_agents_per_env - 1)
+
+        # Trash data
+        trash_data = observations[:, obs_index : obs_index + 3 * self.num_trash]
+        obs_index += 3 * self.num_trash
+
+        # Bin data
+        bin_data = observations[:, obs_index : obs_index + 2 * self.num_bins]
+
+        # Pass through sub-networks
+        trash_features = self.trash_net(trash_data)
+        bin_features = self.bin_net(bin_data)
+        other_agent_features = self.other_agent_net(other_agents)
+        position_features = self.position_net(agent_position)
+        carrying_features = self.carrying_net(carrying_status)
+
+        # Combine features
+        concat = torch.cat(
+            [trash_features, bin_features, other_agent_features, position_features, carrying_features],
+            dim=1,
+        )
+        features.append(self.proj(concat))
+
+        return torch.stack(features), None
+
+    def decode_actions(self, hidden):
+        """
+        Decode actions and values from the hidden state.
+        """
+        value = self.critic(hidden)
+        if self.is_continuous:
+            mean = self.actor(hidden)
+            logstd = torch.zeros_like(mean)
+            std = torch.exp(logstd)
+            probs = torch.distributions.Normal(mean, std)
+            return probs, value
+        else:
+            logits = self.actor(hidden)
+            logits = logits.view(-1, 4)  # Ensure correct shape for sampling
+            return logits, value

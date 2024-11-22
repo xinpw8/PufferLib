@@ -15,6 +15,7 @@ class TrashPickupEnv(pufferlib.PufferEnv):
         if not isinstance(num_agents, int) or num_agents <= 0:
             raise ValueError("num_agents must be an integer greater than 0.")
         self.num_agents = num_envs * num_agents
+        self.num_agents_per_env = num_agents
 
         # Handle num_trash input
         if not isinstance(num_trash, int) or num_trash <= 0:
