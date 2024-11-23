@@ -21,7 +21,8 @@ if [ "$MODE" = "local" ]; then
         -I./pufferlib\
         "$SRC_DIR/$ENV.c" -o "$OUTPUT_DIR/$ENV" \
         ./raylib/lib/libraylib.a -lm -lpthread \
-        -fsanitize=address,undefined,bounds,pointer-overflow,leak
+        -fsanitize=address,undefined,bounds,pointer-overflow,leak \
+        -lprofiler
 
     echo "Built to: $OUTPUT_DIR/$ENV"
 elif [ "$MODE" = "web" ]; then
