@@ -243,7 +243,6 @@ class TrashPickup(nn.Module):
         Encode observations for each agent.
         """
 
-        features = []
         obs_index = 0
 
         # Agent's own position and carrying status
@@ -269,27 +268,22 @@ class TrashPickup(nn.Module):
         position_features = self.position_net(agent_position)
         carrying_features = self.carrying_net(carrying_status)
 
+        # print(f"Raw Data \n\tAgent Data: {agent_position[0]} {carrying_status[0]} \n\tOther Agent Data: {other_agents[0]} \n\t Trash Data: {trash_data[0]} \n\t Bin Data: {bin_data[0]}")
+        # print(f"Transformed Features \n\tAgent Features: {position_features[0]} {carrying_features[0]} \n\tOther Agent Data: {other_agent_features[0]} \n\t Trash Data: {trash_features[0]} \n\t Bin Data: {bin_features[0]}")
+
         # Combine features
-        concat = torch.cat(
+        combined_features = torch.cat(
             [trash_features, bin_features, other_agent_features, position_features, carrying_features],
             dim=1,
         )
-        features.append(self.proj(concat))
+        features = self.proj(combined_features)
 
-        return torch.stack(features), None
+        return features, None
 
     def decode_actions(self, hidden):
         """
         Decode actions and values from the hidden state.
         """
+        action = self.actor(hidden)
         value = self.critic(hidden)
-        if self.is_continuous:
-            mean = self.actor(hidden)
-            logstd = torch.zeros_like(mean)
-            std = torch.exp(logstd)
-            probs = torch.distributions.Normal(mean, std)
-            return probs, value
-        else:
-            logits = self.actor(hidden)
-            logits = logits.view(-1, 4)  # Ensure correct shape for sampling
-            return logits, value
+        return action, value
