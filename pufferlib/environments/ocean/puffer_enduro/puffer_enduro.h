@@ -14,12 +14,15 @@
 #include <unistd.h>
 #include <time.h>
 #include <stddef.h>
+#include <limits.h>
 #include <string.h>
 #include "raylib.h"
 
 // Constant defs
+#define MAX_ENEMIES 10
+#define OBSERVATIONS_MAX_SIZE (6 + 2 * MAX_ENEMIES + 3)
 #define TARGET_FPS 60 // Used to calculate wiggle spawn frequency
-#define LOG_BUFFER_SIZE 4096
+#define LOG_BUFFER_SIZE 2048
 #define SCREEN_WIDTH 160
 #define SCREEN_HEIGHT 210
 #define PLAYABLE_AREA_TOP 0
@@ -29,7 +32,6 @@
 #define ACTION_HEIGHT (PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP)
 #define CAR_WIDTH 16
 #define CAR_HEIGHT 11
-#define MAX_ENEMIES 10
 #define CRASH_NOOP_DURATION_CAR_VS_CAR 90 // 60 // How long controls are disabled after car v car collision
 #define CRASH_NOOP_DURATION_CAR_VS_ROAD 20 // How long controls are disabled after car v road edge collision
 #define INITIAL_CARS_TO_PASS 200
@@ -49,9 +51,14 @@
 // Times of day logic
 #define NUM_BACKGROUND_TRANSITIONS 16
 // Seconds spent in each time of day
+// static const float BACKGROUND_TRANSITION_TIMES[] = {
+//     20.0f, 40.0f, 60.0f, 100.0f, 108.0f, 114.0f, 116.0f, 120.0f,
+//     124.0f, 130.0f, 134.0f, 138.0f, 170.0f, 198.0f, 214.0f, 232.0f
+// };
+
 static const float BACKGROUND_TRANSITION_TIMES[] = {
-    20.0f, 40.0f, 60.0f, 100.0f, 108.0f, 114.0f, 116.0f, 120.0f,
-    124.0f, 130.0f, 134.0f, 138.0f, 170.0f, 198.0f, 214.0f, 232.0f
+    2.0f, 4.0f, 6.0f, 10.0f, 10.8f, 11.0f, 11.6f, 12.0f,
+    12.4f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f
 };
 
 // Curve constants
@@ -129,12 +136,12 @@ typedef struct GameState {
     // For car animation
     float carAnimationTimer;
     float carAnimationInterval;
-    bool showLeftTread;
+    unsigned char showLeftTread;
     float mountainPosition; // Position of the mountain texture
     // Variables for alternating flags
     unsigned char victoryAchieved;
     int flagTimer;
-    bool showLeftFlag; // true shows left flag, false shows right flag
+    unsigned char showLeftFlag; // true shows left flag, false shows right flag
     int victoryDisplayTimer;    // Timer for how long victory effects have been displayed
     // Variables for scrolling yellow digits
     float yellowDigitOffset; // Offset for scrolling effect
@@ -144,7 +151,7 @@ typedef struct GameState {
     float scoreDigitOffsets[SCORE_DIGITS];   // Offset for scrolling effect for each digit
     int scoreDigitCurrents[SCORE_DIGITS];    // Current digit being displayed for each position
     int scoreDigitNexts[SCORE_DIGITS];       // Next digit to scroll in for each position
-    bool scoreDigitScrolling[SCORE_DIGITS];  // Scrolling state for each digit
+    unsigned char scoreDigitScrolling[SCORE_DIGITS];  // Scrolling state for each digit
     int scoreTimer; // Timer to control score increment
     int day;
     int carsLeftGameState;
@@ -166,7 +173,7 @@ typedef struct GameState {
     float initial_player_x;
     float vanishing_point_x;
     float t_p;
-    bool dayCompleted;
+    unsigned char dayCompleted;
 } GameState;
 
 // Game environment struct
@@ -178,6 +185,7 @@ typedef struct Enduro {
     unsigned char* truncateds;
     LogBuffer* log_buffer;
     Log log;
+    size_t obs_size;
     float width;
     float height;
     float car_width;
@@ -281,8 +289,11 @@ void add_log(LogBuffer* logs, Log* log);
 Log aggregate_and_clear(LogBuffer* logs);
 
 // Environment functions
-void init(Enduro* env);
+// void init(Enduro* env);
+// void allocate(Enduro* env);
+
 void allocate(Enduro* env);
+void init(Enduro* env);
 void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
 void reset(Enduro* env);
@@ -306,6 +317,10 @@ void close_client(Client* client, Enduro* env);
 void render_car(Client* client, GameState* gameState);
 void handleEvents(int* running, Enduro* env);
 
+
+// Debugging
+void debug_enduro_allocation(Enduro* env);
+
 // GameState rendering functions
 void initRaylib();
 void loadTextures(GameState* gameState);
@@ -317,6 +332,7 @@ void renderScoreboard(GameState* gameState);
 void updateMountains(GameState* gameState);
 void renderMountains(GameState* gameState);
 void updateVictoryEffects(GameState* gameState);
+void c_render(Client* client, Enduro* env);
 void cleanup(GameState* gameState);
 
 // Function defs
@@ -373,11 +389,39 @@ Log aggregate_and_clear(LogBuffer* logs) {
 }
 
 void init(Enduro* env) {
+    if (!env->observations || !env->actions || !env->rewards || !env->terminals || !env->truncateds) {
+        fprintf(stderr, "Error: Attempting to initialize with unallocated pointers\n");
+        exit(EXIT_FAILURE);
+    }
+
+    env->numEnemies = 0;
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        env->enemyCars[i].lane = -1; // Default invalid lane
+        env->enemyCars[i].y = 0.0f;
+        env->enemyCars[i].passed = 0;
+    }
+
+
+
+    env->max_enemies = MAX_ENEMIES;
+    env->obs_size = 6 + 2 * env->max_enemies + 3; // Adding missing time_of_day and carsToPass
+
+
+if (env->obs_size < 0 || env->obs_size > INT_MAX / sizeof(float)) {
+    fprintf(stderr, "Error: obs_size overflow in init\n");
+    exit(EXIT_FAILURE);
+}
+
+    env->score = 0;
+    env->numEnemies = 0;
+    env->player_x = INITIAL_PLAYER_X;
+    env->player_y = PLAYER_MAX_Y;
+    env->speed = MIN_SPEED;
+    env->carsToPass = INITIAL_CARS_TO_PASS;
     env->width = SCREEN_WIDTH;
     env->height = SCREEN_HEIGHT;
     env->car_width = CAR_WIDTH;
     env->car_height = CAR_HEIGHT;
-    env->max_enemies = MAX_ENEMIES;
 
     memcpy(env->dayTransitionTimes, BACKGROUND_TRANSITION_TIMES, sizeof(BACKGROUND_TRANSITION_TIMES));
     
@@ -401,10 +445,8 @@ void init(Enduro* env) {
     env->player_x = env->initial_player_x;
     env->player_y = PLAYER_MAX_Y;
     env->min_speed = MIN_SPEED;
-    env->speed = env->min_speed;
     env->enemySpeed = ENEMY_CAR_SPEED;
     env->initial_cars_to_pass = INITIAL_CARS_TO_PASS;
-    env->carsToPass = env->initial_cars_to_pass;
     env->day = 1;
     env->current_curve_direction = CURVE_STRAIGHT;
     env->current_curve_factor = 0.0f;
@@ -439,20 +481,107 @@ void init(Enduro* env) {
     env->currentDayTimeIndex = 0;
     env->previousDayTimeIndex = 15;
 
-    env->initial_cars_to_pass = INITIAL_CARS_TO_PASS;
-    env->carsToPass = env->initial_cars_to_pass;
+
+    // Debugging
+    // printf("width: %f, height: %f, car_width: %f, car_height: %f, max_enemies: %d, elapsedTimeEnv: %f, initial_cars_to_pass: %d, min_speed: %f, max_speed: %f, player_x: %f, player_y: %f, speed: %f, score: %d, day: %d, lane: %d, step_count: %d, numEnemies: %d, carsToPass: %d, collision_cooldown_car_vs_car: %f, collision_cooldown_car_vs_road: %f, action_height: %f, enemySpawnTimer: %f, enemySpawnInterval: %f, closest_edge_lane: %d, last_spawned_lane: %d, totalAccelerationTime: %f, base_vanishing_point_x: %f, current_vanishing_point_x: %f, target_vanishing_point_x: %f, vanishing_point_x: %f, initial_player_x: %f, min_speed: %f, speed: %f, enemySpeed: %f, initial_cars_to_pass: %d, carsToPass: %d, day: %d, current_curve_direction: %d, current_curve_factor: %f, target_curve_factor: %f, wiggle_y: %f, wiggle_speed: %f, wiggle_length: %f, wiggle_amplitude: %f, wiggle_active: %d, currentGear: %d, gearElapsedTime: %f, gearTimings[0]: %f, gearSpeedThresholds[0]: %f, gearAccelerationRates[0]: %f, dayTimeIndex: %d, currentDayTimeIndex: %d, previousDayTimeIndex: %d\n", env->width, env->height, env->car_width, env->car_height, env->max_enemies, env->elapsedTimeEnv, env->initial_cars_to_pass, env->min_speed, env->max_speed, env->player_x, env->player_y, env->speed, env->score, env->day, env->lane, env->step_count, env->numEnemies, env->carsToPass, env->collision_cooldown_car_vs_car, env->collision_cooldown_car_vs_road, env->action_height, env->enemySpawnTimer, env->enemySpawnInterval, env->closest_edge_lane, env->last_spawned_lane, env->totalAccelerationTime, env->base_vanishing_point_x, env->current_vanishing_point_x, env->target_vanishing_point_x, env->vanishing_point_x, env->initial_player_x, env->min_speed, env->speed, env->enemySpeed, env->initial_cars_to_pass, env->carsToPass, env->day, env->current_curve_direction, env->current_curve_factor, env->target_curve_factor, env->wiggle_y, env->wiggle_speed, env->wiggle_length, env->wiggle_amplitude, env->wiggle_active, env->currentGear, env->gearElapsedTime, env->gearTimings[0], env->gearSpeedThresholds[0], env->gearAccelerationRates[0], env->dayTimeIndex, env->currentDayTimeIndex, env->previousDayTimeIndex);
+    // Reset rewards and logs
+    env->rewards[0] = 0.0f;
+    env->log.episode_return = 0;
+    env->log.episode_length = 0;
+    env->log.score = 0;
+    // env->log.days_completed = 0;
+    // env->log.days_failed = 0;
+    env->log.collisions_player_vs_car = 0;
+    env->log.collisions_player_vs_road = 0;
+
+    // // Debugging log fn
+    // add_log(env->log_buffer, &env->log);
+
+    // Debugging segfaults
+    debug_enduro_allocation(env);
 }
 
+// void debug_enduro_allocation(Enduro* env) {
+//     printf("env->observations: %p\n", env->observations);
+//     printf("env->actions: %p\n", env->actions);
+//     printf("env->rewards: %p\n", env->rewards);
+//     printf("env->terminals: %p\n", env->terminals);
+//     printf("env->truncateds: %p\n", env->truncateds);
+//     printf("env->log_buffer: %p\n", env->log_buffer);
+// }
+
+
+
 void allocate(Enduro* env) {
-    int obs_size = 6 + 2 * env->max_enemies + 3;
-    env->observations = (float*)calloc(obs_size, sizeof(float));
-    env->actions = (int*)calloc(1, sizeof(int));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
-    env->truncateds = (unsigned char*)calloc(1, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
-    srand(time(NULL));
+        // Set max_enemies and obs_size before allocation
+    env->max_enemies = MAX_ENEMIES;
+    env->obs_size = 6 + 2 * env->max_enemies + 3;
+
+
+    if (env->obs_size == 0 || env->obs_size > SIZE_MAX / sizeof(float)) {
+        fprintf(stderr, "Error: obs_size is invalid or too large (%zu)\n", env->obs_size);
+        exit(EXIT_FAILURE);
+    }
+
+env->observations = (float*)calloc(env->obs_size, sizeof(float));
+if (!env->observations) {
+    fprintf(stderr, "Error: Failed to allocate observations array\n");
+    exit(EXIT_FAILURE);
 }
+
+printf("Debug: Allocating observations array with size = %zu bytes\n", env->obs_size * sizeof(float));
+
+    env->actions = (int*)calloc(1, sizeof(int));
+    if (!env->actions) {
+        fprintf(stderr, "Failed to allocate memory for actions\n");
+        exit(EXIT_FAILURE);
+    }
+
+    env->rewards = (float*)calloc(1, sizeof(float));
+    if (!env->rewards) {
+        fprintf(stderr, "Failed to allocate memory for rewards\n");
+        exit(EXIT_FAILURE);
+    }
+
+    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
+    if (!env->terminals) {
+        fprintf(stderr, "Failed to allocate memory for terminals\n");
+        exit(EXIT_FAILURE);
+    }
+
+    env->truncateds = (unsigned char*)calloc(1, sizeof(unsigned char));
+    if (!env->truncateds) {
+        fprintf(stderr, "Failed to allocate memory for truncateds\n");
+        exit(EXIT_FAILURE);
+    }
+
+    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    if (!env->log_buffer) {
+        fprintf(stderr, "Failed to allocate memory for log buffer\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+// void allocate(Enduro* env) {
+//     env->max_enemies = MAX_ENEMIES;
+
+//     // printf("In allocate, env->max_enemies: %d\n", env->max_enemies);
+//     env->obs_size = 6 + 2 * env->max_enemies + 3;
+//     // printf("Calculated obs_size: %d\n", env->obs_size);
+//     env->observations = (float*)calloc(env->obs_size, sizeof(float));
+
+
+
+//     // int obs_size = 6 + 2 * env->max_enemies + 3;
+//     // env->observations = (float*)calloc(obs_size, sizeof(float));
+//     env->actions = (int*)calloc(1, sizeof(int));
+//     env->rewards = (float*)calloc(1, sizeof(float));
+//     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
+//     env->truncateds = (unsigned char*)calloc(1, sizeof(unsigned char));
+//     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+//     srand(time(NULL));
+// }
 
 void free_allocated(Enduro* env) {
     free(env->observations);
@@ -476,8 +605,9 @@ void reset_round(Enduro* env) {
 
 // Reset all init vars
 void reset(Enduro* env) {
-    init(env);
-    
+    // init(env);
+
+    // printf("width: %f, height: %f, car_width: %f, car_height: %f, max_enemies: %d, elapsedTimeEnv: %f, initial_cars_to_pass: %d, min_speed: %f, max_speed: %f, player_x: %f, player_y: %f, speed: %f, score: %d, day: %d, lane: %d, step_count: %d, numEnemies: %d, carsToPass: %d, collision_cooldown_car_vs_car: %f, collision_cooldown_car_vs_road: %f, action_height: %f, enemySpawnTimer: %f, enemySpawnInterval: %f, closest_edge_lane: %d, last_spawned_lane: %d, totalAccelerationTime: %f, base_vanishing_point_x: %f, current_vanishing_point_x: %f, target_vanishing_point_x: %f, vanishing_point_x: %f, initial_player_x: %f, min_speed: %f, speed: %f, enemySpeed: %f, initial_cars_to_pass: %d, carsToPass: %d, day: %d, current_curve_direction: %d, current_curve_factor: %f, target_curve_factor: %f, wiggle_y: %f, wiggle_speed: %f, wiggle_length: %f, wiggle_amplitude: %f, wiggle_active: %d, currentGear: %d, gearElapsedTime: %f, gearTimings[0]: %f, gearSpeedThresholds[0]: %f, gearAccelerationRates[0]: %f, dayTimeIndex: %d, currentDayTimeIndex: %d, previousDayTimeIndex: %d\n", env->width, env->height, env->car_width, env->car_height, env->max_enemies, env->elapsedTimeEnv, env->initial_cars_to_pass, env->min_speed, env->max_speed, env->player_x, env->player_y, env->speed, env->score, env->day, env->lane, env->step_count, env->numEnemies, env->carsToPass, env->collision_cooldown_car_vs_car, env->collision_cooldown_car_vs_road, env->action_height, env->enemySpawnTimer, env->enemySpawnInterval, env->closest_edge_lane, env->last_spawned_lane, env->totalAccelerationTime, env->base_vanishing_point_x, env->current_vanishing_point_x, env->target_vanishing_point_x, env->vanishing_point_x, env->initial_player_x, env->min_speed, env->speed, env->enemySpeed, env->initial_cars_to_pass, env->carsToPass, env->day, env->current_curve_direction, env->current_curve_factor, env->target_curve_factor, env->wiggle_y, env->wiggle_speed, env->wiggle_length, env->wiggle_amplitude, env->wiggle_active, env->currentGear, env->gearElapsedTime, env->gearTimings[0], env->gearSpeedThresholds[0], env->gearAccelerationRates[0], env->dayTimeIndex, env->currentDayTimeIndex, env->previousDayTimeIndex);
     // Reset rewards and logs
     env->rewards[0] = 0;
     env->log.episode_return = 0;
@@ -591,7 +721,7 @@ void add_enemy_car(Enduro* env) {
     // Ensure not occupying all lanes within vertical range of 6 car lengths
     float min_vertical_range = 6.0f * CAR_HEIGHT;
     int lanes_occupied = 0;
-    bool lane_occupied[NUM_LANES] = { false };
+    unsigned char lane_occupied[NUM_LANES] = { false };
     for (int i = 0; i < env->numEnemies; i++) {
         Car* existing_car = &env->enemyCars[i];
         float y_distance = fabs(existing_car->y - car.y);
@@ -675,23 +805,23 @@ for (int i = 0; i < env->numEnemies; i++) {
         normalized_speed = fminf(fmaxf(normalized_speed, 0.0f), 1.0f);  // Clamp between 0 and 1
         relative_speed = env->enemySpeed - (normalized_speed * (env->enemySpeed - MIN_SPEED));
         movement_speed = -(relative_speed + (MIN_SPEED * 0.35f)); // Enemies move backward relative to player
-        printf("Movement speed POSITIVE: %.2f\n", movement_speed);
+        // printf("Movement speed POSITIVE: %.2f\n", movement_speed);
     } else if (env->speed < 0) {
         // Enemy cars move forward relative to the player
         // Handle negative speed (already smooth)
         movement_speed = env->speed * 0.75f; 
-        printf("Movement speed NEGATIVE: %.2f\n", movement_speed);
+        // printf("Movement speed NEGATIVE: %.2f\n", movement_speed);
     } else {
         // Neutral case (stationary)
         movement_speed = 0.0f;
-        printf("Movement speed NEUTRAL: %.2f\n", movement_speed);
+        // printf("Movement speed NEUTRAL: %.2f\n", movement_speed);
     }
 
     // Update car position
     car->y += movement_speed;
 
     // Debugging: Print out the final enemy speed
-    printf("Enemy car %d final position Y: %.2f\n", i, car->y);
+    // printf("Enemy car %d final position Y: %.2f\n", i, car->y);
 }
 
 
@@ -710,19 +840,19 @@ for (int i = 0; i < env->numEnemies; i++) {
     // Calculate road edges
     float road_left = road_edge_x(env, env->player_y, 0, true);
     float road_right = road_edge_x(env, env->player_y, 0, false) - CAR_WIDTH;
-    printf("Player X: %.2f, Road Left: %.2f, Road Right: %.2f\n", env->player_x, road_left, road_right);
+    // printf("Player X: %.2f, Road Left: %.2f, Road Right: %.2f\n", env->player_x, road_left, road_right);
 
     env->last_road_left = road_left;
     env->last_road_right = road_right;
 
     // Reduced handling on snow
-    bool isSnowStage = (env->currentDayTimeIndex == 3);
+    unsigned char isSnowStage = (env->currentDayTimeIndex == 3);
     float movement_amount = 0.5f; // Default
     if (isSnowStage) {
         movement_amount = 0.3f; // Snow
     }
     
-    printf("Before movement: player_x = %.2f\n", env->player_x);
+    // printf("Before movement: player_x = %.2f\n", env->player_x);
     // Player movement logic == action space (Discrete[9])
     if (env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
         int act = env->actions[0];
@@ -797,7 +927,7 @@ for (int i = 0; i < env->numEnemies; i++) {
     }
     }
 
-printf("After action movement: player_x = %.2f\n", env->player_x);
+// printf("After action movement: player_x = %.2f\n", env->player_x);
     // Road curve/vanishing point movement logic
     // Adjust player's x position based on the current curve
     float curve_shift = -env->current_curve_factor * CURVE_PLAYER_SHIFT_FACTOR * abs(env->speed);
@@ -816,8 +946,8 @@ printf("After action movement: player_x = %.2f\n", env->player_x);
     env->vanishing_point_x = env->base_vanishing_point_x + curve_vanishing_point_shift;
 
     // After curve shift
-printf("Curve shift: %.2f\n", curve_shift);
-printf("After curve shift: player_x = %.2f\n", env->player_x);
+// printf("Curve shift: %.2f\n", curve_shift);
+// printf("After curve shift: player_x = %.2f\n", env->player_x);
     
     // Wiggle logic
     if (env->wiggle_active) {
@@ -1011,12 +1141,12 @@ printf("After curve shift: player_x = %.2f\n", env->player_x);
         }
     }
 
-    // Day completed logic
-    if (env->carsToPass <= 0 && !env->dayCompleted) {
-        env->dayCompleted = true;
-    }
+    // // Day completed logic
+    // if (env->carsToPass <= 0 && !env->dayCompleted) {
+    //     env->dayCompleted = true;
+    // } 
 
-    env->score = env->carsToPass;
+    // env->score = env->carsToPass;
 
     // Handle day transition when background cycles back to 0
     if (env->currentDayTimeIndex == 0 && env->previousDayTimeIndex == 15) {
@@ -1056,107 +1186,160 @@ printf("After curve shift: player_x = %.2f\n", env->player_x);
     // }
 }
 
+void debug_enduro_allocation(Enduro* env) {
+    printf("Memory layout debugging:\n");
+    printf("Enduro struct size: %zu bytes\n", sizeof(Enduro));
+    printf("Observation array size: %zu\n", env->obs_size); // Corrected %d to %zu
+    printf("Max enemies: %d\n", env->max_enemies);
+    printf("Enemy cars array size: %zu bytes\n", sizeof(Car) * env->max_enemies);
+    printf("Day transition times array size: %zu bytes\n", sizeof(float) * 16);  // Assuming 16 transitions
+    
+    // Validate critical pointers
+    printf("\nPointer validation:\n");
+    printf("observations ptr: %p\n", (void*)env->observations);
+    printf("enemyCars ptr: %p\n", (void*)env->enemyCars);
+    printf("dayTransitionTimes ptr: %p\n", (void*)env->dayTransitionTimes);
+    
+    // Verify array bounds
+    printf("\nArray bounds check:\n");
+    printf("Last observation index accessible: %zu\n", env->obs_size - 1); // Corrected %d to %zu
+    printf("Last enemy car index accessible: %d\n", env->max_enemies - 1);
+    printf("Last day transition time index accessible: 15\n");
+}
+
 void compute_observations(Enduro* env) {
     float* obs = env->observations;
+    int obs_index = 0;
 
-    // Normalize player's x position
-    float player_x_norm = (env->player_x - PLAYER_MIN_X) / (PLAYER_MAX_X - PLAYER_MIN_X);
-    obs[0] = player_x_norm;
+    // Ensure obs_size matches the expected size
+    if (env->obs_size != (6 + 2 * env->max_enemies + 3)) {
+        fprintf(stderr, "Error: obs_size mismatch! Expected %d, got %zu\n",
+                6 + 2 * env->max_enemies + 4, env->obs_size);
+        exit(EXIT_FAILURE);
+    }
 
-    // Normalize player's y position
-    float player_y_norm = (env->player_y - PLAYER_MIN_Y) / (PLAYER_MAX_Y - PLAYER_MIN_Y);
-    obs[1] = player_y_norm;
+    // Add bounds check macro
+    #define CHECK_BOUNDS(index)                                          \
+        if ((index) >= env->obs_size) {                                  \
+            fprintf(stderr, "Error: obs_index %d out of bounds!\n", index); \
+            exit(EXIT_FAILURE);                                          \
+        }
 
-    // Normalize player's speed
-    float speed_norm = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
-    obs[2] = speed_norm;
+    // Debugging: Track the progress of obs_index
+    // printf("Debug: Starting compute_observations\n");
 
-    // Compute road edges at player's y position
-    float road_left = road_edge_x(env, env->player_y, 0, true);
-    float road_right = road_edge_x(env, env->player_y, 0, false);
+    // Player's position and speed
+    obs[obs_index] = (env->player_x - PLAYER_MIN_X) / (PLAYER_MAX_X - PLAYER_MIN_X);
+    // printf("obs[%d] = Player X: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // Normalize road edges
-    float road_left_norm = (road_left - PLAYABLE_AREA_LEFT) / (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    float road_right_norm = (road_right - PLAYABLE_AREA_LEFT) / (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[3] = road_left_norm;
-    obs[4] = road_right_norm;
+    obs[obs_index] = (env->player_y - PLAYER_MIN_Y) / (PLAYER_MAX_Y - PLAYER_MIN_Y);
+    // printf("obs[%d] = Player Y: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // Normalize player's lane (assuming NUM_LANES = 3)
-    int player_lane = get_player_lane(env);
-    float player_lane_norm = (float)player_lane / (NUM_LANES - 1);
-    obs[5] = player_lane_norm;
+    obs[obs_index] = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+    // printf("obs[%d] = Speed: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // Initialize index for enemy car observations
-    int idx = 6;
+    // Road edges
+    obs[obs_index] = (road_edge_x(env, env->player_y, 0, true) - PLAYABLE_AREA_LEFT) /
+                     (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+    // printf("obs[%d] = Road Edge Left: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // For each enemy car, compute normalized relative positions
-    // idx 6-15
+    obs[obs_index] = (road_edge_x(env, env->player_y, 0, false) - PLAYABLE_AREA_LEFT) /
+                     (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+    // printf("obs[%d] = Road Edge Right: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
+
+    // Player lane
+    obs[obs_index] = (float)get_player_lane(env) / (NUM_LANES - 1);
+    // printf("obs[%d] = Player Lane: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
+
+    // Enemy car observations
     for (int i = 0; i < env->max_enemies; i++) {
         Car* car = &env->enemyCars[i];
-
-        // Check if the enemy car is active
         if (car->y > 0 && car->y < env->height) {
-            // Compute enemy car's x position
             float car_x = car_x_in_lane(env, car->lane, car->y);
+            obs[obs_index] = (car_x - env->player_x + PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT) /
+                             (2 * (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT));
+            // printf("obs[%d] = Enemy Car %d X: %f\n", obs_index, i, obs[obs_index]);
+            CHECK_BOUNDS(obs_index);
+            obs_index++;
 
-            // Compute relative positions
-            float relative_x = car_x - env->player_x;
-            float relative_y = car->y - env->player_y;
-
-            // Normalize relative positions
-            float max_relative_x = PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT;
-            float relative_x_norm = (relative_x + max_relative_x) / (2 * max_relative_x);
-            float max_relative_y = env->height;
-            float relative_y_norm = (relative_y + max_relative_y) / (2 * max_relative_y);
-
-            obs[idx++] = relative_x_norm;
-            obs[idx++] = relative_y_norm;
+            obs[obs_index] = (car->y - env->player_y + env->height) / (2 * env->height);
+            // printf("obs[%d] = Enemy Car %d Y: %f\n", obs_index, i, obs[obs_index]);
+            CHECK_BOUNDS(obs_index);
+            obs_index++;
         } else {
-            // If the enemy car is not active, fill with default values
-            obs[idx++] = 0.5f;
-            obs[idx++] = 0.5f;
+            obs[obs_index] = 0.5f;
+            // printf("obs[%d] = Enemy Car %d Default X: %f\n", obs_index, i, obs[obs_index]);
+            CHECK_BOUNDS(obs_index);
+            obs_index++;
+
+            obs[obs_index] = 0.5f;
+            // printf("obs[%d] = Enemy Car %d Default Y: %f\n", obs_index, i, obs[obs_index]);
+            CHECK_BOUNDS(obs_index);
+            obs_index++;
         }
     }
 
-    // Add current curve direction to observations
-    // idx 16
-    float curve_direction_norm = (float)(env->current_curve_direction + 1) / 2.0f;
-    obs[idx++] = curve_direction_norm;
+    // Curve direction
+    obs[obs_index] = (float)(env->current_curve_direction + 1) / 2.0f;
+    // printf("obs[%d] = Curve Direction: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // Compute normalized time of day
-    // Total day length is the last background transition time
-    // idx 17-31
+    // Time of day
     float total_day_length = env->dayTransitionTimes[15];
     float time_of_day = fmodf(env->elapsedTimeEnv, total_day_length);
-    float time_of_day_norm = time_of_day / total_day_length;
-    obs[idx++] = time_of_day_norm;
+    obs[obs_index] = time_of_day / total_day_length;
+    // printf("obs[%d] = Time of Day: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // Add normalized carsToPass
-    // idx 32
-    float carsToPass_norm = (float)env->carsToPass / (float)env->initial_cars_to_pass;
-    obs[idx++] = carsToPass_norm;
+    // Cars to pass
+    obs[obs_index] = (float)env->carsToPass / env->initial_cars_to_pass;
+    // printf("obs[%d] = Cars to Pass: %f\n", obs_index, obs[obs_index]);
+    CHECK_BOUNDS(obs_index);
+    obs_index++;
 
-    // Compute the expected number of observations
-    int obs_size = 6 + 2 * env->max_enemies + 3;
-
-    // Ensure we have filled exactly obs_size features
-    if (idx != obs_size) {
-        printf("Error: Expected idx to be %d but got %d\n", obs_size, idx);
+    // Ensure final index matches the expected size
+    if (obs_index != env->obs_size) {
+        // fprintf(stderr, "Error: Final obs_index %d does not match obs_size %zu\n", obs_index, env->obs_size);
+        exit(EXIT_FAILURE);
     }
 
-            if (env->carsToPass <= 0) {
-                env->carsToPass = 0;
-            } else {
-    env->carsToPass -= 1;
-    printf("Cars to pass: %d\n", env->carsToPass);
-            }
-    // Update add_log once per win/loss state
-    if (env->dayCompleted) {
-        add_log(env->log_buffer, &env->log);
-    } else if (env->terminals[0] == 1) {
-        add_log(env->log_buffer, &env->log);
-    }
+// Decrementing carstopass for testing only
+env->carsToPass -= 1;
+
+// add_log if env is terminal (loss) or carsToPass is 0 i.e. victory condition
+if (env->carsToPass <= 0 || env->terminals[0] == 1) {
+    add_log(env->log_buffer, &env->log);
 }
+
+
+
+
+    // printf("Debug: Completed compute_observations with final obs_index = %d\n", obs_index);
+}
+
+
+
+    // // Update cars to pass counter
+    // if (env->carsToPass <= 0) {
+    //     env->carsToPass = 0;
+    // } else {
+    //     env->carsToPass -= 1;
+    // }
+
 
 // When to curve road and how to curve it, including dense smooth transitions
 // An ugly, dense function, but it is necessary
@@ -1195,7 +1378,7 @@ void update_road_curve(Enduro* env) {
         env->current_vanishing_point_x = fmaxf(env->current_vanishing_point_x - vanishing_point_transition_speed, env->target_vanishing_point_x);
     }
     env->vanishing_point_x = env->current_vanishing_point_x;
-    printf("Current Vanishing Point X: %.2f, Target Vanishing Point X: %.2f\n", env->current_vanishing_point_x, env->target_vanishing_point_x);
+    // printf("Current Vanishing Point X: %.2f, Target Vanishing Point X: %.2f\n", env->current_vanishing_point_x, env->target_vanishing_point_x);
 }
 
 // B(t) = (1−t)^2 * P0​+2(1−t) * t * P1​+t^2 * P2​, t∈[0,1]
@@ -1312,10 +1495,10 @@ void handleEvents(int* running, Enduro* env) {
     if (WindowShouldClose()) {
         *running = 0;
     }
-    bool left = IsKeyDown(KEY_LEFT);
-    bool right = IsKeyDown(KEY_RIGHT);
-    bool down = IsKeyDown(KEY_DOWN);
-    bool fire = IsKeyDown(KEY_SPACE); // Fire key
+    unsigned char left = IsKeyDown(KEY_LEFT);
+    unsigned char right = IsKeyDown(KEY_RIGHT);
+    unsigned char down = IsKeyDown(KEY_DOWN);
+    unsigned char fire = IsKeyDown(KEY_SPACE); // Fire key
     if (fire) {
         if (right) {
             *env->actions = ACTION_RIGHTFIRE;
@@ -1339,7 +1522,7 @@ void handleEvents(int* running, Enduro* env) {
     } else {
         *env->actions = ACTION_NOOP;
     }
-    printf("Action set to: %d\n", *env->actions);
+    // printf("Action set to: %d\n", *env->actions);
 
 }
 
@@ -1691,7 +1874,7 @@ void renderScoreboard(GameState* gameState) {
 
     // Render "CAR" digit or flags for cars to pass
     if (gameState->victoryAchieved) {
-        printf("flag direction: %d\n", gameState->showLeftFlag);
+        // printf("flag direction: %d\n", gameState->showLeftFlag);
         // Alternate between level_complete_flag_left and level_complete_flag_right
         Texture2D flagTexture = gameState->showLeftFlag ? gameState->levelCompleteFlagLeftTexture : gameState->levelCompleteFlagRightTexture;
         Rectangle destRect = { carsX, carsY, digitWidth * 4, digitHeight };
@@ -1718,12 +1901,12 @@ void updateVictoryEffects(GameState* gameState) {
     if (gameState->victoryAchieved) {
         // Dancing flags effect
         gameState->flagTimer++;
-        printf("flag timer: %d\n", gameState->flagTimer);
+        // printf("flag timer: %d\n", gameState->flagTimer);
         // Modulo triggers flag direction change
         // Flag renders in that direction until next change
         if (gameState->flagTimer % 50 == 0) {
             gameState->showLeftFlag = !gameState->showLeftFlag;
-            printf("flag should have switched directions. direciton: %d\n", gameState->showLeftFlag);
+            // printf("flag should have switched directions. direciton: %d\n", gameState->showLeftFlag);
         }
         gameState->victoryDisplayTimer++;
         if (gameState->victoryDisplayTimer >= 10) { // 540
@@ -1803,8 +1986,8 @@ void c_render(Client* client, Enduro* env) {
     renderMountains(gameState);
     
     int bgIndex = gameState->currentBackgroundIndex;
-    bool isNightFogStage = (bgIndex == 13);
-    bool isNightStage = (bgIndex == 12 || bgIndex == 13 || bgIndex == 14);
+    unsigned char isNightFogStage = (bgIndex == 13);
+    unsigned char isNightStage = (bgIndex == 12 || bgIndex == 13 || bgIndex == 14);
 
     // During night fog stage, clip rendering to y >= 92
     float clipStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
@@ -1816,7 +1999,7 @@ void c_render(Client* client, Enduro* env) {
     // During night fog stage, start from y=92
     float roadStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
     Vector2 previousLeftPoint = {0}, previousRightPoint = {0};
-    bool firstPoint = true;
+    unsigned char firstPoint = true;
 
     for (float y = roadStartY; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
         float adjusted_y = (env->speed < 0) ? y : y + fmod(env->road_scroll_offset, 0.75f);
@@ -1851,7 +2034,7 @@ void c_render(Client* client, Enduro* env) {
     }
 
     // Render enemy cars scaled stages for distance/closeness effect
-    bool skipFogCars = isNightFogStage;
+    unsigned char skipFogCars = isNightFogStage;
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
         

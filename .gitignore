@@ -133,3 +133,6 @@ dmypy.json
 
 # ROMs
 *.gb
+
+# Experiments dir
+experiments/

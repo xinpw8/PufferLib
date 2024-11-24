@@ -248,7 +248,7 @@ extension_paths = [
     'pufferlib/environments/ocean/connect4/cy_connect4',
     'pufferlib/environments/ocean/grid/cy_grid',
     'pufferlib/environments/ocean/tripletriad/cy_tripletriad',
-    'pufferlib/environments/ocean/enduro_clone/cy_enduro_clone',
+    'pufferlib/environments/ocean/puffer_enduro/cy_puffer_enduro',
 ]
 
 extensions = [Extension(
@@ -258,7 +258,8 @@ extensions = [Extension(
     library_dirs=[raylib_lib_path],
     libraries=["raylib"],
     runtime_library_dirs=[os.path.abspath(raylib_lib_path)],  # Absolute path for runtime linking
-    extra_compile_args=['-DPLATFORM_DESKTOP', '-O2'],  # Additional compiler flags
+    extra_compile_args=['-DPLATFORM_DESKTOP', '-O2'], # '-fsanitize=address'],  # Additional compiler flags
+    # extra_link_args=['-fsanitize=address'],
 ) for path in extension_paths]
  
 setup(

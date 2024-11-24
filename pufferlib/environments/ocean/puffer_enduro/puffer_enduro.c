@@ -16,6 +16,8 @@
 
 // puffer_enduro.c
 
+# define MAX_ENEMIES 10
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -24,21 +26,25 @@
 #include <gperftools/profiler.h>
 
 int main() {
-    ProfilerStart("puffer_enduro.prof");
     Enduro env;
-    init(&env);
+
+    ProfilerStart("puffer_enduro.prof");
+
     allocate(&env);
+    init(&env);
     initRaylib();
+
     Client* client = NULL;
     client = make_client(client);
     loadTextures(&client->gameState);
     reset(&env);
-    int running = 1;
 
+    int running = 1;
     while (running) {
         handleEvents(&running, &env);
         c_step(&env);
         c_render(client, &env);
+
         if (WindowShouldClose()) {
             running = 0;
         }
@@ -47,6 +53,7 @@ int main() {
     cleanup(&client->gameState);
     free_allocated(&env);
     close_client(client, &env);
+
     ProfilerStop();
 
     return 0;

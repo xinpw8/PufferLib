@@ -1,4 +1,4 @@
-# py_puffer_enduro.pyx
+# cy_puffer_enduro.pyx
 
 # Declare C dependencies
 from libc.stdlib cimport calloc, free
@@ -51,6 +51,14 @@ cdef extern from "puffer_enduro.h":
         int passed
         int colorIndex
 
+    ctypedef struct GameState:
+        pass
+
+    ctypedef struct Client:
+        float width
+        float height
+        GameState gameState
+
     ctypedef struct Enduro:
         float* observations
         int32_t* actions
@@ -61,16 +69,13 @@ cdef extern from "puffer_enduro.h":
         Log log
         float width
         float height
-        float hud_height
         float car_width
         float car_height
         int max_enemies
-        float crash_noop_duration
-        float day_length
+        float elapsedTimeEnv
         int initial_cars_to_pass
         float min_speed
         float max_speed
-        float elapsedTime
         float player_x
         float player_y
         float speed
@@ -109,20 +114,26 @@ cdef extern from "puffer_enduro.h":
         float gearElapsedTime
         float enemySpawnTimer
         float enemySpawnInterval
+        float enemySpeed
+        unsigned char dayCompleted
         float last_road_left
         float last_road_right
         int closest_edge_lane
         int last_spawned_lane
         float totalAccelerationTime
         float parallaxFactor
+        float dayTransitionTimes[16]
+        int dayTimeIndex
+        int currentDayTimeIndex
+        int previousDayTimeIndex
 
     # Function prototypes
     LogBuffer* allocate_logbuffer(int size)
     void free_logbuffer(LogBuffer* buffer)
     void add_log(LogBuffer* logs, Log* log)
     Log aggregate_and_clear(LogBuffer* logs)
-    void init(Enduro* env)
     void allocate(Enduro* env)
+    void init(Enduro* env)
     void free_allocated(Enduro* env)
     void reset_round(Enduro* env)
     void reset(Enduro* env)
@@ -138,8 +149,24 @@ cdef extern from "puffer_enduro.h":
     float road_edge_x(Enduro* env, float y, float offset, unsigned char left)
     float car_x_in_lane(Enduro* env, int lane, float y)
     void compute_observations(Enduro* env)
-    void updateVictoryEffects(Enduro* env)
-    void updateBackground(Enduro* env)
+
+    # Client functions
+    Client* make_client(Client* client)
+    void close_client(Client* client, Enduro* env)
+    void render_car(Client* client, GameState* gameState)
+    void handleEvents(int* running, Enduro* env)
+    void initRaylib()
+    void loadTextures(GameState* gameState)
+    void updateCarAnimation(GameState* gameState)
+    void updateScoreboard(GameState* gameState)
+    void updateBackground(GameState* gameState)
+    void renderBackground(GameState* gameState)
+    void renderScoreboard(GameState* gameState)
+    void updateMountains(GameState* gameState)
+    void renderMountains(GameState* gameState)
+    void updateVictoryEffects(GameState* gameState)
+    void c_render(Client* client, Enduro* env)
+    void cleanup(GameState* gameState)
 
 # Define Cython class to wrap the C Enduro environment
 
@@ -149,6 +176,8 @@ cdef class CyEnduro:
         Log log
         LogBuffer* logs
         int num_envs
+        Client* client
+        int max_enemies
 
     def __cinit__(self, 
                 float32_t[:, :] observations,
@@ -158,32 +187,36 @@ cdef class CyEnduro:
                 uint8_t[:] truncateds,
                 int num_envs):
 
-        if num_envs <= 0 or num_envs > 1000000:  # Add reasonable limits
+        if num_envs <= 0 or num_envs > 1000000:
             raise ValueError("num_envs must be between 1 and 1000000")
-            
+        
+        # For debugging, set num_envs to a smaller number
+        # num_envs = 2  # Uncomment this line for debugging
         self.num_envs = num_envs
-        # Cast to size_t to prevent overflow
+
         self.envs = <Enduro*> calloc(<size_t>self.num_envs, sizeof(Enduro))
         if not self.envs:
             raise MemoryError("Failed to allocate memory for environments")
             
-        self.logs = allocate_logbuffer(num_envs)
+        self.logs = allocate_logbuffer(self.num_envs)
         if not self.logs:
-            free(self.envs)  # Clean up if log allocation fails
+            free(self.envs)
             raise MemoryError("Failed to allocate memory for logs")
+
+        self.client = <Client*>NULL
 
         cdef int i
         cdef Enduro* env
-        for i in range(num_envs):
+        for i in range(self.num_envs):
             env = &self.envs[i]
             env.observations = &observations[i, 0]
-            env.actions = <int32_t*>&actions[i]  # Explicit cast to int32_t*
+            env.actions = <int32_t*>&actions[i]
             env.rewards = &rewards[i]
             env.terminals = &terminals[i]
             env.truncateds = &truncateds[i]
             env.log_buffer = self.logs
             init(env)
-            
+                
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
@@ -195,27 +228,17 @@ cdef class CyEnduro:
             c_step(&self.envs[i])
             
     def close(self):
-        free(self.logs)
+        if self.c_envs:
+            self.c_envs.close()
+        free_logbuffer(self.logs)
         free(self.envs)
     
     def render(self):
         cdef Enduro* env = &self.envs[0]
-        if self.client == NULL:
-            self.client = make_client(client, &env)
-
+        if self.client is NULL:
+            self.client = make_client(self.client)
         c_render(self.client, env)
         
-    def log(self):
+    def get_log(self):
         cdef Log log = aggregate_and_clear(self.logs)
         return log
-        # {
-        #     "episode_return": log.episode_return,
-        #     "episode_length": log.episode_length,
-        #     "score": log.score,
-        #     "days_completed": log.days_completed,
-        #     "days_failed": log.days_failed,
-        #     "collisions_player_vs_car": log.collisions_player_vs_car,
-        #     "collisions_player_vs_road": log.collisions_player_vs_road,
-        #     "reward": log.reward,
-        #     "passed_cars": log.episode_return
-        # }

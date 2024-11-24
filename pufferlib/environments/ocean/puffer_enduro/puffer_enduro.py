@@ -16,10 +16,6 @@ class MyEnduro(pufferlib.PufferEnv):
         self.tick = 0
         self.max_enemies = 10 # max_enemies
 
-        self.num_agents = num_envs
-        self.render_mode = render_mode
-        self.report_interval = report_interval
-
         # max_enemies = 10
         obs_size = 6 + 2 * 10 + 3
         self.num_obs = obs_size
@@ -47,15 +43,30 @@ class MyEnduro(pufferlib.PufferEnv):
         return self.observations, []
     
     def step(self, actions):
+        if np.isnan(actions).any() or np.isinf(actions).any():
+            raise ValueError("Actions contain NaN or Inf")
+        
         self.actions[:] = actions
         self.c_envs.step()
+        
+        # print(f'Observations: {self.observations}')
+                # Validate observations
+        if np.isnan(self.observations).any() or np.isinf(self.observations).any():
+            raise ValueError("Observations contain NaN or Inf")
+        
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
+            log = self.c_envs.get_log()
             if log['episode_length'] > 0:
                 info.append(log)
         
         self.tick += 1
+        # print(f'B4 observations size: {self.observations.shape}')
+        size_of_obs = self.observations[0].shape
+        
+        # overwrite observations to known good vals
+        self.observations = np.zeros((self.num_agents, *size_of_obs), dtype=np.float32)
+        # print(f'AFTER observations size: {self.observations.shape}')
         
         return (
             self.observations,
@@ -78,23 +89,23 @@ class MyEnduro(pufferlib.PufferEnv):
         return prob_tensor
 
         
-def test_performance(timeout=10, atn_cache=1024):
-    num_envs = 1000
-    env = MyEnduro(num_envs=num_envs)
-    env.reset()
-    tick = 0
+# def test_performance(timeout=10, atn_cache=1024):
+#     num_envs = 1000
+#     env = MyEnduro(num_envs=num_envs)
+#     env.reset()
+#     tick = 0
 
-    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs))
+#     actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs))
 
-    import time
-    start = time.time()
-    while time.time() - start < timeout:
-        atn = actions[tick % atn_cache]
-        env.step(atn)
-        tick += 1
+#     import time
+#     start = time.time()
+#     while time.time() - start < timeout:
+#         atn = actions[tick % atn_cache]
+#         env.step(atn)
+#         tick += 1
 
-    sps = num_envs * tick / (time.time() - start)
-    print(f'SPS: {sps:,}')
+#     sps = num_envs * tick / (time.time() - start)
+#     print(f'SPS: {sps:,}')
 
-if __name__ == '__main__':
-    test_performance()
+# if __name__ == '__main__':
+#     test_performance()
