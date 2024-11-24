@@ -68,7 +68,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    demo(10, 3, 15, 1, 300); // Visual demo
+    demo(5, 1, 5, 1, 300); // Visual demo
     // performance_test(); // Uncomment for benchmarking
     return 0;
 }

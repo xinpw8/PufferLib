@@ -185,6 +185,15 @@ void place_random_items(CTrashPickupEnv* env, int count, int item_type) {
     }
 }
 
+void add_reward(CTrashPickupEnv* env, float reward){
+    // Reward all agents to promote cooperative behavior rather than competitive
+    for (int i = 0; i < env->num_agents; i++){
+         env->rewards[i] += reward;
+    }
+
+    env->total_episode_reward += reward;
+}
+
 void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
     int x = env->agent_positions[agent_idx][0];
     int y = env->agent_positions[agent_idx][1];
@@ -227,16 +236,15 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
             env->grid[INDEX(env, new_x, new_y)].index = agent_idx;
             env->agent_positions[agent_idx][0] = new_x;
             env->agent_positions[agent_idx][1] = new_y;
-            env->rewards[agent_idx] += env->positive_reward;
-            env->total_episode_reward += env->positive_reward;
+            add_reward(env, env->positive_reward);
         } 
         else if (cell_state_type == TRASH_BIN) 
         {
             if (carrying == AGENT_IS_CARRYING)
             {
+                // Deposit trash into bin
                 env->agent_carrying[agent_idx] = AGENT_IS_NOT_CARRYING;
-                env->rewards[agent_idx] += env->positive_reward;
-                env->total_episode_reward += env->positive_reward;
+                add_reward(env, env->positive_reward);
             }
             else
             {
@@ -279,8 +287,7 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
                         {
                             if (env->grid[INDEX(env, new_agent_x, new_agent_y)].type == TRASH)
                             { 
-                                env->rewards[agent_idx] += env->positive_reward;
-                                env->total_episode_reward += env->positive_reward;
+                                add_reward(env, env->positive_reward);
 
                                 int trash_index = env->grid[INDEX(env, new_agent_x, new_agent_y)].index;
                                 env->trash_presence[trash_index] = 0; // Mark as not present
@@ -307,9 +314,6 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
             }
         }
     }
-
-    env->rewards[agent_idx] -= env->negative_reward;
-    env->total_episode_reward -= env->negative_reward;
 }
 
 bool is_episode_over(CTrashPickupEnv* env) {
@@ -400,6 +404,7 @@ void step(CTrashPickupEnv* env) {
     for (int i = 0; i < env->num_agents; i++) {
         move_agent(env, i, env->actions[i]);
     }
+    add_reward(env, -env->negative_reward); // small negative reward to encourage efficiency
 
     env->current_step++;
     if (env->current_step >= env->max_steps || is_episode_over(env)) 
