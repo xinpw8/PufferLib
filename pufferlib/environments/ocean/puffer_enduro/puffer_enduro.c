@@ -23,21 +23,28 @@
 #include <stddef.h>
 #include "puffer_enduro.h"
 #include "raylib.h"
-#include <gperftools/profiler.h>
+// #include <gperftools/profiler.h>
 
 int main() {
     Enduro env;
 
-    ProfilerStart("puffer_enduro.prof");
+    // Initialize necessary variables
+    env.num_envs = 1;
+    env.max_enemies = MAX_ENEMIES;
+    env.obs_size = OBSERVATIONS_MAX_SIZE;
+
+    // ProfilerStart("puffer_enduro.prof");
 
     allocate(&env);
-    init(&env);
-    initRaylib();
 
     Client* client = NULL;
     client = make_client(client);
-    loadTextures(&client->gameState);
+
+    init(&env); // Initialize environment variables
     reset(&env);
+    initRaylib();
+
+    loadTextures(&client->gameState);
 
     int running = 1;
     while (running) {
@@ -50,11 +57,12 @@ int main() {
         }
     }
 
+    close_client(client, &env);
     cleanup(&client->gameState);
     free_allocated(&env);
-    close_client(client, &env);
 
-    ProfilerStop();
+    // ProfilerStop();
 
     return 0;
 }
+

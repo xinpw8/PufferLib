@@ -14,17 +14,22 @@ class MyEnduro(pufferlib.PufferEnv):
         self.num_agents = num_envs
         self.report_interval = report_interval
         self.tick = 0
-        self.max_enemies = 10 # max_enemies
+        self.max_enemies = 10
 
-        # max_enemies = 10
-        obs_size = 6 + 2 * 10 + 3
+        obs_size = 6 + 2 * self.max_enemies + 3 + 1
         self.num_obs = obs_size
 
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
-        # noop, fire (accelerate), down (decelerate), left, right,
-        # fire-left, fire-right, down-left, down-right
+            low=0, high=1, shape=(self.num_obs,), dtype=np.float32
+        )
         self.single_action_space = gymnasium.spaces.Discrete(9)
+
+        # Initialize buffers
+        self.observations = np.zeros((self.num_agents, self.num_obs), dtype=np.float32)
+        self.actions = np.zeros((self.num_agents,), dtype=np.int32)
+        self.rewards = np.zeros((self.num_agents,), dtype=np.float32)
+        self.terminals = np.zeros((self.num_agents,), dtype=np.uint8)
+        self.truncations = np.zeros((self.num_agents,), dtype=np.uint8)
 
         super().__init__(buf=buf)
 
@@ -49,24 +54,17 @@ class MyEnduro(pufferlib.PufferEnv):
         self.actions[:] = actions
         self.c_envs.step()
         
-        # print(f'Observations: {self.observations}')
-                # Validate observations
+        # Validate observations
         if np.isnan(self.observations).any() or np.isinf(self.observations).any():
             raise ValueError("Observations contain NaN or Inf")
         
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.get_log()
+            log = self.c_envs.log()
             if log['episode_length'] > 0:
                 info.append(log)
         
         self.tick += 1
-        # print(f'B4 observations size: {self.observations.shape}')
-        size_of_obs = self.observations[0].shape
-        
-        # overwrite observations to known good vals
-        self.observations = np.zeros((self.num_agents, *size_of_obs), dtype=np.float32)
-        # print(f'AFTER observations size: {self.observations.shape}')
         
         return (
             self.observations,
@@ -77,12 +75,12 @@ class MyEnduro(pufferlib.PufferEnv):
         )
     
     def render(self):
-        self.c_envs.render()
+        if self.render_mode is not None:
+            self.c_envs.render()
 
     def close(self):
         self.c_envs.close()
         
-    
     def validate_probabilities(prob_tensor):
         if torch.isnan(prob_tensor).any() or torch.isinf(prob_tensor).any() or (prob_tensor < 0).any():
             raise ValueError("Invalid probability values detected")

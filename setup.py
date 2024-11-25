@@ -258,7 +258,7 @@ extensions = [Extension(
     library_dirs=[raylib_lib_path],
     libraries=["raylib"],
     runtime_library_dirs=[os.path.abspath(raylib_lib_path)],  # Absolute path for runtime linking
-    extra_compile_args=['-DPLATFORM_DESKTOP', '-O2'], # '-fsanitize=address'],  # Additional compiler flags
+    extra_compile_args=['-DPLATFORM_DESKTOP', '-O2'], # '-DDEBUG'], # '-fsanitize=address'],  # Additional compiler flags
     # extra_link_args=['-fsanitize=address'],
 ) for path in extension_paths]
  
