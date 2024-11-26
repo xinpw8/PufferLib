@@ -281,7 +281,7 @@ def train(data):
         done_training = data.global_step >= config.total_timesteps
         # TODO: beter way to get episode return update without clogging dashboard
         # TODO: make this appear faster
-        if profile.update(data):
+        if done_training or profile.update(data):
             mean_and_log(data)
             print_dashboard(config.env, data.utilization, data.global_step, data.epoch,
                 profile, data.losses, data.stats, data.msg)

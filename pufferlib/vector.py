@@ -52,72 +52,6 @@ def step(vecenv, actions):
     obs, rewards, terminals, truncations, infos, env_ids, masks = vecenv.recv()
     return obs, rewards, terminals, truncations, infos # include env_ids or no?
 
-class Native:
-    reset = reset
-    step = step
-
-    @property
-    def emulated(self):
-        '''Native envs do not use emulation'''
-        return False
-
-    @property
-    def done(self):
-        '''Native envs handle resets internally'''
-        return False
-
-    @property
-    def driver_env(self):
-        return self.env
-
-    @property
-    def num_agents(self):
-        return self.env.num_agents
-
-    @property
-    def num_envs(self):
-        return self.env.num_envs
-
-    @property
-    def single_observation_space(self):
-        return self.env.single_observation_space
-
-    @property
-    def single_action_space(self):
-        return self.env.single_action_space
-
-    def __init__(self, env_creator, env_args, env_kwargs, buf=None, **kwargs):
-        self.env = env_creator(*env_args, buf=buf, **env_kwargs)
-        assert isinstance(self.env, PufferEnv)
-
-        self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.num_agents)
-        self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.num_agents)
-        self.agent_ids = np.arange(self.num_agents)
-        self.flag = RESET
-
-        if not isinstance(self.single_observation_space, pufferlib.spaces.Box):
-            raise APIUsageError('Native observation_space must be a Box')
-        if (not isinstance(self.single_action_space, pufferlib.spaces.Discrete)
-                and not isinstance(self.single_action_space, pufferlib.spaces.MultiDiscrete)
-                and not isinstance(self.single_action_space, pufferlib.spaces.Box)):
-            raise APIUsageError('Native action_space must be a Discrete, MultiDiscrete, or Box')
-
-    def async_reset(self, seed=None):
-        self.flag = RECV
-        _, self.infos = self.env.reset(seed)
-        assert isinstance(self.infos, list), 'PufferEnvs must return info as a list of dicts'
-
-    def send(self, actions):
-        _, _, _, _, self.infos = self.env.step(actions)
-        assert isinstance(self.infos, list), 'PufferEnvs must return info as a list of dicts'
-
-    def recv(self):
-        return (self.env.observations, self.env.rewards, self.env.terminals,
-            self.env.truncations, self.infos, self.agent_ids, self.env.masks)
-
-    def close(self):
-        self.env.close()
- 
 class Serial:
     reset = reset
     step = step
@@ -631,17 +565,20 @@ class Ray():
         self.ray.shutdown()
 
 
-def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Serial, num_envs=1, **kwargs):
+def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=PufferEnv, num_envs=1, **kwargs):
     if num_envs < 1:
         raise APIUsageError('num_envs must be at least 1')
     if num_envs != int(num_envs):
         raise APIUsageError('num_envs must be an integer')
 
-    if backend is Native:
+    if backend == PufferEnv:
         env_args = env_args or []
         env_kwargs = env_kwargs or {}
-        return env_creator_or_creators(*env_args, **env_kwargs)
-        #return Native(env_creator_or_creators, env_args, env_kwargs, **kwargs)
+        vecenv = env_creator_or_creators(*env_args, **env_kwargs)
+        if not isinstance(vecenv, PufferEnv):
+            raise APIUsageError('Native vectorization requires a native PufferEnv. Use Serial or Multiprocessing instead.')
+
+        return vecenv
 
     if 'num_workers' in kwargs:
         num_workers = kwargs['num_workers']

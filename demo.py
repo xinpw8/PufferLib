@@ -291,7 +291,7 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
     elif args['vec'] == 'ray':
         vec = pufferlib.vector.Ray
     elif args['vec'] == 'native':
-        vec = pufferlib.vector.Native
+        vec = pufferlib.environment.PufferEnv
     else:
         raise ValueError(f'Invalid --vector (serial/multiprocessing/ray/native).')
 
