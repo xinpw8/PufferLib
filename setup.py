@@ -164,7 +164,7 @@ environments = {
     'nethack': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
-        'nle>=0.9.1',
+        'nle==0.9.1',
     ],
     'nmmo': [
         f'gym=={GYM_VERSION}',
@@ -299,9 +299,6 @@ setup(
         "c_gae.pyx",
         "pufferlib/puffernet.pyx",
         "pufferlib/ocean/grid/c_grid.pyx",
-        "pufferlib/ocean/snake/c_snake.pyx",
-        "pufferlib/ocean/moba/c_moba.pyx",
-        "pufferlib/ocean/moba/c_precompute_pathing.pyx",
         *extensions,
     ], 
     compiler_directives={

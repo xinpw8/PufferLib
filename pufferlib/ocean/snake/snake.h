@@ -1,5 +1,3 @@
-// Port of PufferLib's Cython multi-snake env to C. There is no performance
-// benefit to this implementation. It is purely so we can compile to WASM
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -46,7 +44,6 @@ void add_log(LogBuffer* logs, Log* log) {
     }
     logs->logs[logs->idx] = *log;
     logs->idx += 1;
-    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
 }
 
 Log aggregate_and_clear(LogBuffer* logs) {
@@ -335,7 +332,7 @@ Client* make_client(int cell_size, int width, int height) {
     client->cell_size = cell_size;
     client->width = width;
     client->height = height;
-    InitWindow(width*cell_size, height*cell_size, "Snake Game");
+    InitWindow(width*cell_size, height*cell_size, "PufferLib Snake");
     SetTargetFPS(10);
     return client;
 }
@@ -356,7 +353,5 @@ void render(Client* client, CSnake* env) {
                 DrawRectangle(x*sz, y*sz, sz, sz, COLORS[tile]);
         }
     }
-    DrawText("Reinforcement learned snakes running in your browswer! Hold W/A/S/D to control the yellow snake.", 10, 10, 20, COLORS[8]);
-    DrawText("<500 lines of pure C by @jsuarez5341. Star it on GitHub/pufferai/pufferlib to support my work!", 10, 40, 20, COLORS[8]);
     EndDrawing();
 }

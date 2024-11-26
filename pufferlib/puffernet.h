@@ -555,3 +555,63 @@ void forward_linearlstm(LinearLSTM* net, float* observations, int* actions) {
     linear(net->value_fn, net->lstm->state_h);
     softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
 }
+
+typedef struct ConvLSTM ConvLSTM;
+struct ConvLSTM {
+    int num_agents;
+    float* obs;
+    Conv2D* conv1;
+    ReLU* relu1;
+    Conv2D* conv2;
+    ReLU* relu2;
+    Linear* linear;
+    LSTM* lstm;
+    Linear* actor;
+    Linear* value_fn;
+    Multidiscrete* multidiscrete;
+};
+
+ConvLSTM* make_convlstm(Weights* weights, int num_agents, int input_dim,
+        int input_channels, int cnn_channels, int hidden_dim, int action_dim) {
+    ConvLSTM* net = calloc(1, sizeof(ConvLSTM));
+    net->num_agents = num_agents;
+    net->obs = calloc(num_agents*input_dim*input_dim, sizeof(float));
+    net->conv1 = make_conv2d(weights, num_agents, input_dim,
+        input_dim, input_channels, cnn_channels, 5, 3);
+    net->relu1 = make_relu(num_agents, hidden_dim*3*3);
+    net->conv2 = make_conv2d(weights, num_agents, 3, 3, hidden_dim, hidden_dim, 3, 1);
+    net->relu2 = make_relu(num_agents, hidden_dim);
+    net->linear = make_linear(weights, num_agents, hidden_dim, 128);
+    net->actor = make_linear(weights, num_agents, 128, action_dim);
+    net->value_fn = make_linear(weights, num_agents, 128, 1);
+    net->lstm = make_lstm(weights, num_agents, 128, 128);
+    int logit_sizes[1] = {action_dim};
+    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
+    return net;
+}
+
+void free_convlstm(ConvLSTM* net) {
+    free(net->obs);
+    free(net->conv1);
+    free(net->relu1);
+    free(net->conv2);
+    free(net->relu2);
+    free(net->linear);
+    free(net->actor);
+    free(net->value_fn);
+    free(net->lstm);
+    free(net->multidiscrete);
+    free(net);
+}
+
+void forward_convlstm(ConvLSTM* net, float* observations, int* actions) {
+    conv2d(net->conv1, observations);
+    relu(net->relu1, net->conv1->output);
+    conv2d(net->conv2, net->relu1->output);
+    relu(net->relu2, net->conv2->output);
+    linear(net->linear, net->relu2->output);
+    lstm(net->lstm, net->linear->output);
+    linear(net->actor, net->lstm->state_h);
+    linear(net->value_fn, net->lstm->state_h);
+    softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
+}

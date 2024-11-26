@@ -110,9 +110,9 @@ def test_model_forward(model):
 	
 if __name__ == '__main__':
     #test_lstm()
-    model = torch.load('connect4.pt', map_location='cpu')
+    model = torch.load('snake.pt', map_location='cpu')
     #test_model_forward(model)
     #test_model(model)
 
-    save_model_weights(model, 'connect4_weights.bin')
+    save_model_weights(model, 'snake_weights.bin')
     print('saved')

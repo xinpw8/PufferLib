@@ -1,1 +1,0 @@
-Ocean is PufferAI's suite of first-party environments. They are meant to be dead simple tests of a specific aspect of intelligence with no additional distractors. You should be able to train on them within minutes.

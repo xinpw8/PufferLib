@@ -286,7 +286,7 @@ Client* make_client(Env* env) {
     InitWindow(768, 576, "PufferLib Ray Robocode");
     SetTargetFPS(60);
     Client* client = (Client*)calloc(1, sizeof(Client));
-    client->atlas = LoadTexture("robocode.png");
+    client->atlas = LoadTexture("resources/robocode/robocode.png");
     return client;
 }
 

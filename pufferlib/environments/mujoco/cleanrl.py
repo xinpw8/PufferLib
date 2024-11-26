@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import pufferlib.frameworks.cleanrl
+import pufferlib.cleanrl
 from pufferlib.environments.mujoco.environment import cleanrl_env_creator
 from pufferlib.environments.mujoco.policy import CleanRLPolicy, Policy
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     elif args.policy == "puffer":
         policy = Policy(envs)
     
-    agent = pufferlib.frameworks.cleanrl.Policy(policy).to(device)
+    agent = pufferlib.cleanrl.Policy(policy).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup

@@ -8,7 +8,7 @@ import gym
 
 import pufferlib
 import pufferlib.models
-import pufferlib.frameworks.cleanrl
+import pufferlib.cleanrl
 import pufferlib.environments.classic_control
 import pufferlib.vectorization
 
@@ -23,7 +23,7 @@ def test_cleanrl_utils():
 
     policy = pufferlib.models.Default(envs.driver_env)
     policy = pufferlib.models.LSTMWrapper(envs.driver_env, policy)
-    policy = pufferlib.frameworks.cleanrl.RecurrentPolicy(policy)
+    policy = pufferlib.cleanrl.RecurrentPolicy(policy)
 
     obs = torch.tensor(obs).unsqueeze(1).float()
     actions = policy.get_action_and_value(obs)
@@ -45,16 +45,16 @@ def test_sample_logits():
     md_logits = [torch.rand(batch, n) for n in nvec]
     md_action = torch.tensor(np.array([md.sample() for _ in range(batch)]))
 
-    a1, l1, e1 = pufferlib.frameworks.cleanrl.sample_logits(d_logits)
+    a1, l1, e1 = pufferlib.cleanrl.sample_logits(d_logits)
     a2, l2, e2 = correct_sample_logits(d_logits)
     shape_check(a1, l1, e1, a2, l2, e2)
 
-    a1, l1, e1 = pufferlib.frameworks.cleanrl.sample_logits(d_logits, action=d_action)
+    a1, l1, e1 = pufferlib.cleanrl.sample_logits(d_logits, action=d_action)
     a2, l2, e2 = correct_sample_logits(d_logits, d_action)
     shape_check(a1, l1, e1, a2, l2, e2)
 
-    a1, l1, e1 = pufferlib.frameworks.cleanrl.sample_logits(md_logits)
-    a2, l2, e2 = pufferlib.frameworks.cleanrl.sample_logits(md_logits, action=md_action)
+    a1, l1, e1 = pufferlib.cleanrl.sample_logits(md_logits)
+    a2, l2, e2 = pufferlib.cleanrl.sample_logits(md_logits, action=md_action)
     shape_check(a1, l1, e1, a2, l2, e2)
 
 def correct_sample_logits(logits, action=None):

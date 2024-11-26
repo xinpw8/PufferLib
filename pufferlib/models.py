@@ -35,7 +35,7 @@ class Default(nn.Module):
 
         if self.is_dict_obs:
             self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
-            input_size = sum(np.prod(v.shape) for v in env.env.observation_space.values())
+            input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
             self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)

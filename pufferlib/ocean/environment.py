@@ -1,14 +1,15 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-from .squared import squared
-from .pong import pong
-from .breakout import breakout
-from .connect4 import connect4
-from .tripletriad import tripletriad
-from .moba import moba
-from .go import go
-from .rware import rware
+from .snake.snake import Snake
+from .squared.squared import Squared
+from .pong.pong import Pong
+from .breakout.breakout import Breakout
+from .connect4.connect4 import Connect4
+from .tripletriad.tripletriad import TripleTriad
+from .moba.moba import Moba
+from .go.go import Go
+from .rware.rware import Rware
 #from .rocket_lander import rocket_lander
 from .trash_pickup import trash_pickup
 
@@ -56,55 +57,6 @@ def make_puffergrid(render_mode='rgb_array', vision_range=3):
     assert False, 'This env is unfinished. Join our Discord and help us finish it!'
     from .grid import grid
     return grid.PufferGrid(render_mode, vision_range)
-
-def make_snake(widths=None, heights=None, num_snakes=None, num_food=None, vision=5,
-        leave_corpse_on_death=None, preset='720p-1024', render_mode=None, buf=None):
-    # TODO: Fix render_mode
-    if preset is None:
-        render_mode = render_mode or 'rgb_array'
-    elif preset == '1440p-4096':
-        widths = widths or [2560]
-        heights = heights or [1440]
-        num_snakes = num_snakes or [4096]
-        num_food = num_food or [65536]
-        leave_corpse_on_death = leave_corpse_on_death or True
-        render_mode = render_mode or 'human'
-    elif preset == '720p-1024':
-        widths = widths or 4*[1280]
-        heights = heights or 4*[720]
-        num_snakes = num_snakes or 4*[1024]
-        num_food = num_food or 4*[16384]
-        leave_corpse_on_death = leave_corpse_on_death or True
-        render_mode = render_mode or 'human'
-    elif preset == '40p-4':
-        widths = widths or 1024*[40]
-        heights = heights or 1024*[40]
-        num_snakes = num_snakes or 1024*[4]
-        num_food = num_food or 1024*[16]
-        leave_corpse_on_death = leave_corpse_on_death or True
-        render_mode = render_mode or 'ansi'
-    elif preset == 'classic':
-        widths = widths or 4096*[26]
-        heights = heights or 4096*[26]
-        num_snakes = num_snakes or 4096*[1]
-        num_food = num_food or 4096*[1]
-        leave_corpse_on_death = leave_corpse_on_death or False
-        render_mode = render_mode or 'ansi'
-    else:
-        raise ValueError(
-            f'Preset: {preset} must be 1440p-4096, 720p-1024, 40p-4, or classic')
-    
-    from .snake import csnake
-    return csnake.Snake(
-        widths=widths,
-        heights=heights,
-        num_snakes=num_snakes,
-        num_food=num_food,
-        leave_corpse_on_death=leave_corpse_on_death,
-        render_mode=render_mode,
-        vision=vision,
-        buf=buf,
-    )
 
 def make_continuous(discretize=False, **kwargs):
     from . import sanity
@@ -170,9 +122,15 @@ def make_multiagent(**kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env)
 
 MAKE_FNS = {
-    'moba': moba.Moba,
-    'pong': pong.Pong,
-    'breakout': breakout.Breakout,
+    'breakout': Breakout,
+    'moba': Moba,
+    'pong': Pong,
+    'snake': Snake,
+    'squared': Squared,
+    'connect4': Connect4,
+    'tripletriad': TripleTriad,
+    'go': Go,
+    'rware': Rware,
 
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
@@ -180,10 +138,8 @@ MAKE_FNS = {
     'group': make_group,
     'puffer': make_puffer,
     'puffer_grid': make_puffergrid,
-    'snake': make_snake,
     # 'tactical': make_tactical,
     'continuous': make_continuous,
-    'squared': squared.Squared,
     'bandit': make_bandit,
     'memory': make_memory,
     'password': make_password,
@@ -192,11 +148,6 @@ MAKE_FNS = {
     'spaces': make_spaces,
     'performance': make_performance,
     'performance_empiric': make_performance_empiric,
-    'connect4': connect4.Connect4,
-    'tripletriad': tripletriad.TripleTriad,
-    'go': go.Go,
-    'rware': rware.Rware,
-    'trash_pickup': trash_pickup.TrashPickupEnv
 }
 
 # Alias puffer_ to all names

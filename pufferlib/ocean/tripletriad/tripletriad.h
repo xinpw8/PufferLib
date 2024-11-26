@@ -238,7 +238,6 @@ void free_ctripletriad(CTripleTriad* env) {
     }
     free(env->board_card_values);
     free(env->score);
-    free(env);
 }
 
 void free_allocated_ctripletriad(CTripleTriad* env) {
@@ -618,7 +617,7 @@ void render(Client* client, CTripleTriad* env) {
             }
             // Draw card background
             // adjusts card color based on board state 
-            Color card_color = (i == 0) ? PUFF_RED : PUFF_CYAN;
+            Color card_color = (i != 0) ? PUFF_RED : PUFF_CYAN;
             // check if index is in bounds first    
             if (env->card_locations[i][j] != 0) {
                 if (env->board_states[(env->card_locations[i][j]-1)/3][(env->card_locations[i][j]-1)%3] == -1) {
@@ -626,15 +625,16 @@ void render(Client* client, CTripleTriad* env) {
                 } else if (env->board_states[(env->card_locations[i][j]-1)/3][(env->card_locations[i][j]-1)%3] == 1) {
                     card_color = PUFF_CYAN;
                 } else {
-                    card_color = (i == 0) ? PUFF_CYAN : PUFF_RED;
+                    card_color = (i != 0) ? PUFF_CYAN : PUFF_RED;
                 }
             }
             DrawRectangle(card_x, card_y, env->card_width, env->card_height, card_color);
             // change background if card is selected, highlight it
+            Rectangle rect = (Rectangle){card_x, card_y, env->card_width, env->card_height};
             if (env->card_selected[i] == j) {
-                DrawRectangleLines(card_x, card_y, env->card_width, env->card_height, YELLOW);
+                DrawRectangleLinesEx(rect, 2, GREEN);
             } else {
-                DrawRectangleLines(card_x, card_y, env->card_width, env->card_height, PUFF_WHITE);
+                DrawRectangleLinesEx(rect, 2, PUFF_WHITE);
             }
         
             for(int k=0; k< 4; k++) {

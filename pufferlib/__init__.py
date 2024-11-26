@@ -24,5 +24,5 @@ sys.stdout = original_stdout
 sys.stderr = original_stderr
 
 from pufferlib.namespace import namespace, dataclass, Namespace
-from pufferlib import frameworks, environments
+from pufferlib import environments
 from pufferlib.environment import PufferEnv
