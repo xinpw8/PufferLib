@@ -775,52 +775,46 @@ void update_time_of_day(Enduro* env) {
     env->currentDayTimeIndex = env->dayTimeIndex % 16;
 }
 
-void accelerate(Enduro* env) {
-    // Pre-check speed range
-    if (env->speed > MAX_SPEED || env->speed < MIN_SPEED) {
-        printf("780 Speed corruption detected before acceleration: %f\n", env->speed);
-        exit(EXIT_FAILURE);
+void validate_speed(Enduro* env) {
+    if (env->speed < env->min_speed || env->speed > env->max_speed) {
+        // printf("Speed out of range: %f (min: %f, max: %f)\n", env->speed, env->min_speed, env->max_speed);
+        env->speed = fmaxf(env->min_speed, fminf(env->speed, env->max_speed)); // Clamp speed to valid range
     }
+}
 
-    // // Debug all relevant values
-    // printf("line 783 - all values used in accelerate(): env->min_speed = %f, env->speed = %f, env->max_speed = %f, env->currentGear = %d, env->gearSpeedThresholds[env->currentGear] = %f, env->gearAccelerationRates[env->currentGear] = %f\n", env->min_speed, env->speed, env->max_speed, env->currentGear, env->gearSpeedThresholds[env->currentGear], env->gearAccelerationRates[env->currentGear]);
+void validate_gear(Enduro* env) {
+    if (env->currentGear < 0 || env->currentGear > 3) {
+        // printf("Invalid gear: %d. Resetting to 0.\n", env->currentGear);
+        env->currentGear = 0;
+    }
+}
+
+void accelerate(Enduro* env) {
+    validate_speed(env);
+    validate_gear(env);
 
     if (env->speed < env->max_speed) {
-        // Check gear transition
+        // Gear transition
         if (env->speed >= env->gearSpeedThresholds[env->currentGear] && env->currentGear < 3) {
             env->currentGear++;
-            env->gearElapsedTime = 0.0f; // Reset gear elapsed time
-        }
-
-        // Ensure currentGear is valid
-        if (env->currentGear < 0 || env->currentGear > 3) {
-            printf("Invalid currentGear: %d\n", env->currentGear);
-            exit(EXIT_FAILURE);
+            env->gearElapsedTime = 0.0f;
         }
 
         // Calculate new speed
         float accel = env->gearAccelerationRates[env->currentGear];
-        float new_speed = env->speed + (env->currentGear == 0 ? accel * 4.0f : accel * 2.0f);
+        float multiplier = (env->currentGear == 0) ? 4.0f : 2.0f;
+        env->speed += accel * multiplier;
 
         // Clamp speed
-        env->speed = fmaxf(env->min_speed, fminf(new_speed, env->max_speed));
+        validate_speed(env);
 
-        // printf("line 799 - all values used in accelerate(): env->min_speed = %f, env->speed = %f, env->max_speed = %f, env->currentGear = %d, env->gearSpeedThresholds[env->currentGear] = %f, env->gearAccelerationRates[env->currentGear] = %f\n", env->min_speed, env->speed, env->max_speed, env->currentGear, env->gearSpeedThresholds[env->currentGear], env->gearAccelerationRates[env->currentGear]);
-
-        // Cap speed to current gear threshold
+        // Cap speed to gear threshold
         if (env->speed > env->gearSpeedThresholds[env->currentGear]) {
             env->speed = env->gearSpeedThresholds[env->currentGear];
         }
     }
-
-    // Post-check speed range
-    if (env->speed > MAX_SPEED || env->speed < MIN_SPEED) {
-        printf("806 Speed corruption detected after acceleration: %f\n", env->speed);
-        exit(EXIT_FAILURE);
-    }
+    validate_speed(env);
 }
-
-
 
 void compute_enemy_car_rewards(Enduro* env) {
     for (int i = 0; i < env->numEnemies; i++) {
