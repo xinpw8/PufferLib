@@ -107,6 +107,8 @@ typedef struct {
 
     GridCell* grid; // 1D array for grid
     Entity* entities; // Indicies (0 - num_agents) for agents, (num_agents - num_bins) for bins, (num_bins - num_trash) for trash.
+
+    bool do_human_control;
 } CTrashPickupEnv;
 
 int get_grid_index(CTrashPickupEnv* env, int x, int y) {
@@ -422,7 +424,7 @@ Client* make_client(CTrashPickupEnv* env) {
     client->window_height = client->window_width + client->header_offset;
 
     InitWindow(client->window_width, client->window_height, "Trash Pickup Environment");
-    SetTargetFPS(120);
+    SetTargetFPS(60);
 
     client->agent_texture = LoadTexture("resources/puffers_128.png");
 
@@ -431,12 +433,6 @@ Client* make_client(CTrashPickupEnv* env) {
 
 // Render the TrashPickup environment
 void render(Client* client, CTrashPickupEnv* env) {
-    if (IsKeyDown(KEY_ESCAPE)) {
-        CloseWindow();
-        free(client);
-        exit(0);
-    }
-
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
@@ -497,19 +493,40 @@ void render(Client* client, CTrashPickupEnv* env) {
                     BLUE
                 );
             } else if (cell_type == AGENT) {
-                DrawTexturePro(
-                    client->agent_texture, 
-                    (Rectangle) {0, 0, 128, 128},
-                    (Rectangle) {
-                        screen_x + client->cell_size / 2, 
-                        screen_y + client->cell_size / 2,
-                        client->cell_size,
-                        client->cell_size
-                        },
-                    (Vector2){client->cell_size / 2, client->cell_size / 2},
-                    0,
-                    WHITE
-                );
+                if (env->do_human_control && gridCell.index == 0)
+                {
+                    // Make human controlled agent red
+                    DrawTexturePro(
+                        client->agent_texture, 
+                        (Rectangle) {0, 0, 128, 128},
+                        (Rectangle) {
+                            screen_x + client->cell_size / 2, 
+                            screen_y + client->cell_size / 2,
+                            client->cell_size,
+                            client->cell_size
+                            },
+                        (Vector2){client->cell_size / 2, client->cell_size / 2},
+                        0,
+                        RED
+                    );
+                }
+                else
+                {
+                    // Non-human controlled agent
+                    DrawTexturePro(
+                        client->agent_texture, 
+                        (Rectangle) {0, 0, 128, 128},
+                        (Rectangle) {
+                            screen_x + client->cell_size / 2, 
+                            screen_y + client->cell_size / 2,
+                            client->cell_size,
+                            client->cell_size
+                            },
+                        (Vector2){client->cell_size / 2, client->cell_size / 2},
+                        0,
+                        WHITE
+                    );
+                }
 
                 Entity* thisAgent = &env->entities[gridCell.index];
                 if (thisAgent->carrying == AGENT_IS_CARRYING)

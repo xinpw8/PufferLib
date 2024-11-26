@@ -4,8 +4,6 @@
 #define INDEX_C(env, x, y) ((y) * (env).grid_size + (x))
 
 // Demo function for visualizing the TrashPickupEnv
-
-
 void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_steps) {
     CTrashPickupEnv env = {
         .grid_size = grid_size,
@@ -13,7 +11,8 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
         .num_trash = num_trash,
         .num_bins = num_bins,
         .max_steps = max_steps,
-        .agent_sight_range = 5
+        .agent_sight_range = 5,
+        .do_human_control = true
     };
 
     allocate(&env);
@@ -29,9 +28,27 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
             // printf("action: %d \n", env.actions[i]);
         }
 
+        // Override human control actions
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            // Handle keyboard input only for selected agent
+            if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+                env.actions[0] = ACTION_UP;
+            }
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+                env.actions[0] = ACTION_LEFT;
+            }
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                env.actions[0] = ACTION_RIGHT;
+            }
+            if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+                env.actions[0] = ACTION_DOWN;
+            }
+        }
+
         // Step the environment and render the grid
         step(&env);
         render(client, &env);
+        usleep(500000);
     }
 
     free_allocated(&env);

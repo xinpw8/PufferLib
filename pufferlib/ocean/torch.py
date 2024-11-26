@@ -175,115 +175,85 @@ class MOBA(nn.Module):
 
 
 class TrashPickup(nn.Module):
-    def __init__(self, env):
+    def __init__(self, env, hidden_size=128):
         super().__init__()
-        self.num_trash = env.num_trash
-        self.num_bins = env.num_bins
-        self.num_agents_per_env = env.num_agents_per_env
+        self.hidden_size = hidden_size
 
-        self.trash_net = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(3 * env.num_trash, 32)),  # (presence, x, y) for each trash
+        # Calculate total input size based on observation structure
+        self.grid_size = (env.agent_sight_range * 2 + 1) ** 2  # Size of the flattened local crop
+        self.num_cell_types = 4  # One-hot encoded cell types: EMPTY, TRASH, BIN, AGENT
+        self.input_size = self.grid_size * self.num_cell_types + 1  # Grid features + carrying status
+
+        # Linear feature extractor
+        self.feature_net = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(self.input_size, hidden_size)),
             nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Linear(32, 16)),
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
             nn.ReLU(),
         )
 
-        self.bin_net = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(2 * env.num_bins, 8)),  # (x, y) for each bin
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Linear(8, 4)),
-            nn.ReLU(),
+        # LSTM for temporal dependencies
+        self.lstm = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+
+        # Actor and critic projection layers
+        self.actor = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, env.single_action_space.n), std=0.01
+        )
+        self.critic = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, 1), std=1
         )
 
-        self.other_agent_net = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(3 * (env.num_agents_per_env - 1), 16)),  # (x, y, carrying) for each other agent
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Linear(16, 8)),
-            nn.ReLU(),
-        )
-
-        self.position_net = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(2, 8)),
-            nn.ReLU(),
-        )
-        
-        self.carrying_net = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(1, 2)),
-            nn.ReLU(),
-        )
-
-        self.proj = nn.Sequential( 
-            nn.Linear(16 + 4 + 8 + 8 + 2, 32),  # Combined features size
-            nn.ReLU(),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-        )
-
-        self.actor = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(16, 8)),
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Linear(8, 4), std=0.01),  # 4 actions
-        )
-
-        self.critic = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(16, 8)),
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Linear(8, 1), std=1),  # Value prediction
-        )
-
-        self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
+        # Initialize LSTM states (default to None for lazy initialization)
+        self.lstm_states = None
 
     def forward(self, observations):
-        hidden, _ = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden)
+        """
+        Forward pass to produce actions and value predictions.
+
+        observations: (batch_size, obs_dim)
+        """
+        features = self.encode_observations(observations)
+        actions, value = self.decode_actions(features)
         return actions, value
 
     def encode_observations(self, observations):
         """
-        Encode observations for each agent.
+        Encodes observations into feature representations.
+
+        observations: (batch_size, obs_dim)
         """
+        batch_size, seq_len = observations.size(0), 1  # Assuming observations are flat without temporal batching
 
-        obs_index = 0
+        # Extract features using the feature network
+        features = self.feature_net(observations)
 
-        # Agent's own position and carrying status
-        agent_position = observations[:, obs_index : obs_index + 2]
-        carrying_status = observations[:, obs_index + 2 : obs_index + 3]
-        obs_index += 3
+        # Reshape for LSTM
+        features = features.unsqueeze(1)  # Add a sequence dimension for LSTM
 
-        # Other agents
-        other_agents = observations[:, obs_index : obs_index + 3 * (self.num_agents_per_env - 1)]
-        obs_index += 3 * (self.num_agents_per_env - 1)
+        # Initialize LSTM states if not already initialized
+        if self.lstm_states is None or batch_size != self.lstm_states[0].size(1):
+            self.lstm_states = self.get_initial_lstm_states(batch_size, observations.device)
 
-        # Trash data
-        trash_data = observations[:, obs_index : obs_index + 3 * self.num_trash]
-        obs_index += 3 * self.num_trash
+        # Pass through LSTM
+        lstm_outputs, self.lstm_states = self.lstm(features, self.lstm_states)
 
-        # Bin data
-        bin_data = observations[:, obs_index : obs_index + 2 * self.num_bins]
+        # Use the last output from LSTM for decoding
+        features = lstm_outputs[:, -1, :]
+        return features
 
-        # Pass through sub-networks
-        trash_features = self.trash_net(trash_data)
-        bin_features = self.bin_net(bin_data)
-        other_agent_features = self.other_agent_net(other_agents)
-        position_features = self.position_net(agent_position)
-        carrying_features = self.carrying_net(carrying_status)
+    def decode_actions(self, features):
+        """
+        Decodes features into actions and value predictions.
+        """
+        actions = self.actor(features)
+        value = self.critic(features)
+        return actions, value
 
-        # print(f"Raw Data \n\tAgent Data: {agent_position[0]} {carrying_status[0]} \n\tOther Agent Data: {other_agents[0]} \n\t Trash Data: {trash_data[0]} \n\t Bin Data: {bin_data[0]}")
-        # print(f"Transformed Features \n\tAgent Features: {position_features[0]} {carrying_features[0]} \n\tOther Agent Data: {other_agent_features[0]} \n\t Trash Data: {trash_features[0]} \n\t Bin Data: {bin_features[0]}")
-
-        # Combine features
-        combined_features = torch.cat(
-            [trash_features, bin_features, other_agent_features, position_features, carrying_features],
-            dim=1,
+    def get_initial_lstm_states(self, batch_size, device):
+        """
+        Helper method to create zeroed LSTM states for a new batch.
+        """
+        return (
+            torch.zeros(1, batch_size, self.hidden_size, device=device),
+            torch.zeros(1, batch_size, self.hidden_size, device=device),
         )
-        features = self.proj(combined_features)
-
-        return features, None
-
-    def decode_actions(self, hidden):
-        """
-        Decode actions and values from the hidden state.
-        """
-        action = self.actor(hidden)
-        value = self.critic(hidden)
-        return action, value

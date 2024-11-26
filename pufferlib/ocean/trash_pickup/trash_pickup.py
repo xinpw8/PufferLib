@@ -32,6 +32,10 @@ class TrashPickupEnv(pufferlib.PufferEnv):
             raise ValueError("max_steps must be an int >= 10")
         self.max_steps = max_steps
 
+        if not isinstance(agent_sight_range, int) or agent_sight_range <= 2:
+            raise ValueError("max_steps must be an int >= 2")
+        self.agent_sight_range = agent_sight_range
+
         # Calculate minimum required grid size
         min_grid_size = int((num_agents + self.num_trash + self.num_bins) ** 0.5) + 1
         if not isinstance(grid_size, int) or grid_size < min_grid_size:
@@ -41,10 +45,7 @@ class TrashPickupEnv(pufferlib.PufferEnv):
             )
         self.grid_size = grid_size
 
-        num_obs_trash = num_trash * 3  # [presence, x pos, y pos] for each trash
-        num_obs_bin = num_bins * 2  # [x pos, y pos] for each bin
-        num_obs_agent = num_agents * 3  # [carrying trash, x pos, y pos] for each agent
-        self.num_obs = num_obs_trash + num_obs_bin + num_obs_agent;
+        self.num_obs = (1 + (((agent_sight_range * agent_sight_range) - 1) * 4));  # whether agent is carrying, and one-hot encoding for all cell types in local crop around agent (minus the cell the agent is currently in)
 
         self.single_observation_space = spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)
