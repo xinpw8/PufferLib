@@ -23,7 +23,7 @@ if [ "$MODE" = "local" ]; then
         ./raylib/lib/libraylib.a -lm -lpthread \
         -fsanitize=address,undefined,bounds,pointer-overflow,leak \
         -lprofiler \
-        -DDEBUG
+        # -DDEBUG
 
     echo "Built to: $OUTPUT_DIR/$ENV"
 elif [ "$MODE" = "web" ]; then

@@ -12,7 +12,10 @@ cdef extern from "puffer_enduro.h":
         float episode_length
         float score
         float reward
+        float stay_on_road_reward
         float passed_cars
+        float passed_by_enemy
+        int cars_to_pass
         float days_completed
         float days_failed
         float collisions_player_vs_car
@@ -183,14 +186,32 @@ cdef class CyEnduro:
 
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)
-        return log
-        # return {
-        #     'episode_return': log.episode_return,
-        #     'episode_length': log.episode_length,
-        #     'score': log.score,
-        #     'passed_cars': log.passed_cars,
-        #     'days_completed': log.days_completed,
-        #     'days_failed': log.days_failed,
-        #     'collisions_player_vs_car': log.collisions_player_vs_car,
-        #     'collisions_player_vs_road': log.collisions_player_vs_road
-        # }
+        return {
+            'episode_return': log.episode_return,
+            'episode_length': log.episode_length,
+            'score': log.score,
+            'reward': log.reward,
+            'stay_on_road_reward': log.stay_on_road_reward,
+            'passed_cars': log.passed_cars,
+            'passed_by_enemy': log.passed_by_enemy,
+            'cars_to_pass': log.cars_to_pass,
+            'days_completed': log.days_completed,
+            'days_failed': log.days_failed,
+            'collisions_player_vs_car': log.collisions_player_vs_car,
+            'collisions_player_vs_road': log.collisions_player_vs_road,
+        }
+
+
+    # def log(self):
+    #     cdef Log log = aggregate_and_clear(self.logs)
+    #     return log
+    #     # return {
+    #     #     'episode_return': log.episode_return,
+    #     #     'episode_length': log.episode_length,
+    #     #     'score': log.score,
+    #     #     'passed_cars': log.passed_cars,
+    #     #     'days_completed': log.days_completed,
+    #     #     'days_failed': log.days_failed,
+    #     #     'collisions_player_vs_car': log.collisions_player_vs_car,
+    #     #     'collisions_player_vs_road': log.collisions_player_vs_road
+    #     # }

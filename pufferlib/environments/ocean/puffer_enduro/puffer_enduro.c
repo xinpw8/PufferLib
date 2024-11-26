@@ -5,14 +5,26 @@
 // TODO: Make sure it trains
 // TODO: Engineer good policy
 
-// :CURRENT TASK:
-// Separated rendering and environment logic; player car speed
-// seems to somehow be locked to enemy car speed. That is, there is
-// no difference in the speeds, so player cannot ever pass enemies.
-// Also, the vanishing point curve transitions are suddenly jumping
-// when env->speed is low. When env->speed is high, the curve 
-// transitions are smooth, like they should be.
-// Also, currently, enemy cars seem to wiggle with the road...
+// :CURRENT TASKS - MUST DO:
+// 1. remove atari logo
+// 2. troubleshoot calling add_log() q step()
+// 3. Compile warning for setup.py full compile (new)
+// In file included from pufferlib/environments/ocean/puffer_enduro/cy_puffer_enduro.c:1272:
+// pufferlib/environments/ocean/puffer_enduro/puffer_enduro.h:1747:29: note: expected ‘Client *’ but argument is of type ‘Enduro *’
+//  1747 | Client* make_client(Client* client)
+// 4. Render init creates 2 windows?
+// 5. Add perf test
+
+// :CURRENT TASKS - NICE TO DO:
+// 1. consistent naming scheme for functions and vars
+// 2. remove debug prints
+// 3. remove commented out code
+// 4. utilize inverted conditionals when possible
+// 5. make spritesheet; load via DrawTexture Rectancle source vs 
+// 6. individual sprites
+
+
+
 
 // puffer_enduro.c
 

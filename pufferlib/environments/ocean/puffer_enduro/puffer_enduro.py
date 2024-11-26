@@ -7,12 +7,13 @@ from pufferlib.environments.ocean.puffer_enduro.cy_puffer_enduro import CyEnduro
 import torch
 
 class MyEnduro(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode=None,
+    def __init__(self, num_envs=1, frame_skip=1, render_mode=None,
                  report_interval=1, buf=None):
 
         self.render_mode = render_mode
         self.num_agents = num_envs
         self.report_interval = report_interval
+        self.frame_skip = frame_skip
         self.tick = 0
         self.max_enemies = 10
 
@@ -48,27 +49,29 @@ class MyEnduro(pufferlib.PufferEnv):
         return self.observations, []
     
     def step(self, actions):
-        if np.isnan(actions).any() or np.isinf(actions).any():
-            raise ValueError("Actions contain NaN or Inf")
-        
-        self.actions[:] = actions
-        self.c_envs.step()
-        
-        # Validate observations
-        if np.isnan(self.observations).any() or np.isinf(self.observations).any():
-            raise ValueError("Observations contain NaN or Inf")
-        
+        total_rewards = np.zeros_like(self.rewards)
+        for _ in range(self.frame_skip):
+            self.actions[:] = actions
+            self.c_envs.step()
+
+            # Aggregate rewards
+            total_rewards += self.rewards
+
+            # Check for terminal or truncated states
+            if np.any(self.terminals) or np.any(self.truncations):
+                break
+
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                 info.append(log)
-        
+
         self.tick += 1
-        
+
         return (
             self.observations,
-            self.rewards,
+            total_rewards,
             self.terminals,
             self.truncations,
             info

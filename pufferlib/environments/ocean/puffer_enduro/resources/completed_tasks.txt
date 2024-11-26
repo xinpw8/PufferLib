@@ -39,3 +39,15 @@
 // TODO: Reduced handling on snow
 // TODO: Add collisions with the road edges
 // TODO: Implement RL in pufferlib
+
+// 11/25/24
+// Solved issue with all of this block - some bad values for env->speed
+// were occurring. Fixed, which fixed all of these issues as well.
+// Separated rendering and environment logic; player car speed
+// seems to somehow be locked to enemy car speed. That is, there is
+// no difference in the speeds, so player cannot ever pass enemies.
+// Also, the vanishing point curve transitions are suddenly jumping
+// when env->speed is low. When env->speed is high, the curve 
+// transitions are smooth, like they should be.
+// Also, currently, enemy cars seem to wiggle with the road...
+
