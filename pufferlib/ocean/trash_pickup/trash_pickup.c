@@ -7,13 +7,14 @@
 
 
 void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_steps) {
-    CTrashPickupEnv env;
-    env.grid_size = grid_size;
-    env.num_agents = num_agents;
-    env.num_trash = num_trash;
-    env.num_bins = num_bins;
-    env.max_steps = max_steps;
-    env.agent_sight_range = 5;
+    CTrashPickupEnv env = {
+        .grid_size = grid_size,
+        .num_agents = num_agents,
+        .num_trash = num_trash,
+        .num_bins = num_bins,
+        .max_steps = max_steps,
+        .agent_sight_range = 5
+    };
 
     allocate(&env);
 
@@ -43,15 +44,14 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
 void performance_test() {
     long test_time = 10; // Test duration in seconds
 
-    CTrashPickupEnv env;
-    env.grid_size = 3;
-    env.num_agents = 1;
-    env.num_trash = 1;
-    env.num_bins = 1;
-    env.max_steps = 1000;
-    env.current_step = 0;
-    env.agent_sight_range = 5;
-
+    CTrashPickupEnv env = {
+        .grid_size = 10,
+        .num_agents = 4,
+        .num_trash = 15,
+        .num_bins = 1,
+        .max_steps = 300,
+        .agent_sight_range = 5
+    };
     allocate(&env);
     reset(&env);
 
