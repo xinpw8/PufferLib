@@ -55,10 +55,11 @@ void performance_test() {
 
     long start = time(NULL);
     int i = 0;
+    int inc = env.num_agents;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % 4;
         step(&env);
-        i++;
+        i += inc;
     }
     long end = time(NULL);
     printf("SPS: %ld\n", i / (end - start));
@@ -68,7 +69,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    demo(5, 1, 5, 1, 300); // Visual demo
+    demo(10, 3, 5, 1, 300); // Visual demo
     // performance_test(); // Uncomment for benchmarking
     return 0;
 }

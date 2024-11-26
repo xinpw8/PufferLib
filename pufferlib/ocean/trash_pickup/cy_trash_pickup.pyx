@@ -27,8 +27,8 @@ cdef extern from "trash_pickup.h":
         int num_trash
         int num_bins
         int max_steps
-        int tick
-        int current_step
+        int agent_sight_range
+
 
     ctypedef struct Client
 
@@ -52,7 +52,7 @@ cdef class CyTrashPickup:
     def __init__(self, float[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs, 
             int num_agents=3, int grid_size=10, int num_trash=15, 
-            int num_bins=2, int max_steps=300):
+            int num_bins=2, int max_steps=300, int agent_sight_range=5):
         self.num_envs = num_envs
         self.envs = <CTrashPickupEnv*>calloc(num_envs, sizeof(CTrashPickupEnv))
         if self.envs == NULL:
@@ -75,7 +75,8 @@ cdef class CyTrashPickup:
                 num_agents=num_agents,
                 num_trash=num_trash, 
                 num_bins=num_bins, 
-                max_steps=max_steps
+                max_steps=max_steps,
+                agent_sight_range=agent_sight_range
             )
             initialize_env(&self.envs[i])
 
