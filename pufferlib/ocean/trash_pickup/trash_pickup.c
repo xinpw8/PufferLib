@@ -13,6 +13,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
     env.num_trash = num_trash;
     env.num_bins = num_bins;
     env.max_steps = max_steps;
+    env.agent_sight_range = 5;
 
     allocate(&env);
 
@@ -49,6 +50,7 @@ void performance_test() {
     env.num_bins = 1;
     env.max_steps = 1000;
     env.current_step = 0;
+    env.agent_sight_range = 5;
 
     allocate(&env);
     reset(&env);

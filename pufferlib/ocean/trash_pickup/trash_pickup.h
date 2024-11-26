@@ -107,12 +107,10 @@ typedef struct {
 
     GridCell* grid; // 1D array for grid
     Entity* entities; // Indicies (0 - num_agents) for agents, (num_agents - num_bins) for bins, (num_bins - num_trash) for trash.
-
-    int obs_size;
 } CTrashPickupEnv;
 
 int get_grid_index(CTrashPickupEnv* env, int x, int y) {
-    return y * (env->grid_size + x);
+    return (y * env->grid_size) + x;
 }
 
 // returns the start index of each type of entity for iteration purposes
@@ -137,6 +135,9 @@ void compute_observations(CTrashPickupEnv* env) {
     int obs_index = 0;
 
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
+        // Add obs for whether the agent is carrying or not
+        obs[obs_index++] = env->entities[agent_idx].carrying;
+
         // Get the agent's position
         int agent_x = env->entities[agent_idx].pos_x;
         int agent_y = env->entities[agent_idx].pos_y;
@@ -146,6 +147,9 @@ void compute_observations(CTrashPickupEnv* env) {
             for (int dx = -sight_range; dx <= sight_range; dx++) {
                 int cell_x = agent_x + dx;
                 int cell_y = agent_y + dy;
+
+                if (dx == 0 && dy == 0) // No need to pass in current cell as that is constant from the agent's perspective.
+                    continue;
 
                 // Check if the cell is within bounds
                 if (cell_x >= 0 && cell_x < env->grid_size && cell_y >= 0 && cell_y < env->grid_size) 
@@ -157,7 +161,9 @@ void compute_observations(CTrashPickupEnv* env) {
                     {
                         obs[obs_index++] = (cell_type == type) ? 1.0f : 0.0f;
                     }
-                } else {
+                } 
+                else 
+                {
                     // Out-of-bounds cells are -1
                     for (int type = 0; type < num_cell_types; type++) 
                     {
@@ -177,21 +183,22 @@ void place_random_entities(CTrashPickupEnv* env, int count, int item_type, int g
         int x = rand() % env->grid_size;
         int y = rand() % env->grid_size;
 
-        GridCell gridCell = env->grid[get_grid_index(env, x, y)];
+        GridCell* gridCell = &env->grid[get_grid_index(env, x, y)];
 
-        if (gridCell.entity.type != EMPTY)
+        if (gridCell->entity.type != EMPTY)
             continue;
 
-        Entity entity;
-        entity.type = item_type;
-        entity.pos_x = x;
-        entity.pos_y = y;
-        entity.presence = 1;
-        entity.carrying = 0;
+        gridCell->index = gridIndexStart;
 
-        gridCell.index = gridIndexStart++;
-        gridCell.entity = entity;
+        gridCell->entity.type = item_type;
+        gridCell->entity.pos_x = x;
+        gridCell->entity.pos_y = y;
+        gridCell->entity.presence = 1;
+        gridCell->entity.carrying = AGENT_IS_NOT_CARRYING;
 
+        env->entities[gridIndexStart] = gridCell->entity;
+
+        gridIndexStart++;
         placed++;
     }
 }
@@ -202,7 +209,7 @@ void add_reward(CTrashPickupEnv* env, int agent_idx, float reward){
 }
 
 void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
-    Entity thisAgent = env->entities[agent_idx];
+    Entity* thisAgent = &env->entities[agent_idx];
 
     int move_dir_x = 0;
     int move_dir_y = 0;
@@ -211,48 +218,49 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
     else if (action == ACTION_LEFT) move_dir_x = -1;
     else if (action == ACTION_RIGHT) move_dir_x = 1;
     else printf("Undefined action: %d", action);
+    
+    int new_x = thisAgent->pos_x + move_dir_x;
+    int new_y = thisAgent->pos_y + move_dir_y;
 
-    int new_x = thisAgent.pos_x + move_dir_x;
-    int new_y = thisAgent.pos_y + move_dir_y;
-
-    if (new_x > 0 || new_x >= env->grid_size || new_y < 0 || new_y >= env->grid_size)
+    if (new_x < 0 || new_x >= env->grid_size || new_y < 0 || new_y >= env->grid_size)
         return;
-        
-    GridCell currentGridCell = env->grid[get_grid_index(env, thisAgent.pos_x, thisAgent.pos_y)];
-    GridCell newGridCell = env->grid[get_grid_index(env, new_x, new_y)];
-    int cell_state_type = newGridCell.entity.type;
+
+    GridCell* currentGridCell = &env->grid[get_grid_index(env, thisAgent->pos_x, thisAgent->pos_y)];
+    GridCell* newGridCell = &env->grid[get_grid_index(env, new_x, new_y)];
+    int cell_state_type = newGridCell->entity.type;
 
     if (cell_state_type == EMPTY) 
     {
-        thisAgent.pos_x = new_x;
-        thisAgent.pos_y = new_y;
-        memcpy(&newGridCell.entity, &currentGridCell.entity, sizeof(Entity));
-        memset(&currentGridCell.entity, 0x00, sizeof(Entity));
-        currentGridCell.index = -1;
-        newGridCell.index = agent_idx;
+        thisAgent->pos_x = new_x;
+        thisAgent->pos_y = new_y;
+        memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity));
+        memset(&currentGridCell->entity, 0x00, sizeof(Entity));
+        currentGridCell->index = -1;
+        newGridCell->index = agent_idx;
     } 
-    else if (cell_state_type == TRASH && thisAgent.carrying == AGENT_IS_NOT_CARRYING) 
+    else if (cell_state_type == TRASH && thisAgent->carrying == AGENT_IS_NOT_CARRYING) 
     {
-        Entity thisTrash = env->entities[newGridCell.index];
-        thisTrash.presence = 0; // Mark as not present
-        thisTrash.pos_x = -1;
-        thisTrash.pos_y = -1;
+        Entity* thisTrash = &env->entities[newGridCell->index];
+        thisTrash->presence = 0; // Mark as not present
+        thisTrash->pos_x = -1;
+        thisTrash->pos_y = -1;
 
-        thisAgent.pos_x = new_x;
-        thisAgent.pos_y = new_y;
+        thisAgent->pos_x = new_x;
+        thisAgent->pos_y = new_y;
+        thisAgent->carrying = AGENT_IS_CARRYING;
 
-        memcpy(&newGridCell.entity, &currentGridCell.entity, sizeof(Entity));
-        memset(&currentGridCell.entity, 0x00, sizeof(Entity));
-        newGridCell.index = agent_idx;
+        memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity));
+        memset(&currentGridCell->entity, 0x00, sizeof(Entity));
+        newGridCell->index = agent_idx;
 
         add_reward(env, agent_idx, env->positive_reward);
     } 
     else if (cell_state_type == TRASH_BIN) 
     {
-        if (thisAgent.carrying == AGENT_IS_CARRYING)
+        if (thisAgent->carrying == AGENT_IS_CARRYING)
         {
             // Deposit trash into bin
-            thisAgent.carrying = AGENT_IS_NOT_CARRYING;
+            thisAgent->carrying = AGENT_IS_NOT_CARRYING;
             add_reward(env, agent_idx, env->positive_reward);
         }
         else
@@ -263,15 +271,24 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
             if (new_bin_x < 0 || new_bin_x >= env->grid_size || new_bin_y < 0 || new_bin_y >= env->grid_size)
                 return;
 
-            Entity thisBin = env->entities[newGridCell.index];
-            GridCell newGridCellForBin = env->grid[get_grid_index(env, new_bin_x, new_bin_y)];
-            if (newGridCellForBin.entity.type == EMPTY)
+            Entity* thisBin = &env->entities[newGridCell->index];
+            GridCell* newGridCellForBin = &env->grid[get_grid_index(env, new_bin_x, new_bin_y)];
+            if (newGridCellForBin->entity.type == EMPTY)
             {
-                thisBin.pos_x = new_bin_x;
-                thisBin.pos_y = new_bin_y;
-                memcpy(&newGridCellForBin.entity, &newGridCell.entity, sizeof(Entity)); // move bin to new cell location
-                memcpy(&newGridCell.entity, &currentGridCell.entity, sizeof(Entity)); // move agent to bin's old cell location
-                memset(&currentGridCell.entity, 0x00, sizeof(Entity)); // clear out agent's pos cell.
+                // move bin
+                thisBin->pos_x = new_bin_x;
+                thisBin->pos_y = new_bin_y;
+                
+                // move agent
+                thisAgent->pos_x = new_x;
+                thisAgent->pos_y = new_y;
+
+                memcpy(&newGridCellForBin->entity, &newGridCell->entity, sizeof(Entity)); // move bin to new cell location
+                memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity)); // move agent to bin's old cell location
+                memset(&currentGridCell->entity, 0x00, sizeof(Entity)); // clear out agent's pos cell.
+
+                newGridCellForBin->entity.type = TRASH_BIN;
+                newGridCell->entity.type = AGENT;
             }
             // else - don't push bin
         }
@@ -299,12 +316,12 @@ void reset(CTrashPickupEnv* env) {
     env->current_step = 0;
     env->total_episode_reward = 0;
 
-    memset(env->grid, EMPTY, env->grid_size * env->grid_size * sizeof(GridCell));
+    memset(env->grid, 0x00, env->grid_size * env->grid_size * sizeof(GridCell));
 
     // Place trash, bins, and agents randomly across the grid.
     place_random_entities(env, env->num_agents, AGENT, 0);
-    place_random_entities(env, env->num_bins, TRASH_BIN, env->num_agents);
-    place_random_entities(env, env->num_trash, TRASH, env->num_agents + env->num_bins);
+    place_random_entities(env, env->num_bins, TRASH_BIN, get_entity_type_start_index(env, TRASH_BIN));
+    place_random_entities(env, env->num_trash, TRASH, get_entity_type_start_index(env, TRASH));
 
     compute_observations(env);
 }
@@ -323,9 +340,9 @@ void initialize_env(CTrashPickupEnv* env) {
 }
 
 void allocate(CTrashPickupEnv* env) {
-    env->obs_size = env->num_agents * ((env->num_trash * 3) + (env->num_bins * 2) + (env->num_agents * 3)); // See .py file for why this is calculated this way
+    int obs_size = env->num_agents * (1 + (((env->agent_sight_range * env->agent_sight_range * 4) - 1) * 4)); // One-hot encoded local crop within sight-range of agent, excluding the cell the agent is currently in (-1) but also whether agent is carrying
 
-    env->observations = (float*)calloc(env->obs_size * env->num_agents, sizeof(float));
+    env->observations = (float*)calloc(obs_size * env->num_agents, sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
@@ -337,7 +354,7 @@ void allocate(CTrashPickupEnv* env) {
 void step(CTrashPickupEnv* env) {
     // Reset reward for each agent
     memset(env->rewards, 0, sizeof(float) * env->num_agents);
-    memset(env->dones, 0, sizeof(int) * env->num_agents);
+    memset(env->dones, 0, sizeof(unsigned char) * env->num_agents);
 
     for (int i = 0; i < env->num_agents; i++) {
         move_agent(env, i, env->actions[i]);
@@ -347,7 +364,7 @@ void step(CTrashPickupEnv* env) {
     env->current_step++;
     if (env->current_step >= env->max_steps || is_episode_over(env)) 
     {
-        memset(env->dones, 1, sizeof(int) * env->num_agents);
+        memset(env->dones, 1, sizeof(unsigned char) * env->num_agents);
 
         Log log = {0};
 
@@ -442,7 +459,7 @@ void render(Client* client, CTrashPickupEnv* env) {
     for (int x = 0; x < env->grid_size; x++) {
         for (int y = 0; y < env->grid_size; y++) {
             GridCell gridCell = env->grid[get_grid_index(env, x, y)];
-            int cell_type =  gridCell.entity.type;
+            int cell_type = gridCell.entity.type;
             int screen_x = x * client->cell_size;
             int screen_y = y * client->cell_size + client->header_offset;
 
@@ -457,9 +474,10 @@ void render(Client* client, CTrashPickupEnv* env) {
             DrawRectangleLines((int)cell_rect.x, (int)cell_rect.y, (int)cell_rect.width, (int)cell_rect.height, LIGHTGRAY);
 
             // Draw grid cell content
-            if (cell_type == EMPTY) {
-                // Do nothing for empty cells
-            } else if (cell_type == TRASH) {
+            if (cell_type == EMPTY)
+                continue;
+
+            if (cell_type == TRASH) {
                 DrawRectangle(
                     screen_x + client->cell_size / 4,
                     screen_y + client->cell_size / 4,
@@ -490,8 +508,8 @@ void render(Client* client, CTrashPickupEnv* env) {
                     WHITE
                 );
 
-                Entity thisAgent = gridCell.entity;
-                if (thisAgent.carrying == AGENT_IS_CARRYING)
+                Entity* thisAgent = &env->entities[gridCell.index];
+                if (thisAgent->carrying == AGENT_IS_CARRYING)
                 {
                     DrawRectangle(
                         screen_x + client->cell_size / 2,
