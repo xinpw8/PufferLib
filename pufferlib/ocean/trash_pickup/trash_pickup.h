@@ -283,6 +283,9 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
                 thisAgent->pos_x = new_x;
                 thisAgent->pos_y = new_y;
 
+                newGridCellForBin->index = newGridCell->index;  // Update bin index in the new cell
+                newGridCell->index = agent_idx;  // Update agent index in the current cell
+
                 memcpy(&newGridCellForBin->entity, &newGridCell->entity, sizeof(Entity)); // move bin to new cell location
                 memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity)); // move agent to bin's old cell location
                 memset(&currentGridCell->entity, 0x00, sizeof(Entity)); // clear out agent's pos cell.
@@ -419,7 +422,7 @@ Client* make_client(CTrashPickupEnv* env) {
     client->window_height = client->window_width + client->header_offset;
 
     InitWindow(client->window_width, client->window_height, "Trash Pickup Environment");
-    SetTargetFPS(3);
+    SetTargetFPS(120);
 
     client->agent_texture = LoadTexture("resources/puffers_128.png");
 
