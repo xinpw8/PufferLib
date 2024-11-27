@@ -172,7 +172,7 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
     buf.masks[:] = True
 
     if is_native:
-        envs = Native(env_creators[0], env_args[0], env_kwargs[0], buf=buf)
+        envs = env_creators[0](*env_args[0], **env_kwargs[0], buf=buf)
     else:
         envs = Serial(env_creators, env_args, env_kwargs, num_envs)
         envs._assign_buffers(buf)
