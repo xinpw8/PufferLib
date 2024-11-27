@@ -454,7 +454,7 @@ if __name__ == '__main__':
     elif args['mode'] in ('eval', 'evaluate'):
         vec = pufferlib.vector.Serial
         if args['vec'] == 'native':
-            vec = pufferlib.vector.Native
+            vec = pufferlib.environment.PufferEnv
 
         clean_pufferl.rollout(
             make_env,
