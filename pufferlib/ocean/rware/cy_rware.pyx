@@ -7,6 +7,7 @@ cdef extern from "rware.h":
         float episode_return;
         float episode_length;
         float shelves_delivered;
+        float score;
 
     ctypedef struct LogBuffer
     LogBuffer* allocate_logbuffer(int)
@@ -25,7 +26,7 @@ cdef extern from "rware.h":
         float* rewards;
         unsigned char* dones;
         LogBuffer* log_buffer;
-        Log log;
+        Log* logs;
         float* scores;
         int width;
         int height;

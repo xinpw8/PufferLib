@@ -1,6 +1,6 @@
 #include <time.h>
 #include "rware.h"
-
+#include "puffernet.h"
 #define MAP_TINY_WIDTH 640
 #define MAP_TINY_HEIGHT 704
 #define MAP_SMALL_WIDTH 1280
@@ -31,14 +31,14 @@ void demo(int map_choice) {
         .human_agent_idx = 0,
 	.reward_type = 2
     };
+    Weights* weights = load_weights("resources/rware_weights.bin", 136454);
+    LinearLSTM* net = make_linearlstm(weights, env.num_agents, 27, 5);
+
     allocate(&env);
     reset(&env);
     Client* client = make_client(&env);
 
     while (!WindowShouldClose()) {
-        for (int i = 0; i < env.num_agents; i++) {
-            env.actions[i] = rand() % 5;
-        }
 
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             env.actions[env.human_agent_idx] = NOOP;
@@ -60,6 +60,12 @@ void demo(int map_choice) {
             if (IsKeyDown(KEY_TAB)) {
                 env.human_agent_idx = (env.human_agent_idx + 1) % env.num_agents;
             }
+        }
+        else {
+            for (int i = 0; i < env.num_agents * 27; i++) {
+                net->obs[i] = (float)env.observations[i];
+            }
+            forward_linearlstm(net, net->obs, env.actions);
         }
         step(&env);
         render(client,&env);
@@ -94,7 +100,7 @@ void performance_test() {
 }
 
 int main() {
-    demo(2);
+    demo(1);
     //performance_test();
     return 0;
 }
