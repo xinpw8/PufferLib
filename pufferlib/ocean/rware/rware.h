@@ -372,8 +372,8 @@ void compute_observations(CRware* env) {
         int current_x = agent_location % cols;
         int current_y = agent_location / cols;
         // Self observations
-        obs[0] = env->agent_locations[i];
-        obs[1] = env->agent_directions[i] + 1;
+        obs[0] = env->agent_locations[i] / (float)(rows*cols);
+        obs[1] = (env->agent_directions[i] + 1) / 4.0;
         obs[2] = env->agent_states[i];
 	// Vision observations
         for (int j = 0; j < 8; j++) {
@@ -387,7 +387,7 @@ void compute_observations(CRware* env) {
                 }
                 if(env->agent_locations[k] == surround_indices[j]){
                     obs[3 + j*3] = 1;
-                    obs[4 + j*3] = env->agent_directions[k] + 1;
+                    obs[4 + j*3] = (env->agent_directions[k] + 1) / 4.0;
                     break;
                 } else {
                     obs[3 + j*3] = 0;
@@ -399,7 +399,7 @@ void compute_observations(CRware* env) {
             if (new_x < 0 || new_x >= cols || new_y < 0 || new_y >= rows) {
                 obs[5 + j*3] = 0;
             } else {
-                obs[5 + j*3] = env->warehouse_states[surround_indices[j]];
+                obs[5 + j*3] = (env->warehouse_states[surround_indices[j]] + 1) / 4.0;
             }
         }
     }
