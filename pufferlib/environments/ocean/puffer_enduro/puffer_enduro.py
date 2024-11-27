@@ -32,6 +32,9 @@ class MyEnduro(pufferlib.PufferEnv):
         self.terminals = np.zeros((self.num_agents,), dtype=np.uint8)
         self.truncations = np.zeros((self.num_agents,), dtype=np.uint8)
 
+        # Rewards buffer for smoothing reward curve
+        self.rewards_buffer = []
+
         super().__init__(buf=buf)
 
         self.c_envs = CyEnduro(
@@ -49,20 +52,22 @@ class MyEnduro(pufferlib.PufferEnv):
         return self.observations, []
     
     def step(self, actions):
-        total_rewards = np.zeros_like(self.rewards)
         for _ in range(self.frame_skip):
             self.actions[:] = actions
             self.c_envs.step()
-
-            # Aggregate rewards
-            total_rewards += self.rewards
 
             # Check for terminal or truncated states
             if np.any(self.terminals) or np.any(self.truncations):
                 break
 
+        # Update rewards buffer
+        self.rewards_buffer.append(np.mean(self.rewards))
+
         info = []
         if self.tick % self.report_interval == 0:
+            rewards = np.mean(self.rewards_buffer)
+            info.append({'rewards': rewards})
+            self.rewards_buffer = []
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                 info.append(log)
@@ -71,7 +76,7 @@ class MyEnduro(pufferlib.PufferEnv):
 
         return (
             self.observations,
-            total_rewards,
+            self.rewards,
             self.terminals,
             self.truncations,
             info
@@ -84,14 +89,21 @@ class MyEnduro(pufferlib.PufferEnv):
     def close(self):
         self.c_envs.close()
         
+    def _update_rewards_buffer(self, rewards):
+        """Update the rewards buffer with the average reward."""
+        avg_reward = np.mean(rewards)
+        self.rewards_buffer.append(avg_reward)
+        if len(self.rewards_buffer) > self.rewards_buffer_size:
+            self.rewards_buffer.pop(0)
+        
     def validate_probabilities(prob_tensor):
         if torch.isnan(prob_tensor).any() or torch.isinf(prob_tensor).any() or (prob_tensor < 0).any():
             raise ValueError("Invalid probability values detected")
         return prob_tensor
 
         
-# def test_performance(timeout=10, atn_cache=1024):
-#     num_envs = 1000
+# def test_performance(timeout=10, atn_cache=8192):
+#     num_envs = 4096
 #     env = MyEnduro(num_envs=num_envs)
 #     env.reset()
 #     tick = 0

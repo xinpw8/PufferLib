@@ -50,9 +50,10 @@ int main() {
     allocate(&env);
 
     Client* client = NULL;
-    client = make_client(client);
+    client = make_client(&env);
 
-    init(&env); // Initialize environment variables
+    unsigned int seed = 12345;
+    init(&env, seed, client); // Initialize environment variables
     reset(&env);
     initRaylib();
 

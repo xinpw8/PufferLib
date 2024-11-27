@@ -283,6 +283,11 @@ typedef struct Enduro {
     int dayTimeIndex;
     int currentDayTimeIndex;
     int previousDayTimeIndex;
+
+    // RNG
+    unsigned int rng_state;
+    unsigned int index;
+    int reset_count;
 } Enduro;
 
 // Action enumeration
@@ -306,6 +311,8 @@ typedef struct Client {
 } Client;
 
 // Prototypes
+// RNG
+unsigned int xorshift32(unsigned int *state);
 // LogBuffer functions
 LogBuffer* allocate_logbuffer(int size);
 void free_logbuffer(LogBuffer* buffer);
@@ -313,11 +320,8 @@ void add_log(LogBuffer* logs, Log* log);
 Log aggregate_and_clear(LogBuffer* logs);
 
 // Environment functions
-// void init(Enduro* env);
-// void allocate(Enduro* env);
-
 void allocate(Enduro* env);
-void init(Enduro* env);
+void init(Enduro* env, int seed, int env_index);
 void free_allocated(Enduro* env);
 // void reset_round(Enduro* env);
 void reset(Enduro* env);
@@ -328,6 +332,7 @@ void add_enemy_car(Enduro* env);
 void update_time_of_day(Enduro* env);
 void update_vanishing_point(Enduro* env, float offset);
 void accelerate(Enduro* env);
+void compute_enemy_car_rewards(Enduro* env);
 void c_step(Enduro* env);
 void update_road_curve(Enduro* env);
 float quadratic_bezier(float bottom_x, float control_x, float top_x, float t);
@@ -336,11 +341,10 @@ float car_x_in_lane(Enduro* env, int lane, float y);
 void compute_observations(Enduro* env);
 
 // Client functions
-Client* make_client(Client* client);
+Client* make_client(Enduro* env);
 void close_client(Client* client, Enduro* env);
 void render_car(Client* client, GameState* gameState);
 void handleEvents(int* running, Enduro* env);
-
 
 // Debugging
 void debug_enduro_allocation(Enduro* env);
@@ -360,6 +364,16 @@ void c_render(Client* client, Enduro* env);
 void cleanup(GameState* gameState);
 
 // Function defs
+// RNG
+unsigned int xorshift32(unsigned int *state) {
+    unsigned int x = *state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *state = x;
+    return x;
+}
+
 // LogBuffer functions
 LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
@@ -418,8 +432,41 @@ Log aggregate_and_clear(LogBuffer* logs) {
     return log;
 }
 
-void init(Enduro* env) {
-    printf("init: Starting initialization.\n");
+void init(Enduro* env, int seed, int env_index) {
+    env->index = env_index;
+    env->rng_state = seed;
+
+    if (seed == 10) { // Activate with seed==0
+        // Start the environment at the beginning of the day
+        env->elapsedTimeEnv = 0.0f;
+        env->currentDayTimeIndex = 0;
+        env->previousDayTimeIndex = NUM_BACKGROUND_TRANSITIONS - 1;
+    } else {
+        // Randomize elapsed time within the day's total duration
+        float total_day_duration = BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1];
+        env->elapsedTimeEnv = ((float)xorshift32(&env->rng_state) / UINT32_MAX) * total_day_duration;
+
+        // Determine the current time index
+        env->currentDayTimeIndex = 0;
+        for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS - 1; i++) {
+            if (env->elapsedTimeEnv >= env->dayTransitionTimes[i] &&
+                env->elapsedTimeEnv < env->dayTransitionTimes[i + 1]) {
+                env->currentDayTimeIndex = i;
+                break;
+            }
+        }
+
+        // Handle the last interval
+        if (env->elapsedTimeEnv >= BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1]) {
+            env->currentDayTimeIndex = NUM_BACKGROUND_TRANSITIONS - 1;
+        }
+    }
+
+    if (env->index % 100 == 0) {
+    printf("Environment #%d state after init: elapsedTimeEnv=%f, currentDayTimeIndex=%d\n",
+           env_index, env->elapsedTimeEnv, env->currentDayTimeIndex);
+    }
+
     if (!env->observations || !env->actions || !env->rewards || !env->terminals || !env->truncateds) {
         DEBUG_FPRINT(stderr, "Error: Attempting to initialize with unallocated pointers\n");
         exit(EXIT_FAILURE);
@@ -432,10 +479,6 @@ void init(Enduro* env) {
         env->enemyCars[i].passed = 0;
     }
 
-
-
-    env->max_enemies = MAX_ENEMIES;
-    printf("init: max_enemies set to %d\n", env->max_enemies);
     env->obs_size = OBSERVATIONS_MAX_SIZE; // Adding missing time_of_day and carsToPass
 
 
@@ -443,11 +486,11 @@ if (env->obs_size < 0 || env->obs_size > INT_MAX / sizeof(float)) {
     DEBUG_FPRINT(stderr, "Error: obs_size overflow in init\n");
     exit(EXIT_FAILURE);
 }
-
+    env->max_enemies = MAX_ENEMIES;
     env->score = 0;
     env->numEnemies = 0;
     env->player_x = INITIAL_PLAYER_X;
-    printf("init: player_x set to %f\n", env->player_x);
+    // printf("init: player_x set to %f\n", env->player_x);
     env->player_y = PLAYER_MAX_Y;
     env->speed = MIN_SPEED;
     env->carsToPass = INITIAL_CARS_TO_PASS;
@@ -510,10 +553,29 @@ if (env->obs_size < 0 || env->obs_size > INT_MAX / sizeof(float)) {
         cumulativeSpeed = env->gearSpeedThresholds[i];
     }
 
-    // Initialize background indices
-    env->dayTimeIndex = 0;
+    // // Initialize background indices
+    // env->dayTimeIndex = 0;
+
+    // env->currentDayTimeIndex = 0;
+    // env->previousDayTimeIndex = 15;
+
+    // Randomize the initial time of day for each environment
+    float total_day_duration = BACKGROUND_TRANSITION_TIMES[15];
+    env->elapsedTimeEnv = ((float)rand_r(&env->rng_state) / RAND_MAX) * total_day_duration;
     env->currentDayTimeIndex = 0;
-    env->previousDayTimeIndex = 15;
+    env->dayTimeIndex = 0;
+    env->previousDayTimeIndex = 0;
+    // printf("init: elapsedTimeEnv set to %f\n", env->elapsedTimeEnv);
+
+    // Advance currentDayTimeIndex to match randomized elapsedTimeEnv
+    for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS; i++) {
+        if (env->elapsedTimeEnv >= env->dayTransitionTimes[i]) {
+            env->currentDayTimeIndex = i;
+        } else {
+            break;
+        }
+    }
+    env->previousDayTimeIndex = (env->currentDayTimeIndex > 0) ? env->currentDayTimeIndex - 1 : NUM_BACKGROUND_TRANSITIONS - 1;
 
 
     env->terminals[0] = 0;
@@ -533,8 +595,6 @@ if (env->obs_size < 0 || env->obs_size > INT_MAX / sizeof(float)) {
     // env->log.days_failed = 0;
     env->log.collisions_player_vs_car = 0;
     env->log.collisions_player_vs_road = 0;
-
-
     }
 
 void allocate(Enduro* env) {
@@ -618,19 +678,25 @@ void free_allocated(Enduro* env) {
 
 // Reset all init vars
 void reset(Enduro* env) {
+    // Debug at top of reset
+    DEBUG_PRINT("line 630: calling debug_enduro_allocation at top of reset()\n");
+    debug_enduro_allocation(env);
 
-// Debug at top of reset
-DEBUG_PRINT("line 630: calling debug_enduro_allocation at top of reset()\n");
-debug_enduro_allocation(env);
+    // // No random after first reset
+    // int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
 
-    // Everything resets in env
-    init(env);
+    int reset_seed = xorshift32(&env->rng_state);
 
-// Debug at bottom of reset
-DEBUG_PRINT("line 648: calling debug_enduro_allocation at bottom of reset()\n");
-debug_enduro_allocation(env);
+    // Reset environment with the appropriate seed
+    init(env, reset_seed, env->index);
 
+    // Debug at bottom of reset
+    DEBUG_PRINT("line 648: calling debug_enduro_allocation at bottom of reset()\n");
+    debug_enduro_allocation(env);
+
+    env->reset_count += 1;
 }
+
 
 unsigned char check_collision(Enduro* env, Car* car) {
     // Compute the scale factor based on vanishing point reference
@@ -862,8 +928,8 @@ void compute_enemy_car_rewards(Enduro* env) {
     }
 }
 
-
 void c_step(Enduro* env) {  
+env->rewards[0] = 0.00000000000f;
 
 // Debug at top of step
 DEBUG_PRINT("line 806: calling debug enduro allocation at top of step()\n");
@@ -889,7 +955,6 @@ for (int i = 0; i < env->numEnemies; i++) {
 
 Car* car = &env->enemyCars[i];
 compute_enemy_car_rewards(env);
-
 
     float movement_speed;
     float relative_speed;
@@ -920,9 +985,6 @@ compute_enemy_car_rewards(env);
     // DEBUG_PRINT("Enemy car %d final position Y: %.2f\n", i, car->y);
 }
 
-
-
-
     // // Update enemy car positions
     // for (int i = 0; i < env->numEnemies; i++) {
     //     Car* car = &env->enemyCars[i];
@@ -941,12 +1003,10 @@ compute_enemy_car_rewards(env);
 // Reward for staying on the road and going faster
 if (env->collision_invulnerability_timer <= 0.0f) {
     if (env->player_x > road_left && env->player_x < road_right && env->speed > 0) {
-        env->rewards[0] += 0.001f * env->speed;
+        env->rewards[0] += 0.0010000000f * env->speed;
         env->log.stay_on_road_reward += 0.001f * env->speed;
     }
 }
-
-
 
     env->last_road_left = road_left;
     env->last_road_right = road_right;
@@ -1174,7 +1234,7 @@ if (car == NULL) {
             if (!car->passed) {
             env->log.passed_cars += 1;
             // env->score += 1;
-            env->rewards[0] += 10.0f;
+            env->rewards[0] += 1.0f; // Car passed reward
             }
             car->passed = true;
 
@@ -1287,10 +1347,10 @@ if (car == NULL) {
         
         } else {
             // Player failed to pass required cars, reset environment
-            env->log.days_failed += 1;
+            env->log.days_failed += 1.0f;
             env->day = 1;
-            env->rewards[0] -= 10.0f;
-            env->terminals[0] = 1;
+            // env->rewards[0] -= 10.0f;
+            env->terminals[0] = false;
             add_log(env->log_buffer, &env->log);
             compute_observations(env); // Call compute_observations before reset to log
             reset(env);
@@ -1306,15 +1366,16 @@ if (car == NULL) {
     env->log.reward = env->rewards[0];
     env->log.episode_return = env->rewards[0];
     env->step_count++;
+    env->score += env->rewards[0];
     env->log.score = env->score;
     int local_cars_to_pass = env->carsToPass;
     env->log.cars_to_pass = (int)local_cars_to_pass;
 
-    // Debugging print to check all variables before computing observations
-    DEBUG_PRINT("line 1232: calling debug_enduro_allocation at bottom of step() before compute_observations\n");
-    debug_enduro_allocation(env);
+    // // Debugging print to check all variables before computing observations
+    // DEBUG_PRINT("line 1232: calling debug_enduro_allocation at bottom of step() before compute_observations\n");
+    // debug_enduro_allocation(env);
     compute_observations(env);
-    add_log(env->log_buffer, &env->log);
+    // add_log(env->log_buffer, &env->log);
 
     // // Early stopping if not passing cars (stop on snow stage)
     // if (isSnowStage && env->rewards[0] < 1) {
@@ -1737,24 +1798,24 @@ float car_x_in_lane(Enduro* env, int lane, float y) {
 // Make the make_client function handle all rendering code. 
 // GameState struct should be moved to the client struct
 // All rendering logic should be completely separate from env logic
-
-Client* make_client(Client* client) {
-    client = (Client*)malloc(sizeof(Client));
-    if (client == NULL) {
-        DEBUG_FPRINT(stderr, "Failed to allocate memory for client\n");
-        exit(EXIT_FAILURE);
+Client* make_client(Enduro* env) {
+    // Allocate memory for Client
+    Client* client = (Client*)malloc(sizeof(Client));
+    if (!client) {
+        fprintf(stderr, "Failed to allocate memory for Client\n");
+        return NULL;
     }
 
-    // Initialize client fields with valid values
-    client->width = SCREEN_WIDTH; // Replace with actual default width
-    client->height = SCREEN_HEIGHT; // Replace with actual default height
-
-    initRaylib(); // Initialize Raylib
-
-    loadTextures(&client->gameState); // Load textures
+    // Initialize Client using information from Enduro
+    client->width = env->width;  // Example: use env dimensions for rendering
+    client->height = env->height;
+    
+    // Perform additional initialization if necessary
+    initRaylib();  // Assume Raylib is being used for rendering setup
 
     return client;
 }
+
 
 
 void close_client(Client* client, Enduro* env) {
