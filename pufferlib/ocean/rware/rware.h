@@ -364,10 +364,10 @@ void compute_observations(CRware* env) {
     int surround_indices[8];
     int cols = map_cols[env->map_choice - 1];
     int rows = map_rows[env->map_choice - 1];
-    unsigned char (*observations)[SELF_OBS+VISION_OBS] = (unsigned char(*)[SELF_OBS+VISION_OBS])env->observations;
+    float (*observations)[SELF_OBS+VISION_OBS] = (float(*)[SELF_OBS+VISION_OBS])env->observations;
     for (int i = 0; i < env->num_agents; i++) {
         // Agent location, direction, state
-        unsigned char* obs = &observations[i][0];
+        float* obs = &observations[i][0];
         int agent_location = env->agent_locations[i];
         int current_x = agent_location % cols;
         int current_y = agent_location / cols;
@@ -375,7 +375,7 @@ void compute_observations(CRware* env) {
         obs[0] = env->agent_locations[i];
         obs[1] = env->agent_directions[i] + 1;
         obs[2] = env->agent_states[i];
-        // Vision observations
+	// Vision observations
         for (int j = 0; j < 8; j++) {
             int new_x = current_x + SURROUNDING_VECTORS[j][0];
             int new_y = current_y + SURROUNDING_VECTORS[j][1];
@@ -636,9 +636,9 @@ void pickup_shelf(CRware* env, int agent_idx) {
     int current_position_state = env->warehouse_states[agent_location];
     int original_map_state = map[agent_location];
     if ((current_position_state == REQUESTED_SHELF) && (agent_state==UNLOADED)) {
-        //env->rewards[agent_idx] = 0.1;
-	    //env->log.episode_return += 0.1;
-	    env->agent_states[agent_idx]=HOLDING_REQUESTED_SHELF;
+        env->rewards[agent_idx] = 0.5;
+	env->logs[agent_idx].episode_return += 0.5;
+	env->agent_states[agent_idx]=HOLDING_REQUESTED_SHELF;
     }
     // return empty shelf
     else if (agent_state == HOLDING_EMPTY_SHELF && current_position_state == original_map_state 
@@ -657,6 +657,8 @@ void pickup_shelf(CRware* env, int agent_idx) {
     // drop shelf at goal
     else if (agent_state == HOLDING_REQUESTED_SHELF && current_position_state == GOAL) {
         env->agent_states[agent_idx]=HOLDING_EMPTY_SHELF;
+	env->rewards[agent_idx] = 0.5;
+	env->logs[agent_idx].episode_return += 0.5;
         int shelf_count = 0;
         while (shelf_count < 1) {
             shelf_count += request_new_shelf(env);
