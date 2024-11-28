@@ -61,7 +61,7 @@ int demo() {
     while (running) {
         handleEvents(&running, &env);
         c_step(&env);
-        printf("reward: %f\n", env.rewards[0]);
+        // printf("reward: %f\n", env.rewards[0]);
         c_render(client, &env);
 
         if (WindowShouldClose()) {
@@ -109,8 +109,8 @@ void perftest(float test_time) {
 
 
 int main() {
-   //demo();
-   perftest(30.0f);
+   demo();
+//    perftest(30.0f);
    return 0;
 }
 

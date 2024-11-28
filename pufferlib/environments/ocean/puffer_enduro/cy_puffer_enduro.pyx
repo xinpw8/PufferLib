@@ -16,6 +16,7 @@ cdef extern from "puffer_enduro.h":
         float episode_length
         float score
         float reward
+        float step_rew_car_passed_no_crash
         float stay_on_road_reward
         float passed_cars
         float passed_by_enemy
@@ -162,6 +163,7 @@ cdef class CyEnduro:
             'episode_length': log.episode_length,
             'score': log.score,
             'reward': log.reward,
+            'step_rew_car_passed_no_crash': log.step_rew_car_passed_no_crash,
             'stay_on_road_reward': log.stay_on_road_reward,
             'passed_cars': log.passed_cars,
             'passed_by_enemy': log.passed_by_enemy,
