@@ -790,9 +790,9 @@ void render(Client* client, CRware* env) {
         int state = env->warehouse_states[i];
         Color color;
         if (state == SHELF) {
-            color = DARKBLUE;
-        } else if (state == REQUESTED_SHELF) {
             color = PUFF_CYAN;
+        } else if (state == REQUESTED_SHELF) {
+            color = RED;
         } else if (state == GOAL) {
             color = STONE_GRAY;
         } else {
@@ -846,7 +846,8 @@ void render(Client* client, CRware* env) {
                 },
                 (Vector2){env->grid_square_size/2, env->grid_square_size/2},
                 rotation,
-                env->agent_states[j] != UNLOADED ? RED : WHITE
+                //env->agent_states[j] != UNLOADED ? RED : WHITE
+                WHITE
             );
             // put a number on top of the agent
             DrawText(
