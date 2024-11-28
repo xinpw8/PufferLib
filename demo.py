@@ -367,7 +367,7 @@ if __name__ == '__main__':
         default='serial', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help="Resume from experiment")
-    parser.add_argument('--wandb-project', type=str, default='pufferlib')
+    parser.add_argument('--wandb-project', type=str, default='enduro')
     parser.add_argument('--wandb-group', type=str, default='debug')
     parser.add_argument('--track', action='store_true', help='Track on WandB')
     args = parser.parse_known_args()[0]

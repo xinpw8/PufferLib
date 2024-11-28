@@ -138,6 +138,7 @@ cdef class CyEnduro:
         """
         if not self.client:
             self.client = make_client(&self.envs[0])
+
         c_render(self.client, &self.envs[0])
 
     def close(self):

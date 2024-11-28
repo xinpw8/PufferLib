@@ -24,8 +24,6 @@
 // 6. individual sprites
 
 
-
-
 // puffer_enduro.c
 
 # define MAX_ENEMIES 10
@@ -35,25 +33,25 @@
 #include <stddef.h>
 #include "puffer_enduro.h"
 #include "raylib.h"
+#include <time.h>
 // #include <gperftools/profiler.h>
 
-int main() {
+int demo() {
     Enduro env;
 
-    // Initialize necessary variables
+    // initialize necessary variables
     env.num_envs = 1;
     env.max_enemies = MAX_ENEMIES;
     env.obs_size = OBSERVATIONS_MAX_SIZE;
 
-    // ProfilerStart("puffer_enduro.prof");
+    // profilerstart("puffer_enduro.prof");
 
     allocate(&env);
 
-    Client* client = NULL;
-    client = make_client(&env);
+    Client* client = make_client(&env);
 
     unsigned int seed = 12345;
-    init(&env, seed, client); // Initialize environment variables
+    init(&env, seed, 0); // initialize environment variables
     reset(&env);
     initRaylib();
 
@@ -63,6 +61,7 @@ int main() {
     while (running) {
         handleEvents(&running, &env);
         c_step(&env);
+        printf("reward: %f\n", env.rewards[0]);
         c_render(client, &env);
 
         if (WindowShouldClose()) {
@@ -74,8 +73,44 @@ int main() {
     cleanup(&client->gameState);
     free_allocated(&env);
 
-    // ProfilerStop();
+    // profilerstop();
 
     return 0;
+}
+
+void perftest(float test_time) {
+    Enduro env;
+
+    // initialize necessary variables
+    env.num_envs = 1;
+    env.max_enemies = MAX_ENEMIES;
+    env.obs_size = OBSERVATIONS_MAX_SIZE;
+
+    allocate(&env);
+
+    unsigned int seed = 12345;
+    init(&env, seed, 0); // initialize environment variables
+    reset(&env);
+
+    int start = time(NULL);
+    int i = 0;
+    int running = 1;
+    while (time(NULL) - start < test_time) {
+        handleEvents(&running, &env);
+        env.actions[0] = rand()%9;
+        c_step(&env);
+        i++;
+    }
+
+    int end = time(NULL);
+    printf("SPS: %f\n", i / (float)(end - start));
+    free_allocated(&env);
+}
+
+
+int main() {
+   //demo();
+   perftest(30.0f);
+   return 0;
 }
 

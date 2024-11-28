@@ -22,7 +22,6 @@ if [ "$MODE" = "local" ]; then
         "$SRC_DIR/$ENV.c" -o "$OUTPUT_DIR/$ENV" \
         ./raylib/lib/libraylib.a -lm -lpthread \
         -fsanitize=address,undefined,bounds,pointer-overflow,leak \
-        -lprofiler \
         # -DDEBUG
 
     echo "Built to: $OUTPUT_DIR/$ENV"

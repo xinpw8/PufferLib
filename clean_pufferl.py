@@ -598,7 +598,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
     frames = []
     tick = 0
-    while tick <= 1000:
+    while tick <= 100000000000:
         if tick % 1 == 0:
             render = driver.render()
             if driver.render_mode == 'ansi':
@@ -612,7 +612,8 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
                 cv2.waitKey(1)
                 time.sleep(1/24)
             elif driver.render_mode in ('human', 'raylib') and render is not None:
-                frames.append(render)
+                pass
+                #frames.append(render)
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
