@@ -1,4 +1,5 @@
 #include <time.h>
+#include <unistd.h>
 #include "rware.h"
 #include "puffernet.h"
 #define MAP_TINY_WIDTH 640
@@ -38,36 +39,49 @@ void demo(int map_choice) {
     reset(&env);
     Client* client = make_client(&env);
 
+    int tick = 0;
     while (!WindowShouldClose()) {
+        if (tick % 12 == 0) {
+            tick = 0;
 
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[env.human_agent_idx] = NOOP;
-
-            // Handle keyboard input only for selected agent
-            if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
-                env.actions[env.human_agent_idx] = FORWARD;
-            }
-            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-                env.actions[env.human_agent_idx] = LEFT;
-            }
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-                env.actions[env.human_agent_idx] = RIGHT;
-            }
-            if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_ENTER)) {
-                env.actions[env.human_agent_idx] = TOGGLE_LOAD;
-            }
-            // Add agent switching with TAB key
-            if (IsKeyDown(KEY_TAB)) {
-                env.human_agent_idx = (env.human_agent_idx + 1) % env.num_agents;
-            }
-        }
-        else {
+            int human_action = env.actions[env.human_agent_idx];
             for (int i = 0; i < env.num_agents * 27; i++) {
                 net->obs[i] = (float)env.observations[i];
             }
             forward_linearlstm(net, net->obs, env.actions);
+
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                env.actions[env.human_agent_idx] = human_action;
+            }
+
+            step(&env);
+
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                env.actions[env.human_agent_idx] = NOOP;
+            }
         }
-        step(&env);
+        tick++;
+
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            // Handle keyboard input only for selected agent
+            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+                env.actions[env.human_agent_idx] = FORWARD;
+            }
+            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+                env.actions[env.human_agent_idx] = LEFT;
+            }
+            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+                env.actions[env.human_agent_idx] = RIGHT;
+            }
+            if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+                env.actions[env.human_agent_idx] = TOGGLE_LOAD;
+            }
+            // Add agent switching with TAB key
+            if (IsKeyPressed(KEY_TAB)) {
+                env.human_agent_idx = (env.human_agent_idx + 1) % env.num_agents;
+            }
+        }
+
         render(client,&env);
     }
     close_client(client);
