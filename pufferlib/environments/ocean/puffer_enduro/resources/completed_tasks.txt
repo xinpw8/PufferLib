@@ -50,4 +50,6 @@
 // when env->speed is low. When env->speed is high, the curve 
 // transitions are smooth, like they should be.
 // Also, currently, enemy cars seem to wiggle with the road...
-
+// 2. troubleshoot calling add_log() q step()
+// 3. Compile warning for setup.py full compile (new)
+// 5. Add perf test (joseph push)

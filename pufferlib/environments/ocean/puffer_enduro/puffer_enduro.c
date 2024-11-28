@@ -6,14 +6,9 @@
 // TODO: Engineer good policy
 
 // :CURRENT TASKS - MUST DO:
+// 0. After collisions, enemy cars spawn behind player when they shouldn't
 // 1. remove atari logo
-// 2. troubleshoot calling add_log() q step()
-// 3. Compile warning for setup.py full compile (new)
-// In file included from pufferlib/environments/ocean/puffer_enduro/cy_puffer_enduro.c:1272:
-// pufferlib/environments/ocean/puffer_enduro/puffer_enduro.h:1747:29: note: expected ‘Client *’ but argument is of type ‘Enduro *’
-//  1747 | Client* make_client(Client* client)
 // 4. Render init creates 2 windows?
-// 5. Add perf test
 
 // :CURRENT TASKS - NICE TO DO:
 // 1. consistent naming scheme for functions and vars
@@ -53,7 +48,7 @@ int main() {
     client = make_client(&env);
 
     unsigned int seed = 12345;
-    init(&env, seed, client); // Initialize environment variables
+    init(&env, seed, 0); // Initialize environment variables
     reset(&env);
     initRaylib();
 

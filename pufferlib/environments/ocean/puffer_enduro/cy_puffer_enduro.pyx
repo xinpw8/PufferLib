@@ -30,6 +30,25 @@ cdef extern from "puffer_enduro.h":
         int length
         int idx
 
+    ctypedef int size_t
+
+    ctypedef struct Car:
+        int lane
+        float y
+        float last_y
+        int passed
+        int colorIndex
+        
+    # ctypedef struct Enduro:
+    #     float* observations
+    #     int* actions
+    #     float* rewards
+    #     unsigned char* terminals
+    #     unsigned char* truncateds
+    #     LogBuffer* log_buffer
+    #     size_t obs_size
+    #     int num_envs
+
     ctypedef struct Enduro:
         float* observations
         int* actions
@@ -37,8 +56,72 @@ cdef extern from "puffer_enduro.h":
         unsigned char* terminals
         unsigned char* truncateds
         LogBuffer* log_buffer
+        Log log
         size_t obs_size
         int num_envs
+        float width
+        float height
+        float car_width
+        float car_height
+        int max_enemies
+        float elapsedTimeEnv
+        int initial_cars_to_pass
+        float min_speed
+        float max_speed
+        float player_x
+        float player_y
+        float speed
+        int score
+        int day
+        int lane
+        int step_count
+        int numEnemies
+        int carsToPass
+        float collision_cooldown_car_vs_car
+        float collision_cooldown_car_vs_road
+        float collision_invulnerability_timer
+        int drift_direction
+        float action_height
+        Car enemyCars[10]  # Adjust MAX_ENEMIES as needed
+        float initial_player_x
+        float road_scroll_offset
+        int current_curve_direction
+        float current_curve_factor
+        float target_curve_factor
+        float current_step_threshold
+        float target_vanishing_point_x
+        float current_vanishing_point_x
+        float base_target_vanishing_point_x
+        float vanishing_point_x
+        float base_vanishing_point_x
+        float t_p
+        float wiggle_y
+        float wiggle_speed
+        float wiggle_length
+        float wiggle_amplitude
+        unsigned char wiggle_active
+        int currentGear
+        float gearSpeedThresholds[4]
+        float gearAccelerationRates[4]
+        float gearTimings[4]
+        float gearElapsedTime
+        float enemySpawnTimer
+        float enemySpawnInterval
+        float enemySpeed
+        unsigned char dayCompleted
+        float last_road_left
+        float last_road_right
+        int closest_edge_lane
+        int last_spawned_lane
+        float totalAccelerationTime
+        float parallaxFactor
+        float dayTransitionTimes[16]  # Adjust NUM_BACKGROUND_TRANSITIONS as needed
+        int dayTimeIndex
+        int currentDayTimeIndex
+        int previousDayTimeIndex
+        unsigned int rng_state
+        unsigned int index
+        int reset_count
 
     ctypedef struct Client:
         float width
