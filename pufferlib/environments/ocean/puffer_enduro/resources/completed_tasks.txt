@@ -61,4 +61,11 @@
 // 2. still doesn't avoid cars in middle lane. need to figure out why. goes really fast now, however.
 // 2. Now (11/28/24) is able to successfully complete Day 1 from a model trained on 400 steps.
 
+// 11/29/24
+// 3. Fix car passing logic so it increments carsToPass when car passes player
+// 2. Investigate why Day 2 makes agent crash into cars readily.
+// 5. Implement curving road and make sure agent can also learn that.
+// 3. remove commented out code
+// 2. remove debug prints
+
 
