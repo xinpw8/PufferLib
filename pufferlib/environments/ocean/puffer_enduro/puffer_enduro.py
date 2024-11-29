@@ -17,7 +17,7 @@ class MyEnduro(pufferlib.PufferEnv):
         self.tick = 0
         self.max_enemies = 10
 
-        obs_size = 6 + 2 * self.max_enemies + 3 + 1
+        obs_size = (6 + (4 * self.max_enemies) + 3 + 1)
         self.num_obs = obs_size
 
         self.single_observation_space = gymnasium.spaces.Box(

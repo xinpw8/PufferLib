@@ -7,13 +7,10 @@
 
 // :CURRENT TASKS - MUST DO:
 // 1. remove atari logo
-// 2. troubleshoot calling add_log() q step()
-// 3. Compile warning for setup.py full compile (new)
-// In file included from pufferlib/environments/ocean/puffer_enduro/cy_puffer_enduro.c:1272:
-// pufferlib/environments/ocean/puffer_enduro/puffer_enduro.h:1747:29: note: expected ‘Client *’ but argument is of type ‘Enduro *’
-//  1747 | Client* make_client(Client* client)
 // 4. Render init creates 2 windows?
-// 5. Add perf test
+// 3. Fix car passing logic so it increments carsToPass when car passes player
+// 2. Investigate why Day 2 makes agent crash into cars readily.
+// 5. Implement curving road and make sure agent can also learn that.
 
 // :CURRENT TASKS - NICE TO DO:
 // 1. consistent naming scheme for functions and vars
