@@ -382,7 +382,8 @@ void initialize_env(CTrashPickupEnv* env) {
 }
 
 void allocate(CTrashPickupEnv* env) {
-    int obs_size = env->num_agents * (1 + (((env->agent_sight_range * env->agent_sight_range * 4) - 1) * 4)); // One-hot encoded local crop within sight-range of agent, excluding the cell the agent is currently in (-1) but also whether agent is carrying
+    //int obs_size = env->num_agents * (1 + (((env->agent_sight_range * env->agent_sight_range * 4) - 1) * 4)); // One-hot encoded local crop within sight-range of agent, excluding the cell the agent is currently in (-1) but also whether agent is carrying
+    int obs_size = env->num_agents * ((env->num_agents * 3) + (env->num_trash * 3) + (env->num_bins * 2)); 
 
     env->observations = (float*)calloc(obs_size * env->num_agents, sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
