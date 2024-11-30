@@ -148,7 +148,6 @@ typedef struct GameState {
     float yellowDigitOffset; // Offset for scrolling effect
     int yellowDigitCurrent;  // Current yellow digit being displayed
     int yellowDigitNext;     // Next yellow digit to scroll in
-    float scoreIncrementBuffer;
     // Variables for scrolling digits
     float scoreDigitOffsets[SCORE_DIGITS];   // Offset for scrolling effect for each digit
     int scoreDigitCurrents[SCORE_DIGITS];    // Current digit being displayed for each position
