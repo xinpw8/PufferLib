@@ -43,7 +43,7 @@ void _load_weights(const char* filename, float* weights, size_t num_weights) {
     }
     fseek(file, 0, SEEK_END);
     rewind(file);
-    int read_size = fread(weights, sizeof(float), num_weights, file);
+    size_t read_size = fread(weights, sizeof(float), num_weights, file);
     fclose(file);
     if (read_size != num_weights) {
         perror("Error reading file");
@@ -182,6 +182,12 @@ void _lstm(float* input, float* state_h, float* state_c, float* weights_input,
     }
 }
 
+void _embedding(int* input, float* weights, float* output, int batch_size, int num_embeddings, int embedding_dim) {
+    for (int b = 0; b < batch_size; b++) {
+        memcpy(output + b*embedding_dim, weights + input[b]*embedding_dim, embedding_dim*sizeof(float));
+    }
+}
+
 void _one_hot(int* input, int* output, int batch_size, int input_size, int num_classes) {
     for (int b = 0; b < batch_size; b++) {
         for (int i = 0; i < input_size; i++) {
@@ -242,17 +248,14 @@ void _softmax_multidiscrete(float* input, int* output, int batch_size, int logit
                 logit_exp_sum += expf(input[in_adr + i]);
             }
             float prob = rand() / (float)RAND_MAX;
-            bool found = false;
             float logit_prob = 0;
             for (int i = 0; i < num_action_types; i++) {
                 logit_prob += expf(input[in_adr + i]) / logit_exp_sum;
                 if (prob < logit_prob) {
                     output[out_adr] = i;
-                    found = true;
                     break;
                 }
             }
-            assert(found);
             in_adr += num_action_types;
         }
     }
@@ -393,6 +396,32 @@ void lstm(LSTM* layer, float* input) {
     _lstm(input, layer->state_h, layer->state_c, layer->weights_input,
         layer->weights_state, layer->bias_input, layer->bias_state,
         layer->buffer, layer->batch_size, layer->input_size, layer->hidden_size);
+}
+
+typedef struct Embedding Embedding;
+struct Embedding {
+    float* output;
+    float* weights;
+    int batch_size;
+    int num_embeddings;
+    int embedding_dim;
+};
+
+Embedding* make_embedding(Weights* weights, int batch_size, int num_embeddings, int embedding_dim) {
+    size_t output_size = batch_size*embedding_dim*sizeof(float);
+    Embedding* layer = (Embedding*)calloc(1, sizeof(Embedding) + batch_size + output_size);
+    *layer = (Embedding){
+        .output = (float*)(layer + 1),
+        .weights = get_weights(weights, num_embeddings*embedding_dim),
+        .batch_size = batch_size,
+        .num_embeddings = num_embeddings,
+        .embedding_dim = embedding_dim,
+    };
+    return layer;
+}
+
+void embedding(Embedding* layer, int* input) {
+    _embedding(input, layer->weights, layer->output, layer->batch_size, layer->num_embeddings, layer->embedding_dim);
 }
 
 typedef struct OneHot OneHot;
@@ -556,8 +585,7 @@ void forward_linearlstm(LinearLSTM* net, float* observations, int* actions) {
     softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
 }
 
-typedef struct ConvLSTM ConvLSTM;
-struct ConvLSTM {
+typedef struct ConvLSTM ConvLSTM; struct ConvLSTM {
     int num_agents;
     float* obs;
     Conv2D* conv1;
