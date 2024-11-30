@@ -1,8 +1,6 @@
 #include <time.h>
 #include "trash_pickup.h"
 
-#define INDEX_C(env, x, y) ((y) * (env).grid_size + (x))
-
 // Demo function for visualizing the TrashPickupEnv
 void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_steps) {
     CTrashPickupEnv env = {
