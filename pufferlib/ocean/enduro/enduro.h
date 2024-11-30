@@ -148,6 +148,7 @@ typedef struct GameState {
     float yellowDigitOffset; // Offset for scrolling effect
     int yellowDigitCurrent;  // Current yellow digit being displayed
     int yellowDigitNext;     // Next yellow digit to scroll in
+    float scoreIncrementBuffer;
     // Variables for scrolling digits
     float scoreDigitOffsets[SCORE_DIGITS];   // Offset for scrolling effect for each digit
     int scoreDigitCurrents[SCORE_DIGITS];    // Current digit being displayed for each position
@@ -432,7 +433,7 @@ void init(Enduro* env, int seed, int env_index) {
     } else {
         // Randomize elapsed time within the day's total duration
         float total_day_duration = BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1];
-        env->elapsedTimeEnv = ((float)xorshift32(&env->rng_state) / UINT32_MAX) * total_day_duration;
+        env->elapsedTimeEnv = ((float)xorshift32(&env->rng_state) / (float)UINT32_MAX) * total_day_duration;
 
         // Determine the current time index
         env->currentDayTimeIndex = 0;
@@ -535,7 +536,7 @@ void init(Enduro* env, int seed, int env_index) {
 
     // Randomize the initial time of day for each environment
     float total_day_duration = BACKGROUND_TRANSITION_TIMES[15];
-    env->elapsedTimeEnv = ((float)rand_r(&env->rng_state) / RAND_MAX) * total_day_duration;
+    env->elapsedTimeEnv = ((float)rand_r(&env->rng_state) / (float)RAND_MAX) * total_day_duration;
     env->currentDayTimeIndex = 0;
     env->dayTimeIndex = 0;
     env->previousDayTimeIndex = 0;
@@ -1761,12 +1762,16 @@ void updateCarAnimation(GameState* gameState) {
 }
 
 void updateScoreboard(GameState* gameState) {
-    // Increase the score every 30 frames (~0.5 seconds at 60 FPS)
+    float normalizedSpeed = fminf(fmaxf(gameState->speed, 1.0f), 2.0f);
+    // Determine the frame interval for score increment based on speed
+    int frameInterval = (int)(30 / normalizedSpeed);
     gameState->scoreTimer++;
-    if (gameState->scoreTimer >= 30) {
+
+    if (gameState->scoreTimer >= frameInterval) {
         gameState->scoreTimer = 0;
-        // env->score += 1; // // How much to increment by still needs to be measured
-        if (gameState->score > 99999) { // Max score based on SCORE_DIGITS
+        // Increment the score based on normalized speed
+        gameState->score += (int)normalizedSpeed;
+        if (gameState->score > 99999) {
             gameState->score = 0;
         }
         // Determine which digits have changed and start scrolling them
@@ -1782,9 +1787,10 @@ void updateScoreboard(GameState* gameState) {
         }
     }
     // Update scrolling digits
+    float scrollSpeed = 0.55f * normalizedSpeed;
     for (int i = 0; i < SCORE_DIGITS; i++) {
         if (gameState->scoreDigitScrolling[i]) {
-            gameState->scoreDigitOffsets[i] += 0.5f; // Scroll speed
+            gameState->scoreDigitOffsets[i] += scrollSpeed; // Scroll speed
             if (gameState->scoreDigitOffsets[i] >= DIGIT_HEIGHT) {
                 gameState->scoreDigitOffsets[i] = 0.0f;
                 gameState->scoreDigitCurrents[i] = gameState->scoreDigitNexts[i];

@@ -27,7 +27,6 @@ int demo() {
     unsigned int seed = 0;
     init(&env, seed, 0);
     reset(&env);
-    initRaylib();
 
     loadTextures(&client->gameState);
 
