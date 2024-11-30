@@ -5,11 +5,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include "puffer_enduro.h"
-#include "raylib.h"
 #include <time.h>
+#include "enduro.h"
+#include "raylib.h"
+#include "puffernet.h"
 
 int demo() {
+    Weights* weights = load_weights("resources/puffer_enduro/enduro_weights.bin", 140170);
+    LinearLSTM* net = make_linearlstm(weights, 1, 52, 9);
+
     Enduro env;
 
     env.num_envs = 1;
@@ -20,7 +24,7 @@ int demo() {
 
     Client* client = make_client(&env);
 
-    unsigned int seed = 12345;
+    unsigned int seed = 0;
     init(&env, seed, 0);
     reset(&env);
     initRaylib();
@@ -29,7 +33,13 @@ int demo() {
 
     int running = 1;
     while (running) {
-        handleEvents(&running, &env);
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            env.actions[0] = 0;
+            handleEvents(&running, &env);
+        } else {
+            forward_linearlstm(net, env.observations, env.actions);
+        }
+
         c_step(&env);
         c_render(client, &env);
 
@@ -37,11 +47,11 @@ int demo() {
             running = 0;
         }
     }
-
+    free_linearlstm(net);
+    free(weights);
     close_client(client, &env);
     cleanup(&client->gameState);
     free_allocated(&env);
-
     return 0;
 }
 

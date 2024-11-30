@@ -1589,9 +1589,9 @@ void handleEvents(int* running, Enduro* env) {
     if (WindowShouldClose()) {
         *running = 0;
     }
-    unsigned char left = IsKeyDown(KEY_LEFT);
-    unsigned char right = IsKeyDown(KEY_RIGHT);
-    unsigned char down = IsKeyDown(KEY_DOWN);
+    unsigned char left = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
+    unsigned char right = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+    unsigned char down = IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
     unsigned char fire = IsKeyDown(KEY_SPACE); // Fire key
     if (fire) {
         if (right) {
@@ -2069,8 +2069,8 @@ void c_render(Client* client, Enduro* env) {
         }
         // Compute car coords
         float car_center_x = car_x_in_lane(env, car->lane, car->y);
-        float car_width = CAR_WIDTH * car_scale;
-        float car_height = CAR_HEIGHT * car_scale;
+        //float car_width = CAR_WIDTH * car_scale;
+        //float car_height = CAR_HEIGHT * car_scale;
         float car_x = car_center_x - (carTexture.width * car_scale) / 2.0f;
         float car_y = car->y - (carTexture.height * car_scale) / 2.0f;
 

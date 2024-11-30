@@ -9,7 +9,7 @@ from random import SystemRandom
 
 rng = SystemRandom()
 
-cdef extern from "puffer_enduro.h":
+cdef extern from "enduro.h":
     # Structures
     ctypedef struct Log:
         float episode_return

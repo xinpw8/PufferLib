@@ -3,11 +3,11 @@
 import numpy as np
 import gymnasium
 import pufferlib
-from pufferlib.ocean.puffer_enduro.cy_puffer_enduro import CyEnduro
+from pufferlib.ocean.enduro.cy_enduro import CyEnduro
 import torch
 
-class MyEnduro(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, frame_skip=1, render_mode=None,
+class Enduro(pufferlib.PufferEnv):
+    def __init__(self, num_envs=1, frame_skip=1, render_mode='human',
                  report_interval=1, buf=None):
 
         self.render_mode = render_mode
@@ -83,8 +83,7 @@ class MyEnduro(pufferlib.PufferEnv):
         )
     
     def render(self):
-        if self.render_mode is not None:
-            self.c_envs.render()
+        self.c_envs.render()
 
     def close(self):
         self.c_envs.close()
@@ -96,7 +95,7 @@ class MyEnduro(pufferlib.PufferEnv):
         
 def test_performance(timeout=10, atn_cache=8192):
     num_envs = 4096
-    env = MyEnduro(num_envs=num_envs)
+    env = Enduro(num_envs=num_envs)
     env.reset()
     tick = 0
 
