@@ -1175,7 +1175,6 @@ void c_step(Enduro* env) {
                 }
                 if (!car->passed) {
                     env->log.passed_cars += 1;
-                    env->score += 1;
                     env->rewards[0] += 1.0f; // Car passed reward
                     env->car_passed_no_crash_active = 1; // Stepwise rewards activated
                     env->step_rew_car_passed_no_crash += 0.001f; // Stepwise reward
@@ -1192,24 +1191,6 @@ void c_step(Enduro* env) {
                     env->rewards[0] -= 0.1f;
                 }
             }
-
-        //     // Did an enemy pass the player?
-        //     printf("Car i: %d, Player y: %.2f, Car y: %.2f, Last y: %.2f, passed? %d\n", i, env->player_y, car->y, car->last_y, car->passed);
-        //     printf("Speed: %.2f\n", env->speed);
-        //     if (env->speed < 0 && car->last_y > env->player_y  + CAR_HEIGHT && car->y <= env->player_y + CAR_HEIGHT ) {
-        //         int maxCarsToPass = (env->day == 1) ? 200 : 300; // Day 1: 200 cars, Day 2+: 300 cars
-        //         if (env->carsToPass == maxCarsToPass) {
-        //             // Do nothing; log the event
-        //             env->log.passed_by_enemy += 1.0f;
-        //             printf("Passed by enemy but at max carsToPass so no incrementing it\n");
-        //         } else {
-        //             printf("carsToPass before, passed by enemy: %d\n", env->carsToPass);
-        //             env->carsToPass += 1;
-        //             printf("carsToPass after, passed by enemy: %d\n", env->carsToPass);
-        //             env->log.passed_by_enemy += 1.0f;
-        //             env->rewards[0] -= 0.1f;
-        //         }
-        // }
 
         // Preserve last y for passing, obs
         car->last_y = car->y;
@@ -1308,7 +1289,10 @@ void c_step(Enduro* env) {
     env->log.reward = env->rewards[0];
     env->log.episode_return = env->rewards[0];
     env->step_count++;
-    env->score += env->rewards[0];
+
+    float normalizedSpeed = fminf(fmaxf(env->speed, 1.0f), 2.0f);
+    env->score += (int)normalizedSpeed;
+    
     env->log.score = env->score;
     int local_cars_to_pass = env->carsToPass;
     env->log.cars_to_pass = (int)local_cars_to_pass;
@@ -1438,7 +1422,6 @@ void update_road_curve(Enduro* env) {
         *current_curve_stage = (*current_curve_stage + 1) % 3;
     }
 
-
     // Determine sizes of step_thresholds and curve_directions
     size_t step_thresholds_size = sizeof(step_thresholds) / sizeof(step_thresholds[0]);
     size_t curve_directions_size = sizeof(curve_directions) / sizeof(curve_directions[0]);
@@ -1485,7 +1468,6 @@ void update_road_curve(Enduro* env) {
     }
     env->vanishing_point_x = env->current_vanishing_point_x;
 }
-
 
 // B(t) = (1−t)^2 * P0​+2(1−t) * t * P1​+t^2 * P2​, t∈[0,1]
 // Quadratic bezier curve helper function
@@ -1982,6 +1964,10 @@ void c_render(Client* client, Enduro* env) {
     gameState->carsLeftGameState = env->carsToPass;
     gameState->day = env->day;
     gameState->elapsedTime = env->elapsedTimeEnv;
+    // -1 represents reset of env
+    if (env->score == 0) {
+        gameState->score = 0;
+    }
 
     BeginDrawing();
     ClearBackground(BLACK);
