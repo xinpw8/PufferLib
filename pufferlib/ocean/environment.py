@@ -11,6 +11,7 @@ from .moba.moba import Moba
 from .go.go import Go
 from .rware.rware import Rware
 #from .rocket_lander import rocket_lander
+from .puffer_enduro import puffer_enduro
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -130,6 +131,7 @@ MAKE_FNS = {
     'tripletriad': TripleTriad,
     'go': Go,
     'rware': Rware,
+    'puffer_enduro': puffer_enduro.MyEnduro,
 
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
