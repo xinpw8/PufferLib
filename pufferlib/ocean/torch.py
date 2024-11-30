@@ -175,14 +175,12 @@ class MOBA(nn.Module):
 
 
 class TrashPickup(nn.Module):
-    def __init__(self, env, hidden_size=128):
+    def __init__(self, env, hidden_size=1024, use_lstm=False):
         super().__init__()
         self.hidden_size = hidden_size
 
         # Calculate total input size based on observation structure
-        self.grid_size = (env.agent_sight_range * 2 + 1) ** 2  # Size of the flattened local crop
-        self.num_cell_types = 4  # One-hot encoded cell types: EMPTY, TRASH, BIN, AGENT
-        self.input_size = self.grid_size * self.num_cell_types + 1  # Grid features + carrying status
+        self.input_size = env.num_obs
 
         # Linear feature extractor
         self.feature_net = nn.Sequential(
@@ -192,8 +190,12 @@ class TrashPickup(nn.Module):
             nn.ReLU(),
         )
 
-        # LSTM for temporal dependencies
-        self.lstm = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+        if use_lstm:
+            # LSTM for temporal dependencies
+            self.lstm = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+            self.use_lstm = True
+        else:
+            self.use_lstm = False
 
         # Actor and critic projection layers
         self.actor = pufferlib.pytorch.layer_init(
@@ -203,8 +205,9 @@ class TrashPickup(nn.Module):
             nn.Linear(hidden_size, 1), std=1
         )
 
-        # Initialize LSTM states (default to None for lazy initialization)
-        self.lstm_states = None
+        if self.use_lstm:
+            # Initialize LSTM states (default to None for lazy initialization)
+            self.lstm_states = None
 
     def forward(self, observations):
         """
@@ -222,23 +225,29 @@ class TrashPickup(nn.Module):
 
         observations: (batch_size, obs_dim)
         """
-        batch_size, seq_len = observations.size(0), 1  # Assuming observations are flat without temporal batching
-
+        
         # Extract features using the feature network
         features = self.feature_net(observations)
 
-        # Reshape for LSTM
-        features = features.unsqueeze(1)  # Add a sequence dimension for LSTM
+        if self.use_lstm:
+            batch_size, seq_len = observations.size(0), 1  # Assuming observations are flat without temporal batching
 
-        # Initialize LSTM states if not already initialized
-        if self.lstm_states is None or batch_size != self.lstm_states[0].size(1):
-            self.lstm_states = self.get_initial_lstm_states(batch_size, observations.device)
+            # Reshape for LSTM
+            features = features.unsqueeze(1)  # Add a sequence dimension for LSTM
 
-        # Pass through LSTM
-        lstm_outputs, self.lstm_states = self.lstm(features, self.lstm_states)
+            # Initialize LSTM states if not already initialized
+            if self.lstm_states is None or batch_size != self.lstm_states[0].size(1):
+                self.lstm_states = self.get_initial_lstm_states(batch_size, observations.device)
 
-        # Use the last output from LSTM for decoding
-        features = lstm_outputs[:, -1, :]
+            # Pass through LSTM
+            lstm_outputs, self.lstm_states = self.lstm(features, self.lstm_states)
+
+            # Detach LSTM states to prevent them from being part of the computational graph
+            self.lstm_states = (self.lstm_states[0].detach(), self.lstm_states[1].detach())
+
+            # Use the last output from LSTM for decoding
+            features = lstm_outputs[:, -1, :]
+
         return features
 
     def decode_actions(self, features):

@@ -129,6 +129,42 @@ int get_entity_type_start_index(CTrashPickupEnv* env, int type)
 }
 
 void compute_observations(CTrashPickupEnv* env) {
+    float* obs = env->observations;
+    float norm_factor = 1.0f / env->grid_size;
+
+    int obs_index = 0;
+
+    for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++){
+        float current_norm_pos_x = (float) (env->entities[agent_idx].pos_x) * norm_factor;
+        float current_norm_pos_y = (float) (env->entities[agent_idx].pos_y) * norm_factor;
+
+        // Add the observing agent's own position and carrying status
+        obs[obs_index++] = current_norm_pos_x;
+        obs[obs_index++] = current_norm_pos_y;
+        obs[obs_index++] = env->entities[agent_idx].carrying ? 1.0f : 0.0f;
+
+        // Add other observations from other entities (other agents, bins, trash)
+        for (int i = 0; i < env->num_agents + env->num_bins + env->num_trash; i++) {
+            // skip if current this agent
+            if (agent_idx == i)
+                continue;
+
+            obs[obs_index++] = ((float) (env->entities[i].pos_x) * norm_factor) - current_norm_pos_x;
+            obs[obs_index++] = ((float) (env->entities[i].pos_y) * norm_factor) - current_norm_pos_y;
+
+            if (env->entities[i].type == AGENT) {
+                obs[obs_index++] = env->entities[i].carrying ? 1.0f : 0.0f;
+            }
+            else if (env->entities[i].type == TRASH_BIN) {
+                obs[obs_index++] = env->entities[i].presence ? 1.0f : 0.0f;
+            }
+        }
+    }
+}
+
+// Local crop version
+/*
+void compute_observations(CTrashPickupEnv* env) {
     int sight_range = env->agent_sight_range;
     int num_cell_types = 4;  // EMPTY, TRASH, BIN, AGENT
 
@@ -176,6 +212,7 @@ void compute_observations(CTrashPickupEnv* env) {
         }
     }
 }
+*/
 
 // Helper functions
 void place_random_entities(CTrashPickupEnv* env, int count, int item_type, int gridIndexStart) {
