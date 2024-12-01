@@ -138,7 +138,6 @@ typedef struct GameState {
     // Flag indices
     int levelCompleteFlagLeftIndex;
     int levelCompleteFlagRightIndex;
-
     // For car animation
     float carAnimationTimer;
     float carAnimationInterval;
@@ -246,34 +245,27 @@ typedef struct Enduro {
     // Enemy spawning
     float enemySpawnTimer;
     float enemySpawnInterval; // Spawn interval based on current stage
-
     // Enemy movement speed
     float enemySpeed;
-
     // Day completed (victory) variables
     unsigned char dayCompleted;
-
     // Logging
     float last_road_left;
     float last_road_right;
     int closest_edge_lane;
     int last_spawned_lane;
     float totalAccelerationTime;
-
     // Rendering
     float parallaxFactor;
-
     // Variables for time of day
     float dayTransitionTimes[NUM_BACKGROUND_TRANSITIONS];
     int dayTimeIndex;
     int currentDayTimeIndex;
     int previousDayTimeIndex;
-
     // RNG
     unsigned int rng_state;
     unsigned int index;
     int reset_count;
-
     // Rewards
     // Reward flag for stepwise rewards if car passed && !crashed
     // Effectively spreads out reward for passing cars
@@ -313,7 +305,6 @@ Rectangle asset_map[] = {
     (Rectangle){2080, 0, 160, 210},  // 13_bg
     (Rectangle){2240, 0, 160, 210},  // 14_bg
     (Rectangle){2400, 0, 160, 210},  // 15_bg
-
     // Mountains (100x6 each)
     (Rectangle){2560, 0, 100, 6},    // 0_mtns
     (Rectangle){2660, 0, 100, 6},    // 1_mtns
@@ -331,7 +322,6 @@ Rectangle asset_map[] = {
     (Rectangle){3860, 0, 100, 6},    // 13_mtns
     (Rectangle){3960, 0, 100, 6},    // 14_mtns
     (Rectangle){4060, 0, 100, 6},    // 15_mtns
-
     // Plain digits (8x9 each)
     (Rectangle){4160, 0, 8, 9},      // digits_0
     (Rectangle){4168, 0, 8, 9},      // digits_1
@@ -344,7 +334,6 @@ Rectangle asset_map[] = {
     (Rectangle){4224, 0, 8, 9},      // digits_8
     (Rectangle){4232, 0, 8, 9},      // digits_9
     (Rectangle){4240, 0, 8, 9},      // digits_car
-
     // Green digits (8x9 each)
     (Rectangle){4248, 0, 8, 9},      // green_digits_0
     (Rectangle){4256, 0, 8, 9},      // green_digits_1
@@ -356,7 +345,6 @@ Rectangle asset_map[] = {
     (Rectangle){4304, 0, 8, 9},      // green_digits_7
     (Rectangle){4312, 0, 8, 9},      // green_digits_8
     (Rectangle){4320, 0, 8, 9},      // green_digits_9
-
     // Yellow digits (8x9 each)
     (Rectangle){4328, 0, 8, 9},      // yellow_digits_0
     (Rectangle){4336, 0, 8, 9},      // yellow_digits_1
@@ -368,7 +356,6 @@ Rectangle asset_map[] = {
     (Rectangle){4384, 0, 8, 9},      // yellow_digits_7
     (Rectangle){4392, 0, 8, 9},      // yellow_digits_8
     (Rectangle){4400, 0, 8, 9},      // yellow_digits_9
-
     // Car sprites (16x11 each)
     (Rectangle){4408, 0, 16, 11},    // enemy_car_blue_left_tread
     (Rectangle){4424, 0, 16, 11},    // enemy_car_blue_right_tread
@@ -384,11 +371,9 @@ Rectangle asset_map[] = {
     (Rectangle){4584, 0, 16, 11},    // enemy_car_yellow_right_tread
     (Rectangle){4600, 0, 16, 11},    // enemy_car_night_fog_tail_lights
     (Rectangle){4616, 0, 16, 11},    // enemy_car_night_tail_lights
-
     // Player car (16x11 each)
     (Rectangle){4632, 0, 16, 11},    // player_car_left_tread
     (Rectangle){4648, 0, 16, 11},    // player_car_right_tread
-
     // Flags (32x9 each)
     (Rectangle){4664, 0, 32, 9},     // level_complete_flag_right
     (Rectangle){4696, 0, 32, 9},     // level_complete_flag_left
@@ -468,7 +453,7 @@ enum AssetIndices {
     ASSET_YELLOW_DIGITS_8,
     ASSET_YELLOW_DIGITS_9,
 
-    // Enemy car sprites
+    // Enemy car animation
     ASSET_ENEMY_CAR_BLUE_LEFT_TREAD = 63,
     ASSET_ENEMY_CAR_BLUE_RIGHT_TREAD,
     ASSET_ENEMY_CAR_GOLD_LEFT_TREAD,
@@ -484,11 +469,11 @@ enum AssetIndices {
     ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS,
     ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS,
 
-    // Adjusted indices for player car sprites
+    // Player car animation
     ASSET_PLAYER_CAR_LEFT_TREAD = 77,
     ASSET_PLAYER_CAR_RIGHT_TREAD,
 
-    // Adjusted indices for flags
+    // Victory flags
     ASSET_LEVEL_COMPLETE_FLAG_RIGHT = 79,
     ASSET_LEVEL_COMPLETE_FLAG_LEFT,
 };
@@ -500,7 +485,7 @@ typedef struct Client {
     GameState gameState;
 } Client;
 
-// Prototypes
+// Prototypes //
 // RNG
 unsigned int xorshift32(unsigned int *state);
 // LogBuffer functions
@@ -533,14 +518,12 @@ void compute_observations(Enduro* env);
 Client* make_client(Enduro* env);
 void close_client(Client* client, Enduro* env);
 void render_car(Client* client, GameState* gameState);
-void handleEvents(int* running, Enduro* env);
 
 // GameState rendering functions
 void initRaylib();
 void loadTextures(GameState* gameState);
 void updateCarAnimation(GameState* gameState);
 void updateScoreboard(GameState* gameState);
-void updateBackground(GameState* gameState);
 void renderBackground(GameState* gameState);
 void renderScoreboard(GameState* gameState);
 void updateMountains(GameState* gameState);
@@ -549,8 +532,7 @@ void updateVictoryEffects(GameState* gameState);
 void c_render(Client* client, Enduro* env);
 void cleanup(GameState* gameState);
 
-// Function definitions
-
+// Function definitions //
 // RNG
 unsigned int xorshift32(unsigned int *state) {
     unsigned int x = *state;
@@ -626,8 +608,9 @@ Log aggregate_and_clear(LogBuffer* logs) {
 void init(Enduro* env, int seed, int env_index) {
     env->index = env_index;
     env->rng_state = seed;
+    env->reset_count = 0;
 
-    if (seed == 10) { // Activate with seed==0
+    if (seed == 0) { // Activate with seed==0
         // Start the environment at the beginning of the day
         env->elapsedTimeEnv = 0.0f;
         env->currentDayTimeIndex = 0;
@@ -651,11 +634,6 @@ void init(Enduro* env, int seed, int env_index) {
         if (env->elapsedTimeEnv >= BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1]) {
             env->currentDayTimeIndex = NUM_BACKGROUND_TRANSITIONS - 1;
         }
-    }
-
-    if (env->index % 100 == 0) {
-    //printf("Environment #%d state after init: elapsedTimeEnv=%f, currentDayTimeIndex=%d\n",
-           //env_index, env->elapsedTimeEnv, env->currentDayTimeIndex);
     }
 
     env->numEnemies = 0;
@@ -908,20 +886,15 @@ void reset_round(Enduro* env) {
 
 // Reset all init vars
 void reset(Enduro* env) {
-    // // No random after first reset
-    // int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
+    // No random after first reset
+    int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
 
-    int reset_seed = xorshift32(&env->rng_state);
+    // int reset_seed = xorshift32(&env->rng_state);
     init(env, reset_seed, env->index);
     env->reset_count += 1;
 }
 
 unsigned char check_collision(Enduro* env, Car* car) {
-    // // Don't detect multiple collisions in the same step
-    // if (env->collision_cooldown_car_vs_car > 0.0f || env->collision_cooldown_car_vs_road > 0.0f) {
-    //     return 0;
-    // }
-
     // Compute the scale factor based on vanishing point reference
     float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
     float scale = fmax(0.1f, 0.9f * depth);
@@ -1112,43 +1085,6 @@ void accelerate(Enduro* env) {
     validate_speed(env);
 }
 
-void compute_enemy_car_rewards(Enduro* env) {
-    for (int i = 0; i < env->numEnemies; i++) {
-        Car* car = &env->enemyCars[i];
-
-        // Calculate the horizontal and vertical distance between the player and the enemy car
-        // float car_x = car_x_in_lane(env, car->lane, car->y);
-        // float horizontal_distance = fabs(car_x - env->player_x);
-        float vertical_distance = fabs(car->y - env->player_y);
-
-        // Manhattan distance
-        // float current_distance = sqrt(horizontal_distance * horizontal_distance + vertical_distance * vertical_distance);
-        float current_distance = sqrt(vertical_distance * vertical_distance);
-
-        // Compute reward for approaching enemy cars
-        if (car->last_y <= env->player_y) {
-            float previous_distance = fabs(car->last_y - env->player_y);
-            float distance_change = previous_distance - current_distance;
-
-            // printf("Distance change: %.2f\n", distance_change);
-            // Reward for getting closer
-            if (distance_change > 0 && car->y < env->player_y) { // Enemy car is in front
-                //env->rewards[0] += distance_change * 0.0001f; // Scaled reward for reducing distance
-                //env->log.reward += distance_change * 0.0001f;
-                //printf("Reward for getting closer: %.2f\n", distance_change * 0.0001f);
-            }
-
-            // Bonus reward for passing the enemy car
-            if (car->y > env->player_y && !car->passed) { // Enemy car is now behind
-                env->rewards[0] += 0.5f; // Fixed reward for passing
-                env->log.reward += 0.5f;
-                car->passed = 1; // Mark car as passed (log-only)
-                //printf("Reward for passing enemy car\n");
-            }
-        }
-    }
-}
-
 void c_step(Enduro* env) {  
     env->rewards[0] = 0.0f;
     env->elapsedTimeEnv += (1.0f / TARGET_FPS);
@@ -1157,8 +1093,6 @@ void c_step(Enduro* env) {
     env->log.episode_length += 1;
     env->terminals[0] = 0;
     env->road_scroll_offset += env->speed;
-
-    // compute_enemy_car_rewards(env);
 
     // Update enemy car positions
     for (int i = 0; i < env->numEnemies; i++) {
@@ -1770,96 +1704,6 @@ void render_car(Client* client, GameState* gameState) {
     DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
 }
 
-// void handleEvents(int* running, Enduro* env) {
-//     *env->actions = ACTION_NOOP;
-//     if (WindowShouldClose()) {
-//         *running = 0;
-//     }
-//     unsigned char left = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
-//     unsigned char right = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
-//     unsigned char down = IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
-//     unsigned char fire = IsKeyDown(KEY_SPACE); // Fire key
-//     if (fire) {
-//         if (right) {
-//             *env->actions = ACTION_RIGHTFIRE;
-//         } else if (left) {
-//             *env->actions = ACTION_LEFTFIRE;
-//         } else {
-//             *env->actions = ACTION_FIRE;
-//         }
-//     } else if (down) {
-//         if (right) {
-//             *env->actions = ACTION_DOWNRIGHT;
-//         } else if (left) {
-//             *env->actions = ACTION_DOWNLEFT;
-//         } else {
-//             *env->actions = ACTION_DOWN;
-//         }
-//     } else if (right) {
-//         *env->actions = ACTION_RIGHT;
-//     } else if (left) {
-//         *env->actions = ACTION_LEFT;
-//     } else {
-//         *env->actions = ACTION_NOOP;
-//     }
-// }
-
-void handleEvents(int* running, Enduro* env) {
-    static unsigned char left = 0;
-    static unsigned char right = 0;
-    static unsigned char down = 0;
-    static unsigned char fire = 0;
-
-    if (WindowShouldClose()) {
-        *running = 0;
-    }
-
-    // Toggle left key
-    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
-        left = !left;
-    }
-
-    // Toggle right key
-    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
-        right = !right;
-    }
-
-    // Toggle down key
-    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
-        down = !down;
-    }
-
-    // Toggle fire key
-    if (IsKeyPressed(KEY_SPACE)) {
-        fire = !fire;
-    }
-
-    // Determine action based on toggled states
-    if (fire) {
-        if (right) {
-            *env->actions = ACTION_RIGHTFIRE;
-        } else if (left) {
-            *env->actions = ACTION_LEFTFIRE;
-        } else {
-            *env->actions = ACTION_FIRE;
-        }
-    } else if (down) {
-        if (right) {
-            *env->actions = ACTION_DOWNRIGHT;
-        } else if (left) {
-            *env->actions = ACTION_DOWNLEFT;
-        } else {
-            *env->actions = ACTION_DOWN;
-        }
-    } else if (right) {
-        *env->actions = ACTION_RIGHT;
-    } else if (left) {
-        *env->actions = ACTION_LEFT;
-    } else {
-        *env->actions = ACTION_NOOP;
-    }
-}
-
 void initRaylib() {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "puffer_enduro");
     SetTargetFPS(60);
@@ -1998,22 +1842,6 @@ void updateScoreboard(GameState* gameState) {
             }
         }
     }
-}
-
-void updateBackground(GameState* gameState) {
-    float elapsedTime = gameState->elapsedTime;
-    float totalDuration = gameState->backgroundTransitionTimes[15];
-    if (elapsedTime >= totalDuration) {
-        elapsedTime -= totalDuration;
-        gameState->elapsedTime = elapsedTime; // Reset elapsed time in env
-        gameState->backgroundIndex = 0;
-    }
-    gameState->previousBackgroundIndex = gameState->currentBackgroundIndex;
-    while (gameState->backgroundIndex < 15 &&
-           elapsedTime >= gameState->backgroundTransitionTimes[gameState->backgroundIndex]) {
-        gameState->backgroundIndex++;
-    }
-    gameState->currentBackgroundIndex = gameState->backgroundIndex % 16;
 }
 
 void renderBackground(GameState* gameState) {
