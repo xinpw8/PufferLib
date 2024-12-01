@@ -121,19 +121,24 @@ typedef struct Car {
 
 // Rendering struct
 typedef struct GameState {
-    Texture2D backgroundTextures[16]; // 16 different backgrounds for time of day
-    Texture2D digitTextures[10];      // Textures for digits 0-9
-    Texture2D carDigitTexture;        // Texture for the "CAR" digit
-    Texture2D mountainTextures[16];   // Mountain textures corresponding to backgrounds
-    Texture2D levelCompleteFlagLeftTexture;  // Texture for left flag
-    Texture2D levelCompleteFlagRightTexture; // Texture for right flag
-    Texture2D greenDigitTextures[10];        // Textures for green digits
-    Texture2D yellowDigitTextures[10];       // Textures for yellow digits
-    Texture2D playerCarLeftTreadTexture;
-    Texture2D playerCarRightTreadTexture;
-    Texture2D enemyCarTextures[6][2]; // [color][tread] 6 colors, 2 treads (left, right)
-    Texture2D enemyCarNightTailLightsTexture;
-    Texture2D enemyCarNightFogTailLightsTexture;
+    Texture2D spritesheet;
+    // Indices into asset_map[] for various assets
+    int backgroundIndices[16];
+    int mountainIndices[16];
+    int digitIndices[11];      // 0-9 and "CAR"
+    int greenDigitIndices[10]; // Green digits 0-9
+    int yellowDigitIndices[10]; // Yellow digits 0-9
+    // Enemy car indices: [color][tread]
+    int enemyCarIndices[6][2];
+    int enemyCarNightTailLightsIndex;
+    int enemyCarNightFogTailLightsIndex;
+    // Player car indices
+    int playerCarLeftTreadIndex;
+    int playerCarRightTreadIndex;
+    // Flag indices
+    int levelCompleteFlagLeftIndex;
+    int levelCompleteFlagRightIndex;
+
     // For car animation
     float carAnimationTimer;
     float carAnimationInterval;
@@ -289,6 +294,204 @@ typedef enum {
     ACTION_RIGHTFIRE = 7,
     ACTION_LEFTFIRE = 8,
 } Action;
+
+Rectangle asset_map[] = {
+    // Backgrounds (160x210 each)
+    (Rectangle){0, 0, 160, 210},     // 0_bg
+    (Rectangle){160, 0, 160, 210},   // 1_bg
+    (Rectangle){320, 0, 160, 210},   // 2_bg
+    (Rectangle){480, 0, 160, 210},   // 3_bg
+    (Rectangle){640, 0, 160, 210},   // 4_bg
+    (Rectangle){800, 0, 160, 210},   // 5_bg
+    (Rectangle){960, 0, 160, 210},   // 6_bg
+    (Rectangle){1120, 0, 160, 210},  // 7_bg
+    (Rectangle){1280, 0, 160, 210},  // 8_bg
+    (Rectangle){1440, 0, 160, 210},  // 9_bg
+    (Rectangle){1600, 0, 160, 210},  // 10_bg
+    (Rectangle){1760, 0, 160, 210},  // 11_bg
+    (Rectangle){1920, 0, 160, 210},  // 12_bg
+    (Rectangle){2080, 0, 160, 210},  // 13_bg
+    (Rectangle){2240, 0, 160, 210},  // 14_bg
+    (Rectangle){2400, 0, 160, 210},  // 15_bg
+
+    // Mountains (100x6 each)
+    (Rectangle){2560, 0, 100, 6},    // 0_mtns
+    (Rectangle){2660, 0, 100, 6},    // 1_mtns
+    (Rectangle){2760, 0, 100, 6},    // 2_mtns
+    (Rectangle){2860, 0, 100, 6},    // 3_mtns
+    (Rectangle){2960, 0, 100, 6},    // 4_mtns
+    (Rectangle){3060, 0, 100, 6},    // 5_mtns
+    (Rectangle){3160, 0, 100, 6},    // 6_mtns
+    (Rectangle){3260, 0, 100, 6},    // 7_mtns
+    (Rectangle){3360, 0, 100, 6},    // 8_mtns
+    (Rectangle){3460, 0, 100, 6},    // 9_mtns
+    (Rectangle){3560, 0, 100, 6},    // 10_mtns
+    (Rectangle){3660, 0, 100, 6},    // 11_mtns
+    (Rectangle){3760, 0, 100, 6},    // 12_mtns
+    (Rectangle){3860, 0, 100, 6},    // 13_mtns
+    (Rectangle){3960, 0, 100, 6},    // 14_mtns
+    (Rectangle){4060, 0, 100, 6},    // 15_mtns
+
+    // Plain digits (8x9 each)
+    (Rectangle){4160, 0, 8, 9},      // digits_0
+    (Rectangle){4168, 0, 8, 9},      // digits_1
+    (Rectangle){4176, 0, 8, 9},      // digits_2
+    (Rectangle){4184, 0, 8, 9},      // digits_3
+    (Rectangle){4192, 0, 8, 9},      // digits_4
+    (Rectangle){4200, 0, 8, 9},      // digits_5
+    (Rectangle){4208, 0, 8, 9},      // digits_6
+    (Rectangle){4216, 0, 8, 9},      // digits_7
+    (Rectangle){4224, 0, 8, 9},      // digits_8
+    (Rectangle){4232, 0, 8, 9},      // digits_9
+    (Rectangle){4240, 0, 8, 9},      // digits_car
+
+    // Green digits (8x9 each)
+    (Rectangle){4248, 0, 8, 9},      // green_digits_0
+    (Rectangle){4256, 0, 8, 9},      // green_digits_1
+    (Rectangle){4264, 0, 8, 9},      // green_digits_2
+    (Rectangle){4272, 0, 8, 9},      // green_digits_3
+    (Rectangle){4280, 0, 8, 9},      // green_digits_4
+    (Rectangle){4288, 0, 8, 9},      // green_digits_5
+    (Rectangle){4296, 0, 8, 9},      // green_digits_6
+    (Rectangle){4304, 0, 8, 9},      // green_digits_7
+    (Rectangle){4312, 0, 8, 9},      // green_digits_8
+    (Rectangle){4320, 0, 8, 9},      // green_digits_9
+
+    // Yellow digits (8x9 each)
+    (Rectangle){4328, 0, 8, 9},      // yellow_digits_0
+    (Rectangle){4336, 0, 8, 9},      // yellow_digits_1
+    (Rectangle){4344, 0, 8, 9},      // yellow_digits_2
+    (Rectangle){4352, 0, 8, 9},      // yellow_digits_3
+    (Rectangle){4360, 0, 8, 9},      // yellow_digits_4
+    (Rectangle){4368, 0, 8, 9},      // yellow_digits_5
+    (Rectangle){4376, 0, 8, 9},      // yellow_digits_6
+    (Rectangle){4384, 0, 8, 9},      // yellow_digits_7
+    (Rectangle){4392, 0, 8, 9},      // yellow_digits_8
+    (Rectangle){4400, 0, 8, 9},      // yellow_digits_9
+
+    // Car sprites (16x11 each)
+    (Rectangle){4408, 0, 16, 11},    // enemy_car_blue_left_tread
+    (Rectangle){4424, 0, 16, 11},    // enemy_car_blue_right_tread
+    (Rectangle){4440, 0, 16, 11},    // enemy_car_gold_left_tread
+    (Rectangle){4456, 0, 16, 11},    // enemy_car_gold_right_tread
+    (Rectangle){4472, 0, 16, 11},    // enemy_car_pink_left_tread
+    (Rectangle){4488, 0, 16, 11},    // enemy_car_pink_right_tread
+    (Rectangle){4504, 0, 16, 11},    // enemy_car_salmon_left_tread
+    (Rectangle){4520, 0, 16, 11},    // enemy_car_salmon_right_tread
+    (Rectangle){4536, 0, 16, 11},    // enemy_car_teal_left_tread
+    (Rectangle){4552, 0, 16, 11},    // enemy_car_teal_right_tread
+    (Rectangle){4568, 0, 16, 11},    // enemy_car_yellow_left_tread
+    (Rectangle){4584, 0, 16, 11},    // enemy_car_yellow_right_tread
+    (Rectangle){4600, 0, 16, 11},    // enemy_car_night_fog_tail_lights
+    (Rectangle){4616, 0, 16, 11},    // enemy_car_night_tail_lights
+
+    // Player car (16x11 each)
+    (Rectangle){4632, 0, 16, 11},    // player_car_left_tread
+    (Rectangle){4648, 0, 16, 11},    // player_car_right_tread
+
+    // Flags (32x9 each)
+    (Rectangle){4664, 0, 32, 9},     // level_complete_flag_right
+    (Rectangle){4696, 0, 32, 9},     // level_complete_flag_left
+};
+
+enum AssetIndices {
+    // Backgrounds
+    ASSET_BG_0 = 0,
+    ASSET_BG_1,
+    ASSET_BG_2,
+    ASSET_BG_3,
+    ASSET_BG_4,
+    ASSET_BG_5,
+    ASSET_BG_6,
+    ASSET_BG_7,
+    ASSET_BG_8,
+    ASSET_BG_9,
+    ASSET_BG_10,
+    ASSET_BG_11,
+    ASSET_BG_12,
+    ASSET_BG_13,
+    ASSET_BG_14,
+    ASSET_BG_15,
+
+    // Mountains
+    ASSET_MOUNTAIN_0 = 16,
+    ASSET_MOUNTAIN_1,
+    ASSET_MOUNTAIN_2,
+    ASSET_MOUNTAIN_3,
+    ASSET_MOUNTAIN_4,
+    ASSET_MOUNTAIN_5,
+    ASSET_MOUNTAIN_6,
+    ASSET_MOUNTAIN_7,
+    ASSET_MOUNTAIN_8,
+    ASSET_MOUNTAIN_9,
+    ASSET_MOUNTAIN_10,
+    ASSET_MOUNTAIN_11,
+    ASSET_MOUNTAIN_12,
+    ASSET_MOUNTAIN_13,
+    ASSET_MOUNTAIN_14,
+    ASSET_MOUNTAIN_15,
+
+    // Plain digits
+    ASSET_DIGITS_0 = 32,
+    ASSET_DIGITS_1,
+    ASSET_DIGITS_2,
+    ASSET_DIGITS_3,
+    ASSET_DIGITS_4,
+    ASSET_DIGITS_5,
+    ASSET_DIGITS_6,
+    ASSET_DIGITS_7,
+    ASSET_DIGITS_8,
+    ASSET_DIGITS_9,
+    ASSET_DIGITS_CAR,
+
+    // Green digits
+    ASSET_GREEN_DIGITS_0 = 43,
+    ASSET_GREEN_DIGITS_1,
+    ASSET_GREEN_DIGITS_2,
+    ASSET_GREEN_DIGITS_3,
+    ASSET_GREEN_DIGITS_4,
+    ASSET_GREEN_DIGITS_5,
+    ASSET_GREEN_DIGITS_6,
+    ASSET_GREEN_DIGITS_7,
+    ASSET_GREEN_DIGITS_8,
+    ASSET_GREEN_DIGITS_9,
+
+    // Yellow digits
+    ASSET_YELLOW_DIGITS_0 = 53,
+    ASSET_YELLOW_DIGITS_1,
+    ASSET_YELLOW_DIGITS_2,
+    ASSET_YELLOW_DIGITS_3,
+    ASSET_YELLOW_DIGITS_4,
+    ASSET_YELLOW_DIGITS_5,
+    ASSET_YELLOW_DIGITS_6,
+    ASSET_YELLOW_DIGITS_7,
+    ASSET_YELLOW_DIGITS_8,
+    ASSET_YELLOW_DIGITS_9,
+
+    // Enemy car sprites
+    ASSET_ENEMY_CAR_BLUE_LEFT_TREAD = 63,
+    ASSET_ENEMY_CAR_BLUE_RIGHT_TREAD,
+    ASSET_ENEMY_CAR_GOLD_LEFT_TREAD,
+    ASSET_ENEMY_CAR_GOLD_RIGHT_TREAD,
+    ASSET_ENEMY_CAR_PINK_LEFT_TREAD,
+    ASSET_ENEMY_CAR_PINK_RIGHT_TREAD,
+    ASSET_ENEMY_CAR_SALMON_LEFT_TREAD,
+    ASSET_ENEMY_CAR_SALMON_RIGHT_TREAD,
+    ASSET_ENEMY_CAR_TEAL_LEFT_TREAD,
+    ASSET_ENEMY_CAR_TEAL_RIGHT_TREAD,
+    ASSET_ENEMY_CAR_YELLOW_LEFT_TREAD,
+    ASSET_ENEMY_CAR_YELLOW_RIGHT_TREAD,
+    ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS,
+    ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS,
+
+    // Adjusted indices for player car sprites
+    ASSET_PLAYER_CAR_LEFT_TREAD = 77,
+    ASSET_PLAYER_CAR_RIGHT_TREAD,
+
+    // Adjusted indices for flags
+    ASSET_LEVEL_COMPLETE_FLAG_RIGHT = 79,
+    ASSET_LEVEL_COMPLETE_FLAG_LEFT,
+};
 
 // Client struct
 typedef struct Client {
@@ -1264,8 +1467,7 @@ void c_step(Enduro* env) {
             env->carsToPass = 300; // Always 300 after the first day
             env->dayCompleted = false;
             add_log(env->log_buffer, &env->log);
-            compute_observations(env); // Call compute_observations to log
-        
+                    
         } else {
             // Player failed to pass required cars, soft-reset environment
             env->log.days_failed += 1.0f;
@@ -1562,19 +1764,77 @@ void close_client(Client* client, Enduro* env) {
 }
 
 void render_car(Client* client, GameState* gameState) {
-    Texture2D carTexture = gameState->showLeftTread ? gameState->playerCarLeftTreadTexture : gameState->playerCarRightTreadTexture;
-    DrawTexture(carTexture, (int)gameState->player_x, (int)gameState->player_y, WHITE);
+    int carAssetIndex = gameState->showLeftTread ? gameState->playerCarLeftTreadIndex : gameState->playerCarRightTreadIndex;
+    Rectangle srcRect = asset_map[carAssetIndex];
+    Vector2 position = { gameState->player_x, gameState->player_y };
+    DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
 }
 
+// void handleEvents(int* running, Enduro* env) {
+//     *env->actions = ACTION_NOOP;
+//     if (WindowShouldClose()) {
+//         *running = 0;
+//     }
+//     unsigned char left = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
+//     unsigned char right = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+//     unsigned char down = IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
+//     unsigned char fire = IsKeyDown(KEY_SPACE); // Fire key
+//     if (fire) {
+//         if (right) {
+//             *env->actions = ACTION_RIGHTFIRE;
+//         } else if (left) {
+//             *env->actions = ACTION_LEFTFIRE;
+//         } else {
+//             *env->actions = ACTION_FIRE;
+//         }
+//     } else if (down) {
+//         if (right) {
+//             *env->actions = ACTION_DOWNRIGHT;
+//         } else if (left) {
+//             *env->actions = ACTION_DOWNLEFT;
+//         } else {
+//             *env->actions = ACTION_DOWN;
+//         }
+//     } else if (right) {
+//         *env->actions = ACTION_RIGHT;
+//     } else if (left) {
+//         *env->actions = ACTION_LEFT;
+//     } else {
+//         *env->actions = ACTION_NOOP;
+//     }
+// }
+
 void handleEvents(int* running, Enduro* env) {
-    *env->actions = ACTION_NOOP;
+    static unsigned char left = 0;
+    static unsigned char right = 0;
+    static unsigned char down = 0;
+    static unsigned char fire = 0;
+
     if (WindowShouldClose()) {
         *running = 0;
     }
-    unsigned char left = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
-    unsigned char right = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
-    unsigned char down = IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
-    unsigned char fire = IsKeyDown(KEY_SPACE); // Fire key
+
+    // Toggle left key
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+        left = !left;
+    }
+
+    // Toggle right key
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+        right = !right;
+    }
+
+    // Toggle down key
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+        down = !down;
+    }
+
+    // Toggle fire key
+    if (IsKeyPressed(KEY_SPACE)) {
+        fire = !fire;
+    }
+
+    // Determine action based on toggled states
     if (fire) {
         if (right) {
             *env->actions = ACTION_RIGHTFIRE;
@@ -1639,54 +1899,38 @@ void loadTextures(GameState* gameState) {
     gameState->previousBackgroundIndex = 0;
 
     // Load background and mountain textures for different times of day per original env
-    char backgroundFile[40];
-    char mountainFile[40];
+    gameState->spritesheet = LoadTexture("resources/puffer_enduro/enduro_spritesheet.png");
+
+    // Initialize background and mountain indices
     for (int i = 0; i < 16; ++i) {
-        snprintf(backgroundFile, sizeof(backgroundFile), "resources/puffer_enduro/%d_bg.png", i);
-        gameState->backgroundTextures[i] = LoadTexture(backgroundFile);
-        snprintf(mountainFile, sizeof(mountainFile), "resources/puffer_enduro/%d_mtns.png", i);
-        gameState->mountainTextures[i] = LoadTexture(mountainFile);
+        gameState->backgroundIndices[i] = ASSET_BG_0 + i;
+        gameState->mountainIndices[i] = ASSET_MOUNTAIN_0 + i;
     }
-    // Load digit textures 0-9
-    char filename[100];
-    for (int i = 0; i < 10; i++) {
-        snprintf(filename, sizeof(filename), "resources/puffer_enduro/digits_%d.png", i);
-        gameState->digitTextures[i] = LoadTexture(filename);
-    }
-    // Load the "car" digit texture
-    gameState->carDigitTexture = LoadTexture("resources/puffer_enduro/digits_car.png");
-    // Load level complete flag textures
-    gameState->levelCompleteFlagLeftTexture = LoadTexture("resources/puffer_enduro/level_complete_flag_left.png");
-    gameState->levelCompleteFlagRightTexture = LoadTexture("resources/puffer_enduro/level_complete_flag_right.png");
-    // Load green digits for completed days
+
+    // Initialize digit indices
     for (int i = 0; i < 10; ++i) {
-        snprintf(filename, sizeof(filename), "resources/puffer_enduro/green_digits_%d.png", i);
-        gameState->greenDigitTextures[i] = LoadTexture(filename);
+        gameState->digitIndices[i] = ASSET_DIGITS_0 + i;
+        gameState->greenDigitIndices[i] = ASSET_GREEN_DIGITS_0 + i;
+        gameState->yellowDigitIndices[i] = ASSET_YELLOW_DIGITS_0 + i;
     }
-    // Load yellow digits for scoreboard numbers
-    for (int i = 0; i < 10; ++i) {
-        snprintf(filename, sizeof(filename), "resources/puffer_enduro/yellow_digits_%d.png", i);
-        gameState->yellowDigitTextures[i] = LoadTexture(filename);
+    gameState->digitIndices[10] = ASSET_DIGITS_CAR; // Index for "CAR"
+
+    // Initialize enemy car indices
+    int baseEnemyCarIndex = ASSET_ENEMY_CAR_BLUE_LEFT_TREAD;
+    for (int color = 0; color < 6; ++color) {
+        for (int tread = 0; tread < 2; ++tread) {
+            gameState->enemyCarIndices[color][tread] = baseEnemyCarIndex + color * 2 + tread;
+        }
     }
-    gameState->playerCarLeftTreadTexture = LoadTexture("resources/puffer_enduro/player_car_left_tread.png");
-    gameState->playerCarRightTreadTexture = LoadTexture("resources/puffer_enduro/player_car_right_tread.png");
-    // Load enemy car textures for each color and tread variant
-    gameState->enemyCarTextures[0][0] = LoadTexture("resources/puffer_enduro/enemy_car_blue_left_tread.png");
-    gameState->enemyCarTextures[0][1] = LoadTexture("resources/puffer_enduro/enemy_car_blue_right_tread.png");
-    gameState->enemyCarTextures[1][0] = LoadTexture("resources/puffer_enduro/enemy_car_gold_left_tread.png");
-    gameState->enemyCarTextures[1][1] = LoadTexture("resources/puffer_enduro/enemy_car_gold_right_tread.png");
-    gameState->enemyCarTextures[2][0] = LoadTexture("resources/puffer_enduro/enemy_car_pink_left_tread.png");
-    gameState->enemyCarTextures[2][1] = LoadTexture("resources/puffer_enduro/enemy_car_pink_right_tread.png");
-    gameState->enemyCarTextures[3][0] = LoadTexture("resources/puffer_enduro/enemy_car_salmon_left_tread.png");
-    gameState->enemyCarTextures[3][1] = LoadTexture("resources/puffer_enduro/enemy_car_salmon_right_tread.png");
-    gameState->enemyCarTextures[4][0] = LoadTexture("resources/puffer_enduro/enemy_car_teal_left_tread.png");
-    gameState->enemyCarTextures[4][1] = LoadTexture("resources/puffer_enduro/enemy_car_teal_right_tread.png");
-    gameState->enemyCarTextures[5][0] = LoadTexture("resources/puffer_enduro/enemy_car_yellow_left_tread.png");
-    gameState->enemyCarTextures[5][1] = LoadTexture("resources/puffer_enduro/enemy_car_yellow_right_tread.png");
-    // Load enemy car night tail lights textures
-    gameState->enemyCarNightTailLightsTexture = LoadTexture("resources/puffer_enduro/enemy_car_night_tail_lights.png");
-    // Load enemy car night fog tail lights texture
-    gameState->enemyCarNightFogTailLightsTexture = LoadTexture("resources/puffer_enduro/enemy_car_night_fog_tail_lights.png");
+
+    // Load other asset indices
+    gameState->enemyCarNightTailLightsIndex = ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS;
+    gameState->enemyCarNightFogTailLightsIndex = ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS;
+    gameState->playerCarLeftTreadIndex = ASSET_PLAYER_CAR_LEFT_TREAD;
+    gameState->playerCarRightTreadIndex = ASSET_PLAYER_CAR_RIGHT_TREAD;
+    gameState->levelCompleteFlagLeftIndex = ASSET_LEVEL_COMPLETE_FLAG_LEFT;
+    gameState->levelCompleteFlagRightIndex = ASSET_LEVEL_COMPLETE_FLAG_RIGHT;
+    
     // Initialize animation variables
     gameState->carAnimationTimer = 0.0f;
     gameState->carAnimationInterval = 0.05f; // Initial interval, will be updated based on speed
@@ -1695,32 +1939,7 @@ void loadTextures(GameState* gameState) {
 }
 
 void cleanup(GameState* gameState) {
-    // Unload background and mountain textures
-    for (int i = 0; i < 16; ++i) {
-        UnloadTexture(gameState->backgroundTextures[i]);
-        UnloadTexture(gameState->mountainTextures[i]);
-    }
-    // Unload digit textures
-    for (int i = 0; i < 10; ++i) {
-        UnloadTexture(gameState->digitTextures[i]);
-        UnloadTexture(gameState->greenDigitTextures[i]);
-        UnloadTexture(gameState->yellowDigitTextures[i]);
-    }
-    // Unload "car" digit and flag textures
-    UnloadTexture(gameState->carDigitTexture);
-    UnloadTexture(gameState->levelCompleteFlagLeftTexture);
-    UnloadTexture(gameState->levelCompleteFlagRightTexture);
-    // Unload enemy car textures
-    for (int color = 0; color < 6; color++) {
-        for (int tread = 0; tread < 2; tread++) {
-            UnloadTexture(gameState->enemyCarTextures[color][tread]);
-        }
-    }
-    UnloadTexture(gameState->enemyCarNightTailLightsTexture);
-    UnloadTexture(gameState->enemyCarNightFogTailLightsTexture);
-    // Unload player car textures
-    UnloadTexture(gameState->playerCarLeftTreadTexture);
-    UnloadTexture(gameState->playerCarRightTreadTexture);
+    UnloadTexture(gameState->spritesheet);
     CloseWindow();
 }
 
@@ -1798,10 +2017,9 @@ void updateBackground(GameState* gameState) {
 }
 
 void renderBackground(GameState* gameState) {
-    Texture2D bgTexture = gameState->backgroundTextures[gameState->currentBackgroundIndex];
-    if (bgTexture.id != 0) {
-        DrawTexture(bgTexture, 0, 0, WHITE);
-    }
+    int bgIndex = gameState->backgroundIndices[gameState->currentBackgroundIndex];
+    Rectangle srcRect = asset_map[bgIndex];
+    DrawTextureRec(gameState->spritesheet, srcRect, (Vector2){0, 0}, WHITE);
 }
 
 void renderScoreboard(GameState* gameState) {
@@ -1818,33 +2036,55 @@ void renderScoreboard(GameState* gameState) {
     // Render score with scrolling effect
     for (int i = 0; i < SCORE_DIGITS; ++i) {
         int digitX = scoreStartX + i * digitWidth;
-        Texture2D currentDigitTexture;
-        Texture2D nextDigitTexture;
+        int currentDigitIndex = gameState->scoreDigitCurrents[i];
+        int nextDigitIndex = gameState->scoreDigitNexts[i];
 
+        int currentAssetIndex, nextAssetIndex;
         if (i == SCORE_DIGITS - 1) {
             // Use yellow digits for the last digit
-            currentDigitTexture = gameState->yellowDigitTextures[gameState->scoreDigitCurrents[i]];
-            nextDigitTexture = gameState->yellowDigitTextures[gameState->scoreDigitNexts[i]];
+            currentAssetIndex = gameState->yellowDigitIndices[currentDigitIndex];
+            nextAssetIndex = gameState->yellowDigitIndices[nextDigitIndex];
         } else {
             // Use regular digits
-            currentDigitTexture = gameState->digitTextures[gameState->scoreDigitCurrents[i]];
-            nextDigitTexture = gameState->digitTextures[gameState->scoreDigitNexts[i]];
+            currentAssetIndex = gameState->digitIndices[currentDigitIndex];
+            nextAssetIndex = gameState->digitIndices[nextDigitIndex];
         }
+        Rectangle srcRectCurrentFull = asset_map[currentAssetIndex];
+        Rectangle srcRectNextFull = asset_map[nextAssetIndex];
 
         if (gameState->scoreDigitScrolling[i]) {
             // Scrolling effect for this digit
             float offset = gameState->scoreDigitOffsets[i];
             // Render current digit moving up
-            Rectangle srcRectCurrent = { 0, 0, digitWidth, digitHeight - (int)offset };
+            Rectangle srcRectCurrent = srcRectCurrentFull;
+            srcRectCurrent.height = digitHeight - (int)offset;
             Rectangle destRectCurrent = { digitX, scoreStartY + (int)offset, digitWidth, digitHeight - (int)offset };
-            DrawTextureRec(currentDigitTexture, srcRectCurrent, (Vector2){ destRectCurrent.x, destRectCurrent.y }, WHITE);
+            DrawTexturePro(
+                gameState->spritesheet,
+                srcRectCurrent,
+                destRectCurrent,
+                (Vector2){ 0, 0 },
+                0.0f,
+                WHITE
+            );
             // Render next digit coming up from below
-            Rectangle srcRectNext = { 0, digitHeight - (int)offset, digitWidth, (int)offset };
+            Rectangle srcRectNext = srcRectNextFull;
+            srcRectNext.y += digitHeight - (int)offset;
+            srcRectNext.height = (int)offset;
             Rectangle destRectNext = { digitX, scoreStartY, digitWidth, (int)offset };
-            DrawTextureRec(nextDigitTexture, srcRectNext, (Vector2){ destRectNext.x, destRectNext.y }, WHITE);
+            DrawTexturePro(
+                gameState->spritesheet,
+                srcRectNext,
+                destRectNext,
+                (Vector2){ 0, 0 },
+                0.0f,
+                WHITE
+            );
         } else {
             // No scrolling, render the current digit normally
-            DrawTexture(currentDigitTexture, digitX, scoreStartY, WHITE);
+            Rectangle srcRect = asset_map[currentAssetIndex];
+            Vector2 position = { digitX, scoreStartY };
+            DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
         }
     }
 
@@ -1855,25 +2095,40 @@ void renderScoreboard(GameState* gameState) {
     if (gameState->dayCompleted) {
         gameState->victoryAchieved = true;
     }
+    Rectangle daySrcRect;
     if (gameState->victoryAchieved) {
         // Green day digits during victory
-        Texture2D greenDigitTexture = gameState->greenDigitTextures[dayTextureIndex];
-        DrawTexture(greenDigitTexture, dayX, dayY, WHITE);
+        int assetIndex = gameState->greenDigitIndices[dayTextureIndex];
+        daySrcRect = asset_map[assetIndex];
     } else {
         // Use normal digits
-        Texture2D digitTexture = gameState->digitTextures[dayTextureIndex];
-        DrawTexture(digitTexture, dayX, dayY, WHITE);
+        int assetIndex = gameState->digitIndices[dayTextureIndex];
+        daySrcRect = asset_map[assetIndex];
     }
+    Vector2 dayPosition = { dayX, dayY };
+    DrawTextureRec(gameState->spritesheet, daySrcRect, dayPosition, WHITE);
 
     // Render "CAR" digit or flags for cars to pass
     if (gameState->victoryAchieved) {
         // Alternate between level_complete_flag_left and level_complete_flag_right
-        Texture2D flagTexture = gameState->showLeftFlag ? gameState->levelCompleteFlagLeftTexture : gameState->levelCompleteFlagRightTexture;
-        Rectangle destRect = { carsX, carsY, digitWidth * 4, digitHeight };
-        DrawTextureEx(flagTexture, (Vector2){ destRect.x, destRect.y }, 0.0f, 1.0f, WHITE);
+        int flagAssetIndex = gameState->showLeftFlag ? gameState->levelCompleteFlagLeftIndex : gameState->levelCompleteFlagRightIndex;
+        Rectangle flagSrcRect = asset_map[flagAssetIndex];
+        Rectangle destRect = { carsX, carsY, flagSrcRect.width, flagSrcRect.height };
+        DrawTexturePro(
+            gameState->spritesheet,
+            flagSrcRect,
+            destRect,
+            (Vector2){ 0, 0 },
+            0.0f,
+            WHITE
+        );
     } else {
         // Render "CAR" label
-        DrawTexture(gameState->carDigitTexture, carsX, carsY, WHITE);
+        int carAssetIndex = gameState->digitIndices[10]; // Index for "CAR"
+        Rectangle carSrcRect = asset_map[carAssetIndex];
+        Vector2 carPosition = { carsX, carsY };
+        DrawTextureRec(gameState->spritesheet, carSrcRect, carPosition, WHITE);
+
         // Render the remaining digits for cars to pass
         int cars = gameState->carsLeftGameState;
         if (cars < 0) cars = 0; // Ensure cars is not negative
@@ -1882,7 +2137,10 @@ void renderScoreboard(GameState* gameState) {
             int digit = (cars / divisor) % 10;
             if (digit < 0 || digit > 9) digit = 0; // Clamp digit to valid range
             int digitX = carsX + i * (digitWidth + 1); // Add spacing between digits
-            DrawTexture(gameState->digitTextures[digit], digitX, carsY, WHITE);
+            int assetIndex = gameState->digitIndices[digit];
+            Rectangle srcRect = asset_map[assetIndex];
+            Vector2 position = { digitX, carsY };
+            DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
         }
     }
 }
@@ -1910,7 +2168,8 @@ void updateMountains(GameState* gameState) {
     float curveStrength = fabsf(gameState->current_curve_factor);
     float speedMultiplier = 1.0f; // Scroll speed
     float scrollSpeed = baseSpeed + curveStrength * speedMultiplier;
-    int mountainWidth = gameState->mountainTextures[0].width;
+    int mountainIndex = gameState->mountainIndices[0]; // Use any mountain index since width is consistent
+    int mountainWidth = asset_map[mountainIndex].width;
     if (gameState->current_curve_direction == 1) { // Turning left
         gameState->mountainPosition += scrollSpeed;
         if (gameState->mountainPosition >= mountainWidth) {
@@ -1925,24 +2184,25 @@ void updateMountains(GameState* gameState) {
 }
 
 void renderMountains(GameState* gameState) {
-    Texture2D mountainTexture = gameState->mountainTextures[gameState->currentBackgroundIndex];
-    if (mountainTexture.id != 0) {
-        int mountainWidth = mountainTexture.width;
-        int mountainY = 45; // y position per original env
-        float playerCenterX = (PLAYER_MIN_X + PLAYER_MAX_X) / 2.0f;
-        float playerOffset = gameState->player_x - playerCenterX;
-        float parallaxFactor = 0.5f;
-        float adjustedOffset = -playerOffset * parallaxFactor;
-        float mountainX = -gameState->mountainPosition + adjustedOffset;
-        BeginScissorMode(PLAYABLE_AREA_LEFT, 0, SCREEN_WIDTH - PLAYABLE_AREA_LEFT, SCREEN_HEIGHT);
-        for (int x = (int)mountainX; x < SCREEN_WIDTH; x += mountainWidth) {
-            DrawTexture(mountainTexture, x, mountainY, WHITE);
-        }
-        for (int x = (int)mountainX - mountainWidth; x > -mountainWidth; x -= mountainWidth) {
-            DrawTexture(mountainTexture, x, mountainY, WHITE);
-        }
-        EndScissorMode();
+    int mountainIndex = gameState->mountainIndices[gameState->currentBackgroundIndex];
+    Rectangle srcRect = asset_map[mountainIndex];
+    int mountainWidth = srcRect.width;
+    int mountainY = 45; // Y position per original environment
+
+    float playerCenterX = (PLAYER_MIN_X + PLAYER_MAX_X) / 2.0f;
+    float playerOffset = gameState->player_x - playerCenterX;
+    float parallaxFactor = 0.5f;
+    float adjustedOffset = -playerOffset * parallaxFactor;
+    float mountainX = -gameState->mountainPosition + adjustedOffset;
+
+    BeginScissorMode(PLAYABLE_AREA_LEFT, 0, SCREEN_WIDTH - PLAYABLE_AREA_LEFT, SCREEN_HEIGHT);
+    for (int x = (int)mountainX; x < SCREEN_WIDTH; x += mountainWidth) {
+        DrawTextureRec(gameState->spritesheet, srcRect, (Vector2){x, mountainY}, WHITE);
     }
+    for (int x = (int)mountainX - mountainWidth; x > -mountainWidth; x -= mountainWidth) {
+        DrawTextureRec(gameState->spritesheet, srcRect, (Vector2){x, mountainY}, WHITE);
+    }
+    EndScissorMode();
 }
 
 void c_render(Client* client, Enduro* env) {
@@ -2047,28 +2307,35 @@ void c_render(Client* client, Enduro* env) {
         // else if (car->y <= 135.0f) car_scale = 16.0f / 20.0f; // Stage 7
         // else car_scale = 1.0f;                                // Normal size
 
-        float car_scale = get_car_scale(car->y);
+    // Determine the car scale based on distance
+    float car_scale = get_car_scale(car->y);
 
-        // Select the correct texture based on the car's color and current tread
-        Texture2D carTexture;
-        if (isNightStage) {
-            carTexture = (bgIndex == 13) ? gameState->enemyCarNightFogTailLightsTexture : gameState->enemyCarNightTailLightsTexture;
-        } else {
-            int colorIndex = car->colorIndex;
-            int treadIndex = gameState->showLeftTread ? 0 : 1;
-            carTexture = gameState->enemyCarTextures[colorIndex][treadIndex];
-        }
-        // Compute car coords
-        float car_center_x = car_x_in_lane(env, car->lane, car->y);
-        //float car_width = CAR_WIDTH * car_scale;
-        //float car_height = CAR_HEIGHT * car_scale;
-        float car_x = car_center_x - (carTexture.width * car_scale) / 2.0f;
-        float car_y = car->y - (carTexture.height * car_scale) / 2.0f;
-
-        DrawTextureEx(carTexture, (Vector2){car_x, car_y}, 0.0f, car_scale, WHITE);
+    // Select the correct texture based on the car's color and current tread
+    int carAssetIndex;
+    if (isNightStage) {
+        carAssetIndex = (bgIndex == 13) ? gameState->enemyCarNightFogTailLightsIndex : gameState->enemyCarNightTailLightsIndex;
+    } else {
+        int colorIndex = car->colorIndex;
+        int treadIndex = gameState->showLeftTread ? 0 : 1;
+        carAssetIndex = gameState->enemyCarIndices[colorIndex][treadIndex];
     }
+    Rectangle srcRect = asset_map[carAssetIndex];
 
-    updateCarAnimation(gameState);
+    // Compute car coordinates
+    float car_center_x = car_x_in_lane(env, car->lane, car->y);
+    float car_x = car_center_x - (srcRect.width * car_scale) / 2.0f;
+    float car_y = car->y - (srcRect.height * car_scale) / 2.0f;
+
+    DrawTexturePro(
+        gameState->spritesheet,
+        srcRect,
+        (Rectangle){ car_x, car_y, srcRect.width * car_scale, srcRect.height * car_scale },
+        (Vector2){ 0, 0 },
+        0.0f,
+        WHITE
+    );
+}
+
     render_car(client, gameState); // Unscaled player car
 
     EndScissorMode();
