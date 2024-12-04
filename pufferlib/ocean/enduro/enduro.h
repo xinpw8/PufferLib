@@ -48,16 +48,16 @@
 // Times of day logic
 #define NUM_BACKGROUND_TRANSITIONS 16
 // Seconds spent in each time of day
-static const float BACKGROUND_TRANSITION_TIMES[] = {
-    20.0f, 40.0f, 60.0f, 100.0f, 108.0f, 114.0f, 116.0f, 120.0f,
-    124.0f, 130.0f, 134.0f, 138.0f, 170.0f, 198.0f, 214.0f, 232.0f
-};
-
-// // For testing
 // static const float BACKGROUND_TRANSITION_TIMES[] = {
-//     2.0f, 4.0f, 6.0f, 10.0f, 10.8f, 11.0f, 11.6f, 12.0f,
-//     12.4f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f
+//     20.0f, 40.0f, 60.0f, 100.0f, 108.0f, 114.0f, 116.0f, 120.0f,
+//     124.0f, 130.0f, 134.0f, 138.0f, 170.0f, 198.0f, 214.0f, 232.0f
 // };
+
+// For testing
+static const float BACKGROUND_TRANSITION_TIMES[] = {
+    2.0f, 4.0f, 6.0f, 10.0f, 10.8f, 11.0f, 11.6f, 12.0f,
+    12.4f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f
+};
 
 // Curve constants
 #define CURVE_STRAIGHT 0
@@ -130,6 +130,7 @@ typedef struct Car {
 // Rendering struct
 typedef struct GameState {
     Texture2D spritesheet;
+    RenderTexture2D renderTarget; // for scaling up render
     // Indices into asset_map[] for various assets
     int backgroundIndices[16];
     int mountainIndices[16];
@@ -489,7 +490,7 @@ void reset(Enduro* env);
 unsigned char check_collision(Enduro* env, Car* car);
 int get_player_lane(Enduro* env);
 float get_car_scale(Car* car, float y, unsigned char continuous_scale);
-void add_enemy_car(Enduro* env);
+void add_enemy_car(Enduro* env, int lane, float y_offset);
 void validate_speed(Enduro* env);
 void validate_position(Enduro* env);
 void validate_enemy_positions(Enduro* env);
@@ -930,62 +931,32 @@ float get_car_scale(Car* car, float y, unsigned char continuous_scale) {
     }
 }
 
-void add_enemy_car(Enduro* env) {
+void add_enemy_car(Enduro* env, int lane, float y_offset) {
     if (env->numEnemies >= MAX_ENEMIES) return;
 
-    int player_lane = get_player_lane(env);
-    int furthest_lane;
-    int possible_lanes[NUM_LANES];
-    int num_possible_lanes = 0;
+    // Initialize car
+    Car car = {
+        .lane = lane,
+        .x = car_x_in_lane(env, lane, VANISHING_POINT_Y),
+        .last_x = car_x_in_lane(env, lane, VANISHING_POINT_Y),
+        .y = (env->speed > 0.0f) ? VANISHING_POINT_Y + 10.0f : PLAYABLE_AREA_BOTTOM + CAR_HEIGHT,
+        .last_y = (env->speed > 0.0f) ? VANISHING_POINT_Y + 10.0f : PLAYABLE_AREA_BOTTOM + CAR_HEIGHT,
+        .passed = false,
+        .colorIndex = rand() % 6
+    };
 
-    // Determine the furthest lane from the player
-    if (player_lane == 0) {
-        furthest_lane = 2;
-    } else if (player_lane == 2) {
-        furthest_lane = 0;
-    } else {
-        // Player is in the middle lane
-        // Decide based on player's position relative to the road center
-        float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
-        float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
-                            road_edge_x(env, env->player_y, 0, false)) / 2.0f;
-        if (player_center_x < road_center_x) {
-            furthest_lane = 2; // Player is on the left side, choose rightmost lane
-        } else {
-            furthest_lane = 0; // Player is on the right side, choose leftmost lane
-        }
-    }
+    // Apply y_offset
+    car.y -= y_offset;
 
-    if (env->speed <= 0.0f) {
-        // Only spawn in the lane furthest from the player
-        possible_lanes[num_possible_lanes++] = furthest_lane;
-    } else {
-        for (int i = 0; i < NUM_LANES; i++) {
-            possible_lanes[num_possible_lanes++] = i;
-        }
-    }
-
-    if (num_possible_lanes == 0) {
-        return; // Rare
-    }
-
-    // Randomly select a lane
-    int lane = possible_lanes[rand() % num_possible_lanes];
-    // Preferentially spawn in the last_spawned_lane 30% of the time
-    if (rand() % 100 < 60 && env->last_spawned_lane != -1) {
-        lane = env->last_spawned_lane;
-    }
-    env->last_spawned_lane = lane;
-    // Init car
-    Car car = { .lane = lane, .x = car_x_in_lane(env, lane, VANISHING_POINT_Y), .last_x = car_x_in_lane(env, lane, VANISHING_POINT_Y), .y = VANISHING_POINT_Y, .last_y = VANISHING_POINT_Y, .passed = false, .colorIndex = rand() % 6 };
-    car.y = (env->speed > 0.0f) ? VANISHING_POINT_Y + 10.0f : PLAYABLE_AREA_BOTTOM + CAR_HEIGHT;
     // Ensure minimum spacing between cars in the same lane
     float depth = (car.y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
     float scale = fmax(0.1f, 0.9f * depth + 0.1f);
     float scaled_car_length = CAR_HEIGHT * scale;
+
     // Randomize min spacing between 1.0f and 6.0f car lengths
-    float dynamic_spacing_factor = (rand() / (float)RAND_MAX) * 12.0f + 0.5f; // 6.0f + 0.5f;
+    float dynamic_spacing_factor = (rand() / (float)RAND_MAX) * 12.0f + 0.5f;
     float min_spacing = dynamic_spacing_factor * scaled_car_length;
+
     for (int i = 0; i < env->numEnemies; i++) {
         Car* existing_car = &env->enemyCars[i];
         if (existing_car->lane == car.lane) {
@@ -996,6 +967,7 @@ void add_enemy_car(Enduro* env) {
             }
         }
     }
+
     // Ensure not occupying all lanes within vertical range of 6 car lengths
     float min_vertical_range = 6.0f * CAR_HEIGHT;
     int lanes_occupied = 0;
@@ -1013,7 +985,7 @@ void add_enemy_car(Enduro* env) {
     if (lanes_occupied >= NUM_LANES - 1 && !lane_occupied[lane]) {
         return;
     }
-    validate_enemy_positions(env);
+
     env->enemyCars[env->numEnemies++] = car;
 }
 
@@ -1049,83 +1021,86 @@ void validate_gear(Enduro* env) {
 }
 
 void validate_enemy_positions(Enduro* env) {
-    float min_vertical_spacing = 3.0f * CAR_HEIGHT; // Minimum vertical spacing in the same lane
-    float min_diagonal_spacing = 2.0f * CAR_WIDTH; // Minimum diagonal spacing for threading
-    float safe_removal_distance = 1.5f * PLAYABLE_AREA_BOTTOM; // Distance beyond which cars can be removed without player noticing
-    unsigned char lanes_occupied[NUM_LANES] = { false };
-
-    for (int i = 0; i < env->numEnemies; i++) {
-        Car* car = &env->enemyCars[i];
-        float scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
-        float scaled_vertical_spacing = min_vertical_spacing * scale;
-
-        // Check if this car violates spacing rules
-        unsigned char should_remove = 0;
-
-        for (int j = 0; j < env->numEnemies; j++) {
-            if (i == j) continue;
-            Car* other_car = &env->enemyCars[j];
-            float other_scale = get_car_scale(other_car, other_car->y, CONTINUOUS_SCALE);
-            float scaled_diagonal_spacing = min_diagonal_spacing * fminf(scale, other_scale);
-
-            // Same lane: Ensure vertical spacing
-            if (car->lane == other_car->lane) {
-                if (fabs(car->y - other_car->y) < scaled_vertical_spacing) {
-                    should_remove = 1;
-                    break;
-                }
-            } else {
-                // Different lanes: Ensure diagonal spacing
-                if (fabs(car->y - other_car->y) < scaled_vertical_spacing &&
-                    fabs(car->x - other_car->x) < scaled_diagonal_spacing) {
-                    should_remove = 1;
-                    break;
-                }
-            }
-        }
-
-        // If the car violates the rules, remove it only if it is far enough from the player
-        if (should_remove && fabs(car->y - env->player_y) > safe_removal_distance) {
-            for (int k = i; k < env->numEnemies - 1; k++) {
-                env->enemyCars[k] = env->enemyCars[k + 1];
-            }
-            env->numEnemies--;
-            i--; // Adjust index since the array is shifted
-        } else {
-            // Mark the lane as occupied
-            lanes_occupied[car->lane] = true;
-        }
-    }
-
-    // Ensure at least one lane is free for the player
-    int free_lane = -1;
-    for (int i = 0; i < NUM_LANES; i++) {
-        if (!lanes_occupied[i]) {
-            free_lane = i;
-            break;
-        }
-    }
-
-    // If all lanes are blocked, remove the furthest car in one of the lanes
-    if (free_lane == -1) {
-        int furthest_car_index = -1;
-        float max_distance = -FLT_MAX;
+    if (env->collision_cooldown_car_vs_car >= 0 || env->collision_cooldown_car_vs_road >= 0) {
+        return;
+    } else {
+        float min_vertical_spacing = 2.0f * CAR_HEIGHT; // Minimum vertical spacing in the same lane
+        float min_diagonal_spacing = 2.0f * CAR_WIDTH; // Minimum diagonal spacing for threading
+        unsigned char lanes_occupied[NUM_LANES] = { false };
 
         for (int i = 0; i < env->numEnemies; i++) {
             Car* car = &env->enemyCars[i];
-            float distance = fabs(car->y - env->player_y);
-            if (distance > max_distance) {
-                furthest_car_index = i;
-                max_distance = distance;
+            float scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
+            float scaled_vertical_spacing = min_vertical_spacing * scale;
+
+            // Check if this car violates spacing rules
+            unsigned char should_remove = 0;
+
+            for (int j = 0; j < env->numEnemies; j++) {
+                if (i == j) continue;
+                Car* other_car = &env->enemyCars[j];
+                float other_scale = get_car_scale(other_car, other_car->y, CONTINUOUS_SCALE);
+                float scaled_diagonal_spacing = min_diagonal_spacing * fminf(scale, other_scale);
+
+                // Same lane: Ensure vertical spacing
+                if (car->lane == other_car->lane) {
+                    if (fabs(car->y - other_car->y) < scaled_vertical_spacing) {
+                        should_remove = 1;
+                        break;
+                    }
+                } else {
+                    // Different lanes: Ensure diagonal spacing
+                    if (fabs(car->y - other_car->y) < scaled_vertical_spacing &&
+                        fabs(car->x - other_car->x) < scaled_diagonal_spacing) {
+                        should_remove = 1;
+                        break;
+                    }
+                }
+            }
+
+            // Remove the car if it violates the spacing rules
+            if (should_remove) {
+                for (int k = i; k < env->numEnemies - 1; k++) {
+                    env->enemyCars[k] = env->enemyCars[k + 1];
+                }
+                env->numEnemies--;
+                i--; // Adjust index since the array is shifted
+            } else {
+                // Mark the lane as occupied
+                lanes_occupied[car->lane] = true;
             }
         }
 
-        if (furthest_car_index != -1) {
-            // Remove the furthest car to free up a lane
-            for (int k = furthest_car_index; k < env->numEnemies - 1; k++) {
-                env->enemyCars[k] = env->enemyCars[k + 1];
+        // Ensure at least one lane is free for the player
+        int free_lane = -1;
+        for (int i = 0; i < NUM_LANES; i++) {
+            if (!lanes_occupied[i]) {
+                free_lane = i;
+                break;
             }
-            env->numEnemies--;
+        }
+
+        // If all lanes are blocked, remove the furthest car in one of the lanes
+        if (free_lane == -1) {
+            int furthest_car_index = -1;
+            float max_distance = -FLT_MAX;
+
+            for (int i = 0; i < env->numEnemies; i++) {
+                Car* car = &env->enemyCars[i];
+                float distance = fabs(car->y - env->player_y);
+                if (distance > max_distance) {
+                    furthest_car_index = i;
+                    max_distance = distance;
+                }
+            }
+
+            if (furthest_car_index != -1) {
+                // Remove the furthest car to free up a lane
+                for (int k = furthest_car_index; k < env->numEnemies - 1; k++) {
+                    env->enemyCars[k] = env->enemyCars[k + 1];
+                }
+                env->numEnemies--;
+            }
         }
     }
 }
@@ -1504,21 +1479,22 @@ void c_step(Enduro* env) {
             for (int i = 0; i < num_to_spawn && env->numEnemies < MAX_ENEMIES; i++) {
                 // Find an unoccupied lane
                 int lane;
+                int attempts = 0;
                 do {
                     lane = rand() % NUM_LANES;
-                } while (occupied_lanes[lane]);
+                    attempts++;
+                } while (occupied_lanes[lane] && attempts < 10);
+
+                if (occupied_lanes[lane]) {
+                    continue; // Couldn't find an unoccupied lane
+                }
 
                 // Mark the lane as occupied
                 occupied_lanes[lane] = 1;
 
-                // Add the enemy car
-                int previous_num_enemies = env->numEnemies;
-                add_enemy_car(env);
-                if (env->numEnemies > previous_num_enemies) {
-                    Car* new_car = &env->enemyCars[env->numEnemies - 1];
-                    new_car->lane = lane;
-                    new_car->y -= i * (CAR_HEIGHT * 3); // Vertical spacing for clump
-                }
+                // Add the enemy car with proper spacing
+                float y_offset = i * (CAR_HEIGHT * 3); // Vertical spacing for clump
+                add_enemy_car(env, lane, y_offset);
             }
         }
     }
@@ -1571,6 +1547,9 @@ void c_step(Enduro* env) {
     env->log.cars_to_pass = (int)local_cars_to_pass;
 
     compute_observations(env);
+    // debugging
+    // print the locations of each enemy car
+
 }
 
 void compute_observations(Enduro* env) {
@@ -1871,15 +1850,13 @@ float car_x_in_lane(Enduro* env, int lane, float y) {
     return left_edge + lane_width * (lane + 0.5f);
 }
 
-// Handles rendering logic
 Client* make_client(Enduro* env) {
     Client* client = (Client*)malloc(sizeof(Client));
 
-    // State data from env (Enduro*)
     client->width = env->width;
     client->height = env->height;
     
-    initRaylib();
+    initRaylib(&client->gameState); // Pass gameState here
     loadTextures(&client->gameState);
 
     return client;
@@ -1901,9 +1878,10 @@ void render_car(Client* client, GameState* gameState) {
     DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
 }
 
-void initRaylib() {
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "puffer_enduro");
+void initRaylib(GameState* gameState) {
+    InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
     SetTargetFPS(60);
+    gameState->renderTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 void loadTextures(GameState* gameState) {
@@ -1980,6 +1958,7 @@ void loadTextures(GameState* gameState) {
 }
 
 void cleanup(GameState* gameState) {
+    UnloadRenderTexture(gameState->renderTarget);
     UnloadTexture(gameState->spritesheet);
     CloseWindow();
 }
@@ -2250,12 +2229,14 @@ void c_render(Client* client, Enduro* env) {
     gameState->carsLeftGameState = env->carsToPass;
     gameState->day = env->day;
     gameState->elapsedTime = env->elapsedTimeEnv;
-    // -1 represents reset of env
     if (env->score == 0) {
         gameState->score = 0;
     }
 
-    BeginDrawing();
+    // Render to a texture for scaling up
+    BeginTextureMode(gameState->renderTarget);
+
+    // Do not call BeginDrawing() here
     ClearBackground(BLACK);
     BeginBlendMode(BLEND_ALPHA);
 
@@ -2274,8 +2255,7 @@ void c_render(Client* client, Enduro* env) {
     Rectangle clipRect = { PLAYABLE_AREA_LEFT, clipStartY, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, clipHeight };
     BeginScissorMode(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
-    // Render road edges w/ gl lines for classic look
-    // During night fog stage, start from y=92
+    // Render road edges
     float roadStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
     Vector2 previousLeftPoint = {0}, previousRightPoint = {0};
     unsigned char firstPoint = true;
@@ -2287,7 +2267,7 @@ void c_render(Client* client, Enduro* env) {
         float left_edge = road_edge_x(env, adjusted_y, 0, true);
         float right_edge = road_edge_x(env, adjusted_y, 0, false);
 
-        // Road is multiple shades of gray based on y position
+        // Road color based on y position
         Color roadColor;
         if (adjusted_y >= 52 && adjusted_y < 91) {
             roadColor = (Color){74, 74, 74, 255};
@@ -2312,7 +2292,7 @@ void c_render(Client* client, Enduro* env) {
         firstPoint = false;
     }
 
-    // Render enemy cars scaled stages for distance/closeness effect
+    // Render enemy cars
     unsigned char skipFogCars = isNightFogStage;
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
@@ -2322,45 +2302,64 @@ void c_render(Client* client, Enduro* env) {
             continue;
         }
 
-    // Determine the car scale based on distance
-    float car_scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
+        // Determine the car scale based on distance
+        float car_scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
 
-    // Select the correct texture based on the car's color and current tread
-    int carAssetIndex;
-    if (isNightStage) {
-        carAssetIndex = (bgIndex == 13) ? gameState->enemyCarNightFogTailLightsIndex : gameState->enemyCarNightTailLightsIndex;
-    } else {
-        int colorIndex = car->colorIndex;
-        int treadIndex = gameState->showLeftTread ? 0 : 1;
-        carAssetIndex = gameState->enemyCarIndices[colorIndex][treadIndex];
+        // Select the correct texture
+        int carAssetIndex;
+        if (isNightStage) {
+            carAssetIndex = (bgIndex == 13) ? gameState->enemyCarNightFogTailLightsIndex : gameState->enemyCarNightTailLightsIndex;
+        } else {
+            int colorIndex = car->colorIndex;
+            int treadIndex = gameState->showLeftTread ? 0 : 1;
+            carAssetIndex = gameState->enemyCarIndices[colorIndex][treadIndex];
+        }
+        Rectangle srcRect = asset_map[carAssetIndex];
+
+        // Compute car coordinates
+        float car_center_x = car_x_in_lane(env, car->lane, car->y);
+        float car_x = car_center_x - (srcRect.width * car_scale) / 2.0f;
+        float car_y = car->y - (srcRect.height * car_scale) / 2.0f;
+
+        DrawTexturePro(
+            gameState->spritesheet,
+            srcRect,
+            (Rectangle){ car_x, car_y, srcRect.width * car_scale, srcRect.height * car_scale },
+            (Vector2){ 0, 0 },
+            0.0f,
+            WHITE
+        );
     }
-    Rectangle srcRect = asset_map[carAssetIndex];
 
-    // Compute car coordinates
-    float car_center_x = car_x_in_lane(env, car->lane, car->y);
-    float car_x = car_center_x - (srcRect.width * car_scale) / 2.0f;
-    float car_y = car->y - (srcRect.height * car_scale) / 2.0f;
-
-    DrawTexturePro(
-        gameState->spritesheet,
-        srcRect,
-        (Rectangle){ car_x, car_y, srcRect.width * car_scale, srcRect.height * car_scale },
-        (Vector2){ 0, 0 },
-        0.0f,
-        WHITE
-    );
-}
-
-    render_car(client, gameState); // Unscaled player car
+    // Render the player car
+    render_car(client, gameState);
 
     EndScissorMode();
     EndBlendMode();
+
     updateVictoryEffects(gameState);
+    updateScoreboard(gameState);
+    renderScoreboard(gameState);
 
     // Update GameState data from environment data;
     client->gameState.victoryAchieved = env->dayCompleted;
 
-    updateScoreboard(gameState);
-    renderScoreboard(gameState);
+    // Finish rendering to the texture
+    EndTextureMode();
+
+    // Now render the scaled-up texture to the screen
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    // Draw the render texture scaled up
+    DrawTexturePro(
+        gameState->renderTarget.texture,
+        (Rectangle){ 0, 0, (float)gameState->renderTarget.texture.width, -(float)gameState->renderTarget.texture.height },
+        (Rectangle){ 0, 0, (float)SCREEN_WIDTH * 2, (float)SCREEN_HEIGHT * 2 },
+        (Vector2){ 0, 0 },
+        0.0f,
+        WHITE
+    );
+
     EndDrawing();
 }
