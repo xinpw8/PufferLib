@@ -33,7 +33,8 @@ void get_input(Enduro* env) {
 }
 
 int demo() {
-    Weights* weights = load_weights("resources/puffer_enduro/enduro_weights.bin", 142218);
+    // Weights* weights = load_weights("resources/puffer_enduro/enduro_weights.bin", 142218);
+    Weights* weights = load_weights("resources/puffer_enduro/gamma_0.910002_weights.bin", 142218);
     LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
 
     Enduro env;

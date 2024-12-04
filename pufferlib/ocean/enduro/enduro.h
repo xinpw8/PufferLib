@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <limits.h>
 #include <string.h>
+#include <float.h>
 #include "raylib.h"
 
 // Constant defs
@@ -88,6 +89,8 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {
 #define WIGGLE_AMPLITUDE 10.0f // 8.0f              // Maximum 'bump-in' offset in pixels
 #define WIGGLE_SPEED 10.1f // 10.1f                 // Speed at which the wiggle moves down the screen
 #define WIGGLE_LENGTH 26.0f // 26.0f                // Vertical length of the wiggle effect
+
+#define CONTINUOUS_SCALE (0) // Scale enemy cars continuously with y?
 
 // Log structs
 typedef struct Log {
@@ -485,8 +488,11 @@ void reset_round(Enduro* env);
 void reset(Enduro* env);
 unsigned char check_collision(Enduro* env, Car* car);
 int get_player_lane(Enduro* env);
-float get_car_scale(float y);
+float get_car_scale(Car* car, float y, unsigned char continuous_scale);
 void add_enemy_car(Enduro* env);
+void validate_speed(Enduro* env);
+void validate_position(Enduro* env);
+void validate_enemy_positions(Enduro* env);
 void update_time_of_day(Enduro* env);
 void accelerate(Enduro* env);
 void compute_enemy_car_rewards(Enduro* env);
@@ -879,20 +885,7 @@ void reset(Enduro* env) {
 
 unsigned char check_collision(Enduro* env, Car* car) {
     // Compute the scale factor based on vanishing point reference
-    float depth = (car->y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    float scale = fmax(0.1f, 0.9f * depth);
-
-    // // Matches render (original game) logic
-    // float scale;
-    // if (car->y <= 68.0f) scale = 2.0f / 20.0f;
-    // else if (car->y <= 74.0f) scale = 4.0f / 20.0f;
-    // else if (car->y <= 86.0f) scale = 6.0f / 20.0f;
-    // else if (car->y <= 100.0f) scale = 8.0f / 20.0f;
-    // else if (car->y <= 110.0f) scale = 12.0f / 20.0f;
-    // else if (car->y <= 120.0f) scale = 14.0f / 20.0f;
-    // else if (car->y <= 135.0f) scale = 16.0f / 20.0f;
-    // else scale = 1.0f;
-
+    float scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
     float car_width = CAR_WIDTH * scale;
     float car_height = CAR_HEIGHT * scale;
     // Compute car x position
@@ -917,9 +910,24 @@ int get_player_lane(Enduro* env) {
     return env->lane;
 }
 
-float get_car_scale(float y) {
-    float depth = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    return fmaxf(0.1f, 0.9f * depth);
+float get_car_scale(Car* car, float y, unsigned char continuous_scale) {
+    if (continuous_scale == 0) {        
+        // Determine the car scale based on the seven-stage progression
+        float car_scale;
+        if (car->y <= 68.0f) car_scale = 2.0f / 20.0f;        // Stage 1
+        else if (car->y <= 74.0f) car_scale = 4.0f / 20.0f;   // Stage 2
+        else if (car->y <= 86.0f) car_scale = 6.0f / 20.0f;   // Stage 3
+        else if (car->y <= 100.0f) car_scale = 8.0f / 20.0f;  // Stage 4
+        else if (car->y <= 110.0f) car_scale = 12.0f / 20.0f; // Stage 5
+        else if (car->y <= 120.0f) car_scale = 14.0f / 20.0f; // Stage 6
+        else if (car->y <= 135.0f) car_scale = 16.0f / 20.0f; // Stage 7
+        else car_scale = 1.0f;                                // Normal size
+        return car_scale;
+    } else {
+        // Compute for continuous y position
+        float depth = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+        return fmaxf(0.1f, 0.9f * depth);
+    }
 }
 
 void add_enemy_car(Enduro* env) {
@@ -976,7 +984,7 @@ void add_enemy_car(Enduro* env) {
     float scale = fmax(0.1f, 0.9f * depth + 0.1f);
     float scaled_car_length = CAR_HEIGHT * scale;
     // Randomize min spacing between 1.0f and 6.0f car lengths
-    float dynamic_spacing_factor = (rand() / (float)RAND_MAX) * 6.0f + 0.5f;
+    float dynamic_spacing_factor = (rand() / (float)RAND_MAX) * 12.0f + 0.5f; // 6.0f + 0.5f;
     float min_spacing = dynamic_spacing_factor * scaled_car_length;
     for (int i = 0; i < env->numEnemies; i++) {
         Car* existing_car = &env->enemyCars[i];
@@ -1005,6 +1013,7 @@ void add_enemy_car(Enduro* env) {
     if (lanes_occupied >= NUM_LANES - 1 && !lane_occupied[lane]) {
         return;
     }
+    validate_enemy_positions(env);
     env->enemyCars[env->numEnemies++] = car;
 }
 
@@ -1036,6 +1045,88 @@ void validate_speed(Enduro* env) {
 void validate_gear(Enduro* env) {
     if (env->currentGear < 0 || env->currentGear > 3) {
         env->currentGear = 0;
+    }
+}
+
+void validate_enemy_positions(Enduro* env) {
+    float min_vertical_spacing = 3.0f * CAR_HEIGHT; // Minimum vertical spacing in the same lane
+    float min_diagonal_spacing = 2.0f * CAR_WIDTH; // Minimum diagonal spacing for threading
+    float safe_removal_distance = 1.5f * PLAYABLE_AREA_BOTTOM; // Distance beyond which cars can be removed without player noticing
+    unsigned char lanes_occupied[NUM_LANES] = { false };
+
+    for (int i = 0; i < env->numEnemies; i++) {
+        Car* car = &env->enemyCars[i];
+        float scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
+        float scaled_vertical_spacing = min_vertical_spacing * scale;
+
+        // Check if this car violates spacing rules
+        unsigned char should_remove = 0;
+
+        for (int j = 0; j < env->numEnemies; j++) {
+            if (i == j) continue;
+            Car* other_car = &env->enemyCars[j];
+            float other_scale = get_car_scale(other_car, other_car->y, CONTINUOUS_SCALE);
+            float scaled_diagonal_spacing = min_diagonal_spacing * fminf(scale, other_scale);
+
+            // Same lane: Ensure vertical spacing
+            if (car->lane == other_car->lane) {
+                if (fabs(car->y - other_car->y) < scaled_vertical_spacing) {
+                    should_remove = 1;
+                    break;
+                }
+            } else {
+                // Different lanes: Ensure diagonal spacing
+                if (fabs(car->y - other_car->y) < scaled_vertical_spacing &&
+                    fabs(car->x - other_car->x) < scaled_diagonal_spacing) {
+                    should_remove = 1;
+                    break;
+                }
+            }
+        }
+
+        // If the car violates the rules, remove it only if it is far enough from the player
+        if (should_remove && fabs(car->y - env->player_y) > safe_removal_distance) {
+            for (int k = i; k < env->numEnemies - 1; k++) {
+                env->enemyCars[k] = env->enemyCars[k + 1];
+            }
+            env->numEnemies--;
+            i--; // Adjust index since the array is shifted
+        } else {
+            // Mark the lane as occupied
+            lanes_occupied[car->lane] = true;
+        }
+    }
+
+    // Ensure at least one lane is free for the player
+    int free_lane = -1;
+    for (int i = 0; i < NUM_LANES; i++) {
+        if (!lanes_occupied[i]) {
+            free_lane = i;
+            break;
+        }
+    }
+
+    // If all lanes are blocked, remove the furthest car in one of the lanes
+    if (free_lane == -1) {
+        int furthest_car_index = -1;
+        float max_distance = -FLT_MAX;
+
+        for (int i = 0; i < env->numEnemies; i++) {
+            Car* car = &env->enemyCars[i];
+            float distance = fabs(car->y - env->player_y);
+            if (distance > max_distance) {
+                furthest_car_index = i;
+                max_distance = distance;
+            }
+        }
+
+        if (furthest_car_index != -1) {
+            // Remove the furthest car to free up a lane
+            for (int k = furthest_car_index; k < env->numEnemies - 1; k++) {
+                env->enemyCars[k] = env->enemyCars[k + 1];
+            }
+            env->numEnemies--;
+        }
     }
 }
 
@@ -1079,11 +1170,13 @@ void c_step(Enduro* env) {
     for (int i = 0; i < env->numEnemies; i++) {
         Car* car = &env->enemyCars[i];
         // Compute movement speed adjusted for scaling
-        float scale = get_car_scale(car->y);
+        float scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
         float movement_speed = env->speed * scale * 0.75f;
         // Update car position
         car->y += movement_speed;
     }
+
+    validate_enemy_positions(env);
 
     // Calculate road edges
     float road_left = road_edge_x(env, env->player_y, 0, true);
@@ -2229,19 +2322,8 @@ void c_render(Client* client, Enduro* env) {
             continue;
         }
 
-        // // Determine the car scale based on the seven-stage progression
-        // float car_scale;
-        // if (car->y <= 68.0f) car_scale = 2.0f / 20.0f;        // Stage 1
-        // else if (car->y <= 74.0f) car_scale = 4.0f / 20.0f;   // Stage 2
-        // else if (car->y <= 86.0f) car_scale = 6.0f / 20.0f;   // Stage 3
-        // else if (car->y <= 100.0f) car_scale = 8.0f / 20.0f;  // Stage 4
-        // else if (car->y <= 110.0f) car_scale = 12.0f / 20.0f;  // Stage 5
-        // else if (car->y <= 120.0f) car_scale = 14.0f / 20.0f; // Stage 6
-        // else if (car->y <= 135.0f) car_scale = 16.0f / 20.0f; // Stage 7
-        // else car_scale = 1.0f;                                // Normal size
-
     // Determine the car scale based on distance
-    float car_scale = get_car_scale(car->y);
+    float car_scale = get_car_scale(car, car->y, CONTINUOUS_SCALE);
 
     // Select the correct texture based on the car's color and current tread
     int carAssetIndex;
