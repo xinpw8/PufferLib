@@ -21,24 +21,22 @@
 #define OBSERVATIONS_MAX_SIZE (8 + (5 * MAX_ENEMIES) + 9 + 1)
 #define TARGET_FPS 60 // Used to calculate wiggle spawn frequency
 #define LOG_BUFFER_SIZE 4096
-#define SCREEN_WIDTH 160
+#define SCREEN_WIDTH 152 // 160
 #define SCREEN_HEIGHT 210
 #define PLAYABLE_AREA_TOP 0
 #define PLAYABLE_AREA_BOTTOM 154
-#define PLAYABLE_AREA_LEFT 8
-#define PLAYABLE_AREA_RIGHT 160
+#define PLAYABLE_AREA_LEFT 0 // 8
+#define PLAYABLE_AREA_RIGHT 152 // 160
 #define ACTION_HEIGHT (PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP)
 #define CAR_WIDTH 16
 #define CAR_HEIGHT 11
 #define CRASH_NOOP_DURATION_CAR_VS_CAR 90 // 60 // How long controls are disabled after car v car collision
 #define CRASH_NOOP_DURATION_CAR_VS_ROAD 20 // How long controls are disabled after car v road edge collision
 #define INITIAL_CARS_TO_PASS 200
-#define VANISHING_POINT_X 86
 #define VANISHING_POINT_Y 52
 #define VANISHING_POINT_TRANSITION_SPEED 1.0f
 #define CURVE_TRANSITION_SPEED 0.05f
 #define LOGICAL_VANISHING_Y (VANISHING_POINT_Y + 12)  // Separate logical vanishing point for cars disappearing
-#define INITIAL_PLAYER_X 77.0f
 #define PLAYER_MAX_Y (ACTION_HEIGHT - CAR_HEIGHT) // Max y is car length from bottom
 #define PLAYER_MIN_Y (ACTION_HEIGHT - CAR_HEIGHT - 9) // Min y is 2 car lengths from bottom
 #define ACCELERATION_RATE 0.2f
@@ -72,13 +70,18 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {
 // Digit dimensions
 #define DIGIT_WIDTH 8
 #define DIGIT_HEIGHT 9
+
 // Magic numbers - don't change
-#define PLAYER_MIN_X 65.5f
-#define PLAYER_MAX_X 91.5f
-#define ROAD_LEFT_OFFSET 50.0f
-#define ROAD_RIGHT_OFFSET 51.0f
-#define VANISHING_POINT_X_LEFT 110.0f
-#define VANISHING_POINT_X_RIGHT 62.0f
+// The below block is specific to resolution 152x210px
+#define INITIAL_PLAYER_X 69.0f // Adjusted from 77.0f
+#define PLAYER_MIN_X 57.5f     // Adjusted from 65.5f
+#define PLAYER_MAX_X 83.5f     // Adjusted from 91.5f
+#define VANISHING_POINT_X 78.0f // Adjusted from 86
+#define VANISHING_POINT_X_LEFT 102.0f // Adjusted from 110.0f
+#define VANISHING_POINT_X_RIGHT 54.0f // Adjusted from 62.0f
+#define ROAD_LEFT_OFFSET 46.0f  // Adjusted from 50.0f
+#define ROAD_RIGHT_OFFSET 47.0f // Adjusted from 51.0f
+
 #define CURVE_VANISHING_POINT_SHIFT 55.0f
 #define CURVE_PLAYER_SHIFT_FACTOR 0.025f // Moves player car towards outside edge of curves
 // Constants for wiggle effect timing and amplitude
@@ -290,117 +293,107 @@ typedef enum {
 } Action;
 
 Rectangle asset_map[] = {
-    // Backgrounds (160x210 each)
-    (Rectangle){0, 0, 160, 210},     // 0_bg
-    (Rectangle){160, 0, 160, 210},   // 1_bg
-    (Rectangle){320, 0, 160, 210},   // 2_bg
-    (Rectangle){480, 0, 160, 210},   // 3_bg
-    (Rectangle){640, 0, 160, 210},   // 4_bg
-    (Rectangle){800, 0, 160, 210},   // 5_bg
-    (Rectangle){960, 0, 160, 210},   // 6_bg
-    (Rectangle){1120, 0, 160, 210},  // 7_bg
-    (Rectangle){1280, 0, 160, 210},  // 8_bg
-    (Rectangle){1440, 0, 160, 210},  // 9_bg
-    (Rectangle){1600, 0, 160, 210},  // 10_bg
-    (Rectangle){1760, 0, 160, 210},  // 11_bg
-    (Rectangle){1920, 0, 160, 210},  // 12_bg
-    (Rectangle){2080, 0, 160, 210},  // 13_bg
-    (Rectangle){2240, 0, 160, 210},  // 14_bg
-    (Rectangle){2400, 0, 160, 210},  // 15_bg
-    // Mountains (100x6 each)
-    (Rectangle){2560, 0, 100, 6},    // 0_mtns
-    (Rectangle){2660, 0, 100, 6},    // 1_mtns
-    (Rectangle){2760, 0, 100, 6},    // 2_mtns
-    (Rectangle){2860, 0, 100, 6},    // 3_mtns
-    (Rectangle){2960, 0, 100, 6},    // 4_mtns
-    (Rectangle){3060, 0, 100, 6},    // 5_mtns
-    (Rectangle){3160, 0, 100, 6},    // 6_mtns
-    (Rectangle){3260, 0, 100, 6},    // 7_mtns
-    (Rectangle){3360, 0, 100, 6},    // 8_mtns
-    (Rectangle){3460, 0, 100, 6},    // 9_mtns
-    (Rectangle){3560, 0, 100, 6},    // 10_mtns
-    (Rectangle){3660, 0, 100, 6},    // 11_mtns
-    (Rectangle){3760, 0, 100, 6},    // 12_mtns
-    (Rectangle){3860, 0, 100, 6},    // 13_mtns
-    (Rectangle){3960, 0, 100, 6},    // 14_mtns
-    (Rectangle){4060, 0, 100, 6},    // 15_mtns
-    // Plain digits (8x9 each)
-    (Rectangle){4160, 0, 8, 9},      // digits_0
-    (Rectangle){4168, 0, 8, 9},      // digits_1
-    (Rectangle){4176, 0, 8, 9},      // digits_2
-    (Rectangle){4184, 0, 8, 9},      // digits_3
-    (Rectangle){4192, 0, 8, 9},      // digits_4
-    (Rectangle){4200, 0, 8, 9},      // digits_5
-    (Rectangle){4208, 0, 8, 9},      // digits_6
-    (Rectangle){4216, 0, 8, 9},      // digits_7
-    (Rectangle){4224, 0, 8, 9},      // digits_8
-    (Rectangle){4232, 0, 8, 9},      // digits_9
-    (Rectangle){4240, 0, 8, 9},      // digits_car
-    // Green digits (8x9 each)
-    (Rectangle){4248, 0, 8, 9},      // green_digits_0
-    (Rectangle){4256, 0, 8, 9},      // green_digits_1
-    (Rectangle){4264, 0, 8, 9},      // green_digits_2
-    (Rectangle){4272, 0, 8, 9},      // green_digits_3
-    (Rectangle){4280, 0, 8, 9},      // green_digits_4
-    (Rectangle){4288, 0, 8, 9},      // green_digits_5
-    (Rectangle){4296, 0, 8, 9},      // green_digits_6
-    (Rectangle){4304, 0, 8, 9},      // green_digits_7
-    (Rectangle){4312, 0, 8, 9},      // green_digits_8
-    (Rectangle){4320, 0, 8, 9},      // green_digits_9
-    // Yellow digits (8x9 each)
-    (Rectangle){4328, 0, 8, 9},      // yellow_digits_0
-    (Rectangle){4336, 0, 8, 9},      // yellow_digits_1
-    (Rectangle){4344, 0, 8, 9},      // yellow_digits_2
-    (Rectangle){4352, 0, 8, 9},      // yellow_digits_3
-    (Rectangle){4360, 0, 8, 9},      // yellow_digits_4
-    (Rectangle){4368, 0, 8, 9},      // yellow_digits_5
-    (Rectangle){4376, 0, 8, 9},      // yellow_digits_6
-    (Rectangle){4384, 0, 8, 9},      // yellow_digits_7
-    (Rectangle){4392, 0, 8, 9},      // yellow_digits_8
-    (Rectangle){4400, 0, 8, 9},      // yellow_digits_9
-    // Car sprites (16x11 each)
-    (Rectangle){4408, 0, 16, 11},    // enemy_car_blue_left_tread
-    (Rectangle){4424, 0, 16, 11},    // enemy_car_blue_right_tread
-    (Rectangle){4440, 0, 16, 11},    // enemy_car_gold_left_tread
-    (Rectangle){4456, 0, 16, 11},    // enemy_car_gold_right_tread
-    (Rectangle){4472, 0, 16, 11},    // enemy_car_pink_left_tread
-    (Rectangle){4488, 0, 16, 11},    // enemy_car_pink_right_tread
-    (Rectangle){4504, 0, 16, 11},    // enemy_car_salmon_left_tread
-    (Rectangle){4520, 0, 16, 11},    // enemy_car_salmon_right_tread
-    (Rectangle){4536, 0, 16, 11},    // enemy_car_teal_left_tread
-    (Rectangle){4552, 0, 16, 11},    // enemy_car_teal_right_tread
-    (Rectangle){4568, 0, 16, 11},    // enemy_car_yellow_left_tread
-    (Rectangle){4584, 0, 16, 11},    // enemy_car_yellow_right_tread
-    (Rectangle){4600, 0, 16, 11},    // enemy_car_night_fog_tail_lights
-    (Rectangle){4616, 0, 16, 11},    // enemy_car_night_tail_lights
-    // Player car (16x11 each)
-    (Rectangle){4632, 0, 16, 11},    // player_car_left_tread
-    (Rectangle){4648, 0, 16, 11},    // player_car_right_tread
-    // Flags (32x9 each)
-    (Rectangle){4664, 0, 32, 9},     // level_complete_flag_right
-    (Rectangle){4696, 0, 32, 9},     // level_complete_flag_left
+    (Rectangle){ 328, 15, 152, 210 },  // 0_bg
+    (Rectangle){ 480, 15, 152, 210 },  // 1_bg
+    (Rectangle){ 632, 15, 152, 210 },  // 2_bg
+    (Rectangle){ 784, 15, 152, 210 },  // 3_bg
+    (Rectangle){ 0, 225, 152, 210 },  // 4_bg
+    (Rectangle){ 152, 225, 152, 210 },  // 5_bg
+    (Rectangle){ 304, 225, 152, 210 },  // 6_bg
+    (Rectangle){ 456, 225, 152, 210 },  // 7_bg
+    (Rectangle){ 608, 225, 152, 210 },  // 8_bg
+    (Rectangle){ 760, 225, 152, 210 },  // 9_bg
+    (Rectangle){ 0, 435, 152, 210 },  // 10_bg
+    (Rectangle){ 152, 435, 152, 210 },  // 11_bg
+    (Rectangle){ 304, 435, 152, 210 },  // 12_bg
+    (Rectangle){ 456, 435, 152, 210 },  // 13_bg
+    (Rectangle){ 608, 435, 152, 210 },  // 14_bg
+    (Rectangle){ 760, 435, 152, 210 },  // 15_bg
+    (Rectangle){ 0, 0, 100, 6 },  // 0_mtns
+    (Rectangle){ 100, 0, 100, 6 },  // 1_mtns
+    (Rectangle){ 200, 0, 100, 6 },  // 2_mtns
+    (Rectangle){ 300, 0, 100, 6 },  // 3_mtns
+    (Rectangle){ 400, 0, 100, 6 },  // 4_mtns
+    (Rectangle){ 500, 0, 100, 6 },  // 5_mtns
+    (Rectangle){ 600, 0, 100, 6 },  // 6_mtns
+    (Rectangle){ 700, 0, 100, 6 },  // 7_mtns
+    (Rectangle){ 800, 0, 100, 6 },  // 8_mtns
+    (Rectangle){ 0, 6, 100, 6 },  // 9_mtns
+    (Rectangle){ 100, 6, 100, 6 },  // 10_mtns
+    (Rectangle){ 200, 6, 100, 6 },  // 11_mtns
+    (Rectangle){ 300, 6, 100, 6 },  // 12_mtns
+    (Rectangle){ 400, 6, 100, 6 },  // 13_mtns
+    (Rectangle){ 500, 6, 100, 6 },  // 14_mtns
+    (Rectangle){ 600, 6, 100, 6 },  // 15_mtns
+    (Rectangle){ 700, 6, 8, 9 },  // digits_0
+    (Rectangle){ 708, 6, 8, 9 },  // digits_1
+    (Rectangle){ 716, 6, 8, 9 },  // digits_2
+    (Rectangle){ 724, 6, 8, 9 },  // digits_3
+    (Rectangle){ 732, 6, 8, 9 },  // digits_4
+    (Rectangle){ 740, 6, 8, 9 },  // digits_5
+    (Rectangle){ 748, 6, 8, 9 },  // digits_6
+    (Rectangle){ 756, 6, 8, 9 },  // digits_7
+    (Rectangle){ 764, 6, 8, 9 },  // digits_8
+    (Rectangle){ 772, 6, 8, 9 },  // digits_9
+    (Rectangle){ 780, 6, 8, 9 },  // digits_car
+    (Rectangle){ 788, 6, 8, 9 },  // green_digits_0
+    (Rectangle){ 796, 6, 8, 9 },  // green_digits_1
+    (Rectangle){ 804, 6, 8, 9 },  // green_digits_2
+    (Rectangle){ 812, 6, 8, 9 },  // green_digits_3
+    (Rectangle){ 820, 6, 8, 9 },  // green_digits_4
+    (Rectangle){ 828, 6, 8, 9 },  // green_digits_5
+    (Rectangle){ 836, 6, 8, 9 },  // green_digits_6
+    (Rectangle){ 844, 6, 8, 9 },  // green_digits_7
+    (Rectangle){ 852, 6, 8, 9 },  // green_digits_8
+    (Rectangle){ 860, 6, 8, 9 },  // green_digits_9
+    (Rectangle){ 932, 6, 8, 9 },  // yellow_digits_0
+    (Rectangle){ 0, 15, 8, 9 },  // yellow_digits_1
+    (Rectangle){ 8, 15, 8, 9 },  // yellow_digits_2
+    (Rectangle){ 16, 15, 8, 9 },  // yellow_digits_3
+    (Rectangle){ 24, 15, 8, 9 },  // yellow_digits_4
+    (Rectangle){ 32, 15, 8, 9 },  // yellow_digits_5
+    (Rectangle){ 40, 15, 8, 9 },  // yellow_digits_6
+    (Rectangle){ 48, 15, 8, 9 },  // yellow_digits_7
+    (Rectangle){ 56, 15, 8, 9 },  // yellow_digits_8
+    (Rectangle){ 64, 15, 8, 9 },  // yellow_digits_9
+    (Rectangle){ 72, 15, 16, 11 },  // enemy_car_blue_left_tread
+    (Rectangle){ 88, 15, 16, 11 },  // enemy_car_blue_right_tread
+    (Rectangle){ 104, 15, 16, 11 },  // enemy_car_gold_left_tread
+    (Rectangle){ 120, 15, 16, 11 },  // enemy_car_gold_right_tread
+    (Rectangle){ 168, 15, 16, 11 },  // enemy_car_pink_left_tread
+    (Rectangle){ 184, 15, 16, 11 },  // enemy_car_pink_right_tread
+    (Rectangle){ 200, 15, 16, 11 },  // enemy_car_salmon_left_tread
+    (Rectangle){ 216, 15, 16, 11 },  // enemy_car_salmon_right_tread
+    (Rectangle){ 232, 15, 16, 11 },  // enemy_car_teal_left_tread
+    (Rectangle){ 248, 15, 16, 11 },  // enemy_car_teal_right_tread
+    (Rectangle){ 264, 15, 16, 11 },  // enemy_car_yellow_left_tread
+    (Rectangle){ 280, 15, 16, 11 },  // enemy_car_yellow_right_tread
+    (Rectangle){ 136, 15, 16, 11 },  // enemy_car_night_fog_tail_lights
+    (Rectangle){ 152, 15, 16, 11 },  // enemy_car_night_tail_lights
+    (Rectangle){ 296, 15, 16, 11 },  // player_car_left_tread
+    (Rectangle){ 312, 15, 16, 11 },  // player_car_right_tread
+    (Rectangle){ 900, 6, 32, 9 },  // level_complete_flag_right
+    (Rectangle){ 868, 6, 32, 9 },  // level_complete_flag_left
 };
 
 enum AssetIndices {
-    // Backgrounds
     ASSET_BG_0 = 0,
-    ASSET_BG_1,
-    ASSET_BG_2,
-    ASSET_BG_3,
-    ASSET_BG_4,
-    ASSET_BG_5,
-    ASSET_BG_6,
-    ASSET_BG_7,
-    ASSET_BG_8,
-    ASSET_BG_9,
-    ASSET_BG_10,
-    ASSET_BG_11,
-    ASSET_BG_12,
-    ASSET_BG_13,
-    ASSET_BG_14,
-    ASSET_BG_15,
+    ASSET_BG_1 = 1,
+    ASSET_BG_2 = 2,
+    ASSET_BG_3 = 3,
+    ASSET_BG_4 = 4,
+    ASSET_BG_5 = 5,
+    ASSET_BG_6 = 6,
+    ASSET_BG_7 = 7,
+    ASSET_BG_8 = 8,
+    ASSET_BG_9 = 9,
+    ASSET_BG_10 = 10,
+    ASSET_BG_11 = 11,
+    ASSET_BG_12 = 12,
+    ASSET_BG_13 = 13,
+    ASSET_BG_14 = 14,
+    ASSET_BG_15 = 15,
 
-    // Mountains
     ASSET_MOUNTAIN_0 = 16,
     ASSET_MOUNTAIN_1,
     ASSET_MOUNTAIN_2,
@@ -417,67 +410,55 @@ enum AssetIndices {
     ASSET_MOUNTAIN_13,
     ASSET_MOUNTAIN_14,
     ASSET_MOUNTAIN_15,
-
-    // Plain digits
     ASSET_DIGITS_0 = 32,
-    ASSET_DIGITS_1,
-    ASSET_DIGITS_2,
-    ASSET_DIGITS_3,
-    ASSET_DIGITS_4,
-    ASSET_DIGITS_5,
-    ASSET_DIGITS_6,
-    ASSET_DIGITS_7,
-    ASSET_DIGITS_8,
-    ASSET_DIGITS_9,
-    ASSET_DIGITS_CAR,
-
-    // Green digits
+    ASSET_DIGITS_1 = 33,
+    ASSET_DIGITS_2 = 34,
+    ASSET_DIGITS_3 = 35,
+    ASSET_DIGITS_4 = 36,
+    ASSET_DIGITS_5 = 37,
+    ASSET_DIGITS_6 = 38,
+    ASSET_DIGITS_7 = 39,
+    ASSET_DIGITS_8 = 40,
+    ASSET_DIGITS_9 = 41,
+    ASSET_DIGITS_CAR = 42,
     ASSET_GREEN_DIGITS_0 = 43,
-    ASSET_GREEN_DIGITS_1,
-    ASSET_GREEN_DIGITS_2,
-    ASSET_GREEN_DIGITS_3,
-    ASSET_GREEN_DIGITS_4,
-    ASSET_GREEN_DIGITS_5,
-    ASSET_GREEN_DIGITS_6,
-    ASSET_GREEN_DIGITS_7,
-    ASSET_GREEN_DIGITS_8,
-    ASSET_GREEN_DIGITS_9,
-
-    // Yellow digits
+    ASSET_GREEN_DIGITS_1 = 44,
+    ASSET_GREEN_DIGITS_2 = 45,
+    ASSET_GREEN_DIGITS_3 = 46,
+    ASSET_GREEN_DIGITS_4 = 47,
+    ASSET_GREEN_DIGITS_5 = 48,
+    ASSET_GREEN_DIGITS_6 = 49,
+    ASSET_GREEN_DIGITS_7 = 50,
+    ASSET_GREEN_DIGITS_8 = 51,
+    ASSET_GREEN_DIGITS_9 = 52,
     ASSET_YELLOW_DIGITS_0 = 53,
-    ASSET_YELLOW_DIGITS_1,
-    ASSET_YELLOW_DIGITS_2,
-    ASSET_YELLOW_DIGITS_3,
-    ASSET_YELLOW_DIGITS_4,
-    ASSET_YELLOW_DIGITS_5,
-    ASSET_YELLOW_DIGITS_6,
-    ASSET_YELLOW_DIGITS_7,
-    ASSET_YELLOW_DIGITS_8,
-    ASSET_YELLOW_DIGITS_9,
-
-    // Enemy car animation
+    ASSET_YELLOW_DIGITS_1 = 54,
+    ASSET_YELLOW_DIGITS_2 = 55,
+    ASSET_YELLOW_DIGITS_3 = 56,
+    ASSET_YELLOW_DIGITS_4 = 57,
+    ASSET_YELLOW_DIGITS_5 = 58,
+    ASSET_YELLOW_DIGITS_6 = 59,
+    ASSET_YELLOW_DIGITS_7 = 60,
+    ASSET_YELLOW_DIGITS_8 = 61,
+    ASSET_YELLOW_DIGITS_9 = 62,
     ASSET_ENEMY_CAR_BLUE_LEFT_TREAD = 63,
-    ASSET_ENEMY_CAR_BLUE_RIGHT_TREAD,
-    ASSET_ENEMY_CAR_GOLD_LEFT_TREAD,
-    ASSET_ENEMY_CAR_GOLD_RIGHT_TREAD,
-    ASSET_ENEMY_CAR_PINK_LEFT_TREAD,
-    ASSET_ENEMY_CAR_PINK_RIGHT_TREAD,
-    ASSET_ENEMY_CAR_SALMON_LEFT_TREAD,
-    ASSET_ENEMY_CAR_SALMON_RIGHT_TREAD,
-    ASSET_ENEMY_CAR_TEAL_LEFT_TREAD,
-    ASSET_ENEMY_CAR_TEAL_RIGHT_TREAD,
-    ASSET_ENEMY_CAR_YELLOW_LEFT_TREAD,
-    ASSET_ENEMY_CAR_YELLOW_RIGHT_TREAD,
-    ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS,
-    ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS,
-
-    // Player car animation
+    ASSET_ENEMY_CAR_BLUE_RIGHT_TREAD = 64,
+    ASSET_ENEMY_CAR_GOLD_LEFT_TREAD = 65,
+    ASSET_ENEMY_CAR_GOLD_RIGHT_TREAD = 66,
+    ASSET_ENEMY_CAR_PINK_LEFT_TREAD = 67,
+    ASSET_ENEMY_CAR_PINK_RIGHT_TREAD = 68,
+    ASSET_ENEMY_CAR_SALMON_LEFT_TREAD = 69,
+    ASSET_ENEMY_CAR_SALMON_RIGHT_TREAD = 70,
+    ASSET_ENEMY_CAR_TEAL_LEFT_TREAD = 71,
+    ASSET_ENEMY_CAR_TEAL_RIGHT_TREAD = 72,
+    ASSET_ENEMY_CAR_YELLOW_LEFT_TREAD = 73,
+    ASSET_ENEMY_CAR_YELLOW_RIGHT_TREAD = 74,
+    ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS = 75,
+    ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS = 76,
     ASSET_PLAYER_CAR_LEFT_TREAD = 77,
-    ASSET_PLAYER_CAR_RIGHT_TREAD,
-
-    // Victory flags
+    ASSET_PLAYER_CAR_RIGHT_TREAD = 78,
     ASSET_LEVEL_COMPLETE_FLAG_RIGHT = 79,
-    ASSET_LEVEL_COMPLETE_FLAG_LEFT,
+    ASSET_LEVEL_COMPLETE_FLAG_LEFT = 80,
 };
 
 // Client struct
@@ -1977,11 +1958,12 @@ void renderScoreboard(GameState* gameState) {
     int digitWidth = DIGIT_WIDTH;
     int digitHeight = DIGIT_HEIGHT;
     // Convert bottom-left coordinates to top-left origin
-    int scoreStartX = 56 + digitWidth;
+    // -8 for x resolution change from 160 to 152
+    int scoreStartX = 56 + digitWidth - 8;
     int scoreStartY = 173 - digitHeight;
-    int dayX = 56;
+    int dayX = 56 - 8;
     int dayY = 188 - digitHeight;
-    int carsX = 72;
+    int carsX = 72 - 8;
     int carsY = 188 - digitHeight;
 
     // Render score with scrolling effect
