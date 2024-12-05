@@ -762,7 +762,7 @@ Client* make_client(int width, int height) {
     client->width = width;
     client->height = height;
     InitWindow(width, height, "PufferLib Ray Go");
-    SetTargetFPS(15);
+    SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
     return client;
 }

@@ -136,12 +136,24 @@ void demo(int grid_size) {
     reset(&env);
  
     Client* client = make_client(env.width, env.height);
+    int tick = 0;
 
     while (!WindowShouldClose()) {
         // User can take control of the paddle
+        if(tick % 12 == 0) {
+            tick = 0;
+            int human_action = env.actions[0];
+            forward(net, env.observations, env.actions, grid_size);
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                env.actions[0] = human_action;
+            }
+            step(&env);
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                env.actions[0] = -1;
+            }
+        }
+        tick++;
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = -1;
-
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 Vector2 mousePos = GetMousePosition();
         
@@ -175,16 +187,7 @@ void demo(int grid_size) {
                 }
             }
         }
-        else {
-            forward(net, env.observations, env.actions, grid_size);
-        }
-
-        if (env.actions[0] != -1) {
-            step(&env);
-        }
-
         render(client, &env);
-
     }
     close_client(client);
     free_allocated(&env);
