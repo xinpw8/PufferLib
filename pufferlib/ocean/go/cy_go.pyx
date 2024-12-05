@@ -11,6 +11,7 @@ cdef extern from "go.h":
         float episode_length
         int games_played
         float score
+        float winrate
 
     ctypedef struct LogBuffer:
         Log* logs
@@ -57,6 +58,11 @@ cdef extern from "go.h":
         int* visited
         Group* groups
         Group* temp_groups
+        float reward_move_pass
+        float reward_move_invalid
+        float reward_move_valid
+        float reward_player_capture
+        float reward_opponent_capture
 
     ctypedef struct Client
 
@@ -80,7 +86,8 @@ cdef class CyGo:
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             int width, int height, int grid_size, int board_width, int board_height,
             int grid_square_size, int moves_made, float komi,
-            float score, int last_capture_position):
+            float score, int last_capture_position, float reward_move_pass,
+            float reward_move_invalid, float reward_move_valid, float reward_player_capture,  float reward_opponent_capture ):
 
         self.num_envs = num_envs
         self.client = NULL
@@ -104,7 +111,10 @@ cdef class CyGo:
                 moves_made=moves_made,
                 komi=komi,
                 score=score,
-                last_capture_position=last_capture_position
+                last_capture_position=last_capture_position,
+                reward_move_pass=reward_move_pass,
+                reward_move_invalid=reward_move_invalid,
+                reward_move_valid=reward_move_valid
             )
             init(&self.envs[i])
             self.client = NULL
