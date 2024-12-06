@@ -598,9 +598,10 @@ void init(Enduro* env, int seed, int env_index) {
 
     if (seed == 0) { // Activate with seed==0
         // Start the environment at the beginning of the day
+        env->rng_state = 0;
         env->elapsedTimeEnv = 0.0f;
         env->currentDayTimeIndex = 0;
-        env->previousDayTimeIndex = NUM_BACKGROUND_TRANSITIONS - 1;
+        env->previousDayTimeIndex = NUM_BACKGROUND_TRANSITIONS;
     } else {
         // Randomize elapsed time within the day's total duration
         float total_day_duration = BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1];
@@ -701,6 +702,12 @@ void init(Enduro* env, int seed, int env_index) {
     }
 
     // Randomize the initial time of day for each environment
+    if (env->rng_state == 0) {
+        env->elapsedTimeEnv = 0;
+        env->currentDayTimeIndex = 0;
+        env->dayTimeIndex = 0;
+        env->previousDayTimeIndex = 0;
+    } else {
     float total_day_duration = BACKGROUND_TRANSITION_TIMES[15];
     env->elapsedTimeEnv = ((float)rand_r(&env->rng_state) / (float)RAND_MAX) * total_day_duration;
     env->currentDayTimeIndex = 0;
@@ -717,6 +724,8 @@ void init(Enduro* env, int seed, int env_index) {
     }
 
     env->previousDayTimeIndex = (env->currentDayTimeIndex > 0) ? env->currentDayTimeIndex - 1 : NUM_BACKGROUND_TRANSITIONS - 1;
+    }
+
     env->terminals[0] = 0;
     env->truncateds[0] = 0;
 
