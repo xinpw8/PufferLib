@@ -16,7 +16,7 @@ if [ "$MODE" = "web" ]; then
     emcc \
         -o "$WEB_OUTPUT_DIR/game.html" \
         "$SRC_DIR/$ENV.c" \
-        -Os \
+        -O3 \
         -Wall \
         ./raylib_wasm/lib/libraylib.a \
         -I./raylib_wasm/include \
@@ -48,6 +48,7 @@ FLAGS=(
     ./raylib/lib/libraylib.a
     -lm
     -lpthread
+    -DPLATFORM_DESKTOP
 )
 
 

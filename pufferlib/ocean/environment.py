@@ -9,6 +9,7 @@ from .enduro.enduro import Enduro
 from .connect4.connect4 import Connect4
 from .tripletriad.tripletriad import TripleTriad
 from .moba.moba import Moba
+from .nmmo3.nmmo3 import NMMO3
 from .go.go import Go
 from .rware.rware import Rware
 #from .rocket_lander import rocket_lander
@@ -126,6 +127,7 @@ MAKE_FNS = {
     'pong': Pong,
     'enduro': Enduro,
     'moba': Moba,
+    'nmmo3': NMMO3,
     'snake': Snake,
     'squared': Squared,
     'connect4': Connect4,
