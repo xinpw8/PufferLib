@@ -3,8 +3,6 @@ This script is used to generate scaled and combined sprite sheets for nmmo3
 You will need the to put the following folders into the same directory. They
 can be purchased from ManaSeed on itch.io
 
-python make_sprite_sheets.py mana_source_dir target_resource_dir 2.0
-
 20.04c - Summer Forest 4.2
 20.05c - Spring Forest 4.1
 20.06a - Autumn Forest 4.1
