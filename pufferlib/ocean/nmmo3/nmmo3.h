@@ -2226,6 +2226,8 @@ struct Client {
     int shader_time_loc;
     float shader_time;
     int shader_terrain_loc;
+    int shader_map_width_loc;
+    int shader_map_height_loc;
     unsigned char *shader_terrain_data;
     Texture2D shader_terrain;
     int shader_texture_tiles_loc;
@@ -2501,13 +2503,14 @@ Client* make_client(MMO* env) {
     client->start_time = time(NULL);
     client->command_len = 0;
 
-
     client->terrain = calloc(env->height*env->width, sizeof(int));
     render_conversion(env->terrain, client->terrain, env->height, env->width);
 
     client->shader = LoadShader("", TextFormat("resources/nmmo3/map_shader_%i.fs", GLSL_VERSION));
 
     // TODO: These should be int locs?
+    client->shader_map_width_loc = GetShaderLocation(client->shader, "map_width");
+    client->shader_map_height_loc = GetShaderLocation(client->shader, "map_height");
     client->shader_camera_x_loc = GetShaderLocation(client->shader, "camera_x");
     client->shader_camera_y_loc = GetShaderLocation(client->shader, "camera_y");
     client->shader_time_loc = GetShaderLocation(client->shader, "time");
@@ -2791,7 +2794,6 @@ void draw_entity(Client* client, MMO* env, int pid, float delta) {
     DrawTextEx(client->font, txt, text_pos, 14, 1, color);
 }
 
-// TODO: This function is hard
 void draw_min(Client* client, MMO* env, int x, int y,
         int width, int height, int C, int R, float scale, float delta) {
     client->shader_resolution[0] = GetRenderWidth();
@@ -2802,6 +2804,10 @@ void draw_min(Client* client, MMO* env, int x, int y,
     client->shader_time = delta;
 
     BeginShaderMode(client->shader);
+    float map_width = env->width;
+    float map_height = env->height;
+    SetShaderValue(client->shader, client->shader_map_width_loc, &map_width, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(client->shader, client->shader_map_height_loc, &map_height, SHADER_UNIFORM_FLOAT);
     SetShaderValue(client->shader, client->shader_camera_x_loc, &client->shader_camera_x, SHADER_UNIFORM_FLOAT);
 	SetShaderValue(client->shader, client->shader_camera_y_loc, &client->shader_camera_y, SHADER_UNIFORM_FLOAT);
 	SetShaderValue(client->shader, client->shader_time_loc, &client->shader_time, SHADER_UNIFORM_FLOAT);

@@ -9,6 +9,8 @@ uniform vec4 mouse;
 uniform float time;
 uniform float camera_x;
 uniform float camera_y;
+uniform float map_width;
+uniform float map_height;
 
 // Constants
 const float TILE_SIZE = 64.0;
@@ -29,8 +31,8 @@ void main()
     
     // Environment size calculation
     vec2 uv = vec2(
-        x_floor/512.0,
-        y_floor/512.0
+        x_floor/map_width,
+        y_floor/map_height
     );
     
     vec2 tile_rg = texture2D(terrain, uv).rg;

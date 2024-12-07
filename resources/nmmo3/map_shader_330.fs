@@ -13,6 +13,8 @@ uniform vec4 mouse;
 uniform float time;
 uniform float camera_x;
 uniform float camera_y;
+uniform float map_width;
+uniform float map_height;
 
 // Output fragment color
 out vec4 outputColor;
@@ -40,8 +42,8 @@ void main()
 
     // TODO: This is the env size
     vec2 uv = vec2(
-        x_floor/512.0,
-        y_floor/512.0
+        x_floor/map_width,
+        y_floor/map_height
     );
     vec2 tile_rg = texture(terrain, uv).rg;
 
