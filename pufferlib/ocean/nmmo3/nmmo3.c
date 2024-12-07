@@ -4,6 +4,17 @@
 #include "puffernet.h"
 #include "nmmo3.h"
 
+// Only rens a few agents in the C
+// version, and reduces for web.
+// You can run the full 1024 on GPU
+// with PyTorch.
+#if defined(PLATFORM_WEB)
+    #define NUM_AGENTS 4
+#else
+    #define NUM_AGENTS 16
+#endif
+
+
 typedef struct MMONet MMONet;
 struct MMONet {
     int num_agents;
@@ -442,6 +453,7 @@ void test_performance(int num_players, int timeout) {
 }
 
 int main() {
+
     /*
     int width = 512;
     int height = 512;
@@ -454,6 +466,6 @@ int main() {
     test_generate_terrain(width, height, 8, 8);
     */
     //test_performance(64, 10);
-    demo(8);
+    demo(NUM_AGENTS);
     //test_mmonet_performance(1024, 10);
 }

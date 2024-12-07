@@ -2183,7 +2183,7 @@ void step(MMO* env) {
 #define SCREEN_WIDTH TILE_SIZE * (2*X_WINDOW + 1)
 #define SCREEN_HEIGHT TILE_SIZE * (2*Y_WINDOW + 1)
 
-#define NUM_PLAYER_TEXTURES 3
+#define NUM_PLAYER_TEXTURES 10
 
 // Health bars
 #define HEALTH_BAR_WIDTH 48
@@ -2250,6 +2250,7 @@ struct Client {
     Texture2D overlay_texture;
     int active_overlay;
     int my_player;
+    int start_time;
 };
 
 #define TILE_SPRING_GRASS 0
@@ -2492,11 +2493,12 @@ void render_conversion(char* flat_tiles, int* flat_converted, int R, int C) {
 }
 
 Client* make_client(MMO* env) {
+
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "NMMO3");
     SetTargetFPS(FRAME_RATE);
 
     Client* client = calloc(1, sizeof(Client));
-
+    client->start_time = time(NULL);
     client->command_len = 0;
 
 
@@ -2543,13 +2545,11 @@ Client* make_client(MMO* env) {
     client->inventory_selected = LoadTexture("resources/nmmo3/inventory_64_press.png");
     client->font = LoadFont("resources/nmmo3/ManaSeedBody.ttf");
     for (int i = 0; i < NUM_PLAYER_TEXTURES; i++) {
-        for (int element = 0; element < 5; element++) {
-            client->players[0][i] = LoadTexture(TextFormat("resources/nmmo3/neutral_%d.png", i));
-            client->players[1][i] = LoadTexture(TextFormat("resources/nmmo3/fire_%d.png", i));
-            client->players[2][i] = LoadTexture(TextFormat("resources/nmmo3/water_%d.png", i));
-            client->players[3][i] = LoadTexture(TextFormat("resources/nmmo3/earth_%d.png", i));
-            client->players[4][i] = LoadTexture(TextFormat("resources/nmmo3/air_%d.png", i));
-        }
+        client->players[0][i] = LoadTexture(TextFormat("resources/nmmo3/neutral_%d.png", i));
+        client->players[1][i] = LoadTexture(TextFormat("resources/nmmo3/fire_%d.png", i));
+        client->players[2][i] = LoadTexture(TextFormat("resources/nmmo3/water_%d.png", i));
+        client->players[3][i] = LoadTexture(TextFormat("resources/nmmo3/earth_%d.png", i));
+        client->players[4][i] = LoadTexture(TextFormat("resources/nmmo3/air_%d.png", i));
     }
 
     // TODO: Why do I need to cast here?
@@ -2738,7 +2738,7 @@ void draw_entity(Client* client, MMO* env, int pid, float delta) {
 
     // Player texture
     int element = entity->element;
-    int hashed = simple_hash(pid);
+    int hashed = simple_hash(pid + client->start_time % 100);
     Texture2D* tex = &client->players[element][hashed % NUM_PLAYER_TEXTURES];
  
     int frame = delta * animation->num_frames;

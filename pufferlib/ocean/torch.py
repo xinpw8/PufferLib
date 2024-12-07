@@ -9,6 +9,70 @@ from pufferlib.models import Default as Policy
 from pufferlib.models import Convolutional as Conv
 Recurrent = pufferlib.models.LSTMWrapper
 import numpy as np
+
+class NMMO3LSTM(pufferlib.models.LSTMWrapper):
+    def __init__(self, env, policy, input_size=256, hidden_size=256, num_layers=1):
+        super().__init__(env, policy, input_size, hidden_size, num_layers)
+
+class NMMO3(nn.Module):
+    def __init__(self, env, hidden_size=256, output_size=256):
+        super().__init__()
+        #self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
+        self.num_actions = env.single_action_space.n
+        self.factors = np.array([4, 4, 17, 5, 3, 5, 5, 5, 7, 4])
+        self.offsets = torch.tensor([0] + list(np.cumsum(self.factors)[:-1])).cuda().view(1, -1, 1, 1)
+        self.cum_facs = np.cumsum(self.factors)
+
+        self.multihot_dim = self.factors.sum()
+
+        self.map_2d = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 64, 5, stride=3)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Conv2d(64, 64, 3, stride=1)),
+            nn.Flatten(),
+        )
+
+        self.player_discrete_encoder = nn.Sequential(
+            nn.Embedding(128, 32),
+            nn.Flatten(),
+        )
+
+        self.proj = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(1689, hidden_size)),
+            nn.ReLU(),
+        )
+
+        self.actor = pufferlib.pytorch.layer_init(
+            nn.Linear(output_size, self.num_actions), std=0.01)
+        self.value_fn = pufferlib.pytorch.layer_init(nn.Linear(output_size, 1), std=1)
+
+    def forward(self, x):
+        hidden, lookup = self.encode_observations(x)
+        actions, value = self.decode_actions(hidden, lookup)
+        return actions, value
+
+    def encode_observations(self, observations, unflatten=False):
+        batch = observations.shape[0]
+        ob_map = observations[:, :11*15*10].view(batch, 11, 15, 10)
+        ob_player = observations[:, 11*15*10:-10]
+        ob_reward = observations[:, -10:]
+
+        map_buf = torch.zeros(batch, self.multihot_dim, 11, 15, device=ob_map.device, dtype=torch.float32)
+        codes = ob_map.permute(0, 3, 1, 2) + self.offsets
+        map_buf.scatter_(1, codes, 1)
+        ob_map = self.map_2d(map_buf)
+
+        player_discrete = self.player_discrete_encoder(ob_player.int())
+
+        obs = torch.cat([ob_map, player_discrete, ob_player.float(), ob_reward], dim=1)
+        obs = self.proj(obs)
+        return obs, None
+
+    def decode_actions(self, flat_hidden, lookup, concat=None):
+        action = self.actor(flat_hidden)
+        value = self.value_fn(flat_hidden)
+        return action, value
+
 class Snake(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()
