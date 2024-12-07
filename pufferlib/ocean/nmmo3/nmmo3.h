@@ -2700,8 +2700,8 @@ void draw_ui(Client* client, MMO* env, Entity* player, int action) {
     // Draw number keys
     for (int i = 0; i < 12; i++) {
         Vector2 pos = {
-            .x = TILE_SIZE*i + TILE_SIZE/2 - 8,
-            .y = SCREEN_HEIGHT - TILE_SIZE/2 - 8,
+            .x = TILE_SIZE*i + TILE_SIZE/2 - 4,
+            .y = SCREEN_HEIGHT - TILE_SIZE/2 - 12,
         };
         DrawTextEx(client->font, KEYS[i], pos, 20, 0, YELLOW);
     }

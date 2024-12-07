@@ -30,7 +30,7 @@ if [ "$MODE" = "web" ]; then
         -s ASYNCIFY \
         -sFILESYSTEM \
         -s FORCE_FILESYSTEM=1 \
-        --shell-file ./minshell.html \
+        --shell-file ./scripts/minshell.html \
         -sINITIAL_MEMORY=512MB \
         -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB \
