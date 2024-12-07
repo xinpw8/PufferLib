@@ -11,21 +11,21 @@
 #include "puffernet.h"
 
 void get_input(Enduro* env) {
-        if (IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) {
+        if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_D))) {
             env->actions[0] = ACTION_DOWNRIGHT; // Decelerate and move right
-        } else if (IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_LEFT)) {
+        } else if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_LEFT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_A))) {
             env->actions[0] = ACTION_DOWNLEFT; // Decelerate and move left
-        } else if (IsKeyDown(KEY_SPACE) && IsKeyDown(KEY_RIGHT)) {
+        } else if (IsKeyDown(KEY_SPACE) && (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))) {
             env->actions[0] = ACTION_RIGHTFIRE; // Accelerate and move right
-        } else if (IsKeyDown(KEY_SPACE) && IsKeyDown(KEY_LEFT)) {
+        } else if (IsKeyDown(KEY_SPACE) && (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))) {
             env->actions[0] = ACTION_LEFTFIRE; // Accelerate and move left   
         } else if (IsKeyDown(KEY_SPACE)) {
             env->actions[0] = ACTION_FIRE; // Accelerate
-        } else if (IsKeyDown(KEY_DOWN)) {
+        } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
             env->actions[0] = ACTION_DOWN; // Decelerate
-        } else if (IsKeyDown(KEY_LEFT)) {
+        } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
             env->actions[0] = ACTION_LEFT; // Move left
-        } else if (IsKeyDown(KEY_RIGHT)) {
+        } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
             env->actions[0] = ACTION_RIGHT; // Move right
         } else {
             env->actions[0] = ACTION_NOOP; // No action
@@ -33,7 +33,7 @@ void get_input(Enduro* env) {
 }
 
 int demo() {
-    Weights* weights = load_weights("resources/puffer_enduro/enduro_weights.bin", 142218);
+    Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
     LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
 
     Enduro env;
@@ -70,7 +70,6 @@ int demo() {
     free_linearlstm(net);
     free(weights);
     close_client(client, &env);
-    cleanup(&client->gameState);
     free_allocated(&env);
     return 0;
 }

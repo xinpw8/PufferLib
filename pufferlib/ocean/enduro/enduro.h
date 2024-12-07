@@ -739,8 +739,6 @@ void init(Enduro* env, int seed, int env_index) {
     }
 
 void allocate(Enduro* env) {
-    env->rewards = (float*)malloc(sizeof(float) * env->num_envs);
-    memset(env->rewards, 0, sizeof(float) * env->num_envs);
     env->observations = (float*)calloc(env->obs_size, sizeof(float));
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
@@ -756,7 +754,6 @@ void free_allocated(Enduro* env) {
     free(env->terminals);
     free(env->truncateds);
     free_logbuffer(env->log_buffer);
-
 }
 
 // Called when a day is failed by player
@@ -1851,7 +1848,7 @@ void loadTextures(GameState* gameState) {
     gameState->previousBackgroundIndex = 0;
 
     // Load background and mountain textures for different times of day per original env
-    gameState->spritesheet = LoadTexture("resources/puffer_enduro/enduro_spritesheet.png");
+    gameState->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
 
     // Initialize background and mountain indices
     for (int i = 0; i < 16; ++i) {
@@ -1893,7 +1890,6 @@ void loadTextures(GameState* gameState) {
 void cleanup(GameState* gameState) {
     UnloadRenderTexture(gameState->renderTarget);
     UnloadTexture(gameState->spritesheet);
-    CloseWindow();
 }
 
 void updateCarAnimation(GameState* gameState) {

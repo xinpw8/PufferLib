@@ -1,7 +1,5 @@
 #include "connect4.h"
 #include "puffernet.h"
-
-#include <unistd.h>
 #include "time.h"
 
 const unsigned char NOOP = 8;
@@ -23,6 +21,7 @@ void interactive() {
     float observations[42] = {0};
     int actions[1] = {0};
 
+    int tick = 0;
     while (!WindowShouldClose()) {
         env.actions[0] = NOOP;
         // user inputs 1 - 7 key pressed
@@ -34,7 +33,7 @@ void interactive() {
             if(IsKeyPressed(KEY_FIVE)) env.actions[0] = 4;
             if(IsKeyPressed(KEY_SIX)) env.actions[0] = 5;
             if(IsKeyPressed(KEY_SEVEN)) env.actions[0] = 6;
-        } else {
+        } else if (tick % 30 == 0) {
             for (int i = 0; i < 42; i++) {
                 observations[i] = env.observations[i];
             }
@@ -42,9 +41,9 @@ void interactive() {
             env.actions[0] = actions[0];
         }
 
+        tick = (tick + 1) % 60;
         if (env.actions[0] >= 0 && env.actions[0] <= 6) {
             step(&env);
-            usleep(500000);
         }
 
         render(client, &env);
