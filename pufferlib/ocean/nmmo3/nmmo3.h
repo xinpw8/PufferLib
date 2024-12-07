@@ -619,8 +619,8 @@ struct Item {
 
 Item ITEMS[(MAX_TIERS+1)*I_N + 1];
 
-int item_index(int I, int tier) {
-    return (tier-1)*I_N + I;
+int item_index(int i, int tier) {
+    return (tier-1)*I_N + i;
 }
 
 void init_items() {

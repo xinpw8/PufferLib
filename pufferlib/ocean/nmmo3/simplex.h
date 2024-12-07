@@ -110,7 +110,7 @@ inline float fast_cos(float x)
 float
 noise2(float x, float y)
 {
-    int i1, j1, I, J, c;
+    int i1, j1, II, JJ, c;
     float s = (x + y) * F2;
     float i = floorf(x + s);
     float j = floorf(y + s);
@@ -131,11 +131,11 @@ noise2(float x, float y)
     xx[1] = xx[0] - i1 + G2;
     yy[1] = yy[0] - j1 + G2;
 
-    I = (int) i & 255;
-    J = (int) j & 255;
-    g[0] = PERM[I + PERM[J]] % 12;
-    g[1] = PERM[I + i1 + PERM[J + j1]] % 12;
-    g[2] = PERM[I + 1 + PERM[J + 1]] % 12;
+    II = (int) i & 255;
+    JJ = (int) j & 255;
+    g[0] = PERM[II + PERM[JJ]] % 12;
+    g[1] = PERM[II + i1 + PERM[JJ + j1]] % 12;
+    g[2] = PERM[II + 1 + PERM[JJ + 1]] % 12;
 
     for (c = 0; c <= 2; c++)
         f[c] = 0.5f - xx[c]*xx[c] - yy[c]*yy[c];
