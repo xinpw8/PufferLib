@@ -9,7 +9,7 @@ import platform
 	
 #  python3 setup.py built_ext --inplace
 
-VERSION = '1.0.0'
+VERSION = '2.0.0'
 
 RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.0/'
 RAYLIB_NAME = 'raylib-5.0_macos' if platform.system() == "Darwin" else 'raylib-5.0_linux_amd64'

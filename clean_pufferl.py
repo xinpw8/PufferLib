@@ -703,7 +703,7 @@ def print_dashboard(env_name, utilization, global_step, epoch,
     table.add_column(justify="center", width=13)
     table.add_column(justify="right", width=13)
     table.add_row(
-        f':blowfish: {c1}PufferLib {b2}1.0.0',
+        f':blowfish: {c1}PufferLib {b2}2.0.0',
         f'{c1}CPU: {c3}{cpu_percent:.1f}%',
         f'{c1}GPU: {c3}{gpu_percent:.1f}%',
         f'{c1}DRAM: {c3}{dram_percent:.1f}%',
