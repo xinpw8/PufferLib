@@ -4,36 +4,9 @@
 [![](https://dcbadge.vercel.app/api/server/spT4huaGYV?style=plastic)](https://discord.gg/spT4huaGYV)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40jsuarez5341)](https://twitter.com/jsuarez5341)
 
-You have an environment, a PyTorch model, and a reinforcement learning framework that are designed to work together but don’t. PufferLib is a wrapper layer that makes RL on complex game environments as simple as RL on Atari. You write a native PyTorch network and a short binding for your environment; PufferLib takes care of the rest.
+PufferLib is the reinforcement learning library I wish existed during my PhD. It started as a compatibility layer to make working with complex environments a breeze. Now, it's a high-performance toolkit for research and industry with optimized parallel simulation, environments that run and train at 1M+ steps/second, and tons of quality of life improvements for practitioners. All our tools are free and open source. We also offer priority service for companies, startups, and labs!
 
-All of our [Documentation](https://pufferai.github.io "PufferLib Documentation") is hosted by github.io. @jsuarez5341 on [Discord](https://discord.gg/spT4huaGYV) for support -- post here before opening issues. I am also looking for contributors interested in adding bindings for other environments and RL frameworks.
-
-## Demo
-
-The current `demo.py` is a souped-up version of CleanRL PPO with optimized LSTM support, detailed performance metrics, a local dashboard, async envpool sampling, checkpointing, wandb sweeps, and more. It has a powerful `--help` that generates options based on the specified environment and policy. Hyperparams are in `config.yaml`. A few examples:
-
-```
-# Train minigrid with multiprocessing. Save it as a baseline.
-python demo.py --env minigrid --mode train --vec multiprocessing
-```
-
-![figure](https://raw.githubusercontent.com/PufferAI/pufferai.github.io/1.0/docs/source/resource/puffer-dash.png)
-
-```
-# Load the current minigrid baseline and render it locally
-python demo.py --env minigrid --mode eval --baseline
-
-# Train squared with serial vectorization and save it as a wandb baseline
-# The, load the current squared baseline and render it locally
-python demo.py --env squared --mode train --baseline
-python demo.py --env squared --mode eval --baseline
-
-# Render NMMO locally with a random policy
-python demo.py --env nmmo --mode eval
-
-# Autotune vectorization settings for your machine
-python demo.py --env breakout --mode autotune
-```
+All of our documentation is hosted at [puffer.ai](https://puffer.ai "PufferLib Documentation"). @jsuarez5341 on [Discord](https://discord.gg/puffer) for support -- post here before opening issues. We're always looking for new contributors, too!
 
 ## Star to puff up the project!
 
