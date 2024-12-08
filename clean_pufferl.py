@@ -126,21 +126,6 @@ def evaluate(data):
             data.vecenv.send(actions)
 
     with profile.eval_misc:
-        # Moves into models... maybe. Definitely moves.
-        # You could also just return infos and have it in demo
-        if 'pokemon_exploration_map' in infos:
-            for pmap in infos['pokemon_exploration_map']:
-                if not hasattr(data, 'pokemon_map'):
-                    import pokemon_red_eval
-                    data.map_updater = pokemon_red_eval.map_updater()
-                    data.pokemon_map = pmap
-
-                data.pokemon_map = np.maximum(data.pokemon_map, pmap)
-
-            if len(infos['pokemon_exploration_map']) > 0:
-                rendered = data.map_updater(data.pokemon_map)
-                data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
-
         for k, v in infos.items():
             if '_map' in k and data.wandb is not None:
                 data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
