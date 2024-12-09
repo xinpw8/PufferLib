@@ -113,7 +113,11 @@ cdef class CyBreakout:
     def render(self):
         cdef Breakout* env = &self.envs[0]
         if self.client == NULL:
+            import os
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(env)
+            os.chdir(cwd)
 
         render(self.client, env)
 

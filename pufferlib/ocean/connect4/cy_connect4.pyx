@@ -85,7 +85,11 @@ cdef class CyConnect4:
     def render(self):
         cdef CConnect4* env = &self.envs[0]
         if self.client == NULL:
+            import os
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(env.width, env.height)
+            os.chdir(cwd)
 
         render(self.client, env)
 

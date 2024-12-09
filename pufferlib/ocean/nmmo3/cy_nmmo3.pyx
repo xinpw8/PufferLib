@@ -244,7 +244,11 @@ cdef class Environment:
 
     def render(self):
         if self.client == NULL:
+            import os
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(&self.envs[0])
+            os.chdir(cwd)
 
         cdef int i, atn
         cdef int action = ATN_NOOP;

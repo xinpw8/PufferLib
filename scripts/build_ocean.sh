@@ -35,7 +35,7 @@ if [ "$MODE" = "web" ]; then
         -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB \
         -DGRAPHICS_API_OPENGL_ES3 \
-        --preload-file resources@resources/ 
+        --preload-file pufferlib/resources@resources/ 
     echo "Web build completed: $WEB_OUTPUT_DIR/game.html"
     exit 0
 fi

@@ -194,8 +194,6 @@ class NMMO3(pufferlib.PufferEnv):
         return self.observations, self.rewards, self.terminals, self.truncations, infos
 
     def render(self):
-        if self.tick < 1500:
-            return
         self.c_env.render()
         #all_maps = [e.rendered.astype(np.float32) for e in self.c_env.envs]
         #all_counts = [e.counts.astype(np.float32) for e in self.c_env.envs]
@@ -242,6 +240,9 @@ class NMMO3(pufferlib.PufferEnv):
 
         return lerped.astype(np.uint8)
         '''
+
+    def close(self):
+        self.c_envs.close()
 
 class Overlays:
     def __init__(self, width, height):

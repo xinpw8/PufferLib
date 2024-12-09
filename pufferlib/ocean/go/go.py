@@ -13,7 +13,7 @@ from pufferlib.ocean.go.cy_go import CyGo
 
 class Go(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
-            width=1200, height=800,
+            width=950, height=800,
             grid_size=7,
             board_width=600, board_height=600,
             grid_square_size=600/9,
@@ -40,10 +40,12 @@ class Go(pufferlib.PufferEnv):
         self.single_action_space = gymnasium.spaces.Discrete(self.num_act)
 
         super().__init__(buf=buf)
+        height = 64*(grid_size+1)
         self.c_envs = CyGo(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, width, height, grid_size, board_width,
-            board_height, grid_square_size, moves_made, komi, score,last_capture_position, reward_move_pass, reward_move_invalid, reward_move_valid, reward_player_capture, reward_opponent_capture)
-
+            board_height, grid_square_size, moves_made, komi, score,
+            last_capture_position, reward_move_pass, reward_move_invalid,
+            reward_move_valid, reward_player_capture, reward_opponent_capture)
 
     def reset(self, seed=None):
         self.c_envs.reset()

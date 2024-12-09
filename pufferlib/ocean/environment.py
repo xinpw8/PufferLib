@@ -8,6 +8,7 @@ from .breakout.breakout import Breakout
 from .enduro.enduro import Enduro
 from .connect4.connect4 import Connect4
 from .tripletriad.tripletriad import TripleTriad
+from .tactical.tactical import Tactical
 from .moba.moba import Moba
 from .nmmo3.nmmo3 import NMMO3
 from .go.go import Go
@@ -20,9 +21,7 @@ def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
     init_fn = grid.init_foraging
     reward_fn = grid.reward_foraging
     return grid.PufferGrid(width, height, num_agents,
-        horizon, discretize=discretize, food_reward=food_reward,
-        init_fn=init_fn, reward_fn=reward_fn,
-        render_mode=render_mode)
+        horizon, discretize=discretize, food_reward=food_reward, init_fn=init_fn, reward_fn=reward_fn, render_mode=render_mode)
 
 def make_predator_prey(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -132,6 +131,7 @@ MAKE_FNS = {
     'squared': Squared,
     'connect4': Connect4,
     'tripletriad': TripleTriad,
+    'tactical': Tactical,
     'go': Go,
     'rware': Rware,
 
@@ -141,7 +141,6 @@ MAKE_FNS = {
     'group': make_group,
     'puffer': make_puffer,
     'puffer_grid': make_puffergrid,
-    # 'tactical': make_tactical,
     'continuous': make_continuous,
     'bandit': make_bandit,
     'memory': make_memory,

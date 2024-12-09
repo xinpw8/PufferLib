@@ -2131,8 +2131,8 @@ GameRenderer* init_game_renderer(int cell_size, int width, int height) {
     renderer->puffer = LoadTexture("resources/moba/moba_assets.png");
     renderer->shader_background = GenImageColor(2560, 1440, (Color){0, 0, 0, 255});
     renderer->shader_canvas = LoadTextureFromImage(renderer->shader_background);
-    renderer->shader = LoadShader("", TextFormat("resources/moba/map_shader_%i.fs", GLSL_VERSION));
-    renderer->bloom_shader = LoadShader("", TextFormat("resources/moba/bloom_shader_%i.fs", GLSL_VERSION));
+    renderer->shader = LoadShader(0, TextFormat("resources/moba/map_shader_%i.fs", GLSL_VERSION));
+    renderer->bloom_shader = LoadShader(0, TextFormat("resources/moba/bloom_shader_%i.fs", GLSL_VERSION));
 
     // TODO: These should be int locs?
     renderer->shader_camera_x = GetShaderLocation(renderer->shader, "camera_x");
