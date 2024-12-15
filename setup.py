@@ -250,6 +250,7 @@ extension_paths = [
     'pufferlib/ocean/pong/cy_pong',
     'pufferlib/ocean/breakout/cy_breakout',
     'pufferlib/ocean/enduro/cy_enduro',
+    'pufferlib/ocean/blastar/cy_blastar',
     'pufferlib/ocean/connect4/cy_connect4',
     'pufferlib/ocean/grid/cy_grid',
     'pufferlib/ocean/tripletriad/cy_tripletriad',
@@ -257,18 +258,51 @@ extension_paths = [
     'pufferlib/ocean/rware/cy_rware',
 ]
 
-extensions = [Extension(
-    path.replace('/', '.'),
-    [path + '.pyx'],
-    include_dirs=[numpy.get_include(), 'raylib/include'],
-    library_dirs=['raylib/lib'],
-    libraries=["raylib"],
-    runtime_library_dirs=["raylib/lib"],
-    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
-    extra_link_args=["-Wl,-rpath,$ORIGIN/raylib/lib"]
+# Define C source files for each extension if they exist
+# For 'cy_blastar', include 'blastar_env.c' and 'blastar_renderer.c'
+c_source_map = {
+    'pufferlib/ocean/blastar/cy_blastar': [
+        'pufferlib/ocean/blastar/blastar_env.c',
+        'pufferlib/ocean/blastar/blastar_renderer.c',
+    ],
+    # Add mappings for other extensions if they have associated C files
+    # Example:
+    # 'pufferlib/ocean/snake/cy_snake': ['pufferlib/ocean/snake/snake.c'],
+}
 
-) for path in extension_paths]
- 
+# extensions = [Extension(
+#     path.replace('/', '.'),
+#     [path + '.pyx'],
+#     include_dirs=[numpy.get_include(), 'raylib/include'],
+#     library_dirs=['raylib/lib'],
+#     libraries=["raylib"],
+#     runtime_library_dirs=["raylib/lib"],
+#     extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-g'],
+#     extra_link_args=["-Wl,-rpath,$ORIGIN/raylib/lib"]
+
+# ) for path in extension_paths]
+
+extensions = []
+for path in extension_paths:
+    ext_name = path.replace('/', '.')
+    sources = [f"{path}.pyx"]
+    # Add C sources if they exist in the c_source_map
+    if path in c_source_map:
+        sources.extend(c_source_map[path])
+    extensions.append(Extension(
+        ext_name,
+        sources,
+        include_dirs=[numpy.get_include(), 'raylib/include'],
+        library_dirs=['raylib/lib'],
+        libraries=["raylib"],
+        runtime_library_dirs=["raylib/lib"],
+        extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
+                            '-DPLATFORM_DESKTOP', '-O2',
+                            '-Wno-alloc-size-larger-than', '-g'],
+        extra_link_args=["-Wl,-rpath,$ORIGIN/raylib/lib"]
+    ))
+
+
 setup(
     name="pufferlib",
     description="PufferAI Library"
