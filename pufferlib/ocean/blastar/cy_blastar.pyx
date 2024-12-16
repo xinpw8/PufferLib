@@ -12,34 +12,42 @@ cdef extern from "blastar_env.h":
     ctypedef struct Bullet:
         float x
         float y
+        float last_x
+        float last_y
         bint active
 
     # Define the Enemy struct
     ctypedef struct Enemy:
         float x
         float y
+        float last_x
+        float last_y
         bint active
         bint attacking
         int direction
         int width
         int height
-        Bullet bullets[10]  # Replaced MAX_BULLETS with 10
+        Bullet bullet
 
     # Define the Player struct
     ctypedef struct Player:
         float x
         float y
+        float last_x
+        float last_y
         int score
         int lives
-        Bullet bullets[10]  # Replaced MAX_BULLETS with 10
+        Bullet bullet
         bint bulletFired
         bint playerStuck
+        float explosion_timer
 
     # Define the Log struct
     ctypedef struct Log:
         float episode_return
         float episode_length
         float score
+        float lives
 
     # Define the LogBuffer struct
     ctypedef struct LogBuffer:
@@ -49,14 +57,23 @@ cdef extern from "blastar_env.h":
 
     # Define the BlastarEnv struct
     ctypedef struct BlastarEnv:
+        int screen_width
+        int screen_height
+        float player_width
+        float player_height
+        float enemy_width
+        float enemy_height
+        float bullet_width
+        float bullet_height
         bint gameOver
         int tick
         int playerExplosionTimer
         int enemyExplosionTimer
         Player player
         Enemy enemy
-        float* observations       # [6]
-        int* actions              # [1]
+        Bullet bullet
+        float* observations       # [21]
+        int* actions              # [6]
         float* rewards            # [1]
         unsigned char* terminals  # [1]
         LogBuffer* log_buffer
@@ -71,7 +88,8 @@ cdef extern from "blastar_env.h":
     void init_blastar(BlastarEnv *env)
     void reset_blastar(BlastarEnv *env)
     void c_step(BlastarEnv *env)
-    void close_blastar(BlastarEnv* env)
+    void close_client(Client* client)
+    void c_render(Client* client, BlastarEnv* env)
 
     # Rendering functions
     ctypedef struct Client:
@@ -79,7 +97,7 @@ cdef extern from "blastar_env.h":
 
     Client* make_client(BlastarEnv* env)
     void close_client(Client* client)
-    void render_blastar_client(Client* client, BlastarEnv* env)
+    void c_render(Client* client, BlastarEnv* env)
 
 cdef class CyBlastar:
     cdef BlastarEnv* envs
@@ -130,16 +148,19 @@ cdef class CyBlastar:
             os.chdir(cwd)
 
         if self.client != NULL:
-            render_blastar_client(self.client, &self.envs[0])
+            c_render(self.client, &self.envs[0])
 
     def close(self):
         if self.client != NULL:
             close_client(self.client)
             self.client = NULL
+        
+        free(self.envs)
+        free(self.logs)
 
         if self.envs != NULL:
             for i in range(self.num_envs):
-                close_blastar(&self.envs[i])
+                close_client(self.client)
             free(self.envs)
             self.envs = NULL
 
@@ -152,6 +173,7 @@ cdef class CyBlastar:
         return {
             'episode_return': log.episode_return,
             'episode_length': log.episode_length,
-            'score': log.score
+            'score': log.score,
+            'lives': log.lives,
         }
         

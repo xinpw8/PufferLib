@@ -1,4 +1,3 @@
-// blastar_env.h
 #ifndef BLASTAR_ENV_H
 #define BLASTAR_ENV_H
 
@@ -11,62 +10,75 @@
 // Include the renderer header
 #include "blastar_renderer.h"
 
-#define MAX_BULLETS 10
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define LOG_BUFFER_SIZE 1024
 
-// Struct Definitions
-typedef struct Log Log;
-struct Log {
+// Log structure
+typedef struct Log {
     float episode_return;
     float episode_length;
     float score;
-};
+    float lives;
+} Log;
 
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
+// LogBuffer structure
+typedef struct LogBuffer {
     Log* logs;
     int length;
     int idx;
-};
+} LogBuffer;
 
 // Bullet structure
-typedef struct {
+typedef struct Bullet {
     float x, y;
+    float last_x, last_y;
     bool active;
 } Bullet;
 
 // Enemy structure
-typedef struct {
+typedef struct Enemy {
     float x, y;
+    float last_x, last_y;
     bool active;
     bool attacking;
-    int direction;
+    int direction; // Movement direction (-1, 0, 1)
     int width;
     int height;
-    Bullet bullets[MAX_BULLETS];
+    Bullet bullet;
 } Enemy;
 
 // Player structure
-typedef struct {
+typedef struct Player {
     float x, y;
+    float last_x, last_y;
     int score;
     int lives;
-    Bullet bullets[MAX_BULLETS];
+    Bullet bullet;
     bool bulletFired;
-    bool playerStuck;
+    bool playerStuck; // Player status (stuck in beam or not)
+    float explosion_timer; // Timer for player explosion effect
 } Player;
 
-// BlastarEnv structure
+// Blastar environment structure
 typedef struct BlastarEnv {
-    bool gameOver;
+    int screen_width;
+    int screen_height;
+    float player_width;
+    float player_height;
+    float enemy_width;
+    float enemy_height;
+    float player_bullet_width;
+    float player_bullet_height;
+    float enemy_bullet_width;
+    float enemy_bullet_height;
+    bool game_over;
     int tick;
-    int playerExplosionTimer;  // Timer for player explosion
-    int enemyExplosionTimer;   // Timer for enemy explosion
+    int playerExplosionTimer;  // Timer for player explosion effect
+    int enemyExplosionTimer;   // Timer for enemy explosion effect
     Player player;
-    Enemy enemy;
-
+    Enemy enemy;               // Singular enemy
+    Bullet bullet;
     // RL fields
     float* observations;       // [6]
     int* actions;              // [1]
@@ -76,25 +88,28 @@ typedef struct BlastarEnv {
     Log log;
 } BlastarEnv;
 
+
 // Function declarations
+
+// Log buffer functions
 LogBuffer* allocate_logbuffer(int size);
 void free_logbuffer(LogBuffer* buffer);
 void add_log(LogBuffer* logs, Log* log);
 Log aggregate_and_clear(LogBuffer* logs);
 
-// RL allocation
+// RL memory allocation
 void allocate_env(BlastarEnv* env);
 void free_allocated_env(BlastarEnv* env);
 
-// Initialization, reset, close
-void init_blastar(BlastarEnv *env);
-void reset_blastar(BlastarEnv *env);
+// Initialization, reset, and cleanup
+void init_blastar(BlastarEnv* env);
+void reset_blastar(BlastarEnv* env);
 void close_blastar(BlastarEnv* env);
 
-// Compute observations
+// Observation computation
 void compute_observations(BlastarEnv* env);
 
-// Combined step function
-void c_step(BlastarEnv *env);
+// RL step function
+void c_step(BlastarEnv* env);
 
 #endif // BLASTAR_ENV_H

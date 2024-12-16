@@ -1,4 +1,3 @@
-// blastar_renderer.h
 #ifndef BLASTAR_RENDERER_H
 #define BLASTAR_RENDERER_H
 
@@ -7,28 +6,31 @@
 // Forward declaration of BlastarEnv
 typedef struct BlastarEnv BlastarEnv;
 
-// Define the BlastarRenderer struct
-typedef struct {
-    Texture2D playerTexture;       // Texture for the player's ship
-    Texture2D enemyTexture;        // Texture for the enemy's ship
-    Texture2D playerBulletTexture; // Texture for the player's bullets
-    Texture2D enemyBulletTexture;  // Texture for the enemy's bullets
-    Texture2D playerDeathExplosion;// Texture for the player's death explosion
-} BlastarRenderer;
-
 // Define the Client struct
-typedef struct Client {
-    BlastarRenderer renderer;
-} Client;
+typedef struct Client Client;
+struct Client {
+    float screen_width;
+    float screen_height;
+    float player_width;
+    float player_height;
+    float enemy_width;
+    float enemy_height;
+    
+    Texture2D player_texture;
+    Texture2D enemy_texture;
+    Texture2D player_bullet_texture;
+    Texture2D enemy_bullet_texture;
+    Texture2D explosion_texture;
 
-// Function declarations for renderer
-void init_renderer(BlastarRenderer *renderer);
-void render_blastar(const BlastarRenderer *renderer, const BlastarEnv *env);
-void close_renderer(BlastarRenderer *renderer);
+    Color player_color;
+    Color enemy_color;
+    Color bullet_color;
+    Color explosion_color;
+};
 
-// Client-related function declarations
+// Function declarations
 Client* make_client(BlastarEnv* env);
 void close_client(Client* client);
-void render_blastar_client(Client* client, BlastarEnv* env);
+void c_render(Client* client, BlastarEnv* env);
 
 #endif // BLASTAR_RENDERER_H
