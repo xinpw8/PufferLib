@@ -13,6 +13,8 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define LOG_BUFFER_SIZE 1024
+#define MAX_EPISODE_STEPS 81920
+#define PLAYER_MAX_LIVES 5
 
 // Log structure
 typedef struct Log {
@@ -76,6 +78,8 @@ typedef struct BlastarEnv {
     int tick;
     int playerExplosionTimer;  // Timer for player explosion effect
     int enemyExplosionTimer;   // Timer for enemy explosion effect
+    int max_score;
+    int bullet_travel_time;
     Player player;
     Enemy enemy;               // Singular enemy
     Bullet bullet;

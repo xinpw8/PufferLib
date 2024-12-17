@@ -72,7 +72,7 @@ cdef extern from "blastar_env.h":
         Player player
         Enemy enemy
         Bullet bullet
-        float* observations       # [21]
+        float* observations       # [25]
         int* actions              # [6]
         float* rewards            # [1]
         unsigned char* terminals  # [1]
