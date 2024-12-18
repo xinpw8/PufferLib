@@ -48,6 +48,15 @@ cdef extern from "blastar_env.h":
         float episode_length
         float score
         float lives
+        float bullet_travel_rew
+        float fired_bullet_rew
+        float bullet_distance_to_enemy_rew
+        float gradient_penalty_rew
+        float flat_below_enemy_rew
+        float danger_zone_penalty_rew
+        float crashing_penalty_rew
+        float hit_enemy_with_bullet_rew
+        float hit_by_enemy_bullet_penalty_rew
 
     # Define the LogBuffer struct
     ctypedef struct LogBuffer:
@@ -63,12 +72,17 @@ cdef extern from "blastar_env.h":
         float player_height
         float enemy_width
         float enemy_height
-        float bullet_width
-        float bullet_height
+        float player_bullet_width
+        float player_bullet_height
+        float enemy_bullet_width
+        float enemy_bullet_height
+        float last_bullet_distance
         bint gameOver
         int tick
         int playerExplosionTimer
         int enemyExplosionTimer
+        int max_score
+        int bullet_travel_time
         Player player
         Enemy enemy
         Bullet bullet
@@ -175,5 +189,14 @@ cdef class CyBlastar:
             'episode_length': log.episode_length,
             'score': log.score,
             'lives': log.lives,
+            'bullet_travel_rew': log.bullet_travel_rew,
+            'fired_bullet_rew': log.fired_bullet_rew,
+            'bullet_distance_to_enemy_rew': log.bullet_distance_to_enemy_rew,
+            'gradient_penalty_rew': log.gradient_penalty_rew,
+            'flat_below_enemy_rew': log.flat_below_enemy_rew,
+            'danger_zone_penalty_rew': log.danger_zone_penalty_rew,
+            'crashing_penalty_rew': log.crashing_penalty_rew,
+            'hit_enemy_with_bullet_rew': log.hit_enemy_with_bullet_rew,
+            'hit_by_enemy_bullet_penalty_rew': log.hit_by_enemy_bullet_penalty_rew,
         }
         

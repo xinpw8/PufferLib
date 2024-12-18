@@ -13,7 +13,7 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define LOG_BUFFER_SIZE 1024
-#define MAX_EPISODE_STEPS 81920
+#define MAX_EPISODE_STEPS 2800
 #define PLAYER_MAX_LIVES 5
 
 // Log structure
@@ -22,6 +22,15 @@ typedef struct Log {
     float episode_length;
     float score;
     float lives;
+    float bullet_travel_rew;
+    float fired_bullet_rew;
+    float bullet_distance_to_enemy_rew;
+    float gradient_penalty_rew;
+    float flat_below_enemy_rew;
+    float danger_zone_penalty_rew;
+    float crashing_penalty_rew;
+    float hit_enemy_with_bullet_rew;
+    float hit_by_enemy_bullet_penalty_rew;
 } Log;
 
 // LogBuffer structure
@@ -74,12 +83,14 @@ typedef struct BlastarEnv {
     float player_bullet_height;
     float enemy_bullet_width;
     float enemy_bullet_height;
+    float last_bullet_distance;
     bool game_over;
     int tick;
     int playerExplosionTimer;  // Timer for player explosion effect
     int enemyExplosionTimer;   // Timer for enemy explosion effect
     int max_score;
     int bullet_travel_time;
+    bool bullet_crossed_enemy_y; // Reset on bullet deactivation
     Player player;
     Enemy enemy;               // Singular enemy
     Bullet bullet;

@@ -34,11 +34,29 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_length += logs->logs[i].episode_length;
         log.score += logs->logs[i].score;
         log.lives += logs->logs[i].lives;
+        log.bullet_travel_rew += logs->logs[i].bullet_travel_rew;
+        log.fired_bullet_rew += logs->logs[i].fired_bullet_rew;
+        log.bullet_distance_to_enemy_rew += logs->logs[i].bullet_distance_to_enemy_rew;
+        log.gradient_penalty_rew += logs->logs[i].gradient_penalty_rew;
+        log.flat_below_enemy_rew += logs->logs[i].flat_below_enemy_rew;
+        log.danger_zone_penalty_rew += logs->logs[i].danger_zone_penalty_rew;
+        log.crashing_penalty_rew += logs->logs[i].crashing_penalty_rew;
+        log.hit_enemy_with_bullet_rew += logs->logs[i].hit_enemy_with_bullet_rew;
+        log.hit_by_enemy_bullet_penalty_rew += logs->logs[i].hit_by_enemy_bullet_penalty_rew;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.score /= logs->idx;
     log.lives /= logs->idx;
+    log.bullet_travel_rew /= logs->idx;
+    log.fired_bullet_rew /= logs->idx;
+    log.bullet_distance_to_enemy_rew /= logs->idx;
+    log.gradient_penalty_rew /= logs->idx;
+    log.flat_below_enemy_rew /= logs->idx;
+    log.danger_zone_penalty_rew /= logs->idx;
+    log.crashing_penalty_rew /= logs->idx;
+    log.hit_enemy_with_bullet_rew /= logs->idx;
+    log.hit_by_enemy_bullet_penalty_rew /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -46,7 +64,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 // RL allocation
 void allocate_env(BlastarEnv* env) {
     if (env) {
-        env->observations = (float*)calloc(25, sizeof(float));
+        env->observations = (float*)calloc(26, sizeof(float));
         env->actions = (int*)calloc(1, sizeof(int));
         env->rewards = (float*)calloc(1, sizeof(float));
         env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -82,7 +100,6 @@ void free_allocated_env(BlastarEnv* env) {
 // Initialization, reset, close
 void init_blastar(BlastarEnv *env) {
     if (env) {
-        env->terminals[0] = 0;
         env->game_over = false;
         env->tick = 0;
         env->playerExplosionTimer = 0;
@@ -91,7 +108,7 @@ void init_blastar(BlastarEnv *env) {
         env->screen_width = SCREEN_WIDTH;
 
         // Max score var
-        env->max_score = PLAYER_MAX_LIVES;
+        env->max_score = 5 * PLAYER_MAX_LIVES;
 
         // Initialize player
         // Randomize player x position
@@ -106,8 +123,8 @@ void init_blastar(BlastarEnv *env) {
         env->player.last_x = env->player.x;
         env->player.last_y = env->player.y;
         env->player.score = 0;
-        // env->player.lives = PLAYER_MAX_LIVES;
-        env->player.lives = rand() % (int)PLAYER_MAX_LIVES;
+        env->player.lives = PLAYER_MAX_LIVES;
+        // env->player.lives = rand() % (int)PLAYER_MAX_LIVES;
         env->player.bulletFired = false;
         env->player.playerStuck = false;
         env->player.bullet.active = false;
@@ -116,6 +133,7 @@ void init_blastar(BlastarEnv *env) {
         env->player.bullet.last_x = env->player.bullet.x;
         env->player.bullet.last_y = env->player.bullet.y;
         env->bullet_travel_time = 0;
+        env->last_bullet_distance = 0;
 
         // Initialize enemy
         env->enemy.x = -30;
@@ -251,6 +269,7 @@ void c_step(BlastarEnv *env) {
     if (env->game_over) {
         if (env->terminals) env->terminals[0] = 1;
         add_log(env->log_buffer, &env->log);
+        reset_blastar(env);  // Reset the environment
         return;
     }
 
@@ -258,19 +277,29 @@ void c_step(BlastarEnv *env) {
         env->game_over = true;  // Mark the episode as over
         if (env->terminals) env->terminals[0] = 1;
         add_log(env->log_buffer, &env->log);  // Log the episode's stats
+        reset_blastar(env);  // Reset the environment
         return;
     }
 
     env->tick++;
-    if (env->log_buffer) env->log.episode_length += 1;
+    env->log.episode_length += 1;
 
+    float speed_scale = 4.0f;
     float playerSpeed = 2.0f;
     float enemySpeed = 1.0f;
     float playerBulletSpeed = 3.0f;
     float enemyBulletSpeed = 2.0f;
 
+    playerSpeed *= speed_scale;
+    enemySpeed *= speed_scale;
+    playerBulletSpeed *= speed_scale;
+    enemyBulletSpeed *= speed_scale;
+
+    float rew = 0.0f;
+    env->rewards[0] = rew;
+
     int action = 0;
-    if (env->actions) action = env->actions[0];
+    action = env->actions[0];
 
     // Handle player explosion
     if (env->playerExplosionTimer > 0) {
@@ -286,16 +315,25 @@ void c_step(BlastarEnv *env) {
     if (env->enemyExplosionTimer > 0) {
         env->enemyExplosionTimer--;
         if (env->enemyExplosionTimer == 0) {
-            if (rand() % 2 == 0) {
+            // Rarely respawn in the same place
+            float respawn_bias = 0.1f; // 10% chance to respawn in the same place
+            if ((float)rand() / (float)RAND_MAX > respawn_bias) {
+                // Respawn in a new position
                 env->enemy.x = -env->enemy.width;
                 env->enemy.y = rand() % (SCREEN_HEIGHT - env->enemy.height);
             }
+            // Otherwise, respawn in the same place as a rare event
             env->enemy.active = true;
             env->enemy.attacking = false;
         }
         goto compute_obs; // Skip further logic while exploding
     }
 
+    // Keep enemy far enough from bottom of the screen
+    if (env->enemy.y > (SCREEN_HEIGHT - (env->enemy.height * 3.5f))) {
+        env->enemy.y = (SCREEN_HEIGHT - (env->enemy.height * 3.5f));
+    }
+    
     // Last enemy and player positions
     env->enemy.last_x = env->enemy.x;
     env->enemy.last_y = env->enemy.y;
@@ -311,95 +349,80 @@ void c_step(BlastarEnv *env) {
     }
 
     // Fire player bullet
-    if (action == 5 && !env->player.playerStuck) {
-        // Reward for firing a bullet
-        env->rewards[0] = 0.0001f;
-        env->log.episode_return += 0.0001f;
-
-        // If a bullet is already active
+    if (action == 5 && (!env->enemy.bullet.active)) {
+        // If a bullet is already active, replace it with the new one
         if (env->player.bullet.active) {
-            env->player.bullet.active = false;
-            env->rewards[0] = -0.05f; // Bullet can't hit enemy if constantly replacing w/ new bullet
+            env->player.bullet.active = false; // Deactivate the existing bullet
+        } else {
+            // Don't reward for just going to top of screen and firing
+            // if (env->player.y > (env->player_height * 4) && env->player.y > (env->enemy.y + env->enemy.height)) {
+            // // Reward only for firing when no bullet was previously active
+            // rew += 0.01f;
+            // env->log.fired_bullet_rew += 0.01f;
+            // }
         }
+
+        // Activate and initialize the new bullet
         env->player.bullet.active = true;
-        env->player.bullet.x = env->player.x;
+        env->player.bullet.x = env->player.x + env->player_width / 2 - env->player_bullet_width / 2;
         env->player.bullet.y = env->player.y;
     }
 
     // Update player bullet
-    if (env->player.bullet.active && env->player.y > env->enemy.y + env->enemy.height) {
-        // Reward for keeping the bullet in the air
-        float bullet_reward_per_step = 0.001f;
-        env->bullet_travel_time += 1;
-        env->rewards[0] += bullet_reward_per_step * env->bullet_travel_time; 
-        env->log.episode_return += bullet_reward_per_step;
-
+    if (env->player.bullet.active) {
         // Update bullet position
         env->player.bullet.y -= playerBulletSpeed;
 
-        // If the bullet goes off-screen, deactivate it
+        // // Predict time until bullet aligns with the enemy's Y-position
+        // float time_to_align_y = (env->enemy.y - env->player.bullet.y) / playerBulletSpeed;
+
+        // Predict enemy X-position at that time
+        // float predicted_enemy_x = env->enemy.x + (enemySpeed * time_to_align_y);
+        float y_intercept = env->enemy.y + env->enemy.height;
+        float time_of_predicted_y_intercept_of_player_bullet = (y_intercept - env->player.bullet.y) / playerBulletSpeed;
+        float predicted_enemy_x_at_y_intercept = env->enemy.x + (enemySpeed * time_of_predicted_y_intercept_of_player_bullet);
+        float difference_between_player_bullet_and_enemy_x = (env->player.bullet.x - predicted_enemy_x_at_y_intercept);
+
+        // Calculate the new predicted distance between the bullet and enemy
+        // float predicted_dx = env->player.bullet.x - predicted_enemy_x;
+        // float predicted_distance = fabs(predicted_dx);
+
+        // printf("Predicted distance: %f\n", difference_between_player_bullet_and_enemy_x);
+        // printf("Last distance: %f\n", env->last_bullet_distance);
+        // printf("Bullet x: %f, Bullet y: %f\n", env->player.bullet.x, env->player.bullet.y);
+
+        // Reward if the predicted distance is smaller than the last distance
+        // Only reward when bullet actually crosses y axis of enemy
+        if ((env->last_bullet_distance > difference_between_player_bullet_and_enemy_x) && 0 < difference_between_player_bullet_and_enemy_x && difference_between_player_bullet_and_enemy_x < 20 && (env->player.y > env->enemy.y + env->enemy.height)) {
+            float improvement_reward = (env->last_bullet_distance - difference_between_player_bullet_and_enemy_x) / SCREEN_WIDTH; // Normalize by screen width
+            rew += improvement_reward;
+            env->log.bullet_distance_to_enemy_rew += improvement_reward;
+        }
+
+        // Update the last bullet distance for future comparisons
+        env->last_bullet_distance = difference_between_player_bullet_and_enemy_x;
+
+        // Deactivate bullet if off-screen
         if (env->player.bullet.y < 0) {
             env->player.bullet.active = false;
-        }
-
-        if (env->player.bullet.active == false) {
             env->bullet_travel_time = 0;
         }
+
+        // // Check collision player bullet with enemy
+        // Rectangle bulletHitbox = {env->player.bullet.x, env->player.bullet.y, env->player_bullet_width, env->player_bullet_height};
+        // Rectangle enemyHitbox = {env->enemy.x, env->enemy.y, env->enemy.width, env->enemy.height};
+        // if (CheckCollisionRecs(bulletHitbox, enemyHitbox) && env->enemy.active) {
+        //     env->player.bullet.active = false; // Deactivate bullet
+        //     env->enemy.active = false;        // Mark enemy as inactive
+        //     env->enemyExplosionTimer = 30;    // Start explosion animation
+        //     env->player.score += 1.0f; // Increment player's score
+        //     env->log.score += 1.0f;
+
+        // }
     }
-
-    if (env->player.bullet.active && env->player.y > env->enemy.y + env->enemy.height) {
-        // Calculate the distance between the bullet and the enemy
-        float dx = env->player.bullet.x - env->enemy.x;
-        float dy = env->player.bullet.y - env->enemy.y;
-        float distance = sqrtf(dx * dx + dy * dy);
-        
-        // Invert and normalize the distance to get a reward signal
-        float max_distance = sqrtf(SCREEN_WIDTH * SCREEN_WIDTH + SCREEN_HEIGHT * SCREEN_HEIGHT);
-        float distance_reward = (max_distance - distance) / max_distance;
-        
-        // Distance from bullet to enemy reward
-        env->rewards[0] += 0.02f * distance_reward; // Modify distance-to-enemy reward here
-        env->log.episode_return += 0.02f * distance_reward;
-
-        // Update bullet position
-        env->player.bullet.y -= playerBulletSpeed;
-
-            // If the bullet goes off-screen, deactivate it
-            if (env->player.bullet.y < 0) {
-                env->player.bullet.active = false;
-            }
-        }
-
-    // Player bullet hits enemy
-    if (env->player.bullet.active && env->player.y > env->enemy.y + env->enemy.height) {
-        Rectangle bulletHitbox = {env->player.bullet.x, env->player.bullet.y, 17, 6};
-        Rectangle enemyHitbox = {env->enemy.x, env->enemy.y, env->enemy.width, env->enemy.height};
-        if (CheckCollisionRecs(bulletHitbox, enemyHitbox) && env->enemy.active) {
-            env->player.bullet.active = false; // Deactivate the bullet
-            env->enemy.active = false; // Mark enemy as inactive
-            env->enemyExplosionTimer = 60; // Start explosion animation
-
-            // Calculate the total travel reward for the bullet
-            float total_travel_reward = (env->screen_height / playerBulletSpeed) * 0.01f;
-
-            // Apply reward: total travel reward + bonus for hitting enemy
-            float hit_bonus = 1.0f; // Bonus for hitting the enemy
-            env->rewards[0] += total_travel_reward + hit_bonus;
-            env->log.episode_return += total_travel_reward + hit_bonus;
-
-            env->player.score++; // Increment player's score
-            env->log.score += 1.0f;
-        }
-    }
-
 
     float playerCenterX = env->player.x + env->player_width / 2.0f;
     float enemyCenterX = env->enemy.x + env->enemy.width / 2.0f;
-
-    // Penalize for staying in danger zone
-    if (fabs(playerCenterX - enemyCenterX) < 1.0f && env->player.y < (env->enemy.y + env->enemy.height)) {
-        env->rewards[0] -= 0.5f; // Scale penalty
-    }
 
     // Last player bullet location
     env->player.bullet.last_x = env->player.bullet.x;
@@ -414,8 +437,10 @@ void c_step(BlastarEnv *env) {
     }
 
     // Enemy attack logic
-    if (fabs(playerCenterX - enemyCenterX) < 1.0f && !env->enemy.attacking && env->enemy.active && env->enemy.y < env->player.y - (env->enemy_height / 2)) {
-        env->enemy.attacking = true;
+    if (fabs(playerCenterX - enemyCenterX) < speed_scale && !env->enemy.attacking && env->enemy.active && env->enemy.y < env->player.y - (env->enemy_height / 2)) {
+        // 50% chance of attacking
+        if (rand() % 2 == 0) {
+            env->enemy.attacking = true;
             if (!env->enemy.bullet.active) {
                 env->enemy.bullet.active = true;
                 env->enemy.bullet.x = enemyCenterX - 5.0f;
@@ -425,6 +450,10 @@ void c_step(BlastarEnv *env) {
                 // Player stuck
                 env->player.playerStuck = true;
             }
+        } else {
+            env->enemy.attacking = false;
+            env->enemy.x += enemySpeed;
+        }
     }
 
     // Update enemy bullets
@@ -441,6 +470,13 @@ void c_step(BlastarEnv *env) {
     env->enemy.bullet.last_x = env->enemy.bullet.x;
     env->enemy.bullet.last_y = env->enemy.bullet.y;
 
+    // Penalize for staying in danger zone
+    if (env->enemy.attacking) {
+        float danger_zone_penalty = 0.005f;
+        env->log.danger_zone_penalty_rew -= danger_zone_penalty;
+        rew -= danger_zone_penalty; // Danger zone penalty
+    }
+
     // Collision detection
     Rectangle playerHitbox = {env->player.x, env->player.y, 17, 17};
     Rectangle enemyHitbox = {env->enemy.x, env->enemy.y, env->enemy.width, env->enemy.height};
@@ -449,25 +485,26 @@ void c_step(BlastarEnv *env) {
     if (CheckCollisionRecs(playerHitbox, enemyHitbox)) {
         env->player.lives--;
         env->enemy.active = false;
-        env->enemyExplosionTimer = 60;
+        env->enemyExplosionTimer = 30;
 
         // Respawn enemy
         env->enemy.x = -env->enemy.width;
         env->enemy.y = rand() % (SCREEN_HEIGHT - env->enemy.height);
 
-        env->playerExplosionTimer = 60;
+        env->playerExplosionTimer = 30;
         env->player.playerStuck = false;
 
-        // Reward/Penalty
+        // Crashing penalty
         if (env->rewards) {
-            env->rewards[0] = -5.0f; // Penalty
-            if (env->log_buffer) env->log.episode_return -= 5.0f;
+            rew -= 1.0f; // Crashing penalty
+            env->log.crashing_penalty_rew -= 1.0f;
         }
 
         if (env->player.lives <= 0) {
             env->player.lives = 0;
             env->game_over = true;
             if (env->terminals) env->terminals[0] = 1;
+            env->rewards[0] = rew;
             compute_observations(env);
             add_log(env->log_buffer, &env->log);
             reset_blastar(env);
@@ -481,11 +518,11 @@ void c_step(BlastarEnv *env) {
         if (CheckCollisionRecs(bulletHitbox, enemyHitbox) && env->enemy.active) {
             env->player.bullet.active = false;
             env->enemy.active = false;
-            env->player.score++;
+            env->player.score += 1.0f;
             env->log.score += 1.0f;
-            env->enemyExplosionTimer = 60;
-            env->rewards[0] = 10.0f; // Reward for hitting enemy
-            env->log.episode_return += 10.0f;
+            env->enemyExplosionTimer = 30;
+            rew += 5.0f; // Reward for hitting enemy
+            env->log.hit_enemy_with_bullet_rew += 5.0f;
             add_log(env->log_buffer, &env->log);
         }
     }
@@ -497,19 +534,20 @@ void c_step(BlastarEnv *env) {
             env->enemy.bullet.active = false;
             env->player.lives--;
             env->log.lives = env->player.lives;
-            env->playerExplosionTimer = 60;
+            env->playerExplosionTimer = 30;
             env->player.playerStuck = false;
             env->enemy.attacking = false;
             env->enemy.x = -env->enemy.width;
             env->enemy.y = rand() % (SCREEN_HEIGHT - env->enemy.height);
 
-            env->rewards[0] = -5.0f;
-            if (env->log_buffer) env->log.episode_return -= 5.0f;
+            rew -= 1.0f;
+            env->log.hit_by_enemy_bullet_penalty_rew -= 1.0f;
 
             if (env->player.lives <= 0) {
                 env->player.lives = 0;
                 env->game_over = true;
                 if (env->terminals) env->terminals[0] = 1;
+                env->rewards[0] = rew;
                 compute_observations(env);
                 add_log(env->log_buffer, &env->log);
                 reset_blastar(env);
@@ -517,10 +555,30 @@ void c_step(BlastarEnv *env) {
         }
     }
 
-    // Add lives-based reward (encourage agent to preserve lives)
-    float max_lives = PLAYER_MAX_LIVES;
+    // // Gradient of negative rewards based on player's Y-distance from the enemy
+    // if (env->player.y < env->enemy.y) { // Player is above the enemy
+    //     float distance = fabs(env->player.y - env->enemy.y);
+    //     float max_distance = SCREEN_HEIGHT; // Maximum possible distance in the Y-axis
+    //     float gradient_penalty = -0.0001f * (distance / max_distance); // Linearly scaled penalty
+    //     rew += gradient_penalty;
+    //     env->log.gradient_penalty_rew += gradient_penalty;
+    // } else { // Player is fully below the enemy
+    //     if (env->player.y > env->enemy.y + env->enemy.height) {
+    //         float flat_reward = 0.0001f; // Flat positive reward for being below the enemy
+    //         rew += flat_reward;
+    //         env->log.flat_below_enemy_rew += flat_reward;
+    //     }
+    // }
+
+    // If player isn't below enemy, 0 reward
     if (env->player.y > env->enemy.y + env->enemy.height) {
-    env->rewards[0] += env->player.lives / max_lives;  // Reward normalized to [0, 1]
+        env->log.episode_return += rew;
+        env->rewards[0] = rew * env->player.score * env->player.lives;
+        // printf("reward: %f\n", env->rewards[0]);
+    } else {
+        // printf("no reward\n");
+        env->log.episode_return += 0.0f;
+        env->rewards[0] = 0.0f;
     }
 
     if (env->player.lives <= 0) {
@@ -535,4 +593,5 @@ void c_step(BlastarEnv *env) {
 compute_obs:
     // Compute observations after step
     compute_observations(env);
+    add_log(env->log_buffer, &env->log);
 }
