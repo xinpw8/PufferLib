@@ -65,15 +65,9 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
     import sys
 
     from math import log, ceil, floor
+    from carbs.utils import LinearSpace, LogSpace, LogitSpace
+    from carbs.carbs import CARBS, CARBSParams, ObservationInParam, ParamDictType, Param
 
-    from carbs import CARBS
-    from carbs import CARBSParams
-    from carbs import LinearSpace
-    from carbs import LogSpace
-    from carbs import LogitSpace
-    from carbs import ObservationInParam
-    from carbs import ParamDictType
-    from carbs import Param
 
     def closest_power(x):
         possible_results = floor(log(x, 2)), ceil(log(x, 2))
@@ -181,9 +175,9 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         carbs_param('train', 'gae_lambda', 'logit', sweep_parameters, search_center=0.90),
         carbs_param('train', 'update_epochs', 'linear', sweep_parameters,
             search_center=1, scale=3, is_integer=True),
-        carbs_param('train', 'clip_coef', 'logit', sweep_parameters, search_center=0.1),
+        # carbs_param('train', 'clip_coef', 'logit', sweep_parameters, search_center=0.1),
         carbs_param('train', 'vf_coef', 'logit', sweep_parameters, search_center=0.5),
-        carbs_param('train', 'vf_clip_coef', 'logit', sweep_parameters, search_center=0.1),
+        # carbs_param('train', 'vf_clip_coef', 'logit', sweep_parameters, search_center=0.1),
         carbs_param('train', 'max_grad_norm', 'linear', sweep_parameters, search_center=0.5),
         carbs_param('train', 'ent_coef', 'log', sweep_parameters, search_center=0.01),
         carbs_param('train', 'batch_size', 'log', sweep_parameters,
@@ -228,6 +222,20 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         #wandb.config.env['vision'] = vision
         #wandb.config.policy['cnn_channels'] = cnn_channels
         #wandb.config.policy['hidden_size'] = hidden_size
+        
+        # Validate the suggestions
+        assert suggestion['train/learning_rate'] > 0, "Learning rate must be greater than 0."
+        assert 0 < suggestion['train/gamma'] <= 1, "Gamma must be in range (0, 1]."
+        assert 0 < suggestion['train/gae_lambda'] <= 1, "GAE lambda must be in range (0, 1]."
+        assert suggestion['train/update_epochs'] > 0, "Update epochs must be greater than 0."
+        assert suggestion['train/vf_coef'] >= 0, "Value function coefficient must be non-negative."
+        assert suggestion['train/max_grad_norm'] > 0, "Max gradient norm must be greater than 0."
+        assert suggestion['train/ent_coef'] >= 0, "Entropy coefficient must be non-negative."
+        assert suggestion['train/batch_size'] > 0, "Batch size must be greater than 0."
+        assert suggestion['train/minibatch_size'] > 0, "Minibatch size must be greater than 0."
+        assert suggestion['train/bptt_horizon'] > 0, "BPTT horizon must be greater than 0."
+        
+        
         train_suggestion = {k.split('/')[1]: v for k, v in suggestion.items() if k.startswith('train/')}
         env_suggestion = {k.split('/')[1]: v for k, v in suggestion.items() if k.startswith('env/')}
         args['train'].update(train_suggestion)

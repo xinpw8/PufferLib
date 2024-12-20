@@ -15,6 +15,7 @@
 #define LOG_BUFFER_SIZE 1024
 #define MAX_EPISODE_STEPS 2800
 #define PLAYER_MAX_LIVES 5
+#define REWARD_BUFFER_SIZE 200
 
 // Log structure
 typedef struct Log {
@@ -39,6 +40,12 @@ typedef struct LogBuffer {
     int length;
     int idx;
 } LogBuffer;
+
+typedef struct RewardBuffer {
+    float* rewards; // Sliding window for reward smoothing
+    int size;       // Size of the buffer
+    int idx;        // Current index in the buffer
+} RewardBuffer;
 
 // Bullet structure
 typedef struct Bullet {
@@ -94,6 +101,7 @@ typedef struct BlastarEnv {
     Player player;
     Enemy enemy;               // Singular enemy
     Bullet bullet;
+    RewardBuffer* reward_buffer;
     // RL fields
     float* observations;       // [6]
     int* actions;              // [1]
@@ -111,6 +119,10 @@ LogBuffer* allocate_logbuffer(int size);
 void free_logbuffer(LogBuffer* buffer);
 void add_log(LogBuffer* logs, Log* log);
 Log aggregate_and_clear(LogBuffer* logs);
+
+// Reward buffer
+RewardBuffer* allocate_reward_buffer(int size);
+void free_reward_buffer(RewardBuffer* buffer);
 
 // RL memory allocation
 void allocate_env(BlastarEnv* env);

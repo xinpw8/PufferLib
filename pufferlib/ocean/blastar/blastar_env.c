@@ -1,6 +1,7 @@
 // blastar_env.c
 #include "blastar_env.h"
 #include <stdlib.h>
+#include <numpy/arrayobject.h>
 
 LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
@@ -11,9 +12,25 @@ LogBuffer* allocate_logbuffer(int size) {
 }
 
 void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
+    if (buffer) {
+        if (buffer->logs) {
+            free(buffer->logs);
+            buffer->logs = NULL;
+        }
+        free(buffer);
+    }
 }
+
+void free_reward_buffer(RewardBuffer* buffer) {
+    if (buffer) {
+        if (buffer->rewards) {
+            free(buffer->rewards);
+            buffer->rewards = NULL;
+        }
+        free(buffer);
+    }
+}
+
 
 void add_log(LogBuffer* logs, Log* log) {
     if (logs->idx == logs->length) {
@@ -61,41 +78,86 @@ Log aggregate_and_clear(LogBuffer* logs) {
     return log;
 }
 
+RewardBuffer* allocate_reward_buffer(int size) {
+    assert(size > 0 && "Reward buffer size must be greater than 0.");
+    RewardBuffer* buffer = (RewardBuffer*)calloc(1, sizeof(RewardBuffer));
+    assert(buffer != NULL && "Failed to allocate RewardBuffer.");
+    buffer->rewards = (float*)calloc(size, sizeof(float));
+    assert(buffer->rewards != NULL && "Failed to allocate RewardBuffer's rewards array.");
+    buffer->size = size;
+    buffer->idx = 0;
+    return buffer;
+}
+
+float update_and_get_smoothed_reward(RewardBuffer* buffer, float reward) {
+    buffer->rewards[buffer->idx % buffer->size] = reward;
+    buffer->idx++;
+
+    float sum = 0.0f;
+    int count = (buffer->idx < buffer->size) ? buffer->idx : buffer->size;
+
+    for (int i = 0; i < count; i++) {
+        sum += buffer->rewards[i];
+    }
+
+    return sum / count;
+}
+
 // RL allocation
 void allocate_env(BlastarEnv* env) {
     if (env) {
-        env->observations = (float*)calloc(26, sizeof(float));
+        env->observations = (float*)calloc(27, sizeof(float));
         env->actions = (int*)calloc(1, sizeof(int));
         env->rewards = (float*)calloc(1, sizeof(float));
         env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
         env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+        env->reward_buffer = allocate_reward_buffer(REWARD_BUFFER_SIZE);
     }
 }
 
 void free_allocated_env(BlastarEnv* env) {
     if (env) {
-        if (env->observations) {
+        // Debugging: Print pointers to ensure validity
+        printf("Freeing pointers: observations=%p, actions=%p, rewards=%p, terminals=%p, log_buffer=%p, reward_buffer=%p\n",
+               env->observations, env->actions, env->rewards, env->terminals, env->log_buffer, env->reward_buffer);
+
+        if (is_valid_pointer(env->observations)) {
             free(env->observations);
             env->observations = NULL;
         }
-        if (env->actions) {
+
+        if (is_valid_pointer(env->actions)) {
             free(env->actions);
             env->actions = NULL;
         }
-        if (env->rewards) {
+
+        if (is_valid_pointer(env->rewards)) {
             free(env->rewards);
             env->rewards = NULL;
         }
-        if (env->terminals) {
+
+        if (is_valid_pointer(env->terminals)) {
             free(env->terminals);
             env->terminals = NULL;
         }
-        if (env->log_buffer) {
+
+        if (is_valid_pointer(env->log_buffer)) {
             free_logbuffer(env->log_buffer);
             env->log_buffer = NULL;
         }
+
+        if (is_valid_pointer(env->reward_buffer)) {
+            free_reward_buffer(env->reward_buffer);
+            env->reward_buffer = NULL;
+        }
+
     }
 }
+
+int is_valid_pointer(void* ptr) {
+    return ptr != NULL;
+}
+
 
 // Initialization, reset, close
 void init_blastar(BlastarEnv *env) {
@@ -160,11 +222,19 @@ void init_blastar(BlastarEnv *env) {
     }
 }
 
-void reset_blastar(BlastarEnv *env) {
-    init_blastar(env);
+void reset_blastar(BlastarEnv* env) {
+    if (!env) return;
+
+    // Clear game-specific state
     env->log = (Log){0};
     env->tick = 0;
+    env->game_over = false;
+
+    // Reinitialize game entities
+    init_blastar(env);
 }
+
+
 
 void close_blastar(BlastarEnv* env) {
     free_allocated_env(env);
@@ -470,12 +540,12 @@ void c_step(BlastarEnv *env) {
     env->enemy.bullet.last_x = env->enemy.bullet.x;
     env->enemy.bullet.last_y = env->enemy.bullet.y;
 
-    // Penalize for staying in danger zone
-    if (env->enemy.attacking) {
-        float danger_zone_penalty = 0.005f;
-        env->log.danger_zone_penalty_rew -= danger_zone_penalty;
-        rew -= danger_zone_penalty; // Danger zone penalty
-    }
+    // // Penalize for staying in danger zone
+    // if (env->enemy.attacking) {
+    //     float danger_zone_penalty = 0.005f;
+    //     env->log.danger_zone_penalty_rew -= danger_zone_penalty;
+    //     rew -= danger_zone_penalty; // Danger zone penalty
+    // }
 
     // Collision detection
     Rectangle playerHitbox = {env->player.x, env->player.y, 17, 17};
@@ -494,11 +564,11 @@ void c_step(BlastarEnv *env) {
         env->playerExplosionTimer = 30;
         env->player.playerStuck = false;
 
-        // Crashing penalty
-        if (env->rewards) {
-            rew -= 1.0f; // Crashing penalty
-            env->log.crashing_penalty_rew -= 1.0f;
-        }
+        // // Crashing penalty
+        // if (env->rewards) {
+        //     rew -= 1.0f; // Crashing penalty
+        //     env->log.crashing_penalty_rew -= 1.0f;
+        // }
 
         if (env->player.lives <= 0) {
             env->player.lives = 0;
@@ -540,8 +610,8 @@ void c_step(BlastarEnv *env) {
             env->enemy.x = -env->enemy.width;
             env->enemy.y = rand() % (SCREEN_HEIGHT - env->enemy.height);
 
-            rew -= 1.0f;
-            env->log.hit_by_enemy_bullet_penalty_rew -= 1.0f;
+            // rew -= 1.0f;
+            // env->log.hit_by_enemy_bullet_penalty_rew -= 1.0f;
 
             if (env->player.lives <= 0) {
                 env->player.lives = 0;
@@ -572,8 +642,15 @@ void c_step(BlastarEnv *env) {
 
     // If player isn't below enemy, 0 reward
     if (env->player.y > env->enemy.y + env->enemy.height) {
+        if (env->reward_buffer != NULL) {
+            float smoothed_reward = update_and_get_smoothed_reward(env->reward_buffer, rew);
+            env->rewards[0] = smoothed_reward;
+        } else {
+            env->rewards[0] = rew;
+        }
+
         env->log.episode_return += rew;
-        env->rewards[0] = rew * env->player.score * env->player.lives;
+        // env->rewards[0] = rew * env->player.score * env->player.lives;
         // printf("reward: %f\n", env->rewards[0]);
     } else {
         // printf("no reward\n");

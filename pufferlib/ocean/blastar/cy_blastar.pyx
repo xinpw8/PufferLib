@@ -1,12 +1,15 @@
 # cy_blastar.pyx
 
+import numpy
 cimport numpy as cnp
+cnp.import_array()
 from libc.stdlib cimport calloc, free
 from libc.math cimport fabs
 from libc.string cimport memset
 
 cdef extern from "blastar_env.h":
     int LOG_BUFFER_SIZE
+    int REWARD_BUFFER_SIZE
 
     # Define the Bullet struct
     ctypedef struct Bullet:
@@ -64,6 +67,11 @@ cdef extern from "blastar_env.h":
         int length
         int idx
 
+    ctypedef struct RewardBuffer:
+        float* rewards
+        int size
+        int idx
+
     # Define the BlastarEnv struct
     ctypedef struct BlastarEnv:
         int screen_width
@@ -86,6 +94,7 @@ cdef extern from "blastar_env.h":
         Player player
         Enemy enemy
         Bullet bullet
+        RewardBuffer* reward_buffer
         float* observations       # [25]
         int* actions              # [6]
         float* rewards            # [1]
@@ -98,6 +107,9 @@ cdef extern from "blastar_env.h":
     void free_logbuffer(LogBuffer* buffer)
     void add_log(LogBuffer* logs, Log* log)
     Log aggregate_and_clear(LogBuffer* logs)
+
+    RewardBuffer* allocate_reward_buffer(int size)
+    void free_reward_buffer(RewardBuffer* buffer)
 
     void init_blastar(BlastarEnv *env)
     void reset_blastar(BlastarEnv *env)
@@ -126,6 +138,7 @@ cdef class CyBlastar:
                  unsigned char[:] terminals,
                  int num_envs):
 
+
         self.num_envs = num_envs
         self.client = NULL
         self.envs = <BlastarEnv*> calloc(num_envs, sizeof(BlastarEnv))
@@ -138,14 +151,37 @@ cdef class CyBlastar:
             self.envs[i].rewards = &rewards[i]
             self.envs[i].terminals = &terminals[i]
             self.envs[i].log_buffer = self.logs
+            self.envs[i].reward_buffer = allocate_reward_buffer(REWARD_BUFFER_SIZE)
 
             # Initialize the environment without overwriting RL pointers
             init_blastar(&self.envs[i])
 
+        assert self.envs != NULL, "Failed to allocate memory for BlastarEnv instances."
+        assert self.logs != NULL, "Failed to allocate memory for LogBuffer."
+
+        for i in range(self.num_envs):
+            assert self.envs[i].observations != NULL, f"Observation buffer for env {i} is NULL."
+            assert self.envs[i].actions != NULL, f"Action buffer for env {i} is NULL."
+            assert self.envs[i].rewards != NULL, f"Reward buffer for env {i} is NULL."
+            assert self.envs[i].terminals != NULL, f"Terminal buffer for env {i} is NULL."
+            assert self.envs[i].reward_buffer != NULL, f"RewardBuffer for env {i} is NULL."
+        
+        
+
+
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
+            assert self.envs[i].observations != NULL, f"Observation buffer for env {i} is NULL after reset."
+            assert self.envs[i].actions != NULL, f"Action buffer for env {i} is NULL after reset."
+            assert self.envs[i].rewards != NULL, f"Reward buffer for env {i} is NULL after reset."
+            assert self.envs[i].terminals != NULL, f"Terminal buffer for env {i} is NULL after reset."
+            assert self.envs[i].reward_buffer != NULL, f"RewardBuffer for env {i} is NULL after reset."
+            if self.envs[i].reward_buffer != NULL:
+                free_reward_buffer(self.envs[i].reward_buffer)
+            self.envs[i].reward_buffer = allocate_reward_buffer(REWARD_BUFFER_SIZE)
             reset_blastar(&self.envs[i])
+
 
     def step(self):
         cdef int i
@@ -165,22 +201,24 @@ cdef class CyBlastar:
             c_render(self.client, &self.envs[0])
 
     def close(self):
-        if self.client != NULL:
-            close_client(self.client)
-            self.client = NULL
-        
-        free(self.envs)
-        free(self.logs)
-
         if self.envs != NULL:
             for i in range(self.num_envs):
-                close_client(self.client)
+                assert self.envs[i].reward_buffer != NULL, f"RewardBuffer for env {i} is already NULL."
+                assert self.envs[i].observations != NULL, f"Observation buffer for env {i} is already NULL."
+                if self.envs[i].reward_buffer != NULL:
+                    free_reward_buffer(self.envs[i].reward_buffer)
+                    self.envs[i].reward_buffer = NULL
+            assert self.logs != NULL, "LogBuffer is already NULL."
             free(self.envs)
             self.envs = NULL
 
         if self.logs != NULL:
             free_logbuffer(self.logs)
             self.logs = NULL
+
+        if self.client != NULL:
+            close_client(self.client)
+            self.client = NULL
 
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)
