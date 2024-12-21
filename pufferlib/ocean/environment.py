@@ -58,68 +58,68 @@ def make_puffergrid(render_mode='rgb_array', vision_range=3):
     from .grid import grid
     return grid.PufferGrid(render_mode, vision_range)
 
-def make_continuous(discretize=False, **kwargs):
+def make_continuous(discretize=False, buf=None, **kwargs):
     from . import sanity
     env = sanity.Continuous(discretize=discretize)
     if not discretize:
         env = pufferlib.postprocess.ClipAction(env)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_squared(distance_to_target=3, num_targets=1, **kwargs):
+def make_squared(distance_to_target=3, num_targets=1, buf=None, **kwargs):
     from . import sanity
     env = sanity.Squared(distance_to_target=distance_to_target, num_targets=num_targets, **kwargs)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env, **kwargs)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf, **kwargs)
 
-def make_bandit(num_actions=10, reward_scale=1, reward_noise=1):
+def make_bandit(num_actions=10, reward_scale=1, reward_noise=1, buf=None):
     from . import sanity
     env = sanity.Bandit(num_actions=num_actions, reward_scale=reward_scale,
         reward_noise=reward_noise)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_memory(mem_length=2, mem_delay=2, **kwargs):
+def make_memory(mem_length=2, mem_delay=2, buf=None, **kwargs):
     from . import sanity
     env = sanity.Memory(mem_length=mem_length, mem_delay=mem_delay)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_password(password_length=5, **kwargs):
+def make_password(password_length=5, buf=None, **kwargs):
     from . import sanity
     env = sanity.Password(password_length=password_length)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_performance(delay_mean=0, delay_std=0, bandwidth=1, **kwargs):
+def make_performance(delay_mean=0, delay_std=0, bandwidth=1, buf=None, **kwargs):
     from . import sanity
     env = sanity.Performance(delay_mean=delay_mean, delay_std=delay_std, bandwidth=bandwidth)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_performance_empiric(count_n=0, count_std=0, bandwidth=1, **kwargs):
+def make_performance_empiric(count_n=0, count_std=0, bandwidth=1, buf=None, **kwargs):
     from . import sanity
     env = sanity.PerformanceEmpiric(count_n=count_n, count_std=count_std, bandwidth=bandwidth)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_stochastic(p=0.7, horizon=100, **kwargs):
+def make_stochastic(p=0.7, horizon=100, buf=None, **kwargs):
     from . import sanity
     env = sanity.Stochastic(p=p, horizon=100)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
-def make_spaces(**kwargs):
+def make_spaces(buf=None, **kwargs):
     from . import sanity
     env = sanity.Spaces()
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env, **kwargs)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf, **kwargs)
 
-def make_multiagent(**kwargs):
+def make_multiagent(buf=None, **kwargs):
     from . import sanity
     env = sanity.Multiagent()
     env = pufferlib.postprocess.MultiagentEpisodeStats(env)
-    return pufferlib.emulation.PettingZooPufferEnv(env=env)
+    return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 MAKE_FNS = {
     'breakout': Breakout,

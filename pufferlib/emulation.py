@@ -296,9 +296,9 @@ class PettingZooPufferEnv:
                     ob, self.env.observation_space(k))
 
         # Call user featurizer and flatten the observations
+        self.observations[:] = 0
         for i, agent in enumerate(self.possible_agents):
             if agent not in obs:
-                self.observation[i] = 0
                 continue
 
             ob = obs[agent]
@@ -357,6 +357,9 @@ class PettingZooPufferEnv:
         # TODO: Can add this assert once NMMO Horizon is ported to puffer
         # assert all(dones.values()) == (len(self.env.agents) == 0)
         self.mask = {k: False for k in self.possible_agents}
+        self.rewards[:] = 0
+        self.terminals[:] = True
+        self.truncations[:] = False
         for i, agent in enumerate(self.possible_agents):
             # TODO: negative padding buf
             if agent not in obs:
@@ -384,6 +387,12 @@ class PettingZooPufferEnv:
         dones = pad_agent_data(dones, self.possible_agents, True) # You changed this from false to match api test... is this correct?
         truncateds = pad_agent_data(truncateds, self.possible_agents, False)
 
+        '''
+        assert self.dict_obs[1] == self.observations[0] and self.dict_obs[2] == self.observations[1]
+        assert self.rewards[0] == rewards[1] and self.rewards[1] == rewards[2]
+        assert self.terminals[0] == dones[1] and self.terminals[1] == dones[2]
+        assert self.truncations[0] == truncateds[1] and self.truncations[1] == truncateds[2]
+        '''
         return self.dict_obs, rewards, dones, truncateds, infos
 
     def render(self):
