@@ -70,14 +70,8 @@ class Serial:
         self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
 
-        if buf is None:
-            atn_space = self.single_action_space
-            if isinstance(self.single_action_space, pufferlib.spaces.Box):
-                actions = np.zeros((self.agents_per_batch, *atn_space.shape), dtype=atn_space.dtype)
-            else:
-                actions = np.zeros((self.agents_per_batch, *atn_space.shape), dtype=np.int32)
- 
-            set_buffers(self, buf)
+
+        set_buffers(self, buf)
 
         self.envs = []
         ptr = 0
@@ -164,11 +158,13 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
     )
     buf.masks[:] = True
 
-    if is_native:
+    for k, v in buf.items():
+        print(k, v.shape, v.dtype)
+
+    if is_native and num_envs == 1:
         envs = env_creators[0](*env_args[0], **env_kwargs[0], buf=buf)
     else:
-        envs = Serial(env_creators, env_args, env_kwargs, num_envs)
-        envs._assign_buffers(buf)
+        envs = Serial(env_creators, env_args, env_kwargs, num_envs, buf=buf)
 
     semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=shm.semaphores)
     start = time.time()

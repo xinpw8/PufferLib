@@ -73,6 +73,10 @@ def dtype_from_space(space):
         dtype = []
         for k, value in space.items():
             dtype.append((k, dtype_from_space(value)))
+    elif isinstance(space, (pufferlib.spaces.Discrete)):
+        dtype = (np.int32, ())
+    elif isinstance(space, (pufferlib.spaces.MultiDiscrete)):
+        dtype = (np.int32, (len(space.nvec),))
     else:
         dtype = (space.dtype, space.shape)
 
@@ -111,9 +115,10 @@ def emulate_observation_space(space):
     return emulated_space, emulated_dtype
 
 def emulate_action_space(space):
-    if isinstance(space, (pufferlib.spaces.Discrete,
-            pufferlib.spaces.MultiDiscrete, pufferlib.spaces.Box)):
+    if isinstance(space, pufferlib.spaces.Box):
         return space, space.dtype
+    elif isinstance(space, (pufferlib.spaces.Discrete, pufferlib.spaces.MultiDiscrete)):
+        return space, np.int32
 
     emulated_dtype = dtype_from_space(space)
     leaves = flatten_space(space)
