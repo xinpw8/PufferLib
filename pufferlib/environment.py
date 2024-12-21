@@ -8,6 +8,29 @@ Environment missing required attribute {}. The most common cause is
 calling super() before you have assigned the attribute.
 '''
 
+def set_buffers(env, buf=None):
+    if buf is None:
+        obs_space = env.single_observation_space
+        env.observations = np.zeros((env.num_agents, *obs_space.shape), dtype=obs_space.dtype)
+        env.rewards = np.zeros(env.num_agents, dtype=np.float32)
+        env.terminals = np.zeros(env.num_agents, dtype=bool)
+        env.truncations = np.zeros(env.num_agents, dtype=bool)
+        env.masks = np.ones(env.num_agents, dtype=bool)
+
+        # TODO: Major kerfuffle on inferring action space dtype. This needs some asserts?
+        atn_space = env.single_action_space
+        if isinstance(env.single_action_space, pufferlib.spaces.Box):
+            env.actions = np.zeros((env.num_agents, *atn_space.shape), dtype=atn_space.dtype)
+        else:
+            env.actions = np.zeros((env.num_agents, *atn_space.shape), dtype=np.int32)
+    else:
+        env.observations = buf.observations
+        env.rewards = buf.rewards
+        env.terminals = buf.terminals
+        env.truncations = buf.truncations
+        env.masks = buf.masks
+        env.actions = buf.actions
+
 class PufferEnv:
     def __init__(self, buf=None):
         if not hasattr(self, 'single_observation_space'):
@@ -28,27 +51,7 @@ class PufferEnv:
                 and not isinstance(self.single_action_space, pufferlib.spaces.Box)):
             raise APIUsageError('Native action_space must be a Discrete, MultiDiscrete, or Box')
 
-        if buf is None:
-            obs_space = self.single_observation_space
-            self.observations = np.zeros((self.num_agents, *obs_space.shape), dtype=obs_space.dtype)
-            self.rewards = np.zeros(self.num_agents, dtype=np.float32)
-            self.terminals = np.zeros(self.num_agents, dtype=bool)
-            self.truncations = np.zeros(self.num_agents, dtype=bool)
-            self.masks = np.ones(self.num_agents, dtype=bool)
-
-            # TODO: Major kerfuffle on inferring action space dtype. This needs some asserts?
-            atn_space = self.single_action_space
-            if isinstance(self.single_action_space, pufferlib.spaces.Box):
-                self.actions = np.zeros((self.num_agents, *atn_space.shape), dtype=atn_space.dtype)
-            else:
-                self.actions = np.zeros((self.num_agents, *atn_space.shape), dtype=np.int32)
-        else:
-            self.observations = buf.observations
-            self.rewards = buf.rewards
-            self.terminals = buf.terminals
-            self.truncations = buf.truncations
-            self.masks = buf.masks
-            self.actions = buf.actions
+        set_buffers(self, buf)
 
         self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.num_agents)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.num_agents)
