@@ -18,6 +18,7 @@ cdef extern from "blastar_env.h":
         float last_x
         float last_y
         bint active
+        double travel_time
 
     # Define the Enemy struct
     ctypedef struct Enemy:
@@ -30,6 +31,7 @@ cdef extern from "blastar_env.h":
         int direction
         int width
         int height
+        int crossed_screen
         Bullet bullet
 
     # Define the Player struct
@@ -60,6 +62,7 @@ cdef extern from "blastar_env.h":
         float crashing_penalty_rew
         float hit_enemy_with_bullet_rew
         float hit_by_enemy_bullet_penalty_rew
+        int enemy_crossed_screen
 
     # Define the LogBuffer struct
     ctypedef struct LogBuffer:
@@ -91,6 +94,7 @@ cdef extern from "blastar_env.h":
         int enemyExplosionTimer
         int max_score
         int bullet_travel_time
+        int kill_streak
         Player player
         Enemy enemy
         Bullet bullet
@@ -236,5 +240,6 @@ cdef class CyBlastar:
             'crashing_penalty_rew': log.crashing_penalty_rew,
             'hit_enemy_with_bullet_rew': log.hit_enemy_with_bullet_rew,
             'hit_by_enemy_bullet_penalty_rew': log.hit_by_enemy_bullet_penalty_rew,
+            'enemy_crossed_screen': log.enemy_crossed_screen,
         }
         

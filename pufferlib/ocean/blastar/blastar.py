@@ -8,7 +8,7 @@ class Blastar(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, buf=None):
         # Observation space: 6 floats (normalized positions, bullet states)
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=1, shape=(26,), dtype=np.float32
+            low=0, high=1, shape=(27,), dtype=np.float32
         )
         # Action space: 6 discrete actions (no-op, left, right, up, down, fire)
         self.single_action_space = gymnasium.spaces.Discrete(6)
@@ -16,18 +16,10 @@ class Blastar(pufferlib.PufferEnv):
         self.num_agents = num_envs
 
         self.tick = 0
-        self.report_interval = 1  # How often to report logs
+        self.report_interval = 1
 
         super().__init__(buf)
 
-        # Initialize numpy arrays
-        # Not actually necessary, but it's here
-        self.observations = np.zeros((num_envs, 26), dtype=np.float32)
-        self.actions = np.zeros((num_envs,), dtype=np.int32)
-        self.rewards = np.zeros((num_envs,), dtype=np.float32)
-        self.terminals = np.zeros((num_envs,), dtype=np.uint8)
-
-        # Initialize C environments
         self.c_envs = CyBlastar(
             self.observations,
             self.actions,

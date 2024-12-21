@@ -315,7 +315,7 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        'numpy==1.23.3',
+        # 'numpy==1.23.3',
         'opencv-python==3.4.17.63',
         'cython>=3.0.0',
         'rich',

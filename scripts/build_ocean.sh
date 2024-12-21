@@ -44,7 +44,10 @@ FLAGS=(
     -Wall
     -I./raylib/include 
     -I./pufferlib
-    "$SRC_DIR/$ENV.c" -o "$ENV"
+    "$SRC_DIR/$ENV.c"
+    "$SRC_DIR/blastar_env.c"
+    "$SRC_DIR/blastar_renderer.c"
+    -o "$ENV"
     ./raylib/lib/libraylib.a
     -lm
     -lpthread

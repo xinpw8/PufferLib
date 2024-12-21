@@ -13,14 +13,12 @@
 Client* make_client(BlastarEnv* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
 
-    
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         printf("Current working directory: %s\n", cwd);
     } else {
         perror("getcwd() error");
     }
-
     
     // Set screen dimensions
     client->screen_width = env->screen_width;
