@@ -76,7 +76,7 @@ def test_performance(timeout=10, atn_cache=1024):
         env.step(atn)
         tick += 1
 
-    print('SPS: {env.num_agents * tick / (time.time() - start)})
+    print(f'SPS: {env.num_agents * tick / (time.time() - start)}')
 
 
 if __name__ == '__main__':
