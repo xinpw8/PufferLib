@@ -75,12 +75,12 @@ typedef struct {
     int type; // Entity type: EMPTY, TRASH, TRASH_BIN, AGENT
     int pos_x;
     int pos_y;
-    int presence; // Whether or not Entity is present (not applicable to all types)
-    int carrying; // Whether agent is carrying trash (only applicable to Agent types)
+    bool presence; // Whether or not Entity is present (not applicable to all types)
+    bool carrying; // Whether agent is carrying trash (only applicable to Agent types)
 } Entity;
 
 typedef struct {
-    Entity entity;
+    Entity* entity;
     int index; // Index in the positions array (-1 if not applicable)
 } GridCell;
 
@@ -224,18 +224,19 @@ void place_random_entities(CTrashPickupEnv* env, int count, int item_type, int g
 
         GridCell* gridCell = &env->grid[get_grid_index(env, x, y)];
 
-        if (gridCell->entity.type != EMPTY)
+        if (gridCell->entity != NULL)
             continue;
 
+        // Allocate and initialize a new Entity
+        Entity* newEntity = &env->entities[gridIndexStart];
+        newEntity->type = item_type;
+        newEntity->pos_x = x;
+        newEntity->pos_y = y;
+        newEntity->presence = 1;
+        newEntity->carrying = AGENT_IS_NOT_CARRYING;
+
         gridCell->index = gridIndexStart;
-
-        gridCell->entity.type = item_type;
-        gridCell->entity.pos_x = x;
-        gridCell->entity.pos_y = y;
-        gridCell->entity.presence = 1;
-        gridCell->entity.carrying = AGENT_IS_NOT_CARRYING;
-
-        env->entities[gridIndexStart] = gridCell->entity;
+        gridCell->entity = newEntity;
 
         gridIndexStart++;
         placed++;
@@ -266,14 +267,16 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
 
     GridCell* currentGridCell = &env->grid[get_grid_index(env, thisAgent->pos_x, thisAgent->pos_y)];
     GridCell* newGridCell = &env->grid[get_grid_index(env, new_x, new_y)];
-    int cell_state_type = newGridCell->entity.type;
+    int cell_state_type = newGridCell->entity ? newGridCell->entity->type : EMPTY;
 
     if (cell_state_type == EMPTY) 
     {
         thisAgent->pos_x = new_x;
         thisAgent->pos_y = new_y;
-        memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity));
-        memset(&currentGridCell->entity, 0x00, sizeof(Entity));
+
+        newGridCell->entity = currentGridCell->entity;
+        newGridCell->index = agent_idx;
+
         currentGridCell->index = -1;
         newGridCell->index = agent_idx;
     } 
@@ -288,8 +291,12 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
         thisAgent->pos_y = new_y;
         thisAgent->carrying = AGENT_IS_CARRYING;
 
-        memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity));
-        memset(&currentGridCell->entity, 0x00, sizeof(Entity));
+        newGridCell->entity = currentGridCell->entity;
+        newGridCell->index = currentGridCell->index;
+
+        currentGridCell->entity = NULL;
+        currentGridCell->index = -1;
+
         newGridCell->index = agent_idx;
 
         add_reward(env, agent_idx, env->positive_reward);
@@ -310,29 +317,27 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
             if (new_bin_x < 0 || new_bin_x >= env->grid_size || new_bin_y < 0 || new_bin_y >= env->grid_size)
                 return;
 
-            Entity* thisBin = &env->entities[newGridCell->index];
             GridCell* newGridCellForBin = &env->grid[get_grid_index(env, new_bin_x, new_bin_y)];
-            if (newGridCellForBin->entity.type == EMPTY)
-            {
-                // move bin
+            if (newGridCellForBin->entity == NULL) {
+                // Move the bin
+                Entity* thisBin = newGridCell->entity;
                 thisBin->pos_x = new_bin_x;
                 thisBin->pos_y = new_bin_y;
-                
-                // move agent
+
+                // Move the agent
                 thisAgent->pos_x = new_x;
                 thisAgent->pos_y = new_y;
 
-                newGridCellForBin->index = newGridCell->index;  // Update bin index in the new cell
-                newGridCell->index = agent_idx;  // Update agent index in the current cell
+                newGridCellForBin->entity = newGridCell->entity;
+                newGridCellForBin->index = newGridCell->index;
 
-                memcpy(&newGridCellForBin->entity, &newGridCell->entity, sizeof(Entity)); // move bin to new cell location
-                memcpy(&newGridCell->entity, &currentGridCell->entity, sizeof(Entity)); // move agent to bin's old cell location
-                memset(&currentGridCell->entity, 0x00, sizeof(Entity)); // clear out agent's pos cell.
+                newGridCell->entity = currentGridCell->entity;
+                newGridCell->index = currentGridCell->index;
 
-                newGridCellForBin->entity.type = TRASH_BIN;
-                newGridCell->entity.type = AGENT;
+                currentGridCell->entity = NULL;
+                currentGridCell->index = -1;
             }
-            // else - don't push bin
+            // else don't move the agent
         }
     }
 }
