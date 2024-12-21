@@ -4,10 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include <time.h>
-
-// xxd -i game_map.npy > game_map.h
-#include "game_map.h"
+#include <time.h> // xxd -i game_map.npy > game_map.h #include "game_map.h"
 
 #include "raylib.h"
 
@@ -444,6 +441,7 @@ void free_moba(MOBA* env) {
     free(env->reward_components);
     free(env->map->grid);
     free(env->map);
+    free(env->orig_grid);
     free(env->rng->rng);
     free(env->rng);
 }
@@ -2133,8 +2131,8 @@ GameRenderer* init_game_renderer(int cell_size, int width, int height) {
     renderer->puffer = LoadTexture("resources/moba/moba_assets.png");
     renderer->shader_background = GenImageColor(2560, 1440, (Color){0, 0, 0, 255});
     renderer->shader_canvas = LoadTextureFromImage(renderer->shader_background);
-    renderer->shader = LoadShader("", TextFormat("resources/moba/map_shader_%i.fs", GLSL_VERSION));
-    renderer->bloom_shader = LoadShader("", TextFormat("resources/moba/bloom_shader_%i.fs", GLSL_VERSION));
+    renderer->shader = LoadShader(0, TextFormat("resources/moba/map_shader_%i.fs", GLSL_VERSION));
+    renderer->bloom_shader = LoadShader(0, TextFormat("resources/moba/bloom_shader_%i.fs", GLSL_VERSION));
 
     // TODO: These should be int locs?
     renderer->shader_camera_x = GetShaderLocation(renderer->shader, "camera_x");
@@ -2231,10 +2229,11 @@ int render_game(GameRenderer* renderer, MOBA* env, int frame) {
     }
 
     int human = renderer->human_player;
+    bool HUMAN_CONTROL = IsKeyDown(KEY_LEFT_SHIFT);
     int (*actions)[6] = (int(*)[6])env->actions;
 
     // Clears so as to not let the nn spam actions
-    if (frame % 12 == 0) {
+    if (HUMAN_CONTROL && frame % 12 == 0) {
         actions[human][0] = 0;
         actions[human][1] = 0;
         actions[human][2] = 0;
@@ -2256,23 +2255,27 @@ int render_game(GameRenderer* renderer, MOBA* env, int frame) {
             renderer->last_click_y = -1;
         }
        
-        actions[human][0] = 300*dy;
-        actions[human][1] = 300*dx;
+        if (HUMAN_CONTROL) {
+            actions[human][0] = 300*dy;
+            actions[human][1] = 300*dx;
+        }
     }
     if (IsKeyDown(KEY_ESCAPE)) {
         return 1;
     }
-    if (IsKeyDown(KEY_Q) || IsKeyPressed(KEY_Q)) {
-        actions[human][3] = 1;
-    }
-    if (IsKeyDown(KEY_W) || IsKeyPressed(KEY_W)) {
-        actions[human][4] = 1;
-    }
-    if (IsKeyDown(KEY_E) || IsKeyPressed(KEY_E)) {
-        actions[human][5] = 1;
-    }
-    if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        actions[human][2] = 2; // Target heroes
+    if (HUMAN_CONTROL) {
+        if (IsKeyDown(KEY_Q) || IsKeyPressed(KEY_Q)) {
+            actions[human][3] = 1;
+        }
+        if (IsKeyDown(KEY_W) || IsKeyPressed(KEY_W)) {
+            actions[human][4] = 1;
+        }
+        if (IsKeyDown(KEY_E) || IsKeyPressed(KEY_E)) {
+            actions[human][5] = 1;
+        }
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            actions[human][2] = 2; // Target heroes
+        }
     }
     // Num keys toggle selected player
     int num_pressed = GetKeyPressed();
@@ -2465,10 +2468,10 @@ int render_game(GameRenderer* renderer, MOBA* env, int frame) {
 }
 
 void close_game_renderer(GameRenderer* renderer) {
-    CloseWindow();
     UnloadImage(renderer->shader_background);
     UnloadShader(renderer->shader);
     UnloadShader(renderer->bloom_shader);
+    CloseWindow();
     free(renderer);
 }
 

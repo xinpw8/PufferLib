@@ -16,7 +16,7 @@ if [ "$MODE" = "web" ]; then
     emcc \
         -o "$WEB_OUTPUT_DIR/game.html" \
         "$SRC_DIR/$ENV.c" \
-        -Os \
+        -O3 \
         -Wall \
         ./raylib_wasm/lib/libraylib.a \
         -I./raylib_wasm/include \
@@ -30,12 +30,12 @@ if [ "$MODE" = "web" ]; then
         -s ASYNCIFY \
         -sFILESYSTEM \
         -s FORCE_FILESYSTEM=1 \
-        --shell-file ./minshell.html \
+        --shell-file ./scripts/minshell.html \
         -sINITIAL_MEMORY=512MB \
         -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB \
         -DGRAPHICS_API_OPENGL_ES3 \
-        --preload-file resources@resources/ 
+        --preload-file pufferlib/resources@resources/ 
     echo "Web build completed: $WEB_OUTPUT_DIR/game.html"
     exit 0
 fi
@@ -48,6 +48,7 @@ FLAGS=(
     ./raylib/lib/libraylib.a
     -lm
     -lpthread
+    -DPLATFORM_DESKTOP
 )
 
 

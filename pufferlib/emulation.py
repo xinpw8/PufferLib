@@ -23,12 +23,14 @@ def emulate(struct, sample):
     else:
         struct[()] = sample
 
-def make_buffer(arr_dtype, struct_dtype, n=None):
+def make_buffer(arr_dtype, struct_dtype, struct, n=None):
     '''None instead of 1 makes it work for 1 agent PZ envs'''
+    '''
     if n is None:
         struct = np.zeros(1, dtype=struct_dtype)
     else:
         struct = np.zeros(n, dtype=struct_dtype)
+    '''
 
     arr = struct.view(arr_dtype)
 
@@ -37,11 +39,6 @@ def make_buffer(arr_dtype, struct_dtype, n=None):
     else:
         arr = arr.reshape(n, -1)
 
-    return arr, struct
-
-def emulate_copy(sample, arr_dtype, struct_dtype):
-    arr, struct = make_buffer(arr_dtype, struct_dtype)
-    emulate(struct, sample)
     return arr
 
 def _nativize(struct, space):
@@ -60,10 +57,12 @@ def nativize(arr, space, struct_dtype):
     struct = np.asarray(arr).view(struct_dtype)[0]
     return _nativize(struct, space)
 
+'''
 try:
     from pufferlib.extensions import emulate, nativize
 except ImportError:
     warnings.warn('PufferLib Cython extensions not installed. Using slow Python versions')
+'''
 
 def dtype_from_space(space):
     if isinstance(space, pufferlib.spaces.Tuple):
@@ -123,7 +122,7 @@ def emulate_action_space(space):
 
 
 class GymnasiumPufferEnv(gymnasium.Env):
-    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}):
+    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, buf=None):
         self.env = make_object(env, env_creator, env_args, env_kwargs)
 
         self.initialized = False
@@ -147,11 +146,34 @@ class GymnasiumPufferEnv(gymnasium.Env):
             emulated_observation_dtype = self.obs_dtype,
         )
 
-        self.buf = None # Injected buffer for shared memory optimization
-        self.obs, self.obs_struct = make_buffer(
-            self.single_observation_space.dtype, self.obs_dtype)
         self.render_modes = 'human rgb_array'.split()
 
+        if buf is None:
+            self.observations = np.zeros(self.single_observation_space.shape,
+                dtype=self.single_observation_space.dtype)
+            self.rewards = np.zeros((1,), dtype=np.float32)
+            self.terminals = np.zeros((1,), dtype=bool)
+            self.truncations = np.zeros((1,), dtype=bool)
+            self.masks = np.zeros((1,), dtype=bool)
+
+            atn_space = self.single_action_space
+            if isinstance(self.single_action_space, pufferlib.spaces.Box):
+                self.actions = np.zeros(atn_space.shape, dtype=atn_space.dtype)
+            else:
+                self.actions = np.zeros(atn_space.shape, dtype=np.int32)
+        else:
+            self.observations = buf.observations
+            self.rewards = buf.rewards
+            self.terminals = buf.terminals
+            self.truncations = buf.truncations
+            self.masks = buf.masks
+            self.actions = buf.actions
+
+        self.obs_struct = self.observations.view(self.obs_dtype)
+        #self.obs_struct = make_buffer(
+        #    self.single_observation_space.dtype, self.obs_dtype, self.observations)
+
+ 
     @property
     def render_mode(self):
         return self.env.render_mode
@@ -159,22 +181,11 @@ class GymnasiumPufferEnv(gymnasium.Env):
     def _emulate(self, ob):
         if self.is_obs_emulated:
             emulate(self.obs_struct, ob)
-        elif self.buf is not None:
-            self.obs[:] = ob
-        else:
-            self.obs = ob
 
     def seed(self, seed):
         self.env.seed(seed)
 
     def reset(self, seed=None):
-        if not self.initialized:
-            if self.buf is not None:
-                self.obs = self.buf.observations[0]
-
-            if self.is_obs_emulated:
-                self.obs_struct = self.obs.view(self.obs_dtype)
-
         self.initialized = True
         self.done = False
 
@@ -182,17 +193,17 @@ class GymnasiumPufferEnv(gymnasium.Env):
         self._emulate(ob)
 
         if not self.is_observation_checked:
+            breakpoint()
             self.is_observation_checked = check_space(
-                self.obs, self.observation_space)
+                ob, self.env.observation_space)
 
-        buf = self.buf
-        if buf is not None:
-            buf.rewards[0] = 0
-            buf.terminals[0] = False
-            buf.truncations[0] = False
-            buf.masks[0] = True
+        self.observations[:] = ob
+        self.rewards[0] = 0
+        self.terminals[0] = False
+        self.truncations[0] = False
+        self.masks[0] = True
  
-        return self.obs, info
+        return self.observations, info
  
     def step(self, action):
         '''Execute an action and return (observation, reward, done, info)'''
@@ -217,15 +228,14 @@ class GymnasiumPufferEnv(gymnasium.Env):
         ob, reward, done, truncated, info = self.env.step(action)
         self._emulate(ob)
 
-        buf = self.buf
-        if buf is not None:
-            buf.rewards[0] = reward
-            buf.terminals[0] = done
-            buf.truncations[0] = truncated
-            buf.masks[0] = True
-                   
+        self.observations[:] = ob
+        self.rewards[0] = reward
+        self.terminals[0] = done
+        self.truncations[0] = truncated
+        self.masks[0] = True
+                  
         self.done = done or truncated
-        return self.obs, reward, done, truncated, info
+        return self.observations, reward, done, truncated, info
 
     def render(self):
         return self.env.render()

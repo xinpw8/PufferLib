@@ -7,6 +7,7 @@ cdef extern from "rware.h":
         float episode_return;
         float episode_length;
         float shelves_delivered;
+        float score;
 
     ctypedef struct LogBuffer
     LogBuffer* allocate_logbuffer(int)
@@ -25,7 +26,7 @@ cdef extern from "rware.h":
         float* rewards;
         unsigned char* dones;
         LogBuffer* log_buffer;
-        Log log;
+        Log* logs;
         float* scores;
         int width;
         int height;
@@ -105,7 +106,11 @@ cdef class CyRware:
     def render(self):
         cdef CRware* env = &self.envs[0]
         if self.client == NULL:
+            import os
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(env)
+            os.chdir(cwd)
 
         render(self.client, env)
 

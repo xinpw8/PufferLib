@@ -1,15 +1,13 @@
 #include "tripletriad.h"
 #include "puffernet.h"
 
-#include <unistd.h>
-
 int main() {
     Weights* weights = load_weights("resources/tripletriad_weights.bin", 148880);
     LinearLSTM* net = make_linearlstm(weights, 1, 114, 15);
 
     CTripleTriad env = {
         .width = 990,
-        .height = 1000,
+        .height = 690,
         .card_width = 576 / 3,
         .card_height = 672 / 3,
         .game_over = 0,
@@ -19,6 +17,7 @@ int main() {
     reset(&env); 
     Client* client = make_client(env.width, env.height);
 
+    int tick = 0;
     while (!WindowShouldClose()) {
         // User can take control of the player
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -54,19 +53,16 @@ int main() {
                     env.actions[0] = cellIndex + 5;
                 }
             }
-        } else {
+        } else if (tick % 45 == 0) {
             forward_linearlstm(net, env.observations, env.actions);
         }
 
+        tick = (tick + 1) % 45;
         if (env.actions[0] != NOOP) {
             step(&env);
         }
 
         render(client, &env);
-
-        if (env.actions[0] >= PLACE_CARD_1) {
-            usleep(750000);
-        }
     }
     free_linearlstm(net);
     free(weights);

@@ -60,49 +60,23 @@ class Serial:
     def num_envs(self):
         return self.agents_per_batch
  
-    def __init__(self, env_creators, env_args, env_kwargs, num_envs, **kwargs):
-        self.envs = [creator(*args, **kwargs) for (creator, args, kwargs)
-            in zip(env_creators, env_args, env_kwargs)]
+    def __init__(self, env_creators, env_args, env_kwargs, num_envs, buf=None, **kwargs):
+        self.driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
+        self.agents_per_batch = self.driver_env.num_agents * num_envs
 
-        if isinstance(self.envs[0], pufferlib.PufferEnv):
-            raise APIUsageError('Native PufferEnvs are not currently compatible with Serial vectorization. Use Native or Multiprocessing')
-
-        self.driver_env = driver = self.envs[0]
-        self.emulated = self.driver_env.emulated
-        check_envs(self.envs, self.driver_env)
-        self.agents_per_env = [env.num_agents for env in self.envs]
-        self.agents_per_batch = sum(self.agents_per_env)
-        self.num_agents = sum(self.agents_per_env)
-        self.single_observation_space = driver.single_observation_space
-        self.single_action_space = driver.single_action_space
+        self.single_observation_space = self.driver_env.single_observation_space
+        self.single_action_space = self.driver_env.single_action_space
         self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
-        self.agent_ids = np.arange(self.num_agents)
-        self.initialized = False
-        self.flag = RESET
-        self.buf = None
 
-    def _assign_buffers(self, buf):
-        '''Envs handle their own data buffers'''
-        ptr = 0
-        self.buf = buf
-        for i, env in enumerate(self.envs):
-            end = ptr + self.agents_per_env[i]
-            env.buf = namespace(
-                observations=buf.observations[ptr:end],
-                rewards=buf.rewards[ptr:end],
-                terminals=buf.terminals[ptr:end],
-                truncations=buf.truncations[ptr:end],
-                masks=buf.masks[ptr:end]
-            )
-            ptr = end
-
-    def async_reset(self, seed=42):
-        self.flag = RECV
-        seed = make_seeds(seed, len(self.envs))
-
-        if self.buf is None:
-            self.buf = namespace(
+        if buf is None:
+            atn_space = self.single_action_space
+            if isinstance(self.single_action_space, pufferlib.spaces.Box):
+                actions = np.zeros((self.agents_per_batch, *atn_space.shape), dtype=atn_space.dtype)
+            else:
+                actions = np.zeros((self.agents_per_batch, *atn_space.shape), dtype=np.int32)
+ 
+            buf = namespace(
                 observations = np.zeros(
                     (self.agents_per_batch, *self.single_observation_space.shape),
                     dtype=self.single_observation_space.dtype),
@@ -110,8 +84,48 @@ class Serial:
                 terminals = np.zeros(self.agents_per_batch, dtype=bool),
                 truncations = np.zeros(self.agents_per_batch, dtype=bool),
                 masks = np.ones(self.agents_per_batch, dtype=bool),
+                actions = actions,
             )
-            self._assign_buffers(self.buf)
+
+        self.observations = buf.observations
+        self.rewards = buf.rewards
+        self.terminals = buf.terminals
+        self.truncations = buf.truncations
+        self.masks = buf.masks
+        self.actions = buf.actions
+
+        self.envs = []
+        ptr = 0
+        for i in range(num_envs):
+            end = ptr + self.driver_env.num_agents
+            buf_i = namespace(
+                observations=self.observations[ptr:end],
+                rewards=self.rewards[ptr:end],
+                terminals=self.terminals[ptr:end],
+                truncations=self.truncations[ptr:end],
+                masks=self.masks[ptr:end],
+                actions=self.actions[ptr:end]
+            )
+            ptr = end
+            env = env_creators[i](*env_args[i], buf=buf_i, **env_kwargs[i])
+            self.envs.append(env)
+
+        #if isinstance(self.envs[0], pufferlib.PufferEnv):
+        #    raise APIUsageError('Native PufferEnvs are not currently compatible with Serial vectorization. Use Native or Multiprocessing')
+
+        self.driver_env = driver = self.envs[0]
+        self.emulated = self.driver_env.emulated
+        check_envs(self.envs, self.driver_env)
+        self.agents_per_env = [env.num_agents for env in self.envs]
+        assert sum(self.agents_per_env) == self.agents_per_batch
+        self.num_agents = sum(self.agents_per_env)
+        self.agent_ids = np.arange(self.num_agents)
+        self.initialized = False
+        self.flag = RESET
+
+    def async_reset(self, seed=42):
+        self.flag = RECV
+        seed = make_seeds(seed, len(self.envs))
 
         infos = []
         for env, s in zip(self.envs, seed):
@@ -134,7 +148,6 @@ class Serial:
             atns = actions[ptr:end]
             if env.done:
                 o, i = env.reset()
-                buf = self.buf
             else:
                 o, r, d, t, i = env.step(atns)
 
@@ -145,9 +158,8 @@ class Serial:
 
     def recv(self):
         recv_precheck(self)
-        buf = self.buf
-        return (buf.observations, buf.rewards, buf.terminals, buf.truncations,
-            self.infos, self.agent_ids, buf.masks)
+        return (self.observations, self.rewards, self.terminals, self.truncations,
+            self.infos, self.agent_ids, self.masks)
 
     def close(self):
         for env in self.envs:
@@ -193,7 +205,7 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
         elif sem == STEP:
             _, _, _, _, infos = envs.step(atn_arr)
         elif sem == CLOSE:
-            print("closing worker", worker_idx)
+            envs.close()
             send_pipe.send(None)
             break
 
@@ -434,6 +446,32 @@ class Multiprocessing:
             self.send_pipes[i].send(seed[start:end])
 
     def close(self):
+        '''
+        while self.waiting_workers:
+            worker = self.waiting_workers.pop(0)
+            sem = self.buf.semaphores[worker]
+            if sem >= MAIN:
+                self.ready_workers.append(worker)
+                if sem == INFO:
+                    self.recv_pipes[worker].recv()
+            else:
+                self.waiting_workers.append(worker)
+
+        self.buf.semaphores[:] = CLOSE
+        self.waiting_workers = list(range(self.num_workers))
+
+        while self.waiting_workers:
+            worker = self.waiting_workers.pop(0)
+            sem = self.buf.semaphores[worker]
+            if sem >= MAIN:
+                self.ready_workers.append(worker)
+                if sem == INFO:
+                    self.recv_pipes[worker].recv()
+ 
+            else:
+                self.waiting_workers.append(worker)
+        '''
+
         for p in self.processes:
             p.terminate()
 
