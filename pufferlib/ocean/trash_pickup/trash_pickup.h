@@ -15,9 +15,6 @@
 #define ACTION_LEFT 2
 #define ACTION_RIGHT 3
 
-#define AGENT_IS_CARRYING 1
-#define AGENT_IS_NOT_CARRYING 0
-
 #define LOG_BUFFER_SIZE 1024
 
 typedef struct Log {
@@ -99,6 +96,8 @@ typedef struct {
     int max_steps;
     int current_step;
 
+    int total_num_obs;
+
     int agent_sight_range;
 
     float positive_reward;
@@ -128,6 +127,8 @@ int get_entity_type_start_index(CTrashPickupEnv* env, int type)
         return -1;
 }
 
+// Entity Attribute Based Obs-Space
+/*
 void compute_observations(CTrashPickupEnv* env) {
     float* obs = env->observations;
     float norm_factor = 1.0f / env->grid_size;
@@ -161,9 +162,9 @@ void compute_observations(CTrashPickupEnv* env) {
         }
     }
 }
+*/
 
 // Local crop version
-/*
 void compute_observations(CTrashPickupEnv* env) {
     int sight_range = env->agent_sight_range;
     int num_cell_types = 4;  // EMPTY, TRASH, BIN, AGENT
@@ -192,7 +193,16 @@ void compute_observations(CTrashPickupEnv* env) {
                 // Check if the cell is within bounds
                 if (cell_x >= 0 && cell_x < env->grid_size && cell_y >= 0 && cell_y < env->grid_size) 
                 {
-                    int cell_type = env->grid[get_grid_index(env, cell_x, cell_y)].entity.type;
+                    GridCell* thisGridCell = &env->grid[get_grid_index(env, cell_x, cell_y)];
+                    Entity* thisEntity = thisGridCell->entity;
+
+                    int cell_type;
+                    if (thisEntity){
+                        cell_type = thisEntity->type;
+                    }
+                    else{
+                        cell_type = EMPTY;
+                    }
                     
                     // One-hot encode the cell type
                     for (int type = 0; type < num_cell_types; type++) 
@@ -212,7 +222,6 @@ void compute_observations(CTrashPickupEnv* env) {
         }
     }
 }
-*/
 
 // Helper functions
 void place_random_entities(CTrashPickupEnv* env, int count, int item_type, int gridIndexStart) {
@@ -232,8 +241,8 @@ void place_random_entities(CTrashPickupEnv* env, int count, int item_type, int g
         newEntity->type = item_type;
         newEntity->pos_x = x;
         newEntity->pos_y = y;
-        newEntity->presence = 1;
-        newEntity->carrying = AGENT_IS_NOT_CARRYING;
+        newEntity->presence = true;
+        newEntity->carrying = false;
 
         gridCell->index = gridIndexStart;
         gridCell->entity = newEntity;
@@ -278,18 +287,18 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
         newGridCell->index = agent_idx;
 
         currentGridCell->index = -1;
-        newGridCell->index = agent_idx;
+        currentGridCell->entity = NULL;
     } 
-    else if (cell_state_type == TRASH && thisAgent->carrying == AGENT_IS_NOT_CARRYING) 
+    else if (cell_state_type == TRASH && thisAgent->carrying == false) 
     {
         Entity* thisTrash = &env->entities[newGridCell->index];
-        thisTrash->presence = 0; // Mark as not present
+        thisTrash->presence = false; // Mark as not present
         thisTrash->pos_x = -1;
         thisTrash->pos_y = -1;
 
         thisAgent->pos_x = new_x;
         thisAgent->pos_y = new_y;
-        thisAgent->carrying = AGENT_IS_CARRYING;
+        thisAgent->carrying = true;
 
         newGridCell->entity = currentGridCell->entity;
         newGridCell->index = currentGridCell->index;
@@ -297,16 +306,14 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
         currentGridCell->entity = NULL;
         currentGridCell->index = -1;
 
-        newGridCell->index = agent_idx;
-
         add_reward(env, agent_idx, env->positive_reward);
     } 
     else if (cell_state_type == TRASH_BIN) 
     {
-        if (thisAgent->carrying == AGENT_IS_CARRYING)
+        if (thisAgent->carrying)
         {
             // Deposit trash into bin
-            thisAgent->carrying = AGENT_IS_NOT_CARRYING;
+            thisAgent->carrying = false;
             add_reward(env, agent_idx, env->positive_reward);
         }
         else
@@ -345,14 +352,14 @@ void move_agent(CTrashPickupEnv* env, int agent_idx, int action) {
 bool is_episode_over(CTrashPickupEnv* env) {
     for (int i = 0; i < env->num_agents; i++) 
     {
-        if (env->entities[i].carrying == AGENT_IS_CARRYING) 
+        if (env->entities[i].carrying) 
             return false;
     }
 
     int start_index = get_entity_type_start_index(env, TRASH);
     for (int i = start_index; i < start_index + env->num_trash; i++) 
     {
-        if (env->entities[i].presence == 1)
+        if (env->entities[i].presence)
             return false;
     }
 
@@ -363,7 +370,11 @@ void reset(CTrashPickupEnv* env) {
     env->current_step = 0;
     env->total_episode_reward = 0;
 
-    memset(env->grid, 0x00, env->grid_size * env->grid_size * sizeof(GridCell));
+    for (int i = 0; i < env->grid_size * env->grid_size; i++) 
+    {
+        env->grid[i].entity = NULL;
+        env->grid[i].index = -1;
+    }
 
     // Place trash, bins, and agents randomly across the grid.
     place_random_entities(env, env->num_agents, AGENT, 0);
@@ -378,7 +389,7 @@ void initialize_env(CTrashPickupEnv* env) {
     env->current_step = 0;
 
     env->positive_reward = 0.5f / env->num_trash;
-    env->negative_reward = 1.0f / (env->max_steps * env->num_agents);
+    env->negative_reward = -1.0f / (env->max_steps * env->num_agents);
 
     env->grid = (GridCell*)calloc(env->grid_size * env->grid_size, sizeof(GridCell));
     env->entities = (Entity*)calloc(env->num_agents + env->num_bins + env->num_trash, sizeof(Entity));
@@ -387,10 +398,10 @@ void initialize_env(CTrashPickupEnv* env) {
 }
 
 void allocate(CTrashPickupEnv* env) {
-    //int obs_size = env->num_agents * (1 + (((env->agent_sight_range * env->agent_sight_range * 4) - 1) * 4)); // One-hot encoded local crop within sight-range of agent, excluding the cell the agent is currently in (-1) but also whether agent is carrying
-    int obs_size = env->num_agents * ((env->num_agents * 3) + (env->num_trash * 3) + (env->num_bins * 2)); 
+    // env->total_num_obs = env->num_agents * ((env->num_agents * 3) + (env->num_trash * 3) + (env->num_bins * 2)); // Entity attribute based obs space.
+    env->total_num_obs = env->num_agents * (1 + (((env->agent_sight_range * 2 + 1) * (env->agent_sight_range * 2 + 1) - 1) * 4));
 
-    env->observations = (float*)calloc(obs_size * env->num_agents, sizeof(float));
+    env->observations = (float*)calloc(env->total_num_obs, sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
@@ -406,7 +417,7 @@ void step(CTrashPickupEnv* env) {
 
     for (int i = 0; i < env->num_agents; i++) {
         move_agent(env, i, env->actions[i]);
-        add_reward(env, i, -env->negative_reward); // small negative reward to encourage efficiency
+        add_reward(env, i, env->negative_reward); // small negative reward to encourage efficiency
     }
 
     env->current_step++;
@@ -501,7 +512,17 @@ void render(Client* client, CTrashPickupEnv* env) {
     for (int x = 0; x < env->grid_size; x++) {
         for (int y = 0; y < env->grid_size; y++) {
             GridCell gridCell = env->grid[get_grid_index(env, x, y)];
-            int cell_type = gridCell.entity.type;
+
+            int cell_type;
+            if (gridCell.entity)
+            {
+                cell_type = gridCell.entity->type;
+            }
+            else
+            {
+                cell_type = EMPTY;
+            }
+
             int screen_x = x * client->cell_size;
             int screen_y = y * client->cell_size + client->header_offset;
 
@@ -536,43 +557,35 @@ void render(Client* client, CTrashPickupEnv* env) {
                     BLUE
                 );
             } else if (cell_type == AGENT) {
+                Color color;
                 if (env->do_human_control && gridCell.index == 0)
                 {
                     // Make human controlled agent red
-                    DrawTexturePro(
-                        client->agent_texture, 
-                        (Rectangle) {0, 0, 128, 128},
-                        (Rectangle) {
-                            screen_x + client->cell_size / 2, 
-                            screen_y + client->cell_size / 2,
-                            client->cell_size,
-                            client->cell_size
-                            },
-                        (Vector2){client->cell_size / 2, client->cell_size / 2},
-                        0,
-                        RED
-                    );
+                    color = RED;
                 }
                 else
                 {
                     // Non-human controlled agent
-                    DrawTexturePro(
-                        client->agent_texture, 
-                        (Rectangle) {0, 0, 128, 128},
-                        (Rectangle) {
-                            screen_x + client->cell_size / 2, 
-                            screen_y + client->cell_size / 2,
-                            client->cell_size,
-                            client->cell_size
-                            },
-                        (Vector2){client->cell_size / 2, client->cell_size / 2},
-                        0,
-                        WHITE
-                    );
+                    color = WHITE;
                 }
 
+                DrawTexturePro(
+                    client->agent_texture, 
+                    (Rectangle) {0, 0, 128, 128},
+                    (Rectangle) {
+                        screen_x + client->cell_size / 2, 
+                        screen_y + client->cell_size / 2,
+                        client->cell_size,
+                        client->cell_size
+                        },
+                    (Vector2){client->cell_size / 2, client->cell_size / 2},
+                    0,
+                    color
+                );
+
                 Entity* thisAgent = &env->entities[gridCell.index];
-                if (thisAgent->carrying == AGENT_IS_CARRYING)
+                
+                if (thisAgent->carrying)
                 {
                     DrawRectangle(
                         screen_x + client->cell_size / 2,

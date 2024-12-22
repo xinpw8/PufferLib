@@ -298,21 +298,26 @@ class MOBA(nn.Module):
             return action, value
 
 
+class TrashPickupLSTM(pufferlib.models.LSTMWrapper):
+    def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
+        super().__init__(env, policy, input_size, hidden_size, num_layers)
+
 class TrashPickup(nn.Module):
-    def __init__(self, env, hidden_size=128):
+    def __init__(self, env, hidden_size=128, cnn_channels=128):
         super().__init__()
         self.hidden_size = hidden_size
 
-        # Calculate total input size based on observation structure
-        self.input_size = env.num_obs
-
-        # Linear feature extractor
-        self.feature_net = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(self.input_size, hidden_size)),
+        super().__init__()
+        self.cnn = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Conv2d(4, cnn_channels, 5, stride=3)),
             nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
-            nn.ReLU(),
+            pufferlib.pytorch.layer_init(
+                nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
+            nn.Flatten(),
         )
+
+        self.proj = pufferlib.pytorch.layer_init(nn.Linear(cnn_channels + 1, hidden_size))
 
         # Actor and critic projection layers
         self.atn_dim = env.single_action_space.nvec.tolist()
@@ -334,12 +339,19 @@ class TrashPickup(nn.Module):
     def encode_observations(self, observations):
         """
         Encodes observations into feature representations.
-
         observations: (batch_size, obs_dim)
         """
-        
-        # Extract features using the feature network
-        features = self.feature_net(observations)
+        # Split observations into carrying status and 2D local crop
+        carrying_status = observations[:, :1]  # First scalar
+        local_crop = observations[:, 1:].view(-1, 4, 11, 11)  # Adjust shape based on grid size
+
+        # Process local crop through CNN
+        cnn_features = self.cnn(local_crop)
+
+        # Combine features
+        combined_features = torch.cat([cnn_features, carrying_status], dim=1)
+        features = F.relu(self.proj(combined_features))
+
         return features, None
 
     def decode_actions(self, features):

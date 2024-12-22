@@ -45,13 +45,14 @@ class TrashPickupEnv(pufferlib.PufferEnv):
             )
         self.grid_size = grid_size
 
-        num_obs_trash = num_trash * 3  # [presence, x pos, y pos] for each trash
-        num_obs_bin = num_bins * 2  # [x pos, y pos] for each bin
-        num_obs_agent = num_agents * 3  # [carrying trash, x pos, y pos] for each agent
-        self.num_obs = num_obs_trash + num_obs_bin + num_obs_agent;
+        # Entity Attribute Based Obs-Space
+        # num_obs_trash = num_trash * 3  # [presence, x pos, y pos] for each trash
+        # num_obs_bin = num_bins * 2  # [x pos, y pos] for each bin
+        # num_obs_agent = num_agents * 3  # [carrying trash, x pos, y pos] for each agent
+        # self.num_obs = num_obs_trash + num_obs_bin + num_obs_agent;
         
         # 2D Local crop obs space
-        # self.num_obs = (1 + (((agent_sight_range * agent_sight_range) - 1) * 4));  # whether agent is carrying, and one-hot encoding for all cell types in local crop around agent (minus the cell the agent is currently in)
+        self.num_obs = (1 + (((agent_sight_range * agent_sight_range) - 1) * 4));  # whether agent is carrying, and one-hot encoding for all cell types in local crop around agent (minus the cell the agent is currently in)
 
         self.single_observation_space = spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)
