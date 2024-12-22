@@ -15,7 +15,7 @@ import pufferlib.postprocess
 def env_creator(name='SlimeVolley-v0'):
     return functools.partial(make, name)
 
-def make(name, render_mode='rgb_array'):
+def make(name, render_mode='rgb_array', buf=None):
     if name == 'slimevolley':
         name = 'SlimeVolley-v0'
 
@@ -27,7 +27,7 @@ def make(name, render_mode='rgb_array'):
     env = SkipWrapper(env, repeat_count=4)
     env = shimmy.GymV21CompatibilityV0(env=env)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class SlimeVolleyMultiDiscrete(gym.Wrapper):
     def __init__(self, env):

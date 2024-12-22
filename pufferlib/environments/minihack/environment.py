@@ -22,7 +22,7 @@ ALIASES = {
 def env_creator(name='minihack'):
     return functools.partial(make, name)
 
-def make(name):
+def make(name, buf=None):
     '''NetHack binding creation function'''
     if name in ALIASES:
         name = ALIASES[name]
@@ -33,7 +33,7 @@ def make(name):
     env = gym.make(name, observation_keys=obs_key)
     env = shimmy.GymV21CompatibilityV0(env=env)
     env = MinihackWrapper(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class MinihackWrapper:
     def __init__(self, env):

@@ -17,7 +17,7 @@ def env_creator(name='spiders'):
     return functools.partial(make, name)
 
 # TODO: fix griddly
-def make(name):
+def make(name, buf=None):
     '''Griddly creation function
 
     Note that Griddly environments do not have observation spaces until
@@ -34,4 +34,4 @@ def make(name):
 
     env = shimmy.GymV21CompatibilityV0(env=env)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env, buf=buf)
