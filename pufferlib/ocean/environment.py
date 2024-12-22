@@ -3,6 +3,7 @@ import pufferlib.postprocess
 
 from .snake.snake import Snake
 from .squared.squared import Squared
+from .squared.pysquared import PySquared
 from .pong.pong import Pong
 from .breakout.breakout import Breakout
 from .enduro.enduro import Enduro
@@ -129,6 +130,7 @@ MAKE_FNS = {
     'nmmo3': NMMO3,
     'snake': Snake,
     'squared': Squared,
+    'pysquared': PySquared,
     'connect4': Connect4,
     'tripletriad': TripleTriad,
     'tactical': Tactical,

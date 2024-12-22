@@ -12,7 +12,7 @@ import pufferlib.environments
 def env_creator(name='Airstriker-Genesis'):
     return functools.partial(make, name)
 
-def make(name='Airstriker-Genesis', framestack=4):
+def make(name='Airstriker-Genesis', framestack=4, buf=None):
     '''Atari creation function with default CleanRL preprocessing based on Stable Baselines3 wrappers'''
     retro = pufferlib.environments.try_import('retro', 'stable-retro')
 
@@ -32,7 +32,7 @@ def make(name='Airstriker-Genesis', framestack=4):
     env = gym.wrappers.GrayScaleObservation(env)
     env = gym.wrappers.FrameStack(env, framestack)
     return pufferlib.emulation.GymnasiumPufferEnv(
-        env=env, postprocessor_cls=AtariFeaturizer)
+        env=env, postprocessor_cls=AtariFeaturizer, buf=buf)
 
 class AtariFeaturizer(pufferlib.emulation.Postprocessor):
     def reset(self, obs):

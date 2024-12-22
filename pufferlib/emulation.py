@@ -154,7 +154,10 @@ class GymnasiumPufferEnv(gymnasium.Env):
         self.render_modes = 'human rgb_array'.split()
 
         set_buffers(self, buf)
-        self.obs_struct = self.observations.view(self.obs_dtype)
+        if isinstance(self.env.observation_space, pufferlib.spaces.Box):
+            self.obs_struct = self.observations
+        else:
+            self.obs_struct = self.observations.view(self.obs_dtype)
  
     @property
     def render_mode(self):
@@ -253,7 +256,10 @@ class PettingZooPufferEnv:
         self.num_agents = len(self.possible_agents)
 
         set_buffers(self, buf)
-        self.obs_struct = self.observations.view(self.obs_dtype)
+        if isinstance(self.env.observation_space, pufferlib.spaces.Box):
+            self.obs_struct = self.observations
+        else:
+            self.obs_struct = self.observations.view(self.obs_dtype)
 
     @property
     def render_mode(self):
@@ -368,7 +374,7 @@ class PettingZooPufferEnv:
         for i, agent in enumerate(self.possible_agents):
             # TODO: negative padding buf
             if agent not in obs:
-                self.obs[i] = 0
+                self.observations[i] = 0
                 self.rewards[i] = 0
                 self.terminals[i] = True
                 self.truncations[i] = False
@@ -391,13 +397,6 @@ class PettingZooPufferEnv:
         rewards = pad_agent_data(rewards, self.possible_agents, 0)
         dones = pad_agent_data(dones, self.possible_agents, True) # You changed this from false to match api test... is this correct?
         truncateds = pad_agent_data(truncateds, self.possible_agents, False)
-
-        '''
-        assert self.dict_obs[1] == self.observations[0] and self.dict_obs[2] == self.observations[1]
-        assert self.rewards[0] == rewards[1] and self.rewards[1] == rewards[2]
-        assert self.terminals[0] == dones[1] and self.terminals[1] == dones[2]
-        assert self.truncations[0] == truncateds[1] and self.truncations[1] == truncateds[2]
-        '''
         return self.dict_obs, rewards, dones, truncateds, infos
 
     def render(self):

@@ -106,7 +106,9 @@ class Serial:
         for env, s in zip(self.envs, seed):
             ob, i = env.reset(seed=s)
                
-            if i:
+            if isinstance(i, list):
+                infos.extend(i)
+            else:
                 infos.append(i)
 
         self.infos = infos
@@ -127,7 +129,10 @@ class Serial:
                 o, r, d, t, i = env.step(atns)
 
             if i:
-                self.infos.append(i)
+                if isinstance(i, list):
+                    self.infos.extend(i)
+                else:
+                    self.infos.append(i)
 
             ptr = end
 
@@ -157,9 +162,6 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
         actions=atn_arr,
     )
     buf.masks[:] = True
-
-    for k, v in buf.items():
-        print(k, v.shape, v.dtype)
 
     if is_native and num_envs == 1:
         envs = env_creators[0](*env_args[0], **env_kwargs[0], buf=buf)
@@ -241,8 +243,6 @@ class Multiprocessing:
         # You can't send a RawArray through a pipe.
         self.driver_env = driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
         is_native = isinstance(driver_env, PufferEnv)
-        if is_native and envs_per_worker != 1:
-            raise APIUsageError('Native PufferEnvs should run multiple envs internally, not in Multiprocessing')
         self.emulated = False if is_native else driver_env.emulated
         self.num_agents = num_agents = driver_env.num_agents * num_envs
         self.agents_per_batch = driver_env.num_agents * batch_size
@@ -592,6 +592,8 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
         vecenv = env_creator_or_creators(*env_args, **env_kwargs)
         if not isinstance(vecenv, PufferEnv):
             raise APIUsageError('Native vectorization requires a native PufferEnv. Use Serial or Multiprocessing instead.')
+        if num_envs != 1:
+            raise APIUsageError('Native vectorization is for PufferEnvs that handle all per-process vectorization internally. If you want to run multiple separate Python instances on a single process, use Serial or Multiprocessing instead')
 
         return vecenv
 
