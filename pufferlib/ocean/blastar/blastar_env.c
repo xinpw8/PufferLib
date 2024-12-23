@@ -344,21 +344,26 @@ void compute_observations(BlastarEnv* env) {
         }
 
         // Bad guy score minus player score observation
-        env->observations[27] = (float)env->bad_guy_score - (float)env->player.score;
-
-        // Player score observation
-        env->observations[28] = (float)env->player.score;
-
-        // Bad guy score observation
-        env->observations[29] = (float)env->bad_guy_score;
+        // Player score observation normalized to [0, 1]
+        // Bad guy score observation normalized to [0, 1]
+        float total_score = (float)env->player.score + (float)env->bad_guy_score;
+        if (total_score > 0.0f) {
+            env->observations[27] = ((float)env->bad_guy_score - (float)env->player.score) / total_score;
+            env->observations[28] = (float)env->player.score / total_score;
+            env->observations[29] = (float)env->bad_guy_score / total_score;
+        } else {
+            env->observations[27] = 0.0f; // Default to zero if denominator is zero
+            env->observations[28] = 0.0f; // Default to zero if denominator is zero
+            env->observations[29] = 0.0f; // Default to zero if denominator is zero
+        }
 
         // Enemy crossed screen observation normalized to [0, 1]
-        float total_score = (float)env->enemy.crossed_screen + (float)env->player.score + (float)env->bad_guy_score;
         if (total_score > 0.0f) {
             env->observations[30] = (float)env->enemy.crossed_screen / total_score;
         } else {
-            env->observations[30] = 0.0f;
+            env->observations[30] = 0.0f; // Default to zero if denominator is zero
         }
+
 
             }
 }
@@ -626,7 +631,7 @@ void c_step(BlastarEnv *env) {
     }
 
     env->log.score += score;
-    env->log.bad_guy_score = bad_guy_score;
+    env->log.bad_guy_score += bad_guy_score;
     env->bad_guy_score += bad_guy_score;
 
     float avg_score_difference = 0.0f;
@@ -650,25 +655,26 @@ void c_step(BlastarEnv *env) {
     // env->log.bullet_distance_to_enemy_rew += improvement_reward;
 
     // Reward player only if below enemy
-    if (env->player.y > env->enemy.y + env->enemy.height && env->log.avg_score_difference > 0.0f) {
-        rew += score + fired_bullet_rew + bullet_travel_rew + bullet_distance_to_enemy_rew + gradient_penalty_rew + flat_below_enemy_rew + danger_zone_penalty_rew + crashing_penalty_rew + hit_enemy_with_bullet_rew + hit_by_enemy_bullet_penalty_rew + improvement_reward - crossed_screen + flat_reward;
-        rew = rew * env->kill_streak * avg_score_difference;
-        // float smoothed_reward = update_and_get_smoothed_reward(env->reward_buffer, rew);
+    if (env->player.y > env->enemy.y + env->enemy.height) {
+        rew += score + fired_bullet_rew + bullet_travel_rew + bullet_distance_to_enemy_rew +
+            flat_below_enemy_rew + hit_enemy_with_bullet_rew - danger_zone_penalty_rew;
+        rew *= (1.0f + env->kill_streak * 0.1f);  // Reward scaling based on kill streak
         env->rewards[0] = rew;
-        env->log.episode_return = rew;
+        env->log.episode_return += rew;
     } else {
+        env->rewards[0] = 0.0f; // No reward if above enemy
         env->log.episode_return += 0.0f;
-        env->rewards[0] = 0.0f;
     }
 
-    // if (env->bad_guy_score > 10.0f) {
-    //     // env->player.lives = 0;
-    //     env->game_over = true;
-    //     env->terminals[0] = 1;
-    //     compute_observations(env);
-    //     add_log(env->log_buffer, &env->log);
-    //     reset_blastar(env);
-    // }
+
+    if (env->bad_guy_score > 100.0f) {
+        // env->player.lives = 0;
+        env->game_over = true;
+        env->terminals[0] = 1;
+        compute_observations(env);
+        add_log(env->log_buffer, &env->log);
+        reset_blastar(env);
+    }
 
 compute_obs:
     compute_observations(env);
