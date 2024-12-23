@@ -1,7 +1,6 @@
 // blastar_env.c
 #include "blastar_env.h"
 #include <stdlib.h>
-// #include <numpy/arrayobject.h>
 
 LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
@@ -30,7 +29,6 @@ void free_reward_buffer(RewardBuffer* buffer) {
         free(buffer);
     }
 }
-
 
 void add_log(LogBuffer* logs, Log* log) {
     if (logs->idx == logs->length) {
@@ -127,40 +125,30 @@ int is_valid_pointer(void* ptr) {
 
 void free_allocated_env(BlastarEnv* env) {
     if (env) {
-        // Debugging: Print pointers to ensure validity
-        printf("Freeing pointers: observations=%p, actions=%p, rewards=%p, terminals=%p, log_buffer=%p, reward_buffer=%p\n",
-               env->observations, env->actions, env->rewards, env->terminals, env->log_buffer, env->reward_buffer);
-
         if (is_valid_pointer(env->observations)) {
             free(env->observations);
             env->observations = NULL;
         }
-
         if (is_valid_pointer(env->actions)) {
             free(env->actions);
             env->actions = NULL;
         }
-
         if (is_valid_pointer(env->rewards)) {
             free(env->rewards);
             env->rewards = NULL;
         }
-
         if (is_valid_pointer(env->terminals)) {
             free(env->terminals);
             env->terminals = NULL;
         }
-
         if (is_valid_pointer(env->log_buffer)) {
             free_logbuffer(env->log_buffer);
             env->log_buffer = NULL;
         }
-
         if (is_valid_pointer(env->reward_buffer)) {
             free_reward_buffer(env->reward_buffer);
             env->reward_buffer = NULL;
         }
-
     }
 }
 
@@ -217,7 +205,6 @@ void init_blastar(BlastarEnv *env) {
         env->enemy.bullet.y = env->enemy.y;
         env->enemy.bullet.last_x = env->enemy.bullet.x;
         env->enemy.bullet.last_y = env->enemy.bullet.y;
-
         env->player_bullet_width = 17;
         env->player_bullet_height = 6;
         env->enemy_bullet_width = 10;
@@ -230,7 +217,6 @@ void reset_blastar(BlastarEnv* env) {
     env->log = (Log){0};
     env->tick = 0;
     env->game_over = false;
-
     init_blastar(env);
 }
 
@@ -240,12 +226,11 @@ void close_blastar(BlastarEnv* env) {
 
 void compute_observations(BlastarEnv* env) {
     if (env && env->observations) {
-        // Update env variables
 
-        // Infinite lives
-        if (env->player.lives < 5) {
-            env->player.lives = 5;
-        }
+        // // Infinite lives
+        // if (env->player.lives < 5) {
+        //     env->player.lives = 5;
+        // }
 
         env->log.lives = env->player.lives;
         env->log.score = env->player.score;
@@ -363,9 +348,7 @@ void compute_observations(BlastarEnv* env) {
         } else {
             env->observations[30] = 0.0f; // Default to zero if denominator is zero
         }
-
-
-            }
+    }
 }
 
 // Combined step function
@@ -373,7 +356,7 @@ void c_step(BlastarEnv *env) {
     if (env == NULL) return;
 
     if (!env->actions || !env->rewards || !env->terminals) {
-        // Blank
+        // Empty
     }
 
     if (env->game_over) {
@@ -412,10 +395,7 @@ void c_step(BlastarEnv *env) {
     float hit_enemy_with_bullet_rew = 0.0f;
     float hit_by_enemy_bullet_penalty_rew = 0.0f;
     int crossed_screen = 0;
-    float improvement_reward = 0.0f;
     float flat_reward = 0.0f;
-
-
     int action = 0;
     action = env->actions[0];
 
@@ -587,7 +567,7 @@ void c_step(BlastarEnv *env) {
             env->log.score += 1.0f;
             env->enemyExplosionTimer = 30;
             if (crossed_screen == 0) {
-                hit_enemy_with_bullet_rew += 2.5f; // 2.5f; // Big reward for quick kill
+                hit_enemy_with_bullet_rew += 2.5f; // Big reward for quick kill
             } else {
                 hit_enemy_with_bullet_rew += 1.5f - (0.1f * env->enemy.crossed_screen); // Less rew if enemy crossed screen
             }
@@ -652,7 +632,6 @@ void c_step(BlastarEnv *env) {
     env->log.hit_by_enemy_bullet_penalty_rew = hit_by_enemy_bullet_penalty_rew;
     env->log.flat_below_enemy_rew = flat_reward;
     env->enemy.crossed_screen = crossed_screen;
-    // env->log.bullet_distance_to_enemy_rew += improvement_reward;
 
     // Reward player only if below enemy
     if (env->player.y > env->enemy.y + env->enemy.height) {
@@ -665,7 +644,6 @@ void c_step(BlastarEnv *env) {
         env->rewards[0] = 0.0f; // No reward if above enemy
         env->log.episode_return += 0.0f;
     }
-
 
     if (env->bad_guy_score > 100.0f) {
         // env->player.lives = 0;

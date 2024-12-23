@@ -31,35 +31,35 @@ Client* make_client(BlastarEnv* env) {
     // Debugging: Attempt to load textures
     printf("Attempting to load textures:\n");
 
-    client->player_texture = LoadTexture("resources/blastar/player_ship.png");
+    client->player_texture = LoadTexture("./pufferlib/resources/blastar/player_ship.png");
     if (client->player_texture.id == 0) {
         fprintf(stderr, "Failed to load texture: player_ship.png\n");
     } else {
         printf("Successfully loaded texture: player_ship.png\n");
     }
 
-    client->enemy_texture = LoadTexture("resources/blastar/enemy_ship.png");
+    client->enemy_texture = LoadTexture("./pufferlib/resources/blastar/enemy_ship.png");
     if (client->enemy_texture.id == 0) {
         fprintf(stderr, "Failed to load texture: enemy_ship.png\n");
     } else {
         printf("Successfully loaded texture: enemy_ship.png\n");
     }
 
-    client->player_bullet_texture = LoadTexture("resources/blastar/player_bullet.png");
+    client->player_bullet_texture = LoadTexture("./pufferlib/resources/blastar/player_bullet.png");
     if (client->player_bullet_texture.id == 0) {
         fprintf(stderr, "Failed to load texture: player_bullet.png\n");
     } else {
         printf("Successfully loaded texture: player_bullet.png\n");
     }
 
-    client->enemy_bullet_texture = LoadTexture("resources/blastar/enemy_bullet.png");
+    client->enemy_bullet_texture = LoadTexture("./pufferlib/resources/blastar/enemy_bullet.png");
     if (client->enemy_bullet_texture.id == 0) {
         fprintf(stderr, "Failed to load texture: enemy_bullet.png\n");
     } else {
         printf("Successfully loaded texture: enemy_bullet.png\n");
     }
 
-    client->explosion_texture = LoadTexture("resources/blastar/player_death_explosion.png");
+    client->explosion_texture = LoadTexture("./pufferlib/resources/blastar/player_death_explosion.png");
     if (client->explosion_texture.id == 0) {
         fprintf(stderr, "Failed to load texture: player_death_explosion.png\n");
     } else {
