@@ -239,6 +239,12 @@ void close_blastar(BlastarEnv* env) {
 void compute_observations(BlastarEnv* env) {
     if (env && env->observations) {
         // Update env variables
+        
+        // Infinite lives
+        if (env->player.lives < 5) {
+            env->player.lives = 5;
+        }
+
         env->log.lives = env->player.lives;
         env->log.score = env->player.score;
         env->log.bad_guy_score = env->bad_guy_score;
