@@ -187,9 +187,6 @@ void compute_observations(CTrashPickupEnv* env) {
                 int cell_x = agent_x + dx;
                 int cell_y = agent_y + dy;
 
-                if (dx == 0 && dy == 0) // No need to pass in current cell as that is constant from the agent's perspective.
-                    continue;
-
                 // Check if the cell is within bounds
                 if (cell_x >= 0 && cell_x < env->grid_size && cell_y >= 0 && cell_y < env->grid_size) 
                 {
@@ -399,7 +396,7 @@ void initialize_env(CTrashPickupEnv* env) {
 
 void allocate(CTrashPickupEnv* env) {
     // env->total_num_obs = env->num_agents * ((env->num_agents * 3) + (env->num_trash * 3) + (env->num_bins * 2)); // Entity attribute based obs space.
-    env->total_num_obs = env->num_agents * (1 + (((env->agent_sight_range * 2 + 1) * (env->agent_sight_range * 2 + 1) - 1) * 4));
+    env->total_num_obs = env->num_agents * (1 + (((env->agent_sight_range * 2 + 1) * (env->agent_sight_range * 2 + 1)) * 4));
 
     env->observations = (float*)calloc(env->total_num_obs, sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));

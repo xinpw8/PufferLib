@@ -306,6 +306,7 @@ class TrashPickup(nn.Module):
     def __init__(self, env, hidden_size=128, cnn_channels=128):
         super().__init__()
         self.hidden_size = hidden_size
+        self.agent_sight_range = env.agent_sight_range
 
         super().__init__()
         self.cnn = nn.Sequential(
@@ -320,7 +321,6 @@ class TrashPickup(nn.Module):
         self.proj = pufferlib.pytorch.layer_init(nn.Linear(cnn_channels + 1, hidden_size))
 
         # Actor and critic projection layers
-        self.atn_dim = env.single_action_space.nvec.tolist()
         self.actor = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
         self.critic = pufferlib.pytorch.layer_init(
@@ -343,7 +343,11 @@ class TrashPickup(nn.Module):
         """
         # Split observations into carrying status and 2D local crop
         carrying_status = observations[:, :1]  # First scalar
-        local_crop = observations[:, 1:].view(-1, 4, 11, 11)  # Adjust shape based on grid size
+
+        # Reshape local crop for CNN
+        crop_size = 2 * self.agent_sight_range + 1
+        num_channels = 4
+        local_crop = observations[:, 1:].view(-1, num_channels, crop_size, crop_size)
 
         # Process local crop through CNN
         cnn_features = self.cnn(local_crop)
@@ -352,13 +356,29 @@ class TrashPickup(nn.Module):
         combined_features = torch.cat([cnn_features, carrying_status], dim=1)
         features = F.relu(self.proj(combined_features))
 
+        # for x in range(1, len(observations[0]) - 1, 4):
+        #     cell_type = "UNKNOWN"
+        #     if observations[0][x] == 1 and observations[0][x + 1] == 0 and observations[0][x + 2] == 0 and observations[0][x + 3] == 0:
+        #         cell_type = "EMPTY"
+        #     elif observations[0][x] == 0 and observations[0][x + 1] == 1 and observations[0][x + 2] == 0 and observations[0][x + 3] == 0:
+        #         cell_type = "TRASH"
+        #     elif observations[0][x] == 0 and observations[0][x + 1] == 0 and observations[0][x + 2] == 1 and observations[0][x + 3] == 0:
+        #         cell_type = "BIN"
+        #     elif observations[0][x] == 0 and observations[0][x + 1] == 0 and observations[0][x + 2] == 0 and observations[0][x + 3] == 1:
+        #         cell_type = "AGENT"
+        #     elif observations[0][x] == -1 and observations[0][x + 1] == -1 and observations[0][x + 2] == -1 and observations[0][x + 3] == -1:
+        #         cell_type = "O.O.B."
+
+        #     print(f"\t{(x-1)/4} - {observations[0][x]} {observations[0][x + 1]} {observations[0][x + 2]} {observations[0][x + 3]} - ({cell_type})")
+
+        # print(f"Blah - {observations[0]}")
+
         return features, None
 
-    def decode_actions(self, features):
+    def decode_actions(self, features, lookup):
         """
         Decodes features into actions and value predictions.
         """
         action = self.actor(features)
-        action = torch.split(action, self.atn_dim, dim=1)
         value = self.critic(features)
         return action, value
