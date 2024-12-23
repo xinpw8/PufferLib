@@ -8,7 +8,7 @@ class Blastar(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, buf=None):
         # Observation space: 6 floats (normalized positions, bullet states)
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=1, shape=(27,), dtype=np.float32
+            low=0, high=1, shape=(31,), dtype=np.float32
         )
         # Action space: 6 discrete actions (no-op, left, right, up, down, fire)
         self.single_action_space = gymnasium.spaces.Discrete(6)

@@ -31,7 +31,8 @@ typedef struct Log {
     float hit_enemy_with_bullet_rew;
     float hit_by_enemy_bullet_penalty_rew;
     int enemy_crossed_screen;
-    int bad_guy_score;
+    float bad_guy_score;
+    float avg_score_difference;
 } Log;
 
 // LogBuffer structure
@@ -101,7 +102,7 @@ typedef struct BlastarEnv {
     int bullet_travel_time;
     bool bullet_crossed_enemy_y; // Reset on bullet deactivation
     int kill_streak;
-    int bad_guy_score;
+    float bad_guy_score;
     Player player;
     Enemy enemy;               // Singular enemy
     Bullet bullet;
