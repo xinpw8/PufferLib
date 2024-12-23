@@ -239,7 +239,7 @@ void close_blastar(BlastarEnv* env) {
 void compute_observations(BlastarEnv* env) {
     if (env && env->observations) {
         // Update env variables
-        
+
         // Infinite lives
         if (env->player.lives < 5) {
             env->player.lives = 5;
@@ -376,7 +376,7 @@ void c_step(BlastarEnv *env) {
     float rew = 0.0f;
     env->rewards[0] = rew;
     float score = 0.0f;
-    float bad_guy_score = 0.0f;
+    int bad_guy_score = 0;
     float fired_bullet_rew = 0.0f;
     float bullet_travel_rew = 0.0f;
     float bullet_distance_to_enemy_rew = 0.0f;
@@ -576,7 +576,7 @@ void c_step(BlastarEnv *env) {
         if (CheckCollisionRecs(bulletHitbox, playerHitbox)) {
             env->enemy.bullet.active = false;
             env->player.lives--;
-            bad_guy_score += 1.0f;
+            bad_guy_score += 1;
             env->playerExplosionTimer = 30;
             env->player.playerStuck = false;
             env->enemy.attacking = false;
