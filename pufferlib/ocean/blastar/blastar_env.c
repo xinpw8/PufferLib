@@ -599,9 +599,9 @@ void c_step(BlastarEnv *env) {
         rew += 0.01f * vertical_closeness; 
     }
 
-    env->log.score = score;
-    env->log.bad_guy_score = bad_guy_score;
-    env->bad_guy_score = bad_guy_score;
+    env->log.score += score;
+    env->log.bad_guy_score += bad_guy_score;
+    env->bad_guy_score += bad_guy_score;
     env->log.fired_bullet_rew = fired_bullet_rew;
     env->log.bullet_travel_rew = bullet_travel_rew;
     env->log.bullet_distance_to_enemy_rew = bullet_distance_to_enemy_rew;

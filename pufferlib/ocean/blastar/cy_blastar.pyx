@@ -243,5 +243,6 @@ cdef class CyBlastar:
             'hit_enemy_with_bullet_rew': log.hit_enemy_with_bullet_rew,
             'hit_by_enemy_bullet_penalty_rew': log.hit_by_enemy_bullet_penalty_rew,
             'enemy_crossed_screen': log.enemy_crossed_screen,
+            'bad_guy_score': log.bad_guy_score
         }
         
