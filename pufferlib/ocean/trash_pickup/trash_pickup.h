@@ -457,6 +457,12 @@ void free_allocated(CTrashPickupEnv* env) {
     free_initialized(env);
 }
 
+const Color PUFF_RED = (Color){187, 0, 0, 255};
+const Color PUFF_CYAN = (Color){0, 187, 187, 255};
+const Color PUFF_WHITE = (Color){241, 241, 241, 241};
+const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
+const Color PUFF_LINES = (Color){50, 50, 50, 255};
+
 typedef struct Client {
     int window_width;
     int window_height;
@@ -485,7 +491,7 @@ Client* make_client(CTrashPickupEnv* env) {
 // Render the TrashPickup environment
 void render(Client* client, CTrashPickupEnv* env) {
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(PUFF_BACKGROUND);
 
     // Draw header with current step and total episode reward
     int start_index = get_entity_type_start_index(env, TRASH);
@@ -502,7 +508,7 @@ void render(Client* client, CTrashPickupEnv* env) {
             env->num_trash - total_trash_not_collected,
             env->num_trash
         ),
-        5, 2, 10, BLACK
+        5, 2, 10, PUFF_WHITE
     );
 
     // Draw the grid and its elements
@@ -531,7 +537,7 @@ void render(Client* client, CTrashPickupEnv* env) {
             };
 
             // Draw grid cell border
-            DrawRectangleLines((int)cell_rect.x, (int)cell_rect.y, (int)cell_rect.width, (int)cell_rect.height, LIGHTGRAY);
+            DrawRectangleLines((int)cell_rect.x, (int)cell_rect.y, (int)cell_rect.width, (int)cell_rect.height, PUFF_LINES);
 
             // Draw grid cell content
             if (cell_type == EMPTY)
@@ -543,7 +549,7 @@ void render(Client* client, CTrashPickupEnv* env) {
                     screen_y + client->cell_size / 4,
                     client->cell_size / 2,
                     client->cell_size / 2,
-                    BROWN
+                    PUFF_CYAN
                 );
             } else if (cell_type == TRASH_BIN) {
                 DrawRectangle(
@@ -551,14 +557,14 @@ void render(Client* client, CTrashPickupEnv* env) {
                     screen_y + client->cell_size / 8,
                     3 * client->cell_size / 4,
                     3 * client->cell_size / 4,
-                    BLUE
+                    PUFF_RED
                 );
             } else if (cell_type == AGENT) {
                 Color color;
                 if (env->do_human_control && gridCell.index == 0)
                 {
                     // Make human controlled agent red
-                    color = RED;
+                    color = (Color){255, 128, 128, 255};
                 }
                 else
                 {
@@ -589,7 +595,7 @@ void render(Client* client, CTrashPickupEnv* env) {
                         screen_y + client->cell_size / 2,
                         client->cell_size / 4,
                         client->cell_size / 4,
-                        BROWN
+                        PUFF_CYAN
                     );
                 }
             }
