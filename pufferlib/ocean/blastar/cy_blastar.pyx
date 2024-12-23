@@ -63,6 +63,7 @@ cdef extern from "blastar_env.h":
         float hit_enemy_with_bullet_rew
         float hit_by_enemy_bullet_penalty_rew
         int enemy_crossed_screen
+        float bad_guy_score
 
     # Define the LogBuffer struct
     ctypedef struct LogBuffer:
@@ -95,6 +96,7 @@ cdef extern from "blastar_env.h":
         int max_score
         int bullet_travel_time
         int kill_streak
+        float bad_guy_score
         Player player
         Enemy enemy
         Bullet bullet

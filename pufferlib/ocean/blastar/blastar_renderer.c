@@ -132,6 +132,7 @@ void c_render(Client* client, BlastarEnv* env) {
     }
 
     // Draw score and lives
+    DrawText(TextFormat("BAD GUY SCORE %d", env->bad_guy_score), 10, 30, 20, GREEN);
     DrawText(TextFormat("SCORE %d", env->player.score), 10, 10, 20, GREEN);
     DrawText(TextFormat("LIVES %d", env->player.lives), client->screen_width - 100, 10, 20, GREEN);
 
