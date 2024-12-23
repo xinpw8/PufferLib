@@ -52,7 +52,7 @@ class TrashPickupEnv(pufferlib.PufferEnv):
         # self.num_obs = num_obs_trash + num_obs_bin + num_obs_agent;
         
         # 2D Local crop obs space
-        self.num_obs = 1 + ((((agent_sight_range * 2 + 1) * (agent_sight_range * 2 + 1))) * 4);  # whether agent is carrying, and one-hot encoding for all cell types in local crop around agent (minus the cell the agent is currently in)
+        self.num_obs = 1 + ((((agent_sight_range * 2 + 1) * (agent_sight_range * 2 + 1)) * 4));  # whether agent is carrying, and one-hot encoding for all cell types in local crop around agent (minus the cell the agent is currently in)
 
         self.single_observation_space = spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)

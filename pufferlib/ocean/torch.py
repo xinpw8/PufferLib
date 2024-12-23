@@ -298,10 +298,6 @@ class MOBA(nn.Module):
             return action, value
 
 
-class TrashPickupLSTM(pufferlib.models.LSTMWrapper):
-    def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
-        super().__init__(env, policy, input_size, hidden_size, num_layers)
-
 class TrashPickup(nn.Module):
     def __init__(self, env, hidden_size=128, cnn_channels=128):
         super().__init__()
@@ -347,7 +343,7 @@ class TrashPickup(nn.Module):
         # Reshape local crop for CNN
         crop_size = 2 * self.agent_sight_range + 1
         num_channels = 4
-        local_crop = observations[:, 1:].view(-1, num_channels, crop_size, crop_size)
+        local_crop = observations[:, 1:].view(-1, crop_size, crop_size, num_channels).permute(0, 3, 1, 2)
 
         # Process local crop through CNN
         cnn_features = self.cnn(local_crop)

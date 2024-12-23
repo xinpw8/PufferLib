@@ -385,8 +385,8 @@ void reset(CTrashPickupEnv* env) {
 void initialize_env(CTrashPickupEnv* env) {
     env->current_step = 0;
 
-    env->positive_reward = 0.5f / env->num_trash;
-    env->negative_reward = -1.0f / (env->max_steps * env->num_agents);
+    env->positive_reward = 0.5f; // / env->num_trash;
+    env->negative_reward = -0.0f; // / (env->max_steps * env->num_agents);
 
     env->grid = (GridCell*)calloc(env->grid_size * env->grid_size, sizeof(GridCell));
     env->entities = (Entity*)calloc(env->num_agents + env->num_bins + env->num_trash, sizeof(Entity));
