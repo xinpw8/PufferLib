@@ -16,7 +16,7 @@ cdef extern from "trash_pickup.h":
     Log aggregate_and_clear(LogBuffer*)
 
     ctypedef struct CTrashPickupEnv:
-        float* observations
+        char* observations
         int* actions
         float* rewards
         unsigned char* dones
@@ -49,7 +49,7 @@ cdef class CyTrashPickup:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, char[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs, 
             int num_agents=3, int grid_size=10, int num_trash=15, 
             int num_bins=2, int max_steps=300, int agent_sight_range=5):

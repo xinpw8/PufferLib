@@ -14,18 +14,18 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
         .do_human_control = true
     };
 
-    bool use_pretrained_model = false;
+    bool use_pretrained_model = true;
 
     Weights* weights;
-    LinearLSTM* net;
+    ConvLSTM* net;
 
     if (use_pretrained_model){
-        weights = load_weights("resources/trashpickup_weights.bin", 136454);
-        net = make_linearlstm(weights, env.num_agents, env.total_num_obs, 4); // 4 is size of action space
+        weights = load_weights("resources/trash_pickup_weights.bin", 150245);
+        int vision = 2*env.agent_sight_range + 1;
+        net = make_convlstm(weights, env.num_agents, vision, 5, 32, 128, 4);
     }
 
     allocate(&env);
-
     Client* client = make_client(&env);
 
     reset(&env);
@@ -37,7 +37,10 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
             for (int i = 0; i < env.num_agents; i++) {
                 if (use_pretrained_model)
                 {
-                    forward_linearlstm(net, net->obs, env.actions);    
+                    for (int e = 0; e < env.total_num_obs; e++) {
+                        net->obs[e] = env.observations[e];
+                    }
+                    forward_convlstm(net, net->obs, env.actions);    
                 }
                 else{
                     env.actions[i] = rand() % 4; // 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT
@@ -57,9 +60,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
                 if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
                     env.actions[0] = ACTION_RIGHT;
                 }
-                if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-                    env.actions[0] = ACTION_DOWN;
-                }
+                if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) { env.actions[0] = ACTION_DOWN; }
             }
 
             // Step the environment and render the grid
@@ -71,11 +72,11 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
         render(client, &env);
     }
 
+    free_convlstm(net);
+    free(weights);
     free_allocated(&env);
     close_client(client);
 }
-
-
 
 // Performance test function for benchmarking
 void performance_test() {
@@ -108,7 +109,7 @@ void performance_test() {
 
 // Main entry point
 int main() {
-    demo(10, 4, 20, 1, 500); // Visual demo
-    // performance_test(); // Uncomment for benchmarking
+    demo(10, 4, 20, 1, 150); // Visual demo
+    //performance_test(); // Uncomment for benchmarking
     return 0;
 }

@@ -297,84 +297,38 @@ class MOBA(nn.Module):
 
             return action, value
 
-
 class TrashPickup(nn.Module):
-    def __init__(self, env, hidden_size=128, cnn_channels=128):
+    def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()
-        self.hidden_size = hidden_size
         self.agent_sight_range = env.agent_sight_range
-
-        super().__init__()
-        self.cnn = nn.Sequential(
+        self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Conv2d(4, cnn_channels, 5, stride=3)),
+                nn.Conv2d(5, cnn_channels, 5, stride=3)),
             nn.ReLU(),
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
+            nn.ReLU(),
             nn.Flatten(),
+            pufferlib.pytorch.layer_init(nn.Linear(cnn_channels, hidden_size)),
+            nn.ReLU(),
         )
-
-        self.proj = pufferlib.pytorch.layer_init(nn.Linear(cnn_channels + 1, hidden_size))
-
-        # Actor and critic projection layers
         self.actor = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
-        self.critic = pufferlib.pytorch.layer_init(
+        self.value_fn = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations):
-        """
-        Forward pass to produce actions and value predictions.
-
-        observations: (batch_size, obs_dim)
-        """
-        features, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(features, lookup)
+        hidden, lookup = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
     def encode_observations(self, observations):
-        """
-        Encodes observations into feature representations.
-        observations: (batch_size, obs_dim)
-        """
-        # Split observations into carrying status and 2D local crop
-        carrying_status = observations[:, :1]  # First scalar
-
-        # Reshape local crop for CNN
         crop_size = 2 * self.agent_sight_range + 1
-        num_channels = 4
-        local_crop = observations[:, 1:].view(-1, crop_size, crop_size, num_channels).permute(0, 3, 1, 2)
+        observations = observations.view(-1, 5, crop_size, crop_size).float()
+        #observations = observations.view(-1, crop_size, crop_size, 5).permute(0, 3, 1, 2).float()
+        return self.network(observations), None
 
-        # Process local crop through CNN
-        cnn_features = self.cnn(local_crop)
-
-        # Combine features
-        combined_features = torch.cat([cnn_features, carrying_status], dim=1)
-        features = F.relu(self.proj(combined_features))
-
-        # for x in range(1, len(observations[0]) - 1, 4):
-        #     cell_type = "UNKNOWN"
-        #     if observations[0][x] == 1 and observations[0][x + 1] == 0 and observations[0][x + 2] == 0 and observations[0][x + 3] == 0:
-        #         cell_type = "EMPTY"
-        #     elif observations[0][x] == 0 and observations[0][x + 1] == 1 and observations[0][x + 2] == 0 and observations[0][x + 3] == 0:
-        #         cell_type = "TRASH"
-        #     elif observations[0][x] == 0 and observations[0][x + 1] == 0 and observations[0][x + 2] == 1 and observations[0][x + 3] == 0:
-        #         cell_type = "BIN"
-        #     elif observations[0][x] == 0 and observations[0][x + 1] == 0 and observations[0][x + 2] == 0 and observations[0][x + 3] == 1:
-        #         cell_type = "AGENT"
-        #     elif observations[0][x] == -1 and observations[0][x + 1] == -1 and observations[0][x + 2] == -1 and observations[0][x + 3] == -1:
-        #         cell_type = "O.O.B."
-
-        #     print(f"\t{(x-1)/4} - {observations[0][x]} {observations[0][x + 1]} {observations[0][x + 2]} {observations[0][x + 3]} - ({cell_type})")
-
-        # print(f"Blah - {observations[0]}")
-
-        return features, None
-
-    def decode_actions(self, features, lookup):
-        """
-        Decodes features into actions and value predictions.
-        """
-        action = self.actor(features)
-        value = self.critic(features)
+    def decode_actions(self, flat_hidden, lookup, concat=None):
+        action = self.actor(flat_hidden)
+        value = self.value_fn(flat_hidden)
         return action, value
