@@ -15,6 +15,7 @@ from .nmmo3.nmmo3 import NMMO3
 from .go.go import Go
 from .rware.rware import Rware
 #from .rocket_lander import rocket_lander
+from .trash_pickup.trash_pickup import TrashPickupEnv
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -136,6 +137,7 @@ MAKE_FNS = {
     'tactical': Tactical,
     'go': Go,
     'rware': Rware,
+    'trash_pickup': TrashPickupEnv,
 
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
