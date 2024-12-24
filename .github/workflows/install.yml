@@ -12,9 +12,12 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
         py:
           - "3.11"
           - "3.10"
+          - "3.9"
+          - "3.8"
     steps:
       - name: Setup python for test ${{ matrix.py }}
         uses: actions/setup-python@v4
