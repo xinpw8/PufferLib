@@ -36,24 +36,21 @@ int demo() {
     Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
     LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
 
-    Enduro env;
-
-    env.num_envs = 1;
-    env.max_enemies = MAX_ENEMIES;
-    env.obs_size = OBSERVATIONS_MAX_SIZE;
+    Enduro env = {
+        .num_envs = 1,
+        .max_enemies = MAX_ENEMIES,
+        .obs_size = OBSERVATIONS_MAX_SIZE
+    };
 
     allocate(&env);
-
     Client* client = make_client(&env);
 
     unsigned int seed = 0;
     init(&env, seed, 0);
     reset(&env);
 
-    int running = 1;
-    while (running) {
+    while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = 0;
             get_input(&env);
         } else {
             forward_linearlstm(net, env.observations, env.actions);
@@ -61,10 +58,6 @@ int demo() {
 
         c_step(&env);
         c_render(client, &env);
-
-        if (WindowShouldClose()) {
-            running = 0;
-        }
     }
 
     free_linearlstm(net);
@@ -75,11 +68,11 @@ int demo() {
 }
 
 void perftest(float test_time) {
-    Enduro env;
-
-    env.num_envs = 1;
-    env.max_enemies = MAX_ENEMIES;
-    env.obs_size = OBSERVATIONS_MAX_SIZE;
+    Enduro env = {
+        .num_envs = 1,
+        .max_enemies = MAX_ENEMIES,
+        .obs_size = OBSERVATIONS_MAX_SIZE
+    };
 
     allocate(&env);
 
@@ -90,7 +83,6 @@ void perftest(float test_time) {
     int start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
-        get_input(&env);
         env.actions[0] = rand()%9;
         c_step(&env);
         i++;
@@ -103,6 +95,6 @@ void perftest(float test_time) {
 
 int main() {
    demo();
-//    perftest(30.0f);
+   //perftest(10.0f);
    return 0;
 }
