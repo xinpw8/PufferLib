@@ -86,3 +86,24 @@ class TrashPickupEnv(pufferlib.PufferEnv):
         
     def close(self):
         self.c_envs.close() 
+
+def test_performance(timeout=10, atn_cache=1024):
+    env = TrashPickupEnv(num_envs=1024, grid_size=10, num_agents=4,
+        num_trash=20, num_bins=1, max_steps=150, agent_sight_range=5)
+ 
+    env.reset()
+    tick = 0
+
+    actions = np.random.randint(0, 4, (atn_cache, env.num_agents))
+
+    import time
+    start = time.time()
+    while time.time() - start < timeout:
+        atn = actions[tick % atn_cache]
+        env.step(atn)
+        tick += 1
+
+    print(f'SPS: %f', env.num_agents * tick / (time.time() - start))
+
+if __name__ == '__main__':
+    test_performance()
