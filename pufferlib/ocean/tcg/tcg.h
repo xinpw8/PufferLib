@@ -12,6 +12,15 @@
 #define ACTION_ENTER 10
 #define ACTION_NOOP 11
 
+#define SCREEN_WIDTH 2000
+#define SCREEN_HEIGHT 1200
+#define CARD_WIDTH 64
+#define CARD_HEIGHT 128
+#define PLAYER_DECK_LOCATION_X (CARD_WIDTH / 2)
+#define ENEMY_DECK_LOCATION_X (CARD_WIDTH / 2)
+#define PLAYER_DECK_LOCATION_Y (GetScreenHeight() - CARD_HEIGHT / 2)
+#define ENEMY_DECK_LOCATION_Y (CARD_HEIGHT / 2)
+
 #define TO_USER true;
 #define TO_STACK false;
 
@@ -110,6 +119,11 @@ struct TCG {
     int block_idx;
     int turn;
 };
+
+typedef struct Client {
+    Texture2D card_back; // Card back and deck texture
+    Texture2D card_front; // Card front texture
+} Client;
 
 void allocate_tcg(TCG* env) {
     env->stack = calloc(1, sizeof(Stack));
@@ -493,8 +507,64 @@ void reset(TCG* env) {
     step(env, ACTION_NOOP);
 }
 
+int card_x(int col, int n) {
+    if (n == 0) return GetScreenWidth() / 2; // Center if no cards
+    int total_width = CARD_WIDTH * n + 16 * (n - 1); // Total width with spacing
+    int start_x = (GetScreenWidth() - total_width) / 2; // Centering
+    return start_x + col * (CARD_WIDTH + 16); // Position of each card
+}
+
+int card_y(int row, bool is_player) {
+    int base_offset = 64;           // Offset from screen edge for padding
+    int row_spacing = CARD_HEIGHT + 40; // Consistent spacing between rows
+    // Rows are indexed from bottom to top. Player is at the bottom.
+    return GetScreenHeight() - base_offset - (row + 1) * row_spacing;
+}
+
+
+void render_card(Client* client, Card* card, int x, int y, bool face_up, Color color) {
+    // Draw card front if face_up, otherwise draw card back
+    if (face_up) {
+        DrawTexture(client->card_front, x, y, WHITE);
+    } else {
+        DrawTexture(client->card_back, x, y, WHITE);
+    }
+
+    if (face_up) {
+        if (card->is_land) {
+            DrawText("Land", x + CARD_WIDTH / 4, y + CARD_HEIGHT / 3, 16, color);
+        } else {
+            DrawText(TextFormat("%i", card->cost), x + CARD_WIDTH - 20, y + 10, 20, color);
+            DrawText("/", x + CARD_WIDTH - 20, y + CARD_HEIGHT - 20, 20, color); // Placeholder for attack/defense
+        }
+    }
+}
+
+Client* make_client(TCG* env) {
+    Client* client = (Client*)calloc(1, sizeof(Client));
+    if (!client) {
+        perror("Failed to allocate Client");
+        exit(EXIT_FAILURE);
+    }
+
+    // Load textures
+    client->card_back = LoadTexture("/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/tcg/card_back.png");
+    client->card_front = LoadTexture("/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/tcg/card_front.png");
+
+    return client;
+}
+
+void free_client(Client* client) {
+    UnloadTexture(client->card_back);
+    UnloadTexture(client->card_front);
+    free(client);
+}
+
 void init_client(TCG* env) {
-    InitWindow(1080, 720, "Puffer the Schooling TCG");
+    int window_height = SCREEN_HEIGHT; // Top and bottom margins
+    int window_width = SCREEN_WIDTH; // Maintain original width
+
+    InitWindow(window_width, window_height, "Puffer the Schooling TCG");
     SetTargetFPS(60);
 }
 
@@ -502,105 +572,84 @@ void close_client(TCG* env) {
     CloseWindow();
 }
 
-int card_x(int col, int n) {
-    int cards_width = 72*n;
-    int offset = 72*col;
-    return GetScreenWidth()/2 - cards_width/2 + offset;
-}
-
-int card_y(int row) {
-    return 64 + (128 + 20)*row;
-}
-
-void render_card(Card* card, int x, int y, Color color) {
-    DrawRectangle(x, y, 64, 128, color);
-    if (card->is_land) {
-        DrawText("Land", x + 16, y + 40, 16, WHITE);
-    } else {
-        DrawText(TextFormat("%i", card->cost), x + 32, y+16, 20, WHITE);
-        DrawText(TextFormat("%i", card->attack), x + 32, y + 40, 20, WHITE);
-        DrawText(TextFormat("%i", card->health), x + 32, y + 64, 20, WHITE);
-    }
+void render_card_back(Client* client, int x, int y) {
+    // Render a card back at the specified position
+    DrawTexture(client->card_back, x, y, WHITE);
 }
 
 void render_label(int x, int y, int idx) {
-    DrawText(TextFormat("%i", (idx+1)%10), x+32, y+96, 20, YELLOW);
+    // Adjust label position dynamically based on CARD_HEIGHT
+    DrawText(TextFormat("%i", (idx + 1) % 10), x + CARD_WIDTH / 2, y + CARD_HEIGHT - 32, 20, YELLOW);
 }
 
-void render(TCG* env) {
+void render(TCG* env, Client* client) {
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
-   
+
+    // Render player's deck
+    render_card(client, NULL, PLAYER_DECK_LOCATION_X, PLAYER_DECK_LOCATION_Y, false, WHITE);
+
+    // Render opponent's deck
+    render_card(client, NULL, ENEMY_DECK_LOCATION_X, ENEMY_DECK_LOCATION_Y, false, WHITE);
+
+    // Render player's hand
     for (int i = 0; i < env->my_hand->length; i++) {
         Card card = env->my_hand->cards[i];
-        int x = card_x(i, env->my_hand->length);
-        int y = card_y(3);
-        render_card(&card, x, y, RED);
-        if (env->turn == 0) {
-            render_label(x, y, i);
-        }
+        int x = card_x(i, env->my_hand->length); // Center cards
+        int y = card_y(1, true); // Player's hand row
+        render_card(client, &card, x, y, true, RED);
     }
 
+    // Render player's creatures
     for (int i = 0; i < env->my_board->length; i++) {
         Card card = env->my_board->cards[i];
-        int x = card_x(i, env->my_board->length);
-        int y = card_y(2);
-        if (card.attacking) {
-            y -= 16;
-        }
-        Color color = (card.tapped) ? (Color){128, 0, 0, 255}: RED;
-        render_card(&card, x, y, color);
-        if (env->turn == 0) {
-            render_label(x, y, i);
+        if (!card.is_land) {
+            int x = card_x(i, env->my_board->length); // Center cards
+            int y = card_y(2, true); // Player's creatures row
+            render_card(client, &card, x, y, true, RED);
         }
     }
 
+    // Render player's lands
+    for (int i = 0; i < env->my_board->length; i++) {
+        Card card = env->my_board->cards[i];
+        if (card.is_land) {
+            int x = card_x(i, env->my_board->length); // Center cards
+            int y = card_y(0, true); // Player's lands row
+            render_card(client, &card, x, y, true, RED);
+        }
+    }
+
+    // Render opponent's lands
     for (int i = 0; i < env->op_board->length; i++) {
         Card card = env->op_board->cards[i];
-        int x = card_x(i, env->op_board->length);
-        int y = card_y(1);
-        if (card.attacking) {
-            y += 16;
+        if (card.is_land) {
+            int x = card_x(i, env->op_board->length); // Center cards
+            int y = card_y(5, false); // Enemy's lands row
+            render_card(client, &card, x, y, true, BLUE);
         }
-        Color color = (card.tapped) ? (Color){0, 0, 128, 255}: BLUE;
-        render_card(&card, x, y, color);
     }
 
-    for (int i = 0; i < env->my_board->length; i++) {
-        Card card = env->my_board->cards[i];
-        if (card.defending == -1) {
-            continue;
+    // Render opponent's creatures
+    for (int i = 0; i < env->op_board->length; i++) {
+        Card card = env->op_board->cards[i];
+        if (!card.is_land) {
+            int x = card_x(i, env->op_board->length); // Center cards
+            int y = card_y(3, false); // Enemy's creatures row
+            render_card(client, &card, x, y, true, BLUE);
         }
-        DrawLineEx(
-            (Vector2){32+card_x(i, env->my_board->length), 64+card_y(2)},
-            (Vector2){32+card_x(card.defending, env->op_board->length), 64+card_y(1)},
-            3.0f, WHITE
-        );
     }
 
+    // Render opponent's hand
     for (int i = 0; i < env->op_hand->length; i++) {
-        Card card = env->op_hand->cards[i];
-        int x = card_x(i, env->op_hand->length);
-        int y = card_y(0);
-        render_card(&card, x, y, BLUE);
+        int x = card_x(i, env->op_hand->length); // Center cards
+        int y = card_y(4, false); // Enemy's hand row
+        render_card(client, NULL, x, y, false, WHITE);
     }
 
-    int x = GetScreenWidth() - 128;
-    int y = 32;
-
-    call fn = peek(env->stack);
-    if (fn == phase_draw) {
-        DrawText("Draw", x, y, 20, WHITE);
-    } else if (fn == phase_play) {
-        DrawText("Play", x, y, 20, WHITE);
-    } else if (fn == phase_attack) {
-        DrawText("Attack", x, y, 20, WHITE);
-    } else if (fn == phase_block) {
-        DrawText("Block", x, y, 20, WHITE);
-    } 
-
-    DrawText(TextFormat("Health: %i", env->my_health), 32, 32, 20, WHITE);
-    DrawText(TextFormat("Health: %i", env->op_health), 32, GetScreenHeight() - 64, 20, WHITE);
+    // Render health numbers
+    DrawText(TextFormat("Health: %i", env->my_health), PLAYER_DECK_LOCATION_X + CARD_WIDTH + 20, PLAYER_DECK_LOCATION_Y - CARD_HEIGHT / 2, 20, WHITE);
+    DrawText(TextFormat("Health: %i", env->op_health), ENEMY_DECK_LOCATION_X + CARD_WIDTH + 20, ENEMY_DECK_LOCATION_Y + CARD_HEIGHT / 2, 20, WHITE);
 
     EndDrawing();
 }

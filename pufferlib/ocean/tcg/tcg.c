@@ -6,6 +6,7 @@ int main() {
     reset(&env);
 
     init_client(&env);
+    Client* client = make_client(&env);
 
     int atn = -1;
     while (!WindowShouldClose()) {
@@ -30,8 +31,12 @@ int main() {
             atn = rand() % 11;
         }
  
-        render(&env);
+        render(&env, client);
     }
+    
+    free_client(client);
     free_tcg(&env);
+
+    CloseWindow();
     return 0;
 }
