@@ -85,9 +85,9 @@ void performance_test() {
     CTrashPickupEnv env = {
         .grid_size = 10,
         .num_agents = 4,
-        .num_trash = 15,
+        .num_trash = 20,
         .num_bins = 1,
-        .max_steps = 300,
+        .max_steps = 150,
         .agent_sight_range = 5
     };
     allocate(&env);
@@ -97,7 +97,9 @@ void performance_test() {
     int i = 0;
     int inc = env.num_agents;
     while (time(NULL) - start < test_time) {
-        env.actions[0] = rand() % 4;
+        for (int e = 0; e < env.num_agents; e++) {
+            env.actions[e] = rand() % 4;
+        }
         step(&env);
         i += inc;
     }
