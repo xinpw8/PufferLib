@@ -27,10 +27,14 @@ torch.set_float32_matmul_precision('high')
 from c_gae import compute_gae
 
 
-def create(config, vecenv, policy, optimizer=None, wandb=None):
+def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     seed_everything(config.seed, config.torch_deterministic)
     profile = Profile()
     losses = make_losses()
+
+    if neptune is not None:
+        for k, v in pufferlib.utils.unroll_nested_dict(config):
+            neptune[k].append(v)
 
     utilization = Utilization()
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
@@ -66,6 +70,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None):
         profile=profile,
         losses=losses,
         wandb=wandb,
+        neptune=neptune,
         global_step=0,
         epoch=0,
         stats=defaultdict(list),
@@ -127,9 +132,13 @@ def evaluate(data):
 
     with profile.eval_misc:
         for k, v in infos.items():
-            if '_map' in k and data.wandb is not None:
-                data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
-                continue
+            if '_map' in k:
+                if data.wandb is not None:
+                    data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
+                    continue
+                elif data.neptune is not None:
+                    # TODO: Add neptune image logging
+                    pass
 
             if isinstance(v, np.ndarray):
                 v = v.tolist()
@@ -286,19 +295,30 @@ def mean_and_log(data):
 
         data.stats[k] = v
 
-    if data.wandb is None:
-        return
-
-    data.last_log_time = time.time()
-    data.wandb.log({
-        '0verview/SPS': data.profile.SPS,
-        '0verview/agent_steps': data.global_step,
-        '0verview/epoch': data.epoch,
-        '0verview/learning_rate': data.optimizer.param_groups[0]["lr"],
-        **{f'environment/{k}': v for k, v in data.stats.items()},
-        **{f'losses/{k}': v for k, v in data.losses.items()},
-        **{f'performance/{k}': v for k, v in data.profile},
-    })
+    if data.wandb is not None:
+        data.last_log_time = time.time()
+        data.wandb.log({
+            '0verview/SPS': data.profile.SPS,
+            '0verview/agent_steps': data.global_step,
+            '0verview/epoch': data.epoch,
+            '0verview/learning_rate': data.optimizer.param_groups[0]["lr"],
+            **{f'environment/{k}': v for k, v in data.stats.items()},
+            **{f'losses/{k}': v for k, v in data.losses.items()},
+            **{f'performance/{k}': v for k, v in data.profile},
+        })
+    elif data.neptune is not None:
+        data.last_log_time = time.time()
+        agent_steps = int(data.global_step)
+        data.neptune['SPS'].append(data.profile.SPS, step=agent_steps)
+        data.neptune['agent_steps'].append(data.global_step, step=agent_steps)
+        data.neptune['epoch'].append(data.epoch, step=agent_steps)
+        data.neptune['learning_rate'].append(data.optimizer.param_groups[0]["lr"], step=agent_steps)
+        for k, v in data.stats.items():
+            data.neptune[k].append(v, step=agent_steps)
+        for k, v in data.losses.items():
+            data.neptune[k].append(v, step=agent_steps)
+        for k, v in data.profile:
+            data.neptune[k].append(v, step=agent_steps)
 
 def close(data):
     data.vecenv.close()
@@ -311,6 +331,8 @@ def close(data):
         artifact.add_file(model_path)
         data.wandb.run.log_artifact(artifact)
         data.wandb.finish()
+    elif data.neptune is not None:
+        data.neptune.stop()
 
 class Profile:
     SPS: ... = 0

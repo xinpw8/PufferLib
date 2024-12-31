@@ -45,6 +45,18 @@ def init_wandb(args, name, id=None, resume=True):
     )
     return wandb
 
+def init_neptune(args, env_name, id=None, resume=True):
+    import neptune
+    run = neptune.init_run(
+        project='pufferai/ablations',
+        tags=[env_name],
+        capture_hardware_metrics=False,
+        capture_stdout=False,
+        capture_stderr=False,
+        capture_traceback=False,
+    )
+    return run
+
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
     import wandb
     sweep_id = wandb.sweep(sweep=args['sweep'], project=args['wandb_project'])
@@ -372,7 +384,8 @@ if __name__ == '__main__':
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help='Resume from experiment')
-    parser.add_argument('--track', action='store_true', help='Track on WandB')
+    parser.add_argument('--wandb', action='store_true', help='Track on WandB')
+    parser.add_argument('--neptune', action='store_true', help='Track on Neptune')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
     args = parser.parse_known_args()[0]
@@ -448,9 +461,12 @@ if __name__ == '__main__':
             args['eval_model_path'] = os.path.join(data_dir, model_file)
     if args['mode'] == 'train':
         wandb = None
-        if args['track']:
+        neptune = None
+        if args['wandb']:
             wandb = init_wandb(args, env_name, id=args['exp_id'])
-        train(args, make_env, policy_cls, rnn_cls, wandb=wandb)
+        if args['neptune']:
+            neptune = init_neptune(args, env_name, id=args['exp_id'])
+        train(args, make_env, policy_cls, rnn_cls, wandb=wandb, neptune=neptune)
     elif args['mode'] in ('eval', 'evaluate'):
         vec = pufferlib.vector.Serial
         if args['vec'] == 'native':
