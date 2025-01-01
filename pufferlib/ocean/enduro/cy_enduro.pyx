@@ -17,7 +17,6 @@ cdef extern from "enduro.h":
         float score
         float reward
         float step_rew_car_passed_no_crash
-        float stay_on_road_reward
         float crashed_penalty
         float passed_cars
         float passed_by_enemy
@@ -138,19 +137,5 @@ cdef class CyEnduro:
 
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)
-        return {
-            'episode_return': log.episode_return,
-            'episode_length': log.episode_length,
-            'score': log.score,
-            'reward': log.reward,
-            'step_rew_car_passed_no_crash': log.step_rew_car_passed_no_crash,
-            'stay_on_road_reward': log.stay_on_road_reward,
-            'crashed_penalty': log.crashed_penalty,
-            'passed_cars': log.passed_cars,
-            'passed_by_enemy': log.passed_by_enemy,
-            'cars_to_pass': log.cars_to_pass,
-            'days_completed': log.days_completed,
-            'days_failed': log.days_failed,
-            'collisions_player_vs_car': log.collisions_player_vs_car,
-            'collisions_player_vs_road': log.collisions_player_vs_road,
-        }
+        return log
+

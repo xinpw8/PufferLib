@@ -63,7 +63,6 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {
 #define WIGGLE_SPEED 10.1f // Speed at which the wiggle moves down the screen
 #define WIGGLE_LENGTH 26.0f // Vertical length of the wiggle effect
 
-
 // Rendering constants
 #define SCORE_DIGITS 5
 #define CARS_DIGITS  4
@@ -90,7 +89,6 @@ typedef struct Log {
     float score;
     float reward;
     float step_rew_car_passed_no_crash;
-    float stay_on_road_reward;
     float crashed_penalty;
     float passed_cars;
     float passed_by_enemy;
@@ -369,143 +367,12 @@ Rectangle asset_map[] = {
     (Rectangle){ 868, 6, 32, 9 },  // level_complete_flag_left
 };
 
-enum AssetIndices {
-    ASSET_BG_0 = 0,
-    ASSET_BG_1 = 1,
-    ASSET_BG_2 = 2,
-    ASSET_BG_3 = 3,
-    ASSET_BG_4 = 4,
-    ASSET_BG_5 = 5,
-    ASSET_BG_6 = 6,
-    ASSET_BG_7 = 7,
-    ASSET_BG_8 = 8,
-    ASSET_BG_9 = 9,
-    ASSET_BG_10 = 10,
-    ASSET_BG_11 = 11,
-    ASSET_BG_12 = 12,
-    ASSET_BG_13 = 13,
-    ASSET_BG_14 = 14,
-    ASSET_BG_15 = 15,
-
-    ASSET_MOUNTAIN_0 = 16,
-    ASSET_MOUNTAIN_1,
-    ASSET_MOUNTAIN_2,
-    ASSET_MOUNTAIN_3,
-    ASSET_MOUNTAIN_4,
-    ASSET_MOUNTAIN_5,
-    ASSET_MOUNTAIN_6,
-    ASSET_MOUNTAIN_7,
-    ASSET_MOUNTAIN_8,
-    ASSET_MOUNTAIN_9,
-    ASSET_MOUNTAIN_10,
-    ASSET_MOUNTAIN_11,
-    ASSET_MOUNTAIN_12,
-    ASSET_MOUNTAIN_13,
-    ASSET_MOUNTAIN_14,
-    ASSET_MOUNTAIN_15,
-    ASSET_DIGITS_0 = 32,
-    ASSET_DIGITS_1 = 33,
-    ASSET_DIGITS_2 = 34,
-    ASSET_DIGITS_3 = 35,
-    ASSET_DIGITS_4 = 36,
-    ASSET_DIGITS_5 = 37,
-    ASSET_DIGITS_6 = 38,
-    ASSET_DIGITS_7 = 39,
-    ASSET_DIGITS_8 = 40,
-    ASSET_DIGITS_9 = 41,
-    ASSET_DIGITS_CAR = 42,
-    ASSET_GREEN_DIGITS_0 = 43,
-    ASSET_GREEN_DIGITS_1 = 44,
-    ASSET_GREEN_DIGITS_2 = 45,
-    ASSET_GREEN_DIGITS_3 = 46,
-    ASSET_GREEN_DIGITS_4 = 47,
-    ASSET_GREEN_DIGITS_5 = 48,
-    ASSET_GREEN_DIGITS_6 = 49,
-    ASSET_GREEN_DIGITS_7 = 50,
-    ASSET_GREEN_DIGITS_8 = 51,
-    ASSET_GREEN_DIGITS_9 = 52,
-    ASSET_YELLOW_DIGITS_0 = 53,
-    ASSET_YELLOW_DIGITS_1 = 54,
-    ASSET_YELLOW_DIGITS_2 = 55,
-    ASSET_YELLOW_DIGITS_3 = 56,
-    ASSET_YELLOW_DIGITS_4 = 57,
-    ASSET_YELLOW_DIGITS_5 = 58,
-    ASSET_YELLOW_DIGITS_6 = 59,
-    ASSET_YELLOW_DIGITS_7 = 60,
-    ASSET_YELLOW_DIGITS_8 = 61,
-    ASSET_YELLOW_DIGITS_9 = 62,
-    ASSET_ENEMY_CAR_BLUE_LEFT_TREAD = 63,
-    ASSET_ENEMY_CAR_BLUE_RIGHT_TREAD = 64,
-    ASSET_ENEMY_CAR_GOLD_LEFT_TREAD = 65,
-    ASSET_ENEMY_CAR_GOLD_RIGHT_TREAD = 66,
-    ASSET_ENEMY_CAR_PINK_LEFT_TREAD = 67,
-    ASSET_ENEMY_CAR_PINK_RIGHT_TREAD = 68,
-    ASSET_ENEMY_CAR_SALMON_LEFT_TREAD = 69,
-    ASSET_ENEMY_CAR_SALMON_RIGHT_TREAD = 70,
-    ASSET_ENEMY_CAR_TEAL_LEFT_TREAD = 71,
-    ASSET_ENEMY_CAR_TEAL_RIGHT_TREAD = 72,
-    ASSET_ENEMY_CAR_YELLOW_LEFT_TREAD = 73,
-    ASSET_ENEMY_CAR_YELLOW_RIGHT_TREAD = 74,
-    ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS = 75,
-    ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS = 76,
-    ASSET_PLAYER_CAR_LEFT_TREAD = 77,
-    ASSET_PLAYER_CAR_RIGHT_TREAD = 78,
-    ASSET_LEVEL_COMPLETE_FLAG_RIGHT = 79,
-    ASSET_LEVEL_COMPLETE_FLAG_LEFT = 80,
-};
-
 // Client struct
 typedef struct Client {
     float width;
     float height;
     GameState gameState;
 } Client;
-
-// Prototypes //
-// RNG
-unsigned int xorshift32(unsigned int *state);
-// LogBuffer functions
-LogBuffer* allocate_logbuffer(int size);
-void free_logbuffer(LogBuffer* buffer);
-void add_log(LogBuffer* logs, Log* log);
-Log aggregate_and_clear(LogBuffer* logs);
-
-// Environment functions
-void allocate(Enduro* env);
-void init(Enduro* env, int seed, int env_index);
-void free_allocated(Enduro* env);
-void reset_round(Enduro* env);
-void reset(Enduro* env);
-unsigned char check_collision(Enduro* env, Car* car);
-int get_player_lane(Enduro* env);
-float get_car_scale(float y);
-void add_enemy_car(Enduro* env);
-void update_time_of_day(Enduro* env);
-void accelerate(Enduro* env);
-void c_step(Enduro* env);
-void update_road_curve(Enduro* env);
-float quadratic_bezier(float bottom_x, float control_x, float top_x, float t);
-float road_edge_x(Enduro* env, float y, float offset, unsigned char left);
-float car_x_in_lane(Enduro* env, int lane, float y);
-void compute_observations(Enduro* env);
-
-// Client functions
-Client* make_client(Enduro* env);
-void close_client(Client* client, Enduro* env);
-void render_car(Client* client, GameState* gameState);
-
-// GameState rendering functions
-void initRaylib(GameState* gameState); 
-void loadTextures(GameState* gameState);
-void updateCarAnimation(GameState* gameState);
-void updateScoreboard(GameState* gameState);
-void renderBackground(GameState* gameState);
-void renderScoreboard(GameState* gameState);
-void updateMountains(GameState* gameState);
-void renderMountains(GameState* gameState);
-void updateVictoryEffects(GameState* gameState);
-void c_render(Client* client, Enduro* env);
-void cleanup(GameState* gameState);
 
 // Function definitions //
 // RNG
@@ -552,7 +419,6 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.score += logs->logs[i].score;
         log.reward += logs->logs[i].reward;
         log.step_rew_car_passed_no_crash += logs->logs[i].step_rew_car_passed_no_crash;
-        log.stay_on_road_reward += logs->logs[i].stay_on_road_reward;
         log.crashed_penalty += logs->logs[i].crashed_penalty;
         log.passed_cars += logs->logs[i].passed_cars;
         log.passed_by_enemy += logs->logs[i].passed_by_enemy;
@@ -567,7 +433,6 @@ Log aggregate_and_clear(LogBuffer* logs) {
     log.score /= logs->idx;
     log.reward /= logs->idx;
     log.step_rew_car_passed_no_crash /= logs->idx;
-    log.stay_on_road_reward /= logs->idx;
     log.crashed_penalty /= logs->idx;
     log.passed_cars /= logs->idx;
     log.passed_by_enemy /= logs->idx;
@@ -724,7 +589,6 @@ void init(Enduro* env, int seed, int env_index) {
     env->log.score = 0.0f;
     env->log.reward = 0.0f;
     env->log.step_rew_car_passed_no_crash = 0.0f;
-    env->log.stay_on_road_reward = 0.0f;
     env->log.crashed_penalty = 0.0f;
     env->log.passed_cars = 0.0f;
     env->log.passed_by_enemy = 0.0f;
@@ -838,7 +702,6 @@ void reset_round(Enduro* env) {
     env->log.episode_length = 0.0f;
     env->log.score = 0.0f;
     env->log.reward = 0.0f;
-    env->log.stay_on_road_reward = 0.0f;
     env->log.crashed_penalty = 0.0f;
     env->log.passed_cars = 0.0f;
     env->log.passed_by_enemy = 0.0f;
@@ -872,6 +735,76 @@ void reset(Enduro* env) {
     // int reset_seed = xorshift32(&env->rng_state); // // Always random
     init(env, reset_seed, env->index);
     env->reset_count += 1;
+}
+
+
+// B(t) = (1−t)^2 * P0​+2(1−t) * t * P1​+t^2 * P2​, t∈[0,1]
+// Quadratic bezier curve helper function
+float quadratic_bezier(float bottom_x, float control_x, float top_x, float t) {
+    float one_minus_t = 1.0f - t;
+    return one_minus_t * one_minus_t * bottom_x + 
+           2.0f * one_minus_t * t * control_x + 
+           t * t * top_x;
+}
+
+// Computes the edges of the road. Use for both L and R. 
+// Lots of magic numbers to replicate as exactly as possible
+// original Atari 2600 Enduro road rendering.
+float road_edge_x(Enduro* env, float y, float offset, unsigned char left) {
+    float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+    float base_offset = left ? -ROAD_LEFT_OFFSET : ROAD_RIGHT_OFFSET;
+    float bottom_x = env->base_vanishing_point_x + base_offset + offset;
+    float top_x = env->current_vanishing_point_x + offset;    
+    float edge_x;
+    if (fabsf(env->current_curve_factor) < 0.01f) {
+        // Straight road
+        edge_x = bottom_x + t * (top_x - bottom_x);
+    } else {
+        // Adjust curve offset based on curve direction
+        float curve_offset = (env->current_curve_factor > 0 ? -30.0f : 30.0f) * fabsf(env->current_curve_factor);
+        float control_x = bottom_x + (top_x - bottom_x) * 0.5f + curve_offset;
+        // Calculate edge using Bézier curve for proper curvature
+        edge_x = quadratic_bezier(bottom_x, control_x, top_x, t);
+    }
+
+    // Wiggle effect
+    float wiggle_offset = 0.0f;
+    if (env->wiggle_active && y >= env->wiggle_y && y <= env->wiggle_y + env->wiggle_length) {
+        float t_wiggle = (y - env->wiggle_y) / env->wiggle_length; // Ranges from 0 to 1
+        // Trapezoidal wave calculation
+        if (t_wiggle < 0.15f) {
+            // Connection to road edge
+            wiggle_offset = env->wiggle_amplitude * (t_wiggle / 0.15f);
+        } else if (t_wiggle < 0.87f) {
+            // Flat top of wiggle
+            wiggle_offset = env->wiggle_amplitude;
+        } else {
+            // Reconnection to road edge
+            wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.13f);
+        }
+        // Wiggle towards road center
+        wiggle_offset *= (left ? 1.0f : -1.0f);
+        // Scale wiggle offset based on y position, starting at 0.03f at the vanishing point
+        float depth = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+        float scale = 0.03f + (depth * depth); 
+        if (scale > 0.3f) {
+            scale = 0.3f;
+        }
+        wiggle_offset *= scale;
+    }
+    // Apply the wiggle offset
+    edge_x += wiggle_offset;
+    return edge_x;
+}
+
+// Computes x position of car in a given lane
+float car_x_in_lane(Enduro* env, int lane, float y) {
+    // Set offset to 0 to ensure enemy cars align with the road rendering
+    float offset = 0.0f;
+    float left_edge = road_edge_x(env, y, offset, true);
+    float right_edge = road_edge_x(env, y, offset, false);
+    float lane_width = (right_edge - left_edge) / NUM_LANES;
+    return left_edge + lane_width * (lane + 0.5f);
 }
 
 unsigned char check_collision(Enduro* env, Car* car) {
@@ -1056,6 +989,236 @@ void accelerate(Enduro* env) {
         }
     }
     clamp_speed(env);
+}
+
+
+// When to curve road and how to curve it, including dense smooth transitions
+// An ugly, dense function, but it is necessary
+void update_road_curve(Enduro* env) {
+    int* current_curve_stage = &env->current_curve_stage;
+    int* steps_in_current_stage = &env->steps_in_current_stage;
+    
+    // Map speed to the scale between 0.5 and 3.5
+    float speed_scale = 0.5f + ((fabs(env->speed) / env->max_speed) * (MAX_SPEED - MIN_SPEED));
+    float vanishing_point_transition_speed = VANISHING_POINT_TRANSITION_SPEED + speed_scale; 
+
+    // Randomize step thresholds and curve directions
+    int step_thresholds[3];
+    int curve_directions[3];
+    int last_direction = 0; // Tracks the last curve direction, initialized to straight (0)
+
+    for (int i = 0; i < 3; i++) {
+        // Generate random step thresholds
+        step_thresholds[i] = 1500 + rand() % 3801; // Random value between 1500 and 3800
+
+        // Generate a random curve direction (-1, 0, 1) with rules
+        int direction_choices[] = {-1, 0, 1};
+        int next_direction;
+
+        do {
+            next_direction = direction_choices[rand() % 3];
+        } while ((last_direction == -1 && next_direction == 1) || (last_direction == 1 && next_direction == -1));
+
+        curve_directions[i] = next_direction;
+        last_direction = next_direction;
+    }
+
+    // Use step thresholds and curve directions dynamically
+    env->current_step_threshold = step_thresholds[*current_curve_stage % 3];
+    (*steps_in_current_stage)++;
+
+    if (*steps_in_current_stage >= step_thresholds[*current_curve_stage % 3]) {
+        env->target_curve_factor = (float)curve_directions[*current_curve_stage % 3];
+        *steps_in_current_stage = 0;
+        *current_curve_stage = (*current_curve_stage + 1) % 3;
+    }
+
+    // Determine sizes of step_thresholds and curve_directions
+    size_t step_thresholds_size = sizeof(step_thresholds) / sizeof(step_thresholds[0]);
+    size_t curve_directions_size = sizeof(curve_directions) / sizeof(curve_directions[0]);
+
+    // Find the maximum size
+    size_t max_size = (step_thresholds_size > curve_directions_size) ? step_thresholds_size : curve_directions_size;
+
+    // Adjust arrays dynamically
+    int adjusted_step_thresholds[max_size];
+    int adjusted_curve_directions[max_size];
+
+    for (size_t i = 0; i < max_size; i++) {
+        adjusted_step_thresholds[i] = step_thresholds[i % step_thresholds_size];
+        adjusted_curve_directions[i] = curve_directions[i % curve_directions_size];
+    }
+
+    // Use adjusted arrays for current calculations
+    env->current_step_threshold = adjusted_step_thresholds[*current_curve_stage % max_size];
+    (*steps_in_current_stage)++;
+
+    if (*steps_in_current_stage >= adjusted_step_thresholds[*current_curve_stage]) {
+        env->target_curve_factor = (float)adjusted_curve_directions[*current_curve_stage % max_size];
+        *steps_in_current_stage = 0;
+        *current_curve_stage = (*current_curve_stage + 1) % max_size;
+    }
+
+    if (env->current_curve_factor < env->target_curve_factor) {
+        env->current_curve_factor = fminf(env->current_curve_factor + CURVE_TRANSITION_SPEED, env->target_curve_factor);
+    } else if (env->current_curve_factor > env->target_curve_factor) {
+        env->current_curve_factor = fmaxf(env->current_curve_factor - CURVE_TRANSITION_SPEED, env->target_curve_factor);
+    }
+    env->current_curve_direction = fabsf(env->current_curve_factor) < 0.1f ? CURVE_STRAIGHT 
+                             : (env->current_curve_factor > 0) ? CURVE_RIGHT : CURVE_LEFT;
+
+    // Move the vanishing point gradually
+    env->base_target_vanishing_point_x = VANISHING_POINT_X_LEFT - env->t_p * (VANISHING_POINT_X_LEFT - VANISHING_POINT_X_RIGHT);
+    float target_shift = env->current_curve_direction * CURVE_VANISHING_POINT_SHIFT;
+    env->target_vanishing_point_x = env->base_target_vanishing_point_x + target_shift;
+
+    if (env->current_vanishing_point_x < env->target_vanishing_point_x) {
+        env->current_vanishing_point_x = fminf(env->current_vanishing_point_x + vanishing_point_transition_speed, env->target_vanishing_point_x);
+    } else if (env->current_vanishing_point_x > env->target_vanishing_point_x) {
+        env->current_vanishing_point_x = fmaxf(env->current_vanishing_point_x - vanishing_point_transition_speed, env->target_vanishing_point_x);
+    }
+    env->vanishing_point_x = env->current_vanishing_point_x;
+}
+
+void compute_observations(Enduro* env) {
+    float* obs = env->observations;
+    int obs_index = 0;
+
+    // Most obs normalized to [0, 1]
+    // Bounding box around player
+    float player_x_norm = (env->player_x - env->last_road_left) / (env->last_road_right  - env->last_road_left);
+    float player_y_norm = (PLAYER_MAX_Y - env->player_y) / (PLAYER_MAX_Y - PLAYER_MIN_Y);
+    // float player_width_norm = CAR_WIDTH / (env->last_road_right - env->last_road_left);
+    // float player_height_norm = CAR_HEIGHT / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+
+    // Player position and speed
+    // idx 1-3
+    obs[obs_index++] = player_x_norm;
+    obs[obs_index++] = player_y_norm;
+    obs[obs_index++] = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+
+    // Road edges (separate lines for clarity)
+    float road_left = road_edge_x(env, env->player_y, 0, true);
+    float road_right = road_edge_x(env, env->player_y, 0, false) - CAR_WIDTH;
+
+    // Road edges and last road edges
+    // idx 4-7
+    obs[obs_index++] = (road_left - PLAYABLE_AREA_LEFT) /
+                       (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+    obs[obs_index++] = (road_right - PLAYABLE_AREA_LEFT) /
+                       (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+    obs[obs_index++] = (env->last_road_left - PLAYABLE_AREA_LEFT) /
+                        (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+    obs[obs_index++] = (env->last_road_right - PLAYABLE_AREA_LEFT) /
+                        (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+
+    // Player lane number (0, 1, 2)
+    // idx 8
+    obs[obs_index++] = (float)get_player_lane(env) / (NUM_LANES - 1);
+
+    // Enemy cars (numEnemies * 5 values (x, y, delta y, same lane as player car)) = 10 * 4 = 50 values
+    // idx 9-58
+    for (int i = 0; i < env->max_enemies; i++) {
+        Car* car = &env->enemyCars[i];
+
+        if (car->y > VANISHING_POINT_Y && car->y < PLAYABLE_AREA_BOTTOM) {
+            // Enemy car buffer zone
+            float buffer_x = CAR_WIDTH * 0.5f;
+            float buffer_y = CAR_HEIGHT * 0.5f;
+
+            // Normalize car x position relative to road edges
+            float car_x_norm = ((car->x - buffer_x) - env->last_road_left) / (env->last_road_right - env->last_road_left);
+            car_x_norm = fmaxf(0.0f, fminf(1.0f, car_x_norm)); // Clamp between 0 and 1
+            // Normalize car y position relative to the full road height
+            float car_y_norm = (PLAYABLE_AREA_BOTTOM - (car->y - buffer_y)) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+            car_y_norm = fmaxf(0.0f, fminf(1.0f, car_y_norm)); // Clamp between 0 and 1
+            // Calculate delta_x for lateral movement
+            float delta_x_norm = (car->last_x - car->x) / (env->last_road_right - env->last_road_left);
+            // Calculate delta_y for relative speed
+            float delta_y_norm = (car->last_y - car->y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+            // Determine if the car is in the same lane as the player
+            int is_same_lane = (car->lane == env->lane);
+            // Add normalized car x position
+            obs[obs_index++] = car_x_norm;
+            // Add normalized car y position
+            obs[obs_index++] = car_y_norm;
+            // Add normalized delta x (lateral movement)
+            obs[obs_index++] = delta_x_norm;
+            // Add normalized delta y (relative speed)
+            obs[obs_index++] = delta_y_norm;
+            // Add lane information (binary flag for lane match)
+            obs[obs_index++] = (float)is_same_lane;
+        } else {
+            // Default values for cars that don't exist
+            obs[obs_index++] = 0.5f; // Neutral x position
+            obs[obs_index++] = 0.5f; // Neutral y position
+            obs[obs_index++] = 0.0f; // No movement (delta_x = 0)
+            obs[obs_index++] = 0.0f; // No movement (delta_y = 0)
+            obs[obs_index++] = 0.0f; // Not in the same lane
+        }
+    }
+
+    // Curve direction
+    // idx 59
+    obs[obs_index++] = (float)(env->current_curve_direction + 1) / 2.0f;
+
+    // Observation for player's drift due to road curvature
+    // idx 60-62
+    // Drift direction and magnitude
+    float drift_magnitude = env->current_curve_factor * CURVE_PLAYER_SHIFT_FACTOR * fabs(env->speed);
+    float drift_direction = (env->current_curve_factor > 0) ? 1.0f : -1.0f; // 1 for right drift, -1 for left drift
+
+    // Normalize drift magnitude (assume max absolute curve factor is 1.0 for normalization)
+    float max_drift_magnitude = CURVE_PLAYER_SHIFT_FACTOR * env->max_speed;
+    float normalized_drift_magnitude = fabs(drift_magnitude) / max_drift_magnitude;
+
+    // Add drift direction (-1.0 to 1.0), normalized magnitude (0.0 to 1.0), and curve factor (-1.0 to 1.0)
+    obs[obs_index++] = drift_direction;
+    obs[obs_index++] = normalized_drift_magnitude;
+    obs[obs_index++] = env->current_curve_factor; 
+    
+    // Time of day
+    // idx 63
+    float total_day_length = env->dayTransitionTimes[15];
+    obs[obs_index++] = fmodf(env->elapsedTimeEnv, total_day_length) / total_day_length;
+
+    // Cars to pass
+    // idx 64
+    obs[obs_index++] = (float)env->carsToPass / env->initial_cars_to_pass;
+
+    // Compute per-lane observations: nearest enemy car distances in each lane
+    // idx 65-67
+    float nearest_car_distance[NUM_LANES];
+    bool is_lane_empty[NUM_LANES];
+
+    float MAX_DISTANCE = PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y; // Maximum possible distance
+
+    for (int l = 0; l < NUM_LANES; l++) {
+        nearest_car_distance[l] = MAX_DISTANCE;
+        is_lane_empty[l] = true;
+    }
+
+    for (int i = 0; i < env->numEnemies; i++) {
+        Car* car = &env->enemyCars[i];
+        if (car->lane >= 0 && car->lane < NUM_LANES && car->y < env->player_y) {
+            float distance = env->player_y - car->y;
+            if (distance < nearest_car_distance[car->lane]) {
+                nearest_car_distance[car->lane] = distance;
+                is_lane_empty[car->lane] = false;
+            }
+        }
+    }
+
+    // Add per-lane normalized distances to observations
+    for (int l = 0; l < NUM_LANES; l++) {
+        float normalized_distance;
+        if (is_lane_empty[l]) {
+            normalized_distance = 1.0f; // No enemy car in front in this lane
+        } else {
+            normalized_distance = nearest_car_distance[l] / MAX_DISTANCE;
+        }
+        obs[obs_index++] = normalized_distance;
+    }
 }
 
 void c_step(Enduro* env) {  
@@ -1472,302 +1635,93 @@ void c_step(Enduro* env) {
     compute_observations(env);
 }
 
-void compute_observations(Enduro* env) {
-    float* obs = env->observations;
-    int obs_index = 0;
+void initRaylib(GameState* gameState) {
+    InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
+    SetTargetFPS(60);
+    gameState->renderTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
+}
 
-    // Most obs normalized to [0, 1]
-    // Bounding box around player
-    float player_x_norm = (env->player_x - env->last_road_left) / (env->last_road_right  - env->last_road_left);
-    float player_y_norm = (PLAYER_MAX_Y - env->player_y) / (PLAYER_MAX_Y - PLAYER_MIN_Y);
-    // float player_width_norm = CAR_WIDTH / (env->last_road_right - env->last_road_left);
-    // float player_height_norm = CAR_HEIGHT / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
+void loadTextures(GameState* gameState) {
+    // Initialize animation variables
+    gameState->carAnimationTimer = 0.0f;
+    gameState->carAnimationInterval = 0.05f;
+    gameState->showLeftTread = true;
+    gameState->mountainPosition = 0.0f;
+    gameState->showLeftFlag = true;
+    gameState->flagTimer = 0;
+    gameState->victoryDisplayTimer = 0;
+    gameState->victoryAchieved = false;
+    gameState->score = 0;
+    gameState->scoreTimer = 0;
+    gameState->carsLeftGameState = 0;
+    gameState->day = 1;
 
-    // Player position and speed
-    // idx 1-3
-    obs[obs_index++] = player_x_norm;
-    obs[obs_index++] = player_y_norm;
-    obs[obs_index++] = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
-
-    // Road edges (separate lines for clarity)
-    float road_left = road_edge_x(env, env->player_y, 0, true);
-    float road_right = road_edge_x(env, env->player_y, 0, false) - CAR_WIDTH;
-
-    // Road edges and last road edges
-    // idx 4-7
-    obs[obs_index++] = (road_left - PLAYABLE_AREA_LEFT) /
-                       (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[obs_index++] = (road_right - PLAYABLE_AREA_LEFT) /
-                       (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[obs_index++] = (env->last_road_left - PLAYABLE_AREA_LEFT) /
-                        (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[obs_index++] = (env->last_road_right - PLAYABLE_AREA_LEFT) /
-                        (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-
-    // Player lane number (0, 1, 2)
-    // idx 8
-    obs[obs_index++] = (float)get_player_lane(env) / (NUM_LANES - 1);
-
-    // Enemy cars (numEnemies * 5 values (x, y, delta y, same lane as player car)) = 10 * 4 = 50 values
-    // idx 9-58
-    for (int i = 0; i < env->max_enemies; i++) {
-        Car* car = &env->enemyCars[i];
-
-        if (car->y > VANISHING_POINT_Y && car->y < PLAYABLE_AREA_BOTTOM) {
-            // Enemy car buffer zone
-            float buffer_x = CAR_WIDTH * 0.5f;
-            float buffer_y = CAR_HEIGHT * 0.5f;
-
-            // Normalize car x position relative to road edges
-            float car_x_norm = ((car->x - buffer_x) - env->last_road_left) / (env->last_road_right - env->last_road_left);
-            car_x_norm = fmaxf(0.0f, fminf(1.0f, car_x_norm)); // Clamp between 0 and 1
-            // Normalize car y position relative to the full road height
-            float car_y_norm = (PLAYABLE_AREA_BOTTOM - (car->y - buffer_y)) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-            car_y_norm = fmaxf(0.0f, fminf(1.0f, car_y_norm)); // Clamp between 0 and 1
-            // Calculate delta_x for lateral movement
-            float delta_x_norm = (car->last_x - car->x) / (env->last_road_right - env->last_road_left);
-            // Calculate delta_y for relative speed
-            float delta_y_norm = (car->last_y - car->y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-            // Determine if the car is in the same lane as the player
-            int is_same_lane = (car->lane == env->lane);
-            // Add normalized car x position
-            obs[obs_index++] = car_x_norm;
-            // Add normalized car y position
-            obs[obs_index++] = car_y_norm;
-            // Add normalized delta x (lateral movement)
-            obs[obs_index++] = delta_x_norm;
-            // Add normalized delta y (relative speed)
-            obs[obs_index++] = delta_y_norm;
-            // Add lane information (binary flag for lane match)
-            obs[obs_index++] = (float)is_same_lane;
-        } else {
-            // Default values for cars that don't exist
-            obs[obs_index++] = 0.5f; // Neutral x position
-            obs[obs_index++] = 0.5f; // Neutral y position
-            obs[obs_index++] = 0.0f; // No movement (delta_x = 0)
-            obs[obs_index++] = 0.0f; // No movement (delta_y = 0)
-            obs[obs_index++] = 0.0f; // Not in the same lane
-        }
+    for (int i = 0; i < SCORE_DIGITS; i++) {
+        gameState->scoreDigitCurrents[i] = 0;
+        gameState->scoreDigitNexts[i] = 0;
+        gameState->scoreDigitOffsets[i] = 0.0f;
+        gameState->scoreDigitScrolling[i] = false;
     }
 
-    // Curve direction
-    // idx 59
-    obs[obs_index++] = (float)(env->current_curve_direction + 1) / 2.0f;
+    gameState->elapsedTime = 0.0f;
+    gameState->currentBackgroundIndex = 0;
+    gameState->previousBackgroundIndex = 0;
 
-    // Observation for player's drift due to road curvature
-    // idx 60-62
-    // Drift direction and magnitude
-    float drift_magnitude = env->current_curve_factor * CURVE_PLAYER_SHIFT_FACTOR * fabs(env->speed);
-    float drift_direction = (env->current_curve_factor > 0) ? 1.0f : -1.0f; // 1 for right drift, -1 for left drift
+    // Load main spritesheet
+    gameState->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
 
-    // Normalize drift magnitude (assume max absolute curve factor is 1.0 for normalization)
-    float max_drift_magnitude = CURVE_PLAYER_SHIFT_FACTOR * env->max_speed;
-    float normalized_drift_magnitude = fabs(drift_magnitude) / max_drift_magnitude;
+    // Background => asset_map[0..15]
+    // Mountains  => asset_map[16..31]
+    for (int i = 0; i < 16; ++i) {
+        gameState->backgroundIndices[i] = i;        // 0..15
+        gameState->mountainIndices[i]   = 16 + i;   // 16..31
+    }
 
-    // Add drift direction (-1.0 to 1.0), normalized magnitude (0.0 to 1.0), and curve factor (-1.0 to 1.0)
-    obs[obs_index++] = drift_direction;
-    obs[obs_index++] = normalized_drift_magnitude;
-    obs[obs_index++] = env->current_curve_factor; 
+    // Digits => asset_map[32..41], plus 42 for "CAR"
+    for (int i = 0; i < 10; ++i) {
+        gameState->digitIndices[i] = 32 + i;        // 32..41 for 0..9
+    }
+    gameState->digitIndices[10] = 42;               // "CAR"
+
+    // Green digits => 43..52
+    for (int i = 0; i < 10; ++i) {
+        gameState->greenDigitIndices[i] = 43 + i;   // 43..52
+    }
+
+    // Yellow digits => 53..62
+    for (int i = 0; i < 10; ++i) {
+        gameState->yellowDigitIndices[i] = 53 + i;  // 53..62
+    }
+
+    // Enemy cars => 63..74
+    int baseEnemyCarIndex = 63; // 63 = enemy_car_blue_left_tread
+    for (int color = 0; color < 6; ++color) {
+        for (int tread = 0; tread < 2; ++tread) {
+            gameState->enemyCarIndices[color][tread] =
+                baseEnemyCarIndex + color * 2 + tread;
+        }
+    }
+    gameState->enemyCarNightFogTailLightsIndex = 75; // enemy_car_night_fog_tail_lights
+    gameState->enemyCarNightTailLightsIndex    = 76; // enemy_car_night_tail_lights
+
+    // Player car => 77..78
+    gameState->playerCarLeftTreadIndex  = 77;
+    gameState->playerCarRightTreadIndex = 78;
+
+    // Level complete flags => 79..80
+    gameState->levelCompleteFlagRightIndex = 79;
+    gameState->levelCompleteFlagLeftIndex  = 80;
     
-    // Time of day
-    // idx 63
-    float total_day_length = env->dayTransitionTimes[15];
-    obs[obs_index++] = fmodf(env->elapsedTimeEnv, total_day_length) / total_day_length;
-
-    // Cars to pass
-    // idx 64
-    obs[obs_index++] = (float)env->carsToPass / env->initial_cars_to_pass;
-
-    // Compute per-lane observations: nearest enemy car distances in each lane
-    // idx 65-67
-    float nearest_car_distance[NUM_LANES];
-    bool is_lane_empty[NUM_LANES];
-
-    float MAX_DISTANCE = PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y; // Maximum possible distance
-
-    for (int l = 0; l < NUM_LANES; l++) {
-        nearest_car_distance[l] = MAX_DISTANCE;
-        is_lane_empty[l] = true;
-    }
-
-    for (int i = 0; i < env->numEnemies; i++) {
-        Car* car = &env->enemyCars[i];
-        if (car->lane >= 0 && car->lane < NUM_LANES && car->y < env->player_y) {
-            float distance = env->player_y - car->y;
-            if (distance < nearest_car_distance[car->lane]) {
-                nearest_car_distance[car->lane] = distance;
-                is_lane_empty[car->lane] = false;
-            }
-        }
-    }
-
-    // Add per-lane normalized distances to observations
-    for (int l = 0; l < NUM_LANES; l++) {
-        float normalized_distance;
-        if (is_lane_empty[l]) {
-            normalized_distance = 1.0f; // No enemy car in front in this lane
-        } else {
-            normalized_distance = nearest_car_distance[l] / MAX_DISTANCE;
-        }
-        obs[obs_index++] = normalized_distance;
-    }
+    // Initialize animation variables
+    gameState->carAnimationTimer = 0.0f;
+    gameState->carAnimationInterval = 0.05f; // Initial interval, will be updated based on speed
+    gameState->showLeftTread = true;
+    gameState->mountainPosition = 0.0f;
 }
 
-// When to curve road and how to curve it, including dense smooth transitions
-// An ugly, dense function, but it is necessary
-void update_road_curve(Enduro* env) {
-    int* current_curve_stage = &env->current_curve_stage;
-    int* steps_in_current_stage = &env->steps_in_current_stage;
-    
-    // Map speed to the scale between 0.5 and 3.5
-    float speed_scale = 0.5f + ((fabs(env->speed) / env->max_speed) * (MAX_SPEED - MIN_SPEED));
-    float vanishing_point_transition_speed = VANISHING_POINT_TRANSITION_SPEED + speed_scale; 
-
-    // Randomize step thresholds and curve directions
-    int step_thresholds[3];
-    int curve_directions[3];
-    int last_direction = 0; // Tracks the last curve direction, initialized to straight (0)
-
-    for (int i = 0; i < 3; i++) {
-        // Generate random step thresholds
-        step_thresholds[i] = 1500 + rand() % 3801; // Random value between 1500 and 3800
-
-        // Generate a random curve direction (-1, 0, 1) with rules
-        int direction_choices[] = {-1, 0, 1};
-        int next_direction;
-
-        do {
-            next_direction = direction_choices[rand() % 3];
-        } while ((last_direction == -1 && next_direction == 1) || (last_direction == 1 && next_direction == -1));
-
-        curve_directions[i] = next_direction;
-        last_direction = next_direction;
-    }
-
-    // Use step thresholds and curve directions dynamically
-    env->current_step_threshold = step_thresholds[*current_curve_stage % 3];
-    (*steps_in_current_stage)++;
-
-    if (*steps_in_current_stage >= step_thresholds[*current_curve_stage % 3]) {
-        env->target_curve_factor = (float)curve_directions[*current_curve_stage % 3];
-        *steps_in_current_stage = 0;
-        *current_curve_stage = (*current_curve_stage + 1) % 3;
-    }
-
-    // Determine sizes of step_thresholds and curve_directions
-    size_t step_thresholds_size = sizeof(step_thresholds) / sizeof(step_thresholds[0]);
-    size_t curve_directions_size = sizeof(curve_directions) / sizeof(curve_directions[0]);
-
-    // Find the maximum size
-    size_t max_size = (step_thresholds_size > curve_directions_size) ? step_thresholds_size : curve_directions_size;
-
-    // Adjust arrays dynamically
-    int adjusted_step_thresholds[max_size];
-    int adjusted_curve_directions[max_size];
-
-    for (size_t i = 0; i < max_size; i++) {
-        adjusted_step_thresholds[i] = step_thresholds[i % step_thresholds_size];
-        adjusted_curve_directions[i] = curve_directions[i % curve_directions_size];
-    }
-
-    // Use adjusted arrays for current calculations
-    env->current_step_threshold = adjusted_step_thresholds[*current_curve_stage % max_size];
-    (*steps_in_current_stage)++;
-
-    if (*steps_in_current_stage >= adjusted_step_thresholds[*current_curve_stage]) {
-        env->target_curve_factor = (float)adjusted_curve_directions[*current_curve_stage % max_size];
-        *steps_in_current_stage = 0;
-        *current_curve_stage = (*current_curve_stage + 1) % max_size;
-    }
-
-    if (env->current_curve_factor < env->target_curve_factor) {
-        env->current_curve_factor = fminf(env->current_curve_factor + CURVE_TRANSITION_SPEED, env->target_curve_factor);
-    } else if (env->current_curve_factor > env->target_curve_factor) {
-        env->current_curve_factor = fmaxf(env->current_curve_factor - CURVE_TRANSITION_SPEED, env->target_curve_factor);
-    }
-    env->current_curve_direction = fabsf(env->current_curve_factor) < 0.1f ? CURVE_STRAIGHT 
-                             : (env->current_curve_factor > 0) ? CURVE_RIGHT : CURVE_LEFT;
-
-    // Move the vanishing point gradually
-    env->base_target_vanishing_point_x = VANISHING_POINT_X_LEFT - env->t_p * (VANISHING_POINT_X_LEFT - VANISHING_POINT_X_RIGHT);
-    float target_shift = env->current_curve_direction * CURVE_VANISHING_POINT_SHIFT;
-    env->target_vanishing_point_x = env->base_target_vanishing_point_x + target_shift;
-
-    if (env->current_vanishing_point_x < env->target_vanishing_point_x) {
-        env->current_vanishing_point_x = fminf(env->current_vanishing_point_x + vanishing_point_transition_speed, env->target_vanishing_point_x);
-    } else if (env->current_vanishing_point_x > env->target_vanishing_point_x) {
-        env->current_vanishing_point_x = fmaxf(env->current_vanishing_point_x - vanishing_point_transition_speed, env->target_vanishing_point_x);
-    }
-    env->vanishing_point_x = env->current_vanishing_point_x;
-}
-
-// B(t) = (1−t)^2 * P0​+2(1−t) * t * P1​+t^2 * P2​, t∈[0,1]
-// Quadratic bezier curve helper function
-float quadratic_bezier(float bottom_x, float control_x, float top_x, float t) {
-    float one_minus_t = 1.0f - t;
-    return one_minus_t * one_minus_t * bottom_x + 
-           2.0f * one_minus_t * t * control_x + 
-           t * t * top_x;
-}
-
-// Computes the edges of the road. Use for both L and R. 
-// Lots of magic numbers to replicate as exactly as possible
-// original Atari 2600 Enduro road rendering.
-float road_edge_x(Enduro* env, float y, float offset, unsigned char left) {
-    float t = (PLAYABLE_AREA_BOTTOM - y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-    float base_offset = left ? -ROAD_LEFT_OFFSET : ROAD_RIGHT_OFFSET;
-    float bottom_x = env->base_vanishing_point_x + base_offset + offset;
-    float top_x = env->current_vanishing_point_x + offset;    
-    float edge_x;
-    if (fabsf(env->current_curve_factor) < 0.01f) {
-        // Straight road
-        edge_x = bottom_x + t * (top_x - bottom_x);
-    } else {
-        // Adjust curve offset based on curve direction
-        float curve_offset = (env->current_curve_factor > 0 ? -30.0f : 30.0f) * fabsf(env->current_curve_factor);
-        float control_x = bottom_x + (top_x - bottom_x) * 0.5f + curve_offset;
-        // Calculate edge using Bézier curve for proper curvature
-        edge_x = quadratic_bezier(bottom_x, control_x, top_x, t);
-    }
-
-    // Wiggle effect
-    float wiggle_offset = 0.0f;
-    if (env->wiggle_active && y >= env->wiggle_y && y <= env->wiggle_y + env->wiggle_length) {
-        float t_wiggle = (y - env->wiggle_y) / env->wiggle_length; // Ranges from 0 to 1
-        // Trapezoidal wave calculation
-        if (t_wiggle < 0.15f) {
-            // Connection to road edge
-            wiggle_offset = env->wiggle_amplitude * (t_wiggle / 0.15f);
-        } else if (t_wiggle < 0.87f) {
-            // Flat top of wiggle
-            wiggle_offset = env->wiggle_amplitude;
-        } else {
-            // Reconnection to road edge
-            wiggle_offset = env->wiggle_amplitude * ((1.0f - t_wiggle) / 0.13f);
-        }
-        // Wiggle towards road center
-        wiggle_offset *= (left ? 1.0f : -1.0f);
-        // Scale wiggle offset based on y position, starting at 0.03f at the vanishing point
-        float depth = (y - VANISHING_POINT_Y) / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
-        float scale = 0.03f + (depth * depth); 
-        if (scale > 0.3f) {
-            scale = 0.3f;
-        }
-        wiggle_offset *= scale;
-    }
-    // Apply the wiggle offset
-    edge_x += wiggle_offset;
-    return edge_x;
-}
-
-// Computes x position of car in a given lane
-float car_x_in_lane(Enduro* env, int lane, float y) {
-    // Set offset to 0 to ensure enemy cars align with the road rendering
-    float offset = 0.0f;
-    float left_edge = road_edge_x(env, y, offset, true);
-    float right_edge = road_edge_x(env, y, offset, false);
-    float lane_width = (right_edge - left_edge) / NUM_LANES;
-    return left_edge + lane_width * (lane + 0.5f);
+void cleanup(GameState* gameState) {
+    UnloadRenderTexture(gameState->renderTarget);
+    UnloadTexture(gameState->spritesheet);
 }
 
 // Handles rendering logic
@@ -1798,89 +1752,6 @@ void render_car(Client* client, GameState* gameState) {
     Rectangle srcRect = asset_map[carAssetIndex];
     Vector2 position = { gameState->player_x, gameState->player_y };
     DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
-}
-
-void initRaylib(GameState* gameState) {
-    InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
-    SetTargetFPS(60);
-    gameState->renderTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
-}
-
-void loadTextures(GameState* gameState) {
-    // Initialize animation variables
-    gameState->carAnimationTimer = 0.0f;
-    gameState->carAnimationInterval = 0.05f; // Init; updated based on speed
-    gameState->showLeftTread = true;
-    gameState->mountainPosition = 0.0f;
-
-    // Initialize victory effect variables
-    gameState->showLeftFlag = true;
-    gameState->flagTimer = 0;
-    gameState->victoryDisplayTimer = 0;
-    gameState->victoryAchieved = false;
-
-    // Initialize scoreboard variables
-    gameState->score = 0;
-    gameState->scoreTimer = 0;
-    gameState->carsLeftGameState = 0;
-    gameState->day = 1;
-
-    // Initialize score digits arrays
-    for (int i = 0; i < SCORE_DIGITS; i++) {
-        gameState->scoreDigitCurrents[i] = 0;
-        gameState->scoreDigitNexts[i] = 0;
-        gameState->scoreDigitOffsets[i] = 0.0f;
-        gameState->scoreDigitScrolling[i] = false;
-    }
-
-    // Initialize time-of-day variables
-    gameState->elapsedTime = 0.0f;
-    gameState->currentBackgroundIndex = 0;
-    gameState->previousBackgroundIndex = 0;
-
-    // Load background and mountain textures for different times of day per original env
-    gameState->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
-
-    // Initialize background and mountain indices
-    for (int i = 0; i < 16; ++i) {
-        gameState->backgroundIndices[i] = ASSET_BG_0 + i;
-        gameState->mountainIndices[i] = ASSET_MOUNTAIN_0 + i;
-    }
-
-    // Initialize digit indices
-    for (int i = 0; i < 10; ++i) {
-        gameState->digitIndices[i] = ASSET_DIGITS_0 + i;
-        gameState->greenDigitIndices[i] = ASSET_GREEN_DIGITS_0 + i;
-        gameState->yellowDigitIndices[i] = ASSET_YELLOW_DIGITS_0 + i;
-    }
-    gameState->digitIndices[10] = ASSET_DIGITS_CAR; // Index for "CAR"
-
-    // Initialize enemy car indices
-    int baseEnemyCarIndex = ASSET_ENEMY_CAR_BLUE_LEFT_TREAD;
-    for (int color = 0; color < 6; ++color) {
-        for (int tread = 0; tread < 2; ++tread) {
-            gameState->enemyCarIndices[color][tread] = baseEnemyCarIndex + color * 2 + tread;
-        }
-    }
-
-    // Load other asset indices
-    gameState->enemyCarNightTailLightsIndex = ASSET_ENEMY_CAR_NIGHT_TAIL_LIGHTS;
-    gameState->enemyCarNightFogTailLightsIndex = ASSET_ENEMY_CAR_NIGHT_FOG_TAIL_LIGHTS;
-    gameState->playerCarLeftTreadIndex = ASSET_PLAYER_CAR_LEFT_TREAD;
-    gameState->playerCarRightTreadIndex = ASSET_PLAYER_CAR_RIGHT_TREAD;
-    gameState->levelCompleteFlagLeftIndex = ASSET_LEVEL_COMPLETE_FLAG_LEFT;
-    gameState->levelCompleteFlagRightIndex = ASSET_LEVEL_COMPLETE_FLAG_RIGHT;
-    
-    // Initialize animation variables
-    gameState->carAnimationTimer = 0.0f;
-    gameState->carAnimationInterval = 0.05f; // Initial interval, will be updated based on speed
-    gameState->showLeftTread = true;
-    gameState->mountainPosition = 0.0f;
-}
-
-void cleanup(GameState* gameState) {
-    UnloadRenderTexture(gameState->renderTarget);
-    UnloadTexture(gameState->spritesheet);
 }
 
 void updateCarAnimation(GameState* gameState) {
