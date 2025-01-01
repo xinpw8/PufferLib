@@ -572,9 +572,6 @@ Client* make_client(int width, int height) {
     InitWindow(width, height, "PufferLib Ray TripleTriad");
     SetTargetFPS(60);
 
-    //sound_path = os.path.join(*self.__module__.split(".")[:-1], "hit.wav")
-    //self.sound = rl.LoadSound(sound_path.encode())
-
     return client;
 }
 
@@ -600,20 +597,20 @@ void render(Client* client, CTripleTriad* env) {
             }
             int x = env->board_x[board_idx];
             int y = env->board_y[board_idx];
-            DrawRectangle(x+196+10 , y+30 , env->card_width, env->card_height, piece_color);
-            DrawRectangleLines(x+196+10 , y+30 , env->card_width, env->card_height, PUFF_WHITE);
+            DrawRectangle(x+196+10 , y+10 , env->card_width, env->card_height, piece_color);
+            DrawRectangleLines(x+196+10 , y+10 , env->card_width, env->card_height, PUFF_WHITE);
         }
     }
     for(int i=0; i< 2; i++) {
         for(int j=0; j< 5; j++) {
             // starting locations for cards in hand
             int card_x = (i == 0) ? 10 : (env->width - env->card_width - 10);
-            int card_y = 30 + env->card_height/2*j;
+            int card_y = 10 + env->card_height/2*j;
 
             // locations if card is placed
             if (env->card_locations[i][j] != 0) {
                 card_x = env->board_x[env->card_locations[i][j]-1] + 196 + 10;
-                card_y = env->board_y[env->card_locations[i][j]-1] + 30;
+                card_y = env->board_y[env->card_locations[i][j]-1] + 10;
             }
             // Draw card background
             // adjusts card color based on board state 
@@ -632,7 +629,7 @@ void render(Client* client, CTripleTriad* env) {
             // change background if card is selected, highlight it
             Rectangle rect = (Rectangle){card_x, card_y, env->card_width, env->card_height};
             if (env->card_selected[i] == j) {
-                DrawRectangleLinesEx(rect, 2, GREEN);
+                DrawRectangleLinesEx(rect, 3, PUFF_RED);
             } else {
                 DrawRectangleLinesEx(rect, 2, PUFF_WHITE);
             }
@@ -665,25 +662,11 @@ void render(Client* client, CTripleTriad* env) {
             DrawText(TextFormat("Card %d", j+1), card_x + env->card_width -50, card_y + 5, 10, PUFF_WHITE);
         }
         if (i == 0) {
-            DrawText(TextFormat("%d", env->score[i]), env->card_width *0.4, env->height - 400, 100, PUFF_WHITE);
+            DrawText(TextFormat("%d", env->score[i]), env->card_width *0.4, env->height - 100, 100, PUFF_WHITE);
         } else {
-            DrawText(TextFormat("%d", env->score[i]), env->width - env->card_width *.6, env->height - 400, 100, PUFF_WHITE);
+            DrawText(TextFormat("%d", env->score[i]), env->width - env->card_width *.6, env->height - 100, 100, PUFF_WHITE);
         }
     }
-    DrawText("Triple Triad", 20, 10, 20, PUFF_WHITE);
-
-    // give instructions to player 1: 
-    DrawText("How to Play: Use 1-5 to select a card", 20, env->height - 280, 20, PUFF_WHITE);
-    DrawText("Click an empty space on the board to place a card", 20, env->height - 250, 20, PUFF_WHITE);
-
-    // Explain further rules 
-    DrawText("Goal: Place all your cards on the board. The player with the highest score wins.", 20, env->height - 220, 20, PUFF_WHITE);
-    DrawText("Rules: Each card has 4 values, N, S, E, W.", 20, env->height - 190, 20, PUFF_WHITE);
-    DrawText("You may not place a card on top of an opponent's card.", 20, env->height - 160, 20, PUFF_WHITE);
-    DrawText("Scoring Example: Player 1 places a card with a 2 in the North direction.", 20, env->height - 100, 20, PUFF_WHITE);
-    DrawText("If Player 2 has a card above Player 1's card with a 1 in the South direction. ", 20, env->height - 70, 20, PUFF_WHITE);
-    DrawText("Player 1 captures Player 2's card. Player 1 gains a point. Player 2 loses a point.", 20, env->height - 40, 20, PUFF_WHITE);
-
     EndDrawing();
 
     //PlaySound(client->sound);

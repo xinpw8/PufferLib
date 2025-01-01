@@ -9,7 +9,7 @@ import platform
 	
 #  python3 setup.py built_ext --inplace
 
-VERSION = '1.0.0'
+VERSION = '2.0.3'
 
 RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.0/'
 RAYLIB_NAME = 'raylib-5.0_macos' if platform.system() == "Darwin" else 'raylib-5.0_linux_amd64'
@@ -66,7 +66,7 @@ cleanrl = [
     'tensorboard==2.11.2',
     'torch',
     'tyro==0.8.6',
-    'wandb==0.13.7',
+    'wandb==0.19.1',
 ]
 
 ray = [
@@ -242,7 +242,9 @@ common = cleanrl + [environments[env] for env in [
 ]]
 
 extension_paths = [
+    'pufferlib/ocean/nmmo3/cy_nmmo3',
     'pufferlib/ocean/moba/cy_moba',
+    'pufferlib/ocean/tactical/c_tactical',
     'pufferlib/ocean/squared/cy_squared',
     'pufferlib/ocean/snake/cy_snake',
     'pufferlib/ocean/pong/cy_pong',
@@ -253,7 +255,21 @@ extension_paths = [
     'pufferlib/ocean/tripletriad/cy_tripletriad',
     'pufferlib/ocean/go/cy_go',
     'pufferlib/ocean/rware/cy_rware',
+    'pufferlib/ocean/trash_pickup/cy_trash_pickup'
 ]
+
+system = platform.system()
+if system == 'Darwin':
+    # On macOS, use @loader_path.
+    # The extension “.so” is typically in pufferlib/ocean/...,
+    # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
+    # So @loader_path/../../raylib/lib is common.
+    rpath_arg = '-Wl,-rpath,@loader_path/../../raylib/lib'
+elif system == 'Linux':
+    # On Linux, $ORIGIN works
+    rpath_arg = '-Wl,-rpath,$ORIGIN/raylib/lib'
+else:
+    raise ValueError(f'Unsupported system: {system}')
 
 extensions = [Extension(
     path.replace('/', '.'),
@@ -263,6 +279,8 @@ extensions = [Extension(
     libraries=["raylib"],
     runtime_library_dirs=["raylib/lib"],
     extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
+    extra_link_args=[rpath_arg]
+
 ) for path in extension_paths]
  
 setup(
@@ -272,6 +290,9 @@ setup(
     long_description_content_type="text/markdown",
     version=VERSION,
     packages=find_packages(),
+    package_data={
+        "pufferlib": ["raylib/lib/libraylib.so.500", "raylib/lib/libraylib.so"]
+    },
     include_package_data=True,
     install_requires=[
         'numpy==1.23.3',
@@ -315,7 +336,7 @@ setup(
        #compiler_directives={'profile': True},# annotate=True
     ),
     include_dirs=[numpy.get_include(), 'raylib-5.0_linux_amd64/include'],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     license="MIT",
     author="Joseph Suarez",
     author_email="jsuarez@puffer.ai",

@@ -126,21 +126,6 @@ def evaluate(data):
             data.vecenv.send(actions)
 
     with profile.eval_misc:
-        # Moves into models... maybe. Definitely moves.
-        # You could also just return infos and have it in demo
-        if 'pokemon_exploration_map' in infos:
-            for pmap in infos['pokemon_exploration_map']:
-                if not hasattr(data, 'pokemon_map'):
-                    import pokemon_red_eval
-                    data.map_updater = pokemon_red_eval.map_updater()
-                    data.pokemon_map = pmap
-
-                data.pokemon_map = np.maximum(data.pokemon_map, pmap)
-
-            if len(infos['pokemon_exploration_map']) > 0:
-                rendered = data.map_updater(data.pokemon_map)
-                data.stats['Media/exploration_map'] = data.wandb.Image(rendered)
-
         for k, v in infos.items():
             if '_map' in k and data.wandb is not None:
                 data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
@@ -518,13 +503,13 @@ class Utilization(Thread):
 
     def run(self):
         while not self.stopped:
-            self.cpu_util.append(psutil.cpu_percent())
+            self.cpu_util.append(100*psutil.cpu_percent())
             mem = psutil.virtual_memory()
-            self.cpu_mem.append(mem.active / mem.total)
+            self.cpu_mem.append(100*mem.active/mem.total)
             if torch.cuda.is_available():
                 self.gpu_util.append(torch.cuda.utilization())
                 free, total = torch.cuda.mem_get_info()
-                self.gpu_mem.append(free / total)
+                self.gpu_mem.append(100*free/total)
             else:
                 self.gpu_util.append(0)
                 self.gpu_mem.append(0)
@@ -598,7 +583,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
     frames = []
     tick = 0
-    while tick <= 1000:
+    while tick <= 2000:
         if tick % 1 == 0:
             render = driver.render()
             if driver.render_mode == 'ansi':
@@ -703,7 +688,7 @@ def print_dashboard(env_name, utilization, global_step, epoch,
     table.add_column(justify="center", width=13)
     table.add_column(justify="right", width=13)
     table.add_row(
-        f':blowfish: {c1}PufferLib {b2}1.0.0',
+        f':blowfish: {c1}PufferLib {b2}2.0.0',
         f'{c1}CPU: {c3}{cpu_percent:.1f}%',
         f'{c1}GPU: {c3}{gpu_percent:.1f}%',
         f'{c1}DRAM: {c3}{dram_percent:.1f}%',

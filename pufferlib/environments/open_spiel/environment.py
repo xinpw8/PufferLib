@@ -17,7 +17,8 @@ def make(
         multiplayer=False,
         n_rollouts=5,
         max_simulations=10,
-        min_simulations=None
+        min_simulations=None,
+        buf=None
     ):
     '''OpenSpiel creation function'''
     pyspiel = pufferlib.environments.try_import('pyspiel', 'open_spiel')
@@ -50,5 +51,6 @@ def make(
     return wrapper_cls(
         env=env,
         postprocessor_cls=pufferlib.emulation.BasicPostprocessor,
+        buf=buf,
     )
 

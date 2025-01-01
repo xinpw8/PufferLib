@@ -1,11 +1,11 @@
 import numpy as np
 import gymnasium
 import os
-from raylib import rl
-import heapq
+#from raylib import rl
+#import heapq
 
 import pufferlib
-from pufferlib.ocean.tactical.c_tactical import CTactical, step_all
+from pufferlib.ocean.tactical.c_tactical import CTactical
 # from pufferlib.environments.ocean import render
 
 EMPTY = 0
@@ -21,7 +21,7 @@ MAP_DICT = {
 }
 
 
-class PufferTactical:
+class Tactical:
     def __init__(self, num_envs=200, render_mode='human'):
         self.num_envs = num_envs
         self.render_mode = render_mode
@@ -78,7 +78,8 @@ class PufferTactical:
 
     def step(self, actions):
         self.actions[:] = actions
-        step_all(self.c_envs)
+        for c_env in self.c_envs:
+            c_env.step()
         
         info = {}
 
@@ -90,6 +91,11 @@ class PufferTactical:
         # if self.render_mode == 'human':
         #     return self.client.render(self.map)
 
+    def close(self):
+        for c_env in self.c_envs:
+            c_env.close()
+
+'''
 def a_star_search(map, start, goal):
     frontier = []
     heapq.heappush(frontier, (0, start))
@@ -471,11 +477,12 @@ class RaylibClient:
 
         rl.EndDrawing()
         return render.cdata_to_numpy()
+'''
 
 
 if __name__ == '__main__':
     PROFILE = False
-    env = PufferTactical(num_envs=1, render_mode='human')
+    env = Tactical(num_envs=1, render_mode='human')
     env.reset()
     import time
     t0 = time.time()

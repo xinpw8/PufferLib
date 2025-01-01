@@ -4,7 +4,6 @@ import numpy as np
 import gymnasium
 import pufferlib
 from pufferlib.ocean.enduro.cy_enduro import CyEnduro
-import torch
 
 class Enduro(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, frame_skip=1, render_mode='human',
@@ -89,6 +88,7 @@ class Enduro(pufferlib.PufferEnv):
         self.c_envs.close()
         
     def validate_probabilities(prob_tensor):
+        import torch
         if torch.isnan(prob_tensor).any() or torch.isinf(prob_tensor).any() or (prob_tensor < 0).any():
             raise ValueError("Invalid probability values detected")
         return prob_tensor

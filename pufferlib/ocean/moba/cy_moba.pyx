@@ -231,7 +231,11 @@ cdef class CyMOBA:
         self.envs = <MOBA*> calloc(num_envs, sizeof(MOBA))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
+        import os
+        cwd = os.getcwd()
+        os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
         cdef unsigned char* game_map_npy = read_file("resources/moba/game_map.npy");
+        os.chdir(cwd)
 
         self.ai_path_buffer = <int*> calloc(3*8*128*128, sizeof(int))
         self.ai_paths = <unsigned char*> calloc(128*128*128*128, sizeof(unsigned char))
@@ -272,7 +276,11 @@ cdef class CyMOBA:
 
     def render(self, int tick):
         if self.client == NULL:
+            import os
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = init_game_renderer(32, 41, 23)
+            os.chdir(cwd)
 
         render_game(self.client, &self.envs[0], tick)
 

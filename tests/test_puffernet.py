@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from pufferlib.environments.ocean.moba import puffernet
+from pufferlib import puffernet
 
 # TODO: Should probably add a safe mode that type checks input arrays
 # It's user error, but it is a big foot gun
@@ -12,8 +12,8 @@ def make_dummy_data(*shape, seed=42):
     ary = np.random.rand(*shape).astype(np.float32) - 0.5
     return np.ascontiguousarray(ary)
 
-def make_dummy_int_data(num_classes, *shape):
-    np.random.seed(42)
+def make_dummy_int_data(num_classes, *shape, seed=42):
+    np.random.seed(seed)
     n = np.prod(shape)
     ary = np.random.randint(0, num_classes, shape).astype(np.int32)
     return np.ascontiguousarray(ary)
@@ -117,6 +117,25 @@ def test_puffernet_lstm(batch_size=16, input_size=128, hidden_size=128):
     assert_near(state_h_np, state_h_torch.numpy()[0])
     assert_near(state_c_np, state_c_torch.numpy()[0])
 
+def test_puffernet_embedding(batch_size=16, num_embeddings=128, embedding_dim=32):
+    input_np = make_dummy_int_data(num_embeddings, batch_size, seed=42)
+    weights_np = make_dummy_data(num_embeddings, embedding_dim, seed=43)
+    output_puffer = np.zeros((batch_size, embedding_dim), dtype=np.float32)
+    puffernet.puf_embedding(input_np, weights_np, output_puffer,
+        batch_size, num_embeddings, embedding_dim)
+
+    input_torch = torch.from_numpy(input_np).long()
+    weights_torch = torch.from_numpy(weights_np)
+    output_torch = torch.nn.functional.embedding(input_torch, weights_torch).detach()
+
+    input_torch = torch.from_numpy(input_np).long()
+    weights_torch = torch.from_numpy(weights_np)
+    torch_embedding = torch.nn.Embedding(num_embeddings, embedding_dim)
+    torch_embedding.weight.data = weights_torch
+    output_torch = torch_embedding(input_torch).detach()
+
+    assert_near(output_puffer, output_torch.numpy())
+
 def test_puffernet_one_hot(batch_size=16, input_size=128, num_classes=10):
     input_np = make_dummy_int_data(num_classes, batch_size, input_size)
     output_puffer = np.zeros((batch_size, input_size, num_classes), dtype=np.int32)
@@ -158,6 +177,7 @@ if __name__ == '__main__':
     test_puffernet_linear_layer()
     test_puffernet_convolution_layer()
     test_puffernet_lstm()
+    test_puffernet_embedding()
     test_puffernet_one_hot()
     test_puffernet_cat_dim1()
     test_puffernet_argmax_multidiscrete()

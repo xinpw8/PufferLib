@@ -71,6 +71,9 @@ class Snake(pufferlib.PufferEnv):
     def render(self):
         self.c_envs.render(self.cell_size)
 
+    def close(self):
+        self.c_envs.close()
+
 def test_performance(timeout=10, atn_cache=1024):
     env = Snake()
     env.reset()

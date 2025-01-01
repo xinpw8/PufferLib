@@ -19,7 +19,7 @@ class TransposeObs(gym.Wrapper):
 def env_creator(name='crafter'):
     return functools.partial(make, name)
 
-def make(name):
+def make(name, buf=None):
     '''Crafter creation function'''
     if name == 'crafter':
         name = 'CrafterReward-v1'
@@ -31,7 +31,7 @@ def make(name):
     env = RenderWrapper(env)
     env = TransposeObs(env)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class RenderWrapper(gym.Wrapper):
     def __init__(self, env):

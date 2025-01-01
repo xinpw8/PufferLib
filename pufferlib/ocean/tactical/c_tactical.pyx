@@ -46,13 +46,10 @@ cdef class CTactical:
     def render(self):
         if self.renderer == NULL:
             import os
-            path = os.path.abspath(os.getcwd())
-            print(path)
-            c_path = os.path.join(os.sep, *__file__.split('/')[:-1])
-            print(c_path)
-            os.chdir(c_path)
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.renderer = init_game_renderer(self.env)
-            os.chdir(path)
+            os.chdir(cwd)
 
         return render_game(self.renderer, self.env)
 

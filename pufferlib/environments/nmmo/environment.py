@@ -12,14 +12,14 @@ import pufferlib.postprocess
 def env_creator(name='nmmo'):
     return functools.partial(make, name)
 
-def make(name, *args, **kwargs):
+def make(name, *args, buf=None, **kwargs):
     '''Neural MMO creation function'''
     nmmo = pufferlib.environments.try_import('nmmo')
     env = nmmo.Env(*args, **kwargs)
     env = NMMOWrapper(env)
     env = pufferlib.postprocess.MultiagentEpisodeStats(env)
     env = pufferlib.postprocess.MeanOverAgents(env)
-    return pufferlib.emulation.PettingZooPufferEnv(env=env)
+    return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 class NMMOWrapper(pufferlib.postprocess.PettingZooWrapper):
     '''Remove task spam'''
