@@ -33,8 +33,11 @@ void get_input(Enduro* env) {
 }
 
 int demo() {
-    Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
-    LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
+    // Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
+    // LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
+
+    Weights* weights = load_weights("resources/enduro/enduro_w.bin", 10122);
+    Default* net = make_default(weights, 1, 68, 128, 9);
 
     Enduro env = {
         .num_envs = 1,
@@ -53,14 +56,14 @@ int demo() {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             get_input(&env);
         } else {
-            forward_linearlstm(net, env.observations, env.actions);
+            forward_default(net, env.observations, env.actions);
         }
 
         c_step(&env);
         c_render(client, &env);
     }
 
-    free_linearlstm(net);
+    free_default(net);
     free(weights);
     close_client(client, &env);
     free_allocated(&env);
@@ -95,6 +98,6 @@ void perftest(float test_time) {
 
 int main() {
    demo();
-   //perftest(10.0f);
+//    perftest(20.0f);
    return 0;
 }
