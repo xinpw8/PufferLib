@@ -40,7 +40,13 @@
 #define MAX_SPEED 7.5f
 #define ENEMY_CAR_SPEED 0.1f 
 
-const float MAX_SPAWN_INTERVALS[] = {0.5f, 0.25f, 0.4f};
+// Constants for spawn interval configuration
+#define NUM_MAX_SPAWN_INTERVALS 3
+static const float MAX_SPAWN_INTERVALS[] = {0.5f, 0.25f, 0.4f};
+static const float MIN_SPAWN_INTERVAL = 0.5f;
+static const float SPAWN_SCALING_FACTOR = 1.5f;
+static const float DAILY_INTERVAL_REDUCTION = 0.1f;
+static const float MIN_POSSIBLE_INTERVAL = 0.1f;
 
 // Times of day logic
 #define NUM_BACKGROUND_TRANSITIONS 16
@@ -651,7 +657,6 @@ void reset_round(Enduro* env) {
     env->enemySpeed = ENEMY_CAR_SPEED;
     env->max_speed = MAX_SPEED;
     env->initial_cars_to_pass = INITIAL_CARS_TO_PASS;
-    env->day = 1;
     env->drift_direction = 0; // Means in noop, but only if crashed state
     env->crashed_penalty = 0.0f;
     env->car_passed_no_crash_active = 1;
@@ -887,7 +892,7 @@ void add_enemy_car(Enduro* env) {
     Car car = {
         .lane = lane,
         .x = car_x_in_lane(env, lane, VANISHING_POINT_Y),
-        .y = (env->speed > 0.0f) ? VANISHING_POINT_Y + 10.0f : PLAYABLE_AREA_BOTTOM + CAR_HEIGHT,
+        .y = (env->speed > 0.0f) ? VANISHING_POINT_Y + 10.0f : SCREEN_HEIGHT,
         .last_x = car_x_in_lane(env, lane, VANISHING_POINT_Y),
         .last_y = VANISHING_POINT_Y,
         .passed = false,
@@ -1218,6 +1223,40 @@ void compute_observations(Enduro* env) {
     }
 }
 
+// Helper function to clamp a value between min and max
+static float clamp_spawn_interval(float value, float min, float max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+float calculate_enemy_spawn_interval(const Enduro* env) {    
+    // Calculate enemy spawn interval based on player speed and day
+    // A lower spawn interval means more rapid spawning
+    // Enemy cars cannot spawn more frequently than every MIN_SPAWN_INTERVAL
+    // and *must* spawn at least every MAX_SPAWN_INTERVAL
+    float max_spawn_interval;
+    int dayIndex = env->day - 1;
+    
+    if (dayIndex == 0) {
+        // First day uses fixed interval
+        max_spawn_interval = MAX_SPAWN_INTERVALS[0];
+    } else {
+        // Calculate progressive reduction for later days
+        float base_interval = MAX_SPAWN_INTERVALS[NUM_MAX_SPAWN_INTERVALS - 1];
+        float reduction = (float)(dayIndex - NUM_MAX_SPAWN_INTERVALS + 1) * DAILY_INTERVAL_REDUCTION;
+        max_spawn_interval = clamp_spawn_interval(base_interval - reduction, MIN_POSSIBLE_INTERVAL, base_interval);
+    }
+
+    max_spawn_interval = fmaxf(max_spawn_interval, MIN_SPAWN_INTERVAL);
+    float speed_range = env->max_speed - env->min_speed;
+    float speed_factor = speed_range > 0.0f ? 
+        (env->speed - env->min_speed) / speed_range : 0.0f;
+    speed_factor = clamp_spawn_interval(speed_factor, 0.0f, 1.0f);
+    float interval_range = max_spawn_interval - MIN_SPAWN_INTERVAL;
+    return MIN_SPAWN_INTERVAL + (1.0f - speed_factor) * interval_range * SPAWN_SCALING_FACTOR;
+}
+
 void c_step(Enduro* env) {  
     env->rewards[0] = 0.0f;
     env->elapsedTimeEnv += (1.0f / TARGET_FPS);
@@ -1246,14 +1285,15 @@ void c_step(Enduro* env) {
 
     // Reduced handling on snow
     unsigned char isSnowStage = (env->currentDayTimeIndex == 3);
-    float movement_amount = 0.5f; // Default
+    float movement_amount = 0.5f;
 
     // Player movement logic == action space (Discrete[9])
     if (env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
+        env->crashed_penalty = 0.0f; // Reset crash penalty
         int act = env->actions[0];
-        movement_amount = (((env->speed - env->min_speed) / (env->max_speed - env->min_speed)) + 0.3f); // Magic number
+        movement_amount = (((env->speed - env->min_speed) / (env->max_speed - env->min_speed)) + 0.3f);
         if (isSnowStage) {
-          movement_amount *= 0.6f; // Snow
+          movement_amount *= 0.6f;
         }
         switch (act) {
             default:
@@ -1294,9 +1334,6 @@ void c_step(Enduro* env) {
                 env->player_x -= movement_amount;
                 if (env->player_x < road_left) env->player_x = road_left;
                 break;
-        
-        // Reset crashed_penalty
-        env->crashed_penalty = 0.0f;
         }
 
     } else {
@@ -1314,24 +1351,24 @@ void c_step(Enduro* env) {
         if (env->drift_direction == 0) { // drift_direction is 0 when noop starts
             env->drift_direction = (env->player_x > (road_left + road_right) / 2) ? -1 : 1;
             // Remove enemy cars in middle lane and lane player is drifting towards
-            // only if they are behind the player (y > player_y) to avoid crashes
+            // only if they are behind the player (y > player_y)
             for (int i = 0; i < env->numEnemies; i++) {
                 const Car* car = &env->enemyCars[i];
 
-              if ((car->lane == 1 || car->lane == env->lane + env->drift_direction) && (car->y > env->player_y)) {
-                  for (int j = i; j < env->numEnemies - 1; j++) {
-                      env->enemyCars[j] = env->enemyCars[j + 1];
-                  }
-                  env->numEnemies--;
-                  i--;
-              }
+                if ((car->lane == 1 || car->lane == env->lane + env->drift_direction) && (car->y > env->player_y)) {
+                    for (int j = i; j < env->numEnemies - 1; j++) {
+                        env->enemyCars[j] = env->enemyCars[j + 1];
+                    }
+                    env->numEnemies--;
+                    i--;
+                }
             }
         }
         // Drift distance per step
         if (env->collision_cooldown_car_vs_road > 0) {
             env->player_x += (float)env->drift_direction * 0.12f;
         } else {
-        env->player_x += (float)env->drift_direction * 0.25f;
+            env->player_x += (float)env->drift_direction * 0.25f;
         }
     }
 
@@ -1425,7 +1462,7 @@ void c_step(Enduro* env) {
         Car* car = &env->enemyCars[i];
 
         // Remove off-screen cars that move below the screen
-        if (car->y > PLAYABLE_AREA_BOTTOM + CAR_HEIGHT * 5) {
+        if (car->y > SCREEN_HEIGHT * 2) {
             // Remove car from array if it moves below the screen
             for (int j = i; j < env->numEnemies - 1; j++) {
                 env->enemyCars[j] = env->enemyCars[j + 1];
@@ -1437,7 +1474,6 @@ void c_step(Enduro* env) {
 
         // Remove cars that reach or surpass the logical vanishing point if moving up (player speed negative)
         if (env->speed < 0 && car->y <= LOGICAL_VANISHING_Y) {
-            // Remove car from array if it reaches the logical vanishing point if moving down (player speed positive)
             for (int j = i; j < env->numEnemies - 1; j++) {
                 env->enemyCars[j] = env->enemyCars[j + 1];
             }
@@ -1447,20 +1483,19 @@ void c_step(Enduro* env) {
         }
     
         // If the car is behind the player and speed <= 0, move it to the furthest lane
-        if (env->speed <= 0 && car->y >= env->player_y + CAR_HEIGHT) {
+        if (env->speed <= 0 && car->y >= env->player_y + CAR_HEIGHT * 2.0f) {
             // Determine the furthest lane
             int furthest_lane;
-            int player_lane = get_player_lane(env);
-            if (player_lane == 0) {
+            if (env->lane == 0) {
                 furthest_lane = 2;
-            } else if (player_lane == 2) {
+            } else if (env->lane == 2) {
                 furthest_lane = 0;
             } else {
                 // Player is in the middle lane
                 // Decide based on player's position relative to the road center
                 float player_center_x = env->player_x + CAR_WIDTH / 2.0f;
-                float road_center_x = (road_edge_x(env, env->player_y, 0, true) +
-                                    road_edge_x(env, env->player_y, 0, false)) / 2.0f;
+                float road_center_x = (road_left +
+                                    road_right) / 2.0f;
                 if (player_center_x < road_center_x) {
                     furthest_lane = 2; // Player is on the left side
                 } else {
@@ -1514,37 +1549,8 @@ void c_step(Enduro* env) {
         }
     }
 
-    // Calculate enemy spawn interval based on player speed and day
-    // Values measured from original gameplay
-    float min_spawn_interval = 0.5f; // 0.8777f; // Minimum spawn interval
-    float max_spawn_interval;
-    int dayIndex = env->day - 1;
-    int numMaxSpawnIntervals = sizeof(MAX_SPAWN_INTERVALS) / sizeof(MAX_SPAWN_INTERVALS[0]);
-
-    if (dayIndex < numMaxSpawnIntervals) {
-        max_spawn_interval = MAX_SPAWN_INTERVALS[dayIndex];
-    } else {
-        // For days beyond first, decrease max_spawn_interval further
-        max_spawn_interval = MAX_SPAWN_INTERVALS[numMaxSpawnIntervals - 1] - (float)(dayIndex - numMaxSpawnIntervals + 1) * 0.1f;
-        if (max_spawn_interval < 0.1f) {
-            max_spawn_interval = 0.1f; 
-        }
-    }
-
-    // Ensure min_spawn_interval is greater than or equal to max_spawn_interval
-    if (min_spawn_interval < max_spawn_interval) {
-        min_spawn_interval = max_spawn_interval;
-    }
-
-    // Calculate speed factor for enemy spawning
-    float speed_factor = (env->speed - env->min_speed) / (env->max_speed - env->min_speed);
-    if (speed_factor < 0.0f) speed_factor = 0.0f;
-    if (speed_factor > 1.0f) speed_factor = 1.0f;
-
-    // Interpolate between min and max spawn intervals to scale to player speed
-    env->enemySpawnInterval = min_spawn_interval - speed_factor * (min_spawn_interval - max_spawn_interval) * 1.5f;
-
-    // Update enemy spawn timer
+    // Enemy car spawn logic
+    env->enemySpawnInterval = calculate_enemy_spawn_interval(env);
     env->enemySpawnTimer += (1.0f / TARGET_FPS);
     if (env->enemySpawnTimer >= env->enemySpawnInterval) {
         env->enemySpawnTimer -= env->enemySpawnInterval;
@@ -1559,7 +1565,7 @@ void c_step(Enduro* env) {
                 num_to_spawn = 1 + rand() % 2; // Spawn 1 to 3 cars
             }
 
-            // Track occupied lanes to prevent over-blocking
+            // Track occupied lanes to prevent blocking
             int occupied_lanes[NUM_LANES] = {0};
 
             for (int i = 0; i < num_to_spawn && env->numEnemies < MAX_ENEMIES; i++) {
@@ -1676,11 +1682,11 @@ void loadTextures(GameState* gameState) {
         gameState->mountainIndices[i]   = 16 + i;   // 16..31
     }
 
-    // Digits => asset_map[32..41], plus 42 for "CAR"
+    // Digits => asset_map[32..41], plus 42 for "CAR" digit
     for (int i = 0; i < 10; ++i) {
         gameState->digitIndices[i] = 32 + i;        // 32..41 for 0..9
     }
-    gameState->digitIndices[10] = 42;               // "CAR"
+    gameState->digitIndices[10] = 42;               // "CAR" digit
 
     // Green digits => 43..52
     for (int i = 0; i < 10; ++i) {
@@ -1702,12 +1708,8 @@ void loadTextures(GameState* gameState) {
     }
     gameState->enemyCarNightFogTailLightsIndex = 75; // enemy_car_night_fog_tail_lights
     gameState->enemyCarNightTailLightsIndex    = 76; // enemy_car_night_tail_lights
-
-    // Player car => 77..78
     gameState->playerCarLeftTreadIndex  = 77;
     gameState->playerCarRightTreadIndex = 78;
-
-    // Level complete flags => 79..80
     gameState->levelCompleteFlagRightIndex = 79;
     gameState->levelCompleteFlagLeftIndex  = 80;
     
@@ -2002,9 +2004,123 @@ void renderMountains(GameState* gameState) {
     EndScissorMode();
 }
 
+// Helper function to determine if car should be rendered in fog conditions
+static bool should_render_car_in_fog(float car_y, bool isNightFogStage) {
+    return !isNightFogStage || car_y >= 92.0f;
+}
+
+// Helper function to get car texture index based on conditions
+static int get_car_texture_index(GameState* gameState, bool isNightStage, int bgIndex, Car* car) {
+    if (isNightStage) {
+        return (bgIndex == 13) ? 
+            gameState->enemyCarNightFogTailLightsIndex : 
+            gameState->enemyCarNightTailLightsIndex;
+    }
+    
+    int treadIndex = gameState->showLeftTread ? 0 : 1;
+    return gameState->enemyCarIndices[car->colorIndex][treadIndex];
+}
+
+void render_enemy_cars(GameState* gameState, Enduro* env) {
+    int bgIndex = gameState->currentBackgroundIndex;
+    bool isNightStage = (bgIndex == 12 || bgIndex == 13 || bgIndex == 14);
+    bool isNightFogStage = (bgIndex == 13);
+
+    // Set up clipping only for enemy cars
+    float clipStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
+    float clipHeight = PLAYABLE_AREA_BOTTOM - clipStartY;
+    Rectangle clipRect = { 
+        PLAYABLE_AREA_LEFT, 
+        clipStartY, 
+        PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, 
+        clipHeight 
+    };
+    
+    // Begin clipping only for enemy cars
+    BeginScissorMode(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+
+    for (int i = 0; i < env->numEnemies; i++) {
+        Car* car = &env->enemyCars[i];
+        
+        if (!should_render_car_in_fog(car->y, isNightFogStage)) {
+            continue;
+        }
+
+        float car_scale = get_car_scale(car->y);
+        int carAssetIndex = get_car_texture_index(gameState, isNightStage, bgIndex, car);
+        Rectangle srcRect = asset_map[carAssetIndex];
+
+        float car_center_x = car_x_in_lane(env, car->lane, car->y);
+        float car_x = car_center_x - (srcRect.width * car_scale) / 2.0f;
+        float car_y = car->y - (srcRect.height * car_scale) / 2.0f;
+
+        DrawTexturePro(
+            gameState->spritesheet,
+            srcRect,
+            (Rectangle){ car_x, car_y, srcRect.width * car_scale, srcRect.height * car_scale },
+            (Vector2){ 0, 0 },
+            0.0f,
+            WHITE
+        );
+    }
+
+    // End clipping after enemy cars are rendered
+    EndScissorMode();
+}
+
+// Helper function to get road color based on y position
+static Color get_road_color(float y) {
+    if (y >= 52 && y < 91) {
+        return (Color){74, 74, 74, 255};
+    } else if (y >= 91 && y < 106) {
+        return (Color){111, 111, 111, 255};
+    } else if (y >= 106 && y <= 154) {
+        return (Color){170, 170, 170, 255};
+    }
+    return WHITE;
+}
+
+void render_road(GameState* gameState, Enduro* env) {
+    int bgIndex = gameState->currentBackgroundIndex;
+    bool isNightFogStage = (bgIndex == 13);
+   
+    float roadStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
+    Vector2 previousLeftPoint = {0};
+    Vector2 previousRightPoint = {0};
+    bool firstPoint = true;
+
+    // Cache road edges for the current frame
+    float road_edges[2][PLAYABLE_AREA_BOTTOM + 1];  // [left/right][y_position]
+    for (float y = roadStartY; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
+        float adjusted_y = (env->speed < 0) ? y : y + (float)fmod(env->road_scroll_offset, 0.75f);
+        if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
+       
+        road_edges[0][(int)y] = road_edge_x(env, adjusted_y, 0, true);   // left edge
+        road_edges[1][(int)y] = road_edge_x(env, adjusted_y, 0, false);  // right edge
+    }
+
+    for (float y = roadStartY; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
+        float adjusted_y = (env->speed < 0) ? y : y + (float)fmod(env->road_scroll_offset, 0.75f);
+        if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
+
+        Color roadColor = get_road_color(adjusted_y);
+        Vector2 currentLeftPoint = {road_edges[0][(int)y], adjusted_y};
+        Vector2 currentRightPoint = {road_edges[1][(int)y], adjusted_y};
+
+        if (!firstPoint) {
+            DrawLineV(previousLeftPoint, currentLeftPoint, roadColor);
+            DrawLineV(previousRightPoint, currentRightPoint, roadColor);
+        }
+
+        previousLeftPoint = currentLeftPoint;
+        previousRightPoint = currentRightPoint;
+        firstPoint = false;
+    }
+}
+
 void c_render(Client* client, Enduro* env) {
     GameState* gameState = &client->gameState;
-
+    
     // Copy env state to gameState
     gameState->speed = env->speed;
     gameState->min_speed = env->min_speed;
@@ -2021,128 +2137,33 @@ void c_render(Client* client, Enduro* env) {
     gameState->carsLeftGameState = env->carsToPass;
     gameState->day = env->day;
     gameState->elapsedTime = env->elapsedTimeEnv;
-    // -1 represents reset of env
+    
     if (env->score == 0) {
         gameState->score = 0;
     }
 
-    // Render to a texture for scaling up
     BeginTextureMode(gameState->renderTarget);
-
-    // Do not call BeginDrawing() here
     ClearBackground(BLACK);
     BeginBlendMode(BLEND_ALPHA);
 
     renderBackground(gameState);
     updateCarAnimation(gameState);
     updateMountains(gameState);
-    renderMountains(gameState);
-    
-    int bgIndex = gameState->currentBackgroundIndex;
-    unsigned char isNightFogStage = (bgIndex == 13);
-    unsigned char isNightStage = (bgIndex == 12 || bgIndex == 13 || bgIndex == 14);
-
-    // During night fog stage, clip rendering to y >= 92
-    float clipStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
-    float clipHeight = PLAYABLE_AREA_BOTTOM - clipStartY;
-    Rectangle clipRect = { PLAYABLE_AREA_LEFT, clipStartY, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, clipHeight };
-    BeginScissorMode(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
-
-    // Render road edges
-    float roadStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
-    Vector2 previousLeftPoint = {0};
-    Vector2 previousRightPoint = {0};
-    unsigned char firstPoint = true;
-
-    for (float y = roadStartY; y <= PLAYABLE_AREA_BOTTOM; y += 0.75f) {
-        float adjusted_y = (env->speed < 0) ? y : y + (float)fmod(env->road_scroll_offset, 0.75f);
-        if (adjusted_y > PLAYABLE_AREA_BOTTOM) continue;
-
-        float left_edge = road_edge_x(env, adjusted_y, 0, true);
-        float right_edge = road_edge_x(env, adjusted_y, 0, false);
-
-        // Road color based on y position
-        Color roadColor;
-        if (adjusted_y >= 52 && adjusted_y < 91) {
-            roadColor = (Color){74, 74, 74, 255};
-        } else if (adjusted_y >= 91 && adjusted_y < 106) {
-            roadColor = (Color){111, 111, 111, 255};
-        } else if (adjusted_y >= 106 && adjusted_y <= 154) {
-            roadColor = (Color){170, 170, 170, 255};
-        } else {
-            roadColor = WHITE;
-        }
-
-        Vector2 currentLeftPoint = {left_edge, adjusted_y};
-        Vector2 currentRightPoint = {right_edge, adjusted_y};
-
-        if (!firstPoint) {
-            DrawLineV(previousLeftPoint, currentLeftPoint, roadColor);
-            DrawLineV(previousRightPoint, currentRightPoint, roadColor);
-        }
-
-        previousLeftPoint = currentLeftPoint;
-        previousRightPoint = currentRightPoint;
-        firstPoint = false;
-    }
-
-    // Render enemy cars scaled stages for distance/closeness effect
-    unsigned char skipFogCars = isNightFogStage;
-    for (int i = 0; i < env->numEnemies; i++) {
-        Car* car = &env->enemyCars[i];
-        
-        // Don't render cars in fog
-        if (skipFogCars && car->y < 92.0f) {
-            continue;
-        }
-
-        // Determine the car scale based on distance
-        float car_scale = get_car_scale(car->y);
-        // Select the correct texture based on the car's color and current tread
-        int carAssetIndex;
-        if (isNightStage) {
-            carAssetIndex = (bgIndex == 13) ? gameState->enemyCarNightFogTailLightsIndex : gameState->enemyCarNightTailLightsIndex;
-        } else {
-            int colorIndex = car->colorIndex;
-            int treadIndex = gameState->showLeftTread ? 0 : 1;
-            carAssetIndex = gameState->enemyCarIndices[colorIndex][treadIndex];
-        }
-        Rectangle srcRect = asset_map[carAssetIndex];
-
-        // Compute car coordinates
-        float car_center_x = car_x_in_lane(env, car->lane, car->y);
-        float car_x = car_center_x - (srcRect.width * car_scale) / 2.0f;
-        float car_y = car->y - (srcRect.height * car_scale) / 2.0f;
-
-        DrawTexturePro(
-            gameState->spritesheet,
-            srcRect,
-            (Rectangle){ car_x, car_y, srcRect.width * car_scale, srcRect.height * car_scale },
-            (Vector2){ 0, 0 },
-            0.0f,
-            WHITE
-        );
-    }
-
-    render_car(gameState); // Unscaled player car
-
-    EndScissorMode();
-    EndBlendMode();
+    renderMountains(gameState);    
+    render_road(gameState, env);  
+    render_enemy_cars(gameState, env);
+    render_car(gameState);
     updateVictoryEffects(gameState);
     updateScoreboard(gameState);
     renderScoreboard(gameState);
-
-    // Update GameState data from environment data;
+    
+    EndBlendMode();
     client->gameState.victoryAchieved = env->dayCompleted;
-
-    // Finish rendering to the texture
+    
     EndTextureMode();
-
-    // Now render the scaled-up texture to the screen
     BeginDrawing();
     ClearBackground(BLACK);
-
-    // Draw the render texture scaled up
+    
     DrawTexturePro(
         gameState->renderTarget.texture,
         (Rectangle){ 0, 0, (float)gameState->renderTarget.texture.width, -(float)gameState->renderTarget.texture.height },

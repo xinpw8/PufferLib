@@ -1,4 +1,4 @@
-// puffer_enduro.c
+// enduro.c
 
 #define MAX_ENEMIES 10
 
