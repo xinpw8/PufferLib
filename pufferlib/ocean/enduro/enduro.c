@@ -46,8 +46,7 @@ int demo() {
     };
 
     allocate(&env);
-    Client* client = make_client(&env);
-
+    GameState* client = make_client(&env);
     unsigned int seed = 0;
     init(&env, seed, 0);
     reset(&env);

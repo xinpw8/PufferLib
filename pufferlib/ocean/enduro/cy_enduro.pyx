@@ -40,11 +40,8 @@ cdef extern from "enduro.h":
         LogBuffer* log_buffer
         size_t obs_size
         int num_envs
-
-    ctypedef struct Client:
-        float width
-        float height
-        Enduro gameState
+    
+    ctypedef struct GameState
 
     # Function prototypes
     LogBuffer* allocate_logbuffer(int size)
@@ -53,16 +50,16 @@ cdef extern from "enduro.h":
     void init(Enduro* env, int seed, int env_index)
     void reset(Enduro* env)
     void c_step(Enduro* env)
-    void c_render(Client* client, Enduro* env)
-    Client* make_client(Enduro* env)
-    void close_client(Client* client, Enduro* env)
+    void c_render(GameState* client, Enduro* env)
+    GameState* make_client(Enduro* env)
+    void close_client(GameState* client, Enduro* env)
 
 # Define Cython wrapper class
 cdef class CyEnduro:
     cdef:
         Enduro* envs
         LogBuffer* logs
-        Client* client
+        GameState* client
         int num_envs
 
     def __init__(self,
