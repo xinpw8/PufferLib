@@ -7,7 +7,7 @@ from pufferlib.ocean.enduro.cy_enduro import CyEnduro
 
 class Enduro(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, frame_skip=1, render_mode='human',
-                 report_interval=1, buf=None):
+                 report_interval=100, buf=None):
 
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -86,12 +86,6 @@ class Enduro(pufferlib.PufferEnv):
 
     def close(self):
         self.c_envs.close()
-        
-    def validate_probabilities(prob_tensor):
-        import torch
-        if torch.isnan(prob_tensor).any() or torch.isinf(prob_tensor).any() or (prob_tensor < 0).any():
-            raise ValueError("Invalid probability values detected")
-        return prob_tensor
         
 def test_performance(timeout=10, atn_cache=8192):
     num_envs = 4096
