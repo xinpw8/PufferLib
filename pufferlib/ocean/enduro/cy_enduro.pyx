@@ -120,7 +120,11 @@ cdef class CyEnduro:
 
     def render(self):
         if not self.client:
+            import os
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(&self.envs[0])
+            os.chdir(cwd)
 
         c_render(self.client, &self.envs[0])
 

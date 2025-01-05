@@ -9,7 +9,7 @@ import inspect
 import pufferlib
 import pufferlib.spaces
 from pufferlib import utils, exceptions
-
+from pufferlib.environment import set_buffers
 from pufferlib.spaces import Discrete, Tuple, Dict
 
 
@@ -23,12 +23,14 @@ def emulate(struct, sample):
     else:
         struct[()] = sample
 
-def make_buffer(arr_dtype, struct_dtype, n=None):
+def make_buffer(arr_dtype, struct_dtype, struct, n=None):
     '''None instead of 1 makes it work for 1 agent PZ envs'''
+    '''
     if n is None:
         struct = np.zeros(1, dtype=struct_dtype)
     else:
         struct = np.zeros(n, dtype=struct_dtype)
+    '''
 
     arr = struct.view(arr_dtype)
 
@@ -37,11 +39,6 @@ def make_buffer(arr_dtype, struct_dtype, n=None):
     else:
         arr = arr.reshape(n, -1)
 
-    return arr, struct
-
-def emulate_copy(sample, arr_dtype, struct_dtype):
-    arr, struct = make_buffer(arr_dtype, struct_dtype)
-    emulate(struct, sample)
     return arr
 
 def _nativize(struct, space):
@@ -60,10 +57,12 @@ def nativize(arr, space, struct_dtype):
     struct = np.asarray(arr).view(struct_dtype)[0]
     return _nativize(struct, space)
 
+'''
 try:
     from pufferlib.extensions import emulate, nativize
 except ImportError:
     warnings.warn('PufferLib Cython extensions not installed. Using slow Python versions')
+'''
 
 def dtype_from_space(space):
     if isinstance(space, pufferlib.spaces.Tuple):
@@ -74,6 +73,10 @@ def dtype_from_space(space):
         dtype = []
         for k, value in space.items():
             dtype.append((k, dtype_from_space(value)))
+    elif isinstance(space, (pufferlib.spaces.Discrete)):
+        dtype = (np.int32, ())
+    elif isinstance(space, (pufferlib.spaces.MultiDiscrete)):
+        dtype = (np.int32, (len(space.nvec),))
     else:
         dtype = (space.dtype, space.shape)
 
@@ -112,9 +115,10 @@ def emulate_observation_space(space):
     return emulated_space, emulated_dtype
 
 def emulate_action_space(space):
-    if isinstance(space, (pufferlib.spaces.Discrete,
-            pufferlib.spaces.MultiDiscrete, pufferlib.spaces.Box)):
+    if isinstance(space, pufferlib.spaces.Box):
         return space, space.dtype
+    elif isinstance(space, (pufferlib.spaces.Discrete, pufferlib.spaces.MultiDiscrete)):
+        return space, np.int32
 
     emulated_dtype = dtype_from_space(space)
     leaves = flatten_space(space)
@@ -123,7 +127,7 @@ def emulate_action_space(space):
 
 
 class GymnasiumPufferEnv(gymnasium.Env):
-    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}):
+    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, buf=None):
         self.env = make_object(env, env_creator, env_args, env_kwargs)
 
         self.initialized = False
@@ -147,52 +151,41 @@ class GymnasiumPufferEnv(gymnasium.Env):
             emulated_observation_dtype = self.obs_dtype,
         )
 
-        self.buf = None # Injected buffer for shared memory optimization
-        self.obs, self.obs_struct = make_buffer(
-            self.single_observation_space.dtype, self.obs_dtype)
         self.render_modes = 'human rgb_array'.split()
 
+        set_buffers(self, buf)
+        if isinstance(self.env.observation_space, pufferlib.spaces.Box):
+            self.obs_struct = self.observations
+        else:
+            self.obs_struct = self.observations.view(self.obs_dtype)
+ 
     @property
     def render_mode(self):
         return self.env.render_mode
-
-    def _emulate(self, ob):
-        if self.is_obs_emulated:
-            emulate(self.obs_struct, ob)
-        elif self.buf is not None:
-            self.obs[:] = ob
-        else:
-            self.obs = ob
 
     def seed(self, seed):
         self.env.seed(seed)
 
     def reset(self, seed=None):
-        if not self.initialized:
-            if self.buf is not None:
-                self.obs = self.buf.observations[0]
-
-            if self.is_obs_emulated:
-                self.obs_struct = self.obs.view(self.obs_dtype)
-
         self.initialized = True
         self.done = False
 
         ob, info = _seed_and_reset(self.env, seed)
-        self._emulate(ob)
-
         if not self.is_observation_checked:
             self.is_observation_checked = check_space(
-                self.obs, self.observation_space)
+                ob, self.env.observation_space)
 
-        buf = self.buf
-        if buf is not None:
-            buf.rewards[0] = 0
-            buf.terminals[0] = False
-            buf.truncations[0] = False
-            buf.masks[0] = True
+        if self.is_obs_emulated:
+            emulate(self.obs_struct, ob)
+        else:
+            self.observations[:] = ob
+
+        self.rewards[0] = 0
+        self.terminals[0] = False
+        self.truncations[0] = False
+        self.masks[0] = True
  
-        return self.obs, info
+        return self.observations, info
  
     def step(self, action):
         '''Execute an action and return (observation, reward, done, info)'''
@@ -215,17 +208,19 @@ class GymnasiumPufferEnv(gymnasium.Env):
                 action, self.env.action_space)
 
         ob, reward, done, truncated, info = self.env.step(action)
-        self._emulate(ob)
 
-        buf = self.buf
-        if buf is not None:
-            buf.rewards[0] = reward
-            buf.terminals[0] = done
-            buf.truncations[0] = truncated
-            buf.masks[0] = True
-                   
+        if self.is_obs_emulated:
+            emulate(self.obs_struct, ob)
+        else:
+            self.observations[:] = ob
+
+        self.rewards[0] = reward
+        self.terminals[0] = done
+        self.truncations[0] = truncated
+        self.masks[0] = True
+                  
         self.done = done or truncated
-        return self.obs, reward, done, truncated, info
+        return self.observations, reward, done, truncated, info
 
     def render(self):
         return self.env.render()
@@ -234,7 +229,7 @@ class GymnasiumPufferEnv(gymnasium.Env):
         return self.env.close()
 
 class PettingZooPufferEnv:
-    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, to_puffer=False):
+    def __init__(self, env=None, env_creator=None, env_args=[], buf=None, env_kwargs={}, to_puffer=False):
         self.env = make_object(env, env_creator, env_args, env_kwargs)
         self.to_puffer = to_puffer
         self.initialized = False
@@ -260,12 +255,11 @@ class PettingZooPufferEnv:
 
         self.num_agents = len(self.possible_agents)
 
-        self.buf = None
-
-        #self.obs = np.zeros((self.num_agents, *self.single_observation_space.shape),
-        #    dtype=self.single_observation_space.dtype)
-        self.obs, self.obs_struct = make_buffer(
-            self.single_observation_space.dtype, self.obs_dtype, self.num_agents)
+        set_buffers(self, buf)
+        if isinstance(self.env.observation_space, pufferlib.spaces.Box):
+            self.obs_struct = self.observations
+        else:
+            self.obs_struct = self.observations.view(self.obs_dtype)
 
     @property
     def render_mode(self):
@@ -283,14 +277,6 @@ class PettingZooPufferEnv:
     def done(self):
         return len(self.agents) == 0 or self.all_done
 
-    def _emulate(self, ob, i, agent):
-        if self.is_obs_emulated:
-            emulate(self.obs_struct[i], ob)
-        elif self.buf is not None:
-            self.obs[i] = ob
-        else:
-            self.dict_obs[agent] = ob
-
     def observation_space(self, agent):
         '''Returns the observation space for a single agent'''
         if agent not in self.possible_agents:
@@ -307,13 +293,7 @@ class PettingZooPufferEnv:
 
     def reset(self, seed=None):
         if not self.initialized:
-            if self.buf is not None:
-                self.obs = self.buf.observations
-
-            if self.is_obs_emulated:
-                self.obs_struct = self.obs.view(self.obs_dtype).reshape(self.num_agents, -1)
-
-            self.dict_obs = {agent: self.obs[i] for i, agent in enumerate(self.possible_agents)}
+            self.dict_obs = {agent: self.observations[i] for i, agent in enumerate(self.possible_agents)}
 
         self.initialized = True
         self.all_done = False
@@ -321,29 +301,28 @@ class PettingZooPufferEnv:
 
         obs, info = self.env.reset(seed=seed)
 
+        if not self.is_observation_checked:
+            for k, ob in obs.items():
+                self.is_observation_checked = check_space(
+                    ob, self.env.observation_space(k))
+
         # Call user featurizer and flatten the observations
+        self.observations[:] = 0
         for i, agent in enumerate(self.possible_agents):
             if agent not in obs:
-                self.observation[i] = 0
                 continue
 
             ob = obs[agent]
-            self._emulate(ob, i, agent)
             self.mask[agent] = True
+            if self.is_obs_emulated:
+                emulate(self.obs_struct[i], ob)
+            else:
+                self.observations[i] = ob
 
-        if not self.is_observation_checked:
-            self.is_observation_checked = check_space(
-                self.dict_obs[self.possible_agents[0]],
-                self.single_observation_space
-            )
-
-        buf = self.buf
-        if buf is not None:
-            buf.rewards[:] = 0
-            buf.terminals[:] = False
-            buf.truncations[:] = False
-            buf.masks[:] = True
- 
+        self.rewards[:] = 0
+        self.terminals[:] = False
+        self.truncations[:] = False
+        self.masks[:] = True
         return self.dict_obs, info
 
     def step(self, actions):
@@ -389,34 +368,35 @@ class PettingZooPufferEnv:
         # TODO: Can add this assert once NMMO Horizon is ported to puffer
         # assert all(dones.values()) == (len(self.env.agents) == 0)
         self.mask = {k: False for k in self.possible_agents}
+        self.rewards[:] = 0
+        self.terminals[:] = True
+        self.truncations[:] = False
         for i, agent in enumerate(self.possible_agents):
             # TODO: negative padding buf
             if agent not in obs:
-                self.obs[i] = 0
-                buf = self.buf
-                if buf is not None:
-                    buf.rewards[i] = 0
-                    buf.terminals[i] = True
-                    buf.truncations[i] = False
-                    buf.masks[i] = False
+                self.observations[i] = 0
+                self.rewards[i] = 0
+                self.terminals[i] = True
+                self.truncations[i] = False
+                self.masks[i] = False
                 continue
 
             ob = obs[agent] 
             self.mask[agent] = True
-            self._emulate(ob, i, agent)
+            if self.is_obs_emulated:
+                emulate(self.obs_struct[i], ob)
+            else:
+                self.observations[i] = ob
 
-            buf = self.buf
-            if buf is not None:
-                buf.rewards[i] = rewards[agent]
-                buf.terminals[i] = dones[agent]
-                buf.truncations[i] = truncateds[agent]
-                buf.masks[i] = True
+            self.rewards[i] = rewards[agent]
+            self.terminals[i] = dones[agent]
+            self.truncations[i] = truncateds[agent]
+            self.masks[i] = True
      
         self.all_done = all(dones.values()) or all(truncateds.values())
         rewards = pad_agent_data(rewards, self.possible_agents, 0)
         dones = pad_agent_data(dones, self.possible_agents, True) # You changed this from false to match api test... is this correct?
         truncateds = pad_agent_data(truncateds, self.possible_agents, False)
-
         return self.dict_obs, rewards, dones, truncateds, infos
 
     def render(self):

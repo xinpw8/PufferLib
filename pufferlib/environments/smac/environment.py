@@ -9,7 +9,7 @@ import pufferlib.wrappers
 def env_creator(name='smac'):
     return functools.partial(make, name)
 
-def make(name):
+def make(name, buf=None):
     '''Starcraft Multiagent Challenge creation function
 
     Support for SMAC is WIP because environments do not function without
@@ -19,5 +19,5 @@ def make(name):
 
     env = smac_env(1000)
     env = pufferlib.wrappers.PettingZooTruncatedWrapper(env)
-    env = pufferlib.emulation.PettingZooPufferEnv(env)
+    env = pufferlib.emulation.PettingZooPufferEnv(env, buf=buf)
     return env

@@ -22,6 +22,8 @@ cdef extern from "puffernet.h":
     void _conv2d(float* input, float* weights, float* bias,
         float* output, int batch_size, int in_width, int in_height,
         int in_channels, int out_channels, int kernel_size, int stride)
+    void _embedding(int* input, float* weights, float* output,
+        int batch_size, int num_embeddings, int embedding_dim)
     void _lstm(float* input, float* state_h, float* state_c, float* weights_input,
         float* weights_state, float* bias_input, float*bias_state,
         float *buffer, int batch_size, int input_size, int hidden_size)
@@ -56,6 +58,11 @@ def puf_lstm(cnp.ndarray input, cnp.ndarray state_h, cnp.ndarray state_c, cnp.nd
     _lstm(<float*> input.data, <float*> state_h.data, <float*> state_c.data,
         <float*> weights_input.data, <float*> weights_state.data, <float*> bias_input.data,
         <float*> bias_state.data, <float*> buffer.data, batch_size, input_size, hidden_size)
+
+def puf_embedding(cnp.ndarray input, cnp.ndarray weights, cnp.ndarray output,
+        int batch_size, int num_embeddings, int embedding_dim):
+    _embedding(<int*> input.data, <float*> weights.data, <float*> output.data,
+        batch_size, num_embeddings, embedding_dim)
 
 def puf_one_hot(cnp.ndarray input, cnp.ndarray output, int batch_size, int input_size, int num_classes):
     _one_hot(<int*> input.data, <int*> output.data, batch_size, input_size, num_classes)

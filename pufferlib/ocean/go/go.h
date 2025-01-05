@@ -9,6 +9,8 @@
 #define MOVE_MIN 1
 #define TICK_RATE 1.0f/60.0f
 #define NUM_DIRECTIONS 4
+#define ENV_WIN -1
+#define PLAYER_WIN 1
 static const int DIRECTIONS[NUM_DIRECTIONS][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 //  LD_LIBRARY_PATH=raylib/lib ./go
 #define LOG_BUFFER_SIZE 1024
@@ -19,6 +21,7 @@ struct Log {
     float episode_length;
     int games_played;
     float score;
+    float winrate;
 };
 
 typedef struct LogBuffer LogBuffer;
@@ -60,10 +63,12 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_length += logs->logs[i].episode_length;
         log.games_played += logs->logs[i].games_played;
         log.score += logs->logs[i].score;
+	log.winrate += logs->logs[i].winrate;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.score /= logs->idx;
+    log.winrate /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -131,6 +136,11 @@ struct CGo {
     int* visited;
     Group* groups;
     Group* temp_groups;
+    float reward_move_pass;
+    float reward_move_invalid;
+    float reward_move_valid;
+    float reward_player_capture;
+    float reward_opponent_capture;
 };
 
 void generate_board_positions(CGo* env) {
@@ -169,7 +179,7 @@ void init(CGo* env) {
 
 void allocate(CGo* env) {
     init(env);
-    env->observations = (float*)calloc((env->grid_size)*(env->grid_size)*2 + 3, sizeof(float));
+    env->observations = (float*)calloc((env->grid_size)*(env->grid_size)*2 + 2, sizeof(float));
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -200,14 +210,25 @@ void free_allocated(CGo* env) {
 void compute_observations(CGo* env) {
     int observation_indx=0;
     for (int i = 0; i < (env->grid_size)*(env->grid_size); i++) {
-        env->observations[observation_indx] = (float)env->board_states[i];
+	if(env->board_states[i] ==1 ){
+		env->observations[observation_indx] = 1.0;
+	}	
+	else {
+		env->observations[observation_indx] = 0.0;
+	}
         observation_indx++;
     }
     for (int i = 0; i < (env->grid_size)*(env->grid_size); i++) {
-        env->observations[observation_indx] = (float)env->previous_board_state[i];
+        if(env->board_states[i] ==2 ){
+            env->observations[observation_indx] = 1.0;
+        }	
+        else {
+            env->observations[observation_indx] = 0.0;
+        }
         observation_indx++;
     }
-    env->observations[observation_indx] = env->score;
+    env->observations[observation_indx] = env->capture_count[0];
+    env->observations[observation_indx+1] = env->capture_count[1];
 
 }
 
@@ -239,49 +260,75 @@ void flood_fill(CGo* env, int x, int y, int* territory, int player) {
 void compute_score_tromp_taylor(CGo* env) {
     int player_score = 0;
     int opponent_score = 0;
-    int territory[3] = {0, 0, 0}; // [neutral, player, opponent]
     reset_visited(env);
-    // Count stones and mark them as visited
-    for (int i = 0; i < (env->grid_size) * (env->grid_size); i++) {
-        env->visited[i] = 0;
+    
+    // Queue for BFS
+    int queue_size = (env->grid_size) * (env->grid_size);
+    int queue[queue_size];
+    
+    // First count stones
+    for (int i = 0; i < queue_size; i++) {
         if (env->board_states[i] == 1) {
             player_score++;
-            env->visited[i] = 1;
         } else if (env->board_states[i] == 2) {
             opponent_score++;
-            env->visited[i] = 1;
         }
     }
-    for (int pos = 0; pos < (env->grid_size) * (env->grid_size); pos++) {
-        int x = pos % (env->grid_size);
-        int y = pos / (env->grid_size);
-        if (env->visited[pos]) {
+    
+    // Then process empty territories
+    for (int start_pos = 0; start_pos < queue_size; start_pos++) {
+        // Skip if not empty or already visited
+        if (env->board_states[start_pos] != 0 || env->visited[start_pos]) {
             continue;
         }
-        int player = 0; // Start as neutral
-        // Check adjacent positions to determine territory owner
-        for (int i = 0; i < 4; i++) {
-            int nx = x + DIRECTIONS[i][0];
-            int ny = y + DIRECTIONS[i][1];
-            if (!is_valid_position(env, nx, ny)) {
-                continue;
-            }
-            int npos = ny * (env->grid_size) + nx;
-            if (env->board_states[npos] == 0) {
-                continue;
-            }
-            if (player == 0) {
-                player = env->board_states[npos];
-            } else if (player != env->board_states[npos]) {
-                player = 0; // Neutral if bordered by both players
-                break;
+        
+        // Initialize BFS
+        int front = 0, rear = 0;
+        int territory_size = 0;
+        int bordering_player = 0;  // 0=neutral, 1=player1, 2=player2, 3=mixed
+        
+        queue[rear++] = start_pos;
+        env->visited[start_pos] = 1;
+        
+        // Process connected empty points
+        while (front < rear) {
+            int pos = queue[front++];
+            territory_size++;
+            int x = pos % env->grid_size;
+            int y = pos / env->grid_size;
+            
+            // Check all adjacent positions
+            for (int i = 0; i < 4; i++) {
+                int nx = x + DIRECTIONS[i][0];
+                int ny = y + DIRECTIONS[i][1];
+                
+                if (!is_valid_position(env, nx, ny)) {
+                    continue;
+                }
+                
+                int npos = ny * env->grid_size + nx;
+                
+                if (env->board_states[npos] == 0 && !env->visited[npos]) {
+                    // Add unvisited empty points to queue
+                    queue[rear++] = npos;
+                    env->visited[npos] = 1;
+                } else if (bordering_player == 0) {
+                    bordering_player = env->board_states[npos];
+                } else if (bordering_player != env->board_states[npos]) {
+                    bordering_player = 3;  // Mixed territory
+                }
             }
         }
-        flood_fill(env, x, y, territory, player);
+        
+        // Assign territory points
+        if (bordering_player == 1) {
+            player_score += territory_size;
+        } else if (bordering_player == 2) {
+            opponent_score += territory_size;
+        }
+        // Mixed territories (bordering_player == 3) are neutral and not counted
     }
-    // Calculate final scores
-    player_score += territory[1];
-    opponent_score += territory[2];
+    
     env->score = (float)player_score - (float)opponent_score - env->komi;
 }
 
@@ -314,7 +361,13 @@ void capture_group(CGo* env, int* board, int root, int* affected_groups, int* af
         int pos = queue[front++];
         board[pos] = 0;  // Remove stone
         env->capture_count[capturing_player - 1]++;  // Update capturing player's count
-
+	if(capturing_player-1 == 0){
+		env->rewards[0] += env->reward_player_capture;
+		env->log.episode_return += env->reward_player_capture;
+	} else{
+		env->rewards[0] += env->reward_opponent_capture;
+		env->log.episode_return += env->reward_opponent_capture;
+	}
         int x = pos % (env->grid_size);
         int y = pos / (env->grid_size);
 
@@ -620,12 +673,15 @@ void end_game(CGo* env){
     compute_score_tromp_taylor(env);
     if (env->score > 0) {
         env->rewards[0] = 1.0 ;
+	    env->log.winrate = 1.0;
     }
     else if (env->score < 0) {
-        env->rewards[0] = -1.0 ;
+        env->rewards[0] = -1.0;
+	    env->log.winrate = -1.0;
     }
     else {
         env->rewards[0] = 0.0;
+	    env->log.winrate = 0.0;
     }
     env->log.score = env->score;
     env->log.games_played++;
@@ -639,15 +695,16 @@ void step(CGo* env) {
     env->rewards[0] = 0.0;
     int action = (int)env->actions[0];
     // useful for training , can prob be a hyper param. Recommend to increase with larger board size
-    if (env->log.episode_length >150) {
+    float max_moves = 3 * env->grid_size * env->grid_size;
+    if (env->log.episode_length > max_moves) {
          env->dones[0] = 1;
          end_game(env);
          compute_observations(env);
          return;
     }
     if(action == NOOP){
-        env->rewards[0] -= 0.25;;
-        env->log.episode_return -= 0.25;
+        env->rewards[0] = env->reward_move_pass;
+        env->log.episode_return += env->reward_move_pass;
         enemy_greedy_hard(env);
         if (env->dones[0] == 1) {
             end_game(env);
@@ -660,25 +717,29 @@ void step(CGo* env) {
         memcpy(env->previous_board_state, env->board_states, sizeof(int) * (env->grid_size) * (env->grid_size));
         if(make_move(env, action-1, 1)) {
             env->moves_made++;
-            env->rewards[0] += 0.1;
-            env->log.episode_return += 0.1;
+            env->rewards[0] = env->reward_move_valid;
+            env->log.episode_return += env->reward_move_valid;
             enemy_greedy_hard(env);
 
         } else {
-            env->rewards[0] -= 0.1;
-            env->log.episode_return -= 0.1;
+            env->rewards[0] = env->reward_move_invalid;
+            env->log.episode_return += env->reward_move_invalid;
         }
         compute_observations(env);
     }
 
-    if (env->moves_made >= (env->grid_size)*(env->grid_size)*2) {        
-        env->dones[0] = 1;
+    if(env->rewards[0] > 1){
+	    env->rewards[0] = 1;
+    } 
+    if(env->rewards[0] < -1){
+	    env->rewards[0] = -1;
     }
 
     if (env->dones[0] == 1) {
         end_game(env);
         return;
     }
+    
     compute_observations(env);
 }
 
@@ -701,7 +762,7 @@ Client* make_client(int width, int height) {
     client->width = width;
     client->height = height;
     InitWindow(width, height, "PufferLib Ray Go");
-    SetTargetFPS(15);
+    SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
     return client;
 }

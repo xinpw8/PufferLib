@@ -13,7 +13,7 @@ import pufferlib.utils
 def env_creator(name='MineRLBasaltFindCave-v0'):
     return functools.partial(make, name=name)
 
-def make(name):
+def make(name, buf=None):
     '''Minecraft environment creation function'''
 
     pufferlib.environments.try_import('minerl')
@@ -25,4 +25,4 @@ def make(name):
     env = gym.make(name)
 
     env = shimmy.GymV21CompatibilityV0(env=env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env, buf=buf)

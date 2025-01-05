@@ -13,7 +13,7 @@ import pufferlib.postprocess
 def env_creator(name='nethack'):
     return functools.partial(make, name)
 
-def make(name):
+def make(name, buf=None):
     '''NetHack binding creation function'''
     if name == 'nethack':
         name = 'NetHackScore-v0'
@@ -24,7 +24,7 @@ def make(name):
     env = shimmy.GymV21CompatibilityV0(env=env)
     env = NethackWrapper(env)
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class NethackWrapper:
     def __init__(self, env):
