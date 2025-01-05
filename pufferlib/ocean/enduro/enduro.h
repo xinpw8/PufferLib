@@ -382,19 +382,19 @@ Log aggregate_and_clear(LogBuffer* logs) {
         return log;
     }
     for (int i = 0; i < logs->idx; i++) {
-        log.episode_return               += logs->logs[i].episode_return / logs->idx;
-        log.episode_length               += logs->logs[i].episode_length / logs->idx;
-        log.score                        += logs->logs[i].score / logs->idx;
-        log.reward                       += logs->logs[i].reward / logs->idx;
-        log.step_rew_car_passed_no_crash += logs->logs[i].step_rew_car_passed_no_crash / logs->idx;
-        log.crashed_penalty              += logs->logs[i].crashed_penalty / logs->idx;
-        log.passed_cars                  += logs->logs[i].passed_cars / logs->idx;
-        log.passed_by_enemy              += logs->logs[i].passed_by_enemy / logs->idx;
-        log.cars_to_pass                 += logs->logs[i].cars_to_pass / logs->idx;
-        log.days_completed               += logs->logs[i].days_completed / logs->idx;
-        log.days_failed                  += logs->logs[i].days_failed / logs->idx;
-        log.collisions_player_vs_car     += logs->logs[i].collisions_player_vs_car / logs->idx;
-        log.collisions_player_vs_road    += logs->logs[i].collisions_player_vs_road / logs->idx;
+        log.episode_return               += logs->logs[i].episode_return /= logs->idx;
+        log.episode_length               += logs->logs[i].episode_length /= logs->idx;
+        log.score                        += logs->logs[i].score /= logs->idx;
+        log.reward                       += logs->logs[i].reward /= logs->idx;
+        log.step_rew_car_passed_no_crash += logs->logs[i].step_rew_car_passed_no_crash /= logs->idx;
+        log.crashed_penalty              += logs->logs[i].crashed_penalty /= logs->idx;
+        log.passed_cars                  += logs->logs[i].passed_cars /= logs->idx;
+        log.passed_by_enemy              += logs->logs[i].passed_by_enemy /= logs->idx;
+        log.cars_to_pass                 += logs->logs[i].cars_to_pass /= logs->idx;
+        log.days_completed               += logs->logs[i].days_completed /= logs->idx;
+        log.days_failed                  += logs->logs[i].days_failed /= logs->idx;
+        log.collisions_player_vs_car     += logs->logs[i].collisions_player_vs_car /= logs->idx;
+        log.collisions_player_vs_road    += logs->logs[i].collisions_player_vs_road /= logs->idx;
     }
     logs->idx = 0;
     return log;
@@ -714,12 +714,15 @@ void update_time_of_day(Enduro* env) {
         elapsedTime -= totalDuration;
         env->elapsedTimeEnv = elapsedTime;
     }
-    env->previousDayTimeIndex = env->currentDayTimeIndex;
     int time_idx = 0;
     while (time_idx < 15 && elapsedTime >= BACKGROUND_TRANSITION_TIMES[time_idx]) {
         time_idx++;
     }
-    env->currentDayTimeIndex = time_idx % 16;
+    env->previousDayTimeIndex = env->currentDayTimeIndex;
+    env->currentDayTimeIndex = (env->reset_count < 2) ? (rand() % 16) : time_idx % 16;
+    if (env->previousDayTimeIndex != env->currentDayTimeIndex) {
+        add_log(env->log_buffer, &env->log);
+    }
 }
 
 void clamp_speed(Enduro* env) {
