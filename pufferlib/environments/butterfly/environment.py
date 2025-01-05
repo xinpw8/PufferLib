@@ -9,7 +9,7 @@ import pufferlib.environments
 def env_creator(name='cooperative_pong_v5'):
     return functools.partial(make, name)
 
-def make(name):
+def make(name, buf=None):
     pufferlib.environments.try_import('pettingzoo.butterfly', 'butterfly')
     if name == 'cooperative_pong_v5':
         from pettingzoo.butterfly import cooperative_pong_v5 as pong
@@ -22,4 +22,4 @@ def make(name):
 
     env = env_cls()
     env = aec_to_parallel_wrapper(env)
-    return pufferlib.emulation.PettingZooPufferEnv(env=env)
+    return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)

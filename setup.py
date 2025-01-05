@@ -255,7 +255,21 @@ extension_paths = [
     'pufferlib/ocean/tripletriad/cy_tripletriad',
     'pufferlib/ocean/go/cy_go',
     'pufferlib/ocean/rware/cy_rware',
+    'pufferlib/ocean/trash_pickup/cy_trash_pickup'
 ]
+
+system = platform.system()
+if system == 'Darwin':
+    # On macOS, use @loader_path.
+    # The extension “.so” is typically in pufferlib/ocean/...,
+    # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
+    # So @loader_path/../../raylib/lib is common.
+    rpath_arg = '-Wl,-rpath,@loader_path/../../raylib/lib'
+elif system == 'Linux':
+    # On Linux, $ORIGIN works
+    rpath_arg = '-Wl,-rpath,$ORIGIN/raylib/lib'
+else:
+    raise ValueError(f'Unsupported system: {system}')
 
 extensions = [Extension(
     path.replace('/', '.'),
@@ -265,7 +279,7 @@ extensions = [Extension(
     libraries=["raylib"],
     runtime_library_dirs=["raylib/lib"],
     extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
-    extra_link_args=["-Wl,-rpath,$ORIGIN/raylib/lib"]
+    extra_link_args=[rpath_arg]
 
 ) for path in extension_paths]
  
@@ -322,7 +336,7 @@ setup(
        #compiler_directives={'profile': True},# annotate=True
     ),
     include_dirs=[numpy.get_include(), 'raylib-5.0_linux_amd64/include'],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     license="MIT",
     author="Joseph Suarez",
     author_email="jsuarez@puffer.ai",

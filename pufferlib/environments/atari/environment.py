@@ -16,7 +16,7 @@ def env_creator(name='breakout'):
 
 def make(name, obs_type='grayscale', frameskip=4,
         full_action_space=False, framestack=1,
-        repeat_action_probability=0.0, render_mode='rgb_array'):
+        repeat_action_probability=0.0, render_mode='rgb_array', buf=None):
     '''Atari creation function'''
     pufferlib.environments.try_import('ale_py', 'AtariEnv')
 
@@ -51,7 +51,7 @@ def make(name, obs_type='grayscale', frameskip=4,
         env = AtariPostprocessor(env) # Don't use standard postprocessor
 
     env = pufferlib.postprocess.EpisodeStats(env)
-    env = pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    env = pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
     return env
 
 class AtariPostprocessor(gym.Wrapper):
