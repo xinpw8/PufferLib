@@ -143,10 +143,7 @@ typedef struct GameState {
     int flagTimer;
     unsigned char showLeftFlag; // true shows left flag, false shows right flag
     int victoryDisplayTimer;    // Timer for how long victory effects have been displayed
-    // Variables for scrolling digits
-    float yellowDigitOffset; 
-    int  yellowDigitCurrent;  
-    int  yellowDigitNext;     
+    // Variables for scrolling digits    
     float scoreDigitOffsets[SCORE_DIGITS];    // Offset for scrolling effect for each digit
     int scoreDigitCurrents[SCORE_DIGITS];     // Current digit being displayed for each position
     int scoreDigitNexts[SCORE_DIGITS];        // Next digit to scroll in for each position
@@ -419,49 +416,37 @@ void free_allocated(Enduro* env) {
 }
 
 void reset(Enduro* env) {
-    env->score                         = 0;
-    env->numEnemies                    = 0;
-    env->step_count                    = 0;
+    env->score = 0;
+    env->numEnemies = 0;
+    env->step_count = 0;
     env->collision_cooldown_car_vs_car = 0.0f;
-    env->collision_cooldown_car_vs_road= 0.0f;
-    env->elapsedTimeEnv                = 0.0f;
-    env->enemySpawnTimer               = 0.0f;
-    env->enemySpawnInterval            = 0.8777f;
-    env->last_spawned_lane             = -1;
-    env->base_vanishing_point_x        = 86.0f;
-    env->current_vanishing_point_x     = 86.0f;
-    env->target_vanishing_point_x      = 86.0f;
-    env->vanishing_point_x             = 86.0f;
-    env->current_curve_factor          = 0.0f;
-    env->target_curve_factor           = 0.0f;
-    env->current_step_threshold        = 0.0f;
-    env->day                           = 1;
-    env->dayCompleted                  = 0;
-    env->drift_direction               = 0;
-    env->crashed_penalty               = 0.0f;
-    env->car_passed_no_crash_active    = 1;
-    env->step_rew_car_passed_no_crash  = 0.0f;
-    env->current_curve_stage           = 0;
-    env->steps_in_current_stage        = 0;
-    env->currentGear                   = 0;
+    env->collision_cooldown_car_vs_road = 0.0f;
+    env->elapsedTimeEnv = 0.0f;
+    env->enemySpawnTimer = 0.0f;
+    env->enemySpawnInterval = 0.8777f;
+    env->last_spawned_lane = -1;
+    env->base_vanishing_point_x = 86.0f;
+    env->current_vanishing_point_x = 86.0f;
+    env->target_vanishing_point_x = 86.0f;
+    env->vanishing_point_x = 86.0f;
+    env->current_curve_factor = 0.0f;
+    env->target_curve_factor = 0.0f;
+    env->current_step_threshold = 0.0f;
+    env->day = 1;
+    env->dayCompleted = 0;
+    env->drift_direction = 0;
+    env->crashed_penalty = 0.0f;
+    env->car_passed_no_crash_active = 1;
+    env->step_rew_car_passed_no_crash = 0.0f;
+    env->current_curve_stage = 0;
+    env->steps_in_current_stage = 0;
+    env->currentGear = 0;
     for (int i = 0; i < MAX_ENEMIES; i++) {
-        env->enemyCars[i].lane    = -1; // Default invalid lane
-        env->enemyCars[i].y       = 0.0f;
-        env->enemyCars[i].passed  = 0;
+        env->enemyCars[i] = (Car){.lane = -1}; // Default lane
     }
-    env->terminals[0]   = 0;
-    env->truncateds[0]  = 0;
-    env->rewards[0]     = 0.0f;
-    // env->log.episode_return               = 0.0f;
-    // env->log.episode_length               = 0.0f;
-    // env->log.score                        = 0.0f;
-    // env->log.reward                       = 0.0f;
-    // env->log.step_rew_car_passed_no_crash = 0.0f;
-    // env->log.crashed_penalty              = 0.0f;
-    // env->log.passed_cars                  = 0.0f;
-    // env->log.passed_by_enemy              = 0.0f;
-    // env->log.collisions_player_vs_car     = 0.0f;
-    // env->log.collisions_player_vs_road    = 0.0f;
+    env->terminals[0] = 0;
+    env->truncateds[0] = 0;
+    env->rewards[0] = 0.0f;
     env->reset_count += 1;
 }
 
@@ -1275,8 +1260,6 @@ void cleanup(GameState* gameState) {
 
 GameState* make_client(Enduro* env) {
     GameState* client = (GameState*)malloc(sizeof(GameState));
-    client->width     = env->width;
-    client->height    = env->height;
     initRaylib(client);
     loadTextures(client, env);
     return client;
