@@ -219,6 +219,8 @@ typedef struct Enduro {
     float parallaxFactor; 
     int currentDayTimeIndex;
     int previousDayTimeIndex;
+    int dayTimeIndex;
+    float dayTransitionTimes[NUM_BACKGROUND_TRANSITIONS];
     unsigned int rng_state;
     unsigned int index;
     int reset_count;
@@ -415,12 +417,73 @@ void free_allocated(Enduro* env) {
     free_logbuffer(env->log_buffer);
 }
 
-void reset(Enduro* env) {
+void init(Enduro* env, int seed, int env_index) {
+    // printf("seed: %d\n", seed);
+    // env->index = env_index;
+    // if (seed == 0) {
+    //     env->rng_state = (unsigned int)(time(NULL) + env_index);
+    //     printf("Dynamic RNG state initialized to: %u\n", env->rng_state);
+    // } else {
+    //     env->rng_state = (unsigned int)seed;
+    // }
+
+        env->index = env_index;
+    env->rng_state = seed;
+    env->reset_count = 0;
+
+    if (seed == 0) { // Activate with seed==0
+        // Start the environment at the beginning of the day
+        env->rng_state = 0;
+        env->elapsedTimeEnv = 0.0f;
+        env->currentDayTimeIndex = 0;
+        env->previousDayTimeIndex = NUM_BACKGROUND_TRANSITIONS;
+    } else {
+        // Randomize elapsed time within the day's total duration
+        float total_day_duration = BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1];
+        env->elapsedTimeEnv = ((float)xorshift32(&env->rng_state) / (float)UINT32_MAX) * total_day_duration;
+
+        // Determine the current time index
+        env->currentDayTimeIndex = 0;
+        for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS - 1; i++) {
+            if (env->elapsedTimeEnv >= env->dayTransitionTimes[i] &&
+                env->elapsedTimeEnv < env->dayTransitionTimes[i + 1]) {
+                env->currentDayTimeIndex = i;
+                break;
+            }
+        }
+
+        // Handle the last interval
+        if (env->elapsedTimeEnv >= BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1]) {
+            env->currentDayTimeIndex = NUM_BACKGROUND_TRANSITIONS - 1;
+        }
+    }
+
+    env->numEnemies = 0;
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        env->enemyCars[i].lane = -1; // Default invalid lane
+        env->enemyCars[i].y = 0.0f;
+        env->enemyCars[i].passed = 0;
+    }
+
+    env->obs_size = OBSERVATIONS_MAX_SIZE;
+    env->max_enemies = MAX_ENEMIES;
     env->score = 0;
     env->numEnemies = 0;
+    env->player_x = INITIAL_PLAYER_X;
+    env->player_y = PLAYER_MAX_Y;
+    env->speed = MIN_SPEED;
+    env->carsToPass = INITIAL_CARS_TO_PASS;
+    env->width = SCREEN_WIDTH;
+    env->height = SCREEN_HEIGHT;
+    env->car_width = CAR_WIDTH;
+    env->car_height = CAR_HEIGHT;
+
+    memcpy(env->dayTransitionTimes, BACKGROUND_TRANSITION_TIMES, sizeof(BACKGROUND_TRANSITION_TIMES));
+    
     env->step_count = 0;
     env->collision_cooldown_car_vs_car = 0.0f;
     env->collision_cooldown_car_vs_road = 0.0f;
+    env->action_height = ACTION_HEIGHT;
     env->elapsedTimeEnv = 0.0f;
     env->enemySpawnTimer = 0.0f;
     env->enemySpawnInterval = 0.8777f;
@@ -429,36 +492,69 @@ void reset(Enduro* env) {
     env->current_vanishing_point_x = 86.0f;
     env->target_vanishing_point_x = 86.0f;
     env->vanishing_point_x = 86.0f;
-    env->current_curve_factor = 0.0f;
-    env->target_curve_factor = 0.0f;
-    env->current_step_threshold = 0.0f;
+    env->player_y = PLAYER_MAX_Y;
+    env->min_speed = MIN_SPEED;
+    env->enemySpeed = ENEMY_CAR_SPEED;
+    env->max_speed = MAX_SPEED;
     env->day = 1;
-    env->dayCompleted = 0;
-    env->drift_direction = 0;
+    env->drift_direction = 0; // Means in noop, but only if crashed state
     env->crashed_penalty = 0.0f;
     env->car_passed_no_crash_active = 1;
     env->step_rew_car_passed_no_crash = 0.0f;
-    env->current_curve_stage = 0;
+    env->current_curve_stage = 0; // 0: straight
     env->steps_in_current_stage = 0;
-    env->currentGear = 0;
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        env->enemyCars[i] = (Car){.lane = -1}; // Default lane
+    env->current_curve_direction = CURVE_STRAIGHT;
+    env->current_curve_factor = 0.0f;
+    env->target_curve_factor = 0.0f;
+    env->current_step_threshold = 0.0f;
+    env->wiggle_y = VANISHING_POINT_Y;
+    env->wiggle_speed = WIGGLE_SPEED;
+    env->wiggle_length = WIGGLE_LENGTH;
+    env->wiggle_amplitude = WIGGLE_AMPLITUDE;
+    env->wiggle_active = true;
+
+    // Randomize the initial time of day for each environment
+    if (env->rng_state == 0) {
+        env->elapsedTimeEnv = 0;
+        env->currentDayTimeIndex = 0;
+        env->dayTimeIndex = 0;
+        env->previousDayTimeIndex = 0;
+    } else {
+        float total_day_duration = BACKGROUND_TRANSITION_TIMES[15];
+        env->elapsedTimeEnv = ((float)rand_r(&env->rng_state) / (float)RAND_MAX) * total_day_duration;
+        env->currentDayTimeIndex = 0;
+        env->dayTimeIndex = 0;
+        env->previousDayTimeIndex = 0;
+
+        // Advance currentDayTimeIndex to match randomized elapsedTimeEnv
+        for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS; i++) {
+            if (env->elapsedTimeEnv >= env->dayTransitionTimes[i]) {
+                env->currentDayTimeIndex = i;
+            } else {
+                break;
+            }
+        }
+
+        env->previousDayTimeIndex = (env->currentDayTimeIndex > 0) ? env->currentDayTimeIndex - 1 : NUM_BACKGROUND_TRANSITIONS - 1;
     }
     env->terminals[0] = 0;
     env->truncateds[0] = 0;
-    env->rewards[0] = 0.0f;
-    env->reset_count += 1;
-}
 
-void init(Enduro* env, int seed, int env_index) {
-    printf("seed: %d\n", seed);
-    env->index = env_index;
-    if (seed == 0) {
-        env->rng_state = (unsigned int)(time(NULL) + env_index);
-        printf("Dynamic RNG state initialized to: %u\n", env->rng_state);
-    } else {
-        env->rng_state = (unsigned int)seed;
-    }
+    // Reset rewards and logs
+    env->rewards[0] = 0.0f;
+    env->log.episode_return = 0.0f;
+    env->log.episode_length = 0.0f;
+    env->log.score = 0.0f;
+    env->log.reward = 0.0f;
+    env->log.step_rew_car_passed_no_crash = 0.0f;
+    env->log.crashed_penalty = 0.0f;
+    env->log.passed_cars = 0.0f;
+    env->log.passed_by_enemy = 0.0f;
+    env->log.cars_to_pass = INITIAL_CARS_TO_PASS;
+    env->log.collisions_player_vs_car = 0.0f;
+    env->log.collisions_player_vs_road = 0.0f;
+
+    memcpy(env->dayTransitionTimes, BACKGROUND_TRANSITION_TIMES, sizeof(BACKGROUND_TRANSITION_TIMES));
 
     env->reset_count            = 0;
     env->obs_size               = OBSERVATIONS_MAX_SIZE;
@@ -498,19 +594,129 @@ void init(Enduro* env, int seed, int env_index) {
         cumulativeSpeed               = env->gearSpeedThresholds[i];
     }
 
-    reset(env);
-    if (seed) {
-        unsigned int random_value = xorshift32(&env->rng_state) % 16;
-        printf("random value = %d\n", random_value);
-        env->currentDayTimeIndex = random_value;
-        env->elapsedTimeEnv      = BACKGROUND_TRANSITION_TIMES[random_value];
-        env->previousDayTimeIndex= (random_value > 0) ? random_value - 1 : NUM_BACKGROUND_TRANSITIONS - 1;
-    } else {
-        env->elapsedTimeEnv       = 0.0f;
-        env->currentDayTimeIndex  = 0;
+    // Randomize the initial time of day for each environment
+    if (env->rng_state == 0) {
+        env->elapsedTimeEnv = 0;
+        env->currentDayTimeIndex = 0;
+        env->dayTimeIndex = 0;
         env->previousDayTimeIndex = 0;
+    } else {
+        float total_day_duration = BACKGROUND_TRANSITION_TIMES[15];
+        env->elapsedTimeEnv = ((float)rand_r(&env->rng_state) / (float)RAND_MAX) * total_day_duration;
+        env->currentDayTimeIndex = 0;
+        env->dayTimeIndex = 0;
+        env->previousDayTimeIndex = 0;
+
+        // Advance currentDayTimeIndex to match randomized elapsedTimeEnv
+        for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS; i++) {
+            if (env->elapsedTimeEnv >= env->dayTransitionTimes[i]) {
+                env->currentDayTimeIndex = i;
+            } else {
+                break;
+            }
+        }
+
+        env->previousDayTimeIndex = (env->currentDayTimeIndex > 0) ? env->currentDayTimeIndex - 1 : NUM_BACKGROUND_TRANSITIONS - 1;
     }
+    env->terminals[0] = 0;
+    env->truncateds[0] = 0;
+
+    // Reset rewards and logs
+    env->rewards[0] = 0.0f;
     env->log.cars_to_pass = INITIAL_CARS_TO_PASS;
+}
+
+// Reset all init vars; only called once after init
+void reset(Enduro* env) {
+    // No random after first reset
+    int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
+
+    // int reset_seed = xorshift32(&env->rng_state); // // Always random
+    init(env, reset_seed, env->index);
+    env->reset_count += 1;
+}
+
+void reset_soft(Enduro* env) {
+    unsigned int preserved_rng_state = env->rng_state;
+    unsigned int preserved_index = env->index;
+
+    env->score = 0;
+    env->carsToPass = INITIAL_CARS_TO_PASS;
+    env->day = 1;
+    env->dayCompleted = 0;
+    env->step_count = 0;
+    env->numEnemies = 0;
+    env->speed = env->min_speed;
+    env->player_x = INITIAL_PLAYER_X;
+    env->player_y = PLAYER_MAX_Y;
+    env->car_passed_no_crash_active = 1;
+    env->step_rew_car_passed_no_crash = 0.0f;
+    env->crashed_penalty = 0.0f;
+    env->collision_cooldown_car_vs_car = 0.0f;
+    env->collision_cooldown_car_vs_road = 0.0f;
+    env->enemySpawnTimer = 0.0f;
+    env->enemySpawnInterval = 0.8777f;
+    env->last_spawned_lane = -1;
+    env->base_vanishing_point_x = 86.0f;
+    env->current_vanishing_point_x = 86.0f;
+    env->target_vanishing_point_x = 86.0f;
+    env->vanishing_point_x = 86.0f;
+    env->min_speed = MIN_SPEED;
+    env->enemySpeed = ENEMY_CAR_SPEED;
+    env->max_speed = MAX_SPEED;
+    env->drift_direction = 0;
+    env->current_curve_stage = 0;
+    env->steps_in_current_stage = 0;
+    env->current_curve_direction = CURVE_STRAIGHT;
+    env->current_curve_factor = 0.0f;
+    env->target_curve_factor = 0.0f;
+    env->current_step_threshold = 0.0f;
+    env->wiggle_y = VANISHING_POINT_Y;
+    env->wiggle_speed = WIGGLE_SPEED;
+    env->wiggle_length = WIGGLE_LENGTH;
+    env->wiggle_amplitude = WIGGLE_AMPLITUDE;
+    env->wiggle_active = true;
+    env->elapsedTimeEnv = 0.0f;
+
+    env->currentGear = 0;
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        env->enemyCars[i] = (Car){.lane = -1}; // Default lane
+    }
+
+    // Reset enemy cars
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        env->enemyCars[i].lane = -1;
+        env->enemyCars[i].y = 0.0f;
+        env->enemyCars[i].passed = 0;
+    }
+
+    // Reset rewards and logs
+    env->rewards[0] = 0.0f;
+    env->log.episode_return = 0.0f;
+    env->log.episode_length = 0.0f;
+    env->log.score = 0.0f;
+    env->log.reward = 0.0f;
+    env->log.crashed_penalty = 0.0f;
+    env->log.passed_cars = 0.0f;
+    env->log.passed_by_enemy = 0.0f;
+    env->log.cars_to_pass = INITIAL_CARS_TO_PASS;
+    env->log.collisions_player_vs_car = 0.0f;
+    env->log.collisions_player_vs_road = 0.0f;
+
+    // Restore preserved RNG state to maintain reproducibility
+    env->rng_state = preserved_rng_state;
+    env->index = preserved_index;
+
+    // Restart the environment at the beginning of the day
+    env->elapsedTimeEnv = 0.0f;
+    env->currentDayTimeIndex = 0;
+    env->previousDayTimeIndex = NUM_BACKGROUND_TRANSITIONS - 1;
+
+    env->dayCompleted = 0;
+    env->terminals[0] = 0;
+    env->truncateds[0] = 0;
+    env->rewards[0] = 0.0f;
+    env->reset_count += 1;
 }
 
 // Quadratic bezier curve helper function
@@ -693,22 +899,24 @@ void add_enemy_car(Enduro* env) {
 }
 
 void update_time_of_day(Enduro* env) {
-    float elapsedTime   = env->elapsedTimeEnv;
-    float totalDuration = BACKGROUND_TRANSITION_TIMES[15];
+    float elapsedTime = env->elapsedTimeEnv;
+    float totalDuration = env->dayTransitionTimes[15];
+
     if (elapsedTime >= totalDuration) {
         elapsedTime -= totalDuration;
-        env->elapsedTimeEnv = elapsedTime;
+        env->elapsedTimeEnv = elapsedTime; // Reset elapsed time
+        env->dayTimeIndex = 0;
     }
-    int time_idx = 0;
-    while (time_idx < 15 && elapsedTime >= BACKGROUND_TRANSITION_TIMES[time_idx]) {
-        time_idx++;
-    }
+
     env->previousDayTimeIndex = env->currentDayTimeIndex;
-    env->currentDayTimeIndex = (env->reset_count < 2) ? (rand() % 16) : time_idx % 16;
-    if (env->previousDayTimeIndex != env->currentDayTimeIndex) {
-        add_log(env->log_buffer, &env->log);
+
+    while (env->dayTimeIndex < 15 &&
+           elapsedTime >= env->dayTransitionTimes[env->dayTimeIndex]) {
+        env->dayTimeIndex++;
     }
+    env->currentDayTimeIndex = env->dayTimeIndex % 16;
 }
+
 
 void clamp_speed(Enduro* env) {
     if (env->speed < env->min_speed || env->speed > env->max_speed) {
@@ -1157,39 +1365,55 @@ void c_step(Enduro* env) {
             }
         }
     }
+    
+    
+    // Day completed logic
     if (env->carsToPass <= 0 && !env->dayCompleted) {
         env->dayCompleted = true;
     }
-    if (env->car_passed_no_crash_active) {
-        env->rewards[0] += env->step_rew_car_passed_no_crash;
-    }
-    env->rewards[0] += env->crashed_penalty;
-    env->log.crashed_penalty              = env->crashed_penalty;
-    env->log.step_rew_car_passed_no_crash = env->step_rew_car_passed_no_crash;
-    env->log.reward                       = env->rewards[0];
-    env->log.episode_return               = env->rewards[0];
-    env->step_count++;
-    float normalizedSpeed = fminf(fmaxf(env->speed, 1.0f), 2.0f);
-    env->score += (int)normalizedSpeed;
-    env->log.score       = (float)env->score;
-    env->log.cars_to_pass= env->carsToPass;
+
+    // Handle day transition when background cycles back to 0
     if (env->currentDayTimeIndex == 0 && env->previousDayTimeIndex == 15) {
+        // Background cycled back to 0
         if (env->dayCompleted) {
             env->log.days_completed += 1;
             env->day += 1;
             env->rewards[0] += 1.0f;
-            env->carsToPass = 300; // after day 1
+            env->carsToPass = 300; // Always 300 after the first day
             env->dayCompleted = false;
             add_log(env->log_buffer, &env->log);
+                    
         } else {
+            // Player failed to pass required cars, soft-reset environment
             env->log.days_failed += 1.0f;
             env->terminals[0] = true;
             add_log(env->log_buffer, &env->log);
-            compute_observations(env);
-            reset(env);
+            compute_observations(env); // Call compute_observations before reset to log
+            reset_soft(env); // Reset round == soft reset
             return;
         }
     }
+
+    // Reward each step after a car is passed until a collision occurs. 
+    // Then, no rewards per step until next car is passed.
+    if (env->car_passed_no_crash_active) {
+        env->rewards[0] += env->step_rew_car_passed_no_crash;
+    }
+
+    env->rewards[0] += env->crashed_penalty;
+    env->log.crashed_penalty = env->crashed_penalty;
+    env->log.step_rew_car_passed_no_crash = env->step_rew_car_passed_no_crash;
+    env->log.reward = env->rewards[0];
+    env->log.episode_return = env->rewards[0];
+    env->step_count++;
+
+    float normalizedSpeed = fminf(fmaxf(env->speed, 1.0f), 2.0f);
+    env->score += (int)normalizedSpeed;
+    
+    env->log.score = env->score;
+    int local_cars_to_pass = env->carsToPass;
+    env->log.cars_to_pass = (int)local_cars_to_pass;
+
     compute_observations(env);
 }
 

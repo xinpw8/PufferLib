@@ -87,8 +87,8 @@ cdef class CyEnduro:
             self.envs[i].log_buffer = self.logs
             self.envs[i].obs_size = observations.shape[1]
 
-            if i % 100 == 0:
-                print(f"Initializing environment #{i} with seed {unique_seed}")
+            # if i % 100 == 0:
+            #     print(f"Initializing environment #{i} with seed {unique_seed}")
 
             init(&self.envs[i], unique_seed, i)
         

@@ -61,13 +61,16 @@ class Enduro(pufferlib.PufferEnv):
 
         # Update rewards buffer
         self.rewards_buffer.append(np.mean(self.rewards))
-
+        
         info = []
         if self.tick % self.report_interval == 0:
             rewards = np.mean(self.rewards_buffer)
             info.append({'rewards': rewards})
             self.rewards_buffer = []
             log = self.c_envs.log()
+            
+            print(f"info: {info}")
+            print(f"log: {log}")
             if log['episode_length'] > 0:
                 info.append(log)
 
