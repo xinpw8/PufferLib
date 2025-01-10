@@ -5,11 +5,11 @@ import os
 
 # Argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument('--tag', type=str, default='pong')
+parser.add_argument('--tag', type=str, default='pong_resample')
 parser.add_argument('--refresh', action='store_true', help='Refresh runs table')
 parser.add_argument('--output_csv', type=str, default='sweep.csv', help='Output CSV file')
 parser.add_argument('--output_json', type=str, default='sweep.json', help='Output JSON file')
-parser.add_argument('--threshold', type=float, default=10, help='Score threshold')
+parser.add_argument('--threshold', type=float, default=19, help='Score threshold')
 args = parser.parse_args()
 
 # Import and initialize Neptune project
@@ -78,6 +78,7 @@ for key in table.columns:
         'hparam': df['metric'].to_list(),
         'score': df['score'].to_list(),
     }
+
 
 # Sort correlations
 correlations = sorted(correlations.items(),

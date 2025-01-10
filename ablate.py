@@ -58,18 +58,63 @@ def init_neptune(args, name, id=None, resume=True, tag=None):
     )
     return run
 
+import numpy as np
+
+def log_normal(mean, scale, clip):
+    '''Samples normally spaced points on a log 10 scale.
+    mean: Your center sample point
+    scale: standard deviation in base 10 orders of magnitude
+    clip: maximum standard deviations
+
+    Example: mean=0.001, scale=1, clip=2 will produce data from
+    0.1 to 0.00001 with most of it between 0.01 and 0.0001
+    '''
+    return 10**np.clip(
+        np.random.normal(
+            np.log10(mean),
+            scale,
+        ),
+        a_min = np.log10(mean) - clip,
+        a_max = np.log10(mean) + clip,
+    )
+
+def logit_normal(mean, scale, clip):
+    '''log normal but for logit data like gamma and gae_lambda'''
+    return 1 - log_normal(1 - mean, scale, clip)
+
+def uniform_pow2(min, max):
+    '''Uniform distribution over powers of 2 between min and max inclusive'''
+    min_base = np.log2(min)
+    max_base = np.log2(max)
+    return 2**np.random.randint(min_base, max_base+1)
+
+def uniform(min, max):
+    '''Uniform distribution between min and max inclusive'''
+    return np.random.uniform(min, max)
+
+def int_uniform(min, max):
+    '''Uniform distribution between min and max inclusive'''
+    return np.random.randint(min, max+1)
+
+
+#samples = [log_normal(mu = 5e-3, scale = 1, clip = 2.0) for _ in range(7000)]
+#samples = [logit_normal(mu = 0.98, scale = 0.5, clip = 1.0) for _ in range(7000)]
+#samples = [uniform_pow2(min=2, max=64) for _ in range(7000)]
+
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
     import random
     import numpy as np
     import time
 
-    hypers = args['sweep']['parameters']
+    sweep_config = args['sweep']
     #for trial in range(10):
     while True:
         np.random.seed(int(time.time()))
         random.seed(int(time.time()))
-        for group_key, param_group in hypers.items():
-            param_group = param_group['parameters']
+        hypers = {}
+        for group_key in ('train',):
+            hypers[group_key] = {}
+            param_group = sweep_config[group_key]
             for name, param in param_group.items():
                 if 'values' in param:
                     assert 'distribution' not in param
@@ -77,22 +122,29 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
                 elif 'distribution' in param:
                     if param['distribution'] == 'uniform':
                         choice = random.uniform(param['min'], param['max'])
-                    elif param['distribution'] == 'log_uniform_values':
-                        choice = np.exp(np.random.uniform(
-                            np.log(param['min']), np.log(param['max'])))
                     elif param['distribution'] == 'int_uniform':
                         choice = random.randint(param['min'], param['max']+1)
+                    elif param['distribution'] == 'uniform_pow2':
+                        choice = uniform_pow2(param['min'], param['max'])
                     elif param['distribution'] == 'log_normal':
-                        choice = np.exp(np.random.normal(param['mu'], param['sigma']))
+                        choice = log_normal(
+                            param['mean'], param['scale'], param['clip'])
+                    elif param['distribution'] == 'logit_normal':
+                        choice = logit_normal(
+                            param['mean'], param['scale'], param['clip'])
                     else:
                         raise ValueError(f'Invalid distribution: {param["distribution"]}')
                 else:
                     raise ValueError('Must specify either values or distribution')
 
-                args[group_key][name] = choice
+                hypers[group_key][name] = choice
 
         if args['neptune']:
             run = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
+            for k, v in pufferlib.utils.unroll_nested_dict(hypers):
+                run[k].append(v)
+
+            args['train'].update(hypers['train'])
             train(args, make_env, policy_cls, rnn_cls, neptune=run)
         elif args['wandb']:
             run = init_wandb(args, env_name, id=args['exp_id'], tag=args['tag'])

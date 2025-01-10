@@ -32,10 +32,6 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     profile = Profile()
     losses = make_losses()
 
-    if neptune is not None:
-        for k, v in pufferlib.utils.unroll_nested_dict(config):
-            neptune[k].append(v)
-
     utilization = Utilization()
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
     print_dashboard(config.env, utilization, 0, 0, profile, losses, {}, msg, clear=True)
@@ -314,11 +310,11 @@ def mean_and_log(data):
         data.neptune['epoch'].append(data.epoch, step=agent_steps)
         data.neptune['learning_rate'].append(data.optimizer.param_groups[0]["lr"], step=agent_steps)
         for k, v in data.stats.items():
-            data.neptune[k].append(v, step=agent_steps)
+            data.neptune[f'environment/{k}'].append(v, step=agent_steps)
         for k, v in data.losses.items():
-            data.neptune[k].append(v, step=agent_steps)
+            data.neptune[f'losses/{k}'].append(v, step=agent_steps)
         for k, v in data.profile:
-            data.neptune[k].append(v, step=agent_steps)
+            data.neptune[f'performance/{k}'].append(v, step=agent_steps)
 
 def close(data):
     data.vecenv.close()
