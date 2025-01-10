@@ -5,6 +5,7 @@ import glob
 import uuid
 import ast
 import os
+import random
 
 import pufferlib
 import pufferlib.utils
@@ -95,6 +96,37 @@ def uniform(min, max):
 def int_uniform(min, max):
     '''Uniform distribution between min and max inclusive'''
     return np.random.randint(min, max+1)
+
+def sample_hyperparameters(sweep_config):
+    samples = {}
+    for name, param in sweep_config.items():
+        assert isinstance(param, dict)
+        if any(isinstance(param[k], dict) for k in param):
+            samples[name] = sample_hyperparameters(param)
+        elif 'values' in param:
+            assert 'distribution' not in param
+            choice = random.choice(param['values'])
+        elif 'distribution' in param:
+            if param['distribution'] == 'uniform':
+                choice = uniform(param['min'], param['max'])
+            elif param['distribution'] == 'int_uniform':
+                choice = int_uniform(param['min'], param['max'])
+            elif param['distribution'] == 'uniform_pow2':
+                choice = uniform_pow2(param['min'], param['max'])
+            elif param['distribution'] == 'log_normal':
+                choice = log_normal(
+                    param['mean'], param['scale'], param['clip'])
+            elif param['distribution'] == 'logit_normal':
+                choice = logit_normal(
+                    param['mean'], param['scale'], param['clip'])
+            else:
+                raise ValueError(f'Invalid distribution: {param["distribution"]}')
+        else:
+            raise ValueError('Must specify either values or distribution')
+
+        samples[name] = choice
+
+    return samples
 
 
 #samples = [log_normal(mu = 5e-3, scale = 1, clip = 2.0) for _ in range(7000)]
