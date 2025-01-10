@@ -75,6 +75,12 @@ static const int level_one[288] = {
    0,0,0,0,0,0,
    0,0,0,0,0,0,
 };
+
+
+static const int level_two[400] = {
+    // floor 1
+
+};
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS[NUM_DIRECTIONS][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
@@ -154,7 +160,9 @@ struct TowerClimb {
     int robot_position; 
     int robot_direction;
     int robot_state;
+    int robot_orientation;
     int* board_state; 
+    int* blocks_to_move;
     int block_grabbed;
 };
 
@@ -181,6 +189,11 @@ void init(TowerClimb* env) {
 
     env->board_state = (int*)calloc(288, sizeof(int));
     env->block_grabbed = -1;
+    env->blocks_to_move = (int*)calloc(6, sizeof(int));
+    env->robot_orientation = UP;
+    for (int i = 0; i < 6; i++){
+        env->blocks_to_move[i] = -1;
+    }
     memcpy(env->board_state, level_one, 288 * sizeof(int));
 }
 
@@ -203,6 +216,7 @@ void free_allocated(TowerClimb* env) {
     free(env->rewards);
     free_logbuffer(env->log_buffer);
     free_initialized(env);
+    free(env->blocks_to_move);
 }
 
 void compute_observations(TowerClimb* env) {
@@ -255,7 +269,6 @@ void handle_grab_block(TowerClimb *env){
 }
 
 int is_next_to_block(TowerClimb* env, int target_position){
-    printf("target_position: %d\n", target_position);
     int current_floor = target_position / 36;
     int grid_pos = target_position % 36;
     int x = grid_pos % 6;
@@ -274,9 +287,8 @@ int is_next_to_block(TowerClimb* env, int target_position){
         }
         
         int next_index = current_floor * 36 + next_z * 6 + next_x;
-        printf("next_index: %d\n", next_index);
         int next_cell = env->board_state[next_index];
-        printf("next_cell: %d\n", next_cell);
+        printf("next_index: %d, next_cell: %d\n", next_index, next_cell);
         if (next_cell == 1) {
             return 1;
         }
@@ -284,8 +296,33 @@ int is_next_to_block(TowerClimb* env, int target_position){
     return 0;
 }
 
+void add_blocks_to_move(TowerClimb* env, int interval){
+    int start_index = env->blocks_to_move[0];
+    for (int i = 0; i < 6; i++){
+        if(env->blocks_to_move[i-1] == -1 && i != 0){
+            break;
+        }
+        if(env->board_state[start_index + interval * i] == 1){
+            env->blocks_to_move[i] = start_index + interval * i;
+        }
+        
+        printf("blocks_to_move[%d]: %d\n", i, env->blocks_to_move[i]);
+    }
+}
+
+void move_blocks(TowerClimb* env, int interval){
+    for (int i = 0; i < 6; i++){
+        if(env->blocks_to_move[i] != -1){
+            if(i==0){
+                env->board_state[env->blocks_to_move[i]] = 0;
+                
+            }
+            env->board_state[env->blocks_to_move[i] + interval] = 1;
+        }
+    }
+}
+
 void handle_move_forward(TowerClimb* env, int action) {
-    printf("handle_move_forward\n");
     // Calculate current floor, x, z from the robot_position
     int current_floor = env->robot_position / 36;
     int grid_pos = env->robot_position % 36;
@@ -330,44 +367,216 @@ void handle_move_forward(TowerClimb* env, int action) {
 
         int below_next_index = below_index - 36;
         int below_next_cell = -1;
-        if (is_next_to_block(env, next_index) == 0 && env->robot_state == HANGING){
-            return;
-        };
+        if (is_next_to_block(env, next_index) == 0 && env->robot_state == HANGING) {
+            printf("wrapping around block\n");
+            
+            int current_floor = env->robot_position / 36;
+            int found_wrap = 0;
+
+            if (env->robot_orientation == UP) {  // Hanging on north face
+                if (action == RIGHT) {
+                    // Check block directly above first
+                    int block_above = current_floor * 36 + (z-1) * 6 + x;
+                    int block_above_right = current_floor * 36 + (z-1) * 6 + (x+1);
+                    
+                    // Try wrapping around block above if it exists
+                    if (env->board_state[block_above] == 1) {
+                        env->robot_position = current_floor * 36 + (z-1) * 6 + (x+1);
+                        env->robot_direction = RIGHT;
+                        found_wrap = 1;
+                        env->robot_orientation = LEFT;
+                    }
+                    // Otherwise try wrapping around block above-right if it exists
+                    else if (env->board_state[block_above_right] == 1) {
+                        env->robot_position = current_floor * 36 + (z-1) * 6 + (x+2);
+                        env->robot_direction = RIGHT;
+                        found_wrap = 1;
+                        env->robot_orientation = LEFT;
+                    }
+                }
+                else if (action == LEFT) {
+                    // Check block directly above first
+                    int block_above = current_floor * 36 + (z-1) * 6 + x;
+                    int block_above_left = current_floor * 36 + (z-1) * 6 + (x-1);
+                    
+                    // Try wrapping around block above if it exists
+                    if (env->board_state[block_above] == 1) {
+                        env->robot_position = current_floor * 36 + (z-1) * 6 + (x-1);
+                        env->robot_direction = LEFT;
+                        found_wrap = 1;
+                        env->robot_orientation = RIGHT;
+                    }
+                    // Otherwise try wrapping around block above-left if it exists
+                    else if (env->board_state[block_above_left] == 1) {
+                        env->robot_position = current_floor * 36 + (z-1) * 6 + (x-2);
+                        env->robot_direction = LEFT;
+                        found_wrap = 1;
+                        env->robot_orientation = RIGHT;
+                    }
+                }
+            }
+            // Similar logic for other directions (DOWN, LEFT, RIGHT)
+            else if (env->robot_orientation == DOWN) {
+                if (action == RIGHT) {
+                    int block_below = current_floor * 36 + (z+1) * 6 + x;
+                    int block_below_right = current_floor * 36 + (z+1) * 6 + (x+1);
+                    
+                    if (env->board_state[block_below] == 1) {
+                        env->robot_position = current_floor * 36 + (z+1) * 6 + (x+1);
+                        env->robot_direction = RIGHT;
+                        found_wrap = 1;
+                        env->robot_orientation = LEFT;
+                    }
+                    else if (env->board_state[block_below_right] == 1) {
+                        env->robot_position = current_floor * 36 + (z+1) * 6 + (x+2);
+                        env->robot_direction = RIGHT;
+                        found_wrap = 1;
+                        env->robot_orientation = LEFT;
+                    }
+                }
+                else if (action == LEFT) {
+                    int block_below = current_floor * 36 + (z+1) * 6 + x;
+                    int block_below_left = current_floor * 36 + (z+1) * 6 + (x-1);
+                    
+                    if (env->board_state[block_below] == 1) {
+                        env->robot_position = current_floor * 36 + (z+1) * 6 + (x-1);
+                        env->robot_direction = LEFT;
+                        found_wrap = 1;
+                        env->robot_orientation = RIGHT;
+                    }
+                    else if (env->board_state[block_below_left] == 1) {
+                        env->robot_position = current_floor * 36 + (z+1) * 6 + (x-2);
+                        env->robot_direction = LEFT;
+                        found_wrap = 1;
+                        env->robot_orientation = RIGHT;
+                    }
+                }
+            }
+            else if (env->robot_orientation == RIGHT) {
+                if (action == LEFT) {
+                    // Check block to our right
+                    int block_x = x + 1;  // Block is to our right
+                    int block_z = z;
+                    int block_index = current_floor * 36 + block_z * 6 + block_x;
+                    
+                    if (env->board_state[block_index] == 1) {
+                        // Wrap to north face of the same block
+                        env->robot_position = current_floor * 36 + (block_z - 1) * 6 + block_x;
+                        env->robot_direction = UP;
+                        found_wrap = 1;
+                        env->robot_orientation = DOWN;
+                    }
+                }
+                else if (action == RIGHT) {
+                    // Check block to our right
+                    int block_x = x + 1;  // Block is to our right
+                    int block_z = z;
+                    int block_index = current_floor * 36 + block_z * 6 + block_x;
+                    
+                    if (env->board_state[block_index] == 1) {
+                        // Wrap to south face of the same block
+                        env->robot_position = current_floor * 36 + (block_z + 1) * 6 + block_x;
+                        env->robot_direction = DOWN;
+                        found_wrap = 1;
+                        env->robot_orientation = UP;
+                    }
+                }
+            }
+            else if (env->robot_orientation == LEFT) {
+                if (action == RIGHT) {
+                    // Check block to our left
+                    int block_x = x - 1;  // Block is to our left
+                    int block_z = z;
+                    int block_index = current_floor * 36 + block_z * 6 + block_x;
+                    
+                    if (env->board_state[block_index] == 1) {
+                        // Wrap to north face of the same block
+                        env->robot_position = current_floor * 36 + (block_z - 1) * 6 + block_x;
+                        env->robot_direction = UP;
+                        found_wrap = 1;
+                        env->robot_orientation = DOWN;
+                    }
+                }
+                else if (action == LEFT) {
+                    // Check block to our left
+                    int block_x = x - 1;  // Block is to our left
+                    int block_z = z;
+                    int block_index = current_floor * 36 + block_z * 6 + block_x;
+                    
+                    if (env->board_state[block_index] == 1) {
+                        // Wrap to south face of the same block
+                        env->robot_position = current_floor * 36 + (block_z + 1) * 6 + block_x;
+                        env->robot_direction = DOWN;
+                        found_wrap = 1;
+                        env->robot_orientation = UP;
+                    }
+                }
+            }
+
+            if (found_wrap) {
+                printf("wrapped to index: %d, new direction: %d\n", env->robot_position, env->robot_direction);
+                return;
+            }
+        }
+        printf("robot_orientation: %d\n", env->robot_orientation);
+
         if(below_next_index > 0){
             below_next_cell = env->board_state[below_next_index];
         }
         
-        if ((below_cell == 1 && env->robot_state == DEFAULT) ){
-            env->robot_position = next_index;
-            env->robot_state = DEFAULT;
-        }
-        else if (below_cell == 0 && env->robot_state == HANGING){
+        // Hanging state cases
+        if (below_cell == 0 && env->robot_state == HANGING) {
             env->robot_position = next_index;
             env->robot_state = HANGING;
+            return;
         }
 
-        else if (below_cell == 0 && below_next_cell <= 0){
+        if (below_cell == 1 && env->robot_state == HANGING) {
+            env->robot_position = next_index;
+            return;
+        }
+
+        // Default state cases
+        if (below_cell == 1 && env->robot_state == DEFAULT) {
+            env->robot_position = next_index;
+            env->robot_state = DEFAULT;
+            return;
+        }
+
+        if (below_cell == 0 && below_next_cell <= 0) {
             env->robot_position = below_index;
             env->robot_state = HANGING;
+            if(env->robot_direction == RIGHT){
+                env->robot_orientation = LEFT;
+            }
+            if(env->robot_direction == LEFT){
+                env->robot_orientation = RIGHT;
+            }
+            if(env->robot_direction == DOWN){
+                env->robot_orientation = UP;
+            }
+            if(env->robot_direction == UP){
+                env->robot_orientation = DOWN;
+            }
+            printf("robot_orientation: %d\n", env->robot_orientation);
+            return;
         }
-        else if(below_cell == 1 && env->robot_state == HANGING){
-            env->robot_position = next_index;
-        }
-        else {
-            env->robot_position = below_index;
-            env->robot_state = DEFAULT;
-        }
+
+        // Default case
+        env->robot_position = below_index;
+        env->robot_state = DEFAULT;
     }
     else if ((next_cell == 1 || next_cell == 2) && env->block_grabbed == -1) {
         // There's a block in front. Check if we can climb up to the floor above it
         if (current_floor < 8) { // we have space above if current_floor < 8
             int above_index = (current_floor + 1) * 36 + next_z * 6 + next_x;
             int above_cell = env->board_state[above_index];
-            printf("above_index: %d, above_cell: %d\n", above_index, above_cell);
             // If the above cell is free (0) or the goal (2), climb onto it
-            if (above_cell == 0 || above_cell == 2) {
+            if (above_cell == 0 ) {
                 env->robot_position = above_index;
                 env->robot_state = DEFAULT; // set hanging to indicate we climbed a block
+                env->robot_orientation = UP;
+                printf("robot_orientation: %d\n", env->robot_orientation);
             }
             else {
                 // If there's also a cube (1) above, we cannot climb
@@ -376,18 +585,27 @@ void handle_move_forward(TowerClimb* env, int action) {
         }
     }
     else if (front_cell == 1 && env->block_grabbed != -1) {
-        env->board_state[front_index] = 0;
+        env->blocks_to_move[0] = front_index;
         // Calculate block position based on direction
         int block_offset = (env->robot_direction == 3) ? -6 :  // North
                           (env->robot_direction == 1) ? 6 :    // South
                           (env->robot_direction == 0) ? 1 :    // East
                           (env->robot_direction == 2) ? -1 :   // West
-                          -6;  // Default to north behavior for other directions
-        env->board_state[next_index + block_offset] = 1;
-        env->block_grabbed = next_index + block_offset;
-        int below_index = (current_floor - 1) * 36 + next_z * 6 + next_x;
-        int below_cell = env->board_state[below_index];
-        if (abs(env->robot_direction - action) == 2){
+                          -6;  // Default to north behavior for other direction
+        // Pushing
+        int push_condition = abs(env->robot_direction - action) == 0;
+        if(push_condition){
+            add_blocks_to_move(env, block_offset);
+            move_blocks(env, block_offset);
+        }
+        // Pulling
+        int pull_condition = abs(env->robot_direction - action) == 2;
+        if (pull_condition){
+            int below_index = (current_floor - 1) * 36 + next_z * 6 + next_x;
+            int below_cell = env->board_state[below_index];
+            env->board_state[front_index] = 0;
+            env->board_state[next_index + block_offset] = 1;
+            env->block_grabbed = next_index + block_offset;
             if (below_cell == 0 && env->robot_state == DEFAULT){
                 env->robot_position = below_index;
                 env->robot_state = HANGING;
@@ -398,9 +616,8 @@ void handle_move_forward(TowerClimb* env, int action) {
         if (env->robot_position != next_index){
             env->block_grabbed = -1;
         }
-        printf("block_grabbed: %d\n", env->block_grabbed);
-        printf("robot_position: %d\n", env->robot_position);
-        printf("board_state: %d\n", env->board_state[next_index + block_offset]);
+        memset(env->blocks_to_move, -1, 6 * sizeof(int));
+        
     }
 }
 
