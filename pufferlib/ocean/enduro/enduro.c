@@ -1,7 +1,3 @@
-// enduro.c
-
-#define MAX_ENEMIES 10
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -9,6 +5,8 @@
 #include "enduro.h"
 #include "raylib.h"
 #include "puffernet.h"
+
+#define MAX_ENEMIES 10
 
 void get_input(Enduro* env) {
         if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_D))) {
@@ -33,9 +31,6 @@ void get_input(Enduro* env) {
 }
 
 int demo() {
-    // Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
-    // LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
-
     Weights* weights = load_weights("resources/enduro/0105enduro_weights.bin", 142218);
     LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
 
@@ -59,12 +54,12 @@ int demo() {
         }
 
         c_step(&env);
-        c_render(client, &env);
+        render(client, &env);
     }
 
     free_linearlstm(net);
     free(weights);
-    close_client(client, &env);
+    close_client(client);
     free_allocated(&env);
     return 0;
 }

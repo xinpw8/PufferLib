@@ -1,5 +1,3 @@
-# enduro_clone.py
-
 import numpy as np
 import gymnasium
 import pufferlib
@@ -7,7 +5,7 @@ from pufferlib.ocean.enduro.cy_enduro import CyEnduro
 
 class Enduro(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, frame_skip=1, render_mode='human',
-                 report_interval=100, buf=None):
+                 report_interval=1, buf=None):
 
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -23,15 +21,11 @@ class Enduro(pufferlib.PufferEnv):
             low=0, high=1, shape=(self.num_obs,), dtype=np.float32
         )
         self.single_action_space = gymnasium.spaces.Discrete(9)
-
-        # Initialize buffers
         self.observations = np.zeros((self.num_agents, self.num_obs), dtype=np.float32)
         self.actions = np.zeros((self.num_agents,), dtype=np.int32)
         self.rewards = np.zeros((self.num_agents,), dtype=np.float32)
         self.terminals = np.zeros((self.num_agents,), dtype=np.uint8)
         self.truncations = np.zeros((self.num_agents,), dtype=np.uint8)
-
-        # Rewards buffer for smoothing reward curve
         self.rewards_buffer = []
 
         super().__init__(buf=buf)
@@ -54,12 +48,9 @@ class Enduro(pufferlib.PufferEnv):
         for _ in range(self.frame_skip):
             self.actions[:] = actions
             self.c_envs.step()
-
-            # Check for terminal or truncated states
             if np.any(self.terminals) or np.any(self.truncations):
                 break
 
-        # Update rewards buffer
         self.rewards_buffer.append(np.mean(self.rewards))
         
         info = []
@@ -67,13 +58,9 @@ class Enduro(pufferlib.PufferEnv):
             rewards = np.mean(self.rewards_buffer)
             info.append({'rewards': rewards})
             self.rewards_buffer = []
-            log = self.c_envs.log()
-            
-            print(f"info: {info}")
-            print(f"log: {log}")
+            log = self.c_envs.log()        
             if log['episode_length'] > 0:
                 info.append(log)
-
         self.tick += 1
 
         return (

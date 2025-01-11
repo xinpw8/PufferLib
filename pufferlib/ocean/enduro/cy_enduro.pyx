@@ -1,6 +1,4 @@
-# cy_puffer_enduro.pyx
 # cython: language_level=3
-
 cimport numpy as cnp
 from libc.stdlib cimport malloc, calloc, free
 from libc.string cimport memset
@@ -48,10 +46,9 @@ cdef extern from "enduro.h":
     void init(Enduro* env, int seed, int env_index)
     void reset(Enduro* env)
     void c_step(Enduro* env)
-    void c_render(GameState* client, Enduro* env)
-    void close_client(GameState* client, Enduro* env)
+    void render(GameState* client, Enduro* env)
+    void close_client(GameState* client)
 
-# Define Cython wrapper class
 cdef class CyEnduro:
     cdef:
         Enduro* envs
@@ -70,11 +67,10 @@ cdef class CyEnduro:
         cdef int i
         cdef long t
         self.num_envs = num_envs
-
         self.envs = <Enduro*>calloc(num_envs, sizeof(Enduro))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
-        from time import time as py_time  # Python time module for high-resolution time
+        from time import time as py_time
 
         for i in range(num_envs):
             unique_seed = rng.randint(0, 2**32 - 1) & 0x7FFFFFFF
@@ -86,12 +82,7 @@ cdef class CyEnduro:
             self.envs[i].truncateds = &truncateds[i]
             self.envs[i].log_buffer = self.logs
             self.envs[i].obs_size = observations.shape[1]
-
-            # if i % 100 == 0:
-            #     print(f"Initializing environment #{i} with seed {unique_seed}")
-
-            init(&self.envs[i], unique_seed, i)
-        
+            init(&self.envs[i], unique_seed, i)        
         self.client = NULL
 
     def reset(self):
@@ -111,12 +102,11 @@ cdef class CyEnduro:
             os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(&self.envs[0])
             os.chdir(cwd)
-
-        c_render(self.client, &self.envs[0])
+        render(self.client, &self.envs[0])
 
     def close(self):
         if self.client:
-            close_client(self.client, &self.envs[0])
+            close_client(self.client)
         if self.envs:
             free(self.envs)
         if self.logs:
