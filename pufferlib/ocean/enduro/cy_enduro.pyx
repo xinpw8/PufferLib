@@ -65,7 +65,6 @@ cdef class CyEnduro:
                  int num_envs):
 
         cdef int i
-        cdef long t
         self.num_envs = num_envs
         self.envs = <Enduro*>calloc(num_envs, sizeof(Enduro))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
