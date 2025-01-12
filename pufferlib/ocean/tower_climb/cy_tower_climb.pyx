@@ -14,7 +14,7 @@ cdef extern from "tower_climb.h":
     Log aggregate_and_clear(LogBuffer*)
 
 
-    ctypedef struct TowerClimb:
+    ctypedef struct CTowerClimb:
         float* observations;
         int* actions;
         float* rewards;
@@ -37,19 +37,19 @@ cdef extern from "tower_climb.h":
 
     ctypedef struct Client
 
-    void init(TowerClimb* env)
-    void free_allocated(TowerClimb* env)
+    void init(CTowerClimb* env)
+    void free_allocated(CTowerClimb* env)
 
 
-    Client* make_client(TowerClimb* env)
+    Client* make_client(CTowerClimb* env)
     void close_client(Client* client)
-    void render(Client* client, TowerClimb* env)
-    void reset(TowerClimb* env)
-    void step(TowerClimb* env)
+    void render(Client* client, CTowerClimb* env)
+    void reset(CTowerClimb* env)
+    void step(CTowerClimb* env)
 
 cdef class CyTowerClimb:
     cdef:
-        TowerClimb* envs
+        CTowerClimb* envs
         Client* client
         LogBuffer* logs
         int num_envs
@@ -60,12 +60,12 @@ cdef class CyTowerClimb:
 
         self.client = NULL
         self.num_envs = num_envs
-        self.envs = <TowerClimb*> calloc(num_envs, sizeof(TowerClimb))
+        self.envs = <CTowerClimb*> calloc(num_envs, sizeof(CTowerClimb))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
         cdef int i
         for i in range(num_envs):
-            self.envs[i] = TowerClimb(
+            self.envs[i] = CTowerClimb(
                 observations=&observations[i, 0],
                 actions=&actions[i],
                 rewards=&rewards[i],
@@ -89,7 +89,7 @@ cdef class CyTowerClimb:
             step(&self.envs[i])
 
     def render(self):
-        cdef TowerClimb* env = &self.envs[0]
+        cdef CTowerClimb* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env)
 

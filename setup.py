@@ -255,7 +255,8 @@ extension_paths = [
     'pufferlib/ocean/tripletriad/cy_tripletriad',
     'pufferlib/ocean/go/cy_go',
     'pufferlib/ocean/rware/cy_rware',
-    'pufferlib/ocean/trash_pickup/cy_trash_pickup'
+    'pufferlib/ocean/trash_pickup/cy_trash_pickup',
+    'pufferlib/ocean/tower_climb/cy_tower_climb',
 ]
 
 system = platform.system()

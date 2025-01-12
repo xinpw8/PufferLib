@@ -28,7 +28,7 @@ class TowerClimb(pufferlib.PufferEnv):
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(6)
 
-        super().__init__(buf=buf)
+        super().__init__(buf=buf)   
         self.c_envs = CyTowerClimb(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, width, height, map_choice)
 
