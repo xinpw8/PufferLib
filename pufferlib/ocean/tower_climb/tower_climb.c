@@ -12,6 +12,7 @@ void demo(int map_choice) {
     TowerClimb  env = {
         .width = width,
         .height = height,
+        .map_choice = map_choice,
     };
     
 
@@ -52,7 +53,8 @@ void performance_test() {
     long test_time = 10;
     TowerClimb env = {
         .width = 1280,
-        .height = 704,
+        .height = 1024,
+        .map_choice = 1,
         
     };
     allocate(&env);
@@ -72,6 +74,6 @@ void performance_test() {
 
 int main() {
     demo(1);
-    //performance_test();
+    // performance_test();
     return 0;
 }

@@ -9,34 +9,28 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.ocean.rware.cy_rware import CyRware
+from pufferlib.ocean.tower_climb.cy_tower_climb import CyTowerClimb
 
-PLAYER_OBS_N = 27
 
-class Rware(pufferlib.PufferEnv):
+class TowerClimb(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=1280, height=1024,
-            num_agents=4,
             map_choice=1,
-            num_requested_shelves=4,
-            grid_square_size=64,
-            human_agent_idx=0,
-            reward_type=1,
             buf = None):
 
         # env
-        self.num_agents = num_envs*num_agents
+        self.num_agents = num_envs
         self.render_mode = render_mode
         self.report_interval = report_interval
         
-        self.num_obs = 27
+        self.num_obs = 288
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)
-        self.single_action_space = gymnasium.spaces.Discrete(5)
+        self.single_action_space = gymnasium.spaces.Discrete(6)
 
         super().__init__(buf=buf)
-        self.c_envs = CyRware(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, width, height, map_choice, num_agents, num_requested_shelves, grid_square_size, human_agent_idx)
+        self.c_envs = CyTowerClimb(self.observations, self.actions, self.rewards,
+            self.terminals, num_envs, width, height, map_choice)
 
 
     def reset(self, seed=None):
@@ -65,11 +59,11 @@ class Rware(pufferlib.PufferEnv):
 
 def test_performance(timeout=10, atn_cache=1024):
     num_envs=1000;
-    env = MyRware(num_envs=num_envs)
+    env = TowerClimb(num_envs=num_envs)
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, 5*num_envs))
+    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs))
 
     import time
     start = time.time()

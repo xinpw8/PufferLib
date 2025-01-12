@@ -1,94 +1,79 @@
 from libc.stdlib cimport calloc, free
 
-cdef extern from "rware.h":
+cdef extern from "tower_climb.h":
     int LOG_BUFFER_SIZE
 
     ctypedef struct Log:
         float episode_return;
         float episode_length;
-        float shelves_delivered;
-        float score;
+        float rows_cleared;
 
     ctypedef struct LogBuffer
     LogBuffer* allocate_logbuffer(int)
     void free_logbuffer(LogBuffer*)
     Log aggregate_and_clear(LogBuffer*)
 
-    ctypedef struct MovementGraph:
-        int* target_positions;
-        int* cycle_ids;
-        int* weights;
-        int num_cycles;
 
-    ctypedef struct CRware:
+    ctypedef struct TowerClimb:
         float* observations;
         int* actions;
         float* rewards;
         unsigned char* dones;
         LogBuffer* log_buffer;
-        Log* logs;
-        float* scores;
+        Log log;
+        float score;
         int width;
         int height;
         int map_choice;
-        int* warehouse_states;
-        int num_agents;
-        int num_requested_shelves;
-        int* agent_locations;
-        int* agent_directions;
-        int* agent_states;
-        int shelves_delivered;
-        int human_agent_idx;
-        int grid_square_size;
-        int* original_shelve_locations;
-        MovementGraph* movement_graph;
+        int robot_position; 
+        int robot_direction;
+        int robot_state;
+        int robot_orientation;
+        int* board_state; 
+        int* blocks_to_move;
+        int* blocks_to_fall;
+        int block_grabbed;
+        int rows_cleared;
 
     ctypedef struct Client
 
-    void init(CRware* env)
-    void free_allocated(CRware* env)
+    void init(TowerClimb* env)
+    void free_allocated(TowerClimb* env)
 
 
-    Client* make_client(CRware* env)
+    Client* make_client(TowerClimb* env)
     void close_client(Client* client)
-    void render(Client* client, CRware* env)
-    void reset(CRware* env)
-    void step(CRware* env)
+    void render(Client* client, TowerClimb* env)
+    void reset(TowerClimb* env)
+    void step(TowerClimb* env)
 
-cdef class CyRware:
+cdef class CyTowerClimb:
     cdef:
-        CRware* envs
+        TowerClimb* envs
         Client* client
         LogBuffer* logs
         int num_envs
 
     def __init__(self, float[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int width, int height, int map_choice, int num_agents, int num_requested_shelves, 
-            int grid_square_size, int human_agent_idx):
+            int width, int height, int map_choice):
 
         self.client = NULL
         self.num_envs = num_envs
-        self.envs = <CRware*> calloc(num_envs, sizeof(CRware))
+        self.envs = <TowerClimb*> calloc(num_envs, sizeof(TowerClimb))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
-
-        cdef int inc = num_agents
 
         cdef int i
         for i in range(num_envs):
-            self.envs[i] = CRware(
-                observations=&observations[inc*i, 0],
-                actions=&actions[inc*i],
-                rewards=&rewards[inc*i],
-                dones=&terminals[inc*i],
+            self.envs[i] = TowerClimb(
+                observations=&observations[i, 0],
+                actions=&actions[i],
+                rewards=&rewards[i],
+                dones=&terminals[i],
                 log_buffer=self.logs,
                 width=width,
                 height=height,
                 map_choice=map_choice,
-                num_agents=num_agents,
-                num_requested_shelves=num_requested_shelves,
-                grid_square_size=grid_square_size,
-                human_agent_idx=human_agent_idx,
             )
             init(&self.envs[i])
             self.client = NULL
@@ -104,15 +89,11 @@ cdef class CyRware:
             step(&self.envs[i])
 
     def render(self):
-        cdef CRware* env = &self.envs[0]
+        cdef TowerClimb* env = &self.envs[0]
         if self.client == NULL:
-            import os
-            cwd = os.getcwd()
-            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(env)
-            os.chdir(cwd)
 
-        render(self.client, env)
+        render(self.client, &self.envs[0])
 
     def close(self):
         if self.client != NULL:
