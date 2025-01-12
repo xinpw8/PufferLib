@@ -625,7 +625,29 @@ void handle_move_forward(TowerClimb* env, int action) {
     }
 }
 
-
+void handle_drop(TowerClimb* env){
+    int next_position = env->robot_position - 36;
+    if (env->robot_position < 36){
+        env->dones[0] = 1;
+        env->log.episode_return = -1;
+        add_log(env->log_buffer, &env->log);
+        reset(env);
+        return;
+    }
+    while (env->board_state[next_position] != 1){
+        if(next_position < 36){
+            env->dones[0] = 1;
+            env->log.episode_return = -1;
+            add_log(env->log_buffer, &env->log);
+            reset(env);
+            return;
+        } 
+        next_position = next_position - 36;  
+    }
+    env->robot_position = next_position + 36;
+    env->robot_state = DEFAULT;
+    env->robot_orientation = env->robot_direction;
+}
 
 void step(TowerClimb* env) {
     int action = env->actions[0];
@@ -655,6 +677,12 @@ void step(TowerClimb* env) {
         }
         else if (action == GRAB){
             handle_grab_block(env);
+        }
+        else if (action == DROP){
+            env->block_grabbed = -1;
+            if(env->robot_state == HANGING){
+                handle_drop(env);
+            }
         }
     }
     compute_observations(env);
