@@ -603,16 +603,16 @@ ConvLSTM* make_convlstm(Weights* weights, int num_agents, int input_dim,
         int input_channels, int cnn_channels, int hidden_dim, int action_dim) {
     ConvLSTM* net = calloc(1, sizeof(ConvLSTM));
     net->num_agents = num_agents;
-    net->obs = calloc(num_agents*input_dim*input_dim, sizeof(float));
+    net->obs = calloc(num_agents*input_dim*input_dim*input_channels, sizeof(float));
     net->conv1 = make_conv2d(weights, num_agents, input_dim,
         input_dim, input_channels, cnn_channels, 5, 3);
     net->relu1 = make_relu(num_agents, hidden_dim*3*3);
-    net->conv2 = make_conv2d(weights, num_agents, 3, 3, hidden_dim, hidden_dim, 3, 1);
+    net->conv2 = make_conv2d(weights, num_agents, 3, 3, cnn_channels, cnn_channels, 3, 1);
     net->relu2 = make_relu(num_agents, hidden_dim);
-    net->linear = make_linear(weights, num_agents, hidden_dim, 128);
-    net->actor = make_linear(weights, num_agents, 128, action_dim);
-    net->value_fn = make_linear(weights, num_agents, 128, 1);
-    net->lstm = make_lstm(weights, num_agents, 128, 128);
+    net->linear = make_linear(weights, num_agents, cnn_channels, hidden_dim);
+    net->actor = make_linear(weights, num_agents, hidden_dim, action_dim);
+    net->value_fn = make_linear(weights, num_agents, hidden_dim, 1);
+    net->lstm = make_lstm(weights, num_agents, hidden_dim, hidden_dim);
     int logit_sizes[1] = {action_dim};
     net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
     return net;

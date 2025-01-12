@@ -15,7 +15,7 @@ ALIASES = {
 def env_creator(name='cartpole'):
     return functools.partial(make, name)
 
-def make(name, render_mode='rgb_array'):
+def make(name, render_mode='rgb_array', buf=None):
     '''Create an environment by name'''
 
     if name in ALIASES:
@@ -30,7 +30,7 @@ def make(name, render_mode='rgb_array'):
     #env = gymnasium.wrappers.NormalizeReward(env, gamma=gamma)
     env = gymnasium.wrappers.TransformReward(env, lambda reward: np.clip(reward, -1, 1))
     env = pufferlib.postprocess.EpisodeStats(env)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class MountainCarWrapper(gymnasium.Wrapper):
     def step(self, action):

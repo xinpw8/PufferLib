@@ -14,7 +14,7 @@ import pufferlib.postprocess
 def env_creator(name='doom'):
     return functools.partial(make, name)
 
-def make(name, framestack=1, render_mode='rgb_array'):
+def make(name, framestack=1, render_mode='rgb_array', buf=None):
     '''Atari creation function with default CleanRL preprocessing based on Stable Baselines3 wrappers'''
     if name == 'doom':
         name = 'VizdoomHealthGatheringSupreme-v0'
@@ -44,7 +44,7 @@ def make(name, framestack=1, render_mode='rgb_array'):
     #env = ClipRewardEnv(env)
     #env = gym.wrappers.GrayScaleObservation(env)
     #env = gym.wrappers.FrameStack(env, framestack)
-    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class DoomWrapper(gym.Wrapper):
     '''Gymnasium env does not expose proper options for screen scale and

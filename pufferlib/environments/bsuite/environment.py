@@ -11,7 +11,7 @@ from bsuite.utils import gym_wrapper
 def env_creator(name='bandit/0'):
     return functools.partial(make, name)
 
-def make(name='bandit/0', results_dir='experiments/bsuite', overwrite=True):
+def make(name='bandit/0', results_dir='experiments/bsuite', overwrite=True, buf=None):
     '''BSuite environments'''
     bsuite = pufferlib.environments.try_import('bsuite')
     from bsuite.utils import gym_wrapper
@@ -19,7 +19,7 @@ def make(name='bandit/0', results_dir='experiments/bsuite', overwrite=True):
     env = gym_wrapper.GymFromDMEnv(env)
     env = BSuiteStopper(env)
     env = pufferlib.wrappers.GymToGymnasium(env)
-    env = pufferlib.emulation.GymnasiumPufferEnv(env)
+    env = pufferlib.emulation.GymnasiumPufferEnv(env, buf=buf)
     return env
 
 class BSuiteStopper:
