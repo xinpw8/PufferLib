@@ -9,7 +9,7 @@ void demo(int map_choice) {
     int width = 1000;
     int height = 1000;
     
-    TowerClimb  env = {
+    CTowerClimb  env = {
         .width = width,
         .height = height,
         .map_choice = map_choice,
@@ -51,7 +51,7 @@ void demo(int map_choice) {
 
 void performance_test() {
     long test_time = 10;
-    TowerClimb env = {
+    CTowerClimb env = {
         .width = 1280,
         .height = 1024,
         .map_choice = 1,
