@@ -26,7 +26,6 @@ class Enduro(pufferlib.PufferEnv):
         self.rewards = np.zeros((self.num_agents,), dtype=np.float32)
         self.terminals = np.zeros((self.num_agents,), dtype=np.uint8)
         self.truncations = np.zeros((self.num_agents,), dtype=np.uint8)
-        self.rewards_buffer = []
 
         super().__init__(buf=buf)
 
@@ -50,14 +49,9 @@ class Enduro(pufferlib.PufferEnv):
             self.c_envs.step()
             if np.any(self.terminals) or np.any(self.truncations):
                 break
-
-        self.rewards_buffer.append(np.mean(self.rewards))
         
         info = []
         if self.tick % self.report_interval == 0:
-            rewards = np.mean(self.rewards_buffer)
-            info.append({'rewards': rewards})
-            self.rewards_buffer = []
             log = self.c_envs.log()        
             if log['episode_length'] > 0:
                 info.append(log)
@@ -77,7 +71,7 @@ class Enduro(pufferlib.PufferEnv):
     def close(self):
         self.c_envs.close()
         
-def test_performance(timeout=10, atn_cache=8192):
+def test_performance(timeout=10, atn_cache=4096):
     num_envs = 4096
     env = Enduro(num_envs=num_envs)
     env.reset()

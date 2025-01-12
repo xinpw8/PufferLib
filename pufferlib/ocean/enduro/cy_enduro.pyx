@@ -1,8 +1,7 @@
 # cython: language_level=3
 cimport numpy as cnp
-from libc.stdlib cimport malloc, calloc, free
+from libc.stdlib cimport calloc, free
 from libc.string cimport memset
-from libc.time cimport time
 from random import SystemRandom
 
 rng = SystemRandom()
@@ -38,7 +37,6 @@ cdef extern from "enduro.h":
         unsigned char* truncateds
         LogBuffer* log_buffer
         size_t obs_size
-        int num_envs
     
     ctypedef struct GameState
     GameState* make_client(Enduro* env)
@@ -68,8 +66,6 @@ cdef class CyEnduro:
         self.num_envs = num_envs
         self.envs = <Enduro*>calloc(num_envs, sizeof(Enduro))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
-
-        from time import time as py_time
 
         for i in range(num_envs):
             unique_seed = rng.randint(0, 2**32 - 1) & 0x7FFFFFFF
@@ -114,4 +110,3 @@ cdef class CyEnduro:
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)
         return log
-
