@@ -128,15 +128,15 @@ int get_direction(CTowerClimb* env, int action) {
 
 
 void init(CTowerClimb* env) {
-    env->level = levels[0];
-    memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
-    memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
+    env->level = level_one;
     env->board_state = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->block_grabbed = -1;
     env->blocks_to_move = (int*)calloc(env->level.rows, sizeof(int));
     env->blocks_to_fall = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->rows_cleared = 0;
     env->robot_orientation = UP;
+    memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
+    memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
     for (int i = 0; i < env->level.rows; i++){
         env->blocks_to_move[i] = -1;
     }
@@ -167,7 +167,7 @@ void free_allocated(CTowerClimb* env) {
 }
 
 void compute_observations(CTowerClimb* env) {
-    
+    memcpy(env->observations, env->board_state, env->level.total_length * sizeof(int));
 }
 
 void reset(CTowerClimb* env) {
@@ -177,7 +177,7 @@ void reset(CTowerClimb* env) {
     env->robot_direction = 2;
     env->robot_state = DEFAULT;
     env->block_grabbed = -1;
-    env->level = levels[0];
+    env->level = level_one;
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     compute_observations(env);
 }
@@ -253,7 +253,7 @@ void add_blocks_to_move(CTowerClimb* env, int interval){
     int cols = env->level.cols;
     for (int i = 0; i < cols; i++){
         int b_address = start_index + interval * i;
-        if(env->blocks_to_move[i-1] == -1 && i != 0){
+        if(i!=0 && env->blocks_to_move[i-1] == -1){
             break;
         }
         if(env->board_state[b_address] == 1){
@@ -464,9 +464,19 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
     int sz = env->level.size;
     int cols = env->level.cols;
     int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
-    int below_cell = env->board_state[below_index];
+    int below_cell;
+    if(below_index >= 0){
+	   below_cell =  env->board_state[below_index];
+    } else {
+	    below_cell = -1;
+    }
     int below_next_index = below_index - sz;
-    int below_next_cell = env->board_state[below_next_index];
+    int below_next_cell;
+    if (below_next_index >= 0){
+	    below_next_cell = env->board_state[below_next_index];
+    } else{
+    	below_next_cell = -1;
+    }
     // Default state cases
     if (below_cell == 1 && env->robot_state == DEFAULT) {
         env->robot_position = next_index;
@@ -502,7 +512,12 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
     int sz = env->level.size;
     int cols = env->level.cols;
     int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
-    int below_cell = env->board_state[below_index];
+    int below_cell;
+    if (below_index >=0){
+	below_cell = env->board_state[below_index];
+    } else {
+	    below_cell = -1;
+    }
     // shimmying
     if (env->robot_state == HANGING){
         int local_direction = get_local_direction(env, action);
@@ -639,7 +654,12 @@ void handle_move_forward(CTowerClimb* env, int action) {
     int front_index = current_floor * sz + front_z * cols + front_x;
     int front_cell = env->board_state[front_index];
     int front_below_index = front_index - sz;
-    int front_below_cell = env->board_state[front_below_index];
+    int front_below_cell;
+    if(front_below_index >= 0){
+	    front_below_cell = env->board_state[front_below_index];
+    } else {
+	    front_below_cell = -1;
+    }
     // Calculate the next potential cell’s x, z
     int next_x = x + dx;
     int next_z = z + dz;
@@ -751,6 +771,10 @@ void step(CTowerClimb* env) {
             handle_move_forward(env, action);
             int sz = env->level.size;
             int below_index = env->robot_position - sz;
+	    if(below_index < 0){
+		    compute_observations(env);
+		    return;
+	    }
             // check if goal is below current position
             if (env->board_state[below_index] == 2){
                 env->dones[0] = 1;

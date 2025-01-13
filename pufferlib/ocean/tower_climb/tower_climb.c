@@ -34,8 +34,8 @@ void demo(int map_choice) {
         if (IsKeyPressed(KEY_LEFT_SHIFT)){
             env.actions[0] = DROP;
         }
-        // render(client, &env);
-        // step(&env);
+        //render(client, &env);
+        step(&env);
     }
     close_client(client);
     free_allocated(&env);
@@ -63,7 +63,7 @@ void performance_test() {
 }
 
 int main() {
-    demo(1);
-    // performance_test();
+    //demo(1);
+     performance_test();
     return 0;
 }
