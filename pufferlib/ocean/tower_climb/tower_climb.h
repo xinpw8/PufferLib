@@ -5,6 +5,7 @@
 #include <string.h>
 #include "raylib.h"
 #include "raymath.h"
+#include "levels.h"
 #define NOOP -1
 #define UP 3
 #define LEFT 2
@@ -16,75 +17,16 @@
 #define HANGING 1
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
-
-static const int level_one[288] = {
-   // floor 1 
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,1,1,1,1,0,
-   0,0,0,0,0,0,
-   // floor 2
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,1,1,1,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   // floor 3
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,1,1,1,1,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   // floor 4
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,1,1,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   // floor 5
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,1,1,1,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   // floor 6 
-   0,0,0,0,0,0,
-   0,0,0,1,1,0,
-   0,1,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   // floor 7
-   0,0,0,0,0,0,
-   0,0,0,1,1,0,
-   0,1,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   // floor 8
-   0,0,0,0,0,0,
-   0,0,0,0,2,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-   0,0,0,0,0,0,
-};
+#define LEVEL_MAX_SIZE 432
 
 
-static const int level_two[400] = {
-    // floor 1
 
-};
+
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS[NUM_DIRECTIONS][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
 #define LOG_BUFFER_SIZE 1024
+
 
 static inline int max(int a, int b) {
     return (a > b) ? a : b;
@@ -144,18 +86,15 @@ Log aggregate_and_clear(LogBuffer* logs) {
     return log;
 }
 
-
 typedef struct CTowerClimb CTowerClimb;
 struct CTowerClimb {
-    float* observations;
+    int* observations;
     int* actions;
     float* rewards;
     unsigned char* dones;
     LogBuffer* log_buffer;
     Log log;
     float score;
-    int width;
-    int height;
     int map_choice;
     int robot_position; 
     int robot_direction;
@@ -166,6 +105,8 @@ struct CTowerClimb {
     int* blocks_to_fall;
     int block_grabbed;
     int rows_cleared;
+    const Level levels[3];
+    Level level;
 };
 
 int get_direction(CTowerClimb* env, int action) {
@@ -178,7 +119,7 @@ int get_direction(CTowerClimb* env, int action) {
         if(diff == 1 || diff == 3){
             env->block_grabbed = -1;
         }
-        if(diff == 2){
+        else if(diff == 2){
             return current_direction;
         }
     }
@@ -187,24 +128,23 @@ int get_direction(CTowerClimb* env, int action) {
 
 
 void init(CTowerClimb* env) {
-    // int map_size = map_sizes[env->map_choice - 1];
-
-    env->board_state = (int*)calloc(288, sizeof(int));
+    env->level = levels[0];
+    memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
+    memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
+    env->board_state = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->block_grabbed = -1;
-    env->blocks_to_move = (int*)calloc(6, sizeof(int));
-    env->blocks_to_fall = (int*)calloc(288, sizeof(int));
+    env->blocks_to_move = (int*)calloc(env->level.rows, sizeof(int));
+    env->blocks_to_fall = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->rows_cleared = 0;
     env->robot_orientation = UP;
-    for (int i = 0; i < 6; i++){
+    for (int i = 0; i < env->level.rows; i++){
         env->blocks_to_move[i] = -1;
     }
-    memcpy(env->board_state, level_one, 288 * sizeof(int));
-    memset(env->blocks_to_fall, -1, 288 * sizeof(int));
 }
 
 void allocate(CTowerClimb* env) {
     init(env);
-    env->observations = (float*)calloc(128, sizeof(float));
+    env->observations = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int)); // make this unsigned char
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -232,44 +172,39 @@ void compute_observations(CTowerClimb* env) {
 
 void reset(CTowerClimb* env) {
     env->log = (Log){0};
-	env->dones[0] = 0;
+    env->dones[0] = 0;
     env->robot_position = 64;
-    env->robot_direction =2;
+    env->robot_direction = 2;
     env->robot_state = DEFAULT;
     env->block_grabbed = -1;
-    memcpy(env->board_state, level_one, 288 * sizeof(int));
+    env->level = levels[0];
+    memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     compute_observations(env);
 }
 
 int get_local_direction(CTowerClimb* env, int action) {
     // We assume action can be LEFT or RIGHT
     // Orientation is one of (RIGHT=0, DOWN=1, LEFT=2, UP=3).
+    //  c mod robot orientation
     if (action == LEFT) {
-        switch(env->robot_orientation) {
-            case UP:    return LEFT;  // 3 -> 2
-            case LEFT:  return DOWN;  // 2 -> 1
-            case DOWN:  return RIGHT; // 1 -> 0
-            case RIGHT: return UP;    // 0 -> 3
-        }
+        return (env->robot_orientation + 3) % 4;
     } 
     if (action == RIGHT) {
-        switch(env->robot_orientation) {
-            case UP:    return RIGHT; // 3 -> 0
-            case RIGHT: return DOWN;  // 0 -> 1
-            case DOWN:  return LEFT;  // 1 -> 2
-            case LEFT:  return UP;    // 2 -> 3
-        }
+        return (env->robot_orientation + 1) % 4;
     }
     return env->robot_orientation;
 }
 
 void handle_grab_block(CTowerClimb *env){
-    int current_floor = env->robot_position / 36;
-    int grid_pos = env->robot_position % 36;
-    int x = grid_pos % 6;
-    int z = grid_pos / 6;
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int rows = env->level.rows;
+    int current_floor = env->robot_position / sz;
+    int grid_pos = env->robot_position % sz;
+    int x = grid_pos % cols;
+    int z = grid_pos / cols;
 
-    int dx = DIRECTION_VECTORS[env->robot_orientation][0];
+    int dx = DIRECTION_VECTORS[env->robot_orientation][0]; // possibly make dx and dz 1D arrays
     int dz = DIRECTION_VECTORS[env->robot_orientation][1];
 
     int next_x = x + dx;
@@ -277,11 +212,11 @@ void handle_grab_block(CTowerClimb *env){
     if (env->robot_state == HANGING){
         return;
     }
-    if (next_x < 0 || next_x >= 6 || next_z < 0 || next_z >= 6 ) {
+    if (next_x < 0 || next_x >= cols || next_z < 0 || next_z >= rows ) {
         // Attempting to move outside the 4x4 grid on this floor - do nothing
         return;
     }
-    int next_index = current_floor * 36 + next_z * 6 + next_x;
+    int next_index = current_floor*sz + next_z*cols + next_x;
     int next_cell = env->board_state[next_index];
     if (next_cell!=1){
         return;
@@ -294,15 +229,17 @@ void handle_grab_block(CTowerClimb *env){
 }
 
 int is_next_to_block(CTowerClimb* env, int target_position){
-    int current_floor = target_position / 36;
-    int grid_pos = target_position % 36;
-    int x = grid_pos % 6;
-    int z = grid_pos / 6;
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int current_floor = target_position / sz;
+    int grid_pos = target_position % sz;
+    int x = grid_pos % cols;
+    int z = grid_pos / cols;
     int dx = DIRECTION_VECTORS[env->robot_orientation][0];
     int dz = DIRECTION_VECTORS[env->robot_orientation][1];
     int next_x = x + dx;
     int next_z = z + dz;    
-    int next_index = current_floor * 36 + next_z * 6 + next_x;
+    int next_index = current_floor*sz + next_z*cols + next_x;  // semantically group multiplication
     int next_cell = env->board_state[next_index];
 
     if (next_cell == 1) {
@@ -313,12 +250,14 @@ int is_next_to_block(CTowerClimb* env, int target_position){
 
 void add_blocks_to_move(CTowerClimb* env, int interval){
     int start_index = env->blocks_to_move[0];
-    for (int i = 0; i < 6; i++){
+    int cols = env->level.cols;
+    for (int i = 0; i < cols; i++){
+        int b_address = start_index + interval * i;
         if(env->blocks_to_move[i-1] == -1 && i != 0){
             break;
         }
-        if(env->board_state[start_index + interval * i] == 1){
-            env->blocks_to_move[i] = start_index + interval * i;
+        if(env->board_state[b_address] == 1){
+            env->blocks_to_move[i] = b_address;
         }
     }
 }
@@ -330,24 +269,26 @@ static inline int is_valid_position(int pos) {
 
 // Helper function to check block stability
 static int is_block_stable(CTowerClimb* env, int position) {
+    int sz = env->level.size;
+    int cols = env->level.cols;
     // Check bottom support first
-    int bottom = position - 36;
+    int bottom = position - sz;
     if (is_valid_position(bottom) && env->board_state[bottom] == 1) {
         return 1;
     }
 
     // Check edge supports only if no bottom support
     // Left+Right support below
-    int left_support = position - 36 - 1;
-    int right_support = position - 36 + 1;
+    int left_support = position - sz - 1;
+    int right_support = position - sz + 1;
     if (is_valid_position(left_support) && is_valid_position(right_support) &&
         (env->board_state[left_support] == 1 || env->board_state[right_support] == 1)) {
         return 1;
     }
 
     // Front+Back support below
-    int front_support = position - 36 - 6;
-    int back_support = position - 36 + 6;
+    int front_support = position - sz - cols;
+    int back_support = position - sz + cols;
     if (is_valid_position(front_support) && is_valid_position(back_support) &&
         (env->board_state[front_support] == 1 || env->board_state[back_support] == 1)) {
         return 1;
@@ -357,12 +298,14 @@ static int is_block_stable(CTowerClimb* env, int position) {
 }
 
 void add_blocks_to_fall(CTowerClimb* env){
-    
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int total_length = env->level.total_length;
 // Create queue as simple arrays with front/rear indices
-    int queue[288];  // Max possible blocks
+    int queue[total_length];  // Max possible blocks
     int front = 0;
     int rear = 0;
-    for(int i= 0;i< 288;i++){
+    for(int i= 0;i< total_length;i++){
         if(env->blocks_to_fall[i] == -1){
             break;
         }
@@ -370,13 +313,14 @@ void add_blocks_to_fall(CTowerClimb* env){
         rear++;
     }
     // Helper to add block to queue if it's a valid block
-    for(int i = 0; i < 6; i++) {
+    for(int i = 0; i < env->level.cols; i++) {
+        // invert conditional
         if(env->blocks_to_move[i] != -1) {
             // Add block directly above
-            int cell_above = env->blocks_to_move[i] + 36;
+            int cell_above = env->blocks_to_move[i] + sz;
             
             // If valid block above, add to queue
-            if (cell_above < 288 && env->board_state[cell_above] == 1) {
+            if (cell_above < total_length && env->board_state[cell_above] == 1) {
                 queue[rear++] = cell_above;
             }
             
@@ -384,13 +328,13 @@ void add_blocks_to_fall(CTowerClimb* env){
             int edge_blocks[4] = {
                 cell_above - 1,  // left
                 cell_above + 1,  // right
-                cell_above - 6,  // front
-                cell_above + 6   // back
+                cell_above - cols,  // front
+                cell_above + cols   // back
             };
             
             // Add valid edge blocks to queue
             for(int j = 0; j < 4; j++) {
-                if (edge_blocks[j] >= 0 && edge_blocks[j] < 288 && 
+                if (edge_blocks[j] >= 0 && edge_blocks[j] < total_length && 
                     env->board_state[edge_blocks[j]] == 1) {
                     queue[rear++] = edge_blocks[j];
                 }
@@ -408,7 +352,7 @@ void add_blocks_to_fall(CTowerClimb* env){
         env->board_state[current] = 0;
         
         // Keep moving down until support found or bottom reached
-        while (!found_support && falling_position >= 36) {  // Check if we still have space below            
+        while (!found_support && falling_position >= sz) {  // Check if we still have space below            
             // Place block temporarily to check stability
             env->board_state[falling_position] = 1;
             if (is_block_stable(env, falling_position)) {
@@ -418,27 +362,27 @@ void add_blocks_to_fall(CTowerClimb* env){
                 env->board_state[falling_position] = 0;
             }
             if (!found_support) {
-                falling_position -= 36;  // Move down one level
+                falling_position -= sz;  // Move down one level
             }
         }
         
         // If we found support (didn't fall off bottom), check affected blocks
         if (found_support) {
             // Add blocks that might be affected by this fall
-            int original_above = current + 36;  // Block directly above original position
-            if (original_above < 288 && env->board_state[original_above] == 1) {
+            int original_above = current + sz;  // Block directly above original position
+            if (original_above < total_length && env->board_state[original_above] == 1) {
                 queue[rear++] = original_above;
             }
             
             int edge_check[4] = {
                 original_above - 1,  // Left of original
                 original_above + 1,  // Right of original
-                original_above - 6,  // Front of original
-                original_above + 6   // Back of original
+                original_above - cols,  // Front of original
+                original_above + cols   // Back of original
             };
             
             for(int i = 0; i < 4; i++) {
-                if (edge_check[i] >= 0 && edge_check[i] < 288 && 
+                if (edge_check[i] >= 0 && edge_check[i] < total_length && 
                     env->board_state[edge_check[i]] == 1) {
                     queue[rear++] = edge_check[i];
                 }
@@ -446,19 +390,24 @@ void add_blocks_to_fall(CTowerClimb* env){
         }
         // If no support found, block disappears (already set to 0)
     }
-    memset(env->blocks_to_fall, -1, 288 * sizeof(int));
-    memset(env->blocks_to_move, -1, 6 * sizeof(int));
+    memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
+    memset(env->blocks_to_move, -1, cols * sizeof(int));
 }
 void move_blocks(CTowerClimb* env, int interval){
     int count = 0;
-    for (int i = 0; i < 6; i++){
-        if(env->blocks_to_move[i] != -1){
+    int cols = env->level.cols;
+    int sz = env->level.size;
+    // cache reused variables 
+    for (int i = 0; i < cols; i++){
+        // invert conditional 
+        int b_index = env->blocks_to_move[i];
+        if(b_index != -1){
             if(i==0){
-                env->board_state[env->blocks_to_move[i]] = 0;
+                env->board_state[b_index] = 0;
             }
-            if(env->blocks_to_move[i] % 36 % 6 + interval >= 0 && env->blocks_to_move[i] % 36 % 6 + interval <= 5) {
-                env->board_state[env->blocks_to_move[i] + interval] = 1;
-                env->blocks_to_fall[count] = env->blocks_to_move[i] + interval;
+            if(b_index % sz % cols + interval >= 0 && b_index % sz % cols + interval <= cols-1) {
+                env->board_state[b_index + interval] = 1;
+                env->blocks_to_fall[count] = b_index + interval;
                 count++;
             }
         }
@@ -466,10 +415,12 @@ void move_blocks(CTowerClimb* env, int interval){
 }
 
 void shimmy(CTowerClimb* env, int action, int current_floor, int x, int z, int x_mod, int z_mod, int x_direction_mod, int z_direction_mod, int final_orienation){
-    int next_block = current_floor *36 + (z+z_mod) * 6 + (x+x_mod);
-    int destination_block = current_floor *36 + (z+z_direction_mod) * 6 + (x+x_direction_mod);
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int next_block = current_floor*sz + (z+z_mod)*cols + (x+x_mod);
+    int destination_block = current_floor*sz + (z+z_direction_mod)*cols + (x+x_direction_mod);
     if (env->board_state[next_block] == 1){
-        int above_destination = destination_block + 36;
+        int above_destination = destination_block + sz;
         // cant wrap shimmy with block above.
         if(env->board_state[above_destination] == 1){
             return;
@@ -481,32 +432,40 @@ void shimmy(CTowerClimb* env, int action, int current_floor, int x, int z, int x
 }
 
 void handle_climb(CTowerClimb* env, int action, int current_floor,int x, int z, int next_z, int next_x, int next_index, int next_cell){
-    if ((next_cell == 1 || next_cell == 2) && env->block_grabbed == -1) {
+    if (!(next_cell == 1 || next_cell == 2) || env->block_grabbed != -1) {
+        return;
+    }
+    // if ((next_cell == 1 || next_cell == 2) && env->block_grabbed == -1) {
         // There's a block in front. Check if we can climb up to the floor above it
-        if (current_floor < 8) { // we have space above if current_floor < 8
-            int climb_index = (current_floor + 1) * 36 + next_z * 6 + next_x;
-            int climb_cell = env->board_state[climb_index];
-            int direct_above = env->robot_position + 36;
-            int direct_above_cell = env->board_state[direct_above];
-            if (climb_cell == 0 && direct_above_cell == 0) {
-                env->robot_position = climb_index;
-                env->robot_state = DEFAULT; // set hanging to indicate we climbed a block
-                if ((env->robot_position - 36) / 36 > env->rows_cleared){
-                    env->rows_cleared = (env->robot_position - 36) / 36;
-                    env->log.rows_cleared = env->rows_cleared;
-                    env->rewards[0] = .1;
-                    env->log.episode_return += .1;
-                }
-            }
+    if (current_floor >=8){
+        return;
+    }
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int climb_index = (current_floor + 1) * sz + next_z * cols + next_x;
+    int climb_cell = env->board_state[climb_index];
+    int direct_above = env->robot_position + sz;
+    int direct_above_cell = env->board_state[direct_above];
+    if (climb_cell == 0 && direct_above_cell == 0) {
+        env->robot_position = climb_index;
+        env->robot_state = DEFAULT; // set hanging to indicate we climbed a block
+        if ((env->robot_position - sz) / sz > env->rows_cleared){
+            env->rows_cleared = (env->robot_position - sz) / sz;
+            env->log.rows_cleared = env->rows_cleared;
+            env->rewards[0] = .1;
+            env->log.episode_return += .1;
         }
     }
+    // }
 }
 
 
 void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, int next_z, int next_x, int next_index, int next_cell){
-    int below_index = (current_floor - 1) * 36 + next_z * 6 + next_x;
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
     int below_cell = env->board_state[below_index];
-    int below_next_index = below_index - 36;
+    int below_next_index = below_index - sz;
     int below_next_cell = env->board_state[below_next_index];
     // Default state cases
     if (below_cell == 1 && env->robot_state == DEFAULT) {
@@ -517,6 +476,7 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
     if (below_cell == 0 && below_next_cell == 0 && env->robot_state == DEFAULT) {
         env->robot_position = below_index;
         env->robot_state = HANGING;
+        //mod ti thing
         if(env->robot_direction == RIGHT){
             env->robot_orientation = LEFT;
         }
@@ -539,7 +499,9 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
 
 void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, int z, int next_z, int next_x, int next_index, int next_cell){
     // Check if the cell in front is free, the goal, or blocked
-    int below_index = (current_floor - 1) * 36 + next_z * 6 + next_x;
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
     int below_cell = env->board_state[below_index];
     // shimmying
     if (env->robot_state == HANGING){
@@ -548,11 +510,11 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
         int local_next_dz = DIRECTION_VECTORS[local_direction][1];
         int local_next_x = x + local_next_dx;
         int local_next_z = z + local_next_dz;
-        int local_next_index = current_floor * 36 + local_next_z * 6 + local_next_x;
+        int local_next_index = current_floor * sz + local_next_z * cols + local_next_x;
         int local_next_cell = env->board_state[local_next_index];
         if (is_next_to_block(env, local_next_index) && local_next_cell == 0){
             // standard shimmy
-            int above_index = local_next_index + 36;
+            int above_index = local_next_index + sz;
             int above_cell = env->board_state[above_index];
             // cant shimmy with block above
             if (above_cell == 1 ){
@@ -590,7 +552,7 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
             return;
         }
         
-        int current_floor = env->robot_position / 36;
+        int current_floor = env->robot_position / sz;
         if (env->robot_orientation == UP) {  // Hanging on north face
             if (action == RIGHT) {
                 shimmy(env, action, current_floor, x, z, 0, -1, 1, -1, LEFT);
@@ -656,13 +618,16 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
 }
 
 void handle_move_forward(CTowerClimb* env, int action) {
+    int sz = env->level.size;
+    int cols = env->level.cols;
     // Calculate current floor, x, z from the robot_position
-    int current_floor = env->robot_position / 36;
-    int grid_pos = env->robot_position % 36;
-    int x = grid_pos % 6;
-    int z = grid_pos / 6;
+    int current_floor = env->robot_position / sz;
+    int grid_pos = env->robot_position % sz;
+    int x = grid_pos % cols;
+    int z = grid_pos / cols;
 
     // Determine the offset for the next cell based on env->robot_direction
+    // make this 1D
     int dx = DIRECTION_VECTORS[env->robot_direction][0];
     int dz = DIRECTION_VECTORS[env->robot_direction][1];
     
@@ -671,9 +636,9 @@ void handle_move_forward(CTowerClimb* env, int action) {
 
     int front_x = x + orient_dx;
     int front_z = z + orient_dz;
-    int front_index = current_floor * 36 + front_z * 6 + front_x;
+    int front_index = current_floor * sz + front_z * cols + front_x;
     int front_cell = env->board_state[front_index];
-    int front_below_index = front_index - 36;
+    int front_below_index = front_index - sz;
     int front_below_cell = env->board_state[front_below_index];
     // Calculate the next potential cell’s x, z
     int next_x = x + dx;
@@ -687,7 +652,7 @@ void handle_move_forward(CTowerClimb* env, int action) {
     }
     
     // Convert next x,z to a linear index for the same floor
-    int next_index = current_floor * 36 + next_z * 6 + next_x;
+    int next_index = current_floor * sz + next_z * cols + next_x;
     int next_cell = env->board_state[next_index];
     if((action == LEFT || action == RIGHT) && env->block_grabbed == -1){
         handle_left_right(env, action, current_floor, x, z, next_z, next_x, next_index, next_cell);
@@ -714,23 +679,20 @@ void handle_move_forward(CTowerClimb* env, int action) {
     if (front_cell == 1 && env->block_grabbed != -1) {
         env->blocks_to_move[0] = front_index;
         // Calculate block position based on direction
-        int block_offset = (env->robot_direction == 3) ? -6 :  // North
-                          (env->robot_direction == 1) ? 6 :    // South
+        int block_offset = (env->robot_direction == 3) ? -cols :  // North
+                          (env->robot_direction == 1) ? cols :    // South
                           (env->robot_direction == 0) ? 1 :    // East
                           (env->robot_direction == 2) ? -1 :   // West
-                          -6;  // Default to north behavior for other direction
+                          -cols;  // Default to north behavior for other direction
         // Pushing
-        int push_condition = abs(env->robot_direction - action) == 0;
-        if(push_condition){
+        if(abs(env->robot_direction - action) == 0){
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
             add_blocks_to_fall(env);
-
         }
         // Pulling
-        int pull_condition = abs(env->robot_direction - action) == 2;
-        if (pull_condition){
-            int below_index = (current_floor - 1) * 36 + next_z * 6 + next_x;
+        if (abs(env->robot_direction - action) == 2){
+            int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
             int below_cell = env->board_state[below_index];
             env->blocks_to_move[0] = front_index;
             env->board_state[front_index] = 0;
@@ -748,13 +710,14 @@ void handle_move_forward(CTowerClimb* env, int action) {
         if (env->robot_position != next_index){
             env->block_grabbed = -1;
         }
-        memset(env->blocks_to_move, -1, 6 * sizeof(int));
+        memset(env->blocks_to_move, -1, cols * sizeof(int));
     }
 }
 
 void handle_drop(CTowerClimb* env){
-    int next_position = env->robot_position - 36;
-    if (env->robot_position < 36){
+    int sz = env->level.size;
+    int next_position = env->robot_position - sz;
+    if (env->robot_position < sz){
         env->dones[0] = 1;
         env->rewards[0] = -1;
         env->log.episode_return -= -1;
@@ -762,16 +725,16 @@ void handle_drop(CTowerClimb* env){
         return;
     }
     while (env->board_state[next_position] != 1){
-        if(next_position < 36){
+        if(next_position < sz){
             env->dones[0] = 1;
             env->rewards[0] = -1;
             env->log.episode_return -= 1;
             reset(env);
             return;
         } 
-        next_position = next_position - 36;  
+        next_position = next_position - sz;  
     }
-    env->robot_position = next_position + 36;
+    env->robot_position = next_position + sz;
     env->robot_state = DEFAULT;
     env->robot_orientation = env->robot_direction;
 }
@@ -780,39 +743,39 @@ void step(CTowerClimb* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
     int action = env->actions[0];
-    if (action != NOOP) {
-        if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
-            int direction = get_direction(env, action);
-            int moving_block = (env->block_grabbed != -1 && abs(env->robot_direction - action) == 2);
-            if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
-                env->robot_direction = direction;
-                handle_move_forward(env, action);
-                int below_index = env->robot_position - 36;
-                // check if goal is below current position
-                if (env->board_state[below_index] == 2){
-                    env->dones[0] = 1;
-                    env->rewards[0] = 1;
-                    env->log.episode_return += 1;
-                    add_log(env->log_buffer, &env->log);
-                    reset(env);
-                }
+    if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
+        int direction = get_direction(env, action);
+        int moving_block = (env->block_grabbed != -1 && abs(env->robot_direction - action) == 2);
+        if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
+            env->robot_direction = direction;
+            handle_move_forward(env, action);
+            int sz = env->level.size;
+            int below_index = env->robot_position - sz;
+            // check if goal is below current position
+            if (env->board_state[below_index] == 2){
+                env->dones[0] = 1;
+                env->rewards[0] = 1;
+                env->log.episode_return += 1;
+                add_log(env->log_buffer, &env->log);
+                reset(env);
             }
-            else {
-                env->robot_direction = direction;
-                env->robot_orientation = direction;
-            }
+        }
+        else {
+            env->robot_direction = direction;
+            env->robot_orientation = direction;
+        }
 
-        }
-        else if (action == GRAB){
-            handle_grab_block(env);
-        }
-        else if (action == DROP){
-            env->block_grabbed = -1;
-            if(env->robot_state == HANGING){
-                handle_drop(env);
-            }
+    }
+    else if (action == GRAB){
+        handle_grab_block(env);
+    }
+    else if (action == DROP){
+        env->block_grabbed = -1;
+        if(env->robot_state == HANGING){
+            handle_drop(env);
         }
     }
+    
     compute_observations(env);
 }
 
@@ -835,9 +798,9 @@ struct Client {
 
 Client* make_client(CTowerClimb* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
-    client->width = env->width;
-    client->height = env->height;
-    InitWindow(env->width, env->height, "PufferLib Ray Tower Climb");
+    client->width = 1000;
+    client->height = 1000;
+    InitWindow(client->width, client->height, "PufferLib Ray Tower Climb");
     SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
     client->camera = (Camera3D){ 0 };
@@ -857,13 +820,15 @@ void render(Client* client, CTowerClimb* env) {
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);    
     BeginMode3D(client->camera);
-
-    for(int i= 0; i < 288; i++){
+    int cols = env->level.cols;
+    int sz = env->level.size;
+    int total_length = env->level.total_length;
+    for(int i= 0; i < total_length; i++){
         if(env->board_state[i] > 0){
-            int floor = i / 36;
-            int grid_pos = i % 36;
-            int x = grid_pos % 6;
-            int z = grid_pos / 6;
+            int floor = i / sz;
+            int grid_pos = i % sz;
+            int x = grid_pos % cols;
+            int z = grid_pos / cols;
             Color cubeColor = (env->board_state[i] == 1) ? STONE_GRAY : PUFF_CYAN;  // Gray for blocks, Cyan for goal
             DrawCube(
                 (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f},
@@ -887,10 +852,10 @@ void render(Client* client, CTowerClimb* env) {
     }
 
     // calculate robot position
-    int floor = env->robot_position / 36;
-    int grid_pos = env->robot_position % 36;
-    int x = grid_pos % 6;
-    int z = grid_pos / 6;
+    int floor = env->robot_position / sz;
+    int grid_pos = env->robot_position % sz;
+    int x = grid_pos % cols;
+    int z = grid_pos / cols;
     
     Vector3 spherePos = (Vector3){ 
         x * 1.0f,

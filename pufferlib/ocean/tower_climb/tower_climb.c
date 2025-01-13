@@ -2,16 +2,8 @@
 #include <unistd.h>
 #include "tower_climb.h"
 
-#define Level_one_width 640
-#define Level_one_height 8
-#define Level_one_depth 4
-void demo(int map_choice) {
-    int width = 1000;
-    int height = 1000;
-    
+void demo(int map_choice) {    
     CTowerClimb  env = {
-        .width = width,
-        .height = height,
         .map_choice = map_choice,
     };
     
@@ -42,8 +34,8 @@ void demo(int map_choice) {
         if (IsKeyPressed(KEY_LEFT_SHIFT)){
             env.actions[0] = DROP;
         }
-        render(client, &env);
-        step(&env);
+        // render(client, &env);
+        // step(&env);
     }
     close_client(client);
     free_allocated(&env);
@@ -52,8 +44,6 @@ void demo(int map_choice) {
 void performance_test() {
     long test_time = 10;
     CTowerClimb env = {
-        .width = 1280,
-        .height = 1024,
         .map_choice = 1,
         
     };
