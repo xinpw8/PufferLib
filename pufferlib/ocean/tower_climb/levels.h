@@ -7,6 +7,7 @@ struct Level {
     int size;
     int total_length;
     int goal_location;
+    int spawn_location;
 };
 static const int level_one_map[288] = {
    // floor 1 
@@ -128,13 +129,13 @@ static const int level_two_map[392] = {
     0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,
-    0,0,1,0,0,0,0,
+    0,0,2,0,0,0,0,
     0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,
 };
 
-static const int level_three_map[490] = {
+static const int level_three_map[432] = {
     // floor 1
     0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,
@@ -173,8 +174,8 @@ static const int level_three_map[490] = {
     // floor 6
     0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,
-    0,0,0,1,0,1,0,0,0,
-    0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,1,0,0,0,
+    0,0,0,1,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,
     // floor 7
@@ -200,6 +201,7 @@ static const Level level_one = {
     .size = 36,
     .total_length = 288,
     .goal_location = 262,
+    .spawn_location = 64,
 };
 
 static const Level level_two = {
@@ -209,6 +211,7 @@ static const Level level_two = {
     .size = 49,
     .total_length = 392,
     .goal_location = 378,
+    .spawn_location = 85,
 };
 
 static const Level level_three = {
@@ -218,6 +221,7 @@ static const Level level_three = {
     .size = 54,
     .total_length = 432,
     .goal_location = 406,
+    .spawn_location = 94,
 };
 
-static const Level levels[2] = {level_one, level_two};
+static const Level levels[3] = {level_one, level_two, level_three};

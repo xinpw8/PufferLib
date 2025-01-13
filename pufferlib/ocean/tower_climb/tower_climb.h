@@ -107,12 +107,13 @@ struct CTowerClimb {
     int rows_cleared;
     const Level levels[3];
     Level level;
+    int level_number;
 };
 
 int get_direction(CTowerClimb* env, int action) {
     // For reference: 
     // 0 = right (initial), 1 = down, 2 = left, 3 = up
-    int current_direction = env->robot_direction;
+    int current_direction = env->robot_orientation;
     if (env->block_grabbed != -1){
         // Check if direction is opposite (differs by 2) or perpendicular (differs by 1 or 3)
         int diff = abs(current_direction - action);
@@ -128,16 +129,17 @@ int get_direction(CTowerClimb* env, int action) {
 
 
 void init(CTowerClimb* env) {
-    env->level = level_one;
+    env->level_number = 0;
+    env->level = levels[env->level_number];
     env->board_state = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->block_grabbed = -1;
-    env->blocks_to_move = (int*)calloc(env->level.rows, sizeof(int));
+    env->blocks_to_move = (int*)calloc(env->level.cols, sizeof(int));
     env->blocks_to_fall = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->rows_cleared = 0;
     env->robot_orientation = UP;
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
-    for (int i = 0; i < env->level.rows; i++){
+    for (int i = 0; i < env->level.cols; i++){
         env->blocks_to_move[i] = -1;
     }
 }
@@ -155,6 +157,7 @@ void free_initialized(CTowerClimb* env) {
     free(env->blocks_to_move);
     free(env->blocks_to_fall);
     free(env->board_state);
+
 }
 
 void free_allocated(CTowerClimb* env) {
@@ -173,11 +176,12 @@ void compute_observations(CTowerClimb* env) {
 void reset(CTowerClimb* env) {
     env->log = (Log){0};
     env->dones[0] = 0;
-    env->robot_position = 64;
-    env->robot_direction = 2;
+    env->robot_orientation = UP;
     env->robot_state = DEFAULT;
     env->block_grabbed = -1;
-    env->level = level_one;
+    env->level_number = 0;
+    env->level = levels[env->level_number];
+    env->robot_position = env->level.spawn_location;
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     compute_observations(env);
 }
@@ -315,29 +319,30 @@ void add_blocks_to_fall(CTowerClimb* env){
     // Helper to add block to queue if it's a valid block
     for(int i = 0; i < env->level.cols; i++) {
         // invert conditional
-        if(env->blocks_to_move[i] != -1) {
-            // Add block directly above
-            int cell_above = env->blocks_to_move[i] + sz;
-            
-            // If valid block above, add to queue
-            if (cell_above < total_length && env->board_state[cell_above] == 1) {
-                queue[rear++] = cell_above;
-            }
-            
-            // Check edge-supported blocks
-            int edge_blocks[4] = {
-                cell_above - 1,  // left
-                cell_above + 1,  // right
-                cell_above - cols,  // front
-                cell_above + cols   // back
-            };
-            
-            // Add valid edge blocks to queue
-            for(int j = 0; j < 4; j++) {
-                if (edge_blocks[j] >= 0 && edge_blocks[j] < total_length && 
-                    env->board_state[edge_blocks[j]] == 1) {
-                    queue[rear++] = edge_blocks[j];
-                }
+        if(env->blocks_to_move[i] == -1){
+            continue;
+        }
+        // Add block directly above
+        int cell_above = env->blocks_to_move[i] + sz;
+        
+        // If valid block above, add to queue
+        if (cell_above < total_length && env->board_state[cell_above] == 1) {
+            queue[rear++] = cell_above;
+        }
+        
+        // Check edge-supported blocks
+        int edge_blocks[4] = {
+            cell_above - 1,  // left
+            cell_above + 1,  // right
+            cell_above - cols,  // front
+            cell_above + cols   // back
+        };
+        
+        // Add valid edge blocks to queue
+        for(int j = 0; j < 4; j++) {
+            if (edge_blocks[j] >= 0 && edge_blocks[j] < total_length && 
+                env->board_state[edge_blocks[j]] == 1) {
+                queue[rear++] = edge_blocks[j];
             }
         }
     }
@@ -347,6 +352,7 @@ void add_blocks_to_fall(CTowerClimb* env){
         int current = queue[front++];
         int falling_position = current;
         int found_support = 0;
+        printf("current: %d\n", current);
         
         // Remove block from current position
         env->board_state[current] = 0;
@@ -475,7 +481,7 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
     if (below_next_index >= 0){
 	    below_next_cell = env->board_state[below_next_index];
     } else{
-    	below_next_cell = -1;
+    	below_next_cell = 0;
     }
     // Default state cases
     if (below_cell == 1 && env->robot_state == DEFAULT) {
@@ -511,6 +517,7 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
     // Check if the cell in front is free, the goal, or blocked
     int sz = env->level.size;
     int cols = env->level.cols;
+    int rows = env->level.rows;
     int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
     int below_cell;
     if (below_index >=0){
@@ -614,7 +621,7 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
     }
 
     // walking left or right
-    if (next_x < 0 || next_x >= 6 || next_z < 0 || next_z >= 6) {
+    if (next_x < 0 || next_x >= cols || next_z < 0 || next_z >= rows) {
         // Attempting to move outside the 4x4 grid on this floor - do nothing
         return;
     }
@@ -705,13 +712,13 @@ void handle_move_forward(CTowerClimb* env, int action) {
                           (env->robot_direction == 2) ? -1 :   // West
                           -cols;  // Default to north behavior for other direction
         // Pushing
-        if(abs(env->robot_direction - action) == 0){
+        if(abs(env->robot_orientation - action) == 0){
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
             add_blocks_to_fall(env);
         }
         // Pulling
-        if (abs(env->robot_direction - action) == 2){
+        if (abs(env->robot_orientation - action) == 2){
             int below_index = (current_floor - 1) * sz + next_z * cols + next_x;
             int below_cell = env->board_state[below_index];
             env->blocks_to_move[0] = front_index;
@@ -759,13 +766,33 @@ void handle_drop(CTowerClimb* env){
     env->robot_orientation = env->robot_direction;
 }
 
+void next_level(CTowerClimb* env){
+    if(env->level_number == 2){
+        env->dones[0] = 1;
+        env->rewards[0] = 1;
+        env->log.episode_return += 1;
+        add_log(env->log_buffer, &env->log);
+        return;
+    }
+    env->level_number += 1;
+    env->level = levels[env->level_number];
+    env->robot_position = env->level.spawn_location;
+    env->robot_state = DEFAULT;
+    env->robot_orientation = UP;
+    env->robot_direction = UP;
+    env->block_grabbed = -1;
+    memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
+    memset(env->blocks_to_move, -1, env->level.cols * sizeof(int));
+    memset(env->blocks_to_fall, -1, env->level.total_length * sizeof(int));
+}
+
 void step(CTowerClimb* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
-        int moving_block = (env->block_grabbed != -1 && abs(env->robot_direction - action) == 2);
+        int moving_block = (env->block_grabbed != -1 && abs(env->robot_orientation - action) == 2);
         if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
             env->robot_direction = direction;
             handle_move_forward(env, action);
@@ -781,7 +808,7 @@ void step(CTowerClimb* env) {
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 add_log(env->log_buffer, &env->log);
-                reset(env);
+                next_level(env);
             }
         }
         else {
