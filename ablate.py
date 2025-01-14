@@ -6,6 +6,8 @@ import uuid
 import ast
 import os
 import random
+import time
+import torch
 
 import pufferlib
 import pufferlib.utils
@@ -100,153 +102,202 @@ def int_uniform(min, max):
 def sample_hyperparameters(sweep_config):
     samples = {}
     for name, param in sweep_config.items():
+        if name in ('method', 'name', 'metric'):
+            continue
+
         assert isinstance(param, dict)
         if any(isinstance(param[k], dict) for k in param):
             samples[name] = sample_hyperparameters(param)
         elif 'values' in param:
             assert 'distribution' not in param
-            choice = random.choice(param['values'])
+            samples[name] = random.choice(param['values'])
         elif 'distribution' in param:
             if param['distribution'] == 'uniform':
-                choice = uniform(param['min'], param['max'])
+                samples[name] = uniform(param['min'], param['max'])
             elif param['distribution'] == 'int_uniform':
-                choice = int_uniform(param['min'], param['max'])
+                samples[name] = int_uniform(param['min'], param['max'])
             elif param['distribution'] == 'uniform_pow2':
-                choice = uniform_pow2(param['min'], param['max'])
+                samples[name] = uniform_pow2(param['min'], param['max'])
             elif param['distribution'] == 'log_normal':
-                choice = log_normal(
+                samples[name] = log_normal(
                     param['mean'], param['scale'], param['clip'])
             elif param['distribution'] == 'logit_normal':
-                choice = logit_normal(
+                samples[name] = logit_normal(
                     param['mean'], param['scale'], param['clip'])
             else:
                 raise ValueError(f'Invalid distribution: {param["distribution"]}')
         else:
             raise ValueError('Must specify either values or distribution')
 
-        samples[name] = choice
-
     return samples
 
+from carbs import (
+    CARBS,
+    CARBSParams,
+    ObservationInParam,
+    Param,
+    LinearSpace,
+    Pow2Space,
+    LogSpace,
+    LogitSpace,
+)
 
-#samples = [log_normal(mu = 5e-3, scale = 1, clip = 2.0) for _ in range(7000)]
-#samples = [logit_normal(mu = 0.98, scale = 0.5, clip = 1.0) for _ in range(7000)]
-#samples = [uniform_pow2(min=2, max=64) for _ in range(7000)]
+class PufferCarbs:
+    def __init__(self,
+            sweep_config: dict,
+            max_suggestion_cost: float = None,
+            resample_frequency: int = 5,
+            num_random_samples: int = 10,
+            max_suggestion_count: float = None,
+        ):
+        param_spaces = _carbs_params_from_puffer_sweep(sweep_config)
+        flat_spaces = [e[1] for e in pufferlib.utils.unroll_nested_dict(param_spaces)]
 
-def sweep(args, env_name, make_env, policy_cls, rnn_cls):
-    import random
-    import numpy as np
-    import time
+        metric = sweep_config['metric']
+        goal = metric['goal']
+        assert goal in ['maximize', 'minimize'], f"Invalid goal {goal}"
+        self.carbs_params = CARBSParams(
+            better_direction_sign=1 if goal == 'maximize' else -1,
+            is_wandb_logging_enabled=False,
+            resample_frequency=5,
+            num_random_samples=len(flat_spaces),
+            max_suggestion_cost=max_suggestion_cost,
+            is_saved_on_every_observation=False,
+        )
+        self.carbs = CARBS(self.carbs_params, flat_spaces)
 
-    sweep_config = args['sweep']
-    #for trial in range(10):
-    while True:
-        np.random.seed(int(time.time()))
-        random.seed(int(time.time()))
-        hypers = {}
-        for group_key in ('train',):
-            hypers[group_key] = {}
-            param_group = sweep_config[group_key]
-            for name, param in param_group.items():
-                if 'values' in param:
-                    assert 'distribution' not in param
-                    choice = random.choice(param['values'])
-                elif 'distribution' in param:
-                    if param['distribution'] == 'uniform':
-                        choice = random.uniform(param['min'], param['max'])
-                    elif param['distribution'] == 'int_uniform':
-                        choice = random.randint(param['min'], param['max']+1)
-                    elif param['distribution'] == 'uniform_pow2':
-                        choice = uniform_pow2(param['min'], param['max'])
-                    elif param['distribution'] == 'log_normal':
-                        choice = log_normal(
-                            param['mean'], param['scale'], param['clip'])
-                    elif param['distribution'] == 'logit_normal':
-                        choice = logit_normal(
-                            param['mean'], param['scale'], param['clip'])
-                    else:
-                        raise ValueError(f'Invalid distribution: {param["distribution"]}')
-                else:
-                    raise ValueError('Must specify either values or distribution')
+    def suggest(self, args):
+        self.suggestion = self.carbs.suggest().suggestion
+        for k in ('train', 'env', 'policy', 'rnn'):
+            for name, param in self.suggestion.items():
+                if name in args[k]:
+                    args[k][name] = param
 
-                hypers[group_key][name] = choice
+    def observe(self, score, cost, is_failure=False):
+        self.carbs.observe(
+            ObservationInParam(
+                input=self.suggestion,
+                output=score,
+                cost=cost,
+                is_failure=is_failure,
+            )
+        )
 
-        if args['neptune']:
-            run = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
-            for k, v in pufferlib.utils.unroll_nested_dict(hypers):
-                run[k].append(v)
+def _carbs_params_from_puffer_sweep(sweep_config):
+    param_spaces = {}
+    for name, param in sweep_config.items():
+        if name in ('method', 'name', 'metric'):
+            continue
 
-            args['train'].update(hypers['train'])
-            train(args, make_env, policy_cls, rnn_cls, neptune=run)
-        elif args['wandb']:
-            run = init_wandb(args, env_name, id=args['exp_id'], tag=args['tag'])
-            train(args, make_env, policy_cls, rnn_cls, wandb=run)
+        assert isinstance(param, dict)
+        if any(isinstance(param[k], dict) for k in param):
+            param_spaces[name] = _carbs_params_from_puffer_sweep(param)
+            continue
+ 
+        assert 'distribution' in param
+        distribution = param['distribution']
 
-### CARBS Sweeps
-def convert_hyperparams(sweep_config):
-    '''Convert our sweep config format to WandB's format
-    This is required because WandB is too restrictive and doesn't
-    let us specify extra data for custom algorithms like CARBS'''
-    for group_key, param_group in sweep_config['parameters'].items():
-        param_group = param_group['parameters']
-        for name, param in param_group.items():
-            is_integer = False
-            if 'is_integer' in param:
-                is_integer = param['is_integer']
-                del param['is_integer']
-            if 'scale' in param:
-                del param['scale']
-            if 'values' in param and 'distribution' in param:
-                del param['distribution']
-            if 'search_center' in param:
-                del param['search_center']
-            if 'distribution' in param:
-                dist = param['distribution']
-                overwrite = dist
-                if dist == 'log':
-                    overwrite = 'log_uniform_values'
-                elif dist == 'linear':
-                    if is_integer:
-                        overwrite = 'int_uniform'
-                    else:
-                        overwrite = 'uniform'
-                elif dist == 'logit':
-                    overwrite = 'uniform'
+        if distribution == 'uniform':
+            space = LinearSpace(
+                min=param['min'],
+                max=param['max'],
+                scale=(param['max'] - param['min'])/2.0
+            )
+            search_center = (param['max'] + param['min']) / 2
+        elif distribution == 'int_uniform':
+            space = LinearSpace(
+                min=param['min'],
+                max=param['max'],
+                is_integer=True,
+                scale=5.0
+            )
+            search_center = (param['max'] + param['min']) / 2
+        elif distribution == 'uniform_pow2':
+            space = Pow2Space(
+                min=param['min'],
+                max=param['max'],
+                is_integer=True,
+                scale=(param['max'] - param['min'])/2.0
+            )
+            search_center = (param['max'] + param['min']) / 2
+        elif distribution == 'log_normal':
+            space = LogSpace(
+                min=10**(np.log10(param['mean']) - param['clip']),
+                max=10**(np.log10(param['mean']) + param['clip']),
+                scale=param['scale'],
+            )
+            search_center = param['mean']
+        elif distribution == 'logit_normal':
+            space = LogitSpace(
+                min=1-10**(np.log10(1 - param['mean']) + param['clip']),
+                max=1-10**(np.log10(1 - param['mean']) - param['clip']),
+                scale=param['scale'],
+            )
+            search_center = param['mean']
+        else:
+            raise ValueError(f'Invalid distribution: {distribution}')
 
-                param['distribution'] = overwrite
+        param_spaces[name] = Param(name=name, space=space, search_center=search_center)
 
-    return sweep_config
+    return param_spaces
 
 def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
-    from carbs.sweep import WandbCarbs
+    target_metric = args['sweep']['metric']['name']
+    carbs = PufferCarbs(
+        args['sweep'],
+        resample_frequency=5,
+        num_random_samples=10, # Should be number of params
+        max_suggestion_cost=args['base']['max_suggestion_cost'],
+    )
+    for i in range(args['max_runs']):
+        random.seed(int(time.time()))
+        np.random.seed(int(time.time()))
+        torch.manual_seed(int(time.time()))
+ 
+        carbs.suggest(args)
+        target, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
+        carbs.observe(score=target, cost=uptime)
 
-    carbs_obj = WandbCarbs(args['sweep'])
+def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
+    target_metric = args['sweep']['metric']['name']
+    carbs = PufferCarbs(
+        args['sweep'],
+        resample_frequency=5,
+        num_random_samples=10, # Should be number of params
+        max_suggestion_cost=args['base']['max_suggestion_cost'],
+    )
+    for i in range(args['max_runs']):
+        random.seed(int(time.time()))
+        np.random.seed(int(time.time()))
+        torch.manual_seed(int(time.time()))
+ 
+        carbs.suggest(args)
+        train_args = args['train']
+        score = 10*np.abs(train_args['learning_rate'] - 0.001) + 10*np.abs(train_args['gamma'] - 0.99) - 10*np.abs(train_args['ent_coef'] - 0.01)
+        uptime = train_args['gae_lambda']
+        neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
+        for k, v in pufferlib.utils.unroll_nested_dict(args):
+            neptune[k].append(v)
 
-    while True:
-        hparams = carbs_obj.suggest().suggestion
-        args['train'].update(hparams)
-
-        if args['neptune']:
-            run = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
-            stats = train(args, make_env, policy_cls, rnn_cls, neptune=run)[0]
-        elif args['wandb']:
-            run = init_wandb(args, env_name, id=args['exp_id'], tag=args['tag'])
-            stats = train(args, make_env, policy_cls, rnn_cls, wandb=run)[0]
+        neptune['environment/score'].append(score)
+        neptune['environment/uptime'].append(uptime)
+        neptune.stop()
+ 
+        #stats, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls)
+        carbs.observe(score=score, cost=uptime)
 
 
-        observation = stats['score']
-        carbs_obj.observe(input=hparams, output=observation, cost=1)
+def sweep(args, env_name, make_env, policy_cls, rnn_cls):
+    target_metric = args['sweep']['metric']['name']
+    for i in range(args['max_runs']):
+        np.random.seed(int(time.time()))
+        random.seed(int(time.time()))
+        hypers = sample_hyperparameters(args['sweep'])
+        args['train'].update(hypers['train'])
+        train(args, make_env, policy_cls, rnn_cls, target_metric)
 
-def train(args, make_env, policy_cls, rnn_cls, eval_frac=0.1, elos={'model_random.pt': 1000},
-        vecenv=None, subprocess=False, queue=None, wandb=None, neptune=None):
-    if subprocess:
-        from multiprocessing import Process, Queue
-        queue = Queue()
-        p = Process(target=train, args=(args, make_env, policy_cls, rnn_cls, wandb,
-            eval_frac, elos, False, queue))
-        p.start()
-        p.join()
-        stats, uptime, elos = queue.get()
+def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
+        elos={'model_random.pt': 1000}, vecenv=None, wandb=None, neptune=None):
 
     if args['vec'] == 'serial':
         vec = pufferlib.vector.Serial
@@ -280,6 +331,15 @@ def train(args, make_env, policy_cls, rnn_cls, eval_frac=0.1, elos={'model_rando
         torch.save(policy, os.path.join('moba_elo', 'model_random.pt'))
     '''
 
+    neptune = None
+    wandb = None
+    if args['neptune']:
+        neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
+        for k, v in pufferlib.utils.unroll_nested_dict(args):
+            neptune[k].append(v)
+    elif args['wandb']:
+        wandb = init_wandb(args, env_name, id=args['exp_id'], tag=args['tag'])
+
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
     data = clean_pufferl.create(train_config, vecenv, policy, wandb=wandb, neptune=neptune)
@@ -287,14 +347,15 @@ def train(args, make_env, policy_cls, rnn_cls, eval_frac=0.1, elos={'model_rando
         clean_pufferl.evaluate(data)
         clean_pufferl.train(data)
 
-    uptime = data.profile.uptime
     steps_evaluated = 0
-    steps_to_eval = int(args['train']['total_timesteps'] * eval_frac)
+    uptime = data.profile.uptime
     batch_size = args['train']['batch_size']
-    while steps_evaluated < steps_to_eval:
+    while len(data.stats[target_metric]) < min_eval_points:
         stats, _ = clean_pufferl.evaluate(data)
+        data.experience.sort_keys = []
         steps_evaluated += batch_size
 
+    print(f'Evaluated {steps_evaluated} steps')
     clean_pufferl.mean_and_log(data)
 
     '''
@@ -310,10 +371,7 @@ def train(args, make_env, policy_cls, rnn_cls, eval_frac=0.1, elos={'model_rando
     '''
 
     clean_pufferl.close(data)
-    if queue is not None:
-        queue.put((stats, uptime, elos))
-
-    return stats, uptime, elos, vecenv
+    return stats[target_metric], uptime, elos, vecenv
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -323,7 +381,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', '--environment', type=str,
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
-        choices='train eval evaluate sweep sweep-carbs autotune profile'.split())
+        choices='train eval evaluate sweep sweep-carbs test-carbs autotune profile'.split())
     parser.add_argument('--vec', '--vector', '--vectorization', type=str,
         default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--vec-overwork', action='store_true',
@@ -337,6 +395,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help='Resume from experiment')
     parser.add_argument('--track', action='store_true', help='Track on WandB')
+    parser.add_argument('--max-runs', type=int, default=10_000, help='Max number of sweep runs')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
@@ -416,10 +475,8 @@ if __name__ == '__main__':
             model_file = max(os.listdir(data_dir))
             args['eval_model_path'] = os.path.join(data_dir, model_file)
     if args['mode'] == 'train':
-        wandb = None
-        if args['track']:
-            run = init_neptune(args, env_name, id=args['exp_id'])
-        train(args, make_env, policy_cls, rnn_cls, neptune=run)
+        target_metric = args['sweep']['metric']['name']
+        train(args, make_env, policy_cls, rnn_cls, target_metric)
     elif args['mode'] in ('eval', 'evaluate'):
         vec = pufferlib.vector.Serial
         if args['vec'] == 'native':
@@ -442,6 +499,8 @@ if __name__ == '__main__':
         sweep(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'sweep-carbs':
         sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls)
+    elif args['mode'] == 'test-carbs':
+        test_carbs(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'autotune':
         pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
     elif args['mode'] == 'profile':
