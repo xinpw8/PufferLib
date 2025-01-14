@@ -326,7 +326,8 @@ void add_blocks_to_fall(CTowerClimb* env){
         int cell_above = env->blocks_to_move[i] + sz;
         
         // If valid block above, add to queue
-        if (cell_above < total_length && env->board_state[cell_above] == 1) {
+        if (cell_above < total_length && env->board_state[cell_above] == 1
+        && !is_block_stable(env, cell_above)) {
             queue[rear++] = cell_above;
         }
         
@@ -341,7 +342,8 @@ void add_blocks_to_fall(CTowerClimb* env){
         // Add valid edge blocks to queue
         for(int j = 0; j < 4; j++) {
             if (edge_blocks[j] >= 0 && edge_blocks[j] < total_length && 
-                env->board_state[edge_blocks[j]] == 1) {
+                env->board_state[edge_blocks[j]] == 1
+                && !is_block_stable(env, edge_blocks[j])) {
                 queue[rear++] = edge_blocks[j];
             }
         }
@@ -376,7 +378,8 @@ void add_blocks_to_fall(CTowerClimb* env){
         if (found_support) {
             // Add blocks that might be affected by this fall
             int original_above = current + sz;  // Block directly above original position
-            if (original_above < total_length && env->board_state[original_above] == 1) {
+            if (original_above < total_length && env->board_state[original_above] == 1
+            && !is_block_stable(env, original_above)) {
                 queue[rear++] = original_above;
             }
             
@@ -389,13 +392,15 @@ void add_blocks_to_fall(CTowerClimb* env){
             
             for(int i = 0; i < 4; i++) {
                 if (edge_check[i] >= 0 && edge_check[i] < total_length && 
-                    env->board_state[edge_check[i]] == 1) {
+                    env->board_state[edge_check[i]] == 1
+                    && !is_block_stable(env, edge_check[i])) {
                     queue[rear++] = edge_check[i];
                 }
             }
         }
         // If no support found, block disappears (already set to 0)
     }
+    // death by block crush
     memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
     memset(env->blocks_to_move, -1, cols * sizeof(int));
 }
@@ -825,6 +830,12 @@ void step(CTowerClimb* env) {
         if(env->robot_state == HANGING){
             handle_drop(env);
         }
+    }
+
+    if(env->board_state[env->robot_position] == 1){
+        env->rewards[0] = -1;
+        env->log.episode_return -= 1;
+        reset(env);
     }
     
     compute_observations(env);
