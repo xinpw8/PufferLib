@@ -31,7 +31,7 @@ class Blastar(pufferlib.PufferEnv):
     def reset(self, seed=None):
         self.tick = 0
         self.c_envs.reset()
-        return self.observations.copy(), []
+        return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
@@ -44,8 +44,8 @@ class Blastar(pufferlib.PufferEnv):
                 info.append(log)
 
         self.tick += 1
-        return (self.observations.copy(), self.rewards.copy(),
-                self.terminals.copy(), self.truncations, info)
+        return (self.observations, self.rewards,
+            self.terminals, self.truncations, info)
 
     def render(self):
         self.c_envs.render()
