@@ -18,6 +18,7 @@
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
 #define LEVEL_MAX_SIZE 432
+#define PLAYER_OBS 4
 
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
@@ -77,7 +78,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 
 typedef struct CTowerClimb CTowerClimb;
 struct CTowerClimb {
-    unsigned char* observations;
+    float* observations;
     int* actions;
     float* rewards;
     unsigned char* dones;
@@ -135,7 +136,7 @@ void init(CTowerClimb* env) {
 
 void allocate(CTowerClimb* env) {
     init(env);
-    env->observations = (unsigned char*)calloc(LEVEL_MAX_SIZE, sizeof(unsigned char)); // make this unsigned char
+    env->observations = (float*)calloc(LEVEL_MAX_SIZE+PLAYER_OBS, sizeof(float)); // make this unsigned char
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -158,7 +159,15 @@ void free_allocated(CTowerClimb* env) {
 }
 
 void compute_observations(CTowerClimb* env) {
-    memcpy(env->observations, env->board_state, env->level.total_length * sizeof(unsigned char));
+    //memcpy(env->observations, env->board_state, env->level.total_length * sizeof(float));
+    for (int i =0;i< env->level.total_length; i++){
+	    env->observations[i] = (float)env->board_state[i];
+    }
+    int inc = LEVEL_MAX_SIZE;
+    env->observations[inc] = (float)env->robot_position;
+    env->observations[inc+1] = (float)env->robot_orientation;
+    env->observations[inc+2] = (float)env->robot_state;
+    env->observations[inc+3] = (float)env->block_grabbed;
 }
 
 void reset(CTowerClimb* env) {
@@ -452,8 +461,8 @@ void handle_climb(CTowerClimb* env, int action, int current_floor,int x, int z, 
     }
     env->rows_cleared = previous_row;
     env->log.rows_cleared = env->rows_cleared;
-    env->rewards[0] = .1;
-    env->log.episode_return += .1;    
+    env->rewards[0] = 1;
+    env->log.episode_return += 1;    
 }
 
 
@@ -710,7 +719,8 @@ void handle_move_forward(CTowerClimb* env, int action) {
         if(abs(env->robot_orientation - action) == 0){
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
-            add_blocks_to_fall(env);
+	    add_blocks_to_fall(env);
+
         }
         // Pulling
         if (abs(env->robot_orientation - action) == 2){
@@ -788,7 +798,7 @@ void step(CTowerClimb* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
 
-    if(env->log.episode_length > 700){
+    if(env->log.episode_length >500){
 	    reset(env);
     }
     int action = env->actions[0];
@@ -809,7 +819,8 @@ void step(CTowerClimb* env) {
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 add_log(env->log_buffer, &env->log);
-                next_level(env);
+                //next_level(env);
+		reset(env);
             }
         }
         else {

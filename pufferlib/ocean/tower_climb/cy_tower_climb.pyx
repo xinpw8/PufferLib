@@ -23,7 +23,7 @@ cdef extern from "tower_climb.h":
         int spawn_location;
 
     ctypedef struct CTowerClimb:
-        unsigned char* observations;
+        float* observations;
         int* actions;
         float* rewards;
         unsigned char* dones;
@@ -62,7 +62,7 @@ cdef class CyTowerClimb:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, unsigned char[:, :] observations, int[:] actions,
+    def __init__(self, float[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             int map_choice):
 
