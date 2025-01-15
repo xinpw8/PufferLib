@@ -14,7 +14,6 @@ from pufferlib.ocean.tower_climb.cy_tower_climb import CyTowerClimb
 
 class TowerClimb(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
-            width=1280, height=1024,
             map_choice=1,
             buf = None):
 
@@ -30,7 +29,7 @@ class TowerClimb(pufferlib.PufferEnv):
 
         super().__init__(buf=buf)   
         self.c_envs = CyTowerClimb(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, width, height, map_choice)
+            self.terminals, num_envs, map_choice)
 
 
     def reset(self, seed=None):

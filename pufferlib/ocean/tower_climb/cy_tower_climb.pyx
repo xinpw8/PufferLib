@@ -13,17 +13,23 @@ cdef extern from "tower_climb.h":
     void free_logbuffer(LogBuffer*)
     Log aggregate_and_clear(LogBuffer*)
 
+    ctypedef struct Level:
+        const int* map;
+        int rows;
+        int cols;
+        int size;
+        int total_length;
+        int goal_location;
+        int spawn_location;
 
     ctypedef struct CTowerClimb:
-        float* observations;
+        unsigned char* observations;
         int* actions;
         float* rewards;
         unsigned char* dones;
         LogBuffer* log_buffer;
         Log log;
         float score;
-        int width;
-        int height;
         int map_choice;
         int robot_position; 
         int robot_direction;
@@ -34,7 +40,9 @@ cdef extern from "tower_climb.h":
         int* blocks_to_fall;
         int block_grabbed;
         int rows_cleared;
-
+        Level level;
+        int level_number;
+    
     ctypedef struct Client
 
     void init(CTowerClimb* env)
@@ -54,15 +62,14 @@ cdef class CyTowerClimb:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, unsigned char[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int width, int height, int map_choice):
+            int map_choice):
 
         self.client = NULL
         self.num_envs = num_envs
         self.envs = <CTowerClimb*> calloc(num_envs, sizeof(CTowerClimb))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
-
         cdef int i
         for i in range(num_envs):
             self.envs[i] = CTowerClimb(
@@ -71,8 +78,6 @@ cdef class CyTowerClimb:
                 rewards=&rewards[i],
                 dones=&terminals[i],
                 log_buffer=self.logs,
-                width=width,
-                height=height,
                 map_choice=map_choice,
             )
             init(&self.envs[i])

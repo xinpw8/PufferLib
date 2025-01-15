@@ -77,7 +77,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 
 typedef struct CTowerClimb CTowerClimb;
 struct CTowerClimb {
-    int* observations;
+    unsigned char* observations;
     int* actions;
     float* rewards;
     unsigned char* dones;
@@ -94,7 +94,6 @@ struct CTowerClimb {
     int* blocks_to_fall;
     int block_grabbed;
     int rows_cleared;
-    const Level levels[3];
     Level level;
     int level_number;
 };
@@ -136,7 +135,7 @@ void init(CTowerClimb* env) {
 
 void allocate(CTowerClimb* env) {
     init(env);
-    env->observations = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int)); // make this unsigned char
+    env->observations = (unsigned char*)calloc(LEVEL_MAX_SIZE, sizeof(unsigned char)); // make this unsigned char
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -159,7 +158,7 @@ void free_allocated(CTowerClimb* env) {
 }
 
 void compute_observations(CTowerClimb* env) {
-    memcpy(env->observations, env->board_state, env->level.total_length * sizeof(int));
+    memcpy(env->observations, env->board_state, env->level.total_length * sizeof(unsigned char));
 }
 
 void reset(CTowerClimb* env) {

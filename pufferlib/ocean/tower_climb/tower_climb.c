@@ -62,8 +62,8 @@ void performance_test() {
 }
 
 int main() {
-    demo(1);
-    // performance_test();
+    // demo(1);
+    performance_test();
     return 0;
 }
 
