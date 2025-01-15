@@ -7,7 +7,9 @@
 
 #include "puffernet.h"
 
-const char* WEIGHTS_PATH = "/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar/blastar_weights.bin";
+const char* WEIGHTS_PATH =
+    "/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar/"
+    "blastar_weights.bin";
 #define OBSERVATIONS_SIZE 31
 #define ACTIONS_SIZE 6
 #define NUM_WEIGHTS 137095
@@ -46,7 +48,7 @@ int demo() {
 
     BlastarEnv env = {
         .player.x = SCREEN_WIDTH / 2,
-        .player.y = SCREEN_HEIGHT - player_height,
+        .player.y = SCREEN_HEIGHT - PLAYER_HEIGHT,
     };
     allocate(&env);
 
