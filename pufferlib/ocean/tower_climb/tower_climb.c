@@ -6,7 +6,6 @@ void demo(int map_choice) {
     CTowerClimb  env = {
         .map_choice = map_choice,
     };
-    
 
     allocate(&env);
     reset(&env);
@@ -64,6 +63,7 @@ void performance_test() {
 
 int main() {
     demo(1);
-    //  performance_test();
+    // performance_test();
     return 0;
 }
+
