@@ -36,9 +36,9 @@ cdef extern from "connect4.h":
     void free_cconnect4(CConnect4* env)
     Client* make_client(float width, float height)
     void close_client(Client* client)
-    void render(Client* client, CConnect4* env)
-    void reset(CConnect4* env)
-    void step(CConnect4* env)
+    void c_render(Client* client, CConnect4* env)
+    void c_reset(CConnect4* env)
+    void c_step(CConnect4* env)
 
 cdef class CyConnect4:
     cdef:
@@ -75,12 +75,12 @@ cdef class CyConnect4:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef CConnect4* env = &self.envs[0]
@@ -91,7 +91,7 @@ cdef class CyConnect4:
             self.client = make_client(env.width, env.height)
             os.chdir(cwd)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:

@@ -198,8 +198,8 @@ cdef extern from "moba.h":
  
     unsigned char* read_file(char* filename)
 
-    void reset(MOBA* env)
-    void step(MOBA* env)
+    void c_reset(MOBA* env)
+    void c_step(MOBA* env)
     void randomize_tower_hp(MOBA* env)
 
 cpdef entity_dtype():
@@ -267,12 +267,12 @@ cdef class CyMOBA:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self, int tick):
         if self.client == NULL:

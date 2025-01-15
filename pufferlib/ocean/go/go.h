@@ -648,7 +648,7 @@ void enemy_greedy_easy(CGo* env){
     enemy_random_move(env);
 }
 
-void reset(CGo* env) {
+void c_reset(CGo* env) {
     env->log = (Log){0};
     env->dones[0] = 0;
     env->score = 0;
@@ -687,10 +687,10 @@ void end_game(CGo* env){
     env->log.games_played++;
     env->log.episode_return += env->rewards[0];
     add_log(env->log_buffer, &env->log);
-    reset(env);
+    c_reset(env);
 }
 
-void step(CGo* env) {
+void c_step(CGo* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
     int action = (int)env->actions[0];
@@ -767,7 +767,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void render(Client* client, CGo* env) {
+void c_render(Client* client, CGo* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

@@ -138,8 +138,8 @@ cdef extern from "nmmo3.h":
     int tick(Client* client, MMO* env, float delta)
 
     void init_mmo(MMO* env)
-    void reset(MMO* env, int seed)
-    void step(MMO* env)
+    void c_reset(MMO* env, int seed)
+    void c_step(MMO* env)
 
 cpdef entity_dtype():
     '''Make a dummy entity to get the dtype'''
@@ -226,13 +226,13 @@ cdef class Environment:
         cdef int i
         for i in range(self.num_envs):
             # TODO: Seed
-            reset(&self.envs[i], i+1)
+            c_reset(&self.envs[i], i+1)
             # Do I need to reset terrain here?
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def pids(self):
         ary = np.zeros((512, 512), dtype=np.intc)

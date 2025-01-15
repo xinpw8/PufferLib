@@ -278,11 +278,23 @@ extensions = [Extension(
     library_dirs=['raylib/lib'],
     libraries=["raylib"],
     runtime_library_dirs=["raylib/lib"],
-    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
-    extra_link_args=[rpath_arg]
-
+    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fwrapv'],#, '-g'],
+    extra_link_args=[rpath_arg, '-Bsymbolic-functions', '-O2', '--enable-new-dtags', '-fwrapv']
 ) for path in extension_paths]
- 
+
+# Prevent Conda from injecting garbage compile flags
+from distutils.sysconfig import get_config_vars
+cfg_vars = get_config_vars()
+for key in ('CC', 'CXX', 'LDSHARED'):
+    if cfg_vars[key]:
+        cfg_vars[key] = cfg_vars[key].replace('-B /root/anaconda3/compiler_compat', '')
+        cfg_vars[key] = cfg_vars[key].replace('-pthread', '')
+        cfg_vars[key] = cfg_vars[key].replace('-fno-strict-overflow', '')
+
+for key, value in cfg_vars.items():
+    if value and '-fno-strict-overflow' in str(value):
+        cfg_vars[key] = value.replace('-fno-strict-overflow', '')
+
 setup(
     name="pufferlib",
     description="PufferAI Library"
@@ -295,7 +307,7 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        'numpy==1.23.3',
+        'numpy>=1.23.3',
         'opencv-python==3.4.17.63',
         'cython>=3.0.0',
         'rich',

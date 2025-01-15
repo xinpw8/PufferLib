@@ -1820,7 +1820,7 @@ MOBA* allocate_moba(MOBA* env) {
     return env;
 }
  
-void reset(MOBA* env) {
+void c_reset(MOBA* env) {
     //map->pids[:] = -1
     //randomize_tower_hp(env);
     
@@ -1890,7 +1890,7 @@ void reset(MOBA* env) {
     compute_observations(env);
 }
 
-void step(MOBA* env) {
+void c_step(MOBA* env) {
     for (int pid = 0; pid < NUM_ENTITIES; pid++) {
         Entity* entity = &env->entities[pid];
         entity->target_pid = -1;
@@ -1997,7 +1997,7 @@ void step(MOBA* env) {
         log.dire_carry = env->log[9];
         add_log(env->log_buffer, &log);
         if (do_reset) {
-            reset(env);
+            c_reset(env);
         }
     }
     compute_observations(env);
@@ -2261,7 +2261,7 @@ int render_game(GameRenderer* renderer, MOBA* env, int frame) {
         }
     }
     if (IsKeyDown(KEY_ESCAPE)) {
-        return 1;
+        exit(0);
     }
     if (HUMAN_CONTROL) {
         if (IsKeyDown(KEY_Q) || IsKeyPressed(KEY_Q)) {
