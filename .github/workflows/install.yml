@@ -30,6 +30,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: ${{ matrix.py }}
+          miniconda-version: "latest"
           activate-environment: test-env
           auto-update-conda: true
 
