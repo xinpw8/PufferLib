@@ -744,7 +744,6 @@ void handle_drop(CTowerClimb* env){
     int next_position = env->robot_position - sz;
     // fallen off the map
     if (env->robot_position < sz){
-        env->dones[0] = 1;
         env->rewards[0] = -1;
         env->log.episode_return -= -1;
         reset(env);
@@ -752,7 +751,6 @@ void handle_drop(CTowerClimb* env){
     }
     while (env->board_state[next_position] != 1){
         if(next_position < sz){
-            env->dones[0] = 1;
             env->rewards[0] = -1;
             env->log.episode_return -= 1;
             reset(env);
@@ -767,7 +765,6 @@ void handle_drop(CTowerClimb* env){
 
 void next_level(CTowerClimb* env){
     if(env->level_number == 2){
-        env->dones[0] = 1;
         env->rewards[0] = 1;
         env->log.episode_return += 1;
         reset(env);
@@ -790,6 +787,10 @@ void next_level(CTowerClimb* env){
 void step(CTowerClimb* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
+
+    if(env->log.episode_length > 700){
+	    reset(env);
+    }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
@@ -805,7 +806,6 @@ void step(CTowerClimb* env) {
             }
             // check if goal is below current position
             if (env->board_state[below_index] == 2){
-                env->dones[0] = 1;
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 add_log(env->log_buffer, &env->log);

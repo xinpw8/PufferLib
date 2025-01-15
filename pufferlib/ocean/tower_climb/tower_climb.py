@@ -24,7 +24,7 @@ class TowerClimb(pufferlib.PufferEnv):
         
         self.num_obs = 288
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
-            shape=(self.num_obs,), dtype=np.float32)
+            shape=(self.num_obs,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(6)
 
         super().__init__(buf=buf)   
