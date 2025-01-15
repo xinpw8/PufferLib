@@ -3,4 +3,9 @@ global-include *.pxd
 global-include *.h
 global-include *.py
 recursive-include pufferlib/resources *
+recursive-exclude experiments *
+recursive-exclude wandb *
+recursive-exclude tests *
+recursive-exclude raylib *
+recursive-exclude raylib_wasm *
 

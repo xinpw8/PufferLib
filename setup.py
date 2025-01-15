@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup, Extension
+from setuptools import find_packages, find_namespace_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
 import os
@@ -9,7 +9,7 @@ import platform
 	
 #  python3 setup.py built_ext --inplace
 
-VERSION = '2.0.3'
+VERSION = '2.0.6'
 
 RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.0/'
 RAYLIB_NAME = 'raylib-5.0_macos' if platform.system() == "Darwin" else 'raylib-5.0_linux_amd64'
@@ -266,8 +266,10 @@ if system == 'Darwin':
     # So @loader_path/../../raylib/lib is common.
     rpath_arg = '-Wl,-rpath,@loader_path/../../raylib/lib'
 elif system == 'Linux':
-    # On Linux, $ORIGIN works
-    rpath_arg = '-Wl,-rpath,$ORIGIN/raylib/lib'
+    # TODO: Check if anything moves packages around after they are installed.
+    # That would break this linking. Rel path doesn't work outside the pufferlib dir
+    raylib_dir = os.path.abspath("raylib/lib")
+    rpath_arg = f"-Wl,-rpath,{raylib_dir}"
 else:
     raise ValueError(f'Unsupported system: {system}')
 
@@ -277,7 +279,7 @@ extensions = [Extension(
     include_dirs=[numpy.get_include(), 'raylib/include'],
     library_dirs=['raylib/lib'],
     libraries=["raylib"],
-    runtime_library_dirs=["raylib/lib"],
+    runtime_library_dirs=['raylib/lib'],
     extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fwrapv'],#, '-g'],
     extra_link_args=[rpath_arg, '-Bsymbolic-functions', '-O2', '--enable-new-dtags', '-fwrapv']
 ) for path in extension_paths]
@@ -301,9 +303,12 @@ setup(
     "PufferAI's library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
-    packages=find_packages(),
+    packages=find_namespace_packages() + find_packages(),
     package_data={
-        "pufferlib": ["raylib/lib/libraylib.so.500", "raylib/lib/libraylib.so"]
+        "pufferlib": [
+            "raylib/lib/libraylib.so.500",
+            "raylib/lib/libraylib.so"
+        ]
     },
     include_package_data=True,
     install_requires=[
@@ -347,7 +352,7 @@ setup(
        #annotate=True,
        #compiler_directives={'profile': True},# annotate=True
     ),
-    include_dirs=[numpy.get_include(), 'raylib-5.0_linux_amd64/include'],
+    include_dirs=[numpy.get_include(), 'raylib/include'],
     python_requires=">=3.9",
     license="MIT",
     author="Joseph Suarez",
