@@ -6,6 +6,6 @@ recursive-include pufferlib/resources *
 recursive-exclude experiments *
 recursive-exclude wandb *
 recursive-exclude tests *
-recursive-exclude raylib *
-recursive-exclude raylib_wasm *
-
+include raylib-5.0_linux_amd64/lib/libraylib.a
+include raylib-5.0_macos/lib/libraylib.a
+recursive-exclude raylib-5.0_webassembly * 

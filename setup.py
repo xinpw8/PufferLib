@@ -12,31 +12,35 @@ import platform
 VERSION = '2.0.6'
 
 RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.0/'
+
 RAYLIB_NAME = 'raylib-5.0_macos' if platform.system() == "Darwin" else 'raylib-5.0_linux_amd64'
-RAYLIB_WASM_URL = RAYLIB_BASE + 'raylib-5.0_webassembly.zip'
-RAYLIB_URL = RAYLIB_BASE + RAYLIB_NAME + '.tar.gz'
 
-if not os.path.exists('raylib'):
-    print("Raylib not found, downloading...")
-    urllib.request.urlretrieve(RAYLIB_URL, 'raylib.tar.gz')
-    with tarfile.open('raylib.tar.gz', 'r') as tar_ref:
+RAYLIB_LINUX = 'raylib-5.0_linux_amd64'
+RAYLIB_LINUX_URL = RAYLIB_BASE + RAYLIB_LINUX + '.tar.gz'
+if not os.path.exists(RAYLIB_LINUX):
+    urllib.request.urlretrieve(RAYLIB_LINUX_URL, RAYLIB_LINUX + '.tar.gz')
+    with tarfile.open(RAYLIB_LINUX + '.tar.gz', 'r') as tar_ref:
         tar_ref.extractall()
-        os.rename(RAYLIB_NAME, 'raylib')
 
-    os.remove('raylib.tar.gz')
+    os.remove(RAYLIB_LINUX + '.tar.gz')
 
-if not os.path.exists('raylib_wasm'):
-    print("Raylib WASM not found, downloading...")
-    urllib.request.urlretrieve(RAYLIB_WASM_URL, 'raylib.zip')
-    with zipfile.ZipFile('raylib.zip', 'r') as zip_ref:
+RAYLIB_MACOS = 'raylib-5.0_macos'
+RAYLIB_MACOS_URL = RAYLIB_BASE + RAYLIB_MACOS + '.tar.gz'
+if not os.path.exists(RAYLIB_MACOS):
+    urllib.request.urlretrieve(RAYLIB_MACOS_URL, RAYLIB_MACOS + '.tar.gz')
+    with tarfile.open(RAYLIB_MACOS + '.tar.gz', 'r') as tar_ref:
+        tar_ref.extractall()
+
+    os.remove(RAYLIB_MACOS + '.tar.gz')
+
+RAYLIB_WASM = 'raylib-5.0_webassembly'
+RAYLIB_WASM_URL = RAYLIB_BASE + RAYLIB_WASM + '.zip'
+if not os.path.exists(RAYLIB_WASM):
+    urllib.request.urlretrieve(RAYLIB_WASM_URL, RAYLIB_WASM + '.zip')
+    with zipfile.ZipFile(RAYLIB_WASM + '.zip', 'r') as zip_ref:
         zip_ref.extractall()
-        os.rename('raylib-5.0_webassembly', 'raylib_wasm')
 
-    os.remove('raylib.zip')
-    
-#import os
-#os.environ['CFLAGS'] = '-O3 -march=native -Wall'
-
+    os.remove(RAYLIB_WASM + '.zip')
 
 # Default Gym/Gymnasium/PettingZoo versions
 # Gym:
@@ -264,24 +268,23 @@ if system == 'Darwin':
     # The extension “.so” is typically in pufferlib/ocean/...,
     # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
     # So @loader_path/../../raylib/lib is common.
-    rpath_arg = '-Wl,-rpath,@loader_path/../../raylib/lib'
+    RAYLIB_INCLUDE = f'{RAYLIB_MACOS}/include'
+    RAYLIB_LIB = f'{RAYLIB_MACOS}/lib'
 elif system == 'Linux':
     # TODO: Check if anything moves packages around after they are installed.
     # That would break this linking. Rel path doesn't work outside the pufferlib dir
-    raylib_dir = os.path.abspath("raylib/lib")
-    rpath_arg = f"-Wl,-rpath,{raylib_dir}"
+    RAYLIB_INCLUDE = f'{RAYLIB_LINUX}/include'
+    RAYLIB_LIB = f'{RAYLIB_LINUX}/lib'
 else:
     raise ValueError(f'Unsupported system: {system}')
 
 extensions = [Extension(
     path.replace('/', '.'),
     [path + '.pyx'],
-    include_dirs=[numpy.get_include(), 'raylib/include'],
-    library_dirs=['raylib/lib'],
-    libraries=["raylib"],
-    runtime_library_dirs=['raylib/lib'],
+    include_dirs=[numpy.get_include(), RAYLIB_INCLUDE],
     extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fwrapv'],#, '-g'],
-    extra_link_args=[rpath_arg, '-Bsymbolic-functions', '-O2', '--enable-new-dtags', '-fwrapv']
+    extra_link_args=['-Bsymbolic-functions', '-O2', '--enable-new-dtags', '-fwrapv'],
+    extra_objects=[f'{RAYLIB_LIB}/libraylib.a']
 ) for path in extension_paths]
 
 # Prevent Conda from injecting garbage compile flags
@@ -306,8 +309,7 @@ setup(
     packages=find_namespace_packages() + find_packages(),
     package_data={
         "pufferlib": [
-            "raylib/lib/libraylib.so.500",
-            "raylib/lib/libraylib.so"
+            f'{RAYLIB_LIB}/libraylib.a',
         ]
     },
     include_package_data=True,
@@ -352,7 +354,7 @@ setup(
        #annotate=True,
        #compiler_directives={'profile': True},# annotate=True
     ),
-    include_dirs=[numpy.get_include(), 'raylib/include'],
+    include_dirs=[numpy.get_include(), RAYLIB_INCLUDE],
     python_requires=">=3.9",
     license="MIT",
     author="Joseph Suarez",
