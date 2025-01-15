@@ -755,15 +755,17 @@ void handle_drop(CTowerClimb* env){
     // fallen off the map
     if (env->robot_position < sz){
         env->rewards[0] = -1;
-        env->log.episode_return -= -1;
-        reset(env);
+        env->log.episode_return -= 1;
+        add_log(env->log_buffer, &env->log);
+	reset(env);
         return;
     }
     while (env->board_state[next_position] != 1){
         if(next_position < sz){
             env->rewards[0] = -1;
             env->log.episode_return -= 1;
-            reset(env);
+            add_log(env->log_buffer, &env->log);
+	    reset(env);
             return;
         } 
         next_position = next_position - sz;  
@@ -798,7 +800,10 @@ void step(CTowerClimb* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
 
-    if(env->log.episode_length >500){
+    if(env->log.episode_length >50){
+	    env->rewards[0] = 0;
+	    env->log.episode_return +=0;
+	    add_log(env->log_buffer, &env->log);
 	    reset(env);
     }
     int action = env->actions[0];
@@ -839,7 +844,8 @@ void step(CTowerClimb* env) {
     if(env->board_state[env->robot_position] == 1){
         env->rewards[0] = -1;
         env->log.episode_return -= 1;
-        reset(env);
+        add_log(env->log_buffer, &env->log);
+	reset(env);
     }
     compute_observations(env);
 }
