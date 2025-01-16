@@ -22,7 +22,7 @@ class TowerClimb(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.report_interval = report_interval
         
-        self.num_obs = 436
+        self.num_obs = 437
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(6)
@@ -41,7 +41,6 @@ class TowerClimb(pufferlib.PufferEnv):
         self.actions[:] = actions
         self.c_envs.step()
         self.tick += 1
-
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()

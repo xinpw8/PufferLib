@@ -18,7 +18,7 @@
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
 #define LEVEL_MAX_SIZE 432
-#define PLAYER_OBS 4
+#define PLAYER_OBS 5
 
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
@@ -167,6 +167,11 @@ void compute_observations(CTowerClimb* env) {
     env->observations[inc+1] = (float)env->robot_orientation;
     env->observations[inc+2] = (float)env->robot_state;
     env->observations[inc+3] = (float)env->block_grabbed;
+    float holding = 0.0;
+    if(env->block_grabbed != -1 ){
+	    holding = 1.0;
+    }
+    env->observations[inc+4] = holding;
 }
 
 void reset(CTowerClimb* env) {
@@ -183,8 +188,8 @@ void reset(CTowerClimb* env) {
 }
 
 void illegal_move(CTowerClimb* env){
-    env->rewards[0] = -0.25;
-    env->log.episode_return -= 0.25;
+    env->rewards[0] = -0.01;
+    env->log.episode_return -= 0.01;
 }
 
 int get_local_direction(CTowerClimb* env, int action) {
@@ -233,8 +238,8 @@ void handle_grab_block(CTowerClimb *env){
     } else {
         env->block_grabbed = next_index;
     }
-    env->rewards[0] = .1;
-    env->log.episode_return += 0.1;
+    //env->rewards[0] = .2;
+    //env->log.episode_return += 0.2;
 }
 
 int is_next_to_block(CTowerClimb* env, int target_position){
@@ -465,16 +470,13 @@ void handle_climb(CTowerClimb* env, int action, int current_floor,int x, int z, 
     }
     env->robot_position = climb_index;
     env->robot_state = DEFAULT; // set hanging to indicate we climbed a block
-    env->rewards[0] = 0.1;
-    env->log.episode_return += 0.1;
     int previous_row = (env->robot_position - sz) / sz;
     if(previous_row <= env->rows_cleared){
         return;
     }
     env->rows_cleared = previous_row;
-    env->log.rows_cleared = env->rows_cleared;
-    env->rewards[0] = 1;
-    env->log.episode_return += 1;  
+    env->rewards[0] = 0.5;
+    env->log.episode_return +=0.5;  
 }
 
 
@@ -735,8 +737,8 @@ void handle_move_forward(CTowerClimb* env, int action) {
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
             add_blocks_to_fall(env);
-            env->rewards[0] = 0.25;
-            env->log.episode_return += 0.25;
+            //env->rewards[0] = 0.25;
+            //env->log.episode_return += 0.25;
         }
         // Pulling
         if (abs(env->robot_orientation - action) == 2){
@@ -758,8 +760,8 @@ void handle_move_forward(CTowerClimb* env, int action) {
             } else {
                 env->robot_position = next_index;
             }
-            env->rewards[0] = 0.25;
-            env->log.episode_return +=0.25;
+            //env->rewards[0] = 0.25;
+            //env->log.episode_return +=0.25;
         }
         if (env->robot_position != next_index){
             env->block_grabbed = -1;
@@ -801,8 +803,6 @@ void next_level(CTowerClimb* env){
         reset(env);
         return;
     }
-    env->rewards[0] = 0;
-    env->log.episode_return +=0;
     env->level_number += 1;
     env->level = levels[env->level_number];
     env->robot_position = env->level.spawn_location;
@@ -816,21 +816,23 @@ void next_level(CTowerClimb* env){
 }
 
 void step(CTowerClimb* env) {
-    env->log.episode_length += 1;
+    env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    printf("action: %d\n", env->actions[0]);
-
-    // if(env->log.episode_length >50){
-	//     env->rewards[0] = 0;
-	//     env->log.episode_return +=0;
-	//     add_log(env->log_buffer, &env->log);
-	//     reset(env);
-    // }
+    if(env->log.episode_length >200){
+	     env->rewards[0] = 0;
+	     //env->log.episode_return +=0;
+	     add_log(env->log_buffer, &env->log);
+	     reset(env);
+    }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
         int moving_block = (env->block_grabbed != -1 && abs(env->robot_orientation - action) == 2);
-        if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
+        if(moving_block){
+		env->rewards[0] = 0.2;
+		env->log.episode_return += 0.2;
+	}
+	if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
             env->robot_direction = direction;
             handle_move_forward(env, action);
             int sz = env->level.size;
@@ -867,6 +869,10 @@ void step(CTowerClimb* env) {
         add_log(env->log_buffer, &env->log);
         reset(env);
     }
+    int level_bonus = ((env->robot_position - env->level.size) / env->level.size) * 0.4;
+    env->rewards[0] += level_bonus;
+    env->log.episode_return += level_bonus;
+    env->log.rows_cleared = env->rows_cleared;
     compute_observations(env);
 }
 
