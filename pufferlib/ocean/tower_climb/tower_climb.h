@@ -504,8 +504,6 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
     if (below_cell == 1 && env->robot_state == DEFAULT) {
         env->robot_position = next_index;
         env->robot_state = DEFAULT;
-	env->rewards[0] = env->reward_fall_row;
-	env->log.episode_return += env->reward_fall_row;
         return;
     }
     if (below_cell == 0 && below_next_cell == 0 && env->robot_state == DEFAULT) {
@@ -529,6 +527,8 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
     if (below_cell == 0 && below_next_cell == 1 && env->robot_state == DEFAULT){
         env->robot_position = below_index;
         env->robot_state = DEFAULT;
+        env->rewards[0] = env->reward_fall_row;
+        env->log.episode_return += env->reward_fall_row;
     }
 }
 
@@ -536,7 +536,6 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
     // Check if the cell in front is free, the goal, or blocked
     int sz = env->level.size;
     int cols = env->level.cols;
-    int rows = env->level.rows;
     int below_index = sz*(current_floor - 1) + cols*next_z + next_x;
     int below_cell;
     if (below_index >=0){
@@ -640,13 +639,6 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
         }
     }
 
-    // walking left or right
-    if (next_x < 0 || next_x >= cols || next_z < 0 || next_z >= rows) {
-        // Attempting to move outside the 4x4 grid on this floor - do nothing
-        illegal_move(env);
-        return;
-
-    }
     if ((next_cell ==1 || next_cell ==2) && env->robot_state == DEFAULT){
         handle_climb(env, action, current_floor, x, z, next_z, next_x, next_index, next_cell);
     }
@@ -823,12 +815,12 @@ void next_level(CTowerClimb* env){
 void step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length >200){
-	     env->rewards[0] = 0;
-	     //env->log.episode_return +=0;
-	     add_log(env->log_buffer, &env->log);
-	     reset(env);
-    }
+    // if(env->log.episode_length >200){
+	//      env->rewards[0] = 0;
+	//      //env->log.episode_return +=0;
+	//      add_log(env->log_buffer, &env->log);
+	//      reset(env);
+    // }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
