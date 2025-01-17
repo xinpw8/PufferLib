@@ -38,20 +38,20 @@ cdef extern from "enduro.h":
         LogBuffer* log_buffer
         size_t obs_size
     
-    ctypedef struct GameState
-    GameState* make_client(Enduro* env)
+    ctypedef struct Client
+    Client* make_client(Enduro* env)
 
     void init(Enduro* env, int seed, int env_index)
-    void reset(Enduro* env)
+    void c_reset(Enduro* env)
     void c_step(Enduro* env)
-    void render(GameState* client, Enduro* env)
-    void close_client(GameState* client)
+    void c_render(Client* client, Enduro* env)
+    void close_client(Client* client)
 
 cdef class CyEnduro:
     cdef:
         Enduro* envs
         LogBuffer* logs
-        GameState* client
+        Client* client
         int num_envs
 
     def __init__(self,
@@ -83,7 +83,7 @@ cdef class CyEnduro:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
@@ -97,7 +97,7 @@ cdef class CyEnduro:
             os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(&self.envs[0])
             os.chdir(cwd)
-        render(self.client, &self.envs[0])
+        c_render(self.client, &self.envs[0])
 
     def close(self):
         if self.client:

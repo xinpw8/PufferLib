@@ -20,14 +20,15 @@
 #define SCREEN_HEIGHT 210
 #define PLAYABLE_AREA_TOP 0
 #define PLAYABLE_AREA_BOTTOM 154
-#define PLAYABLE_AREA_LEFT 0
-#define PLAYABLE_AREA_RIGHT 152
+#define PLAY_AREA_L 0
+#define PLAY_AREA_R 152
+#define PLAY_AREA_W (PLAY_AREA_R - PLAY_AREA_L)
 #define ACTION_HEIGHT (PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP)
 #define CAR_WIDTH 16
 #define CAR_HEIGHT 11
 #define CRASH_NOOP_DURATION_CAR_VS_CAR 90   // How long controls are disabled after car v car collision
 #define CRASH_NOOP_DURATION_CAR_VS_ROAD 20  // How long controls are disabled after car v road edge collision
-#define INITIAL_CARS_TO_PASS 200
+#define INITIAL_CARS_TO_PASS 1              // 200
 #define VANISHING_POINT_Y 52
 #define VANISH_START_POINT 86.0f
 #define MAX_DISTANCE (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y)
@@ -39,6 +40,7 @@
 #define DECELERATION_RATE 0.01f
 #define MIN_SPEED -2.5f
 #define MAX_SPEED 7.5f
+#define SPEED_RANGE (MAX_SPEED - MIN_SPEED)
 #define ENEMY_CAR_SPEED 0.1f
 // Constants for spawn interval configuration
 #define NUM_MAX_SPAWN_INTERVALS 3
@@ -50,8 +52,12 @@ static const float MIN_POSSIBLE_INTERVAL = 0.1f;
 // Times of day logic
 #define NUM_BACKGROUND_TRANSITIONS 16
 // Seconds spent in each time of day
-static const float BACKGROUND_TRANSITION_TIMES[] = {20.0f,  40.0f,  60.0f,  100.0f, 108.0f, 114.0f, 116.0f, 120.0f,
-                                                    124.0f, 130.0f, 134.0f, 138.0f, 170.0f, 198.0f, 214.0f, 232.0f};
+// static const float BACKGROUND_TRANSITION_TIMES[] = {20.0f,  40.0f,  60.0f,  100.0f, 108.0f, 114.0f, 116.0f, 120.0f,
+//                                                     124.0f, 130.0f, 134.0f, 138.0f, 170.0f, 198.0f, 214.0f, 232.0f};
+
+static const float BACKGROUND_TRANSITION_TIMES[] = {0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f,
+                                                    4.5f, 5.0f, 5.5f, 6.0f, 6.5f, 7.0f, 7.5f, 8.0f};
+
 // Curve constants
 #define CURVE_STRAIGHT 0
 #define CURVE_LEFT -1
@@ -64,6 +70,12 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {20.0f,  40.0f,  60.0f,  100.
 #define WIGGLE_SPEED 10.1f      // Speed at which the wiggle moves down the screen
 #define WIGGLE_LENGTH 26.0f     // Vertical length of the wiggle effect
 // Rendering constants
+#define SCORE_START_X (56 + DIGIT_WIDTH - 8)
+#define SCORE_START_Y (173 - DIGIT_HEIGHT)
+#define DAY_X (56 - 8)
+#define DAY_Y (188 - DIGIT_HEIGHT)
+#define CARS_X (72 - 8)
+#define CARS_Y (188 - DIGIT_HEIGHT)
 #define SCORE_DIGITS 5
 #define CARS_DIGITS 4
 #define DIGIT_WIDTH 8
@@ -100,6 +112,51 @@ struct LogBuffer {
     int idx;
 };
 
+LogBuffer* allocate_logbuffer(int size) {
+    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
+    logs->logs = (Log*)calloc(size, sizeof(Log));
+    logs->length = size;
+    logs->idx = 0;
+    return logs;
+}
+
+void free_logbuffer(LogBuffer* buffer) {
+    free(buffer->logs);
+    free(buffer);
+}
+
+void add_log(LogBuffer* logs, const Log* log) {
+    if (logs->idx == logs->length) {
+        return;
+    }
+    logs->logs[logs->idx] = *log;
+    logs->idx += 1;
+}
+
+Log aggregate_and_clear(LogBuffer* logs) {
+    Log log = {0};
+    if (logs->idx == 0) {
+        return log;
+    }
+    for (int i = 0; i < logs->idx; i++) {
+        log.episode_return += logs->logs[i].episode_return /= logs->idx;
+        log.episode_length += logs->logs[i].episode_length /= logs->idx;
+        log.score += logs->logs[i].score /= logs->idx;
+        log.reward += logs->logs[i].reward /= logs->idx;
+        log.step_rew_car_passed_no_crash += logs->logs[i].step_rew_car_passed_no_crash /= logs->idx;
+        log.crashed_penalty += logs->logs[i].crashed_penalty /= logs->idx;
+        log.passed_cars += logs->logs[i].passed_cars /= logs->idx;
+        log.passed_by_enemy += logs->logs[i].passed_by_enemy /= logs->idx;
+        log.cars_to_pass += logs->logs[i].cars_to_pass /= logs->idx;
+        log.days_completed += logs->logs[i].days_completed /= logs->idx;
+        log.days_failed += logs->logs[i].days_failed /= logs->idx;
+        log.collisions_player_vs_car += logs->logs[i].collisions_player_vs_car /= logs->idx;
+        log.collisions_player_vs_road += logs->logs[i].collisions_player_vs_road /= logs->idx;
+    }
+    logs->idx = 0;
+    return log;
+}
+
 typedef struct Car {
     int lane;         // Lane index: 0=left lane, 1=mid, 2=right lane
     float x;          // Current x position
@@ -110,24 +167,11 @@ typedef struct Car {
     int color_index;  // Car color idx (0-5)
 } Car;
 
-typedef struct GameState {
+typedef struct Client {
     Texture2D spritesheet;
-    RenderTexture2D render_target;  // for scaling up render
-    // Indices into asset_map[] for various assets
-    int background_indices[16];
-    int mountain_indices[16];
-    int digit_indices[11];         // 0-9 and "CAR" digit
-    int green_digit_indices[10];   // Green digits 0-9
-    int yellow_digit_indices[10];  // Yellow digits 0-9
+    RenderTexture2D render_target;  // Scale up render
     // Enemy car indices: [color][tread]
     int enemy_car_indices[6][2];
-    int enemy_car_night_taillights_index;
-    int enemy_car_night_fog_taillights_index;
-    int player_car_left_tread_index;  // Animates player car tire treads
-    int player_car_right_tread_index;
-    // Flag indices
-    int level_complete_flag_left_index;
-    int level_complete_flag_right_index;
     // Car animation
     float car_animation_timer;
     float car_animation_interval;
@@ -142,7 +186,7 @@ typedef struct GameState {
     int score_digit_nexts[SCORE_DIGITS];                // Next digit to scroll in per pos
     unsigned char score_digit_scrolling[SCORE_DIGITS];  // Scrolling state for each digit
     int score_timer;                                    // Timer to control score increment
-} GameState;
+} Client;
 
 typedef struct Enduro {
     float* observations;
@@ -153,7 +197,6 @@ typedef struct Enduro {
     LogBuffer* log_buffer;
     Log log;
     size_t obs_size;
-    int num_envs;
     int max_enemies;
     float elapsed_time_env;
     float min_speed;
@@ -227,88 +270,106 @@ typedef enum {
     ACTION_LEFTFIRE = 8,
 } Action;
 
-Rectangle asset_map[] = {
-    (Rectangle){328, 15, 152, 210},   // 0_bg
-    (Rectangle){480, 15, 152, 210},   // 1_bg
-    (Rectangle){632, 15, 152, 210},   // 2_bg
-    (Rectangle){784, 15, 152, 210},   // 3_bg
-    (Rectangle){0, 225, 152, 210},    // 4_bg
-    (Rectangle){152, 225, 152, 210},  // 5_bg
-    (Rectangle){304, 225, 152, 210},  // 6_bg
-    (Rectangle){456, 225, 152, 210},  // 7_bg
-    (Rectangle){608, 225, 152, 210},  // 8_bg
-    (Rectangle){760, 225, 152, 210},  // 9_bg
-    (Rectangle){0, 435, 152, 210},    // 10_bg
-    (Rectangle){152, 435, 152, 210},  // 11_bg
-    (Rectangle){304, 435, 152, 210},  // 12_bg
-    (Rectangle){456, 435, 152, 210},  // 13_bg
-    (Rectangle){608, 435, 152, 210},  // 14_bg
-    (Rectangle){760, 435, 152, 210},  // 15_bg
-    (Rectangle){0, 0, 100, 6},        // 0_mtns
-    (Rectangle){100, 0, 100, 6},      // 1_mtns
-    (Rectangle){200, 0, 100, 6},      // 2_mtns
-    (Rectangle){300, 0, 100, 6},      // 3_mtns
-    (Rectangle){400, 0, 100, 6},      // 4_mtns
-    (Rectangle){500, 0, 100, 6},      // 5_mtns
-    (Rectangle){600, 0, 100, 6},      // 6_mtns
-    (Rectangle){700, 0, 100, 6},      // 7_mtns
-    (Rectangle){800, 0, 100, 6},      // 8_mtns
-    (Rectangle){0, 6, 100, 6},        // 9_mtns
-    (Rectangle){100, 6, 100, 6},      // 10_mtns
-    (Rectangle){200, 6, 100, 6},      // 11_mtns
-    (Rectangle){300, 6, 100, 6},      // 12_mtns
-    (Rectangle){400, 6, 100, 6},      // 13_mtns
-    (Rectangle){500, 6, 100, 6},      // 14_mtns
-    (Rectangle){600, 6, 100, 6},      // 15_mtns
-    (Rectangle){700, 6, 8, 9},        // digits_0
-    (Rectangle){708, 6, 8, 9},        // digits_1
-    (Rectangle){716, 6, 8, 9},        // digits_2
-    (Rectangle){724, 6, 8, 9},        // digits_3
-    (Rectangle){732, 6, 8, 9},        // digits_4
-    (Rectangle){740, 6, 8, 9},        // digits_5
-    (Rectangle){748, 6, 8, 9},        // digits_6
-    (Rectangle){756, 6, 8, 9},        // digits_7
-    (Rectangle){764, 6, 8, 9},        // digits_8
-    (Rectangle){772, 6, 8, 9},        // digits_9
-    (Rectangle){780, 6, 8, 9},        // digits_car
-    (Rectangle){788, 6, 8, 9},        // green_digits_0
-    (Rectangle){796, 6, 8, 9},        // green_digits_1
-    (Rectangle){804, 6, 8, 9},        // green_digits_2
-    (Rectangle){812, 6, 8, 9},        // green_digits_3
-    (Rectangle){820, 6, 8, 9},        // green_digits_4
-    (Rectangle){828, 6, 8, 9},        // green_digits_5
-    (Rectangle){836, 6, 8, 9},        // green_digits_6
-    (Rectangle){844, 6, 8, 9},        // green_digits_7
-    (Rectangle){852, 6, 8, 9},        // green_digits_8
-    (Rectangle){860, 6, 8, 9},        // green_digits_9
-    (Rectangle){932, 6, 8, 9},        // yellow_digits_0
-    (Rectangle){0, 15, 8, 9},         // yellow_digits_1
-    (Rectangle){8, 15, 8, 9},         // yellow_digits_2
-    (Rectangle){16, 15, 8, 9},        // yellow_digits_3
-    (Rectangle){24, 15, 8, 9},        // yellow_digits_4
-    (Rectangle){32, 15, 8, 9},        // yellow_digits_5
-    (Rectangle){40, 15, 8, 9},        // yellow_digits_6
-    (Rectangle){48, 15, 8, 9},        // yellow_digits_7
-    (Rectangle){56, 15, 8, 9},        // yellow_digits_8
-    (Rectangle){64, 15, 8, 9},        // yellow_digits_9
-    (Rectangle){72, 15, 16, 11},      // enemy_car_blue_left_tread
-    (Rectangle){88, 15, 16, 11},      // enemy_car_blue_right_tread
-    (Rectangle){104, 15, 16, 11},     // enemy_car_gold_left_tread
-    (Rectangle){120, 15, 16, 11},     // enemy_car_gold_right_tread
-    (Rectangle){168, 15, 16, 11},     // enemy_car_pink_left_tread
-    (Rectangle){184, 15, 16, 11},     // enemy_car_pink_right_tread
-    (Rectangle){200, 15, 16, 11},     // enemy_car_salmon_left_tread
-    (Rectangle){216, 15, 16, 11},     // enemy_car_salmon_right_tread
-    (Rectangle){232, 15, 16, 11},     // enemy_car_teal_left_tread
-    (Rectangle){248, 15, 16, 11},     // enemy_car_teal_right_tread
-    (Rectangle){264, 15, 16, 11},     // enemy_car_yellow_left_tread
-    (Rectangle){280, 15, 16, 11},     // enemy_car_yellow_right_tread
-    (Rectangle){136, 15, 16, 11},     // enemy_car_night_fog_tail_lights
-    (Rectangle){152, 15, 16, 11},     // enemy_car_night_tail_lights
-    (Rectangle){296, 15, 16, 11},     // player_car_left_tread
-    (Rectangle){312, 15, 16, 11},     // player_car_right_tread
-    (Rectangle){900, 6, 32, 9},       // level_complete_flag_right
-    (Rectangle){868, 6, 32, 9},       // level_complete_flag_left
+static Rectangle bg_map[16] = {
+    {328, 15, 152, 210},   // 0
+    {480, 15, 152, 210},   // 1
+    {632, 15, 152, 210},   // 2
+    {784, 15, 152, 210},   // 3
+    {0, 225, 152, 210},    // 4
+    {152, 225, 152, 210},  // 5
+    {304, 225, 152, 210},  // 6
+    {456, 225, 152, 210},  // 7
+    {608, 225, 152, 210},  // 8
+    {760, 225, 152, 210},  // 9
+    {0, 435, 152, 210},    // 10
+    {152, 435, 152, 210},  // 11
+    {304, 435, 152, 210},  // 12
+    {456, 435, 152, 210},  // 13
+    {608, 435, 152, 210},  // 14
+    {760, 435, 152, 210},  // 15
+};
+
+static Rectangle mtns_map[16] = {
+    {0, 0, 100, 6},    // 0
+    {100, 0, 100, 6},  // 1
+    {200, 0, 100, 6},  // 2
+    {300, 0, 100, 6},  // 3
+    {400, 0, 100, 6},  // 4
+    {500, 0, 100, 6},  // 5
+    {600, 0, 100, 6},  // 6
+    {700, 0, 100, 6},  // 7
+    {800, 0, 100, 6},  // 8
+    {0, 6, 100, 6},    // 9
+    {100, 6, 100, 6},  // 10
+    {200, 6, 100, 6},  // 11
+    {300, 6, 100, 6},  // 12
+    {400, 6, 100, 6},  // 13
+    {500, 6, 100, 6},  // 14
+    {600, 6, 100, 6},  // 15
+};
+
+static Rectangle digits_map[11] = {
+    {700, 6, 8, 9},  // 0
+    {708, 6, 8, 9},  // 1
+    {716, 6, 8, 9},  // 2
+    {724, 6, 8, 9},  // 3
+    {732, 6, 8, 9},  // 4
+    {740, 6, 8, 9},  // 5
+    {748, 6, 8, 9},  // 6
+    {756, 6, 8, 9},  // 7
+    {764, 6, 8, 9},  // 8
+    {772, 6, 8, 9},  // 9
+    {780, 6, 8, 9},  // 10 ("digits_car")
+};
+
+static Rectangle green_digits_map[10] = {
+    {788, 6, 8, 9},  // 0
+    {796, 6, 8, 9},  // 1
+    {804, 6, 8, 9},  // 2
+    {812, 6, 8, 9},  // 3
+    {820, 6, 8, 9},  // 4
+    {828, 6, 8, 9},  // 5
+    {836, 6, 8, 9},  // 6
+    {844, 6, 8, 9},  // 7
+    {852, 6, 8, 9},  // 8
+    {860, 6, 8, 9},  // 9
+};
+
+static Rectangle yellow_digits_map[10] = {
+    {932, 6, 8, 9},  // 0
+    {0, 15, 8, 9},   // 1
+    {8, 15, 8, 9},   // 2
+    {16, 15, 8, 9},  // 3
+    {24, 15, 8, 9},  // 4
+    {32, 15, 8, 9},  // 5
+    {40, 15, 8, 9},  // 6
+    {48, 15, 8, 9},  // 7
+    {56, 15, 8, 9},  // 8
+    {64, 15, 8, 9},  // 9
+};
+
+static Rectangle enemy_tread_map[6][2] = {
+    {{72, 15, 16, 11}, {88, 15, 16, 11}},    // color 0 (blue)
+    {{104, 15, 16, 11}, {120, 15, 16, 11}},  // color 1 (gold)
+    {{168, 15, 16, 11}, {184, 15, 16, 11}},  // color 2 (pink)
+    {{200, 15, 16, 11}, {216, 15, 16, 11}},  // color 3 (salmon)
+    {{232, 15, 16, 11}, {248, 15, 16, 11}},  // color 4 (teal)
+    {{264, 15, 16, 11}, {280, 15, 16, 11}},  // color 5 (yellow)
+};
+
+static Rectangle player_car_tread_map[2] = {
+    {296, 15, 16, 11},  // player_car_left_tread
+    {312, 15, 16, 11},  // player_car_right_tread
+};
+
+static Rectangle tail_lights_map[2] = {
+    {136, 15, 16, 11},  // 0 enemy_car_night_fog_tail_lights
+    {152, 15, 16, 11},  // 1 enemy_car_night_tail_lights
+};
+
+static Rectangle level_complete_map[2] = {
+    {900, 6, 32, 9},  // 0 level_complete_flag_right
+    {868, 6, 32, 9},  // 1 level_complete_flag_left
 };
 
 unsigned int xorshift32(unsigned int* state) {
@@ -337,51 +398,6 @@ static int get_furthest_lane(const Enduro* env) {  // Get furthest lane from pla
         float road_center_x = (env->last_road_left + env->last_road_right) / 2.0f;
         return (player_center_x < road_center_x) ? 2 : 0;
     }
-}
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, const Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return /= logs->idx;
-        log.episode_length += logs->logs[i].episode_length /= logs->idx;
-        log.score += logs->logs[i].score /= logs->idx;
-        log.reward += logs->logs[i].reward /= logs->idx;
-        log.step_rew_car_passed_no_crash += logs->logs[i].step_rew_car_passed_no_crash /= logs->idx;
-        log.crashed_penalty += logs->logs[i].crashed_penalty /= logs->idx;
-        log.passed_cars += logs->logs[i].passed_cars /= logs->idx;
-        log.passed_by_enemy += logs->logs[i].passed_by_enemy /= logs->idx;
-        log.cars_to_pass += logs->logs[i].cars_to_pass /= logs->idx;
-        log.days_completed += logs->logs[i].days_completed /= logs->idx;
-        log.days_failed += logs->logs[i].days_failed /= logs->idx;
-        log.collisions_player_vs_car += logs->logs[i].collisions_player_vs_car /= logs->idx;
-        log.collisions_player_vs_road += logs->logs[i].collisions_player_vs_road /= logs->idx;
-    }
-    logs->idx = 0;
-    return log;
 }
 
 void allocate(Enduro* env) {
@@ -468,7 +484,7 @@ void init(Enduro* env, int seed, int env_index) {
     env->cars_to_pass = INITIAL_CARS_TO_PASS;
     env->current_curve_direction = CURVE_STRAIGHT;
     float gearTimings[4] = {4.0f, 2.5f, 3.25f, 1.5f};
-    float totalSpeedRange = MAX_SPEED - MIN_SPEED;
+    float totalSpeedRange = SPEED_RANGE;
     float totalTime = 0.0f;
     for (int i = 0; i < 4; i++) {
         totalTime += gearTimings[i];
@@ -739,7 +755,7 @@ void accelerate(Enduro* env) {
 void update_road_curve(Enduro* env) {
     int* current_curve_stage = &env->current_curve_stage;
     int* steps_in_current_stage = &env->steps_in_current_stage;
-    float speed_scale = 0.5f + ((fabsf(env->speed) / MAX_SPEED) * (MAX_SPEED - MIN_SPEED));
+    float speed_scale = 0.5f + ((fabsf(env->speed) / MAX_SPEED) * (SPEED_RANGE));
     float vanishing_point_transition_speed = VANISHING_POINT_TRANSITION_SPEED + speed_scale;
     int step_thresholds[3];
     int curve_directions[3];
@@ -809,14 +825,14 @@ void compute_observations(Enduro* env) {
     // Player position and speed
     obs[obs_index++] = player_x_norm;
     obs[obs_index++] = player_y_norm;
-    obs[obs_index++] = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+    obs[obs_index++] = (env->speed - MIN_SPEED) / (SPEED_RANGE);
     float road_left = road_edge_x(env, env->player_y, 0, true);
     float road_right = road_edge_x(env, env->player_y, 0, false) - CAR_WIDTH;
     // Road edges and last road edges
-    obs[obs_index++] = (road_left - PLAYABLE_AREA_LEFT) / (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[obs_index++] = (road_right - PLAYABLE_AREA_LEFT) / (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[obs_index++] = (env->last_road_left - PLAYABLE_AREA_LEFT) / (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
-    obs[obs_index++] = (env->last_road_right - PLAYABLE_AREA_LEFT) / (PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT);
+    obs[obs_index++] = (road_left - PLAY_AREA_L) / (PLAY_AREA_W);
+    obs[obs_index++] = (road_right - PLAY_AREA_L) / (PLAY_AREA_W);
+    obs[obs_index++] = (env->last_road_left - PLAY_AREA_L) / (PLAY_AREA_W);
+    obs[obs_index++] = (env->last_road_right - PLAY_AREA_L) / (PLAY_AREA_W);
     // Player lane number
     obs[obs_index++] = (float)get_player_lane(env) / (NUM_LANES - 1);
     // Enemy cars => 5 floats per car
@@ -889,7 +905,7 @@ float calculate_enemy_spawn_interval(const Enduro* env) {
         max_spawn_interval = clamp_spawn_interval(base_interval - reduction, MIN_POSSIBLE_INTERVAL, base_interval);
     }
     max_spawn_interval = fmaxf(max_spawn_interval, MIN_SPAWN_INTERVAL);
-    float speed_range = MAX_SPEED - MIN_SPEED;
+    float speed_range = SPEED_RANGE;
     float speed_factor = speed_range > 0.0f ? (env->speed - MIN_SPEED) / speed_range : 0.0f;
     speed_factor = clamp_spawn_interval(speed_factor, 0.0f, 1.0f);
     float interval_range = max_spawn_interval - MIN_SPAWN_INTERVAL;
@@ -921,7 +937,7 @@ void c_step(Enduro* env) {
     if (env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
         env->crashed_penalty = 0.0f;
         int act = env->actions[0];
-        movement_amount = (((env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) + 0.3f);
+        movement_amount = (((env->speed - MIN_SPEED) / (SPEED_RANGE)) + 0.3f);
         if (is_snow_stage) {
             movement_amount *= 0.6f;
         }
@@ -1015,7 +1031,7 @@ void c_step(Enduro* env) {
     if (env->wiggle_active) {
         float min_wiggle_period = 5.8f;
         float max_wiggle_period = 0.3f;
-        float speed_normalized = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+        float speed_normalized = (env->speed - MIN_SPEED) / (SPEED_RANGE);
         speed_normalized = fmaxf(0.0f, fminf(1.0f, speed_normalized));
         float current_wiggle_period =
             min_wiggle_period - powf(speed_normalized, 0.25f) * (min_wiggle_period - max_wiggle_period);
@@ -1026,7 +1042,7 @@ void c_step(Enduro* env) {
         }
     }
     // Player y based on speed
-    env->player_y = PLAYER_MAX_Y - (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
+    env->player_y = PLAYER_MAX_Y - (env->speed - MIN_SPEED) / (SPEED_RANGE) * (PLAYER_MAX_Y - PLAYER_MIN_Y);
     if (env->player_y < PLAYER_MIN_Y) env->player_y = PLAYER_MIN_Y;
     if (env->player_y > PLAYER_MAX_Y) env->player_y = PLAYER_MAX_Y;
     // Collision with road edges
@@ -1098,7 +1114,7 @@ void c_step(Enduro* env) {
     if (env->enemy_spawn_timer >= env->enemy_spawn_interval) {
         env->enemy_spawn_timer -= env->enemy_spawn_interval;
         if (env->num_enemies < MAX_ENEMIES) {
-            float clump_probability = fminf((env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED), 1.0f);
+            float clump_probability = fminf((env->speed - MIN_SPEED) / (SPEED_RANGE), 1.0f);
             int num_to_spawn = 1;
             if (((float)rand() / (float)RAND_MAX) < clump_probability) {
                 num_to_spawn = 1 + rand() % 2;  // up to 3 cars
@@ -1131,7 +1147,7 @@ void c_step(Enduro* env) {
         if (env->day_completed) {
             env->day += 1;
             env->rewards[0] += 1.0f;
-            env->cars_to_pass = 300;  // Always 300 after the first day
+            env->cars_to_pass = 1;  // 300;  // Always 300 after the first day
             env->day_completed = false;
             add_log(env->log_buffer, &env->log);
         } else {
@@ -1155,7 +1171,7 @@ void c_step(Enduro* env) {
     env->log.reward = env->rewards[0];
     env->log.episode_return = env->rewards[0];
     env->step_count++;
-    float normalized_speed = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+    float normalized_speed = (env->speed - MIN_SPEED) / (SPEED_RANGE);
     float score_increment = normalized_speed * 0.015f + 0.01f;
     env->score += score_increment;
     env->log.score = env->score;
@@ -1163,109 +1179,74 @@ void c_step(Enduro* env) {
     compute_observations(env);
 }
 
-void init_raylib(GameState* gameState) {
+void init_raylib(Client* client) {
     InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
     SetTargetFPS(60);
-    gameState->render_target = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
+    client->render_target = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
-void load_textures(GameState* gameState, Enduro* env) {
-    gameState->car_animation_timer = 0.0f;
-    gameState->car_animation_interval = 0.05f;
-    gameState->show_left_tread = true;
-    gameState->mountain_pos = 0.0f;
-    gameState->show_left_flag = true;
-    gameState->flag_timer = 0;
-    gameState->victory_display_timer = 0;
+void load_textures(Client* client, Enduro* env) {
+    client->car_animation_timer = 0.0f;
+    client->car_animation_interval = 0.05f;
+    client->mountain_pos = 0.0f;
+    client->show_left_flag = true;
+    client->flag_timer = 0;
+    client->victory_display_timer = 0;
     env->score = 0;
-    gameState->score_timer = 0;
+    client->score_timer = 0;
     env->day = 1;
     for (int i = 0; i < SCORE_DIGITS; i++) {
-        gameState->score_digit_currents[i] = 0;
-        gameState->score_digit_nexts[i] = 0;
-        gameState->score_digit_offsets[i] = 0.0f;
-        gameState->score_digit_scrolling[i] = false;
+        client->score_digit_currents[i] = 0;
+        client->score_digit_nexts[i] = 0;
+        client->score_digit_offsets[i] = 0.0f;
+        client->score_digit_scrolling[i] = false;
     }
     env->elapsed_time_env = 0.0f;
-    gameState->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
-    for (int i = 0; i < 16; ++i) {
-        gameState->background_indices[i] = i;     // 0..15 => backgrounds
-        gameState->mountain_indices[i] = 16 + i;  // 16..31 => mountains
-    }
-    for (int i = 0; i < 10; ++i) {
-        gameState->digit_indices[i] = 32 + i;
-    }
-    gameState->digit_indices[10] = 42;  // "CAR"
-
-    for (int i = 0; i < 10; ++i) {
-        gameState->green_digit_indices[i] = 43 + i;
-    }
-    for (int i = 0; i < 10; ++i) {
-        gameState->yellow_digit_indices[i] = 53 + i;
-    }
-    int base_enemy_car_index = 63;
-    for (int color = 0; color < 6; ++color) {
-        for (int tread = 0; tread < 2; ++tread) {
-            gameState->enemy_car_indices[color][tread] = base_enemy_car_index + color * 2 + tread;
-        }
-    }
-    gameState->enemy_car_night_fog_taillights_index = 75;
-    gameState->enemy_car_night_taillights_index = 76;
-    gameState->player_car_left_tread_index = 77;
-    gameState->player_car_right_tread_index = 78;
-    gameState->level_complete_flag_right_index = 79;
-    gameState->level_complete_flag_left_index = 80;
-    gameState->car_animation_timer = 0.0f;
-    gameState->car_animation_interval = 0.05f;
-    gameState->show_left_tread = true;
-    gameState->mountain_pos = 0.0f;
+    client->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
+    client->car_animation_timer = 0.0f;
+    client->car_animation_interval = 0.05f;
+    client->show_left_tread = true;
+    client->mountain_pos = 0.0f;
 }
 
-void cleanup(const GameState* gameState) {
-    UnloadRenderTexture(gameState->render_target);
-    UnloadTexture(gameState->spritesheet);
-}
-
-GameState* make_client(Enduro* env) {
-    GameState* client = (GameState*)malloc(sizeof(GameState));
+Client* make_client(Enduro* env) {
+    Client* client = (Client*)malloc(sizeof(Client));
     init_raylib(client);
     load_textures(client, env);
     return client;
 }
 
-void close_client(GameState* client) {
-    cleanup(client);
+void close_client(Client* client) {
+    UnloadRenderTexture(client->render_target);
+    UnloadTexture(client->spritesheet);
     CloseWindow();
     free(client);
 }
 
-void render_car(const GameState* gameState, const Enduro* env) {
-    int car_asset_index =
-        gameState->show_left_tread ? gameState->player_car_left_tread_index : gameState->player_car_right_tread_index;
-    Rectangle src_rect = asset_map[car_asset_index];
+void render_car(const Client* client, const Enduro* env) {
+    Rectangle src_rect = client->show_left_tread ? player_car_tread_map[1] : player_car_tread_map[0];
     Vector2 position = {env->player_x, env->player_y};
-    DrawTextureRec(gameState->spritesheet, src_rect, position, WHITE);
+    DrawTextureRec(client->spritesheet, src_rect, position, WHITE);
 }
 
-// Animates the cars' tire treads
-void update_car_animation(GameState* gameState, const Enduro* env) {
+void update_car_animation(Client* client, const Enduro* env) {
     float min_interval = 0.005f;
     float max_interval = 0.075f;
-    float speed_ratio = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
-    gameState->car_animation_interval = max_interval - (max_interval - min_interval) * speed_ratio;
-    gameState->car_animation_timer += (float)GetFrameTime();
-    if (gameState->car_animation_timer >= gameState->car_animation_interval) {
-        gameState->car_animation_timer = 0.0f;
-        gameState->show_left_tread = !gameState->show_left_tread;
+    float speed_ratio = (env->speed - MIN_SPEED) / (SPEED_RANGE);
+    client->car_animation_interval = max_interval - (max_interval - min_interval) * speed_ratio;
+    client->car_animation_timer += (float)GetFrameTime();
+    if (client->car_animation_timer >= client->car_animation_interval) {
+        client->car_animation_timer = 0.0f;
+        client->show_left_tread = !client->show_left_tread;
     }
 }
 
-void update_scoreboard(GameState* gameState, Enduro* env) {
+void update_scoreboard(Client* client, Enduro* env) {
     float normalized_speed = fminf(fmaxf(env->speed, 1.0f), 2.0f);
     int frame_interval = (int)(30 / normalized_speed);
-    gameState->score_timer++;
-    if (gameState->score_timer >= frame_interval) {
-        gameState->score_timer = 0;
+    client->score_timer++;
+    if (client->score_timer >= frame_interval) {
+        client->score_timer = 0;
         env->score += 1;
         if (env->score > 99999) {
             env->score = 0;
@@ -1274,163 +1255,149 @@ void update_scoreboard(GameState* gameState, Enduro* env) {
         for (int i = SCORE_DIGITS - 1; i >= 0; i--) {
             int new_digit = temp_score % 10;
             temp_score /= 10;
-            if (new_digit != gameState->score_digit_currents[i]) {
-                gameState->score_digit_nexts[i] = new_digit;
-                gameState->score_digit_offsets[i] = 0.0f;
-                gameState->score_digit_scrolling[i] = true;
+            if (new_digit != client->score_digit_currents[i]) {
+                client->score_digit_nexts[i] = new_digit;
+                client->score_digit_offsets[i] = 0.0f;
+                client->score_digit_scrolling[i] = true;
             }
         }
     }
     float scroll_speed = 0.55f * normalized_speed;
     for (int i = 0; i < SCORE_DIGITS; i++) {
-        if (gameState->score_digit_scrolling[i]) {
-            gameState->score_digit_offsets[i] += scroll_speed;
-            if (gameState->score_digit_offsets[i] >= DIGIT_HEIGHT) {
-                gameState->score_digit_offsets[i] = 0.0f;
-                gameState->score_digit_currents[i] = gameState->score_digit_nexts[i];
-                gameState->score_digit_scrolling[i] = false;
+        if (client->score_digit_scrolling[i]) {
+            client->score_digit_offsets[i] += scroll_speed;
+            if (client->score_digit_offsets[i] >= DIGIT_HEIGHT) {
+                client->score_digit_offsets[i] = 0.0f;
+                client->score_digit_currents[i] = client->score_digit_nexts[i];
+                client->score_digit_scrolling[i] = false;
             }
         }
     }
 }
 
-void render_background(GameState* gameState, Enduro* env) {
-    int bg_index = gameState->background_indices[env->current_day_time_index];
-    Rectangle src_rect = asset_map[bg_index];
-    DrawTextureRec(gameState->spritesheet, src_rect, (Vector2){0, 0}, WHITE);
+void render_background(Client* client, Enduro* env) {
+    Rectangle src_rect = bg_map[env->current_day_time_index];
+    DrawTextureRec(client->spritesheet, src_rect, (Vector2){0, 0}, WHITE);
 }
 
-void render_scoreboard(GameState* gameState, Enduro* env) {
-    int digit_width = DIGIT_WIDTH;
-    int digit_height = DIGIT_HEIGHT;
-    int score_start_x = 56 + digit_width - 8;
-    int score_start_y = 173 - digit_height;
-    int day_x = 56 - 8;
-    int day_y = 188 - digit_height;
-    int cars_x = 72 - 8;
-    int cars_y = 188 - digit_height;
-    for (int i = 0; i < SCORE_DIGITS; ++i) {  // Draw scrolling score digits
-        int digit_x = score_start_x + i * digit_width;
-        int current_digit_index = gameState->score_digit_currents[i];
-        int next_digit_index = gameState->score_digit_nexts[i];
-        int current_asset_index;
-        int next_asset_index;
+void render_scoreboard(Client* client, Enduro* env) {
+    // Render scrolling score digits
+    for (int i = 0; i < SCORE_DIGITS; ++i) {
+        int digit_x = SCORE_START_X + i * DIGIT_WIDTH;
+        int current_digit_index = client->score_digit_currents[i];
+        printf("current_digit_index: %d, i: %d\n", current_digit_index, i);
+        int next_digit_index = client->score_digit_nexts[i];
+        Rectangle src_rect_current_full, src_rect_next_full;
         if (i == SCORE_DIGITS - 1) {
-            current_asset_index = gameState->yellow_digit_indices[current_digit_index];
-            next_asset_index = gameState->yellow_digit_indices[next_digit_index];
+            // Last digit uses yellow digits
+            src_rect_current_full = yellow_digits_map[current_digit_index];
+            src_rect_next_full = yellow_digits_map[next_digit_index];
         } else {
-            current_asset_index = gameState->digit_indices[current_digit_index];
-            next_asset_index = gameState->digit_indices[next_digit_index];
+            // Otherwise use normal digits
+            src_rect_current_full = digits_map[current_digit_index];
+            src_rect_next_full = digits_map[next_digit_index];
         }
-        Rectangle src_rect_current_full = asset_map[current_asset_index];
-        Rectangle src_rect_next_full = asset_map[next_asset_index];
-        if (gameState->score_digit_scrolling[i]) {
-            float offset = gameState->score_digit_offsets[i];
+        if (client->score_digit_scrolling[i]) {
+            float offset = client->score_digit_offsets[i];
             Rectangle src_rect_current = src_rect_current_full;
-            src_rect_current.height = digit_height - (int)offset;
-            Rectangle dest_rect_current = {digit_x, (float)(score_start_y + (int)offset), (float)digit_width,
-                                           (float)(digit_height - (int)offset)};
-            DrawTexturePro(gameState->spritesheet, src_rect_current, dest_rect_current, (Vector2){0, 0}, 0.0f, WHITE);
+            src_rect_current.height = DIGIT_HEIGHT - (int)offset;
+            Rectangle dest_rect_current = {digit_x, (float)(SCORE_START_Y + (int)offset), (float)DIGIT_WIDTH,
+                                           (float)(DIGIT_HEIGHT - (int)offset)};
+            DrawTexturePro(client->spritesheet, src_rect_current, dest_rect_current, (Vector2){0, 0}, 0.0f, WHITE);
             Rectangle src_rect_next = src_rect_next_full;
-            src_rect_next.y += (digit_height - (int)offset);
+            src_rect_next.y += (DIGIT_HEIGHT - (int)offset);
             src_rect_next.height = (int)offset;
-            Rectangle dest_rect_next = {digit_x, (float)score_start_y, (float)digit_width, (float)((int)offset)};
-            DrawTexturePro(gameState->spritesheet, src_rect_next, dest_rect_next, (Vector2){0, 0}, 0.0f, WHITE);
+            Rectangle dest_rect_next = {digit_x, (float)SCORE_START_Y, (float)DIGIT_WIDTH, (float)((int)offset)};
+            DrawTexturePro(client->spritesheet, src_rect_next, dest_rect_next, (Vector2){0, 0}, 0.0f, WHITE);
         } else {
-            Rectangle src_rect = asset_map[current_asset_index];
-            Vector2 position = {(float)digit_x, (float)score_start_y};
-            DrawTextureRec(gameState->spritesheet, src_rect, position, WHITE);
+            // No scrolling
+            Vector2 position = {(float)digit_x, (float)SCORE_START_Y};
+            DrawTextureRec(client->spritesheet, src_rect_current_full, position, WHITE);
         }
     }
-    int day = env->day % 10;  // Draw day digit
-    int day_texture_index = day;
-
+    // Draw day digit
+    int day = env->day % 10;
     Rectangle day_src_rect;
     if (env->day_completed) {
-        int asset_index = gameState->green_digit_indices[day_texture_index];
-        day_src_rect = asset_map[asset_index];
+        day_src_rect = green_digits_map[day];
     } else {
-        int asset_index = gameState->digit_indices[day_texture_index];
-        day_src_rect = asset_map[asset_index];
+        day_src_rect = digits_map[day];
     }
-    Vector2 day_position = {(float)day_x, (float)day_y};
-    DrawTextureRec(gameState->spritesheet, day_src_rect, day_position, WHITE);
+    Vector2 day_position = {(float)DAY_X, (float)DAY_Y};
+    DrawTextureRec(client->spritesheet, day_src_rect, day_position, WHITE);
+    // If day is completed, show flag, otherwise show "CAR" + remaining cars
     if (env->day_completed) {
-        int flag_asset_index = gameState->show_left_flag ? gameState->level_complete_flag_left_index
-                                                         : gameState->level_complete_flag_right_index;
-        Rectangle flag_src_rect = asset_map[flag_asset_index];
-        Rectangle dest_rect = {(float)cars_x, (float)cars_y, flag_src_rect.width, flag_src_rect.height};
-        DrawTexturePro(gameState->spritesheet, flag_src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
+        Rectangle flag_src_rect = level_complete_map[client->show_left_flag ? 0 : 1];
+        Rectangle dest_rect = {(float)CARS_X, (float)CARS_Y, flag_src_rect.width, flag_src_rect.height};
+        DrawTexturePro(client->spritesheet, flag_src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
     } else {
-        int car_asset_index = gameState->digit_indices[10];  // "CAR"
-        Rectangle car_src_rect = asset_map[car_asset_index];
-        Vector2 car_position = {(float)cars_x, (float)cars_y};
-        DrawTextureRec(gameState->spritesheet, car_src_rect, car_position, WHITE);
+        // Render "CAR"
+        int car_asset_index = 10;  // index of "CAR" inside digits_map
+        Rectangle car_src_rect = digits_map[car_asset_index];
+        Vector2 car_position = {(float)CARS_X, (float)CARS_Y};
+        DrawTextureRec(client->spritesheet, car_src_rect, car_position, WHITE);
+        // Render remaining cars
         int cars = env->cars_to_pass;
-        if (cars < 0) cars = 0;
         for (int i = 1; i < CARS_DIGITS; ++i) {
             int divisor = (int)pow(10, CARS_DIGITS - i - 1);
             int digit = (cars / divisor) % 10;
             if (digit < 0 || digit > 9) digit = 0;
-            int digit_x = cars_x + i * (digit_width + 1);
-            int asset_index = gameState->digit_indices[digit];
-            Rectangle src_rect = asset_map[asset_index];
-            Vector2 position = {(float)digit_x, (float)cars_y};
-            DrawTextureRec(gameState->spritesheet, src_rect, position, WHITE);
+            int digit_x = CARS_X + i * (DIGIT_WIDTH + 1);
+            Rectangle src_rect = digits_map[digit];
+            Vector2 position = {(float)digit_x, (float)CARS_Y};
+            DrawTextureRec(client->spritesheet, src_rect, position, WHITE);
         }
     }
 }
 
-void update_victory_effects(GameState* gameState, Enduro* env) {
+void update_victory_effects(Client* client, Enduro* env) {
     if (!env->day_completed) {
         return;
     }
-    gameState->flag_timer++;
-    if (gameState->flag_timer % 50 == 0) {
-        gameState->show_left_flag = !gameState->show_left_flag;
+    client->flag_timer++;
+    if (client->flag_timer % 50 == 0) {
+        client->show_left_flag = !client->show_left_flag;
     }
-    gameState->victory_display_timer++;
-    if (gameState->victory_display_timer >= 10) {
-        gameState->victory_display_timer = 0;
+    client->victory_display_timer++;
+    if (client->victory_display_timer >= 10) {
+        client->victory_display_timer = 0;
     }
 }
 
-void update_mountains(GameState* gameState, Enduro* env) {
+void update_mountains(Client* client, Enduro* env) {
     float base_speed = 0.0f;
     float curve_strength = fabsf(env->current_curve_factor);
     float speed_multiplier = 1.0f;
     float scroll_speed = base_speed + curve_strength * speed_multiplier;
-    int mountain_index = gameState->mountain_indices[0];
-    int mountain_width = asset_map[mountain_index].width;
+    int mountain_width = mtns_map[0].width;
     if (env->current_curve_direction == 1) {
-        gameState->mountain_pos += scroll_speed;
-        if (gameState->mountain_pos >= (float)mountain_width) {
-            gameState->mountain_pos -= (float)mountain_width;
+        client->mountain_pos += scroll_speed;
+        if (client->mountain_pos >= (float)mountain_width) {
+            client->mountain_pos -= (float)mountain_width;
         }
     } else if (env->current_curve_direction == -1) {
-        gameState->mountain_pos -= scroll_speed;
-        if (gameState->mountain_pos <= -(float)mountain_width) {
-            gameState->mountain_pos += (float)mountain_width;
+        client->mountain_pos -= scroll_speed;
+        if (client->mountain_pos <= -(float)mountain_width) {
+            client->mountain_pos += (float)mountain_width;
         }
     }
 }
 
-void render_mountains(GameState* gameState, Enduro* env) {
-    int mountain_index = gameState->mountain_indices[env->current_day_time_index];
-    Rectangle src_rect = asset_map[mountain_index];
+void render_mountains(Client* client, Enduro* env) {
+    Rectangle src_rect = mtns_map[env->current_day_time_index];
     int mountain_width = src_rect.width;
     int mountain_y = 45;
     float player_center_x = (PLAYER_MIN_X + PLAYER_MAX_X) / 2.0f;
     float player_offset = env->player_x - player_center_x;
     float parallax_factor = 0.5f;
     float adjusted_offset = -player_offset * parallax_factor;
-    float mountain_x = -gameState->mountain_pos + adjusted_offset;
-    BeginScissorMode(PLAYABLE_AREA_LEFT, 0, SCREEN_WIDTH - PLAYABLE_AREA_LEFT, SCREEN_HEIGHT);
+    float mountain_x = -client->mountain_pos + adjusted_offset;
+    BeginScissorMode(PLAY_AREA_L, 0, SCREEN_WIDTH - PLAY_AREA_L, SCREEN_HEIGHT);
     for (int x = (int)mountain_x; x < SCREEN_WIDTH; x += mountain_width) {
-        DrawTextureRec(gameState->spritesheet, src_rect, (Vector2){(float)x, (float)mountain_y}, WHITE);
+        DrawTextureRec(client->spritesheet, src_rect, (Vector2){(float)x, (float)mountain_y}, WHITE);
     }
     for (int x = (int)mountain_x - mountain_width; x > -mountain_width; x -= mountain_width) {
-        DrawTextureRec(gameState->spritesheet, src_rect, (Vector2){(float)x, (float)mountain_y}, WHITE);
+        DrawTextureRec(client->spritesheet, src_rect, (Vector2){(float)x, (float)mountain_y}, WHITE);
     }
     EndScissorMode();
 }
@@ -1439,23 +1406,26 @@ static bool should_render_car_in_fog(float car_y, bool is_night_fog_stage) {
     return !is_night_fog_stage || car_y >= 92.0f;
 }
 
-static int get_car_texture_index(GameState* gameState, bool is_night_stage, int bg_index, Car* car) {
+static Rectangle get_car_texture_rect(Client* client, bool is_night_stage, int bg_index, Car* car) {
+    // Handle night stages with tail lights
     if (is_night_stage) {
-        return (bg_index == 13) ? gameState->enemy_car_night_fog_taillights_index
-                                : gameState->enemy_car_night_taillights_index;
+        if (bg_index == 13) {
+            return tail_lights_map[0];  // Night fog tail lights
+        } else {
+            return tail_lights_map[1];  // Regular night tail lights
+        }
     }
-    int tread_index = gameState->show_left_tread ? 0 : 1;
-    return gameState->enemy_car_indices[car->color_index][tread_index];
+    int left_or_right = client->show_left_tread ? 1 : 0;  // 1 for left tread, 0 for right tread
+    return enemy_tread_map[car->color_index][left_or_right];
 }
 
-void render_enemy_cars(GameState* gameState, Enduro* env) {
+void render_enemy_cars(Client* client, Enduro* env) {
     int bg_index = env->current_day_time_index;
     bool is_night_stage = (bg_index == 12 || bg_index == 13 || bg_index == 14);
     bool is_night_fog_stage = (bg_index == 13);
     float clip_start_y = is_night_fog_stage ? 92.0f : VANISHING_POINT_Y;
     float clip_height = PLAYABLE_AREA_BOTTOM - clip_start_y;
-    Rectangle clip_rect = {(float)PLAYABLE_AREA_LEFT, clip_start_y, (float)(PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT),
-                           clip_height};
+    Rectangle clip_rect = {(float)PLAY_AREA_L, clip_start_y, (float)(PLAY_AREA_W), clip_height};
     BeginScissorMode(clip_rect.x, clip_rect.y, clip_rect.width, clip_rect.height);
     for (int i = 0; i < env->num_enemies; i++) {
         Car* car = &env->enemy_cars[i];
@@ -1463,12 +1433,11 @@ void render_enemy_cars(GameState* gameState, Enduro* env) {
             continue;
         }
         float car_scale = get_car_scale(car->y);
-        int car_asset_index = get_car_texture_index(gameState, is_night_stage, bg_index, car);
-        Rectangle src_rect = asset_map[car_asset_index];
+        Rectangle src_rect = get_car_texture_rect(client, is_night_stage, bg_index, car);
         float car_center_x = car_x_in_lane(env, car->lane, car->y);
         float car_x = car_center_x - (src_rect.width * car_scale) / 2.0f;
         float car_y = car->y - (src_rect.height * car_scale) / 2.0f;
-        DrawTexturePro(gameState->spritesheet, src_rect,
+        DrawTexturePro(client->spritesheet, src_rect,
                        (Rectangle){car_x, car_y, src_rect.width * car_scale, src_rect.height * car_scale},
                        (Vector2){0, 0}, 0.0f, WHITE);
     }
@@ -1486,7 +1455,7 @@ static Color get_road_color(float y) {
     return WHITE;
 }
 
-void render_road(GameState* gameState, Enduro* env) {
+void render_road(Client* client, Enduro* env) {
     int bg_index = env->current_day_time_index;
     bool is_night_fog_stage = (bg_index == 13);
     float road_start_y = is_night_fog_stage ? 92.0f : VANISHING_POINT_Y;
@@ -1516,7 +1485,7 @@ void render_road(GameState* gameState, Enduro* env) {
     }
 }
 
-void render(GameState* client, Enduro* env) {
+void render(Client* client, Enduro* env) {
     BeginTextureMode(client->render_target);
     ClearBackground(BLACK);
     BeginBlendMode(BLEND_ALPHA);
