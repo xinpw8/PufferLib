@@ -49,6 +49,9 @@ static const float MIN_SPAWN_INTERVAL = 0.5f;
 static const float SPAWN_SCALING_FACTOR = 1.5f;
 static const float DAILY_INTERVAL_REDUCTION = 0.1f;
 static const float MIN_POSSIBLE_INTERVAL = 0.1f;
+static const float GEAR_SPEED_THRESHOLDS[] = {1.055556f, 3.277778f, 6.166667f, 7.5f};
+static const float GEAR_ACCELERATION_THRESHOLDS[] = {0.014815f, 0.014815f, 0.014815f, 0.014815f};
+static float GEAR_TIMINGS[4] = {4.0f, 2.5f, 3.25f, 1.5f};
 // Times of day logic
 #define NUM_BACKGROUND_TRANSITIONS 16
 // Seconds spent in each time of day
@@ -57,6 +60,7 @@ static const float MIN_POSSIBLE_INTERVAL = 0.1f;
 
 static const float BACKGROUND_TRANSITION_TIMES[] = {0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f,
                                                     4.5f, 5.0f, 5.5f, 6.0f, 6.5f, 7.0f, 7.5f, 8.0f};
+#define TOTAL_DAY_DURATION (BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1])
 
 // Curve constants
 #define CURVE_STRAIGHT 0
@@ -80,13 +84,13 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {0.5f, 1.0f, 1.5f, 2.0f, 2.5f
 #define CARS_DIGITS 4
 #define DIGIT_WIDTH 8
 #define DIGIT_HEIGHT 9
-#define INITIAL_PLAYER_X 69.0f         // Adjusted from 77.0f
-#define PLAYER_MIN_X 57.5f             // Adjusted from 65.5f
-#define PLAYER_MAX_X 83.5f             // Adjusted from 91.5f
-#define VANISHING_POINT_X_LEFT 102.0f  // Adjusted from 110.0f
-#define VANISHING_POINT_X_RIGHT 54.0f  // Adjusted from 62.0f
-#define ROAD_LEFT_OFFSET 46.0f         // Adjusted from 50.0f
-#define ROAD_RIGHT_OFFSET 47.0f        // Adjusted from 51.0f
+#define INITIAL_PLAYER_X 69.0f
+#define PLAYER_MIN_X 57.5f
+#define PLAYER_MAX_X 83.5f
+#define VANISHING_POINT_X_LEFT 102.0f
+#define VANISHING_POINT_X_RIGHT 54.0f
+#define ROAD_LEFT_OFFSET 46.0f
+#define ROAD_RIGHT_OFFSET 47.0f
 
 typedef struct Log Log;
 struct Log {
@@ -170,8 +174,6 @@ typedef struct Car {
 typedef struct Client {
     Texture2D spritesheet;
     RenderTexture2D render_target;  // Scale up render
-    // Enemy car indices: [color][tread]
-    int enemy_car_indices[6][2];
     // Car animation
     float car_animation_timer;
     float car_animation_interval;
@@ -235,8 +237,6 @@ typedef struct Enduro {
     unsigned char wiggle_active;
     // Player car acceleration
     int current_gear;
-    float gear_speed_thresholds[4];
-    float gear_acceleration_thresholds[4];
     // Enemy spawning
     float enemy_spawn_timer;
     float enemy_spawn_interval;  // Spawn interval based on current stage
@@ -422,14 +422,12 @@ void init(Enduro* env, int seed, int env_index) {
     env->index = env_index;
     env->rng_state = seed;
     if (seed == 0) {  // Activate with seed==0
-        // Start the environment at the beginning of the day
         env->rng_state = 0;
         env->elapsed_time_env = 0.0f;
         env->current_day_time_index = 0;
         env->previous_day_time_index = NUM_BACKGROUND_TRANSITIONS;
     } else if (env->reset_count == 0) {
-        float total_day_duration = BACKGROUND_TRANSITION_TIMES[NUM_BACKGROUND_TRANSITIONS - 1];
-        env->elapsed_time_env = ((float)xorshift32(&env->rng_state) / (float)UINT32_MAX) * total_day_duration;
+        env->elapsed_time_env = ((float)xorshift32(&env->rng_state) / (float)UINT32_MAX) * TOTAL_DAY_DURATION;
         env->current_day_time_index = 0;
         for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS - 1; i++) {
             if (env->elapsed_time_env >= env->day_transition_times[i] &&
@@ -483,20 +481,7 @@ void init(Enduro* env, int seed, int env_index) {
     env->speed = MIN_SPEED;
     env->cars_to_pass = INITIAL_CARS_TO_PASS;
     env->current_curve_direction = CURVE_STRAIGHT;
-    float gearTimings[4] = {4.0f, 2.5f, 3.25f, 1.5f};
-    float totalSpeedRange = SPEED_RANGE;
-    float totalTime = 0.0f;
-    for (int i = 0; i < 4; i++) {
-        totalTime += gearTimings[i];
-    }
-    float cumulativeSpeed = MIN_SPEED;
-    for (int i = 0; i < 4; i++) {
-        float gearTime = gearTimings[i];
-        float gearSpeedIncrement = totalSpeedRange * (gearTime / totalTime);
-        env->gear_speed_thresholds[i] = cumulativeSpeed + gearSpeedIncrement;
-        env->gear_acceleration_thresholds[i] = gearSpeedIncrement / (gearTime * TARGET_FPS);
-        cumulativeSpeed = env->gear_speed_thresholds[i];
-    }
+
     // Randomize the initial time of day for each environment
     if (env->rng_state == 0) {
         env->elapsed_time_env = 0;
@@ -504,8 +489,7 @@ void init(Enduro* env, int seed, int env_index) {
         env->day_time_index = 0;
         env->previous_day_time_index = 0;
     } else {
-        float total_day_duration = BACKGROUND_TRANSITION_TIMES[15];
-        env->elapsed_time_env = ((float)rand() / (float)RAND_MAX) * total_day_duration;
+        env->elapsed_time_env = ((float)rand() / (float)RAND_MAX) * TOTAL_DAY_DURATION;
         env->current_day_time_index = 0;
         env->day_time_index = 0;
         env->previous_day_time_index = 0;
@@ -738,15 +722,15 @@ void accelerate(Enduro* env) {
     clamp_speed(env);
     clamp_gear(env);
     if (env->speed < MAX_SPEED) {
-        if (env->speed >= env->gear_speed_thresholds[env->current_gear] && env->current_gear < 3) {
+        if (env->speed >= GEAR_SPEED_THRESHOLDS[env->current_gear] && env->current_gear < 3) {
             env->current_gear++;
         }
-        float accel = env->gear_acceleration_thresholds[env->current_gear];
+        float accel = GEAR_ACCELERATION_THRESHOLDS[env->current_gear];
         float multiplier = (env->current_gear == 0) ? 4.0f : 2.0f;
         env->speed += accel * multiplier;
         clamp_speed(env);
-        if (env->speed > env->gear_speed_thresholds[env->current_gear]) {
-            env->speed = env->gear_speed_thresholds[env->current_gear];
+        if (env->speed > GEAR_SPEED_THRESHOLDS[env->current_gear]) {
+            env->speed = GEAR_SPEED_THRESHOLDS[env->current_gear];
         }
     }
     clamp_speed(env);
@@ -855,8 +839,7 @@ void compute_observations(Enduro* env) {
             obs[obs_index++] = delta_y_norm;
             obs[obs_index++] = (float)is_same_lane;
         } else {
-            // Default
-            obs[obs_index++] = 0.5f;
+            obs[obs_index++] = 0.5f;  // Default
             obs[obs_index++] = 0.5f;
             obs[obs_index++] = 0.0f;
             obs[obs_index++] = 0.0f;
@@ -1210,7 +1193,7 @@ void load_textures(Client* client, Enduro* env) {
 }
 
 Client* make_client(Enduro* env) {
-    Client* client = (Client*)malloc(sizeof(Client));
+    Client* client = (Client*)calloc(1, sizeof(Client));
     init_raylib(client);
     load_textures(client, env);
     return client;
@@ -1226,7 +1209,8 @@ void close_client(Client* client) {
 void render_car(const Client* client, const Enduro* env) {
     Rectangle src_rect = client->show_left_tread ? player_car_tread_map[1] : player_car_tread_map[0];
     Vector2 position = {env->player_x, env->player_y};
-    DrawTextureRec(client->spritesheet, src_rect, position, WHITE);
+    DrawTexturePro(client->spritesheet, src_rect, (Rectangle){position.x, position.y, src_rect.width, src_rect.height},
+                   (Vector2){0, 0}, 0.0f, WHITE);
 }
 
 void update_car_animation(Client* client, const Enduro* env) {
@@ -1285,7 +1269,6 @@ void render_scoreboard(Client* client, Enduro* env) {
     for (int i = 0; i < SCORE_DIGITS; ++i) {
         int digit_x = SCORE_START_X + i * DIGIT_WIDTH;
         int current_digit_index = client->score_digit_currents[i];
-        printf("current_digit_index: %d, i: %d\n", current_digit_index, i);
         int next_digit_index = client->score_digit_nexts[i];
         Rectangle src_rect_current_full, src_rect_next_full;
         if (i == SCORE_DIGITS - 1) {
@@ -1407,8 +1390,7 @@ static bool should_render_car_in_fog(float car_y, bool is_night_fog_stage) {
 }
 
 static Rectangle get_car_texture_rect(Client* client, bool is_night_stage, int bg_index, Car* car) {
-    // Handle night stages with tail lights
-    if (is_night_stage) {
+    if (is_night_stage) {  // Handle night stages with tail lights
         if (bg_index == 13) {
             return tail_lights_map[0];  // Night fog tail lights
         } else {
