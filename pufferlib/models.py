@@ -71,7 +71,7 @@ class Default(nn.Module):
             observations = observations.view(batch_size, -1)
         return torch.relu(self.encoder(observations.float())), None
 
-    def decode_actions(self, hidden, lookup, concat=True):
+    def decode_actions(self, hidden, lookup, concat=True, e3b=None):
         '''Decodes a batch of hidden states into (multi)discrete actions.
         Assumes no time dimension (handled by LSTM wrappers).'''
         value = self.value_head(hidden)
@@ -86,8 +86,16 @@ class Default(nn.Module):
             batch = hidden.shape[0]
             return probs, value
 
+        intrinsic_reward = None
+        if e3b is not None:
+            phi = hidden.detach()        
+            intrinsic_reward = (phi.unsqueeze(1) @ e3b @ phi.unsqueeze(2))
+            e3b = 0.95*e3b - (phi.unsqueeze(2) @ phi.unsqueeze(1))/(1 + intrinsic_reward)
+            intrinsic_reward = intrinsic_reward.squeeze()
+            intrinsic_reward = 0.1*torch.clamp(intrinsic_reward, -1, 1)
+
         actions = self.decoder(hidden)
-        return actions, value
+        return actions, value, e3b, intrinsic_reward
 
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
@@ -109,7 +117,7 @@ class LSTMWrapper(nn.Module):
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
 
-    def forward(self, x, state):
+    def forward(self, x, state, e3b=None):
         x_shape, space_shape = x.shape, self.obs_shape
         x_n, space_n = len(x_shape), len(space_shape)
         if x_shape[-space_n:] != space_shape:
@@ -135,8 +143,8 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.transpose(0, 1)
 
         hidden = hidden.reshape(B*TT, self.hidden_size)
-        hidden, critic = self.policy.decode_actions(hidden, lookup)
-        return hidden, critic, state
+        hidden, critic, e3b, intrinsic_reward = self.policy.decode_actions(hidden, lookup, e3b=e3b)
+        return hidden, critic, state, e3b, intrinsic_reward
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

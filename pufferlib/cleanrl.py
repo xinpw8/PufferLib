@@ -62,18 +62,19 @@ class Policy(torch.nn.Module):
         super().__init__()
         self.policy = policy
         self.is_continuous = hasattr(policy, 'is_continuous') and policy.is_continuous
+        self.hidden_size = policy.hidden_size
 
     def get_value(self, x, state=None):
         _, value = self.policy(x)
         return value
 
     def get_action_and_value(self, x, action=None):
-         logits, value = self.policy(x)
+         logits, value, e3b, intrinsic_reward = self.policy(x, e3b=e3b)
          action, logprob, entropy = sample_logits(logits, action, self.is_continuous)
-         return action, logprob, entropy, value
+         return action, logprob, entropy, value, e3b, intrinsic_reward
 
-    def forward(self, x, action=None):
-        return self.get_action_and_value(x, action)
+    def forward(self, x, action=None, e3b=None):
+        return self.get_action_and_value(x, action, e3b)
 
 
 class RecurrentPolicy(torch.nn.Module):
@@ -82,6 +83,7 @@ class RecurrentPolicy(torch.nn.Module):
         super().__init__()
         self.policy = policy
         self.is_continuous = hasattr(policy.policy, 'is_continuous') and policy.policy.is_continuous
+        self.hidden_size = policy.hidden_size
 
     @property
     def lstm(self):
@@ -95,10 +97,10 @@ class RecurrentPolicy(torch.nn.Module):
     def get_value(self, x, state=None):
         _, value, _ = self.policy(x, state)
 
-    def get_action_and_value(self, x, state=None, action=None):
-        logits, value, state = self.policy(x, state)
+    def get_action_and_value(self, x, state=None, action=None, e3b=None):
+        logits, value, state, e3b, intrinsic_reward = self.policy(x, state, e3b=e3b)
         action, logprob, entropy = sample_logits(logits, action, self.is_continuous)
-        return action, logprob, entropy, value, state
+        return action, logprob, entropy, value, state, e3b, intrinsic_reward
 
-    def forward(self, x, state=None, action=None):
-        return self.get_action_and_value(x, state, action)
+    def forward(self, x, state=None, action=None, e3b=None):
+        return self.get_action_and_value(x, state, action, e3b)

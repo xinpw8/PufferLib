@@ -45,8 +45,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None):
 
     lstm = policy.lstm if hasattr(policy, 'lstm') else None
     experience = Experience(config.batch_size, config.bptt_horizon,
-        config.minibatch_size, obs_shape, obs_dtype, atn_shape, atn_dtype,
-        config.cpu_offload, config.device, lstm, total_agents)
+        config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
+        atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents)
 
     uncompiled_policy = policy
 
@@ -82,6 +82,7 @@ def evaluate(data):
         policy = data.policy
         infos = defaultdict(list)
         lstm_h, lstm_c = experience.lstm_h, experience.lstm_c
+        e3b_inv = experience.e3b_inv
 
     while not experience.full:
         with profile.env:
@@ -99,14 +100,18 @@ def evaluate(data):
         with profile.eval_forward, torch.no_grad():
             # TODO: In place-update should be faster. Leaking 7% speed max
             # Also should be using a cuda tensor to index
+            e3b = e3b_inv[env_id]
             if lstm_h is not None:
                 h = lstm_h[:, env_id]
                 c = lstm_c[:, env_id]
-                actions, logprob, _, value, (h, c) = policy(o_device, (h, c))
+                actions, logprob, _, value, (h, c), next_e3b, intrinsic_reward = policy(o_device, (h, c), e3b=e3b)
                 lstm_h[:, env_id] = h
                 lstm_c[:, env_id] = c
             else:
-                actions, logprob, _, value = policy(o_device)
+                actions, logprob, _, value, next_e3b, intrinsic_reward = policy(o_device, e3b=e3b)
+
+            e3b_inv[env_id] = next_e3b
+            r += intrinsic_reward.cpu()
 
             if config.device == 'cuda':
                 torch.cuda.synchronize()
@@ -179,11 +184,11 @@ def train(data):
 
             with profile.train_forward:
                 if experience.lstm_h is not None:
-                    _, newlogprob, entropy, newvalue, lstm_state = data.policy(
+                    _, newlogprob, entropy, newvalue, lstm_state, _, _ = data.policy(
                         obs, state=lstm_state, action=atn)
                     lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
                 else:
-                    _, newlogprob, entropy, newvalue = data.policy(
+                    _, newlogprob, entropy, newvalue, _, _ = data.policy(
                         obs.reshape(-1, *data.vecenv.single_observation_space.shape),
                         action=atn,
                     )
@@ -388,8 +393,9 @@ def make_losses():
 
 class Experience:
     '''Flat tensor storage and array views for faster indexing'''
-    def __init__(self, batch_size, bptt_horizon, minibatch_size, obs_shape, obs_dtype, atn_shape, atn_dtype,
-                 cpu_offload=False, device='cuda', lstm=None, lstm_total_agents=0):
+    def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
+                 obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
+                 device='cuda', lstm=None, lstm_total_agents=0):
         if minibatch_size is None:
             minibatch_size = batch_size
 
@@ -405,8 +411,8 @@ class Experience:
         self.dones=torch.zeros(batch_size, pin_memory=pin)
         self.truncateds=torch.zeros(batch_size, pin_memory=pin)
         self.values=torch.zeros(batch_size, pin_memory=pin)
+        self.e3b_inv = 1*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
 
-        #self.obs_np = np.asarray(self.obs)
         self.actions_np = np.asarray(self.actions)
         self.logprobs_np = np.asarray(self.logprobs)
         self.rewards_np = np.asarray(self.rewards)
