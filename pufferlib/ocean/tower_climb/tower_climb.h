@@ -97,6 +97,9 @@ struct CTowerClimb {
     int rows_cleared;
     Level level;
     int level_number;
+    float reward_climb_row;
+    float reward_fall_row;
+    float reward_illegal_move;
 };
 
 int get_direction(CTowerClimb* env, int action) {
@@ -188,8 +191,8 @@ void reset(CTowerClimb* env) {
 }
 
 void illegal_move(CTowerClimb* env){
-    env->rewards[0] = -0.01;
-    env->log.episode_return -= 0.01;
+    env->rewards[0] = env->reward_illegal_move;
+    env->log.episode_return += env->reward_illegal_move;
 }
 
 int get_local_direction(CTowerClimb* env, int action) {
@@ -475,8 +478,8 @@ void handle_climb(CTowerClimb* env, int action, int current_floor,int x, int z, 
         return;
     }
     env->rows_cleared = previous_row;
-    env->rewards[0] = 0.5;
-    env->log.episode_return +=0.5;  
+    env->rewards[0] = env->reward_climb_row;
+    env->log.episode_return += env->reward_climb_row;  
 }
 
 
@@ -501,6 +504,8 @@ void handle_down(CTowerClimb* env, int action, int current_floor,int x, int z, i
     if (below_cell == 1 && env->robot_state == DEFAULT) {
         env->robot_position = next_index;
         env->robot_state = DEFAULT;
+	env->rewards[0] = env->reward_fall_row;
+	env->log.episode_return += env->reward_fall_row;
         return;
     }
     if (below_cell == 0 && below_next_cell == 0 && env->robot_state == DEFAULT) {
@@ -869,9 +874,6 @@ void step(CTowerClimb* env) {
         add_log(env->log_buffer, &env->log);
         reset(env);
     }
-    int level_bonus = ((env->robot_position - env->level.size) / env->level.size) * 0.4;
-    env->rewards[0] += level_bonus;
-    env->log.episode_return += level_bonus;
     env->log.rows_cleared = env->rows_cleared;
     compute_observations(env);
 }
