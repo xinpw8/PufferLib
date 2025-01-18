@@ -152,6 +152,8 @@ class PufferCarbs:
         ):
         param_spaces = _carbs_params_from_puffer_sweep(sweep_config)
         flat_spaces = [e[1] for e in pufferlib.utils.unroll_nested_dict(param_spaces)]
+        for e in flat_spaces:
+            print(e.name, e.space)
 
         metric = sweep_config['metric']
         goal = metric['goal']
@@ -168,10 +170,10 @@ class PufferCarbs:
 
     def suggest(self, args):
         self.suggestion = self.carbs.suggest().suggestion
-        for k in ('train', 'env', 'policy', 'rnn'):
-            for name, param in self.suggestion.items():
-                if name in args[k]:
-                    args[k][name] = param
+        for k in ('train', 'env'):
+            for name, param in args['sweep'][k].items():
+                if name in self.suggestion:
+                    args[k][name] = self.suggestion[name]
 
     def observe(self, score, cost, is_failure=False):
         self.carbs.observe(
@@ -255,8 +257,59 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         torch.manual_seed(int(time.time()))
  
         carbs.suggest(args)
+        if args['train']['batch_size'] / args['train']['num_minibatches'] > 32_768:
+            carbs.observe(score=0, cost=0, is_failure=True)
+            continue
+
         target, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
         carbs.observe(score=target, cost=uptime)
+
+def synthetic_carbs_observation(args):
+    '''Simulates the outcome of an RL experiment by making
+    some heavy handed assumptions about hyperparameters'''
+    num_envs = args['env']['num_envs']
+    train_args = args['train']
+    total_timesteps = train_args['total_timesteps']
+    batch_size = train_args['batch_size']
+    num_minibatches = train_args['num_minibatches']
+    learning_rate = train_args['learning_rate']
+    gamma = train_args['gamma']
+    gae_lambda = train_args['gae_lambda']
+    update_epochs = train_args['update_epochs']
+    bptt_horizon = train_args['bptt_horizon']
+    minibatch_size = batch_size // num_minibatches
+
+    # Base score maxes out at 1.0
+    base_score = (
+        - 100*abs(learning_rate - 0.001)
+        - 100*abs(gamma - 0.99)
+        - 100*abs(gae_lambda - 0.95)
+        - abs(bptt_horizon - 16)/16.0
+        + 20.0
+    )
+
+    score_mod = (
+        np.log2(total_timesteps) / np.log2(100_000_000)
+        * np.sqrt(batch_size)  / np.sqrt(65536)
+        * np.sqrt(num_minibatches)
+        * np.sqrt(update_epochs)
+    )
+
+    '''
+    cost = (
+        total_timesteps / 100_000_000
+        * 16_384 / minibatch_size
+        * 1024 / num_envs
+        * update_epochs
+        * num_minibatches
+    )
+    '''
+
+    score = score_mod * base_score
+    cost = 1
+
+    return score, cost
+
 
 def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
     target_metric = args['sweep']['metric']['name']
@@ -272,19 +325,32 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         torch.manual_seed(int(time.time()))
  
         carbs.suggest(args)
+
+        # Optimal params
+        '''
         train_args = args['train']
-        score = 10*np.abs(train_args['learning_rate'] - 0.001) + 10*np.abs(train_args['gamma'] - 0.99) - 10*np.abs(train_args['ent_coef'] - 0.01)
-        uptime = train_args['gae_lambda']
+        train_args['total_timesteps'] = 1e9
+        train_args['batch_size'] = 262144
+        train_args['num_minibatches'] = 8
+        train_args['learning_rate'] = 0.001
+        train_args['gamma'] = 0.99
+        train_args['gae_lambda'] = 0.95
+        train_args['update_epochs'] = 4
+        train_args['bptt_horizon'] = 16
+        '''
+
+        score, cost = synthetic_carbs_observation(args)
+
         neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
         for k, v in pufferlib.utils.unroll_nested_dict(args):
             neptune[k].append(v)
 
         neptune['environment/score'].append(score)
-        neptune['environment/uptime'].append(uptime)
+        neptune['environment/uptime'].append(cost)
         neptune.stop()
  
         #stats, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls)
-        carbs.observe(score=score, cost=uptime)
+        carbs.observe(score=score, cost=cost)
 
 
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
@@ -395,7 +461,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help='Resume from experiment')
     parser.add_argument('--track', action='store_true', help='Track on WandB')
-    parser.add_argument('--max-runs', type=int, default=10_000, help='Max number of sweep runs')
+    parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')

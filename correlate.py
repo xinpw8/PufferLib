@@ -38,6 +38,10 @@ output_data = {}
 
 scores = table['environment/score']
 good_scores = scores[scores > args.threshold]
+
+gamma = table['train/gamma']
+stuck = scores[(gamma > 0.97225) * (gamma < 0.97226)]
+breakpoint()
 summary['runs'] = len(scores)
 summary['threshold'] = args.threshold
 summary['num good'] = len(scores[scores > args.threshold])
