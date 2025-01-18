@@ -298,6 +298,7 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         num_random_samples=10, # Should be number of params
         max_suggestion_cost=args['base']['max_suggestion_cost'],
     )
+    scores = []
     for i in range(args['max_runs']):
         random.seed(int(time.time()))
         np.random.seed(int(time.time()))
@@ -320,6 +321,7 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
 
         score, cost = synthetic_carbs_observation(args)
 
+        '''
         neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
         for k, v in pufferlib.utils.unroll_nested_dict(args):
             neptune[k].append(v)
@@ -327,9 +329,24 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         neptune['environment/score'].append(score)
         neptune['environment/uptime'].append(cost)
         neptune.stop()
+        '''
  
         #stats, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls)
         carbs.observe(score=score, cost=cost)
+
+        import plotly.graph_objects as go
+        scores.append(score)
+        t = list(range(len(scores)))
+        fig = go.Figure(data=go.Scatter(x=t, y=scores, mode='markers'))
+        fig.update_layout(title='CARBS Synthetic Test', xaxis_title='Index', yaxis_title='Value')
+        fig.show()
+
+
+    import plotly.express as px
+    y = [3, 7, 1, 5, 9]  # Replace with your values
+    x = range(len(y))  # Generate x as range
+    fig = px.scatter(x=x, y=y, labels={'x': 'Index', 'y': 'Value'})
+    fig.show()
 
 
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
