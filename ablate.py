@@ -198,44 +198,23 @@ def _carbs_params_from_puffer_sweep(sweep_config):
  
         assert 'distribution' in param
         distribution = param['distribution']
-
+        search_center = param['mean']
+        kwargs = dict(
+            min=param['min'],
+            max=param['max'],
+            scale=param['scale'],
+            mean=search_center,
+        )
         if distribution == 'uniform':
-            space = LinearSpace(
-                min=param['min'],
-                max=param['max'],
-                scale=(param['max'] - param['min'])/2.0
-            )
-            search_center = (param['max'] + param['min']) / 2
+            space = LinearSpace(**kwargs)
         elif distribution == 'int_uniform':
-            space = LinearSpace(
-                min=param['min'],
-                max=param['max'],
-                is_integer=True,
-                scale=5.0
-            )
-            search_center = (param['max'] + param['min']) / 2
+            space = LinearSpace(**kwargs, is_integer=True)
         elif distribution == 'uniform_pow2':
-            space = Pow2Space(
-                min=param['min'],
-                max=param['max'],
-                is_integer=True,
-                scale=(param['max'] - param['min'])/2.0
-            )
-            search_center = (param['max'] + param['min']) / 2
+            space = Pow2Space(**kwargs, is_integer=True)
         elif distribution == 'log_normal':
-            space = LogSpace(
-                min=10**(np.log10(param['mean']) - param['clip']),
-                max=10**(np.log10(param['mean']) + param['clip']),
-                scale=param['scale'],
-            )
-            search_center = param['mean']
+            space = LogSpace(**kwargs)
         elif distribution == 'logit_normal':
-            space = LogitSpace(
-                min=1-10**(np.log10(1 - param['mean']) + param['clip']),
-                max=1-10**(np.log10(1 - param['mean']) - param['clip']),
-                scale=param['scale'],
-            )
-            search_center = param['mean']
+            space = LogitSpace(**kwargs)
         else:
             raise ValueError(f'Invalid distribution: {distribution}')
 
