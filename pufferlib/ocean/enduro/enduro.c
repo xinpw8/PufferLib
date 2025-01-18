@@ -8,6 +8,9 @@
 #include "puffernet.h"
 #include "raylib.h"
 
+#define SEED (unsigned int)time(NULL)
+#define ENV_INDEX 0
+
 void get_input(Enduro* env) {
     if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_D))) {
         env->actions[0] = ACTION_DOWNRIGHT;  // Decelerate and move right
@@ -35,11 +38,10 @@ int demo() {
     LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
 
     Enduro env = {.obs_size = OBSERVATIONS_MAX_SIZE};
-    allocate(&env);
+    allocate(&env, SEED, ENV_INDEX);
     Client* client = make_client(&env);
-    unsigned int seed = 0;
-    init(&env, seed, 0);
-    reset(&env);
+    init(&env, SEED, 0, rand() % 2);
+    c_reset(&env);
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -49,7 +51,7 @@ int demo() {
         }
 
         c_step(&env);
-        render(client, &env);
+        c_render(client, &env);
     }
 
     free_linearlstm(net);
@@ -61,11 +63,10 @@ int demo() {
 
 void perftest(float test_time) {
     Enduro env = {.obs_size = OBSERVATIONS_MAX_SIZE};
-    allocate(&env);
+    allocate(&env, SEED, ENV_INDEX);
 
-    unsigned int seed = 12345;
-    init(&env, seed, 0);
-    reset(&env);
+    init(&env, SEED, 0, rand() % 2);
+    c_reset(&env);
 
     int start = time(NULL);
     int i = 0;

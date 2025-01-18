@@ -41,7 +41,7 @@ cdef extern from "enduro.h":
     ctypedef struct Client
     Client* make_client(Enduro* env)
 
-    void init(Enduro* env, int seed, int env_index)
+    void init(Enduro* env, int seed, int env_index, bint randomize_time)
     void c_reset(Enduro* env)
     void c_step(Enduro* env)
     void c_render(Client* client, Enduro* env)
@@ -77,7 +77,7 @@ cdef class CyEnduro:
             self.envs[i].truncateds = &truncateds[i]
             self.envs[i].log_buffer = self.logs
             self.envs[i].obs_size = observations.shape[1]
-            init(&self.envs[i], unique_seed, i)        
+            init(&self.envs[i], unique_seed, i, True)        
         self.client = NULL
 
     def reset(self):
