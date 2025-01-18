@@ -147,7 +147,7 @@ void reset_round(Pong* env) {
     env->n_bounces = 0;
 }
 
-void reset(Pong* env) {
+void c_reset(Pong* env) {
     env->log = (Log){0};
     reset_round(env);
     env->score_l = 0;
@@ -155,7 +155,7 @@ void reset(Pong* env) {
     compute_observations(env);
 }
 
-void step(Pong* env) {
+void c_step(Pong* env) {
     env->tick += 1;
     env->log.episode_length += 1;
     env->rewards[0] = 0;
@@ -213,7 +213,7 @@ void step(Pong* env) {
                 if (env->score_r == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env->log_buffer, &env->log);
-                    reset(env);
+                    c_reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -246,7 +246,7 @@ void step(Pong* env) {
                 if (env->score_l == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env->log_buffer, &env->log);
-                    reset(env);
+                    c_reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -302,7 +302,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Client* client, Pong* env) {
+void c_render(Client* client, Pong* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

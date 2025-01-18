@@ -51,9 +51,9 @@ cdef extern from "rware.h":
 
     Client* make_client(CRware* env)
     void close_client(Client* client)
-    void render(Client* client, CRware* env)
-    void reset(CRware* env)
-    void step(CRware* env)
+    void c_render(Client* client, CRware* env)
+    void c_reset(CRware* env)
+    void c_step(CRware* env)
 
 cdef class CyRware:
     cdef:
@@ -96,12 +96,12 @@ cdef class CyRware:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef CRware* env = &self.envs[0]
@@ -112,7 +112,7 @@ cdef class CyRware:
             self.client = make_client(env)
             os.chdir(cwd)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:
