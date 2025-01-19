@@ -63,7 +63,7 @@ def init_neptune(args, name, id=None, resume=True, tag=None):
 
 import numpy as np
 
-def log_normal(mean, scale, clip):
+def log_normal(min, max, mean, scale):
     '''Samples normally spaced points on a log 10 scale.
     mean: Your center sample point
     scale: standard deviation in base 10 orders of magnitude
@@ -72,18 +72,18 @@ def log_normal(mean, scale, clip):
     Example: mean=0.001, scale=1, clip=2 will produce data from
     0.1 to 0.00001 with most of it between 0.01 and 0.0001
     '''
-    return 10**np.clip(
-        np.random.normal(
+    return np.clip(
+        10**np.random.normal(
             np.log10(mean),
             scale,
         ),
-        a_min = np.log10(mean) - clip,
-        a_max = np.log10(mean) + clip,
+        a_min = min,
+        a_max = max,
     )
 
-def logit_normal(mean, scale, clip):
+def logit_normal(min, max, mean, scale):
     '''log normal but for logit data like gamma and gae_lambda'''
-    return 1 - log_normal(1 - mean, scale, clip)
+    return 1 - log_normal(1-max, 1-min, 1-mean, scale)
 
 def uniform_pow2(min, max):
     '''Uniform distribution over powers of 2 between min and max inclusive'''
@@ -120,10 +120,10 @@ def sample_hyperparameters(sweep_config):
                 samples[name] = uniform_pow2(param['min'], param['max'])
             elif param['distribution'] == 'log_normal':
                 samples[name] = log_normal(
-                    param['mean'], param['scale'], param['clip'])
+                    param['min'], param['max'], param['mean'], param['scale'])
             elif param['distribution'] == 'logit_normal':
                 samples[name] = logit_normal(
-                    param['mean'], param['scale'], param['clip'])
+                    param['min'], param['max'], param['mean'], param['scale'])
             else:
                 raise ValueError(f'Invalid distribution: {param["distribution"]}')
         else:
@@ -268,26 +268,55 @@ def synthetic_carbs_observation(args):
     )
 
     score_mod = (
-        np.log2(total_timesteps) / np.log2(100_000_000)
+        (np.log2(total_timesteps) - np.log(5e7) + 1)
         * np.sqrt(batch_size)  / np.sqrt(65536)
         * np.sqrt(num_minibatches)
         * np.sqrt(update_epochs)
     )
 
-    '''
     cost = (
-        total_timesteps / 100_000_000
+        total_timesteps / 50_000_000
         * 16_384 / minibatch_size
         * 1024 / num_envs
         * update_epochs
         * num_minibatches
     )
-    '''
 
     score = score_mod * base_score
-    cost = 1
 
     return score, cost
+
+def test_random_search(args, env_name, make_env, policy_cls, rnn_cls):
+    target_metric = args['sweep']['metric']['name']
+    scores = []
+    costs = []
+    best_hypers = None
+    for i in range(args['max_runs']):
+        seed = time.time_ns() & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+
+        hypers = sample_hyperparameters(args['sweep'])
+        hypers['train']['total_timesteps'] = args['sweep']['train']['total_timesteps']['max']
+        score, cost = synthetic_carbs_observation(hypers)
+        if len(scores) > 0 and score > np.max(scores):
+            best_hypers = hypers
+
+        scores.append(score)
+        costs.append(cost)
+        '''
+        neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
+        for k, v in pufferlib.utils.unroll_nested_dict(args):
+            neptune[k].append(v)
+
+        neptune['environment/score'].append(score)
+        neptune['environment/uptime'].append(cost)
+        neptune.stop()
+        '''
+
+    print('Best score:', np.max(scores), 'at cost:', costs[np.argmax(scores)])
+    print('Best hypers:', best_hypers)
 
 
 def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
@@ -300,16 +329,17 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
     )
     scores = []
     for i in range(args['max_runs']):
-        random.seed(int(time.time()))
-        np.random.seed(int(time.time()))
-        torch.manual_seed(int(time.time()))
+        seed = time.time_ns() & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
  
         carbs.suggest(args)
 
         # Optimal params
         '''
         train_args = args['train']
-        train_args['total_timesteps'] = 1e9
+        train_args['total_timesteps'] = 1e10
         train_args['batch_size'] = 262144
         train_args['num_minibatches'] = 8
         train_args['learning_rate'] = 0.001
@@ -321,7 +351,6 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
 
         score, cost = synthetic_carbs_observation(args)
 
-        '''
         neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
         for k, v in pufferlib.utils.unroll_nested_dict(args):
             neptune[k].append(v)
@@ -329,24 +358,25 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         neptune['environment/score'].append(score)
         neptune['environment/uptime'].append(cost)
         neptune.stop()
-        '''
  
         #stats, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls)
         carbs.observe(score=score, cost=cost)
 
+        scores.append(score)
+        print(scores)
+        pareto = carbs.carbs._get_pareto_groups()
+        print(pareto)
+        '''
         import plotly.graph_objects as go
         scores.append(score)
         t = list(range(len(scores)))
         fig = go.Figure(data=go.Scatter(x=t, y=scores, mode='markers'))
         fig.update_layout(title='CARBS Synthetic Test', xaxis_title='Index', yaxis_title='Value')
         fig.show()
+        '''
 
+    np.save('scores.npy', scores)
 
-    import plotly.express as px
-    y = [3, 7, 1, 5, 9]  # Replace with your values
-    x = range(len(y))  # Generate x as range
-    fig = px.scatter(x=x, y=y, labels={'x': 'Index', 'y': 'Value'})
-    fig.show()
 
 
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
@@ -443,7 +473,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', '--environment', type=str,
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
-        choices='train eval evaluate sweep sweep-carbs test-carbs autotune profile'.split())
+        choices='train eval evaluate sweep sweep-carbs test-random test-carbs autotune profile'.split())
     parser.add_argument('--vec', '--vector', '--vectorization', type=str,
         default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--vec-overwork', action='store_true',
@@ -563,6 +593,8 @@ if __name__ == '__main__':
         sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'test-carbs':
         test_carbs(args, env_name, make_env, policy_cls, rnn_cls)
+    elif args['mode'] == 'test-random':
+        test_random_search(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'autotune':
         pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
     elif args['mode'] == 'profile':
