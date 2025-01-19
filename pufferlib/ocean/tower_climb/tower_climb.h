@@ -964,12 +964,12 @@ void next_level(CTowerClimb* env){
 void step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    // if(env->log.episode_length >200){
-	//       env->rewards[0] = 0;
-	//       //env->log.episode_return +=0;
-	//       add_log(env->log_buffer, &env->log);
-	//       reset(env);
-    // }
+    if(env->log.episode_length >200){
+	       env->rewards[0] = 0;
+	       //env->log.episode_return +=0;
+	       add_log(env->log_buffer, &env->log);
+	       reset(env);
+    }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
@@ -988,8 +988,8 @@ void step(CTowerClimb* env) {
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 add_log(env->log_buffer, &env->log);
-                next_level(env);
-                // reset(env);
+                //next_level(env);
+                reset(env);
             }
         }
         else {

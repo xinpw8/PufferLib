@@ -369,7 +369,6 @@ class TowerClimb(nn.Module):
         board_state = observations[:,:225]
         player_info = observations[:, -4:] 
         board_features = board_state.view(-1, 1, 5,5,9).float()
-        breakpoint()
         cnn_features = self.network(board_features)
         flat_features = self.flat(player_info.float())
         

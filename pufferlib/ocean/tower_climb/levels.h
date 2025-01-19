@@ -299,4 +299,4 @@ static const Level level_tutorial_two = {
     .spawn_location = 62,
 };
 
-static const Level* levels[] = {&level_tutorial, &level_two, &level_three};
+static const Level* levels[] = {&level_one, &level_two, &level_three};
