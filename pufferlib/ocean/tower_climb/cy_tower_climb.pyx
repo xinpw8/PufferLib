@@ -45,6 +45,7 @@ cdef extern from "tower_climb.h":
         float reward_climb_row;
         float reward_fall_row;
         float reward_illegal_move;
+        float reward_move_block;
     ctypedef struct Client
 
     void init(CTowerClimb* env)
@@ -67,7 +68,7 @@ cdef class CyTowerClimb:
     def __init__(self, float[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             int map_choice, float reward_climb_row, float reward_fall_row,
-            float reward_illegal_move):
+            float reward_illegal_move, float reward_move_block):
 
         self.client = NULL
         self.num_envs = num_envs
@@ -84,7 +85,8 @@ cdef class CyTowerClimb:
                 map_choice=map_choice,
                 reward_climb_row=reward_climb_row,
                 reward_fall_row=reward_fall_row,
-                reward_illegal_move=reward_illegal_move
+                reward_illegal_move=reward_illegal_move,
+                reward_move_block=reward_move_block
             )
             init(&self.envs[i])
             self.client = NULL

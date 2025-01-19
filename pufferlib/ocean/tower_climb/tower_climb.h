@@ -17,7 +17,7 @@
 #define HANGING 1
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
-#define LEVEL_MAX_SIZE 432
+#define LEVEL_MAX_SIZE 288
 #define PLAYER_OBS 5
 
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
@@ -100,6 +100,7 @@ struct CTowerClimb {
     float reward_climb_row;
     float reward_fall_row;
     float reward_illegal_move;
+    float reward_move_block;
 };
 
 int get_direction(CTowerClimb* env, int action) {
@@ -815,19 +816,19 @@ void next_level(CTowerClimb* env){
 void step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    // if(env->log.episode_length >200){
-	//      env->rewards[0] = 0;
-	//      //env->log.episode_return +=0;
-	//      add_log(env->log_buffer, &env->log);
-	//      reset(env);
-    // }
+    if(env->log.episode_length >200){
+	      env->rewards[0] = 0;
+	      //env->log.episode_return +=0;
+	      add_log(env->log_buffer, &env->log);
+	      reset(env);
+    }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
         int moving_block = (env->block_grabbed != -1 && abs(env->robot_orientation - action) == 2);
         if(moving_block){
-		env->rewards[0] = 0.2;
-		env->log.episode_return += 0.2;
+		env->rewards[0] = env->reward_move_block;
+		env->log.episode_return += env->reward_move_block;
 	}
 	if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
             env->robot_direction = direction;

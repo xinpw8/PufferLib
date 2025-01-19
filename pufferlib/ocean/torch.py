@@ -368,8 +368,7 @@ class TowerClimb(nn.Module):
     def encode_observations(self, observations):
         board_state = observations[:,:288]
         player_info = observations[:, -5:] 
-        board_features = board_state.view(-1, 1, 6,6,8).float()
-        
+        board_features = board_state.view(-1, 1, 8,6,6).float()
         cnn_features = self.network(board_features)
         flat_features = self.flat(player_info.float())
         
