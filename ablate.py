@@ -231,10 +231,11 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         max_suggestion_cost=args['base']['max_suggestion_cost'],
     )
     for i in range(args['max_runs']):
-        random.seed(int(time.time()))
-        np.random.seed(int(time.time()))
-        torch.manual_seed(int(time.time()))
- 
+        seed = time.time_ns() & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+
         carbs.suggest(args)
         if args['train']['batch_size'] / args['train']['num_minibatches'] > 32_768:
             carbs.observe(score=0, cost=0, is_failure=True)
