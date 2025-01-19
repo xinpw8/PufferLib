@@ -984,7 +984,12 @@ void step(CTowerClimb* env) {
             int sz = env->level.size;
             int below_index = env->robot_position - sz;
             // check if goal is below current position
-            if (env->board_state[below_index] == 2){
+            if(below_index < 0){
+	   	env->log.rows_cleared = env->rows_cleared;
+		compute_observations(env);
+		return;
+	    }
+	    if (env->board_state[below_index] == 2){
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 add_log(env->log_buffer, &env->log);

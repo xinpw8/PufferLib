@@ -23,7 +23,7 @@ class TowerClimb(pufferlib.PufferEnv):
         self.report_interval = report_interval
         
         self.num_obs = 229
-        self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
+        self.single_observation_space = gymnasium.spaces.Box(low=-1, high=3,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(6)
 
