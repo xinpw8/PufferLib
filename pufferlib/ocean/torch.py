@@ -332,3 +332,54 @@ class TrashPickup(nn.Module):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value
+
+class TowerClimbLSTM(pufferlib.models.LSTMWrapper):
+    def __init__(self, env, policy, input_size = 256, hidden_size = 256, num_layers = 1):
+        super().__init__(env, policy, input_size, hidden_size, num_layers)
+
+class TowerClimb(nn.Module):
+    def __init__(self, env, cnn_channels=32, hidden_size = 256, **kwargs):
+        super().__init__()
+        self.network = nn.Sequential(
+                pufferlib.pytorch.layer_init(
+                    nn.Conv3d(1, cnn_channels, 3, stride = 1)),
+                nn.ReLU(),
+                pufferlib.pytorch.layer_init(
+                    nn.Conv3d(cnn_channels, cnn_channels, 3, stride=1)),
+                nn.Flatten()       
+        )
+        cnn_flat_size = cnn_channels * 4 * 2 * 2
+
+        # Process player obs
+        self.flat = pufferlib.pytorch.layer_init(nn.Linear(5,32))
+
+        # combine
+        self.proj = pufferlib.pytorch.layer_init(
+                nn.Linear(cnn_flat_size + 32, hidden_size))
+        self.actor = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, env.single_action_space.n), std = 0.01)
+        self.value_fn = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 1 ), std=1)
+
+    def forward(self, observations, state=None):
+        hidden, lookup = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden, lookup)
+        return actions, value, state
+    def encode_observations(self, observations):
+        board_state = observations[:,:288]
+        player_info = observations[:, -5:] 
+        board_features = board_state.view(-1, 1, 6,6,8).float()
+        
+        cnn_features = self.network(board_features)
+        flat_features = self.flat(player_info.float())
+        
+        features = torch.cat([cnn_features,flat_features],dim = 1)
+        features = self.proj(features)
+        return features, None
+    
+    def decode_actions(self, flat_hidden, lookup, concat=None):
+        action = self.actor(flat_hidden)
+        value = self.value_fn(flat_hidden)
+        
+        return action, value
+
