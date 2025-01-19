@@ -163,19 +163,81 @@ void free_allocated(CTowerClimb* env) {
 }
 
 void compute_observations(CTowerClimb* env) {
-    for (int i =0;i< env->level.total_length; i++){
-	    env->observations[i] = (float)env->board_state[i];
+    int sz = env->level.size;
+    int cols = env->level.cols;
+    int rows = env->level.rows;
+    int max_floors = env->level.total_length / sz;
+    
+    // Get player position
+    int current_floor = env->robot_position / sz;
+    int grid_pos = env->robot_position % sz;
+    int player_x = grid_pos % cols;
+    int player_z = grid_pos / cols;
+    
+    // Calculate window bounds
+    int window_width = 5;
+    int window_height = 7;
+    int window_depth = 3;
+    
+    // Calculate y (floor) bounds centered on player but adjusted for boundaries
+    int y_center = current_floor;
+    int half_height = window_height / 2;
+    
+    // Try to center on player
+    int y_start = y_center - half_height;
+    int y_end = y_center + half_height + 1;  // +1 because half_height rounds down
+    
+    // Adjust if too close to bottom
+    if (y_start < 0) {
+        y_start = 0;
+        y_end = window_height;
     }
-    int inc = LEVEL_MAX_SIZE;
-    env->observations[inc] = (float)env->robot_position;
-    env->observations[inc+1] = (float)env->robot_orientation;
-    env->observations[inc+2] = (float)env->robot_state;
-    env->observations[inc+3] = (float)env->block_grabbed;
-    float holding = 0.0;
-    if(env->block_grabbed != -1 ){
-	    holding = 1.0;
+    
+    // Adjust if too close to top
+    if (y_end > max_floors) {
+        y_end = max_floors;
+        y_start = y_end - window_height;
+        if (y_start < 0) y_start = 0;
     }
-    env->observations[inc+4] = holding;
+    
+    // Calculate x bounds centered on player
+    int x_start = player_x - window_width / 2;
+    int x_end = x_start + window_width;
+    
+    // Calculate z bounds centered on player
+    int z_start = player_z - window_depth / 2;
+    int z_end = z_start + window_depth;
+    
+    // Fill in observations
+    for (int y = y_start; y < y_end; y++) {
+        for (int z = z_start; z < z_end; z++) {
+            for (int x = x_start; x < x_end; x++) {
+                int local_y = y - y_start;
+                int local_z = z - z_start;
+                int local_x = x - x_start;
+                int obs_idx = local_y * (window_width * window_depth) + local_z * window_width + local_x;
+                
+                // Check if position is within board bounds
+                if (x >= 0 && x < cols && z >= 0 && z < rows && y >= 0) {
+                    int board_idx = y * sz + z * cols + x;
+                    if (board_idx < env->level.total_length) {
+                        env->observations[obs_idx] = (float)env->board_state[board_idx];
+                    } else {
+                        env->observations[obs_idx] = -1.0f;
+                    }
+                } else {
+                    env->observations[obs_idx] = -1.0f;
+                }
+            }
+        }
+    }
+    
+    // Add player state information at the end
+    int state_start = window_width * window_depth * window_height;
+    env->observations[state_start] = (float)env->robot_orientation;
+    env->observations[state_start + 1] = (float)env->robot_state;
+    env->observations[state_start + 2] = (float)env->block_grabbed;
+    env->observations[state_start + 3] = (float)(env->block_grabbed != -1);
 }
 
 void reset(CTowerClimb* env) {
@@ -187,7 +249,11 @@ void reset(CTowerClimb* env) {
     env->level_number = 0;
     env->level = levels[env->level_number];
     env->robot_position = env->level.spawn_location;
+    
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
+    if(env->level.total_length < LEVEL_MAX_SIZE){
+	memset(env->board_state + env->level.total_length, 0, LEVEL_MAX_SIZE-env->level.total_length * sizeof(int));
+    }
     compute_observations(env);
 }
 
