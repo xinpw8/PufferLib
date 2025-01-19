@@ -148,7 +148,6 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.passed_cars += logs->logs[i].passed_cars /= logs->idx;
         log.passed_by_enemy += logs->logs[i].passed_by_enemy /= logs->idx;
         log.cars_to_pass += logs->logs[i].cars_to_pass /= logs->idx;
-        printf("cars_to_pass: %f\n", (float)log.cars_to_pass);
         log.days_completed += logs->logs[i].days_completed /= logs->idx;
         log.days_failed += logs->logs[i].days_failed /= logs->idx;
         log.collisions_player_vs_car += logs->logs[i].collisions_player_vs_car /= logs->idx;
@@ -397,16 +396,18 @@ static int get_furthest_lane(const Enduro* env) {  // Get furthest lane from pla
     }
 }
 
-void init(Enduro* env, int seed, int env_index, bool randomize_time) {
-    env->index = env_index;
+void init(Enduro* env, int seed, unsigned int env_id, bool randomize_time) {
+    env->index = env_id;
     env->rng_state = seed;
-    if (randomize_time && env->rng_state != 0) {
+    for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS; i++) {  // Initialize day transition times
+        env->day_transition_times[i] = BACKGROUND_TRANSITION_TIMES[i];
+    }
+    if (randomize_time && env->rng_state != 0) {  // Randomize elapsed time if enabled
         env->elapsed_time_env = ((float)xorshift32(&env->rng_state) / (float)UINT32_MAX) * TOTAL_DAY_DURATION;
     } else {
         env->elapsed_time_env = 0.0f;
     }
-    env->current_day_time_index = 0;
-    env->previous_day_time_index = NUM_BACKGROUND_TRANSITIONS;
+    env->current_day_time_index = 0;  // Determine the current time of day index
     for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS - 1; i++) {
         if (env->elapsed_time_env >= env->day_transition_times[i] &&
             env->elapsed_time_env < env->day_transition_times[i + 1]) {
@@ -465,7 +466,6 @@ void c_reset(Enduro* env) {
     env->step_count = 0;
     env->collision_cooldown_car_vs_car = 0.0f;
     env->collision_cooldown_car_vs_road = 0.0f;
-    env->elapsed_time_env = 0.0f;
     env->enemy_spawn_timer = 0.0f;
     env->enemy_spawn_interval = INIT_ENEMY_SPAWN_INTERVAL;
     env->last_spawned_lane = -1;
@@ -478,7 +478,7 @@ void c_reset(Enduro* env) {
     env->crashed_penalty = 0.0f;
     env->car_passed_no_crash_active = 0;
     env->step_rew_car_passed_no_crash = 0.0f;
-    env->current_curve_stage = 0;  // 0: straight
+    env->current_curve_stage = 0;  // 0 == straight
     env->steps_in_current_stage = 0;
     env->current_curve_direction = CURVE_STRAIGHT;
     env->current_curve_factor = 0.0f;
@@ -1143,9 +1143,6 @@ void c_step(Enduro* env) {
     env->log.score = env->score;
     env->log.cars_to_pass = env->cars_to_pass;
     compute_observations(env);
-    if (env->step_count % 50 == 2) {
-        add_log(env->log_buffer, &env->log);
-    }
 }
 
 void init_raylib(Client* client) {

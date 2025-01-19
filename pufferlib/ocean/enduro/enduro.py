@@ -55,7 +55,6 @@ class Enduro(pufferlib.PufferEnv):
             log = self.c_envs.log()        
             if log['episode_length'] > 0:
                 info.append(log)
-                print(f"cars to pass: {log['cars_to_pass']}, episode_length: {log['episode_length']}")
         self.tick += 1
 
         return (
