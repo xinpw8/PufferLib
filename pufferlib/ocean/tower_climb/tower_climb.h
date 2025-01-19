@@ -17,8 +17,9 @@
 #define HANGING 1
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
-#define LEVEL_MAX_SIZE 288
-#define PLAYER_OBS 5
+#define LEVEL_MAX_SIZE 432
+#define PLAYER_OBS 4
+#define OBS_VISION 225
 
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
@@ -124,7 +125,7 @@ int get_direction(CTowerClimb* env, int action) {
 
 void init(CTowerClimb* env) {
     env->level_number = 0;
-    env->level = levels[env->level_number];
+    env->level = *levels[env->level_number];
     env->board_state = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->block_grabbed = -1;
     env->blocks_to_move = (int*)calloc(env->level.cols, sizeof(int));
@@ -140,7 +141,7 @@ void init(CTowerClimb* env) {
 
 void allocate(CTowerClimb* env) {
     init(env);
-    env->observations = (float*)calloc(LEVEL_MAX_SIZE+PLAYER_OBS, sizeof(float)); // make this unsigned char
+    env->observations = (float*)calloc(OBS_VISION+PLAYER_OBS, sizeof(float)); // make this unsigned char
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -162,6 +163,51 @@ void free_allocated(CTowerClimb* env) {
     free_initialized(env);
 }
 
+
+void print_observation_window(CTowerClimb* env) {
+    const int WIDTH = 9;    // x dimension
+    const int HEIGHT = 5;   // y dimension
+    const int DEPTH = 5;    // z dimension
+    
+    printf("\nObservation Window (Height layers from bottom to top):\n");
+    
+    // For each height level
+    for (int h = 0; h < HEIGHT; h++) {
+        printf("\nLayer %d:\n", h);
+        
+        // For each depth row
+        for (int d = 0; d < DEPTH; d++) {
+            printf("  ");  // Indent
+            
+            // For each width position
+            for (int w = 0; w < WIDTH; w++) {
+                // Get value from observation array
+                // Since observations are in x,z,y format:
+                int obs_idx = w + (d * WIDTH) + (h * WIDTH * DEPTH);
+                float val = env->observations[obs_idx];
+                
+                // Print appropriate symbol
+                if (val == -1.0f) printf("· ");        // Out of bounds
+                else if (val == 0.0f) printf("□ ");    // Empty
+                else if (val == 1.0f) printf("■ ");    // Block
+                else if (val == 2.0f) printf("G ");    // Goal
+                else printf("%.0f ", val);
+            }
+            printf("\n");
+        }
+    }
+    
+    // Print player state
+    int state_start = WIDTH * DEPTH * HEIGHT;
+    printf("\nPlayer State:\n");
+    printf("Orientation: %.0f\n", env->observations[state_start]);
+    printf("State: %.0f\n", env->observations[state_start + 1]);
+    printf("Block grabbed: %.0f\n", env->observations[state_start + 2]);
+    printf("Holding: %.0f\n", env->observations[state_start + 3]);
+    printf("Current floor: %.0f\n", env->observations[state_start + 4]);
+    printf("\n");
+}
+
 void compute_observations(CTowerClimb* env) {
     int sz = env->level.size;
     int cols = env->level.cols;
@@ -175,12 +221,12 @@ void compute_observations(CTowerClimb* env) {
     int player_z = grid_pos / cols;
     
     // Calculate window bounds
-    int window_width = 5;
-    int window_height = 7;
-    int window_depth = 3;
+    int window_width = 9;
+    int window_height = 5;
+    int window_depth = 5;
     
     // Calculate y (floor) bounds centered on player but adjusted for boundaries
-    int y_center = current_floor;
+    int y_center = current_floor + 1;
     int half_height = window_height / 2;
     
     // Try to center on player
@@ -200,34 +246,71 @@ void compute_observations(CTowerClimb* env) {
         if (y_start < 0) y_start = 0;
     }
     
-    // Calculate x bounds centered on player
-    int x_start = player_x - window_width / 2;
+    // Calculate x bounds centered on player but adjusted for boundaries
+    int half_width = window_width / 2;
+    int x_start = player_x - half_width;
     int x_end = x_start + window_width;
     
-    // Calculate z bounds centered on player
-    int z_start = player_z - window_depth / 2;
+    // Adjust if too close to left edge
+    if (window_width > cols){
+        x_start = 0;
+        x_end = cols;
+    }
+    else {
+        if (x_start < 0) {
+            x_start = 0;
+            x_end = window_width;
+        }
+        
+        // Adjust if too close to right edge
+        if (x_end > cols) {
+            x_end = cols;
+            x_start = x_end - window_width;
+            if (x_start < 0) x_start = 0;
+        }
+    }
+        
+    // Calculate z bounds centered on player but adjusted for boundaries
+    int half_depth = window_depth / 2;
+    int z_start = player_z - half_depth;
     int z_end = z_start + window_depth;
     
+    // Adjust if too close to front edge
+    if (z_start < 0) {
+        z_start = 0;
+        z_end = window_depth;
+    }
+    
+    // Adjust if too close to back edge
+    if (z_end > rows) {
+        z_end = rows;
+        z_start = z_end - window_depth;
+        if (z_start < 0) z_start = 0;
+    }
+
     // Fill in observations
-    for (int y = y_start; y < y_end; y++) {
-        for (int z = z_start; z < z_end; z++) {
-            for (int x = x_start; x < x_end; x++) {
-                int local_y = y - y_start;
-                int local_z = z - z_start;
-                int local_x = x - x_start;
-                int obs_idx = local_y * (window_width * window_depth) + local_z * window_width + local_x;
-                
-                // Check if position is within board bounds
-                if (x >= 0 && x < cols && z >= 0 && z < rows && y >= 0) {
-                    int board_idx = y * sz + z * cols + x;
-                    if (board_idx < env->level.total_length) {
-                        env->observations[obs_idx] = (float)env->board_state[board_idx];
-                    } else {
-                        env->observations[obs_idx] = -1.0f;
-                    }
-                } else {
+    for (int y = 0; y < window_height; y++) {  // Always iterate through full window height
+        int world_y = y + y_start;
+        for (int z = 0; z < window_depth; z++) {  // Always iterate through full window depth
+            int world_z = z + z_start;
+            for (int x = 0; x < window_width; x++) {  // Always iterate through full window width
+                int world_x = x + x_start;
+                int obs_idx = x + z * window_width + y * (window_width * window_depth);
+                // Check if position is out of bounds
+                int board_idx = world_y * sz + world_z * cols + world_x;
+                if (world_x < 0 || world_x >= cols || 
+                    world_z < 0 || world_z >= rows || 
+                    world_y < 0 || world_y >= max_floors || 
+                    board_idx >= env->level.total_length) {
                     env->observations[obs_idx] = -1.0f;
+                    continue;
                 }
+                // Position is in bounds, set observation
+                if (board_idx == env->robot_position) {
+                    env->observations[obs_idx] = 3.0f;
+                    continue;
+                }
+                env->observations[obs_idx] = (float)env->board_state[board_idx];
             }
         }
     }
@@ -247,12 +330,11 @@ void reset(CTowerClimb* env) {
     env->robot_state = DEFAULT;
     env->block_grabbed = -1;
     env->level_number = 0;
-    env->level = levels[env->level_number];
+    env->level = *levels[env->level_number];
     env->robot_position = env->level.spawn_location;
-    
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     if(env->level.total_length < LEVEL_MAX_SIZE){
-	memset(env->board_state + env->level.total_length, 0, LEVEL_MAX_SIZE-env->level.total_length * sizeof(int));
+	    memset(env->board_state + env->level.total_length, 0, (LEVEL_MAX_SIZE-env->level.total_length) * sizeof(int));
     }
     compute_observations(env);
 }
@@ -534,7 +616,7 @@ void handle_climb(CTowerClimb* env, int action, int current_floor,int x, int z, 
     int climb_cell = env->board_state[climb_index];
     int direct_above = env->robot_position + sz;
     int direct_above_cell = env->board_state[direct_above];
-    if (climb_cell != 0 || direct_above_cell != 0){
+    if ((climb_cell != 0 || direct_above_cell != 0) && next_cell != 2){
         illegal_move(env);
         return;
     }
@@ -748,7 +830,7 @@ void handle_move_forward(CTowerClimb* env, int action) {
     } else {
 	    front_below_cell = -1;
     }
-    // Calculate the next potential cell’s x, z
+    // Calculate the next potential cell's x, z
     int next_x = x + dx;
     int next_z = z + dz;
     if(env->block_grabbed != -1 && abs(env->robot_direction - action) == 2){
@@ -868,7 +950,7 @@ void next_level(CTowerClimb* env){
         return;
     }
     env->level_number += 1;
-    env->level = levels[env->level_number];
+    env->level = *levels[env->level_number];
     env->robot_position = env->level.spawn_location;
     env->robot_state = DEFAULT;
     env->robot_orientation = UP;
@@ -882,12 +964,12 @@ void next_level(CTowerClimb* env){
 void step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length >200){
-	      env->rewards[0] = 0;
-	      //env->log.episode_return +=0;
-	      add_log(env->log_buffer, &env->log);
-	      reset(env);
-    }
+    // if(env->log.episode_length >200){
+	//       env->rewards[0] = 0;
+	//       //env->log.episode_return +=0;
+	//       add_log(env->log_buffer, &env->log);
+	//       reset(env);
+    // }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
@@ -901,17 +983,13 @@ void step(CTowerClimb* env) {
             handle_move_forward(env, action);
             int sz = env->level.size;
             int below_index = env->robot_position - sz;
-            if(below_index < 0){
-                compute_observations(env);
-                return;
-            }
             // check if goal is below current position
             if (env->board_state[below_index] == 2){
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 add_log(env->log_buffer, &env->log);
-                //next_level(env);
-                reset(env);
+                next_level(env);
+                // reset(env);
             }
         }
         else {
@@ -919,6 +997,7 @@ void step(CTowerClimb* env) {
             env->robot_orientation = direction;
         }
     }
+	
     else if (action == GRAB){
         handle_grab_block(env);
     }
@@ -935,6 +1014,9 @@ void step(CTowerClimb* env) {
     }
     env->log.rows_cleared = env->rows_cleared;
     compute_observations(env);
+    // if(action != NOOP){
+    //     print_observation_window(env);
+    // }
 }
 
 const Color STONE_GRAY = (Color){80, 80, 80, 255};
@@ -1086,3 +1168,4 @@ void close_client(Client* client) {
     UnloadModel(client->robot);
     free(client);
 }
+

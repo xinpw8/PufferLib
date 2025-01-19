@@ -338,24 +338,24 @@ class TowerClimbLSTM(pufferlib.models.LSTMWrapper):
         super().__init__(env, policy, input_size, hidden_size, num_layers)
 
 class TowerClimb(nn.Module):
-    def __init__(self, env, cnn_channels=32, hidden_size = 256, **kwargs):
+    def __init__(self, env, cnn_channels=16, hidden_size = 256, **kwargs):
         super().__init__()
         self.network = nn.Sequential(
                 pufferlib.pytorch.layer_init(
-                    nn.Conv3d(1, cnn_channels, 3, stride = 1)),
+                    nn.Conv3d(1, cnn_channels, 2, stride = 1)),
                 nn.ReLU(),
                 pufferlib.pytorch.layer_init(
-                    nn.Conv3d(cnn_channels, cnn_channels, 3, stride=1)),
+                    nn.Conv3d(cnn_channels, cnn_channels, 2, stride=1)),
                 nn.Flatten()       
         )
-        cnn_flat_size = cnn_channels * 4 * 2 * 2
+        cnn_flat_size = cnn_channels * 3 * 3 * 7
 
         # Process player obs
-        self.flat = pufferlib.pytorch.layer_init(nn.Linear(5,32))
+        self.flat = pufferlib.pytorch.layer_init(nn.Linear(4,16))
 
         # combine
         self.proj = pufferlib.pytorch.layer_init(
-                nn.Linear(cnn_flat_size + 32, hidden_size))
+                nn.Linear(cnn_flat_size + 16, hidden_size))
         self.actor = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.n), std = 0.01)
         self.value_fn = pufferlib.pytorch.layer_init(
@@ -366,9 +366,10 @@ class TowerClimb(nn.Module):
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value, state
     def encode_observations(self, observations):
-        board_state = observations[:,:288]
-        player_info = observations[:, -5:] 
-        board_features = board_state.view(-1, 1, 8,6,6).float()
+        board_state = observations[:,:225]
+        player_info = observations[:, -4:] 
+        board_features = board_state.view(-1, 1, 5,5,9).float()
+        breakpoint()
         cnn_features = self.network(board_features)
         flat_features = self.flat(player_info.float())
         
