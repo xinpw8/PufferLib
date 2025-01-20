@@ -289,34 +289,42 @@ def synthetic_carbs_observation(args):
 
 def test_random_search(args, env_name, make_env, policy_cls, rnn_cls):
     target_metric = args['sweep']['metric']['name']
-    scores = []
-    costs = []
     best_hypers = None
-    for i in range(args['max_runs']):
-        seed = time.time_ns() & 0xFFFFFFFF
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
 
-        hypers = sample_hyperparameters(args['sweep'])
-        hypers['train']['total_timesteps'] = args['sweep']['train']['total_timesteps']['max']
-        score, cost = synthetic_carbs_observation(hypers)
-        if len(scores) > 0 and score > np.max(scores):
-            best_hypers = hypers
+    max_scores = []
+    max_costs = []
 
-        scores.append(score)
-        costs.append(cost)
-        '''
-        neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
-        for k, v in pufferlib.utils.unroll_nested_dict(args):
-            neptune[k].append(v)
+    for experiment in range(20):
+        scores = []
+        costs = []
+        for i in range(args['max_runs']):
+            seed = time.time_ns() & 0xFFFFFFFF
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
 
-        neptune['environment/score'].append(score)
-        neptune['environment/uptime'].append(cost)
-        neptune.stop()
-        '''
+            hypers = sample_hyperparameters(args['sweep'])
+            hypers['train']['total_timesteps'] = args['sweep']['train']['total_timesteps']['max']
+            score, cost = synthetic_carbs_observation(hypers)
+            if len(scores) > 0 and score > np.max(scores):
+                best_hypers = hypers
 
-    print('Best score:', np.max(scores), 'at cost:', costs[np.argmax(scores)])
+            scores.append(score)
+            costs.append(cost)
+            '''
+            neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
+            for k, v in pufferlib.utils.unroll_nested_dict(args):
+                neptune[k].append(v)
+
+            neptune['environment/score'].append(score)
+            neptune['environment/uptime'].append(cost)
+            neptune.stop()
+            '''
+
+        max_scores.append(np.max(scores))
+        max_costs.append(np.max(costs))
+
+    print('Best score:', np.mean(max_scores), 'at cost:', max_costs[np.argmax(max_scores)])
     print('Best hypers:', best_hypers)
 
 
@@ -441,7 +449,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         clean_pufferl.train(data)
 
     steps_evaluated = 0
-    uptime = data.profile.uptime
+    cost = data.profile.uptime
     batch_size = args['train']['batch_size']
     while len(data.stats[target_metric]) < min_eval_points:
         stats, _ = clean_pufferl.evaluate(data)
@@ -450,6 +458,13 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
 
     print(f'Evaluated {steps_evaluated} steps')
     clean_pufferl.mean_and_log(data)
+    score = stats[target_metric]
+
+    if args['neptune']:
+        neptune['score'].append(score)
+        neptune['cost'].append(cost)
+    elif args['wandb']:
+        wandb.log({'score': score, 'cost': cost})
 
     '''
     if env_name == 'moba':
@@ -464,7 +479,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     '''
 
     clean_pufferl.close(data)
-    return stats[target_metric], uptime, elos, vecenv
+    return score, cost, elos, vecenv
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
