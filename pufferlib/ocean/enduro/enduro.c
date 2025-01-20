@@ -40,7 +40,6 @@ int demo() {
     Enduro env = {.obs_size = OBSERVATIONS_MAX_SIZE};
     allocate(&env, SEED, ENV_INDEX);
     Client* client = make_client(&env);
-    init(&env, SEED, 0, rand() % 2);
     c_reset(&env);
 
     while (!WindowShouldClose()) {
@@ -49,7 +48,6 @@ int demo() {
         } else {
             forward_linearlstm(net, env.observations, env.actions);
         }
-
         c_step(&env);
         c_render(client, &env);
     }
@@ -82,7 +80,7 @@ void perftest(float test_time) {
 }
 
 int main() {
-    demo();
-    //   perftest(20.0f);
+    // demo();
+    perftest(20.0f);
     return 0;
 }

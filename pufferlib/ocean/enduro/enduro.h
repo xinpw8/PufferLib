@@ -438,21 +438,13 @@ void free_allocated(Enduro* env) {
 
 void c_reset(Enduro* env) {
     int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
-    if (env->reset_count == 0) {
+    if (env->reset_count == 0 && env->index != 0) {
         init(env, reset_seed, env->index, true);  // Keep random time on first reset
     } else {
-        env->elapsed_time_env = 0.0f;  // Start from the beginning
+        env->elapsed_time_env = 0.0f;  // Start from the beginning on failure
         env->current_day_time_index = 0;
     }
     env->previous_day_time_index = NUM_BACKGROUND_TRANSITIONS;
-    for (int i = 0; i < NUM_BACKGROUND_TRANSITIONS - 1; i++) {
-        if (env->elapsed_time_env >= env->day_transition_times[i] &&
-            env->elapsed_time_env < env->day_transition_times[i + 1]) {
-            env->current_day_time_index = i;
-            break;
-        }
-    }
-
     env->num_enemies = 0;
     for (int i = 0; i < MAX_ENEMIES; i++) {
         env->enemy_cars[i].lane = -1;  // Default invalid lane
@@ -474,7 +466,7 @@ void c_reset(Enduro* env) {
     env->target_vanishing_point_x = VANISH_START_POINT;
     env->vanishing_point_x = VANISH_START_POINT;
     env->day = 1;
-    env->drift_direction = 0;  // Means in noop, but only if crashed state
+    env->drift_direction = 0;  // == nooped, but only if crashed state
     env->crashed_penalty = 0.0f;
     env->car_passed_no_crash_active = 0;
     env->step_rew_car_passed_no_crash = 0.0f;
