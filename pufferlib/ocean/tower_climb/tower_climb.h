@@ -329,6 +329,7 @@ void reset(CTowerClimb* env) {
     env->robot_orientation = UP;
     env->robot_state = DEFAULT;
     env->block_grabbed = -1;
+    env->rows_cleared = 0;
     env->level_number = 0;
     env->level = *levels[env->level_number];
     env->robot_position = env->level.spawn_location;
@@ -336,8 +337,11 @@ void reset(CTowerClimb* env) {
     if(env->level.total_length < LEVEL_MAX_SIZE){
 	    memset(env->board_state + env->level.total_length, 0, (LEVEL_MAX_SIZE-env->level.total_length) * sizeof(int));
     }
+    memset(env->blocks_to_move, -1, env->level.cols * sizeof(int));
+    memset(env->blocks_to_fall, -1, env->level.total_length * sizeof(int));
     compute_observations(env);
 }
+
 
 void illegal_move(CTowerClimb* env){
     env->rewards[0] = env->reward_illegal_move;
@@ -462,7 +466,7 @@ static int is_block_stable(CTowerClimb* env, int position) {
     return 0;
 }
 
-void add_blocks_to_fall(CTowerClimb* env){
+int  add_blocks_to_fall(CTowerClimb* env){
     int sz = env->level.size;
     int cols = env->level.cols;
     int total_length = env->level.total_length;
@@ -487,7 +491,7 @@ void add_blocks_to_fall(CTowerClimb* env){
         int cell_above = env->blocks_to_move[i] + sz;
         
         // If valid block above and unstable, add to queue
-        if (cell_above < total_length && env->board_state[cell_above] == 1
+        if (cell_above < total_length && (env->board_state[cell_above] == 1 || env->board_state[cell_above] ==2)
         && !is_block_stable(env, cell_above)) {
             queue[rear++] = cell_above;
         }
@@ -503,7 +507,7 @@ void add_blocks_to_fall(CTowerClimb* env){
         // Add valid edge blocks to queue
         for(int j = 0; j < 4; j++) {
             if (edge_blocks[j] >= 0 && edge_blocks[j] < total_length && 
-                env->board_state[edge_blocks[j]] == 1
+                (env->board_state[edge_blocks[j]] == 1 || env->board_state[edge_blocks[j]] ==2)
                 && !is_block_stable(env, edge_blocks[j])) {
                 queue[rear++] = edge_blocks[j];
             }
@@ -515,6 +519,9 @@ void add_blocks_to_fall(CTowerClimb* env){
         int current = queue[front++];
         int falling_position = current;
         int found_support = 0;
+	if(env->board_state[current]==2){
+		return 0;
+	}
         // Remove block from current position
         env->board_state[current] = 0;
         // Keep moving down until support found or bottom reached
@@ -534,8 +541,7 @@ void add_blocks_to_fall(CTowerClimb* env){
           
         // Add blocks that might be affected by this fall
         int original_above = current + sz;  // Block directly above original position
-        if (original_above < total_length && env->board_state[original_above] == 1
-        && !is_block_stable(env, original_above)) {
+        if (original_above < total_length && (env->board_state[original_above] == 1 || env->board_state[original_above] ==2) && !is_block_stable(env, original_above)) {
             queue[rear++] = original_above;
         }
         
@@ -548,7 +554,7 @@ void add_blocks_to_fall(CTowerClimb* env){
         
         for(int i = 0; i < 4; i++) {
             if (edge_check[i] >= 0 && edge_check[i] < total_length && 
-                env->board_state[edge_check[i]] == 1
+                (env->board_state[edge_check[i]] == 1 || env->board_state[edge_check[i]] ==2)
                 && !is_block_stable(env, edge_check[i])) {
                 queue[rear++] = edge_check[i];
             }
@@ -559,6 +565,7 @@ void add_blocks_to_fall(CTowerClimb* env){
     // death by block crush
     memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
     memset(env->blocks_to_move, -1, cols * sizeof(int));
+    return 1;
 }
 void move_blocks(CTowerClimb* env, int interval){
     int count = 0;
@@ -801,6 +808,12 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
         handle_down(env, action, current_floor, x, z, next_z, next_x, next_index, next_cell);
     }   
 }
+void handle_unstable_goal(CTowerClimb* env){
+	env->rewards[0] = -1;
+	env->log.episode_return -= 1;
+	add_log(env->log_buffer, &env->log);
+	reset(env);
+}
 
 void handle_move_forward(CTowerClimb* env, int action) {
     int sz = env->level.size;
@@ -882,7 +895,10 @@ void handle_move_forward(CTowerClimb* env, int action) {
         if(abs(env->robot_orientation - action) == 0){
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
-            add_blocks_to_fall(env);
+            int stable  = add_blocks_to_fall(env);
+	    if (stable == 0){
+		    handle_unstable_goal(env);
+	    }
             //env->rewards[0] = 0.25;
             //env->log.episode_return += 0.25;
         }
@@ -898,8 +914,12 @@ void handle_move_forward(CTowerClimb* env, int action) {
             env->board_state[front_index] = 0;
             env->board_state[next_index + block_offset] = 1;
             env->block_grabbed = next_index + block_offset;
-            add_blocks_to_fall(env);
-            env->blocks_to_move[0] = -1;
+            int stable = add_blocks_to_fall(env);
+            if(stable ==0){
+		    handle_unstable_goal(env);
+		    return;
+	    }
+	    env->blocks_to_move[0] = -1;
             if (below_cell == 0 && env->robot_state == DEFAULT){
                 env->robot_position = below_index;
                 env->robot_state = HANGING;
@@ -992,9 +1012,10 @@ void step(CTowerClimb* env) {
 	    if (env->board_state[below_index] == 2){
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
-                add_log(env->log_buffer, &env->log);
-                //next_level(env);
-                reset(env);
+                env->log.rows_cleared = env->rows_cleared;
+		add_log(env->log_buffer, &env->log);
+                next_level(env);
+                //reset(env);
             }
         }
         else {
