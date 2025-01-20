@@ -62,8 +62,6 @@ int demo() {
 void perftest(float test_time) {
     Enduro env = {.obs_size = OBSERVATIONS_MAX_SIZE};
     allocate(&env, SEED, ENV_INDEX);
-
-    init(&env, SEED, 0, rand() % 2);
     c_reset(&env);
 
     int start = time(NULL);
