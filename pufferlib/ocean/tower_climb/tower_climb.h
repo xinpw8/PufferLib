@@ -969,6 +969,7 @@ void next_level(CTowerClimb* env){
         reset(env);
         return;
     }
+    env->rows_cleared= 0;
     env->level_number += 1;
     env->level = *levels[env->level_number];
     env->robot_position = env->level.spawn_location;
