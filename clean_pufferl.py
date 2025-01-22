@@ -45,7 +45,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
 
     lstm = policy.lstm if hasattr(policy, 'lstm') else None
     experience = Experience(config.batch_size, config.bptt_horizon,
-        config.num_minibatches, obs_shape, obs_dtype, atn_shape, atn_dtype,
+        config.minibatch_size, obs_shape, obs_dtype, atn_shape, atn_dtype,
         config.cpu_offload, config.device, lstm, total_agents)
 
     uncompiled_policy = policy
@@ -406,7 +406,7 @@ def make_losses():
 
 class Experience:
     '''Flat tensor storage and array views for faster indexing'''
-    def __init__(self, batch_size, bptt_horizon, num_minibatches, obs_shape, obs_dtype, atn_shape, atn_dtype,
+    def __init__(self, batch_size, bptt_horizon, minibatch_size, obs_shape, obs_dtype, atn_shape, atn_dtype,
                  cpu_offload=False, device='cuda', lstm=None, lstm_total_agents=0):
         obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_dtype]
         atn_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_dtype]
@@ -436,10 +436,10 @@ class Experience:
             self.lstm_h = torch.zeros(shape).to(device)
             self.lstm_c = torch.zeros(shape).to(device)
 
-        minibatch_size = batch_size / num_minibatches
-        self.minibatch_size = int(minibatch_size)
-        if self.minibatch_size != minibatch_size:
-            raise ValueError('batch_size must be divisible by num_minibatches')
+        num_minibatches = batch_size / minibatch_size
+        self.num_minibatches = int(num_minibatches)
+        if self.num_minibatches != num_minibatches:
+            raise ValueError('batch_size must be divisible by minibatch_size')
 
         minibatch_rows = minibatch_size / bptt_horizon
         self.minibatch_rows = int(minibatch_rows)
@@ -448,7 +448,7 @@ class Experience:
 
         self.batch_size = batch_size
         self.bptt_horizon = bptt_horizon
-        self.num_minibatches = num_minibatches
+        self.minibatch_size = minibatch_size
         self.device = device
         self.sort_keys = []
         self.ptr = 0
