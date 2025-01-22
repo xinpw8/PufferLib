@@ -237,7 +237,7 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         torch.manual_seed(seed)
 
         carbs.suggest(args)
-        if args['train']['batch_size'] / args['train']['num_minibatches'] > 32_768:
+        if args['train']['minibatch_size'] > 32_768:
             carbs.observe(score=0, cost=0, is_failure=True)
             continue
 
@@ -251,13 +251,13 @@ def synthetic_carbs_observation(args):
     train_args = args['train']
     total_timesteps = train_args['total_timesteps']
     batch_size = train_args['batch_size']
-    num_minibatches = train_args['num_minibatches']
+    minibatch_size = train_args['minibatch_size']
     learning_rate = train_args['learning_rate']
     gamma = train_args['gamma']
     gae_lambda = train_args['gae_lambda']
     update_epochs = train_args['update_epochs']
     bptt_horizon = train_args['bptt_horizon']
-    minibatch_size = batch_size // num_minibatches
+    num_minibatches = batch_size // minibatch_size
 
     # Base score maxes out at 1.0
     base_score = (
@@ -350,7 +350,7 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         train_args = args['train']
         train_args['total_timesteps'] = 1e10
         train_args['batch_size'] = 262144
-        train_args['num_minibatches'] = 8
+        train_args['minibatch_size'] = 16384
         train_args['learning_rate'] = 0.001
         train_args['gamma'] = 0.99
         train_args['gae_lambda'] = 0.95
