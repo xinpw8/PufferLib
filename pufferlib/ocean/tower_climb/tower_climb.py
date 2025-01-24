@@ -14,8 +14,8 @@ from pufferlib.ocean.tower_climb.cy_tower_climb import CyTowerClimb
 
 class TowerClimb(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
-            map_choice=1, reward_climb_row = .25, reward_fall_row = -0.1, reward_illegal_move = -0.01,
-            reward_move_block = 0.2, buf = None):
+            map_choice=1, reward_climb_row = .25, reward_fall_row = 0, reward_illegal_move = -0.01,
+            reward_move_block = 0.2, reward_distance = 0.01, buf = None):
 
         # env
         self.num_agents = num_envs
@@ -30,7 +30,7 @@ class TowerClimb(pufferlib.PufferEnv):
         super().__init__(buf=buf)   
         self.c_envs = CyTowerClimb(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, map_choice, reward_climb_row, reward_fall_row,
-            reward_illegal_move, reward_move_block)
+            reward_illegal_move, reward_move_block, reward_distance)
 
 
     def reset(self, seed=None):

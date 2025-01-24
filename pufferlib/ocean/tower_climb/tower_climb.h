@@ -32,6 +32,7 @@ struct Log {
     float episode_return;
     float episode_length;
     float rows_cleared;
+    float levels_completed;
 };
 
 
@@ -71,6 +72,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_return  += logs->logs[i].episode_return  / logs->idx;
         log.episode_length  += logs->logs[i].episode_length  / logs->idx;
         log.rows_cleared    += logs->logs[i].rows_cleared    / logs->idx;
+	log.levels_completed += logs->logs[i].levels_completed / logs->idx;
     }
 
     logs->idx = 0;
@@ -98,11 +100,35 @@ struct CTowerClimb {
     int rows_cleared;
     Level level;
     int level_number;
+    int distance_to_goal;
     float reward_climb_row;
     float reward_fall_row;
     float reward_illegal_move;
     float reward_move_block;
+    float reward_distance;
 };
+
+float get_distance_to_goal(CTowerClimb* env) {
+	int sz = env->level.size;
+	int cols = env->level.cols;
+		    
+		    // Get robot position coordinates
+	int robot_floor = env->robot_position / sz;
+	int robot_grid = env->robot_position % sz;
+	int robot_x = robot_grid % cols;
+	int robot_z = robot_grid / cols;
+		    //                         // Get goal position coordinates using goal_location
+	int goal_floor = env->level.goal_location / sz;
+	int goal_grid = env->level.goal_location % sz;
+	int goal_x = goal_grid % cols;
+	int goal_z = goal_grid / cols;
+	// Calculate Manhattan distance
+	int x_dist = abs(robot_x - goal_x);
+	int z_dist = abs(robot_z - goal_z);
+	int floor_dist = abs(robot_floor - goal_floor);    
+	return x_dist + z_dist + floor_dist;
+}
+
 
 int get_direction(CTowerClimb* env, int action) {
     // For reference: 
@@ -132,6 +158,8 @@ void init(CTowerClimb* env) {
     env->blocks_to_fall = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->rows_cleared = 0;
     env->robot_orientation = UP;
+    env->robot_position = env->level.spawn_location;
+    env->distance_to_goal = get_distance_to_goal(env);
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     memset(env->blocks_to_fall, -1, LEVEL_MAX_SIZE * sizeof(int));
     for (int i = 0; i < env->level.cols; i++){
@@ -333,6 +361,7 @@ void reset(CTowerClimb* env) {
     env->level_number = 0;
     env->level = *levels[env->level_number];
     env->robot_position = env->level.spawn_location;
+    env->distance_to_goal = get_distance_to_goal(env);
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
     if(env->level.total_length < LEVEL_MAX_SIZE){
 	    memset(env->board_state + env->level.total_length, 0, (LEVEL_MAX_SIZE-env->level.total_length) * sizeof(int));
@@ -973,6 +1002,7 @@ void next_level(CTowerClimb* env){
     env->level_number += 1;
     env->level = *levels[env->level_number];
     env->robot_position = env->level.spawn_location;
+    env->distance_to_goal = get_distance_to_goal(env);
     env->robot_state = DEFAULT;
     env->robot_orientation = UP;
     env->robot_direction = UP;
@@ -1008,12 +1038,18 @@ void step(CTowerClimb* env) {
             if(below_index < 0){
 	   	env->log.rows_cleared = env->rows_cleared;
 		compute_observations(env);
+		int distance = get_distance_to_goal(env);
+    		int delta_distance = env->distance_to_goal - distance;
+    		float distance_reward = delta_distance * env->reward_distance;
+    		env->rewards[0] += distance_reward;
+    		env->log.episode_return += distance_reward;
 		return;
 	    }
 	    if (env->board_state[below_index] == 2){
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 env->log.rows_cleared = env->rows_cleared;
+		env->log.levels_completed = env->level_number + 1;
 		add_log(env->log_buffer, &env->log);
                 next_level(env);
                 //reset(env);
@@ -1040,6 +1076,12 @@ void step(CTowerClimb* env) {
         reset(env);
     }
     env->log.rows_cleared = env->rows_cleared;
+    int distance = get_distance_to_goal(env);
+    int delta_distance = env->distance_to_goal - distance;
+    float distance_reward = delta_distance * env->reward_distance;
+    env->rewards[0] += distance_reward;
+    env->log.episode_return += distance_reward;
+    env->distance_to_goal = distance;
     compute_observations(env);
     // if(action != NOOP){
     //     print_observation_window(env);
