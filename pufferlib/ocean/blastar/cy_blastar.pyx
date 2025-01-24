@@ -50,16 +50,10 @@ cdef extern from "blastar.h":
         float lives
         float vertical_closeness_rew
         float fired_bullet_rew
-        float bullet_distance_to_enemy_rew
         int kill_streak
         float flat_below_enemy_rew
-        float danger_zone_penalty_rew
-        float crashing_penalty_rew
         float hit_enemy_with_bullet_rew
-        float hit_by_enemy_bullet_penalty_rew
-        int enemy_crossed_screen
-        float bad_guy_score
-        float avg_score_difference # player score - bad guy score
+        float avg_score_difference
 
     ctypedef struct LogBuffer:
         Log* logs
@@ -79,12 +73,11 @@ cdef extern from "blastar.h":
         int max_score
         int bullet_travel_time
         int kill_streak
-        float bad_guy_score
         int enemy_respawns
         Player player
         Enemy enemy
         Bullet bullet
-        float* observations       # [25]
+        float* observations       # [27]
         int* actions              # [6]
         float* rewards            # [1]
         unsigned char* terminals  # [1]
@@ -97,10 +90,10 @@ cdef extern from "blastar.h":
     Log aggregate_and_clear(LogBuffer* logs)
 
     void init(BlastarEnv *env)
-    void reset(BlastarEnv *env)
+    void c_reset(BlastarEnv *env)
     void c_step(BlastarEnv *env)
     void close_client(Client* client)
-    void render(Client* client, BlastarEnv* env)
+    void c_render(Client* client, BlastarEnv* env)
 
     ctypedef struct Client:
         pass
@@ -137,7 +130,7 @@ cdef class CyBlastar:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
@@ -146,16 +139,14 @@ cdef class CyBlastar:
 
     def render(self):
         cdef BlastarEnv* env = &self.envs[0]
-        if self.client == NULL and self.num_envs > 0:
-            # TODO: make weird os.chdir jank unnecessary
+        if self.client == NULL:
             import os
             cwd = os.getcwd()
             os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
             self.client = make_client(env)
             os.chdir(cwd)
 
-        if self.client != NULL:
-            render(self.client, &self.envs[0])
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:

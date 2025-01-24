@@ -8,7 +8,7 @@ class Blastar(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, buf=None):
         # Observation space: 6 floats (normalized positions, bullet states)
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=1, shape=(31,), dtype=np.float32
+            low=0, high=1, shape=(20,), dtype=np.float32
         )
         # Action space: 6 discrete actions (no-op, left, right, up, down, fire)
         self.single_action_space = gymnasium.spaces.Discrete(6)
@@ -58,8 +58,9 @@ def test_performance(timeout=10, atn_cache=1024):
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, 6, (atn_cache, env.num_agents))
-
+    rng = np.random.default_rng()
+    actions = rng.integers(0, 6, (atn_cache, env.num_agents))
+ 
     import time
     start = time.time()
     while time.time() - start < timeout:

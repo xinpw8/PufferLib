@@ -10,9 +10,10 @@
 #define SCREEN_HEIGHT 480
 #define LOG_BUFFER_SIZE 4096
 #define MAX_EPISODE_STEPS 2800
-#define PLAYER_MAX_LIVES 20  // 5
+#define PLAYER_MAX_LIVES 20
 #define ENEMY_SPAWN_Y 50
 #define ENEMY_SPAWN_X -30
+#define INIT_BULLET_SPEED 3.0f
 
 static const float SPEED_SCALE = 4.0f;
 static const int ENEMY_WIDTH = 16;
@@ -20,113 +21,27 @@ static const int ENEMY_HEIGHT = 17;
 static const int PLAYER_WIDTH = 17;
 static const int PLAYER_HEIGHT = 17;
 static const int PLAYER_BULLET_WIDTH = 17;
+static const int PLAYER_BULLET_HEIGHT = 6;
 
-// Log structure
 typedef struct Log {
     float episode_return;
     float episode_length;
-    float score;
     float lives;
+    float score;
     float vertical_closeness_rew;
     float fired_bullet_rew;
-    float bullet_distance_to_enemy_rew;
     int kill_streak;
     float flat_below_enemy_rew;
-    float danger_zone_penalty_rew;
-    float crashing_penalty_rew;
     float hit_enemy_with_bullet_rew;
-    float hit_by_enemy_bullet_penalty_rew;
     int enemy_crossed_screen;
-    float bad_guy_score;
     float avg_score_difference;
 } Log;
 
-// LogBuffer structure
 typedef struct LogBuffer {
     Log* logs;
     int length;
     int idx;
 } LogBuffer;
-
-typedef struct RewardBuffer {
-    float* rewards;
-    int size;
-    int idx;
-} RewardBuffer;
-
-typedef struct Bullet {
-    float x, y;
-    float last_x, last_y;
-    bool active;
-    double travel_time;
-    float bulletSpeed;
-} Bullet;
-
-typedef struct Enemy {
-    float x, y;
-    float last_x, last_y;
-    float enemySpeed;
-    bool active;
-    bool attacking;
-    int direction;
-    int crossed_screen;
-    Bullet bullet;
-} Enemy;
-
-typedef struct Player {
-    float x, y;
-    float last_x, last_y;
-    float playerSpeed;
-    int score;
-    int lives;
-    Bullet bullet;
-    bool bulletFired;
-    bool playerStuck;
-    float explosion_timer;
-} Player;
-
-typedef struct Client {
-    Texture2D player_texture;
-    Texture2D enemy_texture;
-    Texture2D player_bullet_texture;
-    Texture2D enemy_bullet_texture;
-    Texture2D explosion_texture;
-
-    Color player_color;
-    Color enemy_color;
-    Color bullet_color;
-    Color explosion_color;
-} Client;
-
-typedef struct BlastarEnv {
-    float last_bullet_distance;
-    bool game_over;
-    int tick;
-    int playerExplosionTimer;
-    int enemyExplosionTimer;
-    int max_score;
-    int bullet_travel_time;
-    bool bullet_crossed_enemy_y;
-    int kill_streak;
-    float bad_guy_score;
-    int enemy_respawns;
-    Player player;
-    Enemy enemy;
-    Bullet bullet;
-    float* observations;
-    int* actions;
-    float* rewards;
-    unsigned char* terminals;
-    LogBuffer* log_buffer;
-    Log log;
-} BlastarEnv;
-
-static inline void scale_speeds(BlastarEnv* env) {
-    env->player.playerSpeed *= SPEED_SCALE;
-    env->enemy.enemySpeed *= SPEED_SCALE;
-    env->player.bullet.bulletSpeed *= SPEED_SCALE;
-    env->enemy.bullet.bulletSpeed *= SPEED_SCALE;
-}
 
 LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* buffer = (LogBuffer*)malloc(sizeof(LogBuffer));
@@ -156,31 +71,90 @@ Log aggregate_and_clear(LogBuffer* logs) {
         aggregated.episode_length += logs->logs[i].episode_length /= logs->idx;
         aggregated.score += logs->logs[i].score /= logs->idx;
         aggregated.lives += logs->logs[i].lives /= logs->idx;
-        aggregated.vertical_closeness_rew +=
-            logs->logs[i].vertical_closeness_rew /= logs->idx;
-        aggregated.fired_bullet_rew += logs->logs[i].fired_bullet_rew /=
-            logs->idx;
-        aggregated.bullet_distance_to_enemy_rew +=
-            logs->logs[i].bullet_distance_to_enemy_rew /= logs->idx;
+        aggregated.vertical_closeness_rew += logs->logs[i].vertical_closeness_rew /= logs->idx;
+        aggregated.fired_bullet_rew += logs->logs[i].fired_bullet_rew /= logs->idx;
         aggregated.kill_streak += logs->logs[i].kill_streak /= logs->idx;
-        aggregated.flat_below_enemy_rew += logs->logs[i].flat_below_enemy_rew /=
-            logs->idx;
-        aggregated.danger_zone_penalty_rew +=
-            logs->logs[i].danger_zone_penalty_rew /= logs->idx;
-        aggregated.crashing_penalty_rew += logs->logs[i].crashing_penalty_rew /=
-            logs->idx;
-        aggregated.hit_enemy_with_bullet_rew +=
-            logs->logs[i].hit_enemy_with_bullet_rew /= logs->idx;
-        aggregated.hit_by_enemy_bullet_penalty_rew +=
-            logs->logs[i].hit_by_enemy_bullet_penalty_rew /= logs->idx;
-        aggregated.enemy_crossed_screen += logs->logs[i].enemy_crossed_screen /=
-            logs->idx;
-        aggregated.bad_guy_score += logs->logs[i].bad_guy_score /= logs->idx;
-        aggregated.avg_score_difference += logs->logs[i].avg_score_difference /=
-            logs->idx;
+        aggregated.flat_below_enemy_rew += logs->logs[i].flat_below_enemy_rew /= logs->idx;
+        aggregated.hit_enemy_with_bullet_rew += logs->logs[i].hit_enemy_with_bullet_rew /= logs->idx;
+        aggregated.avg_score_difference += logs->logs[i].avg_score_difference /= logs->idx;
     }
     logs->idx = 0;
     return aggregated;
+}
+
+typedef struct Bullet {
+    float x;
+    float y;
+    float last_x;
+    float last_y;
+    bool active;
+    float bulletSpeed;
+} Bullet;
+
+typedef struct Enemy {
+    float x;
+    float y;
+    float last_x;
+    float last_y;
+    float enemySpeed;
+    bool active;
+    bool attacking;
+    int direction;
+    int crossed_screen;
+    Bullet bullet;
+} Enemy;
+
+typedef struct Player {
+    float x;
+    float y;
+    float last_x;
+    float last_y;
+    float playerSpeed;
+    int score;
+    int lives;
+    Bullet bullet;
+    bool bulletFired;
+    bool playerStuck;
+    float explosion_timer;
+    int last_score;
+} Player;
+
+typedef struct Client {
+    Texture2D player_texture;
+    Texture2D enemy_texture;
+    Texture2D player_bullet_texture;
+    Texture2D enemy_bullet_texture;
+    Texture2D explosion_texture;
+} Client;
+
+typedef struct BlastarEnv {
+    int num_obs;
+    float last_bullet_distance;
+    bool game_over;
+    int tick;
+    int playerExplosionTimer;
+    int enemyExplosionTimer;
+    int max_score;
+    int bullet_travel_time;
+    bool bullet_crossed_enemy_y;
+    int kill_streak;
+    int enemy_respawns;
+    Player player;
+    Enemy enemy;
+    Bullet bullet;
+    float* observations;
+    int* actions;
+    float* rewards;
+    unsigned char* terminals;
+    LogBuffer* log_buffer;
+    Log log;
+} BlastarEnv;
+
+static inline void scale_speeds(BlastarEnv* env) {
+    env->player.playerSpeed *= SPEED_SCALE;
+    env->enemy.enemySpeed *= SPEED_SCALE;
+    env->player.bullet.bulletSpeed *= SPEED_SCALE;
+    env->enemy.bullet.bulletSpeed *= SPEED_SCALE;
 }
 
 void init(BlastarEnv* env) {
@@ -191,16 +165,15 @@ void init(BlastarEnv* env) {
     env->max_score = 5 * PLAYER_MAX_LIVES;
     env->player.playerSpeed = 2.0f;
     env->enemy.enemySpeed = 1.0f;
-    env->player.bullet.bulletSpeed = 3.0f;
-    env->enemy.bullet.bulletSpeed = 3.0f;
+    env->player.bullet.bulletSpeed = INIT_BULLET_SPEED;
+    env->enemy.bullet.bulletSpeed = INIT_BULLET_SPEED;
     scale_speeds(env);
-    // Randomize player x and y position
-    env->player.x = (float)(rand() % (SCREEN_WIDTH - 17));
-    env->player.y = (float)(rand() % (SCREEN_HEIGHT - 17));
+    env->player.x = (float)(rand() % (SCREEN_WIDTH - PLAYER_WIDTH));  // randomize starts
+    env->player.y = (float)(rand() % (SCREEN_HEIGHT - PLAYER_HEIGHT));
     env->player.last_x = env->player.x;
     env->player.last_y = env->player.y;
     env->player.score = 0;
-    env->bad_guy_score = 0.0f;
+    env->player.last_score = 0;  // Initialize last score
     env->player.lives = PLAYER_MAX_LIVES;
     env->player.bulletFired = false;
     env->player.playerStuck = false;
@@ -230,7 +203,7 @@ void init(BlastarEnv* env) {
 
 void allocate(BlastarEnv* env) {
     init(env);
-    env->observations = (float*)calloc(31, sizeof(float));
+    env->observations = (float*)calloc(27, sizeof(float));  // Reduced observation size
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -245,23 +218,18 @@ void free_allocated(BlastarEnv* env) {
     free_logbuffer(env->log_buffer);
 }
 
-void reset(BlastarEnv* env) {
+void c_reset(BlastarEnv* env) {
     init(env);
 }
 
 void compute_observations(BlastarEnv* env) {
     env->log.lives = env->player.lives;
-    env->log.score = env->player.score;
-    env->log.bad_guy_score = env->bad_guy_score;
-    env->log.enemy_crossed_screen = env->enemy.crossed_screen;
 
     // Normalize player and enemy positions
-    env->observations[0] = env->player.x / SCREEN_WIDTH;  // Normalized player x
-    env->observations[1] =
-        env->player.y / SCREEN_HEIGHT;                    // Normalized player y
-    env->observations[2] = env->enemy.x / SCREEN_WIDTH;   // Normalized enemy x
-    env->observations[3] = env->enemy.y / SCREEN_HEIGHT;  // Normalized enemy y
-
+    env->observations[0] = env->player.x / SCREEN_WIDTH;
+    env->observations[1] = env->player.y / SCREEN_HEIGHT;
+    env->observations[2] = env->enemy.x / SCREEN_WIDTH;
+    env->observations[3] = env->enemy.y / SCREEN_HEIGHT;
     // Player bullet location and status
     if (env->player.bullet.active) {
         env->observations[4] = env->player.bullet.x / SCREEN_WIDTH;
@@ -284,57 +252,30 @@ void compute_observations(BlastarEnv* env) {
         env->observations[9] = 0.0f;
     }
 
-    // Additional observations for player score and lives
-    env->observations[10] = env->player.score / (float)env->max_score;
-    env->observations[11] = env->player.lives / (float)PLAYER_MAX_LIVES;
+    // // Enemy last known position
+    // env->observations[12] = env->enemy.last_x / SCREEN_WIDTH;
+    // env->observations[13] = env->enemy.last_y / SCREEN_HEIGHT;
 
-    // Enemy speed
-    env->observations[12] =
-        1.0f / 2.0f;  // Enemy speed normalized (1.0 is hardcoded speed)
-
-    // Player speed
-    env->observations[13] =
-        2.0f / 2.0f;  // Player speed normalized (2.0 is hardcoded speed)
-
-    // Enemy last known position
-    env->observations[14] =
-        env->enemy.last_x / SCREEN_WIDTH;  // Normalized enemy x
-    env->observations[15] =
-        env->enemy.last_y / SCREEN_HEIGHT;  // Normalized enemy y
-
-    // Player last known position
-    env->observations[16] =
-        env->player.last_x / SCREEN_WIDTH;  // Normalized player x
-    env->observations[17] =
-        env->player.last_y / SCREEN_HEIGHT;  // Normalized player y
+    // // Player last known position
+    // env->observations[14] = env->player.last_x / SCREEN_WIDTH;
+    // env->observations[15] = env->player.last_y / SCREEN_HEIGHT;
 
     // Enemy bullet last location
-    env->observations[18] = env->enemy.bullet.active
-                                ? env->enemy.bullet.last_x / SCREEN_WIDTH
-                                : 0.0f;  // Normalized x
-    env->observations[19] = env->enemy.bullet.active
-                                ? env->enemy.bullet.last_y / SCREEN_HEIGHT
-                                : 0.0f;  // Normalized y
+    env->observations[10] = env->enemy.bullet.active ? env->enemy.bullet.last_x / SCREEN_WIDTH : 0.0f;
+    env->observations[11] = env->enemy.bullet.active ? env->enemy.bullet.last_y / SCREEN_HEIGHT : 0.0f;
 
     // Player bullet last location
-    env->observations[20] = env->player.bullet.active
-                                ? env->player.bullet.last_x / SCREEN_WIDTH
-                                : 0.0f;  // Normalized x
-    env->observations[21] = env->player.bullet.active
-                                ? env->player.bullet.last_y / SCREEN_HEIGHT
-                                : 0.0f;  // Normalized y
+    env->observations[12] = env->player.bullet.active ? env->player.bullet.last_x / SCREEN_WIDTH : 0.0f;
+    env->observations[13] = env->player.bullet.active ? env->player.bullet.last_y / SCREEN_HEIGHT : 0.0f;
 
     // Bullet closeness to enemy (Euclidean distance)
     if (env->player.bullet.active) {
         float dx = env->player.bullet.x - env->enemy.x;
         float dy = env->player.bullet.y - env->enemy.y;
         float distance = sqrtf(dx * dx + dy * dy);
-        // Normalize the distance to [0, 1]
-        env->observations[22] =
-            1.0f - (distance / sqrtf(SCREEN_WIDTH * SCREEN_WIDTH +
-                                     SCREEN_HEIGHT * SCREEN_HEIGHT));
+        env->observations[14] = 1.0f - (distance / sqrtf(SCREEN_WIDTH * SCREEN_WIDTH + SCREEN_HEIGHT * SCREEN_HEIGHT));
     } else {
-        env->observations[22] = 0.0f;  // No bullet
+        env->observations[14] = 0.0f;  // No bullet
     }
 
     // Danger zone calculations (player-enemy distance)
@@ -345,45 +286,38 @@ void compute_observations(BlastarEnv* env) {
     float dx = player_center_x - enemy_center_x;
     float dy = player_center_y - enemy_center_y;
     float distance = sqrtf(dx * dx + dy * dy);
-    float max_distance =
-        sqrtf(SCREEN_WIDTH * SCREEN_WIDTH + SCREEN_HEIGHT * SCREEN_HEIGHT);
-    env->observations[23] = 1.0f - (distance / max_distance);
-    env->observations[24] =
-        (distance < 50.0f) ? 1.0f : 0.0f;  // Danger threshold
+    float max_distance = sqrtf(SCREEN_WIDTH * SCREEN_WIDTH + SCREEN_HEIGHT * SCREEN_HEIGHT);
+    env->observations[15] = 1.0f - (distance / max_distance);
+    env->observations[16] = (distance < 50.0f) ? 1.0f : 0.0f;  // Danger threshold
 
     // "Below enemy ship" observation: 1.0 if player is below enemy, 0.0
-    env->observations[25] =
-        (env->player.y > env->enemy.y + ENEMY_HEIGHT) ? 1.0f : 0.0f;
+    env->observations[17] = (env->player.y > env->enemy.y + ENEMY_HEIGHT) ? 1.0f : 0.0f;
 
     // Enemy crossed screen observation (count)
     if (env->enemy.crossed_screen > 0 && env->player.score > 0) {
-        env->observations[26] =
-            (float)env->enemy.crossed_screen / (float)env->player.score;
+        env->observations[18] = (float)env->enemy.crossed_screen / (float)env->player.score;
     } else {
-        env->observations[26] = 0.0f;
+        env->observations[18] = 0.0f;
     }
 
-    // Player vs bad guy score difference
-    float total_score = env->player.score + env->bad_guy_score;
-    if (total_score > 0.0f) {
-        env->observations[27] =
-            (env->bad_guy_score - env->player.score) / total_score;
-        env->observations[28] = env->player.score / total_score;
-        env->observations[29] = env->bad_guy_score / total_score;
-        env->observations[30] = env->enemy.crossed_screen / total_score;
-    } else {
-        env->observations[27] = 0.0f;
-        env->observations[28] = 0.0f;
-        env->observations[29] = 0.0f;
-        env->observations[30] = 0.0f;
+    // difference in last score
+    env->observations[19] = env->player.score - env->player.last_score;
+    env->player.last_score = env->player.score;  // store last score.
+    env->observations[20] = (float)env->enemy.crossed_screen;
+}
+
+bool check_collision(float x1, float y1, float w1, float h1, float x2, float y2, float w2, float h2) {
+    if (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2) {
+        return true;
     }
+    return false;
 }
 
 void c_step(BlastarEnv* env) {
     if (env->game_over) {
         if (env->terminals) env->terminals[0] = 1;
         add_log(env->log_buffer, &env->log);
-        reset(env);
+        c_reset(env);
         return;
     }
 
@@ -392,21 +326,14 @@ void c_step(BlastarEnv* env) {
 
     float rew = 0.0f;
     env->rewards[0] = rew;
-    float score = 0.0f;
-    float bad_guy_score = 0.0f;
     float fired_bullet_rew = 0.0f;
-    float bullet_distance_to_enemy_rew = 0.0f;
     float flat_below_enemy_rew = 0.0f;
     float vertical_closeness_rew = 0.0f;
-    float danger_zone_penalty_rew = 0.0f;
-    float crashing_penalty_rew = 0.0f;
     float hit_enemy_with_bullet_rew = 0.0f;
-    float hit_by_enemy_bullet_penalty_rew = 0.0f;
     int crossed_screen = 0;
     int action = 0;
     action = env->actions[0];
 
-    // Handle player explosion
     if (env->playerExplosionTimer > 0) {
         env->playerExplosionTimer--;
         env->kill_streak = 0;
@@ -419,76 +346,55 @@ void c_step(BlastarEnv* env) {
         return;
     }
 
-    // Handle enemy explosion
     if (env->enemyExplosionTimer > 0) {
         env->enemyExplosionTimer--;
         if (env->enemyExplosionTimer == 0) {
             env->enemy.crossed_screen = 0;
-            // Rarely respawn in the same place
-            float respawn_bias =
-                0.1f;  // 10% chance to respawn in the same place
+            float respawn_bias = 0.1f;
             if ((float)rand() / (float)RAND_MAX > respawn_bias) {
-                // Respawn in a new position
                 env->enemy.x = -ENEMY_WIDTH;
                 env->enemy.y = rand() % (SCREEN_HEIGHT - ENEMY_HEIGHT);
                 env->enemy_respawns += 1;
             }
-            // Otherwise, respawn in the same place as a rare event
             env->enemy.active = true;
             env->enemy.attacking = false;
         }
         compute_observations(env);
         add_log(env->log_buffer, &env->log);
-        return;  // Skip further logic while exploding
+        return;
     }
 
-    // Keep enemy far enough from bottom of the screen
     if (env->enemy.y > (SCREEN_HEIGHT - (ENEMY_HEIGHT * 3.5f))) {
         env->enemy.y = (SCREEN_HEIGHT - (ENEMY_HEIGHT * 3.5f));
     }
 
-    // Last enemy and player positions
     env->enemy.last_x = env->enemy.x;
     env->enemy.last_y = env->enemy.y;
     env->player.last_x = env->player.x;
     env->player.last_y = env->player.y;
 
-    // Player movement if not stuck
     if (!env->player.playerStuck) {
-        if (action == 1 && env->player.x > 0)
-            env->player.x -= env->player.playerSpeed;
-        if (action == 2 && env->player.x < SCREEN_WIDTH - 17)
-            env->player.x += env->player.playerSpeed;
-        if (action == 3 && env->player.y > 0)
-            env->player.y -= env->player.playerSpeed;
-        if (action == 4 && env->player.y < SCREEN_HEIGHT - 17)
-            env->player.y += env->player.playerSpeed;
+        if (action == 1 && env->player.x > 0) env->player.x -= env->player.playerSpeed;
+        if (action == 2 && env->player.x < SCREEN_WIDTH - PLAYER_WIDTH) env->player.x += env->player.playerSpeed;
+        if (action == 3 && env->player.y > 0) env->player.y -= env->player.playerSpeed;
+        if (action == 4 && env->player.y < SCREEN_HEIGHT - PLAYER_HEIGHT) env->player.y += env->player.playerSpeed;
     }
 
-    // Fire player bullet
     if (action == 5 && (!env->enemy.bullet.active)) {
-        // If a bullet is already active, replace it with the new one
         if (env->player.bullet.active) {
-            env->player.bullet.active =
-                false;  // Deactivate the existing bullet
+            env->player.bullet.active = false;
         } else {
-            // Reward for firing a single bullet, if it hits enemy
             fired_bullet_rew += 0.002f;
         }
 
-        // Activate and initialize the new bullet
         env->player.bullet.active = true;
-        env->player.bullet.x =
-            env->player.x + PLAYER_WIDTH / 2 - PLAYER_BULLET_WIDTH / 2;
+        env->player.bullet.x = env->player.x + PLAYER_WIDTH / 2 - PLAYER_BULLET_WIDTH / 2;
         env->player.bullet.y = env->player.y;
     }
 
-    // Update player bullet
     if (env->player.bullet.active) {
-        // Update bullet position
         env->player.bullet.y -= env->player.bullet.bulletSpeed;
 
-        // Deactivate bullet if off-screen
         if (env->player.bullet.y < 0) {
             env->player.bullet.active = false;
             env->bullet_travel_time = 0;
@@ -498,42 +404,34 @@ void c_step(BlastarEnv* env) {
     float playerCenterX = env->player.x + PLAYER_WIDTH / 2.0f;
     float enemyCenterX = env->enemy.x + ENEMY_WIDTH / 2.0f;
 
-    // Last player bullet location
     env->player.bullet.last_x = env->player.bullet.x;
     env->player.bullet.last_y = env->player.bullet.y;
 
-    // Enemy movement
     if (!env->enemy.attacking) {
         env->enemy.x += env->enemy.enemySpeed;
         if (env->enemy.x > SCREEN_WIDTH) {
-            env->enemy.x = -ENEMY_WIDTH;  // Respawn off-screen
+            env->enemy.x = -ENEMY_WIDTH;
             crossed_screen += 1;
         }
     }
 
-    // Enemy attack logic
-    if (fabs(playerCenterX - enemyCenterX) < SPEED_SCALE &&
-        !env->enemy.attacking && env->enemy.active &&
+    if (fabs(playerCenterX - enemyCenterX) < SPEED_SCALE && !env->enemy.attacking && env->enemy.active &&
         env->enemy.y < env->player.y - (ENEMY_HEIGHT / 2)) {
-        // 50% chance of attacking
         if (rand() % 2 == 0) {
             env->enemy.attacking = true;
             if (!env->enemy.bullet.active) {
                 env->enemy.bullet.active = true;
                 env->enemy.bullet.x = enemyCenterX - 5.0f;
                 env->enemy.bullet.y = env->enemy.y + ENEMY_HEIGHT;
-                // Disable active player bullet
                 env->player.bullet.active = false;
-                // Player stuck
                 env->player.playerStuck = true;
             }
         } else {
             env->enemy.attacking = false;
-            env->enemy.x += env->enemy.enemySpeed;  // Avoid attack lock
+            env->enemy.x += env->enemy.enemySpeed;
         }
     }
 
-    // Update enemy bullets
     if (env->enemy.bullet.active) {
         env->enemy.bullet.y += env->enemy.bullet.bulletSpeed;
         if (env->enemy.bullet.y > SCREEN_HEIGHT) {
@@ -543,25 +441,17 @@ void c_step(BlastarEnv* env) {
         }
     }
 
-    // Last enemy bullet location
     env->enemy.bullet.last_x = env->enemy.bullet.x;
     env->enemy.bullet.last_y = env->enemy.bullet.y;
 
-    // Collision detection
-    Rectangle playerHitbox = {env->player.x, env->player.y, 17, 17};
-    Rectangle enemyHitbox = {env->enemy.x, env->enemy.y, ENEMY_WIDTH,
-                             ENEMY_HEIGHT};
-
     // Player-Enemy Collision
-    if (CheckCollisionRecs(playerHitbox, enemyHitbox)) {
+    if (check_collision(env->player.x, env->player.y, PLAYER_WIDTH, PLAYER_HEIGHT, env->enemy.x, env->enemy.y,
+                        ENEMY_WIDTH, ENEMY_HEIGHT)) {
         env->player.lives--;
         env->enemy.active = false;
         env->enemyExplosionTimer = 30;
-
-        // Respawn enemy
         env->enemy.x = -ENEMY_WIDTH;
         env->enemy.y = rand() % (SCREEN_HEIGHT - ENEMY_HEIGHT);
-
         env->playerExplosionTimer = 30;
         env->player.playerStuck = false;
 
@@ -569,21 +459,18 @@ void c_step(BlastarEnv* env) {
             env->player.lives = 0;
             env->game_over = true;
             if (env->terminals) env->terminals[0] = 1;
-            // env->rewards[0] = rew;
             compute_observations(env);
             add_log(env->log_buffer, &env->log);
-            reset(env);
+            c_reset(env);
         }
         compute_observations(env);
         return;
     }
 
     // Player bullet hits enemy
-    if (env->player.bullet.active &&
-        env->player.y > env->enemy.y + ENEMY_HEIGHT) {
-        Rectangle bulletHitbox = {env->player.bullet.x, env->player.bullet.y,
-                                  17, 6};
-        if (CheckCollisionRecs(bulletHitbox, enemyHitbox) &&
+    if (env->player.bullet.active && env->player.y > env->enemy.y + ENEMY_HEIGHT) {
+        if (check_collision(env->player.bullet.x, env->player.bullet.y, PLAYER_BULLET_WIDTH, PLAYER_BULLET_HEIGHT,
+                            env->enemy.x, env->enemy.y, ENEMY_WIDTH, ENEMY_HEIGHT) &&
             env->enemy.active) {
             env->player.bullet.active = false;
             env->enemy.active = false;
@@ -593,131 +480,79 @@ void c_step(BlastarEnv* env) {
             env->log.score += 1.0f;
             env->enemyExplosionTimer = 30;
             if (crossed_screen == 0) {
-                hit_enemy_with_bullet_rew += 2.5f;  // Big reward for quick kill
+                hit_enemy_with_bullet_rew += 2.5f;
             } else {
-                hit_enemy_with_bullet_rew +=
-                    1.5f -
-                    (0.1f *
-                     env->enemy
-                         .crossed_screen);  // Less rew if enemy crossed screen
+                hit_enemy_with_bullet_rew += 1.5f - (0.1f * env->enemy.crossed_screen);
             }
-        } else {
         }
     }
 
     // Enemy bullet hits player
     if (env->enemy.bullet.active) {
-        Rectangle bulletHitbox = {env->enemy.bullet.x, env->enemy.bullet.y, 10,
-                                  12};
-        if (CheckCollisionRecs(bulletHitbox, playerHitbox)) {
+        if (check_collision(env->enemy.bullet.x, env->enemy.bullet.y, 10, 12, env->player.x, env->player.y,
+                            PLAYER_WIDTH, PLAYER_HEIGHT)) {
             env->enemy.bullet.active = false;
             env->player.lives--;
-            bad_guy_score += 1.0f;
             env->playerExplosionTimer = 30;
             env->player.playerStuck = false;
             env->enemy.attacking = false;
             env->enemy.x = -ENEMY_WIDTH;
             env->enemy.y = rand() % (SCREEN_HEIGHT - ENEMY_HEIGHT);
-
             if (env->player.lives <= 0) {
                 env->player.lives = 0;
                 env->game_over = true;
                 if (env->terminals) env->terminals[0] = 1;
-                // env->rewards[0] = rew;
                 compute_observations(env);
                 add_log(env->log_buffer, &env->log);
-                reset(env);
+                c_reset(env);
             }
         }
     }
 
-    // Reward computation based on player position relative to enemy
-    if (env->player.y > env->enemy.y + ENEMY_HEIGHT) {
-        // Calculate horizontal distance between player and enemy
-        float horizontal_distance = fabs(playerCenterX - enemyCenterX);
-        float not_underneath_threshold =
-            ENEMY_WIDTH * 0.3f;  // Threshold for "underneath"
-
-        if (horizontal_distance > not_underneath_threshold) {
-            // Player is below the enemy and not directly underneath
-            flat_below_enemy_rew = 0.01f;  // Base reward for being below
-            float vertical_closeness =
-                1.0f - ((env->player.y - env->enemy.y) / SCREEN_HEIGHT);
-            vertical_closeness_rew =
-                0.01f *
-                vertical_closeness;  // Additional reward for vertical closeness
-        } else {
-            // Player is directly underneath the enemy
-            flat_below_enemy_rew =
-                -0.01f;  // Penalty for being directly underneath
-            vertical_closeness_rew = 0.0f;
-        }
-    } else {
-        // Player is not below the enemy
-        flat_below_enemy_rew = -0.01f;  // Penalty for being above the enemy
+    if (!(env->player.y > env->enemy.y + ENEMY_HEIGHT)) {
+        flat_below_enemy_rew = -0.01f;
         vertical_closeness_rew = 0.0f;
-
-        // Override all rewards to <= 0
-        score = 0.0f;
         fired_bullet_rew = 0.0f;
-        bullet_distance_to_enemy_rew = 0.0f;
         hit_enemy_with_bullet_rew = 0.0f;
-        rew = -0.01f;  // Minimal penalty for incorrect positioning
+        rew = -0.01f;
     }
-
-    env->log.bad_guy_score += bad_guy_score;
-    env->bad_guy_score += bad_guy_score;
 
     float avg_score_difference = 0.0f;
-    if (env->player.score + env->bad_guy_score > 0) {
-        int score_difference = env->player.score - env->bad_guy_score;
-        avg_score_difference =
-            (float)score_difference / (env->player.score + env->bad_guy_score);
+    if (env->player.score > 0) {
+        // reward is now score difference
+        avg_score_difference = (float)env->player.score / (env->tick + 1);
     }
 
-    env->log.avg_score_difference = avg_score_difference;            // in-use
-    env->log.fired_bullet_rew = fired_bullet_rew;                    // in-use
-    env->log.kill_streak = env->kill_streak;                         // in-use
-    env->log.hit_enemy_with_bullet_rew = hit_enemy_with_bullet_rew;  // in-use
-    env->log.flat_below_enemy_rew = flat_below_enemy_rew;            // in-use
+    env->log.avg_score_difference = avg_score_difference;
+    env->log.fired_bullet_rew = fired_bullet_rew;
+    env->log.kill_streak = env->kill_streak;
+    env->log.hit_enemy_with_bullet_rew = hit_enemy_with_bullet_rew;
+    env->log.flat_below_enemy_rew = flat_below_enemy_rew;
     env->enemy.crossed_screen = crossed_screen;
-
-    // not used
-    env->log.vertical_closeness_rew = vertical_closeness_rew;
-    env->log.bullet_distance_to_enemy_rew = bullet_distance_to_enemy_rew;
-    env->log.danger_zone_penalty_rew = danger_zone_penalty_rew;
-    env->log.crashing_penalty_rew = crashing_penalty_rew;
-    env->log.hit_by_enemy_bullet_penalty_rew = hit_by_enemy_bullet_penalty_rew;
-
     if (env->enemy_respawns > 0) {
-        crossed_screen =
-            (float)env->enemy.crossed_screen / (env->enemy_respawns + 1);
+        crossed_screen = (float)env->enemy.crossed_screen / (env->enemy_respawns + 1);
     } else {
-        crossed_screen = env->enemy.crossed_screen;  // No normalization needed
+        crossed_screen = env->enemy.crossed_screen;
     }
 
-    // Combine rewards into the total reward
-    rew += score + fired_bullet_rew + bullet_distance_to_enemy_rew +
-           flat_below_enemy_rew + vertical_closeness_rew - crossed_screen +
-           hit_enemy_with_bullet_rew - danger_zone_penalty_rew;
+    rew +=
+        fired_bullet_rew + flat_below_enemy_rew + vertical_closeness_rew - crossed_screen + hit_enemy_with_bullet_rew;
 
     rew *= (1.0f + env->kill_streak * 0.1f);
 
-    // Ensure rewards are <= 0 if the condition fails
-    if (!(env->player.y > env->enemy.y + ENEMY_HEIGHT &&
-          fabs(playerCenterX - enemyCenterX) > ENEMY_WIDTH * 0.3f)) {
-        rew = fminf(rew, 0.0f);  // Clamp reward to <= 0
+    if (!(env->player.y > env->enemy.y + ENEMY_HEIGHT && fabs(playerCenterX - enemyCenterX) > ENEMY_WIDTH * 0.3f)) {
+        rew = fminf(rew, 0.0f);
     }
 
     env->rewards[0] = rew;
     env->log.episode_return += rew;
 
-    if (env->bad_guy_score > 100.0f || env->player.score > env->max_score) {
+    if (env->player.score > env->max_score) {
         env->game_over = true;
         env->terminals[0] = 1;
         compute_observations(env);
         add_log(env->log_buffer, &env->log);
-        reset(env);
+        c_reset(env);
     }
 
     compute_observations(env);
@@ -730,16 +565,11 @@ Client* make_client(BlastarEnv* env) {
     Client* client = (Client*)malloc(sizeof(Client));
     SetTargetFPS(60);
 
-    client->player_texture =
-        LoadTexture("./pufferlib/resources/blastar/player_ship.png");
-    client->enemy_texture =
-        LoadTexture("./pufferlib/resources/blastar/enemy_ship.png");
-    client->player_bullet_texture =
-        LoadTexture("./pufferlib/resources/blastar/player_bullet.png");
-    client->enemy_bullet_texture =
-        LoadTexture("./pufferlib/resources/blastar/enemy_bullet.png");
-    client->explosion_texture =
-        LoadTexture("./pufferlib/resources/blastar/player_death_explosion.png");
+    client->player_texture = LoadTexture("./pufferlib/resources/blastar/player_ship.png");
+    client->enemy_texture = LoadTexture("./pufferlib/resources/blastar/enemy_ship.png");
+    client->player_bullet_texture = LoadTexture("./pufferlib/resources/blastar/player_bullet.png");
+    client->enemy_bullet_texture = LoadTexture("./pufferlib/resources/blastar/enemy_bullet.png");
+    client->explosion_texture = LoadTexture("./pufferlib/resources/blastar/player_death_explosion.png");
     return client;
 }
 
@@ -748,7 +578,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Client* client, BlastarEnv* env) {
+void c_render(Client* client, BlastarEnv* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -757,41 +587,35 @@ void render(Client* client, BlastarEnv* env) {
     ClearBackground(BLACK);
 
     if (env->game_over) {
-        DrawText("GAME OVER", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 10, 30,
-                 RED);
-        DrawText(TextFormat("FINAL SCORE: %d", env->player.score),
-                 SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 + 30, 20, GREEN);
+        DrawText("GAME OVER", SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 10, 30, RED);
+        DrawText(TextFormat("FINAL SCORE: %d", env->player.score), SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 + 30, 20,
+                 GREEN);
         EndDrawing();
         return;
     }
 
     // Draw player or explosion on player death
     if (env->playerExplosionTimer > 0) {
-        DrawTexture(client->explosion_texture, env->player.x, env->player.y,
-                    WHITE);
+        DrawTexture(client->explosion_texture, env->player.x, env->player.y, WHITE);
     } else if (env->player.lives > 0) {
-        DrawTexture(client->player_texture, env->player.x, env->player.y,
-                    WHITE);
+        DrawTexture(client->player_texture, env->player.x, env->player.y, WHITE);
     }
 
     // Draw enemy or explosion on enemy death
     if (env->enemyExplosionTimer > 0) {
-        DrawTexture(client->explosion_texture, env->enemy.x, env->enemy.y,
-                    WHITE);
+        DrawTexture(client->explosion_texture, env->enemy.x, env->enemy.y, WHITE);
     } else if (env->enemy.active) {
         DrawTexture(client->enemy_texture, env->enemy.x, env->enemy.y, WHITE);
     }
 
     // Draw player bullet
     if (env->player.bullet.active) {
-        DrawTexture(client->player_bullet_texture, env->player.bullet.x,
-                    env->player.bullet.y, WHITE);
+        DrawTexture(client->player_bullet_texture, env->player.bullet.x, env->player.bullet.y, WHITE);
     }
 
     // Draw enemy bullet
     if (env->enemy.bullet.active) {
-        DrawTexture(client->enemy_bullet_texture, env->enemy.bullet.x,
-                    env->enemy.bullet.y, WHITE);
+        DrawTexture(client->enemy_bullet_texture, env->enemy.bullet.x, env->enemy.bullet.y, WHITE);
     }
 
     // Draw status beam indicator
@@ -800,12 +624,8 @@ void render(Client* client, BlastarEnv* env) {
     }
 
     // Draw score and lives
-    DrawText(TextFormat("BAD GUY SCORE %d", (int)env->bad_guy_score), 240, 10,
-             20, GREEN);
-    DrawText(TextFormat("PLAYER SCORE %d", env->player.score), 10, 10, 20,
-             GREEN);
-    DrawText(TextFormat("LIVES %d", env->player.lives), SCREEN_WIDTH - 100, 10,
-             20, GREEN);
+    DrawText(TextFormat("PLAYER SCORE %d", env->player.score), 10, 10, 20, GREEN);
+    DrawText(TextFormat("LIVES %d", env->player.lives), SCREEN_WIDTH - 100, 10, 20, GREEN);
 
     EndDrawing();
 }

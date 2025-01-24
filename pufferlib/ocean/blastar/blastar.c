@@ -7,12 +7,10 @@
 
 #include "puffernet.h"
 
-const char* WEIGHTS_PATH =
-    "/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar/"
-    "blastar_weights.bin";
-#define OBSERVATIONS_SIZE 31
+const char* WEIGHTS_PATH = "/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar/blastar_weights.bin";
+#define OBSERVATIONS_SIZE 20
 #define ACTIONS_SIZE 6
-#define NUM_WEIGHTS 137095
+#define NUM_WEIGHTS 135687
 
 void get_input(BlastarEnv* env) {
     // Left
@@ -35,7 +33,7 @@ void get_input(BlastarEnv* env) {
     else if (IsKeyDown(KEY_SPACE)) {
         env->actions[0] = 5;
     }
-    // No action
+    // Noop
     else {
         env->actions[0] = 0;
     }
@@ -43,12 +41,12 @@ void get_input(BlastarEnv* env) {
 
 int demo() {
     Weights* weights = load_weights(WEIGHTS_PATH, NUM_WEIGHTS);
-    LinearLSTM* net =
-        make_linearlstm(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE);
+    LinearLSTM* net = make_linearlstm(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE);
 
     BlastarEnv env = {
         .player.x = SCREEN_WIDTH / 2,
         .player.y = SCREEN_HEIGHT - PLAYER_HEIGHT,
+        .num_obs = OBSERVATIONS_SIZE,
     };
     allocate(&env);
 
@@ -56,7 +54,7 @@ int demo() {
 
     unsigned int seed = 12345;
     srand(seed);
-    reset(&env);
+    c_reset(&env);
 
     int running = 1;
     while (running) {
@@ -67,7 +65,7 @@ int demo() {
         }
 
         c_step(&env);
-        render(client, &env);
+        c_render(client, &env);
 
         if (WindowShouldClose() || env.game_over) {
             running = 0;
@@ -83,12 +81,11 @@ int demo() {
 
 void perftest(float test_time) {
     BlastarEnv env;
-    init(&env);
     allocate(&env);
 
     unsigned int seed = 12345;
     srand(seed);
-    reset(&env);
+    c_reset(&env);
 
     int start = time(NULL);
     int steps = 0;
