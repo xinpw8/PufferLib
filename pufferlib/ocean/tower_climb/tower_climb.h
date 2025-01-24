@@ -17,7 +17,7 @@
 #define HANGING 1
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
-#define LEVEL_MAX_SIZE 432
+#define LEVEL_MAX_SIZE 488
 #define PLAYER_OBS 4
 #define OBS_VISION 225
 
@@ -154,7 +154,7 @@ void init(CTowerClimb* env) {
     env->level = *levels[env->level_number];
     env->board_state = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->block_grabbed = -1;
-    env->blocks_to_move = (int*)calloc(env->level.cols, sizeof(int));
+    env->blocks_to_move = (int*)calloc(10, sizeof(int));
     env->blocks_to_fall = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->rows_cleared = 0;
     env->robot_orientation = UP;
@@ -1015,45 +1015,45 @@ void next_level(CTowerClimb* env){
 void step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length >200){
-	       env->rewards[0] = 0;
-	       //env->log.episode_return +=0;
-	       add_log(env->log_buffer, &env->log);
-	       reset(env);
-    }
+    // if(env->log.episode_length >200){
+	//        env->rewards[0] = 0;
+	//        //env->log.episode_return +=0;
+	//        add_log(env->log_buffer, &env->log);
+	//        reset(env);
+    // }
     int action = env->actions[0];
     if (action == LEFT || action == RIGHT || action == DOWN || action == UP) {
         int direction = get_direction(env, action);
         int moving_block = (env->block_grabbed != -1 && abs(env->robot_orientation - action) == 2);
         if(moving_block){
-		env->rewards[0] = env->reward_move_block;
-		env->log.episode_return += env->reward_move_block;
-	}
-	if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
+            env->rewards[0] = env->reward_move_block;
+            env->log.episode_return += env->reward_move_block;
+        }
+        if (direction == env->robot_orientation || moving_block || env->robot_state == HANGING){
             env->robot_direction = direction;
             handle_move_forward(env, action);
             int sz = env->level.size;
             int below_index = env->robot_position - sz;
             // check if goal is below current position
             if(below_index < 0){
-	   	env->log.rows_cleared = env->rows_cleared;
-		compute_observations(env);
-		int distance = get_distance_to_goal(env);
-    		int delta_distance = env->distance_to_goal - distance;
-    		float distance_reward = delta_distance * env->reward_distance;
-    		env->rewards[0] += distance_reward;
-    		env->log.episode_return += distance_reward;
-		return;
-	    }
-	    if (env->board_state[below_index] == 2){
+                env->log.rows_cleared = env->rows_cleared;
+                compute_observations(env);
+                int distance = get_distance_to_goal(env);
+                int delta_distance = env->distance_to_goal - distance;
+                float distance_reward = delta_distance * env->reward_distance;
+                env->rewards[0] += distance_reward;
+                env->log.episode_return += distance_reward;
+	        }
+            else if (env->board_state[below_index] == 2){
                 env->rewards[0] = 1;
                 env->log.episode_return += 1;
                 env->log.rows_cleared = env->rows_cleared;
-		env->log.levels_completed = env->level_number + 1;
-		add_log(env->log_buffer, &env->log);
+                env->log.levels_completed = env->level_number + 1;
+                add_log(env->log_buffer, &env->log);
                 next_level(env);
                 //reset(env);
             }
+            
         }
         else {
             env->robot_direction = direction;
