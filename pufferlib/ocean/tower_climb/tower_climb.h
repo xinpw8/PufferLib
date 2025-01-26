@@ -17,7 +17,7 @@
 #define HANGING 1
 #define HOLDING_BLOCK 2
 #define NUM_DIRECTIONS 4
-#define LEVEL_MAX_SIZE 488
+#define LEVEL_MAX_SIZE 1000
 #define PLAYER_OBS 4
 #define OBS_VISION 225
 
@@ -779,6 +779,7 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
         }
         
         int current_floor = env->robot_position / sz;
+        
         if (env->robot_orientation == UP) {  // Hanging on north face
             if (action == RIGHT) {
                 shimmy(env, action, current_floor, x, z, 0, -1, 1, -1, LEFT);
@@ -882,6 +883,12 @@ void handle_move_forward(CTowerClimb* env, int action) {
         next_x = x + dx;
         next_z = z + dz;
     }
+
+    if (front_x < 0 || front_z < 0 || front_x >= 10 || front_z >= 10){
+        printf("front x: %d, front z: %d\n", front_x, front_z);
+        illegal_move(env);
+        return;
+    }
     
     // Convert next x,z to a linear index for the same floor
     int next_index = sz*current_floor + cols*next_z + next_x;
@@ -906,6 +913,10 @@ void handle_move_forward(CTowerClimb* env, int action) {
         }
     }
     if (action == DOWN && env->block_grabbed == -1){
+        if (env->robot_state == HANGING){
+            illegal_move(env);
+            return;
+        }
         if (front_cell == 1){
             handle_climb(env, action, current_floor, x, z, front_z, front_x, front_index, front_cell);
         } else {
@@ -1113,7 +1124,7 @@ Client* make_client(CTowerClimb* env) {
     SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
     client->camera = (Camera3D){ 0 };
-    client->camera.position = (Vector3){ 0.0f, 15.0f, 12.0f };  // Move camera further back and higher up
+    client->camera.position = (Vector3){ 0.0f, 25.0f, 20.0f };  // Move camera further back and higher up
     client->camera.target = (Vector3){ 2.0f, 4.0f, 2.0f };     // Keep looking at same target point
     client->camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     client->camera.fovy = 45.0f;

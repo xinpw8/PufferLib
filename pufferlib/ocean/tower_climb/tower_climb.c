@@ -2,6 +2,10 @@
 #include <unistd.h>
 #include "tower_climb.h"
 
+void PLG(){
+    init_random_levels();
+}
+
 void demo(int map_choice) {    
     CTowerClimb  env = {
         .map_choice = map_choice,
@@ -9,6 +13,7 @@ void demo(int map_choice) {
         .reward_fall_row = -0.1,
         .reward_illegal_move = -0.01,
     };
+    // init_random_levels();
 
     allocate(&env);
     reset(&env);
@@ -64,9 +69,12 @@ void performance_test() {
     free_allocated(&env);
 }
 
+
 int main() {
     // demo(1);
-    performance_test();
+    // performance_test();
+    PLG();
     return 0;
 }
+
 
