@@ -360,6 +360,7 @@ Level gen_level(int max_moves, int goal_level) {
     
     if (!goal_created || goal_index < 0) {
         printf("no goal found\n");
+        printf("goal index: %d\n", goal_index);
         free(board);
         return illegal_level;
     }
@@ -409,12 +410,15 @@ void print_level(const int* board, int legal_width_size, int legal_depth_size, i
 
 static Level levels[3];  // Array to store the actual level objects
 
-static void init_random_levels() {
+static void init_random_levels(int goal_level) {
     time_t t;
-    
     for(int i = 0; i < 3; i++) {
         srand((unsigned) time(&t) + i); // Increment seed for each level
-        levels[i] = gen_level(9, 8);
+        levels[i] = gen_level(9, goal_level);
+        // guarantee a map is created
+        while(levels[i].map == NULL){
+            levels[i] = gen_level(9, goal_level);
+        }
         print_level(levels[i].map, 10, 10, 10, levels[i].spawn_location);
     }
     // levels[0] = level_one;
