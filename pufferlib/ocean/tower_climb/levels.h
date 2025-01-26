@@ -259,7 +259,7 @@ static const int level_three_map[432] = {
     0,0,0,0,0,0,0,0,0,
 };
 
-static const Level level_one = {
+static  Level level_one = {
     .map = (int*)level_one_map, 
     .rows = 6,
     .cols = 6,
@@ -269,7 +269,7 @@ static const Level level_one = {
     .spawn_location = 64,
 };
 
-static const Level level_two = {
+static  Level level_two = {
     .map = (int*)level_two_map,
     .rows = 7,
     .cols = 7,
@@ -279,7 +279,7 @@ static const Level level_two = {
     .spawn_location = 85,
 };
 
-static const Level level_three = {
+static  Level level_three = {
     .map = (int*)level_three_map,
     .rows = 6,
     .cols = 9,
@@ -309,8 +309,6 @@ static const Level level_tutorial_two = {
     .spawn_location = 62,
 };
 
-
-
 Level gen_level(int max_moves, int goal_level) {
     // Initialize an illegal level in case we need to return early
     Level illegal_level = {0};
@@ -321,25 +319,32 @@ Level gen_level(int max_moves, int goal_level) {
         return illegal_level;
     }
 
-    srand(time(NULL));
     int legal_width_size = 8;
     int legal_depth_size = 8;
     int area = depth_max * col_max;
     int spawn_created = 0;
     int spawn_index = -1;
+    int goal_created =0;
+    int goal_index = -1;
     for(int y= 0; y < row_max; y++){
         for(int z = depth_max - 1; z >= 0; z--){
             for(int x = 0; x< col_max; x++){
-                if (x >= 1 && x < legal_width_size && z >= 0 && z < legal_depth_size && 
-                y >= 1 && y < goal_level && z <= (legal_depth_size -1 - y)){
+                int block_index = x + col_max * z + area * y;
+                if (x >= 1 && x < legal_width_size && z >= 1 && z < legal_depth_size && 
+                y >= 1 && y < goal_level && z <= (legal_depth_size - y)){
                     int chance = (rand() % 2 ==0) ? 1 : 0;
-                    board[x + col_max * z + area * y] = chance;
+                    board[block_index] = chance;
                     // create spawn point above an existing block
-                    if (spawn_created == 0 && y == 2 && board[x+col_max*z + area* y - area] == 1){
+                    if (spawn_created == 0 && y == 2 && board[block_index - area] == 1){
                         spawn_created = 1;
-                        spawn_index = x+col_max*z + area* y;
+                        spawn_index = block_index;
                         board[spawn_index] = 0;
                     }
+                }
+                if (goal_created ==0 && y == goal_level && (board[block_index + col_max  - area]  ==1 )){
+                    goal_created = 1;
+                    goal_index = block_index;
+                    board[goal_index] = 2;
                 }
                 
             }
@@ -352,14 +357,9 @@ Level gen_level(int max_moves, int goal_level) {
         return illegal_level;
     }
 
-    // Place goal
-    int random_depth = rand() % legal_depth_size;
-    int goal_index = rand() % legal_width_size;
-    int goal_pos = goal_index  + row_max * depth_max * goal_level;
     
-    if (goal_pos < row_max * col_max * depth_max) {
-        board[goal_pos] = 2;
-    } else {
+    if (!goal_created || goal_index < 0) {
+        printf("no goal found\n");
         free(board);
         return illegal_level;
     }
@@ -370,13 +370,13 @@ Level gen_level(int max_moves, int goal_level) {
         .cols = col_max,
         .size = row_max * col_max,
         .total_length = row_max * col_max * depth_max,
-        .goal_location = goal_pos,
+        .goal_location = goal_index,
         .spawn_location = spawn_index
     };
     return level;
 }
 
-void print_level(int* board, int legal_width_size, int legal_depth_size, int legal_height_size, int spawn_index) {
+void print_level(const int* board, int legal_width_size, int legal_depth_size, int legal_height_size, int spawn_index) {
     printf("\nLevel layout (Height layers from bottom to top):\n");
     
     // For each height level
@@ -407,19 +407,17 @@ void print_level(int* board, int legal_width_size, int legal_depth_size, int leg
     printf("\n");
 }
 
-static Level level_random_1;
-static Level level_random_2; 
-static Level level_random_3;
+static Level levels[3];  // Array to store the actual level objects
 
-// Add initialization function
 static void init_random_levels() {
-    level_random_1 = gen_level(9, 8);
-    level_random_2 = gen_level(9, 8);
-    level_random_3 = gen_level(9, 8);
-
-    print_level(level_random_1.map, 10, 10, 10, level_random_1.spawn_location);
-    print_level(level_random_2.map, 10, 10, 10, level_random_2.spawn_location);
-    print_level(level_random_3.map, 10, 10, 10, level_random_3.spawn_location);
+    time_t t;
+    
+    for(int i = 0; i < 3; i++) {
+        srand((unsigned) time(&t) + i); // Increment seed for each level
+        levels[i] = gen_level(9, 8);
+        print_level(levels[i].map, 10, 10, 10, levels[i].spawn_location);
+    }
+    // levels[0] = level_one;
+    // levels[1] = level_two;
+    // levels[2] = level_three;
 }
-
-static const Level* levels[] = {&level_random_1, &level_random_2, &level_random_3};

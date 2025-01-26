@@ -20,6 +20,7 @@
 #define LEVEL_MAX_SIZE 1000
 #define PLAYER_OBS 4
 #define OBS_VISION 225
+#define MAX_FLOORS 9
 
 static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
@@ -151,7 +152,7 @@ int get_direction(CTowerClimb* env, int action) {
 
 void init(CTowerClimb* env) {
     env->level_number = 0;
-    env->level = *levels[env->level_number];
+    env->level = levels[env->level_number];
     env->board_state = (int*)calloc(LEVEL_MAX_SIZE, sizeof(int));
     env->block_grabbed = -1;
     env->blocks_to_move = (int*)calloc(10, sizeof(int));
@@ -359,7 +360,7 @@ void reset(CTowerClimb* env) {
     env->block_grabbed = -1;
     env->rows_cleared = 0;
     env->level_number = 0;
-    env->level = *levels[env->level_number];
+    env->level = levels[env->level_number];
     env->robot_position = env->level.spawn_location;
     env->distance_to_goal = get_distance_to_goal(env);
     memcpy(env->board_state, env->level.map, env->level.total_length * sizeof(int));
@@ -462,7 +463,7 @@ void add_blocks_to_move(CTowerClimb* env, int interval){
 
 // Helper function to check if position is within bounds
 static inline int is_valid_position(int pos) {
-    return (pos >= 0 && pos < 288);
+    return (pos >= 0 && pos < LEVEL_MAX_SIZE);
 }
 
 // Helper function to check block stability
@@ -599,6 +600,7 @@ int  add_blocks_to_fall(CTowerClimb* env){
 void move_blocks(CTowerClimb* env, int interval){
     int count = 0;
     int cols = env->level.cols;
+    int rows = env->level.rows;
     int sz = env->level.size;
     // cache reused variables 
     for (int i = 0; i < cols; i++){
@@ -610,11 +612,21 @@ void move_blocks(CTowerClimb* env, int interval){
         if(i==0){
             env->board_state[b_index] = 0;
         }
-        if(b_index % sz % cols + interval >= 0 && b_index % sz % cols + interval <= cols-1) {
-            env->board_state[b_index + interval] = 1;
-            env->blocks_to_fall[count] = b_index + interval;
-            count++;
+        int grid_pos = b_index % sz;
+        int x = grid_pos % cols;
+        int z = grid_pos / cols;
+        // Check if movement would cross floor boundaries
+        if ((x == 0 && interval == -1) ||           // Don't move left off floor
+            (x == cols-1 && interval == 1) ||       // Don't move right off floor
+            (z == 0 && interval == -cols) ||        // Don't move forward off floor
+            (z == rows-1 && interval == cols)) {    // Don't move back off floor
+            return;
         }
+
+        // If we get here, movement is safe
+        env->board_state[b_index + interval] = 1;
+        env->blocks_to_fall[count] = b_index + interval;
+        count++;
     }
 }
 
@@ -643,7 +655,7 @@ void handle_climb(CTowerClimb* env, int action, int current_floor,int x, int z, 
         illegal_move(env);
         return;
     }
-    if (current_floor >=8){
+    if (current_floor >= MAX_FLOORS){
         return;
     }
     int sz = env->level.size;
@@ -721,6 +733,7 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
     // Check if the cell in front is free, the goal, or blocked
     int sz = env->level.size;
     int cols = env->level.cols;
+    int rows = env->level.rows;
     int below_index = sz*(current_floor - 1) + cols*next_z + next_x;
     int below_cell;
     if (below_index >=0){
@@ -735,6 +748,10 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
         int local_next_dz = DIRECTION_VECTORS_Z[local_direction];
         int local_next_x = x + local_next_dx;
         int local_next_z = z + local_next_dz;
+        if(local_next_x < 0 || local_next_z < 0 || local_next_x >= cols || local_next_z >= rows){
+            illegal_move(env);
+            return;
+        }
         int local_next_index = sz*current_floor + cols*local_next_z + local_next_x;
         int local_next_cell = env->board_state[local_next_index];
         if (is_next_to_block(env, local_next_index) && local_next_cell == 0){
@@ -848,6 +865,7 @@ void handle_unstable_goal(CTowerClimb* env){
 void handle_move_forward(CTowerClimb* env, int action) {
     int sz = env->level.size;
     int cols = env->level.cols;
+    int rows = env->level.rows;
     // Calculate current floor, x, z from the robot_position
     int current_floor = env->robot_position / sz;
     int grid_pos = env->robot_position % sz;
@@ -884,8 +902,7 @@ void handle_move_forward(CTowerClimb* env, int action) {
         next_z = z + dz;
     }
 
-    if (front_x < 0 || front_z < 0 || front_x >= 10 || front_z >= 10){
-        printf("front x: %d, front z: %d\n", front_x, front_z);
+    if (front_x < 0 || front_z < 0 || front_x >= cols || front_z >= rows){
         illegal_move(env);
         return;
     }
@@ -936,9 +953,9 @@ void handle_move_forward(CTowerClimb* env, int action) {
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
             int stable  = add_blocks_to_fall(env);
-	    if (stable == 0){
-		    handle_unstable_goal(env);
-	    }
+            if (stable == 0){
+                handle_unstable_goal(env);
+            }
             //env->rewards[0] = 0.25;
             //env->log.episode_return += 0.25;
         }
@@ -1011,7 +1028,7 @@ void next_level(CTowerClimb* env){
     }
     env->rows_cleared= 0;
     env->level_number += 1;
-    env->level = *levels[env->level_number];
+    env->level = levels[env->level_number];
     env->robot_position = env->level.spawn_location;
     env->distance_to_goal = get_distance_to_goal(env);
     env->robot_state = DEFAULT;
