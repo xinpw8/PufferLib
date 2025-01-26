@@ -13,19 +13,13 @@ cdef extern from "blastar.h":
     ctypedef struct Bullet:
         float x
         float y
-        float last_x
-        float last_y
         bint active
-        double travel_time
 
     ctypedef struct Enemy:
         float x
         float y
-        float last_x
-        float last_y
         bint active
         bint attacking
-        int direction
         int width
         int height
         int crossed_screen
@@ -34,14 +28,11 @@ cdef extern from "blastar.h":
     ctypedef struct Player:
         float x
         float y
-        float last_x
-        float last_y
         int score
         int lives
         Bullet bullet
         bint bulletFired
         bint playerStuck
-        float explosion_timer
 
     ctypedef struct Log:
         float episode_return
@@ -51,7 +42,6 @@ cdef extern from "blastar.h":
         float vertical_closeness_rew
         float fired_bullet_rew
         int kill_streak
-        float flat_below_enemy_rew
         float hit_enemy_with_bullet_rew
         float avg_score_difference
 
@@ -61,23 +51,17 @@ cdef extern from "blastar.h":
         int idx
 
     ctypedef struct BlastarEnv:
-        int screen_width
-        int screen_height
-        float player_width
-        float player_height
-        float last_bullet_distance
+        int reset_count
+        int num_obs
         bint gameOver
         int tick
         int playerExplosionTimer
         int enemyExplosionTimer
-        int max_score
-        int bullet_travel_time
         int kill_streak
         int enemy_respawns
         Player player
         Enemy enemy
-        Bullet bullet
-        float* observations       # [27]
+        float* observations       # [7]
         int* actions              # [6]
         float* rewards            # [1]
         unsigned char* terminals  # [1]
@@ -89,7 +73,7 @@ cdef extern from "blastar.h":
     void add_log(LogBuffer* logs, Log* log)
     Log aggregate_and_clear(LogBuffer* logs)
 
-    void init(BlastarEnv *env)
+    void init(BlastarEnv *env, int num_obs)
     void c_reset(BlastarEnv *env)
     void c_step(BlastarEnv *env)
     void close_client(Client* client)
@@ -105,13 +89,15 @@ cdef class CyBlastar:
     cdef Client* client
     cdef LogBuffer* logs
     cdef int num_envs
+    cdef int num_obs
 
     def __init__(self,
                  float[:, :] observations,
                  int[:] actions,
                  float[:] rewards,
                  unsigned char[:] terminals,
-                 int num_envs):
+                 int num_envs,
+                 int num_obs):
 
         self.num_envs = num_envs
         self.client = NULL
@@ -125,7 +111,7 @@ cdef class CyBlastar:
             self.envs[i].rewards = &rewards[i]
             self.envs[i].terminals = &terminals[i]
             self.envs[i].log_buffer = self.logs
-            init(&self.envs[i])
+            init(&self.envs[i], num_obs)
 
     def reset(self):
         cdef int i

@@ -6,14 +6,15 @@ from pufferlib.ocean.blastar.cy_blastar import CyBlastar
 
 class Blastar(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, buf=None):
-        # Observation space: 6 floats (normalized positions, bullet states)
+        # Observation space: 8 floats (normalized positions, bullet states)
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=1, shape=(20,), dtype=np.float32
+            low=0, high=1, shape=(10,), dtype=np.float32
         )
         # Action space: 6 discrete actions (no-op, left, right, up, down, fire)
         self.single_action_space = gymnasium.spaces.Discrete(6)
         self.render_mode = render_mode
         self.num_agents = num_envs
+        self.num_obs = self.single_observation_space.shape[0]
 
         self.tick = 0
         self.report_interval = 1
@@ -25,7 +26,8 @@ class Blastar(pufferlib.PufferEnv):
             self.actions,
             self.rewards,
             self.terminals,
-            num_envs
+            num_envs,
+            self.num_obs
         )
 
     def reset(self, seed=None):
