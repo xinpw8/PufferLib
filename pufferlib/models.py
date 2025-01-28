@@ -1,3 +1,9 @@
+##############################################################################
+# models.py
+#
+# Critic-free models for GRPO. We remove the value head entirely and
+# produce only action logits or continuous distributions.
+##############################################################################
 from pdb import set_trace as T
 import numpy as np
 
@@ -10,28 +16,23 @@ import pufferlib.spaces
 
 
 class Default(nn.Module):
-    '''Default PyTorch policy. Flattens obs and applies a linear layer.
+    """
+    A minimal feedforward policy model with no value head.
 
-    PufferLib is not a framework. It does not enforce a base class.
-    You can use any PyTorch policy that returns actions and values.
-    We structure our forward methods as encode_observations and decode_actions
-    to make it easier to wrap policies with LSTMs. You can do that and use
-    our LSTM wrapper or implement your own. To port an existing policy
-    for use with our LSTM wrapper, simply put everything from forward() before
-    the recurrent cell into encode_observations and put everything after
-    into decode_actions.
-    '''
+    In the old PPO-based code, we typically had something like:
+        logits, value = model(observations)
+    For GRPO, we skip the value head and just produce policy outputs (discrete or continuous).
+    """
     def __init__(self, env, hidden_size=128):
         super().__init__()
         self.hidden_size = hidden_size
-        self.is_multidiscrete = isinstance(env.single_action_space,
-                pufferlib.spaces.MultiDiscrete)
-        self.is_continuous = isinstance(env.single_action_space,
-                pufferlib.spaces.Box)
+        self.is_multidiscrete = isinstance(env.single_action_space, pufferlib.spaces.MultiDiscrete)
+        self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
+
         try:
-            self.is_dict_obs = isinstance(env.env.observation_space, pufferlib.spaces.Dict) 
+            self.is_dict_obs = isinstance(env.env.observation_space, pufferlib.spaces.Dict)
         except:
-            self.is_dict_obs = isinstance(env.observation_space, pufferlib.spaces.Dict) 
+            self.is_dict_obs = isinstance(env.observation_space, pufferlib.spaces.Dict)
 
         if self.is_dict_obs:
             self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
@@ -42,62 +43,72 @@ class Default(nn.Module):
 
         if self.is_multidiscrete:
             action_nvec = env.single_action_space.nvec
-            self.decoder = nn.ModuleList([pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, n), std=0.01) for n in action_nvec])
+            self.decoder = nn.ModuleList([
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, n), std=0.01)
+                for n in action_nvec
+            ])
         elif not self.is_continuous:
             self.decoder = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+                nn.Linear(hidden_size, env.single_action_space.n), std=0.01
+            )
         else:
+            # Continuous actions
             self.decoder_mean = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
-            self.decoder_logstd = nn.Parameter(torch.zeros(
-                1, env.single_action_space.shape[0]))
+                nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01
+            )
+            self.decoder_logstd = nn.Parameter(torch.zeros(1, env.single_action_space.shape[0]))
 
-        self.value_head = nn.Linear(hidden_size, 1)
+        # Removed self.value_head = nn.Linear(hidden_size, 1)
+        # because we do not need a value head in a purely critic-free approach
 
     def forward(self, observations):
+        """
+        Return only the policy distribution/logits (no value).
+        We'll keep the code structure similar to the old format but
+        omit the 'value' output.
+        """
         hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
-        return actions, value
+        # Return either discrete logits or continuous distribution
+        return self.decode_actions(hidden, lookup)
 
     def encode_observations(self, observations):
-        '''Encodes a batch of observations into hidden states. Assumes
-        no time dimension (handled by LSTM wrappers).'''
         batch_size = observations.shape[0]
         if self.is_dict_obs:
+            # For dictionary obs, flatten them
             observations = pufferlib.pytorch.nativize_tensor(observations, self.dtype)
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
-        else: 
+        else:
             observations = observations.view(batch_size, -1)
-        return torch.relu(self.encoder(observations.float())), None
+
+        encoded = torch.relu(self.encoder(observations.float()))
+        return encoded, None
 
     def decode_actions(self, hidden, lookup, concat=True):
-        '''Decodes a batch of hidden states into (multi)discrete actions.
-        Assumes no time dimension (handled by LSTM wrappers).'''
-        value = self.value_head(hidden)
+        """
+        Produce only the action distribution/logits. No value output anymore.
+        """
         if self.is_multidiscrete:
-            actions = [dec(hidden) for dec in self.decoder]
-            return actions, value
+            actions = [dec(hidden) for dec in self.decoder]  # list of logits
+            return actions  # For multi-discrete action spaces
+
         elif self.is_continuous:
             mean = self.decoder_mean(hidden)
             logstd = self.decoder_logstd.expand_as(mean)
             std = torch.exp(logstd)
-            probs = torch.distributions.Normal(mean, std)
-            batch = hidden.shape[0]
-            return probs, value
+            return torch.distributions.Normal(mean, std)  # continuous dist
 
-        actions = self.decoder(hidden)
-        return actions, value
+        # Discrete single-action space
+        return self.decoder(hidden)
+
 
 class LSTMWrapper(nn.Module):
+    """
+    Recurrent policy wrapper with no value head. The forward method
+    only yields action logits/distribution, plus the updated LSTM state.
+    """
     def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
-        '''Wraps your policy with an LSTM without letting you shoot yourself in the
-        foot with bad transpose and shape operations. This saves much pain.
-        Requires that your policy define encode_observations and decode_actions.
-        See the Default policy for an example.'''
         super().__init__()
         self.obs_shape = env.single_observation_space.shape
-
         self.policy = policy
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -110,6 +121,11 @@ class LSTMWrapper(nn.Module):
                 nn.init.orthogonal_(param, 1.0)
 
     def forward(self, x, state):
+        """
+        x shape can be [B, *obs_shape] or [B, T, *obs_shape].
+        We'll keep the same structure as in PPO but we do not produce
+        a 'value' output.
+        """
         x_shape, space_shape = x.shape, self.obs_shape
         x_n, space_n = len(x_shape), len(space_shape)
         if x_shape[-space_n:] != space_shape:
@@ -125,18 +141,21 @@ class LSTMWrapper(nn.Module):
         if state is not None:
             assert state[0].shape[1] == state[1].shape[1] == B
 
-        x = x.reshape(B*TT, *space_shape)
+        # Flatten time dimension for the policy encoder
+        x = x.reshape(B * TT, *space_shape)
         hidden, lookup = self.policy.encode_observations(x)
-        assert hidden.shape == (B*TT, self.input_size)
-        hidden = hidden.reshape(B, TT, self.input_size)
+        # shape: [B*T, input_size] -> [B, T, input_size]
+        hidden = hidden.reshape(B, TT, self.input_size).transpose(0, 1)
 
-        hidden = hidden.transpose(0, 1)
-        hidden, state = self.recurrent(hidden, state)
-        hidden = hidden.transpose(0, 1)
+        # Recurrent forward pass
+        hidden, new_state = self.recurrent(hidden, state)
+        hidden = hidden.transpose(0, 1).reshape(B * TT, self.hidden_size)
 
-        hidden = hidden.reshape(B*TT, self.hidden_size)
-        hidden, critic = self.policy.decode_actions(hidden, lookup)
-        return hidden, critic, state
+        # Decode to action distribution/logits
+        actions = self.policy.decode_actions(hidden, lookup)
+        return actions, None, new_state
+        # we used to return (actions, value, new_state) for PPO
+        # now we have no value => set it to None or skip it
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

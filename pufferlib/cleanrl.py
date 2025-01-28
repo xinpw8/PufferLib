@@ -44,7 +44,7 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         action = torch.stack([torch.multinomial(logits_to_probs(l), 1).squeeze() for l in logits])
     else:
         batch = logits[0].shape[0]
-        action = action.view(batch, -1).T
+        action = action.contiguous().reshape(batch, -1).T
 
     assert len(logits) == len(action)
     logprob = torch.stack([log_prob(l, a) for l, a in zip(normalized_logits, action)]).T.sum(1)
