@@ -332,7 +332,7 @@ Level gen_level(int max_moves, int goal_level) {
                 int block_index = x + col_max * z + area * y;
                 if (x >= 1 && x < legal_width_size && z >= 1 && z < legal_depth_size && 
                 y >= 1 && y < goal_level && z <= (legal_depth_size - y)){
-                    int chance = (rand() % 2 ==0) ? 1 : 0;
+                    int chance = (rand() % 3 ==0) ? 1 : 0;
                     board[block_index] = chance;
                     // create spawn point above an existing block
                     if (spawn_created == 0 && y == 2 && board[block_index - area] == 1){

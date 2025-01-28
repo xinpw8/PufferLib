@@ -6,6 +6,17 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "levels.h"
+#include "rlgl.h"
+#if defined(PLATFORM_DESKTOP)
+    #define GLSL_VERSION            330
+#else   // PLATFORM_ANDROID, PLATFORM_WEB
+    #define GLSL_VERSION            100
+
+#endif
+#define RLIGHTS_IMPLEMENTATION
+
+#include "rlights.h"
+
 #define NOOP -1
 #define UP 3
 #define LEFT 2
@@ -1131,12 +1142,19 @@ struct Client {
     Texture2D puffers;
     Camera3D camera;
     Model robot;
+    Light lights[MAX_LIGHTS];
+    Shader shader;      // Add shader
+    Material material;  // Add material
 };
 
 Client* make_client(CTowerClimb* env) {
+    printf("Raylib version: %s\n", RAYLIB_VERSION);
+    printf("OpenGL version: %d\n", rlGetVersion());
+
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = 1000;
     client->height = 1000;
+    SetConfigFlags(FLAG_MSAA_4X_HINT);  // Enable MSAA
     InitWindow(client->width, client->height, "PufferLib Ray Tower Climb");
     SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
@@ -1146,19 +1164,128 @@ Client* make_client(CTowerClimb* env) {
     client->camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     client->camera.fovy = 45.0f;
     client->camera.projection = CAMERA_PERSPECTIVE;
-    // client->robot = LoadModel("resources/robot.glb"); 
-  return client;
+    
+    // Load and configure shader
+    char vsPath[256];
+    char fsPath[256];
+    sprintf(vsPath, "resources/tower_climb/shaders/gls%i/lighting.vs", GLSL_VERSION);
+    sprintf(fsPath, "resources/tower_climb/shaders/gls%i/lighting.fs", GLSL_VERSION);
+    client->shader = LoadShader(vsPath, fsPath);
+    client->shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(client->shader, "mvp");
+    // Get shader locations
+    client->shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(client->shader, "viewPos");
+    client->shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(client->shader, "matModel");
+    client->shader.locs[SHADER_LOC_MATRIX_NORMAL] = GetShaderLocation(client->shader, "matNormal");
+    
+    // Create a material for the objects
+    client->material = LoadMaterialDefault();
+    client->material.shader = client->shader;
+    client->material.maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
+    // Set up ambient light
+    int ambientLoc = GetShaderLocation(client->shader, "ambient");
+    printf("ambient loc: %d\n", ambientLoc);
+    float ambient[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
+    SetShaderValue(client->shader, ambientLoc, ambient, SHADER_UNIFORM_VEC4);
+    
+    // Create lights with much brighter colors and closer positions
+    client->lights[0] = CreateLight(LIGHT_POINT, 
+        (Vector3){ 0.0f, 10.0f, 0.0f },  // Positioned right above cube
+        Vector3Zero(), 
+        (Color){ 255, 255, 200, 255 },  // Bright yellow
+        client->shader);
+    
+    client->lights[1] = CreateLight(LIGHT_POINT, 
+        (Vector3){ 3.0f, 2.0f, 8.0f },  // Right side
+        Vector3Zero(), 
+        (Color){ 255, 100, 100, 255 },  // Red
+        client->shader);
+    
+    client->lights[2] = CreateLight(LIGHT_POINT, 
+        (Vector3){ 10.0f, 5.0f, 5.0f },  // Front
+        Vector3Zero(), 
+        (Color){ 100, 255, 100, 255 },  // Green
+        client->shader);
+    
+    client->lights[3] = CreateLight(LIGHT_POINT, 
+        (Vector3){ 0.0f, 7.0f, -5.0f },  // Left side
+        Vector3Zero(), 
+        (Color){ 100, 100, 255, 255 },  // Blue
+        client->shader);
+
+    // Add debug prints for light setup
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        printf("Light %d:\n", i);
+        printf("  enabled loc: %d\n", client->lights[i].enabledLoc);
+        printf("  type loc: %d\n", client->lights[i].typeLoc);
+        printf("  position loc: %d\n", client->lights[i].positionLoc);
+        printf("  color loc: %d\n", client->lights[i].colorLoc);
+        printf("  enabled: %d\n", client->lights[i].enabled);
+    }
+
+    return client;
 }
 
 void render(Client* client, CTowerClimb* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    int cols = env->level.cols;
+    int sz = env->level.size;
+    int floor = env->robot_position / sz;
+    int grid_pos = env->robot_position % sz;
+    int x = grid_pos % cols;
+    int z = grid_pos / cols;
+    int cameraFloor = (floor-1) *0.5;  // Change 3 to 2 for two-level steps
+    // Calculate target heights
+    float targetCameraY = cameraFloor * 1.0f + 17.0f;
+    float targetLookY = cameraFloor * 1.0f;
+
+    // Smooth camera movement using lerp
+    float smoothSpeed = 0.025f;  // Adjust this value to change smoothing (0.0 to 1.0)
+    
+    // Smoothly interpolate camera position Y
+    client->camera.position.y = Lerp(client->camera.position.y, targetCameraY, smoothSpeed);
+    
+    // Smoothly interpolate target position Y
+    client->camera.target.y = Lerp(client->camera.target.y, targetLookY, smoothSpeed);
+
+    // Keep X and Z fixed
+    client->camera.position.x = env->level.cols * 0.5;
+    client->camera.position.z = 15.0f;
+    client->camera.target.x = 4.0f;
+    client->camera.target.z = 1.0f;
+    // Load basic lighting shader
+    // Draw spheres to show where the lights are
+    
+    float cameraPos[3] = { 
+        client->camera.position.x, 
+        client->camera.position.y, 
+        client->camera.position.z 
+    };
+    SetShaderValue(client->shader, client->shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
+    for (int i = 0; i < MAX_LIGHTS; i++) UpdateLightValues(client->shader, client->lights[i]);
+
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);    
     BeginMode3D(client->camera);
-    int cols = env->level.cols;
-    int sz = env->level.size;
+    BeginShaderMode(client->shader);
+    
+    Matrix matProjection = MatrixPerspective(client->camera.fovy*DEG2RAD,
+        client->width/client->height,
+        0.1f, 1000.0f);
+    Matrix matView = MatrixLookAt(client->camera.position,
+        client->camera.target,
+        client->camera.up);
+    
+    Matrix matModel = MatrixIdentity();
+    Matrix mvp = MatrixMultiply(MatrixMultiply(matModel, matView), matProjection);
+    
+    SetShaderValueMatrix(client->shader, client->shader.locs[SHADER_LOC_MATRIX_MVP], mvp);
+    SetShaderValueMatrix(client->shader, client->shader.locs[SHADER_LOC_MATRIX_MODEL], matModel);
+    
+    // Set up normal matrix
+    Matrix matNormal = MatrixTranspose(MatrixInvert(matModel));
+    SetShaderValueMatrix(client->shader, client->shader.locs[SHADER_LOC_MATRIX_NORMAL], matNormal);
     int total_length = env->level.total_length;
     for(int i= 0; i < total_length; i++){
         if(env->board_state[i] > 0){
@@ -1166,12 +1293,22 @@ void render(Client* client, CTowerClimb* env) {
             int grid_pos = i % sz;
             int x = grid_pos % cols;
             int z = grid_pos / cols;
-            Color cubeColor = (env->board_state[i] == 1) ? STONE_GRAY : PUFF_CYAN;  // Gray for blocks, Cyan for goal
-            DrawCube(
+            if (env->board_state[i] == 2){
+                EndShaderMode();
+                DrawCube(
                 (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f},
                 1.0f, 1.0f, 1.0f,
-                cubeColor
-            );
+                PUFF_CYAN
+                );
+                BeginShaderMode(client->shader);
+            } else {
+                DrawCube(
+                    (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f},
+                    1.0f, 1.0f, 1.0f,
+                    STONE_GRAY
+                );
+            }
+            
             if(i == env->block_grabbed){
                 DrawCubeWires(
                 (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f},
@@ -1189,10 +1326,7 @@ void render(Client* client, CTowerClimb* env) {
     }
 
     // calculate robot position
-    int floor = env->robot_position / sz;
-    int grid_pos = env->robot_position % sz;
-    int x = grid_pos % cols;
-    int z = grid_pos / cols;
+    
     
     Vector3 spherePos = (Vector3){ 
         x * 1.0f,
@@ -1257,10 +1391,19 @@ void render(Client* client, CTowerClimb* env) {
         DrawCylinderEx(headStart, headEnd, 0.1f, 0.0f, 8, PURPLE);  // Tapered cylinder for arrow head
     }
 
+    EndShaderMode();
+    
+    // Draw light debug spheres
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (client->lights[i].enabled) {
+            DrawSphereEx(client->lights[i].position, 0.2f, 8, 8, client->lights[i].color);
+        } 
+    }
     EndMode3D();
     EndDrawing();
 }
 void close_client(Client* client) {
+    UnloadShader(client->shader);
     CloseWindow();
     UnloadModel(client->robot);
     free(client);

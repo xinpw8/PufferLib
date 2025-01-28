@@ -13,7 +13,7 @@ void demo(int map_choice) {
         .reward_fall_row = -0.1,
         .reward_illegal_move = -0.01,
     };
-    init_random_levels(8);
+    init_random_levels(5);
 
     allocate(&env);
     reset(&env);
