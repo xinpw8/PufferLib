@@ -119,7 +119,7 @@ def evaluate(data):
         with profile.eval_misc:
             value = value.flatten()
             actions = actions.cpu().numpy()
-            mask = torch.as_tensor(mask)# * policy.mask)
+            mask = torch.as_tensor(mask)
             o = o if config.cpu_offload else o_device
             experience.store(o, value, actions, logprob, r, d, env_id, mask)
 
@@ -411,7 +411,7 @@ class Experience:
         self.dones=torch.zeros(batch_size, pin_memory=pin)
         self.truncateds=torch.zeros(batch_size, pin_memory=pin)
         self.values=torch.zeros(batch_size, pin_memory=pin)
-        self.e3b_inv = 1*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
+        self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
 
         self.actions_np = np.asarray(self.actions)
         self.logprobs_np = np.asarray(self.logprobs)

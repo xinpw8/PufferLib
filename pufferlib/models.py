@@ -86,16 +86,16 @@ class Default(nn.Module):
             batch = hidden.shape[0]
             return probs, value
 
-        intrinsic_reward = None
+        b = None
         if e3b is not None:
             phi = hidden.detach()        
-            intrinsic_reward = (phi.unsqueeze(1) @ e3b @ phi.unsqueeze(2))
-            e3b = 0.95*e3b - (phi.unsqueeze(2) @ phi.unsqueeze(1))/(1 + intrinsic_reward)
-            intrinsic_reward = intrinsic_reward.squeeze()
-            intrinsic_reward = 0.1*torch.clamp(intrinsic_reward, -1, 1)
+            u = phi.unsqueeze(1) @ e3b
+            b = u @ phi.unsqueeze(2)
+            e3b = 0.99*e3b - (u.mT @ u) / (1 + b)
+            b = b.squeeze()
 
         actions = self.decoder(hidden)
-        return actions, value, e3b, intrinsic_reward
+        return actions, value, e3b, b
 
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
