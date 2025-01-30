@@ -44,13 +44,11 @@ cdef extern from "grid.h":
         #        unsigned char* observations, unsigned int* actions, float* rewards, float* dones,
         #        int width, int height, int num_agents, int horizon,
         #        int vision, float speed, bint discretize)
-        Env** make_locked_room_env(unsigned char* observations,
+        void load_locked_room_env(unsigned char* observations,
             unsigned int* actions, float* rewards, float* dones)
-        void reset_locked_room(Env* env)
+        void reset(Env* env)
         bint step(Env* env)
         void free_envs(Env** env, int num_envs)
-        Env** make_locked_rooms(unsigned char* observations,
-            unsigned int* actions, float* rewards, float* dones, int num_envs)
         ctypedef struct Renderer
         Renderer* init_renderer(int cell_size, int width, int height)
         void render_global(Renderer*erenderer, Env* env)
@@ -60,24 +58,36 @@ cimport numpy as cnp
 
 cdef class CGrid:
     cdef:
-        Env **envs
+        Env *envs
         Renderer *renderer
         int num_envs
         int num_finished
         float sum_returns
 
     def __init__(self, cnp.ndarray observations, cnp.ndarray actions,
-                 cnp.ndarray rewards, cnp.ndarray dones, int num_envs):
+                 cnp.ndarray rewards, cnp.ndarray dones, int num_envs,
+                 int max_size, str task):
 
-        #self.env = init_grid(<unsigned char*> observations.data, <unsigned int*> actions.data,
-        #    <float*> rewards.data, <float*> dones.data, width, height, num_agents, horizon,
-        #    vision, speed, discretize)
-        self.envs = make_locked_rooms(
-            <unsigned char*> observations.data, <unsigned int*> actions.data,
-            <float*> rewards.data, <float*> dones.data, num_envs)
-
-        self.renderer = NULL
         self.num_envs = num_envs
+        self.client = NULL
+        self.envs = <Grid*> calloc(num_envs, sizeof(Grid))
+        #self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
+
+        cdef int i
+        for i in range(num_envs):
+            self.envs[i] = Grid(
+                observations = &observations[i, 0],
+                actions = &actions[i],
+                rewards = &rewards[i],
+                dones = &terminals[i],
+                max_size =  max_size,
+                num_agents = 1,
+                horizon = 2*size*size,
+                vision = 5,
+                speed = 1,
+                discretize = True,
+            )
+            init(&self.envs[i])
 
     def reset(self):
         cdef int i

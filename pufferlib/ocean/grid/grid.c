@@ -96,9 +96,19 @@ int main() {
     env->agents[0].spawn_x = 16;
     env->agents[0].spawn_y = 16;
     env->agents[0].color = 6;
-    reset(env, seed);
-    load_locked_room_preset(env);
+    //reset(env, seed);
+    //load_locked_room_preset(env);
+ 
 
+    width = height = 31;
+    env->width=31;
+    env->height=31;
+    env->agents[0].spawn_x = 1;
+    env->agents[0].spawn_y = 1;
+    reset(env, seed);
+    generate_growing_tree_maze(env->grid, env->width, env->height, max_size, 0.85, 0);
+    env->grid[(env->height-2)*env->max_size + (env->width - 2)] = GOAL;
+ 
     Renderer* renderer = init_renderer(render_cell_size, width, height);
 
     int tick = 0;

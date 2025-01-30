@@ -66,8 +66,8 @@ struct Agent {
     int held;
 };
 
-typedef struct Env Env;
-struct Env {
+typedef struct Grid Grid;
+struct Grid{
     int max_size;
     int width;
     int height;
@@ -89,12 +89,12 @@ struct Env {
     float* dones;
 };
 
-Env* init_grid(
+Grid* init_grid(
         unsigned char* observations, float* actions,
         float* rewards, float* dones,
         int max_size, int num_agents, int horizon,
         int vision, float speed, bool discretize) {
-    Env* env = (Env*)calloc(1, sizeof(Env));
+    Grid* env = (Grid*)calloc(1, sizeof(Grid);
 
     env->num_agents = num_agents;
     env->max_size = max_size;
@@ -114,7 +114,7 @@ Env* init_grid(
     return env;
 }
 
-Env* allocate_grid(int max_size, int num_agents, int horizon,
+Grid* allocate_grid(int max_size, int num_agents, int horizon,
         int vision, float speed, bool discretize) {
     int obs_size = 2*vision + 1;
     unsigned char* observations = calloc(
@@ -126,13 +126,13 @@ Env* allocate_grid(int max_size, int num_agents, int horizon,
         max_size, num_agents, horizon, vision, speed, discretize);
 }
 
-void free_env(Env* env) {
+void free_env(Grid* env) {
     free(env->grid);
     free(env->agents);
     free(env);
 }
 
-void free_allocated_grid(Env* env) {
+void free_allocated_grid(Grid* env) {
     free(env->observations);
     free(env->actions);
     free(env->rewards);
@@ -140,16 +140,16 @@ void free_allocated_grid(Env* env) {
     free_env(env);
 }
 
-bool in_bounds(Env* env, int y, int c) {
+bool in_bounds(Grid* env, int y, int c) {
     return (y >= 0 && y <= env->height
         && c >= 0 && c <= env->width);
 }
 
-int grid_offset(Env* env, int y, int x) {
+int grid_offset(Grid* env, int y, int x) {
     return y*env->max_size + x;
 }
 
-void compute_observations(Env* env) {
+void compute_observations(Grid* env) {
     /*
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
         Agent* agent = &env->agents[agent_idx];
@@ -172,7 +172,7 @@ void compute_observations(Env* env) {
     */
 }
 
-void make_border(Env*env) {
+void make_border(Grid*env) {
     for (int r = 0; r < env->height; r++) {
         int adr = grid_offset(env, r, 0);
         env->grid[adr] = WALL;
@@ -187,7 +187,7 @@ void make_border(Env*env) {
     }
 }
 
-void reset(Env* env, int seed) {
+void reset(Grid* env, int seed) {
     memset(env->grid, 0, env->max_size*env->max_size);
     env->tick = 0;
     env->episode_return = 0;
@@ -215,7 +215,7 @@ void reset(Env* env, int seed) {
     compute_observations(env);
 }
 
-int move_to(Env* env, int agent_idx, int y, int x) {
+int move_to(Grid* env, int agent_idx, int y, int x) {
     Agent* agent = &env->agents[agent_idx];
     if (!in_bounds(env, y, x)) {
         return 1;
@@ -253,7 +253,7 @@ int move_to(Env* env, int agent_idx, int y, int x) {
     return 0;
 }
  
-bool step_agent(Env* env, int idx) {
+bool step_agent(Grid* env, int idx) {
     Agent* agent = &env->agents[idx];
     agent->prev_y = agent->y;
     agent->prev_x = agent->x;
@@ -317,7 +317,7 @@ bool step_agent(Env* env, int idx) {
     return true;
 }
 
-bool step(Env* env) {
+bool step(Grid* env) {
     for (int i = 0; i < env->num_agents; i++) {
         step_agent(env, i);
     }
@@ -387,7 +387,7 @@ void close_renderer(Renderer* renderer) {
     free(renderer);
 }
 
-void render_global(Renderer* renderer, Env* env, float frac) {
+void render_global(Renderer* renderer, Grid* env, float frac) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -441,7 +441,7 @@ void render_global(Renderer* renderer, Env* env, float frac) {
     EndDrawing();
 }
 
-void load_locked_room_preset(Env* env) {
+void load_locked_room_preset(Grid* env) {
     assert(env->max_size >= 19);
     env->width = 19;
     env->height = 19;
@@ -499,3 +499,153 @@ void load_locked_room_preset(Env* env) {
     adr = grid_offset(env, 16, 17);
     env->grid[adr] = GOAL;
 }
+
+void generate_growing_tree_maze(unsigned char* grid,
+        int width, int height, int max_size, float difficulty, int seed) {
+    srand(seed);
+    int dx[4] = {-1, 0, 1, 0};
+    int dy[4] = {0, 1, 0, -1};
+    int dirs[4] = {0, 1, 2, 3};
+    int cells[2*width*height];
+    int num_cells = 1;
+
+    bool visited[width*height];
+    memset(visited, false, width*height);
+
+    memset(grid, WALL, max_size*height);
+    for (int r = 0; r < height; r++) {
+        for (int c = 0; c < width; c++) {
+            int adr = r*max_size + c;
+            if (r % 2 == 1 && c % 2 == 1) {
+                grid[adr] = EMPTY;
+            }
+        }
+    }
+
+    int x_init = rand() % (width - 1);
+    int y_init = rand() % (height - 1);
+
+    if (x_init % 2 == 0) {
+        x_init++;
+    }
+    if (y_init % 2 == 0) {
+        y_init++;
+    }
+
+    int adr = y_init*height + x_init;
+    visited[adr] = true;
+    cells[0] = x_init;
+    cells[1] = y_init;
+
+    //int cell = 32;
+    //InitWindow(width*cell, height*cell, "PufferLib Ray Grid");
+    //SetTargetFPS(60);
+
+    while (num_cells > 0) {
+        if (rand() % 1000 > 1000*difficulty) {
+            int i = rand() % num_cells;
+            int tmp_x = cells[2*num_cells - 2];
+            int tmp_y = cells[2*num_cells - 1];
+            cells[2*num_cells - 2] = cells[2*i];
+            cells[2*num_cells - 1] = cells[2*i + 1];
+            cells[2*i] = tmp_x;
+            cells[2*i + 1] = tmp_y;
+ 
+        }
+
+        int x = cells[2*num_cells - 2];
+        int y = cells[2*num_cells - 1];
+ 
+        int nx, ny;
+
+        // In-place direction shuffle
+        for (int i = 0; i < 4; i++) {
+            int ii = i + rand() % (4 - i);
+            int tmp = dirs[i];
+            dirs[i] = dirs[ii];
+            dirs[ii] = tmp;
+        }
+
+        bool made_path = false;
+        for (int dir_i = 0; dir_i < 4; dir_i++) {
+            int dir = dirs[dir_i];
+            nx = x + 2*dx[dir];
+            ny = y + 2*dy[dir];
+           
+            if (nx <= 0 || nx >= width-1 || ny <= 0 || ny >= height-1) {
+                continue;
+            }
+
+            int visit_adr = ny*width + nx;
+            if (visited[visit_adr]) {
+                continue;
+            }
+
+            visited[visit_adr] = true;
+            cells[2*num_cells] = nx;
+            cells[2*num_cells + 1] = ny;
+
+            nx = x + dx[dir];
+            ny = y + dy[dir];
+
+            int adr = ny*max_size + nx;
+            grid[adr] = EMPTY;
+            num_cells++;
+
+            made_path = true;
+
+            /*
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                exit(0);
+            }
+            BeginDrawing();
+            ClearBackground((Color){6, 24, 24, 255});
+            Color color = (Color){128, 128, 128, 255};
+            for (int r = 0; r < height; r++) {
+                for (int c = 0; c < width; c++){
+                    int adr = r*max_size + c;
+                    int tile = grid[adr];
+                    if (tile == WALL) {
+                        DrawRectangle(c*cell, r*cell, cell, cell, color);
+                    }
+               }
+            }
+            EndDrawing();
+            */
+
+            break;
+        }
+        if (!made_path) {
+            num_cells--;
+        }
+    }
+}
+
+/*
+ * x, y = rand(width), rand(height)
+cells << [x, y]
+
+until cells.empty?
+  index = script.next_index(cells.length)
+  x, y = cells[index]
+
+  [N, S, E, W].shuffle.each do |dir|
+    nx, ny = x + DX[dir], y + DY[dir]
+    if nx >= 0 && ny >= 0 && nx < width && ny < height && grid[ny][nx] == 0
+      grid[y][x] |= dir
+      grid[ny][nx] |= OPPOSITE[dir]
+      cells << [nx, ny]
+      index = nil
+
+      display_maze(grid)
+      sleep 0.02
+
+      break
+    end
+  end
+
+  cells.delete_at(index) if index
+end
+
+display_maze(grid)
+*/
