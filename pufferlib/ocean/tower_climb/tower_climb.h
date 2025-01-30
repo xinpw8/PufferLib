@@ -560,9 +560,9 @@ int  add_blocks_to_fall(CTowerClimb* env){
         int current = queue[front++];
         int falling_position = current;
         int found_support = 0;
-	if(env->board_state[current]==2){
-		return 0;
-	}
+        if(env->board_state[current]==2){
+            return 0;
+        }
         // Remove block from current position
         env->board_state[current] = 0;
         // Keep moving down until support found or bottom reached
@@ -1101,6 +1101,9 @@ void step(CTowerClimb* env) {
     }
 	
     else if (action == GRAB){
+        printf("grabbing block\n");
+        printf("robot_position: %d\n", env->robot_position);
+        printf("robot_orientation: %d\n", env->robot_orientation);
         handle_grab_block(env);
     }
     else if (action == DROP){
@@ -1144,7 +1147,7 @@ struct Client {
     Model robot;
     Light lights[MAX_LIGHTS];
     Shader shader;      // Add shader
-    Material material;  // Add material
+
 };
 
 Client* make_client(CTowerClimb* env) {
@@ -1164,26 +1167,17 @@ Client* make_client(CTowerClimb* env) {
     client->camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     client->camera.fovy = 45.0f;
     client->camera.projection = CAMERA_PERSPECTIVE;
-    
+
     // Load and configure shader
     char vsPath[256];
     char fsPath[256];
     sprintf(vsPath, "resources/tower_climb/shaders/gls%i/lighting.vs", GLSL_VERSION);
     sprintf(fsPath, "resources/tower_climb/shaders/gls%i/lighting.fs", GLSL_VERSION);
     client->shader = LoadShader(vsPath, fsPath);
-    client->shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(client->shader, "mvp");
     // Get shader locations
     client->shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(client->shader, "viewPos");
-    client->shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(client->shader, "matModel");
-    client->shader.locs[SHADER_LOC_MATRIX_NORMAL] = GetShaderLocation(client->shader, "matNormal");
-    
-    // Create a material for the objects
-    client->material = LoadMaterialDefault();
-    client->material.shader = client->shader;
-    client->material.maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
     // Set up ambient light
     int ambientLoc = GetShaderLocation(client->shader, "ambient");
-    printf("ambient loc: %d\n", ambientLoc);
     float ambient[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
     SetShaderValue(client->shader, ambientLoc, ambient, SHADER_UNIFORM_VEC4);
     
@@ -1207,23 +1201,14 @@ Client* make_client(CTowerClimb* env) {
         client->shader);
     
     client->lights[3] = CreateLight(LIGHT_POINT, 
-        (Vector3){ 0.0f, 7.0f, -5.0f },  // Left side
+        (Vector3){ 10.0f, 5.0f, -5.0f },  // Left side
         Vector3Zero(), 
         (Color){ 100, 100, 255, 255 },  // Blue
         client->shader);
 
-    // Add debug prints for light setup
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        printf("Light %d:\n", i);
-        printf("  enabled loc: %d\n", client->lights[i].enabledLoc);
-        printf("  type loc: %d\n", client->lights[i].typeLoc);
-        printf("  position loc: %d\n", client->lights[i].positionLoc);
-        printf("  color loc: %d\n", client->lights[i].colorLoc);
-        printf("  enabled: %d\n", client->lights[i].enabled);
-    }
-
     return client;
 }
+
 
 void render(Client* client, CTowerClimb* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
@@ -1254,8 +1239,6 @@ void render(Client* client, CTowerClimb* env) {
     client->camera.position.z = 15.0f;
     client->camera.target.x = 4.0f;
     client->camera.target.z = 1.0f;
-    // Load basic lighting shader
-    // Draw spheres to show where the lights are
     
     float cameraPos[3] = { 
         client->camera.position.x, 
@@ -1270,22 +1253,6 @@ void render(Client* client, CTowerClimb* env) {
     BeginMode3D(client->camera);
     BeginShaderMode(client->shader);
     
-    Matrix matProjection = MatrixPerspective(client->camera.fovy*DEG2RAD,
-        client->width/client->height,
-        0.1f, 1000.0f);
-    Matrix matView = MatrixLookAt(client->camera.position,
-        client->camera.target,
-        client->camera.up);
-    
-    Matrix matModel = MatrixIdentity();
-    Matrix mvp = MatrixMultiply(MatrixMultiply(matModel, matView), matProjection);
-    
-    SetShaderValueMatrix(client->shader, client->shader.locs[SHADER_LOC_MATRIX_MVP], mvp);
-    SetShaderValueMatrix(client->shader, client->shader.locs[SHADER_LOC_MATRIX_MODEL], matModel);
-    
-    // Set up normal matrix
-    Matrix matNormal = MatrixTranspose(MatrixInvert(matModel));
-    SetShaderValueMatrix(client->shader, client->shader.locs[SHADER_LOC_MATRIX_NORMAL], matNormal);
     int total_length = env->level.total_length;
     for(int i= 0; i < total_length; i++){
         if(env->board_state[i] > 0){
@@ -1326,8 +1293,6 @@ void render(Client* client, CTowerClimb* env) {
     }
 
     // calculate robot position
-    
-    
     Vector3 spherePos = (Vector3){ 
         x * 1.0f,
         floor * 1.0f,  // One unit above platform
