@@ -68,10 +68,13 @@ struct Agent {
 
 typedef struct Grid Grid;
 struct Grid{
-    int max_size;
     int width;
     int height;
     int num_agents;
+
+    Agent* agents;
+    unsigned char* grid;
+
     int horizon;
     int vision;
     float speed;
@@ -80,9 +83,8 @@ struct Grid{
 
     int tick;
     float episode_return;
+    int max_size;
 
-    unsigned char* grid;
-    Agent* agents;
     unsigned char* observations;
     float* actions;
     float* rewards;
@@ -94,7 +96,7 @@ Grid* init_grid(
         float* rewards, float* dones,
         int max_size, int num_agents, int horizon,
         int vision, float speed, bool discretize) {
-    Grid* env = (Grid*)calloc(1, sizeof(Grid);
+    Grid* env = (Grid*)calloc(1, sizeof(Grid));
 
     env->num_agents = num_agents;
     env->max_size = max_size;
@@ -104,7 +106,7 @@ Grid* init_grid(
     env->discretize = discretize;
     env->obs_size = 2*vision + 1;
 
-    int env_mem = env->max_size * env->max_size;
+    int env_mem= env->max_size * env->max_size;
     env->grid = calloc(env_mem, sizeof(unsigned char));
     env->agents = calloc(num_agents, sizeof(Agent));
     env->observations = observations;
@@ -187,31 +189,67 @@ void make_border(Grid*env) {
     }
 }
 
+void spawn_agent(Grid* env, int idx, int x, int y) {
+    Agent* agent = &env->agents[idx];
+    int spawn_y = y;
+    int spawn_x = x;
+    assert(in_bounds(env, spawn_y, spawn_x));
+    int adr = grid_offset(env, spawn_y, spawn_x);
+    assert(env->grid[adr] == EMPTY);
+    assert(is_agent(agent->color));
+    agent->spawn_y = spawn_y;
+    agent->spawn_x = spawn_x;
+    agent->y = agent->spawn_y;
+    agent->x = agent->spawn_x;
+    agent->prev_y = agent->y;
+    agent->prev_x = agent->x;
+    env->grid[adr] = agent->color;
+    agent->direction = 0;
+    agent->held = -1;
+}
+
+typedef struct State State;
+struct State {
+    int width;
+    int height;
+    int num_agents;
+    Agent* agents;
+    unsigned char* grid;
+};
+
+void init_state(State* state, int max_size, int num_agents) {
+    state->agents = calloc(num_agents, sizeof(Agent));
+    state->grid = calloc(max_size*max_size, sizeof(unsigned char));
+}
+
+void free_state(State* state) {
+    free(state->agents);
+    free(state->grid);
+    free(state);
+}
+
+void get_state(Grid* env, State* state) {
+    state->width = env->width;
+    state->height = env->height;
+    state->num_agents = env->num_agents;
+    memcpy(state->agents, env->agents, env->num_agents*sizeof(Agent));
+    memcpy(state->grid, env->grid, env->max_size*env->max_size);
+}
+
+void set_state(Grid* env, State* state) {
+    env->width = state->width;
+    env->height = state->height;
+    env->num_agents = state->num_agents;
+    memcpy(env->agents, state->agents, env->num_agents*sizeof(Agent));
+    memcpy(env->grid, state->grid, env->max_size*env->max_size);
+}
+
 void reset(Grid* env, int seed) {
     memset(env->grid, 0, env->max_size*env->max_size);
     env->tick = 0;
+    env->dones[0] = 0;
+    env->rewards[0] = 0;
     env->episode_return = 0;
-
-    make_border(env);
-
-    // Agent spawning
-    for (int i = 0; i < env->num_agents; i++) {
-        Agent* agent = &env->agents[i];
-        int spawn_y = agent->spawn_y;
-        int spawn_x = agent->spawn_x;
-        assert(in_bounds(env, spawn_y, spawn_x));
-        int adr = grid_offset(env, spawn_y, spawn_x);
-        assert(env->grid[adr] == EMPTY);
-        assert(is_agent(agent->color));
-        agent->y = agent->spawn_y;
-        agent->x = agent->spawn_x;
-        agent->prev_y = agent->y;
-        agent->prev_x = agent->x;
-        env->grid[adr] = agent->color;
-        agent->direction = 0;
-        agent->held = -1;
-    }
-
     compute_observations(env);
 }
 
@@ -441,7 +479,7 @@ void render_global(Renderer* renderer, Grid* env, float frac) {
     EndDrawing();
 }
 
-void load_locked_room_preset(Grid* env) {
+void generate_locked_room(Grid* env) {
     assert(env->max_size >= 19);
     env->width = 19;
     env->height = 19;
@@ -459,6 +497,7 @@ void load_locked_room_preset(Grid* env) {
     agent->spawn_y = 9;
     agent->spawn_x = 9;
     agent->color = 6;
+    agent->held = -1;
 
     make_border(env);
 
@@ -621,6 +660,17 @@ void generate_growing_tree_maze(unsigned char* grid,
     }
 }
 
+void create_maze_level(Grid* env, int width, int height, float difficulty, int seed) {
+    env->width = width;
+    env->height = height;
+    generate_growing_tree_maze(env->grid, width, height, env->max_size, difficulty, seed);
+    make_border(env);
+    spawn_agent(env, 0, 1, 1);
+    int goal_adr = grid_offset(env, env->height - 2, env->width - 2);
+    env->grid[goal_adr] = GOAL;
+}
+
+ 
 /*
  * x, y = rand(width), rand(height)
 cells << [x, y]

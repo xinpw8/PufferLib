@@ -87,9 +87,8 @@ int main() {
     int render_cell_size = 32;
     int seed = 42;
 
-    Env* env = allocate_grid(max_size, num_agents, horizon,
+    Grid* env = allocate_grid(max_size, num_agents, horizon,
         vision, speed, discretize);
-
 
     env->width = 32;
     env->height = 32;
@@ -99,7 +98,13 @@ int main() {
     //reset(env, seed);
     //load_locked_room_preset(env);
  
+    //create_maze_level(env, 15, 15, 0.86, 0);
+    generate_locked_room(env);
+    State state;
+    init_state(&state, env->max_size, env->num_agents);
+    get_state(env, &state);
 
+    /*
     width = height = 31;
     env->width=31;
     env->height=31;
@@ -108,6 +113,7 @@ int main() {
     reset(env, seed);
     generate_growing_tree_maze(env->grid, env->width, env->height, max_size, 0.85, 0);
     env->grid[(env->height-2)*env->max_size + (env->width - 2)] = GOAL;
+    */
  
     Renderer* renderer = init_renderer(render_cell_size, width, height);
 
@@ -142,6 +148,7 @@ int main() {
         if (done) {
             printf("Done\n");
             reset(env, seed);
+            set_state(env, &state);
         }
         render_global(renderer, env, (float)tick/12.0);
     }
