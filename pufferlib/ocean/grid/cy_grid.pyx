@@ -81,8 +81,8 @@ cdef class CGrid:
         float sum_returns
 
     def __init__(self, unsigned char[:, :] observations, float[:] actions,
-        float[:] rewards, unsigned char[:] terminals, int num_maps, int num_envs,
-        int max_size, str task):
+            float[:] rewards, unsigned char[:] terminals, int num_envs, int num_maps,
+            int max_size):
 
         self.num_envs = num_envs
         self.num_maps = num_maps
@@ -91,9 +91,8 @@ cdef class CGrid:
         self.envs = <Grid*> calloc(num_envs, sizeof(Grid))
         #self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
-        cdef int i, size
+        cdef int i
         for i in range(num_envs):
-            size = np.random.randint(5, max_size)
             self.envs[i] = Grid(
                 observations = &observations[i, 0],
                 actions = &actions[i],
@@ -101,9 +100,6 @@ cdef class CGrid:
                 dones = &terminals[i],
                 max_size =  max_size,
                 num_agents = 1,
-                horizon = 2*size*size,
-                width = size,
-                height = size,
                 vision = 5,
                 speed = 1,
                 discretize = True,
@@ -111,7 +107,12 @@ cdef class CGrid:
             init_grid(&self.envs[i])
 
         cdef float difficulty
+        cdef int size
         for i in range(num_maps):
+            size = np.random.randint(5, max_size)
+            if size % 2 == 0:
+                size -= 1
+
             difficulty = np.random.rand()
             create_maze_level(&self.envs[0], size, size, difficulty, i)
             init_state(&self.levels[i], max_size, 1)

@@ -26,7 +26,8 @@ WEST = 4
 
 class PufferGrid(pufferlib.PufferEnv):
     def __init__(self, render_mode='raylib', vision_range=5,
-            num_envs=4096, report_interval=1024, buf=None):
+            num_envs=4096, num_maps=1000, max_map_size=9,
+            report_interval=1024, buf=None):
         self.obs_size = 2*vision_range + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(self.obs_size*self.obs_size,), dtype=np.uint8)
@@ -37,7 +38,7 @@ class PufferGrid(pufferlib.PufferEnv):
         super().__init__(buf=buf)
         self.float_actions = np.zeros_like(self.actions).astype(np.float32)
         self.c_envs = CGrid(self.observations, self.float_actions,
-            self.rewards, self.terminals, 1000, num_envs, 32, 'hammer time')
+            self.rewards, self.terminals, num_envs, num_maps, max_map_size)
         pass
 
     def reset(self, seed=None):

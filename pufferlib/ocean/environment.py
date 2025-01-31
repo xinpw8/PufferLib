@@ -57,9 +57,10 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         render_mode=render_mode)
 
 def make_puffergrid(render_mode='raylib', vision_range=5,
-        num_envs=4096, report_interval=1024, buf=None):
-    return PufferGrid(render_mode, vision_range,
-        num_envs, report_interval, buf)
+        num_envs=4096, num_maps=1000, max_map_size=9,
+        report_interval=1024, buf=None):
+    return PufferGrid(render_mode, vision_range, num_envs,
+        num_maps, max_map_size, report_interval, buf)
 
 def make_continuous(discretize=False, buf=None, **kwargs):
     from . import sanity

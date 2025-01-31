@@ -254,6 +254,7 @@ void get_state(Grid* env, State* state) {
 void set_state(Grid* env, State* state) {
     env->width = state->width;
     env->height = state->height;
+    env->horizon = 2*env->width*env->height;
     env->num_agents = state->num_agents;
     memcpy(env->agents, state->agents, env->num_agents*sizeof(Agent));
     memcpy(env->grid, state->grid, env->max_size*env->max_size);
@@ -262,8 +263,6 @@ void set_state(Grid* env, State* state) {
 void reset(Grid* env, int seed) {
     memset(env->grid, 0, env->max_size*env->max_size);
     env->tick = 0;
-    env->dones[0] = 0;
-    env->rewards[0] = 0;
     env->episode_return = 0;
     compute_observations(env);
 }
@@ -331,7 +330,7 @@ bool step_agent(Grid* env, int idx) {
         }
         if (direction < 0) {
             direction += TWO_PI;
-        } else if (direction > TWO_PI) {
+        } else if (direction >= TWO_PI) {
             direction -= TWO_PI;
         }
     } else {
@@ -344,6 +343,7 @@ bool step_agent(Grid* env, int idx) {
     float y = agent->y;
     float dx = env->speed*cos(direction);
     float dy = env->speed*sin(direction);
+    agent->direction = direction;
     if (env->discretize) {
         float dest_x = x + dx;
         float dest_y = y + dy;
@@ -372,6 +372,9 @@ bool step_agent(Grid* env, int idx) {
 }
 
 bool step(Grid* env) {
+    memset(env->dones, 0, env->num_agents);
+    memset(env->rewards, 0, env->num_agents*sizeof(float));
+
     for (int i = 0; i < env->num_agents; i++) {
         step_agent(env, i);
     }
