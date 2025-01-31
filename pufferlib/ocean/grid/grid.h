@@ -659,33 +659,3 @@ void create_maze_level(Grid* env, int width, int height, float difficulty, int s
     int goal_adr = grid_offset(env, env->height - 2, env->width - 2);
     env->grid[goal_adr] = GOAL;
 }
-
- 
-/*
- * x, y = rand(width), rand(height)
-cells << [x, y]
-
-until cells.empty?
-  index = script.next_index(cells.length)
-  x, y = cells[index]
-
-  [N, S, E, W].shuffle.each do |dir|
-    nx, ny = x + DX[dir], y + DY[dir]
-    if nx >= 0 && ny >= 0 && nx < width && ny < height && grid[ny][nx] == 0
-      grid[y][x] |= dir
-      grid[ny][nx] |= OPPOSITE[dir]
-      cells << [nx, ny]
-      index = nil
-
-      display_maze(grid)
-      sleep 0.02
-
-      break
-    end
-  end
-
-  cells.delete_at(index) if index
-end
-
-display_maze(grid)
-*/
