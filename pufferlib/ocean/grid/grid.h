@@ -31,6 +31,58 @@
 #define DOOR_LOCKED 20
 #define DOOR_OPEN 26
 
+#define LOG_BUFFER_SIZE 4096
+
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+    float score;
+};
+
+typedef struct LogBuffer LogBuffer;
+struct LogBuffer {
+    Log* logs;
+    int length;
+    int idx;
+};
+
+LogBuffer* allocate_logbuffer(int size) {
+    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
+    logs->logs = (Log*)calloc(size, sizeof(Log));
+    logs->length = size;
+    logs->idx = 0;
+    return logs;
+}
+
+void free_logbuffer(LogBuffer* buffer) {
+    free(buffer->logs);
+    free(buffer);
+}
+
+void add_log(LogBuffer* logs, Log* log) {
+    if (logs->idx == logs->length) {
+        return;
+    }
+    logs->logs[logs->idx] = *log;
+    logs->idx += 1;
+    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
+}
+
+Log aggregate_and_clear(LogBuffer* logs) {
+    Log log = {0};
+    if (logs->idx == 0) {
+        return log;
+    }
+    for (int i = 0; i < logs->idx; i++) {
+        log.episode_return += logs->logs[i].episode_return / logs->idx;
+        log.episode_length += logs->logs[i].episode_length / logs->idx;
+        log.score += logs->logs[i].score / logs->idx;
+    }
+    logs->idx = 0;
+    return log;
+}
+ 
 // 8 unique agents
 bool is_agent(int idx) {
     return idx >= AGENT && idx < AGENT + 8;
@@ -71,20 +123,16 @@ struct Grid{
     int width;
     int height;
     int num_agents;
-
-    Agent* agents;
-    unsigned char* grid;
-
     int horizon;
     int vision;
     float speed;
-    bool discretize;
     int obs_size;
-
-    int tick;
-    float episode_return;
     int max_size;
-
+    bool discretize;
+    Log log;
+    LogBuffer* log_buffer;
+    Agent* agents;
+    unsigned char* grid;
     unsigned char* observations;
     float* actions;
     float* rewards;
@@ -113,6 +161,7 @@ Grid* allocate_grid(int max_size, int num_agents, int horizon,
     env->actions = calloc(num_agents, sizeof(float));
     env->rewards = calloc(num_agents, sizeof(float));
     env->dones = calloc(num_agents, sizeof(unsigned char));
+    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
     init_grid(env);
     return env;
 }
@@ -128,6 +177,7 @@ void free_allocated_grid(Grid* env) {
     free(env->actions);
     free(env->rewards);
     free(env->dones);
+    free_logbuffer(env->log_buffer);
     free_env(env);
 }
 
@@ -261,41 +311,39 @@ void set_state(Grid* env, State* state) {
 }
 
 void reset(Grid* env, int seed) {
+    env->log = (Log){0};
     memset(env->grid, 0, env->max_size*env->max_size);
-    env->tick = 0;
-    env->episode_return = 0;
     compute_observations(env);
 }
 
-int move_to(Grid* env, int agent_idx, int y, int x) {
+int move_to(Grid* env, int agent_idx, float y, float x) {
     Agent* agent = &env->agents[agent_idx];
     if (!in_bounds(env, y, x)) {
         return 1;
     }
 
-    int adr = grid_offset(env, y, x);
+    int adr = grid_offset(env, round(y), round(x));
     int dest = env->grid[adr];
     if (dest == WALL) {
         return 1;
     } else if (dest == REWARD || dest == GOAL) {
         env->rewards[agent_idx] = 1.0;
         env->dones[agent_idx] = 1;
-        env->episode_return += 1.0;
+        env->log.episode_return += 1.0;
+        env->log.score += 1.0;
     } else if (is_key(dest)) {
         if (agent->held != -1) {
             return 1;
         }
         agent->held = dest;
-    } else if (is_locked_door(dest)) {
-        if (!is_correct_key(agent->held, dest)) {
-            return 1;
+    } else if (is_locked_door(dest)) { if (!is_correct_key(agent->held, dest)) { return 1;
         }
         agent->held = -1;
         env->grid[adr] = EMPTY;
     }
 
-    int start_y = agent->y;
-    int start_x = agent->x;
+    int start_y = round(agent->y);
+    int start_x = round(agent->x);
     int start_adr = grid_offset(env, start_y, start_x);
     env->grid[start_adr] = EMPTY;
 
@@ -388,9 +436,13 @@ bool step(Grid* env) {
         }
     }
 
-    env->tick += 1;
-    if (env->tick >= env->horizon) {
+    env->log.episode_length += 1;
+    if (env->log.episode_length >= env->horizon) {
         done = true;
+    }
+
+    if (done) {
+        add_log(env->log_buffer, &env->log);
     }
     return done;
 }

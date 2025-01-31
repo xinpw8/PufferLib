@@ -3,31 +3,13 @@ import os
 
 import gymnasium
 
-from raylib import rl, colors
-
 import pufferlib
-from pufferlib.ocean import render
 from pufferlib.ocean.grid.cy_grid import CGrid
-
-EMPTY = 0
-FOOD = 1
-WALL = 2
-AGENT_1 = 3
-AGENT_2 = 4
-AGENT_3 = 5
-AGENT_4 = 6
-
-PASS = 0
-NORTH = 1
-SOUTH = 2
-EAST = 3
-WEST = 4
-
 
 class PufferGrid(pufferlib.PufferEnv):
     def __init__(self, render_mode='raylib', vision_range=5,
             num_envs=4096, num_maps=1000, max_map_size=9,
-            report_interval=1024, buf=None):
+            report_interval=128, buf=None):
         self.obs_size = 2*vision_range + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(self.obs_size*self.obs_size,), dtype=np.uint8)
@@ -48,19 +30,13 @@ class PufferGrid(pufferlib.PufferEnv):
 
     def step(self, actions):
         self.float_actions[:] = actions
-        #self.actions[:] = actions
-        try:
-            self.c_envs.step()
-        except:
-            breakpoint()
+        self.c_envs.step()
 
         info = []
-        '''
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                info.append(log)
-        '''
 
         self.tick += 1
         return (self.observations, self.rewards,

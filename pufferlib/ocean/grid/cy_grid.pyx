@@ -10,6 +10,18 @@
 from libc.stdlib cimport calloc, free, rand
 
 cdef extern from "grid.h":
+    int LOG_BUFFER_SIZE
+
+    ctypedef struct Log:
+        float episode_return;
+        float episode_length;
+        float score;
+
+    ctypedef struct LogBuffer
+    LogBuffer* allocate_logbuffer(int)
+    void free_logbuffer(LogBuffer*)
+    Log aggregate_and_clear(LogBuffer*)
+
     ctypedef struct Agent:
         float y;
         float x;
@@ -25,20 +37,16 @@ cdef extern from "grid.h":
         int width;
         int height;
         int num_agents;
-
-        Agent* agents;
-        unsigned char* grid;
-
         int horizon;
         int vision;
         float speed;
-        bint discretize;
         int obs_size;
-
-        int tick;
-        float episode_return;
         int max_size;
-
+        bint discretize;
+        Log log;
+        LogBuffer* log_buffer;
+        Agent* agents;
+        unsigned char* grid;
         unsigned char* observations;
         float* actions;
         float* rewards;
@@ -75,10 +83,10 @@ cdef class CGrid:
         Grid* envs
         State* levels
         Renderer* client
+        LogBuffer* logs
         int num_envs
         int num_maps
-        int num_finished
-        float sum_returns
+        int max_size
 
     def __init__(self, unsigned char[:, :] observations, float[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs, int num_maps,
@@ -86,10 +94,11 @@ cdef class CGrid:
 
         self.num_envs = num_envs
         self.num_maps = num_maps
+        self.max_size = max_size
         self.client = NULL
         self.levels = <State*> calloc(num_maps, sizeof(State))
         self.envs = <Grid*> calloc(num_envs, sizeof(Grid))
-        #self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
+        self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
         cdef int i
         for i in range(num_envs):
@@ -98,6 +107,7 @@ cdef class CGrid:
                 actions = &actions[i],
                 rewards = &rewards[i],
                 dones = &terminals[i],
+                log_buffer = self.logs,
                 max_size =  max_size,
                 num_agents = 1,
                 vision = 5,
@@ -133,36 +143,23 @@ cdef class CGrid:
         for i in range(self.num_envs):
             done = step(&self.envs[i])
             if done:
-                self.num_finished += 1
-                self.sum_returns += self.envs[i].episode_return
                 idx = rand() % self.num_maps
                 reset(&self.envs[i], i)
                 set_state(&self.envs[i], &self.levels[idx])
 
-    def get_returns(self):
-        cdef float returns = self.sum_returns / self.num_finished
-        self.sum_returns = 0
-        self.num_finished = 0
-        return returns
-
-    def has_key(self):
-        cdef int num_keys = 0
-        cdef int i
-        for i in range(self.num_envs):
-            if self.envs[i].agents[0].keys[5] == 1:
-                num_keys += 1
-
-        return num_keys
-
-    def render(self, int cell_size=16, int width=80, int height=45):
+    def render(self, int cell_size=16):
         if self.client == NULL:
             import os
             cwd = os.getcwd()
             os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-            self.client = init_renderer(cell_size, width, height)
+            self.client = init_renderer(cell_size, self.max_size, self.max_size)
             os.chdir(cwd)
 
         render_global(self.client, &self.envs[0], 0)
+
+    def log(self):
+        cdef Log log = aggregate_and_clear(self.logs)
+        return log
 
     def close(self):
         if self.client != NULL:

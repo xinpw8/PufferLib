@@ -23,7 +23,7 @@ int main() {
     //reset(env, seed);
     //load_locked_room_preset(env);
  
-    create_maze_level(env, 31, 31, 0.85, seed);
+    create_maze_level(env, 5, 5, 0.85, seed);
     //generate_locked_room(env);
     //State state;
     //init_state(&state, env->max_size, env->num_agents);
@@ -83,7 +83,7 @@ int main() {
             printf("Done, reward: %f\n", env->rewards[0]);
             seed++;
             reset(env, seed);
-            create_maze_level(env, 31, 31, 0.85, seed);
+            create_maze_level(env, 5, 5, 0.85, seed);
         }
         render_global(renderer, env, (float)tick/12.0);
     }
