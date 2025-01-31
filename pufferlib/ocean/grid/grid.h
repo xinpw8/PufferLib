@@ -91,41 +91,30 @@ struct Grid{
     float* dones;
 };
 
-Grid* init_grid(
-        unsigned char* observations, float* actions,
-        float* rewards, float* dones,
-        int max_size, int num_agents, int horizon,
-        int vision, float speed, bool discretize) {
-    Grid* env = (Grid*)calloc(1, sizeof(Grid));
-
-    env->num_agents = num_agents;
-    env->max_size = max_size;
-    env->horizon = horizon;
-    env->vision = vision;
-    env->speed = speed;
-    env->discretize = discretize;
-    env->obs_size = 2*vision + 1;
-
+void init_grid(Grid* env) {
+    env->obs_size = 2*env->vision + 1;
     int env_mem= env->max_size * env->max_size;
     env->grid = calloc(env_mem, sizeof(unsigned char));
-    env->agents = calloc(num_agents, sizeof(Agent));
-    env->observations = observations;
-    env->actions = actions;
-    env->rewards = rewards;
-    env->dones = dones;
-    return env;
+    env->agents = calloc(env->num_agents, sizeof(Agent));
 }
 
 Grid* allocate_grid(int max_size, int num_agents, int horizon,
         int vision, float speed, bool discretize) {
+    Grid* env = (Grid*)calloc(1, sizeof(Grid));
+    env->max_size = max_size;
+    env->num_agents = num_agents;
+    env->horizon = horizon;
+    env->vision = vision;
+    env->speed = speed;
+    env->discretize = discretize;
     int obs_size = 2*vision + 1;
-    unsigned char* observations = calloc(
+    env->observations = calloc(
         num_agents*obs_size*obs_size, sizeof(unsigned char));
-    float* actions = calloc(num_agents, sizeof(float));
-    float* rewards = calloc(num_agents, sizeof(float));
-    float* dones = calloc(num_agents, sizeof(float));
-    return init_grid(observations, actions, rewards, dones,
-        max_size, num_agents, horizon, vision, speed, discretize);
+    env->actions = calloc(num_agents, sizeof(float));
+    env->rewards = calloc(num_agents, sizeof(float));
+    env->dones = calloc(num_agents, sizeof(float));
+    init_grid(env);
+    return env;
 }
 
 void free_env(Grid* env) {
@@ -196,7 +185,6 @@ void spawn_agent(Grid* env, int idx, int x, int y) {
     assert(in_bounds(env, spawn_y, spawn_x));
     int adr = grid_offset(env, spawn_y, spawn_x);
     assert(env->grid[adr] == EMPTY);
-    assert(is_agent(agent->color));
     agent->spawn_y = spawn_y;
     agent->spawn_x = spawn_x;
     agent->y = agent->spawn_y;
@@ -206,6 +194,7 @@ void spawn_agent(Grid* env, int idx, int x, int y) {
     env->grid[adr] = agent->color;
     agent->direction = 0;
     agent->held = -1;
+    agent->color = AGENT;
 }
 
 typedef struct State State;
@@ -300,14 +289,15 @@ bool step_agent(Grid* env, int idx) {
     float direction = agent->direction;
 
     if (env->discretize) {
-        if (atn == ATN_PASS) {
+        int iatn = (int)atn;
+        if (iatn == ATN_PASS) {
             return true;
-        } else if (atn == ATN_FORWARD) {
-        } else if (atn == ATN_LEFT) {
+        } else if (iatn == ATN_FORWARD) {
+        } else if (iatn == ATN_LEFT) {
             direction -= PI/2.0;
-        } else if (atn == ATN_RIGHT) {
+        } else if (iatn == ATN_RIGHT) {
             direction += PI/2.0;
-        } else if (atn == ATN_BACK) {
+        } else if (iatn == ATN_BACK) {
             direction += PI;
         } else {
             printf("Invalid action: %f\n", atn);

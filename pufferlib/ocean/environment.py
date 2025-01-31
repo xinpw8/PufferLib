@@ -14,6 +14,7 @@ from .moba.moba import Moba
 from .nmmo3.nmmo3 import NMMO3
 from .go.go import Go
 from .rware.rware import Rware
+from .grid.grid import PufferGrid
 #from .rocket_lander import rocket_lander
 from .trash_pickup.trash_pickup import TrashPickupEnv
 
@@ -55,10 +56,10 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         init_fn=init_fn, reward_fn=reward_fn,
         render_mode=render_mode)
 
-def make_puffergrid(render_mode='rgb_array', vision_range=3):
-    assert False, 'This env is unfinished. Join our Discord and help us finish it!'
-    from .grid import grid
-    return grid.PufferGrid(render_mode, vision_range)
+def make_puffergrid(render_mode='rgb_array', vision_range=3,
+        num_envs=4096, report_interval=1024, buf=None):
+    return PufferGrid(render_mode, vision_range,
+        num_envs, report_interval, buf)
 
 def make_continuous(discretize=False, buf=None, **kwargs):
     from . import sanity

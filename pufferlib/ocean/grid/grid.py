@@ -27,24 +27,35 @@ WEST = 4
 class PufferGrid(pufferlib.PufferEnv):
     def __init__(self, render_mode='rgb_array', vision_range=3,
             num_envs=4096, report_interval=1024, buf=None):
+        self.obs_size = 2*vision_range + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(self.obs_size*self.obs_size+3,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(5)
         self.render_mode = render_mode
         self.num_agents = num_envs
-        super().__init__()
-        self.cenv = CGrid(self.observations, self.actions,
-            self.rewards, self.dones, self.num_agents)
+        self.report_interval = report_interval
+        super().__init__(buf=buf)
+        self.float_actions = np.zeros_like(self.actions).astype(np.float32)
+        self.c_envs = CGrid(self.observations, self.float_actions,
+            self.rewards, self.terminals, 1000, num_envs, 32, 'hammer time')
+
+    def reset(self, seed=None):
+        self.tick = 0
+        self.c_envs.reset()
+        return self.observations, []
 
     def step(self, actions):
-        self.actions[:] = actions
+        self.float_actions[:] = actions
+        #self.actions[:] = actions
         self.c_envs.step()
 
         info = []
+        '''
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                info.append(log)
+        '''
 
         self.tick += 1
         return (self.observations, self.rewards,
@@ -57,7 +68,7 @@ class PufferGrid(pufferlib.PufferEnv):
         self.c_envs.close()
 
 def test_performance(timeout=10, atn_cache=1024):
-    env = Grid(num_envs=1000)
+    env = CGrid(num_envs=1000)
     env.reset()
     tick = 0
 
