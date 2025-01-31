@@ -56,7 +56,7 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         init_fn=init_fn, reward_fn=reward_fn,
         render_mode=render_mode)
 
-def make_puffergrid(render_mode='rgb_array', vision_range=3,
+def make_puffergrid(render_mode='raylib', vision_range=5,
         num_envs=4096, report_interval=1024, buf=None):
     return PufferGrid(render_mode, vision_range,
         num_envs, report_interval, buf)

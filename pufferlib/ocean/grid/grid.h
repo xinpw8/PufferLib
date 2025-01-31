@@ -88,7 +88,7 @@ struct Grid{
     unsigned char* observations;
     float* actions;
     float* rewards;
-    float* dones;
+    unsigned char* dones;
 };
 
 void init_grid(Grid* env) {
@@ -112,7 +112,7 @@ Grid* allocate_grid(int max_size, int num_agents, int horizon,
         num_agents*obs_size*obs_size, sizeof(unsigned char));
     env->actions = calloc(num_agents, sizeof(float));
     env->rewards = calloc(num_agents, sizeof(float));
-    env->dones = calloc(num_agents, sizeof(float));
+    env->dones = calloc(num_agents, sizeof(unsigned char));
     init_grid(env);
     return env;
 }
@@ -141,26 +141,52 @@ int grid_offset(Grid* env, int y, int x) {
 }
 
 void compute_observations(Grid* env) {
-    /*
+    memset(env->observations, 0, env->obs_size*env->obs_size*env->num_agents);
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
         Agent* agent = &env->agents[agent_idx];
         float y = agent->y;
         float x = agent->x;
-        int r = y;
-        int c = x;
+        int start_r = y - env->vision;
+        if (start_r < 0) {
+            start_r = 0;
+        }
+
+        int start_c = x - env->vision;
+        if (start_c < 0) {
+            start_c = 0;
+        }
+
+        int end_r = y + env->vision;
+        if (end_r >= env->max_size) {
+            end_r = env->max_size - 1;
+        }
+
+        int end_c = x + env->vision;
+        if (end_c >= env->max_size) {
+            end_c = env->max_size - 1;
+        }
 
         int obs_offset = agent_idx*env->obs_size*env->obs_size;
-        for (int dr = -env->vision; dr <= env->vision; dr++) {
-            for (int dc = -env->vision; dc <= env->vision; dc++) {
-                int rr = r + dr;
-                int cc = c + dc;
-                int adr = grid_offset(env, rr, cc);
-                env->observations[obs_offset] = env->grid[adr];
-                obs_offset++;
+        for (int r = start_r; r <= end_r; r++) {
+            for (int c = start_c; c <= end_c; c++) {
+                int r_idx = r - y + env->vision;
+                int c_idx = c - x + env->vision;
+                int obs_adr = obs_offset + r_idx*env->obs_size + c_idx;
+                int adr = grid_offset(env, r, c);
+                env->observations[obs_adr] = env->grid[adr];
             }
         }
+        /*
+        int obs_adr = 0;
+        for (int r = 0; r < env->obs_size; r++) {
+            for (int c = 0; c < env->obs_size; c++) {
+                printf("%d ", env->observations[obs_adr]);
+                obs_adr++;
+            }
+            printf("\n");
+        }
+        */
     }
-    */
 }
 
 void make_border(Grid*env) {
@@ -254,7 +280,7 @@ int move_to(Grid* env, int agent_idx, int y, int x) {
         return 1;
     } else if (dest == REWARD || dest == GOAL) {
         env->rewards[agent_idx] = 1.0;
-        env->dones[agent_idx] = 1.0;
+        env->dones[agent_idx] = 1;
         env->episode_return += 1.0;
     } else if (is_key(dest)) {
         if (agent->held != -1) {

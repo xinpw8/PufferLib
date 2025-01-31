@@ -42,7 +42,7 @@ cdef extern from "grid.h":
         unsigned char* observations;
         float* actions;
         float* rewards;
-        float* dones;
+        unsigned char* dones;
 
     ctypedef struct State:
         int width;
@@ -56,7 +56,7 @@ cdef extern from "grid.h":
         void load_locked_room_env(unsigned char* observations,
             unsigned int* actions, float* rewards, float* dones)
         void init_grid(Grid* env)
-        void reset(Grid* env)
+        void reset(Grid* env, int seed)
         bint step(Grid* env)
         ctypedef struct Renderer
         Renderer* init_renderer(int cell_size, int width, int height)
@@ -80,9 +80,9 @@ cdef class CGrid:
         int num_finished
         float sum_returns
 
-    def __init__(self, cnp.ndarray observations, cnp.ndarray actions,
-                 cnp.ndarray rewards, cnp.ndarray terminals, int num_maps, int num_envs,
-                 int max_size, str task):
+    def __init__(self, unsigned char[:, :] observations, float[:] actions,
+        float[:] rewards, unsigned char[:] terminals, int num_maps, int num_envs,
+        int max_size, str task):
 
         self.num_envs = num_envs
         self.num_maps = num_maps
@@ -121,6 +121,7 @@ cdef class CGrid:
         cdef int i, idx
         for i in range(self.num_envs):
             idx = rand() % self.num_maps
+            reset(&self.envs[i], i)
             set_state(&self.envs[i], &self.levels[idx])
 
     def step(self):
@@ -134,6 +135,7 @@ cdef class CGrid:
                 self.num_finished += 1
                 self.sum_returns += self.envs[i].episode_return
                 idx = rand() % self.num_maps
+                reset(&self.envs[i], i)
                 set_state(&self.envs[i], &self.levels[idx])
 
     def get_returns(self):
@@ -154,13 +156,10 @@ cdef class CGrid:
     def render(self, int cell_size=16, int width=80, int height=45):
         if self.client == NULL:
             import os
-            path = os.path.abspath(os.getcwd())
-            print(path)
-            c_path = os.path.join(os.sep, *__file__.split('/')[:-1])
-            print(c_path)
-            os.chdir(c_path)
+            cwd = os.getcwd()
+            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = init_renderer(cell_size, width, height)
-            os.chdir(path)
+            os.chdir(cwd)
 
         render_global(self.client, &self.envs[0], 0)
 
