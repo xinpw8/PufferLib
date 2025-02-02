@@ -138,6 +138,7 @@ def pareto_points(observations):
     scores = np.array([e['output'] for e in observations])
     costs = np.array([e['cost'] for e in observations])
     pareto = []
+    idxs = []
     for idx, obs in enumerate(observations):
         # TODO: Ties and groups
         higher_score = scores > scores[idx]
@@ -145,8 +146,9 @@ def pareto_points(observations):
         better = higher_score & lower_cost
         if not better.any():
             pareto.append(obs)
+            idxs.append(idx)
 
-    return pareto
+    return pareto, idxs
 
 def create_gp(x_dim, scale_length=1.0):
     # Dummy data
@@ -214,7 +216,7 @@ class PufferCarbs:
             suggestions = sample(self.search_centers[None, :], self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
         elif self.resample_frequency and self.suggestion_idx % self.resample_frequency == 0:
-            candidates = pareto_points(self.success_observations)
+            candidates, _ = pareto_points(self.success_observations)
             suggestions = np.stack([e['input'] for e in candidates])
         else:
             params = np.array([e['input'] for e in self.success_observations])
@@ -235,7 +237,8 @@ class PufferCarbs:
             self.gp_score.eval()
 
             # Min-max scale
-            log_costs = np.log(np.array([e['cost'] for e in self.success_observations]))
+            costs = np.array([e['cost'] for e in self.success_observations])
+            log_costs = np.log(costs)
             min_log_cost = log_costs.min(axis=0)
             max_log_cost = log_costs.max(axis=0)
             log_cost_std = (log_costs - min_log_cost) / (max_log_cost - min_log_cost)
@@ -247,7 +250,7 @@ class PufferCarbs:
             self.gp_cost.eval()
 
             ### Sample suggestions
-            candidates = pareto_points(self.success_observations)
+            candidates, pareto_idxs = pareto_points(self.success_observations)
             search_centers = np.stack([e['input'] for e in candidates])
             suggestions = sample(search_centers, self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
@@ -262,9 +265,21 @@ class PufferCarbs:
             log_cost_est = log_cost_std_est*(max_log_cost - min_log_cost) + min_log_cost
             cost_mean = np.exp(log_cost_est)
 
+            normalized_pareto_scores = normalized_scores[pareto_idxs]
+            pareto_costs = torch.from_numpy(costs[pareto_idxs])
+            cost_diff = cost_mean.unsqueeze(1) - pareto_costs.unsqueeze(0)
+            cost_diff[cost_diff < 0] = torch.inf
+            closest_pareto_idx = torch.argmin(cost_diff, dim=1)
+            normalized_nearest_pareto_score = normalized_pareto_scores[closest_pareto_idx]
+
             max_cost_mask = cost_mean < self.max_suggestion_cost
-            suggestion_scores = max_cost_mask * normalized_score_mean / cost_mean
+            suggestion_scores = max_cost_mask * (normalized_score_mean - normalized_nearest_pareto_score)# / cost_mean
             best_idx = np.argmax(suggestion_scores)
+            best_normalized_score = normalized_score_mean[best_idx].item()
+            best_nearby_normalized_score = normalized_nearest_pareto_score[best_idx].item()
+            best_cost_mean = cost_mean[best_idx].item()
+            print('Predicted -- Score: ', best_normalized_score, 'Cost: ', best_cost_mean, 'Nearby: ', best_nearby_normalized_score)
+
             suggestions = suggestions[best_idx:best_idx+1].numpy()
 
         best = suggestions[0]
