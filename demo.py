@@ -148,7 +148,6 @@ class PufferCarbs:
             max_suggestion_cost: float = None,
             resample_frequency: int = 5,
             num_random_samples: int = 10,
-            max_suggestion_count: float = None,
         ):
         param_spaces = _carbs_params_from_puffer_sweep(sweep_config)
         flat_spaces = [e[1] for e in pufferlib.utils.unroll_nested_dict(param_spaces)]
@@ -161,21 +160,25 @@ class PufferCarbs:
         self.carbs_params = CARBSParams(
             better_direction_sign=1 if goal == 'maximize' else -1,
             is_wandb_logging_enabled=False,
-            resample_frequency=5,
-            num_random_samples=len(flat_spaces),
+            resample_frequency=resample_frequency,
+            num_random_samples=num_random_samples,
             max_suggestion_cost=max_suggestion_cost,
             is_saved_on_every_observation=False,
+            #num_candidates_for_suggestion_per_dim=10
         )
         self.carbs = CARBS(self.carbs_params, flat_spaces)
 
     def suggest(self, args):
+        #start = time.time()
         self.suggestion = self.carbs.suggest().suggestion
+        #print(f'Suggestion took {time.time() - start} seconds')
         for k in ('train', 'env'):
             for name, param in args['sweep'][k].items():
                 if name in self.suggestion:
                     args[k][name] = self.suggestion[name]
 
     def observe(self, score, cost, is_failure=False):
+        #start = time.time()
         self.carbs.observe(
             ObservationInParam(
                 input=self.suggestion,
@@ -184,6 +187,7 @@ class PufferCarbs:
                 is_failure=is_failure,
             )
         )
+        #print(f'Observation took {time.time() - start} seconds')
 
 def _carbs_params_from_puffer_sweep(sweep_config):
     param_spaces = {}
@@ -244,7 +248,27 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         target, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
         carbs.observe(score=target, cost=uptime)
 
-def synthetic_carbs_observation(args):
+def synthetic_basic_task(args):
+    train_args = args['train']
+    learning_rate = train_args['learning_rate']
+    total_timesteps = train_args['total_timesteps']
+    score = np.exp(-(np.log10(learning_rate) + 3)**2)
+    cost = total_timesteps / 50_000_000
+    return score, cost
+
+def synthetic_linear_task(args):
+    score, cost = synthetic_basic_task(args)
+    return score*cost, cost
+
+def synthetic_log_task(args):
+    score, cost = synthetic_basic_task(args)
+    return score*np.log10(cost), cost
+
+def synthetic_percentile_task(args):
+    score, cost = synthetic_basic_task(args)
+    return score/(1 + np.exp(-cost)), cost
+
+def synthetic_rl_task(args):
     '''Simulates the outcome of an RL experiment by making
     some heavy handed assumptions about hyperparameters'''
     num_envs = args['env']['num_envs']
@@ -291,41 +315,53 @@ def test_random_search(args, env_name, make_env, policy_cls, rnn_cls):
     target_metric = args['sweep']['metric']['name']
     best_hypers = None
 
-    max_scores = []
-    max_costs = []
+    scores = []
+    costs = []
+    hyper_ary = []
+    for i in range(args['max_runs']):
+        seed = time.time_ns() & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
 
-    for experiment in range(20):
-        scores = []
-        costs = []
-        for i in range(args['max_runs']):
-            seed = time.time_ns() & 0xFFFFFFFF
-            random.seed(seed)
-            np.random.seed(seed)
-            torch.manual_seed(seed)
+        hypers = sample_hyperparameters(args['sweep'])
 
-            hypers = sample_hyperparameters(args['sweep'])
-            hypers['train']['total_timesteps'] = args['sweep']['train']['total_timesteps']['max']
-            score, cost = synthetic_carbs_observation(hypers)
-            if len(scores) > 0 and score > np.max(scores):
-                best_hypers = hypers
+        flat = dict(pufferlib.utils.unroll_nested_dict(hypers))
+        ary = np.array(list(flat.values()))
+        hyper_ary.append(ary)
 
-            scores.append(score)
-            costs.append(cost)
-            '''
-            neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
-            for k, v in pufferlib.utils.unroll_nested_dict(args):
-                neptune[k].append(v)
+        #hypers['train']['total_timesteps'] = args['sweep']['train']['total_timesteps']['max']
+        score, cost = synthetic_linear_task(hypers)
+        if len(scores) > 0 and score > np.max(scores):
+            best_hypers = hypers
 
-            neptune['environment/score'].append(score)
-            neptune['environment/uptime'].append(cost)
-            neptune.stop()
-            '''
+        scores.append(score)
+        costs.append(cost)
+        '''
+        neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
+        for k, v in pufferlib.utils.unroll_nested_dict(args):
+            neptune[k].append(v)
 
-        max_scores.append(np.max(scores))
-        max_costs.append(np.max(costs))
+        neptune['environment/score'].append(score)
+        neptune['environment/uptime'].append(cost)
+        neptune.stop()
+        '''
 
-    print('Best score:', np.mean(max_scores), 'at cost:', max_costs[np.argmax(max_scores)])
+    print('Best score:', np.max(scores), 'at cost:', costs[np.argmax(scores)])
+    print('Total cost:', np.sum(costs))
     print('Best hypers:', best_hypers)
+
+    hyper_ary = np.stack(hyper_ary)
+
+    np.save(args['data_path']+'.npy', {'scores': scores, 'costs': costs, 'hypers': hyper_ary})
+
+    ''' 
+    import plotly.graph_objects as go
+    t = list(range(len(scores)))
+    fig = go.Figure(data=go.Scatter(x=t, y=scores, mode='markers'))
+    fig.update_layout(title='CARBS Synthetic Test', xaxis_title='Index', yaxis_title='Value')
+    fig.show()
+    ''' 
 
 
 def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
@@ -333,10 +369,11 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
     carbs = PufferCarbs(
         args['sweep'],
         resample_frequency=5,
-        num_random_samples=10, # Should be number of params
+        num_random_samples=50, # Should be number of params
         max_suggestion_cost=args['base']['max_suggestion_cost'],
     )
     scores = []
+    costs = []
     for i in range(args['max_runs']):
         seed = time.time_ns() & 0xFFFFFFFF
         random.seed(seed)
@@ -358,8 +395,9 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         train_args['bptt_horizon'] = 16
         '''
 
-        score, cost = synthetic_carbs_observation(args)
+        score, cost = synthetic_linear_task(args)
 
+        '''
         neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
         for k, v in pufferlib.utils.unroll_nested_dict(args):
             neptune[k].append(v)
@@ -367,14 +405,17 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         neptune['environment/score'].append(score)
         neptune['environment/uptime'].append(cost)
         neptune.stop()
+        '''
  
         #stats, uptime, _, _ = train(args, make_env, policy_cls, rnn_cls)
         carbs.observe(score=score, cost=cost)
 
         scores.append(score)
-        print(scores)
+        costs.append(cost)
+
+        #print(scores)
         pareto = carbs.carbs._get_pareto_groups()
-        print(pareto)
+        #print(pareto)
         '''
         import plotly.graph_objects as go
         scores.append(score)
@@ -384,8 +425,34 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         fig.show()
         '''
 
-    np.save('scores.npy', scores)
+    np.save(args['data_path']+'.npy', {'scores': scores, 'costs': costs})
 
+def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
+    target_metric = args['sweep']['metric']['name']
+    from pufferlib.sweep import PufferCarbs as NeoCarbs
+    carbs = NeoCarbs(
+        args['sweep'],
+        resample_frequency=5,
+        num_random_samples=50, # Should be number of params
+        max_suggestion_cost=args['base']['max_suggestion_cost'],
+    )
+    scores = []
+    costs = []
+    for i in range(args['max_runs']):
+        seed = time.time_ns() & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+ 
+        hypers = carbs.suggest()
+        score, cost = synthetic_linear_task(hypers)
+        carbs.observe(score=score, cost=cost)
+        print('Score:', score, 'Cost:', cost)
+
+        scores.append(score)
+        costs.append(cost)
+
+    np.save(args['data_path']+'.npy', {'scores': scores, 'costs': costs})
 
 
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
@@ -489,7 +556,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', '--environment', type=str,
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
-        choices='train eval evaluate sweep sweep-carbs test-random test-carbs autotune profile'.split())
+        choices='train eval evaluate sweep sweep-carbs test-random test-carbs test-neocarbs autotune profile'.split())
     parser.add_argument('--vec', '--vector', '--vectorization', type=str,
         default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--vec-overwork', action='store_true',
@@ -502,6 +569,8 @@ if __name__ == '__main__':
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help='Resume from experiment')
+    parser.add_argument('--data-path', type=str, default=None,
+        help='Used for testing hparam algorithms')
     parser.add_argument('--track', action='store_true', help='Track on WandB')
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
@@ -607,6 +676,8 @@ if __name__ == '__main__':
         sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'test-carbs':
         test_carbs(args, env_name, make_env, policy_cls, rnn_cls)
+    elif args['mode'] == 'test-neocarbs':
+        test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'test-random':
         test_random_search(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'autotune':
