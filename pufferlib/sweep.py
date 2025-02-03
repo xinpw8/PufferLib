@@ -5,7 +5,7 @@ import math
 from copy import deepcopy
 
 import pufferlib
-import scipy.special
+import scipy.stats
 
 import torch
 import pyro
@@ -165,6 +165,14 @@ def create_gp(x_dim, scale_length=1.0):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     return model, optimizer
 
+def quantile_transform(raw_scores):
+    n_quantiles = int(np.sqrt(len(raw_scores)))
+    q = np.linspace(0, 1, n_quantiles, endpoint=True)
+    quantiles = np.quantile(raw_scores, q)
+    p = np.interp(raw_scores, quantiles, q)
+    p = np.clip(p, 0.01, 0.99)
+    normalized_scores = np.sqrt(2) * scipy.special.erfinv(2*p - 1)
+    return normalized_scores
 
 class PufferCarbs:
     def __init__(self,
@@ -224,12 +232,22 @@ class PufferCarbs:
 
             # Quantile transform. Using n_quantiles < n samples preserves distance information
             raw_scores = self.optimize_direction*np.array([e['output'] for e in self.success_observations])
+            #percentile_scores = scipy.stats.rankdata(raw_scores) / (len(raw_scores) + 1)
+            #percentile_mean = np.mean(percentile_scores)
+            #percentile_std = np.std(percentile_scores)
+            #normalized_scores = (percentile_scores - percentile_mean) / percentile_std
+            raw_score_mean = np.mean(raw_scores)
+            raw_score_std = np.std(raw_scores)
+            normalized_scores = (raw_scores - raw_score_mean) / raw_score_std
+            '''
             n_quantiles = int(np.sqrt(len(self.success_observations)))
             q = np.linspace(0, 1, n_quantiles, endpoint=True)
             quantiles = np.quantile(raw_scores, q)
             p = np.interp(raw_scores, quantiles, q)
             p = np.clip(p, 0.01, 0.99)
             normalized_scores = np.sqrt(2) * scipy.special.erfinv(2*p - 1)
+            '''
+
             normalized_scores = torch.from_numpy(normalized_scores)
             self.gp_score.set_data(params, normalized_scores)
             self.gp_score.train()
@@ -268,12 +286,20 @@ class PufferCarbs:
             normalized_pareto_scores = normalized_scores[pareto_idxs]
             pareto_costs = torch.from_numpy(costs[pareto_idxs])
             cost_diff = cost_mean.unsqueeze(1) - pareto_costs.unsqueeze(0)
+            cost_dist = torch.abs(cost_diff)
+            dist_to_nearest_pareto = torch.min(cost_dist, dim=1)[0]
+
             cost_diff[cost_diff < 0] = torch.inf
             closest_pareto_idx = torch.argmin(cost_diff, dim=1)
             normalized_nearest_pareto_score = normalized_pareto_scores[closest_pareto_idx]
 
+            unnormalized_score_mean = (normalized_score_mean * raw_score_std) + raw_score_mean
+            unnormalized_nearest_pareto_score = (normalized_nearest_pareto_score * raw_score_std) + raw_score_mean
+
             max_cost_mask = cost_mean < self.max_suggestion_cost
-            suggestion_scores = max_cost_mask * (normalized_score_mean - normalized_nearest_pareto_score)# / cost_mean
+            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score)# / cost_mean
+            #suggestion_scores = max_cost_mask * unnormalized_score_mean * dist_to_nearest_pareto / cost_mean
+            suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
             best_idx = np.argmax(suggestion_scores)
             best_normalized_score = normalized_score_mean[best_idx].item()
             best_nearby_normalized_score = normalized_nearest_pareto_score[best_idx].item()
