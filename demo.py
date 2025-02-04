@@ -266,7 +266,7 @@ def synthetic_log_task(args):
 
 def synthetic_percentile_task(args):
     score, cost = synthetic_basic_task(args)
-    return score/(1 + np.exp(-cost)), cost
+    return score/(1 + np.exp(-cost/10)), cost
 
 def synthetic_rl_task(args):
     '''Simulates the outcome of an RL experiment by making
@@ -395,7 +395,7 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         train_args['bptt_horizon'] = 16
         '''
 
-        score, cost = synthetic_linear_task(args)
+        score, cost = synthetic_log_task(args)
 
         '''
         neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
@@ -433,7 +433,7 @@ def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
     carbs = NeoCarbs(
         args['sweep'],
         resample_frequency=5,
-        num_random_samples=50, # Should be number of params
+        num_random_samples=200, # Should be number of params
         max_suggestion_cost=args['base']['max_suggestion_cost'],
     )
     scores = []
@@ -452,6 +452,8 @@ def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
         scores.append(score)
         costs.append(cost)
 
+    #scores = scores[200:]
+    #costs = costs[200:]
     np.save(args['data_path']+'.npy', {'scores': scores, 'costs': costs})
 
 
