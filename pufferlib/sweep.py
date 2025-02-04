@@ -236,10 +236,15 @@ class PufferCarbs:
             #percentile_mean = np.mean(percentile_scores)
             #percentile_std = np.std(percentile_scores)
             #normalized_scores = (percentile_scores - percentile_mean) / percentile_std
+            max_score = 200
             raw_score_max = np.max(raw_scores)
             raw_score_mean = np.mean(raw_scores)
             raw_score_std = np.std(raw_scores)
-            normalized_scores = (raw_scores - raw_score_mean) / raw_score_std
+            eps = 1e-5
+            transformed_scores = -np.log(1 - raw_scores/max_score + eps)
+            transformed_score_mean = np.mean(transformed_scores)
+            transformed_score_std = np.std(transformed_scores)
+            normalized_scores = (transformed_scores - transformed_score_mean) / transformed_score_std
             '''
             n_quantiles = int(np.sqrt(len(self.success_observations)))
             q = np.linspace(0, 1, n_quantiles, endpoint=True)
@@ -299,12 +304,16 @@ class PufferCarbs:
             closest_pareto_idx = torch.argmin(cost_diff, dim=1)
             normalized_nearest_pareto_score = normalized_pareto_scores[closest_pareto_idx]
 
-            unnormalized_score_mean = (normalized_score_mean * raw_score_std) + raw_score_mean
-            unnormalized_nearest_pareto_score = (normalized_nearest_pareto_score * raw_score_std) + raw_score_mean
 
-            conservative_normalized_score_mean = normalized_score_mean - normalized_score_var
-            conservative_unnormalized_score_mean = (conservative_normalized_score_mean * raw_score_std) + raw_score_mean
-            unnormalized_score_var = unnormalized_score_mean - conservative_unnormalized_score_mean
+            unnormalized_score_mean = (normalized_score_mean * transformed_score_std) + transformed_score_mean
+            untransformed_score_mean = -max_score*(np.exp(-unnormalized_score_mean) - 1 - eps)
+
+            unnormalized_nearest_pareto_score = (normalized_nearest_pareto_score * transformed_score_std) + transformed_score_mean
+            untransformed_nearest_pareto_score = -max_score*(np.exp(-unnormalized_nearest_pareto_score) - 1 - eps)
+
+            #conservative_normalized_score_mean = normalized_score_mean - normalized_score_var
+            #conservative_unnormalized_score_mean = (conservative_normalized_score_mean * raw_score_std) + raw_score_mean
+            #unnormalized_score_var = unnormalized_score_mean - conservative_unnormalized_score_mean
 
             max_cost_mask = conservative_cost_mean < self.max_suggestion_cost
             #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score)# / cost_mean
@@ -317,6 +326,8 @@ class PufferCarbs:
 
             #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
             #suggestion_scores = max_cost_mask * dist_to_nearest_pareto
+
+            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto
             suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto
 
             # This works and uncovers approximate binary search when the GP is perfect
@@ -325,22 +336,21 @@ class PufferCarbs:
             # Just need to figure out why the GP is overconfident
 
             best_idx = np.argmax(suggestion_scores)
-            score = unnormalized_score_mean[best_idx].item()
-            nearby = unnormalized_nearest_pareto_score[best_idx].item()
+            score = untransformed_score_mean[best_idx].item()
+            nearby = untransformed_nearest_pareto_score[best_idx].item()
             dist = dist_to_nearest_pareto[best_idx].item()
             cost = cost_mean[best_idx].item()
             rating = suggestion_scores[best_idx].item()
-            var = unnormalized_score_var[best_idx].item()
+            #var = unnormalized_score_var[best_idx].item()
             print('Predicted -- ',
                 f'Score: {score:.3f}',
                 f'Nearby: {nearby:.3f}',
                 f'Dist: {dist:.3f}',
                 f'Cost: {cost:.3f}',
                 f'Rating: {rating:.3f}',
-                f'Var: {var:.3f}',
+                #f'Var: {var:.3f}',
             )
 
-            breakpoint()
             suggestions = suggestions[best_idx:best_idx+1].numpy()
 
         best = suggestions[0]
