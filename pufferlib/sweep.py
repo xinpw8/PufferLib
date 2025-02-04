@@ -179,10 +179,10 @@ class PufferCarbs:
             sweep_config,
             max_suggestion_cost = None,
             resample_frequency = 5,
-            num_random_samples = 10,
+            num_random_samples = 900,
             seed = 0,
             initial_search_radius = 0.3,
-            global_search_scale = 1.0,
+            global_search_scale = 0.1,
             num_suggestion_candidates = 2048,
         ):
         self.spaces = _carbs_params_from_puffer_sweep(sweep_config)
@@ -212,7 +212,7 @@ class PufferCarbs:
             e.norm_min for e in self.flat_spaces.values()])
         self.max_bounds = np.array([
             e.norm_max for e in self.flat_spaces.values()])
-        self.search_scales = np.array([
+        self.search_scales = global_search_scale * np.array([
             e.scale for e in self.flat_spaces.values()])
 
         self.gp_score, self.score_opt = create_gp(self.num_params)
@@ -221,7 +221,7 @@ class PufferCarbs:
     def suggest(self):
         self.suggestion_idx += 1
         if self.suggestion_idx <= self.num_random_samples:
-            suggestions = sample(self.search_centers[None, :], self.search_scales, self.num_suggestion_candidates)
+            suggestions = sample(self.search_centers[None, :], 10*self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
         elif self.resample_frequency and self.suggestion_idx % self.resample_frequency == 0:
             candidates, _ = pareto_points(self.success_observations)
@@ -236,6 +236,7 @@ class PufferCarbs:
             #percentile_mean = np.mean(percentile_scores)
             #percentile_std = np.std(percentile_scores)
             #normalized_scores = (percentile_scores - percentile_mean) / percentile_std
+            raw_score_max = np.max(raw_scores)
             raw_score_mean = np.mean(raw_scores)
             raw_score_std = np.std(raw_scores)
             normalized_scores = (raw_scores - raw_score_mean) / raw_score_std
@@ -283,6 +284,11 @@ class PufferCarbs:
             log_cost_est = log_cost_std_est*(max_log_cost - min_log_cost) + min_log_cost
             cost_mean = np.exp(log_cost_est)
 
+            normalized_conservative_log_cost_mean = normalized_log_cost_mean + normalized_log_cost_var
+            normalized_conservative_log_cost_std_est = (normalized_conservative_log_cost_mean - min_log_cost) / (max_log_cost - min_log_cost)
+            normalized_conservative_log_cost_est = normalized_conservative_log_cost_std_est*(max_log_cost - min_log_cost) + min_log_cost
+            conservative_cost_mean = np.exp(normalized_conservative_log_cost_est)
+
             normalized_pareto_scores = normalized_scores[pareto_idxs]
             pareto_costs = torch.from_numpy(costs[pareto_idxs])
             cost_diff = cost_mean.unsqueeze(1) - pareto_costs.unsqueeze(0)
@@ -296,16 +302,45 @@ class PufferCarbs:
             unnormalized_score_mean = (normalized_score_mean * raw_score_std) + raw_score_mean
             unnormalized_nearest_pareto_score = (normalized_nearest_pareto_score * raw_score_std) + raw_score_mean
 
-            max_cost_mask = cost_mean < self.max_suggestion_cost
+            conservative_normalized_score_mean = normalized_score_mean - normalized_score_var
+            conservative_unnormalized_score_mean = (conservative_normalized_score_mean * raw_score_std) + raw_score_mean
+            unnormalized_score_var = unnormalized_score_mean - conservative_unnormalized_score_mean
+
+            max_cost_mask = conservative_cost_mean < self.max_suggestion_cost
             #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score)# / cost_mean
             #suggestion_scores = max_cost_mask * unnormalized_score_mean * dist_to_nearest_pareto / cost_mean
-            suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
-            best_idx = np.argmax(suggestion_scores)
-            best_normalized_score = normalized_score_mean[best_idx].item()
-            best_nearby_normalized_score = normalized_nearest_pareto_score[best_idx].item()
-            best_cost_mean = cost_mean[best_idx].item()
-            print('Predicted -- Score: ', best_normalized_score, 'Cost: ', best_cost_mean, 'Nearby: ', best_nearby_normalized_score)
+            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
+            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / conservative_cost_mean
 
+
+            #suggestion_scores = max_cost_mask * (conservative_unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / (conservative_cost_mean * unnormalized_score_var)
+
+            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
+            #suggestion_scores = max_cost_mask * dist_to_nearest_pareto
+            suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto
+
+            # This works and uncovers approximate binary search when the GP is perfect
+            # Can't include cost in denom because it biases this case
+            # Instead, use conservative score and/or cost estimates
+            # Just need to figure out why the GP is overconfident
+
+            best_idx = np.argmax(suggestion_scores)
+            score = unnormalized_score_mean[best_idx].item()
+            nearby = unnormalized_nearest_pareto_score[best_idx].item()
+            dist = dist_to_nearest_pareto[best_idx].item()
+            cost = cost_mean[best_idx].item()
+            rating = suggestion_scores[best_idx].item()
+            var = unnormalized_score_var[best_idx].item()
+            print('Predicted -- ',
+                f'Score: {score:.3f}',
+                f'Nearby: {nearby:.3f}',
+                f'Dist: {dist:.3f}',
+                f'Cost: {cost:.3f}',
+                f'Rating: {rating:.3f}',
+                f'Var: {var:.3f}',
+            )
+
+            breakpoint()
             suggestions = suggestions[best_idx:best_idx+1].numpy()
 
         best = suggestions[0]
