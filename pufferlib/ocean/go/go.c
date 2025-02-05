@@ -133,7 +133,7 @@ void demo(int grid_size) {
     Weights* weights = load_weights("resources/go_weights.bin", 254867);
     GoNet* net = init_gonet(weights, 1, grid_size);
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
  
     Client* client = make_client(env.width, env.height);
     int tick = 0;
@@ -147,7 +147,7 @@ void demo(int grid_size) {
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env.actions[0] = human_action;
             }
-            step(&env);
+            c_step(&env);
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env.actions[0] = -1;
             }
@@ -187,7 +187,7 @@ void demo(int grid_size) {
                 }
             }
         }
-        render(client, &env);
+        c_render(client, &env);
     }
     close_client(client);
     free_allocated(&env);
@@ -209,13 +209,13 @@ void performance_test() {
 	.reward_move_valid = 0.1
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
 
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % (env.grid_size)*(env.grid_size);
-        step(&env);
+        c_step(&env);
         i++;
     }
     long end = time(NULL);
