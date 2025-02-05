@@ -445,7 +445,7 @@ def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
         torch.manual_seed(seed)
  
         hypers = carbs.suggest()
-        score, cost = synthetic_linear_task(hypers)
+        score, cost = synthetic_log_task(hypers)
         carbs.observe(score=score, cost=cost)
         print('Score:', score, 'Cost:', cost)
 

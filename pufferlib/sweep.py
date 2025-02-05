@@ -158,6 +158,7 @@ def create_gp(x_dim, scale_length=1.0):
     matern_kernel = gp.kernels.Matern32(input_dim=x_dim, lengthscale=X)
     linear_kernel = gp.kernels.Linear(x_dim)
     kernel = gp.kernels.Sum(linear_kernel, matern_kernel)
+    kernel = matern_kernel
 
     # Params taken from HEBO: https://arxiv.org/abs/2012.03826
     model = gp.models.GPRegression(X, y, kernel=kernel, jitter=1.0e-4)
@@ -221,7 +222,7 @@ class PufferCarbs:
     def suggest(self):
         self.suggestion_idx += 1
         if self.suggestion_idx <= self.num_random_samples:
-            suggestions = sample(self.search_centers[None, :], 10*self.search_scales, self.num_suggestion_candidates)
+            suggestions = sample(self.search_centers[None, :], 5*self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
         elif self.resample_frequency and self.suggestion_idx % self.resample_frequency == 0:
             candidates, _ = pareto_points(self.success_observations)
@@ -262,11 +263,14 @@ class PufferCarbs:
 
             # Min-max scale
             costs = np.array([e['cost'] for e in self.success_observations])
+            max_cost_idx = np.argmax(costs)
             log_costs = np.log(costs)
             min_log_cost = log_costs.min(axis=0)
             max_log_cost = log_costs.max(axis=0)
             log_cost_std = (log_costs - min_log_cost) / (max_log_cost - min_log_cost)
             normalized_log_costs = log_cost_std*(max_log_cost - min_log_cost) + min_log_cost
+            normalized_max_log_cost = normalized_log_costs[max_cost_idx]
+            self.gp_cost.mean_function = lambda x: normalized_max_log_cost
             normalized_log_costs = torch.from_numpy(normalized_log_costs)
             self.gp_cost.set_data(params, normalized_log_costs)
             self.gp_cost.train()
@@ -276,7 +280,7 @@ class PufferCarbs:
             ### Sample suggestions
             candidates, pareto_idxs = pareto_points(self.success_observations)
             search_centers = np.stack([e['input'] for e in candidates])
-            suggestions = sample(search_centers, self.search_scales, self.num_suggestion_candidates)
+            suggestions = sample(search_centers, 20*self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
 
             ### Predict scores and costs
@@ -311,7 +315,10 @@ class PufferCarbs:
             unnormalized_nearest_pareto_score = (normalized_nearest_pareto_score * transformed_score_std) + transformed_score_mean
             untransformed_nearest_pareto_score = -max_score*(np.exp(-unnormalized_nearest_pareto_score) - 1 - eps)
 
-            #conservative_normalized_score_mean = normalized_score_mean - normalized_score_var
+            conservative_normalized_score_mean = normalized_score_mean - normalized_score_var
+            conservative_unnormalized_score_mean = (conservative_normalized_score_mean * transformed_score_std) + transformed_score_mean
+            conservative_untransformed_score_mean = -max_score*(np.exp(-conservative_unnormalized_score_mean) - 1 - eps)
+             
             #conservative_unnormalized_score_mean = (conservative_normalized_score_mean * raw_score_std) + raw_score_mean
             #unnormalized_score_var = unnormalized_score_mean - conservative_unnormalized_score_mean
 
@@ -352,6 +359,55 @@ class PufferCarbs:
             )
 
             suggestions = suggestions[best_idx:best_idx+1].numpy()
+
+
+            from bokeh.models import ColumnDataSource, LinearColorMapper
+            from bokeh.plotting import figure, show
+            from bokeh.palettes import Turbo256
+
+
+            # Create a ColumnDataSource that includes the 'order' for each point
+            source = ColumnDataSource(data=dict(
+                x=costs,
+                y=raw_scores,
+                order=list(range(len(costs)))  # index/order for each point
+            ))
+
+            test_source = ColumnDataSource(data=dict(
+                x=cost_mean,
+                y=untransformed_score_mean,
+                order=list(range(len(cost_mean)))  # index/order for each point
+            ))
+
+            # Define a color mapper across the range of point indices
+            mapper = LinearColorMapper(
+                palette=Turbo256,
+                low=0,
+                high=len(costs)
+            )
+
+            # Set up the figure
+            p = figure(title='Synthetic Hyperparam Test', 
+                       x_axis_label='Cost', 
+                       y_axis_label='Score')
+
+            p.scatter(x='x', 
+                      y='y',
+                      color='purple',
+                      size=10, 
+                      source=test_source)
+
+            # Use the 'order' field for color -> mapped by 'mapper'
+            p.scatter(x='x', 
+                      y='y', 
+                      color={'field': 'order', 'transform': mapper}, 
+                      size=10, 
+                      source=source)
+
+            show(p)
+
+            exit()
+
 
         best = suggestions[0]
         self.suggestion = best
