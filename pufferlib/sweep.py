@@ -157,7 +157,7 @@ def create_gp(x_dim, scale_length=1.0):
 
     matern_kernel = gp.kernels.Matern32(input_dim=x_dim, lengthscale=X)
     linear_kernel = gp.kernels.Linear(x_dim)
-    kernel = gp.kernels.Sum(linear_kernel, matern_kernel)
+    #kernel = gp.kernels.Sum(linear_kernel, matern_kernel)
     kernel = matern_kernel
 
     # Params taken from HEBO: https://arxiv.org/abs/2012.03826
@@ -221,6 +221,7 @@ class PufferCarbs:
 
     def suggest(self):
         self.suggestion_idx += 1
+        # TODO: Clip random samples to bounds so we don't get bad high cost samples
         if self.suggestion_idx <= self.num_random_samples:
             suggestions = sample(self.search_centers[None, :], 5*self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
@@ -246,6 +247,8 @@ class PufferCarbs:
             transformed_score_mean = np.mean(transformed_scores)
             transformed_score_std = np.std(transformed_scores)
             normalized_scores = (transformed_scores - transformed_score_mean) / transformed_score_std
+            min_score_idx = np.argmin(raw_scores)
+            self.gp_score.mean_function = lambda x: normalized_scores[min_score_idx]
             '''
             n_quantiles = int(np.sqrt(len(self.success_observations)))
             q = np.linspace(0, 1, n_quantiles, endpoint=True)
@@ -280,7 +283,7 @@ class PufferCarbs:
             ### Sample suggestions
             candidates, pareto_idxs = pareto_points(self.success_observations)
             search_centers = np.stack([e['input'] for e in candidates])
-            suggestions = sample(search_centers, 20*self.search_scales, self.num_suggestion_candidates)
+            suggestions = sample(search_centers, self.search_scales, self.num_suggestion_candidates)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
 
             ### Predict scores and costs
@@ -361,6 +364,7 @@ class PufferCarbs:
             suggestions = suggestions[best_idx:best_idx+1].numpy()
 
 
+            '''
             from bokeh.models import ColumnDataSource, LinearColorMapper
             from bokeh.plotting import figure, show
             from bokeh.palettes import Turbo256
@@ -407,6 +411,7 @@ class PufferCarbs:
             show(p)
 
             exit()
+            '''
 
 
         best = suggestions[0]
