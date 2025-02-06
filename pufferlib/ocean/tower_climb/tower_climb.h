@@ -37,6 +37,7 @@ static const int DIRECTIONS[NUM_DIRECTIONS] = {0, 1, 2, 3};
 static const int DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
 static const int DIRECTION_VECTORS_Z[NUM_DIRECTIONS] = {0, 1, 0, -1};
 
+
 #define LOG_BUFFER_SIZE 1024
 
 typedef struct Log Log;
@@ -110,6 +111,8 @@ struct CTowerClimb {
     int* blocks_to_fall;
     int block_grabbed;
     int rows_cleared;
+    int animation_state;
+    int previous_position;
     Level level;
     int level_number;
     int distance_to_goal;
@@ -779,30 +782,12 @@ void handle_left_right(CTowerClimb* env, int action, int current_floor,int x, in
         }
 
         if(local_next_cell == 1){
-            if (env->robot_orientation == RIGHT && action == LEFT){
-                env->robot_orientation = UP;
-            }
-            else if (env->robot_orientation == RIGHT && action == RIGHT){
-                env->robot_orientation = DOWN;
-            }
-            else if (env->robot_orientation == UP && action == LEFT){
-                env->robot_orientation = LEFT;
-            }
-            else if(env->robot_orientation == UP && action == RIGHT){
-                env->robot_orientation = RIGHT;
-            }
-            else if (env->robot_orientation == LEFT && action == RIGHT){
-                env->robot_orientation = UP;
-            }
-            else if (env->robot_orientation == LEFT && action == LEFT){
-                env->robot_orientation = DOWN;
-            }
-            else if (env->robot_orientation == DOWN && action == LEFT){
-                env->robot_orientation = RIGHT;
-            }
-            else if (env->robot_orientation == DOWN && action == RIGHT){
-                env->robot_orientation = LEFT;
-            }
+            static const int LEFT_TURNS[] = {3, 0, 1, 2};   // RIGHT->UP, DOWN->RIGHT, LEFT->DOWN, UP->LEFT
+            static const int RIGHT_TURNS[] = {1, 2, 3, 0};  // RIGHT->DOWN, DOWN->LEFT, LEFT->UP, UP->RIGHT
+
+            env->robot_orientation = (action == LEFT) ? 
+                LEFT_TURNS[env->robot_orientation] : 
+                RIGHT_TURNS[env->robot_orientation];
             return;
         }
         
@@ -963,7 +948,7 @@ void handle_move_forward(CTowerClimb* env, int action) {
         if(abs(env->robot_orientation - action) == 0){
             add_blocks_to_move(env, block_offset);
             move_blocks(env, block_offset);
-            int stable  = add_blocks_to_fall(env);
+            int stable = add_blocks_to_fall(env);
             if (stable == 0){
                 handle_unstable_goal(env);
             }
@@ -1101,9 +1086,6 @@ void step(CTowerClimb* env) {
     }
 	
     else if (action == GRAB){
-        printf("grabbing block\n");
-        printf("robot_position: %d\n", env->robot_position);
-        printf("robot_orientation: %d\n", env->robot_orientation);
         handle_grab_block(env);
     }
     else if (action == DROP){
@@ -1138,6 +1120,17 @@ const Color PUFF_GREY = (Color){128, 128, 128, 255};
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
 const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
 
+typedef enum {
+    ANIM_IDLE,
+    ANIM_RUNNING,
+    ANIM_CLIMBING,
+    ANIM_HANGING,
+    ANIM_START_GRABBING,
+    ANIM_GRABBING,
+    ANIM_SHIMMY_RIGHT,
+    ANIM_SHIMMY_LEFT,
+} AnimationState;
+
 typedef struct Client Client;
 struct Client {
     float width;
@@ -1146,8 +1139,15 @@ struct Client {
     Camera3D camera;
     Model robot;
     Light lights[MAX_LIGHTS];
-    Shader shader;      // Add shader
-
+    Shader shader; 
+    ModelAnimation* animations;
+    int animFrameCounter;
+    AnimationState animState;
+    int previousRobotPosition;
+    Vector3 visualPosition;
+    Vector3 targetPosition;
+    bool isMoving;
+    float moveProgress;
 };
 
 Client* make_client(CTowerClimb* env) {
@@ -1168,6 +1168,15 @@ Client* make_client(CTowerClimb* env) {
     client->camera.fovy = 45.0f;
     client->camera.projection = CAMERA_PERSPECTIVE;
 
+    // load robot
+    client->robot = LoadModel("resources/tower_climb/tower_bot.glb");
+    int animCount = 0;
+    client->animations = LoadModelAnimations("resources/tower_climb/tower_bot.glb", &animCount);
+    printf("Loaded %d animations\n", animCount);
+    
+    client->animState = ANIM_IDLE;
+    client->animFrameCounter = 0;
+    UpdateModelAnimation(client->robot, client->animations[24], 0); 
     // Load and configure shader
     char vsPath[256];
     char fsPath[256];
@@ -1206,7 +1215,37 @@ Client* make_client(CTowerClimb* env) {
         (Color){ 100, 100, 255, 255 },  // Blue
         client->shader);
 
+    client->animState = ANIM_IDLE;
+    client->previousRobotPosition = env->robot_position;
+    
+    // Initialize visual position to match starting robot position
+    int floor = env->robot_position / env->level.size;
+    int grid_pos = env->robot_position % env->level.size;
+    int x = grid_pos % env->level.cols;
+    int z = grid_pos / env->level.cols;
+    
+    client->visualPosition = (Vector3){ 
+        x * 1.0f,
+        floor * 1.0f,
+        z * 1.0f
+    };
+    client->targetPosition = client->visualPosition;  // Initialize target to match
+    
     return client;
+}
+
+void orient_hang_offset(Client* client, CTowerClimb* env, int reverse){
+
+    client->visualPosition.y -= 0.2f * reverse;
+    if (env->robot_orientation == 0) { // Facing +x
+        client->visualPosition.x += 0.4f * reverse;
+    } else if (env->robot_orientation == 1) { // Facing +z
+        client->visualPosition.z += 0.4f * reverse;
+    } else if (env->robot_orientation == 2) { // Facing -x
+        client->visualPosition.x -= 0.4f * reverse;
+    } else if (env->robot_orientation == 3) { // Facing -z
+        client->visualPosition.z -= 0.4f * reverse;
+    }
 }
 
 
@@ -1220,33 +1259,208 @@ void render(Client* client, CTowerClimb* env) {
     int grid_pos = env->robot_position % sz;
     int x = grid_pos % cols;
     int z = grid_pos / cols;
-    int cameraFloor = (floor-1) *0.5;  // Change 3 to 2 for two-level steps
-    // Calculate target heights
-    float targetCameraY = cameraFloor * 1.0f + 17.0f;
+
+    if (env->block_grabbed != -1 && client->animState != ANIM_GRABBING && client->animState != ANIM_START_GRABBING)
+    {
+        client->animState = ANIM_START_GRABBING;
+        client->isMoving = true;
+        client->animFrameCounter = 0;
+        UpdateModelAnimation(client->robot, client->animations[20], 0); 
+        client->visualPosition = client->targetPosition;
+
+    } else if (env->block_grabbed == -1 && client->animState == ANIM_GRABBING) {
+        // Reset to idle when block is released
+        client->animState = ANIM_IDLE;
+        client->animFrameCounter = 0;
+        UpdateModelAnimation(client->robot, client->animations[24], 0);
+    }
+
+    // Check if robot position has changed
+    if (env->robot_position != client->previousRobotPosition) {
+        if (client->isMoving) {
+            client->visualPosition = client->targetPosition;
+        }
+        
+        client->isMoving = true;
+            
+        // Calculate new target position
+        int floor = env->robot_position / env->level.size;
+        int grid_pos = env->robot_position % env->level.size;
+        int x = grid_pos % env->level.cols;
+        int z = grid_pos / env->level.cols;
+        
+        client->targetPosition = (Vector3){
+            x * 1.0f,
+            floor * 1.0f,
+            z * 1.0f
+        };
+
+        // Choose animation based on vertical movement
+        if (client->targetPosition.y - client->visualPosition.y > 0.5) {
+            // Add offset based on robot orientation
+            if(client->animState == ANIM_HANGING){
+                orient_hang_offset(client, env,0);
+            } else {
+                orient_hang_offset(client, env, 1);
+            }
+            client->animState = ANIM_CLIMBING;  // Need to add this to AnimationState enum
+            UpdateModelAnimation(client->robot, client->animations[14], 0);  // Assuming climbing is animation 4
+            client->animFrameCounter = 6;
+        } else if (env->robot_state == HANGING){
+            client->isMoving = true;
+            // Check for wrap shimmy case - when both x and z change
+            bool is_wrap_shimmy = fabs(client->targetPosition.x - client->visualPosition.x) > 0.5f && 
+                                fabs(client->targetPosition.z - client->visualPosition.z) > 0.5f;
+
+            if (is_wrap_shimmy) {
+                printf("wrap shimmy\n");
+                // Skip animation and move directly to target for wrap case
+                client->isMoving = false;
+                client->animState = ANIM_HANGING;
+                client->animFrameCounter = 0;
+                client->visualPosition = client->targetPosition;
+                orient_hang_offset(client, env, 1);
+                UpdateModelAnimation(client->robot, client->animations[14], 0);
+            } else {
+                // Regular shimmy animation logic
+                bool moving_right = false;
+                if (env->robot_orientation == UP) {  // Facing up (-z)
+                    moving_right = client->targetPosition.x > client->visualPosition.x;
+                } else if (env->robot_orientation == DOWN) {  // Facing down (+z)
+                    moving_right = client->targetPosition.x < client->visualPosition.x;
+                } else if (env->robot_orientation == RIGHT) {  // Facing right (+x)
+                    moving_right = client->targetPosition.z < client->visualPosition.z;
+                } else if (env->robot_orientation == LEFT) {  // Facing left (-x)
+                    moving_right = client->targetPosition.z > client->visualPosition.z;
+                }
+                
+                client->animFrameCounter = 0;
+                if (client->targetPosition.y < client->visualPosition.y) {
+                    client->animState = ANIM_HANGING;
+                    orient_hang_offset(client, env, 1);
+                    UpdateModelAnimation(client->robot, client->animations[14], 0);
+                } else if (moving_right) {
+                    client->animState = ANIM_SHIMMY_RIGHT;
+                    orient_hang_offset(client, env, 0);
+                    UpdateModelAnimation(client->robot, client->animations[14], 0);
+                } else {
+                    client->animState = ANIM_SHIMMY_LEFT;
+                    orient_hang_offset(client, env, 0);
+                    UpdateModelAnimation(client->robot, client->animations[14], 0);
+                }
+                client->animFrameCounter = 0;
+            }
+        }
+        else {
+            client->animState = ANIM_RUNNING;
+            UpdateModelAnimation(client->robot, client->animations[18], 0);
+            client->animFrameCounter = 0;
+
+        }
+        
+        client->previousRobotPosition = env->robot_position;
+    }
+
+    // Update animation if moving
+    if (client->isMoving) {
+        // Use appropriate animation based on state
+        if (client->animState == ANIM_CLIMBING) {
+            client->animFrameCounter += 6;
+            UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+            if (client->animFrameCounter >= client->animations[14].frameCount) {  // Adjust frame count for climbing animation
+                client->isMoving = false;
+                client->animState = ANIM_IDLE;
+                client->animFrameCounter = 0;
+                UpdateModelAnimation(client->robot, client->animations[24], client->animFrameCounter);
+                client->visualPosition = client->targetPosition;
+            }
+        } else if (client->animState == ANIM_HANGING){
+            client->animFrameCounter = 0;
+            UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+            client->isMoving = false;
+            client->visualPosition = client->targetPosition;
+            orient_hang_offset(client, env, 1);
+
+        } else if (client->animState == ANIM_SHIMMY_RIGHT || client->animState == ANIM_SHIMMY_LEFT) {
+            client->animFrameCounter += 2;
+            // Use animation 23 for right shimmy, 19 for left shimmy
+            int animIndex = (client->animState == ANIM_SHIMMY_RIGHT) ? 23 : 19;
+            UpdateModelAnimation(client->robot, client->animations[animIndex], client->animFrameCounter);
+                        // Calculate lerp progress (0 to 1)
+            float progress = (float)client->animFrameCounter / 87.0f;
+            if (progress > 1.0f) progress = 1.0f;
+            
+            // Lerp position based on orientation
+            if (env->robot_orientation == UP) {  // Facing -z
+                client->visualPosition.x = Lerp(client->visualPosition.x, client->targetPosition.x, progress);
+            } else if (env->robot_orientation == DOWN) {  // Facing +z
+                client->visualPosition.x = Lerp(client->visualPosition.x, client->targetPosition.x, progress);
+            } else if (env->robot_orientation == RIGHT) {  // Facing +x
+                client->visualPosition.z = Lerp(client->visualPosition.z, client->targetPosition.z, progress);
+            } else if (env->robot_orientation == LEFT) {  // Facing -x
+                client->visualPosition.z = Lerp(client->visualPosition.z, client->targetPosition.z, progress);
+            }
+            if (client->animFrameCounter >= 87) {
+                client->isMoving = false;
+                client->animState = ANIM_HANGING;
+                client->animFrameCounter = 0;
+                UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+                client->visualPosition = client->targetPosition;
+                orient_hang_offset(client, env, 1);
+            }
+        } else if (client->animState == ANIM_START_GRABBING) {
+            if (client->animFrameCounter >= client->animations[20].frameCount - 2) {
+                // Lock at second-to-last frame to prevent animation loop
+                client->animFrameCounter = client->animations[20].frameCount - 2;
+                UpdateModelAnimation(client->robot, client->animations[20], client->animFrameCounter);
+                client->isMoving = false;
+                client->animState = ANIM_GRABBING;
+            } else {
+                UpdateModelAnimation(client->robot, client->animations[20], client->animFrameCounter);
+                client->animFrameCounter += 6;
+            }
+        }
+        
+        else {  // ANIM_RUNNING
+            client->animFrameCounter += 6;
+            UpdateModelAnimation(client->robot, client->animations[18], client->animFrameCounter);
+            if (client->animFrameCounter >= 65) {
+                client->isMoving = false;
+                client->animState = ANIM_IDLE;
+                client->animFrameCounter = 0;
+                UpdateModelAnimation(client->robot, client->animations[24], client->animFrameCounter);
+                client->visualPosition = client->targetPosition;
+            }
+        }
+    }else if (client->animState == ANIM_HANGING){
+        client->animFrameCounter = 0;
+        UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+        client->visualPosition = client->targetPosition;
+        orient_hang_offset(client, env, 1);
+
+    } else if (client->animState == ANIM_IDLE) {
+        // Idle animation code remains the same
+        client->animFrameCounter++;
+        UpdateModelAnimation(client->robot, client->animations[24], client->animFrameCounter);
+        if (client->animFrameCounter >= client->animations[24].frameCount) {
+            client->animFrameCounter = 0;
+        }
+    } else if (client->animState == ANIM_GRABBING) {
+        UpdateModelAnimation(client->robot, client->animations[20], client->animations[20].frameCount - 2);
+        client->visualPosition = client->targetPosition;
+    }
+
+    // Camera update code remains the same
+    int cameraFloor = (floor-1) *0.5;
+    float targetCameraY = cameraFloor * 1.0f + 7.0f;
     float targetLookY = cameraFloor * 1.0f;
-
-    // Smooth camera movement using lerp
-    float smoothSpeed = 0.025f;  // Adjust this value to change smoothing (0.0 to 1.0)
-    
-    // Smoothly interpolate camera position Y
+    float smoothSpeed = 0.025f;
     client->camera.position.y = Lerp(client->camera.position.y, targetCameraY, smoothSpeed);
-    
-    // Smoothly interpolate target position Y
     client->camera.target.y = Lerp(client->camera.target.y, targetLookY, smoothSpeed);
-
-    // Keep X and Z fixed
     client->camera.position.x = env->level.cols * 0.5;
     client->camera.position.z = 15.0f;
     client->camera.target.x = 4.0f;
     client->camera.target.z = 1.0f;
-    
-    float cameraPos[3] = { 
-        client->camera.position.x, 
-        client->camera.position.y, 
-        client->camera.position.z 
-    };
-    SetShaderValue(client->shader, client->shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
-    for (int i = 0; i < MAX_LIGHTS; i++) UpdateLightValues(client->shader, client->lights[i]);
 
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);    
@@ -1296,65 +1510,19 @@ void render(Client* client, CTowerClimb* env) {
     Vector3 spherePos = (Vector3){ 
         x * 1.0f,
         floor * 1.0f,  // One unit above platform
-        (z * 1.0f)
+        z * 1.0f
     };
 
     // Draw sphere character
-    DrawSphere(spherePos, 0.3f, YELLOW);  // 0.3 radius yellow sphere
-    // Draw direction arrow
-    float arrowLength = 0.5f;
-    Vector3 arrowStart = (Vector3){
-        spherePos.x,
-        spherePos.y + 0.4f,  // Start slightly above sphere
-        spherePos.z
-    };
-    
-    // Calculate arrow end based on direction
-    Vector3 arrowEnd = arrowStart;
-    switch(env->robot_orientation) {
-        case 0: // right
-            arrowEnd.x += arrowLength;
-            break;
-        case 1: // down
-            arrowEnd.z += arrowLength;
-            break;
-        case 2: // left
-            arrowEnd.x -= arrowLength;
-            break;
-        case 3: // up
-            arrowEnd.z -= arrowLength;
-            break;
-    }
-
-    // Draw arrow shaft (thin cylinder)
-    if (env->robot_state == DEFAULT){
-        DrawCylinderEx(arrowStart, arrowEnd, 0.05f, 0.05f, 8, RED);
-    } else {
-        DrawCylinderEx(arrowStart, arrowEnd, 0.05f, 0.05f, 8, PURPLE);
-    }
-    
-    // Draw arrow head (thicker, shorter cylinder)
-    Vector3 headStart = arrowEnd;
-    Vector3 headEnd = arrowEnd;
-    switch(env->robot_orientation) {
-        case 0: // right
-            headEnd.x += 0.2f;
-            break;
-        case 1: // down
-            headEnd.z += 0.2f;
-            break;
-        case 2: // left
-            headEnd.x -= 0.2f;
-            break;
-        case 3: // up
-            headEnd.z -= 0.2f;
-            break;
-    }
-    if (env->robot_state == DEFAULT){
-        DrawCylinderEx(headStart, headEnd, 0.1f, 0.0f, 8, RED);  // Tapered cylinder for arrow head
-    } else {
-        DrawCylinderEx(headStart, headEnd, 0.1f, 0.0f, 8, PURPLE);  // Tapered cylinder for arrow head
-    }
+    // DrawSphere(spherePos, 0.3f, YELLOW);  // 0.3 radius yellow sphere
+    spherePos = client->visualPosition;  // Use visual position instead of calculating from env
+    spherePos.y -= 0.5f;
+    rlPushMatrix();
+    rlTranslatef(spherePos.x, spherePos.y, spherePos.z);
+    rlRotatef(90.0f, 1, 0, 0);
+    rlRotatef(-90.0f + env->robot_orientation * 90.0f, 0, 0, 1);
+    DrawModel(client->robot, (Vector3){ 0, 0, 0}, 1.0f, WHITE);
+    rlPopMatrix();
 
     EndShaderMode();
     

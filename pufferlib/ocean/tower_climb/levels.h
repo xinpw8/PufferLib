@@ -20,11 +20,11 @@
 #define TEST_BIT(mask, i)   ( ((mask)[(i)/8] & (1 << ((i)%8))) != 0 )
 
 // BFS
-#define MAX_BFS_SIZE 10000000
+#define MAX_BFS_SIZE 70000000
 #define MAX_NEIGHBORS 6 // based on action space
 
 // hash table 
-#define TABLE_SIZE 10000003
+#define TABLE_SIZE 70000003
 
 // actions
 #define ACTION_RIGHT 0
@@ -38,6 +38,19 @@
 #define NUM_DIRECTIONS 4
 static const int BFS_DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
 static const int BFS_DIRECTION_VECTORS_Z[NUM_DIRECTIONS] = {0, 1, 0, -1};
+// shimmy wrap constants 
+static const int wrap_x[4][2] = {
+    {1,1},
+    {1,-1},
+    {-1,-1},
+    {-1, 1}
+};
+static const int wrap_z[4][2] = {
+    {-1, 1},
+    {1, 1},
+    {1, -1},
+    {-1, -1}
+};
 
 typedef struct Level Level;
 struct Level {
@@ -66,7 +79,7 @@ typedef struct BFSNode {
     int action;     // which action led here (if you want to reconstruct the path)
 } BFSNode;
 
-static BFSNode queueBuffer[MAX_BFS_SIZE];
+static BFSNode* queueBuffer = NULL;
 static int front = 0, back = 0;
 
 // hash table for visited states
@@ -154,7 +167,6 @@ void markVisited(const PuzzleState* s) {
 
     // Return if already present
     if (findNode(s, hv, idx)) {
-        printf("Already visited\n");
         return;
     }
 
@@ -266,14 +278,14 @@ int drop(PuzzleState* outState, int action){
     int next_below_cell = next_cell - 100;
     int next_double_below_cell = next_cell - 200;
     if (next_below_cell < 0) return 0;
-    int drop_and_hang = next_double_below_cell >= 0 && !TEST_BIT(outState->blocks, next_double_below_cell);
-    if (drop_and_hang){
+    int step_down = next_double_below_cell >= 0 && TEST_BIT(outState->blocks, next_double_below_cell);
+    if (step_down){
         outState->robot_position = next_below_cell;
-        outState->robot_orientation = (outState->robot_orientation + 2) % 4;
-        outState->robot_state = 1;
         return 1;
     } else {
         outState->robot_position = next_below_cell;
+        outState->robot_orientation = (outState->robot_orientation + 2) % 4;
+        outState->robot_state = 1;
         return 1;
     }
 }
@@ -315,7 +327,7 @@ int will_fall(PuzzleState* outState, int position, const Level* lvl){
       && !bfs_is_block_stable(outState, position, lvl);
 }
 
-int handle_block_falling(PuzzleState* outState, int* affected_blocks, int affected_blocks_count, const Level* lvl) {
+int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* blocks_to_move, int affected_blocks_count, const Level* lvl) {
     // Create queue for blocks that need to be checked for falling
     int bfs_queue[1000];  // Max possible blocks to check
     int front = 0;
@@ -325,13 +337,19 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int affect
 
     // Add initially affected blocks to queue
     for (int i = 0; i < affected_blocks_count; i++) {
-        bfs_queue[rear++] = affected_blocks[i];
+        if (affected_blocks[i] == -1){
+            break;
+        }
+        bfs_queue[rear] = affected_blocks[i];
+        rear++;
     }
 
     // First check all blocks above and adjacent to moved blocks
-    for (int i = 0; i < affected_blocks_count; i++) {
-        int block_pos = affected_blocks[i];
-        
+    for (int i = 0; i < 10; i++) {
+        int block_pos = blocks_to_move[i];
+        if (block_pos == -1){
+            continue;
+        }
         // Add block directly above
         int cell_above = block_pos + fs;  // Assuming 100 is floor height
         
@@ -374,8 +392,7 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int affect
         // Keep moving down until support found or bottom reached
         while (!found_support && falling_position >= fs) {  // 100 represents one floor down
             // Place block temporarily to check stability
-            SET_BIT(outState->blocks, falling_position);
-            
+            SET_BIT(outState->blocks, falling_position);            
             // Check if block is stable
             if (bfs_is_block_stable(outState, falling_position, lvl)) {
                 found_support = 1;
@@ -410,13 +427,12 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int affect
 }
 
 int push(PuzzleState* outState, int action, const Level* lvl){
-    int first_block_index = outState->robot_position + BFS_DIRECTION_VECTORS_X[action] + BFS_DIRECTION_VECTORS_Z[action]*lvl->cols;
+    int first_block_index = outState->robot_position + BFS_DIRECTION_VECTORS_X[outState->robot_orientation] + BFS_DIRECTION_VECTORS_Z[outState->robot_orientation]*lvl->cols;
     int block_offset = (outState->robot_orientation == 3) ? -lvl->cols :  // North
                           (outState->robot_orientation == 1) ? lvl->cols :    // South
                           (outState->robot_orientation == 0) ? 1 :    // East
                           (outState->robot_orientation == 2) ? -1 :   // West
                           -lvl->cols;
-    int count = 0;
     int blocks_to_move[10] = {first_block_index, -1, -1, -1, -1, -1, -1, -1, -1, -1};
     for (int i = 0; i < 10; i++){
         int b_address = first_block_index + i*block_offset;
@@ -425,14 +441,10 @@ int push(PuzzleState* outState, int action, const Level* lvl){
         }
         if(TEST_BIT(outState->blocks, b_address)){
             blocks_to_move[i] = b_address;
-            count++;
         }
     }
-    int affected_blocks[count];
-    for (int i = 0; i < count; i++){
-        affected_blocks[i] = blocks_to_move[i];
-    }
-
+    int affected_blocks[10];
+    int count = 0;
     for (int i = 0; i < 10; i++){
         // invert conditional 
         int b_index = blocks_to_move[i];
@@ -455,9 +467,11 @@ int push(PuzzleState* outState, int action, const Level* lvl){
 
         // If we get here, movement is safe
         SET_BIT(outState->blocks, b_index + block_offset);
-
+        affected_blocks[count] = b_index + block_offset;
+        count++;
     }
-    return handle_block_falling(outState, affected_blocks, count, lvl);
+    outState->block_grabbed = -1;
+    return handle_block_falling(outState, affected_blocks, blocks_to_move,count, lvl);
 }
 
 int pull(PuzzleState* outState, int action, const Level* lvl){
@@ -468,33 +482,71 @@ int pull(PuzzleState* outState, int action, const Level* lvl){
                           (action == 2) ? -1 :   // West
                           -lvl->cols;
     int block_in_front = TEST_BIT(outState->blocks, pull_block);
+    int cell_below_next_position = outState->robot_position + block_offset - 100;
+    int backwards_walkable = bfs_is_valid_position(cell_below_next_position, lvl) && TEST_BIT(outState->blocks, cell_below_next_position);
     if (block_in_front){
         CLEAR_BIT(outState->blocks, pull_block);
         SET_BIT(outState->blocks, outState->robot_position);
-        outState->robot_position = outState->robot_position + block_offset;
-        return 1;
+        if (backwards_walkable){
+            outState->block_grabbed = outState->robot_position;
+            outState->robot_position = outState->robot_position + block_offset;
+        }
+        else {
+            outState->robot_position = cell_below_next_position;
+            outState->robot_state = 1;
+            outState->block_grabbed = -1;
+        }
     }
-    int affected_blocks[1];
-    affected_blocks[0] = pull_block;
-    return handle_block_falling(outState, affected_blocks, 1, lvl);
+    int blocks_to_move[1];
+    blocks_to_move[0] = pull_block;
+    int affected_blocks[1] = {-1};
+    return handle_block_falling(outState, affected_blocks, blocks_to_move, 1, lvl);
 }
 
 int shimmy_normal(PuzzleState* outState, int action, const Level* lvl, int local_direction){
     int next_cell = outState->robot_position + BFS_DIRECTION_VECTORS_X[local_direction] + BFS_DIRECTION_VECTORS_Z[local_direction]*lvl->cols;
-    outState->robot_position = next_cell;
+    int above_next_cell = next_cell + 100;
+    if (bfs_is_valid_position(above_next_cell, lvl) && !TEST_BIT(outState->blocks, above_next_cell)){
+        outState->robot_position = next_cell;
+        return 1;
+    }
+    return 0;
+}
+
+int wrap_around(PuzzleState* outState, int action, const Level* lvl){
+    int action_idx = (action == ACTION_LEFT) ? 0 : 1;
+    int x = outState->robot_position % lvl->cols;
+    int z = outState->robot_position / lvl->cols;
+    int current_floor = outState->robot_position / lvl->size;
+    int new_x = x + wrap_x[outState->robot_orientation][action_idx];
+    int new_z = z + wrap_z[outState->robot_orientation][action_idx];
+    int new_pos = new_x + new_z*lvl->cols + current_floor*lvl->size;
+    if (TEST_BIT(outState->blocks, new_pos + 100)){
+        return 0;
+    }
+    outState->robot_position = new_pos;
     return 1;
 }
 
-int wrap_around(PuzzleState* outState, int action, const Level* lvl, int local_direction){
-    
-    return 1;
+int climb_from_hang(PuzzleState* outState, int action, const Level* lvl, int next_cell){
+    int climb_index = next_cell + 100;
+    int direct_above_index = outState->robot_position + 100;
+    int can_climb = bfs_is_valid_position(climb_index, lvl) && bfs_is_valid_position(direct_above_index, lvl) 
+    && !TEST_BIT(outState->blocks, climb_index) && !TEST_BIT(outState->blocks, direct_above_index);
+    if (can_climb){
+        outState->robot_position = climb_index;
+        outState->robot_state = 0;
+        return 1;
+    }
+    return 0;
 }
 
 int applyAction(PuzzleState* outState, int action, const Level* lvl) {
     // necessary variables
     int next_dx = BFS_DIRECTION_VECTORS_X[outState->robot_orientation];
     int next_dz = BFS_DIRECTION_VECTORS_Z[outState->robot_orientation];   
-    
+    int x = outState->robot_position % lvl->cols;
+    int z = outState->robot_position / lvl->cols;
     int next_cell = outState->robot_position + next_dx + next_dz*lvl->cols;
     int next_below_cell = next_cell - 100;
     int walkable = bfs_is_valid_position(next_below_cell, lvl) && TEST_BIT(outState->blocks, next_below_cell);
@@ -524,7 +576,7 @@ int applyAction(PuzzleState* outState, int action, const Level* lvl) {
 
     if(hanging && movement_action){
         if (action == ACTION_UP){
-            return climb(outState, action);
+            return climb_from_hang(outState, action, lvl, next_cell);
         }
         if (action == ACTION_DOWN){
             return 0;
@@ -537,12 +589,27 @@ int applyAction(PuzzleState* outState, int action, const Level* lvl) {
             local_direction = (outState->robot_orientation + 1) % 4;
         }
         int shimmy_cell = next_cell + BFS_DIRECTION_VECTORS_X[local_direction] + BFS_DIRECTION_VECTORS_Z[local_direction]*lvl->cols;
-        int basic_shimmy = bfs_is_valid_position(shimmy_cell, lvl) && TEST_BIT(outState->blocks, shimmy_cell);
+        int shimmy_path_cell = outState->robot_position + BFS_DIRECTION_VECTORS_X[local_direction] + BFS_DIRECTION_VECTORS_Z[local_direction]*lvl->cols;
+        int basic_shimmy = bfs_is_valid_position(shimmy_cell, lvl) && bfs_is_valid_position(shimmy_path_cell, lvl) && TEST_BIT(outState->blocks, shimmy_cell) && !TEST_BIT(outState->blocks, shimmy_path_cell);
+        int rotation_shimmy = bfs_is_valid_position(shimmy_path_cell, lvl) && TEST_BIT(outState->blocks, shimmy_path_cell);
+        int in_bounds = x + next_dx >= 0 && x + next_dx < lvl->cols && z + next_dz >= 0 && z + next_dz < lvl->rows;
+        int wrap_shimmy = in_bounds && !TEST_BIT(outState->blocks, shimmy_path_cell) && !TEST_BIT(outState->blocks, shimmy_cell);
         if(basic_shimmy){
             return shimmy_normal(outState, action, lvl, local_direction);
         }
-        else {
-            return wrap_around(outState, action, lvl, local_direction);
+        else if(rotation_shimmy){
+            //rotate shimmy
+            static const int LEFT_TURNS[] = {3, 0, 1, 2};   // RIGHT->UP, DOWN->RIGHT, LEFT->DOWN, UP->LEFT
+            static const int RIGHT_TURNS[] = {1, 2, 3, 0};  // RIGHT->DOWN, DOWN->LEFT, LEFT->UP, UP->RIGHT
+
+            outState->robot_orientation = (action == ACTION_LEFT) ? 
+                LEFT_TURNS[outState->robot_orientation] : 
+                RIGHT_TURNS[outState->robot_orientation];
+            outState->robot_state = 1;
+            return 1;
+        }
+        else if(wrap_shimmy){
+            return wrap_around(outState, action, lvl);
         }
 
     }
@@ -558,9 +625,11 @@ int applyAction(PuzzleState* outState, int action, const Level* lvl) {
             outState->block_grabbed = next_cell;
             return 1;
         } 
+    } 
+    if (action == ACTION_GRAB && outState->block_grabbed != -1){
         outState->block_grabbed = -1;
         return 1;
-    } 
+    }
     
     // push or pull block 
     if (movement_action && block_in_front && outState->block_grabbed != -1){
@@ -588,20 +657,20 @@ int applyAction(PuzzleState* outState, int action, const Level* lvl) {
 // from a given BFSNode 'current'. It returns how many neighbors it produced.
 int getNeighbors(const BFSNode* current, BFSNode* outNeighbors, const Level* lvl) {
     int count = 0;
-    static const int ALL_ACTIONS[4] = {
+    static const int ALL_ACTIONS[6] = {
         ACTION_RIGHT,
         ACTION_DOWN,
         ACTION_LEFT,
         ACTION_UP,
-        // ACTION_GRAB,
-        // ACTION_DROP
+        ACTION_GRAB,
+        ACTION_DROP
     };
 
     // We'll read the current BFSNode's puzzle state
     const PuzzleState* curState = &current->state;
 
     // Try each action
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
         int action = ALL_ACTIONS[i];
 
         // 1) Make a copy of the current puzzle state
@@ -633,11 +702,17 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors, const Level* lvl
 }
 
 // Example BFS
-void bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
+int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
     // Clear or init your BFS queue
+    queueBuffer = (BFSNode*)malloc(MAX_BFS_SIZE * sizeof(BFSNode));
+    if (!queueBuffer) {
+        printf("Failed to allocate memory for BFS queue\n");
+        return 0;
+    }
+    
     front = 0;
     back = 0;
-
+    
     // Enqueue start node
     BFSNode startNode;
     startNode.state = *start;  // copy puzzle state
@@ -651,13 +726,11 @@ void bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
 
         if (back >= MAX_BFS_SIZE) {
             printf("BFS queue overflow! Increase MAX_BFS_SIZE or optimize search.\n");
-            return;
+            return 0;
         }
         BFSNode current = queueBuffer[front];
         int currentIndex = front;
         front++;
-        printf("goal: %d\n", lvl->goal_location);
-        printf("current: %d\n", current.state.robot_position);
         // If current.state is the goal, reconstruct path
         if (isGoal(&current.state, lvl)) {
             printf("Found solution path of length %d!\n", current.depth);
@@ -683,23 +756,30 @@ void bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
             printf("  State: %d\n", path[0].state.robot_state);
             printf("  Block grabbed: %d\n", path[0].state.block_grabbed);
             for (int i = 1; i <= current.depth; i++) {
+                int block_in_front = path[i].state.robot_position + 
+                    (path[i].state.robot_orientation == 0 ? 1 :    // Right
+                     path[i].state.robot_orientation == 1 ? lvl->cols :    // Down
+                     path[i].state.robot_orientation == 2 ? -1 :   // Left
+                     -lvl->cols);  // Up (orientation == 3)
                 printf("\nStep %d:\n", i);
                 printf("  Action taken: %d\n", path[i].action);
                 printf("  Position: %d\n", path[i].state.robot_position);
                 printf("  Orientation: %d\n", path[i].state.robot_orientation);
                 printf("  State: %d\n", path[i].state.robot_state);
                 printf("  Block grabbed: %d\n", path[i].state.block_grabbed);
+                printf("  Block in front: %d (Has block: %d)\n", block_in_front, 
+                    bfs_is_valid_position(block_in_front, lvl) && 
+                    (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
             }
             
             free(path);
-            return;
+            return 1;
         }
 
         if (current.depth < maxDepth) {
             // generate neighbors
             BFSNode neighbors[MAX_NEIGHBORS];
             int nCount = getNeighbors(&current, neighbors, lvl);
-            printf("nCount: %d\n", nCount);
             for (int i = 0; i < nCount; i++) {
                 PuzzleState* nxt = &neighbors[i].state;
                 // if not visited
@@ -713,13 +793,13 @@ void bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
                     queueBuffer[back++] = neighbors[i];
                 }
             }
-        }
-        printf("current depth: %d\n", current.depth);
-        
+        }        
     }
+    free(queueBuffer);
+    queueBuffer = NULL;
     // If we exit while, no solution found within maxDepth
     printf("No solution within %d moves.\n", maxDepth);
-    return;
+    return 0;
 }
 
 static const int tutorial[108] = {
@@ -1116,7 +1196,6 @@ void verify_level(Level level, int max_moves){
     levelToPuzzleState(&level, &state);
     // reset visited hash table
     resetVisited();
-    uint64_t hash = hashPuzzleState(&state);
     markVisited(&state);
     // Run BFS
     bfs(&state, max_moves, &level);
@@ -1134,9 +1213,9 @@ static void init_random_levels(int goal_level) {
             levels[i] = gen_level(10, goal_level);
         }
     }
-    verify_level(levels[0], 500);
-    // verify_level(levels[1], 9);
-    // verify_level(levels[2], 9);
+    verify_level(levels[0], 25);
+    verify_level(levels[1], 25);
+    verify_level(levels[2], 25);
     // levels[0] = level_one;
     // levels[1] = level_two;
     // levels[2] = level_three;
