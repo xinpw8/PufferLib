@@ -990,6 +990,7 @@ void handle_move_forward(CTowerClimb* env, int action) {
 }
 
 void handle_drop(CTowerClimb* env){
+    env->robot_state = DEFAULT;
     int sz = env->level.size;
     int next_position = env->robot_position - sz;
     // fallen off the map
@@ -1011,8 +1012,6 @@ void handle_drop(CTowerClimb* env){
         next_position = next_position - sz;  
     }
     env->robot_position = next_position + sz;
-    env->robot_state = DEFAULT;
-    env->robot_orientation = env->robot_direction;
 }
 
 void next_level(CTowerClimb* env){
@@ -1259,6 +1258,13 @@ void render(Client* client, CTowerClimb* env) {
     int grid_pos = env->robot_position % sz;
     int x = grid_pos % cols;
     int z = grid_pos / cols;
+    if (env->robot_state == DEFAULT && client->animState == ANIM_HANGING) {
+        client->animState = ANIM_IDLE;
+        client->animFrameCounter = 0;
+        UpdateModelAnimation(client->robot, client->animations[24], 0);
+        client->isMoving = false;
+        client->visualPosition = client->targetPosition;
+    }
 
     if (env->block_grabbed != -1 && client->animState != ANIM_GRABBING && client->animState != ANIM_START_GRABBING)
     {
@@ -1352,12 +1358,20 @@ void render(Client* client, CTowerClimb* env) {
             }
         }
         else {
-            client->animState = ANIM_RUNNING;
-            UpdateModelAnimation(client->robot, client->animations[18], 0);
-            client->animFrameCounter = 0;
-
+            if (client->targetPosition.y < client->visualPosition.y) {
+                client->animState = ANIM_IDLE;
+                client->animFrameCounter = 0;
+                UpdateModelAnimation(client->robot, client->animations[24], 0);
+                client->isMoving = false;
+                client->visualPosition = client->targetPosition;
+            } else{
+                client->animState = ANIM_RUNNING;
+                UpdateModelAnimation(client->robot, client->animations[18], 0);
+                client->animFrameCounter = 0;
+                printf("running\n");
+            }
+            
         }
-        
         client->previousRobotPosition = env->robot_position;
     }
 
