@@ -13,13 +13,13 @@ void demo(int map_choice) {
         .reward_fall_row = -0.1,
         .reward_illegal_move = -0.01,
     };
-    init_random_levels(8);
+    init_random_levels(5);
 
     allocate(&env);
     reset(&env);
     Client* client = make_client(&env);
 
-    // int tick = 0;
+    int tick = 0;
     while (!WindowShouldClose()) {
         // Camera controls
         env.actions[0] = NOOP;
@@ -54,6 +54,8 @@ void performance_test() {
         .map_choice = 1,
         
     };
+    init_random_levels(8);
+
     allocate(&env);
     reset(&env);
 

@@ -51,6 +51,12 @@ static const int wrap_z[4][2] = {
     {1, -1},
     {-1, -1}
 };
+static const int wrap_orientation[4][2] = {
+    {ACTION_DOWN,ACTION_UP},
+    {ACTION_LEFT, ACTION_RIGHT},
+    {ACTION_UP, ACTION_DOWN},
+    {ACTION_RIGHT, ACTION_LEFT}
+};
 
 typedef struct Level Level;
 struct Level {
@@ -525,6 +531,7 @@ int wrap_around(PuzzleState* outState, int action, const Level* lvl){
         return 0;
     }
     outState->robot_position = new_pos;
+    outState->robot_orientation = wrap_orientation[outState->robot_orientation][action_idx];
     return 1;
 }
 
@@ -1091,7 +1098,7 @@ static const Level level_tutorial_two = {
     .spawn_location = 62,
 };
 
-Level gen_level(int max_moves, int goal_level) {
+Level gen_level(int goal_level) {
     // Initialize an illegal level in case we need to return early
     Level illegal_level = {0};
     
@@ -1113,8 +1120,8 @@ Level gen_level(int max_moves, int goal_level) {
             for(int x = 0; x< col_max; x++){
                 int block_index = x + col_max * z + area * y;
                 if (x >= 1 && x < legal_width_size && z >= 1 && z < legal_depth_size && 
-                y >= 1 && y < goal_level && z <= (legal_depth_size - y)){
-                    int chance = (rand() % 2 ==0) ? 1 : 0;
+                y >= 1 && y < goal_level && (z < (legal_depth_size - y))){
+                    int chance = (rand() % 4 ==0) ? 1 : 0;
                     board[block_index] = chance;
                     // create spawn point above an existing block
                     if (spawn_created == 0 && y == 2 && board[block_index - area] == 1){
@@ -1123,7 +1130,7 @@ Level gen_level(int max_moves, int goal_level) {
                         board[spawn_index] = 0;
                     }
                 }
-                if (goal_created ==0 && y == goal_level && (board[block_index + col_max  - area]  ==1 )){
+                if (goal_created ==0 && y == goal_level && (board[block_index + col_max  - area]  ==1 ||  board[block_index - 1  - area] == 1|| board[block_index + 1 - area] ==1 )){
                     goal_created = 1;
                     goal_index = block_index;
                     board[goal_index] = 2;
@@ -1190,7 +1197,7 @@ void print_level(const int* board, int legal_width_size, int legal_depth_size, i
     printf("\n");
 }
 
-void verify_level(Level level, int max_moves){
+int verify_level(Level level, int max_moves){
     // converting level to puzzle state
     PuzzleState state;
     levelToPuzzleState(&level, &state);
@@ -1198,7 +1205,8 @@ void verify_level(Level level, int max_moves){
     resetVisited();
     markVisited(&state);
     // Run BFS
-    bfs(&state, max_moves, &level);
+    int solvable = bfs(&state, max_moves, &level);
+    return solvable;
 }
 
 static Level levels[3];  // Array to store the actual level objects
@@ -1207,15 +1215,12 @@ static void init_random_levels(int goal_level) {
     time_t t;
     for(int i = 0; i < 3; i++) {
         srand((unsigned) time(&t) + i); // Increment seed for each level
-        levels[i] = gen_level(10, goal_level);
+        levels[i] = gen_level(goal_level);
         // guarantee a map is created
-        while(levels[i].map == NULL){
-            levels[i] = gen_level(10, goal_level);
+        while(levels[i].map == NULL || verify_level(levels[i],32) == 0){
+            levels[i] = gen_level(goal_level);
         }
     }
-    verify_level(levels[0], 25);
-    verify_level(levels[1], 25);
-    verify_level(levels[2], 25);
     // levels[0] = level_one;
     // levels[1] = level_two;
     // levels[2] = level_three;

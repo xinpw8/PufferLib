@@ -887,6 +887,13 @@ void handle_move_forward(CTowerClimb* env, int action) {
     } else {
 	    front_below_cell = -1;
     }
+    int front_below_below_index = front_below_index - sz;
+    int front_below_below_cell;
+    if(front_below_below_index>=0){
+        front_below_below_cell = env->board_state[front_below_below_index];
+    } else {
+        front_below_below_cell = -1;
+    }
     // Calculate the next potential cell's x, z
     int next_x = x + dx;
     int next_z = z + dz;
@@ -919,10 +926,14 @@ void handle_move_forward(CTowerClimb* env, int action) {
             env->robot_state = DEFAULT;
             env->robot_orientation = UP;
         }
-        if(front_cell == 0 && front_below_cell == 0){
+        if(front_cell == 0 && front_below_cell == 0 && front_below_below_cell == 0){
             env->robot_position = front_below_index;
             env->robot_state = HANGING;
             env->robot_orientation = DOWN;
+        }
+        if(front_cell == 0 && front_below_cell == 0 && front_below_below_cell == 1){
+            env->robot_position = front_below_index;
+            env->robot_state = DEFAULT;
         }
     }
     if (action == DOWN && env->block_grabbed == -1){
@@ -930,7 +941,7 @@ void handle_move_forward(CTowerClimb* env, int action) {
             illegal_move(env);
             return;
         }
-        if (front_cell == 1){
+        if (front_cell == 1 || front_cell == 2){
             handle_climb(env, action, current_floor, x, z, front_z, front_x, front_index, front_cell);
         } else {
             handle_down(env, action, current_floor, x, z, next_z, next_x, next_index, next_cell);
@@ -1135,6 +1146,7 @@ struct Client {
     float width;
     float height;
     Texture2D puffers;
+    Texture2D background;
     Camera3D camera;
     Model robot;
     Light lights[MAX_LIGHTS];
@@ -1147,6 +1159,8 @@ struct Client {
     Vector3 targetPosition;
     bool isMoving;
     float moveProgress;
+    Model cube;
+    float scale;
 };
 
 Client* make_client(CTowerClimb* env) {
@@ -1154,28 +1168,43 @@ Client* make_client(CTowerClimb* env) {
     printf("OpenGL version: %d\n", rlGetVersion());
 
     Client* client = (Client*)calloc(1, sizeof(Client));
-    client->width = 1000;
-    client->height = 1000;
+    client->width = 1600;
+    client->height = 900;
     SetConfigFlags(FLAG_MSAA_4X_HINT);  // Enable MSAA
     InitWindow(client->width, client->height, "PufferLib Ray Tower Climb");
     SetTargetFPS(60);
-    client->puffers = LoadTexture("resources/puffers_128.png");
     client->camera = (Camera3D){ 0 };
     client->camera.position = (Vector3){ 0.0f, 25.0f, 20.0f };  // Move camera further back and higher up
     client->camera.target = (Vector3){ 2.0f, 4.0f, 2.0f };     // Keep looking at same target point
     client->camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     client->camera.fovy = 45.0f;
     client->camera.projection = CAMERA_PERSPECTIVE;
+    // load background
+    client->background = LoadTexture("resources/tower_climb/space2.jpg");
+    client->puffers = LoadTexture("resources/puffers_128.png");
+
 
     // load robot
-    client->robot = LoadModel("resources/tower_climb/tower_bot.glb");
+    client->robot = LoadModel("resources/tower_climb/small_astro.glb");
+    client->cube = LoadModel("resources/tower_climb/spacerock.glb");
+    BoundingBox bounds = GetModelBoundingBox(client->cube);
+    float cubeSize = bounds.max.x - bounds.min.x;
+    float scale = 1.0f / cubeSize;
+    client->scale = scale; 
     int animCount = 0;
-    client->animations = LoadModelAnimations("resources/tower_climb/tower_bot.glb", &animCount);
+    client->animations = LoadModelAnimations("resources/tower_climb/small_astro.glb", &animCount);
+    for (int i = 0; i < animCount; i++) {
+        if (client->robot.meshes[0].boneCount != client->animations[i].boneCount) {
+            printf("Warning: Animation %d bone count (%d) doesn't match model bone count (%d)\n",
+                   i, client->animations[i].boneCount, client->robot.meshes[0].boneCount);
+        }
+    }
     printf("Loaded %d animations\n", animCount);
+ 
     
     client->animState = ANIM_IDLE;
     client->animFrameCounter = 0;
-    UpdateModelAnimation(client->robot, client->animations[24], 0); 
+    UpdateModelAnimation(client->robot, client->animations[4], 0); 
     // Load and configure shader
     char vsPath[256];
     char fsPath[256];
@@ -1186,34 +1215,45 @@ Client* make_client(CTowerClimb* env) {
     client->shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(client->shader, "viewPos");
     // Set up ambient light
     int ambientLoc = GetShaderLocation(client->shader, "ambient");
-    float ambient[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
+    float ambient[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
     SetShaderValue(client->shader, ambientLoc, ambient, SHADER_UNIFORM_VEC4);
     
+    // apply lighting shader
+    client->robot.materials[0].shader = client->shader;
+    client->cube.materials[0].shader = client->shader;
     // Create lights with much brighter colors and closer positions
     client->lights[0] = CreateLight(LIGHT_POINT, 
-        (Vector3){ 0.0f, 10.0f, 0.0f },  // Positioned right above cube
+        (Vector3){ 10.0f, 7.0f, 5.0f },  // Front
         Vector3Zero(), 
-        (Color){ 255, 255, 200, 255 },  // Bright yellow
+        WHITE,  // ~12% intensity
         client->shader);
     
+    // Very dim fill lights
     client->lights[1] = CreateLight(LIGHT_POINT, 
-        (Vector3){ 3.0f, 2.0f, 8.0f },  // Right side
+        (Vector3){ 3.0f, 5.0f, 8.0f },  // Right side
         Vector3Zero(), 
-        (Color){ 255, 100, 100, 255 },  // Red
+        (Color){ 40, 40, 40, 255 },  // ~15% intensity
         client->shader);
     
     client->lights[2] = CreateLight(LIGHT_POINT, 
-        (Vector3){ 10.0f, 5.0f, 5.0f },  // Front
+        (Vector3){ 10.0f, 7.0f, 5.0f },  // Front
         Vector3Zero(), 
-        (Color){ 100, 255, 100, 255 },  // Green
+        (Color){ 30, 30, 30, 255 },  // ~12% intensity
         client->shader);
     
     client->lights[3] = CreateLight(LIGHT_POINT, 
-        (Vector3){ 10.0f, 5.0f, -5.0f },  // Left side
+        (Vector3){ 10.0f, 6.0f, -5.0f },  // Left side
         Vector3Zero(), 
-        (Color){ 100, 100, 255, 255 },  // Blue
+        (Color){ 20, 20, 20, 255 },  // ~8% intensity
         client->shader);
 
+    // Make sure both models' materials use the lighting shader
+    for (int i = 0; i < client->robot.materialCount; i++) {
+        client->robot.materials[i].shader = client->shader;
+    }
+    for (int i = 0; i < client->cube.materialCount; i++) {
+        client->cube.materials[i].shader = client->shader;
+    }
     client->animState = ANIM_IDLE;
     client->previousRobotPosition = env->robot_position;
     
@@ -1252,16 +1292,18 @@ void render(Client* client, CTowerClimb* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    static int stored_orientation = -1;  // Store original orientation during climb
     int cols = env->level.cols;
     int sz = env->level.size;
     int floor = env->robot_position / sz;
     int grid_pos = env->robot_position % sz;
     int x = grid_pos % cols;
     int z = grid_pos / cols;
+
     if (env->robot_state == DEFAULT && client->animState == ANIM_HANGING) {
         client->animState = ANIM_IDLE;
         client->animFrameCounter = 0;
-        UpdateModelAnimation(client->robot, client->animations[24], 0);
+        UpdateModelAnimation(client->robot, client->animations[4], 0);
         client->isMoving = false;
         client->visualPosition = client->targetPosition;
     }
@@ -1271,14 +1313,14 @@ void render(Client* client, CTowerClimb* env) {
         client->animState = ANIM_START_GRABBING;
         client->isMoving = true;
         client->animFrameCounter = 0;
-        UpdateModelAnimation(client->robot, client->animations[20], 0); 
+        UpdateModelAnimation(client->robot, client->animations[3], 0); 
         client->visualPosition = client->targetPosition;
 
     } else if (env->block_grabbed == -1 && client->animState == ANIM_GRABBING) {
         // Reset to idle when block is released
         client->animState = ANIM_IDLE;
         client->animFrameCounter = 0;
-        UpdateModelAnimation(client->robot, client->animations[24], 0);
+        UpdateModelAnimation(client->robot, client->animations[4], 0);
     }
 
     // Check if robot position has changed
@@ -1310,7 +1352,7 @@ void render(Client* client, CTowerClimb* env) {
                 orient_hang_offset(client, env, 1);
             }
             client->animState = ANIM_CLIMBING;  // Need to add this to AnimationState enum
-            UpdateModelAnimation(client->robot, client->animations[14], 0);  // Assuming climbing is animation 4
+            UpdateModelAnimation(client->robot, client->animations[1], 0);  // Assuming climbing is animation 4
             client->animFrameCounter = 6;
         } else if (env->robot_state == HANGING){
             client->isMoving = true;
@@ -1319,14 +1361,13 @@ void render(Client* client, CTowerClimb* env) {
                                 fabs(client->targetPosition.z - client->visualPosition.z) > 0.5f;
 
             if (is_wrap_shimmy) {
-                printf("wrap shimmy\n");
                 // Skip animation and move directly to target for wrap case
                 client->isMoving = false;
                 client->animState = ANIM_HANGING;
                 client->animFrameCounter = 0;
                 client->visualPosition = client->targetPosition;
                 orient_hang_offset(client, env, 1);
-                UpdateModelAnimation(client->robot, client->animations[14], 0);
+                UpdateModelAnimation(client->robot, client->animations[2], 0);
             } else {
                 // Regular shimmy animation logic
                 bool moving_right = false;
@@ -1344,15 +1385,15 @@ void render(Client* client, CTowerClimb* env) {
                 if (client->targetPosition.y < client->visualPosition.y) {
                     client->animState = ANIM_HANGING;
                     orient_hang_offset(client, env, 1);
-                    UpdateModelAnimation(client->robot, client->animations[14], 0);
+                    UpdateModelAnimation(client->robot, client->animations[1], 0);
                 } else if (moving_right) {
                     client->animState = ANIM_SHIMMY_RIGHT;
                     orient_hang_offset(client, env, 0);
-                    UpdateModelAnimation(client->robot, client->animations[14], 0);
+                    UpdateModelAnimation(client->robot, client->animations[1], 0);
                 } else {
                     client->animState = ANIM_SHIMMY_LEFT;
                     orient_hang_offset(client, env, 0);
-                    UpdateModelAnimation(client->robot, client->animations[14], 0);
+                    UpdateModelAnimation(client->robot, client->animations[1], 0);
                 }
                 client->animFrameCounter = 0;
             }
@@ -1361,14 +1402,13 @@ void render(Client* client, CTowerClimb* env) {
             if (client->targetPosition.y < client->visualPosition.y) {
                 client->animState = ANIM_IDLE;
                 client->animFrameCounter = 0;
-                UpdateModelAnimation(client->robot, client->animations[24], 0);
+                UpdateModelAnimation(client->robot, client->animations[4], 0);
                 client->isMoving = false;
                 client->visualPosition = client->targetPosition;
             } else{
                 client->animState = ANIM_RUNNING;
-                UpdateModelAnimation(client->robot, client->animations[18], 0);
+                UpdateModelAnimation(client->robot, client->animations[5], 0);
                 client->animFrameCounter = 0;
-                printf("running\n");
             }
             
         }
@@ -1379,18 +1419,25 @@ void render(Client* client, CTowerClimb* env) {
     if (client->isMoving) {
         // Use appropriate animation based on state
         if (client->animState == ANIM_CLIMBING) {
+            if (stored_orientation == -1) {
+                stored_orientation = env->robot_orientation;
+            }
+            int current_orientation = env->robot_orientation;
+            env->robot_orientation = stored_orientation;
             client->animFrameCounter += 6;
-            UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
-            if (client->animFrameCounter >= client->animations[14].frameCount) {  // Adjust frame count for climbing animation
+            UpdateModelAnimation(client->robot, client->animations[1], client->animFrameCounter);
+            if (client->animFrameCounter >= client->animations[1].frameCount) {  // Adjust frame count for climbing animation
                 client->isMoving = false;
                 client->animState = ANIM_IDLE;
                 client->animFrameCounter = 0;
-                UpdateModelAnimation(client->robot, client->animations[24], client->animFrameCounter);
+                UpdateModelAnimation(client->robot, client->animations[4], client->animFrameCounter);
                 client->visualPosition = client->targetPosition;
+                stored_orientation = -1;
+                env->robot_orientation = current_orientation;
             }
         } else if (client->animState == ANIM_HANGING){
             client->animFrameCounter = 0;
-            UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+            UpdateModelAnimation(client->robot, client->animations[2], client->animFrameCounter);
             client->isMoving = false;
             client->visualPosition = client->targetPosition;
             orient_hang_offset(client, env, 1);
@@ -1398,7 +1445,7 @@ void render(Client* client, CTowerClimb* env) {
         } else if (client->animState == ANIM_SHIMMY_RIGHT || client->animState == ANIM_SHIMMY_LEFT) {
             client->animFrameCounter += 2;
             // Use animation 23 for right shimmy, 19 for left shimmy
-            int animIndex = (client->animState == ANIM_SHIMMY_RIGHT) ? 23 : 19;
+            int animIndex = (client->animState == ANIM_SHIMMY_RIGHT) ? 7 : 6;
             UpdateModelAnimation(client->robot, client->animations[animIndex], client->animFrameCounter);
                         // Calculate lerp progress (0 to 1)
             float progress = (float)client->animFrameCounter / 87.0f;
@@ -1418,49 +1465,49 @@ void render(Client* client, CTowerClimb* env) {
                 client->isMoving = false;
                 client->animState = ANIM_HANGING;
                 client->animFrameCounter = 0;
-                UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+                UpdateModelAnimation(client->robot, client->animations[2], client->animFrameCounter);
                 client->visualPosition = client->targetPosition;
                 orient_hang_offset(client, env, 1);
             }
         } else if (client->animState == ANIM_START_GRABBING) {
-            if (client->animFrameCounter >= client->animations[20].frameCount - 2) {
+            if (client->animFrameCounter >= client->animations[3].frameCount - 2) {
                 // Lock at second-to-last frame to prevent animation loop
-                client->animFrameCounter = client->animations[20].frameCount - 2;
-                UpdateModelAnimation(client->robot, client->animations[20], client->animFrameCounter);
+                client->animFrameCounter = client->animations[3].frameCount - 2;
+                UpdateModelAnimation(client->robot, client->animations[3], client->animFrameCounter);
                 client->isMoving = false;
                 client->animState = ANIM_GRABBING;
             } else {
-                UpdateModelAnimation(client->robot, client->animations[20], client->animFrameCounter);
+                UpdateModelAnimation(client->robot, client->animations[3], client->animFrameCounter);
                 client->animFrameCounter += 6;
             }
         }
         
         else {  // ANIM_RUNNING
-            client->animFrameCounter += 6;
-            UpdateModelAnimation(client->robot, client->animations[18], client->animFrameCounter);
-            if (client->animFrameCounter >= 65) {
+            client->animFrameCounter += 4;
+            UpdateModelAnimation(client->robot, client->animations[5], client->animFrameCounter);
+            if (client->animFrameCounter >= client->animations[5].frameCount) {
                 client->isMoving = false;
                 client->animState = ANIM_IDLE;
                 client->animFrameCounter = 0;
-                UpdateModelAnimation(client->robot, client->animations[24], client->animFrameCounter);
+                UpdateModelAnimation(client->robot, client->animations[4], client->animFrameCounter);
                 client->visualPosition = client->targetPosition;
             }
         }
     }else if (client->animState == ANIM_HANGING){
         client->animFrameCounter = 0;
-        UpdateModelAnimation(client->robot, client->animations[14], client->animFrameCounter);
+        UpdateModelAnimation(client->robot, client->animations[2], client->animFrameCounter);
         client->visualPosition = client->targetPosition;
         orient_hang_offset(client, env, 1);
 
     } else if (client->animState == ANIM_IDLE) {
         // Idle animation code remains the same
         client->animFrameCounter++;
-        UpdateModelAnimation(client->robot, client->animations[24], client->animFrameCounter);
-        if (client->animFrameCounter >= client->animations[24].frameCount) {
+        UpdateModelAnimation(client->robot, client->animations[4], client->animFrameCounter);
+        if (client->animFrameCounter >= client->animations[4].frameCount) {
             client->animFrameCounter = 0;
         }
     } else if (client->animState == ANIM_GRABBING) {
-        UpdateModelAnimation(client->robot, client->animations[20], client->animations[20].frameCount - 2);
+        UpdateModelAnimation(client->robot, client->animations[3], client->animations[3].frameCount - 2);
         client->visualPosition = client->targetPosition;
     }
 
@@ -1477,10 +1524,39 @@ void render(Client* client, CTowerClimb* env) {
     client->camera.target.z = 1.0f;
 
     BeginDrawing();
-    ClearBackground(PUFF_BACKGROUND);    
-    BeginMode3D(client->camera);
-    BeginShaderMode(client->shader);
+    ClearBackground(BLACK);
     
+
+    // Center vertically    
+    EndShaderMode();
+    // Calculate scaling to maintain aspect ratio and fill screen
+    float scaleWidth = (float)client->width / client->background.width;
+    float scaleHeight = (float)client->height / client->background.height;
+    float scale = fmax(scaleWidth, scaleHeight);  // Use larger scale to fill screen
+    
+    float newWidth = client->background.width * scale;
+    float newHeight = client->background.height * scale;
+    
+    // Center the scaled image
+    float img_x = (client->width - newWidth) * 0.5f;
+    float img_y = (client->height - newHeight) * 0.5f;
+    
+    DrawTexturePro(client->background,
+        (Rectangle){ 0, 0, (float)client->background.width, (float)client->background.height },
+        (Rectangle){ img_x, img_y, newWidth, newHeight },
+        (Vector2){ 0, 0 },
+        0.0f,
+        WHITE);
+    BeginShaderMode(client->shader);
+    BeginMode3D(client->camera);
+    float cameraPos[3] = { 
+        client->camera.position.x, 
+        client->camera.position.y, 
+        client->camera.position.z 
+    };
+    SetShaderValue(client->shader, client->shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
+
+    BeginBlendMode(BLEND_ALPHA);
     int total_length = env->level.total_length;
     for(int i= 0; i < total_length; i++){
         if(env->board_state[i] > 0){
@@ -1496,12 +1572,9 @@ void render(Client* client, CTowerClimb* env) {
                 PUFF_CYAN
                 );
                 BeginShaderMode(client->shader);
+
             } else {
-                DrawCube(
-                    (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f},
-                    1.0f, 1.0f, 1.0f,
-                    STONE_GRAY
-                );
+                DrawModel(client->cube, (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f}, client->scale, WHITE);
             }
             
             if(i == env->block_grabbed){
@@ -1519,6 +1592,7 @@ void render(Client* client, CTowerClimb* env) {
             
         }
     }
+    EndBlendMode();
 
     // calculate robot position
     Vector3 spherePos = (Vector3){ 
@@ -1535,17 +1609,16 @@ void render(Client* client, CTowerClimb* env) {
     rlTranslatef(spherePos.x, spherePos.y, spherePos.z);
     rlRotatef(90.0f, 1, 0, 0);
     rlRotatef(-90.0f + env->robot_orientation * 90.0f, 0, 0, 1);
-    DrawModel(client->robot, (Vector3){ 0, 0, 0}, 1.0f, WHITE);
+    DrawModel(client->robot, (Vector3){ 0, 0, 0}, 0.5f, WHITE);
     rlPopMatrix();
 
-    EndShaderMode();
     
     // Draw light debug spheres
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        if (client->lights[i].enabled) {
-            DrawSphereEx(client->lights[i].position, 0.2f, 8, 8, client->lights[i].color);
-        } 
-    }
+    // for (int i = 0; i < MAX_LIGHTS; i++) {
+    //     if (client->lights[i].enabled) {
+    //         DrawSphereEx(client->lights[i].position, 0.2f, 8, 8, client->lights[i].color);
+    //     } 
+    // }
     EndMode3D();
     EndDrawing();
 }
