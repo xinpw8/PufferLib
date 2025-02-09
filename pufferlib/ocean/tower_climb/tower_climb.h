@@ -433,13 +433,13 @@ void death(CTowerClimb* env){
 
 int isGoal(const PuzzleState* s, const Level* lvl) {
     // 1) Check if player is at the goal cell
-    if (s->robot_position - 100 != lvl->goal_location) return 0;
+    if (s->robot_position - lvl->size != lvl->goal_location) return 0;
 
     return 1;  // all conditions satisfied
 }
 
 int move(PuzzleState* outState, int action, int mode, CTowerClimb* env, const Level* lvl){
-    int new_position = outState->robot_position + BFS_DIRECTION_VECTORS_X[action] + BFS_DIRECTION_VECTORS_Z[action]*10;
+    int new_position = outState->robot_position + BFS_DIRECTION_VECTORS_X[action] + BFS_DIRECTION_VECTORS_Z[action]*lvl->cols;
     outState->robot_position = new_position;
     return 1;
 }
@@ -678,7 +678,7 @@ int push(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerCl
 }
 
 int pull(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env){
-    int pull_block = outState->robot_position + BFS_DIRECTION_VECTORS_X[outState->robot_orientation] + BFS_DIRECTION_VECTORS_Z[outState->robot_orientation]*10;
+    int pull_block = outState->robot_position + BFS_DIRECTION_VECTORS_X[outState->robot_orientation] + BFS_DIRECTION_VECTORS_Z[outState->robot_orientation]*lvl->cols;
     int block_offset = (action == 3) ? -lvl->cols :  // North
                           (action == 1) ? lvl->cols :    // South
                           (action == 0) ? 1 :    // East
