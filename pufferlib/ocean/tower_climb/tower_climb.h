@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <math.h>
 #include <assert.h>
 #include <string.h>
@@ -629,7 +630,9 @@ int push(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerCl
         count++;
     }
     outState->block_grabbed = -1;
-    return handle_block_falling(outState, affected_blocks, blocks_to_move,count, lvl);
+    int result =  handle_block_falling(outState, affected_blocks, blocks_to_move,count, lvl);
+    free(blocks_to_move);
+    return result;
 }
 
 int pull(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env){
@@ -659,7 +662,10 @@ int pull(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerCl
             outState->block_grabbed = -1;
         }
     }
-    int blocks_to_move[1];
+    int blocks_to_move[10];
+    for(int i = 0; i<10; i++){
+	    blocks_to_move[i] = -1;
+    }
     blocks_to_move[0] = pull_block;
     int affected_blocks[1] = {-1};
     return handle_block_falling(outState, affected_blocks, blocks_to_move, 1, lvl);
@@ -1047,6 +1053,8 @@ int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
 
         if (back >= MAX_BFS_SIZE) {
             printf("BFS queue overflow! Increase MAX_BFS_SIZE or optimize search.\n");
+	    free(queueBuffer);
+	    queueBuffer = NULL;
             return 0;
         }
         BFSNode current = queueBuffer[front];
@@ -1071,6 +1079,7 @@ int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
             }
             
             free(path);
+	    free(queueBuffer);
             return 1;
         }
 
@@ -1100,7 +1109,17 @@ int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
     return 0;
 }
 
-
+void cleanupVisited(void) {
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        VisitedNode* current = visitedTable[i];
+        while (current != NULL) {
+            VisitedNode* next = current->next;
+            free(current);
+            current = next;
+        }
+        visitedTable[i] = NULL;
+    }
+}
 int verify_level(Level level, int max_moves){
     // converting level to puzzle state
     PuzzleState state;
@@ -1110,6 +1129,7 @@ int verify_level(Level level, int max_moves){
     markVisited(&state);
     // Run BFS
     int solvable = bfs(&state, max_moves, &level);
+    cleanupVisited();
     return solvable;
 }
 
@@ -1186,11 +1206,15 @@ static void init_random_levels(int goal_level, int max_moves) {
     time_t t;
     for(int i = 0; i < 3; i++) {
         srand((unsigned) time(&t) + i); // Increment seed for each level
-        levels[i] = gen_level(goal_level);
+        Level new_level = gen_level(goal_level);
         // guarantee a map is created
-        while(levels[i].map == NULL || verify_level(levels[i],max_moves) == 0){
-            levels[i] = gen_level(goal_level);
+        while(new_level.map == NULL || verify_level(new_level,max_moves) == 0){
+            if(new_level.map != NULL) {
+		    free((void*)new_level.map);
+	    }
+	    new_level = gen_level(goal_level);
         }
+	levels[i] = new_level;
     }
 }
 

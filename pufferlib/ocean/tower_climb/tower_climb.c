@@ -53,7 +53,7 @@ void performance_test() {
         .map_choice = 1,
         
     };
-    init_random_levels(5, 25);
+    init_random_levels(8, 30);
 
     allocate(&env);
     reset(&env);
@@ -72,8 +72,8 @@ void performance_test() {
 
 
 int main() {
-    demo();
-    // performance_test();
+    //demo();
+     performance_test();
     // PLG();
     return 0;
 }
