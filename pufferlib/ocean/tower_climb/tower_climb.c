@@ -6,14 +6,13 @@ void PLG(){
     init_random_levels(4);
 }
 
-void demo(int map_choice) {    
+void demo() {    
     CTowerClimb  env = {
-        .map_choice = map_choice,
         .reward_climb_row = 0.25,
         .reward_fall_row = -0.1,
         .reward_illegal_move = -0.01,
     };
-    init_random_levels(5);
+    init_random_levels(8);
 
     allocate(&env);
     reset(&env);
@@ -54,7 +53,7 @@ void performance_test() {
         .map_choice = 1,
         
     };
-    init_random_levels(8);
+    init_random_levels(5);
 
     allocate(&env);
     reset(&env);
@@ -73,8 +72,8 @@ void performance_test() {
 
 
 int main() {
-    demo(1);
-    // performance_test();
+    // demo();
+    performance_test();
     // PLG();
     return 0;
 }
