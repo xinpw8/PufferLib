@@ -3,7 +3,7 @@
 #include "tower_climb.h"
 
 void PLG(){
-    init_random_levels(4);
+    init_random_levels(4, 10);
 }
 
 void demo() {    
@@ -12,13 +12,13 @@ void demo() {
         .reward_fall_row = -0.1,
         .reward_illegal_move = -0.01,
     };
-    init_random_levels(8);
+    init_random_levels(5, 25);
 
     allocate(&env);
     reset(&env);
     Client* client = make_client(&env);
 
-    int tick = 0;
+    // int tick = 0;
     while (!WindowShouldClose()) {
         // Camera controls
         env.actions[0] = NOOP;
@@ -53,7 +53,7 @@ void performance_test() {
         .map_choice = 1,
         
     };
-    init_random_levels(5);
+    init_random_levels(5, 25);
 
     allocate(&env);
     reset(&env);
@@ -72,8 +72,8 @@ void performance_test() {
 
 
 int main() {
-    // demo();
-    performance_test();
+    demo();
+    // performance_test();
     // PLG();
     return 0;
 }
