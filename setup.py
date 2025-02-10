@@ -292,7 +292,7 @@ setup(
     version=VERSION,
     packages=find_packages(),
     package_data={
-        "pufferlib": ["raylib/lib/libraylib.so.500", "raylib/lib/libraylib.so"]
+        "pufferlib": ["raylib/lib/libraylib.so.550", "raylib/lib/libraylib.so"]
     },
     include_package_data=True,
     install_requires=[
@@ -335,7 +335,7 @@ setup(
        #annotate=True,
        #compiler_directives={'profile': True},# annotate=True
     ),
-    include_dirs=[numpy.get_include(), 'raylib-5.0_linux_amd64/include'],
+    include_dirs=[numpy.get_include(), 'raylib/include'],
     python_requires=">=3.9",
     license="MIT",
     author="Joseph Suarez",
