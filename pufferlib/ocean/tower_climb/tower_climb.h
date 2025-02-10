@@ -97,7 +97,7 @@ static const int wrap_orientation[4][2] = {
 
 typedef struct Level Level;
 struct Level {
-    const int* map;
+    int* map;
     int rows;
     int cols;
     int size;
@@ -197,7 +197,6 @@ struct CTowerClimb {
     float score;
     Level* level;
     PuzzleState* state;  // Contains blocks bitmask, position, orientation, etc.
-    int level_number;
     int distance_to_goal;
     float reward_climb_row;
     float reward_fall_row;
@@ -206,7 +205,7 @@ struct CTowerClimb {
     float reward_distance;
 };
 
-void levelToPuzzleState(const Level* level, PuzzleState* state) {
+void levelToPuzzleState(Level* level, PuzzleState* state) {
     // 1) Clear the entire bitmask to 0
     memset(state->blocks, 0, BLOCK_BYTES);
 
@@ -231,24 +230,28 @@ void levelToPuzzleState(const Level* level, PuzzleState* state) {
 
 void init(CTowerClimb* env) {
 	env->level = calloc(1, sizeof(Level));
-    	env->state = calloc(1, sizeof(PuzzleState));	
+    env->state = calloc(1, sizeof(PuzzleState));	
+    init_level(env->level);
+    init_puzzle_state(env->state);
 }
 
 void setPuzzle(PuzzleState* dest, PuzzleState* src){
-	memcpy(dest->blocks, src->blocks, BLOCK_BYTES * sizeof(unsigned char)
+	memcpy(dest->blocks, src->blocks, BLOCK_BYTES * sizeof(unsigned char));
 	dest->robot_position = src->robot_position;
 	dest->robot_orientation = src->robot_orientation;
 	dest->robot_state = src->robot_state;
 	dest->block_grabbed = src->block_grabbed;
 }
 
-void allocate(CTowerClimb* env) {
+CTowerClimb* allocate() {
+    CTowerClimb* env = (CTowerClimb*)calloc(1, sizeof(CTowerClimb));
     init(env);
     env->observations = (float*)calloc(OBS_VISION+PLAYER_OBS, sizeof(float)); // make this unsigned char
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    return env;
 }
 
 void free_initialized(CTowerClimb* env) {
@@ -266,14 +269,14 @@ void free_allocated(CTowerClimb* env) {
 }
 
 void compute_observations(CTowerClimb* env) {
-    int sz = env->level.size;
-    int cols = env->level.cols;
-    int rows = env->level.rows;
-    int max_floors = env->level.total_length / sz;
+    int sz = env->level->size;
+    int cols = env->level->cols;
+    int rows = env->level->rows;
+    int max_floors = env->level->total_length / sz;
     
     // Get player position
-    int current_floor = env->state.robot_position / sz;
-    int grid_pos = env->state.robot_position % sz;
+    int current_floor = env->state->robot_position / sz;
+    int grid_pos = env->state->robot_position % sz;
     int player_x = grid_pos % cols;
     int player_z = grid_pos / cols;
     
@@ -359,35 +362,35 @@ void compute_observations(CTowerClimb* env) {
                 if (world_x < 0 || world_x >= cols || 
                     world_z < 0 || world_z >= rows || 
                     world_y < 0 || world_y >= max_floors || 
-                    board_idx >= env->level.total_length) {
+                    board_idx >= env->level->total_length) {
                     env->observations[obs_idx] = -1.0f;
                     continue;
                 }
                 
                 // Position is in bounds, set observation
-                if (board_idx == env->state.robot_position) {
+                if (board_idx == env->state->robot_position) {
                     env->observations[obs_idx] = 3.0f;
                     continue;
                 }
                 
                 // Use bitmask directly instead of board_state array
-                env->observations[obs_idx] = (float)TEST_BIT(env->state.blocks, board_idx);
+                env->observations[obs_idx] = (float)TEST_BIT(env->state->blocks, board_idx);
             }
         }
     }
     
     // Add player state information at the end
     int state_start = window_width * window_depth * window_height;
-    env->observations[state_start] = (float)env->state.robot_orientation;
-    env->observations[state_start + 1] = (float)env->state.robot_state;
-    env->observations[state_start + 2] = (float)env->state.block_grabbed;
-    env->observations[state_start + 3] = (float)(env->state.block_grabbed != -1);
+    env->observations[state_start] = (float)env->state->robot_orientation;
+    env->observations[state_start + 1] = (float)env->state->robot_state;
+    env->observations[state_start + 2] = (float)env->state->block_grabbed;
+    env->observations[state_start + 3] = (float)(env->state->block_grabbed != -1);
 }
 
 void reset(CTowerClimb* env) {
     env->log = (Log){0};
     env->dones[0] = 0;
-    memset(env->state.blocks, 0, BLOCK_BYTES * sizeof(unsigned char));
+    memset(env->state->blocks, 0, BLOCK_BYTES * sizeof(unsigned char));
     compute_observations(env);
 }
 
@@ -401,11 +404,10 @@ void death(CTowerClimb* env){
 	env->rewards[0] = -1;
 	env->log.episode_return -= 1;
 	add_log(env->log_buffer, &env->log);
-	reset(env);
 }
 
 
-int isGoal(const PuzzleState* s, const Level* lvl) {
+int isGoal(  PuzzleState* s,  Level* lvl) {
     // 1) Check if player is at the goal cell
     if (s->robot_position - lvl->size != lvl->goal_location) return 0;
 
@@ -729,7 +731,7 @@ int climb_from_hang(PuzzleState* outState, int action, const Level* lvl, int nex
     return 0;
 }
 
-int applyAction(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env) {
+int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTowerClimb* env) {
     // necessary variables
     int next_dx = BFS_DIRECTION_VECTORS_X[outState->robot_orientation];
     int next_dz = BFS_DIRECTION_VECTORS_Z[outState->robot_orientation];   
@@ -859,8 +861,7 @@ int step(CTowerClimb* env) {
 	//        reset(env);
     // }
     // Create next state
-    PuzzleState nextState = env->state;
-    int move_result = applyAction(&nextState, env->actions[0], &env->level, RL_MODE, env);
+    int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
     if (move_result == MOVE_ILLEGAL) {
         illegal_move(env);
@@ -868,17 +869,14 @@ int step(CTowerClimb* env) {
     }
     if (move_result == MOVE_DEATH){
         death(env);
-        return 0;
+        return 1;
     }
     
-    // Update state
-    env->state = nextState;
-    
     // Check for goal state
-    if (isGoal(&env->state, &env->level)) {
+    if (isGoal(env->state, env->level)) {
         env->rewards[0] = 1.0;
-	env->log.episode_return +=1.0;
-	return 1;
+        env->log.episode_return +=1.0;
+        return 1;
     }
     
     // Update observations
@@ -998,7 +996,7 @@ void markVisited(const PuzzleState* s) {
 
 // This function fills out up to MAX_NEIGHBORS BFSNodes in 'outNeighbors'
 // from a given BFSNode 'current'. It returns how many neighbors it produced.
-int getNeighbors(const BFSNode* current, BFSNode* outNeighbors, const Level* lvl) {
+int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
     int count = 0;
     // We'll read the current BFSNode's puzzle state
     const PuzzleState* curState = &current->state;
@@ -1036,7 +1034,7 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors, const Level* lvl
 }
 
 // Example BFS
-int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
+int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
     // Clear or init your BFS queue
     queueBuffer = (BFSNode*)malloc(MAX_BFS_SIZE * sizeof(BFSNode));
     if (!queueBuffer) {
@@ -1060,8 +1058,8 @@ int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
 
         if (back >= MAX_BFS_SIZE) {
             printf("BFS queue overflow! Increase MAX_BFS_SIZE or optimize search.\n");
-	    free(queueBuffer);
-	    queueBuffer = NULL;
+            free(queueBuffer);
+            queueBuffer = NULL;
             return 0;
         }
         BFSNode current = queueBuffer[front];
@@ -1084,9 +1082,31 @@ int bfs(const PuzzleState* start, int maxDepth, const Level* lvl) {
                 }
                 idx--;
             }
+            // Print in forward order
+            printf("\nStep 0 (Start):\n");
+            printf("  Position: %d\n", path[0].state.robot_position);
+            printf("  Orientation: %d\n", path[0].state.robot_orientation);
+            printf("  State: %d\n", path[0].state.robot_state);
+            printf("  Block grabbed: %d\n", path[0].state.block_grabbed);
+            for (int i = 1; i <= current.depth; i++) {
+                int block_in_front = path[i].state.robot_position + 
+                    (path[i].state.robot_orientation == 0 ? 1 :    // Right
+                     path[i].state.robot_orientation == 1 ? lvl->cols :    // Down
+                     path[i].state.robot_orientation == 2 ? -1 :   // Left
+                     -lvl->cols);  // Up (orientation == 3)
+                printf("\nStep %d:\n", i);
+                printf("  Action taken: %d\n", path[i].action);
+                printf("  Position: %d\n", path[i].state.robot_position);
+                printf("  Orientation: %d\n", path[i].state.robot_orientation);
+                printf("  State: %d\n", path[i].state.robot_state);
+                printf("  Block grabbed: %d\n", path[i].state.block_grabbed);
+                printf("  Block in front: %d (Has block: %d)\n", block_in_front, 
+                    bfs_is_valid_position(block_in_front, lvl) && 
+                    (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
+            }
             
             free(path);
-	    free(queueBuffer);
+	        free(queueBuffer);
             return 1;
         }
 
@@ -1127,29 +1147,23 @@ void cleanupVisited(void) {
         visitedTable[i] = NULL;
     }
 }
-int verify_level(Level level, int max_moves){
+int verify_level(Level* level, int max_moves){
     // converting level to puzzle state
-    PuzzleState state;
-    levelToPuzzleState(&level, &state);
+    PuzzleState* state = calloc(1, sizeof(PuzzleState));
+    init_puzzle_state(state);
+    levelToPuzzleState(level, state);
     // reset visited hash table
     resetVisited();
-    markVisited(&state);
+    markVisited(state);
     // Run BFS
-    int solvable = bfs(&state, max_moves, &level);
+    int solvable = bfs(state, max_moves, level);
     cleanupVisited();
+    free_puzzle_state(state);
     return solvable;
 }
 
-Level gen_level(Level* lvl, int goal_level) {
+void gen_level(Level* lvl, int goal_level) {
     // Initialize an illegal level in case we need to return early
-    Level illegal_level = {0};
-    
-    // Allocate board memory
-    int* board = lvl->map;
-    if (!board) {
-        return illegal_level;
-    }
-
     int legal_width_size = 8;
     int legal_depth_size = 8;
     int area = depth_max * col_max;
@@ -1163,25 +1177,24 @@ Level gen_level(Level* lvl, int goal_level) {
                 int block_index = x + col_max * z + area * y;
                 if (x >= 1 && x < legal_width_size && z >= 1 && z < legal_depth_size && 
                 y >= 1 && y < goal_level && (z <= (legal_depth_size - y))){
-                    int chance = (rand() % 4 ==0) ? 1 : 0;
-                    board[block_index] = chance;
+                    int chance = (rand() % 2 ==0) ? 1 : 0;
+                    lvl->map[block_index] = chance;
                     // create spawn point above an existing block
-                    if (spawn_created == 0 && y == 2 && board[block_index - area] == 1){
+                    if (spawn_created == 0 && y == 2 && lvl->map[block_index - area] == 1){
                         spawn_created = 1;
                         spawn_index = block_index;
-                        board[spawn_index] = 0;
+                        lvl->map[spawn_index] = 0;
                     }
                 }
-                if (goal_created ==0 && y == goal_level && (board[block_index + col_max  - area]  ==1 ||  board[block_index - 1  - area] == 1|| board[block_index + 1 - area] ==1 )){
+                if (goal_created ==0 && y == goal_level && (lvl->map[block_index + col_max  - area]  ==1 ||  lvl->map[block_index - 1  - area] == 1|| lvl->map[block_index + 1 - area] ==1 )){
                     goal_created = 1;
                     goal_index = block_index;
-                    board[goal_index] = 2;
+                    lvl->map[goal_index] = 2;
                 }
                 
             }
         }
     }
-
     if (!spawn_created || spawn_index < 0) {
         printf("no spawn found\n");
         return;
@@ -1193,24 +1206,24 @@ Level gen_level(Level* lvl, int goal_level) {
         printf("goal index: %d\n", goal_index);
         return;
     }
-
-        lvl->rows = row_max,
-        lvl->cols = col_max,
-        lvl->size = row_max * col_max,
-        lvl->total_length = row_max * col_max * depth_max,
-        lvl->goal_location = goal_index,
-        lvl->spawn_location = spawn_index
+    lvl->rows = row_max;
+    lvl->cols = col_max;
+    lvl->size = row_max * col_max;
+    lvl->total_length = row_max * col_max * depth_max;
+    lvl->goal_location = goal_index;
+    lvl->spawn_location = spawn_index;
 }
 
 
-void init_random_level(Level* lvl, CTowerClimb* env, int goal_level, int max_moves, int seed) {
+void init_random_level(CTowerClimb* env, int goal_level, int max_moves, int seed) {
 	time_t t;
-        srand((unsigned) time(&t) + i); // Increment seed for each level
-        gen_level(lvl, goal_level);
-        // guarantee a map is created
-        while(lvl.map == NULL || verify_level(lvl,max_moves) == 0){
-	    gen_level(lvl,goal_level);
-        }
+    srand((unsigned) time(&t) + seed); // Increment seed for each level
+    gen_level(env->level, goal_level);
+    // guarantee a map is created
+    while(env->level->map == NULL || verify_level(env->level,max_moves) == 0){
+        gen_level(env->level,goal_level);
+    }
+    levelToPuzzleState(env->level, env->state);
 }
 
 
@@ -1338,13 +1351,13 @@ Client* make_client(CTowerClimb* env) {
         client->cube.materials[i].shader = client->shader;
     }
     client->animState = ANIM_IDLE;
-    client->previousRobotPosition = env->state.robot_position;
+    client->previousRobotPosition = env->state->robot_position;
     
     // Initialize visual position to match starting robot position
-    int floor = env->state.robot_position / env->level.size;
-    int grid_pos = env->state.robot_position % env->level.size;
-    int x = grid_pos % env->level.cols;
-    int z = grid_pos / env->level.cols;
+    int floor = env->state->robot_position / env->level->size;
+    int grid_pos = env->state->robot_position % env->level->size;
+    int x = grid_pos % env->level->cols;
+    int z = grid_pos / env->level->cols;
     
     client->visualPosition = (Vector3){ 
         x * 1.0f,
@@ -1359,13 +1372,13 @@ Client* make_client(CTowerClimb* env) {
 void orient_hang_offset(Client* client, CTowerClimb* env, int reverse){
 
     client->visualPosition.y -= 0.2f * reverse;
-    if (env->state.robot_orientation == 0) { // Facing +x
+    if (env->state->robot_orientation == 0) { // Facing +x
         client->visualPosition.x += 0.4f * reverse;
-    } else if (env->state.robot_orientation == 1) { // Facing +z
+    } else if (env->state->robot_orientation == 1) { // Facing +z
         client->visualPosition.z += 0.4f * reverse;
-    } else if (env->state.robot_orientation == 2) { // Facing -x
+    } else if (env->state->robot_orientation == 2) { // Facing -x
         client->visualPosition.x -= 0.4f * reverse;
-    } else if (env->state.robot_orientation == 3) { // Facing -z
+    } else if (env->state->robot_orientation == 3) { // Facing -z
         client->visualPosition.z -= 0.4f * reverse;
     }
 }
@@ -1408,10 +1421,10 @@ static void update_animation(Client* client, AnimationState newState) {
 }
 
 static void update_position(Client* client, CTowerClimb* env) {
-    int floor = env->state.robot_position / env->level.size;
-    int grid_pos = env->state.robot_position % env->level.size;
-    int x = grid_pos % env->level.cols;
-    int z = grid_pos / env->level.cols;
+    int floor = env->state->robot_position / env->level->size;
+    int grid_pos = env->state->robot_position % env->level->size;
+    int x = grid_pos % env->level->cols;
+    int z = grid_pos / env->level->cols;
     
     client->targetPosition = (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f};
 }
@@ -1429,7 +1442,7 @@ static void process_animation_frame(Client* client, CTowerClimb* env) {
                             client->animState == ANIM_SHIMMY_RIGHT)) {
         float progress = 0.1f;
         // Horizontal movement for UP/DOWN, vertical movement for LEFT/RIGHT
-        bool facingNS = env->state.robot_orientation == UP || env->state.robot_orientation == DOWN;
+        bool facingNS = env->state->robot_orientation == UP || env->state->robot_orientation == DOWN;
         if (facingNS) {
             client->visualPosition.x = Lerp(client->visualPosition.x, client->targetPosition.x, progress);
         } else {
@@ -1472,7 +1485,7 @@ static void handle_hanging_movement(Client* client, CTowerClimb* env) {
 
     // Determine movement direction based on orientation
     bool moving_right = false;
-    switch (env->state.robot_orientation) {
+    switch (env->state->robot_orientation) {
         case UP:    moving_right = client->targetPosition.x > client->visualPosition.x; break;
         case DOWN:  moving_right = client->targetPosition.x < client->visualPosition.x; break;
         case RIGHT: moving_right = client->targetPosition.z < client->visualPosition.z; break;
@@ -1488,7 +1501,7 @@ static void handle_hanging_movement(Client* client, CTowerClimb* env) {
 }
 
 static void update_camera(Client* client, CTowerClimb* env) {
-    int floor = env->state.robot_position / env->level.size;
+    int floor = env->state->robot_position / env->level->size;
     int cameraFloor = (floor - 1) * 0.5;
     float targetCameraY = cameraFloor * 1.0f + 7.0f;
     float targetLookY = cameraFloor * 1.0f;
@@ -1498,7 +1511,7 @@ static void update_camera(Client* client, CTowerClimb* env) {
     client->camera.position.y = Lerp(client->camera.position.y, targetCameraY, smoothSpeed);
     client->camera.target.y = Lerp(client->camera.target.y, targetLookY, smoothSpeed);
     client->camera.position = (Vector3){
-        env->level.cols * 0.5f,
+        env->level->cols * 0.5f,
         client->camera.position.y,
         15.0f
     };
@@ -1522,23 +1535,23 @@ static void draw_background(Client* client) {
 }
 
 static void draw_level(Client* client, CTowerClimb* env) {
-    int cols = env->level.cols;
-    int sz = env->level.size;
+    int cols = env->level->cols;
+    int sz = env->level->size;
     
-    for(int i = 0; i < env->level.total_length; i++) {
+    for(int i = 0; i < env->level->total_length; i++) {
         int floor = i / sz;
         int grid_pos = i % sz;
         int x = grid_pos % cols;
         int z = grid_pos / cols;
         Vector3 pos = {x * 1.0f, floor * 1.0f, z * 1.0f};
 
-        if(TEST_BIT(env->state.blocks, i)) {
+        if(TEST_BIT(env->state->blocks, i)) {
             DrawModel(client->cube, pos, client->scale, WHITE);
-            Color wireColor = (i == env->state.block_grabbed) ? RED : BLACK;
+            Color wireColor = (i == env->state->block_grabbed) ? RED : BLACK;
             DrawCubeWires(pos, 1.0f, 1.0f, 1.0f, wireColor);
         }
         
-        if (i == env->level.goal_location) {
+        if (i == env->level->goal_location) {
             EndShaderMode();
             DrawCube(pos, 1.0f, 1.0f, 1.0f, PUFF_CYAN);
             BeginShaderMode(client->shader);
@@ -1553,7 +1566,7 @@ static void draw_robot(Client* client, CTowerClimb* env) {
     rlPushMatrix();
     rlTranslatef(pos.x, pos.y, pos.z);
     rlRotatef(90.0f, 1, 0, 0);
-    rlRotatef(-90.0f + env->state.robot_orientation * 90.0f, 0, 0, 1);
+    rlRotatef(-90.0f + env->state->robot_orientation * 90.0f, 0, 0, 1);
     DrawModel(client->robot, (Vector3){0, 0, 0}, 0.5f, WHITE);
     rlPopMatrix();
 }
@@ -1592,39 +1605,39 @@ void render(Client* client, CTowerClimb* env) {
     static int previous_orientation = -1;  // Track orientation changes
     
     // Handle orientation changes while hanging
-    if (env->state.robot_orientation != previous_orientation && 
-        env->state.robot_state == HANGING) {
+    if (env->state->robot_orientation != previous_orientation && 
+        env->state->robot_state == HANGING) {
         
         // First remove the old orientation's offset
         if (previous_orientation != -1) {
             // Temporarily set orientation back to apply reverse offset
-            int temp_orientation = env->state.robot_orientation;
-            env->state.robot_orientation = previous_orientation;
+            int temp_orientation = env->state->robot_orientation;
+            env->state->robot_orientation = previous_orientation;
             orient_hang_offset(client, env, -1);  // Remove old offset
-            env->state.robot_orientation = temp_orientation;
+            env->state->robot_orientation = temp_orientation;
         }
         // Now apply the new orientation's offset
         orient_hang_offset(client, env, 1);  // Apply new offset
-        previous_orientation = env->state.robot_orientation;
+        previous_orientation = env->state->robot_orientation;
     }
     // Handle state transitions - drop animation
-    if (env->state.robot_state == DEFAULT && client->animState == ANIM_HANGING) {
+    if (env->state->robot_state == DEFAULT && client->animState == ANIM_HANGING) {
         update_animation(client, ANIM_IDLE);
         client->isMoving = false;
         client->visualPosition = client->targetPosition;
     }
     // grab animation
-    if (env->state.block_grabbed != -1 && 
+    if (env->state->block_grabbed != -1 && 
         client->animState != ANIM_GRABBING && 
         client->animState != ANIM_START_GRABBING) {
         update_animation(client, ANIM_START_GRABBING);
         client->isMoving = true;
-    } else if (env->state.block_grabbed == -1 && client->animState == ANIM_GRABBING) {
+    } else if (env->state->block_grabbed == -1 && client->animState == ANIM_GRABBING) {
         update_animation(client, ANIM_IDLE);
     }
 
     // Handle position changes
-    if (env->state.robot_position != client->previousRobotPosition) {
+    if (env->state->robot_position != client->previousRobotPosition) {
         if (client->isMoving) client->visualPosition = client->targetPosition;
         client->isMoving = true;
         update_position(client, env);
@@ -1633,7 +1646,7 @@ void render(Client* client, CTowerClimb* env) {
         if (verticalDiff > 0.5) {
             orient_hang_offset(client, env, client->animState == ANIM_HANGING ? 0 : 1);
             update_animation(client, ANIM_CLIMBING);
-        } else if (env->state.robot_state == HANGING) {
+        } else if (env->state->robot_state == HANGING) {
             handle_hanging_movement(client, env);
         } else {
             update_animation(client, verticalDiff < 0 ? ANIM_IDLE : ANIM_RUNNING);
@@ -1643,7 +1656,7 @@ void render(Client* client, CTowerClimb* env) {
             }
         }
         
-        client->previousRobotPosition = env->state.robot_position;
+        client->previousRobotPosition = env->state->robot_position;
     }
 
     process_animation_frame(client, env);
