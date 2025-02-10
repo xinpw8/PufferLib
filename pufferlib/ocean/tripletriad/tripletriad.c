@@ -14,7 +14,7 @@ int main() {
         .num_cards = 10,
     };
     allocate_ctripletriad(&env);
-    reset(&env); 
+    c_reset(&env); 
     Client* client = make_client(env.width, env.height);
 
     int tick = 0;
@@ -59,10 +59,10 @@ int main() {
 
         tick = (tick + 1) % 45;
         if (env.actions[0] != NOOP) {
-            step(&env);
+            c_step(&env);
         }
 
-        render(client, &env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);

@@ -240,7 +240,7 @@ void setPuzzle(PuzzleState* dest, PuzzleState* src){
 	dest->robot_position = src->robot_position;
 	dest->robot_orientation = src->robot_orientation;
 	dest->robot_state = src->robot_state;
-	dest->block_grabbed = src->block_grabbed;
+	dest->block_grabbed = src->block_grabbed; 
 }
 
 CTowerClimb* allocate() {

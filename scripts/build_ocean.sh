@@ -18,11 +18,11 @@ if [ "$MODE" = "web" ]; then
         "$SRC_DIR/$ENV.c" \
         -O3 \
         -Wall \
-        ./raylib_wasm/lib/libraylib.a \
-        -I./raylib_wasm/include \
+        ./raylib-5.5_wasm/lib/libraylib.a \
+        -I./raylib-5.5_wasm/include \
         -I./pufferlib\
         -L. \
-        -L./raylib_wasm/lib \
+        -L./raylib-5.5_wasm/lib \
         -sASSERTIONS=2 \
         -gsource-map \
         -s USE_GLFW=3 \
@@ -42,10 +42,10 @@ fi
 
 FLAGS=(
     -Wall
-    -I./raylib/include 
+    -I./raylib-5.5_macos/include 
     -I./pufferlib
     "$SRC_DIR/$ENV.c" -o "$ENV"
-    ./raylib/lib/libraylib.a
+    ./raylib-5.5_macos/lib/libraylib.a
     -lm
     -lpthread
     -DPLATFORM_DESKTOP

@@ -1,5 +1,6 @@
-from libc.stdlib cimport calloc, free
-
+from libc.stdlib cimport calloc, free, rand
+from libc.stdint cimport uint64_t
+import numpy as np
 cdef extern from "tower_climb.h":
     int LOG_BUFFER_SIZE
 
@@ -23,6 +24,24 @@ cdef extern from "tower_climb.h":
         int goal_location;
         int spawn_location;
 
+    ctypedef struct PuzzleState:
+        unsigned char* blocks;
+        int robot_position;
+        int robot_orientation;
+        int robot_state;
+        int block_grabbed;
+
+    ctypedef struct VisitedNode:
+        PuzzleState state;
+        uint64_t hashVal;
+        VisitedNode* next;
+
+    ctypedef struct BFSNode:
+        PuzzleState state;
+        int depth;
+        int parent;
+        int action;
+
     ctypedef struct CTowerClimb:
         float* observations;
         int* actions;
@@ -31,9 +50,8 @@ cdef extern from "tower_climb.h":
         LogBuffer* log_buffer;
         Log log;
         float score;
-        Level level;
-        PuzzleState state;  // Contains blocks bitmask, position, orientation, etc.
-        int level_number;
+        Level* level;
+        PuzzleState* state;
         int distance_to_goal;
         float reward_climb_row;
         float reward_fall_row;
@@ -45,13 +63,18 @@ cdef extern from "tower_climb.h":
 
     void init(CTowerClimb* env)
     void free_allocated(CTowerClimb* env)
+    void init_level(Level* level)
+    void init_puzzle_state(PuzzleState* state)
+    void init_random_level(CTowerClimb* env, int goal_height, int max_moves, int seed)
+    void levelToPuzzleState(Level* level, PuzzleState* state)
+    void setPuzzle(PuzzleState* dest, PuzzleState* src)
 
 
     Client* make_client(CTowerClimb* env)
     void close_client(Client* client)
     void render(Client* client, CTowerClimb* env)
     void reset(CTowerClimb* env)
-    void step(CTowerClimb* env)
+    int step(CTowerClimb* env)
 
 cdef class CyTowerClimb:
     cdef:
@@ -71,7 +94,8 @@ cdef class CyTowerClimb:
         self.client = NULL
         self.num_envs = num_envs
         self.num_maps = num_maps
-        self.levels = <PuzzleState*> calloc(num_maps, sizeof(PuzzleState))
+        self.levels = <Level*> calloc(num_maps, sizeof(Level))
+        self.puzzle_states = <PuzzleState*> calloc(num_maps, sizeof(PuzzleState))
         self.envs = <CTowerClimb*> calloc(num_envs, sizeof(CTowerClimb))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
         cdef int i
@@ -107,7 +131,7 @@ cdef class CyTowerClimb:
         for i in range(self.num_envs):
             idx = rand() % self.num_maps
             reset(&self.envs[i])
-            setPuzzle(&self.envs[i], &self.puzzle_states[idx])
+            setPuzzle(self.envs[i].state, &self.puzzle_states[idx])
 
 
     def step(self):
@@ -115,7 +139,7 @@ cdef class CyTowerClimb:
         for i in range(self.num_envs):
             done = step(&self.envs[i])
             idx = rand() & self.num_maps
-            setPuzzle(&self.envs[i], &self.puzzle_states[idx])
+            setPuzzle(self.envs[i].state, &self.puzzle_states[idx])
 
     def render(self):
         cdef CTowerClimb* env = &self.envs[0]

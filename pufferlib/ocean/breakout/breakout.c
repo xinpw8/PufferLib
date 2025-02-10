@@ -20,7 +20,7 @@ void demo() {
         .brick_cols = 18,
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
  
     Client* client = make_client(&env);
 
@@ -35,8 +35,8 @@ void demo() {
             forward_linearlstm(net, env.observations, env.actions);
         }
 
-        step(&env);
-        render(client, &env);
+        c_step(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);
@@ -60,13 +60,13 @@ void performance_test() {
         .brick_cols = 18,
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
 
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % 4;
-        step(&env);
+        c_step(&env);
         i++;
     }
     long end = time(NULL);

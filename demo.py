@@ -199,13 +199,13 @@ def sweep_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         is_wandb_logging_enabled=False,
         resample_frequency=5,
         num_random_samples=len(param_spaces),
-        max_suggestion_cost=args['base']['max_suggestion_cost'],
+        max_suggestion_cost=args['max_suggestion_cost'],
         is_saved_on_every_observation=False,
     )
     carbs = CARBS(carbs_params, param_spaces)
 
     # GPUDrive doesn't let you reinit the vecenv, so we have to cache it
-    cache_vecenv = args['base']['env_name'] == 'gpudrive'
+    cache_vecenv = args['env_name'] == 'gpudrive'
 
     elos = {'model_random.pt': 1000}
     vecenv = {'vecenv': None} # can't reassign otherwise
@@ -293,7 +293,7 @@ def train(args, make_env, policy_cls, rnn_cls, wandb,
     elif args['vec'] == 'native':
         vec = pufferlib.environment.PufferEnv
     else:
-        raise ValueError(f'Invalid --vector (serial/multiprocessing/ray/native).')
+        raise ValueError(f'Invalid --vec (serial/multiprocessing/ray/native).')
 
     if vecenv is None:
         vecenv = pufferlib.vector.make(
@@ -360,8 +360,6 @@ if __name__ == '__main__':
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
         choices='train eval evaluate sweep sweep-carbs autotune profile'.split())
-    parser.add_argument('--vec', '--vector', '--vectorization', type=str,
-        default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--vec-overwork', action='store_true',
         help='Allow vectorization to use >1 worker/core. Not recommended.')
     parser.add_argument('--eval-model-path', type=str, default=None,
@@ -376,6 +374,7 @@ if __name__ == '__main__':
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
     args = parser.parse_known_args()[0]
+
 
     file_paths = glob.glob('config/**/*.ini', recursive=True)
     for path in file_paths:
@@ -394,7 +393,10 @@ if __name__ == '__main__':
 
     for section in p.sections():
         for key in p[section]:
-            argparse_key = f'--{section}.{key}'.replace('_', '-')
+            if section == 'base':
+                argparse_key = f'--{key}'.replace('_', '-')
+            else:
+                argparse_key = f'--{section}.{key}'.replace('_', '-')
             parser.add_argument(argparse_key, default=p[section][key])
 
     # Late add help so you get a dynamic menu based on the env
@@ -416,7 +418,7 @@ if __name__ == '__main__':
         except:
             prev[subkey] = value
 
-    package = args['base']['package']
+    package = args['package']
     module_name = f'pufferlib.environments.{package}'
     if package == 'ocean':
         module_name = 'pufferlib.ocean'
@@ -425,12 +427,12 @@ if __name__ == '__main__':
     env_module = importlib.import_module(module_name)
 
     make_env = env_module.env_creator(env_name)
-    policy_cls = getattr(env_module.torch, args['base']['policy_name'])
+    policy_cls = getattr(env_module.torch, args['policy_name'])
     
-    rnn_name = args['base']['rnn_name']
+    rnn_name = args['rnn_name']
     rnn_cls = None
     if rnn_name is not None:
-        rnn_cls = getattr(env_module.torch, args['base']['rnn_name'])
+        rnn_cls = getattr(env_module.torch, args['rnn_name'])
 
     if args['baseline']:
         assert args['mode'] in ('train', 'eval', 'evaluate')
