@@ -202,7 +202,6 @@ struct CTowerClimb {
     float reward_fall_row;
     float reward_illegal_move;
     float reward_move_block;
-    float reward_distance;
 };
 
 void levelToPuzzleState(Level* level, PuzzleState* state) {
@@ -235,12 +234,13 @@ void init(CTowerClimb* env) {
     init_puzzle_state(env->state);
 }
 
-void setPuzzle(PuzzleState* dest, PuzzleState* src){
-	memcpy(dest->blocks, src->blocks, BLOCK_BYTES * sizeof(unsigned char));
-	dest->robot_position = src->robot_position;
-	dest->robot_orientation = src->robot_orientation;
-	dest->robot_state = src->robot_state;
-	dest->block_grabbed = src->block_grabbed; 
+void setPuzzle(CTowerClimb* env, PuzzleState* src){
+	memcpy(env->state->blocks, src->blocks, BLOCK_BYTES * sizeof(unsigned char));
+	env->state->robot_position = src->robot_position;
+	env->state->robot_orientation = src->robot_orientation;
+	env->state->robot_state = src->robot_state;
+	env->state->block_grabbed = src->block_grabbed; 
+	printf("uncurse\n");
 }
 
 CTowerClimb* allocate() {
@@ -266,6 +266,7 @@ void free_allocated(CTowerClimb* env) {
     free(env->rewards);
     free_logbuffer(env->log_buffer);
     free_initialized(env);
+    free(env);
 }
 
 void compute_observations(CTowerClimb* env) {
@@ -852,14 +853,15 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 
 
 int step(CTowerClimb* env) {
+    printf("step\n");
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    // if(env->log.episode_length >200){
-	//        env->rewards[0] = 0;
-	//        //env->log.episode_return +=0;
-	//        add_log(env->log_buffer, &env->log);
-	//        reset(env);
-    // }
+    if(env->log.episode_length >200){
+	        env->rewards[0] = 0;
+	        //env->log.episode_return +=0;
+	        add_log(env->log_buffer, &env->log);
+	        return 1;
+    }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
@@ -876,7 +878,8 @@ int step(CTowerClimb* env) {
     if (isGoal(env->state, env->level)) {
         env->rewards[0] = 1.0;
         env->log.episode_return +=1.0;
-        return 1;
+        add_log(env->log_buffer, &env->log);
+	return 1;
     }
     
     // Update observations
@@ -1067,7 +1070,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
         front++;
         // If current.state is the goal, reconstruct path
         if (isGoal(&current.state, lvl)) {
-            printf("Found solution path of length %d!\n", current.depth);
+           // printf("Found solution path of length %d!\n", current.depth);
             
             // Store nodes in order
             BFSNode* path = (BFSNode*)malloc((current.depth + 1) * sizeof(BFSNode));
@@ -1083,7 +1086,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
                 idx--;
             }
             // Print in forward order
-            printf("\nStep 0 (Start):\n");
+           /* printf("\nStep 0 (Start):\n");
             printf("  Position: %d\n", path[0].state.robot_position);
             printf("  Orientation: %d\n", path[0].state.robot_orientation);
             printf("  State: %d\n", path[0].state.robot_state);
@@ -1104,7 +1107,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
                     bfs_is_valid_position(block_in_front, lvl) && 
                     (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
             }
-            
+            */
             free(path);
 	        free(queueBuffer);
             return 1;
@@ -1132,7 +1135,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
     free(queueBuffer);
     queueBuffer = NULL;
     // If we exit while, no solution found within maxDepth
-    printf("No solution within %d moves.\n", maxDepth);
+    //printf("No solution within %d moves.\n", maxDepth);
     return 0;
 }
 
@@ -1196,14 +1199,14 @@ void gen_level(Level* lvl, int goal_level) {
         }
     }
     if (!spawn_created || spawn_index < 0) {
-        printf("no spawn found\n");
+        //printf("no spawn found\n");
         return;
     }
 
     
     if (!goal_created || goal_index < 0) {
-        printf("no goal found\n");
-        printf("goal index: %d\n", goal_index);
+        //printf("no goal found\n");
+        //printf("goal index: %d\n", goal_index);
         return;
     }
     lvl->rows = row_max;

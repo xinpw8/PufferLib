@@ -49,7 +49,7 @@ void performance_test() {
     long test_time = 10;
     CTowerClimb* env = allocate();
     int seed = 0;
-    init_random_level(env, 5, 25, seed);
+    init_random_level(env, 8, 25, seed);
 
 
     long start = time(NULL);
@@ -72,8 +72,8 @@ void performance_test() {
 
 
 int main() {
-    demo();
-    // performance_test();
+    //demo();
+     performance_test();
     return 0;
 }
 

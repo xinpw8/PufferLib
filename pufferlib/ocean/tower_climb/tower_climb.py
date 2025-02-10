@@ -13,8 +13,8 @@ from pufferlib.ocean.tower_climb.cy_tower_climb import CyTowerClimb
 
 
 class TowerClimb(pufferlib.PufferEnv):
-    def __init__(self, num_envs=4096, render_mode=None, report_interval=1,
-            num_maps=1000, reward_climb_row = .25, reward_fall_row = 0, reward_illegal_move = -0.01,
+    def __init__(self, num_envs=256, render_mode=None, report_interval=1,
+            num_maps=5, reward_climb_row = .25, reward_fall_row = 0, reward_illegal_move = -0.01,
             reward_move_block = 0.2, buf = None):
 
         # env
@@ -31,7 +31,7 @@ class TowerClimb(pufferlib.PufferEnv):
         self.c_envs = CyTowerClimb(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, num_maps, reward_climb_row, reward_fall_row,
             reward_illegal_move, reward_move_block)
-
+        pass
 
     def reset(self, seed=None):
         self.c_envs.reset()
@@ -73,5 +73,3 @@ def test_performance(timeout=10, atn_cache=1024):
 
     sps = num_envs * tick / (time.time() - start)
     print(f'SPS: {sps:,}')
-if __name__ == '__main__':
-    test_performance()
