@@ -121,10 +121,15 @@ def _carbs_params_from_puffer_sweep(sweep_config):
 
     return param_spaces
 
-def sample(mu, sigma, num_samples):
+def sample_normal(mu, sigma, num_samples):
     n_input, n_dim = mu.shape
     mu_idxs = np.random.randint(0, n_input, num_samples)
     return sigma*np.random.randn(num_samples, n_dim) + mu[mu_idxs]
+
+def sample_uniform(mu, scale, num_samples):
+    n_input, n_dim = mu.shape
+    mu_idxs = np.random.randint(0, n_input, num_samples)
+    return 2*scale*np.random.rand(num_samples, n_dim) - scale + mu[mu_idxs]
 
 def fill(spaces, flat_sample, idx=0):
     for name, space in spaces.items():
@@ -183,8 +188,9 @@ class PufferCarbs:
             num_random_samples = 900,
             seed = 0,
             initial_search_radius = 0.3,
-            global_search_scale = 0.1,
-            num_suggestion_candidates = 2048,
+            global_search_scale = 1,
+            random_suggestions = 1024,
+            suggestions_per_pareto = 100,
         ):
         self.spaces = _carbs_params_from_puffer_sweep(sweep_config)
         self.flat_spaces = dict(pufferlib.utils.unroll_nested_dict(self.spaces))
@@ -199,7 +205,8 @@ class PufferCarbs:
         self.num_random_samples = num_random_samples
         self.initial_search_radius = initial_search_radius
         self.global_search_scale = global_search_scale
-        self.num_suggestion_candidates = num_suggestion_candidates
+        self.random_suggestions = random_suggestions
+        self.suggestions_per_pareto = suggestions_per_pareto
         self.resample_frequency = resample_frequency
         self.max_suggestion_cost = max_suggestion_cost
 
@@ -216,6 +223,14 @@ class PufferCarbs:
         self.search_scales = global_search_scale * np.array([
             e.scale for e in self.flat_spaces.values()])
 
+        print('Min random sample:')
+        for name, space in self.flat_spaces.items():
+            print(f'\t{name}: {space.unnormalize(max(space.norm_mean - space.scale, space.norm_min))}')
+
+        print('Max random sample:')
+        for name, space in self.flat_spaces.items():
+            print(f'\t{name}: {space.unnormalize(min(space.norm_mean + space.scale, space.norm_max))}')
+
         self.gp_score, self.score_opt = create_gp(self.num_params)
         self.gp_cost, self.cost_opt = create_gp(self.num_params)
 
@@ -223,59 +238,50 @@ class PufferCarbs:
         self.suggestion_idx += 1
         # TODO: Clip random samples to bounds so we don't get bad high cost samples
         if self.suggestion_idx <= self.num_random_samples:
-            suggestions = sample(self.search_centers[None, :], 5*self.search_scales, self.num_suggestion_candidates)
+            suggestions = sample_uniform(
+                self.search_centers[None, :], self.search_scales, self.random_suggestions)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
+            best_idx = np.random.randint(0, self.random_suggestions)
+            best = suggestions[best_idx]
         elif self.resample_frequency and self.suggestion_idx % self.resample_frequency == 0:
             candidates, _ = pareto_points(self.success_observations)
             suggestions = np.stack([e['input'] for e in candidates])
+            best_idx = np.random.randint(0, len(candidates))
+            best = suggestions[best_idx]
         else:
             params = np.array([e['input'] for e in self.success_observations])
             params = torch.from_numpy(params)
 
-            # Quantile transform. Using n_quantiles < n samples preserves distance information
-            raw_scores = self.optimize_direction*np.array([e['output'] for e in self.success_observations])
-            #percentile_scores = scipy.stats.rankdata(raw_scores) / (len(raw_scores) + 1)
-            #percentile_mean = np.mean(percentile_scores)
-            #percentile_std = np.std(percentile_scores)
-            #normalized_scores = (percentile_scores - percentile_mean) / percentile_std
-            max_score = 200
-            raw_score_max = np.max(raw_scores)
-            raw_score_mean = np.mean(raw_scores)
-            raw_score_std = np.std(raw_scores)
-            eps = 1e-5
-            transformed_scores = -np.log(1 - raw_scores/max_score + eps)
-            transformed_score_mean = np.mean(transformed_scores)
-            transformed_score_std = np.std(transformed_scores)
-            normalized_scores = (transformed_scores - transformed_score_mean) / transformed_score_std
-            min_score_idx = np.argmin(raw_scores)
-            self.gp_score.mean_function = lambda x: normalized_scores[min_score_idx]
-            '''
-            n_quantiles = int(np.sqrt(len(self.success_observations)))
-            q = np.linspace(0, 1, n_quantiles, endpoint=True)
-            quantiles = np.quantile(raw_scores, q)
-            p = np.interp(raw_scores, quantiles, q)
-            p = np.clip(p, 0.01, 0.99)
-            normalized_scores = np.sqrt(2) * scipy.special.erfinv(2*p - 1)
-            '''
+            # Scores variable y
+            y = self.optimize_direction*np.array([e['output'] for e in self.success_observations])
+            y_max = np.max(y)
+            y_mean = np.mean(y)
+            y_std = np.std(y)
 
-            normalized_scores = torch.from_numpy(normalized_scores)
-            self.gp_score.set_data(params, normalized_scores)
+            # Hardcoded?
+            eps = 1e-5
+            max_score = np.log(200)
+
+            # Transformed scores
+            yt = -np.log(1 - y/max_score + eps)
+            yt_mean = np.mean(yt)
+            yt_std = np.std(yt)
+            yt_norm = (yt - yt_mean) / yt_std
+            yt_norm_min = np.min(yt_norm)
+            yt_norm = torch.from_numpy(yt_norm)
+            self.gp_score.mean_function = lambda x: yt_norm_min
+            self.gp_score.set_data(params, yt_norm)
             self.gp_score.train()
             gp.util.train(self.gp_score, self.score_opt)
             self.gp_score.eval()
 
-            # Min-max scale
-            costs = np.array([e['cost'] for e in self.success_observations])
-            max_cost_idx = np.argmax(costs)
-            log_costs = np.log(costs)
-            min_log_cost = log_costs.min(axis=0)
-            max_log_cost = log_costs.max(axis=0)
-            log_cost_std = (log_costs - min_log_cost) / (max_log_cost - min_log_cost)
-            normalized_log_costs = log_cost_std*(max_log_cost - min_log_cost) + min_log_cost
-            normalized_max_log_cost = normalized_log_costs[max_cost_idx]
-            self.gp_cost.mean_function = lambda x: normalized_max_log_cost
-            normalized_log_costs = torch.from_numpy(normalized_log_costs)
-            self.gp_cost.set_data(params, normalized_log_costs)
+            # Log costs
+            c = np.array([e['cost'] for e in self.success_observations])
+            log_c = np.log(c)
+            log_c_max = np.max(log_c)
+            log_c = torch.from_numpy(log_c)
+            self.gp_cost.mean_function = lambda x: log_c_max
+            self.gp_cost.set_data(params, log_c)
             self.gp_cost.train()
             gp.util.train(self.gp_cost, self.cost_opt)
             self.gp_cost.eval()
@@ -283,62 +289,35 @@ class PufferCarbs:
             ### Sample suggestions
             candidates, pareto_idxs = pareto_points(self.success_observations)
             search_centers = np.stack([e['input'] for e in candidates])
-            suggestions = sample(search_centers, self.search_scales, self.num_suggestion_candidates)
+            suggestions = sample_normal(search_centers,
+                self.search_scales, len(candidates)*self.suggestions_per_pareto)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
 
             ### Predict scores and costs
             suggestions = torch.from_numpy(suggestions)
             with torch.no_grad():
-                normalized_score_mean, normalized_score_var = self.gp_score(suggestions)
-                normalized_log_cost_mean, normalized_log_cost_var = self.gp_cost(suggestions)
+                gp_yt_norm, gp_yt_norm_var = self.gp_score(suggestions)
+                gp_log_c, gp_log_c_var = self.gp_cost(suggestions)
 
-            log_cost_std_est = (normalized_log_cost_mean - min_log_cost) / (max_log_cost - min_log_cost)
-            log_cost_est = log_cost_std_est*(max_log_cost - min_log_cost) + min_log_cost
-            cost_mean = np.exp(log_cost_est)
+            gp_c = np.exp(gp_log_c.numpy())
+            gp_yt = (gp_yt_norm.numpy() * yt_std) + yt_mean
+            gp_y = -max_score*(np.exp(-gp_yt) - 1 - eps)
 
-            normalized_conservative_log_cost_mean = normalized_log_cost_mean + normalized_log_cost_var
-            normalized_conservative_log_cost_std_est = (normalized_conservative_log_cost_mean - min_log_cost) / (max_log_cost - min_log_cost)
-            normalized_conservative_log_cost_est = normalized_conservative_log_cost_std_est*(max_log_cost - min_log_cost) + min_log_cost
-            conservative_cost_mean = np.exp(normalized_conservative_log_cost_est)
+            pareto_y = y[pareto_idxs]
+            pareto_yt = yt[pareto_idxs]
+            pareto_c = c[pareto_idxs]
 
-            normalized_pareto_scores = normalized_scores[pareto_idxs]
-            pareto_costs = torch.from_numpy(costs[pareto_idxs])
-            cost_diff = cost_mean.unsqueeze(1) - pareto_costs.unsqueeze(0)
-            cost_dist = torch.abs(cost_diff)
-            dist_to_nearest_pareto = torch.min(cost_dist, dim=1)[0]
+            c_diff = gp_c[:, None] - pareto_c[None, :]
+            pareto_dist = np.abs(c_diff)
+            nearest_pareto_dist = np.min(pareto_dist, axis=1)
 
-            cost_diff[cost_diff < 0] = torch.inf
-            closest_pareto_idx = torch.argmin(cost_diff, dim=1)
-            normalized_nearest_pareto_score = normalized_pareto_scores[closest_pareto_idx]
+            c_diff[c_diff < 0] = np.inf
+            nearest_idx = np.argmin(c_diff, axis=1)
+            nearest_pareto_yt = pareto_yt[nearest_idx]
+            nearest_pareto_y = pareto_y[nearest_idx]
 
-
-            unnormalized_score_mean = (normalized_score_mean * transformed_score_std) + transformed_score_mean
-            untransformed_score_mean = -max_score*(np.exp(-unnormalized_score_mean) - 1 - eps)
-
-            unnormalized_nearest_pareto_score = (normalized_nearest_pareto_score * transformed_score_std) + transformed_score_mean
-            untransformed_nearest_pareto_score = -max_score*(np.exp(-unnormalized_nearest_pareto_score) - 1 - eps)
-
-            conservative_normalized_score_mean = normalized_score_mean - normalized_score_var
-            conservative_unnormalized_score_mean = (conservative_normalized_score_mean * transformed_score_std) + transformed_score_mean
-            conservative_untransformed_score_mean = -max_score*(np.exp(-conservative_unnormalized_score_mean) - 1 - eps)
-             
-            #conservative_unnormalized_score_mean = (conservative_normalized_score_mean * raw_score_std) + raw_score_mean
-            #unnormalized_score_var = unnormalized_score_mean - conservative_unnormalized_score_mean
-
-            max_cost_mask = conservative_cost_mean < self.max_suggestion_cost
-            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score)# / cost_mean
-            #suggestion_scores = max_cost_mask * unnormalized_score_mean * dist_to_nearest_pareto / cost_mean
-            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
-            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / conservative_cost_mean
-
-
-            #suggestion_scores = max_cost_mask * (conservative_unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / (conservative_cost_mean * unnormalized_score_var)
-
-            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto / cost_mean
-            #suggestion_scores = max_cost_mask * dist_to_nearest_pareto
-
-            #suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto
-            suggestion_scores = max_cost_mask * (unnormalized_score_mean - unnormalized_nearest_pareto_score) * dist_to_nearest_pareto
+            max_c_mask = gp_c < self.max_suggestion_cost
+            suggestion_scores = max_c_mask * (gp_yt - nearest_pareto_yt) * nearest_pareto_dist
 
             # This works and uncovers approximate binary search when the GP is perfect
             # Can't include cost in denom because it biases this case
@@ -346,10 +325,10 @@ class PufferCarbs:
             # Just need to figure out why the GP is overconfident
 
             best_idx = np.argmax(suggestion_scores)
-            score = untransformed_score_mean[best_idx].item()
-            nearby = untransformed_nearest_pareto_score[best_idx].item()
-            dist = dist_to_nearest_pareto[best_idx].item()
-            cost = cost_mean[best_idx].item()
+            score = gp_y[best_idx].item()
+            nearby = nearest_pareto_y[best_idx].item()
+            dist = nearest_pareto_dist[best_idx].item()
+            cost = gp_c[best_idx].item()
             rating = suggestion_scores[best_idx].item()
             #var = unnormalized_score_var[best_idx].item()
             print('Predicted -- ',
@@ -361,8 +340,7 @@ class PufferCarbs:
                 #f'Var: {var:.3f}',
             )
 
-            suggestions = suggestions[best_idx:best_idx+1].numpy()
-
+            best = suggestions[best_idx].numpy()
 
             '''
             from bokeh.models import ColumnDataSource, LinearColorMapper
@@ -414,12 +392,11 @@ class PufferCarbs:
             '''
 
 
-        best = suggestions[0]
         self.suggestion = best
-
         params = deepcopy(self.spaces)
         fill(params, best)
         return params
+
 
     def observe(self, score, cost, is_failure=False):
         self.success_observations.append(dict(

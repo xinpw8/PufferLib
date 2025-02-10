@@ -433,7 +433,7 @@ def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
     carbs = NeoCarbs(
         args['sweep'],
         resample_frequency=5,
-        num_random_samples=200, # Should be number of params
+        num_random_samples=10, # Should be number of params
         max_suggestion_cost=args['base']['max_suggestion_cost'],
     )
     scores = []
