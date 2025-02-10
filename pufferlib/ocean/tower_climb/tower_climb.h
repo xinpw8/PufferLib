@@ -105,17 +105,34 @@ struct Level {
     int goal_location;
     int spawn_location;
 };
-static Level levels[3];  // Array to store the actual level objects
+
+void init_level(Level* lvl){
+	lvl->map = calloc(1000,sizeof(unsigned int));
+}
+
+void free_level(Level* lvl){
+	free(lvl->map);
+	free(lvl);
+}
 
 
 typedef struct PuzzleState PuzzleState;
 struct PuzzleState {
-    unsigned char blocks[BLOCK_BYTES];
+    unsigned char* blocks;
     int robot_position;
     int robot_orientation;
     int robot_state;
     int block_grabbed;
 };
+
+void init_puzzle_state(PuzzleState* ps){
+	ps->blocks = calloc(BLOCK_BYTES, sizeof(unsigned char));
+}
+
+void free_puzzle_state(PuzzleState* ps){
+	free(ps->blocks);
+	free(ps);
+}
 
 typedef struct Log Log;
 struct Log {
@@ -178,9 +195,8 @@ struct CTowerClimb {
     LogBuffer* log_buffer;
     Log log;
     float score;
-    int map_choice;
-    Level level;
-    PuzzleState state;  // Contains blocks bitmask, position, orientation, etc.
+    Level* level;
+    PuzzleState* state;  // Contains blocks bitmask, position, orientation, etc.
     int level_number;
     int distance_to_goal;
     float reward_climb_row;
@@ -214,13 +230,16 @@ void levelToPuzzleState(const Level* level, PuzzleState* state) {
 
 
 void init(CTowerClimb* env) {
-    env->level_number = 0;
-    env->level = levels[env->level_number];
-    
-    // Initialize PuzzleState
-    levelToPuzzleState(&env->level, &env->state);
-    printf("state: %d\n", env->state.robot_position);   
-    printf("level: %d\n", env->level.goal_location);
+	env->level = calloc(1, sizeof(Level));
+    	env->state = calloc(1, sizeof(PuzzleState));	
+}
+
+void setPuzzle(PuzzleState* dest, PuzzleState* src){
+	memcpy(dest->blocks, src->blocks, BLOCK_BYTES * sizeof(unsigned char)
+	dest->robot_position = src->robot_position;
+	dest->robot_orientation = src->robot_orientation;
+	dest->robot_state = src->robot_state;
+	dest->block_grabbed = src->block_grabbed;
 }
 
 void allocate(CTowerClimb* env) {
@@ -233,7 +252,8 @@ void allocate(CTowerClimb* env) {
 }
 
 void free_initialized(CTowerClimb* env) {
-
+	free_level(env->level);
+	free_puzzle_state(env->state);
 }
 
 void free_allocated(CTowerClimb* env) {
@@ -367,9 +387,7 @@ void compute_observations(CTowerClimb* env) {
 void reset(CTowerClimb* env) {
     env->log = (Log){0};
     env->dones[0] = 0;
-    env->level_number = 0;
-    env->level = levels[env->level_number];
-    levelToPuzzleState(&env->level, &env->state);
+    memset(env->state.blocks, 0, BLOCK_BYTES * sizeof(unsigned char));
     compute_observations(env);
 }
 
@@ -831,21 +849,7 @@ int applyAction(PuzzleState* outState, int action, const Level* lvl, int mode, C
 }
 
 
-
-void next_level(CTowerClimb* env){
-    if(env->level_number == 2){
-        env->rewards[0] = 1;
-        env->log.episode_return += 1;
-        reset(env);
-        return;
-    }
-    env->level_number += 1;
-    env->level = levels[env->level_number];
-    levelToPuzzleState(&env->level, &env->state);
-
-}
-
-void step(CTowerClimb* env) {
+int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
     // if(env->log.episode_length >200){
@@ -860,11 +864,11 @@ void step(CTowerClimb* env) {
     
     if (move_result == MOVE_ILLEGAL) {
         illegal_move(env);
-        return;
+        return 0;
     }
     if (move_result == MOVE_DEATH){
         death(env);
-        return;
+        return 0;
     }
     
     // Update state
@@ -872,11 +876,14 @@ void step(CTowerClimb* env) {
     
     // Check for goal state
     if (isGoal(&env->state, &env->level)) {
-        next_level(env);
+        env->rewards[0] = 1.0;
+	env->log.episode_return +=1.0;
+	return 1;
     }
     
     // Update observations
     compute_observations(env);
+    return 0;
     // if(action != NOOP){
     //     print_observation_window(env);
     // }
@@ -1133,12 +1140,12 @@ int verify_level(Level level, int max_moves){
     return solvable;
 }
 
-Level gen_level(int goal_level) {
+Level gen_level(Level* lvl, int goal_level) {
     // Initialize an illegal level in case we need to return early
     Level illegal_level = {0};
     
     // Allocate board memory
-    int* board = (int*)calloc(row_max * col_max * depth_max, sizeof(int));
+    int* board = lvl->map;
     if (!board) {
         return illegal_level;
     }
@@ -1177,45 +1184,33 @@ Level gen_level(int goal_level) {
 
     if (!spawn_created || spawn_index < 0) {
         printf("no spawn found\n");
-        free(board);
-        return illegal_level;
+        return;
     }
 
     
     if (!goal_created || goal_index < 0) {
         printf("no goal found\n");
         printf("goal index: %d\n", goal_index);
-        free(board);
-        return illegal_level;
+        return;
     }
 
-    Level level = {
-        .map = board,
-        .rows = row_max,
-        .cols = col_max,
-        .size = row_max * col_max,
-        .total_length = row_max * col_max * depth_max,
-        .goal_location = goal_index,
-        .spawn_location = spawn_index
-    };
-    return level;
+        lvl->rows = row_max,
+        lvl->cols = col_max,
+        lvl->size = row_max * col_max,
+        lvl->total_length = row_max * col_max * depth_max,
+        lvl->goal_location = goal_index,
+        lvl->spawn_location = spawn_index
 }
 
 
-static void init_random_levels(int goal_level, int max_moves) {
-    time_t t;
-    for(int i = 0; i < 3; i++) {
+void init_random_level(Level* lvl, CTowerClimb* env, int goal_level, int max_moves, int seed) {
+	time_t t;
         srand((unsigned) time(&t) + i); // Increment seed for each level
-        Level new_level = gen_level(goal_level);
+        gen_level(lvl, goal_level);
         // guarantee a map is created
-        while(new_level.map == NULL || verify_level(new_level,max_moves) == 0){
-            if(new_level.map != NULL) {
-		    free((void*)new_level.map);
-	    }
-	    new_level = gen_level(goal_level);
+        while(lvl.map == NULL || verify_level(lvl,max_moves) == 0){
+	    gen_level(lvl,goal_level);
         }
-	levels[i] = new_level;
-    }
 }
 
 

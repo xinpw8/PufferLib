@@ -31,17 +31,8 @@ cdef extern from "tower_climb.h":
         LogBuffer* log_buffer;
         Log log;
         float score;
-        int map_choice;
-        int robot_position; 
-        int robot_direction;
-        int robot_state;
-        int robot_orientation;
-        int* board_state; 
-        int* blocks_to_move;
-        int* blocks_to_fall;
-        int block_grabbed;
-        int rows_cleared;
         Level level;
+        PuzzleState state;  // Contains blocks bitmask, position, orientation, etc.
         int level_number;
         int distance_to_goal;
         float reward_climb_row;
@@ -49,6 +40,7 @@ cdef extern from "tower_climb.h":
         float reward_illegal_move;
         float reward_move_block;
         float reward_distance;
+
     ctypedef struct Client
 
     void init(CTowerClimb* env)
@@ -64,17 +56,22 @@ cdef extern from "tower_climb.h":
 cdef class CyTowerClimb:
     cdef:
         CTowerClimb* envs
+        Level* levels
+        PuzzleState* puzzle_states
         Client* client
         LogBuffer* logs
         int num_envs
+        int num_maps
 
     def __init__(self, float[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int map_choice, float reward_climb_row, float reward_fall_row,
+            int num_maps, float reward_climb_row, float reward_fall_row,
             float reward_illegal_move, float reward_move_block, float reward_distance):
 
         self.client = NULL
         self.num_envs = num_envs
+        self.num_maps = num_maps
+        self.levels = <PuzzleState*> calloc(num_maps, sizeof(PuzzleState))
         self.envs = <CTowerClimb*> calloc(num_envs, sizeof(CTowerClimb))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
         cdef int i
@@ -85,7 +82,6 @@ cdef class CyTowerClimb:
                 rewards=&rewards[i],
                 dones=&terminals[i],
                 log_buffer=self.logs,
-                map_choice=map_choice,
                 reward_climb_row=reward_climb_row,
                 reward_fall_row=reward_fall_row,
                 reward_illegal_move=reward_illegal_move,
@@ -95,15 +91,31 @@ cdef class CyTowerClimb:
             init(&self.envs[i])
             self.client = NULL
 
+        cdef int goal_height
+        cdef int max_moves
+        for i in range(num_maps):
+            goal_height = np.random.randint(5,9)
+            max_moves = np.random.randint(10,25)
+            init_level(&self.levels[i])
+            init_puzzle_state(&self.puzzle_states[i])
+            init_random_level(&self.envs[0], goal_height, max_moves, i)
+            levelToPuzzleState(&self.levels[i], &self.puzzle_states[i])
+
+
     def reset(self):
-        cdef int i
+        cdef int i, idx
         for i in range(self.num_envs):
+            idx = rand() % self.num_maps
             reset(&self.envs[i])
+            setPuzzle(&self.envs[i], &self.puzzle_states[idx])
+
 
     def step(self):
-        cdef int i
+        cdef int i, idx, done
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            done = step(&self.envs[i])
+            idx = rand() & self.num_maps
+            setPuzzle(&self.envs[i], &self.puzzle_states[idx])
 
     def render(self):
         cdef CTowerClimb* env = &self.envs[0]
