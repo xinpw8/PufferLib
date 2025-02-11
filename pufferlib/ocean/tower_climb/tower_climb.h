@@ -201,7 +201,7 @@ struct CTowerClimb {
     float score;
     Level* level;
     PuzzleState* state;  // Contains blocks bitmask, position, orientation, etc.
-    int distance_to_goal;
+    int rows_cleared;
     float reward_climb_row;
     float reward_fall_row;
     float reward_illegal_move;
@@ -236,6 +236,7 @@ void init(CTowerClimb* env) {
     env->state = calloc(1, sizeof(PuzzleState));	
     init_level(env->level);
     init_puzzle_state(env->state);
+    env->rows_cleared = 0;
 }
 
 void setPuzzle(CTowerClimb* env, PuzzleState* src){
@@ -394,6 +395,7 @@ void compute_observations(CTowerClimb* env) {
 void c_reset(CTowerClimb* env) {
     env->log = (Log){0};
     env->dones[0] = 0;
+    env->rows_cleared = 0;
     memset(env->state->blocks, 0, BLOCK_BYTES * sizeof(unsigned char));
     compute_observations(env);
 }
@@ -434,6 +436,16 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
       cell_next_above != goal &&
       cell_direct_above != goal;
     if (can_climb){
+        int floor_cleared = cell_direct_above / lvl->size;
+        if(floor_cleared > env->rows_cleared){
+            env->rows_cleared = floor_cleared;
+            env->rewards[0] = env->reward_climb_row;
+            env->log.episode_return += env->reward_climb_row;
+            printf("climb\n");
+            printf("rows_cleared: %d\n", env->rows_cleared);
+            printf("reward_climb_row: %f\n", env->reward_climb_row);
+            printf("episode_return: %f\n", env->log.episode_return);
+        }
         outState->robot_position = cell_next_above;
         outState->robot_state = 0;
         return 1;

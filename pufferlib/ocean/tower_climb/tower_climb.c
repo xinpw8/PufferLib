@@ -37,7 +37,7 @@ void demo() {
         if (done) {
             printf("Done, reward: %f\n", env->rewards[0]);
             seed++;
-            reset(env);
+            c_reset(env);
             init_random_level(env, 5, 25, seed);
         }
     }
@@ -60,8 +60,8 @@ void performance_test() {
         done = step(env);
         if (done) {
             seed++;
-            reset(env);
-            init_random_level(env, 5, 25, seed);
+            c_reset(env);
+            init_random_level(env, 8, 25, seed);
         }
         i++;
     }
@@ -72,8 +72,8 @@ void performance_test() {
 
 
 int main() {
-    //demo();
-     performance_test();
+    demo();
+    //  performance_test();
     return 0;
 }
 
