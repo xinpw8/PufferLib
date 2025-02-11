@@ -436,15 +436,11 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
       cell_next_above != goal &&
       cell_direct_above != goal;
     if (can_climb){
-        int floor_cleared = cell_direct_above / lvl->size;
+        int floor_cleared = (cell_direct_above / lvl->size) - 2;
 	if(mode == RL_MODE && floor_cleared > env->rows_cleared){
             env->rows_cleared = floor_cleared;
             env->rewards[0] = env->reward_climb_row;
             env->log.episode_return += env->reward_climb_row;
-            printf("climb\n");
-            printf("rows_cleared: %d\n", env->rows_cleared);
-            printf("reward_climb_row: %f\n", env->reward_climb_row);
-            printf("episode_return: %f\n", env->log.episode_return);
         }
         outState->robot_position = cell_next_above;
         outState->robot_state = 0;
@@ -461,6 +457,10 @@ int drop(PuzzleState* outState, int action, int mode, CTowerClimb* env, const Le
         return 0;
     } 
     int step_down = next_double_below_cell >= 0 && TEST_BIT(outState->blocks, next_double_below_cell);
+    if(mode == RL_MODE){
+        env->rewards[0] = env->reward_fall_row;
+        env->log.episode_return += env->reward_fall_row;
+    }
     if (step_down){
         outState->robot_position = next_below_cell;
         return 1;
@@ -860,6 +860,12 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
                 return MOVE_DEATH;
             }
         }
+        if (mode == RL_MODE){
+            if (result == 1){
+                env->rewards[0] = env->reward_move_block;
+                env->log.episode_return += env->reward_move_block;
+            }
+        }
         return result;
     }
     return 0;
@@ -870,12 +876,12 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length >200){
-	        env->rewards[0] = 0;
-	        //env->log.episode_return +=0;
-	        add_log(env->log_buffer, &env->log);
-	        return 1;
-    }
+    // if(env->log.episode_length >200){
+	//         env->rewards[0] = 0;
+	//         //env->log.episode_return +=0;
+	//         add_log(env->log_buffer, &env->log);
+	//         return 1;
+    // }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
