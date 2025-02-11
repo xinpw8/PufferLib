@@ -9,7 +9,7 @@ void demo() {
 
     Client* client = make_client(env);
 
-    // int tick = 0;
+    int tick = 0;
     while (!WindowShouldClose()) {
         // Camera controls
         env->actions[0] = NOOP;
@@ -33,7 +33,11 @@ void demo() {
         }
         render(client, env);
         int done = 0;
-        done = step(env);
+        tick = (tick + 1)%12;
+
+        if (tick % 12 == 0) {
+            done = step(env);
+        }
         if (done) {
             printf("Done, reward: %f\n", env->rewards[0]);
             seed++;
@@ -72,8 +76,8 @@ void performance_test() {
 
 
 int main() {
-    //demo();
-    performance_test();
+    demo();
+    // performance_test();
     return 0;
 }
 

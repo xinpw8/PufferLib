@@ -130,7 +130,7 @@ cdef class CyTowerClimb:
     def reset(self):
         cdef int i, idx
         for i in range(self.num_envs):
-            idx = rand() % self.num_maps
+            idx = np.random.randint(0, self.num_maps)
             c_reset(&self.envs[i])
             setPuzzle(&self.envs[i], &self.puzzle_states[idx], &self.levels[idx])
 
@@ -139,7 +139,7 @@ cdef class CyTowerClimb:
         for i in range(self.num_envs):
             done = step(&self.envs[i])
             if (done):
-                idx = rand() % self.num_maps
+                idx = np.random.randint(0, self.num_maps) 
                 c_reset(&self.envs[i])
                 setPuzzle(&self.envs[i], &self.puzzle_states[idx], &self.levels[idx])
 

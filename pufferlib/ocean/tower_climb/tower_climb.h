@@ -1444,11 +1444,11 @@ typedef struct {
 
 static const AnimConfig ANIM_CONFIGS[] = {
     [ANIM_IDLE] = {4, 1, -1, 0, ANIM_IDLE},            // Loops from start
-    [ANIM_CLIMBING] = {1, 6, -1, 0, ANIM_IDLE},        // Start from beginning
+    [ANIM_CLIMBING] = {1, 12, -1, 0, ANIM_IDLE},        // Start from beginning
     [ANIM_HANGING] = {2, 0, 1, 0, ANIM_HANGING},       // Static frame
     [ANIM_START_GRABBING] = {3, 6, -2, 0, ANIM_GRABBING}, // Normal grab start
     [ANIM_GRABBING] = {3, 0, -2, -2, ANIM_GRABBING},   // Start at second-to-last frame
-    [ANIM_RUNNING] = {5, 4, -1, 0, ANIM_IDLE},         // Start from beginning
+    [ANIM_RUNNING] = {5, 8, -1, 0, ANIM_IDLE},         // Start from beginning
     [ANIM_SHIMMY_RIGHT] = {7, 2, 87, 0, ANIM_HANGING}, // Start from beginning
     [ANIM_SHIMMY_LEFT] = {6, 2, 87, 0, ANIM_HANGING}   // Start from beginning
 };
