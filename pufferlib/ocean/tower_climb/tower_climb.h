@@ -241,12 +241,19 @@ void init(CTowerClimb* env) {
     env->rows_cleared = 0;
 }
 
-void setPuzzle(CTowerClimb* env, PuzzleState* src){
+void setPuzzle(CTowerClimb* env, PuzzleState* src, Level* lvl){
 	memcpy(env->state->blocks, src->blocks, BLOCK_BYTES * sizeof(unsigned char));
 	env->state->robot_position = src->robot_position;
 	env->state->robot_orientation = src->robot_orientation;
 	env->state->robot_state = src->robot_state;
 	env->state->block_grabbed = src->block_grabbed; 
+    memcpy(env->level->map, lvl->map, lvl->total_length * sizeof(int));
+    env->level->rows = lvl->rows;
+    env->level->cols = lvl->cols;
+    env->level->size = lvl->size;
+    env->level->total_length = lvl->total_length;
+    env->level->goal_location = lvl->goal_location;
+    env->level->spawn_location = lvl->spawn_location;
 }
 
 CTowerClimb* allocate() {
@@ -1249,7 +1256,7 @@ void init_random_level(CTowerClimb* env, int goal_level, int max_moves, int seed
     srand((unsigned) time(&t) + seed); // Increment seed for each level
     gen_level(env->level, goal_level);
     // guarantee a map is created
-    while(env->level->map == NULL || verify_level(env->level,max_moves) == 0){
+    while(env->level->spawn_location == 0 || env->level->goal_location == 999 || verify_level(env->level,max_moves) == 0){
         gen_level(env->level,goal_level);
     }
     levelToPuzzleState(env->level, env->state);
@@ -1260,7 +1267,7 @@ void cy_init_random_level(Level* level, int goal_level, int max_moves, int seed)
     srand((unsigned) time(&t) + seed); // Increment seed for each level
     gen_level(level, goal_level);
     // guarantee a map is created
-    while(level->map == NULL || verify_level(level,max_moves) == 0){
+    while(level->spawn_location == 0 || level->goal_location == 999 || verify_level(level,max_moves) == 0){
         gen_level(level, goal_level);
     }
 }
