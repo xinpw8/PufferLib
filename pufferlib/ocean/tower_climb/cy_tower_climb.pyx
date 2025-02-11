@@ -117,8 +117,8 @@ cdef class CyTowerClimb:
         cdef int goal_height
         cdef int max_moves
         for i in range(num_maps):
-            goal_height = np.random.randint(5,9)
-            max_moves = np.random.randint(15,25)
+            goal_height = np.random.randint(5,6)
+            max_moves = 15
             init_level(&self.levels[i])
             init_puzzle_state(&self.puzzle_states[i])
             cy_init_random_level(&self.levels[i], goal_height, max_moves, i)
