@@ -409,6 +409,7 @@ void illegal_move(CTowerClimb* env){
 void death(CTowerClimb* env){
 	env->rewards[0] = -1;
 	env->log.episode_return -= 1;
+	env->log.levels_completed = 0;
 	add_log(env->log_buffer, &env->log);
 }
 
@@ -441,6 +442,7 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
             env->rows_cleared = floor_cleared;
             env->rewards[0] = env->reward_climb_row;
             env->log.episode_return += env->reward_climb_row;
+	    env->log.rows_cleared = floor_cleared;
         }
         outState->robot_position = cell_next_above;
         outState->robot_state = 0;
@@ -876,12 +878,13 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    // if(env->log.episode_length >200){
-	//         env->rewards[0] = 0;
-	//         //env->log.episode_return +=0;
-	//         add_log(env->log_buffer, &env->log);
-	//         return 1;
-    // }
+    if(env->log.episode_length >200){
+	         env->rewards[0] = 0;
+	         //env->log.episode_return +=0;
+		 env->log.levels_completed = 0;
+	         add_log(env->log_buffer, &env->log);
+	         return 1;
+    }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
@@ -898,7 +901,8 @@ int step(CTowerClimb* env) {
     if (isGoal(env->state, env->level)) {
         env->rewards[0] = 1.0;
         env->log.episode_return +=1.0;
-        add_log(env->log_buffer, &env->log);
+        env->log.levels_completed = 1.0;
+	add_log(env->log_buffer, &env->log);
 	return 1;
     }
     
