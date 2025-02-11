@@ -386,6 +386,10 @@ void compute_observations(CTowerClimb* env) {
                     env->observations[obs_idx] = 3.0f;
                     continue;
                 }
+                else if (board_idx == env->level->goal_location){
+                    env->observations[obs_idx] = 2.0f;
+                    continue;
+                }
                 
                 // Use bitmask directly instead of board_state array
                 env->observations[obs_idx] = (float)TEST_BIT(env->state->blocks, board_idx);
