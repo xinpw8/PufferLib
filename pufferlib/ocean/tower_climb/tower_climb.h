@@ -893,7 +893,6 @@ int step(CTowerClimb* env) {
     env->rewards[0] = 0.0;
     if(env->log.episode_length >200){
         env->rewards[0] = 0;
-        //env->log.episode_return +=0;
         env->log.levels_completed = 0;
         add_log(env->log_buffer, &env->log);
         return 1;
@@ -1226,10 +1225,17 @@ void gen_level(Level* lvl, int goal_level) {
                         lvl->map[spawn_index] = 0;
                     }
                 }
-                if (goal_created ==0 && y == goal_level && (lvl->map[block_index + col_max  - area]  ==1 ||  lvl->map[block_index - 1  - area] == 1|| lvl->map[block_index + 1 - area] ==1 )){
-                    goal_created = 1;
-                    goal_index = block_index;
-                    lvl->map[goal_index] = 2;
+                if (!goal_created && y == goal_level && 
+                    (lvl->map[block_index + col_max - area] == 1 || 
+                     lvl->map[block_index - 1 - area] == 1 || 
+                     lvl->map[block_index + 1 - area] == 1)) {
+                    
+                    // 33% chance to place goal here, unless we're at the last valid position
+                    if (rand() % 3 == 0 || (x == col_max-1 && z == 0)) {
+                        goal_created = 1;
+                        goal_index = block_index;
+                        lvl->map[goal_index] = 2;
+                    }
                 }
                 
             }
