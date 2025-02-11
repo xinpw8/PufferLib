@@ -1322,6 +1322,7 @@ struct Client {
     float moveProgress;
     Model cube;
     float scale;
+    int enable_animations;
 };
 
 Client* make_client(CTowerClimb* env) {
@@ -1421,7 +1422,7 @@ Client* make_client(CTowerClimb* env) {
         z * 1.0f
     };
     client->targetPosition = client->visualPosition;  // Initialize target to match
-    
+    client->enable_animations = 0;
     return client;
 }
 
@@ -1450,16 +1451,17 @@ typedef struct {
 
 static const AnimConfig ANIM_CONFIGS[] = {
     [ANIM_IDLE] = {4, 1, -1, 0, ANIM_IDLE},            // Loops from start
-    [ANIM_CLIMBING] = {1, 12, -1, 0, ANIM_IDLE},        // Start from beginning
+    [ANIM_CLIMBING] = {1, 6, -1, 0, ANIM_IDLE},        // Start from beginning
     [ANIM_HANGING] = {2, 0, 1, 0, ANIM_HANGING},       // Static frame
     [ANIM_START_GRABBING] = {3, 6, -2, 0, ANIM_GRABBING}, // Normal grab start
     [ANIM_GRABBING] = {3, 0, -2, -2, ANIM_GRABBING},   // Start at second-to-last frame
-    [ANIM_RUNNING] = {5, 8, -1, 0, ANIM_IDLE},         // Start from beginning
+    [ANIM_RUNNING] = {5, 4, -1, 0, ANIM_IDLE},         // Start from beginning
     [ANIM_SHIMMY_RIGHT] = {7, 2, 87, 0, ANIM_HANGING}, // Start from beginning
     [ANIM_SHIMMY_LEFT] = {6, 2, 87, 0, ANIM_HANGING}   // Start from beginning
 };
 
 static void update_animation(Client* client, AnimationState newState) {
+    if (!client->enable_animations) return;
     const AnimConfig* config = &ANIM_CONFIGS[newState];
     client->animState = newState;
     
@@ -1486,6 +1488,7 @@ static void update_position(Client* client, CTowerClimb* env) {
 }
 
 static void process_animation_frame(Client* client, CTowerClimb* env) {
+    if (!client->enable_animations) return;
     const AnimConfig* config = &ANIM_CONFIGS[client->animState];
     if (!client->isMoving && client->animState != ANIM_IDLE) return;
     
@@ -1662,7 +1665,7 @@ void render(Client* client, CTowerClimb* env) {
     
     // Handle orientation changes while hanging
     if (env->state->robot_orientation != previous_orientation && 
-        env->state->robot_state == HANGING) {
+        env->state->robot_state == HANGING && client->enable_animations) {
         
         // First remove the old orientation's offset
         if (previous_orientation != -1) {
@@ -1677,7 +1680,7 @@ void render(Client* client, CTowerClimb* env) {
         previous_orientation = env->state->robot_orientation;
     }
     // Handle state transitions - drop animation
-    if (env->state->robot_state == DEFAULT && client->animState == ANIM_HANGING) {
+    if (env->state->robot_state == DEFAULT && client->animState == ANIM_HANGING && client->enable_animations) {
         update_animation(client, ANIM_IDLE);
         client->isMoving = false;
         client->visualPosition = client->targetPosition;
@@ -1685,15 +1688,15 @@ void render(Client* client, CTowerClimb* env) {
     // grab animation
     if (env->state->block_grabbed != -1 && 
         client->animState != ANIM_GRABBING && 
-        client->animState != ANIM_START_GRABBING) {
+        client->animState != ANIM_START_GRABBING && client->enable_animations) {
         update_animation(client, ANIM_START_GRABBING);
         client->isMoving = true;
-    } else if (env->state->block_grabbed == -1 && client->animState == ANIM_GRABBING) {
+    } else if (env->state->block_grabbed == -1 && client->animState == ANIM_GRABBING && client->enable_animations) {
         update_animation(client, ANIM_IDLE);
     }
 
     // Handle position changes
-    if (env->state->robot_position != client->previousRobotPosition) {
+    if (env->state->robot_position != client->previousRobotPosition && client->enable_animations) {
         if (client->isMoving) client->visualPosition = client->targetPosition;
         client->isMoving = true;
         update_position(client, env);
@@ -1714,7 +1717,10 @@ void render(Client* client, CTowerClimb* env) {
         
         client->previousRobotPosition = env->state->robot_position;
     }
-
+    if(!client->enable_animations) {
+        update_position(client, env);
+        client->visualPosition = client->targetPosition;
+    }
     process_animation_frame(client, env);
     update_camera(client, env);
     render_scene(client, env);
