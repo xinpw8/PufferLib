@@ -10,10 +10,19 @@ data = np.load(path+'.npy', allow_pickle=True).item()
 costs = data['costs']
 scores = data['scores']
 
+sorted_costs = np.sort(costs)
+aoc = np.max(scores) * np.cumsum(sorted_costs) / np.sum(costs)
+
 # Create a ColumnDataSource that includes the 'order' for each point
 source = ColumnDataSource(data=dict(
     x=costs,
     y=scores,
+    order=list(range(len(scores)))  # index/order for each point
+))
+
+curve = ColumnDataSource(data=dict(
+    x=sorted_costs,
+    y=aoc,
     order=list(range(len(scores)))  # index/order for each point
 ))
 
@@ -35,6 +44,11 @@ p.scatter(x='x',
           color={'field': 'order', 'transform': mapper}, 
           size=10, 
           source=source)
+
+p.line(x='x', 
+       y='y', 
+       color='purple',
+       source=curve)
 
 show(p)
 

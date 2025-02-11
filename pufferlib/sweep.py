@@ -87,7 +87,7 @@ class Logit(Space):
 def _carbs_params_from_puffer_sweep(sweep_config):
     param_spaces = {}
     for name, param in sweep_config.items():
-        if name in ('method', 'name', 'metric'):
+        if name in ('method', 'name', 'metric', 'max_score'):
             continue
 
         assert isinstance(param, dict)
@@ -185,25 +185,22 @@ class PufferCarbs:
             sweep_config,
             max_suggestion_cost = None,
             resample_frequency = 5,
-            num_random_samples = 900,
-            seed = 0,
-            initial_search_radius = 0.3,
+            num_random_samples = 10,
             global_search_scale = 1,
             random_suggestions = 1024,
-            suggestions_per_pareto = 100,
+            suggestions_per_pareto = 128,
         ):
         self.spaces = _carbs_params_from_puffer_sweep(sweep_config)
         self.flat_spaces = dict(pufferlib.utils.unroll_nested_dict(self.spaces))
         self.num_params = len(self.flat_spaces)
 
         self.metric = sweep_config['metric']
+        self.max_score = sweep_config['max_score']
 
         assert self.metric['goal'] in ['maximize', 'minimize']
         self.optimize_direction = 1 if self.metric['goal'] == 'maximize' else -1
 
-        self.seed = seed
         self.num_random_samples = num_random_samples
-        self.initial_search_radius = initial_search_radius
         self.global_search_scale = global_search_scale
         self.random_suggestions = random_suggestions
         self.suggestions_per_pareto = suggestions_per_pareto
@@ -237,6 +234,7 @@ class PufferCarbs:
     def suggest(self):
         self.suggestion_idx += 1
         # TODO: Clip random samples to bounds so we don't get bad high cost samples
+        info = {}
         if self.suggestion_idx <= self.num_random_samples:
             suggestions = sample_uniform(
                 self.search_centers[None, :], self.search_scales, self.random_suggestions)
@@ -251,6 +249,7 @@ class PufferCarbs:
         else:
             params = np.array([e['input'] for e in self.success_observations])
             params = torch.from_numpy(params)
+            eps = 1e-5
 
             # Scores variable y
             y = self.optimize_direction*np.array([e['output'] for e in self.success_observations])
@@ -258,11 +257,11 @@ class PufferCarbs:
             y_mean = np.mean(y)
             y_std = np.std(y)
 
-            # Hardcoded?
-            eps = 1e-5
-            max_score = np.log(200)
-
             # Transformed scores
+            max_score = self.max_score
+            if max_score is None:
+                max_score = np.max(y) + abs(np.max(y))
+
             yt = -np.log(1 - y/max_score + eps)
             yt_mean = np.mean(yt)
             yt_std = np.std(yt)
@@ -325,19 +324,19 @@ class PufferCarbs:
             # Just need to figure out why the GP is overconfident
 
             best_idx = np.argmax(suggestion_scores)
-            score = gp_y[best_idx].item()
-            nearby = nearest_pareto_y[best_idx].item()
-            dist = nearest_pareto_dist[best_idx].item()
-            cost = gp_c[best_idx].item()
-            rating = suggestion_scores[best_idx].item()
-            #var = unnormalized_score_var[best_idx].item()
+            info = dict(
+                cost = gp_c[best_idx].item(),
+                score = gp_y[best_idx].item(),
+                nearby = nearest_pareto_y[best_idx].item(),
+                dist = nearest_pareto_dist[best_idx].item(),
+                rating = suggestion_scores[best_idx].item(),
+            )
             print('Predicted -- ',
-                f'Score: {score:.3f}',
-                f'Nearby: {nearby:.3f}',
-                f'Dist: {dist:.3f}',
-                f'Cost: {cost:.3f}',
-                f'Rating: {rating:.3f}',
-                #f'Var: {var:.3f}',
+                f'Score: {info["score"]:.3f}',
+                f'Nearby: {info["nearby"]:.3f}',
+                f'Dist: {info["dist"]:.3f}',
+                f'Cost: {info["cost"]:.3f}',
+                f'Rating: {info["rating"]:.3f}',
             )
 
             best = suggestions[best_idx].numpy()
@@ -395,7 +394,7 @@ class PufferCarbs:
         self.suggestion = best
         params = deepcopy(self.spaces)
         fill(params, best)
-        return params
+        return params, info
 
 
     def observe(self, score, cost, is_failure=False):
