@@ -59,13 +59,14 @@ cdef extern from "tower_climb.h":
         float reward_move_block;
 
     ctypedef struct Client
+        int enable_animations;
 
     void init(CTowerClimb* env)
     void free_allocated(CTowerClimb* env)
     void init_level(Level* level)
     void init_puzzle_state(PuzzleState* state)
-    void init_random_level(CTowerClimb* env, int goal_height, int max_moves, int seed)
-    void cy_init_random_level(Level* level, int goal_height, int max_moves, int seed)
+    void init_random_level(CTowerClimb* env, int goal_height, int max_moves, int min_moves,  int seed)
+    void cy_init_random_level(Level* level, int goal_height, int max_moves, int min_moves, int seed)
     void levelToPuzzleState(Level* level, PuzzleState* state)
     void setPuzzle(CTowerClimb* dest, PuzzleState* src, Level* lvl)
 
@@ -117,13 +118,14 @@ cdef class CyTowerClimb:
         cdef int goal_height
         cdef int max_moves
         for i in range(num_maps):
-            goal_height = np.random.randint(5,6)
-            max_moves = 15
+            goal_height = np.random.randint(7,9)
+            max_moves = 25
+            min_moves = 20
             init_level(&self.levels[i])
             init_puzzle_state(&self.puzzle_states[i])
-            cy_init_random_level(&self.levels[i], goal_height, max_moves, i)
+            cy_init_random_level(&self.levels[i], goal_height, max_moves, min_moves, i)
             levelToPuzzleState(&self.levels[i], &self.puzzle_states[i])
-            if (i + 1 ) % 5 == 0:
+            if (i + 1 ) % 50 == 0:
                 print(f"Created {i+1} maps..")
 
 
@@ -147,7 +149,7 @@ cdef class CyTowerClimb:
         cdef CTowerClimb* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env)
-
+            self.client.enable_animations = 0
         render(self.client, &self.envs[0])
 
     def close(self):

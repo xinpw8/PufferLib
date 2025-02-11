@@ -891,7 +891,7 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length >200){
+    if(env->log.episode_length >30){
         env->rewards[0] = 0;
         env->log.levels_completed = 0;
         add_log(env->log_buffer, &env->log);
@@ -1073,7 +1073,7 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
 }
 
 // Example BFS
-int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
+int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
     // Clear or init your BFS queue
     queueBuffer = (BFSNode*)malloc(MAX_BFS_SIZE * sizeof(BFSNode));
     if (!queueBuffer) {
@@ -1105,7 +1105,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl) {
         int currentIndex = front;
         front++;
         // If current.state is the goal, reconstruct path
-        if (isGoal(&current.state, lvl)) {
+        if (isGoal(&current.state, lvl) && current.depth > min_moves) {
            // printf("Found solution path of length %d!\n", current.depth);
             
             // Store nodes in order
@@ -1186,7 +1186,7 @@ void cleanupVisited(void) {
         visitedTable[i] = NULL;
     }
 }
-int verify_level(Level* level, int max_moves){
+int verify_level(Level* level, int max_moves, int min_moves){
     // converting level to puzzle state
     PuzzleState* state = calloc(1, sizeof(PuzzleState));
     init_puzzle_state(state);
@@ -1195,7 +1195,7 @@ int verify_level(Level* level, int max_moves){
     resetVisited();
     markVisited(state);
     // Run BFS
-    int solvable = bfs(state, max_moves, level);
+    int solvable = bfs(state, max_moves, level, min_moves);
     cleanupVisited();
     free_puzzle_state(state);
     return solvable;
@@ -1261,23 +1261,23 @@ void gen_level(Level* lvl, int goal_level) {
 }
 
 
-void init_random_level(CTowerClimb* env, int goal_level, int max_moves, int seed) {
+void init_random_level(CTowerClimb* env, int goal_level, int max_moves, int min_moves, int seed) {
 	time_t t;
     srand((unsigned) time(&t) + seed); // Increment seed for each level
     gen_level(env->level, goal_level);
     // guarantee a map is created
-    while(env->level->spawn_location == 0 || env->level->goal_location == 999 || verify_level(env->level,max_moves) == 0){
+    while(env->level->spawn_location == 0 || env->level->goal_location == 999 || verify_level(env->level,max_moves, min_moves) == 0){
         gen_level(env->level,goal_level);
     }
     levelToPuzzleState(env->level, env->state);
 }
 
-void cy_init_random_level(Level* level, int goal_level, int max_moves, int seed) {
+void cy_init_random_level(Level* level, int goal_level, int max_moves, int min_moves, int seed) {
     time_t t;
     srand((unsigned) time(&t) + seed); // Increment seed for each level
     gen_level(level, goal_level);
     // guarantee a map is created
-    while(level->spawn_location == 0 || level->goal_location == 999 || verify_level(level,max_moves) == 0){
+    while(level->spawn_location == 0 || level->goal_location == 999 || verify_level(level,max_moves, min_moves) == 0){
         gen_level(level, goal_level);
     }
 }
@@ -1422,7 +1422,6 @@ Client* make_client(CTowerClimb* env) {
         z * 1.0f
     };
     client->targetPosition = client->visualPosition;  // Initialize target to match
-    client->enable_animations = 0;
     return client;
 }
 
@@ -1554,6 +1553,7 @@ static void handle_hanging_movement(Client* client, CTowerClimb* env) {
     if (client->targetPosition.y < client->visualPosition.y) {
         update_animation(client, ANIM_HANGING);
         orient_hang_offset(client, env, 1);
+	client->isMoving = false;
     } else {
         update_animation(client, moving_right ? ANIM_SHIMMY_RIGHT : ANIM_SHIMMY_LEFT);
     }
