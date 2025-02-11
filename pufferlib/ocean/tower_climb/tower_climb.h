@@ -437,7 +437,7 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
       cell_direct_above != goal;
     if (can_climb){
         int floor_cleared = cell_direct_above / lvl->size;
-        if(floor_cleared > env->rows_cleared){
+	if(mode == RL_MODE && floor_cleared > env->rows_cleared){
             env->rows_cleared = floor_cleared;
             env->rewards[0] = env->reward_climb_row;
             env->log.episode_return += env->reward_climb_row;
