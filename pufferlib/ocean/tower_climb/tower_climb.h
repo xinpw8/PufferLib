@@ -112,6 +112,8 @@ void init_level(Level* lvl){
     lvl->cols = 10;
     lvl->size = 100;
     lvl->total_length = 1000;
+    lvl->goal_location = 999;
+    lvl->spawn_location = 0;
 }
 
 void free_level(Level* lvl){
@@ -438,11 +440,11 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
       cell_direct_above != goal;
     if (can_climb){
         int floor_cleared = (cell_direct_above / lvl->size) - 2;
-	if(mode == RL_MODE && floor_cleared > env->rows_cleared){
+	    if(mode == RL_MODE && floor_cleared > env->rows_cleared){
             env->rows_cleared = floor_cleared;
             env->rewards[0] = env->reward_climb_row;
             env->log.episode_return += env->reward_climb_row;
-	    env->log.rows_cleared = floor_cleared;
+	        env->log.rows_cleared = floor_cleared;
         }
         outState->robot_position = cell_next_above;
         outState->robot_state = 0;
@@ -879,11 +881,11 @@ int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
     if(env->log.episode_length >200){
-	         env->rewards[0] = 0;
-	         //env->log.episode_return +=0;
-		 env->log.levels_completed = 0;
-	         add_log(env->log_buffer, &env->log);
-	         return 1;
+        env->rewards[0] = 0;
+        //env->log.episode_return +=0;
+        env->log.levels_completed = 0;
+        add_log(env->log_buffer, &env->log);
+        return 1;
     }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
@@ -902,8 +904,8 @@ int step(CTowerClimb* env) {
         env->rewards[0] = 1.0;
         env->log.episode_return +=1.0;
         env->log.levels_completed = 1.0;
-	add_log(env->log_buffer, &env->log);
-	return 1;
+        add_log(env->log_buffer, &env->log);
+        return 1;
     }
     
     // Update observations
