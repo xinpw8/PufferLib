@@ -108,6 +108,10 @@ struct Level {
 
 void init_level(Level* lvl){
 	lvl->map = calloc(1000,sizeof(unsigned int));
+    lvl->rows = 10;
+    lvl->cols = 10;
+    lvl->size = 100;
+    lvl->total_length = 1000;
 }
 
 void free_level(Level* lvl){
@@ -240,7 +244,6 @@ void setPuzzle(CTowerClimb* env, PuzzleState* src){
 	env->state->robot_orientation = src->robot_orientation;
 	env->state->robot_state = src->robot_state;
 	env->state->block_grabbed = src->block_grabbed; 
-	printf("uncurse\n");
 }
 
 CTowerClimb* allocate() {
@@ -388,7 +391,7 @@ void compute_observations(CTowerClimb* env) {
     env->observations[state_start + 3] = (float)(env->state->block_grabbed != -1);
 }
 
-void reset(CTowerClimb* env) {
+void c_reset(CTowerClimb* env) {
     env->log = (Log){0};
     env->dones[0] = 0;
     memset(env->state->blocks, 0, BLOCK_BYTES * sizeof(unsigned char));
@@ -853,7 +856,6 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 
 
 int step(CTowerClimb* env) {
-    printf("step\n");
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
     if(env->log.episode_length >200){
@@ -1227,6 +1229,16 @@ void init_random_level(CTowerClimb* env, int goal_level, int max_moves, int seed
         gen_level(env->level,goal_level);
     }
     levelToPuzzleState(env->level, env->state);
+}
+
+void cy_init_random_level(Level* level, int goal_level, int max_moves, int seed) {
+    time_t t;
+    srand((unsigned) time(&t) + seed); // Increment seed for each level
+    gen_level(level, goal_level);
+    // guarantee a map is created
+    while(level->map == NULL || verify_level(level,max_moves) == 0){
+        gen_level(level, goal_level);
+    }
 }
 
 

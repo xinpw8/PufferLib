@@ -65,6 +65,7 @@ cdef extern from "tower_climb.h":
     void init_level(Level* level)
     void init_puzzle_state(PuzzleState* state)
     void init_random_level(CTowerClimb* env, int goal_height, int max_moves, int seed)
+    void cy_init_random_level(Level* level, int goal_height, int max_moves, int seed)
     void levelToPuzzleState(Level* level, PuzzleState* state)
     void setPuzzle(CTowerClimb* dest, PuzzleState* src)
 
@@ -72,7 +73,7 @@ cdef extern from "tower_climb.h":
     Client* make_client(CTowerClimb* env)
     void close_client(Client* client)
     void render(Client* client, CTowerClimb* env)
-    void reset(CTowerClimb* env)
+    void c_reset(CTowerClimb* env)
     int step(CTowerClimb* env)
 
 cdef class CyTowerClimb:
@@ -120,9 +121,9 @@ cdef class CyTowerClimb:
             max_moves = np.random.randint(15,25)
             init_level(&self.levels[i])
             init_puzzle_state(&self.puzzle_states[i])
-            init_random_level(&self.envs[0], goal_height, max_moves, i)
+            cy_init_random_level(&self.levels[i], goal_height, max_moves, i)
             levelToPuzzleState(&self.levels[i], &self.puzzle_states[i])
-            if (i + 1 ) % 250 == 0:
+            if (i + 1 ) % 5 == 0:
                 print(f"Created {i+1} maps..")
 
 
@@ -130,7 +131,7 @@ cdef class CyTowerClimb:
         cdef int i, idx
         for i in range(self.num_envs):
             idx = rand() % self.num_maps
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
             setPuzzle(&self.envs[i], &self.puzzle_states[idx])
 
     def step(self):
@@ -139,7 +140,7 @@ cdef class CyTowerClimb:
             done = step(&self.envs[i])
             if (done):
                 idx = rand() & self.num_maps
-                reset(&self.envs[i])
+                c_reset(&self.envs[i])
                 setPuzzle(&self.envs[i], &self.puzzle_states[idx])
 
     def render(self):
