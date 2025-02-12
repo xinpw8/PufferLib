@@ -24,23 +24,25 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
     TowerClimbNet* net = calloc(1, sizeof(TowerClimbNet));
     int hidden_size = 256;
     int cnn_channels = 16;
-    int conv1_output_size = 4;
-    int output_size = 3;
-    int cnn_flat_size = cnn_channels * output_size * output_size * 7;
+    
+    // Calculate correct output sizes for Conv3D layers
+    // First conv: (5,5,9) -> (4,4,8) with kernel=2, stride=1
+    // Second conv: (4,4,8) -> (3,3,7) with kernel=2, stride=1
+    int cnn_flat_size = cnn_channels * 3 * 3 * 7;  // Match PyTorch size
 
     net->num_agents = num_agents;
     net->obs_3d = calloc(5 * 5 * 9, sizeof(float));
     net->obs_1d = calloc(4, sizeof(float));
 
-    net->conv1 = make_conv3d(weights, num_agents, 5, 5, 9, 1, cnn_channels, 2, 1);
-    net->relu1 = make_relu(num_agents, cnn_channels * conv1_output_size * conv1_output_size * 8);
-    net->conv2 = make_conv3d(weights, num_agents, 4, 4, 8, cnn_channels,cnn_channels, 2, 1);
+    net->conv1 = make_conv3d(weights, num_agents, 9, 5, 5, 1, cnn_channels, 2, 1);
+    net->relu1 = make_relu(num_agents, cnn_channels * 4 * 4 * 8);
+    net->conv2 = make_conv3d(weights, num_agents, 8, 4, 4, cnn_channels, cnn_channels, 2, 1);
     net->flat = make_linear(weights, num_agents, 4, 16);
     net->cat = make_cat_dim1(num_agents, cnn_flat_size, 16);
     net->proj = make_linear(weights, num_agents, cnn_flat_size + 16, hidden_size);
+    net->lstm = make_lstm(weights, num_agents, hidden_size, hidden_size);
     net->actor = make_linear(weights, num_agents, hidden_size, 6);
     net->value_fn = make_linear(weights, num_agents, hidden_size, 1);
-    net->lstm = make_lstm(weights, num_agents, hidden_size, hidden_size);
 
     int logit_sizes[1] = {6};
     net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
@@ -55,16 +57,21 @@ void forward(TowerClimbNet* net, float* observations, int* actions) {
     memset(net->obs_3d, 0, vision_size * sizeof(float));
     memset(net->obs_1d, 0, player_size * sizeof(float));
     // reshape board to 3d tensor
-    float (*obs_3d)[5][5][9] = (float (*)[5][5][9])net->obs_3d;
+    float (*obs_3d)[1][5][5][9] = (float (*)[1][5][5][9])net->obs_3d;
     float (*obs_1d)[4] = (float (*)[4])net->obs_1d;
     // process vision board
-    // process vision board
-    for (int x = 0; x < 5; x++) {
-        for (int y = 0; y < 5; y++) {
-            for (int z = 0; z < 9; z++) {
-                // Convert 3D indices to 1D index: (x * height * depth) + (y * depth) + z
-                int idx = (x * 5 * 9) + (y * 9) + z;
-                obs_3d[0][x][y][z] = observations[idx];
+    for (int b = 0; b < 1; b++) {
+        for (int h = 0; h < 5; h++) {
+            // printf("\nh: %d\n", h);
+            for (int d = 0; d < 5; d++) {
+                // printf("n");
+                for (int w = 0; w < 9; w++) {
+                    // Original flat index from observations
+                    int src_idx = (h * 9 * 5) + (d * 9) + w;
+                    // printf("%f ", observations[src_idx]);
+                    // Match PyTorch's (N, C, W, H, D) format
+                    obs_3d[b][0][h][d][w] = observations[src_idx];
+                }
             }
         }
     }

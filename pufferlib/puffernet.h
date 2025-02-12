@@ -150,7 +150,6 @@ void _conv3d(float* input, float* weights, float* bias,
     int d_out = (in_depth - kernel_size)/stride + 1;
     int h_out = (in_height - kernel_size)/stride + 1;
     int w_out = (in_width - kernel_size)/stride + 1;
-    
     for (int b = 0; b < batch_size; b++) {
         for (int oc = 0; oc < out_channels; oc++) {
             for (int d = 0; d < d_out; d++) {
@@ -429,17 +428,6 @@ Conv3D* make_conv3d(Weights* weights, int batch_size, int in_width, int in_heigh
     
     size_t buffer_size = batch_size*out_channels*in_depth*in_height*in_width*sizeof(float);
     int num_weights = out_channels*in_channels*kernel_size*kernel_size*kernel_size;
-    int num_bias = out_channels;
-    printf("\nConv3D Layer Parameters:\n");
-    printf("- Input dims (w,h,d): %d,%d,%d\n", in_width, in_height, in_depth);
-    printf("- Input channels: %d\n", in_channels);
-    printf("- Output channels: %d\n", out_channels);
-    printf("- Kernel size: %d\n", kernel_size);
-    printf("- Weights needed: %d\n", num_weights);
-    printf("- Bias needed: %d\n", num_bias);
-    printf("- Total params needed: %d\n", num_weights + num_bias);
-    printf("- Weights used so far: %d\n", weights->idx);
-    printf("- Weights remaining: %d\n", weights->size - weights->idx);
     Conv3D* layer = calloc(1, sizeof(Conv3D) + buffer_size);
     *layer = (Conv3D){
         .output = (float*)(layer + 1),
