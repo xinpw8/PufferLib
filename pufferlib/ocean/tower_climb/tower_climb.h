@@ -891,12 +891,12 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    // if(env->log.episode_length >30){
-    //     env->rewards[0] = 0;
-    //     env->log.levels_completed = 0;
-    //     add_log(env->log_buffer, &env->log);
-    //     return 1;
-    // }
+    if(env->log.episode_length > 30){
+         env->rewards[0] = 0;
+         env->log.levels_completed = 0;
+         add_log(env->log_buffer, &env->log);
+         return 1;
+    }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
@@ -1137,7 +1137,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                 queueBuffer = NULL;
                 return 0;
             }
-            printf("Found solution path of length %d!\n", current.depth);
+            //printf("Found solution path of length %d!\n", current.depth);
             
             // Store nodes in order
             BFSNode* path = (BFSNode*)malloc((current.depth + 1) * sizeof(BFSNode));
@@ -1153,7 +1153,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                 idx--;
             }
             // Print in forward order
-            printf("\nStep 0 (Start):\n");
+            /*printf("\nStep 0 (Start):\n");
             printf("  Position: %d\n", path[0].state.robot_position);
             printf("  Orientation: %d\n", path[0].state.robot_orientation);
             printf("  State: %d\n", path[0].state.robot_state);
@@ -1174,6 +1174,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                     bfs_is_valid_position(block_in_front, lvl) && 
                     (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
             }
+	    */
             
             free(path);
             freeQueueBuffer(queueBuffer, back);
