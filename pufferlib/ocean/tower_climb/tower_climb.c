@@ -60,16 +60,21 @@ void forward(TowerClimbNet* net, float* observations, int* actions) {
     float (*obs_3d)[1][5][5][9] = (float (*)[1][5][5][9])net->obs_3d;
     float (*obs_1d)[4] = (float (*)[4])net->obs_1d;
     // process vision board
+    printf("observations\n");
+    int obs_3d_idx = 0;
     for (int b = 0; b < 1; b++) {
         for (int d = 0; d < 5; d++) {
+            printf("\n");
             for (int h = 0; h < 5; h++) {
+                printf("\n");
                 // printf("\nh: %d\n", h);
                 for (int w = 0; w < 9; w++) {
                     // Original flat index from observations
-                    int src_idx = (h * 9 * 5) + (d * 9) + w;
                     // printf("%f ", observations[src_idx]);
                     // Match PyTorch's (N, C, W, H, D) format
-                    obs_3d[b][0][d][h][w] = observations[src_idx];
+                    printf("%f ", observations[obs_3d_idx]);
+                    obs_3d[b][0][d][h][w] = observations[obs_3d_idx];
+                    obs_3d_idx++;
                 }
             }
         }
