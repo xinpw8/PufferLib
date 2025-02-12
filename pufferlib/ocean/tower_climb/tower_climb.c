@@ -5,7 +5,7 @@
 void demo() {    
     CTowerClimb* env = allocate();
     int seed = 0;
-    init_random_level(env, 8, 15, 15, seed);
+    init_random_level(env, 6, 25, 20, seed);
 
     Client* client = make_client(env);
     client->enable_animations = 1;
@@ -44,7 +44,7 @@ void demo() {
             printf("Done, reward: %f\n", env->rewards[0]);
             seed++;
             c_reset(env);
-            init_random_level(env, 8, 15, 15, seed);
+            init_random_level(env, 6, 25, 20, seed);
         }
     }
     close_client(client);
