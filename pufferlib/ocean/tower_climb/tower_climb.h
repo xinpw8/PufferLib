@@ -891,12 +891,12 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    // if(env->log.episode_length > 30){
-    //      env->rewards[0] = 0;
-    //      env->log.levels_completed = 0;
-    //      add_log(env->log_buffer, &env->log);
-    //      return 1;
-    // }
+    if(env->log.episode_length > 300){
+         env->rewards[0] = 0;
+         env->log.levels_completed = 0;
+         add_log(env->log_buffer, &env->log);
+         return 1;
+    }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     

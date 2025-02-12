@@ -40,10 +40,9 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
     net->flat = make_linear(weights, num_agents, 4, 16);
     net->cat = make_cat_dim1(num_agents, cnn_flat_size, 16);
     net->proj = make_linear(weights, num_agents, cnn_flat_size + 16, hidden_size);
-    net->lstm = make_lstm(weights, num_agents, hidden_size, hidden_size);
     net->actor = make_linear(weights, num_agents, hidden_size, 6);
     net->value_fn = make_linear(weights, num_agents, hidden_size, 1);
-
+    net->lstm = make_lstm(weights, num_agents, hidden_size, hidden_size);
     int logit_sizes[1] = {6};
     net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
     return net;
@@ -60,19 +59,16 @@ void forward(TowerClimbNet* net, float* observations, int* actions) {
     float (*obs_3d)[1][5][5][9] = (float (*)[1][5][5][9])net->obs_3d;
     float (*obs_1d)[4] = (float (*)[4])net->obs_1d;
     // process vision board
-    printf("observations\n");
     int obs_3d_idx = 0;
     for (int b = 0; b < 1; b++) {
         for (int d = 0; d < 5; d++) {
-            printf("\n");
+            // printf("\n");
             for (int h = 0; h < 5; h++) {
-                printf("\n");
-                // printf("\nh: %d\n", h);
+                // printf("\n");
                 for (int w = 0; w < 9; w++) {
                     // Original flat index from observations
-                    // printf("%f ", observations[src_idx]);
                     // Match PyTorch's (N, C, W, H, D) format
-                    printf("%f ", observations[obs_3d_idx]);
+                    // printf("%f ", observations[obs_3d_idx]);
                     obs_3d[b][0][d][h][w] = observations[obs_3d_idx];
                     obs_3d_idx++;
                 }
@@ -124,7 +120,7 @@ void demo() {
     TowerClimbNet* net = init_tower_climb_net(weights, 1);
     CTowerClimb* env = allocate();
     int seed = 0;
-    init_random_level(env, 6, 25, 20, seed);
+    init_random_level(env, 6, 15, 10, seed);
 
     Client* client = make_client(env);
     client->enable_animations = 1;
@@ -144,10 +140,9 @@ void demo() {
                 env->actions[0] = NOOP;
             }
             if (done) {
-                printf("Done, reward: %f\n", env->rewards[0]);
                 seed++;
                 c_reset(env);
-                init_random_level(env, 6, 25, 20, seed);
+                init_random_level(env, 6, 15, 10, seed);
             }
         }
         tick++;
