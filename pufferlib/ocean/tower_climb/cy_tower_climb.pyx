@@ -58,7 +58,7 @@ cdef extern from "tower_climb.h":
         float reward_illegal_move;
         float reward_move_block;
 
-    ctypedef struct Client
+    ctypedef struct Client:
         int enable_animations;
 
     void init(CTowerClimb* env)

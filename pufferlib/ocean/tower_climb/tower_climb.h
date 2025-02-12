@@ -891,12 +891,12 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length >30){
-        env->rewards[0] = 0;
-        env->log.levels_completed = 0;
-        add_log(env->log_buffer, &env->log);
-        return 1;
-    }
+    // if(env->log.episode_length >30){
+    //     env->rewards[0] = 0;
+    //     env->log.levels_completed = 0;
+    //     add_log(env->log_buffer, &env->log);
+    //     return 1;
+    // }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
@@ -1027,10 +1027,28 @@ void markVisited(const PuzzleState* s) {
 
     // Insert new node
     VisitedNode* node = (VisitedNode*)malloc(sizeof(VisitedNode));
-    node->state = *s;
+    node->state.blocks = (unsigned char*)malloc(BLOCK_BYTES * sizeof(unsigned char));
+    // Copy the blocks data
+    memcpy(node->state.blocks, s->blocks, BLOCK_BYTES * sizeof(unsigned char));
+    // Copy other fields
+    node->state.robot_position = s->robot_position;
+    node->state.robot_orientation = s->robot_orientation;
+    node->state.robot_state = s->robot_state;
+    node->state.block_grabbed = s->block_grabbed;
     node->hashVal = hv;
     node->next = visitedTable[idx];
     visitedTable[idx] = node;
+}
+static PuzzleState copyPuzzleState(const PuzzleState* src) 
+{
+    PuzzleState dst;
+    dst.blocks = (unsigned char*)malloc(BLOCK_BYTES);  // <-- ADDED
+    memcpy(dst.blocks, src->blocks, BLOCK_BYTES);      // <-- ADDED
+    dst.robot_position    = src->robot_position;
+    dst.robot_orientation = src->robot_orientation;
+    dst.robot_state       = src->robot_state;
+    dst.block_grabbed     = src->block_grabbed;
+    return dst;
 }
 
 // This function fills out up to MAX_NEIGHBORS BFSNodes in 'outNeighbors'
@@ -1045,7 +1063,7 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
         int action = i;
 
         // 1) Make a copy of the current puzzle state
-        PuzzleState newState = *curState;
+        PuzzleState newState = copyPuzzleState(curState); 
 
         // 2) Attempt to apply the action to newState
         int success = applyAction(&newState, action, lvl, PLG_MODE, NULL);
@@ -1072,6 +1090,14 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
     return count; // how many valid neighbors we produced
 }
 
+void freeQueueBuffer(BFSNode* queueBuffer, int back){
+    for (int i = 0; i < back; i++) {
+        free(queueBuffer[i].state.blocks); 
+    }
+    free(queueBuffer);
+    queueBuffer = NULL;
+}
+
 // Example BFS
 int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
     // Clear or init your BFS queue
@@ -1086,7 +1112,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
     
     // Enqueue start node
     BFSNode startNode;
-    startNode.state = *start;  // copy puzzle state
+    startNode.state = copyPuzzleState(start);  // copy puzzle state
     startNode.depth = 0;
     startNode.parent = -1;
     startNode.action = -1;
@@ -1097,7 +1123,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
 
         if (back >= MAX_BFS_SIZE) {
             printf("BFS queue overflow! Increase MAX_BFS_SIZE or optimize search.\n");
-            free(queueBuffer);
+            freeQueueBuffer(queueBuffer, back);
             queueBuffer = NULL;
             return 0;
         }
@@ -1105,8 +1131,13 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
         int currentIndex = front;
         front++;
         // If current.state is the goal, reconstruct path
-        if (isGoal(&current.state, lvl) && current.depth > min_moves) {
-           // printf("Found solution path of length %d!\n", current.depth);
+        if (isGoal(&current.state, lvl)) {
+            if(current.depth < min_moves){
+                freeQueueBuffer(queueBuffer, back);
+                queueBuffer = NULL;
+                return 0;
+            }
+            printf("Found solution path of length %d!\n", current.depth);
             
             // Store nodes in order
             BFSNode* path = (BFSNode*)malloc((current.depth + 1) * sizeof(BFSNode));
@@ -1122,7 +1153,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                 idx--;
             }
             // Print in forward order
-           /* printf("\nStep 0 (Start):\n");
+            printf("\nStep 0 (Start):\n");
             printf("  Position: %d\n", path[0].state.robot_position);
             printf("  Orientation: %d\n", path[0].state.robot_orientation);
             printf("  State: %d\n", path[0].state.robot_state);
@@ -1143,9 +1174,10 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                     bfs_is_valid_position(block_in_front, lvl) && 
                     (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
             }
-            */
+            
             free(path);
-	        free(queueBuffer);
+            freeQueueBuffer(queueBuffer, back);
+            queueBuffer = NULL;
             return 1;
         }
 
@@ -1164,11 +1196,13 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                     neighbors[i].parent = currentIndex;
                     // Enqueue
                     queueBuffer[back++] = neighbors[i];
+                } else {
+                    free(nxt->blocks);
                 }
             }
         }        
     }
-    free(queueBuffer);
+    freeQueueBuffer(queueBuffer, back);
     queueBuffer = NULL;
     // If we exit while, no solution found within maxDepth
     //printf("No solution within %d moves.\n", maxDepth);
@@ -1180,6 +1214,7 @@ void cleanupVisited(void) {
         VisitedNode* current = visitedTable[i];
         while (current != NULL) {
             VisitedNode* next = current->next;
+            free(current->state.blocks);
             free(current);
             current = next;
         }
@@ -1453,7 +1488,7 @@ static const AnimConfig ANIM_CONFIGS[] = {
     [ANIM_CLIMBING] = {1, 6, -1, 0, ANIM_IDLE},        // Start from beginning
     [ANIM_HANGING] = {2, 0, 1, 0, ANIM_HANGING},       // Static frame
     [ANIM_START_GRABBING] = {3, 6, -2, 0, ANIM_GRABBING}, // Normal grab start
-    [ANIM_GRABBING] = {3, 0, -2, -2, ANIM_GRABBING},   // Start at second-to-last frame
+    [ANIM_GRABBING] = {3, 4, -2, -2, ANIM_GRABBING},   // Start at second-to-last frame
     [ANIM_RUNNING] = {5, 4, -1, 0, ANIM_IDLE},         // Start from beginning
     [ANIM_SHIMMY_RIGHT] = {7, 2, 87, 0, ANIM_HANGING}, // Start from beginning
     [ANIM_SHIMMY_LEFT] = {6, 2, 87, 0, ANIM_HANGING}   // Start from beginning

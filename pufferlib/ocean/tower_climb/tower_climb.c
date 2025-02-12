@@ -5,9 +5,10 @@
 void demo() {    
     CTowerClimb* env = allocate();
     int seed = 0;
-    init_random_level(env, 5, 25, seed);
+    init_random_level(env, 8, 15, 15, seed);
 
     Client* client = make_client(env);
+    client->enable_animations = 1;
 
     int tick = 0;
     while (!WindowShouldClose()) {
@@ -35,14 +36,15 @@ void demo() {
         int done = 0;
         tick = (tick + 1)%12;
 
-        if (tick % 12 == 0) {
+        if (tick % 1 == 0 && !client->isMoving) {
             done = step(env);
         }
+
         if (done) {
             printf("Done, reward: %f\n", env->rewards[0]);
             seed++;
             c_reset(env);
-            init_random_level(env, 5, 25, seed);
+            init_random_level(env, 8, 15, 15, seed);
         }
     }
     close_client(client);
@@ -53,7 +55,7 @@ void performance_test() {
     long test_time = 10;
     CTowerClimb* env = allocate();
     int seed = 0;
-    init_random_level(env, 8, 25, seed);
+    init_random_level(env, 8, 25, 15, seed);
 
 
     long start = time(NULL);
@@ -65,7 +67,7 @@ void performance_test() {
         if (done) {
             seed++;
             c_reset(env);
-            init_random_level(env, 8, 25, seed);
+            init_random_level(env, 8, 25, 15, seed);
         }
         i++;
     }
