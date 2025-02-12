@@ -891,12 +891,12 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length > 30){
-         env->rewards[0] = 0;
-         env->log.levels_completed = 0;
-         add_log(env->log_buffer, &env->log);
-         return 1;
-    }
+    // if(env->log.episode_length > 30){
+    //      env->rewards[0] = 0;
+    //      env->log.levels_completed = 0;
+    //      add_log(env->log_buffer, &env->log);
+    //      return 1;
+    // }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     
@@ -1608,7 +1608,7 @@ static void update_camera(Client* client, CTowerClimb* env) {
     client->camera.position = (Vector3){
         env->level->cols * 0.5f,
         client->camera.position.y,
-        15.0f
+        25.0f
     };
     client->camera.target = (Vector3){4.0f, client->camera.target.y, 1.0f};
 }

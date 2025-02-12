@@ -56,6 +56,7 @@ Weights* load_weights(const char* filename, size_t num_weights) {
     _load_weights(filename, weights->data, num_weights);
     weights->size = num_weights;
     weights->idx = 0;
+    printf("Total weights loaded: %zu\n", num_weights);
     return weights;
 }
 
@@ -138,6 +139,56 @@ void _conv2d(float* input, float* weights, float* bias,
                         }
                     }
                }
+            }
+        }
+    }
+}
+
+void _conv3d(float* input, float* weights, float* bias,
+        float* output, int batch_size, int in_width, int in_height, int in_depth,
+        int in_channels, int out_channels, int kernel_size, int stride) {
+    int d_out = (in_depth - kernel_size)/stride + 1;
+    int h_out = (in_height - kernel_size)/stride + 1;
+    int w_out = (in_width - kernel_size)/stride + 1;
+    
+    for (int b = 0; b < batch_size; b++) {
+        for (int oc = 0; oc < out_channels; oc++) {
+            for (int d = 0; d < d_out; d++) {
+                for (int h = 0; h < h_out; h++) {
+                    for (int w = 0; w < w_out; w++) {
+                        int out_adr = (
+                            b*out_channels*d_out*h_out*w_out
+                            + oc*d_out*h_out*w_out
+                            + d*h_out*w_out
+                            + h*w_out
+                            + w
+                        );
+                        output[out_adr] = bias[oc];
+                        for (int ic = 0; ic < in_channels; ic++) {
+                            for (int kd = 0; kd < kernel_size; kd++) {
+                                for (int kh = 0; kh < kernel_size; kh++) {
+                                    for (int kw = 0; kw < kernel_size; kw++) {
+                                        int in_adr = (
+                                            b*in_channels*in_depth*in_height*in_width
+                                            + ic*in_depth*in_height*in_width
+                                            + (d*stride + kd)*in_height*in_width
+                                            + (h*stride + kh)*in_width
+                                            + (w*stride + kw)
+                                        );
+                                        int weight_adr = (
+                                            oc*in_channels*kernel_size*kernel_size*kernel_size
+                                            + ic*kernel_size*kernel_size*kernel_size
+                                            + kd*kernel_size*kernel_size
+                                            + kh*kernel_size
+                                            + kw
+                                        );
+                                        output[out_adr] += input[in_adr]*weights[weight_adr];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -355,6 +406,60 @@ Conv2D* make_conv2d(Weights* weights, int batch_size, int in_width, int in_heigh
 void conv2d(Conv2D* layer, float* input) {
     _conv2d(input, layer->weights, layer->bias, layer->output,
         layer->batch_size, layer->in_width, layer->in_height,
+        layer->in_channels, layer->out_channels, layer->kernel_size, layer->stride);
+}
+
+typedef struct Conv3D Conv3D;
+struct Conv3D {
+    float* output;
+    float* weights;
+    float* bias;
+    int batch_size;
+    int in_width;
+    int in_height;
+    int in_depth;
+    int in_channels;
+    int out_channels;
+    int kernel_size;
+    int stride;
+};
+
+Conv3D* make_conv3d(Weights* weights, int batch_size, int in_width, int in_height, int in_depth,
+        int in_channels, int out_channels, int kernel_size, int stride) {
+    
+    size_t buffer_size = batch_size*out_channels*in_depth*in_height*in_width*sizeof(float);
+    int num_weights = out_channels*in_channels*kernel_size*kernel_size*kernel_size;
+    int num_bias = out_channels;
+    printf("\nConv3D Layer Parameters:\n");
+    printf("- Input dims (w,h,d): %d,%d,%d\n", in_width, in_height, in_depth);
+    printf("- Input channels: %d\n", in_channels);
+    printf("- Output channels: %d\n", out_channels);
+    printf("- Kernel size: %d\n", kernel_size);
+    printf("- Weights needed: %d\n", num_weights);
+    printf("- Bias needed: %d\n", num_bias);
+    printf("- Total params needed: %d\n", num_weights + num_bias);
+    printf("- Weights used so far: %d\n", weights->idx);
+    printf("- Weights remaining: %d\n", weights->size - weights->idx);
+    Conv3D* layer = calloc(1, sizeof(Conv3D) + buffer_size);
+    *layer = (Conv3D){
+        .output = (float*)(layer + 1),
+        .weights = get_weights(weights, num_weights),
+        .bias = get_weights(weights, out_channels),
+        .batch_size = batch_size,
+        .in_width = in_width,
+        .in_height = in_height,
+        .in_depth = in_depth,
+        .in_channels = in_channels,
+        .out_channels = out_channels,
+        .kernel_size = kernel_size,
+        .stride = stride,
+    };
+    return layer;
+}
+
+void conv3d(Conv3D* layer, float* input) {
+    _conv3d(input, layer->weights, layer->bias, layer->output,
+        layer->batch_size, layer->in_width, layer->in_height, layer->in_depth,
         layer->in_channels, layer->out_channels, layer->kernel_size, layer->stride);
 }
 

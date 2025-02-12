@@ -1,8 +1,116 @@
 #include <time.h>
 #include <unistd.h>
 #include "tower_climb.h"
+#include "puffernet.h"
 
-void demo() {    
+typedef struct TowerClimbNet TowerClimbNet;
+struct TowerClimbNet {
+    int num_agents;
+    float* obs_3d;
+    float* obs_1d;
+    Conv3D* conv1;
+    ReLU* relu1;
+    Conv3D* conv2;
+    Linear* flat;
+    CatDim1* cat;
+    Linear* proj;
+    LSTM* lstm;
+    Linear* actor;
+    Linear* value_fn;
+    Multidiscrete* multidiscrete;
+};
+
+TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
+    TowerClimbNet* net = calloc(1, sizeof(TowerClimbNet));
+    int hidden_size = 256;
+    int cnn_channels = 16;
+    int conv1_output_size = 4;
+    int output_size = 3;
+    int cnn_flat_size = cnn_channels * output_size * output_size * 7;
+
+    net->num_agents = num_agents;
+    net->obs_3d = calloc(5 * 5 * 9, sizeof(float));
+    net->obs_1d = calloc(4, sizeof(float));
+
+    net->conv1 = make_conv3d(weights, num_agents, 5, 5, 9, 1, cnn_channels, 2, 1);
+    net->relu1 = make_relu(num_agents, cnn_channels * conv1_output_size * conv1_output_size * 8);
+    net->conv2 = make_conv3d(weights, num_agents, 4, 4, 8, cnn_channels,cnn_channels, 2, 1);
+    net->flat = make_linear(weights, num_agents, 4, 16);
+    net->cat = make_cat_dim1(num_agents, cnn_flat_size, 16);
+    net->proj = make_linear(weights, num_agents, cnn_flat_size + 16, hidden_size);
+    net->actor = make_linear(weights, num_agents, hidden_size, 6);
+    net->value_fn = make_linear(weights, num_agents, hidden_size, 1);
+    net->lstm = make_lstm(weights, num_agents, hidden_size, hidden_size);
+
+    int logit_sizes[1] = {6};
+    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
+    return net;
+}
+
+void forward(TowerClimbNet* net, float* observations, int* actions) {
+    int vision_size = 5 * 5 * 9;
+    int player_size = 4;
+    int full_map = vision_size + player_size;
+    // clear previous observations
+    memset(net->obs_3d, 0, vision_size * sizeof(float));
+    memset(net->obs_1d, 0, player_size * sizeof(float));
+    // reshape board to 3d tensor
+    float (*obs_3d)[5][5][9] = (float (*)[5][5][9])net->obs_3d;
+    float (*obs_1d)[4] = (float (*)[4])net->obs_1d;
+    // process vision board
+    // process vision board
+    for (int x = 0; x < 5; x++) {
+        for (int y = 0; y < 5; y++) {
+            for (int z = 0; z < 9; z++) {
+                // Convert 3D indices to 1D index: (x * height * depth) + (y * depth) + z
+                int idx = (x * 5 * 9) + (y * 9) + z;
+                obs_3d[0][x][y][z] = observations[idx];
+            }
+        }
+    }
+
+    // process player board
+    for (int i = 0; i < player_size; i++) {
+        obs_1d[0][i] = observations[vision_size + i];
+    }
+    
+    conv3d(net->conv1, net->obs_3d);
+    relu(net->relu1, net->conv1->output);
+    conv3d(net->conv2, net->relu1->output);
+
+    linear(net->flat, net->obs_1d);
+
+    cat_dim1(net->cat, net->conv2->output, net->flat->output);
+    linear(net->proj, net->cat->output);
+    lstm(net->lstm, net->proj->output);
+    linear(net->actor, net->lstm->state_h);
+    linear(net->value_fn, net->lstm->state_h);
+
+    softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
+
+    
+    
+}
+
+void free_tower_climb_net(TowerClimbNet* net) {
+    free(net->obs_3d);
+    free(net->obs_1d);
+    free(net->conv1);
+    free(net->relu1);
+    free(net->conv2);
+    free(net->flat);
+    free(net->cat);
+    free(net->proj);
+    free(net->actor);
+    free(net->value_fn);
+    free(net->lstm);
+    free(net->multidiscrete);
+    free(net);
+}
+
+void demo() {   
+    Weights* weights = load_weights("resources/tower_climb_weights.bin", 792823);
+    TowerClimbNet* net = init_tower_climb_net(weights, 1);
     CTowerClimb* env = allocate();
     int seed = 0;
     init_random_level(env, 6, 25, 20, seed);
@@ -12,41 +120,50 @@ void demo() {
 
     int tick = 0;
     while (!WindowShouldClose()) {
-        // Camera controls
-        env->actions[0] = NOOP;
-        if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
-            env->actions[0] = UP;
+        int done = 0;
+        if (tick % 12 == 0 && !client->isMoving) {
+            tick = 0;
+            int human_action = env->actions[0];
+            forward(net, env->observations, env->actions);
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                env->actions[0] = human_action;
+            }
+            done = step(env);
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                env->actions[0] = NOOP;
+            }
+            if (done) {
+                printf("Done, reward: %f\n", env->rewards[0]);
+                seed++;
+                c_reset(env);
+                init_random_level(env, 6, 25, 20, seed);
+            }
         }
-        if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
-            env->actions[0] = LEFT;
-        }
-        if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
-            env->actions[0] = RIGHT;
-        }
-        if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)){
-            env->actions[0] = DOWN;
-        }
-        if (IsKeyPressed(KEY_SPACE)){
-            env->actions[0] = GRAB;
-        }
-        if (IsKeyPressed(KEY_LEFT_SHIFT)){
-            env->actions[0] = DROP;
+        tick++;
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            // Camera controls
+            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+                env->actions[0] = UP;
+            }
+            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+                env->actions[0] = LEFT;
+            }
+            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+                env->actions[0] = RIGHT;
+            }
+            if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)){
+                env->actions[0] = DOWN;
+            }
+            if (IsKeyPressed(KEY_SPACE)){
+                env->actions[0] = GRAB;
+            }
+            if (IsKeyPressed(KEY_LEFT_SHIFT)){
+                env->actions[0] = DROP;
+            }
         }
         render(client, env);
-        int done = 0;
-        tick = (tick + 1)%12;
-
-        if (tick % 1 == 0 && !client->isMoving) {
-            done = step(env);
-        }
-
-        if (done) {
-            printf("Done, reward: %f\n", env->rewards[0]);
-            seed++;
-            c_reset(env);
-            init_random_level(env, 6, 25, 20, seed);
-        }
     }
+
     close_client(client);
     free_allocated(env);
 }
