@@ -791,7 +791,7 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
     return 0;   
 }
 
-int step(CTowerClimb* env) {
+int c_step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
     if(env->log.episode_length > 60){
@@ -1528,7 +1528,7 @@ static void render_scene(Client* client, CTowerClimb* env) {
     EndDrawing();
 }
 
-void render(Client* client, CTowerClimb* env) {
+void c_render(Client* client, CTowerClimb* env) {
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
     static int previous_orientation = -1;  // Track orientation changes
     // Handle orientation changes while hanging

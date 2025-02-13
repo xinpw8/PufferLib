@@ -74,9 +74,9 @@ cdef extern from "tower_climb.h":
 
     Client* make_client(CTowerClimb* env)
     void close_client(Client* client)
-    void render(Client* client, CTowerClimb* env)
+    void c_render(Client* client, CTowerClimb* env)
     void c_reset(CTowerClimb* env)
-    int step(CTowerClimb* env)
+    int c_step(CTowerClimb* env)
 
 cdef class CyTowerClimb:
     cdef:
@@ -140,7 +140,7 @@ cdef class CyTowerClimb:
     def step(self):
         cdef int i, idx, done
         for i in range(self.num_envs):
-            done = step(&self.envs[i])
+            done = c_step(&self.envs[i])
             if (done):
                 idx = np.random.randint(0, self.num_maps) 
                 c_reset(&self.envs[i])
@@ -153,7 +153,7 @@ cdef class CyTowerClimb:
             self.client.enable_animations = 1
         cdef int isMoving
         while True:
-            render(self.client, &self.envs[0])
+            c_render(self.client, &self.envs[0])
             isMoving = self.client.isMoving
             if not isMoving:
                 break

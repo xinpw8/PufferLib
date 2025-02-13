@@ -120,7 +120,7 @@ void demo() {
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env->actions[0] = human_action;
             }
-            done = step(env);
+            done = c_step(env);
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env->actions[0] = NOOP;
             }
@@ -154,7 +154,7 @@ void demo() {
                 env->actions[0] = DROP;
             }
         }
-        render(client, env);
+        c_render(client, env);
     }
     close_client(client);
     free_allocated(env);
@@ -170,7 +170,7 @@ void performance_test() {
     while (time(NULL) - start < test_time) {
         env->actions[0] = rand() % 5;
         int done = 0;
-        done = step(env);
+        done = c_step(env);
         if (done) {
             seed++;
             c_reset(env);
