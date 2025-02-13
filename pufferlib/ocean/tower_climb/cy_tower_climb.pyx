@@ -60,6 +60,7 @@ cdef extern from "tower_climb.h":
 
     ctypedef struct Client:
         int enable_animations;
+        int isMoving;
 
     void init(CTowerClimb* env)
     void free_allocated(CTowerClimb* env)
@@ -149,9 +150,13 @@ cdef class CyTowerClimb:
         cdef CTowerClimb* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env)
-            self.client.enable_animations = 0
-        render(self.client, &self.envs[0])
-
+            self.client.enable_animations = 1
+        cdef int isMoving
+        while True:
+            render(self.client, &self.envs[0])
+            isMoving = self.client.isMoving
+            if not isMoving:
+                break
     def close(self):
         if self.client != NULL:
             close_client(self.client)

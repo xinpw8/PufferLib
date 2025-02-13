@@ -6,7 +6,6 @@
 #include <string.h>
 #include "raylib.h"
 #include "raymath.h"
-// #include "levels.h"
 #include "rlgl.h"
 #include <time.h>
 
@@ -63,14 +62,6 @@
 // hash table 
 #define TABLE_SIZE 70000003
 
-// actions
-#define ACTION_RIGHT 0
-#define ACTION_DOWN 1
-#define ACTION_LEFT 2
-#define ACTION_UP 3
-#define ACTION_GRAB 4
-#define ACTION_DROP 5
-
 // direction vectors
 #define NUM_DIRECTIONS 4
 static const int BFS_DIRECTION_VECTORS_X[NUM_DIRECTIONS] = {1, 0, -1, 0};
@@ -89,10 +80,10 @@ static const int wrap_z[4][2] = {
     {-1, -1}
 };
 static const int wrap_orientation[4][2] = {
-    {ACTION_DOWN,ACTION_UP},
-    {ACTION_LEFT, ACTION_RIGHT},
-    {ACTION_UP, ACTION_DOWN},
-    {ACTION_RIGHT, ACTION_LEFT}
+    {DOWN,UP},
+    {LEFT, RIGHT},
+    {UP, DOWN},
+    {RIGHT, LEFT}
 };
 
 typedef struct Level Level;
@@ -116,11 +107,16 @@ void init_level(Level* lvl){
     lvl->spawn_location = 0;
 }
 
+void reset_level(Level* lvl){
+    lvl->goal_location = 999;
+    lvl->spawn_location = 0;
+    memset(lvl->map, 0, 1000 * sizeof(unsigned int));
+}
+
 void free_level(Level* lvl){
 	free(lvl->map);
 	free(lvl);
 }
-
 
 typedef struct PuzzleState PuzzleState;
 struct PuzzleState {
@@ -147,7 +143,6 @@ struct Log {
     float rows_cleared;
     float levels_completed;
 };
-
 
 typedef struct LogBuffer LogBuffer;
 struct LogBuffer {
@@ -185,7 +180,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_return  += logs->logs[i].episode_return  / logs->idx;
         log.episode_length  += logs->logs[i].episode_length  / logs->idx;
         log.rows_cleared    += logs->logs[i].rows_cleared    / logs->idx;
-	log.levels_completed += logs->logs[i].levels_completed / logs->idx;
+	    log.levels_completed += logs->logs[i].levels_completed / logs->idx;
     }
 
     logs->idx = 0;
@@ -211,27 +206,17 @@ struct CTowerClimb {
 };
 
 void levelToPuzzleState(Level* level, PuzzleState* state) {
-    // 1) Clear the entire bitmask to 0
     memset(state->blocks, 0, BLOCK_BYTES);
-
-    // 2) For each cell i in [0 .. total_length-1]:
-    //    if map[i] == 1 => set the bit in state->blocks
-    //    if map[i] == 0 or 2 => do nothing (they're empty or goal)
     for (int i = 0; i < level->total_length; i++) {
         if (level->map[i] == 1) {
             SET_BIT(state->blocks, i);
         }
     }
-
-    // 3) Copy spawn location into the puzzle state
     state->robot_position = level->spawn_location;
-
-    // 4) Initialize other fields as needed
-    state->robot_orientation = 3;  // e.g., "facing up" or whichever default
-    state->robot_state = 0;        // or define a known 'DEFAULT' constant
-    state->block_grabbed = -1;     // no block held initially
+    state->robot_orientation = UP;  
+    state->robot_state = 0;        
+    state->block_grabbed = -1;    
 }
-
 
 void init(CTowerClimb* env) {
 	env->level = calloc(1, sizeof(Level));
@@ -282,95 +267,52 @@ void free_allocated(CTowerClimb* env) {
     free(env);
 }
 
+void calculate_window_bounds(int* bounds, int center_pos, int window_size, int max_size) {
+    int half_size = window_size / 2;
+    // Try to center on position
+    bounds[0] = center_pos - half_size;  // start
+    bounds[1] = bounds[0] + window_size; // end
+    // Adjust if window is larger than max size
+    if (window_size > max_size) {
+        bounds[0] = 0;
+        bounds[1] = max_size;
+    }
+    // Adjust if too close to start
+    else if (bounds[0] < 0) {
+        bounds[0] = 0;
+        bounds[1] = window_size;
+    }
+    // Adjust if too close to end
+    else if (bounds[1] > max_size) {
+        bounds[1] = max_size;
+        bounds[0] = bounds[1] - window_size;
+        if (bounds[0] < 0) bounds[0] = 0;
+    }
+}
+
 void compute_observations(CTowerClimb* env) {
     int sz = env->level->size;
     int cols = env->level->cols;
     int rows = env->level->rows;
     int max_floors = env->level->total_length / sz;
-    
     // Get player position
     int current_floor = env->state->robot_position / sz;
     int grid_pos = env->state->robot_position % sz;
     int player_x = grid_pos % cols;
     int player_z = grid_pos / cols;
-    
-    // Calculate window bounds
-    int window_width = 9;
-    int window_height = 5;
-    int window_depth = 5;
-    
-    // Calculate y (floor) bounds centered on player but adjusted for boundaries
-    int y_center = current_floor + 1;
-    int half_height = window_height / 2;
-    
-    // Try to center on player
-    int y_start = y_center - half_height;
-    int y_end = y_center + half_height + 1;  // +1 because half_height rounds down
-    
-    // Adjust if too close to bottom
-    if (y_start < 0) {
-        y_start = 0;
-        y_end = window_height;
-    }
-    
-    // Adjust if too close to top
-    if (y_end > max_floors) {
-        y_end = max_floors;
-        y_start = y_end - window_height;
-        if (y_start < 0) y_start = 0;
-    }
-    
-    // Calculate x bounds centered on player but adjusted for boundaries
-    int half_width = window_width / 2;
-    int x_start = player_x - half_width;
-    int x_end = x_start + window_width;
-    
-    // Adjust if too close to left edge
-    if (window_width > cols){
-        x_start = 0;
-        x_end = cols;
-    }
-    else {
-        if (x_start < 0) {
-            x_start = 0;
-            x_end = window_width;
-        }
-        
-        // Adjust if too close to right edge
-        if (x_end > cols) {
-            x_end = cols;
-            x_start = x_end - window_width;
-            if (x_start < 0) x_start = 0;
-        }
-    }
-        
-    // Calculate z bounds centered on player but adjusted for boundaries
-    int half_depth = window_depth / 2;
-    int z_start = player_z - half_depth;
-    int z_end = z_start + window_depth;
-    
-    // Adjust if too close to front edge
-    if (z_start < 0) {
-        z_start = 0;
-        z_end = window_depth;
-    }
-    
-    // Adjust if too close to back edge
-    if (z_end > rows) {
-        z_end = rows;
-        z_start = z_end - window_depth;
-        if (z_start < 0) z_start = 0;
-    }
-
+    // Calculate window bounds using the new function
+    int y_bounds[2], x_bounds[2], z_bounds[2];
+    calculate_window_bounds(y_bounds, current_floor + 1, 5, max_floors);
+    calculate_window_bounds(x_bounds, player_x, 9, cols);
+    calculate_window_bounds(z_bounds, player_z, 5, rows);
     // Fill in observations
-    for (int y = 0; y < window_height; y++) {
-        int world_y = y + y_start;
-        for (int z = 0; z < window_depth; z++) {
-            int world_z = z + z_start;
-            for (int x = 0; x < window_width; x++) {
-                int world_x = x + x_start;
-                int obs_idx = x + z * window_width + y * (window_width * window_depth);
-                
+    for (int y = 0; y < 5; y++) {
+        int world_y = y + y_bounds[0];
+        for (int z = 0; z < 5; z++) {
+            int world_z = z + z_bounds[0];
+            for (int x = 0; x < 9; x++) {
+                int world_x = x + x_bounds[0];
+                int obs_idx = x + z * 9 + y * (9 * 5);
                 // Check if position is out of bounds
                 int board_idx = world_y * sz + world_z * cols + world_x;
                 if (world_x < 0 || world_x >= cols || 
@@ -380,7 +322,6 @@ void compute_observations(CTowerClimb* env) {
                     env->observations[obs_idx] = -1.0f;
                     continue;
                 }
-                
                 // Position is in bounds, set observation
                 if (board_idx == env->state->robot_position) {
                     env->observations[obs_idx] = 3.0f;
@@ -390,15 +331,13 @@ void compute_observations(CTowerClimb* env) {
                     env->observations[obs_idx] = 2.0f;
                     continue;
                 }
-                
                 // Use bitmask directly instead of board_state array
                 env->observations[obs_idx] = (float)TEST_BIT(env->state->blocks, board_idx);
             }
         }
     }
-    
     // Add player state information at the end
-    int state_start = window_width * window_depth * window_height;
+    int state_start = 9 * 5 * 5;
     env->observations[state_start] = (float)env->state->robot_orientation;
     env->observations[state_start + 1] = (float)env->state->robot_state;
     env->observations[state_start + 2] = (float)env->state->block_grabbed;
@@ -413,7 +352,6 @@ void c_reset(CTowerClimb* env) {
     compute_observations(env);
 }
 
-
 void illegal_move(CTowerClimb* env){
     env->rewards[0] = env->reward_illegal_move;
     env->log.episode_return += env->reward_illegal_move;
@@ -426,12 +364,9 @@ void death(CTowerClimb* env){
 	add_log(env->log_buffer, &env->log);
 }
 
-
 int isGoal(  PuzzleState* s,  Level* lvl) {
-    // 1) Check if player is at the goal cell
     if (s->robot_position - lvl->size != lvl->goal_location) return 0;
-
-    return 1;  // all conditions satisfied
+    return 1;
 }
 
 int move(PuzzleState* outState, int action, int mode, CTowerClimb* env, const Level* lvl){
@@ -444,33 +379,30 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
     int cell_direct_above = outState->robot_position + lvl->size;
     int cell_next_above = cell_direct_above + BFS_DIRECTION_VECTORS_X[action] + BFS_DIRECTION_VECTORS_Z[action]*lvl->cols;
     int goal = lvl->goal_location;
-    int can_climb = cell_direct_above < lvl->total_length && cell_next_above < lvl->total_length &&
-     !TEST_BIT(outState->blocks, cell_direct_above) &&
-      !TEST_BIT(outState->blocks, cell_next_above) && 
-      cell_next_above != goal &&
-      cell_direct_above != goal;
-    if (can_climb){
-        int floor_cleared = (cell_direct_above / lvl->size) - 2;
-	    if(mode == RL_MODE && floor_cleared > env->rows_cleared){
-            env->rows_cleared = floor_cleared;
-            env->rewards[0] = env->reward_climb_row;
-            env->log.episode_return += env->reward_climb_row;
-	        env->log.rows_cleared = floor_cleared;
-        }
-        outState->robot_position = cell_next_above;
-        outState->robot_state = 0;
-        return 1;
+
+    int in_bounds = cell_direct_above < lvl->total_length && cell_next_above < lvl->total_length;
+    int cells_blocking_climb = TEST_BIT(outState->blocks, cell_direct_above) || TEST_BIT(outState->blocks, cell_next_above);
+    int goal_blocking_climb = cell_direct_above == goal || cell_next_above == goal;
+    int can_climb = in_bounds && !cells_blocking_climb && !goal_blocking_climb;
+    
+    if (!can_climb) return 0;
+    int floor_cleared = (cell_direct_above / lvl->size) - 2;
+    if(mode == RL_MODE && floor_cleared > env->rows_cleared){
+        env->rows_cleared = floor_cleared;
+        env->rewards[0] = env->reward_climb_row;
+        env->log.episode_return += env->reward_climb_row;
+        env->log.rows_cleared = floor_cleared;
     }
-    return 0;
+    outState->robot_position = cell_next_above;
+    outState->robot_state = 0;
+    return 1;
 }
 
 int drop(PuzzleState* outState, int action, int mode, CTowerClimb* env, const Level* lvl){
     int next_cell = outState->robot_position + BFS_DIRECTION_VECTORS_X[action] + BFS_DIRECTION_VECTORS_Z[action]*lvl->cols;
     int next_below_cell = next_cell - lvl->size;
     int next_double_below_cell = next_cell - 2*lvl->size;
-    if (next_below_cell < 0){
-        return 0;
-    } 
+    if (next_below_cell < 0) return 0;
     int step_down = next_double_below_cell >= 0 && TEST_BIT(outState->blocks, next_double_below_cell);
     if(mode == RL_MODE){
         env->rewards[0] = env->reward_fall_row;
@@ -492,17 +424,13 @@ int drop_from_hang(PuzzleState* outState, int action, int mode, const Level* lvl
     while(below_cell > lvl->size && !TEST_BIT(outState->blocks, below_cell)){
         below_cell -= lvl->size;
     }
-    if (below_cell < lvl->size){
-        if (mode == PLG_MODE){
-            return MOVE_ILLEGAL;
-        }
-        if (mode == RL_MODE){
-            return MOVE_DEATH;
-        }
+    if (below_cell >= lvl->size) {
+        outState->robot_position = below_cell+lvl->size;
+        outState->robot_state = 0;
+        return 1;
     }
-    outState->robot_position = below_cell+lvl->size;
-    outState->robot_state = 0;
-    return 1;
+    if (mode == PLG_MODE) return MOVE_ILLEGAL;
+    return MOVE_DEATH;
 }
 static inline int bfs_is_valid_position(int pos, const Level* level) {
     return (pos >= 0 && pos < level->total_length);
@@ -528,9 +456,10 @@ static int bfs_is_block_stable(const PuzzleState* state, int position, const Lev
 }
 
 int will_fall(PuzzleState* outState, int position, const Level* lvl){
-    return bfs_is_valid_position(position, lvl) &&
-     (TEST_BIT(outState->blocks, position) || position == lvl->goal_location)
-      && !bfs_is_block_stable(outState, position, lvl);
+    int valid = bfs_is_valid_position(position, lvl);
+    int block_or_goal = TEST_BIT(outState->blocks, position) || position == lvl->goal_location;
+    int stable = bfs_is_block_stable(outState, position, lvl);
+    return valid && block_or_goal && !stable;
 }
 
 int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* blocks_to_move, int affected_blocks_count, const Level* lvl) {
@@ -549,7 +478,6 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
         bfs_queue[rear] = affected_blocks[i];
         rear++;
     }
-
     // First check all blocks above and adjacent to moved blocks
     for (int i = 0; i < lvl->cols; i++) {
         int block_pos = blocks_to_move[i];
@@ -558,12 +486,10 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
         }
         // Add block directly above
         int cell_above = block_pos + fs;  // Assuming 100 is floor height
-        
         // If valid block above and unstable, add to queue
         if (will_fall(outState, cell_above, lvl)) {
             bfs_queue[rear++] = cell_above;
         }
-        
         // Check edge-supported blocks
         int edge_blocks[4] = {
             cell_above - 1,      // left
@@ -571,7 +497,6 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
             cell_above - cols,     // front (assuming 10 is width)
             cell_above + cols      // back
         };
-        
         // Add valid edge blocks to queue
         for (int j = 0; j < 4; j++) {
             if (will_fall(outState, edge_blocks[j], lvl)) {
@@ -579,22 +504,18 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
             }
         }
     }
-
     // Process queue until empty
     while (front < rear) {
         int current = bfs_queue[front++];
         int falling_position = current;
         int found_support = 0;
-
         // Check if block is goal (2)
         if (current == lvl->goal_location) {
             // Goal block is falling - level failed
             return 0;
         }
-
         // Remove block from current position
         CLEAR_BIT(outState->blocks, current);
-
         // Keep moving down until support found or bottom reached
         while (!found_support && falling_position >= fs) {  // 100 represents one floor down
             // Place block temporarily to check stability
@@ -608,13 +529,11 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
                 falling_position -= fs;  // Move down one level
             }
         }
-
         // Check blocks that might be affected by this fall
         int original_above = current + fs;  // Block directly above original position
         if (will_fall(outState, original_above, lvl)) {
             bfs_queue[rear++] = original_above;
         }
-
         // Check edge blocks that might be affected
         int edge_blocks[4] = {
             original_above - 1,   // Left
@@ -622,7 +541,6 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
             original_above - cols,  // Front (assuming 10 is the width)
             original_above + cols   // Back
         };
-
         for (int i = 0; i < 4; i++) {
             if (will_fall(outState, edge_blocks[i], lvl)) {
                 bfs_queue[rear++] = edge_blocks[i];
@@ -632,14 +550,8 @@ int handle_block_falling(PuzzleState* outState, int* affected_blocks, int* block
     return 1;
 }
 
-int push(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env){
-    int first_block_index = outState->robot_position + BFS_DIRECTION_VECTORS_X[outState->robot_orientation] + BFS_DIRECTION_VECTORS_Z[outState->robot_orientation]*lvl->cols;
-    int block_offset = (outState->robot_orientation == 3) ? -lvl->cols :  // North
-                          (outState->robot_orientation == 1) ? lvl->cols :    // South
-                          (outState->robot_orientation == 0) ? 1 :    // East
-                          (outState->robot_orientation == 2) ? -1 :   // West
-                          -lvl->cols;
-                          
+int push(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env, int block_offset){
+    int first_block_index = outState->robot_position + BFS_DIRECTION_VECTORS_X[outState->robot_orientation] + BFS_DIRECTION_VECTORS_Z[outState->robot_orientation]*lvl->cols;                          
     int* blocks_to_move = calloc(lvl->cols, sizeof(int));
     for(int i = 0; i < lvl->cols; i++) {
         blocks_to_move[i] = (i == 0) ? first_block_index : -1;
@@ -686,13 +598,8 @@ int push(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerCl
     return result;
 }
 
-int pull(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env){
+int pull(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env, int block_offset){
     int pull_block = outState->robot_position + BFS_DIRECTION_VECTORS_X[outState->robot_orientation] + BFS_DIRECTION_VECTORS_Z[outState->robot_orientation]*lvl->cols;
-    int block_offset = (action == 3) ? -lvl->cols :  // North
-                          (action == 1) ? lvl->cols :    // South
-                          (action == 0) ? 1 :    // East
-                          (action == 2) ? -1 :   // West
-                          -lvl->cols;
     int block_in_front = TEST_BIT(outState->blocks, pull_block);
     int block_behind = TEST_BIT(outState->blocks, outState->robot_position + block_offset);
     int cell_below_next_position = outState->robot_position + block_offset - lvl->size;
@@ -733,7 +640,7 @@ int shimmy_normal(PuzzleState* outState, int action, const Level* lvl, int local
 }
 
 int wrap_around(PuzzleState* outState, int action, const Level* lvl, int mode, CTowerClimb* env){
-    int action_idx = (action == ACTION_LEFT) ? 0 : 1;
+    int action_idx = (action == LEFT) ? 0 : 1;
     int grid_pos = outState->robot_position % lvl->size;
     int x = grid_pos % lvl->cols;
     int z = grid_pos / lvl->cols;
@@ -797,21 +704,22 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
     }
 
     if(hanging && movement_action){
-        if (action == ACTION_UP){
+        if (action == UP){
             return climb_from_hang(outState, action, lvl, next_cell, mode, env);
         }
-        if (action == ACTION_DOWN){
+        if (action == DOWN){
             return 0;
         }
         int local_direction = outState->robot_orientation;
-        if (action == ACTION_LEFT){
+        if (action == LEFT){
             local_direction = (outState->robot_orientation + 3) % 4;
         }
-        if (action == ACTION_RIGHT){
+        if (action == RIGHT){
             local_direction = (outState->robot_orientation + 1) % 4;
         }
         int shimmy_cell = next_cell + BFS_DIRECTION_VECTORS_X[local_direction] + BFS_DIRECTION_VECTORS_Z[local_direction]*lvl->cols;
         int shimmy_path_cell = outState->robot_position + BFS_DIRECTION_VECTORS_X[local_direction] + BFS_DIRECTION_VECTORS_Z[local_direction]*lvl->cols;
+        
         int basic_shimmy = bfs_is_valid_position(shimmy_cell, lvl) && bfs_is_valid_position(shimmy_path_cell, lvl) && TEST_BIT(outState->blocks, shimmy_cell) && !TEST_BIT(outState->blocks, shimmy_path_cell);
         int rotation_shimmy = bfs_is_valid_position(shimmy_path_cell, lvl) && TEST_BIT(outState->blocks, shimmy_path_cell);
         int in_bounds = x + next_dx >= 0 && x + next_dx < lvl->cols && z + next_dz >= 0 && z + next_dz < lvl->rows;
@@ -825,7 +733,7 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
             static const int LEFT_TURNS[] = {3, 0, 1, 2};   // RIGHT->UP, DOWN->RIGHT, LEFT->DOWN, UP->LEFT
             static const int RIGHT_TURNS[] = {1, 2, 3, 0};  // RIGHT->DOWN, DOWN->LEFT, LEFT->UP, UP->RIGHT
 
-            outState->robot_orientation = (action == ACTION_LEFT) ? 
+            outState->robot_orientation = (action == LEFT) ? 
                 LEFT_TURNS[outState->robot_orientation] : 
                 RIGHT_TURNS[outState->robot_orientation];
             outState->robot_state = 1;
@@ -834,22 +742,20 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
         else if(wrap_shimmy){
             return wrap_around(outState, action, lvl, mode, env);
         }
-
     }
-
     // drop from hang action 
-    if (action == ACTION_DROP && !standing_and_holding_nothing) {
+    if (action == DROP && !standing_and_holding_nothing) {
         return drop_from_hang(outState, action, mode, lvl);
     }
     // grab action
-    if (action == ACTION_GRAB && standing_and_holding_nothing 
+    if (action == GRAB && standing_and_holding_nothing 
     && block_in_front){
         if (outState->block_grabbed == -1){
             outState->block_grabbed = next_cell;
             return 1;
         } 
     } 
-    if (action == ACTION_GRAB && outState->block_grabbed != -1){
+    if (action == GRAB && outState->block_grabbed != -1){
         outState->block_grabbed = -1;
         return 1;
     }
@@ -857,10 +763,11 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
     // push or pull block 
     if (movement_action && block_in_front && outState->block_grabbed != -1){
         int result = 0;
+        int block_offset = BFS_DIRECTION_VECTORS_X[action] + BFS_DIRECTION_VECTORS_Z[action] * lvl->cols;
         if (outState->robot_orientation == action){
-            result = push(outState, action, lvl, mode, env);
+            result = push(outState, action, lvl, mode, env, block_offset);
         } else if(outState->robot_orientation == (action+2)%4){
-            result = pull(outState, action, lvl, mode, env);
+            result = pull(outState, action, lvl, mode, env, block_offset);
         } else {
             outState->robot_orientation = action;
             outState->block_grabbed = -1;
@@ -875,23 +782,19 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
                 return MOVE_DEATH;
             }
         }
-        if (mode == RL_MODE){
-            if (result == 1){
-                env->rewards[0] = env->reward_move_block;
-                env->log.episode_return += env->reward_move_block;
-            }
+        if (mode == RL_MODE && result == 1){
+            env->rewards[0] = env->reward_move_block;
+            env->log.episode_return += env->reward_move_block;
         }
         return result;
     }
-    return 0;
-    
+    return 0;   
 }
-
 
 int step(CTowerClimb* env) {
     env->log.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length > 300){
+    if(env->log.episode_length > 60){
          env->rewards[0] = 0;
          env->log.levels_completed = 0;
          add_log(env->log_buffer, &env->log);
@@ -899,7 +802,6 @@ int step(CTowerClimb* env) {
     }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
-    
     if (move_result == MOVE_ILLEGAL) {
         illegal_move(env);
         return 0;
@@ -921,11 +823,7 @@ int step(CTowerClimb* env) {
     // Update observations
     compute_observations(env);
     return 0;
-    // if(action != NOOP){
-    //     print_observation_window(env);
-    // }
 }
-
 
 typedef struct BFSNode {
     PuzzleState state;
@@ -945,8 +843,6 @@ typedef struct VisitedNode {
 } VisitedNode;
 
 static VisitedNode* visitedTable[TABLE_SIZE];
-
-
 // Helper to incorporate a 32-bit integer into the hash one byte at a time.
 static inline uint64_t fnv1a_hash_int(uint64_t h, int value) {
     // Break the int into 4 bytes (assuming 32-bit int).
@@ -956,7 +852,6 @@ static inline uint64_t fnv1a_hash_int(uint64_t h, int value) {
     bytes[1] = (unsigned char)((value >>  8) & 0xFF);
     bytes[2] = (unsigned char)((value >> 16) & 0xFF);
     bytes[3] = (unsigned char)((value >> 24) & 0xFF);
-
     for (int i = 0; i < 4; i++) {
         h ^= bytes[i];
         h *= FNV_PRIME;
@@ -966,19 +861,16 @@ static inline uint64_t fnv1a_hash_int(uint64_t h, int value) {
 
 uint64_t hashPuzzleState(const PuzzleState *s) {
     uint64_t h = FNV_OFFSET;
-
     // 1) Hash the 125-byte bitmask
     for (int i = 0; i < BLOCK_BYTES; i++) {
         h ^= s->blocks[i];
         h *= FNV_PRIME;
     }
-
     // 2) Hash the int fields (position, orientation, state, block_grabbed)
     h = fnv1a_hash_int(h, s->robot_position);
     h = fnv1a_hash_int(h, s->robot_orientation);
     h = fnv1a_hash_int(h, s->robot_state);
     h = fnv1a_hash_int(h, s->block_grabbed);
-
     return h;
 }
 // Compares two puzzle states fully
@@ -994,7 +886,6 @@ int equalPuzzleState(const PuzzleState* a, const PuzzleState* b) {
 }
 
 void resetVisited(void) {
-    // If we want to free old chains, we do that, or just memset to 0 for now.
     memset(visitedTable, 0, sizeof(visitedTable));
 }
 
@@ -1019,12 +910,10 @@ int isVisited(const PuzzleState* s) {
 void markVisited(const PuzzleState* s) {
     uint64_t hv = hashPuzzleState(s);
     size_t idx = (size_t)(hv % TABLE_SIZE);
-
     // Return if already present
     if (findNode(s, hv, idx)) {
         return;
     }
-
     // Insert new node
     VisitedNode* node = (VisitedNode*)malloc(sizeof(VisitedNode));
     node->state.blocks = (unsigned char*)malloc(BLOCK_BYTES * sizeof(unsigned char));
@@ -1042,8 +931,8 @@ void markVisited(const PuzzleState* s) {
 static PuzzleState copyPuzzleState(const PuzzleState* src) 
 {
     PuzzleState dst;
-    dst.blocks = (unsigned char*)malloc(BLOCK_BYTES);  // <-- ADDED
-    memcpy(dst.blocks, src->blocks, BLOCK_BYTES);      // <-- ADDED
+    dst.blocks = (unsigned char*)malloc(BLOCK_BYTES);  
+    memcpy(dst.blocks, src->blocks, BLOCK_BYTES);      
     dst.robot_position    = src->robot_position;
     dst.robot_orientation = src->robot_orientation;
     dst.robot_state       = src->robot_state;
@@ -1057,36 +946,28 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
     int count = 0;
     // We'll read the current BFSNode's puzzle state
     const PuzzleState* curState = &current->state;
-
     // Try each action
     for (int i = 0; i < 6; i++) {
         int action = i;
-
         // 1) Make a copy of the current puzzle state
         PuzzleState newState = copyPuzzleState(curState); 
-
         // 2) Attempt to apply the action to newState
         int success = applyAction(&newState, action, lvl, PLG_MODE, NULL);
-
         if (!success) {
             // Move was invalid, skip
             continue;
         }
-
         // 3) If valid, build a BFSNode
         BFSNode neighbor;
         neighbor.state = newState;
         neighbor.depth = current->depth + 1;
         neighbor.parent = -1;   // BFS sets or overwrites this later
         neighbor.action = action; // record which action led here
-
         // 4) Add to 'outNeighbors' array
         outNeighbors[count++] = neighbor;
-
         // If you only allow up to 6 total, we can break if we reach that
         if (count >= MAX_NEIGHBORS) break;
     }
-
     return count; // how many valid neighbors we produced
 }
 
@@ -1106,10 +987,8 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
         printf("Failed to allocate memory for BFS queue\n");
         return 0;
     }
-    
     front = 0;
     back = 0;
-    
     // Enqueue start node
     BFSNode startNode;
     startNode.state = copyPuzzleState(start);  // copy puzzle state
@@ -1117,10 +996,8 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
     startNode.parent = -1;
     startNode.action = -1;
     queueBuffer[back++] = startNode;
-
     // BFS loop
     while (front < back) {
-
         if (back >= MAX_BFS_SIZE) {
             printf("BFS queue overflow! Increase MAX_BFS_SIZE or optimize search.\n");
             freeQueueBuffer(queueBuffer, back);
@@ -1137,13 +1014,10 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                 queueBuffer = NULL;
                 return 0;
             }
-            //printf("Found solution path of length %d!\n", current.depth);
-            
             // Store nodes in order
             BFSNode* path = (BFSNode*)malloc((current.depth + 1) * sizeof(BFSNode));
             BFSNode node = current;
             int idx = current.depth;
-            
             // Walk backwards to get path
             while (idx >= 0) {
                 path[idx] = node;
@@ -1153,6 +1027,7 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                 idx--;
             }
             // Print in forward order
+            //printf("Found solution path of length %d!\n", current.depth);
             /*printf("\nStep 0 (Start):\n");
             printf("  Position: %d\n", path[0].state.robot_position);
             printf("  Orientation: %d\n", path[0].state.robot_orientation);
@@ -1175,31 +1050,24 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                     (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
             }
 	    */
-            
             free(path);
             freeQueueBuffer(queueBuffer, back);
             queueBuffer = NULL;
             return 1;
         }
-
-        if (current.depth < maxDepth) {
-            // generate neighbors
-            BFSNode neighbors[MAX_NEIGHBORS];
-            int nCount = getNeighbors(&current, neighbors, lvl);
-            for (int i = 0; i < nCount; i++) {
-                PuzzleState* nxt = &neighbors[i].state;
-                // if not visited
-                if (!isVisited(nxt)) {
-                    markVisited(nxt);
-
-                    // fill BFS node fields
-                    neighbors[i].depth = current.depth + 1;
-                    neighbors[i].parent = currentIndex;
-                    // Enqueue
-                    queueBuffer[back++] = neighbors[i];
-                } else {
-                    free(nxt->blocks);
-                }
+        if (current.depth >= maxDepth) continue;
+        // generate neighbors
+        BFSNode neighbors[MAX_NEIGHBORS];
+        int nCount = getNeighbors(&current, neighbors, lvl);
+        for (int i = 0; i < nCount; i++) {
+            PuzzleState* nxt = &neighbors[i].state;
+            if (!isVisited(nxt)) {
+                markVisited(nxt);
+                neighbors[i].depth = current.depth + 1;
+                neighbors[i].parent = currentIndex;
+                queueBuffer[back++] = neighbors[i];
+            } else {
+                free(nxt->blocks);
             }
         }        
     }
@@ -1250,9 +1118,10 @@ void gen_level(Level* lvl, int goal_level) {
         for(int z = depth_max - 1; z >= 0; z--){
             for(int x = 0; x< col_max; x++){
                 int block_index = x + col_max * z + area * y;
-                if (x >= 1 && x < legal_width_size && z >= 1 && z < legal_depth_size && 
-                y >= 1 && y < goal_level && (z <= (legal_depth_size - y))){
-                    int chance = (rand() % 2 ==0) ? 1 : 0;
+                int within_legal_bounds = x>=1 && x < legal_width_size && z >= 1 && z < legal_depth_size && y>=1 && y < goal_level;
+                int allowed_block_placement = within_legal_bounds && (z <= (legal_depth_size - y));
+                if (allowed_block_placement){
+                    int chance = (rand() % 3 ==0) ? 1 : 0;
                     lvl->map[block_index] = chance;
                     // create spawn point above an existing block
                     if (spawn_created == 0 && y == 2 && lvl->map[block_index - area] == 1){
@@ -1265,7 +1134,6 @@ void gen_level(Level* lvl, int goal_level) {
                     (lvl->map[block_index + col_max - area] == 1 || 
                      lvl->map[block_index - 1 - area] == 1 || 
                      lvl->map[block_index + 1 - area] == 1)) {
-                    
                     // 33% chance to place goal here, unless we're at the last valid position
                     if (rand() % 3 == 0 || (x == col_max-1 && z == 0)) {
                         goal_created = 1;
@@ -1273,19 +1141,13 @@ void gen_level(Level* lvl, int goal_level) {
                         lvl->map[goal_index] = 2;
                     }
                 }
-                
             }
         }
     }
     if (!spawn_created || spawn_index < 0) {
-        //printf("no spawn found\n");
         return;
     }
-
-    
     if (!goal_created || goal_index < 0) {
-        //printf("no goal found\n");
-        //printf("goal index: %d\n", goal_index);
         return;
     }
     lvl->rows = row_max;
@@ -1296,13 +1158,14 @@ void gen_level(Level* lvl, int goal_level) {
     lvl->spawn_location = spawn_index;
 }
 
-
 void init_random_level(CTowerClimb* env, int goal_level, int max_moves, int min_moves, int seed) {
 	time_t t;
     srand((unsigned) time(&t) + seed); // Increment seed for each level
+    reset_level(env->level);
     gen_level(env->level, goal_level);
     // guarantee a map is created
     while(env->level->spawn_location == 0 || env->level->goal_location == 999 || verify_level(env->level,max_moves, min_moves) == 0){
+        reset_level(env->level);
         gen_level(env->level,goal_level);
     }
     levelToPuzzleState(env->level, env->state);
@@ -1317,7 +1180,6 @@ void cy_init_random_level(Level* level, int goal_level, int max_moves, int min_m
         gen_level(level, goal_level);
     }
 }
-
 
 const Color STONE_GRAY = (Color){80, 80, 80, 255};
 const Color PUFF_RED = (Color){187, 0, 0, 255};
@@ -1354,7 +1216,7 @@ struct Client {
     int previousRobotPosition;
     Vector3 visualPosition;
     Vector3 targetPosition;
-    bool isMoving;
+    int isMoving;
     float moveProgress;
     Model cube;
     float scale;
@@ -1362,9 +1224,6 @@ struct Client {
 };
 
 Client* make_client(CTowerClimb* env) {
-    printf("Raylib version: %s\n", RAYLIB_VERSION);
-    printf("OpenGL version: %d\n", rlGetVersion());
-
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = 1600;
     client->height = 900;
@@ -1406,7 +1265,6 @@ Client* make_client(CTowerClimb* env) {
     int ambientLoc = GetShaderLocation(client->shader, "ambient");
     float ambient[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
     SetShaderValue(client->shader, ambientLoc, ambient, SHADER_UNIFORM_VEC4);
-    
     // apply lighting shader
     client->robot.materials[0].shader = client->shader;
     client->cube.materials[0].shader = client->shader;
@@ -1416,7 +1274,6 @@ Client* make_client(CTowerClimb* env) {
         Vector3Zero(), 
         WHITE,  // ~12% intensity
         client->shader);
-    
     // Very dim fill lights
     client->lights[1] = CreateLight(LIGHT_POINT, 
         (Vector3){ 3.0f, 5.0f, 8.0f },  // Right side
@@ -1445,13 +1302,11 @@ Client* make_client(CTowerClimb* env) {
     }
     client->animState = ANIM_IDLE;
     client->previousRobotPosition = env->state->robot_position;
-    
     // Initialize visual position to match starting robot position
     int floor = env->state->robot_position / env->level->size;
     int grid_pos = env->state->robot_position % env->level->size;
     int x = grid_pos % env->level->cols;
     int z = grid_pos / env->level->cols;
-    
     client->visualPosition = (Vector3){ 
         x * 1.0f,
         floor * 1.0f,
@@ -1462,7 +1317,6 @@ Client* make_client(CTowerClimb* env) {
 }
 
 void orient_hang_offset(Client* client, CTowerClimb* env, int reverse){
-
     client->visualPosition.y -= 0.2f * reverse;
     if (env->state->robot_orientation == 0) { // Facing +x
         client->visualPosition.x += 0.4f * reverse;
@@ -1499,13 +1353,11 @@ static void update_animation(Client* client, AnimationState newState) {
     if (!client->enable_animations) return;
     const AnimConfig* config = &ANIM_CONFIGS[newState];
     client->animState = newState;
-    
     // Handle negative startFrame (counting from end)
     int startFrame = config->startFrame;
     if (startFrame < 0) {
         startFrame = client->animations[config->animationIndex].frameCount + startFrame;
     }
-    
     client->animFrameCounter = startFrame;
     UpdateModelAnimation(client->robot, client->animations[config->animationIndex], startFrame);
     if (newState == ANIM_IDLE || newState == ANIM_GRABBING || newState == ANIM_HANGING || newState == ANIM_START_GRABBING) {
@@ -1518,7 +1370,6 @@ static void update_position(Client* client, CTowerClimb* env) {
     int grid_pos = env->state->robot_position % env->level->size;
     int x = grid_pos % env->level->cols;
     int z = grid_pos / env->level->cols;
-    
     client->targetPosition = (Vector3){x * 1.0f, floor * 1.0f, z * 1.0f};
 }
 
@@ -1530,7 +1381,6 @@ static void process_animation_frame(Client* client, CTowerClimb* env) {
     client->animFrameCounter += config->frameRate;
     UpdateModelAnimation(client->robot, client->animations[config->animationIndex], 
                         client->animFrameCounter);
-
     // Handle shimmy movement lerping
     if (client->isMoving && (client->animState == ANIM_SHIMMY_LEFT || 
                             client->animState == ANIM_SHIMMY_RIGHT)) {
@@ -1543,7 +1393,6 @@ static void process_animation_frame(Client* client, CTowerClimb* env) {
             client->visualPosition.z = Lerp(client->visualPosition.z, client->targetPosition.z, progress);
         }
     }
-
     // Check for animation completion
     int maxFrames = config->maxFrames;
     if (maxFrames < 0) {
@@ -1563,12 +1412,10 @@ static void process_animation_frame(Client* client, CTowerClimb* env) {
 static void handle_hanging_movement(Client* client, CTowerClimb* env) {
     bool is_wrap_shimmy = fabs(client->targetPosition.x - client->visualPosition.x) > 0.5f && 
                          fabs(client->targetPosition.z - client->visualPosition.z) > 0.5f;
-
     // First ensure we have the correct hanging offset if we just transitioned to hanging
     if ((int)client->visualPosition.x == client->visualPosition.x && (int)client->visualPosition.z == client->visualPosition.z) {
         orient_hang_offset(client, env, 1);
     }
-
     if (is_wrap_shimmy) {
         client->isMoving = false;
         update_animation(client, ANIM_HANGING);
@@ -1576,7 +1423,6 @@ static void handle_hanging_movement(Client* client, CTowerClimb* env) {
         orient_hang_offset(client, env, 1);
         return;
     }
-
     // Determine movement direction based on orientation
     bool moving_right = false;
     switch (env->state->robot_orientation) {
@@ -1585,7 +1431,6 @@ static void handle_hanging_movement(Client* client, CTowerClimb* env) {
         case RIGHT: moving_right = client->targetPosition.z < client->visualPosition.z; break;
         case LEFT:  moving_right = client->targetPosition.z > client->visualPosition.z; break;
     }
-
     if (client->targetPosition.y < client->visualPosition.y) {
         update_animation(client, ANIM_HANGING);
         orient_hang_offset(client, env, 1);
@@ -1601,7 +1446,6 @@ static void update_camera(Client* client, CTowerClimb* env) {
     float targetCameraY = cameraFloor * 1.0f + 7.0f;
     float targetLookY = cameraFloor * 1.0f;
     float smoothSpeed = 0.025f;
-
     // Update camera position
     client->camera.position.y = Lerp(client->camera.position.y, targetCameraY, smoothSpeed);
     client->camera.target.y = Lerp(client->camera.target.y, targetLookY, smoothSpeed);
@@ -1624,7 +1468,6 @@ static void draw_background(Client* client) {
         .width = client->background.width * scale,
         .height = client->background.height * scale
     };
-    
     Rectangle source = {0, 0, client->background.width, client->background.height};
     DrawTexturePro(client->background, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
 }
@@ -1632,20 +1475,17 @@ static void draw_background(Client* client) {
 static void draw_level(Client* client, CTowerClimb* env) {
     int cols = env->level->cols;
     int sz = env->level->size;
-    
     for(int i = 0; i < env->level->total_length; i++) {
         int floor = i / sz;
         int grid_pos = i % sz;
         int x = grid_pos % cols;
         int z = grid_pos / cols;
         Vector3 pos = {x * 1.0f, floor * 1.0f, z * 1.0f};
-
         if(TEST_BIT(env->state->blocks, i)) {
             DrawModel(client->cube, pos, client->scale, WHITE);
             Color wireColor = (i == env->state->block_grabbed) ? RED : BLACK;
             DrawCubeWires(pos, 1.0f, 1.0f, 1.0f, wireColor);
         }
-        
         if (i == env->level->goal_location) {
             EndShaderMode();
             DrawCube(pos, 1.0f, 1.0f, 1.0f, PUFF_CYAN);
@@ -1657,7 +1497,6 @@ static void draw_level(Client* client, CTowerClimb* env) {
 static void draw_robot(Client* client, CTowerClimb* env) {
     Vector3 pos = client->visualPosition;
     pos.y -= 0.5f;
-    
     rlPushMatrix();
     rlTranslatef(pos.x, pos.y, pos.z);
     rlRotatef(90.0f, 1, 0, 0);
@@ -1669,13 +1508,10 @@ static void draw_robot(Client* client, CTowerClimb* env) {
 static void render_scene(Client* client, CTowerClimb* env) {
     BeginDrawing();
     ClearBackground(BLACK);
-    
     EndShaderMode();
     draw_background(client);
-    
     BeginShaderMode(client->shader);
     BeginMode3D(client->camera);
-    
     // Update shader camera position
     float cameraPos[3] = {
         client->camera.position.x,
@@ -1684,13 +1520,10 @@ static void render_scene(Client* client, CTowerClimb* env) {
     };
     SetShaderValue(client->shader, client->shader.locs[SHADER_LOC_VECTOR_VIEW], 
                   cameraPos, SHADER_UNIFORM_VEC3);
-    
     BeginBlendMode(BLEND_ALPHA);
     draw_level(client, env);
     EndBlendMode();
-    
     draw_robot(client, env);
-    
     EndMode3D();
     EndDrawing();
 }
@@ -1698,11 +1531,9 @@ static void render_scene(Client* client, CTowerClimb* env) {
 void render(Client* client, CTowerClimb* env) {
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
     static int previous_orientation = -1;  // Track orientation changes
-    
     // Handle orientation changes while hanging
     if (env->state->robot_orientation != previous_orientation && 
         env->state->robot_state == HANGING && client->enable_animations) {
-        
         // First remove the old orientation's offset
         if (previous_orientation != -1) {
             // Temporarily set orientation back to apply reverse offset
@@ -1730,7 +1561,6 @@ void render(Client* client, CTowerClimb* env) {
     } else if (env->state->block_grabbed == -1 && client->animState == ANIM_GRABBING && client->enable_animations) {
         update_animation(client, ANIM_IDLE);
     }
-
     // Handle position changes
     if (env->state->robot_position != client->previousRobotPosition && client->enable_animations) {
         if (client->isMoving) client->visualPosition = client->targetPosition;
@@ -1750,7 +1580,6 @@ void render(Client* client, CTowerClimb* env) {
                 client->visualPosition = client->targetPosition;
             }
         }
-        
         client->previousRobotPosition = env->state->robot_position;
     }
     if(!client->enable_animations) {

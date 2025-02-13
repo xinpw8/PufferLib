@@ -56,7 +56,6 @@ Weights* load_weights(const char* filename, size_t num_weights) {
     _load_weights(filename, weights->data, num_weights);
     weights->size = num_weights;
     weights->idx = 0;
-    printf("Total weights loaded: %zu\n", num_weights);
     return weights;
 }
 

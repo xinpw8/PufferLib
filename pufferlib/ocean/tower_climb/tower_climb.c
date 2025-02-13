@@ -33,7 +33,6 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
     net->num_agents = num_agents;
     net->obs_3d = calloc(5 * 5 * 9, sizeof(float));
     net->obs_1d = calloc(4, sizeof(float));
-
     net->conv1 = make_conv3d(weights, num_agents, 9, 5, 5, 1, cnn_channels, 2, 1);
     net->relu1 = make_relu(num_agents, cnn_channels * 4 * 4 * 8);
     net->conv2 = make_conv3d(weights, num_agents, 8, 4, 4, cnn_channels, cnn_channels, 2, 1);
@@ -51,7 +50,6 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
 void forward(TowerClimbNet* net, float* observations, int* actions) {
     int vision_size = 5 * 5 * 9;
     int player_size = 4;
-    int full_map = vision_size + player_size;
     // clear previous observations
     memset(net->obs_3d, 0, vision_size * sizeof(float));
     memset(net->obs_1d, 0, player_size * sizeof(float));
@@ -62,20 +60,14 @@ void forward(TowerClimbNet* net, float* observations, int* actions) {
     int obs_3d_idx = 0;
     for (int b = 0; b < 1; b++) {
         for (int d = 0; d < 5; d++) {
-            // printf("\n");
             for (int h = 0; h < 5; h++) {
-                // printf("\n");
                 for (int w = 0; w < 9; w++) {
-                    // Original flat index from observations
-                    // Match PyTorch's (N, C, W, H, D) format
-                    // printf("%f ", observations[obs_3d_idx]);
                     obs_3d[b][0][d][h][w] = observations[obs_3d_idx];
                     obs_3d_idx++;
                 }
             }
         }
     }
-
     // process player board
     for (int i = 0; i < player_size; i++) {
         obs_1d[0][i] = observations[vision_size + i];
@@ -84,19 +76,13 @@ void forward(TowerClimbNet* net, float* observations, int* actions) {
     conv3d(net->conv1, net->obs_3d);
     relu(net->relu1, net->conv1->output);
     conv3d(net->conv2, net->relu1->output);
-
     linear(net->flat, net->obs_1d);
-
     cat_dim1(net->cat, net->conv2->output, net->flat->output);
     linear(net->proj, net->cat->output);
     lstm(net->lstm, net->proj->output);
     linear(net->actor, net->lstm->state_h);
     linear(net->value_fn, net->lstm->state_h);
-
     softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
-
-    
-    
 }
 
 void free_tower_climb_net(TowerClimbNet* net) {
@@ -120,15 +106,15 @@ void demo() {
     TowerClimbNet* net = init_tower_climb_net(weights, 1);
     CTowerClimb* env = allocate();
     int seed = 0;
-    init_random_level(env, 6, 15, 10, seed);
-
+    srand(time(NULL));
+    int random_level = 5 + (rand() % 4);
+    init_random_level(env, random_level, 15, 10, seed);
     Client* client = make_client(env);
     client->enable_animations = 1;
-
     int tick = 0;
     while (!WindowShouldClose()) {
         int done = 0;
-        if (tick % 12 == 0 && !client->isMoving) {
+        if (tick % 6 == 0 && !client->isMoving) {
             tick = 0;
             int human_action = env->actions[0];
             forward(net, env->observations, env->actions);
@@ -142,7 +128,9 @@ void demo() {
             if (done) {
                 seed++;
                 c_reset(env);
-                init_random_level(env, 6, 15, 10, seed);
+                srand(time(NULL));
+                int random_level_next = 5 + (rand() % 4);
+                init_random_level(env, random_level_next, 15, 10, seed);
             }
         }
         tick++;
@@ -163,13 +151,12 @@ void demo() {
             if (IsKeyPressed(KEY_SPACE)){
                 env->actions[0] = GRAB;
             }
-            if (IsKeyPressed(KEY_LEFT_SHIFT)){
+            if (IsKeyPressed(KEY_RIGHT_SHIFT)){
                 env->actions[0] = DROP;
             }
         }
         render(client, env);
     }
-
     close_client(client);
     free_allocated(env);
 }
@@ -179,8 +166,6 @@ void performance_test() {
     CTowerClimb* env = allocate();
     int seed = 0;
     init_random_level(env, 8, 25, 15, seed);
-
-
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
@@ -198,7 +183,6 @@ void performance_test() {
     printf("SPS: %ld\n", i / (end - start));
     free_allocated(env);
 }
-
 
 int main() {
     demo();
