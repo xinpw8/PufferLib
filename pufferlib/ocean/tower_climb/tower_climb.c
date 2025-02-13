@@ -24,7 +24,6 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
     TowerClimbNet* net = calloc(1, sizeof(TowerClimbNet));
     int hidden_size = 256;
     int cnn_channels = 16;
-    
     // Calculate correct output sizes for Conv3D layers
     // First conv: (5,5,9) -> (4,4,8) with kernel=2, stride=1
     // Second conv: (4,4,8) -> (3,3,7) with kernel=2, stride=1
