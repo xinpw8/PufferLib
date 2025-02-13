@@ -15,7 +15,7 @@ RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.5/'
 RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
 RAYLIB_WASM_URL = RAYLIB_BASE + 'raylib-5.5_webassembly.zip'
 RAYLIB_URL = RAYLIB_BASE + RAYLIB_NAME + '.tar.gz'
-
+RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 if not os.path.exists('raylib'):
     print("Raylib not found, downloading...")
     urllib.request.urlretrieve(RAYLIB_URL, 'raylib.tar.gz')
@@ -24,6 +24,7 @@ if not os.path.exists('raylib'):
         os.rename(RAYLIB_NAME, 'raylib')
 
     os.remove('raylib.tar.gz')
+    urllib.request.urlretrieve(RLIGHTS_URL, 'raylib/include/rlights.h')
 
 if not os.path.exists('raylib_wasm'):
     print("Raylib WASM not found, downloading...")
