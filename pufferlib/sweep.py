@@ -134,10 +134,12 @@ def sample_uniform(mu, scale, num_samples):
 def fill(spaces, flat_sample, idx=0):
     for name, space in spaces.items():
         if isinstance(space, dict):
-            fill(spaces[name], flat_sample, idx=idx)
+            idx = fill(spaces[name], flat_sample, idx=idx)
         else:
             spaces[name] = spaces[name].unnormalize(flat_sample[idx])
             idx += 1
+
+    return idx
 
 def pareto_points(observations):
     scores = np.array([e['output'] for e in observations])
@@ -161,9 +163,10 @@ def create_gp(x_dim, scale_length=1.0):
     y = torch.zeros((1,))
 
     matern_kernel = gp.kernels.Matern32(input_dim=x_dim, lengthscale=X)
-    linear_kernel = gp.kernels.Linear(x_dim)
-    #kernel = gp.kernels.Sum(linear_kernel, matern_kernel)
-    kernel = matern_kernel
+    #linear_kernel = gp.kernels.Linear(x_dim)
+    linear_kernel = gp.kernels.Polynomial(x_dim, degree=1)
+    kernel = gp.kernels.Sum(linear_kernel, matern_kernel)
+    #kernel = matern_kernel
 
     # Params taken from HEBO: https://arxiv.org/abs/2012.03826
     model = gp.models.GPRegression(X, y, kernel=kernel, jitter=1.0e-4)
