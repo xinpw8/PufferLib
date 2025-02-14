@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import math
+import warnings
 
 from copy import deepcopy
 
@@ -53,6 +54,13 @@ class Pow2(Space):
 
 class Log(Space):
     base: int = 10
+
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            # TODO: Set scaling param intuitively based on number of jumps from min to max
+            scale = 1 / (np.log2(max) - np.log2(min))
+
+        super().__init__(min, max, scale, mean, is_integer)
 
     def normalize(self, value):
         #assert isinstance(value, (int, float))
@@ -192,14 +200,23 @@ class PufferCarbs:
             global_search_scale = 1,
             random_suggestions = 1024,
             suggestions_per_pareto = 128,
+            min_score = None,
+            max_score = None,
         ):
         self.spaces = _carbs_params_from_puffer_sweep(sweep_config)
         self.flat_spaces = dict(pufferlib.utils.unroll_nested_dict(self.spaces))
         self.num_params = len(self.flat_spaces)
 
-        self.metric = sweep_config['metric']
-        self.max_score = sweep_config['max_score']
+        self.min_score = min_score
+        self.max_score = max_score
 
+        if self.min_score is None:
+            warnings.warn('No min_score specified. This can destabilize tuning.')
+        if self.max_score is None:
+            warnings.warn('No max_score specified. This can destabilize tuning.')
+
+
+        self.metric = sweep_config['metric']
         assert self.metric['goal'] in ['maximize', 'minimize']
         self.optimize_direction = 1 if self.metric['goal'] == 'maximize' else -1
 
@@ -209,6 +226,7 @@ class PufferCarbs:
         self.suggestions_per_pareto = suggestions_per_pareto
         self.resample_frequency = resample_frequency
         self.max_suggestion_cost = max_suggestion_cost
+        self.input_norm = 'linear'
 
         self.success_observations = []
         self.failure_observations = []
@@ -252,27 +270,34 @@ class PufferCarbs:
         else:
             params = np.array([e['input'] for e in self.success_observations])
             params = torch.from_numpy(params)
-            eps = 1e-5
+            eps = 1e-3
 
             # Scores variable y
             y = self.optimize_direction*np.array([e['output'] for e in self.success_observations])
-            y_max = np.max(y)
-            y_mean = np.mean(y)
-            y_std = np.std(y)
 
             # Transformed scores
+            min_score = self.min_score
+            if min_score is None:
+                min_score = np.min(y) - abs(np.min(y))
+
+            if np.min(y) < min_score:
+                raise ValueError(f'Min score {min_score} is less than min score in data {np.min(y)}')
+
             max_score = self.max_score
             if max_score is None:
                 max_score = np.max(y) + abs(np.max(y))
 
+            if np.max(y) > max_score:
+                raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
+
             yt = -np.log(1 - y/max_score + eps)
-            yt_mean = np.mean(yt)
-            yt_std = np.std(yt)
-            yt_norm = (yt - yt_mean) / yt_std
-            yt_norm_min = np.min(yt_norm)
-            yt_norm = torch.from_numpy(yt_norm)
-            self.gp_score.mean_function = lambda x: yt_norm_min
-            self.gp_score.set_data(params, yt_norm)
+
+            # Linear input norm creates clean 0 mean fn
+            yt_min = np.min(yt)
+            yt_max = np.max(yt)
+            yt_norm = (yt - yt_min) / (yt_max - yt_min)
+
+            self.gp_score.set_data(params, torch.from_numpy(yt_norm))
             self.gp_score.train()
             gp.util.train(self.gp_score, self.score_opt)
             self.gp_score.eval()
@@ -280,10 +305,14 @@ class PufferCarbs:
             # Log costs
             c = np.array([e['cost'] for e in self.success_observations])
             log_c = np.log(c)
+
+            # Linear input norm creates clean 1 mean fn
+            log_c_min = np.min(log_c)
             log_c_max = np.max(log_c)
-            log_c = torch.from_numpy(log_c)
-            self.gp_cost.mean_function = lambda x: log_c_max
-            self.gp_cost.set_data(params, log_c)
+            log_c_norm = (log_c - log_c_min) / (log_c_max - log_c_min)
+
+            self.gp_cost.mean_function = lambda x: 1
+            self.gp_cost.set_data(params, torch.from_numpy(log_c_norm))
             self.gp_cost.train()
             gp.util.train(self.gp_cost, self.cost_opt)
             self.gp_cost.eval()
@@ -291,7 +320,7 @@ class PufferCarbs:
             ### Sample suggestions
             candidates, pareto_idxs = pareto_points(self.success_observations)
             search_centers = np.stack([e['input'] for e in candidates])
-            suggestions = sample_normal(search_centers,
+            suggestions = sample_uniform(search_centers,
                 self.search_scales, len(candidates)*self.suggestions_per_pareto)
             suggestions = np.clip(suggestions, self.min_bounds, self.max_bounds)
 
@@ -299,27 +328,38 @@ class PufferCarbs:
             suggestions = torch.from_numpy(suggestions)
             with torch.no_grad():
                 gp_yt_norm, gp_yt_norm_var = self.gp_score(suggestions)
-                gp_log_c, gp_log_c_var = self.gp_cost(suggestions)
+                gp_log_c_norm, gp_log_c_norm_var = self.gp_cost(suggestions)
 
-            gp_c = np.exp(gp_log_c.numpy())
-            gp_yt = (gp_yt_norm.numpy() * yt_std) + yt_mean
+            gp_yt_norm = gp_yt_norm.numpy()
+            gp_log_c_norm = gp_log_c_norm.numpy()
+
+            gp_yt = gp_yt_norm*(yt_max - yt_min) + yt_min
             gp_y = -max_score*(np.exp(-gp_yt) - 1 - eps)
+
+            gp_log_c = gp_log_c_norm*(log_c_max - log_c_min) + log_c_min
+            gp_c = np.exp(gp_log_c)
 
             pareto_y = y[pareto_idxs]
             pareto_yt = yt[pareto_idxs]
             pareto_c = c[pareto_idxs]
 
-            c_diff = gp_c[:, None] - pareto_c[None, :]
-            pareto_dist = np.abs(c_diff)
-            nearest_pareto_dist = np.min(pareto_dist, axis=1)
+            max_c = np.max(c)
+            min_c = np.min(c)
 
-            c_diff[c_diff < 0] = np.inf
-            nearest_idx = np.argmin(c_diff, axis=1)
-            nearest_pareto_yt = pareto_yt[nearest_idx]
+            pareto_c_norm = (pareto_c - min_c) / (max_c - min_c)
+            gp_c_norm = (gp_c - min_c) / (max_c - min_c)
+
+            c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
+            nearest_pareto_dist = np.min(c_right, axis=1)
+
+            c_left = gp_c[:, None] - pareto_c[None, :]
+            c_left[c_left < 0] = np.inf
+            nearest_idx = np.argmin(c_left, axis=1)
             nearest_pareto_y = pareto_y[nearest_idx]
+            nearest_pareto_yt_norm = gp_yt_norm[nearest_idx]
 
             max_c_mask = gp_c < self.max_suggestion_cost
-            suggestion_scores = max_c_mask * (gp_yt - nearest_pareto_yt) * nearest_pareto_dist
+            suggestion_scores = max_c_mask * (gp_yt_norm - nearest_pareto_yt_norm) * nearest_pareto_dist
 
             # This works and uncovers approximate binary search when the GP is perfect
             # Can't include cost in denom because it biases this case

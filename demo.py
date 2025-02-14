@@ -256,6 +256,8 @@ def sweep_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
         resample_frequency=5,
         num_random_samples=10, # Should be number of params
         max_suggestion_cost=args['base']['max_suggestion_cost'],
+        min_score = args['sweep']['metric']['min'],
+        max_score = args['sweep']['metric']['max'],
     )
     for i in range(args['max_runs']):
         seed = time.time_ns() & 0xFFFFFFFF
@@ -417,7 +419,7 @@ def test_carbs(args, env_name, make_env, policy_cls, rnn_cls):
         train_args['bptt_horizon'] = 16
         '''
 
-        score, cost = synthetic_log_task(args)
+        score, cost = synthetic_percentile_task(args)
 
         '''
         neptune = init_neptune(args, env_name, id=args['exp_id'], tag=args['tag'])
@@ -457,6 +459,8 @@ def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
         resample_frequency=5,
         num_random_samples=10, # Should be number of params
         max_suggestion_cost=args['base']['max_suggestion_cost'],
+        min_score = args['sweep']['metric']['min'],
+        max_score = args['sweep']['metric']['max'],
     )
     scores = []
     costs = []
@@ -467,7 +471,8 @@ def test_neocarbs(args, env_name, make_env, policy_cls, rnn_cls):
         torch.manual_seed(seed)
  
         hypers, info = carbs.suggest()
-        score, cost = synthetic_linear_task(hypers)
+        score, cost = synthetic_log_task(hypers)
+
         carbs.observe(score=score, cost=cost)
         print('Score:', score, 'Cost:', cost)
 
