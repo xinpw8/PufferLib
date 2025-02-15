@@ -292,6 +292,10 @@ def synthetic_percentile_task(args):
     score, cost = synthetic_basic_task(args)
     return score/(1 + np.exp(-cost/10)), cost
 
+def synthetic_cutoff_task(args):
+    score, cost = synthetic_basic_task(args)
+    return score*min(2, np.log10(cost)), cost
+
 def synthetic_rl_task(args):
     '''Simulates the outcome of an RL experiment by making
     some heavy handed assumptions about hyperparameters'''

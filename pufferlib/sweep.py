@@ -199,7 +199,7 @@ class PufferCarbs:
             num_random_samples = 10,
             global_search_scale = 1,
             random_suggestions = 1024,
-            suggestions_per_pareto = 128,
+            suggestions_per_pareto = 256,
             min_score = None,
             max_score = None,
         ):
@@ -270,7 +270,9 @@ class PufferCarbs:
         else:
             params = np.array([e['input'] for e in self.success_observations])
             params = torch.from_numpy(params)
-            eps = 1e-3
+
+            # Test change 2: Lower eps
+            eps = 1e-2
 
             # Scores variable y
             y = self.optimize_direction*np.array([e['output'] for e in self.success_observations])
@@ -290,9 +292,9 @@ class PufferCarbs:
             if np.max(y) > max_score:
                 raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
 
-            yt = -np.log(1 - y/max_score + eps)
-
-            # Linear input norm creates clean 0 mean fn
+            # Linearize, exp transform, linearize
+            y_norm = (y - min_score) / (max_score - min_score)
+            yt = -np.log(1 - y_norm + eps)
             yt_min = np.min(yt)
             yt_max = np.max(yt)
             yt_norm = (yt - yt_min) / (yt_max - yt_min)
@@ -333,30 +335,38 @@ class PufferCarbs:
             gp_yt_norm = gp_yt_norm.numpy()
             gp_log_c_norm = gp_log_c_norm.numpy()
 
+            # Unlinearize, inverse exp transform, unlinearize
             gp_yt = gp_yt_norm*(yt_max - yt_min) + yt_min
-            gp_y = -max_score*(np.exp(-gp_yt) - 1 - eps)
+            gp_y_norm = -(np.exp(-gp_yt) - 1 - eps)
+            gp_y = gp_y_norm*(max_score - min_score) + min_score
 
             gp_log_c = gp_log_c_norm*(log_c_max - log_c_min) + log_c_min
             gp_c = np.exp(gp_log_c)
 
             pareto_y = y[pareto_idxs]
             pareto_yt = yt[pareto_idxs]
+            pareto_yt_norm = yt_norm[pareto_idxs]
             pareto_c = c[pareto_idxs]
 
             max_c = np.max(c)
             min_c = np.min(c)
 
             pareto_c_norm = (pareto_c - min_c) / (max_c - min_c)
+
+            pareto_log_c_norm = (np.log(pareto_c) - log_c_min) / (log_c_max - log_c_min)
             gp_c_norm = (gp_c - min_c) / (max_c - min_c)
 
-            c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
+            # Test change 1: Distance in log space
+            c_right = np.abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
+            #c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
             nearest_pareto_dist = np.min(c_right, axis=1)
+            #nearest_pareto_dist[gp_log_c_norm > 1] = np.mean(nearest_pareto_dist[gp_log_c_norm <= 1])
 
             c_left = gp_c[:, None] - pareto_c[None, :]
             c_left[c_left < 0] = np.inf
             nearest_idx = np.argmin(c_left, axis=1)
             nearest_pareto_y = pareto_y[nearest_idx]
-            nearest_pareto_yt_norm = gp_yt_norm[nearest_idx]
+            nearest_pareto_yt_norm = pareto_yt_norm[nearest_idx]
 
             max_c_mask = gp_c < self.max_suggestion_cost
             suggestion_scores = max_c_mask * (gp_yt_norm - nearest_pareto_yt_norm) * nearest_pareto_dist
