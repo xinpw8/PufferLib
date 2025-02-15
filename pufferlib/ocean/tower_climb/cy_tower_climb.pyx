@@ -43,7 +43,7 @@ cdef extern from "tower_climb.h":
         int action;
 
     ctypedef struct CTowerClimb:
-        float* observations;
+        unsigned char* observations;
         int* actions;
         float* rewards;
         unsigned char* dones;
@@ -88,7 +88,7 @@ cdef class CyTowerClimb:
         int num_envs
         int num_maps
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, unsigned char[:, :] observations, int[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             int num_maps, float reward_climb_row, float reward_fall_row,
             float reward_illegal_move, float reward_move_block):
@@ -120,8 +120,8 @@ cdef class CyTowerClimb:
         cdef int max_moves
         for i in range(num_maps):
             goal_height = np.random.randint(5,9)
-            min_moves = 10
-            max_moves = 15
+            min_moves = 15
+            max_moves = 20
             init_level(&self.levels[i])
             init_puzzle_state(&self.puzzle_states[i])
             cy_init_random_level(&self.levels[i], goal_height, max_moves, min_moves, i)

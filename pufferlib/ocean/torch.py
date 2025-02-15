@@ -339,16 +339,16 @@ class TowerClimb(nn.Module):
         super().__init__()
         self.network = nn.Sequential(
                 pufferlib.pytorch.layer_init(
-                    nn.Conv3d(1, cnn_channels, 2, stride = 1)),
+                    nn.Conv3d(1, cnn_channels, 3, stride = 1)),
                 nn.ReLU(),
                 pufferlib.pytorch.layer_init(
-                    nn.Conv3d(cnn_channels, cnn_channels, 2, stride=1)),
+                    nn.Conv3d(cnn_channels, cnn_channels, 3, stride=1)),
                 nn.Flatten()       
         )
-        cnn_flat_size = cnn_channels * 3 * 3 * 7
+        cnn_flat_size = cnn_channels * 1 * 1 * 5
 
         # Process player obs
-        self.flat = pufferlib.pytorch.layer_init(nn.Linear(4,16))
+        self.flat = pufferlib.pytorch.layer_init(nn.Linear(3,16))
 
         # combine
         self.proj = pufferlib.pytorch.layer_init(
@@ -364,7 +364,7 @@ class TowerClimb(nn.Module):
         return actions, value, state
     def encode_observations(self, observations):
         board_state = observations[:,:225]
-        player_info = observations[:, -4:] 
+        player_info = observations[:, -3:] 
         board_features = board_state.view(-1, 1, 5,5,9).float()
         cnn_features = self.network(board_features)
         flat_features = self.flat(player_info.float())

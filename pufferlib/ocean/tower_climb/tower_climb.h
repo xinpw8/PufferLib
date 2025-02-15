@@ -30,7 +30,7 @@
 #define DEFAULT 0
 #define HANGING 1
 // observation space
-#define PLAYER_OBS 4
+#define PLAYER_OBS 3
 #define OBS_VISION 225
 // PLG VS ENV
 #define PLG_MODE 0
@@ -189,7 +189,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 
 typedef struct CTowerClimb CTowerClimb;
 struct CTowerClimb {
-    float* observations;
+    unsigned char* observations;
     int* actions;
     float* rewards;
     unsigned char* dones;
@@ -244,7 +244,7 @@ void setPuzzle(CTowerClimb* env, PuzzleState* src, Level* lvl){
 CTowerClimb* allocate() {
     CTowerClimb* env = (CTowerClimb*)calloc(1, sizeof(CTowerClimb));
     init(env);
-    env->observations = (float*)calloc(OBS_VISION+PLAYER_OBS, sizeof(float)); // make this unsigned char
+    env->observations = (unsigned char*)calloc(OBS_VISION+PLAYER_OBS, sizeof(unsigned char));
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -315,33 +315,25 @@ void compute_observations(CTowerClimb* env) {
                 int obs_idx = x + z * 9 + y * (9 * 5);
                 // Check if position is out of bounds
                 int board_idx = world_y * sz + world_z * cols + world_x;
-                if (world_x < 0 || world_x >= cols || 
-                    world_z < 0 || world_z >= rows || 
-                    world_y < 0 || world_y >= max_floors || 
-                    board_idx >= env->level->total_length) {
-                    env->observations[obs_idx] = -1.0f;
-                    continue;
-                }
                 // Position is in bounds, set observation
                 if (board_idx == env->state->robot_position) {
-                    env->observations[obs_idx] = 3.0f;
+                    env->observations[obs_idx] = 3;
                     continue;
                 }
                 else if (board_idx == env->level->goal_location){
-                    env->observations[obs_idx] = 2.0f;
+                    env->observations[obs_idx] = 2;
                     continue;
                 }
                 // Use bitmask directly instead of board_state array
-                env->observations[obs_idx] = (float)TEST_BIT(env->state->blocks, board_idx);
+                env->observations[obs_idx] = TEST_BIT(env->state->blocks, board_idx);
             }
         }
     }
     // Add player state information at the end
     int state_start = 9 * 5 * 5;
-    env->observations[state_start] = (float)env->state->robot_orientation;
-    env->observations[state_start + 1] = (float)env->state->robot_state;
-    env->observations[state_start + 2] = (float)env->state->block_grabbed;
-    env->observations[state_start + 3] = (float)(env->state->block_grabbed != -1);
+    env->observations[state_start] = env->state->robot_orientation;
+    env->observations[state_start + 1] = env->state->robot_state;
+    env->observations[state_start + 2] = (env->state->block_grabbed != -1);
 }
 
 void c_reset(CTowerClimb* env) {
@@ -1121,7 +1113,7 @@ void gen_level(Level* lvl, int goal_level) {
                 int within_legal_bounds = x>=1 && x < legal_width_size && z >= 1 && z < legal_depth_size && y>=1 && y < goal_level;
                 int allowed_block_placement = within_legal_bounds && (z <= (legal_depth_size - y));
                 if (allowed_block_placement){
-                    int chance = (rand() % 3 ==0) ? 1 : 0;
+                    int chance = (rand() % 2 ==0) ? 1 : 0;
                     lvl->map[block_index] = chance;
                     // create spawn point above an existing block
                     if (spawn_created == 0 && y == 2 && lvl->map[block_index - area] == 1){
