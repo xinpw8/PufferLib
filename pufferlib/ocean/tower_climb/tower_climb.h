@@ -920,15 +920,22 @@ void markVisited(const PuzzleState* s) {
     node->next = visitedTable[idx];
     visitedTable[idx] = node;
 }
+
 static PuzzleState copyPuzzleState(const PuzzleState* src) 
 {
-    PuzzleState dst;
-    dst.blocks = (unsigned char*)malloc(BLOCK_BYTES);  
-    memcpy(dst.blocks, src->blocks, BLOCK_BYTES);      
-    dst.robot_position    = src->robot_position;
-    dst.robot_orientation = src->robot_orientation;
-    dst.robot_state       = src->robot_state;
-    dst.block_grabbed     = src->block_grabbed;
+    PuzzleState dst = {
+	    .blocks = NULL,
+	    .robot_position = src->robot_position,
+	    .robot_orientation = src->robot_orientation,
+	    .robot_state = src->robot_state,
+	    .block_grabbed = src->block_grabbed
+    };
+    if(src->blocks) {
+	    dst.blocks = (unsigned char*)calloc(BLOCK_BYTES, sizeof(unsigned char));
+	    if (dst.blocks) {
+		    memcpy(dst.blocks, src->blocks, BLOCK_BYTES);
+	    }
+    }
     return dst;
 }
 
@@ -947,6 +954,7 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
         int success = applyAction(&newState, action, lvl, PLG_MODE, NULL);
         if (!success) {
             // Move was invalid, skip
+	    free(newState.blocks);
             continue;
         }
         // 3) If valid, build a BFSNode
@@ -964,11 +972,11 @@ int getNeighbors(const BFSNode* current, BFSNode* outNeighbors,  Level* lvl) {
 }
 
 void freeQueueBuffer(BFSNode* queueBuffer, int back){
+    if (!queueBuffer) return;
     for (int i = 0; i < back; i++) {
         free(queueBuffer[i].state.blocks); 
     }
     free(queueBuffer);
-    queueBuffer = NULL;
 }
 
 // Example BFS

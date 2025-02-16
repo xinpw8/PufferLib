@@ -46,7 +46,7 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
     return net;
 }
 
-void forward(TowerClimbNet* net, float* observations, int* actions) {
+void forward(TowerClimbNet* net, unsigned char* observations, int* actions) {
     int vision_size = 5 * 5 * 9;
     int player_size = 4;
     // clear previous observations
@@ -184,8 +184,8 @@ void performance_test() {
 }
 
 int main() {
-    demo();
-    // performance_test();
+    //demo();
+    performance_test();
     return 0;
 }
 
