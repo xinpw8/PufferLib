@@ -18,11 +18,16 @@ class Pong(pufferlib.PufferEnv):
             ball_width=32, ball_height=32, paddle_speed=8,
             ball_initial_speed_x=10, ball_initial_speed_y=1,
             ball_speed_y_increment=3, ball_max_speed_y=13,
-            max_score=21, frameskip=1, report_interval=1, buf=None):
+            max_score=21, frameskip=1, continuous=False, report_interval=1, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(8,), dtype=np.float32,
         )
-        self.single_action_space = gymnasium.spaces.Discrete(3)
+        if continuous:
+            self.single_action_space = gymnasium.spaces.Box(
+                low=-1, high=1, shape=(1,), dtype=np.float32,
+            )
+        else:
+            self.single_action_space = gymnasium.spaces.Discrete(3)
         self.render_mode = render_mode
         self.num_agents = num_envs
 
@@ -35,7 +40,7 @@ class Pong(pufferlib.PufferEnv):
             self.terminals, num_envs, width, height,
             paddle_width, paddle_height, ball_width, ball_height,
             paddle_speed, ball_initial_speed_x, ball_initial_speed_y,
-            ball_max_speed_y, ball_speed_y_increment, max_score, frameskip)
+            ball_max_speed_y, ball_speed_y_increment, max_score, frameskip, continuous)
  
     def reset(self, seed=None):
         self.tick = 0

@@ -21,6 +21,7 @@ int main() {
         .ball_max_speed_y = 13,
         .max_score = 21,
         .frameskip = 1,
+        .continuous = 1,
     };
     allocate(&env);
 
@@ -29,13 +30,20 @@ int main() {
     c_reset(&env);
     while (!WindowShouldClose()) {
         // User can take control of the paddle
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = 0;
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 1;
-            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 2;
-        } else {
-            forward_linearlstm(net, env.observations, env.actions);
-        }
+        // if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            if(env.continuous) {
+                float move = GetMouseWheelMove();
+                float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
+                env.actions[0] = clamped_wheel;
+                printf("Mouse wheel move: %f\n", env.actions[0]);
+            } else {
+                env.actions[0] = 0.0;
+                if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 1.0;
+                if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 2.0;
+            }
+        // } else {
+        //     forward_linearlstm(net, env.observations, env.actions);
+        // }
 
         c_step(&env);
         c_render(client, &env);
