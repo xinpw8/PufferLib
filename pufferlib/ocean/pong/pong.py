@@ -18,24 +18,28 @@ class Pong(pufferlib.PufferEnv):
             ball_width=32, ball_height=32, paddle_speed=8,
             ball_initial_speed_x=10, ball_initial_speed_y=1,
             ball_speed_y_increment=3, ball_max_speed_y=13,
-            max_score=21, frameskip=1, continuous=False, report_interval=1, buf=None):
+            max_score=21, frameskip=1, continuous=True, report_interval=1, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(8,), dtype=np.float32,
         )
         if continuous:
             self.single_action_space = gymnasium.spaces.Box(
-                low=-1, high=1, shape=(1,), dtype=np.float32,
+                low=-1, high=1,  dtype=np.float32,
             )
         else:
             self.single_action_space = gymnasium.spaces.Discrete(3)
+        
+        print(self.single_action_space)
         self.render_mode = render_mode
         self.num_agents = num_envs
-
+        self.continuous = continuous
         self.report_interval = report_interval
         self.human_action = None
         self.tick = 0
 
         super().__init__(buf)
+        if not continuous:
+            self.actions = self.actions.reshape(-1,1).astype(np.float32)
         self.c_envs = CyPong(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, width, height,
             paddle_width, paddle_height, ball_width, ball_height,
@@ -48,9 +52,11 @@ class Pong(pufferlib.PufferEnv):
         return self.observations, []
 
     def step(self, actions):
-        self.actions[:] = actions
+        if not self.continuous:
+            self.actions[:] = actions.reshape(-1,1)
+        else:
+            self.actions[:] = np.clip(actions, -1.0, 1.0)
         self.c_envs.step()
-
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()

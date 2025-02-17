@@ -161,7 +161,6 @@ void c_step(Pong* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0;
     env->terminals[0] = 0;
-
     // move ego paddle
     if (env->continuous) {
         env->paddle_dir = env->actions[0];
