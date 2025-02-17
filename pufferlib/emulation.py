@@ -256,7 +256,7 @@ class PettingZooPufferEnv:
         self.num_agents = len(self.possible_agents)
 
         set_buffers(self, buf)
-        if isinstance(self.env.observation_space, pufferlib.spaces.Box):
+        if isinstance(self.env_single_observation_space, pufferlib.spaces.Box):
             self.obs_struct = self.observations
         else:
             self.obs_struct = self.observations.view(self.obs_dtype)

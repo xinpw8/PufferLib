@@ -405,7 +405,7 @@ void compute_observations(CRware* env) {
     }
 }
 
-void reset(CRware* env) {
+void c_reset(CRware* env) {
      
 	env->dones[0] = 0;
     // set agents in center
@@ -720,7 +720,7 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
     }
 }
 
-void step(CRware* env) {
+void c_step(CRware* env) {
     memset(env->rewards, 0, env->num_agents * sizeof(float));
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
@@ -778,7 +778,7 @@ Client* make_client(CRware* env) {
     return client;
 }
 
-void render(Client* client, CRware* env) {
+void c_render(Client* client, CRware* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

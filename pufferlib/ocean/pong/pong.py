@@ -11,6 +11,7 @@ import gymnasium
 import pufferlib
 from pufferlib.ocean.pong.cy_pong import CyPong
 
+
 class Pong(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None,
             width=500, height=640, paddle_width=20, paddle_height=70,
@@ -18,8 +19,9 @@ class Pong(pufferlib.PufferEnv):
             ball_initial_speed_x=10, ball_initial_speed_y=1,
             ball_speed_y_increment=3, ball_max_speed_y=13,
             max_score=21, frameskip=1, report_interval=1, buf=None):
-        self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
-            shape=(8,), dtype=np.float32)
+        self.single_observation_space = gymnasium.spaces.Box(
+            low=0, high=1, shape=(8,), dtype=np.float32,
+        )
         self.single_action_space = gymnasium.spaces.Discrete(3)
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -65,7 +67,7 @@ def test_performance(timeout=10, atn_cache=1024):
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, 2, (atn_cache, env.num_envs))
+    actions = np.random.randint(0, 2, (atn_cache, env.num_agents))
 
     import time
     start = time.time()
@@ -74,7 +76,8 @@ def test_performance(timeout=10, atn_cache=1024):
         env.step(atn)
         tick += 1
 
-    print(f'SPS: %f', env.num_envs * tick / (time.time() - start))
+    print(f'SPS: {env.num_agents * tick / (time.time() - start)}')
+
 
 if __name__ == '__main__':
     test_performance()

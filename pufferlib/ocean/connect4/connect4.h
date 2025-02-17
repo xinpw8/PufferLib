@@ -276,7 +276,7 @@ void compute_observation(CConnect4* env) {
     }
 }
 
-void reset(CConnect4* env) {
+void c_reset(CConnect4* env) {
     env->log = (Log){0};
     env->dones[0] = NOT_DONE;
     env->player_pieces = 0;
@@ -294,13 +294,13 @@ void finish_game(CConnect4* env, float reward) {
     compute_observation(env);
 }
 
-void step(CConnect4* env) {
+void c_step(CConnect4* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
 
     if (env->dones[0] == DONE) {
         add_log(env->log_buffer, &env->log);
-        reset(env);
+        c_reset(env);
         return;
     }
 
@@ -359,7 +359,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void render(Client* client, CConnect4* env) {
+void c_render(Client* client, CConnect4* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

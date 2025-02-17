@@ -436,7 +436,7 @@ void reset_round(Breakout* env) {
     env->ball_vx = 0.0;
     env->ball_vy = 0.0;
 }
-void reset(Breakout* env) {
+void c_reset(Breakout* env) {
     env->log = (Log){0};
     env->score = 0;
     env->num_balls = 5;
@@ -480,11 +480,11 @@ void step_frame(Breakout* env, int action) {
         env->dones[0] = 1;
         env->log.score = env->score;
         add_log(env->log_buffer, &env->log);
-        reset(env);
+        c_reset(env);
     }
 }
 
-void step(Breakout* env) {
+void c_step(Breakout* env) {
     env->dones[0] = 0;
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
@@ -521,7 +521,7 @@ Client* make_client(Breakout* env) {
     return client;
 }
 
-void render(Client* client, Breakout* env) {
+void c_render(Client* client, Breakout* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

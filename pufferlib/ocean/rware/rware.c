@@ -36,7 +36,7 @@ void demo(int map_choice) {
     LinearLSTM* net = make_linearlstm(weights, env.num_agents, 27, 5);
 
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
     Client* client = make_client(&env);
 
     int tick = 0;
@@ -54,7 +54,7 @@ void demo(int map_choice) {
                 env.actions[env.human_agent_idx] = human_action;
             }
 
-            step(&env);
+            c_step(&env);
 
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env.actions[env.human_agent_idx] = NOOP;
@@ -82,7 +82,7 @@ void demo(int map_choice) {
             }
         }
 
-        render(client,&env);
+        c_render(client,&env);
     }
     close_client(client);
     free_allocated(&env);
@@ -99,13 +99,13 @@ void performance_test() {
 	.reward_type = 2
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
 
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % 5;
-        step(&env);
+        c_step(&env);
         i++;
     }
     long end = time(NULL);

@@ -26,7 +26,7 @@ int main() {
 
     Client* client = make_client(&env);
 
-    reset(&env);
+    c_reset(&env);
     while (!WindowShouldClose()) {
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -37,8 +37,8 @@ int main() {
             forward_linearlstm(net, env.observations, env.actions);
         }
 
-        step(&env);
-        render(client, &env);
+        c_step(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);

@@ -55,9 +55,9 @@ cdef extern from "breakout.h":
 
     Client* make_client(Breakout* env)
     void close_client(Client* client)
-    void render(Client* client, Breakout* env)
-    void reset(Breakout* env)
-    void step(Breakout* env)
+    void c_render(Client* client, Breakout* env)
+    void c_reset(Breakout* env)
+    void c_step(Breakout* env)
 
 cdef class CyBreakout:
     cdef:
@@ -103,12 +103,12 @@ cdef class CyBreakout:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef Breakout* env = &self.envs[0]
@@ -119,7 +119,7 @@ cdef class CyBreakout:
             self.client = make_client(env)
             os.chdir(cwd)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:

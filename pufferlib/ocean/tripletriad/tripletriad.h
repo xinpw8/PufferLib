@@ -294,7 +294,7 @@ void compute_observations(CTripleTriad* env) {
     }
 }
 
-void reset(CTripleTriad* env) {
+void c_reset(CTripleTriad* env) {
     env->log = (Log){0};
     env->game_over = 0;
     for(int i=0; i< 2; i++) {
@@ -490,7 +490,7 @@ void check_card_conversions(CTripleTriad* env, int card_placement, int player) {
     }
 }
 
-void step(CTripleTriad* env) {
+void c_step(CTripleTriad* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
     int action = env->actions[0];
@@ -506,7 +506,7 @@ void step(CTripleTriad* env) {
         env->log.score = env->score[0];
         add_log(env->log_buffer, &env->log);
         //printf("Log: %f, %f, %f\n", env->log.episode_return, env->log.episode_length, env->log.score);
-        reset(env);
+        c_reset(env);
         return;
     }
     // select a card if the card is in the range of 1-5 and the card is not placed
@@ -579,7 +579,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void render(Client* client, CTripleTriad* env) {
+void c_render(Client* client, CTripleTriad* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

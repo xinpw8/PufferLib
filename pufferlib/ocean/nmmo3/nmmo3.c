@@ -165,7 +165,7 @@ void demo(int num_players) {
     };
     allocate_mmo(&env);
 
-    reset(&env, 42);
+    c_reset(&env, 42);
 
     // Must reset before making client
     Client* client = make_client(&env);
@@ -183,7 +183,7 @@ void demo(int num_players) {
                 env.actions[0] = human_action;
             }
 
-            step(&env);
+            c_step(&env);
             //printf("Reward: %f\n\tDeath: %f\n\tProf: %f\n\tComb: %f\n\tItem: %f\n", env.rewards[0].death, env.rewards[0].death, env.rewards[0].prof_lvl, env.rewards[0].comb_lvl, env.rewards[0].item_atk_lvl);
             human_action = ATN_NOOP;
         } else {
@@ -222,13 +222,13 @@ void test_mmonet_performance(int num_players, int timeout) {
         .y_window = 5,
     };
     allocate_mmo(&env);
-    reset(&env, 42);
+    c_reset(&env, 42);
 
     int start = time(NULL);
     int num_steps = 0;
     while (time(NULL) - start < timeout) {
         forward(net, env.obs, env.actions);
-        step(&env);
+        c_step(&env);
         num_steps++;
     }
 
@@ -434,7 +434,7 @@ void test_performance(int num_players, int timeout) {
         .y_window = 5,
     };
     allocate_mmo(&env);
-    reset(&env, 0);
+    c_reset(&env, 0);
 
     int start = time(NULL);
     int num_steps = 0;
@@ -442,7 +442,7 @@ void test_performance(int num_players, int timeout) {
         for (int i = 0; i < num_players; i++) {
             env.actions[i] = rand() % 23;
         }
-        step(&env);
+        c_step(&env);
         num_steps++;
     }
 

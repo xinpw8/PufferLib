@@ -42,10 +42,10 @@ fi
 
 FLAGS=(
     -Wall
-    -I./raylib/include 
+    -I./raylib-5.0_linux_amd64/include 
     -I./pufferlib
     "$SRC_DIR/$ENV.c" -o "$ENV"
-    ./raylib/lib/libraylib.a
+    ./raylib-5.0_linux_amd64/lib/libraylib.a
     -lm
     -lpthread
     -DPLATFORM_DESKTOP

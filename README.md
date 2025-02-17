@@ -1,6 +1,8 @@
 ![figure](https://pufferai.github.io/source/resource/header.png)
 
 [![PyPI version](https://badge.fury.io/py/pufferlib.svg)](https://badge.fury.io/py/pufferlib)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pufferlib)
+![Github Actions](https://github.com/PufferAI/PufferLib/actions/workflows/install.yml/badge.svg)
 [![](https://dcbadge.vercel.app/api/server/spT4huaGYV?style=plastic)](https://discord.gg/spT4huaGYV)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40jsuarez5341)](https://twitter.com/jsuarez5341)
 

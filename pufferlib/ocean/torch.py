@@ -296,7 +296,6 @@ class MOBA(nn.Module):
 class TrashPickup(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()
-        self.agent_sight_range = env.agent_sight_range
         self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(5, cnn_channels, 5, stride=3)),
@@ -319,9 +318,7 @@ class TrashPickup(nn.Module):
         return actions, value
 
     def encode_observations(self, observations):
-        crop_size = 2 * self.agent_sight_range + 1
-        observations = observations.view(-1, 5, crop_size, crop_size).float()
-        #observations = observations.view(-1, crop_size, crop_size, 5).permute(0, 3, 1, 2).float()
+        observations = observations.view(-1, 5, 11, 11).float()
         return self.network(observations), None
 
     def decode_actions(self, flat_hidden, lookup, concat=None):

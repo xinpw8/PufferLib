@@ -96,7 +96,6 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
 
 def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
         elos={'model_random.pt': 1000}, vecenv=None, wandb=None, neptune=None):
-
     if args['vec'] == 'serial':
         vec = pufferlib.vector.Serial
     elif args['vec'] == 'multiprocessing':
@@ -106,7 +105,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     elif args['vec'] == 'native':
         vec = pufferlib.environment.PufferEnv
     else:
-        raise ValueError(f'Invalid --vector (serial/multiprocessing/ray/native).')
+        raise ValueError(f'Invalid --vec (serial/multiprocessing/ray/native).')
 
     if vecenv is None:
         vecenv = pufferlib.vector.make(
@@ -229,7 +228,10 @@ if __name__ == '__main__':
 
     for section in p.sections():
         for key in p[section]:
-            argparse_key = f'--{section}.{key}'.replace('_', '-')
+            if section == 'base':
+                argparse_key = f'--{key}'.replace('_', '-')
+            else:
+                argparse_key = f'--{section}.{key}'.replace('_', '-')
             parser.add_argument(argparse_key, default=p[section][key])
 
     # Late add help so you get a dynamic menu based on the env
@@ -251,7 +253,7 @@ if __name__ == '__main__':
         except:
             prev[subkey] = value
 
-    package = args['base']['package']
+    package = args['package']
     module_name = f'pufferlib.environments.{package}'
     if package == 'ocean':
         module_name = 'pufferlib.ocean'
@@ -260,12 +262,12 @@ if __name__ == '__main__':
     env_module = importlib.import_module(module_name)
 
     make_env = env_module.env_creator(env_name)
-    policy_cls = getattr(env_module.torch, args['base']['policy_name'])
+    policy_cls = getattr(env_module.torch, args['policy_name'])
     
-    rnn_name = args['base']['rnn_name']
+    rnn_name = args['rnn_name']
     rnn_cls = None
     if rnn_name is not None:
-        rnn_cls = getattr(env_module.torch, args['base']['rnn_name'])
+        rnn_cls = getattr(env_module.torch, args['rnn_name'])
 
     if args['baseline']:
         assert args['mode'] in ('train', 'eval', 'evaluate')

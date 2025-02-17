@@ -38,10 +38,9 @@ cdef extern from "trash_pickup.h":
 
     Client* make_client(CTrashPickupEnv* env)
     void close_client(Client* client)
-    void render(Client* client, CTrashPickupEnv* env) 
-
-    void reset(CTrashPickupEnv* env)
-    void step(CTrashPickupEnv* env)
+    void c_render(Client* client, CTrashPickupEnv* env) 
+    void c_reset(CTrashPickupEnv* env)
+    void c_step(CTrashPickupEnv* env)
 
 cdef class CyTrashPickup:
     cdef:
@@ -84,19 +83,19 @@ cdef class CyTrashPickup:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef CTrashPickupEnv* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:
