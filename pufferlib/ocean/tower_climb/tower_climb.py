@@ -1,10 +1,3 @@
-'''High-perf Pong
-
-Inspired from https://gist.github.com/Yttrmin/18ecc3d2d68b407b4be1
-& https://jair.org/index.php/jair/article/view/10819/25823
-& https://www.youtube.com/watch?v=PSQt5KGv7Vk
-'''
-
 import numpy as np
 import gymnasium
 
@@ -31,7 +24,6 @@ class TowerClimb(pufferlib.PufferEnv):
         self.c_envs = CyTowerClimb(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, num_maps, reward_climb_row, reward_fall_row,
             reward_illegal_move, reward_move_block)
-        pass
 
     def reset(self, seed=None):
         self.c_envs.reset()
