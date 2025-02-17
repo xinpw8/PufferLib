@@ -1026,30 +1026,6 @@ int bfs(PuzzleState* start, int maxDepth, Level* lvl, int min_moves) {
                 }
                 idx--;
             }
-            // Print in forward order
-            //printf("Found solution path of length %d!\n", current.depth);
-            /*printf("\nStep 0 (Start):\n");
-            printf("  Position: %d\n", path[0].state.robot_position);
-            printf("  Orientation: %d\n", path[0].state.robot_orientation);
-            printf("  State: %d\n", path[0].state.robot_state);
-            printf("  Block grabbed: %d\n", path[0].state.block_grabbed);
-            for (int i = 1; i <= current.depth; i++) {
-                int block_in_front = path[i].state.robot_position + 
-                    (path[i].state.robot_orientation == 0 ? 1 :    // Right
-                     path[i].state.robot_orientation == 1 ? lvl->cols :    // Down
-                     path[i].state.robot_orientation == 2 ? -1 :   // Left
-                     -lvl->cols);  // Up (orientation == 3)
-                printf("\nStep %d:\n", i);
-                printf("  Action taken: %d\n", path[i].action);
-                printf("  Position: %d\n", path[i].state.robot_position);
-                printf("  Orientation: %d\n", path[i].state.robot_orientation);
-                printf("  State: %d\n", path[i].state.robot_state);
-                printf("  Block grabbed: %d\n", path[i].state.block_grabbed);
-                printf("  Block in front: %d (Has block: %d)\n", block_in_front, 
-                    bfs_is_valid_position(block_in_front, lvl) && 
-                    (TEST_BIT(path[i].state.blocks, block_in_front) || block_in_front == lvl->goal_location));
-            }
-	    */
             free(path);
             freeQueueBuffer(queueBuffer, back);
             queueBuffer = NULL;
@@ -1530,22 +1506,6 @@ static void render_scene(Client* client, CTowerClimb* env) {
 
 void c_render(Client* client, CTowerClimb* env) {
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
-    static int previous_orientation = -1;  // Track orientation changes
-    // Handle orientation changes while hanging
-    if (env->state->robot_orientation != previous_orientation && 
-        env->state->robot_state == HANGING && client->enable_animations) {
-        // First remove the old orientation's offset
-        if (previous_orientation != -1) {
-            // Temporarily set orientation back to apply reverse offset
-            int temp_orientation = env->state->robot_orientation;
-            env->state->robot_orientation = previous_orientation;
-            orient_hang_offset(client, env, -1);  // Remove old offset
-            env->state->robot_orientation = temp_orientation;
-        }
-        // Now apply the new orientation's offset
-        orient_hang_offset(client, env, 1);  // Apply new offset
-        previous_orientation = env->state->robot_orientation;
-    }
     // Handle state transitions - drop animation
     if (env->state->robot_state == DEFAULT && client->animState == ANIM_HANGING && client->enable_animations) {
         update_animation(client, ANIM_IDLE);
@@ -1566,7 +1526,6 @@ void c_render(Client* client, CTowerClimb* env) {
         if (client->isMoving) client->visualPosition = client->targetPosition;
         client->isMoving = true;
         update_position(client, env);
-
         float verticalDiff = client->targetPosition.y - client->visualPosition.y;
         if (verticalDiff > 0.5) {
             orient_hang_offset(client, env, client->animState == ANIM_HANGING ? 0 : 1);

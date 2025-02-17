@@ -27,15 +27,15 @@ TowerClimbNet* init_tower_climb_net(Weights* weights, int num_agents) {
     // Calculate correct output sizes for Conv3D layers
     // First conv: (5,5,9) -> (4,4,8) with kernel=2, stride=1
     // Second conv: (4,4,8) -> (3,3,7) with kernel=2, stride=1
-    int cnn_flat_size = cnn_channels * 3 * 3 * 7;  // Match PyTorch size
+    int cnn_flat_size = cnn_channels * 1 * 1 * 5;  // Match PyTorch size
 
     net->num_agents = num_agents;
     net->obs_3d = calloc(5 * 5 * 9, sizeof(float));
     net->obs_1d = calloc(4, sizeof(float));
-    net->conv1 = make_conv3d(weights, num_agents, 9, 5, 5, 1, cnn_channels, 2, 1);
-    net->relu1 = make_relu(num_agents, cnn_channels * 4 * 4 * 8);
-    net->conv2 = make_conv3d(weights, num_agents, 8, 4, 4, cnn_channels, cnn_channels, 2, 1);
-    net->flat = make_linear(weights, num_agents, 4, 16);
+    net->conv1 = make_conv3d(weights, num_agents, 9, 5, 5, 1, cnn_channels, 3, 1);
+    net->relu1 = make_relu(num_agents, cnn_channels * 3 * 3 * 7);
+    net->conv2 = make_conv3d(weights, num_agents, 7, 3, 3, cnn_channels, cnn_channels, 3, 1);
+    net->flat = make_linear(weights, num_agents, 3, 16);
     net->cat = make_cat_dim1(num_agents, cnn_flat_size, 16);
     net->proj = make_linear(weights, num_agents, cnn_flat_size + 16, hidden_size);
     net->actor = make_linear(weights, num_agents, hidden_size, 6);
@@ -101,7 +101,7 @@ void free_tower_climb_net(TowerClimbNet* net) {
 }
 
 void demo() {   
-    Weights* weights = load_weights("resources/tower_climb_weights.bin", 792823);
+    Weights* weights = load_weights("resources/tower_climb_weights.bin", 560407);
     TowerClimbNet* net = init_tower_climb_net(weights, 1);
     CTowerClimb* env = allocate();
     int seed = 0;
@@ -184,8 +184,8 @@ void performance_test() {
 }
 
 int main() {
-    //demo();
-    performance_test();
+    demo();
+    // performance_test();
     return 0;
 }
 
