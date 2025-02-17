@@ -75,7 +75,7 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
             args['sweep'],
             resample_frequency=5,
             num_random_samples=10, # Should be number of params
-            max_suggestion_cost=args['base']['max_suggestion_cost'],
+            max_suggestion_cost=args['max_suggestion_cost'],
             min_score = args['sweep']['metric']['min'],
             max_score = args['sweep']['metric']['max'],
         )
@@ -186,8 +186,6 @@ if __name__ == '__main__':
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
         choices='train eval evaluate sweep autotune profile'.split())
-    parser.add_argument('--vec', '--vector', '--vectorization', type=str,
-        default='native', choices=['serial', 'multiprocessing', 'ray', 'native'])
     parser.add_argument('--vec-overwork', action='store_true',
         help='Allow vectorization to use >1 worker/core. Not recommended.')
     parser.add_argument('--eval-model-path', type=str, default=None,
