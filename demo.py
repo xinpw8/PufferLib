@@ -89,7 +89,7 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         np.random.seed(seed)
         torch.manual_seed(seed)
  
-        info = sweep.suggest(args['sweep'])
+        info = sweep.suggest(args)
         score, cost, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
         sweep.observe(score, cost)
         print('Score:', score, 'Cost:', cost)
