@@ -315,7 +315,7 @@ def mean_and_log(data):
     losses = {k: dist_mean(v, device) for k, v in data.losses.items()}
     performance = {k: dist_sum(v, device) for k, v in data.profile}
 
-    if dist.is_initialized() and dist.get_rank() != 0:
+    if not dist.is_initialized() or dist.get_rank() != 0:
         return
 
     if data.wandb is not None:
