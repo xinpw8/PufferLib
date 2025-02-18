@@ -121,6 +121,13 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
 
     policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
 
+    if args['ddp']:
+        from torch.nn.parallel import DistributedDataParallel as DDP
+        orig_policy = policy
+        policy = DDP(policy, device_ids=[args['rank']])
+        if hasattr(orig_policy, 'lstm'):
+            policy.lstm = orig_policy.lstm
+
     '''
     if env_name == 'moba':
         import torch
@@ -137,6 +144,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     elif args['wandb']:
         wandb = init_wandb(args, env_name, id=args['exp_id'], tag=args['tag'])
 
+    env_name = args['env_name']
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
     data = clean_pufferl.create(train_config, vecenv, policy, wandb=wandb, neptune=neptune)
@@ -177,6 +185,12 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     clean_pufferl.close(data)
     return score, cost, elos, vecenv
 
+def train_ddp(rank, world_size, args, make_env, policy_cls, rnn_cls, target_metric):
+    args['rank'] = rank
+    import torch.distributed as dist
+    dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
+    train(args, make_env, policy_cls, rnn_cls, target_metric)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
@@ -192,6 +206,7 @@ if __name__ == '__main__':
         help='Path to a pretrained checkpoint')
     parser.add_argument('--baseline', action='store_true',
         help='Load pretrained model from WandB if available')
+    parser.add_argument('--ddp', action='store_true', help='Distributed data parallel')
     parser.add_argument('--render-mode', type=str, default='auto',
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
@@ -281,7 +296,18 @@ if __name__ == '__main__':
             data_dir = artifact.download()
             model_file = max(os.listdir(data_dir))
             args['eval_model_path'] = os.path.join(data_dir, model_file)
-    if args['mode'] == 'train':
+    if args['mode'] == 'train' and args['ddp']:
+        import torch.multiprocessing as mp
+        world_size = 1
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "29500"
+        target_metric = args['sweep']['metric']['name']
+        mp.spawn(train_ddp,
+            args=(world_size, args, make_env, policy_cls, rnn_cls, target_metric),
+            nprocs=world_size,
+            join=True,
+        )
+    elif args['mode'] == 'train':
         target_metric = args['sweep']['metric']['name']
         train(args, make_env, policy_cls, rnn_cls, target_metric)
     elif args['mode'] in ('eval', 'evaluate'):
