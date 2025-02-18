@@ -276,10 +276,14 @@ if system == 'Darwin':
     # The extension “.so” is typically in pufferlib/ocean/...,
     # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
     # So @loader_path/../../raylib/lib is common.
-    rpath_arg = f'-Wl,-rpath,@loader_path/../../{RAYLIB_NAME}/lib'
+    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION','-DPLATFORM_DESKTOP', '-O2']
+    extra_link_args=['-fwrapv']
+
 elif system == 'Linux':
+    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than']
+    extra_link_args=['-fwrapv', '-Bsymbolic-functions']
+
     # On Linux, $ORIGIN works
-    rpath_arg = f'-Wl,-rpath,$ORIGIN/{RAYLIB_NAME}/lib'
 else:
     raise ValueError(f'Unsupported system: {system}')
 
@@ -287,13 +291,24 @@ extensions = [Extension(
     path.replace('/', '.'),
     [path + '.pyx'],
     include_dirs=[numpy.get_include(), 'raylib/include'],
-    library_dirs=[RAYLIB_NAME + '/lib'],
-    libraries=['raylib'],
-    runtime_library_dirs=[RAYLIB_NAME + '/lib'],
-    extra_compile_args=['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than'],#, '-g'],
-    extra_link_args=[rpath_arg]
+    extra_compile_args=extra_compile_args,#, '-g'],
+    extra_link_args=extra_link_args,
+    extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a']
 
 ) for path in extension_paths]
+
+# Prevent Conda from injecting garbage compile flags
+from distutils.sysconfig import get_config_vars
+cfg_vars = get_config_vars()
+for key in ('CC', 'CXX', 'LDSHARED'):
+    if cfg_vars[key]:
+        cfg_vars[key] = cfg_vars[key].replace('-B /root/anaconda3/compiler_compat', '')
+        cfg_vars[key] = cfg_vars[key].replace('-pthread', '')
+        cfg_vars[key] = cfg_vars[key].replace('-fno-strict-overflow', '')
+
+for key, value in cfg_vars.items():
+    if value and '-fno-strict-overflow' in str(value):
+        cfg_vars[key] = value.replace('-fno-strict-overflow', '')
  
 setup(
     name="pufferlib",
@@ -301,9 +316,9 @@ setup(
     "PufferAI's library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
-    packages=find_packages(),
+    packages=find_namespace_packages() + find_packages(),
     package_data={
-        "pufferlib": [RAYLIB_NAME + '/lib/libraylib.so.550', RAYLIB_NAME + '/lib/libraylib.so']
+        "pufferlib": [RAYLIB_NAME + '/lib/libraylib.a']
     },
     include_package_data=True,
     install_requires=[
