@@ -47,7 +47,6 @@ if not os.path.exists(RAYLIB_WASM):
     os.remove(RAYLIB_WASM + '.zip')
     urllib.request.urlretrieve(RLIGHTS_URL, 'raylib-5.5_webassembly/include/rlights.h')
 
-
 # Default Gym/Gymnasium/PettingZoo versions
 # Gym:
 # - 0.26 still has deprecation warnings and is the last version of the package
