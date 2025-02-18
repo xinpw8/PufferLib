@@ -94,7 +94,7 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         sweep.observe(score, cost)
         print('Score:', score, 'Cost:', cost)
 
-def train(rank, args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
+def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
         elos={'model_random.pt': 1000}, vecenv=None, wandb=None, neptune=None):
     if args['vec'] == 'serial':
         vec = pufferlib.vector.Serial
@@ -107,6 +107,7 @@ def train(rank, args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poi
     else:
         raise ValueError(f'Invalid --vec (serial/multiprocessing/ray/native).')
 
+    env_name = args['env_name']
     if vecenv is None:
         vecenv = pufferlib.vector.make(
             make_env,
@@ -124,7 +125,7 @@ def train(rank, args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poi
     if args['ddp']:
         from torch.nn.parallel import DistributedDataParallel as DDP
         orig_policy = policy
-        policy = DDP(policy, device_ids=[rank])
+        policy = DDP(policy, device_ids=[args['rank']])
         if hasattr(orig_policy, 'lstm'):
             policy.lstm = orig_policy.lstm
 
@@ -144,7 +145,6 @@ def train(rank, args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poi
     elif args['wandb']:
         wandb = init_wandb(args, env_name, id=args['exp_id'], tag=args['tag'])
 
-    env_name = args['env_name']
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
     data = clean_pufferl.create(train_config, vecenv, policy, wandb=wandb, neptune=neptune)
@@ -187,9 +187,11 @@ def train(rank, args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poi
 
 def train_ddp(rank, world_size, args, make_env, policy_cls, rnn_cls, target_metric):
     import torch.distributed as dist
+    args['rank'] = rank
     args['train']['device'] = f'cuda:{rank}'
     dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
-    train(rank, args, make_env, policy_cls, rnn_cls, target_metric)
+    train(args, make_env, policy_cls, rnn_cls, target_metric)
+    dist.destroy_process_group()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -298,7 +300,7 @@ if __name__ == '__main__':
             args['eval_model_path'] = os.path.join(data_dir, model_file)
     if args['mode'] == 'train' and args['ddp']:
         import torch.multiprocessing as mp
-        world_size = 4
+        world_size = 1
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "29500"
         target_metric = args['sweep']['metric']['name']
