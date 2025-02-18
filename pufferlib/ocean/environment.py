@@ -1,23 +1,13 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-from .snake.snake import Snake
-from .squared.squared import Squared
-from .squared.pysquared import PySquared
-from .pong.pong import Pong
-from .breakout.breakout import Breakout
-from .enduro.enduro import Enduro
-from .connect4.connect4 import Connect4
-from .tripletriad.tripletriad import TripleTriad
-from .tactical.tactical import Tactical
-from .moba.moba import Moba
-from .nmmo3.nmmo3 import NMMO3
-from .go.go import Go
-from .rware.rware import Rware
-from .grid.grid import PufferGrid
-#from .rocket_lander import rocket_lander
-from .trash_pickup.trash_pickup import TrashPickupEnv
-from .tower_climb.tower_climb import TowerClimb
+def lazy_import(module_path, attr):
+    """
+    Returns a callable that, when called with any arguments, will
+    import the module, retrieve the attribute (usually a class or factory)
+    and then call it with the given arguments.
+    """
+    return lambda *args, **kwargs: getattr(__import__(module_path, fromlist=[attr]), attr)(*args, **kwargs)
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -127,21 +117,21 @@ def make_multiagent(buf=None, **kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 MAKE_FNS = {
-    'breakout': Breakout,
-    'pong': Pong,
-    'enduro': Enduro,
-    'moba': Moba,
-    'nmmo3': NMMO3,
-    'snake': Snake,
-    'squared': Squared,
-    'pysquared': PySquared,
-    'connect4': Connect4,
-    'tripletriad': TripleTriad,
-    'tactical': Tactical,
-    'go': Go,
-    'rware': Rware,
-    'trash_pickup': TrashPickupEnv,
-    'tower_climb': TowerClimb,
+    'breakout':      lambda: lazy_import('pufferlib.ocean.breakout.breakout', 'Breakout'),
+    'pong':          lambda: lazy_import('pufferlib.ocean.pong.pong', 'Pong'),
+    'enduro':        lambda: lazy_import('pufferlib.ocean.enduro.enduro', 'Enduro'),
+    'moba':          lambda: lazy_import('pufferlib.ocean.moba.moba', 'Moba'),
+    'nmmo3':         lambda: lazy_import('pufferlib.ocean.nmmo3.nmmo3', 'NMMO3'),
+    'snake':         lambda: lazy_import('pufferlib.ocean.snake.snake', 'Snake'),
+    'squared':       lambda: lazy_import('pufferlib.ocean.squared.squared', 'Squared'),
+    'pysquared':     lambda: lazy_import('pufferlib.ocean.squared.pysquared', 'PySquared'),
+    'connect4':      lambda: lazy_import('pufferlib.ocean.connect4.connect4', 'Connect4'),
+    'tripletriad':   lambda: lazy_import('pufferlib.ocean.tripletriad.tripletriad', 'TripleTriad'),
+    'tactical':      lambda: lazy_import('pufferlib.ocean.tactical.tactical', 'Tactical'),
+    'go':            lambda: lazy_import('pufferlib.ocean.go.go', 'Go'),
+    'rware':         lambda: lazy_import('pufferlib.ocean.rware.rware', 'Rware'),
+    'trash_pickup':  lambda: lazy_import('pufferlib.ocean.trash_pickup.trash_pickup', 'TrashPickupEnv'),
+    'tower_climb':   lambda: lazy_import('pufferlib.ocean.tower_climb.tower_climb', 'TowerClimb'),
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
@@ -162,9 +152,9 @@ MAKE_FNS = {
 # Alias puffer_ to all names
 MAKE_FNS = {**MAKE_FNS, **{'puffer_' + k: v for k, v in MAKE_FNS.items()}}
 
-def env_creator(name='squared'):
+def env_creator(name='squared', *args, **kwargs):
     if name in MAKE_FNS:
-        return MAKE_FNS[name]
+        return MAKE_FNS[name](*args, **kwargs)
     else:
         raise ValueError(f'Invalid environment name: {name}')
 
