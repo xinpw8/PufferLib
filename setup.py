@@ -77,6 +77,8 @@ cleanrl = [
     'torch',
     'tyro==0.8.6',
     'wandb==0.19.1',
+    'scipy',
+    'pyro-ppl',
 ]
 
 ray = [

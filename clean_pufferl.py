@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 import torch
+import torch.distributed as dist
 
 import pufferlib
 import pufferlib.utils
@@ -281,6 +282,20 @@ def train(data):
             save_checkpoint(data)
             data.msg = f'Checkpoint saved at update {data.epoch}'
 
+def dist_sum(value, device):
+    if not dist.is_initialized():
+        return value
+
+    tensor = torch.tensor(value, device=device)
+    dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
+    return tensor.item()
+
+def dist_mean(value, device):
+    if not dist.is_initialized():
+        return value
+
+    return dist_sum(value, device) / dist.get_world_size()
+
 def mean_and_log(data):
     for k in list(data.stats.keys()):
         v = data.stats[k]
@@ -291,29 +306,40 @@ def mean_and_log(data):
 
         data.stats[k] = v
 
+    device = data.config.device
+    sps = dist_sum(data.profile.SPS, device)
+    agent_steps = dist_sum(data.global_step, device)
+    epoch = dist_sum(data.epoch, device)
+    learning_rate = data.optimizer.param_groups[0]["lr"]
+    environment = {k: dist_mean(v, device) for k, v in data.stats.items()}
+    losses = {k: dist_mean(v, device) for k, v in data.losses.items()}
+    performance = {k: dist_sum(v, device) for k, v in data.profile}
+
+    if not dist.is_initialized() or dist.get_rank() != 0:
+        return
+
     if data.wandb is not None:
         data.last_log_time = time.time()
         data.wandb.log({
-            '0verview/SPS': data.profile.SPS,
-            '0verview/agent_steps': data.global_step,
-            '0verview/epoch': data.epoch,
-            '0verview/learning_rate': data.optimizer.param_groups[0]["lr"],
-            **{f'environment/{k}': v for k, v in data.stats.items()},
-            **{f'losses/{k}': v for k, v in data.losses.items()},
-            **{f'performance/{k}': v for k, v in data.profile},
+            '0verview/SPS': sps,
+            '0verview/agent_steps': agent_steps,
+            '0verview/epoch': epoch,
+            '0verview/learning_rate': learning_rate,
+            **{f'environment/{k}': v for k, v in environment.items()},
+            **{f'losses/{k}': v for k, v in losses.items()},
+            **{f'performance/{k}': v for k, v in performance.items()},
         })
     elif data.neptune is not None:
         data.last_log_time = time.time()
-        agent_steps = int(data.global_step)
-        data.neptune['SPS'].append(data.profile.SPS, step=agent_steps)
-        data.neptune['agent_steps'].append(data.global_step, step=agent_steps)
-        data.neptune['epoch'].append(data.epoch, step=agent_steps)
-        data.neptune['learning_rate'].append(data.optimizer.param_groups[0]["lr"], step=agent_steps)
-        for k, v in data.stats.items():
+        data.neptune['SPS'].append(sps, step=agent_steps)
+        data.neptune['agent_steps'].append(agent_steps, step=agent_steps)
+        data.neptune['epoch'].append(epoch, step=agent_steps)
+        data.neptune['learning_rate'].append(learning_rate, step=agent_steps)
+        for k, v in environment.items():
             data.neptune[f'environment/{k}'].append(v, step=agent_steps)
-        for k, v in data.losses.items():
+        for k, v in losses.items():
             data.neptune[f'losses/{k}'].append(v, step=agent_steps)
-        for k, v in data.profile:
+        for k, v in performance.items():
             data.neptune[f'performance/{k}'].append(v, step=agent_steps)
 
 def close(data):
