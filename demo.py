@@ -94,7 +94,7 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         sweep.observe(score, cost)
         print('Score:', score, 'Cost:', cost)
 
-def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
+def train(rank, args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
         elos={'model_random.pt': 1000}, vecenv=None, wandb=None, neptune=None):
     if args['vec'] == 'serial':
         vec = pufferlib.vector.Serial
@@ -124,7 +124,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     if args['ddp']:
         from torch.nn.parallel import DistributedDataParallel as DDP
         orig_policy = policy
-        policy = DDP(policy, device_ids=[args['rank']])
+        policy = DDP(policy, device_ids=[rank])
         if hasattr(orig_policy, 'lstm'):
             policy.lstm = orig_policy.lstm
 
@@ -186,10 +186,10 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     return score, cost, elos, vecenv
 
 def train_ddp(rank, world_size, args, make_env, policy_cls, rnn_cls, target_metric):
-    args['rank'] = rank
     import torch.distributed as dist
+    args['train']['device'] = f'cuda:{rank}'
     dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
-    train(args, make_env, policy_cls, rnn_cls, target_metric)
+    train(rank, args, make_env, policy_cls, rnn_cls, target_metric)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -298,7 +298,7 @@ if __name__ == '__main__':
             args['eval_model_path'] = os.path.join(data_dir, model_file)
     if args['mode'] == 'train' and args['ddp']:
         import torch.multiprocessing as mp
-        world_size = 1
+        world_size = 4
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "29500"
         target_metric = args['sweep']['metric']['name']
@@ -337,5 +337,3 @@ if __name__ == '__main__':
         from pstats import SortKey
         p = pstats.Stats('stats.profile')
         p.sort_stats(SortKey.TIME).print_stats(10)
-
-
