@@ -341,7 +341,6 @@ setup(
         'nonecheck': False,
         'profile': False,
     },
-    force=True,
        #nthreads=6,
        #annotate=True,
        #compiler_directives={'profile': True},# annotate=True
