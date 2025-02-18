@@ -308,14 +308,14 @@ def mean_and_log(data):
 
     device = data.config.device
     sps = dist_sum(data.profile.SPS, device)
-    agent_steps = dist_sum(data.global_step, device)
-    epoch = dist_sum(data.epoch, device)
+    agent_steps = int(dist_sum(data.global_step, device))
+    epoch = int(dist_sum(data.epoch, device))
     learning_rate = data.optimizer.param_groups[0]["lr"]
     environment = {k: dist_mean(v, device) for k, v in data.stats.items()}
     losses = {k: dist_mean(v, device) for k, v in data.losses.items()}
     performance = {k: dist_sum(v, device) for k, v in data.profile}
 
-    if not dist.is_initialized() or dist.get_rank() != 0:
+    if dist.is_initialized() and dist.get_rank() != 0:
         return
 
     if data.wandb is not None:

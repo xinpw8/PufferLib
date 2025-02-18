@@ -53,8 +53,10 @@ def test_sweep(args):
             resample_frequency=5,
             num_random_samples=10, # Should be number of params
             max_suggestion_cost=args['base']['max_suggestion_cost'],
-            min_score = args['sweep']['metric']['min'],
-            max_score = args['sweep']['metric']['max'],
+            min_score = 0,
+            max_score = 2.34,
+            #min_score = args['sweep']['metric']['min'],
+            #max_score = args['sweep']['metric']['max'],
         )
     else:
         raise ValueError(f'Invalid sweep method {method} (random/pareto_genetic/protein)')

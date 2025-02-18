@@ -424,11 +424,12 @@ class Protein:
             min_c = np.min(c)
 
             pareto_c_norm = (pareto_c - min_c) / (max_c - min_c)
-
-            pareto_log_c_norm = (np.log(pareto_c) - log_c_min) / (log_c_max - log_c_min)
             gp_c_norm = (gp_c - min_c) / (max_c - min_c)
+            c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
 
-            c_right = np.abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
+            #pareto_log_c_norm = (np.log(pareto_c) - log_c_min) / (log_c_max - log_c_min)
+            #c_right = np.abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
+
             nearest_pareto_dist = np.min(c_right, axis=1)
 
             c_left = gp_c[:, None] - pareto_c[None, :]

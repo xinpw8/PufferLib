@@ -5,7 +5,7 @@ import os
 
 # Argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument('--tag', type=str, default='pong_resample')
+parser.add_argument('--tag', type=str, default='puffer-pong-protein-lin')
 parser.add_argument('--refresh', action='store_true', help='Refresh runs table')
 parser.add_argument('--output_csv', type=str, default='sweep.csv', help='Output CSV file')
 parser.add_argument('--output_json', type=str, default='sweep.json', help='Output JSON file')
@@ -30,6 +30,8 @@ if args.refresh or not os.path.exists(args.output_csv):
 else:
     table = pd.read_csv(args.output_csv)
 
+table = table.sort_values(by='sys/creation_time')
+
 # Correlation computation
 correlations = {}
 summary = {}
@@ -40,8 +42,6 @@ scores = table['environment/score']
 good_scores = scores[scores > args.threshold]
 
 gamma = table['train/gamma']
-stuck = scores[(gamma > 0.97225) * (gamma < 0.97226)]
-breakpoint()
 summary['runs'] = len(scores)
 summary['threshold'] = args.threshold
 summary['num good'] = len(scores[scores > args.threshold])
@@ -93,8 +93,6 @@ print('Correlations:')
 for key, corr in correlations:
     print(f'\t{key}: {corr}')
 
-print()
-
 print('Summary:')
 for key, summ in summary.items():
     print(f'\t{key}: {summ}')
@@ -111,3 +109,62 @@ with open(args.output_json, 'w') as f:
     json.dump(output_data, f, indent=4)
 
 print(f'Saved correlations to {args.output_json}')
+
+scores = table['environment/score'].to_numpy()[:70]
+costs = table['cost'].to_numpy()[:70]
+
+pareto_scores = []
+pareto_costs = []
+eps = 1e-6
+for idx, obs in enumerate(scores):
+    cost = costs[idx]
+    higher_score = scores + eps > scores[idx]
+    lower_cost = costs - eps < costs[idx]
+    better = higher_score & lower_cost
+    better[idx] = False
+    if not better.any():
+        pareto_scores.append(obs)
+        pareto_costs.append(cost)
+
+from bokeh.models import ColumnDataSource, LinearColorMapper
+from bokeh.plotting import figure, show
+from bokeh.palettes import Turbo256
+
+# Create a ColumnDataSource that includes the 'order' for each point
+source = ColumnDataSource(data=dict(
+    x=costs,
+    y=scores,
+    order=list(range(len(scores)))  # index/order for each point
+))
+
+pareto_source = ColumnDataSource(data=dict(
+    x=pareto_costs,
+    y=pareto_scores,
+    order=list(range(len(pareto_scores)))  # index/order for each point
+))
+
+# Define a color mapper across the range of point indices
+mapper = LinearColorMapper(
+    palette=Turbo256,
+    low=0,
+    high=len(scores)
+)
+
+# Set up the figure
+p = figure(title='Visualize sweep', 
+           x_axis_label='Cost', 
+           y_axis_label='Score')
+
+p.scatter(x='x', 
+          y='y', 
+          color={'field': 'order', 'transform': mapper}, 
+          size=10, 
+          source=source)
+
+'''
+p.line(x='x', 
+       y='y', 
+       color='purple',
+       source=curve)
+'''
+show(p)
