@@ -267,6 +267,7 @@ extension_paths = [
     'pufferlib/ocean/go/cy_go',
     'pufferlib/ocean/rware/cy_rware',
     'pufferlib/ocean/trash_pickup/cy_trash_pickup',
+    'pufferlib/ocean/tower_climb/cy_tower_climb',
 ]
 
 system = platform.system()
@@ -306,7 +307,7 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        'numpy>=1.23.3',
+        'numpy<2',
         'opencv-python==3.4.17.63',
         'cython>=3.0.0',
         'rich',
