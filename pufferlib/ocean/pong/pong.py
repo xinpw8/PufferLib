@@ -57,7 +57,7 @@ class Pong(pufferlib.PufferEnv):
             self.actions[:] = np.clip(actions.flatten(), -1.0, 1.0)
         else: 
             self.actions[:] = actions
-
+        
         self.c_envs.step()
         info = []
         if self.tick % self.report_interval == 0:
