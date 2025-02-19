@@ -74,7 +74,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 typedef struct Breakout Breakout;
 struct Breakout {
     float* observations;
-    int* actions;
+    float* actions;
     float* rewards;
     unsigned char* dones;
     LogBuffer* log_buffer;
@@ -108,6 +108,7 @@ struct Breakout {
     int half_max_score;
     int frameskip;
     unsigned char hit_brick;
+    int continuous;
 };
 
 typedef struct CollisionInfo CollisionInfo;
@@ -148,7 +149,7 @@ void init(Breakout* env) {
 void allocate(Breakout* env) {
     init(env);
     env->observations = (float*)calloc(11 + env->num_bricks, sizeof(float));
-    env->actions = (int*)calloc(1, sizeof(int));
+    env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
@@ -448,6 +449,7 @@ void c_reset(Breakout* env) {
 }
 
 void step_frame(Breakout* env, int action) {
+    int act =0;
     if (env->balls_fired == 0) {
         env->balls_fired = 1;
         float direction = M_PI / 3.25f;
@@ -457,13 +459,15 @@ void step_frame(Breakout* env, int action) {
         if (rand() % 2 == 0) {
             env->ball_vx = -env->ball_vx;
         }
-    } else if (action == LEFT) {
-        env->paddle_x -= 620 * TICK_RATE;
-        env->paddle_x = fmaxf(0, env->paddle_x);
+    }   
+     else if (action == LEFT) {
+        act = -1;
     } else if (action == RIGHT) {
-        env->paddle_x += 620 * TICK_RATE;
-        env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
+        act = 1;
     }
+    env->paddle_x += act * 620 * TICK_RATE;
+    env->paddle_x = fmaxf(0, env->paddle_x);
+    env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
 
     //Handle collisions. 
     //Regular timestepping is done only if there are no collisions.
