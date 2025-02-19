@@ -74,7 +74,7 @@ cdef class CyPong:
         float ball_width
         float ball_height
 
-    def __init__(self, float[:, :] observations, float[:,:] actions,
+    def __init__(self, float[:, :] observations, float[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             float width, float height, float paddle_width, float paddle_height,
             float ball_width, float ball_height, float paddle_speed,
@@ -91,7 +91,7 @@ cdef class CyPong:
         for i in range(num_envs):
             self.envs[i] = Pong(
                 observations = &observations[i, 0],
-                actions = &actions[i,0],
+                actions = &actions[i],
                 rewards = &rewards[i],
                 terminals = &terminals[i],
                 log_buffer=self.logs,
