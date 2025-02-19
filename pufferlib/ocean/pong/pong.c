@@ -21,7 +21,7 @@ int main() {
         .ball_max_speed_y = 13,
         .max_score = 21,
         .frameskip = 1,
-        .continuous = 1,
+        .continuous = 0,
     };
     allocate(&env);
 
