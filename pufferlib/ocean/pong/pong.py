@@ -56,7 +56,7 @@ class Pong(pufferlib.PufferEnv):
         if  self.continuous:
             self.actions[:] = np.clip(actions.flatten(), -1.0, 1.0)
         else: 
-            self.actions[:] = actions[:]
+            self.actions[:] = actions
 
         self.c_envs.step()
         info = []
