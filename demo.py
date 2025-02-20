@@ -26,7 +26,14 @@ import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
 import clean_pufferl
-   
+
+def downsample_linear(arr, m):
+    n = len(arr)
+    x_old = np.linspace(0, 1, n)  # Original indices normalized
+    x_new = np.linspace(0, 1, m)  # New indices normalized
+    return np.interp(x_new, x_old, arr)
+
+  
 def init_wandb(args, name, id=None, resume=True, tag=None):
     import wandb
     wandb.init(
@@ -73,7 +80,7 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
     elif method == 'protein':
         sweep = pufferlib.sweep.Protein(
             args['sweep'],
-            resample_frequency=5,
+            resample_frequency=0,
             num_random_samples=10, # Should be number of params
             max_suggestion_cost=args['max_suggestion_cost'],
             min_score = args['sweep']['metric']['min'],
@@ -90,9 +97,13 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         torch.manual_seed(seed)
  
         info = sweep.suggest(args)
-        score, cost, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
-        sweep.observe(score, cost)
-        print('Score:', score, 'Cost:', cost)
+        scores, costs, timesteps, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
+
+        for score, cost, timestep in zip(scores, costs, timesteps):
+            args['train']['total_timesteps'] = timestep
+            sweep.observe(args, score, cost)
+
+        print('Score:', score, 'Cost:', cost, 'Timesteps:', timestep)
 
 def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
         elos={'model_random.pt': 1000}, vecenv=None, wandb=None, neptune=None):
@@ -148,9 +159,18 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
     data = clean_pufferl.create(train_config, vecenv, policy, wandb=wandb, neptune=neptune)
+
+    timesteps = []
+    scores = []
+    costs = []
+    target_key = f'environment/{target_metric}'
     while data.global_step < train_config.total_timesteps:
         clean_pufferl.evaluate(data)
-        clean_pufferl.train(data)
+        logs = clean_pufferl.train(data)
+        if logs is not None and target_key in logs:
+            timesteps.append(logs['agent_steps'])
+            scores.append(logs[target_key])
+            costs.append(data.profile.uptime)
 
     steps_evaluated = 0
     cost = data.profile.uptime
@@ -163,6 +183,14 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     clean_pufferl.mean_and_log(data)
     score = stats[target_metric]
     print(f'Evaluated {steps_evaluated} steps. Score: {score}')
+
+    scores.append(score)
+    costs.append(cost)
+    timesteps.append(data.global_step)
+
+    scores = downsample_linear(scores, 10)
+    costs = downsample_linear(costs, 10)
+    timesteps = downsample_linear(timesteps, 10)
 
     if args['neptune']:
         neptune['score'].append(score)
@@ -183,7 +211,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     '''
 
     clean_pufferl.close(data)
-    return score, cost, elos, vecenv
+    return scores, costs, timesteps, elos, vecenv
 
 def train_ddp(rank, world_size, args, make_env, policy_cls, rnn_cls, target_metric):
     import torch.distributed as dist
