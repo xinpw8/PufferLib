@@ -538,6 +538,7 @@ class Protein:
             f'Cost: {info["cost"]:.3f}',
             f'Rating: {info["rating"]:.3f}',
         )
+        '''
         if info['rating'] < 10:
             from bokeh.models import ColumnDataSource, LinearColorMapper
             from bokeh.plotting import figure, show
@@ -566,13 +567,11 @@ class Protein:
                 y = np.cumsum(c_sorted) / np.sum(c_sorted),
             ))
 
-            '''
-            gp_pareto_source = ColumnDataSource(data=dict(
-                x=gp_c,
-                y=gp_y,
-                order=np.argsort(gp_c),
-            ))
-            '''
+            #gp_pareto_source = ColumnDataSource(data=dict(
+            #    x=gp_c,
+            #    y=gp_y,
+            #    order=np.argsort(gp_c),
+            #))
 
             preds = [{
                 'output': gp_y[i],
@@ -607,6 +606,7 @@ class Protein:
             #p.line(x='x', y='y', color='green', source=gp_pareto_source)
 
             show(p)
+        '''
 
         best = suggestions[best_idx].numpy()
         return self.hyperparameters.to_dict(best, fill), info
