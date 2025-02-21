@@ -125,11 +125,11 @@ void demo() {
 
     GameRenderer* renderer = init_game_renderer(32, 41, 23);
 
-    reset(&env);
+    c_reset(&env);
     int frame = 0;
     while (!WindowShouldClose()) {
         if (frame % 12 == 0) {
-            step(&env);
+            c_step(&env);
             forward(net, env.observations, env.actions);
         }
         render_game(renderer, &env, frame);
@@ -157,7 +157,7 @@ void test_performance(float test_time) {
     };
     allocate_moba(&env);
 
-    reset(&env);
+    c_reset(&env);
     int start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
@@ -169,7 +169,7 @@ void test_performance(float test_time) {
             env.actions[6*j + 4] = rand()%2;
             env.actions[6*j + 5] = rand()%2;
         }
-        step(&env);
+        c_step(&env);
         i++;
     }
     int end = time(NULL);
@@ -192,11 +192,11 @@ void test_bugs(float test_time) {
     };
     allocate_moba(&env);
 
-    reset(&env);
+    c_reset(&env);
     int start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
-        step(&env);
+        c_step(&env);
         forward(net, env.observations, env.actions);
         i++;
     }
