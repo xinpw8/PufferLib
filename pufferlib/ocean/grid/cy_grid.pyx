@@ -47,6 +47,7 @@ cdef extern from "grid.h":
         LogBuffer* log_buffer;
         Agent* agents;
         unsigned char* grid;
+        int* counts;
         unsigned char* observations;
         float* actions;
         float* rewards;
@@ -65,10 +66,12 @@ cdef extern from "grid.h":
             unsigned int* actions, float* rewards, float* dones)
         void init_grid(Grid* env)
         void reset(Grid* env, int seed)
+        void compute_observations(Grid* env)
         bint step(Grid* env)
         ctypedef struct Renderer
         Renderer* init_renderer(int cell_size, int width, int height)
-        void render_global(Renderer*erenderer, Grid* env, float frac)
+        void render_global(Renderer*erenderer, Grid* env, float frac, float overlay)
+        void clear_overlay(Renderer* renderer)
         void close_renderer(Renderer* renderer)
         void init_state(State* state, int max_size, int num_agents)
         void free_state(State* state)
@@ -90,11 +93,15 @@ cdef class CGrid:
 
     def __init__(self, unsigned char[:, :] observations, float[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs, int num_maps,
-            int max_size):
+            int size, int max_size):
 
         self.num_envs = num_envs
         self.num_maps = num_maps
+        if size > max_size:
+            max_size = size
+
         self.max_size = max_size
+
         self.client = NULL
         self.levels = <State*> calloc(num_maps, sizeof(State))
         self.envs = <Grid*> calloc(num_envs, sizeof(Grid))
@@ -117,14 +124,20 @@ cdef class CGrid:
             init_grid(&self.envs[i])
 
         cdef float difficulty
-        cdef int size
+        cdef int sz
         for i in range(num_maps):
-            size = np.random.randint(5, max_size)
-            if size % 2 == 0:
-                size -= 1
+
+            # RNG or fixed size
+            if size == -1:
+                sz = np.random.randint(5, max_size)
+            else:
+                sz = size
+
+            if sz % 2 == 0:
+                sz -= 1
 
             difficulty = np.random.rand()
-            create_maze_level(&self.envs[0], size, size, difficulty, i)
+            create_maze_level(&self.envs[0], sz, sz, difficulty, i)
             init_state(&self.levels[i], max_size, 1)
             get_state(&self.envs[0], &self.levels[i])
 
@@ -134,6 +147,7 @@ cdef class CGrid:
             idx = rand() % self.num_maps
             reset(&self.envs[i], i)
             set_state(&self.envs[i], &self.levels[idx])
+            compute_observations(&self.envs[i])
 
     def step(self):
         cdef:
@@ -147,7 +161,10 @@ cdef class CGrid:
                 reset(&self.envs[i], i)
                 set_state(&self.envs[i], &self.levels[idx])
 
-    def render(self, int cell_size=16):
+                if i == 0 and self.client != NULL:
+                    clear_overlay(self.client)
+
+    def render(self, int cell_size=16, float overlay=0.0):
         if self.client == NULL:
             import os
             cwd = os.getcwd()
@@ -155,7 +172,7 @@ cdef class CGrid:
             self.client = init_renderer(cell_size, self.max_size, self.max_size)
             os.chdir(cwd)
 
-        render_global(self.client, &self.envs[0], 0)
+        render_global(self.client, &self.envs[0], 0, overlay)
 
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)

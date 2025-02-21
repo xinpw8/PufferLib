@@ -91,7 +91,14 @@ class Default(nn.Module):
             phi = hidden.detach()        
             u = phi.unsqueeze(1) @ e3b
             b = u @ phi.unsqueeze(2)
-            e3b = 0.99*e3b - (u.mT @ u) / (1 + b)
+            e3b = e3b - (u.mT @ u) / (1 + b)
+
+            #h = hidden.detach()        
+            #u = torch.bmm(e3b, h.unsqueeze(-1)).squeeze()
+            #b = (h*u).sum(1)
+            #outer = u[:, :, None] @ u[:, None, :]
+            #e3b2 = e3b - outer * (1 / (1 + b[:, None, None]))
+
             b = b.squeeze()
 
         actions = self.decoder(hidden)

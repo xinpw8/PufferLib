@@ -70,10 +70,13 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         neptune=neptune,
         global_step=0,
         epoch=0,
+        use_e3b=config.use_e3b,
         stats=defaultdict(list),
         msg=msg,
         last_log_time=0,
         utilization=utilization,
+        intrinsic_mean=None,
+        intrinsic_std=None,
     )
 
 @pufferlib.utils.profile
@@ -90,6 +93,11 @@ def evaluate(data):
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
             env_id = env_id.tolist()
+            e3b_inv = experience.e3b_inv if data.use_e3b else None
+            done_mask = d + t
+            if data.use_e3b and done_mask.any():
+                done_idxs = torch.tensor(env_id)[done_mask]
+                e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
 
         with profile.eval_misc:
             data.global_step += sum(mask)
@@ -102,7 +110,7 @@ def evaluate(data):
         with profile.eval_forward, torch.no_grad():
             # TODO: In place-update should be faster. Leaking 7% speed max
             # Also should be using a cuda tensor to index
-            e3b = e3b_inv[env_id]
+            e3b = e3b_inv[env_id] if data.use_e3b else None
             if lstm_h is not None:
                 h = lstm_h[:, env_id]
                 c = lstm_c[:, env_id]
@@ -112,8 +120,19 @@ def evaluate(data):
             else:
                 actions, logprob, _, value, next_e3b, intrinsic_reward = policy(o_device, e3b=e3b)
 
-            e3b_inv[env_id] = next_e3b
-            r += intrinsic_reward.cpu()
+            if data.use_e3b:
+                e3b_inv[env_id] = next_e3b
+
+                if data.intrinsic_mean is None:
+                    data.intrinsic_mean = intrinsic_reward.mean()
+                    data.intrinsic_std = intrinsic_reward.std()
+                else:
+                    data.intrinsic_mean = (0.999*data.intrinsic_mean + 0.001*intrinsic_reward.mean())
+                    data.intrinsic_std = (0.999*data.intrinsic_std + 0.001*intrinsic_reward.std())
+
+                intrinsic_reward = (intrinsic_reward - data.intrinsic_mean) / data.intrinsic_std
+                intrinsic_reward = intrinsic_reward.clip(-1, 1)
+                r += 0.01*intrinsic_reward.cpu()
 
             if config.device == 'cuda':
                 torch.cuda.synchronize()
@@ -456,6 +475,7 @@ class Experience:
         self.truncateds=torch.zeros(batch_size, pin_memory=pin)
         self.values=torch.zeros(batch_size, pin_memory=pin)
         self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
+        self.e3b_orig = self.e3b_inv.clone()
 
         self.actions_np = np.asarray(self.actions)
         self.logprobs_np = np.asarray(self.logprobs)
@@ -626,6 +646,8 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     else:
         agent = torch.load(model_path, map_location=device)
 
+    e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
+
     ob, info = env.reset()
     driver = env.driver_env
     os.system('clear')
@@ -633,9 +655,13 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
     frames = []
     tick = 0
-    while tick <= 2000:
+    value = [0]
+    intrinsic = [0]
+    intrinsic_mean = None
+    intrinsic_std = None
+    while tick <= 200000:
         if tick % 1 == 0:
-            render = driver.render()
+            render = driver.render(overlay=float(intrinsic[0]))
             if driver.render_mode == 'ansi':
                 print('\033[0;0H' + render + '\n')
                 time.sleep(0.05)
@@ -652,11 +678,21 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
             if hasattr(agent, 'lstm'):
-                action, _, _, _, state = agent(ob, state)
+                action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
             else:
-                action, _, _, _ = agent(ob)
+                action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
 
             action = action.cpu().numpy().reshape(env.action_space.shape)
+
+        if intrinsic_mean is None:
+            intrinsic_mean = intrinsic.mean()
+            intrinsic_std = intrinsic.std()
+        else:
+            intrinsic_mean = (0.99*intrinsic_mean + 0.01*intrinsic.mean())
+            intrinsic_std = (0.99*intrinsic_std + 0.01*intrinsic.std())
+
+        intrinsic = (intrinsic - intrinsic_mean) / intrinsic_std
+        intrinsic = intrinsic.clip(-1, 1)
 
         ob, reward = env.step(action)[:2]
         reward = reward.mean()
