@@ -102,7 +102,7 @@ class Default(nn.Module):
             b = b.squeeze()
 
         actions = self.decoder(hidden)
-        return actions, value, e3b, b
+        return actions, value#, e3b, b
 
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
