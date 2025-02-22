@@ -71,6 +71,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         global_step=0,
         epoch=0,
         use_e3b=config.use_e3b,
+        e3b_coef=config.e3b_coef,
         stats=defaultdict(list),
         msg=msg,
         last_log_time=0,
@@ -132,7 +133,10 @@ def evaluate(data):
 
                 intrinsic_reward = (intrinsic_reward - data.intrinsic_mean) / data.intrinsic_std
                 intrinsic_reward = intrinsic_reward.clip(-1, 1)
-                r += 0.01*intrinsic_reward.cpu()
+                r += config.e3b_coef*intrinsic_reward.cpu()
+
+            # Clip rewards
+            r = torch.clamp(r, -1, 1)
 
             if config.device == 'cuda':
                 torch.cuda.synchronize()
