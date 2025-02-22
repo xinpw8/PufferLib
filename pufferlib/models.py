@@ -150,8 +150,10 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.transpose(0, 1)
 
         hidden = hidden.reshape(B*TT, self.hidden_size)
-        hidden, critic, e3b, intrinsic_reward = self.policy.decode_actions(hidden, lookup, e3b=e3b)
-        return hidden, critic, state, e3b, intrinsic_reward
+        #hidden, critic, e3b, intrinsic_reward = self.policy.decode_actions(hidden, lookup, e3b=e3b)
+        hidden, critic = self.policy.decode_actions(hidden, lookup)#, e3b=e3b)
+        #hidden, critic = self.policy.decode_actions(hidden, lookup, e3b=e3b)
+        return hidden, critic, state#, e3b, intrinsic_reward
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

@@ -98,9 +98,10 @@ class RecurrentPolicy(torch.nn.Module):
         _, value, _ = self.policy(x, state)
 
     def get_action_and_value(self, x, state=None, action=None, e3b=None):
-        logits, value, state, e3b, intrinsic_reward = self.policy(x, state, e3b=e3b)
+        #logits, value, state, e3b, intrinsic_reward = self.policy(x, state, e3b=e3b)
+        logits, value, state = self.policy(x, state, e3b=e3b)
         action, logprob, entropy = sample_logits(logits, action, self.is_continuous)
-        return action, logprob, entropy, value, state, e3b, intrinsic_reward
+        return action, logprob, entropy, value, state#, e3b, intrinsic_reward
 
     def forward(self, x, state=None, action=None, e3b=None):
         return self.get_action_and_value(x, state, action, e3b)
