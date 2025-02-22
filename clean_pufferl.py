@@ -300,8 +300,9 @@ def train(data):
         done_training = data.global_step >= config.total_timesteps
         # TODO: beter way to get episode return update without clogging dashboard
         # TODO: make this appear faster
+        logs = None
         if done_training or profile.update(data):
-            mean_and_log(data)
+            logs = mean_and_log(data)
             print_dashboard(config.env, data.utilization, data.global_step, data.epoch,
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
@@ -309,6 +310,8 @@ def train(data):
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
             data.msg = f'Checkpoint saved at update {data.epoch}'
+
+    return logs
 
 def dist_sum(value, device):
     if not dist.is_initialized():
@@ -335,6 +338,7 @@ def mean_and_log(data):
         data.stats[k] = v
 
     device = data.config.device
+
     sps = dist_sum(data.profile.SPS, device)
     agent_steps = int(dist_sum(data.global_step, device))
     epoch = int(dist_sum(data.epoch, device))
@@ -343,32 +347,28 @@ def mean_and_log(data):
     losses = {k: dist_mean(v, device) for k, v in data.losses.items()}
     performance = {k: dist_sum(v, device) for k, v in data.profile}
 
+    logs = {
+        'SPS': sps,
+        'agent_steps': agent_steps,
+        'epoch': epoch,
+        'learning_rate': learning_rate,
+        **{f'environment/{k}': v for k, v in environment.items()},
+        **{f'losses/{k}': v for k, v in losses.items()},
+        **{f'performance/{k}': v for k, v in performance.items()},
+    }
+
     if dist.is_initialized() and dist.get_rank() != 0:
-        return
+        return logs
 
     if data.wandb is not None:
         data.last_log_time = time.time()
-        data.wandb.log({
-            '0verview/SPS': sps,
-            '0verview/agent_steps': agent_steps,
-            '0verview/epoch': epoch,
-            '0verview/learning_rate': learning_rate,
-            **{f'environment/{k}': v for k, v in environment.items()},
-            **{f'losses/{k}': v for k, v in losses.items()},
-            **{f'performance/{k}': v for k, v in performance.items()},
-        })
+        data.wandb.log(logs)
     elif data.neptune is not None:
         data.last_log_time = time.time()
-        data.neptune['SPS'].append(sps, step=agent_steps)
-        data.neptune['agent_steps'].append(agent_steps, step=agent_steps)
-        data.neptune['epoch'].append(epoch, step=agent_steps)
-        data.neptune['learning_rate'].append(learning_rate, step=agent_steps)
-        for k, v in environment.items():
-            data.neptune[f'environment/{k}'].append(v, step=agent_steps)
-        for k, v in losses.items():
-            data.neptune[f'losses/{k}'].append(v, step=agent_steps)
-        for k, v in performance.items():
-            data.neptune[f'performance/{k}'].append(v, step=agent_steps)
+        for k, v in logs.items():
+            data.neptune[k].append(v, step=agent_steps)
+
+    return logs
 
 def close(data):
     data.vecenv.close()
