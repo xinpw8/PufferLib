@@ -25,7 +25,7 @@ torch.set_float32_matmul_precision('high')
 # Fast Cython GAE implementation
 #import pyximport
 #pyximport.install(setup_args={"include_dirs": np.get_include()})
-from c_gae import compute_gae
+from c_gae import rewards_and_masks
 
 
 def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
@@ -45,7 +45,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     total_agents = vecenv.num_agents
 
     lstm = policy.lstm if hasattr(policy, 'lstm') else None
-    experience = Experience(config.batch_size, config.bptt_horizon,
+    experience = Experience(config.batch_size, config.bptt_horizon, config.horizon,
         config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
         atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents)
 
@@ -149,7 +149,7 @@ def evaluate(data):
                 torch.cuda.synchronize()
 
         with profile.eval_misc:
-            value = value.flatten()
+            #value = value.flatten()
             actions = actions.cpu().numpy()
             mask = torch.as_tensor(mask)
             o = o if config.cpu_offload else o_device
@@ -198,9 +198,8 @@ def train(data):
         values_np = experience.values_np[idxs]
         rewards_np = experience.rewards_np[idxs]
         # TODO: bootstrap between segment bounds
-        advantages_np = compute_gae(dones_np, values_np,
-            rewards_np, config.gamma, config.gae_lambda)
-        experience.flatten_batch(advantages_np)
+        reward_block, mask_block = rewards_and_masks(dones_np, rewards_np, config.horizon)
+        experience.flatten_batch(reward_block, mask_block)
 
     # Optimizing the policy and value network
     total_minibatches = experience.num_minibatches * config.update_epochs
@@ -215,8 +214,9 @@ def train(data):
                 atn = experience.b_actions[mb]
                 log_probs = experience.b_logprobs[mb]
                 val = experience.b_values[mb]
+                rew_block = experience.b_reward_block[mb]
+                mask_block = experience.b_mask_block[mb]
                 adv = experience.b_advantages[mb]
-                ret = experience.b_returns[mb]
 
             with profile.train_forward:
                 if experience.lstm_h is not None:
@@ -256,19 +256,19 @@ def train(data):
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
                 # Value loss
-                newvalue = newvalue.view(-1)
+                newvalue = newvalue.view(-1, config.horizon)
                 if config.clip_vloss:
-                    v_loss_unclipped = (newvalue - ret) ** 2
                     v_clipped = val + torch.clamp(
                         newvalue - val,
                         -config.vf_clip_coef,
                         config.vf_clip_coef,
                     )
-                    v_loss_clipped = (v_clipped - ret) ** 2
+                    v_loss_clipped = (v_clipped - rew_block) ** 2
+                    v_loss_unclipped = (newvalue - rew_block) ** 2
                     v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                    v_loss = 0.5 * v_loss_max.mean()
+                    v_loss = 0.5 * (mask_block * v_loss_max).mean()
                 else:
-                    v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+                    v_loss = 0.5 * (mask_block * (newvalue - rew_block) ** 2).mean()
 
                 entropy_loss = entropy.mean()
                 loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
@@ -300,7 +300,8 @@ def train(data):
             data.optimizer.param_groups[0]["lr"] = lrnow
 
         y_pred = experience.values_np
-        y_true = experience.returns_np
+        #y_true = experience.returns_np
+        y_true = experience.reward_block_np
         var_y = np.var(y_true)
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
         losses.explained_variance = explained_var
@@ -469,7 +470,7 @@ def make_losses():
 
 class Experience:
     '''Flat tensor storage and array views for faster indexing'''
-    def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
+    def __init__(self, batch_size, bptt_horizon, horizon, minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
                  device='cuda', lstm=None, lstm_total_agents=0):
         if minibatch_size is None:
@@ -486,7 +487,7 @@ class Experience:
         self.rewards=torch.zeros(batch_size, pin_memory=pin)
         self.dones=torch.zeros(batch_size, pin_memory=pin)
         self.truncateds=torch.zeros(batch_size, pin_memory=pin)
-        self.values=torch.zeros(batch_size, pin_memory=pin)
+        self.values=torch.zeros(batch_size, horizon, pin_memory=pin)
         self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
         self.e3b_orig = self.e3b_inv.clone()
 
@@ -554,23 +555,23 @@ class Experience:
         self.sort_keys = []
         return idxs
 
-    def flatten_batch(self, advantages_np):
-        advantages = torch.as_tensor(advantages_np).to(self.device)
+    def flatten_batch(self, reward_block, mask_block):
+        self.reward_block_np = reward_block
+        self.b_reward_block = torch.as_tensor(reward_block).to(self.device)
+        self.b_mask_block = torch.as_tensor(mask_block).to(self.device)
         b_idxs, b_flat = self.b_idxs, self.b_idxs_flat
         self.b_actions = self.actions.to(self.device, non_blocking=True)
         self.b_logprobs = self.logprobs.to(self.device, non_blocking=True)
         self.b_dones = self.dones.to(self.device, non_blocking=True)
         self.b_values = self.values.to(self.device, non_blocking=True)
-        self.b_advantages = advantages.reshape(self.minibatch_rows,
-            self.num_minibatches, self.bptt_horizon).transpose(0, 1).reshape(
-            self.num_minibatches, self.minibatch_size)
-        self.returns_np = advantages_np + self.values_np
+        self.b_advantages = (self.b_mask_block * (self.b_reward_block - self.b_values)).mean(dim=-1
+            ).reshape(self.minibatch_rows, self.num_minibatches, self.bptt_horizon
+            ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size)
         self.b_obs = self.obs[self.b_idxs_obs]
         self.b_actions = self.b_actions[b_idxs].contiguous()
         self.b_logprobs = self.b_logprobs[b_idxs]
         self.b_dones = self.b_dones[b_idxs]
         self.b_values = self.b_values[b_flat]
-        self.b_returns = self.b_advantages + self.b_values
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):

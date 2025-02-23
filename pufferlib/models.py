@@ -53,7 +53,7 @@ class Default(nn.Module):
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
-        self.value_head = nn.Linear(hidden_size, 1)
+        self.value_head = nn.Linear(hidden_size, 32)
 
     def forward(self, observations):
         hidden, lookup = self.encode_observations(observations)
