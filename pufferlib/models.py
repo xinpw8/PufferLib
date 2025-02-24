@@ -54,8 +54,8 @@ class Default(nn.Module):
                 1, env.single_action_space.shape[0]))
 
         self.value_mean = pufferlib.pytorch.layer_init(
-            nn.Linear(hidden_size, 128), std=1)
-        self.value_logstd = nn.Parameter(torch.zeros(1, 128))
+            nn.Linear(hidden_size, 32), std=1)
+        self.value_logstd = nn.Parameter(torch.zeros(1, 32))
         #self.value_logstd = pufferlib.pytorch.layer_init(
         #    nn.Linear(hidden_size, 64), std=0.01)
 

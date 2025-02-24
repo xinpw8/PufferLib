@@ -209,7 +209,6 @@ def train(data):
         if mmax > mmin:
             adv_scale = adv_scale / (mmax - mmin)
             #adv_scale = np.clip(adv_scale, 0.05, 1) #TODO: Is this a good way to eliminate noise?
-            adv_scale[:, 32:] = 0
             adv_scale = adv_scale / adv_scale.sum(axis=-1, keepdims=True)
 
         advantages = (mask_block * adv_scale * (reward_block - values_mean_np)).sum(axis=-1)
