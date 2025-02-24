@@ -356,9 +356,8 @@ def train(data):
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
 
-        print('MEAN', experience.b_values_mean.mean(0).mean(0))
-        print('STD', (torch.exp(experience.b_values_logstd)**0.5).mean(0).mean(0))
-        #print('STD', torch.exp(data.policy.policy.policy.value_logstd)**0.5)
+        #print('MEAN', experience.b_values_mean.mean(0).mean(0))
+        #print('STD', (torch.exp(experience.b_values_logstd)**0.5).mean(0).mean(0))
 
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
