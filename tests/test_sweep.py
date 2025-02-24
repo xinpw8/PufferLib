@@ -31,11 +31,17 @@ def synthetic_linear_task(args):
 
 def synthetic_log_task(args):
     score, cost = synthetic_basic_task(args)
-    return score*np.log10(cost), cost
+    noise_cost = cost + 0.20*np.random.randn()*cost
+    noise_cost = min(noise_cost, 200)
+    noise_cost = max(noise_cost, 1)
+    return score*np.log10(noise_cost), cost
 
 def synthetic_percentile_task(args):
     score, cost = synthetic_basic_task(args)
-    return score/(1 + np.exp(-cost/10)), cost
+    noise_cost = cost - 0.20*abs(np.random.randn())*cost
+    noise_cost = min(noise_cost, 200)
+    noise_cost = max(noise_cost, 1)
+    return score/(1 + np.exp(-noise_cost/10)), cost
 
 def synthetic_cutoff_task(args):
     score, cost = synthetic_basic_task(args)
@@ -50,7 +56,7 @@ def test_sweep(args):
     elif method == 'protein':
         sweep = pufferlib.sweep.Protein(
             args['sweep'],
-            resample_frequency=5,
+            resample_frequency=0,
             num_random_samples=10, # Should be number of params
             max_suggestion_cost=args['base']['max_suggestion_cost'],
             min_score = 0,
@@ -69,9 +75,9 @@ def test_sweep(args):
         np.random.seed(seed)
         torch.manual_seed(seed)
  
-        info = sweep.suggest(args)
+        _, info = sweep.suggest(args)
         score, cost = synthetic_log_task(args)
-        sweep.observe(score, cost)
+        sweep.observe(args, score, cost)
         print('Score:', score, 'Cost:', cost)
 
         scores.append(score)

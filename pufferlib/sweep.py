@@ -170,6 +170,17 @@ class Hyperparameters:
         samples = scale*(2*np.random.rand(n, n_dim) - 1) + mu[mu_idxs]
         return np.clip(samples, self.min_bounds, self.max_bounds)
 
+    def from_dict(self, params):
+        flat_params = dict(pufferlib.utils.unroll_nested_dict(params))
+        values = []
+        for key, space in self.flat_spaces.items():
+            assert key in flat_params, f'Missing hyperparameter {key}'
+            val = flat_params[key]
+            normed = space.normalize(val)
+            values.append(normed)
+
+        return np.array(values)
+
     def to_dict(self, sample, fill=None):
         params = deepcopy(self.spaces) if fill is None else fill
         self._fill(params, self.spaces, sample)
@@ -246,8 +257,8 @@ class ParetoGenetic:
 
     def suggest(self, fill=None):
         if len(self.success_observations) == 0:
-            self.suggestion = self.hyperparameters.search_centers
-            return self.hyperparameters.to_dict(self.suggestion, fill)
+            suggestion = self.hyperparameters.search_centers
+            return self.hyperparameters.to_dict(suggestion, fill), {}
 
         candidates, _ = pareto_points(self.success_observations)
         pareto_costs = np.array([e['cost'] for e in candidates])
@@ -266,13 +277,13 @@ class ParetoGenetic:
 
         suggestions = self.hyperparameters.sample(
             len(candidates)*self.suggestions_per_pareto, mu=search_centers)
-        best_idx = np.random.randint(0, len(suggestions))
-        self.suggestion = suggestions[best_idx]
-        return self.hyperparameters.to_dict(self.suggestion, fill)
+        suggestion = suggestions[np.random.randint(0, len(suggestions))]
+        return self.hyperparameters.to_dict(suggestion, fill), {}
 
-    def observe(self, score, cost, is_failure=False):
+    def observe(self, hypers, score, cost, is_failure=False):
+        params = self.hyperparameters.from_dict(hypers)
         self.success_observations.append(dict(
-            input=self.suggestion,
+            input=params,
             output=score,
             cost=cost,
             is_failure=is_failure,
@@ -330,151 +341,296 @@ class Protein:
         self.gp_cost, self.cost_opt = create_gp(self.hyperparameters.num)
 
     def suggest(self, fill):
-        self.suggestion_idx += 1
         # TODO: Clip random samples to bounds so we don't get bad high cost samples
         info = {}
-        if self.suggestion_idx <= self.num_random_samples:
+        #if self.suggestion_idx <= self.num_random_samples:
+        #    suggestions = self.hyperparameters.sample(self.random_suggestions)
+        #    best_idx = np.random.randint(0, self.random_suggestions)
+        #    best = suggestions[best_idx]
+        self.suggestion_idx += 1
+        if len(self.success_observations) == 0:
+            best = self.hyperparameters.search_centers
+            return self.hyperparameters.to_dict(best, fill), info
+        elif len(self.success_observations) < self.num_random_samples:
             suggestions = self.hyperparameters.sample(self.random_suggestions)
-            best_idx = np.random.randint(0, self.random_suggestions)
-            best = suggestions[best_idx]
+            self.suggestion = random.choice(suggestions)
+            return self.hyperparameters.to_dict(self.suggestion, fill), info
         elif self.resample_frequency and self.suggestion_idx % self.resample_frequency == 0:
             candidates, _ = pareto_points(self.success_observations)
             suggestions = np.stack([e['input'] for e in candidates])
             best_idx = np.random.randint(0, len(candidates))
             best = suggestions[best_idx]
-        else:
-            params = np.array([e['input'] for e in self.success_observations])
-            params = torch.from_numpy(params)
-            eps = 1e-2
+            return self.hyperparameters.to_dict(best, fill), info
 
-            # Scores variable y
-            y = np.array([e['output'] for e in self.success_observations])
+        params = np.array([e['input'] for e in self.success_observations])
+        params = torch.from_numpy(params)
+        eps = 1e-2
 
-            # Transformed scores
-            min_score = self.min_score
-            if min_score is None:
-                min_score = np.min(y) - abs(np.min(y))
+        # Scores variable y
+        y = np.array([e['output'] for e in self.success_observations])
 
-            if np.min(y) < min_score:
-                raise ValueError(f'Min score {min_score} is less than min score in data {np.min(y)}')
+        # Transformed scores
+        min_score = self.min_score
+        if min_score is None:
+            min_score = np.min(y) - abs(np.min(y))
 
-            max_score = self.max_score
-            if max_score is None:
-                max_score = np.max(y) + abs(np.max(y))
+        if np.min(y) < min_score - 1e-6:
+            raise ValueError(f'Min score {min_score} is less than min score in data {np.min(y)}')
 
-            if np.max(y) > max_score:
-                raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
+        max_score = self.max_score
+        if max_score is None:
+            max_score = np.max(y) + abs(np.max(y))
 
-            # Linearize, exp transform, linearize
-            y_norm = (y - min_score) / (max_score - min_score)
-            yt = -np.log(1 - y_norm + eps)
-            yt_min = np.min(yt)
-            yt_max = np.max(yt)
-            yt_norm = (yt - yt_min) / (yt_max - yt_min)
+        if np.max(y) > max_score + 1e-6:
+            raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
 
-            self.gp_score.set_data(params, torch.from_numpy(yt_norm))
-            self.gp_score.train()
-            gp.util.train(self.gp_score, self.score_opt)
-            self.gp_score.eval()
+        # Linearize, exp transform, linearize
+        y_norm = (y - min_score) / (max_score - min_score)
+        #yt = -np.log(1 - y_norm + eps)
+        #yt_min = np.min(yt)
+        #yt_max = np.max(yt)
+        #yt_norm = (yt - yt_min) / (yt_max - yt_min)
 
-            # Log costs
-            c = np.array([e['cost'] for e in self.success_observations])
-            log_c = np.log(c)
+        #self.gp_score.set_data(params, torch.from_numpy(yt_norm))
+        self.gp_score.set_data(params, torch.from_numpy(y_norm))
+        self.gp_score.train()
+        gp.util.train(self.gp_score, self.score_opt)
+        self.gp_score.eval()
 
-            # Linear input norm creates clean 1 mean fn
-            log_c_min = np.min(log_c)
-            log_c_max = np.max(log_c)
-            log_c_norm = (log_c - log_c_min) / (log_c_max - log_c_min)
+        # Log costs
+        c = np.array([e['cost'] for e in self.success_observations])
 
-            self.gp_cost.mean_function = lambda x: 1
-            self.gp_cost.set_data(params, torch.from_numpy(log_c_norm))
-            self.gp_cost.train()
-            gp.util.train(self.gp_cost, self.cost_opt)
-            self.gp_cost.eval()
+        log_c = np.log(c)
 
-            ### Sample suggestions
-            candidates, pareto_idxs = pareto_points(self.success_observations)
-            search_centers = np.stack([e['input'] for e in candidates])
-            suggestions = self.hyperparameters.sample(
-                len(candidates)*self.suggestions_per_pareto, mu=search_centers)
+        # Linear input norm creates clean 1 mean fn
+        log_c_min = np.min(log_c)
+        log_c_max = np.max(log_c)
+        log_c_norm = (log_c - log_c_min) / (log_c_max - log_c_min)
 
-            ### Predict scores and costs
-            suggestions = torch.from_numpy(suggestions)
-            with torch.no_grad():
-                gp_yt_norm, gp_yt_norm_var = self.gp_score(suggestions)
-                gp_log_c_norm, gp_log_c_norm_var = self.gp_cost(suggestions)
+        self.gp_cost.mean_function = lambda x: 1
+        self.gp_cost.set_data(params, torch.from_numpy(log_c_norm))
+        self.gp_cost.train()
+        gp.util.train(self.gp_cost, self.cost_opt)
+        self.gp_cost.eval()
 
-            gp_yt_norm = gp_yt_norm.numpy()
-            gp_log_c_norm = gp_log_c_norm.numpy()
+        candidates, pareto_idxs = pareto_points(self.success_observations)
+        pareto_costs = np.array([e['cost'] for e in candidates])
 
-            # Unlinearize, inverse exp transform, unlinearize
-            gp_yt = gp_yt_norm*(yt_max - yt_min) + yt_min
-            gp_y_norm = -(np.exp(-gp_yt) - 1 - eps)
-            gp_y = gp_y_norm*(max_score - min_score) + min_score
+        #cost_dists = np.abs(np.log(pareto_costs[:, None]) - np.log(pareto_costs[None, :]))
+        ###cost_dists = np.abs(pareto_costs[:, None] - pareto_costs[None, :])
+        #cost_dists += (np.max(pareto_costs) + 1)*np.eye(len(pareto_costs)) # mask self-distance
+        #idx = np.argmax(np.min(cost_dists, axis=1))
+        #search_centers = candidates[idx]['input']
 
-            gp_log_c = gp_log_c_norm*(log_c_max - log_c_min) + log_c_min
-            gp_c = np.exp(gp_log_c)
+        ### Sample suggestions
+        search_centers = np.stack([e['input'] for e in candidates])
+        suggestions = self.hyperparameters.sample(
+            len(candidates)*self.suggestions_per_pareto, mu=search_centers)
 
-            pareto_y = y[pareto_idxs]
-            pareto_yt = yt[pareto_idxs]
-            pareto_yt_norm = yt_norm[pareto_idxs]
-            pareto_c = c[pareto_idxs]
+        ### Predict scores and costs
+        suggestions = torch.from_numpy(suggestions)
+        with torch.no_grad():
+            gp_y_norm, gp_y_norm_var = self.gp_score(suggestions)
+            gp_log_c_norm, gp_log_c_norm_var = self.gp_cost(suggestions)
 
-            max_c = np.max(c)
-            min_c = np.min(c)
+        gp_y_norm = gp_y_norm.numpy()
+        gp_log_c_norm = gp_log_c_norm.numpy()
 
-            pareto_c_norm = (pareto_c - min_c) / (max_c - min_c)
-            gp_c_norm = (gp_c - min_c) / (max_c - min_c)
-            c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
+        # Unlinearize, inverse exp transform, unlinearize
+        #gp_yt = gp_yt_norm*(yt_max - yt_min) + yt_min
+        #gp_y_norm = -(np.exp(-gp_yt) - 1 - eps)
+        #gp_y = gp_y_norm*(max_score - min_score) + min_score
+        gp_y = gp_y_norm*(max_score - min_score) + min_score
 
-            #pareto_log_c_norm = (np.log(pareto_c) - log_c_min) / (log_c_max - log_c_min)
-            #c_right = np.abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
+        gp_log_c = gp_log_c_norm*(log_c_max - log_c_min) + log_c_min
+        gp_c = np.exp(gp_log_c)
 
-            nearest_pareto_dist = np.min(c_right, axis=1)
+        gp_c_min = np.min(gp_c)
+        gp_c_max = np.max(gp_c)
+        gp_c_norm = (gp_c - gp_c_min) / (gp_c_max - gp_c_min)
 
-            c_left = gp_c[:, None] - pareto_c[None, :]
-            c_left[c_left < 0] = np.inf
-            nearest_idx = np.argmin(c_left, axis=1)
-            nearest_pareto_y = pareto_y[nearest_idx]
-            nearest_pareto_yt_norm = pareto_yt_norm[nearest_idx]
+        pareto_y = y[pareto_idxs]
+        #pareto_yt = yt[pareto_idxs]
+        #pareto_yt_norm = yt_norm[pareto_idxs]
+        pareto_c = c[pareto_idxs]
+        pareto_log_c_norm = log_c_norm[pareto_idxs]
 
-            max_c_mask = gp_c < self.max_suggestion_cost
-            suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
-                    gp_yt_norm - nearest_pareto_yt_norm) * nearest_pareto_dist
+        max_c = np.max(c)
+        min_c = np.min(c)
 
-            # This works and uncovers approximate binary search when the GP is perfect
-            # Can't include cost in denom because it biases this case
-            # Instead, use conservative score and/or cost estimates
-            # Just need to figure out why the GP is overconfident
+        c_right = abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
 
-            best_idx = np.argmax(suggestion_scores)
-            info = dict(
-                cost = gp_c[best_idx].item(),
-                score = gp_y[best_idx].item(),
-                nearby = nearest_pareto_y[best_idx].item(),
-                dist = nearest_pareto_dist[best_idx].item(),
-                rating = suggestion_scores[best_idx].item(),
+        #pareto_c_norm = (pareto_c - min_c) / (max_c - min_c)
+        #gp_c_norm = (gp_c - min_c) / (max_c - min_c)
+        #c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
+
+        #pareto_log_c_norm = (np.log(pareto_c) - log_c_min) / (log_c_max - log_c_min)
+        #c_right = np.abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
+
+        sorted_dist = np.sort(c_right, axis=1)
+        #top_k = sorted_dist[:, :5]
+        #pareto_dist_weight = np.sum(top_k, axis=1) / top_k.shape[1]
+
+        nearest_idx = np.argmin(c_right, axis=1)
+        nearest_pareto_dist = np.min(c_right, axis=1)
+        nearest_pareto_y = pareto_y[nearest_idx]
+
+        #c_left = np.abs(gp_c[:, None] - pareto_c[None, :])
+        #c_left[c_left < 0] = np.inf
+        #nearest_idx = np.argmin(c_left, axis=1)
+        #nearest_pareto_yt_norm = pareto_yt_norm[nearest_idx]
+
+        max_c_mask = gp_c < self.max_suggestion_cost
+        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
+        #        gp_yt_norm - nearest_pareto_yt_norm) * nearest_pareto_dist
+
+        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
+        #        gp_yt_norm - nearest_pareto_yt_norm)# / gp_c
+
+        #np.argwhere(gp_c > c)
+        cumsum_mask = c[None, :] <= np.clip(gp_c[:, None], min_c, max_c)
+        cumsum_mask = cumsum_mask * c[None, :]
+        cumsum = np.sum(cumsum_mask, axis=1) / np.sum(c)
+        target = gp_c_norm 
+        weight = target - cumsum
+
+        #if np.random.rand() < 0.5:
+        #    score = gp_y_norm
+        #else:
+        #    score = gp_y_norm * weight
+        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
+        #        score)# / gp_c
+
+
+        target = 1.25*np.random.rand()
+        weight = 1 - abs(target - gp_log_c_norm)
+
+        suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
+                gp_y_norm*weight)# / gp_c
+
+        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
+        #        gp_y_norm*nearest_pareto_dist)# / gp_c
+
+        #exp_scores = np.exp(suggestion_scores)
+        #sum_exp_scores = np.sum(exp_scores)
+        #softmax_scores = exp_scores / sum_exp_scores
+        #idxs = np.arange(len(softmax_scores))
+        #best_idx = np.random.choice(idxs, p=softmax_scores)
+
+        # This works and uncovers approximate binary search when the GP is perfect
+        # Can't include cost in denom because it biases this case
+        # Instead, use conservative score and/or cost estimates
+        # Just need to figure out why the GP is overconfident
+
+        best_idx = np.argmax(suggestion_scores)
+        #best_idx = np.argmax(gp_y_norm)
+        info = dict(
+            cost = gp_c[best_idx].item(),
+            score = gp_y[best_idx].item(),
+            nearby = nearest_pareto_y[best_idx].item(),
+            dist = nearest_pareto_dist[best_idx].item(),
+            rating = suggestion_scores[best_idx].item(),
+        )
+        print('Predicted -- ',
+            f'Score: {info["score"]:.3f}',
+            f'Nearby: {info["nearby"]:.3f}',
+            f'Dist: {info["dist"]:.3f}',
+            f'Cost: {info["cost"]:.3f}',
+            f'Rating: {info["rating"]:.3f}',
+        )
+        '''
+        if info['rating'] < 10:
+            from bokeh.models import ColumnDataSource, LinearColorMapper
+            from bokeh.plotting import figure, show
+            from bokeh.palettes import Turbo256
+
+            source = ColumnDataSource(data=dict(
+                x=c,
+                y=y,
+                order=np.argsort(c),
+            ))
+            mapper = LinearColorMapper(
+                palette=Turbo256,
+                low=0,
+                high=len(c)
             )
-            print('Predicted -- ',
-                f'Score: {info["score"]:.3f}',
-                f'Nearby: {info["nearby"]:.3f}',
-                f'Dist: {info["dist"]:.3f}',
-                f'Cost: {info["cost"]:.3f}',
-                f'Rating: {info["rating"]:.3f}',
+
+            idxs = np.argsort(pareto_c)
+            pareto_source = ColumnDataSource(data=dict(
+                x=pareto_c[idxs],
+                y=pareto_y[idxs],
+            ))
+
+            c_sorted = sorted(c)
+            cost_source = ColumnDataSource(data=dict(
+                x = c_sorted,
+                y = np.cumsum(c_sorted) / np.sum(c_sorted),
+            ))
+
+            #gp_pareto_source = ColumnDataSource(data=dict(
+            #    x=gp_c,
+            #    y=gp_y,
+            #    order=np.argsort(gp_c),
+            #))
+
+            preds = [{
+                'output': gp_y[i],
+                'cost': gp_c[i],
+            } for i in range(len(gp_c))]
+            _, pareto_idxs = pareto_points(preds)
+
+            gp_c_pareto = gp_c[pareto_idxs]
+            gp_y_pareto = gp_y[pareto_idxs]
+            idxs = np.argsort(gp_c_pareto)
+            gp_source = ColumnDataSource(data=dict(
+                x=gp_c_pareto[idxs],
+                y=gp_y_pareto[idxs],
+            ))
+
+            p = figure(title='Hyperparam Test', 
+                       x_axis_label='Cost', 
+                       y_axis_label='Score')
+
+            # Original data
+            p.scatter(
+                x='x', 
+                y='y', 
+                color={'field': 'order', 'transform': mapper}, 
+                size=10, 
+                source=source
             )
 
-            best = suggestions[best_idx].numpy()
+            p.line(x='x', y='y', color='red', source=pareto_source)
+            p.line(x='x', y='y', color='blue', source=gp_source)
+            p.line(x='x', y='y', color='green', source=cost_source)
+            #p.line(x='x', y='y', color='green', source=gp_pareto_source)
 
-        self.suggestion = best
+            show(p)
+        '''
+
+        best = suggestions[best_idx].numpy()
         return self.hyperparameters.to_dict(best, fill), info
 
-    def observe(self, score, cost, is_failure=False):
-        self.success_observations.append(dict(
-            input=self.suggestion,
+    def observe(self, hypers, score, cost, is_failure=False):
+        params = self.hyperparameters.from_dict(hypers)
+        new_observation = dict(
+            input=params,
             output=score,
             cost=cost,
             is_failure=is_failure,
-        ))
+        )
+
+        if len(self.success_observations) == 0:
+            self.success_observations.append(new_observation)
+            return
+
+        success_params = np.stack([e['input'] for e in self.success_observations])
+        dist = np.linalg.norm(params - success_params, axis=1)
+        same = np.where(dist < 1e-6)[0]
+        if len(same) > 0:
+            self.success_observations[same[0]] = new_observation
+        else:
+            self.success_observations.append(new_observation)
 
 '''
 from carbs import (

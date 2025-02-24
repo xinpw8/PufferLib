@@ -17,7 +17,7 @@ cdef extern from "pong.h":
 
     ctypedef struct Pong:
         float* observations
-        int* actions
+        float* actions
         float* rewards
         unsigned char* terminals
         LogBuffer* log_buffer;
@@ -49,6 +49,7 @@ cdef extern from "pong.h":
         int n_bounces
         int win
         int frameskip
+        int continuous
 
     ctypedef struct Client
 
@@ -73,13 +74,13 @@ cdef class CyPong:
         float ball_width
         float ball_height
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, float[:, :] observations, float[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             float width, float height, float paddle_width, float paddle_height,
             float ball_width, float ball_height, float paddle_speed,
             float ball_initial_speed_x, float ball_initial_speed_y,
             float ball_max_speed_y, float ball_speed_y_increment,
-            unsigned int max_score, int frameskip):
+            unsigned int max_score, int frameskip, int continuous):
 
         self.num_envs = num_envs
         self.client = NULL
@@ -107,6 +108,7 @@ cdef class CyPong:
                 ball_speed_y_increment=ball_speed_y_increment,
                 max_score=max_score,
                 frameskip=frameskip,
+                continuous=continuous,
             )
             init(&self.envs[i])
 
@@ -117,6 +119,7 @@ cdef class CyPong:
 
     def step(self):
         cdef int i
+    
         for i in range(self.num_envs):
             c_step(&self.envs[i])
 

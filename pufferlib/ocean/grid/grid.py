@@ -6,9 +6,9 @@ import gymnasium
 import pufferlib
 from pufferlib.ocean.grid.cy_grid import CGrid
 
-class PufferGrid(pufferlib.PufferEnv):
+class Grid(pufferlib.PufferEnv):
     def __init__(self, render_mode='raylib', vision_range=5,
-            num_envs=4096, num_maps=1000, max_map_size=9,
+            num_envs=4096, num_maps=1000, map_size=-1, max_map_size=9,
             report_interval=128, buf=None):
         self.obs_size = 2*vision_range + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
@@ -20,8 +20,7 @@ class PufferGrid(pufferlib.PufferEnv):
         super().__init__(buf=buf)
         self.float_actions = np.zeros_like(self.actions).astype(np.float32)
         self.c_envs = CGrid(self.observations, self.float_actions,
-            self.rewards, self.terminals, num_envs, num_maps, max_map_size)
-        pass
+            self.rewards, self.terminals, num_envs, num_maps, map_size, max_map_size)
 
     def reset(self, seed=None):
         self.tick = 0
@@ -42,8 +41,8 @@ class PufferGrid(pufferlib.PufferEnv):
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
-    def render(self):
-        self.c_envs.render()
+    def render(self, overlay=0):
+        self.c_envs.render(overlay=overlay)
 
     def close(self):
         self.c_envs.close()

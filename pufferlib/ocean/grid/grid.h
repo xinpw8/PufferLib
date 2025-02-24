@@ -133,6 +133,7 @@ struct Grid{
     LogBuffer* log_buffer;
     Agent* agents;
     unsigned char* grid;
+    int* counts;
     unsigned char* observations;
     float* actions;
     float* rewards;
@@ -143,6 +144,7 @@ void init_grid(Grid* env) {
     env->obs_size = 2*env->vision + 1;
     int env_mem= env->max_size * env->max_size;
     env->grid = calloc(env_mem, sizeof(unsigned char));
+    env->counts = calloc(env_mem, sizeof(int));
     env->agents = calloc(env->num_agents, sizeof(Agent));
 }
 
@@ -313,7 +315,7 @@ void set_state(Grid* env, State* state) {
 void reset(Grid* env, int seed) {
     env->log = (Log){0};
     memset(env->grid, 0, env->max_size*env->max_size);
-    compute_observations(env);
+    memset(env->counts, 0, env->max_size*env->max_size*sizeof(int));
 }
 
 int move_to(Grid* env, int agent_idx, float y, float x) {
@@ -416,6 +418,13 @@ bool step_agent(Grid* env, int idx) {
             }
         }
     }
+
+    int x_int = agent->x;
+    int y_int = agent->y;
+    int adr = grid_offset(env, y_int, x_int);
+    env->counts[adr]++;
+    //env->rewards[idx] += 0.01 / (float)env->counts[adr];
+    //env->log.episode_return += 0.01 / (float)env->counts[adr];
     return true;
 }
 
@@ -476,6 +485,7 @@ typedef struct {
     int width;
     int height;
     Texture2D puffer;
+    float* overlay;
 } Renderer;
 
 Renderer* init_renderer(int cell_size, int width, int height) {
@@ -484,6 +494,8 @@ Renderer* init_renderer(int cell_size, int width, int height) {
     renderer->width = width;
     renderer->height = height;
 
+    renderer->overlay = (float*)calloc(width*height, sizeof(float));
+
     InitWindow(width*cell_size, height*cell_size, "PufferLib Ray Grid");
     SetTargetFPS(60);
 
@@ -491,15 +503,28 @@ Renderer* init_renderer(int cell_size, int width, int height) {
     return renderer;
 }
 
+void clear_overlay(Renderer* renderer) {
+    memset(renderer->overlay, 0, renderer->width*renderer->height*sizeof(float));
+}
+
 void close_renderer(Renderer* renderer) {
     CloseWindow();
+    free(renderer->overlay);
     free(renderer);
 }
 
-void render_global(Renderer* renderer, Grid* env, float frac) {
+void render_global(Renderer* renderer, Grid* env, float frac, float overlay) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    Agent* agent = &env->agents[0];
+    int r = agent->y;
+    int c = agent->x;
+    int adr = grid_offset(env, r, c);
+    //renderer->overlay[adr] = overlay;
+    //renderer->overlay[adr] -= 0.1;
+    renderer->overlay[adr] = -1 + 1.0/(float)env->counts[adr];
 
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
@@ -507,10 +532,22 @@ void render_global(Renderer* renderer, Grid* env, float frac) {
     int ts = renderer->cell_size;
     for (int r = 0; r < env->height; r++) {
         for (int c = 0; c < env->width; c++){
-            int adr = grid_offset(env, r, c);
+            adr = grid_offset(env, r, c);
             int tile = env->grid[adr];
             if (tile == EMPTY) {
-                continue;
+                overlay = renderer->overlay[adr];
+                if (overlay == 0) {
+                    continue;
+                }
+                Color color;
+                if (overlay < 0) {
+                    overlay = -fmaxf(-1.0, overlay);
+                    color = (Color){255.0*overlay, 0, 0, 255};
+                } else {
+                    overlay = fminf(1.0, overlay);
+                    color = (Color){0, 255.0*overlay, 0, 255};
+                }
+                DrawRectangle(c*ts, r*ts, ts, ts, color);
             }
 
             Color color;
@@ -536,7 +573,7 @@ void render_global(Renderer* renderer, Grid* env, float frac) {
     }
 
     for (int i = 0; i < env->num_agents; i++) {
-        Agent* agent = &env->agents[0];
+        agent = &env->agents[0];
         float y = agent->y + (frac - 1)*(agent->y - agent->prev_y);
         float x = agent->x + (frac - 1)*(agent->x - agent->prev_x);
         int u = 0;
