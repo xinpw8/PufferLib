@@ -53,7 +53,11 @@ class Default(nn.Module):
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
-        self.value_head = nn.Linear(hidden_size, 32)
+        self.value_mean = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, 128), std=1)
+        self.value_logstd = nn.Parameter(torch.zeros(1, 128))
+        #self.value_logstd = pufferlib.pytorch.layer_init(
+        #    nn.Linear(hidden_size, 64), std=0.01)
 
     def forward(self, observations):
         hidden, lookup = self.encode_observations(observations)
@@ -74,7 +78,9 @@ class Default(nn.Module):
     def decode_actions(self, hidden, lookup, concat=True, e3b=None):
         '''Decodes a batch of hidden states into (multi)discrete actions.
         Assumes no time dimension (handled by LSTM wrappers).'''
-        value = self.value_head(hidden)
+        value_mean = self.value_mean(hidden)
+        value_logstd = self.value_logstd.expand_as(value_mean)
+        #value_logstd = self.value_logstd(hidden)
         if self.is_multidiscrete:
             actions = [dec(hidden) for dec in self.decoder]
             return actions, value
@@ -102,7 +108,7 @@ class Default(nn.Module):
             b = b.squeeze()
 
         actions = self.decoder(hidden)
-        return actions, value#, e3b, b
+        return actions, value_mean, value_logstd
 
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
@@ -151,9 +157,9 @@ class LSTMWrapper(nn.Module):
 
         hidden = hidden.reshape(B*TT, self.hidden_size)
         #hidden, critic, e3b, intrinsic_reward = self.policy.decode_actions(hidden, lookup, e3b=e3b)
-        hidden, critic = self.policy.decode_actions(hidden, lookup)#, e3b=e3b)
+        hidden, critic_mean, critic_logstd = self.policy.decode_actions(hidden, lookup)#, e3b=e3b)
         #hidden, critic = self.policy.decode_actions(hidden, lookup, e3b=e3b)
-        return hidden, critic, state#, e3b, intrinsic_reward
+        return hidden, critic_mean, critic_logstd, state#, e3b, intrinsic_reward
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

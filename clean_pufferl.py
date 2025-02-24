@@ -118,7 +118,7 @@ def evaluate(data):
                     e3b = e3b_inv[env_id]
                     actions, logprob, _, value, (h, c), next_e3b, intrinsic_reward = policy(o_device, (h, c), e3b=e3b)
                 else:
-                    actions, logprob, _, value, (h, c) = policy(o_device, (h, c))
+                    actions, logprob, _, value_mean, value_logstd, (h, c) = policy(o_device, (h, c))
                 lstm_h[:, env_id] = h
                 lstm_c[:, env_id] = c
             else:
@@ -153,7 +153,7 @@ def evaluate(data):
             actions = actions.cpu().numpy()
             mask = torch.as_tensor(mask)
             o = o if config.cpu_offload else o_device
-            experience.store(o, value, actions, logprob, r, d, env_id, mask)
+            experience.store(o, value_mean, value_logstd.detach(), actions, logprob, r, d, env_id, mask)
 
             for i in info:
                 for k, v in pufferlib.utils.unroll_nested_dict(i):
@@ -195,11 +195,25 @@ def train(data):
     with profile.train_misc:
         idxs = experience.sort_training_data()
         dones_np = experience.dones_np[idxs]
-        values_np = experience.values_np[idxs]
+        values_mean_np = experience.values_mean_np[idxs]
+        values_logstd_np = experience.values_logstd_np[idxs]
+        values_std_np = np.exp(values_logstd_np.clip(-10, 10))
+
         rewards_np = experience.rewards_np[idxs]
         # TODO: bootstrap between segment bounds
         reward_block, mask_block = rewards_and_masks(dones_np, rewards_np, config.horizon)
-        experience.flatten_batch(reward_block, mask_block)
+
+        mmax = values_std_np.max()
+        mmin = values_std_np.min()
+        adv_scale = mmax - values_std_np
+        if mmax > mmin:
+            adv_scale = adv_scale / (mmax - mmin)
+            #adv_scale = np.clip(adv_scale, 0.05, 1) #TODO: Is this a good way to eliminate noise?
+            adv_scale[:, 32:] = 0
+            adv_scale = adv_scale / adv_scale.sum(axis=-1, keepdims=True)
+
+        advantages = (mask_block * adv_scale * (reward_block - values_mean_np)).sum(axis=-1)
+        experience.flatten_batch(reward_block, mask_block, advantages)
 
     # Optimizing the policy and value network
     total_minibatches = experience.num_minibatches * config.update_epochs
@@ -213,7 +227,8 @@ def train(data):
                 obs = obs.to(config.device)
                 atn = experience.b_actions[mb]
                 log_probs = experience.b_logprobs[mb]
-                val = experience.b_values[mb]
+                val_mean = experience.b_values_mean[mb]
+                val_logstd = experience.b_values_logstd[mb]
                 rew_block = experience.b_reward_block[mb]
                 mask_block = experience.b_mask_block[mb]
                 adv = experience.b_advantages[mb]
@@ -222,7 +237,7 @@ def train(data):
                 if experience.lstm_h is not None:
                     #_, newlogprob, entropy, newvalue, lstm_state, _, _ = data.policy(
                     #    obs, state=lstm_state, action=atn)
-                    _, newlogprob, entropy, newvalue, lstm_state = data.policy(
+                    _, newlogprob, entropy, newvalue_mean, newvalue_logstd, lstm_state = data.policy(
                         obs, state=lstm_state, action=atn)
                     lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
                 else:
@@ -256,17 +271,41 @@ def train(data):
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
                 # Value loss
-                newvalue = newvalue.view(-1, config.horizon)
+                newvalue_mean = newvalue_mean.view(-1, config.horizon)
+                newvalue_logstd = newvalue_logstd.view(-1, config.horizon)
+                newvalue_logvar = torch.exp(newvalue_logstd.clamp(-10, 10))
+                criterion = torch.nn.GaussianNLLLoss(reduction='none')
+                v_loss = criterion(newvalue_mean, rew_block, newvalue_logvar)
+                #TODO: Count mask and sum
+                v_loss = (v_loss * mask_block).mean()
                 if config.clip_vloss:
-                    v_clipped = val + torch.clamp(
-                        newvalue - val,
-                        -config.vf_clip_coef,
-                        config.vf_clip_coef,
-                    )
-                    v_loss_clipped = (v_clipped - rew_block) ** 2
-                    v_loss_unclipped = (newvalue - rew_block) ** 2
-                    v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                    v_loss = 0.5 * (mask_block * v_loss_max).mean()
+                    pass
+                    #v_clipped = val_mean + torch.clamp(
+                    #    newvalue_mean - val_mean,
+                    #    -config.vf_clip_coef,
+                    #    config.vf_clip_coef,
+                    #)
+
+                    ##sigma_sq = torch.exp(newvalue_logstd.clamp(-10, 10)) + 1e-5
+                    ##pi = 3.141592653589793
+                    ##term1 = 0.5 * torch.log(2*pi*sigma_sq)
+                    #diff_unclipped = newvalue_mean - rew_block
+                    #diff_clipped = v_clipped - rew_block
+                    ##diff = newvalue_mean - rew_block
+
+                    ##term2 = 0.5 * (diff ** 2 / sigma_sq)
+                    ##v_loss = (term1 + term2).mean()
+
+                    #term2_unclipped = 0.5 * (diff_unclipped ** 2 / sigma_sq)
+                    #term2_clipped = 0.5 * (diff_clipped ** 2 / sigma_sq)
+
+                    #term2_max = torch.max(term2_unclipped, term2_clipped)
+                    #v_loss = (term1 + term2_max).mean()
+
+                    #v_loss_clipped = (v_clipped - rew_block) ** 2
+                    #v_loss_unclipped = (newvalue - rew_block) ** 2
+                    #v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                    #v_loss = 0.5 * (mask_block * v_loss_max).mean()
                 else:
                     v_loss = 0.5 * (mask_block * (newvalue - rew_block) ** 2).mean()
 
@@ -299,8 +338,9 @@ def train(data):
             lrnow = frac * config.learning_rate
             data.optimizer.param_groups[0]["lr"] = lrnow
 
-        y_pred = experience.values_np
+        #y_pred = experience.values_np
         #y_true = experience.returns_np
+        y_pred = experience.values_mean_np
         y_true = experience.reward_block_np
         var_y = np.var(y_true)
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
@@ -316,6 +356,10 @@ def train(data):
             print_dashboard(config.env, data.utilization, data.global_step, data.epoch,
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
+
+        print('MEAN', experience.b_values_mean.mean(0).mean(0))
+        print('STD', (torch.exp(experience.b_values_logstd)**0.5).mean(0).mean(0))
+        #print('STD', torch.exp(data.policy.policy.policy.value_logstd)**0.5)
 
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
@@ -487,7 +531,8 @@ class Experience:
         self.rewards=torch.zeros(batch_size, pin_memory=pin)
         self.dones=torch.zeros(batch_size, pin_memory=pin)
         self.truncateds=torch.zeros(batch_size, pin_memory=pin)
-        self.values=torch.zeros(batch_size, horizon, pin_memory=pin)
+        self.values_mean=torch.zeros(batch_size, horizon, pin_memory=pin)
+        self.values_logstd=torch.zeros(batch_size, horizon, pin_memory=pin)
         self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
         self.e3b_orig = self.e3b_inv.clone()
 
@@ -496,7 +541,8 @@ class Experience:
         self.rewards_np = np.asarray(self.rewards)
         self.dones_np = np.asarray(self.dones)
         self.truncateds_np = np.asarray(self.truncateds)
-        self.values_np = np.asarray(self.values)
+        self.values_mean_np = np.asarray(self.values_mean)
+        self.values_logstd_np = np.asarray(self.values_logstd)
 
         self.lstm_h = self.lstm_c = None
         if lstm is not None:
@@ -517,6 +563,7 @@ class Experience:
 
         self.batch_size = batch_size
         self.bptt_horizon = bptt_horizon
+        self.horizon = horizon
         self.minibatch_size = minibatch_size
         self.device = device
         self.sort_keys = []
@@ -527,14 +574,15 @@ class Experience:
     def full(self):
         return self.ptr >= self.batch_size
 
-    def store(self, obs, value, action, logprob, reward, done, env_id, mask):
+    def store(self, obs, value_mean, value_logstd, action, logprob, reward, done, env_id, mask):
         # Mask learner and Ensure indices do not exceed batch size
         ptr = self.ptr
         indices = torch.where(mask)[0].numpy()[:self.batch_size - ptr]
         end = ptr + len(indices)
  
         self.obs[ptr:end] = obs.to(self.obs.device)[indices]
-        self.values_np[ptr:end] = value.cpu().numpy()[indices]
+        self.values_mean_np[ptr:end] = value_mean.cpu().numpy()[indices]
+        self.values_logstd_np[ptr:end] = value_logstd.cpu().numpy()[indices]
         self.actions_np[ptr:end] = action[indices]
         self.logprobs_np[ptr:end] = logprob.cpu().numpy()[indices]
         self.rewards_np[ptr:end] = reward.cpu().numpy()[indices]
@@ -555,23 +603,36 @@ class Experience:
         self.sort_keys = []
         return idxs
 
-    def flatten_batch(self, reward_block, mask_block):
+    def flatten_batch(self, reward_block, mask_block, advantages):
         self.reward_block_np = reward_block
-        self.b_reward_block = torch.as_tensor(reward_block).to(self.device)
-        self.b_mask_block = torch.as_tensor(mask_block).to(self.device)
+
+        reward_block = torch.as_tensor(reward_block).to(self.device)
+        self.b_reward_block = reward_block.reshape(
+            self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.horizon
+            ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.horizon)
+
+        b_mask_block = torch.as_tensor(mask_block).to(self.device)
+        self.b_mask_block = b_mask_block.reshape(
+            self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.horizon
+            ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.horizon)
+
+        advantages = torch.as_tensor(advantages).to(self.device, non_blocking=True)
+        self.b_advantages = advantages.reshape(
+            self.minibatch_rows, self.num_minibatches, self.bptt_horizon
+            ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size)
+
         b_idxs, b_flat = self.b_idxs, self.b_idxs_flat
         self.b_actions = self.actions.to(self.device, non_blocking=True)
         self.b_logprobs = self.logprobs.to(self.device, non_blocking=True)
         self.b_dones = self.dones.to(self.device, non_blocking=True)
-        self.b_values = self.values.to(self.device, non_blocking=True)
-        self.b_advantages = (self.b_mask_block * (self.b_reward_block - self.b_values)).mean(dim=-1
-            ).reshape(self.minibatch_rows, self.num_minibatches, self.bptt_horizon
-            ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size)
+        self.b_values_mean = self.values_mean.to(self.device, non_blocking=True)
+        self.b_values_logstd = self.values_logstd.to(self.device, non_blocking=True)
         self.b_obs = self.obs[self.b_idxs_obs]
         self.b_actions = self.b_actions[b_idxs].contiguous()
         self.b_logprobs = self.b_logprobs[b_idxs]
         self.b_dones = self.b_dones[b_idxs]
-        self.b_values = self.b_values[b_flat]
+        self.b_values_mean = self.b_values_mean[b_flat]
+        self.b_values_logstd = self.b_values_logstd[b_flat]
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):

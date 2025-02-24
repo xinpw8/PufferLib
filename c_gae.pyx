@@ -5,6 +5,7 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 
+
 import numpy as np
 cimport numpy as cnp
 
@@ -22,7 +23,7 @@ def rewards_and_masks(float[:] dones, float[:] rewards, int horizon):
         for j in range(horizon):
             t = i + j
 
-            if t >= num_steps:
+            if t >= num_steps - 1:
                 break
 
             if dones[t]:
