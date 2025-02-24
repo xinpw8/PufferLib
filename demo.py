@@ -81,7 +81,7 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         sweep = pufferlib.sweep.Protein(
             args['sweep'],
             resample_frequency=0,
-            num_random_samples=10, # Should be number of params
+            num_random_samples=50, # Should be number of params
             max_suggestion_cost=args['max_suggestion_cost'],
             min_score = args['sweep']['metric']['min'],
             max_score = args['sweep']['metric']['max'],
