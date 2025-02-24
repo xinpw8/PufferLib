@@ -448,8 +448,8 @@ void c_reset(Breakout* env) {
     compute_observations(env);
 }
 
-void step_frame(Breakout* env, int action) {
-    int act =0;
+void step_frame(Breakout* env, float action) {
+    float act =0.0;
     if (env->balls_fired == 0) {
         env->balls_fired = 1;
         float direction = M_PI / 3.25f;
@@ -461,13 +461,20 @@ void step_frame(Breakout* env, int action) {
         }
     }   
      else if (action == LEFT) {
-        act = -1;
+        act = -1.0;
     } else if (action == RIGHT) {
-        act = 1;
+        act = 1.0;
+    }
+    if (env->continuous){
+        act = action;
     }
     env->paddle_x += act * 620 * TICK_RATE;
-    env->paddle_x = fmaxf(0, env->paddle_x);
-    env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
+    if (env->paddle_x <= 0){
+        env->paddle_x = fmaxf(0, env->paddle_x);
+
+    } else {
+        env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
+    }
 
     //Handle collisions. 
     //Regular timestepping is done only if there are no collisions.
@@ -493,7 +500,7 @@ void c_step(Breakout* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
 
-    int action = env->actions[0];
+    float action = env->actions[0];
     for (int i = 0; i < env->frameskip; i++) {
         step_frame(env, action);
     }
