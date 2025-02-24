@@ -98,7 +98,7 @@ void init_csnake(CSnake* env) {
     env->snake_lifetimes = (int*)calloc(env->num_snakes, sizeof(int));
     env->snake_colors = (int*)calloc(env->num_snakes, sizeof(int));
     env->logs = calloc(env->num_snakes, sizeof(Log));
-    env->snake_colors[0] = 9;
+    env->snake_colors[0] = 7;
     for (int i = 1; i<env->num_snakes; i++)
         env->snake_colors[i] = i%4 + 4; // Randomize snake colors
 }

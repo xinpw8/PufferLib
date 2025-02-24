@@ -8,28 +8,28 @@ from pufferlib.exceptions import APIUsageError
 from pufferlib.ocean.snake.cy_snake import CySnake
 
 class Snake(pufferlib.PufferEnv):
-    def __init__(self, widths=16*[640], heights=16*[360],
-            num_snakes=16*[256], num_food=16*[4096],
+    def __init__(self, num_envs=16, width=640, height=360,
+            num_snakes=256, num_food=4096,
             vision=5, leave_corpse_on_death=True,
             reward_food=0.1, reward_corpse=0.1, reward_death=-1.0,
             report_interval=128, max_snake_length=1024,
             render_mode='human', buf=None):
+        
+        if num_envs is not None:
+            num_snakes = num_envs * [num_snakes]
+            width = num_envs * [width]
+            height = num_envs * [height]
+            num_food = num_envs * [num_food]
+            leave_corpse_on_death = num_envs * [leave_corpse_on_death]
 
-        if not isinstance(vision, int):
-            raise APIUsageError('vision must be an integer')
-        if isinstance(leave_corpse_on_death, bool):
-            leave_corpse_on_death = len(widths)*[leave_corpse_on_death]
+        if not (len(num_snakes) == len(width) == len(height) == len(num_food)):
+            raise APIUsageError('num_snakes, width, height, num_food must be lists of equal length')
 
-        valid_params = (len(widths) == len(heights) == len(num_snakes)
-            == len(num_food) == len(leave_corpse_on_death))
-        if not valid_params:
-            raise APIUsageError('widths, heights, num_snakes, num_food must be lists of equal length')
-
-        for w, h in zip(widths, heights):
+        for w, h in zip(width, height):
             if w < 2*vision+2 or h < 2*vision+2:
                 raise APIUsageError('width and height must be at least 2*vision+2')
 
-        max_area = max([w*h for h, w in zip(heights, widths)])
+        max_area = max([w*h for h, w in zip(height, width)])
         self.max_snake_length = min(max_snake_length, max_area)
         self.report_interval = report_interval
 
@@ -41,11 +41,11 @@ class Snake(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.tick = 0
 
-        self.cell_size = int(np.ceil(1280 / max(max(widths), max(heights))))
+        self.cell_size = int(np.ceil(1280 / max(max(width), max(height))))
 
         super().__init__(buf)
         self.c_envs = CySnake(self.observations, self.actions,
-            self.rewards, self.terminals, widths, heights,
+            self.rewards, self.terminals, width, height,
             num_snakes, num_food, vision, max_snake_length,
             leave_corpse_on_death, reward_food, reward_corpse,
             reward_death)

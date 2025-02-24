@@ -18,24 +18,34 @@ class Pong(pufferlib.PufferEnv):
             ball_width=32, ball_height=32, paddle_speed=8,
             ball_initial_speed_x=10, ball_initial_speed_y=1,
             ball_speed_y_increment=3, ball_max_speed_y=13,
-            max_score=21, frameskip=1, report_interval=1, buf=None):
+            max_score=21, frameskip=1, continuous=False, report_interval=1, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(8,), dtype=np.float32,
         )
-        self.single_action_space = gymnasium.spaces.Discrete(3)
+        if continuous:
+            self.single_action_space = gymnasium.spaces.Box(
+                low=-1, high=1,  dtype=np.float32,
+            )
+        else:
+            self.single_action_space = gymnasium.spaces.Discrete(3)
+        
         self.render_mode = render_mode
         self.num_agents = num_envs
-
+        self.continuous = continuous
         self.report_interval = report_interval
         self.human_action = None
         self.tick = 0
 
         super().__init__(buf)
+        if continuous:
+            self.actions = self.actions.flatten()
+        else:
+            self.actions = self.actions.astype(np.float32)
         self.c_envs = CyPong(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, width, height,
             paddle_width, paddle_height, ball_width, ball_height,
             paddle_speed, ball_initial_speed_x, ball_initial_speed_y,
-            ball_max_speed_y, ball_speed_y_increment, max_score, frameskip)
+            ball_max_speed_y, ball_speed_y_increment, max_score, frameskip, continuous)
  
     def reset(self, seed=None):
         self.tick = 0
@@ -43,9 +53,12 @@ class Pong(pufferlib.PufferEnv):
         return self.observations, []
 
     def step(self, actions):
-        self.actions[:] = actions
+        if  self.continuous:
+            self.actions[:] = np.clip(actions.flatten(), -1.0, 1.0)
+        else: 
+            self.actions[:] = actions
+        
         self.c_envs.step()
-
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()
