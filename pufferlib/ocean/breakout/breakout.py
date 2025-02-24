@@ -39,7 +39,7 @@ class Breakout(pufferlib.PufferEnv):
         self.c_envs = CyBreakout(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, frameskip, width, height,
             paddle_width, paddle_height, ball_width, ball_height,
-            brick_width, brick_height, brick_rows, brick_cols)
+            brick_width, brick_height, brick_rows, brick_cols, continuous)
 
     def reset(self, seed=None):
         self.c_envs.reset()
@@ -48,7 +48,7 @@ class Breakout(pufferlib.PufferEnv):
 
     def step(self, actions):
         if self.continuous:
-            self.actions[:] = actions
+            self.actions[:] = np.clip(actions.flatten(), -1.0, 1.0)
         else:
             self.actions[:] = actions
             
