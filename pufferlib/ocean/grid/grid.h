@@ -522,8 +522,9 @@ void render_global(Renderer* renderer, Grid* env, float frac, float overlay) {
     int r = agent->y;
     int c = agent->x;
     int adr = grid_offset(env, r, c);
-    renderer->overlay[adr] = overlay;
+    //renderer->overlay[adr] = overlay;
     //renderer->overlay[adr] -= 0.1;
+    renderer->overlay[adr] = -1 + 1.0/(float)env->counts[adr];
 
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});

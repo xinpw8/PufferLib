@@ -111,15 +111,22 @@ def evaluate(data):
         with profile.eval_forward, torch.no_grad():
             # TODO: In place-update should be faster. Leaking 7% speed max
             # Also should be using a cuda tensor to index
-            e3b = e3b_inv[env_id] if data.use_e3b else None
             if lstm_h is not None:
                 h = lstm_h[:, env_id]
                 c = lstm_c[:, env_id]
-                actions, logprob, _, value, (h, c), next_e3b, intrinsic_reward = policy(o_device, (h, c), e3b=e3b)
+                if data.use_e3b:
+                    e3b = e3b_inv[env_id]
+                    actions, logprob, _, value, (h, c), next_e3b, intrinsic_reward = policy(o_device, (h, c), e3b=e3b)
+                else:
+                    actions, logprob, _, value, (h, c) = policy(o_device, (h, c))
                 lstm_h[:, env_id] = h
                 lstm_c[:, env_id] = c
             else:
-                actions, logprob, _, value, next_e3b, intrinsic_reward = policy(o_device, e3b=e3b)
+                if data.use_e3b:
+                    e3b = e3b_inv[env_id]
+                    actions, logprob, _, value, next_e3b, intrinsic_reward = policy(o_device, e3b=e3b)
+                else:
+                    actions, logprob, _, value = policy(o_device)
 
             if data.use_e3b:
                 e3b_inv[env_id] = next_e3b
@@ -213,7 +220,9 @@ def train(data):
 
             with profile.train_forward:
                 if experience.lstm_h is not None:
-                    _, newlogprob, entropy, newvalue, lstm_state, _, _ = data.policy(
+                    #_, newlogprob, entropy, newvalue, lstm_state, _, _ = data.policy(
+                    #    obs, state=lstm_state, action=atn)
+                    _, newlogprob, entropy, newvalue, lstm_state = data.policy(
                         obs, state=lstm_state, action=atn)
                     lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
                 else:
@@ -650,7 +659,8 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     else:
         agent = torch.load(model_path, map_location=device)
 
-    e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
+    #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
+    e3b_inv = None
 
     ob, info = env.reset()
     driver = env.driver_env
@@ -665,7 +675,8 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     intrinsic_std = None
     while tick <= 200000:
         if tick % 1 == 0:
-            render = driver.render(overlay=float(intrinsic[0]))
+            #render = driver.render(overlay=float(intrinsic[0]))
+            render = driver.render()
             if driver.render_mode == 'ansi':
                 print('\033[0;0H' + render + '\n')
                 time.sleep(0.05)
@@ -682,12 +693,14 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
             if hasattr(agent, 'lstm'):
-                action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
+                #action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
+                action, _, value, _, state = agent(ob, state, e3b=e3b_inv)
             else:
                 action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
 
             action = action.cpu().numpy().reshape(env.action_space.shape)
 
+        '''
         if intrinsic_mean is None:
             intrinsic_mean = intrinsic.mean()
             intrinsic_std = intrinsic.std()
@@ -697,6 +710,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
         intrinsic = (intrinsic - intrinsic_mean) / intrinsic_std
         intrinsic = intrinsic.clip(-1, 1)
+        '''
 
         ob, reward = env.step(action)[:2]
         reward = reward.mean()
