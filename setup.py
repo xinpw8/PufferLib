@@ -277,7 +277,7 @@ if system == 'Darwin':
     # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
     # So @loader_path/../../raylib/lib is common.
     extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION','-DPLATFORM_DESKTOP', '-O2']
-    extra_link_args=['-fwrapv']
+    extra_link_args=['-fwrapv', '-framework', 'Cocoa', '-framework', 'OpenGL', '-framework', 'IOKit']
 
 elif system == 'Linux':
     extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than']
@@ -293,8 +293,7 @@ extensions = [Extension(
     include_dirs=[numpy.get_include(), 'raylib/include'],
     extra_compile_args=extra_compile_args,#, '-g'],
     extra_link_args=extra_link_args,
-    extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a']
-
+    extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
 ) for path in extension_paths]
 
 # Prevent Conda from injecting garbage compile flags
