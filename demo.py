@@ -25,14 +25,7 @@ import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
 import clean_pufferl
-
-def downsample_linear(arr, m):
-    n = len(arr)
-    x_old = np.linspace(0, 1, n)  # Original indices normalized
-    x_new = np.linspace(0, 1, m)  # New indices normalized
-    return np.interp(x_new, x_old, arr)
-
-  
+ 
 def init_wandb(args, name, id=None, resume=True, tag=None):
     import wandb
     wandb.init(
@@ -84,6 +77,13 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
             max_suggestion_cost=args['max_suggestion_cost'],
             min_score = args['sweep']['metric']['min'],
             max_score = args['sweep']['metric']['max'],
+        )
+    elif method == 'carbs':
+        sweep = pufferlib.sweep.Carbs(
+            args['sweep'],
+            resample_frequency=5,
+            num_random_samples=10, # Should be number of params
+            max_suggestion_cost=args['max_suggestion_cost'],
         )
     else:
         raise ValueError(f'Invalid sweep method {method} (random/pareto_genetic/protein)')
@@ -187,9 +187,15 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     costs.append(cost)
     timesteps.append(data.global_step)
 
-    scores = downsample_linear(scores, 10)
-    costs = downsample_linear(costs, 10)
-    timesteps = downsample_linear(timesteps, 10)
+    def downsample_linear(arr, m):
+        n = len(arr)
+        x_old = np.linspace(0, 1, n)  # Original indices normalized
+        x_new = np.linspace(0, 1, m)  # New indices normalized
+        return np.interp(x_new, x_old, arr)
+     
+        scores = downsample_linear(scores, 10)
+        costs = downsample_linear(costs, 10)
+        timesteps = downsample_linear(timesteps, 10)
 
     if args['neptune']:
         neptune['score'].append(score)
