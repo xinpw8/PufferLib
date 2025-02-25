@@ -208,7 +208,8 @@ def train(data):
         adv_scale = mmax - values_std_np
         if mmax > mmin:
             adv_scale = adv_scale / (mmax - mmin)
-            #adv_scale = np.clip(adv_scale, 0.05, 1) #TODO: Is this a good way to eliminate noise?
+            adv_scale = np.clip(adv_scale, 0.05, 1) #TODO: Is this a good way to eliminate noise?
+            #adv_scale[:, 32:] = 0
             adv_scale = adv_scale / adv_scale.sum(axis=-1, keepdims=True)
 
         advantages = (mask_block * adv_scale * (reward_block - values_mean_np)).sum(axis=-1)
@@ -272,11 +273,12 @@ def train(data):
                 # Value loss
                 newvalue_mean = newvalue_mean.view(-1, config.horizon)
                 newvalue_logstd = newvalue_logstd.view(-1, config.horizon)
-                newvalue_logvar = torch.exp(newvalue_logstd.clamp(-10, 10))
+                newvalue_var = torch.exp(newvalue_logstd.clamp(-10, 10))**2
                 criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                v_loss = criterion(newvalue_mean, rew_block, newvalue_logvar)
+                v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
                 #TODO: Count mask and sum
-                v_loss = (v_loss * mask_block).mean()
+                #v_loss = (v_loss * mask_block)[:, :32].mean(0).sum(0) / 32
+                v_loss = (v_loss * mask_block).mean(0).sum(0) / 32
                 if config.clip_vloss:
                     pass
                     #v_clipped = val_mean + torch.clamp(
@@ -357,7 +359,7 @@ def train(data):
             data.stats = defaultdict(list)
 
         #print('MEAN', experience.b_values_mean.mean(0).mean(0))
-        #print('STD', (torch.exp(experience.b_values_logstd)**0.5).mean(0).mean(0))
+        #print('STD', torch.exp(experience.b_values_logstd).mean(0).mean(0))
 
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
