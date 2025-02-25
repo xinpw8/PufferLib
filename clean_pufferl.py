@@ -112,7 +112,7 @@ def evaluate(data):
             if lstm_h is not None:
                 h = lstm_h[:, env_id]
                 c = lstm_c[:, env_id]
-                hidden, _ = policy.encode_observations(o_device, (h, c))
+                hidden, (h, c) = policy.encode_observations(o_device, (h, c))
                 lstm_h[:, env_id] = h
                 lstm_c[:, env_id] = c
             else:
@@ -207,12 +207,20 @@ def train(data):
         rewards_np = experience.rewards_np[idxs]
 
         if config.use_p3o:
+            reward_block = experience.reward_block_np
+            mask_block = experience.mask_block_np
+
+            # Note: This function gets messed up by computing across
+            # episode bounds. Because we store experience in a flat buffer,
+            # bounds can be crossed even after handling dones. This prevent
+            # our method from scaling to longer horizons. TODO: Redo the way
+            # we store experience to avoid this issue
+            rewards_and_masks(reward_block, mask_block,
+                dones_np, rewards_np, config.p3o_horizon)
+
             values_mean_np = experience.values_mean_np[idxs]
             values_logstd_np = experience.values_logstd_np[idxs]
             values_std_np = np.exp(values_logstd_np.clip(-10, 10))
-
-            reward_block, mask_block = rewards_and_masks(dones_np, rewards_np, config.p3o_horizon)
-
             mmax = values_std_np.max()
             mmin = values_std_np.min()
             adv_scale = mmax - values_std_np
@@ -560,6 +568,8 @@ class Experience:
             self.values_logstd=torch.zeros(batch_size, p3o_horizon, pin_memory=pin)
             self.values_mean_np = np.asarray(self.values_mean)
             self.values_logstd_np = np.asarray(self.values_logstd)
+            self.reward_block_np = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
+            self.mask_block_np = np.ones((batch_size, p3o_horizon), dtype=np.float32)
         else:
             self.values = torch.zeros(batch_size, pin_memory=pin)
             self.values_np = np.asarray(self.values)
@@ -644,7 +654,6 @@ class Experience:
         self.b_logprobs = self.logprobs.to(self.device, non_blocking=True)[b_idxs]
         self.b_dones = self.dones.to(self.device, non_blocking=True)[b_idxs]
         self.b_obs = self.obs[self.b_idxs_obs]
-
 
         if self.use_p3o:
             self.reward_block_np = reward_block
