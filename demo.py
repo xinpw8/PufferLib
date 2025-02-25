@@ -15,7 +15,6 @@ import pufferlib
 import pufferlib.sweep
 import pufferlib.utils
 import pufferlib.vector
-import pufferlib.cleanrl
 
 from rich_argparse import RichHelpFormatter
 from rich.console import Console
@@ -62,12 +61,12 @@ def init_neptune(args, name, id=None, resume=True, tag=None):
     return run
 
 def make_policy(env, policy_cls, rnn_cls, args):
-    policy = policy_cls(env, **args['policy'])
+    policy = policy_cls(env, **args['policy'],
+        use_p3o=args['train']['use_p3o'],
+        p3o_horizon=args['train']['p3o_horizon']
+    )
     if rnn_cls is not None:
         policy = rnn_cls(env, policy, **args['rnn'])
-        policy = pufferlib.cleanrl.RecurrentPolicy(policy)
-    else:
-        policy = pufferlib.cleanrl.Policy(policy)
 
     return policy.to(args['train']['device'])
 
