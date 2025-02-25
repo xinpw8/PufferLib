@@ -12,7 +12,6 @@ from collections import defaultdict, deque
 import rich
 from rich.console import Console
 from rich.table import Table
-
 import torch
 import torch.distributed as dist
 
@@ -277,8 +276,12 @@ def train(data):
                 criterion = torch.nn.GaussianNLLLoss(reduction='none')
                 v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
                 #TODO: Count mask and sum
-                #v_loss = (v_loss * mask_block)[:, :32].mean(0).sum(0) / 32
-                v_loss = (v_loss * mask_block).mean(0).sum(0) / 32
+                # There is going to have to be some sort of norm here.
+                # Right now, learning works at different horizons, but you need
+                # to retune hyperparameters. Ideally, horizon should be a stable
+                # param that zero-shots the same hypers
+                #v_loss = (v_loss * mask_block).mean(0).sum(0) / 32
+                v_loss = (v_loss[mask_block.bool()]).mean()
                 if config.clip_vloss:
                     pass
                     #v_clipped = val_mean + torch.clamp(
