@@ -15,7 +15,7 @@ cdef extern from "breakout.h":
 
     ctypedef struct Breakout:
         float* observations
-        int* actions;
+        float* actions;
         float* rewards
         unsigned char* dones
         LogBuffer* log_buffer;
@@ -47,7 +47,7 @@ cdef extern from "breakout.h":
         int brick_height
         int num_balls
         int frameskip
-
+        int continuous
     ctypedef struct Client
 
     void init(Breakout* env)
@@ -66,11 +66,11 @@ cdef class CyBreakout:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, float[:, :] observations, float[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,  int frameskip,
             int width, int height, float paddle_width, float paddle_height,
             int ball_width, int ball_height, int brick_width, int brick_height,
-            int brick_rows, int brick_cols):
+            int brick_rows, int brick_cols, int continuous):
 
         self.client = NULL
         self.num_envs = num_envs
@@ -96,6 +96,7 @@ cdef class CyBreakout:
                 brick_rows=brick_rows,
                 brick_cols=brick_cols,
                 frameskip=frameskip,
+                continuous=continuous,  
             )
             init(&self.envs[i])
             self.client = NULL
