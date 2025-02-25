@@ -471,7 +471,6 @@ void step_frame(Breakout* env, float action) {
     env->paddle_x += act * 620 * TICK_RATE;
     if (env->paddle_x <= 0){
         env->paddle_x = fmaxf(0, env->paddle_x);
-
     } else {
         env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
     }
