@@ -463,27 +463,41 @@ def _seed_and_reset(env, seed):
     return obs, info
 
 class GymnaxPufferEnv(pufferlib.environment.PufferEnv):
-    def __init__(self, env, env_params, buf=None):
+    def __init__(self, env, env_params, num_envs=1, buf=None):
+        from gymnax.environments.spaces import gymnax_space_to_gym_space
+
+        gymnax_obs_space = env.observation_space(env_params)
+        self.single_observation_space = gymnax_space_to_gym_space(gymnax_obs_space)
+
+        gymnax_act_space = env.action_space(env_params)
+        self.single_action_space = gymnax_space_to_gym_space(gymnax_act_space)
+
+        self.num_agents = num_envs
+
         super().__init__(buf)
-        self.env = env
         self.env_params = env_params
+        self.env = env
 
         import jax
+        self.reset_fn = jax.vmap(env.reset, in_axes=(0, None))
+        self.step_fn = jax.vmap(env.step, in_axes=(0, 0, 0, None))
         self.rng = jax.random.PRNGKey(0)
 
-    def reset(self, seed=None):
+    def reset(self, rng, params=None):
         import jax
-        rng, self.rng = jax.random.split(self.rng)
-        obs, self.state = self.env.reset(self.rng, self.env_params)
-        return np.asarray(obs), []
+        rng, _rng = jax.random.split(self.rng)
+        rngs = jax.random.split(_rng, self.num_agents)
+        obs, self.state = self.reset_fn(rngs, params)
+        return obs, []
 
-    def step(self, actions):
+    def step(self, rng, state, action, params=None):
         import jax
-        rng, self.rng = jax.random.split(self.rng)
-        obs, self.state, reward, done, info = self.env.step(rng, self.state, actions, self.env_params)
+        rng, _rng = jax.random.split(rng)
+        rngs = jax.random.split(_rng, self.num_agents)
+        obs, self.state, reward, done, info = self.step_fn(rngs, self.state, action, params)
+
         obs = np.asaray(obs)
         reward = np.asarray(reward)
         done = np.asarray(done)
         terminals = np.zeros_like(done)
-        breakpoint()
         return obs, reward, terminals, done, info
