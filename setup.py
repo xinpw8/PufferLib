@@ -349,7 +349,7 @@ setup(
     },
     ext_modules = cythonize([
         "pufferlib/extensions.pyx",
-        "c_gae.pyx",
+        "c_advantage.pyx",
         "pufferlib/puffernet.pyx",
         *extensions,
     ], 
