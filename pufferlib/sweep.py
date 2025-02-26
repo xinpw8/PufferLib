@@ -27,6 +27,12 @@ class Space:
         self.is_integer = is_integer
 
 class Linear(Space):
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            scale = 0.25
+
+        super().__init__(min, max, scale, mean, is_integer)
+
     def normalize(self, value):
         #assert isinstance(value, (int, float))
         zero_one = (value - self.min)/(self.max - self.min)
@@ -40,6 +46,12 @@ class Linear(Space):
         return value
 
 class Pow2(Space):
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            scale = 2 / (np.log2(max) - np.log2(min))
+
+        super().__init__(min, max, scale, mean, is_integer)
+
     def normalize(self, value):
         #assert isinstance(value, (int, float))
         #assert value != 0.0
@@ -78,6 +90,12 @@ class Log(Space):
 
 class Logit(Space):
     base: int = 10
+
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            scale = 0.25
+
+        super().__init__(min, max, scale, mean, is_integer)
 
     def normalize(self, value):
         #assert isinstance(value, (int, float))
