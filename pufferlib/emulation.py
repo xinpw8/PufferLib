@@ -11,6 +11,7 @@ import pufferlib.spaces
 from pufferlib import utils, exceptions
 from pufferlib.environment import set_buffers
 from pufferlib.spaces import Discrete, Tuple, Dict
+import pufferlib.environment
 
 
 def emulate(struct, sample):
@@ -460,3 +461,29 @@ def _seed_and_reset(env, seed):
             warnings.warn('WARNING: Environment does not support seeding.', DeprecationWarning)
 
     return obs, info
+
+class GymnaxPufferEnv(pufferlib.environment.PufferEnv):
+    def __init__(self, env, env_params, buf=None):
+        super().__init__(buf)
+        self.env = env
+        self.env_params = env_params
+
+        import jax
+        self.rng = jax.random.PRNGKey(0)
+
+    def reset(self, seed=None):
+        import jax
+        rng, self.rng = jax.random.split(self.rng)
+        obs, self.state = self.env.reset(self.rng, self.env_params)
+        return np.asarray(obs), []
+
+    def step(self, actions):
+        import jax
+        rng, self.rng = jax.random.split(self.rng)
+        obs, self.state, reward, done, info = self.env.step(rng, self.state, actions, self.env_params)
+        obs = np.asaray(obs)
+        reward = np.asarray(reward)
+        done = np.asarray(done)
+        terminals = np.zeros_like(done)
+        breakpoint()
+        return obs, reward, terminals, done, info

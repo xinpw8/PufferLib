@@ -119,6 +119,11 @@ environments = {
         f'gymnasium=={GYMNASIUM_VERSION}',
         'crafter==1.8.3',
     ],
+    'craftax': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'craftax',
+    ],
     'dm_control': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
