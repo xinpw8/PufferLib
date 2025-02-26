@@ -29,7 +29,7 @@ class Space:
 class Linear(Space):
     def __init__(self, min, max, scale, mean, is_integer=False):
         if scale == 'auto':
-            scale = 0.25
+            scale = 0.5
 
         super().__init__(min, max, scale, mean, is_integer)
 
@@ -48,7 +48,8 @@ class Linear(Space):
 class Pow2(Space):
     def __init__(self, min, max, scale, mean, is_integer=False):
         if scale == 'auto':
-            scale = 2 / (np.log2(max) - np.log2(min))
+            scale = 0.5
+            #scale = 2 / (np.log2(max) - np.log2(min))
 
         super().__init__(min, max, scale, mean, is_integer)
 
@@ -68,9 +69,11 @@ class Log(Space):
     base: int = 10
 
     def __init__(self, min, max, scale, mean, is_integer=False):
-        if scale == 'auto':
+        if scale == 'time':
             # TODO: Set scaling param intuitively based on number of jumps from min to max
             scale = 1 / (np.log2(max) - np.log2(min))
+        elif scale == 'auto':
+            scale = 0.5
 
         super().__init__(min, max, scale, mean, is_integer)
 
@@ -93,7 +96,7 @@ class Logit(Space):
 
     def __init__(self, min, max, scale, mean, is_integer=False):
         if scale == 'auto':
-            scale = 0.25
+            scale = 0.5
 
         super().__init__(min, max, scale, mean, is_integer)
 
@@ -173,7 +176,6 @@ class Hyperparameters:
             print('Max random sample:')
             for name, space in self.flat_spaces.items():
                 print(f'\t{name}: {space.unnormalize(min(space.norm_mean + space.scale, space.norm_max))}')
-
 
     def sample(self, n, mu=None, scale=1):
         if mu is None:
