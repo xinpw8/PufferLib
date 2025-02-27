@@ -193,9 +193,9 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         x_new = np.linspace(0, 1, m)  # New indices normalized
         return np.interp(x_new, x_old, arr)
      
-        scores = downsample_linear(scores, 10)
-        costs = downsample_linear(costs, 10)
-        timesteps = downsample_linear(timesteps, 10)
+    scores = downsample_linear(scores, 10)
+    costs = downsample_linear(costs, 10)
+    timesteps = downsample_linear(timesteps, 10)
 
     if args['neptune']:
         neptune['score'].append(score)
