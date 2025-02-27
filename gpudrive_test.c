@@ -5,6 +5,7 @@ void demo(){
     long test_time = 10;
     test_struct env = {
         .num_agents = 128,
+        .active_agents =10,
     };
     init(&env);
     long start = time(NULL);
@@ -15,7 +16,7 @@ void demo(){
         i++;
     }
     long end = time(NULL);
-    printf("SPS: %ld\n", i / (end - start));
+    printf("SPS: %ld\n", (i * env.active_agents) / (end - start));
     free_initialized(&env);
 
 }
