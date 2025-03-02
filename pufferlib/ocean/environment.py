@@ -7,6 +7,7 @@ from .squared.pysquared import PySquared
 from .pong.pong import Pong
 from .breakout.breakout import Breakout
 from .enduro.enduro import Enduro
+from .blastar.blastar import Blastar
 from .connect4.connect4 import Connect4
 from .tripletriad.tripletriad import TripleTriad
 from .tactical.tactical import Tactical
@@ -127,6 +128,7 @@ MAKE_FNS = {
     'breakout': Breakout,
     'pong': Pong,
     'enduro': Enduro,
+    'blastar': Blastar,
     'moba': Moba,
     'nmmo3': NMMO3,
     'snake': Snake,
