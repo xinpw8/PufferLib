@@ -2,7 +2,7 @@ import torch
 from torch.nn import functional as F
 import numpy as np
 
-MODEL_FILE_NAME = '/home/daa/pufferlib_testbench/PufferLib/experiments/puffer_blastar-3ea9f702/model_006104.pt'
+MODEL_FILE_NAME = '/home/daa/pufferlib_testbench/PufferLib/experiments/puffer_blastar-97091e1a/model_000200.pt'
 WEIGHTS_OUTPUT_FILE_NAME = 'blastar_weights.bin'
 OUTPUT_FILE_PATH = '/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar'
 
@@ -123,6 +123,7 @@ def test_model_forward(model):
 if __name__ == '__main__':
     #test_lstm()
     model = torch.load(MODEL_FILE_NAME, map_location='cpu')
+    print(f"loaded weights from {MODEL_FILE_NAME}")
     #test_model_forward(model)
     #test_model(model)
 

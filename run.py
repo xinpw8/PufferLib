@@ -1,8 +1,8 @@
 '''
     python eval.py eval env_name
     to eval the latest model file for the specified environment.
-    e.g. python eval.py eval blastar
-    or python eval.py eval blastar -w
+    e.g. python run.py eval blastar
+    or python run.py eval blastar -w
 
     eval is currently the only option for mode
     model file can be anywhere in PufferLib
@@ -21,13 +21,14 @@ def find_env_name(config_dir, search_arg):
     """Search recursively in the config directory for a file containing the search argument."""
     for root, _, files in os.walk(config_dir):
         for file in files:
+            print(f"Searching {config_dir} for {search_arg} in {file}")
             if search_arg in file:
                 file_path = os.path.join(root, file)
                 with open(file_path, 'r') as f:
                     for line in f:
                         if line.strip().startswith("env_name"):
                             _, env_name = line.split("=", 1)
-                            return env_name.strip()  # Strip whitespace
+                            return env_name.strip()
     return None
 
 def find_latest_model_path(base_dir, term):
