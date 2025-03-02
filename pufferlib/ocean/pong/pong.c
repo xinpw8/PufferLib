@@ -42,7 +42,9 @@ int main() {
                 if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 2.0;
             }
         } else {
-            forward_linearlstm(net, env.observations, env.actions);
+            int* actions = (int*)env.actions;
+            forward_linearlstm(net, env.observations, actions);
+            env.actions[0] = actions[0];
         }
 
         c_step(&env);
