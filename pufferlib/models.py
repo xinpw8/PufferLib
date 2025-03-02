@@ -70,8 +70,10 @@ class Default(nn.Module):
 
     def forward(self, observations):
         hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
-        return actions, value
+        return self.decode_actions(hidden, lookup), hidden
+
+    def forward_train(self, observations):
+        return self.forward(observations)[0]
 
     def encode_observations(self, observations):
         '''Encodes a batch of observations into hidden states. Assumes
@@ -106,7 +108,7 @@ class Default(nn.Module):
             return actions, value
 
 class LSTMWrapper(nn.Module):
-    def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
+    def __init__(self, env, policy, input_size=128, hidden_size=128):
         '''Wraps your policy with an LSTM without letting you shoot yourself in the
         foot with bad transpose and shape operations. This saves much pain.
         Requires that your policy define encode_observations and decode_actions.
@@ -117,7 +119,13 @@ class LSTMWrapper(nn.Module):
         self.policy = policy
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.recurrent = nn.LSTM(input_size, hidden_size, num_layers)
+        self.recurrent = nn.LSTM(input_size, hidden_size)
+        self.recurrent_cell = torch.nn.LSTMCell(input_size, hidden_size)
+        self.recurrent_cell.weight_ih = self.recurrent.weight_ih_l0
+        self.recurrent_cell.weight_hh = self.recurrent.weight_hh_l0
+        self.recurrent_cell.bias_ih = self.recurrent.bias_ih_l0
+        self.recurrent_cell.bias_hh = self.recurrent.bias_hh_l0
+
         self.is_continuous = self.policy.is_continuous
 
         for name, param in self.recurrent.named_parameters():
@@ -126,7 +134,15 @@ class LSTMWrapper(nn.Module):
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
 
-    def encode_observations(self, x, state):
+    def forward(self, x, state):
+        '''Forward function for inference. 3x faster than using LSTM directly'''
+        hidden, _ = self.policy.encode_observations(x)
+        h, c = state
+        hidden, c = self.recurrent_cell(hidden, (h, c))
+        return self.policy.decode_actions(hidden, None), hidden, (hidden, c)
+
+    def forward_train(self, x, state):
+        '''Forward function for training. Uses LSTM for fast time-batching'''
         x_shape, space_shape = x.shape, self.obs_shape
         x_n, space_n = len(x_shape), len(space_shape)
         if x_shape[-space_n:] != space_shape:
@@ -145,6 +161,7 @@ class LSTMWrapper(nn.Module):
         x = x.reshape(B*TT, *space_shape)
         hidden, lookup = self.policy.encode_observations(x)
         assert hidden.shape == (B*TT, self.input_size)
+
         hidden = hidden.reshape(B, TT, self.input_size)
 
         hidden = hidden.transpose(0, 1)
@@ -152,10 +169,8 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.transpose(0, 1)
 
         hidden = hidden.reshape(B*TT, self.hidden_size)
-        return hidden, state
+        return self.policy.decode_actions(hidden, lookup), state
 
-    def decode_actions(self, hidden, lookup, concat=None):
-        return self.policy.decode_actions(hidden, lookup)
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

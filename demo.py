@@ -163,9 +163,39 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     scores = []
     costs = []
     target_key = f'environment/{target_metric}'
+
+    '''
+    from torch.profiler import profile, record_function, ProfilerActivity
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA, ProfilerActivity.XPU]
+    from torch.profiler import schedule
+    prof_schedule = schedule(
+        skip_first=10,
+        wait=5,
+        warmup=1,
+        active=3,
+        repeat=2
+    )
+
+    sort_by_keyword = "self_" + args['train']['device'] + "_time_total"
+
+    def trace_handler(p):
+        output = p.key_averages().table(sort_by=sort_by_keyword, row_limit=10)
+        print(output)
+        p.export_chrome_trace("trace/trace_" + str(p.step_num) + ".json")
+
+    with profile(
+        activities=activities,
+        schedule=torch.profiler.schedule(
+            wait=1,
+            warmup=1,
+            active=2),
+        on_trace_ready=trace_handler
+    ) as p:
+    '''
     while data.global_step < train_config.total_timesteps:
         clean_pufferl.evaluate(data)
         logs = clean_pufferl.train(data)
+        #p.step()
         if logs is not None and target_key in logs:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
@@ -367,8 +397,11 @@ if __name__ == '__main__':
         pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
     elif args['mode'] == 'profile':
         import cProfile
-        cProfile.run('train(args, make_env, policy_cls, rnn_cls, wandb=None)', 'stats.profile')
+        target_metric = args['sweep']['metric']['name']
+        cProfile.run('train(args, make_env, policy_cls, rnn_cls, target_metric)', 'stats.profile')
         import pstats
         from pstats import SortKey
         p = pstats.Stats('stats.profile')
         p.sort_stats(SortKey.TIME).print_stats(10)
+        breakpoint()
+        pass
