@@ -475,7 +475,7 @@ void allocate(Enduro* env);
 void init(Enduro* env, int seed, int env_index);
 void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
-void reset(Enduro* env);
+void c_reset(Enduro* env);
 unsigned char check_collision(Enduro* env, Car* car);
 int get_player_lane(Enduro* env);
 float get_car_scale(float y);
@@ -865,7 +865,7 @@ void reset_round(Enduro* env) {
 }
 
 // Reset all init vars; only called once after init
-void reset(Enduro* env) {
+void c_reset(Enduro* env) {
     // No random after first reset
     int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
 

@@ -21,6 +21,7 @@ typedef struct Log {
     float episode_return;
     float episode_length;
     float trash_collected;
+    float score;
 } Log;
 
 typedef struct LogBuffer {
@@ -52,10 +53,12 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
         log.trash_collected += logs->logs[i].trash_collected;
+        log.score += logs->logs[i].score;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.trash_collected /= logs->idx;
+    log.score /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -167,8 +170,6 @@ void compute_observations(CTrashPickupEnv* env) {
 // Local crop version
 void compute_observations(CTrashPickupEnv* env) {
     int sight_range = env->agent_sight_range;
-    int num_cell_types = 4;  // EMPTY, TRASH, BIN, AGENT
-
     char* obs = env->observations;
 
     int obs_dim = 2*env->agent_sight_range + 1;
@@ -354,7 +355,7 @@ bool is_episode_over(CTrashPickupEnv* env) {
     return true;
 }
 
-void reset(CTrashPickupEnv* env) {
+void c_reset(CTrashPickupEnv* env) {
     env->current_step = 0;
     env->total_episode_reward = 0;
 
@@ -383,7 +384,7 @@ void initialize_env(CTrashPickupEnv* env) {
     env->entities = (Entity*)calloc(env->num_agents + env->num_bins + env->num_trash, sizeof(Entity));
     env->total_num_obs = env->num_agents * ((((env->agent_sight_range * 2 + 1) * (env->agent_sight_range * 2 + 1)) * 5));
 
-    reset(env);
+    c_reset(env);
 }
 
 void allocate(CTrashPickupEnv* env) {
@@ -397,7 +398,7 @@ void allocate(CTrashPickupEnv* env) {
     initialize_env(env);
 }
 
-void step(CTrashPickupEnv* env) {
+void c_step(CTrashPickupEnv* env) {
     // Reset reward for each agent
     memset(env->rewards, 0, sizeof(float) * env->num_agents);
     memset(env->dones, 0, sizeof(unsigned char) * env->num_agents);
@@ -424,10 +425,10 @@ void step(CTrashPickupEnv* env) {
         }
 
         log.trash_collected = (float) (env->num_trash - total_trash_not_collected);
-
+        log.score = log.trash_collected - 0.1*log.episode_length;
         add_log(env->log_buffer, &log);
 
-        reset(env);
+        c_reset(env);
     }
 
     compute_observations(env);
@@ -479,7 +480,11 @@ Client* make_client(CTrashPickupEnv* env) {
 }
 
 // Render the TrashPickup environment
-void render(Client* client, CTrashPickupEnv* env) {
+void c_render(Client* client, CTrashPickupEnv* env) {
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
+    }
+
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
 

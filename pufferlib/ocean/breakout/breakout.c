@@ -3,11 +3,11 @@
 #include "puffernet.h"
 
 void demo() {
-    Weights* weights = load_weights("resources/breakout_weights.bin", 148101);
-    LinearLSTM* net = make_linearlstm(weights, 1, 119, 4);
+    Weights* weights = load_weights("resources/breakout_weights.bin", 147972);
+    LinearLSTM* net = make_linearlstm(weights, 1, 119, 3);
 
     Breakout env = {
-        .frameskip = 1,
+        .frameskip = 4,
         .width = 576,
         .height = 330,
         .paddle_width = 62,
@@ -18,25 +18,33 @@ void demo() {
         .brick_height = 12,
         .brick_rows = 6,
         .brick_cols = 18,
+        .continuous = 0,
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
  
     Client* client = make_client(&env);
 
     while (!WindowShouldClose()) {
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = 0;
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 1;
-            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 2;
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 3;
+            if(env.continuous) {
+                float move = GetMouseWheelMove();
+                float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
+                env.actions[0] = clamped_wheel;
+            } else {
+                env.actions[0] = 0.0;
+                if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 1;
+                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 2;
+            }
         } else {
-            forward_linearlstm(net, env.observations, env.actions);
+            int* actions = (int*)env.actions;
+            forward_linearlstm(net, env.observations, actions);
+            env.actions[0] = actions[0];
         }
 
-        step(&env);
-        render(client, &env);
+        c_step(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);
@@ -60,13 +68,13 @@ void performance_test() {
         .brick_cols = 18,
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
 
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % 4;
-        step(&env);
+        c_step(&env);
         i++;
     }
     long end = time(NULL);
