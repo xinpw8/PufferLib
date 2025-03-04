@@ -126,9 +126,9 @@ def evaluate(data):
         with profile.eval_forward, torch.no_grad():
             if data.use_p3o:
                 if lstm_h is not None:
-                    (logits, value_mean, value_logstd), hidden, (h, c) = policy(o_device, (h, c))
+                    (logits, value_mean, value_std), hidden, (h, c) = policy(o_device, (h, c))
                 else:
-                    (logits, value_mean, value_logstd), hidden = policy(o_device)
+                    (logits, value_mean, value_std), hidden = policy(o_device)
             else:
                 if lstm_h is not None:
                     (logits, value), hidden, (h, c) = policy(o_device, (h, c))
@@ -177,7 +177,7 @@ def evaluate(data):
             o = o if config.cpu_offload else o_device
 
             if data.use_p3o:
-                actions = experience.store(o, value_mean, value_logstd.detach(), actions, logprob, r, d, cpu_env_id, mask)
+                actions = experience.store(o, value_mean, value_std.detach(), actions, logprob, r, d, cpu_env_id, mask)
             else:
                 actions = experience.store(o, value, None, actions, logprob, r, d, cpu_env_id, mask)
 
@@ -231,28 +231,17 @@ def train(data):
         if config.use_p3o:
             reward_block = experience.reward_block_np
             mask_block = experience.mask_block_np
-
+            values_mean_np = experience.values_mean_np[idxs]
+            values_std_np = experience.values_std_np[idxs]
+            advantages = experience.advantages_np
+ 
             # Note: This function gets messed up by computing across
             # episode bounds. Because we store experience in a flat buffer,
             # bounds can be crossed even after handling dones. This prevent
             # our method from scaling to longer horizons. TODO: Redo the way
             # we store experience to avoid this issue
-            rewards_and_masks(reward_block, mask_block,
-                dones_np, rewards_np, config.p3o_horizon)
-
-            # TODO: Port this all to C
-            values_mean_np = experience.values_mean_np[idxs]
-            values_logstd_np = experience.values_logstd_np[idxs]
-            values_std_np = np.exp(values_logstd_np.clip(-10, 10))
-            mmax = values_std_np.max()
-            mmin = values_std_np.min()
-            adv_scale = mmax - values_std_np
-            if mmax > mmin:
-                adv_scale = adv_scale / (mmax - mmin)
-                adv_scale = np.clip(adv_scale, 0.05, 1) #TODO: Is this a good way to eliminate noise?
-                adv_scale = adv_scale / adv_scale.sum(axis=-1, keepdims=True)
-
-            advantages = (mask_block * adv_scale * (reward_block - values_mean_np)).sum(axis=-1)
+            rewards_and_masks(reward_block, mask_block, values_mean_np, values_std_np,
+                    experience.buf, dones_np, rewards_np, advantages, experience.bounds, config.p3o_horizon)
             experience.flatten_batch(advantages, reward_block, mask_block)
         else:
             values_np = experience.values_np[idxs]
@@ -276,7 +265,7 @@ def train(data):
 
                 if config.use_p3o:
                     val_mean = experience.b_values_mean[mb]
-                    val_logstd = experience.b_values_logstd[mb]
+                    val_std = experience.b_values_std[mb]
                     rew_block = experience.b_reward_block[mb]
                     mask_block = experience.b_mask_block[mb]
                 else:
@@ -289,11 +278,11 @@ def train(data):
             with profile.train_forward:
                 if data.use_p3o:
                     if experience.lstm_h is not None:
-                        (logits, newvalue_mean, newvalue_logstd), lstm_state = data.policy.forward_train(obs, lstm_state)
+                        (logits, newvalue_mean, newvalue_std), lstm_state = data.policy.forward_train(obs, lstm_state)
                         lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
                     else:
                         flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-                        logits, newvalue_mean, newvalue_logstd = data.policy.forward_train(flat_obs, lstm_state)
+                        logits, newvalue_mean, newvalue_std = data.policy.forward_train(flat_obs, lstm_state)
                 else:
                     if experience.lstm_h is not None:
                         (logits, newvalue), lstm_state = data.policy.forward_train(obs, lstm_state)
@@ -333,8 +322,8 @@ def train(data):
                 # Value loss
                 if config.use_p3o:
                     newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
-                    newvalue_logstd = newvalue_logstd.view(-1, config.p3o_horizon)
-                    newvalue_var = torch.exp(newvalue_logstd.clamp(-10, 10))**2
+                    newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
+                    newvalue_var = newvalue_std**2
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
                     #TODO: Count mask and sum
@@ -606,11 +595,15 @@ class Experience:
         self.p3o_horizon = p3o_horizon
         if use_p3o:
             self.values_mean=torch.zeros(batch_size, p3o_horizon, pin_memory=pin)
-            self.values_logstd=torch.zeros(batch_size, p3o_horizon, pin_memory=pin)
+            self.values_std=torch.zeros(batch_size, p3o_horizon, pin_memory=pin)
             self.values_mean_np = np.asarray(self.values_mean)
-            self.values_logstd_np = np.asarray(self.values_logstd)
+            self.values_std_np = np.asarray(self.values_std)
             self.reward_block_np = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
             self.mask_block_np = np.ones((batch_size, p3o_horizon), dtype=np.float32)
+
+            self.buf = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
+            self.advantages_np = np.zeros((batch_size), dtype=np.float32)
+            self.bounds = np.zeros((batch_size), dtype=np.int32)
         else:
             self.values = torch.zeros(batch_size, pin_memory=pin)
             self.values_np = np.asarray(self.values)
@@ -652,7 +645,7 @@ class Experience:
     def full(self):
         return self.ptr >= self.batch_size
 
-    def store(self, obs, value_mean, value_logstd, action, logprob, reward, done, env_id, mask):
+    def store(self, obs, value_mean, value_std, action, logprob, reward, done, env_id, mask):
         # Mask learner and Ensure indices do not exceed batch size
         ptr = self.ptr
         indices = np.where(mask)[0]
@@ -671,7 +664,7 @@ class Experience:
         obs = obs.to(self.obs.device, non_blocking=True)
         value_mean = value_mean.to('cpu', non_blocking=True)
         if self.use_p3o:
-            value_logstd = value_logstd.to('cpu', non_blocking=True)
+            value_std = value_std.to('cpu', non_blocking=True)
 
         action = action.to('cpu', non_blocking=True)
         logprob = logprob.to('cpu', non_blocking=True)
@@ -686,7 +679,7 @@ class Experience:
 
         if self.use_p3o:
             self.values_mean_np[dst] = value_mean.numpy()[cpu_inds]
-            self.values_logstd_np[dst] = value_logstd.numpy()[cpu_inds]
+            self.values_std_np[dst] = value_std.numpy()[cpu_inds]
         else: 
             self.values_np[dst] = value_mean.numpy()[cpu_inds]
 
@@ -747,7 +740,7 @@ class Experience:
                 ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
 
             self.b_values_mean = self.values_mean.to(self.device, non_blocking=True)[b_flat]
-            self.b_values_logstd = self.values_logstd.to(self.device, non_blocking=True)[b_flat]
+            self.b_values_std = self.values_std.to(self.device, non_blocking=True)[b_flat]
         else:
             self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
             self.returns_np = advantages_np + self.values_np # Check sorting of values here

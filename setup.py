@@ -300,6 +300,7 @@ extensions = [Extension(
     extra_compile_args=extra_compile_args,#, '-g'],
     extra_link_args=extra_link_args,
     extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
+    define_macros=[('CYTHON_TRACE', '1')], # Line profiling
 ) for path in extension_paths]
 
 # Prevent Conda from injecting garbage compile flags

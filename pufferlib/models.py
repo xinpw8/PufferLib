@@ -101,8 +101,8 @@ class Default(nn.Module):
 
         if self.use_p3o:
             value_mean = self.value_mean(hidden)
-            value_logstd = self.value_logstd.expand_as(value_mean)
-            return actions, value_mean, value_logstd
+            value_std = torch.exp(torch.clamp(self.value_logstd, -10, 10)).expand_as(value_mean)
+            return actions, value_mean, value_std
         else:
             value = self.value(hidden)
             return actions, value
