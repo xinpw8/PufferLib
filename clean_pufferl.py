@@ -224,27 +224,38 @@ def train(data):
 
     with profile.train_copy:
         idxs = experience.sort_training_data()
-        dones_np = experience.dones_np[idxs]
-        rewards_np = experience.rewards_np[idxs]
+        dones = experience.dones[idxs]
+        rewards = experience.rewards[idxs]
 
     with profile.train_misc:
         if config.use_p3o:
             reward_block = experience.reward_block_np
             mask_block = experience.mask_block_np
-            values_mean_np = experience.values_mean_np[idxs]
-            values_std_np = experience.values_std_np[idxs]
+            values_mean = experience.values_mean[idxs]
+            values_std = experience.values_std[idxs]
             advantages = experience.advantages_np
- 
+
             # Note: This function gets messed up by computing across
             # episode bounds. Because we store experience in a flat buffer,
             # bounds can be crossed even after handling dones. This prevent
             # our method from scaling to longer horizons. TODO: Redo the way
             # we store experience to avoid this issue
-            rewards_and_masks(reward_block, mask_block, values_mean_np, values_std_np,
-                    experience.buf, dones_np, rewards_np, advantages, experience.bounds, config.p3o_horizon)
+            dones_np = dones.to('cpu', non_blocking=True).numpy()
+            rewards_np = rewards.to('cpu', non_blocking=True).numpy()
+            values_mean_np = values_mean.to('cpu', non_blocking=True).numpy()
+            values_std_np = values_std.to('cpu', non_blocking=True).numpy()
+            torch.cuda.synchronize()
+
+            with profile.custom:
+                rewards_and_masks(reward_block, mask_block, values_mean_np, values_std_np,
+                        experience.buf, dones_np, rewards_np, advantages, experience.bounds, config.p3o_horizon)
             experience.flatten_batch(advantages, reward_block, mask_block)
+            torch.cuda.synchronize()
         else:
-            values_np = experience.values_np[idxs]
+            values_np = experience.values[idxs].to('cpu', non_blocking=True).numpy()
+            dones_np = dones.to('cpu', non_blocking=True).numpy()
+            rewards_np = rewards.to('cpu', non_blocking=True).numpy()
+            torch.cuda.synchronize()
             advantages_np = compute_gae(dones_np, values_np,
             rewards_np, config.gamma, config.gae_lambda)
             experience.flatten_batch(advantages_np)
@@ -376,15 +387,15 @@ def train(data):
             data.optimizer.param_groups[0]["lr"] = lrnow
 
         if config.use_p3o:
-            y_pred = experience.values_mean_np
-            y_true = experience.reward_block_np
+            y_pred = experience.values_mean
+            y_true = experience.reward_block
         else:
-            y_pred = experience.values_np
-            y_true = experience.returns_np
+            y_pred = experience.values
+            y_true = experience.returns
 
-        var_y = np.var(y_true)
-        explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
-        losses.explained_variance = explained_var
+        var_y = y_true.var()
+        explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
+        #losses.explained_variance = explained_var.item()
         data.epoch += 1
 
         done_training = data.global_step >= config.total_timesteps
@@ -403,6 +414,8 @@ def train(data):
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
             data.msg = f'Checkpoint saved at update {data.epoch}'
+
+        torch.cuda.synchronize()
 
     return logs
 
@@ -578,11 +591,11 @@ class Experience:
         obs_device = device if not pin else 'cpu'
         self.obs=torch.zeros(batch_size, *obs_shape, dtype=obs_dtype,
             pin_memory=pin, device=device if not pin else 'cpu')
-        self.actions=torch.zeros(batch_size, *atn_shape, dtype=atn_dtype, pin_memory=pin)
-        self.logprobs=torch.zeros(batch_size, pin_memory=pin)
-        self.rewards=torch.zeros(batch_size, pin_memory=pin)
-        self.dones=torch.zeros(batch_size, pin_memory=pin)
-        self.truncateds=torch.zeros(batch_size, pin_memory=pin)
+        self.actions=torch.zeros(batch_size, *atn_shape, dtype=atn_dtype, device=device)
+        self.logprobs=torch.zeros(batch_size, device=device)
+        self.rewards=torch.zeros(batch_size, device=device)
+        self.dones=torch.zeros(batch_size, device=device)
+        self.truncateds=torch.zeros(batch_size, device=device)
 
         self.use_e3b = use_e3b
         if use_e3b:
@@ -594,25 +607,16 @@ class Experience:
         self.use_p3o = use_p3o
         self.p3o_horizon = p3o_horizon
         if use_p3o:
-            self.values_mean=torch.zeros(batch_size, p3o_horizon, pin_memory=pin)
-            self.values_std=torch.zeros(batch_size, p3o_horizon, pin_memory=pin)
-            self.values_mean_np = np.asarray(self.values_mean)
-            self.values_std_np = np.asarray(self.values_std)
+            self.values_mean=torch.zeros(batch_size, p3o_horizon, device=device)
+            self.values_std=torch.zeros(batch_size, p3o_horizon, device=device)
             self.reward_block_np = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
             self.mask_block_np = np.ones((batch_size, p3o_horizon), dtype=np.float32)
-
             self.buf = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
             self.advantages_np = np.zeros((batch_size), dtype=np.float32)
             self.bounds = np.zeros((batch_size), dtype=np.int32)
         else:
-            self.values = torch.zeros(batch_size, pin_memory=pin)
-            self.values_np = np.asarray(self.values)
+            self.values = torch.zeros(batch_size, device=device)
 
-        self.actions_np = np.asarray(self.actions)
-        self.logprobs_np = np.asarray(self.logprobs)
-        self.rewards_np = np.asarray(self.rewards)
-        self.dones_np = np.asarray(self.dones)
-        self.truncateds_np = np.asarray(self.truncateds)
         self.sort_keys = np.zeros((batch_size, 3), dtype=np.int32)
         self.sort_keys[:, 0] = np.arange(batch_size)
 
@@ -662,15 +666,6 @@ class Experience:
 
  
         obs = obs.to(self.obs.device, non_blocking=True)
-        value_mean = value_mean.to('cpu', non_blocking=True)
-        if self.use_p3o:
-            value_std = value_std.to('cpu', non_blocking=True)
-
-        action = action.to('cpu', non_blocking=True)
-        logprob = logprob.to('cpu', non_blocking=True)
-        reward = reward.to('cpu', non_blocking=True)
-        done = done.to('cpu', non_blocking=True)
-        torch.cuda.synchronize() #Redundant?
 
         if self.obs.device.type == 'cuda':
             self.obs[dst] = obs[gpu_inds]
@@ -678,18 +673,18 @@ class Experience:
             self.obs[dst] = obs[cpu_inds]
 
         if self.use_p3o:
-            self.values_mean_np[dst] = value_mean.numpy()[cpu_inds]
-            self.values_std_np[dst] = value_std.numpy()[cpu_inds]
-        else: 
-            self.values_np[dst] = value_mean.numpy()[cpu_inds]
+            self.values_mean[dst] = value_mean[gpu_inds]
+            self.values_std[dst] = value_std[gpu_inds]
+        else:
+            self.values[dst] = value_mean[gpu_inds]
 
-        self.actions_np[dst] = action[cpu_inds]
-        self.logprobs_np[dst] = logprob.numpy()[cpu_inds]
-        self.rewards_np[dst] = reward.numpy()[cpu_inds]
-        self.dones_np[dst] = done.numpy()[cpu_inds]
+        self.actions[dst] = action[gpu_inds]
+        self.logprobs[dst] = logprob[gpu_inds]
+        self.rewards[dst] = reward[gpu_inds]
+        self.dones[dst] = done[gpu_inds]
 
         if isinstance(env_id, slice):
-            self.sort_keys[dst, 1] = np.arange(cpu_inds.start, cpu_inds.stop)
+            self.sort_keys[dst, 1] = np.arange(cpu_inds.start, cpu_inds.stop, dtype=np.int32)
         else:
             self.sort_keys[dst, 1] = env_id[cpu_inds]
 
@@ -697,15 +692,10 @@ class Experience:
         self.ptr = end
         self.step += 1
 
-        return action.numpy()
+        return action.cpu().numpy()
 
     def sort_training_data(self):
-        #idxs = np.sort(self.sort_keys.view('int32,int32,int32'), order=['f1'], axis=0).view(np.int32)[:, 0]
         idxs = np.lexsort((self.sort_keys[:, 2], self.sort_keys[:, 1]))
-        #idxs = [(e[1], e[2]) for e in self.sort_keys]
-
-        #idxs = np.asarray(sorted(
-        #    range(len(self.sort_keys)), key=self.sort_keys.__getitem__))
         self.b_idxs_obs = torch.as_tensor(idxs.reshape(
                 self.minibatch_rows, self.num_minibatches, self.bptt_horizon
             ).transpose(1,0,-1)).to(self.obs.device).long()
@@ -728,9 +718,8 @@ class Experience:
         self.b_obs = self.obs[self.b_idxs_obs]
 
         if self.use_p3o:
-            self.reward_block_np = reward_block
-            reward_block = torch.as_tensor(reward_block).to(self.device)
-            self.b_reward_block = reward_block.reshape(
+            self.reward_block = torch.as_tensor(reward_block).to(self.device)
+            self.b_reward_block = self.reward_block.reshape(
                 self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.p3o_horizon
                 ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
 
@@ -743,8 +732,8 @@ class Experience:
             self.b_values_std = self.values_std.to(self.device, non_blocking=True)[b_flat]
         else:
             self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
-            self.returns_np = advantages_np + self.values_np # Check sorting of values here
-            self.b_returns = self.b_advantages + self.b_values
+            self.returns = advantages + self.values # Check sorting of values here
+            self.b_returns = self.b_advantages + self.b_values # Check sorting of values here
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):
