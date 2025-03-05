@@ -10,6 +10,8 @@ void demo(){
     init(&env);
     long start = time(NULL);
     int i = 0;
+    int mean_obs = 4000;
+    int max_obs = 20000;
     while (time(NULL) - start < test_time) {
         step(&env);
         // return;

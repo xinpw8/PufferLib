@@ -5,7 +5,7 @@
 #include <string.h>
 #define SELF_OBS 7
 #define OTHER_OBS 11
-#define MAP_OBS 13*200
+#define MAP_OBS 3000
 
 static int new_map_obs[MAP_OBS];
 
@@ -77,11 +77,10 @@ void compute_observations(test_struct* env, int* rand_agents){
         memcpy(env->observations + i*obs_size_per_agent, env->agent_states + rand_agents[i]*obs_size_per_agent, obs_size_per_agent*sizeof(int));
         // printf("new obs\n");
         // print_obs(env, i);
-	
+	memcpy(env->observations + env->active_agents*obs_size_per_agent, new_map_obs, (MAP_OBS)*sizeof(int));
+
     }
-    memcpy(env->observations + env->active_agents*obs_size_per_agent, new_map_obs, (MAP_OBS)*sizeof(int));
-
-
+      
     
 }
 void change_world(test_struct* env, int* rand_agents){
@@ -94,23 +93,25 @@ void change_world(test_struct* env, int* rand_agents){
         for(int j = 0;j<OTHER_OBS*(env->active_agents-1);j++) {
             env->agent_states[rand_agents[i]*obs_size_per_agent + SELF_OBS + j] = 2;
         }
+	
     }
-    for (int j=0;j<MAP_OBS;j++) {
-        new_map_obs[j] = 2;
-    }
+    /*for (int j=0;j<MAP_OBS;j++) {
+            new_map_obs[j] = 2;
+    	}
+	*/
 }
 
 void copy_world(test_struct* env, int* rand_agents){
 	int obs_size_per_agent = SELF_OBS + (env->active_agents-1) * (OTHER_OBS);
 	int* blah = (int*)calloc(obs_size_per_agent, sizeof(int));
-	int* randoworld = (int*)calloc(MAP_OBS, sizeof(int));
+	//int* randoworld = (int*)calloc(MAP_OBS, sizeof(int));
 	for(int i =0;i<env->active_agents;i++){
 		rand_agents[i] = rand() % env->num_agents;
 		memcpy(env->agent_states+rand_agents[i]*obs_size_per_agent, blah, obs_size_per_agent*sizeof(int));
 	}
-	memcpy(new_map_obs, randoworld, MAP_OBS*sizeof(int));
+	//memcpy(new_map_obs, randoworld, MAP_OBS*sizeof(int));
 	free(blah);
-	free(randoworld);
+	//free(randoworld);
 }
 void step(test_struct* env) {
     int rand_agents[env->active_agents];
