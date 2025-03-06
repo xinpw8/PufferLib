@@ -23,6 +23,7 @@ torch.set_float32_matmul_precision('high')
 
 # Fast Cython advantage functions
 #from c_advantage import rewards_and_masks, compute_gae
+from c_advantage import compute_gae
 
 import torch
 from torch.utils.cpp_extension import load
@@ -78,8 +79,6 @@ def compute_advantages(
         horizon,
         vstd_min,
         vstd_max,
-        grid=(blocks,),
-        block=(threads_per_block,)
     )
     
     torch.cuda.synchronize()
@@ -290,11 +289,11 @@ def train(data):
 
     with profile.train_misc:
         if config.use_p3o:
-            reward_block = experience.reward_block_np
-            mask_block = experience.mask_block_np
+            reward_block = experience.reward_block
+            mask_block = experience.mask_block
             values_mean = experience.values_mean[idxs]
             values_std = experience.values_std[idxs]
-            #advantages = experience.advantages_np
+            advantages = experience.advantages
 
             # Note: This function gets messed up by computing across
             # episode bounds. Because we store experience in a flat buffer,
@@ -303,21 +302,15 @@ def train(data):
             # we store experience to avoid this issue
             vstd_min = values_std.min().item()
             vstd_max = values_std.max().item()
-            dones_np = dones.to('cpu', non_blocking=True).numpy()
-            rewards_np = rewards.to('cpu', non_blocking=True).numpy()
-            values_mean_np = values_mean.to('cpu', non_blocking=True).numpy()
-            values_std_np = values_std.to('cpu', non_blocking=True).numpy()
-
-            reward_block = torch.as_tensor(reward_block).to(config.device, non_blocking=True)
-            mask_block = torch.as_tensor(mask_block).to(config.device, non_blocking=True)
+            reward_block = experience.reward_block
+            mask_block = experience.mask_block
             torch.cuda.synchronize()
 
-            with profile.custom:
-                advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
-                        experience.buf, dones, rewards, advantages, experience.bounds,
-                        config.p3o_horizon)
-                advantages = advantages.cpu().numpy()
-                torch.cuda.synchronize()
+            advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
+                    experience.buf, dones, rewards, advantages, experience.bounds,
+                    config.p3o_horizon)
+            advantages = advantages.cpu().numpy()
+            torch.cuda.synchronize()
                 
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
@@ -383,6 +376,7 @@ def train(data):
                 logratio = newlogprob - log_probs.reshape(-1)
                 ratio = logratio.exp()
 
+                # TODO: Only do this if we are KL clipping? Saves 1-2% compute
                 with torch.no_grad():
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
@@ -404,7 +398,7 @@ def train(data):
                 if config.use_p3o:
                     newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
                     newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
-                    newvalue_var = newvalue_std**2
+                    newvalue_var = torch.square(newvalue_std)
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
                     #TODO: Count mask and sum
@@ -412,8 +406,9 @@ def train(data):
                     # Right now, learning works at different horizons, but you need
                     # to retune hyperparameters. Ideally, horizon should be a stable
                     # param that zero-shots the same hypers
-                    #v_loss = (v_loss * mask_block).mean(0).sum(0) / 32
-                    v_loss = (v_loss[mask_block.bool()]).mean()
+
+                    # Faster than masking
+                    v_loss = (v_loss*mask_block).sum() / mask_block.sum()
                 elif config.clip_vloss:
                     v_loss_unclipped = (newvalue - ret) ** 2
                     v_clipped = val + torch.clamp(
@@ -488,6 +483,27 @@ def train(data):
         torch.cuda.synchronize()
 
     return logs
+
+def compute_pg_loss(log_probs, newlogprob, adv, clip_coef):
+    logratio = newlogprob - log_probs.reshape(-1)
+    ratio = logratio.exp()
+
+    with torch.no_grad():
+        # calculate approx_kl http://joschu.net/blog/kl-approx.html
+        old_approx_kl = (-logratio).mean()
+        approx_kl = ((ratio - 1) - logratio).mean()
+        clipfrac = ((ratio - 1.0).abs() > clip_coef).float().mean()
+
+    adv = adv.view(-1)
+    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+    # Policy loss
+    pg_loss1 = -adv * ratio
+    pg_loss2 = -adv * torch.clamp(
+        ratio, 1 - clip_coef, 1 + clip_coef
+    )
+    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+    return pg_loss, approx_kl, old_approx_kl, clipfrac
 
 def dist_sum(value, device):
     if not dist.is_initialized():
@@ -679,12 +695,10 @@ class Experience:
         if use_p3o:
             self.values_mean=torch.zeros(batch_size, p3o_horizon, device=device)
             self.values_std=torch.zeros(batch_size, p3o_horizon, device=device)
-            self.reward_block_np = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
-            self.mask_block_np = np.ones((batch_size, p3o_horizon), dtype=np.float32)
-            self.buf = np.zeros((batch_size, p3o_horizon), dtype=np.float32)
-            #self.advantages_np = np.zeros((batch_size), dtype=np.float32)
+            self.reward_block = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            self.mask_block = torch.ones(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            self.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
             self.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
-            #self.bounds = np.zeros((batch_size), dtype=np.int32)
             self.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
         else:
             self.values = torch.zeros(batch_size, device=device)
