@@ -11,8 +11,6 @@ from libc.string cimport memset, memcpy
 from libc.math cimport fmaxf, fminf, expf
 import cython
 
-
-@cython.profile(True)
 def rewards_and_masks(
         float[:, :] reward_block,
         float[:, :] reward_mask,
@@ -23,7 +21,9 @@ def rewards_and_masks(
         float[:] rewards,
         float[:] advantages,
         int[:] bounds,
-        int horizon
+        int horizon,
+        float vstd_min,
+        float vstd_max
     ):
 
     cdef int num_steps = len(rewards)
@@ -31,8 +31,6 @@ def rewards_and_masks(
     memset(&advantages[0], 0, num_steps * sizeof(float))
 
     cdef:
-        float vstd_max = -1e10
-        float vstd_min = 1e10
         int i, j, k, t
         float r
 
@@ -53,16 +51,8 @@ def rewards_and_masks(
             reward_mask[i, j] = 1.0
 
             # Store value std in buffer
-            #vstd = values_logstd[i, j]
-            #vstd = vstd if vstd < 10 else 10
-            #vstd = vstd if vstd > -10 else -10
-            #vstd = expf(vstd)
             vstd = values_std[i, j]
             buf[i, j] = vstd
-
-            # Online max and min
-            vstd_max = vstd_max if vstd_max > vstd else vstd
-            vstd_min = vstd_min if vstd_min < vstd else vstd
 
         bounds[i] = k
 
