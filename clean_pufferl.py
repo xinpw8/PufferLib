@@ -45,6 +45,7 @@ def compute_advantages(
     rewards: torch.Tensor,      # [num_steps]
     advantages: torch.Tensor,   # [num_steps]
     bounds: torch.Tensor,       # [num_steps]
+    vstd_max: float,
     horizon: int
 ):
     assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
@@ -58,8 +59,8 @@ def compute_advantages(
     num_steps = rewards.shape[0]
     
     # Precompute vstd_min and vstd_max
-    vstd_max = values_std.max().item()
-    vstd_min = values_std.min().item()
+    #vstd_max = values_std.max().item()
+    #vstd_min = values_std.min().item()
 
     # Launch kernel
     threads_per_block = 256
@@ -76,9 +77,8 @@ def compute_advantages(
         advantages,
         bounds,
         num_steps,
-        horizon,
-        vstd_min,
         vstd_max,
+        horizon,
     )
     
     torch.cuda.synchronize()
@@ -236,6 +236,8 @@ def evaluate(data):
         with profile.eval_copy:
             o = o if config.cpu_offload else o_device
 
+            if experience.ptr == config.batch_size - 1024:
+                d[:] = 1
             if data.use_p3o:
                 actions = experience.store(o, value_mean, value_std.detach(), actions, logprob, r, d, cpu_env_id, mask)
             else:
@@ -302,13 +304,28 @@ def train(data):
             # we store experience to avoid this issue
             vstd_min = values_std.min().item()
             vstd_max = values_std.max().item()
-            reward_block = experience.reward_block
-            mask_block = experience.mask_block
             torch.cuda.synchronize()
 
+            mask_block.zero_()
+            experience.buf.zero_()
+            r_std = rewards.std().item()
+
+            '''
+            if data.epoch == 0:
+                values_std[:] = r_std
+                with torch.no_grad():
+                    data.policy.policy.value_logstd[:] = np.log(r_std)
+            '''
+
+            # TODO: Rename vstd to r_std
             advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
                     experience.buf, dones, rewards, advantages, experience.bounds,
-                    config.p3o_horizon)
+                    r_std, config.p3o_horizon)
+
+            #if np.random.rand() < 0.01:
+            #    print(experience.buf[0])
+            #    print(rewards.mean(), rewards.std())
+
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
                 
@@ -400,6 +417,7 @@ def train(data):
                     newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
                     newvalue_var = torch.square(newvalue_std)
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
+                    #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
                     v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
                     #TODO: Count mask and sum
                     # There is going to have to be some sort of norm here.
@@ -408,7 +426,9 @@ def train(data):
                     # param that zero-shots the same hypers
 
                     # Faster than masking
-                    v_loss = (v_loss*mask_block).sum() / mask_block.sum()
+                    #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
+                    #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
+                    v_loss = v_loss[mask_block.bool()].mean()
                 elif config.clip_vloss:
                     v_loss_unclipped = (newvalue - ret) ** 2
                     v_clipped = val + torch.clamp(
@@ -700,6 +720,7 @@ class Experience:
             self.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
             self.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
             self.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
+            self.vstd_max = 1.0
         else:
             self.values = torch.zeros(batch_size, device=device)
 
