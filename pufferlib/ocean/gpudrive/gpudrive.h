@@ -256,7 +256,7 @@ Client* make_client(GPUDrive* env){
     client->camera.position = (Vector3){ 
         target_pos.x,           // Same X as target
         target_pos.y + 80.0f,   // 20 units above target
-        target_pos.z + 20.0f    // 20 units behind target
+        target_pos.z + 50.0f    // 20 units behind target
     };
     client->camera.target = target_pos;
     client->camera.up = (Vector3){ 0.0f, -1.0f, 0.0f };  // Y is up
@@ -326,7 +326,7 @@ void c_render(Client* client, GPUDrive* env) {
                         env->entities[i].goal_position_x,
                         env->entities[i].goal_position_y,
                         env->entities[i].goal_position_z
-                    }, 0.25f, DARKGREEN);
+                    }, 0.5f, DARKGREEN);
                 }
             }
         }
