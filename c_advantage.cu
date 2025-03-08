@@ -27,48 +27,84 @@ __global__ void advantage_kernel(
         k = j + 1;
     }
 
-    float adv_sum = 0.0f;
-    for (int j = 0; j < k; j++) {
+    float R = 0.0f;
+    for (int j = k-2; j > 0; j--) {
         int t = i + j;
         int idx = i * horizon + j;
-        reward_block[idx] = rewards[t + 1];
-        reward_mask[idx] = 1.0f;
 
+        float r = rewards[t+1];
         float vstd = values_std[idx];
         if (vstd == 0.0f) {
             buf[idx] = 0.0f;
             continue;
         }
 
-        float adv_scale = (1.0 / (vstd*vstd));
-
+        R += r/(vstd*vstd);
         if (r_std != 0.0f) {
-            adv_scale -= (1.0 / (r_std*r_std));
+            R -= r/(r_std*r_std);
         }
-
-        if (adv_scale < 0.0f) {
-            adv_scale = 0.0f;
-        }
-
-        buf[idx] = adv_scale;
-        adv_sum += adv_scale;
+        reward_block[idx] = R;
+        reward_mask[idx] = 1.0f;
+        buf[idx] = R;
     }
 
+    advantages[i] = R - values_mean[i*horizon];
     bounds[i] = k;
-
-    if (adv_sum == 0) {
-        advantages[i] = 0.0f;
-        return;
-    }
-
-    float adv = 0.0f;
-    for (int j = 0; j < k; j++) {
-        int idx = i * horizon + j;
-        adv += (buf[idx] / adv_sum) * (reward_block[idx] - values_mean[idx]);
-        buf[idx] /= adv_sum;
-    }
-    advantages[i] = adv;
 }
+
+/*
+__global__ void advantage_kernel(
+    float* reward_block,    // [num_steps, horizon]
+    float* reward_mask,     // [num_steps, horizon]
+    float* values_mean,     // [num_steps, horizon]
+    float* values_std,      // [num_steps, horizon]
+    float* buf,            // [num_steps, horizon]
+    float* dones,          // [num_steps]
+    float* rewards,        // [num_steps]
+    float* advantages,     // [num_steps]
+    int* bounds,          // [num_steps]
+    int num_steps,
+    float r_std,
+    int horizon
+) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= num_steps) return;
+
+    int k = 0;
+
+    for (int j = 0; j < horizon; j++) {
+        int t = i + j;
+        if (t >= num_steps - 1 || dones[t]) {
+            break;
+        }
+        k = j + 1;
+    }
+
+    float R = 0.0f;
+    for (int j = k-2; j > 0; j--) {
+        int t = i + j;
+        int idx = i * horizon + j;
+
+        float r = rewards[t+1];
+        float vstd = values_std[idx];
+        if (vstd == 0.0f) {
+            buf[idx] = 0.0f;
+            continue;
+        }
+
+        R += r/(vstd*vstd);
+        if (r_std != 0.0f) {
+            R -= r/(r_std*r_std);
+        }
+        reward_block[idx] = R;
+        reward_mask[idx] = 1.0f;
+        buf[idx] = R;
+    }
+
+    advantages[i] = R - values_mean[i*horizon];
+    bounds[i] = k;
+}
+*/
 
 // Pybind11 module definition
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {

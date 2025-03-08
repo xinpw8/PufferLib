@@ -353,6 +353,7 @@ def train(data):
                 atn = experience.b_actions[mb]
                 log_probs = experience.b_logprobs[mb]
                 adv = experience.b_advantages[mb]
+                ret = experience.b_returns[mb]
 
                 if config.use_p3o:
                     val_mean = experience.b_values_mean[mb]
@@ -361,7 +362,6 @@ def train(data):
                     mask_block = experience.b_mask_block[mb]
                 else:
                     val = experience.b_values[mb]
-                    ret = experience.b_returns[mb]
 
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
@@ -837,6 +837,7 @@ class Experience:
 
             self.b_values_mean = self.values_mean.to(self.device, non_blocking=True)[b_flat]
             self.b_values_std = self.values_std.to(self.device, non_blocking=True)[b_flat]
+            self.b_returns = self.buf.to(self.device, non_blocking=True)
         else:
             self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
             self.returns = advantages + self.values # Check sorting of values here
