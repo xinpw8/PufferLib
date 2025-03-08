@@ -133,6 +133,7 @@ MAKE_FNS = {
     'trash_pickup':  lambda: lazy_import('pufferlib.ocean.trash_pickup.trash_pickup', 'TrashPickupEnv'),
     'tower_climb':   lambda: lazy_import('pufferlib.ocean.tower_climb.tower_climb', 'TowerClimb'),
     'grid':          lambda: lazy_import('pufferlib.ocean.grid.grid', 'Grid'),
+    'gpudrive':      lambda: lazy_import('pufferlib.ocean.gpudrive.gpudrive', 'GPUDrive'),
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
