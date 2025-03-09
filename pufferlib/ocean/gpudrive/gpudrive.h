@@ -30,7 +30,68 @@
 // Trajectory Length
 #define TRAJECTORY_LENGTH 91
 
+// Actions
 #define NOOP 0
+
+// Dynamics Models
+#define CLASSIC 0
+#define INVERTIBLE_BICYLE 1
+#define DELTA_LOCAL 2
+#define STATE_DYNAMICS 3
+
+#define LOG_BUFFER_SIZE 1024
+
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+};
+
+
+typedef struct LogBuffer LogBuffer;
+struct LogBuffer {
+    Log* logs;
+    int length;
+    int idx;
+};
+
+LogBuffer* allocate_logbuffer(int size) {
+    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
+    logs->logs = (Log*)calloc(size, sizeof(Log));
+    logs->length = size;
+    logs->idx = 0;
+    return logs;
+}
+
+void free_logbuffer(LogBuffer* buffer) {
+    free(buffer->logs);
+    free(buffer);
+}
+
+void add_log(LogBuffer* logs, Log* log) {
+    if (logs->idx == logs->length) {
+        return;
+    }
+    logs->logs[logs->idx] = *log;
+    logs->idx += 1;
+    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
+}
+
+Log aggregate_and_clear(LogBuffer* logs) {
+    Log log = {0};
+    if (logs->idx == 0) {
+        return log;
+    }
+    for (int i = 0; i < logs->idx; i++) {
+        log.episode_return += logs->logs[i].episode_return;
+        log.episode_length += logs->logs[i].episode_length;
+ 
+    }
+    log.episode_return /= logs->idx;
+    log.episode_length /= logs->idx;
+    logs->idx = 0;
+    return log;
+}
 
 typedef struct Entity Entity;
 struct Entity {
@@ -38,14 +99,14 @@ struct Entity {
     int road_object_id;
     int road_point_id;
     int array_size;
-    float* x;
-    float* y;
-    float* z;
-    float* vx;
-    float* vy;
-    float* vz;
-    float* heading;
-    int* valid;
+    float* traj_x;
+    float* traj_y;
+    float* traj_z;
+    float* traj_vx;
+    float* traj_vy;
+    float* traj_vz;
+    float* traj_heading;
+    int* traj_valid;
     float width;
     float length;
     float height;
@@ -53,34 +114,46 @@ struct Entity {
     float goal_position_y;
     float goal_position_z;
     int collision_state;
+    float x;
+    float y;
+    float z;
+    float vx;
+    float vy;
+    float vz;
+    float heading;
+    int valid;
 };
 
 void free_entity(Entity* entity){
-    free(entity->x);
-    free(entity->y);
-    free(entity->z);
-    free(entity->vx);
-    free(entity->vy);
-    free(entity->vz);
-    free(entity->heading);
-    free(entity->valid);
+    // free trajectory arrays
+    free(entity->traj_x);
+    free(entity->traj_y);
+    free(entity->traj_z);
+    free(entity->traj_vx);
+    free(entity->traj_vy);
+    free(entity->traj_vz);
+    free(entity->traj_heading);
+    free(entity->traj_valid);
 }
 
 
 
 typedef struct GPUDrive GPUDrive;
 struct GPUDrive {
-    int num_agents;
-    int active_agent_count;
-    int* active_agent_indices;
     float* observations;
     int* actions;
     float* rewards;
     unsigned char* dones;
+    LogBuffer* log_buffer;
+    Log* logs;
+    int num_agents;
+    int active_agent_count;
+    int* active_agent_indices;
     int human_agent_idx;
     Entity* entities;
     int num_entities;
     int timestep;
+    int dynamics_model;
 };
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
@@ -101,34 +174,34 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
         fread(&entities[i].array_size, sizeof(int), 1, file);
         // Allocate arrays based on type
         int size = entities[i].array_size;
-        entities[i].x = (float*)malloc(size * sizeof(float));
-        entities[i].y = (float*)malloc(size * sizeof(float));
-        entities[i].z = (float*)malloc(size * sizeof(float));
+        entities[i].traj_x = (float*)malloc(size * sizeof(float));
+        entities[i].traj_y = (float*)malloc(size * sizeof(float));
+        entities[i].traj_z = (float*)malloc(size * sizeof(float));
         if (entities[i].type == 1 || entities[i].type == 2 || entities[i].type == 3) {  // Object type
             // Allocate arrays for object-specific data
-            entities[i].vx = (float*)malloc(size * sizeof(float));
-            entities[i].vy = (float*)malloc(size * sizeof(float));
-            entities[i].vz = (float*)malloc(size * sizeof(float));
-            entities[i].heading = (float*)malloc(size * sizeof(float));
-            entities[i].valid = (int*)malloc(size * sizeof(int));
+            entities[i].traj_vx = (float*)malloc(size * sizeof(float));
+            entities[i].traj_vy = (float*)malloc(size * sizeof(float));
+            entities[i].traj_vz = (float*)malloc(size * sizeof(float));
+            entities[i].traj_heading = (float*)malloc(size * sizeof(float));
+            entities[i].traj_valid = (int*)malloc(size * sizeof(int));
         } else {
             // Roads don't use these arrays
-            entities[i].vx = NULL;
-            entities[i].vy = NULL;
-            entities[i].vz = NULL;
-            entities[i].heading = NULL;
-            entities[i].valid = NULL;
+            entities[i].traj_vx = NULL;
+            entities[i].traj_vy = NULL;
+            entities[i].traj_vz = NULL;
+            entities[i].traj_heading = NULL;
+            entities[i].traj_valid = NULL;
         }
         // Read array data
-        fread(entities[i].x, sizeof(float), size, file);
-        fread(entities[i].y, sizeof(float), size, file);
-        fread(entities[i].z, sizeof(float), size, file);
+        fread(entities[i].traj_x, sizeof(float), size, file);
+        fread(entities[i].traj_y, sizeof(float), size, file);
+        fread(entities[i].traj_z, sizeof(float), size, file);
         if (entities[i].type == 1 || entities[i].type == 2 || entities[i].type == 3) {  // Object type
-            fread(entities[i].vx, sizeof(float), size, file);
-            fread(entities[i].vy, sizeof(float), size, file);
-            fread(entities[i].vz, sizeof(float), size, file);
-            fread(entities[i].heading, sizeof(float), size, file);
-            fread(entities[i].valid, sizeof(int), size, file);
+            fread(entities[i].traj_vx, sizeof(float), size, file);
+            fread(entities[i].traj_vy, sizeof(float), size, file);
+            fread(entities[i].traj_vz, sizeof(float), size, file);
+            fread(entities[i].traj_heading, sizeof(float), size, file);
+            fread(entities[i].traj_valid, sizeof(int), size, file);
         }
         // Read remaining scalar fields
         fread(&entities[i].width, sizeof(float), 1, file);
@@ -153,15 +226,15 @@ void print_entities(GPUDrive* env, int idx){
         printf("entity %d array_size: %d\n", i, env->entities[i].array_size);
     }
     for(int i = 0; i < env->entities[idx].array_size; i++){
-        printf("entity %d x: %f\n", idx, env->entities[idx].x[i]);
-        printf("entity %d y: %f\n", idx, env->entities[idx].y[i]);
-        printf("entity %d z: %f\n", idx, env->entities[idx].z[i]);
+        printf("entity %d x: %f\n", idx, env->entities[idx].traj_x[i]);
+        printf("entity %d y: %f\n", idx, env->entities[idx].traj_y[i]);
+        printf("entity %d z: %f\n", idx, env->entities[idx].traj_z[i]);
         if(env->entities[idx].type == 1 || env->entities[idx].type == 2 || env->entities[idx].type == 3){
-            printf("entity %d heading: %f\n", idx, env->entities[idx].heading[i]);
-            printf("entity %d vx: %f\n", idx, env->entities[idx].vx[i]);
-            printf("entity %d vy: %f\n", idx, env->entities[idx].vy[i]);
-            printf("entity %d vz: %f\n", idx, env->entities[idx].vz[i]);
-            printf("entity %d valid: %d\n", idx, env->entities[idx].valid[i]);
+            printf("entity %d heading: %f\n", idx, env->entities[idx].traj_heading[i]);
+            printf("entity %d vx: %f\n", idx, env->entities[idx].traj_vx[i]);
+            printf("entity %d vy: %f\n", idx, env->entities[idx].traj_vy[i]);
+            printf("entity %d vz: %f\n", idx, env->entities[idx].traj_vz[i]);
+            printf("entity %d valid: %d\n", idx, env->entities[idx].traj_valid[i]);
         }
     }
     printf("entity %d width: %f\n", idx, env->entities[idx].width);
@@ -176,15 +249,22 @@ void init(GPUDrive* env){
     env->human_agent_idx = 0;
     env->timestep = 0;
     env->entities = load_map_binary("map.bin", env);
+    env->dynamics_model = CLASSIC;
+    env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
     printf("num_entities: %d\n", env->num_entities);
     printf("active_agent_count: %d\n", env->active_agent_count);
     printf("active_agent_indices: ");
     for(int i = 0; i < env->active_agent_count; i++){
         printf("%d ", env->active_agent_indices[i]);
+        env->entities[env->active_agent_indices[i]].x = env->entities[env->active_agent_indices[i]].traj_x[0];
+        env->entities[env->active_agent_indices[i]].y = env->entities[env->active_agent_indices[i]].traj_y[0];
+        env->entities[env->active_agent_indices[i]].z = env->entities[env->active_agent_indices[i]].traj_z[0];
+        env->entities[env->active_agent_indices[i]].vx = env->entities[env->active_agent_indices[i]].traj_vx[0];
+        env->entities[env->active_agent_indices[i]].vy = env->entities[env->active_agent_indices[i]].traj_vy[0];
+        env->entities[env->active_agent_indices[i]].vz = env->entities[env->active_agent_indices[i]].traj_vz[0];
+        env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
+        env->entities[env->active_agent_indices[i]].valid = env->entities[env->active_agent_indices[i]].traj_valid[0];
     }
-    printf("\n");
-
-    print_entities(env, 16);
 }
 
 void free_initialized(GPUDrive* env){
@@ -193,35 +273,127 @@ void free_initialized(GPUDrive* env){
     }
     free(env->entities);
     free(env->active_agent_indices);
+    free(env->logs);
 }
 
 void allocate(GPUDrive* env){
     int max_obs = SELF_OBJS + (MAX_AGENTS - 1)*OTHER_AGENT_OBS + MAX_ROAD_OBJECTS*ROAD_OBS;
     printf("MAX_OBS: %d\n", max_obs);
-    env->observations = (float*)calloc(env->num_agents * max_obs, sizeof(float));
-    env->actions = (int*)calloc(env->num_agents, sizeof(int));
-    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
     init(env);
+    env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
+    env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
+    env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
+    env->dones = (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
+    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
 }
 
 void free_allocated(GPUDrive* env){
-    free_initialized(env);
     free(env->observations);
     free(env->actions);
     free(env->rewards);
     free(env->dones);
+    free_logbuffer(env->log_buffer);
+    free_initialized(env);
 }
 
 void c_reset(GPUDrive* env){
     env->timestep = 0;
+    for(int x = 0;x<env->active_agent_count; x++){
+        env->logs[x] = (Log){0};
+    }
+}
+
+void move_dynamics(GPUDrive* env, int* actions, int action_idx, int agent_idx){
+    if(env->dynamics_model == CLASSIC){
+        // clip acceleration & steering
+        Entity* agent = &env->entities[agent_idx];
+        
+        // Extract action components directly from the multi-discrete action array
+        int (*action_array)[2] = (int(*)[2])env->actions;
+        float acceleration = action_array[action_idx][0];
+        float steering = action_array[action_idx][1];
+
+        printf("agent %d: acceleration: %.2f, steering: %.2f\n", agent_idx, acceleration, steering);
+        
+        // Clip acceleration and steering
+        acceleration = fmaxf(-6.0f, fminf(acceleration, 6.0f));
+        steering = fmaxf(-3.0f, fminf(steering, 3.0f));
+        
+        // Current state
+        float x = agent->x;
+        float y = agent->y;
+        float heading = agent->heading;
+        float vx = agent->vx;
+        float vy = agent->vy;
+        
+        // Calculate current speed
+        float speed = sqrtf(vx*vx + vy*vy);
+        
+        // Time step (adjust as needed)
+        const float dt = 0.1f;
+        
+        // Update position using current velocity and acceleration
+        float new_x = x + vx * dt + 0.5f * acceleration * cosf(heading) * dt * dt;
+        float new_y = y + vy * dt + 0.5f * acceleration * sinf(heading) * dt * dt;
+        
+        // Calculate heading change based on steering and speed
+        float delta_heading = steering * (speed * dt + 0.5f * acceleration * dt * dt);
+        float new_heading = heading + delta_heading;
+        
+        // Normalize heading to [-π, π]
+        while (new_heading > M_PI) new_heading -= 2.0f * M_PI;
+        while (new_heading < -M_PI) new_heading += 2.0f * M_PI;
+        
+        // Update speed and velocity components
+        float new_speed = speed + acceleration * dt;
+        float new_vx = new_speed * cosf(new_heading);
+        float new_vy = new_speed * sinf(new_heading);
+        
+        // Update agent state for next timestep
+        printf("agent z: %f\n", agent->z);
+        printf("agent traj z: %f\n", agent->traj_z[env->timestep]);
+        agent->x = new_x;
+        agent->y = new_y;
+        agent->z = agent->traj_z[env->timestep];
+        agent->heading = new_heading;
+        agent->vx = new_vx;
+        agent->vy = new_vy;
+    }
+    else if(env->dynamics_model == INVERTIBLE_BICYLE){
+        // Invertible bicycle dynamics model
+    }
+}
+
+void move_expert(GPUDrive* env, int* actions, int agent_idx){
+    Entity* agent = &env->entities[agent_idx];
+    agent->x = agent->traj_x[env->timestep];
+    agent->y = agent->traj_y[env->timestep];
+    agent->z = agent->traj_z[env->timestep];
+    agent->heading = agent->traj_heading[env->timestep];
+}
+
+void move_random(GPUDrive* env, int* actions, int agent_idx){
+    Entity* agent = &env->entities[agent_idx];
+    float x_rand = agent->x + (rand() % 100 - 50) / 100.0f;
+    float y_rand = agent->y + (rand() % 100 - 50) / 100.0f;
+    float z_rand = agent->z + (rand() % 100 - 50) / 100.0f;
+    float heading_rand = agent->heading + (rand() % 100 - 50) / 100.0f;
+    agent->x = x_rand;
+    agent->y = y_rand;
+    agent->z = z_rand;
+    agent->heading = heading_rand;
 }
 
 int c_step(GPUDrive* env){
-    env->timestep++;
+    memset(env->rewards, 0, env->active_agent_count * sizeof(float));
+    env->timestep++;    
+    // Process actions for all active agents
+    for(int i=0; i<env->active_agent_count; i++){
+        int agent_idx = env->active_agent_indices[i];
+        move_dynamics(env, env->actions, i*2, agent_idx);
+    }
     if(env->timestep == 91){
-        env->timestep = 0;
-        return 1;
+        c_reset(env);
     }
     return 0;
 }   
@@ -247,9 +419,9 @@ Client* make_client(GPUDrive* env){
     
     // Get initial target position from first active agent
     Vector3 target_pos = {
-        env->entities[env->active_agent_indices[0]].x[0],
-        env->entities[env->active_agent_indices[0]].y[0],  // Y is up
-        env->entities[env->active_agent_indices[0]].z[0]   // Z is depth
+        env->entities[env->active_agent_indices[0]].x,
+        env->entities[env->active_agent_indices[0]].y,  // Y is up
+        env->entities[env->active_agent_indices[0]].z   // Z is depth
     };
     
     // Set up camera to look at target from above and behind
@@ -273,61 +445,62 @@ void c_render(Client* client, GPUDrive* env) {
     ClearBackground(RAYWHITE);
     
     BeginMode3D(client->camera);
-    
     // Draw a grid to help with orientation
     DrawGrid(20, 1.0f);
     
     for(int i = 0; i < env->num_entities; i++) {
         if(env->entities[i].type == 1 || env->entities[i].type == 2 || env->entities[i].type == 3) {
             for(int j = 0; j < env->active_agent_count; j++) {
-                if(env->active_agent_indices[j] == i) {
-                    // Get current heading
-                    float heading = env->entities[i].heading[env->timestep];
-                    // Create position vector (Y is up, Z is depth)
-                    Vector3 position = {
-                        env->entities[i].x[env->timestep],
-                        env->entities[i].y[env->timestep],
-                        env->entities[i].z[env->timestep]
-                    };
-                    
-                    // Create size vector
-                    Vector3 size = {
-                        env->entities[i].length,
-                        env->entities[i].width,
-                        env->entities[i].height
-                    };
-                    
-                    // Save current transform
-                    rlPushMatrix();
-                    
-                    // Translate to position, rotate around Y axis, then draw
-                    rlTranslatef(position.x, position.y, position.z);
-                    rlRotatef(heading * RAD2DEG, 0.0f, 0.0f, 1.0f);  // Convert radians to degrees
-                    
-                    // Draw cube centered at origin (will be transformed by matrix)
-                    Color object_color;
-                    if(env->entities[i].type == 1){
-                        object_color = DARKBLUE;
-                    }
-                    else if(env->entities[i].type == 2){
-                        object_color = BEIGE;
-                    }
-                    else if(env->entities[i].type == 3){
-                        object_color = YELLOW;
-                    }
-                    DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
-                    DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
-                    
-                    // Restore previous transform
-                    rlPopMatrix();
-                    
-                    // Draw goal position
-                    DrawSphere((Vector3){
-                        env->entities[i].goal_position_x,
-                        env->entities[i].goal_position_y,
-                        env->entities[i].goal_position_z
-                    }, 0.5f, DARKGREEN);
+                if(env->active_agent_indices[j] != i) {
+                    continue;
                 }
+                // Get current heading
+                float heading = env->entities[i].heading;
+                // Create position vector (Y is up, Z is depth)
+                Vector3 position = {
+                    env->entities[i].x,
+                    env->entities[i].y,
+                    env->entities[i].z
+                };
+                
+                // Create size vector
+                Vector3 size = {
+                    env->entities[i].length,
+                    env->entities[i].width,
+                    env->entities[i].height
+                };
+                
+                // Save current transform
+                rlPushMatrix();
+                
+                // Translate to position, rotate around Y axis, then draw
+                rlTranslatef(position.x, position.y, position.z);
+                rlRotatef(heading * RAD2DEG, 0.0f, 0.0f, 1.0f);  // Convert radians to degrees
+                
+                // Draw cube centered at origin (will be transformed by matrix)
+                Color object_color = PINK;
+                if(env->entities[i].type == 1){
+                    object_color = DARKBLUE;
+                }
+                else if(env->entities[i].type == 2){
+                    object_color = BEIGE;
+                }
+                else if(env->entities[i].type == 3){
+                    object_color = YELLOW;
+                }
+                DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
+                DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
+                
+                // Restore previous transform
+                rlPopMatrix();
+                
+                // Draw goal position
+                DrawSphere((Vector3){
+                    env->entities[i].goal_position_x,
+                    env->entities[i].goal_position_y,
+                    env->entities[i].goal_position_z
+                }, 0.5f, DARKGREEN);
+                
             }
         }
         
@@ -335,14 +508,14 @@ void c_render(Client* client, GPUDrive* env) {
         if(env->entities[i].type > 3 && env->entities[i].type < 7) {
             for(int j = 0; j < env->entities[i].array_size - 1; j++) {
                 Vector3 start = {
-                    env->entities[i].x[j],
-                    env->entities[i].y[j],
-                    env->entities[i].z[j]
+                    env->entities[i].traj_x[j],
+                    env->entities[i].traj_y[j],
+                    env->entities[i].traj_z[j]
                 };
                 Vector3 end = {
-                    env->entities[i].x[j + 1],
-                    env->entities[i].y[j + 1],
-                    env->entities[i].z[j + 1]
+                    env->entities[i].traj_x[j + 1],
+                    env->entities[i].traj_y[j + 1],
+                    env->entities[i].traj_z[j + 1]
                 };
                 
                 Color lineColor = GRAY;
@@ -367,7 +540,13 @@ void c_render(Client* client, GPUDrive* env) {
         client->camera.target.y, 
         client->camera.target.z), 10, 30, 20, BLACK);
     DrawText(TextFormat("Timestep: %d", env->timestep), 10, 50, 20, BLACK);
-    
+    // acceleration & steering
+    int human_idx = env->active_agent_indices[env->human_agent_idx];
+    DrawText(TextFormat("Controlling Agent: %d", env->human_agent_idx), 10, 70, 20, BLACK);
+    DrawText(TextFormat("Agent Index: %d", human_idx), 10, 90, 20, BLACK);
+    // Controls help
+    DrawText("Controls: W/S - Accelerate/Brake, A/D - Steer, 1-4 - Switch Agent", 
+             10, client->height - 30, 20, BLACK);
     EndDrawing();
 }
 
