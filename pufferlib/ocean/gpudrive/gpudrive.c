@@ -93,26 +93,25 @@ void demo() {
     };
     allocate(&env);
     c_reset(&env);
-    Client* client = make_client(&env);
+    //Client* client = make_client(&env);
     printf("Human controlling agent index: %d\n", env.active_agent_indices[env.human_agent_idx]);
     
-    while (!WindowShouldClose()) {
+    while (true) {
         // Handle camera controls
-        handle_camera_controls(client);
+        //handle_camera_controls(client);
         int (*actions)[2] = (int(*)[2])env.actions;
         // Reset all agent actions at the beginning of each frame
         for(int i = 0; i < env.active_agent_count; i++) {
-            int idx = env.active_agent_indices[i];
-            actions[idx*2][0] = 0;
-            actions[idx*2][1] = 0;
+            actions[i][0] = 0;
+            actions[i][1] = 0;
         }
         // Handle human input for the controlled agent
         // handle_human_input(&env);
         c_step(&env);
-        c_render(client, &env);
+        //c_render(client, &env);
     }
 
-    close_client(client);
+    //close_client(client);
     free_allocated(&env);
 }
 
@@ -127,26 +126,25 @@ void performance_test() {
 
     long start = time(NULL);
     int i = 0;
-    // int (*actions)[2] = (int(*)[2])env.actions;
+    int (*actions)[2] = (int(*)[2])env.actions;
     
     while (time(NULL) - start < test_time) {
         // Set random actions for all agents
-        // for(int j = 0; j < env.active_agent_count; j++) {
-        //     int idx = env.active_agent_indices[j];
-        //     actions[idx][0] = (rand() % 3) - 1;  // -1, 0, or 1
-        //     actions[idx][1] = ((rand() % 7) - 3) * (M_PI/16.0f);  // Random steering
-        // }
+        for(int j = 0; j < env.active_agent_count; j++) {
+             actions[j][0] = (rand() % 3) - 1;  // -1, 0, or 1
+             actions[j][1] = ((rand() % 7) - 3) * (M_PI/16.0f);  // Random steering
+        }
         
         c_step(&env);
         i++;
     }
     long end = time(NULL);
-    printf("SPS: %ld\n", i / (end - start));
+    printf("SPS: %ld\n", (i*env.active_agent_count) / (end - start));
     free_allocated(&env);
 }
 
 int main() {
-    demo();
-    // performance_test();
+    // demo();
+    performance_test();
     return 0;
 }

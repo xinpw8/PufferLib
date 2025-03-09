@@ -313,7 +313,6 @@ void move_dynamics(GPUDrive* env, int* actions, int action_idx, int agent_idx){
         float acceleration = action_array[action_idx][0];
         float steering = action_array[action_idx][1];
 
-        printf("agent %d: acceleration: %.2f, steering: %.2f\n", agent_idx, acceleration, steering);
         
         // Clip acceleration and steering
         acceleration = fmaxf(-6.0f, fminf(acceleration, 6.0f));
@@ -350,8 +349,6 @@ void move_dynamics(GPUDrive* env, int* actions, int action_idx, int agent_idx){
         float new_vy = new_speed * sinf(new_heading);
         
         // Update agent state for next timestep
-        printf("agent z: %f\n", agent->z);
-        printf("agent traj z: %f\n", agent->traj_z[env->timestep]);
         agent->x = new_x;
         agent->y = new_y;
         agent->z = agent->traj_z[env->timestep];
@@ -388,13 +385,14 @@ int c_step(GPUDrive* env){
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;    
     // Process actions for all active agents
-    for(int i=0; i<env->active_agent_count; i++){
-        int agent_idx = env->active_agent_indices[i];
-        move_dynamics(env, env->actions, i*2, agent_idx);
-    }
     if(env->timestep == 91){
         c_reset(env);
     }
+    for(int i=0; i<env->active_agent_count; i++){
+        int agent_idx = env->active_agent_indices[i];
+        move_dynamics(env, env->actions, i, agent_idx);
+    }
+    
     return 0;
 }   
 
