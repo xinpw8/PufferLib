@@ -86,19 +86,17 @@ void handle_camera_controls(Client* client) {
 
 void demo() {
     GPUDrive env = {
-        .num_agents = 4,
-        .active_agent_count = 4,
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
     };
     allocate(&env);
     c_reset(&env);
-    //Client* client = make_client(&env);
+    Client* client = make_client(&env);
     printf("Human controlling agent index: %d\n", env.active_agent_indices[env.human_agent_idx]);
     
-    while (true) {
+    while (!WindowShouldClose()) {
         // Handle camera controls
-        //handle_camera_controls(client);
+        handle_camera_controls(client);
         int (*actions)[2] = (int(*)[2])env.actions;
         // Reset all agent actions at the beginning of each frame
         for(int i = 0; i < env.active_agent_count; i++) {
@@ -108,10 +106,10 @@ void demo() {
         // Handle human input for the controlled agent
         // handle_human_input(&env);
         c_step(&env);
-        //c_render(client, &env);
+        c_render(client, &env);
     }
 
-    //close_client(client);
+    close_client(client);
     free_allocated(&env);
 }
 
@@ -131,8 +129,8 @@ void performance_test() {
     while (time(NULL) - start < test_time) {
         // Set random actions for all agents
         for(int j = 0; j < env.active_agent_count; j++) {
-             actions[j][0] = (rand() % 3) - 1;  // -1, 0, or 1
-             actions[j][1] = ((rand() % 7) - 3) * (M_PI/16.0f);  // Random steering
+             actions[j][0] = 0;  // -1, 0, or 1
+             actions[j][1] = 0;  // Random steering
         }
         
         c_step(&env);
@@ -144,7 +142,7 @@ void performance_test() {
 }
 
 int main() {
-    // demo();
-    performance_test();
+    demo();
+    // performance_test();
     return 0;
 }
