@@ -326,10 +326,10 @@ void init(GPUDrive* env){
     env->timestep = 0;
     env->entities = load_map_binary("map.bin", env);
     env->dynamics_model = CLASSIC;
-    env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
-    printf("num_entities: %d\n", env->num_entities);
     set_active_agents(env);
     set_start_position(env);
+    env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
+    printf("num_entities: %d\n", env->num_entities);
     printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     printf("Offset of y: %zu\n", offsetof(struct Entity, y));
     env->fake_data = (float*)calloc(10000, sizeof(float));
@@ -342,6 +342,7 @@ void free_initialized(GPUDrive* env){
     free(env->entities);
     free(env->active_agent_indices);
     free(env->logs);
+    free(env->fake_data);
 }
 
 void allocate(GPUDrive* env){
