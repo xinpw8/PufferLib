@@ -31,7 +31,7 @@ from torch.utils.cpp_extension import load
 # Compile the CUDA kernel
 cuda_module = load(
     name='advantage_kernel',
-    sources=['c_advantage.cu'],
+    sources=['pufferlib.cu'],
     verbose=True
 )
 
@@ -52,9 +52,10 @@ def compute_advantages(
                                   buf, dones, rewards, advantages, bounds]), "All tensors must be on GPU"
     
     # Ensure contiguous memory
-    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages]
+    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages, bounds]
     for t in tensors:
         t.contiguous()
+        assert t.is_cuda
 
     num_steps = rewards.shape[0]
     
@@ -236,8 +237,8 @@ def evaluate(data):
         with profile.eval_copy:
             o = o if config.cpu_offload else o_device
 
-            if experience.ptr == config.batch_size - 1024:
-                d[:] = 1
+            #if experience.ptr == config.batch_size - 1024:
+            #    d[:] = 1
             if data.use_p3o:
                 actions = experience.store(o, value_mean, value_std.detach(), actions, logprob, r, d, cpu_env_id, mask)
             else:
@@ -321,14 +322,11 @@ def train(data):
             advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
                     experience.buf, dones, rewards, advantages, experience.bounds,
                     r_std, config.p3o_horizon)
-
-            #if np.random.rand() < 0.01:
-            #    print(experience.buf[0])
-            #    print(rewards.mean(), rewards.std())
-
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
-                
+
+            print(reward_block[0])
+
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
         else:
@@ -418,7 +416,7 @@ def train(data):
                     newvalue_var = torch.square(newvalue_std)
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
-                    v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                    v_loss = criterion(newvalue_mean, ret, newvalue_var)
                     #TODO: Count mask and sum
                     # There is going to have to be some sort of norm here.
                     # Right now, learning works at different horizons, but you need
@@ -837,7 +835,9 @@ class Experience:
 
             self.b_values_mean = self.values_mean.to(self.device, non_blocking=True)[b_flat]
             self.b_values_std = self.values_std.to(self.device, non_blocking=True)[b_flat]
-            self.b_returns = self.buf.to(self.device, non_blocking=True)
+            self.b_returns = self.buf.to(self.device, non_blocking=True).reshape(
+                self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.p3o_horizon
+                ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
         else:
             self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
             self.returns = advantages + self.values # Check sorting of values here
