@@ -116,8 +116,8 @@ void demo() {
 void performance_test() {
     long test_time = 10;
     GPUDrive env = {
-        .num_agents = 4,
-        .active_agent_count = 4,
+        .dynamics_model = CLASSIC,
+        .human_agent_idx = 0,
     };
     allocate(&env);
     c_reset(&env);
@@ -142,7 +142,7 @@ void performance_test() {
 }
 
 int main() {
-    demo();
-    // performance_test();
+    // demo();
+    performance_test();
     return 0;
 }

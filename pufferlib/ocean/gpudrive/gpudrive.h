@@ -467,6 +467,9 @@ void compute_observations(GPUDrive* env){
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
+        for(int j = 0; j < env->active_agent_count * 7; j++){
+            obs[j] = env->fake_data[j];
+        }
         memcpy(obs, env->fake_data, max_obs*sizeof(float));
     }
 };
@@ -479,6 +482,7 @@ int c_step(GPUDrive* env){
         c_reset(env);
     }
     for(int i = 0; i < env->active_agent_count; i++){
+        env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
         // move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);

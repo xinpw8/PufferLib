@@ -127,7 +127,7 @@ cdef class CyGPUDrive:
         for i in range(num_envs):
             self.envs[i] = GPUDrive(
                 observations=&observations[inc*i, 0],
-                actions=&actions[inc*i],
+                actions=&actions[inc*i*2],
                 rewards=&rewards[inc*i],
                 dones=&terminals[inc*i],
                 log_buffer=self.logs,
