@@ -112,7 +112,7 @@ cdef class CyGPUDrive:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, float[:, :] observations, int[:,:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             int active_agent_count, int human_agent_idx):
 
@@ -120,7 +120,6 @@ cdef class CyGPUDrive:
         self.num_envs = num_envs
         self.envs = <GPUDrive*> calloc(num_envs, sizeof(GPUDrive))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
-
         cdef int inc = active_agent_count
 
         cdef int i
