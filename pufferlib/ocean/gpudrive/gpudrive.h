@@ -298,7 +298,7 @@ void set_active_agents(GPUDrive* env){
                 env->entities[i].traj_y[start_idx],
                 env->entities[i].goal_position_x,
                 env->entities[i].goal_position_y);
-            printf("entity %d distance: %f\n", i, distance);
+            //printf("entity %d distance: %f\n", i, distance);
             if(distance >= 2.0f){
                 active_agent_indices[env->active_agent_count] = i;
                 env->active_agent_count++;
@@ -479,7 +479,11 @@ int c_step(GPUDrive* env){
     env->timestep++;    
     // Process actions for all active agents
     if(env->timestep == 91){
-        c_reset(env);
+        for(int i=0;i<env->active_agent_count;i++){
+		env->rewards[i] = 1;
+		add_log(env->log_buffer, &env->logs[i]);
+	}
+	    c_reset(env);
     }
     for(int i = 0; i < env->active_agent_count; i++){
         env->logs[i].episode_length += 1;
@@ -488,7 +492,6 @@ int c_step(GPUDrive* env){
         // move_random(env, agent_idx);
         move_expert(env, env->actions, agent_idx);
     }
-        
     compute_observations(env);
     return 0;
 }   
