@@ -466,23 +466,30 @@ void compute_observations(GPUDrive* env){
     int max_obs = 10000;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
+        for(int j = 0; j < max_obs; j++){
+            env->fake_data[j] = i;
+        }
         float* obs = &observations[i][0];
         for(int j = 0; j < env->active_agent_count * 7; j++){
-            obs[j] = env->fake_data[j];
+            obs[j] = 42.0;
         }
         memcpy(obs, env->fake_data, max_obs*sizeof(float));
     }
 };
 
 int c_step(GPUDrive* env){
+    int (*action_array)[2] = (int(*)[2])env->actions;
+    
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;    
     // Process actions for all active agents
-    if(env->timestep == 91){
+    if(env->timestep == 5){
         for(int i=0;i<env->active_agent_count;i++){
 		env->rewards[i] = 1;
+        env->logs[i].episode_return += 1;
 		add_log(env->log_buffer, &env->logs[i]);
-	}
+        
+	    }
 	    c_reset(env);
     }
     for(int i = 0; i < env->active_agent_count; i++){
