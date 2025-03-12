@@ -196,6 +196,10 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
         fread(&entities[i].array_size, sizeof(int), 1, file);
         // Allocate arrays based on type
         int size = entities[i].array_size;
+        if(size ==0){
+            continue;
+        }
+        printf("entity %d size: %d\n", i, size);
         entities[i].traj_x = (float*)malloc(size * sizeof(float));
         entities[i].traj_y = (float*)malloc(size * sizeof(float));
         entities[i].traj_z = (float*)malloc(size * sizeof(float));
@@ -466,9 +470,6 @@ void compute_observations(GPUDrive* env){
     int max_obs = 10000;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
-        for(int j = 0; j < max_obs; j++){
-            env->fake_data[j] = i;
-        }
         float* obs = &observations[i][0];
         for(int j = 0; j < env->active_agent_count * 7; j++){
             obs[j] = 42.0;
