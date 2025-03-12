@@ -311,6 +311,8 @@ def train(data):
             experience.buf.zero_()
             reward_block.zero_()
             r_std = rewards.std().item()
+            advantages.zero_()
+            experience.bounds.zero_()
 
             '''
             if data.epoch == 0:
@@ -326,8 +328,8 @@ def train(data):
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
 
-            if np.random.rand() < 0.01:
-                breakpoint()
+            #if np.random.rand() < 0.01:
+            #    breakpoint()
 
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
@@ -373,7 +375,7 @@ def train(data):
                         lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
                     else:
                         flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-                        logits, newvalue_mean, newvalue_std = data.policy.forward_train(flat_obs, lstm_state)
+                        logits, newvalue_mean, newvalue_std = data.policy.forward_train(flat_obs)
                 else:
                     if experience.lstm_h is not None:
                         (logits, newvalue), lstm_state = data.policy.forward_train(obs, lstm_state)

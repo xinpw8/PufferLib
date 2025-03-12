@@ -58,12 +58,13 @@ class Default(nn.Module):
         if use_p3o:
             self.value_mean = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, p3o_horizon), std=1)
-            self.value_logstd = nn.Parameter(torch.zeros(1, p3o_horizon))
+            #self.value_logstd = nn.Parameter(torch.zeros(1, p3o_horizon))
+
             #param = np.log10(np.arange(1, N+1))
             #param = 1 - np.exp(-np.sqrt(np.arange(N)))
             #self.value_logstd = nn.Parameter(torch.tensor(param).view(1, N))
-            #self.value_logstd = pufferlib.pytorch.layer_init(
-            #    nn.Linear(hidden_size, 64), std=0.01)
+            self.value_logstd = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 32), std=0.01)
         else:
             self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, 1), std=1)
@@ -101,7 +102,8 @@ class Default(nn.Module):
 
         if self.use_p3o:
             value_mean = self.value_mean(hidden)
-            value_std = torch.exp(torch.clamp(self.value_logstd, -10, 10)).expand_as(value_mean)
+            #value_std = torch.exp(torch.clamp(self.value_logstd, -10, 10)).expand_as(value_mean)
+            value_std = torch.exp(torch.clamp(self.value_logstd(hidden), -10, 10))
             return actions, value_mean, value_std
         else:
             value = self.value(hidden)
