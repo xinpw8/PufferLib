@@ -51,6 +51,7 @@ typedef struct Log Log;
 struct Log {
     float episode_return;
     float episode_length;
+    float score;
 };
 
 
@@ -91,10 +92,12 @@ Log aggregate_and_clear(LogBuffer* logs) {
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
+	log.score += logs->logs[i].score;
 	//printf("length: %f", log.episode_length);
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
+    log.score /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -443,7 +446,7 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         // Update agent state for next timestep
         agent->x = new_x;
         agent->y = new_y;
-        agent->z = agent->traj_z[env->timestep];
+	agent->z = agent->traj_z[env->timestep];
         agent->heading = new_heading;
         agent->vx = new_vx;
         agent->vy = new_vy;
@@ -480,7 +483,7 @@ void compute_observations(GPUDrive* env){
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
-        obs[i] = relative_distance(
+        obs[0] = relative_distance(
             env->entities[env->active_agent_indices[i]].x,
             env->entities[env->active_agent_indices[i]].y,
             env->entities[env->active_agent_indices[i]].goal_position_x,
@@ -500,14 +503,21 @@ void c_reset(GPUDrive* env){
 
 void c_step(GPUDrive* env){
     int (*action_array)[2] = (int(*)[2])env->actions;
-    
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;
-    // Process actions for all active agents
+    if(env->timestep == 91){
+	    
+	    c_reset(env);
+    }// Process actions for all active agents
     for(int i = 0; i < env->active_agent_count; i++){
-        env->logs[i].episode_length += 1;
+        env->logs[i].score = 0.0f;
+	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
-        float distance_to_goal = relative_distance(
+        move_dynamics(env, i, agent_idx);
+        // move_random(env, agent_idx);
+        // move_expert(env, env->actions, agent_idx);
+	
+float distance_to_goal = relative_distance(
                 env->entities[agent_idx].x,
                 env->entities[agent_idx].y,
                 env->entities[agent_idx].goal_position_x,
@@ -515,18 +525,13 @@ void c_step(GPUDrive* env){
         int reached_goal = distance_to_goal < 2.0f;
         if(reached_goal){            
             env->rewards[i] += 1.0f;
-            env->logs[i].episode_return += 1.0f;
+            env->logs[i].score = 1.0f;
+	    env->logs[i].episode_return += 1.0f;
             add_log(env->log_buffer, &env->logs[i]);
             continue;
 	    }
-	    move_dynamics(env, i, agent_idx);
-        // move_random(env, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
-	
-    }
-    if(env->timestep == 91){
-	    c_reset(env);
-    }
+	    }
+    
     compute_observations(env);
 }   
 
