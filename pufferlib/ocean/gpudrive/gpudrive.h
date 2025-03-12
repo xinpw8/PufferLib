@@ -187,23 +187,25 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     
     fread(&env->num_entities, sizeof(int), 1, file);
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
-    
+    printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
         // Read base entity data
         fread(&entities[i].type, sizeof(int), 1, file);
-        fread(&entities[i].road_object_id, sizeof(int), 1, file);
-        fread(&entities[i].road_point_id, sizeof(int), 1, file);
+        if(entities[i].type < 4){
+            fread(&entities[i].road_object_id, sizeof(int), 1, file);
+            entities[i].road_point_id = -1;
+        }
+        else{
+            fread(&entities[i].road_point_id, sizeof(int), 1, file);
+            entities[i].road_object_id = -1;
+        }
         fread(&entities[i].array_size, sizeof(int), 1, file);
         // Allocate arrays based on type
         int size = entities[i].array_size;
-        if(size ==0){
-            continue;
-        }
-        printf("entity %d size: %d\n", i, size);
         entities[i].traj_x = (float*)malloc(size * sizeof(float));
         entities[i].traj_y = (float*)malloc(size * sizeof(float));
         entities[i].traj_z = (float*)malloc(size * sizeof(float));
-        if (entities[i].type == 1) {  // Object type
+        if (entities[i].type == 1 || entities[i].type == 2 || entities[i].type == 3) {  // Object type
             // Allocate arrays for object-specific data
             entities[i].traj_vx = (float*)malloc(size * sizeof(float));
             entities[i].traj_vy = (float*)malloc(size * sizeof(float));
@@ -222,7 +224,7 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
         fread(entities[i].traj_x, sizeof(float), size, file);
         fread(entities[i].traj_y, sizeof(float), size, file);
         fread(entities[i].traj_z, sizeof(float), size, file);
-        if (entities[i].type == 1) {  // Object type
+        if (entities[i].type == 1 || entities[i].type == 2 || entities[i].type == 3) {  // Object type
             fread(entities[i].traj_vx, sizeof(float), size, file);
             fread(entities[i].traj_vy, sizeof(float), size, file);
             fread(entities[i].traj_vz, sizeof(float), size, file);
@@ -484,7 +486,7 @@ int c_step(GPUDrive* env){
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;    
     // Process actions for all active agents
-    if(env->timestep == 5){
+    if(env->timestep == 91){
         for(int i=0;i<env->active_agent_count;i++){
 		env->rewards[i] = 1;
         env->logs[i].episode_return += 1;

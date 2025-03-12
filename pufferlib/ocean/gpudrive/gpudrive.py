@@ -56,6 +56,8 @@ def save_map_binary(map_data, output_file):
     """Saves map data in a binary format readable by C"""
     with open(output_file, 'wb') as f:
         # Count total entities
+        print(len(map_data.get('objects', [])))
+        print(len(map_data.get('roads', [])))
         num_entities = len(map_data.get('objects', [])) + len(map_data.get('roads', []))
         f.write(struct.pack('i', num_entities))
         # Write objects
@@ -64,13 +66,13 @@ def save_map_binary(map_data, output_file):
             obj_type = obj.get('type', 1)
             if(obj_type =='vehicle'):
                 obj_type = 1
-            elif(obj_type == 'pedestrian' or obj_type =='cyclist'):
-                continue;
+            elif(obj_type == 'pedestrian'):
+                obj_type = 2;
+            elif(obj_type == 'cyclist'):
+                obj_type = 3;
             f.write(struct.pack('i', obj_type))  # type
-            f.write(struct.pack('i', obj.get('id', 0)))    # road_object_id
-            f.write(struct.pack('i', obj.get('road_point_id', 0)))  # road_point_id
+            f.write(struct.pack('i', obj.get('id', 0)))   # id  
             f.write(struct.pack('i', 91))                  # array_size
-            
             # Write position arrays
             positions = obj.get('position', [])
             for i in range(91):
@@ -85,11 +87,10 @@ def save_map_binary(map_data, output_file):
             
             # Write velocity arrays
             velocities = obj.get('velocity', [])
-            for arr, key in [(velocities, 'x'), (velocities, 'y')]:
+            for arr, key in [(velocities, 'x'), (velocities, 'y'), (velocities, 'z')]:
                 for i in range(91):
-                    vel = arr[i] if i < len(arr) else {'x': 0.0, 'y': 0.0}
+                    vel = arr[i] if i < len(arr) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                     f.write(struct.pack('f', float(vel.get(key, 0.0))))
-            f.write(struct.pack('91f', *[0.0] * 91))  # vz (unused)
             
             # Write heading and valid arrays
             headings = obj.get('heading', [])
@@ -128,8 +129,7 @@ def save_map_binary(map_data, output_file):
                 road_type = 10
             # Write base entity data
             f.write(struct.pack('i', road_type))  # type
-            f.write(struct.pack('i', 0))          # road_object_id
-            f.write(struct.pack('i', road.get('id', 0)))    # road_point_id
+            f.write(struct.pack('i', road.get('id', 0)))    # id
             f.write(struct.pack('i', size))                 # array_size
             
             # Write position arrays
