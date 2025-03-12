@@ -34,7 +34,7 @@ float test_values_std[NUM_STEPS * HORIZON] = {
     g, g, g, g,
 };
 
-float test_dones[NUM_STEPS] = {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+float test_dones[NUM_STEPS] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
 float test_rewards[NUM_STEPS] = {0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
 
 int main() {

@@ -326,6 +326,9 @@ def train(data):
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
 
+            if np.random.rand() < 0.01:
+                breakpoint()
+
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
         else:
