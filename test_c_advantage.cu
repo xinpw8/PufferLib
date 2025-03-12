@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "c_advantage.cu"
 
 // Kernel declaration
@@ -23,13 +24,14 @@ float test_values_mean[NUM_STEPS * HORIZON] = {
     1.0f, 1.0f, 1.0f, 1.0f,
 };
 
+float g = sqrt(0.5f);
+
 float test_values_std[NUM_STEPS * HORIZON] = {
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
+    g, g, g, g,
+    g, g, g, g,
+    g, g, g, g,
+    g, g, g, g,
+    g, g, g, g,
 };
 
 float test_dones[NUM_STEPS] = {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};

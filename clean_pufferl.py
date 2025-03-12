@@ -309,6 +309,7 @@ def train(data):
 
             mask_block.zero_()
             experience.buf.zero_()
+            reward_block.zero_()
             r_std = rewards.std().item()
 
             '''
@@ -325,7 +326,8 @@ def train(data):
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
 
-            print(reward_block[0])
+            if np.random.rand() < 0.1:
+                print(reward_block[0])
 
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
