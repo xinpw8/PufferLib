@@ -75,7 +75,7 @@ void add_log(LogBuffer* logs, Log* log) {
     }
     logs->logs[logs->idx] = *log;
     logs->idx += 1;
-    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
+    printf("Log: %f, %f,\n", log->episode_return, log->episode_length);
 }
 
 Log aggregate_and_clear(LogBuffer* logs) {
@@ -86,7 +86,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
- 
+	//printf("length: %f", log.episode_length);
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
@@ -338,7 +338,7 @@ void init(GPUDrive* env){
     printf("num_entities: %d\n", env->num_entities);
     printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     printf("Offset of y: %zu\n", offsetof(struct Entity, y));
-    env->fake_data = (float*)calloc(10000, sizeof(float));
+    env->fake_data = (float*)calloc(3000, sizeof(float));
 }
 
 void free_initialized(GPUDrive* env){
@@ -353,7 +353,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 10000;
+    int max_obs = 3000;
     printf("MAX_OBS: %d\n", max_obs);
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
@@ -371,13 +371,7 @@ void free_allocated(GPUDrive* env){
     free_initialized(env);
 }
 
-void c_reset(GPUDrive* env){
-    env->timestep = 0;
-    set_start_position(env);
-    for(int x = 0;x<env->active_agent_count; x++){
-        env->logs[x] = (Log){0};
-    }
-}
+
 
 void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
     if(env->dynamics_model == CLASSIC){
@@ -469,7 +463,7 @@ void move_random(GPUDrive* env, int agent_idx){
 }
 
 void compute_observations(GPUDrive* env){
-    int max_obs = 10000;
+    int max_obs = 3000;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
@@ -480,30 +474,37 @@ void compute_observations(GPUDrive* env){
     }
 };
 
-int c_step(GPUDrive* env){
+void c_reset(GPUDrive* env){
+    env->timestep = 0;
+    set_start_position(env);
+    for(int x = 0;x<env->active_agent_count; x++){
+        env->logs[x] = (Log){0};
+    }
+    compute_observations(env);
+}
+
+void c_step(GPUDrive* env){
     int (*action_array)[2] = (int(*)[2])env->actions;
     
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;    
     // Process actions for all active agents
-    if(env->timestep == 91){
-        for(int i=0;i<env->active_agent_count;i++){
-		env->rewards[i] = 1;
-        env->logs[i].episode_return += 1;
-		add_log(env->log_buffer, &env->logs[i]);
-        
-	    }
-	    c_reset(env);
-    }
     for(int i = 0; i < env->active_agent_count; i++){
         env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
         // move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
         move_expert(env, env->actions, agent_idx);
+	if(env->timestep == 91){
+		env->rewards[i] += 0.5;
+		env->logs[i].episode_return += 0.5;
+		add_log(env->log_buffer, &env->logs[i]);
+	}
+    }
+    if(env->timestep == 91){
+	    c_reset(env);
     }
     compute_observations(env);
-    return 0;
 }   
 
 typedef struct Client Client;
