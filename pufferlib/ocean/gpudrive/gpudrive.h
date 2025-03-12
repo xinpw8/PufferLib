@@ -40,6 +40,11 @@
 #define DELTA_LOCAL 2
 #define STATE_DYNAMICS 3
 
+// Acceleration Values
+static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
+static const float STEERING_VALUES[13] = {-3.1420f, -2.6180f, -2.0940f, -1.5710f, -1.0470f, -0.5240f,  0.0000f,  0.5240f,
+         1.0470f,  1.5710f,  2.0940f,  2.6180f,  3.1420f};
+
 #define LOG_BUFFER_SIZE 1024
 
 typedef struct Log Log;
@@ -283,6 +288,9 @@ void set_start_position(GPUDrive* env){
         env->entities[env->active_agent_indices[i]].vz = env->entities[env->active_agent_indices[i]].traj_vz[0];
         env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
         env->entities[env->active_agent_indices[i]].valid = env->entities[env->active_agent_indices[i]].traj_valid[0];
+        // printf("agent %d\n", env->active_agent_indices[i]);
+        // printf("x , y: %f, %f\n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
+        // printf("goal_x, goal_y: %f, %f\n", env->entities[env->active_agent_indices[i]].goal_position_x, env->entities[env->active_agent_indices[i]].goal_position_y);
     }
 }
 
@@ -339,8 +347,8 @@ void init(GPUDrive* env){
     printf("num_entities: %d\n", env->num_entities);
     printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     printf("Offset of y: %zu\n", offsetof(struct Entity, y));
-    env->fake_data = (float*)calloc(3000, sizeof(float));
-    for (int i = 0;i<3000;i++ ){
+    env->fake_data = (float*)calloc(1, sizeof(float));
+    for (int i = 0;i<1;i++ ){
 	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
     }
 }
@@ -357,7 +365,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 3000;
+    int max_obs = 1;
     printf("MAX_OBS: %d\n", max_obs);
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
@@ -374,8 +382,6 @@ void free_allocated(GPUDrive* env){
     free_logbuffer(env->log_buffer);
     free_initialized(env);
 }
-
-
 
 void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
     if(env->dynamics_model == CLASSIC){
@@ -395,9 +401,10 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         
         // Extract action components directly from the multi-discrete action array
         int (*action_array)[2] = (int(*)[2])env->actions;
-        float acceleration = action_array[action_idx][0];
-        float steering = action_array[action_idx][1];
-
+        int acceleration_index = action_array[action_idx][0];
+        int steering_index = action_array[action_idx][1];
+        float acceleration = ACCELERATION_VALUES[acceleration_index];
+        float steering = STEERING_VALUES[steering_index];
         
         // Clip acceleration and steering
         acceleration = fmaxf(-6.0f, fminf(acceleration, 6.0f));
@@ -444,6 +451,7 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
     else if(env->dynamics_model == INVERTIBLE_BICYLE){
         // Invertible bicycle dynamics model
     }
+    return;
 }
 
 void move_expert(GPUDrive* env, int* actions, int agent_idx){
@@ -468,14 +476,16 @@ void move_random(GPUDrive* env, int agent_idx){
 }
 
 void compute_observations(GPUDrive* env){
-    int max_obs = 3000;
+    int max_obs = 1;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
-        for(int j = 0; j < env->active_agent_count * 7; j++){
-            obs[j] = 42.0;
-        }
-        memcpy(obs, env->fake_data, max_obs*sizeof(float));
+        obs[i] = relative_distance(
+            env->entities[env->active_agent_indices[i]].x,
+            env->entities[env->active_agent_indices[i]].y,
+            env->entities[env->active_agent_indices[i]].goal_position_x,
+            env->entities[env->active_agent_indices[i]].goal_position_y);
+        // printf("agent: %d, obs: %f\n", i, obs[i]);
     }
 };
 
@@ -497,15 +507,21 @@ void c_step(GPUDrive* env){
     for(int i = 0; i < env->active_agent_count; i++){
         env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
-        if(env->timestep == 91){
-		env->rewards[i] += 0.5;
-		env->logs[i].episode_return += 0.5;
-		add_log(env->log_buffer, &env->logs[i]);
-		break;
-	}
-	//move_dynamics(env, i, agent_idx);
+        float distance_to_goal = relative_distance(
+                env->entities[agent_idx].x,
+                env->entities[agent_idx].y,
+                env->entities[agent_idx].goal_position_x,
+                env->entities[agent_idx].goal_position_y);
+        int reached_goal = distance_to_goal < 2.0f;
+        if(reached_goal){            
+            env->rewards[i] += 1.0f;
+            env->logs[i].episode_return += 1.0f;
+            add_log(env->log_buffer, &env->logs[i]);
+            continue;
+	    }
+	    move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
-        move_expert(env, env->actions, agent_idx);
+        // move_expert(env, env->actions, agent_idx);
 	
     }
     if(env->timestep == 91){
