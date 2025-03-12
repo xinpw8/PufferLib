@@ -1,3 +1,4 @@
+import numpy as np
 import functools
 
 import pufferlib
@@ -83,16 +84,56 @@ train_levels =[
 ]
 
 def env_creator(name='kinetix'):
-    return functools.partial(make, name)
+    return KinetixPufferEnv
+    return functools.partial(KinetixPufferEnv, name)
 
 def make(name, num_envs=2048, buf=None):
+    from kinetix.environment.env import make_kinetix_env_from_args
+    from kinetix.environment.env_state import EnvParams, StaticEnvParams
+    from kinetix.environment.ued.ued_state import UEDParams
+    from kinetix.environment.ued.distributions import sample_kinetix_level
+
+    # Use default parameters
+    env_params = EnvParams()
+    static_env_params = StaticEnvParams()
+    ued_params = UEDParams()
+
+    # Create the environment
+    env = make_kinetix_env_from_args(
+        obs_type="pixels",
+        action_type="multidiscrete",
+        reset_type="replay",
+        static_env_params=static_env_params,
+    )
+
+    # Sample a random level
+    import jax
+    rng = jax.random.PRNGKey(0)
+    rng, _rng = jax.random.split(rng)
+    level = sample_kinetix_level(_rng, env.physics_engine, env_params, static_env_params, ued_params)
+
+    # Reset the environment state to this level
+    rng, _rng = jax.random.split(rng)
+    obs, env_state = env.reset_to_level(_rng, level, env_params)
+
+    env.single_observation_space = env._observation_space.observation_space(env_state)
+    env.single_action_space = env.action_space(env_state)
+
+    #env._observation_space.get_obs(env_state)
+    '''
     from kinetix.environment.env import make_kinetix_env_from_name
     from kinetix.environment.env_state import EnvParams, StaticEnvParams
     from kinetix.util.learning import get_eval_levels
 
+    # Hack patch around local file path
+    import kinetix.util.learning
+    kinetix.util.learning.BASE_DIR = '../Kinetix/' + kinetix.util.learning.BASE_DIR
+
     env_params = EnvParams()
     static_env_params = StaticEnvParams()
     env = make_kinetix_env_from_name('Kinetix-Symbolic-MultiDiscrete-v1', static_env_params=static_env_params)
+    #env._observation_space.get_obs
+    breakpoint()
 
     import jax
     v = get_eval_levels(train_levels, static_env_params)
@@ -102,4 +143,90 @@ def make(name, num_envs=2048, buf=None):
         return jax.tree.map(lambda x: x[idx], v)
 
     env.reset = reset
+    '''
+
+
     return pufferlib.emulation.GymnaxPufferEnv(env, env_params, num_envs=num_envs, buf=buf)
+
+class KinetixPufferEnv(pufferlib.environment.PufferEnv):
+    def __init__(self, num_envs=1, buf=None):
+        from kinetix.environment.env import make_kinetix_env_from_args
+        from kinetix.environment.env_state import EnvParams, StaticEnvParams
+        from kinetix.environment.ued.ued_state import UEDParams
+        from kinetix.environment.ued.distributions import sample_kinetix_level
+        from kinetix.environment.wrappers import AutoResetWrapper, UnderspecifiedToGymnaxWrapper
+
+        from kinetix.util.learning import get_eval_levels
+        import kinetix.util.learning
+        kinetix.util.learning.BASE_DIR = '../Kinetix/' + kinetix.util.learning.BASE_DIR
+
+        # Use default parameters
+        env_params = EnvParams()
+        static_env_params = StaticEnvParams()
+        ued_params = UEDParams()
+
+        # Create the environment
+        env = make_kinetix_env_from_args(
+            obs_type="pixels",
+            action_type="discrete",
+            reset_type="replay",
+            static_env_params=static_env_params,
+        )
+
+        # Sample a random level
+        import jax
+        rng = jax.random.PRNGKey(0)
+        rng, _rng = jax.random.split(rng)
+        level = sample_kinetix_level(_rng, env.physics_engine, env_params, static_env_params, ued_params)
+
+        # Reset the environment state to this level
+        rng, _rng = jax.random.split(rng)
+        obs, env_state = env.reset_to_level(_rng, level, env_params)
+
+        from gymnax.environments.spaces import gymnax_space_to_gym_space
+        self.single_observation_space = gymnax_space_to_gym_space(
+            env._observation_space.observation_space(env_state))
+        self.single_action_space = gymnax_space_to_gym_space(
+            env.action_space(env_state))
+        self.num_agents = num_envs
+
+        v = get_eval_levels(train_levels, static_env_params)
+        def reset(rng):
+            rng, _rng, _rng2 = jax.random.split(rng, 3)
+            idx = jax.random.randint(_rng, (), 0, len(train_levels))
+            return jax.tree.map(lambda x: x[idx], v)
+
+        env = UnderspecifiedToGymnaxWrapper(AutoResetWrapper(env, reset))
+        self.env = env
+
+        super().__init__(buf)
+        self.env_params = env_params
+        self.env = env
+
+        self.reset_fn = jax.jit(jax.vmap(env.reset, in_axes=(0, None)))
+        self.step_fn = jax.jit(jax.vmap(env.step, in_axes=(0, 0, 0, None)))
+        self.rng = jax.random.PRNGKey(0)
+
+    def reset(self, rng, params=None):
+        import jax
+        self.rng, _rng = jax.random.split(self.rng)
+        self.rngs = jax.random.split(_rng, self.num_agents)
+        obs, self.state = self.reset_fn(self.rngs, params)
+        obs = obs.image
+        from torch.utils import dlpack as torch_dlpack
+        self.observations = torch_dlpack.from_dlpack(jax.dlpack.to_dlpack(obs))
+        return self.observations, []
+
+    def step(self, action):
+        import jax
+        #self.rng, _rng = jax.random.split(self.rng)
+        #rngs = jax.random.split(_rng, self.num_agents)
+        obs, self.state, reward, done, info = self.step_fn(self.rngs, self.state, action, self.env_params)
+
+        # Convert JAX array to DLPack, then to PyTorch tensor
+        from torch.utils import dlpack as torch_dlpack
+        self.observations = torch_dlpack.from_dlpack(jax.dlpack.to_dlpack(obs))
+        self.rewards = np.asarray(reward)
+        self.terminals = np.asarray(done)
+        infos = [{k: v.mean().item() for k, v in info.items()}]
+        return self.observations, self.rewards, self.terminals, self.terminals, infos

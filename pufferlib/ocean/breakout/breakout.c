@@ -3,11 +3,11 @@
 #include "puffernet.h"
 
 void demo() {
-    Weights* weights = load_weights("resources/breakout_weights.bin", 148101);
-    LinearLSTM* net = make_linearlstm(weights, 1, 119, 4);
+    Weights* weights = load_weights("resources/breakout_weights.bin", 147972);
+    LinearLSTM* net = make_linearlstm(weights, 1, 119, 3);
 
     Breakout env = {
-        .frameskip = 1,
+        .frameskip = 4,
         .width = 576,
         .height = 330,
         .paddle_width = 62,
@@ -38,7 +38,9 @@ void demo() {
                 if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 2;
             }
         } else {
-            forward_linearlstm(net, env.observations, env.actions);
+            int* actions = (int*)env.actions;
+            forward_linearlstm(net, env.observations, actions);
+            env.actions[0] = actions[0];
         }
 
         c_step(&env);
