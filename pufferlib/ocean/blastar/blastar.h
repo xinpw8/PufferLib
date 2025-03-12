@@ -465,11 +465,11 @@ Client* make_client(BlastarEnv* env) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Blastar");
     Client* client = (Client*)malloc(sizeof(Client));
     SetTargetFPS(60);
-    client->player_texture = LoadTexture("./pufferlib/resources/blastar/player_ship.png");
-    client->enemy_texture = LoadTexture("./pufferlib/resources/blastar/enemy_ship.png");
-    client->player_bullet_texture = LoadTexture("./pufferlib/resources/blastar/player_bullet.png");
-    client->enemy_bullet_texture = LoadTexture("./pufferlib/resources/blastar/enemy_bullet.png");
-    client->explosion_texture = LoadTexture("./pufferlib/resources/blastar/player_death_explosion.png");
+    client->player_texture = LoadTexture("resources/blastar/player_ship.png");
+    client->enemy_texture = LoadTexture("resources/blastar/enemy_ship.png");
+    client->player_bullet_texture = LoadTexture("resources/blastar/player_bullet.png");
+    client->enemy_bullet_texture = LoadTexture("resources/blastar/enemy_bullet.png");
+    client->explosion_texture = LoadTexture("resources/blastar/player_death_explosion.png");
     return client;
 }
 
@@ -479,7 +479,6 @@ void close_client(Client* client) {
 }
 
 void c_render(Client* client, BlastarEnv* env) {
-    printf("num_obs: %d\n", env->num_obs);
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

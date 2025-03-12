@@ -7,7 +7,7 @@
 
 #include "puffernet.h"
 
-const char* WEIGHTS_PATH = "/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar/blastar_weights.bin";
+const char* WEIGHTS_PATH = "resources/blastar/blastar_weights.bin";
 #define OBSERVATIONS_SIZE 10
 #define ACTIONS_SIZE 6
 #define NUM_WEIGHTS 134407

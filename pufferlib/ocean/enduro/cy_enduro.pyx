@@ -52,7 +52,7 @@ cdef extern from "enduro.h":
     void free_logbuffer(LogBuffer* buffer)
     Log aggregate_and_clear(LogBuffer* logs)
     void init(Enduro* env, int seed, int env_index)
-    void reset(Enduro* env)
+    void c_reset(Enduro* env)
     void c_step(Enduro* env)
     void c_render(Client* client, Enduro* env)
     Client* make_client(Enduro* env)
@@ -103,15 +103,15 @@ cdef class CyEnduro:
             self.envs[i].log_buffer = self.logs
             self.envs[i].obs_size = observations.shape[1]
 
-            if i % 100 == 0:
-                print(f"Initializing environment #{i} with seed {unique_seed}")
+            #if i % 100 == 0:
+            #    print(f"Initializing environment #{i} with seed {unique_seed}")
 
             init(&self.envs[i], unique_seed, i)
 
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i

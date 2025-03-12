@@ -98,7 +98,7 @@ void init_csnake(CSnake* env) {
     env->snake_lifetimes = (int*)calloc(env->num_snakes, sizeof(int));
     env->snake_colors = (int*)calloc(env->num_snakes, sizeof(int));
     env->logs = calloc(env->num_snakes, sizeof(Log));
-    env->snake_colors[0] = 9;
+    env->snake_colors[0] = 7;
     for (int i = 1; i<env->num_snakes; i++)
         env->snake_colors[i] = i%4 + 4; // Randomize snake colors
 }
@@ -194,7 +194,7 @@ void spawn_food(CSnake* env) {
     env->grid[idx] = FOOD;
 }
 
-void reset(CSnake* env) {
+void c_reset(CSnake* env) {
     env->window = 2*env->vision+1;
     env->obs_size = env->window*env->window;
 
@@ -300,7 +300,7 @@ void step_snake(CSnake* env, int i) {
     env->grid[next_r*env->width + next_c] = env->snake_colors[i];
 }
 
-void step(CSnake* env){
+void c_step(CSnake* env){
     for (int i = 0; i < env->num_snakes; i++)
         step_snake(env, i);
 
@@ -342,7 +342,10 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Client* client, CSnake* env) {
+void c_render(Client* client, CSnake* env) {
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
+    }
     BeginDrawing();
     ClearBackground(COLORS[0]);
     int sz = client->cell_size;

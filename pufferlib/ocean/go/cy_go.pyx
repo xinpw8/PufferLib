@@ -30,8 +30,6 @@ cdef extern from "go.h":
     int find(Group*)
     void union_groups(Group*, int, int)
 
-
-
     ctypedef struct CGo:
         float* observations
         int* actions
@@ -68,12 +66,12 @@ cdef extern from "go.h":
 
     void init(CGo* env)
     void free_initialized(CGo* env)
-    void reset(CGo* env)
-    void step(CGo* env)
+    void c_reset(CGo* env)
+    void c_step(CGo* env)
 
     Client* make_client(float width, float height)
     void close_client(Client* client)
-    void render(Client* client, CGo* env)
+    void c_render(Client* client, CGo* env)
     
 
 cdef class CyGo:
@@ -122,19 +120,19 @@ cdef class CyGo:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef CGo* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env.width,env.height)
 
-        render(self.client, &self.envs[0])
+        c_render(self.client, &self.envs[0])
 
     def close(self):
         if self.client != NULL:

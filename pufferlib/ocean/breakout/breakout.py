@@ -17,19 +17,29 @@ class Breakout(pufferlib.PufferEnv):
             paddle_width=62, paddle_height=8,
             ball_width=32, ball_height=32,
             brick_width=32, brick_height=12,
-            brick_rows=6, brick_cols=18, buf=None):
+            brick_rows=6, brick_cols=18, continuous=False, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(11 + brick_rows*brick_cols,), dtype=np.float32)
-        self.single_action_space = gymnasium.spaces.Discrete(4)
         self.report_interval = report_interval
         self.render_mode = render_mode
         self.num_agents = num_envs
+        self.continuous = continuous
+        if continuous:
+            self.single_action_space = gymnasium.spaces.Box(low=-1, high=1,
+                shape=(1,), dtype=np.float32)
+        else:
+            self.single_action_space = gymnasium.spaces.Discrete(3)
+            
 
         super().__init__(buf)
+        if continuous:
+            self.actions = self.actions.flatten()
+        else:
+            self.actions = self.actions.astype(np.float32)
         self.c_envs = CyBreakout(self.observations, self.actions, self.rewards,
             self.terminals, num_envs, frameskip, width, height,
             paddle_width, paddle_height, ball_width, ball_height,
-            brick_width, brick_height, brick_rows, brick_cols)
+            brick_width, brick_height, brick_rows, brick_cols, continuous)
 
     def reset(self, seed=None):
         self.c_envs.reset()
@@ -37,9 +47,12 @@ class Breakout(pufferlib.PufferEnv):
         return self.observations, []
 
     def step(self, actions):
-        self.actions[:] = actions
+        if self.continuous:
+            self.actions[:] = np.clip(actions.flatten(), -1.0, 1.0)
+        else:
+            self.actions[:] = actions
+            
         self.c_envs.step()
-
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()

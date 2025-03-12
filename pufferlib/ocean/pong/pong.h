@@ -61,7 +61,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 typedef struct Pong Pong;
 struct Pong {
     float* observations;
-    int* actions;
+    float* actions;
     float* rewards;
     unsigned char* terminals;
     LogBuffer* log_buffer;
@@ -93,6 +93,7 @@ struct Pong {
     int n_bounces;
     int win;
     int frameskip;
+    int continuous;
 };
 
 void init(Pong* env) {
@@ -111,7 +112,7 @@ void init(Pong* env) {
 void allocate(Pong* env) {
     init(env);
     env->observations = (float*)calloc(8, sizeof(float));
-    env->actions = (int*)calloc(2, sizeof(int));
+    env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
@@ -147,7 +148,7 @@ void reset_round(Pong* env) {
     env->n_bounces = 0;
 }
 
-void reset(Pong* env) {
+void c_reset(Pong* env) {
     env->log = (Log){0};
     reset_round(env);
     env->score_l = 0;
@@ -155,21 +156,24 @@ void reset(Pong* env) {
     compute_observations(env);
 }
 
-void step(Pong* env) {
+void c_step(Pong* env) {
     env->tick += 1;
     env->log.episode_length += 1;
     env->rewards[0] = 0;
     env->terminals[0] = 0;
-
     // move ego paddle
-    unsigned int act = env->actions[0];
-    env->paddle_dir = 0;
-    if (act == 0) { // still
+    if (env->continuous) {
+        env->paddle_dir = env->actions[0];
+    } else {
+        float act = env->actions[0];
         env->paddle_dir = 0;
-    } else if (act == 1) { // up
-        env->paddle_dir = 1;
-    } else if (act == 2) { // down
-        env->paddle_dir = -1;
+        if (act == 0.0) { // still
+            env->paddle_dir = 0;
+        } else if (act == 1.0) { // up
+            env->paddle_dir = 1;
+        } else if (act == 2.0) { // down
+            env->paddle_dir = -1;
+        }
     }
 
     for (int i = 0; i < env->frameskip; i++) {
@@ -213,7 +217,7 @@ void step(Pong* env) {
                 if (env->score_r == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env->log_buffer, &env->log);
-                    reset(env);
+                    c_reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -246,7 +250,7 @@ void step(Pong* env) {
                 if (env->score_l == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env->log_buffer, &env->log);
-                    reset(env);
+                    c_reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -302,7 +306,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Client* client, Pong* env) {
+void c_render(Client* client, Pong* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

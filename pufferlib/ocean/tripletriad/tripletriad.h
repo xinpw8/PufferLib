@@ -3,22 +3,22 @@
 #include "raylib.h"
 #include <stdio.h>
 
-#define NOOP 0
-#define SELECT_CARD_1 1
-#define SELECT_CARD_2 2
-#define SELECT_CARD_3 3
-#define SELECT_CARD_4 4
-#define SELECT_CARD_5 5
-#define PLACE_CARD_1 6
-#define PLACE_CARD_2 7
-#define PLACE_CARD_3 8
-#define PLACE_CARD_4 9
-#define PLACE_CARD_5 10
-#define PLACE_CARD_6 11
-#define PLACE_CARD_7 12
-#define PLACE_CARD_8 13
-#define PLACE_CARD_9 14
+#define SELECT_CARD_1 0
+#define SELECT_CARD_2 1
+#define SELECT_CARD_3 2
+#define SELECT_CARD_4 3
+#define SELECT_CARD_5 4
+#define PLACE_CARD_1 5
+#define PLACE_CARD_2 6
+#define PLACE_CARD_3 7
+#define PLACE_CARD_4 8
+#define PLACE_CARD_5 9
+#define PLACE_CARD_6 10
+#define PLACE_CARD_7 11
+#define PLACE_CARD_8 12
+#define PLACE_CARD_9 13
 #define TICK_RATE 1.0f/60.0f
+#define MAX_EPISODE_LENGTH 30
 
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
@@ -294,7 +294,7 @@ void compute_observations(CTripleTriad* env) {
     }
 }
 
-void reset(CTripleTriad* env) {
+void c_reset(CTripleTriad* env) {
     env->log = (Log){0};
     env->game_over = 0;
     for(int i=0; i< 2; i++) {
@@ -490,35 +490,39 @@ void check_card_conversions(CTripleTriad* env, int card_placement, int player) {
     }
 }
 
-void step(CTripleTriad* env) {
+void c_step(CTripleTriad* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
     int action = env->actions[0];
+
+    if (env->log.episode_length >= MAX_EPISODE_LENGTH) {
+        env->game_over = 1;
+        env->log.episode_return -= 1.0;
+        env->rewards[0] -= 1.0;
+    }
+
     // reset the game if game over
     if (env->game_over == 1) {
         env->log.score = env->score[0];
         add_log(env->log_buffer, &env->log);
         //printf("Log: %f, %f, %f\n", env->log.episode_return, env->log.episode_length, env->log.score);
-        reset(env);
+        c_reset(env);
         return;
     }
     // select a card if the card is in the range of 1-5 and the card is not placed
-    if (action == NOOP) {
-        env->rewards[0] -= 0.1;
-        env->log.episode_return -= 0.1;
-    } else if (action >= SELECT_CARD_1 && action <= SELECT_CARD_5 ) {
+    if (action >= SELECT_CARD_1 && action <= SELECT_CARD_5 ) {
         // Prevent model from just swapping between selected cards to avoid playing
         env->log.episode_return -= 0.1;
         env->rewards[0] -= 0.1;
 
-        int card_selected = action;
+        int card_selected = action + 1;
         if(env->card_locations[0][card_selected-1] == 0) {
             select_card(env,card_selected, 1);
         }
     }
     // place a card if the card is in the range of 1-9 and the card is selected
     else if (action >= PLACE_CARD_1 && action <= PLACE_CARD_9  ) {
-        int card_placement = action - 5;
+        int card_placement = action - 4;
         bool card_placed = false;
         if(env->card_selected[0] >= 0) {
             if(check_legal_placement(env, card_placement, 1)) {
@@ -575,7 +579,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void render(Client* client, CTripleTriad* env) {
+void c_render(Client* client, CTripleTriad* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

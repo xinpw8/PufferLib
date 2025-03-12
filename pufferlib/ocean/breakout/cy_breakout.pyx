@@ -15,7 +15,7 @@ cdef extern from "breakout.h":
 
     ctypedef struct Breakout:
         float* observations
-        int* actions;
+        float* actions;
         float* rewards
         unsigned char* dones
         LogBuffer* log_buffer;
@@ -47,7 +47,7 @@ cdef extern from "breakout.h":
         int brick_height
         int num_balls
         int frameskip
-
+        int continuous
     ctypedef struct Client
 
     void init(Breakout* env)
@@ -55,9 +55,9 @@ cdef extern from "breakout.h":
 
     Client* make_client(Breakout* env)
     void close_client(Client* client)
-    void render(Client* client, Breakout* env)
-    void reset(Breakout* env)
-    void step(Breakout* env)
+    void c_render(Client* client, Breakout* env)
+    void c_reset(Breakout* env)
+    void c_step(Breakout* env)
 
 cdef class CyBreakout:
     cdef:
@@ -66,11 +66,11 @@ cdef class CyBreakout:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions,
+    def __init__(self, float[:, :] observations, float[:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,  int frameskip,
             int width, int height, float paddle_width, float paddle_height,
             int ball_width, int ball_height, int brick_width, int brick_height,
-            int brick_rows, int brick_cols):
+            int brick_rows, int brick_cols, int continuous):
 
         self.client = NULL
         self.num_envs = num_envs
@@ -96,6 +96,7 @@ cdef class CyBreakout:
                 brick_rows=brick_rows,
                 brick_cols=brick_cols,
                 frameskip=frameskip,
+                continuous=continuous,  
             )
             init(&self.envs[i])
             self.client = NULL
@@ -103,12 +104,12 @@ cdef class CyBreakout:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef Breakout* env = &self.envs[0]
@@ -119,7 +120,7 @@ cdef class CyBreakout:
             self.client = make_client(env)
             os.chdir(cwd)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:

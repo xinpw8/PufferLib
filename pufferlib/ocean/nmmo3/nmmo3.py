@@ -18,6 +18,12 @@ class NMMO3(pufferlib.PufferEnv):
             reward_combat_level=1.0, reward_prof_level=1.0,
             reward_item_level=0.5, reward_market=0.01,
             reward_death=-1.0, buf=None):
+
+        if len(width) > num_envs:
+            width = width[:num_envs]
+        if len(height) > num_envs:
+            height = height[:num_envs]
+
         if not isinstance(width, list):
             width = num_envs * [width]
         if not isinstance(height, list):
@@ -138,8 +144,8 @@ class NMMO3(pufferlib.PufferEnv):
         self.prof_goal_mask = np.array([0, 0, 0, 1, 0, 0, 1, 1, 1, 1])
         self.tick = 0
 
-        self.single_observation_space = gymnasium.spaces.Box(low=-1,
-            high=2**32-1, shape=(11*15*10+47+10,), dtype=np.uint8)
+        self.single_observation_space = gymnasium.spaces.Box(low=0,
+            high=255, shape=(11*15*10+47+10,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(26)
         self.render_mode = 'human'
 

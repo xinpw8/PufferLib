@@ -1,22 +1,13 @@
 import pufferlib.emulation
 import pufferlib.postprocess
 
-from .snake.snake import Snake
-from .squared.squared import Squared
-from .squared.pysquared import PySquared
-from .pong.pong import Pong
-from .breakout.breakout import Breakout
-from .enduro.enduro import Enduro
-from .blastar.blastar import Blastar
-from .connect4.connect4 import Connect4
-from .tripletriad.tripletriad import TripleTriad
-from .tactical.tactical import Tactical
-from .moba.moba import Moba
-from .nmmo3.nmmo3 import NMMO3
-from .go.go import Go
-from .rware.rware import Rware
-#from .rocket_lander import rocket_lander
-from .trash_pickup.trash_pickup import TrashPickupEnv
+def lazy_import(module_path, attr):
+    """
+    Returns a callable that, when called with any arguments, will
+    import the module, retrieve the attribute (usually a class or factory)
+    and then call it with the given arguments.
+    """
+    return lambda *args, **kwargs: getattr(__import__(module_path, fromlist=[attr]), attr)(*args, **kwargs)
 
 def make_foraging(width=1080, height=720, num_agents=4096, horizon=512,
         discretize=True, food_reward=0.1, render_mode='rgb_array'):
@@ -56,10 +47,11 @@ def make_puffer(width=1080, height=720, num_agents=4096, horizon=512,
         init_fn=init_fn, reward_fn=reward_fn,
         render_mode=render_mode)
 
-def make_puffergrid(render_mode='rgb_array', vision_range=3):
-    assert False, 'This env is unfinished. Join our Discord and help us finish it!'
-    from .grid import grid
-    return grid.PufferGrid(render_mode, vision_range)
+def make_puffergrid(render_mode='raylib', vision_range=5,
+        num_envs=4096, num_maps=1000, max_map_size=9,
+        report_interval=128, buf=None):
+    return PufferGrid(render_mode, vision_range, num_envs,
+        num_maps, max_map_size, report_interval, buf)
 
 def make_continuous(discretize=False, buf=None, **kwargs):
     from . import sanity
@@ -125,28 +117,27 @@ def make_multiagent(buf=None, **kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 MAKE_FNS = {
-    'breakout': Breakout,
-    'pong': Pong,
-    'enduro': Enduro,
-    'blastar': Blastar,
-    'moba': Moba,
-    'nmmo3': NMMO3,
-    'snake': Snake,
-    'squared': Squared,
-    'pysquared': PySquared,
-    'connect4': Connect4,
-    'tripletriad': TripleTriad,
-    'tactical': Tactical,
-    'go': Go,
-    'rware': Rware,
-    'trash_pickup': TrashPickupEnv,
-
+    'breakout':      lambda: lazy_import('pufferlib.ocean.breakout.breakout', 'Breakout'),
+    'pong':          lambda: lazy_import('pufferlib.ocean.pong.pong', 'Pong'),
+    'enduro':        lambda: lazy_import('pufferlib.ocean.enduro.enduro', 'Enduro'),
+    'moba':          lambda: lazy_import('pufferlib.ocean.moba.moba', 'Moba'),
+    'nmmo3':         lambda: lazy_import('pufferlib.ocean.nmmo3.nmmo3', 'NMMO3'),
+    'snake':         lambda: lazy_import('pufferlib.ocean.snake.snake', 'Snake'),
+    'squared':       lambda: lazy_import('pufferlib.ocean.squared.squared', 'Squared'),
+    'pysquared':     lambda: lazy_import('pufferlib.ocean.squared.pysquared', 'PySquared'),
+    'connect4':      lambda: lazy_import('pufferlib.ocean.connect4.connect4', 'Connect4'),
+    'tripletriad':   lambda: lazy_import('pufferlib.ocean.tripletriad.tripletriad', 'TripleTriad'),
+    'tactical':      lambda: lazy_import('pufferlib.ocean.tactical.tactical', 'Tactical'),
+    'go':            lambda: lazy_import('pufferlib.ocean.go.go', 'Go'),
+    'rware':         lambda: lazy_import('pufferlib.ocean.rware.rware', 'Rware'),
+    'trash_pickup':  lambda: lazy_import('pufferlib.ocean.trash_pickup.trash_pickup', 'TrashPickupEnv'),
+    'tower_climb':   lambda: lazy_import('pufferlib.ocean.tower_climb.tower_climb', 'TowerClimb'),
+    'grid':          lambda: lazy_import('pufferlib.ocean.grid.grid', 'Grid'),
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
     'group': make_group,
     'puffer': make_puffer,
-    'puffer_grid': make_puffergrid,
     'continuous': make_continuous,
     'bandit': make_bandit,
     'memory': make_memory,
@@ -161,9 +152,9 @@ MAKE_FNS = {
 # Alias puffer_ to all names
 MAKE_FNS = {**MAKE_FNS, **{'puffer_' + k: v for k, v in MAKE_FNS.items()}}
 
-def env_creator(name='squared'):
+def env_creator(name='squared', *args, **kwargs):
     if name in MAKE_FNS:
-        return MAKE_FNS[name]
+        return MAKE_FNS[name](*args, **kwargs)
     else:
         raise ValueError(f'Invalid environment name: {name}')
 
