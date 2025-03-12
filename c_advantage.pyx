@@ -5,8 +5,39 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 
+
 import numpy as np
 cimport numpy as cnp
+from libc.string cimport memset, memcpy
+
+def rewards_and_masks(float[:, :] reward_block, float[:, :] reward_mask,
+        float[:] dones, float[:] rewards, int horizon):
+    cdef int num_steps = len(rewards)
+    memset(&reward_mask[0, 0], 0, num_steps * horizon * sizeof(float))
+    cdef int i, j, t
+    for i in range(num_steps):
+        for j in range(horizon):
+            t = i + j
+
+            if t >= num_steps - 1:
+                break
+
+            if dones[t]:
+                break
+
+            reward_block[i, j] = rewards[t+1]
+            reward_mask[i, j] = 1.0
+
+def fast_rewards_and_masks(float[:, :] reward_block, float[:, :] reward_mask,
+        float[:] dones, float[:] rewards, int horizon):
+    cdef int num_steps = len(rewards)
+    cdef int i, h 
+    for i in range(num_steps):
+        h = horizon
+        if i + h >= num_steps:
+            h = num_steps - i - 1
+
+        memcpy(&reward_block[i, 0], &rewards[i+1], h * sizeof(float))
 
 def compute_gae(cnp.ndarray dones, cnp.ndarray values,
         cnp.ndarray rewards, float gamma, float gae_lambda):
@@ -30,5 +61,3 @@ def compute_gae(cnp.ndarray dones, cnp.ndarray values,
         c_advantages[t_cur] = lastgaelam
 
     return advantages
-
-

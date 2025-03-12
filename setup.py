@@ -119,6 +119,11 @@ environments = {
         f'gymnasium=={GYMNASIUM_VERSION}',
         'crafter==1.8.3',
     ],
+    'craftax': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'craftax',
+    ],
     'dm_control': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
@@ -345,7 +350,7 @@ setup(
     },
     ext_modules = cythonize([
         "pufferlib/extensions.pyx",
-        "c_gae.pyx",
+        "c_advantage.pyx",
         "pufferlib/puffernet.pyx",
         *extensions,
     ], 
