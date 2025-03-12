@@ -327,7 +327,7 @@ def train(data):
             torch.cuda.synchronize()
 
             if np.random.rand() < 0.1:
-                print(reward_block[0])
+                print(experience.buf[0])
 
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
@@ -418,7 +418,7 @@ def train(data):
                     newvalue_var = torch.square(newvalue_std)
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
-                    v_loss = criterion(newvalue_mean, ret, newvalue_var)
+                    v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
                     #TODO: Count mask and sum
                     # There is going to have to be some sort of norm here.
                     # Right now, learning works at different horizons, but you need
