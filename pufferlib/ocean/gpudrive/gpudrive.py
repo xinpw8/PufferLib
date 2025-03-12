@@ -11,10 +11,11 @@ class GPUDrive(pufferlib.PufferEnv):
             width=1280, height=1024,
             active_agent_count=5,
             human_agent_idx=0,
+            num_agents = 5,
             buf = None):
 
         # env
-        self.num_agents = num_envs*active_agent_count
+        self.num_agents = num_envs*num_agents
         self.render_mode = render_mode
         self.report_interval = report_interval
         
@@ -26,7 +27,7 @@ class GPUDrive(pufferlib.PufferEnv):
 
         super().__init__(buf=buf)
         self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, active_agent_count, human_agent_idx)
+            self.terminals, num_envs, num_agents, human_agent_idx)
 
 
     def reset(self, seed=None):
@@ -43,7 +44,6 @@ class GPUDrive(pufferlib.PufferEnv):
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                 info.append(log)
-                breakpoint()
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 

@@ -29,11 +29,12 @@ import torch
 from torch.utils.cpp_extension import load
 
 # Compile the CUDA kernel
-cuda_module = load(
+'''cuda_module = load(
     name='advantage_kernel',
     sources=['c_advantage.cu'],
     verbose=True
 )
+'''
 
 def compute_advantages(
     reward_block: torch.Tensor,  # [num_steps, horizon]

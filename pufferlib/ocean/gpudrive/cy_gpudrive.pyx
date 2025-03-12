@@ -114,14 +114,13 @@ cdef class CyGPUDrive:
 
     def __init__(self, float[:, :] observations, int[:,:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int active_agent_count, int human_agent_idx):
+            int num_agents, int human_agent_idx):
 
         self.client = NULL
         self.num_envs = num_envs
         self.envs = <GPUDrive*> calloc(num_envs, sizeof(GPUDrive))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
-        cdef int inc = active_agent_count
-
+        cdef int inc = num_agents
         cdef int i
         for i in range(num_envs):
             self.envs[i] = GPUDrive(
@@ -134,6 +133,7 @@ cdef class CyGPUDrive:
             )
             init(&self.envs[i])
             self.client = NULL
+            print("start: ", i)
 
     def reset(self):
         cdef int i

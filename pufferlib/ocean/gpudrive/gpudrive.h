@@ -75,7 +75,7 @@ void add_log(LogBuffer* logs, Log* log) {
     }
     logs->logs[logs->idx] = *log;
     logs->idx += 1;
-    printf("Log: %f, %f,\n", log->episode_return, log->episode_length);
+    //printf("Log: %f, %f,\n", log->episode_return, log->episode_length);
 }
 
 Log aggregate_and_clear(LogBuffer* logs) {
@@ -328,6 +328,7 @@ void set_active_agents(GPUDrive* env){
 }
 
 void init(GPUDrive* env){
+    printf("init");
     env->human_agent_idx = 0;
     env->timestep = 0;
     env->entities = load_map_binary("map.bin", env);
@@ -339,6 +340,9 @@ void init(GPUDrive* env){
     printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     printf("Offset of y: %zu\n", offsetof(struct Entity, y));
     env->fake_data = (float*)calloc(3000, sizeof(float));
+    for (int i = 0;i<3000;i++ ){
+	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
+    }
 }
 
 void free_initialized(GPUDrive* env){
@@ -448,6 +452,7 @@ void move_expert(GPUDrive* env, int* actions, int agent_idx){
     agent->y = agent->traj_y[env->timestep];
     agent->z = agent->traj_z[env->timestep];
     agent->heading = agent->traj_heading[env->timestep];
+    //printf("x,y,z: %f %f %f", agent->x, agent->y, agent->z);
 }
 
 void move_random(GPUDrive* env, int agent_idx){
@@ -487,19 +492,21 @@ void c_step(GPUDrive* env){
     int (*action_array)[2] = (int(*)[2])env->actions;
     
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
-    env->timestep++;    
+    env->timestep++;
     // Process actions for all active agents
     for(int i = 0; i < env->active_agent_count; i++){
         env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
-        // move_dynamics(env, i, agent_idx);
-        // move_random(env, agent_idx);
-        move_expert(env, env->actions, agent_idx);
-	if(env->timestep == 91){
+        if(env->timestep == 91){
 		env->rewards[i] += 0.5;
 		env->logs[i].episode_return += 0.5;
 		add_log(env->log_buffer, &env->logs[i]);
+		break;
 	}
+	//move_dynamics(env, i, agent_idx);
+        // move_random(env, agent_idx);
+        move_expert(env, env->actions, agent_idx);
+	
     }
     if(env->timestep == 91){
 	    c_reset(env);
