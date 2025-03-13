@@ -509,7 +509,12 @@ void c_step(GPUDrive* env){
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;
     if(env->timestep == 91){
-	    
+	    for(int i = 0; i < env->active_agent_count; i++){
+            if(env->goal_reached[i] == 0){
+                env->logs[i].score = 0.0f;
+                add_log(env->log_buffer, &env->logs[i]);
+            }
+	    }
 	    c_reset(env);
     }// Process actions for all active agents
     for(int i = 0; i < env->active_agent_count; i++){
@@ -529,7 +534,7 @@ void c_step(GPUDrive* env){
         if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
             env->logs[i].score = 1.0f;
-	    env->goal_reached[i] = 1;
+	        env->goal_reached[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
             add_log(env->log_buffer, &env->logs[i]);
             continue;

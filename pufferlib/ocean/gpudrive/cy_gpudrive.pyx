@@ -58,6 +58,7 @@ cdef extern from "gpudrive.h":
         int timestep;
         int dynamics_model;
         float* fake_data;
+        char* goal_reached;
 
     ctypedef struct Client
 
