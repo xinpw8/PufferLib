@@ -46,6 +46,7 @@ def compute_advantages(
     advantages: torch.Tensor,   # [num_steps]
     bounds: torch.Tensor,       # [num_steps]
     vstd_max: float,
+    puf: float,
     horizon: int
 ):
     assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
@@ -79,6 +80,7 @@ def compute_advantages(
         bounds,
         num_steps,
         vstd_max,
+        puf,
         horizon,
     )
     
@@ -139,6 +141,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         use_e3b=config.use_e3b,
         e3b_coef=config.e3b_coef,
         e3b_norm=config.e3b_norm,
+        puf=config.puf,
     )
 
 @pufferlib.utils.profile
@@ -324,7 +327,7 @@ def train(data):
             # TODO: Rename vstd to r_std
             advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
                     experience.buf, dones, rewards, advantages, experience.bounds,
-                    r_std, config.p3o_horizon)
+                    r_std, data.puf, config.p3o_horizon)
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
 

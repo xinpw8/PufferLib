@@ -14,6 +14,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
                                 torch::Tensor bounds,
                                 int num_steps,
                                 float vstd_max,
+                                float puf,
                                 int horizon) {
         // Launch the kernel
         int threads_per_block = 256;
@@ -31,6 +32,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             bounds.data_ptr<int>(),
             num_steps,
             vstd_max, 
+            puf,
             horizon
         );
 

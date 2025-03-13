@@ -10,6 +10,7 @@ __global__ void advantage_kernel(
     int* bounds,          // [num_steps]
     int num_steps,
     float r_std,
+    float puf,
     int horizon
 ) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -41,11 +42,9 @@ __global__ void advantage_kernel(
         }
 
         float gamma = 1.0f / (vstd*vstd);
-        /*
         if (r_std != 0.0f) {
-            gamma -= 1.0f/(r_std*r_std);
+            gamma -= puf/(r_std*r_std);
         }
-        */
 
         if (gamma < 0.0f) {
             gamma = 0.0f;
