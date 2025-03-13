@@ -92,7 +92,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
-	log.score += logs->logs[i].score;
+	    log.score += logs->logs[i].score;
 	//printf("length: %f", log.episode_length);
     }
     log.episode_return /= logs->idx;
@@ -390,17 +390,17 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
     if(env->dynamics_model == CLASSIC){
         // clip acceleration & steering
         Entity* agent = &env->entities[agent_idx];
-        if(agent->valid == 0){
-            printf("agent %d is invalid at timestep %d\n", agent_idx, env->timestep);
-            agent->x = agent->traj_x[env->timestep];
-            agent->y = agent->traj_y[env->timestep];
-            agent->z = agent->traj_z[env->timestep];
-            agent->heading = agent->traj_heading[env->timestep];
-            agent->vx = agent->traj_vx[env->timestep];
-            agent->vy = agent->traj_vy[env->timestep];
-            agent->vz = agent->traj_vz[env->timestep];
-            return;
-        }
+        // if(agent->valid == 0){
+        //     printf("agent %d is invalid at timestep %d\n", agent_idx, env->timestep);
+        //     agent->x = agent->traj_x[env->timestep];
+        //     agent->y = agent->traj_y[env->timestep];
+        //     agent->z = agent->traj_z[env->timestep];
+        //     agent->heading = agent->traj_heading[env->timestep];
+        //     agent->vx = agent->traj_vx[env->timestep];
+        //     agent->vy = agent->traj_vy[env->timestep];
+        //     agent->vz = agent->traj_vz[env->timestep];
+        //     return;
+        // }
         
         // Extract action components directly from the multi-discrete action array
         int (*action_array)[2] = (int(*)[2])env->actions;
@@ -446,7 +446,7 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         // Update agent state for next timestep
         agent->x = new_x;
         agent->y = new_y;
-	agent->z = agent->traj_z[env->timestep];
+	    // agent->z = agent->traj_z[env->timestep];
         agent->heading = new_heading;
         agent->vx = new_vx;
         agent->vy = new_vy;
@@ -524,7 +524,6 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].goal_position_y);
         int reached_goal = distance_to_goal < 2.0f;
         if(reached_goal){            
-            printf("reached goal agent: %d\n", agent_idx);
             env->rewards[i] += 1.0f;
             env->logs[i].score = 1.0f;
 	        env->logs[i].episode_return += 1.0f;
@@ -566,7 +565,7 @@ Client* make_client(GPUDrive* env){
     client->camera.position = (Vector3){ 
         target_pos.x,           // Same X as target
         target_pos.y + 80.0f,   // 20 units above target
-        target_pos.z + 50.0f    // 20 units behind target
+        target_pos.z + 150.0f    // 20 units behind target
     };
     client->camera.target = target_pos;
     client->camera.up = (Vector3){ 0.0f, -1.0f, 0.0f };  // Y is up
@@ -603,7 +602,7 @@ void c_render(Client* client, GPUDrive* env) {
                     position = (Vector3){
                         env->entities[i].x,
                         env->entities[i].y,
-                        env->entities[i].traj_z[env->timestep]
+                        1
                     };
                     heading = env->entities[i].heading;
                 } 
@@ -649,7 +648,7 @@ void c_render(Client* client, GPUDrive* env) {
                     DrawSphere((Vector3){
                         env->entities[i].goal_position_x,
                         env->entities[i].goal_position_y,
-                        env->entities[i].goal_position_z
+                        1
                     }, 0.5f, DARKGREEN);
                 }
                 
@@ -662,12 +661,12 @@ void c_render(Client* client, GPUDrive* env) {
                 Vector3 start = {
                     env->entities[i].traj_x[j],
                     env->entities[i].traj_y[j],
-                    env->entities[i].traj_z[j]
+                    1
                 };
                 Vector3 end = {
                     env->entities[i].traj_x[j + 1],
                     env->entities[i].traj_y[j + 1],
-                    env->entities[i].traj_z[j + 1]
+                    1
                 };
                 
                 Color lineColor = GRAY;
