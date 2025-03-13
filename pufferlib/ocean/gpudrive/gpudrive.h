@@ -196,7 +196,7 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     
     fread(&env->num_entities, sizeof(int), 1, file);
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
-    printf("Num entities: %d\n", env->num_entities);
+    //printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
         // Read base entity data
         fread(&entities[i].type, sizeof(int), 1, file);
@@ -323,7 +323,6 @@ void set_active_agents(GPUDrive* env){
             }
         }
     }
-    printf("active_agent_count: %d\n", env->active_agent_count);
     env->active_agent_indices = (int*)malloc(env->active_agent_count * sizeof(int));
     for(int i=0;i<env->active_agent_count;i++){
         env->active_agent_indices[i] = active_agent_indices[i];
@@ -335,12 +334,11 @@ void set_active_agents(GPUDrive* env){
                 valid_count++;
             }
         }
-        printf("agent %d valid_count: %d\n", env->active_agent_indices[i], valid_count);
+        //printf("agent %d valid_count: %d\n", env->active_agent_indices[i], valid_count);
     }
 }
 
 void init(GPUDrive* env){
-    printf("init");
     env->human_agent_idx = 0;
     env->timestep = 0;
     env->entities = load_map_binary("map.bin", env);
@@ -348,9 +346,9 @@ void init(GPUDrive* env){
     set_active_agents(env);
     set_start_position(env);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
-    printf("num_entities: %d\n", env->num_entities);
-    printf("Offset of x: %zu\n", offsetof(struct Entity, x));
-    printf("Offset of y: %zu\n", offsetof(struct Entity, y));
+    //printf("num_entities: %d\n", env->num_entities);
+    //printf("Offset of x: %zu\n", offsetof(struct Entity, x));
+    //printf("Offset of y: %zu\n", offsetof(struct Entity, y));
     env->fake_data = (float*)calloc(1, sizeof(float));
     for (int i = 0;i<1;i++ ){
 	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
@@ -366,12 +364,12 @@ void free_initialized(GPUDrive* env){
     free(env->active_agent_indices);
     free(env->logs);
     free(env->fake_data);
+    free(env->goal_reached);
 }
 
 void allocate(GPUDrive* env){
     init(env);
     int max_obs = 1;
-    printf("MAX_OBS: %d\n", max_obs);
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -512,8 +510,12 @@ void c_step(GPUDrive* env){
 	    for(int i = 0; i < env->active_agent_count; i++){
             if(env->goal_reached[i] == 0){
                 env->logs[i].score = 0.0f;
-                add_log(env->log_buffer, &env->logs[i]);
-            }
+                
+	    } else {
+	        env->logs[i].score = 1.0f;
+		env->logs[i].episode_return +=1.0f;
+	    }
+	    add_log(env->log_buffer, &env->logs[i]);
 	    }
 	    c_reset(env);
     }// Process actions for all active agents
@@ -533,10 +535,8 @@ void c_step(GPUDrive* env){
         int reached_goal = distance_to_goal < 2.0f;
         if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
-            env->logs[i].score = 1.0f;
 	        env->goal_reached[i] = 1;
-	        env->logs[i].episode_return += 1.0f;
-            add_log(env->log_buffer, &env->logs[i]);
+	        //env->logs[i].episode_return += 1.0f;
             continue;
 	    }
     }

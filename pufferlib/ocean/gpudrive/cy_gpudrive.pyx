@@ -134,7 +134,6 @@ cdef class CyGPUDrive:
             )
             init(&self.envs[i])
             self.client = NULL
-            print("start: ", i)
 
     def reset(self):
         cdef int i
