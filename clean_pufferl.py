@@ -942,11 +942,13 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
+            # breakpoint()
             if hasattr(agent, 'lstm'):
                 #action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
                 action, _, value, _, state = agent(ob, state, e3b=e3b_inv)
             else:
-                action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
+                (logits, values), state = agent.forward_train(ob, state)
+                action, logprob, entropy = pufferlib.pytorch.sample_logits(logits, action=None, is_continuous=False)
 
             action = action.cpu().numpy().reshape(env.action_space.shape)
 

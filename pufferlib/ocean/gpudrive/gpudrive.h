@@ -517,20 +517,21 @@ void c_step(GPUDrive* env){
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
 	
-float distance_to_goal = relative_distance(
+        float distance_to_goal = relative_distance(
                 env->entities[agent_idx].x,
                 env->entities[agent_idx].y,
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
         int reached_goal = distance_to_goal < 2.0f;
         if(reached_goal){            
+            printf("reached goal agent: %d\n", agent_idx);
             env->rewards[i] += 1.0f;
             env->logs[i].score = 1.0f;
-	    env->logs[i].episode_return += 1.0f;
+	        env->logs[i].episode_return += 1.0f;
             add_log(env->log_buffer, &env->logs[i]);
             continue;
 	    }
-	    }
+    }
     
     compute_observations(env);
 }   
