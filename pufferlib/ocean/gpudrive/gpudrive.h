@@ -290,7 +290,8 @@ void set_start_position(GPUDrive* env){
         env->entities[env->active_agent_indices[i]].vx = env->entities[env->active_agent_indices[i]].traj_vx[0];
         env->entities[env->active_agent_indices[i]].vy = env->entities[env->active_agent_indices[i]].traj_vy[0];
         env->entities[env->active_agent_indices[i]].vz = env->entities[env->active_agent_indices[i]].traj_vz[0];
-        env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
+        // env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
+        env->entities[env->active_agent_indices[i]].heading = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Random float between -1 and 1
         env->entities[env->active_agent_indices[i]].valid = env->entities[env->active_agent_indices[i]].traj_valid[0];
         // printf("agent %d\n", env->active_agent_indices[i]);
         // printf("x , y: %f, %f\n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
@@ -488,7 +489,9 @@ void compute_observations(GPUDrive* env){
             env->entities[env->active_agent_indices[i]].y,
             env->entities[env->active_agent_indices[i]].goal_position_x,
             env->entities[env->active_agent_indices[i]].goal_position_y);
-        // printf("agent: %d, obs: %f\n", i, obs[i]);
+        // printf("agent: %d, obs: %f\n", i, obs[0]);
+        // printf("x y%f %f \n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
+        // printf("goal_x goal_y%f %f\n", env->entities[env->active_agent_indices[i]].goal_position_x, env->entities[env->active_agent_indices[i]].goal_position_y);
     }
 };
 
@@ -510,12 +513,11 @@ void c_step(GPUDrive* env){
 	    for(int i = 0; i < env->active_agent_count; i++){
             if(env->goal_reached[i] == 0){
                 env->logs[i].score = 0.0f;
-                
-	    } else {
-	        env->logs[i].score = 1.0f;
-		env->logs[i].episode_return +=1.0f;
-	    }
-	    add_log(env->log_buffer, &env->logs[i]);
+            } else {
+                env->logs[i].score = 1.0f;
+                env->logs[i].episode_return +=1.0f;
+            }
+            add_log(env->log_buffer, &env->logs[i]);
 	    }
 	    c_reset(env);
     }// Process actions for all active agents
@@ -526,7 +528,6 @@ void c_step(GPUDrive* env){
         move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
-	
         float distance_to_goal = relative_distance(
                 env->entities[agent_idx].x,
                 env->entities[agent_idx].y,
@@ -643,6 +644,9 @@ void c_render(Client* client, GPUDrive* env) {
                 }
                 else if(env->entities[i].valid == 0 ){
                     object_color = RED;
+                }
+                if(j == env->human_agent_idx){
+                    object_color = PURPLE;
                 }
                 
                 // draw the id number above the object

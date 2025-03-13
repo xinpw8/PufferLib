@@ -85,24 +85,63 @@ void handle_camera_controls(Client* client) {
 }
 
 void demo() {
+    
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
     };
     allocate(&env);
+    Weights* weights = load_weights("resources/gpu_drive_weights.bin", 135061);
+    LinearLSTM* net = make_linearlstm(weights, env.active_agent_count, 1, 13);
     c_reset(&env);
     Client* client = make_client(&env);
     printf("Human controlling agent index: %d\n", env.active_agent_indices[env.human_agent_idx]);
-    
+    int accel_delta = 1;
+    int steer_delta = 1;
     while (!WindowShouldClose()) {
         // Handle camera controls
         handle_camera_controls(client);
         int (*actions)[2] = (int(*)[2])env.actions;
-        // Reset all agent actions at the beginning of each frame
-        for(int i = 0; i < env.active_agent_count; i++) {
-            actions[i][0] = 0;
-            actions[i][1] = 0;
+        // // Reset all agent actions at the beginning of each frame
+        // for(int i = 0; i < env.active_agent_count; i++) {
+        //     int accel = rand() % 7;
+        //     int steer = rand() % 13;
+        //     actions[i][0] = 0;
+        //     actions[i][1] = 0;
+        // }
+        if(IsKeyDown(KEY_UP)){
+            actions[env.human_agent_idx][0] += accel_delta;
+            // Cap acceleration to maximum of 6
+            if(actions[env.human_agent_idx][0] > 6) {
+                actions[env.human_agent_idx][0] = 6;
+            }
         }
+        if(IsKeyDown(KEY_DOWN)){
+            actions[env.human_agent_idx][0] -= accel_delta;
+            // Cap acceleration to minimum of 0
+            if(actions[env.human_agent_idx][0] < 0) {
+                actions[env.human_agent_idx][0] = 0;
+            }
+        }
+        if(IsKeyDown(KEY_LEFT)){
+            actions[env.human_agent_idx][1] -= steer_delta;
+            // Cap steering to minimum of 0
+            if(actions[env.human_agent_idx][1] < 0) {
+                actions[env.human_agent_idx][1] = 0;
+            }
+        }
+        if(IsKeyDown(KEY_RIGHT)){
+            actions[env.human_agent_idx][1] += steer_delta;
+            // Cap steering to maximum of 12
+            if(actions[env.human_agent_idx][1] > 12) {
+                actions[env.human_agent_idx][1] = 12;
+            }
+        }   
+        // for (int i = 0; i < env.active_agent_count * 1; i++) {
+        //         net->obs[i] = (float)env.observations[i];
+        //     }
+
+        // forward_linearlstm(net, net->obs, actions);
         // Handle human input for the controlled agent
         // handle_human_input(&env);
         c_step(&env);
@@ -142,7 +181,7 @@ void performance_test() {
 }
 
 int main() {
-    //demo();
-     performance_test();
+    demo();
+    //  performance_test();
     return 0;
 }
