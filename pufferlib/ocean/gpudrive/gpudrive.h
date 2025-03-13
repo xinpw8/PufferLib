@@ -187,6 +187,7 @@ struct GPUDrive {
     int timestep;
     int dynamics_model;
     float* fake_data;
+    char* goal_reached;
 };
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
@@ -354,6 +355,7 @@ void init(GPUDrive* env){
     for (int i = 0;i<1;i++ ){
 	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
     }
+    env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
 }
 
 void free_initialized(GPUDrive* env){
@@ -498,6 +500,7 @@ void c_reset(GPUDrive* env){
     for(int x = 0;x<env->active_agent_count; x++){
         env->logs[x] = (Log){0};
     }
+    memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
     compute_observations(env);
 }
 
@@ -523,9 +526,10 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
         int reached_goal = distance_to_goal < 2.0f;
-        if(reached_goal){            
+        if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
             env->logs[i].score = 1.0f;
+	    env->goal_reached[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
             add_log(env->log_buffer, &env->logs[i]);
             continue;
