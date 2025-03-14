@@ -409,7 +409,7 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         int steering_index = action_array[action_idx][1];
         float acceleration = ACCELERATION_VALUES[acceleration_index];
         float steering = STEERING_VALUES[steering_index];
-        
+
         // Clip acceleration and steering
         acceleration = fmaxf(-6.0f, fminf(acceleration, 6.0f));
         steering = fmaxf(-3.0f, fminf(steering, 3.0f));
@@ -484,11 +484,16 @@ void compute_observations(GPUDrive* env){
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
-        obs[0] = relative_distance(
-            env->entities[env->active_agent_indices[i]].x,
-            env->entities[env->active_agent_indices[i]].y,
-            env->entities[env->active_agent_indices[i]].goal_position_x,
-            env->entities[env->active_agent_indices[i]].goal_position_y);
+        if(env->goal_reached[i] ==0){
+            obs[0] = relative_distance(
+                env->entities[env->active_agent_indices[i]].x,
+                env->entities[env->active_agent_indices[i]].y,
+                env->entities[env->active_agent_indices[i]].goal_position_x,
+                env->entities[env->active_agent_indices[i]].goal_position_y);
+        } else {
+            obs[0] = 0.0f;
+        }
+        
         // printf("agent: %d, obs: %f\n", i, obs[0]);
         // printf("x y%f %f \n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
         // printf("goal_x goal_y%f %f\n", env->entities[env->active_agent_indices[i]].goal_position_x, env->entities[env->active_agent_indices[i]].goal_position_y);
@@ -525,9 +530,9 @@ void c_step(GPUDrive* env){
         env->logs[i].score = 0.0f;
 	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
-        move_dynamics(env, i, agent_idx);
+        // move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        move_expert(env, env->actions, agent_idx);
         float distance_to_goal = relative_distance(
                 env->entities[agent_idx].x,
                 env->entities[agent_idx].y,
