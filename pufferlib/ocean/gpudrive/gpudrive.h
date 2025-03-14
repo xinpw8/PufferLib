@@ -145,9 +145,15 @@ void free_entity(Entity* entity){
     free(entity->traj_valid);
 }
 
-float relative_distance(float x1, float y1, float x2, float y2){
-    float distance = sqrtf(powf(x1 - x2, 2) + 
-                          powf(y1 - y2, 2));
+float relative_distance(float a, float b){
+    float distance = sqrtf(powf(a - b, 2));
+    return distance;
+}
+
+float relative_distance_2d(float x1, float y1, float x2, float y2){
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float distance = sqrtf(dx*dx + dy*dy);
     return distance;
 }
 
@@ -290,8 +296,8 @@ void set_start_position(GPUDrive* env){
         env->entities[env->active_agent_indices[i]].vx = env->entities[env->active_agent_indices[i]].traj_vx[0];
         env->entities[env->active_agent_indices[i]].vy = env->entities[env->active_agent_indices[i]].traj_vy[0];
         env->entities[env->active_agent_indices[i]].vz = env->entities[env->active_agent_indices[i]].traj_vz[0];
-        // env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
-        env->entities[env->active_agent_indices[i]].heading = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Random float between -1 and 1
+        env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
+        // env->entities[env->active_agent_indices[i]].heading = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Random float between -1 and 1
         env->entities[env->active_agent_indices[i]].valid = env->entities[env->active_agent_indices[i]].traj_valid[0];
         // printf("agent %d\n", env->active_agent_indices[i]);
         // printf("x , y: %f, %f\n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
@@ -312,7 +318,7 @@ void set_active_agents(GPUDrive* env){
                 }
             }
             if(start_idx !=0) continue;
-            float distance = relative_distance(
+            float distance = relative_distance_2d(
                 env->entities[i].traj_x[start_idx],
                 env->entities[i].traj_y[start_idx],
                 env->entities[i].goal_position_x,
@@ -350,8 +356,9 @@ void init(GPUDrive* env){
     //printf("num_entities: %d\n", env->num_entities);
     //printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     //printf("Offset of y: %zu\n", offsetof(struct Entity, y));
-    env->fake_data = (float*)calloc(1, sizeof(float));
-    for (int i = 0;i<1;i++ ){
+    printf("active_agent_count: %d\n", env->active_agent_count);
+    env->fake_data = (float*)calloc(2, sizeof(float));
+    for (int i = 0;i<2;i++ ){
 	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
     }
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
@@ -370,7 +377,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 1;
+    int max_obs = 2;
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -480,21 +487,17 @@ void move_random(GPUDrive* env, int agent_idx){
 }
 
 void compute_observations(GPUDrive* env){
-    int max_obs = 1;
+    int max_obs = 2;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
-        if(env->goal_reached[i] ==0){
-            obs[0] = relative_distance(
-                env->entities[env->active_agent_indices[i]].x,
-                env->entities[env->active_agent_indices[i]].y,
-                env->entities[env->active_agent_indices[i]].goal_position_x,
-                env->entities[env->active_agent_indices[i]].goal_position_y);
-        } else {
-            obs[0] = 0.0f;
-        }
+        obs[0] = relative_distance(
+            env->entities[env->active_agent_indices[i]].x,
+            env->entities[env->active_agent_indices[i]].goal_position_x);
+        obs[1] = relative_distance(
+            env->entities[env->active_agent_indices[i]].y,
+            env->entities[env->active_agent_indices[i]].goal_position_y);
         
-        // printf("agent: %d, obs: %f\n", i, obs[0]);
         // printf("x y%f %f \n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
         // printf("goal_x goal_y%f %f\n", env->entities[env->active_agent_indices[i]].goal_position_x, env->entities[env->active_agent_indices[i]].goal_position_y);
     }
@@ -530,10 +533,10 @@ void c_step(GPUDrive* env){
         env->logs[i].score = 0.0f;
 	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
-        // move_dynamics(env, i, agent_idx);
+        move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
-        move_expert(env, env->actions, agent_idx);
-        float distance_to_goal = relative_distance(
+        // move_expert(env, env->actions, agent_idx);
+        float distance_to_goal = relative_distance_2d(
                 env->entities[agent_idx].x,
                 env->entities[agent_idx].y,
                 env->entities[agent_idx].goal_position_x,
@@ -716,6 +719,9 @@ void c_render(Client* client, GPUDrive* env) {
     // Controls help
     DrawText("Controls: W/S - Accelerate/Brake, A/D - Steer, 1-4 - Switch Agent", 
              10, client->height - 30, 20, BLACK);
+    // acceleration & steering
+    DrawText(TextFormat("Acceleration: %d", env->actions[env->human_agent_idx * 2]), 10, 110, 20, BLACK);
+    DrawText(TextFormat("Steering: %d", env->actions[env->human_agent_idx * 2 + 1]), 10, 130, 20, BLACK);
     EndDrawing();
 }
 
