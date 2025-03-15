@@ -432,32 +432,31 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         float speed = sqrtf(vx*vx + vy*vy);
         
         // Time step (adjust as needed)
-        const float dt = 0.1f;
-        
-        // Update position using current velocity and acceleration
-        float new_x = x + vx * dt + 0.5f * acceleration * cosf(heading) * dt * dt;
-        float new_y = y + vy * dt + 0.5f * acceleration * sinf(heading) * dt * dt;
-        
-        // Calculate heading change based on steering and speed
-        float delta_heading = steering * (speed * dt + 0.5f * acceleration * dt * dt);
-        float new_heading = heading + delta_heading;
-        
-        // Normalize heading to [-π, π]
-        while (new_heading > M_PI) new_heading -= 2.0f * M_PI;
-        while (new_heading < -M_PI) new_heading += 2.0f * M_PI;
-        
-        // Update speed and velocity components
-        float new_speed = speed + acceleration * dt;
-        float new_vx = new_speed * cosf(new_heading);
-        float new_vy = new_speed * sinf(new_heading);
-        
-        // Update agent state for next timestep
-        agent->x = new_x;
-        agent->y = new_y;
-	    // agent->z = agent->traj_z[env->timestep];
-        agent->heading = new_heading;
-        agent->vx = new_vx;
-        agent->vy = new_vy;
+        const float dt = 0.1f;        
+        // Update speed with acceleration
+        speed += acceleration * dt;
+        if (speed < 0) speed = 0;  // Prevent going backward
+        // compute yaw rate
+        float omega = (speed * tanf(steering)) / agent->length;
+        heading = heading + omega * dt;
+        // Normalize heading to range [-π, π]
+        while (heading > M_PI) heading -= 2.0f * M_PI;
+        while (heading < -M_PI) heading += 2.0f * M_PI;
+
+        // Compute new velocity components
+        vx = speed * cosf(heading);
+        vy = speed * sinf(heading);
+
+        // Update position
+        x += vx * dt;
+        y += vy * dt;
+
+        // Apply updates to the agent's state
+        agent->x = x;
+        agent->y = y;
+        agent->heading = heading;
+        agent->vx = vx;
+        agent->vy = vy;
     }
     else if(env->dynamics_model == INVERTIBLE_BICYLE){
         // Invertible bicycle dynamics model
