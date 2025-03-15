@@ -616,7 +616,11 @@ void c_step(GPUDrive* env){
     env->timestep++;
     if(env->timestep == 91){
 	    for(int i = 0; i < env->active_agent_count; i++){
-            if(env->goal_reached[i] == 0){
+            if(env->entities[env->active_agent_indices[i]].collision_state == 1){
+                env->logs[i].score = -1.0f;
+                env->logs[i].episode_return = -1.0f;
+            }
+            else if(env->goal_reached[i] == 0){
                 env->logs[i].score = 0.0f;
             } else {
                 env->logs[i].score = 1.0f;
@@ -635,6 +639,9 @@ void c_step(GPUDrive* env){
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
+        if(env->entities[agent_idx].collision_state == 1){
+            env->rewards[i] = -1.0f;
+        }
 
         float distance_to_goal = relative_distance_2d(
                 env->entities[agent_idx].x,

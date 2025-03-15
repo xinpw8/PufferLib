@@ -355,5 +355,5 @@ def load_map(map_name, binary_output=None):
 
 
 if __name__ == '__main__':
-        load_map('resources/tfrecord-00002-of-01000_407.json', 'map.bin')
+        load_map('resources/tfrecord-00000-of-01000_325.json', 'map.bin')
 
