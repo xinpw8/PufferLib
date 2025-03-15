@@ -52,6 +52,48 @@ class GPUDrive(pufferlib.PufferEnv):
         
     def close(self):
         self.c_envs.close() 
+def calculate_area(p1, p2, p3):
+    # Calculate the area of the triangle using the determinant method
+    return 0.5 * abs((p1['x'] - p3['x']) * (p2['y'] - p1['y']) - (p1['x'] - p2['x']) * (p3['y'] - p1['y']))
+
+def simplify_polyline(geometry, polyline_reduction_threshold):
+    """Simplify the given polyline using a method inspired by Visvalingham-Whyatt, optimized for Python."""
+    num_points = len(geometry)
+    if num_points < 3:
+        return geometry  # Not enough points to simplify
+
+    skip = [False] * num_points
+    skip_changed = True
+
+    while skip_changed:
+        skip_changed = False
+        k = 0
+        while k < num_points - 1:
+            k_1 = k + 1
+            while k_1 < num_points - 1 and skip[k_1]:
+                k_1 += 1
+            if k_1 >= num_points - 1:
+                break
+
+            k_2 = k_1 + 1
+            while k_2 < num_points and skip[k_2]:
+                k_2 += 1
+            if k_2 >= num_points:
+                break
+
+            point1 = geometry[k]
+            point2 = geometry[k_1]
+            point3 = geometry[k_2]
+            area = calculate_area(point1, point2, point3)
+
+            if area < polyline_reduction_threshold:
+                skip[k_1] = True
+                skip_changed = True
+                k = k_2
+            else:
+                k = k_1
+
+    return [geometry[i] for i in range(num_points) if not skip[i]]
 
 def save_map_binary(map_data, output_file):
     """Saves map data in a binary format readable by C"""
@@ -112,8 +154,12 @@ def save_map_binary(map_data, output_file):
         # Write roads
         for idx, road in enumerate(map_data.get('roads', [])):
             geometry = road.get('geometry', [])
-            size = len(geometry)
             road_type = road.get('map_element_id', 0)
+            # breakpoint()
+            if(len(geometry) > 10 and road_type >= 14 and road_type <=16):
+                geometry = simplify_polyline(geometry, .1)
+            size = len(geometry)
+            # breakpoint()
             if(road_type >=0 and road_type <=3):
                 road_type = 4
             elif(road_type >=5 and road_type <=13):
@@ -309,5 +355,5 @@ def load_map(map_name, binary_output=None):
 
 
 if __name__ == '__main__':
-        load_map('resources/tfrecord-00000-of-01000_325.json', 'map.bin')
+        load_map('resources/tfrecord-00002-of-01000_407.json', 'map.bin')
 

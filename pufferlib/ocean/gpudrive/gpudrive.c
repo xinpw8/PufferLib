@@ -76,11 +76,22 @@ void handle_camera_controls(Client* client) {
     float wheel = GetMouseWheelMove();
     if (wheel != 0) {
         float zoom_factor = 1.0f - (wheel * 0.1f);
-        // Adjust camera position for zoom while maintaining height
-        client->camera.position.x = client->camera.target.x + 
-            (client->camera.position.x - client->camera.target.x) * zoom_factor;
-        client->camera.position.y = client->camera.target.y + 
-            (client->camera.position.y - client->camera.target.y) * zoom_factor;
+        // Calculate the current direction vector from target to position
+        Vector3 direction = {
+            client->camera.position.x - client->camera.target.x,
+            client->camera.position.y - client->camera.target.y,
+            client->camera.position.z - client->camera.target.z
+        };
+        
+        // Scale the direction vector by the zoom factor
+        direction.x *= zoom_factor;
+        direction.y *= zoom_factor;
+        direction.z *= zoom_factor;
+        
+        // Update the camera position based on the scaled direction
+        client->camera.position.x = client->camera.target.x + direction.x;
+        client->camera.position.y = client->camera.target.y + direction.y;
+        client->camera.position.z = client->camera.target.z + direction.z;
     }
 }
 
@@ -116,21 +127,21 @@ void demo() {
                 actions[env.human_agent_idx][0] = 6;
             }
         }
-        if(IsKeyDown(KEY_DOWN)){
+        if(IsKeyPressed(KEY_DOWN)){
             actions[env.human_agent_idx][0] -= accel_delta;
             // Cap acceleration to minimum of 0
             if(actions[env.human_agent_idx][0] < 0) {
                 actions[env.human_agent_idx][0] = 0;
             }
         }
-        if(IsKeyDown(KEY_LEFT)){
+        if(IsKeyPressed(KEY_LEFT)){
             actions[env.human_agent_idx][1] -= steer_delta;
             // Cap steering to minimum of 0
             if(actions[env.human_agent_idx][1] < 0) {
                 actions[env.human_agent_idx][1] = 0;
             }
         }
-        if(IsKeyDown(KEY_RIGHT)){
+        if(IsKeyPressed(KEY_RIGHT)){
             actions[env.human_agent_idx][1] += steer_delta;
             // Cap steering to maximum of 12
             if(actions[env.human_agent_idx][1] > 12) {
