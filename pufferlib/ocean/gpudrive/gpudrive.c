@@ -109,7 +109,7 @@ void demo() {
         //     actions[i][0] = 0;
         //     actions[i][1] = 0;
         // }
-        if(IsKeyDown(KEY_UP)){
+        if(IsKeyPressed(KEY_UP)){
             actions[env.human_agent_idx][0] += accel_delta;
             // Cap acceleration to maximum of 6
             if(actions[env.human_agent_idx][0] > 6) {
@@ -137,6 +137,9 @@ void demo() {
                 actions[env.human_agent_idx][1] = 12;
             }
         }   
+        if(IsKeyPressed(KEY_TAB)){
+            env.human_agent_idx = (env.human_agent_idx + 1) % env.active_agent_count;
+        }
         // for (int i = 0; i < env.active_agent_count * 1; i++) {
         //         net->obs[i] = (float)env.observations[i];
         //     }
@@ -181,7 +184,7 @@ void performance_test() {
 }
 
 int main() {
-    //demo();
-      performance_test();
+    demo();
+    //  performance_test();
     return 0;
 }
