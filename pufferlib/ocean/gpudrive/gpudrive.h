@@ -535,7 +535,7 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        //move_expert(env, env->actions, agent_idx);
         float distance_to_goal = relative_distance_2d(
                 env->entities[agent_idx].x,
                 env->entities[agent_idx].y,
