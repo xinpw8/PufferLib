@@ -58,6 +58,7 @@ struct Log {
     float episode_return;
     float episode_length;
     float score;
+    float collision_count;
 };
 
 
@@ -99,11 +100,13 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
 	    log.score += logs->logs[i].score;
+	    log.collision_count += logs->logs[i].collision_count;
 	//printf("length: %f", log.episode_length);
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.score /= logs->idx;
+    log.collision_count /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -138,8 +141,8 @@ struct Entity {
     float heading;
     int valid;
     float nearest_line_dist;
-    float nearest_line_start[2];
-    float nearest_line_end[2];
+    float* nearest_line_start;
+    float* nearest_line_end;
 };
 
 void free_entity(Entity* entity){
@@ -152,6 +155,8 @@ void free_entity(Entity* entity){
     free(entity->traj_vz);
     free(entity->traj_heading);
     free(entity->traj_valid);
+    free(entity->nearest_line_start);
+    free(entity->nearest_line_end);
 }
 
 float relative_distance(float a, float b){
@@ -194,7 +199,9 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
     //printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
-        // Read base entity data
+        entities[i].nearest_line_start = (float*)calloc(2, sizeof(float));
+	entities[i].nearest_line_end = (float*)calloc(2, sizeof(float));
+	// Read base entity data
         fread(&entities[i].type, sizeof(int), 1, file);
         if(entities[i].type < 4){
             fread(&entities[i].road_object_id, sizeof(int), 1, file);
@@ -616,15 +623,12 @@ void c_step(GPUDrive* env){
     env->timestep++;
     if(env->timestep == 91){
 	    for(int i = 0; i < env->active_agent_count; i++){
-            if(env->entities[env->active_agent_indices[i]].collision_state == 1){
-                env->logs[i].score = -1.0f;
-                env->logs[i].episode_return = -1.0f;
-            }
-            else if(env->goal_reached[i] == 0){
+            if(env->goal_reached[i] == 0){
                 env->logs[i].score = 0.0f;
-            } else {
+            } 
+	    else {
                 env->logs[i].score = 1.0f;
-                env->logs[i].episode_return +=1.0f;
+                // env->logs[i].episode_return +=1.0f;
             }
             add_log(env->log_buffer, &env->logs[i]);
 	    }
@@ -640,7 +644,10 @@ void c_step(GPUDrive* env){
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state == 1){
-            env->rewards[i] = -1.0f;
+            env->rewards[i] = -0.1f;
+	    env->logs[i].episode_return -=0.1f;
+	    env->logs[i].collision_count += 1.0f;
+
         }
 
         float distance_to_goal = relative_distance_2d(
@@ -652,7 +659,7 @@ void c_step(GPUDrive* env){
         if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
-	        //env->logs[i].episode_return += 1.0f;
+	        env->logs[i].episode_return += 1.0f;
             continue;
 	    }
     }
