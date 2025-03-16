@@ -1,6 +1,4 @@
 from pdb import set_trace as T
-from typing import List, Union
-
 
 class Policy(torch.nn.Module):
     '''Wrap a non-recurrent PyTorch model for use with CleanRL'''
