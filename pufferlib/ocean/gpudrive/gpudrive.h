@@ -143,6 +143,9 @@ struct Entity {
     float nearest_line_dist;
     float* nearest_line_start;
     float* nearest_line_end;
+    float nearest_car_dist;
+    float* nearest_car_start;
+    float* nearest_car_end;
 };
 
 void free_entity(Entity* entity){
@@ -157,6 +160,8 @@ void free_entity(Entity* entity){
     free(entity->traj_valid);
     free(entity->nearest_line_start);
     free(entity->nearest_line_end);
+    free(entity->nearest_car_start);
+    free(entity->nearest_car_end);
 }
 
 float relative_distance(float a, float b){
@@ -201,6 +206,8 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     for (int i = 0; i < env->num_entities; i++) {
         entities[i].nearest_line_start = (float*)calloc(2, sizeof(float));
 	entities[i].nearest_line_end = (float*)calloc(2, sizeof(float));
+	entities[i].nearest_car_start = (float*)calloc(2,sizeof(float));
+	entities[i].nearest_car_end = (float*)calloc(2,sizeof(float));
 	// Read base entity data
         fread(&entities[i].type, sizeof(int), 1, file);
         if(entities[i].type < 4){
@@ -356,8 +363,8 @@ void init(GPUDrive* env){
     //printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     //printf("Offset of y: %zu\n", offsetof(struct Entity, y));
     printf("active_agent_count: %d\n", env->active_agent_count);
-    env->fake_data = (float*)calloc(7, sizeof(float));
-    for (int i = 0;i<7;i++ ){
+    env->fake_data = (float*)calloc(12, sizeof(float));
+    for (int i = 0;i<12;i++ ){
 	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
     }
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
@@ -376,7 +383,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 7;
+    int max_obs = 12;
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -530,7 +537,9 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
     int collided = 0;
     float min_dist = 10000;
+    float min_car_dist = 10000;
     float nearest_start[2], nearest_end[2];
+    float nearest_car_start[2], nearest_car_end[2];
     int car_collided_with_index = -1;
     for (int i = 0; i < env->num_entities; i++) {
         if(i == agent_idx) continue;
@@ -579,9 +588,23 @@ void collision_check(GPUDrive* env, int agent_idx) {
                         break;
                     }
                 }
+		if (collided) break;
             }
+	    if (collided) break;
+	    // Get nearest car distance and start and end values for obs
+	    for (int k = 0;k<4; k++){
+		int next_k = (k+1) % 4;
+		float agent_center[2] = {agent->x, agent->y};
+		float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);
+		if (dist < min_car_dist) {
+		    min_car_dist = dist;
+		    nearest_car_start[0] = other_corners[k][0] - agent->x;
+		    nearest_car_start[1] = other_corners[k][1] - agent->y;
+		    nearest_car_end[0] = other_corners[next_k][0] - agent->x;
+		    nearest_car_end[1] = other_corners[next_k][1] - agent->y;
+		}
+	    }
         }
-        
     }
     agent->collision_state = collided;
     if (car_collided_with_index != -1) {
@@ -596,10 +619,19 @@ void collision_check(GPUDrive* env, int agent_idx) {
     } else {
         agent->nearest_line_dist = -1.0f; // Indicate no line found
     }
+    if(min_car_dist != 10000) {
+	    agent->nearest_car_dist = min_car_dist;
+	    agent->nearest_car_start[0] = nearest_car_start[0];
+	    agent->nearest_car_start[1] = nearest_car_start[1];
+	    agent->nearest_car_end[0] = nearest_car_end[0];
+	    agent->nearest_car_end[1] = nearest_car_end[1];
+    } else {
+	    agent->nearest_car_dist = -1.0f;
+    }
 }
 
 void compute_observations(GPUDrive* env){
-    int max_obs = 7;
+    int max_obs = 12;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
@@ -614,6 +646,11 @@ void compute_observations(GPUDrive* env){
         obs[4] = env->entities[env->active_agent_indices[i]].nearest_line_start[1];
         obs[5] = env->entities[env->active_agent_indices[i]].nearest_line_end[0];
         obs[6] = env->entities[env->active_agent_indices[i]].nearest_line_end[1];
+	obs[7] = env->entities[env->active_agent_indices[i]].nearest_car_dist;
+	obs[8] = env->entities[env->active_agent_indices[i]].nearest_car_start[0];
+	obs[9] = env->entities[env->active_agent_indices[i]].nearest_car_start[1];
+	obs[10] = env->entities[env->active_agent_indices[i]].nearest_car_end[0];
+	obs[11] = env->entities[env->active_agent_indices[i]].nearest_car_end[1];
     }
 };
 
@@ -654,9 +691,9 @@ void c_step(GPUDrive* env){
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state == 1){
-            env->rewards[i] = -0.1f;
-	    env->logs[i].episode_return -=0.1f;
-	    env->logs[i].collision_count += 1.0f;
+            env->rewards[i] = -0.04f;
+	    env->logs[i].episode_return -=0.04f;
+	    env->logs[i].collision_count = 1.0f;
 
         }
 

@@ -45,6 +45,9 @@ cdef extern from "gpudrive.h":
         float nearest_line_dist;
         float* nearest_line_start;
         float* nearest_line_end;
+        float nearest_car_dist;
+        float* nearest_car_start;
+        float* nearest_car_end;
 
     ctypedef struct GPUDrive:
         float* observations;
