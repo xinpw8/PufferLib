@@ -7,8 +7,8 @@ cdef extern from "gpudrive.h":
         float episode_return;
         float episode_length;
         float score;
-        float collision_count;
-
+        float offroad_rate;
+        float collision_rate;
     ctypedef struct LogBuffer
     LogBuffer* allocate_logbuffer(int)
     void free_logbuffer(LogBuffer*)

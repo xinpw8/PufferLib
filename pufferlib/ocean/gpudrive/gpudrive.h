@@ -40,6 +40,11 @@
 #define DELTA_LOCAL 2
 #define STATE_DYNAMICS 3
 
+// collision state
+#define NO_COLLISION 0
+#define VEHICLE_COLLISION 1
+#define OFFROAD 2
+
 // Acceleration Values
 static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
 static const float STEERING_VALUES[13] = {-3.1420f, -2.6180f, -2.0940f, -1.5710f, -1.0470f, -0.5240f,  0.0000f,  0.5240f,
@@ -58,7 +63,8 @@ struct Log {
     float episode_return;
     float episode_length;
     float score;
-    float collision_count;
+    float offroad_rate;
+    float collision_rate;
 };
 
 
@@ -100,13 +106,15 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
 	    log.score += logs->logs[i].score;
-	    log.collision_count += logs->logs[i].collision_count;
+	    log.offroad_rate += logs->logs[i].offroad_rate;
+	    log.collision_rate += logs->logs[i].collision_rate;
 	//printf("length: %f", log.episode_length);
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.score /= logs->idx;
-    log.collision_count /= logs->idx;
+    log.offroad_rate /= logs->idx;
+    log.collision_rate /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -523,7 +531,6 @@ float point_to_line_distance(float point[2], float line_start[2], float line_end
 }
 
 
-
 void collision_check(GPUDrive* env, int agent_idx) {
     Entity* agent = &env->entities[agent_idx];
     float half_length = agent->length / 2.0f;
@@ -551,11 +558,11 @@ void collision_check(GPUDrive* env, int agent_idx) {
                 for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
                     int next = (k + 1) % 4;
                     if (check_line_intersection(corners[k], corners[next], start, end)) {
-                        collided = 1;
+                        collided = OFFROAD;
                         break;
                     }
                 }
-                if (collided)break;
+                if (collided == OFFROAD) break;
                 // Distance check
                 float agent_center[2] = {agent->x, agent->y};
                 float dist = point_to_line_distance(agent_center, start, end);
@@ -567,43 +574,42 @@ void collision_check(GPUDrive* env, int agent_idx) {
                     nearest_end[1] = end[1] - agent->y;
                 }
             }
-            if (collided) break;
         }
         if(entity->type == VEHICLE){
             float other_corners[4][2];
             for (int i = 0; i < 4; i++) {
                 float other_cos_heading = cosf(entity->traj_heading[0]);
                 float other_sin_heading = sinf(entity->traj_heading[0]);
-
-                other_corners[i][0] = entity->x + (offsets[i][0] * half_length * other_cos_heading - offsets[i][1] * half_width * other_sin_heading);
-                other_corners[i][1] = entity->y + (offsets[i][0] * half_length * other_sin_heading + offsets[i][1] * half_width * other_cos_heading);
+                float other_half_length = entity->length / 2.0f;
+                float other_half_width = entity->width / 2.0f;
+                other_corners[i][0] = entity->x + (offsets[i][0] * other_half_length * other_cos_heading - offsets[i][1] * other_half_width * other_sin_heading);
+                other_corners[i][1] = entity->y + (offsets[i][0] * other_half_length * other_sin_heading + offsets[i][1] * other_half_width * other_cos_heading);
             }
             for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
                 int next_k = (k + 1) % 4;
                 for (int l = 0; l < 4; l++) { // Check each edge of the bounding box
                     int next_l = (l + 1) % 4;
                     if (check_line_intersection(corners[k], corners[next_k], other_corners[l], other_corners[next_l])) {
-                        collided = 1;
+                        collided = VEHICLE_COLLISION;
                         car_collided_with_index = i;
                         break;
                     }
                 }
-		if (collided) break;
+		        if (collided == VEHICLE_COLLISION) break;
             }
-	    if (collided) break;
-	    // Get nearest car distance and start and end values for obs
-	    for (int k = 0;k<4; k++){
-		int next_k = (k+1) % 4;
-		float agent_center[2] = {agent->x, agent->y};
-		float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);
-		if (dist < min_car_dist) {
-		    min_car_dist = dist;
-		    nearest_car_start[0] = other_corners[k][0] - agent->x;
-		    nearest_car_start[1] = other_corners[k][1] - agent->y;
-		    nearest_car_end[0] = other_corners[next_k][0] - agent->x;
-		    nearest_car_end[1] = other_corners[next_k][1] - agent->y;
-		}
-	    }
+            // Get nearest car distance and start and end values for obs
+            for (int k = 0;k<4; k++){
+                int next_k = (k+1) % 4;
+                float agent_center[2] = {agent->x, agent->y};
+                float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);
+                if (dist < min_car_dist) {
+                    min_car_dist = dist;
+                    nearest_car_start[0] = other_corners[k][0] - agent->x;
+                    nearest_car_start[1] = other_corners[k][1] - agent->y;
+                    nearest_car_end[0] = other_corners[next_k][0] - agent->x;
+                    nearest_car_end[1] = other_corners[next_k][1] - agent->y;
+                }
+            }
         }
     }
     agent->collision_state = collided;
@@ -690,11 +696,15 @@ void c_step(GPUDrive* env){
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
-        if(env->entities[agent_idx].collision_state == 1){
+        if(env->entities[agent_idx].collision_state > 0){
             env->rewards[i] = -0.04f;
-	    env->logs[i].episode_return -=0.04f;
-	    env->logs[i].collision_count = 1.0f;
-
+            env->logs[i].episode_return -=0.04f;
+            if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
+                env->logs[i].collision_rate = 1.0f;
+            }
+            else if(env->entities[agent_idx].collision_state == OFFROAD){
+                env->logs[i].offroad_rate = 1.0f;
+            }
         }
 
         float distance_to_goal = relative_distance_2d(
@@ -779,22 +789,12 @@ void c_render(Client* client, GPUDrive* env) {
             }
             Vector3 position;
             float heading;
-            if(is_active_agent){
-                position = (Vector3){
+             position = (Vector3){
                     env->entities[i].x,
                     env->entities[i].y,
                     1
                 };      
-                heading = env->entities[i].heading;
-      
-            } else {
-                position = (Vector3){
-                    env->entities[i].traj_x[0],
-                    env->entities[i].traj_y[0],
-                    1
-                };
-                heading = env->entities[i].traj_heading[0];
-            }
+            heading = env->entities[i].heading;
             
             
             // Create size vector
@@ -821,7 +821,7 @@ void c_render(Client* client, GPUDrive* env) {
                     object_color = PURPLE;  // Human-controlled agent
                 }
                 
-                if(env->entities[i].collision_state == 1) {
+                if(env->entities[i].collision_state == 1 || env->entities[i].collision_state == 2) {
                     object_color = RED;  // Collided agent
                 }
                 
