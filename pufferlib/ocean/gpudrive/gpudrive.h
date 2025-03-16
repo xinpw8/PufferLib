@@ -286,16 +286,18 @@ void print_entities(GPUDrive* env, int idx){
 }
 
 void set_start_position(GPUDrive* env){
-    for(int i = 0; i < env->active_agent_count; i++){
-        env->entities[env->active_agent_indices[i]].x = env->entities[env->active_agent_indices[i]].traj_x[0];
-        env->entities[env->active_agent_indices[i]].y = env->entities[env->active_agent_indices[i]].traj_y[0];
-        env->entities[env->active_agent_indices[i]].z = env->entities[env->active_agent_indices[i]].traj_z[0];
-        env->entities[env->active_agent_indices[i]].vx = env->entities[env->active_agent_indices[i]].traj_vx[0];
-        env->entities[env->active_agent_indices[i]].vy = env->entities[env->active_agent_indices[i]].traj_vy[0];
-        env->entities[env->active_agent_indices[i]].vz = env->entities[env->active_agent_indices[i]].traj_vz[0];
-        env->entities[env->active_agent_indices[i]].heading = env->entities[env->active_agent_indices[i]].traj_heading[0];
-        // env->entities[env->active_agent_indices[i]].heading = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Random float between -1 and 1
-        env->entities[env->active_agent_indices[i]].valid = env->entities[env->active_agent_indices[i]].traj_valid[0];
+    for(int i = 0; i < env->num_entities; i++){
+        env->entities[i].x = env->entities[i].traj_x[0];
+        env->entities[i].y = env->entities[i].traj_y[0];
+        env->entities[i].z = env->entities[i].traj_z[0];
+        if(env->entities[i].type == 1 || env->entities[i].type == 2 || env->entities[i].type == 3){
+            env->entities[i].vx = env->entities[i].traj_vx[0];
+            env->entities[i].vy = env->entities[i].traj_vy[0];
+            env->entities[i].vz = env->entities[i].traj_vz[0];
+            env->entities[i].heading = env->entities[i].traj_heading[0];
+            // env->entities[env->active_agent_indices[i]].heading = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Random float between -1 and 1
+            env->entities[i].valid = env->entities[i].traj_valid[0];
+        }
         // printf("agent %d\n", env->active_agent_indices[i]);
         // printf("x , y: %f, %f\n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
         // printf("goal_x, goal_y: %f, %f\n", env->entities[env->active_agent_indices[i]].goal_position_x, env->entities[env->active_agent_indices[i]].goal_position_y);
@@ -514,6 +516,7 @@ float point_to_line_distance(float point[2], float line_start[2], float line_end
 }
 
 
+
 void collision_check(GPUDrive* env, int agent_idx) {
     Entity* agent = &env->entities[agent_idx];
     float half_length = agent->length / 2.0f;
@@ -528,7 +531,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
     int collided = 0;
     float min_dist = 10000;
     float nearest_start[2], nearest_end[2];
-
+    int car_collided_with_index = -1;
     for (int i = 0; i < env->num_entities; i++) {
         if(i == agent_idx) continue;
         Entity* entity = &env->entities[i];
@@ -560,15 +563,19 @@ void collision_check(GPUDrive* env, int agent_idx) {
         if(entity->type == VEHICLE){
             float other_corners[4][2];
             for (int i = 0; i < 4; i++) {
-                other_corners[i][0] = entity->x + (offsets[i][0] * half_length * cos_heading - offsets[i][1] * half_width * sin_heading);
-                other_corners[i][1] = entity->y + (offsets[i][0] * half_length * sin_heading + offsets[i][1] * half_width * cos_heading);
+                float other_cos_heading = cosf(entity->traj_heading[0]);
+                float other_sin_heading = sinf(entity->traj_heading[0]);
+
+                other_corners[i][0] = entity->x + (offsets[i][0] * half_length * other_cos_heading - offsets[i][1] * half_width * other_sin_heading);
+                other_corners[i][1] = entity->y + (offsets[i][0] * half_length * other_sin_heading + offsets[i][1] * half_width * other_cos_heading);
             }
             for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
-                int next = (k + 1) % 4;
+                int next_k = (k + 1) % 4;
                 for (int l = 0; l < 4; l++) { // Check each edge of the bounding box
-                    int next = (l + 1) % 4;
-                    if (check_line_intersection(corners[k], corners[next], other_corners[l], other_corners[next])) {
+                    int next_l = (l + 1) % 4;
+                    if (check_line_intersection(corners[k], corners[next_k], other_corners[l], other_corners[next_l])) {
                         collided = 1;
+                        car_collided_with_index = i;
                         break;
                     }
                 }
@@ -577,6 +584,9 @@ void collision_check(GPUDrive* env, int agent_idx) {
         
     }
     agent->collision_state = collided;
+    if (car_collided_with_index != -1) {
+        env->entities[car_collided_with_index].collision_state = 1;
+    }
     if (min_dist != 10000) { // If a road edge was found
         agent->nearest_line_dist = min_dist;
         agent->nearest_line_start[0] = nearest_start[0];
