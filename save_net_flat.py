@@ -2,9 +2,9 @@ import torch
 from torch.nn import functional as F
 import numpy as np
 
-MODEL_FILE_NAME = '/home/daa/pufferlib_testbench/PufferLib/experiments/puffer_blastar-97091e1a/model_000200.pt'
-WEIGHTS_OUTPUT_FILE_NAME = 'blastar_weights.bin'
-OUTPUT_FILE_PATH = '/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar'
+MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_cartpole-309554aa/model_000300.pt'
+WEIGHTS_OUTPUT_FILE_NAME = 'cartpole_weights.bin'
+OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/cartpole'
 
 def save_model_weights(model, filename):
     import os

@@ -258,6 +258,7 @@ common = cleanrl + [environments[env] for env in [
 ]]
 
 extension_paths = [
+    'pufferlib/ocean/cartpole/cy_cartpole',
     'pufferlib/ocean/nmmo3/cy_nmmo3',
     'pufferlib/ocean/moba/cy_moba',
     'pufferlib/ocean/tactical/c_tactical',

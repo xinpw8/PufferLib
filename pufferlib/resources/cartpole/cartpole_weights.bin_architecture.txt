@@ -1,0 +1,11 @@
+policy.encoder.weight: torch.Size([128, 4])
+policy.encoder.bias: torch.Size([128])
+policy.decoder.weight: torch.Size([2, 128])
+policy.decoder.bias: torch.Size([2])
+policy.value.weight: torch.Size([1, 128])
+policy.value.bias: torch.Size([1])
+recurrent.weight_ih_l0: torch.Size([512, 128])
+recurrent.weight_hh_l0: torch.Size([512, 128])
+recurrent.bias_ih_l0: torch.Size([512])
+recurrent.bias_hh_l0: torch.Size([512])
+Num weights: 133123

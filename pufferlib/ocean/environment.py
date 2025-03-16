@@ -117,6 +117,7 @@ def make_multiagent(buf=None, **kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 MAKE_FNS = {
+    'cartpole':      lambda: lazy_import('pufferlib.ocean.cartpole.cartpole', 'Cartpole'),
     'breakout':      lambda: lazy_import('pufferlib.ocean.breakout.breakout', 'Breakout'),
     'pong':          lambda: lazy_import('pufferlib.ocean.pong.pong', 'Pong'),
     'enduro':        lambda: lazy_import('pufferlib.ocean.enduro.enduro', 'Enduro'),
