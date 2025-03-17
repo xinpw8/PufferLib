@@ -216,8 +216,8 @@ def evaluate(data):
                     experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
 
                 e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
-                e3b_reward = torch.clamp(config.e3b_coef*e3b_reward, -1, 1)
-                r += config.e3b_coef*e3b_reward.cpu()
+                e3b_reward = config.e3b_coef*e3b_reward
+                r += e3b_reward.cpu()
 
             # Clip rewards
             r = torch.clamp(r, -1, 1)
