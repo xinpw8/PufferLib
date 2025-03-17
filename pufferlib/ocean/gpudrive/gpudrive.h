@@ -604,10 +604,22 @@ void collision_check(GPUDrive* env, int agent_idx) {
                 float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);
                 if (dist < min_car_dist) {
                     min_car_dist = dist;
-                    nearest_car_start[0] = other_corners[k][0] - agent->x;
-                    nearest_car_start[1] = other_corners[k][1] - agent->y;
-                    nearest_car_end[0] = other_corners[next_k][0] - agent->x;
-                    nearest_car_end[1] = other_corners[next_k][1] - agent->y;
+        
+                    // Step 1: Calculate relative position (in world coordinates)
+                    float rel_x_start = other_corners[k][0] - agent->x;
+                    float rel_y_start = other_corners[k][1] - agent->y;
+                    float rel_x_end = other_corners[next_k][0] - agent->x;
+                    float rel_y_end = other_corners[next_k][1] - agent->y;
+                    
+                    // Step 2: Apply standard 2D rotation matrix
+                    // This is the standard 2D rotation to agent's local frame
+                    float cos_heading = cosf(agent->heading);
+                    float sin_heading = sinf(agent->heading);
+                    
+                    nearest_car_start[0] = rel_x_start * cos_heading + rel_y_start * sin_heading;
+                    nearest_car_start[1] = -rel_x_start * sin_heading + rel_y_start * cos_heading;
+                    nearest_car_end[0] = rel_x_end * cos_heading + rel_y_end * sin_heading;
+                    nearest_car_end[1] = -rel_x_end * sin_heading + rel_y_end * cos_heading;
                 }
             }
         }
@@ -829,6 +841,8 @@ void c_render(Client* client, GPUDrive* env) {
                 if(env->entities[i].valid == 1 && env->goal_reached[agent_index] == 0) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
+                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_start[0], env->entities[i].nearest_car_start[1], 1.0f}, RED);
+                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_end[0], env->entities[i].nearest_car_end[1], 1.0f}, ORANGE);
                 }
             } else {
                 // Draw non-active vehicles
