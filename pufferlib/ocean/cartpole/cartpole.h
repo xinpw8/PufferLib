@@ -109,7 +109,7 @@ void allocate(CartPole* env) {
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
-    env->max_steps = 200;  // Max episode length for CartPole-v0
+    env->max_steps = 2000;  // Max episode length for CartPole-v0
 }
 
 void free_initialized(CartPole* env) {
