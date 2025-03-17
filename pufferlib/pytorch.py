@@ -293,7 +293,15 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
 
 
     if action is None:
-        action = torch.stack([torch.multinomial(logits_to_probs(l), 1).squeeze() for l in logits])
+        probs = logits_to_probs(
+            torch.nn.utils.rnn.pad_sequence(
+                [l.transpose(0,1) for l in logits], 
+                batch_first=False, 
+                padding_value=-torch.inf
+            ).permute(1,2,0)
+        )
+        action = torch.multinomial(probs.reshape(-1, probs.shape[-1]), 1)
+        action = action.reshape(probs.shape[:-1])
     else:
         batch = logits[0].shape[0]
         action = action.view(batch, -1).T
@@ -306,5 +314,6 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         return action.squeeze(0), logprob.squeeze(0), logits_entropy.squeeze(0)
 
     return action.T, logprob, logits_entropy
+
 
 
