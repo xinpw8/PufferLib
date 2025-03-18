@@ -108,7 +108,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     experience = Experience(config.batch_size, config.bptt_horizon,
         config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
         atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents,
-        use_e3b=config.use_e3b, e3b_coef=config.e3b_coef,
+        use_e3b=config.use_e3b, e3b_coef=config.e3b_coef, e3b_lambda=config.e3b_lambda,
         use_p3o=config.use_p3o, p3o_horizon=config.p3o_horizon
     )
 
@@ -692,7 +692,7 @@ class Experience:
     def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
                  device='cuda', lstm=None, lstm_total_agents=0,
-                 use_e3b=False, e3b_coef=0.1, use_p3o=False, p3o_horizon=32):
+                 use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0, use_p3o=False, p3o_horizon=32):
         if minibatch_size is None:
             minibatch_size = batch_size
 
@@ -710,7 +710,7 @@ class Experience:
 
         self.use_e3b = use_e3b
         if use_e3b:
-            self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
+            self.e3b_inv = torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device) / e3b_lambda
             self.e3b_orig = self.e3b_inv.clone()
             self.e3b_mean = None
             self.e3b_std = None
