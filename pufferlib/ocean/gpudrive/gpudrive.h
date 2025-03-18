@@ -687,6 +687,8 @@ void c_reset(GPUDrive* env){
     set_start_position(env);
     for(int x = 0;x<env->active_agent_count; x++){
         env->logs[x] = (Log){0};
+	int agent_idx = env->active_agent_indices[x];
+	collision_check(env, agent_idx);
     }
     memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
     compute_observations(env);
@@ -719,8 +721,8 @@ void c_step(GPUDrive* env){
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0){
-            env->rewards[i] = -0.04f;
-            env->logs[i].episode_return -=0.04f;
+            env->rewards[i] = -0.1f;
+            env->logs[i].episode_return -=0.1f;
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
                 env->logs[i].collision_rate = 1.0f;
             }
