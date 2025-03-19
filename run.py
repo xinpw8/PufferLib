@@ -1,8 +1,8 @@
 '''
-    python eval.py eval env_name
+    python run.py cartpole eval -w
     to eval the latest model file for the specified environment.
-    e.g. python run.py eval blastar
-    or python run.py eval blastar -w
+    e.g. python run.py blastar eval
+    or python run.py blastar eval -w
 
     eval is currently the only option for mode
     model file can be anywhere in PufferLib
@@ -32,35 +32,94 @@ def find_env_name(config_dir, search_arg):
     return None
 
 def find_latest_model_path(base_dir, term):
-    """Search for the newest model file matching the term."""
-    search_dirs = [os.path.join(base_dir, "experiments"), base_dir]
+    """
+    Search for the newest model file matching the exact environment name.
+    Uses strict prefix matching and examines only the experiments directory first.
+    """
+    experiments_dir = os.path.join(base_dir, "experiments")
     model_files = []
-
-    for dir_path in search_dirs:
-        if not os.path.exists(dir_path):
-            continue
-        for root, dirs, files in os.walk(dir_path):
-            # Check for exact match of directories with term
-            for d in dirs:
-                if d.startswith(term) or term.replace('puffer_', '') in d:
-                    model_dir = os.path.join(root, d)
-                    for file in os.listdir(model_dir):
-                        if file.startswith("model_"):
-                            model_files.append(os.path.join(model_dir, file))
+    
+    print(f"Searching for model files for environment: {term}")
+    
+    # PHASE 1: Search only in experiments directory with strict prefix matching
+    if os.path.exists(experiments_dir):
+        print(f"Examining experiments directory: {experiments_dir}")
+        
+        # Get all subdirectories directly in the experiments directory
+        experiment_dirs = [d for d in os.listdir(experiments_dir) 
+                          if os.path.isdir(os.path.join(experiments_dir, d))]
+        
+        # Find directories that match our environment exactly (before the hash)
+        matching_dirs = []
+        for dir_name in experiment_dirs:
+            # Extract base name (everything before the first dash)
+            base_name = dir_name.split('-')[0]
+            
+            # Only consider EXACT matches
+            if base_name == term:
+                matching_dirs.append(dir_name)
+                print(f"Found exact environment match: {dir_name}")
+        
+        # Search for model files in matching directories
+        for dir_name in matching_dirs:
+            dir_path = os.path.join(experiments_dir, dir_name)
+            for file in os.listdir(dir_path):
+                if file.startswith("model_") and file.endswith(".pt"):
+                    model_files.append(os.path.join(dir_path, file))
+                    print(f"  Found model file: {file}")
+    
+    # PHASE 2: If no models found, try fallback search
+    if not model_files:
+        print("No exact environment matches found in experiments directory.")
+        return None
+    
+    # Sort by creation time and return the most recent file
+    model_files.sort(key=os.path.getctime, reverse=True)
+    selected_file = model_files[0]
+    
+    # Verification output
+    print(f"Selected most recent model file: {selected_file}")
+    print(f"Model creation time: {time.ctime(os.path.getctime(selected_file))}")
+    print(f"Model directory: {os.path.dirname(selected_file)}")
+    
+    return selected_file
 
     if not model_files:
         # Fallback to search all files if directory matching fails
+        print("No matching directories found, falling back to file search...")
         for root, _, files in os.walk(base_dir):
-            for file in files:
-                if file.startswith("model_") and file.endswith(".pt"):
-                    model_files.append(os.path.join(root, file))
+            # Get the parent directory name
+            parent_dir = os.path.basename(root)
+            parent_parts = parent_dir.split('-', 1)
+            parent_name = parent_parts[0]
+            parent_name_base = parent_name.replace('puffer_', '')
+            
+            # Apply the same exact matching logic to parent directories
+            exact_match = (parent_name == term)
+            exact_match_with_hash = (len(parent_parts) > 1 and parent_parts[0] == term)
+            base_exact_match = (parent_name_base == term_base)
+            base_exact_match_with_hash = (len(parent_parts) > 1 and parent_parts[0].replace('puffer_', '') == term_base)
+            
+            # Only consider exact matches
+            if exact_match or exact_match_with_hash or base_exact_match or base_exact_match_with_hash:
+                for file in files:
+                    if file.startswith("model_") and file.endswith(".pt"):
+                        model_files.append(os.path.join(root, file))
+                        print(f"Found model file: {os.path.join(root, file)}")
 
     if not model_files:
         return None
 
     # Sort by creation time and return the most recent file
     model_files.sort(key=os.path.getctime, reverse=True)
-    return model_files[0]
+    selected_file = model_files[0]
+    
+    # Verification output
+    print(f"Selected most recent model file: {selected_file}")
+    print(f"Model creation time: {time.ctime(os.path.getctime(selected_file))}")
+    print(f"Model directory: {os.path.dirname(selected_file)}")
+    
+    return selected_file
 
 def update_save_net_flat(model_path, env_name):
     save_net_file = "save_net_flat.py"
@@ -84,7 +143,7 @@ def update_save_net_flat(model_path, env_name):
                 f.write(f"OUTPUT_FILE_PATH = '{output_dir}'\n")
             else:
                 f.write(line)
-    print(f"Updated {save_net_file} with model and weights paths.")
+    print(f"Updated {save_net_file} with model and weights paths.\nModel path:{model_path}, Weights output dir:{output_dir} ")
     return output_dir
 
 def extract_details_from_architecture_file(architecture_file):
@@ -101,12 +160,16 @@ def extract_details_from_architecture_file(architecture_file):
                 action_size = int(line.split("[")[1].split(",")[0].strip())
             elif "Num weights" in line:
                 num_weights = int(line.split(":")[1].strip())
+    
+        
+    print(f'observation_size:{observation_size}\naction_size:{action_size}\nnum_weights:{num_weights}\n')
 
     return observation_size, action_size, num_weights
 
 def find_c_file(top_dir, env_name):
     """Search the entire top directory for the corresponding .c file."""
     env_basename = env_name.replace('puffer_', '')
+    env_basename = env_basename.split('_')[0]
     for root, _, files in os.walk(top_dir):
         for file in files:
             if file == f"{env_basename}.c":
@@ -118,6 +181,8 @@ def update_c_file(c_file_path, weights_file, observation_size, action_size, num_
     with open(c_file_path, 'r') as f:
         lines = f.readlines()
 
+    print(f'{c_file_path, weights_file, observation_size, action_size, num_weights}')
+    
     with open(c_file_path, 'w') as f:
         for line in lines:
             if line.strip().startswith("const char* WEIGHTS_PATH"):
@@ -201,6 +266,8 @@ def main():
 
             # Step 7: Compile and run
             env_basename = env_name.replace('puffer_', '')
+            env_base_name = env_basename.split('_')[0]
+            binary_path = env_base_name
             print(f"Compiling {env_basename}...")
             os.system(f"scripts/build_ocean.sh {env_basename} local")
             print(f"Running {env_basename} locally...")

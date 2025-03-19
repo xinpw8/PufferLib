@@ -2,13 +2,20 @@ from libc.stdlib cimport calloc, free
 
 cdef extern from "cartpole.h":
     int LOG_BUFFER_SIZE
+    int MAX_STEPS
 
     ctypedef struct Log:
         float episode_return
         float episode_length
-        float score
+        int x_threshold_termination
+        int pole_angle_termination
+        int max_steps_termination
 
-    ctypedef struct LogBuffer
+    ctypedef struct LogBuffer:
+        Log* logs
+        int length
+        int idx
+
     LogBuffer* allocate_logbuffer(int)
     void free_logbuffer(LogBuffer*)
     Log aggregate_and_clear(LogBuffer*)
@@ -25,52 +32,51 @@ cdef extern from "cartpole.h":
         float theta
         float theta_dot
         int steps
-        int max_steps
         int width
         int height
         int frameskip
         int continuous
-    ctypedef struct Client
+        int num_obs
+
+    ctypedef struct Client:
+        float width
+        float height
+        float scale
 
     void init(CartPole* env)
     void free_initialized(CartPole* env)
-
     Client* make_client(CartPole* env)
     void close_client(Client* client)
     void c_render(Client* client, CartPole* env)
     void c_reset(CartPole* env)
     void c_step(CartPole* env)
-
 cdef class CyCartPole:
     cdef:
-        CartPole* envs
         Client* client
+        CartPole* envs
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions,
-            float[:] rewards, unsigned char[:] terminals, int num_envs, int frameskip=1,
-            int width=800, int height=600, int max_steps=200, int continuous=0):
+    def __init__(self, float[:, :] observations, int[:] actions, float[:] rewards,
+                 unsigned char[:] dones, int num_envs, int frameskip=1,
+                 int width=800, int height=600, int continuous=0):
 
-        self.client = NULL
         self.num_envs = num_envs
         self.envs = <CartPole*> calloc(num_envs, sizeof(CartPole))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
+        self.client = NULL
 
         cdef int i
         for i in range(num_envs):
-            self.envs[i] = CartPole(
-                observations=&observations[i, 0],
-                actions=&actions[i],
-                rewards=&rewards[i],
-                dones=&terminals[i],
-                log_buffer=self.logs,
-                width=width,
-                height=height,
-                max_steps=max_steps,
-                frameskip=frameskip,
-                continuous=continuous,
-            )
+            self.envs[i].observations = &observations[i, 0]
+            self.envs[i].actions = &actions[i]
+            self.envs[i].rewards = &rewards[i]
+            self.envs[i].dones = &dones[i]
+            self.envs[i].log_buffer = self.logs
+            self.envs[i].width = width
+            self.envs[i].height = height
+            self.envs[i].frameskip = frameskip
+            self.envs[i].continuous = 0
             init(&self.envs[i])
             self.client = NULL
 

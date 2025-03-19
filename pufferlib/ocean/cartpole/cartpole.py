@@ -4,7 +4,7 @@ import pufferlib
 from pufferlib.ocean.cartpole.cy_cartpole import CyCartPole
 
 class Cartpole(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode='human', report_interval=1, frame_skip=1, buf=None):
+    def __init__(self, num_envs=1, render_mode='human', report_interval=1, frame_skip=4, buf=None):
         self.render_mode = render_mode
         self.num_agents = num_envs
         self.report_interval = report_interval
@@ -21,7 +21,7 @@ class Cartpole(pufferlib.PufferEnv):
         self.single_action_space = gymnasium.spaces.Discrete(2)
         
         self.observations = np.zeros((self.num_agents, self.num_obs), dtype=np.float32)
-        self.actions = np.zeros((self.num_agents,), dtype=np.uint8)
+        self.actions = np.zeros((self.num_agents,), dtype=np.int32)
         self.rewards = np.zeros((self.num_agents,), dtype=np.float32)
         self.terminals = np.zeros((self.num_agents,), dtype=np.uint8)
         self.truncations = np.zeros((self.num_agents,), dtype=np.uint8)
@@ -37,8 +37,7 @@ class Cartpole(pufferlib.PufferEnv):
             frame_skip,
             width=800,
             height=600,
-            max_steps=200,
-            continuous=0
+            continuous=0,
         )
     
     def reset(self, seed=None):
@@ -58,7 +57,9 @@ class Cartpole(pufferlib.PufferEnv):
                 info.append({
                     'episode_return': log['episode_return'],
                     'episode_length': log['episode_length'],
-                    'score': log['score']
+                    'x_threshold_termination': log['x_threshold_termination'],
+                    'pole_angle_termination': log['pole_angle_termination'],
+                    'max_steps_termination': log['max_steps_termination'],
                 })
 
         self.tick += 1
@@ -83,7 +84,7 @@ def test_performance(timeout=10, atn_cache=8192):
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs)).astype(np.float32)  # Convert to float32
+    actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs)).astype(np.int8)
 
     import time
     start = time.time()

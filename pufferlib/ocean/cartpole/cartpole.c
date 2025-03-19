@@ -1,41 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 #include "cartpole.h"
+#include "puffernet.h"
 
 #define NUM_WEIGHTS 133123
-#define OBSERVATIONS_SIZE 4
-#define ACTIONS_SIZE 2
-
-const char* WEIGHTS_PATH = "pufferlib/resources/cartpole/cartpole_weights.bin";
-
-typedef struct Policy {
-    float* weights;
-    int num_weights;
-} Policy;
-
-Policy* load_policy(const char* filename) {
-    FILE* f = fopen(filename, "rb");
-    if (!f) {
-        perror("Could not load weights");
-        exit(1);
-    }
-    Policy* p = malloc(sizeof(Policy));
-    p->weights = malloc(NUM_WEIGHTS * sizeof(float));
-    fread(p->weights, sizeof(float), NUM_WEIGHTS, f);
-    fclose(f);
-    return p;
-}
-
-int policy_forward(Policy* policy, float* observations) {
-    // Simple dummy policy based on pole angle
-    return (observations[2] > 0) ? 1 : 0;
-}
-
-void free_policy(Policy* policy) {
-    free(policy->weights);
-    free(policy);
-}
+#define OBSERVATIONS_SIZE 0
+#define ACTIONS_SIZE 0
+const char* WEIGHTS_PATH = "/puffertank/pufferlib/pufferlib/resources/cartpole_gpt/cartpole_gpt_weights.bin";
 
 void get_input(CartPole* env) {
     if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
@@ -46,50 +19,51 @@ void get_input(CartPole* env) {
 }
 
 void demo() {
-    CartPole env = {
-        .frameskip = 1,
-        .width = 800,
-        .height = 600,
-        .max_steps = 500,
-        .continuous = 0,
-    };
-
+    Weights* weights = load_weights(WEIGHTS_PATH, NUM_WEIGHTS);
+    LinearLSTM* net = make_linearlstm(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE);
+    
+    CartPole env = {0};
+    env.num_obs = OBSERVATIONS_SIZE;
+    
+    // Proper initialization sequence
     allocate(&env);
-    c_reset(&env);
-
     Client* client = make_client(&env);
-    Policy* policy = load_policy(WEIGHTS_PATH);
-
-    InitWindow(env.width, env.height, "CartPole AI Control");
+    c_reset(&env);
+    
+    // REMOVE THIS LINE - Window already initialized in make_client
+    // InitWindow(env.width, env.height, "CartPole AI Control");
+    
     SetTargetFPS(60);
-
+    
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            get_input(&env);  // Manual override
+            get_input(&env);  // Human input
         } else {
-            env.actions[0] = policy_forward(policy, env.observations);  // AI action
+            forward_linearlstm(net, env.observations, env.actions);  // AI input
         }
-
+        
         c_step(&env);
-
+        printf("ran this");
+        
         BeginDrawing();
         ClearBackground(RAYWHITE);
         c_render(client, &env);
-        DrawText("Hold LEFT SHIFT for manual control", 10, 10, 20, DARKGRAY);
+        DrawText("Hold LEFT SHIFT for manual control", 10, 160, 20, DARKGRAY);
         EndDrawing();
-
+        
         if (env.dones[0]) {
             c_reset(&env);
         }
     }
-
-    free_policy(policy);
+    
+    free_linearlstm(net);
+    free(weights);
     close_client(client);
     free_allocated(&env);
-    CloseWindow();
 }
 
 int main() {
+    srand(time(NULL));  // Initialize random seed
     demo();
     return 0;
 }

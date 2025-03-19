@@ -2,9 +2,10 @@ import torch
 from torch.nn import functional as F
 import numpy as np
 
-MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_cartpole-309554aa/model_000300.pt'
-WEIGHTS_OUTPUT_FILE_NAME = 'cartpole_weights.bin'
-OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/cartpole'
+# update manually if running manually, otherwise, run.py updates automatically
+MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_cartpole_gpt-8031ef94/model_000150.pt'
+WEIGHTS_OUTPUT_FILE_NAME = 'cartpole_gpt_weights.bin'
+OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/cartpole_gpt'
 
 def save_model_weights(model, filename):
     import os

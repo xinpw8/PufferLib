@@ -3,9 +3,6 @@
 #include <assert.h>
 #include "raylib.h"
 
-#define NOOP 0
-#define LEFT 0
-#define RIGHT 1
 #define TICK_RATE 1.0f/60.0f
 
 #define LOG_BUFFER_SIZE 1024
@@ -19,22 +16,26 @@
 #define TAU 0.02f  // Seconds between state updates
 
 // Angle thresholds in radians
-#define THETA_THRESHOLD_RADIANS 12.0f * M_PI / 180.0f  // 12 degrees
+#define THETA_THRESHOLD_RADIANS (12.0f * M_PI / 180.0f)  // 12 degrees
 #define X_THRESHOLD 2.4f
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 800
 
-typedef struct Log Log;
-struct Log {
+#define MAX_STEPS 200
+
+typedef struct Log {
     float episode_return;
     float episode_length;
-    float score;
-};
+    int x_threshold_termination;
+    int pole_angle_termination;
+    int max_steps_termination;
+} Log;
 
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
+typedef struct LogBuffer {
     Log* logs;
     int length;
     int idx;
-};
+} LogBuffer;
 
 LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
@@ -65,17 +66,20 @@ Log aggregate_and_clear(LogBuffer* logs) {
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
-        log.score += logs->logs[i].score;
+        log.x_threshold_termination += logs->logs[i].x_threshold_termination;
+        log.pole_angle_termination += logs->logs[i].pole_angle_termination;
+        log.max_steps_termination += logs->logs[i].max_steps_termination;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
-    log.score /= logs->idx;
+    log.x_threshold_termination /= logs->idx;
+    log.pole_angle_termination /= logs->idx;
+    log.max_steps_termination /= logs->idx;
     logs->idx = 0;
     return log;
 }
  
-typedef struct CartPole CartPole;
-struct CartPole {
+typedef struct CartPole {
     float* observations;
     int* actions;
     float* rewards;
@@ -91,25 +95,31 @@ struct CartPole {
     
     // Environment parameters
     int steps;
-    int max_steps;
     int width;       // For rendering
     int height;      // For rendering
     int frameskip;
     int continuous;  // Whether actions are continuous or discrete
-};
+    int num_obs;
+} CartPole;
 
 void init(CartPole* env) {
-    // Nothing specific to initialize in CartPole
+    // Initialize window dimensions to match constants
+    env->width = SCREEN_WIDTH;
+    env->height = SCREEN_HEIGHT;
+    
+    // Set default values for other parameters
+    env->frameskip = 1;
+    env->continuous = 0;  // Discrete actions by default
+    env->steps = 0;
 }
 
 void allocate(CartPole* env) {
-    init(env);
+    init(env);  // Initialize all parameters first
     env->observations = (float*)calloc(4, sizeof(float));  // 4 observations
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
-    env->max_steps = 2000;  // Max episode length for CartPole-v0
 }
 
 void free_initialized(CartPole* env) {
@@ -125,10 +135,10 @@ void free_allocated(CartPole* env) {
 }
 
 void compute_observations(CartPole* env) {
-    env->observations[0] = env->x;               // Cart position
-    env->observations[1] = env->x_dot;           // Cart velocity
-    env->observations[2] = env->theta;           // Pole angle
-    env->observations[3] = env->theta_dot;       // Pole angular velocity
+    env->observations[0] = env->x;             // Cart position
+    env->observations[1] = env->x_dot;          // Cart velocity
+    env->observations[2] = env->theta;        // Pole angle
+    env->observations[3] = env->theta_dot;    // Pole angular velocity
 }
 
 void c_reset(CartPole* env) {
@@ -150,23 +160,24 @@ bool is_done(CartPole* env) {
     // 2. Pole angle is more than THETA_THRESHOLD_RADIANS
     // 3. Episode length exceeds max_steps
     if (env->x < -X_THRESHOLD || env->x > X_THRESHOLD) {
+        env->log.x_threshold_termination += 1;
         return true;
     }
     if (env->theta < -THETA_THRESHOLD_RADIANS || env->theta > THETA_THRESHOLD_RADIANS) {
+        env->log.pole_angle_termination += 1;
         return true;
     }
-    if (env->steps >= env->max_steps) {
+    if (env->steps >= MAX_STEPS) {
+        env->log.max_steps_termination += 1;
         return true;
     }
     return false;
 }
 
-void step_frame(CartPole* env, float action) {
-    float force = (action == RIGHT) ? FORCE_MAG : -FORCE_MAG;
-    if (env->continuous) {
-        force = action * FORCE_MAG;
-    }
-    
+void c_step(CartPole* env) {
+
+    float force = env->actions[0] ? FORCE_MAG : -FORCE_MAG;
+
     // Physics calculations following the equations from the CartPole definition
     float costheta = cosf(env->theta);
     float sintheta = sinf(env->theta);
@@ -182,44 +193,37 @@ void step_frame(CartPole* env, float action) {
     env->theta += TAU * env->theta_dot;
     env->theta_dot += TAU * thetaacc;
     
-    // Clamp state values to prevent numerical instability
-    env->theta = fmodf(env->theta + M_PI, 2 * M_PI) - M_PI;  // Keep theta in [-π, π]
     
-    // Apply a reward of 1 for each step
-    env->rewards[0] += 1.0f;
-    env->log.episode_return += 1.0f;
+    bool done = is_done(env);
+    env->rewards[0] = done ? 0.0f : 1.0f;
+    env->dones[0] = done ? 1 : 0;    
+    // env->dones[0] = 0;
+    // env->rewards[0] = 0.0f;
+
     
+    // // Apply a reward of 1 for each step
+    // env->rewards[0] = 1.0f;
+    // env->log.episode_return += 1.0f;
     env->steps += 1;
-}
 
-void c_step(CartPole* env) {
-    env->dones[0] = 0;
-    env->log.episode_length += 1;
-    env->rewards[0] = 0.0f;
-
-    int action = env->actions[0];
-    for (int i = 0; i < env->frameskip; i++) {
-        step_frame(env, action);
-        if (is_done(env)) {
-            break;
-        }
-    }
     
-    if (is_done(env)) {
+    if (done) {
         env->dones[0] = 1;
+        env->log.episode_return += env->steps;
+        env->log.episode_length = env->steps;
         add_log(env->log_buffer, &env->log);
         c_reset(env);
+        memset(&env->log, 0, sizeof(Log));  // Reset log after add_log
     }
 
     compute_observations(env);
 }
 
-typedef struct Client Client;
-struct Client {
+typedef struct Client {
     float width;
     float height;
     float scale;  // Scaling factor for rendering
-};
+} Client;
 
 Client* make_client(CartPole* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
@@ -227,6 +231,7 @@ Client* make_client(CartPole* env) {
     client->height = env->height;
     client->scale = 100.0f;  // Scale for rendering the cartpole
 
+    // Window is properly initialized with dimensions from env
     InitWindow(env->width, env->height, "PufferLib Ray CartPole");
     SetTargetFPS(60);
 
