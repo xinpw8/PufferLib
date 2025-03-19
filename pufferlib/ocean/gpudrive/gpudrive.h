@@ -45,6 +45,11 @@
 #define VEHICLE_COLLISION 1
 #define OFFROAD 2
 
+// grid cell size
+#define GRID_CELL_SIZE 5.0f
+#define MAX_ENTITIES_PER_CELL 10
+#define SLOTS_PER_CELL (MAX_ENTITIES_PER_CELL + 1)
+
 // Acceleration Values
 static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
 static const float STEERING_VALUES[13] = {-3.1420f, -2.6180f, -2.0940f, -1.5710f, -1.0470f, -0.5240f,  0.0000f,  0.5240f,
@@ -202,6 +207,10 @@ struct GPUDrive {
     int dynamics_model;
     float* fake_data;
     char* goal_reached;
+    float* map_corners;
+    int* grid_cells;  // holds entity ids per cell
+    int grid_cols;
+    int grid_rows;
 };
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
@@ -359,6 +368,104 @@ void set_active_agents(GPUDrive* env){
     }
 }
 
+// Function to get grid index from coordinates
+int getGridIndex(GPUDrive* env, float x1, float y1) {
+    
+    // Verify coordinate assumptions
+    if (env->map_corners[0] >= env->map_corners[2] || env->map_corners[1] >= env->map_corners[3]) {
+        printf("Invalid grid coordinates\n");
+        return -1;  // Invalid grid coordinates
+    }
+    
+    // Calculate dimensions of the world in meters
+    float worldWidth = env->map_corners[2] - env->map_corners[0];   // Positive value
+    float worldHeight = env->map_corners[3] - env->map_corners[1];  // Positive value
+    // Calculate number of cells in each dimension
+    // Each cell is 5 meters
+    int cellsX = (int)ceil(worldWidth / GRID_CELL_SIZE);  // Number of columns
+    int cellsY = (int)ceil(worldHeight / GRID_CELL_SIZE); // Number of rows
+    // Calculate position relative to top-left corner
+    float relativeX = x1 - env->map_corners[0];  // Distance from left
+    float relativeY = y1 - env->map_corners[1];  // Distance from top
+    // Calculate grid coordinates
+    int gridX = (int)(relativeX / GRID_CELL_SIZE);  // Column index
+    int gridY = (int)(relativeY / GRID_CELL_SIZE);  // Row index
+    // Ensure the coordinates are within bounds
+    if (gridX < 0 || gridX >= cellsX || gridY < 0 || gridY >= cellsY) {
+        return -1;  // Return -1 for out of bounds
+    }
+    
+    // Calculate 1D array index
+    // Index = (row * number_of_columns) + column
+    int index = (gridY * cellsX) + gridX;
+    
+    return index;
+}
+
+void add_entity_to_grid(GPUDrive* env, int grid_index, int entity_idx){
+    if(grid_index == -1){
+        return;
+    }
+    int base_index = grid_index * SLOTS_PER_CELL;
+    int count = env->grid_cells[base_index];
+    if(count>= MAX_ENTITIES_PER_CELL) return;
+    env->grid_cells[base_index + count + 1] = entity_idx;
+    env->grid_cells[base_index] = count + 1;
+    
+}
+
+void init_grid_map(GPUDrive* env){
+    // Find top left and bottom right points of the map
+    float top_left_x = env->entities[0].traj_x[0];
+    float top_left_y = env->entities[0].traj_y[0];
+    float bottom_right_x = env->entities[0].traj_x[0];
+    float bottom_right_y = env->entities[0].traj_y[0];
+
+    for(int i = 0; i < env->num_entities; i++){
+        if(env->entities[i].type > 3 && env->entities[i].type < 7){
+            // Check all points in the trajectory for road elements
+            for(int j = 0; j < env->entities[i].array_size; j++){
+                if(env->entities[i].traj_x[j] < top_left_x) top_left_x = env->entities[i].traj_x[j];
+                if(env->entities[i].traj_x[j] > bottom_right_x) bottom_right_x = env->entities[i].traj_x[j];
+                if(env->entities[i].traj_y[j] < top_left_y) top_left_y = env->entities[i].traj_y[j];
+                if(env->entities[i].traj_y[j] > bottom_right_y) bottom_right_y = env->entities[i].traj_y[j];
+            }
+        }
+    }
+
+    printf("top_left_x: %f, top_left_y: %f, bottom_right_x: %f, bottom_right_y: %f\n", top_left_x, top_left_y, bottom_right_x, bottom_right_y);
+    env->map_corners = (float*)calloc(4, sizeof(float));
+    env->map_corners[0] = top_left_x;
+    env->map_corners[1] = top_left_y;
+    env->map_corners[2] = bottom_right_x;
+    env->map_corners[3] = bottom_right_y;
+    
+    // Calculate grid dimensions
+    float grid_width = bottom_right_x - top_left_x;
+    float grid_height = bottom_right_y - top_left_y;
+    env->grid_cols = ceil(grid_width / GRID_CELL_SIZE);
+    env->grid_rows = ceil(grid_height / GRID_CELL_SIZE);
+    
+    // Allocate memory for grid cells: 4 values (x, y, width, height) per cell
+    int grid_cell_count = env->grid_cols * env->grid_rows;
+    env->grid_cells = (int*)calloc(grid_cell_count * SLOTS_PER_CELL, sizeof(int));
+    
+    // Populate grid cells
+    for(int i = 0; i < env->num_entities; i++){
+        if(env->entities[i].type <=3 ){
+            int grid_index = getGridIndex(env, env->entities[i].x, env->entities[i].y);
+            add_entity_to_grid(env, grid_index, i);
+        } else if(env->entities[i].type == ROAD_EDGE){
+            for(int j = 0; j < env->entities[i].array_size - 1; j++){
+                float x_center = (env->entities[i].traj_x[j] + env->entities[i].traj_x[j+1]) / 2;
+                float y_center = (env->entities[i].traj_y[j] + env->entities[i].traj_y[j+1]) / 2;
+                int grid_index = getGridIndex(env, x_center, y_center);
+                add_entity_to_grid(env, grid_index, i);
+            }
+        }
+    }
+}
+
 void init(GPUDrive* env){
     env->human_agent_idx = 0;
     env->timestep = 0;
@@ -376,6 +483,7 @@ void init(GPUDrive* env){
 	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
     }
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
+    init_grid_map(env);
 }
 
 void free_initialized(GPUDrive* env){
@@ -387,6 +495,8 @@ void free_initialized(GPUDrive* env){
     free(env->logs);
     free(env->fake_data);
     free(env->goal_reached);
+    free(env->map_corners);
+    free(env->grid_cells);  // Free the grid cells memory
 }
 
 void allocate(GPUDrive* env){
@@ -530,6 +640,46 @@ float point_to_line_distance(float point[2], float line_start[2], float line_end
     return sqrtf((x0 - closest_x) * (x0 - closest_x) + (y0 - closest_y) * (y0 - closest_y));
 }
 
+int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_size) {
+    // Get the grid index for the given position (x, y)
+    int index = getGridIndex(env, x, y);
+    if (index == -1) return 0;  // Return 0 size if position invalid
+
+    // Calculate 2D grid coordinates
+    int cellsX = env->grid_cols;
+    int gridX = index % cellsX;
+    int gridY = index / cellsX;
+
+    // Define the 8 surrounding cell offsets
+    int offsets[8][2] = {
+        {-1, -1}, {0, -1}, {1, -1},  // Top row
+        {-1,  0},          {1,  0},  // Middle row (skip center)
+        {-1,  1}, {0,  1}, {1,  1}   // Bottom row
+    };
+
+    int entity_list_count = 0;
+
+    // Fill the provided array
+    for (int i = 0; i < 8; i++) {
+        int nx = gridX + offsets[i][0];
+        int ny = gridY + offsets[i][1];
+        // Ensure the neighbor is within grid bounds
+        if (nx >= 0 && nx < env->grid_cols && ny >= 0 && ny < env->grid_rows) {
+            int neighborIndex = (ny * env->grid_cols + nx) * SLOTS_PER_CELL;
+            int count = env->grid_cells[neighborIndex];
+            
+            // Add entities from this cell to the list
+            for (int j = 0; j < count && entity_list_count < max_size; j++) {
+                int entityId = env->grid_cells[neighborIndex + 1 + j];
+                entity_list[entity_list_count] = entityId;
+                entity_list_count++;
+            }
+        }
+    }
+
+    return entity_list_count;
+}
+
 
 void collision_check(GPUDrive* env, int agent_idx) {
     Entity* agent = &env->entities[agent_idx];
@@ -548,9 +698,11 @@ void collision_check(GPUDrive* env, int agent_idx) {
     float nearest_start[2], nearest_end[2];
     float nearest_car_start[2], nearest_car_end[2];
     int car_collided_with_index = -1;
-    for (int i = 0; i < env->num_entities; i++) {
-        if(i == agent_idx) continue;
-        Entity* entity = &env->entities[i];
+    int entity_list[MAX_ENTITIES_PER_CELL * 8];  // Array big enough for all neighboring cells
+    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8);
+    for (int i = 0; i < list_size; i++) {
+        if(entity_list[i] == agent_idx) continue;
+        Entity* entity = &env->entities[entity_list[i]];
         if(entity->type == ROAD_EDGE){
             for (int j = 0; j < entity->array_size - 1; j++) {
                 float start[2] = {entity->traj_x[j], entity->traj_y[j]};
@@ -587,13 +739,13 @@ void collision_check(GPUDrive* env, int agent_idx) {
         }
         if(entity->type == VEHICLE){
             float other_corners[4][2];
-            for (int i = 0; i < 4; i++) {
+            for (int z = 0; z < 4; z++) {
                 float other_cos_heading = cosf(entity->traj_heading[0]);
                 float other_sin_heading = sinf(entity->traj_heading[0]);
                 float other_half_length = entity->length / 2.0f;
                 float other_half_width = entity->width / 2.0f;
-                other_corners[i][0] = entity->x + (offsets[i][0] * other_half_length * other_cos_heading - offsets[i][1] * other_half_width * other_sin_heading);
-                other_corners[i][1] = entity->y + (offsets[i][0] * other_half_length * other_sin_heading + offsets[i][1] * other_half_width * other_cos_heading);
+                other_corners[z][0] = entity->x + (offsets[z][0] * other_half_length * other_cos_heading - offsets[z][1] * other_half_width * other_sin_heading);
+                other_corners[z][1] = entity->y + (offsets[z][0] * other_half_length * other_sin_heading + offsets[z][1] * other_half_width * other_cos_heading);
             }
             for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
                 int next_k = (k + 1) % 4;
@@ -601,7 +753,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
                     int next_l = (l + 1) % 4;
                     if (check_line_intersection(corners[k], corners[next_k], other_corners[l], other_corners[next_l])) {
                         collided = VEHICLE_COLLISION;
-                        car_collided_with_index = i;
+                        car_collided_with_index = entity_list[i];
                         break;
                     }
                 }
@@ -636,7 +788,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
     agent->collision_state = collided;
     if (car_collided_with_index != -1) {
-        env->entities[car_collided_with_index].collision_state = 1;
+        env->entities[car_collided_with_index].collision_state = VEHICLE_COLLISION;
     }
     if (min_dist != 10000) { // If a road edge was found
         agent->nearest_line_dist = min_dist;
@@ -797,7 +949,11 @@ void c_render(Client* client, GPUDrive* env) {
     BeginMode3D(client->camera);
     // Draw a grid to help with orientation
     DrawGrid(20, 1.0f);
-    
+    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[1], 0}, BLACK);
+    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, BLACK);
+    DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
+    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
+
     for(int i = 0; i < env->num_entities; i++) {
         if(env->entities[i].type == 1) {  // If entity is a vehicle
             // Check if this vehicle is an active agent
@@ -854,8 +1010,8 @@ void c_render(Client* client, GPUDrive* env) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
                     DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_start[0], env->entities[i].nearest_car_start[1], 1.0f}, RED);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_end[0], env->entities[i].nearest_car_end[1], 1.0f}, ORANGE);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_start[0], env->entities[i].nearest_line_start[1], 1.0f}, GREEN);
+                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_end[0], env->entities[i].nearest_car_end[1], 1.0f}, RED);
+                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_start[0], env->entities[i].nearest_line_start[1],  1.0f}, GREEN);
                     DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_end[0], env->entities[i].nearest_line_end[1], 1.0f}, GREEN);
                 }
             } else {
@@ -897,14 +1053,31 @@ void c_render(Client* client, GPUDrive* env) {
                 else if (env->entities[i].type == ROAD_EDGE) lineColor = BLACK;
                 else if (env->entities[i].type == DRIVEWAY) lineColor = RED;
                 
-                if(env->entities[i].type == ROAD_LANE || env->entities[i].type == ROAD_EDGE){
+                if(env->entities[i].type == ROAD_EDGE){
                     DrawLine3D(start, end, lineColor);
                 }
-
+                if(env->entities[i].type == ROAD_EDGE){
+                    DrawSphere(start, 0.5f, lineColor);
+                    DrawSphere(end, 0.5f, lineColor);
+                }
             }
         }
     }
     
+    // Draw grid cells using the stored bounds
+    float grid_start_x = env->map_corners[0];
+    float grid_start_y = env->map_corners[1];
+    for(int i = 0; i < env->grid_cols; i++) {
+        for(int j = 0; j < env->grid_rows; j++) {
+            float x = grid_start_x + i * GRID_CELL_SIZE;
+            float y = grid_start_y + j * GRID_CELL_SIZE;
+            int index = i * env->grid_rows + j;
+            int count = env->grid_cells[index * SLOTS_PER_CELL];
+            DrawCubeWires(
+                (Vector3){x + GRID_CELL_SIZE/2, y + GRID_CELL_SIZE/2, 1}, 
+                GRID_CELL_SIZE, GRID_CELL_SIZE, 0.1f, GRAY);
+        }
+    }
     EndMode3D();
     
     // Draw debug info
