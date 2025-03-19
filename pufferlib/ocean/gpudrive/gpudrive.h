@@ -446,6 +446,25 @@ void update_grid_for_entity(GPUDrive* env, int entity_idx, float old_x, float ol
     }
 }
 
+void reset_grid_map(GPUDrive* env){
+    for(int i = 0; i < env->grid_cols * env->grid_rows * SLOTS_PER_CELL; i++){
+        env->grid_cells[i] = 0;
+    }
+    for(int i = 0; i < env->num_entities; i++){
+        if(env->entities[i].type <=3 ){
+            int grid_index = getGridIndex(env, env->entities[i].x, env->entities[i].y);
+            add_entity_to_grid(env, grid_index, i);
+        } else if(env->entities[i].type == ROAD_EDGE){
+            for(int j = 0; j < env->entities[i].array_size - 1; j++){
+                float x_center = (env->entities[i].traj_x[j] + env->entities[i].traj_x[j+1]) / 2;
+                float y_center = (env->entities[i].traj_y[j] + env->entities[i].traj_y[j+1]) / 2;
+                int grid_index = getGridIndex(env, x_center, y_center);
+                add_entity_to_grid(env, grid_index, i);
+            }
+        }
+    }
+}
+
 void init_grid_map(GPUDrive* env){
     // Find top left and bottom right points of the map
     float top_left_x = env->entities[0].traj_x[0];
@@ -618,6 +637,9 @@ void move_expert(GPUDrive* env, int* actions, int agent_idx){
 }
 
 bool check_line_intersection(float p1[2], float p2[2], float q1[2], float q2[2]) {
+    if (fmax(p1[0], p2[0]) < fmin(q1[0], q2[0]) || fmin(p1[0], p2[0]) > fmax(q1[0], q2[0]) ||
+    fmax(p1[1], p2[1]) < fmin(q1[1], q2[1]) || fmin(p1[1], p2[1]) > fmax(q1[1], q2[1]))
+    return false;
     float s1_x = p2[0] - p1[0];     
     float s1_y = p2[1] - p1[1];
     float s2_x = q2[0] - q1[0];     
@@ -830,6 +852,10 @@ void collision_check(GPUDrive* env, int agent_idx) {
         agent->nearest_line_end[1] = nearest_end[1];
     } else {
         agent->nearest_line_dist = -1.0f; // Indicate no line found
+        agent->nearest_line_start[0] = 10000.0f;
+        agent->nearest_line_start[1] = 10000.0f;
+        agent->nearest_line_end[0] = 10000.0f;
+        agent->nearest_line_end[1] = 10000.0f;
     }
     if(min_car_dist != 10000) {
 	    agent->nearest_car_dist = min_car_dist;
@@ -839,6 +865,10 @@ void collision_check(GPUDrive* env, int agent_idx) {
 	    agent->nearest_car_end[1] = nearest_car_end[1];
     } else {
 	    agent->nearest_car_dist = -1.0f;
+        agent->nearest_car_start[0] = 10000.0f;
+        agent->nearest_car_start[1] = 10000.0f;
+        agent->nearest_car_end[0] = 10000.0f;
+        agent->nearest_car_end[1] = 10000.0f;
     }
 }
 
@@ -868,11 +898,15 @@ void compute_observations(GPUDrive* env){
 
 void c_reset(GPUDrive* env){
     env->timestep = 0;
+    float old_x, old_y;
     set_start_position(env);
     for(int x = 0;x<env->active_agent_count; x++){
         env->logs[x] = (Log){0};
-	int agent_idx = env->active_agent_indices[x];
-	collision_check(env, agent_idx);
+        int agent_idx = env->active_agent_indices[x];
+        old_x = env->entities[agent_idx].x;
+        old_y = env->entities[agent_idx].y;
+        update_grid_for_entity(env, agent_idx, old_x, old_y, env->entities[agent_idx].x, env->entities[agent_idx].y);
+        collision_check(env, agent_idx);
     }
     memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
     compute_observations(env);
