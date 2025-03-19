@@ -447,9 +447,7 @@ void update_grid_for_entity(GPUDrive* env, int entity_idx, float old_x, float ol
 }
 
 void reset_grid_map(GPUDrive* env){
-    for(int i = 0; i < env->grid_cols * env->grid_rows * SLOTS_PER_CELL; i++){
-        env->grid_cells[i] = 0;
-    }
+    memset(env->grid_cells, 0, env->grid_cols * env->grid_rows * SLOTS_PER_CELL * sizeof(int));
     for(int i = 0; i < env->num_entities; i++){
         if(env->entities[i].type <=3 ){
             int grid_index = getGridIndex(env, env->entities[i].x, env->entities[i].y);
@@ -753,8 +751,10 @@ void collision_check(GPUDrive* env, int agent_idx) {
     float nearest_car_start[2], nearest_car_end[2];
     int car_collided_with_index = -1;
     int entity_list[MAX_ENTITIES_PER_CELL * 8];  // Array big enough for all neighboring cells
+    memset(entity_list, -1, MAX_ENTITIES_PER_CELL * 8 * sizeof(int));
     int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8);
     for (int i = 0; i < list_size; i++) {
+        if(entity_list[i] == -1) continue;
         if(entity_list[i] == agent_idx) continue;
         Entity* entity = &env->entities[entity_list[i]];
         if(entity->type == ROAD_EDGE){
@@ -852,10 +852,6 @@ void collision_check(GPUDrive* env, int agent_idx) {
         agent->nearest_line_end[1] = nearest_end[1];
     } else {
         agent->nearest_line_dist = -1.0f; // Indicate no line found
-        agent->nearest_line_start[0] = 10000.0f;
-        agent->nearest_line_start[1] = 10000.0f;
-        agent->nearest_line_end[0] = 10000.0f;
-        agent->nearest_line_end[1] = 10000.0f;
     }
     if(min_car_dist != 10000) {
 	    agent->nearest_car_dist = min_car_dist;
@@ -865,10 +861,6 @@ void collision_check(GPUDrive* env, int agent_idx) {
 	    agent->nearest_car_end[1] = nearest_car_end[1];
     } else {
 	    agent->nearest_car_dist = -1.0f;
-        agent->nearest_car_start[0] = 10000.0f;
-        agent->nearest_car_start[1] = 10000.0f;
-        agent->nearest_car_end[0] = 10000.0f;
-        agent->nearest_car_end[1] = 10000.0f;
     }
 }
 
