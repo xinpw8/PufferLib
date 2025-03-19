@@ -182,8 +182,10 @@ void performance_test() {
     while (time(NULL) - start < test_time) {
         // Set random actions for all agents
         for(int j = 0; j < env.active_agent_count; j++) {
-             actions[j][0] = 0;  // -1, 0, or 1
-             actions[j][1] = 0;  // Random steering
+            int accel = rand() % 7;
+            int steer = rand() % 13;
+            actions[j][0] = accel;  // -1, 0, or 1
+            actions[j][1] = steer;  // Random steering
         }
         
         c_step(&env);
@@ -195,7 +197,7 @@ void performance_test() {
 }
 
 int main() {
-    demo();
-    //  performance_test();
+    // demo();
+    performance_test();
     return 0;
 }

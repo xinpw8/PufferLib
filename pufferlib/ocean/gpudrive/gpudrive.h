@@ -753,6 +753,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
     int entity_list[MAX_ENTITIES_PER_CELL * 8];  // Array big enough for all neighboring cells
     memset(entity_list, -1, MAX_ENTITIES_PER_CELL * 8 * sizeof(int));
     int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8);
+    // printf("agent: %d, list_size: %d\n", agent_idx, list_size);
     for (int i = 0; i < list_size; i++) {
         if(entity_list[i] == -1) continue;
         if(entity_list[i] == agent_idx) continue;
@@ -876,15 +877,33 @@ void compute_observations(GPUDrive* env){
             env->entities[env->active_agent_indices[i]].y,
             env->entities[env->active_agent_indices[i]].goal_position_y);
         obs[2] = env->entities[env->active_agent_indices[i]].nearest_line_dist;
-        obs[3] = env->entities[env->active_agent_indices[i]].nearest_line_start[0];
-        obs[4] = env->entities[env->active_agent_indices[i]].nearest_line_start[1];
-        obs[5] = env->entities[env->active_agent_indices[i]].nearest_line_end[0];
-        obs[6] = env->entities[env->active_agent_indices[i]].nearest_line_end[1];
-	obs[7] = env->entities[env->active_agent_indices[i]].nearest_car_dist;
-	obs[8] = env->entities[env->active_agent_indices[i]].nearest_car_start[0];
-	obs[9] = env->entities[env->active_agent_indices[i]].nearest_car_start[1];
-	obs[10] = env->entities[env->active_agent_indices[i]].nearest_car_end[0];
-	obs[11] = env->entities[env->active_agent_indices[i]].nearest_car_end[1];
+        if(obs[2] != -1.0f){
+            obs[3] = env->entities[env->active_agent_indices[i]].nearest_line_start[0];
+            obs[4] = env->entities[env->active_agent_indices[i]].nearest_line_start[1];
+            obs[5] = env->entities[env->active_agent_indices[i]].nearest_line_end[0];
+            obs[6] = env->entities[env->active_agent_indices[i]].nearest_line_end[1];
+        }
+        else {
+            obs[2] = -1.0f;
+            obs[3] = -1.0f;
+            obs[4] = -1.0f;
+            obs[5] = -1.0f;
+            obs[6] = -1.0f;
+        }
+        obs[7] = env->entities[env->active_agent_indices[i]].nearest_car_dist;
+        if(obs[7] != -1.0f){
+            obs[8] = env->entities[env->active_agent_indices[i]].nearest_car_start[0];
+            obs[9] = env->entities[env->active_agent_indices[i]].nearest_car_start[1];
+            obs[10] = env->entities[env->active_agent_indices[i]].nearest_car_end[0];
+            obs[11] = env->entities[env->active_agent_indices[i]].nearest_car_end[1];
+        }
+        else {
+            obs[7] = -1.0f;
+            obs[8] = -1.0f;
+            obs[9] = -1.0f;
+            obs[10] = -1.0f;
+            obs[11] = -1.0f;
+        }
     }
 };
 
@@ -929,9 +948,9 @@ void c_step(GPUDrive* env){
         float old_x = env->entities[agent_idx].x;
         float old_y = env->entities[agent_idx].y;
         move_dynamics(env, i, agent_idx);
-        update_grid_for_entity(env, agent_idx, old_x, old_y, env->entities[agent_idx].x, env->entities[agent_idx].y);
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
+        update_grid_for_entity(env, agent_idx, old_x, old_y, env->entities[agent_idx].x, env->entities[agent_idx].y);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0){
             env->rewards[i] = -0.1f;
@@ -1070,10 +1089,12 @@ void c_render(Client* client, GPUDrive* env) {
                 if(env->entities[i].valid == 1 && env->goal_reached[agent_index] == 0) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_start[0], env->entities[i].nearest_car_start[1], 1.0f}, RED);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_end[0], env->entities[i].nearest_car_end[1], 1.0f}, RED);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_start[0], env->entities[i].nearest_line_start[1],  1.0f}, GREEN);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_end[0], env->entities[i].nearest_line_end[1], 1.0f}, GREEN);
+                    if(env->entities[i].nearest_car_dist != -1.0f){
+                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_start[0], env->entities[i].nearest_car_start[1], 1.0f}, RED);
+                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_end[0], env->entities[i].nearest_car_end[1], 1.0f}, RED);
+                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_start[0], env->entities[i].nearest_line_start[1],  1.0f}, GREEN);
+                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_end[0], env->entities[i].nearest_line_end[1], 1.0f}, GREEN);
+                    }
                 }
             } else {
                 // Draw non-active vehicles
