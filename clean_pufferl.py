@@ -884,7 +884,7 @@ def try_load_checkpoint(data):
         return
 
     trainer_path = os.path.join(path, 'trainer_state.pt')
-    resume_state = torch.load(trainer_path)
+    resume_state = torch.load(trainer_path, weights_only=False)
     model_path = os.path.join(path, resume_state['model_name'])
     data.policy.uncompiled.load_state_dict(model_path, map_location=config.device)
     data.optimizer.load_state_dict(resume_state['optimizer_state_dict'])
@@ -906,7 +906,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     if model_path is None:
         agent = agent_creator(env, policy_cls, rnn_cls, agent_kwargs).to(device)
     else:
-        agent = torch.load(model_path, map_location=device)
+        agent = torch.load(model_path, map_location=device, weights_only=False)
 
     #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
     e3b_inv = None
@@ -914,7 +914,12 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     ob, info = env.reset()
     driver = env.driver_env
     os.system('clear')
-    state = None
+
+    state = (None, None)
+    num_agents = env.observation_space.shape[0]
+    if hasattr(agent, 'recurrent'):
+        shape = (num_agents, agent.hidden_size)
+        state = (torch.zeros(shape).to(device), torch.zeros(shape).to(device))
 
     frames = []
     tick = 0
@@ -941,12 +946,12 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
-            if hasattr(agent, 'lstm'):
-                #action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
-                action, _, value, _, state = agent(ob, state, e3b=e3b_inv)
+            if hasattr(agent, 'recurrent'):
+                (logits, value), hidden, (h, c) = agent(ob, state)
             else:
-                action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
+                action, _, value, _, e3b, intrinsic = agent(ob)
 
+            action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=agent.is_continuous)
             action = action.cpu().numpy().reshape(env.action_space.shape)
 
         ob, reward = env.step(action)[:2]
