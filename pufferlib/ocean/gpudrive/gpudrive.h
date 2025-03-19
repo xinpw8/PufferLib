@@ -414,6 +414,38 @@ void add_entity_to_grid(GPUDrive* env, int grid_index, int entity_idx){
     
 }
 
+// Remove an entity from its current grid cell
+void remove_entity_from_grid(GPUDrive* env, int entity_idx, int old_grid_index) {
+    if (old_grid_index == -1) return;
+    int base_index = old_grid_index * SLOTS_PER_CELL;
+    int count = env->grid_cells[base_index];
+    if (count == 0) return;
+
+    // Find and remove the entity ID
+    for (int i = 0; i < count; i++) {
+        if (env->grid_cells[base_index + 1 + i] == entity_idx) {
+            // Shift remaining entities left
+            for (int j = i; j < count - 1; j++) {
+                env->grid_cells[base_index + 1 + j] = env->grid_cells[base_index + 1 + j + 1];
+            }
+            env->grid_cells[base_index]--;  // Decrement count
+            break;
+        }
+    }
+}
+
+// Update grid for a moving entity
+void update_grid_for_entity(GPUDrive* env, int entity_idx, float old_x, float old_y, float new_x, float new_y) {
+    int old_grid_index = getGridIndex(env, old_x, old_y);
+    int new_grid_index = getGridIndex(env, new_x, new_y);
+
+    // Only update if the grid cell changes
+    if (old_grid_index != new_grid_index) {
+        remove_entity_from_grid(env, entity_idx, old_grid_index);
+        add_entity_to_grid(env, new_grid_index, entity_idx);
+    }
+}
+
 void init_grid_map(GPUDrive* env){
     // Find top left and bottom right points of the map
     float top_left_x = env->entities[0].traj_x[0];
@@ -868,7 +900,10 @@ void c_step(GPUDrive* env){
 	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
+        float old_x = env->entities[agent_idx].x;
+        float old_y = env->entities[agent_idx].y;
         move_dynamics(env, i, agent_idx);
+        update_grid_for_entity(env, agent_idx, old_x, old_y, env->entities[agent_idx].x, env->entities[agent_idx].y);
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
