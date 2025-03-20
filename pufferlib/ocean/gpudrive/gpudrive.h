@@ -357,15 +357,6 @@ void set_active_agents(GPUDrive* env){
     for(int i=0;i<env->active_agent_count;i++){
         env->active_agent_indices[i] = active_agent_indices[i];
     };
-    for(int i = 0; i < env->active_agent_count; i++){
-        int valid_count = 0;
-        for(int j=  0; j<91; j++){
-            if(env->entities[env->active_agent_indices[i]].traj_valid[j] == 1){
-                valid_count++;
-            }
-        }
-        //printf("agent %d valid_count: %d\n", env->active_agent_indices[i], valid_count);
-    }
 }
 
 // Function to get grid index from coordinates
@@ -414,55 +405,6 @@ void add_entity_to_grid(GPUDrive* env, int grid_index, int entity_idx){
     
 }
 
-// Remove an entity from its current grid cell
-void remove_entity_from_grid(GPUDrive* env, int entity_idx, int old_grid_index) {
-    if (old_grid_index == -1) return;
-    int base_index = old_grid_index * SLOTS_PER_CELL;
-    int count = env->grid_cells[base_index];
-    if (count == 0) return;
-
-    // Find and remove the entity ID
-    for (int i = 0; i < count; i++) {
-        if (env->grid_cells[base_index + 1 + i] == entity_idx) {
-            // Shift remaining entities left
-            for (int j = i; j < count - 1; j++) {
-                env->grid_cells[base_index + 1 + j] = env->grid_cells[base_index + 1 + j + 1];
-            }
-            env->grid_cells[base_index]--;  // Decrement count
-            break;
-        }
-    }
-}
-
-// Update grid for a moving entity
-void update_grid_for_entity(GPUDrive* env, int entity_idx, float old_x, float old_y, float new_x, float new_y) {
-    int old_grid_index = getGridIndex(env, old_x, old_y);
-    int new_grid_index = getGridIndex(env, new_x, new_y);
-
-    // Only update if the grid cell changes
-    if (old_grid_index != new_grid_index) {
-        remove_entity_from_grid(env, entity_idx, old_grid_index);
-        add_entity_to_grid(env, new_grid_index, entity_idx);
-    }
-}
-
-void reset_grid_map(GPUDrive* env){
-    memset(env->grid_cells, 0, env->grid_cols * env->grid_rows * SLOTS_PER_CELL * sizeof(int));
-    for(int i = 0; i < env->num_entities; i++){
-        if(env->entities[i].type <=3 ){
-            int grid_index = getGridIndex(env, env->entities[i].x, env->entities[i].y);
-            add_entity_to_grid(env, grid_index, i);
-        } else if(env->entities[i].type == ROAD_EDGE){
-            for(int j = 0; j < env->entities[i].array_size - 1; j++){
-                float x_center = (env->entities[i].traj_x[j] + env->entities[i].traj_x[j+1]) / 2;
-                float y_center = (env->entities[i].traj_y[j] + env->entities[i].traj_y[j+1]) / 2;
-                int grid_index = getGridIndex(env, x_center, y_center);
-                add_entity_to_grid(env, grid_index, i);
-            }
-        }
-    }
-}
-
 void init_grid_map(GPUDrive* env){
     // Find top left and bottom right points of the map
     float top_left_x = env->entities[0].traj_x[0];
@@ -502,6 +444,11 @@ void init_grid_map(GPUDrive* env){
     // Populate grid cells
     for(int i = 0; i < env->num_entities; i++){
         if(env->entities[i].type <=3 ){
+            for( int z = 0; z<env->active_agent_count; z++){
+                if(env->active_agent_indices[z] == i){
+                    continue;
+                }
+            }
             int grid_index = getGridIndex(env, env->entities[i].x, env->entities[i].y);
             add_entity_to_grid(env, grid_index, i);
         } else if(env->entities[i].type == ROAD_EDGE){
@@ -567,6 +514,12 @@ void free_allocated(GPUDrive* env){
     free_initialized(env);
 }
 
+float normalize_heading(float heading) {
+    float wrapped = fmodf(heading + M_PI, 2.0f * M_PI); // Shift to [0, 2π) then wrap
+    if (wrapped < 0) wrapped += 2.0f * M_PI;            // Handle negative remainder
+    return wrapped - M_PI;                              // Shift back to [-π, π]
+}
+
 void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
     if(env->dynamics_model == CLASSIC){
         // clip acceleration & steering
@@ -601,8 +554,7 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         float omega = (speed * tanf(steering)) / agent->length;
         heading = heading + omega * dt;
         // Normalize heading to range [-π, π]
-        while (heading > M_PI) heading -= 2.0f * M_PI;
-        while (heading < -M_PI) heading += 2.0f * M_PI;
+        heading = normalize_heading(heading);
 
         // Compute new velocity components
         vx = speed * cosf(heading);
@@ -754,10 +706,17 @@ void collision_check(GPUDrive* env, int agent_idx) {
     memset(entity_list, -1, MAX_ENTITIES_PER_CELL * 8 * sizeof(int));
     int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8);
     // printf("agent: %d, list_size: %d\n", agent_idx, list_size);
-    for (int i = 0; i < list_size; i++) {
-        if(entity_list[i] == -1) continue;
-        if(entity_list[i] == agent_idx) continue;
-        Entity* entity = &env->entities[entity_list[i]];
+    for (int i = 0; i < list_size + env->active_agent_count; i++) {
+        if(entity_list[i] == -1 && i < list_size) continue;
+        if(entity_list[i] == agent_idx && i < list_size) continue;
+        Entity* entity;
+        if( i < list_size){
+            entity = &env->entities[entity_list[i]];
+        }
+        else {
+            if(env->active_agent_indices[i-list_size] == agent_idx) continue;
+            entity = &env->entities[env->active_agent_indices[i-list_size]];
+        }
         if(entity->type == ROAD_EDGE){
             for (int j = 0; j < entity->array_size - 1; j++) {
                 float start[2] = {entity->traj_x[j], entity->traj_y[j]};
@@ -808,7 +767,12 @@ void collision_check(GPUDrive* env, int agent_idx) {
                     int next_l = (l + 1) % 4;
                     if (check_line_intersection(corners[k], corners[next_k], other_corners[l], other_corners[next_l])) {
                         collided = VEHICLE_COLLISION;
-                        car_collided_with_index = entity_list[i];
+                        if( i < list_size){
+                            car_collided_with_index = entity_list[i];
+                        }
+                        else {
+                            car_collided_with_index = env->active_agent_indices[i-list_size];
+                        }
                         break;
                     }
                 }
@@ -909,14 +873,10 @@ void compute_observations(GPUDrive* env){
 
 void c_reset(GPUDrive* env){
     env->timestep = 0;
-    float old_x, old_y;
     set_start_position(env);
     for(int x = 0;x<env->active_agent_count; x++){
         env->logs[x] = (Log){0};
         int agent_idx = env->active_agent_indices[x];
-        old_x = env->entities[agent_idx].x;
-        old_y = env->entities[agent_idx].y;
-        update_grid_for_entity(env, agent_idx, old_x, old_y, env->entities[agent_idx].x, env->entities[agent_idx].y);
         collision_check(env, agent_idx);
     }
     memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
@@ -924,7 +884,6 @@ void c_reset(GPUDrive* env){
 }
 
 void c_step(GPUDrive* env){
-    int (*action_array)[2] = (int(*)[2])env->actions;
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;
     if(env->timestep == 91){
@@ -945,12 +904,9 @@ void c_step(GPUDrive* env){
 	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
-        float old_x = env->entities[agent_idx].x;
-        float old_y = env->entities[agent_idx].y;
         move_dynamics(env, i, agent_idx);
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
-        update_grid_for_entity(env, agent_idx, old_x, old_y, env->entities[agent_idx].x, env->entities[agent_idx].y);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0){
             env->rewards[i] = -0.1f;
@@ -1153,8 +1109,7 @@ void c_render(Client* client, GPUDrive* env) {
         for(int j = 0; j < env->grid_rows; j++) {
             float x = grid_start_x + i * GRID_CELL_SIZE;
             float y = grid_start_y + j * GRID_CELL_SIZE;
-            int index = i * env->grid_rows + j;
-            int count = env->grid_cells[index * SLOTS_PER_CELL];
+            // int index = i * env->grid_rows + j;
             DrawCubeWires(
                 (Vector3){x + GRID_CELL_SIZE/2, y + GRID_CELL_SIZE/2, 1}, 
                 GRID_CELL_SIZE, GRID_CELL_SIZE, 0.1f, GRAY);
