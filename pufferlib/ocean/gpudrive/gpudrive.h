@@ -417,6 +417,7 @@ void init_grid_map(GPUDrive* env){
     // Calculate grid dimensions
     float grid_width = bottom_right_x - top_left_x;
     float grid_height = bottom_right_y - top_left_y;
+    printf("grid_width: %f, grid_height: %f\n", grid_width, grid_height);
     env->grid_cols = ceil(grid_width / GRID_CELL_SIZE);
     env->grid_rows = ceil(grid_height / GRID_CELL_SIZE);
     
@@ -783,89 +784,53 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
 }
 
-void compute_observations(GPUDrive* env){
-    int max_obs = 2 + 4 * 25 * MAX_ENTITIES_PER_CELL;
+void compute_observations(GPUDrive* env) {
+    int max_obs = 2 + 7 * (env->active_agent_count - 1);
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
-    memset(observations, 0, env->active_agent_count * max_obs * sizeof(float));
-    for(int i = 0; i < env->active_agent_count; i++){
+    memset(observations, -1, env->active_agent_count * max_obs * sizeof(float));
+    
+    for(int i = 0; i < env->active_agent_count; i++) {
         float* obs = &observations[i][0];
-        obs[0] = relative_distance(
-            env->entities[env->active_agent_indices[i]].x,
-            env->entities[env->active_agent_indices[i]].goal_position_x);
-        obs[1] = relative_distance(
-            env->entities[env->active_agent_indices[i]].y,
-            env->entities[env->active_agent_indices[i]].goal_position_y);
+        Entity* ego_entity = &env->entities[env->active_agent_indices[i]];
         
-        int entity_list[MAX_ENTITIES_PER_CELL * 25];  // Array big enough for all neighboring cells
-        Entity* entity = &env->entities[env->active_agent_indices[i]];
-        int list_size = checkNeighbors(env, entity->x, entity->y, entity_list, MAX_ENTITIES_PER_CELL * 25, vision_offsets, 25);
-        for(int j = 0; j < MAX_ENTITIES_PER_CELL * 25; j++){
-            if(j >= list_size) break;
-            if(entity_list[j] == -1) continue;
-            Entity* other_entity = &env->entities[entity_list[j]];
-            if(entity_list[j] == env->active_agent_indices[i]) continue;
-            if(other_entity->type == ROAD_EDGE) {
-                float min_dist = 10000;
-                float nearest_start[2], nearest_end[2];
-                for (int j = 0; j < other_entity->array_size - 1; j++) {
-                    float start[2] = {other_entity->traj_x[j], other_entity->traj_y[j]};
-                    float end[2] = {other_entity->traj_x[j + 1], other_entity->traj_y[j + 1]};
-                    float agent_center[2] = {entity->x, entity->y};
-                    float dist = point_to_line_distance(agent_center, start, end);
-                    if(dist < min_dist){
-                        min_dist = dist;
-                        nearest_start[0] = start[0];
-                        nearest_start[1] = start[1];
-                        nearest_end[0] = end[0];
-                        nearest_end[1] = end[1];
-                    }
-                }
-                obs[j*4] = nearest_start[0];
-                obs[j*4+1] = nearest_start[1];
-                obs[j*4+2] = nearest_end[0];
-                obs[j*4+3] = nearest_end[1];
-            }
-            if(other_entity->type == VEHICLE){
-                float other_corners[4][2];
-                for (int z = 0; z < 4; z++) {
-                    float other_cos_heading = cosf(other_entity->traj_heading[0]);
-                    float other_sin_heading = sinf(other_entity->traj_heading[0]);
-                    float other_half_length = other_entity->length / 2.0f;
-                    float other_half_width = other_entity->width / 2.0f;
-                    other_corners[z][0] = other_entity->x + (offsets[z][0] * other_half_length * other_cos_heading - offsets[z][1] * other_half_width * other_sin_heading);
-                    other_corners[z][1] = other_entity->y + (offsets[z][0] * other_half_length * other_sin_heading + offsets[z][1] * other_half_width * other_cos_heading);
-                }
-                int min_dist = 10000;
-                float nearest_start[2], nearest_end[2];
-                for (int k = 0;k<4; k++){
-                    int next_k = (k+1) % 4;
-                    float agent_center[2] = {entity->x, entity->y};
-                    float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);        
-                    if(dist < min_dist){
-                        min_dist = dist;
-                        // Step 1: Calculate relative position (in world coordinates)
-                        float rel_x_start = other_corners[k][0] - entity->x;
-                        float rel_y_start = other_corners[k][1] - entity->y;
-                        float rel_x_end = other_corners[next_k][0] - entity->x;
-                        float rel_y_end = other_corners[next_k][1] - entity->y;
-                        // Step 2: Apply standard 2D rotation matrix
-                        // This is the standard 2D rotation to agent's local frame
-                        float cos_heading = cosf(entity->heading);
-                        float sin_heading = sinf(entity->heading);
-                        nearest_start[0] = rel_x_start * cos_heading + rel_y_start * sin_heading;
-                        nearest_start[1] = -rel_x_start * sin_heading + rel_y_start * cos_heading;
-                        nearest_end[0] = rel_x_end * cos_heading + rel_y_end * sin_heading;
-                        nearest_end[1] = -rel_x_end * sin_heading + rel_y_end * cos_heading;
-                    }
-                }
-                obs[j*4] = nearest_start[0];
-                obs[j*4+1] = nearest_start[1];
-                obs[j*4+2] = nearest_end[0];
-                obs[j*4+3] = nearest_end[1];
-            }
+        // Set goal distances
+        obs[0] = relative_distance(ego_entity->x, ego_entity->goal_position_x);
+        obs[1] = relative_distance(ego_entity->y, ego_entity->goal_position_y);
+        
+        // Relative Pos of other cars
+        for(int j = 0; j < env->active_agent_count; j++) {
+            if(j == i) continue;
+            
+            int other_agent_idx = env->active_agent_indices[j];
+            Entity* other_entity = &env->entities[other_agent_idx];
+            
+            // Store original relative positions
+            float dx = other_entity->x - ego_entity->x;
+            float dy = other_entity->y - ego_entity->y;
+            
+            // Rotate to ego vehicle's frame
+            float cos_heading = cosf(ego_entity->heading);
+            float sin_heading = sinf(ego_entity->heading);
+            float rel_x = dx * cos_heading + dy * sin_heading;
+            float rel_y = -dx * sin_heading + dy * cos_heading;
+            
+            obs[2 + j*7] = rel_x;
+            obs[3 + j*7] = rel_y;
+            obs[4 + j*7] = other_entity->width;
+            obs[5 + j*7] = other_entity->length;
+            
+            // relative heading
+            float rel_heading = normalize_heading(other_entity->heading - ego_entity->heading);
+            obs[6 + j*7] = cosf(rel_heading);
+            obs[7 + j*7] = sinf(rel_heading);
+            
+            // relative speed
+            float ego_speed = sqrtf(ego_entity->vx * ego_entity->vx + ego_entity->vy * ego_entity->vy);
+            float other_speed = sqrtf(other_entity->vx * other_entity->vx + other_entity->vy * other_entity->vy);
+            obs[8 + j*7] = other_speed - ego_speed;
         }
     }
-};
+}
 
 void c_reset(GPUDrive* env){
     env->timestep = 0;
@@ -1041,11 +1006,18 @@ void c_render(Client* client, GPUDrive* env) {
                 if(env->entities[i].valid == 1 && env->goal_reached[agent_index] == 0) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
-                    if(env->entities[i].nearest_car_dist != -1.0f){
-                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_start[0], env->entities[i].nearest_car_start[1], 1.0f}, RED);
-                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_car_end[0], env->entities[i].nearest_car_end[1], 1.0f}, RED);
-                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_start[0], env->entities[i].nearest_line_start[1],  1.0f}, GREEN);
-                        DrawLine3D((Vector3){0,0,0}, (Vector3){env->entities[i].nearest_line_end[0], env->entities[i].nearest_line_end[1], 1.0f}, GREEN);
+                    int max_obs = 2 + 7 * (env->active_agent_count - 1);
+                    float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
+                    float* agent_obs = &observations[agent_index][0];
+                
+                    // Draw relative positions of all cars this agent can see
+                    for(int obs_offset = 2; obs_offset < max_obs; obs_offset += 7) {
+                        if(agent_obs[obs_offset] != -1 && agent_obs[obs_offset + 1] != -1) {
+                            DrawLine3D((Vector3){0, 0, 0}, 
+                                    (Vector3){agent_obs[obs_offset], 
+                                    agent_obs[obs_offset + 1], 1}, 
+                                    object_color);
+                        }
                     }
                 }
             } else {
@@ -1133,6 +1105,8 @@ void c_render(Client* client, GPUDrive* env) {
     // acceleration & steering
     DrawText(TextFormat("Acceleration: %d", env->actions[env->human_agent_idx * 2]), 10, 110, 20, BLACK);
     DrawText(TextFormat("Steering: %d", env->actions[env->human_agent_idx * 2 + 1]), 10, 130, 20, BLACK);
+    DrawText(TextFormat("Grid Rows: %d", env->grid_rows), 10, 150, 20, BLACK);
+    DrawText(TextFormat("Grid Cols: %d", env->grid_cols), 10, 170, 20, BLACK);
     EndDrawing();
 }
 
@@ -1140,4 +1114,5 @@ void close_client(Client* client){
     CloseWindow();
     free(client);
 }
+
 
