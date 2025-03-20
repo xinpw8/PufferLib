@@ -1,9 +1,6 @@
 from libc.stdlib cimport calloc, free
 
 cdef extern from "cartpole.h":
-    int LOG_BUFFER_SIZE
-    int MAX_STEPS
-
     ctypedef struct Log:
         float episode_return
         float episode_length
@@ -22,7 +19,7 @@ cdef extern from "cartpole.h":
 
     ctypedef struct CartPole:
         float* observations
-        int* actions
+        float* actions
         float* rewards
         unsigned char* dones
         LogBuffer* log_buffer
@@ -31,25 +28,22 @@ cdef extern from "cartpole.h":
         float x_dot
         float theta
         float theta_dot
+        int steps_beyond_done
         int steps
-        int width
-        int height
-        int frameskip
         int continuous
-        int num_obs
 
-    ctypedef struct Client:
-        float width
-        float height
-        float scale
+    ctypedef struct Client
 
     void init(CartPole* env)
     void free_initialized(CartPole* env)
+    void allocate(CartPole* env)
+    void free_allocated(CartPole* env)
     Client* make_client(CartPole* env)
     void close_client(Client* client)
     void c_render(Client* client, CartPole* env)
     void c_reset(CartPole* env)
     void c_step(CartPole* env)
+
 cdef class CyCartPole:
     cdef:
         Client* client
@@ -57,13 +51,11 @@ cdef class CyCartPole:
         LogBuffer* logs
         int num_envs
 
-    def __init__(self, float[:, :] observations, int[:] actions, float[:] rewards,
-                 unsigned char[:] dones, int num_envs, int frameskip=1,
-                 int width=800, int height=600, int continuous=0):
-
+    def __init__(self, float[:, :] observations, float[:] actions, float[:] rewards,
+                 unsigned char[:] dones, int num_envs, int continuous=0):
         self.num_envs = num_envs
         self.envs = <CartPole*> calloc(num_envs, sizeof(CartPole))
-        self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
+        self.logs = allocate_logbuffer(1024)
         self.client = NULL
 
         cdef int i
@@ -73,12 +65,8 @@ cdef class CyCartPole:
             self.envs[i].rewards = &rewards[i]
             self.envs[i].dones = &dones[i]
             self.envs[i].log_buffer = self.logs
-            self.envs[i].width = width
-            self.envs[i].height = height
-            self.envs[i].frameskip = frameskip
-            self.envs[i].continuous = 0
+            self.envs[i].continuous = continuous
             init(&self.envs[i])
-            self.client = NULL
 
     def reset(self):
         cdef int i
@@ -98,15 +86,18 @@ cdef class CyCartPole:
             os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
             self.client = make_client(env)
             os.chdir(cwd)
-
         c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:
             close_client(self.client)
             self.client = NULL
-
-        free(self.envs)
+        if self.envs != NULL:
+            free(self.envs)
+            self.envs = NULL
+        if self.logs != NULL:
+            free_logbuffer(self.logs)
+            self.logs = NULL
 
     def log(self):
         cdef Log log = aggregate_and_clear(self.logs)

@@ -1,20 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <string.h>
 #include "cartpole.h"
 #include "puffernet.h"
 
-#define NUM_WEIGHTS 133123
-#define OBSERVATIONS_SIZE 0
+#define NUM_WEIGHTS 132995
+#define OBSERVATIONS_SIZE 4
 #define ACTIONS_SIZE 0
-const char* WEIGHTS_PATH = "/puffertank/pufferlib/pufferlib/resources/cartpole_gpt/cartpole_gpt_weights.bin";
+const char* WEIGHTS_PATH = "/puffertank/pufferlib/pufferlib/resources/cartpole/cartpole_weights.bin";
 
 void get_input(CartPole* env) {
-    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-        env->actions[0] = 0; // Left
+    if (env->continuous) {
+        float move = GetMouseWheelMove();
+        float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
+        env->actions[0] = clamped_wheel;
+    } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->actions[0] = 0; // left
     } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-        env->actions[0] = 1; // Right
+        env->actions[0] = 1; // right
     }
 }
 
@@ -23,15 +26,10 @@ void demo() {
     LinearLSTM* net = make_linearlstm(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE);
     
     CartPole env = {0};
-    env.num_obs = OBSERVATIONS_SIZE;
-    
-    // Proper initialization sequence
+
     allocate(&env);
     Client* client = make_client(&env);
     c_reset(&env);
-    
-    // REMOVE THIS LINE - Window already initialized in make_client
-    // InitWindow(env.width, env.height, "CartPole AI Control");
     
     SetTargetFPS(60);
     
@@ -43,7 +41,6 @@ void demo() {
         }
         
         c_step(&env);
-        printf("ran this");
         
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -63,7 +60,7 @@ void demo() {
 }
 
 int main() {
-    srand(time(NULL));  // Initialize random seed
+    srand(time(NULL));  // random seed
     demo();
     return 0;
 }
