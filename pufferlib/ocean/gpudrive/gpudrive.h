@@ -61,6 +61,28 @@ static const float offsets[4][2] = {
         {-1, -1}  // bottom-left
     };
 
+static const int collision_offsets[8][2] = {
+        {-1, -1}, {0, -1}, {1, -1},  // Top row
+        {-1,  0},          {1,  0},  // Middle row (skip center)
+        {-1,  1}, {0,  1}, {1,  1}   // Bottom row
+    };
+
+static const int vision_offsets[24][2] = {
+    // Top row (from left to right)
+    {-2, -2}, {-1, -2}, {0, -2}, {1, -2}, {2, -2},
+    
+    // Second row
+    {-2, -1}, {-1, -1}, {0, -1}, {1, -1}, {2, -1},
+    
+    // Middle row (excluding center)
+    {-2, 0}, {-1, 0}, {1, 0}, {2, 0},
+    
+    // Fourth row
+    {-2, 1}, {-1, 1}, {0, 1}, {1, 1}, {2, 1},
+    
+    // Bottom row
+    {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}
+};
 #define LOG_BUFFER_SIZE 1024
 
 typedef struct Log Log;
@@ -644,7 +666,7 @@ float point_to_line_distance(float point[2], float line_start[2], float line_end
     return sqrtf((x0 - closest_x) * (x0 - closest_x) + (y0 - closest_y) * (y0 - closest_y));
 }
 
-int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_size) {
+int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_size, const int (*offsets)[2], int offset_size) {
     // Get the grid index for the given position (x, y)
     int index = getGridIndex(env, x, y);
     if (index == -1) return 0;  // Return 0 size if position invalid
@@ -653,18 +675,12 @@ int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_si
     int cellsX = env->grid_cols;
     int gridX = index % cellsX;
     int gridY = index / cellsX;
-
-    // Define the 8 surrounding cell offsets
-    int offsets[8][2] = {
-        {-1, -1}, {0, -1}, {1, -1},  // Top row
-        {-1,  0},          {1,  0},  // Middle row (skip center)
-        {-1,  1}, {0,  1}, {1,  1}   // Bottom row
-    };
+    
 
     int entity_list_count = 0;
 
     // Fill the provided array
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < offset_size; i++) {
         int nx = gridX + offsets[i][0];
         int ny = gridY + offsets[i][1];
         // Ensure the neighbor is within grid bounds
@@ -704,7 +720,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
     int car_collided_with_index = -1;
     int entity_list[MAX_ENTITIES_PER_CELL * 8];  // Array big enough for all neighboring cells
     memset(entity_list, -1, MAX_ENTITIES_PER_CELL * 8 * sizeof(int));
-    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8);
+    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8, collision_offsets, 8);
     // printf("agent: %d, list_size: %d\n", agent_idx, list_size);
     for (int i = 0; i < list_size + env->active_agent_count; i++) {
         if(entity_list[i] == -1 && i < list_size) continue;
