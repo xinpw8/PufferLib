@@ -75,7 +75,7 @@ static const int vision_offsets[24][2] = {
     {-2, -1}, {-1, -1}, {0, -1}, {1, -1}, {2, -1},
     
     // Middle row (excluding center)
-    {-2, 0}, {-1, 0}, {1, 0}, {2, 0},
+    {-2, 0}, {-1, 0}, {0, 0}, {1, 0}, {2, 0},
     
     // Fourth row
     {-2, 1}, {-1, 1}, {0, 1}, {1, 1}, {2, 1},
@@ -130,18 +130,13 @@ Log aggregate_and_clear(LogBuffer* logs) {
         return log;
     }
     for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return;
-        log.episode_length += logs->logs[i].episode_length;
-	    log.score += logs->logs[i].score;
-	    log.offroad_rate += logs->logs[i].offroad_rate;
-	    log.collision_rate += logs->logs[i].collision_rate;
+        log.episode_return += logs->logs[i].episode_return / logs->idx;
+        log.episode_length += logs->logs[i].episode_length / logs->idx;
+	    log.score += logs->logs[i].score / logs->idx;
+	    log.offroad_rate += logs->logs[i].offroad_rate / logs->idx;
+	    log.collision_rate += logs->logs[i].collision_rate / logs->idx;
 	//printf("length: %f", log.episode_length);
     }
-    log.episode_return /= logs->idx;
-    log.episode_length /= logs->idx;
-    log.score /= logs->idx;
-    log.offroad_rate /= logs->idx;
-    log.collision_rate /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -300,36 +295,6 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     fclose(file);
     return entities;
 }
-void print_entities(GPUDrive* env, int idx){
-    // for(int i = 0; i < env->num_entities; i++){
-    //     // if(env->entities[i].type >3){
-    //         printf("entity %d type: %d\n", i, env->entities[i].type);
-    //         printf("entity %d array_size: %d\n", i, env->entities[i].array_size);
-    //     // }
-    // }
-    for (int i = 0; i < env->num_entities; i++){
-        printf("entity %d type: %d\n", i, env->entities[i].type);
-        printf("entity %d array_size: %d\n", i, env->entities[i].array_size);
-    }
-    for(int i = 0; i < env->entities[idx].array_size; i++){
-        printf("entity %d x: %f\n", idx, env->entities[idx].traj_x[i]);
-        printf("entity %d y: %f\n", idx, env->entities[idx].traj_y[i]);
-        printf("entity %d z: %f\n", idx, env->entities[idx].traj_z[i]);
-        if(env->entities[idx].type == 1 || env->entities[idx].type == 2 || env->entities[idx].type == 3){
-            printf("entity %d heading: %f\n", idx, env->entities[idx].traj_heading[i]);
-            printf("entity %d vx: %f\n", idx, env->entities[idx].traj_vx[i]);
-            printf("entity %d vy: %f\n", idx, env->entities[idx].traj_vy[i]);
-            printf("entity %d vz: %f\n", idx, env->entities[idx].traj_vz[i]);
-            printf("entity %d valid: %d\n", idx, env->entities[idx].traj_valid[i]);
-        }
-    }
-    printf("entity %d width: %f\n", idx, env->entities[idx].width);
-    printf("entity %d length: %f\n", idx, env->entities[idx].length);
-    printf("entity %d height: %f\n", idx, env->entities[idx].height);
-    printf("entity %d goal_position_x: %f\n", idx, env->entities[idx].goal_position_x);
-    printf("entity %d goal_position_y: %f\n", idx, env->entities[idx].goal_position_y);
-    printf("entity %d goal_position_z: %f\n", idx, env->entities[idx].goal_position_z);
-}
 
 void set_start_position(GPUDrive* env){
     for(int i = 0; i < env->num_entities; i++){
@@ -341,12 +306,8 @@ void set_start_position(GPUDrive* env){
             env->entities[i].vy = env->entities[i].traj_vy[0];
             env->entities[i].vz = env->entities[i].traj_vz[0];
             env->entities[i].heading = env->entities[i].traj_heading[0];
-            // env->entities[env->active_agent_indices[i]].heading = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Random float between -1 and 1
             env->entities[i].valid = env->entities[i].traj_valid[0];
         }
-        // printf("agent %d\n", env->active_agent_indices[i]);
-        // printf("x , y: %f, %f\n", env->entities[env->active_agent_indices[i]].x, env->entities[env->active_agent_indices[i]].y);
-        // printf("goal_x, goal_y: %f, %f\n", env->entities[env->active_agent_indices[i]].goal_position_x, env->entities[env->active_agent_indices[i]].goal_position_y);
     }
 }
 
@@ -496,10 +457,6 @@ void init(GPUDrive* env){
     //printf("Offset of x: %zu\n", offsetof(struct Entity, x));
     //printf("Offset of y: %zu\n", offsetof(struct Entity, y));
     printf("active_agent_count: %d\n", env->active_agent_count);
-    env->fake_data = (float*)calloc(12, sizeof(float));
-    for (int i = 0;i<12;i++ ){
-	    env->fake_data[i] = (float)(rand() % 5) / 5.0f;
-    }
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
 }
@@ -519,7 +476,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 12;
+    int max_obs = 2 + 4 * 25 * MAX_ENTITIES_PER_CELL;
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -825,29 +782,12 @@ void collision_check(GPUDrive* env, int agent_idx) {
     if (car_collided_with_index != -1) {
         env->entities[car_collided_with_index].collision_state = VEHICLE_COLLISION;
     }
-    if (min_dist != 10000) { // If a road edge was found
-        agent->nearest_line_dist = min_dist;
-        agent->nearest_line_start[0] = nearest_start[0];
-        agent->nearest_line_start[1] = nearest_start[1];
-        agent->nearest_line_end[0] = nearest_end[0];
-        agent->nearest_line_end[1] = nearest_end[1];
-    } else {
-        agent->nearest_line_dist = -1.0f; // Indicate no line found
-    }
-    if(min_car_dist != 10000) {
-	    agent->nearest_car_dist = min_car_dist;
-	    agent->nearest_car_start[0] = nearest_car_start[0];
-	    agent->nearest_car_start[1] = nearest_car_start[1];
-	    agent->nearest_car_end[0] = nearest_car_end[0];
-	    agent->nearest_car_end[1] = nearest_car_end[1];
-    } else {
-	    agent->nearest_car_dist = -1.0f;
-    }
 }
 
 void compute_observations(GPUDrive* env){
-    int max_obs = 12;
+    int max_obs = 2 + 4 * 25 * MAX_ENTITIES_PER_CELL;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
+    memset(observations, 0, env->active_agent_count * max_obs * sizeof(float));
     for(int i = 0; i < env->active_agent_count; i++){
         float* obs = &observations[i][0];
         obs[0] = relative_distance(
@@ -856,33 +796,74 @@ void compute_observations(GPUDrive* env){
         obs[1] = relative_distance(
             env->entities[env->active_agent_indices[i]].y,
             env->entities[env->active_agent_indices[i]].goal_position_y);
-        obs[2] = env->entities[env->active_agent_indices[i]].nearest_line_dist;
-        if(obs[2] != -1.0f){
-            obs[3] = env->entities[env->active_agent_indices[i]].nearest_line_start[0];
-            obs[4] = env->entities[env->active_agent_indices[i]].nearest_line_start[1];
-            obs[5] = env->entities[env->active_agent_indices[i]].nearest_line_end[0];
-            obs[6] = env->entities[env->active_agent_indices[i]].nearest_line_end[1];
-        }
-        else {
-            obs[2] = -1.0f;
-            obs[3] = -1.0f;
-            obs[4] = -1.0f;
-            obs[5] = -1.0f;
-            obs[6] = -1.0f;
-        }
-        obs[7] = env->entities[env->active_agent_indices[i]].nearest_car_dist;
-        if(obs[7] != -1.0f){
-            obs[8] = env->entities[env->active_agent_indices[i]].nearest_car_start[0];
-            obs[9] = env->entities[env->active_agent_indices[i]].nearest_car_start[1];
-            obs[10] = env->entities[env->active_agent_indices[i]].nearest_car_end[0];
-            obs[11] = env->entities[env->active_agent_indices[i]].nearest_car_end[1];
-        }
-        else {
-            obs[7] = -1.0f;
-            obs[8] = -1.0f;
-            obs[9] = -1.0f;
-            obs[10] = -1.0f;
-            obs[11] = -1.0f;
+        
+        int entity_list[MAX_ENTITIES_PER_CELL * 25];  // Array big enough for all neighboring cells
+        Entity* entity = &env->entities[env->active_agent_indices[i]];
+        int list_size = checkNeighbors(env, entity->x, entity->y, entity_list, MAX_ENTITIES_PER_CELL * 25, vision_offsets, 25);
+        for(int j = 0; j < MAX_ENTITIES_PER_CELL * 25; j++){
+            if(j >= list_size) break;
+            if(entity_list[j] == -1) continue;
+            Entity* other_entity = &env->entities[entity_list[j]];
+            if(entity_list[j] == env->active_agent_indices[i]) continue;
+            if(other_entity->type == ROAD_EDGE) {
+                float min_dist = 10000;
+                float nearest_start[2], nearest_end[2];
+                for (int j = 0; j < other_entity->array_size - 1; j++) {
+                    float start[2] = {other_entity->traj_x[j], other_entity->traj_y[j]};
+                    float end[2] = {other_entity->traj_x[j + 1], other_entity->traj_y[j + 1]};
+                    float agent_center[2] = {entity->x, entity->y};
+                    float dist = point_to_line_distance(agent_center, start, end);
+                    if(dist < min_dist){
+                        min_dist = dist;
+                        nearest_start[0] = start[0];
+                        nearest_start[1] = start[1];
+                        nearest_end[0] = end[0];
+                        nearest_end[1] = end[1];
+                    }
+                }
+                obs[j*4] = nearest_start[0];
+                obs[j*4+1] = nearest_start[1];
+                obs[j*4+2] = nearest_end[0];
+                obs[j*4+3] = nearest_end[1];
+            }
+            if(other_entity->type == VEHICLE){
+                float other_corners[4][2];
+                for (int z = 0; z < 4; z++) {
+                    float other_cos_heading = cosf(other_entity->traj_heading[0]);
+                    float other_sin_heading = sinf(other_entity->traj_heading[0]);
+                    float other_half_length = other_entity->length / 2.0f;
+                    float other_half_width = other_entity->width / 2.0f;
+                    other_corners[z][0] = other_entity->x + (offsets[z][0] * other_half_length * other_cos_heading - offsets[z][1] * other_half_width * other_sin_heading);
+                    other_corners[z][1] = other_entity->y + (offsets[z][0] * other_half_length * other_sin_heading + offsets[z][1] * other_half_width * other_cos_heading);
+                }
+                int min_dist = 10000;
+                float nearest_start[2], nearest_end[2];
+                for (int k = 0;k<4; k++){
+                    int next_k = (k+1) % 4;
+                    float agent_center[2] = {entity->x, entity->y};
+                    float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);        
+                    if(dist < min_dist){
+                        min_dist = dist;
+                        // Step 1: Calculate relative position (in world coordinates)
+                        float rel_x_start = other_corners[k][0] - entity->x;
+                        float rel_y_start = other_corners[k][1] - entity->y;
+                        float rel_x_end = other_corners[next_k][0] - entity->x;
+                        float rel_y_end = other_corners[next_k][1] - entity->y;
+                        // Step 2: Apply standard 2D rotation matrix
+                        // This is the standard 2D rotation to agent's local frame
+                        float cos_heading = cosf(entity->heading);
+                        float sin_heading = sinf(entity->heading);
+                        nearest_start[0] = rel_x_start * cos_heading + rel_y_start * sin_heading;
+                        nearest_start[1] = -rel_x_start * sin_heading + rel_y_start * cos_heading;
+                        nearest_end[0] = rel_x_end * cos_heading + rel_y_end * sin_heading;
+                        nearest_end[1] = -rel_x_end * sin_heading + rel_y_end * cos_heading;
+                    }
+                }
+                obs[j*4] = nearest_start[0];
+                obs[j*4+1] = nearest_start[1];
+                obs[j*4+2] = nearest_end[0];
+                obs[j*4+3] = nearest_end[1];
+            }
         }
     }
 };
