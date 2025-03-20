@@ -67,7 +67,7 @@ static const int collision_offsets[8][2] = {
         {-1,  1}, {0,  1}, {1,  1}   // Bottom row
     };
 
-static const int vision_offsets[24][2] = {
+static const int vision_offsets[25][2] = {
     // Top row (from left to right)
     {-2, -2}, {-1, -2}, {0, -2}, {1, -2}, {2, -2},
     
@@ -623,7 +623,7 @@ float point_to_line_distance(float point[2], float line_start[2], float line_end
     return sqrtf((x0 - closest_x) * (x0 - closest_x) + (y0 - closest_y) * (y0 - closest_y));
 }
 
-int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_size, const int (*offsets)[2], int offset_size) {
+int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_size, const int (*local_offsets)[2], int offset_size) {
     // Get the grid index for the given position (x, y)
     int index = getGridIndex(env, x, y);
     if (index == -1) return 0;  // Return 0 size if position invalid
@@ -635,11 +635,10 @@ int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_si
     
 
     int entity_list_count = 0;
-
     // Fill the provided array
     for (int i = 0; i < offset_size; i++) {
-        int nx = gridX + offsets[i][0];
-        int ny = gridY + offsets[i][1];
+        int nx = gridX + local_offsets[i][0];
+        int ny = gridY + local_offsets[i][1];
         // Ensure the neighbor is within grid bounds
         if (nx >= 0 && nx < env->grid_cols && ny >= 0 && ny < env->grid_rows) {
             int neighborIndex = (ny * env->grid_cols + nx) * SLOTS_PER_CELL;
