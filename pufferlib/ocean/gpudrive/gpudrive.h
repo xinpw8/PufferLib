@@ -206,12 +206,6 @@ struct Entity {
     float vz;
     float heading;
     int valid;
-    float nearest_line_dist;
-    float* nearest_line_start;
-    float* nearest_line_end;
-    float nearest_car_dist;
-    float* nearest_car_start;
-    float* nearest_car_end;
 };
 
 void free_entity(Entity* entity){
@@ -224,10 +218,6 @@ void free_entity(Entity* entity){
     free(entity->traj_vz);
     free(entity->traj_heading);
     free(entity->traj_valid);
-    free(entity->nearest_line_start);
-    free(entity->nearest_line_end);
-    free(entity->nearest_car_start);
-    free(entity->nearest_car_end);
 }
 
 float relative_distance(float a, float b){
@@ -274,10 +264,6 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
     //printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
-        entities[i].nearest_line_start = (float*)calloc(2, sizeof(float));
-	entities[i].nearest_line_end = (float*)calloc(2, sizeof(float));
-	entities[i].nearest_car_start = (float*)calloc(2,sizeof(float));
-	entities[i].nearest_car_end = (float*)calloc(2,sizeof(float));
 	// Read base entity data
         fread(&entities[i].type, sizeof(int), 1, file);
         if(entities[i].type < 4){
@@ -514,6 +500,7 @@ void free_initialized(GPUDrive* env){
 void allocate(GPUDrive* env){
     init(env);
     int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 7;
+    printf("max obs: %d\n", max_obs*env->active_agent_count);
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -870,8 +857,6 @@ void compute_observations(GPUDrive* env) {
         }
 
         // map observations
-        for(int j = 0; j < env->active_agent_count; j++){
-            if(j == i) continue;
             const int map_obs_size = 200;
             int entity_list[map_obs_size];  // Array big enough for all neighboring cells
             memset(entity_list, -1, map_obs_size * sizeof(int));
@@ -900,6 +885,7 @@ void compute_observations(GPUDrive* env) {
                 else if(entity->type == ROAD_EDGE){
                     for(int l =0; l< entity->array_size - 1; l++){
                         if(entity->traj_x[l]){
+			    if (entity_count == 200) break;
                             float start[2] = {entity->traj_x[l], entity->traj_y[l]};
                             float end[2] = {entity->traj_x[l+1], entity->traj_y[l+1]};
                             float rel_x_start = start[0] - ego_entity->x;
@@ -910,7 +896,6 @@ void compute_observations(GPUDrive* env) {
                             float y_start = -rel_x_start * sin_heading + rel_y_start * cos_heading;
                             float x_end = rel_x_end * cos_heading + rel_y_end * sin_heading;
                             float y_end = -rel_x_end * sin_heading + rel_y_end * cos_heading;
-
                             float rel_heading = normalize_heading(entity->heading - ego_entity->heading); 
                             obs[obs_idx] = x_start;
                             obs[obs_idx + 1] = y_start;
@@ -924,9 +909,8 @@ void compute_observations(GPUDrive* env) {
                         }
                     }
                 }
-            }
-            // printf("Entity count: %d\n", entity_count);
-        }
+	    }// printf("Entity count: %d\n", entity_count);
+        
     }
 }
 
