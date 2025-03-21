@@ -513,7 +513,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 2 + 4 * 25 * MAX_ENTITIES_PER_CELL;
+    int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 7;
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -821,14 +821,15 @@ void collision_check(GPUDrive* env, int agent_idx) {
 }
 
 void compute_observations(GPUDrive* env) {
-    int max_obs = 2 + 7 * (env->active_agent_count - 1);
+    int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 7;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     memset(observations, -1, env->active_agent_count * max_obs * sizeof(float));
     
     for(int i = 0; i < env->active_agent_count; i++) {
         float* obs = &observations[i][0];
         Entity* ego_entity = &env->entities[env->active_agent_indices[i]];
-        
+        float cos_heading = cosf(ego_entity->heading);
+        float sin_heading = sinf(ego_entity->heading);
         // Set goal distances
         obs[0] = relative_distance(ego_entity->x, ego_entity->goal_position_x);
         obs[1] = relative_distance(ego_entity->y, ego_entity->goal_position_y);
@@ -846,8 +847,6 @@ void compute_observations(GPUDrive* env) {
             float dy = other_entity->y - ego_entity->y;
             
             // Rotate to ego vehicle's frame
-            float cos_heading = cosf(ego_entity->heading);
-            float sin_heading = sinf(ego_entity->heading);
             float rel_x = dx * cos_heading + dy * sin_heading;
             float rel_y = -dx * sin_heading + dy * cos_heading;
             
@@ -877,24 +876,56 @@ void compute_observations(GPUDrive* env) {
             int entity_list[map_obs_size];  // Array big enough for all neighboring cells
             memset(entity_list, -1, map_obs_size * sizeof(int));
             int list_size = checkNeighbors(env, ego_entity->x, ego_entity->y, entity_list, map_obs_size, vision_offsets, 441);
-            int vehicle_count = 0;
-            int road_object_count = 0;
-            int inner_vehicle_count = 0;
-            for(int k = 0; k < list_size; k++){
+            int entity_count = 0;
+            for(int k = 0; k < list_size && entity_count < 200; k++){
                 Entity* entity = &env->entities[entity_list[k]];
                 if(entity->type == VEHICLE){
-                    vehicle_count++;
+                    float rel_x_start = entity->x - ego_entity->x;
+                    float rel_y_start = entity->y - ego_entity->y;
+                    float rel_x = rel_x_start * cos_heading + rel_y_start * sin_heading;
+                    float rel_y = -rel_x_start * sin_heading + rel_y_start * cos_heading;
+                    float rel_distance = sqrtf(rel_x * rel_x + rel_y * rel_y);
+                    if(rel_distance > 100.0f) continue;
+                    float rel_heading = normalize_heading(entity->heading - ego_entity->heading); 
+                    obs[obs_idx] = rel_x;
+                    obs[obs_idx + 1] = rel_y;
+                    obs[obs_idx + 2] = entity->width;
+                    obs[obs_idx + 3] = entity->length;
+                    obs[obs_idx + 4] = cosf(rel_heading);
+                    obs[obs_idx + 5] = sinf(rel_heading);
+                    obs[obs_idx + 6] = entity->type;
+                    obs_idx += 7;
+                    entity_count++;
                 }
                 else if(entity->type == ROAD_EDGE){
-                    road_object_count++;
-                    for(int l =0; l< entity->array_size; l++){
+                    for(int l =0; l< entity->array_size - 1; l++){
                         if(entity->traj_x[l]){
-                            inner_vehicle_count++;
+                            float start[2] = {entity->traj_x[l], entity->traj_y[l]};
+                            float end[2] = {entity->traj_x[l+1], entity->traj_y[l+1]};
+                            float rel_x_start = start[0] - ego_entity->x;
+                            float rel_y_start = start[1] - ego_entity->y;
+                            float rel_x_end = end[0] - ego_entity->x;
+                            float rel_y_end = end[1] - ego_entity->y;
+                            float x_start = rel_x_start * cos_heading + rel_y_start * sin_heading;
+                            float y_start = -rel_x_start * sin_heading + rel_y_start * cos_heading;
+                            float x_end = rel_x_end * cos_heading + rel_y_end * sin_heading;
+                            float y_end = -rel_x_end * sin_heading + rel_y_end * cos_heading;
+
+                            float rel_heading = normalize_heading(entity->heading - ego_entity->heading); 
+                            obs[obs_idx] = x_start;
+                            obs[obs_idx + 1] = y_start;
+                            obs[obs_idx + 2] = x_end;
+                            obs[obs_idx + 3] = y_end;
+                            obs[obs_idx + 4] = cosf(rel_heading);
+                            obs[obs_idx + 5] = sinf(rel_heading);
+                            obs[obs_idx + 6] = entity->type;
+                            obs_idx += 7;
+                            entity_count++;
                         }
                     }
                 }
             }
-            // printf("Vehicle count: %d, Road object count: %d, Inner vehicle count: %d\n", vehicle_count, road_object_count, inner_vehicle_count);
+            // printf("Entity count: %d\n", entity_count);
         }
     }
 }
@@ -1073,22 +1104,56 @@ void c_render(Client* client, GPUDrive* env) {
                 if(env->entities[i].valid == 1 && env->goal_reached[agent_index] == 0) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
-                    int max_obs = 2 + 7 * (env->active_agent_count - 1);
-                    float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
-                    float* agent_obs = &observations[agent_index][0];
-                
-                    int obs_idx = 2;  // Start after goal distances
-                    for(int j = 0; j < env->active_agent_count - 1; j++) {  // -1 because we skip self
-                        if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
-                            // Draw position
-                            DrawLine3D((Vector3){0, 0, 0}, 
-                                    (Vector3){agent_obs[obs_idx], 
-                                            agent_obs[obs_idx + 1], 1}, 
-                                    ORANGE);
-                            
+                    if( agent_index == env->human_agent_idx){
+                        int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 7;
+                        float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
+                        float* agent_obs = &observations[agent_index][0];
+                    
+                        // First draw other agent observations
+                        int obs_idx = 2;  // Start after goal distances
+                        for(int j = 0; j < env->active_agent_count - 1; j++) {  // -1 because we skip self
+                            if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
+                                // Draw position of other agents
+                                DrawLine3D((Vector3){0, 0, 0}, 
+                                        (Vector3){agent_obs[obs_idx], 
+                                                agent_obs[obs_idx + 1], 1}, 
+                                        ORANGE);
+                            }
+                            obs_idx += 7;  // Move to next agent observation (7 values per agent)
                         }
-                        obs_idx += 7;  // Move to next observation slot
+
+                        // Then draw map observations
+                        int map_start_idx = 2 + 7 * (env->active_agent_count - 1);  // Start after agent observations
+                        for(int k = 0; k < 200; k++) {  // Loop through potential map entities
+                            int entity_idx = map_start_idx + k * 7;
+                            if(agent_obs[entity_idx] != -1 && agent_obs[entity_idx + 1] != -1) {
+                                Color lineColor = BLUE;  // Default color
+                                int entity_type = (int)agent_obs[entity_idx + 6];
+
+                                // Choose color based on entity type
+                                if(entity_type == ROAD_EDGE) {
+                                    printf("Road edge\n");
+                                    printf("agent_obs[entity_idx]: %f\n", agent_obs[entity_idx]);
+                                    printf("agent_obs[entity_idx + 1]: %f\n", agent_obs[entity_idx + 1]);
+                                    printf("agent_obs[entity_idx + 2]: %f\n", agent_obs[entity_idx + 2]);
+                                    printf("agent_obs[entity_idx + 3]: %f\n", agent_obs[entity_idx + 3]);
+                                    lineColor = BLACK;
+                                    // For road segments, draw line between start and end points
+                                    if(agent_obs[entity_idx + 2] != -1 && agent_obs[entity_idx + 3] != -1) {
+                                        DrawLine3D((Vector3){0,0,0}, (Vector3){agent_obs[entity_idx], agent_obs[entity_idx + 1], 1}, lineColor);    
+                                        DrawLine3D((Vector3){0,0,0}, (Vector3){agent_obs[entity_idx + 2], agent_obs[entity_idx + 3], 1}, lineColor);
+                                    }
+                                } else if(entity_type == VEHICLE) {
+                                    lineColor = RED;
+                                    // For vehicles, draw line to their position
+                                    DrawLine3D((Vector3){0, 0, 0},
+                                            (Vector3){agent_obs[entity_idx], agent_obs[entity_idx + 1], 1},
+                                            lineColor);
+                                }
+                            }
+                        }
                     }
+                    
                 }
             } else {
                 // Draw non-active vehicles
