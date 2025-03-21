@@ -116,8 +116,12 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
-    optimizer = torch.optim.Adam(policy.parameters(),
-        lr=config.learning_rate, eps=1e-5)
+    optimizer = torch.optim.Adam(
+        policy.parameters(),
+        lr=config.learning_rate,
+        betas=(config.adam_beta1, config.adam_beta2),
+        eps=config.adam_eps
+    )
 
     return pufferlib.namespace(
         config=config,
