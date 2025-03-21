@@ -848,9 +848,10 @@ void compute_observations(GPUDrive* env) {
         // map observations
         for(int j = 0; j < env->active_agent_count; j++){
             if(j == i) continue;
-            int entity_list[MAX_ENTITIES_PER_CELL * 81];  // Array big enough for all neighboring cells
-            memset(entity_list, -1, MAX_ENTITIES_PER_CELL * 81 * sizeof(int));
-            int list_size = checkNeighbors(env, ego_entity->x, ego_entity->y, entity_list, MAX_ENTITIES_PER_CELL * 81, vision_offsets, 81);
+            const int map_obs_size = 200;
+            int entity_list[map_obs_size];  // Array big enough for all neighboring cells
+            memset(entity_list, -1, map_obs_size * sizeof(int));
+            int list_size = checkNeighbors(env, ego_entity->x, ego_entity->y, entity_list, map_obs_size, vision_offsets, 81);
             int vehicle_count = 0;
             int road_object_count = 0;
             int inner_vehicle_count = 0;
