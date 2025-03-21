@@ -3,9 +3,9 @@ from torch.nn import functional as F
 import numpy as np
 
 # update manually if running manually, otherwise, run.py updates automatically
-MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_cartpole_gpt-8031ef94/model_000150.pt'
-WEIGHTS_OUTPUT_FILE_NAME = 'cartpole_gpt_weights.bin'
-OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/cartpole_gpt'
+MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_cartpole-062c17bc/model_000150.pt'
+WEIGHTS_OUTPUT_FILE_NAME = 'cartpole_weights.bin'
+OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/cartpole'
 
 def save_model_weights(model, filename):
     import os
@@ -22,12 +22,39 @@ def save_model_weights(model, filename):
     print('Num weights:', len(weights))
     weights.tofile(weights_path)
     
-    # Save the model architecture to text file
+    # Extract action dimensions from the model architecture
+    action_size = 0
+    action_is_continuous = False
+    
+    # Identify action dimension from decoder weights
+    for name, param in model.named_parameters():
+        if 'decoder_mean.weight' in name:
+            action_size = param.shape[0]
+            action_is_continuous = True
+            print(f"Detected continuous action space with size: {action_size}")
+            break
+        elif 'decoder.weight' in name and not action_size:
+            action_size = param.shape[0]
+            print(f"Detected discrete action space with size: {action_size}")
+    
+    # Write out full architecture info along with action details in one go
     with open(architecture_path, "w") as f:
         for name, param in model.named_parameters():
             f.write(f"{name}: {param.shape}\n")
+
+        # Explicitly save numeric decoder_logstd values
+        decoder_logstd_tensor = model.policy.decoder_logstd.detach().cpu().numpy().flatten()
+        decoder_logstd_str = ', '.join(str(x) for x in decoder_logstd_tensor)
+        f.write(f"decoder_logstd_values: {decoder_logstd_str}\n")
+
         f.write(f"Num weights: {len(weights)}\n")
-        print(f"Saved model weights to {weights_path} and architecture to {architecture_path}")
+        f.write(f"Action size: {action_size}\n")
+        f.write(f"Action type: {'continuous' if action_is_continuous else 'discrete'}\n")
+
+    print(f"Saved model weights to {weights_path} and architecture to {architecture_path}")
+    
+    # Return detected values for use by calling functions
+    return len(weights), action_size, action_is_continuous
         
 def test_model(model):
     model = model.cpu().policy

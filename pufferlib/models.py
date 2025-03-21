@@ -52,6 +52,8 @@ class Default(nn.Module):
                 nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
+            # Add a counter for debug prints
+            self.debug_counter = 0
 
         self.use_p3o = use_p3o
         self.p3o_horizon = p3o_horizon
@@ -95,7 +97,24 @@ class Default(nn.Module):
             mean = self.decoder_mean(hidden)
             logstd = self.decoder_logstd.expand_as(mean)
             std = torch.exp(logstd)
-            actions = torch.distributions.Normal(mean, std)
+            dist = torch.distributions.Normal(mean, std)
+                
+            sampled = dist.sample()
+            squashed = torch.tanh(sampled)
+            # Debug prints (only if desired; you might want to wrap these in a debug flag)
+            self.debug_counter += 1
+            if self.debug_counter % 10000 == 0:
+                with open("debug_continuous_log.txt", "a") as f:
+                    f.write("DEBUG - Continuous action:\n")
+                    f.write("  mean: " + str(mean.detach().cpu().numpy()) + "\n")
+                    f.write("  logstd: " + str(logstd.detach().cpu().numpy()) + "\n")
+                    f.write("  std: " + str(std.detach().cpu().numpy()) + "\n")
+                    f.write("  sampled: " + str(sampled.detach().cpu().numpy()) + "\n")
+                    f.write("  squashed: " + str(squashed.detach().cpu().numpy()) + "\n")
+                    f.write("----\n")
+            # Return the distribution so that the caller can decide how to use it
+            actions = dist  
+            
         else:
             actions = self.decoder(hidden)
 

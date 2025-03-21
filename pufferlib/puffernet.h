@@ -4,6 +4,19 @@
 #include <math.h>
 #include <assert.h>
 
+typedef enum {
+    ACTION_TYPE_INT,
+    ACTION_TYPE_FLOAT
+} ActionType;
+
+typedef struct Multidiscrete Multidiscrete;
+struct Multidiscrete {
+    int batch_size;
+    int logit_sizes[32];
+    int num_actions;
+    ActionType action_type;
+};
+
 typedef struct {
     void* data;
     size_t capacity;
@@ -266,19 +279,60 @@ void _cat_dim1(float* x, float* y, float* output, int batch_size, int x_size, in
     }
 }
 
-void _argmax_multidiscrete(float* input, int* output, int batch_size, int logit_sizes[], int num_actions) {
+void _argmax_multidiscrete_typed(float* input, void* output, int batch_size, int logit_sizes[], int num_actions, ActionType action_type) {
     int in_adr = 0;
     for (int b = 0; b < batch_size; b++) {
         for (int a = 0; a < num_actions; a++) {
             int out_adr = b*num_actions + a;
             float max_logit = input[in_adr];
-            output[out_adr] = 0;
+            int selected_action = 0;
             int num_action_types = logit_sizes[a];
+            
             for (int i = 1; i < num_action_types; i++) {
                 float out = input[in_adr + i];
                 if (out > max_logit) {
                     max_logit = out;
-                    output[out_adr] = i;
+                    selected_action = i;
+                }
+            }
+            
+            // Assign based on action type
+            if (action_type == ACTION_TYPE_INT) {
+                ((int*)output)[out_adr] = selected_action;
+            } else {
+                ((float*)output)[out_adr] = (float)selected_action;
+            }
+            
+            in_adr += num_action_types;
+        }
+    }
+}
+
+void _softmax_multidiscrete_typed(float* input, void* output, int batch_size, int logit_sizes[], int num_actions, ActionType action_type) {
+    int in_adr = 0;
+    for (int b = 0; b < batch_size; b++) {
+        for (int a = 0; a < num_actions; a++) {
+            int out_adr = b*num_actions + a;
+            float logit_exp_sum = 0;
+            int num_action_types = logit_sizes[a];
+            
+            for (int i = 0; i < num_action_types; i++) {
+                logit_exp_sum += expf(input[in_adr + i]);
+            }
+            
+            float prob = rand() / (float)RAND_MAX;
+            float logit_prob = 0;
+            
+            for (int i = 0; i < num_action_types; i++) {
+                logit_prob += expf(input[in_adr + i]) / logit_exp_sum;
+                if (prob < logit_prob) {
+                    // Assign based on action type
+                    if (action_type == ACTION_TYPE_INT) {
+                        ((int*)output)[out_adr] = i;
+                    } else {
+                        ((float*)output)[out_adr] = (float)i;
+                    }
+                    break;
                 }
             }
             in_adr += num_action_types;
@@ -286,28 +340,12 @@ void _argmax_multidiscrete(float* input, int* output, int batch_size, int logit_
     }
 }
 
+void _argmax_multidiscrete(float* input, int* output, int batch_size, int logit_sizes[], int num_actions) {
+    _argmax_multidiscrete_typed(input, (void*)output, batch_size, logit_sizes, num_actions, ACTION_TYPE_INT);
+}
+
 void _softmax_multidiscrete(float* input, int* output, int batch_size, int logit_sizes[], int num_actions) {
-    int in_adr = 0;
-    for (int b = 0; b < batch_size; b++) {
-        for (int a = 0; a < num_actions; a++) {
-            int out_adr = b*num_actions + a;
-            float logit_exp_sum = 0;
-            int num_action_types = logit_sizes[a];
-            for (int i = 0; i < num_action_types; i++) {
-                logit_exp_sum += expf(input[in_adr + i]);
-            }
-            float prob = rand() / (float)RAND_MAX;
-            float logit_prob = 0;
-            for (int i = 0; i < num_action_types; i++) {
-                logit_prob += expf(input[in_adr + i]) / logit_exp_sum;
-                if (prob < logit_prob) {
-                    output[out_adr] = i;
-                    break;
-                }
-            }
-            in_adr += num_action_types;
-        }
-    }
+    _softmax_multidiscrete_typed(input, (void*)output, batch_size, logit_sizes, num_actions, ACTION_TYPE_INT);
 }
 
 // User API. Provided to help organize layers
@@ -564,27 +602,21 @@ void cat_dim1(CatDim1* layer, float* x, float* y) {
     _cat_dim1(x, y, layer->output, layer->batch_size, layer->x_size, layer->y_size);
 }
 
-typedef struct Multidiscrete Multidiscrete;
-struct Multidiscrete {
-    int batch_size;
-    int logit_sizes[32];
-    int num_actions;
-};
-
-Multidiscrete* make_multidiscrete(int batch_size, int logit_sizes[], int num_actions) {
+Multidiscrete* make_multidiscrete(int batch_size, int logit_sizes[], int num_actions, ActionType action_type) {
     Multidiscrete* layer = calloc(1, sizeof(Multidiscrete));
     layer->batch_size = batch_size;
     layer->num_actions = num_actions;
+    layer->action_type = action_type;
     memcpy(layer->logit_sizes, logit_sizes, num_actions*sizeof(int));
     return layer;
 }
 
-void argmax_multidiscrete(Multidiscrete* layer, float* input, int* output) {
-    _argmax_multidiscrete(input, output, layer->batch_size, layer->logit_sizes, layer->num_actions);
+void argmax_multidiscrete(Multidiscrete* layer, float* input, void* output) {
+    _argmax_multidiscrete_typed(input, output, layer->batch_size, layer->logit_sizes, layer->num_actions, layer->action_type);
 }
 
-void softmax_multidiscrete(Multidiscrete* layer, float* input, int* output) {
-    _softmax_multidiscrete(input, output, layer->batch_size, layer->logit_sizes, layer->num_actions);
+void softmax_multidiscrete(Multidiscrete* layer, float* input, void* output) {
+    _softmax_multidiscrete_typed(input, output, layer->batch_size, layer->logit_sizes, layer->num_actions, layer->action_type);
 }
 
 // Default models
@@ -600,7 +632,7 @@ struct Default {
     Multidiscrete* multidiscrete;
 };
 
-Default* make_default(Weights* weights, int num_agents, int input_dim, int hidden_dim, int action_dim) {
+Default* make_default(Weights* weights, int num_agents, int input_dim, int hidden_dim, int action_dim, ActionType action_type) {
     Default* net = calloc(1, sizeof(Default));
     net->num_agents = num_agents;
     net->obs = (float*)calloc(num_agents*input_dim, sizeof(float));
@@ -609,7 +641,7 @@ Default* make_default(Weights* weights, int num_agents, int input_dim, int hidde
     net->actor = make_linear(weights, num_agents, hidden_dim, action_dim);
     net->value_fn = make_linear(weights, num_agents, hidden_dim, 1);
     int logit_sizes[1] = {action_dim};
-    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
+    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1, action_type);
     return net;
 }
 
@@ -641,9 +673,10 @@ struct LinearLSTM {
     Linear* actor;
     Linear* value_fn;
     Multidiscrete* multidiscrete;
+    ActionType action_type;
 };
 
-LinearLSTM* make_linearlstm(Weights* weights, int num_agents, int input_dim, int action_dim) {
+LinearLSTM* make_linearlstm(Weights* weights, int num_agents, int input_dim, int action_dim, ActionType action_type) {
     LinearLSTM* net = calloc(1, sizeof(LinearLSTM));
     net->num_agents = num_agents;
     net->obs = calloc(num_agents*input_dim, sizeof(float));
@@ -653,7 +686,23 @@ LinearLSTM* make_linearlstm(Weights* weights, int num_agents, int input_dim, int
     net->value_fn = make_linear(weights, num_agents, 128, 1);
     net->lstm = make_lstm(weights, num_agents, 128, 128);
     int logit_sizes[1] = {action_dim};
-    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
+    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1, action_type);
+    net->action_type = action_type;
+    return net;
+}
+
+LinearLSTM* make_linearlstm_float(Weights* weights, int num_agents, int input_dim, int action_dim, ActionType action_type) {
+    LinearLSTM* net = calloc(1, sizeof(LinearLSTM));
+    net->num_agents = num_agents;
+    net->obs = calloc(num_agents*input_dim, sizeof(float));
+    net->encoder = make_linear(weights, num_agents, input_dim, 128);
+    net->relu1 = make_relu(num_agents, 128);
+    net->actor = make_linear(weights, num_agents, 128, action_dim);
+    net->value_fn = make_linear(weights, num_agents, 128, 1);
+    net->lstm = make_lstm(weights, num_agents, 128, 128);
+    int logit_sizes[1] = {action_dim};
+    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1, action_type);
+    net->action_type = action_type;
     return net;
 }
 
@@ -668,6 +717,27 @@ void free_linearlstm(LinearLSTM* net) {
     free(net);
 }
 
+void forward_linearlstm_int(LinearLSTM* net, float* observations, int* actions) {
+    linear(net->encoder, observations);
+    relu(net->relu1, net->encoder->output);
+    lstm(net->lstm, net->relu1->output);
+    linear(net->actor, net->lstm->state_h);
+    linear(net->value_fn, net->lstm->state_h);
+    softmax_multidiscrete(net->multidiscrete, net->actor->output, (void*)actions);
+}
+
+void forward_linearlstm_float(LinearLSTM* net, float* observations, float* actions) {
+    linear(net->encoder, observations);
+    relu(net->relu1, net->encoder->output);
+    lstm(net->lstm, net->relu1->output);
+    linear(net->actor, net->lstm->state_h);
+    linear(net->value_fn, net->lstm->state_h);
+    for (int i = 0; i < net->multidiscrete->logit_sizes[0]; i++) {
+         actions[i] = tanhf(net->actor->output[i]);
+    }
+}
+
+// agnoistic for backcompat
 void forward_linearlstm(LinearLSTM* net, float* observations, int* actions) {
     linear(net->encoder, observations);
     relu(net->relu1, net->encoder->output);
@@ -689,10 +759,11 @@ typedef struct ConvLSTM ConvLSTM; struct ConvLSTM {
     Linear* actor;
     Linear* value_fn;
     Multidiscrete* multidiscrete;
+    ActionType action_type;
 };
 
 ConvLSTM* make_convlstm(Weights* weights, int num_agents, int input_dim,
-        int input_channels, int cnn_channels, int hidden_dim, int action_dim) {
+        int input_channels, int cnn_channels, int hidden_dim, int action_dim, ActionType action_type) {
     ConvLSTM* net = calloc(1, sizeof(ConvLSTM));
     net->num_agents = num_agents;
     net->obs = calloc(num_agents*input_dim*input_dim*input_channels, sizeof(float));
@@ -706,7 +777,8 @@ ConvLSTM* make_convlstm(Weights* weights, int num_agents, int input_dim,
     net->value_fn = make_linear(weights, num_agents, hidden_dim, 1);
     net->lstm = make_lstm(weights, num_agents, hidden_dim, hidden_dim);
     int logit_sizes[1] = {action_dim};
-    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
+    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1, action_type);
+    net->action_type = action_type;
     return net;
 }
 

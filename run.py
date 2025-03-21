@@ -1,14 +1,13 @@
 '''
+    Example usage:
     python run.py cartpole eval -w
-    to eval the latest model file for the specified environment.
-    e.g. python run.py blastar eval
-    or python run.py blastar eval -w
+    to eval the latest model file for the cartpole environment.
 
     eval is currently the only option for mode
     model file can be anywhere in PufferLib
     -w flag will extract weights from the latest model file,
-    update the .c file with the new weights and sizes, compile
-    it locally, and run the .c file.
+    update the .c file with the new weights, sizes, observation size,
+    and action size, compile it locally, and run the .c file.
 '''
 
 import os
@@ -147,42 +146,95 @@ def update_save_net_flat(model_path, env_name):
     return output_dir
 
 def extract_details_from_architecture_file(architecture_file):
-    """Extract observation size, action size, and num_weights from the architecture file."""
     observation_size = 0
     action_size = 0
     num_weights = 0
+    decoder_logstd = []
 
     with open(architecture_file, 'r') as f:
         for line in f:
-            if "policy.policy.encoder.weight" in line:
-                observation_size = int(line.split("[")[1].split(",")[1].strip().replace("])", ""))
-            elif "policy.policy.decoder.weight" in line:
-                action_size = int(line.split("[")[1].split(",")[0].strip())
+            line = line.strip()
+            
+            if "encoder.weight" in line:
+                try:
+                    parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+                    observation_size = int(parts[1].strip())
+                except (IndexError, ValueError):
+                    pass
+
+            elif "decoder_mean.weight" in line or "decoder.weight" in line:
+                try:
+                    parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+                    action_size = int(parts[0].strip())
+                except (IndexError, ValueError):
+                    pass
+
             elif "Num weights" in line:
                 num_weights = int(line.split(":")[1].strip())
-    
-        
-    print(f'observation_size:{observation_size}\naction_size:{action_size}\nnum_weights:{num_weights}\n')
 
-    return observation_size, action_size, num_weights
+            # New logic to extract decoder_logstd numeric values explicitly
+            elif line.startswith("decoder_logstd_values:"):
+                decoder_logstd_str = line.split(":")[1].strip()
+                decoder_logstd = [float(x) for x in decoder_logstd_str.split(",")]
+
+    return observation_size, action_size, num_weights, decoder_logstd
+
+
+# def extract_details_from_architecture_file(architecture_file):
+#     observation_size = 0
+#     action_size = 0
+#     num_weights = 0
+
+#     with open(architecture_file, 'r') as f:
+#         for line in f:
+#             # Extract observation size from encoder.weight
+#             if "encoder.weight" in line:
+#                 try:
+#                     parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+#                     if len(parts) >= 2:
+#                         observation_size = int(parts[1].strip())
+#                     print(f"observation_size:{observation_size}")
+#                 except (IndexError, ValueError) as e:
+#                     print(f"Error parsing observation size from line: {line}. Error: {e}")
+
+#             # Now check for either decoder_mean.weight or decoder.weight
+#             elif "decoder_mean.weight" in line or "decoder.weight" in line:
+#                 try:
+#                     parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+#                     if len(parts) >= 1:
+#                         action_size = int(parts[0].strip())
+#                     print(f"action_size:{action_size}")
+#                 except (IndexError, ValueError) as e:
+#                     print(f"Error parsing action size from line: {line}. Error: {e}")
+            
+#             elif "Num weights" in line:
+#                 try:
+#                     num_weights = int(line.split(":")[1].strip())
+#                     print(f"num_weights:{num_weights}")
+#                 except (IndexError, ValueError) as e:
+#                     print(f"Error parsing num_weights from line: {line}. Error: {e}")
+
+#     return observation_size, action_size, num_weights
 
 def find_c_file(top_dir, env_name):
     """Search the entire top directory for the corresponding .c file."""
     env_basename = env_name.replace('puffer_', '')
-    env_basename = env_basename.split('_')[0]
+    # Preserve the full environment name including all elements after underscore
     for root, _, files in os.walk(top_dir):
         for file in files:
             if file == f"{env_basename}.c":
                 return os.path.join(root, file)
     return None
 
-def update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights):
+def update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights, decoder_logstd):
     """Update the .c file with new weights and sizes."""
+    print(f"\nUpdating C file: {c_file_path}")
+    print(f"With weights file: {weights_file}")
+    print(f"Observation size: {observation_size}, Action size: {action_size}, Num weights: {num_weights}\n")
+    
     with open(c_file_path, 'r') as f:
         lines = f.readlines()
 
-    print(f'{c_file_path, weights_file, observation_size, action_size, num_weights}')
-    
     with open(c_file_path, 'w') as f:
         for line in lines:
             if line.strip().startswith("const char* WEIGHTS_PATH"):
@@ -193,6 +245,9 @@ def update_c_file(c_file_path, weights_file, observation_size, action_size, num_
                 f.write(f"#define ACTIONS_SIZE {action_size}\n")
             elif line.strip().startswith("#define NUM_WEIGHTS"):
                 f.write(f"#define NUM_WEIGHTS {num_weights}\n")
+            elif line.strip().startswith("float decoder_logstd"):
+                decoder_logstd_str = ', '.join(f"{x:.7f}f" for x in decoder_logstd)
+                f.write(f"float decoder_logstd[ACTIONS_SIZE] = {{{decoder_logstd_str}}};\n")
             else:
                 f.write(line)
     print(f"Updated {c_file_path} with new weights and sizes.")
@@ -253,8 +308,7 @@ def main():
                 sys.exit(1)
 
             # Step 4: Extract additional details from the architecture file
-            observation_size, action_size, num_weights = extract_details_from_architecture_file(architecture_file)
-
+            observation_size, action_size, num_weights, decoder_logstd = extract_details_from_architecture_file(architecture_file)
             # Step 5: Find the .c file
             c_file_path = find_c_file(top_dir, env_name)
             if not c_file_path:
@@ -262,8 +316,7 @@ def main():
                 sys.exit(1)
 
             # Step 6: Update the .c file
-            update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights)
-
+            update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights, decoder_logstd)
             # Step 7: Compile and run
             env_basename = env_name.replace('puffer_', '')
             env_base_name = env_basename.split('_')[0]

@@ -36,7 +36,7 @@ typedef struct LogBuffer {
     int idx;
 } LogBuffer;
 
-static LogBuffer* allocate_logbuffer(int size) {
+LogBuffer* allocate_logbuffer(int size) {
     LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
     logs->logs = (Log*)calloc(size, sizeof(Log));
     logs->length = size;
@@ -44,22 +44,26 @@ static LogBuffer* allocate_logbuffer(int size) {
     return logs;
 }
 
-static void free_logbuffer(LogBuffer* buffer) {
+void free_logbuffer(LogBuffer* buffer) {
     if (buffer) {
         free(buffer->logs);
         free(buffer);
     }
 }
 
-static void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx < logs->length) {
-        logs->logs[logs->idx] = *log;
-        logs->idx++;
+void add_log(LogBuffer* logs, Log* log) {
+    if (logs->idx == logs->length) {
+        return;
     }
+    logs->logs[logs->idx] = *log;
+    logs->idx++;
 }
 
-static Log aggregate_and_clear(LogBuffer* logs) {
+Log aggregate_and_clear(LogBuffer* logs) {
     Log log = {0};
+    if (logs->idx == 0) {
+        return log;
+    }
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
@@ -199,7 +203,7 @@ void c_step(CartPole* env) {
     if (env->continuous) {
         force = env->actions[0] * FORCE_MAG;
     } else {
-        force = env->actions[0] ? FORCE_MAG : -FORCE_MAG; 
+        force = (env->actions[0] > 0.5f) ? FORCE_MAG : -FORCE_MAG; 
     }
 
     float costheta = cosf(env->theta);
