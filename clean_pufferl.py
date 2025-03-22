@@ -435,8 +435,8 @@ def train(data):
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
                     v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
-                    v_loss = v_loss[:, :horizon]
-                    mask_block = mask_block[:, :horizon]
+                    v_loss = v_loss[:, :(horizon+3)]
+                    mask_block = mask_block[:, :(horizon+3)]
                     #v_loss[:, horizon:] = 0
                     #v_loss = (v_loss * mask_block).sum(axis=1)
                     #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
