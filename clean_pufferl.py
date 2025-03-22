@@ -8,6 +8,7 @@ import time
 
 from threading import Thread
 from collections import defaultdict, deque
+from contextlib import nullcontext
 
 import rich
 from rich.console import Console
@@ -107,11 +108,11 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     total_agents = vecenv.num_agents
 
     lstm = policy.recurrent if hasattr(policy, 'recurrent') else None
-    #policy.hidden_size = 128
     experience = Experience(config.batch_size, config.bptt_horizon,
         config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
         atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents,
         use_e3b=config.use_e3b, e3b_coef=config.e3b_coef, e3b_lambda=config.e3b_lambda,
+        use_diayn=config.use_diayn, diayn_archive=config.diayn_archive, diayn_coef=config.diayn_coef,
         use_p3o=config.use_p3o, p3o_horizon=config.p3o_horizon
     )
 
@@ -120,27 +121,33 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
     #optimizer = MuAdam(
-    from heavyball import ForeachMuon
-    optimizer = ForeachMuon(
-        policy.parameters(),
-        lr=config.learning_rate,
-        #betas=(config.adam_beta1, config.adam_beta2),
-        #eps=config.adam_eps
-    )
-
-    '''
-    optimizer = torch.optim.Adam(
-        policy.parameters(),
-        lr=config.learning_rate,
-        #betas=(config.adam_beta1, config.adam_beta2),
-        #eps=config.adam_eps
-    )
-    '''
+    assert config.optimizer in ('adam', 'muon')
+    if config.optimizer == 'adam':
+        optimizer = torch.optim.Adam(
+            policy.parameters(),
+            lr=config.learning_rate,
+            betas=(config.adam_beta1, config.adam_beta2),
+            eps=config.adam_eps
+        )
+    elif config.optimizer == 'muon':
+        from heavyball import ForeachMuon
+        optimizer = ForeachMuon(
+            policy.parameters(),
+            lr=config.learning_rate,
+            betas=(config.adam_beta1, config.adam_beta2),
+            eps=config.adam_eps
+        )
 
     epochs = config.total_timesteps // config.batch_size
-    #scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    assert config.scheduler in ('linear', 'cosine')
+    if config.scheduler == 'linear':
+        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
+    elif config.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
     scaler = torch.amp.GradScaler()
+    amp_context = (nullcontext() if config.precision == 'float32'
+        else torch.amp.autocast(device_type='cuda', dtype=config.precision))
 
     return pufferlib.namespace(
         config=config,
@@ -150,6 +157,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         optimizer=optimizer,
         scheduler=scheduler,
         scaler=scaler,
+        amp_context=amp_context,
         experience=experience,
         profile=profile,
         losses=losses,
@@ -167,6 +175,9 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         e3b_coef=config.e3b_coef,
         e3b_norm=config.e3b_norm,
         puf=config.puf,
+        use_diayn=config.use_diayn,
+        diayn_archive=config.diayn_archive,
+        diayn_coef=config.diayn_coef,
     )
 
 @pufferlib.utils.profile
@@ -180,109 +191,128 @@ def evaluate(data):
         lstm_h = experience.lstm_h
         lstm_c = experience.lstm_c
 
-    #with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
-    while not experience.full:
-        with profile.env:
-            o, r, d, t, info, env_id, mask = data.vecenv.recv()
+    with data.amp_context:
+        while not experience.full:
+            with profile.env:
+                o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
-            # Zero-copy indexing for contiguous env_id
-            if config.env_batch_size == 1:
-                gpu_env_id = cpu_env_id = slice(env_id[0], env_id[-1] + 1)
-            else:
-                cpu_env_id = env_id
-                gpu_env_id = torch.as_tensor(env_id).to(config.device, non_blocking=True)
+                # Zero-copy indexing for contiguous env_id
+                if config.env_batch_size == 1:
+                    gpu_env_id = cpu_env_id = slice(env_id[0], env_id[-1] + 1)
+                else:
+                    cpu_env_id = env_id
+                    gpu_env_id = torch.as_tensor(env_id).to(config.device, non_blocking=True)
 
-        with profile.eval_misc:
-            done_mask = d + t
-            data.global_step += mask.sum()
+            with profile.eval_misc:
+                done_mask = d + t
+                data.global_step += mask.sum()
 
-        with profile.eval_copy:
-            if data.use_e3b and done_mask.any():
-                done_idxs = env_id[done_mask]
-                experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
+                if data.use_diayn:
+                    idxs = env_id[done_mask]
+                    if len(idxs) > 0:
+                        z_idxs = torch.randint(0, experience.diayn_archive.shape[0], (done_mask.sum(),)).to(config.device)
+                        experience.diayn_skills[idxs] = z_idxs
 
-            o = torch.as_tensor(o)
-            o_device = o.to(config.device, non_blocking=True)
-            r = torch.as_tensor(r).to(config.device, non_blocking=True)
-            d = torch.as_tensor(d).to(config.device, non_blocking=True)
+            with profile.eval_copy:
+                if data.use_e3b and done_mask.any():
+                    done_idxs = env_id[done_mask]
+                    experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
 
-            if lstm_h is not None:
-                h = lstm_h[0, gpu_env_id]
-                c = lstm_c[0, gpu_env_id]
+                o = torch.as_tensor(o)
+                o_device = o.to(config.device, non_blocking=True)
+                r = torch.as_tensor(r).to(config.device, non_blocking=True)
+                d = torch.as_tensor(d).to(config.device, non_blocking=True)
 
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
-
-        with profile.eval_forward, torch.no_grad():
-            if data.use_p3o:
                 if lstm_h is not None:
-                    (logits, value_mean, value_std), hidden, (h, c) = policy(o_device, (h, c))
+                    h = lstm_h[0, gpu_env_id]
+                    c = lstm_c[0, gpu_env_id]
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_forward, torch.no_grad():
+                if data.use_diayn:
+                    z_idxs = experience.diayn_skills[env_id]
+                    z = experience.diayn_archive[z_idxs]
+
+                    if lstm_h is not None:
+                        (logits, value), hidden, (h, c) = policy(o_device, (h, c), diayn_z=z)
+                    else:
+                        (logits, value), hidden = policy(o_device, diayn_z=z)
+                    value = value.flatten()
+                    q = policy.diayn_discriminator(hidden).squeeze()
+                    r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
+                    r += config.diayn_coef*r_diayn.cpu()# - np.log(1/data.diayn_archive)
+
+                if data.use_p3o:
+                    if lstm_h is not None:
+                        (logits, value_mean, value_std), hidden, (h, c) = policy(o_device, (h, c))
+                    else:
+                        (logits, value_mean, value_std), hidden = policy(o_device)
                 else:
-                    (logits, value_mean, value_std), hidden = policy(o_device)
-            else:
+                    if lstm_h is not None:
+                        (logits, value), hidden, (h, c) = policy(o_device, (h, c))
+                    else:
+                        (logits, value), hidden = policy(o_device)
+                    value = value.flatten()
+
+                actions, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
+
+                if data.use_e3b:
+                    e3b = experience.e3b_inv[env_id]
+                    phi = hidden.detach()        
+                    u = phi.unsqueeze(1) @ e3b
+                    b = u @ phi.unsqueeze(2)
+                    experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
+                    experience.e3b_inv[done_mask] = experience.e3b_orig[done_mask]
+                    e3b_reward = b.squeeze()
+
+                    if experience.e3b_mean is None:
+                        experience.e3b_mean = e3b_reward.mean()
+                        experience.e3b_std = e3b_reward.std()
+                    else:
+                        w = data.e3b_norm
+                        experience.e3b_mean = (1-w)*e3b_reward.mean() + w*experience.e3b_mean
+                        experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
+
+                    e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
+                    e3b_reward = config.e3b_coef*e3b_reward
+                    r += e3b_reward.cpu()
+
+                # Clip rewards
+                r = torch.clamp(r, -1, 1)
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_copy, torch.no_grad():
                 if lstm_h is not None:
-                    (logits, value), hidden, (h, c) = policy(o_device, (h, c))
+                    lstm_h[:, gpu_env_id] = h
+                    lstm_c[:, gpu_env_id] = c
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_copy:
+                o = o if config.cpu_offload else o_device
+
+                #if experience.ptr == config.batch_size - 1024:
+                #    d[:] = 1
+                if data.use_p3o:
+                    actions = experience.store(o, value_mean, value_std.detach(), actions, logprob, r, d, cpu_env_id, mask)
                 else:
-                    (logits, value), hidden = policy(o_device)
-                value = value.flatten()
+                    actions = experience.store(o, value, None, actions, logprob, r, d, cpu_env_id, mask)
 
-            actions, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
 
-            if data.use_e3b:
-                e3b = experience.e3b_inv[env_id]
-                phi = hidden.detach()        
-                u = phi.unsqueeze(1) @ e3b
-                b = u @ phi.unsqueeze(2)
-                experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
-                experience.e3b_inv[done_mask] = experience.e3b_orig[done_mask]
-                e3b_reward = b.squeeze()
+            with profile.eval_misc:
+                for i in info:
+                    for k, v in pufferlib.utils.unroll_nested_dict(i):
+                        infos[k].append(v)
 
-                if experience.e3b_mean is None:
-                    experience.e3b_mean = e3b_reward.mean()
-                    experience.e3b_std = e3b_reward.std()
-                else:
-                    w = data.e3b_norm
-                    experience.e3b_mean = (1-w)*e3b_reward.mean() + w*experience.e3b_mean
-                    experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
-
-                e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
-                e3b_reward = config.e3b_coef*e3b_reward
-                r += e3b_reward.cpu()
-
-            # Clip rewards
-            r = torch.clamp(r, -1, 1)
-
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
-
-        with profile.eval_copy, torch.no_grad():
-            if lstm_h is not None:
-                lstm_h[:, gpu_env_id] = h
-                lstm_c[:, gpu_env_id] = c
-
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
-
-        with profile.eval_copy:
-            o = o if config.cpu_offload else o_device
-
-            #if experience.ptr == config.batch_size - 1024:
-            #    d[:] = 1
-            if data.use_p3o:
-                actions = experience.store(o, value_mean, value_std.detach(), actions, logprob, r, d, cpu_env_id, mask)
-            else:
-                actions = experience.store(o, value, None, actions, logprob, r, d, cpu_env_id, mask)
-
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
-
-        with profile.eval_misc:
-            for i in info:
-                for k, v in pufferlib.utils.unroll_nested_dict(i):
-                    infos[k].append(v)
-
-        with profile.env:
-            data.vecenv.send(actions)
+            with profile.env:
+                data.vecenv.send(actions)
 
     with profile.eval_misc:
         for k, v in infos.items():
@@ -404,102 +434,118 @@ def train(data):
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
-            #with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
-            with profile.train_forward:
-                if data.use_p3o:
-                    if experience.lstm_h is not None:
-                        (logits, newvalue_mean, newvalue_std), lstm_state = data.policy.forward_train(obs, lstm_state)
-                        lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
+            with data.amp_context:
+                with profile.train_forward:
+                    if data.use_p3o:
+                        if experience.lstm_h is not None:
+                            (logits, newvalue_mean, newvalue_std), lstm_state = data.policy.forward_train(obs, lstm_state)
+                            lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
+                        else:
+                            flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+                            logits, newvalue_mean, newvalue_std = data.policy.forward_train(flat_obs)
                     else:
-                        flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-                        logits, newvalue_mean, newvalue_std = data.policy.forward_train(flat_obs)
-                else:
-                    if experience.lstm_h is not None:
-                        (logits, newvalue), lstm_state = data.policy.forward_train(obs, lstm_state)
-                        lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
-                    else:
-                        flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-                        logits, newvalue = data.policy.forward_train(flat_obs)
-                    newvalue = newvalue.flatten()
+                        if experience.lstm_h is not None:
+                            (logits, newvalue), lstm_state = data.policy.forward_train(obs, lstm_state)
+                            lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
+                        else:
+                            flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+                            logits, newvalue = data.policy.forward_train(flat_obs)
+                        newvalue = newvalue.flatten()
 
-                actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
-                    action=atn, is_continuous=data.policy.is_continuous)
+                    actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
+                        action=atn, is_continuous=data.policy.is_continuous)
 
-                if config.device == 'cuda':
-                    torch.cuda.synchronize()
+                    if config.device == 'cuda':
+                        torch.cuda.synchronize()
 
-            with profile.train_misc:
-                logratio = newlogprob - log_probs.reshape(-1)
-                ratio = logratio.exp()
+                with profile.train_misc:
+                    logratio = newlogprob - log_probs.reshape(-1)
+                    ratio = logratio.exp()
 
-                # TODO: Only do this if we are KL clipping? Saves 1-2% compute
-                with torch.no_grad():
-                    # calculate approx_kl http://joschu.net/blog/kl-approx.html
-                    old_approx_kl = (-logratio).mean()
-                    approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
+                    # TODO: Only do this if we are KL clipping? Saves 1-2% compute
+                    with torch.no_grad():
+                        # calculate approx_kl http://joschu.net/blog/kl-approx.html
+                        old_approx_kl = (-logratio).mean()
+                        approx_kl = ((ratio - 1) - logratio).mean()
+                        clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
 
-                adv = adv.reshape(-1)
-                if config.norm_adv:
-                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+                    adv = adv.reshape(-1)
+                    if config.norm_adv:
+                        adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
-                # Policy loss
-                pg_loss1 = -adv * ratio
-                pg_loss2 = -adv * torch.clamp(
-                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                )
-                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                # Value loss
-                if config.use_p3o:
-                    newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
-                    newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
-                    newvalue_var = torch.square(newvalue_std)
-                    criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                    #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
-                    v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
-                    v_loss = v_loss[:, :(horizon+3)]
-                    mask_block = mask_block[:, :(horizon+3)]
-                    #v_loss[:, horizon:] = 0
-                    #v_loss = (v_loss * mask_block).sum(axis=1)
-                    #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
-                    #v_loss = v_loss.mean()
-                    v_loss = v_loss[mask_block.bool()].mean()
-                    #TODO: Count mask and sum
-                    # There is going to have to be some sort of norm here.
-                    # Right now, learning works at different horizons, but you need
-                    # to retune hyperparameters. Ideally, horizon should be a stable
-                    # param that zero-shots the same hypers
-
-                    # Faster than masking
-                    #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
-                    #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
-                    #v_loss = v_loss[mask_block.bool()].mean()
-                elif config.clip_vloss:
-                    v_loss_unclipped = (newvalue - ret) ** 2
-                    v_clipped = val + torch.clamp(
-                        newvalue - val,
-                        -config.vf_clip_coef,
-                        config.vf_clip_coef,
+                    # Policy loss
+                    pg_loss1 = -adv * ratio
+                    pg_loss2 = -adv * torch.clamp(
+                        ratio, 1 - config.clip_coef, 1 + config.clip_coef
                     )
-                    v_loss_clipped = (v_clipped - ret) ** 2
-                    v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                    v_loss = 0.5 * v_loss_max.mean()
-                else:
-                    v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+                    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
-                entropy_loss = entropy.mean()
-                loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
+                    # Value loss
+                    if config.use_p3o:
+                        newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
+                        newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
+                        newvalue_var = torch.square(newvalue_std)
+                        criterion = torch.nn.GaussianNLLLoss(reduction='none')
+                        #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
+                        v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                        v_loss = v_loss[:, :(horizon+3)]
+                        mask_block = mask_block[:, :(horizon+3)]
+                        #v_loss[:, horizon:] = 0
+                        #v_loss = (v_loss * mask_block).sum(axis=1)
+                        #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
+                        #v_loss = v_loss.mean()
+                        v_loss = v_loss[mask_block.bool()].mean()
+                        #TODO: Count mask and sum
+                        # There is going to have to be some sort of norm here.
+                        # Right now, learning works at different horizons, but you need
+                        # to retune hyperparameters. Ideally, horizon should be a stable
+                        # param that zero-shots the same hypers
+
+                        # Faster than masking
+                        #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
+                        #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
+                        #v_loss = v_loss[mask_block.bool()].mean()
+                    elif config.clip_vloss:
+                        v_loss_unclipped = (newvalue - ret) ** 2
+                        v_clipped = val + torch.clamp(
+                            newvalue - val,
+                            -config.vf_clip_coef,
+                            config.vf_clip_coef,
+                        )
+                        v_loss_clipped = (v_clipped - ret) ** 2
+                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                        v_loss = 0.5 * v_loss_max.mean()
+                    else:
+                        v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+
+                    entropy_loss = entropy.mean()
+                    loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
+
+                    with profile.custom:
+                        if config.use_diayn:
+                            q = data.policy.diayn_discriminator(hidden).squeeze()
+                            diayn_loss = cross_entropy(q, z_idxs)
+                            loss += config.diayn_loss_coef*diayn_loss
+                            torch.cuda.synchronize()
 
             with profile.learn:
                 data.optimizer.zero_grad()
-                #data.scaler.scale(loss).backward()
-                loss.backward()
-                #data.scaler.unscale_(data.optimizer)
+                if data.scaler is None:
+                    loss.backward()
+                else:
+                    data.scaler.scale(loss).backward()
+
+                if data.scaler is None:
+                    data.scaler.unscale_(data.optimizer)
+
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
-                #data.scaler.step(data.optimizer)
-                data.optimizer.step()
-                #data.scaler.update()
+
+                if data.scaler is None:
+                    data.optimizer.step()
+                else:
+                    data.scaler.step(data.optimizer)
+                    data.scaler.update()
+
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
@@ -510,6 +556,9 @@ def train(data):
                 losses.old_approx_kl += old_approx_kl.item() / total_minibatches
                 losses.approx_kl += approx_kl.item() / total_minibatches
                 losses.clipfrac += clipfrac.item() / total_minibatches
+
+                if data.use_diayn:
+                    losses.diayn_loss += diayn_loss.item() / total_minibatches
 
         if config.target_kl is not None:
             if approx_kl > config.target_kl:
@@ -741,7 +790,9 @@ class Experience:
     def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
                  device='cuda', lstm=None, lstm_total_agents=0,
-                 use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0, use_p3o=False, p3o_horizon=32):
+                 use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0,
+                 use_diayn=False, diayn_archive=128, diayn_coef=0.1,
+                 use_p3o=False, p3o_horizon=32):
         if minibatch_size is None:
             minibatch_size = batch_size
 
@@ -763,6 +814,13 @@ class Experience:
             self.e3b_orig = self.e3b_inv.clone()
             self.e3b_mean = None
             self.e3b_std = None
+
+        self.use_diayn = use_diayn
+        if use_diayn:
+            #self.diayn_archive = torch.randn(diayn_archive, hidden_size, dtype=torch.float32, device=device)
+            self.diayn_archive = torch.nn.functional.one_hot(torch.arange(diayn_archive), diayn_archive).to(device).float()
+            self.diayn_skills = torch.randint(0, diayn_archive, (lstm_total_agents,), dtype=torch.long, device=device)
+            self.diayn_batch = torch.zeros(batch_size, dtype=torch.long, device=device)
 
         self.use_p3o = use_p3o
         self.p3o_horizon = p3o_horizon
@@ -833,6 +891,9 @@ class Experience:
         else:
             self.obs[dst] = obs[cpu_inds]
 
+        if self.use_diayn:
+            self.diayn_batch[dst] = diayn_z[gpu_inds]
+
         if self.use_p3o:
             self.values_mean[dst] = value_mean[gpu_inds]
             self.values_std[dst] = value_std[gpu_inds]
@@ -898,6 +959,10 @@ class Experience:
             self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
             self.returns = advantages + self.values # Check sorting of values here
             self.b_returns = self.b_advantages + self.b_values # Check sorting of values here
+
+        if self.use_diayn:
+            self.b_diayn_z_idxs = self.diayn_batch.to(self.device, non_blocking=True)[b_flat]
+            self.b_diayn_z = self.diayn_archive[self.b_diayn_z_idxs]
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):

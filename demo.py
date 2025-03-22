@@ -60,6 +60,8 @@ def make_policy(env, policy_cls, rnn_cls, args):
         use_p3o=args['train']['use_p3o'],
         p3o_horizon=args['train']['p3o_horizon']
     )
+    args['rnn']['input_size'] = policy.hidden_size
+    args['rnn']['hidden_size'] = policy.hidden_size
     if rnn_cls is not None:
         policy = rnn_cls(env, policy, **args['rnn'])
 
