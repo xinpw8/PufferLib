@@ -25,6 +25,8 @@ import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
 import clean_pufferl
+import mup
+from mup import set_base_shapes
  
 def init_wandb(args, name, id=None, resume=True, tag=None):
     import wandb
@@ -60,6 +62,51 @@ def make_policy(env, policy_cls, rnn_cls, args):
     )
     if rnn_cls is not None:
         policy = rnn_cls(env, policy, **args['rnn'])
+
+    '''
+    args['policy']['hidden_size'] = 128
+    base_policy = policy_cls(env, **args['policy'],
+        use_p3o=args['train']['use_p3o'],
+        p3o_horizon=args['train']['p3o_horizon']
+    )
+    if rnn_cls is not None:
+        args['rnn']['input_size'] = 128
+        args['rnn']['hidden_size'] = 128
+        base_policy = rnn_cls(env, base_policy, **args['rnn'])
+
+    args['policy']['hidden_size'] = 2
+    delta_policy = policy_cls(env, **args['policy'],
+        use_p3o=args['train']['use_p3o'],
+        p3o_horizon=args['train']['p3o_horizon']
+    )
+    if rnn_cls is not None:
+        args['rnn']['input_size'] = 2
+        args['rnn']['hidden_size'] = 2
+        delta_policy = rnn_cls(env, delta_policy, **args['rnn'])
+
+    set_base_shapes(policy, base_policy, delta=delta_policy)
+    '''
+
+    '''
+    for name, param in policy.recurrent.named_parameters():
+        if "bias" in name:
+            mup.init.constant_(param, 0)
+        elif "weight" in name:
+            mup.init.orthogonal_(param, 1.0)
+
+    mup.init.orthogonal_(policy.policy.decoder.weight, std=0.01)
+    mup.init.constant_(policy.policy.decoder.bias, 0)
+
+    mup.init.constant_(policy.policy.value.weight, std=1)
+    mup.init.constant_(policy.policy.value.bias, 0)
+    '''
+
+    #self.decoder = pufferlib.pytorch.layer_init(
+    #    nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+
+    #self.value = pufferlib.pytorch.layer_init(
+    #    nn.Linear(hidden_size, 1), std=1)
+
 
     return policy.to(args['train']['device'])
 

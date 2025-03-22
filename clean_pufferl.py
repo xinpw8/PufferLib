@@ -19,6 +19,8 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.pytorch
 
+from mup import MuAdam
+
 torch.set_float32_matmul_precision('high')
 
 # Fast Cython advantage functions
@@ -27,6 +29,7 @@ from c_advantage import compute_gae
 
 import torch
 from torch.utils.cpp_extension import load
+
 
 # Compile the CUDA kernel
 cuda_module = load(
@@ -104,7 +107,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     total_agents = vecenv.num_agents
 
     lstm = policy.recurrent if hasattr(policy, 'recurrent') else None
-    policy.hidden_size = 128
+    #policy.hidden_size = 128
     experience = Experience(config.batch_size, config.bptt_horizon,
         config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
         atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents,
@@ -116,12 +119,28 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
+    #optimizer = MuAdam(
+    from heavyball import ForeachMuon
+    optimizer = ForeachMuon(
+        policy.parameters(),
+        lr=config.learning_rate,
+        #betas=(config.adam_beta1, config.adam_beta2),
+        #eps=config.adam_eps
+    )
+
+    '''
     optimizer = torch.optim.Adam(
         policy.parameters(),
         lr=config.learning_rate,
-        betas=(config.adam_beta1, config.adam_beta2),
-        eps=config.adam_eps
+        #betas=(config.adam_beta1, config.adam_beta2),
+        #eps=config.adam_eps
     )
+    '''
+
+    epochs = config.total_timesteps // config.batch_size
+    #scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    scaler = torch.amp.GradScaler()
 
     return pufferlib.namespace(
         config=config,
@@ -129,6 +148,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         policy=policy,
         uncompiled_policy=uncompiled_policy,
         optimizer=optimizer,
+        scheduler=scheduler,
+        scaler=scaler,
         experience=experience,
         profile=profile,
         losses=losses,
@@ -159,6 +180,7 @@ def evaluate(data):
         lstm_h = experience.lstm_h
         lstm_c = experience.lstm_c
 
+    #with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
     while not experience.full:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
@@ -181,8 +203,8 @@ def evaluate(data):
 
             o = torch.as_tensor(o)
             o_device = o.to(config.device, non_blocking=True)
-            r = torch.as_tensor(r)
-            d = torch.as_tensor(d)
+            r = torch.as_tensor(r).to(config.device, non_blocking=True)
+            d = torch.as_tensor(d).to(config.device, non_blocking=True)
 
             if lstm_h is not None:
                 h = lstm_h[0, gpu_env_id]
@@ -382,6 +404,7 @@ def train(data):
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
+            #with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
             with profile.train_forward:
                 if data.use_p3o:
                     if experience.lstm_h is not None:
@@ -470,9 +493,13 @@ def train(data):
 
             with profile.learn:
                 data.optimizer.zero_grad()
+                #data.scaler.scale(loss).backward()
                 loss.backward()
+                #data.scaler.unscale_(data.optimizer)
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
+                #data.scaler.step(data.optimizer)
                 data.optimizer.step()
+                #data.scaler.update()
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
@@ -490,9 +517,13 @@ def train(data):
 
     with profile.train_misc:
         if config.anneal_lr:
-            frac = 1.0 - data.global_step / config.total_timesteps
-            lrnow = frac * config.learning_rate
-            data.optimizer.param_groups[0]["lr"] = lrnow
+            data.scheduler.step()
+            '''
+            for pg in data.optimizer.param_groups:
+                frac = 1.0 - data.global_step / config.total_timesteps
+                lrnow = frac * config.learning_rate
+                data.optimizer.param_groups[0]["lr"] = lrnow
+            '''
 
         if config.use_p3o:
             y_pred = experience.values_mean
@@ -814,7 +845,7 @@ class Experience:
         self.dones[dst] = done[gpu_inds]
 
         if isinstance(env_id, slice):
-            self.sort_keys[dst, 1] = np.arange(cpu_inds.start, cpu_inds.stop, dtype=np.int32)
+            self.sort_keys[dst, 1] = np.arange(env_id.start, env_id.stop, dtype=np.int32)
         else:
             self.sort_keys[dst, 1] = env_id[cpu_inds]
 
