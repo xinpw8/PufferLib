@@ -8,6 +8,7 @@ import time
 
 from threading import Thread
 from collections import defaultdict, deque
+from contextlib import nullcontext
 
 import rich
 from rich.console import Console
@@ -19,6 +20,8 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.pytorch
 
+from mup import MuAdam
+
 torch.set_float32_matmul_precision('high')
 
 # Fast Cython advantage functions
@@ -28,10 +31,11 @@ from c_advantage import compute_gae
 import torch
 from torch.utils.cpp_extension import load
 
+
 # Compile the CUDA kernel
 cuda_module = load(
     name='advantage_kernel',
-    sources=['c_advantage.cu'],
+    sources=['pufferlib.cu'],
     verbose=True
 )
 
@@ -45,21 +49,24 @@ def compute_advantages(
     rewards: torch.Tensor,      # [num_steps]
     advantages: torch.Tensor,   # [num_steps]
     bounds: torch.Tensor,       # [num_steps]
+    vstd_max: float,
+    puf: float,
     horizon: int
 ):
     assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
                                   buf, dones, rewards, advantages, bounds]), "All tensors must be on GPU"
     
     # Ensure contiguous memory
-    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages]
+    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages, bounds]
     for t in tensors:
         t.contiguous()
+        assert t.is_cuda
 
     num_steps = rewards.shape[0]
     
     # Precompute vstd_min and vstd_max
-    vstd_max = values_std.max().item()
-    vstd_min = values_std.min().item()
+    #vstd_max = values_std.max().item()
+    #vstd_min = values_std.min().item()
 
     # Launch kernel
     threads_per_block = 256
@@ -76,9 +83,9 @@ def compute_advantages(
         advantages,
         bounds,
         num_steps,
-        horizon,
-        vstd_min,
         vstd_max,
+        puf,
+        horizon,
     )
     
     torch.cuda.synchronize()
@@ -101,11 +108,11 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     total_agents = vecenv.num_agents
 
     lstm = policy.recurrent if hasattr(policy, 'recurrent') else None
-    policy.hidden_size = 128
     experience = Experience(config.batch_size, config.bptt_horizon,
         config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
         atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents,
-        use_e3b=config.use_e3b, e3b_coef=config.e3b_coef,
+        use_e3b=config.use_e3b, e3b_coef=config.e3b_coef, e3b_lambda=config.e3b_lambda,
+        use_diayn=config.use_diayn, diayn_archive=config.diayn_archive, diayn_coef=config.diayn_coef,
         use_p3o=config.use_p3o, p3o_horizon=config.p3o_horizon
     )
 
@@ -113,8 +120,34 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
-    optimizer = torch.optim.Adam(policy.parameters(),
-        lr=config.learning_rate, eps=1e-5)
+    #optimizer = MuAdam(
+    assert config.optimizer in ('adam', 'muon')
+    if config.optimizer == 'adam':
+        optimizer = torch.optim.Adam(
+            policy.parameters(),
+            lr=config.learning_rate,
+            betas=(config.adam_beta1, config.adam_beta2),
+            eps=config.adam_eps
+        )
+    elif config.optimizer == 'muon':
+        from heavyball import ForeachMuon
+        optimizer = ForeachMuon(
+            policy.parameters(),
+            lr=config.learning_rate,
+            betas=(config.adam_beta1, config.adam_beta2),
+            eps=config.adam_eps
+        )
+
+    epochs = config.total_timesteps // config.batch_size
+    assert config.scheduler in ('linear', 'cosine')
+    if config.scheduler == 'linear':
+        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
+    elif config.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
+    scaler = torch.amp.GradScaler()
+    amp_context = (nullcontext() if config.precision == 'float32'
+        else torch.amp.autocast(device_type='cuda', dtype=config.precision))
 
     return pufferlib.namespace(
         config=config,
@@ -122,6 +155,9 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         policy=policy,
         uncompiled_policy=uncompiled_policy,
         optimizer=optimizer,
+        scheduler=scheduler,
+        scaler=scaler,
+        amp_context=amp_context,
         experience=experience,
         profile=profile,
         losses=losses,
@@ -138,6 +174,10 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         use_e3b=config.use_e3b,
         e3b_coef=config.e3b_coef,
         e3b_norm=config.e3b_norm,
+        puf=config.puf,
+        use_diayn=config.use_diayn,
+        diayn_archive=config.diayn_archive,
+        diayn_coef=config.diayn_coef,
     )
 
 @pufferlib.utils.profile
@@ -151,100 +191,120 @@ def evaluate(data):
         lstm_h = experience.lstm_h
         lstm_c = experience.lstm_c
 
-    while not experience.full:
-        with profile.env:
-            o, r, d, t, info, env_id, mask = data.vecenv.recv()
+    with data.amp_context:
+        while not experience.full:
+            with profile.env:
+                o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
-            # Zero-copy indexing for contiguous env_id
-            if config.env_batch_size == 1:
-                gpu_env_id = cpu_env_id = slice(env_id[0], env_id[-1] + 1)
-            else:
-                cpu_env_id = env_id
-                gpu_env_id = torch.as_tensor(env_id).to(config.device, non_blocking=True)
-
-        with profile.eval_misc:
-            done_mask = d + t
-            data.global_step += mask.sum()
-
-        with profile.eval_copy:
-            if data.use_e3b and done_mask.any():
-                done_idxs = env_id[done_mask]
-                experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
-
-            o = torch.as_tensor(o)
-            o_device = o.to(config.device, non_blocking=True)
-            r = torch.as_tensor(r)
-            d = torch.as_tensor(d)
-
-            h = None
-            c = None
-            if lstm_h is not None:
-                h = lstm_h[0, gpu_env_id]
-                c = lstm_c[0, gpu_env_id]
-
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
-
-        with profile.eval_forward, torch.no_grad():
-            state = pufferlib.namespace(
-                reward=r,
-                done=d,
-                env_id=gpu_env_id,
-                mask=mask,
-                lstm_h=h,
-                lstm_c=c,
-            )
-            logits, value = policy(o_device, state)
-            action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
-
-            if data.use_e3b:
-                e3b = experience.e3b_inv[env_id]
-                phi = state.hidden.detach()        
-                u = phi.unsqueeze(1) @ e3b
-                b = u @ phi.unsqueeze(2)
-                experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
-                experience.e3b_inv[done_mask] = experience.e3b_orig[done_mask]
-                e3b_reward = b.squeeze()
-
-                if experience.e3b_mean is None:
-                    experience.e3b_mean = e3b_reward.mean()
-                    experience.e3b_std = e3b_reward.std()
+                # Zero-copy indexing for contiguous env_id
+                if config.env_batch_size == 1:
+                    gpu_env_id = cpu_env_id = slice(env_id[0], env_id[-1] + 1)
                 else:
-                    w = data.e3b_norm
-                    experience.e3b_mean = (1-w)*e3b_reward.mean() + w*experience.e3b_mean
-                    experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
+                    cpu_env_id = env_id
+                    gpu_env_id = torch.as_tensor(env_id).to(config.device, non_blocking=True)
 
-                e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
-                e3b_reward = config.e3b_coef*e3b_reward
-                r += e3b_reward.cpu()
+            with profile.eval_misc:
+                done_mask = d + t
+                data.global_step += mask.sum()
 
-            # Clip rewards
-            r = torch.clamp(r, -1, 1)
+                if data.use_diayn:
+                    idxs = env_id[done_mask]
+                    if len(idxs) > 0:
+                        z_idxs = torch.randint(0, experience.diayn_archive.shape[0], (done_mask.sum(),)).to(config.device)
+                        experience.diayn_skills[idxs] = z_idxs
 
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
+            with profile.eval_copy:
+                if data.use_e3b and done_mask.any():
+                    done_idxs = env_id[done_mask]
+                    experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
 
-        with profile.eval_copy, torch.no_grad():
-            if lstm_h is not None:
-                lstm_h[:, gpu_env_id] = state.lstm_h
-                lstm_c[:, gpu_env_id] = state.lstm_c
 
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
+                o = torch.as_tensor(o)
+                o_device = o.to(config.device, non_blocking=True)
+                r = torch.as_tensor(r).to(config.device, non_blocking=True)
+                d = torch.as_tensor(d).to(config.device, non_blocking=True)
 
-        with profile.eval_copy:
-            actions = experience.store(o, o_device, value, action, logprob, r, d, env_id, mask)
+                if lstm_h is not None:
+                    h = lstm_h[0, gpu_env_id]
+                    c = lstm_c[0, gpu_env_id]
 
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
 
-        with profile.eval_misc:
-            for i in info:
-                for k, v in pufferlib.utils.unroll_nested_dict(i):
-                    infos[k].append(v)
+            with profile.eval_forward, torch.no_grad():
+                if data.use_diayn:
+                    z_idxs = experience.diayn_skills[env_id]
+                    z = experience.diayn_archive[z_idxs]
 
-        with profile.env:
-            data.vecenv.send(actions)
+                    if lstm_h is not None:
+                        (logits, value), hidden, (h, c) = policy(o_device, (h, c), diayn_z=z)
+                    else:
+                        (logits, value), hidden = policy(o_device, diayn_z=z)
+                    value = value.flatten()
+                    q = policy.diayn_discriminator(hidden).squeeze()
+                    r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
+                    r += config.diayn_coef*r_diayn.cpu()# - np.log(1/data.diayn_archive)
+
+                state = pufferlib.namespace(
+                    reward=r,
+                    done=d,
+                    env_id=gpu_env_id,
+                    mask=mask,
+                    lstm_h=h,
+                    lstm_c=c,
+                )
+                logits, value = policy(o_device, state)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
+
+                if data.use_e3b:
+                    e3b = experience.e3b_inv[env_id]
+                    phi = hidden.detach()        
+                    u = phi.unsqueeze(1) @ e3b
+                    b = u @ phi.unsqueeze(2)
+                    experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
+                    experience.e3b_inv[done_mask] = experience.e3b_orig[done_mask]
+                    e3b_reward = b.squeeze()
+
+                    if experience.e3b_mean is None:
+                        experience.e3b_mean = e3b_reward.mean()
+                        experience.e3b_std = e3b_reward.std()
+                    else:
+                        w = data.e3b_norm
+                        experience.e3b_mean = (1-w)*e3b_reward.mean() + w*experience.e3b_mean
+                        experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
+
+                    e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
+                    e3b_reward = config.e3b_coef*e3b_reward
+                    r += e3b_reward.cpu()
+
+                # Clip rewards
+                r = torch.clamp(r, -1, 1)
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_copy, torch.no_grad():
+                if lstm_h is not None:
+                    lstm_h[:, gpu_env_id] = state.lstm_h
+                    lstm_c[:, gpu_env_id] = state.lstm_c
+
+                    if config.device == 'cuda':
+                        torch.cuda.synchronize()
+
+            with profile.eval_copy:
+                o = o if config.cpu_offload else o_device
+                actions = experience.store(o, o_device, value, action, logprob, r, d, env_id, mask)
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_misc:
+                for i in info:
+                    for k, v in pufferlib.utils.unroll_nested_dict(i):
+                        infos[k].append(v)
+
+            with profile.env:
+                data.vecenv.send(actions)
 
     with profile.eval_misc:
         for k, v in infos.items():
@@ -296,16 +356,39 @@ def train(data):
             # we store experience to avoid this issue
             vstd_min = values_std.min().item()
             vstd_max = values_std.max().item()
-            reward_block = experience.reward_block
-            mask_block = experience.mask_block
             torch.cuda.synchronize()
 
+            mask_block.zero_()
+            experience.buf.zero_()
+            reward_block.zero_()
+            r_mean = rewards.mean().item()
+            r_std = rewards.std().item()
+            advantages.zero_()
+            experience.bounds.zero_()
+
+            '''
+            if data.epoch == 0:
+                values_std[:] = r_std
+                with torch.no_grad():
+                    data.policy.policy.value_logstd[:] = np.log(r_std)
+            '''
+
+            # TODO: Rename vstd to r_std
             advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
                     experience.buf, dones, rewards, advantages, experience.bounds,
-                    config.p3o_horizon)
+                    r_std, data.puf, config.p3o_horizon)
+
+            horizon = torch.where(values_std[0] > 0.95*r_std)[0]
+            horizon = horizon[0].item()+1 if len(horizon) else 1
+            if horizon < 16:
+                horizon = 16
+            print('Horizon:', horizon)
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
-                
+
+            #if np.random.rand() < 0.01:
+            #    breakpoint()
+
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
         else:
@@ -336,6 +419,7 @@ def train(data):
                 atn = experience.b_actions[mb]
                 log_probs = experience.b_logprobs[mb]
                 adv = experience.b_advantages[mb]
+                ret = experience.b_returns[mb]
 
                 if config.use_p3o:
                     val_mean = experience.b_values_mean[mb]
@@ -344,89 +428,117 @@ def train(data):
                     mask_block = experience.b_mask_block[mb]
                 else:
                     val = experience.b_values[mb]
-                    ret = experience.b_returns[mb]
 
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
-            with profile.train_forward:
-                if lstm_h is None:
-                    obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+            with data.amp_context:
+                with profile.train_forward:
+                    if lstm_h is None:
+                        obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
-                logits, newvalue = data.policy.forward_train(obs, state)
-                lstm_h = state.lstm_h
-                lstm_c = state.lstm_c
-                if lstm_h is not None:
-                    lstm_h = lstm_h.detach()
-                if lstm_c is not None:
-                    lstm_c = lstm_c.detach()
+                    logits, newvalue = data.policy.forward_train(obs, state)
+                    lstm_h = state.lstm_h
+                    lstm_c = state.lstm_c
+                    if lstm_h is not None:
+                        lstm_h = lstm_h.detach()
+                    if lstm_c is not None:
+                        lstm_c = lstm_c.detach()
 
-                actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
-                    action=atn, is_continuous=data.policy.is_continuous)
+                    actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
+                        action=atn, is_continuous=data.policy.is_continuous)
 
-                if config.device == 'cuda':
-                    torch.cuda.synchronize()
+                    if config.device == 'cuda':
+                        torch.cuda.synchronize()
 
-            with profile.train_misc:
-                logratio = newlogprob - log_probs.reshape(-1)
-                ratio = logratio.exp()
+                with profile.train_misc:
+                    logratio = newlogprob - log_probs.reshape(-1)
+                    ratio = logratio.exp()
 
-                # TODO: Only do this if we are KL clipping? Saves 1-2% compute
-                with torch.no_grad():
-                    # calculate approx_kl http://joschu.net/blog/kl-approx.html
-                    old_approx_kl = (-logratio).mean()
-                    approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
+                    # TODO: Only do this if we are KL clipping? Saves 1-2% compute
+                    with torch.no_grad():
+                        # calculate approx_kl http://joschu.net/blog/kl-approx.html
+                        old_approx_kl = (-logratio).mean()
+                        approx_kl = ((ratio - 1) - logratio).mean()
+                        clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
 
-                adv = adv.reshape(-1)
-                if config.norm_adv:
-                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+                    adv = adv.reshape(-1)
+                    if config.norm_adv:
+                        adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
-                # Policy loss
-                pg_loss1 = -adv * ratio
-                pg_loss2 = -adv * torch.clamp(
-                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                )
-                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                # Value loss
-                if config.use_p3o:
-                    newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
-                    newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
-                    newvalue_var = torch.square(newvalue_std)
-                    criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                    v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
-                    #TODO: Count mask and sum
-                    # There is going to have to be some sort of norm here.
-                    # Right now, learning works at different horizons, but you need
-                    # to retune hyperparameters. Ideally, horizon should be a stable
-                    # param that zero-shots the same hypers
-
-                    # Faster than masking
-                    v_loss = (v_loss*mask_block).sum() / mask_block.sum()
-                elif config.clip_vloss:
-                    newvalue = newvalue.flatten()
-                    v_loss_unclipped = (newvalue - ret) ** 2
-                    v_clipped = val + torch.clamp(
-                        newvalue - val,
-                        -config.vf_clip_coef,
-                        config.vf_clip_coef,
+                    # Policy loss
+                    pg_loss1 = -adv * ratio
+                    pg_loss2 = -adv * torch.clamp(
+                        ratio, 1 - config.clip_coef, 1 + config.clip_coef
                     )
-                    v_loss_clipped = (v_clipped - ret) ** 2
-                    v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                    v_loss = 0.5 * v_loss_max.mean()
-                else:
-                    newvalue = newvalue.flatten()
-                    v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+                    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
-                entropy_loss = entropy.mean()
-                loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
+                    # Value loss
+                    if config.use_p3o:
+                        newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
+                        newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
+                        newvalue_var = torch.square(newvalue_std)
+                        criterion = torch.nn.GaussianNLLLoss(reduction='none')
+                        #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
+                        v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                        v_loss = v_loss[:, :(horizon+3)]
+                        mask_block = mask_block[:, :(horizon+3)]
+                        #v_loss[:, horizon:] = 0
+                        #v_loss = (v_loss * mask_block).sum(axis=1)
+                        #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
+                        #v_loss = v_loss.mean()
+                        v_loss = v_loss[mask_block.bool()].mean()
+                        #TODO: Count mask and sum
+                        # There is going to have to be some sort of norm here.
+                        # Right now, learning works at different horizons, but you need
+                        # to retune hyperparameters. Ideally, horizon should be a stable
+                        # param that zero-shots the same hypers
+
+                        # Faster than masking
+                        #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
+                        #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
+                        #v_loss = v_loss[mask_block.bool()].mean()
+                    elif config.clip_vloss:
+                        v_loss_unclipped = (newvalue - ret) ** 2
+                        v_clipped = val + torch.clamp(
+                            newvalue - val,
+                            -config.vf_clip_coef,
+                            config.vf_clip_coef,
+                        )
+                        v_loss_clipped = (v_clipped - ret) ** 2
+                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                        v_loss = 0.5 * v_loss_max.mean()
+                    else:
+                        v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+
+                    entropy_loss = entropy.mean()
+                    loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
+
+                    with profile.custom:
+                        if config.use_diayn:
+                            q = data.policy.diayn_discriminator(hidden).squeeze()
+                            diayn_loss = cross_entropy(q, z_idxs)
+                            loss += config.diayn_loss_coef*diayn_loss
+                            torch.cuda.synchronize()
 
             with profile.learn:
                 data.optimizer.zero_grad()
-                loss.backward()
+                if data.scaler is None:
+                    loss.backward()
+                else:
+                    data.scaler.scale(loss).backward()
+
+                if data.scaler is None:
+                    data.scaler.unscale_(data.optimizer)
+
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
-                data.optimizer.step()
+
+                if data.scaler is None:
+                    data.optimizer.step()
+                else:
+                    data.scaler.step(data.optimizer)
+                    data.scaler.update()
+
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
@@ -438,15 +550,22 @@ def train(data):
                 losses.approx_kl += approx_kl.item() / total_minibatches
                 losses.clipfrac += clipfrac.item() / total_minibatches
 
+                if data.use_diayn:
+                    losses.diayn_loss += diayn_loss.item() / total_minibatches
+
         if config.target_kl is not None:
             if approx_kl > config.target_kl:
                 break
 
     with profile.train_misc:
         if config.anneal_lr:
-            frac = 1.0 - data.global_step / config.total_timesteps
-            lrnow = frac * config.learning_rate
-            data.optimizer.param_groups[0]["lr"] = lrnow
+            data.scheduler.step()
+            '''
+            for pg in data.optimizer.param_groups:
+                frac = 1.0 - data.global_step / config.total_timesteps
+                lrnow = frac * config.learning_rate
+                data.optimizer.param_groups[0]["lr"] = lrnow
+            '''
 
         if config.use_p3o:
             y_pred = experience.values_mean
@@ -664,7 +783,9 @@ class Experience:
     def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
                  device='cuda', lstm=None, lstm_total_agents=0,
-                 use_e3b=False, e3b_coef=0.1, use_p3o=False, p3o_horizon=32):
+                 use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0,
+                 use_diayn=False, diayn_archive=128, diayn_coef=0.1,
+                 use_p3o=False, p3o_horizon=32):
         if minibatch_size is None:
             minibatch_size = batch_size
 
@@ -682,10 +803,17 @@ class Experience:
 
         self.use_e3b = use_e3b
         if use_e3b:
-            self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
+            self.e3b_inv = torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device) / e3b_lambda
             self.e3b_orig = self.e3b_inv.clone()
             self.e3b_mean = None
             self.e3b_std = None
+
+        self.use_diayn = use_diayn
+        if use_diayn:
+            #self.diayn_archive = torch.randn(diayn_archive, hidden_size, dtype=torch.float32, device=device)
+            self.diayn_archive = torch.nn.functional.one_hot(torch.arange(diayn_archive), diayn_archive).to(device).float()
+            self.diayn_skills = torch.randint(0, diayn_archive, (lstm_total_agents,), dtype=torch.long, device=device)
+            self.diayn_batch = torch.zeros(batch_size, dtype=torch.long, device=device)
 
         self.use_p3o = use_p3o
         self.p3o_horizon = p3o_horizon
@@ -697,6 +825,7 @@ class Experience:
             self.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
             self.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
             self.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
+            self.vstd_max = 1.0
         else:
             self.values = torch.zeros(batch_size, device=device)
 
@@ -752,6 +881,9 @@ class Experience:
         else:
             self.obs[dst] = cpu_obs[cpu_inds]
 
+        if self.use_diayn:
+            self.diayn_batch[dst] = diayn_z[gpu_inds]
+
         if self.use_p3o:
             self.values_mean[dst] = value.mean[gpu_inds]
             self.values_std[dst] = value.std[gpu_inds]
@@ -764,7 +896,7 @@ class Experience:
         self.dones[dst] = done[cpu_inds].to(self.dones.device) # ???
 
         if isinstance(env_id, slice):
-            self.sort_keys[dst, 1] = np.arange(cpu_inds.start, cpu_inds.stop, dtype=np.int32)
+            self.sort_keys[dst, 1] = np.arange(env_id.start, env_id.stop, dtype=np.int32)
         else:
             self.sort_keys[dst, 1] = env_id[cpu_inds]
 
@@ -810,10 +942,17 @@ class Experience:
 
             self.b_values_mean = self.values_mean.to(self.device, non_blocking=True)[b_flat]
             self.b_values_std = self.values_std.to(self.device, non_blocking=True)[b_flat]
+            self.b_returns = self.buf.to(self.device, non_blocking=True).reshape(
+                self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.p3o_horizon
+                ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
         else:
             self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
             self.returns = advantages + self.values # Check sorting of values here
             self.b_returns = self.b_advantages + self.b_values # Check sorting of values here
+
+        if self.use_diayn:
+            self.b_diayn_z_idxs = self.diayn_batch.to(self.device, non_blocking=True)[b_flat]
+            self.b_diayn_z = self.diayn_archive[self.b_diayn_z_idxs]
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):

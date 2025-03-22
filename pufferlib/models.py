@@ -8,6 +8,8 @@ import pufferlib.emulation
 import pufferlib.pytorch
 import pufferlib.spaces
 
+from mup import MuReadout, make_base_shapes, set_base_shapes, MuSGD, MuAdam
+
 
 class Default(nn.Module):
     '''Default PyTorch policy. Flattens obs and applies a linear layer.
@@ -38,7 +40,11 @@ class Default(nn.Module):
             input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
-            self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
+            #self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
+            self.encoder = torch.nn.Sequential(
+                nn.Linear(np.prod(env.single_observation_space.shape), hidden_size),
+                nn.GELU(),
+            )
 
         if self.is_multidiscrete:
             action_nvec = env.single_action_space.nvec
@@ -47,6 +53,8 @@ class Default(nn.Module):
         elif not self.is_continuous:
             self.decoder = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+            #self.decoder = MuReadout(hidden_size, env.single_action_space.n)
+
         else:
             self.decoder_mean = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
@@ -59,14 +67,16 @@ class Default(nn.Module):
             self.value_mean = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, p3o_horizon), std=1)
             self.value_logstd = nn.Parameter(torch.zeros(1, p3o_horizon))
+
             #param = np.log10(np.arange(1, N+1))
             #param = 1 - np.exp(-np.sqrt(np.arange(N)))
             #self.value_logstd = nn.Parameter(torch.tensor(param).view(1, N))
             #self.value_logstd = pufferlib.pytorch.layer_init(
-            #    nn.Linear(hidden_size, 64), std=0.01)
+            #    nn.Linear(hidden_size, 32), std=0.01)
         else:
             self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, 1), std=1)
+            #self.value = MuReadout(hidden_size, 1)
 
     def forward(self, observations, state=None):
         hidden = self.encode_observations(observations)
@@ -86,7 +96,7 @@ class Default(nn.Module):
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
         else: 
             observations = observations.view(batch_size, -1)
-        return torch.relu(self.encoder(observations.float()))
+        return self.encoder(observations.float()), None
 
     def decode_actions(self, hidden):
         '''Decodes a batch of hidden states into (multi)discrete actions.

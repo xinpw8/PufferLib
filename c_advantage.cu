@@ -1,5 +1,3 @@
-#include <torch/extension.h>
-
 __global__ void advantage_kernel(
     float* reward_block,    // [num_steps, horizon]
     float* reward_mask,     // [num_steps, horizon]
@@ -11,96 +9,79 @@ __global__ void advantage_kernel(
     float* advantages,     // [num_steps]
     int* bounds,          // [num_steps]
     int num_steps,
-    int horizon,
-    float vstd_min,
-    float vstd_max
+    float r_std,
+    float puf,
+    int horizon
 ) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= num_steps) return;
 
     int k = 0;
-    float adv_sum = 0.0f;
-    float delta = vstd_min - vstd_max;
-
-    for (int j = 0; j < horizon; j++) {
+    for (int j = 0; j < horizon-1; j++) {
         int t = i + j;
-        if (t >= num_steps - 1 || dones[t]) {
+        if (t >= num_steps - 1) {
             break;
         }
-        k = j + 1;
+        if (dones[t+1]) {
+            k++;
+            break;
+        }
+        k++;
+    }
 
+    float gamma_max = 0.0f;
+    float n = 0.0f;
+    for (int j = k-1; j >= 0; j--) {
         int idx = i * horizon + j;
-        reward_block[idx] = rewards[t + 1];
-        reward_mask[idx] = 1.0f;
+        n++;
 
         float vstd = values_std[idx];
-        buf[idx] = vstd;
-
-        float adv_scale = (delta == 0) ? 1.0f : (vstd_max - vstd) / delta;
-        adv_scale = max(min(adv_scale, 1.0f), 0.05f);
-        buf[idx] = adv_scale;
-        adv_sum += adv_scale;
-    }
-
-    bounds[i] = k;
-
-    if (delta == 0) {
-        float adv = 0.0f;
-        for (int j = 0; j < k; j++) {
-            int idx = i * horizon + j;
-            adv += (reward_block[idx] - values_mean[idx]);
+        if (vstd == 0.0f) {
+            buf[idx] = 0.0f;
+            continue;
         }
-        advantages[i] = adv;
-        return;
+
+        float gamma = 1.0f / (vstd*vstd);
+        if (r_std != 0.0f) {
+            gamma -= puf/(r_std*r_std);
+        }
+
+        if (gamma < 0.0f) {
+            gamma = 0.0f;
+        }
+
+        if (gamma > gamma_max) {
+            gamma_max = gamma;
+        }
+        buf[idx] = gamma;
+        reward_mask[idx] = 1.0f;
     }
 
-    float adv = 0.0f;
-    for (int j = 0; j < k; j++) {
+    float bootstrap = 0.0f;
+    //if (k == horizon-1) {
+    //    bootstrap = buf[i*horizon + horizon - 1]*values_mean[i*horizon + horizon - 1];
+    //}
+
+    float R = 0.0f;
+    for (int j = 0; j <= k-1; j++) {
+        int t = i + j;
         int idx = i * horizon + j;
-        adv += (buf[idx] / adv_sum) * (reward_block[idx] - values_mean[idx]);
-    }
-    advantages[i] = adv;
-}
+        float r = rewards[t+1];
 
-// Pybind11 module definition
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("advantage_kernel", [](torch::Tensor reward_block,
-                                torch::Tensor reward_mask,
-                                torch::Tensor values_mean,
-                                torch::Tensor values_std,
-                                torch::Tensor buf,
-                                torch::Tensor dones,
-                                torch::Tensor rewards,
-                                torch::Tensor advantages,
-                                torch::Tensor bounds,
-                                int num_steps,
-                                int horizon,
-                                float vstd_max,
-                                float vstd_min) {
-        // Launch the kernel
-        int threads_per_block = 256;
-        int blocks = (num_steps + threads_per_block - 1) / threads_per_block;
-
-        advantage_kernel<<<blocks, threads_per_block>>>(
-            reward_block.data_ptr<float>(),
-            reward_mask.data_ptr<float>(),
-            values_mean.data_ptr<float>(),
-            values_std.data_ptr<float>(),
-            buf.data_ptr<float>(),
-            dones.data_ptr<float>(),
-            rewards.data_ptr<float>(),
-            advantages.data_ptr<float>(),
-            bounds.data_ptr<int>(),
-            num_steps,
-            horizon,
-            vstd_max,
-            vstd_min
-        );
-
-        // Check for CUDA errors
-        cudaError_t err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            throw std::runtime_error(cudaGetErrorString(err));
+        float gamma = buf[idx];
+        if (gamma_max > 0) {
+            gamma /= gamma_max;
         }
-    }, "Compute advantages with CUDA");
+
+        if (j >= 16 && values_std[idx] > 0.95*r_std) {
+            break;
+        }
+
+        R += gamma * (r - values_mean[idx]);
+        reward_block[idx] = r;
+        buf[idx] = gamma;
+    }
+
+    advantages[i] = R;
+    bounds[i] = k;
 }
