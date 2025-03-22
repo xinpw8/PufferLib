@@ -941,7 +941,10 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
             if hasattr(agent, 'recurrent'):
-                (logits, value), hidden, (h, c) = agent(ob, state)
+                # (logits, value), hidden, (h, c) = agent(ob, state)
+                state_ns = pufferlib.namespace(lstm_h=state[0], lstm_c=state[1])
+                (logits, value) = agent(ob, state_ns)
+                state = (state_ns.lstm_h, state_ns.lstm_c)
             else:
                 action, _, value, _, e3b, intrinsic = agent(ob)
 

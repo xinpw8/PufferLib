@@ -103,7 +103,7 @@ class Default(nn.Module):
                 
             sampled = dist.sample()
             squashed = torch.tanh(sampled)
-            # Debug prints (only if desired; you might want to wrap these in a debug flag)
+
             self.debug_counter += 1
             if self.debug_counter % 10000 == 0:
                 with open("debug_continuous_log.txt", "a") as f:
@@ -114,8 +114,8 @@ class Default(nn.Module):
                     f.write("  sampled: " + str(sampled.detach().cpu().numpy()) + "\n")
                     f.write("  squashed: " + str(squashed.detach().cpu().numpy()) + "\n")
                     f.write("----\n")
-            # Return the distribution so that the caller can decide how to use it
-            actions = dist  
+                    
+            logits = dist
             
         else:
             logits = self.decoder(hidden)
