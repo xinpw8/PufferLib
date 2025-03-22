@@ -350,8 +350,8 @@ def train(data):
                     torch.cuda.synchronize()
 
             with profile.train_forward:
-                if lstm_h is None:
-                    obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+                # if lstm_h is None:
+                #     obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
                 logits, newvalue = data.policy.forward_train(obs, state)
                 lstm_h = state.lstm_h

@@ -3,9 +3,9 @@ from torch.nn import functional as F
 import numpy as np
 
 # update manually if running manually, otherwise, run.py updates automatically
-MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_cartpole-062c17bc/model_000150.pt'
-WEIGHTS_OUTPUT_FILE_NAME = 'cartpole_weights.bin'
-OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/cartpole'
+MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_breakout-e033b016/model_000382.pt'
+WEIGHTS_OUTPUT_FILE_NAME = 'breakout_weights.bin'
+OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/breakout'
 
 def save_model_weights(model, filename):
     import os
