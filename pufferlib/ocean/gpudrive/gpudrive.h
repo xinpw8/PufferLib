@@ -476,9 +476,6 @@ void init(GPUDrive* env){
     set_active_agents(env);
     set_start_position(env);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
-    //printf("num_entities: %d\n", env->num_entities);
-    //printf("Offset of x: %zu\n", offsetof(struct Entity, x));
-    //printf("Offset of y: %zu\n", offsetof(struct Entity, y));
     printf("active_agent_count: %d\n", env->active_agent_count);
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
@@ -725,26 +722,6 @@ void collision_check(GPUDrive* env, int agent_idx) {
                     }
                 }
                 if (collided == OFFROAD) break;
-                // Distance check
-                float agent_center[2] = {agent->x, agent->y};
-                float dist = point_to_line_distance(agent_center, start, end);
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    // Step 1: Calculate relative position (in world coordinates)
-                    float rel_x_start = start[0] - agent->x;
-                    float rel_y_start = start[1] - agent->y;
-                    float rel_x_end = end[0] - agent->x;
-                    float rel_y_end = end[1] - agent->y;
-                    
-                    // Step 2: Apply standard 2D rotation matrix to transform to agent's local frame
-                    float cos_heading = cosf(agent->heading);
-                    float sin_heading = sinf(agent->heading);
-                    
-                    nearest_start[0] = rel_x_start * cos_heading + rel_y_start * sin_heading;
-                    nearest_start[1] = -rel_x_start * sin_heading + rel_y_start * cos_heading;
-                    nearest_end[0] = rel_x_end * cos_heading + rel_y_end * sin_heading;
-                    nearest_end[1] = -rel_x_end * sin_heading + rel_y_end * cos_heading;
-                }
             }
         }
         if(entity->type == VEHICLE){
@@ -774,31 +751,6 @@ void collision_check(GPUDrive* env, int agent_idx) {
                 }
 		        if (collided == VEHICLE_COLLISION) break;
             }
-            // Get nearest car distance and start and end values for obs
-            for (int k = 0;k<4; k++){
-                int next_k = (k+1) % 4;
-                float agent_center[2] = {agent->x, agent->y};
-                float dist = point_to_line_distance(agent_center, other_corners[k], other_corners[next_k]);
-                if (dist < min_car_dist) {
-                    min_car_dist = dist;
-        
-                    // Step 1: Calculate relative position (in world coordinates)
-                    float rel_x_start = other_corners[k][0] - agent->x;
-                    float rel_y_start = other_corners[k][1] - agent->y;
-                    float rel_x_end = other_corners[next_k][0] - agent->x;
-                    float rel_y_end = other_corners[next_k][1] - agent->y;
-                    
-                    // Step 2: Apply standard 2D rotation matrix
-                    // This is the standard 2D rotation to agent's local frame
-                    float cos_heading = cosf(agent->heading);
-                    float sin_heading = sinf(agent->heading);
-                    
-                    nearest_car_start[0] = rel_x_start * cos_heading + rel_y_start * sin_heading;
-                    nearest_car_start[1] = -rel_x_start * sin_heading + rel_y_start * cos_heading;
-                    nearest_car_end[0] = rel_x_end * cos_heading + rel_y_end * sin_heading;
-                    nearest_car_end[1] = -rel_x_end * sin_heading + rel_y_end * cos_heading;
-                }
-            }
         }
     }
     agent->collision_state = collided;
@@ -810,7 +762,6 @@ void collision_check(GPUDrive* env, int agent_idx) {
 void compute_observations(GPUDrive* env) {
     int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 7;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
-    memset(observations, -1, env->active_agent_count * max_obs * sizeof(float));
     
     for(int i = 0; i < env->active_agent_count; i++) {
         float* obs = &observations[i][0];
@@ -952,8 +903,8 @@ void c_step(GPUDrive* env){
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0){
-            env->rewards[i] = -0.1f;
-            env->logs[i].episode_return -=0.1f;
+            env->rewards[i] = -0.00f;
+            env->logs[i].episode_return -=0.00f;
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
                 env->logs[i].collision_rate = 1.0f;
             }
