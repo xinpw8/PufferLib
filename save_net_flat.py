@@ -13,14 +13,37 @@ def save_model_weights(model, filename):
     architecture_path = os.path.join(OUTPUT_FILE_PATH, filename + "_architecture.txt")
     
     os.makedirs(OUTPUT_FILE_PATH, exist_ok=True)
-    weights = []
-    for name, param in model.named_parameters():
-        weights.append(param.data.cpu().numpy().flatten())
-        print(name, param.shape, param.data.cpu().numpy().ravel()[0])
     
+    weights = []
+
+    # encoder first
+    weights.append(model.policy.encoder.weight.data.cpu().numpy().flatten())
+    weights.append(model.policy.encoder.bias.data.cpu().numpy().flatten())
+
+    # LSTM next
+    weights.append(model.recurrent.weight_ih_l0.data.cpu().numpy().flatten())
+    weights.append(model.recurrent.weight_hh_l0.data.cpu().numpy().flatten())
+    weights.append(model.recurrent.bias_ih_l0.data.cpu().numpy().flatten())
+    weights.append(model.recurrent.bias_hh_l0.data.cpu().numpy().flatten())
+
+    # decoder_mean after LSTM
+    weights.append(model.policy.decoder_mean.weight.data.cpu().numpy().flatten())
+    weights.append(model.policy.decoder_mean.bias.data.cpu().numpy().flatten())
+
+    # explicitly save decoder_logstd separately or at end
+    weights.append(model.policy.decoder_logstd.data.cpu().numpy().flatten())
+
     weights = np.concatenate(weights)
-    print('Num weights:', len(weights))
     weights.tofile(weights_path)
+    
+    # weights = []
+    # for name, param in model.named_parameters():
+    #     weights.append(param.data.cpu().numpy().flatten())
+    #     print(name, param.shape, param.data.cpu().numpy().ravel()[0])
+    
+    # weights = np.concatenate(weights)
+    # print('Num weights:', len(weights))
+    # weights.tofile(weights_path)
     
     # Extract action dimensions from the model architecture
     action_size = 0

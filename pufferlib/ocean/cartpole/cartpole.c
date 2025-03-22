@@ -5,7 +5,7 @@
 #include "cartpole.h"
 #include "puffernet.h"
 
-#define NUM_WEIGHTS 132995
+#define NUM_WEIGHTS 132866
 #define OBSERVATIONS_SIZE 4
 #define ACTIONS_SIZE 1
 const char* WEIGHTS_PATH = "/puffertank/pufferlib/pufferlib/resources/cartpole/cartpole_weights.bin";
@@ -23,6 +23,15 @@ float sample_normal(float mu, float sigma) {
 
 void demo() {
     Weights* weights = load_weights(WEIGHTS_PATH, NUM_WEIGHTS);
+float decoder_logstd[ACTIONS_SIZE] = {-0.3126390f};
+    printf("Decoder logstd: %f\n", decoder_logstd); // sanity check
+    printf("Encoder first weight: %.5f\n", weights->data[0]);
+    printf("Encoder first bias: %.5f\n", weights->data[512]); // index after 128*4 encoder weights
+    // etc., check alignment at LSTM weights as well
+
+
+
+
     LinearLSTM* net = make_linearlstm_float(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE, ACTION_TYPE_FLOAT);
 
     CartPole env = {0};
@@ -35,6 +44,8 @@ void demo() {
 
     int episode_steps = 0;
     float episode_return = 0.0f;
+
+    printf("Decoder logstd: %f\n", decoder_logstd[0]);
 
     while (!WindowShouldClose()) {
         // Network forward pass

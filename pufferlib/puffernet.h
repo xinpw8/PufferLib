@@ -672,6 +672,7 @@ struct LinearLSTM {
     LSTM* lstm;
     Linear* actor;
     Linear* value_fn;
+    float* decoder_logstd;
     Multidiscrete* multidiscrete;
     ActionType action_type;
 };
@@ -697,9 +698,14 @@ LinearLSTM* make_linearlstm_float(Weights* weights, int num_agents, int input_di
     net->obs = calloc(num_agents*input_dim, sizeof(float));
     net->encoder = make_linear(weights, num_agents, input_dim, 128);
     net->relu1 = make_relu(num_agents, 128);
-    net->actor = make_linear(weights, num_agents, 128, action_dim);
-    net->value_fn = make_linear(weights, num_agents, 128, 1);
     net->lstm = make_lstm(weights, num_agents, 128, 128);
+    net->actor = make_linear(weights, num_agents, 128, action_dim);
+    // net->value_fn = make_linear(weights, num_agents, 128, 1);
+    
+    net->decoder_logstd = get_weights(weights, action_dim); // decoder_logstd 
+    
+    printf("Decoder logstd (loaded): %f\n", net->decoder_logstd[0]);
+    
     int logit_sizes[1] = {action_dim};
     net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1, action_type);
     net->action_type = action_type;
@@ -731,10 +737,18 @@ void forward_linearlstm_float(LinearLSTM* net, float* observations, float* actio
     relu(net->relu1, net->encoder->output);
     lstm(net->lstm, net->relu1->output);
     linear(net->actor, net->lstm->state_h);
-    linear(net->value_fn, net->lstm->state_h);
-    for (int i = 0; i < net->multidiscrete->logit_sizes[0]; i++) {
-         actions[i] = tanhf(net->actor->output[i]);
-    }
+    // linear(net->value_fn, net->lstm->state_h);
+    
+    float mu = net->actor->output[0];
+    float sigma = expf(net->decoder_logstd[0]); 
+
+    actions[0] = tanhf(mu); // deterministic eval action
+    // actions[0]= tanhf(sample_normal(mu, sigma)); // stochastic action sampling
+
+    // // normal sampling (optional)
+    // for (int i = 0; i < net->multidiscrete->logit_sizes[0]; i++) {
+    //      actions[i] = tanhf(net->actor->output[i]);
+    // }
 }
 
 // agnoistic for backcompat
