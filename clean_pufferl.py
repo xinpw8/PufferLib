@@ -176,6 +176,8 @@ def evaluate(data):
             r = torch.as_tensor(r)
             d = torch.as_tensor(d)
 
+            h = None
+            c = None
             if lstm_h is not None:
                 h = lstm_h[0, gpu_env_id]
                 c = lstm_c[0, gpu_env_id]
@@ -184,23 +186,20 @@ def evaluate(data):
                 torch.cuda.synchronize()
 
         with profile.eval_forward, torch.no_grad():
-            if data.use_p3o:
-                if lstm_h is not None:
-                    (logits, value_mean, value_std), hidden, (h, c) = policy(o_device, (h, c))
-                else:
-                    (logits, value_mean, value_std), hidden = policy(o_device)
-            else:
-                if lstm_h is not None:
-                    (logits, value), hidden, (h, c) = policy(o_device, (h, c))
-                else:
-                    (logits, value), hidden = policy(o_device)
-                value = value.flatten()
-
-            actions, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
+            state = pufferlib.namespace(
+                reward=r,
+                done=d,
+                env_id=gpu_env_id,
+                mask=mask,
+                lstm_h=h,
+                lstm_c=c,
+            )
+            logits, value = policy(o_device, state)
+            action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
 
             if data.use_e3b:
                 e3b = experience.e3b_inv[env_id]
-                phi = hidden.detach()        
+                phi = state.hidden.detach()        
                 u = phi.unsqueeze(1) @ e3b
                 b = u @ phi.unsqueeze(2)
                 experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
@@ -216,8 +215,8 @@ def evaluate(data):
                     experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
 
                 e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
-                e3b_reward = torch.clamp(config.e3b_coef*e3b_reward, -1, 1)
-                r += config.e3b_coef*e3b_reward.cpu()
+                e3b_reward = config.e3b_coef*e3b_reward
+                r += e3b_reward.cpu()
 
             # Clip rewards
             r = torch.clamp(r, -1, 1)
@@ -227,19 +226,14 @@ def evaluate(data):
 
         with profile.eval_copy, torch.no_grad():
             if lstm_h is not None:
-                lstm_h[:, gpu_env_id] = h
-                lstm_c[:, gpu_env_id] = c
+                lstm_h[:, gpu_env_id] = state.lstm_h
+                lstm_c[:, gpu_env_id] = state.lstm_c
 
             if config.device == 'cuda':
                 torch.cuda.synchronize()
 
         with profile.eval_copy:
-            o = o if config.cpu_offload else o_device
-
-            if data.use_p3o:
-                actions = experience.store(o, value_mean, value_std.detach(), actions, logprob, r, d, cpu_env_id, mask)
-            else:
-                actions = experience.store(o, value, None, actions, logprob, r, d, cpu_env_id, mask)
+            actions = experience.store(o, o_device, value, action, logprob, r, d, env_id, mask)
 
             if config.device == 'cuda':
                 torch.cuda.synchronize()
@@ -328,9 +322,15 @@ def train(data):
     mean_pg_loss, mean_v_loss, mean_entropy_loss = 0, 0, 0
     mean_old_kl, mean_kl, mean_clipfrac = 0, 0, 0
     for epoch in range(config.update_epochs):
-        lstm_state = None
+        lstm_h = None
+        lstm_c = None
         for mb in range(experience.num_minibatches):
             with profile.train_misc:
+                state = pufferlib.namespace(
+                    action=experience.b_actions[mb],
+                    lstm_h=lstm_h,
+                    lstm_c=lstm_c,
+                )
                 obs = experience.b_obs[mb]
                 obs = obs.to(config.device)
                 atn = experience.b_actions[mb]
@@ -350,21 +350,16 @@ def train(data):
                     torch.cuda.synchronize()
 
             with profile.train_forward:
-                if data.use_p3o:
-                    if experience.lstm_h is not None:
-                        (logits, newvalue_mean, newvalue_std), lstm_state = data.policy.forward_train(obs, lstm_state)
-                        lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
-                    else:
-                        flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-                        logits, newvalue_mean, newvalue_std = data.policy.forward_train(flat_obs, lstm_state)
-                else:
-                    if experience.lstm_h is not None:
-                        (logits, newvalue), lstm_state = data.policy.forward_train(obs, lstm_state)
-                        lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
-                    else:
-                        flat_obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-                        logits, newvalue = data.policy.forward_train(flat_obs)
-                    newvalue = newvalue.flatten()
+                if lstm_h is None:
+                    obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+
+                logits, newvalue = data.policy.forward_train(obs, state)
+                lstm_h = state.lstm_h
+                lstm_c = state.lstm_c
+                if lstm_h is not None:
+                    lstm_h = lstm_h.detach()
+                if lstm_c is not None:
+                    lstm_c = lstm_c.detach()
 
                 actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
                     action=atn, is_continuous=data.policy.is_continuous)
@@ -396,8 +391,8 @@ def train(data):
 
                 # Value loss
                 if config.use_p3o:
-                    newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
-                    newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
+                    newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
+                    newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
                     newvalue_var = torch.square(newvalue_std)
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
@@ -410,6 +405,7 @@ def train(data):
                     # Faster than masking
                     v_loss = (v_loss*mask_block).sum() / mask_block.sum()
                 elif config.clip_vloss:
+                    newvalue = newvalue.flatten()
                     v_loss_unclipped = (newvalue - ret) ** 2
                     v_clipped = val + torch.clamp(
                         newvalue - val,
@@ -420,6 +416,7 @@ def train(data):
                     v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
                     v_loss = 0.5 * v_loss_max.mean()
                 else:
+                    newvalue = newvalue.flatten()
                     v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
 
                 entropy_loss = entropy.mean()
@@ -735,7 +732,7 @@ class Experience:
     def full(self):
         return self.ptr >= self.batch_size
 
-    def store(self, obs, value_mean, value_std, action, logprob, reward, done, env_id, mask):
+    def store(self, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask):
         # Mask learner and Ensure indices do not exceed batch size
         ptr = self.ptr
         indices = np.where(mask)[0]
@@ -750,24 +747,21 @@ class Experience:
             cpu_inds = indices[:self.batch_size - ptr]
             gpu_inds = torch.as_tensor(indices).to(self.obs.device, non_blocking=True)
 
- 
-        obs = obs.to(self.obs.device, non_blocking=True)
-
         if self.obs.device.type == 'cuda':
-            self.obs[dst] = obs[gpu_inds]
+            self.obs[dst] = gpu_obs[gpu_inds]
         else:
-            self.obs[dst] = obs[cpu_inds]
+            self.obs[dst] = cpu_obs[cpu_inds]
 
         if self.use_p3o:
-            self.values_mean[dst] = value_mean[gpu_inds]
-            self.values_std[dst] = value_std[gpu_inds]
+            self.values_mean[dst] = value.mean[gpu_inds]
+            self.values_std[dst] = value.std[gpu_inds]
         else:
-            self.values[dst] = value_mean[gpu_inds]
+            self.values[dst] = value[gpu_inds].flatten()
 
         self.actions[dst] = action[gpu_inds]
         self.logprobs[dst] = logprob[gpu_inds]
-        self.rewards[dst] = reward[gpu_inds]
-        self.dones[dst] = done[gpu_inds]
+        self.rewards[dst] = reward[cpu_inds].to(self.rewards.device) # ???
+        self.dones[dst] = done[cpu_inds].to(self.dones.device) # ???
 
         if isinstance(env_id, slice):
             self.sort_keys[dst, 1] = np.arange(cpu_inds.start, cpu_inds.stop, dtype=np.int32)
@@ -884,7 +878,7 @@ def try_load_checkpoint(data):
         return
 
     trainer_path = os.path.join(path, 'trainer_state.pt')
-    resume_state = torch.load(trainer_path)
+    resume_state = torch.load(trainer_path, weights_only=False)
     model_path = os.path.join(path, resume_state['model_name'])
     data.policy.uncompiled.load_state_dict(model_path, map_location=config.device)
     data.optimizer.load_state_dict(resume_state['optimizer_state_dict'])
@@ -906,7 +900,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     if model_path is None:
         agent = agent_creator(env, policy_cls, rnn_cls, agent_kwargs).to(device)
     else:
-        agent = torch.load(model_path, map_location=device)
+        agent = torch.load(model_path, map_location=device, weights_only=False)
 
     #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
     e3b_inv = None
@@ -914,7 +908,12 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     ob, info = env.reset()
     driver = env.driver_env
     os.system('clear')
-    state = None
+
+    state = (None, None)
+    num_agents = env.observation_space.shape[0]
+    if hasattr(agent, 'recurrent'):
+        shape = (num_agents, agent.hidden_size)
+        state = (torch.zeros(shape).to(device), torch.zeros(shape).to(device))
 
     frames = []
     tick = 0
@@ -941,12 +940,12 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
-            if hasattr(agent, 'lstm'):
-                #action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
-                action, _, value, _, state = agent(ob, state, e3b=e3b_inv)
+            if hasattr(agent, 'recurrent'):
+                (logits, value), hidden, (h, c) = agent(ob, state)
             else:
-                action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
+                action, _, value, _, e3b, intrinsic = agent(ob)
 
+            action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=agent.is_continuous)
             action = action.cpu().numpy().reshape(env.action_space.shape)
 
         ob, reward = env.step(action)[:2]
