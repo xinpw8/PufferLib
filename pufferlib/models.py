@@ -23,7 +23,7 @@ class Default(nn.Module):
     the recurrent cell into encode_observations and put everything after
     into decode_actions.
     '''
-    def __init__(self, env, hidden_size=128, use_p3o=False, p3o_horizon=32):
+    def __init__(self, env, hidden_size=128, use_p3o=False, p3o_horizon=32, use_diayn=False, diayn_skills=128):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_multidiscrete = isinstance(env.single_action_space,
@@ -61,6 +61,13 @@ class Default(nn.Module):
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
+        if use_diayn:
+            self.diayn_discriminator = nn.Sequential(
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
+                nn.ReLU(),
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
+            )
+
         self.use_p3o = use_p3o
         self.p3o_horizon = p3o_horizon
         if use_p3o:
@@ -96,7 +103,7 @@ class Default(nn.Module):
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
         else: 
             observations = observations.view(batch_size, -1)
-        return self.encoder(observations.float()), None
+        return self.encoder(observations.float())
 
     def decode_actions(self, hidden):
         '''Decodes a batch of hidden states into (multi)discrete actions.
@@ -154,7 +161,15 @@ class LSTMWrapper(nn.Module):
         hidden = self.policy.encode_observations(observations)
         h = state.lstm_h
         c = state.lstm_c
-        hidden, c = self.recurrent_cell(hidden, (h, c))
+
+        # TODO: Don't break compile
+        if h is not None:
+            assert h.shape[0] == c.shape[0] == observations.shape[0], 'LSTM state must be (h, c)'
+            lstm_state = (h, c)
+        else:
+            lstm_state = None
+
+        hidden, c = self.recurrent_cell(hidden, lstm_state)
         state.hidden = hidden
         state.lstm_h = hidden
         state.lstm_c = c

@@ -232,19 +232,6 @@ def evaluate(data):
                     torch.cuda.synchronize()
 
             with profile.eval_forward, torch.no_grad():
-                if data.use_diayn:
-                    z_idxs = experience.diayn_skills[env_id]
-                    z = experience.diayn_archive[z_idxs]
-
-                    if lstm_h is not None:
-                        (logits, value), hidden, (h, c) = policy(o_device, (h, c), diayn_z=z)
-                    else:
-                        (logits, value), hidden = policy(o_device, diayn_z=z)
-                    value = value.flatten()
-                    q = policy.diayn_discriminator(hidden).squeeze()
-                    r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
-                    r += config.diayn_coef*r_diayn.cpu()# - np.log(1/data.diayn_archive)
-
                 state = pufferlib.namespace(
                     reward=r,
                     done=d,
@@ -253,8 +240,24 @@ def evaluate(data):
                     lstm_h=h,
                     lstm_c=c,
                 )
+
+                if data.use_diayn:
+                    z_idxs = experience.diayn_skills[env_id]
+                    z = experience.diayn_archive[z_idxs]
+                    state.diayn_z_idxs = z_idxs
+                    state.diayn_z = z
+
                 logits, value = policy(o_device, state)
+                value = value.flatten()
                 action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
+
+                if data.use_diayn:
+                    diayn_policy = policy if lstm_h is None else policy.policy
+                    q = diayn_policy.diayn_discriminator(state.hidden).squeeze()
+                    r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
+                    r += config.diayn_coef*r_diayn.cpu()# - np.log(1/data.diayn_archive)
+                    state.diayn_z = z
+                    state.diayn_z_idxs = z_idxs
 
                 if data.use_e3b:
                     e3b = experience.e3b_inv[env_id]
@@ -434,8 +437,8 @@ def train(data):
 
             with data.amp_context:
                 with profile.train_forward:
-                    if lstm_h is None:
-                        obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+                    #if lstm_h is None:
+                    #    obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
                     logits, newvalue = data.policy.forward_train(obs, state)
                     lstm_h = state.lstm_h
