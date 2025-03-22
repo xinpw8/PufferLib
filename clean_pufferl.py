@@ -317,6 +317,7 @@ def train(data):
             mask_block.zero_()
             experience.buf.zero_()
             reward_block.zero_()
+            r_mean = rewards.mean().item()
             r_std = rewards.std().item()
             advantages.zero_()
             experience.bounds.zero_()
@@ -332,6 +333,12 @@ def train(data):
             advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
                     experience.buf, dones, rewards, advantages, experience.bounds,
                     r_std, data.puf, config.p3o_horizon)
+
+            horizon = torch.where(values_std[0] > 0.95*r_std)[0]
+            horizon = horizon[0].item()+1 if len(horizon) else 1
+            if horizon < 16:
+                horizon = 16
+            print('Horizon:', horizon)
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
 
@@ -428,6 +435,13 @@ def train(data):
                     criterion = torch.nn.GaussianNLLLoss(reduction='none')
                     #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
                     v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                    v_loss = v_loss[:, :horizon]
+                    mask_block = mask_block[:, :horizon]
+                    #v_loss[:, horizon:] = 0
+                    #v_loss = (v_loss * mask_block).sum(axis=1)
+                    #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
+                    #v_loss = v_loss.mean()
+                    v_loss = v_loss[mask_block.bool()].mean()
                     #TODO: Count mask and sum
                     # There is going to have to be some sort of norm here.
                     # Right now, learning works at different horizons, but you need
@@ -437,7 +451,7 @@ def train(data):
                     # Faster than masking
                     #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
                     #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
-                    v_loss = v_loss[mask_block.bool()].mean()
+                    #v_loss = v_loss[mask_block.bool()].mean()
                 elif config.clip_vloss:
                     v_loss_unclipped = (newvalue - ret) ** 2
                     v_clipped = val + torch.clamp(

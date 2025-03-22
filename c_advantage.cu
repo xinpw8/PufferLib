@@ -63,7 +63,7 @@ __global__ void advantage_kernel(
     //}
 
     float R = 0.0f;
-    for (int j = k-1; j >= 0; j--) {
+    for (int j = 0; j <= k-1; j++) {
         int t = i + j;
         int idx = i * horizon + j;
         float r = rewards[t+1];
@@ -71,6 +71,10 @@ __global__ void advantage_kernel(
         float gamma = buf[idx];
         if (gamma_max > 0) {
             gamma /= gamma_max;
+        }
+
+        if (j >= 16 && values_std[idx] > 0.95*r_std) {
+            break;
         }
 
         R += gamma * (r - values_mean[idx]);
