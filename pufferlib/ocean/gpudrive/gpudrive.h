@@ -52,6 +52,20 @@
 
 // Max road segment observation entities
 #define MAX_ROAD_SEGMENT_OBSERVATIONS 200
+
+// Observation Space Constants
+#define MAX_SPEED 100
+#define MAX_VEH_LEN 30
+#define MAX_VEH_WIDTH 15
+#define MAX_VEH_HEIGHT 10
+#define MIN_REL_GOAL_COORD -1000
+#define MAX_REL_GOAL_COORD 1000
+#define MIN_REL_AGENT_POS -1000
+#define MAX_REL_AGENT_POS 1000
+#define MAX_ORIENTATION_RAD 2 * PI
+#define MIN_RG_COORD -1000
+#define MAX_RG_COORD 1000
+
 // Acceleration Values
 static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
 static const float STEERING_VALUES[13] = {-3.1420f, -2.6180f, -2.0940f, -1.5710f, -1.0470f, -0.5240f,  0.0000f,  0.5240f,
@@ -826,6 +840,10 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
 }
 
+float normalize_value(float value, float min, float max){
+    return (value - min) / (max - min);
+}
+
 void compute_observations(GPUDrive* env) {
     int max_obs = 6 + 7 * (env->num_cars - 1) + 200 * 5;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
@@ -838,11 +856,13 @@ void compute_observations(GPUDrive* env) {
         float sin_heading = sinf(ego_entity->heading);
         float ego_speed = sqrtf(ego_entity->vx * ego_entity->vx + ego_entity->vy * ego_entity->vy);
         // Set goal distances
-        obs[0] = relative_distance(ego_entity->x, ego_entity->goal_position_x);
-        obs[1] = relative_distance(ego_entity->y, ego_entity->goal_position_y);
-        obs[2] = ego_speed;
-        obs[3] = ego_entity->width;
-        obs[4] = ego_entity->length;
+        float goal_x = relative_distance(ego_entity->x, ego_entity->goal_position_x);
+        float goal_y = relative_distance(ego_entity->y, ego_entity->goal_position_y);
+        obs[0] = normalize_value(goal_x, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
+        obs[1] = normalize_value(goal_y, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
+        obs[2] = ego_speed / MAX_SPEED;
+        obs[3] = ego_entity->width / MAX_VEH_WIDTH;
+        obs[4] = ego_entity->length / MAX_VEH_LEN;
         obs[5] = ego_entity->collision_state;
         
         // Relative Pos of other cars
@@ -863,19 +883,19 @@ void compute_observations(GPUDrive* env) {
             float rel_x = dx * cos_heading + dy * sin_heading;
             float rel_y = -dx * sin_heading + dy * cos_heading;
             // Store observations with correct indexing
-            obs[obs_idx] = rel_x;
-            obs[obs_idx + 1] = rel_y;
-            obs[obs_idx + 2] = other_entity->width;
-            obs[obs_idx + 3] = other_entity->length;
+            obs[obs_idx] = normalize_value(rel_x, MIN_REL_AGENT_POS, MAX_REL_AGENT_POS);
+            obs[obs_idx + 1] = normalize_value(rel_y, MIN_REL_AGENT_POS, MAX_REL_AGENT_POS);
+            obs[obs_idx + 2] = other_entity->width / MAX_VEH_WIDTH;
+            obs[obs_idx + 3] = other_entity->length / MAX_VEH_LEN;
             
             // relative heading
             float rel_heading = normalize_heading(other_entity->heading - ego_entity->heading);
-            obs[obs_idx + 4] = cosf(rel_heading);
-            obs[obs_idx + 5] = sinf(rel_heading);
+            obs[obs_idx + 4] = cosf(rel_heading) / MAX_ORIENTATION_RAD;
+            obs[obs_idx + 5] = sinf(rel_heading) / MAX_ORIENTATION_RAD;
             
             // relative speed
             float other_speed = sqrtf(other_entity->vx * other_entity->vx + other_entity->vy * other_entity->vy);
-            obs[obs_idx + 6] = other_speed;
+            obs[obs_idx + 6] = other_speed / MAX_SPEED;
             cars_seen++;
             obs_idx += 7;  // Move to next observation slot
         }
@@ -916,10 +936,10 @@ void compute_observations(GPUDrive* env) {
             //     printf("K: %d, Entity index: %d, Geometry index: %d\n", k, entity_list[k*2], entity_list[k*2+1]);
             //     printf("start: %f, %f, end: %f, %f\n", start[0], start[1], end[0], end[1]);
             // }
-            obs[obs_idx] = x_start;
-            obs[obs_idx + 1] = y_start;
-            obs[obs_idx + 2] = x_end;
-            obs[obs_idx + 3] = y_end;
+            obs[obs_idx] = normalize_value(x_start, MIN_RG_COORD, MAX_RG_COORD);
+            obs[obs_idx + 1] = normalize_value(y_start, MIN_RG_COORD, MAX_RG_COORD);
+            obs[obs_idx + 2] = normalize_value(x_end, MIN_RG_COORD, MAX_RG_COORD);
+            obs[obs_idx + 3] = normalize_value(y_end, MIN_RG_COORD, MAX_RG_COORD);
             obs[obs_idx + 4] = entity->type;
             obs_idx += 5;
         }
