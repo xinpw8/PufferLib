@@ -411,8 +411,8 @@ void add_entity_to_grid(GPUDrive* env, int grid_index, int entity_idx, int geome
     int base_index = grid_index * SLOTS_PER_CELL;
     int count = env->grid_cells[base_index];
     if(count>= MAX_ENTITIES_PER_CELL) return;
-    env->grid_cells[base_index + count + 1] = entity_idx;
-    env->grid_cells[base_index + count + 2] = geometry_idx;
+    env->grid_cells[base_index + count*2 + 1] = entity_idx;
+    env->grid_cells[base_index + count*2 + 2] = geometry_idx;
     env->grid_cells[base_index] = count + 1;
     
 }
@@ -936,7 +936,6 @@ void compute_observations(GPUDrive* env) {
         // }
         int list_size = get_neighbor_cache_entities(env, grid_idx, entity_list, MAX_ROAD_SEGMENT_OBSERVATIONS);
         for(int k = 0; k < list_size; k++){
-            
             int entity_idx = entity_list[k*2];
             int geometry_idx = entity_list[k*2+1];
             Entity* entity = &env->entities[entity_idx];
@@ -959,6 +958,15 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 2] = x_end;
             obs[obs_idx + 3] = y_end;
             obs[obs_idx + 4] = entity->type;
+            obs_idx += 5;
+        }
+
+        for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS - list_size; k++){
+            obs[obs_idx] = -1.0f;
+            obs[obs_idx + 1] = -1.0f;
+            obs[obs_idx + 2] = -1.0f;
+            obs[obs_idx + 3] = -1.0f;
+            obs[obs_idx + 4] = -1.0f;
             obs_idx += 5;
         }
     }
