@@ -846,8 +846,8 @@ float normalize_value(float value, float min, float max){
 
 void compute_observations(GPUDrive* env) {
     int max_obs = 6 + 7 * (env->num_cars - 1) + 200 * 5;
-    float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
-    
+    memset(env->observations, 0, max_obs * env->active_agent_count * sizeof(float));
+    float (*observations)[max_obs] = (float(*)[max_obs])env->observations; 
     for(int i = 0; i < env->active_agent_count; i++) {
         float* obs = &observations[i][0];
         Entity* ego_entity = &env->entities[env->active_agent_indices[i]];
