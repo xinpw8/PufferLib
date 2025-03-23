@@ -66,6 +66,14 @@ cdef extern from "gpudrive.h":
         int dynamics_model;
         float* fake_data;
         char* goal_reached;
+        float* map_corners;
+        int* grid_cells; 
+        int grid_cols;
+        int grid_rows;
+        int vision_range;
+        int* neighbor_offsets;
+        int* neighbor_cache_entities;
+        int* neighbor_cache_indices;
 
     ctypedef struct Client
 
