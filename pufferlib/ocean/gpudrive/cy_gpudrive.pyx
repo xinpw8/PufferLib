@@ -75,6 +75,8 @@ cdef extern from "gpudrive.h":
         int* neighbor_offsets;
         int* neighbor_cache_entities;
         int* neighbor_cache_indices;
+        float reward_vehicle_collision
+        float reward_offroad_collision
 
     ctypedef struct Client
 
@@ -131,7 +133,7 @@ cdef class CyGPUDrive:
 
     def __init__(self, float[:, :] observations, int[:,:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int num_agents, int human_agent_idx):
+            int num_agents, int human_agent_idx, reward_vehicle_collision, reward_offroad_collision):
 
         self.client = NULL
         self.num_envs = num_envs
@@ -147,6 +149,8 @@ cdef class CyGPUDrive:
                 dones=&terminals[inc*i],
                 log_buffer=self.logs,
                 human_agent_idx=human_agent_idx,
+                reward_vehicle_collision=reward_vehicle_collision,
+                reward_offroad_collision=reward_offroad_collision
             )
             init(&self.envs[i])
             self.client = NULL

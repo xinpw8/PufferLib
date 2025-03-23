@@ -208,6 +208,8 @@ struct GPUDrive {
     int* neighbor_offsets;
     int* neighbor_cache_entities;
     int* neighbor_cache_indices;
+    float reward_vehicle_collision;
+    float reward_offroad_collision;
 };
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
@@ -973,13 +975,15 @@ void c_step(GPUDrive* env){
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0){
-            env->rewards[i] = -0.1f;
-            env->logs[i].episode_return -=0.1f;
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
+                env->rewards[i] = env->reward_vehicle_collision;
                 env->logs[i].collision_rate = 1.0f;
+                env->logs[i].episode_return += env->reward_vehicle_collision;
             }
             else if(env->entities[agent_idx].collision_state == OFFROAD){
+                env->rewards[i] = env->reward_offroad_collision;
                 env->logs[i].offroad_rate = 1.0f;
+                env->logs[i].episode_return += env->reward_offroad_collision;
             }
         }
 

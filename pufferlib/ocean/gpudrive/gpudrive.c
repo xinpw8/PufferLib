@@ -100,6 +100,8 @@ void demo() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
+        .reward_vehicle_collision = -0.1f,
+        .reward_offroad_collision = -0.1f,
     };
     allocate(&env);
     Weights* weights = load_weights("resources/gpu_drive_weights.bin", 135061);

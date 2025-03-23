@@ -12,6 +12,8 @@ class GPUDrive(pufferlib.PufferEnv):
             active_agent_count=5,
             human_agent_idx=0,
             num_agents = 5,
+            reward_vehicle_collision=-0.1,
+            reward_offroad_collision=-0.1,
             buf = None):
 
         # env
@@ -27,7 +29,7 @@ class GPUDrive(pufferlib.PufferEnv):
 
         super().__init__(buf=buf)
         self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, num_agents, human_agent_idx)
+            self.terminals, num_envs, num_agents, human_agent_idx, reward_vehicle_collision, reward_offroad_collision)
 
 
     def reset(self, seed=None):
