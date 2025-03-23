@@ -858,7 +858,7 @@ void compute_observations(GPUDrive* env) {
             float dx = other_entity->x - ego_entity->x;
             float dy = other_entity->y - ego_entity->y;
             float dist = sqrtf(dx*dx + dy*dy);
-            if(dist > 100.0f) continue;
+            if(dist > 50.0f) continue;
             // Rotate to ego vehicle's frame
             float rel_x = dx * cos_heading + dy * sin_heading;
             float rel_y = -dx * sin_heading + dy * cos_heading;
@@ -874,9 +874,8 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 5] = sinf(rel_heading);
             
             // relative speed
-            float ego_speed = sqrtf(ego_entity->vx * ego_entity->vx + ego_entity->vy * ego_entity->vy);
             float other_speed = sqrtf(other_entity->vx * other_entity->vx + other_entity->vy * other_entity->vy);
-            obs[obs_idx + 6] = other_speed - ego_speed;
+            obs[obs_idx + 6] = other_speed;
             cars_seen++;
             obs_idx += 7;  // Move to next observation slot
         }
