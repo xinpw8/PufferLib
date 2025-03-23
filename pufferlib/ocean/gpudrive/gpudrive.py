@@ -19,7 +19,7 @@ class GPUDrive(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.report_interval = report_interval
         
-        self.num_obs = 1002
+        self.num_obs = 1030
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
@@ -38,7 +38,7 @@ class GPUDrive(pufferlib.PufferEnv):
     def step(self, actions):
         self.actions[:] = actions
         self.c_envs.step()
-        self.tick += 1
+        self.tick+=1
         info = []
         if self.tick % self.report_interval == 0:
             log = self.c_envs.log()

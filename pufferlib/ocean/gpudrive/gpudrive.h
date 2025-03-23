@@ -436,7 +436,6 @@ void init_grid_map(GPUDrive* env){
         }
     }
 
-    printf("top_left_x: %f, top_left_y: %f, bottom_right_x: %f, bottom_right_y: %f\n", top_left_x, top_left_y, bottom_right_x, bottom_right_y);
     env->map_corners = (float*)calloc(4, sizeof(float));
     env->map_corners[0] = top_left_x;
     env->map_corners[1] = top_left_y;
@@ -446,7 +445,6 @@ void init_grid_map(GPUDrive* env){
     // Calculate grid dimensions
     float grid_width = bottom_right_x - top_left_x;
     float grid_height = bottom_right_y - top_left_y;
-    printf("grid_width: %f, grid_height: %f\n", grid_width, grid_height);
     env->grid_cols = ceil(grid_width / GRID_CELL_SIZE);
     env->grid_rows = ceil(grid_height / GRID_CELL_SIZE);
     
@@ -594,10 +592,9 @@ void init(GPUDrive* env){
     set_active_agents(env);
     set_start_position(env);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
-    printf("active_agent_count: %d\n", env->active_agent_count);
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
-    env->vision_range = 9;
+    env->vision_range = 21;
     init_neighbor_offsets(env);
     env->neighbor_cache_indices = (int*)calloc((env->grid_cols * env->grid_rows) + 1, sizeof(int));
     cache_neighbor_offsets(env);
@@ -927,6 +924,7 @@ void compute_observations(GPUDrive* env) {
             
             obs_idx += 7;  // Move to next observation slot
         }
+	
 
         // map observations
         int entity_list[MAX_ROAD_SEGMENT_OBSERVATIONS*2];  // Array big enough for all neighboring cells
@@ -969,6 +967,7 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 4] = -1.0f;
             obs_idx += 5;
         }
+	
     }
 }
 
@@ -1010,8 +1009,8 @@ void c_step(GPUDrive* env){
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0){
-            env->rewards[i] = -0.00f;
-            env->logs[i].episode_return -=0.00f;
+            env->rewards[i] = -0.1f;
+            env->logs[i].episode_return -=0.1f;
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
                 env->logs[i].collision_rate = 1.0f;
             }
