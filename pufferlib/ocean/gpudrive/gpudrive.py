@@ -19,7 +19,7 @@ class GPUDrive(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.report_interval = report_interval
         
-        self.num_obs = 1030
+        self.num_obs = 2 + 54*7 + 200*5
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])

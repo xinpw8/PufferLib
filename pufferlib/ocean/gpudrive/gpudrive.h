@@ -63,9 +63,9 @@ static const float offsets[4][2] = {
         {-1, -1}  // bottom-left
     };
 
-static const int collision_offsets[8][2] = {
+static const int collision_offsets[9][2] = {
         {-1, -1}, {0, -1}, {1, -1},  // Top row
-        {-1,  0},          {1,  0},  // Middle row (skip center)
+        {-1,  0}, {0,  0}, {1,  0},  // Middle row (skip center)
         {-1,  1}, {0,  1}, {1,  1}   // Bottom row
     };
 
@@ -793,9 +793,11 @@ int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_si
             
             // Add entities from this cell to the list
             for (int j = 0; j < count && entity_list_count < max_size; j++) {
-                int entityId = env->grid_cells[neighborIndex + 1 + j];
+                int entityId = env->grid_cells[neighborIndex + 1 + j*2];
+                int geometry_idx = env->grid_cells[neighborIndex + 2 + j*2];
                 entity_list[entity_list_count] = entityId;
-                entity_list_count++;
+                entity_list[entity_list_count + 1] = geometry_idx;
+                entity_list_count += 2;
             }
         }
     }
@@ -817,62 +819,57 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
     int collided = 0;
     int car_collided_with_index = -1;
-    int entity_list[MAX_ENTITIES_PER_CELL * 8];  // Array big enough for all neighboring cells
-    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL * 8, collision_offsets, 8);
+    int entity_list[MAX_ENTITIES_PER_CELL*2 * 9];  // Array big enough for all neighboring cells
+    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL*2 * 9, collision_offsets, 9);
     // printf("agent: %d, list_size: %d\n", agent_idx, list_size);
-    for (int i = 0; i < list_size + env->active_agent_count; i++) {
-        if(entity_list[i] == -1 && i < list_size) continue;
-        if(entity_list[i] == agent_idx && i < list_size) continue;
+    for (int i = 0; i < list_size ; i+=2) {
+        if(entity_list[i] == -1) continue;
+        if(entity_list[i] == agent_idx) continue;
         Entity* entity;
-        if( i < list_size){
-            entity = &env->entities[entity_list[i]];
+        entity = &env->entities[entity_list[i]];
+        int geometry_idx = entity_list[i + 1];
+        float start[2] = {entity->traj_x[geometry_idx], entity->traj_y[geometry_idx]};
+        float end[2] = {entity->traj_x[geometry_idx + 1], entity->traj_y[geometry_idx + 1]};
+        for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
+            int next = (k + 1) % 4;
+            if (check_line_intersection(corners[k], corners[next], start, end)) {
+                collided = OFFROAD;
+                break;
+            }
         }
-        else {
-            if(env->active_agent_indices[i-list_size] == agent_idx) continue;
-            entity = &env->entities[env->active_agent_indices[i-list_size]];
+        if (collided == OFFROAD) break;
+    }
+    for(int i = 0; i < env->num_entities; i++){
+        if(i == agent_idx) continue;
+        Entity* entity = &env->entities[i];
+        if (entity->type > 3) break;
+        if (entity->type != VEHICLE) continue;
+        float x1 = entity->x;
+        float y1 = entity->y;
+        float dist = sqrtf((x1 - agent->x) * (x1 - agent->x) + (y1 - agent->y) * (y1 - agent->y));
+        if(dist > 5.0f) continue;
+        float other_corners[4][2];
+        for (int z = 0; z < 4; z++) {
+            float other_cos_heading = cosf(entity->traj_heading[0]);
+            float other_sin_heading = sinf(entity->traj_heading[0]);
+            float other_half_length = entity->length / 2.0f;
+            float other_half_width = entity->width / 2.0f;
+            other_corners[z][0] = entity->x + (offsets[z][0] * other_half_length * other_cos_heading - offsets[z][1] * other_half_width * other_sin_heading);
+            other_corners[z][1] = entity->y + (offsets[z][0] * other_half_length * other_sin_heading + offsets[z][1] * other_half_width * other_cos_heading);
         }
-        if(entity->type == ROAD_EDGE){
-            for (int j = 0; j < entity->array_size - 1; j++) {
-                float start[2] = {entity->traj_x[j], entity->traj_y[j]};
-                float end[2] = {entity->traj_x[j + 1], entity->traj_y[j + 1]};
-                for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
-                    int next = (k + 1) % 4;
-                    if (check_line_intersection(corners[k], corners[next], start, end)) {
-                        collided = OFFROAD;
-                        break;
-                    }
+        for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
+            int next = (k + 1) % 4;
+            for (int l = 0; l < 4; l++) { // Check each edge of the bounding box
+                int next_l = (l + 1) % 4;
+                if (check_line_intersection(corners[k], corners[next], other_corners[l], other_corners[next_l])) {
+                    collided = VEHICLE_COLLISION;
+                    car_collided_with_index = i;
+                    break;
                 }
-                if (collided == OFFROAD) break;
             }
+            if (collided == VEHICLE_COLLISION) break;
         }
-        if(entity->type == VEHICLE){
-            float other_corners[4][2];
-            for (int z = 0; z < 4; z++) {
-                float other_cos_heading = cosf(entity->traj_heading[0]);
-                float other_sin_heading = sinf(entity->traj_heading[0]);
-                float other_half_length = entity->length / 2.0f;
-                float other_half_width = entity->width / 2.0f;
-                other_corners[z][0] = entity->x + (offsets[z][0] * other_half_length * other_cos_heading - offsets[z][1] * other_half_width * other_sin_heading);
-                other_corners[z][1] = entity->y + (offsets[z][0] * other_half_length * other_sin_heading + offsets[z][1] * other_half_width * other_cos_heading);
-            }
-            for (int k = 0; k < 4; k++) { // Check each edge of the bounding box
-                int next_k = (k + 1) % 4;
-                for (int l = 0; l < 4; l++) { // Check each edge of the bounding box
-                    int next_l = (l + 1) % 4;
-                    if (check_line_intersection(corners[k], corners[next_k], other_corners[l], other_corners[next_l])) {
-                        collided = VEHICLE_COLLISION;
-                        if( i < list_size){
-                            car_collided_with_index = entity_list[i];
-                        }
-                        else {
-                            car_collided_with_index = env->active_agent_indices[i-list_size];
-                        }
-                        break;
-                    }
-                }
-		        if (collided == VEHICLE_COLLISION) break;
-            }
-        }
+        if (collided == VEHICLE_COLLISION) break;
     }
     agent->collision_state = collided;
     if (car_collided_with_index != -1) {
@@ -936,7 +933,7 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 3] = -1.0f;
             obs[obs_idx + 4] = -1.0f;
             obs[obs_idx + 5] = -1.0f;
-            obs[obs_idx + 6] = -1.0f;
+            obs[obs_idx + 6] = 1.0f;
             obs_idx += 7;
         }
 	
@@ -979,7 +976,7 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 1] = -1.0f;
             obs[obs_idx + 2] = -1.0f;
             obs[obs_idx + 3] = -1.0f;
-            obs[obs_idx + 4] = -1.0f;
+            obs[obs_idx + 4] = 6.0f;
             obs_idx += 5;
         }
 	
