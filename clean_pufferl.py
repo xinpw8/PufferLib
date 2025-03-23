@@ -93,12 +93,10 @@ def compute_advantages(
 
 def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     seed_everything(config.seed, config.torch_deterministic)
-    profile = Profile()
     losses = make_losses()
 
     utilization = Utilization()
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
-    print_dashboard(config.env, utilization, 0, 0, profile, losses, {}, msg, clear=True)
 
     vecenv.async_reset(config.seed)
     obs_shape = vecenv.single_observation_space.shape
@@ -148,6 +146,9 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     scaler = None if config.precision == 'float32' else torch.amp.GradScaler()
     amp_context = (nullcontext() if config.precision == 'float32'
         else torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision)))
+
+    profile = Profile()
+    print_dashboard(config.env, utilization, 0, 0, profile, losses, {}, msg, clear=True)
 
     return pufferlib.namespace(
         config=config,
