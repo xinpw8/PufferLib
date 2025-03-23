@@ -1115,7 +1115,7 @@ void c_render(Client* client, GPUDrive* env) {
                         float* agent_obs = &observations[agent_index][0];
                     
                         // First draw other agent observations
-                        int obs_idx = 2;  // Start after goal distances
+                        int obs_idx = 6;  // Start after goal distances
                         for(int j = 0; j < env->num_cars - 1; j++) {  // -1 because we skip self
                             if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
                                 // Draw position of other agents
@@ -1128,7 +1128,7 @@ void c_render(Client* client, GPUDrive* env) {
                         }
 
                         // Then draw map observations
-                        int map_start_idx = 2 + 7 * (env->num_cars - 1);  // Start after agent observations
+                        int map_start_idx = 6 + 7 * (env->num_cars - 1);  // Start after agent observations
                         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
                             int entity_idx = map_start_idx + k * 5;
                             if(agent_obs[entity_idx] != -1 && agent_obs[entity_idx + 1] != -1) {
