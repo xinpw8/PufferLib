@@ -587,6 +587,7 @@ void allocate(GPUDrive* env){
     int max_obs = 6 + 7 * (env->num_cars - 1) + 200 * 5;
     printf("max obs: %d\n", max_obs*env->active_agent_count);
     printf("num cars: %d\n", env->num_cars);
+    printf("active agent count: %d\n", env->active_agent_count);
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -842,6 +843,10 @@ void collision_check(GPUDrive* env, int agent_idx) {
 
 float normalize_value(float value, float min, float max){
     return (value - min) / (max - min);
+}
+
+float reverse_normalize_value(float value, float min, float max){
+    return value * (max - min) + min;
 }
 
 void compute_observations(GPUDrive* env) {
@@ -1136,15 +1141,16 @@ void c_render(Client* client, GPUDrive* env) {
                         int max_obs = 6 + 7 * (env->num_cars - 1) + 200 * 5;
                         float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
                         float* agent_obs = &observations[agent_index][0];
-                    
                         // First draw other agent observations
                         int obs_idx = 6;  // Start after goal distances
                         for(int j = 0; j < env->num_cars - 1; j++) {  // -1 because we skip self
                             if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
                                 // Draw position of other agents
+                                float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
+                                float y = reverse_normalize_value(agent_obs[obs_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
                                 DrawLine3D((Vector3){0, 0, 0}, 
-                                        (Vector3){agent_obs[obs_idx], 
-                                                agent_obs[obs_idx + 1], 1}, 
+                                        (Vector3){x, 
+                                                y, 1}, 
                                         ORANGE);
                             }
                             obs_idx += 7;  // Move to next agent observation (7 values per agent)
@@ -1162,8 +1168,12 @@ void c_render(Client* client, GPUDrive* env) {
                                     lineColor = BLACK;
                                     // For road segments, draw line between start and end points
                                     if(agent_obs[entity_idx + 2] != -1 && agent_obs[entity_idx + 3] != -1) {
-                                        DrawLine3D((Vector3){0,0,0}, (Vector3){agent_obs[entity_idx], agent_obs[entity_idx + 1], 1}, lineColor);    
-                                        DrawLine3D((Vector3){0,0,0}, (Vector3){agent_obs[entity_idx + 2], agent_obs[entity_idx + 3], 1}, lineColor);
+                                        float x_start = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
+                                        float y_start = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
+                                        float x_end = reverse_normalize_value(agent_obs[entity_idx + 2], MIN_RG_COORD, MAX_RG_COORD);
+                                        float y_end = reverse_normalize_value(agent_obs[entity_idx + 3], MIN_RG_COORD, MAX_RG_COORD);
+                                        DrawLine3D((Vector3){0,0,0}, (Vector3){x_start, y_start, 1}, lineColor);    
+                                        DrawLine3D((Vector3){0,0,0}, (Vector3){x_end, y_end, 1}, lineColor);
                                     }
                                 }
                             }
