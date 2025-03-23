@@ -58,7 +58,9 @@ def init_neptune(args, name, id=None, resume=True, tag=None):
 def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'],
         use_p3o=args['train']['use_p3o'],
-        p3o_horizon=args['train']['p3o_horizon']
+        p3o_horizon=args['train']['p3o_horizon'],
+        use_diayn=args['train']['use_diayn'],
+        diayn_skills=args['train']['diayn_archive'],
     )
     args['rnn']['input_size'] = policy.hidden_size
     args['rnn']['hidden_size'] = policy.hidden_size

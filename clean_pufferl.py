@@ -145,9 +145,9 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     elif config.scheduler == 'cosine':
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    scaler = torch.amp.GradScaler()
+    scaler = None if config.precision == 'float32' else torch.amp.GradScaler()
     amp_context = (nullcontext() if config.precision == 'float32'
-        else torch.amp.autocast(device_type='cuda', dtype=config.precision))
+        else torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision)))
 
     return pufferlib.namespace(
         config=config,
@@ -224,6 +224,8 @@ def evaluate(data):
                 r = torch.as_tensor(r).to(config.device, non_blocking=True)
                 d = torch.as_tensor(d).to(config.device, non_blocking=True)
 
+                h = None
+                c = None
                 if lstm_h is not None:
                     h = lstm_h[0, gpu_env_id]
                     c = lstm_c[0, gpu_env_id]
@@ -248,24 +250,24 @@ def evaluate(data):
                     state.diayn_z = z
 
                 logits, value = policy(o_device, state)
-                value = value.flatten()
                 action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
 
                 if data.use_diayn:
                     diayn_policy = policy if lstm_h is None else policy.policy
                     q = diayn_policy.diayn_discriminator(state.hidden).squeeze()
                     r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
-                    r += config.diayn_coef*r_diayn.cpu()# - np.log(1/data.diayn_archive)
+                    r += config.diayn_coef*r_diayn# - np.log(1/data.diayn_archive)
                     state.diayn_z = z
                     state.diayn_z_idxs = z_idxs
 
                 if data.use_e3b:
                     e3b = experience.e3b_inv[env_id]
-                    phi = hidden.detach()        
+                    phi = state.hidden.detach()        
                     u = phi.unsqueeze(1) @ e3b
                     b = u @ phi.unsqueeze(2)
                     experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
-                    experience.e3b_inv[done_mask] = experience.e3b_orig[done_mask]
+                    done_inds = env_id[done_mask]
+                    experience.e3b_inv[done_inds] = experience.e3b_orig[done_inds]
                     e3b_reward = b.squeeze()
 
                     if experience.e3b_mean is None:
@@ -278,7 +280,7 @@ def evaluate(data):
 
                     e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
                     e3b_reward = config.e3b_coef*e3b_reward
-                    r += e3b_reward.cpu()
+                    r += e3b_reward
 
                 # Clip rewards
                 r = torch.clamp(r, -1, 1)
@@ -296,7 +298,7 @@ def evaluate(data):
 
             with profile.eval_copy:
                 o = o if config.cpu_offload else o_device
-                actions = experience.store(o, o_device, value, action, logprob, r, d, env_id, mask)
+                actions = experience.store(o, o_device, value, action, logprob, r, d, env_id, mask, state.diayn_z_idxs)
 
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
@@ -385,12 +387,9 @@ def train(data):
             horizon = horizon[0].item()+1 if len(horizon) else 1
             if horizon < 16:
                 horizon = 16
-            print('Horizon:', horizon)
+
             advantages = advantages.cpu().numpy()
             torch.cuda.synchronize()
-
-            #if np.random.rand() < 0.01:
-            #    breakpoint()
 
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
@@ -407,6 +406,7 @@ def train(data):
     total_minibatches = experience.num_minibatches * config.update_epochs
     mean_pg_loss, mean_v_loss, mean_entropy_loss = 0, 0, 0
     mean_old_kl, mean_kl, mean_clipfrac = 0, 0, 0
+    cross_entropy = torch.nn.CrossEntropyLoss()
     for epoch in range(config.update_epochs):
         lstm_h = None
         lstm_c = None
@@ -424,6 +424,9 @@ def train(data):
                 adv = experience.b_advantages[mb]
                 ret = experience.b_returns[mb]
 
+                if config.use_diayn:
+                    z_idxs = experience.b_diayn_z_idxs[mb]
+
                 if config.use_p3o:
                     val_mean = experience.b_values_mean[mb]
                     val_std = experience.b_values_std[mb]
@@ -437,8 +440,8 @@ def train(data):
 
             with data.amp_context:
                 with profile.train_forward:
-                    #if lstm_h is None:
-                    #    obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+                    if not hasattr(data.policy, 'recurrent'):
+                        obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
                     logits, newvalue = data.policy.forward_train(obs, state)
                     lstm_h = state.lstm_h
@@ -478,8 +481,8 @@ def train(data):
 
                     # Value loss
                     if config.use_p3o:
-                        newvalue_mean = newvalue_mean.view(-1, config.p3o_horizon)
-                        newvalue_std = newvalue_std.view(-1, config.p3o_horizon)
+                        newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
+                        newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
                         newvalue_var = torch.square(newvalue_std)
                         criterion = torch.nn.GaussianNLLLoss(reduction='none')
                         #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
@@ -502,6 +505,7 @@ def train(data):
                         #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
                         #v_loss = v_loss[mask_block.bool()].mean()
                     elif config.clip_vloss:
+                        newvalue = newvalue.flatten()
                         v_loss_unclipped = (newvalue - ret) ** 2
                         v_clipped = val + torch.clamp(
                             newvalue - val,
@@ -512,14 +516,16 @@ def train(data):
                         v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
                         v_loss = 0.5 * v_loss_max.mean()
                     else:
+                        newvalue = newvalue.flatten()
                         v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
 
                     entropy_loss = entropy.mean()
-                    loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
+                    loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
 
                     with profile.custom:
                         if config.use_diayn:
-                            q = data.policy.diayn_discriminator(hidden).squeeze()
+                            diayn_discriminator = data.policy.diayn_discriminator if hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator
+                            q = diayn_discriminator(state.hidden).squeeze()
                             diayn_loss = cross_entropy(q, z_idxs)
                             loss += config.diayn_loss_coef*diayn_loss
                             torch.cuda.synchronize()
@@ -531,7 +537,7 @@ def train(data):
                 else:
                     data.scaler.scale(loss).backward()
 
-                if data.scaler is None:
+                if data.scaler is not None:
                     data.scaler.unscale_(data.optimizer)
 
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
@@ -779,6 +785,7 @@ def make_losses():
         approx_kl=0,
         clipfrac=0,
         explained_variance=0,
+        diayn_loss=0,
     )
 
 class Experience:
@@ -864,7 +871,7 @@ class Experience:
     def full(self):
         return self.ptr >= self.batch_size
 
-    def store(self, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask):
+    def store(self, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask, diayn_z=None):
         # Mask learner and Ensure indices do not exceed batch size
         ptr = self.ptr
         indices = np.where(mask)[0]
