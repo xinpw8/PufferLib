@@ -248,6 +248,7 @@ struct GPUDrive {
     int human_agent_idx;
     Entity* entities;
     int num_entities;
+    int num_cars;
     int timestep;
     int dynamics_model;
     float* fake_data;
@@ -344,6 +345,7 @@ void set_active_agents(GPUDrive* env){
     int active_agent_indices[env->num_entities];
     for(int i = 0; i < env->num_entities; i++){
         if(env->entities[i].type == 1){
+            env->num_cars++;
             int start_idx=0;
             for(int j = 0; j<env->entities[i].array_size; j++){
                 if(env->entities[i].traj_valid[j] == 1){
@@ -619,8 +621,9 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 5;
+    int max_obs = 2 + 7 * (env->num_cars - 1) + 200 * 5;
     printf("max obs: %d\n", max_obs*env->active_agent_count);
+    printf("num cars: %d\n", env->num_cars);
     env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
@@ -878,12 +881,13 @@ void collision_check(GPUDrive* env, int agent_idx) {
 }
 
 void compute_observations(GPUDrive* env) {
-    int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 5;
+    int max_obs = 2 + 7 * (env->num_cars - 1) + 200 * 5;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     
     for(int i = 0; i < env->active_agent_count; i++) {
         float* obs = &observations[i][0];
         Entity* ego_entity = &env->entities[env->active_agent_indices[i]];
+        if(ego_entity->type > 3) break;
         float cos_heading = cosf(ego_entity->heading);
         float sin_heading = sinf(ego_entity->heading);
         // Set goal distances
@@ -892,20 +896,21 @@ void compute_observations(GPUDrive* env) {
         
         // Relative Pos of other cars
         int obs_idx = 2;  // Start after goal distances
-        for(int j = 0; j < env->active_agent_count; j++) {
+        int cars_seen = 0;
+        for(int j = 0; j < env->num_entities; j++) {
+            if(env->entities[j].type > 3) break;
             if(j == i) continue;  // Skip self, but don't increment obs_idx
             
-            int other_agent_idx = env->active_agent_indices[j];
-            Entity* other_entity = &env->entities[other_agent_idx];
+            Entity* other_entity = &env->entities[j];
             
             // Store original relative positions
             float dx = other_entity->x - ego_entity->x;
             float dy = other_entity->y - ego_entity->y;
-            
+            float dist = sqrtf(dx*dx + dy*dy);
+            if(dist > 100.0f) continue;
             // Rotate to ego vehicle's frame
             float rel_x = dx * cos_heading + dy * sin_heading;
             float rel_y = -dx * sin_heading + dy * cos_heading;
-            
             // Store observations with correct indexing
             obs[obs_idx] = rel_x;
             obs[obs_idx + 1] = rel_y;
@@ -921,8 +926,18 @@ void compute_observations(GPUDrive* env) {
             float ego_speed = sqrtf(ego_entity->vx * ego_entity->vx + ego_entity->vy * ego_entity->vy);
             float other_speed = sqrtf(other_entity->vx * other_entity->vx + other_entity->vy * other_entity->vy);
             obs[obs_idx + 6] = other_speed - ego_speed;
-            
+            cars_seen++;
             obs_idx += 7;  // Move to next observation slot
+        }
+        for(int j = cars_seen; j < env->num_cars - 1; j++){
+            obs[obs_idx] = -1.0f;
+            obs[obs_idx + 1] = -1.0f;
+            obs[obs_idx + 2] = -1.0f;
+            obs[obs_idx + 3] = -1.0f;
+            obs[obs_idx + 4] = -1.0f;
+            obs[obs_idx + 5] = -1.0f;
+            obs[obs_idx + 6] = -1.0f;
+            obs_idx += 7;
         }
 	
 
@@ -1146,13 +1161,13 @@ void c_render(Client* client, GPUDrive* env) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
                     if( agent_index == env->human_agent_idx){
-                        int max_obs = 2 + 7 * (env->active_agent_count - 1) + 200 * 5;
+                        int max_obs = 2 + 7 * (env->num_cars - 1) + 200 * 5;
                         float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
                         float* agent_obs = &observations[agent_index][0];
                     
                         // First draw other agent observations
                         int obs_idx = 2;  // Start after goal distances
-                        for(int j = 0; j < env->active_agent_count - 1; j++) {  // -1 because we skip self
+                        for(int j = 0; j < env->num_cars - 1; j++) {  // -1 because we skip self
                             if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
                                 // Draw position of other agents
                                 DrawLine3D((Vector3){0, 0, 0}, 
@@ -1164,7 +1179,7 @@ void c_render(Client* client, GPUDrive* env) {
                         }
 
                         // Then draw map observations
-                        int map_start_idx = 2 + 7 * (env->active_agent_count - 1);  // Start after agent observations
+                        int map_start_idx = 2 + 7 * (env->num_cars - 1);  // Start after agent observations
                         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
                             int entity_idx = map_start_idx + k * 5;
                             if(agent_obs[entity_idx] != -1 && agent_obs[entity_idx + 1] != -1) {

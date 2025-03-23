@@ -62,6 +62,7 @@ cdef extern from "gpudrive.h":
         int human_agent_idx;
         Entity* entities;
         int num_entities;
+        int num_cars;
         int timestep;
         int dynamics_model;
         float* fake_data;
