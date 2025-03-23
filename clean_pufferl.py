@@ -298,7 +298,7 @@ def evaluate(data):
 
             with profile.eval_copy:
                 o = o if config.cpu_offload else o_device
-                actions = experience.store(o, o_device, value, action, logprob, r, d, env_id, mask, state.diayn_z_idxs)
+                actions = experience.store(state, o, o_device, value, action, logprob, r, d, env_id, mask)
 
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
@@ -871,7 +871,7 @@ class Experience:
     def full(self):
         return self.ptr >= self.batch_size
 
-    def store(self, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask, diayn_z=None):
+    def store(self, state, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask):
         # Mask learner and Ensure indices do not exceed batch size
         ptr = self.ptr
         indices = np.where(mask)[0]
@@ -892,7 +892,7 @@ class Experience:
             self.obs[dst] = cpu_obs[cpu_inds]
 
         if self.use_diayn:
-            self.diayn_batch[dst] = diayn_z[gpu_inds]
+            self.diayn_batch[dst] = state.diayn_z_idxs[gpu_inds]
 
         if self.use_p3o:
             self.values_mean[dst] = value.mean[gpu_inds]
