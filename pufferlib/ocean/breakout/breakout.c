@@ -20,7 +20,7 @@ void demo() {
         .brick_cols = 18,
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
  
     Client* client = make_client(&env);
 
@@ -28,15 +28,14 @@ void demo() {
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             env.actions[0] = 0;
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 1;
-            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 2;
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 3;
+            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 1;
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 2;
         } else {
-            forward_linearlstm(net, env.observations, env.actions);
+            // forward_linearlstm(net, env.observations, env.actions);
         }
 
-        step(&env);
-        render(client, &env);
+        c_step(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);
@@ -60,13 +59,13 @@ void performance_test() {
         .brick_cols = 18,
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
 
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % 4;
-        step(&env);
+        c_step(&env);
         i++;
     }
     long end = time(NULL);

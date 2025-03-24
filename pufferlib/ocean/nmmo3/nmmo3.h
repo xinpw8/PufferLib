@@ -1669,7 +1669,7 @@ void enemy_ai(MMO* env, int pid) {
     wander(env, pid);
 }
 
-void reset(MMO* env, int seed) {
+void c_reset(MMO* env, int seed) {
     srand(time(NULL));
     env->tick = 0;
 
@@ -1873,7 +1873,7 @@ void reset(MMO* env, int seed) {
     compute_all_obs(env);
 }
 
-void step(MMO* env) {
+void c_step(MMO* env) {
     env->tick += 1;
     int tick = env->tick;
 
@@ -2576,7 +2576,7 @@ void close_client(Client* client) {
     UnloadRenderTexture(client->ui_buffer);
     for (int i = 0; i < NUM_PLAYER_TEXTURES; i++) {
         for (int element = 0; element < 5; element++) {
-            UnloadTexture(client->players[i][element]);
+            UnloadTexture(client->players[element][i]);
         }
     }
     UnloadFont(client->font);

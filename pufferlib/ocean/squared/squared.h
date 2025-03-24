@@ -38,7 +38,7 @@ void free_allocated(Squared* env) {
     free(env->terminals);
 }
 
-void reset(Squared* env) {
+void c_reset(Squared* env) {
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->observations[env->size*env->size/2] = AGENT;
     env->r = env->size/2;
@@ -51,7 +51,7 @@ void reset(Squared* env) {
     env->observations[target_idx] = TARGET;
 }
 
-void step(Squared* env) {
+void c_step(Squared* env) {
     int action = env->actions[0];
     env->terminals[0] = 0;
     env->rewards[0] = 0;
@@ -75,7 +75,7 @@ void step(Squared* env) {
             || env->c >= env->size) {
         env->terminals[0] = 1;
         env->rewards[0] = -1.0;
-        reset(env);
+        c_reset(env);
         return;
     }
 
@@ -83,7 +83,7 @@ void step(Squared* env) {
     if (env->observations[pos] == TARGET) {
         env->terminals[0] = 1;
         env->rewards[0] = 1.0;
-        reset(env);
+        c_reset(env);
         return;
     }
 
@@ -111,7 +111,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Client* client, Squared* env) {
+void c_render(Client* client, Squared* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

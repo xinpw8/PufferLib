@@ -15,7 +15,7 @@ void interactive() {
         .piece_height = 96,
     };
     allocate_cconnect4(&env);
-    reset(&env);
+    c_reset(&env);
  
     Client* client = make_client(env.width, env.height);
     float observations[42] = {0};
@@ -43,10 +43,10 @@ void interactive() {
 
         tick = (tick + 1) % 60;
         if (env.actions[0] >= 0 && env.actions[0] <= 6) {
-            step(&env);
+            c_step(&env);
         }
 
-        render(client, &env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);
@@ -63,13 +63,13 @@ void performance_test() {
         .piece_height = 96,
     };
     allocate_cconnect4(&env);
-    reset(&env);
+    c_reset(&env);
  
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand() % 7;
-        step(&env);
+        c_step(&env);
         i++;
     }
     long end = time(NULL);

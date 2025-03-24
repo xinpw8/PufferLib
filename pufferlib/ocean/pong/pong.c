@@ -21,24 +21,32 @@ int main() {
         .ball_max_speed_y = 13,
         .max_score = 21,
         .frameskip = 1,
+        .continuous = 0,
     };
     allocate(&env);
 
     Client* client = make_client(&env);
 
-    reset(&env);
+    c_reset(&env);
     while (!WindowShouldClose()) {
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = 0;
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 1;
-            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 2;
+            if(env.continuous) {
+                float move = GetMouseWheelMove();
+                float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
+                env.actions[0] = clamped_wheel;
+                printf("Mouse wheel move: %f\n", env.actions[0]);
+            } else {
+                env.actions[0] = 0.0;
+                if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 1.0;
+                if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 2.0;
+            }
         } else {
             forward_linearlstm(net, env.observations, env.actions);
         }
 
-        step(&env);
-        render(client, &env);
+        c_step(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);

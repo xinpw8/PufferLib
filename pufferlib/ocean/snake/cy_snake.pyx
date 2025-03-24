@@ -47,12 +47,12 @@ cdef extern from "snake.h":
         void compute_observations(CSnake* env)
         void spawn_snake(CSnake* env, int snake_id)
         void spawn_food(CSnake* env)
-        void reset(CSnake* env)
+        void c_reset(CSnake* env)
         void step_snake(CSnake* env, int i)
-        void step(CSnake* env)
+        void c_step(CSnake* env)
         ctypedef struct Client
         Client* make_client(int cell_size, int width, int height)
-        void render(Client* client, CSnake* env)
+        void c_render(Client* client, CSnake* env)
         void close_client(Client* client)
 
 cdef class CySnake:
@@ -100,19 +100,19 @@ cdef class CySnake:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self, cell_size=8):
         cdef CSnake* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(cell_size, env.width, env.height)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:

@@ -4,9 +4,8 @@
 #include "raylib.h"
 
 #define NOOP 0
-#define FIRE 1
-#define LEFT 2
-#define RIGHT 3
+#define LEFT 1
+#define RIGHT 2
 #define MAX_BALL_SPEED 448
 #define HALF_PADDLE_WIDTH 31
 #define Y_OFFSET 50
@@ -75,7 +74,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 typedef struct Breakout Breakout;
 struct Breakout {
     float* observations;
-    int* actions;
+    float* actions;
     float* rewards;
     unsigned char* dones;
     LogBuffer* log_buffer;
@@ -109,6 +108,7 @@ struct Breakout {
     int half_max_score;
     int frameskip;
     unsigned char hit_brick;
+    int continuous;
 };
 
 typedef struct CollisionInfo CollisionInfo;
@@ -149,7 +149,7 @@ void init(Breakout* env) {
 void allocate(Breakout* env) {
     init(env);
     env->observations = (float*)calloc(11 + env->num_bricks, sizeof(float));
-    env->actions = (int*)calloc(1, sizeof(int));
+    env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
@@ -437,7 +437,7 @@ void reset_round(Breakout* env) {
     env->ball_vx = 0.0;
     env->ball_vy = 0.0;
 }
-void reset(Breakout* env) {
+void c_reset(Breakout* env) {
     env->log = (Log){0};
     env->score = 0;
     env->num_balls = 5;
@@ -448,8 +448,9 @@ void reset(Breakout* env) {
     compute_observations(env);
 }
 
-void step_frame(Breakout* env, int action) {
-    if (action == FIRE && env->balls_fired == 0) {
+void step_frame(Breakout* env, float action) {
+    float act =0.0;
+    if (env->balls_fired == 0) {
         env->balls_fired = 1;
         float direction = M_PI / 3.25f;
 
@@ -458,14 +459,22 @@ void step_frame(Breakout* env, int action) {
         if (rand() % 2 == 0) {
             env->ball_vx = -env->ball_vx;
         }
-    } else if (action == LEFT) {
-        env->paddle_x -= 620 * TICK_RATE;
-        env->paddle_x = fmaxf(0, env->paddle_x);
+    }   
+     else if (action == LEFT) {
+        act = -1.0;
     } else if (action == RIGHT) {
-        env->paddle_x += 620 * TICK_RATE;
+        act = 1.0;
+    }
+    if (env->continuous){
+        act = action;
+    }
+    env->paddle_x += act * 620 * TICK_RATE;
+    if (env->paddle_x <= 0){
+        env->paddle_x = fmaxf(0, env->paddle_x);
+
+    } else {
         env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
     }
-
 
     //Handle collisions. 
     //Regular timestepping is done only if there are no collisions.
@@ -482,16 +491,16 @@ void step_frame(Breakout* env, int action) {
         env->dones[0] = 1;
         env->log.score = env->score;
         add_log(env->log_buffer, &env->log);
-        reset(env);
+        c_reset(env);
     }
 }
 
-void step(Breakout* env) {
+void c_step(Breakout* env) {
     env->dones[0] = 0;
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
 
-    int action = env->actions[0];
+    float action = env->actions[0];
     for (int i = 0; i < env->frameskip; i++) {
         step_frame(env, action);
     }
@@ -523,7 +532,7 @@ Client* make_client(Breakout* env) {
     return client;
 }
 
-void render(Client* client, Breakout* env) {
+void c_render(Client* client, Breakout* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

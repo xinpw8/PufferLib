@@ -14,7 +14,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
         .do_human_control = true
     };
 
-    bool use_pretrained_model = true;
+    bool use_pretrained_model = false;
 
     Weights* weights;
     ConvLSTM* net;
@@ -28,7 +28,7 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
     allocate(&env);
     Client* client = make_client(&env);
 
-    reset(&env);
+    c_reset(&env);
 
     int tick = 0;
     while (!WindowShouldClose()) {
@@ -64,12 +64,12 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
             }
 
             // Step the environment and render the grid
-            step(&env);
+            c_step(&env);
             
         }
         tick++;
 
-        render(client, &env);
+        c_render(client, &env);
     }
 
     free_convlstm(net);
@@ -91,7 +91,7 @@ void performance_test() {
         .agent_sight_range = 5
     };
     allocate(&env);
-    reset(&env);
+    c_reset(&env);
 
     long start = time(NULL);
     int i = 0;
@@ -100,7 +100,7 @@ void performance_test() {
         for (int e = 0; e < env.num_agents; e++) {
             env.actions[e] = rand() % 4;
         }
-        step(&env);
+        c_step(&env);
         i += inc;
     }
     long end = time(NULL);

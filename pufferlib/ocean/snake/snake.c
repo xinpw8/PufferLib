@@ -16,7 +16,7 @@ int demo() {
         .reward_death = -1.0f,
     };
     allocate_csnake(&env);
-    reset(&env);
+    c_reset(&env);
 
     Weights* weights = load_weights("resources/snake_weights.bin", 148357);
     LinearLSTM* net = make_linearlstm(weights, env.num_snakes, env.obs_size, 4);
@@ -35,8 +35,8 @@ int demo() {
             }
             forward_linearlstm(net, net->obs, env.actions);
         }
-        step(&env);
-        render(client, &env);
+        c_step(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);
@@ -59,7 +59,7 @@ void test_performance(float test_time) {
         .reward_death = -1.0f,
     };
     allocate_csnake(&env);
-    reset(&env);
+    c_reset(&env);
 
     int start = time(NULL);
     int i = 0;
@@ -67,7 +67,7 @@ void test_performance(float test_time) {
         for (int j = 0; j < env.num_snakes; j++) {
             env.actions[j] = rand()%4;
         }
-        step(&env);
+        c_step(&env);
         i++;
     }
     int end = time(NULL);

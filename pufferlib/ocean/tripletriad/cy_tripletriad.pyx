@@ -43,9 +43,9 @@ cdef extern from "tripletriad.h":
 
     Client* make_client(float width, float height)
     void close_client(Client* client)
-    void render(Client* client, CTripleTriad* env)
-    void reset(CTripleTriad* env)
-    void step(CTripleTriad* env)
+    void c_render(Client* client, CTripleTriad* env)
+    void c_reset(CTripleTriad* env)
+    void c_step(CTripleTriad* env)
 
 cdef class CyTripleTriad:
     cdef:
@@ -82,19 +82,19 @@ cdef class CyTripleTriad:
     def reset(self):
         cdef int i
         for i in range(self.num_envs):
-            reset(&self.envs[i])
+            c_reset(&self.envs[i])
 
     def step(self):
         cdef int i
         for i in range(self.num_envs):
-            step(&self.envs[i])
+            c_step(&self.envs[i])
 
     def render(self):
         cdef CTripleTriad* env = &self.envs[0]
         if self.client == NULL:
             self.client = make_client(env.width, env.height)
 
-        render(self.client, env)
+        c_render(self.client, env)
 
     def close(self):
         if self.client != NULL:

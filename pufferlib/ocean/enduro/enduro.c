@@ -47,7 +47,7 @@ int demo() {
 
     unsigned int seed = 0;
     init(&env, seed, 0);
-    reset(&env);
+    c_reset(&env);
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -78,7 +78,7 @@ void perftest(float test_time) {
 
     unsigned int seed = 12345;
     init(&env, seed, 0);
-    reset(&env);
+    c_reset(&env);
 
     int start = time(NULL);
     int i = 0;

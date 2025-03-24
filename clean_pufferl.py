@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 import torch
+import torch.distributed as dist
 
 import pufferlib
 import pufferlib.utils
@@ -27,7 +28,7 @@ torch.set_float32_matmul_precision('high')
 from c_gae import compute_gae
 
 
-def create(config, vecenv, policy, optimizer=None, wandb=None):
+def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     seed_everything(config.seed, config.torch_deterministic)
     profile = Profile()
     losses = make_losses()
@@ -45,8 +46,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None):
 
     lstm = policy.lstm if hasattr(policy, 'lstm') else None
     experience = Experience(config.batch_size, config.bptt_horizon,
-        config.minibatch_size, obs_shape, obs_dtype, atn_shape, atn_dtype,
-        config.cpu_offload, config.device, lstm, total_agents)
+        config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
+        atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents)
 
     uncompiled_policy = policy
 
@@ -66,12 +67,17 @@ def create(config, vecenv, policy, optimizer=None, wandb=None):
         profile=profile,
         losses=losses,
         wandb=wandb,
+        neptune=neptune,
         global_step=0,
         epoch=0,
+        use_e3b=config.use_e3b,
+        e3b_coef=config.e3b_coef,
         stats=defaultdict(list),
         msg=msg,
         last_log_time=0,
         utilization=utilization,
+        intrinsic_mean=None,
+        intrinsic_std=None,
     )
 
 @pufferlib.utils.profile
@@ -82,11 +88,17 @@ def evaluate(data):
         policy = data.policy
         infos = defaultdict(list)
         lstm_h, lstm_c = experience.lstm_h, experience.lstm_c
+        e3b_inv = experience.e3b_inv
 
     while not experience.full:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
             env_id = env_id.tolist()
+            e3b_inv = experience.e3b_inv if data.use_e3b else None
+            done_mask = d + t
+            if data.use_e3b and done_mask.any():
+                done_idxs = torch.tensor(env_id)[done_mask]
+                e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
 
         with profile.eval_misc:
             data.global_step += sum(mask)
@@ -102,11 +114,36 @@ def evaluate(data):
             if lstm_h is not None:
                 h = lstm_h[:, env_id]
                 c = lstm_c[:, env_id]
-                actions, logprob, _, value, (h, c) = policy(o_device, (h, c))
+                if data.use_e3b:
+                    e3b = e3b_inv[env_id]
+                    actions, logprob, _, value, (h, c), next_e3b, intrinsic_reward = policy(o_device, (h, c), e3b=e3b)
+                else:
+                    actions, logprob, _, value, (h, c) = policy(o_device, (h, c))
                 lstm_h[:, env_id] = h
                 lstm_c[:, env_id] = c
             else:
-                actions, logprob, _, value = policy(o_device)
+                if data.use_e3b:
+                    e3b = e3b_inv[env_id]
+                    actions, logprob, _, value, next_e3b, intrinsic_reward = policy(o_device, e3b=e3b)
+                else:
+                    actions, logprob, _, value = policy(o_device)
+
+            if data.use_e3b:
+                e3b_inv[env_id] = next_e3b
+
+                if data.intrinsic_mean is None:
+                    data.intrinsic_mean = intrinsic_reward.mean()
+                    data.intrinsic_std = intrinsic_reward.std()
+                else:
+                    data.intrinsic_mean = (0.999*data.intrinsic_mean + 0.001*intrinsic_reward.mean())
+                    data.intrinsic_std = (0.999*data.intrinsic_std + 0.001*intrinsic_reward.std())
+
+                intrinsic_reward = (intrinsic_reward - data.intrinsic_mean) / data.intrinsic_std
+                intrinsic_reward = intrinsic_reward.clip(-1, 1)
+                r += config.e3b_coef*intrinsic_reward.cpu()
+
+            # Clip rewards
+            r = torch.clamp(r, -1, 1)
 
             if config.device == 'cuda':
                 torch.cuda.synchronize()
@@ -114,7 +151,7 @@ def evaluate(data):
         with profile.eval_misc:
             value = value.flatten()
             actions = actions.cpu().numpy()
-            mask = torch.as_tensor(mask)# * policy.mask)
+            mask = torch.as_tensor(mask)
             o = o if config.cpu_offload else o_device
             experience.store(o, value, actions, logprob, r, d, env_id, mask)
 
@@ -127,9 +164,13 @@ def evaluate(data):
 
     with profile.eval_misc:
         for k, v in infos.items():
-            if '_map' in k and data.wandb is not None:
-                data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
-                continue
+            if '_map' in k:
+                if data.wandb is not None:
+                    data.stats[f'Media/{k}'] = data.wandb.Image(v[0])
+                    continue
+                elif data.neptune is not None:
+                    # TODO: Add neptune image logging
+                    pass
 
             if isinstance(v, np.ndarray):
                 v = v.tolist()
@@ -179,11 +220,13 @@ def train(data):
 
             with profile.train_forward:
                 if experience.lstm_h is not None:
+                    #_, newlogprob, entropy, newvalue, lstm_state, _, _ = data.policy(
+                    #    obs, state=lstm_state, action=atn)
                     _, newlogprob, entropy, newvalue, lstm_state = data.policy(
                         obs, state=lstm_state, action=atn)
                     lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
                 else:
-                    _, newlogprob, entropy, newvalue = data.policy(
+                    _, newlogprob, entropy, newvalue, _, _ = data.policy(
                         obs.reshape(-1, *data.vecenv.single_observation_space.shape),
                         action=atn,
                     )
@@ -266,8 +309,9 @@ def train(data):
         done_training = data.global_step >= config.total_timesteps
         # TODO: beter way to get episode return update without clogging dashboard
         # TODO: make this appear faster
+        logs = None
         if done_training or profile.update(data):
-            mean_and_log(data)
+            logs = mean_and_log(data)
             print_dashboard(config.env, data.utilization, data.global_step, data.epoch,
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
@@ -275,6 +319,22 @@ def train(data):
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
             data.msg = f'Checkpoint saved at update {data.epoch}'
+
+    return logs
+
+def dist_sum(value, device):
+    if not dist.is_initialized():
+        return value
+
+    tensor = torch.tensor(value, device=device)
+    dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
+    return tensor.item()
+
+def dist_mean(value, device):
+    if not dist.is_initialized():
+        return value
+
+    return dist_sum(value, device) / dist.get_world_size()
 
 def mean_and_log(data):
     for k in list(data.stats.keys()):
@@ -286,19 +346,38 @@ def mean_and_log(data):
 
         data.stats[k] = v
 
-    if data.wandb is None:
-        return
+    device = data.config.device
 
-    data.last_log_time = time.time()
-    data.wandb.log({
-        '0verview/SPS': data.profile.SPS,
-        '0verview/agent_steps': data.global_step,
-        '0verview/epoch': data.epoch,
-        '0verview/learning_rate': data.optimizer.param_groups[0]["lr"],
-        **{f'environment/{k}': v for k, v in data.stats.items()},
-        **{f'losses/{k}': v for k, v in data.losses.items()},
-        **{f'performance/{k}': v for k, v in data.profile},
-    })
+    sps = dist_sum(data.profile.SPS, device)
+    agent_steps = int(dist_sum(data.global_step, device))
+    epoch = int(dist_sum(data.epoch, device))
+    learning_rate = data.optimizer.param_groups[0]["lr"]
+    environment = {k: dist_mean(v, device) for k, v in data.stats.items()}
+    losses = {k: dist_mean(v, device) for k, v in data.losses.items()}
+    performance = {k: dist_sum(v, device) for k, v in data.profile}
+
+    logs = {
+        'SPS': sps,
+        'agent_steps': agent_steps,
+        'epoch': epoch,
+        'learning_rate': learning_rate,
+        **{f'environment/{k}': v for k, v in environment.items()},
+        **{f'losses/{k}': v for k, v in losses.items()},
+        **{f'performance/{k}': v for k, v in performance.items()},
+    }
+
+    if dist.is_initialized() and dist.get_rank() != 0:
+        return logs
+
+    if data.wandb is not None:
+        data.last_log_time = time.time()
+        data.wandb.log(logs)
+    elif data.neptune is not None:
+        data.last_log_time = time.time()
+        for k, v in logs.items():
+            data.neptune[k].append(v, step=agent_steps)
+
+    return logs
 
 def close(data):
     data.vecenv.close()
@@ -311,6 +390,8 @@ def close(data):
         artifact.add_file(model_path)
         data.wandb.run.log_artifact(artifact)
         data.wandb.finish()
+    elif data.neptune is not None:
+        data.neptune.stop()
 
 class Profile:
     SPS: ... = 0
@@ -388,8 +469,9 @@ def make_losses():
 
 class Experience:
     '''Flat tensor storage and array views for faster indexing'''
-    def __init__(self, batch_size, bptt_horizon, minibatch_size, obs_shape, obs_dtype, atn_shape, atn_dtype,
-                 cpu_offload=False, device='cuda', lstm=None, lstm_total_agents=0):
+    def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
+                 obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
+                 device='cuda', lstm=None, lstm_total_agents=0):
         if minibatch_size is None:
             minibatch_size = batch_size
 
@@ -405,8 +487,9 @@ class Experience:
         self.dones=torch.zeros(batch_size, pin_memory=pin)
         self.truncateds=torch.zeros(batch_size, pin_memory=pin)
         self.values=torch.zeros(batch_size, pin_memory=pin)
+        self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
+        self.e3b_orig = self.e3b_inv.clone()
 
-        #self.obs_np = np.asarray(self.obs)
         self.actions_np = np.asarray(self.actions)
         self.logprobs_np = np.asarray(self.logprobs)
         self.rewards_np = np.asarray(self.rewards)
@@ -576,6 +659,9 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     else:
         agent = torch.load(model_path, map_location=device)
 
+    #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
+    e3b_inv = None
+
     ob, info = env.reset()
     driver = env.driver_env
     os.system('clear')
@@ -583,8 +669,13 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
     frames = []
     tick = 0
-    while tick <= 2000:
+    value = [0]
+    intrinsic = [0]
+    intrinsic_mean = None
+    intrinsic_std = None
+    while tick <= 200000:
         if tick % 1 == 0:
+            #render = driver.render(overlay=float(intrinsic[0]))
             render = driver.render()
             if driver.render_mode == 'ansi':
                 print('\033[0;0H' + render + '\n')
@@ -602,11 +693,24 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
             if hasattr(agent, 'lstm'):
-                action, _, _, _, state = agent(ob, state)
+                #action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
+                action, _, value, _, state = agent(ob, state, e3b=e3b_inv)
             else:
-                action, _, _, _ = agent(ob)
+                action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
 
             action = action.cpu().numpy().reshape(env.action_space.shape)
+
+        '''
+        if intrinsic_mean is None:
+            intrinsic_mean = intrinsic.mean()
+            intrinsic_std = intrinsic.std()
+        else:
+            intrinsic_mean = (0.99*intrinsic_mean + 0.01*intrinsic.mean())
+            intrinsic_std = (0.99*intrinsic_std + 0.01*intrinsic.std())
+
+        intrinsic = (intrinsic - intrinsic_mean) / intrinsic_std
+        intrinsic = intrinsic.clip(-1, 1)
+        '''
 
         ob, reward = env.step(action)[:2]
         reward = reward.mean()
