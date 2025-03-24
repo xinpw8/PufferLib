@@ -404,3 +404,92 @@ class TowerClimb(nn.Module):
         
         return action, value
 
+
+class GPUDrive(nn.Module):
+    def __init__(self, env, cnn_channels=64, hidden_size=128, **kwargs):
+        super().__init__()
+        self.ego_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(6, hidden_size)),
+            nn.LayerNorm(hidden_size),
+            nn.Tanh(),
+            nn.Dropout(0.01),
+            pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, hidden_size)
+            )
+        )
+        max_road_objects = 200 * 5
+        self.road_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(max_road_objects, hidden_size)),
+            nn.LayerNorm(hidden_size),
+            nn.Tanh(),
+            nn.Dropout(0.01),
+            pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, hidden_size)
+            )
+        )
+        max_partner_objects = 53*7
+        self.partner_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(max_partner_objects, hidden_size)),
+            nn.LayerNorm(hidden_size),
+            nn.Tanh(),
+            nn.Dropout(0.01),
+            pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, hidden_size)
+            )
+        )
+        
+        self.shared_embedding = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(3*hidden_size, 128)),
+            nn.ReLU(),
+        )
+        self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
+
+        self.atn_dim = env.single_action_space.nvec.tolist()
+        self.actor = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, sum(self.atn_dim)), std = 0.01)
+        self.value_fn = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 1 ), std=1)
+    
+    def forward(self, observations):
+        hidden, lookup = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden, lookup)
+        return actions, value
+    
+    def encode_observations(self, observations):
+        ego_dim = 6
+        partner_dim = 53 * 7
+        road_dim = 200*5
+        ego_obs = observations[:, :ego_dim]
+        partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
+        road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
+
+        ego_features = self.ego_encoder(ego_obs)
+        partner_features = self.partner_encoder(partner_obs)
+        road_features = self.road_encoder(road_obs)
+        
+        concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
+        
+        # Apply max pooling across concatenated features
+        # Reshape to [batch, 3, hidden_size] to pool across the 3 modalities
+        # pooled_features = torch.max(
+        #     concat_features.view(-1, 3, self.hidden_size), dim=1
+        # )[0]
+        
+        # Pass through shared embedding
+        embedding = self.shared_embedding(concat_features)
+        return embedding, None
+    
+    def decode_actions(self, flat_hidden, lookup, concat=None):
+        action = self.actor(flat_hidden)
+        action = torch.split(action, self.atn_dim, dim=1)
+        value = self.value_fn(flat_hidden)
+        return action, value
+        
+        
+        
+        
+        
+        
