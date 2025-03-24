@@ -10,7 +10,7 @@ from pufferlib.ocean.nmmo3.cy_nmmo3 import Environment, entity_dtype, reward_dty
 import pufferlib
 
 class NMMO3(pufferlib.PufferEnv):
-    def __init__(self, width=4*[512], height=4*[512], num_envs=4,
+    def __init__(self, width=8*[512], height=8*[512], num_envs=4,
             num_players=1024, num_enemies=2048, num_resources=2048,
             num_weapons=1024, num_gems=512, tiers=5, levels=40,
             teleportitis_prob=0.001, enemy_respawn_ticks=2,
