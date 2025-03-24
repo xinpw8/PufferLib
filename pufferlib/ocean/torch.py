@@ -17,6 +17,7 @@ class NMMO3LSTM(pufferlib.models.LSTMWrapper):
 class NMMO3(nn.Module):
     def __init__(self, env, hidden_size=256, output_size=256, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
         #self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
         self.num_actions = env.single_action_space.n
         self.factors = np.array([4, 4, 17, 5, 3, 5, 5, 5, 7, 4])
@@ -54,10 +55,7 @@ class NMMO3(nn.Module):
     def forward(self, x):
         hidden, lookup = self.encode_observations(x)
         actions, value = self.decode_actions(hidden, lookup)
-        return (actions, value), hidden
-
-    def forward_train(self, x):
-        return self.forward(x)[0]
+        return actions, value
 
     def encode_observations(self, observations, unflatten=False):
         batch = observations.shape[0]
@@ -76,9 +74,9 @@ class NMMO3(nn.Module):
 
         obs = torch.cat([ob_map, player_discrete, ob_player.float(), ob_reward], dim=1)
         obs = self.proj(obs)
-        return obs, None
+        return obs
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value
@@ -86,6 +84,7 @@ class NMMO3(nn.Module):
 class Snake(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, use_p3o=False, p3o_horizon=32, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
         self.is_continuous = False
 
         self.network= nn.Sequential(
@@ -117,14 +116,11 @@ class Snake(nn.Module):
         actions, value = self.decode_actions(hidden, lookup)
         return (actions, value), hidden
 
-    def forward_train(self, observations):
-        return self.forward(observations)[0]
-
     def encode_observations(self, observations):
         observations = F.one_hot(observations.long(), 8).permute(0, 3, 1, 2).float()
-        return self.network(observations), None
+        return self.network(observations)
 
-    def decode_actions(self, hidden, lookup, concat=None):
+    def decode_actions(self, hidden):
         action = self.actor(hidden)
 
         if self.use_p3o:
@@ -175,7 +171,7 @@ class Grid(nn.Module):
         hidden = self.network(hidden)
         return hidden, None
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         value = self.value_fn(flat_hidden)
         if self.is_continuous:
             mean = self.decoder_mean(flat_hidden)
@@ -191,6 +187,8 @@ class Grid(nn.Module):
 class Go(nn.Module):
     def __init__(self, env, cnn_channels=64, hidden_size=128, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
         # 3 categories 2 boards. 
         # categories = player, opponent, empty
         # boards = current, previous
@@ -240,9 +238,9 @@ class Go(nn.Module):
         features = torch.cat([cnn_features, flat_features], dim=1)
         features = F.relu(self.proj(features))
 
-        return features, None
+        return features
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         value = self.value_fn(flat_hidden)
         action = self.actor(flat_hidden)
         return action, value
@@ -250,6 +248,7 @@ class Go(nn.Module):
 class MOBA(nn.Module):
     def __init__(self, env, cnn_channels=128, hidden_size=128, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
         self.cnn = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(16 + 3, cnn_channels, 5, stride=3)),
@@ -301,9 +300,9 @@ class MOBA(nn.Module):
         features = torch.cat([cnn_features, flat_features], dim=1)
         features = F.relu(self.proj(F.relu(features)))
         #print('features: ', features[0].detach().cpu().numpy().tolist())
-        return features, None
+        return features
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         #print('lstm: ', flat_hidden[0].detach().cpu().numpy().tolist())
         value = self.value_fn(flat_hidden)
         if self.is_continuous:
@@ -325,6 +324,8 @@ class MOBA(nn.Module):
 class TrashPickup(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
         self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(5, cnn_channels, 5, stride=3)),
@@ -348,19 +349,21 @@ class TrashPickup(nn.Module):
 
     def encode_observations(self, observations):
         observations = observations.view(-1, 5, 11, 11).float()
-        return self.network(observations), None
+        return self.network(observations)
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value
 
 class TowerClimbLSTM(pufferlib.models.LSTMWrapper):
-    def __init__(self, env, policy, input_size = 256, hidden_size = 256, num_layers = 1):
-        super().__init__(env, policy, input_size, hidden_size, num_layers)
+    def __init__(self, env, policy, input_size = 256, hidden_size = 256):
+        super().__init__(env, policy, input_size, hidden_size)
 
 class TowerClimb(nn.Module):
     def __init__(self, env, cnn_channels=16, hidden_size = 256, **kwargs):
+        self.hidden_size = hidden_size
+        self.is_continuous = False
         super().__init__()
         self.network = nn.Sequential(
                 pufferlib.pytorch.layer_init(
@@ -387,6 +390,7 @@ class TowerClimb(nn.Module):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value, state
+
     def encode_observations(self, observations):
         board_state = observations[:,:225]
         player_info = observations[:, -3:] 
@@ -396,9 +400,9 @@ class TowerClimb(nn.Module):
         
         features = torch.cat([cnn_features,flat_features],dim = 1)
         features = self.proj(features)
-        return features, None
+        return features
     
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         

@@ -885,7 +885,7 @@ class Experience:
             gpu_inds = cpu_inds = slice(0, min(self.batch_size - ptr, num_indices))
         else:
             cpu_inds = indices[:self.batch_size - ptr]
-            gpu_inds = torch.as_tensor(indices).to(self.obs.device, non_blocking=True)
+            gpu_inds = torch.as_tensor(cpu_inds).to(self.obs.device, non_blocking=True)
 
         if self.obs.device.type == 'cuda':
             self.obs[dst] = gpu_obs[gpu_inds]
@@ -1059,11 +1059,16 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     driver = env.driver_env
     os.system('clear')
 
-    state = (None, None)
+    state = pufferlib.namespace(
+        lstm_h=None,
+        lstm_c=None,
+    )
+
     num_agents = env.observation_space.shape[0]
     if hasattr(agent, 'recurrent'):
         shape = (num_agents, agent.hidden_size)
-        state = (torch.zeros(shape).to(device), torch.zeros(shape).to(device))
+        state.lstm_h = torch.zeros(shape).to(device)
+        state.lstm_c = torch.zeros(shape).to(device)
 
     frames = []
     tick = 0
@@ -1090,11 +1095,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
-            if hasattr(agent, 'recurrent'):
-                (logits, value), hidden, (h, c) = agent(ob, state)
-            else:
-                action, _, value, _, e3b, intrinsic = agent(ob)
-
+            logits, value = agent(ob, state)
             action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=agent.is_continuous)
             action = action.cpu().numpy().reshape(env.action_space.shape)
 

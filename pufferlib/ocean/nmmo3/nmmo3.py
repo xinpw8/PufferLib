@@ -176,7 +176,7 @@ class NMMO3(pufferlib.PufferEnv):
 
         rewards = rewards.total
         infos = []
-        if self.tick % 128 == 0:
+        if self.tick % 64 == 0:
             log = self.c_env.log()
             if log['episode_length'] > 0:
                 infos.append(log)
