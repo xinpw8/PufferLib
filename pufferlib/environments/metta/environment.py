@@ -27,6 +27,8 @@ class MettaPuff(pufferlib.PufferEnv):
         if self.tick % 128 == 0:
             if 'agent_raw' in info:
                 del info['agent_raw']
+            if 'episode_rewards' in info:
+                info['score'] = info['episode_rewards']
         else:
             info = []
 
