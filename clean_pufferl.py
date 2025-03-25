@@ -118,8 +118,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
-    #optimizer = MuAdam(
-    assert config.optimizer in ('adam', 'muon')
+    assert config.optimizer in ('adam', 'muon', 'kron')
     if config.optimizer == 'adam':
         optimizer = torch.optim.Adam(
             policy.parameters(),
@@ -134,6 +133,14 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
             lr=config.learning_rate,
             betas=(config.adam_beta1, config.adam_beta2),
             eps=config.adam_eps
+        )
+    elif config.optimizer == 'kron':
+        from heavyball import ForeachPSGDKron, ForeachCachedNewtonPSGD
+        #optimizer = ForeachCachedNewtonPSGD(
+        optimizer = ForeachPSGDKron(
+            policy.parameters(),
+            #lr=config.learning_rate,
+            #beta=config.adam_beta1,
         )
 
     epochs = config.total_timesteps // config.batch_size
