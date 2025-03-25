@@ -465,10 +465,14 @@ class GPUDrive(nn.Module):
         ego_obs = observations[:, :ego_dim]
         partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
         road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
+        
+        partner_obs = partner_obs.view(-1, 7, 67)
+        road_obs = road_obs.view(-1, 5, 200)
 
         ego_features = self.ego_encoder(ego_obs)
-        partner_features = self.partner_encoder(partner_obs)
-        road_features = self.road_encoder(road_obs)
+        partner_features = self.partner_encoder(partner_obs).max(dim=1)
+        road_features = self.road_encoder(road_obs).max(dim=1)
+        
         
         concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
         
