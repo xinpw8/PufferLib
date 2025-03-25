@@ -913,8 +913,7 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 5] = -1.0f;
             obs[obs_idx + 6] = 1.0f;
             obs_idx += 7;
-        }
-	
+	}
 
         // map observations
         int entity_list[MAX_ROAD_SEGMENT_OBSERVATIONS*2];  // Array big enough for all neighboring cells

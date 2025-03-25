@@ -9,9 +9,9 @@ from pufferlib.ocean.gpudrive.cy_gpudrive import CyGPUDrive, entity_dtype
 class GPUDrive(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=1280, height=1024,
-            active_agent_count=5,
+            active_agent_count=8,
             human_agent_idx=0,
-            num_agents = 5,
+            num_agents = 8,
             reward_vehicle_collision=-0.1,
             reward_offroad_collision=-0.1,
             buf = None):
@@ -21,7 +21,7 @@ class GPUDrive(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.report_interval = report_interval
         
-        self.num_obs = 6 + 53*7 + 200*5
+        self.num_obs = 6 + 67*7 + 200*5
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
@@ -357,5 +357,5 @@ def load_map(map_name, binary_output=None):
 
 
 if __name__ == '__main__':
-        load_map('resources/tfrecord-00000-of-01000_325.json', 'map.bin')
+        load_map('resources/tfrecord-00000-of-01000_4.json', 'map.bin')
 

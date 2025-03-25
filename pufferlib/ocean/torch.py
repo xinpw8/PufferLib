@@ -410,40 +410,40 @@ class GPUDrive(nn.Module):
         super().__init__()
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Linear(6, hidden_size)),
-            nn.LayerNorm(hidden_size),
+                nn.Linear(6, cnn_channels)),
+            nn.LayerNorm(cnn_channels),
             nn.Tanh(),
             nn.Dropout(0.01),
             pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, hidden_size)
+                nn.Linear(cnn_channels, cnn_channels)
             )
         )
         max_road_objects = 200 * 5
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Linear(max_road_objects, hidden_size)),
-            nn.LayerNorm(hidden_size),
+                nn.Linear(max_road_objects, cnn_channels)),
+            nn.LayerNorm(cnn_channels),
             nn.Tanh(),
             nn.Dropout(0.01),
             pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, hidden_size)
+                nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_partner_objects = 53*7
+        max_partner_objects = 67*7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Linear(max_partner_objects, hidden_size)),
-            nn.LayerNorm(hidden_size),
+                nn.Linear(max_partner_objects, cnn_channels)),
+            nn.LayerNorm(cnn_channels),
             nn.Tanh(),
             nn.Dropout(0.01),
             pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, hidden_size)
+                nn.Linear(cnn_channels, cnn_channels)
             )
         )
         
         self.shared_embedding = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(3*hidden_size, 128)),
-            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Linear(3*cnn_channels,  hidden_size)),
+            nn.Dropout(0.01),
         )
         self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
 
@@ -460,7 +460,7 @@ class GPUDrive(nn.Module):
     
     def encode_observations(self, observations):
         ego_dim = 6
-        partner_dim = 53 * 7
+        partner_dim = 67 * 7
         road_dim = 200*5
         ego_obs = observations[:, :ego_dim]
         partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
