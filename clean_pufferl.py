@@ -343,6 +343,81 @@ def evaluate(data):
     data.experience.step = 0
     return data.stats, infos
 
+def compute_losses(data, policy, state, obs, atn, log_probs, adv, ret, val, entropy, config, mask_block=None, rew_block=None, horizon=None, z_idxs=None):
+    """Compute policy and value losses in a closure for the optimizer"""
+    losses = {}
+    
+    # Policy loss computation
+    logits, newvalue = policy.forward_train(obs, state)
+    actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
+        action=atn, is_continuous=policy.is_continuous)
+
+    logratio = newlogprob - log_probs.reshape(-1)
+    ratio = logratio.exp()
+
+    with torch.no_grad():
+        old_approx_kl = (-logratio).mean()
+        approx_kl = ((ratio - 1) - logratio).mean()
+        clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
+
+    adv = adv.reshape(-1)
+    if config.norm_adv:
+        adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+    pg_loss1 = -adv * ratio
+    pg_loss2 = -adv * torch.clamp(
+        ratio, 1 - config.clip_coef, 1 + config.clip_coef
+    )
+    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
+    # Value loss computation
+    if config.use_p3o:
+        newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
+        newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
+        newvalue_var = torch.square(newvalue_std)
+        criterion = torch.nn.GaussianNLLLoss(reduction='none')
+        v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+        v_loss = v_loss[:, :(horizon+3)]
+        mask_block = mask_block[:, :(horizon+3)]
+        v_loss = v_loss[mask_block.bool()].mean()
+    elif config.clip_vloss:
+        newvalue = newvalue.flatten()
+        v_loss_unclipped = (newvalue - ret) ** 2
+        v_clipped = val + torch.clamp(
+            newvalue - val,
+            -config.vf_clip_coef,
+            config.vf_clip_coef,
+        )
+        v_loss_clipped = (v_clipped - ret) ** 2
+        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+        v_loss = 0.5 * v_loss_max.mean()
+    else:
+        newvalue = newvalue.flatten()
+        v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+
+    entropy_loss = entropy.mean()
+    loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
+
+    # DIAYN loss if enabled
+    if config.use_diayn:
+        diayn_discriminator = policy.diayn_discriminator if hasattr(policy, 'diayn_discriminator') else policy.policy.diayn_discriminator
+        q = diayn_discriminator(state.hidden).squeeze()
+        diayn_loss = torch.nn.CrossEntropyLoss()(q, z_idxs)
+        loss += config.diayn_loss_coef*diayn_loss
+        losses['diayn_loss'] = diayn_loss
+
+    losses.update({
+        'policy_loss': pg_loss,
+        'value_loss': v_loss,
+        'entropy': entropy_loss,
+        'old_approx_kl': old_approx_kl,
+        'approx_kl': approx_kl,
+        'clipfrac': clipfrac,
+        'total_loss': loss
+    })
+
+    return loss, losses
+
 @pufferlib.utils.profile
 def train(data):
     config, profile, experience = data.config, data.profile, data.experience
@@ -414,7 +489,6 @@ def train(data):
     total_minibatches = experience.num_minibatches * config.update_epochs
     mean_pg_loss, mean_v_loss, mean_entropy_loss = 0, 0, 0
     mean_old_kl, mean_kl, mean_clipfrac = 0, 0, 0
-    cross_entropy = torch.nn.CrossEntropyLoss()
     for epoch in range(config.update_epochs):
         lstm_h = None
         lstm_c = None
@@ -446,132 +520,41 @@ def train(data):
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
-            with data.amp_context:
-                with profile.train_forward:
-                    if not hasattr(data.policy, 'recurrent'):
-                        obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-
-                    logits, newvalue = data.policy.forward_train(obs, state)
-                    lstm_h = state.lstm_h
-                    lstm_c = state.lstm_c
-                    if lstm_h is not None:
-                        lstm_h = lstm_h.detach()
-                    if lstm_c is not None:
-                        lstm_c = lstm_c.detach()
-
-                    actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
-                        action=atn, is_continuous=data.policy.is_continuous)
-
-                    if config.device == 'cuda':
-                        torch.cuda.synchronize()
-
-                with profile.train_misc:
-                    logratio = newlogprob - log_probs.reshape(-1)
-                    ratio = logratio.exp()
-
-                    # TODO: Only do this if we are KL clipping? Saves 1-2% compute
-                    with torch.no_grad():
-                        # calculate approx_kl http://joschu.net/blog/kl-approx.html
-                        old_approx_kl = (-logratio).mean()
-                        approx_kl = ((ratio - 1) - logratio).mean()
-                        clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
-
-                    adv = adv.reshape(-1)
-                    if config.norm_adv:
-                        adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-
-                    # Policy loss
-                    pg_loss1 = -adv * ratio
-                    pg_loss2 = -adv * torch.clamp(
-                        ratio, 1 - config.clip_coef, 1 + config.clip_coef
+            def closure():
+                with data.amp_context:
+                    loss, batch_losses = compute_losses(
+                        data, data.policy, state, obs, atn, log_probs, 
+                        adv, ret, val, None, config,
+                        mask_block=mask_block if config.use_p3o else None,
+                        rew_block=rew_block if config.use_p3o else None,
+                        horizon=horizon if config.use_p3o else None,
+                        z_idxs=z_idxs if config.use_diayn else None
                     )
-                    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                    # Value loss
-                    if config.use_p3o:
-                        newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
-                        newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
-                        newvalue_var = torch.square(newvalue_std)
-                        criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                        #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
-                        v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
-                        v_loss = v_loss[:, :(horizon+3)]
-                        mask_block = mask_block[:, :(horizon+3)]
-                        #v_loss[:, horizon:] = 0
-                        #v_loss = (v_loss * mask_block).sum(axis=1)
-                        #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
-                        #v_loss = v_loss.mean()
-                        v_loss = v_loss[mask_block.bool()].mean()
-                        #TODO: Count mask and sum
-                        # There is going to have to be some sort of norm here.
-                        # Right now, learning works at different horizons, but you need
-                        # to retune hyperparameters. Ideally, horizon should be a stable
-                        # param that zero-shots the same hypers
-
-                        # Faster than masking
-                        #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
-                        #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
-                        #v_loss = v_loss[mask_block.bool()].mean()
-                    elif config.clip_vloss:
-                        newvalue = newvalue.flatten()
-                        v_loss_unclipped = (newvalue - ret) ** 2
-                        v_clipped = val + torch.clamp(
-                            newvalue - val,
-                            -config.vf_clip_coef,
-                            config.vf_clip_coef,
-                        )
-                        v_loss_clipped = (v_clipped - ret) ** 2
-                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                        v_loss = 0.5 * v_loss_max.mean()
-                    else:
-                        newvalue = newvalue.flatten()
-                        v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
-
-                    entropy_loss = entropy.mean()
-                    loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
-
-                    with profile.custom:
-                        if config.use_diayn:
-                            diayn_discriminator = data.policy.diayn_discriminator if hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator
-                            q = diayn_discriminator(state.hidden).squeeze()
-                            diayn_loss = cross_entropy(q, z_idxs)
-                            loss += config.diayn_loss_coef*diayn_loss
-                            torch.cuda.synchronize()
+                return loss, batch_losses
 
             with profile.learn:
                 data.optimizer.zero_grad()
                 if data.scaler is None:
-                    loss.backward()
+                    loss, batch_losses = data.optimizer.step(closure)
                 else:
-                    data.scaler.scale(loss).backward()
+                    loss, batch_losses = data.optimizer.step(closure)
+                    data.scaler.step(data.optimizer)
+                    data.scaler.update()
 
                 if data.scaler is not None:
                     data.scaler.unscale_(data.optimizer)
 
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
 
-                if data.scaler is None:
-                    data.optimizer.step()
-                else:
-                    data.scaler.step(data.optimizer)
-                    data.scaler.update()
-
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
             with profile.train_misc:
-                losses.policy_loss += pg_loss.item() / total_minibatches
-                losses.value_loss += v_loss.item() / total_minibatches
-                losses.entropy += entropy_loss.item() / total_minibatches
-                losses.old_approx_kl += old_approx_kl.item() / total_minibatches
-                losses.approx_kl += approx_kl.item() / total_minibatches
-                losses.clipfrac += clipfrac.item() / total_minibatches
-
-                if data.use_diayn:
-                    losses.diayn_loss += diayn_loss.item() / total_minibatches
+                for k, v in batch_losses.items():
+                    losses[k] += v.item() / total_minibatches
 
         if config.target_kl is not None:
-            if approx_kl > config.target_kl:
+            if losses['approx_kl'] > config.target_kl:
                 break
 
     with profile.train_misc:
