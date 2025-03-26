@@ -98,6 +98,24 @@ class Serial:
         self.initialized = False
         self.flag = RESET
 
+    def _avg_infos(self):
+        infos = {}
+        for e in self.infos:
+            for k, v in pufferlib.utils.unroll_nested_dict(e):
+                if k not in infos:
+                    infos[k] = []
+
+                if isinstance(v, list):
+                    infos[k].append(np.mean(v))
+                else:
+                    infos[k].append(v)
+
+        for k in list(infos.keys()):
+            try:
+                infos[k] = np.mean(infos[k])
+            except:
+                del infos[k]
+
     def async_reset(self, seed=42):
         self.flag = RECV
         seed = make_seeds(seed, len(self.envs))
@@ -112,6 +130,7 @@ class Serial:
                 infos.append(i)
 
         self.infos = infos
+        self._avg_infos()
 
     def send(self, actions):
         if not actions.flags.contiguous:
@@ -135,6 +154,8 @@ class Serial:
                     self.infos.append(i)
 
             ptr = end
+
+        self._avg_infos()
 
     def recv(self):
         recv_precheck(self)

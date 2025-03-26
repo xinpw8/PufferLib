@@ -392,14 +392,14 @@ class Protein:
         # Transformed scores
         min_score = self.min_score
         if min_score is None:
-            min_score = np.min(y) - abs(np.min(y))
+            min_score = np.min(y) - np.min(np.abs(y))
 
         if np.min(y) < min_score - 1e-6:
             raise ValueError(f'Min score {min_score} is less than min score in data {np.min(y)}')
 
         max_score = self.max_score
         if max_score is None:
-            max_score = np.max(y) + abs(np.max(y))
+            max_score = np.max(y) + np.max(np.abs(y))
 
         if np.max(y) > max_score + 1e-6:
             raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
