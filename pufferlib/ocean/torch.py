@@ -418,6 +418,7 @@ class TowerClimb(nn.Module):
 class GPUDrive(nn.Module):
     def __init__(self, env, cnn_channels=64, hidden_size=128, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(6, cnn_channels)),
@@ -428,7 +429,7 @@ class GPUDrive(nn.Module):
                 nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_road_objects = 200 * 5
+        max_road_objects = 5
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, cnn_channels)),
@@ -439,7 +440,7 @@ class GPUDrive(nn.Module):
                 nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_partner_objects = 67*7
+        max_partner_objects = 7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, cnn_channels)),
@@ -473,15 +474,13 @@ class GPUDrive(nn.Module):
         partner_dim = 67 * 7
         road_dim = 200*5
         ego_obs = observations[:, :ego_dim]
-        partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
-        road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
+        partner_obs = observations[:, ego_dim:ego_dim+partner_dim].view(-1, 67, 7 )
+        road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim].view(-1, 200, 5)
         
-        partner_obs = partner_obs.view(-1, 7, 67)
-        road_obs = road_obs.view(-1, 5, 200)
 
         ego_features = self.ego_encoder(ego_obs)
-        partner_features = self.partner_encoder(partner_obs).max(dim=1)
-        road_features = self.road_encoder(road_obs).max(dim=1)
+        partner_features, _ = self.partner_encoder(partner_obs).max(dim=1)
+        road_features, _ = self.road_encoder(road_obs).max(dim=1)
         
         
         concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
@@ -494,9 +493,9 @@ class GPUDrive(nn.Module):
         
         # Pass through shared embedding
         embedding = self.shared_embedding(concat_features)
-        return embedding, None
+        return embedding
     
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         action = self.actor(flat_hidden)
         action = torch.split(action, self.atn_dim, dim=1)
         value = self.value_fn(flat_hidden)

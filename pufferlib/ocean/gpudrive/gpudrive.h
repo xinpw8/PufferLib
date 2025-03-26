@@ -905,13 +905,6 @@ void compute_observations(GPUDrive* env) {
             obs_idx += 7;  // Move to next observation slot
         }
         for(int j = cars_seen; j < env->num_cars - 1; j++){
-            obs[obs_idx] = -1.0f;
-            obs[obs_idx + 1] = -1.0f;
-            obs[obs_idx + 2] = -1.0f;
-            obs[obs_idx + 3] = -1.0f;
-            obs[obs_idx + 4] = -1.0f;
-            obs[obs_idx + 5] = -1.0f;
-            obs[obs_idx + 6] = 1.0f;
             obs_idx += 7;
 	}
 
@@ -949,11 +942,6 @@ void compute_observations(GPUDrive* env) {
         }
 
         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS - list_size; k++){
-            obs[obs_idx] = -1.0f;
-            obs[obs_idx + 1] = -1.0f;
-            obs[obs_idx + 2] = -1.0f;
-            obs[obs_idx + 3] = -1.0f;
-            obs[obs_idx + 4] = 6.0f;
             obs_idx += 5;
         }
 	
