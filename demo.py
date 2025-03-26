@@ -15,7 +15,6 @@ import pufferlib
 import pufferlib.sweep
 import pufferlib.utils
 import pufferlib.vector
-import pufferlib.cleanrl
 
 from rich_argparse import RichHelpFormatter
 from rich.console import Console
@@ -26,14 +25,9 @@ import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
 import clean_pufferl
-
-def downsample_linear(arr, m):
-    n = len(arr)
-    x_old = np.linspace(0, 1, n)  # Original indices normalized
-    x_new = np.linspace(0, 1, m)  # New indices normalized
-    return np.interp(x_new, x_old, arr)
-
-  
+import mup
+from mup import set_base_shapes
+ 
 def init_wandb(args, name, id=None, resume=True, tag=None):
     import wandb
     wandb.init(
@@ -63,12 +57,16 @@ def init_neptune(args, name, id=None, resume=True, tag=None):
     return run
 
 def make_policy(env, policy_cls, rnn_cls, args):
-    policy = policy_cls(env, **args['policy'])
+    policy = policy_cls(env, **args['policy'],
+        use_p3o=args['train']['use_p3o'],
+        p3o_horizon=args['train']['p3o_horizon'],
+        use_diayn=args['train']['use_diayn'],
+        diayn_skills=args['train']['diayn_archive'],
+    )
+    args['rnn']['input_size'] = policy.hidden_size
+    args['rnn']['hidden_size'] = policy.hidden_size
     if rnn_cls is not None:
         policy = rnn_cls(env, policy, **args['rnn'])
-        policy = pufferlib.cleanrl.RecurrentPolicy(policy)
-    else:
-        policy = pufferlib.cleanrl.Policy(policy)
 
     return policy.to(args['train']['device'])
 
@@ -82,10 +80,17 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         sweep = pufferlib.sweep.Protein(
             args['sweep'],
             resample_frequency=0,
-            num_random_samples=10, # Should be number of params
+            num_random_samples=50, # Should be number of params
             max_suggestion_cost=args['max_suggestion_cost'],
             min_score = args['sweep']['metric']['min'],
             max_score = args['sweep']['metric']['max'],
+        )
+    elif method == 'carbs':
+        sweep = pufferlib.sweep.Carbs(
+            args['sweep'],
+            resample_frequency=5,
+            num_random_samples=10, # Should be number of params
+            max_suggestion_cost=args['max_suggestion_cost'],
         )
     else:
         raise ValueError(f'Invalid sweep method {method} (random/pareto_genetic/protein)')
@@ -165,9 +170,39 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     scores = []
     costs = []
     target_key = f'environment/{target_metric}'
+
+    '''
+    from torch.profiler import profile, record_function, ProfilerActivity
+    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA, ProfilerActivity.XPU]
+    from torch.profiler import schedule
+    prof_schedule = schedule(
+        skip_first=10,
+        wait=5,
+        warmup=1,
+        active=3,
+        repeat=2
+    )
+
+    sort_by_keyword = "self_" + args['train']['device'] + "_time_total"
+
+    def trace_handler(p):
+        output = p.key_averages().table(sort_by=sort_by_keyword, row_limit=10)
+        print(output)
+        p.export_chrome_trace("trace/trace_" + str(p.step_num) + ".json")
+
+    with profile(
+        activities=activities,
+        schedule=torch.profiler.schedule(
+            wait=1,
+            warmup=1,
+            active=2),
+        on_trace_ready=trace_handler
+    ) as p:
+    '''
     while data.global_step < train_config.total_timesteps:
         clean_pufferl.evaluate(data)
         logs = clean_pufferl.train(data)
+        #p.step()
         if logs is not None and target_key in logs:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
@@ -178,7 +213,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     batch_size = args['train']['batch_size']
     while len(data.stats[target_metric]) < min_eval_points:
         stats, _ = clean_pufferl.evaluate(data)
-        data.experience.sort_keys = []
+        data.experience.sort_keys[:] = 0
         steps_evaluated += batch_size
 
     clean_pufferl.mean_and_log(data)
@@ -189,6 +224,12 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     costs.append(cost)
     timesteps.append(data.global_step)
 
+    def downsample_linear(arr, m):
+        n = len(arr)
+        x_old = np.linspace(0, 1, n)  # Original indices normalized
+        x_new = np.linspace(0, 1, m)  # New indices normalized
+        return np.interp(x_new, x_old, arr)
+     
     scores = downsample_linear(scores, 10)
     costs = downsample_linear(costs, 10)
     timesteps = downsample_linear(timesteps, 10)
@@ -362,8 +403,11 @@ if __name__ == '__main__':
         pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
     elif args['mode'] == 'profile':
         import cProfile
-        cProfile.run('train(args, make_env, policy_cls, rnn_cls, wandb=None)', 'stats.profile')
+        target_metric = args['sweep']['metric']['name']
+        cProfile.run('train(args, make_env, policy_cls, rnn_cls, target_metric)', 'stats.profile')
         import pstats
         from pstats import SortKey
         p = pstats.Stats('stats.profile')
         p.sort_stats(SortKey.TIME).print_stats(10)
+        breakpoint()
+        pass

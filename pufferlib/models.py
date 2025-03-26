@@ -21,7 +21,7 @@ class Default(nn.Module):
     the recurrent cell into encode_observations and put everything after
     into decode_actions.
     '''
-    def __init__(self, env, hidden_size=128):
+    def __init__(self, env, hidden_size=128, use_p3o=False, p3o_horizon=32, use_diayn=False, diayn_skills=128):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_multidiscrete = isinstance(env.single_action_space,
@@ -38,7 +38,11 @@ class Default(nn.Module):
             input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
-            self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
+            #self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
+            self.encoder = torch.nn.Sequential(
+                nn.Linear(np.prod(env.single_observation_space.shape), hidden_size),
+                nn.GELU(),
+            )
 
         if self.is_multidiscrete:
             action_nvec = env.single_action_space.nvec
@@ -47,18 +51,44 @@ class Default(nn.Module):
         elif not self.is_continuous:
             self.decoder = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+
         else:
             self.decoder_mean = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
-        self.value_head = nn.Linear(hidden_size, 1)
+        if use_diayn:
+            self.diayn_discriminator = nn.Sequential(
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
+                nn.ReLU(),
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
+            )
 
-    def forward(self, observations):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
-        return actions, value
+        self.use_p3o = use_p3o
+        self.p3o_horizon = p3o_horizon
+        if use_p3o:
+            self.value_mean = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, p3o_horizon), std=1)
+            self.value_logstd = nn.Parameter(torch.zeros(1, p3o_horizon))
+
+            #param = np.log10(np.arange(1, N+1))
+            #param = 1 - np.exp(-np.sqrt(np.arange(N)))
+            #self.value_logstd = nn.Parameter(torch.tensor(param).view(1, N))
+            #self.value_logstd = pufferlib.pytorch.layer_init(
+            #    nn.Linear(hidden_size, 32), std=0.01)
+        else:
+            self.value = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 1), std=1)
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations)
+        state.hidden = hidden
+        logits, values = self.decode_actions(hidden)
+        return logits, values
+
+    def forward_train(self, observations, state=None):
+        return self.forward(observations, state)
 
     def encode_observations(self, observations):
         '''Encodes a batch of observations into hidden states. Assumes
@@ -69,43 +99,34 @@ class Default(nn.Module):
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
         else: 
             observations = observations.view(batch_size, -1)
-        return torch.relu(self.encoder(observations.float())), None
+        return self.encoder(observations.float())
 
-    def decode_actions(self, hidden, lookup, concat=True, e3b=None):
+    def decode_actions(self, hidden):
         '''Decodes a batch of hidden states into (multi)discrete actions.
         Assumes no time dimension (handled by LSTM wrappers).'''
-        value = self.value_head(hidden)
         if self.is_multidiscrete:
-            actions = [dec(hidden) for dec in self.decoder]
-            return actions, value
+            logits = [dec(hidden) for dec in self.decoder]
         elif self.is_continuous:
             mean = self.decoder_mean(hidden)
             logstd = self.decoder_logstd.expand_as(mean)
             std = torch.exp(logstd)
-            probs = torch.distributions.Normal(mean, std)
-            batch = hidden.shape[0]
-            return probs, value
+            logits = torch.distributions.Normal(mean, std)
+        else:
+            logits = self.decoder(hidden)
 
-        b = None
-        if e3b is not None:
-            phi = hidden.detach()        
-            u = phi.unsqueeze(1) @ e3b
-            b = u @ phi.unsqueeze(2)
-            e3b = e3b - (u.mT @ u) / (1 + b)
+        if self.use_p3o:
+            mean=self.value_mean(hidden)
+            values = pufferlib.namespace(
+                mean=mean,
+                std=torch.exp(torch.clamp(self.value_logstd, -10, 10)).expand_as(mean),
+            )
+        else:
+            values = self.value(hidden)
 
-            #h = hidden.detach()        
-            #u = torch.bmm(e3b, h.unsqueeze(-1)).squeeze()
-            #b = (h*u).sum(1)
-            #outer = u[:, :, None] @ u[:, None, :]
-            #e3b2 = e3b - outer * (1 / (1 + b[:, None, None]))
-
-            b = b.squeeze()
-
-        actions = self.decoder(hidden)
-        return actions, value#, e3b, b
+        return logits, values
 
 class LSTMWrapper(nn.Module):
-    def __init__(self, env, policy, input_size=128, hidden_size=128, num_layers=1):
+    def __init__(self, env, policy, input_size=128, hidden_size=128):
         '''Wraps your policy with an LSTM without letting you shoot yourself in the
         foot with bad transpose and shape operations. This saves much pain.
         Requires that your policy define encode_observations and decode_actions.
@@ -116,7 +137,14 @@ class LSTMWrapper(nn.Module):
         self.policy = policy
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.recurrent = nn.LSTM(input_size, hidden_size, num_layers)
+        self.recurrent = nn.LSTM(input_size, hidden_size)
+        self.recurrent_cell = torch.nn.LSTMCell(input_size, hidden_size)
+        self.recurrent_cell.weight_ih = self.recurrent.weight_ih_l0
+        self.recurrent_cell.weight_hh = self.recurrent.weight_hh_l0
+        self.recurrent_cell.bias_ih = self.recurrent.bias_ih_l0
+        self.recurrent_cell.bias_hh = self.recurrent.bias_hh_l0
+
+        self.is_continuous = self.policy.is_continuous
 
         for name, param in self.recurrent.named_parameters():
             if "bias" in name:
@@ -124,7 +152,32 @@ class LSTMWrapper(nn.Module):
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
 
-    def forward(self, x, state, e3b=None):
+    def forward(self, observations, state):
+        '''Forward function for inference. 3x faster than using LSTM directly'''
+        hidden = self.policy.encode_observations(observations)
+        h = state.lstm_h
+        c = state.lstm_c
+
+        # TODO: Don't break compile
+        if h is not None:
+            assert h.shape[0] == c.shape[0] == observations.shape[0], 'LSTM state must be (h, c)'
+            lstm_state = (h, c)
+        else:
+            lstm_state = None
+
+        hidden, c = self.recurrent_cell(hidden, lstm_state)
+        state.hidden = hidden
+        state.lstm_h = hidden
+        state.lstm_c = c
+        logits, values = self.policy.decode_actions(hidden)
+        return logits, values
+
+    def forward_train(self, observations, state):
+        '''Forward function for training. Uses LSTM for fast time-batching'''
+        x = observations
+        lstm_h = state.lstm_h
+        lstm_c = state.lstm_c
+
         x_shape, space_shape = x.shape, self.obs_shape
         x_n, space_n = len(x_shape), len(space_shape)
         if x_shape[-space_n:] != space_shape:
@@ -137,23 +190,28 @@ class LSTMWrapper(nn.Module):
         else:
             raise ValueError('Invalid input tensor shape', x.shape)
 
-        if state is not None:
-            assert state[0].shape[1] == state[1].shape[1] == B
+        if lstm_h is not None:
+            assert lstm_h.shape[1] == lstm_c.shape[1] == B, 'LSTM state must be (h, c)'
+            lstm_state = (lstm_h, lstm_c)
+        else:
+            lstm_state = None
 
         x = x.reshape(B*TT, *space_shape)
-        hidden, lookup = self.policy.encode_observations(x)
+        hidden = self.policy.encode_observations(x)
         assert hidden.shape == (B*TT, self.input_size)
+
         hidden = hidden.reshape(B, TT, self.input_size)
 
         hidden = hidden.transpose(0, 1)
-        hidden, state = self.recurrent(hidden, state)
+        hidden, (lstm_h, lstm_c)= self.recurrent(hidden, lstm_state)
         hidden = hidden.transpose(0, 1)
 
         hidden = hidden.reshape(B*TT, self.hidden_size)
-        #hidden, critic, e3b, intrinsic_reward = self.policy.decode_actions(hidden, lookup, e3b=e3b)
-        hidden, critic = self.policy.decode_actions(hidden, lookup)#, e3b=e3b)
-        #hidden, critic = self.policy.decode_actions(hidden, lookup, e3b=e3b)
-        return hidden, critic, state#, e3b, intrinsic_reward
+        logits, values = self.policy.decode_actions(hidden)
+        state.hidden = hidden
+        state.lstm_h = lstm_h
+        state.lstm_c = lstm_c
+        return logits, values
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

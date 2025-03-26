@@ -8,11 +8,11 @@ import time
 
 from threading import Thread
 from collections import defaultdict, deque
+from contextlib import nullcontext
 
 import rich
 from rich.console import Console
 from rich.table import Table
-
 import torch
 import torch.distributed as dist
 
@@ -20,22 +20,83 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.pytorch
 
+from mup import MuAdam
+
 torch.set_float32_matmul_precision('high')
 
-# Fast Cython GAE implementation
-#import pyximport
-#pyximport.install(setup_args={"include_dirs": np.get_include()})
-from c_gae import compute_gae
+# Fast Cython advantage functions
+#from c_advantage import rewards_and_masks, compute_gae
+from c_advantage import compute_gae
 
+import torch
+from torch.utils.cpp_extension import load
+
+
+# Compile the CUDA kernel
+cuda_module = load(
+    name='advantage_kernel',
+    sources=['pufferlib.cu'],
+    verbose=True
+)
+
+def compute_advantages(
+    reward_block: torch.Tensor,  # [num_steps, horizon]
+    reward_mask: torch.Tensor,   # [num_steps, horizon]
+    values_mean: torch.Tensor,   # [num_steps, horizon]
+    values_std: torch.Tensor,    # [num_steps, horizon]
+    buf: torch.Tensor,          # [num_steps, horizon]
+    dones: torch.Tensor,        # [num_steps]
+    rewards: torch.Tensor,      # [num_steps]
+    advantages: torch.Tensor,   # [num_steps]
+    bounds: torch.Tensor,       # [num_steps]
+    vstd_max: float,
+    puf: float,
+    horizon: int
+):
+    assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
+                                  buf, dones, rewards, advantages, bounds]), "All tensors must be on GPU"
+    
+    # Ensure contiguous memory
+    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages, bounds]
+    for t in tensors:
+        t.contiguous()
+        assert t.is_cuda
+
+    num_steps = rewards.shape[0]
+    
+    # Precompute vstd_min and vstd_max
+    #vstd_max = values_std.max().item()
+    #vstd_min = values_std.min().item()
+
+    # Launch kernel
+    threads_per_block = 256
+    blocks = (num_steps + threads_per_block - 1) // threads_per_block
+    
+    cuda_module.advantage_kernel(
+        reward_block,
+        reward_mask,
+        values_mean,
+        values_std,
+        buf,
+        dones,
+        rewards,
+        advantages,
+        bounds,
+        num_steps,
+        vstd_max,
+        puf,
+        horizon,
+    )
+    
+    torch.cuda.synchronize()
+    return advantages
 
 def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     seed_everything(config.seed, config.torch_deterministic)
-    profile = Profile()
     losses = make_losses()
 
     utilization = Utilization()
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
-    print_dashboard(config.env, utilization, 0, 0, profile, losses, {}, msg, clear=True)
 
     vecenv.async_reset(config.seed)
     obs_shape = vecenv.single_observation_space.shape
@@ -44,18 +105,57 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     atn_dtype = vecenv.single_action_space.dtype
     total_agents = vecenv.num_agents
 
-    lstm = policy.lstm if hasattr(policy, 'lstm') else None
+    lstm = policy.recurrent if hasattr(policy, 'recurrent') else None
     experience = Experience(config.batch_size, config.bptt_horizon,
         config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
-        atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents)
+        atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents,
+        use_e3b=config.use_e3b, e3b_coef=config.e3b_coef, e3b_lambda=config.e3b_lambda,
+        use_diayn=config.use_diayn, diayn_archive=config.diayn_archive, diayn_coef=config.diayn_coef,
+        use_p3o=config.use_p3o, p3o_horizon=config.p3o_horizon
+    )
 
     uncompiled_policy = policy
-
     if config.compile:
-        policy = torch.compile(policy, mode=config.compile_mode)
+        policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
-    optimizer = torch.optim.Adam(policy.parameters(),
-        lr=config.learning_rate, eps=1e-5)
+    assert config.optimizer in ('adam', 'muon', 'kron')
+    if config.optimizer == 'adam':
+        optimizer = torch.optim.Adam(
+            policy.parameters(),
+            lr=config.learning_rate,
+            betas=(config.adam_beta1, config.adam_beta2),
+            eps=config.adam_eps
+        )
+    elif config.optimizer == 'muon':
+        from heavyball import ForeachMuon
+        optimizer = ForeachMuon(
+            policy.parameters(),
+            lr=config.learning_rate,
+            betas=(config.adam_beta1, config.adam_beta2),
+            eps=config.adam_eps
+        )
+    elif config.optimizer == 'kron':
+        from heavyball import ForeachPSGDKron
+        optimizer = ForeachPSGDKron(
+            policy.parameters(),
+            lr=config.learning_rate,
+            #precond_lr=config.precond_lr,
+            #beta=config.adam_beta1,
+        )
+
+    epochs = config.total_timesteps // config.batch_size
+    assert config.scheduler in ('linear', 'cosine')
+    if config.scheduler == 'linear':
+        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
+    elif config.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
+    scaler = None if config.precision == 'float32' else torch.amp.GradScaler()
+    amp_context = (nullcontext() if config.precision == 'float32'
+        else torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision)))
+
+    profile = Profile()
+    print_dashboard(config.env, utilization, 0, 0, profile, losses, {}, msg, clear=True)
 
     return pufferlib.namespace(
         config=config,
@@ -63,6 +163,9 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         policy=policy,
         uncompiled_policy=uncompiled_policy,
         optimizer=optimizer,
+        scheduler=scheduler,
+        scaler=scaler,
+        amp_context=amp_context,
         experience=experience,
         profile=profile,
         losses=losses,
@@ -70,97 +173,151 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         neptune=neptune,
         global_step=0,
         epoch=0,
-        use_e3b=config.use_e3b,
-        e3b_coef=config.e3b_coef,
         stats=defaultdict(list),
         msg=msg,
         last_log_time=0,
         utilization=utilization,
-        intrinsic_mean=None,
-        intrinsic_std=None,
+        use_p3o=config.use_p3o,
+        p3o_horizon=config.p3o_horizon,
+        use_e3b=config.use_e3b,
+        e3b_coef=config.e3b_coef,
+        e3b_norm=config.e3b_norm,
+        puf=config.puf,
+        use_diayn=config.use_diayn,
+        diayn_archive=config.diayn_archive,
+        diayn_coef=config.diayn_coef,
     )
 
 @pufferlib.utils.profile
 def evaluate(data):
-    config, profile, experience = data.config, data.profile, data.experience
-
+    profile = data.profile
     with profile.eval_misc:
+        config = data.config
+        experience = data.experience
         policy = data.policy
         infos = defaultdict(list)
-        lstm_h, lstm_c = experience.lstm_h, experience.lstm_c
-        e3b_inv = experience.e3b_inv
+        lstm_h = experience.lstm_h
+        lstm_c = experience.lstm_c
 
-    while not experience.full:
-        with profile.env:
-            o, r, d, t, info, env_id, mask = data.vecenv.recv()
-            env_id = env_id.tolist()
-            e3b_inv = experience.e3b_inv if data.use_e3b else None
-            done_mask = d + t
-            if data.use_e3b and done_mask.any():
-                done_idxs = torch.tensor(env_id)[done_mask]
-                e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
+    with data.amp_context:
+        while not experience.full:
+            with profile.env:
+                o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
-        with profile.eval_misc:
-            data.global_step += sum(mask)
+                # Zero-copy indexing for contiguous env_id
+                if config.env_batch_size == 1:
+                    gpu_env_id = cpu_env_id = slice(env_id[0], env_id[-1] + 1)
+                else:
+                    cpu_env_id = env_id
+                    gpu_env_id = torch.as_tensor(env_id).to(config.device, non_blocking=True)
 
-            o = torch.as_tensor(o)
-            o_device = o.to(config.device)
-            r = torch.as_tensor(r)
-            d = torch.as_tensor(d)
+            with profile.eval_misc:
+                done_mask = d + t
+                data.global_step += mask.sum()
 
-        with profile.eval_forward, torch.no_grad():
-            # TODO: In place-update should be faster. Leaking 7% speed max
-            # Also should be using a cuda tensor to index
-            if lstm_h is not None:
-                h = lstm_h[:, env_id]
-                c = lstm_c[:, env_id]
+                if data.use_diayn:
+                    idxs = env_id[done_mask]
+                    if len(idxs) > 0:
+                        z_idxs = torch.randint(0, experience.diayn_archive.shape[0], (done_mask.sum(),)).to(config.device)
+                        experience.diayn_skills[idxs] = z_idxs
+
+            with profile.eval_copy:
+                if data.use_e3b and done_mask.any():
+                    done_idxs = env_id[done_mask]
+                    experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
+
+
+                o = torch.as_tensor(o)
+                o_device = o.to(config.device, non_blocking=True)
+                r = torch.as_tensor(r).to(config.device, non_blocking=True)
+                d = torch.as_tensor(d).to(config.device, non_blocking=True)
+
+                h = None
+                c = None
+                if lstm_h is not None:
+                    h = lstm_h[0, gpu_env_id]
+                    c = lstm_c[0, gpu_env_id]
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_forward, torch.no_grad():
+                state = pufferlib.namespace(
+                    reward=r,
+                    done=d,
+                    env_id=gpu_env_id,
+                    mask=mask,
+                    lstm_h=h,
+                    lstm_c=c,
+                )
+
+                if data.use_diayn:
+                    z_idxs = experience.diayn_skills[env_id]
+                    z = experience.diayn_archive[z_idxs]
+                    state.diayn_z_idxs = z_idxs
+                    state.diayn_z = z
+
+                logits, value = policy(o_device, state)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
+
+                if data.use_diayn:
+                    diayn_policy = policy if lstm_h is None else policy.policy
+                    q = diayn_policy.diayn_discriminator(state.hidden).squeeze()
+                    r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
+                    r += config.diayn_coef*r_diayn# - np.log(1/data.diayn_archive)
+                    state.diayn_z = z
+                    state.diayn_z_idxs = z_idxs
+
                 if data.use_e3b:
-                    e3b = e3b_inv[env_id]
-                    actions, logprob, _, value, (h, c), next_e3b, intrinsic_reward = policy(o_device, (h, c), e3b=e3b)
-                else:
-                    actions, logprob, _, value, (h, c) = policy(o_device, (h, c))
-                lstm_h[:, env_id] = h
-                lstm_c[:, env_id] = c
-            else:
-                if data.use_e3b:
-                    e3b = e3b_inv[env_id]
-                    actions, logprob, _, value, next_e3b, intrinsic_reward = policy(o_device, e3b=e3b)
-                else:
-                    actions, logprob, _, value = policy(o_device)
+                    e3b = experience.e3b_inv[env_id]
+                    phi = state.hidden.detach()        
+                    u = phi.unsqueeze(1) @ e3b
+                    b = u @ phi.unsqueeze(2)
+                    experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
+                    done_inds = env_id[done_mask]
+                    experience.e3b_inv[done_inds] = experience.e3b_orig[done_inds]
+                    e3b_reward = b.squeeze()
 
-            if data.use_e3b:
-                e3b_inv[env_id] = next_e3b
+                    if experience.e3b_mean is None:
+                        experience.e3b_mean = e3b_reward.mean()
+                        experience.e3b_std = e3b_reward.std()
+                    else:
+                        w = data.e3b_norm
+                        experience.e3b_mean = (1-w)*e3b_reward.mean() + w*experience.e3b_mean
+                        experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
 
-                if data.intrinsic_mean is None:
-                    data.intrinsic_mean = intrinsic_reward.mean()
-                    data.intrinsic_std = intrinsic_reward.std()
-                else:
-                    data.intrinsic_mean = (0.999*data.intrinsic_mean + 0.001*intrinsic_reward.mean())
-                    data.intrinsic_std = (0.999*data.intrinsic_std + 0.001*intrinsic_reward.std())
+                    e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
+                    e3b_reward = config.e3b_coef*e3b_reward
+                    r += e3b_reward
 
-                intrinsic_reward = (intrinsic_reward - data.intrinsic_mean) / data.intrinsic_std
-                intrinsic_reward = intrinsic_reward.clip(-1, 1)
-                r += config.e3b_coef*intrinsic_reward.cpu()
+                # Clip rewards
+                r = torch.clamp(r, -1, 1)
 
-            # Clip rewards
-            r = torch.clamp(r, -1, 1)
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
 
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
+            with profile.eval_copy, torch.no_grad():
+                if lstm_h is not None:
+                    lstm_h[:, gpu_env_id] = state.lstm_h
+                    lstm_c[:, gpu_env_id] = state.lstm_c
 
-        with profile.eval_misc:
-            value = value.flatten()
-            actions = actions.cpu().numpy()
-            mask = torch.as_tensor(mask)
-            o = o if config.cpu_offload else o_device
-            experience.store(o, value, actions, logprob, r, d, env_id, mask)
+                    if config.device == 'cuda':
+                        torch.cuda.synchronize()
 
-            for i in info:
-                for k, v in pufferlib.utils.unroll_nested_dict(i):
-                    infos[k].append(v)
+            with profile.eval_copy:
+                o = o if config.cpu_offload else o_device
+                actions = experience.store(state, o, o_device, value, action, logprob, r, d, env_id, mask)
 
-        with profile.env:
-            data.vecenv.send(actions)
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+            with profile.eval_misc:
+                for i in info:
+                    for k, v in pufferlib.utils.unroll_nested_dict(i):
+                        infos[k].append(v)
+
+            with profile.env:
+                data.vecenv.send(actions)
 
     with profile.eval_misc:
         for k, v in infos.items():
@@ -192,92 +349,213 @@ def train(data):
     data.losses = make_losses()
     losses = data.losses
 
-    with profile.train_misc:
+    with profile.train_copy:
         idxs = experience.sort_training_data()
-        dones_np = experience.dones_np[idxs]
-        values_np = experience.values_np[idxs]
-        rewards_np = experience.rewards_np[idxs]
-        # TODO: bootstrap between segment bounds
-        advantages_np = compute_gae(dones_np, values_np,
+        dones = experience.dones[idxs]
+        rewards = experience.rewards[idxs]
+
+    with profile.train_misc:
+        if config.use_p3o:
+            reward_block = experience.reward_block
+            mask_block = experience.mask_block
+            values_mean = experience.values_mean[idxs]
+            values_std = experience.values_std[idxs]
+            advantages = experience.advantages
+
+            # Note: This function gets messed up by computing across
+            # episode bounds. Because we store experience in a flat buffer,
+            # bounds can be crossed even after handling dones. This prevent
+            # our method from scaling to longer horizons. TODO: Redo the way
+            # we store experience to avoid this issue
+            vstd_min = values_std.min().item()
+            vstd_max = values_std.max().item()
+            torch.cuda.synchronize()
+
+            mask_block.zero_()
+            experience.buf.zero_()
+            reward_block.zero_()
+            r_mean = rewards.mean().item()
+            r_std = rewards.std().item()
+            advantages.zero_()
+            experience.bounds.zero_()
+
+            '''
+            if data.epoch == 0:
+                values_std[:] = r_std
+                with torch.no_grad():
+                    data.policy.policy.value_logstd[:] = np.log(r_std)
+            '''
+
+            # TODO: Rename vstd to r_std
+            advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
+                    experience.buf, dones, rewards, advantages, experience.bounds,
+                    r_std, data.puf, config.p3o_horizon)
+
+            horizon = torch.where(values_std[0] > 0.95*r_std)[0]
+            horizon = horizon[0].item()+1 if len(horizon) else 1
+            if horizon < 16:
+                horizon = 16
+
+            advantages = advantages.cpu().numpy()
+            torch.cuda.synchronize()
+
+            experience.flatten_batch(advantages, reward_block, mask_block)
+            torch.cuda.synchronize()
+        else:
+            values_np = experience.values[idxs].to('cpu', non_blocking=True).numpy()
+            dones_np = dones.to('cpu', non_blocking=True).numpy()
+            rewards_np = rewards.to('cpu', non_blocking=True).numpy()
+            torch.cuda.synchronize()
+            advantages_np = compute_gae(dones_np, values_np,
             rewards_np, config.gamma, config.gae_lambda)
-        experience.flatten_batch(advantages_np)
+            experience.flatten_batch(advantages_np)
 
     # Optimizing the policy and value network
     total_minibatches = experience.num_minibatches * config.update_epochs
     mean_pg_loss, mean_v_loss, mean_entropy_loss = 0, 0, 0
     mean_old_kl, mean_kl, mean_clipfrac = 0, 0, 0
+    cross_entropy = torch.nn.CrossEntropyLoss()
     for epoch in range(config.update_epochs):
-        lstm_state = None
+        lstm_h = None
+        lstm_c = None
         for mb in range(experience.num_minibatches):
             with profile.train_misc:
+                state = pufferlib.namespace(
+                    action=experience.b_actions[mb],
+                    lstm_h=lstm_h,
+                    lstm_c=lstm_c,
+                )
                 obs = experience.b_obs[mb]
                 obs = obs.to(config.device)
                 atn = experience.b_actions[mb]
                 log_probs = experience.b_logprobs[mb]
-                val = experience.b_values[mb]
                 adv = experience.b_advantages[mb]
                 ret = experience.b_returns[mb]
 
-            with profile.train_forward:
-                if experience.lstm_h is not None:
-                    #_, newlogprob, entropy, newvalue, lstm_state, _, _ = data.policy(
-                    #    obs, state=lstm_state, action=atn)
-                    _, newlogprob, entropy, newvalue, lstm_state = data.policy(
-                        obs, state=lstm_state, action=atn)
-                    lstm_state = (lstm_state[0].detach(), lstm_state[1].detach())
+                if config.use_diayn:
+                    z_idxs = experience.b_diayn_z_idxs[mb]
+
+                if config.use_p3o:
+                    val_mean = experience.b_values_mean[mb]
+                    val_std = experience.b_values_std[mb]
+                    rew_block = experience.b_reward_block[mb]
+                    mask_block = experience.b_mask_block[mb]
                 else:
-                    _, newlogprob, entropy, newvalue, _, _ = data.policy(
-                        obs.reshape(-1, *data.vecenv.single_observation_space.shape),
-                        action=atn,
-                    )
+                    val = experience.b_values[mb]
 
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
-            with profile.train_misc:
-                logratio = newlogprob - log_probs.reshape(-1)
-                ratio = logratio.exp()
+            with data.amp_context:
+                with profile.train_forward:
+                    if not hasattr(data.policy, 'recurrent'):
+                        obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
-                with torch.no_grad():
-                    # calculate approx_kl http://joschu.net/blog/kl-approx.html
-                    old_approx_kl = (-logratio).mean()
-                    approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
+                    logits, newvalue = data.policy.forward_train(obs, state)
+                    lstm_h = state.lstm_h
+                    lstm_c = state.lstm_c
+                    if lstm_h is not None:
+                        lstm_h = lstm_h.detach()
+                    if lstm_c is not None:
+                        lstm_c = lstm_c.detach()
 
-                adv = adv.reshape(-1)
-                if config.norm_adv:
-                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+                    actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
+                        action=atn, is_continuous=data.policy.is_continuous)
 
-                # Policy loss
-                pg_loss1 = -adv * ratio
-                pg_loss2 = -adv * torch.clamp(
-                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                )
-                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+                    if config.device == 'cuda':
+                        torch.cuda.synchronize()
 
-                # Value loss
-                newvalue = newvalue.view(-1)
-                if config.clip_vloss:
-                    v_loss_unclipped = (newvalue - ret) ** 2
-                    v_clipped = val + torch.clamp(
-                        newvalue - val,
-                        -config.vf_clip_coef,
-                        config.vf_clip_coef,
+                with profile.train_misc:
+                    logratio = newlogprob - log_probs.reshape(-1)
+                    ratio = logratio.exp()
+
+                    # TODO: Only do this if we are KL clipping? Saves 1-2% compute
+                    with torch.no_grad():
+                        # calculate approx_kl http://joschu.net/blog/kl-approx.html
+                        old_approx_kl = (-logratio).mean()
+                        approx_kl = ((ratio - 1) - logratio).mean()
+                        clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
+
+                    adv = adv.reshape(-1)
+                    if config.norm_adv:
+                        adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+                    # Policy loss
+                    pg_loss1 = -adv * ratio
+                    pg_loss2 = -adv * torch.clamp(
+                        ratio, 1 - config.clip_coef, 1 + config.clip_coef
                     )
-                    v_loss_clipped = (v_clipped - ret) ** 2
-                    v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                    v_loss = 0.5 * v_loss_max.mean()
-                else:
-                    v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+                    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
-                entropy_loss = entropy.mean()
-                loss = pg_loss - config.ent_coef * entropy_loss + v_loss * config.vf_coef
+                    # Value loss
+                    if config.use_p3o:
+                        newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
+                        newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
+                        newvalue_var = torch.square(newvalue_std)
+                        criterion = torch.nn.GaussianNLLLoss(reduction='none')
+                        #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
+                        v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                        v_loss = v_loss[:, :(horizon+3)]
+                        mask_block = mask_block[:, :(horizon+3)]
+                        #v_loss[:, horizon:] = 0
+                        #v_loss = (v_loss * mask_block).sum(axis=1)
+                        #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
+                        #v_loss = v_loss.mean()
+                        v_loss = v_loss[mask_block.bool()].mean()
+                        #TODO: Count mask and sum
+                        # There is going to have to be some sort of norm here.
+                        # Right now, learning works at different horizons, but you need
+                        # to retune hyperparameters. Ideally, horizon should be a stable
+                        # param that zero-shots the same hypers
+
+                        # Faster than masking
+                        #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
+                        #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
+                        #v_loss = v_loss[mask_block.bool()].mean()
+                    elif config.clip_vloss:
+                        newvalue = newvalue.flatten()
+                        v_loss_unclipped = (newvalue - ret) ** 2
+                        v_clipped = val + torch.clamp(
+                            newvalue - val,
+                            -config.vf_clip_coef,
+                            config.vf_clip_coef,
+                        )
+                        v_loss_clipped = (v_clipped - ret) ** 2
+                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                        v_loss = 0.5 * v_loss_max.mean()
+                    else:
+                        newvalue = newvalue.flatten()
+                        v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+
+                    entropy_loss = entropy.mean()
+                    loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
+
+                    with profile.custom:
+                        if config.use_diayn:
+                            diayn_discriminator = data.policy.diayn_discriminator if hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator
+                            q = diayn_discriminator(state.hidden).squeeze()
+                            diayn_loss = cross_entropy(q, z_idxs)
+                            loss += config.diayn_loss_coef*diayn_loss
+                            torch.cuda.synchronize()
 
             with profile.learn:
                 data.optimizer.zero_grad()
-                loss.backward()
+                if data.scaler is None:
+                    loss.backward()
+                else:
+                    data.scaler.scale(loss).backward()
+
+                if data.scaler is not None:
+                    data.scaler.unscale_(data.optimizer)
+
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
-                data.optimizer.step()
+
+                if data.scaler is None:
+                    data.optimizer.step()
+                else:
+                    data.scaler.step(data.optimizer)
+                    data.scaler.update()
+
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
@@ -289,21 +567,33 @@ def train(data):
                 losses.approx_kl += approx_kl.item() / total_minibatches
                 losses.clipfrac += clipfrac.item() / total_minibatches
 
+                if data.use_diayn:
+                    losses.diayn_loss += diayn_loss.item() / total_minibatches
+
         if config.target_kl is not None:
             if approx_kl > config.target_kl:
                 break
 
     with profile.train_misc:
         if config.anneal_lr:
-            frac = 1.0 - data.global_step / config.total_timesteps
-            lrnow = frac * config.learning_rate
-            data.optimizer.param_groups[0]["lr"] = lrnow
+            data.scheduler.step()
+            '''
+            for pg in data.optimizer.param_groups:
+                frac = 1.0 - data.global_step / config.total_timesteps
+                lrnow = frac * config.learning_rate
+                data.optimizer.param_groups[0]["lr"] = lrnow
+            '''
 
-        y_pred = experience.values_np
-        y_true = experience.returns_np
-        var_y = np.var(y_true)
-        explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
-        losses.explained_variance = explained_var
+        if config.use_p3o:
+            y_pred = experience.values_mean
+            y_true = experience.reward_block
+        else:
+            y_pred = experience.values
+            y_true = experience.returns
+
+        var_y = y_true.var()
+        explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
+        #losses.explained_variance = explained_var.item()
         data.epoch += 1
 
         done_training = data.global_step >= config.total_timesteps
@@ -316,11 +606,37 @@ def train(data):
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
 
+        #print('MEAN', experience.b_values_mean.mean(0).mean(0))
+        #print('STD', torch.exp(experience.b_values_logstd).mean(0).mean(0))
+
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
             data.msg = f'Checkpoint saved at update {data.epoch}'
 
+        torch.cuda.synchronize()
+
     return logs
+
+def compute_pg_loss(log_probs, newlogprob, adv, clip_coef):
+    logratio = newlogprob - log_probs.reshape(-1)
+    ratio = logratio.exp()
+
+    with torch.no_grad():
+        # calculate approx_kl http://joschu.net/blog/kl-approx.html
+        old_approx_kl = (-logratio).mean()
+        approx_kl = ((ratio - 1) - logratio).mean()
+        clipfrac = ((ratio - 1.0).abs() > clip_coef).float().mean()
+
+    adv = adv.view(-1)
+    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+    # Policy loss
+    pg_loss1 = -adv * ratio
+    pg_loss2 = -adv * torch.clamp(
+        ratio, 1 - clip_coef, 1 + clip_coef
+    )
+    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+    return pg_loss, approx_kl, old_approx_kl, clipfrac
 
 def dist_sum(value, device):
     if not dist.is_initialized():
@@ -400,19 +716,25 @@ class Profile:
     eval_time: ... = 0
     env_time: ... = 0
     eval_forward_time: ... = 0
+    eval_copy_time: ... = 0
     eval_misc_time: ... = 0
     train_time: ... = 0
     train_forward_time: ... = 0
     learn_time: ... = 0
+    train_copy_time: ... = 0
     train_misc_time: ... = 0
+    custom_time: ... = 0
     def __init__(self):
         self.start = time.time()
         self.env = pufferlib.utils.Profiler()
         self.eval_forward = pufferlib.utils.Profiler()
+        self.eval_copy = pufferlib.utils.Profiler()
         self.eval_misc = pufferlib.utils.Profiler()
         self.train_forward = pufferlib.utils.Profiler()
         self.learn = pufferlib.utils.Profiler()
+        self.train_copy = pufferlib.utils.Profiler()
         self.train_misc = pufferlib.utils.Profiler()
+        self.custom = pufferlib.utils.Profiler()
         self.prev_steps = 0
 
     def __iter__(self):
@@ -422,11 +744,14 @@ class Profile:
         yield 'eval_time', self.eval_time
         yield 'env_time', self.env_time
         yield 'eval_forward_time', self.eval_forward_time
+        yield 'eval_copy_time', self.eval_copy_time
         yield 'eval_misc_time', self.eval_misc_time
         yield 'train_time', self.train_time
         yield 'train_forward_time', self.train_forward_time
         yield 'learn_time', self.learn_time
+        yield 'train_copy_time', self.train_copy_time
         yield 'train_misc_time', self.train_misc_time
+        yield 'custom_time', self.custom_time
 
     @property
     def epoch_time(self):
@@ -449,11 +774,14 @@ class Profile:
         self.eval_time = data._timers['evaluate'].elapsed
         self.eval_forward_time = self.eval_forward.elapsed
         self.env_time = self.env.elapsed
+        self.eval_copy_time = self.eval_copy.elapsed
         self.eval_misc_time = self.eval_misc.elapsed
         self.train_time = data._timers['train'].elapsed
         self.train_forward_time = self.train_forward.elapsed
         self.learn_time = self.learn.elapsed
+        self.train_copy_time = self.train_copy.elapsed
         self.train_misc_time = self.train_misc.elapsed
+        self.custom_time = self.custom.elapsed
         return True
 
 def make_losses():
@@ -465,13 +793,17 @@ def make_losses():
         approx_kl=0,
         clipfrac=0,
         explained_variance=0,
+        diayn_loss=0,
     )
 
 class Experience:
     '''Flat tensor storage and array views for faster indexing'''
     def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
-                 device='cuda', lstm=None, lstm_total_agents=0):
+                 device='cuda', lstm=None, lstm_total_agents=0,
+                 use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0,
+                 use_diayn=False, diayn_archive=128, diayn_coef=0.1,
+                 use_p3o=False, p3o_horizon=32):
         if minibatch_size is None:
             minibatch_size = batch_size
 
@@ -481,21 +813,42 @@ class Experience:
         obs_device = device if not pin else 'cpu'
         self.obs=torch.zeros(batch_size, *obs_shape, dtype=obs_dtype,
             pin_memory=pin, device=device if not pin else 'cpu')
-        self.actions=torch.zeros(batch_size, *atn_shape, dtype=atn_dtype, pin_memory=pin)
-        self.logprobs=torch.zeros(batch_size, pin_memory=pin)
-        self.rewards=torch.zeros(batch_size, pin_memory=pin)
-        self.dones=torch.zeros(batch_size, pin_memory=pin)
-        self.truncateds=torch.zeros(batch_size, pin_memory=pin)
-        self.values=torch.zeros(batch_size, pin_memory=pin)
-        self.e3b_inv = 10*torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device)
-        self.e3b_orig = self.e3b_inv.clone()
+        self.actions=torch.zeros(batch_size, *atn_shape, dtype=atn_dtype, device=device)
+        self.logprobs=torch.zeros(batch_size, device=device)
+        self.rewards=torch.zeros(batch_size, device=device)
+        self.dones=torch.zeros(batch_size, device=device)
+        self.truncateds=torch.zeros(batch_size, device=device)
 
-        self.actions_np = np.asarray(self.actions)
-        self.logprobs_np = np.asarray(self.logprobs)
-        self.rewards_np = np.asarray(self.rewards)
-        self.dones_np = np.asarray(self.dones)
-        self.truncateds_np = np.asarray(self.truncateds)
-        self.values_np = np.asarray(self.values)
+        self.use_e3b = use_e3b
+        if use_e3b:
+            self.e3b_inv = torch.eye(hidden_size).repeat(lstm_total_agents, 1, 1).to(device) / e3b_lambda
+            self.e3b_orig = self.e3b_inv.clone()
+            self.e3b_mean = None
+            self.e3b_std = None
+
+        self.use_diayn = use_diayn
+        if use_diayn:
+            #self.diayn_archive = torch.randn(diayn_archive, hidden_size, dtype=torch.float32, device=device)
+            self.diayn_archive = torch.nn.functional.one_hot(torch.arange(diayn_archive), diayn_archive).to(device).float()
+            self.diayn_skills = torch.randint(0, diayn_archive, (lstm_total_agents,), dtype=torch.long, device=device)
+            self.diayn_batch = torch.zeros(batch_size, dtype=torch.long, device=device)
+
+        self.use_p3o = use_p3o
+        self.p3o_horizon = p3o_horizon
+        if use_p3o:
+            self.values_mean=torch.zeros(batch_size, p3o_horizon, device=device)
+            self.values_std=torch.zeros(batch_size, p3o_horizon, device=device)
+            self.reward_block = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            self.mask_block = torch.ones(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            self.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            self.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
+            self.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
+            self.vstd_max = 1.0
+        else:
+            self.values = torch.zeros(batch_size, device=device)
+
+        self.sort_keys = np.zeros((batch_size, 3), dtype=np.int32)
+        self.sort_keys[:, 0] = np.arange(batch_size)
 
         self.lstm_h = self.lstm_c = None
         if lstm is not None:
@@ -516,9 +869,9 @@ class Experience:
 
         self.batch_size = batch_size
         self.bptt_horizon = bptt_horizon
+        self.p3o_horizon = p3o_horizon
         self.minibatch_size = minibatch_size
         self.device = device
-        self.sort_keys = []
         self.ptr = 0
         self.step = 0
 
@@ -526,51 +879,98 @@ class Experience:
     def full(self):
         return self.ptr >= self.batch_size
 
-    def store(self, obs, value, action, logprob, reward, done, env_id, mask):
+    def store(self, state, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask):
         # Mask learner and Ensure indices do not exceed batch size
         ptr = self.ptr
-        indices = torch.where(mask)[0].numpy()[:self.batch_size - ptr]
-        end = ptr + len(indices)
- 
-        self.obs[ptr:end] = obs.to(self.obs.device)[indices]
-        self.values_np[ptr:end] = value.cpu().numpy()[indices]
-        self.actions_np[ptr:end] = action[indices]
-        self.logprobs_np[ptr:end] = logprob.cpu().numpy()[indices]
-        self.rewards_np[ptr:end] = reward.cpu().numpy()[indices]
-        self.dones_np[ptr:end] = done.cpu().numpy()[indices]
-        self.sort_keys.extend([(env_id[i], self.step) for i in indices])
+        indices = np.where(mask)[0]
+        num_indices = indices.size
+        end = ptr + num_indices
+        dst = slice(ptr, end)
+
+        # Zero-copy indexing for contiguous env_id
+        if num_indices == mask.size and isinstance(env_id, slice):
+            gpu_inds = cpu_inds = slice(0, min(self.batch_size - ptr, num_indices))
+        else:
+            cpu_inds = indices[:self.batch_size - ptr]
+            gpu_inds = torch.as_tensor(cpu_inds).to(self.obs.device, non_blocking=True)
+
+        if self.obs.device.type == 'cuda':
+            self.obs[dst] = gpu_obs[gpu_inds]
+        else:
+            self.obs[dst] = cpu_obs[cpu_inds]
+
+        if self.use_diayn:
+            self.diayn_batch[dst] = state.diayn_z_idxs[gpu_inds]
+
+        if self.use_p3o:
+            self.values_mean[dst] = value.mean[gpu_inds]
+            self.values_std[dst] = value.std[gpu_inds]
+        else:
+            self.values[dst] = value[gpu_inds].flatten()
+
+        self.actions[dst] = action[gpu_inds]
+        self.logprobs[dst] = logprob[gpu_inds]
+        self.rewards[dst] = reward[cpu_inds].to(self.rewards.device) # ???
+        self.dones[dst] = done[cpu_inds].to(self.dones.device) # ???
+
+        if isinstance(env_id, slice):
+            self.sort_keys[dst, 1] = np.arange(env_id.start, env_id.stop, dtype=np.int32)
+        else:
+            self.sort_keys[dst, 1] = env_id[cpu_inds]
+
+        self.sort_keys[dst, 2] = self.step
         self.ptr = end
         self.step += 1
 
+        return action.cpu().numpy()
+
     def sort_training_data(self):
-        idxs = np.asarray(sorted(
-            range(len(self.sort_keys)), key=self.sort_keys.__getitem__))
+        idxs = np.lexsort((self.sort_keys[:, 2], self.sort_keys[:, 1]))
         self.b_idxs_obs = torch.as_tensor(idxs.reshape(
                 self.minibatch_rows, self.num_minibatches, self.bptt_horizon
             ).transpose(1,0,-1)).to(self.obs.device).long()
         self.b_idxs = self.b_idxs_obs.to(self.device)
         self.b_idxs_flat = self.b_idxs.reshape(
             self.num_minibatches, self.minibatch_size)
-        self.sort_keys = []
+        self.sort_keys[:, 1:] = 0
         return idxs
 
-    def flatten_batch(self, advantages_np):
-        advantages = torch.as_tensor(advantages_np).to(self.device)
+    def flatten_batch(self, advantages_np, reward_block=None, mask_block=None):
+        advantages = torch.as_tensor(advantages_np).to(self.device, non_blocking=True)
+        self.b_advantages = advantages.reshape(
+            self.minibatch_rows, self.num_minibatches, self.bptt_horizon
+            ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size)
+
         b_idxs, b_flat = self.b_idxs, self.b_idxs_flat
-        self.b_actions = self.actions.to(self.device, non_blocking=True)
-        self.b_logprobs = self.logprobs.to(self.device, non_blocking=True)
-        self.b_dones = self.dones.to(self.device, non_blocking=True)
-        self.b_values = self.values.to(self.device, non_blocking=True)
-        self.b_advantages = advantages.reshape(self.minibatch_rows,
-            self.num_minibatches, self.bptt_horizon).transpose(0, 1).reshape(
-            self.num_minibatches, self.minibatch_size)
-        self.returns_np = advantages_np + self.values_np
+        self.b_actions = self.actions.to(self.device, non_blocking=True)[b_idxs].contiguous()
+        self.b_logprobs = self.logprobs.to(self.device, non_blocking=True)[b_idxs]
+        self.b_dones = self.dones.to(self.device, non_blocking=True)[b_idxs]
         self.b_obs = self.obs[self.b_idxs_obs]
-        self.b_actions = self.b_actions[b_idxs].contiguous()
-        self.b_logprobs = self.b_logprobs[b_idxs]
-        self.b_dones = self.b_dones[b_idxs]
-        self.b_values = self.b_values[b_flat]
-        self.b_returns = self.b_advantages + self.b_values
+
+        if self.use_p3o:
+            self.reward_block = torch.as_tensor(reward_block).to(self.device)
+            self.b_reward_block = self.reward_block.reshape(
+                self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.p3o_horizon
+                ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
+
+            b_mask_block = torch.as_tensor(mask_block).to(self.device)
+            self.b_mask_block = b_mask_block.reshape(
+                self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.p3o_horizon
+                ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
+
+            self.b_values_mean = self.values_mean.to(self.device, non_blocking=True)[b_flat]
+            self.b_values_std = self.values_std.to(self.device, non_blocking=True)[b_flat]
+            self.b_returns = self.buf.to(self.device, non_blocking=True).reshape(
+                self.minibatch_rows, self.num_minibatches, self.bptt_horizon, self.p3o_horizon
+                ).transpose(0, 1).reshape(self.num_minibatches, self.minibatch_size, self.p3o_horizon)
+        else:
+            self.b_values = self.values.to(self.device, non_blocking=True)[b_flat]
+            self.returns = advantages + self.values # Check sorting of values here
+            self.b_returns = self.b_advantages + self.b_values # Check sorting of values here
+
+        if self.use_diayn:
+            self.b_diayn_z_idxs = self.diayn_batch.to(self.device, non_blocking=True)[b_flat]
+            self.b_diayn_z = self.diayn_archive[self.b_diayn_z_idxs]
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):
@@ -635,7 +1035,7 @@ def try_load_checkpoint(data):
         return
 
     trainer_path = os.path.join(path, 'trainer_state.pt')
-    resume_state = torch.load(trainer_path)
+    resume_state = torch.load(trainer_path, weights_only=False)
     model_path = os.path.join(path, resume_state['model_name'])
     data.policy.uncompiled.load_state_dict(model_path, map_location=config.device)
     data.optimizer.load_state_dict(resume_state['optimizer_state_dict'])
@@ -657,7 +1057,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     if model_path is None:
         agent = agent_creator(env, policy_cls, rnn_cls, agent_kwargs).to(device)
     else:
-        agent = torch.load(model_path, map_location=device)
+        agent = torch.load(model_path, map_location=device, weights_only=False)
 
     #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
     e3b_inv = None
@@ -665,7 +1065,17 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     ob, info = env.reset()
     driver = env.driver_env
     os.system('clear')
-    state = None
+
+    state = pufferlib.namespace(
+        lstm_h=None,
+        lstm_c=None,
+    )
+
+    num_agents = env.observation_space.shape[0]
+    if hasattr(agent, 'recurrent'):
+        shape = (num_agents, agent.hidden_size)
+        state.lstm_h = torch.zeros(shape).to(device)
+        state.lstm_c = torch.zeros(shape).to(device)
 
     frames = []
     tick = 0
@@ -692,25 +1102,9 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
-            if hasattr(agent, 'lstm'):
-                #action, _, value, _, state, e3b, intrinsic = agent(ob, state, e3b=e3b_inv)
-                action, _, value, _, state = agent(ob, state, e3b=e3b_inv)
-            else:
-                action, _, value, _, e3b, intrinsic = agent(ob, e3b=e3b_inv)
-
+            logits, value = agent(ob, state)
+            action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=agent.is_continuous)
             action = action.cpu().numpy().reshape(env.action_space.shape)
-
-        '''
-        if intrinsic_mean is None:
-            intrinsic_mean = intrinsic.mean()
-            intrinsic_std = intrinsic.std()
-        else:
-            intrinsic_mean = (0.99*intrinsic_mean + 0.01*intrinsic.mean())
-            intrinsic_std = (0.99*intrinsic_std + 0.01*intrinsic.std())
-
-        intrinsic = (intrinsic - intrinsic_mean) / intrinsic_std
-        intrinsic = intrinsic.clip(-1, 1)
-        '''
 
         ob, reward = env.step(action)[:2]
         reward = reward.mean()
@@ -816,11 +1210,14 @@ def print_dashboard(env_name, utilization, global_step, epoch,
     p.add_row(*fmt_perf('Evaluate', profile.eval_time, profile.uptime))
     p.add_row(*fmt_perf('  Forward', profile.eval_forward_time, profile.uptime))
     p.add_row(*fmt_perf('  Env', profile.env_time, profile.uptime))
+    p.add_row(*fmt_perf('  Copy', profile.eval_copy_time, profile.uptime))
     p.add_row(*fmt_perf('  Misc', profile.eval_misc_time, profile.uptime))
     p.add_row(*fmt_perf('Train', profile.train_time, profile.uptime))
     p.add_row(*fmt_perf('  Forward', profile.train_forward_time, profile.uptime))
     p.add_row(*fmt_perf('  Learn', profile.learn_time, profile.uptime))
+    p.add_row(*fmt_perf('  Copy', profile.train_copy_time, profile.uptime))
     p.add_row(*fmt_perf('  Misc', profile.train_misc_time, profile.uptime))
+    p.add_row(*fmt_perf('  Custom', profile.custom_time, profile.uptime))
 
     l = Table(box=None, expand=True, )
     l.add_column(f'{c1}Losses', justify="left", width=16)

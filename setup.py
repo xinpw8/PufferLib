@@ -119,6 +119,11 @@ environments = {
         f'gymnasium=={GYMNASIUM_VERSION}',
         'crafter==1.8.3',
     ],
+    'craftax': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'craftax',
+    ],
     'dm_control': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
@@ -261,6 +266,7 @@ extension_paths = [
     'pufferlib/ocean/pong/cy_pong',
     'pufferlib/ocean/breakout/cy_breakout',
     'pufferlib/ocean/enduro/cy_enduro',
+    'pufferlib/ocean/blastar/cy_blastar',
     'pufferlib/ocean/connect4/cy_connect4',
     'pufferlib/ocean/grid/cy_grid',
     'pufferlib/ocean/tripletriad/cy_tripletriad',
@@ -278,7 +284,7 @@ if system == 'Darwin':
     # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
     # So @loader_path/../../raylib/lib is common.
     extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION','-DPLATFORM_DESKTOP', '-O2']
-    extra_link_args=['-fwrapv']
+    extra_link_args=['-fwrapv', '-framework', 'Cocoa', '-framework', 'OpenGL', '-framework', 'IOKit']
 
 elif system == 'Linux':
     extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than']
@@ -294,8 +300,7 @@ extensions = [Extension(
     include_dirs=[numpy.get_include(), 'raylib/include'],
     extra_compile_args=extra_compile_args,#, '-g'],
     extra_link_args=extra_link_args,
-    extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a']
-
+    extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
 ) for path in extension_paths]
 
 # Prevent Conda from injecting garbage compile flags
@@ -346,7 +351,7 @@ setup(
     },
     ext_modules = cythonize([
         "pufferlib/extensions.pyx",
-        "c_gae.pyx",
+        "c_advantage.pyx",
         "pufferlib/puffernet.pyx",
         *extensions,
     ], 

@@ -27,6 +27,12 @@ class Space:
         self.is_integer = is_integer
 
 class Linear(Space):
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            scale = 0.5
+
+        super().__init__(min, max, scale, mean, is_integer)
+
     def normalize(self, value):
         #assert isinstance(value, (int, float))
         zero_one = (value - self.min)/(self.max - self.min)
@@ -40,6 +46,13 @@ class Linear(Space):
         return value
 
 class Pow2(Space):
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            scale = 0.5
+            #scale = 2 / (np.log2(max) - np.log2(min))
+
+        super().__init__(min, max, scale, mean, is_integer)
+
     def normalize(self, value):
         #assert isinstance(value, (int, float))
         #assert value != 0.0
@@ -56,9 +69,11 @@ class Log(Space):
     base: int = 10
 
     def __init__(self, min, max, scale, mean, is_integer=False):
-        if scale == 'auto':
+        if scale == 'time':
             # TODO: Set scaling param intuitively based on number of jumps from min to max
             scale = 1 / (np.log2(max) - np.log2(min))
+        elif scale == 'auto':
+            scale = 0.5
 
         super().__init__(min, max, scale, mean, is_integer)
 
@@ -79,6 +94,12 @@ class Log(Space):
 class Logit(Space):
     base: int = 10
 
+    def __init__(self, min, max, scale, mean, is_integer=False):
+        if scale == 'auto':
+            scale = 0.5
+
+        super().__init__(min, max, scale, mean, is_integer)
+
     def normalize(self, value):
         #assert isinstance(value, (int, float))
         #assert value != 0.0
@@ -91,7 +112,7 @@ class Logit(Space):
         log_spaced = zero_one*(math.log(1-self.max, self.base) - math.log(1-self.min, self.base)) + math.log(1-self.min, self.base)
         return 1 - self.base**log_spaced
 
-def _carbs_params_from_puffer_sweep(sweep_config):
+def _params_from_puffer_sweep(sweep_config):
     param_spaces = {}
     for name, param in sweep_config.items():
         if name in ('method', 'name', 'metric', 'max_score'):
@@ -99,7 +120,7 @@ def _carbs_params_from_puffer_sweep(sweep_config):
 
         assert isinstance(param, dict)
         if any(isinstance(param[k], dict) for k in param):
-            param_spaces[name] = _carbs_params_from_puffer_sweep(param)
+            param_spaces[name] = _params_from_puffer_sweep(param)
             continue
  
         assert 'distribution' in param
@@ -130,7 +151,7 @@ def _carbs_params_from_puffer_sweep(sweep_config):
 
 class Hyperparameters:
     def __init__(self, config, verbose=True):
-        self.spaces = _carbs_params_from_puffer_sweep(config)
+        self.spaces = _params_from_puffer_sweep(config)
         self.flat_spaces = dict(pufferlib.utils.unroll_nested_dict(self.spaces))
         self.num = len(self.flat_spaces)
 
@@ -155,7 +176,6 @@ class Hyperparameters:
             print('Max random sample:')
             for name, space in self.flat_spaces.items():
                 print(f'\t{name}: {space.unnormalize(min(space.norm_mean + space.scale, space.norm_max))}')
-
 
     def sample(self, n, mu=None, scale=1):
         if mu is None:
@@ -372,14 +392,14 @@ class Protein:
         # Transformed scores
         min_score = self.min_score
         if min_score is None:
-            min_score = np.min(y) - abs(np.min(y))
+            min_score = np.min(y) - np.min(np.abs(y))
 
         if np.min(y) < min_score - 1e-6:
             raise ValueError(f'Min score {min_score} is less than min score in data {np.min(y)}')
 
         max_score = self.max_score
         if max_score is None:
-            max_score = np.max(y) + abs(np.max(y))
+            max_score = np.max(y) + np.max(np.abs(y))
 
         if np.max(y) > max_score + 1e-6:
             raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
@@ -632,55 +652,87 @@ class Protein:
         else:
             self.success_observations.append(new_observation)
 
-'''
-from carbs import (
-    CARBS,
-    CARBSParams,
-    ObservationInParam,
-    Param,
-    LinearSpace,
-    Pow2Space,
-    LogSpace,
-    LogitSpace,
-)
+def _carbs_params_from_puffer_sweep(sweep_config):
+    from carbs import (
+        Param,
+        LinearSpace,
+        LogSpace,
+        LogitSpace,
+    )
 
-class PufferCarbs:
+    param_spaces = {}
+    for name, param in sweep_config.items():
+        if name in ('method', 'name', 'metric', 'max_score'):
+            continue
+
+        assert isinstance(param, dict)
+        if any(isinstance(param[k], dict) for k in param):
+            param_spaces[name] = _carbs_params_from_puffer_sweep(param)
+            continue
+ 
+        assert 'distribution' in param
+        distribution = param['distribution']
+        search_center = param['mean']
+        kwargs = dict(
+            min=param['min'],
+            max=param['max'],
+        )
+        if distribution == 'uniform':
+            space = LinearSpace(**kwargs)
+        elif distribution in ('int_uniform', 'uniform_pow2'):
+            space = LinearSpace(**kwargs, is_integer=True)
+        elif distribution == 'log_normal':
+            space = LogSpace(**kwargs)
+        elif distribution == 'logit_normal':
+            space = LogitSpace(**kwargs)
+        else:
+            raise ValueError(f'Invalid distribution: {distribution}')
+
+        param_spaces[name] = Param(
+            name=name,
+            space=space,
+            search_center=search_center
+        )
+
+    return param_spaces
+
+class Carbs:
     def __init__(self,
             sweep_config: dict,
             max_suggestion_cost: float = None,
             resample_frequency: int = 5,
             num_random_samples: int = 10,
         ):
+
         param_spaces = _carbs_params_from_puffer_sweep(sweep_config)
         flat_spaces = [e[1] for e in pufferlib.utils.unroll_nested_dict(param_spaces)]
         for e in flat_spaces:
             print(e.name, e.space)
 
-        metric = sweep_config['metric']
-        goal = metric['goal']
-        assert goal in ['maximize', 'minimize'], f"Invalid goal {goal}"
-        self.carbs_params = CARBSParams(
-            better_direction_sign=1 if goal == 'maximize' else -1,
+        from carbs import (
+            CARBSParams,
+            CARBS,
+        )
+
+        carbs_params = CARBSParams(
+            better_direction_sign=1,
             is_wandb_logging_enabled=False,
             resample_frequency=resample_frequency,
             num_random_samples=num_random_samples,
             max_suggestion_cost=max_suggestion_cost,
             is_saved_on_every_observation=False,
-            #num_candidates_for_suggestion_per_dim=10
         )
-        self.carbs = CARBS(self.carbs_params, flat_spaces)
+        self.carbs = CARBS(carbs_params, flat_spaces)
 
     def suggest(self, args):
-        #start = time.time()
         self.suggestion = self.carbs.suggest().suggestion
-        #print(f'Suggestion took {time.time() - start} seconds')
         for k in ('train', 'env'):
             for name, param in args['sweep'][k].items():
                 if name in self.suggestion:
                     args[k][name] = self.suggestion[name]
 
-    def observe(self, score, cost, is_failure=False):
-        #start = time.time()
+    def observe(self, hypers, score, cost, is_failure=False):
+        from carbs import ObservationInParam
         self.carbs.observe(
             ObservationInParam(
                 input=self.suggestion,
@@ -689,7 +741,3 @@ class PufferCarbs:
                 is_failure=is_failure,
             )
         )
-        #print(f'Observation took {time.time() - start} seconds')
-
-
-'''
