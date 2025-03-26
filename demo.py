@@ -45,8 +45,9 @@ def init_wandb(args, name, id=None, resume=True, tag=None):
 
 def init_neptune(args, name, id=None, resume=True, tag=None):
     import neptune
+    workspace = args['workspace']
     run = neptune.init_run(
-        project="pufferai/ablations",
+        project=f"{workspace['name']}/{workspace['project']}",
         capture_hardware_metrics=False,
         capture_stdout=False,
         capture_stderr=False,
@@ -250,7 +251,6 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         if wandb is not None:
             wandb.log({'environment/elo': elos[model_name]})
     '''
-
     clean_pufferl.close(data)
     return scores, costs, timesteps, elos, vecenv
 
