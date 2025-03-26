@@ -13,7 +13,7 @@ cdef extern from "cpr.h":
     int LOG_BUFFER_SIZE
 
     ctypedef struct Log: 
-        float episode_return
+        float score
         float moves
 
     ctypedef struct LogBuffer: 

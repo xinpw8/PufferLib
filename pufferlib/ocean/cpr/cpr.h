@@ -24,7 +24,7 @@
 
 typedef struct Log Log;
 struct Log {
-  float episode_return;
+  float score;
   float moves;
 };
 
@@ -54,7 +54,7 @@ void add_log(LogBuffer *logs, Log *log) {
   }
   logs->logs[logs->idx] = *log;
   logs->idx += 1;
-  // printf("Log: %f, %f \n", log->episode_return, log->moves);
+  // printf("Log: %f, %f \n", log->score, log->moves);
 }
 
 Log aggregate_and_clear(LogBuffer *logs) {
@@ -63,10 +63,10 @@ Log aggregate_and_clear(LogBuffer *logs) {
     return log;
   }
   for (int i = 0; i < logs->idx; i++) {
-    log.episode_return += logs->logs[i].episode_return;
+    log.score += logs->logs[i].score;
     log.moves += logs->logs[i].moves;
   }
-  log.episode_return /= logs->idx;
+  log.score /= logs->idx;
   log.moves /= logs->idx;
   logs->idx = 0;
   return log;
@@ -384,7 +384,7 @@ void reward_agents_near(CCpr *env, int food_index) {
     if ((ac == food_c && (ar == food_r - 1 || ar == food_r + 1)) ||
         (ar == food_r && (ac == food_c - 1 || ac == food_c + 1))) {
       env->rewards[i] += env->interactive_food_reward;
-      env->logs[i].episode_return += env->interactive_food_reward;
+      env->logs[i].score += env->interactive_food_reward;
       add_log(env->log_buffer, &env->logs[i]);
       env->logs[i] = (Log){0};
     }
@@ -435,7 +435,7 @@ void step_agent(CCpr *env, int i) {
 
   // Anything above should be obstacle
   if (tile >= INTERACTIVE_FOOD) {
-    env->logs[i].episode_return += env->reward_move;
+    env->logs[i].score += env->reward_move;
     env->rewards[i] += env->reward_move;
     next_r = agent->r;
     next_c = agent->c;
@@ -467,7 +467,7 @@ void step_agent(CCpr *env, int i) {
 
   switch (tile) {
   case NORMAL_FOOD:
-    env->logs[i].episode_return += env->reward_food;
+    env->logs[i].score += env->reward_food;
     env->rewards[i] = env->reward_food;
     // spawn_food(env);
     remove_food(env, next_grid_idx);
@@ -475,7 +475,7 @@ void step_agent(CCpr *env, int i) {
     env->logs[i] = (Log){0};
     break;
   case EMPTY:
-    env->logs[i].episode_return += env->reward_move;
+    env->logs[i].score += env->reward_move;
     env->rewards[i] = env->reward_move;
     break;
   }
