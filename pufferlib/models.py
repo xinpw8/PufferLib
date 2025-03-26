@@ -8,8 +8,6 @@ import pufferlib.emulation
 import pufferlib.pytorch
 import pufferlib.spaces
 
-from mup import MuReadout, make_base_shapes, set_base_shapes, MuSGD, MuAdam
-
 
 class Default(nn.Module):
     '''Default PyTorch policy. Flattens obs and applies a linear layer.
@@ -53,7 +51,6 @@ class Default(nn.Module):
         elif not self.is_continuous:
             self.decoder = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
-            #self.decoder = MuReadout(hidden_size, env.single_action_space.n)
 
         else:
             self.decoder_mean = pufferlib.pytorch.layer_init(
@@ -83,7 +80,6 @@ class Default(nn.Module):
         else:
             self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, 1), std=1)
-            #self.value = MuReadout(hidden_size, 1)
 
     def forward(self, observations, state=None):
         hidden = self.encode_observations(observations)

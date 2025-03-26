@@ -139,8 +139,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         optimizer = ForeachPSGDKron(
             policy.parameters(),
             lr=config.learning_rate,
-            precond_lr=config.precond_lr,
-            beta=config.adam_beta1,
+            #precond_lr=config.precond_lr,
+            #beta=config.adam_beta1,
         )
 
     epochs = config.total_timesteps // config.batch_size

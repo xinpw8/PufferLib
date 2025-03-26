@@ -52,14 +52,20 @@ class NMMO3(nn.Module):
         map_buf = torch.zeros(32768, self.multihot_dim, 11, 15, dtype=torch.float32)
         self.register_buffer('map_buf', map_buf)
 
-    def forward(self, x):
-        hidden, lookup = self.encode_observations(x)
-        actions, value = self.decode_actions(hidden, lookup)
+    def forward(self, x, state=None):
+        hidden = self.encode_observations(x)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, unflatten=False):
         batch = observations.shape[0]
-        ob_map = observations[:, :11*15*10].view(batch, 11, 15, 10)
+        try:
+            ob_map = observations[:, :11*15*10].view(batch, 11, 15, 10)
+        except:
+            breakpoint()
         ob_player = observations[:, 11*15*10:-10]
         ob_reward = observations[:, -10:]
 
