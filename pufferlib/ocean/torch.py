@@ -422,31 +422,25 @@ class GPUDrive(nn.Module):
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(6, cnn_channels)),
-            nn.LayerNorm(cnn_channels),
-            nn.Tanh(),
-            nn.Dropout(0.01),
+            nn.ReLU(),
             pufferlib.pytorch.layer_init(
                 nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_road_objects = 5
+        max_road_objects = 5*200
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, cnn_channels)),
-            nn.LayerNorm(cnn_channels),
-            nn.Tanh(),
-            nn.Dropout(0.01),
+            nn.ReLU(),
             pufferlib.pytorch.layer_init(
                 nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_partner_objects = 7
+        max_partner_objects = 7*67
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, cnn_channels)),
-            nn.LayerNorm(cnn_channels),
-            nn.Tanh(),
-            nn.Dropout(0.01),
+            nn.ReLU(),
             pufferlib.pytorch.layer_init(
                 nn.Linear(cnn_channels, cnn_channels)
             )
@@ -454,7 +448,6 @@ class GPUDrive(nn.Module):
         
         self.shared_embedding = nn.Sequential(
             pufferlib.pytorch.layer_init(nn.Linear(3*cnn_channels,  hidden_size)),
-            nn.Dropout(0.01),
         )
         self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
 
@@ -474,13 +467,13 @@ class GPUDrive(nn.Module):
         partner_dim = 67 * 7
         road_dim = 200*5
         ego_obs = observations[:, :ego_dim]
-        partner_obs = observations[:, ego_dim:ego_dim+partner_dim].view(-1, 67, 7 )
-        road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim].view(-1, 200, 5)
+        partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
+        road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
         
 
         ego_features = self.ego_encoder(ego_obs)
-        partner_features, _ = self.partner_encoder(partner_obs).max(dim=1)
-        road_features, _ = self.road_encoder(road_obs).max(dim=1)
+        partner_features = self.partner_encoder(partner_obs)
+        road_features = self.road_encoder(road_obs)
         
         
         concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
@@ -492,7 +485,7 @@ class GPUDrive(nn.Module):
         # )[0]
         
         # Pass through shared embedding
-        embedding = self.shared_embedding(concat_features)
+        embedding = F.relu(self.shared_embedding(concat_features))
         return embedding
     
     def decode_actions(self, flat_hidden):

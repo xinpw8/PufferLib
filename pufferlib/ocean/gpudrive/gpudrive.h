@@ -559,7 +559,7 @@ void init(GPUDrive* env){
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
-    env->vision_range = 21;
+    env->vision_range = 11;
     init_neighbor_offsets(env);
     env->neighbor_cache_indices = (int*)calloc((env->grid_cols * env->grid_rows) + 1, sizeof(int));
     cache_neighbor_offsets(env);
@@ -883,7 +883,7 @@ void compute_observations(GPUDrive* env) {
             float dx = other_entity->x - ego_entity->x;
             float dy = other_entity->y - ego_entity->y;
             float dist = sqrtf(dx*dx + dy*dy);
-            if(dist > 50.0f) continue;
+            if(dist > 25.0f) continue;
             // Rotate to ego vehicle's frame
             float rel_x = dx * cos_heading + dy * sin_heading;
             float rel_y = -dx * sin_heading + dy * cos_heading;
