@@ -1,14 +1,22 @@
+from typing import Any, Tuple
+
+from gymnasium import spaces
+
 from torch import nn
 import torch
+from torch.distributions.normal import Normal
+from torch import nn
 import torch.nn.functional as F
 
-from functools import partial
+import pufferlib
 import pufferlib.models
 
 from pufferlib.models import Default as Policy
 from pufferlib.models import Convolutional as Conv
 Recurrent = pufferlib.models.LSTMWrapper
+from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
+
 
 class NMMO3LSTM(pufferlib.models.LSTMWrapper):
     def __init__(self, env, policy, input_size=512, hidden_size=512):
@@ -455,3 +463,213 @@ class TowerClimb(nn.Module):
         
         return action, value
 
+
+# TODO: remove once Impulse Wars build is stable
+try:
+    from cy_impulse_wars import obsConstants
+except:
+    pass
+
+
+class ImpulseWarsLSTM(Recurrent):
+    def __init__(self, env: pufferlib.PufferEnv, policy: nn.Module, input_size: int = 256, hidden_size: int = 256):
+        super().__init__(env, policy, input_size, hidden_size)
+
+
+class ImpulseWarsPolicy(nn.Module):
+    def __init__(
+        self,
+        env: pufferlib.PufferEnv,
+        cnn_channels: int = 64,
+        weapon_type_embedding_dims: int = 2,
+        input_size: int = 256,
+        hidden_size: int = 256,
+        batch_size: int = 131_072,
+        num_drones: int = 2,
+        discretize_actions: bool = True,
+        is_training: bool = True,
+        device: str = "cuda",
+        **kwargs,
+    ):
+        super().__init__()
+        self.hidden_size = hidden_size
+
+        self.is_continuous = not discretize_actions
+
+        self.numDrones = num_drones
+        self.isTraining = is_training
+        self.obsInfo = obsConstants(self.numDrones)
+
+        self.discreteFactors = np.array(
+            [self.obsInfo.wallTypes] * self.obsInfo.numNearWallObs
+            + [self.obsInfo.wallTypes + 1] * self.obsInfo.numFloatingWallObs
+            + [self.numDrones + 1] * self.obsInfo.numProjectileObs,
+        )
+        discreteOffsets = torch.tensor([0] + list(np.cumsum(self.discreteFactors)[:-1]), device=device).view(
+            1, -1
+        )
+        self.register_buffer("discreteOffsets", discreteOffsets, persistent=False)
+        self.discreteMultihotDim = self.discreteFactors.sum()
+
+        multihotBuffer = torch.zeros(batch_size, self.discreteMultihotDim, device=device)
+        self.register_buffer("multihotOutput", multihotBuffer, persistent=False)
+
+        # most of the observation is a 2D array of bytes, but the end
+        # contains around 200 floats; this allows us to treat the end
+        # of the observation as a float array
+        _, *self.dtype = _nativize_dtype(
+            np.dtype((np.uint8, (self.obsInfo.continuousObsBytes,))),
+            np.dtype((np.float32, (self.obsInfo.continuousObsSize,))),
+        )
+        self.dtype = tuple(self.dtype)
+
+        self.weaponTypeEmbedding = nn.Embedding(self.obsInfo.weaponTypes, weapon_type_embedding_dims)
+
+        # each byte in the map observation contains 4 values:
+        # - 2 bits for wall type
+        # - 1 bit for is floating wall
+        # - 1 bit for is weapon pickup
+        # - 3 bits for drone index
+        self.register_buffer(
+            "unpackMask",
+            torch.tensor([0x60, 0x10, 0x08, 0x07], dtype=torch.uint8),
+            persistent=False,
+        )
+        self.register_buffer("unpackShift", torch.tensor([5, 4, 3, 0], dtype=torch.uint8), persistent=False)
+
+        self.mapObsInputChannels = (self.obsInfo.wallTypes + 1) + 1 + 1 + self.numDrones
+        self.mapCNN = nn.Sequential(
+            layer_init(
+                nn.Conv2d(
+                    self.mapObsInputChannels,
+                    cnn_channels,
+                    kernel_size=5,
+                    stride=3,
+                )
+            ),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        cnnOutputSize = self._computeCNNShape()
+
+        featuresSize = (
+            cnnOutputSize
+            + (self.obsInfo.numNearWallObs * (self.obsInfo.wallTypes + self.obsInfo.nearWallPosObsSize))
+            + (
+                self.obsInfo.numFloatingWallObs
+                * (self.obsInfo.wallTypes + 1 + self.obsInfo.floatingWallInfoObsSize)
+            )
+            + (
+                self.obsInfo.numWeaponPickupObs
+                * (weapon_type_embedding_dims + self.obsInfo.weaponPickupPosObsSize)
+            )
+            + (
+                self.obsInfo.numProjectileObs
+                * (weapon_type_embedding_dims + self.obsInfo.projectileInfoObsSize + self.numDrones + 1)
+            )
+            + ((self.numDrones - 1) * (weapon_type_embedding_dims + self.obsInfo.enemyDroneObsSize))
+            + (self.obsInfo.droneObsSize + weapon_type_embedding_dims)
+            + self.obsInfo.miscObsSize
+        )
+
+        self.encoder = nn.Sequential(
+            layer_init(nn.Linear(featuresSize, input_size)),
+            nn.ReLU(),
+        )
+
+        if self.is_continuous:
+            self.actorMean = layer_init(nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
+            self.actorLogStd = nn.Parameter(torch.zeros(1, env.single_action_space.shape[0]))
+        else:
+            self.actionDim = env.single_action_space.nvec.tolist()
+            self.actor = layer_init(nn.Linear(hidden_size, sum(self.actionDim)), std=0.01)
+
+        self.critic = layer_init(nn.Linear(hidden_size, 1), std=1.0)
+
+    def forward(self, obs: torch.Tensor, state = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        hidden = self.encode_observations(obs)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def unpack(self, batchSize: int, obs: torch.Tensor) -> torch.Tensor:
+        # prepare map obs to be unpacked
+        mapObs = obs[:, : self.obsInfo.mapObsSize].reshape((batchSize, -1, 1))
+        # unpack wall types, weapon pickup types, and drone indexes
+        mapObs = (mapObs & self.unpackMask) >> self.unpackShift
+        # reshape so channels are first, required for torch conv2d
+        return mapObs.permute(0, 2, 1).reshape(
+            (batchSize, 4, self.obsInfo.mapObsRows, self.obsInfo.mapObsColumns)
+        )
+
+    def encode_observations(self, obs: torch.Tensor, state: Any = None) -> torch.Tensor:
+        batchSize = obs.shape[0]
+
+        mapObs = self.unpack(batchSize, obs)
+
+        # one hot encode wall types
+        wallTypeObs = mapObs[:, 0, :, :].long()
+        wallTypes = F.one_hot(wallTypeObs, self.obsInfo.wallTypes + 1).permute(0, 3, 1, 2).float()
+
+        # unsqueeze floating wall booleans (is wall a floating wall)
+        floatingWallObs = mapObs[:, 1, :, :].unsqueeze(1)
+
+        # unsqueeze map pickup booleans (does map tile contain a weapon pickup)
+        mapPickupObs = mapObs[:, 2, :, :].unsqueeze(1)
+
+        # one hot drone indexes
+        droneIndexObs = mapObs[:, 3, :, :].long()
+        droneIndexes = F.one_hot(droneIndexObs, self.numDrones).permute(0, 3, 1, 2).float()
+
+        # combine all map observations and feed through CNN
+        mapObs = torch.cat((wallTypes, floatingWallObs, mapPickupObs, droneIndexes), dim=1)
+        map = self.mapCNN(mapObs)
+
+        # process discrete observations
+        multihotInput = (
+            obs[:, self.obsInfo.nearWallTypesObsOffset : self.obsInfo.projectileTypesObsOffset]
+            + self.discreteOffsets
+        )
+        multihotOutput = self.multihotOutput[:batchSize].zero_()
+        multihotOutput.scatter_(1, multihotInput.long(), 1)
+
+        weaponTypeObs = obs[:, self.obsInfo.projectileTypesObsOffset : self.obsInfo.discreteObsSize].int()
+        weaponTypes = self.weaponTypeEmbedding(weaponTypeObs).float()
+        weaponTypes = torch.flatten(weaponTypes, start_dim=1, end_dim=-1)
+
+        # process continuous observations
+        continuousObs = nativize_tensor(obs[:, self.obsInfo.continuousObsOffset :], self.dtype)
+        # combine all observations and feed through final linear encoder
+        features = torch.cat((map, multihotOutput, weaponTypes, continuousObs), dim=-1)
+
+        return self.encoder(features)
+
+    def decode_actions(self, hidden: torch.Tensor):
+        if self.is_continuous:
+            actionMean = self.actorMean(hidden)
+            if self.isTraining:
+                actionLogStd = self.actorLogStd.expand_as(actionMean)
+                actionStd = torch.exp(actionLogStd)
+                action = Normal(actionMean, actionStd)
+            else:
+                action = actionMean
+        else:
+            action = self.actor(hidden)
+            action = torch.split(action, self.actionDim, dim=1)
+
+        value = self.critic(hidden)
+
+        return action, value
+
+    def _computeCNNShape(self) -> int:
+        mapSpace = spaces.Box(
+            low=0,
+            high=1,
+            shape=(self.mapObsInputChannels, self.obsInfo.mapObsRows, self.obsInfo.mapObsColumns),
+            dtype=np.float32,
+        )
+
+        with torch.no_grad():
+            t = torch.as_tensor(mapSpace.sample()[None])
+            return self.mapCNN(t).shape[1]
