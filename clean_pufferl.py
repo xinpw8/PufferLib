@@ -128,6 +128,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         )
     elif config.optimizer == 'muon':
         from heavyball import ForeachMuon
+        import heavyball.utils
+        #heavyball.utils.compile_mode = "reduce-overhead"
         optimizer = ForeachMuon(
             policy.parameters(),
             lr=config.learning_rate,
@@ -136,6 +138,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         )
     elif config.optimizer == 'kron':
         from heavyball import ForeachPSGDKron
+        import heavyball.utils
+        #heavyball.utils.compile_mode = "reduce-overhead"
         optimizer = ForeachPSGDKron(
             policy.parameters(),
             lr=config.learning_rate,
@@ -548,6 +552,11 @@ def train(data):
                 if data.scaler is not None:
                     data.scaler.unscale_(data.optimizer)
 
+                with torch.no_grad():
+                    grads = torch.cat([p.grad.flatten() for p in data.policy.parameters()])
+                    grad_var = grads.var(0).mean() * config.minibatch_size
+                    data.msg = f'Gradient variance: {grad_var.item():.3f}'
+
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
 
                 if data.scaler is None:
@@ -566,6 +575,7 @@ def train(data):
                 losses.old_approx_kl += old_approx_kl.item() / total_minibatches
                 losses.approx_kl += approx_kl.item() / total_minibatches
                 losses.clipfrac += clipfrac.item() / total_minibatches
+                losses.grad_var += grad_var.item() / total_minibatches
 
                 if data.use_diayn:
                     losses.diayn_loss += diayn_loss.item() / total_minibatches
@@ -577,12 +587,6 @@ def train(data):
     with profile.train_misc:
         if config.anneal_lr:
             data.scheduler.step()
-            '''
-            for pg in data.optimizer.param_groups:
-                frac = 1.0 - data.global_step / config.total_timesteps
-                lrnow = frac * config.learning_rate
-                data.optimizer.param_groups[0]["lr"] = lrnow
-            '''
 
         if config.use_p3o:
             y_pred = experience.values_mean
@@ -794,6 +798,7 @@ def make_losses():
         clipfrac=0,
         explained_variance=0,
         diayn_loss=0,
+        grad_var=0,
     )
 
 class Experience:
