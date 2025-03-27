@@ -179,6 +179,7 @@ int get_agent_id_from_tile(int tile) { return tile - AGENTS; }
 
 void add_food(CCpr *env, int grid_idx, int food_type) {
   // Add food to the grid and the food_list at grid_idx
+  assert(env->grid[grid_idx] == EMPTY);
   env->grid[grid_idx] = food_type;
   FoodList *foods = env->foods;
   foods->indexes[foods->size++] = grid_idx;
@@ -218,24 +219,10 @@ void init_foods(CCpr *env) {
   int normal = available_tiles / (20 * normalizer);
   int interactive = available_tiles / (50 * normalizer);
   for (int i = 0; i < normal; i++) {
-    int idx, tile;
-    do {
-      int r = rand() % (env->height - 1);
-      int c = rand() % (env->width - 1);
-      idx = r * env->width + c;
-      tile = env->grid[idx];
-    } while (tile != EMPTY);
-    add_food(env, idx, NORMAL_FOOD);
+    spawn_food(env, NORMAL_FOOD);
   }
   for (int i = 0; i < interactive; i++) {
-    int idx, tile;
-    do {
-      int r = rand() % (env->height - 1);
-      int c = rand() % (env->width - 1);
-      idx = r * env->width + c;
-      tile = env->grid[idx];
-    } while (tile != EMPTY);
-    add_food(env, idx, INTERACTIVE_FOOD);
+    spawn_food(env, INTERACTIVE_FOOD);
   }
 }
 
@@ -253,21 +240,22 @@ void spawn_foods(CCpr *env) {
     for (int ri = 0; ri < 3; ri++) {
       for (int ci = 0; ci < 3; ci++) {
         int grid_idx = grid_index(env, (r + ri), (c + ci));
-        if (env->grid[grid_idx] == EMPTY) {
-          switch (env->grid[idx]) {
-          // %Chance spawning new food
-          case NORMAL_FOOD:
-            if ((rand() / (double)RAND_MAX) < env->food_base_spawn_rate) {
-              add_food(env, grid_idx, env->grid[idx]);
-            }
-            break;
-          case INTERACTIVE_FOOD:
-            if ((rand() / (double)RAND_MAX) <
-                (env->food_base_spawn_rate / 10.0)) {
-              add_food(env, grid_idx, env->grid[idx]);
-            }
-            break;
+        if (env->grid[grid_idx] != EMPTY) {
+          continue;
+        }
+        switch (env->grid[idx]) {
+        // %Chance spawning new food
+        case NORMAL_FOOD:
+          if ((rand() / (double)RAND_MAX) < env->food_base_spawn_rate) {
+            add_food(env, grid_idx, env->grid[idx]);
           }
+          break;
+        case INTERACTIVE_FOOD:
+          if ((rand() / (double)RAND_MAX) <
+              (env->food_base_spawn_rate / 10.0)) {
+            add_food(env, grid_idx, env->grid[idx]);
+          }
+          break;
         }
       }
     }
@@ -305,33 +293,28 @@ void compute_observations(CCpr *env) {
 void c_reset(CCpr *env) {
   env->tick = 0;
 
+  memset(env->grid, EMPTY, (env->height * env->width) * sizeof(env->grid[0]));
+
+  // top walling
+  for (int r = 0; r < env->vision; r++) {
+    memset(env->grid + (r * env->width), WALL,
+           env->width * sizeof(env->grid[0]));
+  }
+  // left side walling
   for (int r = 0; r < env->height; r++) {
-    for (int c = 0; c < env->width; c++) {
-      int adr = grid_index(env, r, c);
-      env->grid[adr] = EMPTY;
-    }
+    memset(env->grid + (r * env->width), WALL,
+           env->vision * sizeof(env->grid[0]));
+  }
+  // bottom walling
+  for (int r = env->height - env->vision; r < env->height; r++) {
+    memset(env->grid + (r * env->width), WALL,
+           env->width * sizeof(env->grid[0]));
   }
 
-  // Walls need to cover vision radius around the grid
-  for (int r = 0; r < env->vision; r++) {
-    for (int c = 0; c < env->width; c++) {
-      env->grid[r * env->width + c] = WALL;
-    }
-  }
+  // right side walling
   for (int r = 0; r < env->height; r++) {
-    for (int c = 0; c < env->vision; c++) {
-      env->grid[r * env->width + c] = WALL;
-    }
-  }
-  for (int r = env->height - env->vision; r < env->height; r++) {
-    for (int c = 0; c < env->width; c++) {
-      env->grid[r * env->width + c] = WALL;
-    }
-  }
-  for (int r = 0; r < env->height; r++) {
-    for (int c = env->width - env->vision; c < env->width; c++) {
-      env->grid[r * env->width + c] = WALL;
-    }
+    memset(env->grid + (r * env->width) + (env->width - env->vision), WALL,
+           env->vision * sizeof(env->grid[0]));
   }
 
   // Agents
@@ -384,21 +367,15 @@ void reward_agents_near(CCpr *env, int food_index) {
     if ((ac == food_c && (ar == food_r - 1 || ar == food_r + 1)) ||
         (ar == food_r && (ac == food_c - 1 || ac == food_c + 1))) {
       env->rewards[i] += env->interactive_food_reward;
-      env->logs[i].score += env->interactive_food_reward;
+      env->logs[i].score += 5;
       add_log(env->log_buffer, &env->logs[i]);
       env->logs[i] = (Log){0};
     }
   }
-
-  // Empty grid cell
-  // env->grid[food_index] = EMPTY;
   remove_food(env, food_index);
-
-  // Spawn new interactive food
-  // spawn_interactive_food(env);
 }
 
-void step_agent(CCpr *env, int i) {
+bool step_agent(CCpr *env, int i) {
 
   int action = env->actions[i];
 
@@ -418,10 +395,10 @@ void step_agent(CCpr *env, int i) {
   case 3:
     dc = 1;
     break; // RIGHT
+  case 4:
+    return false; // No moves
   }
-
-  if (action != 4)
-    env->logs[i].moves += 1;
+  env->logs[i].moves += 1;
 
   // Get next row and column
   Agent *agent = &env->agents[i];
@@ -435,7 +412,7 @@ void step_agent(CCpr *env, int i) {
 
   // Anything above should be obstacle
   if (tile >= INTERACTIVE_FOOD) {
-    env->logs[i].score += env->reward_move;
+    env->logs[i].score += -0.01;
     env->rewards[i] += env->reward_move;
     next_r = agent->r;
     next_c = agent->c;
@@ -467,15 +444,14 @@ void step_agent(CCpr *env, int i) {
 
   switch (tile) {
   case NORMAL_FOOD:
-    env->logs[i].score += env->reward_food;
+    env->logs[i].score += 1;
     env->rewards[i] = env->reward_food;
-    // spawn_food(env);
     remove_food(env, next_grid_idx);
     add_log(env->log_buffer, &env->logs[i]);
     env->logs[i] = (Log){0};
     break;
   case EMPTY:
-    env->logs[i].score += env->reward_move;
+    env->logs[i].score += -0.01;
     env->rewards[i] = env->reward_move;
     break;
   }
@@ -486,6 +462,8 @@ void step_agent(CCpr *env, int i) {
   env->grid[next_grid_idx] = agent_tile;
   agent->r = next_r;
   agent->c = next_c;
+
+  return true;
 }
 
 void c_step(CCpr *env) {
@@ -494,8 +472,14 @@ void c_step(CCpr *env) {
   memset(env->interactive_food_agent_count, 0,
          (env->width * env->height + 7) / 8);
 
+  bool logged = false;
   for (int i = 0; i < env->num_agents; i++) {
-    step_agent(env, i);
+    logged = step_agent(env, i);
+  }
+  // To cope with sweeps waiting for logs, in case nothing moves
+  if (!logged) {
+    env->logs[0].score += 0;
+    add_log(env->log_buffer, &env->logs[0]);
   }
 
   spawn_foods(env);
@@ -521,12 +505,13 @@ Rectangle UV_COORDS[7] = {
     (Rectangle){384, 0, 128, 128},
 };
 
-typedef struct {
+typedef struct Renderer Renderer;
+struct Renderer {
   int cell_size;
   int width;
   int height;
   Texture2D puffer;
-} Renderer;
+};
 
 Renderer *init_renderer(int cell_size, int width, int height) {
   Renderer *renderer = (Renderer *)calloc(1, sizeof(Renderer));
