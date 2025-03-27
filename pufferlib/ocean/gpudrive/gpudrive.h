@@ -68,8 +68,9 @@
 
 // Acceleration Values
 static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
-static const float STEERING_VALUES[13] = {-3.1420f, -2.6180f, -2.0940f, -1.5710f, -1.0470f, -0.5240f,  0.0000f,  0.5240f,
-         1.0470f,  1.5710f,  2.0940f,  2.6180f,  3.1420f};
+// static const float STEERING_VALUES[13] = {-3.1420f, -2.6180f, -2.0940f, -1.5710f, -1.0470f, -0.5240f,  0.0000f,  0.5240f,
+//          1.0470f,  1.5710f,  2.0940f,  2.6180f,  3.1420f};
+static const float STEERING_VALUES[13] = {-1.000f, -0.833f, -0.667f, -0.500f, -0.333f, -0.167f, 0.000f, 0.167f, 0.333f, 0.500f, 0.667f, 0.833f, 1.000f};
 static const float offsets[4][2] = {
         {-1, 1},  // top-left
         {1, 1},   // top-right
@@ -290,16 +291,32 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
 
 void set_start_position(GPUDrive* env){
     for(int i = 0; i < env->num_entities; i++){
+        int is_active = 0;
+        for(int j = 0; j < env->active_agent_count; j++){
+            if(env->active_agent_indices[j] == i){
+                is_active = 1;
+                break;
+            }
+        }
         env->entities[i].x = env->entities[i].traj_x[0];
         env->entities[i].y = env->entities[i].traj_y[0];
         env->entities[i].z = env->entities[i].traj_z[0];
-        if(env->entities[i].type == 1 || env->entities[i].type == 2 || env->entities[i].type == 3){
+        if(env->entities[i].type >3 || env->entities[i].type == 0){
+            continue;
+        }
+        if(is_active == 0){
+            env->entities[i].vx = 0;
+            env->entities[i].vy = 0;
+            env->entities[i].vz = 0;
+        } else{
             env->entities[i].vx = env->entities[i].traj_vx[0];
             env->entities[i].vy = env->entities[i].traj_vy[0];
             env->entities[i].vz = env->entities[i].traj_vz[0];
-            env->entities[i].heading = env->entities[i].traj_heading[0];
-            env->entities[i].valid = env->entities[i].traj_valid[0];
         }
+        
+        env->entities[i].heading = env->entities[i].traj_heading[0];
+        env->entities[i].valid = env->entities[i].traj_valid[0];
+        
     }
 }
 
@@ -311,7 +328,7 @@ void set_active_agents(GPUDrive* env){
             env->num_cars++;
             int start_idx=0;
             for(int j = 0; j<env->entities[i].array_size; j++){
-                if(env->entities[i].traj_valid[j] == 1){
+                if(env->entities[i].traj_valid[j] == 1 ){
                     start_idx = j;
                     break;
                 }
@@ -610,6 +627,12 @@ float normalize_heading(float heading) {
     return wrapped - M_PI;                              // Shift back to [-π, π]
 }
 
+float clipSpeed(float speed) {
+    const float maxSpeed = MAX_SPEED;
+    if (speed > maxSpeed) return maxSpeed;
+    if (speed < -maxSpeed) return -maxSpeed;
+    return speed;
+}
 void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
     if(env->dynamics_model == CLASSIC){
         // clip acceleration & steering
@@ -621,10 +644,6 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         float acceleration = ACCELERATION_VALUES[acceleration_index];
         float steering = STEERING_VALUES[steering_index];
 
-        // Clip acceleration and steering
-        acceleration = fmaxf(-6.0f, fminf(acceleration, 6.0f));
-        steering = fmaxf(-3.0f, fminf(steering, 3.0f));
-        
         // Current state
         float x = agent->x;
         float y = agent->y;
@@ -638,28 +657,29 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         // Time step (adjust as needed)
         const float dt = 0.1f;        
         // Update speed with acceleration
-        speed += acceleration * dt;
+        speed = speed + acceleration*dt;
         if (speed < 0) speed = 0;  // Prevent going backward
+        speed = clipSpeed(speed);
         // compute yaw rate
-        float omega = (speed * tanf(steering)) / agent->length;
-        heading = heading + omega * dt;
-        // Normalize heading to range [-π, π]
-        heading = normalize_heading(heading);
-
-        // Compute new velocity components
-        vx = speed * cosf(heading);
-        vy = speed * sinf(heading);
-
+        float beta = tanh(.5*tanf(steering));
+        // new heading
+        float yaw_rate = (speed*cosf(beta) * tanf(steering)) / agent->length;
+        // new velocity
+        float new_vx = speed*cosf(heading + beta);
+        float new_vy = speed*sinf(heading + beta);
         // Update position
-        x += vx * dt;
-        y += vy * dt;
-
+        x = x + (new_vx*dt);
+        y = y + (new_vy*dt);
+        
+        
+        heading = heading + yaw_rate*dt;
+        // heading = normalize_heading(heading);
         // Apply updates to the agent's state
         agent->x = x;
         agent->y = y;
         agent->heading = heading;
-        agent->vx = vx;
-        agent->vy = vy;
+        agent->vx = new_vx;
+        agent->vy = new_vy;
     }
     else if(env->dynamics_model == INVERTIBLE_BICYLE){
         // Invertible bicycle dynamics model
@@ -905,8 +925,15 @@ void compute_observations(GPUDrive* env) {
             obs_idx += 7;  // Move to next observation slot
         }
         for(int j = cars_seen; j < env->num_cars - 1; j++){
+            obs[obs_idx] = -1;
+            obs[obs_idx + 1] = -1;
+            obs[obs_idx + 2] = -1;
+            obs[obs_idx + 3] = -1;
+            obs[obs_idx + 4] = -1;
+            obs[obs_idx + 5] = -1;
+            obs[obs_idx + 6] = -1;
             obs_idx += 7;
-	}
+	    }
 
         // map observations
         int entity_list[MAX_ROAD_SEGMENT_OBSERVATIONS*2];  // Array big enough for all neighboring cells
@@ -942,6 +969,11 @@ void compute_observations(GPUDrive* env) {
         }
 
         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS - list_size; k++){
+            obs[obs_idx] = -1;
+            obs[obs_idx + 1] = -1;
+            obs[obs_idx + 2] = -1;
+            obs[obs_idx + 3] = -1;
+            obs[obs_idx + 4] = -1;
             obs_idx += 5;
         }
 	
