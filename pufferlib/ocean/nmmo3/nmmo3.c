@@ -144,7 +144,7 @@ void forward(MMONet* net, unsigned char* observations, int* actions) {
 }
 
 void demo(int num_players) {
-    Weights* weights = load_weights("resources/nmmo3/nmmo_1500.bin", 1101403);
+    Weights* weights = load_weights("resources/nmmo3/nmmo_2025.bin", 1101403);
     MMONet* net = init_mmonet(weights, num_players);
 
     MMO env = {
