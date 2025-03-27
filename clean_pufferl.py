@@ -107,7 +107,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
 
     lstm = policy.recurrent if hasattr(policy, 'recurrent') else None
     experience = Experience(config.batch_size, config.bptt_horizon,
-        config.minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
+        config.minibatch_size, config.max_minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
         atn_shape, atn_dtype, config.cpu_offload, config.device, lstm, total_agents,
         use_e3b=config.use_e3b, e3b_coef=config.e3b_coef, e3b_lambda=config.e3b_lambda,
         use_diayn=config.use_diayn, diayn_archive=config.diayn_archive, diayn_coef=config.diayn_coef,
@@ -419,6 +419,7 @@ def train(data):
     mean_pg_loss, mean_v_loss, mean_entropy_loss = 0, 0, 0
     mean_old_kl, mean_kl, mean_clipfrac = 0, 0, 0
     cross_entropy = torch.nn.CrossEntropyLoss()
+    accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
     for epoch in range(config.update_epochs):
         lstm_h = None
         lstm_c = None
@@ -543,7 +544,6 @@ def train(data):
                             torch.cuda.synchronize()
 
             with profile.learn:
-                data.optimizer.zero_grad()
                 if data.scaler is None:
                     loss.backward()
                 else:
@@ -557,16 +557,19 @@ def train(data):
                     grad_var = grads.var(0).mean() * config.minibatch_size
                     data.msg = f'Gradient variance: {grad_var.item():.3f}'
 
-                torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
+                if (mb + 1) % accumulate_minibatches == 0:
+                    torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
 
-                if data.scaler is None:
-                    data.optimizer.step()
-                else:
-                    data.scaler.step(data.optimizer)
-                    data.scaler.update()
+                    if data.scaler is None:
+                        data.optimizer.step()
+                    else:
+                        data.scaler.step(data.optimizer)
+                        data.scaler.update()
 
-                if config.device == 'cuda':
-                    torch.cuda.synchronize()
+                    data.optimizer.zero_grad()
+
+                    if config.device == 'cuda':
+                        torch.cuda.synchronize()
 
             with profile.train_misc:
                 losses.policy_loss += pg_loss.item() / total_minibatches
@@ -803,7 +806,7 @@ def make_losses():
 
 class Experience:
     '''Flat tensor storage and array views for faster indexing'''
-    def __init__(self, batch_size, bptt_horizon, minibatch_size, hidden_size,
+    def __init__(self, batch_size, bptt_horizon, minibatch_size, max_minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
                  device='cuda', lstm=None, lstm_total_agents=0,
                  use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0,
@@ -862,6 +865,7 @@ class Experience:
             self.lstm_h = torch.zeros(shape).to(device)
             self.lstm_c = torch.zeros(shape).to(device)
 
+        minibatch_size = min(minibatch_size, max_minibatch_size)
         num_minibatches = batch_size / minibatch_size
         self.num_minibatches = int(num_minibatches)
         if self.num_minibatches != num_minibatches:
