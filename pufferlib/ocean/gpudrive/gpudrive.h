@@ -337,6 +337,8 @@ void set_active_agents(GPUDrive* env){
             env->entities[i].traj_y[start_idx],
             env->entities[i].goal_position_x,
             env->entities[i].goal_position_y);
+        env->entities[i].width *= 0.7f;
+        env->entities[i].length *= 0.7f;
         if(distance >= 2.0f){
             active_agent_indices[env->active_agent_count] = i;
             env->active_agent_count++;
