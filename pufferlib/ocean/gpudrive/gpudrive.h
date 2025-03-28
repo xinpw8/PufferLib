@@ -842,7 +842,7 @@ void compute_observations(GPUDrive* env) {
         int cars_seen = 0;
         for(int j = 0; j < env->num_entities; j++) {
             if(env->entities[j].type > 3) break;
-            if(j == i) continue;  // Skip self, but don't increment obs_idx
+            if(j == env->active_agent_indices[i]) continue;  // Skip self, but don't increment obs_idx
             Entity* other_entity = &env->entities[j];
             // Store original relative positions
             float dx = other_entity->x - ego_entity->x;
@@ -1035,7 +1035,7 @@ void c_render(Client* client, GPUDrive* env) {
     DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
 
     for(int i = 0; i < env->num_entities; i++) {
-        if(env->entities[i].type == 1) {  // If entity is a vehicle
+        if(env->entities[i].type == 1 || env->entities[i].type == 2) {  // If entity is a vehicle
             // Check if this vehicle is an active agent
             bool is_active_agent = false;
             int agent_index = -1;
