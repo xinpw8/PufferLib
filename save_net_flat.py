@@ -1,83 +1,127 @@
+import os
 import torch
 from torch.nn import functional as F
 import numpy as np
 
 # update manually if running manually, otherwise, run.py updates automatically
-MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_breakout-e033b016/model_000382.pt'
+MODEL_FILE_NAME = '/puffertank/pufferlib/experiments/puffer_breakout-e033b016-continuous/model_000382.pt'
 WEIGHTS_OUTPUT_FILE_NAME = 'breakout_weights.bin'
 OUTPUT_FILE_PATH = '/puffertank/pufferlib/pufferlib/resources/breakout'
 
+def detect_action_space_from_model(model):
+    """
+    Detects whether the model uses continuous or discrete actions.
+    Returns a tuple: (action_space_type, action_space_size)
+    - action_space_type: 'continuous' or 'discrete' (or 'multidiscrete' if applicable)
+    - action_space_size: number of actions (or list in case of multidiscrete)
+    """
+    # If the model is wrapped (e.g. in an LSTM wrapper), get the underlying policy.
+    if hasattr(model, 'policy'):
+        policy = model.policy
+    else:
+        policy = model
+
+    if hasattr(policy, 'decoder_mean') and hasattr(policy, 'decoder_logstd'):
+        action_space_type = 'continuous'
+        action_space_size = policy.decoder_mean.out_features
+    elif hasattr(policy, 'decoder'):
+        # Check if decoder is a ModuleList (multidiscrete) or a single module (discrete)
+        if isinstance(policy.decoder, torch.nn.ModuleList):
+            action_space_type = 'multidiscrete'
+            action_space_size = [dec.out_features for dec in policy.decoder]
+        else:
+            action_space_type = 'discrete'
+            action_space_size = policy.decoder.out_features
+    else:
+        raise ValueError("Cannot determine action space type from model.")
+    return action_space_type, action_space_size
+
 def save_model_weights(model, filename):
-    import os
+    """
+    Extracts weights from the model and saves them (and the architecture info) to disk.
+    Automatically detects whether the policy uses continuous or discrete actions.
+    Returns a tuple: (num_weights, action_size, is_continuous)
+    """
     weights_path = os.path.join(OUTPUT_FILE_PATH, filename)
     architecture_path = os.path.join(OUTPUT_FILE_PATH, filename + "_architecture.txt")
-    
     os.makedirs(OUTPUT_FILE_PATH, exist_ok=True)
     
+    # Detect the action space type and size.
+    action_space_type, action_space_size = detect_action_space_from_model(model)
+    is_continuous = (action_space_type == 'continuous')
+    
     weights = []
-
-    # encoder first
-    weights.append(model.policy.encoder.weight.data.cpu().numpy().flatten())
-    weights.append(model.policy.encoder.bias.data.cpu().numpy().flatten())
-
-    # LSTM next
-    weights.append(model.recurrent.weight_ih_l0.data.cpu().numpy().flatten())
-    weights.append(model.recurrent.weight_hh_l0.data.cpu().numpy().flatten())
-    weights.append(model.recurrent.bias_ih_l0.data.cpu().numpy().flatten())
-    weights.append(model.recurrent.bias_hh_l0.data.cpu().numpy().flatten())
-
-    # decoder_mean after LSTM
-    weights.append(model.policy.decoder_mean.weight.data.cpu().numpy().flatten())
-    weights.append(model.policy.decoder_mean.bias.data.cpu().numpy().flatten())
-
-    # explicitly save decoder_logstd separately or at end
-    weights.append(model.policy.decoder_logstd.data.cpu().numpy().flatten())
-
+    
+    # If the model is wrapped (e.g. by an LSTM wrapper)
+    if hasattr(model, "policy"):
+        policy = model.policy
+        # Encoder
+        weights.append(policy.encoder.weight.data.cpu().numpy().flatten())
+        weights.append(policy.encoder.bias.data.cpu().numpy().flatten())
+        # Recurrent (for LSTM wrappers)
+        weights.append(model.recurrent.weight_ih_l0.data.cpu().numpy().flatten())
+        weights.append(model.recurrent.weight_hh_l0.data.cpu().numpy().flatten())
+        weights.append(model.recurrent.bias_ih_l0.data.cpu().numpy().flatten())
+        weights.append(model.recurrent.bias_hh_l0.data.cpu().numpy().flatten())
+        if is_continuous:
+            weights.append(policy.decoder_mean.weight.data.cpu().numpy().flatten())
+            weights.append(policy.decoder_mean.bias.data.cpu().numpy().flatten())
+            weights.append(policy.decoder_logstd.data.cpu().numpy().flatten())
+        else:
+            weights.append(policy.decoder.weight.data.cpu().numpy().flatten())
+            weights.append(policy.decoder.bias.data.cpu().numpy().flatten())
+        # Value function weights
+        if hasattr(policy, 'value'):
+            weights.append(policy.value.weight.data.cpu().numpy().flatten())
+            weights.append(policy.value.bias.data.cpu().numpy().flatten())
+        elif hasattr(policy, 'value_mean'):
+            weights.append(policy.value_mean.weight.data.cpu().numpy().flatten())
+            weights.append(policy.value_mean.bias.data.cpu().numpy().flatten())
+            weights.append(policy.value_logstd.data.cpu().numpy().flatten())
+    else:
+        # Model without an explicit policy attribute (Default model)
+        weights.append(model.encoder.weight.data.cpu().numpy().flatten())
+        weights.append(model.encoder.bias.data.cpu().numpy().flatten())
+        if is_continuous:
+            weights.append(model.decoder_mean.weight.data.cpu().numpy().flatten())
+            weights.append(model.decoder_mean.bias.data.cpu().numpy().flatten())
+            weights.append(model.decoder_logstd.data.cpu().numpy().flatten())
+        else:
+            weights.append(model.decoder.weight.data.cpu().numpy().flatten())
+            weights.append(model.decoder.bias.data.cpu().numpy().flatten())
+        if hasattr(model, 'value'):
+            weights.append(model.value.weight.data.cpu().numpy().flatten())
+            weights.append(model.value.bias.data.cpu().numpy().flatten())
+        elif hasattr(model, 'value_mean'):
+            weights.append(model.value_mean.weight.data.cpu().numpy().flatten())
+            weights.append(model.value_mean.bias.data.cpu().numpy().flatten())
+            weights.append(model.value_logstd.data.cpu().numpy().flatten())
+    
     weights = np.concatenate(weights)
     weights.tofile(weights_path)
     
-    # weights = []
-    # for name, param in model.named_parameters():
-    #     weights.append(param.data.cpu().numpy().flatten())
-    #     print(name, param.shape, param.data.cpu().numpy().ravel()[0])
-    
-    # weights = np.concatenate(weights)
-    # print('Num weights:', len(weights))
-    # weights.tofile(weights_path)
-    
-    # Extract action dimensions from the model architecture
-    action_size = 0
-    action_is_continuous = False
-    
-    # Identify action dimension from decoder weights
-    for name, param in model.named_parameters():
-        if 'decoder_mean.weight' in name:
-            action_size = param.shape[0]
-            action_is_continuous = True
-            print(f"Detected continuous action space with size: {action_size}")
-            break
-        elif 'decoder.weight' in name and not action_size:
-            action_size = param.shape[0]
-            print(f"Detected discrete action space with size: {action_size}")
-    
-    # Write out full architecture info along with action details in one go
+    # Write architecture info to a text file.
     with open(architecture_path, "w") as f:
         for name, param in model.named_parameters():
             f.write(f"{name}: {param.shape}\n")
-
-        # Explicitly save numeric decoder_logstd values
-        decoder_logstd_tensor = model.policy.decoder_logstd.detach().cpu().numpy().flatten()
-        decoder_logstd_str = ', '.join(str(x) for x in decoder_logstd_tensor)
-        f.write(f"decoder_logstd_values: {decoder_logstd_str}\n")
-
+        if is_continuous:
+            if hasattr(model, "policy"):
+                action_size = policy.decoder_mean.weight.shape[0]
+            else:
+                action_size = model.decoder_mean.weight.shape[0]
+            f.write(f"Action size: {action_size}\n")
+            f.write(f"Action type: continuous\n")
+        else:
+            if hasattr(model, "policy"):
+                action_size = policy.decoder.weight.shape[0]
+            else:
+                action_size = model.decoder.weight.shape[0]
+            f.write(f"Action size: {action_size}\n")
+            f.write(f"Action type: discrete\n")
         f.write(f"Num weights: {len(weights)}\n")
-        f.write(f"Action size: {action_size}\n")
-        f.write(f"Action type: {'continuous' if action_is_continuous else 'discrete'}\n")
-
-    print(f"Saved model weights to {weights_path} and architecture to {architecture_path}")
     
-    # Return detected values for use by calling functions
-    return len(weights), action_size, action_is_continuous
+    print(f"Saved model weights to {weights_path} and architecture to {architecture_path}")
+    return len(weights), action_size, is_continuous
         
 def test_model(model):
     model = model.cpu().policy

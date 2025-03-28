@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <stdlib.h>
 
 typedef enum {
     ACTION_TYPE_INT,
@@ -740,7 +741,7 @@ void forward_linearlstm_float(LinearLSTM* net, float* observations, float* actio
     // linear(net->value_fn, net->lstm->state_h);
     
     float mu = net->actor->output[0];
-    float sigma = expf(net->decoder_logstd[0]); 
+    // float sigma = expf(net->decoder_logstd[0]); 
 
     actions[0] = tanhf(mu); // deterministic eval action
     // actions[0]= tanhf(sample_normal(mu, sigma)); // stochastic action sampling

@@ -150,35 +150,34 @@ def extract_details_from_architecture_file(architecture_file):
     action_size = 0
     num_weights = 0
     decoder_logstd = []
+    is_continuous = False
 
     with open(architecture_file, 'r') as f:
         for line in f:
             line = line.strip()
             
             if "encoder.weight" in line:
-                try:
-                    parts = line.split("torch.Size([")[1].split("]")[0].split(",")
-                    observation_size = int(parts[1].strip())
-                except (IndexError, ValueError):
-                    pass
+                parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+                observation_size = int(parts[1].strip())
 
-            elif "decoder_mean.weight" in line or "decoder.weight" in line:
-                try:
-                    parts = line.split("torch.Size([")[1].split("]")[0].split(",")
-                    action_size = int(parts[0].strip())
-                except (IndexError, ValueError):
-                    pass
+            elif "decoder_mean.weight" in line:
+                parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+                action_size = int(parts[0].strip())
+                is_continuous = True
+
+            elif "decoder.weight" in line and "decoder_mean.weight" not in line:
+                parts = line.split("torch.Size([")[1].split("]")[0].split(",")
+                action_size = int(parts[0].strip())
+                is_continuous = False
 
             elif "Num weights" in line:
                 num_weights = int(line.split(":")[1].strip())
 
-            # New logic to extract decoder_logstd numeric values explicitly
             elif line.startswith("decoder_logstd_values:"):
                 decoder_logstd_str = line.split(":")[1].strip()
                 decoder_logstd = [float(x) for x in decoder_logstd_str.split(",")]
 
-    return observation_size, action_size, num_weights, decoder_logstd
-
+    return observation_size, action_size, num_weights, decoder_logstd, is_continuous
 
 # def extract_details_from_architecture_file(architecture_file):
 #     observation_size = 0
@@ -226,11 +225,10 @@ def find_c_file(top_dir, env_name):
                 return os.path.join(root, file)
     return None
 
-def update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights, decoder_logstd):
-    """Update the .c file with new weights and sizes."""
+def update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights, decoder_logstd, is_continuous):
     print(f"\nUpdating C file: {c_file_path}")
     print(f"With weights file: {weights_file}")
-    print(f"Observation size: {observation_size}, Action size: {action_size}, Num weights: {num_weights}\n")
+    print(f"Observation size: {observation_size}, Action size: {action_size}, Num weights: {num_weights}, Continuous: {is_continuous}\n")
     
     with open(c_file_path, 'r') as f:
         lines = f.readlines()
@@ -245,6 +243,8 @@ def update_c_file(c_file_path, weights_file, observation_size, action_size, num_
                 f.write(f"#define ACTIONS_SIZE {action_size}\n")
             elif line.strip().startswith("#define NUM_WEIGHTS"):
                 f.write(f"#define NUM_WEIGHTS {num_weights}\n")
+            elif line.strip().startswith("#define CONTINUOUS"):
+                f.write(f"#define CONTINUOUS {1 if is_continuous else 0}\n")
             elif line.strip().startswith("float decoder_logstd"):
                 decoder_logstd_str = ', '.join(f"{x:.7f}f" for x in decoder_logstd)
                 f.write(f"float decoder_logstd[ACTIONS_SIZE] = {{{decoder_logstd_str}}};\n")
@@ -308,7 +308,7 @@ def main():
                 sys.exit(1)
 
             # Step 4: Extract additional details from the architecture file
-            observation_size, action_size, num_weights, decoder_logstd = extract_details_from_architecture_file(architecture_file)
+            observation_size, action_size, num_weights, decoder_logstd, is_continuous = extract_details_from_architecture_file(architecture_file)
             # Step 5: Find the .c file
             c_file_path = find_c_file(top_dir, env_name)
             if not c_file_path:
@@ -316,7 +316,7 @@ def main():
                 sys.exit(1)
 
             # Step 6: Update the .c file
-            update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights, decoder_logstd)
+            update_c_file(c_file_path, weights_file, observation_size, action_size, num_weights, decoder_logstd, is_continuous)
             # Step 7: Compile and run
             env_basename = env_name.replace('puffer_', '')
             env_base_name = env_basename.split('_')[0]

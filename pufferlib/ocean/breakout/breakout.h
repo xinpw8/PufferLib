@@ -527,7 +527,7 @@ Client* make_client(Breakout* env) {
     //sound_path = os.path.join(*self.__module__.split(".")[:-1], "hit.wav")
     //self.sound = rl.LoadSound(sound_path.encode())
 
-    client->ball = LoadTexture("resources/puffers_128.png");
+    client->ball = LoadTexture("pufferlib/resources/puffers_128.png");
     return client;
 }
 
