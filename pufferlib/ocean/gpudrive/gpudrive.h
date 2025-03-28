@@ -9,12 +9,6 @@
 #include "raymath.h"
 #include "rlgl.h"
 #include <time.h>
-#define MAX_AGENTS 64
-#define MAX_ROAD_OBJECTS 200
-#define ROAD_OBS 13
-#define OTHER_AGENT_OBS 6
-#define SELF_OBJS 6
-
 // Entity Types
 #define NONE 0
 #define VEHICLE 1
@@ -367,7 +361,7 @@ int getGridIndex(GPUDrive* env, float x1, float y1) {
     if (gridX < 0 || gridX >= cellsX || gridY < 0 || gridY >= cellsY) {
         return -1;  // Return -1 for out of bounds
     }
-    int index = (gridY * cellsX) + gridX;    
+    int index = (gridY*cellsX) + gridX;    
     return index;
 }
 
@@ -432,7 +426,7 @@ void init_grid_map(GPUDrive* env){
 
 void init_neighbor_offsets(GPUDrive* env) {
     // Allocate memory for the offsets
-    env->neighbor_offsets = (int*)calloc(env->vision_range * env->vision_range * 2, sizeof(int));
+    env->neighbor_offsets = (int*)calloc(env->vision_range*env->vision_range*2, sizeof(int));
     // neighbor offsets in a spiral pattern
     int dx[] = {1, 0, -1, 0};
     int dy[] = {0, 1, 0, -1};
@@ -544,7 +538,7 @@ void init(GPUDrive* env){
     init_grid_map(env);
     env->vision_range = 21;
     init_neighbor_offsets(env);
-    env->neighbor_cache_indices = (int*)calloc((env->grid_cols * env->grid_rows) + 1, sizeof(int));
+    env->neighbor_cache_indices = (int*)calloc((env->grid_cols*env->grid_rows) + 1, sizeof(int));
     cache_neighbor_offsets(env);
 }
 
@@ -566,11 +560,11 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 6 + 7 * (env->num_cars - 1) + 200 * 5;
+    int max_obs = 6 + 7*(env->num_cars - 1) + 5*200;
     printf("max obs: %d\n", max_obs*env->active_agent_count);
     printf("num cars: %d\n", env->num_cars);
     printf("active agent count: %d\n", env->active_agent_count);
-    env->observations = (float*)calloc(env->active_agent_count * max_obs, sizeof(float));
+    env->observations = (float*)calloc(env->active_agent_count*max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
     env->dones = (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
@@ -818,7 +812,7 @@ float reverse_normalize_value(float value, float min, float max){
 
 void compute_observations(GPUDrive* env) {
     int max_obs = 6 + 7*(env->num_cars - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
-    memset(env->observations, 0, max_obs * env->active_agent_count * sizeof(float));
+    memset(env->observations, 0, max_obs*env->active_agent_count*sizeof(float));
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations; 
     for(int i = 0; i < env->active_agent_count; i++) {
         float* obs = &observations[i][0];
@@ -850,8 +844,8 @@ void compute_observations(GPUDrive* env) {
             float dist = sqrtf(dx*dx + dy*dy);
             if(dist > 50.0f) continue;
             // Rotate to ego vehicle's frame
-            float rel_x = dx * cos_heading + dy * sin_heading;
-            float rel_y = -dx * sin_heading + dy * cos_heading;
+            float rel_x = dx*cos_heading + dy*sin_heading;
+            float rel_y = -dx*sin_heading + dy*cos_heading;
             // Store observations with correct indexing
             obs[obs_idx] = normalize_value(rel_x, MIN_REL_AGENT_POS, MAX_REL_AGENT_POS);
             obs[obs_idx + 1] = normalize_value(rel_y, MIN_REL_AGENT_POS, MAX_REL_AGENT_POS);
@@ -951,7 +945,6 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
         move_dynamics(env, i, agent_idx);
-        // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
@@ -960,7 +953,7 @@ void c_step(GPUDrive* env){
                 env->logs[i].collision_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_vehicle_collision;
             }
-            else if(env->entities[agent_idx].collision_state == OFFROAD && env->goal_reached[i] == 0){
+            else if(env->entities[agent_idx].collision_state == OFFROAD){
                 env->rewards[i] = env->reward_offroad_collision;
                 env->logs[i].offroad_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_offroad_collision;
