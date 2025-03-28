@@ -954,13 +954,13 @@ void c_step(GPUDrive* env){
         // move_random(env, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
-        if(env->entities[agent_idx].collision_state > 0){
+        if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
                 env->rewards[i] = env->reward_vehicle_collision;
                 env->logs[i].collision_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_vehicle_collision;
             }
-            else if(env->entities[agent_idx].collision_state == OFFROAD){
+            else if(env->entities[agent_idx].collision_state == OFFROAD && env->goal_reached[i] == 0){
                 env->rewards[i] = env->reward_offroad_collision;
                 env->logs[i].offroad_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_offroad_collision;
