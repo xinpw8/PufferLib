@@ -376,6 +376,49 @@ static PyObject* vec_render(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static PyObject* vec_log(PyObject* self, PyObject* args) {
+    VecEnv* vec = unpack_vecenv(args);
+    if (!vec) {
+        return NULL;
+    }
+
+    int num_keys = sizeof(LOG_KEYS)/sizeof(LOG_KEYS[0]) - 1;
+    float aggregate[num_keys];
+    for (int i = 0; i < num_keys; i++) {
+        aggregate[i] = 0;
+    }
+
+    for (int i = 0; i < vec->num_envs; i++) {
+        Env* env = vec->envs[i];
+        for (int i = 0; i < num_keys; i++) {
+            aggregate[i] += env->log[i];
+            env->log[i] = 0;
+        }
+    }
+
+    PyObject* dict = PyDict_New();
+    if (aggregate[LOG_N] == 0) {
+        return dict;
+    }
+    for (int i = 0; i < num_keys; i++) {
+        float v = aggregate[i];
+        if (i != LOG_N) {
+            v /= (float)aggregate[LOG_N];
+        }
+        PyObject* value = PyFloat_FromDouble((double)v);
+        if (value == NULL) {
+            PyErr_SetString(PyExc_TypeError, "Failed to convert log value");
+            return NULL;
+        }
+        if(PyDict_SetItemString(dict, LOG_KEYS[i], value) < 0) {
+            PyErr_SetString(PyExc_TypeError, "Failed to set log value");
+            return NULL;
+        }
+    }
+
+    return dict;
+}
+
 static PyObject* vec_close(PyObject* self, PyObject* args) {
     VecEnv* vec = unpack_vecenv(args);
     if (!vec) {
@@ -401,6 +444,7 @@ static PyMethodDef methods[] = {
     {"vectorize", vectorize, METH_VARARGS, "Make a vector of environment handles"},
     {"init_vec", (PyCFunction)init_vec, METH_VARARGS | METH_KEYWORDS, "Initialize a vector of environments"},
     {"vec_step", vec_step, METH_VARARGS, "Step the vector of environments"},
+    {"vec_log", vec_log, METH_VARARGS, "Log the vector of environments"},
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
     {"vec_reset", vec_reset, METH_VARARGS, "Reset the vector of environments"},

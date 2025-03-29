@@ -15,7 +15,12 @@ const unsigned char TARGET = 2;
 typedef struct Client Client;
  
 typedef struct Squared Squared;
+
+static const char* LOG_KEYS[] = {"episode_length", "episode_return", "score", "n", 0};
+enum {LOG_LENGTH, LOG_RETURN, LOG_SCORE, LOG_N};
+
 struct Squared {
+    float log[sizeof(LOG_KEYS) / sizeof(LOG_KEYS[0])];
     Client* client;
     unsigned char* observations;
     int* actions;
@@ -41,6 +46,13 @@ void free_allocated(Squared* env) {
     free(env->terminals);
 }
 
+void add_log(Squared* env) {
+    env->log[LOG_LENGTH] += env->tick;
+    env->log[LOG_RETURN] += env->rewards[0];
+    env->log[LOG_SCORE] += env->rewards[0];
+    env->log[LOG_N] += 1;
+}
+
 void c_reset(Squared* env) {
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->observations[env->size*env->size/2] = AGENT;
@@ -55,6 +67,8 @@ void c_reset(Squared* env) {
 }
 
 void c_step(Squared* env) {
+    env->tick += 1;
+
     int action = env->actions[0];
     env->terminals[0] = 0;
     env->rewards[0] = 0;
@@ -78,6 +92,7 @@ void c_step(Squared* env) {
             || env->c >= env->size) {
         env->terminals[0] = 1;
         env->rewards[0] = -1.0;
+        add_log(env);
         c_reset(env);
         return;
     }
@@ -86,12 +101,12 @@ void c_step(Squared* env) {
     if (env->observations[pos] == TARGET) {
         env->terminals[0] = 1;
         env->rewards[0] = 1.0;
+        add_log(env);
         c_reset(env);
         return;
     }
 
     env->observations[pos] = AGENT;
-    env->tick += 1;
 }
 
 typedef struct Client Client;

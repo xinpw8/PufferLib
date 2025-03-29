@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-from pufferlib import squared_bind
+from pufferlib.ocean.squared import binding as squared_bind
 
 N = 2048
 TIME = 1.0
@@ -97,6 +97,63 @@ def test_vec_binding():
     squared_bind.vec_step(vec_ptr)
     squared_bind.vec_close(vec_ptr)
 
+def test_log():
+    vec_ptr = squared_bind.init_vec(obs, atn, rew, term, trunc, N, size=11)
+    squared_bind.vec_reset(vec_ptr)
+    for i in range(1000):
+        squared_bind.vec_step(vec_ptr)
+
+    logs = squared_bind.vec_log(vec_ptr)
+    print(logs)
+    squared_bind.vec_close(vec_ptr)
+
+def test_pong():
+    from pufferlib.ocean.pong import binding as pong_bind
+    N = 2048
+
+    obs = np.zeros((N, 8), dtype=np.float32)
+    atn = np.zeros((N), dtype=np.int32)
+    rew = np.zeros((N), dtype=np.float32)
+    term = np.zeros((N), dtype=np.uint8)
+    trunc = np.zeros((N), dtype=np.uint8)
+
+    ptr = pong_bind.init_vec(obs, atn, rew, term, trunc, N,
+        width=500, height=640, paddle_width=20, paddle_height=70,
+        ball_width=32, ball_height=32, paddle_speed=8,
+        ball_initial_speed_x=10, ball_initial_speed_y=1,
+        ball_speed_y_increment=3, ball_max_speed_y=13,
+        max_score=21, frameskip=1, continuous=False
+    )
+
+    pong_bind.vec_reset(ptr)
+    while True:
+        pong_bind.vec_step(ptr)
+        pong_bind.vec_render(ptr, 0)
+
+    pong_bind.vec_close(ptr)
+
+def test_pong_single():
+    from pufferlib.ocean.pong import binding as pong_bind
+    obs = np.zeros((8), dtype=np.float32)
+    atn = np.zeros((1,), dtype=np.int32)
+    rew = np.zeros((1,), dtype=np.float32)
+    term = np.zeros((1,), dtype=np.uint8)
+    trunc = np.zeros((1,), dtype=np.uint8)
+
+    ptr = pong_bind.env_init(obs, atn, rew, term, trunc,
+        width=500, height=640, paddle_width=20, paddle_height=70,
+        ball_width=32, ball_height=32, paddle_speed=8,
+        ball_initial_speed_x=10, ball_initial_speed_y=1,
+        ball_speed_y_increment=3, ball_max_speed_y=13,
+        max_score=21, frameskip=1, continuous=False
+    )
+
+    pong_bind.env_reset(ptr)
+    while True:
+        pong_bind.env_step(ptr)
+        pong_bind.env_render(ptr)
+
+    pong_bind.env_close(ptr)
 
 
 if __name__ == '__main__':
@@ -104,8 +161,10 @@ if __name__ == '__main__':
     #test_vec()
     #time_loop()
     #time_vec()
+    test_log()
 
-    test_env_binding()
-    test_vectorize_binding()
-    test_vec_binding()
+    #test_pong_single()
+    #test_env_binding()
+    #test_vectorize_binding()
+    #test_vec_binding()
 

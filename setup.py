@@ -263,7 +263,7 @@ extension_paths = [
     'pufferlib/ocean/tactical/c_tactical',
     'pufferlib/ocean/squared/cy_squared',
     'pufferlib/ocean/snake/cy_snake',
-    'pufferlib/ocean/pong/cy_pong',
+    #'pufferlib/ocean/pong/cy_pong',
     'pufferlib/ocean/breakout/cy_breakout',
     'pufferlib/ocean/enduro/cy_enduro',
     'pufferlib/ocean/blastar/cy_blastar',
@@ -298,21 +298,25 @@ extensions = [Extension(
     path.replace('/', '.'),
     [path + '.pyx'],
     include_dirs=[numpy.get_include(), 'raylib/include'],
-    extra_compile_args=extra_compile_args + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-g'],
+    extra_compile_args=extra_compile_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-g'],
     extra_link_args=extra_link_args,
     extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
 ) for path in extension_paths]
 
-extensions.append(
+c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O0', '-Wno-alloc-size-larger-than', '-g']
+
+pure_c_extensions = ['squared', 'pong']
+extensions += [
     Extension(
-        'pufferlib.squared_bind',
-        sources=['pufferlib/squared_bind.c'],
+        f'pufferlib.ocean.{name}.binding',
+        sources=[f'pufferlib/ocean/{name}/binding.c'],
         include_dirs=[numpy.get_include(), 'raylib/include'],
-        extra_compile_args=extra_compile_args,#, '-g'],
+        extra_compile_args=c_args,
         extra_link_args=extra_link_args,
         extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
     )
-)
+    for name in pure_c_extensions
+]
 
 # Prevent Conda from injecting garbage compile flags
 from distutils.sysconfig import get_config_vars

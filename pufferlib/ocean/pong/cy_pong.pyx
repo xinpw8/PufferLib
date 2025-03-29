@@ -51,20 +51,15 @@ cdef extern from "pong.h":
         int frameskip
         int continuous
 
-    ctypedef struct Client
-
     void init(Pong* env)
     void c_reset(Pong* env)
     void c_step(Pong* env)
 
-    Client* make_client(Pong* env)
-    void close_client(Client* client)
-    void c_render(Client* client, Pong* env)
+    void c_render(Pong* env)
 
 cdef class CyPong:
     cdef:
         Pong* envs
-        Client* client
         LogBuffer* logs
         int num_envs
         float width
@@ -83,7 +78,6 @@ cdef class CyPong:
             unsigned int max_score, int frameskip, int continuous):
 
         self.num_envs = num_envs
-        self.client = NULL
         self.envs = <Pong*> calloc(num_envs, sizeof(Pong))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
@@ -125,20 +119,9 @@ cdef class CyPong:
 
     def render(self):
         cdef Pong* env = &self.envs[0]
-        if self.client == NULL:
-            import os
-            cwd = os.getcwd()
-            os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-            self.client = make_client(env)
-            os.chdir(cwd)
-
-        c_render(self.client, env)
+        c_render(env)
 
     def close(self):
-        if self.client != NULL:
-            close_client(self.client)
-            self.client = NULL
-
         free(self.envs)
         free(self.logs)
 

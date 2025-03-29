@@ -2,7 +2,11 @@ cimport numpy as cnp
 from libc.stdlib cimport calloc, free
 
 cdef extern from "squared.h":
+    ctypedef struct Client:
+        pass
+
     ctypedef struct Squared:
+        Client* client
         unsigned char* observations
         int* actions
         float* rewards
@@ -15,6 +19,7 @@ cdef extern from "squared.h":
     void c_reset(Squared* env)
     void c_step(Squared* env)
     void c_render(Squared* env)
+
 
 cdef class CySquared:
     cdef:
