@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <unistd.h>
+#include <limits.h>
 #include "raylib.h"
 
 #define NOOP 0
@@ -516,6 +518,10 @@ struct Client {
     Texture2D ball;
 };
 
+static inline bool file_exists(const char* path) {
+    return access(path, F_OK) != -1;
+}
+
 Client* make_client(Breakout* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = env->width;
@@ -524,10 +530,36 @@ Client* make_client(Breakout* env) {
     InitWindow(env->width, env->height, "PufferLib Ray Breakout");
     SetTargetFPS(60);
 
-    //sound_path = os.path.join(*self.__module__.split(".")[:-1], "hit.wav")
-    //self.sound = rl.LoadSound(sound_path.encode())
+    char texturePath[PATH_MAX] = {0};
+    char resolvedPath[PATH_MAX] = {0};
 
-    client->ball = LoadTexture("pufferlib/resources/puffers_128.png");
+    const char* candidatePaths[] = {
+        "./resources/puffers_128.png",
+        "./pufferlib/resources/puffers_128.png",
+        "./pufferlib/pufferlib/resources/puffers_128.png"
+    };
+
+    int found = 0;
+    for (size_t i = 0; i < sizeof(candidatePaths)/sizeof(candidatePaths[0]); i++) {
+        if (file_exists(candidatePaths[i])) {
+            if (realpath(candidatePaths[i], resolvedPath) != NULL) {
+                strncpy(texturePath, resolvedPath, PATH_MAX - 1);
+                found = 1;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        TraceLog(LOG_ERROR, "Failed to find puffers_128.png from current directory.");
+        CloseWindow();
+        free(client);
+        exit(EXIT_FAILURE);
+    }
+
+    client->ball = LoadTexture(texturePath);
+    TraceLog(LOG_INFO, "Resource path resolution: %s", texturePath);
+
     return client;
 }
 
