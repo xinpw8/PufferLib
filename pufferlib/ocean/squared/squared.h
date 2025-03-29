@@ -11,9 +11,12 @@ const unsigned char RIGHT = 4;
 const unsigned char EMPTY = 0;
 const unsigned char AGENT = 1;
 const unsigned char TARGET = 2;
+
+typedef struct Client Client;
  
 typedef struct Squared Squared;
 struct Squared {
+    Client* client;
     unsigned char* observations;
     int* actions;
     float* rewards;
@@ -111,7 +114,11 @@ void close_client(Client* client) {
     free(client);
 }
 
-void c_render(Client* client, Squared* env) {
+void c_render(Squared* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

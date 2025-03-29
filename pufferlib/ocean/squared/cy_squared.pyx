@@ -12,18 +12,13 @@ cdef extern from "squared.h":
         int r
         int c
 
-    ctypedef struct Client
-
     void c_reset(Squared* env)
     void c_step(Squared* env)
-    Client* make_client(Squared* env)
-    void close_client(Client* client)
-    void c_render(Client* client, Squared* env)
+    void c_render(Squared* env)
 
 cdef class CySquared:
     cdef:
         Squared* envs
-        Client* client
         int num_envs
         int size
 
@@ -32,7 +27,6 @@ cdef class CySquared:
 
         self.envs = <Squared*> calloc(num_envs, sizeof(Squared))
         self.num_envs = num_envs
-        self.client = NULL
 
         cdef int i
         for i in range(num_envs):
@@ -56,14 +50,7 @@ cdef class CySquared:
 
     def render(self):
         cdef Squared* env = &self.envs[0]
-        if self.client == NULL:
-            self.client = make_client(env)
-
-        c_render(self.client, env)
+        c_render(env)
 
     def close(self):
-        if self.client != NULL:
-            close_client(self.client)
-            self.client = NULL
-
         free(self.envs)

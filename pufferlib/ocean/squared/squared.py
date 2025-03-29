@@ -43,3 +43,24 @@ class Squared(pufferlib.PufferEnv):
 
     def close(self):
         self.c_envs.close()
+
+if __name__ == '__main__':
+    N = 2048
+    TIME = 10
+    env = Squared(num_envs=2048)
+    actions = np.random.randint(0, 5, N)
+    env.reset()
+
+    import time
+    steps = 0
+    start = time.time()
+    while time.time() - start < TIME:
+        env.step(actions)
+        steps += N
+
+    print('Cython SPS:', steps / (time.time() - start))
+
+
+
+
+
