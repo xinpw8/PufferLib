@@ -352,7 +352,7 @@ def main():
     elif mode == "t" or mode == "tr" or mode == "tra" or mode == "trai" or mode == "train":
         mode = "train"
         # Default behavior: Run the command
-        command = f"python demo.py --env {env_name} --mode {mode} --track"
+        command = f"python demo.py --env {env_name} --mode {mode} --track --wandb"
         print(f"Running command: {command}")
         os.system(command)
 

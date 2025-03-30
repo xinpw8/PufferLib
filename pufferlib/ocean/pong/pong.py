@@ -18,7 +18,7 @@ class Pong(pufferlib.PufferEnv):
             ball_width=32, ball_height=32, paddle_speed=8,
             ball_initial_speed_x=10, ball_initial_speed_y=1,
             ball_speed_y_increment=3, ball_max_speed_y=13,
-            max_score=21, frameskip=1, continuous=False, report_interval=1, buf=None):
+            max_score=21, frameskip=1, continuous=True, report_interval=1, buf=None):
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(8,), dtype=np.float32,
         )
