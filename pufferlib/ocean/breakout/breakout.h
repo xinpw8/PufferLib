@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <unistd.h>
+#include <limits.h>
+#include <string.h>
 #include "raylib.h"
 
 #define NOOP 0
@@ -11,74 +14,23 @@
 #define Y_OFFSET 50
 #define TICK_RATE 1.0f/60.0f
 
-#define LOG_BUFFER_SIZE 1024
-
 #define BRICK_INDEX_NO_COLLISION -4
 #define BRICK_INDEX_SIDEWALL_COLLISION -3
 #define BRICK_INDEX_BACKWALL_COLLISION -2
 #define BRICK_INDEX_PADDLE_COLLISION -1
 
-typedef struct Log Log;
-struct Log {
-    float episode_return;
-    float episode_length;
-    float score;
-};
+static const char* LOG_KEYS[] = {"episode_length", "episode_return", "score", "n", 0};
+enum {LOG_LENGTH, LOG_RETURN, LOG_SCORE, LOG_N};
 
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return;
-        log.episode_length += logs->logs[i].episode_length;
-        log.score += logs->logs[i].score;
-    }
-    log.episode_return /= logs->idx;
-    log.episode_length /= logs->idx;
-    log.score /= logs->idx;
-    logs->idx = 0;
-    return log;
-}
- 
+typedef struct Client Client;
 typedef struct Breakout Breakout;
 struct Breakout {
+    Client* client;
+    float log[sizeof(LOG_KEYS) / sizeof(LOG_KEYS[0])];
     float* observations;
     float* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
-    Log log;
+    unsigned char* terminals;
     int score;
     float paddle_x;
     float paddle_y;
@@ -106,6 +58,7 @@ struct Breakout {
     int num_balls;
     int max_score;
     int half_max_score;
+    int tick;
     int frameskip;
     unsigned char hit_brick;
     int continuous;
@@ -136,6 +89,7 @@ void generate_brick_positions(Breakout* env) {
 }
 
 void init(Breakout* env) {
+    env->tick = 0;
     env->num_bricks = env->brick_rows * env->brick_cols;
     assert(env->num_bricks > 0);
 
@@ -151,23 +105,28 @@ void allocate(Breakout* env) {
     env->observations = (float*)calloc(11 + env->num_bricks, sizeof(float));
     env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));
-    env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
 }
 
 void free_initialized(Breakout* env) {
     free(env->brick_x);
     free(env->brick_y);
     free(env->brick_states);
-    free_logbuffer(env->log_buffer);
 }
 
 void free_allocated(Breakout* env) {
     free(env->actions);
     free(env->observations);
-    free(env->dones);
+    free(env->terminals);
     free(env->rewards);
     free_initialized(env);
+}
+
+void add_log(Breakout* env) {
+    env->log[LOG_LENGTH] += env->tick;
+    env->log[LOG_RETURN] += env->score;
+    env->log[LOG_SCORE] += env->score;
+    env->log[LOG_N] += 1;
 }
 
 void compute_observations(Breakout* env) {
@@ -178,7 +137,9 @@ void compute_observations(Breakout* env) {
     env->observations[4] = env->ball_vx / 512.0f;
     env->observations[5] = env->ball_vy / 512.0f;
     env->observations[6] = env->balls_fired / 5.0f;
+    env->observations[7] = env->score / 896.0f;
     env->observations[8] = env->num_balls / 5.0f;
+    env->observations[9] = 0.05f;
     env->observations[10] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
     for (int i = 0; i < env->num_bricks; i++) {
         env->observations[11 + i] = env->brick_states[i];
@@ -377,10 +338,14 @@ void check_wall_bounds(Breakout* env) {
 }
 
 void destroy_brick(Breakout* env, int brick_idx) {
-    float gained_points = 7 - 3 * (brick_idx / env->brick_cols / 2);
+    // float gained_points = 7 - 3 * (brick_idx / env->brick_cols / 2);
+    float gained_points = 7 - 3 * (((float)brick_idx / env->brick_cols) / 2.0f);
+
     env->score += gained_points;
     env->brick_states[brick_idx] = 1.0;
-    env->log.episode_return += gained_points;
+    env->log[LOG_RETURN] += gained_points;
+    env->log[LOG_SCORE] += gained_points;
+
     env->rewards[0] += gained_points;
 
     if (brick_idx / env->brick_cols < 3) {
@@ -437,19 +402,20 @@ void reset_round(Breakout* env) {
     env->ball_vx = 0.0;
     env->ball_vy = 0.0;
 }
+
 void c_reset(Breakout* env) {
-    env->log = (Log){0};
     env->score = 0;
     env->num_balls = 5;
     for (int i = 0; i < env->num_bricks; i++) {
         env->brick_states[i] = 0.0;
     }
     reset_round(env);
+    env->tick = 0;
     compute_observations(env);
 }
 
 void step_frame(Breakout* env, float action) {
-    float act =0.0;
+    float act = 0.0;
     if (env->balls_fired == 0) {
         env->balls_fired = 1;
         float direction = M_PI / 3.25f;
@@ -487,20 +453,20 @@ void step_frame(Breakout* env, float action) {
         reset_round(env);
     }
     if (env->num_balls < 0 || env->score == env->max_score) {
-        env->dones[0] = 1;
-        env->log.score = env->score;
-        add_log(env->log_buffer, &env->log);
+        env->terminals[0] = 1;
+        add_log(env);
         c_reset(env);
     }
 }
 
 void c_step(Breakout* env) {
-    env->dones[0] = 0;
-    env->log.episode_length += 1;
+    env->terminals[0] = 0;
     env->rewards[0] = 0.0;
+    env->tick += 1;
 
     float action = env->actions[0];
     for (int i = 0; i < env->frameskip; i++) {
+        env->tick += 1;
         step_frame(env, action);
     }
 
@@ -513,25 +479,74 @@ typedef struct Client Client;
 struct Client {
     float width;
     float height;
+    float paddle_width;
+    float paddle_height;
+    float ball_width;
+    float ball_height;    
     Texture2D ball;
 };
+
+static inline bool file_exists(const char* path) {
+    return access(path, F_OK) != -1;
+}
 
 Client* make_client(Breakout* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = env->width;
     client->height = env->height;
+    client->paddle_width = env->paddle_width;
+    client->paddle_height = env->paddle_height;
+    client->ball_width = env->ball_width;
+    client->ball_height = env->ball_height;
 
-    InitWindow(env->width, env->height, "PufferLib Ray Breakout");
+    InitWindow(env->width, env->height, "PufferLib Breakout");
     SetTargetFPS(60);
 
-    //sound_path = os.path.join(*self.__module__.split(".")[:-1], "hit.wav")
-    //self.sound = rl.LoadSound(sound_path.encode())
+    char texturePath[PATH_MAX] = {0};
+    char resolvedPath[PATH_MAX] = {0};
 
-    client->ball = LoadTexture("resources/puffers_128.png");
+    const char* candidatePaths[] = {
+        "./resources/puffers_128.png",
+        "./pufferlib/resources/puffers_128.png",
+        "./pufferlib/pufferlib/resources/puffers_128.png"
+    };
+
+    int found = 0;
+    for (size_t i = 0; i < sizeof(candidatePaths)/sizeof(candidatePaths[0]); i++) {
+        if (file_exists(candidatePaths[i])) {
+            if (realpath(candidatePaths[i], resolvedPath) != NULL) {
+                strncpy(texturePath, resolvedPath, PATH_MAX - 1);
+                found = 1;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        TraceLog(LOG_ERROR, "Failed to find puffers_128.png from current directory.");
+        CloseWindow();
+        free(client);
+        exit(EXIT_FAILURE);
+    }
+
+    client->ball = LoadTexture(texturePath);
+    TraceLog(LOG_INFO, "Resource path resolution: %s", texturePath);
+
     return client;
 }
 
-void c_render(Client* client, Breakout* env) {
+void close_client(Client* client) {
+    CloseWindow();
+    free(client);
+}
+
+void c_render(Breakout* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+
+    Client* client = env->client;
+
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -563,9 +578,6 @@ void c_render(Client* client, Breakout* env) {
         WHITE
     );
 
-    //DrawRectangle(env->ball_x, env->ball_y,
-    //    env->ball_width, env->ball_height, WHITE);
-
     for (int row = 0; row < env->brick_rows; row++) {
         for (int col = 0; col < env->brick_cols; col++) {
             int brick_idx = row * env->brick_cols + col;
@@ -584,9 +596,4 @@ void c_render(Client* client, Breakout* env) {
     EndDrawing();
 
     //PlaySound(client->sound);
-}
-
-void close_client(Client* client) {
-    CloseWindow();
-    free(client);
 }
