@@ -9,27 +9,31 @@ from pufferlib.ocean.gpudrive.cy_gpudrive import CyGPUDrive, entity_dtype
 class GPUDrive(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
             width=1280, height=1024,
-            active_agent_count=8,
             human_agent_idx=0,
-            num_agents = 8,
             reward_vehicle_collision=-0.1,
             reward_offroad_collision=-0.1,
             buf = None):
 
         # env
-        self.num_agents = num_envs*num_agents
+        self.num_agents = num_envs
         self.render_mode = render_mode
         self.report_interval = report_interval
+        print("Num envs: ", num_envs)
         
-        self.num_obs = 6 + 67*7 + 200*5
+        self.num_obs = 6 + 63*7 + 200*5
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
-
-
+        
+        total_agents, agent_offsets = CyGPUDrive.get_total_agent_count(
+            num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision)
+        
+        self.num_agents = total_agents
+        print("Num agents: ", self.num_agents)
         super().__init__(buf=buf)
+        breakpoint()
         self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, num_agents, human_agent_idx, reward_vehicle_collision, reward_offroad_collision)
+            self.terminals, num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision, offsets = agent_offsets)
 
 
     def reset(self, seed=None):
@@ -103,8 +107,12 @@ def save_map_binary(map_data, output_file):
         # Count total entities
         print(len(map_data.get('objects', [])))
         print(len(map_data.get('roads', [])))
-        num_entities = len(map_data.get('objects', [])) + len(map_data.get('roads', []))
-        f.write(struct.pack('i', num_entities))
+        num_objects = len(map_data.get('objects', []))
+        num_roads = len(map_data.get('roads', []))
+        # num_entities = num_objects + num_roads
+        f.write(struct.pack('i', num_objects))
+        f.write(struct.pack('i', num_roads))
+        # f.write(struct.pack('i', num_entities))
         # Write objects
         for obj in map_data.get('objects', []):
             # Write base entity data
@@ -202,160 +210,37 @@ def load_map(map_name, binary_output=None):
     if binary_output:
         save_map_binary(map_data, binary_output)
     
-    # Create numpy array for Python usage
-    # objects = [obj for obj in map_data.get('objects', []) 
-    #            if obj.get('type') == 'vehicle' or obj.get('type') == 1]
-    # roads = map_data.get('roads', [])
-    # total_entities = len(roads) + len(objects)
-    
-    # # Create the recarray with the entity_dtype
-    # entities = np.zeros(total_entities, dtype=entity_dtype()).view(np.recarray)
-    
-    # # Process objects
-    # current_idx = 0
-    # for obj in objects:
-    #     # Set basic entity data
-    #     obj_type = 1 if obj.get('type') == 'vehicle' or obj.get('type') == 1 else 1
-    #     entities[current_idx].type = obj_type
-    #     entities[current_idx].road_object_id = obj.get('id', 0)
-    #     entities[current_idx].road_point_id = obj.get('road_point_id', 0)
-    #     entities[current_idx].array_size = 91
-        
-    #     # Allocate memory for trajectory arrays
-    #     # Note: In a real implementation, you'd need to manage this memory properly
-    #     # and ensure it's freed when no longer needed
-    #     traj_x = np.zeros(91, dtype=np.float32)
-    #     traj_y = np.zeros(91, dtype=np.float32)
-    #     traj_z = np.zeros(91, dtype=np.float32)
-    #     traj_vx = np.zeros(91, dtype=np.float32)
-    #     traj_vy = np.zeros(91, dtype=np.float32)
-    #     traj_vz = np.zeros(91, dtype=np.float32)
-    #     traj_heading = np.zeros(91, dtype=np.float32)
-    #     traj_valid = np.zeros(91, dtype=np.int32)
-        
-    #     # Fill trajectory arrays
-    #     positions = obj.get('position', [])
-    #     for i in range(91):
-    #         pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
-    #         traj_x[i] = float(pos.get('x', 0.0))
-    #         traj_y[i] = float(pos.get('y', 0.0))
-    #         traj_z[i] = float(pos.get('z', 0.0))
-        
-    #     velocities = obj.get('velocity', [])
-    #     for i in range(91):
-    #         vel = velocities[i] if i < len(velocities) else {'x': 0.0, 'y': 0.0}
-    #         traj_vx[i] = float(vel.get('x', 0.0))
-    #         traj_vy[i] = float(vel.get('y', 0.0))
-    #         # vz is unused, already zeros
-        
-    #     headings = obj.get('heading', [])
-    #     for i in range(91):
-    #         traj_heading[i] = float(headings[i]) if i < len(headings) else 0.0
-        
-    #     valids = obj.get('valid', [])
-    #     for i in range(91):
-    #         traj_valid[i] = int(valids[i]) if i < len(valids) else 0
-        
-    #     # Store pointers to arrays in the entity
-    #     # Note: This assumes the arrays won't be garbage collected
-    #     entities[current_idx].traj_x = traj_x.ctypes.data
-    #     entities[current_idx].traj_y = traj_y.ctypes.data
-    #     entities[current_idx].traj_z = traj_z.ctypes.data
-    #     entities[current_idx].traj_vx = traj_vx.ctypes.data
-    #     entities[current_idx].traj_vy = traj_vy.ctypes.data
-    #     entities[current_idx].traj_vz = traj_vz.ctypes.data
-    #     entities[current_idx].traj_heading = traj_heading.ctypes.data
-    #     entities[current_idx].traj_valid = traj_valid.ctypes.data
-        
-    #     # Set scalar fields
-    #     entities[current_idx].width = float(obj.get('width', 0.0))
-    #     entities[current_idx].length = float(obj.get('length', 0.0))
-    #     entities[current_idx].height = float(obj.get('height', 0.0))
-        
-    #     goal_pos = obj.get('goalPosition', {'x': 0, 'y': 0, 'z': 0})
-    #     entities[current_idx].goal_position_x = float(goal_pos.get('x', 0.0))
-    #     entities[current_idx].goal_position_y = float(goal_pos.get('y', 0.0))
-    #     entities[current_idx].goal_position_z = float(goal_pos.get('z', 0.0))
-        
-    #     # Set current state (first position in trajectory)
-    #     if len(positions) > 0:
-    #         pos = positions[0]
-    #         entities[current_idx].x = float(pos.get('x', 0.0))
-    #         entities[current_idx].y = float(pos.get('y', 0.0))
-    #         entities[current_idx].z = float(pos.get('z', 0.0))
-        
-    #     if len(velocities) > 0:
-    #         vel = velocities[0]
-    #         entities[current_idx].vx = float(vel.get('x', 0.0))
-    #         entities[current_idx].vy = float(vel.get('y', 0.0))
-    #         entities[current_idx].vz = 0.0
-        
-    #     if len(headings) > 0:
-    #         entities[current_idx].heading = float(headings[0])
-        
-    #     entities[current_idx].valid = 1  # Assume valid
-    #     entities[current_idx].collision_state = 0  # Assume no collision
-        
-    #     current_idx += 1
-    
-    # # Process roads
-    # for road in roads:
-    #     geometry = road.get('geometry', [])
-    #     size = len(geometry)
-        
-    #     # Map road types
-    #     road_type = road.get('map_element_id', 0)
-    #     if road_type >= 0 and road_type <= 3:
-    #         road_type = 4
-    #     elif road_type >= 5 and road_type <= 13:
-    #         road_type = 5
-    #     elif road_type >= 14 and road_type <= 16:
-    #         road_type = 6
-    #     elif road_type == 17:
-    #         road_type = 7
-    #     elif road_type == 18:
-    #         road_type = 8
-    #     elif road_type == 19:
-    #         road_type = 9
-    #     elif road_type == 20:
-    #         road_type = 10
-        
-    #     entities[current_idx].type = road_type
-    #     entities[current_idx].road_object_id = 0
-    #     entities[current_idx].road_point_id = road.get('id', 0)
-    #     entities[current_idx].array_size = size
-        
-    #     # Allocate memory for geometry arrays
-    #     geom_x = np.zeros(size, dtype=np.float32)
-    #     geom_y = np.zeros(size, dtype=np.float32)
-    #     geom_z = np.zeros(size, dtype=np.float32)
-        
-    #     # Fill geometry arrays
-    #     for i, point in enumerate(geometry):
-    #         geom_x[i] = float(point.get('x', 0.0))
-    #         geom_y[i] = float(point.get('y', 0.0))
-    #         geom_z[i] = float(point.get('z', 0.0))
-        
-    #     # Store pointers to arrays
-    #     entities[current_idx].traj_x = geom_x.ctypes.data
-    #     entities[current_idx].traj_y = geom_y.ctypes.data
-    #     entities[current_idx].traj_z = geom_z.ctypes.data
-        
-    #     # Set scalar fields
-    #     entities[current_idx].width = float(road.get('width', 0.0))
-    #     entities[current_idx].length = float(road.get('length', 0.0))
-    #     entities[current_idx].height = float(road.get('height', 0.0))
-        
-    #     goal_pos = road.get('goalPosition', {'x': 0, 'y': 0, 'z': 0})
-    #     entities[current_idx].goal_position_x = float(goal_pos.get('x', 0.0))
-    #     entities[current_idx].goal_position_y = float(goal_pos.get('y', 0.0))
-    #     entities[current_idx].goal_position_z = float(goal_pos.get('z', 0.0))
-
-    #     current_idx += 1
     entities = np.zeros(1, dtype=entity_dtype())
     return entities
 
+def process_all_maps():
+    """Process all maps and save them as binaries"""
+    import os
+    from pathlib import Path
+
+    # Create the binaries directory if it doesn't exist
+    binary_dir = Path("resources/gpudrive/binaries")
+    binary_dir.mkdir(parents=True, exist_ok=True)
+
+    # Path to the training data
+    data_dir = Path("data/processed/training")
+    
+    # Get all JSON files in the training directory
+    json_files = sorted(data_dir.glob("*.json"))[256:384]
+    
+    print(f"Found {len(json_files)} JSON files")
+    
+    # Process each JSON file
+    for i, map_path in enumerate(json_files):
+        binary_file = f"map_{i:03d}.bin"  # Use zero-padded numbers for consistent sorting
+        binary_path = binary_dir / binary_file
+        
+        print(f"Processing {map_path.name} -> {binary_file}")
+        try:
+            load_map(str(map_path), str(binary_path))
+        except Exception as e:
+            print(f"Error processing {map_path.name}: {e}")
 
 if __name__ == '__main__':
-        load_map('resources/tfrecord-00000-of-01000_4.json', 'map.bin')
+    process_all_maps()
 

@@ -42,12 +42,6 @@ cdef extern from "gpudrive.h":
         float vz;
         float heading;
         int valid;
-        float nearest_line_dist;
-        float* nearest_line_start;
-        float* nearest_line_end;
-        float nearest_car_dist;
-        float* nearest_car_start;
-        float* nearest_car_end;
 
     ctypedef struct GPUDrive:
         float* observations;
@@ -63,6 +57,10 @@ cdef extern from "gpudrive.h":
         Entity* entities;
         int num_entities;
         int num_cars;
+        int num_objects;
+        int num_roads;
+        int static_car_count;
+        int* static_car_indices;
         int timestep;
         int dynamics_model;
         float* fake_data;
@@ -75,20 +73,23 @@ cdef extern from "gpudrive.h":
         int* neighbor_offsets;
         int* neighbor_cache_entities;
         int* neighbor_cache_indices;
-        float reward_vehicle_collision
-        float reward_offroad_collision
+        float reward_vehicle_collision;
+        float reward_offroad_collision;
+        char* map_name;
 
     ctypedef struct Client
 
     void init(GPUDrive* env)
     void free_allocated(GPUDrive* env)
-
+    void free_entity(Entity* entity)
 
     Client* make_client(GPUDrive* env)
     void close_client(Client* client)
     void c_render(Client* client, GPUDrive* env)
     void c_reset(GPUDrive* env)
     void c_step(GPUDrive* env)
+    Entity* load_map_binary(char* name, GPUDrive* env)
+    void set_active_agents(GPUDrive *env)
 
 cpdef entity_dtype():
     '''Make a dummy entity to get the dtype'''
@@ -130,30 +131,79 @@ cdef class CyGPUDrive:
         Client* client
         LogBuffer* logs
         int num_envs
+        int* agent_offsets
+        int agent_count
+
+    @staticmethod
+    def get_total_agent_count(int num_envs, int human_agent_idx, float reward_vehicle_collision, float reward_offroad_collision):
+        """Static method to count total agents across all environments"""
+        cdef int* agent_offsets = <int*> calloc(num_envs + 1, sizeof(int))
+        cdef int total_count = 0
+        cdef GPUDrive* temp_envs = <GPUDrive*> calloc(num_envs, sizeof(GPUDrive))
+        cdef int i
+        try:
+            for i in range(num_envs):
+                temp_envs[i].human_agent_idx = human_agent_idx
+                temp_envs[i].reward_vehicle_collision = reward_vehicle_collision
+                temp_envs[i].reward_offroad_collision = reward_offroad_collision
+                
+                map_file = f"resources/gpudrive/binaries/map_{i:03d}.bin".encode('utf-8')
+                temp_envs[i].entities = load_map_binary(map_file, &temp_envs[i])
+                set_active_agents(&temp_envs[i])
+                
+                agent_offsets[i] = total_count
+                total_count += temp_envs[i].active_agent_count
+                if (temp_envs[i].active_agent_count ==0 ):
+                    print("No active agents: ", map_file)
+            
+            agent_offsets[num_envs] = total_count
+            py_offsets = [agent_offsets[i] for i in range(num_envs + 1)]
+            return total_count, py_offsets
+            
+        finally:
+            for i in range(num_envs):
+                for x in range(temp_envs[i].num_entities):
+                    free_entity(&temp_envs[i].entities[x])
+                free(temp_envs[i].entities)
+                free(temp_envs[i].active_agent_indices)
+                free(temp_envs[i].static_car_indices)
+            free(temp_envs)
+            free(agent_offsets)
 
     def __init__(self, float[:, :] observations, int[:,:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
-            int num_agents, int human_agent_idx, reward_vehicle_collision, reward_offroad_collision):
+            int human_agent_idx, reward_vehicle_collision, 
+            reward_offroad_collision, offsets):
 
         self.client = NULL
         self.num_envs = num_envs
         self.envs = <GPUDrive*> calloc(num_envs, sizeof(GPUDrive))
+        self.agent_offsets = <int*> calloc(num_envs + 1, sizeof(int))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
-        cdef int inc = num_agents
         cdef int i
+        for i in range(num_envs + 1):
+            self.agent_offsets[i] = offsets[i]
+        cdef int inc
         for i in range(num_envs):
+            inc = self.agent_offsets[i]
+            print(inc)
+            map_file = f"resources/gpudrive/binaries/map_{i:03d}.bin".encode('utf-8')
+            print("cython map_name", map_file)
             self.envs[i] = GPUDrive(
-                observations=&observations[inc*i, 0],
-                actions=&actions[inc*i,0],
-                rewards=&rewards[inc*i],
-                dones=&terminals[inc*i],
+                observations=&observations[inc, 0],
+                actions=&actions[inc,0],
+                rewards=&rewards[inc],
+                dones=&terminals[inc],
                 log_buffer=self.logs,
                 human_agent_idx=human_agent_idx,
                 reward_vehicle_collision=reward_vehicle_collision,
-                reward_offroad_collision=reward_offroad_collision
+                reward_offroad_collision=reward_offroad_collision,
+                map_name = map_file
             )
+            print("init")
             init(&self.envs[i])
             self.client = NULL
+
 
     def reset(self):
         cdef int i

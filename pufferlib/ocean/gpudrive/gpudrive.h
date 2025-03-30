@@ -45,8 +45,8 @@
 #define SLOTS_PER_CELL (MAX_ENTITIES_PER_CELL*2 + 1)
 
 // Max road segment observation entities
-#define MAX_ROAD_SEGMENT_OBSERVATIONS 200
-
+#define MAX_ROAD_SEGMENT_OBSERVATIONS 64
+#define MAX_CARS 64
 // Observation Space Constants
 #define MAX_SPEED 100
 #define MAX_VEH_LEN 30
@@ -204,6 +204,10 @@ struct GPUDrive {
     Entity* entities;
     int num_entities;
     int num_cars;
+    int num_objects;
+    int num_roads;
+    int static_car_count;
+    int* static_car_indices;
     int timestep;
     int dynamics_model;
     float* fake_data;
@@ -218,13 +222,15 @@ struct GPUDrive {
     int* neighbor_cache_indices;
     float reward_vehicle_collision;
     float reward_offroad_collision;
+    char* map_name;
 };
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
     FILE* file = fopen(filename, "rb");
     if (!file) return NULL;
-    
-    fread(&env->num_entities, sizeof(int), 1, file);
+    fread(&env->num_objects, sizeof(int), 1, file);
+    fread(&env->num_roads, sizeof(int), 1, file);
+    env->num_entities = env->num_objects + env->num_roads;
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
     //printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
@@ -314,10 +320,12 @@ void set_start_position(GPUDrive* env){
 
 void set_active_agents(GPUDrive* env){
     env->active_agent_count = 0;
-    int active_agent_indices[env->num_entities];
-    for(int i = 0; i < env->num_entities; i++){
+    env->static_car_count = 0;
+    env->num_cars = 0;
+    int active_agent_indices[MAX_CARS];
+    int static_car_indices[MAX_CARS];
+    for(int i = 0; i < env->num_entities && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
-        env->num_cars++;
         int start_idx=0;
         for(int j = 0; j<env->entities[i].array_size; j++){
             if(env->entities[i].traj_valid[j] == 1 ){
@@ -326,6 +334,7 @@ void set_active_agents(GPUDrive* env){
             }
         }
         if(start_idx !=0) continue;
+        env->num_cars++;
         float distance = relative_distance_2d(
             env->entities[i].traj_x[start_idx],
             env->entities[i].traj_y[start_idx],
@@ -336,13 +345,20 @@ void set_active_agents(GPUDrive* env){
         if(distance >= 2.0f){
             active_agent_indices[env->active_agent_count] = i;
             env->active_agent_count++;
+        } else {
+            static_car_indices[env->static_car_count] = i;
+            env->static_car_count++;
         }
         
     }
     env->active_agent_indices = (int*)malloc(env->active_agent_count * sizeof(int));
+    env->static_car_indices = (int*)malloc(env->static_car_count * sizeof(int));
     for(int i=0;i<env->active_agent_count;i++){
         env->active_agent_indices[i] = active_agent_indices[i];
     };
+    for(int i=0;i<env->static_car_count;i++){
+        env->static_car_indices[i] = static_car_indices[i];
+    }
 }
 
 int getGridIndex(GPUDrive* env, float x1, float y1) {
@@ -529,10 +545,13 @@ int get_neighbor_cache_entities(GPUDrive* env, int cell_idx, int* entities, int 
 void init(GPUDrive* env){
     env->human_agent_idx = 0;
     env->timestep = 0;
-    env->entities = load_map_binary("map.bin", env);
+    env->entities = load_map_binary(env->map_name, env);
+    printf("entities loaded\n");
+    printf("num entities: %d\n", env->num_entities);
     env->dynamics_model = CLASSIC;
     set_active_agents(env);
     set_start_position(env);
+    printf("Active agents: %d\n", env->active_agent_count);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
@@ -556,19 +575,23 @@ void free_initialized(GPUDrive* env){
     free(env->neighbor_offsets);
     free(env->neighbor_cache_entities);
     free(env->neighbor_cache_indices);
+    free(env->static_car_indices);
 }
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 6 + 7*(env->num_cars - 1) + 5*200;
+    int max_obs = 6 + 7*(MAX_CARS - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
     printf("max obs: %d\n", max_obs*env->active_agent_count);
     printf("num cars: %d\n", env->num_cars);
+    printf("num static cars: %d\n", env->static_car_count);
     printf("active agent count: %d\n", env->active_agent_count);
+    printf("num objects: %d\n", env->num_objects);
     env->observations = (float*)calloc(env->active_agent_count*max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
     env->dones = (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    printf("allocated\n");
 }
 
 void free_allocated(GPUDrive* env){
@@ -764,9 +787,16 @@ void collision_check(GPUDrive* env, int agent_idx) {
         }
         if (collided == OFFROAD) break;
     }
-    for(int i = 0; i < env->num_entities; i++){
-        if(i == agent_idx) continue;
-        Entity* entity = &env->entities[i];
+    for(int i = 0; i < MAX_CARS; i++){
+        int index = -1;
+        if(i < env->active_agent_count){
+            index = env->active_agent_indices[i];
+        } else if (i < env->num_cars){
+            index = env->static_car_indices[i - env->active_agent_count];
+        }
+        if(index == -1) continue;
+        if(index == agent_idx) continue;
+        Entity* entity = &env->entities[index];
         if (entity->type > 3) break;
         if (entity->type != VEHICLE) continue;
         float x1 = entity->x;
@@ -788,7 +818,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
                 int next_l = (l + 1) % 4;
                 if (check_line_intersection(corners[k], corners[next], other_corners[l], other_corners[next_l])) {
                     collided = VEHICLE_COLLISION;
-                    car_collided_with_index = i;
+                    car_collided_with_index = index;
                     break;
                 }
             }
@@ -811,7 +841,7 @@ float reverse_normalize_value(float value, float min, float max){
 }
 
 void compute_observations(GPUDrive* env) {
-    int max_obs = 6 + 7*(env->num_cars - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
+    int max_obs = 6 + 7*(MAX_CARS - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
     memset(env->observations, 0, max_obs*env->active_agent_count*sizeof(float));
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations; 
     for(int i = 0; i < env->active_agent_count; i++) {
@@ -834,10 +864,17 @@ void compute_observations(GPUDrive* env) {
         // Relative Pos of other cars
         int obs_idx = 6;  // Start after goal distances
         int cars_seen = 0;
-        for(int j = 0; j < env->num_entities; j++) {
-            if(env->entities[j].type > 3) break;
-            if(j == env->active_agent_indices[i]) continue;  // Skip self, but don't increment obs_idx
-            Entity* other_entity = &env->entities[j];
+        for(int j = 0; j < MAX_CARS; j++) {
+            int index = -1;
+            if(j < env->active_agent_count){
+                index = env->active_agent_indices[j];
+            } else if (j < env->num_cars){
+                index = env->static_car_indices[j - env->active_agent_count];
+            } 
+            if(index == -1) continue;
+            if(env->entities[index].type > 3) break;
+            if(index == env->active_agent_indices[i]) continue;  // Skip self, but don't increment obs_idx
+            Entity* other_entity = &env->entities[index];
             // Store original relative positions
             float dx = other_entity->x - ego_entity->x;
             float dy = other_entity->y - ego_entity->y;
@@ -861,7 +898,7 @@ void compute_observations(GPUDrive* env) {
             cars_seen++;
             obs_idx += 7;  // Move to next observation slot
         }
-        for(int j = cars_seen; j < env->num_cars - 1; j++){
+        for(int j = cars_seen; j < MAX_CARS - 1; j++){
             obs[obs_idx] = -1;
             obs[obs_idx + 1] = -1;
             obs[obs_idx + 2] = -1;
@@ -875,9 +912,6 @@ void compute_observations(GPUDrive* env) {
         // map observations
         int entity_list[MAX_ROAD_SEGMENT_OBSERVATIONS*2];  // Array big enough for all neighboring cells
         int grid_idx = getGridIndex(env, ego_entity->x, ego_entity->y);
-        // if(env->human_agent_idx == i){
-        //     printf("Grid index: %d\n", grid_idx);
-        // }
         int list_size = get_neighbor_cache_entities(env, grid_idx, entity_list, MAX_ROAD_SEGMENT_OBSERVATIONS);
         for(int k = 0; k < list_size; k++){
             int entity_idx = entity_list[k*2];
@@ -1026,11 +1060,11 @@ void c_render(Client* client, GPUDrive* env) {
     DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, BLACK);
     DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
     DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
-
     for(int i = 0; i < env->num_entities; i++) {
-        if(env->entities[i].type == 1 || env->entities[i].type == 2) {  // If entity is a vehicle
+        if(env->entities[i].type == 1 || env->entities[i].type == 2) {
             // Check if this vehicle is an active agent
             bool is_active_agent = false;
+            bool is_static_car = false;
             int agent_index = -1;
             for(int j = 0; j < env->active_agent_count; j++) {
                 if(env->active_agent_indices[j] == i) {
@@ -1039,6 +1073,13 @@ void c_render(Client* client, GPUDrive* env) {
                     break;
                 }
             }
+            for(int j = 0; j < env->static_car_count; j++) {
+                if(env->static_car_indices[j] == i) {
+                    is_static_car = true;
+                    break;
+                }
+            }
+            if(!is_active_agent && !is_static_car) continue;
             Vector3 position;
             float heading;
              position = (Vector3){
@@ -1075,12 +1116,12 @@ void c_render(Client* client, GPUDrive* env) {
                     DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
                     DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
                     if( agent_index == env->human_agent_idx){
-                        int max_obs = 6 + 7*(env->num_cars - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
+                        int max_obs = 6 + 7*(MAX_CARS - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
                         float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
                         float* agent_obs = &observations[agent_index][0];
                         // First draw other agent observations
                         int obs_idx = 6;  // Start after goal distances
-                        for(int j = 0; j < env->num_cars - 1; j++) {  // -1 because we skip self
+                        for(int j = 0; j < MAX_CARS - 1; j++) {  // -1 because we skip self
                             if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
                                 // Draw position of other agents
                                 float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
@@ -1093,7 +1134,7 @@ void c_render(Client* client, GPUDrive* env) {
                             obs_idx += 7;  // Move to next agent observation (7 values per agent)
                         }
                         // Then draw map observations
-                        int map_start_idx = 6 + 7*(env->num_cars - 1);  // Start after agent observations
+                        int map_start_idx = 6 + 7*(MAX_CARS - 1);  // Start after agent observations
                         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
                             int entity_idx = map_start_idx + k*5;
                             if(agent_obs[entity_idx] != -1 && agent_obs[entity_idx + 1] != -1) {
