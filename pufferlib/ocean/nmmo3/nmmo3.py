@@ -250,30 +250,21 @@ class NMMO3(pufferlib.PufferEnv):
     def close(self):
         self.c_envs.close()
 
-class Overlays:
-    def __init__(self, width, height):
-        self.counts = np.zeros((width, height), dtype=int)
-        self.value_function = np.zeros((width, height), dtype=np.float32)
+def test_performance(cls, timeout=10, atn_cache=1024):
+    env = cls(num_envs=1)
+    env.reset()
+    tick = 0
 
-def test_env_performance(env, timeout=10):
-    num_agents = env.num_players
-
-    actions = {t:
-        {agent: np.random.randint(0, 6) for agent in range(1, num_agents+1)}
-        for t in range(100)
-    }
-    actions = {t: np.random.randint(0, 6, num_agents) for t in range(100)}
-    idx = 0
+    actions = np.random.randint(0, 2, (atn_cache, env.num_agents))
 
     import time
     start = time.time()
-    num_steps = 0
     while time.time() - start < timeout:
-        env.step(actions[num_steps % 100])
-        num_steps += 1
+        atn = actions[tick % atn_cache]
+        env.step(atn)
+        tick += 1
 
-    end = time.time()
-    fps = num_agents * num_steps / (end - start)
-    print(f"Test Environment Performance FPS: {fps:.2f}")
+    print(f'{env.__class__.__name__}: SPS: {env.num_agents * tick / (time.time() - start)}')
 
-
+if __name__ == '__main__':
+    test_performance(NMMO3)
