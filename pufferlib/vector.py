@@ -286,7 +286,9 @@ class Multiprocessing:
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
         self.agent_ids = np.arange(num_agents).reshape(num_workers, agents_per_worker)
 
-        from multiprocessing import RawArray
+        from multiprocessing import RawArray, set_start_method
+        # Mac breaks without setting fork
+        set_start_method('fork')
         self.shm = namespace(
             observations=RawArray(obs_ctype, num_agents * int(np.prod(obs_shape))),
             actions=RawArray(atn_ctype, num_agents * int(np.prod(atn_shape))),
