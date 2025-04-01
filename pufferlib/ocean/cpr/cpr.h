@@ -122,7 +122,7 @@ struct CCpr {
   Agent *agents;
 
   LogBuffer *log_buffer;
-  Log *logs;
+  Log *log;
 
   uint8_t *interactive_food_agent_count;
 
@@ -136,7 +136,7 @@ void init_ccpr(CCpr *env) {
   env->agents = (Agent *)calloc(env->num_agents, sizeof(Agent));
   env->vision_window = 2 * env->vision + 1;
   env->obs_size = env->vision_window * env->vision_window;
-  env->logs = (Log *)calloc(env->num_agents, sizeof(Log));
+  env->log = (Log *)calloc(1, sizeof(Log));
   env->interactive_food_agent_count =
       (uint8_t *)calloc((env->width * env->height + 7) / 8, sizeof(uint8_t));
   env->foods = allocate_foodlist(env->width * env->height);
@@ -167,7 +167,7 @@ void free_CCpr(CCpr *env) {
   free(env->rewards);
   free(env->terminals);
   free_logbuffer(env->log_buffer);
-  free(env->logs);
+  free(env->log);
   free(env->interactive_food_agent_count);
   free_foodlist(env->foods);
 }
@@ -294,6 +294,7 @@ void c_reset(CCpr *env) {
   env->tick = 0;
 
   memset(env->grid, EMPTY, (env->height * env->width) * sizeof(env->grid[0]));
+  memset(env->log, 0, sizeof(Log));
 
   // top walling
   for (int r = 0; r < env->vision; r++) {
@@ -320,7 +321,7 @@ void c_reset(CCpr *env) {
   // Agents
   srand(time(NULL));
   for (int i = 0; i < env->num_agents; i++) {
-    env->logs[i] = (Log){0};
+    // env->log[0] = (Log){0};
 
     Agent *agent = &env->agents[i];
 
@@ -367,15 +368,15 @@ void reward_agents_near(CCpr *env, int food_index) {
     if ((ac == food_c && (ar == food_r - 1 || ar == food_r + 1)) ||
         (ar == food_r && (ac == food_c - 1 || ac == food_c + 1))) {
       env->rewards[i] += env->interactive_food_reward;
-      env->logs[i].score += 5;
-      add_log(env->log_buffer, &env->logs[i]);
-      env->logs[i] = (Log){0};
+      env->log->score += 5;
+      // add_log(env->log_buffer, env->log);
+      // memset(env->log, 0, sizeof(Log));
     }
   }
   remove_food(env, food_index);
 }
 
-bool step_agent(CCpr *env, int i) {
+void step_agent(CCpr *env, int i) {
 
   int action = env->actions[i];
 
@@ -396,9 +397,9 @@ bool step_agent(CCpr *env, int i) {
     dc = 1;
     break; // RIGHT
   case 4:
-    return false; // No moves
+    return; // No moves
   }
-  env->logs[i].moves += 1;
+  env->log->moves += 1;
 
   // Get next row and column
   Agent *agent = &env->agents[i];
@@ -412,7 +413,7 @@ bool step_agent(CCpr *env, int i) {
 
   // Anything above should be obstacle
   if (tile >= INTERACTIVE_FOOD) {
-    env->logs[i].score += -0.01;
+    env->log->score += -0.01;
     env->rewards[i] += env->reward_move;
     next_r = agent->r;
     next_c = agent->c;
@@ -444,14 +445,14 @@ bool step_agent(CCpr *env, int i) {
 
   switch (tile) {
   case NORMAL_FOOD:
-    env->logs[i].score += 1;
+    env->log->score += 1;
     env->rewards[i] = env->reward_food;
     remove_food(env, next_grid_idx);
-    add_log(env->log_buffer, &env->logs[i]);
-    env->logs[i] = (Log){0};
+    // add_log(env->log_buffer, env->log);
+    // memset(env->log, 0, sizeof(Log));
     break;
   case EMPTY:
-    env->logs[i].score += -0.01;
+    env->log->score += -0.01;
     env->rewards[i] = env->reward_move;
     break;
   }
@@ -463,7 +464,7 @@ bool step_agent(CCpr *env, int i) {
   agent->r = next_r;
   agent->c = next_c;
 
-  return true;
+  return;
 }
 
 void c_step(CCpr *env) {
@@ -472,19 +473,24 @@ void c_step(CCpr *env) {
   memset(env->interactive_food_agent_count, 0,
          (env->width * env->height + 7) / 8);
 
-  bool logged = false;
+  // bool logged = false;
   for (int i = 0; i < env->num_agents; i++) {
-    logged = step_agent(env, i);
+    step_agent(env, i);
   }
-  // To cope with sweeps waiting for logs, in case nothing moves
-  if (!logged) {
-    env->logs[0].score += 0;
-    add_log(env->log_buffer, &env->logs[0]);
-  }
+
+  add_log(env->log_buffer, env->log);
+  memset(env->log, 0, sizeof(Log));
+  // // To cope with sweeps waiting for logs, in case nothing moves
+  // if (!logged) {
+  //   add_log(env->log_buffer, env->log);
+  //   memset(env->log, 0, sizeof(Log));
+  // }
 
   spawn_foods(env);
 
   compute_observations(env);
+
+  env->tick++;
 }
 
 // Raylib client
