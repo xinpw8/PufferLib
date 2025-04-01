@@ -7,7 +7,7 @@ int main() {
     LinearLSTM* net = make_linearlstm(weights, 1, 119, 3);
 
     Breakout env = {
-        .frameskip = 4,
+        .frameskip = 1,
         .width = 576,
         .height = 330,
         .paddle_width = 62,

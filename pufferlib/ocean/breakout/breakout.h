@@ -137,12 +137,11 @@ void compute_observations(Breakout* env) {
     env->observations[4] = env->ball_vx / 512.0f;
     env->observations[5] = env->ball_vy / 512.0f;
     env->observations[6] = env->balls_fired / 5.0f;
-    env->observations[7] = env->score / 896.0f;
+    env->observations[7] = env->score / 864.0f;
     env->observations[8] = env->num_balls / 5.0f;
-    env->observations[9] = 0.05f;
-    env->observations[10] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
+    env->observations[9] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
     for (int i = 0; i < env->num_bricks; i++) {
-        env->observations[11 + i] = env->brick_states[i];
+        env->observations[10 + i] = env->brick_states[i];
     }
 }
 
@@ -284,8 +283,6 @@ bool calc_paddle_ball_collisions(Breakout* env, CollisionInfo* collision_info) {
     env->ball_vx = sin(angle) * env->ball_speed * TICK_RATE;
     env->ball_vy = -cos(angle) * env->ball_speed * TICK_RATE;
     env->hits += 1;
-    //env->rewards[0] += 0.1;
-    //env->log.episode_return += 0.1;
     if (env->hits % 4 == 0 && env->ball_speed < MAX_BALL_SPEED) {
         env->ball_speed += 64;
     }
@@ -298,12 +295,10 @@ bool calc_paddle_ball_collisions(Breakout* env, CollisionInfo* collision_info) {
 }
 
 void calc_all_wall_collisions(Breakout* env, CollisionInfo* collision_info) {
-    //bool collision = false;
     if (env->ball_vx < 0) {
         if (calc_vline_collision(0, 0, env->height,
                 env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height,
                 collision_info)) {
-            //collision = true;
             collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
         }
     }
@@ -311,7 +306,6 @@ void calc_all_wall_collisions(Breakout* env, CollisionInfo* collision_info) {
         if (calc_vline_collision(env->width, 0, env->height,
                  env->ball_x + env->ball_width, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height,
                  collision_info)) {
-            //collision = true;
             collision_info->x -= env->ball_width;
             collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
         }
@@ -320,7 +314,6 @@ void calc_all_wall_collisions(Breakout* env, CollisionInfo* collision_info) {
         if (calc_hline_collision(0, 0, env->width,
                  env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_width,
                  collision_info)) {
-            //collision = true;
             collision_info->brick_index = BRICK_INDEX_BACKWALL_COLLISION;
         }
     }
@@ -338,13 +331,10 @@ void check_wall_bounds(Breakout* env) {
 }
 
 void destroy_brick(Breakout* env, int brick_idx) {
-    // float gained_points = 7 - 3 * (brick_idx / env->brick_cols / 2);
-    float gained_points = 7 - 3 * (((float)brick_idx / env->brick_cols) / 2.0f);
+    float gained_points = 7 - 3 * ((brick_idx / env->brick_cols) / 2);
 
     env->score += gained_points;
     env->brick_states[brick_idx] = 1.0;
-    env->log[LOG_RETURN] += gained_points;
-    env->log[LOG_SCORE] += gained_points;
 
     env->rewards[0] += gained_points;
 
@@ -394,7 +384,6 @@ void reset_round(Breakout* env) {
 
     env->paddle_x = env->width / 2.0 - env->paddle_width / 2;
     env->paddle_y = env->height - env->paddle_height - 10;
-
 
     env->ball_x = env->paddle_x + (env->paddle_width / 2 - env->ball_width / 2);
     env->ball_y = env->height / 2 - 30;
@@ -462,7 +451,6 @@ void step_frame(Breakout* env, float action) {
 void c_step(Breakout* env) {
     env->terminals[0] = 0;
     env->rewards[0] = 0.0;
-    env->tick += 1;
 
     float action = env->actions[0];
     for (int i = 0; i < env->frameskip; i++) {

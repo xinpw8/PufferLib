@@ -15,7 +15,7 @@ static char *kwlist[] = {
 };
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|iiiffiiffiii", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiiffiiiiiii", kwlist,
         &env->frameskip, &env->width, &env->height,
         &env->paddle_width, &env->paddle_height,
         &env->ball_width, &env->ball_height,
