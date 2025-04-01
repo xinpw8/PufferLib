@@ -2,7 +2,16 @@ import torch
 from torch.nn import functional as F
 import numpy as np
 
+MODEL_FILE_NAME = '/home/daa/pufferlib_testbench/PufferLib/experiments/puffer_blastar-97091e1a/model_000200.pt'
+WEIGHTS_OUTPUT_FILE_NAME = 'blastar_weights.bin'
+OUTPUT_FILE_PATH = '/home/daa/pufferlib_testbench/PufferLib/pufferlib/resources/blastar'
+
 def save_model_weights(model, filename):
+    import os
+    weights_path = os.path.join(OUTPUT_FILE_PATH, filename)
+    architecture_path = os.path.join(OUTPUT_FILE_PATH, filename + "_architecture.txt")
+    
+    os.makedirs(OUTPUT_FILE_PATH, exist_ok=True)
     weights = []
     for name, param in model.named_parameters():
         weights.append(param.data.cpu().numpy().flatten())
@@ -10,12 +19,15 @@ def save_model_weights(model, filename):
     
     weights = np.concatenate(weights)
     print('Num weights:', len(weights))
-    weights.tofile(filename)
-    # Save the model architecture (you may want to adjust this based on your specific model)
-    #with open(filename + "_architecture.txt", "w") as f:
-    #    for name, param in model.named_parameters():
-    #        f.write(f"{name}: {param.shape}\n")
-
+    weights.tofile(weights_path)
+    
+    # Save the model architecture to text file
+    with open(architecture_path, "w") as f:
+        for name, param in model.named_parameters():
+            f.write(f"{name}: {param.shape}\n")
+        f.write(f"Num weights: {len(weights)}\n")
+        print(f"Saved model weights to {weights_path} and architecture to {architecture_path}")
+        
 def test_model(model):
     model = model.cpu().policy
     batch_size = 16
@@ -110,9 +122,10 @@ def test_model_forward(model):
 	
 if __name__ == '__main__':
     #test_lstm()
-    model = torch.load('nmmo3.pt', map_location='cpu', weights_only=False)
+    model = torch.load(MODEL_FILE_NAME, map_location='cpu')
+    print(f"loaded weights from {MODEL_FILE_NAME}")
     #test_model_forward(model)
     #test_model(model)
 
-    save_model_weights(model, 'nmmo3_2025.bin')
+    save_model_weights(model, WEIGHTS_OUTPUT_FILE_NAME)
     print('saved')
