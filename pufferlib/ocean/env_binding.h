@@ -103,7 +103,7 @@ static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
 
     PyObject* empty_args = PyTuple_New(0);
     if (my_init(env, empty_args, kwargs)) {
-        PyErr_SetString(PyExc_TypeError, "env_init failed");
+        //PyErr_SetString(PyExc_TypeError, "env_init failed");
         return NULL;
     }
 
@@ -340,8 +340,13 @@ static PyObject* vec_reset(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* vec_step(PyObject* self, PyObject* args) {
-    VecEnv* vec = unpack_vecenv(args);
+static PyObject* vec_step(PyObject* self, PyObject* arg) {
+    if (!PyLong_Check(arg)) {
+        PyErr_SetString(PyExc_ValueError, "Argument must be an integer handle");
+        return NULL;
+    }
+
+    VecEnv* vec = (VecEnv*)PyLong_AsVoidPtr(arg);
     if (!vec) {
         return NULL;
     }
@@ -443,7 +448,7 @@ static PyMethodDef methods[] = {
     {"env_close", env_close, METH_VARARGS, "Close the environment"},
     {"vectorize", vectorize, METH_VARARGS, "Make a vector of environment handles"},
     {"init_vec", (PyCFunction)init_vec, METH_VARARGS | METH_KEYWORDS, "Initialize a vector of environments"},
-    {"vec_step", vec_step, METH_VARARGS, "Step the vector of environments"},
+    {"vec_step", vec_step, METH_O, "Step the vector of environments"},
     {"vec_log", vec_log, METH_VARARGS, "Log the vector of environments"},
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},

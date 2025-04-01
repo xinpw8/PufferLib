@@ -258,7 +258,7 @@ common = cleanrl + [environments[env] for env in [
 ]]
 
 extension_paths = [
-    'pufferlib/ocean/nmmo3/cy_nmmo3',
+    #'pufferlib/ocean/nmmo3/cy_nmmo3',
     'pufferlib/ocean/moba/cy_moba',
     'pufferlib/ocean/tactical/c_tactical',
     'pufferlib/ocean/squared/cy_squared',
@@ -287,8 +287,8 @@ if system == 'Darwin':
     extra_link_args=['-fwrapv', '-framework', 'Cocoa', '-framework', 'OpenGL', '-framework', 'IOKit']
 
 elif system == 'Linux':
-    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than']
-    extra_link_args=['-fwrapv', '-Bsymbolic-functions']
+    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fmax-errors=3']
+    extra_link_args=['-fwrapv', '-Bsymbolic-functions', '-O2']
 
     # On Linux, $ORIGIN works
 else:
@@ -303,15 +303,17 @@ extensions = [Extension(
     extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
 ) for path in extension_paths]
 
-c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O0', '-Wno-alloc-size-larger-than', '-g']
+#c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O0', '-Wno-alloc-size-larger-than', '-g']
+#c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2']
+#c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
-pure_c_extensions = ['squared', 'pong', 'breakout']
+pure_c_extensions = ['squared', 'pong', 'breakout', 'nmmo3']
 extensions += [
     Extension(
         f'pufferlib.ocean.{name}.binding',
         sources=[f'pufferlib/ocean/{name}/binding.c'],
         include_dirs=[numpy.get_include(), 'raylib/include'],
-        extra_compile_args=c_args,
+        extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
     )
