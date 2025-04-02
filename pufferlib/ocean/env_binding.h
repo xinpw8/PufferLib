@@ -1,9 +1,9 @@
 #include <numpy/arrayobject.h>
 
 static Env* unpack_env(PyObject* args) {
-    PyObject* handle_obj;
-    if (!PyArg_ParseTuple(args, "O", &handle_obj)) {
-        PyErr_SetString(PyExc_ValueError, "Unrecognized arguments");
+    PyObject* handle_obj = PyTuple_GetItem(args, 0);
+    if (!PyObject_TypeCheck(handle_obj, &PyLong_Type)) {
+        PyErr_SetString(PyExc_TypeError, "env_handle must be an integer");
         return NULL;
     }
 
@@ -18,7 +18,7 @@ static Env* unpack_env(PyObject* args) {
 
 // Python function to initialize the environment
 static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
-    if (PyTuple_Size(args) != 5) {
+    if (PyTuple_Size(args) != 6) {
         PyErr_SetString(PyExc_TypeError, "Environment requires 5 arguments");
         return NULL;
     }
@@ -100,6 +100,17 @@ static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         return NULL;
     }
     //env->truncations = PyArray_DATA(truncations);
+    
+    
+    PyObject* seed_arg = PyTuple_GetItem(args, 5);
+    if (!PyObject_TypeCheck(seed_arg, &PyLong_Type)) {
+        PyErr_SetString(PyExc_TypeError, "seed must be an integer");
+        return NULL;
+    }
+    int seed = PyLong_AsLong(seed_arg);
+ 
+    // Assumes each process has the same number of environments
+    srand(seed);
 
     PyObject* empty_args = PyTuple_New(0);
     if (my_init(env, empty_args, kwargs)) {
@@ -158,9 +169,9 @@ typedef struct {
 } VecEnv;
 
 static VecEnv* unpack_vecenv(PyObject* args) {
-    PyObject* handle_obj;
-    if (!PyArg_ParseTuple(args, "O", &handle_obj)) {
-        PyErr_SetString(PyExc_ValueError, "Unrecognized arguments");
+    PyObject* handle_obj = PyTuple_GetItem(args, 0);
+    if (!PyObject_TypeCheck(handle_obj, &PyLong_Type)) {
+        PyErr_SetString(PyExc_TypeError, "env_handle must be an integer");
         return NULL;
     }
 
@@ -173,9 +184,9 @@ static VecEnv* unpack_vecenv(PyObject* args) {
     return vec;
 }
 
-static PyObject* init_vec(PyObject* self, PyObject* args, PyObject* kwargs) {
-    if (PyTuple_Size(args) != 6) {
-        PyErr_SetString(PyExc_TypeError, "init_vec requires 6 arguments");
+static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
+    if (PyTuple_Size(args) != 7) {
+        PyErr_SetString(PyExc_TypeError, "vec_init requires 6 arguments");
         return NULL;
     }
 
@@ -200,6 +211,13 @@ static PyObject* init_vec(PyObject* self, PyObject* args, PyObject* kwargs) {
         PyErr_SetString(PyExc_MemoryError, "Failed to allocate vec env");
         return NULL;
     }
+
+    PyObject* seed_obj = PyTuple_GetItem(args, 6);
+    if (!PyObject_TypeCheck(num_envs_arg, &PyLong_Type)) {
+        PyErr_SetString(PyExc_TypeError, "seed must be an integer");
+        return NULL;
+    }
+    int seed = PyLong_AsLong(seed_obj);
 
     PyObject* obs = PyTuple_GetItem(args, 0);
     if (!PyObject_TypeCheck(obs, &PyArray_Type)) {
@@ -284,6 +302,10 @@ static PyObject* init_vec(PyObject* self, PyObject* args, PyObject* kwargs) {
         env->rewards = (void*)((char*)PyArray_DATA(rewards) + i*PyArray_STRIDE(rewards, 0));
         env->terminals = (void*)((char*)PyArray_DATA(terminals) + i*PyArray_STRIDE(terminals, 0));
         //env->truncations = (void*)((char*)PyArray_DATA(truncations) + i*PyArray_STRIDE(truncations, 0));
+
+        // Assumes each process has the same number of environments
+        srand(i + seed*vec->num_envs);
+ 
         PyObject* empty_args = PyTuple_New(0);
         if (my_init(env, empty_args, kwargs)) {
             PyErr_SetString(PyExc_TypeError, "env_init failed");
@@ -334,19 +356,23 @@ static PyObject* vec_reset(PyObject* self, PyObject* args) {
         return NULL;
     }
 
+    PyObject* seed_arg = PyTuple_GetItem(args, 1);
+    if (!PyObject_TypeCheck(seed_arg, &PyLong_Type)) {
+        PyErr_SetString(PyExc_TypeError, "seed must be an integer");
+        return NULL;
+    }
+    int seed = PyLong_AsLong(seed_arg);
+ 
     for (int i = 0; i < vec->num_envs; i++) {
+        // Assumes each process has the same number of environments
+        srand(i + seed*vec->num_envs);
         reset(vec->envs[i]);
     }
     Py_RETURN_NONE;
 }
 
 static PyObject* vec_step(PyObject* self, PyObject* arg) {
-    if (!PyLong_Check(arg)) {
-        PyErr_SetString(PyExc_ValueError, "Argument must be an integer handle");
-        return NULL;
-    }
-
-    VecEnv* vec = (VecEnv*)PyLong_AsVoidPtr(arg);
+    VecEnv* vec = unpack_vecenv(arg);
     if (!vec) {
         return NULL;
     }
@@ -447,12 +473,12 @@ static PyMethodDef methods[] = {
     {"env_render", env_render, METH_VARARGS, "Render the environment"},
     {"env_close", env_close, METH_VARARGS, "Close the environment"},
     {"vectorize", vectorize, METH_VARARGS, "Make a vector of environment handles"},
-    {"init_vec", (PyCFunction)init_vec, METH_VARARGS | METH_KEYWORDS, "Initialize a vector of environments"},
-    {"vec_step", vec_step, METH_O, "Step the vector of environments"},
+    {"vec_init", (PyCFunction)vec_init, METH_VARARGS | METH_KEYWORDS, "Initialize a vector of environments"},
+    {"vec_reset", (PyCFunction)vec_reset, METH_VARARGS, "Reset the vector of environments"},
+    {"vec_step", (PyCFunction)vec_step, METH_VARARGS, "Step the vector of environments"},
     {"vec_log", vec_log, METH_VARARGS, "Log the vector of environments"},
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
-    {"vec_reset", vec_reset, METH_VARARGS, "Reset the vector of environments"},
     {NULL, NULL, 0, NULL}
 };
 

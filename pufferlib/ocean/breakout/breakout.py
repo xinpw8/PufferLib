@@ -17,9 +17,10 @@ class Breakout(pufferlib.PufferEnv):
             paddle_width=62, paddle_height=8,
             ball_width=32, ball_height=32,
             brick_width=32, brick_height=12,
-            brick_rows=6, brick_cols=18, continuous=False, log_interval=128, buf=None):
+            brick_rows=6, brick_cols=18, continuous=False, log_interval=128,
+            buf=None, seed=0):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
-            shape=(11 + brick_rows*brick_cols,), dtype=np.float32)
+            shape=(10 + brick_rows*brick_cols,), dtype=np.float32)
         self.render_mode = render_mode
         self.num_agents = num_envs
         self.continuous = continuous
@@ -38,14 +39,15 @@ class Breakout(pufferlib.PufferEnv):
         else:
             self.actions = self.actions.astype(np.float32)
             
-        self.c_envs = binding.init_vec(self.observations, self.actions, self.rewards,
-            self.terminals, self.truncations, num_envs, frameskip=frameskip, width=width, height=height,
+        self.c_envs = binding.vec_init(self.observations, self.actions, self.rewards,
+            self.terminals, self.truncations, num_envs, seed, frameskip=frameskip, width=width, height=height,
             paddle_width=paddle_width, paddle_height=paddle_height, ball_width=ball_width, ball_height=ball_height,
-            brick_width=brick_width, brick_height=brick_height, brick_rows=brick_rows, brick_cols=brick_cols, continuous=continuous
+            brick_width=brick_width, brick_height=brick_height, brick_rows=brick_rows,
+            brick_cols=brick_cols, continuous=continuous
         )
 
     def reset(self, seed=None):
-        binding.vec_reset(self.c_envs)
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
@@ -57,8 +59,6 @@ class Breakout(pufferlib.PufferEnv):
             
         self.tick += 1
         binding.vec_step(self.c_envs)
-
-        episode_returns = self.rewards[self.terminals]
 
         info = []
         if self.tick % self.log_interval == 0:

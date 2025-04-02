@@ -60,7 +60,7 @@ class Serial:
     def num_envs(self):
         return self.agents_per_batch
  
-    def __init__(self, env_creators, env_args, env_kwargs, num_envs, buf=None, **kwargs):
+    def __init__(self, env_creators, env_args, env_kwargs, num_envs, buf=None, seed=0, **kwargs):
         self.driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
         self.agents_per_batch = self.driver_env.num_agents * num_envs
         self.num_agents = self.agents_per_batch
@@ -86,7 +86,8 @@ class Serial:
                 actions=self.actions[ptr:end]
             )
             ptr = end
-            env = env_creators[i](*env_args[i], buf=buf_i, **env_kwargs[i])
+            seed_i = seed + i if seed is not None else None
+            env = env_creators[i](*env_args[i], buf=buf_i, seed=seed_i, **env_kwargs[i])
             self.envs.append(env)
 
         self.driver_env = driver = self.envs[0]
@@ -116,13 +117,14 @@ class Serial:
             except:
                 del infos[k]
 
-    def async_reset(self, seed=42):
+    def async_reset(self, seed=None):
         self.flag = RECV
-        seed = make_seeds(seed, len(self.envs))
-
         infos = []
-        for env, s in zip(self.envs, seed):
-            ob, i = env.reset(seed=s)
+        for i, env in enumerate(self.envs):
+            if seed is None:
+                ob, i = env.reset()
+            else:
+                ob, i = env.reset(seed=seed+i)
                
             if isinstance(i, list):
                 infos.extend(i)
@@ -167,7 +169,7 @@ class Serial:
             env.close()
 
 def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, atn_shape, atn_dtype,
-        num_envs, num_agents, num_workers, worker_idx, send_pipe, recv_pipe, shm, is_native):
+        num_envs, num_agents, num_workers, worker_idx, send_pipe, recv_pipe, shm, is_native, seed):
 
     # Environments read and write directly to shared memory
     shape = (num_workers, num_envs*num_agents)
@@ -185,9 +187,9 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
     buf.masks[:] = True
 
     if is_native and num_envs == 1:
-        envs = env_creators[0](*env_args[0], **env_kwargs[0], buf=buf)
+        envs = env_creators[0](*env_args[0], **env_kwargs[0], buf=buf, seed=seed)
     else:
-        envs = Serial(env_creators, env_args, env_kwargs, num_envs, buf=buf)
+        envs = Serial(env_creators, env_args, env_kwargs, num_envs, buf=buf, seed=seed*num_envs)
 
     semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=shm.semaphores)
     start = time.time()
@@ -200,8 +202,8 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
 
         start = time.time()
         if sem == RESET:
-            seeds = recv_pipe.recv()
-            _, infos = envs.reset(seed=seeds)
+            seed = recv_pipe.recv()
+            _, infos = envs.reset(seed=seed)
         elif sem == STEP:
             _, _, _, _, infos = envs.step(atn_arr)
         elif sem == CLOSE:
@@ -229,7 +231,7 @@ class Multiprocessing:
  
     def __init__(self, env_creators, env_args, env_kwargs,
             num_envs, num_workers=None, batch_size=None,
-            zero_copy=True, overwork=False, **kwargs):
+            zero_copy=True, overwork=False, seed=0, **kwargs):
         if batch_size is None:
             batch_size = num_envs
         if num_workers is None:
@@ -323,13 +325,14 @@ class Multiprocessing:
         for i in range(num_workers):
             start = i * envs_per_worker
             end = start + envs_per_worker
+            seed_i = seed + i if seed is not None else None
             p = Process(
                 target=_worker_process,
                 args=(env_creators[start:end], env_args[start:end],
                     env_kwargs[start:end], obs_shape, obs_dtype,
                     atn_shape, atn_dtype, envs_per_worker, driver_env.num_agents,
                     num_workers, i, w_send_pipes[i], w_recv_pipes[i],
-                    self.shm, is_native)
+                    self.shm, is_native, seed_i)
             )
             p.start()
             self.processes.append(p)
@@ -429,9 +432,8 @@ class Multiprocessing:
         self.actions[idxs] = actions
         self.buf.semaphores[idxs] = STEP
 
-    def async_reset(self, seed=42):
+    def async_reset(self, seed=0):
         self.flag = RECV
-        seed = make_seeds(seed, self.num_environments)
         self.prev_env_id = []
         self.flag = RECV
 
@@ -443,7 +445,7 @@ class Multiprocessing:
         for i in range(self.num_workers):
             start = i*self.envs_per_worker
             end = (i+1)*self.envs_per_worker
-            self.send_pipes[i].send(seed[start:end])
+            self.send_pipes[i].send(seed+i)
 
     def close(self):
         '''
@@ -603,7 +605,7 @@ class Ray():
         self.ray.shutdown()
 
 
-def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=PufferEnv, num_envs=1, **kwargs):
+def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=PufferEnv, num_envs=1, seed=0, **kwargs):
     if num_envs < 1:
         raise APIUsageError('num_envs must be at least 1')
     if num_envs != int(num_envs):

@@ -3,53 +3,45 @@ from libc.stdlib cimport calloc, free
 import os
 
 cdef extern from "pong.h":
-    int LOG_BUFFER_SIZE
-
-    ctypedef struct Log:
-        float episode_return;
-        float episode_length;
-        float score;
-
-    ctypedef struct LogBuffer
-    LogBuffer* allocate_logbuffer(int)
-    void free_logbuffer(LogBuffer*)
-    Log aggregate_and_clear(LogBuffer*)
+    ctypedef char* LOG_KEYS[];
+    ctypedef struct Client:
+        pass
 
     ctypedef struct Pong:
-        float* observations
-        float* actions
-        float* rewards
-        unsigned char* terminals
-        LogBuffer* log_buffer;
-        Log log;
-        float paddle_yl
-        float paddle_yr
-        float ball_x
-        float ball_y
+        Client* client;
+        float log[4];
+        float* observations;
+        float* actions;
+        float* rewards;
+        unsigned char* terminals;
+        float paddle_yl;
+        float paddle_yr;
+        float ball_x;
+        float ball_y;
         float ball_vx;
         float ball_vy;
-        unsigned int score_l
-        unsigned int score_r
-        float width
-        float height
-        float paddle_width
-        float paddle_height
-        float ball_width
-        float ball_height
-        float paddle_speed
-        float ball_initial_speed_x
-        float ball_initial_speed_y
-        float ball_max_speed_y
-        float ball_speed_y_increment
-        unsigned int max_score
-        float min_paddle_y
-        float max_paddle_y
-        float paddle_dir
-        int tick
-        int n_bounces
-        int win
-        int frameskip
-        int continuous
+        unsigned int score_l;
+        unsigned int score_r;
+        float width;
+        float height;
+        float paddle_width;
+        float paddle_height;
+        float ball_width;
+        float ball_height;
+        float paddle_speed;
+        float ball_initial_speed_x;
+        float ball_initial_speed_y;
+        float ball_max_speed_y;
+        float ball_speed_y_increment;
+        unsigned int max_score;
+        float min_paddle_y;
+        float max_paddle_y;
+        float paddle_dir;
+        int tick;
+        int n_bounces;
+        int win;
+        int frameskip;
+        int continuous;
 
     void init(Pong* env)
     void c_reset(Pong* env)
@@ -60,7 +52,6 @@ cdef extern from "pong.h":
 cdef class CyPong:
     cdef:
         Pong* envs
-        LogBuffer* logs
         int num_envs
         float width
         float height
@@ -79,7 +70,6 @@ cdef class CyPong:
 
         self.num_envs = num_envs
         self.envs = <Pong*> calloc(num_envs, sizeof(Pong))
-        self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
 
         cdef int i
         for i in range(num_envs):
@@ -88,7 +78,6 @@ cdef class CyPong:
                 actions = &actions[i],
                 rewards = &rewards[i],
                 terminals = &terminals[i],
-                log_buffer=self.logs,
                 width=width,
                 height=height,
                 paddle_width=paddle_width,
@@ -123,8 +112,3 @@ cdef class CyPong:
 
     def close(self):
         free(self.envs)
-        free(self.logs)
-
-    def log(self):
-        cdef Log log = aggregate_and_clear(self.logs)
-        return log

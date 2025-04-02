@@ -18,7 +18,7 @@ class NMMO3(pufferlib.PufferEnv):
             item_respawn_ticks=100, x_window=7, y_window=5,
             reward_combat_level=1.0, reward_prof_level=1.0,
             reward_item_level=0.5, reward_market=0.01,
-            reward_death=-1.0, log_interval=128, buf=None):
+            reward_death=-1.0, log_interval=128, buf=None, seed=0):
 
         self.log_interval = log_interval
 
@@ -158,6 +158,7 @@ class NMMO3(pufferlib.PufferEnv):
                 self.rewards[player_count:player_count+players],
                 self.terminals[player_count:player_count+players],
                 self.truncations[player_count:player_count+players],
+                i + seed*num_envs,
                 width=width[i],
                 height=height[i],
                 num_players=num_players[i],
@@ -187,7 +188,7 @@ class NMMO3(pufferlib.PufferEnv):
     def reset(self, seed=None):
         self.rewards.fill(0)
         self.is_reset = True
-        binding.vec_reset(self.c_envs)
+        binding.vec_reset(self.c_envs, seed)
         return self.observations, []
 
     def step(self, actions):

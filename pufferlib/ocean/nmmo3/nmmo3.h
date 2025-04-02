@@ -32,7 +32,6 @@
 #define MODE_SELL_SELECT 3
 #define MODE_SELL_PRICE 4
 
-
 // Animations
 #define ANIM_IDLE 0
 #define ANIM_MOVE 1

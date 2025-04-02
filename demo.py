@@ -134,6 +134,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
             batch_size=args['train']['env_batch_size'],
             zero_copy=args['train']['zero_copy'],
             overwork=args['vec_overwork'],
+            seed=args['train']['seed'],
             backend=vec,
         )
 

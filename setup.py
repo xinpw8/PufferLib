@@ -78,6 +78,8 @@ cleanrl = [
     'wandb==0.19.1',
     'scipy',
     'pyro-ppl',
+    'neptune',
+    'heavyball',
 ]
 
 ray = [
@@ -287,7 +289,7 @@ if system == 'Darwin':
     extra_link_args=['-fwrapv', '-framework', 'Cocoa', '-framework', 'OpenGL', '-framework', 'IOKit']
 
 elif system == 'Linux':
-    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fmax-errors=3']
+    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fmax-errors=3', '-g']
     extra_link_args=['-fwrapv', '-Bsymbolic-functions', '-O2']
 
     # On Linux, $ORIGIN works
