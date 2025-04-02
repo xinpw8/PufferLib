@@ -102,6 +102,7 @@ void demo() {
         .human_agent_idx = 0,
         .reward_vehicle_collision = -0.1f,
         .reward_offroad_collision = -0.1f,
+	.map_name = "resources/gpudrive/binaries/map_002.bin"
     };
     allocate(&env);
     Weights* weights = load_weights("resources/gpu_drive_weights.bin", 135061);
@@ -173,6 +174,7 @@ void performance_test() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
+	.map_name = "resources/gpudrive/binaries/map_004.bin"
     };
     allocate(&env);
     c_reset(&env);

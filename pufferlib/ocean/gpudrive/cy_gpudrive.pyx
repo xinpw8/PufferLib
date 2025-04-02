@@ -141,35 +141,34 @@ cdef class CyGPUDrive:
         cdef int total_count = 0
         cdef GPUDrive* temp_envs = <GPUDrive*> calloc(num_envs, sizeof(GPUDrive))
         cdef int i
-        try:
-            for i in range(num_envs):
-                temp_envs[i].human_agent_idx = human_agent_idx
-                temp_envs[i].reward_vehicle_collision = reward_vehicle_collision
-                temp_envs[i].reward_offroad_collision = reward_offroad_collision
+        for i in range(num_envs):
+            temp_envs[i].human_agent_idx = human_agent_idx
+            temp_envs[i].reward_vehicle_collision = reward_vehicle_collision
+            temp_envs[i].reward_offroad_collision = reward_offroad_collision
                 
-                map_file = f"resources/gpudrive/binaries/map_{i:03d}.bin".encode('utf-8')
-                temp_envs[i].entities = load_map_binary(map_file, &temp_envs[i])
-                set_active_agents(&temp_envs[i])
+            map_file = f"resources/gpudrive/binaries/map_{i:03d}.bin".encode('utf-8')
+            temp_envs[i].entities = load_map_binary(map_file, &temp_envs[i])
+            set_active_agents(&temp_envs[i])
                 
-                agent_offsets[i] = total_count
-                total_count += temp_envs[i].active_agent_count
-                if (temp_envs[i].active_agent_count ==0 ):
-                    print("No active agents: ", map_file)
+            agent_offsets[i] = total_count
+            total_count += temp_envs[i].active_agent_count
+            if (temp_envs[i].active_agent_count ==0 ):
+                print("No active agents: ", map_file)
             
-            agent_offsets[num_envs] = total_count
-            py_offsets = [agent_offsets[i] for i in range(num_envs + 1)]
-            return total_count, py_offsets
+        agent_offsets[num_envs] = total_count
+        py_offsets = [agent_offsets[i] for i in range(num_envs + 1)]
+        for i in range(num_envs):
+            for x in range(temp_envs[i].num_entities):
+                free_entity(&temp_envs[i].entities[x])
+            free(temp_envs[i].entities)
+            free(temp_envs[i].active_agent_indices)
+            free(temp_envs[i].static_car_indices)
+        free(temp_envs)
+        free(agent_offsets)
+        return total_count, py_offsets
             
-        finally:
-            for i in range(num_envs):
-                for x in range(temp_envs[i].num_entities):
-                    free_entity(&temp_envs[i].entities[x])
-                free(temp_envs[i].entities)
-                free(temp_envs[i].active_agent_indices)
-                free(temp_envs[i].static_car_indices)
-            free(temp_envs)
-            free(agent_offsets)
-
+        #finally:
+         #   
     def __init__(self, float[:, :] observations, int[:,:] actions,
             float[:] rewards, unsigned char[:] terminals, int num_envs,
             int human_agent_idx, reward_vehicle_collision, 

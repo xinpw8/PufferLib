@@ -227,6 +227,7 @@ struct GPUDrive {
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
     FILE* file = fopen(filename, "rb");
+    printf("fileanme: %s\n", filename);
     if (!file) return NULL;
     fread(&env->num_objects, sizeof(int), 1, file);
     fread(&env->num_roads, sizeof(int), 1, file);
@@ -978,7 +979,11 @@ void c_step(GPUDrive* env){
 	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
-        move_dynamics(env, i, agent_idx);
+        if(env->goal_reached[i]){
+		env->entities[agent_idx].x = 0;
+		env->entities[agent_idx].y = 0;
+	}
+	move_dynamics(env, i, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
