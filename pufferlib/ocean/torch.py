@@ -11,11 +11,11 @@ Recurrent = pufferlib.models.LSTMWrapper
 import numpy as np
 
 class NMMO3LSTM(pufferlib.models.LSTMWrapper):
-    def __init__(self, env, policy, input_size=256, hidden_size=256):
+    def __init__(self, env, policy, input_size=512, hidden_size=512):
         super().__init__(env, policy, input_size, hidden_size)
 
 class NMMO3(nn.Module):
-    def __init__(self, env, hidden_size=256, output_size=256, **kwargs):
+    def __init__(self, env, hidden_size=512, output_size=512, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         #self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
