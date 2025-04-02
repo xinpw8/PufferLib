@@ -25,8 +25,6 @@ import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
 import clean_pufferl
-import mup
-from mup import set_base_shapes
  
 def init_wandb(args, name, id=None, resume=True, tag=None):
     import wandb
