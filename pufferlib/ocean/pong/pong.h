@@ -103,14 +103,14 @@ void reset_round(Pong* env) {
     env->n_bounces = 0;
 }
 
-void c_reset(Pong* env) {
+void reset(Pong* env) {
     reset_round(env);
     env->score_l = 0;
     env->score_r = 0;
     compute_observations(env);
 }
 
-void c_step(Pong* env) {
+void step(Pong* env) {
     env->tick += 1;
     env->rewards[0] = 0;
     env->terminals[0] = 0;
@@ -167,7 +167,7 @@ void c_step(Pong* env) {
                 if (env->score_r == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env);
-                    c_reset(env);
+                    reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -198,7 +198,7 @@ void c_step(Pong* env) {
                 if (env->score_l == env->max_score) {
                     env->terminals[0] = 1;
                     add_log(env);
-                    c_reset(env);
+                    reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -254,7 +254,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void c_render(Pong* env) {
+void render(Pong* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }

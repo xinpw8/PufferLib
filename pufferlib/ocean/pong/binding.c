@@ -1,30 +1,23 @@
-#include <Python.h>
 #include "pong.h"
-#define ENV_MODULE_NAME "binding"
-#define Env Pong
-#define step c_step
-#define render c_render
-#define reset c_reset
 
-static char *kwlist[] = {"width", "height", "paddle_width", "paddle_height",
-    "ball_width", "ball_height", "paddle_speed", "ball_initial_speed_x",
-    "ball_initial_speed_y", "ball_max_speed_y", "ball_speed_y_increment",
-    "max_score", "frameskip", "continuous", NULL
-};
+#define Env Pong
+#include "../env_binding.h"
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "fffffffffffIii", kwlist,
-            &env->width, &env->height, &env->paddle_width,
-            &env->paddle_height, &env->ball_width, &env->ball_height,
-            &env->paddle_speed, &env->ball_initial_speed_x,
-            &env->ball_initial_speed_y, &env->ball_max_speed_y,
-            &env->ball_speed_y_increment, &env->max_score,
-            &env->frameskip, &env->continuous)) {
-        return 1;
-    }
+    env->width = unpack(kwargs, "width");
+    env->height = unpack(kwargs, "height");
+    env->paddle_width = unpack(kwargs, "paddle_width");
+    env->paddle_height = unpack(kwargs, "paddle_height");
+    env->ball_width = unpack(kwargs, "ball_width");
+    env->ball_height = unpack(kwargs, "ball_height");
+    env->paddle_speed = unpack(kwargs, "paddle_speed");
+    env->ball_initial_speed_x = unpack(kwargs, "ball_initial_speed_x");
+    env->ball_initial_speed_y = unpack(kwargs, "ball_initial_speed_y");
+    env->ball_max_speed_y = unpack(kwargs, "ball_max_speed_y");
+    env->ball_speed_y_increment = unpack(kwargs, "ball_speed_y_increment");
+    env->max_score = unpack(kwargs, "max_score");
+    env->frameskip = unpack(kwargs, "frameskip");
+    env->continuous = unpack(kwargs, "continuous");
     init(env);
     return 0;
 }
-
-#include "../env_binding.h"
-DEFINE_PYINIT(binding)
