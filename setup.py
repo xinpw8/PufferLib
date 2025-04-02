@@ -264,8 +264,8 @@ extension_paths = [
     'pufferlib/ocean/squared/cy_squared',
     'pufferlib/ocean/snake/cy_snake',
     #'pufferlib/ocean/pong/cy_pong',
-    # 'pufferlib/ocean/breakout/cy_breakout',
-    'pufferlib/ocean/enduro/cy_enduro',
+    #'pufferlib/ocean/breakout/cy_breakout',
+    #'pufferlib/ocean/enduro/cy_enduro',
     'pufferlib/ocean/blastar/cy_blastar',
     'pufferlib/ocean/connect4/cy_connect4',
     'pufferlib/ocean/grid/cy_grid',
@@ -280,8 +280,8 @@ extension_paths = [
 system = platform.system()
 if system == 'Darwin':
     # On macOS, use @loader_path.
-    # The extension “.so” is typically in pufferlib/ocean/...,
-    # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
+    # The extension ".so" is typically in pufferlib/ocean/...,
+    # and "raylib/lib" is (maybe) two directories up from ocean/<env>.
     # So @loader_path/../../raylib/lib is common.
     extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION','-DPLATFORM_DESKTOP', '-O2']
     extra_link_args=['-fwrapv', '-framework', 'Cocoa', '-framework', 'OpenGL', '-framework', 'IOKit']
@@ -307,7 +307,7 @@ extensions = [Extension(
 #c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2']
 #c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
-pure_c_extensions = ['squared', 'pong', 'breakout', 'nmmo3']
+pure_c_extensions = ['squared', 'pong', 'breakout', 'nmmo3', 'enduro']
 extensions += [
     Extension(
         f'pufferlib.ocean.{name}.binding',
