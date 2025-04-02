@@ -989,6 +989,7 @@ void c_step(GPUDrive* env){
             env->masks[i] = 0;
             env->entities[agent_idx].x = 0;
             env->entities[agent_idx].y = 0;
+            continue;
 	    }
         move_dynamics(env, i, agent_idx);
         // move_expert(env, env->actions, agent_idx);
