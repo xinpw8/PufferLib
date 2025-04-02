@@ -20,8 +20,6 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.pytorch
 
-from mup import MuAdam
-
 torch.set_float32_matmul_precision('high')
 
 # Fast Cython advantage functions
