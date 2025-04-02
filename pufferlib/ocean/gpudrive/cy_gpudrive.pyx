@@ -47,6 +47,7 @@ cdef extern from "gpudrive.h":
         float* observations;
         int* actions;
         float* rewards;
+        unsigned char* masks;
         unsigned char* dones;
         LogBuffer* log_buffer;
         Log* logs;
@@ -170,7 +171,7 @@ cdef class CyGPUDrive:
         #finally:
          #   
     def __init__(self, float[:, :] observations, int[:,:] actions,
-            float[:] rewards, unsigned char[:] terminals, int num_envs,
+            float[:] rewards, unsigned char[:] masks, unsigned char[:] terminals, int num_envs,
             int human_agent_idx, reward_vehicle_collision, 
             reward_offroad_collision, offsets):
 
@@ -192,6 +193,7 @@ cdef class CyGPUDrive:
                 observations=&observations[inc, 0],
                 actions=&actions[inc,0],
                 rewards=&rewards[inc],
+                masks=&masks[inc],
                 dones=&terminals[inc],
                 log_buffer=self.logs,
                 human_agent_idx=human_agent_idx,

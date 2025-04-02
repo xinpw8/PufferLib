@@ -32,7 +32,7 @@ class GPUDrive(pufferlib.PufferEnv):
         print("Num agents: ", self.num_agents)
         super().__init__(buf=buf)
         breakpoint()
-        self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards,
+        self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards, self.masks,
             self.terminals, num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision, offsets = agent_offsets)
 
 
@@ -42,6 +42,7 @@ class GPUDrive(pufferlib.PufferEnv):
         return self.observations, []
 
     def step(self, actions):
+        breakpoint()
         self.actions[:] = actions
         self.c_envs.step()
         self.tick+=1

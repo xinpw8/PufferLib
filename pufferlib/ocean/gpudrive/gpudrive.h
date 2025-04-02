@@ -194,6 +194,7 @@ struct GPUDrive {
     float* observations;
     int* actions;
     float* rewards;
+    unsigned char* masks;
     unsigned char* dones;
     LogBuffer* log_buffer;
     Log* logs;
@@ -590,6 +591,7 @@ void allocate(GPUDrive* env){
     env->observations = (float*)calloc(env->active_agent_count*max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
+    env->masks = (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
     env->dones = (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
     env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
     printf("allocated\n");
@@ -599,6 +601,7 @@ void free_allocated(GPUDrive* env){
     free(env->observations);
     free(env->actions);
     free(env->rewards);
+    free(env->masks);
     free(env->dones);
     free_logbuffer(env->log_buffer);
     free_initialized(env);
@@ -855,6 +858,7 @@ void compute_observations(GPUDrive* env) {
         // Set goal distances
         float goal_x = relative_distance(ego_entity->x, ego_entity->goal_position_x);
         float goal_y = relative_distance(ego_entity->y, ego_entity->goal_position_y);
+        
         obs[0] = normalize_value(goal_x, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
         obs[1] = normalize_value(goal_y, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
         obs[2] = ego_speed / MAX_SPEED;
@@ -956,6 +960,8 @@ void c_reset(GPUDrive* env){
         collision_check(env, agent_idx);
     }
     memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
+    memset(env->masks, 1, env->active_agent_count*sizeof(char));  
+    memset(env->dones, 0, env->active_agent_count*sizeof(char));
     compute_observations(env);
 }
 
@@ -980,10 +986,11 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
         if(env->goal_reached[i]){
-		env->entities[agent_idx].x = 0;
-		env->entities[agent_idx].y = 0;
-	}
-	move_dynamics(env, i, agent_idx);
+            env->masks[i] = 0;
+            env->entities[agent_idx].x = 0;
+            env->entities[agent_idx].y = 0;
+	    }
+        move_dynamics(env, i, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
@@ -1009,6 +1016,7 @@ void c_step(GPUDrive* env){
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
+            env->dones[i] = 1;
             continue;
 	    }
     }
@@ -1039,12 +1047,13 @@ Client* make_client(GPUDrive* env){
         env->entities[env->active_agent_indices[0]].y,  // Y is up
         env->entities[env->active_agent_indices[0]].z   // Z is depth
     };
+    printf("target_pos: %f, %f, %f\n", target_pos.x, target_pos.y, target_pos.z);
     
     // Set up camera to look at target from above and behind
     client->camera.position = (Vector3){ 
         target_pos.x,           // Same X as target
         target_pos.y + 80.0f,   // 20 units above target
-        target_pos.z + 150.0f    // 20 units behind target
+        target_pos.z + 450.0f    // 20 units behind target
     };
     client->camera.target = target_pos;
     client->camera.up = (Vector3){ 0.0f, -1.0f, 0.0f };  // Y is up
