@@ -8,7 +8,7 @@ from pufferlib.ocean.squared.cy_squared import CySquared
 from pufferlib.ocean.squared import binding
 
 class Squared(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode=None, log_interval=128, size=11, buf=None):
+    def __init__(self, num_envs=1, render_mode=None, log_interval=128, size=11, buf=None, seed=0):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(size*size,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(5)
@@ -17,11 +17,11 @@ class Squared(pufferlib.PufferEnv):
         self.log_interval = log_interval
 
         super().__init__(buf)
-        self.c_envs = binding.init_vec(self.observations, self.actions, self.rewards,
-            self.terminals, self.truncations, num_envs, size=size)
+        self.c_envs = binding.vec_init(self.observations, self.actions, self.rewards,
+            self.terminals, self.truncations, num_envs, seed, size=size)
  
     def reset(self, seed=None):
-        binding.vec_reset(self.c_envs)
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 

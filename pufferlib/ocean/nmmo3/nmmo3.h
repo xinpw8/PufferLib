@@ -213,18 +213,27 @@ unsigned char RENDER_COLORS[16][3] = {
     {210, 240, 255}, // Winter water
 };
 
-static const char* LOG_KEYS[] = {"return_comb_lvl", "return_prof_lvl",
-    "return_item_atk_lvl", "return_item_def_lvl",
-    "return_market_buy", "return_market_sell", "return_death",
-    "min_comb_prof", "purchases", "sales", "equip_attack",
-    "equip_defense", "r", "c",
-    "episode_length", "episode_return", "score", "n", 0};
-enum {LOG_RETURN_COMB_LVL, LOG_RETURN_PROF_LVL,
-    LOG_RETURN_ITEM_ATK_LVL, LOG_RETURN_ITEM_DEF_LVL,
-    LOG_RETURN_MARKET_BUY, LOG_RETURN_MARKET_SELL, LOG_RETURN_DEATH,
-    LOG_MIN_COMB_PROF, LOG_PURCHASES, LOG_SALES, LOG_EQUIP_ATTACK,
-    LOG_EQUIP_DEFENSE, LOG_R, LOG_C,
-    LOG_LENGTH, LOG_RETURN, LOG_SCORE, LOG_N};
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+    float score;
+    float n;
+    float return_comb_lvl;
+    float return_prof_lvl;
+    float return_item_atk_lvl;
+    float return_item_def_lvl;
+    float return_market_buy;
+    float return_market_sell;
+    float return_death;
+    float min_comb_prof;
+    float purchases;
+    float sales;
+    float equip_attack;
+    float equip_defense;
+    float r;
+    float c;
+};
  
 // TODO: This is actually simplex and we should probably use the original impl
 // ALSO: Not seeded correctly
@@ -703,7 +712,7 @@ struct MMO {
     RespawnBuffer* resource_respawn_buffer;
     RespawnBuffer* enemy_respawn_buffer;
     RespawnBuffer* drop_respawn_buffer;
-    float log[sizeof(LOG_KEYS) / sizeof(LOG_KEYS[0])];
+    Log log;
     float reward_combat_level;
     float reward_prof_level;
     float reward_item_level;
@@ -722,31 +731,30 @@ Entity* get_entity(MMO* env, int pid) {
 void add_player_log(MMO* env, int pid) {
     Reward * ret = &env->returns[pid];
     Entity* player = get_entity(env, pid);
-    float* log = (float*)&env->log;
-    log[LOG_RETURN_COMB_LVL] += ret->comb_lvl;
-    log[LOG_RETURN_PROF_LVL] += ret->prof_lvl;
-    log[LOG_RETURN_ITEM_ATK_LVL] += ret->item_atk_lvl;
-    log[LOG_RETURN_ITEM_DEF_LVL] += ret->item_def_lvl;
-    log[LOG_RETURN_MARKET_BUY] += ret->market_buy;
-    log[LOG_RETURN_MARKET_SELL] += ret->market_sell;
-    log[LOG_RETURN_DEATH] += ret->death;
-    log[LOG_RETURN] += (
+    Log* log = &env->log;
+    log->return_comb_lvl += ret->comb_lvl;
+    log->return_prof_lvl += ret->prof_lvl;
+    log->return_item_atk_lvl += ret->item_atk_lvl;
+    log->return_item_def_lvl += ret->item_def_lvl;
+    log->return_market_buy += ret->market_buy;
+    log->return_market_sell += ret->market_sell;
+    log->return_death += ret->death;
+    log->min_comb_prof += (player->prof_lvl > player->comb_lvl) ? player->comb_lvl : player->prof_lvl;
+    log->purchases += player->purchases;
+    log->sales += player->sales;
+    log->equip_attack += player->equipment_attack;
+    log->equip_defense += player->equipment_defense;
+    log->r += player->r;
+    log->c += player->c;
+    log->episode_return += (
         ret->comb_lvl + ret->prof_lvl
         + ret->item_atk_lvl + ret->item_def_lvl
         + ret->market_buy + ret->market_sell
         + ret->death
     );
-    log[LOG_LENGTH] += player->time_alive;
-    log[LOG_MIN_COMB_PROF] += (player->prof_lvl > player->comb_lvl) ? player->comb_lvl : player->prof_lvl;
-    log[LOG_PURCHASES] += player->purchases;
-    log[LOG_SALES] += player->sales;
-    log[LOG_EQUIP_ATTACK] += player->equipment_attack;
-    log[LOG_EQUIP_DEFENSE] += player->equipment_defense;
-    log[LOG_R] += player->r;
-    log[LOG_C] += player->c;
-    log[LOG_SCORE] = log[LOG_MIN_COMB_PROF];
-    log[LOG_N]++;
-    *ret = (Reward){0};
+    log->episode_length += player->time_alive;
+    log->score = log->min_comb_prof;
+    log->n++;
 }
 
 void init(MMO* env) {

@@ -1,18 +1,16 @@
-#include <Python.h>
 #include "squared.h"
-#define ENV_MODULE_NAME "binding"
-#define Env Squared
-#define step c_step
-#define render c_render
-#define reset c_reset
 
-static char *kwlist[] = {"size", NULL};
+#define Env Squared
+#include "../env_binding.h"
+
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|l", kwlist, &env->size)) {
-        return 1;
-    }
+    env->size = unpack(kwargs, "size");
     return 0;
 }
 
-#include "../env_binding.h"
-DEFINE_PYINIT(binding)
+static int my_log(PyObject* dict, Log* log) {
+    assign_to_dict(dict, "episode_return", log->episode_return);
+    assign_to_dict(dict, "episode_length", log->episode_length);
+    assign_to_dict(dict, "score", log->score);
+    return 0;
+}

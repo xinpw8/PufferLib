@@ -3,14 +3,19 @@
 #include <math.h>
 #include "raylib.h"
 
-static const char* LOG_KEYS[] = {"episode_length", "episode_return", "score", "n", 0};
-enum {LOG_LENGTH, LOG_RETURN, LOG_SCORE, LOG_N};
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+    float score;
+    float n;
+};
 
 typedef struct Client Client;
 typedef struct Pong Pong;
 struct Pong {
     Client* client;
-    float log[sizeof(LOG_KEYS) / sizeof(LOG_KEYS[0])];
+    Log log;
     float* observations;
     float* actions;
     float* rewards;
@@ -74,11 +79,11 @@ void free_allocated(Pong* env) {
 }
 
 void add_log(Pong* env) {
-    env->log[LOG_LENGTH] += env->tick;
     float score = (float)env->score_r - (float)env->score_l;
-    env->log[LOG_RETURN] += score;
-    env->log[LOG_SCORE] += score;
-    env->log[LOG_N] += 1;
+    env->log.episode_length += env->tick;
+    env->log.episode_return += score;
+    env->log.score += score;
+    env->log.n += 1;
 }
 
 void compute_observations(Pong* env) {

@@ -1,8 +1,10 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
 
-// Forward declaration for env-specific init supplied by user
+// Forward declarations for env-specific functions supplied by user
 static int my_init(Env* env, PyObject* args, PyObject* kwargs);
+//typedef struct Log Log;
+static int my_log(PyObject* dict, Log* log);
 
 static Env* unpack_env(PyObject* args) {
     PyObject* handle_obj = PyTuple_GetItem(args, 0);
@@ -411,45 +413,51 @@ static PyObject* vec_render(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static int assign_to_dict(PyObject* dict, char* key, float value) {
+    PyObject* v = PyFloat_FromDouble(value);
+    if (v == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Failed to convert log value");
+        return 1;
+    }
+    if(PyDict_SetItemString(dict, key, v) < 0) {
+        PyErr_SetString(PyExc_TypeError, "Failed to set log value");
+        return 1;
+    }
+    return 0;
+}
+
 static PyObject* vec_log(PyObject* self, PyObject* args) {
     VecEnv* vec = unpack_vecenv(args);
     if (!vec) {
         return NULL;
     }
 
-    int num_keys = sizeof(LOG_KEYS)/sizeof(LOG_KEYS[0]) - 1;
-    float aggregate[num_keys];
-    for (int i = 0; i < num_keys; i++) {
-        aggregate[i] = 0;
-    }
-
+    // Iterates over logs one float at a time. Will break
+    // horribly if Log has non-float data.
+    Log aggregate = {0};
+    int num_keys = sizeof(Log) / sizeof(float);
     for (int i = 0; i < vec->num_envs; i++) {
         Env* env = vec->envs[i];
         for (int i = 0; i < num_keys; i++) {
-            aggregate[i] += env->log[i];
-            env->log[i] = 0;
+            ((float*)&aggregate)[i] += ((float*)&env->log)[i];
+            ((float*)&env->log)[i] = 0;
         }
     }
 
     PyObject* dict = PyDict_New();
-    if (aggregate[LOG_N] == 0) {
+    if (aggregate.n == 0) {
         return dict;
     }
+
+    // Average
+    float n = aggregate.n;
     for (int i = 0; i < num_keys; i++) {
-        float v = aggregate[i];
-        if (i != LOG_N) {
-            v /= (float)aggregate[LOG_N];
-        }
-        PyObject* value = PyFloat_FromDouble((double)v);
-        if (value == NULL) {
-            PyErr_SetString(PyExc_TypeError, "Failed to convert log value");
-            return NULL;
-        }
-        if(PyDict_SetItemString(dict, LOG_KEYS[i], value) < 0) {
-            PyErr_SetString(PyExc_TypeError, "Failed to set log value");
-            return NULL;
-        }
+        ((float*)&aggregate)[i] /= n;
     }
+
+    // User populates dict
+    my_log(dict, &aggregate);
+    assign_to_dict(dict, "n", n);
 
     return dict;
 }

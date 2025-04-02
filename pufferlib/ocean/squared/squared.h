@@ -12,15 +12,18 @@ const unsigned char EMPTY = 0;
 const unsigned char AGENT = 1;
 const unsigned char TARGET = 2;
 
-typedef struct Client Client;
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+    float score;
+    float n;
+};
  
+typedef struct Client Client;
 typedef struct Squared Squared;
-
-static const char* LOG_KEYS[] = {"episode_length", "episode_return", "score", "n", 0};
-enum {LOG_LENGTH, LOG_RETURN, LOG_SCORE, LOG_N};
-
 struct Squared {
-    float log[sizeof(LOG_KEYS) / sizeof(LOG_KEYS[0])];
+    Log log;
     Client* client;
     unsigned char* observations;
     int* actions;
@@ -47,13 +50,13 @@ void free_allocated(Squared* env) {
 }
 
 void add_log(Squared* env) {
-    env->log[LOG_LENGTH] += env->tick;
-    env->log[LOG_RETURN] += env->rewards[0];
-    env->log[LOG_SCORE] += env->rewards[0];
-    env->log[LOG_N] += 1;
+    env->log.episode_length += env->tick;
+    env->log.episode_return += env->rewards[0];
+    env->log.score += env->rewards[0];
+    env->log.n++;
 }
 
-void c_reset(Squared* env) {
+void reset(Squared* env) {
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->observations[env->size*env->size/2] = AGENT;
     env->r = env->size/2;
@@ -66,7 +69,7 @@ void c_reset(Squared* env) {
     env->observations[target_idx] = TARGET;
 }
 
-void c_step(Squared* env) {
+void step(Squared* env) {
     env->tick += 1;
 
     int action = env->actions[0];
@@ -93,7 +96,7 @@ void c_step(Squared* env) {
         env->terminals[0] = 1;
         env->rewards[0] = -1.0;
         add_log(env);
-        c_reset(env);
+        reset(env);
         return;
     }
 
@@ -102,7 +105,7 @@ void c_step(Squared* env) {
         env->terminals[0] = 1;
         env->rewards[0] = 1.0;
         add_log(env);
-        c_reset(env);
+        reset(env);
         return;
     }
 
@@ -129,7 +132,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void c_render(Squared* env) {
+void render(Squared* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }

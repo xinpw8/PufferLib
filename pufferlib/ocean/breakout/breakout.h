@@ -19,14 +19,19 @@
 #define BRICK_INDEX_BACKWALL_COLLISION -2
 #define BRICK_INDEX_PADDLE_COLLISION -1
 
-static const char* LOG_KEYS[] = {"episode_length", "episode_return", "score", "n", 0};
-enum {LOG_LENGTH, LOG_RETURN, LOG_SCORE, LOG_N};
+typedef struct Log Log;
+struct Log {
+    float episode_return;
+    float episode_length;
+    float score;
+    float n;
+};
 
 typedef struct Client Client;
 typedef struct Breakout Breakout;
 struct Breakout {
     Client* client;
-    float log[sizeof(LOG_KEYS) / sizeof(LOG_KEYS[0])];
+    Log log;
     float* observations;
     float* actions;
     float* rewards;
@@ -123,10 +128,10 @@ void free_allocated(Breakout* env) {
 }
 
 void add_log(Breakout* env) {
-    env->log[LOG_LENGTH] += env->tick;
-    env->log[LOG_RETURN] += env->score;
-    env->log[LOG_SCORE] += env->score;
-    env->log[LOG_N] += 1;
+    env->log.episode_length += env->tick;
+    env->log.episode_return += env->score;
+    env->log.score += env->score;
+    env->log.n += 1;
 }
 
 void compute_observations(Breakout* env) {
