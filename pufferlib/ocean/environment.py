@@ -119,6 +119,7 @@ def make_multiagent(buf=None, **kwargs):
 MAKE_FNS = {
     'breakout':      lambda: lazy_import('pufferlib.ocean.breakout.breakout', 'Breakout'),
     'blastar':       lambda: lazy_import('pufferlib.ocean.blastar.blastar', 'Blastar'),
+    'cartpole':      lambda: lazy_import('pufferlib.ocean.cartpole.cartpole', 'Cartpole'),
     'pong':          lambda: lazy_import('pufferlib.ocean.pong.pong', 'Pong'),
     'enduro':        lambda: lazy_import('pufferlib.ocean.enduro.enduro', 'Enduro'),
     'moba':          lambda: lazy_import('pufferlib.ocean.moba.moba', 'Moba'),

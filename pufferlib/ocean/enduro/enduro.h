@@ -83,6 +83,8 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {
 
 #define CONTINUOUS_SCALE (1) // Scale enemy cars continuously with y?
 
+#define SPRITESHEET_PATH "/puffertank/pufferlib/pufferlib/resources/enduro/enduro_spritesheet.png"
+
 // Log structs
 typedef struct Log {
     float episode_return;
@@ -1839,7 +1841,7 @@ void loadTextures(GameState* gameState) {
     gameState->previousBackgroundIndex = 0;
 
     // Load background and mountain textures for different times of day per original env
-    gameState->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
+    gameState->spritesheet = LoadTexture(SPRITESHEET_PATH);
 
     // Initialize background and mountain indices
     for (int i = 0; i < 16; ++i) {

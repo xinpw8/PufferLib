@@ -33,8 +33,12 @@ void get_input(Enduro* env) {
 }
 
 int demo() {
-    Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
-    LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        printf("Current working directory: %s\n", cwd);
+    }
+    Weights* weights = load_weights("pufferlib/resources/enduro/enduro_weights.bin", 142218);
+    LinearLSTM* net = make_linearlstm(weights, 1, 68, 9, ACTION_TYPE_INT);
 
     Enduro env = {
         .num_envs = 1,
