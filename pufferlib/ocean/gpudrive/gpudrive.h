@@ -321,13 +321,15 @@ void set_start_position(GPUDrive* env){
 }
 
 void set_active_agents(GPUDrive* env){
-    env->active_agent_count = 0;
     env->static_car_count = 0;
     env->num_cars = 0;
     int active_agent_indices[MAX_CARS];
     int static_car_indices[MAX_CARS];
+    active_agent_indices[0] = env->num_objects-1;
+    env->active_agent_count = 1;
     for(int i = 0; i < env->num_entities && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
+        if(i == env->num_objects-1) continue;
         int start_idx=0;
         for(int j = 0; j<env->entities[i].array_size; j++){
             if(env->entities[i].traj_valid[j] == 1 ){
@@ -986,7 +988,7 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
         if(env->goal_reached[i]){
-            env->masks[i] = 0;
+            // env->masks[i] = 0;
             env->entities[agent_idx].x = 0;
             env->entities[agent_idx].y = 0;
             continue;
@@ -1017,7 +1019,7 @@ void c_step(GPUDrive* env){
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
-            env->dones[i] = 1;
+            // env->dones[i] = 1;
             continue;
 	    }
     }
@@ -1137,7 +1139,7 @@ void c_render(Client* client, GPUDrive* env) {
                         // First draw other agent observations
                         int obs_idx = 6;  // Start after goal distances
                         for(int j = 0; j < MAX_CARS - 1; j++) {  // -1 because we skip self
-                            if(agent_obs[obs_idx] != -1 && agent_obs[obs_idx + 1] != -1) {
+                            if(agent_obs[obs_idx] != 0 && agent_obs[obs_idx + 1] != 0) {
                                 // Draw position of other agents
                                 float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
                                 float y = reverse_normalize_value(agent_obs[obs_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
@@ -1152,7 +1154,7 @@ void c_render(Client* client, GPUDrive* env) {
                         int map_start_idx = 6 + 7*(MAX_CARS - 1);  // Start after agent observations
                         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
                             int entity_idx = map_start_idx + k*5;
-                            if(agent_obs[entity_idx] != -1 && agent_obs[entity_idx + 1] != -1) {
+                            if(agent_obs[entity_idx] != 0 && agent_obs[entity_idx + 1] != 0) {
                                 Color lineColor = BLUE;  // Default color
                                 int entity_type = (int)agent_obs[entity_idx + 4];
                                 // Choose color based on entity type
