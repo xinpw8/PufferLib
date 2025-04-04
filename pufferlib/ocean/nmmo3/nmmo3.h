@@ -755,6 +755,7 @@ void add_player_log(MMO* env, int pid) {
     log->episode_length += player->time_alive;
     log->score = log->min_comb_prof;
     log->n++;
+    *ret = (Reward){0};
 }
 
 void init(MMO* env) {
