@@ -57,7 +57,7 @@ int demo() {
         }
 
         c_step(&env);
-        c_render(client, &env);
+        render(&env);
     }
 
     free_linearlstm(net);
