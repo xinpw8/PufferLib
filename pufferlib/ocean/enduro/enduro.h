@@ -11,6 +11,42 @@
 #include <float.h>
 #include "raylib.h"
 
+static const char* LOG_KEYS[] = {
+    "episode_length",
+    "episode_return",
+    "score",
+    "reward",
+    "step_rew_car_passed_no_crash",
+    "crashed_penalty",
+    "passed_cars",
+    "passed_by_enemy",
+    "cars_to_pass",
+    "days_completed",
+    "days_failed",
+    "collisions_player_vs_car",
+    "collisions_player_vs_road",
+    "n",    // <-- 'n' is how many episodes ended
+    0
+};
+
+enum {
+    LOG_LENGTH = 0,
+    LOG_RETURN,
+    LOG_SCORE,
+    LOG_REWARD,
+    LOG_STEP_REW_CAR_PASSED_NO_CRASH,
+    LOG_CRASHED_PENALTY,
+    LOG_PASSED_CARS,
+    LOG_PASSED_BY_ENEMY,
+    LOG_CARS_TO_PASS,
+    LOG_DAYS_COMPLETED,
+    LOG_DAYS_FAILED,
+    LOG_COLLISIONS_PLAYER_VS_CAR,
+    LOG_COLLISIONS_PLAYER_VS_ROAD,
+    LOG_N,
+};
+
+
 // Constant defs
 #define MAX_ENEMIES 10
 #define OBSERVATIONS_MAX_SIZE (8 + (5 * MAX_ENEMIES) + 9 + 1)
@@ -201,7 +237,7 @@ typedef struct Enduro {
     int score;
     int day;
     int lane;
-    int step_count;
+    int tick;
     int numEnemies;
     int carsToPass;
     float collision_cooldown_car_vs_car; // Timer for car vs car collisions
@@ -469,11 +505,11 @@ enum AssetIndices {
 };
 
 // Client struct
-typedef struct Client {
+struct Client {
     float width;
     float height;
     GameState gameState;
-} Client;
+};
 
 // Prototypes //
 // RNG
@@ -503,7 +539,7 @@ void compute_observations(Enduro* env);
 
 // Client functions
 Client* make_client(Enduro* env);
-void close_client(Client* client, Enduro* env);
+void close_client(Client* client);
 void render_car(Client* client, GameState* gameState);
 
 // GameState rendering functions
@@ -606,7 +642,7 @@ void init(Enduro* env, int seed, int env_index) {
 
     memcpy(env->dayTransitionTimes, BACKGROUND_TRANSITION_TIMES, sizeof(BACKGROUND_TRANSITION_TIMES));
     
-    env->step_count = 0;
+    env->tick = 0;
     env->collision_cooldown_car_vs_car = 0.0f;
     env->collision_cooldown_car_vs_road = 0.0f;
     env->action_height = ACTION_HEIGHT;
@@ -754,7 +790,7 @@ void reset_round(Enduro* env) {
     env->score = 0;
     env->carsToPass = INITIAL_CARS_TO_PASS;
     env->day = 1;
-    env->step_count = 0;
+    env->tick = 0;
     env->numEnemies = 0;
     env->speed = env->min_speed;
     env->player_x = env->initial_player_x;
@@ -1434,6 +1470,7 @@ void c_step(Enduro* env) {
             env->tracking_days_failed += 1.0f;
             env->terminals[0] = true;
             add_log(env);
+            add_log(env);
             compute_observations(env); // Call compute_observations before reset to log
             reset_round(env); // Reset round == soft reset
             return;
@@ -1775,7 +1812,7 @@ Client* make_client(Enduro* env) {
     return client;
 }
 
-void close_client(Client* client, Enduro* env) {
+void close_client(Client* client) {
     if (client != NULL) {
         cleanup(&client->gameState);
         CloseWindow();
@@ -2122,7 +2159,11 @@ void renderMountains(GameState* gameState) {
     EndScissorMode();
 }
 
-void c_render(Client* client, Enduro* env) {
+void c_render(Enduro* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+    Client* client = env->client;
     GameState* gameState = &client->gameState;
 
     // Copy env state to gameState

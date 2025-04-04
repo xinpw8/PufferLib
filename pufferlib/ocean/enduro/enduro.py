@@ -1,6 +1,7 @@
 import numpy as np
 import gymnasium
 
+
 import pufferlib
 from pufferlib.ocean.enduro import binding
 
@@ -13,6 +14,7 @@ class Enduro(pufferlib.PufferEnv):
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(8 + (5 * max_enemies) + 9 + 1,), dtype=np.float32
         )
+        # Example: 9 discrete actions
         self.single_action_space = gymnasium.spaces.Discrete(9)
         
         self.render_mode = render_mode
@@ -32,6 +34,7 @@ class Enduro(pufferlib.PufferEnv):
             car_height=car_height, max_enemies=max_enemies,
             frameskip=frameskip, continuous=continuous
         )
+
 
     def reset(self, seed=None):
         binding.vec_reset(self.c_envs, seed)
