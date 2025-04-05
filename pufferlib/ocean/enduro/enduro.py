@@ -25,8 +25,7 @@ class Enduro(pufferlib.PufferEnv):
         self.tick = 0
 
         super().__init__(buf)
-        
-        # Initialize the C environment
+
         self.c_envs = binding.vec_init(
             self.observations, self.actions, self.rewards,
             self.terminals, self.truncations, num_envs, seed,
@@ -34,7 +33,6 @@ class Enduro(pufferlib.PufferEnv):
             car_height=car_height, max_enemies=max_enemies,
             frameskip=frameskip, continuous=continuous
         )
-
 
     def reset(self, seed=None):
         binding.vec_reset(self.c_envs, seed)
@@ -50,7 +48,11 @@ class Enduro(pufferlib.PufferEnv):
         info = []
         if self.tick % self.log_interval == 0:
             info.append(binding.vec_log(self.c_envs))
+        
+        print(f'info: {info}')
             
+        print(f"observations PYTHON: {self.observations}")
+        
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 

@@ -11,24 +11,6 @@
 #include <float.h>
 #include "raylib.h"
 
-static const char* LOG_KEYS[] = {
-    "episode_length",
-    "episode_return",
-    "score",
-    "reward",
-    "step_rew_car_passed_no_crash",
-    "crashed_penalty",
-    "passed_cars",
-    "passed_by_enemy",
-    "cars_to_pass",
-    "days_completed",
-    "days_failed",
-    "collisions_player_vs_car",
-    "collisions_player_vs_road",
-    "n",    // <-- 'n' is how many episodes ended
-    0
-};
-
 enum {
     LOG_LENGTH = 0,
     LOG_RETURN,
@@ -45,7 +27,6 @@ enum {
     LOG_COLLISIONS_PLAYER_VS_ROAD,
     LOG_N,
 };
-
 
 // Constant defs
 #define MAX_ENEMIES 10
@@ -219,7 +200,6 @@ typedef struct Enduro {
     int* actions;
     float* rewards;
     unsigned char* terminals;
-    unsigned char* truncations;
     size_t obs_size;
     int num_envs;
     float width;
@@ -318,7 +298,7 @@ typedef struct Enduro {
     unsigned char car_passed_no_crash_active;
     float step_rew_car_passed_no_crash;
     float crashed_penalty;
-    int frameskip;
+    // int frameskip;
     int continuous;
 } Enduro;
 
@@ -520,7 +500,8 @@ void add_log(Enduro* env);
 
 // Environment functions
 void allocate(Enduro* env);
-void init(Enduro* env, int seed, int env_index);
+// void init(Enduro* env, int seed, int env_index);
+void init(Enduro* env);
 void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
 void reset(Enduro* env);
@@ -586,13 +567,24 @@ void add_log(Enduro* env) {
     env->log.n += 1.0f;
 }
 
-void init(Enduro* env, int seed, int env_index) {
-    env->client = NULL;
-    env->index = env_index;
-    env->rng_state = seed;
-    env->reset_count = 0;
+void allocate(Enduro* env) {
+    env->observations = (float*)calloc(env->obs_size, sizeof(float));
+    env->actions = (int*)calloc(1, sizeof(int));
+    env->rewards = (float*)calloc(1, sizeof(float));
+    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
+}
 
-    if (seed == 0) { // Activate with seed==0
+// void init(Enduro* env, int seed, int env_index) {
+void init(Enduro* env) {
+    env->client = NULL;
+    env->index = rand() % 1000000;
+    // env->rng_state = seed;
+    env->rng_state = 0;
+    env->reset_count = 0;
+    env->last_road_left = -1.0f;
+    env->last_road_right = -1.0f;
+
+    if (env->rng_state == 0) { // Activate with seed==0
         // Start the environment at the beginning of the day
         env->rng_state = 0;
         env->elapsedTimeEnv = 0.0f;
@@ -721,10 +713,15 @@ void init(Enduro* env, int seed, int env_index) {
 
         env->previousDayTimeIndex = (env->currentDayTimeIndex > 0) ? env->currentDayTimeIndex - 1 : NUM_BACKGROUND_TRANSITIONS - 1;
     }
-    env->terminals[0] = 0;
-    env->truncations[0] = 0;
+
+    // Check if memory is allocated for required arrays before accessing them
+    if (env->observations == NULL || env->actions == NULL || env->rewards == NULL || env->terminals == NULL) {
+        fprintf(stderr, "DEBUG: Memory not yet allocated in init(). Allocating now...\n");
+        allocate(env);
+    }
 
     // Reset rewards and logs
+    env->terminals[0] = 0;
     env->rewards[0] = 0.0f;
 
     // Initialize tracking variables
@@ -759,20 +756,11 @@ void init(Enduro* env, int seed, int env_index) {
     env->log.n = 0.0f;
     }
 
-void allocate(Enduro* env) {
-    env->observations = (float*)calloc(env->obs_size, sizeof(float));
-    env->actions = (int*)calloc(1, sizeof(int));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
-    env->truncations = (unsigned char*)calloc(1, sizeof(unsigned char));
-}
-
 void free_allocated(Enduro* env) {
     free(env->observations);
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
-    free(env->truncations);
 }
 
 // Called when a day is failed by player
@@ -883,18 +871,20 @@ void reset_round(Enduro* env) {
     // Reset flags and transient states
     env->dayCompleted = 0;
     env->terminals[0] = 0;
-    env->truncations[0] = 0;
     env->rewards[0] = 0.0f;
 }
 
 // Reset all init vars; only called once after init
 void reset(Enduro* env) {
     // No random after first reset
-    int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
+    // int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
 
     // int reset_seed = xorshift32(&env->rng_state); // // Always random
-    init(env, reset_seed, env->index);
+    // init(env, reset_seed, env->index);
+    // init(env, 0, env->index);
+    init(env);
     env->reset_count += 1;
+    compute_observations(env);
 }
 
 unsigned char check_collision(Enduro* env, Car* car) {
@@ -1082,6 +1072,21 @@ void accelerate(Enduro* env) {
 }
 
 void step(Enduro* env) {  
+    // Safety checks
+    if (env == NULL) {
+        fprintf(stderr, "ERROR: NULL environment passed to step function!\n");
+        return;
+    }
+    
+    if (env->observations == NULL || env->actions == NULL || 
+        env->rewards == NULL || env->terminals == NULL) {
+        fprintf(stderr, "ERROR: NULL pointers in environment buffers!\n");
+        return;
+    }
+    
+    // Remove debugging printf
+    env->tick++;
+    
     env->rewards[0] = 0.0f;
     env->elapsedTimeEnv += (1.0f / TARGET_FPS);
     update_time_of_day(env);
@@ -1090,8 +1095,8 @@ void step(Enduro* env) {
     env->terminals[0] = 0;
     env->road_scroll_offset += env->speed;
 
-    // Update enemy car positions
-    for (int i = 0; i < env->numEnemies; i++) {
+    // Update enemy car positions with bounds checking
+    for (int i = 0; i < env->numEnemies && i < MAX_ENEMIES; i++) {
         Car* car = &env->enemyCars[i];
         // Compute movement speed adjusted for scaling
         float scale = get_car_scale(car->y);
@@ -1496,13 +1501,16 @@ void step(Enduro* env) {
 }
 
 void compute_observations(Enduro* env) {
+    printf("env_id: %d, compute_observations\n", env->index);
     float* obs = env->observations;
     int obs_index = 0;
 
     // Most obs normalized to [0, 1]
     // Bounding box around player
-    float player_x_norm = (env->player_x - env->last_road_left) / (env->last_road_right  - env->last_road_left);
+    // float player_x_norm = (env->player_x - env->last_road_left) / (env->last_road_right  - env->last_road_left);
+    float player_x_norm = (PLAYER_MAX_X - env->player_x) / (PLAYER_MAX_X - PLAYER_MIN_X);
     float player_y_norm = (PLAYER_MAX_Y - env->player_y) / (PLAYER_MAX_Y - PLAYER_MIN_Y);
+
     // float player_width_norm = CAR_WIDTH / (env->last_road_right - env->last_road_left);
     // float player_height_norm = CAR_HEIGHT / (PLAYABLE_AREA_BOTTOM - VANISHING_POINT_Y);
 
@@ -1511,6 +1519,9 @@ void compute_observations(Enduro* env) {
     obs[obs_index++] = player_x_norm;
     obs[obs_index++] = player_y_norm;
     obs[obs_index++] = (env->speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+
+    printf("env_id: %d, compute_observations after idx 1-3\n", env->index);
+    printf("observations: %f, %f, %f\n", obs[0], obs[1], obs[2]);
 
     // Road edges (separate lines for clarity)
     float road_left = road_edge_x(env, env->player_y, 0, true);
@@ -1634,6 +1645,12 @@ void compute_observations(Enduro* env) {
         }
         obs[obs_index++] = normalized_distance;
     }
+    printf("env_id: %d, compute_observations done\n", env->index);
+    printf("all observations: ");
+    for (int i = 0; i < OBSERVATIONS_MAX_SIZE; i++) {
+        printf("%f ", obs[i]);
+    }
+    printf("\n");
 }
 
 // When to curve road and how to curve it, including dense smooth transitions

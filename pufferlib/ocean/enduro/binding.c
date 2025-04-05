@@ -5,26 +5,21 @@
 #include "../env_binding.h"
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    // Parse initialization parameters from Python
+    printf("C BINDING: Entering my_init...\n");
     env->width = unpack(kwargs, "width");
     env->height = unpack(kwargs, "height");
     env->car_width = unpack(kwargs, "car_width");
     env->car_height = unpack(kwargs, "car_height");
     env->max_enemies = unpack(kwargs, "max_enemies");
-    env->frameskip = unpack(kwargs, "frameskip");
+    // env->frameskip = unpack(kwargs, "frameskip");
     env->continuous = unpack(kwargs, "continuous");
-    
-    // Initialize with seed and index
-    int seed = unpack(kwargs, "seed");
-    int index = unpack(kwargs, "index");
-    
-    // Initialize the environment
-    init(env, seed, index);
+
+    init(env);
+    printf("C BINDING: Exiting my_init.\n");
     return 0;
 }
 
 static int my_log(PyObject* dict, Log* log) {
-    // Map all log fields to Python dictionary
     assign_to_dict(dict, "episode_return", log->episode_return);
     assign_to_dict(dict, "episode_length", log->episode_length);
     assign_to_dict(dict, "score", log->score);

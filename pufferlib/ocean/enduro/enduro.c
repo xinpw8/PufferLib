@@ -45,8 +45,9 @@ int demo() {
     allocate(&env);
     env.client = make_client(&env);
 
-    unsigned int seed = 0;
-    init(&env, seed, 0);
+    // unsigned int seed = 0;
+    // init(&env, seed, 0);
+    init(&env);
     reset(&env);
 
     while (!WindowShouldClose()) {
@@ -76,8 +77,9 @@ void perftest(float test_time) {
 
     allocate(&env);
 
-    unsigned int seed = 12345;
-    init(&env, seed, 0);
+    // unsigned int seed = 12345;
+    // init(&env, seed, 0);
+    init(&env);
     reset(&env);
 
     int start = time(NULL);
