@@ -320,7 +320,7 @@ typedef struct Enduro {
     float crashed_penalty;
     int frameskip;
     int continuous;
-};
+} Enduro;
 
 // Action enumeration
 typedef enum {
@@ -523,14 +523,14 @@ void allocate(Enduro* env);
 void init(Enduro* env, int seed, int env_index);
 void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
-void c_reset(Enduro* env);
+void reset(Enduro* env);
 unsigned char check_collision(Enduro* env, Car* car);
 int get_player_lane(Enduro* env);
 float get_car_scale(float y);
 void add_enemy_car(Enduro* env);
 void update_time_of_day(Enduro* env);
 void accelerate(Enduro* env);
-void c_step(Enduro* env);
+void step(Enduro* env);
 void update_road_curve(Enduro* env);
 float quadratic_bezier(float bottom_x, float control_x, float top_x, float t);
 float road_edge_x(Enduro* env, float y, float offset, unsigned char left);
@@ -552,7 +552,6 @@ void renderScoreboard(GameState* gameState);
 void updateMountains(GameState* gameState);
 void renderMountains(GameState* gameState);
 void updateVictoryEffects(GameState* gameState);
-void c_render(Client* client, Enduro* env);
 void render(Enduro* env);
 void cleanup(GameState* gameState);
 
@@ -769,9 +768,6 @@ void allocate(Enduro* env) {
 }
 
 void free_allocated(Enduro* env) {
-    if (env->client) {
-        close_client(env->client, env);
-    }
     free(env->observations);
     free(env->actions);
     free(env->rewards);
@@ -892,7 +888,7 @@ void reset_round(Enduro* env) {
 }
 
 // Reset all init vars; only called once after init
-void c_reset(Enduro* env) {
+void reset(Enduro* env) {
     // No random after first reset
     int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
 
@@ -1085,7 +1081,7 @@ void accelerate(Enduro* env) {
     clamp_speed(env);
 }
 
-void c_step(Enduro* env) {  
+void step(Enduro* env) {  
     env->rewards[0] = 0.0f;
     env->elapsedTimeEnv += (1.0f / TARGET_FPS);
     update_time_of_day(env);
@@ -1488,7 +1484,6 @@ void c_step(Enduro* env) {
     env->tracking_step_rew_car_passed_no_crash = env->step_rew_car_passed_no_crash;
     env->tracking_reward = env->rewards[0];
     env->tracking_episode_return = env->rewards[0];
-    env->step_count++;
 
     float normalizedSpeed = fminf(fmaxf(env->speed, 1.0f), 2.0f);
     env->score += (int)normalizedSpeed;
@@ -1798,26 +1793,48 @@ float car_x_in_lane(Enduro* env, int lane, float y) {
     return left_edge + lane_width * (lane + 0.5f);
 }
 
-// Handles rendering logic
 Client* make_client(Enduro* env) {
-    Client* client = (Client*)malloc(sizeof(Client));
+    if (env->client != NULL) {
+        return env->client;
+    }
 
-    // State data from env (Enduro*)
+    Client* client = (Client*)calloc(1, sizeof(Client));
+    if (client == NULL) {
+        printf("Failed to allocate memory for client\n");
+        return NULL;
+    }
+    
+    printf("Memory allocated for client at %p\n", (void*)client);
+
     client->width = env->width;
     client->height = env->height;
     
-    initRaylib(&client->gameState); // Pass gameState here
+    printf("About to initialize RayLib...\n");
+    initRaylib(&client->gameState);
+    printf("RayLib initialized\n");
+    
+    printf("Loading textures...\n");
     loadTextures(&client->gameState);
+    printf("Textures loaded\n");
 
     return client;
 }
 
 void close_client(Client* client) {
     if (client != NULL) {
-        cleanup(&client->gameState);
-        CloseWindow();
+        if (client->gameState.renderTarget.id > 0) {
+            UnloadRenderTexture(client->gameState.renderTarget);
+        }
+        if (client->gameState.spritesheet.id > 0) {
+            UnloadTexture(client->gameState.spritesheet);
+        }
+        
+        if (IsWindowReady()) {
+            CloseWindow();
+        }
+        
         free(client);
-        env->client = NULL;
+        client = NULL;
     }
 }
 
@@ -1829,8 +1846,10 @@ void render_car(Client* client, GameState* gameState) {
 }
 
 void initRaylib(GameState* gameState) {
-    InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
-    SetTargetFPS(60);
+    if (!IsWindowReady()) {
+        InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
+        SetTargetFPS(60);
+    }
     gameState->renderTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
@@ -1907,8 +1926,14 @@ void loadTextures(GameState* gameState) {
 }
 
 void cleanup(GameState* gameState) {
-    UnloadRenderTexture(gameState->renderTarget);
-    UnloadTexture(gameState->spritesheet);
+    if (gameState->renderTarget.id > 0) {
+        UnloadRenderTexture(gameState->renderTarget);
+        gameState->renderTarget.id = 0;
+    }
+    if (gameState->spritesheet.id > 0) {
+        UnloadTexture(gameState->spritesheet);
+        gameState->spritesheet.id = 0;
+    }
 }
 
 void updateCarAnimation(GameState* gameState) {
@@ -2159,12 +2184,17 @@ void renderMountains(GameState* gameState) {
     EndScissorMode();
 }
 
-void c_render(Enduro* env) {
+void render(Enduro* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
     Client* client = env->client;
     GameState* gameState = &client->gameState;
+
+    if (!IsWindowReady()) {
+        printf("Warning: Window not ready, cannot render\n");
+        return;
+    }
 
     // Copy env state to gameState
     gameState->speed = env->speed;
@@ -2182,15 +2212,14 @@ void c_render(Enduro* env) {
     gameState->carsLeftGameState = env->carsToPass;
     gameState->day = env->day;
     gameState->elapsedTime = env->elapsedTimeEnv;
-    // -1 represents reset of env
     if (env->score == 0) {
         gameState->score = 0;
     }
 
-    // Render to a texture for scaling up
-    BeginTextureMode(gameState->renderTarget);
+    BeginDrawing();
+    ClearBackground(BLACK);
 
-    // Do not call BeginDrawing() here
+    BeginTextureMode(gameState->renderTarget);
     ClearBackground(BLACK);
     BeginBlendMode(BLEND_ALPHA);
 
@@ -2203,7 +2232,6 @@ void c_render(Enduro* env) {
     unsigned char isNightFogStage = (bgIndex == 13);
     unsigned char isNightStage = (bgIndex == 12 || bgIndex == 13 || bgIndex == 14);
 
-    // During night fog stage, clip rendering to y >= 92
     float clipStartY = isNightFogStage ? 92.0f : VANISHING_POINT_Y;
     float clipHeight = PLAYABLE_AREA_BOTTOM - clipStartY;
     Rectangle clipRect = { PLAYABLE_AREA_LEFT, clipStartY, PLAYABLE_AREA_RIGHT - PLAYABLE_AREA_LEFT, clipHeight };
@@ -2298,10 +2326,7 @@ void c_render(Enduro* env) {
     // Finish rendering to the texture
     EndTextureMode();
 
-    // Now render the scaled-up texture to the screen
-    BeginDrawing();
-    ClearBackground(BLACK);
-
+    // Now render the scaled-up texture to the screen - no need for another BeginDrawing()
     // Draw the render texture scaled up
     DrawTexturePro(
         gameState->renderTarget.texture,
@@ -2313,11 +2338,4 @@ void c_render(Enduro* env) {
     );
 
     EndDrawing();
-}
-
-void render(Enduro* env) {
-    if (env->client == NULL) {
-        env->client = make_client(env);
-    }
-    c_render(env->client, env);
 }

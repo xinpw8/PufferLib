@@ -43,11 +43,11 @@ int demo() {
     };
 
     allocate(&env);
-    Client* client = make_client(&env);
+    env.client = make_client(&env);
 
     unsigned int seed = 0;
     init(&env, seed, 0);
-    c_reset(&env);
+    reset(&env);
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -56,14 +56,14 @@ int demo() {
             forward_linearlstm(net, env.observations, env.actions);
         }
 
-        c_step(&env);
+        step(&env);        
         render(&env);
     }
 
     free_linearlstm(net);
     free(weights);
-    close_client(client, &env);
     free_allocated(&env);
+    close_client(env.client);
     return 0;
 }
 
@@ -78,13 +78,13 @@ void perftest(float test_time) {
 
     unsigned int seed = 12345;
     init(&env, seed, 0);
-    c_reset(&env);
+    reset(&env);
 
     int start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand()%9;
-        c_step(&env);
+        step(&env);
         i++;
     }
 
