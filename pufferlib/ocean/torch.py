@@ -427,7 +427,7 @@ class GPUDrive(nn.Module):
                 nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_road_objects = 5*64
+        max_road_objects = 5
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, cnn_channels)),
@@ -436,7 +436,7 @@ class GPUDrive(nn.Module):
                 nn.Linear(cnn_channels, cnn_channels)
             )
         )
-        max_partner_objects = 7*63
+        max_partner_objects = 7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, cnn_channels)),
@@ -470,10 +470,12 @@ class GPUDrive(nn.Module):
         partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
         road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
         
+        partner_objects = partner_obs.view(-1, 63, 7)
+        road_objects = road_obs.view(-1, 64, 5)
 
         ego_features = self.ego_encoder(ego_obs)
-        partner_features = self.partner_encoder(partner_obs)
-        road_features = self.road_encoder(road_obs)
+        partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)
+        road_features, _ = self.road_encoder(road_objects).max(dim=1)
         
         
         concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)

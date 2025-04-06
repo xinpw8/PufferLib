@@ -31,7 +31,6 @@ class GPUDrive(pufferlib.PufferEnv):
         self.num_agents = total_agents
         print("Num agents: ", self.num_agents)
         super().__init__(buf=buf)
-        breakpoint()
         self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards, self.masks,
             self.terminals, num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision, offsets = agent_offsets)
 
@@ -42,7 +41,6 @@ class GPUDrive(pufferlib.PufferEnv):
         return self.observations, []
 
     def step(self, actions):
-        breakpoint()
         self.actions[:] = actions
         self.c_envs.step()
         self.tick+=1
@@ -227,7 +225,7 @@ def process_all_maps():
     data_dir = Path("data/processed/training")
     
     # Get all JSON files in the training directory
-    json_files = sorted(data_dir.glob("*.json"))[256:384]
+    json_files = sorted(data_dir.glob("*.json"))[0:256]
     
     print(f"Found {len(json_files)} JSON files")
     
