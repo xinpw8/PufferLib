@@ -90,25 +90,35 @@ def fast_rewards_and_masks(float[:, :] reward_block, float[:, :] reward_mask,
 
         memcpy(&reward_block[i, 0], &rewards[i+1], h * sizeof(float))
 
-def compute_gae(cnp.ndarray dones, cnp.ndarray values,
-        cnp.ndarray rewards, float gamma, float gae_lambda):
+def compute_gae(cnp.ndarray dones, float[:, :] values,
+        float[:, :] rewards, int[:] stored_idxs,
+        float gamma, float gae_lambda):
     '''Fast Cython implementation of Generalized Advantage Estimation (GAE)'''
-    cdef int num_steps = len(rewards)
-    cdef cnp.ndarray advantages = np.zeros(num_steps, dtype=np.float32)
-    cdef float[:] c_advantages = advantages
-    cdef float[:] c_dones = dones
-    cdef float[:] c_values = values
-    cdef float[:] c_rewards = rewards
+    cdef:
+        float[:, :] c_dones = dones
+        int num_rows = dones.shape[0]
+        int horizon = dones.shape[1]
+        float lastgaelam = 0
+        float nextnonterminal, delta
+        int t, t_cur, t_next
+        cnp.ndarray advantages = np.zeros((num_rows, horizon), dtype=np.float32)
+        cnp.ndarray ep_adv = np.zeros(np.max(stored_idxs)+1, dtype=np.float32)
 
-    cdef float lastgaelam = 0
-    cdef float nextnonterminal, delta
-    cdef int t, t_cur, t_next
-    for t in range(num_steps-1):
-        t_cur = num_steps - 2 - t
-        t_next = num_steps - 1 - t
-        nextnonterminal = 1.0 - c_dones[t_next]
-        delta = c_rewards[t_next] + gamma * c_values[t_next] * nextnonterminal - c_values[t_cur]
-        lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
-        c_advantages[t_cur] = lastgaelam
+    cdef:
+        float[:, :] c_advantages = advantages
+        float[:] c_ep_adv = ep_adv
+        int agent_id
+
+    for row in range(num_rows-1, -1, -1):
+        agent_id = stored_idxs[row]
+        lastgaelam = ep_adv[agent_id]
+        for t in range(horizon-2, -1, -1):
+            t_next = t + 1
+            nextnonterminal = 1.0 - c_dones[row, t_next]
+            delta = rewards[row, t_next] + gamma*values[row, t_next]*nextnonterminal - values[row, t]
+            lastgaelam = delta + gamma*gae_lambda*nextnonterminal * lastgaelam
+            c_advantages[row, t] = lastgaelam
+
+        c_ep_adv[agent_id] = lastgaelam
 
     return advantages

@@ -142,15 +142,9 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         from torch.nn.parallel import DistributedDataParallel as DDP
         orig_policy = policy
         policy = DDP(policy, device_ids=[args['rank']])
+        # TODO: Test this? isinstance?
         if hasattr(orig_policy, 'lstm'):
             policy.lstm = orig_policy.lstm
-
-    '''
-    if env_name == 'moba':
-        import torch
-        os.makedirs('moba_elo', exist_ok=True)
-        torch.save(policy, os.path.join('moba_elo', 'model_random.pt'))
-    '''
 
     neptune = None
     wandb = None
@@ -170,38 +164,9 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     costs = []
     target_key = f'environment/{target_metric}'
 
-    '''
-    from torch.profiler import profile, record_function, ProfilerActivity
-    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA, ProfilerActivity.XPU]
-    from torch.profiler import schedule
-    prof_schedule = schedule(
-        skip_first=10,
-        wait=5,
-        warmup=1,
-        active=3,
-        repeat=2
-    )
-
-    sort_by_keyword = "self_" + args['train']['device'] + "_time_total"
-
-    def trace_handler(p):
-        output = p.key_averages().table(sort_by=sort_by_keyword, row_limit=10)
-        print(output)
-        p.export_chrome_trace("trace/trace_" + str(p.step_num) + ".json")
-
-    with profile(
-        activities=activities,
-        schedule=torch.profiler.schedule(
-            wait=1,
-            warmup=1,
-            active=2),
-        on_trace_ready=trace_handler
-    ) as p:
-    '''
     while data.global_step < train_config.total_timesteps:
         clean_pufferl.evaluate(data)
         logs = clean_pufferl.train(data)
-        #p.step()
         if logs is not None and target_key in logs:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
@@ -239,17 +204,6 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     elif args['wandb']:
         wandb.log({'score': score, 'cost': cost})
 
-    '''
-    if env_name == 'moba':
-        exp_n = len(elos)
-        model_name = f'model_{exp_n}.pt'
-        torch.save(policy, os.path.join('moba_elo', model_name))
-        from evaluate_elos import calc_elo
-        elos = calc_elo(model_name, 'moba_elo', elos)
-        stats['elo'] = elos[model_name]
-        if wandb is not None:
-            wandb.log({'environment/elo': elos[model_name]})
-    '''
     clean_pufferl.close(data)
     return scores, costs, timesteps, elos, vecenv
 
