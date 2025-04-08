@@ -107,7 +107,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
 
     experience = Experience(config.batch_size, config.bptt_horizon,
         config.minibatch_size, config.max_minibatch_size, policy.hidden_size, obs_shape, obs_dtype,
-        atn_shape, atn_dtype, config.cpu_offload, config.device, policy, total_agents,
+        atn_shape, atn_dtype, config.cpu_offload, config.device, policy, total_agents, config.replay_factor,
         use_e3b=config.use_e3b, e3b_coef=config.e3b_coef, e3b_lambda=config.e3b_lambda,
         use_diayn=config.use_diayn, diayn_archive=config.diayn_archive, diayn_coef=config.diayn_coef,
         use_p3o=config.use_p3o, p3o_horizon=config.p3o_horizon
@@ -359,6 +359,10 @@ def train(data):
         dones = experience.dones
         rewards = experience.rewards
 
+    # TODO: Beter place for this
+    experience.free_idx = 0
+    experience.ep_lengths.zero_()
+
     with profile.train_misc:
         if config.use_p3o:
             reward_block = experience.reward_block
@@ -406,16 +410,6 @@ def train(data):
 
             experience.flatten_batch(advantages, reward_block, mask_block)
             torch.cuda.synchronize()
-        else:
-            #values_np = experience.values[idxs].to('cpu', non_blocking=True).numpy()
-            values_np = experience.values.to('cpu', non_blocking=True).numpy()
-            dones_np = dones.to('cpu', non_blocking=True).numpy()
-            rewards_np = rewards.to('cpu', non_blocking=True).numpy()
-            stored_idxs = experience.stored_indices.to('cpu', non_blocking=True).numpy()
-            torch.cuda.synchronize()
-            advantages_np = compute_gae(dones_np, values_np,
-            rewards_np, stored_idxs, config.gamma, config.gae_lambda)
-            experience.flatten_batch(advantages_np)
 
     # Optimizing the policy and value network
     total_minibatches = experience.num_minibatches * config.update_epochs
@@ -424,168 +418,191 @@ def train(data):
     cross_entropy = torch.nn.CrossEntropyLoss()
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
     for epoch in range(config.update_epochs):
-        lstm_h = None
-        lstm_c = None
-        for mb in range(experience.num_minibatches):
-            with profile.train_misc:
-                state = pufferlib.namespace(
-                    action=experience.b_actions[mb],
-                    lstm_h=lstm_h,
-                    lstm_c=lstm_c,
-                )
-                obs = experience.b_obs[mb]
-                obs = obs.to(config.device)
-                atn = experience.b_actions[mb]
-                log_probs = experience.b_logprobs[mb]
-                adv = experience.b_advantages[mb]
-                ret = experience.b_returns[mb]
+        values_np = experience.values.to('cpu', non_blocking=True).numpy()
+        dones_np = dones.to('cpu', non_blocking=True).numpy()
+        rewards_np = rewards.to('cpu', non_blocking=True).numpy()
+        stored_idxs = experience.stored_indices.to('cpu', non_blocking=True).numpy()
+        torch.cuda.synchronize()
+        advantages_np = compute_gae(dones_np, values_np, rewards_np, config.gamma, config.gae_lambda)
+        advantages = torch.as_tensor(advantages_np).to(config.device, non_blocking=True)
+        n_samples = config.minibatch_size // config.bptt_horizon
+        exp = experience.sample(advantages, n_samples)
 
-                if config.use_diayn:
-                    z_idxs = experience.b_diayn_z_idxs[mb]
+        obs = exp.obs
+        atn = exp.actions
+        log_probs = exp.logprobs
+        adv = exp.advantages
+        ret = exp.returns
 
-                if config.use_p3o:
-                    val_mean = experience.b_values_mean[mb]
-                    val_std = experience.b_values_std[mb]
-                    rew_block = experience.b_reward_block[mb]
-                    mask_block = experience.b_mask_block[mb]
-                else:
-                    val = experience.b_values[mb].flatten()
+        with profile.train_misc:
+            state = pufferlib.namespace(
+                action=atn,
+                lstm_h=None,
+                lstm_c=None,
+            )
+            if config.use_diayn:
+                z_idxs = experience.b_diayn_z_idxs[mb]
+
+            if config.use_p3o:
+                val_mean = experience.b_values_mean[mb]
+                val_std = experience.b_values_std[mb]
+                rew_block = experience.b_reward_block[mb]
+                mask_block = experience.b_mask_block[mb]
+            else:
+                val = exp.values.flatten()
+
+            if config.device == 'cuda':
+                torch.cuda.synchronize()
+
+        with data.amp_context:
+            with profile.train_forward:
+                if not isinstance(data.policy, torch.nn.LSTM):
+                    obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
+
+                logits, newvalue = data.policy.forward_train(obs, state)
+                lstm_h = state.lstm_h
+                lstm_c = state.lstm_c
+                if lstm_h is not None:
+                    lstm_h = lstm_h.detach()
+                if lstm_c is not None:
+                    lstm_c = lstm_c.detach()
+
+                actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
+                    action=atn, is_continuous=data.policy.is_continuous)
 
                 if config.device == 'cuda':
                     torch.cuda.synchronize()
 
-            with data.amp_context:
-                with profile.train_forward:
-                    if not isinstance(data.policy, torch.nn.LSTM):
-                        obs = obs.reshape(-1, *data.vecenv.single_observation_space.shape)
-
-                    logits, newvalue = data.policy.forward_train(obs, state)
-                    lstm_h = state.lstm_h
-                    lstm_c = state.lstm_c
-                    if lstm_h is not None:
-                        lstm_h = lstm_h.detach()
-                    if lstm_c is not None:
-                        lstm_c = lstm_c.detach()
-
-                    actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
-                        action=atn, is_continuous=data.policy.is_continuous)
-
-                    if config.device == 'cuda':
-                        torch.cuda.synchronize()
-
-                with profile.train_misc:
-                    logratio = newlogprob - log_probs.reshape(-1)
-                    ratio = logratio.exp()
-
-                    # TODO: Only do this if we are KL clipping? Saves 1-2% compute
-                    with torch.no_grad():
-                        # calculate approx_kl http://joschu.net/blog/kl-approx.html
-                        old_approx_kl = (-logratio).mean()
-                        approx_kl = ((ratio - 1) - logratio).mean()
-                        clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
-
-                    adv = adv.reshape(-1)
-                    if config.norm_adv:
-                        adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-
-                    # Policy loss
-                    pg_loss1 = -adv * ratio
-                    pg_loss2 = -adv * torch.clamp(
-                        ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                    )
-                    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                    # Value loss
-                    if config.use_p3o:
-                        newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
-                        newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
-                        newvalue_var = torch.square(newvalue_std)
-                        criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                        #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
-                        v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
-                        v_loss = v_loss[:, :(horizon+3)]
-                        mask_block = mask_block[:, :(horizon+3)]
-                        #v_loss[:, horizon:] = 0
-                        #v_loss = (v_loss * mask_block).sum(axis=1)
-                        #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
-                        #v_loss = v_loss.mean()
-                        v_loss = v_loss[mask_block.bool()].mean()
-                        #TODO: Count mask and sum
-                        # There is going to have to be some sort of norm here.
-                        # Right now, learning works at different horizons, but you need
-                        # to retune hyperparameters. Ideally, horizon should be a stable
-                        # param that zero-shots the same hypers
-
-                        # Faster than masking
-                        #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
-                        #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
-                        #v_loss = v_loss[mask_block.bool()].mean()
-                    elif config.clip_vloss:
-                        newvalue = newvalue.flatten()
-                        ret = ret.flatten()
-                        v_loss_unclipped = (newvalue - ret) ** 2
-                        v_clipped = val + torch.clamp(
-                            newvalue - val,
-                            -config.vf_clip_coef,
-                            config.vf_clip_coef,
-                        )
-                        v_loss_clipped = (v_clipped - ret) ** 2
-                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                        v_loss = 0.5 * v_loss_max.mean()
-                    else:
-                        newvalue = newvalue.flatten()
-                        v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
-
-                    entropy_loss = entropy.mean()
-                    loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
-
-                    with profile.custom:
-                        if config.use_diayn:
-                            diayn_discriminator = data.policy.diayn_discriminator if hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator
-                            q = diayn_discriminator(state.hidden).squeeze()
-                            diayn_loss = cross_entropy(q, z_idxs)
-                            loss += config.diayn_loss_coef*diayn_loss
-                            torch.cuda.synchronize()
-
-            with profile.learn:
-                if data.scaler is None:
-                    loss.backward()
-                else:
-                    data.scaler.scale(loss).backward()
-
-                if data.scaler is not None:
-                    data.scaler.unscale_(data.optimizer)
-
-                with torch.no_grad():
-                    grads = torch.cat([p.grad.flatten() for p in data.policy.parameters()])
-                    grad_var = grads.var(0).mean() * config.minibatch_size
-                    data.msg = f'Gradient variance: {grad_var.item():.3f}'
-
-                if (mb + 1) % accumulate_minibatches == 0:
-                    torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
-
-                    if data.scaler is None:
-                        data.optimizer.step()
-                    else:
-                        data.scaler.step(data.optimizer)
-                        data.scaler.update()
-
-                    data.optimizer.zero_grad()
-
-                    if config.device == 'cuda':
-                        torch.cuda.synchronize()
-
             with profile.train_misc:
-                losses.policy_loss += pg_loss.item() / total_minibatches
-                losses.value_loss += v_loss.item() / total_minibatches
-                losses.entropy += entropy_loss.item() / total_minibatches
-                losses.old_approx_kl += old_approx_kl.item() / total_minibatches
-                losses.approx_kl += approx_kl.item() / total_minibatches
-                losses.clipfrac += clipfrac.item() / total_minibatches
-                losses.grad_var += grad_var.item() / total_minibatches
+                logratio = newlogprob - log_probs.reshape(-1)
+                ratio = logratio.exp()
 
-                if data.use_diayn:
-                    losses.diayn_loss += diayn_loss.item() / total_minibatches
+                # TODO: Only do this if we are KL clipping? Saves 1-2% compute
+                with torch.no_grad():
+                    # calculate approx_kl http://joschu.net/blog/kl-approx.html
+                    old_approx_kl = (-logratio).mean()
+                    approx_kl = ((ratio - 1) - logratio).mean()
+                    clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
+
+                adv = adv.reshape(-1)
+                if config.norm_adv:
+                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+                # Policy loss
+                pg_loss1 = -adv * ratio
+                pg_loss2 = -adv * torch.clamp(
+                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
+                )
+                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
+                # Value loss
+                if config.use_p3o:
+                    newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
+                    newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
+                    newvalue_var = torch.square(newvalue_std)
+                    criterion = torch.nn.GaussianNLLLoss(reduction='none')
+                    #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
+                    v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                    v_loss = v_loss[:, :(horizon+3)]
+                    mask_block = mask_block[:, :(horizon+3)]
+                    #v_loss[:, horizon:] = 0
+                    #v_loss = (v_loss * mask_block).sum(axis=1)
+                    #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
+                    #v_loss = v_loss.mean()
+                    v_loss = v_loss[mask_block.bool()].mean()
+                    #TODO: Count mask and sum
+                    # There is going to have to be some sort of norm here.
+                    # Right now, learning works at different horizons, but you need
+                    # to retune hyperparameters. Ideally, horizon should be a stable
+                    # param that zero-shots the same hypers
+
+                    # Faster than masking
+                    #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
+                    #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
+                    #v_loss = v_loss[mask_block.bool()].mean()
+                elif config.clip_vloss:
+                    newvalue = newvalue.flatten()
+                    ret = ret.flatten()
+                    v_loss_unclipped = (newvalue - ret) ** 2
+                    v_clipped = val + torch.clamp(
+                        newvalue - val,
+                        -config.vf_clip_coef,
+                        config.vf_clip_coef,
+                    )
+                    v_loss_clipped = (v_clipped - ret) ** 2
+                    v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                    v_loss = 0.5 * v_loss_max.mean()
+                else:
+                    newvalue = newvalue.flatten()
+                    v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+
+                entropy_loss = entropy.mean()
+                loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
+
+                with profile.custom:
+                    if config.use_diayn:
+                        diayn_discriminator = data.policy.diayn_discriminator if hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator
+                        q = diayn_discriminator(state.hidden).squeeze()
+                        diayn_loss = cross_entropy(q, z_idxs)
+                        loss += config.diayn_loss_coef*diayn_loss
+                        torch.cuda.synchronize()
+
+        with profile.learn:
+            if data.scaler is None:
+                loss.backward()
+            else:
+                data.scaler.scale(loss).backward()
+
+            if data.scaler is not None:
+                data.scaler.unscale_(data.optimizer)
+
+            with torch.no_grad():
+                grads = torch.cat([p.grad.flatten() for p in data.policy.parameters()])
+                grad_var = grads.var(0).mean() * config.minibatch_size
+                data.msg = f'Gradient variance: {grad_var.item():.3f}'
+
+            if (epoch + 1) % accumulate_minibatches == 0:
+                torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
+
+                if data.scaler is None:
+                    data.optimizer.step()
+                else:
+                    data.scaler.step(data.optimizer)
+                    data.scaler.update()
+
+                data.optimizer.zero_grad()
+
+                if config.device == 'cuda':
+                    torch.cuda.synchronize()
+
+        # Reprioritize experience
+        values_np = experience.values.to('cpu', non_blocking=True).numpy()
+        dones_np = dones.to('cpu', non_blocking=True).numpy()
+        rewards_np = rewards.to('cpu', non_blocking=True).numpy()
+        stored_idxs = experience.stored_indices.to('cpu', non_blocking=True).numpy()
+        torch.cuda.synchronize()
+        advantages_np = compute_gae(dones_np, values_np, rewards_np, config.gamma, config.gae_lambda)
+        advantages = torch.as_tensor(advantages_np).to(config.device, non_blocking=True)
+        n_samples = experience.off_policy_rows
+        exp = experience.sample(advantages, n_samples)
+        experience.obs[experience.on_policy_rows:] = exp.obs
+        experience.actions[experience.on_policy_rows:] = exp.actions
+        experience.logprobs[experience.on_policy_rows:] = exp.logprobs
+        experience.dones[experience.on_policy_rows:] = exp.dones
+        experience.values[experience.on_policy_rows:] = exp.values
+        experience.rewards[experience.on_policy_rows:] = exp.rewards
+
+        with profile.train_misc:
+            losses.policy_loss += pg_loss.item() / total_minibatches
+            losses.value_loss += v_loss.item() / total_minibatches
+            losses.entropy += entropy_loss.item() / total_minibatches
+            losses.old_approx_kl += old_approx_kl.item() / total_minibatches
+            losses.approx_kl += approx_kl.item() / total_minibatches
+            losses.clipfrac += clipfrac.item() / total_minibatches
+            losses.grad_var += grad_var.item() / total_minibatches
+
+            if data.use_diayn:
+                losses.diayn_loss += diayn_loss.item() / total_minibatches
 
         if config.target_kl is not None:
             if approx_kl > config.target_kl:
@@ -600,7 +617,9 @@ def train(data):
             y_true = experience.reward_block
         else:
             y_pred = experience.values.flatten()
-            y_true = experience.b_returns.flatten()
+
+            # Probably not updated
+            y_true = advantages.flatten() + experience.values.flatten()
 
         var_y = y_true.var()
         explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
@@ -812,14 +831,16 @@ class Experience:
     '''Flat tensor storage and array views for faster indexing'''
     def __init__(self, batch_size, bptt_horizon, minibatch_size, max_minibatch_size, hidden_size,
                  obs_shape, obs_dtype, atn_shape, atn_dtype, cpu_offload=False,
-                 device='cuda', policy=None, lstm_total_agents=0,
+                 device='cuda', policy=None, lstm_total_agents=0, replay_factor=1,
                  use_e3b=False, e3b_coef=0.1, e3b_lambda=10.0,
                  use_diayn=False, diayn_archive=128, diayn_coef=0.1,
                  use_p3o=False, p3o_horizon=32):
         if minibatch_size is None:
             minibatch_size = batch_size
 
-        num_rows = batch_size // bptt_horizon
+        self.on_policy_rows = batch_size // bptt_horizon
+        self.off_policy_rows = replay_factor * batch_size // bptt_horizon
+        num_rows = self.on_policy_rows + self.off_policy_rows
         self.num_rows = num_rows
 
         obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_dtype]
@@ -836,11 +857,11 @@ class Experience:
         self.rewards=torch.zeros(num_rows, bptt_horizon, device=device)
         self.dones=torch.zeros(num_rows, bptt_horizon, device=device)
         self.truncateds=torch.zeros(num_rows, bptt_horizon, device=device)
-
+        self.stored_indices = torch.zeros(num_rows, device=device, dtype=torch.int32)
         self.ep_lengths = torch.zeros(lstm_total_agents, device=device, dtype=torch.int32)
         self.ep_indices = torch.arange(lstm_total_agents, device=device, dtype=torch.int32)
-        self.stored_indices = torch.zeros(num_rows, device=device, dtype=torch.int32)
-        self.free_idx = 0
+        self.free_idx = lstm_total_agents
+        assert self.free_idx <= num_rows
 
         self.use_e3b = use_e3b
         if use_e3b:
@@ -870,9 +891,6 @@ class Experience:
         else:
             self.values = torch.zeros(num_rows, bptt_horizon, device=device)
 
-        self.sort_keys = np.zeros((batch_size, 3), dtype=np.int32)
-        self.sort_keys[:, 0] = np.arange(batch_size)
-
         self.lstm_h = self.lstm_c = None
         if isinstance(policy, torch.nn.LSTM):
             assert lstm_total_agents > 0
@@ -901,7 +919,7 @@ class Experience:
 
     @property
     def full(self):
-        return self.free_idx >= self.num_rows
+        return self.free_idx >= self.on_policy_rows
 
     def store(self, state, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask):
         # Mask learner and Ensure indices do not exceed batch size
@@ -929,18 +947,9 @@ class Experience:
             self.obs[batch_rows, l] = cpu_obs
 
         if isinstance(env_id, slice):
-            self.stored_indices[batch_rows] = torch.arange(env_id.stop - env_id.start, device=self.device).int() + env_id.start
+            self.stored_indices[batch_rows] = torch.arange(env_id.start, env_id.stop, device=self.device).int()
         else:
             self.stored_indices[batch_rows] = env_id
-
-        l += 1
-        self.ep_lengths[env_id] = l
-        full = l >= self.bptt_horizon
-        num_full = full.sum()
-        if num_full > 0:
-            self.ep_lengths[full] = 0
-            self.ep_indices[full] = self.free_idx + torch.arange(num_full, device=self.device).int()
-            self.free_idx += num_full
 
 
         if self.use_diayn:
@@ -956,22 +965,40 @@ class Experience:
         self.logprobs[batch_rows, l] = logprob
         self.rewards[batch_rows, l] = reward.to(self.rewards.device) # ???
         self.dones[batch_rows, l] = done.float().to(self.dones.device) # ???
+
+        l += 1
+        self.ep_lengths[env_id] = l
+        full = l >= self.bptt_horizon
+        num_full = full.sum()
+        if num_full > 0:
+            if isinstance(env_id, slice):
+                env_id = torch.arange(env_id.start, env_id.stop, device=self.device).int()
+
+            full_ids = env_id[full]
+            self.ep_indices[full_ids] = self.free_idx + torch.arange(num_full, device=self.device).int()
+            self.ep_lengths[full_ids] = 0
+            self.free_idx += num_full
+
         self.step += 1
         return action.cpu().numpy()
 
-    def sort_training_data(self):
-        idxs = np.lexsort((self.sort_keys[:, 2], self.sort_keys[:, 1]))
-        self.b_idxs_obs = torch.as_tensor(idxs.reshape(
-                self.minibatch_rows, self.num_minibatches, self.bptt_horizon
-            ).transpose(1,0,-1)).to(self.obs.device).long()
-        self.b_idxs = self.b_idxs_obs.to(self.device)
-        self.b_idxs_flat = self.b_idxs.reshape(
-            self.num_minibatches, self.minibatch_size)
-        self.sort_keys[:, 1:] = 0
-        return idxs
+    def sample(self, advantages, n):
+        idx = torch.multinomial(advantages.abs().sum(axis=1), n)
+        advantages=advantages[idx]
+        values=self.values[idx]
+        return pufferlib.namespace(
+            actions=self.actions[idx],
+            logprobs=self.logprobs[idx],
+            rewards=self.rewards[idx],
+            dones=self.dones[idx],
+            obs=self.obs[idx],
+            advantages=advantages,
+            values=values,
+            returns=advantages + values,
+        )
+
 
     def flatten_batch(self, advantages_np, reward_block=None, mask_block=None):
-        self.free_idx = 0
         advantages = torch.as_tensor(advantages_np).to(self.device, non_blocking=True)
         self.b_advantages = advantages.reshape(
             self.num_minibatches, self.minibatch_rows, self.bptt_horizon)

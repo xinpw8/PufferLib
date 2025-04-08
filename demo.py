@@ -177,7 +177,9 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     batch_size = args['train']['batch_size']
     while len(data.stats[target_metric]) < min_eval_points:
         stats, _ = clean_pufferl.evaluate(data)
-        data.experience.sort_keys[:] = 0
+        # TODO: Beter place for this
+        data.experience.free_idx = 0
+        data.experience.ep_lengths.zero_()
         steps_evaluated += batch_size
 
     clean_pufferl.mean_and_log(data)
