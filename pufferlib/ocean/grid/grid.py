@@ -9,7 +9,7 @@ from pufferlib.ocean.grid.cy_grid import CGrid
 class Grid(pufferlib.PufferEnv):
     def __init__(self, render_mode='raylib', vision_range=5,
             num_envs=4096, num_maps=1000, map_size=-1, max_map_size=9,
-            report_interval=128, buf=None):
+            report_interval=128, buf=None, seed=0):
         self.obs_size = 2*vision_range + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(self.obs_size*self.obs_size,), dtype=np.uint8)

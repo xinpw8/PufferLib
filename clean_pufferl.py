@@ -139,7 +139,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     total_agents = vecenv.num_agents
 
     on_policy_rows = config.batch_size // config.bptt_horizon
-    off_policy_rows = config.replay_factor*config.batch_size // config.bptt_horizon
+    off_policy_rows = int(config.replay_factor*config.batch_size // config.bptt_horizon)
     experience_rows = on_policy_rows + off_policy_rows
 
     pin = config.device == 'cuda' and config.cpu_offload
@@ -154,6 +154,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         dones=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
         truncateds=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
     )
+    ep_uses = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
     stored_indices = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
     ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
     ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
@@ -293,6 +294,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         minibatch_rows=minibatch_rows,
         num_minibatches=num_minibatches,
         stored_indices=stored_indices,
+        ep_uses=ep_uses,
         ep_lengths=ep_lengths,
         ep_indices=ep_indices,
         free_idx=free_idx,
@@ -446,100 +448,77 @@ def evaluate(data):
 @pufferlib.utils.profile
 def train(data):
     config, profile, experience = data.config, data.profile, data.experience
-    data.losses = make_losses()
-    losses = data.losses
+    losses = make_losses()
+    data.losses = losses
 
-    with profile.train_copy:
-        #idxs = experience.sort_training_data()
-        #dones = experience.dones[idxs]
-        #rewards = experience.rewards[idxs]
-        dones = experience.dones
-        rewards = experience.rewards
-
-    # TODO: Beter place for this
+    # TODO: Better place for this
     data.free_idx = 0
     data.ep_lengths.zero_()
-
-    with profile.train_misc:
-        if config.use_p3o:
-            reward_block = experience.reward_block
-            mask_block = experience.mask_block
-            values_mean = experience.values_mean[idxs]
-            values_std = experience.values_std[idxs]
-            advantages = experience.advantages
-
-            # Note: This function gets messed up by computing across
-            # episode bounds. Because we store experience in a flat buffer,
-            # bounds can be crossed even after handling dones. This prevent
-            # our method from scaling to longer horizons. TODO: Redo the way
-            # we store experience to avoid this issue
-            vstd_min = values_std.min().item()
-            vstd_max = values_std.max().item()
-
-            mask_block.zero_()
-            experience.buf.zero_()
-            reward_block.zero_()
-            r_mean = rewards.mean().item()
-            r_std = rewards.std().item()
-            advantages.zero_()
-            experience.bounds.zero_()
-
-            '''
-            if data.epoch == 0:
-                values_std[:] = r_std
-                with torch.no_grad():
-                    data.policy.policy.value_logstd[:] = np.log(r_std)
-            '''
-
-            # TODO: Rename vstd to r_std
-            advantages = compute_advantages(reward_block, mask_block, values_mean, values_std,
-                    experience.buf, dones, rewards, advantages, experience.bounds,
-                    r_std, data.puf, config.p3o_horizon)
-
-            horizon = torch.where(values_std[0] > 0.95*r_std)[0]
-            horizon = horizon[0].item()+1 if len(horizon) else 1
-            if horizon < 16:
-                horizon = 16
-
-            advantages = advantages.cpu().numpy()
-            torch.cuda.synchronize()
-
-            experience.flatten_batch(advantages, reward_block, mask_block)
-            torch.cuda.synchronize()
+    data.ep_uses.zero_()
 
     # Optimizing the policy and value network
     total_minibatches = data.num_minibatches * config.update_epochs
-    mean_pg_loss, mean_v_loss, mean_entropy_loss = 0, 0, 0
-    mean_old_kl, mean_kl, mean_clipfrac = 0, 0, 0
     cross_entropy = torch.nn.CrossEntropyLoss()
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
-    for epoch in range(config.update_epochs):
-        advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
-        n_samples = config.minibatch_size // config.bptt_horizon
-        batch = sample(data, advantages, n_samples)
-
+    for mb in range(total_minibatches):
         with profile.train_misc:
+            if config.use_p3o:
+                # Note: This function gets messed up by computing across
+                # episode bounds. Because we store experience in a flat buffer,
+                # bounds can be crossed even after handling dones. This prevent
+                # our method from scaling to longer horizons. TODO: Redo the way
+                # we store experience to avoid this issue
+                vstd_min = experience.values_std.min().item()
+                vstd_max = experience.values_std.max().item()
+
+                data.mask_block.zero_()
+                data.buf.zero_()
+                data.reward_block.zero_()
+                data.bounds.zero_()
+
+                r_mean = experience.rewards.mean().item()
+                r_std = experience.rewards.std().item()
+
+                # TODO: Rename vstd to r_std
+                advantages = compute_advantages(
+                    experience.reward_block, experience.mask_block,
+                    experience.values_mean, experience.values_std,
+                    experience.buf, experience.dones, experience.rewards,
+                    experience.bounds, r_std, data.puf, config.p3o_horizon
+                )
+
+                horizon = torch.where(experience.values_std[0] > 0.95*r_std)[0]
+                horizon = horizon[0].item()+1 if len(horizon) else 1
+                if horizon < 16:
+                    horizon = 16
+
+                advantages = advantages.cpu().numpy()
+                torch.cuda.synchronize()
+            else:
+                advantages = compute_gae(experience.values, experience.rewards,
+                    experience.dones, config.gamma, config.gae_lambda)
+
+            n_samples = config.minibatch_size // config.bptt_horizon
+            batch = sample(data, advantages, n_samples)
+
             state = pufferlib.namespace(
                 action=batch.actions,
                 lstm_h=None,
                 lstm_c=None,
             )
+
             if config.use_diayn:
                 z_idxs = batch.diayn_z_idxs
-
-            if config.use_p3o:
-                val_mean = batch.values_mean
-                val_std = batch.values_std
-                rew_block = batch.reward_block
-                mask_block = batch.mask_block
-            else:
-                val = batch.values.flatten()
 
         with profile.train_forward:
             if not isinstance(data.policy, torch.nn.LSTM):
                 batch.obs = batch.obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
             logits, newvalue = data.policy.forward_train(batch.obs, state)
+            # TODO: Currently only returning traj shaped value as a hack
+            with torch.no_grad():
+                experience.values[batch.idx] = newvalue
+
             lstm_h = state.lstm_h
             lstm_c = state.lstm_c
             if lstm_h is not None:
@@ -582,7 +561,7 @@ def train(data):
                 newvalue_var = torch.square(newvalue_std)
                 criterion = torch.nn.GaussianNLLLoss(reduction='none')
                 #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
-                v_loss = criterion(newvalue_mean, rew_block, newvalue_var)
+                v_loss = criterion(newvalue_mean, batch.reward_block, newvalue_var)
                 v_loss = v_loss[:, :(horizon+3)]
                 mask_block = mask_block[:, :(horizon+3)]
                 #v_loss[:, horizon:] = 0
@@ -604,6 +583,7 @@ def train(data):
                 newvalue = newvalue.flatten()
                 ret = batch.returns.flatten()
                 v_loss_unclipped = (newvalue - ret) ** 2
+                val = batch.values.flatten()
                 v_clipped = val + torch.clamp(
                     newvalue - val,
                     -config.vf_clip_coef,
@@ -640,7 +620,7 @@ def train(data):
                 grad_var = grads.var(0).mean() * config.minibatch_size
                 data.msg = f'Gradient variance: {grad_var.item():.3f}'
 
-            if (epoch + 1) % accumulate_minibatches == 0:
+            if (mb + 1) % accumulate_minibatches == 0:
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
 
                 if data.scaler is None:
@@ -651,13 +631,6 @@ def train(data):
 
                 data.optimizer.zero_grad()
 
-        # Reprioritize experience
-        advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
- 
-        n_samples = data.off_policy_rows
-        exp = sample(data, advantages, n_samples)
-        for k, v in experience.items():
-            v[data.on_policy_rows:] = exp[k]
 
         with profile.train_misc:
             losses.policy_loss += pg_loss.item() / total_minibatches
@@ -674,6 +647,18 @@ def train(data):
         if config.target_kl is not None:
             if approx_kl > config.target_kl:
                 break
+
+    # Reprioritize experience
+    advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
+
+    ep_uses = data.ep_uses
+    data.max_uses = ep_uses.max().item()
+    data.mean_uses = ep_uses.float().mean().item()
+
+    n_samples = data.off_policy_rows
+    exp = sample(data, advantages, n_samples)
+    for k, v in experience.items():
+        v[data.on_policy_rows:] = exp[k]
 
     with profile.train_misc:
         if config.anneal_lr:
@@ -779,8 +764,12 @@ def store(data, state, cpu_obs, gpu_obs, value, action, logprob, reward, done, e
 
 def sample(data, advantages, n, reward_block=None, mask_block=None):
     exp = data.experience
-    idx = torch.multinomial(advantages.abs().sum(axis=1), n)
+    #idx = torch.multinomial(advantages.abs().sum(axis=1), n)
+    idx = torch.randint(0, advantages.shape[0], (n,), device=data.device)
+    #_, idx = torch.topk(advantages.abs().sum(axis=1), n)
+    data.ep_uses[idx] += 1
     output = {k: v[idx] for k, v in exp.items()}
+    output['idx'] = idx
 
     if data.use_p3o:
         output['reward_block'] = reward_block[idx]
@@ -797,8 +786,6 @@ def sample(data, advantages, n, reward_block=None, mask_block=None):
         output['diayn_z'] = exp.diayn_skills[idx]
 
     return pufferlib.namespace(**output)
-
-
 
 def compute_pg_loss(log_probs, newlogprob, adv, clip_coef):
     logratio = newlogprob - log_probs.reshape(-1)
@@ -860,6 +847,8 @@ def mean_and_log(data):
         'agent_steps': agent_steps,
         'epoch': epoch,
         'learning_rate': learning_rate,
+        'max_uses': data.max_uses,
+        'mean_uses': data.mean_uses,
         **{f'environment/{k}': v for k, v in environment.items()},
         **{f'losses/{k}': v for k, v in losses.items()},
         **{f'performance/{k}': v for k, v in performance.items()},

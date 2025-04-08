@@ -208,6 +208,7 @@ class LSTMWrapper(nn.LSTM):
 
         hidden = hidden.reshape(B*TT, self.hidden_size)
         logits, values = self.policy.decode_actions(hidden)
+        values = values.reshape(B, TT)
         state.hidden = hidden
         state.lstm_h = lstm_h
         state.lstm_c = lstm_c
