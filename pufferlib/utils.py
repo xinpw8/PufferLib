@@ -1,6 +1,7 @@
 from pdb import set_trace as T
 
 from collections import OrderedDict
+from contextlib import nullcontext
 
 import numpy as np
 
@@ -244,7 +245,7 @@ def format_bytes(size):
         return f'{size} B'
 
 class Profiler:
-    def __init__(self, elapsed=True, calls=True, memory=False, pytorch_memory=False):
+    def __init__(self, elapsed=True, calls=True, memory=False, pytorch_memory=False, sync_cuda=True, amp_context=nullcontext()):
         self.elapsed = 0 if elapsed else None
         self.calls = 0 if calls else None
         self.memory = None
@@ -255,13 +256,16 @@ class Profiler:
         self.track_calls = calls
         self.track_memory = memory
         self.track_pytorch_memory = pytorch_memory
+        self.sync_cuda = sync_cuda
         
         if memory:
             self.process = psutil.Process()
 
-        if pytorch_memory:
+        if pytorch_memory or sync_cuda:
             import torch
             self.torch = torch
+
+        self.amp_context = amp_context
 
     @property
     def serial(self):
@@ -280,6 +284,9 @@ class Profiler:
         return ret
 
     def __enter__(self):
+        if self.sync_cuda:
+            self.torch.cuda.synchronize()
+        self.amp_context.__enter__()
         if self.track_elapsed:
             self.start_time = time.perf_counter()
         if self.track_memory:
@@ -300,6 +307,9 @@ class Profiler:
         if self.track_pytorch_memory:
             self.end_torch_mem = self.torch.cuda.memory_allocated()
             self.pytorch_memory = self.end_torch_mem - self.start_torch_mem
+        self.amp_context.__exit__(None, None, None)
+        if self.sync_cuda:
+            self.torch.cuda.synchronize()
 
     def __repr__(self):
         parts = []
