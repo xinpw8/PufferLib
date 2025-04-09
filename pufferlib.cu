@@ -103,6 +103,30 @@ void compute_p3o(torch::Tensor reward_block, torch::Tensor reward_mask,
         torch::Tensor dones, torch::Tensor rewards, torch::Tensor advantages,
         torch::Tensor bounds, int num_steps, float vstd_max, float puf,
         int horizon) {
+
+    // TODO: Port from python
+    /*
+    assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
+                                  buf, dones, rewards, advantages, bounds]), "All tensors must be on GPU"
+    
+    # Ensure contiguous memory
+    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages, bounds]
+    for t in tensors:
+        t.contiguous()
+        assert t.is_cuda
+
+    num_steps = rewards.shape[0]
+    
+    # Precompute vstd_min and vstd_max
+    #vstd_max = values_std.max().item()
+    #vstd_min = values_std.min().item()
+
+    # Launch kernel
+    threads_per_block = 256
+    assert num_steps % threads_per_block == 0
+    blocks = (num_steps + threads_per_block - 1) // threads_per_block
+    */
+ 
     // Launch the kernel
     int threads_per_block = 256;
     int blocks = (num_steps + threads_per_block - 1) / threads_per_block;

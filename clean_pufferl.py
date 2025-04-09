@@ -21,103 +21,11 @@ import pufferlib
 import pufferlib.utils
 import pufferlib.pytorch
 
-torch.set_float32_matmul_precision('high')
-
-
-'''
-def compute_gae(
-        values: torch.Tensor,     # [num_steps, horizon]
-        rewards: torch.Tensor,    # [num_steps, horizon]
-        dones: torch.Tensor,      # [num_steps, horizon]
-        gamma: float,
-        gae_lambda: float,
-        ):
-
-    num_steps = values.shape[0]
-    horizon = values.shape[1]
-    advantages = torch.zeros(num_steps, horizon, dtype=torch.float32, device=values.device)
-
-    for t in [values, rewards, dones, advantages]:
-        assert t.ndim == 2
-        assert t.shape[0] == num_steps
-        assert t.shape[1] == horizon
-        t.contiguous()
-        assert t.is_cuda, "All tensors must be on GPU"
-    
-   
-    cuda_module.compute_gae(
-        values,
-        rewards,
-        dones,
-        advantages,
-        gamma,
-        gae_lambda,
-        num_steps,
-        horizon,
-    )
-   
-    torch.cuda.synchronize()
-    return advantages
-'''
-
-
-def compute_advantages(
-    reward_block: torch.Tensor, # [num_steps, horizon]
-    reward_mask: torch.Tensor,  # [num_steps, horizon]
-    values_mean: torch.Tensor,  # [num_steps, horizon]
-    values_std: torch.Tensor,   # [num_steps, horizon]
-    buf: torch.Tensor,          # [num_steps, horizon]
-    dones: torch.Tensor,        # [num_steps]
-    rewards: torch.Tensor,      # [num_steps]
-    advantages: torch.Tensor,   # [num_steps]
-    bounds: torch.Tensor,       # [num_steps]
-    vstd_max: float,
-    puf: float,
-    horizon: int
-):
-    assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
-                                  buf, dones, rewards, advantages, bounds]), "All tensors must be on GPU"
-    
-    # Ensure contiguous memory
-    tensors = [reward_block, reward_mask, values_mean, values_std, buf, dones, rewards, advantages, bounds]
-    for t in tensors:
-        t.contiguous()
-        assert t.is_cuda
-
-    num_steps = rewards.shape[0]
-    
-    # Precompute vstd_min and vstd_max
-    #vstd_max = values_std.max().item()
-    #vstd_min = values_std.min().item()
-
-    # Launch kernel
-    threads_per_block = 256
-    assert num_steps % threads_per_block == 0
-    blocks = (num_steps + threads_per_block - 1) // threads_per_block
-    
-    cuda_module.advantage_kernel(
-        reward_block,
-        reward_mask,
-        values_mean,
-        values_std,
-        buf,
-        dones,
-        rewards,
-        advantages,
-        bounds,
-        num_steps,
-        vstd_max,
-        puf,
-        horizon,
-    )
-    
-    torch.cuda.synchronize()
-    return advantages
-
 def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.backends.cudnn.deterministic = config.torch_deterministic
+    torch.set_float32_matmul_precision('high')
     if config.seed is not None:
         torch.manual_seed(config.seed)
 
@@ -169,18 +77,21 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
     ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
     free_idx = total_agents
-
     assert free_idx <= experience_rows
-    if config.use_e3b:
-        experience.e3b_inv = torch.eye(policy.hidden_size).repeat(total_agents, 1, 1).to(config.device) / config.e3b_lambda
-        experience.e3b_orig = experience.e3b_inv.clone()
-        experience.e3b_mean = None
-        experience.e3b_std = None
 
+    e3b_inv = None
+    e3b_orig = None
+    if config.use_e3b:
+        e3b_inv = torch.eye(policy.hidden_size).repeat(total_agents, 1, 1).to(config.device) / config.e3b_lambda
+        e3b_orig = e3b_inv.clone()
+
+    diayn_archive = None
     if config.use_diayn:
         # TODO: Check shapes
-        experience.diayn_archive = torch.nn.functional.one_hot(torch.arange(config.diayn_archive), config.diayn_archive).to(config.device).float()
-        experience.diayn_skills = torch.randint(0, config.diayn_archive, (total_agents,), dtype=torch.long, device=config.device)
+        diayn_archive = torch.nn.functional.one_hot(
+            torch.arange(config.diayn_archive), config.diayn_archive).to(config.device).float()
+        experience.diayn_skills = torch.randint(
+            0, config.diayn_archive, (experience_rows,), dtype=torch.long, device=config.device)
         experience.diayn_batch = torch.zeros(experience_rows, dtype=torch.long, device=config.device)
 
     if config.use_p3o:
@@ -283,7 +194,6 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         e3b_norm=config.e3b_norm,
         puf=config.puf,
         use_diayn=config.use_diayn,
-        diayn_archive=config.diayn_archive,
         diayn_coef=config.diayn_coef,
         # Do we use these?
         ptr=0,
@@ -301,6 +211,11 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         device=config.device,
         minibatch_size=minibatch_size,
         compute_gae=compute_gae,
+        e3b_inv=e3b_inv,
+        e3b_orig=e3b_orig,
+        e3b_mean=None,
+        e3b_std=None,
+        diayn_archive=diayn_archive,
     )
 
 @pufferlib.utils.profile
@@ -332,13 +247,13 @@ def evaluate(data):
             if data.use_diayn:
                 idxs = env_id[done_mask]
                 if len(idxs) > 0:
-                    z_idxs = torch.randint(0, experience.diayn_archive.shape[0], (done_mask.sum(),)).to(config.device)
+                    z_idxs = torch.randint(0, data.diayn_archive.shape[0], (done_mask.sum(),)).to(config.device)
                     experience.diayn_skills[idxs] = z_idxs
 
         with profile.eval_copy:
             if data.use_e3b and done_mask.any():
                 done_idxs = env_id[done_mask]
-                experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
+                data.e3b_inv[done_idxs] = data.e3b_orig[done_idxs]
 
             o = torch.as_tensor(o)
             o_device = o.to(config.device, non_blocking=True)
@@ -363,7 +278,7 @@ def evaluate(data):
 
             if data.use_diayn:
                 z_idxs = experience.diayn_skills[env_id]
-                z = experience.diayn_archive[z_idxs]
+                z = data.diayn_archive[z_idxs]
                 state.diayn_z_idxs = z_idxs
                 state.diayn_z = z
 
@@ -379,24 +294,24 @@ def evaluate(data):
                 state.diayn_z_idxs = z_idxs
 
             if data.use_e3b:
-                e3b = experience.e3b_inv[env_id]
+                e3b = data.e3b_inv[env_id]
                 phi = state.hidden.detach()        
                 u = phi.unsqueeze(1) @ e3b
                 b = u @ phi.unsqueeze(2)
-                experience.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
+                data.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
                 done_inds = env_id[done_mask]
-                experience.e3b_inv[done_inds] = experience.e3b_orig[done_inds]
+                data.e3b_inv[done_inds] = data.e3b_orig[done_inds]
                 e3b_reward = b.squeeze()
 
-                if experience.e3b_mean is None:
-                    experience.e3b_mean = e3b_reward.mean()
-                    experience.e3b_std = e3b_reward.std()
+                if data.e3b_mean is None:
+                    data.e3b_mean = e3b_reward.mean()
+                    data.e3b_std = e3b_reward.std()
                 else:
                     w = data.e3b_norm
-                    experience.e3b_mean = (1-w)*e3b_reward.mean() + w*experience.e3b_mean
-                    experience.e3b_std = (1-w)*e3b_reward.std() + w*experience.e3b_std
+                    data.e3b_mean = (1-w)*e3b_reward.mean() + w*data.e3b_mean
+                    data.e3b_std = (1-w)*e3b_reward.std() + w*data.e3b_std
 
-                e3b_reward = (e3b_reward - experience.e3b_mean) / (experience.e3b_std + 1e-6)
+                e3b_reward = (e3b_reward - data.e3b_mean) / (data.e3b_std + 1e-6)
                 e3b_reward = config.e3b_coef*e3b_reward
                 r += e3b_reward
 
@@ -445,16 +360,14 @@ def evaluate(data):
 
 @pufferlib.utils.profile
 def train(data):
-    config, profile, experience = data.config, data.profile, data.experience
-
+    config = data.config
+    profile = data.profile
+    experience = data.experience
     losses = data.losses
-    for k in data.losses:
-        losses[k] = 0
 
-    cross_entropy = torch.nn.CrossEntropyLoss()
     total_minibatches = int(config.update_epochs*config.batch_size/data.minibatch_size)
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
-    n_samples = config.minibatch_size // config.bptt_horizon
+    n_samples = data.minibatch_size // config.bptt_horizon
     for mb in range(total_minibatches):
         with profile.train_misc:
             if config.use_p3o:
@@ -493,7 +406,10 @@ def train(data):
                 advantages = data.compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
 
+        with profile.train_copy:
             batch = sample(data, advantages, n_samples)
+
+        with profile.train_misc:
             state = pufferlib.namespace(
                 action=batch.actions,
                 lstm_h=None,
@@ -501,7 +417,7 @@ def train(data):
             )
 
             if config.use_diayn:
-                z_idxs = batch.diayn_z_idxs
+                state.z_idxs = batch.diayn_z_idxs
 
         with profile.train_forward:
             if not isinstance(data.policy, torch.nn.LSTM):
@@ -513,8 +429,6 @@ def train(data):
             with torch.no_grad():
                 experience.values[batch.idx] = newvalue
 
-            lstm_h = state.lstm_h
-            lstm_c = state.lstm_c
             actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
                 action=batch.actions, is_continuous=data.policy.is_continuous)
 
@@ -575,7 +489,9 @@ def train(data):
                     diayn_discriminator = (data.policy.diayn_discriminator if
                         hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator)
                     q = diayn_discriminator(state.hidden).squeeze()
-                    diayn_loss = cross_entropy(q, z_idxs)
+                    z_idxs = state.z_idxs.unsqueeze(1).expand(q.shape[:2]).reshape(-1)
+                    q = q.view(-1, q.shape[-1])
+                    diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
                     loss += config.diayn_loss_coef*diayn_loss
 
         with profile.learn:
@@ -623,13 +539,12 @@ def train(data):
                 break
 
     # Reprioritize experience
-    ep_uses = data.ep_uses
-    data.max_uses = ep_uses.max().item()
-    data.mean_uses = ep_uses.float().mean().item()
+    data.max_uses = data.ep_uses.max().item()
+    data.mean_uses = data.ep_uses.float().mean().item()
     if config.replay_factor > 0:
-        advantages = data.compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
-        n_samples = data.off_policy_rows
-        exp = sample(data, advantages, n_samples, method='topk')
+        advantages = data.compute_gae(experience.values, experience.rewards,
+            experience.dones, config.gamma, config.gae_lambda)
+        exp = sample(data, advantages, data.off_policy_rows, method='topk')
         for k, v in experience.items():
             v[data.on_policy_rows:] = exp[k]
 
@@ -652,13 +567,16 @@ def train(data):
         #losses.explained_variance = explained_var.item()
         data.epoch += 1
 
-        done_training = data.global_step >= config.total_timesteps
         logs = None
+        done_training = data.global_step >= config.total_timesteps
         if done_training or profile.update(data):
             logs = mean_and_log(data)
             print_dashboard(config.env, data.utilization, data.global_step, data.epoch,
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
+
+        for k in losses:
+            losses[k] = 0
 
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
@@ -689,7 +607,7 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
         exp.values[batch_rows, l] = value.flatten()
 
     if data.use_diayn:
-        data.diayn_batch[batch_rows] = state.diayn_z_idxs
+        exp.diayn_batch[batch_rows] = state.diayn_z_idxs
 
     # TODO: Handle masks!!
     #indices = np.where(mask)[0]
@@ -802,111 +720,6 @@ def close(data):
         data.wandb.finish()
     elif data.neptune is not None:
         data.neptune.stop()
-
-class Profile:
-    SPS: ... = 0
-    uptime: ... = 0
-    remaining: ... = 0
-    eval_time: ... = 0
-    env_time: ... = 0
-    eval_forward_time: ... = 0
-    eval_copy_time: ... = 0
-    eval_misc_time: ... = 0
-    train_time: ... = 0
-    train_forward_time: ... = 0
-    learn_time: ... = 0
-    train_copy_time: ... = 0
-    train_misc_time: ... = 0
-    custom_time: ... = 0
-    def __init__(self, amp_context):
-        self.start = time.time()
-        self.env = pufferlib.utils.Profiler()
-        # TODO: Figure out which of these need amp
-        self.eval_forward = pufferlib.utils.Profiler(amp_context=amp_context)
-        self.eval_copy = pufferlib.utils.Profiler(amp_context=amp_context)
-        self.eval_misc = pufferlib.utils.Profiler()
-        self.train_forward = pufferlib.utils.Profiler(amp_context=amp_context)
-        self.learn = pufferlib.utils.Profiler()
-        self.train_copy = pufferlib.utils.Profiler(amp_context=amp_context)
-        self.train_misc = pufferlib.utils.Profiler()
-        self.custom = pufferlib.utils.Profiler()
-        self.prev_steps = 0
-
-    def __iter__(self):
-        yield 'SPS', self.SPS
-        yield 'uptime', self.uptime
-        yield 'remaining', self.remaining
-        yield 'eval_time', self.eval_time
-        yield 'env_time', self.env_time
-        yield 'eval_forward_time', self.eval_forward_time
-        yield 'eval_copy_time', self.eval_copy_time
-        yield 'eval_misc_time', self.eval_misc_time
-        yield 'train_time', self.train_time
-        yield 'train_forward_time', self.train_forward_time
-        yield 'learn_time', self.learn_time
-        yield 'train_copy_time', self.train_copy_time
-        yield 'train_misc_time', self.train_misc_time
-        yield 'custom_time', self.custom_time
-
-    @property
-    def epoch_time(self):
-        return self.train_time + self.eval_time
-
-    def update(self, data, interval_s=1):
-        global_step = data.global_step
-        if global_step == 0:
-            return True
-
-        uptime = time.time() - self.start
-        if uptime - self.uptime < interval_s:
-            return False
-
-        self.SPS = (global_step - self.prev_steps) / (uptime - self.uptime)
-        self.prev_steps = global_step
-        self.uptime = uptime
-
-        self.remaining = (data.config.total_timesteps - global_step) / self.SPS
-        self.eval_time = data._timers['evaluate'].elapsed
-        self.eval_forward_time = self.eval_forward.elapsed
-        self.env_time = self.env.elapsed
-        self.eval_copy_time = self.eval_copy.elapsed
-        self.eval_misc_time = self.eval_misc.elapsed
-        self.train_time = data._timers['train'].elapsed
-        self.train_forward_time = self.train_forward.elapsed
-        self.learn_time = self.learn.elapsed
-        self.train_copy_time = self.train_copy.elapsed
-        self.train_misc_time = self.train_misc.elapsed
-        self.custom_time = self.custom.elapsed
-        return True
-
-class Utilization(Thread):
-    def __init__(self, delay=1, maxlen=20):
-        super().__init__()
-        self.cpu_mem = deque(maxlen=maxlen)
-        self.cpu_util = deque(maxlen=maxlen)
-        self.gpu_util = deque(maxlen=maxlen)
-        self.gpu_mem = deque(maxlen=maxlen)
-
-        self.delay = delay
-        self.stopped = False
-        self.start()
-
-    def run(self):
-        while not self.stopped:
-            self.cpu_util.append(100*psutil.cpu_percent())
-            mem = psutil.virtual_memory()
-            self.cpu_mem.append(100*mem.active/mem.total)
-            if torch.cuda.is_available():
-                self.gpu_util.append(torch.cuda.utilization())
-                free, total = torch.cuda.mem_get_info()
-                self.gpu_mem.append(100*free/total)
-            else:
-                self.gpu_util.append(0)
-                self.gpu_mem.append(0)
-            time.sleep(self.delay)
-
-    def stop(self):
-        self.stopped = True
 
 def save_checkpoint(data):
     config = data.config
@@ -1023,6 +836,111 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     if frames:
         import imageio
         os.makedirs('../docker', exist_ok=True) or imageio.mimsave('../docker/eval.gif', frames, fps=15, loop=0)
+
+class Profile:
+    SPS: ... = 0
+    uptime: ... = 0
+    remaining: ... = 0
+    eval_time: ... = 0
+    env_time: ... = 0
+    eval_forward_time: ... = 0
+    eval_copy_time: ... = 0
+    eval_misc_time: ... = 0
+    train_time: ... = 0
+    train_forward_time: ... = 0
+    learn_time: ... = 0
+    train_copy_time: ... = 0
+    train_misc_time: ... = 0
+    custom_time: ... = 0
+    def __init__(self, amp_context):
+        self.start = time.time()
+        self.env = pufferlib.utils.Profiler()
+        # TODO: Figure out which of these need amp
+        self.eval_forward = pufferlib.utils.Profiler(amp_context=amp_context)
+        self.eval_copy = pufferlib.utils.Profiler(amp_context=amp_context)
+        self.eval_misc = pufferlib.utils.Profiler()
+        self.train_forward = pufferlib.utils.Profiler(amp_context=amp_context)
+        self.learn = pufferlib.utils.Profiler()
+        self.train_copy = pufferlib.utils.Profiler(amp_context=amp_context)
+        self.train_misc = pufferlib.utils.Profiler()
+        self.custom = pufferlib.utils.Profiler()
+        self.prev_steps = 0
+
+    def __iter__(self):
+        yield 'SPS', self.SPS
+        yield 'uptime', self.uptime
+        yield 'remaining', self.remaining
+        yield 'eval_time', self.eval_time
+        yield 'env_time', self.env_time
+        yield 'eval_forward_time', self.eval_forward_time
+        yield 'eval_copy_time', self.eval_copy_time
+        yield 'eval_misc_time', self.eval_misc_time
+        yield 'train_time', self.train_time
+        yield 'train_forward_time', self.train_forward_time
+        yield 'learn_time', self.learn_time
+        yield 'train_copy_time', self.train_copy_time
+        yield 'train_misc_time', self.train_misc_time
+        yield 'custom_time', self.custom_time
+
+    @property
+    def epoch_time(self):
+        return self.train_time + self.eval_time
+
+    def update(self, data, interval_s=1):
+        global_step = data.global_step
+        if global_step == 0:
+            return True
+
+        uptime = time.time() - self.start
+        if uptime - self.uptime < interval_s:
+            return False
+
+        self.SPS = (global_step - self.prev_steps) / (uptime - self.uptime)
+        self.prev_steps = global_step
+        self.uptime = uptime
+
+        self.remaining = (data.config.total_timesteps - global_step) / self.SPS
+        self.eval_time = data._timers['evaluate'].elapsed
+        self.eval_forward_time = self.eval_forward.elapsed
+        self.env_time = self.env.elapsed
+        self.eval_copy_time = self.eval_copy.elapsed
+        self.eval_misc_time = self.eval_misc.elapsed
+        self.train_time = data._timers['train'].elapsed
+        self.train_forward_time = self.train_forward.elapsed
+        self.learn_time = self.learn.elapsed
+        self.train_copy_time = self.train_copy.elapsed
+        self.train_misc_time = self.train_misc.elapsed
+        self.custom_time = self.custom.elapsed
+        return True
+
+class Utilization(Thread):
+    def __init__(self, delay=1, maxlen=20):
+        super().__init__()
+        self.cpu_mem = deque(maxlen=maxlen)
+        self.cpu_util = deque(maxlen=maxlen)
+        self.gpu_util = deque(maxlen=maxlen)
+        self.gpu_mem = deque(maxlen=maxlen)
+
+        self.delay = delay
+        self.stopped = False
+        self.start()
+
+    def run(self):
+        while not self.stopped:
+            self.cpu_util.append(100*psutil.cpu_percent())
+            mem = psutil.virtual_memory()
+            self.cpu_mem.append(100*mem.active/mem.total)
+            if torch.cuda.is_available():
+                self.gpu_util.append(torch.cuda.utilization())
+                free, total = torch.cuda.mem_get_info()
+                self.gpu_mem.append(100*free/total)
+            else:
+                self.gpu_util.append(0)
+                self.gpu_mem.append(0)
+            time.sleep(self.delay)
+
+    def stop(self):
+        self.stopped = True
 
 ROUND_OPEN = rich.box.Box(
     "╭──╮\n"

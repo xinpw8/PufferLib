@@ -244,8 +244,10 @@ def format_bytes(size):
     else:
         return f'{size} B'
 
+# TODO: 5% perf gain by doing cuda sync less frequently
 class Profiler:
-    def __init__(self, elapsed=True, calls=True, memory=False, pytorch_memory=False, sync_cuda=True, amp_context=nullcontext()):
+    def __init__(self, elapsed=True, calls=True, memory=False,
+            pytorch_memory=False, sync_cuda=True, amp_context=nullcontext()):
         self.elapsed = 0 if elapsed else None
         self.calls = 0 if calls else None
         self.memory = None
@@ -296,6 +298,9 @@ class Profiler:
         return self
 
     def __exit__(self, *args):
+        self.amp_context.__exit__(None, None, None)
+        if self.sync_cuda:
+            self.torch.cuda.synchronize()
         if self.track_elapsed:
             self.end_time = time.perf_counter()
             self.elapsed += self.end_time - self.start_time
@@ -307,9 +312,6 @@ class Profiler:
         if self.track_pytorch_memory:
             self.end_torch_mem = self.torch.cuda.memory_allocated()
             self.pytorch_memory = self.end_torch_mem - self.start_torch_mem
-        self.amp_context.__exit__(None, None, None)
-        if self.sync_cuda:
-            self.torch.cuda.synchronize()
 
     def __repr__(self):
         parts = []
