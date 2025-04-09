@@ -43,15 +43,36 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         }
     }, "Compute p3o advantages with CUDA");
 
-    m.def("compute_gae", [](torch::Tensor values,
-                                torch::Tensor rewards,
-                                torch::Tensor dones,
-                                torch::Tensor advantages,
-                                float gamma,
-                                float gae_lambda,
-                                int num_steps,
-                                int horizon) {
-        // Launch the kernel
+    m.def("compute_gae", [](
+            torch::Tensor values,
+            torch::Tensor rewards,
+            torch::Tensor dones,
+            float gamma,
+            float gae_lambda) {
+        torch::Device device = values.device();
+        int num_steps = values.size(0);
+        int horizon = values.size(1);
+        
+        // Validate input tensors
+        for (const torch::Tensor& t : {values, rewards, dones}) {
+            TORCH_CHECK(t.dim() == 2, "Tensor must be 2D");
+            TORCH_CHECK(t.device() == device, "All tensors must be on same device");
+            TORCH_CHECK(t.size(0) == num_steps, "First dimension must match num_steps");
+            TORCH_CHECK(t.size(1) == horizon, "Second dimension must match horizon");
+            TORCH_CHECK(t.is_cuda(), "All tensors must be on GPU");
+            TORCH_CHECK(t.dtype() == torch::kFloat32, "All tensors must be float32");
+            if (!t.is_contiguous()) {
+                t.contiguous();
+            }
+        }
+
+        torch::Tensor advantages = torch::zeros(
+            {num_steps, horizon}, 
+            torch::TensorOptions()
+                .dtype(torch::kFloat32)
+                .device(device)
+        );
+
         int threads_per_block = 256;
         int blocks = (num_steps + threads_per_block - 1) / threads_per_block;
 
@@ -65,10 +86,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             num_steps,
             horizon
         );
-        // Check for CUDA errors
+
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
             throw std::runtime_error(cudaGetErrorString(err));
         }
+
+        return advantages;
     }, "Compute GAE with CUDA");
 }

@@ -36,7 +36,9 @@ cuda_module = load(
     sources=['pufferlib.cu'],
     verbose=True
 )
+compute_gae = cuda_module.compute_gae
 
+'''
 def compute_gae(
         values: torch.Tensor,     # [num_steps, horizon]
         rewards: torch.Tensor,    # [num_steps, horizon]
@@ -70,6 +72,7 @@ def compute_gae(
    
     torch.cuda.synchronize()
     return advantages
+'''
 
 
 def compute_advantages(
@@ -103,6 +106,7 @@ def compute_advantages(
 
     # Launch kernel
     threads_per_block = 256
+    assert num_steps % threads_per_block == 0
     blocks = (num_steps + threads_per_block - 1) // threads_per_block
     
     cuda_module.advantage_kernel(
@@ -625,14 +629,16 @@ def train(data):
                 break
 
     # Reprioritize experience
-    advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
     ep_uses = data.ep_uses
     data.max_uses = ep_uses.max().item()
     data.mean_uses = ep_uses.float().mean().item()
-    n_samples = data.off_policy_rows
-    exp = sample(data, advantages, n_samples)
-    for k, v in experience.items():
-        v[data.on_policy_rows:] = exp[k]
+    if config.replay_factor > 0:
+        advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
+        n_samples = data.off_policy_rows
+        exp = sample(data, advantages, n_samples, method='topk')
+        for k, v in experience.items():
+            v[data.on_policy_rows:] = exp[k]
+
 
     with profile.train_misc:
         if config.anneal_lr:
@@ -706,11 +712,17 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
     data.step += 1
     return action.cpu().numpy()
 
-def sample(data, advantages, n, reward_block=None, mask_block=None):
+def sample(data, advantages, n, reward_block=None, mask_block=None, method='multinomial'):
     exp = data.experience
-    #idx = torch.multinomial(advantages.abs().sum(axis=1), n)
-    idx = torch.randint(0, advantages.shape[0], (n,), device=data.device)
-    #_, idx = torch.topk(advantages.abs().sum(axis=1), n)
+    if method == 'topk':
+        _, idx = torch.topk(advantages.abs().sum(axis=1), n)
+    elif method == 'multinomial':
+        idx = torch.multinomial(advantages.abs().sum(axis=1) + 1e-6, n)
+    elif method == 'random':
+        idx = torch.randint(0, advantages.shape[0], (n,), device=data.device)
+    else:
+        raise ValueError(f'Unknown sampling method: {method}')
+
     data.ep_uses[idx] += 1
     output = {k: v[idx] for k, v in exp.items()}
     output['idx'] = idx
