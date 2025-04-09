@@ -125,23 +125,36 @@ def compute_advantages(
     return advantages
 
 def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
-    seed_everything(config.seed, config.torch_deterministic)
-    losses = make_losses()
+    random.seed(config.seed)
+    np.random.seed(config.seed)
+    torch.backends.cudnn.deterministic = config.torch_deterministic
+    if config.seed is not None:
+        torch.manual_seed(config.seed)
+
+    losses = pufferlib.namespace(
+        policy_loss=0,
+        value_loss=0,
+        entropy=0,
+        old_approx_kl=0,
+        approx_kl=0,
+        clipfrac=0,
+        explained_variance=0,
+        diayn_loss=0,
+        grad_var=0,
+    )
 
     utilization = Utilization()
     msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
 
     vecenv.async_reset(config.seed)
-    obs_shape = vecenv.single_observation_space.shape
-    obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_observation_space.dtype]
-    atn_shape = vecenv.single_action_space.shape
-    atn_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_action_space.dtype]
     total_agents = vecenv.num_agents
-
+    obs_shape = vecenv.single_observation_space.shape
+    atn_shape = vecenv.single_action_space.shape
+    obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_observation_space.dtype]
+    atn_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_action_space.dtype]
     on_policy_rows = config.batch_size // config.bptt_horizon
     off_policy_rows = int(config.replay_factor*config.batch_size // config.bptt_horizon)
     experience_rows = on_policy_rows + off_policy_rows
-
     pin = config.device == 'cuda' and config.cpu_offload
     obs_device = config.device if not pin else 'cpu'
     experience = pufferlib.namespace(
@@ -197,23 +210,10 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         lstm_c = torch.zeros(shape).to(config.device)
 
     minibatch_size = min(config.minibatch_size, config.max_minibatch_size)
-    num_minibatches = config.batch_size / minibatch_size
-    if num_minibatches != int(num_minibatches):
-        raise ValueError('batch_size must be divisible by minibatch_size')
-    else:
-        num_minibatches = int(num_minibatches)
-
-    minibatch_rows = minibatch_size / config.bptt_horizon
-    if minibatch_rows != int(minibatch_rows):
-        raise ValueError('minibatch_size must be divisible by bptt_horizon')
-    else:
-        minibatch_rows = int(minibatch_rows)
-
     uncompiled_policy = policy
     if config.compile:
         policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
-    assert config.optimizer in ('adam', 'muon', 'kron')
     if config.optimizer == 'adam':
         optimizer = torch.optim.Adam(
             policy.parameters(),
@@ -241,6 +241,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
             precond_lr=config.precond_lr,
             beta=config.adam_beta1,
         )
+    else:
+        raise ValueError(f'Unknown optimizer: {config.optimizer}')
 
     epochs = config.total_timesteps // config.batch_size
     assert config.scheduler in ('linear', 'cosine')
@@ -249,11 +251,11 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     elif config.scheduler == 'cosine':
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    scaler = None if config.precision == 'float32' else torch.amp.GradScaler()
-
     amp_context = nullcontext()
+    scaler = None
     if config.precision != 'float32':
         amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
+        scaler = torch.amp.GradScaler()
 
     profile = Profile(amp_context)
     print_dashboard(config.env, utilization, 0, 0, profile, losses, {}, msg, clear=True)
@@ -291,8 +293,6 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         step=0,
         lstm_h=lstm_h,
         lstm_c=lstm_c,
-        minibatch_rows=minibatch_rows,
-        num_minibatches=num_minibatches,
         stored_indices=stored_indices,
         ep_uses=ep_uses,
         ep_lengths=ep_lengths,
@@ -302,6 +302,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         off_policy_rows=off_policy_rows,
         experience_rows=experience_rows,
         device=config.device,
+        minibatch_size=minibatch_size,
     )
 
 @pufferlib.utils.profile
@@ -315,7 +316,7 @@ def evaluate(data):
         lstm_h = data.lstm_h
         lstm_c = data.lstm_c
 
-    while not full(data):
+    while data.free_idx < data.on_policy_rows:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
@@ -340,7 +341,6 @@ def evaluate(data):
             if data.use_e3b and done_mask.any():
                 done_idxs = env_id[done_mask]
                 experience.e3b_inv[done_idxs] = experience.e3b_orig[done_idxs]
-
 
             o = torch.as_tensor(o)
             o_device = o.to(config.device, non_blocking=True)
@@ -411,7 +411,7 @@ def evaluate(data):
                 lstm_c[:, gpu_env_id] = state.lstm_c
 
             o = o if config.cpu_offload else o_device
-            actions = store(data, state, o, o_device, value, action, logprob, r, d, gpu_env_id, mask)
+            actions = store(data, state, o, value, action, logprob, r, d, gpu_env_id, mask)
 
         with profile.eval_misc:
             for i in info:
@@ -440,26 +440,23 @@ def evaluate(data):
             else:
                 data.stats[k] += v
 
-    # TODO: Better way to enable multiple collects
-    data.ptr = 0
-    data.step = 0
+    data.free_idx = 0
+    data.ep_lengths.zero_()
+    data.ep_uses.zero_()
     return data.stats, infos
 
 @pufferlib.utils.profile
 def train(data):
     config, profile, experience = data.config, data.profile, data.experience
-    losses = make_losses()
-    data.losses = losses
 
-    # TODO: Better place for this
-    data.free_idx = 0
-    data.ep_lengths.zero_()
-    data.ep_uses.zero_()
+    losses = data.losses
+    for k in data.losses:
+        losses[k] = 0
 
-    # Optimizing the policy and value network
-    total_minibatches = data.num_minibatches * config.update_epochs
     cross_entropy = torch.nn.CrossEntropyLoss()
+    total_minibatches = int(config.update_epochs*config.batch_size/data.minibatch_size)
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
+    n_samples = config.minibatch_size // config.bptt_horizon
     for mb in range(total_minibatches):
         with profile.train_misc:
             if config.use_p3o:
@@ -498,9 +495,7 @@ def train(data):
                 advantages = compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
 
-            n_samples = config.minibatch_size // config.bptt_horizon
             batch = sample(data, advantages, n_samples)
-
             state = pufferlib.namespace(
                 action=batch.actions,
                 lstm_h=None,
@@ -514,23 +509,16 @@ def train(data):
             if not isinstance(data.policy, torch.nn.LSTM):
                 batch.obs = batch.obs.reshape(-1, *data.vecenv.single_observation_space.shape)
 
-            logits, newvalue = data.policy.forward_train(batch.obs, state)
             # TODO: Currently only returning traj shaped value as a hack
+            logits, newvalue = data.policy.forward_train(batch.obs, state)
+
             with torch.no_grad():
                 experience.values[batch.idx] = newvalue
 
             lstm_h = state.lstm_h
             lstm_c = state.lstm_c
-            if lstm_h is not None:
-                lstm_h = lstm_h.detach()
-            if lstm_c is not None:
-                lstm_c = lstm_c.detach()
-
             actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
                 action=batch.actions, is_continuous=data.policy.is_continuous)
-
-            if config.device == 'cuda':
-                torch.cuda.synchronize()
 
         with profile.train_misc:
             logratio = newlogprob - batch.logprobs.reshape(-1)
@@ -560,25 +548,10 @@ def train(data):
                 newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
                 newvalue_var = torch.square(newvalue_std)
                 criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                #v_loss = criterion(newvalue_mean[:, :32], rew_block[:, :32], newvalue_var[:, :32])
                 v_loss = criterion(newvalue_mean, batch.reward_block, newvalue_var)
                 v_loss = v_loss[:, :(horizon+3)]
                 mask_block = mask_block[:, :(horizon+3)]
-                #v_loss[:, horizon:] = 0
-                #v_loss = (v_loss * mask_block).sum(axis=1)
-                #v_loss = (v_loss - v_loss.mean().item()) / (v_loss.std().item() + 1e-8)
-                #v_loss = v_loss.mean()
                 v_loss = v_loss[mask_block.bool()].mean()
-                #TODO: Count mask and sum
-                # There is going to have to be some sort of norm here.
-                # Right now, learning works at different horizons, but you need
-                # to retune hyperparameters. Ideally, horizon should be a stable
-                # param that zero-shots the same hypers
-
-                # Faster than masking
-                #v_loss = (v_loss*mask_block[:, :32]).sum() / mask_block[:, :32].sum()
-                #v_loss = (v_loss*mask_block).sum() / mask_block.sum()
-                #v_loss = v_loss[mask_block.bool()].mean()
             elif config.clip_vloss:
                 newvalue = newvalue.flatten()
                 ret = batch.returns.flatten()
@@ -601,20 +574,22 @@ def train(data):
 
             with profile.custom:
                 if config.use_diayn:
-                    diayn_discriminator = data.policy.diayn_discriminator if hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator
+                    diayn_discriminator = (data.policy.diayn_discriminator if
+                        hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator)
                     q = diayn_discriminator(state.hidden).squeeze()
                     diayn_loss = cross_entropy(q, z_idxs)
                     loss += config.diayn_loss_coef*diayn_loss
 
         with profile.learn:
-            if data.scaler is None:
-                loss.backward()
-            else:
-                data.scaler.scale(loss).backward()
+            if data.scaler is not None:
+                loss = data.scaler.scale(loss)
+
+            loss.backward()
 
             if data.scaler is not None:
                 data.scaler.unscale_(data.optimizer)
 
+            # TODO: Delete?
             with torch.no_grad():
                 grads = torch.cat([p.grad.flatten() for p in data.policy.parameters()])
                 grad_var = grads.var(0).mean() * config.minibatch_size
@@ -623,6 +598,7 @@ def train(data):
             if (mb + 1) % accumulate_minibatches == 0:
                 torch.nn.utils.clip_grad_norm_(data.policy.parameters(), config.max_grad_norm)
 
+                # TODO: Can remove scaler if only using bf16
                 if data.scaler is None:
                     data.optimizer.step()
                 else:
@@ -650,11 +626,9 @@ def train(data):
 
     # Reprioritize experience
     advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
-
     ep_uses = data.ep_uses
     data.max_uses = ep_uses.max().item()
     data.mean_uses = ep_uses.float().mean().item()
-
     n_samples = data.off_policy_rows
     exp = sample(data, advantages, n_samples)
     for k, v in experience.items():
@@ -679,8 +653,6 @@ def train(data):
         data.epoch += 1
 
         done_training = data.global_step >= config.total_timesteps
-        # TODO: beter way to get episode return update without clogging dashboard
-        # TODO: make this appear faster
         logs = None
         if done_training or profile.update(data):
             logs = mean_and_log(data)
@@ -688,72 +660,44 @@ def train(data):
                 profile, data.losses, data.stats, data.msg)
             data.stats = defaultdict(list)
 
-        #print('MEAN', experience.b_values_mean.mean(0).mean(0))
-        #print('STD', torch.exp(experience.b_values_logstd).mean(0).mean(0))
-
         if data.epoch % config.checkpoint_interval == 0 or done_training:
             save_checkpoint(data)
             data.msg = f'Checkpoint saved at update {data.epoch}'
 
     return logs
 
-def full(data):
-    return data.free_idx >= data.on_policy_rows
-
-def store(data, state, cpu_obs, gpu_obs, value, action, logprob, reward, done, env_id, mask):
-    # Mask learner and Ensure indices do not exceed batch size
+def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
     exp = data.experience
-    ptr = data.ptr
-    indices = np.where(mask)[0]
-    num_indices = indices.size
-    end = ptr + num_indices
-    dst = slice(ptr, end)
-
-    # Zero-copy indexing for contiguous env_id
-    '''
-    if num_indices == mask.size and isinstance(env_id, slice):
-        gpu_inds = cpu_inds = slice(0, min(self.batch_size - ptr, num_indices))
-    else:
-        cpu_inds = indices[:self.batch_size - ptr]
-        gpu_inds = torch.as_tensor(cpu_inds).to(self.obs.device, non_blocking=True)
-    '''
-
     batch_rows = data.ep_indices[env_id]
     l = data.ep_lengths[env_id]
 
-    if exp.obs.device.type == 'cuda':
-        exp.obs[batch_rows, l] = gpu_obs
-    else:
-        exp.obs[batch_rows, l] = cpu_obs
-
     if isinstance(env_id, slice):
-        data.stored_indices[batch_rows] = torch.arange(env_id.start, env_id.stop, device=data.device).int()
-    else:
-        data.stored_indices[batch_rows] = env_id
+        env_id = torch.arange(env_id.start, env_id.stop, device=data.device).int()
 
+    data.stored_indices[batch_rows] = env_id
 
-    if data.use_diayn:
-        data.diayn_batch[dst] = state.diayn_z_idxs[gpu_inds]
+    exp.obs[batch_rows, l] = obs
+    exp.actions[batch_rows, l] = action
+    exp.logprobs[batch_rows, l] = logprob
+    exp.rewards[batch_rows, l] = reward
+    exp.dones[batch_rows, l] = done.float()
 
     if data.use_p3o:
-        exp.values_mean[dst] = value.mean[gpu_inds]
-        exp.values_std[dst] = value.std[gpu_inds]
+        exp.values_mean[batch_rows, l] = value.mean
+        exp.values_std[batch_rows, l] = value.std
     else:
         exp.values[batch_rows, l] = value.flatten()
 
-    exp.actions[batch_rows, l] = action
-    exp.logprobs[batch_rows, l] = logprob
-    exp.rewards[batch_rows, l] = reward.to(exp.rewards.device) # ???
-    exp.dones[batch_rows, l] = done.float().to(exp.dones.device) # ???
+    if data.use_diayn:
+        data.diayn_batch[batch_rows] = state.diayn_z_idxs
 
+    # TODO: Handle masks!!
+    #indices = np.where(mask)[0]
+    #data.ep_lengths[env_id[mask]] += 1
     l += 1
-    data.ep_lengths[env_id] = l
     full = l >= data.config.bptt_horizon
     num_full = full.sum()
     if num_full > 0:
-        if isinstance(env_id, slice):
-            env_id = torch.arange(env_id.start, env_id.stop, device=data.device).int()
-
         full_ids = env_id[full]
         data.ep_indices[full_ids] = data.free_idx + torch.arange(num_full, device=data.device).int()
         data.ep_lengths[full_ids] = 0
@@ -787,27 +731,6 @@ def sample(data, advantages, n, reward_block=None, mask_block=None):
 
     return pufferlib.namespace(**output)
 
-def compute_pg_loss(log_probs, newlogprob, adv, clip_coef):
-    logratio = newlogprob - log_probs.reshape(-1)
-    ratio = logratio.exp()
-
-    with torch.no_grad():
-        # calculate approx_kl http://joschu.net/blog/kl-approx.html
-        old_approx_kl = (-logratio).mean()
-        approx_kl = ((ratio - 1) - logratio).mean()
-        clipfrac = ((ratio - 1.0).abs() > clip_coef).float().mean()
-
-    adv = adv.view(-1)
-    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-
-    # Policy loss
-    pg_loss1 = -adv * ratio
-    pg_loss2 = -adv * torch.clamp(
-        ratio, 1 - clip_coef, 1 + clip_coef
-    )
-    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-    return pg_loss, approx_kl, old_approx_kl, clipfrac
-
 def dist_sum(value, device):
     if not dist.is_initialized():
         return value
@@ -834,24 +757,17 @@ def mean_and_log(data):
 
     device = data.config.device
 
-    sps = dist_sum(data.profile.SPS, device)
     agent_steps = int(dist_sum(data.global_step, device))
-    epoch = int(dist_sum(data.epoch, device))
-    learning_rate = data.optimizer.param_groups[0]["lr"]
-    environment = {k: dist_mean(v, device) for k, v in data.stats.items()}
-    losses = {k: dist_mean(v, device) for k, v in data.losses.items()}
-    performance = {k: dist_sum(v, device) for k, v in data.profile}
-
     logs = {
-        'SPS': sps,
+        'SPS': dist_sum(data.profile.SPS, device),
         'agent_steps': agent_steps,
-        'epoch': epoch,
-        'learning_rate': learning_rate,
+        'epoch': int(dist_sum(data.epoch, device)),
+        'learning_rate': data.optimizer.param_groups[0]["lr"],
         'max_uses': data.max_uses,
         'mean_uses': data.mean_uses,
-        **{f'environment/{k}': v for k, v in environment.items()},
-        **{f'losses/{k}': v for k, v in losses.items()},
-        **{f'performance/{k}': v for k, v in performance.items()},
+        **{f'environment/{k}': dist_mean(v, device) for k, v in data.stats.items()},
+        **{f'losses/{k}': dist_mean(v, device) for k, v in data.losses.items()},
+        **{f'performance/{k}': dist_sum(v, device) for k, v in data.profile},
     }
 
     if dist.is_initialized() and dist.get_rank() != 0:
@@ -957,19 +873,6 @@ class Profile:
         self.custom_time = self.custom.elapsed
         return True
 
-def make_losses():
-    return pufferlib.namespace(
-        policy_loss=0,
-        value_loss=0,
-        entropy=0,
-        old_approx_kl=0,
-        approx_kl=0,
-        clipfrac=0,
-        explained_variance=0,
-        diayn_loss=0,
-        grad_var=0,
-    )
-
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):
         super().__init__()
@@ -1010,7 +913,7 @@ def save_checkpoint(data):
     if os.path.exists(model_path):
         return model_path
 
-    torch.save(data.uncompiled_policy, model_path)
+    torch.save(data.uncompiled_policy.state_dict(), model_path)
 
     state = {
         'optimizer_state_dict': data.optimizer.state_dict(),
@@ -1035,7 +938,8 @@ def try_load_checkpoint(data):
     trainer_path = os.path.join(path, 'trainer_state.pt')
     resume_state = torch.load(trainer_path, weights_only=False)
     model_path = os.path.join(path, resume_state['model_name'])
-    data.policy.uncompiled.load_state_dict(model_path, map_location=config.device)
+    data.policy.uncompiled.load_state_dict(
+        torch.load(model_path, weights_only=True), map_location=config.device)
     data.optimizer.load_state_dict(resume_state['optimizer_state_dict'])
     print(f'Loaded checkpoint {resume_state["model_name"]}')
 
@@ -1052,10 +956,9 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     # single-agent/multi-agent API for evaluation
     env = pufferlib.vector.make(env_creator, env_kwargs=env_kwargs, backend=backend)
 
-    if model_path is None:
-        agent = agent_creator(env, policy_cls, rnn_cls, agent_kwargs).to(device)
-    else:
-        agent = torch.load(model_path, map_location=device, weights_only=False)
+    agent = agent_creator(env, policy_cls, rnn_cls, agent_kwargs).to(device)
+    if model_path is not None:
+        agent.load_state_dict(torch.load(model_path, map_location=device, weights_only=False))
 
     #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
     e3b_inv = None
@@ -1114,13 +1017,6 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     if frames:
         import imageio
         os.makedirs('../docker', exist_ok=True) or imageio.mimsave('../docker/eval.gif', frames, fps=15, loop=0)
-
-def seed_everything(seed, torch_deterministic):
-    random.seed(seed)
-    np.random.seed(seed)
-    if seed is not None:
-        torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = torch_deterministic
 
 ROUND_OPEN = rich.box.Box(
     "╭──╮\n"
