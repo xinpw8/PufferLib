@@ -15,6 +15,7 @@ from rich.console import Console
 from rich.table import Table
 import torch
 import torch.distributed as dist
+from torch.utils.cpp_extension import load
 
 import pufferlib
 import pufferlib.utils
@@ -22,21 +23,6 @@ import pufferlib.pytorch
 
 torch.set_float32_matmul_precision('high')
 
-# Fast Cython advantage functions
-#from c_advantage import rewards_and_masks, compute_gae
-#from c_advantage import compute_gae
-
-import torch
-from torch.utils.cpp_extension import load
-
-
-# Compile the CUDA kernel
-cuda_module = load(
-    name='compute_gae',
-    sources=['pufferlib.cu'],
-    verbose=True
-)
-compute_gae = cuda_module.compute_gae
 
 '''
 def compute_gae(
@@ -134,6 +120,13 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     torch.backends.cudnn.deterministic = config.torch_deterministic
     if config.seed is not None:
         torch.manual_seed(config.seed)
+
+    ext = 'cu' if 'cuda' in config.device else 'cpp'
+    compute_gae = load(
+        name='compute_gae',
+        sources=[f'pufferlib.{ext}'],
+        verbose=True
+    ).compute_gae
 
     losses = pufferlib.namespace(
         policy_loss=0,
@@ -307,6 +300,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         experience_rows=experience_rows,
         device=config.device,
         minibatch_size=minibatch_size,
+        compute_gae=compute_gae,
     )
 
 @pufferlib.utils.profile
@@ -496,7 +490,7 @@ def train(data):
                 advantages = advantages.cpu().numpy()
                 torch.cuda.synchronize()
             else:
-                advantages = compute_gae(experience.values, experience.rewards,
+                advantages = data.compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
 
             batch = sample(data, advantages, n_samples)
@@ -633,7 +627,7 @@ def train(data):
     data.max_uses = ep_uses.max().item()
     data.mean_uses = ep_uses.float().mean().item()
     if config.replay_factor > 0:
-        advantages = compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
+        advantages = data.compute_gae(experience.values, experience.rewards, experience.dones, config.gamma, config.gae_lambda)
         n_samples = data.off_policy_rows
         exp = sample(data, advantages, n_samples, method='topk')
         for k, v in experience.items():
