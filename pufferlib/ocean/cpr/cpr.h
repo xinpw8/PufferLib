@@ -8,6 +8,8 @@
 
 #include "raylib.h"
 
+#include "grid.h"
+
 #define EMPTY 0
 #define NORMAL_FOOD 1
 #define INTERACTIVE_FOOD 2
@@ -22,10 +24,28 @@
 #define CHECK_BIT(arr, i) (arr[(i) / 8] & (1 << ((i) % 8)))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+#define REWARD_20_HP -0
+#define REWARD_80_HP 0
+#define REWARD_DEATH -0.0f
+
+
+#define LOG_SCORE_REWARD_SMALL 1 
+#define LOG_SCORE_REWARD_MEDIUM 5
+#define LOG_SCORE_REWARD_MOVE - 0.0
+#define LOG_SCORE_REWARD_DEATH -1
+
+#define HP_REWARD_FOOD_MEDIUM 50
+#define HP_REWARD_FOOD_SMALL 20
+#define HP_LOSS_PER_STEP 1
+#define MAX_HP 100 
+
 typedef struct Log Log;
 struct Log {
   float score;
   float moves;
+  float food_nb;
+  float agents_alive;
+  float alive_steps;
 };
 
 typedef struct LogBuffer LogBuffer;
@@ -65,9 +85,15 @@ Log aggregate_and_clear(LogBuffer *logs) {
   for (int i = 0; i < logs->idx; i++) {
     log.score += logs->logs[i].score;
     log.moves += logs->logs[i].moves;
+    log.food_nb += logs->logs[i].food_nb;
+    log.agents_alive += logs->logs[i].agents_alive;
+    log.alive_steps += logs->logs[i].alive_steps;
   }
   log.score /= logs->idx;
   log.moves /= logs->idx;
+  log.food_nb /= logs->idx;
+  log.agents_alive /= logs->idx;
+  log.alive_steps /= logs->idx;
   logs->idx = 0;
   return log;
 }
@@ -77,6 +103,8 @@ struct Agent {
   int r;
   int c;
   int id;
+  float hp;
+  int direction;
 };
 
 typedef struct FoodList FoodList;
@@ -118,6 +146,8 @@ struct CCpr {
   int *actions;
   float *rewards;
   unsigned char *terminals;
+  unsigned char *truncations;
+  unsigned char *masks;
 
   Agent *agents;
 
@@ -135,7 +165,7 @@ void init_ccpr(CCpr *env) {
       (unsigned char *)calloc(env->width * env->height, sizeof(unsigned char));
   env->agents = (Agent *)calloc(env->num_agents, sizeof(Agent));
   env->vision_window = 2 * env->vision + 1;
-  env->obs_size = env->vision_window * env->vision_window;
+  env->obs_size = env->vision_window * env->vision_window;// + 1;
   env->log = (Log *)calloc(1, sizeof(Log));
   env->interactive_food_agent_count =
       (uint8_t *)calloc((env->width * env->height + 7) / 8, sizeof(uint8_t));
@@ -144,13 +174,15 @@ void init_ccpr(CCpr *env) {
 
 void allocate_ccpr(CCpr *env) {
   // Called by C stuff
-  int obs_size = (2 * env->vision + 1) * (2 * env->vision + 1);
+  int obs_size = (2 * env->vision + 1) * (2 * env->vision + 1); //+ 1;
   env->observations = (unsigned char *)calloc(env->num_agents * obs_size,
                                               sizeof(unsigned char));
   env->actions = (int *)calloc(env->num_agents, sizeof(unsigned int));
   env->rewards = (float *)calloc(env->num_agents, sizeof(float));
   env->terminals =
       (unsigned char *)calloc(env->num_agents, sizeof(unsigned char));
+  env->truncations = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
+  env->masks = (unsigned char *)calloc(env->num_agents, sizeof(unsigned char));
   env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
   init_ccpr(env);
 }
@@ -166,6 +198,8 @@ void free_CCpr(CCpr *env) {
   free(env->actions);
   free(env->rewards);
   free(env->terminals);
+  free(env->truncations);
+  free(env->masks);
   free_logbuffer(env->log_buffer);
   free(env->log);
   free(env->interactive_food_agent_count);
@@ -183,6 +217,15 @@ void add_food(CCpr *env, int grid_idx, int food_type) {
   env->grid[grid_idx] = food_type;
   FoodList *foods = env->foods;
   foods->indexes[foods->size++] = grid_idx;
+}
+
+void reward_agent(CCpr *env, int agent_id, float reward) {
+  // We don't reward if agent is full life
+  // Agent *agent = &env->agents[agent_id];
+  // if (agent->hp >= MAX_HP) {
+  //   return;
+  // }
+  env->rewards[agent_id] += reward;
 }
 
 void spawn_food(CCpr *env, int food_type) {
@@ -261,22 +304,32 @@ void spawn_foods(CCpr *env) {
     }
   }
 
-  // Each turn there is random probability for a food to spawn at a random
-  // location To cope with resource depletion
-  int normalizer = (env->width * env->height) / 576;
-  if ((rand() / (double)RAND_MAX) <
-      min((env->food_base_spawn_rate * 2 * normalizer), 1e-2)) {
-    spawn_food(env, NORMAL_FOOD);
-  }
-  if ((rand() / (double)RAND_MAX) <
-      min((env->food_base_spawn_rate / 5.0 * normalizer), 5e-3)) {
-    spawn_food(env, INTERACTIVE_FOOD);
-  }
+  // // Each turn there is random probability for a food to spawn at a random
+  // // location To cope with resource depletion
+  // int normalizer = (env->width * env->height) / 576;
+  // if ((rand() / (double)RAND_MAX) <
+  //     min((env->food_base_spawn_rate * 2 * normalizer), 1e-2)) {
+  //   spawn_food(env, NORMAL_FOOD);
+  // }
+  // if ((rand() / (double)RAND_MAX) <
+  //     min((env->food_base_spawn_rate / 5.0 * normalizer), 5e-3)) {
+  //   spawn_food(env, INTERACTIVE_FOOD);
+  // }
 }
 
 void compute_observations(CCpr *env) {
+  // For full obs
+  // memcpy(env->observations, env->grid,
+  //        env->width * env->height * sizeof(unsigned char));
+  // return;
+
+  // For partial obs
   for (int i = 0; i < env->num_agents; i++) {
     Agent *agent = &env->agents[i];
+    // env->observations[env->vision_window*env->vision_window + i*env->obs_size] = agent->hp;
+    if (agent->hp == 0) {
+      continue;
+    }
     int obs_offset = i * env->obs_size;
     int r_offset = agent->r - env->vision;
     int c_offset = agent->c - env->vision;
@@ -287,15 +340,50 @@ void compute_observations(CCpr *env) {
         env->observations[obs_idx] = env->grid[grid_idx];
       }
     }
+
+    
   }
 }
 
-void c_reset(CCpr *env) {
-  env->tick = 0;
+void add_hp(CCpr *env, int agent_id, float hp) {
+  Agent *agent = &env->agents[agent_id];
+  agent->hp += hp;
+  if (agent->hp > MAX_HP) {
+    agent->hp = MAX_HP;
+  } else if (agent->hp <= 0) {
+    agent->hp = 0;
+    env->log->score += LOG_SCORE_REWARD_DEATH;
+    env->rewards[agent->id] += REWARD_DEATH;
+    env->terminals[agent->id] = 1;
+  }
+}
+void remove_hp(CCpr *env, int agent_id, float hp) { add_hp(env, agent_id, -hp); }
 
+void save_grid_to_file(CCpr *env, const char *filename) {
+    FILE *file = fopen(filename, "w");
+    if (!file) {
+        perror("Failed to open file");
+        return;
+    }
+    fprintf(file, "#ifndef GRID_H\n#define GRID_H\n\n");
+    fprintf(file, "#define GRID_HEIGHT %d\n", env->height);
+    fprintf(file, "#define GRID_WIDTH %d\n\n", env->width);
+    fprintf(file, "static const unsigned char grid[GRID_HEIGHT][GRID_WIDTH] = {\n");
+
+    for (int r = 0; r < env->height; r++) {
+        fprintf(file, "    {");
+        for (int c = 0; c < env->width; c++) {
+            unsigned char val = env->grid[r * env->width + c];
+            fprintf(file, "0x%02X%s", val, (c == env->width - 1) ? "" : ", ");
+        }
+        fprintf(file, "}%s\n", (r == env->height - 1) ? "" : ",");
+    }
+    fprintf(file, "};\n\n#endif // GRID_H\n");
+    fclose(file);
+}
+
+void make_grid_from_scratch(CCpr *env){
   memset(env->grid, EMPTY, (env->height * env->width) * sizeof(env->grid[0]));
-  memset(env->log, 0, sizeof(Log));
-
   // top walling
   for (int r = 0; r < env->vision; r++) {
     memset(env->grid + (r * env->width), WALL,
@@ -317,41 +405,46 @@ void c_reset(CCpr *env) {
     memset(env->grid + (r * env->width) + (env->width - env->vision), WALL,
            env->vision * sizeof(env->grid[0]));
   }
+  save_grid_to_file(env, "grid.h");
+}
 
-  // Agents
-  srand(time(NULL));
-  for (int i = 0; i < env->num_agents; i++) {
-    // env->log[0] = (Log){0};
+void spawn_agent(CCpr *env, int i){
+  Agent *agent = &env->agents[i];
+  agent->id = i;
+  agent->hp = 80;
+  int adr = 0;
 
-    Agent *agent = &env->agents[i];
-
-    agent->id = i;
-
-    int adr = 0;
-    bool allocated = false;
-
-    // Random allocation
-    while (!allocated) {
-
-      adr = rand() % (env->height * env->width);
-
-      if (env->grid[adr] == EMPTY) {
-        int r = adr / env->width;
-        int c = adr % env->width;
-        agent->r = r;
-        agent->c = c;
-        allocated = true;
-      }
+  bool allocated = false;
+  while (!allocated) {
+    adr = rand() % (env->height * env->width);
+    if (env->grid[adr] == EMPTY) {
+      int r = adr / env->width;
+      int c = adr % env->width;
+      agent->r = r;
+      agent->c = c;
+      allocated = true;
     }
+  }
+  assert(env->grid[adr] == EMPTY);
+  env->grid[adr] = get_agent_tile_from_id(agent->id);
+}
+void c_reset(CCpr *env) {
+  env->tick = 0;
+  memset(env->log, 0, sizeof(Log));
+  env->foods->size = 0;
+  memset(env->foods->indexes, 0, env->width * env->height * sizeof(int));
+  // make_grid_from_scratch(env);
+  memcpy(env->grid, grid_32_32_3v, env->width * env->height * sizeof(unsigned char));
 
-    assert(env->grid[adr] == EMPTY);
-
-    env->grid[adr] = get_agent_tile_from_id(agent->id);
+  for (int i = 0; i < env->num_agents; i++) {
+    spawn_agent(env, i);
   }
 
   init_foods(env);
-
+  memset(env->observations, 0, env->num_agents * env->obs_size * sizeof(unsigned char));
+  memset(env->truncations, 0, env->num_agents * sizeof(unsigned char));
   memset(env->terminals, 0, env->num_agents * sizeof(unsigned char));
+  memset(env->masks, 1, env->num_agents * sizeof(unsigned char));
   compute_observations(env);
 }
 
@@ -367,8 +460,9 @@ void reward_agents_near(CCpr *env, int food_index) {
 
     if ((ac == food_c && (ar == food_r - 1 || ar == food_r + 1)) ||
         (ar == food_r && (ac == food_c - 1 || ac == food_c + 1))) {
-      env->rewards[i] += env->interactive_food_reward;
-      env->log->score += 5;
+      reward_agent(env, i, env->interactive_food_reward);
+      env->log->score += LOG_SCORE_REWARD_MEDIUM;
+      add_hp(env, i, HP_REWARD_FOOD_MEDIUM);
       // add_log(env->log_buffer, env->log);
       // memset(env->log, 0, sizeof(Log));
     }
@@ -378,6 +472,8 @@ void reward_agents_near(CCpr *env, int food_index) {
 
 void step_agent(CCpr *env, int i) {
 
+  Agent *agent = &env->agents[i];
+
   int action = env->actions[i];
 
   int dr = 0;
@@ -386,15 +482,19 @@ void step_agent(CCpr *env, int i) {
   switch (action) {
   case 0:
     dr = -1;
+    agent->direction = 3;
     break; // UP
   case 1:
     dr = 1;
+    agent->direction = 1;
     break; // DOWN
   case 2:
     dc = -1;
+    agent->direction = 2;
     break; // LEFT
   case 3:
     dc = 1;
+    agent->direction = 0;
     break; // RIGHT
   case 4:
     return; // No moves
@@ -402,7 +502,6 @@ void step_agent(CCpr *env, int i) {
   env->log->moves += 1;
 
   // Get next row and column
-  Agent *agent = &env->agents[i];
 
   int next_r = agent->r + dr;
   int next_c = agent->c + dc;
@@ -413,7 +512,7 @@ void step_agent(CCpr *env, int i) {
 
   // Anything above should be obstacle
   if (tile >= INTERACTIVE_FOOD) {
-    env->log->score += -0.01;
+    env->log->score += LOG_SCORE_REWARD_MOVE;
     env->rewards[i] += env->reward_move;
     next_r = agent->r;
     next_c = agent->c;
@@ -445,14 +544,15 @@ void step_agent(CCpr *env, int i) {
 
   switch (tile) {
   case NORMAL_FOOD:
-    env->log->score += 1;
-    env->rewards[i] = env->reward_food;
+    env->log->score += LOG_SCORE_REWARD_SMALL;
+    reward_agent(env, i, env->reward_food);
+    add_hp(env, i, HP_REWARD_FOOD_SMALL);
     remove_food(env, next_grid_idx);
     // add_log(env->log_buffer, env->log);
     // memset(env->log, 0, sizeof(Log));
     break;
   case EMPTY:
-    env->log->score += -0.01;
+    env->log->score += LOG_SCORE_REWARD_MOVE;
     env->rewards[i] = env->reward_move;
     break;
   }
@@ -467,30 +567,77 @@ void step_agent(CCpr *env, int i) {
   return;
 }
 
-void c_step(CCpr *env) {
+void clear_agent(CCpr *env, int agent_id) {
+  Agent *agent = &env->agents[agent_id];
+  if (agent->r < 0 || agent->c < 0) {
+    return;
+  }
+  int grid_idx = grid_index(env, agent->r, agent->c);
+  env->grid[grid_idx] = EMPTY;
+  agent->r = -1;
+  agent->c = -1;
+}
 
+void c_step(CCpr *env) {
+  env->tick++;
+
+  // memset(env->truncations, 0, env->num_agents * sizeof(unsigned char));
   memset(env->rewards, 0, env->num_agents * sizeof(float));
+  // memset(env->terminals, 0, env->num_agents * sizeof(unsigned char));
   memset(env->interactive_food_agent_count, 0,
          (env->width * env->height + 7) / 8);
 
-  // bool logged = false;
   for (int i = 0; i < env->num_agents; i++) {
+    if (env->agents[i].hp == 0) {
+      env->masks[i] = 0;
+      clear_agent(env, i);
+      continue;
+    }
     step_agent(env, i);
+    remove_hp(env, i, HP_LOSS_PER_STEP);
   }
-
-  add_log(env->log_buffer, env->log);
-  memset(env->log, 0, sizeof(Log));
-  // // To cope with sweeps waiting for logs, in case nothing moves
-  // if (!logged) {
-  //   add_log(env->log_buffer, env->log);
-  //   memset(env->log, 0, sizeof(Log));
-  // }
 
   spawn_foods(env);
 
+  //We loop again here because in the future an entity might have attacked an agent in the process
+  int alive_agents = 0;
+  for (int i = 0; i < env->num_agents; i++) {
+    if (env->agents[i].hp > 0) {
+      alive_agents += 1;
+      if (env->agents[i].hp < 20) {
+        env->rewards[i] += REWARD_20_HP;
+        env->log->score += REWARD_20_HP;
+      } else if (env->agents[i].hp > 80) {
+        env->rewards[i] += REWARD_80_HP;
+        env->log->score += REWARD_80_HP;
+      }
+    } 
+    // else {
+      // int grid_idx = grid_index(env, env->agents[i].r, env->agents[i].c);
+      // env->grid[grid_idx] = EMPTY;
+      // spawn_agent(env, i);
+    // }
+  }
+  if (alive_agents == 0) {
+    env->log->moves = 0;
+  }else{
+    env->log->moves /= alive_agents;
+  }
+  env->log->food_nb = env->foods->size;
+  env->log->agents_alive = alive_agents;
+  env->log->alive_steps = env->tick;
   compute_observations(env);
-
-  env->tick++;
+  
+  if (alive_agents < env->num_agents || env->tick > 2000) {
+    c_reset(env);
+    if (alive_agents < env->num_agents) {
+      memset(env->terminals, 1, env->num_agents * sizeof(unsigned char)); 
+    } else {
+      memset(env->truncations, 1, env->num_agents * sizeof(unsigned char));
+    }
+  }
+  add_log(env->log_buffer, env->log);
+  memset(env->log, 0, sizeof(Log));
 }
 
 // Raylib client
@@ -557,15 +704,20 @@ void c_render(Renderer *renderer, CCpr *env) {
       } else if (tile == NORMAL_FOOD || tile == INTERACTIVE_FOOD) {
         DrawRectangle(c * ts, r * ts, ts, ts, COLORS[tile]);
       } else {
-        int u = 128 * (tile % 8);
-        int v = 128 * (tile / 8);
-        Rectangle source_rect = (Rectangle){u, v, 128, 128};
-        Rectangle dest_rect = (Rectangle){c * ts, r * ts, ts, ts};
+
         int agent_id = get_agent_id_from_tile(tile);
         int col_id = agent_id % (sizeof(COLORS) / sizeof(COLORS[0]));
         Color color = COLORS[col_id];
+        int starting_sprite_x = 0;
+        float rotation = env->agents[agent_id].direction * 90.0f;
+        if (rotation == 180) {
+          starting_sprite_x = 128;
+          rotation = 0;
+        }
+        Rectangle source_rect = (Rectangle){starting_sprite_x, 0, 128, 128};
+        Rectangle dest_rect = (Rectangle){c * ts + ts/2, r * ts + ts/2, ts, ts};        
         DrawTexturePro(renderer->puffer, source_rect, dest_rect,
-                       (Vector2){0, 0}, 0, color);
+                       (Vector2){ts/2, ts/2}, rotation, color);
       }
     }
   }
