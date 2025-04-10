@@ -317,6 +317,17 @@ def train(data):
     experience = data.experience
     losses = data.losses
 
+    with profile.custom:
+        if config.use_diayn:
+            diayn_policy = data.policy.policy
+            obs = experience.obs[:, ::8]
+            q = diayn_policy.discrim_forward(obs)
+            z_idxs = experience.diayn_batch[:, 0]
+            q = q.view(-1, q.shape[-1])
+            diayn_r = (torch.argmax(q, 1) == z_idxs).float()
+            experience.rewards[:, -1] += 1.0*diayn_r
+            print('DIAYN acc: ', diayn_r.mean())
+
     total_minibatches = int(config.update_epochs*config.batch_size/data.minibatch_size)
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
     n_samples = data.minibatch_size // config.bptt_horizon
@@ -360,6 +371,30 @@ def train(data):
 
         with profile.train_copy:
             batch = sample(data, advantages, n_samples)
+
+        loss = 0
+        with profile.custom:
+            if config.use_diayn:
+                diayn_policy = data.policy.policy
+                obs = batch.obs[:, ::8]
+                q = diayn_policy.discrim_forward(obs)
+                z_idxs = batch.diayn_z[:, 0]
+                q = q.view(-1, q.shape[-1])
+                diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
+                loss += config.diayn_loss_coef*diayn_loss
+                '''
+                with torch.no_grad():
+                    batch.advantages *= diayn_r.unsqueeze(1).expand_as(batch.advantages)
+                '''
+
+                '''
+                rewards = experience.rewards.clone()
+                rewards[batch.idx, -1] += diayn_r
+                advantages = data.compute_gae(experience.values, rewards,
+                    experience.dones, config.gamma, config.gae_lambda)
+                batch.advantages = advantages[batch.idx]
+                '''
+
 
         with profile.train_misc:
             state = pufferlib.namespace(
@@ -434,28 +469,7 @@ def train(data):
                 v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
 
             entropy_loss = entropy.mean()
-            loss = pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
-
-            with profile.custom:
-                if config.use_diayn:
-                    diayn_discriminator = (data.policy.diayn_discriminator if
-                        hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator)
-                    #noise = torch.randn_like(logits)
-                    batch_logits = state.batch_logits
-                    mmax = batch_logits.max(dim=-1, keepdim=True)[0]
-                    mmin = batch_logits.min(dim=-1, keepdim=True)[0]
-                    batch_logits = (batch_logits - mmin) / (mmax - mmin + 1e-6)
-                    mask = torch.nn.functional.one_hot(batch.actions, 4)
-                    #inds = torch.randint(0, config.bptt_horizon-4, (mask.shape[0],)).to(mask.device)
-                    #mask[:, :32] = 0
-                    #mask[:, 40:] = 0
-                    #batch_logits = batch_logits * mask
-                    batch_logits = batch_logits.view(state.batch_logits.shape[0], -1)
-                    q = diayn_discriminator(batch_logits).squeeze()
-                    z_idxs = batch.diayn_z[:, 0]
-                    q = q.view(-1, q.shape[-1])
-                    diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
-                    loss += config.diayn_loss_coef*diayn_loss
+            loss += pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
 
         with profile.learn:
             if data.scaler is not None:
@@ -571,10 +585,10 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
 
     if data.use_diayn:
         exp.diayn_batch[batch_rows, l] = state.diayn_z
-        idxs = env_id[done]
-        if len(idxs) > 0:
-            z_idxs = torch.randint(0, data.config.diayn_archive, (done.sum(),)).to(data.device)
-            data.diayn_skills[idxs] = z_idxs
+        #idxs = env_id[done]
+        #if len(idxs) > 0:
+        #    z_idxs = torch.randint(0, data.config.diayn_archive, (done.sum(),)).to(data.device)
+        #    data.diayn_skills[idxs] = z_idxs
 
     # TODO: Handle masks!!
     #indices = np.where(mask)[0]

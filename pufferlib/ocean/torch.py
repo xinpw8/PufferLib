@@ -100,12 +100,15 @@ class Snake(nn.Module):
             encode_dim += diayn_skills
             self.diayn_skills = diayn_skills
             self.diayn_discriminator = nn.Sequential(
-                #nn.Dropout(0.5),
-                pufferlib.pytorch.layer_init(nn.Linear(64*env.single_action_space.n, hidden_size)),
+                pufferlib.pytorch.layer_init(
+                    nn.Conv2d(64, cnn_channels, 5, stride=3)),
                 nn.ReLU(),
-                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
+                pufferlib.pytorch.layer_init(
+                    nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
+                nn.ReLU(),
+                nn.Flatten(),
+                pufferlib.pytorch.layer_init(nn.Linear(cnn_channels, diayn_skills)),
             )
-
         self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(8, cnn_channels, 5, stride=3)),
@@ -131,6 +134,12 @@ class Snake(nn.Module):
         else:
             self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, 1), std=1)
+
+    def discrim_forward(self, obs):
+        obs = F.one_hot(obs.long(), 8).permute(0, 1, 4, 2, 3).float()
+        B, f, c, h, w = obs.shape
+        obs = obs.reshape(B, f*c, h, w)
+        return self.diayn_discriminator(obs)
 
     def forward(self, observations):
         hidden, lookup = self.encode_observations(observations)
