@@ -82,7 +82,7 @@ class Default(nn.Module):
                 nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden = self.encode_observations(observations)
+        hidden = self.encode_observations(observations, state=state)
         state.hidden = hidden
         logits, values = self.decode_actions(hidden)
         return logits, values
@@ -90,7 +90,7 @@ class Default(nn.Module):
     def forward_train(self, observations, state=None):
         return self.forward(observations, state)
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         '''Encodes a batch of observations into hidden states. Assumes
         no time dimension (handled by LSTM wrappers).'''
         batch_size = observations.shape[0]
@@ -154,7 +154,7 @@ class LSTMWrapper(nn.LSTM):
 
     def forward(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
-        hidden = self.policy.encode_observations(observations, state)
+        hidden = self.policy.encode_observations(observations, state=state)
         h = state.lstm_h
         c = state.lstm_c
 

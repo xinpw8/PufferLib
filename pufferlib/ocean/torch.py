@@ -170,6 +170,7 @@ class Snake(nn.Module):
 class Grid(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()
+        self.hidden_size = hidden_size
         self.network = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(32, cnn_channels, 5, stride=3)),
@@ -196,18 +197,18 @@ class Grid(nn.Module):
         self.value_fn = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
-    def forward(self, observations):
+    def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         hidden = observations.view(-1, 11, 11).long()
         hidden = F.one_hot(hidden, 32).permute(0, 3, 1, 2).float()
         hidden = self.network(hidden)
-        return hidden, None
+        return hidden
 
-    def decode_actions(self, flat_hidden):
+    def decode_actions(self, flat_hidden, state=None):
         value = self.value_fn(flat_hidden)
         if self.is_continuous:
             mean = self.decoder_mean(flat_hidden)

@@ -2,9 +2,9 @@
 #include <numpy/arrayobject.h>
 
 // Forward declarations for env-specific functions supplied by user
-static int my_init(Env* env, PyObject* args, PyObject* kwargs);
-//typedef struct Log Log;
 static int my_log(PyObject* dict, Log* log);
+static int my_init(Env* env, PyObject* args, PyObject* kwargs);
+static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs);
 
 static Env* unpack_env(PyObject* args) {
     PyObject* handle_obj = PyTuple_GetItem(args, 0);
@@ -144,7 +144,7 @@ static PyObject* env_step(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    step(env);
+    c_step(env);
     Py_RETURN_NONE;
 }
 
@@ -384,7 +384,7 @@ static PyObject* vec_step(PyObject* self, PyObject* arg) {
     }
 
     for (int i = 0; i < vec->num_envs; i++) {
-        step(vec->envs[i]);
+        c_step(vec->envs[i]);
     }
     Py_RETURN_NONE;
 }
@@ -513,6 +513,7 @@ static PyMethodDef methods[] = {
     {"vec_log", vec_log, METH_VARARGS, "Log the vector of environments"},
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
+    {"shared", (PyCFunction)my_shared, METH_VARARGS | METH_KEYWORDS, "Shared state"},
     {NULL, NULL, 0, NULL}
 };
 
