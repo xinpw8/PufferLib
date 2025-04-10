@@ -59,6 +59,8 @@
 #define MAX_ORIENTATION_RAD 2 * PI
 #define MIN_RG_COORD -1000
 #define MAX_RG_COORD 1000
+#define MAX_ROAD_SCALE 100
+#define MAX_ROAD_SEGMENT_LENGTH 100
 
 // Acceleration Values
 static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
@@ -501,9 +503,7 @@ void cache_neighbor_offsets(GPUDrive* env){
             int grid_index = env->grid_cols*y + x;
             if(x < 0 || x >= env->grid_cols || y < 0 || y >= env->grid_rows) continue;
             int grid_count = env->grid_cells[grid_index*SLOTS_PER_CELL];
-            for(int k = 0; k < grid_count; k++){
-                count+=2;
-            }
+            count += grid_count * 2;
         }
     }
     env->neighbor_cache_indices[cell_count] = count;
@@ -518,14 +518,16 @@ void cache_neighbor_offsets(GPUDrive* env){
             int grid_index = env->grid_cols*y + x;
             if(x < 0 || x >= env->grid_cols || y < 0 || y >= env->grid_rows) continue;
             int grid_count = env->grid_cells[grid_index*SLOTS_PER_CELL];
-            for(int k = 0; k < grid_count; k++){
-                int entity_idx = env->grid_cells[grid_index*SLOTS_PER_CELL + 1 + k*2];
-                int geometry_idx = env->grid_cells[grid_index*SLOTS_PER_CELL + 2 + k*2];
-                int base_index = env->neighbor_cache_indices[i];
-                env->neighbor_cache_entities[base_index + neighbor_cache_base_index] = entity_idx;
-                env->neighbor_cache_entities[base_index + neighbor_cache_base_index + 1] = geometry_idx;
-                neighbor_cache_base_index+=2;
-            }
+            int base_index = env->neighbor_cache_indices[i];
+            int src_idx = grid_index*SLOTS_PER_CELL + 1;
+            int dst_idx = base_index + neighbor_cache_base_index;
+            // Copy grid_count pairs (entity_idx, geometry_idx) at once
+            memcpy(&env->neighbor_cache_entities[dst_idx], 
+                &env->grid_cells[src_idx], 
+                grid_count * 2 * sizeof(int));
+
+            // Update index outside the loop
+            neighbor_cache_base_index += grid_count * 2;
         }
     }
 }
@@ -587,7 +589,7 @@ void free_initialized(GPUDrive* env){
 
 void allocate(GPUDrive* env){
     init(env);
-    int max_obs = 6 + 7*(MAX_CARS - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
+    int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
     printf("max obs: %d\n", max_obs*env->active_agent_count);
     printf("num cars: %d\n", env->num_cars);
     printf("num static cars: %d\n", env->static_car_count);
@@ -850,7 +852,7 @@ float reverse_normalize_value(float value, float min, float max){
 }
 
 void compute_observations(GPUDrive* env) {
-    int max_obs = 6 + 7*(MAX_CARS - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
+    int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
     memset(env->observations, 0, max_obs*env->active_agent_count*sizeof(float));
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations; 
     for(int i = 0; i < env->active_agent_count; i++) {
@@ -932,21 +934,26 @@ void compute_observations(GPUDrive* env) {
             Entity* entity = &env->entities[entity_idx];
             float start[2] = {entity->traj_x[geometry_idx], entity->traj_y[geometry_idx]};
             float end[2] = {entity->traj_x[geometry_idx+1], entity->traj_y[geometry_idx+1]};
-            float rel_x_start = start[0] - ego_entity->x;
-            float rel_y_start = start[1] - ego_entity->y;
-            float rel_x_end = end[0] - ego_entity->x;
-            float rel_y_end = end[1] - ego_entity->y;
-            float x_start = rel_x_start*cos_heading + rel_y_start*sin_heading;
-            float y_start = -rel_x_start*sin_heading + rel_y_start*cos_heading;
-            float x_end = rel_x_end*cos_heading + rel_y_end*sin_heading;
-            float y_end = -rel_x_end*sin_heading + rel_y_end*cos_heading;
-
-            obs[obs_idx] = normalize_value(x_start, MIN_RG_COORD, MAX_RG_COORD);
-            obs[obs_idx + 1] = normalize_value(y_start, MIN_RG_COORD, MAX_RG_COORD);
-            obs[obs_idx + 2] = normalize_value(x_end, MIN_RG_COORD, MAX_RG_COORD);
-            obs[obs_idx + 3] = normalize_value(y_end, MIN_RG_COORD, MAX_RG_COORD);
-            obs[obs_idx + 4] = entity->type;
-            obs_idx += 5;
+            float mid_x = (start[0] + end[0]) / 2.0f;
+            float mid_y = (start[1] + end[1]) / 2.0f;
+            float rel_x = mid_x - ego_entity->x;
+            float rel_y = mid_y - ego_entity->y;
+            float x_obs = rel_x*cos_heading + rel_y*sin_heading;
+            float y_obs = -rel_x*sin_heading + rel_y*cos_heading;
+            float length = relative_distance_2d(mid_x, mid_y, end[0], end[1]);
+            float width = 0.1;
+            float height = 0.1;
+            // Calculate angle from ego to midpoint (vector from ego to midpoint)
+            float angle_to_midpoint = atan2(mid_y - ego_entity->y, mid_x - ego_entity->x);
+            float rel_angle_to_midpoint = normalize_heading(angle_to_midpoint - ego_entity->heading);
+            obs[obs_idx] = normalize_value(x_obs, MIN_RG_COORD, MAX_RG_COORD);
+            obs[obs_idx + 1] = normalize_value(y_obs, MIN_RG_COORD, MAX_RG_COORD);
+            obs[obs_idx + 2] = length / MAX_ROAD_SEGMENT_LENGTH;
+            obs[obs_idx + 3] = width / MAX_ROAD_SCALE;
+            obs[obs_idx + 4] = height / MAX_ROAD_SCALE;
+            obs[obs_idx + 5] = rel_angle_to_midpoint / MAX_ORIENTATION_RAD;
+            obs[obs_idx + 6] = entity->type;
+            obs_idx += 7;
         }
         for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS - list_size; k++){
             obs[obs_idx] = 0;
@@ -954,9 +961,10 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 2] = 0;
             obs[obs_idx + 3] = 0;
             obs[obs_idx + 4] = 0;
-            obs_idx += 5;
+            obs[obs_idx + 5] = 0;
+            obs[obs_idx + 6] = 0;
+            obs_idx += 7;
         }
-	
     }
 }
 
@@ -1138,50 +1146,51 @@ void c_render(Client* client, GPUDrive* env) {
                     object_color = RED;  // Collided agent
                 }
                 // Only draw goal position for active agents
-                if(env->entities[i].valid == 1 && env->goal_reached[agent_index] == 0) {
-                    DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
-                    DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
-                    if( agent_index == env->human_agent_idx){
-                        int max_obs = 6 + 7*(MAX_CARS - 1) + 5*MAX_ROAD_SEGMENT_OBSERVATIONS;
-                        float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
-                        float* agent_obs = &observations[agent_index][0];
-                        // First draw other agent observations
-                        int obs_idx = 6;  // Start after goal distances
-                        for(int j = 0; j < MAX_CARS - 1; j++) {  // -1 because we skip self
-                            if(agent_obs[obs_idx] != 0 && agent_obs[obs_idx + 1] != 0) {
-                                // Draw position of other agents
-                                float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
-                                float y = reverse_normalize_value(agent_obs[obs_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
-                                DrawLine3D((Vector3){0, 0, 0}, 
-                                        (Vector3){x, 
-                                                y, 1}, 
-                                        ORANGE);
-                            }
-                            obs_idx += 7;  // Move to next agent observation (7 values per agent)
-                        }
-                        // Then draw map observations
-                        int map_start_idx = 6 + 7*(MAX_CARS - 1);  // Start after agent observations
-                        for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
-                            int entity_idx = map_start_idx + k*5;
-                            if(agent_obs[entity_idx] != 0 && agent_obs[entity_idx + 1] != 0) {
-                                Color lineColor = BLUE;  // Default color
-                                int entity_type = (int)agent_obs[entity_idx + 4];
-                                // Choose color based on entity type
-                                if(entity_type == ROAD_EDGE) {
-                                    lineColor = BLACK;
-                                    // For road segments, draw line between start and end points
-                                    if(agent_obs[entity_idx + 2] != -1 && agent_obs[entity_idx + 3] != -1) {
-                                        float x_start = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
-                                        float y_start = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
-                                        float x_end = reverse_normalize_value(agent_obs[entity_idx + 2], MIN_RG_COORD, MAX_RG_COORD);
-                                        float y_end = reverse_normalize_value(agent_obs[entity_idx + 3], MIN_RG_COORD, MAX_RG_COORD);
-                                        DrawLine3D((Vector3){0,0,0}, (Vector3){x_start, y_start, 1}, lineColor);    
-                                        DrawLine3D((Vector3){0,0,0}, (Vector3){x_end, y_end, 1}, lineColor);
-                                    }
-                                }
-                            }
-                        }
+                if(env->entities[i].valid != 1 || env->goal_reached[agent_index]){
+                    continue;
+                }
+                DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
+                DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
+                if (agent_index != env->human_agent_idx){
+                    continue;
+                }
+                int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
+                float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
+                float* agent_obs = &observations[agent_index][0];
+                // First draw other agent observations
+                int obs_idx = 6;  // Start after goal distances
+                for(int j = 0; j < MAX_CARS - 1; j++) {  // -1 because we skip self
+                    if(agent_obs[obs_idx] == 0 && agent_obs[obs_idx + 1] == 0){
+                        continue;
                     }
+                    // Draw position of other agents
+                    float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
+                    float y = reverse_normalize_value(agent_obs[obs_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
+                    DrawLine3D(
+                        (Vector3){0, 0, 0}, 
+                        (Vector3){x, y, 1}, 
+                        ORANGE
+                    );
+                    obs_idx += 7;  // Move to next agent observation (7 values per agent)
+                }
+                // Then draw map observations
+                int map_start_idx = 6 + 7*(MAX_CARS - 1);  // Start after agent observations
+                for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
+                    int entity_idx = map_start_idx + k*7;
+                    if(agent_obs[entity_idx] == 0 && agent_obs[entity_idx + 1] == 0){
+                        continue;
+                    }
+                    Color lineColor = BLUE;  // Default color
+                    int entity_type = (int)agent_obs[entity_idx + 6];
+                    // Choose color based on entity type
+                    if(entity_type != ROAD_EDGE){
+                        continue;
+                    } 
+                    lineColor = BLACK;
+                    // For road segments, draw line between start and end points
+                    float x_start = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
+                    float y_start = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
+                    DrawLine3D((Vector3){0,0,0}, (Vector3){x_start, y_start, 1}, lineColor);    
                 }
             } else {
                 // Draw non-active vehicles
