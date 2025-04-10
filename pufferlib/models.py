@@ -154,7 +154,7 @@ class LSTMWrapper(nn.LSTM):
 
     def forward(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
-        hidden = self.policy.encode_observations(observations)
+        hidden = self.policy.encode_observations(observations, state)
         h = state.lstm_h
         c = state.lstm_c
 
@@ -197,7 +197,7 @@ class LSTMWrapper(nn.LSTM):
             lstm_state = None
 
         x = x.reshape(B*TT, *space_shape)
-        hidden = self.policy.encode_observations(x)
+        hidden = self.policy.encode_observations(x, state)
         assert hidden.shape == (B*TT, self.input_size)
 
         hidden = hidden.reshape(B, TT, self.input_size)

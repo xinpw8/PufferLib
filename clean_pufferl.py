@@ -79,20 +79,12 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     free_idx = total_agents
     assert free_idx <= experience_rows
 
-    e3b_inv = None
-    e3b_orig = None
-    if config.use_e3b:
-        e3b_inv = torch.eye(policy.hidden_size).repeat(total_agents, 1, 1).to(config.device) / config.e3b_lambda
-        e3b_orig = e3b_inv.clone()
-
-    diayn_archive = None
+    diayn_skills = None
     if config.use_diayn:
-        # TODO: Check shapes
-        diayn_archive = torch.nn.functional.one_hot(
-            torch.arange(config.diayn_archive), config.diayn_archive).to(config.device).float()
-        experience.diayn_skills = torch.randint(
-            0, config.diayn_archive, (experience_rows,), dtype=torch.long, device=config.device)
-        experience.diayn_batch = torch.zeros(experience_rows, dtype=torch.long, device=config.device)
+        diayn_skills = torch.randint(
+            0, config.diayn_archive, (total_agents,), dtype=torch.long, device=config.device)
+        experience.diayn_batch = torch.zeros(experience_rows, config.bptt_horizon,
+            dtype=torch.long, device=config.device)
 
     if config.use_p3o:
         batch_size = config.batch_size
@@ -189,9 +181,6 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         utilization=utilization,
         use_p3o=config.use_p3o,
         p3o_horizon=config.p3o_horizon,
-        use_e3b=config.use_e3b,
-        e3b_coef=config.e3b_coef,
-        e3b_norm=config.e3b_norm,
         puf=config.puf,
         use_diayn=config.use_diayn,
         diayn_coef=config.diayn_coef,
@@ -211,11 +200,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         device=config.device,
         minibatch_size=minibatch_size,
         compute_gae=compute_gae,
-        e3b_inv=e3b_inv,
-        e3b_orig=e3b_orig,
-        e3b_mean=None,
-        e3b_std=None,
-        diayn_archive=diayn_archive,
+        diayn_skills=diayn_skills,
+        total_agents=total_agents,
     )
 
 @pufferlib.utils.profile
@@ -229,7 +215,7 @@ def evaluate(data):
         lstm_h = data.lstm_h
         lstm_c = data.lstm_c
 
-    while data.free_idx < data.on_policy_rows:
+    while data.free_idx <= data.on_policy_rows:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
@@ -244,17 +230,7 @@ def evaluate(data):
             done_mask = d + t
             data.global_step += mask.sum()
 
-            if data.use_diayn:
-                idxs = env_id[done_mask]
-                if len(idxs) > 0:
-                    z_idxs = torch.randint(0, data.diayn_archive.shape[0], (done_mask.sum(),)).to(config.device)
-                    experience.diayn_skills[idxs] = z_idxs
-
         with profile.eval_copy:
-            if data.use_e3b and done_mask.any():
-                done_idxs = env_id[done_mask]
-                data.e3b_inv[done_idxs] = data.e3b_orig[done_idxs]
-
             o = torch.as_tensor(o)
             o_device = o.to(config.device, non_blocking=True)
             r = torch.as_tensor(r).to(config.device, non_blocking=True)
@@ -277,43 +253,16 @@ def evaluate(data):
             )
 
             if data.use_diayn:
-                z_idxs = experience.diayn_skills[env_id]
-                z = data.diayn_archive[z_idxs]
-                state.diayn_z_idxs = z_idxs
-                state.diayn_z = z
+                state.diayn_z = data.diayn_skills[env_id]
 
             logits, value = policy(o_device, state)
             action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
 
             if data.use_diayn:
                 diayn_policy = policy if lstm_h is None else policy.policy
-                q = diayn_policy.diayn_discriminator(state.hidden).squeeze()
-                r_diayn = torch.log_softmax(q, dim=-1).gather(-1, z_idxs.unsqueeze(-1)).squeeze()
+                q = diayn_policy.diayn_discriminator(logits).squeeze()
+                r_diayn = torch.log_softmax(q, dim=-1).gather(-1, state.diayn_z.unsqueeze(-1)).squeeze()
                 r += config.diayn_coef*r_diayn# - np.log(1/data.diayn_archive)
-                state.diayn_z = z
-                state.diayn_z_idxs = z_idxs
-
-            if data.use_e3b:
-                e3b = data.e3b_inv[env_id]
-                phi = state.hidden.detach()        
-                u = phi.unsqueeze(1) @ e3b
-                b = u @ phi.unsqueeze(2)
-                data.e3b_inv[env_id] -= (u.mT @ u) / (1 + b)
-                done_inds = env_id[done_mask]
-                data.e3b_inv[done_inds] = data.e3b_orig[done_inds]
-                e3b_reward = b.squeeze()
-
-                if data.e3b_mean is None:
-                    data.e3b_mean = e3b_reward.mean()
-                    data.e3b_std = e3b_reward.std()
-                else:
-                    w = data.e3b_norm
-                    data.e3b_mean = (1-w)*e3b_reward.mean() + w*data.e3b_mean
-                    data.e3b_std = (1-w)*e3b_reward.std() + w*data.e3b_std
-
-                e3b_reward = (e3b_reward - data.e3b_mean) / (data.e3b_std + 1e-6)
-                e3b_reward = config.e3b_coef*e3b_reward
-                r += e3b_reward
 
             # Clip rewards
             r = torch.clamp(r, -1, 1)
@@ -354,6 +303,7 @@ def evaluate(data):
                 data.stats[k] += v
 
     data.free_idx = 0
+    data.ep_indices = torch.arange(data.total_agents, device=config.device, dtype=torch.int32)
     data.ep_lengths.zero_()
     data.ep_uses.zero_()
     return data.stats, infos
@@ -417,7 +367,7 @@ def train(data):
             )
 
             if config.use_diayn:
-                state.z_idxs = batch.diayn_z_idxs
+                state.diayn_z = batch.diayn_z.reshape(-1)
 
         with profile.train_forward:
             if not isinstance(data.policy, torch.nn.LSTM):
@@ -488,8 +438,9 @@ def train(data):
                 if config.use_diayn:
                     diayn_discriminator = (data.policy.diayn_discriminator if
                         hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator)
-                    q = diayn_discriminator(state.hidden).squeeze()
-                    z_idxs = state.z_idxs.unsqueeze(1).expand(q.shape[:2]).reshape(-1)
+                    #noise = torch.randn_like(logits)
+                    q = diayn_discriminator(logits).squeeze()
+                    z_idxs = state.diayn_z
                     q = q.view(-1, q.shape[-1])
                     diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
                     loss += config.diayn_loss_coef*diayn_loss
@@ -607,7 +558,11 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
         exp.values[batch_rows, l] = value.flatten()
 
     if data.use_diayn:
-        exp.diayn_batch[batch_rows] = state.diayn_z_idxs
+        exp.diayn_batch[batch_rows, l] = state.diayn_z
+        idxs = env_id[done]
+        if len(idxs) > 0:
+            z_idxs = torch.randint(0, data.config.diayn_archive, (done.sum(),)).to(data.device)
+            data.diayn_skills[idxs] = z_idxs
 
     # TODO: Handle masks!!
     #indices = np.where(mask)[0]
@@ -650,8 +605,7 @@ def sample(data, advantages, n, reward_block=None, mask_block=None, method='mult
         output['returns'] = advantages[idx] + exp.values[idx]
 
     if data.use_diayn:
-        output['diayn_z_idxs'] = exp.diayn_batch[idx]
-        output['diayn_z'] = exp.diayn_skills[idx]
+        output['diayn_z'] = exp.diayn_batch[idx]
 
     return pufferlib.namespace(**output)
 
@@ -779,9 +733,6 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     if model_path is not None:
         agent.load_state_dict(torch.load(model_path, map_location=device, weights_only=False))
 
-    #e3b_inv = 10*torch.eye(agent.hidden_size).repeat(env_kwargs['num_envs'], 1, 1).to(device)
-    e3b_inv = None
-
     ob, info = env.reset()
     driver = env.driver_env
     os.system('clear')
@@ -789,6 +740,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     state = pufferlib.namespace(
         lstm_h=None,
         lstm_c=None,
+        diayn_z=torch.ones(env.num_agents, dtype=torch.long, device=device),
     )
 
     num_agents = env.observation_space.shape[0]

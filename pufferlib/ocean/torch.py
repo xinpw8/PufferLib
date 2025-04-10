@@ -88,10 +88,22 @@ class NMMO3(nn.Module):
         return action, value
 
 class Snake(nn.Module):
-    def __init__(self, env, cnn_channels=32, hidden_size=128, use_p3o=False, p3o_horizon=32, **kwargs):
+    def __init__(self, env, cnn_channels=32, hidden_size=128,
+            use_p3o=False, p3o_horizon=32, use_diayn=False, diayn_skills=8, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_continuous = False
+        self.use_diayn = use_diayn
+
+        encode_dim = cnn_channels
+        if use_diayn:
+            encode_dim += diayn_skills
+            self.diayn_skills = diayn_skills
+            self.diayn_discriminator = nn.Sequential(
+                pufferlib.pytorch.layer_init(nn.Linear(env.single_action_space.n, hidden_size)),
+                nn.ReLU(),
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
+            )
 
         self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(
@@ -101,7 +113,9 @@ class Snake(nn.Module):
                 nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
             nn.ReLU(),
             nn.Flatten(),
-            pufferlib.pytorch.layer_init(nn.Linear(cnn_channels, hidden_size)),
+        )
+        self.proj = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(encode_dim, hidden_size)),
             nn.ReLU(),
         )
         self.actor = pufferlib.pytorch.layer_init(
@@ -122,9 +136,15 @@ class Snake(nn.Module):
         actions, value = self.decode_actions(hidden, lookup)
         return (actions, value), hidden
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         observations = F.one_hot(observations.long(), 8).permute(0, 3, 1, 2).float()
-        return self.network(observations)
+        hidden = self.network(observations)
+
+        if self.use_diayn:
+            z_one_hot = F.one_hot(state.diayn_z, self.diayn_skills).float()
+            hidden = torch.cat([hidden, z_one_hot], dim=1)
+
+        return self.proj(hidden)
 
     def decode_actions(self, hidden):
         action = self.actor(hidden)
