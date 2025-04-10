@@ -6,9 +6,6 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs);
 //typedef struct Log Log;
 static int my_log(PyObject* dict, Log* log);
 
-// Forward declaration for our internal step function
-static void env_step_internal(Env* env);
-
 static Env* unpack_env(PyObject* args) {
     PyObject* handle_obj = PyTuple_GetItem(args, 0);
     if (!PyObject_TypeCheck(handle_obj, &PyLong_Type)) {
@@ -23,22 +20,6 @@ static Env* unpack_env(PyObject* args) {
     }
 
     return env;
-}
-
-// Implementation of our internal step function
-static void env_step_internal(Env* env) {
-    if (env == NULL) {
-        fprintf(stderr, "ERROR: env_step_internal received NULL env pointer\n");
-        return;
-    }
-    printf("BINDING: Calling step on env at %p\n", (void*)env);
-    fflush(stdout); // Force output to be displayed immediately
-    
-    // Call the step function with the safety guard
-    step(env);
-    
-    printf("BINDING: step function returned successfully\n");
-    fflush(stdout); // Force output to be displayed immediately
 }
 
 // Python function to initialize the environment
@@ -152,7 +133,7 @@ static PyObject* env_reset(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    reset(env);
+    c_reset(env);
     Py_RETURN_NONE;
 }
 
@@ -163,7 +144,7 @@ static PyObject* env_step(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    env_step_internal(env);
+    c_step(env);
     Py_RETURN_NONE;
 }
 
@@ -173,7 +154,7 @@ static PyObject* env_render(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    render(env);
+    c_render(env);
     Py_RETURN_NONE;
 }
 
@@ -391,7 +372,7 @@ static PyObject* vec_reset(PyObject* self, PyObject* args) {
     for (int i = 0; i < vec->num_envs; i++) {
         // Assumes each process has the same number of environments
         srand(i + seed*vec->num_envs);
-        reset(vec->envs[i]);
+        c_reset(vec->envs[i]);
     }
     Py_RETURN_NONE;
 }
@@ -403,7 +384,7 @@ static PyObject* vec_step(PyObject* self, PyObject* arg) {
     }
 
     for (int i = 0; i < vec->num_envs; i++) {
-        env_step_internal(vec->envs[i]);
+        c_step(vec->envs[i]);
     }
     Py_RETURN_NONE;
 }
@@ -428,7 +409,7 @@ static PyObject* vec_render(PyObject* self, PyObject* args) {
     }
     int env_id = PyLong_AsLong(env_id_arg);
  
-    render(vec->envs[env_id]);
+    c_render(vec->envs[env_id]);
     Py_RETURN_NONE;
 }
 
@@ -544,7 +525,7 @@ static PyModuleDef module = {
     methods
 };
 
-PyMODINIT_FUNC PyInit_binding(void) {
-    import_array();
-    return PyModule_Create(&module);
+PyMODINIT_FUNC PyInit_binding(void) { \
+    import_array(); \
+    return PyModule_Create(&module); \
 }

@@ -48,7 +48,7 @@ int demo() {
     // unsigned int seed = 0;
     // init(&env, seed, 0);
     init(&env);
-    reset(&env);
+    c_reset(&env);
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -57,14 +57,15 @@ int demo() {
             forward_linearlstm(net, env.observations, env.actions);
         }
 
-        step(&env);        
-        render(&env);
+        c_step(&env);        
+        c_render(&env);
     }
 
     free_linearlstm(net);
     free(weights);
     free_allocated(&env);
     close_client(env.client);
+
     return 0;
 }
 
@@ -80,13 +81,13 @@ void perftest(float test_time) {
     // unsigned int seed = 12345;
     // init(&env, seed, 0);
     init(&env);
-    reset(&env);
+    c_reset(&env);
 
     int start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         env.actions[0] = rand()%9;
-        step(&env);
+        c_step(&env);
         i++;
     }
 

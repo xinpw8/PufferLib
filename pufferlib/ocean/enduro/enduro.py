@@ -23,18 +23,23 @@ class Enduro(pufferlib.PufferEnv):
         self.log_interval = log_interval
         self.human_action = None
         self.tick = 0
-
+        self.seed = seed
         super().__init__(buf)
 
         self.c_envs = binding.vec_init(
             self.observations, self.actions, self.rewards,
-            self.terminals, self.truncations, num_envs, seed,
+            self.terminals, self.truncations, num_envs, self.seed,
             index=0, width=width, height=height, car_width=car_width,
             car_height=car_height, max_enemies=max_enemies,
             frameskip=frameskip, continuous=continuous
         )
 
     def reset(self, seed=None):
+        if seed is not None:
+            seed = int(seed)  # Ensure the seed is an integer
+        else:
+            seed = self.seed
+        print(f"Resetting environment with seed: {seed} (type: {type(seed)})")
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
@@ -49,10 +54,6 @@ class Enduro(pufferlib.PufferEnv):
         if self.tick % self.log_interval == 0:
             info.append(binding.vec_log(self.c_envs))
         
-        print(f'info: {info}')
-            
-        print(f"observations PYTHON: {self.observations}")
-        
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
@@ -63,8 +64,8 @@ class Enduro(pufferlib.PufferEnv):
         binding.vec_close(self.c_envs)
 
 def test_performance(timeout=10, atn_cache=1024):
-    env = Enduro(num_envs=1000)
-    env.reset()
+    env = Enduro(num_envs=2)
+    env.reset(env.seed)
     tick = 0
 
     actions = np.random.randint(0, env.single_action_space.n, (atn_cache, env.num_agents))

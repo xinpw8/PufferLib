@@ -1,11 +1,9 @@
-#include <Python.h>
 #include "enduro.h"
 
 #define Env Enduro
 #include "../env_binding.h"
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    printf("C BINDING: Entering my_init...\n");
     env->width = unpack(kwargs, "width");
     env->height = unpack(kwargs, "height");
     env->car_width = unpack(kwargs, "car_width");
@@ -13,9 +11,6 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->max_enemies = unpack(kwargs, "max_enemies");
     // env->frameskip = unpack(kwargs, "frameskip");
     env->continuous = unpack(kwargs, "continuous");
-
-    init(env);
-    printf("C BINDING: Exiting my_init.\n");
     return 0;
 }
 
