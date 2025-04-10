@@ -258,11 +258,13 @@ def evaluate(data):
             logits, value = policy(o_device, state)
             action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
 
+            '''
             if data.use_diayn:
                 diayn_policy = policy if lstm_h is None else policy.policy
                 q = diayn_policy.diayn_discriminator(logits).squeeze()
                 r_diayn = torch.log_softmax(q, dim=-1).gather(-1, state.diayn_z.unsqueeze(-1)).squeeze()
                 r += config.diayn_coef*r_diayn# - np.log(1/data.diayn_archive)
+            '''
 
             # Clip rewards
             r = torch.clamp(r, -1, 1)
@@ -439,8 +441,18 @@ def train(data):
                     diayn_discriminator = (data.policy.diayn_discriminator if
                         hasattr(data.policy, 'diayn_discriminator') else data.policy.policy.diayn_discriminator)
                     #noise = torch.randn_like(logits)
-                    q = diayn_discriminator(logits).squeeze()
-                    z_idxs = state.diayn_z
+                    batch_logits = state.batch_logits
+                    mmax = batch_logits.max(dim=-1, keepdim=True)[0]
+                    mmin = batch_logits.min(dim=-1, keepdim=True)[0]
+                    batch_logits = (batch_logits - mmin) / (mmax - mmin + 1e-6)
+                    mask = torch.nn.functional.one_hot(batch.actions, 4)
+                    #inds = torch.randint(0, config.bptt_horizon-4, (mask.shape[0],)).to(mask.device)
+                    #mask[:, :32] = 0
+                    #mask[:, 40:] = 0
+                    #batch_logits = batch_logits * mask
+                    batch_logits = batch_logits.view(state.batch_logits.shape[0], -1)
+                    q = diayn_discriminator(batch_logits).squeeze()
+                    z_idxs = batch.diayn_z[:, 0]
                     q = q.view(-1, q.shape[-1])
                     diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
                     loss += config.diayn_loss_coef*diayn_loss
@@ -740,7 +752,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     state = pufferlib.namespace(
         lstm_h=None,
         lstm_c=None,
-        diayn_z=torch.ones(env.num_agents, dtype=torch.long, device=device),
+        diayn_z=torch.arange(env.num_agents, dtype=torch.long, device=device) % 4
     )
 
     num_agents = env.observation_space.shape[0]
@@ -756,7 +768,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     intrinsic_mean = None
     intrinsic_std = None
     while tick <= 200000:
-        if tick % 1 == 0:
+        if tick > 1000 and tick % 1 == 0:
             #render = driver.render(overlay=float(intrinsic[0]))
             render = driver.render()
             if driver.render_mode == 'ansi':

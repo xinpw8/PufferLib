@@ -100,7 +100,8 @@ class Snake(nn.Module):
             encode_dim += diayn_skills
             self.diayn_skills = diayn_skills
             self.diayn_discriminator = nn.Sequential(
-                pufferlib.pytorch.layer_init(nn.Linear(env.single_action_space.n, hidden_size)),
+                #nn.Dropout(0.5),
+                pufferlib.pytorch.layer_init(nn.Linear(64*env.single_action_space.n, hidden_size)),
                 nn.ReLU(),
                 pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
             )
