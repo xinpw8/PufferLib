@@ -73,7 +73,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         truncateds=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
     )
     ep_uses = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
-    stored_indices = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
+    #stored_indices = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
     ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
     ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
     free_idx = total_agents
@@ -189,7 +189,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         step=0,
         lstm_h=lstm_h,
         lstm_c=lstm_c,
-        stored_indices=stored_indices,
+        #stored_indices=stored_indices,
         ep_uses=ep_uses,
         ep_lengths=ep_lengths,
         ep_indices=ep_indices,
@@ -569,7 +569,7 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
     if isinstance(env_id, slice):
         env_id = torch.arange(env_id.start, env_id.stop, device=data.device).int()
 
-    data.stored_indices[batch_rows] = env_id
+    #data.stored_indices[batch_rows] = env_id
 
     exp.obs[batch_rows, l] = obs
     exp.actions[batch_rows, l] = action
