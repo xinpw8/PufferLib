@@ -1009,8 +1009,8 @@ void c_step(GPUDrive* env){
             env->entities[agent_idx].y = 0;
             continue;
 	    }
-        move_dynamics(env, i, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        // move_dynamics(env, i, agent_idx);
+        move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
@@ -1034,7 +1034,7 @@ void c_step(GPUDrive* env){
         if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
-		env->reached_goal_this_turn[i] = 1;
+		    env->reached_goal_this_turn[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
             env->dones[i] = 1;
             continue;
@@ -1083,6 +1083,48 @@ Client* make_client(GPUDrive* env){
     return client;
 }
 
+void draw_agent_obs(GPUDrive* env, int agent_index){
+    int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
+    float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
+    float* agent_obs = &observations[agent_index][0];
+    // First draw other agent observations
+    int obs_idx = 6;  // Start after goal distances
+    for(int j = 0; j < MAX_CARS - 1; j++) {
+        if(agent_obs[obs_idx] == 0 || agent_obs[obs_idx + 1] == 0) {
+            obs_idx += 7;  // Move to next agent observation
+            continue;
+        }
+        // Draw position of other agents
+        float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
+        float y = reverse_normalize_value(agent_obs[obs_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
+        DrawLine3D(
+            (Vector3){0, 0, 0}, 
+            (Vector3){x, y, 1}, 
+            ORANGE
+        );
+        obs_idx += 7;  // Move to next agent observation (7 values per agent)
+    }
+    // Then draw map observations
+    int map_start_idx = 6 + 7*(MAX_CARS - 1);  // Start after agent observations
+    for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
+        int entity_idx = map_start_idx + k*7;
+        if(agent_obs[entity_idx] == 0 && agent_obs[entity_idx + 1] == 0){
+            continue;
+        }
+        Color lineColor = BLUE;  // Default color
+        int entity_type = (int)agent_obs[entity_idx + 6];
+        // Choose color based on entity type
+        if(entity_type != ROAD_EDGE){
+            continue;
+        } 
+        lineColor = BLACK;
+        // For road segments, draw line between start and end points
+        float x_start = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
+        float y_start = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
+        DrawLine3D((Vector3){0,0,0}, (Vector3){x_start, y_start, 1}, lineColor);    
+    }
+}
+
 
 void c_render(Client* client, GPUDrive* env) {
     BeginDrawing();
@@ -1095,6 +1137,7 @@ void c_render(Client* client, GPUDrive* env) {
     DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
     DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
     for(int i = 0; i < env->num_entities; i++) {
+        // Draw cars
         if(env->entities[i].type == 1 || env->entities[i].type == 2) {
             // Check if this vehicle is an active agent
             bool is_active_agent = false;
@@ -1113,14 +1156,16 @@ void c_render(Client* client, GPUDrive* env) {
                     break;
                 }
             }
-            if(!is_active_agent && !is_static_car) continue;
+            if(!is_active_agent && !is_static_car){
+                continue;
+            }
             Vector3 position;
             float heading;
-             position = (Vector3){
-                    env->entities[i].x,
-                    env->entities[i].y,
-                    1
-                };      
+            position = (Vector3){
+                env->entities[i].x,
+                env->entities[i].y,
+                1
+            };      
             heading = env->entities[i].heading;
             // Create size vector
             Vector3 size = {
@@ -1133,110 +1178,63 @@ void c_render(Client* client, GPUDrive* env) {
             // Translate to position, rotate around Y axis, then draw
             rlTranslatef(position.x, position.y, position.z);
             rlRotatef(heading*RAD2DEG, 0.0f, 0.0f, 1.0f);  // Convert radians to degrees
-            
             // Determine color based on active status and other conditions
             Color object_color = GRAY;  // Default color for non-active vehicles
-            
-            if(is_active_agent) {
+            if(is_active_agent){
                 object_color = DARKBLUE;  // Active agents are blue
-                if(agent_index == env->human_agent_idx) {
-                    object_color = PURPLE;  // Human-controlled agent
-                }
-                if(env->entities[i].collision_state == 1 || env->entities[i].collision_state == 2) {
-                    object_color = RED;  // Collided agent
-                }
-                // Only draw goal position for active agents
-                if(env->entities[i].valid != 1 || env->goal_reached[agent_index]){
-                    continue;
-                }
-                DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
-                DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
-                if (agent_index != env->human_agent_idx){
-                    continue;
-                }
-                int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
-                float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
-                float* agent_obs = &observations[agent_index][0];
-                // First draw other agent observations
-                int obs_idx = 6;  // Start after goal distances
-                for(int j = 0; j < MAX_CARS - 1; j++) {  // -1 because we skip self
-                    if(agent_obs[obs_idx] == 0 && agent_obs[obs_idx + 1] == 0){
-                        continue;
-                    }
-                    // Draw position of other agents
-                    float x = reverse_normalize_value(agent_obs[obs_idx], MIN_RG_COORD, MAX_RG_COORD);
-                    float y = reverse_normalize_value(agent_obs[obs_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
-                    DrawLine3D(
-                        (Vector3){0, 0, 0}, 
-                        (Vector3){x, y, 1}, 
-                        ORANGE
-                    );
-                    obs_idx += 7;  // Move to next agent observation (7 values per agent)
-                }
-                // Then draw map observations
-                int map_start_idx = 6 + 7*(MAX_CARS - 1);  // Start after agent observations
-                for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS; k++) {  // Loop through potential map entities
-                    int entity_idx = map_start_idx + k*7;
-                    if(agent_obs[entity_idx] == 0 && agent_obs[entity_idx + 1] == 0){
-                        continue;
-                    }
-                    Color lineColor = BLUE;  // Default color
-                    int entity_type = (int)agent_obs[entity_idx + 6];
-                    // Choose color based on entity type
-                    if(entity_type != ROAD_EDGE){
-                        continue;
-                    } 
-                    lineColor = BLACK;
-                    // For road segments, draw line between start and end points
-                    float x_start = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
-                    float y_start = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
-                    DrawLine3D((Vector3){0,0,0}, (Vector3){x_start, y_start, 1}, lineColor);    
-                }
-            } else {
-                // Draw non-active vehicles
-                DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
-                DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
             }
-            // Restore previous transform
+            if(agent_index == env->human_agent_idx){
+                object_color = PURPLE;
+            }
+            if(is_active_agent && env->entities[i].collision_state > 0) {
+                object_color = RED;  // Collided agent
+            }
+            // Draw obs for human selected agent
+            if(agent_index == env->human_agent_idx && env->goal_reached[agent_index] == 0) {
+                draw_agent_obs(env, agent_index);
+            }
+            // Draw cube for cars static and active
+            DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
+            DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
             rlPopMatrix();
             // Draw goal position for active agents
-            if(is_active_agent && env->entities[i].valid == 1) {
-                DrawSphere((Vector3){
-                    env->entities[i].goal_position_x,
-                    env->entities[i].goal_position_y,
-                    1
-                }, 0.5f, DARKGREEN);
+            if(!is_active_agent || env->entities[i].valid == 0) {
+                continue;
             }
+            DrawSphere((Vector3){
+                env->entities[i].goal_position_x,
+                env->entities[i].goal_position_y,
+                1
+            }, 0.5f, DARKGREEN);
         }
         // Draw road elements
-        if(env->entities[i].type > 3 && env->entities[i].type < 7) {
-            for(int j = 0; j < env->entities[i].array_size - 1; j++) {
-                Vector3 start = {
-                    env->entities[i].traj_x[j],
-                    env->entities[i].traj_y[j],
-                    1
-                };
-                Vector3 end = {
-                    env->entities[i].traj_x[j + 1],
-                    env->entities[i].traj_y[j + 1],
-                    1
-                };
-                Color lineColor = GRAY;
-                if (env->entities[i].type == ROAD_LANE) lineColor = GRAY;
-                else if (env->entities[i].type == ROAD_LINE) lineColor = BLUE;
-                else if (env->entities[i].type == ROAD_EDGE) lineColor = BLACK;
-                else if (env->entities[i].type == DRIVEWAY) lineColor = RED;
-                if(env->entities[i].type == ROAD_EDGE){
-                    DrawLine3D(start, end, lineColor);
-                }
-                if(env->entities[i].type == ROAD_EDGE){
-                    DrawSphere(start, 0.5f, lineColor);
-                    DrawSphere(end, 0.5f, lineColor);
-                }
+        if(env->entities[i].type <=3 && env->entities[i].type >= 7){
+            continue;
+        }
+        for(int j = 0; j < env->entities[i].array_size - 1; j++) {
+            Vector3 start = {
+                env->entities[i].traj_x[j],
+                env->entities[i].traj_y[j],
+                1
+            };
+            Vector3 end = {
+                env->entities[i].traj_x[j + 1],
+                env->entities[i].traj_y[j + 1],
+                1
+            };
+            Color lineColor = GRAY;
+            if (env->entities[i].type == ROAD_LANE) lineColor = GRAY;
+            else if (env->entities[i].type == ROAD_LINE) lineColor = BLUE;
+            else if (env->entities[i].type == ROAD_EDGE) lineColor = BLACK;
+            else if (env->entities[i].type == DRIVEWAY) lineColor = RED;
+            if(env->entities[i].type != ROAD_EDGE){
+                continue;
             }
+            DrawLine3D(start, end, lineColor);
+            DrawSphere(start, 0.5f, lineColor);
+            DrawSphere(end, 0.5f, lineColor);
         }
     }
-    
     // Draw grid cells using the stored bounds
     float grid_start_x = env->map_corners[0];
     float grid_start_y = env->map_corners[1];
