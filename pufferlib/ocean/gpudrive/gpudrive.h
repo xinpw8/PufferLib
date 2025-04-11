@@ -808,12 +808,10 @@ void collision_check(GPUDrive* env, int agent_idx) {
         if(index == -1) continue;
         if(index == agent_idx) continue;
         Entity* entity = &env->entities[index];
-        if (entity->type > 3) break;
-        if (entity->type != VEHICLE) continue;
         float x1 = entity->x;
         float y1 = entity->y;
         float dist = sqrtf((x1 - agent->x)*(x1 - agent->x) + (y1 - agent->y)*(y1 - agent->y));
-        if(dist > 5.0f) continue;
+        if(dist > 10.0f) continue;
         float other_corners[4][2];
         for (int z = 0; z < 4; z++) {
             float other_cos_heading = cosf(entity->traj_heading[0]);
@@ -1009,8 +1007,8 @@ void c_step(GPUDrive* env){
             env->entities[agent_idx].y = 0;
             continue;
 	    }
-        // move_dynamics(env, i, agent_idx);
-        move_expert(env, env->actions, agent_idx);
+        move_dynamics(env, i, agent_idx);
+        // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
