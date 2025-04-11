@@ -26,7 +26,7 @@
 
 #define REWARD_20_HP -0
 #define REWARD_80_HP 0
-#define REWARD_DEATH -0.0f
+#define REWARD_DEATH -1.0f
 
 
 #define LOG_SCORE_REWARD_SMALL 1 
@@ -628,9 +628,9 @@ void c_step(CCpr *env) {
   env->log->alive_steps = env->tick;
   compute_observations(env);
   
-  if (alive_agents < env->num_agents || env->tick > 2000) {
+  if (alive_agents == 0|| env->tick > 1000) {
     c_reset(env);
-    if (alive_agents < env->num_agents) {
+    if (alive_agents == 0) {
       memset(env->terminals, 1, env->num_agents * sizeof(unsigned char)); 
     } else {
       memset(env->truncations, 1, env->num_agents * sizeof(unsigned char));
