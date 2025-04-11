@@ -403,16 +403,24 @@ void add_entity_to_grid(GPUDrive* env, int grid_index, int entity_idx, int geome
 
 void init_grid_map(GPUDrive* env){
     // Find top left and bottom right points of the map
-    float top_left_x = env->entities[0].traj_x[0];
-    float top_left_y = env->entities[0].traj_y[0];
-    float bottom_right_x = env->entities[0].traj_x[0];
-    float bottom_right_y = env->entities[0].traj_y[0];
-
+    float top_left_x;
+    float top_left_y;
+    float bottom_right_x;
+    float bottom_right_y;
+    int first_valid_point = 0;
     for(int i = 0; i < env->num_entities; i++){
         if(env->entities[i].type > 3 && env->entities[i].type < 7){
             // Check all points in the trajectory for road elements
             Entity* e = &env->entities[i];
             for(int j = 0; j < e->array_size; j++){
+                if(e->traj_x[j] == -10000) continue;
+                if(e->traj_y[j] == -10000) continue;
+                if(!first_valid_point) {
+                    top_left_x = bottom_right_x = e->traj_x[j];
+                    top_left_y = bottom_right_y = e->traj_y[j];
+                    first_valid_point = true;
+                    continue;
+                }
                 if(e->traj_x[j] < top_left_x) top_left_x = e->traj_x[j];
                 if(e->traj_x[j] > bottom_right_x) bottom_right_x = e->traj_x[j];
                 if(e->traj_y[j] < top_left_y) top_left_y = e->traj_y[j];
@@ -420,6 +428,8 @@ void init_grid_map(GPUDrive* env){
             }
         }
     }
+    printf("top left: %f, %f\n", top_left_x, top_left_y);
+    printf("bottom right: %f, %f\n", bottom_right_x, bottom_right_y);
 
     env->map_corners = (float*)calloc(4, sizeof(float));
     env->map_corners[0] = top_left_x;
@@ -811,7 +821,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
         float x1 = entity->x;
         float y1 = entity->y;
         float dist = sqrtf((x1 - agent->x)*(x1 - agent->x) + (y1 - agent->y)*(y1 - agent->y));
-        if(dist > 10.0f) continue;
+        if(dist > 30.0f) continue;
         float other_corners[4][2];
         for (int z = 0; z < 4; z++) {
             float other_cos_heading = cosf(entity->traj_heading[0]);
@@ -1003,8 +1013,8 @@ void c_step(GPUDrive* env){
         env->entities[agent_idx].collision_state = 0;
         if(env->goal_reached[i]){
             env->masks[i] = 0;
-            env->entities[agent_idx].x = 0;
-            env->entities[agent_idx].y = 0;
+            env->entities[agent_idx].x = -10000;
+            env->entities[agent_idx].y = -10000;
             continue;
 	    }
         move_dynamics(env, i, agent_idx);
@@ -1129,7 +1139,7 @@ void c_render(Client* client, GPUDrive* env) {
     ClearBackground(RAYWHITE);
     BeginMode3D(client->camera);
     // Draw a grid to help with orientation
-    DrawGrid(20, 1.0f);
+    // DrawGrid(20, 1.0f);
     DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[1], 0}, BLACK);
     DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, BLACK);
     DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);

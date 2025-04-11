@@ -102,7 +102,7 @@ void demo() {
         .human_agent_idx = 0,
         .reward_vehicle_collision = -0.1f,
         .reward_offroad_collision = -0.1f,
-	.map_name = "resources/gpudrive/binaries/map_002.bin"
+	    .map_name = "resources/gpudrive/binaries/map_024.bin"
     };
     allocate(&env);
     Weights* weights = load_weights("resources/gpu_drive_weights.bin", 135061);
@@ -174,10 +174,16 @@ void performance_test() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
-	.map_name = "resources/gpudrive/binaries/map_004.bin"
+	.map_name = "resources/gpudrive/binaries/map_010.bin"
     };
+    clock_t start_time, end_time;
+    double cpu_time_used;
+    start_time = clock();
     allocate(&env);
     c_reset(&env);
+    end_time = clock();
+    cpu_time_used = ((double) (end_time - start_time)) / CLOCKS_PER_SEC;
+    printf("Init time: %f\n", cpu_time_used);
 
     long start = time(NULL);
     int i = 0;
