@@ -856,9 +856,9 @@ void compute_observations(GPUDrive* env) {
     memset(env->observations, 0, max_obs*env->active_agent_count*sizeof(float));
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations; 
     for(int i = 0; i < env->active_agent_count; i++) {
-	if(env->goal_reached[i] && !env->reached_goal_this_turn[i]){
-		continue;
-	}
+        if(env->goal_reached[i] && !env->reached_goal_this_turn[i]){
+            continue;
+        }
         float* obs = &observations[i][0];
         Entity* ego_entity = &env->entities[env->active_agent_indices[i]];
         if(ego_entity->type > 3) break;
