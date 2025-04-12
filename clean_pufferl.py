@@ -30,11 +30,13 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         torch.manual_seed(config.seed)
 
     ext = 'cu' if 'cuda' in config.device else 'cpp'
-    compute_gae = load(
-        name='compute_gae',
+    puffer_cuda = load(
+        name='puffer_cuda',
         sources=[f'pufferlib.{ext}'],
         verbose=True
-    ).compute_gae
+    )
+    compute_gae = puffer_cuda.compute_gae
+    compute_vtrace = puffer_cuda.compute_vtrace
 
     losses = pufferlib.namespace(
         policy_loss=0,
@@ -200,6 +202,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         device=config.device,
         minibatch_size=minibatch_size,
         compute_gae=compute_gae,
+        compute_vtrace=compute_vtrace,
         diayn_skills=diayn_skills,
         total_agents=total_agents,
     )
@@ -365,6 +368,8 @@ def train(data):
 
                 advantages = advantages.cpu().numpy()
                 torch.cuda.synchronize()
+            elif config.use_vtrace:
+                advantages = torch.ones(experience.values.shape, device=config.device)
             else:
                 advantages = data.compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
@@ -413,14 +418,12 @@ def train(data):
             # TODO: Currently only returning traj shaped value as a hack
             logits, newvalue = data.policy.forward_train(batch.obs, state)
 
-            with torch.no_grad():
-                experience.values[batch.idx] = newvalue
-
             actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
                 action=batch.actions, is_continuous=data.policy.is_continuous)
 
         with profile.train_misc:
-            logratio = newlogprob - batch.logprobs.reshape(-1)
+            newlogprob = newlogprob.reshape(batch.logprobs.shape)
+            logratio = newlogprob - batch.logprobs
             ratio = logratio.exp()
 
             # TODO: Only do this if we are KL clipping? Saves 1-2% compute
@@ -430,16 +433,47 @@ def train(data):
                 approx_kl = ((ratio - 1) - logratio).mean()
                 clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
 
-            adv = batch.advantages.reshape(-1)
-            if config.norm_adv:
-                adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+            if config.use_vtrace:
+                with torch.no_grad():
+                    vs = torch.zeros(batch.values.shape, device=config.device)
+                    adv = torch.zeros(batch.values.shape, device=config.device)
+                    data.compute_vtrace(batch.values, batch.rewards, batch.dones,
+                        ratio, vs, adv, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
+                    batch.returns = vs
 
-            # Policy loss
-            pg_loss1 = -adv * ratio
-            pg_loss2 = -adv * torch.clamp(
-                ratio, 1 - config.clip_coef, 1 + config.clip_coef
-            )
-            pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+                # Might need returns at next step
+                #pg_loss = (newlogprob*(batch.rewards + config.gamma*batch.returns - batch.values)).mean()
+                #clipped_rho = torch.clamp(ratio, max=config.vtrace_rho_clip)[:, :-1]
+                #adv = clipped_rho * (batch.rewards[:, :-1] + config.gamma*batch.returns[:, 1:] - batch.values[:, :-1])
+
+                #lgt = logits.reshape(*newlogprob.shape, logits.shape[-1])
+                #lgt = lgt[:, :-1].reshape(-1, lgt.shape[-1])
+                #atns = batch.actions[:, :-1].reshape(-1)
+                #adv = adv.reshape(-1)
+                #pg_loss = (adv * torch.nn.functional.cross_entropy(lgt, atns, reduction='none')).mean()
+                #print(torch.mean(batch.values), torch.mean(batch.returns), torch.mean(adv))
+                lgt = logits.reshape(-1, logits.shape[-1])
+                atns = batch.actions.reshape(-1)
+                adv = adv.reshape(-1)
+                #pg_loss = (adv * torch.nn.functional.cross_entropy(lgt, atns, reduction='none')).mean()
+
+                #if config.norm_adv:
+                #    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+                pg_loss = torch.mean(adv * torch.nn.functional.nll_loss(
+                    torch.nn.functional.log_softmax(lgt, dim=-1), target=atns, reduction='none'))
+
+            else:
+                adv = batch.advantages
+                if config.norm_adv:
+                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+                # Policy loss
+                pg_loss1 = -adv * ratio
+                pg_loss2 = -adv * torch.clamp(
+                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
+                )
+                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
             # Value loss
             if config.use_p3o:
@@ -452,10 +486,10 @@ def train(data):
                 mask_block = mask_block[:, :(horizon+3)]
                 v_loss = v_loss[mask_block.bool()].mean()
             elif config.clip_vloss:
-                newvalue = newvalue.flatten()
-                ret = batch.returns.flatten()
+                newvalue = newvalue#.flatten()
+                ret = batch.returns#.flatten()
                 v_loss_unclipped = (newvalue - ret) ** 2
-                val = batch.values.flatten()
+                val = batch.values#.flatten()
                 v_clipped = val + torch.clamp(
                     newvalue - val,
                     -config.vf_clip_coef,
@@ -470,6 +504,11 @@ def train(data):
 
             entropy_loss = entropy.mean()
             loss += pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
+
+        # This breaks vloss clipping?
+        with torch.no_grad():
+            experience.values[batch.idx] = newvalue
+
 
         with profile.learn:
             if data.scaler is not None:
@@ -607,6 +646,7 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
 
 def sample(data, advantages, n, reward_block=None, mask_block=None, method='multinomial'):
     exp = data.experience
+    method = 'random'
     if method == 'topk':
         _, idx = torch.topk(advantages.abs().sum(axis=1), n)
     elif method == 'multinomial':
