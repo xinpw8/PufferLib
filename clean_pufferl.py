@@ -215,7 +215,7 @@ def evaluate(data):
         lstm_h = data.lstm_h
         lstm_c = data.lstm_c
 
-    while data.free_idx <= data.on_policy_rows:
+    while data.free_idx < data.on_policy_rows:
         with profile.env:
             o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
