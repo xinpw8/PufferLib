@@ -136,6 +136,11 @@ void free_allocated(CartPole* env) {
     free_initialized(env);
 }
 
+const Color PUFF_RED = (Color){187, 0, 0, 255};
+const Color PUFF_CYAN = (Color){0, 187, 187, 255};
+const Color PUFF_WHITE = (Color){241, 241, 241, 241};
+const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
+
 Client* make_client(CartPole* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     InitWindow(WIDTH, HEIGHT, "puffer cartpole");
@@ -155,28 +160,28 @@ void c_render(Client* client, CartPole* env) {
         ToggleFullscreen();
 
     BeginDrawing();
-    ClearBackground((Color){230, 230, 230, 255});
+    ClearBackground(PUFF_BACKGROUND);
 
     // Draw track: a horizontal line through the middle
-    DrawLine(0, HEIGHT / 2, WIDTH, HEIGHT / 2, BLACK);
+    DrawLine(0, HEIGHT / 2, WIDTH, HEIGHT / 2, PUFF_CYAN);
 
     // Calculate cart position in pixels (centered)
     float cart_x = WIDTH / 2 + env->x * SCALE;
     float cart_y = HEIGHT / 2;
 
     // Draw cart as a rectangle (40x20)
-    DrawRectangle((int)(cart_x - 20), (int)(cart_y - 10), 40, 20, BLACK);
+    DrawRectangle((int)(cart_x - 20), (int)(cart_y - 10), 40, 20, PUFF_CYAN);
 
     // Draw pole as a red line. Pole length = 2 * 0.5 scaled.
     float pole_length = 2.0f * 0.5f * SCALE;
     float pole_x2 = cart_x + sinf(env->theta) * pole_length;
     float pole_y2 = cart_y - cosf(env->theta) * pole_length;
-    DrawLineEx((Vector2){cart_x, cart_y}, (Vector2){pole_x2, pole_y2}, 5, RED);
+    DrawLineEx((Vector2){cart_x, cart_y}, (Vector2){pole_x2, pole_y2}, 5, PUFF_RED);
 
     // Draw info text
-    DrawText(TextFormat("Steps: %i", env->steps), 10, 10, 20, BLACK);
-    DrawText(TextFormat("Cart Position: %.2f", env->x), 10, 40, 20, BLACK);
-    DrawText(TextFormat("Pole Angle: %.2f", env->theta * 180.0f / M_PI), 10, 70, 20, BLACK);
+    DrawText(TextFormat("Steps: %i", env->steps), 10, 10, 20, PUFF_WHITE);
+    DrawText(TextFormat("Cart Position: %.2f", env->x), 10, 40, 20, PUFF_WHITE);
+    DrawText(TextFormat("Pole Angle: %.2f", env->theta * 180.0f / M_PI), 10, 70, 20, PUFF_WHITE);
 
     EndDrawing();
 }
