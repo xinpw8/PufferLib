@@ -118,12 +118,31 @@ static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
     // Assumes each process has the same number of environments
     srand(seed);
 
+    // If kwargs is NULL, create a new dictionary
+    if (kwargs == NULL) {
+        kwargs = PyDict_New();
+    } else {
+        Py_INCREF(kwargs);  // We need to increment the reference since we'll be modifying it
+    }
+
+    // Add the seed to kwargs
+    PyObject* py_seed = PyLong_FromLong(seed);
+    if (PyDict_SetItemString(kwargs, "seed", py_seed) < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to set seed in kwargs");
+        Py_DECREF(py_seed);
+        Py_DECREF(kwargs);
+        return NULL;
+    }
+    Py_DECREF(py_seed);
+
     PyObject* empty_args = PyTuple_New(0);
     if (my_init(env, empty_args, kwargs)) {
         //PyErr_SetString(PyExc_TypeError, "env_init failed");
+        Py_DECREF(kwargs);
         return NULL;
     }
 
+    Py_DECREF(kwargs);
     return PyLong_FromVoidPtr(env);
 }
 
@@ -133,7 +152,7 @@ static PyObject* env_reset(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    reset(env);
+    c_reset(env);
     Py_RETURN_NONE;
 }
 
@@ -144,7 +163,7 @@ static PyObject* env_step(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    step(env);
+    c_step(env);
     Py_RETURN_NONE;
 }
 
@@ -154,7 +173,7 @@ static PyObject* env_render(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    render(env);
+    c_render(env);
     Py_RETURN_NONE;
 }
 
@@ -219,7 +238,7 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
 
     PyObject* seed_obj = PyTuple_GetItem(args, 6);
-    if (!PyObject_TypeCheck(num_envs_arg, &PyLong_Type)) {
+    if (!PyObject_TypeCheck(seed_obj, &PyLong_Type)) {
         PyErr_SetString(PyExc_TypeError, "seed must be an integer");
         return NULL;
     }
@@ -296,10 +315,18 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         return NULL;
     }
 
+    // If kwargs is NULL, create a new dictionary
+    if (kwargs == NULL) {
+        kwargs = PyDict_New();
+    } else {
+        Py_INCREF(kwargs);  // We need to increment the reference since we'll be modifying it
+    }
+
     for (int i = 0; i < num_envs; i++) {
         Env* env = (Env*)calloc(1, sizeof(Env));
         if (!env) {
             PyErr_SetString(PyExc_MemoryError, "Failed to allocate environment");
+            Py_DECREF(kwargs);
             return NULL;
         }
         vec->envs[i] = env;
@@ -310,15 +337,28 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         //env->truncations = (void*)((char*)PyArray_DATA(truncations) + i*PyArray_STRIDE(truncations, 0));
 
         // Assumes each process has the same number of environments
-        srand(i + seed*vec->num_envs);
+        int env_seed = i + seed*vec->num_envs;
+        srand(env_seed);
  
+        // Add the seed to kwargs for this environment
+        PyObject* py_seed = PyLong_FromLong(env_seed);
+        if (PyDict_SetItemString(kwargs, "seed", py_seed) < 0) {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set seed in kwargs");
+            Py_DECREF(py_seed);
+            Py_DECREF(kwargs);
+            return NULL;
+        }
+        Py_DECREF(py_seed);
+
         PyObject* empty_args = PyTuple_New(0);
         if (my_init(env, empty_args, kwargs)) {
             PyErr_SetString(PyExc_TypeError, "env_init failed");
+            Py_DECREF(kwargs);
             return NULL;
         }
     }
 
+    Py_DECREF(kwargs);
     return PyLong_FromVoidPtr(vec);
 }
 
@@ -372,7 +412,7 @@ static PyObject* vec_reset(PyObject* self, PyObject* args) {
     for (int i = 0; i < vec->num_envs; i++) {
         // Assumes each process has the same number of environments
         srand(i + seed*vec->num_envs);
-        reset(vec->envs[i]);
+        c_reset(vec->envs[i]);
     }
     Py_RETURN_NONE;
 }
@@ -384,7 +424,7 @@ static PyObject* vec_step(PyObject* self, PyObject* arg) {
     }
 
     for (int i = 0; i < vec->num_envs; i++) {
-        step(vec->envs[i]);
+        c_step(vec->envs[i]);
     }
     Py_RETURN_NONE;
 }
@@ -409,7 +449,7 @@ static PyObject* vec_render(PyObject* self, PyObject* args) {
     }
     int env_id = PyLong_AsLong(env_id_arg);
  
-    render(vec->envs[env_id]);
+    c_render(vec->envs[env_id]);
     Py_RETURN_NONE;
 }
 
@@ -479,6 +519,11 @@ static PyObject* vec_close(PyObject* self, PyObject* args) {
 
 static double unpack(PyObject* kwargs, char* key) {
     PyObject* val = PyDict_GetItemString(kwargs, key);
+    if (val == NULL) {
+        // If the key doesn't exist, don't set an error - this allows optional parameters
+        // Just return a default value that the caller can check for
+        return 0.0;
+    }
     if (PyLong_Check(val)) {
         long out = PyLong_AsLong(val);
         if (out > INT_MAX || out < INT_MIN) {
