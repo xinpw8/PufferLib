@@ -103,6 +103,9 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     else:
         experience.values = torch.zeros(experience_rows, config.bptt_horizon, device=config.device)
 
+    if config.use_vtrace:
+        experience.importance = torch.ones(experience_rows, config.bptt_horizon, device=config.device)
+
     lstm_h = None
     lstm_c = None
     if isinstance(policy, torch.nn.LSTM):
@@ -205,6 +208,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         compute_vtrace=compute_vtrace,
         diayn_skills=diayn_skills,
         total_agents=total_agents,
+        total_epochs=epochs,
     )
 
 @pufferlib.utils.profile
@@ -369,13 +373,14 @@ def train(data):
                 advantages = advantages.cpu().numpy()
                 torch.cuda.synchronize()
             elif config.use_vtrace:
-                advantages = torch.ones(experience.values.shape, device=config.device)
+                advantages = torch.ones(experience.values.shape, device=config.device).to(config.device)
+                importance = experience.importance
             else:
-                advantages = data.compute_gae(experience.values, experience.rewards,
+                importance = advantages = data.compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
 
         with profile.train_copy:
-            batch = sample(data, advantages, n_samples)
+            batch = sample(data, importance, n_samples)
 
         loss = 0
         with profile.custom:
@@ -441,21 +446,11 @@ def train(data):
                         ratio, vs, adv, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
                     batch.returns = vs
 
+                importance[batch.idx] = adv
                 # Might need returns at next step
-                #pg_loss = (newlogprob*(batch.rewards + config.gamma*batch.returns - batch.values)).mean()
-                #clipped_rho = torch.clamp(ratio, max=config.vtrace_rho_clip)[:, :-1]
-                #adv = clipped_rho * (batch.rewards[:, :-1] + config.gamma*batch.returns[:, 1:] - batch.values[:, :-1])
-
-                #lgt = logits.reshape(*newlogprob.shape, logits.shape[-1])
-                #lgt = lgt[:, :-1].reshape(-1, lgt.shape[-1])
-                #atns = batch.actions[:, :-1].reshape(-1)
-                #adv = adv.reshape(-1)
-                #pg_loss = (adv * torch.nn.functional.cross_entropy(lgt, atns, reduction='none')).mean()
-                #print(torch.mean(batch.values), torch.mean(batch.returns), torch.mean(adv))
                 lgt = logits.reshape(-1, logits.shape[-1])
                 atns = batch.actions.reshape(-1)
-                adv = adv.reshape(-1)
-                #pg_loss = (adv * torch.nn.functional.cross_entropy(lgt, atns, reduction='none')).mean()
+                adv = (batch.prio*adv).reshape(-1)
 
                 #if config.norm_adv:
                 #    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
@@ -467,6 +462,8 @@ def train(data):
                 adv = batch.advantages
                 if config.norm_adv:
                     adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+                adv = adv * batch.prio
 
                 # Policy loss
                 pg_loss1 = -adv * ratio
@@ -561,6 +558,7 @@ def train(data):
         advantages = data.compute_gae(experience.values, experience.rewards,
             experience.dones, config.gamma, config.gae_lambda)
         exp = sample(data, advantages, data.off_policy_rows, method='topk')
+        experience.importance[:data.on_policy_rows] = 1
         for k, v in experience.items():
             v[data.on_policy_rows:] = exp[k]
 
@@ -644,17 +642,22 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
     data.step += 1
     return action.cpu().numpy()
 
-def sample(data, advantages, n, reward_block=None, mask_block=None, method='multinomial'):
+def sample(data, advantages, n, reward_block=None, mask_block=None, method='prio'):
     exp = data.experience
-    method = 'random'
     if method == 'topk':
         _, idx = torch.topk(advantages.abs().sum(axis=1), n)
+    elif method == 'prio':
+        adv = advantages.abs().sum(axis=1)
+        probs = adv**data.config.prio_alpha
+        probs = (probs + 1e-6)/(probs.sum() + 1e-6)
+        idx = torch.multinomial(probs, n)
     elif method == 'multinomial':
         idx = torch.multinomial(advantages.abs().sum(axis=1) + 1e-6, n)
     elif method == 'random':
         idx = torch.randint(0, advantages.shape[0], (n,), device=data.device)
     else:
         raise ValueError(f'Unknown sampling method: {method}')
+
 
     data.ep_uses[idx] += 1
     output = {k: v[idx] for k, v in exp.items()}
@@ -672,6 +675,11 @@ def sample(data, advantages, n, reward_block=None, mask_block=None, method='mult
 
     if data.use_diayn:
         output['diayn_z'] = exp.diayn_batch[idx]
+
+    output['prio'] = 1
+    if method == 'prio':
+        beta = data.config.prio_beta0 + (1 - data.config.prio_beta0)*data.config.prio_alpha*data.epoch/data.total_epochs
+        output['prio'] = (((1/len(probs)) * (1/probs[idx]))**beta).unsqueeze(1).expand_as(output['advantages'])
 
     return pufferlib.namespace(**output)
 
