@@ -12,7 +12,7 @@ const char* WEIGHTS_PATH = "resources/blastar/blastar_weights.bin";
 #define ACTIONS_SIZE 6
 #define NUM_WEIGHTS 134407
 
-void get_input(BlastarEnv* env) {
+void get_input(Blastar* env) {
     if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
         env->actions[0] = 1;  // Left
     } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
@@ -31,7 +31,7 @@ void get_input(BlastarEnv* env) {
 int demo() {
     Weights* weights = load_weights(WEIGHTS_PATH, NUM_WEIGHTS);
     LinearLSTM* net = make_linearlstm(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE);
-    BlastarEnv env = {
+    Blastar env = {
         .num_obs = OBSERVATIONS_SIZE,
     };
     allocate(&env, env.num_obs);
@@ -47,7 +47,7 @@ int demo() {
             forward_linearlstm(net, env.observations, env.actions);  // AI input
         }
         c_step(&env);
-        c_render(client, &env);
+        c_render(&env);
         if (WindowShouldClose() || env.game_over) {
             running = 0;
         }
@@ -60,7 +60,7 @@ int demo() {
 }
 
 void perftest(float test_time) {
-    BlastarEnv env = {
+    Blastar env = {
         .num_obs = OBSERVATIONS_SIZE,
     };
     allocate(&env, env.num_obs);
