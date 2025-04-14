@@ -1,4 +1,3 @@
-// blastar.h
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -31,7 +30,7 @@ typedef struct Log {
     float score;
     float vertical_closeness_rew;
     float fired_bullet_rew;
-    int   kill_streak;
+    int kill_streak;
     float hit_enemy_with_bullet_rew;
     float avg_score_difference;
     float n;
@@ -135,8 +134,7 @@ void c_reset(Blastar* env) {
     env->enemy.bullet.y = env->enemy.y;
     env->reset_count++;
 
-    // Clear all log entries
-    memset(&env->log, 0, sizeof(Log));
+    env->log = (Log){0};
 }
 
 void init(Blastar* env, int num_obs) {
@@ -252,7 +250,7 @@ void c_step(Blastar* env) {
         if (action == 4 && env->player.y < SCREEN_HEIGHT - PLAYER_HEIGHT) env->player.y += env->player.player_speed;
     }
 
-    if (action == 5) {
+    if (action == 5 && (!env->enemy.bullet.active)) {
         if (env->player.bullet.active) {
             env->player.bullet.active = false;
         } else {
@@ -422,6 +420,11 @@ void c_step(Blastar* env) {
     compute_observations(env);
 }
 
+const Color PUFF_RED = (Color){187, 0, 0, 255};
+const Color PUFF_CYAN = (Color){0, 187, 187, 255}; 
+const Color PUFF_WHITE = (Color){241, 241, 241, 241};
+const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
+
 Client* make_client(Blastar* env) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Blastar");
     Client* client = (Client*)malloc(sizeof(Client));
@@ -445,6 +448,10 @@ void c_render(Blastar* env) {
         make_client(env);
     }
 
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
+    }
+
     Client* client = env->client;
 
     if (WindowShouldClose()) {
@@ -455,42 +462,34 @@ void c_render(Blastar* env) {
     }
 
     BeginDrawing();
-    ClearBackground(BLACK);
+    ClearBackground(PUFF_BACKGROUND);
 
     if (env->game_over && env->player.lives <=0) {
-        DrawText("GAME OVER", SCREEN_WIDTH / 2 - MeasureText("GAME OVER", 30) / 2, SCREEN_HEIGHT / 2 - 15, 30, RED);
-        DrawText(TextFormat("FINAL SCORE: %d", env->player.score), SCREEN_WIDTH / 2 - MeasureText(TextFormat("FINAL SCORE: %d", env->player.score), 20)/2, SCREEN_HEIGHT / 2 + 25, 20, GREEN);
+        DrawText("GAME OVER", SCREEN_WIDTH / 2 - MeasureText("GAME OVER", 30) / 2, SCREEN_HEIGHT / 2 - 15, 30, PUFF_RED);
+        DrawText(TextFormat("FINAL SCORE: %d", env->player.score), SCREEN_WIDTH / 2 - MeasureText(TextFormat("FINAL SCORE: %d", env->player.score), 20)/2, SCREEN_HEIGHT / 2 + 25, 20, PUFF_CYAN);
     } else {
-        // Draw Player (or explosion)
         if (env->player_explosion_timer > 0) {
             DrawTexture(client->explosion_texture, env->player.x, env->player.y, WHITE);
         } else if (env->player.lives > 0) {
             DrawTexture(client->player_texture, env->player.x, env->player.y, WHITE);
         }
-
-        // Draw Enemy (or explosion)
         if (env->enemy_explosion_timer > 0) {
             DrawTexture(client->explosion_texture, env->enemy.x, env->enemy.y, WHITE);
         } else if (env->enemy.active) {
             DrawTexture(client->enemy_texture, env->enemy.x, env->enemy.y, WHITE);
         }
-
-        // Draw Bullets
         if (env->player.bullet.active) {
             DrawTexture(client->player_bullet_texture, env->player.bullet.x, env->player.bullet.y, WHITE);
         }
         if (env->enemy.bullet.active) {
             DrawTexture(client->enemy_bullet_texture, env->enemy.bullet.x, env->enemy.bullet.y, WHITE);
         }
-
-        // Draw UI/Status
         if (env->player.player_stuck) {
-            DrawText("Status Beam", SCREEN_WIDTH - MeasureText("Status Beam", 20) - 10, SCREEN_HEIGHT / 3, 20, RED);
+            DrawText("Status Beam", SCREEN_WIDTH - MeasureText("Status Beam", 20) - 10, SCREEN_HEIGHT / 3, 20, PUFF_RED);
         }
-        DrawText(TextFormat("SCORE: %d", env->player.score), 10, 10, 20, GREEN);
-        DrawText(TextFormat("LIVES: %d", env->player.lives), SCREEN_WIDTH - MeasureText(TextFormat("LIVES: %d", env->player.lives), 20) - 10, 10, 20, GREEN);
-         DrawText(TextFormat("Return: %.2f", env->log.episode_return), 10, 40, 10, LIGHTGRAY); // Display running return
+        DrawText(TextFormat("SCORE: %d", env->player.score), 10, 10, 20, PUFF_CYAN);
+        DrawText(TextFormat("LIVES: %d", env->player.lives), SCREEN_WIDTH - MeasureText(TextFormat("LIVES: %d", env->player.lives), 20) - 10, 10, 20, PUFF_CYAN);
+        DrawText(TextFormat("Episode returns (sum): %.2f", env->log.episode_return), 10, 40, 10, PUFF_RED);
     }
-
     EndDrawing();
 }

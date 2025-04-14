@@ -1,4 +1,3 @@
-# blastar.py
 import numpy as np
 import gymnasium
 import pufferlib
@@ -6,11 +5,9 @@ from pufferlib.ocean.blastar import binding
 
 class Blastar(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, buf=None, seed=0):
-        # Observation space: 10 floats (normalized positions, bullet states)
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(10,), dtype=np.float32
         )
-        # Action space: 6 discrete actions (no-op, left, right, up, down, fire)
         self.single_action_space = gymnasium.spaces.Discrete(6)
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -55,7 +52,7 @@ class Blastar(pufferlib.PufferEnv):
 
 def test_performance(timeout=10, atn_cache=1024):
     env = Blastar(num_envs=1000)
-    env.reset()
+    env.reset(0)
     tick = 0
 
     rng = np.random.default_rng()

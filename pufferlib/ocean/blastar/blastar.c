@@ -1,10 +1,8 @@
 #include "blastar.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
 #include "puffernet.h"
 
 const char* WEIGHTS_PATH = "resources/blastar/blastar_weights.bin";

@@ -1,8 +1,6 @@
-// blastar_binding.c
-#include <Python.h>
 #include "blastar.h"
 #define Env Blastar
-#include "../env_binding.h"  // This header should supply assign_to_dict() and the DEFINE_PYINIT() macro
+#include "../env_binding.h"
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->num_obs = unpack(kwargs, "num_obs");
