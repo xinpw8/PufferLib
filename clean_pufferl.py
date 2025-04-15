@@ -74,6 +74,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         rewards=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
         dones=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
         truncateds=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
+        ratio = torch.ones(experience_rows, config.bptt_horizon, device=config.device),
     )
     ep_uses = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
     #stored_indices = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
@@ -340,7 +341,6 @@ def train(data):
     total_minibatches = int(config.update_epochs*config.batch_size/data.minibatch_size)
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
     n_samples = data.minibatch_size // config.bptt_horizon
-    experience.ratio = torch.ones(experience.values.shape, device=config.device).to(config.device)
     for mb in range(total_minibatches):
         with profile.train_misc:
             if config.use_p3o:
@@ -463,62 +463,18 @@ def train(data):
                     #advantages[batch.idx] = adv
                     #importance[batch.idx] = adv
 
-                # Might need returns at next step
-                #lgt = logits.reshape(-1, logits.shape[-1])
-                #atns = batch.actions.reshape(-1)
+            adv = batch.advantages
+            if config.norm_adv:
+                adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
-                adv = advantages[batch.idx]
+            adv = adv * batch.prio
 
-                if config.norm_adv:
-                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-
-                adv = adv * batch.prio
-
-                pg_loss1 = -adv * ratio
-                pg_loss2 = -adv * torch.clamp(
-                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                )
-                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-
-                #if config.norm_adv:
-                #    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-                #nll_loss = torch.nn.functional.nll_loss(
-                #    torch.nn.functional.log_softmax(lgt, dim=-1), target=atns, reduction='none')
-
-                # Worse than nll_loss
-                #ratio = ratio.view(-1)
-                #pg_loss1 = -adv * ratio
-                #pg_loss2 = -adv * torch.clamp(
-                #    ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                #)
-                #pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-
-                #adv = torch.clamp(adv, 1-config.clip_coef, 1+config.clip_coef)
-                #pg_loss = (adv * nll_loss).mean()
-                #pg_loss2 = adv * torch.clamp(
-                #    nll_loss, 1 - config.clip_coef, 1 + config.clip_coef
-                #)
-                #pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-                #pg_loss = pg_loss1.mean()
-
-                #pg_loss = torch.mean(adv * torch.nn.functional.nll_loss(
-                #    torch.nn.functional.log_softmax(lgt, dim=-1), target=atns, reduction='none'))
-
-            else:
-                adv = batch.advantages
-                if config.norm_adv:
-                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-
-                adv = adv * batch.prio
-
-                # Policy loss
-                pg_loss1 = -adv * ratio
-                pg_loss2 = -adv * torch.clamp(
-                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
-                )
-                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+            # Policy loss
+            pg_loss1 = -adv * ratio
+            pg_loss2 = -adv * torch.clamp(
+                ratio, 1 - config.clip_coef, 1 + config.clip_coef
+            )
+            pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
             # Value loss
             if config.use_p3o:
@@ -603,13 +559,16 @@ def train(data):
     data.max_uses = data.ep_uses.max().item()
     data.mean_uses = data.ep_uses.float().mean().item()
     if config.replay_factor > 0:
-        advantages = data.compute_gae(experience.values, experience.rewards,
-            experience.dones, config.gamma, config.gae_lambda)
-        exp = sample(data, advantages, data.off_policy_rows, method='topk')
-        experience.importance[:data.on_policy_rows] = 1
+        advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
+        vs = torch.zeros(experience.values.shape, device=config.device)
+        data.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
+            experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
+
+        exp = sample(data, advantages, data.off_policy_rows)
         for k, v in experience.items():
             v[data.on_policy_rows:] = exp[k]
 
+    experience.ratio[:data.on_policy_rows] = 1
 
     with profile.train_misc:
         if config.anneal_lr:
