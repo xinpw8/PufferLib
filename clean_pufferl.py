@@ -340,6 +340,7 @@ def train(data):
     total_minibatches = int(config.update_epochs*config.batch_size/data.minibatch_size)
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
     n_samples = data.minibatch_size // config.bptt_horizon
+    experience.ratio = torch.ones(experience.values.shape, device=config.device).to(config.device)
     for mb in range(total_minibatches):
         with profile.train_misc:
             if config.use_p3o:
@@ -374,9 +375,16 @@ def train(data):
 
                 advantages = advantages.cpu().numpy()
                 torch.cuda.synchronize()
-            elif config.use_vtrace or config.use_puff_advantage:
-                advantages = torch.ones(experience.values.shape, device=config.device).to(config.device)
-                importance = experience.importance
+            elif config.use_vtrace:
+                importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
+                vs = torch.zeros(experience.values.shape, device=config.device)
+                data.compute_vtrace(batch.values, batch.rewards, batch.dones,
+                    experience.ratio, vs, advantages, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
+            elif config.use_puff_advantage:
+                importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
+                vs = torch.zeros(experience.values.shape, device=config.device)
+                data.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
+                    experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
             else:
                 importance = advantages = data.compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
@@ -432,6 +440,7 @@ def train(data):
             newlogprob = newlogprob.reshape(batch.logprobs.shape)
             logratio = newlogprob - batch.logprobs
             ratio = logratio.exp()
+            experience.ratio[batch.idx] = ratio
 
             # TODO: Only do this if we are KL clipping? Saves 1-2% compute
             with torch.no_grad():
@@ -442,27 +451,29 @@ def train(data):
 
             if config.use_vtrace or config.use_puff_advantage:
                 with torch.no_grad():
-                    vs = torch.zeros(batch.values.shape, device=config.device)
-                    adv = torch.zeros(batch.values.shape, device=config.device)
+                    adv = advantages[batch.idx]
+                    vs = vs[batch.idx]
                     if config.use_vtrace:
                         data.compute_vtrace(batch.values, batch.rewards, batch.dones,
                             ratio, vs, adv, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
                     elif config.use_puff_advantage:
                         data.compute_puff_advantage(batch.values, batch.rewards, batch.dones,
                             ratio, vs, adv, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
-                    batch.returns = vs
 
-                importance[batch.idx] = adv
+                    #advantages[batch.idx] = adv
+                    #importance[batch.idx] = adv
+
                 # Might need returns at next step
-                lgt = logits.reshape(-1, logits.shape[-1])
-                atns = batch.actions.reshape(-1)
+                #lgt = logits.reshape(-1, logits.shape[-1])
+                #atns = batch.actions.reshape(-1)
+
+                adv = advantages[batch.idx]
 
                 if config.norm_adv:
                     adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
-                adv = (batch.prio*adv).reshape(-1)
+                adv = adv * batch.prio
 
-                ratio = ratio.view(-1)
                 pg_loss1 = -adv * ratio
                 pg_loss2 = -adv * torch.clamp(
                     ratio, 1 - config.clip_coef, 1 + config.clip_coef
