@@ -602,6 +602,7 @@ void compute_movement(Tactical* env, Entity* entity) {
     free(queue);
     free(visited);
     free(distances);
+    free(walkable_cells);
 }
 
 void move_entity(Tactical* env, Entity* entity, const int cell) {
@@ -1110,6 +1111,10 @@ void draw_animation_spell(Tactical* env, Client* client) {
 int c_render(Tactical* env) {
     if (IsKeyDown(KEY_Q) || IsKeyDown(KEY_BACKSPACE)) {
         return 1;  // close window
+    }
+
+    if (env->client == NULL) {
+        env->client = init_client(env);
     }
 
     Client* client = env->client;
