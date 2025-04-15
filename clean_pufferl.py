@@ -37,6 +37,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     )
     compute_gae = puffer_cuda.compute_gae
     compute_vtrace = puffer_cuda.compute_vtrace
+    compute_puff_advantage = puffer_cuda.compute_puff_advantage
 
     losses = pufferlib.namespace(
         policy_loss=0,
@@ -103,7 +104,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     else:
         experience.values = torch.zeros(experience_rows, config.bptt_horizon, device=config.device)
 
-    if config.use_vtrace:
+    if config.use_vtrace or config.use_puff_advantage:
         experience.importance = torch.ones(experience_rows, config.bptt_horizon, device=config.device)
 
     lstm_h = None
@@ -206,6 +207,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         minibatch_size=minibatch_size,
         compute_gae=compute_gae,
         compute_vtrace=compute_vtrace,
+        compute_puff_advantage=compute_puff_advantage,
         diayn_skills=diayn_skills,
         total_agents=total_agents,
         total_epochs=epochs,
@@ -372,7 +374,7 @@ def train(data):
 
                 advantages = advantages.cpu().numpy()
                 torch.cuda.synchronize()
-            elif config.use_vtrace:
+            elif config.use_vtrace or config.use_puff_advantage:
                 advantages = torch.ones(experience.values.shape, device=config.device).to(config.device)
                 importance = experience.importance
             else:
@@ -438,25 +440,60 @@ def train(data):
                 approx_kl = ((ratio - 1) - logratio).mean()
                 clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
 
-            if config.use_vtrace:
+            if config.use_vtrace or config.use_puff_advantage:
                 with torch.no_grad():
                     vs = torch.zeros(batch.values.shape, device=config.device)
                     adv = torch.zeros(batch.values.shape, device=config.device)
-                    data.compute_vtrace(batch.values, batch.rewards, batch.dones,
-                        ratio, vs, adv, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
+                    if config.use_vtrace:
+                        data.compute_vtrace(batch.values, batch.rewards, batch.dones,
+                            ratio, vs, adv, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
+                    elif config.use_puff_advantage:
+                        data.compute_puff_advantage(batch.values, batch.rewards, batch.dones,
+                            ratio, vs, adv, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
                     batch.returns = vs
 
                 importance[batch.idx] = adv
                 # Might need returns at next step
                 lgt = logits.reshape(-1, logits.shape[-1])
                 atns = batch.actions.reshape(-1)
+
+                if config.norm_adv:
+                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+
                 adv = (batch.prio*adv).reshape(-1)
+
+                ratio = ratio.view(-1)
+                pg_loss1 = -adv * ratio
+                pg_loss2 = -adv * torch.clamp(
+                    ratio, 1 - config.clip_coef, 1 + config.clip_coef
+                )
+                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
 
                 #if config.norm_adv:
                 #    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+                #nll_loss = torch.nn.functional.nll_loss(
+                #    torch.nn.functional.log_softmax(lgt, dim=-1), target=atns, reduction='none')
 
-                pg_loss = torch.mean(adv * torch.nn.functional.nll_loss(
-                    torch.nn.functional.log_softmax(lgt, dim=-1), target=atns, reduction='none'))
+                # Worse than nll_loss
+                #ratio = ratio.view(-1)
+                #pg_loss1 = -adv * ratio
+                #pg_loss2 = -adv * torch.clamp(
+                #    ratio, 1 - config.clip_coef, 1 + config.clip_coef
+                #)
+                #pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
+
+                #adv = torch.clamp(adv, 1-config.clip_coef, 1+config.clip_coef)
+                #pg_loss = (adv * nll_loss).mean()
+                #pg_loss2 = adv * torch.clamp(
+                #    nll_loss, 1 - config.clip_coef, 1 + config.clip_coef
+                #)
+                #pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+                #pg_loss = pg_loss1.mean()
+
+                #pg_loss = torch.mean(adv * torch.nn.functional.nll_loss(
+                #    torch.nn.functional.log_softmax(lgt, dim=-1), target=atns, reduction='none'))
 
             else:
                 adv = batch.advantages

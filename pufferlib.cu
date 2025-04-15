@@ -227,9 +227,55 @@ void compute_vtrace(torch::Tensor values, torch::Tensor rewards,
     }
 }
 
+ // [num_steps, horizon]
+__global__ void puff_advantage_kernel(float* values, float* rewards, float* dones, float* importance,
+        float* vs, float* advantages, float gamma, float lambda,
+        float rho_clip, float c_clip, int num_steps, int horizon) {
+    int row = blockIdx.x*blockDim.x + threadIdx.x;
+    int offset = row*horizon;
+    puff_advantage_row(values + offset, rewards + offset, dones + offset,
+        importance + offset, vs + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon);
+}
+
+void compute_puff_advantage(torch::Tensor values, torch::Tensor rewards,
+        torch::Tensor dones, torch::Tensor importance, torch::Tensor vs, torch::Tensor advantages,
+        float gamma, float lambda, float rho_clip, float c_clip) {
+    int num_steps = values.size(0);
+    int horizon = values.size(1);
+    vtrace_check(values, rewards, dones, importance, vs, advantages, num_steps, horizon);
+    TORCH_CHECK(values.is_cuda(), "All tensors must be on GPU");
+    assert(horizon <= max_horizon);
+
+    int threads_per_block = 128;
+    int blocks = (num_steps + threads_per_block - 1) / threads_per_block;
+    assert(num_steps % threads_per_block == 0);
+
+    puff_advantage_kernel<<<blocks, threads_per_block>>>(
+        values.data_ptr<float>(),
+        rewards.data_ptr<float>(),
+        dones.data_ptr<float>(),
+        importance.data_ptr<float>(),
+        vs.data_ptr<float>(),
+        advantages.data_ptr<float>(),
+        gamma,
+        lambda,
+        rho_clip,
+        c_clip,
+        num_steps,
+        horizon
+    );
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(cudaGetErrorString(err));
+    }
+}
+
+
 // Pybind11 module definition
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("compute_p3o", &compute_p3o, "Compute p3o advantages with CUDA");
     m.def("compute_gae", &compute_gae, "Compute GAE with CUDA");
     m.def("compute_vtrace", &compute_vtrace, "Compute VTrace with CUDA");
+    m.def("compute_puff_advantage", &compute_puff_advantage, "Compute PuffAdvantage with CUDA");
 }

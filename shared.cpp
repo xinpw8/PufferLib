@@ -63,6 +63,23 @@ __host__ __device__ void vtrace_row(float* values, float* rewards, float* dones,
     }
 }
 
+__host__ __device__ void puff_advantage_row(float* values, float* rewards, float* dones,
+        float* importance, float* vs, float* advantages, float gamma, float lambda,
+        float rho_clip, float c_clip, int horizon) {
+    vs[horizon-1] = values[horizon-1];
+    float lastpufferlam = 0;
+    for (int t = horizon-2; t >= 0; t--) {
+        int t_next = t + 1;
+        float nextnonterminal = 1.0 - dones[t_next];
+        float rho_t = fminf(importance[t], rho_clip);
+        float c_t = fminf(importance[t], c_clip);
+        float delta = rho_t*(rewards[t] + gamma*values[t_next]*nextnonterminal - values[t]);
+        lastpufferlam = delta + gamma*lambda*c_t*lastpufferlam*nextnonterminal;
+        advantages[t] = rho_t*(rewards[t] + gamma*vs[t_next]*nextnonterminal - values[t]);
+        vs[t] = lastpufferlam + values[t];
+    }
+}
+
 void vtrace_check(torch::Tensor values, torch::Tensor rewards,
         torch::Tensor dones, torch::Tensor importance, torch::Tensor vs, torch::Tensor advantages,
         int num_steps, int horizon) {
