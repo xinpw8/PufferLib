@@ -20,7 +20,7 @@ class GPUDrive(pufferlib.PufferEnv):
         self.report_interval = report_interval
         print("Num envs: ", num_envs)
         
-        self.num_obs = 6 + 63*7 + 64*5
+        self.num_obs = 6 + 63*7 + 200*7
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])

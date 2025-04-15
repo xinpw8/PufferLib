@@ -45,22 +45,22 @@
 #define SLOTS_PER_CELL (MAX_ENTITIES_PER_CELL*2 + 1)
 
 // Max road segment observation entities
-#define MAX_ROAD_SEGMENT_OBSERVATIONS 64
+#define MAX_ROAD_SEGMENT_OBSERVATIONS 200
 #define MAX_CARS 64
 // Observation Space Constants
-#define MAX_SPEED 100
-#define MAX_VEH_LEN 30
-#define MAX_VEH_WIDTH 15
-#define MAX_VEH_HEIGHT 10
-#define MIN_REL_GOAL_COORD -1000
-#define MAX_REL_GOAL_COORD 1000
-#define MIN_REL_AGENT_POS -1000
-#define MAX_REL_AGENT_POS 1000
+#define MAX_SPEED 100.0f
+#define MAX_VEH_LEN 30.0f
+#define MAX_VEH_WIDTH 15.0f
+#define MAX_VEH_HEIGHT 10.0f
+#define MIN_REL_GOAL_COORD -1000.0f
+#define MAX_REL_GOAL_COORD 1000.0f
+#define MIN_REL_AGENT_POS -1000.0f
+#define MAX_REL_AGENT_POS 1000.0f
 #define MAX_ORIENTATION_RAD 2 * PI
-#define MIN_RG_COORD -1000
-#define MAX_RG_COORD 1000
-#define MAX_ROAD_SCALE 100
-#define MAX_ROAD_SEGMENT_LENGTH 100
+#define MIN_RG_COORD -1000.0f
+#define MAX_RG_COORD 1000.0f
+#define MAX_ROAD_SCALE 100.0f
+#define MAX_ROAD_SEGMENT_LENGTH 100.0f
 
 // Acceleration Values
 static const float ACCELERATION_VALUES[7] = {-4.0000f, -2.6670f, -1.3330f, -0.0000f,  1.3330f,  2.6670f,  4.0000f};
@@ -948,18 +948,26 @@ void compute_observations(GPUDrive* env) {
             float rel_y = mid_y - ego_entity->y;
             float x_obs = rel_x*cos_heading + rel_y*sin_heading;
             float y_obs = -rel_x*sin_heading + rel_y*cos_heading;
+            float rel_end_x = end[0] - ego_entity->x;
+            float rel_end_y = end[1] - ego_entity->y;
+            float end_x_obs = rel_end_x*cos_heading + rel_end_y*sin_heading;
+            float end_y_obs = -rel_end_x*sin_heading + rel_end_y*cos_heading;
             float length = relative_distance_2d(mid_x, mid_y, end[0], end[1]);
             float width = 0.1;
             float height = 0.1;
             // Calculate angle from ego to midpoint (vector from ego to midpoint)
-            float angle_to_midpoint = atan2(mid_y - ego_entity->y, mid_x - ego_entity->x);
-            float rel_angle_to_midpoint = normalize_heading(angle_to_midpoint - ego_entity->heading);
+            float dx = end[0] - mid_x;
+            float dy = end[1] - mid_y;
+            float absolute_angle = atan2f(dy, dx);
+            float rel_angle = normalize_heading(absolute_angle - ego_entity->heading);
+            float cos_angle = cosf(rel_angle);
+            float sin_angle = sinf(rel_angle);
             obs[obs_idx] = normalize_value(x_obs, MIN_RG_COORD, MAX_RG_COORD);
             obs[obs_idx + 1] = normalize_value(y_obs, MIN_RG_COORD, MAX_RG_COORD);
             obs[obs_idx + 2] = length / MAX_ROAD_SEGMENT_LENGTH;
             obs[obs_idx + 3] = width / MAX_ROAD_SCALE;
-            obs[obs_idx + 4] = height / MAX_ROAD_SCALE;
-            obs[obs_idx + 5] = rel_angle_to_midpoint / MAX_ORIENTATION_RAD;
+            obs[obs_idx + 4] = cos_angle / MAX_ORIENTATION_RAD;
+            obs[obs_idx + 5] = sin_angle / MAX_ORIENTATION_RAD;
             obs[obs_idx + 6] = entity->type;
             obs_idx += 7;
         }
@@ -1017,8 +1025,8 @@ void c_step(GPUDrive* env){
             env->entities[agent_idx].y = -10000;
             continue;
 	    }
-        move_dynamics(env, i, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        // move_dynamics(env, i, agent_idx);
+        move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
@@ -1110,6 +1118,14 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
             (Vector3){x, y, 1}, 
             ORANGE
         );
+        float theta_x = agent_obs[obs_idx + 4];
+        float theta_y = agent_obs[obs_idx + 5];
+        float partner_angle = atan2f(theta_y, theta_x);
+        // draw an arrow above the car pointing in the direction that the partner is going
+        float arrow_length = 10.0f;
+        float arrow_x = x + arrow_length*cosf(partner_angle);
+        float arrow_y = y + arrow_length*sinf(partner_angle);
+        DrawLine3D((Vector3){x, y, 1}, (Vector3){arrow_x, arrow_y, 1}, RED);
         obs_idx += 7;  // Move to next agent observation (7 values per agent)
     }
     // Then draw map observations
@@ -1127,9 +1143,19 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         } 
         lineColor = BLACK;
         // For road segments, draw line between start and end points
-        float x_start = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
-        float y_start = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
-        DrawLine3D((Vector3){0,0,0}, (Vector3){x_start, y_start, 1}, lineColor);    
+        float x_middle = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
+        float y_middle = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
+        float rel_angle_x = (agent_obs[entity_idx + 4]);
+        float rel_angle_y = (agent_obs[entity_idx + 5]);
+        float rel_angle = atan2f(rel_angle_y, rel_angle_x);
+        float segment_length = agent_obs[entity_idx + 2] * MAX_ROAD_SEGMENT_LENGTH;
+        printf("obs idx: %d, segment_length: %f\n", entity_idx, segment_length);
+        // Calculate endpoint using the relative angle directly
+        // Calculate endpoint directly
+        float x_end = x_middle + segment_length*cosf(rel_angle);
+        float y_end = y_middle + segment_length*sinf(rel_angle);
+        DrawLine3D((Vector3){0,0,0}, (Vector3){x_middle, y_middle, 1}, lineColor); 
+        DrawLine3D((Vector3){x_middle, y_middle, 1}, (Vector3){x_end, y_end, 1}, BLUE);
     }
 }
 
@@ -1238,9 +1264,11 @@ void c_render(Client* client, GPUDrive* env) {
             if(env->entities[i].type != ROAD_EDGE){
                 continue;
             }
-            DrawLine3D(start, end, lineColor);
-            DrawSphere(start, 0.5f, lineColor);
-            DrawSphere(end, 0.5f, lineColor);
+            if(!IsKeyDown(KEY_LEFT_SHIFT)){
+                DrawLine3D(start, end, lineColor);
+                DrawSphere(start, 0.5f, lineColor);
+                DrawSphere(end, 0.5f, lineColor);
+            }
         }
     }
     // Draw grid cells using the stored bounds
