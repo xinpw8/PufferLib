@@ -397,7 +397,7 @@ void reset_round(Breakout* env) {
     env->ball_vy = 0.0;
 }
 
-void reset(Breakout* env) {
+void c_reset(Breakout* env) {
     env->score = 0;
     env->num_balls = 5;
     for (int i = 0; i < env->num_bricks; i++) {
@@ -449,11 +449,11 @@ void step_frame(Breakout* env, float action) {
     if (env->num_balls < 0 || env->score == env->max_score) {
         env->terminals[0] = 1;
         add_log(env);
-        reset(env);
+        c_reset(env);
     }
 }
 
-void step(Breakout* env) {
+void c_step(Breakout* env) {
     env->terminals[0] = 0;
     env->rewards[0] = 0.0;
 
@@ -533,7 +533,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Breakout* env) {
+void c_render(Breakout* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
