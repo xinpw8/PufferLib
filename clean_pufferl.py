@@ -49,6 +49,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
         explained_variance=0,
         diayn_loss=0,
         grad_var=0,
+        importance=0,
     )
 
     utilization = Utilization()
@@ -126,7 +127,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
             policy.parameters(),
             lr=config.learning_rate,
             betas=(config.adam_beta1, config.adam_beta2),
-            eps=config.adam_eps
+            eps=config.adam_eps,
         )
     elif config.optimizer == 'muon':
         from heavyball import ForeachMuon
@@ -136,7 +137,8 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
             policy.parameters(),
             lr=config.learning_rate,
             betas=(config.adam_beta1, config.adam_beta2),
-            eps=config.adam_eps
+            eps=config.adam_eps,
+
         )
     elif config.optimizer == 'kron':
         from heavyball import ForeachPSGDKron
@@ -378,7 +380,7 @@ def train(data):
             elif config.use_vtrace:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
                 vs = torch.zeros(experience.values.shape, device=config.device)
-                data.compute_vtrace(batch.values, batch.rewards, batch.dones,
+                data.compute_vtrace(experience.values, experience.rewards, experience.dones,
                     experience.ratio, vs, advantages, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
             elif config.use_puff_advantage:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
@@ -510,7 +512,6 @@ def train(data):
         with torch.no_grad():
             experience.values[batch.idx] = newvalue
 
-
         with profile.learn:
             if data.scaler is not None:
                 loss = data.scaler.scale(loss)
@@ -547,6 +548,7 @@ def train(data):
             losses.approx_kl += approx_kl.item() / total_minibatches
             losses.clipfrac += clipfrac.item() / total_minibatches
             losses.grad_var += grad_var.item() / total_minibatches
+            losses.importance += ratio.mean().item() / total_minibatches
 
             if data.use_diayn:
                 losses.diayn_loss += diayn_loss.item() / total_minibatches
@@ -564,10 +566,11 @@ def train(data):
         data.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
             experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
 
-        exp = sample(data, advantages, data.off_policy_rows)
+        exp = sample(data, advantages, data.off_policy_rows, method='random')
         for k, v in experience.items():
             v[data.on_policy_rows:] = exp[k]
 
+    #print(advantages[:data.on_policy_rows].mean(), advantages[data.on_policy_rows:].mean())
     experience.ratio[:data.on_policy_rows] = 1
 
     with profile.train_misc:
