@@ -1,4 +1,4 @@
-__global__ void advantage_kernel(
+__global__ void p3o_kernel(
     float* reward_block,    // [num_steps, horizon]
     float* reward_mask,     // [num_steps, horizon]
     float* values_mean,     // [num_steps, horizon]
@@ -57,7 +57,7 @@ __global__ void advantage_kernel(
         reward_mask[idx] = 1.0f;
     }
 
-    float bootstrap = 0.0f;
+    //float bootstrap = 0.0f;
     //if (k == horizon-1) {
     //    bootstrap = buf[i*horizon + horizon - 1]*values_mean[i*horizon + horizon - 1];
     //}
@@ -84,4 +84,27 @@ __global__ void advantage_kernel(
 
     advantages[i] = R;
     bounds[i] = k;
+}
+
+
+__global__ void gae_kernel(
+    float* values,     // [num_steps, horizon]
+    float* rewards,    // [num_steps, horizon]
+    float* dones,      // [num_steps, horizon]
+    float* advantages, // [num_steps, horizon]
+    float gamma,
+    float gae_lambda,
+    int num_steps,
+    int horizon
+) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    float lastgaelam = 0;
+    for (int t = horizon-2; t >= 0; t--) {
+        int idx = row*horizon + t;
+        int idx_next = idx + 1;
+        float nextnonterminal = 1.0 - dones[idx_next];
+        float delta = rewards[idx_next] + gamma*values[idx_next]*nextnonterminal - values[idx];
+        lastgaelam = delta + gamma*gae_lambda*nextnonterminal * lastgaelam;
+        advantages[idx] = lastgaelam;
+    }
 }
