@@ -270,7 +270,7 @@ extension_paths = [
     'pufferlib/ocean/cartpole/cy_cartpole',
     'pufferlib/ocean/blastar/cy_blastar',
     'pufferlib/ocean/connect4/cy_connect4',
-    'pufferlib/ocean/grid/cy_grid',
+    #'pufferlib/ocean/grid/cy_grid',
     'pufferlib/ocean/tripletriad/cy_tripletriad',
     'pufferlib/ocean/go/cy_go',
     'pufferlib/ocean/rware/cy_rware',
@@ -300,7 +300,7 @@ extensions = [Extension(
     path.replace('/', '.'),
     [path + '.pyx'],
     include_dirs=[numpy.get_include(), 'raylib/include'],
-    extra_compile_args=extra_compile_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-g'],
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
     extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
 ) for path in extension_paths]
@@ -309,14 +309,14 @@ extensions = [Extension(
 #c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2']
 #c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
-pure_c_extensions = ['squared', 'pong', 'breakout', 'nmmo3', 'enduro']
+pure_c_extensions = ['squared', 'pong', 'breakout', 'grid', 'nmmo3', 'enduro']
 extensions += [
     Extension(
         f'pufferlib.ocean.{name}.binding',
         sources=[f'pufferlib/ocean/{name}/binding.c'],
         include_dirs=[numpy.get_include(), 'raylib/include'],
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
+        extra_compile_args=extra_compile_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak'],
+        extra_link_args=extra_link_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-g'],
         extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
     )
     for name in pure_c_extensions
