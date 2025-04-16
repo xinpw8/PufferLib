@@ -231,7 +231,7 @@ class Multiprocessing:
  
     def __init__(self, env_creators, env_args, env_kwargs,
             num_envs, num_workers=None, batch_size=None,
-            zero_copy=True, overwork=False, seed=0, **kwargs):
+            zero_copy=True, sync_traj=True, overwork=False, seed=0, **kwargs):
         if batch_size is None:
             batch_size = num_envs
         if num_workers is None:
@@ -340,16 +340,25 @@ class Multiprocessing:
         self.flag = RESET
         self.initialized = False
         self.zero_copy = zero_copy
+        self.sync_traj = sync_traj
 
     def recv(self):
         recv_precheck(self)
         while True:
-            worker = self.waiting_workers.pop(0)
-            sem = self.buf.semaphores[worker]
-            if sem >= MAIN:
-                self.ready_workers.append(worker)
+            # Bandaid patch for new experience buffer desync
+            if self.sync_traj:
+                worker = self.waiting_workers[0]
+                sem = self.buf.semaphores[worker]
+                if sem >= MAIN:
+                    self.waiting_workers.pop(0)
+                    self.ready_workers.append(worker)
             else:
-                self.waiting_workers.append(worker)
+                worker = self.waiting_workers.pop(0)
+                sem = self.buf.semaphores[worker]
+                if sem >= MAIN:
+                    self.ready_workers.append(worker)
+                else:
+                    self.waiting_workers.append(worker)
 
             if sem == INFO:
                 self.infos[worker] = self.recv_pipes[worker].recv()
@@ -438,6 +447,7 @@ class Multiprocessing:
         self.flag = RECV
 
         self.ready_workers = []
+        self.ready_next_workers = [] # Used to evenly sample workers
         self.waiting_workers = list(range(self.num_workers))
         self.infos = [[] for _ in range(self.num_workers)]
 
