@@ -311,12 +311,12 @@ class MOBA(nn.Module):
         self.value_fn = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
-    def forward(self, observations):
+    def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         cnn_features = observations[:, :-26].view(-1, 11, 11, 4).long()
         if cnn_features[:, :, :, 0].max() > 15:
             print('Invalid map value:', cnn_features[:, :, :, 0].max())

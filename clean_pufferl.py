@@ -640,8 +640,8 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
     # TODO: Handle masks!!
     #indices = np.where(mask)[0]
     #data.ep_lengths[env_id[mask]] += 1
-    l += 1
-    full = l >= data.config.bptt_horizon
+    data.ep_lengths[env_id] += 1
+    full = data.ep_lengths[env_id] >= data.config.bptt_horizon
     num_full = full.sum()
     if num_full > 0:
         full_ids = env_id[full]
