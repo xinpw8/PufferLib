@@ -261,22 +261,22 @@ common = cleanrl + [environments[env] for env in [
 
 extension_paths = [
     #'pufferlib/ocean/nmmo3/cy_nmmo3',
-    'pufferlib/ocean/moba/cy_moba',
-    'pufferlib/ocean/tactical/c_tactical',
+    # 'pufferlib/ocean/moba/cy_moba',
+    # 'pufferlib/ocean/tactical/c_tactical',
     #'pufferlib/ocean/squared/cy_squared',
-    'pufferlib/ocean/snake/cy_snake',
+    # 'pufferlib/ocean/snake/cy_snake',
     #'pufferlib/ocean/pong/cy_pong',
     # 'pufferlib/ocean/breakout/cy_breakout',
-    'pufferlib/ocean/cartpole/cy_cartpole',
-    'pufferlib/ocean/blastar/cy_blastar',
-    'pufferlib/ocean/connect4/cy_connect4',
-    'pufferlib/ocean/grid/cy_grid',
-    'pufferlib/ocean/tripletriad/cy_tripletriad',
-    'pufferlib/ocean/go/cy_go',
-    'pufferlib/ocean/rware/cy_rware',
-    'pufferlib/ocean/trash_pickup/cy_trash_pickup',
-    'pufferlib/ocean/cpr/cy_cpr',
-    'pufferlib/ocean/tower_climb/cy_tower_climb',
+    # 'pufferlib/ocean/cartpole/cy_cartpole',
+    # 'pufferlib/ocean/blastar/cy_blastar',
+    # 'pufferlib/ocean/connect4/cy_connect4',
+    # 'pufferlib/ocean/grid/cy_grid',
+    # 'pufferlib/ocean/tripletriad/cy_tripletriad',
+    # 'pufferlib/ocean/go/cy_go',
+    # 'pufferlib/ocean/rware/cy_rware',
+    # 'pufferlib/ocean/trash_pickup/cy_trash_pickup',
+    # 'pufferlib/ocean/cpr/cy_cpr',
+    # 'pufferlib/ocean/tower_climb/cy_tower_climb',
 ]
 
 system = platform.system()
@@ -309,7 +309,8 @@ extensions = [Extension(
 #c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2']
 #c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
-pure_c_extensions = ['squared', 'pong', 'breakout', 'nmmo3', 'enduro']
+# pure_c_extensions = ['squared', 'pong', 'breakout', 'nmmo3', 'enduro', 'snake']
+pure_c_extensions = ['snake']
 extensions += [
     Extension(
         f'pufferlib.ocean.{name}.binding',

@@ -105,7 +105,7 @@ static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         PyErr_SetString(PyExc_ValueError, "Truncations must be 1D");
         return NULL;
     }
-    //env->truncations = PyArray_DATA(truncations);
+    env->truncations = PyArray_DATA(truncations);
     
     
     PyObject* seed_arg = PyTuple_GetItem(args, 5);
@@ -334,7 +334,7 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         env->actions = (void*)((char*)PyArray_DATA(actions) + i*PyArray_STRIDE(actions, 0));
         env->rewards = (void*)((char*)PyArray_DATA(rewards) + i*PyArray_STRIDE(rewards, 0));
         env->terminals = (void*)((char*)PyArray_DATA(terminals) + i*PyArray_STRIDE(terminals, 0));
-        //env->truncations = (void*)((char*)PyArray_DATA(truncations) + i*PyArray_STRIDE(truncations, 0));
+        env->truncations = (void*)((char*)PyArray_DATA(truncations) + i*PyArray_STRIDE(truncations, 0));
 
         // Assumes each process has the same number of environments
         int env_seed = i + seed*vec->num_envs;
@@ -522,26 +522,60 @@ static double unpack(PyObject* kwargs, char* key) {
     if (val == NULL) {
         // If the key doesn't exist, don't set an error - this allows optional parameters
         // Just return a default value that the caller can check for
+        printf("Warning: Key '%s' not found in kwargs\n", key);
         return 0.0;
     }
+    
+    // If the value is a list, get the first element
+    if (PyList_Check(val)) {
+        if (PyList_Size(val) > 0) {
+            PyObject* first_item = PyList_GetItem(val, 0);
+            if (PyLong_Check(first_item)) {
+                long out = PyLong_AsLong(first_item);
+                if (out > INT_MAX || out < INT_MIN) {
+                    char error_msg[200];
+                    snprintf(error_msg, sizeof(error_msg), "Value %ld of integer argument %s[0] is out of range", out, key);
+                    PyErr_SetString(PyExc_TypeError, error_msg);
+                    return -1e10;  // Special value to indicate error
+                }
+                return (double)out;
+            } else if (PyFloat_Check(first_item)) {
+                return PyFloat_AsDouble(first_item);
+            } else if (PyBool_Check(first_item)) {
+                return PyObject_IsTrue(first_item) ? 1.0 : 0.0;
+            } else {
+                printf("Warning: First item of list '%s' is neither int, float, nor bool\n", key);
+                return -1e10;  // Special value to indicate error
+            }
+        } else {
+            printf("Warning: List '%s' is empty\n", key);
+            return -1e10;  // Special value to indicate error
+        }
+    }
+    
+    // Handle scalar values
     if (PyLong_Check(val)) {
         long out = PyLong_AsLong(val);
         if (out > INT_MAX || out < INT_MIN) {
-            char error_msg[100];
+            char error_msg[200];
             snprintf(error_msg, sizeof(error_msg), "Value %ld of integer argument %s is out of range", out, key);
             PyErr_SetString(PyExc_TypeError, error_msg);
-            return 1;
+            return -1e10;  // Special value to indicate error
         }
-        // Cast on return. Safe because double can represent all 32-bit ints exactly
-        return out;
+        return (double)out;
     }
     if (PyFloat_Check(val)) {
         return PyFloat_AsDouble(val);
     }
-    char error_msg[100];
-    snprintf(error_msg, sizeof(error_msg), "Failed to unpack keyword %s as int", key);
+    if (PyBool_Check(val)) {
+        return PyObject_IsTrue(val) ? 1.0 : 0.0;
+    }
+    
+    char error_msg[200];
+    snprintf(error_msg, sizeof(error_msg), "Failed to unpack keyword %s - unexpected type: %s", 
+             key, val->ob_type->tp_name);
     PyErr_SetString(PyExc_TypeError, error_msg);
-    return 1;
+    return -1e10;  // Special value to indicate error
 }
 
 // Method table

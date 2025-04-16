@@ -36,7 +36,7 @@ int demo() {
             forward_linearlstm(net, net->obs, env.actions);
         }
         c_step(&env);
-        c_render(client, &env);
+        c_render(&env);
     }
     free_linearlstm(net);
     free(weights);
