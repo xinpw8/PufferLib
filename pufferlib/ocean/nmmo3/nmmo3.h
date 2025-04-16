@@ -1630,7 +1630,7 @@ void enemy_ai(MMO* env, int pid) {
     wander(env, pid);
 }
 
-void reset(MMO* env) {
+void c_reset(MMO* env) {
     env->tick = 0;
 
     env->market_sells = 0;
@@ -1833,7 +1833,7 @@ void reset(MMO* env) {
     compute_all_obs(env);
 }
 
-void step(MMO* env) {
+void c_step(MMO* env) {
     env->tick += 1;
     int tick = env->tick;
 
@@ -3109,7 +3109,7 @@ void process_command_input(Client* client, MMO* env) {
     DrawText(text, 10, 10, 20, BLACK);
 }
 
-int render(MMO* env) {
+int c_render(MMO* env) {
     if (env->client == NULL) {
         // Must reset before making client
         env->client = make_client(env);

@@ -12,9 +12,9 @@ import pufferlib.ocean.snake.binding as binding
 class Snake(pufferlib.PufferEnv):
     def __init__(self, num_envs=16, width=640, height=360,
             num_snakes=256, num_food=4096,
-            vision=3, leave_corpse_on_death=True,
-            reward_food=1.0, reward_corpse=0.5, reward_death=-1.0,
-            survival_reward=0.01, report_interval=128, max_snake_length=1024,
+            vision=5, leave_corpse_on_death=True,
+            reward_food=0.1, reward_corpse=0.1, reward_death=-1.0,
+            report_interval=128, max_snake_length=1024,
             render_mode='human', buf=None, seed=0):
         
         if num_envs is not None:

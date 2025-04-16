@@ -56,7 +56,7 @@ void add_log(Squared* env) {
     env->log.n++;
 }
 
-void reset(Squared* env) {
+void c_reset(Squared* env) {
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->observations[env->size*env->size/2] = AGENT;
     env->r = env->size/2;
@@ -69,7 +69,7 @@ void reset(Squared* env) {
     env->observations[target_idx] = TARGET;
 }
 
-void step(Squared* env) {
+void c_step(Squared* env) {
     env->tick += 1;
 
     int action = env->actions[0];
@@ -96,7 +96,7 @@ void step(Squared* env) {
         env->terminals[0] = 1;
         env->rewards[0] = -1.0;
         add_log(env);
-        reset(env);
+        c_reset(env);
         return;
     }
 
@@ -105,7 +105,7 @@ void step(Squared* env) {
         env->terminals[0] = 1;
         env->rewards[0] = 1.0;
         add_log(env);
-        reset(env);
+        c_reset(env);
         return;
     }
 
@@ -132,7 +132,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void render(Squared* env) {
+void c_render(Squared* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
