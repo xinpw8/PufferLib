@@ -143,6 +143,11 @@ environments = {
         'griddly==1.6.7',
         'imageio',
     ],
+    'kinetix': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'kinetix-env',
+    ],
     'magent': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
