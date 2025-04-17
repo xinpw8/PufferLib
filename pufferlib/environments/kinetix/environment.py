@@ -1,3 +1,4 @@
+import functools
 import numpy as np
 
 import pufferlib
@@ -81,7 +82,21 @@ train_levels = [
 
 
 def env_creator(name="kinetix"):
-    return KinetixPufferEnv
+    from kinetix.environment.env import ObservationType, ActionType
+
+    _, obs, act = name.split("-")
+    if obs == "symbolic": obs = "symbolic_flat"
+
+    try:
+        obs = ObservationType.from_string(obs)
+    except ValueError:
+        raise ValueError(f"Unknown observation type: {obs}.")
+    try:
+        act = ActionType.from_string(act)
+    except ValueError:
+        raise ValueError(f"Unknown action type: {act}.")
+
+    return functools.partial(KinetixPufferEnv, observation_type=obs, action_type=act)
 
 
 def make(name, *args, **kwargs):
@@ -89,7 +104,7 @@ def make(name, *args, **kwargs):
 
 
 class KinetixPufferEnv(pufferlib.environment.PufferEnv):
-    def __init__(self, num_envs=1, buf=None):
+    def __init__(self, observation_type, action_type, num_envs=1, buf=None):
 
         from kinetix.environment.env import make_kinetix_env, ObservationType, ActionType
         from kinetix.environment.env_state import EnvParams, StaticEnvParams
@@ -99,14 +114,17 @@ class KinetixPufferEnv(pufferlib.environment.PufferEnv):
         import jax
         from gymnax.environments.spaces import gymnax_space_to_gym_space
 
+        self.observation_type = observation_type
+        self.action_type = action_type
+
         # Use default parameters
         env_params = EnvParams()
         static_env_params = StaticEnvParams().replace()
 
         # Create the environment
         env = make_kinetix_env(
-            observation_type=ObservationType.PIXELS,
-            action_type=ActionType.DISCRETE,
+            observation_type=observation_type,  # ObservationType.PIXELS,
+            action_type=action_type,  # ActionType.DISCRETE,
             reset_fn=make_reset_fn_list_of_levels(train_levels, static_env_params),
             env_params=env_params,
             static_env_params=static_env_params,
@@ -149,8 +167,14 @@ class KinetixPufferEnv(pufferlib.environment.PufferEnv):
         self.observations = torch_dlpack.from_dlpack(jax.dlpack.to_dlpack(obs))
         self.rewards = np.asarray(reward)
         self.terminals = np.asarray(done)
-        infos = [{k: v.mean().item() for k, v in info.items()}]
+        infos = [{k: v.mean().item() for k, v in info.items()} | {"reward": self.rewards.mean()} ]
         return self.observations, self.rewards, self.terminals, self.terminals, infos
 
     def _obs_to_tensor(self, obs):
-        return obs.image
+        from kinetix.environment.env import ObservationType
+        if self.observation_type == ObservationType.PIXELS:
+            return obs.image
+        elif self.observation_type == ObservationType.SYMBOLIC_FLAT:
+            return obs
+        else:
+            raise ValueError(f"Unknown observation type: {self.observation_type}.")

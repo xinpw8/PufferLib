@@ -5,8 +5,10 @@ import pufferlib.models
 
 Recurrent = pufferlib.models.LSTMWrapper
 
+from pufferlib.models import Default as Policy
+SymbolicPolicy = Policy
 
-class Policy(nn.Module):
+class PixelsPolicy(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()
         self.hidden_size = 128
