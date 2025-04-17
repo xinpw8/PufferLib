@@ -329,6 +329,8 @@ def train(data):
     experience = data.experience
     losses = data.losses
 
+ 
+    '''
     with profile.custom:
         if config.use_diayn:
             diayn_policy = data.policy.policy
@@ -339,6 +341,7 @@ def train(data):
             diayn_r = (torch.argmax(q, 1) == z_idxs).float()
             experience.rewards[:, -1] += 1.0*diayn_r
             print('DIAYN acc: ', diayn_r.mean())
+    '''
 
     total_minibatches = int(config.update_epochs*config.batch_size/data.minibatch_size)
     accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
@@ -397,6 +400,8 @@ def train(data):
         loss = 0
         with profile.custom:
             if config.use_diayn:
+                pass
+                '''
                 diayn_policy = data.policy.policy
                 obs = batch.obs[:, ::8]
                 q = diayn_policy.discrim_forward(obs)
@@ -404,6 +409,8 @@ def train(data):
                 q = q.view(-1, q.shape[-1])
                 diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
                 loss += config.diayn_loss_coef*diayn_loss
+                '''
+
                 '''
                 with torch.no_grad():
                     batch.advantages *= diayn_r.unsqueeze(1).expand_as(batch.advantages)
@@ -438,6 +445,20 @@ def train(data):
             actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
                 action=batch.actions, is_continuous=data.policy.is_continuous)
 
+            if config.use_diayn:
+                N = 1
+                batch_logits = state.batch_logits[:, ::N]
+                batch_logits = torch.nn.functional.log_softmax(batch_logits, dim=-1)
+                mask = torch.nn.functional.one_hot(batch.actions[:, ::N], batch_logits.shape[-1]).bool()
+                #batch_logits = mask*batch_logits
+                batch_logits = batch_logits.view(batch_logits.shape[0], -1)
+                diayn_policy = data.policy.policy
+                q = diayn_policy.discrim_forward(batch_logits)
+                z_idxs = batch.diayn_z[:, 0]
+                q = q.view(-1, q.shape[-1])
+                diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
+                loss += config.diayn_loss_coef*diayn_loss
+ 
         with profile.train_misc:
             newlogprob = newlogprob.reshape(batch.logprobs.shape)
             logratio = newlogprob - batch.logprobs
