@@ -289,8 +289,8 @@ class Multiprocessing:
         self.agent_ids = np.arange(num_agents).reshape(num_workers, agents_per_worker)
 
         from multiprocessing import RawArray, set_start_method
-        # Mac breaks without setting fork
-        set_start_method('fork')
+        # Mac breaks without setting fork... but setting it breaks sweeps on 2nd run
+        #set_start_method('fork')
         self.shm = namespace(
             observations=RawArray(obs_ctype, num_agents * int(np.prod(obs_shape))),
             actions=RawArray(atn_ctype, num_agents * int(np.prod(atn_shape))),
