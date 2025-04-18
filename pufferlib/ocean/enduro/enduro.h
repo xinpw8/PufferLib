@@ -11,23 +11,6 @@
 #include <float.h>
 #include "raylib.h"
 
-enum {
-    LOG_LENGTH = 0,
-    LOG_RETURN,
-    LOG_SCORE,
-    LOG_REWARD,
-    LOG_STEP_REW_CAR_PASSED_NO_CRASH,
-    LOG_CRASHED_PENALTY,
-    LOG_PASSED_CARS,
-    LOG_PASSED_BY_ENEMY,
-    LOG_CARS_TO_PASS,
-    LOG_DAYS_COMPLETED,
-    LOG_DAYS_FAILED,
-    LOG_COLLISIONS_PLAYER_VS_CAR,
-    LOG_COLLISIONS_PLAYER_VS_ROAD,
-    LOG_N,
-};
-
 // Constant defs
 #define MAX_ENEMIES 10
 #define OBSERVATIONS_MAX_SIZE (8 + (5 * MAX_ENEMIES) + 9 + 1)
@@ -105,6 +88,7 @@ struct Log {
     float episode_return;
     float episode_length;
     float score;
+    float normalized_score;
     float reward;
     float step_rew_car_passed_no_crash;
     float crashed_penalty;
@@ -548,6 +532,7 @@ void add_log(Enduro* env) {
     env->log.episode_return += env->tracking_episode_return;
     env->log.episode_length += env->tracking_episode_length;
     env->log.score += env->tracking_score;
+    env->log.normalized_score += fminf(env->tracking_days_completed/10.0f, 1.0f);
     env->log.reward += env->tracking_reward;
     env->log.step_rew_car_passed_no_crash += env->tracking_step_rew_car_passed_no_crash;
     env->log.crashed_penalty += env->tracking_crashed_penalty;

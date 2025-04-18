@@ -25,6 +25,8 @@
 typedef struct Log {
     float episode_return;
     float episode_length;
+    float score;
+    float normalized_score;
     int x_threshold_termination;
     int pole_angle_termination;
     int max_steps_termination;
@@ -70,12 +72,16 @@ Log aggregate_and_clear(LogBuffer* logs) {
         log.x_threshold_termination += logs->logs[i].x_threshold_termination;
         log.pole_angle_termination += logs->logs[i].pole_angle_termination;
         log.max_steps_termination += logs->logs[i].max_steps_termination;
+        log.score += logs->logs[i].episode_length;
+        log.normalized_score += logs->logs[i].episode_length / (float)MAX_STEPS;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.x_threshold_termination /= logs->idx;
     log.pole_angle_termination /= logs->idx;
     log.max_steps_termination /= logs->idx;
+    log.score /= logs->idx;
+    log.normalized_score /= logs->idx;
     logs->idx = 0;
     return log;
 }

@@ -8,6 +8,7 @@ struct Log {
     float episode_return;
     float episode_length;
     float score;
+    float normalized_score;
     float n;
 };
 
@@ -83,6 +84,7 @@ void add_log(Pong* env) {
     env->log.episode_length += env->tick;
     env->log.episode_return += score;
     env->log.score += score;
+    env->log.normalized_score += score / env->max_score;
     env->log.n += 1;
 }
 
