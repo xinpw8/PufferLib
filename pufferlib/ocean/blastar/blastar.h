@@ -24,13 +24,14 @@ static const int PLAYER_BULLET_WIDTH = 17;
 static const int PLAYER_BULLET_HEIGHT = 6;
 
 typedef struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
     float lives;
-    float score;
     float vertical_closeness_rew;
     float fired_bullet_rew;
-    int kill_streak;
+    float kill_streak;
     float hit_enemy_with_bullet_rew;
     float avg_score_difference;
     float n;
@@ -94,6 +95,7 @@ void add_log(Blastar* env) {
     env->log.episode_length += env->tick;
     env->log.lives = env->player.lives;
     env->log.score = env->player.score;
+    env->log.perf = env->player.score / MAX_SCORE;
     env->log.kill_streak = env->kill_streak;
     env->log.n += 1;
 }

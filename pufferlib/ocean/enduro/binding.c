@@ -22,9 +22,10 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
 }
 
 static int my_log(PyObject* dict, Log* log) {
+    assign_to_dict(dict, "perf", log->perf);
+    assign_to_dict(dict, "score", log->score);
     assign_to_dict(dict, "episode_return", log->episode_return);
     assign_to_dict(dict, "episode_length", log->episode_length);
-    assign_to_dict(dict, "score", log->score);
     assign_to_dict(dict, "reward", log->reward);
     assign_to_dict(dict, "step_rew_car_passed_no_crash", log->step_rew_car_passed_no_crash);
     assign_to_dict(dict, "crashed_penalty", log->crashed_penalty);

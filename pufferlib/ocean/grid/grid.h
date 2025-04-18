@@ -35,9 +35,10 @@
 
 typedef struct Log Log;
 struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
-    float score;
     float n;
 };
 
@@ -158,8 +159,9 @@ int grid_offset(Grid* env, int y, int x) {
 }
 
 void add_log(Grid* env, int idx) {
-    env->log.episode_return += env->rewards[idx];
+    env->log.perf += env->rewards[idx];
     env->log.score += env->rewards[idx];
+    env->log.episode_return += env->rewards[idx];
     env->log.episode_length += env->tick;
     env->log.n += 1.0;
 }
@@ -283,7 +285,7 @@ void set_state(Grid* env, State* state) {
     memcpy(env->grid, state->grid, env->max_size*env->max_size);
 }
 
-void reset(Grid* env) {
+void c_reset(Grid* env) {
     memset(env->grid, 0, env->max_size*env->max_size);
     memset(env->counts, 0, env->max_size*env->max_size*sizeof(int));
     env->tick = 0;
@@ -425,7 +427,7 @@ void c_step(Grid* env) {
     }
 
     if (done) {
-        reset(env);
+        c_reset(env);
         int idx = rand() % env->num_maps;
         set_state(env, &env->levels[idx]);
         compute_observations(env);
@@ -489,7 +491,7 @@ void close_renderer(Renderer* renderer) {
     free(renderer);
 }
 
-void render(Grid* env) {
+void c_render(Grid* env) {
     // TODO: fractional rendering
     float frac = 0.0;
     float overlay = 0.0;

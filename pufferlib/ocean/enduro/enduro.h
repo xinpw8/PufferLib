@@ -85,10 +85,10 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {
 
 typedef struct Log Log;
 struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
-    float score;
-    float normalized_score;
     float reward;
     float step_rew_car_passed_no_crash;
     float crashed_penalty;
@@ -532,7 +532,7 @@ void add_log(Enduro* env) {
     env->log.episode_return += env->tracking_episode_return;
     env->log.episode_length += env->tracking_episode_length;
     env->log.score += env->tracking_score;
-    env->log.normalized_score += fminf(env->tracking_days_completed/10.0f, 1.0f);
+    env->log.perf += fminf(env->tracking_days_completed/10.0f, 1.0f);
     env->log.reward += env->tracking_reward;
     env->log.step_rew_car_passed_no_crash += env->tracking_step_rew_car_passed_no_crash;
     env->log.crashed_penalty += env->tracking_crashed_penalty;

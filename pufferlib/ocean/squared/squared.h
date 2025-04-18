@@ -14,9 +14,10 @@ const unsigned char TARGET = 2;
 
 typedef struct Log Log;
 struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
-    float score;
     float n;
 };
  
@@ -50,9 +51,10 @@ void free_allocated(Squared* env) {
 }
 
 void add_log(Squared* env) {
+    env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
+    env->log.score += env->rewards[0];
     env->log.episode_length += env->tick;
     env->log.episode_return += env->rewards[0];
-    env->log.score += env->rewards[0];
     env->log.n++;
 }
 

@@ -28,9 +28,10 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
 }
 
 static int my_log(PyObject* dict, Log* log) {
+    assign_to_dict(dict, "perf", log->perf);
+    assign_to_dict(dict, "score", log->score);
     assign_to_dict(dict, "episode_return", log->episode_return);
     assign_to_dict(dict, "episode_length", log->episode_length);
-    assign_to_dict(dict, "score", log->score);
     assign_to_dict(dict, "return_comb_lvl", log->return_comb_lvl);
     assign_to_dict(dict, "return_prof_lvl", log->return_prof_lvl);
     assign_to_dict(dict, "return_item_atk_lvl", log->return_item_atk_lvl);

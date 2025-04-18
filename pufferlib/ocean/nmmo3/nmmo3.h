@@ -215,9 +215,10 @@ unsigned char RENDER_COLORS[16][3] = {
 
 typedef struct Log Log;
 struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
-    float score;
     float n;
     float return_comb_lvl;
     float return_prof_lvl;
@@ -754,6 +755,7 @@ void add_player_log(MMO* env, int pid) {
     );
     log->episode_length += player->time_alive;
     log->score = log->min_comb_prof;
+    log->perf = log->min_comb_prof / (float)env->levels;
     log->n++;
     *ret = (Reward){0};
 }

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "raylib.h"
 
@@ -24,8 +25,12 @@
 
 typedef struct Log Log;
 struct Log {
+  float perf;
   float score;
+  float episode_return;
+  float episode_length;
   float moves;
+  float n;
 };
 
 typedef struct LogBuffer LogBuffer;
@@ -52,9 +57,10 @@ void add_log(LogBuffer *logs, Log *log) {
   if (logs->idx == logs->length) {
     return;
   }
+  log->episode_return = log->score;
+  log->perf = fmaxf(0, 1.0 - 0.01*log->episode_length);
   logs->logs[logs->idx] = *log;
   logs->idx += 1;
-  // printf("Log: %f, %f \n", log->score, log->moves);
 }
 
 Log aggregate_and_clear(LogBuffer *logs) {
@@ -64,10 +70,18 @@ Log aggregate_and_clear(LogBuffer *logs) {
   }
   for (int i = 0; i < logs->idx; i++) {
     log.score += logs->logs[i].score;
+    log.perf += logs->logs[i].perf;
+    log.episode_return += logs->logs[i].episode_return;
+    log.episode_length += logs->logs[i].episode_length;
     log.moves += logs->logs[i].moves;
+    log.n += 1;
   }
   log.score /= logs->idx;
+  log.perf /= logs->idx;
+  log.episode_return /= logs->idx;
+  log.episode_length /= logs->idx;
   log.moves /= logs->idx;
+  log.n /= logs->idx;
   logs->idx = 0;
   return log;
 }
@@ -384,7 +398,7 @@ void reward_agents_near(CCpr *env, int food_index) {
     if ((ac == food_c && (ar == food_r - 1 || ar == food_r + 1)) ||
         (ar == food_r && (ac == food_c - 1 || ac == food_c + 1))) {
       env->rewards[i] += env->interactive_food_reward;
-      env->logs[i].score += env->interactive_food_reward;
+      env->logs[i].score += 1;
       add_log(env->log_buffer, &env->logs[i]);
       env->logs[i] = (Log){0};
     }
@@ -401,6 +415,7 @@ void reward_agents_near(CCpr *env, int food_index) {
 void step_agent(CCpr *env, int i) {
 
   int action = env->actions[i];
+  env->logs[i].episode_length += 1;
 
   int dr = 0;
   int dc = 0;
@@ -467,7 +482,7 @@ void step_agent(CCpr *env, int i) {
 
   switch (tile) {
   case NORMAL_FOOD:
-    env->logs[i].score += env->reward_food;
+    env->logs[i].score += 1.0;
     env->rewards[i] = env->reward_food;
     // spawn_food(env);
     remove_food(env, next_grid_idx);

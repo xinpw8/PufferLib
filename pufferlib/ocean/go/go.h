@@ -17,11 +17,11 @@ static const int DIRECTIONS[NUM_DIRECTIONS][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 
 
 typedef struct Log Log;
 struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
-    int games_played;
-    float score;
-    float winrate;
+    float n;
 };
 
 typedef struct LogBuffer LogBuffer;
@@ -61,14 +61,14 @@ Log aggregate_and_clear(LogBuffer* logs) {
     for (int i = 0; i < logs->idx; i++) {
         log.episode_return += logs->logs[i].episode_return;
         log.episode_length += logs->logs[i].episode_length;
-        log.games_played += logs->logs[i].games_played;
+        log.n += logs->logs[i].n;
         log.score += logs->logs[i].score;
-	log.winrate += logs->logs[i].winrate;
+	    log.perf += logs->logs[i].perf;
     }
     log.episode_return /= logs->idx;
     log.episode_length /= logs->idx;
     log.score /= logs->idx;
-    log.winrate /= logs->idx;
+    log.perf /= logs->idx;
     logs->idx = 0;
     return log;
 }
@@ -673,18 +673,18 @@ void end_game(CGo* env){
     compute_score_tromp_taylor(env);
     if (env->score > 0) {
         env->rewards[0] = 1.0 ;
-	    env->log.winrate = 1.0;
+	    env->log.perf = 1.0;
     }
     else if (env->score < 0) {
         env->rewards[0] = -1.0;
-	    env->log.winrate = -1.0;
+	    env->log.perf = 0.0;
     }
     else {
         env->rewards[0] = 0.0;
-	    env->log.winrate = 0.0;
+	    env->log.perf = 0.0;
     }
     env->log.score = env->score;
-    env->log.games_played++;
+    env->log.n++;
     env->log.episode_return += env->rewards[0];
     add_log(env->log_buffer, &env->log);
     c_reset(env);

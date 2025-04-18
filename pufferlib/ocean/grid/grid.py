@@ -8,8 +8,9 @@ from pufferlib.ocean.grid import binding
 
 class Grid(pufferlib.PufferEnv):
     def __init__(self, render_mode='raylib', vision_range=5,
-            num_envs=4096, num_maps=1000, map_size=-1, max_map_size=9,
+            num_envs=4096, num_maps=1000, map_size=-1, max_size=9,
             report_interval=128, buf=None, seed=0):
+        assert map_size <= max_size
         self.obs_size = 2*vision_range + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(self.obs_size*self.obs_size,), dtype=np.uint8)
@@ -19,10 +20,10 @@ class Grid(pufferlib.PufferEnv):
         self.report_interval = report_interval
         super().__init__(buf=buf)
         self.float_actions = np.zeros_like(self.actions).astype(np.float32)
-        self.c_state = binding.shared(num_maps=num_maps, max_size=max_map_size, size=map_size)
+        self.c_state = binding.shared(num_maps=num_maps, max_size=max_size, size=map_size)
         self.c_envs = binding.vec_init(self.observations, self.float_actions,
             self.rewards, self.terminals, self.truncations, num_envs, seed,
-            state=self.c_state, max_size=max_map_size, num_maps=num_maps)
+            state=self.c_state, max_size=max_size, num_maps=num_maps)
         pass
 
     def reset(self, seed=None):

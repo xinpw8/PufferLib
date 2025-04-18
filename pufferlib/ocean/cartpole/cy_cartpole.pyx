@@ -2,6 +2,8 @@ from libc.stdlib cimport calloc, free
 
 cdef extern from "cartpole.h":
     ctypedef struct Log:
+        float perf
+        float score
         float episode_return
         float episode_length
         int x_threshold_termination
