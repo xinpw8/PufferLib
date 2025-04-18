@@ -26,7 +26,7 @@ class Go(pufferlib.PufferEnv):
             reward_move_valid = 0.1,
             reward_player_capture = 0.25,
             reward_opponent_capture = -0.25,
-            buf = None):
+            buf = None, seed=0):
 
         # env
         self.num_agents = num_envs

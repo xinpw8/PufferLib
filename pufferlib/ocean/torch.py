@@ -44,6 +44,7 @@ class NMMO3(nn.Module):
             nn.ReLU(),
         )
 
+        self.layer_norm = nn.LayerNorm(hidden_size)
         self.actor = pufferlib.pytorch.layer_init(
             nn.Linear(output_size, self.num_actions), std=0.01)
         self.value_fn = pufferlib.pytorch.layer_init(nn.Linear(output_size, 1), std=1)
@@ -83,6 +84,7 @@ class NMMO3(nn.Module):
         return obs
 
     def decode_actions(self, flat_hidden):
+        flat_hidden = self.layer_norm(flat_hidden)
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value
@@ -261,12 +263,12 @@ class Go(nn.Module):
         self.value_fn = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, 1), std=1)
    
-    def forward(self, observations):
+    def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         grid_size = int(np.sqrt((observations.shape[1] - 2) / 2))
         full_board = grid_size * grid_size 
         black_board = observations[:, :full_board].view(-1,1, grid_size,grid_size).float()
@@ -285,7 +287,7 @@ class Go(nn.Module):
 
         return features
 
-    def decode_actions(self, flat_hidden):
+    def decode_actions(self, flat_hidden, state=None):
         value = self.value_fn(flat_hidden)
         action = self.actor(flat_hidden)
         return action, value
@@ -387,12 +389,12 @@ class TrashPickup(nn.Module):
         self.value_fn = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
-    def forward(self, observations):
+    def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         observations = observations.view(-1, 5, 11, 11).float()
         return self.network(observations)
 
@@ -436,7 +438,7 @@ class TowerClimb(nn.Module):
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value, state
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         board_state = observations[:,:225]
         player_info = observations[:, -3:] 
         board_features = board_state.view(-1, 1, 5,5,9).float()

@@ -140,6 +140,8 @@ class LSTMWrapper(nn.LSTM):
         self.is_continuous = self.policy.is_continuous
 
         for name, param in self.named_parameters():
+            if 'layer_norm' in name:
+                continue
             if "bias" in name:
                 nn.init.constant_(param, 0)
             elif "weight" in name:
@@ -151,6 +153,8 @@ class LSTMWrapper(nn.LSTM):
         self.cell.bias_ih = self.bias_ih_l0
         self.cell.bias_hh = self.bias_hh_l0
 
+        #self.pre_layernorm = nn.LayerNorm(hidden_size)
+        #self.post_layernorm = nn.LayerNorm(hidden_size)
 
     def forward(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
@@ -165,7 +169,9 @@ class LSTMWrapper(nn.LSTM):
         else:
             lstm_state = None
 
+        #hidden = self.pre_layernorm(hidden)
         hidden, c = self.cell(hidden, lstm_state)
+        #hidden = self.post_layernorm(hidden)
         state.hidden = hidden
         state.lstm_h = hidden
         state.lstm_c = c
@@ -203,7 +209,9 @@ class LSTMWrapper(nn.LSTM):
         hidden = hidden.reshape(B, TT, self.input_size)
 
         hidden = hidden.transpose(0, 1)
+        #hidden = self.pre_layernorm(hidden)
         hidden, (lstm_h, lstm_c) = super().forward(hidden, lstm_state)
+        #hidden = self.post_layernorm(hidden)
         hidden = hidden.transpose(0, 1)
 
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)

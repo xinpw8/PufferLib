@@ -170,10 +170,10 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         if logs is not None and target_key in logs:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
-            costs.append(data.profile.uptime)
+            #costs.append(data.profile.uptime)
 
     steps_evaluated = 0
-    cost = data.profile.uptime
+    cost = time.time() - data.start_time
     batch_size = args['train']['batch_size']
     while len(data.stats[target_metric]) < min_eval_points:
         stats, _ = clean_pufferl.evaluate(data)
