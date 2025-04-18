@@ -121,7 +121,7 @@ MAKE_FNS = {
     'blastar':       lambda: lazy_import('pufferlib.ocean.blastar.blastar', 'Blastar'),
     'pong':          lambda: lazy_import('pufferlib.ocean.pong.pong', 'Pong'),
     'enduro':        lambda: lazy_import('pufferlib.ocean.enduro.enduro', 'Enduro'),
-    'cartpole':      lambda: lazy_import('pufferlib.ocean.cartpole.cartpole', 'Cartpole'),
+    'cartpole':      lambda: lazy_import('pufferlib.ocean.cartpole.cartpole', 'CartPole'),
     'moba':          lambda: lazy_import('pufferlib.ocean.moba.moba', 'Moba'),
     'nmmo3':         lambda: lazy_import('pufferlib.ocean.nmmo3.nmmo3', 'NMMO3'),
     'snake':         lambda: lazy_import('pufferlib.ocean.snake.snake', 'Snake'),

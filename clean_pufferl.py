@@ -320,7 +320,41 @@ def evaluate(data):
     data.ep_indices = torch.arange(data.total_agents, device=config.device, dtype=torch.int32)
     data.ep_lengths.zero_()
     data.ep_uses.zero_()
-    return data.stats, infos
+
+    # Process infos correctly
+    processed_infos = defaultdict(list)
+    if info: # Check if the outer list is not empty
+        list_of_logs = info[0] # Get the inner list [{log1}, {log2}, ...]
+        if list_of_logs: # Check if the inner list is not empty
+            for log_dict in list_of_logs: # Iterate through each actual log dictionary
+                # Only process dicts from envs that completed an episode (n > 0)
+                if log_dict and isinstance(log_dict, dict) and log_dict.get('n', 0) > 0:
+                    for k, v in pufferlib.utils.unroll_nested_dict(log_dict):
+                        # The C code 'add_log' ensures n is 1 per finished episode log,
+                        # so we don't need to divide return/length by n here.
+                        processed_infos[k].append(v)
+
+    # Update stats with processed infos
+    for k, v_list in processed_infos.items():
+        if '_map' in k:
+            if data.wandb is not None:
+                data.stats[f'Media/{k}'] = data.wandb.Image(v_list[0]) # Assuming first image is representative
+                continue
+            elif data.neptune is not None:
+                # TODO: Add neptune image logging
+                pass
+
+        # Handle potential non-iterables or numpy arrays before extending
+        current_list = data.stats[k]
+        for item in v_list:
+             if isinstance(item, np.ndarray):
+                 current_list.extend(item.tolist())
+             elif hasattr(item, '__iter__') and not isinstance(item, (str, bytes)):
+                 current_list.extend(item)
+             else:
+                 current_list.append(item)
+
+    return data.stats, info # Return original info for potential downstream use if needed
 
 @pufferlib.utils.profile
 def train(data):

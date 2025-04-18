@@ -1,13 +1,19 @@
 import numpy as np
 import gymnasium
 import pufferlib
-from pufferlib.ocean.cartpole.cy_cartpole import CyCartPole
+import logging
+import sys
+from pufferlib.ocean.cartpole import binding
 
-class Cartpole(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode='human', report_interval=1, continuous=False, buf=None):
+# Setup debug logging
+# logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+class CartPole(pufferlib.PufferEnv):
+    def __init__(self, num_envs=1, render_mode='human', log_interval=1, continuous=False, buf=None, seed=0):
         self.render_mode = render_mode
         self.num_agents = num_envs
-        self.report_interval = report_interval
+        self.log_interval = log_interval
         self.tick = 0
         self.is_continuous = continuous
 
@@ -28,18 +34,27 @@ class Cartpole(pufferlib.PufferEnv):
         self.terminals = np.zeros(self.num_agents, dtype=np.uint8)
         self.truncations = np.zeros(self.num_agents, dtype=np.uint8)
 
-        self.c_envs = CyCartPole(
-            self.observations,
-            self.actions,
-            self.rewards,
-            self.terminals,
-            num_envs,
-            int(self.is_continuous),
-        )
+        try:          
+            self.c_envs = binding.vec_init(
+                self.observations,
+                self.actions,
+                self.rewards,
+                self.terminals,
+                self.truncations,
+                num_envs,
+                int(self.is_continuous),
+            )
+        except Exception as e:
+            logger.error(f"Error in vec_init: {e}")
+            raise
    
     def reset(self, seed=None):
         self.tick = 0
-        self.c_envs.reset()
+        try:
+            binding.vec_reset(self.c_envs)
+        except Exception as e:
+            logger.error(f"Error in reset: {e}")
+            raise
         return self.observations, []
    
     def step(self, actions):
@@ -48,12 +63,10 @@ class Cartpole(pufferlib.PufferEnv):
         else:
             self.actions[:] = actions
             
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         info = []
-        if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
-                info.append(log)
+        if self.tick % self.log_interval == 0:
+            info.append(binding.vec_log(self.c_envs))
         self.tick += 1
         
         return (
@@ -66,15 +79,15 @@ class Cartpole(pufferlib.PufferEnv):
    
     def render(self):
         if self.render_mode == 'human':
-            self.c_envs.render()
+            binding.vec_render(self.c_envs, 0)
    
     def close(self):
-        self.c_envs.close()
+        binding.vec_close(self.c_envs)
 
-def test_performance(timeout=10, atn_cache=8192, is_continuous=True):
+def test_performance(timeout=10, atn_cache=8192, continuous=True):
     """Benchmark environment performance."""
     num_envs = 4096
-    env = Cartpole(num_envs=num_envs, continuous=is_continuous)
+    env = CartPole(num_envs=num_envs, continuous=continuous)
     env.reset()
     tick = 0
 
