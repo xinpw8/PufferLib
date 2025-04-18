@@ -88,6 +88,7 @@ struct Log {
     float score;
     float offroad_rate;
     float collision_rate;
+    float dnf_rate;
 };
 
 
@@ -131,6 +132,7 @@ Log aggregate_and_clear(LogBuffer* logs) {
 	    log.score += logs->logs[i].score / logs->idx;
 	    log.offroad_rate += logs->logs[i].offroad_rate / logs->idx;
 	    log.collision_rate += logs->logs[i].collision_rate / logs->idx;
+	log.dnf_rate += logs->logs[i].dnf_rate / logs->idx;
     }
     logs->idx = 0;
     return log;
@@ -1009,7 +1011,15 @@ void c_step(GPUDrive* env){
             } 
 	        else {
                 env->logs[i].score = 1.0f;
+		env->logs[i].dnf_rate = 0.0f;
             }
+	    int offroad = env->logs[i].offroad_rate;
+	    int collided = env->logs[i].collision_rate;
+	    int goal_reached = env->goal_reached[i];
+	    if(!offroad && !collided && !goal_reached){
+		    env->logs[i].dnf_rate = 1.0f;
+	    }
+
             add_log(env->log_buffer, &env->logs[i]);
 	    }
 	    c_reset(env);
@@ -1025,8 +1035,8 @@ void c_step(GPUDrive* env){
             env->entities[agent_idx].y = -10000;
             continue;
 	    }
-        // move_dynamics(env, i, agent_idx);
-        move_expert(env, env->actions, agent_idx);
+        move_dynamics(env, i, agent_idx);
+        //move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){

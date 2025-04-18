@@ -25,7 +25,7 @@ class GPUDrive(pufferlib.PufferEnv):
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
         
-        total_agents, agent_offsets = CyGPUDrive.get_total_agent_count(
+        total_agents, agent_offsets =CyGPUDrive.get_total_agent_count(
             num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision)
         
         self.num_agents = total_agents
@@ -49,6 +49,7 @@ class GPUDrive(pufferlib.PufferEnv):
             log = self.c_envs.log()
             if log['episode_length'] > 0:
                 info.append(log)
+                info.append({'total_agents': self.num_agents}) 
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
