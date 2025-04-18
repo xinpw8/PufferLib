@@ -24,6 +24,7 @@ struct Log {
     float episode_return;
     float episode_length;
     float score;
+    float normalized_score;
     float n;
 };
 
@@ -131,6 +132,7 @@ void add_log(Breakout* env) {
     env->log.episode_length += env->tick;
     env->log.episode_return += env->score;
     env->log.score += env->score;
+    env->log.normalized_score += env->score / env->max_score;
     env->log.n += 1;
 }
 
