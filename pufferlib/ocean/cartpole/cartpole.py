@@ -1,7 +1,7 @@
 import numpy as np
 import gymnasium
 import pufferlib
-from pufferlib.ocean.cartpole_refactor import binding
+from pufferlib.ocean.cartpole import binding
 
 class Cartpole(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode='human', report_interval=1, continuous=False, buf=None, seed=0):
@@ -9,26 +9,27 @@ class Cartpole(pufferlib.PufferEnv):
         self.num_agents = num_envs
         self.report_interval = report_interval
         self.tick = 0
-        self.is_continuous = continuous
+        self.continuous = continuous
         self.human_action = None
 
         self.num_obs = 4
         self.single_observation_space = gymnasium.spaces.Box(
             low=-np.inf, high=np.inf, shape=(self.num_obs,), dtype=np.float32
         )
-        if self.is_continuous:
+        if self.continuous:
             self.single_action_space = gymnasium.spaces.Box(
                 low=-1.0, high=1.0, shape=(1,), dtype=np.float32
             )
+            
         else:
             self.single_action_space = gymnasium.spaces.Discrete(2)
 
         super().__init__(buf)
-        
+
         self.actions = np.zeros(self.num_agents, dtype=np.float32)
         self.terminals = np.zeros(self.num_agents, dtype=np.uint8)
         self.truncations = np.zeros(self.num_agents, dtype=np.uint8)
-       
+
         self.c_envs = binding.vec_init(
             self.observations,
             self.actions,
@@ -36,16 +37,19 @@ class Cartpole(pufferlib.PufferEnv):
             self.terminals,
             self.truncations,
             num_envs,
-            int(self.is_continuous),
+            int(self.continuous),
         )
    
     def reset(self, seed=None):
         self.tick = 0      
-        binding.vec_reset(self.c_envs, seed)
+        if seed is None:
+            binding.vec_reset(self.c_envs, 0)
+        else:
+            binding.vec_reset(self.c_envs, seed)
         return self.observations, []
    
     def step(self, actions):
-        if self.is_continuous:
+        if self.continuous:
             self.actions[:] = np.clip(actions.flatten(), -1.0, 1.0)
         else:
             self.actions[:] = actions
@@ -78,7 +82,7 @@ def test_performance(timeout=10, atn_cache=8192, continuous=True):
     env.reset()
     tick = 0
 
-    if env.is_continuous:
+    if env.continuous:
         actions = np.random.uniform(-1, 1, (atn_cache, num_envs, 1)).astype(np.float32)
     else:
         actions = np.random.randint(0, env.single_action_space.n, (atn_cache, num_envs)).astype(np.int8)

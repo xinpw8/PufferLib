@@ -24,7 +24,7 @@
 
 typedef struct Log Log;
 struct Log {
-    float episode_return;
+    float perf;
     float episode_length;
     float x_threshold_termination;
     float pole_angle_termination;
@@ -51,12 +51,16 @@ struct Cartpole {
     float theta;
     float theta_dot;
     int tick;
-    int is_continuous;
+    int continuous;
     float episode_return;
 };
 
 void add_log(Cartpole* env) {
-    env->log.episode_return = env->episode_return;
+    if (env->episode_return > 0) {
+        env->log.perf = env->episode_return / MAX_STEPS;
+    } else {
+        env->log.perf = 0.0f;
+    }
     env->log.episode_length += env->tick;
     env->log.score += env->tick;
     env->log.x_threshold_termination += (env->x < -X_THRESHOLD || env->x > X_THRESHOLD);
@@ -148,12 +152,30 @@ void c_reset(Cartpole* env) {
 }
 
 void c_step(Cartpole* env) {  
-    float force = 0.0;
-    if (env->is_continuous) {
-        force = env->actions[0] * FORCE_MAG;
-    } else {
-        force = (env->actions[0] > 0.5f) ? FORCE_MAG : -FORCE_MAG; 
+    // float force = 0.0;
+    // if (env->continuous) {
+    //     force = env->actions[0] * FORCE_MAG;
+    // } else {
+    //     force = (env->actions[0] > 0.5f) ? FORCE_MAG : -FORCE_MAG; 
+    // }
+
+    float a = env->actions[0];
+
+    /* ===== runtime sanity check –– delete after debugging ===== */
+    if (!isfinite(a) || a < -1.0001f || a > 1.0001f) {
+        fprintf(stderr,
+                "[BAD ACTION] tick=%d  raw=%.6f\n",
+                env->tick, a);
+        fflush(stderr);
     }
+    /* ========================================================== */
+
+    if (!isfinite(a))             a = 0.0f;
+    a = fminf(fmaxf(a, -1.0f), 1.0f);
+    env->actions[0] = a;
+
+    float force = env->continuous ? a * FORCE_MAG
+                                  : (a > 0.5f ? FORCE_MAG : -FORCE_MAG);
 
     float costheta = cosf(env->theta);
     float sintheta = sinf(env->theta);

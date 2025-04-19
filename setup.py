@@ -272,7 +272,7 @@ extension_paths = [
     'pufferlib/ocean/snake/cy_snake',
     #'pufferlib/ocean/pong/cy_pong',
     # 'pufferlib/ocean/breakout/cy_breakout',
-    'pufferlib/ocean/cartpole/cy_cartpole',
+    # 'pufferlib/ocean/cartpole/cy_cartpole',
     'pufferlib/ocean/connect4/cy_connect4',
     #'pufferlib/ocean/grid/cy_grid',
     'pufferlib/ocean/tripletriad/cy_tripletriad',
