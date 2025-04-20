@@ -15,12 +15,13 @@ hidden_features:
   ]
 
 game:
-  num_agents: 24
+  num_agents: 16
   obs_width: 11
   obs_height: 11
   max_steps: 1000
   tile_size: 16
   no_energy_steps: 500
+  recursive_map_builder: true
 
   agent:
     max_inventory: 50
@@ -196,7 +197,7 @@ game:
 
   map_builder:
     _target_: mettagrid.config.room.multi_room.MultiRoom
-    num_rooms: ${div:${..num_agents},6}
+    num_rooms: ${div:${..num_agents},4}
     border_width: 6
 
     room:
@@ -205,7 +206,7 @@ game:
       height: 25
       border_width: 0
 
-      agents: 6
+      agents: 4
 
       objects:
         mine: 10
