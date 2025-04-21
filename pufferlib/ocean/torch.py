@@ -416,7 +416,7 @@ class TowerClimb(nn.Module):
 
 
 class GPUDrive(nn.Module):
-    def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
+    def __init__(self, env, cnn_channels=64, hidden_size=128, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.ego_encoder = nn.Sequential(
@@ -467,13 +467,13 @@ class GPUDrive(nn.Module):
     def encode_observations(self, observations):
         ego_dim = 6
         partner_dim = 63 * 7
-        road_dim = 200*7
+        road_dim = 64*7
         ego_obs = observations[:, :ego_dim]
         partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
         road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
         
         partner_objects = partner_obs.view(-1, 63, 7)
-        road_objects = road_obs.view(-1, 200, 7)
+        road_objects = road_obs.view(-1, 64, 7)
 
         ego_features = self.ego_encoder(ego_obs)
         partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)

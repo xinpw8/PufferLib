@@ -168,10 +168,7 @@ cdef class CyGPUDrive:
             free(temp_envs[i].static_car_indices)
         free(temp_envs)
         free(agent_offsets)
-        return total_count, py_offsets
-            
-        #finally:
-         #   
+        return total_count, py_offsets  
     def __init__(self, float[:, :] observations, int[:,:] actions,
             float[:] rewards, unsigned char[:] masks, unsigned char[:] terminals, int num_envs,
             int human_agent_idx, reward_vehicle_collision, 

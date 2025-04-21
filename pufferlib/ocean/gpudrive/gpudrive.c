@@ -102,11 +102,9 @@ void demo() {
         .human_agent_idx = 0,
         .reward_vehicle_collision = -0.1f,
         .reward_offroad_collision = -0.1f,
-	    .map_name = "resources/gpudrive/binaries/map_024.bin"
+	    .map_name = "resources/gpudrive/binaries/map_227.bin"
     };
     allocate(&env);
-    Weights* weights = load_weights("resources/gpu_drive_weights.bin", 135061);
-    LinearLSTM* net = make_linearlstm(weights, env.active_agent_count, 1, 13);
     c_reset(&env);
     Client* client = make_client(&env);
     printf("Human controlling agent index: %d\n", env.active_agent_indices[env.human_agent_idx]);
@@ -174,7 +172,7 @@ void performance_test() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
-	.map_name = "resources/gpudrive/binaries/map_010.bin"
+	    .map_name = "resources/gpudrive/binaries/map_005.bin"
     };
     clock_t start_time, end_time;
     double cpu_time_used;

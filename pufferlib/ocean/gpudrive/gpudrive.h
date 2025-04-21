@@ -45,7 +45,7 @@
 #define SLOTS_PER_CELL (MAX_ENTITIES_PER_CELL*2 + 1)
 
 // Max road segment observation entities
-#define MAX_ROAD_SEGMENT_OBSERVATIONS 200
+#define MAX_ROAD_SEGMENT_OBSERVATIONS 64
 #define MAX_CARS 64
 // Observation Space Constants
 #define MAX_SPEED 100.0f
@@ -698,35 +698,31 @@ void move_expert(GPUDrive* env, int* actions, int agent_idx){
 
 bool check_line_intersection(float p1[2], float p2[2], float q1[2], float q2[2]) {
     if (fmax(p1[0], p2[0]) < fmin(q1[0], q2[0]) || fmin(p1[0], p2[0]) > fmax(q1[0], q2[0]) ||
-    fmax(p1[1], p2[1]) < fmin(q1[1], q2[1]) || fmin(p1[1], p2[1]) > fmax(q1[1], q2[1]))
-    return false;
-    float s1_x = p2[0] - p1[0];     
-    float s1_y = p2[1] - p1[1];
-    float s2_x = q2[0] - q1[0];     
-    float s2_y = q2[1] - q1[1];
+        fmax(p1[1], p2[1]) < fmin(q1[1], q2[1]) || fmin(p1[1], p2[1]) > fmax(q1[1], q2[1]))
+        return false;
 
-    float s, t;
-    float denom = s1_x*s2_y - s2_x*s1_y;
-
-    if (denom == 0)
-        return false; // Collinear
-
-    bool denom_positive = denom > 0;
-
-    float s2_s1_x = p1[0] - q1[0];
-    float s2_s1_y = p1[1] - q1[1];
-    s = (s1_x*s2_s1_y - s1_y*s2_s1_x);
-    if ((s < 0) == denom_positive)
-        return false; // No intersection
-
-    t = (s2_x*s2_s1_y - s2_y*s2_s1_x);
-    if ((t < 0) == denom_positive)
-        return false; // No intersection
-
-    if ((s > denom) == denom_positive || (t > denom) == denom_positive)
-        return false; // No intersection
-
-    return true;
+    // Calculate vectors
+    float dx1 = p2[0] - p1[0];
+    float dy1 = p2[1] - p1[1];
+    float dx2 = q2[0] - q1[0];
+    float dy2 = q2[1] - q1[1];
+    
+    // Calculate cross products
+    float cross = dx1 * dy2 - dy1 * dx2;
+    
+    // If lines are parallel
+    if (cross == 0) return false;
+    
+    // Calculate relative vectors between start points
+    float dx3 = p1[0] - q1[0];
+    float dy3 = p1[1] - q1[1];
+    
+    // Calculate parameters for intersection point
+    float s = (dx1 * dy3 - dy1 * dx3) / cross;
+    float t = (dx2 * dy3 - dy2 * dx3) / cross;
+    
+    // Check if intersection point lies within both line segments
+    return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
 }
 
 float point_to_line_distance(float point[2], float line_start[2], float line_end[2]) {
@@ -823,7 +819,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
         float x1 = entity->x;
         float y1 = entity->y;
         float dist = sqrtf((x1 - agent->x)*(x1 - agent->x) + (y1 - agent->y)*(y1 - agent->y));
-        if(dist > 30.0f) continue;
+        if(dist > 15.0f) continue;
         float other_corners[4][2];
         for (int z = 0; z < 4; z++) {
             float other_cos_heading = cosf(entity->traj_heading[0]);
@@ -872,8 +868,9 @@ void compute_observations(GPUDrive* env) {
         float* obs = &observations[i][0];
         Entity* ego_entity = &env->entities[env->active_agent_indices[i]];
         if(ego_entity->type > 3) break;
-        float cos_heading = cosf(ego_entity->heading);
-        float sin_heading = sinf(ego_entity->heading);
+        float ego_heading = ego_entity->heading;
+        float cos_heading = cosf(ego_heading);
+        float sin_heading = sinf(ego_heading);
         float ego_speed = sqrtf(ego_entity->vx*ego_entity->vx + ego_entity->vy*ego_entity->vy);
         // Set goal distances
         float goal_x = relative_distance(ego_entity->x, ego_entity->goal_position_x);
@@ -914,7 +911,7 @@ void compute_observations(GPUDrive* env) {
             obs[obs_idx + 2] = other_entity->width / MAX_VEH_WIDTH;
             obs[obs_idx + 3] = other_entity->length / MAX_VEH_LEN;
             // relative heading
-            float rel_heading = normalize_heading(other_entity->heading - ego_entity->heading);
+            float rel_heading = normalize_heading(other_entity->heading - ego_heading);
             obs[obs_idx + 4] = cosf(rel_heading) / MAX_ORIENTATION_RAD;
             obs[obs_idx + 5] = sinf(rel_heading) / MAX_ORIENTATION_RAD;
             // relative speed
@@ -942,47 +939,43 @@ void compute_observations(GPUDrive* env) {
             int entity_idx = entity_list[k*2];
             int geometry_idx = entity_list[k*2+1];
             Entity* entity = &env->entities[entity_idx];
-            float start[2] = {entity->traj_x[geometry_idx], entity->traj_y[geometry_idx]};
-            float end[2] = {entity->traj_x[geometry_idx+1], entity->traj_y[geometry_idx+1]};
-            float mid_x = (start[0] + end[0]) / 2.0f;
-            float mid_y = (start[1] + end[1]) / 2.0f;
+            float start_x = entity->traj_x[geometry_idx];
+            float start_y = entity->traj_y[geometry_idx];
+            float end_x = entity->traj_x[geometry_idx+1];
+            float end_y = entity->traj_y[geometry_idx+1];
+            float mid_x = (start_x + end_x) / 2.0f;
+            float mid_y = (start_y + end_y) / 2.0f;
             float rel_x = mid_x - ego_entity->x;
             float rel_y = mid_y - ego_entity->y;
             float x_obs = rel_x*cos_heading + rel_y*sin_heading;
             float y_obs = -rel_x*sin_heading + rel_y*cos_heading;
-            float rel_end_x = end[0] - ego_entity->x;
-            float rel_end_y = end[1] - ego_entity->y;
-            float end_x_obs = rel_end_x*cos_heading + rel_end_y*sin_heading;
-            float end_y_obs = -rel_end_x*sin_heading + rel_end_y*cos_heading;
-            float length = relative_distance_2d(mid_x, mid_y, end[0], end[1]);
+            float length = relative_distance_2d(mid_x, mid_y, end_x, end_y);
             float width = 0.1;
-            float height = 0.1;
             // Calculate angle from ego to midpoint (vector from ego to midpoint)
-            float dx = end[0] - mid_x;
-            float dy = end[1] - mid_y;
-            float absolute_angle = atan2f(dy, dx);
-            float rel_angle = normalize_heading(absolute_angle - ego_entity->heading);
-            float cos_angle = cosf(rel_angle);
-            float sin_angle = sinf(rel_angle);
+            float dx = end_x - mid_x;
+            float dy = end_y - mid_y;
+            float dx_norm = dx;
+            float dy_norm = dy;
+            float hypot = sqrtf(dx*dx + dy*dy);
+            if(hypot > 0) {
+                dx_norm /= hypot;
+                dy_norm /= hypot;
+            }
+            // Compute sin and cos of relative angle directly without atan2f
+            float cos_angle = dx_norm*cos_heading + dy_norm*sin_heading;
+            float sin_angle = -dx_norm*sin_heading + dy_norm*cos_heading;
             obs[obs_idx] = normalize_value(x_obs, MIN_RG_COORD, MAX_RG_COORD);
             obs[obs_idx + 1] = normalize_value(y_obs, MIN_RG_COORD, MAX_RG_COORD);
             obs[obs_idx + 2] = length / MAX_ROAD_SEGMENT_LENGTH;
             obs[obs_idx + 3] = width / MAX_ROAD_SCALE;
             obs[obs_idx + 4] = cos_angle / MAX_ORIENTATION_RAD;
             obs[obs_idx + 5] = sin_angle / MAX_ORIENTATION_RAD;
-            obs[obs_idx + 6] = entity->type;
+            obs[obs_idx + 6] = entity->type - 4.0f;
             obs_idx += 7;
         }
-        for(int k = 0; k < MAX_ROAD_SEGMENT_OBSERVATIONS - list_size; k++){
-            obs[obs_idx] = 0;
-            obs[obs_idx + 1] = 0;
-            obs[obs_idx + 2] = 0;
-            obs[obs_idx + 3] = 0;
-            obs[obs_idx + 4] = 0;
-            obs[obs_idx + 5] = 0;
-            obs[obs_idx + 6] = 0;
-            obs_idx += 7;
-        }
+        int remaining_obs = (MAX_ROAD_SEGMENT_OBSERVATIONS - list_size) * 7;
+        // Set the entire block to 0 at once
+        memset(&obs[obs_idx], 0, remaining_obs * sizeof(float));
     }
 }
 
@@ -1036,7 +1029,7 @@ void c_step(GPUDrive* env){
             continue;
 	    }
         move_dynamics(env, i, agent_idx);
-        //move_expert(env, env->actions, agent_idx);
+        // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
@@ -1084,7 +1077,7 @@ Client* make_client(GPUDrive* env){
     client->width = 1280;
     client->height = 704;
     InitWindow(client->width, client->height, "PufferLib Ray GPU Drive");
-    SetTargetFPS(30);
+    SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
     
     // Get initial target position from first active agent
@@ -1159,7 +1152,6 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         float rel_angle_y = (agent_obs[entity_idx + 5]);
         float rel_angle = atan2f(rel_angle_y, rel_angle_x);
         float segment_length = agent_obs[entity_idx + 2] * MAX_ROAD_SEGMENT_LENGTH;
-        printf("obs idx: %d, segment_length: %f\n", entity_idx, segment_length);
         // Calculate endpoint using the relative angle directly
         // Calculate endpoint directly
         float x_end = x_middle + segment_length*cosf(rel_angle);

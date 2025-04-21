@@ -20,7 +20,7 @@ class GPUDrive(pufferlib.PufferEnv):
         self.report_interval = report_interval
         print("Num envs: ", num_envs)
         
-        self.num_obs = 6 + 63*7 + 200*7
+        self.num_obs = 6 + 63*7 + 64*7
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
@@ -155,6 +155,8 @@ def save_map_binary(map_data, output_file):
             # Write scalar fields
             f.write(struct.pack('f', float(obj.get('width', 0.0))))
             f.write(struct.pack('f', float(obj.get('length', 0.0))))
+            if(obj.get('length', 0.0) > 10):
+                print("length: ", obj.get('length', 0.0))
             f.write(struct.pack('f', float(obj.get('height', 0.0))))
             goal_pos = obj.get('goalPosition', {'x': 0, 'y': 0, 'z': 0})  # Get goalPosition object with default
             f.write(struct.pack('f', float(goal_pos.get('x', 0.0))))  # Get x value
@@ -226,7 +228,7 @@ def process_all_maps():
     data_dir = Path("data/processed/training")
     
     # Get all JSON files in the training directory
-    json_files = sorted(data_dir.glob("*.json"))[0:256]
+    json_files = sorted(data_dir.glob("*.json"))[0:512]
     
     print(f"Found {len(json_files)} JSON files")
     
