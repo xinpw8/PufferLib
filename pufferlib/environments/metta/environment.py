@@ -35,8 +35,8 @@ class MettaPuff(pufferlib.PufferEnv):
     def step(self, actions):
         obs, rew, term, trunc, info = self.env.step(actions)
 
-        self.tick += 1
-        if self.tick % 128 == 0:
+        if all(term) or all(trunc):
+            self.reset()
             if 'agent_raw' in info:
                 del info['agent_raw']
             if 'episode_rewards' in info:

@@ -18,7 +18,7 @@ game:
   num_agents: 16
   obs_width: 11
   obs_height: 11
-  max_steps: 128
+  max_steps: 1000
   tile_size: 16
   no_energy_steps: 500
   recursive_map_builder: true
