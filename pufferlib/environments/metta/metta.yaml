@@ -18,7 +18,7 @@ game:
   num_agents: 16
   obs_width: 11
   obs_height: 11
-  max_steps: 1000
+  max_steps: 128
   tile_size: 16
   no_energy_steps: 500
   recursive_map_builder: true
@@ -31,9 +31,9 @@ game:
     rewards:
       # action_failure_penalty: 0.00001
       action_failure_penalty: 0
-      ore.red: 0.005
+      ore.red: 0.25
       ore.red_max: 5
-      battery: 0.01
+      battery: 0.25
       battery_max: 5
       heart: 1
       heart_max: 100

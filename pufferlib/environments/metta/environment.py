@@ -1,12 +1,13 @@
 import functools
 
 import pufferlib
+from mettagrid.gym_wrapper import RaylibRendererWrapper
 
 
 def env_creator(name='metta'):
     return functools.partial(make, name)
 
-def make(name, config='pufferlib/environments/metta/metta.yaml', render_mode='human', buf=None, seed=0):
+def make(name, config='pufferlib/environments/metta/metta.yaml', render_mode='auto', buf=None, seed=0):
     '''Crafter creation function'''
     return MettaPuff(config, render_mode, buf)
 
@@ -15,13 +16,20 @@ class MettaPuff(pufferlib.PufferEnv):
         self.render_mode = render_mode
         import mettagrid.mettagrid_env
         self.env = mettagrid.mettagrid_env.make_env_from_cfg(config, render_mode, buf=buf)
+
+        if render_mode == 'human':
+            from mettagrid.gym_wrapper import RaylibRendererWrapper
+            self.env = RaylibRendererWrapper(self.env, self.env._env_cfg)
+
         self.single_observation_space = self.env.single_observation_space
         self.single_action_space = self.env.single_action_space
         self.num_agents = self.env.num_agents
         super().__init__(buf)
 
-        from mettagrid.renderer.raylib.raylib_renderer import MettaGridRaylibRenderer
-        self.env._renderer =  MettaGridRaylibRenderer(self.env, self.env._env_cfg['game'])
+        #cfg = self.env._env_cfg
+        #cfg.eval.env = config_from_path(cfg.eval.env, cfg.eval.env_overrides)
+        #from mettagrid.renderer.raylib.raylib_renderer import MettaGridRaylibRenderer
+        #self.env._renderer =  MettaGridRaylibRenderer(self.env._c_env, self.env._env_cfg['game'])
 
 
     def step(self, actions):

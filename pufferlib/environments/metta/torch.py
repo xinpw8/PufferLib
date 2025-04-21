@@ -6,11 +6,11 @@ from torch.nn import functional as F
 import pufferlib.models
 
 class Recurrent(pufferlib.models.LSTMWrapper):
-    def __init__(self, env, policy, input_size=256, hidden_size=256):
+    def __init__(self, env, policy, input_size=512, hidden_size=512):
         super().__init__(env, policy, input_size, hidden_size)
 
 class Policy(nn.Module):
-    def __init__(self, env, cnn_channels=128, hidden_size=256, **kwargs):
+    def __init__(self, env, cnn_channels=128, hidden_size=512, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_continuous = False
@@ -42,6 +42,8 @@ class Policy(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
+        #self.layer_norm = nn.LayerNorm(hidden_size)
+
     def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
@@ -54,6 +56,7 @@ class Policy(nn.Module):
         return torch.cat([self_features, cnn_features], dim=1)
 
     def decode_actions(self, hidden):
+        #hidden = self.layer_norm(hidden)
         logits = [dec(hidden) for dec in self.actor]
         value = self.value(hidden)
         return logits, value

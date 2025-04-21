@@ -8,7 +8,7 @@ from src.simulation.env import TradingEnvironment
 def env_creator(name='metta'):
     return functools.partial(make, name)
 
-def make(name, config_path='trade_sim/config/experiment_config.yaml', render_mode='human', buf=None):
+def make(name, config_path='trade_sim/config/experiment_config.yaml', render_mode='human', buf=None, seed=1):
     '''Crafter creation function'''
     from src.utils.config_manager import ConfigManager
     from src.data_ingestion.historical_data_reader import HistoricalDataReader
