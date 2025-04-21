@@ -272,7 +272,7 @@ extension_paths = [
     'pufferlib/ocean/snake/cy_snake',
     #'pufferlib/ocean/pong/cy_pong',
     # 'pufferlib/ocean/breakout/cy_breakout',
-    'pufferlib/ocean/cartpole/cy_cartpole',
+    # 'pufferlib/ocean/cartpole/cy_cartpole',
     'pufferlib/ocean/connect4/cy_connect4',
     #'pufferlib/ocean/grid/cy_grid',
     'pufferlib/ocean/tripletriad/cy_tripletriad',
@@ -313,7 +313,7 @@ extensions = [Extension(
 #c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2']
 #c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
-pure_c_extensions = ['squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical']
+pure_c_extensions = ['squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical', 'cartpole']
 extensions += [
     Extension(
         f'pufferlib.ocean.{name}.binding',
