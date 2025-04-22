@@ -41,21 +41,28 @@ def init_wandb(args, name, id=None, resume=True, tag=None):
     )
     return wandb
 
-def init_neptune(args, name, id=None, resume=True, tag=None):
+def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
     import neptune
-    workspace = args['workspace']
-    run = neptune.init_run(
-        project=f"{workspace['name']}/{workspace['project']}",
-        capture_hardware_metrics=False,
-        capture_stdout=False,
-        capture_stderr=False,
-        capture_traceback=False,
-        tags=[tag] if tag is not None else [],
-    )
+    import neptune.exceptions
+    try:
+        workspace = args['workspace']
+        run = neptune.init_run(
+                project=f"{workspace['name']}/{workspace['project']}",
+                capture_hardware_metrics=False,
+                capture_stdout=False,
+                capture_stderr=False,
+                capture_traceback=False,
+                tags=[tag] if tag is not None else [],
+                mode=mode,
+            )
+    except neptune.exceptions.NeptuneConnectionLostException:
+        print("couldn't connect to neptune, logging in offline mode")
+        return init_neptune(args, name, id, resume, tag, mode="offline")
     return run
 
 def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'],
+        batchSize=args['train']['batch_size'],
         use_p3o=args['train']['use_p3o'],
         p3o_horizon=args['train']['p3o_horizon'],
         use_diayn=args['train']['use_diayn'],
@@ -99,8 +106,12 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
- 
+
         info = sweep.suggest(args)
+        if args['train']['minibatch_size'] >= args['train']['batch_size']:
+            sweep.observe(args, 0.0, 0.0)
+            continue
+        
         scores, costs, timesteps, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
 
         for score, cost, timestep in zip(scores, costs, timesteps):

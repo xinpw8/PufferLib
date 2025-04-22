@@ -136,6 +136,7 @@ MAKE_FNS = {
     'tower_climb':   lambda: lazy_import('pufferlib.ocean.tower_climb.tower_climb', 'TowerClimb'),
     'grid':          lambda: lazy_import('pufferlib.ocean.grid.grid', 'Grid'),
     'cpr':           lambda: lazy_import('pufferlib.ocean.cpr.cpr', 'PyCPR'),
+    'impulse_wars':  lambda: lazy_import('pufferlib.ocean.impulse_wars.impulse_wars', 'ImpulseWars'),
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,
