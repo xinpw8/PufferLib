@@ -246,7 +246,10 @@ void compute_puff_advantage(torch::Tensor values, torch::Tensor rewards,
     TORCH_CHECK(values.is_cuda(), "All tensors must be on GPU");
     assert(horizon <= max_horizon);
 
-    int threads_per_block = 128;
+    int threads_per_block = 256;
+    if (threads_per_block > num_steps) {
+        threads_per_block = 2*(num_steps/2);
+    }
     int blocks = (num_steps + threads_per_block - 1) / threads_per_block;
     assert(num_steps % threads_per_block == 0);
 
