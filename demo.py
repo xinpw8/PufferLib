@@ -62,7 +62,7 @@ def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
 
 def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'],
-        batchSize=args['train']['batch_size'],
+        #batch_size=args['train']['batch_size'],
         use_p3o=args['train']['use_p3o'],
         p3o_horizon=args['train']['p3o_horizon'],
         use_diayn=args['train']['use_diayn'],

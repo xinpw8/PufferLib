@@ -24,7 +24,8 @@ import pufferlib.pytorch
 def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     random.seed(config.seed)
     np.random.seed(config.seed)
-    torch.backends.cudnn.deterministic = config.torch_deterministic
+    #torch.backends.cudnn.deterministic = config.torch_deterministic
+    torch.backends.cudnn.deterministic = False
     torch.set_float32_matmul_precision('high')
     if config.seed is not None:
         torch.manual_seed(config.seed)
