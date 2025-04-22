@@ -71,10 +71,7 @@ class NMMO3(nn.Module):
 
     def encode_observations(self, observations, state=None):
         batch = observations.shape[0]
-        try:
-            ob_map = observations[:, :11*15*10].view(batch, 11, 15, 10)
-        except:
-            breakpoint()
+        ob_map = observations[:, :11*15*10].view(batch, 11, 15, 10)
         ob_player = observations[:, 11*15*10:-10]
         ob_reward = observations[:, -10:]
 
