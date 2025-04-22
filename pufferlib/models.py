@@ -236,6 +236,10 @@ class Convolutional(nn.Module):
         self.channels_last = channels_last
         self.downsample = downsample
 
+        #TODO: Remove these from required params
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+
         self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(nn.Conv2d(framestack, 32, 8, stride=4)),
             nn.ReLU(),
@@ -252,19 +256,22 @@ class Convolutional(nn.Module):
         self.value_fn = pufferlib.pytorch.layer_init(
             nn.Linear(output_size, 1), std=1)
 
-    def forward(self, observations):
+    def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
-    def encode_observations(self, observations):
+    def forward_train(self, observations, state=None):
+        return self.forward(observations, state)
+
+    def encode_observations(self, observations, state=None):
         if self.channels_last:
             observations = observations.permute(0, 3, 1, 2)
         if self.downsample > 1:
             observations = observations[:, :, ::self.downsample, ::self.downsample]
-        return self.network(observations.float() / 255.0), None
+        return self.network(observations.float() / 255.0)
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value

@@ -81,7 +81,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
     ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
     ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
     free_idx = total_agents
-    assert free_idx <= experience_rows
+    assert free_idx <= experience_rows, f'Total agents {total_agents} must be at least batch size {config.batch_size} / bptt_horizon {config.bptt_horizon} = {experience_rows}'
 
     diayn_skills = None
     if config.use_diayn:
@@ -110,6 +110,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
 
     lstm_h = None
     lstm_c = None
+    # TODO: This breaks compile
     if isinstance(policy, torch.nn.LSTM):
         assert total_agents > 0
         if config.env_batch_size > 1:
@@ -117,6 +118,7 @@ def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
             lstm_h = torch.zeros(shape).to(config.device)
             lstm_c = torch.zeros(shape).to(config.device)
         else:
+            # TODO: Doesn't exist in native envs
             n = vecenv.agents_per_batch
             shape = (n, policy.hidden_size)
             lstm_h = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
@@ -236,7 +238,8 @@ def evaluate(data):
     lstm_h = data.lstm_h
     lstm_c = data.lstm_c
 
-    while data.free_idx < data.on_policy_rows:
+    data.full_rows = 0
+    while data.full_rows < data.on_policy_rows:
         profile('env', epoch)
         o, r, d, t, info, env_id, mask = data.vecenv.recv()
 
@@ -627,6 +630,7 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
             data.ep_indices[env_id] = data.free_idx + torch.arange(num_full, device=data.device).int()
             data.ep_lengths[env_id] = 0
             data.free_idx += num_full
+            data.full_rows += num_full
     else:
         full = data.ep_lengths[env_id] >= data.config.bptt_horizon
         num_full = full.sum()
@@ -635,6 +639,7 @@ def store(data, state, obs, value, action, logprob, reward, done, env_id, mask):
             data.ep_indices[full_ids] = data.free_idx + torch.arange(num_full, device=data.device).int()
             data.ep_lengths[full_ids] = 0
             data.free_idx += num_full
+            data.full_rows += num_full
 
     data.step += 1
 
