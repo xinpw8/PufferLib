@@ -45,19 +45,6 @@ LITTLE_BYTE_ORDER = sys.byteorder == "little"
 NativeDTypeValue = Tuple[torch.dtype, List[int], int, int]
 NativeDType = Union[NativeDTypeValue, Dict[str, Union[NativeDTypeValue, "NativeDType"]]]
 
-def multinomial(probs):
-    noise = torch.rand(probs.shape, device=probs.device)
-    cumsum = probs.cumsum(dim=-1)
-    idx = torch.sum(cumsum <= noise, dim=-1)
-    return idx
-
-def gumbel_max_sample(uniform, logits):
-    # logits: [batch_size, num_categories] (log-probabilities or raw logits)
-    #uniform = torch.rand_like(logits)
-    #uniform.uniform_()
-    gumbel = -torch.log(-torch.log(uniform + 1e-20))
-    return torch.argmax(logits + gumbel, dim=-1)  # Shape: [batch_size]
-
 # TODO: handle discrete obs
 # Spend some time trying to break this fn with differnt obs
 def nativize_dtype(emulated: pufferlib.namespace) -> NativeDType:
