@@ -1050,7 +1050,7 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
         if(env->goal_reached[i]){
-            env->masks[i] = 0;
+            // env->masks[i] = 0;
             env->entities[agent_idx].x = -10000;
             env->entities[agent_idx].y = -10000;
             continue;
@@ -1077,12 +1077,12 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
         int reached_goal = distance_to_goal < 2.0f;
-        if(reached_goal && env->goal_reached[i] == 0){            
+        if(reached_goal){            
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
 		    env->reached_goal_this_turn[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
-            env->dones[i] = 1;
+            // env->dones[i] = 1;
             continue;
 	    }
     }
