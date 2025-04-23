@@ -172,7 +172,7 @@ void performance_test() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
-	    .map_name = "resources/gpudrive/binaries/map_005.bin"
+	    .map_name = "resources/gpudrive/binaries/map_227.bin"
     };
     clock_t start_time, end_time;
     double cpu_time_used;
