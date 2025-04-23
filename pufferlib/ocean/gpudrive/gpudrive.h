@@ -1058,7 +1058,7 @@ void c_step(GPUDrive* env){
             continue;
 	    }
         move_dynamics(env, i, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        //move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
@@ -1112,6 +1112,7 @@ Client* make_client(GPUDrive* env){
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = 1280;
     client->height = 704;
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(client->width, client->height, "PufferLib Ray GPU Drive");
     SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
@@ -1127,14 +1128,14 @@ Client* make_client(GPUDrive* env){
     // Set up camera to look at target from above and behind
     client->camera.position = (Vector3){ 
         target_pos.x,           // Same X as target
-        target_pos.y + 80.0f,   // 20 units above target
-        target_pos.z + 350.0f    // 20 units behind target
+        target_pos.y + 120.0f,   // 20 units above target
+        target_pos.z + 175.0f    // 20 units behind target
     };
     client->camera.target = target_pos;
     client->camera.up = (Vector3){ 0.0f, -1.0f, 0.0f };  // Y is up
     client->camera.fovy = 45.0f;
     client->camera.projection = CAMERA_PERSPECTIVE;
-    client->camera_zoom = 3.5f;
+    client->camera_zoom = 1.0f;
     return client;
 }
 
@@ -1258,11 +1259,13 @@ void c_render(Client* client, GPUDrive* env) {
             rlRotatef(heading*RAD2DEG, 0.0f, 0.0f, 1.0f);  // Convert radians to degrees
             // Determine color based on active status and other conditions
             Color object_color = PUFF_BACKGROUND2;  // Default color for non-active vehicles
+            Color outline_color = PUFF_CYAN;
             if(is_active_agent){
                 object_color = PUFF_CYAN;  // Active agents are blue
             }
             if(agent_index == env->human_agent_idx){
-                object_color = PUFF_RED;
+                object_color = PUFF_CYAN;
+                outline_color = PUFF_WHITE;
             }
             if(is_active_agent && env->entities[i].collision_state > 0) {
                 object_color = RED;  // Collided agent
@@ -1273,7 +1276,7 @@ void c_render(Client* client, GPUDrive* env) {
             }
             // Draw cube for cars static and active
             DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
-            DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, PUFF_CYAN);
+            DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, outline_color);
             rlPopMatrix();
             // Draw goal position for active agents
             if(!is_active_agent || env->entities[i].valid == 0) {
@@ -1310,8 +1313,8 @@ void c_render(Client* client, GPUDrive* env) {
             }
             if(!IsKeyDown(KEY_LEFT_SHIFT)){
                 DrawLine3D(start, end, lineColor);
-                DrawSphere(start, 0.5f, lineColor);
-                DrawSphere(end, 0.5f, lineColor);
+                DrawCube(start, 0.5f, 0.5f, 0.5f, lineColor);
+                DrawCube(end, 0.5f, 0.5f, 0.5f, lineColor);
             }
         }
     }
