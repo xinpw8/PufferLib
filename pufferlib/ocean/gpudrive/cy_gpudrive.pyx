@@ -64,6 +64,8 @@ cdef extern from "gpudrive.h":
         int num_roads;
         int static_car_count;
         int* static_car_indices;
+        int expert_static_car_count;
+        int* expert_static_car_indices;
         int timestep;
         int dynamics_model;
         float* fake_data;

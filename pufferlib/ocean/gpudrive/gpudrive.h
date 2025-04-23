@@ -214,6 +214,8 @@ struct GPUDrive {
     int num_roads;
     int static_car_count;
     int* static_car_indices;
+    int expert_static_car_count;
+    int* expert_static_car_indices;
     int timestep;
     int dynamics_model;
     float* fake_data;
@@ -330,19 +332,21 @@ void set_start_position(GPUDrive* env){
 void set_active_agents(GPUDrive* env){
     env->static_car_count = 0;
     env->num_cars = 0;
+    env->expert_static_car_count = 0;
     int active_agent_indices[MAX_CARS];
     int static_car_indices[MAX_CARS];
+    int expert_static_car_indices[MAX_CARS];
     env->active_agent_count = 0;
     for(int i = env->num_objects-1; i >= 0 && env->num_cars < MAX_CARS; i--){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
-        for(int j = 1; j < env->entities[i].array_size; j++){
+        /*for(int j = 1; j < env->entities[i].array_size; j++){
             if(env->entities[i].traj_valid[j] != 1) {
                 env->entities[i].goal_position_x = env->entities[i].traj_x[j-1];
                 env->entities[i].goal_position_y = env->entities[i].traj_y[j-1];
                 break;
             }
-        }
+        }*/
         env->num_cars++;
         float cos_heading = cosf(env->entities[i].traj_heading[0]);
         float sin_heading = sinf(env->entities[i].traj_heading[0]);
@@ -355,22 +359,30 @@ void set_active_agents(GPUDrive* env){
         env->entities[i].width *= 0.7f;
         env->entities[i].length *= 0.7f;
         if(distance_to_goal >= 2.0f && env->entities[i].mark_as_expert == 0){
-            printf("distance to goal: %f\n", distance_to_goal);
             active_agent_indices[env->active_agent_count] = i;
             env->active_agent_count++;
         } else {
             static_car_indices[env->static_car_count] = i;
             env->static_car_count++;
+            if(env->entities[i].mark_as_expert == 1){
+                expert_static_car_indices[env->expert_static_car_count] = i;
+                env->expert_static_car_count++;
+            }
         }
         
     }
     env->active_agent_indices = (int*)malloc(env->active_agent_count * sizeof(int));
     env->static_car_indices = (int*)malloc(env->static_car_count * sizeof(int));
+    env->expert_static_car_indices = (int*)malloc(env->expert_static_car_count * sizeof(int));
     for(int i=0;i<env->active_agent_count;i++){
         env->active_agent_indices[i] = active_agent_indices[i];
     };
     for(int i=0;i<env->static_car_count;i++){
         env->static_car_indices[i] = static_car_indices[i];
+        
+    }
+    for(int i=0;i<env->expert_static_car_count;i++){
+        env->expert_static_car_indices[i] = expert_static_car_indices[i];
     }
 }
 
@@ -601,6 +613,7 @@ void free_initialized(GPUDrive* env){
     free(env->neighbor_cache_entities);
     free(env->neighbor_cache_indices);
     free(env->static_car_indices);
+    free(env->expert_static_car_indices);
 }
 
 void allocate(GPUDrive* env){
@@ -780,6 +793,7 @@ int checkNeighbors(GPUDrive* env, float x, float y, int* entity_list, int max_si
 
 void collision_check(GPUDrive* env, int agent_idx) {
     Entity* agent = &env->entities[agent_idx];
+    if(agent->x == -10000.0f ) return;
     float half_length = agent->length/2.0f;
     float half_width = agent->width/2.0f;
     float cos_heading = cosf(agent->heading);
@@ -1022,7 +1036,14 @@ void c_step(GPUDrive* env){
             add_log(env->log_buffer, &env->logs[i]);
 	    }
 	    c_reset(env);
-    }// Process actions for all active agents
+    }
+    // Move statix experts
+    for (int i = 0; i < env->expert_static_car_count; i++) {
+        int expert_idx = env->expert_static_car_indices[i];
+        if(env->entities[expert_idx].x == -10000) continue;
+        move_expert(env, env->actions, expert_idx);
+    }
+    // Process actions for all active agents
     for(int i = 0; i < env->active_agent_count; i++){
         env->logs[i].score = 0.0f;
 	    env->logs[i].episode_length += 1;
@@ -1036,9 +1057,6 @@ void c_step(GPUDrive* env){
 	    }
         move_dynamics(env, i, agent_idx);
         // move_expert(env, env->actions, agent_idx);
-        // if(agent_idx == env->active_agent_indices[env->human_agent_idx]){
-        //     printf("trajectory x,y,heading: %f, %f, %f\n", env->entities[agent_idx].x, env->entities[agent_idx].y, env->entities[agent_idx].heading);
-        // }
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){

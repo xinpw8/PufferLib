@@ -248,7 +248,7 @@ def test_performance(timeout=10, atn_cache=1024, num_envs=256):
     env = GPUDrive(num_envs=num_envs)
     env.reset()
     tick = 0
-    num_agents = 1922
+    num_agents = 1670
     actions = np.stack([
         np.random.randint(0, space.n + 1, (atn_cache, num_agents))
         for space in env.single_action_space
@@ -264,5 +264,5 @@ def test_performance(timeout=10, atn_cache=1024, num_envs=256):
 
 
 if __name__ == '__main__':
-    # test_performance()
-    process_all_maps()
+    test_performance()
+    #process_all_maps()
