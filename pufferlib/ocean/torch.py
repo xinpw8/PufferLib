@@ -670,3 +670,92 @@ class ImpulseWarsPolicy(nn.Module):
         with torch.no_grad():
             t = torch.as_tensor(mapSpace.sample()[None])
             return self.mapCNN(t).shape[1]
+
+class GPUDrive(nn.Module):
+    def __init__(self, env, input_size=128, hidden_size=128, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.ego_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(6, input_size)),
+            #nn.ReLU(),
+            #pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
+        )
+        max_road_objects = 7
+        self.road_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(max_road_objects, input_size)),
+            #nn.ReLU(),
+            
+        )
+        max_partner_objects = 7
+        self.partner_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(max_partner_objects, input_size)),
+            #nn.ReLU()
+        )
+
+        '''
+        self.post_mask_road_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size)),
+        )
+        self.post_mask_partner_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size)),
+        )
+        '''
+        self.shared_embedding = nn.Sequential(
+            nn.GELU(),
+            pufferlib.pytorch.layer_init(nn.Linear(3*input_size,  hidden_size)),
+        )
+        self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)
+
+        self.atn_dim = env.single_action_space.nvec.tolist()
+        self.actor = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, sum(self.atn_dim)), std = 0.01)
+        self.value_fn = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 1 ), std=1)
+    
+    def forward(self, observations, state=None):
+        hidden, lookup = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden, lookup)
+        return actions, value
+    
+    def encode_observations(self, observations, state=None):
+        ego_dim = 6
+        partner_dim = 63 * 7
+        road_dim = 64*7
+        ego_obs = observations[:, :ego_dim]
+        partner_obs = observations[:, ego_dim:ego_dim+partner_dim]
+        road_obs = observations[:, ego_dim+partner_dim:ego_dim+partner_dim+road_dim]
+        
+        partner_objects = partner_obs.view(-1, 63, 7)
+        road_objects = road_obs.view(-1, 64, 7)
+
+        ego_features = self.ego_encoder(ego_obs)
+        partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)
+        road_features, _ = self.road_encoder(road_objects).max(dim=1)
+        #partner_features_post_mask = self.post_mask_partner_encoder(partner_features)
+        #road_features_post_mask = self.post_mask_road_encoder(road_features)
+        
+        #concat_features = torch.cat([ego_features, road_features_post_mask, partner_features_post_mask], dim=1)
+        concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
+        
+        # Apply max pooling across concatenated features
+        # Reshape to [batch, 3, hidden_size] to pool across the 3 modalities
+        # pooled_features = torch.max(
+        #     concat_features.view(-1, 3, self.hidden_size), dim=1
+        # )[0]
+        
+        # Pass through shared embedding
+        #embedding = F.relu(self.shared_embedding(concat_features))
+        embedding = self.shared_embedding(concat_features)
+        return embedding
+    
+    def decode_actions(self, flat_hidden):
+        action = self.actor(flat_hidden)
+        action = torch.split(action, self.atn_dim, dim=1)
+        value = self.value_fn(flat_hidden)
+        return action, value
