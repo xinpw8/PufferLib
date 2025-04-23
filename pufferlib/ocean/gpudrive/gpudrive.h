@@ -74,11 +74,13 @@ static const float offsets[4][2] = {
         {-1, -1}  // bottom-left
     };
 
-static const int collision_offsets[9][2] = {
-        {-1, -1}, {0, -1}, {1, -1},  // Top row
-        {-1,  0}, {0,  0}, {1,  0},  // Middle row (skip center)
-        {-1,  1}, {0,  1}, {1,  1}   // Bottom row
-    };
+static const int collision_offsets[25][2] = {
+    {-2, -2}, {-1, -2}, {0, -2}, {1, -2}, {2, -2},  // Top row
+    {-2, -1}, {-1, -1}, {0, -1}, {1, -1}, {2, -1},  // Second row
+    {-2,  0}, {-1,  0}, {0,  0}, {1,  0}, {2,  0},  // Middle row (including center)
+    {-2,  1}, {-1,  1}, {0,  1}, {1,  1}, {2,  1},  // Fourth row
+    {-2,  2}, {-1,  2}, {0,  2}, {1,  2}, {2,  2}   // Bottom row
+};
 #define LOG_BUFFER_SIZE 1024
 
 typedef struct Log Log;
@@ -805,8 +807,8 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
     int collided = 0;
     int car_collided_with_index = -1;
-    int entity_list[MAX_ENTITIES_PER_CELL*2*9];  // Array big enough for all neighboring cells
-    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL*2*9, collision_offsets, 9);
+    int entity_list[MAX_ENTITIES_PER_CELL*2*25];  // Array big enough for all neighboring cells
+    int list_size = checkNeighbors(env, agent->x, agent->y, entity_list, MAX_ENTITIES_PER_CELL*2*25, collision_offsets, 25);
     for (int i = 0; i < list_size ; i+=2) {
         if(entity_list[i] == -1) continue;
         if(entity_list[i] == agent_idx) continue;
