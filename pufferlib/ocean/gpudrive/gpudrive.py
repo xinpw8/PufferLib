@@ -155,13 +155,12 @@ def save_map_binary(map_data, output_file):
             # Write scalar fields
             f.write(struct.pack('f', float(obj.get('width', 0.0))))
             f.write(struct.pack('f', float(obj.get('length', 0.0))))
-            if(obj.get('length', 0.0) > 10):
-                print("length: ", obj.get('length', 0.0))
             f.write(struct.pack('f', float(obj.get('height', 0.0))))
             goal_pos = obj.get('goalPosition', {'x': 0, 'y': 0, 'z': 0})  # Get goalPosition object with default
             f.write(struct.pack('f', float(goal_pos.get('x', 0.0))))  # Get x value
             f.write(struct.pack('f', float(goal_pos.get('y', 0.0))))  # Get y value
             f.write(struct.pack('f', float(goal_pos.get('z', 0.0))))  # Get z value
+            f.write(struct.pack('i', obj.get('mark_as_expert', 0)))
         
         # Write roads
         for idx, road in enumerate(map_data.get('roads', [])):
@@ -203,7 +202,7 @@ def save_map_binary(map_data, output_file):
             f.write(struct.pack('f', float(goal_pos.get('x', 0.0))))  # Get x value
             f.write(struct.pack('f', float(goal_pos.get('y', 0.0))))  # Get y value
             f.write(struct.pack('f', float(goal_pos.get('z', 0.0))))  # Get z value
-
+            f.write(struct.pack('i', road.get('mark_as_expert', 0)))
 def load_map(map_name, binary_output=None):
     """Loads a JSON map and optionally saves it as binary"""
     with open(map_name, 'r') as f:
@@ -243,6 +242,27 @@ def process_all_maps():
         except Exception as e:
             print(f"Error processing {map_path.name}: {e}")
 
-if __name__ == '__main__':
-    process_all_maps()
+def test_performance(timeout=10, atn_cache=1024, num_envs=256):
+    import time
 
+    env = GPUDrive(num_envs=num_envs)
+    env.reset()
+    tick = 0
+    num_agents = 1922
+    actions = np.stack([
+        np.random.randint(0, space.n + 1, (atn_cache, num_agents))
+        for space in env.single_action_space
+    ], axis=-1)
+
+    start = time.time()
+    while time.time() - start < timeout:
+        atn = actions[tick % atn_cache]         
+        env.step(atn)
+        tick += 1
+
+    print(f'SPS: {num_agents * tick / (time.time() - start)}')
+
+
+if __name__ == '__main__':
+    # test_performance()
+    process_all_maps()

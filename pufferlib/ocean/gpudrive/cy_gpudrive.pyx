@@ -34,6 +34,7 @@ cdef extern from "gpudrive.h":
         float goal_position_x;
         float goal_position_y;
         float goal_position_z;
+        int mark_as_expert;
         int collision_state;
         float x;
         float y;
@@ -216,7 +217,7 @@ cdef class CyGPUDrive:
             c_step(&self.envs[i])
 
     def render(self):
-        cdef GPUDrive* env = &self.envs[0]
+        cdef GPUDrive* env = &self.envs[211]
         if self.client == NULL:
             import os
             cwd = os.getcwd()
