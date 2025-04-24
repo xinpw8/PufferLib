@@ -17,7 +17,7 @@ void interactive() {
     allocate_cconnect4(&env);
     c_reset(&env);
  
-    Client* client = make_client(env.width, env.height);
+    env.client = make_client(env.width, env.height);
     float observations[42] = {0};
     int actions[1] = {0};
 
@@ -46,7 +46,7 @@ void interactive() {
             c_step(&env);
         }
 
-        c_render(client, &env);
+        c_render(&env);
     }
     free_linearlstm(net);
     free(weights);

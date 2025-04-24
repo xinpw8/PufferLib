@@ -25,64 +25,16 @@ struct Log {
     float n;
 };
 
-#define LOG_BUFFER_SIZE 1024
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return;
-        log.episode_length += logs->logs[i].episode_length;
-        log.perf += logs->logs[i].perf;
-        log.score += logs->logs[i].score;
-        log.n += 1;
-    }
-    log.episode_return /= logs->idx;
-    log.episode_length /= logs->idx;
-    log.perf /= logs->idx;
-    log.score /= logs->idx;
-    logs->idx = 0;
-    return log;
-}
- 
+typedef struct Client Client;
 typedef struct CConnect4 CConnect4;
 struct CConnect4 {
     // Pufferlib inputs / outputs
     float* observations;
     int* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
+    unsigned char* terminals;
     Log log;
+    Client* client;
 
     // Bit string representation from:
     //  https://towardsdatascience.com/creating-the-perfect-connect-four-ai-bot-c165115557b0
@@ -95,26 +47,38 @@ struct CConnect4 {
     int piece_height;
     int width;
     int height;
+    int tick;
 };
 
 void allocate_cconnect4(CConnect4* env) {
     env->observations = (float*)calloc(42, sizeof(float));
     env->actions = (int*)calloc(1, sizeof(int));
-    env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
+    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->rewards = (float*)calloc(1, sizeof(float));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
 }
 
 void free_cconnect4(CConnect4* env) {
-    free_logbuffer(env->log_buffer);
 }
 
 void free_allocated_cconnect4(CConnect4* env) {
     free(env->actions);
     free(env->observations);
-    free(env->dones);
+    free(env->terminals);
     free(env->rewards);
     free_cconnect4(env);
+}
+
+void add_log(CConnect4* env) {
+    env->log.perf += (float)(env->rewards[0] == PLAYER_WIN);
+    env->log.score += env->rewards[0];
+    env->log.episode_return += env->rewards[0];
+    env->log.episode_length += env->log.episode_length;
+    env->log.n += 1;
+}
+
+void init(CConnect4* env) {
+    env->log = (Log){0};
+    env->tick = 0;
 }
 
 // Get the bit at the top of 'column'. Column can be played if bit is 0
@@ -283,7 +247,7 @@ void compute_observation(CConnect4* env) {
 
 void c_reset(CConnect4* env) {
     env->log = (Log){0};
-    env->dones[0] = NOT_DONE;
+    env->terminals[0] = NOT_DONE;
     env->player_pieces = 0;
     env->env_pieces = 0;
     for (int i = 0; i < 42; i ++) {
@@ -293,10 +257,8 @@ void c_reset(CConnect4* env) {
 
 void finish_game(CConnect4* env, float reward) {
     env->rewards[0] = reward;
-    env->dones[0] = DONE;
-    env->log.perf = (float)(reward == PLAYER_WIN);
-    env->log.score = reward;
-    env->log.episode_return = reward;
+    env->terminals[0] = DONE;
+    add_log(env);
     compute_observation(env);
 }
 
@@ -304,8 +266,7 @@ void c_step(CConnect4* env) {
     env->log.episode_length += 1;
     env->rewards[0] = 0.0;
 
-    if (env->dones[0] == DONE) {
-        add_log(env->log_buffer, &env->log);
+    if (env->terminals[0] == DONE) {
         c_reset(env);
         return;
     }
@@ -365,10 +326,16 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void c_render(Client* client, CConnect4* env) {
+void c_render(CConnect4* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    
+    if (env->client == NULL) {
+        env->client = make_client(env->width, env->height);
+    }
+
+    Client* client = env->client;
 
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
