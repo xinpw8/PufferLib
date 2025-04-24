@@ -70,7 +70,7 @@ void performance_test() {
 }
 
 int main() {
-    performance_test();
-    // interactive();
+    // performance_test();
+    interactive();
     return 0;
 }
