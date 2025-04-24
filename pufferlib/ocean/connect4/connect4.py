@@ -14,7 +14,7 @@ from pufferlib.ocean.connect4 import binding
 
 class Connect4(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=128,
-             width=672, height=576, piece_width=96, piece_height=96, buf=None, seed=0):
+             buf=None, seed=0):
 
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(42,), dtype=np.float32)
@@ -25,12 +25,14 @@ class Connect4(pufferlib.PufferEnv):
 
         super().__init__(buf=buf)
         self.c_envs = binding.vec_init(self.observations, self.actions, self.rewards,
-            self.terminals, self.truncations, num_envs, seed, width=width, height=height,
-            piece_width=piece_width, piece_height=piece_height)
+            self.terminals, self.truncations, num_envs, seed)
 
     def reset(self, seed=None):
-        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
+        if seed is None:
+            binding.vec_reset(self.c_envs, 0)
+        else:
+            binding.vec_reset(self.c_envs, seed)
         return self.observations, []
 
     def step(self, actions):
