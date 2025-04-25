@@ -45,7 +45,7 @@
 #define SLOTS_PER_CELL (MAX_ENTITIES_PER_CELL*2 + 1)
 
 // Max road segment observation entities
-#define MAX_ROAD_SEGMENT_OBSERVATIONS 64
+#define MAX_ROAD_SEGMENT_OBSERVATIONS 100
 #define MAX_CARS 64
 // Observation Space Constants
 #define MAX_SPEED 100.0f
@@ -1130,18 +1130,20 @@ Client* make_client(GPUDrive* env){
         client->car_assignments[i] = (rand() % 4) + 1;
     }
     // Get initial target position from first active agent
+    float map_center_x = (env->map_corners[0] + env->map_corners[2]) / 2.0f;
+    float map_center_y = (env->map_corners[1] + env->map_corners[3]) / 2.0f;
     Vector3 target_pos = {
-        env->entities[env->active_agent_indices[0]].x,
-        env->entities[env->active_agent_indices[0]].y,  // Y is up
-        env->entities[env->active_agent_indices[0]].z   // Z is depth
+        map_center_x,
+        map_center_y,  // Y is up
+        1   // Z is depth
     };
     printf("target_pos: %f, %f, %f\n", target_pos.x, target_pos.y, target_pos.z);
     
     // Set up camera to look at target from above and behind
     client->default_camera_position = (Vector3){ 
-        target_pos.x,           // Same X as target
-        target_pos.y + 120.0f,   // 20 units above target
-        target_pos.z + 175.0f    // 20 units behind target
+        map_center_x,           // Same X as target
+        map_center_y + 120.0f,   // 20 units above target
+        1 + 175.0f    // 20 units behind target
     };
     client->default_camera_target = target_pos;
     client->camera.position = client->default_camera_position;
@@ -1154,10 +1156,31 @@ Client* make_client(GPUDrive* env){
 }
 
 void draw_agent_obs(GPUDrive* env, int agent_index){
-    Vector3 triangle_top = {0.0f, 1.732f, 8.0f};     // Top point (moved up by half the height)
-    Vector3 triangle_left = {-2.0f, -1.732f, 8.0f};  // Left point (moved up by half the height)
-    Vector3 triangle_right = {2.0f, -1.732f, 8.0f};  // Right point (moved up by half the height)
-    DrawTriangle3D(triangle_top, triangle_left, triangle_right, PUFF_CYAN);
+    // Diamond dimensions
+    float diamond_height = 3.0f;    // Total height of diamond
+    float diamond_width = 1.5f;     // Width of diamond
+    float diamond_z = 8.0f;         // Base Z position
+    
+    // Define diamond points
+    Vector3 top_point = (Vector3){0.0f, 0.0f, diamond_z + diamond_height/2};     // Top point
+    Vector3 bottom_point = (Vector3){0.0f, 0.0f, diamond_z - diamond_height/2};  // Bottom point
+    Vector3 front_point = (Vector3){0.0f, diamond_width/2, diamond_z};           // Front point
+    Vector3 back_point = (Vector3){0.0f, -diamond_width/2, diamond_z};           // Back point
+    Vector3 left_point = (Vector3){-diamond_width/2, 0.0f, diamond_z};           // Left point
+    Vector3 right_point = (Vector3){diamond_width/2, 0.0f, diamond_z};           // Right point
+    
+    // Draw the diamond faces
+    // Top pyramid
+    DrawTriangle3D(top_point, front_point, right_point, PUFF_CYAN);    // Front-right face
+    DrawTriangle3D(top_point, right_point, back_point, PUFF_CYAN);     // Back-right face
+    DrawTriangle3D(top_point, back_point, left_point, PUFF_CYAN);      // Back-left face
+    DrawTriangle3D(top_point, left_point, front_point, PUFF_CYAN);     // Front-left face
+    
+    // Bottom pyramid
+    DrawTriangle3D(bottom_point, right_point, front_point, PUFF_CYAN); // Front-right face
+    DrawTriangle3D(bottom_point, back_point, right_point, PUFF_CYAN);  // Back-right face
+    DrawTriangle3D(bottom_point, left_point, back_point, PUFF_CYAN);   // Back-left face
+    DrawTriangle3D(bottom_point, front_point, left_point, PUFF_CYAN);  // Front-left face
     if(!IsKeyDown(KEY_LEFT_SHIFT)){
         return;
     }
@@ -1255,7 +1278,8 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
 
 void c_render(Client* client, GPUDrive* env) {
     BeginDrawing();
-    ClearBackground(PUFF_BACKGROUND);
+    Color road = (Color){35, 35, 37, 255};
+    ClearBackground(road);
     BeginMode3D(client->camera);
     
     // Draw a grid to help with orientation
@@ -1342,7 +1366,9 @@ void c_render(Client* client, GPUDrive* env) {
             rlPopMatrix();
             // FPV Camera Control
             if(IsKeyDown(KEY_LEFT_CONTROL) && env->human_agent_idx== agent_index){
-                
+                if(env->goal_reached[agent_index] == 1){
+                    env->human_agent_idx = rand() % env->active_agent_count;
+                }
                 Vector3 camera_position = (Vector3){
                         position.x - (25.0f * cosf(heading)),
                         position.y - (25.0f * sinf(heading)),
@@ -1358,16 +1384,23 @@ void c_render(Client* client, GPUDrive* env) {
                 client->camera.target = camera_target;
                 client->camera.up = (Vector3){0, 0, 1};
             }
+            if(IsKeyReleased(KEY_LEFT_CONTROL)){
+                client->camera.position = client->default_camera_position;
+                client->camera.target = client->default_camera_target;
+                client->camera.up = (Vector3){0, 0, 1};
+            }
             // Draw goal position for active agents
 
             if(!is_active_agent || env->entities[i].valid == 0) {
                 continue;
             }
-            DrawSphere((Vector3){
-                env->entities[i].goal_position_x,
-                env->entities[i].goal_position_y,
-                1
-            }, 0.5f, DARKGREEN);
+            if(!IsKeyDown(KEY_LEFT_SHIFT)){
+                DrawSphere((Vector3){
+                    env->entities[i].goal_position_x,
+                    env->entities[i].goal_position_y,
+                    1
+                }, 0.5f, DARKGREEN);
+            }
         }
         // Draw road elements
         if(env->entities[i].type <=3 && env->entities[i].type >= 7){
@@ -1393,25 +1426,100 @@ void c_render(Client* client, GPUDrive* env) {
                 continue;
             }
             if(!IsKeyDown(KEY_LEFT_SHIFT)){
-                DrawLine3D(start, end, lineColor);
-                DrawCube(start, 0.5f, 0.5f, 0.5f, lineColor);
-                DrawCube(end, 0.5f, 0.5f, 0.5f, lineColor);
+                Color CURB_TOP = (Color){220, 220, 220, 255};      // Top surface - lightest
+                Color CURB_SIDE = (Color){180, 180, 180, 255};     // Side faces - medium
+                Color CURB_BOTTOM = (Color){160, 160, 160, 255};
+                                // Calculate curb dimensions
+                float curb_height = 0.5f;  // Height of the curb
+                float curb_width = 0.3f;   // Width/thickness of the curb
+                
+                // Calculate direction vector between start and end
+                Vector3 direction = {
+                    end.x - start.x,
+                    end.y - start.y,
+                    0.0f
+                };
+                
+                // Calculate length of the segment
+                float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+                
+                // Normalize direction vector
+                Vector3 normalized_dir = {
+                    direction.x / length,
+                    direction.y / length,
+                    0.0f
+                };
+                
+                // Calculate perpendicular vector for width
+                Vector3 perpendicular = {
+                    -normalized_dir.y,
+                    normalized_dir.x,
+                    0.0f
+                };
+                
+                // Calculate the four bottom corners of the curb
+                Vector3 b1 = {
+                    start.x - perpendicular.x * curb_width/2,
+                    start.y - perpendicular.y * curb_width/2,
+                    start.z
+                };
+                Vector3 b2 = {
+                    start.x + perpendicular.x * curb_width/2,
+                    start.y + perpendicular.y * curb_width/2,
+                    start.z
+                };
+                Vector3 b3 = {
+                    end.x + perpendicular.x * curb_width/2,
+                    end.y + perpendicular.y * curb_width/2,
+                    end.z
+                };
+                Vector3 b4 = {
+                    end.x - perpendicular.x * curb_width/2,
+                    end.y - perpendicular.y * curb_width/2,
+                    end.z
+                };
+                
+                // Draw the curb faces
+                // Bottom face
+                DrawTriangle3D(b1, b2, b3, CURB_BOTTOM);
+                DrawTriangle3D(b1, b3, b4, CURB_BOTTOM);
+                
+                // Top face (raised by curb_height)
+                Vector3 t1 = {b1.x, b1.y, b1.z + curb_height};
+                Vector3 t2 = {b2.x, b2.y, b2.z + curb_height};
+                Vector3 t3 = {b3.x, b3.y, b3.z + curb_height};
+                Vector3 t4 = {b4.x, b4.y, b4.z + curb_height};
+                DrawTriangle3D(t1, t3, t2, CURB_TOP);
+                DrawTriangle3D(t1, t4, t3, CURB_TOP);
+                
+                // Side faces
+                DrawTriangle3D(b1, t1, b2, CURB_SIDE);
+                DrawTriangle3D(t1, t2, b2, CURB_SIDE);
+                DrawTriangle3D(b2, t2, b3, CURB_SIDE);
+                DrawTriangle3D(t2, t3, b3, CURB_SIDE);
+                DrawTriangle3D(b3, t3, b4, CURB_SIDE);
+                DrawTriangle3D(t3, t4, b4, CURB_SIDE);
+                DrawTriangle3D(b4, t4, b1, CURB_SIDE);
+                DrawTriangle3D(t4, t1, b1, CURB_SIDE);
+                // DrawLine3D(start, end, lineColor);
+                // DrawCube(start, 0.5f, 0.5f, 0.5f, lineColor);
+                // DrawCube(end, 0.5f, 0.5f, 0.5f, lineColor);
             }
         }
     }
     // Draw grid cells using the stored bounds
-    // float grid_start_x = env->map_corners[0];
-    // float grid_start_y = env->map_corners[1];
-    // for(int i = 0; i < env->grid_cols; i++) {
-    //     for(int j = 0; j < env->grid_rows; j++) {
-    //         float x = grid_start_x + i*GRID_CELL_SIZE;
-    //         float y = grid_start_y + j*GRID_CELL_SIZE;
-    //         // int index = i * env->grid_rows + j;
-    //         DrawCubeWires(
-    //             (Vector3){x + GRID_CELL_SIZE/2, y + GRID_CELL_SIZE/2, 1}, 
-    //             GRID_CELL_SIZE, GRID_CELL_SIZE, 0.1f, PUFF_BACKGROUND2);
-    //     }
-    // }
+    float grid_start_x = env->map_corners[0];
+    float grid_start_y = env->map_corners[1];
+    for(int i = 0; i < env->grid_cols; i++) {
+        for(int j = 0; j < env->grid_rows; j++) {
+            float x = grid_start_x + i*GRID_CELL_SIZE;
+            float y = grid_start_y + j*GRID_CELL_SIZE;
+            // int index = i * env->grid_rows + j;
+            DrawCubeWires(
+                (Vector3){x + GRID_CELL_SIZE/2, y + GRID_CELL_SIZE/2, 1}, 
+                GRID_CELL_SIZE, GRID_CELL_SIZE, 0.1f, PUFF_BACKGROUND2);
+        }
+    }
     EndMode3D();
     // Draw debug info
     DrawText(TextFormat("Camera Position: (%.2f, %.2f, %.2f)", 
