@@ -1052,7 +1052,7 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
         if(env->goal_reached[i]){
-            // env->masks[i] = 0;
+            env->masks[i] = 0;
             env->entities[agent_idx].x = -10000;
             env->entities[agent_idx].y = -10000;
             continue;
@@ -1084,7 +1084,7 @@ void c_step(GPUDrive* env){
 	        env->goal_reached[i] = 1;
 		    env->reached_goal_this_turn[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
-            // env->dones[i] = 1;
+            env->dones[i] = 1;
             continue;
 	    }
     }
@@ -1127,7 +1127,7 @@ Client* make_client(GPUDrive* env){
     client->cars[4] = LoadModel("resources/gpudrive/GreenCar.glb");
     client->cars[5] = LoadModel("resources/gpudrive/GreyCar.glb");
     for (int i = 0; i < MAX_CARS; i++) {
-        client->car_assignments[i] = rand() % 5;
+        client->car_assignments[i] = (rand() % 4) + 1;
     }
     // Get initial target position from first active agent
     Vector3 target_pos = {
@@ -1311,14 +1311,14 @@ void c_render(Client* client, GPUDrive* env) {
             Color outline_color = PUFF_CYAN;
             Model car_model = client->cars[5];
             if(is_active_agent){
-                car_model = client->cars[client->car_assignments[i]];
+                car_model = client->cars[client->car_assignments[i %64]];
             }
             if(agent_index == env->human_agent_idx){
                 object_color = PUFF_CYAN;
                 outline_color = PUFF_WHITE;
             }
             if(is_active_agent && env->entities[i].collision_state > 0) {
-                object_color = RED;  // Collided agent
+                car_model = client->cars[0];  // Collided agent
             }
             // Draw obs for human selected agent
             if(agent_index == env->human_agent_idx && env->goal_reached[agent_index] == 0) {
@@ -1342,23 +1342,21 @@ void c_render(Client* client, GPUDrive* env) {
             rlPopMatrix();
             // FPV Camera Control
             if(IsKeyDown(KEY_LEFT_CONTROL) && env->human_agent_idx== agent_index){
-                Vector3 position = (Vector3){
-                    env->entities[env->active_agent_indices[env->human_agent_idx]].x,
-                    env->entities[env->active_agent_indices[env->human_agent_idx]].y,
-                    1
-                };
+                
                 Vector3 camera_position = (Vector3){
-                        position.x-5,
-                        position.y-5,
-                        position.z + 25
+                        position.x - (25.0f * cosf(heading)),
+                        position.y - (25.0f * sinf(heading)),
+                        position.z + 15
+                };
+
+                Vector3 camera_target = (Vector3){
+                    position.x + 40.0f * cosf(heading),
+                    position.y + 40.0f * sinf(heading),
+                    position.z - 5.0f
                 };
                 client->camera.position = camera_position;
-                client->camera.target = position;
-                client->camera.up = (Vector3){0, 1, 0};
-                client->camera.fovy = 45.0f;
-                client->camera.projection = CAMERA_PERSPECTIVE;
-            } else {
-                client->camera.up = (Vector3){ 0.0f, -1.0f, 0.0f };  // Y is up
+                client->camera.target = camera_target;
+                client->camera.up = (Vector3){0, 0, 1};
             }
             // Draw goal position for active agents
 
