@@ -269,7 +269,7 @@ extension_paths = [
     'pufferlib/ocean/moba/cy_moba',
     # 'pufferlib/ocean/tactical/c_tactical',
     #'pufferlib/ocean/squared/cy_squared',
-    'pufferlib/ocean/snake/cy_snake',
+    #'pufferlib/ocean/snake/cy_snake',
     'pufferlib/ocean/gpudrive/cy_gpudrive',
     #'pufferlib/ocean/pong/cy_pong',
     # 'pufferlib/ocean/breakout/cy_breakout',
@@ -315,7 +315,7 @@ extensions = [Extension(
 #c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
 
-pure_c_extensions = ['squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical', 'go', 'cartpole']
+pure_c_extensions = ['squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical', 'go', 'cartpole', 'snake']
 
 extensions += [
     Extension(
