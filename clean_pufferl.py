@@ -957,9 +957,8 @@ ROUND_OPEN = rich.box.Box(
     "╰──╯\n"
 )
 
-c1 = '[bright_cyan]'
+c1 = '[cyan]'
 c2 = '[white]'
-c3 = '[cyan]'
 b1 = '[bright_cyan]'
 b2 = '[bright_white]'
 
@@ -982,9 +981,9 @@ def duration(seconds):
     s = seconds % 60
     return f"{b2}{h}{c2}h {b2}{m}{c2}m {b2}{s}{c2}s" if h else f"{b2}{m}{c2}m {b2}{s}{c2}s" if m else f"{b2}{s}{c2}s"
 
-def fmt_perf(name, delta_ref, prof):
+def fmt_perf(name, color, delta_ref, prof):
     percent = 0 if delta_ref == 0 else int(100*prof.delta/delta_ref - 1e-5)
-    return f'{c1}{name}', duration(prof.elapsed), f'{b2}{percent:2d}%'
+    return f'{color}{name}', duration(prof.elapsed), f'{b2}{percent:2d}{c2}%'
 
 # TODO: Add env name to print_dashboard
 def print_dashboard(data, clear=False, max_stats=[0]):
@@ -1010,11 +1009,11 @@ def print_dashboard(data, clear=False, max_stats=[0]):
     table.add_column(justify="center", width=13)
     table.add_column(justify="right", width=13)
     table.add_row(
-        f':blowfish: {c1}PufferLib {b2}2.0.0',
-        f'{c1}CPU: {c3}{cpu_percent:.1f}%',
-        f'{c1}GPU: {c3}{gpu_percent:.1f}%',
-        f'{c1}DRAM: {c3}{dram_percent:.1f}%',
-        f'{c1}VRAM: {c3}{vram_percent:.1f}%',
+        f':blowfish: {b1}PufferLib {b2}2.0.0',
+        f'{c1}CPU: {b2}{cpu_percent:.1f}{c2}%',
+        f'{c1}GPU: {b2}{gpu_percent:.1f}{c2}%',
+        f'{c1}DRAM: {b2}{dram_percent:.1f}{c2}%',
+        f'{c1}VRAM: {b2}{vram_percent:.1f}{c2}%',
     )
         
     s = Table(box=None, expand=True)
@@ -1026,10 +1025,10 @@ def print_dashboard(data, clear=False, max_stats=[0]):
         remaining = duration((config.total_timesteps - data.global_step)/SPS)
 
     uptime = time.time() - data.start_time
-    s.add_column(f"{c1}Summary", justify='left', vertical='top', width=16)
-    s.add_column(f"{c1}Value", justify='right', vertical='top', width=8)
-    s.add_row(f'{c2}Environment', f'{b2}{config.env}')
-    s.add_row(f'{c2}Agent Steps', abbreviate(data.global_step))
+    s.add_column(f"{c1}Summary", justify='left', vertical='top', width=10)
+    s.add_column(f"{c1}Value", justify='right', vertical='top', width=14)
+    s.add_row(f'{c2}Env', f'{b2}{config.env}')
+    s.add_row(f'{c2}Steps', abbreviate(data.global_step))
     s.add_row(f'{c2}SPS', abbreviate(SPS))
     s.add_row(f'{c2}Epoch', abbreviate(data.epoch))
     s.add_row(f'{c2}Uptime', duration(uptime))
@@ -1039,18 +1038,18 @@ def print_dashboard(data, clear=False, max_stats=[0]):
     p.add_column(f"{c1}Performance", justify="left", width=10)
     p.add_column(f"{c1}Time", justify="right", width=8)
     p.add_column(f"{c1}%", justify="right", width=4)
-    p.add_row(*fmt_perf('Evaluate', delta, profile.eval))
-    p.add_row(*fmt_perf('  Forward', delta, profile.eval_forward))
-    p.add_row(*fmt_perf('  Env', delta, profile.env))
-    p.add_row(*fmt_perf('  Copy', delta, profile.eval_copy))
-    p.add_row(*fmt_perf('  Misc', delta, profile.eval_misc))
-    p.add_row(*fmt_perf('Train', delta, profile.train))
-    p.add_row(*fmt_perf('  Forward', delta, profile.train_forward))
-    p.add_row(*fmt_perf('  Learn', delta, profile.learn))
-    p.add_row(*fmt_perf('  Copy', delta, profile.train_copy))
-    p.add_row(*fmt_perf('  Misc', delta, profile.train_misc))
+    p.add_row(*fmt_perf('Evaluate', b1, delta, profile.eval))
+    p.add_row(*fmt_perf('  Forward', c2, delta, profile.eval_forward))
+    p.add_row(*fmt_perf('  Env', c2, delta, profile.env))
+    p.add_row(*fmt_perf('  Copy', c2, delta, profile.eval_copy))
+    p.add_row(*fmt_perf('  Misc', c2, delta, profile.eval_misc))
+    p.add_row(*fmt_perf('Train', b1, delta, profile.train))
+    p.add_row(*fmt_perf('  Forward', c2, delta, profile.train_forward))
+    p.add_row(*fmt_perf('  Learn', c2, delta, profile.learn))
+    p.add_row(*fmt_perf('  Copy', c2, delta, profile.train_copy))
+    p.add_row(*fmt_perf('  Misc', c2, delta, profile.train_misc))
     if 'custom' in profile.profiles:
-        p.add_row(*fmt_perf('  Custom', uptime, profile.custom))
+        p.add_row(*fmt_perf('  Custom', c2, uptime, profile.custom))
 
     l = Table(box=None, expand=True, )
     l.add_column(f'{c1}Losses', justify="left", width=16)
