@@ -27,71 +27,22 @@ const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
 
 // how to start game compile - LD_LIBRARY_PATH=raylib-5.0_linux_amd64/lib ./tripletriadgame 
 
-#define LOG_BUFFER_SIZE 1024
-
 typedef struct Log Log;
 struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
+    float n;
 };
 
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return;
-        log.episode_length += logs->logs[i].episode_length;
-        log.perf += logs->logs[i].perf;
-        log.score += logs->logs[i].score;
-    }
-    log.episode_return /= logs->idx;
-    log.episode_length /= logs->idx;
-    log.perf /= logs->idx;
-    log.score /= logs->idx;
-    logs->idx = 0;
-    return log;
-}
- 
+typedef struct Client Client;
 typedef struct CTripleTriad CTripleTriad;
 struct CTripleTriad {
     float* observations;
     int* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
+    unsigned char* terminals;
     Log log;
     int card_width;
     int card_height;
@@ -108,7 +59,20 @@ struct CTripleTriad {
     int* action_masks;
     int*** board_card_values;
     int* score;
+    int tick;
+    float perf;
+    float episode_return;
+    float episode_length;
+    Client* client;
 };
+
+void add_log(CTripleTriad* env) {
+    env->log.perf += env->perf;
+    env->log.score += env->score[0];
+    env->log.episode_return += env->episode_return;
+    env->log.episode_length += env->episode_length;
+    env->log.n += 1;
+}
 
 void generate_board_positions(CTripleTriad* env) {
     for (int row = 0; row < 3; row++) {
@@ -209,9 +173,8 @@ void init_ctripletriad(CTripleTriad* env) {
 void allocate_ctripletriad(CTripleTriad* env) {
     env->actions = (int*)calloc(1, sizeof(int));
     env->observations = (float*)calloc(env->width*env->height, sizeof(float));
-    env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
+    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     env->rewards = (float*)calloc(1, sizeof(float));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
     init_ctripletriad(env);
 }
 
@@ -246,9 +209,8 @@ void free_ctripletriad(CTripleTriad* env) {
 void free_allocated_ctripletriad(CTripleTriad* env) {
     free(env->actions);
     free(env->observations);
-    free(env->dones);
+    free(env->terminals);
     free(env->rewards);
-    free_logbuffer(env->log_buffer);
     free_ctripletriad(env);
 }
 
@@ -298,7 +260,6 @@ void compute_observations(CTripleTriad* env) {
 }
 
 void c_reset(CTripleTriad* env) {
-    env->log = (Log){0};
     env->game_over = 0;
     for(int i=0; i< 2; i++) {
         for(int j=0; j< 5; j++) {
@@ -333,8 +294,11 @@ void c_reset(CTripleTriad* env) {
     for(int i=0; i< 2; i++) {
         env->score[i] = 5;
     }
-    env->dones[0] = 0;
+    env->terminals[0] = 0;
     compute_observations(env);
+    env->tick = 0;
+    env->episode_length = 0;
+    env->episode_return = 0;
 }
 
 void select_card(CTripleTriad* env, int card_selected, int player) {
@@ -365,8 +329,8 @@ void update_action_masks(CTripleTriad* env) {
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 5; j++) {
             if (env->card_locations[i][j] != 0) {
-                int action_idx = env->card_locations[i][j] + 5;
-                if (action_idx >= 6 && action_idx < 15) {
+                int action_idx = env->card_locations[i][j] + 4;
+                if (action_idx >= 5 && action_idx < 14) {
                     env->action_masks[action_idx] = 1;  // Mark as unavailable
                 }
             }
@@ -386,14 +350,14 @@ void check_win_condition(CTripleTriad* env, int player) {
     if (count == 9) {
         // add a draw condition and winner value is 0
         if (env->score[0] == env->score[1]) {
-            env->dones[0] = 1;
+            env->terminals[0] = 1;
             env->rewards[0] = 0.0;
             env->game_over = 1;
         } else {
             int winner = env->score[0] > env->score[1] ? 1 : -1;
-            env->dones[0] = 1;
+            env->terminals[0] = 1;
             env->rewards[0] = winner; // 1 for player win, -1 for opponent win
-            env->log.episode_return += winner;
+            env->episode_return += winner;
             env->game_over = 1;
         }
     }
@@ -405,9 +369,9 @@ int get_bot_card_placement(CTripleTriad* env) {
     int num_valid_placements = 0;
 
     // Find valid placements
-    for (int i = 6; i < 15; i++) {
+    for (int i = 5; i < 14; i++) {
         if (env->action_masks[i] == 0) {
-            valid_placements[num_valid_placements++] = i - 5;
+            valid_placements[num_valid_placements++] = i - 4;
             if (num_valid_placements == 9) break;  // Safety check
         }
     }
@@ -494,32 +458,30 @@ void check_card_conversions(CTripleTriad* env, int card_placement, int player) {
 }
 
 void c_step(CTripleTriad* env) {
-    env->log.episode_length += 1;
+    env->episode_length += 1;
     env->rewards[0] = 0.0;
     int action = env->actions[0];
 
-    if (env->log.episode_length >= MAX_EPISODE_LENGTH) {
+    if (env->episode_length >= MAX_EPISODE_LENGTH) {
         env->game_over = 1;
-        env->log.episode_return -= 1.0;
+        env->episode_return -= 1.0;
         env->rewards[0] -= 1.0;
     }
 
     // reset the game if game over
     if (env->game_over == 1) {
-        env->log.score = env->score[0];
-        env->log.perf = (env->score[0] > env->score[1]) ? 1.0 : 0.0;
-        add_log(env->log_buffer, &env->log);
-        //printf("Log: %f, %f, %f\n", env->log.episode_return, env->log.episode_length, env->log.score);
+        env->perf = (env->score[0] > env->score[1]) ? 1.0 : 0.0;
+        add_log(env);
         c_reset(env);
         return;
     }
     // select a card if the card is in the range of 1-5 and the card is not placed
     if (action >= SELECT_CARD_1 && action <= SELECT_CARD_5 ) {
         // Prevent model from just swapping between selected cards to avoid playing
-        env->log.episode_return -= 0.1;
+        env->episode_return -= 0.1;
         env->rewards[0] -= 0.1;
 
-        int card_selected = action + 1;
+        int card_selected = action;
         if(env->card_locations[0][card_selected-1] == 0) {
             select_card(env,card_selected, 1);
         }
@@ -537,16 +499,16 @@ void c_step(CTripleTriad* env) {
                 env->card_selected[0] = -1;
                 card_placed = true;
             } else {
-                env->log.episode_return -= 0.1;
+                env->episode_return -= 0.1;
                 env->rewards[0] -= 0.1;
             }
         } else {
-            env->log.episode_return -= 0.1;
+            env->episode_return -= 0.1;
             env->rewards[0] -= 0.1;
         }
 
         // opponent turn 
-        if (env->dones[0] == 0 && card_placed == true ) {
+        if (env->terminals[0] == 0 && card_placed == true ) {
             int bot_card_selected = get_bot_card_selection(env);
             if(bot_card_selected > 0) {
                 select_card(env,bot_card_selected, -1);
@@ -560,7 +522,7 @@ void c_step(CTripleTriad* env) {
             
         }
     }
-    if (env->dones[0] == 1) {
+    if (env->terminals[0] == 1) {
         env->game_over=1;
     }
     compute_observations(env);
@@ -583,10 +545,16 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void c_render(Client* client, CTripleTriad* env) {
+void c_render(CTripleTriad* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    if (env->client == NULL) {
+        env->client = make_client(env->width, env->height);
+    }
+
+    Client* client = env->client;
 
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);

@@ -2,11 +2,11 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.ocean.tripletriad.cy_tripletriad import CyTripleTriad
+from pufferlib.ocean.tripletriad import binding
 
 class TripleTriad(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
-            width=990, height=690, piece_width=192, piece_height=224, buf=None, seed=0):
+            width=990, height=690, card_width=192, card_height=224, buf=None, seed=0):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(114,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(14)
@@ -15,34 +15,32 @@ class TripleTriad(pufferlib.PufferEnv):
         self.num_agents = num_envs
 
         super().__init__(buf=buf)
-        self.c_envs = CyTripleTriad(self.observations, self.actions,
-            self.rewards, self.terminals, num_envs, width, height,
-            piece_width, piece_height)
+        self.c_envs = binding.vec_init(self.observations, self.actions,
+            self.rewards, self.terminals, self.truncations, num_envs, seed, width=width, height=height,
+            card_width=card_width, card_height=card_height)
 
     def reset(self, seed=None):
-        self.c_envs.reset()
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         self.tick += 1
 
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
-                info.append(log)
+            info.append(binding.vec_log(self.c_envs))
 
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        binding.vec_render(self.c_envs, 0)
 
     def close(self):
-        self.c_envs.close()
+        binding.vec_close(self.c_envs)
 
 def test_performance(timeout=10, atn_cache=1024):
     env = TripleTriad(num_envs=1000)
