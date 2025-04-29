@@ -481,9 +481,10 @@ void c_step(CTripleTriad* env) {
         env->episode_return -= 0.1;
         env->rewards[0] -= 0.1;
 
-        int card_selected = action;
+        int card_selected = action + 1;
+        
         if(env->card_locations[0][card_selected-1] == 0) {
-            select_card(env,card_selected, 1);
+            select_card(env, card_selected, 1);
         }
     }
     // place a card if the card is in the range of 1-9 and the card is selected

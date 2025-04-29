@@ -20,8 +20,11 @@ class TripleTriad(pufferlib.PufferEnv):
             card_width=card_width, card_height=card_height)
 
     def reset(self, seed=None):
-        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
+        if seed is None:
+            binding.vec_reset(self.c_envs, 0)
+        else:
+            binding.vec_reset(self.c_envs, seed)
         return self.observations, []
 
     def step(self, actions):
@@ -47,7 +50,7 @@ def test_performance(timeout=10, atn_cache=1024):
     env.reset()
     tick = 0
 
-    actions = np.random.randint(0, 2, (atn_cache, env.num_envs))
+    actions = np.random.randint(0, 2, (atn_cache, env.num_agents))
 
     import time
     start = time.time()
@@ -56,7 +59,7 @@ def test_performance(timeout=10, atn_cache=1024):
         env.step(atn)
         tick += 1
 
-    print(f'SPS: %f', env.num_envs * tick / (time.time() - start))
+    print(f'SPS: {env.num_agents * tick / (time.time() - start):,}')
 
 if __name__ == '__main__':
     test_performance()
