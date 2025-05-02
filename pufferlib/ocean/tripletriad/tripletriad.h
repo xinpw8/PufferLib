@@ -555,8 +555,6 @@ void c_render(CTripleTriad* env) {
         env->client = make_client(env->width, env->height);
     }
 
-    Client* client = env->client;
-
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
 

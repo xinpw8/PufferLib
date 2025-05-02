@@ -64,10 +64,13 @@ void interactive() {
         }
 
         tick = (tick + 1) % 45;
-        if (action != NOOP) {
-            env.actions[0] = action;
+
+        if (env.actions[0] != NOOP) {
             c_step(&env);
         }
+
+        check_win_condition(&env, 0);
+        check_win_condition(&env, 1);
 
         c_render(&env);
     }

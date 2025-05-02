@@ -215,52 +215,6 @@ static VecEnv* unpack_vecenv(PyObject* args) {
     return vec;
 }
 
-static double unpack_with_index(PyObject* kwargs, char* key, int env_index) {
-    PyObject* val = PyDict_GetItemString(kwargs, key);
-    if (val == NULL) {
-        // If the key doesn't exist, don't set an error - this allows optional parameters
-        // Just return a default value that the caller can check for
-        return 0.0;
-    }
-    
-    // If val is a list, extract the element at env_index
-    if (PyList_Check(val)) {
-        if (env_index >= 0 && env_index < PyList_Size(val)) {
-            val = PyList_GetItem(val, env_index);
-        } else {
-            // If index is out of bounds, use the first element
-            val = PyList_GetItem(val, 0);
-        }
-    }
-    
-    if (PyLong_Check(val)) {
-        long out = PyLong_AsLong(val);
-        if (out > INT_MAX || out < INT_MIN) {
-            char error_msg[100];
-            snprintf(error_msg, sizeof(error_msg), "Value %ld of integer argument %s is out of range", out, key);
-            PyErr_SetString(PyExc_TypeError, error_msg);
-            return 1;
-        }
-        // Cast on return. Safe because double can represent all 32-bit ints exactly
-        return out;
-    }
-    if (PyFloat_Check(val)) {
-        return PyFloat_AsDouble(val);
-    }
-    if (PyBool_Check(val)) {
-        return PyObject_IsTrue(val);
-    }
-    char error_msg[100];
-    snprintf(error_msg, sizeof(error_msg), "Failed to unpack keyword %s as int", key);
-    PyErr_SetString(PyExc_TypeError, error_msg);
-    return 1;
-}
-
-// Original unpack function for backward compatibility
-static double unpack(PyObject* kwargs, char* key) {
-    return unpack_with_index(kwargs, key, 0);
-}
-
 static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
     if (PyTuple_Size(args) != 7) {
         PyErr_SetString(PyExc_TypeError, "vec_init requires 6 arguments");
@@ -374,7 +328,6 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         Py_INCREF(kwargs);  // We need to increment the reference since we'll be modifying it
     }
 
-    // Add an env_index to kwargs for use by my_init
     for (int i = 0; i < num_envs; i++) {
         Env* env = (Env*)calloc(1, sizeof(Env));
         if (!env) {
@@ -406,16 +359,6 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
             return NULL;
         }
         Py_DECREF(py_seed);
-
-        // Add the environment index to kwargs
-        PyObject* py_env_index = PyLong_FromLong(i);
-        if (PyDict_SetItemString(kwargs, "env_index", py_env_index) < 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to set env_index in kwargs");
-            Py_DECREF(py_env_index);
-            Py_DECREF(kwargs);
-            return NULL;
-        }
-        Py_DECREF(py_env_index);
 
         PyObject* empty_args = PyTuple_New(0);
         if (my_init(env, empty_args, kwargs)) {
@@ -584,6 +527,33 @@ static PyObject* vec_close(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static double unpack(PyObject* kwargs, char* key) {
+    PyObject* val = PyDict_GetItemString(kwargs, key);
+    if (val == NULL) {
+        // If the key doesn't exist, don't set an error - this allows optional parameters
+        // Just return a default value that the caller can check for
+        return 0.0;
+    }
+    if (PyLong_Check(val)) {
+        long out = PyLong_AsLong(val);
+        if (out > INT_MAX || out < INT_MIN) {
+            char error_msg[100];
+            snprintf(error_msg, sizeof(error_msg), "Value %ld of integer argument %s is out of range", out, key);
+            PyErr_SetString(PyExc_TypeError, error_msg);
+            return 1;
+        }
+        // Cast on return. Safe because double can represent all 32-bit ints exactly
+        return out;
+    }
+    if (PyFloat_Check(val)) {
+        return PyFloat_AsDouble(val);
+    }
+    char error_msg[100];
+    snprintf(error_msg, sizeof(error_msg), "Failed to unpack keyword %s as int", key);
+    PyErr_SetString(PyExc_TypeError, error_msg);
+    return 1;
+}
+
 // Method table
 static PyMethodDef methods[] = {
     {"env_init", (PyCFunction)env_init, METH_VARARGS | METH_KEYWORDS, "Init environment with observation, action, reward, terminal, truncation arrays"},
@@ -611,7 +581,7 @@ static PyModuleDef module = {
     methods
 };
 
-PyMODINIT_FUNC PyInit_binding(void) { \
-    import_array(); \
-    return PyModule_Create(&module); \
+PyMODINIT_FUNC PyInit_binding(void) {
+    import_array();
+    return PyModule_Create(&module);
 }
