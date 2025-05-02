@@ -69,9 +69,6 @@ void interactive() {
             c_step(&env);
         }
 
-        check_win_condition(&env, 0);
-        check_win_condition(&env, 1);
-
         c_render(&env);
     }
     free_linearlstm(net);
