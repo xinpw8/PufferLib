@@ -28,13 +28,18 @@ import pufferlib.vector
 import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
-
 import rich
 from rich.console import Console
 from rich.table import Table
 from rich_argparse import RichHelpFormatter
 import rich.traceback
 rich.traceback.install(show_locals=False)
+
+c1 = '[cyan]'
+c2 = '[white]'
+b1 = '[bright_cyan]'
+b2 = '[bright_white]'
+
 
 class CleanPuffeRL:
     def __init__(self, config, vecenv, policy):
@@ -220,7 +225,7 @@ class CleanPuffeRL:
         if config.neptune:
             self.neptune = init_neptune(args, env_name, id=config.run_id, tag=config.run_tag)
             for k, v in pufferlib.utils.unroll_nested_dict(args):
-                neptune[k].append(v)
+                self.neptune[k].append(v)
         elif config.wandb:
             self.wandb = init_wandb(args, env_name, id=config.run_id, tag=config.run_tag)
 
@@ -689,6 +694,7 @@ class CleanPuffeRL:
         return pufferlib.namespace(**output)
 
     def mean_and_log(self):
+        config = self.config
         for k in list(self.stats.keys()):
             v = self.stats[k]
             try:
@@ -698,7 +704,7 @@ class CleanPuffeRL:
 
             self.stats[k] = v
 
-        device = self.config.device
+        device = config.device
 
         agent_steps = int(dist_sum(self.global_step, device))
         logs = {
@@ -716,10 +722,10 @@ class CleanPuffeRL:
         if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
             return logs
 
-        if self.wandb is not None:
+        if config.wandb:
             self.last_log_time = time.time()
             self.wandb.log(logs)
-        elif self.neptune is not None:
+        elif config.neptune:
             self.last_log_time = time.time()
             for k, v in logs.items():
                 self.neptune[k].append(v, step=agent_steps)
@@ -730,14 +736,14 @@ class CleanPuffeRL:
         self.vecenv.close()
         self.utilization.stop()
         config = self.config
-        if self.wandb is not None:
+        if config.wandb:
             artifact_name = f"{config.exp_id}_model"
             artifact = self.wandb.Artifact(artifact_name, type="model")
             model_path = self.save_checkpoint(self)
             artifact.add_file(model_path)
             self.wandb.run.log_artifact(artifact)
             self.wandb.finish()
-        elif self.neptune is not None:
+        elif config.neptune:
             self.neptune.stop()
 
     def save_checkpoint(self):
@@ -788,11 +794,6 @@ class CleanPuffeRL:
         console = Console()
         if clear:
             console.clear()
-
-        c1 = '[cyan]'
-        c2 = '[white]'
-        b1 = '[bright_cyan]'
-        b2 = '[bright_white]'
 
         dashboard = Table(box=rich.box.ROUNDED, expand=True,
             show_header=False, border_style='bright_cyan')
@@ -1263,12 +1264,6 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
     scores = downsample_linear(scores, 10)
     costs = downsample_linear(costs, 10)
     timesteps = downsample_linear(timesteps, 10)
-
-    if args['neptune']:
-        neptune['score'].append(score)
-        neptune['cost'].append(cost)
-    elif args['wandb']:
-        wandb.log({'score': score, 'cost': cost})
 
     pufferl.close()
     return scores, costs, timesteps, elos, vecenv
