@@ -125,7 +125,7 @@ class CleanPuffeRL:
             self.lstm_c = {slice(i*n, (i+1)*n): torch.zeros(n, policy.hidden_size, device=config.device) for i in range(total_agents//n)}
 
 
-        # Gradient accumulation
+        # Minibatching & gradient accumulation
         minibatch_size = config.minibatch_size
         max_minibatch_size = config.max_minibatch_size
         self.minibatch_size = min(minibatch_size, max_minibatch_size)
@@ -134,6 +134,15 @@ class CleanPuffeRL:
                 f'max_minibatch_size {max_minibatch_size} must be a multiple of minibatch_size {minibatch_size}'
             )
 
+        self.accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
+        self.total_minibatches = int(config.update_epochs * batch_size / self.minibatch_size)
+        self.minibatch_segments = self.minibatch_size // horizon 
+        if self.minibatch_segments * horizon != self.minibatch_size:
+            raise pufferlib.exceptions.APIUsageError(
+                f'minibatch_size {self.minibatch_size} must be divisible by horizon {horizon}'
+            )
+
+        # Torch compile
         self.uncompiled_policy = policy
         if config.compile:
             policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
@@ -199,7 +208,6 @@ class CleanPuffeRL:
 
         # Profiling
         self.uptime = 0
-        self.last_log_time = 0
         self.start_time = time.time()
         self.utilization = Utilization()
         self.profile = Profile(['eval', 'env', 'eval_forward', 'eval_copy', 'eval_misc', 'train', 'train_forward',
@@ -210,10 +218,10 @@ class CleanPuffeRL:
         self.vecenv = vecenv
         self.global_step = 0
         self.epoch = 0
-        self.stats = defaultdict(list)
-        self.losses = defaultdict(float)
+        self.stats = defaultdict(list) # TODO: can this be set in eval and handle accum differently?
 
         # Dashboard
+        self.losses = {}
         num_params = sum(p.numel() for p in policy.parameters() if p.requires_grad)
         self.msg = f'Model Size: {abbreviate(num_params)} parameters'
         self.print_dashboard(clear=True)
@@ -224,12 +232,10 @@ class CleanPuffeRL:
         epoch = self.epoch
         profile('eval', epoch)
         profile('eval_misc', epoch, nest=True)
+
         config = self.config
         experience = self.experience
         policy = self.policy
-        infos = defaultdict(list)
-        lstm_h = self.lstm_h
-        lstm_c = self.lstm_c
 
         self.full_rows = 0
         while self.full_rows < self.on_policy_segments:
@@ -237,13 +243,10 @@ class CleanPuffeRL:
             o, r, d, t, info, env_id, mask = self.vecenv.recv()
 
             profile('eval_misc', epoch)
-            # Zero-copy indexing for contiguous env_id
-            if config.env_batch_size == 1:
-                gpu_env_id = cpu_env_id = slice(env_id[0], env_id[-1] + 1)
-            else:
-                cpu_env_id = env_id
-                gpu_env_id = torch.as_tensor(env_id).to(config.device, non_blocking=True)
+            # TODO: Port to vecenv
+            env_id = slice(env_id[0], env_id[-1] + 1)
 
+            # TODO: Handle truncations
             done_mask = d + t
             self.global_step += mask.sum()
 
@@ -253,22 +256,18 @@ class CleanPuffeRL:
             r = torch.as_tensor(r).to(config.device, non_blocking=True)
             d = torch.as_tensor(d).to(config.device, non_blocking=True)
 
-            h = None
-            c = None
-            if lstm_h is not None:
-                h = lstm_h[gpu_env_id]
-                c = lstm_c[gpu_env_id]
-
             profile('eval_forward', epoch)
             with torch.no_grad():
                 state = pufferlib.namespace(
                     reward=r,
                     done=d,
-                    env_id=gpu_env_id,
+                    env_id=env_id,
                     mask=mask,
-                    lstm_h=h,
-                    lstm_c=c,
                 )
+
+                if isinstance(policy, torch.nn.LSTM):
+                    state.lstm_h = self.lstm_h[env_id]
+                    state.lstm_c = self.lstm_c[env_id]
 
                 if config.use_diayn:
                     state.diayn_z = self.diayn_skills[env_id]
@@ -279,59 +278,44 @@ class CleanPuffeRL:
 
             profile('eval_copy', epoch)
             with torch.no_grad():
-                if lstm_h is not None:
-                    lstm_h[gpu_env_id] = state.lstm_h
-                    lstm_c[gpu_env_id] = state.lstm_c
+                if isinstance(policy, torch.nn.LSTM):
+                    self.lstm_h[env_id] = state.lstm_h
+                    self.lstm_c[env_id] = state.lstm_c
 
                 o = o if config.cpu_offload else o_device
-                actions = self.store(state, o, value, action, logprob, r, d, gpu_env_id, mask)
+                actions = self.store(state, o, value, action, logprob, r, d, env_id, mask)
 
             profile('eval_misc', epoch)
             for i in info:
                 for k, v in pufferlib.utils.unroll_nested_dict(i):
-                    infos[k].append(v)
+                    if isinstance(v, np.ndarray):
+                        v = v.tolist()
+                    elif isinstance(v, (list, tuple)):
+                        self.stats[k].extend(v)
+                    else:
+                        self.stats[k].append(v)
 
             profile('env', epoch)
             self.vecenv.send(actions)
 
         profile('eval_misc', epoch)
-        for k, v in infos.items():
-            if '_map' in k:
-                if self.wandb is not None:
-                    self.stats[f'Media/{k}'] = self.wandb.Image(v[0])
-                    continue
-                elif self.neptune is not None:
-                    # TODO: Add neptune image logging
-                    pass
-
-            if isinstance(v, np.ndarray):
-                v = v.tolist()
-            try:
-                iter(v)
-            except TypeError:
-                self.stats[k].append(v)
-            else:
-                self.stats[k] += v
-
         self.free_idx = self.total_agents
         self.ep_indices = torch.arange(self.total_agents, device=config.device, dtype=torch.int32)
         self.ep_lengths.zero_()
         self.ep_uses.zero_()
         profile.end()
-        return self.stats, infos
+        return self.stats
 
     def train(self):
         profile = self.profile
         epoch = self.epoch
         profile('train', epoch)
+
         config = self.config
         experience = self.experience
-        losses = self.losses
+        losses = defaultdict(float)
 
-        total_minibatches = int(config.update_epochs*config.batch_size/self.minibatch_size)
-        accumulate_minibatches = max(1, config.minibatch_size // config.max_minibatch_size)
-        n_samples = self.minibatch_size // config.bptt_horizon
-        for mb in range(total_minibatches):
+        for mb in range(self.total_minibatches):
             profile('train_misc', epoch, nest=True)
             loss = 0
             if config.use_p3o:
@@ -374,16 +358,17 @@ class CleanPuffeRL:
             elif config.use_puff_advantage:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
                 vs = torch.zeros(experience.values.shape, device=config.device)
-                torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
-                    experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
+                torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards,
+                    experience.dones, experience.ratio, vs, advantages, config.gamma,
+                    config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
             else:
                 importance = advantages = self.compute_gae(experience.values, experience.rewards,
                     experience.dones, config.gamma, config.gae_lambda)
 
             profile('train_copy', epoch)
-            batch = self.sample(importance, n_samples)
+            batch = self.sample(importance, self.minibatch_segments)
 
-            profile('train_misc', epoch)
+            profile('train_forward', epoch)
             state = pufferlib.namespace(
                 action=batch.actions,
                 lstm_h=None,
@@ -393,7 +378,6 @@ class CleanPuffeRL:
             if config.use_diayn:
                 state.diayn_z = batch.diayn_z.reshape(-1)
 
-            profile('train_forward', epoch)
             if not isinstance(self.policy, torch.nn.LSTM):
                 batch.obs = batch.obs.reshape(-1, *self.vecenv.single_observation_space.shape)
 
@@ -420,7 +404,7 @@ class CleanPuffeRL:
             newlogprob = newlogprob.reshape(batch.logprobs.shape)
             logratio = newlogprob - batch.logprobs
             ratio = logratio.exp()
-            experience.ratio[batch.idx] = ratio
+            experience.ratio[batch.idx] = ratio # TODO: Experiment with this
 
             # TODO: Only do this if we are KL clipping? Saves 1-2% compute
             with torch.no_grad():
@@ -429,6 +413,7 @@ class CleanPuffeRL:
                 approx_kl = ((ratio - 1) - logratio).mean()
                 clipfrac = ((ratio - 1.0).abs() > config.clip_coef).float().mean()
 
+            # TODO: Do you need to do this? Policy hasn't changed
             if config.use_vtrace or config.use_puff_advantage:
                 with torch.no_grad():
                     adv = advantages[batch.idx]
@@ -440,13 +425,11 @@ class CleanPuffeRL:
                         torch.ops.pufferlib.compute_puff_advantage(batch.values, batch.rewards, batch.dones,
                             ratio, vs, adv, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
 
-                    #advantages[batch.idx] = adv
-                    #importance[batch.idx] = adv
-
             adv = batch.advantages
             if config.norm_adv:
                 adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
+            # Prioritized replay
             adv = adv * batch.prio
 
             # Policy loss
@@ -467,10 +450,10 @@ class CleanPuffeRL:
                 mask_block = mask_block[:, :(horizon+3)]
                 v_loss = v_loss[mask_block.bool()].mean()
             elif config.clip_vloss:
-                newvalue = newvalue#.flatten()
-                ret = batch.returns#.flatten()
+                newvalue = newvalue
+                ret = batch.returns
                 v_loss_unclipped = (newvalue - ret) ** 2
-                val = batch.values#.flatten()
+                val = batch.values
                 v_clipped = val + torch.clamp(
                     newvalue - val,
                     -config.vf_clip_coef,
@@ -499,13 +482,7 @@ class CleanPuffeRL:
             if config.precision != 'float32':
                 self.scaler.unscale_(self.optimizer)
 
-            # TODO: Delete?
-            with torch.no_grad():
-                grads = torch.cat([p.grad.flatten() for p in self.policy.parameters()])
-                grad_var = grads.var(0).mean() * config.minibatch_size
-                self.msg = f'Gradient variance: {grad_var.item():.3f}'
-
-            if (mb + 1) % accumulate_minibatches == 0:
+            if (mb + 1) % self.accumulate_minibatches == 0:
                 torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config.max_grad_norm)
 
                 # TODO: Can remove scaler if only using bf16
@@ -517,22 +494,21 @@ class CleanPuffeRL:
 
                 self.optimizer.zero_grad()
 
-            profile('train_misc', epoch)
-            losses['policy_loss'] += pg_loss.item() / total_minibatches
-            losses['value_loss'] += v_loss.item() / total_minibatches
-            losses['entropy'] += entropy_loss.item() / total_minibatches
-            losses['old_approx_kl'] += old_approx_kl.item() / total_minibatches
-            losses['approx_kl'] += approx_kl.item() / total_minibatches
-            losses['clipfrac'] += clipfrac.item() / total_minibatches
-            losses['grad_var'] += grad_var.item() / total_minibatches
-            losses['importance'] += ratio.mean().item() / total_minibatches
+                profile('train_misc', epoch)
+                losses['policy_loss'] += pg_loss.item() / self.total_minibatches
+                losses['value_loss'] += v_loss.item() / self.total_minibatches
+                losses['entropy'] += entropy_loss.item() / self.total_minibatches
+                losses['old_approx_kl'] += old_approx_kl.item() / self.total_minibatches
+                losses['approx_kl'] += approx_kl.item() / self.total_minibatches
+                losses['clipfrac'] += clipfrac.item() / self.total_minibatches
+                losses['importance'] += ratio.mean().item() / self.total_minibatches
 
-            if config.use_diayn:
-                losses['diayn_loss'] += diayn_loss.item() / total_minibatches
+                if config.use_diayn:
+                    losses['diayn_loss'] += diayn_loss.item() / self.total_minibatches
 
-            if config.target_kl is not None:
-                if approx_kl > config.target_kl:
-                    break
+                if config.target_kl is not None:
+                    if approx_kl > config.target_kl:
+                        break
 
         # Reprioritize experience
         profile('train_misc', epoch)
@@ -564,7 +540,7 @@ class CleanPuffeRL:
 
         var_y = y_true.var()
         explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
-        #losses.explained_variance = explained_var.item()
+        losses['explained_variance'] = explained_var.item()
 
         profile.end()
         profile.clear()
@@ -574,11 +550,9 @@ class CleanPuffeRL:
         if done_training or self.global_step == 0 or time.time() - self.start_time - self.uptime > 1:
             self.uptime = time.time() - self.start_time
             logs = self.mean_and_log()
+            self.losses = losses
             self.print_dashboard()
             self.stats = defaultdict(list)
-
-        for k in losses:
-            losses[k] = 0
 
         if self.epoch % config.checkpoint_interval == 0 or done_training:
             self.save_checkpoint()
@@ -591,12 +565,8 @@ class CleanPuffeRL:
         exp = self.experience
 
         # Fast path for fully vectorized envs
-        if self.config.env_batch_size == 1:
-            l = self.ep_lengths[env_id.start].item()
-            batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
-        else:
-            l = self.ep_lengths[env_id]
-            batch_rows = self.ep_indices[env_id]
+        l = self.ep_lengths[env_id.start].item()
+        batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
 
         exp.obs[batch_rows, l] = obs
         exp.actions[batch_rows, l] = action
@@ -609,7 +579,6 @@ class CleanPuffeRL:
             exp.values_std[batch_rows, l] = value.std
         else:
             exp.values[batch_rows, l] = value.flatten()
-            #exp.values[l, batch_rows] = value.flatten()
 
         if config.use_diayn:
             exp.diayn_batch[batch_rows, l] = state.diayn_z
@@ -618,22 +587,12 @@ class CleanPuffeRL:
         #indices = np.where(mask)[0]
         #data.ep_lengths[env_id[mask]] += 1
         self.ep_lengths[env_id] += 1
-        if config.env_batch_size == 1:
-            if l+1 >= config.bptt_horizon:
-                num_full = env_id.stop - env_id.start
-                self.ep_indices[env_id] = self.free_idx + torch.arange(num_full, device=config.device).int()
-                self.ep_lengths[env_id] = 0
-                self.free_idx += num_full
-                self.full_rows += num_full
-        else:
-            full = self.ep_lengths[env_id] >= config.bptt_horizon
-            num_full = full.sum()
-            if num_full > 0:
-                full_ids = env_id[full]
-                self.ep_indices[full_ids] = self.free_idx + torch.arange(num_full, device=config.device).int()
-                self.ep_lengths[full_ids] = 0
-                self.free_idx += num_full
-                self.full_rows += num_full
+        if l+1 >= config.bptt_horizon:
+            num_full = env_id.stop - env_id.start
+            self.ep_indices[env_id] = self.free_idx + torch.arange(num_full, device=config.device).int()
+            self.ep_lengths[env_id] = 0
+            self.free_idx += num_full
+            self.full_rows += num_full
 
         return action.cpu().numpy()
 
@@ -653,7 +612,6 @@ class CleanPuffeRL:
             idx = torch.randint(0, advantages.shape[0], (n,), device=self.device)
         else:
             raise ValueError(f'Unknown sampling method: {method}')
-
 
         self.ep_uses[idx] += 1
         output = {k: v[idx] for k, v in exp.items()}
@@ -702,17 +660,15 @@ class CleanPuffeRL:
             'mean_uses': self.mean_uses,
             **{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
             **{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
-            #**{f'performance/{k}': dist_sum(v, device) for k, v in self.profile},
+            **{f'performance/{k}': dist_sum(v.elapsed, device) for k, v in self.profile},
         }
 
         if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
             return logs
 
         if config.wandb:
-            self.last_log_time = time.time()
             self.wandb.log(logs)
         elif config.neptune:
-            self.last_log_time = time.time()
             for k, v in logs.items():
                 self.neptune[k].append(v, step=agent_steps)
 
@@ -730,6 +686,7 @@ class CleanPuffeRL:
             self.wandb.run.log_artifact(artifact)
             self.wandb.finish()
         elif config.neptune:
+            # TODO: Add artifact
             self.neptune.stop()
 
     def save_checkpoint(self):
@@ -983,6 +940,9 @@ class Profile:
             ) for k in keys
         }
 
+    def __iter__(self):
+        return iter(self.profiles.items())
+
     def __getattr__(self, name):
         return self.profiles[name]
 
@@ -1230,7 +1190,7 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
     cost = time.time() - pufferl.start_time
     batch_size = args['train']['batch_size']
     while len(pufferl.stats[target_metric]) < min_eval_points:
-        stats, _ = pufferl.evaluate()
+        stats = pufferl.evaluate()
         steps_evaluated += batch_size
 
     pufferl.mean_and_log()
