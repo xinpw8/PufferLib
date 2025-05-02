@@ -1,5 +1,10 @@
-#include "shared.cpp"
+#include <torch/extension.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
 
+namespace pufferlib {
+
+/*
 __global__ void p3o_kernel(
     float* reward_block,    // [num_steps, horizon]
     float* reward_mask,     // [num_steps, horizon]
@@ -96,7 +101,6 @@ void compute_p3o(torch::Tensor reward_block, torch::Tensor reward_mask,
         int horizon) {
 
     // TODO: Port from python
-    /*
     assert all(t.is_cuda for t in [reward_block, reward_mask, values_mean, values_std, 
                                   buf, dones, rewards, advantages, bounds]), "All tensors must be on GPU"
     
@@ -116,7 +120,6 @@ void compute_p3o(torch::Tensor reward_block, torch::Tensor reward_mask,
     threads_per_block = 256
     assert num_steps % threads_per_block == 0
     blocks = (num_steps + threads_per_block - 1) // threads_per_block
-    */
  
     // Launch the kernel
     int threads_per_block = 256;
@@ -226,6 +229,53 @@ void compute_vtrace(torch::Tensor values, torch::Tensor rewards,
         throw std::runtime_error(cudaGetErrorString(err));
     }
 }
+*/
+
+static const int max_horizon = 256;
+__host__ __device__ void puff_advantage_row_cuda(float* values, float* rewards, float* dones,
+        float* importance, float* vs, float* advantages, float gamma, float lambda,
+        float rho_clip, float c_clip, int horizon) {
+    vs[horizon-1] = values[horizon-1];
+    float lastpufferlam = 0;
+    for (int t = horizon-2; t >= 0; t--) {
+        int t_next = t + 1;
+        float nextnonterminal = 1.0 - dones[t_next];
+        float rho_t = fminf(importance[t], rho_clip);
+        float c_t = fminf(importance[t], c_clip);
+        // TODO: t_next works and t doesn't. Check original formula
+        float delta = rho_t*(rewards[t_next] + gamma*values[t_next]*nextnonterminal - values[t]);
+        lastpufferlam = delta + gamma*lambda*c_t*lastpufferlam*nextnonterminal;
+        
+        //float delta = rewards[t_next] + gamma*values[t_next]*nextnonterminal - values[t];
+        //lastpufferlam = delta + gamma*lambda*lastpufferlam*nextnonterminal;
+
+
+        advantages[t] = lastpufferlam;
+        vs[t] = advantages[t] + values[t];
+        //advantages[t] = rho_t*(rewards[t] + gamma*vs[t_next]*nextnonterminal - values[t]);
+        //vs[t] = lastpufferlam + values[t];
+    }
+}
+
+void vtrace_check_cuda(torch::Tensor values, torch::Tensor rewards,
+        torch::Tensor dones, torch::Tensor importance, torch::Tensor vs, torch::Tensor advantages,
+        int num_steps, int horizon) {
+
+    // Validate input tensors
+    torch::Device device = values.device();
+    for (const torch::Tensor& t : {values, rewards, dones, importance, vs, advantages}) {
+        TORCH_CHECK(t.dim() == 2, "Tensor must be 2D");
+        TORCH_CHECK(t.device() == device, "All tensors must be on same device");
+        TORCH_CHECK(t.size(0) == num_steps, "First dimension must match num_steps");
+        TORCH_CHECK(t.size(1) == horizon, "Second dimension must match horizon");
+        TORCH_CHECK(t.dtype() == torch::kFloat32, "All tensors must be float32");
+        assert(horizon <= max_horizon);
+        if (!t.is_contiguous()) {
+            t.contiguous();
+        }
+    }
+}
+
 
  // [num_steps, horizon]
 __global__ void puff_advantage_kernel(float* values, float* rewards, float* dones, float* importance,
@@ -233,16 +283,16 @@ __global__ void puff_advantage_kernel(float* values, float* rewards, float* done
         float rho_clip, float c_clip, int num_steps, int horizon) {
     int row = blockIdx.x*blockDim.x + threadIdx.x;
     int offset = row*horizon;
-    puff_advantage_row(values + offset, rewards + offset, dones + offset,
+    puff_advantage_row_cuda(values + offset, rewards + offset, dones + offset,
         importance + offset, vs + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon);
 }
 
-void compute_puff_advantage(torch::Tensor values, torch::Tensor rewards,
+void compute_puff_advantage_cuda(torch::Tensor values, torch::Tensor rewards,
         torch::Tensor dones, torch::Tensor importance, torch::Tensor vs, torch::Tensor advantages,
-        float gamma, float lambda, float rho_clip, float c_clip) {
+        double gamma, double lambda, double rho_clip, double c_clip) {
     int num_steps = values.size(0);
     int horizon = values.size(1);
-    vtrace_check(values, rewards, dones, importance, vs, advantages, num_steps, horizon);
+    vtrace_check_cuda(values, rewards, dones, importance, vs, advantages, num_steps, horizon);
     TORCH_CHECK(values.is_cuda(), "All tensors must be on GPU");
     assert(horizon <= max_horizon);
 
@@ -274,11 +324,8 @@ void compute_puff_advantage(torch::Tensor values, torch::Tensor rewards,
     }
 }
 
+TORCH_LIBRARY_IMPL(pufferlib, CUDA, m) {
+  m.impl("compute_puff_advantage", &compute_puff_advantage_cuda);
+}
 
-// Pybind11 module definition
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("compute_p3o", &compute_p3o, "Compute p3o advantages with CUDA");
-    m.def("compute_gae", &compute_gae, "Compute GAE with CUDA");
-    m.def("compute_vtrace", &compute_vtrace, "Compute VTrace with CUDA");
-    m.def("compute_puff_advantage", &compute_puff_advantage, "Compute PuffAdvantage with CUDA");
 }

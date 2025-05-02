@@ -16,6 +16,7 @@ from contextlib import nullcontext
 import numpy as np
 
 import torch
+
 import torch.distributed
 import torch.utils.cpp_extension
 
@@ -24,6 +25,7 @@ import pufferlib.utils
 import pufferlib.pytorch
 import pufferlib.sweep
 import pufferlib.vector
+from pufferlib import _C
 
 import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
@@ -58,16 +60,6 @@ class CleanPuffeRL:
         torch.set_float32_matmul_precision('high')
         if config.seed is not None:
             torch.manual_seed(config.seed)
-
-        ext = 'cu' if 'cuda' in config.device else 'cpp'
-        puffer_cuda = torch.utils.cpp_extension.load(
-            name='puffer_cuda',
-            sources=[f'pufferlib.{ext}'],
-            verbose=True
-        )
-        self.compute_gae = puffer_cuda.compute_gae
-        self.compute_vtrace = puffer_cuda.compute_vtrace
-        self.compute_puff_advantage = puffer_cuda.compute_puff_advantage
 
         self.losses = pufferlib.namespace(
             policy_loss=0,
@@ -388,7 +380,7 @@ class CleanPuffeRL:
             elif config.use_puff_advantage:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
                 vs = torch.zeros(experience.values.shape, device=config.device)
-                self.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
+                torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
                     experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
             else:
                 importance = advantages = self.compute_gae(experience.values, experience.rewards,
@@ -451,7 +443,7 @@ class CleanPuffeRL:
                         self.compute_vtrace(batch.values, batch.rewards, batch.dones,
                             ratio, vs, adv, config.gamma, config.vtrace_rho_clip, config.vtrace_c_clip)
                     elif config.use_puff_advantage:
-                        self.compute_puff_advantage(batch.values, batch.rewards, batch.dones,
+                        torch.ops.pufferlib.compute_puff_advantage(batch.values, batch.rewards, batch.dones,
                             ratio, vs, adv, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
 
                     #advantages[batch.idx] = adv
@@ -555,7 +547,7 @@ class CleanPuffeRL:
         if config.replay_factor > 0:
             advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
             vs = torch.zeros(experience.values.shape, device=config.device)
-            self.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
+            torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
                 experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
 
             exp = self.sample(advantages, self.off_policy_rows, method='random')
