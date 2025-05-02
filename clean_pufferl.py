@@ -45,74 +45,57 @@ b2 = '[bright_white]'
 
 class CleanPuffeRL:
     def __init__(self, config, vecenv, policy):
-        self.config = config
-        self.vecenv = vecenv
-
-        self.global_step = 0
-        self.epoch = 0
-        self.stats = defaultdict(list)
-        self.last_log_time = 0
-
-        random.seed(config.seed)
-        np.random.seed(config.seed)
+        # Backend perf optimization
+        torch.set_float32_matmul_precision('high') # TODO: Check if this is what was messing up AMP
         torch.backends.cudnn.deterministic = config.torch_deterministic
         torch.backends.cudnn.benchmark = True
-        torch.set_float32_matmul_precision('high')
-        if config.seed is not None:
-            torch.manual_seed(config.seed)
 
-        self.losses = pufferlib.namespace(
-            policy_loss=0,
-            value_loss=0,
-            entropy=0,
-            old_approx_kl=0,
-            approx_kl=0,
-            clipfrac=0,
-            explained_variance=0,
-            diayn_loss=0,
-            grad_var=0,
-            importance=0,
-        )
+        # Reproducibility
+        random.seed(config.seed)
+        np.random.seed(config.seed)
+        torch.manual_seed(config.seed)
 
-        self.utilization = Utilization()
-        num_params = sum(p.numel() for p in policy.parameters() if p.requires_grad)
-        self.msg = f'Model Size: {abbreviate(num_params)} parameters'
-
+        # Vecenv info
         vecenv.async_reset(config.seed)
+        obs_space = vecenv.single_observation_space
+        atn_space = vecenv.single_action_space
         total_agents = vecenv.num_agents
-        obs_shape = vecenv.single_observation_space.shape
-        atn_shape = vecenv.single_action_space.shape
-        obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_observation_space.dtype]
-        atn_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_action_space.dtype]
-        self.on_policy_rows = config.batch_size // config.bptt_horizon
-        self.off_policy_rows = int(config.replay_factor*config.batch_size // config.bptt_horizon)
-        experience_rows = self.on_policy_rows + self.off_policy_rows
-        pin = config.device == 'cuda' and config.cpu_offload
-        obs_device = config.device if not pin else 'cpu'
-        experience = pufferlib.namespace(
-            obs=torch.zeros(experience_rows, config.bptt_horizon, *obs_shape,
-                dtype=obs_dtype, pin_memory=pin, device='cpu' if pin else config.device),
-            actions=torch.zeros(experience_rows, config.bptt_horizon, *atn_shape,
-                dtype=atn_dtype, device=config.device),
-            logprobs=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-            rewards=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-            dones=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-            truncateds=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-            ratio = torch.ones(experience_rows, config.bptt_horizon, device=config.device),
-        )
-        self.ep_uses = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
-        self.ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
-        self.ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
-        self.free_idx = total_agents
-        assert self.free_idx <= experience_rows, f'Total agents {total_agents} must be at least batch size {config.batch_size} / bptt_horizon {config.bptt_horizon} = {experience_rows}'
         self.total_agents = total_agents
 
-        self.diayn_skills = None
+        # Experience buffer
+        device = config.device
+        batch_size = config.batch_size
+        horizon = config.bptt_horizon
+        self.on_policy_segments = batch_size // horizon
+        self.off_policy_segments = int(config.replay_factor*batch_size // horizon)
+        segments = self.on_policy_segments + self.off_policy_segments
+        if total_agents < segments:
+            raise pufferlib.exceptions.APIUsageError(
+                f'Total agents {total_agents} must be greater than or equal to segments {segments}'
+            )
+
+        self.ep_uses = torch.zeros(segments, device=device, dtype=torch.int32)
+        self.ep_lengths = torch.zeros(total_agents, device=device, dtype=torch.int32)
+        self.ep_indices = torch.arange(total_agents, device=device, dtype=torch.int32)
+        self.free_idx = total_agents
+        experience = pufferlib.namespace(
+            obs=torch.zeros(segments, horizon, *obs_space.shape,
+                dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_space.dtype],
+                pin_memory=device == 'cuda' and config.cpu_offload,
+                device='cpu' if config.cpu_offload else device),
+            actions=torch.zeros(segments, horizon, *atn_space.shape,
+                dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_space.dtype], device=device),
+            logprobs=torch.zeros(segments, horizon, device=device),
+            rewards=torch.zeros(segments, horizon, device=device),
+            dones=torch.zeros(segments, horizon, device=device),
+            truncateds=torch.zeros(segments, horizon, device=device),
+            ratio = torch.ones(segments, horizon, device=device),
+        )
+        self.experience = experience
         if config.use_diayn:
             self.diayn_skills = torch.randint(
-                0, config.diayn_archive, (total_agents,), dtype=torch.long, device=config.device)
-            experience.diayn_batch = torch.zeros(experience_rows, config.bptt_horizon,
-                dtype=torch.long, device=config.device)
+                0, config.diayn_archive, (total_agents,), dtype=torch.long, device=device)
+            experience.diayn_batch = torch.zeros(segments, horizon, dtype=torch.long, device=config.device)
 
         if config.use_p3o:
             batch_size = config.batch_size
@@ -127,39 +110,37 @@ class CleanPuffeRL:
             experience.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
             experience.vstd_max = 1.0
         else:
-            experience.values = torch.zeros(experience_rows, config.bptt_horizon, device=config.device)
+            experience.values = torch.zeros(segments, horizon, device=device)
 
         if config.use_vtrace or config.use_puff_advantage:
-            experience.importance = torch.ones(experience_rows, config.bptt_horizon, device=config.device)
+            experience.importance = torch.ones(segments, horizon, device=device)
 
-        self.experience = experience
-
-        lstm_h = None
-        lstm_c = None
+        # LSTM
         # TODO: This breaks compile
         if isinstance(policy, torch.nn.LSTM):
-            assert total_agents > 0
-            if config.env_batch_size > 1:
-                shape = (total_agents, policy.hidden_size)
-                lstm_h = torch.zeros(shape).to(config.device)
-                lstm_c = torch.zeros(shape).to(config.device)
-            else:
-                # TODO: Doesn't exist in native envs
-                n = vecenv.agents_per_batch
-                shape = (n, policy.hidden_size)
-                lstm_h = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
-                lstm_c = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
+            # TODO: Doesn't exist in native envs
+            # TODO: Replace slice with env idx or similar
+            n = vecenv.agents_per_batch
+            self.lstm_h = {slice(i*n, (i+1)*n): torch.zeros(n, policy.hidden_size, device=config.device) for i in range(total_agents//n)}
+            self.lstm_c = {slice(i*n, (i+1)*n): torch.zeros(n, policy.hidden_size, device=config.device) for i in range(total_agents//n)}
 
-        self.lstm_h = lstm_h
-        self.lstm_c = lstm_c
 
-        self.minibatch_size = min(config.minibatch_size, config.max_minibatch_size)
+        # Gradient accumulation
+        minibatch_size = config.minibatch_size
+        max_minibatch_size = config.max_minibatch_size
+        self.minibatch_size = min(minibatch_size, max_minibatch_size)
+        if minibatch_size % max_minibatch_size != 0:
+            raise pufferlib.exceptions.APIUsageError(
+                f'max_minibatch_size {max_minibatch_size} must be a multiple of minibatch_size {minibatch_size}'
+            )
+
         self.uncompiled_policy = policy
         if config.compile:
             policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
         self.policy = policy
 
+        # Optimizer
         if config.optimizer == 'adam':
             optimizer = torch.optim.Adam(
                 policy.parameters(),
@@ -176,7 +157,6 @@ class CleanPuffeRL:
                 lr=config.learning_rate,
                 betas=(config.adam_beta1, config.adam_beta2),
                 eps=config.adam_eps,
-
             )
         elif config.optimizer == 'kron':
             from heavyball import ForeachPSGDKron
@@ -193,6 +173,7 @@ class CleanPuffeRL:
 
         self.optimizer = optimizer
 
+        # Learning rate scheduler
         epochs = config.total_timesteps // config.batch_size
         self.total_epochs = epochs
         assert config.scheduler in ('linear', 'cosine')
@@ -203,17 +184,12 @@ class CleanPuffeRL:
 
         self.scheduler = scheduler
 
-        amp_context = nullcontext()
-        scaler = None
+        # Automatic mixed precision
         if config.precision != 'float32':
-            amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
-            scaler = torch.amp.GradScaler()
+            self.amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
+            self.scaler = torch.amp.GradScaler()
 
-        self.scaler = scaler
-
-        self.profile = Profile(['eval', 'env', 'eval_forward', 'eval_copy', 'eval_misc', 'train', 'train_forward',
-            'learn', 'train_copy', 'train_misc', 'custom'], frequency=5)
-
+        # Logging
         if config.neptune:
             self.neptune = init_neptune(args, env_name, id=config.run_id, tag=config.run_tag)
             for k, v in pufferlib.utils.unroll_nested_dict(args):
@@ -221,9 +197,27 @@ class CleanPuffeRL:
         elif config.wandb:
             self.wandb = init_wandb(args, env_name, id=config.run_id, tag=config.run_tag)
 
+        # Profiling
+        self.uptime = 0
+        self.last_log_time = 0
         self.start_time = time.time()
-        self.uptime=0
+        self.utilization = Utilization()
+        self.profile = Profile(['eval', 'env', 'eval_forward', 'eval_copy', 'eval_misc', 'train', 'train_forward',
+            'learn', 'train_copy', 'train_misc', 'custom'], frequency=5)
+
+        # Initializations
+        self.config = config
+        self.vecenv = vecenv
+        self.global_step = 0
+        self.epoch = 0
+        self.stats = defaultdict(list)
+        self.losses = defaultdict(float)
+
+        # Dashboard
+        num_params = sum(p.numel() for p in policy.parameters() if p.requires_grad)
+        self.msg = f'Model Size: {abbreviate(num_params)} parameters'
         self.print_dashboard(clear=True)
+
 
     def evaluate(self):
         profile = self.profile
@@ -238,7 +232,7 @@ class CleanPuffeRL:
         lstm_c = self.lstm_c
 
         self.full_rows = 0
-        while self.full_rows < self.on_policy_rows:
+        while self.full_rows < self.on_policy_segments:
             profile('env', epoch)
             o, r, d, t, info, env_id, mask = self.vecenv.recv()
 
@@ -497,12 +491,12 @@ class CleanPuffeRL:
                 experience.values[batch.idx] = newvalue
 
             profile('learn', epoch)
-            if self.scaler is not None:
+            if config.precision != 'float32':
                 loss = self.scaler.scale(loss)
 
             loss.backward()
 
-            if self.scaler is not None:
+            if config.precision != 'float32':
                 self.scaler.unscale_(self.optimizer)
 
             # TODO: Delete?
@@ -515,7 +509,7 @@ class CleanPuffeRL:
                 torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config.max_grad_norm)
 
                 # TODO: Can remove scaler if only using bf16
-                if self.scaler is None:
+                if config.precision == 'float32':
                     self.optimizer.step()
                 else:
                     self.scaler.step(self.optimizer)
@@ -524,17 +518,17 @@ class CleanPuffeRL:
                 self.optimizer.zero_grad()
 
             profile('train_misc', epoch)
-            losses.policy_loss += pg_loss.item() / total_minibatches
-            losses.value_loss += v_loss.item() / total_minibatches
-            losses.entropy += entropy_loss.item() / total_minibatches
-            losses.old_approx_kl += old_approx_kl.item() / total_minibatches
-            losses.approx_kl += approx_kl.item() / total_minibatches
-            losses.clipfrac += clipfrac.item() / total_minibatches
-            losses.grad_var += grad_var.item() / total_minibatches
-            losses.importance += ratio.mean().item() / total_minibatches
+            losses['policy_loss'] += pg_loss.item() / total_minibatches
+            losses['value_loss'] += v_loss.item() / total_minibatches
+            losses['entropy'] += entropy_loss.item() / total_minibatches
+            losses['old_approx_kl'] += old_approx_kl.item() / total_minibatches
+            losses['approx_kl'] += approx_kl.item() / total_minibatches
+            losses['clipfrac'] += clipfrac.item() / total_minibatches
+            losses['grad_var'] += grad_var.item() / total_minibatches
+            losses['importance'] += ratio.mean().item() / total_minibatches
 
             if config.use_diayn:
-                losses.diayn_loss += diayn_loss.item() / total_minibatches
+                losses['diayn_loss'] += diayn_loss.item() / total_minibatches
 
             if config.target_kl is not None:
                 if approx_kl > config.target_kl:
@@ -550,11 +544,11 @@ class CleanPuffeRL:
             torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
                 experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
 
-            exp = self.sample(advantages, self.off_policy_rows, method='random')
+            exp = self.sample(advantages, self.off_policy_segments, method='random')
             for k, v in experience.items():
-                v[self.on_policy_rows:] = exp[k]
+                v[self.on_policy_segments:] = exp[k]
 
-        experience.ratio[:self.on_policy_rows] = 1
+        experience.ratio[:self.on_policy_segments] = 1
 
         if config.anneal_lr:
             self.scheduler.step()

@@ -39,6 +39,8 @@ class PufferEnv:
             raise APIUsageError(ERROR.format('single_action_space'))
         if not hasattr(self, 'num_agents'):
             raise APIUsageError(ERROR.format('num_agents'))
+        if self.num_agents < 1:
+            raise APIUsageError('num_agents must be >= 1')
 
         if hasattr(self, 'observation_space'):
             raise APIUsageError('PufferEnvs must define single_observation_space, not observation_space')
