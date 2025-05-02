@@ -11,7 +11,6 @@ import shutil
 import glob
 import uuid
 import ast
-import random
 
 from threading import Thread
 from collections import defaultdict, deque
@@ -30,220 +29,224 @@ import pufferlib.pytorch
 import pufferlib.sweep
 import pufferlib.vector
 
+import signal # Aggressively exit on ctrl+c
+signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
+
 from rich_argparse import RichHelpFormatter
 from rich.console import Console
 from rich.traceback import install
 install(show_locals=False) # Rich tracebacks
 
-import signal # Aggressively exit on ctrl+c
-signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
- 
+ROUND_OPEN = rich.box.Box(
+    "╭──╮\n"
+    "│  │\n"
+    "│  │\n"
+    "│  │\n"
+    "│  │\n"
+    "│  │\n"
+    "│  │\n"
+    "╰──╯\n"
+)
 
-def create(config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
-    random.seed(config.seed)
-    np.random.seed(config.seed)
-    torch.backends.cudnn.deterministic = config.torch_deterministic
-    torch.backends.cudnn.benchmark = True
-    torch.set_float32_matmul_precision('high')
-    if config.seed is not None:
-        torch.manual_seed(config.seed)
+c1 = '[cyan]'
+c2 = '[white]'
+b1 = '[bright_cyan]'
+b2 = '[bright_white]'
 
-    ext = 'cu' if 'cuda' in config.device else 'cpp'
-    puffer_cuda = load(
-        name='puffer_cuda',
-        sources=[f'pufferlib.{ext}'],
-        verbose=True
-    )
-    compute_gae = puffer_cuda.compute_gae
-    compute_vtrace = puffer_cuda.compute_vtrace
-    compute_puff_advantage = puffer_cuda.compute_puff_advantage
+class CleanPuffeRL:
+    def __init__(self, config, vecenv, policy, optimizer=None, wandb=None, neptune=None):
+        self.config = config
+        self.vecenv = vecenv
+        self.wandb = wandb
+        self.neptune = neptune
 
-    losses = pufferlib.namespace(
-        policy_loss=0,
-        value_loss=0,
-        entropy=0,
-        old_approx_kl=0,
-        approx_kl=0,
-        clipfrac=0,
-        explained_variance=0,
-        diayn_loss=0,
-        grad_var=0,
-        importance=0,
-    )
+        self.global_step = 0
+        self.epoch = 0
+        self.stats = defaultdict(list)
+        self.last_log_time = 0
 
-    utilization = Utilization()
-    msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
+        self.device = config.device
 
-    vecenv.async_reset(config.seed)
-    total_agents = vecenv.num_agents
-    obs_shape = vecenv.single_observation_space.shape
-    atn_shape = vecenv.single_action_space.shape
-    obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_observation_space.dtype]
-    atn_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_action_space.dtype]
-    on_policy_rows = config.batch_size // config.bptt_horizon
-    off_policy_rows = int(config.replay_factor*config.batch_size // config.bptt_horizon)
-    experience_rows = on_policy_rows + off_policy_rows
-    pin = config.device == 'cuda' and config.cpu_offload
-    obs_device = config.device if not pin else 'cpu'
-    experience = pufferlib.namespace(
-        obs=torch.zeros(experience_rows, config.bptt_horizon, *obs_shape,
-            dtype=obs_dtype, pin_memory=pin, device='cpu' if pin else config.device),
-        actions=torch.zeros(experience_rows, config.bptt_horizon, *atn_shape,
-            dtype=atn_dtype, device=config.device),
-        logprobs=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-        rewards=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-        dones=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-        truncateds=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
-        ratio = torch.ones(experience_rows, config.bptt_horizon, device=config.device),
-    )
-    ep_uses = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
-    ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
-    ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
-    free_idx = total_agents
-    assert free_idx <= experience_rows, f'Total agents {total_agents} must be at least batch size {config.batch_size} / bptt_horizon {config.bptt_horizon} = {experience_rows}'
+        self.use_p3o = config.use_p3o
+        self.p3o_horizon = config.p3o_horizon
+        self.puf = config.puf
 
-    diayn_skills = None
-    if config.use_diayn:
-        diayn_skills = torch.randint(
-            0, config.diayn_archive, (total_agents,), dtype=torch.long, device=config.device)
-        experience.diayn_batch = torch.zeros(experience_rows, config.bptt_horizon,
-            dtype=torch.long, device=config.device)
+        self.use_diayn = config.use_diayn,
+        self.diayn_coef = config.diayn_coef,
 
-    if config.use_p3o:
-        batch_size = config.batch_size
-        p3o_horizon = config.p3o_horizon
-        device = config.device
-        experience.values_mean=torch.zeros(batch_size, p3o_horizon, device=device)
-        experience.values_std=torch.zeros(batch_size, p3o_horizon, device=device)
-        experience.reward_block = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
-        experience.mask_block = torch.ones(batch_size, p3o_horizon, dtype=torch.float32, device=device)
-        experience.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
-        experience.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
-        experience.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
-        experience.vstd_max = 1.0
-    else:
-        experience.values = torch.zeros(experience_rows, config.bptt_horizon, device=config.device)
+        random.seed(config.seed)
+        np.random.seed(config.seed)
+        torch.backends.cudnn.deterministic = config.torch_deterministic
+        torch.backends.cudnn.benchmark = True
+        torch.set_float32_matmul_precision('high')
+        if config.seed is not None:
+            torch.manual_seed(config.seed)
 
-    if config.use_vtrace or config.use_puff_advantage:
-        experience.importance = torch.ones(experience_rows, config.bptt_horizon, device=config.device)
+        ext = 'cu' if 'cuda' in config.device else 'cpp'
+        puffer_cuda = load(
+            name='puffer_cuda',
+            sources=[f'pufferlib.{ext}'],
+            verbose=True
+        )
+        self.compute_gae = puffer_cuda.compute_gae
+        self.compute_vtrace = puffer_cuda.compute_vtrace
+        self.compute_puff_advantage = puffer_cuda.compute_puff_advantage
 
-    lstm_h = None
-    lstm_c = None
-    # TODO: This breaks compile
-    if isinstance(policy, torch.nn.LSTM):
-        assert total_agents > 0
-        if config.env_batch_size > 1:
-            shape = (total_agents, policy.hidden_size)
-            lstm_h = torch.zeros(shape).to(config.device)
-            lstm_c = torch.zeros(shape).to(config.device)
+        self.losses = pufferlib.namespace(
+            policy_loss=0,
+            value_loss=0,
+            entropy=0,
+            old_approx_kl=0,
+            approx_kl=0,
+            clipfrac=0,
+            explained_variance=0,
+            diayn_loss=0,
+            grad_var=0,
+            importance=0,
+        )
+
+        self.utilization = Utilization()
+        self.msg = f'Model Size: {abbreviate(count_params(policy))} parameters'
+
+        vecenv.async_reset(config.seed)
+        total_agents = vecenv.num_agents
+        obs_shape = vecenv.single_observation_space.shape
+        atn_shape = vecenv.single_action_space.shape
+        obs_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_observation_space.dtype]
+        atn_dtype = pufferlib.pytorch.numpy_to_torch_dtype_dict[vecenv.single_action_space.dtype]
+        self.on_policy_rows = config.batch_size // config.bptt_horizon
+        self.off_policy_rows = int(config.replay_factor*config.batch_size // config.bptt_horizon)
+        experience_rows = self.on_policy_rows + self.off_policy_rows
+        pin = config.device == 'cuda' and config.cpu_offload
+        obs_device = config.device if not pin else 'cpu'
+        experience = pufferlib.namespace(
+            obs=torch.zeros(experience_rows, config.bptt_horizon, *obs_shape,
+                dtype=obs_dtype, pin_memory=pin, device='cpu' if pin else config.device),
+            actions=torch.zeros(experience_rows, config.bptt_horizon, *atn_shape,
+                dtype=atn_dtype, device=config.device),
+            logprobs=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
+            rewards=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
+            dones=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
+            truncateds=torch.zeros(experience_rows, config.bptt_horizon, device=config.device),
+            ratio = torch.ones(experience_rows, config.bptt_horizon, device=config.device),
+        )
+        self.ep_uses = torch.zeros(experience_rows, device=config.device, dtype=torch.int32)
+        self.ep_lengths = torch.zeros(total_agents, device=config.device, dtype=torch.int32)
+        self.ep_indices = torch.arange(total_agents, device=config.device, dtype=torch.int32)
+        self.free_idx = total_agents
+        assert self.free_idx <= experience_rows, f'Total agents {total_agents} must be at least batch size {config.batch_size} / bptt_horizon {config.bptt_horizon} = {experience_rows}'
+        self.total_agents = total_agents
+
+        self.diayn_skills = None
+        if config.use_diayn:
+            self.diayn_skills = torch.randint(
+                0, config.diayn_archive, (total_agents,), dtype=torch.long, device=config.device)
+            experience.diayn_batch = torch.zeros(experience_rows, config.bptt_horizon,
+                dtype=torch.long, device=config.device)
+
+        if config.use_p3o:
+            batch_size = config.batch_size
+            p3o_horizon = config.p3o_horizon
+            device = config.device
+            experience.values_mean=torch.zeros(batch_size, p3o_horizon, device=device)
+            experience.values_std=torch.zeros(batch_size, p3o_horizon, device=device)
+            experience.reward_block = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            experience.mask_block = torch.ones(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            experience.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
+            experience.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
+            experience.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
+            experience.vstd_max = 1.0
         else:
-            # TODO: Doesn't exist in native envs
-            n = vecenv.agents_per_batch
-            shape = (n, policy.hidden_size)
-            lstm_h = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
-            lstm_c = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
+            experience.values = torch.zeros(experience_rows, config.bptt_horizon, device=config.device)
 
-    minibatch_size = min(config.minibatch_size, config.max_minibatch_size)
-    uncompiled_policy = policy
-    if config.compile:
-        policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
+        if config.use_vtrace or config.use_puff_advantage:
+            experience.importance = torch.ones(experience_rows, config.bptt_horizon, device=config.device)
 
-    if config.optimizer == 'adam':
-        optimizer = torch.optim.Adam(
-            policy.parameters(),
-            lr=config.learning_rate,
-            betas=(config.adam_beta1, config.adam_beta2),
-            eps=config.adam_eps,
-        )
-    elif config.optimizer == 'muon':
-        from heavyball import ForeachMuon
-        import heavyball.utils
-        #heavyball.utils.compile_mode = "reduce-overhead"
-        optimizer = ForeachMuon(
-            policy.parameters(),
-            lr=config.learning_rate,
-            betas=(config.adam_beta1, config.adam_beta2),
-            eps=config.adam_eps,
+        self.experience = experience
 
-        )
-    elif config.optimizer == 'kron':
-        from heavyball import ForeachPSGDKron
-        import heavyball.utils
-        #heavyball.utils.compile_mode = "reduce-overhead"
-        optimizer = ForeachPSGDKron(
-            policy.parameters(),
-            lr=config.learning_rate,
-            precond_lr=config.precond_lr,
-            beta=config.adam_beta1,
-        )
-    else:
-        raise ValueError(f'Unknown optimizer: {config.optimizer}')
+        lstm_h = None
+        lstm_c = None
+        # TODO: This breaks compile
+        if isinstance(policy, torch.nn.LSTM):
+            assert total_agents > 0
+            if config.env_batch_size > 1:
+                shape = (total_agents, policy.hidden_size)
+                lstm_h = torch.zeros(shape).to(config.device)
+                lstm_c = torch.zeros(shape).to(config.device)
+            else:
+                # TODO: Doesn't exist in native envs
+                n = vecenv.agents_per_batch
+                shape = (n, policy.hidden_size)
+                lstm_h = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
+                lstm_c = {slice(i*n, (i+1)*n):torch.zeros(shape).to(config.device) for i in range(total_agents//n)}
 
-    epochs = config.total_timesteps // config.batch_size
-    assert config.scheduler in ('linear', 'cosine')
-    if config.scheduler == 'linear':
-        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
-    elif config.scheduler == 'cosine':
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+        self.lstm_h = lstm_h
+        self.lstm_c = lstm_c
 
-    amp_context = nullcontext()
-    scaler = None
-    if config.precision != 'float32':
-        amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
-        scaler = torch.amp.GradScaler()
+        self.minibatch_size = min(config.minibatch_size, config.max_minibatch_size)
+        self.uncompiled_policy = policy
+        if config.compile:
+            policy = torch.compile(policy, mode=config.compile_mode, fullgraph=config.compile_fullgraph)
 
-    profile = Profile(['eval', 'env', 'eval_forward', 'eval_copy', 'eval_misc', 'train', 'train_forward',
-        'learn', 'train_copy', 'train_misc', 'custom'], frequency=5)
+        self.policy = policy
 
-    data = pufferlib.namespace(
-        config=config,
-        vecenv=vecenv,
-        policy=policy,
-        uncompiled_policy=uncompiled_policy,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        scaler=scaler,
-        experience=experience,
-        profile=profile,
-        losses=losses,
-        wandb=wandb,
-        neptune=neptune,
-        global_step=0,
-        epoch=0,
-        stats=defaultdict(list),
-        msg=msg,
-        last_log_time=0,
-        utilization=utilization,
-        use_p3o=config.use_p3o,
-        p3o_horizon=config.p3o_horizon,
-        puf=config.puf,
-        use_diayn=config.use_diayn,
-        diayn_coef=config.diayn_coef,
-        # Do we use these?
-        ptr=0,
-        step=0,
-        lstm_h=lstm_h,
-        lstm_c=lstm_c,
-        ep_uses=ep_uses,
-        ep_lengths=ep_lengths,
-        ep_indices=ep_indices,
-        free_idx=free_idx,
-        on_policy_rows=on_policy_rows,
-        off_policy_rows=off_policy_rows,
-        experience_rows=experience_rows,
-        device=config.device,
-        minibatch_size=minibatch_size,
-        compute_gae=compute_gae,
-        compute_vtrace=compute_vtrace,
-        compute_puff_advantage=compute_puff_advantage,
-        diayn_skills=diayn_skills,
-        total_agents=total_agents,
-        total_epochs=epochs,
-        start_time=time.time(),
-        uptime=0,
-    )
-    print_dashboard(data, clear=True)
-    return data
+        if config.optimizer == 'adam':
+            optimizer = torch.optim.Adam(
+                policy.parameters(),
+                lr=config.learning_rate,
+                betas=(config.adam_beta1, config.adam_beta2),
+                eps=config.adam_eps,
+            )
+        elif config.optimizer == 'muon':
+            from heavyball import ForeachMuon
+            import heavyball.utils
+            #heavyball.utils.compile_mode = "reduce-overhead"
+            optimizer = ForeachMuon(
+                policy.parameters(),
+                lr=config.learning_rate,
+                betas=(config.adam_beta1, config.adam_beta2),
+                eps=config.adam_eps,
+
+            )
+        elif config.optimizer == 'kron':
+            from heavyball import ForeachPSGDKron
+            import heavyball.utils
+            #heavyball.utils.compile_mode = "reduce-overhead"
+            optimizer = ForeachPSGDKron(
+                policy.parameters(),
+                lr=config.learning_rate,
+                precond_lr=config.precond_lr,
+                beta=config.adam_beta1,
+            )
+        else:
+            raise ValueError(f'Unknown optimizer: {config.optimizer}')
+
+        self.optimizer = optimizer
+
+        epochs = config.total_timesteps // config.batch_size
+        self.total_epochs = epochs
+        assert config.scheduler in ('linear', 'cosine')
+        if config.scheduler == 'linear':
+            scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0, total_iters=epochs)
+        elif config.scheduler == 'cosine':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
+        self.scheduler = scheduler
+
+        amp_context = nullcontext()
+        scaler = None
+        if config.precision != 'float32':
+            amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
+            scaler = torch.amp.GradScaler()
+
+        self.scaler = scaler
+
+        self.profile = Profile(['eval', 'env', 'eval_forward', 'eval_copy', 'eval_misc', 'train', 'train_forward',
+            'learn', 'train_copy', 'train_misc', 'custom'], frequency=5)
+
+        self.start_time = time.time()
+        self.uptime=0
+        self.print_dashboard(clear=True)
 
 def evaluate(data):
     profile = data.profile
@@ -964,22 +967,6 @@ class Utilization(Thread):
 
     def stop(self):
         self.stopped = True
-
-ROUND_OPEN = rich.box.Box(
-    "╭──╮\n"
-    "│  │\n"
-    "│  │\n"
-    "│  │\n"
-    "│  │\n"
-    "│  │\n"
-    "│  │\n"
-    "╰──╯\n"
-)
-
-c1 = '[cyan]'
-c2 = '[white]'
-b1 = '[bright_cyan]'
-b2 = '[bright_white]'
 
 def abbreviate(num):
     if num < 1e3:
