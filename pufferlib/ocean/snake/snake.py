@@ -5,7 +5,7 @@ import gymnasium
 
 import pufferlib
 from pufferlib.exceptions import APIUsageError
-from pufferlib.ocean.snake import binding
+from pufferlib.ocean.snake.cy_snake import CySnake
 
 class Snake(pufferlib.PufferEnv):
     def __init__(self, num_envs=16, width=640, height=360,
@@ -41,51 +41,45 @@ class Snake(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.tick = 0
 
-        # Calculate cell_size for rendering
         self.cell_size = int(np.ceil(1280 / max(max(width), max(height))))
 
         super().__init__(buf)
-        self.c_envs = binding.vec_init(self.observations, self.actions,
-            self.rewards, self.terminals, self.truncations,
-            num_envs, seed, width=width, height=height,
-            num_snakes=num_snakes, num_food=num_food, vision=vision,
-            max_snake_length=max_snake_length,
-            leave_corpse_on_death=leave_corpse_on_death,
-            reward_food=reward_food, reward_corpse=reward_corpse,
-            reward_death=reward_death, cell_size=self.cell_size)
+        self.c_envs = CySnake(self.observations, self.actions,
+            self.rewards, self.terminals, width, height,
+            num_snakes, num_food, vision, max_snake_length,
+            leave_corpse_on_death, reward_food, reward_corpse,
+            reward_death)
  
     def reset(self, seed=None):
+        self.c_envs.reset()
         self.tick = 0
-        if seed is None:
-            binding.vec_reset(self.c_envs, 0)
-        else:
-            binding.vec_reset(self.c_envs, seed)
         return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
-        self.tick += 1
-        binding.vec_step(self.c_envs)
+        self.c_envs.step()
 
         info = []
         if self.tick % self.report_interval == 0:
-            info.append(binding.vec_log(self.c_envs))
+            log = self.c_envs.log()
+            if log['episode_length'] > 0:
+                info.append(log)
 
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
     def render(self):
-        binding.vec_render(self.c_envs, self.cell_size)
+        self.c_envs.render(self.cell_size)
 
     def close(self):
-        binding.vec_close(self.c_envs)
+        self.c_envs.close()
 
 def test_performance(timeout=10, atn_cache=1024):
     env = Snake()
     env.reset()
     tick = 0
 
-    total_snakes = env.num_agents
+    total_snakes = sum(env.num_snakes)
     actions = np.random.randint(0, 4, (atn_cache, total_snakes))
 
     import time

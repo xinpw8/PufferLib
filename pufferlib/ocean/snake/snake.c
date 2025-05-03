@@ -20,7 +20,7 @@ int demo() {
 
     Weights* weights = load_weights("resources/snake_weights.bin", 148357);
     LinearLSTM* net = make_linearlstm(weights, env.num_snakes, env.obs_size, 4);
-    env.client = make_client(2, env.width, env.height);
+    Client* client = make_client(2, env.width, env.height);
 
     while (!WindowShouldClose()) {
         // User can take control of the first snake
@@ -36,11 +36,11 @@ int demo() {
             forward_linearlstm(net, net->obs, env.actions);
         }
         c_step(&env);
-        c_render(&env);
+        c_render(client, &env);
     }
     free_linearlstm(net);
     free(weights);
-    close_client(env.client);
+    close_client(client);
     free_csnake(&env);
     return 0;
 }
@@ -71,12 +71,11 @@ void test_performance(float test_time) {
         i++;
     }
     int end = time(NULL);
-    free_csnake(&env);
     printf("SPS: %f\n", (float)env.num_snakes*i / (end - start));
 }
 
 int main() {
-    // demo();
-    test_performance(30);
+    demo();
+    //test_performance(30);
     return 0;
 }
