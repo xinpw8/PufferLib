@@ -635,6 +635,12 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
     if num_envs != int(num_envs):
         raise APIUsageError('num_envs must be an integer')
 
+    if isinstance(backend, str):
+        try:
+            backend = getattr(pufferlib.vector, backend)
+        except:
+            raise APIUsageError(f'Invalid backend: {backend}')
+
     if backend == PufferEnv:
         env_args = env_args or []
         env_kwargs = env_kwargs or {}

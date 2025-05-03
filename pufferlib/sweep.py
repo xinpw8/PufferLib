@@ -115,7 +115,7 @@ class Logit(Space):
 def _params_from_puffer_sweep(sweep_config):
     param_spaces = {}
     for name, param in sweep_config.items():
-        if name in ('method', 'name', 'metric', 'max_score'):
+        if name in ('method', 'metric', 'goal'):
             continue
 
         assert isinstance(param, dict)
@@ -156,8 +156,9 @@ class Hyperparameters:
         self.num = len(self.flat_spaces)
 
         self.metric = config['metric']
-        assert self.metric['goal'] in ['maximize', 'minimize']
-        self.optimize_direction = 1 if self.metric['goal'] == 'maximize' else -1
+        goal = config['goal']
+        assert goal in ('maximize', 'minimize')
+        self.optimize_direction = 1 if 'goal' == 'maximize' else -1
 
         self.search_centers = np.array([
             e.norm_mean for e in self.flat_spaces.values()])
@@ -325,12 +326,13 @@ def create_gp(x_dim, scale_length=1.0):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     return model, optimizer
 
+# TODO: Eval defaults
 class Protein:
     def __init__(self,
             sweep_config,
-            max_suggestion_cost = None,
-            resample_frequency = 5,
-            num_random_samples = 10,
+            max_suggestion_cost = 3600,
+            resample_frequency = 0,
+            num_random_samples = 50,
             global_search_scale = 1,
             random_suggestions = 1024,
             suggestions_per_pareto = 256,
@@ -699,7 +701,7 @@ def _carbs_params_from_puffer_sweep(sweep_config):
 class Carbs:
     def __init__(self,
             sweep_config: dict,
-            max_suggestion_cost: float = None,
+            max_suggestion_cost: float = 3600,
             resample_frequency: int = 5,
             num_random_samples: int = 10,
         ):

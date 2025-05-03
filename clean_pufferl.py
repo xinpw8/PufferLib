@@ -1,3 +1,7 @@
+# TODO: Add information
+# - Help menu
+# - Docs link
+
 import os
 import random
 import psutil
@@ -44,7 +48,7 @@ b2 = '[bright_white]'
 
 
 class CleanPuffeRL:
-    def __init__(self, config, vecenv, policy):
+    def __init__(self, config, vecenv, policy, neptune=False, wandb=False):
         # Backend perf optimization
         torch.set_float32_matmul_precision('high')
         torch.backends.cudnn.deterministic = config.torch_deterministic
@@ -170,11 +174,13 @@ class CleanPuffeRL:
             raise pufferlib.exceptions.APIUsageError(f'Use float32 or bfloat16, not {config.precision}')
 
         # Logging
-        if config.neptune:
+        self.neptune = neptune
+        self.wandb = wandb
+        if neptune:
             self.neptune = init_neptune(args, env_name, id=config.run_id, tag=config.run_tag)
             for k, v in pufferlib.utils.unroll_nested_dict(args):
                 self.neptune[k].append(v)
-        elif config.wandb:
+        elif wandb:
             self.wandb = init_wandb(args, env_name, id=config.run_id, tag=config.run_tag)
 
         # Profiling
@@ -524,9 +530,9 @@ class CleanPuffeRL:
         if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
             return logs
 
-        if config.wandb:
+        if self.wandb:
             self.wandb.log(logs)
-        elif config.neptune:
+        elif self.neptune:
             for k, v in logs.items():
                 self.neptune[k].append(v, step=agent_steps)
 
@@ -536,14 +542,14 @@ class CleanPuffeRL:
         self.vecenv.close()
         self.utilization.stop()
         config = self.config
-        if config.wandb:
+        if self.wandb:
             artifact_name = f"{config.exp_id}_model"
             artifact = self.wandb.Artifact(artifact_name, type="model")
             model_path = self.save_checkpoint(self)
             artifact.add_file(model_path)
             self.wandb.run.log_artifact(artifact)
             self.wandb.finish()
-        elif config.neptune:
+        elif self.neptune:
             # TODO: Add artifact
             self.neptune.stop()
 
@@ -905,9 +911,10 @@ def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
     import neptune
     import neptune.exceptions
     try:
-        workspace = args['workspace']
+        neptune_name = args['neptune_name']
+        neptune_project = args['neptune_project']
         run = neptune.init_run(
-            project=f"{workspace['name']}/{workspace['project']}",
+            project=f"{neptune_name}/{neptune_project}",
             capture_hardware_metrics=False,
             capture_stdout=False,
             capture_stderr=False,
@@ -929,32 +936,24 @@ def make_policy(env, policy_cls, rnn_cls, args):
 
     return policy.to(args['train']['device'])
 
+def downsample_linear(arr, m):
+    n = len(arr)
+    x_old = np.linspace(0, 1, n)  # Original indices normalized
+    x_new = np.linspace(0, 1, m)  # New indices normalized
+    return np.interp(x_new, x_old, arr)
+ 
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
-    method = args['sweep']['method']
-    if method == 'random':
-        sweep = pufferlib.sweep.Random(args['sweep'])
-    elif method == 'pareto_genetic':
-        sweep = pufferlib.sweep.ParetoGenetic(args['sweep'])
-    elif method == 'protein':
-        sweep = pufferlib.sweep.Protein(
-            args['sweep'],
-            resample_frequency=0,
-            num_random_samples=50, # Should be number of params
-            max_suggestion_cost=args['max_suggestion_cost'],
-            min_score = args['sweep']['metric']['min'],
-            max_score = args['sweep']['metric']['max'],
-        )
-    elif method == 'carbs':
-        sweep = pufferlib.sweep.Carbs(
-            args['sweep'],
-            resample_frequency=5,
-            num_random_samples=10, # Should be number of params
-            max_suggestion_cost=args['max_suggestion_cost'],
-        )
-    else:
-        raise ValueError(f'Invalid sweep method {method} (random/pareto_genetic/protein)')
+    if not args['wandb'] and not args['neptune']:
+        raise pufferlib.exceptions.APIUsageError('Sweeps require either wandb or neptune')
 
-    target_metric = args['sweep']['metric']['name']
+    method = args['sweep'].pop('method')
+    try:
+        sweep_cls = getattr(pufferlib.sweep, method)
+    except:
+        raise pufferlib.exceptions.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
+
+    sweep = sweep_cls(args['sweep'])
+    target_metric = args['sweep']['metric']
     for i in range(args['max_runs']):
         seed = time.time_ns() & 0xFFFFFFFF
         random.seed(seed)
@@ -966,7 +965,10 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
             sweep.observe(args, 0.0, 0.0)
             continue
         
-        scores, costs, timesteps, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
+        scores, costs, timesteps = train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
+        scores = downsample_linear(scores, 10)
+        costs = downsample_linear(costs, 10)
+        timesteps = downsample_linear(timesteps, 10)
 
         # Hacky patch to prevent increasing total_timesteps when not swept
         total_timesteps = args['train']['total_timesteps']
@@ -978,33 +980,8 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
 
         print('Score:', score, 'Cost:', cost, 'Timesteps:', timestep)
 
-def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100,
-        elos={'model_random.pt': 1000}, vecenv=None, wandb=None, neptune=None):
-    if args['vec'] == 'serial':
-        vec = pufferlib.vector.Serial
-    elif args['vec'] == 'multiprocessing':
-        vec = pufferlib.vector.Multiprocessing
-    elif args['vec'] == 'ray':
-        vec = pufferlib.vector.Ray
-    elif args['vec'] == 'native':
-        vec = pufferlib.environment.PufferEnv
-    else:
-        raise ValueError(f'Invalid --vec (serial/multiprocessing/ray/native).')
-
-    env_name = args['env_name']
-    if vecenv is None:
-        vecenv = pufferlib.vector.make(
-            make_env,
-            env_kwargs=args['env'],
-            num_envs=args['train']['num_envs'],
-            num_workers=args['train']['num_workers'],
-            batch_size=args['train']['env_batch_size'],
-            zero_copy=args['train']['zero_copy'],
-            overwork=args['vec_overwork'],
-            seed=args['train']['seed'],
-            backend=vec,
-        )
-
+def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100, wandb=None, neptune=None):
+    vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
     policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
     args['train']['use_rnn'] = rnn_cls is not None
 
@@ -1018,9 +995,10 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
         if args['train']['use_rnn']:
             policy.cell = orig_policy.cell
 
+    env_name = args['env_name']
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
-    pufferl = CleanPuffeRL(train_config, vecenv, policy)
+    pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
 
     timesteps = []
     scores = []
@@ -1051,18 +1029,8 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
     costs.append(cost)
     timesteps.append(pufferl.global_step)
 
-    def downsample_linear(arr, m):
-        n = len(arr)
-        x_old = np.linspace(0, 1, n)  # Original indices normalized
-        x_new = np.linspace(0, 1, m)  # New indices normalized
-        return np.interp(x_new, x_old, arr)
-     
-    scores = downsample_linear(scores, 10)
-    costs = downsample_linear(costs, 10)
-    timesteps = downsample_linear(timesteps, 10)
-
     pufferl.close()
-    return scores, costs, timesteps, elos, vecenv
+    return scores, costs, timesteps
 
 #python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=1 clean_pufferl.py --env puffer_nmmo3 --mode train
 #from torch.distributed.elastic.multiprocessing.errors import record
@@ -1077,8 +1045,6 @@ if __name__ == '__main__':
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
         choices='train eval evaluate sweep autotune profile'.split())
-    parser.add_argument('--vec-overwork', action='store_true',
-        help='Allow vectorization to use >1 worker/core. Not recommended.')
     parser.add_argument('--eval-model-path', type=str, default=None,
         help='Path to a pretrained checkpoint')
     parser.add_argument('--baseline', action='store_true',
@@ -1087,58 +1053,52 @@ if __name__ == '__main__':
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help='Resume from experiment')
-    parser.add_argument('--data-path', type=str, default=None,
-        help='Used for testing hparam algorithms')
-    parser.add_argument('--track', action='store_true', help='Track on WandB')
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
+    parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
+    parser.add_argument('--neptune', action='store_true', help='Use neptune for logging')
+    parser.add_argument('--neptune-name', type=str, default='pufferai')
+    parser.add_argument('--neptune-project', type=str, default='ablations')
     parser.add_argument('--local-rank', type=int, default=0, help='Used by torchrun for DDP')
-
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
     args = parser.parse_known_args()[0]
 
-    file_paths = glob.glob('config/**/*.ini', recursive=True)
-    for path in file_paths:
+    # Load defaults and config
+    for path in glob.glob('config/**/*.ini', recursive=True):
         p = configparser.ConfigParser()
-        p.read('config/default.ini')
-
-        subconfig = os.path.join(*path.split('/')[:-1] + ['default.ini'])
-        if subconfig in file_paths:
-            p.read(subconfig)
-
-        p.read(path)
+        p.read(['config/default.ini', path])
         if args.env in p['base']['env_name'].split():
             break
     else:
-        raise Exception('No config for env_name {}'.format(args.env))
+        raise pufferlib.exceptions.APIUsageError('No config for env_name {}'.format(args.env))
 
+    # Dynamic help menu from config
     for section in p.sections():
         for key in p[section]:
-            if section == 'base':
-                argparse_key = f'--{key}'.replace('_', '-')
-            else:
-                argparse_key = f'--{section}.{key}'.replace('_', '-')
-            parser.add_argument(argparse_key, default=p[section][key])
+            try:
+                value = ast.literal_eval(p[section][key])
+            except:
+                value = p[section][key]
 
-    # Late add help so you get a dynamic menu based on the env
+            fmt = f'--{key}' if section == 'base' else f'--{section}.{key}'
+            parser.add_argument(fmt.replace('_', '-'), default=value)
+
     parser.add_argument('-h', '--help', default=argparse.SUPPRESS,
         action='help', help='Show this help message and exit')
 
-    parsed = parser.parse_args().__dict__
-    args = {'env': {}, 'policy': {}, 'rnn': {}}
+    # Unpack to nested dict
+    parsed = vars(parser.parse_args())
+    nested = lambda: defaultdict(nested) # TODO: Replace with pufferlib namespace
+    args = nested()
     env_name = parsed.pop('env')
     for key, value in parsed.items():
         next = args
-        for subkey in key.split('.'):
-            if subkey not in next:
-                next[subkey] = {}
-            prev = next
+        split = key.split('.')
+        for subkey in split[:-1]:
             next = next[subkey]
-        try:
-            prev[subkey] = ast.literal_eval(value)
-        except:
-            prev[subkey] = value
+
+        next[split[-1]] = value
 
     package = args['package']
     module_name = f'pufferlib.environments.{package}'
@@ -1147,7 +1107,6 @@ if __name__ == '__main__':
 
     import importlib
     env_module = importlib.import_module(module_name)
-
     make_env = env_module.env_creator(env_name)
     policy_cls = getattr(env_module.torch, args['policy_name'])
     
@@ -1179,7 +1138,8 @@ if __name__ == '__main__':
         train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
     elif args['mode'] in ('eval', 'evaluate'):
         vec = pufferlib.vector.Serial
-        if args['vec'] == 'native': vec = pufferlib.environment.PufferEnv
+        if args['vec'] == 'native':
+            vec = pufferlib.environment.PufferEnv
         rollout(
             make_env,
             args['env'],
@@ -1193,17 +1153,17 @@ if __name__ == '__main__':
             device=args['train']['device'],
         )
     elif args['mode'] == 'sweep':
-        assert args['wandb'] or args['neptune'], 'Sweeps require either wandb or neptune'
         sweep(args, env_name, make_env, policy_cls, rnn_cls)
     elif args['mode'] == 'autotune':
         pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
     elif args['mode'] == 'profile':
-        import cProfile
-        target_metric = args['sweep']['metric']['name']
-        cProfile.run('train(args, make_env, policy_cls, rnn_cls, target_metric)', 'stats.profile')
-        import pstats
-        from pstats import SortKey
-        p = pstats.Stats('stats.profile')
-        p.sort_stats(SortKey.TIME).print_stats(10)
-        breakpoint()
-        pass
+        import torch
+        import torchvision.models as models
+        from torch.profiler import profile, record_function, ProfilerActivity
+        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+            with record_function("model_inference"):
+                target_metric = args['sweep']['metric']['name']
+                train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
+
+        print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
+        prof.export_chrome_trace("trace.json")
