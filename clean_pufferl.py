@@ -66,9 +66,8 @@ class CleanPuffeRL:
         device = config.device
         batch_size = config.batch_size
         horizon = config.bptt_horizon
-        self.on_policy_segments = batch_size // horizon
-        self.off_policy_segments = int(config.replay_factor*batch_size // horizon)
-        segments = self.on_policy_segments + self.off_policy_segments
+        segments = batch_size // horizon
+        self.segments = segments
         if total_agents < segments:
             raise pufferlib.exceptions.APIUsageError(
                 f'Total agents {total_agents} must be greater than or equal to segments {segments}'
@@ -85,6 +84,7 @@ class CleanPuffeRL:
                 device='cpu' if config.cpu_offload else device),
             actions=torch.zeros(segments, horizon, *atn_space.shape,
                 dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_space.dtype], device=device),
+            values = torch.zeros(segments, horizon, device=device),
             logprobs=torch.zeros(segments, horizon, device=device),
             rewards=torch.zeros(segments, horizon, device=device),
             dones=torch.zeros(segments, horizon, device=device),
@@ -96,21 +96,6 @@ class CleanPuffeRL:
             self.diayn_skills = torch.randint(
                 0, config.diayn_archive, (total_agents,), dtype=torch.long, device=device)
             experience.diayn_batch = torch.zeros(segments, horizon, dtype=torch.long, device=config.device)
-
-        if config.use_p3o:
-            batch_size = config.batch_size
-            p3o_horizon = config.p3o_horizon
-            device = config.device
-            experience.values_mean=torch.zeros(batch_size, p3o_horizon, device=device)
-            experience.values_std=torch.zeros(batch_size, p3o_horizon, device=device)
-            experience.reward_block = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
-            experience.mask_block = torch.ones(batch_size, p3o_horizon, dtype=torch.float32, device=device)
-            experience.buf = torch.zeros(batch_size, p3o_horizon, dtype=torch.float32, device=device)
-            experience.advantages = torch.zeros(batch_size, dtype=torch.float32, device=device)
-            experience.bounds = torch.zeros(batch_size, dtype=torch.int32, device=device)
-            experience.vstd_max = 1.0
-        else:
-            experience.values = torch.zeros(segments, horizon, device=device)
 
         if config.use_vtrace or config.use_puff_advantage:
             experience.importance = torch.ones(segments, horizon, device=device)
@@ -166,16 +151,6 @@ class CleanPuffeRL:
                 lr=config.learning_rate,
                 betas=(config.adam_beta1, config.adam_beta2),
                 eps=config.adam_eps,
-            )
-        elif config.optimizer == 'kron':
-            from heavyball import ForeachPSGDKron
-            import heavyball.utils
-            #heavyball.utils.compile_mode = "reduce-overhead"
-            optimizer = ForeachPSGDKron(
-                policy.parameters(),
-                lr=config.learning_rate,
-                precond_lr=config.precond_lr,
-                beta=config.adam_beta1,
             )
         else:
             raise ValueError(f'Unknown optimizer: {config.optimizer}')
@@ -238,7 +213,7 @@ class CleanPuffeRL:
         policy = self.policy
 
         self.full_rows = 0
-        while self.full_rows < self.on_policy_segments:
+        while self.full_rows < self.segments:
             profile('env', epoch)
             o, r, d, t, info, env_id, mask = self.vecenv.recv()
 
@@ -318,39 +293,7 @@ class CleanPuffeRL:
         for mb in range(self.total_minibatches):
             profile('train_misc', epoch, nest=True)
             loss = 0
-            if config.use_p3o:
-                # Note: This function gets messed up by computing across
-                # episode bounds. Because we store experience in a flat buffer,
-                # bounds can be crossed even after handling dones. This prevent
-                # our method from scaling to longer horizons. TODO: Redo the way
-                # we store experience to avoid this issue
-                vstd_min = experience.values_std.min().item()
-                vstd_max = experience.values_std.max().item()
-
-                self.mask_block.zero_()
-                self.buf.zero_()
-                self.reward_block.zero_()
-                self.bounds.zero_()
-
-                r_mean = experience.rewards.mean().item()
-                r_std = experience.rewards.std().item()
-
-                # TODO: Rename vstd to r_std
-                advantages = compute_advantages(
-                    experience.reward_block, experience.mask_block,
-                    experience.values_mean, experience.values_std,
-                    experience.buf, experience.dones, experience.rewards,
-                    experience.bounds, r_std, self.puf, config.p3o_horizon
-                )
-
-                horizon = torch.where(experience.values_std[0] > 0.95*r_std)[0]
-                horizon = horizon[0].item()+1 if len(horizon) else 1
-                if horizon < 16:
-                    horizon = 16
-
-                advantages = advantages.cpu().numpy()
-                torch.cuda.synchronize()
-            elif config.use_vtrace:
+            if config.use_vtrace:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
                 vs = torch.zeros(experience.values.shape, device=config.device)
                 self.compute_vtrace(experience.values, experience.rewards, experience.dones,
@@ -426,8 +369,7 @@ class CleanPuffeRL:
                             ratio, vs, adv, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
 
             adv = batch.advantages
-            if config.norm_adv:
-                adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+            adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
             # Prioritized replay
             adv = adv * batch.prio
@@ -440,33 +382,23 @@ class CleanPuffeRL:
             pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
             # Value loss
-            if config.use_p3o:
-                newvalue_mean = newvalue.mean.view(-1, config.p3o_horizon)
-                newvalue_std = newvalue.std.view(-1, config.p3o_horizon)
-                newvalue_var = torch.square(newvalue_std)
-                criterion = torch.nn.GaussianNLLLoss(reduction='none')
-                v_loss = criterion(newvalue_mean, batch.reward_block, newvalue_var)
-                v_loss = v_loss[:, :(horizon+3)]
-                mask_block = mask_block[:, :(horizon+3)]
-                v_loss = v_loss[mask_block.bool()].mean()
-            elif config.clip_vloss:
-                newvalue = newvalue
-                ret = batch.returns
-                v_loss_unclipped = (newvalue - ret) ** 2
-                val = batch.values
-                v_clipped = val + torch.clamp(
-                    newvalue - val,
-                    -config.vf_clip_coef,
-                    config.vf_clip_coef,
-                )
-                v_loss_clipped = (v_clipped - ret) ** 2
-                v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                v_loss = 0.5 * v_loss_max.mean()
-            else:
-                newvalue = newvalue.flatten()
-                v_loss = 0.5 * ((newvalue - ret) ** 2).mean()
+            newvalue = newvalue
+            ret = batch.returns
+            v_loss_unclipped = (newvalue - ret) ** 2
+            val = batch.values
+            v_clipped = val + torch.clamp(
+                newvalue - val,
+                -config.vf_clip_coef,
+                config.vf_clip_coef,
+            )
+            v_loss_clipped = (v_clipped - ret) ** 2
+            v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+            v_loss = 0.5 * v_loss_max.mean()
 
+            # Entropy loss
             entropy_loss = entropy.mean()
+
+            # Total loss
             loss += pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
 
             # This breaks vloss clipping?
@@ -514,29 +446,14 @@ class CleanPuffeRL:
         profile('train_misc', epoch)
         self.max_uses = self.ep_uses.max().item()
         self.mean_uses = self.ep_uses.float().mean().item()
-        if config.replay_factor > 0:
-            advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
-            vs = torch.zeros(experience.values.shape, device=config.device)
-            torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards, experience.dones,
-                experience.ratio, vs, advantages, config.gamma, config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
-
-            exp = self.sample(advantages, self.off_policy_segments, method='random')
-            for k, v in experience.items():
-                v[self.on_policy_segments:] = exp[k]
-
-        experience.ratio[:self.on_policy_segments] = 1
+        experience.ratio[:] = 1
 
         if config.anneal_lr:
             self.scheduler.step()
 
-        if config.use_p3o:
-            y_pred = experience.values_mean
-            y_true = experience.reward_block
-        else:
-            y_pred = experience.values.flatten()
-
-            # Probably not updated
-            y_true = advantages.flatten() + experience.values.flatten()
+        y_pred = experience.values.flatten()
+        # TODO: Probably not updated
+        y_true = advantages.flatten() + experience.values.flatten()
 
         var_y = y_true.var()
         explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
@@ -573,12 +490,7 @@ class CleanPuffeRL:
         exp.logprobs[batch_rows, l] = logprob
         exp.rewards[batch_rows, l] = reward
         exp.dones[batch_rows, l] = done.float()
-
-        if config.use_p3o:
-            exp.values_mean[batch_rows, l] = value.mean
-            exp.values_std[batch_rows, l] = value.std
-        else:
-            exp.values[batch_rows, l] = value.flatten()
+        exp.values[batch_rows, l] = value.flatten()
 
         if config.use_diayn:
             exp.diayn_batch[batch_rows, l] = state.diayn_z
@@ -616,16 +528,9 @@ class CleanPuffeRL:
         self.ep_uses[idx] += 1
         output = {k: v[idx] for k, v in exp.items()}
         output['idx'] = idx
-
-        if config.use_p3o:
-            output['reward_block'] = reward_block[idx]
-            output['mask_block'] = mask_block[idx]
-            output['values_mean'] = exp.values_mean[idx]
-            output['values_std'] = exp.values_std[idx]
-        else:
-            output['values'] = exp.values[idx]
-            output['advantages'] = advantages[idx]
-            output['returns'] = advantages[idx] + exp.values[idx]
+        output['values'] = exp.values[idx]
+        output['advantages'] = advantages[idx]
+        output['returns'] = advantages[idx] + exp.values[idx]
 
         if config.use_diayn:
             output['diayn_z'] = exp.diayn_batch[idx]
@@ -1066,8 +971,6 @@ def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
 def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'],
         #batch_size=args['train']['batch_size'],
-        use_p3o=args['train']['use_p3o'],
-        p3o_horizon=args['train']['p3o_horizon'],
         use_diayn=args['train']['use_diayn'],
         diayn_skills=args['train']['diayn_archive'],
     )
