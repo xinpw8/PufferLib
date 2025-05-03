@@ -881,24 +881,19 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     )
 
     num_agents = env.observation_space.shape[0]
-    if hasattr(agent, 'recurrent'):
+    if isinstance(agent, torch.nn.LSTM):
         shape = (num_agents, agent.hidden_size)
         state.lstm_h = torch.zeros(shape).to(device)
         state.lstm_c = torch.zeros(shape).to(device)
 
     frames = []
     tick = 0
-    value = [0]
-    intrinsic = [0]
-    intrinsic_mean = None
-    intrinsic_std = None
     while tick <= 200000:
         if tick > 1000 and tick % 1 == 0:
-            #render = driver.render(overlay=float(intrinsic[0]))
             render = driver.render()
             if driver.render_mode == 'ansi':
                 print('\033[0;0H' + render + '\n')
-                time.sleep(0.05)
+                time.sleep(1/20)
             elif driver.render_mode == 'rgb_array':
                 frames.append(render)
                 import cv2
@@ -921,6 +916,7 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
             print(f'Reward: {reward:.4f}, Tick: {tick}')
         tick += 1
 
+    # TODO: Frames from raylib
     # Save frames as gif
     if frames:
         import imageio
@@ -1054,14 +1050,14 @@ def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
     try:
         workspace = args['workspace']
         run = neptune.init_run(
-                project=f"{workspace['name']}/{workspace['project']}",
-                capture_hardware_metrics=False,
-                capture_stdout=False,
-                capture_stderr=False,
-                capture_traceback=False,
-                tags=[tag] if tag is not None else [],
-                mode=mode,
-            )
+            project=f"{workspace['name']}/{workspace['project']}",
+            capture_hardware_metrics=False,
+            capture_stdout=False,
+            capture_stderr=False,
+            capture_traceback=False,
+            tags=[tag] if tag is not None else [],
+            mode=mode,
+        )
     except neptune.exceptions.NeptuneConnectionLostException:
         print("couldn't connect to neptune, logging in offline mode")
         return init_neptune(args, name, id, resume, tag, mode="offline")
