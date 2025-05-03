@@ -1,3 +1,4 @@
+import importlib
 import pufferlib.emulation
 import pufferlib.postprocess
 
@@ -116,51 +117,34 @@ def make_multiagent(buf=None, **kwargs):
     env = pufferlib.postprocess.MultiagentEpisodeStats(env)
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
-MAKE_FNS = {
-    'breakout':      lambda: lazy_import('pufferlib.ocean.breakout.breakout', 'Breakout'),
-    'blastar':       lambda: lazy_import('pufferlib.ocean.blastar.blastar', 'Blastar'),
-    'pong':          lambda: lazy_import('pufferlib.ocean.pong.pong', 'Pong'),
-    'enduro':        lambda: lazy_import('pufferlib.ocean.enduro.enduro', 'Enduro'),
-    'cartpole':      lambda: lazy_import('pufferlib.ocean.cartpole.cartpole', 'Cartpole'),
-    'moba':          lambda: lazy_import('pufferlib.ocean.moba.moba', 'Moba'),
-    'nmmo3':         lambda: lazy_import('pufferlib.ocean.nmmo3.nmmo3', 'NMMO3'),
-    'snake':         lambda: lazy_import('pufferlib.ocean.snake.snake', 'Snake'),
-    'squared':       lambda: lazy_import('pufferlib.ocean.squared.squared', 'Squared'),
-    'pysquared':     lambda: lazy_import('pufferlib.ocean.squared.pysquared', 'PySquared'),
-    'connect4':      lambda: lazy_import('pufferlib.ocean.connect4.connect4', 'Connect4'),
-    'tripletriad':   lambda: lazy_import('pufferlib.ocean.tripletriad.tripletriad', 'TripleTriad'),
-    'tactical':      lambda: lazy_import('pufferlib.ocean.tactical.tactical', 'Tactical'),
-    'go':            lambda: lazy_import('pufferlib.ocean.go.go', 'Go'),
-    'rware':         lambda: lazy_import('pufferlib.ocean.rware.rware', 'Rware'),
-    'trash_pickup':  lambda: lazy_import('pufferlib.ocean.trash_pickup.trash_pickup', 'TrashPickupEnv'),
-    'tower_climb':   lambda: lazy_import('pufferlib.ocean.tower_climb.tower_climb', 'TowerClimb'),
-    'grid':          lambda: lazy_import('pufferlib.ocean.grid.grid', 'Grid'),
-    'cpr':           lambda: lazy_import('pufferlib.ocean.cpr.cpr', 'PyCPR'),
-    'impulse_wars':  lambda: lazy_import('pufferlib.ocean.impulse_wars.impulse_wars', 'ImpulseWars'),
-    'gpudrive':      lambda: lazy_import('pufferlib.ocean.gpudrive.gpudrive', 'GPUDrive'),
-    #'rocket_lander': rocket_lander.RocketLander,
-    'foraging': make_foraging,
-    'predator_prey': make_predator_prey,
-    'group': make_group,
-    'puffer': make_puffer,
-    'continuous': make_continuous,
-    'bandit': make_bandit,
-    'memory': make_memory,
-    'password': make_password,
-    'stochastic': make_stochastic,
-    'multiagent': make_multiagent,
-    'spaces': make_spaces,
-    'performance': make_performance,
-    'performance_empiric': make_performance_empiric,
+MAKE_FUNCTIONS = {
+    'breakout': 'Breakout',
+    'blastar': 'Blastar',
+    'pong': 'Pong',
+    'enduro': 'Enduro',
+    'cartpole': 'Cartpole',
+    'moba': 'Moba',
+    'nmmo3': 'NMMO3',
+    'snake': 'Snake',
+    'squared': 'Squared',
+    'pysquared': 'PySquared',
+    'connect4': 'Connect4',
+    'tripletriad': 'TripleTriad',
+    'tactical': 'Tactical',
+    'go': 'Go',
+    'rware': 'Rware',
+    'trash_pickup': 'TrashPickupEnv',
+    'tower_climb': 'TowerClimb',
+    'grid': 'Grid',
+    'cpr': 'PyCPR',
+    'impulse_wars': 'ImpulseWars',
+    'gpudrive': 'GPUDrive',
 }
 
-# Alias puffer_ to all names
-MAKE_FNS = {**MAKE_FNS, **{'puffer_' + k: v for k, v in MAKE_FNS.items()}}
-
 def env_creator(name='squared', *args, **kwargs):
-    if name in MAKE_FNS:
-        return MAKE_FNS[name](*args, **kwargs)
-    else:
-        raise ValueError(f'Invalid environment name: {name}')
+    if 'puffer_' not in name:
+        raise pufferlib.exceptions.APIUsageError(f'Invalid environment name: {name}')
 
-
+    name = name.replace('puffer_', '')
+    module = importlib.import_module(f'pufferlib.ocean.{name}.{name}')
+    return getattr(module, MAKE_FUNCTIONS[name])

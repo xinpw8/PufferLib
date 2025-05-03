@@ -46,7 +46,7 @@ b2 = '[bright_white]'
 class CleanPuffeRL:
     def __init__(self, config, vecenv, policy):
         # Backend perf optimization
-        torch.set_float32_matmul_precision('high') # TODO: Check if this is what was messing up AMP
+        torch.set_float32_matmul_precision('high')
         torch.backends.cudnn.deterministic = config.torch_deterministic
         torch.backends.cudnn.benchmark = True
 
@@ -68,9 +68,9 @@ class CleanPuffeRL:
         horizon = config.bptt_horizon
         segments = batch_size // horizon
         self.segments = segments
-        if total_agents < segments:
+        if total_agents > segments:
             raise pufferlib.exceptions.APIUsageError(
-                f'Total agents {total_agents} must be greater than or equal to segments {segments}'
+                f'Total agents {total_agents} <= segments {segments}'
             )
 
         self.ep_uses = torch.zeros(segments, device=device, dtype=torch.int32)
@@ -92,17 +92,13 @@ class CleanPuffeRL:
             ratio = torch.ones(segments, horizon, device=device),
         )
         self.experience = experience
-        if config.use_diayn:
-            self.diayn_skills = torch.randint(
-                0, config.diayn_archive, (total_agents,), dtype=torch.long, device=device)
-            experience.diayn_batch = torch.zeros(segments, horizon, dtype=torch.long, device=config.device)
 
         if config.use_vtrace or config.use_puff_advantage:
             experience.importance = torch.ones(segments, horizon, device=device)
 
         # LSTM
         # TODO: This breaks compile
-        if isinstance(policy, torch.nn.LSTM):
+        if config.use_rnn:
             # TODO: Doesn't exist in native envs
             # TODO: Replace slice with env idx or similar
             n = vecenv.agents_per_batch
@@ -114,7 +110,7 @@ class CleanPuffeRL:
         minibatch_size = config.minibatch_size
         max_minibatch_size = config.max_minibatch_size
         self.minibatch_size = min(minibatch_size, max_minibatch_size)
-        if minibatch_size % max_minibatch_size != 0:
+        if max_minibatch_size % minibatch_size != 0:
             raise pufferlib.exceptions.APIUsageError(
                 f'max_minibatch_size {max_minibatch_size} must be a multiple of minibatch_size {minibatch_size}'
             )
@@ -145,7 +141,7 @@ class CleanPuffeRL:
         elif config.optimizer == 'muon':
             from heavyball import ForeachMuon
             import heavyball.utils
-            #heavyball.utils.compile_mode = "reduce-overhead"
+            heavyball.utils.compile_mode = config.compile_mode if config.compile else None
             optimizer = ForeachMuon(
                 policy.parameters(),
                 lr=config.learning_rate,
@@ -169,9 +165,9 @@ class CleanPuffeRL:
         self.scheduler = scheduler
 
         # Automatic mixed precision
-        if config.precision != 'float32':
-            self.amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
-            self.scaler = torch.amp.GradScaler()
+        self.amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
+        if config.precision not in ('float32', 'bfloat16'):
+            raise pufferlib.exceptions.APIUsageError(f'Use float32 or bfloat16, not {config.precision}')
 
         # Logging
         if config.neptune:
@@ -232,7 +228,7 @@ class CleanPuffeRL:
             d = torch.as_tensor(d).to(config.device, non_blocking=True)
 
             profile('eval_forward', epoch)
-            with torch.no_grad():
+            with torch.no_grad(), self.amp_context:
                 state = pufferlib.namespace(
                     reward=r,
                     done=d,
@@ -240,12 +236,9 @@ class CleanPuffeRL:
                     mask=mask,
                 )
 
-                if isinstance(policy, torch.nn.LSTM):
+                if config.use_rnn:
                     state.lstm_h = self.lstm_h[env_id]
                     state.lstm_c = self.lstm_c[env_id]
-
-                if config.use_diayn:
-                    state.diayn_z = self.diayn_skills[env_id]
 
                 logits, value = policy(o_device, state)
                 action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=policy.is_continuous)
@@ -253,7 +246,7 @@ class CleanPuffeRL:
 
             profile('eval_copy', epoch)
             with torch.no_grad():
-                if isinstance(policy, torch.nn.LSTM):
+                if config.use_rnn:
                     self.lstm_h[env_id] = state.lstm_h
                     self.lstm_c[env_id] = state.lstm_c
 
@@ -292,6 +285,8 @@ class CleanPuffeRL:
 
         for mb in range(self.total_minibatches):
             profile('train_misc', epoch, nest=True)
+            self.amp_context.__enter__()
+
             loss = 0
             if config.use_vtrace:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
@@ -318,10 +313,7 @@ class CleanPuffeRL:
                 lstm_c=None,
             )
 
-            if config.use_diayn:
-                state.diayn_z = batch.diayn_z.reshape(-1)
-
-            if not isinstance(self.policy, torch.nn.LSTM):
+            if not config.use_rnn:
                 batch.obs = batch.obs.reshape(-1, *self.vecenv.single_observation_space.shape)
 
             # TODO: Currently only returning traj shaped value as a hack
@@ -330,20 +322,6 @@ class CleanPuffeRL:
                 action=batch.actions, is_continuous=self.policy.is_continuous)
 
             profile('train_misc', epoch)
-            if config.use_diayn:
-                N = 1
-                batch_logits = state.batch_logits[:, ::N]
-                batch_logits = torch.nn.functional.log_softmax(batch_logits, dim=-1)
-                mask = torch.nn.functional.one_hot(batch.actions[:, ::N], batch_logits.shape[-1]).bool()
-                #batch_logits = mask*batch_logits
-                batch_logits = batch_logits.view(batch_logits.shape[0], -1)
-                diayn_policy = self.policy.policy
-                q = diayn_policy.discrim_forward(batch_logits)
-                z_idxs = batch.diayn_z[:, 0]
-                q = q.view(-1, q.shape[-1])
-                diayn_loss = torch.nn.functional.cross_entropy(q, z_idxs)
-                loss += config.diayn_loss_coef*diayn_loss
-
             newlogprob = newlogprob.reshape(batch.logprobs.shape)
             logratio = newlogprob - batch.logprobs
             ratio = logratio.exp()
@@ -382,8 +360,8 @@ class CleanPuffeRL:
             pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
             # Value loss
-            newvalue = newvalue
             ret = batch.returns
+            newvalue = newvalue.view(ret.shape)
             v_loss_unclipped = (newvalue - ret) ** 2
             val = batch.values
             v_clipped = val + torch.clamp(
@@ -400,30 +378,18 @@ class CleanPuffeRL:
 
             # Total loss
             loss += pg_loss - config.ent_coef*entropy_loss + v_loss*config.vf_coef
+            self.amp_context.__enter__()
 
             # This breaks vloss clipping?
             with torch.no_grad():
-                experience.values[batch.idx] = newvalue
+                experience.values[batch.idx] = newvalue.float()
 
             profile('learn', epoch)
-            if config.precision != 'float32':
-                loss = self.scaler.scale(loss)
-
             loss.backward()
-
-            if config.precision != 'float32':
-                self.scaler.unscale_(self.optimizer)
 
             if (mb + 1) % self.accumulate_minibatches == 0:
                 torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config.max_grad_norm)
-
-                # TODO: Can remove scaler if only using bf16
-                if config.precision == 'float32':
-                    self.optimizer.step()
-                else:
-                    self.scaler.step(self.optimizer)
-                    self.scaler.update()
-
+                self.optimizer.step()
                 self.optimizer.zero_grad()
 
                 profile('train_misc', epoch)
@@ -434,13 +400,6 @@ class CleanPuffeRL:
                 losses['approx_kl'] += approx_kl.item() / self.total_minibatches
                 losses['clipfrac'] += clipfrac.item() / self.total_minibatches
                 losses['importance'] += ratio.mean().item() / self.total_minibatches
-
-                if config.use_diayn:
-                    losses['diayn_loss'] += diayn_loss.item() / self.total_minibatches
-
-                if config.target_kl is not None:
-                    if approx_kl > config.target_kl:
-                        break
 
         # Reprioritize experience
         profile('train_misc', epoch)
@@ -492,9 +451,6 @@ class CleanPuffeRL:
         exp.dones[batch_rows, l] = done.float()
         exp.values[batch_rows, l] = value.flatten()
 
-        if config.use_diayn:
-            exp.diayn_batch[batch_rows, l] = state.diayn_z
-
         # TODO: Handle masks!!
         #indices = np.where(mask)[0]
         #data.ep_lengths[env_id[mask]] += 1
@@ -531,9 +487,6 @@ class CleanPuffeRL:
         output['values'] = exp.values[idx]
         output['advantages'] = advantages[idx]
         output['returns'] = advantages[idx] + exp.values[idx]
-
-        if config.use_diayn:
-            output['diayn_z'] = exp.diayn_batch[idx]
 
         output['prio'] = 1
         if method == 'prio':
@@ -782,7 +735,6 @@ def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_k
     state = pufferlib.namespace(
         lstm_h=None,
         lstm_c=None,
-        diayn_z=torch.arange(env.num_agents, dtype=torch.long, device=device) % 4
     )
 
     num_agents = env.observation_space.shape[0]
@@ -969,11 +921,7 @@ def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
     return run
 
 def make_policy(env, policy_cls, rnn_cls, args):
-    policy = policy_cls(env, **args['policy'],
-        #batch_size=args['train']['batch_size'],
-        use_diayn=args['train']['use_diayn'],
-        diayn_skills=args['train']['diayn_archive'],
-    )
+    policy = policy_cls(env, **args['policy'])
     args['rnn']['input_size'] = policy.hidden_size
     args['rnn']['hidden_size'] = policy.hidden_size
     if rnn_cls is not None:
@@ -1058,14 +1006,17 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
         )
 
     policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
+    args['train']['use_rnn'] = rnn_cls is not None
 
-    if args['ddp']:
+    if 'LOCAL_RANK' in os.environ:
         from torch.nn.parallel import DistributedDataParallel as DDP
         orig_policy = policy
-        policy = DDP(policy, device_ids=[args['rank']])
-        # TODO: Test this? isinstance?
-        if hasattr(orig_policy, 'lstm'):
-            policy.lstm = orig_policy.lstm
+        policy = DDP(policy, device_ids=[args['local_rank']])
+        policy.hidden_size = orig_policy.hidden_size
+        policy.is_continuous = orig_policy.is_continuous
+        policy.forward_train = orig_policy.forward_train
+        if args['train']['use_rnn']:
+            policy.cell = orig_policy.cell
 
     train_config = pufferlib.namespace(**args['train'], env=env_name,
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
@@ -1113,12 +1064,9 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
     pufferl.close()
     return scores, costs, timesteps, elos, vecenv
 
-def train_ddp(rank, world_size, args, make_env, policy_cls, rnn_cls, target_metric):
-    args['rank'] = rank
-    args['train']['device'] = f'cuda:{rank}'
-    torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=world_size)
-    train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
-    torch.distributed.destroy_process_group()
+#python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=1 clean_pufferl.py --env puffer_nmmo3 --mode train
+#from torch.distributed.elastic.multiprocessing.errors import record
+#@record
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -1135,7 +1083,6 @@ if __name__ == '__main__':
         help='Path to a pretrained checkpoint')
     parser.add_argument('--baseline', action='store_true',
         help='Load pretrained model from WandB if available')
-    parser.add_argument('--ddp', action='store_true', help='Distributed data parallel')
     parser.add_argument('--render-mode', type=str, default='auto',
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
     parser.add_argument('--exp-id', '--exp-name', type=str,
@@ -1146,11 +1093,9 @@ if __name__ == '__main__':
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
+    parser.add_argument('--local-rank', type=int, default=0, help='Used by torchrun for DDP')
+
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
-    parser.add_argument('--wandb', action='store_true', help='Track on WandB')
-    parser.add_argument('--neptune', action='store_true', help='Track on Neptune')
-    #parser.add_argument('--wandb-project', type=str, default='pufferlib')
-    #parser.add_argument('--wandb-group', type=str, default='debug')
     args = parser.parse_known_args()[0]
 
     file_paths = glob.glob('config/**/*.ini', recursive=True)
@@ -1211,6 +1156,10 @@ if __name__ == '__main__':
     if rnn_name is not None:
         rnn_cls = getattr(env_module.torch, args['rnn_name'])
 
+    # Assume TorchRun DDP is used if LOCAL_RANK is set
+    if 'LOCAL_RANK' in os.environ:
+        torch.distributed.init_process_group(backend='nccl', rank=0, world_size=1)
+
     if args['baseline']:
         assert args['mode'] in ('train', 'eval', 'evaluate')
         args['track'] = True
@@ -1225,17 +1174,6 @@ if __name__ == '__main__':
             data_dir = artifact.download()
             model_file = max(os.listdir(data_dir))
             args['eval_model_path'] = os.path.join(data_dir, model_file)
-    if args['mode'] == 'train' and args['ddp']:
-        import torch.multiprocessing as mp
-        world_size = 1
-        os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = "29500"
-        target_metric = args['sweep']['metric']['name']
-        mp.spawn(train_ddp,
-            args=(world_size, args, make_env, policy_cls, rnn_cls, target_metric),
-            nprocs=world_size,
-            join=True,
-        )
     elif args['mode'] == 'train':
         target_metric = args['sweep']['metric']['name']
         train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)

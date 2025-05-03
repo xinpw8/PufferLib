@@ -100,10 +100,7 @@ def _nativize_dtype(sample_dtype: np.dtype,
         return subviews, dtype, shape, start_offset, all_delta
 
 
-def nativize_tensor(
-    observation: torch.Tensor,
-    native_dtype: NativeDType,
-) -> torch.Tensor | dict[str, torch.Tensor]:
+def nativize_tensor(observation: torch.Tensor, native_dtype: NativeDType):
     return _nativize_tensor(observation, native_dtype)
 
 
@@ -124,9 +121,7 @@ def compilable_cast(u8, dtype):
     return u8.view(dtype)  # breaking cast
 
 
-def _nativize_tensor(
-    observation: torch.Tensor, native_dtype: NativeDType
-) -> torch.Tensor | dict[str, torch.Tensor]:
+def _nativize_tensor(observation: torch.Tensor, native_dtype: NativeDType):
     if isinstance(native_dtype, tuple):
         dtype, shape, offset, delta = native_dtype
         torch._check_is_size(offset)
@@ -157,13 +152,11 @@ def nativize_observation(observation, emulated):
     )
 
 
-def flattened_tensor_size(native_dtype: tuple[torch.dtype, tuple[int], int, int]):
+def flattened_tensor_size(native_dtype):
     return _flattened_tensor_size(native_dtype)
 
 
-def _flattened_tensor_size(
-    native_dtype: tuple[torch.dtype, tuple[int], int, int],
-) -> int:
+def _flattened_tensor_size(native_dtype):
     if isinstance(native_dtype, tuple):
         return np.prod(native_dtype[1])  # shape
     else:

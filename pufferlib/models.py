@@ -125,13 +125,13 @@ class Default(nn.Module):
 
         return logits, values
 
-class LSTMWrapper(nn.LSTM):
+class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128):
         '''Wraps your policy with an LSTM without letting you shoot yourself in the
         foot with bad transpose and shape operations. This saves much pain.
         Requires that your policy define encode_observations and decode_actions.
         See the Default policy for an example.'''
-        super().__init__(input_size, hidden_size)
+        super().__init__()
         self.obs_shape = env.single_observation_space.shape
 
         self.policy = policy
@@ -147,11 +147,13 @@ class LSTMWrapper(nn.LSTM):
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
 
+        self.lstm = nn.LSTM(input_size, hidden_size)
+
         self.cell = torch.nn.LSTMCell(input_size, hidden_size)
-        self.cell.weight_ih = self.weight_ih_l0
-        self.cell.weight_hh = self.weight_hh_l0
-        self.cell.bias_ih = self.bias_ih_l0
-        self.cell.bias_hh = self.bias_hh_l0
+        self.cell.weight_ih = self.lstm.weight_ih_l0
+        self.cell.weight_hh = self.lstm.weight_hh_l0
+        self.cell.bias_ih = self.lstm.bias_ih_l0
+        self.cell.bias_hh = self.lstm.bias_hh_l0
 
         #self.pre_layernorm = nn.LayerNorm(hidden_size)
         #self.post_layernorm = nn.LayerNorm(hidden_size)
@@ -210,7 +212,7 @@ class LSTMWrapper(nn.LSTM):
 
         hidden = hidden.transpose(0, 1)
         #hidden = self.pre_layernorm(hidden)
-        hidden, (lstm_h, lstm_c) = super().forward(hidden, lstm_state)
+        hidden, (lstm_h, lstm_c) = self.lstm.forward(hidden, lstm_state)
         #hidden = self.post_layernorm(hidden)
         hidden = hidden.transpose(0, 1)
 
