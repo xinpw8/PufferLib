@@ -269,7 +269,7 @@ extension_paths = [
     'pufferlib/ocean/moba/cy_moba',
     # 'pufferlib/ocean/tactical/c_tactical',
     #'pufferlib/ocean/squared/cy_squared',
-    #'pufferlib/ocean/snake/cy_snake',
+    'pufferlib/ocean/snake/cy_snake',
     'pufferlib/ocean/gpudrive/cy_gpudrive',
     #'pufferlib/ocean/pong/cy_pong',
     # 'pufferlib/ocean/breakout/cy_breakout',
