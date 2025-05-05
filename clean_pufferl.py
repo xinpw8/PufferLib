@@ -118,7 +118,8 @@ class CleanPuffeRL:
         minibatch_size = config.minibatch_size
         max_minibatch_size = config.max_minibatch_size
         self.minibatch_size = min(minibatch_size, max_minibatch_size)
-        if max_minibatch_size % minibatch_size != 0:
+        if minibatch_size % max_minibatch_size != 0 and max_minibatch_size % minibatch_size != 0:
+            # todo: better error
             raise pufferlib.exceptions.APIUsageError(
                 f'max_minibatch_size {max_minibatch_size} must be a multiple of minibatch_size {minibatch_size}'
             )
@@ -181,11 +182,11 @@ class CleanPuffeRL:
         self.neptune = neptune
         self.wandb = wandb
         if neptune:
-            self.neptune = init_neptune(args, env_name, id=config.run_id, tag=config.run_tag)
+            self.neptune = init_neptune(args, env_name, id=config.run_id, tag=config.tag)
             for k, v in pufferlib.utils.unroll_nested_dict(args):
                 self.neptune[k].append(v)
         elif wandb:
-            self.wandb = init_wandb(args, env_name, id=config.run_id, tag=config.run_tag)
+            self.wandb = init_wandb(args, env_name, id=config.run_id, tag=config.tag)
 
         # Profiling
         self.uptime = 0
@@ -1000,7 +1001,7 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
             policy.cell = orig_policy.cell
 
     env_name = args['env_name']
-    train_config = pufferlib.namespace(**args['train'], env=env_name,
+    train_config = pufferlib.namespace(**args['train'], env=env_name, tag=args['tag'],
         exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
     pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
 

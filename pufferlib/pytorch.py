@@ -284,6 +284,7 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         return action, log_probs, logits_entropy
     elif is_discrete:
         logits = logits.unsqueeze(0)
+    # TODO: Double check this
     else: #multi-discrete
         logits = torch.nn.utils.rnn.pad_sequence(
             [l.transpose(0,1) for l in logits], 
@@ -292,7 +293,7 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         ).permute(1,2,0)
 
     normalized_logits = logits - logits.logsumexp(dim=-1, keepdim=True)
-    probs = logits_to_probs(normalized_logits)
+    probs = logits_to_probs(logits)
 
     if action is None:
         action = torch.multinomial(probs.reshape(-1, probs.shape[-1]), 1, replacement=True)
