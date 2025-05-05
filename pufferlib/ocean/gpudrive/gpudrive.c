@@ -102,7 +102,7 @@ void demo() {
         .human_agent_idx = 0,
         .reward_vehicle_collision = -0.1f,
         .reward_offroad_collision = -0.1f,
-	    .map_name = "resources/gpudrive/binaries/map_227.bin"
+	    .map_name = "resources/gpudrive/binaries/map_006.bin"
     };
     allocate(&env);
     c_reset(&env);
@@ -172,7 +172,7 @@ void performance_test() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
-	    .map_name = "resources/gpudrive/binaries/map_227.bin"
+	    .map_name = "resources/gpudrive/binaries/map_065.bin"
     };
     clock_t start_time, end_time;
     double cpu_time_used;
@@ -205,7 +205,7 @@ void performance_test() {
 }
 
 int main() {
-    // demo();
-    performance_test();
+    demo();
+    // performance_test();
     return 0;
 }

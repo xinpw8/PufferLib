@@ -45,7 +45,7 @@
 #define SLOTS_PER_CELL (MAX_ENTITIES_PER_CELL*2 + 1)
 
 // Max road segment observation entities
-#define MAX_ROAD_SEGMENT_OBSERVATIONS 64
+#define MAX_ROAD_SEGMENT_OBSERVATIONS 200
 #define MAX_CARS 64
 // Observation Space Constants
 #define MAX_SPEED 100.0f
@@ -342,13 +342,6 @@ void set_active_agents(GPUDrive* env){
     for(int i = env->num_objects-1; i >= 0 && env->num_cars < MAX_CARS; i--){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
-        /*for(int j = 1; j < env->entities[i].array_size; j++){
-            if(env->entities[i].traj_valid[j] != 1) {
-                env->entities[i].goal_position_x = env->entities[i].traj_x[j-1];
-                env->entities[i].goal_position_y = env->entities[i].traj_y[j-1];
-                break;
-            }
-        }*/
         env->num_cars++;
         float cos_heading = cosf(env->entities[i].traj_heading[0]);
         float sin_heading = sinf(env->entities[i].traj_heading[0]);
@@ -466,7 +459,7 @@ void init_grid_map(GPUDrive* env){
     env->grid_cells = (int*)calloc(grid_cell_count*SLOTS_PER_CELL, sizeof(int));
     // Populate grid cells
     for(int i = 0; i < env->num_entities; i++){
-        if(env->entities[i].type == ROAD_EDGE){
+        if(env->entities[i].type > 3 && env->entities[i].type < 7){
             for(int j = 0; j < env->entities[i].array_size - 1; j++){
                 float x_center = (env->entities[i].traj_x[j] + env->entities[i].traj_x[j+1]) / 2;
                 float y_center = (env->entities[i].traj_y[j] + env->entities[i].traj_y[j+1]) / 2;
@@ -814,6 +807,7 @@ void collision_check(GPUDrive* env, int agent_idx) {
         if(entity_list[i] == agent_idx) continue;
         Entity* entity;
         entity = &env->entities[entity_list[i]];
+        if(entity->type != ROAD_EDGE) continue;
         int geometry_idx = entity_list[i + 1];
         float start[2] = {entity->traj_x[geometry_idx], entity->traj_y[geometry_idx]};
         float end[2] = {entity->traj_x[geometry_idx + 1], entity->traj_y[geometry_idx + 1]};
@@ -942,17 +936,9 @@ void compute_observations(GPUDrive* env) {
             cars_seen++;
             obs_idx += 7;  // Move to next observation slot
         }
-        for(int j = cars_seen; j < MAX_CARS - 1; j++){
-            obs[obs_idx] = 0;
-            obs[obs_idx + 1] = 0;
-            obs[obs_idx + 2] = 0;
-            obs[obs_idx + 3] = 0;
-            obs[obs_idx + 4] = 0;
-            obs[obs_idx + 5] = 0;
-            obs[obs_idx + 6] = 0;
-            obs_idx += 7;
-	    }
-	
+        int remaining_partner_obs = (MAX_CARS - 1 - cars_seen) * 7;
+        memset(&obs[obs_idx], 0, remaining_partner_obs * sizeof(float));
+        obs_idx += remaining_partner_obs;
         // map observations
         int entity_list[MAX_ROAD_SEGMENT_OBSERVATIONS*2];  // Array big enough for all neighboring cells
         int grid_idx = getGridIndex(env, ego_entity->x, ego_entity->y);
@@ -1052,7 +1038,7 @@ void c_step(GPUDrive* env){
         int agent_idx = env->active_agent_indices[i];
         env->entities[agent_idx].collision_state = 0;
         if(env->goal_reached[i]){
-            // env->masks[i] = 0;
+            env->masks[i] = 0;
             env->entities[agent_idx].x = -10000;
             env->entities[agent_idx].y = -10000;
             continue;
@@ -1079,12 +1065,12 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
         int reached_goal = distance_to_goal < 2.0f;
-        if(reached_goal){            
+        if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
 		    env->reached_goal_this_turn[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
-            // env->dones[i] = 1;
+            env->dones[i] = 1;
             continue;
 	    }
     }
@@ -1132,10 +1118,13 @@ Client* make_client(GPUDrive* env){
 }
 
 void draw_agent_obs(GPUDrive* env, int agent_index){
+    if(!IsKeyDown(KEY_LEFT_SHIFT)){
+        return;
+    }
     int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     float* agent_obs = &observations[agent_index][0];
-    // draw goal
+        // draw goal
     float goal_x = reverse_normalize_value(agent_obs[0], MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
     float goal_y = reverse_normalize_value(agent_obs[1], MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
     DrawSphere((Vector3){goal_x, goal_y, 1}, 0.5f, RED);
@@ -1174,9 +1163,9 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         Color lineColor = BLUE;  // Default color
         int entity_type = (int)agent_obs[entity_idx + 6];
         // Choose color based on entity type
-        if(entity_type+4 != ROAD_EDGE){
-            continue;
-        } 
+        // if(entity_type+4 != ROAD_EDGE){
+        //     continue;
+        // } 
         lineColor = BLACK;
         // For road segments, draw line between start and end points
         float x_middle = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
@@ -1191,6 +1180,9 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         float y_start = y_middle - segment_length*sinf(rel_angle);
         float x_end = x_middle + segment_length*cosf(rel_angle);
         float y_end = y_middle + segment_length*sinf(rel_angle);
+        if(entity_type+4== ROAD_EDGE){
+            lineColor = PINK;
+        }
         DrawLine3D((Vector3){0,0,0}, (Vector3){x_middle, y_middle, 1}, lineColor); 
         DrawLine3D((Vector3){x_start, y_start, 1}, (Vector3){x_end, y_end, 1}, BLUE);
     }
@@ -1298,13 +1290,16 @@ void c_render(Client* client, GPUDrive* env) {
             else if (env->entities[i].type == ROAD_LINE) lineColor = BLUE;
             else if (env->entities[i].type == ROAD_EDGE) lineColor = BLACK;
             else if (env->entities[i].type == DRIVEWAY) lineColor = RED;
-            if(env->entities[i].type != ROAD_EDGE){
-                continue;
-            }
+            else if (env->entities[i].type == CROSSWALK) lineColor = GREEN;
+            // if(env->entities[i].type != ROAD_EDGE){
+            //     continue;
+            // }
             if(!IsKeyDown(KEY_LEFT_SHIFT)){
                 DrawLine3D(start, end, lineColor);
-                DrawSphere(start, 0.5f, lineColor);
-                DrawSphere(end, 0.5f, lineColor);
+                if(env->entities[i].type == ROAD_EDGE){
+                    DrawSphere(start, 0.5f, lineColor);
+                    DrawSphere(end, 0.5f, lineColor);
+                }
             }
         }
     }
