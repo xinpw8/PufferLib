@@ -8,7 +8,6 @@ import inspect
 
 import pufferlib
 import pufferlib.spaces
-from pufferlib import utils
 from pufferlib.spaces import Discrete, Tuple, Dict
 
 def emulate(struct, sample):
@@ -55,12 +54,27 @@ def nativize(arr, space, struct_dtype):
     struct = np.asarray(arr).view(struct_dtype)[0]
     return _nativize(struct, space)
 
+# TODO: Uncomment?
 '''
 try:
     from pufferlib.extensions import emulate, nativize
 except ImportError:
     warnings.warn('PufferLib Cython extensions not installed. Using slow Python versions')
 '''
+
+def get_dtype_bounds(dtype):
+    if dtype == bool:
+        return 0, 1
+    elif np.issubdtype(dtype, np.integer):
+        return np.iinfo(dtype).min, np.iinfo(dtype).max
+    elif np.issubdtype(dtype, np.unsignedinteger):
+        return np.iinfo(dtype).min, np.iinfo(dtype).max
+    elif np.issubdtype(dtype, np.floating):
+        # Gym fails on float64
+        return np.finfo(np.float32).min, np.finfo(np.float32).max
+    else:
+        raise ValueError(f"Unsupported dtype: {dtype}")
+
 
 def dtype_from_space(space):
     if isinstance(space, pufferlib.spaces.Tuple):
@@ -107,7 +121,7 @@ def emulate_observation_space(space):
     else:
         dtype = np.dtype(np.uint8)
 
-    mmin, mmax = utils._get_dtype_bounds(dtype)
+    mmin, mmax = get_dtype_bounds(dtype)
     numel = emulated_dtype.itemsize // dtype.itemsize
     emulated_space = gymnasium.spaces.Box(low=mmin, high=mmax, shape=(numel,), dtype=dtype)
     return emulated_space, emulated_dtype

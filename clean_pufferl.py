@@ -25,7 +25,6 @@ import torch.distributed
 import torch.utils.cpp_extension
 
 import pufferlib
-import pufferlib.utils
 import pufferlib.pytorch
 import pufferlib.sweep
 import pufferlib.vector
@@ -183,7 +182,7 @@ class CleanPuffeRL:
         self.wandb = wandb
         if neptune:
             self.neptune = init_neptune(args, env_name, id=config.run_id, tag=config.tag)
-            for k, v in pufferlib.utils.unroll_nested_dict(args):
+            for k, v in pufferlib.unroll_nested_dict(args):
                 self.neptune[k].append(v)
         elif wandb:
             self.wandb = init_wandb(args, env_name, id=config.run_id, tag=config.tag)
@@ -266,7 +265,7 @@ class CleanPuffeRL:
 
             profile('eval_misc', epoch)
             for i in info:
-                for k, v in pufferlib.utils.unroll_nested_dict(i):
+                for k, v in pufferlib.unroll_nested_dict(i):
                     if isinstance(v, np.ndarray):
                         v = v.tolist()
                     elif isinstance(v, (list, tuple)):
