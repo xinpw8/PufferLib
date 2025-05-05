@@ -8,11 +8,8 @@ import inspect
 
 import pufferlib
 import pufferlib.spaces
-from pufferlib import utils, exceptions
-from pufferlib.environment import set_buffers
+from pufferlib import utils
 from pufferlib.spaces import Discrete, Tuple, Dict
-import pufferlib.environment
-
 
 def emulate(struct, sample):
     if isinstance(sample, dict):
@@ -154,7 +151,7 @@ class GymnasiumPufferEnv(gymnasium.Env):
 
         self.render_modes = 'human rgb_array'.split()
 
-        set_buffers(self, buf)
+        pufferlib.set_buffers(self, buf)
         if isinstance(self.env.observation_space, pufferlib.spaces.Box):
             self.obs_struct = self.observations
         else:
@@ -191,9 +188,9 @@ class GymnasiumPufferEnv(gymnasium.Env):
     def step(self, action):
         '''Execute an action and return (observation, reward, done, info)'''
         if not self.initialized:
-            raise exceptions.APIUsageError('step() called before reset()')
+            raise pufferlib.APIUsageError('step() called before reset()')
         if self.done:
-            raise exceptions.APIUsageError('step() called after environment is done')
+            raise pufferlib.APIUsageError('step() called after environment is done')
 
         # Unpack actions from multidiscrete into the original action space
         if self.is_atn_emulated:
@@ -256,7 +253,7 @@ class PettingZooPufferEnv:
 
         self.num_agents = len(self.possible_agents)
 
-        set_buffers(self, buf)
+        pufferlib.set_buffers(self, buf)
         if isinstance(self.env_single_observation_space, pufferlib.spaces.Box):
             self.obs_struct = self.observations
         else:
@@ -281,14 +278,14 @@ class PettingZooPufferEnv:
     def observation_space(self, agent):
         '''Returns the observation space for a single agent'''
         if agent not in self.possible_agents:
-            raise pufferlib.exceptions.InvalidAgentError(agent, self.possible_agents)
+            raise pufferlib.InvalidAgentError(agent, self.possible_agents)
 
         return self.single_observation_space
 
     def action_space(self, agent):
         '''Returns the action space for a single agent'''
         if agent not in self.possible_agents:
-            raise pufferlib.exceptions.InvalidAgentError(agent, self.possible_agents)
+            raise pufferlib.InvalidAgentError(agent, self.possible_agents)
 
         return self.single_action_space
 
@@ -329,13 +326,13 @@ class PettingZooPufferEnv:
     def step(self, actions):
         '''Step the environment and return (observations, rewards, dones, infos)'''
         if not self.initialized:
-            raise exceptions.APIUsageError('step() called before reset()')
+            raise pufferlib.APIUsageError('step() called before reset()')
         if self.done:
-            raise exceptions.APIUsageError('step() called after environment is done')
+            raise pufferlib.APIUsageError('step() called after environment is done')
 
         if isinstance(actions, np.ndarray):
             if not self.is_action_checked and len(actions) != self.num_agents:
-                raise exceptions.APIUsageError(
+                raise pufferlib.APIUsageError(
                     f'Actions specified as len {len(actions)} but environment has {self.num_agents} agents')
 
             actions = {agent: actions[i] for i, agent in enumerate(self.possible_agents)}
@@ -344,7 +341,7 @@ class PettingZooPufferEnv:
         if not self.is_action_checked:
             for agent in actions:
                 if agent not in self.possible_agents:
-                    raise exceptions.InvalidAgentError(agent, self.possible_agents)
+                    raise pufferlib.InvalidAgentError(agent, self.possible_agents)
 
             self.is_action_checked = check_space(
                 next(iter(actions.values())),
@@ -355,7 +352,7 @@ class PettingZooPufferEnv:
         unpacked_actions = {}
         for agent, atn in actions.items():
             if agent not in self.possible_agents:
-                raise exceptions.InvalidAgentError(agent, self.agents)
+                raise pufferlib.InvalidAgentError(agent, self.agents)
 
             if agent not in self.agents:
                 continue
@@ -435,11 +432,11 @@ def check_space(data, space):
     try:
         contains = space.contains(data)
     except:
-        raise exceptions.APIUsageError(
+        raise pufferlib.APIUsageError(
             f'Error checking space {space} with sample :\n{data}')
 
     if not contains:
-        raise exceptions.APIUsageError(
+        raise pufferlib.APIUsageError(
             f'Data:\n{data}\n not in space:\n{space}')
     
     return True
@@ -462,9 +459,9 @@ def _seed_and_reset(env, seed):
 
     return obs, info
 
-class GymnaxPufferEnv(pufferlib.environment.PufferEnv):
+class GymnaxPufferEnv(pufferlib.PufferEnv):
     def __init__(self, env, env_params, num_envs=1, buf=None):
-        from gymnax.environments.spaces import gymnax_space_to_gym_space
+        from gymnax.spaces import gymnax_space_to_gym_space
 
         gymnax_obs_space = env.observation_space(env_params)
         self.single_observation_space = gymnax_space_to_gym_space(gymnax_obs_space)
