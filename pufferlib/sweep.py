@@ -336,6 +336,7 @@ class Protein:
             global_search_scale = 1,
             random_suggestions = 1024,
             suggestions_per_pareto = 256,
+            seed_with_search_center = True,
             min_score = None,
             max_score = None,
         ):
@@ -352,6 +353,7 @@ class Protein:
         self.global_search_scale = global_search_scale
         self.random_suggestions = random_suggestions
         self.suggestions_per_pareto = suggestions_per_pareto
+        self.seed_with_search_center = seed_with_search_center
         self.resample_frequency = resample_frequency
         self.max_suggestion_cost = max_suggestion_cost
 
@@ -365,12 +367,8 @@ class Protein:
     def suggest(self, fill):
         # TODO: Clip random samples to bounds so we don't get bad high cost samples
         info = {}
-        #if self.suggestion_idx <= self.num_random_samples:
-        #    suggestions = self.hyperparameters.sample(self.random_suggestions)
-        #    best_idx = np.random.randint(0, self.random_suggestions)
-        #    best = suggestions[best_idx]
         self.suggestion_idx += 1
-        if len(self.success_observations) == 0:
+        if len(self.success_observations) == 0 and self.seed_with_search_center:
             best = self.hyperparameters.search_centers
             return self.hyperparameters.to_dict(best, fill), info
         elif len(self.success_observations) < self.num_random_samples:
@@ -406,14 +404,9 @@ class Protein:
         if np.max(y) > max_score + 1e-6:
             raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
 
-        # Linearize, exp transform, linearize
+        # Linearize
         y_norm = (y - min_score) / (max_score - min_score)
-        #yt = -np.log(1 - y_norm + eps)
-        #yt_min = np.min(yt)
-        #yt_max = np.max(yt)
-        #yt_norm = (yt - yt_min) / (yt_max - yt_min)
 
-        #self.gp_score.set_data(params, torch.from_numpy(yt_norm))
         self.gp_score.set_data(params, torch.from_numpy(y_norm))
         self.gp_score.train()
         gp.util.train(self.gp_score, self.score_opt)
@@ -438,12 +431,6 @@ class Protein:
         candidates, pareto_idxs = pareto_points(self.success_observations)
         pareto_costs = np.array([e['cost'] for e in candidates])
 
-        #cost_dists = np.abs(np.log(pareto_costs[:, None]) - np.log(pareto_costs[None, :]))
-        ###cost_dists = np.abs(pareto_costs[:, None] - pareto_costs[None, :])
-        #cost_dists += (np.max(pareto_costs) + 1)*np.eye(len(pareto_costs)) # mask self-distance
-        #idx = np.argmax(np.min(cost_dists, axis=1))
-        #search_centers = candidates[idx]['input']
-
         ### Sample suggestions
         search_centers = np.stack([e['input'] for e in candidates])
         suggestions = self.hyperparameters.sample(
@@ -458,10 +445,7 @@ class Protein:
         gp_y_norm = gp_y_norm.numpy()
         gp_log_c_norm = gp_log_c_norm.numpy()
 
-        # Unlinearize, inverse exp transform, unlinearize
-        #gp_yt = gp_yt_norm*(yt_max - yt_min) + yt_min
-        #gp_y_norm = -(np.exp(-gp_yt) - 1 - eps)
-        #gp_y = gp_y_norm*(max_score - min_score) + min_score
+        # Unlinearize
         gp_y = gp_y_norm*(max_score - min_score) + min_score
 
         gp_log_c = gp_log_c_norm*(log_c_max - log_c_min) + log_c_min
@@ -472,8 +456,6 @@ class Protein:
         gp_c_norm = (gp_c - gp_c_min) / (gp_c_max - gp_c_min)
 
         pareto_y = y[pareto_idxs]
-        #pareto_yt = yt[pareto_idxs]
-        #pareto_yt_norm = yt_norm[pareto_idxs]
         pareto_c = c[pareto_idxs]
         pareto_log_c_norm = log_c_norm[pareto_idxs]
 
@@ -482,46 +464,18 @@ class Protein:
 
         c_right = abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
 
-        #pareto_c_norm = (pareto_c - min_c) / (max_c - min_c)
-        #gp_c_norm = (gp_c - min_c) / (max_c - min_c)
-        #c_right = np.abs(pareto_c_norm[None, :] - gp_c_norm[:, None])
-
-        #pareto_log_c_norm = (np.log(pareto_c) - log_c_min) / (log_c_max - log_c_min)
-        #c_right = np.abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
-
         sorted_dist = np.sort(c_right, axis=1)
-        #top_k = sorted_dist[:, :5]
-        #pareto_dist_weight = np.sum(top_k, axis=1) / top_k.shape[1]
-
         nearest_idx = np.argmin(c_right, axis=1)
         nearest_pareto_dist = np.min(c_right, axis=1)
         nearest_pareto_y = pareto_y[nearest_idx]
 
-        #c_left = np.abs(gp_c[:, None] - pareto_c[None, :])
-        #c_left[c_left < 0] = np.inf
-        #nearest_idx = np.argmin(c_left, axis=1)
-        #nearest_pareto_yt_norm = pareto_yt_norm[nearest_idx]
-
         max_c_mask = gp_c < self.max_suggestion_cost
-        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
-        #        gp_yt_norm - nearest_pareto_yt_norm) * nearest_pareto_dist
 
-        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
-        #        gp_yt_norm - nearest_pareto_yt_norm)# / gp_c
-
-        #np.argwhere(gp_c > c)
         cumsum_mask = c[None, :] <= np.clip(gp_c[:, None], min_c, max_c)
         cumsum_mask = cumsum_mask * c[None, :]
         cumsum = np.sum(cumsum_mask, axis=1) / np.sum(c)
         target = gp_c_norm 
         weight = target - cumsum
-
-        #if np.random.rand() < 0.5:
-        #    score = gp_y_norm
-        #else:
-        #    score = gp_y_norm * weight
-        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
-        #        score)# / gp_c
 
 
         target = 1.25*np.random.rand()
@@ -530,22 +484,7 @@ class Protein:
         suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
                 gp_y_norm*weight)# / gp_c
 
-        #suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
-        #        gp_y_norm*nearest_pareto_dist)# / gp_c
-
-        #exp_scores = np.exp(suggestion_scores)
-        #sum_exp_scores = np.sum(exp_scores)
-        #softmax_scores = exp_scores / sum_exp_scores
-        #idxs = np.arange(len(softmax_scores))
-        #best_idx = np.random.choice(idxs, p=softmax_scores)
-
-        # This works and uncovers approximate binary search when the GP is perfect
-        # Can't include cost in denom because it biases this case
-        # Instead, use conservative score and/or cost estimates
-        # Just need to figure out why the GP is overconfident
-
         best_idx = np.argmax(suggestion_scores)
-        #best_idx = np.argmax(gp_y_norm)
         info = dict(
             cost = gp_c[best_idx].item(),
             score = gp_y[best_idx].item(),
