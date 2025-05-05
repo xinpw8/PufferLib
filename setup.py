@@ -1,3 +1,7 @@
+#TODO:
+# --no-build-isolation for 5090
+# Make c and torch compile at the same time
+
 from setuptools import find_packages, find_namespace_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
@@ -382,12 +386,12 @@ torch_extensions = [
         extra_compile_args = {
             "cxx": [
                 "-fdiagnostics-color=always",
-                "-DPy_LIMITED_API=0x03090000",  # min CPython version 3.9
+                #"-DPy_LIMITED_API=0x03090000",  # min CPython version 3.9
             ],
             "nvcc": [
             ],
         },
-        py_limited_api=True,
+        #py_limited_api=True,
     ),
 ]
 
@@ -424,6 +428,7 @@ setup(
         f'gym<={GYM_VERSION}',
         f'gymnasium<={GYMNASIUM_VERSION}',
         f'pettingzoo<={PETTINGZOO_VERSION}',
+        'torch',
         'shimmy[gym-v21]',
         'psutil==5.9.5',
         'pynvml',
@@ -454,8 +459,9 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
-    options={"bdist_wheel": {"py_limited_api": "cp39"}},
+    #options={"bdist_wheel": {"py_limited_api": "cp39"}},
 )
 #stable_baselines3
 #supersuit==3.3.5
