@@ -301,7 +301,6 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
     else:
         batch = logits[0].shape[0]
         action = action.view(batch, -1).T
-        probs = logits_to_probs(normalized_logits)
 
     assert len(logits) == len(action)
     logprob = log_prob(normalized_logits, action)
