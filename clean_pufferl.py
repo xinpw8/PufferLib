@@ -69,6 +69,10 @@ class CleanPuffeRL:
         # Experience buffer
         device = config.device
         batch_size = config.batch_size
+
+        if config.bptt_horizon == 'auto':
+            config.bptt_horizon = batch_size // total_agents
+
         horizon = config.bptt_horizon
         segments = batch_size // horizon
         self.segments = segments
@@ -1134,7 +1138,7 @@ if __name__ == '__main__':
             model_file = max(os.listdir(data_dir))
             args['eval_model_path'] = os.path.join(data_dir, model_file)
     elif args['mode'] == 'train':
-        target_metric = args['sweep']['metric']['name']
+        target_metric = args['sweep']['metric']
         train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
     elif args['mode'] in ('eval', 'evaluate'):
         vec = pufferlib.vector.Serial
@@ -1162,7 +1166,7 @@ if __name__ == '__main__':
         from torch.profiler import profile, record_function, ProfilerActivity
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
             with record_function("model_inference"):
-                target_metric = args['sweep']['metric']['name']
+                target_metric = args['sweep']['metric']
                 train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
 
         print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
