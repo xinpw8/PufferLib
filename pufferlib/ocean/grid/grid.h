@@ -496,7 +496,7 @@ void c_render(Grid* env) {
     float frac = 0.0;
     float overlay = 0.0;
     if (env->renderer == NULL) {
-        env->renderer = init_renderer(16, env->width, env->height);
+        env->renderer = init_renderer(16, env->max_size, env->max_size);
     }
     Renderer* renderer = env->renderer;
  

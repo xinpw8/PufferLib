@@ -1103,7 +1103,10 @@ if __name__ == '__main__':
         for subkey in split[:-1]:
             next = next[subkey]
 
-        next[split[-1]] = value
+        try:
+            next[split[-1]] = value
+        except:
+            breakpoint()
 
     package = args['package']
     module_name = f'pufferlib.environments.{package}'
