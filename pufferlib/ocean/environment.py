@@ -137,6 +137,7 @@ MAKE_FNS = {
     'grid':          lambda: lazy_import('pufferlib.ocean.grid.grid', 'Grid'),
     'cpr':           lambda: lazy_import('pufferlib.ocean.cpr.cpr', 'PyCPR'),
     'impulse_wars':  lambda: lazy_import('pufferlib.ocean.impulse_wars.impulse_wars', 'ImpulseWars'),
+    'gpudrive':      lambda: lazy_import('pufferlib.ocean.gpudrive.gpudrive', 'GPUDrive'),
     #'rocket_lander': rocket_lander.RocketLander,
     'foraging': make_foraging,
     'predator_prey': make_predator_prey,

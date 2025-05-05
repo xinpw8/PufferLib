@@ -159,6 +159,10 @@ class Serial:
 
         self._avg_infos()
 
+    def notify(self):
+        for env in self.envs:
+            env.notify()
+
     def recv(self):
         recv_precheck(self)
         return (self.observations, self.rewards, self.terminals, self.truncations,
@@ -192,8 +196,13 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
         envs = Serial(env_creators, env_args, env_kwargs, num_envs, buf=buf, seed=seed*num_envs)
 
     semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=shm.semaphores)
+    notify=np.ndarray(num_workers, dtype=bool, buffer=shm.notify)
     start = time.time()
     while True:
+        if notify[worker_idx]:
+            envs.notify()
+            notify[worker_idx] = False
+
         sem = semaphores[worker_idx]
         if sem >= MAIN:
             if time.time() - start > 0.5:
@@ -299,6 +308,7 @@ class Multiprocessing:
             truncateds=RawArray('b', num_agents),
             masks=RawArray('b', num_agents),
             semaphores=RawArray('c', num_workers),
+            notify=RawArray('b', num_workers),
         )
         shape = (num_workers, agents_per_worker)
         self.obs_batch_shape = (self.agents_per_batch, *obs_shape)
@@ -313,6 +323,7 @@ class Multiprocessing:
             truncations=np.ndarray(shape, dtype=bool, buffer=self.shm.truncateds),
             masks=np.ndarray(shape, dtype=bool, buffer=self.shm.masks),
             semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=self.shm.semaphores),
+            notify=np.ndarray(num_workers, dtype=bool, buffer=self.shm.notify),
         )
         self.buf.semaphores[:] = MAIN
 
@@ -456,6 +467,9 @@ class Multiprocessing:
             start = i*self.envs_per_worker
             end = (i+1)*self.envs_per_worker
             self.send_pipes[i].send(seed+i)
+
+    def notify(self):
+        self.buf.notify[:] = True
 
     def close(self):
         '''

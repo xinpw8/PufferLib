@@ -114,9 +114,13 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         
         scores, costs, timesteps, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
 
+        # Hacky patch to prevent increasing total_timesteps when not swept
+        total_timesteps = args['train']['total_timesteps']
         for score, cost, timestep in zip(scores, costs, timesteps):
             args['train']['total_timesteps'] = timestep
             sweep.observe(args, score, cost)
+
+        args['train']['total_timesteps'] = total_timesteps
 
         print('Score:', score, 'Cost:', cost, 'Timesteps:', timestep)
 
@@ -175,6 +179,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     costs = []
     target_key = f'environment/{target_metric}'
 
+    vecenv.async_reset(train_config.seed)
     while data.global_step < train_config.total_timesteps:
         clean_pufferl.evaluate(data)
         logs = clean_pufferl.train(data)
