@@ -483,8 +483,6 @@ class Protein:
         )
         print('Predicted -- ',
             f'Score: {info["score"]:.3f}',
-            f'Nearby: {info["nearby"]:.3f}',
-            f'Dist: {info["dist"]:.3f}',
             f'Cost: {info["cost"]:.3f}',
             f'Rating: {info["rating"]:.3f}',
         )
