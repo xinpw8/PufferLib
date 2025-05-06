@@ -76,7 +76,7 @@ class CleanPuffeRL:
         segments = batch_size // horizon
         self.segments = segments
         if total_agents > segments:
-            raise pufferlib.exceptions.APIUsageError(
+            raise pufferlib.APIUsageError(
                 f'Total agents {total_agents} <= segments {segments}'
             )
 
@@ -119,7 +119,7 @@ class CleanPuffeRL:
         self.minibatch_size = min(minibatch_size, max_minibatch_size)
         if minibatch_size % max_minibatch_size != 0 and max_minibatch_size % minibatch_size != 0:
             # todo: better error
-            raise pufferlib.exceptions.APIUsageError(
+            raise pufferlib.APIUsageError(
                 f'max_minibatch_size {max_minibatch_size} must be a multiple of minibatch_size {minibatch_size}'
             )
 
@@ -127,7 +127,7 @@ class CleanPuffeRL:
         self.total_minibatches = int(config.update_epochs * batch_size / self.minibatch_size)
         self.minibatch_segments = self.minibatch_size // horizon 
         if self.minibatch_segments * horizon != self.minibatch_size:
-            raise pufferlib.exceptions.APIUsageError(
+            raise pufferlib.APIUsageError(
                 f'minibatch_size {self.minibatch_size} must be divisible by horizon {horizon}'
             )
 
@@ -175,7 +175,7 @@ class CleanPuffeRL:
         # Automatic mixed precision
         self.amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, config.precision))
         if config.precision not in ('float32', 'bfloat16'):
-            raise pufferlib.exceptions.APIUsageError(f'Use float32 or bfloat16, not {config.precision}')
+            raise pufferlib.APIUsageError(f'Use float32 or bfloat16, not {config.precision}')
 
         # Logging
         self.neptune = neptune
@@ -949,13 +949,13 @@ def downsample_linear(arr, m):
  
 def sweep(args, env_name, make_env, policy_cls, rnn_cls):
     if not args['wandb'] and not args['neptune']:
-        raise pufferlib.exceptions.APIUsageError('Sweeps require either wandb or neptune')
+        raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
 
     method = args['sweep'].pop('method')
     try:
         sweep_cls = getattr(pufferlib.sweep, method)
     except:
-        raise pufferlib.exceptions.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
+        raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
 
     sweep = sweep_cls(args['sweep'])
     target_metric = args['sweep']['metric']
@@ -1077,7 +1077,7 @@ if __name__ == '__main__':
         if args.env in p['base']['env_name'].split():
             break
     else:
-        raise pufferlib.exceptions.APIUsageError('No config for env_name {}'.format(args.env))
+        raise pufferlib.APIUsageError('No config for env_name {}'.format(args.env))
 
     # Dynamic help menu from config
     for section in p.sections():

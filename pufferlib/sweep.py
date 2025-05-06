@@ -158,7 +158,7 @@ class Hyperparameters:
         self.metric = config['metric']
         goal = config['goal']
         assert goal in ('maximize', 'minimize')
-        self.optimize_direction = 1 if 'goal' == 'maximize' else -1
+        self.optimize_direction = 1 if goal == 'maximize' else -1
 
         self.search_centers = np.array([
             e.norm_mean for e in self.flat_spaces.values()])
