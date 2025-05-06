@@ -152,7 +152,7 @@ def _params_from_puffer_sweep(sweep_config):
 class Hyperparameters:
     def __init__(self, config, verbose=True):
         self.spaces = _params_from_puffer_sweep(config)
-        self.flat_spaces = dict(pufferlib.utils.unroll_nested_dict(self.spaces))
+        self.flat_spaces = dict(pufferlib.unroll_nested_dict(self.spaces))
         self.num = len(self.flat_spaces)
 
         self.metric = config['metric']
@@ -192,7 +192,7 @@ class Hyperparameters:
         return np.clip(samples, self.min_bounds, self.max_bounds)
 
     def from_dict(self, params):
-        flat_params = dict(pufferlib.utils.unroll_nested_dict(params))
+        flat_params = dict(pufferlib.unroll_nested_dict(params))
         values = []
         for key, space in self.flat_spaces.items():
             assert key in flat_params, f'Missing hyperparameter {key}'
@@ -646,7 +646,7 @@ class Carbs:
         ):
 
         param_spaces = _carbs_params_from_puffer_sweep(sweep_config)
-        flat_spaces = [e[1] for e in pufferlib.utils.unroll_nested_dict(param_spaces)]
+        flat_spaces = [e[1] for e in pufferlib.unroll_nested_dict(param_spaces)]
         for e in flat_spaces:
             print(e.name, e.space)
 
