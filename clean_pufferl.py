@@ -1017,7 +1017,7 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
         if logs is not None and target_key in logs:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
-            #costs.append(data.profile.uptime)
+            costs.append(pufferl.uptime)
 
     steps_evaluated = 0
     cost = time.time() - pufferl.start_time
