@@ -99,7 +99,7 @@ class Serial:
     def _avg_infos(self):
         infos = {}
         for e in self.infos:
-            for k, v in pufferlib.utils.unroll_nested_dict(e):
+            for k, v in pufferlib.unroll_nested_dict(e):
                 if k not in infos:
                     infos[k] = []
 
@@ -894,7 +894,7 @@ def autotune(env_creator, batch_size, max_envs=194, model_forward_s=0.0,
     ))
 
     for config in configs:
-        with pufferlib.utils.Suppress():
+        with pufferlib.Suppress():
             envs = make(env_creator, **config)
             envs.reset()
         actions = [envs.action_space.sample() for _ in range(1000)]

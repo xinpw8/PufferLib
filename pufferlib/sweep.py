@@ -371,7 +371,9 @@ class Protein:
         if len(self.success_observations) == 0 and self.seed_with_search_center:
             best = self.hyperparameters.search_centers
             return self.hyperparameters.to_dict(best, fill), info
-        elif len(self.success_observations) < self.num_random_samples:
+        elif False:
+            # TODO: UNDO
+            #len(self.success_observations) < self.num_random_samples:
             suggestions = self.hyperparameters.sample(self.random_suggestions)
             self.suggestion = random.choice(suggestions)
             return self.hyperparameters.to_dict(self.suggestion, fill), info
@@ -392,20 +394,20 @@ class Protein:
         # Transformed scores
         min_score = self.min_score
         if min_score is None:
-            min_score = np.min(y) - np.min(np.abs(y))
+            min_score = np.min(y)
 
         if np.min(y) < min_score - 1e-6:
             raise ValueError(f'Min score {min_score} is less than min score in data {np.min(y)}')
 
         max_score = self.max_score
         if max_score is None:
-            max_score = np.max(y) + np.max(np.abs(y))
+            max_score = np.max(y)
 
         if np.max(y) > max_score + 1e-6:
             raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
 
         # Linearize
-        y_norm = (y - min_score) / (np.abs((max_score - min_score)) + 1e-6)
+        y_norm = (y - min_score) / (np.abs(max_score - min_score) + 1e-6)
 
         self.gp_score.set_data(params, torch.from_numpy(y_norm))
         self.gp_score.train()
@@ -420,7 +422,7 @@ class Protein:
         # Linear input norm creates clean 1 mean fn
         log_c_min = np.min(log_c)
         log_c_max = np.max(log_c)
-        log_c_norm = (log_c - log_c_min) / ((np.abs(log_c_max - log_c_min)) + 1e-6)
+        log_c_norm = (log_c - log_c_min) / (log_c_max - log_c_min + 1e-6)
 
         self.gp_cost.mean_function = lambda x: 1
         self.gp_cost.set_data(params, torch.from_numpy(log_c_norm))
@@ -456,7 +458,7 @@ class Protein:
 
         gp_c_min = np.min(gp_c)
         gp_c_max = np.max(gp_c)
-        gp_c_norm = (gp_c - gp_c_min) / ((np.abs(gp_c_max - gp_c_min)) + 1e-6)
+        gp_c_norm = (gp_c - gp_c_min) / (gp_c_max - gp_c_min + 1e-6)
 
         pareto_y = y[pareto_idxs]
         pareto_c = c[pareto_idxs]
@@ -465,21 +467,7 @@ class Protein:
         max_c = np.max(c)
         min_c = np.min(c)
 
-        c_right = abs(pareto_log_c_norm[None, :] - gp_log_c_norm[:, None])
-
-        sorted_dist = np.sort(c_right, axis=1)
-        nearest_idx = np.argmin(c_right, axis=1)
-        nearest_pareto_dist = np.min(c_right, axis=1)
-        nearest_pareto_y = pareto_y[nearest_idx]
-
         max_c_mask = gp_c < self.max_suggestion_cost
-
-        cumsum_mask = c[None, :] <= np.clip(gp_c[:, None], min_c, max_c)
-        cumsum_mask = cumsum_mask * c[None, :]
-        cumsum = np.sum(cumsum_mask, axis=1) / np.sum(c)
-        target = gp_c_norm 
-        weight = target - cumsum
-
 
         target = 1.25*np.random.rand()
         weight = 1 - abs(target - gp_log_c_norm)
@@ -491,8 +479,6 @@ class Protein:
         info = dict(
             cost = gp_c[best_idx].item(),
             score = gp_y[best_idx].item(),
-            nearby = nearest_pareto_y[best_idx].item(),
-            dist = nearest_pareto_dist[best_idx].item(),
             rating = suggestion_scores[best_idx].item(),
         )
         print('Predicted -- ',

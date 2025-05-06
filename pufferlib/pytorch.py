@@ -311,6 +311,3 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         return action.squeeze(0), logprob.squeeze(0), logits_entropy.squeeze(0)
 
     return action.T, logprob.sum(0), logits_entropy
-
-
-

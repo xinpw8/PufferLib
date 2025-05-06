@@ -139,7 +139,7 @@ def emulate_action_space(space):
 
 
 class GymnasiumPufferEnv(gymnasium.Env):
-    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, buf=None):
+    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, buf=None, seed=0):
         self.env = make_object(env, env_creator, env_args, env_kwargs)
 
         self.initialized = False
