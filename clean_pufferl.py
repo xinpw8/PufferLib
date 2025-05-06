@@ -1014,7 +1014,8 @@ def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_poin
     while pufferl.global_step < train_config.total_timesteps:
         pufferl.evaluate()
         logs = pufferl.train()
-        if logs is not None and target_key in logs:
+        min_sweep_steps = args['sweep']['train']['total_timesteps']['min']
+        if logs is not None and target_key in logs and pufferl.global_step >= min_sweep_steps:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
             costs.append(pufferl.uptime)

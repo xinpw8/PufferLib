@@ -473,7 +473,7 @@ class Protein:
         weight = 1 - abs(target - gp_log_c_norm)
 
         suggestion_scores = self.hyperparameters.optimize_direction * max_c_mask * (
-                gp_y_norm*weight)# / gp_c
+                gp_y_norm*weight)
 
         best_idx = np.argmax(suggestion_scores)
         info = dict(
