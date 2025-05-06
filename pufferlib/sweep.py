@@ -405,7 +405,7 @@ class Protein:
             raise ValueError(f'Max score {max_score} is greater than max score in data {np.max(y)}')
 
         # Linearize
-        y_norm = (y - min_score) / (max_score - min_score)
+        y_norm = (y - min_score) / (np.abs((max_score - min_score)) + 1e-6)
 
         self.gp_score.set_data(params, torch.from_numpy(y_norm))
         self.gp_score.train()
@@ -420,7 +420,7 @@ class Protein:
         # Linear input norm creates clean 1 mean fn
         log_c_min = np.min(log_c)
         log_c_max = np.max(log_c)
-        log_c_norm = (log_c - log_c_min) / (log_c_max - log_c_min)
+        log_c_norm = (log_c - log_c_min) / ((np.abs(log_c_max - log_c_min)) + 1e-6)
 
         self.gp_cost.mean_function = lambda x: 1
         self.gp_cost.set_data(params, torch.from_numpy(log_c_norm))
@@ -453,7 +453,7 @@ class Protein:
 
         gp_c_min = np.min(gp_c)
         gp_c_max = np.max(gp_c)
-        gp_c_norm = (gp_c - gp_c_min) / (gp_c_max - gp_c_min)
+        gp_c_norm = (gp_c - gp_c_min) / ((np.abs(gp_c_max - gp_c_min)) + 1e-6)
 
         pareto_y = y[pareto_idxs]
         pareto_c = c[pareto_idxs]

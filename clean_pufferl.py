@@ -482,6 +482,7 @@ class CleanPuffeRL:
         elif method == 'prio':
             adv = advantages.abs().sum(axis=1)
             probs = adv**config.prio_alpha
+            probs = torch.nan_to_num(probs, 0, 0, 0)
             probs = (probs + 1e-6)/(probs.sum() + 1e-6)
             idx = torch.multinomial(probs, n)
         elif method == 'multinomial':
