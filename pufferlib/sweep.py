@@ -425,7 +425,10 @@ class Protein:
         self.gp_cost.mean_function = lambda x: 1
         self.gp_cost.set_data(params, torch.from_numpy(log_c_norm))
         self.gp_cost.train()
-        gp.util.train(self.gp_cost, self.cost_opt)
+        try:
+            gp.util.train(self.gp_cost, self.cost_opt)
+        except:
+            breakpoint()
         self.gp_cost.eval()
 
         candidates, pareto_idxs = pareto_points(self.success_observations)
