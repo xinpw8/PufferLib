@@ -421,25 +421,25 @@ class GPUDrive(nn.Module):
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(6, input_size)),
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(
-               nn.Linear(input_size, input_size))
+            # nn.ReLU(),
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
         max_road_objects = 13
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, input_size)),
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(
-               nn.Linear(input_size, input_size))
+            # nn.ReLU(),
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
         max_partner_objects = 7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, input_size)),
-            nn.ReLU(),
-            pufferlib.pytorch.layer_init(
-               nn.Linear(input_size, input_size))
+            # nn.ReLU(),
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
 
         '''
@@ -453,7 +453,7 @@ class GPUDrive(nn.Module):
         )
         '''
         self.shared_embedding = nn.Sequential(
-            # nn.GELU(),
+            nn.GELU(),
             pufferlib.pytorch.layer_init(nn.Linear(3*input_size,  hidden_size)),
         )
         self.is_continuous = isinstance(env.single_action_space, pufferlib.spaces.Box)

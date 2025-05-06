@@ -234,6 +234,8 @@ struct GPUDrive {
     float reward_offroad_collision;
     char* map_name;
     char* reached_goal_this_turn;
+    float world_mean_x;
+    float world_mean_y;
 };
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
@@ -333,13 +335,14 @@ void set_start_position(GPUDrive* env){
 
 void set_active_agents(GPUDrive* env){
     env->static_car_count = 0;
-    env->num_cars = 0;
+    env->num_cars = 1;
     env->expert_static_car_count = 0;
     int active_agent_indices[MAX_CARS];
     int static_car_indices[MAX_CARS];
     int expert_static_car_indices[MAX_CARS];
-    env->active_agent_count = 0;
-    for(int i = env->num_objects-1; i >= 0 && env->num_cars < MAX_CARS; i--){
+    env->active_agent_count = 1;
+    active_agent_indices[0] = env->num_objects-1;
+    for(int i = 0; i < env->num_objects && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
         env->num_cars++;
@@ -353,6 +356,7 @@ void set_active_agents(GPUDrive* env){
         float distance_to_goal = relative_distance_2d(0, 0, rel_goal_x, rel_goal_y);
         env->entities[i].width *= 0.7f;
         env->entities[i].length *= 0.7f;
+        
         if(distance_to_goal >= 2.0f && env->entities[i].mark_as_expert == 0){
             active_agent_indices[env->active_agent_count] = i;
             env->active_agent_count++;
@@ -364,7 +368,6 @@ void set_active_agents(GPUDrive* env){
                 env->expert_static_car_count++;
             }
         }
-        
     }
     env->active_agent_indices = (int*)malloc(env->active_agent_count * sizeof(int));
     env->static_car_indices = (int*)malloc(env->static_car_count * sizeof(int));
@@ -572,6 +575,46 @@ int get_neighbor_cache_entities(GPUDrive* env, int cell_idx, int* entities, int 
     return pairs;
 }
 
+void set_means(GPUDrive* env) {
+    float mean_x = 0.0f;
+    float mean_y = 0.0f;
+    int64_t point_count = 0;
+
+    // Compute single mean for all entities (vehicles and roads)
+    for (int i = 0; i < env->num_entities; i++) {
+        if (env->entities[i].type == VEHICLE) {
+            for (int j = 0; j < env->entities[i].array_size; j++) {
+                // Assume a validity flag exists (e.g., valid[j]); adjust if not available
+                if (env->entities[i].traj_valid[j]) { // Add validity check if applicable
+                    point_count++;
+                    mean_x += (env->entities[i].traj_x[j] - mean_x) / point_count;
+                    mean_y += (env->entities[i].traj_y[j] - mean_y) / point_count;
+                }
+            }
+        } else if (env->entities[i].type >= 4) {
+            for (int j = 0; j < env->entities[i].array_size; j++) {
+                point_count++;
+                mean_x += (env->entities[i].traj_x[j] - mean_x) / point_count;
+                mean_y += (env->entities[i].traj_y[j] - mean_y) / point_count;
+            }
+        }
+    }
+    env->world_mean_x = mean_x;
+    env->world_mean_y = mean_y;
+    for (int i = 0; i < env->num_entities; i++) {
+        if (env->entities[i].type == VEHICLE || env->entities[i].type >= 4) {
+            for (int j = 0; j < env->entities[i].array_size; j++) {
+                if(env->entities[i].traj_x[j] == -10000) continue;
+                env->entities[i].traj_x[j] -= mean_x;
+                env->entities[i].traj_y[j] -= mean_y;
+            }
+            env->entities[i].goal_position_x -= mean_x;
+            env->entities[i].goal_position_y -= mean_y;
+        }
+    }
+    
+}
+
 void init(GPUDrive* env){
     env->human_agent_idx = 0;
     env->timestep = 0;
@@ -579,6 +622,8 @@ void init(GPUDrive* env){
     // printf("entities loaded\n");
     // printf("num entities: %d\n", env->num_entities);
     env->dynamics_model = CLASSIC;
+    set_means(env);
+    printf("world mean: %f, %f\n", env->world_mean_x, env->world_mean_y);
     set_active_agents(env);
     set_start_position(env);
     // printf("Active agents: %d\n", env->active_agent_count);
@@ -1096,10 +1141,15 @@ Client* make_client(GPUDrive* env){
     client->puffers = LoadTexture("resources/puffers_128.png");
     
     // Get initial target position from first active agent
+    // Vector3 target_pos = {
+    //     env->entities[env->active_agent_indices[0]].x,
+    //     env->entities[env->active_agent_indices[0]].y,
+    //     env->entities[env->active_agent_indices[0]].z
+    // };
     Vector3 target_pos = {
-        env->entities[env->active_agent_indices[0]].x,
-        env->entities[env->active_agent_indices[0]].y,  // Y is up
-        env->entities[env->active_agent_indices[0]].z   // Z is depth
+        0,
+        0,
+        0
     };
     printf("target_pos: %f, %f, %f\n", target_pos.x, target_pos.y, target_pos.z);
     
@@ -1291,9 +1341,9 @@ void c_render(Client* client, GPUDrive* env) {
             else if (env->entities[i].type == ROAD_EDGE) lineColor = BLACK;
             else if (env->entities[i].type == DRIVEWAY) lineColor = RED;
             else if (env->entities[i].type == CROSSWALK) lineColor = GREEN;
-            // if(env->entities[i].type != ROAD_EDGE){
-            //     continue;
-            // }
+            if(env->entities[i].type < 4){
+                continue;
+            }
             if(!IsKeyDown(KEY_LEFT_SHIFT)){
                 DrawLine3D(start, end, lineColor);
                 if(env->entities[i].type == ROAD_EDGE){

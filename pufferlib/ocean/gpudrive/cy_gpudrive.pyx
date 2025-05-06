@@ -83,6 +83,8 @@ cdef extern from "gpudrive.h":
         float reward_offroad_collision;
         char* map_name;
         char* reached_goal_this_turn;
+        float world_mean_x;
+        float world_mean_y;
 
     ctypedef struct Client
 

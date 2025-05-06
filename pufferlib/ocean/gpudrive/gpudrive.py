@@ -264,5 +264,5 @@ def test_performance(timeout=10, atn_cache=1024, num_envs=75):
 
 
 if __name__ == '__main__':
-    test_performance()
-    # process_all_maps()
+    # test_performance()
+    process_all_maps()
