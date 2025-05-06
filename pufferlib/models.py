@@ -82,7 +82,7 @@ class Default(nn.Module):
                 nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden = self.encode_observations(observations)
+        hidden = self.encode_observations(observations, state=state)
         state.hidden = hidden
         logits, values = self.decode_actions(hidden)
         return logits, values
@@ -90,7 +90,7 @@ class Default(nn.Module):
     def forward_train(self, observations, state=None):
         return self.forward(observations, state)
 
-    def encode_observations(self, observations):
+    def encode_observations(self, observations, state=None):
         '''Encodes a batch of observations into hidden states. Assumes
         no time dimension (handled by LSTM wrappers).'''
         batch_size = observations.shape[0]
@@ -125,36 +125,40 @@ class Default(nn.Module):
 
         return logits, values
 
-class LSTMWrapper(nn.Module):
+class LSTMWrapper(nn.LSTM):
     def __init__(self, env, policy, input_size=128, hidden_size=128):
         '''Wraps your policy with an LSTM without letting you shoot yourself in the
         foot with bad transpose and shape operations. This saves much pain.
         Requires that your policy define encode_observations and decode_actions.
         See the Default policy for an example.'''
-        super().__init__()
+        super().__init__(input_size, hidden_size)
         self.obs_shape = env.single_observation_space.shape
 
         self.policy = policy
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.recurrent = nn.LSTM(input_size, hidden_size)
-        self.recurrent_cell = torch.nn.LSTMCell(input_size, hidden_size)
-        self.recurrent_cell.weight_ih = self.recurrent.weight_ih_l0
-        self.recurrent_cell.weight_hh = self.recurrent.weight_hh_l0
-        self.recurrent_cell.bias_ih = self.recurrent.bias_ih_l0
-        self.recurrent_cell.bias_hh = self.recurrent.bias_hh_l0
-
         self.is_continuous = self.policy.is_continuous
 
-        for name, param in self.recurrent.named_parameters():
+        for name, param in self.named_parameters():
+            if 'layer_norm' in name:
+                continue
             if "bias" in name:
                 nn.init.constant_(param, 0)
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
 
+        self.cell = torch.nn.LSTMCell(input_size, hidden_size)
+        self.cell.weight_ih = self.weight_ih_l0
+        self.cell.weight_hh = self.weight_hh_l0
+        self.cell.bias_ih = self.bias_ih_l0
+        self.cell.bias_hh = self.bias_hh_l0
+
+        #self.pre_layernorm = nn.LayerNorm(hidden_size)
+        #self.post_layernorm = nn.LayerNorm(hidden_size)
+
     def forward(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
-        hidden = self.policy.encode_observations(observations)
+        hidden = self.policy.encode_observations(observations, state=state)
         h = state.lstm_h
         c = state.lstm_c
 
@@ -165,7 +169,9 @@ class LSTMWrapper(nn.Module):
         else:
             lstm_state = None
 
-        hidden, c = self.recurrent_cell(hidden, lstm_state)
+        #hidden = self.pre_layernorm(hidden)
+        hidden, c = self.cell(hidden, lstm_state)
+        #hidden = self.post_layernorm(hidden)
         state.hidden = hidden
         state.lstm_h = hidden
         state.lstm_c = c
@@ -197,20 +203,24 @@ class LSTMWrapper(nn.Module):
             lstm_state = None
 
         x = x.reshape(B*TT, *space_shape)
-        hidden = self.policy.encode_observations(x)
+        hidden = self.policy.encode_observations(x, state)
         assert hidden.shape == (B*TT, self.input_size)
 
         hidden = hidden.reshape(B, TT, self.input_size)
 
         hidden = hidden.transpose(0, 1)
-        hidden, (lstm_h, lstm_c)= self.recurrent(hidden, lstm_state)
+        #hidden = self.pre_layernorm(hidden)
+        hidden, (lstm_h, lstm_c) = super().forward(hidden, lstm_state)
+        #hidden = self.post_layernorm(hidden)
         hidden = hidden.transpose(0, 1)
 
-        hidden = hidden.reshape(B*TT, self.hidden_size)
-        logits, values = self.policy.decode_actions(hidden)
+        flat_hidden = hidden.reshape(B*TT, self.hidden_size)
+        logits, values = self.policy.decode_actions(flat_hidden)
+        values = values.reshape(B, TT)
+        #state.batch_logits = logits.reshape(B, TT, -1)
         state.hidden = hidden
-        state.lstm_h = lstm_h
-        state.lstm_c = lstm_c
+        state.lstm_h = lstm_h.detach()
+        state.lstm_c = lstm_c.detach()
         return logits, values
 
 class Convolutional(nn.Module):
@@ -225,6 +235,10 @@ class Convolutional(nn.Module):
         super().__init__()
         self.channels_last = channels_last
         self.downsample = downsample
+
+        #TODO: Remove these from required params
+        self.hidden_size = hidden_size
+        self.is_continuous = False
 
         self.network= nn.Sequential(
             pufferlib.pytorch.layer_init(nn.Conv2d(framestack, 32, 8, stride=4)),
@@ -242,19 +256,22 @@ class Convolutional(nn.Module):
         self.value_fn = pufferlib.pytorch.layer_init(
             nn.Linear(output_size, 1), std=1)
 
-    def forward(self, observations):
+    def forward(self, observations, state=None):
         hidden, lookup = self.encode_observations(observations)
         actions, value = self.decode_actions(hidden, lookup)
         return actions, value
 
-    def encode_observations(self, observations):
+    def forward_train(self, observations, state=None):
+        return self.forward(observations, state)
+
+    def encode_observations(self, observations, state=None):
         if self.channels_last:
             observations = observations.permute(0, 3, 1, 2)
         if self.downsample > 1:
             observations = observations[:, :, ::self.downsample, ::self.downsample]
-        return self.network(observations.float() / 255.0), None
+        return self.network(observations.float() / 255.0)
 
-    def decode_actions(self, flat_hidden, lookup, concat=None):
+    def decode_actions(self, flat_hidden):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value

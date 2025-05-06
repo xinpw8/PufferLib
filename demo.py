@@ -25,8 +25,6 @@ import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
 import clean_pufferl
-import mup
-from mup import set_base_shapes
  
 def init_wandb(args, name, id=None, resume=True, tag=None):
     import wandb
@@ -43,20 +41,28 @@ def init_wandb(args, name, id=None, resume=True, tag=None):
     )
     return wandb
 
-def init_neptune(args, name, id=None, resume=True, tag=None):
+def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
     import neptune
-    run = neptune.init_run(
-        project="pufferai/ablations",
-        capture_hardware_metrics=False,
-        capture_stdout=False,
-        capture_stderr=False,
-        capture_traceback=False,
-        tags=[tag] if tag is not None else [],
-    )
+    import neptune.exceptions
+    try:
+        workspace = args['workspace']
+        run = neptune.init_run(
+                project=f"{workspace['name']}/{workspace['project']}",
+                capture_hardware_metrics=False,
+                capture_stdout=False,
+                capture_stderr=False,
+                capture_traceback=False,
+                tags=[tag] if tag is not None else [],
+                mode=mode,
+            )
+    except neptune.exceptions.NeptuneConnectionLostException:
+        print("couldn't connect to neptune, logging in offline mode")
+        return init_neptune(args, name, id, resume, tag, mode="offline")
     return run
 
 def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'],
+        #batch_size=args['train']['batch_size'],
         use_p3o=args['train']['use_p3o'],
         p3o_horizon=args['train']['p3o_horizon'],
         use_diayn=args['train']['use_diayn'],
@@ -100,13 +106,21 @@ def sweep(args, env_name, make_env, policy_cls, rnn_cls):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
- 
+
         info = sweep.suggest(args)
+        if args['train']['minibatch_size'] >= args['train']['batch_size']:
+            sweep.observe(args, 0.0, 0.0)
+            continue
+        
         scores, costs, timesteps, _, _ = train(args, make_env, policy_cls, rnn_cls, target_metric)
 
+        # Hacky patch to prevent increasing total_timesteps when not swept
+        total_timesteps = args['train']['total_timesteps']
         for score, cost, timestep in zip(scores, costs, timesteps):
             args['train']['total_timesteps'] = timestep
             sweep.observe(args, score, cost)
+
+        args['train']['total_timesteps'] = total_timesteps
 
         print('Score:', score, 'Cost:', cost, 'Timesteps:', timestep)
 
@@ -133,6 +147,7 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
             batch_size=args['train']['env_batch_size'],
             zero_copy=args['train']['zero_copy'],
             overwork=args['vec_overwork'],
+            seed=args['train']['seed'],
             backend=vec,
         )
 
@@ -142,15 +157,9 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         from torch.nn.parallel import DistributedDataParallel as DDP
         orig_policy = policy
         policy = DDP(policy, device_ids=[args['rank']])
+        # TODO: Test this? isinstance?
         if hasattr(orig_policy, 'lstm'):
             policy.lstm = orig_policy.lstm
-
-    '''
-    if env_name == 'moba':
-        import torch
-        os.makedirs('moba_elo', exist_ok=True)
-        torch.save(policy, os.path.join('moba_elo', 'model_random.pt'))
-    '''
 
     neptune = None
     wandb = None
@@ -170,49 +179,20 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
     costs = []
     target_key = f'environment/{target_metric}'
 
-    '''
-    from torch.profiler import profile, record_function, ProfilerActivity
-    activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA, ProfilerActivity.XPU]
-    from torch.profiler import schedule
-    prof_schedule = schedule(
-        skip_first=10,
-        wait=5,
-        warmup=1,
-        active=3,
-        repeat=2
-    )
-
-    sort_by_keyword = "self_" + args['train']['device'] + "_time_total"
-
-    def trace_handler(p):
-        output = p.key_averages().table(sort_by=sort_by_keyword, row_limit=10)
-        print(output)
-        p.export_chrome_trace("trace/trace_" + str(p.step_num) + ".json")
-
-    with profile(
-        activities=activities,
-        schedule=torch.profiler.schedule(
-            wait=1,
-            warmup=1,
-            active=2),
-        on_trace_ready=trace_handler
-    ) as p:
-    '''
+    vecenv.async_reset(train_config.seed)
     while data.global_step < train_config.total_timesteps:
         clean_pufferl.evaluate(data)
         logs = clean_pufferl.train(data)
-        #p.step()
         if logs is not None and target_key in logs:
             timesteps.append(logs['agent_steps'])
             scores.append(logs[target_key])
-            costs.append(data.profile.uptime)
+            #costs.append(data.profile.uptime)
 
     steps_evaluated = 0
-    cost = data.profile.uptime
+    cost = time.time() - data.start_time
     batch_size = args['train']['batch_size']
     while len(data.stats[target_metric]) < min_eval_points:
         stats, _ = clean_pufferl.evaluate(data)
-        data.experience.sort_keys[:] = 0
         steps_evaluated += batch_size
 
     clean_pufferl.mean_and_log(data)
@@ -238,18 +218,6 @@ def train(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=10
         neptune['cost'].append(cost)
     elif args['wandb']:
         wandb.log({'score': score, 'cost': cost})
-
-    '''
-    if env_name == 'moba':
-        exp_n = len(elos)
-        model_name = f'model_{exp_n}.pt'
-        torch.save(policy, os.path.join('moba_elo', model_name))
-        from evaluate_elos import calc_elo
-        elos = calc_elo(model_name, 'moba_elo', elos)
-        stats['elo'] = elos[model_name]
-        if wandb is not None:
-            wandb.log({'environment/elo': elos[model_name]})
-    '''
 
     clean_pufferl.close(data)
     return scores, costs, timesteps, elos, vecenv

@@ -1122,6 +1122,13 @@ void c_step(GPUDrive* env){
     compute_observations(env);
 }   
 
+const Color STONE_GRAY = (Color){80, 80, 80, 255};
+const Color PUFF_RED = (Color){187, 0, 0, 255};
+const Color PUFF_CYAN = (Color){0, 187, 187, 255};
+const Color PUFF_WHITE = (Color){241, 241, 241, 241};
+const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
+const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
+
 typedef struct Client Client;
 struct Client {
     float width;
@@ -1130,54 +1137,90 @@ struct Client {
     Vector3 camera_target;
     float camera_zoom;
     Camera3D camera;
+    Model cars[6]; 
+    int car_assignments[MAX_CARS];  // To keep car model assignments consistent per vehicle
+    Vector3 default_camera_position;
+    Vector3 default_camera_target;
 };
 
 Client* make_client(GPUDrive* env){
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = 1280;
     client->height = 704;
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(client->width, client->height, "PufferLib Ray GPU Drive");
     SetTargetFPS(60);
     client->puffers = LoadTexture("resources/puffers_128.png");
-    
+    client->cars[0] = LoadModel("resources/gpudrive/RedCar.glb");
+    client->cars[1] = LoadModel("resources/gpudrive/WhiteCar.glb");
+    client->cars[2] = LoadModel("resources/gpudrive/BlueCar.glb");
+    client->cars[3] = LoadModel("resources/gpudrive/YellowCar.glb");
+    client->cars[4] = LoadModel("resources/gpudrive/GreenCar.glb");
+    client->cars[5] = LoadModel("resources/gpudrive/GreyCar.glb");
+    for (int i = 0; i < MAX_CARS; i++) {
+        client->car_assignments[i] = (rand() % 4) + 1;
+    }
     // Get initial target position from first active agent
-    // Vector3 target_pos = {
-    //     env->entities[env->active_agent_indices[0]].x,
-    //     env->entities[env->active_agent_indices[0]].y,
-    //     env->entities[env->active_agent_indices[0]].z
-    // };
+    float map_center_x = (env->map_corners[0] + env->map_corners[2]) / 2.0f;
+    float map_center_y = (env->map_corners[1] + env->map_corners[3]) / 2.0f;
     Vector3 target_pos = {
-        0,
-        0,
-        0
+       0,
+        0,  // Y is up
+        1   // Z is depth
     };
-    printf("target_pos: %f, %f, %f\n", target_pos.x, target_pos.y, target_pos.z);
     
     // Set up camera to look at target from above and behind
-    client->camera.position = (Vector3){ 
-        target_pos.x,           // Same X as target
-        target_pos.y + 80.0f,   // 20 units above target
-        target_pos.z + 350.0f    // 20 units behind target
+    client->default_camera_position = (Vector3){ 
+        0,           // Same X as target
+        120.0f,   // 20 units above target
+        175.0f    // 20 units behind target
     };
-    client->camera.target = target_pos;
+    client->default_camera_target = target_pos;
+    client->camera.position = client->default_camera_position;
+    client->camera.target = client->default_camera_target;
     client->camera.up = (Vector3){ 0.0f, -1.0f, 0.0f };  // Y is up
     client->camera.fovy = 45.0f;
     client->camera.projection = CAMERA_PERSPECTIVE;
-    client->camera_zoom = 3.5f;
+    client->camera_zoom = 1.0f;
     return client;
 }
 
 void draw_agent_obs(GPUDrive* env, int agent_index){
+    // Diamond dimensions
+    float diamond_height = 3.0f;    // Total height of diamond
+    float diamond_width = 1.5f;     // Width of diamond
+    float diamond_z = 8.0f;         // Base Z position
+    
+    // Define diamond points
+    Vector3 top_point = (Vector3){0.0f, 0.0f, diamond_z + diamond_height/2};     // Top point
+    Vector3 bottom_point = (Vector3){0.0f, 0.0f, diamond_z - diamond_height/2};  // Bottom point
+    Vector3 front_point = (Vector3){0.0f, diamond_width/2, diamond_z};           // Front point
+    Vector3 back_point = (Vector3){0.0f, -diamond_width/2, diamond_z};           // Back point
+    Vector3 left_point = (Vector3){-diamond_width/2, 0.0f, diamond_z};           // Left point
+    Vector3 right_point = (Vector3){diamond_width/2, 0.0f, diamond_z};           // Right point
+    
+    // Draw the diamond faces
+    // Top pyramid
+    DrawTriangle3D(top_point, front_point, right_point, PUFF_CYAN);    // Front-right face
+    DrawTriangle3D(top_point, right_point, back_point, PUFF_CYAN);     // Back-right face
+    DrawTriangle3D(top_point, back_point, left_point, PUFF_CYAN);      // Back-left face
+    DrawTriangle3D(top_point, left_point, front_point, PUFF_CYAN);     // Front-left face
+    
+    // Bottom pyramid
+    DrawTriangle3D(bottom_point, right_point, front_point, PUFF_CYAN); // Front-right face
+    DrawTriangle3D(bottom_point, back_point, right_point, PUFF_CYAN);  // Back-right face
+    DrawTriangle3D(bottom_point, left_point, back_point, PUFF_CYAN);   // Back-left face
+    DrawTriangle3D(bottom_point, front_point, left_point, PUFF_CYAN);  // Front-left face
     if(!IsKeyDown(KEY_LEFT_SHIFT)){
         return;
     }
     int max_obs = 6 + 7*(MAX_CARS - 1) + 7*MAX_ROAD_SEGMENT_OBSERVATIONS;
     float (*observations)[max_obs] = (float(*)[max_obs])env->observations;
     float* agent_obs = &observations[agent_index][0];
-        // draw goal
+    // draw goal
     float goal_x = reverse_normalize_value(agent_obs[0], MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
     float goal_y = reverse_normalize_value(agent_obs[1], MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
-    DrawSphere((Vector3){goal_x, goal_y, 1}, 0.5f, RED);
+    DrawSphere((Vector3){goal_x, goal_y, 1}, 0.5f, GREEN);
     // First draw other agent observations
     int obs_idx = 6;  // Start after goal distances
     for(int j = 0; j < MAX_CARS - 1; j++) {
@@ -1197,10 +1240,36 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         float theta_y = agent_obs[obs_idx + 5];
         float partner_angle = atan2f(theta_y, theta_x);
         // draw an arrow above the car pointing in the direction that the partner is going
-        float arrow_length = 10.0f;
+        float arrow_length = 7.5f;
         float arrow_x = x + arrow_length*cosf(partner_angle);
         float arrow_y = y + arrow_length*sinf(partner_angle);
-        DrawLine3D((Vector3){x, y, 1}, (Vector3){arrow_x, arrow_y, 1}, RED);
+        DrawLine3D((Vector3){x, y, 1}, (Vector3){arrow_x, arrow_y, 1}, PUFF_WHITE);
+        // Calculate perpendicular offsets for arrow head
+        float arrow_size = 2.0f;  // Size of the arrow head
+        float dx = arrow_x - x;
+        float dy = arrow_y - y;
+        float length = sqrtf(dx*dx + dy*dy);
+        if (length > 0) {
+            // Normalize direction vector
+            dx /= length;
+            dy /= length;
+            
+            // Calculate perpendicular vector
+            float px = -dy * arrow_size;
+            float py = dx * arrow_size;
+            
+            // Draw the two lines forming the arrow head
+            DrawLine3D(
+                (Vector3){arrow_x, arrow_y, 1},
+                (Vector3){arrow_x - dx*arrow_size + px, arrow_y - dy*arrow_size + py, 1},
+                PUFF_WHITE
+            );
+            DrawLine3D(
+                (Vector3){arrow_x, arrow_y, 1},
+                (Vector3){arrow_x - dx*arrow_size - px, arrow_y - dy*arrow_size - py, 1},
+                PUFF_WHITE
+            );
+        }
         obs_idx += 7;  // Move to next agent observation (7 values per agent)
     }
     // Then draw map observations
@@ -1213,10 +1282,10 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         Color lineColor = BLUE;  // Default color
         int entity_type = (int)agent_obs[entity_idx + 6];
         // Choose color based on entity type
-        // if(entity_type+4 != ROAD_EDGE){
-        //     continue;
-        // } 
-        lineColor = BLACK;
+        if(entity_type+4 != ROAD_EDGE){
+            continue;
+        } 
+        lineColor = PUFF_CYAN;
         // For road segments, draw line between start and end points
         float x_middle = reverse_normalize_value(agent_obs[entity_idx], MIN_RG_COORD, MAX_RG_COORD);
         float y_middle = reverse_normalize_value(agent_obs[entity_idx + 1], MIN_RG_COORD, MAX_RG_COORD);
@@ -1230,25 +1299,102 @@ void draw_agent_obs(GPUDrive* env, int agent_index){
         float y_start = y_middle - segment_length*sinf(rel_angle);
         float x_end = x_middle + segment_length*cosf(rel_angle);
         float y_end = y_middle + segment_length*sinf(rel_angle);
-        if(entity_type+4== ROAD_EDGE){
-            lineColor = PINK;
-        }
         DrawLine3D((Vector3){0,0,0}, (Vector3){x_middle, y_middle, 1}, lineColor); 
+        DrawCube((Vector3){x_middle, y_middle, 1}, 0.5f, 0.5f, 0.5f, lineColor);
         DrawLine3D((Vector3){x_start, y_start, 1}, (Vector3){x_end, y_end, 1}, BLUE);
     }
 }
 
+void draw_road_edge(GPUDrive* env, float start_x, float start_y, float end_x, float end_y){
+    Color CURB_TOP = (Color){220, 220, 220, 255};      // Top surface - lightest
+    Color CURB_SIDE = (Color){180, 180, 180, 255};     // Side faces - medium
+    Color CURB_BOTTOM = (Color){160, 160, 160, 255};
+                    // Calculate curb dimensions
+    float curb_height = 0.5f;  // Height of the curb
+    float curb_width = 0.3f;   // Width/thickness of the curb
+    
+    // Calculate direction vector between start and end
+    Vector3 direction = {
+        end_x - start_x,
+        end_y - start_y,
+        0.0f
+    };
+    
+    // Calculate length of the segment
+    float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    
+    // Normalize direction vector
+    Vector3 normalized_dir = {
+        direction.x / length,
+        direction.y / length,
+        0.0f
+    };
+    
+    // Calculate perpendicular vector for width
+    Vector3 perpendicular = {
+        -normalized_dir.y,
+        normalized_dir.x,
+        0.0f
+    };
+    
+    // Calculate the four bottom corners of the curb
+    Vector3 b1 = {
+        start_x - perpendicular.x * curb_width/2,
+        start_y - perpendicular.y * curb_width/2,
+        1.0f
+    };
+    Vector3 b2 = {
+        start_x + perpendicular.x * curb_width/2,
+        start_y + perpendicular.y * curb_width/2,
+        1.0f
+    };
+    Vector3 b3 = {
+        end_x + perpendicular.x * curb_width/2,
+        end_y + perpendicular.y * curb_width/2,
+        1.0f
+    };
+    Vector3 b4 = {
+        end_x - perpendicular.x * curb_width/2,
+        end_y - perpendicular.y * curb_width/2,
+        1.0f
+    };
+    
+    // Draw the curb faces
+    // Bottom face
+    DrawTriangle3D(b1, b2, b3, CURB_BOTTOM);
+    DrawTriangle3D(b1, b3, b4, CURB_BOTTOM);
+    
+    // Top face (raised by curb_height)
+    Vector3 t1 = {b1.x, b1.y, b1.z + curb_height};
+    Vector3 t2 = {b2.x, b2.y, b2.z + curb_height};
+    Vector3 t3 = {b3.x, b3.y, b3.z + curb_height};
+    Vector3 t4 = {b4.x, b4.y, b4.z + curb_height};
+    DrawTriangle3D(t1, t3, t2, CURB_TOP);
+    DrawTriangle3D(t1, t4, t3, CURB_TOP);
+    
+    // Side faces
+    DrawTriangle3D(b1, t1, b2, CURB_SIDE);
+    DrawTriangle3D(t1, t2, b2, CURB_SIDE);
+    DrawTriangle3D(b2, t2, b3, CURB_SIDE);
+    DrawTriangle3D(t2, t3, b3, CURB_SIDE);
+    DrawTriangle3D(b3, t3, b4, CURB_SIDE);
+    DrawTriangle3D(t3, t4, b4, CURB_SIDE);
+    DrawTriangle3D(b4, t4, b1, CURB_SIDE);
+    DrawTriangle3D(t4, t1, b1, CURB_SIDE);
+}
 
 void c_render(Client* client, GPUDrive* env) {
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    Color road = (Color){35, 35, 37, 255};
+    ClearBackground(road);
     BeginMode3D(client->camera);
+    
     // Draw a grid to help with orientation
     // DrawGrid(20, 1.0f);
-    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[1], 0}, BLACK);
-    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, BLACK);
-    DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
-    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, BLACK);
+    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[1], 0}, PUFF_CYAN);
+    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, PUFF_CYAN);
+    DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, PUFF_CYAN);
+    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, PUFF_CYAN);
     for(int i = 0; i < env->num_entities; i++) {
         // Draw cars
         if(env->entities[i].type == 1 || env->entities[i].type == 2) {
@@ -1292,33 +1438,76 @@ void c_render(Client* client, GPUDrive* env) {
             rlTranslatef(position.x, position.y, position.z);
             rlRotatef(heading*RAD2DEG, 0.0f, 0.0f, 1.0f);  // Convert radians to degrees
             // Determine color based on active status and other conditions
-            Color object_color = GRAY;  // Default color for non-active vehicles
+            Color object_color = PUFF_BACKGROUND2;  // Default color for non-active vehicles
+            Color outline_color = PUFF_CYAN;
+            Model car_model = client->cars[5];
             if(is_active_agent){
-                object_color = DARKBLUE;  // Active agents are blue
+                car_model = client->cars[client->car_assignments[i %64]];
             }
             if(agent_index == env->human_agent_idx){
-                object_color = PURPLE;
+                object_color = PUFF_CYAN;
+                outline_color = PUFF_WHITE;
             }
             if(is_active_agent && env->entities[i].collision_state > 0) {
-                object_color = RED;  // Collided agent
+                car_model = client->cars[0];  // Collided agent
             }
             // Draw obs for human selected agent
             if(agent_index == env->human_agent_idx && env->goal_reached[agent_index] == 0) {
                 draw_agent_obs(env, agent_index);
             }
             // Draw cube for cars static and active
-            DrawCube((Vector3){0, 0, 0}, size.x, size.y, size.z, object_color);
-            DrawCubeWires((Vector3){0, 0, 0}, size.x, size.y, size.z, BLACK);
+            // Calculate scale factors based on desired size and model dimensions
+            
+            BoundingBox bounds = GetModelBoundingBox(car_model);
+            Vector3 model_size = {
+                bounds.max.x - bounds.min.x,
+                bounds.max.y - bounds.min.y,
+                bounds.max.z - bounds.min.z
+            };
+            Vector3 scale = {
+                size.x / model_size.x,
+                size.y / model_size.y,
+                size.z / model_size.z
+            };
+            DrawModelEx(car_model, (Vector3){0, 0, 0}, (Vector3){1, 0, 0}, 90.0f, scale, WHITE);
             rlPopMatrix();
+            // FPV Camera Control
+            if(IsKeyDown(KEY_LEFT_CONTROL) && env->human_agent_idx== agent_index){
+                if(env->goal_reached[agent_index] == 1){
+                    env->human_agent_idx = rand() % env->active_agent_count;
+                }
+                Vector3 camera_position = (Vector3){
+                        position.x - (25.0f * cosf(heading)),
+                        position.y - (25.0f * sinf(heading)),
+                        position.z + 15
+                };
+
+                Vector3 camera_target = (Vector3){
+                    position.x + 40.0f * cosf(heading),
+                    position.y + 40.0f * sinf(heading),
+                    position.z - 5.0f
+                };
+                client->camera.position = camera_position;
+                client->camera.target = camera_target;
+                client->camera.up = (Vector3){0, 0, 1};
+            }
+            if(IsKeyReleased(KEY_LEFT_CONTROL)){
+                client->camera.position = client->default_camera_position;
+                client->camera.target = client->default_camera_target;
+                client->camera.up = (Vector3){0, 0, 1};
+            }
             // Draw goal position for active agents
+
             if(!is_active_agent || env->entities[i].valid == 0) {
                 continue;
             }
-            DrawSphere((Vector3){
-                env->entities[i].goal_position_x,
-                env->entities[i].goal_position_y,
-                1
-            }, 0.5f, DARKGREEN);
+            if(!IsKeyDown(KEY_LEFT_SHIFT)){
+                DrawSphere((Vector3){
+                    env->entities[i].goal_position_x,
+                    env->entities[i].goal_position_y,
+                    1
+                }, 0.5f, DARKGREEN);
+            }
         }
         // Draw road elements
         if(env->entities[i].type <=3 && env->entities[i].type >= 7){
@@ -1338,18 +1527,16 @@ void c_render(Client* client, GPUDrive* env) {
             Color lineColor = GRAY;
             if (env->entities[i].type == ROAD_LANE) lineColor = GRAY;
             else if (env->entities[i].type == ROAD_LINE) lineColor = BLUE;
-            else if (env->entities[i].type == ROAD_EDGE) lineColor = BLACK;
+            else if (env->entities[i].type == ROAD_EDGE) lineColor = WHITE;
             else if (env->entities[i].type == DRIVEWAY) lineColor = RED;
-            else if (env->entities[i].type == CROSSWALK) lineColor = GREEN;
-            if(env->entities[i].type < 4){
+            if(env->entities[i].type != ROAD_EDGE){
                 continue;
             }
             if(!IsKeyDown(KEY_LEFT_SHIFT)){
-                DrawLine3D(start, end, lineColor);
-                if(env->entities[i].type == ROAD_EDGE){
-                    DrawSphere(start, 0.5f, lineColor);
-                    DrawSphere(end, 0.5f, lineColor);
-                }
+                draw_road_edge(env, start.x, start.y, end.x, end.y);
+                // DrawLine3D(start, end, lineColor);
+                // DrawCube(start, 0.5f, 0.5f, 0.5f, lineColor);
+                // DrawCube(end, 0.5f, 0.5f, 0.5f, lineColor);
             }
         }
     }
@@ -1363,7 +1550,7 @@ void c_render(Client* client, GPUDrive* env) {
             // int index = i * env->grid_rows + j;
             DrawCubeWires(
                 (Vector3){x + GRID_CELL_SIZE/2, y + GRID_CELL_SIZE/2, 1}, 
-                GRID_CELL_SIZE, GRID_CELL_SIZE, 0.1f, GRAY);
+                GRID_CELL_SIZE, GRID_CELL_SIZE, 0.1f, PUFF_BACKGROUND2);
         }
     }
     EndMode3D();
@@ -1371,28 +1558,31 @@ void c_render(Client* client, GPUDrive* env) {
     DrawText(TextFormat("Camera Position: (%.2f, %.2f, %.2f)", 
         client->camera.position.x, 
         client->camera.position.y, 
-        client->camera.position.z), 10, 10, 20, BLACK);
+        client->camera.position.z), 10, 10, 20, PUFF_WHITE);
     DrawText(TextFormat("Camera Target: (%.2f, %.2f, %.2f)", 
         client->camera.target.x, 
         client->camera.target.y, 
-        client->camera.target.z), 10, 30, 20, BLACK);
-    DrawText(TextFormat("Timestep: %d", env->timestep), 10, 50, 20, BLACK);
+        client->camera.target.z), 10, 30, 20, PUFF_WHITE);
+    DrawText(TextFormat("Timestep: %d", env->timestep), 10, 50, 20, PUFF_WHITE);
     // acceleration & steering
     int human_idx = env->active_agent_indices[env->human_agent_idx];
-    DrawText(TextFormat("Controlling Agent: %d", env->human_agent_idx), 10, 70, 20, BLACK);
-    DrawText(TextFormat("Agent Index: %d", human_idx), 10, 90, 20, BLACK);
+    DrawText(TextFormat("Controlling Agent: %d", env->human_agent_idx), 10, 70, 20, PUFF_WHITE);
+    DrawText(TextFormat("Agent Index: %d", human_idx), 10, 90, 20, PUFF_WHITE);
     // Controls help
     DrawText("Controls: W/S - Accelerate/Brake, A/D - Steer, 1-4 - Switch Agent", 
-             10, client->height - 30, 20, BLACK);
+             10, client->height - 30, 20, PUFF_WHITE);
     // acceleration & steering
-    DrawText(TextFormat("Acceleration: %d", env->actions[env->human_agent_idx * 2]), 10, 110, 20, BLACK);
-    DrawText(TextFormat("Steering: %d", env->actions[env->human_agent_idx * 2 + 1]), 10, 130, 20, BLACK);
-    DrawText(TextFormat("Grid Rows: %d", env->grid_rows), 10, 150, 20, BLACK);
-    DrawText(TextFormat("Grid Cols: %d", env->grid_cols), 10, 170, 20, BLACK);
+    DrawText(TextFormat("Acceleration: %d", env->actions[env->human_agent_idx * 2]), 10, 110, 20, PUFF_WHITE);
+    DrawText(TextFormat("Steering: %d", env->actions[env->human_agent_idx * 2 + 1]), 10, 130, 20, PUFF_WHITE);
+    DrawText(TextFormat("Grid Rows: %d", env->grid_rows), 10, 150, 20, PUFF_WHITE);
+    DrawText(TextFormat("Grid Cols: %d", env->grid_cols), 10, 170, 20, PUFF_WHITE);
     EndDrawing();
 }
 
 void close_client(Client* client){
+    for (int i = 0; i < 5; i++) {
+        UnloadModel(client->cars[i]);
+    }
     CloseWindow();
     free(client);
 }

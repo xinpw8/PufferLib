@@ -12,7 +12,8 @@ class GPUDrive(pufferlib.PufferEnv):
             human_agent_idx=0,
             reward_vehicle_collision=-0.1,
             reward_offroad_collision=-0.1,
-            buf = None):
+            buf = None,
+            seed=1):
 
         # env
         self.num_agents = num_envs
