@@ -160,10 +160,10 @@ void demo() {
         // Handle human input for the controlled agent
         // handle_human_input(&env);
         c_step(&env);
-        c_render(client, &env);
+        c_render(&env);
     }
 
-    close_client(client);
+    close_client(env.client);
     free_allocated(&env);
 }
 
@@ -205,7 +205,7 @@ void performance_test() {
 }
 
 int main() {
-    demo();
-    //performance_test();
+    //demo();
+    performance_test();
     return 0;
 }

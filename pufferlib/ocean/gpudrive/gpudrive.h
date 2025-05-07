@@ -81,64 +81,21 @@ static const int collision_offsets[25][2] = {
     {-2,  1}, {-1,  1}, {0,  1}, {1,  1}, {2,  1},  // Fourth row
     {-2,  2}, {-1,  2}, {0,  2}, {1,  2}, {2,  2}   // Bottom row
 };
-#define LOG_BUFFER_SIZE 1024
 
+typedef struct GPUDrive GPUDrive;
+typedef struct Client Client;
 typedef struct Log Log;
+
 struct Log {
     float episode_return;
     float episode_length;
+    float perf;
     float score;
     float offroad_rate;
     float collision_rate;
     float dnf_rate;
+    float n;
 };
-
-
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-    //printf("Log: %f, %f,\n", log->episode_return, log->episode_length);
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return / logs->idx;
-        log.episode_length += logs->logs[i].episode_length / logs->idx;
-	    log.score += logs->logs[i].score / logs->idx;
-	    log.offroad_rate += logs->logs[i].offroad_rate / logs->idx;
-	    log.collision_rate += logs->logs[i].collision_rate / logs->idx;
-	log.dnf_rate += logs->logs[i].dnf_rate / logs->idx;
-    }
-    logs->idx = 0;
-    return log;
-}
 
 typedef struct Entity Entity;
 struct Entity {
@@ -196,13 +153,13 @@ float relative_distance_2d(float x1, float y1, float x2, float y2){
     return distance;
 }
 
-typedef struct GPUDrive GPUDrive;
 struct GPUDrive {
+    Client* client;
     float* observations;
     int* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
+    unsigned char* terminals;
+    Log log;
     Log* logs;
     int num_agents;
     int active_agent_count;
@@ -236,6 +193,25 @@ struct GPUDrive {
     float world_mean_x;
     float world_mean_y;
 };
+
+void add_log(GPUDrive* env) {
+    for(int i = 0; i < env->active_agent_count; i++){
+        if(env->reached_goal_this_episode[i]) {
+            env->log.score += 1.0f;
+            env->log.perf += 1.0f;
+        }
+        int offroad = env->logs[i].offroad_rate;
+        env->log.offroad_rate += offroad;
+        int collided = env->logs[i].collision_rate;
+        env->log.collision_rate += collided;
+        if(!offroad && !collided && !env->reached_goal_this_episode[i]){
+            env->log.dnf_rate += 1.0f;
+        }
+        env->log.episode_length += env->logs[i].episode_length;
+        env->log.episode_return += env->logs[i].episode_return;
+        env->log.n += 1;
+    }
+}
 
 Entity* load_map_binary(const char* filename, GPUDrive* env) {
     FILE* file = fopen(filename, "rb");
@@ -341,7 +317,7 @@ void set_active_agents(GPUDrive* env){
     int expert_static_car_indices[MAX_CARS];
     env->active_agent_count = 1;
     active_agent_indices[0] = env->num_objects-1;
-    for(int i = 0; i < env->num_objects && env->num_cars < MAX_CARS; i++){
+    for(int i = 0; i < env->num_objects-1 && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
         env->num_cars++;
@@ -663,8 +639,7 @@ void allocate(GPUDrive* env){
     env->observations = (float*)calloc(env->active_agent_count*max_obs, sizeof(float));
     env->actions = (int*)calloc(env->active_agent_count*2, sizeof(int));
     env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
-    env->dones = (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    env->terminals= (unsigned char*)calloc(env->active_agent_count, sizeof(unsigned char));
     // printf("allocated\n");
 }
 
@@ -672,8 +647,7 @@ void free_allocated(GPUDrive* env){
     free(env->observations);
     free(env->actions);
     free(env->rewards);
-    free(env->dones);
-    free_logbuffer(env->log_buffer);
+    free(env->terminals);
     free_initialized(env);
 }
 
@@ -1048,19 +1022,7 @@ void c_step(GPUDrive* env){
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;
     if(env->timestep == 91){
-	    for(int i = 0; i < env->active_agent_count; i++){
-            if(!env->reached_goal_this_episode[i]) {
-                env->logs[i].score = 0.0f;
-            } else {
-                env->logs[i].score = 1.0f;
-            }
-            int offroad = env->logs[i].offroad_rate;
-            int collided = env->logs[i].collision_rate;
-            if(!offroad && !collided && !env->reached_goal_this_episode[i]){
-                env->logs[i].dnf_rate = 1.0f;
-            }
-            add_log(env->log_buffer, &env->logs[i]);
-	    }
+        add_log(env);
 	    c_reset(env);
     }
     // Move statix experts
@@ -1080,7 +1042,7 @@ void c_step(GPUDrive* env){
         }
         env->entities[agent_idx].collision_state = 0;
         move_dynamics(env, i, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        //move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
@@ -1372,7 +1334,12 @@ void draw_road_edge(GPUDrive* env, float start_x, float start_y, float end_x, fl
     DrawTriangle3D(t4, t1, b1, CURB_SIDE);
 }
 
-void c_render(Client* client, GPUDrive* env) {
+void c_render(GPUDrive* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+    Client* client = env->client;
+
     BeginDrawing();
     Color road = (Color){35, 35, 37, 255};
     ClearBackground(road);

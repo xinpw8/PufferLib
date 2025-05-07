@@ -319,7 +319,7 @@ extension_paths = [
     # 'pufferlib/ocean/tactical/c_tactical',
     #'pufferlib/ocean/squared/cy_squared',
     'pufferlib/ocean/snake/cy_snake',
-    'pufferlib/ocean/gpudrive/cy_gpudrive',
+    #'pufferlib/ocean/gpudrive/cy_gpudrive',
     #'pufferlib/ocean/pong/cy_pong',
     # 'pufferlib/ocean/breakout/cy_breakout',
     # 'pufferlib/ocean/cartpole/cy_cartpole',
@@ -364,14 +364,14 @@ extensions = [Extension(
 #c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
 
 
-pure_c_extensions = ['squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical', 'go', 'cartpole']
+pure_c_extensions = ['gpudrive', 'squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical', 'go', 'cartpole']
 
 c_extensions = [
     Extension(
         f'pufferlib.ocean.{name}.binding',
         sources=[f'pufferlib/ocean/{name}/binding.c'],
         include_dirs=[numpy.get_include(), 'raylib/include'],
-        extra_compile_args=extra_compile_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak'],
+        extra_compile_args=extra_compile_args, # + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-static-libasan'],
         extra_link_args=extra_link_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-g'],
         extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
     )
