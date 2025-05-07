@@ -317,7 +317,7 @@ void set_active_agents(GPUDrive* env){
     int expert_static_car_indices[MAX_CARS];
     env->active_agent_count = 1;
     active_agent_indices[0] = env->num_objects-1;
-    for(int i = 0; i < env->num_objects && env->num_cars < MAX_CARS; i++){
+    for(int i = 0; i < env->num_objects-1 && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
         env->num_cars++;
@@ -1042,7 +1042,7 @@ void c_step(GPUDrive* env){
         }
         env->entities[agent_idx].collision_state = 0;
         move_dynamics(env, i, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        //move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
