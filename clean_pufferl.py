@@ -306,8 +306,11 @@ class CleanPuffeRL:
             elif config.use_puff_advantage:
                 importance = advantages = torch.zeros(experience.values.shape, device=config.device).to(config.device)
                 vs = torch.zeros(experience.values.shape, device=config.device)
-                torch.ops.pufferlib.compute_puff_advantage(experience.values, experience.rewards,
-                    experience.dones, experience.ratio, vs, advantages, config.gamma,
+
+                # TODO: Eliminate
+                n = (experience.values.shape[0]//256)*256
+                torch.ops.pufferlib.compute_puff_advantage(experience.values[:n], experience.rewards[:n],
+                    experience.dones[:n], experience.ratio[:n], vs[:n], advantages[:n], config.gamma,
                     config.gae_lambda, config.vtrace_rho_clip, config.vtrace_c_clip)
             else:
                 importance = advantages = self.compute_gae(experience.values, experience.rewards,
