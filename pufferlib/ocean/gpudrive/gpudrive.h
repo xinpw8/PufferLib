@@ -279,6 +279,8 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
 }
 
 void set_start_position(GPUDrive* env){
+    //InitWindow(800, 600, "GPU Drive");
+    //BeginDrawing();
     for(int i = 0; i < env->num_entities; i++){
         int is_active = 0;
         for(int j = 0; j < env->active_agent_count; j++){
@@ -291,6 +293,10 @@ void set_start_position(GPUDrive* env){
         e->x = e->traj_x[0];
         e->y = e->traj_y[0];
         e->z = e->traj_z[0];
+        //printf("Entity %d is at (%f, %f, %f)\n", i, e->x, e->y, e->z);
+        //if (e->type < 4) {
+        //    DrawRectangle(200+2*e->x, 200+2*e->y, 2.0, 2.0, RED);
+        //}    
         if(e->type >3 || e->type == 0){
             continue;
         }
@@ -306,6 +312,10 @@ void set_start_position(GPUDrive* env){
         e->heading = e->traj_heading[0];
         e->valid = e->traj_valid[0];
     }
+    //EndDrawing();
+    int x = 0;
+
+
 }
 
 void set_active_agents(GPUDrive* env){
@@ -902,9 +912,12 @@ void compute_observations(GPUDrive* env) {
         // Rotate to ego vehicle's frame
         float rel_goal_x = goal_x*cos_heading + goal_y*sin_heading;
         float rel_goal_y = -goal_x*sin_heading + goal_y*cos_heading;
-        obs[0] = normalize_value(rel_goal_x, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
-        obs[1] = normalize_value(rel_goal_y, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
-        obs[2] = ego_speed / MAX_SPEED;
+        //obs[0] = normalize_value(rel_goal_x, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
+        //obs[1] = normalize_value(rel_goal_y, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
+        obs[0] = rel_goal_x/20.0f;
+        obs[1] = rel_goal_y/20.0f;
+        //obs[2] = ego_speed / MAX_SPEED;
+        obs[2] = ego_speed / 5.0f;
         obs[3] = ego_entity->width / MAX_VEH_WIDTH;
         obs[4] = ego_entity->length / MAX_VEH_LEN;
         obs[5] = (ego_entity->collision_state > 0) ? 1 : 0;
@@ -932,8 +945,8 @@ void compute_observations(GPUDrive* env) {
             float rel_x = dx*cos_heading + dy*sin_heading;
             float rel_y = -dx*sin_heading + dy*cos_heading;
             // Store observations with correct indexing
-            obs[obs_idx] = normalize_value(rel_x, MIN_REL_AGENT_POS, MAX_REL_AGENT_POS);
-            obs[obs_idx + 1] = normalize_value(rel_y, MIN_REL_AGENT_POS, MAX_REL_AGENT_POS);
+            obs[obs_idx] = rel_x / 20.0f;
+            obs[obs_idx + 1] = rel_y / 20.0f;
             obs[obs_idx + 2] = other_entity->width / MAX_VEH_WIDTH;
             obs[obs_idx + 3] = other_entity->length / MAX_VEH_LEN;
             // relative heading
@@ -982,8 +995,8 @@ void compute_observations(GPUDrive* env) {
             // Compute sin and cos of relative angle directly without atan2f
             float cos_angle = dx_norm*cos_heading + dy_norm*sin_heading;
             float sin_angle = -dx_norm*sin_heading + dy_norm*cos_heading;
-            obs[obs_idx] = normalize_value(x_obs, MIN_RG_COORD, MAX_RG_COORD);
-            obs[obs_idx + 1] = normalize_value(y_obs, MIN_RG_COORD, MAX_RG_COORD);
+            obs[obs_idx] = x_obs / 20.0f;
+            obs[obs_idx + 1] = y_obs / 20.0f;
             obs[obs_idx + 2] = length / MAX_ROAD_SEGMENT_LENGTH;
             obs[obs_idx + 3] = width / MAX_ROAD_SCALE;
             obs[obs_idx + 4] = cos_angle / MAX_ORIENTATION_RAD;

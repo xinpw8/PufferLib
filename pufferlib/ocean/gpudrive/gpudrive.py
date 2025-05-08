@@ -49,7 +49,6 @@ class GPUDrive(pufferlib.PufferEnv):
             env_ids.append(env_id)
 
         self.c_envs = binding.vectorize(*env_ids)
-        pass
 
     def reset(self, seed=0):
         binding.vec_reset(self.c_envs, seed)
@@ -70,7 +69,7 @@ class GPUDrive(pufferlib.PufferEnv):
             self.terminals, self.truncations, info)
 
     def render(self):
-        binding.vec_render(self.c_envs, 0)
+        binding.vec_render(self.c_envs, 63)
         
     def close(self):
         binding.vec_close(self.c_envs)

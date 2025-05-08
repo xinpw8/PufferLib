@@ -102,17 +102,18 @@ void demo() {
         .human_agent_idx = 0,
         .reward_vehicle_collision = -0.1f,
         .reward_offroad_collision = -0.1f,
-	    .map_name = "resources/gpudrive/binaries/map_063.bin"
+	    .map_name = "resources/gpudrive/binaries/map_000.bin"
     };
     allocate(&env);
     c_reset(&env);
-    Client* client = make_client(&env);
+    c_render(&env);
+    //Client* client = make_client(&env);
     printf("Human controlling agent index: %d\n", env.active_agent_indices[env.human_agent_idx]);
     int accel_delta = 1;
     int steer_delta = 1;
     while (!WindowShouldClose()) {
         // Handle camera controls
-        handle_camera_controls(client);
+        handle_camera_controls(env.client);
         int (*actions)[2] = (int(*)[2])env.actions;
         // // Reset all agent actions at the beginning of each frame
         // for(int i = 0; i < env.active_agent_count; i++) {
@@ -205,7 +206,7 @@ void performance_test() {
 }
 
 int main() {
-    //demo();
-    performance_test();
+    demo();
+    //performance_test();
     return 0;
 }
