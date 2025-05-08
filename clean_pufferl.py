@@ -1,6 +1,9 @@
 # TODO: Add information
 # - Help menu
 # - Docs link
+#python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=1 clean_pufferl.py --env puffer_nmmo3 --mode train
+#from torch.distributed.elastic.multiprocessing.errors import record
+#@record
 
 import os
 import random
@@ -728,71 +731,6 @@ def dist_mean(value, device):
 
     return dist_sum(value, device) / torch.distributed.get_world_size()
 
-def rollout(env_creator, env_kwargs, policy_cls, rnn_cls, agent_creator, agent_kwargs,
-        backend, render_mode='auto', model_path=None, device='cuda'):
-
-    if render_mode != 'auto':
-        env_kwargs['render_mode'] = render_mode
-
-    # We are just using Serial vecenv to give a consistent
-    # single-agent/multi-agent API for evaluation
-    env = pufferlib.vector.make(env_creator, env_kwargs=env_kwargs, backend=backend)
-
-    agent = agent_creator(env, policy_cls, rnn_cls, agent_kwargs).to(device)
-    if model_path is not None:
-        agent.load_state_dict(torch.load(model_path, map_location=device, weights_only=False))
-
-    ob, info = env.reset()
-    driver = env.driver_env
-    os.system('clear')
-
-    state = pufferlib.namespace(
-        lstm_h=None,
-        lstm_c=None,
-    )
-
-    num_agents = env.observation_space.shape[0]
-    if isinstance(agent, torch.nn.LSTM):
-        shape = (num_agents, agent.hidden_size)
-        state.lstm_h = torch.zeros(shape).to(device)
-        state.lstm_c = torch.zeros(shape).to(device)
-
-    frames = []
-    tick = 0
-    while tick <= 200000:
-        if tick > 1000 and tick % 1 == 0:
-            render = driver.render()
-            if driver.render_mode == 'ansi':
-                print('\033[0;0H' + render + '\n')
-                time.sleep(1/20)
-            elif driver.render_mode == 'rgb_array':
-                frames.append(render)
-                import cv2
-                render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
-                cv2.imshow('frame', render)
-                cv2.waitKey(1)
-                time.sleep(1/24)
-            elif driver.render_mode in ('human', 'raylib') and render is not None:
-                frames.append(render)
-
-        with torch.no_grad():
-            ob = torch.as_tensor(ob).to(device)
-            logits, value = agent(ob, state)
-            action, logprob, _ = pufferlib.pytorch.sample_logits(logits, is_continuous=agent.is_continuous)
-            action = action.cpu().numpy().reshape(env.action_space.shape)
-
-        ob, reward = env.step(action)[:2]
-        reward = reward.mean()
-        if tick % 128 == 0:
-            print(f'Reward: {reward:.4f}, Tick: {tick}')
-        tick += 1
-
-    # TODO: Frames from raylib
-    # Save frames as gif
-    if frames:
-        import imageio
-        os.makedirs('../docker', exist_ok=True) or imageio.mimsave('../docker/eval.gif', frames, fps=15, loop=0)
-
 class Profile:
     def __init__(self, keys, frequency=1):
         self.stack = []
@@ -950,101 +888,6 @@ def downsample_linear(arr, m):
     x_new = np.linspace(0, 1, m)  # New indices normalized
     return np.interp(x_new, x_old, arr)
  
-def sweep(args, env_name, make_env, policy_cls, rnn_cls):
-    if not args['wandb'] and not args['neptune']:
-        raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
-
-    method = args['sweep'].pop('method')
-    try:
-        sweep_cls = getattr(pufferlib.sweep, method)
-    except:
-        raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
-
-    sweep = sweep_cls(args['sweep'])
-    target_metric = args['sweep']['metric']
-    for i in range(args['max_runs']):
-        seed = time.time_ns() & 0xFFFFFFFF
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-
-        info = sweep.suggest(args)
-        if args['train']['minibatch_size'] >= args['train']['batch_size']:
-            sweep.observe(args, 0.0, 0.0)
-            continue
-        
-        scores, costs, timesteps = train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
-        scores = downsample_linear(scores, 10)
-        costs = downsample_linear(costs, 10)
-        timesteps = downsample_linear(timesteps, 10)
-
-        # Hacky patch to prevent increasing total_timesteps when not swept
-        total_timesteps = args['train']['total_timesteps']
-        for score, cost, timestep in zip(scores, costs, timesteps):
-            args['train']['total_timesteps'] = timestep
-            sweep.observe(args, score, cost)
-
-        args['train']['total_timesteps'] = total_timesteps
-
-        print('Score:', score, 'Cost:', cost, 'Timesteps:', timestep)
-
-def train_wrap(args, make_env, policy_cls, rnn_cls, target_metric, min_eval_points=100, wandb=None, neptune=None):
-    vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
-    policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
-    args['train']['use_rnn'] = rnn_cls is not None
-
-    if 'LOCAL_RANK' in os.environ:
-        from torch.nn.parallel import DistributedDataParallel as DDP
-        orig_policy = policy
-        policy = DDP(policy, device_ids=[args['local_rank']])
-        policy.hidden_size = orig_policy.hidden_size
-        policy.is_continuous = orig_policy.is_continuous
-        policy.forward_train = orig_policy.forward_train
-        if args['train']['use_rnn']:
-            policy.cell = orig_policy.cell
-
-    env_name = args['env_name']
-    train_config = pufferlib.namespace(**args['train'], env=env_name, tag=args['tag'],
-        exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8])
-    pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
-
-    timesteps = []
-    scores = []
-    costs = []
-    target_key = f'environment/{target_metric}'
-
-    vecenv.async_reset(train_config.seed)
-    while pufferl.global_step < train_config.total_timesteps:
-        pufferl.evaluate()
-        logs = pufferl.train()
-        min_sweep_steps = args['sweep']['train']['total_timesteps']['min']
-        if logs is not None and target_key in logs and pufferl.global_step >= min_sweep_steps:
-            timesteps.append(logs['agent_steps'])
-            scores.append(logs[target_key])
-            costs.append(pufferl.uptime)
-
-    steps_evaluated = 0
-    cost = time.time() - pufferl.start_time
-    batch_size = args['train']['batch_size']
-    timesteps.append(pufferl.global_step)
-    while len(pufferl.stats[target_metric]) < min_eval_points:
-        stats = pufferl.evaluate()
-        steps_evaluated += batch_size
-
-    pufferl.mean_and_log()
-    score = stats[target_metric]
-    print(f'Evaluated {steps_evaluated} steps. Score: {score}')
-
-    scores.append(score)
-    costs.append(cost)
-
-    pufferl.close()
-    return scores, costs, timesteps
-
-#python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=1 clean_pufferl.py --env puffer_nmmo3 --mode train
-#from torch.distributed.elastic.multiprocessing.errors import record
-#@record
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
@@ -1053,13 +896,16 @@ if __name__ == '__main__':
     parser.add_argument('--env', '--environment', type=str,
         default='puffer_squared', help='Name of specific environment to run')
     parser.add_argument('--mode', type=str, default='train',
-        choices='train eval evaluate sweep autotune profile'.split())
-    parser.add_argument('--eval-model-path', type=str, default=None,
+        choices='train eval sweep autotune profile'.split())
+    parser.add_argument('--load-model-path', type=str, default=None,
         help='Path to a pretrained checkpoint')
     parser.add_argument('--baseline', action='store_true',
         help='Load pretrained model from WandB if available')
     parser.add_argument('--render-mode', type=str, default='auto',
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
+    parser.add_argument('--save-frames', type=int, default=0)
+    parser.add_argument('--gif-path', type=str, default='eval.gif')
+    parser.add_argument('--fps', type=float, default=15)
     parser.add_argument('--exp-id', '--exp-name', type=str,
         default=None, help='Resume from experiment')
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
@@ -1077,8 +923,7 @@ if __name__ == '__main__':
     for path in glob.glob('config/**/*.ini', recursive=True):
         p = configparser.ConfigParser()
         p.read(['config/default.ini', path])
-        if args.env in p['base']['env_name'].split():
-            break
+        if args.env in p['base']['env_name'].split(): break
     else:
         raise pufferlib.APIUsageError('No config for env_name {}'.format(args.env))
 
@@ -1112,16 +957,13 @@ if __name__ == '__main__':
         except:
             breakpoint()
 
-    package = args['package']
-    module_name = f'pufferlib.environments.{package}'
-    if package == 'ocean':
-        module_name = 'pufferlib.ocean'
-
+    # Dynamically import environment and policy
     import importlib
+    package = args['package']
+    module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
     env_module = importlib.import_module(module_name)
     make_env = env_module.env_creator(env_name)
     policy_cls = getattr(env_module.torch, args['policy_name'])
-    
     rnn_name = args['rnn_name']
     rnn_cls = None
     if rnn_name is not None:
@@ -1130,6 +972,82 @@ if __name__ == '__main__':
     # Assume TorchRun DDP is used if LOCAL_RANK is set
     if 'LOCAL_RANK' in os.environ:
         torch.distributed.init_process_group(backend='nccl', rank=0, world_size=1)
+
+    if args['mode'] == 'sweep':
+        if not args['wandb'] and not args['neptune']:
+            raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
+
+        method = args['sweep'].pop('method')
+        try:
+            sweep_cls = getattr(pufferlib.sweep, method)
+        except:
+            raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
+
+        args['train']['use_rnn'] = rnn_cls is not None
+        env_name = args['env_name']
+        exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8]
+        sweep = sweep_cls(args['sweep'])
+        target_metric = args['sweep']['metric']
+        target_key = f'environment/{target_metric}'
+        min_sweep_steps = args['sweep']['train']['total_timesteps']['min']
+        min_eval_points = 100
+        for i in range(args['max_runs']):
+            seed = time.time_ns() & 0xFFFFFFFF
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+            sweep.suggest(args)
+
+            vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
+            policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
+            train_config = pufferlib.namespace(**args['train'], env=env_name, tag=args['tag'], exp_id=exp_id)
+            pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
+
+            scores = []
+            costs = []
+            timesteps = []
+            vecenv.async_reset(train_config.seed)
+            while pufferl.global_step < train_config.total_timesteps:
+                pufferl.evaluate()
+                logs = pufferl.train()
+                if logs is not None and target_key in logs and pufferl.global_step >= min_sweep_steps:
+                    timesteps.append(logs['agent_steps'])
+                    scores.append(logs[target_key])
+                    costs.append(pufferl.uptime)
+
+            steps_evaluated = 0
+            costs.append(time.time() - pufferl.start_time)
+            batch_size = args['train']['batch_size']
+            timesteps.append(pufferl.global_step)
+            while len(pufferl.stats[target_metric]) < min_eval_points:
+                stats = pufferl.evaluate()
+                steps_evaluated += batch_size
+
+            pufferl.mean_and_log()
+            scores.append(stats[target_metric])
+            pufferl.close()
+
+            scores = downsample_linear(scores, 10)
+            costs = downsample_linear(costs, 10)
+            timesteps = downsample_linear(timesteps, 10)
+
+            # Hacky patch to prevent increasing total_timesteps when not swept
+            total_timesteps = args['train']['total_timesteps']
+            for score, cost, timestep in zip(scores, costs, timesteps):
+                args['train']['total_timesteps'] = timestep
+                sweep.observe(args, score, cost)
+
+            args['train']['total_timesteps'] = total_timesteps
+
+        exit(0)
+
+    if args['mode'] == 'autotune':
+        pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
+        exit(0)
+
+    args['train']['use_rnn'] = rnn_cls is not None
+    exp_id = args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8]
+    env_name = args['env_name']
 
     if args['baseline']:
         assert args['mode'] in ('train', 'eval', 'evaluate')
@@ -1145,37 +1063,79 @@ if __name__ == '__main__':
             data_dir = artifact.download()
             model_file = max(os.listdir(data_dir))
             args['eval_model_path'] = os.path.join(data_dir, model_file)
-    elif args['mode'] == 'train':
-        target_metric = args['sweep']['metric']
-        train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
-    elif args['mode'] in ('eval', 'evaluate'):
-        vec = pufferlib.vector.Serial
-        if args['vec'] == 'native':
-            vec = pufferlib.environment.PufferEnv
-        rollout(
-            make_env,
-            args['env'],
-            policy_cls=policy_cls,
-            rnn_cls=rnn_cls,
-            agent_creator=make_policy,
-            agent_kwargs=args,
-            backend=vec,
-            model_path=args['eval_model_path'],
-            render_mode=args['render_mode'],
-            device=args['train']['device'],
+
+    if args['mode'] == 'eval':
+        args['vec'] = dict(backend='Serial', num_envs=1)
+        
+    vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
+    policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
+
+    if args['load_model_path'] is not None:
+        policy.load_state_dict(torch.load(
+            args['load_model_path'], map_location=args['train']['device']))
+
+    if args['mode'] == 'train':
+        train_config = pufferlib.namespace(**args['train'], env=env_name, tag=args['tag'], exp_id=exp_id)
+        pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
+
+        while pufferl.global_step < train_config.total_timesteps:
+            pufferl.evaluate()
+            logs = pufferl.train()
+
+        vecenv.async_reset(train_config.seed)
+        for _ in range(10):
+            stats = pufferl.evaluate()
+
+        pufferl.mean_and_log()
+        pufferl.close()
+    elif args['mode'] == 'eval':
+        ob, info = vecenv.reset()
+        driver = vecenv.driver_env
+        num_agents = vecenv.observation_space.shape[0]
+        state = pufferlib.namespace(
+            lstm_h=torch.zeros(num_agents, policy.hidden_size, device=args['train']['device']),
+            lstm_c=torch.zeros(num_agents, policy.hidden_size, device=args['train']['device']),
         )
-    elif args['mode'] == 'sweep':
-        sweep(args, env_name, make_env, policy_cls, rnn_cls)
-    elif args['mode'] == 'autotune':
-        pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
+
+        frames = []
+        while True:
+            render = driver.render()
+            if len(frames) < args['save_frames']:
+                frames.append(render)
+
+            # TODO: Frames from raylib
+            if driver.render_mode == 'ansi':
+                print('\033[0;0H' + render + '\n')
+                time.sleep(1/args['fps'])
+            elif driver.render_mode == 'rgb_array':
+                import cv2
+                render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
+                cv2.imshow('frame', render)
+                cv2.waitKey(1)
+                time.sleep(1/args['fps'])
+
+            with torch.no_grad():
+                ob = torch.as_tensor(ob).to(args['train']['device'])
+                logits, value = policy(ob, state)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(
+                    logits, is_continuous=policy.is_continuous)
+                action = action.cpu().numpy().reshape(vecenv.action_space.shape)
+
+            ob = vecenv.step(action)[0]
+
+            if len(frames) > 0 and len(frames) == args['save_frames']:
+                import imageio
+                imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
+                frames.append('Done')
     elif args['mode'] == 'profile':
         import torch
         import torchvision.models as models
         from torch.profiler import profile, record_function, ProfilerActivity
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
             with record_function("model_inference"):
-                target_metric = args['sweep']['metric']
-                train_wrap(args, make_env, policy_cls, rnn_cls, target_metric)
+                for _ in range(10):
+                    stats = pufferl.evaluate()
+                    pufferl.train()
 
         print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
         prof.export_chrome_trace("trace.json")
