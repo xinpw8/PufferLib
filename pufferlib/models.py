@@ -161,8 +161,8 @@ class LSTMWrapper(nn.Module):
     def forward(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
         hidden = self.policy.encode_observations(observations, state=state)
-        h = state.lstm_h
-        c = state.lstm_c
+        h = state['lstm_h']
+        c = state['lstm_c']
 
         # TODO: Don't break compile
         if h is not None:
@@ -174,17 +174,17 @@ class LSTMWrapper(nn.Module):
         #hidden = self.pre_layernorm(hidden)
         hidden, c = self.cell(hidden, lstm_state)
         #hidden = self.post_layernorm(hidden)
-        state.hidden = hidden
-        state.lstm_h = hidden
-        state.lstm_c = c
+        state['hidden'] = hidden
+        state['lstm_h'] = hidden
+        state['lstm_c'] = c
         logits, values = self.policy.decode_actions(hidden)
         return logits, values
 
     def forward_train(self, observations, state):
         '''Forward function for training. Uses LSTM for fast time-batching'''
         x = observations
-        lstm_h = state.lstm_h
-        lstm_c = state.lstm_c
+        lstm_h = state['lstm_h']
+        lstm_c = state['lstm_c']
 
         x_shape, space_shape = x.shape, self.obs_shape
         x_n, space_n = len(x_shape), len(space_shape)
@@ -220,9 +220,9 @@ class LSTMWrapper(nn.Module):
         logits, values = self.policy.decode_actions(flat_hidden)
         values = values.reshape(B, TT)
         #state.batch_logits = logits.reshape(B, TT, -1)
-        state.hidden = hidden
-        state.lstm_h = lstm_h.detach()
-        state.lstm_c = lstm_c.detach()
+        state['hidden'] = hidden
+        state['lstm_h'] = lstm_h.detach()
+        state['lstm_c'] = lstm_c.detach()
         return logits, values
 
 class Convolutional(nn.Module):
