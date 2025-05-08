@@ -93,6 +93,7 @@ struct Log {
     float score;
     float offroad_rate;
     float collision_rate;
+    float completion_rate;
     float dnf_rate;
     float n;
 };
@@ -192,18 +193,22 @@ struct GPUDrive {
     char* reached_goal_this_episode;
     float world_mean_x;
     float world_mean_y;
+    int* collided_before_goal;
 };
 
 void add_log(GPUDrive* env) {
     for(int i = 0; i < env->active_agent_count; i++){
-        if(env->reached_goal_this_episode[i]) {
-            env->log.score += 1.0f;
-            env->log.perf += 1.0f;
+        if(env->reached_goal_this_episode[i]){
+            env->log.completion_rate += 1.0f;
         }
         int offroad = env->logs[i].offroad_rate;
         env->log.offroad_rate += offroad;
         int collided = env->logs[i].collision_rate;
         env->log.collision_rate += collided;
+        if(env->reached_goal_this_episode[i] && !env->collided_before_goal[i]){
+            env->log.score += 1.0f;
+            env->log.perf += 1.0f;
+        }
         if(!offroad && !collided && !env->reached_goal_this_episode[i]){
             env->log.dnf_rate += 1.0f;
         }
@@ -611,6 +616,7 @@ void init(GPUDrive* env){
     // printf("Active agents: %d\n", env->active_agent_count);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
     env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
+    env->collided_before_goal = (int*)calloc(env->active_agent_count, sizeof(int));
     env->reached_goal_this_episode = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
     env->vision_range = 21;
@@ -1020,6 +1026,7 @@ void c_reset(GPUDrive* env){
     }
     memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
     memset(env->reached_goal_this_episode, 0, env->active_agent_count*sizeof(char));
+    memset(env->collided_before_goal, 0, env->active_agent_count*sizeof(char));
     compute_observations(env);
 }
 
@@ -1067,6 +1074,9 @@ void c_step(GPUDrive* env){
                 env->rewards[i] = env->reward_offroad_collision;
                 env->logs[i].offroad_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_offroad_collision;
+            }
+            if(!env->reached_goal_this_episode[i]){
+                env->collided_before_goal[i] = 1;
             }
         }
 

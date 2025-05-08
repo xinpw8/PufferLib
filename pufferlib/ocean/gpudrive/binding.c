@@ -58,5 +58,6 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "collision_rate", log->collision_rate);
     assign_to_dict(dict, "dnf_rate", log->dnf_rate);
     assign_to_dict(dict, "n", log->n);
+    assign_to_dict(dict, "completion_rate", log->completion_rate);
     return 0;
 }
