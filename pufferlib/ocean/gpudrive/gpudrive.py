@@ -70,7 +70,7 @@ class GPUDrive(pufferlib.PufferEnv):
             self.terminals, self.truncations, info)
 
     def render(self):
-        binding.vec_render(self.c_envs)
+        binding.vec_render(self.c_envs, 0)
         
     def close(self):
         binding.vec_close(self.c_envs)
