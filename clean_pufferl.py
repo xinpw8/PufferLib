@@ -538,6 +538,7 @@ class CleanPuffeRL:
         logs = {
             #'SPS': dist_sum(self.profile.SPS, device),
             'agent_steps': agent_steps,
+            'uptime': time.time() - self.start_time,
             'epoch': int(dist_sum(self.epoch, device)),
             'learning_rate': self.optimizer.param_groups[0]["lr"],
             'max_uses': self.max_uses,
@@ -562,16 +563,18 @@ class CleanPuffeRL:
         self.vecenv.close()
         self.utilization.stop()
         config = self.config
+        model_path = self.save_checkpoint()
         if self.wandb:
             exp_id = config['exp_id']
             artifact_name = f'{exp_id}_model'
             artifact = self.wandb.Artifact(artifact_name, type='model')
-            model_path = self.save_checkpoint(self)
             artifact.add_file(model_path)
             self.wandb.run.log_artifact(artifact)
             self.wandb.finish()
         elif self.neptune:
-            # TODO: Add artifact
+            model = torch.load(model_path)
+            torch.save(model, '/tmp/model.pt')
+            self.neptune['model'].track_files('/tmp/model.pt')
             self.neptune.stop()
 
     def save_checkpoint(self):
@@ -898,7 +901,29 @@ def downsample_linear(arr, m):
     x_old = np.linspace(0, 1, n)  # Original indices normalized
     x_new = np.linspace(0, 1, m)  # New indices normalized
     return np.interp(x_new, x_old, arr)
- 
+
+def experiment(vecenv, policy, args):
+    train_config = dict(**args['train'], env=env_name, tag=args['tag'], exp_id=exp_id)
+    pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
+
+    all_logs = []
+    while pufferl.global_step < train_config['total_timesteps']:
+        pufferl.evaluate()
+        logs = pufferl.train()
+        if logs is not None:
+            all_logs.append(logs)
+
+    vecenv.async_reset(train_config['seed'])
+    for _ in range(10):
+        stats = pufferl.evaluate()
+
+    logs = pufferl.mean_and_log()
+    if logs is not None:
+        all_logs.append(logs)
+
+    pufferl.close()
+    return all_logs
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
@@ -954,19 +979,15 @@ if __name__ == '__main__':
 
     # Unpack to nested dict
     parsed = vars(parser.parse_args())
-    nested = lambda: defaultdict(nested) # TODO: Replace with dict
-    args = nested()
     env_name = parsed.pop('env')
+    args = {}
     for key, value in parsed.items():
         next = args
-        split = key.split('.')
-        for subkey in split[:-1]:
-            next = next[subkey]
+        for subkey in key.split('.'):
+            prev = next
+            next = next.setdefault(subkey, {})
 
-        try:
-            next[split[-1]] = value
-        except:
-            breakpoint()
+        prev[subkey] = value
 
     # Dynamically import environment and policy
     import importlib
@@ -984,6 +1005,14 @@ if __name__ == '__main__':
     if 'LOCAL_RANK' in os.environ:
         torch.distributed.init_process_group(backend='nccl', rank=0, world_size=1)
 
+    if args['mode'] == 'autotune':
+        pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
+        exit(0)
+
+    args['train']['use_rnn'] = rnn_cls is not None
+    exp_id = args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8]
+    env_name = args['env_name']
+
     if args['mode'] == 'sweep':
         if not args['wandb'] and not args['neptune']:
             raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
@@ -994,14 +1023,9 @@ if __name__ == '__main__':
         except:
             raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
 
-        args['train']['use_rnn'] = rnn_cls is not None
-        env_name = args['env_name']
-        exp_id=args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8]
         sweep = sweep_cls(args['sweep'])
-        target_metric = args['sweep']['metric']
-        target_key = f'environment/{target_metric}'
-        min_sweep_steps = args['sweep']['train']['total_timesteps']['min']
-        min_eval_points = 100
+        target_key = f'environment/{args["sweep"]["metric"]}'
+        total_timesteps = args['train']['total_timesteps']
         for i in range(args['max_runs']):
             seed = time.time_ns() & 0xFFFFFFFF
             random.seed(seed)
@@ -1011,69 +1035,20 @@ if __name__ == '__main__':
 
             vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
             policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
-            train_config = dict(**args['train'], env=env_name, tag=args['tag'], exp_id=exp_id)
-            pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
+            all_logs = experiment(vecenv, policy, args)
 
-            scores = []
-            costs = []
-            timesteps = []
-            vecenv.async_reset(train_config['seed'])
-            while pufferl.global_step < train_config['total_timesteps']:
-                pufferl.evaluate()
-                logs = pufferl.train()
-                if logs is not None and target_key in logs and pufferl.global_step >= min_sweep_steps:
-                    timesteps.append(logs['agent_steps'])
-                    scores.append(logs[target_key])
-                    costs.append(pufferl.uptime)
+            scores = downsample_linear([log[target_key] for log in all_logs], 10)
+            costs = downsample_linear([log['uptime'] for log in all_logs], 10)
+            timesteps = downsample_linear([log['agent_steps'] for log in all_logs], 10)
 
-            steps_evaluated = 0
-            costs.append(time.time() - pufferl.start_time)
-            batch_size = args['train']['batch_size']
-            timesteps.append(pufferl.global_step)
-            while len(pufferl.stats[target_metric]) < min_eval_points:
-                stats = pufferl.evaluate()
-                steps_evaluated += batch_size
-
-            pufferl.mean_and_log()
-            scores.append(stats[target_metric])
-            pufferl.close()
-
-            scores = downsample_linear(scores, 10)
-            costs = downsample_linear(costs, 10)
-            timesteps = downsample_linear(timesteps, 10)
-
-            # Hacky patch to prevent increasing total_timesteps when not swept
-            total_timesteps = args['train']['total_timesteps']
             for score, cost, timestep in zip(scores, costs, timesteps):
                 args['train']['total_timesteps'] = timestep
                 sweep.observe(args, score, cost)
 
+            # Prevent logging final eval steps as training steps
             args['train']['total_timesteps'] = total_timesteps
 
         exit(0)
-
-    if args['mode'] == 'autotune':
-        pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
-        exit(0)
-
-    args['train']['use_rnn'] = rnn_cls is not None
-    exp_id = args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8]
-    env_name = args['env_name']
-
-    if args['baseline']:
-        assert args['mode'] in ('train', 'eval', 'evaluate')
-        args['track'] = True
-        version = '.'.join(pufferlib.__version__.split('.')[:2])
-        args['exp_id'] = f'puf-{version}-{env_name}'
-        args['wandb_group'] = f'puf-{version}-baseline'
-        shutil.rmtree(f'experiments/{args["exp_id"]}', ignore_errors=True)
-        run = init_wandb(args, args['exp_id'], resume=False)
-        if args['mode'] in ('eval', 'evaluate'):
-            model_name = f'puf-{version}-{env_name}_model:latest'
-            artifact = run.use_artifact(model_name)
-            data_dir = artifact.download()
-            model_file = max(os.listdir(data_dir))
-            args['eval_model_path'] = os.path.join(data_dir, model_file)
 
     if args['mode'] == 'eval':
         args['vec'] = dict(backend='Serial', num_envs=1)
@@ -1081,24 +1056,40 @@ if __name__ == '__main__':
     vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
     policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
 
+    run_id = args['exp_id']
+    if run_id is not None:
+        assert args['mode'] in ('train', 'eval', 'evaluate')
+        if args['neptune']:
+            import neptune
+            neptune_name = args['neptune_name']
+            neptune_project = args['neptune_project']
+            run = neptune.init_run(
+                project=f"{neptune_name}/{neptune_project}",
+                with_id=run_id, mode="read-only")
+            run["model"].download(destination="downloaded_artifact")
+        elif args['wandb']:
+            args['track'] = True
+            version = '.'.join(pufferlib.__version__.split('.')[:2])
+            args['exp_id'] = f'puf-{version}-{env_name}'
+            args['wandb_group'] = f'puf-{version}-baseline'
+            shutil.rmtree(f'experiments/{args["exp_id"]}', ignore_errors=True)
+            run = init_wandb(args, args['exp_id'], resume=False)
+            model_name = f'{env_name}-{run_id}_model:latest'
+            artifact = run.use_artifact(model_name)
+            data_dir = artifact.download()
+            model_file = max(os.listdir(data_dir))
+            args['eval_model_path'] = os.path.join(data_dir, model_file)
+        else:
+            raise pufferlib.APIUsageError('No run id provided for eval')
+
+        policy.load_state_dict(torch.load("downloaded_artifact/model.pt"))
+
     if args['load_model_path'] is not None:
         policy.load_state_dict(torch.load(
             args['load_model_path'], map_location=args['train']['device']))
 
     if args['mode'] == 'train':
-        train_config = dict(**args['train'], env=env_name, tag=args['tag'], exp_id=exp_id)
-        pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
-
-        while pufferl.global_step < train_config['total_timesteps']:
-            pufferl.evaluate()
-            logs = pufferl.train()
-
-        vecenv.async_reset(train_config['seed'])
-        for _ in range(10):
-            stats = pufferl.evaluate()
-
-        pufferl.mean_and_log()
-        pufferl.close()
+        experiment(vecenv, policy, args)
     elif args['mode'] == 'eval':
         ob, info = vecenv.reset()
         driver = vecenv.driver_env
