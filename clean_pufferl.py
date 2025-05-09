@@ -188,11 +188,15 @@ class CleanPuffeRL:
         self.neptune = neptune
         self.wandb = wandb
         if neptune:
-            self.neptune = init_neptune(args, env_name, id=config['run_id'], tag=config['tag'])
+            self.neptune = init_neptune(args, tag=config['tag'])
+            self.run_id = self.neptune._sys_id
             for k, v in pufferlib.unroll_nested_dict(args):
                 self.neptune[k].append(v)
         elif wandb:
-            self.wandb = init_wandb(args, env_name, id=config['run_id'], tag=config['tag'])
+            self.wandb = init_wandb(args, tag=config['tag'])
+            self.run_id = self.wandb.run.id
+        else:
+            self.run_id = int(random.random() * 1e8)
 
         # Profiling
         self.uptime = 0
@@ -562,25 +566,20 @@ class CleanPuffeRL:
     def close(self):
         self.vecenv.close()
         self.utilization.stop()
-        config = self.config
         model_path = self.save_checkpoint()
+        path = os.path.join(self.config['data_dir'], f'{self.run_id}.pt')
+        shutil.copy(model_path, path)
         if self.wandb:
-            exp_id = config['exp_id']
-            artifact_name = f'{exp_id}_model'
-            artifact = self.wandb.Artifact(artifact_name, type='model')
-            artifact.add_file(model_path)
+            artifact = self.wandb.Artifact(self.run_id, type='model')
+            artifact.add_file(path)
             self.wandb.run.log_artifact(artifact)
             self.wandb.finish()
         elif self.neptune:
-            model = torch.load(model_path)
-            torch.save(model, '/tmp/model.pt')
-            self.neptune['model'].track_files('/tmp/model.pt')
+            self.neptune['model'].track_files(path)
             self.neptune.stop()
 
     def save_checkpoint(self):
-        config = self.config
-        exp_id = config['exp_id']
-        path = os.path.join(config['data_dir'], exp_id)
+        path = os.path.join(self.config['data_dir'], self.run_id)
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -597,7 +596,7 @@ class CleanPuffeRL:
             'agent_step': self.global_step,
             'update': self.epoch,
             'model_name': model_name,
-            'exp_id': exp_id,
+            'run_id': self.run_id,
         }
         state_path = os.path.join(path, 'trainer_state.pt')
         torch.save(state, state_path + '.tmp')
@@ -606,7 +605,7 @@ class CleanPuffeRL:
 
     def try_load_checkpoint(self):
         config = self.config
-        path = os.path.join(config['data_dir'], config['exp_id'])
+        path = os.path.join(config['data_dir'], self.run_id)
         if not os.path.exists(path):
             print('No checkpoints found. Assuming new experiment')
             return
@@ -852,7 +851,7 @@ def fmt_perf(name, color, delta_ref, prof):
     return f'{color}{name}', duration(prof['elapsed']), f'{b2}{percent:2d}{c2}%'
 
 
-def init_wandb(args, name, id=None, resume=True, tag=None):
+def init_wandb(args, id=None, resume=True, tag=None):
     import wandb
     wandb.init(
         id=id or wandb.util.generate_id(),
@@ -862,12 +861,11 @@ def init_wandb(args, name, id=None, resume=True, tag=None):
         save_code=False,
         resume=resume,
         config=args,
-        name=name,
         tags=[tag] if tag is not None else [],
     )
     return wandb
 
-def init_neptune(args, name, id=None, resume=True, tag=None, mode="async"):
+def init_neptune(args, id=None, resume=True, tag=None, mode="async"):
     import neptune
     import neptune.exceptions
     try:
@@ -903,7 +901,7 @@ def downsample_linear(arr, m):
     return np.interp(x_new, x_old, arr)
 
 def experiment(vecenv, policy, args):
-    train_config = dict(**args['train'], env=env_name, tag=args['tag'], exp_id=exp_id)
+    train_config = dict(**args['train'], env=env_name, tag=args['tag'])
     pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
 
     all_logs = []
@@ -935,15 +933,13 @@ if __name__ == '__main__':
         choices='train eval sweep autotune profile'.split())
     parser.add_argument('--load-model-path', type=str, default=None,
         help='Path to a pretrained checkpoint')
-    parser.add_argument('--baseline', action='store_true',
-        help='Load pretrained model from WandB if available')
+    parser.add_argument('--load-id', type=str,
+        default=None, help='Kickstart/eval from from a finished Wandb/Neptune run')
     parser.add_argument('--render-mode', type=str, default='auto',
         choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
     parser.add_argument('--save-frames', type=int, default=0)
     parser.add_argument('--gif-path', type=str, default='eval.gif')
     parser.add_argument('--fps', type=float, default=15)
-    parser.add_argument('--exp-id', '--exp-name', type=str,
-        default=None, help='Resume from experiment')
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
@@ -1010,8 +1006,8 @@ if __name__ == '__main__':
         exit(0)
 
     args['train']['use_rnn'] = rnn_cls is not None
-    exp_id = args['exp_id'] or env_name + '-' + str(uuid.uuid4())[:8]
     env_name = args['env_name']
+    device = args['train']['device']
 
     if args['mode'] == 'sweep':
         if not args['wandb'] and not args['neptune']:
@@ -1056,33 +1052,29 @@ if __name__ == '__main__':
     vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
     policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
 
-    run_id = args['exp_id']
-    if run_id is not None:
-        assert args['mode'] in ('train', 'eval', 'evaluate')
+    load_id = args['load_id']
+    if load_id is not None:
+        if args['mode'] not in ('train', 'eval'):
+            raise pufferlib.APIUsageError('load_id requires mode to be train or eval')
+
         if args['neptune']:
             import neptune
             neptune_name = args['neptune_name']
             neptune_project = args['neptune_project']
             run = neptune.init_run(
                 project=f"{neptune_name}/{neptune_project}",
-                with_id=run_id, mode="read-only")
-            run["model"].download(destination="downloaded_artifact")
+                with_id=load_id, mode="read-only")
+            data_dir = 'artifacts'
+            run["model"].download(destination=data_dir)
         elif args['wandb']:
-            args['track'] = True
-            version = '.'.join(pufferlib.__version__.split('.')[:2])
-            args['exp_id'] = f'puf-{version}-{env_name}'
-            args['wandb_group'] = f'puf-{version}-baseline'
-            shutil.rmtree(f'experiments/{args["exp_id"]}', ignore_errors=True)
-            run = init_wandb(args, args['exp_id'], resume=False)
-            model_name = f'{env_name}-{run_id}_model:latest'
-            artifact = run.use_artifact(model_name)
+            run = init_wandb(args, load_id, resume='must')
+            artifact = run.use_artifact(f'{load_id}:latest')
             data_dir = artifact.download()
             model_file = max(os.listdir(data_dir))
-            args['eval_model_path'] = os.path.join(data_dir, model_file)
         else:
             raise pufferlib.APIUsageError('No run id provided for eval')
 
-        policy.load_state_dict(torch.load("downloaded_artifact/model.pt"))
+        policy.load_state_dict(torch.load(f'{data_dir}/{load_id}.pt', map_location=device))
 
     if args['load_model_path'] is not None:
         policy.load_state_dict(torch.load(
@@ -1095,8 +1087,8 @@ if __name__ == '__main__':
         driver = vecenv.driver_env
         num_agents = vecenv.observation_space.shape[0]
         state = dict(
-            lstm_h=torch.zeros(num_agents, policy.hidden_size, device=args['train']['device']),
-            lstm_c=torch.zeros(num_agents, policy.hidden_size, device=args['train']['device']),
+            lstm_h=torch.zeros(num_agents, policy.hidden_size, device=device),
+            lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
         )
 
         frames = []
