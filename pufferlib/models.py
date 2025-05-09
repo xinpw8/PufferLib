@@ -21,7 +21,7 @@ class Default(nn.Module):
     the recurrent cell into encode_observations and put everything after
     into decode_actions.
     '''
-    def __init__(self, env, hidden_size=128, use_p3o=False, p3o_horizon=32, use_diayn=False, diayn_skills=128):
+    def __init__(self, env, hidden_size=128):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_multidiscrete = isinstance(env.single_action_space,
@@ -38,7 +38,6 @@ class Default(nn.Module):
             input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
-            #self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
             self.encoder = torch.nn.Sequential(
                 nn.Linear(np.prod(env.single_observation_space.shape), hidden_size),
                 nn.GELU(),
@@ -58,28 +57,8 @@ class Default(nn.Module):
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
-        if use_diayn:
-            self.diayn_discriminator = nn.Sequential(
-                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
-                nn.ReLU(),
-                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
-            )
-
-        self.use_p3o = use_p3o
-        self.p3o_horizon = p3o_horizon
-        if use_p3o:
-            self.value_mean = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, p3o_horizon), std=1)
-            self.value_logstd = nn.Parameter(torch.zeros(1, p3o_horizon))
-
-            #param = np.log10(np.arange(1, N+1))
-            #param = 1 - np.exp(-np.sqrt(np.arange(N)))
-            #self.value_logstd = nn.Parameter(torch.tensor(param).view(1, N))
-            #self.value_logstd = pufferlib.pytorch.layer_init(
-            #    nn.Linear(hidden_size, 32), std=0.01)
-        else:
-            self.value = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, 1), std=1)
+        self.value = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
         hidden = self.encode_observations(observations, state=state)
@@ -114,15 +93,7 @@ class Default(nn.Module):
         else:
             logits = self.decoder(hidden)
 
-        if self.use_p3o:
-            mean=self.value_mean(hidden)
-            values = pufferlib.namespace(
-                mean=mean,
-                std=torch.exp(torch.clamp(self.value_logstd, -10, 10)).expand_as(mean),
-            )
-        else:
-            values = self.value(hidden)
-
+        values = self.value(hidden)
         return logits, values
 
 class LSTMWrapper(nn.Module):
