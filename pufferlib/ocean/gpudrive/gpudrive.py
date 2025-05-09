@@ -12,6 +12,7 @@ class GPUDrive(pufferlib.PufferEnv):
             human_agent_idx=0,
             reward_vehicle_collision=-0.1,
             reward_offroad_collision=-0.1,
+            spawn_immunity_timer=30,
             buf = None,
             seed=1):
 
@@ -43,6 +44,7 @@ class GPUDrive(pufferlib.PufferEnv):
                 human_agent_idx=human_agent_idx,
                 reward_vehicle_collision=reward_vehicle_collision,
                 reward_offroad_collision=reward_offroad_collision,
+                spawn_immunity_timer=spawn_immunity_timer,
                 env_id=i
             )
             env_ids.append(env_id)
@@ -68,7 +70,7 @@ class GPUDrive(pufferlib.PufferEnv):
             self.terminals, self.truncations, info)
 
     def render(self):
-        binding.vec_render(self.c_envs, 63)
+        binding.vec_render(self.c_envs, 5)
         
     def close(self):
         binding.vec_close(self.c_envs)
