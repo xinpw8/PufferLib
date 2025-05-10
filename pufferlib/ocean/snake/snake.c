@@ -76,7 +76,7 @@ void test_performance(float test_time) {
 }
 
 int main() {
-    // demo();
-    test_performance(30);
+    demo();
+    // test_performance(30);
     return 0;
 }

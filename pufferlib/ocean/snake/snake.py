@@ -33,7 +33,6 @@ class Snake(pufferlib.PufferEnv):
         self.max_snake_length = min(max_snake_length, max_area)
         self.report_interval = report_interval
 
-        # This block required by advanced PufferLib env spec
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=2, shape=(2*vision+1, 2*vision+1), dtype=np.int8)
         self.single_action_space = gymnasium.spaces.Discrete(4)
@@ -41,18 +40,42 @@ class Snake(pufferlib.PufferEnv):
         self.render_mode = render_mode
         self.tick = 0
 
-        # Calculate cell_size for rendering
         self.cell_size = int(np.ceil(1280 / max(max(width), max(height))))
 
         super().__init__(buf)
-        self.c_envs = binding.vec_init(self.observations, self.actions,
-            self.rewards, self.terminals, self.truncations,
-            num_envs, seed, width=width, height=height,
-            num_snakes=num_snakes, num_food=num_food, vision=vision,
-            max_snake_length=max_snake_length,
-            leave_corpse_on_death=leave_corpse_on_death,
-            reward_food=reward_food, reward_corpse=reward_corpse,
-            reward_death=reward_death, cell_size=self.cell_size)
+        c_envs = []
+        offset = 0
+        for i in range(num_envs):
+            ns = num_snakes[i]
+            obs_slice = self.observations[offset:offset+ns]
+            act_slice = self.actions[offset:offset+ns]
+            rew_slice = self.rewards[offset:offset+ns]
+            term_slice = self.terminals[offset:offset+ns]
+            trunc_slice = self.truncations[offset:offset+ns]
+            # Seed each env uniquely: i + seed * num_envs
+            env_seed = i + seed * num_envs
+            env_id = binding.env_init(
+                obs_slice, 
+                act_slice, 
+                rew_slice, 
+                term_slice, 
+                trunc_slice,
+                env_seed,
+                width=width[i], 
+                height=height[i],
+                num_snakes=ns, 
+                num_food=num_food[i],
+                vision=vision, 
+                leave_corpse_on_death=leave_corpse_on_death[i],
+                reward_food=reward_food, 
+                reward_corpse=reward_corpse,
+                reward_death=reward_death, 
+                max_snake_length=self.max_snake_length,
+                cell_size=self.cell_size
+            )
+            c_envs.append(env_id)
+            offset += ns
+        self.c_envs = binding.vectorize(*c_envs)
  
     def reset(self, seed=None):
         self.tick = 0
