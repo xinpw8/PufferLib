@@ -142,18 +142,22 @@ static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
     Py_DECREF(py_seed);
 
     PyObject* empty_args = PyTuple_New(0);
-    if (my_init(env, empty_args, kwargs)) {
-        //PyErr_SetString(PyExc_TypeError, "env_init failed");
-        Py_DECREF(kwargs);
+    my_init(env, empty_args, kwargs);
+    Py_DECREF(kwargs);
+    if (PyErr_Occurred()) {
         return NULL;
     }
 
-    Py_DECREF(kwargs);
     return PyLong_FromVoidPtr(env);
 }
 
 // Python function to reset the environment
 static PyObject* env_reset(PyObject* self, PyObject* args) {
+    if (PyTuple_Size(args) != 2) {
+        PyErr_SetString(PyExc_TypeError, "env_reset requires 2 arguments");
+        return NULL;
+    }
+
     Env* env = unpack_env(args);
     if (!env){
         return NULL;
@@ -165,6 +169,12 @@ static PyObject* env_reset(PyObject* self, PyObject* args) {
 
 // Python function to step the environment
 static PyObject* env_step(PyObject* self, PyObject* args) {
+    int num_args = PyTuple_Size(args);
+    if (num_args != 1) {
+        PyErr_SetString(PyExc_TypeError, "vec_render requires 1 argument");
+        return NULL;
+    }
+
     Env* env = unpack_env(args);
     if (!env){
         return NULL;
@@ -208,7 +218,12 @@ static VecEnv* unpack_vecenv(PyObject* args) {
 
     VecEnv* vec = (VecEnv*)PyLong_AsVoidPtr(handle_obj);
     if (!vec) {
-        PyErr_SetString(PyExc_ValueError, "Invalid vec env handle");
+        PyErr_SetString(PyExc_ValueError, "Missing or invalid vec env handle");
+        return NULL;
+    }
+
+    if (vec->num_envs <= 0) {
+        PyErr_SetString(PyExc_ValueError, "Missing or invalid vec env handle");
         return NULL;
     }
 
@@ -361,9 +376,9 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         Py_DECREF(py_seed);
 
         PyObject* empty_args = PyTuple_New(0);
-        if (my_init(env, empty_args, kwargs)) {
-            PyErr_SetString(PyExc_TypeError, "env_init failed");
-            Py_DECREF(kwargs);
+        my_init(env, empty_args, kwargs);
+        Py_DECREF(kwargs);
+        if (PyErr_Occurred()) {
             return NULL;
         }
     }
@@ -407,6 +422,11 @@ static PyObject* vectorize(PyObject* self, PyObject* args) {
 }
 
 static PyObject* vec_reset(PyObject* self, PyObject* args) {
+    if (PyTuple_Size(args) != 2) {
+        PyErr_SetString(PyExc_TypeError, "vec_reset requires 2 arguments");
+        return NULL;
+    }
+
     VecEnv* vec = unpack_vecenv(args);
     if (!vec) {
         return NULL;
@@ -428,6 +448,12 @@ static PyObject* vec_reset(PyObject* self, PyObject* args) {
 }
 
 static PyObject* vec_step(PyObject* self, PyObject* arg) {
+    int num_args = PyTuple_Size(arg);
+    if (num_args != 1) {
+        PyErr_SetString(PyExc_TypeError, "vec_step requires 1 argument");
+        return NULL;
+    }
+
     VecEnv* vec = unpack_vecenv(arg);
     if (!vec) {
         return NULL;
@@ -530,9 +556,10 @@ static PyObject* vec_close(PyObject* self, PyObject* args) {
 static double unpack(PyObject* kwargs, char* key) {
     PyObject* val = PyDict_GetItemString(kwargs, key);
     if (val == NULL) {
-        // If the key doesn't exist, don't set an error - this allows optional parameters
-        // Just return a default value that the caller can check for
-        return 0.0;
+        char error_msg[100];
+        snprintf(error_msg, sizeof(error_msg), "Missing required keyword argument '%s'", key);
+        PyErr_SetString(PyExc_TypeError, error_msg);
+        return 1;
     }
     if (PyLong_Check(val)) {
         long out = PyLong_AsLong(val);
