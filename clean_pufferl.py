@@ -572,7 +572,7 @@ class CleanPuffeRL:
         s.add_row(f'{c2}Uptime', duration(self.uptime, b2, c2))
         s.add_row(f'{c2}Remaining', remaining)
 
-        delta = profile.eval['delta'] + profile.train['delta']
+        delta = profile.eval['buffer'] + profile.train['buffer']
         p = Table(box=None, expand=True, show_header=False)
         p.add_column(f"{c1}Performance", justify="left", width=10)
         p.add_column(f"{c1}Time", justify="right", width=8)
@@ -648,7 +648,7 @@ def duration(seconds, b2, c2):
     return f"{b2}{h}{c2}h {b2}{m}{c2}m {b2}{s}{c2}s" if h else f"{b2}{m}{c2}m {b2}{s}{c2}s" if m else f"{b2}{s}{c2}s"
 
 def fmt_perf(name, color, delta_ref, prof, b2, c2):
-    percent = 0 if delta_ref == 0 else int(100*prof['delta']/delta_ref - 1e-5)
+    percent = 0 if delta_ref == 0 else int(100*prof['buffer']/delta_ref - 1e-5)
     return f'{color}{name}', duration(prof['elapsed'], b2, c2), f'{b2}{percent:2d}{c2}%'
 
 def dist_sum(value, device):
@@ -703,7 +703,9 @@ class Profile:
 
     def clear(self):
         for prof in self.profiles.values():
-            prof['delta'] = 0
+            if prof['delta'] > 0:
+                prof['buffer'] = prof['delta']
+                prof['delta'] = 0
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):
@@ -860,7 +862,7 @@ if __name__ == '__main__':
     # Unpack to nested dict
     parsed = vars(parser.parse_args())
     env_name = parsed.pop('env')
-    args = {}
+    args = defaultdict(dict)
     for key, value in parsed.items():
         next = args
         for subkey in key.split('.'):
