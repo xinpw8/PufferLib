@@ -37,9 +37,9 @@ class NMMO3(nn.Module):
         self.is_continuous = False
 
         self.map_2d = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 256, 5, stride=3)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 128, 5, stride=3)),
             nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Conv2d(256, 256, 3, stride=1)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(128, 128, 3, stride=1)),
             nn.Flatten(),
         )
 
@@ -49,7 +49,7 @@ class NMMO3(nn.Module):
         )
 
         self.proj = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(2073, hidden_size)),
+            pufferlib.pytorch.layer_init(nn.Linear(1817, hidden_size)),
             nn.ReLU(),
         )
 
