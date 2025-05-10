@@ -23,7 +23,7 @@ class PyCPR(pufferlib.PufferEnv):
         heights = num_envs*heights 
         num_agents = num_envs*num_agents 
 
-        self.single_observation_space = gymnasium.spaces.Box(low=0, high=255, shape=((2*vision+1)*(2*vision+1)+1,), dtype=np.uint8)
+        self.single_observation_space = gymnasium.spaces.Box(low=0, high=255, shape=((2*vision+1)*(2*vision+1),), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(5)
         self.render_mode = render_mode
         self.num_agents = sum(num_agents)
