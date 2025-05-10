@@ -217,9 +217,11 @@ class CleanPuffeRL:
             done_mask = d + t
             self.global_step += mask.sum()
 
-            profile('eval_copy', epoch)
             o = torch.as_tensor(o)
+            o = o.pin_memory()
+            profile('eval_copy', epoch)
             o_device = o.to(device, non_blocking=True)
+            profile('eval_misc', epoch)
             r = torch.as_tensor(r).to(device, non_blocking=True)
             d = torch.as_tensor(d).to(device, non_blocking=True)
 
