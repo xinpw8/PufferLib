@@ -83,7 +83,6 @@ class CleanPuffeRL:
         self.truncations = torch.zeros(segments, horizon, device=device)
         self.ratio = torch.ones(segments, horizon, device=device)
         self.importance = torch.ones(segments, horizon, device=device)
-        self.ep_uses = torch.zeros(segments, device=device, dtype=torch.int32)
         self.ep_lengths = torch.zeros(total_agents, device=device, dtype=torch.int32)
         self.ep_indices = torch.arange(total_agents, device=device, dtype=torch.int32)
         self.free_idx = total_agents
@@ -168,22 +167,33 @@ class CleanPuffeRL:
             self.run_id = str(int(random.random() * 1e8))
 
         # Initializations
-        self.global_step = 0
-        self.uptime = 0
-        self.epoch = 0
         self.config = config
         self.vecenv = vecenv
+        self.epoch = 0
+        self.global_step = 0
+        self.last_log_step = 0
+        self.last_log_time = time.time()
         self.start_time = time.time()
         self.utilization = Utilization()
         self.profile = Profile()
         self.stats = defaultdict(list)
+        self.last_stats = defaultdict(list)
         self.losses = {}
 
         # Dashboard
-        num_params = sum(p.numel() for p in policy.parameters() if p.requires_grad)
-        params, unit = abbreviate(num_params)
-        self.msg = f'Model Size: {params} {unit} parameters'
+        self.model_size = sum(p.numel() for p in policy.parameters() if p.requires_grad)
         self.print_dashboard(clear=True)
+
+    @property
+    def uptime(self):
+        return time.time() - self.start_time
+
+    @property
+    def sps(self):
+        if self.global_step == self.last_log_step:
+            return 0
+
+        return (self.global_step - self.last_log_step) / (time.time() - self.last_log_time)
 
     def evaluate(self):
         profile = self.profile
@@ -282,7 +292,6 @@ class CleanPuffeRL:
         self.free_idx = self.total_agents
         self.ep_indices = torch.arange(self.total_agents, device=device, dtype=torch.int32)
         self.ep_lengths.zero_()
-        self.ep_uses.zero_()
         profile.end()
         return self.stats
 
@@ -299,6 +308,7 @@ class CleanPuffeRL:
         clip_coef = config['clip_coef']
         vf_clip = config['vf_clip_coef']
         anneal_beta = b0 + (1 - b0)*a*self.epoch/self.total_epochs
+        self.ratio[:] = 1
 
         for mb in range(self.total_minibatches):
             profile('train_misc', epoch, nest=True)
@@ -318,7 +328,6 @@ class CleanPuffeRL:
             prio_probs = (prio_weights + 1e-6)/(prio_weights.sum() + 1e-6)
             idx = torch.multinomial(prio_probs, self.minibatch_segments)
             mb_prio = (self.segments*prio_probs[idx, None])**-anneal_beta
-            self.ep_uses[idx] += 1
             mb_obs = self.observations[idx]
             mb_actions = self.actions[idx]
             mb_logprobs = self.logprobs[idx]
@@ -331,14 +340,14 @@ class CleanPuffeRL:
             mb_advantages = advantages[idx]
 
             profile('train_forward', epoch)
+            if not config['use_rnn']:
+                mb_obs = mb_obs.reshape(-1, *self.vecenv.single_observation_space.shape)
+
             state = dict(
                 action=mb_actions,
                 lstm_h=None,
                 lstm_c=None,
             )
-
-            if not config['use_rnn']:
-                mb_obs = mb_obs.reshape(-1, *self.vecenv.single_observation_space.shape)
 
             # TODO: Currently only returning traj shaped value as a hack
             logits, newvalue = self.policy.forward_train(mb_obs, state)
@@ -353,20 +362,17 @@ class CleanPuffeRL:
 
             # TODO: Only do this if we are KL clipping? Saves 1-2% compute
             with torch.no_grad():
-                # calculate approx_kl http://joschu.net/blog/kl-approx.html
                 old_approx_kl = (-logratio).mean()
                 approx_kl = ((ratio - 1) - logratio).mean()
                 clipfrac = ((ratio - 1.0).abs() > config['clip_coef']).float().mean()
 
             # TODO: Do you need to do this? Policy hasn't changed
-            with torch.no_grad():
-                adv = advantages[idx]
-                torch.ops.pufferlib.compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
-                    ratio, adv, config['gamma'], config['gae_lambda'],
-                    config['vtrace_rho_clip'], config['vtrace_c_clip'])
-
+            adv = advantages[idx]
+            torch.ops.pufferlib.compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
+                ratio, adv, config['gamma'], config['gae_lambda'],
+                config['vtrace_rho_clip'], config['vtrace_c_clip'])
             adv = mb_advantages
-            adv = mb_prio * (adv - adv.mean()) / (adv.std() + 1e-8)
+            adv = mb_prio * (adv - adv.mean()) / (adv.std() + 1e-8) # TODO: Norm by full batch
 
             # Losses
             pg_loss1 = -adv * ratio
@@ -385,9 +391,9 @@ class CleanPuffeRL:
             self.amp_context.__enter__() # TODO: Debug
 
             # This breaks vloss clipping?
-            with torch.no_grad():
-                self.values[idx] = newvalue.float()
+            self.values[idx] = newvalue.detach().float()
 
+            # Logging
             profile('train_misc', epoch)
             losses['policy_loss'] += pg_loss.item() / self.total_minibatches
             losses['value_loss'] += v_loss.item() / self.total_minibatches
@@ -397,6 +403,7 @@ class CleanPuffeRL:
             losses['clipfrac'] += clipfrac.item() / self.total_minibatches
             losses['importance'] += ratio.mean().item() / self.total_minibatches
 
+            # Learn on accumulated minibatches
             profile('learn', epoch)
             loss.backward()
             if (mb + 1) % self.accumulate_minibatches == 0:
@@ -406,32 +413,28 @@ class CleanPuffeRL:
 
         # Reprioritize experience
         profile('train_misc', epoch)
-        self.max_uses = self.ep_uses.max().item()
-        self.mean_uses = self.ep_uses.float().mean().item()
-        self.ratio[:] = 1
-
         if config['anneal_lr']:
             self.scheduler.step()
 
         y_pred = self.values.flatten()
-        # TODO: Probably not updated
         y_true = advantages.flatten() + self.values.flatten()
-
         var_y = y_true.var()
         explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
         losses['explained_variance'] = explained_var.item()
 
         profile.end()
-        profile.clear()
         logs = None
         self.epoch += 1
         done_training = self.global_step >= config['total_timesteps']
-        if done_training or self.global_step == 0 or time.time() - self.start_time - self.uptime > 1:
-            self.uptime = time.time() - self.start_time
+        if done_training or self.global_step == 0 or time.time() > self.last_log_time + 0.25:
             logs = self.mean_and_log()
             self.losses = losses
             self.print_dashboard()
+            self.last_stats = self.stats
             self.stats = defaultdict(list)
+            self.last_log_time = time.time()
+            self.last_log_step = self.global_step
+            profile.clear()
 
         if self.epoch % config['checkpoint_interval'] == 0 or done_training:
             self.save_checkpoint()
@@ -453,13 +456,11 @@ class CleanPuffeRL:
         device = config['device']
         agent_steps = int(dist_sum(self.global_step, device))
         logs = {
-            #'SPS': dist_sum(self.profile.SPS, device),
+            'SPS': dist_sum(self.sps, device),
             'agent_steps': agent_steps,
             'uptime': time.time() - self.start_time,
             'epoch': int(dist_sum(self.epoch, device)),
             'learning_rate': self.optimizer.param_groups[0]["lr"],
-            'max_uses': self.max_uses,
-            'mean_uses': self.mean_uses,
             **{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
             **{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
             **{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
@@ -467,8 +468,7 @@ class CleanPuffeRL:
 
         if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
             return logs
-
-        if self.wandb:
+        elif self.wandb:
             self.wandb.log(logs)
         elif self.neptune:
             for k, v in logs.items():
@@ -531,62 +531,48 @@ class CleanPuffeRL:
         self.optimizer.load_state_dict(resume_state['optimizer_state_dict'])
         print(f'Loaded checkpoint {resume_state["model_name"]}')
 
-    def print_dashboard(self, clear=False, max_stats=[0]):
-        utilization = self.utilization
+    def print_dashboard(self, clear=False, idx=[0],
+            c1='[cyan]', c2='[white]', b1='[bright_cyan]', b2='[bright_white]'):
         profile = self.profile
         config = self.config
         console = Console()
-        if clear:
-            console.clear()
-
         dashboard = Table(box=rich.box.ROUNDED, expand=True,
             show_header=False, border_style='bright_cyan')
-
-        c1 = '[cyan]'
-        c2 = '[white]'
-        b1 = '[bright_cyan]'
-        b2 = '[bright_white]'
-
         table = Table(box=None, expand=True, show_header=False)
         dashboard.add_row(table)
-        cpu_percent = np.mean(utilization.cpu_util)
-        dram_percent = np.mean(utilization.cpu_mem)
-        gpu_percent = np.mean(utilization.gpu_util)
-        vram_percent = np.mean(utilization.gpu_mem)
+
         table.add_column(justify="left", width=30)
         table.add_column(justify="center", width=12)
         table.add_column(justify="center", width=12)
         table.add_column(justify="center", width=13)
         table.add_column(justify="right", width=13)
+
         table.add_row(
-            f':blowfish: {b1}PufferLib {b2}2.0.0',
-            f'{c1}CPU: {b2}{cpu_percent:.1f}{c2}%',
-            f'{c1}GPU: {b2}{gpu_percent:.1f}{c2}%',
-            f'{c1}DRAM: {b2}{dram_percent:.1f}{c2}%',
-            f'{c1}VRAM: {b2}{vram_percent:.1f}{c2}%',
+            f'{b1}PufferLib {b2}2.0.0 {idx[0]*" "}:blowfish:',
+            f'{c1}CPU: {b2}{np.mean(self.utilization.cpu_util):.1f}{c2}%',
+            f'{c1}GPU: {b2}{np.mean(self.utilization.gpu_util):.1f}{c2}%',
+            f'{c1}DRAM: {b2}{np.mean(self.utilization.cpu_mem):.1f}{c2}%',
+            f'{c1}VRAM: {b2}{np.mean(self.utilization.gpu_mem):.1f}{c2}%',
         )
+        idx[0] = (idx[0] - 1) % 10
             
         s = Table(box=None, expand=True)
-        SPS = 0
-        delta = profile.eval['delta'] + profile.train['delta']
+        sps = self.sps
         remaining = 'A hair past a freckle'
-        if delta != 0:
-            SPS = config['batch_size'] / delta
-            remaining = duration((config['total_timesteps'] - self.global_step)/SPS, b2, c2)
+        if sps != 0:
+            remaining = duration((config['total_timesteps'] - self.global_step)/sps, b2, c2)
 
-        uptime = time.time() - self.start_time
         s.add_column(f"{c1}Summary", justify='left', vertical='top', width=10)
         s.add_column(f"{c1}Value", justify='right', vertical='top', width=14)
         s.add_row(f'{c2}Env', f'{b2}{config["env"]}')
-        steps, unit = abbreviate(self.global_step)
-        s.add_row(f'{c2}Steps', f'{b2}{steps:.1f}{c2}{unit}')
-        sps, unit = abbreviate(SPS)
-        s.add_row(f'{c2}SPS', f'{b2}{sps:.1f}{c2}{unit}')
-        epoch, unit = abbreviate(self.epoch)
-        s.add_row(f'{c2}Epoch', f'{b2}{epoch}{c2}{unit}')
-        s.add_row(f'{c2}Uptime', duration(uptime, b2, c2))
+        s.add_row(f'{c2}Params', abbreviate(self.model_size, b2, c2))
+        s.add_row(f'{c2}Steps', abbreviate(self.global_step, b2, c2))
+        s.add_row(f'{c2}SPS', abbreviate(sps, b2, c2))
+        s.add_row(f'{c2}Epoch', f'{b2}{self.epoch}')
+        s.add_row(f'{c2}Uptime', duration(self.uptime, b2, c2))
         s.add_row(f'{c2}Remaining', remaining)
 
+        delta = profile.eval['delta'] + profile.train['delta']
         p = Table(box=None, expand=True, show_header=False)
         p.add_column(f"{c1}Performance", justify="left", width=10)
         p.add_column(f"{c1}Time", justify="right", width=8)
@@ -601,8 +587,6 @@ class CleanPuffeRL:
         p.add_row(*fmt_perf('  Learn', c2, delta, profile.learn, b2, c2))
         p.add_row(*fmt_perf('  Copy', c2, delta, profile.train_copy, b2, c2))
         p.add_row(*fmt_perf('  Misc', c2, delta, profile.train_misc, b2, c2))
-        if 'custom' in profile.profiles:
-            p.add_row(*fmt_perf('  Custom', c2, uptime, profile.custom, b2, c2))
 
         l = Table(box=None, expand=True, )
         l.add_column(f'{c1}Losses', justify="left", width=16)
@@ -624,7 +608,7 @@ class CleanPuffeRL:
         right.add_column(f"{c1}User Stats", justify="left", width=20)
         right.add_column(f"{c1}Value", justify="right", width=10)
         i = 0
-        for metric, value in self.stats.items():
+        for metric, value in (self.stats or self.last_stats).items():
             try: # Discard non-numeric values
                 int(value)
             except:
@@ -636,20 +620,36 @@ class CleanPuffeRL:
             if i == 30:
                 break
 
-        for i in range(max_stats[0] - i):
-            u = left if i % 2 == 0 else right
-            u.add_row('', '')
-
-        max_stats[0] = max(max_stats[0], i)
-
-        table = Table(box=None, expand=True, pad_edge=False)
-        dashboard.add_row(table)
-        table.add_row(f' {c1}Message: {c2}{self.msg}')
+        if clear:
+            console.clear()
 
         with console.capture() as capture:
             console.print(dashboard)
 
         print('\033[0;0H' + capture.get())
+
+def abbreviate(num, b2, c2):
+    if num < 1e3:
+        return str(num)
+    elif num < 1e6:
+        return f'{num/1e3:.1f}K'
+    elif num < 1e9:
+        return f'{num/1e6:.1f}M'
+    elif num < 1e12:
+        return f'{num/1e9:.1f}B'
+    else:
+        return f'{num/1e12:.2f}T'
+
+def duration(seconds, b2, c2):
+    seconds = int(seconds)
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{b2}{h}{c2}h {b2}{m}{c2}m {b2}{s}{c2}s" if h else f"{b2}{m}{c2}m {b2}{s}{c2}s" if m else f"{b2}{s}{c2}s"
+
+def fmt_perf(name, color, delta_ref, prof, b2, c2):
+    percent = 0 if delta_ref == 0 else int(100*prof['delta']/delta_ref - 1e-5)
+    return f'{color}{name}', duration(prof['elapsed'], b2, c2), f'{b2}{percent:2d}{c2}%'
 
 def dist_sum(value, device):
     if not torch.distributed.is_initialized():
@@ -683,7 +683,6 @@ class Profile:
 
         torch.cuda.synchronize()
         tick = time.time()
-
         if len(self.stack) != 0 and not nest:
             self.pop(tick)
 
@@ -693,23 +692,18 @@ class Profile:
     def pop(self, end):
         profile = self.profiles[self.stack.pop()]
         delta = end - profile['start']
-        profile['buffer'] += delta
         profile['elapsed'] += delta
-        profile['calls'] += 1
+        profile['delta'] += delta
 
     def end(self):
         torch.cuda.synchronize()
         end = time.time()
-
         for i in range(len(self.stack)):
             self.pop(end)
 
     def clear(self):
-        for v in self.profiles.values():
-            if v['buffer'] != 0:
-                v['delta'] = v['buffer']
-
-            v['buffer'] = 0
+        for prof in self.profiles.values():
+            prof['delta'] = 0
 
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):
@@ -718,9 +712,8 @@ class Utilization(Thread):
         self.cpu_util = deque(maxlen=maxlen)
         self.gpu_util = deque(maxlen=maxlen)
         self.gpu_mem = deque(maxlen=maxlen)
-
-        self.delay = delay
         self.stopped = False
+        self.delay = delay
         self.start()
 
     def run(self):
@@ -735,34 +728,11 @@ class Utilization(Thread):
             else:
                 self.gpu_util.append(0)
                 self.gpu_mem.append(0)
+
             time.sleep(self.delay)
 
     def stop(self):
         self.stopped = True
-
-def abbreviate(num):
-    if num < 1e3:
-        return num, ''
-    elif num < 1e6:
-        return num/1e3, 'k'
-    elif num < 1e9:
-        return num/1e6, 'm'
-    elif num < 1e12:
-        return num/1e9, 'b'
-    else:
-        return num/1e12, 't'
-
-def duration(seconds, b2, c2):
-    seconds = int(seconds)
-    h = seconds // 3600
-    m = (seconds % 3600) // 60
-    s = seconds % 60
-    return f"{b2}{h}{c2}h {b2}{m}{c2}m {b2}{s}{c2}s" if h else f"{b2}{m}{c2}m {b2}{s}{c2}s" if m else f"{b2}{s}{c2}s"
-
-def fmt_perf(name, color, delta_ref, prof, b2, c2):
-    percent = 0 if delta_ref == 0 else int(100*prof['delta']/delta_ref - 1e-5)
-    return f'{color}{name}', duration(prof['elapsed'], b2, c2), f'{b2}{percent:2d}{c2}%'
-
 
 def init_wandb(args, id=None, resume=True, tag=None):
     import wandb
@@ -795,24 +765,25 @@ def init_neptune(args, id=None, resume=True, tag=None, mode="async"):
         )
     except neptune.exceptions.NeptuneConnectionLostException:
         print("couldn't connect to neptune, logging in offline mode")
-        return init_neptune(args, name, id, resume, tag, mode="offline")
+        return init_neptune(args, id, resume, tag, mode="offline")
     return run
 
+# TODO:  Do we need this?
 def make_policy(env, policy_cls, rnn_cls, args):
     policy = policy_cls(env, **args['policy'])
-    args['rnn']['input_size'] = policy.hidden_size
-    args['rnn']['hidden_size'] = policy.hidden_size
     if rnn_cls is not None:
         policy = rnn_cls(env, policy, **args['rnn'])
 
     return policy.to(args['train']['device'])
 
+# TODO: Is there a simpler interp
 def downsample_linear(arr, m):
     n = len(arr)
     x_old = np.linspace(0, 1, n)  # Original indices normalized
     x_new = np.linspace(0, 1, m)  # New indices normalized
     return np.interp(x_new, x_old, arr)
 
+# TODO: All logs?
 def experiment(vecenv, policy, args):
     train_config = dict(**args['train'], env=env_name, tag=args['tag'])
     pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
