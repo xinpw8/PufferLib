@@ -57,10 +57,14 @@ class CleanPuffeRL:
         self.total_agents = total_agents
 
         # Experience
-        batch_size = config['batch_size']
-        if config['bptt_horizon'] == 'auto':
-            config['bptt_horizon'] = batch_size // total_agents
+        if config['batch_size'] == 'auto' and config['bptt_horizon'] == 'auto':
+            raise pufferlib.APIUsageError('Must specify batch_size or bptt_horizon')
+        elif config['batch_size'] == 'auto':
+            config['batch_size'] = total_agents * config['bptt_horizon']
+        elif config['bptt_horizon'] == 'auto':
+            config['bptt_horizon'] = config['batch_size'] // total_agents
 
+        batch_size = config['batch_size']
         horizon = config['bptt_horizon']
         segments = batch_size // horizon
         self.segments = segments
