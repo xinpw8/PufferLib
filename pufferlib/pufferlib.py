@@ -29,11 +29,11 @@ def set_buffers(env, buf=None):
         env.masks = np.ones(env.num_agents, dtype=bool)
 
         # TODO: Major kerfuffle on inferring action space dtype. This needs some asserts?
-        atn_space = env.single_action_space
+        atn_space = pufferlib.spaces.joint_space(env.single_action_space, env.num_agents)
         if isinstance(env.single_action_space, pufferlib.spaces.Box):
-            env.actions = np.zeros((env.num_agents, *atn_space.shape), dtype=atn_space.dtype)
+            env.actions = np.zeros(atn_space.shape, dtype=atn_space.dtype)
         else:
-            env.actions = np.zeros((env.num_agents, *atn_space.shape), dtype=np.int32)
+            env.actions = np.zeros(atn_space.shape, dtype=np.int32)
     else:
         env.observations = buf['observations']
         env.rewards = buf['rewards']
