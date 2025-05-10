@@ -158,9 +158,9 @@ class GymnasiumPufferEnv(gymnasium.Env):
 
         self.is_obs_emulated = self.single_observation_space is not self.env.observation_space
         self.is_atn_emulated = self.single_action_space is not self.env.action_space
-        self.emulated = pufferlib.namespace(
-            observation_dtype = self.observation_space.dtype,
-            emulated_observation_dtype = self.obs_dtype,
+        self.emulated = dict(
+            observation_dtype=self.observation_space.dtype,
+            emulated_observation_dtype=self.obs_dtype,
         )
 
         self.render_modes = 'human rgb_array'.split()
@@ -260,7 +260,7 @@ class PettingZooPufferEnv:
             emulate_action_space(self.env_single_action_space))
         self.is_obs_emulated = self.single_observation_space is not self.env_single_observation_space
         self.is_atn_emulated = self.single_action_space is not self.env_single_action_space
-        self.emulated = pufferlib.namespace(
+        self.emulated = dict(
             observation_dtype = self.single_observation_space.dtype,
             emulated_observation_dtype = self.obs_dtype,
         )

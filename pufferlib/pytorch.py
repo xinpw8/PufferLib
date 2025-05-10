@@ -47,7 +47,7 @@ NativeDType = Union[NativeDTypeValue, Dict[str, Union[NativeDTypeValue, "NativeD
 
 # TODO: handle discrete obs
 # Spend some time trying to break this fn with differnt obs
-def nativize_dtype(emulated: pufferlib.namespace) -> NativeDType:
+def nativize_dtype(emulated) -> NativeDType:
     # sample dtype - the dtype of what we obtain from the environment (usually bytes)
     sample_dtype: np.dtype = emulated.observation_dtype
     # structured dtype - the gym.Space converted numpy dtype

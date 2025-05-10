@@ -74,7 +74,7 @@ class Serial:
         ptr = 0
         for i in range(num_envs):
             end = ptr + self.driver_env.num_agents
-            buf_i = pufferlib.namespace(
+            buf_i = dict(
                 observations=self.observations[ptr:end],
                 rewards=self.rewards[ptr:end],
                 terminals=self.terminals[ptr:end],
@@ -175,25 +175,25 @@ def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, at
     # Environments read and write directly to shared memory
     shape = (num_workers, num_envs*num_agents)
     atn_arr = np.ndarray((*shape, *atn_shape),
-        dtype=atn_dtype, buffer=shm.actions)[worker_idx]
-    buf = pufferlib.namespace(
+        dtype=atn_dtype, buffer=shm['actions'])[worker_idx]
+    buf = dict(
         observations=np.ndarray((*shape, *obs_shape),
-            dtype=obs_dtype, buffer=shm.observations)[worker_idx],
-        rewards=np.ndarray(shape, dtype=np.float32, buffer=shm.rewards)[worker_idx],
-        terminals=np.ndarray(shape, dtype=bool, buffer=shm.terminals)[worker_idx],
-        truncations=np.ndarray(shape, dtype=bool, buffer=shm.truncateds)[worker_idx],
-        masks=np.ndarray(shape, dtype=bool, buffer=shm.masks)[worker_idx],
+            dtype=obs_dtype, buffer=shm['observations'])[worker_idx],
+        rewards=np.ndarray(shape, dtype=np.float32, buffer=shm['rewards'])[worker_idx],
+        terminals=np.ndarray(shape, dtype=bool, buffer=shm['terminals'])[worker_idx],
+        truncations=np.ndarray(shape, dtype=bool, buffer=shm['truncateds'])[worker_idx],
+        masks=np.ndarray(shape, dtype=bool, buffer=shm['masks'])[worker_idx],
         actions=atn_arr,
     )
-    buf.masks[:] = True
+    buf['masks'][:] = True
 
     if is_native and num_envs == 1:
         envs = env_creators[0](*env_args[0], **env_kwargs[0], buf=buf, seed=seed)
     else:
         envs = Serial(env_creators, env_args, env_kwargs, num_envs, buf=buf, seed=seed*num_envs)
 
-    semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=shm.semaphores)
-    notify=np.ndarray(num_workers, dtype=bool, buffer=shm.notify)
+    semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=shm['semaphores'])
+    notify=np.ndarray(num_workers, dtype=bool, buffer=shm['notify'])
     start = time.time()
     while True:
         if notify[worker_idx]:
@@ -297,7 +297,7 @@ class Multiprocessing:
         from multiprocessing import RawArray, set_start_method
         # Mac breaks without setting fork... but setting it breaks sweeps on 2nd run
         #set_start_method('fork')
-        self.shm = pufferlib.namespace(
+        self.shm = dict(
             observations=RawArray(obs_ctype, num_agents * int(np.prod(obs_shape))),
             actions=RawArray(atn_ctype, num_agents * int(np.prod(atn_shape))),
             rewards=RawArray('f', num_agents),
@@ -311,18 +311,18 @@ class Multiprocessing:
         self.obs_batch_shape = (self.agents_per_batch, *obs_shape)
         self.atn_batch_shape = (self.workers_per_batch, agents_per_worker, *atn_shape)
         self.actions = np.ndarray((*shape, *atn_shape),
-            dtype=atn_dtype, buffer=self.shm.actions)
-        self.buf = pufferlib.namespace(
+            dtype=atn_dtype, buffer=self.shm['actions'])
+        self.buf = dict(
             observations=np.ndarray((*shape, *obs_shape),
-                dtype=obs_dtype, buffer=self.shm.observations),
-            rewards=np.ndarray(shape, dtype=np.float32, buffer=self.shm.rewards),
-            terminals=np.ndarray(shape, dtype=bool, buffer=self.shm.terminals),
-            truncations=np.ndarray(shape, dtype=bool, buffer=self.shm.truncateds),
-            masks=np.ndarray(shape, dtype=bool, buffer=self.shm.masks),
-            semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=self.shm.semaphores),
-            notify=np.ndarray(num_workers, dtype=bool, buffer=self.shm.notify),
+                dtype=obs_dtype, buffer=self.shm['observations']),
+            rewards=np.ndarray(shape, dtype=np.float32, buffer=self.shm['rewards']),
+            terminals=np.ndarray(shape, dtype=bool, buffer=self.shm['terminals']),
+            truncations=np.ndarray(shape, dtype=bool, buffer=self.shm['truncateds']),
+            masks=np.ndarray(shape, dtype=bool, buffer=self.shm['masks']),
+            semaphores=np.ndarray(num_workers, dtype=np.uint8, buffer=self.shm['semaphores']),
+            notify=np.ndarray(num_workers, dtype=bool, buffer=self.shm['notify']),
         )
-        self.buf.semaphores[:] = MAIN
+        self.buf['semaphores'][:] = MAIN 
 
         from multiprocessing import Pipe, Process
         self.send_pipes, w_recv_pipes = zip(*[Pipe() for _ in range(num_workers)])
@@ -356,13 +356,13 @@ class Multiprocessing:
             # Bandaid patch for new experience buffer desync
             if self.sync_traj:
                 worker = self.waiting_workers[0]
-                sem = self.buf.semaphores[worker]
+                sem = self.buf['semaphores'][worker]
                 if sem >= MAIN:
                     self.waiting_workers.pop(0)
                     self.ready_workers.append(worker)
             else:
                 worker = self.waiting_workers.pop(0)
-                sem = self.buf.semaphores[worker]
+                sem = self.buf['semaphores'][worker]
                 if sem >= MAIN:
                     self.ready_workers.append(worker)
                 else:
@@ -424,10 +424,10 @@ class Multiprocessing:
         self.w_slice = w_slice
         buf = self.buf
 
-        o = buf.observations[w_slice].reshape(self.obs_batch_shape)
-        r = buf.rewards[w_slice].ravel()
-        d = buf.terminals[w_slice].ravel()
-        t = buf.truncations[w_slice].ravel()
+        o = buf['observations'][w_slice].reshape(self.obs_batch_shape)
+        r = buf['rewards'][w_slice].ravel()
+        d = buf['terminals'][w_slice].ravel()
+        t = buf['truncations'][w_slice].ravel()
 
         infos = []
         for i in s_range:
@@ -436,7 +436,7 @@ class Multiprocessing:
                 self.infos[i] = []
 
         agent_ids = self.agent_ids[w_slice].ravel()
-        m = buf.masks[w_slice].ravel()
+        m = buf['masks'][w_slice].ravel()
         self.batch_mask = m
 
         return o, r, d, t, infos, agent_ids, m
@@ -447,7 +447,7 @@ class Multiprocessing:
         
         idxs = self.w_slice
         self.actions[idxs] = actions
-        self.buf.semaphores[idxs] = STEP
+        self.buf['semaphores'][idxs] = STEP
 
     def async_reset(self, seed=0):
         self.flag = RECV
@@ -459,42 +459,16 @@ class Multiprocessing:
         self.waiting_workers = list(range(self.num_workers))
         self.infos = [[] for _ in range(self.num_workers)]
 
-        self.buf.semaphores[:] = RESET
+        self.buf['semaphores'][:] = RESET
         for i in range(self.num_workers):
             start = i*self.envs_per_worker
             end = (i+1)*self.envs_per_worker
             self.send_pipes[i].send(seed+i)
 
     def notify(self):
-        self.buf.notify[:] = True
+        self.buf['notify'][:] = True
 
     def close(self):
-        '''
-        while self.waiting_workers:
-            worker = self.waiting_workers.pop(0)
-            sem = self.buf.semaphores[worker]
-            if sem >= MAIN:
-                self.ready_workers.append(worker)
-                if sem == INFO:
-                    self.recv_pipes[worker].recv()
-            else:
-                self.waiting_workers.append(worker)
-
-        self.buf.semaphores[:] = CLOSE
-        self.waiting_workers = list(range(self.num_workers))
-
-        while self.waiting_workers:
-            worker = self.waiting_workers.pop(0)
-            sem = self.buf.semaphores[worker]
-            if sem >= MAIN:
-                self.ready_workers.append(worker)
-                if sem == INFO:
-                    self.recv_pipes[worker].recv()
- 
-            else:
-                self.waiting_workers.append(worker)
-        '''
-
         for p in self.processes:
             p.terminate()
 
@@ -691,7 +665,7 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
             raise pufferlib.APIUsageError('env_creators must be a list of callables')
         if not isinstance(env_args[i], (list, tuple)):
             raise pufferlib.APIUsageError('env_args must be a list of lists or tuples')
-        if not isinstance(env_kwargs[i], (dict, pufferlib.Namespace)):
+        if not isinstance(env_kwargs[i], dict):
             raise pufferlib.APIUsageError('env_kwargs must be a list of dictionaries')
 
     # Keeps batch size consistent when debugging with Serial backend
