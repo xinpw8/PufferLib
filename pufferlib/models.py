@@ -62,7 +62,6 @@ class Default(nn.Module):
 
     def forward(self, observations, state=None):
         hidden = self.encode_observations(observations, state=state)
-        state.hidden = hidden
         logits, values = self.decode_actions(hidden)
         return logits, values
 
