@@ -650,13 +650,22 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
         return vecenv
 
     if 'num_workers' in kwargs:
-        num_workers = kwargs['num_workers']
+        if kwargs['num_workers'] == 'auto':
+            kwargs['num_workers'] = num_envs
+        
+
         # TODO: None?
-        envs_per_worker = num_envs / num_workers
+        envs_per_worker = num_envs / kwargs['num_workers']
         if envs_per_worker != int(envs_per_worker):
             raise pufferlib.APIUsageError('num_envs must be divisible by num_workers')
 
         if 'batch_size' in kwargs:
+            if kwargs['batch_size'] == 'auto':
+                if num_envs == 1:
+                    kwargs['batch_size'] = 1
+                else:
+                    kwargs['batch_size'] = num_envs // 2
+
             batch_size = kwargs['batch_size']
             if batch_size is None:
                 batch_size = num_envs
