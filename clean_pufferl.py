@@ -93,7 +93,6 @@ class CleanPuffeRL:
 
         # LSTM
         if config['use_rnn']:
-            # TODO: Doesn't exist in native envs
             n = vecenv.agents_per_batch
             h = policy.hidden_size
             self.lstm_h = {i*n: torch.zeros(n, h, device=device) for i in range(total_agents//n)}
@@ -243,8 +242,7 @@ class CleanPuffeRL:
                     state['lstm_c'] = self.lstm_c[env_id.start]
 
                 logits, value = self.policy(o_device, state)
-                action, logprob, _ = pufferlib.pytorch.sample_logits(
-                    logits, is_continuous=self.policy.is_continuous)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
                 r = torch.clamp(r, -1, 1)
 
             profile('eval_copy', epoch)
@@ -280,6 +278,8 @@ class CleanPuffeRL:
                     self.full_rows += num_full
 
                 action = action.cpu().numpy()
+                if isinstance(logits, torch.distributions.Normal):
+                    action = np.clip(action, vecenv.action_space.low, vecenv.action_space.high)
 
             profile('eval_misc', epoch)
             for i in info:
@@ -357,8 +357,8 @@ class CleanPuffeRL:
 
             # TODO: Currently only returning traj shaped value as a hack
             logits, newvalue = self.policy.forward_train(mb_obs, state)
-            actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits,
-                action=mb_actions, is_continuous=self.policy.is_continuous)
+            # TODO: Redundant actions?
+            actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
 
             profile('train_misc', epoch)
             newlogprob = newlogprob.reshape(mb_logprobs.shape)
@@ -985,10 +985,13 @@ if __name__ == '__main__':
         ob, info = vecenv.reset()
         driver = vecenv.driver_env
         num_agents = vecenv.observation_space.shape[0]
-        state = dict(
-            lstm_h=torch.zeros(num_agents, policy.hidden_size, device=device),
-            lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
-        )
+
+        state = {}
+        if args['train']['use_rnn']:
+            state = dict(
+                lstm_h=torch.zeros(num_agents, policy.hidden_size, device=device),
+                lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
+            )
 
         frames = []
         while True:
@@ -1010,8 +1013,7 @@ if __name__ == '__main__':
             with torch.no_grad():
                 ob = torch.as_tensor(ob).to(args['train']['device'])
                 logits, value = policy(ob, state)
-                action, logprob, _ = pufferlib.pytorch.sample_logits(
-                    logits, is_continuous=policy.is_continuous)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
                 action = action.cpu().numpy().reshape(vecenv.action_space.shape)
 
             ob = vecenv.step(action)[0]
