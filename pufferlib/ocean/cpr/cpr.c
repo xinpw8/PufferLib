@@ -3,16 +3,16 @@
 #include <unistd.h>
 
 int main() {
-  int width = 24;
-  int height = 24;
+  int width = 32;
+  int height = 32;
 
   int render_cell_size = 32;
 
   CCpr env = {
-      .num_agents = 8,
+      .num_agents = 1,
       .width = width,
       .height = height,
-      .vision = 2,
+      .vision = 3,
       .reward_food = 1.0f,
       .interactive_food_reward = 5.0f,
       .food_base_spawn_rate = 2e-3,
@@ -21,9 +21,9 @@ int main() {
   c_reset(&env);
 
   Renderer *renderer = init_renderer(render_cell_size, width, height);
-
   while (!WindowShouldClose()) {
 
+    c_render(renderer, &env);
     int st = 0;
     // User can take control of the first puffer
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -41,12 +41,10 @@ int main() {
       sleep(2);
     }
     for (int i = st; i < env.num_agents; i++) {
-      env.actions[i] = rand() % 4;
+      env.actions[i] = rand() % 5;
       // printf("Agent %d gets actions %d\n", i, env->actions[i]);
     }
     c_step(&env);
-
-    c_render(renderer, &env);
   }
   close_renderer(renderer);
   free_CCpr(&env);
