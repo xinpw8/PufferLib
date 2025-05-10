@@ -804,8 +804,11 @@ def experiment(vecenv, policy, args):
             all_logs.append(logs)
 
     vecenv.async_reset(train_config['seed'])
-    for _ in range(10):
+    i = 0
+    stats = {}
+    while i < 10 and not stats:
         stats = pufferl.evaluate()
+        i += 1
 
     logs = pufferl.mean_and_log()
     if logs is not None:
