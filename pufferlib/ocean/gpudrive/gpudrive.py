@@ -7,17 +7,18 @@ import pufferlib
 from pufferlib.ocean.gpudrive import binding
 
 class GPUDrive(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode=None, report_interval=1,
+    def __init__(self, render_mode=None, report_interval=1,
             width=1280, height=1024,
             human_agent_idx=0,
             reward_vehicle_collision=-0.1,
             reward_offroad_collision=-0.1,
             spawn_immunity_timer=30,
+            num_maps=100,
+            num_agents=512,
             buf = None,
             seed=1):
 
         # env
-        self.num_agents = num_envs
         self.render_mode = render_mode
         self.report_interval = report_interval
         
@@ -25,10 +26,8 @@ class GPUDrive(pufferlib.PufferEnv):
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
-        
-        agent_offsets = binding.shared(num_envs=num_envs)
-        total_agents = agent_offsets[-1]
-        self.num_agents = total_agents
+        agent_offsets, map_ids, num_envs = binding.shared(num_agents=num_agents, num_maps=num_maps)
+        self.num_agents = num_agents
         super().__init__(buf=buf)
         env_ids = []
         for i in range(num_envs):
@@ -45,7 +44,8 @@ class GPUDrive(pufferlib.PufferEnv):
                 reward_vehicle_collision=reward_vehicle_collision,
                 reward_offroad_collision=reward_offroad_collision,
                 spawn_immunity_timer=spawn_immunity_timer,
-                env_id=i
+                map_id=map_ids[i],
+                max_agents = nxt-cur
             )
             env_ids.append(env_id)
 
@@ -70,7 +70,7 @@ class GPUDrive(pufferlib.PufferEnv):
             self.terminals, self.truncations, info)
 
     def render(self):
-        binding.vec_render(self.c_envs, 5)
+        binding.vec_render(self.c_envs, 0)
         
     def close(self):
         binding.vec_close(self.c_envs)
@@ -242,7 +242,7 @@ def process_all_maps():
     data_dir = Path("data/processed/training")
     
     # Get all JSON files in the training directory
-    json_files = sorted(data_dir.glob("*.json"))[0:512]
+    json_files = sorted(data_dir.glob("*.json"))
     
     print(f"Found {len(json_files)} JSON files")
     

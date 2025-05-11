@@ -341,6 +341,9 @@ void set_active_agents(GPUDrive* env){
     int expert_static_car_indices[MAX_CARS];
     env->active_agent_count = 1;
     active_agent_indices[0] = env->num_objects-1;
+    if(env->num_agents ==0){
+        env->num_agents = MAX_CARS;
+    }
     for(int i = 0; i < env->num_objects-1 && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
@@ -356,13 +359,13 @@ void set_active_agents(GPUDrive* env){
         env->entities[i].width *= 0.7f;
         env->entities[i].length *= 0.7f;
         
-        if(distance_to_goal >= 2.0f && env->entities[i].mark_as_expert == 0){
+        if(distance_to_goal >= 2.0f && env->entities[i].mark_as_expert == 0 && env->active_agent_count < env->num_agents){
             active_agent_indices[env->active_agent_count] = i;
             env->active_agent_count++;
         } else {
             static_car_indices[env->static_car_count] = i;
             env->static_car_count++;
-            if(env->entities[i].mark_as_expert == 1){
+            if(env->entities[i].mark_as_expert == 1 || (distance_to_goal >=2.0f && env->active_agent_count == env->num_agents)){
                 expert_static_car_indices[env->expert_static_car_count] = i;
                 env->expert_static_car_count++;
             }
@@ -909,7 +912,7 @@ float normalize_value(float value, float min, float max){
 }
 
 float reverse_normalize_value(float value, float min, float max){
-    return value*20.0f;
+    return value*50.0f;
 }
 
 void compute_observations(GPUDrive* env) {
@@ -932,8 +935,8 @@ void compute_observations(GPUDrive* env) {
         float rel_goal_y = -goal_x*sin_heading + goal_y*cos_heading;
         //obs[0] = normalize_value(rel_goal_x, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
         //obs[1] = normalize_value(rel_goal_y, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
-        obs[0] = rel_goal_x/20.0f;
-        obs[1] = rel_goal_y/20.0f;
+        obs[0] = rel_goal_x/50.0f;
+        obs[1] = rel_goal_y/50.0f;
         //obs[2] = ego_speed / MAX_SPEED;
         obs[2] = ego_speed / 5.0f;
         obs[3] = ego_entity->width / MAX_VEH_WIDTH;
@@ -963,8 +966,8 @@ void compute_observations(GPUDrive* env) {
             float rel_x = dx*cos_heading + dy*sin_heading;
             float rel_y = -dx*sin_heading + dy*cos_heading;
             // Store observations with correct indexing
-            obs[obs_idx] = rel_x / 20.0f;
-            obs[obs_idx + 1] = rel_y / 20.0f;
+            obs[obs_idx] = rel_x / 50.0f;
+            obs[obs_idx + 1] = rel_y / 50.0f;
             obs[obs_idx + 2] = other_entity->width / MAX_VEH_WIDTH;
             obs[obs_idx + 3] = other_entity->length / MAX_VEH_LEN;
             // relative heading
@@ -1013,8 +1016,8 @@ void compute_observations(GPUDrive* env) {
             // Compute sin and cos of relative angle directly without atan2f
             float cos_angle = dx_norm*cos_heading + dy_norm*sin_heading;
             float sin_angle = -dx_norm*sin_heading + dy_norm*cos_heading;
-            obs[obs_idx] = x_obs / 20.0f;
-            obs[obs_idx + 1] = y_obs / 20.0f;
+            obs[obs_idx] = x_obs / 50.0f;
+            obs[obs_idx + 1] = y_obs / 50.0f;
             obs[obs_idx + 2] = length / MAX_ROAD_SEGMENT_LENGTH;
             obs[obs_idx + 3] = width / MAX_ROAD_SCALE;
             obs[obs_idx + 4] = cos_angle / MAX_ORIENTATION_RAD;
@@ -1110,10 +1113,10 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].y,
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
-        if(distance_to_goal < 2.0f){            
+        if(distance_to_goal < 2.0f){  
             env->rewards[i] += 1.0f;
+            env->logs[i].episode_return += 1.0f;
 	        env->entities[agent_idx].reached_goal = 1;
-	        env->logs[i].episode_return += 1.0f;
             env->entities[agent_idx].reached_goal_this_episode = 1;
 	    }
     }
