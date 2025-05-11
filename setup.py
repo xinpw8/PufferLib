@@ -11,53 +11,26 @@ import zipfile
 import tarfile
 import platform
 
-from setuptools.command.build_ext import build_ext as DefaultBuildExt
-	
-#  python3 setup.py built_ext --inplace
+from setuptools.command.build_ext import build_ext
+from torch.utils import cpp_extension
 
-class CustomBuildExt(DefaultBuildExt):
+
+class BuildExt(build_ext):
     def run(self):
-        # Split extensions into PyTorch and non-PyTorch
-        pytorch_extensions = [ext for ext in self.extensions if ext.name == 'pufferlib._C']
-        other_extensions = [ext for ext in self.extensions if ext.name != 'pufferlib._C']
+        self.run_command('build_torch')
+        self.run_command('build_c')
 
-        # Build PyTorch extensions with cpp_extension.BuildExtension
-        if pytorch_extensions:
-            pytorch_build_ext = cpp_extension.BuildExtension(self.distribution)
-            # Temporarily set extensions to only PyTorch ones
-            original_extensions = self.extensions
-            self.extensions = pytorch_extensions
-            pytorch_build_ext.run()
-            self.extensions = original_extensions  # Restore original extensions
+class CBuildExt(build_ext):
+    def run(self):
+        self.extensions = [e for e in self.extensions if e.name != "pufferlib._C"]
+        super().run()
 
-        # Build other extensions with default setuptools build_ext
-        if other_extensions:
-            self.extensions = other_extensions
-            super().run()
+class TorchBuildExt(cpp_extension.BuildExtension):
+    def run(self):
+        self.extensions = [e for e in self.extensions if e.name == "pufferlib._C"]
+        super().run()
 
-'''
-        + cythonize(
-        [
-            "pufferlib/extensions.pyx",
-            "c_advantage.pyx",
-            "pufferlib/puffernet.pyx",
-            *extensions,
-        ], 
-        compiler_directives={
-            'language_level': 3,
-            'boundscheck': False,
-            'initializedcheck': False,
-            'wraparound': False,
-            'cdivision': True,
-            'nonecheck': False,
-            'profile': False,
-        },
-           #nthreads=6,
-           #annotate=True,
-           #compiler_directives={'profile': True},# annotate=True
-    ),
-'''
- 
+	
 VERSION = '2.0.6'
 
 RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.5/'
@@ -378,9 +351,8 @@ c_extensions = [
     for name in pure_c_extensions
 ]
 
-from torch.utils import cpp_extension
 torch_extensions = [
-    cpp_extension.CUDAExtension(
+   cpp_extension.CUDAExtension(
         "pufferlib._C",
         ["pufferlib.cpp", "pufferlib/pufferlib.cu"],
         extra_compile_args = {
@@ -442,8 +414,12 @@ setup(
         'common': common,
         **environments,
     },
-    ext_modules = c_extensions,
-    #cmdclass={"build_ext": cpp_extension.BuildExtension},
+    ext_modules = c_extensions + torch_extensions,
+    cmdclass={
+        "build_ext": BuildExt,
+        "build_torch": TorchBuildExt,
+        "build_c": CBuildExt,
+    },
     include_dirs=[numpy.get_include(), RAYLIB_NAME + '/include'],
     python_requires=">=3.9",
     license="MIT",
