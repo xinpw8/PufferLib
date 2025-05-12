@@ -15,7 +15,11 @@ class MettaPuff(pufferlib.PufferEnv):
     def __init__(self, config, render_mode='human', buf=None, seed=0):
         self.render_mode = render_mode
         import mettagrid.mettagrid_env
-        self.env = mettagrid.mettagrid_env.make_env_from_cfg(config, render_mode, buf=buf)
+        from omegaconf import OmegaConf
+        cfg = OmegaConf.load(config)
+
+        from mettagrid.mettagrid_env import MettaGridEnv
+        self.env = MettaGridEnv(cfg, render_mode=render_mode, buf=buf)
 
         if render_mode == 'human':
             from mettagrid.gym_wrapper import RaylibRendererWrapper
@@ -25,12 +29,6 @@ class MettaPuff(pufferlib.PufferEnv):
         self.single_action_space = self.env.single_action_space
         self.num_agents = self.env.num_agents
         super().__init__(buf)
-
-        #cfg = self.env._env_cfg
-        #cfg.eval.env = config_from_path(cfg.eval.env, cfg.eval.env_overrides)
-        #from mettagrid.renderer.raylib.raylib_renderer import MettaGridRaylibRenderer
-        #self.env._renderer =  MettaGridRaylibRenderer(self.env._c_env, self.env._env_cfg['game'])
-
 
     def step(self, actions):
         obs, rew, term, trunc, info = self.env.step(actions)

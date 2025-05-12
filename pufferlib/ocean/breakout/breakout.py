@@ -46,7 +46,7 @@ class Breakout(pufferlib.PufferEnv):
             brick_cols=brick_cols, continuous=continuous
         )
 
-    def reset(self, seed=None):
+    def reset(self, seed=0):
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []

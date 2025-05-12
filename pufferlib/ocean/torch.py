@@ -29,16 +29,17 @@ class NMMO3(nn.Module):
         #self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
         self.num_actions = env.single_action_space.n
         self.factors = np.array([4, 4, 17, 5, 3, 5, 5, 5, 7, 4])
-        self.offsets = torch.tensor([0] + list(np.cumsum(self.factors)[:-1])).cuda().view(1, -1, 1, 1)
+        offsets = torch.tensor([0] + list(np.cumsum(self.factors)[:-1])).view(1, -1, 1, 1)
+        self.register_buffer('offsets', offsets)
         self.cum_facs = np.cumsum(self.factors)
 
         self.multihot_dim = self.factors.sum()
         self.is_continuous = False
 
         self.map_2d = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 256, 5, stride=3)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 128, 5, stride=3)),
             nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Conv2d(256, 256, 3, stride=1)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(128, 128, 3, stride=1)),
             nn.Flatten(),
         )
 
@@ -47,7 +48,7 @@ class NMMO3(nn.Module):
             nn.Flatten(),
         )
         self.proj = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(2073, hidden_size)),
+            pufferlib.pytorch.layer_init(nn.Linear(1817, hidden_size)),
             nn.ReLU(),
         )
 
@@ -55,10 +56,6 @@ class NMMO3(nn.Module):
         self.actor = pufferlib.pytorch.layer_init(
             nn.Linear(output_size, self.num_actions), std=0.01)
         self.value_fn = pufferlib.pytorch.layer_init(nn.Linear(output_size, 1), std=1)
-
-        # Pre-allocate allows compilation
-        map_buf = torch.zeros(32768, self.multihot_dim, 11, 15, dtype=torch.float32)
-        self.register_buffer('map_buf', map_buf)
 
     def forward(self, x, state=None):
         hidden = self.encode_observations(x)
@@ -75,15 +72,14 @@ class NMMO3(nn.Module):
         ob_reward = observations[:, -10:]
 
         batch = ob_map.shape[0]
-        map_buf = self.map_buf[:batch]
-        map_buf.zero_()
+        map_buf = torch.zeros(batch, 59, 11, 15, dtype=torch.float32, device=observations.device)
         codes = ob_map.permute(0, 3, 1, 2) + self.offsets
         map_buf.scatter_(1, codes, 1)
         ob_map = self.map_2d(map_buf)
 
         player_discrete = self.player_discrete_encoder(ob_player.int())
 
-        obs = torch.cat([ob_map, player_discrete, ob_player.float(), ob_reward], dim=1)
+        obs = torch.cat([ob_map, player_discrete, ob_player.to(ob_map.dtype), ob_reward], dim=1)
         obs = self.proj(obs)
         return obs
 
@@ -344,10 +340,6 @@ class MOBA(nn.Module):
 
     def encode_observations(self, observations, state=None):
         cnn_features = observations[:, :-26].view(-1, 11, 11, 4).long()
-        if cnn_features[:, :, :, 0].max() > 15:
-            print('Invalid map value:', cnn_features[:, :, :, 0].max())
-            breakpoint()
-            exit(1)
         map_features = F.one_hot(cnn_features[:, :, :, 0], 16).permute(0, 3, 1, 2).float()
         extra_map_features = (cnn_features[:, :, :, -3:].float() / 255).permute(0, 3, 1, 2)
         cnn_features = torch.cat([map_features, extra_map_features], dim=1)

@@ -4,7 +4,7 @@ import json
 import struct
 
 import pufferlib
-from pufferlib.ocean.gpudrive.cy_gpudrive import CyGPUDrive, entity_dtype
+from pufferlib.ocean.gpudrive import binding
 
 class GPUDrive(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1,
@@ -19,46 +19,59 @@ class GPUDrive(pufferlib.PufferEnv):
         self.num_agents = num_envs
         self.render_mode = render_mode
         self.report_interval = report_interval
-        print("Num envs: ", num_envs)
         
         self.num_obs = 6 + 63*7 + 200*7
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
-        
-        total_agents, agent_offsets =CyGPUDrive.get_total_agent_count(
-            num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision)
-        
-        self.num_agents = total_agents * 8
-        print("Num agents: ", self.num_agents)
+        agent_offsets = binding.shared(num_envs=num_envs)
+        total_agents = agent_offsets[-1]
+        self.num_agents = total_agents
         super().__init__(buf=buf)
-        self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards, self.masks,
-            self.terminals, num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision, offsets = agent_offsets)
+        env_ids = []
+        for i in range(num_envs):
+            cur = agent_offsets[i]
+            nxt = agent_offsets[i+1]
+            env_id = binding.env_init(
+                self.observations[cur:nxt],
+                self.actions[cur:nxt],
+                self.rewards[cur:nxt],
+                self.terminals[cur:nxt],
+                self.truncations[cur:nxt],
+                seed,
+                human_agent_idx=human_agent_idx,
+                reward_vehicle_collision=reward_vehicle_collision,
+                reward_offroad_collision=reward_offroad_collision,
+                env_id=i
+            )
+            env_ids.append(env_id)
 
+        self.c_envs = binding.vectorize(*env_ids)
 
-    def reset(self, seed=None):
-        self.c_envs.reset()
+    def reset(self, seed=0):
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         self.tick+=1
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
+            log = binding.vec_log(self.c_envs)
+            if log:
                 info.append(log)
-                info.append({'total_agents': self.num_agents}) 
+
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        binding.vec_render(self.c_envs, 63)
         
     def close(self):
-        self.c_envs.close() 
+        binding.vec_close(self.c_envs)
+
 def calculate_area(p1, p2, p3):
     # Calculate the area of the triangle using the determinant method
     return 0.5 * abs((p1['x'] - p3['x']) * (p2['y'] - p1['y']) - (p1['x'] - p2['x']) * (p3['y'] - p1['y']))
@@ -204,6 +217,7 @@ def save_map_binary(map_data, output_file):
             f.write(struct.pack('f', float(goal_pos.get('y', 0.0))))  # Get y value
             f.write(struct.pack('f', float(goal_pos.get('z', 0.0))))  # Get z value
             f.write(struct.pack('i', road.get('mark_as_expert', 0)))
+
 def load_map(map_name, binary_output=None):
     """Loads a JSON map and optionally saves it as binary"""
     with open(map_name, 'r') as f:
@@ -211,9 +225,6 @@ def load_map(map_name, binary_output=None):
     
     if binary_output:
         save_map_binary(map_data, binary_output)
-    
-    entities = np.zeros(1, dtype=entity_dtype())
-    return entities
 
 def process_all_maps():
     """Process all maps and save them as binaries"""

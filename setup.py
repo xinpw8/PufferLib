@@ -1,3 +1,7 @@
+#TODO:
+# --no-build-isolation for 5090
+# Make c and torch compile at the same time
+
 from setuptools import find_packages, find_namespace_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
@@ -6,46 +10,143 @@ import urllib.request
 import zipfile
 import tarfile
 import platform
+import shutil
+
+from setuptools.command.build_ext import build_ext
+from torch.utils import cpp_extension
+from torch.utils.cpp_extension import (
+    CppExtension,
+    CUDAExtension,
+    BuildExtension,
+    CUDA_HOME,
+)
+
 	
-#  python3 setup.py built_ext --inplace
+import pufferlib
+VERSION = pufferlib.__version__
 
-VERSION = '2.0.6'
+# Build with DEBUG=1 to enable debug symbols
+DEBUG = os.getenv("DEBUG", "0") == "1"
 
+# Put C env names here. PufferLib will look for
+# pufferlib/ocean/<name>/binding.c
+c_extensions_names = [
+    'gpudrive',
+    'squared',
+    'pong',
+    'breakout',
+    'enduro',
+    'blastar',
+    'grid',
+    'nmmo3',
+    'tactical',
+    'go',
+    'cartpole'
+]
+
+# Put full paths to Cython extension here
+# Note we are trying to move away from Cython,
+# because our C envs are lighter weigh and
+# easier to debug (you can run gdb --args python ...)
+cython_extension_paths = [
+    'pufferlib/ocean/moba/cy_moba',
+    'pufferlib/ocean/snake/cy_snake',
+    'pufferlib/ocean/connect4/cy_connect4',
+    'pufferlib/ocean/tripletriad/cy_tripletriad',
+    'pufferlib/ocean/rware/cy_rware',
+    'pufferlib/ocean/trash_pickup/cy_trash_pickup',
+    'pufferlib/ocean/cpr/cy_cpr',
+    'pufferlib/ocean/tower_climb/cy_tower_climb',
+]
+
+# Build raylib for your platform
 RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.5/'
 RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
-
-RAYLIB_LINUX = 'raylib-5.5_linux_amd64'
-RAYLIB_LINUX_URL = RAYLIB_BASE + RAYLIB_LINUX + '.tar.gz'
 RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 
-if not os.path.exists(RAYLIB_LINUX):
-    urllib.request.urlretrieve(RAYLIB_LINUX_URL, RAYLIB_LINUX + '.tar.gz')
-    with tarfile.open(RAYLIB_LINUX + '.tar.gz', 'r') as tar_ref:
-        tar_ref.extractall()
+def download_raylib(platform, url):
+    if not os.path.exists(platform):
+        urllib.request.urlretrieve(url, platform + '.tar.gz')
+        with tarfile.open(platform + '.tar.gz', 'r') as tar_ref:
+            tar_ref.extractall()
 
-    os.remove(RAYLIB_LINUX + '.tar.gz')
-    urllib.request.urlretrieve(RLIGHTS_URL, 'raylib-5.5_linux_amd64/include/rlights.h')
-
-RAYLIB_MACOS = 'raylib-5.5_macos'
-RAYLIB_MACOS_URL = RAYLIB_BASE + RAYLIB_MACOS + '.tar.gz'
-if not os.path.exists(RAYLIB_MACOS):
-    urllib.request.urlretrieve(RAYLIB_MACOS_URL, RAYLIB_MACOS + '.tar.gz')
-    with tarfile.open(RAYLIB_MACOS + '.tar.gz', 'r') as tar_ref:
-        tar_ref.extractall()
-
-    os.remove(RAYLIB_MACOS + '.tar.gz')
-    urllib.request.urlretrieve(RLIGHTS_URL, 'raylib-5.5_macos/include/rlights.h')
+        os.remove(platform + '.tar.gz')
+        urllib.request.urlretrieve(RLIGHTS_URL, platform + '/include/rlights.h')
 
 
 RAYLIB_WASM = 'raylib-5.5_webassembly'
 RAYLIB_WASM_URL = RAYLIB_BASE + RAYLIB_WASM + '.zip'
-if not os.path.exists(RAYLIB_WASM):
-    urllib.request.urlretrieve(RAYLIB_WASM_URL, RAYLIB_WASM + '.zip')
-    with zipfile.ZipFile(RAYLIB_WASM + '.zip', 'r') as zip_ref:
-        zip_ref.extractall()
+download_raylib(RAYLIB_WASM, RAYLIB_WASM_URL)
 
-    os.remove(RAYLIB_WASM + '.zip')
-    urllib.request.urlretrieve(RLIGHTS_URL, 'raylib-5.5_webassembly/include/rlights.h')
+# Shared compile args for all platforms
+extra_compile_args = [
+    '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
+    '-DPLATFORM_DESKTOP',
+]
+extra_link_args = [
+    '-fwrapv'
+]
+cxx_args = [
+    '-fdiagnostics-color=always',
+]
+nvcc_args = []
+
+if DEBUG:
+    extra_compile_args += [
+        '-O0',
+        '-g',
+        '-fsanitize=address,undefined,bounds,pointer-overflow,leak',
+    ]
+    extra_link_args += [
+        '-g',
+    ]
+    cxx_args += [
+        '-O0',
+        '-g',
+    ]
+    nvcc_args += [
+        '-O0',
+        '-g',
+    ]
+else:
+    extra_compile_args += [
+        '-O2',
+    ]
+    extra_link_args += [
+        '-O2',
+    ]
+    cxx_args += [
+        '-O3',
+    ]
+    nvcc_args += [
+        '-O3',
+    ]
+
+system = platform.system()
+if system == 'Linux':
+    extra_compile_args += [
+        '-Wno-alloc-size-larger-than',
+        '-fmax-errors=3',
+    ]
+    extra_link_args += [
+        '-Bsymbolic-functions',
+    ]
+    RAYLIB_LINUX = 'raylib-5.5_linux_amd64'
+    RAYLIB_LINUX_URL = RAYLIB_BASE + RAYLIB_LINUX + '.tar.gz'
+    download_raylib(RAYLIB_LINUX, RAYLIB_LINUX_URL)
+elif system == 'Darwin':
+    extra_compile_args += [
+    ]
+    extra_link_args += [
+        '-framework', 'Cocoa',
+        '-framework', 'OpenGL',
+        '-framework', 'IOKit',
+    ]
+    RAYLIB_MACOS = 'raylib-5.5_macos'
+    RAYLIB_MACOS_URL = RAYLIB_BASE + RAYLIB_MACOS + '.tar.gz'
+    download_raylib(RAYLIB_MACOS, RAYLIB_MACOS_URL)
+else:
+    raise ValueError(f'Unsupported system: {system}')
 
 # Default Gym/Gymnasium/PettingZoo versions
 # Gym:
@@ -60,31 +161,6 @@ if not os.path.exists(RAYLIB_WASM):
 GYMNASIUM_VERSION = '0.29.1'
 GYM_VERSION = '0.23'
 PETTINGZOO_VERSION = '1.24.1'
-
-docs = [
-    'sphinx==5.0.0',
-    'sphinx-rtd-theme==0.5.1',
-    'sphinxcontrib-youtube==1.0.1',
-    'sphinx-rtd-theme==0.5.1',
-    'sphinx-design==0.4.1',
-    'furo==2023.3.27',
-]
-
-cleanrl = [
-    'stable_baselines3==2.1.0',
-    'tensorboard==2.11.2',
-    'torch',
-    'tyro==0.8.6',
-    'wandb==0.19.1',
-    'scipy',
-    'pyro-ppl',
-    'neptune',
-    'heavyball',
-]
-
-ray = [
-    'ray==2.23.0',
-]
 
 environments = {
     'avalon': [
@@ -237,6 +313,30 @@ environments = {
     ],
 }
 
+docs = [
+    'sphinx==5.0.0',
+    'sphinx-rtd-theme==0.5.1',
+    'sphinxcontrib-youtube==1.0.1',
+    'sphinx-rtd-theme==0.5.1',
+    'sphinx-design==0.4.1',
+    'furo==2023.3.27',
+]
+
+cleanrl = [
+    'stable_baselines3==2.1.0',
+    'tensorboard==2.11.2',
+    'torch',
+    'tyro==0.8.6',
+    'wandb==0.19.1',
+    'scipy',
+    'pyro-ppl',
+    'neptune',
+    'heavyball',
+]
+
+ray = [
+    'ray==2.23.0',
+]
 
 # These are the environments that PufferLib has made
 # compatible with the latest version of Gym/Gymnasium/PettingZoo
@@ -264,69 +364,64 @@ common = cleanrl + [environments[env] for env in [
     'vizdoom',
 ]]
 
-extension_paths = [
-    #'pufferlib/ocean/nmmo3/cy_nmmo3',
-    'pufferlib/ocean/moba/cy_moba',
-    # 'pufferlib/ocean/tactical/c_tactical',
-    #'pufferlib/ocean/squared/cy_squared',
-    'pufferlib/ocean/snake/cy_snake',
-    'pufferlib/ocean/gpudrive/cy_gpudrive',
-    #'pufferlib/ocean/pong/cy_pong',
-    # 'pufferlib/ocean/breakout/cy_breakout',
-    # 'pufferlib/ocean/cartpole/cy_cartpole',
-    # 'pufferlib/ocean/connect4/cy_connect4',
-    #'pufferlib/ocean/grid/cy_grid',
-    'pufferlib/ocean/tripletriad/cy_tripletriad',
-    # 'pufferlib/ocean/go/cy_go',
-    'pufferlib/ocean/rware/cy_rware',
-    'pufferlib/ocean/trash_pickup/cy_trash_pickup',
-    'pufferlib/ocean/cpr/cy_cpr',
-    'pufferlib/ocean/tower_climb/cy_tower_climb',
-    'pufferlib/ocean/gpudrive/cy_gpudrive',
-]
+# Extensions 
+class BuildExt(build_ext):
+    def run(self):
+        self.run_command('build_torch')
+        self.run_command('build_c')
 
-system = platform.system()
-if system == 'Darwin':
-    # On macOS, use @loader_path.
-    # The extension “.so” is typically in pufferlib/ocean/...,
-    # and “raylib/lib” is (maybe) two directories up from ocean/<env>.
-    # So @loader_path/../../raylib/lib is common.
-    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION','-DPLATFORM_DESKTOP', '-O2']
-    extra_link_args=['-fwrapv', '-framework', 'Cocoa', '-framework', 'OpenGL', '-framework', 'IOKit']
+class CBuildExt(build_ext):
+    def run(self):
+        self.extensions = [e for e in self.extensions if e.name != "pufferlib._C"]
+        super().run()
 
-elif system == 'Linux':
-    extra_compile_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2', '-Wno-alloc-size-larger-than', '-fmax-errors=3', '-g']
-    extra_link_args=['-fwrapv', '-Bsymbolic-functions', '-O2']
+class TorchBuildExt(cpp_extension.BuildExtension):
+    def run(self):
+        self.extensions = [e for e in self.extensions if e.name == "pufferlib._C"]
+        super().run()
 
-    # On Linux, $ORIGIN works
-else:
-    raise ValueError(f'Unsupported system: {system}')
-
-extensions = [Extension(
-    path.replace('/', '.'),
-    [path + '.pyx'],
-    include_dirs=[numpy.get_include(), 'raylib/include'],
+RAYLIB_A = f'{RAYLIB_NAME}/lib/libraylib.a'
+INCLUDE = [numpy.get_include(), 'raylib/include']
+extension_kwargs = dict(
+    include_dirs=INCLUDE,
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
-    extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
-) for path in extension_paths]
+    extra_objects=[RAYLIB_A],
+)
 
-#c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O0', '-Wno-alloc-size-larger-than', '-g']
-#c_args = ['-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DPLATFORM_DESKTOP', '-O2']
-#c_args += "-Wsign-compare -DNDEBUG -g -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -fPIC".split()
-
-pure_c_extensions = ['squared', 'pong', 'breakout', 'enduro', 'blastar', 'grid', 'nmmo3', 'tactical', 'go', 'cartpole', 'connect4']
-
-extensions += [
+c_extensions = [
     Extension(
         f'pufferlib.ocean.{name}.binding',
         sources=[f'pufferlib/ocean/{name}/binding.c'],
-        include_dirs=[numpy.get_include(), 'raylib/include'],
-        extra_compile_args=extra_compile_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak'],
-        extra_link_args=extra_link_args,# + ['-fsanitize=address,undefined,bounds,pointer-overflow,leak', '-g'],
-        extra_objects=[f'{RAYLIB_NAME}/lib/libraylib.a'],
+        **extension_kwargs,
     )
-    for name in pure_c_extensions
+    for name in c_extensions_names
+]
+
+cython_extensions = cythonize([
+    Extension(
+        path.replace('/', '.'),
+        [path + '.pyx'],
+        **extension_kwargs,
+    )
+    for path in cython_extension_paths
+])
+
+# Check if CUDA compiler is available. You need cuda dev, not just runtime.
+if shutil.which("nvcc"):
+    extension = CUDAExtension
+else:
+    extension = CppExtension
+
+torch_extensions = [
+   extension(
+        "pufferlib._C",
+        ["pufferlib.cpp", "pufferlib/pufferlib.cu"],
+        extra_compile_args = {
+            "cxx": cxx_args,
+            "nvcc": nvcc_args,
+        }
+    ),
 ]
 
 # Prevent Conda from injecting garbage compile flags
@@ -341,7 +436,7 @@ for key in ('CC', 'CXX', 'LDSHARED'):
 for key, value in cfg_vars.items():
     if value and '-fno-strict-overflow' in str(value):
         cfg_vars[key] = value.replace('-fno-strict-overflow', '')
- 
+
 setup(
     name="pufferlib",
     description="PufferAI Library"
@@ -362,6 +457,7 @@ setup(
         f'gym<={GYM_VERSION}',
         f'gymnasium<={GYMNASIUM_VERSION}',
         f'pettingzoo<={PETTINGZOO_VERSION}',
+        'torch',
         'shimmy[gym-v21]',
         'psutil==5.9.5',
         'pynvml',
@@ -375,25 +471,12 @@ setup(
         'common': common,
         **environments,
     },
-    ext_modules = cythonize([
-        "pufferlib/extensions.pyx",
-        "c_advantage.pyx",
-        "pufferlib/puffernet.pyx",
-        *extensions,
-    ], 
-    compiler_directives={
-        'language_level': 3,
-        'boundscheck': False,
-        'initializedcheck': False,
-        'wraparound': False,
-        'cdivision': True,
-        'nonecheck': False,
-        'profile': False,
+    ext_modules = cython_extensions + c_extensions + torch_extensions,
+    cmdclass={
+        "build_ext": BuildExt,
+        "build_torch": TorchBuildExt,
+        "build_c": CBuildExt,
     },
-       #nthreads=6,
-       #annotate=True,
-       #compiler_directives={'profile': True},# annotate=True
-    ),
     include_dirs=[numpy.get_include(), RAYLIB_NAME + '/include'],
     python_requires=">=3.9",
     license="MIT",
@@ -405,10 +488,10 @@ setup(
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
 )
 #stable_baselines3

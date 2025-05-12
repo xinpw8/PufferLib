@@ -47,7 +47,7 @@ NativeDType = Union[NativeDTypeValue, Dict[str, Union[NativeDTypeValue, "NativeD
 
 # TODO: handle discrete obs
 # Spend some time trying to break this fn with differnt obs
-def nativize_dtype(emulated: pufferlib.namespace) -> NativeDType:
+def nativize_dtype(emulated) -> NativeDType:
     # sample dtype - the dtype of what we obtain from the environment (usually bytes)
     sample_dtype: np.dtype = emulated.observation_dtype
     # structured dtype - the gym.Space converted numpy dtype
@@ -100,10 +100,7 @@ def _nativize_dtype(sample_dtype: np.dtype,
         return subviews, dtype, shape, start_offset, all_delta
 
 
-def nativize_tensor(
-    observation: torch.Tensor,
-    native_dtype: NativeDType,
-) -> torch.Tensor | dict[str, torch.Tensor]:
+def nativize_tensor(observation: torch.Tensor, native_dtype: NativeDType):
     return _nativize_tensor(observation, native_dtype)
 
 
@@ -124,9 +121,7 @@ def compilable_cast(u8, dtype):
     return u8.view(dtype)  # breaking cast
 
 
-def _nativize_tensor(
-    observation: torch.Tensor, native_dtype: NativeDType
-) -> torch.Tensor | dict[str, torch.Tensor]:
+def _nativize_tensor(observation: torch.Tensor, native_dtype: NativeDType):
     if isinstance(native_dtype, tuple):
         dtype, shape, offset, delta = native_dtype
         torch._check_is_size(offset)
@@ -157,13 +152,11 @@ def nativize_observation(observation, emulated):
     )
 
 
-def flattened_tensor_size(native_dtype: tuple[torch.dtype, tuple[int], int, int]):
+def flattened_tensor_size(native_dtype):
     return _flattened_tensor_size(native_dtype)
 
 
-def _flattened_tensor_size(
-    native_dtype: tuple[torch.dtype, tuple[int], int, int],
-) -> int:
+def _flattened_tensor_size(native_dtype):
     if isinstance(native_dtype, tuple):
         return np.prod(native_dtype[1])  # shape
     else:
@@ -277,11 +270,9 @@ def entropy_probs(logits, probs):
     p_log_p = logits * probs
     return -p_log_p.sum(-1)
 
-
-def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
-        action=None, is_continuous=False):
+def sample_logits(logits, action=None):
     is_discrete = isinstance(logits, torch.Tensor)
-    if is_continuous:
+    if isinstance(logits, torch.distributions.Normal):
         batch = logits.loc.shape[0]
         if action is None:
             action = logits.sample().view(batch, -1)
@@ -291,6 +282,7 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         return action, log_probs, logits_entropy
     elif is_discrete:
         logits = logits.unsqueeze(0)
+    # TODO: Double check this
     else: #multi-discrete
         logits = torch.nn.utils.rnn.pad_sequence(
             [l.transpose(0,1) for l in logits], 
@@ -299,15 +291,15 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         ).permute(1,2,0)
 
     normalized_logits = logits - logits.logsumexp(dim=-1, keepdim=True)
-    probs = logits_to_probs(normalized_logits)
+    probs = logits_to_probs(logits)
 
     if action is None:
+        probs = torch.nan_to_num(probs, 1e-8, 1e-8, 1e-8)
         action = torch.multinomial(probs.reshape(-1, probs.shape[-1]), 1, replacement=True)
         action = action.reshape(probs.shape[:-1])
     else:
         batch = logits[0].shape[0]
         action = action.view(batch, -1).T
-        probs = logits_to_probs(normalized_logits)
 
     assert len(logits) == len(action)
     logprob = log_prob(normalized_logits, action)
@@ -317,6 +309,3 @@ def sample_logits(logits: Union[torch.Tensor, List[torch.Tensor]],
         return action.squeeze(0), logprob.squeeze(0), logits_entropy.squeeze(0)
 
     return action.T, logprob.sum(0), logits_entropy
-
-
-

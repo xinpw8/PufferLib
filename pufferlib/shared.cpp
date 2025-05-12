@@ -6,7 +6,9 @@
 #define __device__
 #endif
 
+const int max_horizon = 256;
 // [horizon]
+/*
 __host__ __device__ void gae_row(float* values, float* rewards, float* dones, float* advantages,
         float gamma, float gae_lambda, int horizon) {
     float lastgaelam = 0;
@@ -46,7 +48,6 @@ torch::Tensor gae_check(torch::Tensor values, torch::Tensor rewards,
 }
 
 // [horizon]
-const int max_horizon = 256;
 __host__ __device__ void vtrace_row(float* values, float* rewards, float* dones,
         float* importance, float* vs, float* advantages, float gamma, float rho_clip, float c_clip, int horizon) {
     float accum = 0.0;//values[horizon-1]; // Is this correct?
@@ -62,6 +63,7 @@ __host__ __device__ void vtrace_row(float* values, float* rewards, float* dones,
         vs[t] = accum + values[t];
     }
 }
+*/
 
 __host__ __device__ void puff_advantage_row(float* values, float* rewards, float* dones,
         float* importance, float* vs, float* advantages, float gamma, float lambda,
