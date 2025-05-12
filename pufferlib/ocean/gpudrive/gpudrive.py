@@ -24,7 +24,6 @@ class GPUDrive(pufferlib.PufferEnv):
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
-        
         agent_offsets = binding.shared(num_envs=num_envs)
         total_agents = agent_offsets[-1]
         self.num_agents = total_agents

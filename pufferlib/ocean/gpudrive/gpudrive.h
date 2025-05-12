@@ -189,7 +189,11 @@ struct GPUDrive {
     float reward_vehicle_collision;
     float reward_offroad_collision;
     char* map_name;
+<<<<<<< HEAD
     char* reached_goal_this_episode;
+=======
+    char* reached_goal_this_turn;
+>>>>>>> cf2b09c9d525bf784c8dd5c03818450cabeae914
     float world_mean_x;
     float world_mean_y;
 };
@@ -327,7 +331,11 @@ void set_active_agents(GPUDrive* env){
     int expert_static_car_indices[MAX_CARS];
     env->active_agent_count = 1;
     active_agent_indices[0] = env->num_objects-1;
+<<<<<<< HEAD
     for(int i = 0; i < env->num_objects-1 && env->num_cars < MAX_CARS; i++){
+=======
+    for(int i = 0; i < env->num_objects && env->num_cars < MAX_CARS; i++){
+>>>>>>> cf2b09c9d525bf784c8dd5c03818450cabeae914
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
         env->num_cars++;
@@ -606,6 +614,10 @@ void init(GPUDrive* env){
     // printf("num entities: %d\n", env->num_entities);
     env->dynamics_model = CLASSIC;
     set_means(env);
+<<<<<<< HEAD
+=======
+    printf("world mean: %f, %f\n", env->world_mean_x, env->world_mean_y);
+>>>>>>> cf2b09c9d525bf784c8dd5c03818450cabeae914
     set_active_agents(env);
     set_start_position(env);
     // printf("Active agents: %d\n", env->active_agent_count);
@@ -1054,8 +1066,17 @@ void c_step(GPUDrive* env){
             env->goal_reached[i] = 0;
         }
         env->entities[agent_idx].collision_state = 0;
+<<<<<<< HEAD
+=======
+        if(env->goal_reached[i]){
+            env->masks[i] = 0;
+            env->entities[agent_idx].x = -10000;
+            env->entities[agent_idx].y = -10000;
+            continue;
+	    }
+>>>>>>> cf2b09c9d525bf784c8dd5c03818450cabeae914
         move_dynamics(env, i, agent_idx);
-        //move_expert(env, env->actions, agent_idx);
+        // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
             if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
@@ -1076,11 +1097,16 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
         int reached_goal = distance_to_goal < 2.0f;
-        if(reached_goal){            
+        if(reached_goal && env->goal_reached[i] == 0){            
             env->rewards[i] += 1.0f;
 	        env->goal_reached[i] = 1;
 	        env->logs[i].episode_return += 1.0f;
+<<<<<<< HEAD
             env->reached_goal_this_episode[i] = 1;
+=======
+            env->dones[i] = 1;
+            continue;
+>>>>>>> cf2b09c9d525bf784c8dd5c03818450cabeae914
 	    }
     }
     compute_observations(env);
@@ -1346,12 +1372,15 @@ void draw_road_edge(GPUDrive* env, float start_x, float start_y, float end_x, fl
     DrawTriangle3D(b4, t4, b1, CURB_SIDE);
     DrawTriangle3D(t4, t1, b1, CURB_SIDE);
 }
+<<<<<<< HEAD
 
 void c_render(GPUDrive* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
     Client* client = env->client;
+=======
+>>>>>>> cf2b09c9d525bf784c8dd5c03818450cabeae914
 
     BeginDrawing();
     Color road = (Color){35, 35, 37, 255};
