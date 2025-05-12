@@ -12,6 +12,13 @@ static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
 }
 #endif
 
+static PyObject* my_get(PyObject* dict, Env* env);
+#ifndef MY_GET
+static PyObject* my_get(PyObject* dict, Env* env) {
+    return NULL;
+}
+#endif
+
 static Env* unpack_env(PyObject* args) {
     PyObject* handle_obj = PyTuple_GetItem(args, 0);
     if (!PyObject_TypeCheck(handle_obj, &PyLong_Type)) {
@@ -170,7 +177,6 @@ static PyObject* env_reset(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-
 // Python function to step the environment
 static PyObject* env_step(PyObject* self, PyObject* args) {
     int num_args = PyTuple_Size(args);
@@ -206,6 +212,19 @@ static PyObject* env_close(PyObject* self, PyObject* args) {
     //close(env);
     free(env); // TODO: Where should we free?
     Py_RETURN_NONE;
+}
+
+static PyObject* env_get(PyObject* self, PyObject* args) {
+    Env* env = unpack_env(args);
+    if (!env){
+        return NULL;
+    }
+    PyObject* dict = PyDict_New();
+    my_get(dict, env);
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
+    return dict;
 }
 
 typedef struct {
@@ -596,6 +615,7 @@ static PyMethodDef methods[] = {
     {"env_step", env_step, METH_VARARGS, "Step the environment"},
     {"env_render", env_render, METH_VARARGS, "Render the environment"},
     {"env_close", env_close, METH_VARARGS, "Close the environment"},
+    {"env_get", env_get, METH_VARARGS, "Get the environment state"},
     {"vectorize", vectorize, METH_VARARGS, "Make a vector of environment handles"},
     {"vec_init", (PyCFunction)vec_init, METH_VARARGS | METH_KEYWORDS, "Initialize a vector of environments"},
     {"vec_reset", (PyCFunction)vec_reset, METH_VARARGS, "Reset the vector of environments"},
