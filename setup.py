@@ -40,6 +40,7 @@ c_extensions_names = [
     'grid',
     'nmmo3',
     'tactical',
+    'connect4',
     'go',
     'cartpole'
 ]
@@ -51,7 +52,6 @@ c_extensions_names = [
 cython_extension_paths = [
     'pufferlib/ocean/moba/cy_moba',
     'pufferlib/ocean/snake/cy_snake',
-    'pufferlib/ocean/connect4/cy_connect4',
     'pufferlib/ocean/tripletriad/cy_tripletriad',
     'pufferlib/ocean/rware/cy_rware',
     'pufferlib/ocean/trash_pickup/cy_trash_pickup',
