@@ -931,7 +931,7 @@ if __name__ == '__main__':
             vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
             policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
             all_logs = experiment(vecenv, policy, args)
-
+            all_logs = [e for e in all_logs if target_key in e]
             scores = downsample_linear([log[target_key] for log in all_logs], 10)
             costs = downsample_linear([log['uptime'] for log in all_logs], 10)
             timesteps = downsample_linear([log['agent_steps'] for log in all_logs], 10)
