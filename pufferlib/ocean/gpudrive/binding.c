@@ -13,24 +13,32 @@ static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
     int total_agent_count = 0;
     int env_count = 0;
     int max_envs = num_agents;
-    GPUDrive* envs = calloc(max_envs, sizeof(GPUDrive));
     PyObject* agent_offsets = PyList_New(max_envs+1);
     PyObject* map_ids = PyList_New(max_envs);
     // getting env count
     while(total_agent_count < num_agents && env_count < max_envs){
         char map_file[100];
         int map_id = rand() % num_maps;
+        GPUDrive* env = calloc(1, sizeof(GPUDrive));
         sprintf(map_file, "resources/gpudrive/binaries/map_%03d.bin", map_id);
-        envs[env_count].entities = load_map_binary(map_file, &envs[env_count]);
-        set_active_agents(&envs[env_count]);
+        env->entities = load_map_binary(map_file, env);
+        set_active_agents(env);
         // Store map_id
         PyObject* map_id_obj = PyLong_FromLong(map_id);
         PyList_SetItem(map_ids, env_count, map_id_obj);
         // Store agent offset
         PyObject* offset = PyLong_FromLong(total_agent_count);
         PyList_SetItem(agent_offsets, env_count, offset);
-        total_agent_count += envs[env_count].active_agent_count;
+        total_agent_count += env->active_agent_count;
         env_count++;
+        for(int j=0;j<env->num_entities;j++) {
+            free_entity(&env->entities[j]);
+        }
+        free(env->entities);
+        free(env->active_agent_indices);
+        free(env->static_car_indices);
+        free(env->expert_static_car_indices);
+        free(env);
     }
     if(total_agent_count >= num_agents){
         total_agent_count = num_agents;
