@@ -1,5 +1,4 @@
-from pufferlib import version
-__version__ = version.__version__
+__version__ = '2.0.6'
 
 import os
 import sys
