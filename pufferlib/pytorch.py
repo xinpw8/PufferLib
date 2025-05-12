@@ -1,7 +1,6 @@
 import sys
 from pdb import set_trace as T
 from typing import Dict, List, Tuple, Union
-import contextlib
 
 import numpy as np
 import torch
@@ -151,10 +150,8 @@ def nativize_observation(observation, emulated):
         emulated.emulated_observation_dtype,
     )
 
-
 def flattened_tensor_size(native_dtype):
     return _flattened_tensor_size(native_dtype)
-
 
 def _flattened_tensor_size(native_dtype):
     if isinstance(native_dtype, tuple):
@@ -165,92 +162,11 @@ def _flattened_tensor_size(native_dtype):
             res += _flattened_tensor_size(dtype)
         return res
 
-
-class BatchFirstLSTM(nn.LSTM):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, batch_first=True, **kwargs)
-
-    def forward(self, input, hx):
-        """
-        input: B x T x H
-        h&c: B x T x H
-        """
-        h, c = hx
-        h = h.transpose(0, 1)
-        c = c.transpose(0, 1)
-        hidden, hx = super().forward(input, [h, c])
-        h, c = hx
-        h = h.transpose(0, 1)
-        c = c.transpose(0, 1)
-        return hidden, [h, c]
-
-
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     """CleanRL's default layer initialization"""
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
-
-
-class LSTM(nn.LSTM):
-    def __init__(self, input_size=128, hidden_size=128, num_layers=1):
-        super().__init__(input_size, hidden_size, num_layers)
-        layer_init(self)
-
-def cycle_selector(sample_idx, num_policies):
-    return sample_idx % num_policies
-
-class PolicyPool(torch.nn.Module):
-    def __init__(self, vecenv, policies, learner_mask, device,
-            policy_selector=cycle_selector):
-        '''Experimental utility for running multiple different policies'''
-        super().__init__()
-        assert len(learner_mask) == len(policies)
-        self.policy_map = torch.tensor([policy_selector(i, len(policies))
-            for i in range(vecenv.num_agents)])
-        self.learner_mask = learner_mask
-        self.policies = torch.nn.ModuleList(policies)
-        self.vecenv = vecenv
-
-        # Assumes that all policies have the same LSTM or no LSTM
-        self.lstm = policies[0].lstm if hasattr(policies[0], 'lstm') else None
-
-        # Allocate buffers
-        self.actions = torch.zeros(vecenv.num_agents,
-            *vecenv.single_action_space.shape, dtype=int).to(device)
-        self.logprobs = torch.zeros(vecenv.num_agents).to(device)
-        self.entropy = torch.zeros(vecenv.num_agents).to(device)
-        self.values = torch.zeros(vecenv.num_agents).to(device)
-
-    def forward(self, obs, state=None, action=None):
-        policy_map = self.policy_map[self.vecenv.batch_mask]
-        for policy_idx in range(len(self.policies)):
-            policy = self.policies[policy_idx]
-            is_learner = self.learner_mask[policy_idx]
-            samp_mask = policy_map == policy_idx
-
-            context = torch.no_grad() if is_learner else contextlib.nullcontext()
-            with context:
-                ob = obs[samp_mask]
-                if len(ob) == 0:
-                    continue
-
-                if state is not None:
-                    lstm_h, lstm_c = state
-                    h = lstm_h[:, samp_mask]
-                    c = lstm_c[:, samp_mask]
-                    atn, lgprob, entropy, val, (h, c) = policy(ob, (h, c))
-                    lstm_h[:, samp_mask] = h
-                    lstm_c[:, samp_mask] = c
-                else:
-                    atn, lgprob, _, val = policy(ob)
-
-            self.actions[samp_mask] = atn
-            self.logprobs[samp_mask] = lgprob
-            self.entropy[samp_mask] = entropy
-            self.values[samp_mask] = val.flatten()
-
-        return self.actions, self.logprobs, self.entropy, self.values, (lstm_h, lstm_c)
 
 # taken from torch.distributions.Categorical
 def log_prob(logits, value):
