@@ -819,6 +819,7 @@ def experiment(vecenv, policy, args):
     return all_logs
 
 def main():
+    global args # Temporary fix
     parser = argparse.ArgumentParser(
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
         ' demo options. Shows valid args for your env and policy',
