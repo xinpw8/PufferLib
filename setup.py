@@ -416,7 +416,7 @@ else:
 torch_extensions = [
    extension(
         "pufferlib._C",
-        ["pufferlib.cpp", "pufferlib/pufferlib.cu"],
+        ["pufferlib/extensions/pufferlib.cpp", "pufferlib/extensions/cuda/pufferlib.cu"],
         extra_compile_args = {
             "cxx": cxx_args,
             "nvcc": nvcc_args,
