@@ -793,7 +793,7 @@ def downsample_linear(arr, m):
 
 # TODO: All logs?
 def experiment(vecenv, policy, args):
-    train_config = dict(**args['train'], env=env_name, tag=args['tag'])
+    train_config = dict(**args['train'], env=args['env_name'], tag=args['tag'])
     pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
 
     all_logs = []
@@ -818,7 +818,7 @@ def experiment(vecenv, policy, args):
     pufferl.close()
     return all_logs
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
         ' demo options. Shows valid args for your env and policy',
@@ -1045,3 +1045,6 @@ if __name__ == '__main__':
         weights = np.concatenate(weights)
         weights.tofile(path)
         print(f'Saved {len(weights)} weights to {path}')
+
+if __name__ == '__main__':
+    main()

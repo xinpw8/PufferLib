@@ -23,8 +23,7 @@ from torch.utils.cpp_extension import (
 )
 
 	
-import pufferlib
-VERSION = pufferlib.__version__
+VERSION = "2.0.6"
 
 # Build with DEBUG=1 to enable debug symbols
 DEBUG = os.getenv("DEBUG", "0") == "1"
@@ -486,6 +485,11 @@ setup(
     author_email="jsuarez@puffer.ai",
     url="https://github.com/PufferAI/PufferLib",
     keywords=["Puffer", "AI", "RL", "Reinforcement Learning"],
+    entry_points={
+        'console_scripts': [
+            'pufferl = pufferlib.clean_pufferl:main',
+        ],
+    },
     classifiers=[
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
