@@ -806,7 +806,7 @@ def experiment(vecenv, policy, args):
     vecenv.async_reset(train_config['seed'])
     i = 0
     stats = {}
-    while i < 10 and not stats:
+    while i < 25 or not stats:
         stats = pufferl.evaluate()
         i += 1
 
@@ -814,6 +814,7 @@ def experiment(vecenv, policy, args):
     if logs is not None:
         all_logs.append(logs)
 
+    pufferl.print_dashboard()
     pufferl.close()
     return all_logs
 
