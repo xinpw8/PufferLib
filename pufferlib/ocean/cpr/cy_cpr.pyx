@@ -18,6 +18,9 @@ cdef extern from "cpr.h":
         float episode_return
         float episode_length
         float moves
+        float food_nb
+        float agents_alive
+        float alive_steps
         float n
 
     ctypedef struct LogBuffer: 
@@ -33,6 +36,8 @@ cdef extern from "cpr.h":
         int r 
         int c 
         int id 
+        int hp 
+        int direction 
 
     ctypedef struct FoodList:
         int *indexes 
@@ -57,11 +62,13 @@ cdef extern from "cpr.h":
         int *actions
         float *rewards
         unsigned char *terminals
+        unsigned char *masks
+        unsigned char *truncations
 
         Agent *agents
 
         LogBuffer *log_buffer
-        Log *logs
+        Log *log
 
         uint8_t *interactive_food_agent_count
         float interactive_food_reward
@@ -90,9 +97,12 @@ cdef class CyEnv:
         LogBuffer *logs 
         int num_envs 
 
-    def __init__(self, unsigned char[:,:,:] observations, int[:] actions, float[:] rewards, unsigned char[:] terminals,
-     list widths, list heights, list num_agents,int vision, 
-     float reward_food,float interactive_food_reward,float reward_move, float food_base_spawn_rate) -> None:
+    def __init__(
+        self, unsigned char[:,:] observations, int[:] actions, float[:] rewards,
+        unsigned char[:] terminals, unsigned char[:] truncations, unsigned char[:] masks,
+        list widths, list heights, list num_agents,int vision, 
+        float reward_food,float interactive_food_reward,float reward_move, float food_base_spawn_rate
+    ) -> None:
         self.num_envs = len(num_agents)
         self.envs = <CCpr*>calloc(self.num_envs, sizeof(CCpr))
         self.logs = allocate_logbuffer(LOG_BUFFER_SIZE)
@@ -101,10 +111,12 @@ cdef class CyEnv:
         cdef int n = 0 
         for i in range(self.num_envs):
             self.envs[i] = CCpr(
-                observations = &observations[n,0,0],
+                observations = &observations[n,0],
                 actions=&actions[n],
                 rewards=&rewards[n],
                 terminals=&terminals[n],
+                truncations=&truncations[n],
+                masks=&masks[n],
                 log_buffer=self.logs,
                 width=widths[i],
                 height=heights[i],

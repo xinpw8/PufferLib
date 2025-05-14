@@ -6,7 +6,6 @@ import warnings
 from copy import deepcopy
 
 import pufferlib
-import scipy.stats
 
 import torch
 import pyro

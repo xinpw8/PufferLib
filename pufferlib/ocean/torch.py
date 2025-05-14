@@ -37,9 +37,9 @@ class NMMO3(nn.Module):
         self.is_continuous = False
 
         self.map_2d = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 256, 5, stride=3)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 128, 5, stride=3)),
             nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Conv2d(256, 256, 3, stride=1)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(128, 128, 3, stride=1)),
             nn.Flatten(),
         )
 
@@ -47,9 +47,8 @@ class NMMO3(nn.Module):
             nn.Embedding(128, 32),
             nn.Flatten(),
         )
-
         self.proj = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(2073, hidden_size)),
+            pufferlib.pytorch.layer_init(nn.Linear(1817, hidden_size)),
             nn.ReLU(),
         )
 
@@ -152,10 +151,13 @@ class Snake(nn.Module):
         #obs = obs.reshape(B, f*c, h, w)
         return self.diayn_discriminator(obs)
 
-    def forward(self, observations):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
-        return (actions, value), hidden
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
         observations = F.one_hot(observations.long(), 8).permute(0, 3, 1, 2).float()
@@ -209,9 +211,12 @@ class Grid(nn.Module):
             nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
         hidden = observations.view(-1, 11, 11).long()
@@ -265,9 +270,12 @@ class Go(nn.Module):
                 nn.Linear(hidden_size, 1), std=1)
    
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
         grid_size = int(np.sqrt((observations.shape[1] - 2) / 2))
@@ -323,9 +331,12 @@ class MOBA(nn.Module):
             nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
         cnn_features = observations[:, :-26].view(-1, 11, 11, 4).long()
@@ -387,9 +398,12 @@ class TrashPickup(nn.Module):
             nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
         observations = observations.view(-1, 5, 11, 11).float()
@@ -431,9 +445,12 @@ class TowerClimb(nn.Module):
                 nn.Linear(hidden_size, 1 ), std=1)
 
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
-        return actions, value, state
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
         board_state = observations[:,:225]
@@ -453,7 +470,7 @@ class TowerClimb(nn.Module):
         return action, value
 
 
-# TODO: remove once Impulse Wars build is stable
+# ToDO: remove once Impulse Wars build is stable
 try:
     from cy_impulse_wars import obsConstants
 except:
@@ -582,6 +599,9 @@ class ImpulseWarsPolicy(nn.Module):
         actions, value = self.decode_actions(hidden)
         return actions, value
 
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
+
     def unpack(self, batchSize: int, obs: torch.Tensor) -> torch.Tensor:
         # prepare map obs to be unpacked
         mapObs = obs[:, : self.obsInfo.mapObsSize].reshape((batchSize, -1, 1))
@@ -670,22 +690,25 @@ class GPUDrive(nn.Module):
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(6, input_size)),
-            #nn.ReLU(),
-            #pufferlib.pytorch.layer_init(
+            # nn.ReLU(),
+            # pufferlib.pytorch.layer_init(
             #    nn.Linear(input_size, input_size))
         )
         max_road_objects = 13
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, input_size)),
-            #nn.ReLU(),
-            
+            # nn.ReLU(),
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
         max_partner_objects = 7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, input_size)),
-            #nn.ReLU()
+            # nn.ReLU(),
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
 
         '''
@@ -711,10 +734,13 @@ class GPUDrive(nn.Module):
                 nn.Linear(hidden_size, 1 ), std=1)
     
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
-    
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
+   
     def encode_observations(self, observations, state=None):
         ego_dim = 6
         partner_dim = 63 * 7

@@ -642,6 +642,7 @@ void init(GPUDrive* env){
     // printf("num entities: %d\n", env->num_entities);
     env->dynamics_model = CLASSIC;
     set_means(env);
+    //printf("world mean: %f, %f\n", env->world_mean_x, env->world_mean_y);
     set_active_agents(env);
     set_start_position(env);
     // printf("Active agents: %d\n", env->active_agent_count);
@@ -1104,7 +1105,7 @@ void c_step(GPUDrive* env){
         }
         env->entities[agent_idx].collision_state = 0;
         move_dynamics(env, i, agent_idx);
-        //move_expert(env, env->actions, agent_idx);
+        // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         collision_state = env->entities[agent_idx].collision_state;
         
@@ -1408,7 +1409,6 @@ void c_render(GPUDrive* env) {
         env->client = make_client(env);
     }
     Client* client = env->client;
-
     BeginDrawing();
     Color road = (Color){35, 35, 37, 255};
     ClearBackground(road);

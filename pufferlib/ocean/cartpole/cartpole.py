@@ -4,7 +4,7 @@ import pufferlib
 from pufferlib.ocean.cartpole import binding
 
 class Cartpole(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode='human', report_interval=1, continuous=False, buf=None, seed=0):
+    def __init__(self, num_envs=1, render_mode='human', report_interval=1, continuous=True, buf=None, seed=0):
         self.render_mode = render_mode
         self.num_agents = num_envs
         self.report_interval = report_interval
@@ -18,17 +18,14 @@ class Cartpole(pufferlib.PufferEnv):
         )
         if self.continuous:
             self.single_action_space = gymnasium.spaces.Box(
-                low=-1.0, high=1.0, shape=(1,), dtype=np.float32
+                low=-1.0, high=1.0, shape=(1,)
             )
             
         else:
             self.single_action_space = gymnasium.spaces.Discrete(2)
 
         super().__init__(buf)
-
-        self.actions = np.zeros(self.num_agents, dtype=np.float32)
-        self.terminals = np.zeros(self.num_agents, dtype=np.uint8)
-        self.truncations = np.zeros(self.num_agents, dtype=np.uint8)
+        self.actions = np.zeros(num_envs, dtype=np.float32)
 
         self.c_envs = binding.vec_init(
             self.observations,
@@ -37,7 +34,8 @@ class Cartpole(pufferlib.PufferEnv):
             self.terminals,
             self.truncations,
             num_envs,
-            int(self.continuous),
+            seed,
+            continuous=int(self.continuous),
         )
    
     def reset(self, seed=None):

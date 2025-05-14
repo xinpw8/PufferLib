@@ -2,7 +2,7 @@
 #include "breakout.h"
 #include "puffernet.h"
 
-int main() {
+void demo() {
     Weights* weights = load_weights("resources/breakout_weights.bin", 147972);
     LinearLSTM* net = make_linearlstm(weights, 1, 119, 3);
 
@@ -50,4 +50,39 @@ int main() {
     free(weights);
     free_allocated(&env);
     close_client(env.client);
+}
+
+void test_performance(int timeout) {
+    Breakout env = {
+        .width = 512,
+        .height = 512,
+        .paddle_width = 20,
+        .paddle_height = 70,
+        .ball_width = 10,
+        .ball_height = 15,
+        .brick_width = 10,
+        .brick_height = 10,
+        .brick_rows = 5,
+        .brick_cols = 10,
+        .continuous = 0,
+    };
+    allocate(&env);
+    c_reset(&env);
+
+    int start = time(NULL);
+    int num_steps = 0;
+    while (time(NULL) - start < timeout) {
+        env.actions[0] = rand() % 3;
+        c_step(&env);
+        num_steps++;
+    }
+
+    int end = time(NULL);
+    float sps = num_steps / (end - start);
+    printf("Test Environment SPS: %f\n", sps);
+    free_allocated(&env);
+}
+
+int main() {
+    test_performance(10);
 }

@@ -29,18 +29,18 @@ def set_buffers(env, buf=None):
         env.masks = np.ones(env.num_agents, dtype=bool)
 
         # TODO: Major kerfuffle on inferring action space dtype. This needs some asserts?
-        atn_space = env.single_action_space
+        atn_space = pufferlib.spaces.joint_space(env.single_action_space, env.num_agents)
         if isinstance(env.single_action_space, pufferlib.spaces.Box):
-            env.actions = np.zeros((env.num_agents, *atn_space.shape), dtype=atn_space.dtype)
+            env.actions = np.zeros(atn_space.shape, dtype=atn_space.dtype)
         else:
-            env.actions = np.zeros((env.num_agents, *atn_space.shape), dtype=np.int32)
+            env.actions = np.zeros(atn_space.shape, dtype=np.int32)
     else:
-        env.observations = buf.observations
-        env.rewards = buf.rewards
-        env.terminals = buf.terminals
-        env.truncations = buf.truncations
-        env.masks = buf.masks
-        env.actions = buf.actions
+        env.observations = buf['observations']
+        env.rewards = buf['rewards']
+        env.terminals = buf['terminals']
+        env.truncations = buf['truncations']
+        env.masks = buf['masks']
+        env.actions = buf['actions']
 
 class PufferEnv:
     def __init__(self, buf=None):
@@ -69,6 +69,10 @@ class PufferEnv:
         self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.num_agents)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.num_agents)
         self.agent_ids = np.arange(self.num_agents)
+
+    @property
+    def agent_per_batch(self):
+        return self.num_agents
 
     @property
     def emulated(self):
@@ -362,64 +366,6 @@ class GymToGymnasium:
 
     def close(self):
         self.env.close()
-
-### Namespace
-def __getitem__(self, key):
-    return self.__dict__[key]
-
-def __setitem__(self, key, value):
-    self.__dict__[key] = value
-
-def keys(self):
-    return self.__dict__.keys()
-
-def values(self):
-    return self.__dict__.values()
-
-def items(self):
-    return self.__dict__.items()
-
-def __iter__(self):
-    return iter(self.__dict__)
-
-def __len__(self):
-    return len(self.__dict__)
-
-class Namespace(SimpleNamespace, Mapping):
-    __getitem__ = __getitem__
-    __setitem__ = __setitem__
-    __iter__ = __iter__
-    __len__ = __len__
-    keys = keys
-    values = values
-    items = items
-
-def dataclass(cls):
-    # Safely get annotations
-    annotations = getattr(cls, '__annotations__', {})
-
-    # Combine both annotated and non-annotated fields
-    all_fields = {**{k: None for k in annotations.keys()}, **cls.__dict__}
-    all_fields = {k: v for k, v in all_fields.items() if not callable(v) and not k.startswith('__')}
-
-    def __init__(self, **kwargs):
-        for field, default_value in all_fields.items():
-            setattr(self, field, kwargs.get(field, default_value))
-
-    cls.__init__ = __init__
-    setattr(cls, "__getitem__", __getitem__)
-    setattr(cls, "__setitem__", __setitem__)
-    setattr(cls, "__iter__", __iter__)
-    setattr(cls, "__len__", __len__)
-    setattr(cls, "keys", keys)
-    setattr(cls, "values", values)
-    setattr(cls, "items", items)
-    return cls
-
-def namespace(self=None, **kwargs):
-    if self is None:
-        return Namespace(**kwargs)
-    self.__dict__.update(kwargs)
 
 ### Wrappers
 class PettingZooTruncatedWrapper:
