@@ -257,13 +257,13 @@ def process_all_maps():
         except Exception as e:
             print(f"Error processing {map_path.name}: {e}")
 
-def test_performance(timeout=10, atn_cache=1024, num_envs=75):
+def test_performance(timeout=10, atn_cache=1024, num_agents=1024):
     import time
 
-    env = GPUDrive(num_envs=num_envs)
+    env = GPUDrive(num_agents=num_agents)
     env.reset()
     tick = 0
-    num_agents = 3968
+    num_agents = 1024
     actions = np.stack([
         np.random.randint(0, space.n + 1, (atn_cache, num_agents))
         for space in env.single_action_space
@@ -276,8 +276,7 @@ def test_performance(timeout=10, atn_cache=1024, num_envs=75):
         tick += 1
 
     print(f'SPS: {num_agents * tick / (time.time() - start)}')
-
-
+    env.close()
 if __name__ == '__main__':
-    # test_performance()
-    process_all_maps()
+    test_performance()
+    # process_all_maps()

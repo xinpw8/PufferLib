@@ -183,7 +183,6 @@ struct GPUDrive {
     int* expert_static_car_indices;
     int timestep;
     int dynamics_model;
-    float* fake_data;
     float* map_corners;
     int* grid_cells;  // holds entity ids and geometry index per cell
     int grid_cols;
@@ -363,7 +362,7 @@ void set_active_agents(GPUDrive* env){
     }
     int first_agent_id = env->num_objects-1;
     float distance_to_goal = valid_active_agent(env, first_agent_id);
-    if(distance_to_goal > 0){
+    if(distance_to_goal){
         env->active_agent_count = 1;
         active_agent_indices[0] = first_agent_id;
         env->entities[first_agent_id].active_agent = 1;
@@ -661,7 +660,6 @@ void free_initialized(GPUDrive* env){
     free(env->entities);
     free(env->active_agent_indices);
     free(env->logs);
-    free(env->fake_data);
     free(env->map_corners);
     free(env->grid_cells);
     free(env->neighbor_offsets);
@@ -669,6 +667,7 @@ void free_initialized(GPUDrive* env){
     free(env->neighbor_cache_indices);
     free(env->static_car_indices);
     free(env->expert_static_car_indices);
+    // free(env->map_name);
 }
 
 void allocate(GPUDrive* env){
@@ -691,6 +690,10 @@ void free_allocated(GPUDrive* env){
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
+    free_initialized(env);
+}
+
+void c_close(GPUDrive* env){
     free_initialized(env);
 }
 
