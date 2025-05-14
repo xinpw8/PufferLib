@@ -6,6 +6,7 @@ from setuptools import find_packages, find_namespace_packages, setup, Extension
 from Cython.Build import cythonize
 import numpy
 import os
+import glob
 import urllib.request
 import zipfile
 import tarfile
@@ -27,23 +28,6 @@ VERSION = pufferlib.__version__
 
 # Build with DEBUG=1 to enable debug symbols
 DEBUG = os.getenv("DEBUG", "0") == "1"
-
-# Put C env names here. PufferLib will look for
-# pufferlib/ocean/<name>/binding.c
-c_extensions_names = [
-    'gpudrive',
-    'squared',
-    'pong',
-    'breakout',
-    'enduro',
-    'blastar',
-    'grid',
-    'nmmo3',
-    'tactical',
-    'connect4',
-    'go',
-    'cartpole'
-]
 
 # Put full paths to Cython extension here
 # Note we are trying to move away from Cython,
@@ -389,13 +373,31 @@ extension_kwargs = dict(
     extra_objects=[RAYLIB_A],
 )
 
+# Put C env names here. PufferLib will look for
+# pufferlib/ocean/<name>/binding.c
+c_extensions_names = [
+    'gpudrive',
+    'squared',
+    'pong',
+    'breakout',
+    'enduro',
+    'blastar',
+    'grid',
+    'nmmo3',
+    'tactical',
+    'connect4',
+    'go',
+    'cartpole'
+]
+
+# TODO: Include other C files so rebuild is auto?
 c_extensions = [
     Extension(
-        f'pufferlib.ocean.{name}.binding',
-        sources=[f'pufferlib/ocean/{name}/binding.c'],
+        path.rstrip('.c').replace('/', '.'),
+        sources=[path],
         **extension_kwargs,
     )
-    for name in c_extensions_names
+    for path in glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
 ]
 
 cython_extensions = cythonize([
