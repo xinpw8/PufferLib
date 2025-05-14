@@ -759,17 +759,8 @@ class GPUDrive(nn.Module):
         ego_features = self.ego_encoder(ego_obs)
         partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)
         road_features, _ = self.road_encoder(road_objects).max(dim=1)
-        #partner_features_post_mask = self.post_mask_partner_encoder(partner_features)
-        #road_features_post_mask = self.post_mask_road_encoder(road_features)
         
-        #concat_features = torch.cat([ego_features, road_features_post_mask, partner_features_post_mask], dim=1)
         concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
-        
-        # Apply max pooling across concatenated features
-        # Reshape to [batch, 3, hidden_size] to pool across the 3 modalities
-        # pooled_features = torch.max(
-        #     concat_features.view(-1, 3, self.hidden_size), dim=1
-        # )[0]
         
         # Pass through shared embedding
         embedding = F.relu(self.shared_embedding(concat_features))

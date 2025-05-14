@@ -93,6 +93,8 @@ struct Log {
     float score;
     float offroad_rate;
     float collision_rate;
+    float clean_collision_rate;
+    float completion_rate;
     float dnf_rate;
     float n;
 };
@@ -127,6 +129,11 @@ struct Entity {
     float vz;
     float heading;
     int valid;
+    int reached_goal;
+    int respawn_timestep;
+    int collided_before_goal;
+    int reached_goal_this_episode;
+    int active_agent;
 };
 
 void free_entity(Entity* entity){
@@ -176,8 +183,6 @@ struct GPUDrive {
     int* expert_static_car_indices;
     int timestep;
     int dynamics_model;
-    float* fake_data;
-    char* goal_reached;
     float* map_corners;
     int* grid_cells;  // holds entity ids and geometry index per cell
     int grid_cols;
@@ -189,22 +194,28 @@ struct GPUDrive {
     float reward_vehicle_collision;
     float reward_offroad_collision;
     char* map_name;
-    char* reached_goal_this_episode;
     float world_mean_x;
     float world_mean_y;
+    int spawn_immunity_timer;
 };
 
 void add_log(GPUDrive* env) {
     for(int i = 0; i < env->active_agent_count; i++){
-        if(env->reached_goal_this_episode[i]) {
-            env->log.score += 1.0f;
-            env->log.perf += 1.0f;
+        Entity* e = &env->entities[env->active_agent_indices[i]];
+        if(e->reached_goal_this_episode){
+            env->log.completion_rate += 1.0f;
         }
         int offroad = env->logs[i].offroad_rate;
         env->log.offroad_rate += offroad;
         int collided = env->logs[i].collision_rate;
         env->log.collision_rate += collided;
-        if(!offroad && !collided && !env->reached_goal_this_episode[i]){
+        int clean_collided = env->logs[i].clean_collision_rate;
+        env->log.clean_collision_rate += clean_collided;
+        if(e->reached_goal_this_episode && !e->collided_before_goal){
+            env->log.score += 1.0f;
+            env->log.perf += 1.0f;
+        }
+        if(!offroad && !collided && !e->reached_goal_this_episode){
             env->log.dnf_rate += 1.0f;
         }
         env->log.episode_length += env->logs[i].episode_length;
@@ -304,6 +315,9 @@ void set_start_position(GPUDrive* env){
             e->vx = 0;
             e->vy = 0;
             e->vz = 0;
+            e->reached_goal = 0;
+            e->collided_before_goal = 0;
+            e->respawn_timestep = -1;
         } else{
             e->vx = e->traj_vx[0];
             e->vy = e->traj_vy[0];
@@ -318,6 +332,23 @@ void set_start_position(GPUDrive* env){
 
 }
 
+int valid_active_agent(GPUDrive* env, int agent_idx){
+    float cos_heading = cosf(env->entities[agent_idx].traj_heading[0]);
+    float sin_heading = sinf(env->entities[agent_idx].traj_heading[0]);
+    float goal_x = env->entities[agent_idx].goal_position_x - env->entities[agent_idx].traj_x[0];
+    float goal_y = env->entities[agent_idx].goal_position_y - env->entities[agent_idx].traj_y[0];
+    // Rotate to ego vehicle's frame
+    float rel_goal_x = goal_x*cos_heading + goal_y*sin_heading;
+    float rel_goal_y = -goal_x*sin_heading + goal_y*cos_heading;
+    float distance_to_goal = relative_distance_2d(0, 0, rel_goal_x, rel_goal_y);
+    env->entities[agent_idx].width *= 0.7f;
+    env->entities[agent_idx].length *= 0.7f;
+    if(distance_to_goal >= 2.0f && env->entities[agent_idx].mark_as_expert == 0 && env->active_agent_count < env->num_agents){
+        return distance_to_goal;
+    }
+    return 0;
+}
+
 void set_active_agents(GPUDrive* env){
     env->static_car_count = 0;
     env->num_cars = 1;
@@ -325,30 +356,35 @@ void set_active_agents(GPUDrive* env){
     int active_agent_indices[MAX_CARS];
     int static_car_indices[MAX_CARS];
     int expert_static_car_indices[MAX_CARS];
-    env->active_agent_count = 1;
-    active_agent_indices[0] = env->num_objects-1;
+    
+    if(env->num_agents ==0){
+        env->num_agents = MAX_CARS;
+    }
+    int first_agent_id = env->num_objects-1;
+    float distance_to_goal = valid_active_agent(env, first_agent_id);
+    if(distance_to_goal){
+        env->active_agent_count = 1;
+        active_agent_indices[0] = first_agent_id;
+        env->entities[first_agent_id].active_agent = 1;
+        env->num_cars = 1;
+    } else {
+        env->active_agent_count = 0;
+        env->num_cars = 0;
+    }
     for(int i = 0; i < env->num_objects-1 && env->num_cars < MAX_CARS; i++){
         if(env->entities[i].type != 1) continue;
         if(env->entities[i].traj_valid[0] != 1) continue;
         env->num_cars++;
-        float cos_heading = cosf(env->entities[i].traj_heading[0]);
-        float sin_heading = sinf(env->entities[i].traj_heading[0]);
-        float goal_x = env->entities[i].goal_position_x - env->entities[i].traj_x[0];
-        float goal_y = env->entities[i].goal_position_y - env->entities[i].traj_y[0];
-        // Rotate to ego vehicle's frame
-        float rel_goal_x = goal_x*cos_heading + goal_y*sin_heading;
-        float rel_goal_y = -goal_x*sin_heading + goal_y*cos_heading;
-        float distance_to_goal = relative_distance_2d(0, 0, rel_goal_x, rel_goal_y);
-        env->entities[i].width *= 0.7f;
-        env->entities[i].length *= 0.7f;
-        
-        if(distance_to_goal >= 2.0f && env->entities[i].mark_as_expert == 0){
+        float distance_to_goal = valid_active_agent(env, i);
+        if(distance_to_goal > 0){
             active_agent_indices[env->active_agent_count] = i;
             env->active_agent_count++;
+            env->entities[i].active_agent = 1;
         } else {
             static_car_indices[env->static_car_count] = i;
             env->static_car_count++;
-            if(env->entities[i].mark_as_expert == 1){
+            env->entities[i].active_agent = 0;
+            if(env->entities[i].mark_as_expert == 1 || (distance_to_goal >=2.0f && env->active_agent_count == env->num_agents)){
                 expert_static_car_indices[env->expert_static_car_count] = i;
                 env->expert_static_car_count++;
             }
@@ -611,8 +647,6 @@ void init(GPUDrive* env){
     set_start_position(env);
     // printf("Active agents: %d\n", env->active_agent_count);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
-    env->goal_reached = (char*)calloc(env->active_agent_count, sizeof(char));
-    env->reached_goal_this_episode = (char*)calloc(env->active_agent_count, sizeof(char));
     init_grid_map(env);
     env->vision_range = 21;
     init_neighbor_offsets(env);
@@ -627,9 +661,6 @@ void free_initialized(GPUDrive* env){
     free(env->entities);
     free(env->active_agent_indices);
     free(env->logs);
-    free(env->fake_data);
-    free(env->goal_reached);
-    free(env->reached_goal_this_episode);
     free(env->map_corners);
     free(env->grid_cells);
     free(env->neighbor_offsets);
@@ -637,6 +668,7 @@ void free_initialized(GPUDrive* env){
     free(env->neighbor_cache_indices);
     free(env->static_car_indices);
     free(env->expert_static_car_indices);
+    // free(env->map_name);
 }
 
 void allocate(GPUDrive* env){
@@ -659,6 +691,10 @@ void free_allocated(GPUDrive* env){
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
+    free_initialized(env);
+}
+
+void c_close(GPUDrive* env){
     free_initialized(env);
 }
 
@@ -699,8 +735,8 @@ void move_dynamics(GPUDrive* env, int action_idx, int agent_idx){
         // Time step (adjust as needed)
         const float dt = 0.1f;        
         // Update speed with acceleration
-        speed = speed + acceleration*dt;
-        if (speed < 0) speed = 0;  // Prevent going backward
+        speed = speed + 0.5f*acceleration*dt;
+        // if (speed < 0) speed = 0;  // Prevent going backward
         speed = clipSpeed(speed);
         // compute yaw rate
         float beta = tanh(.5*tanf(steering));
@@ -882,9 +918,17 @@ void collision_check(GPUDrive* env, int agent_idx) {
         if (collided == VEHICLE_COLLISION) break;
     }
     agent->collision_state = collided;
-    if (car_collided_with_index != -1) {
-        env->entities[car_collided_with_index].collision_state = VEHICLE_COLLISION;
+    // spawn immunity for collisions with other agent cars as agent_idx respawns
+    if(collided == VEHICLE_COLLISION && env->entities[car_collided_with_index].active_agent == 1 && env->entities[agent_idx].respawn_timestep != -1 && env->timestep - env->entities[agent_idx].respawn_timestep < env->spawn_immunity_timer){
+        agent->collision_state = 0;
     }
+
+    // spawn immunity for collisions with other cars who just respawned
+    if (car_collided_with_index != -1 && (env->entities[car_collided_with_index].respawn_timestep != -1 && env->timestep - env->entities[car_collided_with_index].respawn_timestep >= env->spawn_immunity_timer )) {
+        env->entities[car_collided_with_index].collision_state = VEHICLE_COLLISION;
+    } else if (car_collided_with_index != -1 && (env->entities[car_collided_with_index].respawn_timestep != -1 && env->timestep - env->entities[car_collided_with_index].respawn_timestep < env->spawn_immunity_timer )) {
+        agent->collision_state = 0;
+    } 
 }
 
 float normalize_value(float value, float min, float max){
@@ -892,7 +936,7 @@ float normalize_value(float value, float min, float max){
 }
 
 float reverse_normalize_value(float value, float min, float max){
-    return value*(max - min) + min;
+    return value*100.0f;
 }
 
 void compute_observations(GPUDrive* env) {
@@ -915,10 +959,10 @@ void compute_observations(GPUDrive* env) {
         float rel_goal_y = -goal_x*sin_heading + goal_y*cos_heading;
         //obs[0] = normalize_value(rel_goal_x, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
         //obs[1] = normalize_value(rel_goal_y, MIN_REL_GOAL_COORD, MAX_REL_GOAL_COORD);
-        obs[0] = rel_goal_x/20.0f;
-        obs[1] = rel_goal_y/20.0f;
+        obs[0] = rel_goal_x/100.0f;
+        obs[1] = rel_goal_y/100.0f;
         //obs[2] = ego_speed / MAX_SPEED;
-        obs[2] = ego_speed / 5.0f;
+        obs[2] = ego_speed / 100.0f;
         obs[3] = ego_entity->width / MAX_VEH_WIDTH;
         obs[4] = ego_entity->length / MAX_VEH_LEN;
         obs[5] = (ego_entity->collision_state > 0) ? 1 : 0;
@@ -946,8 +990,8 @@ void compute_observations(GPUDrive* env) {
             float rel_x = dx*cos_heading + dy*sin_heading;
             float rel_y = -dx*sin_heading + dy*cos_heading;
             // Store observations with correct indexing
-            obs[obs_idx] = rel_x / 20.0f;
-            obs[obs_idx + 1] = rel_y / 20.0f;
+            obs[obs_idx] = rel_x / 100.0f;
+            obs[obs_idx + 1] = rel_y / 100.0f;
             obs[obs_idx + 2] = other_entity->width / MAX_VEH_WIDTH;
             obs[obs_idx + 3] = other_entity->length / MAX_VEH_LEN;
             // relative heading
@@ -996,8 +1040,8 @@ void compute_observations(GPUDrive* env) {
             // Compute sin and cos of relative angle directly without atan2f
             float cos_angle = dx_norm*cos_heading + dy_norm*sin_heading;
             float sin_angle = -dx_norm*sin_heading + dy_norm*cos_heading;
-            obs[obs_idx] = x_obs / 20.0f;
-            obs[obs_idx + 1] = y_obs / 20.0f;
+            obs[obs_idx] = x_obs / 100.0f;
+            obs[obs_idx + 1] = y_obs / 100.0f;
             obs[obs_idx + 2] = length / MAX_ROAD_SEGMENT_LENGTH;
             obs[obs_idx + 3] = width / MAX_ROAD_SCALE;
             obs[obs_idx + 4] = cos_angle / MAX_ORIENTATION_RAD;
@@ -1017,10 +1061,12 @@ void c_reset(GPUDrive* env){
     for(int x = 0;x<env->active_agent_count; x++){
         env->logs[x] = (Log){0};
         int agent_idx = env->active_agent_indices[x];
+        env->entities[agent_idx].respawn_timestep = -1;
+        env->entities[agent_idx].reached_goal = 0;
+        env->entities[agent_idx].collided_before_goal = 0;
+        env->entities[agent_idx].reached_goal_this_episode = 0;
         collision_check(env, agent_idx);
     }
-    memset(env->goal_reached, 0, env->active_agent_count*sizeof(char));
-    memset(env->reached_goal_this_episode, 0, env->active_agent_count*sizeof(char));
     compute_observations(env);
 }
 
@@ -1030,6 +1076,8 @@ void respawn_agent(GPUDrive* env, int agent_idx){
     env->entities[agent_idx].heading = env->entities[agent_idx].traj_heading[0];
     env->entities[agent_idx].vx = env->entities[agent_idx].traj_vx[0];
     env->entities[agent_idx].vy = env->entities[agent_idx].traj_vy[0];
+    env->entities[agent_idx].reached_goal = 0;
+    env->entities[agent_idx].respawn_timestep = env->timestep;
 }
 
 void c_step(GPUDrive* env){
@@ -1050,24 +1098,33 @@ void c_step(GPUDrive* env){
         env->logs[i].score = 0.0f;
 	    env->logs[i].episode_length += 1;
         int agent_idx = env->active_agent_indices[i];
-        if(env->goal_reached[i] || env->entities[agent_idx].collision_state > 0){
+        int reached_goal = env->entities[agent_idx].reached_goal;
+        int collision_state = env->entities[agent_idx].collision_state;
+        if(reached_goal || collision_state > 0){
             respawn_agent(env, agent_idx);
-            env->goal_reached[i] = 0;
         }
         env->entities[agent_idx].collision_state = 0;
         move_dynamics(env, i, agent_idx);
         // move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
-        if(env->entities[agent_idx].collision_state > 0 && env->goal_reached[i] == 0){
-            if(env->entities[agent_idx].collision_state == VEHICLE_COLLISION){
+        collision_state = env->entities[agent_idx].collision_state;
+        
+        if(collision_state > 0){
+            if(collision_state == VEHICLE_COLLISION){
                 env->rewards[i] = env->reward_vehicle_collision;
                 env->logs[i].collision_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_vehicle_collision;
+                if(env->entities[agent_idx].respawn_timestep == -1){
+                    env->logs[i].clean_collision_rate = 1.0f;
+                }
             }
-            else if(env->entities[agent_idx].collision_state == OFFROAD){
+            else if(collision_state == OFFROAD){
                 env->rewards[i] = env->reward_offroad_collision;
                 env->logs[i].offroad_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_offroad_collision;
+            }
+            if(!env->entities[agent_idx].reached_goal_this_episode){
+                env->entities[agent_idx].collided_before_goal = 1;
             }
         }
 
@@ -1076,12 +1133,11 @@ void c_step(GPUDrive* env){
                 env->entities[agent_idx].y,
                 env->entities[agent_idx].goal_position_x,
                 env->entities[agent_idx].goal_position_y);
-        int reached_goal = distance_to_goal < 2.0f;
-        if(reached_goal && env->goal_reached[i] == 0){            
+        if(distance_to_goal < 2.0f){  
             env->rewards[i] += 1.0f;
-	        env->goal_reached[i] = 1;
-	        env->logs[i].episode_return += 1.0f;
-            env->reached_goal_this_episode[i] = 1;
+            env->logs[i].episode_return += 1.0f;
+	        env->entities[agent_idx].reached_goal = 1;
+            env->entities[agent_idx].reached_goal_this_episode = 1;
 	    }
     }
     compute_observations(env);
@@ -1421,7 +1477,7 @@ void c_render(GPUDrive* env) {
                 car_model = client->cars[0];  // Collided agent
             }
             // Draw obs for human selected agent
-            if(agent_index == env->human_agent_idx && env->goal_reached[agent_index] == 0) {
+            if(agent_index == env->human_agent_idx && !env->entities[agent_index].reached_goal) {
                 draw_agent_obs(env, agent_index);
             }
             // Draw cube for cars static and active
@@ -1442,7 +1498,7 @@ void c_render(GPUDrive* env) {
             rlPopMatrix();
             // FPV Camera Control
             if(IsKeyDown(KEY_LEFT_CONTROL) && env->human_agent_idx== agent_index){
-                if(env->goal_reached[agent_index] == 1){
+                if(env->entities[agent_index].reached_goal){
                     env->human_agent_idx = rand() % env->active_agent_count;
                 }
                 Vector3 camera_position = (Vector3){
@@ -1549,9 +1605,10 @@ void c_render(GPUDrive* env) {
 }
 
 void close_client(Client* client){
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         UnloadModel(client->cars[i]);
     }
+    UnloadTexture(client->puffers);
     CloseWindow();
     free(client);
 }
