@@ -56,7 +56,6 @@ def download_raylib(platform, url):
         os.remove(platform + '.tar.gz')
         urllib.request.urlretrieve(RLIGHTS_URL, platform + '/include/rlights.h')
 
-
 RAYLIB_WASM = 'raylib-5.5_webassembly'
 RAYLIB_WASM_URL = RAYLIB_BASE + RAYLIB_WASM + '.zip'
 download_raylib(RAYLIB_WASM, RAYLIB_WASM_URL)
@@ -372,23 +371,6 @@ extension_kwargs = dict(
     extra_objects=[RAYLIB_A],
 )
 
-# Put C env names here. PufferLib will look for
-# pufferlib/ocean/<name>/binding.c
-c_extensions_names = [
-    'gpudrive',
-    'squared',
-    'pong',
-    'breakout',
-    'enduro',
-    'blastar',
-    'grid',
-    'nmmo3',
-    'tactical',
-    'connect4',
-    'go',
-    'cartpole'
-]
-
 # TODO: Include other C files so rebuild is auto?
 c_extensions = [
     Extension(
@@ -409,15 +391,19 @@ cython_extensions = cythonize([
 ])
 
 # Check if CUDA compiler is available. You need cuda dev, not just runtime.
+torch_sources = [
+    "pufferlib/extensions/pufferlib.cpp",
+]
 if shutil.which("nvcc"):
     extension = CUDAExtension
+    torch_sources.append("pufferlib/extensions/cuda/pufferlib.cu")
 else:
     extension = CppExtension
 
 torch_extensions = [
    extension(
         "pufferlib._C",
-        ["pufferlib/extensions/pufferlib.cpp", "pufferlib/extensions/cuda/pufferlib.cu"],
+        torch_sources,
         extra_compile_args = {
             "cxx": cxx_args,
             "nvcc": nvcc_args,
@@ -487,11 +473,7 @@ setup(
     keywords=["Puffer", "AI", "RL", "Reinforcement Learning"],
     entry_points={
         'console_scripts': [
-            'pufferl-train = pufferlib.clean_pufferl:train',
-            'pufferl-eval = pufferlib.clean_pufferl:eval',
-            'pufferl-sweep = pufferlib.clean_pufferl:sweep',
-            'pufferl-autotune = pufferlib.clean_pufferl:autotune',
-            'pufferl-profile = pufferlib.clean_pufferl:profile',
+            'puffer = pufferlib.clean_pufferl:puffer',
         ],
     },
     classifiers=[

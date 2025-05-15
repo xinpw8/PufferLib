@@ -6,6 +6,7 @@
 #@record
 
 import os
+import sys
 import glob
 import ast
 import time
@@ -1040,9 +1041,12 @@ def load_config():
     args = parser.parse_known_args()[0]
 
     # Load defaults and config
-    for path in glob.glob('config/**/*.ini', recursive=True):
+    puffer_dir = os.path.dirname(os.path.realpath(__file__))
+    puffer_config_dir = os.path.join(puffer_dir, 'config/**/*.ini')
+    puffer_default_config = os.path.join(puffer_dir, 'config/default.ini')
+    for path in glob.glob(puffer_config_dir, recursive=True):
         p = configparser.ConfigParser()
-        p.read(['config/default.ini', path])
+        p.read([puffer_default_config, path])
         if args.env in p['base']['env_name'].split(): break
     else:
         raise pufferlib.APIUsageError('No config for env_name {}'.format(args.env))
@@ -1075,3 +1079,28 @@ def load_config():
 
     args['train']['use_rnn'] = args['rnn_name'] is not None
     return args
+
+# Entry point
+def puffer():
+    err = 'Usage: puffer [train, eval, sweep, autotune, profile, export]'
+    if len(sys.argv) < 2:
+        raise pufferlib.APIUsageError(err)
+
+    mode = sys.argv.pop(1)
+    if mode == 'train':
+        train()
+    elif mode == 'eval':
+        eval()
+    elif mode == 'sweep':
+        sweep()
+    elif mode == 'autotune':
+        autotune()
+    elif mode == 'profile':
+        profile()
+    elif mode == 'export':
+        export()
+    else:
+        raise pufferlib.APIUsageError(err)
+
+if __name__ == '__main__':
+    puffer()
