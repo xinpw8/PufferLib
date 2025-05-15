@@ -12,6 +12,7 @@ import time
 import random
 import shutil
 import argparse
+import importlib
 import configparser
 from threading import Thread
 from collections import defaultdict, deque
@@ -36,8 +37,14 @@ from rich.console import Console
 from rich_argparse import RichHelpFormatter
 rich.traceback.install(show_locals=False)
 
+# TODO: Should this be here?
+# Aggressively exit on ctrl+c
+import signal
+signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
+
+
 class CleanPuffeRL:
-    def __init__(self, config, vecenv, policy, neptune=False, wandb=False):
+    def __init__(self, config, vecenv, policy):
         # Backend perf optimization
         torch.set_float32_matmul_precision('high')
         torch.backends.cudnn.deterministic = config['torch_deterministic']
@@ -154,20 +161,6 @@ class CleanPuffeRL:
         self.amp_context = torch.amp.autocast(device_type='cuda', dtype=getattr(torch, precision))
         if precision not in ('float32', 'bfloat16'):
             raise pufferlib.APIUsageError(f'Invalid precision: {precision}: use float32 or bfloat16')
-
-        # Logging
-        self.neptune = neptune
-        self.wandb = wandb
-        if neptune:
-            self.neptune = init_neptune(args, tag=config['tag'])
-            self.run_id = self.neptune._sys_id
-            for k, v in pufferlib.unroll_nested_dict(args):
-                self.neptune[k].append(v)
-        elif wandb:
-            self.wandb = init_wandb(args, tag=config['tag'])
-            self.run_id = self.wandb.run.id
-        else:
-            self.run_id = str(int(random.random() * 1e8))
 
         # Initializations
         self.config = config
@@ -474,31 +467,21 @@ class CleanPuffeRL:
 
         if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
             return logs
-        elif self.wandb:
-            self.wandb.log(logs)
-        elif self.neptune:
-            for k, v in logs.items():
-                self.neptune[k].append(v, step=agent_steps)
 
-        return logs
+        return None
 
     def close(self):
         self.vecenv.close()
         self.utilization.stop()
         model_path = self.save_checkpoint()
-        path = os.path.join(self.config['data_dir'], f'{self.run_id}.pt')
+        run_id = self.config['run_id']
+        path = os.path.join(self.config['data_dir'], f'{run_id}.pt')
         shutil.copy(model_path, path)
-        if self.wandb:
-            artifact = self.wandb.Artifact(self.run_id, type='model')
-            artifact.add_file(path)
-            self.wandb.run.log_artifact(artifact)
-            self.wandb.finish()
-        elif self.neptune:
-            self.neptune['model'].track_files(path)
-            self.neptune.stop()
+        return path
 
     def save_checkpoint(self):
-        path = os.path.join(self.config['data_dir'], self.run_id)
+        run_id = self.config['run_id']
+        path = os.path.join(self.config['data_dir'], run_id)
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -515,27 +498,12 @@ class CleanPuffeRL:
             'agent_step': self.global_step,
             'update': self.epoch,
             'model_name': model_name,
-            'run_id': self.run_id,
+            'run_id': run_id,
         }
         state_path = os.path.join(path, 'trainer_state.pt')
         torch.save(state, state_path + '.tmp')
         os.rename(state_path + '.tmp', state_path)
         return model_path
-
-    def try_load_checkpoint(self):
-        config = self.config
-        path = os.path.join(config['data_dir'], self.run_id)
-        if not os.path.exists(path):
-            print('No checkpoints found. Assuming new experiment')
-            return
-
-        trainer_path = os.path.join(path, 'trainer_state.pt')
-        resume_state = torch.load(trainer_path, weights_only=False)
-        model_path = os.path.join(path, resume_state['model_name'])
-        self.policy.uncompiled.load_state_dict(
-            torch.load(model_path, weights_only=True), map_location=config['device'])
-        self.optimizer.load_state_dict(resume_state['optimizer_state_dict'])
-        print(f'Loaded checkpoint {resume_state["model_name"]}')
 
     def print_dashboard(self, clear=False, idx=[0],
             c1='[cyan]', c2='[white]', b1='[bright_cyan]', b2='[bright_white]'):
@@ -742,48 +710,6 @@ class Utilization(Thread):
     def stop(self):
         self.stopped = True
 
-def init_wandb(args, id=None, resume=True, tag=None):
-    import wandb
-    wandb.init(
-        id=id or wandb.util.generate_id(),
-        project=args['wandb_project'],
-        group=args['wandb_group'],
-        allow_val_change=True,
-        save_code=False,
-        resume=resume,
-        config=args,
-        tags=[tag] if tag is not None else [],
-    )
-    return wandb
-
-def init_neptune(args, id=None, resume=True, tag=None, mode="async"):
-    import neptune
-    import neptune.exceptions
-    try:
-        neptune_name = args['neptune_name']
-        neptune_project = args['neptune_project']
-        run = neptune.init_run(
-            project=f"{neptune_name}/{neptune_project}",
-            capture_hardware_metrics=False,
-            capture_stdout=False,
-            capture_stderr=False,
-            capture_traceback=False,
-            tags=[tag] if tag is not None else [],
-            mode=mode,
-        )
-    except neptune.exceptions.NeptuneConnectionLostException:
-        print("couldn't connect to neptune, logging in offline mode")
-        return init_neptune(args, id, resume, tag, mode="offline")
-    return run
-
-# TODO:  Do we need this?
-def make_policy(env, policy_cls, rnn_cls, args):
-    policy = policy_cls(env, **args['policy'])
-    if rnn_cls is not None:
-        policy = rnn_cls(env, policy, **args['rnn'])
-
-    return policy.to(args['train']['device'])
-
 # TODO: Is there a simpler interp
 def downsample_linear(arr, m):
     n = len(arr)
@@ -791,35 +717,300 @@ def downsample_linear(arr, m):
     x_new = np.linspace(0, 1, m)  # New indices normalized
     return np.interp(x_new, x_old, arr)
 
-# TODO: All logs?
-def experiment(vecenv, policy, args):
-    train_config = dict(**args['train'], env=args['env_name'], tag=args['tag'])
-    pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
+class NoLogger:
+    def __init__(self, args):
+        self.run_id = str(int(random.random() * 1e8))
+
+    def log(self, logs):
+        pass
+
+    def close(self, model_path):
+        pass
+
+class NeptuneLogger:
+    def __init__(self, args, load_id=None, mode='async'):
+        import neptune as nept
+        neptune_name = args['neptune_name']
+        neptune_project = args['neptune_project']
+        neptune = nept.init_run(
+            project=f"{neptune_name}/{neptune_project}",
+            capture_hardware_metrics=False,
+            capture_stdout=False,
+            capture_stderr=False,
+            capture_traceback=False,
+            with_id=load_id,
+            mode=mode,
+            tags = [args['tag']] if args['tag'] is not None else [],
+        )
+        self.run_id = neptune._sys_id
+        self.neptune = neptune
+        for k, v in pufferlib.unroll_nested_dict(args):
+            neptune[k].append(v)
+
+    def log(self, logs, step):
+        for k, v in logs.items():
+            self.neptune[k].append(v, step=step)
+
+    def close(self, model_path):
+        self.neptune['model'].track_files(model_path)
+        self.neptune.stop()
+
+    def download(self):
+        self.neptune["model"].download(destination='artifacts')
+        return f'artifacts/{self.run_id}.pt'
+ 
+class WandbLogger:
+    def __init__(self, args, load_id=None, resume='allow'):
+        import wandb
+        wandb.init(
+            id=load_id or wandb.util.generate_id(),
+            project=args['wandb_project'],
+            group=args['wandb_group'],
+            allow_val_change=True,
+            save_code=False,
+            resume=resume,
+            config=args,
+            tags = [args['tag']] if args['tag'] is not None else [],
+        )
+        self.wandb = wandb
+        self.run_id = wandb.run.id
+
+    def log(self, logs):
+        self.wandb.log(logs)
+
+    def close(self, model_path):
+        artifact = self.wandb.Artifact(self.run_id, type='model')
+        artifact.add_file(model_path)
+        self.wandb.run.log_artifact(artifact)
+        self.wandb.finish()
+
+    def download(self):
+        artifact = self.wandb.use_artifact(f'{self.run_id}:latest')
+        data_dir = artifact.download()
+        model_file = max(os.listdir(data_dir))
+        return f'{data_dir}/{model_file}'
+ 
+def train(args=None, vecenv=None, policy=None, logger=None):
+    args = args or load_config()
+    vecenv = vecenv or load_env(args)
+    policy = policy or load_policy(args, vecenv)
+
+    # Assume TorchRun DDP is used if LOCAL_RANK is set
+    if 'LOCAL_RANK' in os.environ:
+        torch.distributed.init_process_group(backend='nccl', rank=0, world_size=1)
+
+    if logger is None:
+        if args['neptune']:
+            logger = NeptuneLogger(args)
+        elif args['wandb']:
+            logger = WandbLogger(args)
+        else:
+            logger = NoLogger(args)
+
+    train_config = dict(**args['train'], env=args['env_name'], run_id=logger.run_id)
+    pufferl = CleanPuffeRL(train_config, vecenv, policy)
+
+    # Load optimizer state
+    load_path = args['load_model_path']
+    if load_path is not None:
+        policy.load_state_dict(torch.load(load_path, map_location=args['train']['device']))
+        state_path = os.path.join(*load_path.split('/')[:-1], 'state.pt')
+        optim_state = torch.load(state_path)['optimizer_state_dict']
+        pufferl.optimizer.load_state_dict(optim_state)
 
     all_logs = []
     while pufferl.global_step < train_config['total_timesteps']:
         pufferl.evaluate()
         logs = pufferl.train()
+
         if logs is not None:
+            logger.log(logs, pufferl.agent_steps)
             all_logs.append(logs)
 
-    vecenv.async_reset(train_config['seed'])
     i = 0
     stats = {}
+    vecenv.async_reset(train_config['seed'])
     while i < 100 or not stats:
         stats = pufferl.evaluate()
         i += 1
 
     logs = pufferl.mean_and_log()
     if logs is not None:
+        logger.log(logs, pufferl.agent_steps)
         all_logs.append(logs)
 
     pufferl.print_dashboard()
-    pufferl.close()
-    return all_logs
+    model_path = pufferl.close()
+    logger.close(model_path)
 
-def main():
-    global args # Temporary fix
+def eval(args=None, vecenv=None, policy=None):
+    args = args or load_config()
+    args['vec'] = dict(backend='Serial', num_envs=1)
+    vecenv = vecenv or load_env(args)
+    if not isinstance(vecenv, pufferlib.vector.Serial):
+        raise pufferlib.APIUsageError('eval requires Serial vector env')
+
+    policy = policy or load_policy(args, vecenv)
+    ob, info = vecenv.reset()
+    driver = vecenv.driver_env
+    num_agents = vecenv.observation_space.shape[0]
+    device = args['train']['device']
+
+    state = {}
+    if args['train']['use_rnn']:
+        state = dict(
+            lstm_h=torch.zeros(num_agents, policy.hidden_size, device=device),
+            lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
+        )
+
+    frames = []
+    while True:
+        render = driver.render()
+        if len(frames) < args['save_frames']:
+            frames.append(render)
+
+        # TODO: Frames from raylib
+        if driver.render_mode == 'ansi':
+            print('\033[0;0H' + render + '\n')
+            time.sleep(1/args['fps'])
+        elif driver.render_mode == 'rgb_array':
+            import cv2
+            render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
+            cv2.imshow('frame', render)
+            cv2.waitKey(1)
+            time.sleep(1/args['fps'])
+
+        with torch.no_grad():
+            ob = torch.as_tensor(ob).to(device)
+            logits, value = policy(ob, state)
+            action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
+            action = action.cpu().numpy().reshape(vecenv.action_space.shape)
+
+        ob = vecenv.step(action)[0]
+
+        if len(frames) > 0 and len(frames) == args['save_frames']:
+            import imageio
+            imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
+            frames.append('Done')
+
+def sweep(args=None):
+    args = args or load_config()
+    if not args['wandb'] and not args['neptune']:
+        raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
+
+    method = args['sweep'].pop('method')
+    try:
+        sweep_cls = getattr(pufferlib.sweep, method)
+    except:
+        raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
+
+    sweep = sweep_cls(args['sweep'])
+    target_key = f'environment/{args["sweep"]["metric"]}'
+    total_timesteps = args['train']['total_timesteps']
+    for i in range(args['max_runs']):
+        seed = time.time_ns() & 0xFFFFFFFF
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        sweep.suggest(args)
+
+        all_logs = train(args)
+        all_logs = [e for e in all_logs if target_key in e]
+        scores = downsample_linear([log[target_key] for log in all_logs], 10)
+        costs = downsample_linear([log['uptime'] for log in all_logs], 10)
+        timesteps = downsample_linear([log['agent_steps'] for log in all_logs], 10)
+
+        for score, cost, timestep in zip(scores, costs, timesteps):
+            args['train']['total_timesteps'] = timestep
+            sweep.observe(args, score, cost)
+
+        # Prevent logging final eval steps as training steps
+        args['train']['total_timesteps'] = total_timesteps
+
+def profile():
+    args = args or load_config()
+    vecenv = vecenv or load_env(args)
+    policy = policy or load_policy(args, vecenv)
+
+    train_config = dict(**args['train'], env=args['env_name'], tag=args['tag'])
+    pufferl = CleanPuffeRL(train_config, vecenv, policy, neptune=args['neptune'], wandb=args['wandb'])
+
+    import torchvision.models as models
+    from torch.profiler import profile, record_function, ProfilerActivity
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            for _ in range(10):
+                stats = pufferl.evaluate()
+                pufferl.train()
+
+    print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
+    prof.export_chrome_trace("trace.json")
+
+def export(args):
+    args = args or load_config()
+    vecenv = vecenv or load_env(args)
+    policy = policy or load_policy(args, vecenv)
+
+    weights = []
+    for name, param in policy.named_parameters():
+        weights.append(param.data.cpu().numpy().flatten())
+        print(name, param.shape, param.data.cpu().numpy().ravel()[0])
+    
+    path = f'{args["env_name"]}_weights.bin'
+    weights = np.concatenate(weights)
+    weights.tofile(path)
+    print(f'Saved {len(weights)} weights to {path}')
+
+def autotune(args):
+    package = args['package']
+    module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
+    env_module = importlib.import_module(module_name)
+    env_name = args['env_name']
+    make_env = env_module.env_creator(env_name)
+    pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
+ 
+def load_env(args):
+    package = args['package']
+    module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
+    env_module = importlib.import_module(module_name)
+
+    env_name = args['env_name']
+    make_env = env_module.env_creator(env_name)
+    return pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
+
+def load_policy(args, vecenv):
+    package = args['package']
+    module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
+    env_module = importlib.import_module(module_name)
+
+    device = args['train']['device']
+    policy_cls = getattr(env_module.torch, args['policy_name'])
+    policy = policy_cls(vecenv.driver_env, **args['policy'])
+
+    rnn_name = args['rnn_name']
+    if rnn_name is not None:
+        rnn_cls = getattr(env_module.torch, args['rnn_name'])
+        policy = rnn_cls(vecenv.driver_env, policy, **args['rnn'])
+
+    policy = policy.to(device)
+
+    load_id = args['load_id']
+    if load_id is not None:
+        if args['mode'] not in ('train', 'eval'):
+            raise pufferlib.APIUsageError('load_id requires mode to be train or eval')
+
+        if args['neptune']:
+            path = NeptuneLogger(args, load_id, mode='read-only').download()
+        elif args['wandb']:
+            path = WandbLogger(args, load_id).download()
+        else:
+            raise pufferlib.APIUsageError('No run id provided for eval')
+
+        policy.load_state_dict(torch.load(path, map_location=device))
+
+    return policy
+
+def load_config():
     parser = argparse.ArgumentParser(
         description=f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]'
         ' demo options. Shows valid args for your env and policy',
@@ -882,170 +1073,5 @@ def main():
 
         prev[subkey] = value
 
-    # Dynamically import environment and policy
-    import importlib
-    package = args['package']
-    module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
-    env_module = importlib.import_module(module_name)
-    make_env = env_module.env_creator(env_name)
-    policy_cls = getattr(env_module.torch, args['policy_name'])
-    rnn_name = args['rnn_name']
-    rnn_cls = None
-    if rnn_name is not None:
-        rnn_cls = getattr(env_module.torch, args['rnn_name'])
-
-    # Aggressively exit on ctrl+c
-    import signal
-    signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
-
-    # Assume TorchRun DDP is used if LOCAL_RANK is set
-    if 'LOCAL_RANK' in os.environ:
-        torch.distributed.init_process_group(backend='nccl', rank=0, world_size=1)
-
-    if args['mode'] == 'autotune':
-        pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
-        exit(0)
-
-    args['train']['use_rnn'] = rnn_cls is not None
-    env_name = args['env_name']
-    device = args['train']['device']
-
-    if args['mode'] == 'sweep':
-        if not args['wandb'] and not args['neptune']:
-            raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
-
-        method = args['sweep'].pop('method')
-        try:
-            sweep_cls = getattr(pufferlib.sweep, method)
-        except:
-            raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
-
-        sweep = sweep_cls(args['sweep'])
-        target_key = f'environment/{args["sweep"]["metric"]}'
-        total_timesteps = args['train']['total_timesteps']
-        for i in range(args['max_runs']):
-            seed = time.time_ns() & 0xFFFFFFFF
-            random.seed(seed)
-            np.random.seed(seed)
-            torch.manual_seed(seed)
-            sweep.suggest(args)
-
-            vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
-            policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
-            all_logs = experiment(vecenv, policy, args)
-            all_logs = [e for e in all_logs if target_key in e]
-            scores = downsample_linear([log[target_key] for log in all_logs], 10)
-            costs = downsample_linear([log['uptime'] for log in all_logs], 10)
-            timesteps = downsample_linear([log['agent_steps'] for log in all_logs], 10)
-
-            for score, cost, timestep in zip(scores, costs, timesteps):
-                args['train']['total_timesteps'] = timestep
-                sweep.observe(args, score, cost)
-
-            # Prevent logging final eval steps as training steps
-            args['train']['total_timesteps'] = total_timesteps
-
-        exit(0)
-
-    if args['mode'] == 'eval':
-        args['vec'] = dict(backend='Serial', num_envs=1)
-        
-    vecenv = pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
-    policy = make_policy(vecenv.driver_env, policy_cls, rnn_cls, args)
-
-    load_id = args['load_id']
-    if load_id is not None:
-        if args['mode'] not in ('train', 'eval'):
-            raise pufferlib.APIUsageError('load_id requires mode to be train or eval')
-
-        if args['neptune']:
-            import neptune
-            neptune_name = args['neptune_name']
-            neptune_project = args['neptune_project']
-            run = neptune.init_run(
-                project=f"{neptune_name}/{neptune_project}",
-                with_id=load_id, mode="read-only")
-            data_dir = 'artifacts'
-            run["model"].download(destination=data_dir)
-        elif args['wandb']:
-            run = init_wandb(args, load_id, resume='must')
-            artifact = run.use_artifact(f'{load_id}:latest')
-            data_dir = artifact.download()
-            model_file = max(os.listdir(data_dir))
-        else:
-            raise pufferlib.APIUsageError('No run id provided for eval')
-
-        policy.load_state_dict(torch.load(f'{data_dir}/{load_id}.pt', map_location=device))
-
-    if args['load_model_path'] is not None:
-        policy.load_state_dict(torch.load(
-            args['load_model_path'], map_location=args['train']['device']))
-
-    if args['mode'] == 'train':
-        experiment(vecenv, policy, args)
-    elif args['mode'] == 'eval':
-        ob, info = vecenv.reset()
-        driver = vecenv.driver_env
-        num_agents = vecenv.observation_space.shape[0]
-
-        state = {}
-        if args['train']['use_rnn']:
-            state = dict(
-                lstm_h=torch.zeros(num_agents, policy.hidden_size, device=device),
-                lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
-            )
-
-        frames = []
-        while True:
-            render = driver.render()
-            if len(frames) < args['save_frames']:
-                frames.append(render)
-
-            # TODO: Frames from raylib
-            if driver.render_mode == 'ansi':
-                print('\033[0;0H' + render + '\n')
-                time.sleep(1/args['fps'])
-            elif driver.render_mode == 'rgb_array':
-                import cv2
-                render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
-                cv2.imshow('frame', render)
-                cv2.waitKey(1)
-                time.sleep(1/args['fps'])
-
-            with torch.no_grad():
-                ob = torch.as_tensor(ob).to(args['train']['device'])
-                logits, value = policy(ob, state)
-                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
-                action = action.cpu().numpy().reshape(vecenv.action_space.shape)
-
-            ob = vecenv.step(action)[0]
-
-            if len(frames) > 0 and len(frames) == args['save_frames']:
-                import imageio
-                imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
-                frames.append('Done')
-    elif args['mode'] == 'profile':
-        #import torch
-        import torchvision.models as models
-        from torch.profiler import profile, record_function, ProfilerActivity
-        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-            with record_function("model_inference"):
-                for _ in range(10):
-                    stats = pufferl.evaluate()
-                    pufferl.train()
-
-        print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
-        prof.export_chrome_trace("trace.json")
-    elif args['mode'] == 'export':
-        weights = []
-        for name, param in policy.named_parameters():
-            weights.append(param.data.cpu().numpy().flatten())
-            print(name, param.shape, param.data.cpu().numpy().ravel()[0])
-        
-        path = f'{env_name}_weights.bin'
-        weights = np.concatenate(weights)
-        weights.tofile(path)
-        print(f'Saved {len(weights)} weights to {path}')
-
-if __name__ == '__main__':
-    main()
+    args['train']['use_rnn'] = args['rnn_name'] is not None
+    return args
