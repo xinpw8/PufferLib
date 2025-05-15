@@ -1025,7 +1025,7 @@ def main():
                 imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
                 frames.append('Done')
     elif args['mode'] == 'profile':
-        import torch
+        #import torch
         import torchvision.models as models
         from torch.profiler import profile, record_function, ProfilerActivity
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
