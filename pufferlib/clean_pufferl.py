@@ -29,7 +29,10 @@ import pufferlib
 import pufferlib.sweep
 import pufferlib.vector
 import pufferlib.pytorch
-from pufferlib import _C
+try:
+    from pufferlib import _C
+except ImportError:
+    raise ImportError('Failed to import C/CUDA advantage kernel. If you have non-default PyTorch, try installing with --no-build-isolation')
 
 import rich
 import rich.traceback
@@ -814,7 +817,7 @@ def train(args=None, vecenv=None, policy=None, logger=None):
     # Load optimizer state
     load_path = args['load_model_path']
     if load_path is not None:
-        policy.load_state_dict(torch.load(load_path, map_location=args['train']['device']))
+        pufferl.uncompiled_policy.load_state_dict(torch.load(load_path, map_location=args['train']['device']))
         state_path = os.path.join(*load_path.split('/')[:-1], 'state.pt')
         optim_state = torch.load(state_path)['optimizer_state_dict']
         pufferl.optimizer.load_state_dict(optim_state)
