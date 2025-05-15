@@ -814,14 +814,6 @@ def train(args=None, vecenv=None, policy=None, logger=None):
     train_config = dict(**args['train'], env=args['env_name'], run_id=logger.run_id)
     pufferl = CleanPuffeRL(train_config, vecenv, policy)
 
-    # Load optimizer state
-    load_path = args['load_model_path']
-    if load_path is not None:
-        pufferl.uncompiled_policy.load_state_dict(torch.load(load_path, map_location=args['train']['device']))
-        state_path = os.path.join(*load_path.split('/')[:-1], 'state.pt')
-        optim_state = torch.load(state_path)['optimizer_state_dict']
-        pufferl.optimizer.load_state_dict(optim_state)
-
     all_logs = []
     while pufferl.global_step < train_config['total_timesteps']:
         pufferl.evaluate()
@@ -1011,6 +1003,14 @@ def load_policy(args, vecenv):
             raise pufferlib.APIUsageError('No run id provided for eval')
 
         policy.load_state_dict(torch.load(path, map_location=device))
+
+    # Load optimizer state
+    load_path = args['load_model_path']
+    if load_path is not None:
+        policy.load_state_dict(torch.load(load_path, map_location=args['train']['device']))
+        #state_path = os.path.join(*load_path.split('/')[:-1], 'state.pt')
+        #optim_state = torch.load(state_path)['optimizer_state_dict']
+        #pufferl.optimizer.load_state_dict(optim_state)
 
     return policy
 
