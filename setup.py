@@ -372,14 +372,16 @@ extension_kwargs = dict(
 )
 
 # TODO: Include other C files so rebuild is auto?
+c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
 c_extensions = [
     Extension(
         path.rstrip('.c').replace('/', '.'),
         sources=[path],
         **extension_kwargs,
     )
-    for path in glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
+    for path in c_extension_paths
 ]
+c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
 
 cython_extensions = cythonize([
     Extension(
@@ -430,7 +432,7 @@ setup(
     "PufferAI's library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
-    packages=find_namespace_packages() + find_packages(),
+    packages=find_namespace_packages() + find_packages() + c_extension_paths,
     package_data={
         "pufferlib": [RAYLIB_NAME + '/lib/libraylib.a']
     },
