@@ -902,14 +902,13 @@ def sweep(args=None):
 
     sweep = sweep_cls(args['sweep'])
     target_key = f'environment/{args["sweep"]["metric"]}'
-    total_timesteps = args['train']['total_timesteps']
     for i in range(args['max_runs']):
         seed = time.time_ns() & 0xFFFFFFFF
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
         sweep.suggest(args)
-
+        total_timesteps = args['train']['total_timesteps']
         all_logs = train(args)
         all_logs = [e for e in all_logs if target_key in e]
         scores = downsample_linear([log[target_key] for log in all_logs], 10)
