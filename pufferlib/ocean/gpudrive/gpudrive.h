@@ -23,7 +23,7 @@
 #define DRIVEWAY 10
 
 // Trajectory Length
-#define TRAJECTORY_LENGTH 91
+#define TRAJECTORY_LENGTH 151
 
 // Actions
 #define NOOP 0
@@ -231,6 +231,7 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     fread(&env->num_objects, sizeof(int), 1, file);
     fread(&env->num_roads, sizeof(int), 1, file);
     env->num_entities = env->num_objects + env->num_roads;
+    printf("Num entities: %d\n", env->num_entities);
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
     //printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
@@ -638,20 +639,21 @@ void init(GPUDrive* env){
     env->human_agent_idx = 0;
     env->timestep = 0;
     env->entities = load_map_binary(env->map_name, env);
-    // printf("entities loaded\n");
+    printf("entities loaded\n");
     // printf("num entities: %d\n", env->num_entities);
     env->dynamics_model = CLASSIC;
     set_means(env);
-    //printf("world mean: %f, %f\n", env->world_mean_x, env->world_mean_y);
+    printf("world mean: %f, %f\n", env->world_mean_x, env->world_mean_y);
     set_active_agents(env);
     set_start_position(env);
-    // printf("Active agents: %d\n", env->active_agent_count);
+    printf("Active agents: %d\n", env->active_agent_count);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
     init_grid_map(env);
     env->vision_range = 21;
     init_neighbor_offsets(env);
     env->neighbor_cache_indices = (int*)calloc((env->grid_cols*env->grid_rows) + 1, sizeof(int));
     cache_neighbor_offsets(env);
+    printf("cached map\n");
 }
 
 void free_initialized(GPUDrive* env){
@@ -919,14 +921,22 @@ void collision_check(GPUDrive* env, int agent_idx) {
     }
     agent->collision_state = collided;
     // spawn immunity for collisions with other agent cars as agent_idx respawns
-    if(collided == VEHICLE_COLLISION && env->entities[car_collided_with_index].active_agent == 1 && env->entities[agent_idx].respawn_timestep != -1 && env->timestep - env->entities[agent_idx].respawn_timestep < env->spawn_immunity_timer){
+    int is_active_agent = env->entities[agent_idx].active_agent;
+    int respawned = env->entities[agent_idx].respawn_timestep != -1;
+    int exceeded_spawn_immunity_agent = env->timestep - env->entities[agent_idx].respawn_timestep >= env->spawn_immunity_timer;
+    if(collided == VEHICLE_COLLISION && is_active_agent == 1 && respawned && exceeded_spawn_immunity_agent){
         agent->collision_state = 0;
     }
 
     // spawn immunity for collisions with other cars who just respawned
-    if (car_collided_with_index != -1 && (env->entities[car_collided_with_index].respawn_timestep != -1 && env->timestep - env->entities[car_collided_with_index].respawn_timestep >= env->spawn_immunity_timer )) {
+    if(car_collided_with_index ==-1) return;
+    int respawned_collided_with_car = env->entities[car_collided_with_index].respawn_timestep != -1;
+    int exceeded_spawn_immunity_collided_with_car = env->timestep - env->entities[car_collided_with_index].respawn_timestep >= env->spawn_immunity_timer;
+    int within_spawn_immunity_collided_with_car = env->timestep - env->entities[car_collided_with_index].respawn_timestep < env->spawn_immunity_timer;
+
+    if (car_collided_with_index != -1 && respawned_collided_with_car && exceeded_spawn_immunity_collided_with_car) {
         env->entities[car_collided_with_index].collision_state = VEHICLE_COLLISION;
-    } else if (car_collided_with_index != -1 && (env->entities[car_collided_with_index].respawn_timestep != -1 && env->timestep - env->entities[car_collided_with_index].respawn_timestep < env->spawn_immunity_timer )) {
+    } else if (car_collided_with_index != -1 && respawned_collided_with_car && within_spawn_immunity_collided_with_car) {
         agent->collision_state = 0;
     } 
 }
@@ -1083,7 +1093,7 @@ void respawn_agent(GPUDrive* env, int agent_idx){
 void c_step(GPUDrive* env){
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     env->timestep++;
-    if(env->timestep == 91){
+    if(env->timestep == TRAJECTORY_LENGTH){
         add_log(env);
 	    c_reset(env);
     }
@@ -1104,8 +1114,8 @@ void c_step(GPUDrive* env){
             respawn_agent(env, agent_idx);
         }
         env->entities[agent_idx].collision_state = 0;
-        move_dynamics(env, i, agent_idx);
-        // move_expert(env, env->actions, agent_idx);
+        // move_dynamics(env, i, agent_idx);
+        move_expert(env, env->actions, agent_idx);
         collision_check(env, agent_idx);
         collision_state = env->entities[agent_idx].collision_state;
         

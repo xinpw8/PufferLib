@@ -119,6 +119,7 @@ def simplify_polyline(geometry, polyline_reduction_threshold):
     return [geometry[i] for i in range(num_points) if not skip[i]]
 
 def save_map_binary(map_data, output_file):
+    trajectory_length = 200
     """Saves map data in a binary format readable by C"""
     with open(output_file, 'wb') as f:
         # Count total entities
@@ -142,32 +143,32 @@ def save_map_binary(map_data, output_file):
                 obj_type = 3;
             f.write(struct.pack('i', obj_type))  # type
             f.write(struct.pack('i', obj.get('id', 0)))   # id  
-            f.write(struct.pack('i', 91))                  # array_size
+            f.write(struct.pack('i', trajectory_length))                  # array_size
             # Write position arrays
             positions = obj.get('position', [])
-            for i in range(91):
+            for i in range(trajectory_length):
                 pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 f.write(struct.pack('f', float(pos.get('x', 0.0))))
-            for i in range(91):
+            for i in range(trajectory_length):
                 pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 f.write(struct.pack('f', float(pos.get('y', 0.0))))
-            for i in range(91):
+            for i in range(trajectory_length):
                 pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 f.write(struct.pack('f', float(pos.get('z', 0.0))))
             
             # Write velocity arrays
             velocities = obj.get('velocity', [])
             for arr, key in [(velocities, 'x'), (velocities, 'y'), (velocities, 'z')]:
-                for i in range(91):
+                for i in range(trajectory_length):
                     vel = arr[i] if i < len(arr) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                     f.write(struct.pack('f', float(vel.get(key, 0.0))))
             
             # Write heading and valid arrays
             headings = obj.get('heading', [])
-            f.write(struct.pack('91f', *[float(headings[i]) if i < len(headings) else 0.0 for i in range(91)]))
+            f.write(struct.pack(f'{trajectory_length}f', *[float(headings[i]) if i < len(headings) else 0.0 for i in range(trajectory_length)]))
             
             valids = obj.get('valid', [])
-            f.write(struct.pack('91i', *[int(valids[i]) if i < len(valids) else 0 for i in range(91)]))
+            f.write(struct.pack(f'{trajectory_length}i', *[int(valids[i]) if i < len(valids) else 0 for i in range(trajectory_length)]))
             
             # Write scalar fields
             f.write(struct.pack('f', float(obj.get('width', 0.0))))
@@ -183,6 +184,11 @@ def save_map_binary(map_data, output_file):
         for idx, road in enumerate(map_data.get('roads', [])):
             geometry = road.get('geometry', [])
             road_type = road.get('map_element_id', 0)
+            road_type_word = road.get('type', 0)
+            if(road_type_word == "lane"):
+                road_type = 2
+            elif(road_type_word == "road_edge"):
+                road_type = 15
             # breakpoint()
             if(len(geometry) > 10 and road_type <=16):
                 geometry = simplify_polyline(geometry, .1)
@@ -239,7 +245,7 @@ def process_all_maps():
     binary_dir.mkdir(parents=True, exist_ok=True)
 
     # Path to the training data
-    data_dir = Path("data/processed/training")
+    data_dir = Path("resources/gpudrive/nuplan")
     
     # Get all JSON files in the training directory
     json_files = sorted(data_dir.glob("*.json"))
@@ -278,5 +284,5 @@ def test_performance(timeout=10, atn_cache=1024, num_agents=1024):
     print(f'SPS: {num_agents * tick / (time.time() - start)}')
     env.close()
 if __name__ == '__main__':
-    test_performance()
-    # process_all_maps()
+    # test_performance()
+    process_all_maps()
