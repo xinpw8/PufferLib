@@ -71,7 +71,7 @@ static PyObject* env_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         return NULL;
     }
     env->actions = PyArray_DATA(actions);
-    if (PyArray_STRIDE(actions, 0) == sizeof(double)) {
+    if (PyArray_ITEMSIZE(actions, 0) == sizeof(double)) {
         PyErr_SetString(PyExc_ValueError, "Action tensor passed as float64 (pass np.float32 buffer)");
         return NULL;
     }
@@ -313,7 +313,7 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         PyErr_SetString(PyExc_ValueError, "Actions must be contiguous");
         return NULL;
     }
-    if (PyArray_STRIDE(actions, 0) == sizeof(double)) {
+    if (PyArray_ITEMSIZE(actions, 0) == sizeof(double)) {
         PyErr_SetString(PyExc_ValueError, "Action tensor passed as float64 (pass np.float32 buffer)");
         return NULL;
     }
