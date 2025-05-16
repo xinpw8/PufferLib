@@ -43,22 +43,24 @@ cython_extension_paths = [
 ]
 
 # Build raylib for your platform
-RAYLIB_BASE = 'https://github.com/raysan5/raylib/releases/download/5.5/'
+RAYLIB_URL = 'https://github.com/raysan5/raylib/releases/download/5.5/'
 RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
 RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 
-def download_raylib(platform, url):
+def download_raylib(platform, ext):
     if not os.path.exists(platform):
-        urllib.request.urlretrieve(url, platform + '.tar.gz')
-        with tarfile.open(platform + '.tar.gz', 'r') as tar_ref:
-            tar_ref.extractall()
+        urllib.request.urlretrieve(RAYLIB_URL + platform + ext, platform + ext)
+        if ext == '.zip':
+            with zipfile.ZipFile(platform + ext, 'r') as zip_ref:
+                zip_ref.extractall()
+        else:
+            with tarfile.open(platform + ext, 'r') as tar_ref:
+                tar_ref.extractall()
 
-        os.remove(platform + '.tar.gz')
+        os.remove(platform + ext)
         urllib.request.urlretrieve(RLIGHTS_URL, platform + '/include/rlights.h')
 
-RAYLIB_WASM = 'raylib-5.5_webassembly'
-RAYLIB_WASM_URL = RAYLIB_BASE + RAYLIB_WASM + '.zip'
-download_raylib(RAYLIB_WASM, RAYLIB_WASM_URL)
+download_raylib('raylib-5.5_webassembly', '.zip')
 
 # Shared compile args for all platforms
 extra_compile_args = [
@@ -113,9 +115,7 @@ if system == 'Linux':
     extra_link_args += [
         '-Bsymbolic-functions',
     ]
-    RAYLIB_LINUX = 'raylib-5.5_linux_amd64'
-    RAYLIB_LINUX_URL = RAYLIB_BASE + RAYLIB_LINUX + '.tar.gz'
-    download_raylib(RAYLIB_LINUX, RAYLIB_LINUX_URL)
+    download_raylib('raylib-5.5_linux_amd64', '.tar.gz')
 elif system == 'Darwin':
     extra_compile_args += [
     ]
@@ -124,9 +124,7 @@ elif system == 'Darwin':
         '-framework', 'OpenGL',
         '-framework', 'IOKit',
     ]
-    RAYLIB_MACOS = 'raylib-5.5_macos'
-    RAYLIB_MACOS_URL = RAYLIB_BASE + RAYLIB_MACOS + '.tar.gz'
-    download_raylib(RAYLIB_MACOS, RAYLIB_MACOS_URL)
+    download_raylib('raylib-5.5_macos', '.tar.gz')
 else:
     raise ValueError(f'Unsupported system: {system}')
 
@@ -353,9 +351,9 @@ class BuildExt(build_ext):
         self.run_command('build_c')
 
 class CBuildExt(build_ext):
-    def run(self):
+    def run(self, *args, **kwargs):
         self.extensions = [e for e in self.extensions if e.name != "pufferlib._C"]
-        super().run()
+        super().run(*args, **kwargs)
 
 class TorchBuildExt(cpp_extension.BuildExtension):
     def run(self):
@@ -372,14 +370,16 @@ extension_kwargs = dict(
 )
 
 # TODO: Include other C files so rebuild is auto?
+c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
 c_extensions = [
     Extension(
         path.rstrip('.c').replace('/', '.'),
         sources=[path],
         **extension_kwargs,
     )
-    for path in glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
+    for path in c_extension_paths
 ]
+c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
 
 cython_extensions = cythonize([
     Extension(
@@ -430,7 +430,7 @@ setup(
     "PufferAI's library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
-    packages=find_namespace_packages() + find_packages(),
+    packages=find_namespace_packages() + find_packages() + c_extension_paths + ['pufferlib/extensions'],
     package_data={
         "pufferlib": [RAYLIB_NAME + '/lib/libraylib.a']
     },
