@@ -351,9 +351,9 @@ class BuildExt(build_ext):
         self.run_command('build_c')
 
 class CBuildExt(build_ext):
-    def run(self):
+    def run(self, *args, **kwargs):
         self.extensions = [e for e in self.extensions if e.name != "pufferlib._C"]
-        super().run()
+        super().run(*args, **kwargs)
 
 class TorchBuildExt(cpp_extension.BuildExtension):
     def run(self):

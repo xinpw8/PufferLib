@@ -215,7 +215,7 @@ class CleanPuffeRL:
 
             # TODO: Handle truncations
             done_mask = d + t
-            self.global_step += mask.sum()
+            self.global_step += int(mask.sum())
 
             o = torch.as_tensor(o)
             o = o.pin_memory()
@@ -469,10 +469,12 @@ class CleanPuffeRL:
             **{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
         }
 
-        if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
-            return logs
-
-        return None
+        if torch.distributed.is_initialized():
+           if torch.distributed.get_rank() != 0:
+               return logs
+           else:
+               return None
+        return logs
 
     def close(self):
         self.vecenv.close()
@@ -820,7 +822,7 @@ def train(args=None, vecenv=None, policy=None, logger=None):
         logs = pufferl.train()
 
         if logs is not None:
-            logger.log(logs, pufferl.agent_steps)
+            logger.log(logs, pufferl.global_step)
             all_logs.append(logs)
 
     i = 0
@@ -832,12 +834,13 @@ def train(args=None, vecenv=None, policy=None, logger=None):
 
     logs = pufferl.mean_and_log()
     if logs is not None:
-        logger.log(logs, pufferl.agent_steps)
+        logger.log(logs, pufferl.global_step)
         all_logs.append(logs)
 
     pufferl.print_dashboard()
     model_path = pufferl.close()
     logger.close(model_path)
+    return all_logs
 
 def eval(args=None, vecenv=None, policy=None):
     args = args or load_config()
