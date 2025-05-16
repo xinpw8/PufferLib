@@ -727,7 +727,7 @@ class NoLogger:
     def __init__(self, args):
         self.run_id = str(int(random.random() * 1e8))
 
-    def log(self, logs):
+    def log(self, logs, step):
         pass
 
     def close(self, model_path):
@@ -821,7 +821,7 @@ def train(args=None, vecenv=None, policy=None, logger=None):
         pufferl.evaluate()
         logs = pufferl.train()
 
-        if logs is not None:
+        if logs is not None and pufferl.global_step > 0.20*train_config['total_timesteps']:
             logger.log(logs, pufferl.global_step)
             all_logs.append(logs)
 
