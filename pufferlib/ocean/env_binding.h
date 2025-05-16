@@ -602,8 +602,8 @@ static PyObject* vec_close(PyObject* self, PyObject* args) {
     }
 
     for (int i = 0; i < vec->num_envs; i++) {
-        free(vec->envs[i]);
         c_close(vec->envs[i]);
+        free(vec->envs[i]);
     }
     free(vec->envs);
     free(vec);
