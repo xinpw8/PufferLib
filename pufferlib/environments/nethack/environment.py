@@ -7,13 +7,12 @@ import functools
 import pufferlib
 import pufferlib.emulation
 import pufferlib.environments
-import pufferlib.postprocess
 #from .wrapper import RenderCharImagesWithNumpyWrapper
 
 def env_creator(name='nethack'):
     return functools.partial(make, name)
 
-def make(name, buf=None):
+def make(name, buf=None, seed=0):
     '''NetHack binding creation function'''
     if name == 'nethack':
         name = 'NetHackScore-v0'
@@ -23,7 +22,7 @@ def make(name, buf=None):
     #env = RenderCharImagesWithNumpyWrapper(env)
     env = shimmy.GymV21CompatibilityV0(env=env)
     env = NethackWrapper(env)
-    env = pufferlib.postprocess.EpisodeStats(env)
+    env = pufferlib.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class NethackWrapper:
