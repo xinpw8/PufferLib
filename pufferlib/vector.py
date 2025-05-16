@@ -469,6 +469,7 @@ class Multiprocessing:
         self.buf['notify'][:] = True
 
     def close(self):
+        self.driver_env.close()
         for p in self.processes:
             p.terminate()
 
