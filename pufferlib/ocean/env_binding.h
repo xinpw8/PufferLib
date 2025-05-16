@@ -217,8 +217,8 @@ static PyObject* env_close(PyObject* self, PyObject* args) {
     if (!env){
         return NULL;
     }
-    //close(env);
-    free(env); // TODO: Where should we free?
+    close(env);
+    free(env);
     Py_RETURN_NONE;
 }
 
