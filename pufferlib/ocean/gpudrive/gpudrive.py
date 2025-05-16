@@ -119,7 +119,7 @@ def simplify_polyline(geometry, polyline_reduction_threshold):
     return [geometry[i] for i in range(num_points) if not skip[i]]
 
 def save_map_binary(map_data, output_file):
-    trajectory_length = 200
+    trajectory_length = 91
     """Saves map data in a binary format readable by C"""
     with open(output_file, 'wb') as f:
         # Count total entities
@@ -245,7 +245,7 @@ def process_all_maps():
     binary_dir.mkdir(parents=True, exist_ok=True)
 
     # Path to the training data
-    data_dir = Path("resources/gpudrive/nuplan")
+    data_dir = Path("data/processed/training")
     
     # Get all JSON files in the training directory
     json_files = sorted(data_dir.glob("*.json"))

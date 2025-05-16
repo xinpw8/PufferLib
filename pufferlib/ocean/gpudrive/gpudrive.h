@@ -639,21 +639,17 @@ void init(GPUDrive* env){
     env->human_agent_idx = 0;
     env->timestep = 0;
     env->entities = load_map_binary(env->map_name, env);
-    printf("entities loaded\n");
     // printf("num entities: %d\n", env->num_entities);
     env->dynamics_model = CLASSIC;
     set_means(env);
-    printf("world mean: %f, %f\n", env->world_mean_x, env->world_mean_y);
     set_active_agents(env);
     set_start_position(env);
-    printf("Active agents: %d\n", env->active_agent_count);
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
     init_grid_map(env);
     env->vision_range = 21;
     init_neighbor_offsets(env);
     env->neighbor_cache_indices = (int*)calloc((env->grid_cols*env->grid_rows) + 1, sizeof(int));
     cache_neighbor_offsets(env);
-    printf("cached map\n");
 }
 
 void free_initialized(GPUDrive* env){
