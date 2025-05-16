@@ -19,6 +19,14 @@ static PyObject* my_get(PyObject* dict, Env* env) {
 }
 #endif
 
+static int my_put(Env* env, PyObject* args, PyObject* kwargs);
+#ifndef MY_PUT
+static int my_put(Env* env, PyObject* args, PyObject* kwargs) {
+    return NULL;
+}
+#endif
+
+
 static Env* unpack_env(PyObject* args) {
     PyObject* handle_obj = PyTuple_GetItem(args, 0);
     if (!PyObject_TypeCheck(handle_obj, &PyLong_Type)) {
@@ -225,6 +233,28 @@ static PyObject* env_get(PyObject* self, PyObject* args) {
         return NULL;
     }
     return dict;
+}
+
+static PyObject* env_put(PyObject* self, PyObject* args, PyObject* kwargs) {
+    int num_args = PyTuple_Size(args);
+    if (num_args != 1) {
+        PyErr_SetString(PyExc_TypeError, "env_put requires 1 positional argument");
+        return NULL;
+    }
+
+    Env* env = unpack_env(args);
+    if (!env){
+        return NULL;
+    }
+
+    PyObject* empty_args = PyTuple_New(0);
+    my_put(env, empty_args, kwargs);
+    Py_DECREF(kwargs);
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
 }
 
 typedef struct {
@@ -616,6 +646,7 @@ static PyMethodDef methods[] = {
     {"env_render", env_render, METH_VARARGS, "Render the environment"},
     {"env_close", env_close, METH_VARARGS, "Close the environment"},
     {"env_get", env_get, METH_VARARGS, "Get the environment state"},
+    {"env_put", env_put, METH_VARARGS | METH_KEYWORDS, "Put stuff into env"},
     {"vectorize", vectorize, METH_VARARGS, "Make a vector of environment handles"},
     {"vec_init", (PyCFunction)vec_init, METH_VARARGS | METH_KEYWORDS, "Initialize a vector of environments"},
     {"vec_reset", (PyCFunction)vec_reset, METH_VARARGS, "Reset the vector of environments"},

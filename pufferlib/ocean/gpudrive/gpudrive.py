@@ -50,6 +50,14 @@ class GPUDrive(pufferlib.PufferEnv):
             env_ids.append(env_id)
 
         self.c_envs = binding.vectorize(*env_ids)
+        binding.env_put(
+            env_ids[0],
+            observations=self.observations,
+            actions=self.actions,
+            rewards=self.rewards,
+            terminals=self.terminals
+        )
+        breakpoint()
 
     def reset(self, seed=0):
         binding.vec_reset(self.c_envs, seed)

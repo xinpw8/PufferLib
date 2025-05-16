@@ -1,7 +1,71 @@
 #include "gpudrive.h"
 #define Env GPUDrive
 #define MY_SHARED
+#define MY_PUT
 #include "../env_binding.h"
+
+static int my_put(Env* env, PyObject* args, PyObject* kwargs) {
+    PyObject* obs = PyDict_GetItemString(kwargs, "observations");
+    if (!PyObject_TypeCheck(obs, &PyArray_Type)) {
+        PyErr_SetString(PyExc_TypeError, "Observations must be a NumPy array");
+        return 1;
+    }
+    PyArrayObject* observations = (PyArrayObject*)obs;
+    if (!PyArray_ISCONTIGUOUS(observations)) {
+        PyErr_SetString(PyExc_ValueError, "Observations must be contiguous");
+        return 1;
+    }
+    env->observations = PyArray_DATA(observations);
+
+    PyObject* act = PyDict_GetItemString(kwargs, "actions");
+    if (!PyObject_TypeCheck(act, &PyArray_Type)) {
+        PyErr_SetString(PyExc_TypeError, "Actions must be a NumPy array");
+        return 1;
+    }
+    PyArrayObject* actions = (PyArrayObject*)act;
+    if (!PyArray_ISCONTIGUOUS(actions)) {
+        PyErr_SetString(PyExc_ValueError, "Actions must be contiguous");
+        return 1;
+    }
+    env->actions = PyArray_DATA(actions);
+    if (PyArray_ITEMSIZE(actions) == sizeof(double)) {
+        PyErr_SetString(PyExc_ValueError, "Action tensor passed as float64 (pass np.float32 buffer)");
+        return 1;
+    }
+
+    PyObject* rew = PyDict_GetItemString(kwargs, "rewards");
+    if (!PyObject_TypeCheck(rew, &PyArray_Type)) {
+        PyErr_SetString(PyExc_TypeError, "Rewards must be a NumPy array");
+        return 1;
+    }
+    PyArrayObject* rewards = (PyArrayObject*)rew;
+    if (!PyArray_ISCONTIGUOUS(rewards)) {
+        PyErr_SetString(PyExc_ValueError, "Rewards must be contiguous");
+        return 1;
+    }
+    if (PyArray_NDIM(rewards) != 1) {
+        PyErr_SetString(PyExc_ValueError, "Rewards must be 1D");
+        return 1;
+    }
+    env->rewards = PyArray_DATA(rewards);
+
+    PyObject* term = PyDict_GetItemString(kwargs, "terminals");
+    if (!PyObject_TypeCheck(term, &PyArray_Type)) {
+        PyErr_SetString(PyExc_TypeError, "Terminals must be a NumPy array");
+        return 1;
+    }
+    PyArrayObject* terminals = (PyArrayObject*)term;
+    if (!PyArray_ISCONTIGUOUS(terminals)) {
+        PyErr_SetString(PyExc_ValueError, "Terminals must be contiguous");
+        return 1;
+    }
+    if (PyArray_NDIM(terminals) != 1) {
+        PyErr_SetString(PyExc_ValueError, "Terminals must be 1D");
+        return 1;
+    }
+    env->terminals = PyArray_DATA(terminals);
+    return 0;
+}
 
 static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
     int num_agents = unpack(kwargs, "num_agents");
