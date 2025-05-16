@@ -1,7 +1,6 @@
 #include <time.h>
 #include <unistd.h>
 #include "gpudrive.h"
-#include "puffernet.h"
 
 // Human control functions
 void handle_human_input(GPUDrive* env) {
