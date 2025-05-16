@@ -821,13 +821,14 @@ def train(args=None, vecenv=None, policy=None, logger=None):
         pufferl.evaluate()
         logs = pufferl.train()
 
-        if logs is not None and pufferl.global_step > 0.20*train_config['total_timesteps']:
+        if logs is not None:
             logger.log(logs, pufferl.global_step)
-            all_logs.append(logs)
+            if pufferl.global_step > 0.20*train_config['total_timesteps']:
+                all_logs.append(logs)
 
     i = 0
     stats = {}
-    vecenv.async_reset(train_config['seed'])
+    #vecenv.async_reset(train_config['seed'])
     while i < 100 or not stats:
         stats = pufferl.evaluate()
         i += 1
