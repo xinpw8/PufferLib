@@ -826,7 +826,7 @@ def train(args=None, vecenv=None, policy=None, logger=None):
     i = 0
     stats = {}
     #vecenv.async_reset(train_config['seed'])
-    while i < 100 or not stats:
+    while i < 20 or not stats:
         stats = pufferl.evaluate()
         i += 1
 
