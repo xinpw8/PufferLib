@@ -22,7 +22,7 @@ ALIASES = {
 def env_creator(name='minihack'):
     return functools.partial(make, name)
 
-def make(name, buf=None):
+def make(name, buf=None, seed=0):
     '''NetHack binding creation function'''
     if name in ALIASES:
         name = ALIASES[name]

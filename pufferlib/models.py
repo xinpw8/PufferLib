@@ -229,8 +229,8 @@ class Convolutional(nn.Module):
             nn.Linear(output_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
 
     def forward_train(self, observations, state=None):
@@ -272,16 +272,19 @@ class ProcgenResnet(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(mlp_width, 1), std=1)
 
-    def forward(self, observations):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, observations, state=None):
+        return self.forward(observations, state)
 
     def encode_observations(self, x):
         hidden = self.network(x.permute((0, 3, 1, 2)) / 255.0)
-        return hidden, None
+        return hidden
  
-    def decode_actions(self, hidden, lookup):
+    def decode_actions(self, hidden):
         '''linear decoder function'''
         action = self.actor(hidden)
         value = self.value(hidden)

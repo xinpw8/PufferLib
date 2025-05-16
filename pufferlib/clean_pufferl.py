@@ -217,11 +217,9 @@ class CleanPuffeRL:
             done_mask = d + t
             self.global_step += int(mask.sum())
 
-            o = torch.as_tensor(o)
-            o = o.pin_memory()
             profile('eval_copy', epoch)
+            o = torch.as_tensor(o)
             o_device = o.to(device, non_blocking=True)
-            profile('eval_misc', epoch)
             r = torch.as_tensor(r).to(device, non_blocking=True)
             d = torch.as_tensor(d).to(device, non_blocking=True)
 
@@ -276,7 +274,7 @@ class CleanPuffeRL:
 
                 action = action.squeeze(-1).cpu().numpy()
                 if isinstance(logits, torch.distributions.Normal):
-                    action = np.clip(action, vecenv.action_space.low, vecenv.action_space.high)
+                    action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
 
             profile('eval_misc', epoch)
             for i in info:
@@ -317,12 +315,11 @@ class CleanPuffeRL:
             profile('train_misc', epoch, nest=True)
             self.amp_context.__enter__()
 
-            # TODO: Eliminate
             shape = self.values.shape
-            n = (shape[0]//256)*256
             advantages = torch.zeros(shape, device=device)
-            torch.ops.pufferlib.compute_puff_advantage(self.values[:n], self.rewards[:n],
-                self.terminals[:n], self.ratio[:n], advantages[:n], config['gamma'],
+            # TODO: robustify
+            torch.ops.pufferlib.compute_puff_advantage(self.values, self.rewards,
+                self.terminals, self.ratio, advantages, config['gamma'],
                 config['gae_lambda'], config['vtrace_rho_clip'], config['vtrace_c_clip'])
 
             profile('train_copy', epoch)
@@ -829,7 +826,7 @@ def train(args=None, vecenv=None, policy=None, logger=None):
     i = 0
     stats = {}
     #vecenv.async_reset(train_config['seed'])
-    while i < 100 or not stats:
+    while i < 20 or not stats:
         stats = pufferl.evaluate()
         i += 1
 
@@ -1084,6 +1081,7 @@ def load_config():
         prev[subkey] = value
 
     args['train']['use_rnn'] = args['rnn_name'] is not None
+    args['env_name'] = env_name
     return args
 
 # Entry point

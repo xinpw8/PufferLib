@@ -48,11 +48,11 @@ NativeDType = Union[NativeDTypeValue, Dict[str, Union[NativeDTypeValue, "NativeD
 # Spend some time trying to break this fn with differnt obs
 def nativize_dtype(emulated) -> NativeDType:
     # sample dtype - the dtype of what we obtain from the environment (usually bytes)
-    sample_dtype: np.dtype = emulated.observation_dtype
+    sample_dtype: np.dtype = emulated['observation_dtype']
     # structured dtype - the gym.Space converted numpy dtype
 
     # the observation represents (could be dict, tuple, box, etc.)
-    structured_dtype: np.dtype = emulated.emulated_observation_dtype
+    structured_dtype: np.dtype = emulated['emulated_observation_dtype']
     subviews, dtype, shape, offset, delta = _nativize_dtype(sample_dtype, structured_dtype)
     if subviews is None:
         return (dtype, shape, offset, delta)
@@ -146,8 +146,8 @@ def nativize_observation(observation, emulated):
     # float is natively supported, but only if that is the actual correct type
     return nativize_tensor(
         observation,
-        emulated.observation_dtype,
-        emulated.emulated_observation_dtype,
+        emulated['observation_dtype'],
+        emulated['emulated_observation_dtype'],
     )
 
 def flattened_tensor_size(native_dtype):
