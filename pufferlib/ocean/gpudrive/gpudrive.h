@@ -23,7 +23,7 @@
 #define DRIVEWAY 10
 
 // Trajectory Length
-#define TRAJECTORY_LENGTH 151
+#define TRAJECTORY_LENGTH 91
 
 // Actions
 #define NOOP 0
