@@ -78,6 +78,13 @@ void demo() {
             env.actions[0] = NOOP;
             //forward_linearlstm(net, env.observations, env.actions);
         }
+        for (int i = 0; i < env.num_agents; i++) {
+            env.actions[5*i] = 4; //rand() % 5;
+            env.actions[5*i + 1] = rand() % 5;
+            env.actions[5*i + 2] = rand() % 3;
+            env.actions[5*i + 3] = rand() % 3;
+        }
+
         c_step(&env);
         c_render(&env);
     }

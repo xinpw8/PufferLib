@@ -136,7 +136,6 @@ void c_reset(Terraform* env) {
         env->dozers[i] = (Dozer){0};
         env->dozers[i].x = rand() % env->size;
         env->dozers[i].y = rand() % env->size;
-        printf("Dozer %d: %f, %f, %f\n", i, env->dozers[i].x, env->dozers[i].y, env->dozers[i].z);
     }
 }
 
@@ -170,14 +169,14 @@ void c_step(Terraform* env) {
         if (dozer->x < 0) {
             dozer->x = 0;
         }
-        if (dozer->x > env->size) {
-            dozer->x = env->size;
+        if (dozer->x >= env->size) {
+            dozer->x = env->size - 1;
         }
         if (dozer->y < 0) {
             dozer->y = 0;
         }
-        if (dozer->y > env->size) {
-            dozer->y = env->size;
+        if (dozer->y >= env->size) {
+            dozer->y = env->size - 1;
         }
     }
 
@@ -389,7 +388,11 @@ void c_render(Terraform* env) {
         
         // Get height from map using correct indexing
         float y = env->map[z * size + x] + 0.5f;
-        DrawModel(client->dozer, (Vector3){dozer->x, y, dozer->y}, 1.0f, WHITE);
+        rlPushMatrix();
+        rlTranslatef(dozer->x, y, dozer->y);
+        rlRotatef(-90.f - dozer->heading*RAD2DEG, 0, 1, 0);
+        DrawModel(client->dozer, (Vector3){0, 0, 0}, 1.0f, WHITE);
+        rlPopMatrix();
         // DrawCube((Vector3){dozer->x, y, dozer->y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
     }
     EndMode3D();
