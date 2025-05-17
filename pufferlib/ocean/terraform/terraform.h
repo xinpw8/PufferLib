@@ -22,7 +22,7 @@ const unsigned char AGENT = 1;
 const unsigned char TARGET = 2;
 
 #define BUCKET_MAX_HEIGHT 1.0f
-#define DOZER_MAX_V 1.0f
+#define DOZER_MAX_V 5.0f
 #define DOZER_CAPACITY 20.0f
 #define BUCKET_OFFSET 2.0f
 #define BUCKET_WIDTH 2.5f
@@ -119,7 +119,7 @@ void init(Terraform* env) {
 }
 
 void allocate(Terraform* env) {
-    env->observations = (unsigned char*)calloc(env->size*env->size, sizeof(unsigned char));
+    env->observations = (unsigned char*)calloc(env->num_agents*121, sizeof(unsigned char));
     env->actions = (int*)calloc(5*env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
@@ -151,16 +151,23 @@ void add_log(Terraform* env) {
 }
 
 void compute_all_observations(Terraform* env) {
+    int dialate = 4;
     for (int i = 0; i < env->num_agents; i++) {
-        int x_offset = env->dozers[i].x - VISION;
-        int y_offset = env->dozers[i].y - VISION;
-        for (int x = 0; x < 2 * VISION + 1; x++) {
-            for (int y = 0; y < 2 * VISION + 1; y++) {
+        int x_offset = env->dozers[i].x - dialate*VISION;
+        int y_offset = env->dozers[i].y - dialate*VISION;
+        for (int x = 0; x < 2*dialate*VISION + 1; x+=dialate) {
+            for (int y = 0; y < 2*dialate*VISION + 1; y+=dialate) {
                 if(x_offset + x < 0 || x_offset + x >= env->size || y_offset + y < 0 || y_offset + y >= env->size) {
                     continue;
                 }
-                env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = env->map[
-                    (x_offset + x)*env->size + (y_offset + y)];
+                int idx = (x_offset + x)*env->size + (y_offset + y);
+                if (env->map[idx] <= 0) {
+                    env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = 0;
+                } else {
+                    env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = 1;
+                }
+                //env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = env->map[
+                //    (x_offset + x)*env->size + (y_offset + y)];
             }
         }
     }
@@ -516,12 +523,24 @@ void c_render(Terraform* env) {
         
         // Get height from map using correct indexing
         float y = env->map[z * size + x] + 0.5f;
+        float yy = y;
         rlPushMatrix();
         rlTranslatef(dozer->x, y, dozer->y);
         rlRotatef(-90.f - dozer->heading*RAD2DEG, 0, 1, 0);
-        DrawModel(client->dozer, (Vector3){0, 0, 0}, 1.0f, WHITE);
+        DrawModel(client->dozer, (Vector3){0, 0, 0}, 0.25f, WHITE);
         rlPopMatrix();
         // DrawCube((Vector3){dozer->x, y, dozer->y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
+        int dialate = 4;
+        int x_offset = env->dozers[i].x - dialate*VISION;
+        int y_offset = env->dozers[i].y - dialate*VISION;
+        for (int x = 0; x < 2*dialate*VISION + 1; x+=dialate) {
+            for (int y = 0; y < 2*dialate*VISION + 1; y+=dialate) {
+                if(x_offset + x < 0 || x_offset + x >= env->size || y_offset + y < 0 || y_offset + y >= env->size) {
+                    continue;
+                }
+                DrawCube((Vector3){x_offset + x, yy, y_offset + y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
+            }
+        }
     }
     EndMode3D();
     DrawText(TextFormat("Camera x: %f", client->camera.position.x), 10, 150, 20, PUFF_WHITE);

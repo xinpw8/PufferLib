@@ -110,9 +110,11 @@ class Terraform(nn.Module):
             pufferlib.pytorch.layer_init(nn.Linear(encode_dim, hidden_size)),
             nn.ReLU(),
         )
-        self.actor = nn.ModuleList([
-            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, n), std=0.01)
-            for n in env.single_action_space.nvec])
+        #self.actor = nn.ModuleList([
+        #    pufferlib.pytorch.layer_init(nn.Linear(hidden_size, n), std=0.01)
+        #    for n in env.single_action_space.nvec])
+        self.atn_dim = env.single_action_space.nvec.tolist()
+        self.actor = pufferlib.pytorch.layer_init(nn.Linear(hidden_size, sum(self.atn_dim)), std=0.01)
         self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, 1), std=1)
 
@@ -125,12 +127,14 @@ class Terraform(nn.Module):
         return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
-        observations = observations.reshape(-1, 11, 11).unsqueeze(1).float() / 255.0
+        observations = observations.reshape(-1, 11, 11).unsqueeze(1).float()# / 255.0
         hidden = self.network(observations)
         return self.proj(hidden)
 
     def decode_actions(self, hidden):
-        action = [head(hidden) for head in self.actor]
+        action = self.actor(hidden)
+        action = torch.split(action, self.atn_dim, dim=1)
+        #action = [head(hidden) for head in self.actor]
         value = self.value(hidden)
         return action, value
 
