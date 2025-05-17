@@ -21,6 +21,9 @@ const unsigned char EMPTY = 0;
 const unsigned char AGENT = 1;
 const unsigned char TARGET = 2;
 
+#define BUCKET_MIN_HEIGHT -0.6f
+#define DOZER_MAX_V 1.0f
+
 typedef struct Log Log;
 struct Log {
     float perf;
@@ -29,11 +32,22 @@ struct Log {
     float episode_length;
     float n;
 };
+
+typedef struct Dozer {
+    float x;
+    float y;
+    float v;
+    float heading;
+    float bucket_height;
+    float bucket_tilt;
+    float load;
+} Dozer;
  
 typedef struct Client Client;
 typedef struct Terraform {
     Log log;
     Client* client;
+    Dozer* dozers;
     unsigned char* observations;
     int* actions;
     float* rewards;
@@ -41,10 +55,16 @@ typedef struct Terraform {
     int size;
     int tick;
     float* map;
+    int num_agents;
 } Terraform;
+
+float randf(float min, float max) {
+    return min + (max - min)*(float)rand()/(float)RAND_MAX;
+}
 
 void init(Terraform* env) {
     env->map = calloc(env->size*env->size, sizeof(float));
+    env->dozers = calloc(env->num_agents, sizeof(Dozer));
 }
 
 void allocate(Terraform* env) {
@@ -110,14 +130,37 @@ void c_reset(Terraform* env) {
     env->tick = 0;
 
     perlin_noise(env->map, env->size, env->size, 1.0/4.0, 2, 0, 0);
+
+    for (int i = 0; i < env->num_agents; i++) {
+        env->dozers[i] = (Dozer){0};
+        env->dozers[i].x = randf(0, env->size);
+        env->dozers[i].y = randf(0, env->size);
+    }
 }
 
 void c_step(Terraform* env) {
     env->tick += 1;
+    memset(env->terminals, 0, env->num_agents*sizeof(unsigned char));
+    memset(env->rewards, 0, env->num_agents*sizeof(float));
+
+    int (*actions)[5] = (int(*)[5])env->actions; 
+    for (int i = 0; i < env->num_agents; i++) {
+        Dozer* dozer = &env->dozers[i];
+        int* atn = actions[i];
+        float accel = ((float)atn[0] - 2.0f) / 2.0f; // Discrete(5) -> [-1, 1]
+        float steer = ((float)atn[1] - 2.0f) / 10.0f; // Discrete(5) -> [-0.2, 0.2]
+        float bucket_v = atn[2] - 1.0f; // Discrete(3) -> [-1, 1]
+        float bucket_tilt = atn[3] - 1.0f; // Discrete(3) -> [-1, 1]
+
+        dozer->v += accel;
+        dozer->heading += steer;
+        dozer->bucket_height += bucket_v;
+
+        dozer->x += dozer->v*cosf(dozer->heading);
+        dozer->y += dozer->v*sinf(dozer->heading);
+    }
 
     //int action = env->actions[0];
-    env->terminals[0] = 0;
-    env->rewards[0] = 0;
 
 }
 
