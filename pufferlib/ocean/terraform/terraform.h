@@ -166,6 +166,7 @@ void compute_all_observations(Terraform* env) {
 void c_reset(Terraform* env) {
     memcpy(env->map, env->orig_map, env->size*env->size*sizeof(float));
     memset(env->observations, 0, 121*sizeof(unsigned char));
+    memset(env->returns, 0, env->num_agents*sizeof(float));
     env->tick = 0;
 
     for (int i = 0; i < env->num_agents; i++) {
