@@ -389,7 +389,8 @@ void c_render(Terraform* env) {
         
         // Get height from map using correct indexing
         float y = env->map[z * size + x] + 0.5f;
-        DrawCube((Vector3){dozer->x, y, dozer->y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
+        DrawModel(client->dozer, (Vector3){dozer->x, y, dozer->y}, 1.0f, WHITE);
+        // DrawCube((Vector3){dozer->x, y, dozer->y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
     }
     EndMode3D();
     DrawText(TextFormat("Camera x: %f", client->camera.position.x), 10, 150, 20, PUFF_WHITE);
