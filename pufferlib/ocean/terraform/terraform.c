@@ -1,0 +1,57 @@
+#include "terraform.h"
+
+void demo() {
+    //Weights* weights = load_weights("resources/pong_weights.bin", 133764);
+    //LinearLSTM* net = make_linearlstm(weights, 1, 8, 3);
+
+    Terraform env = {.size = 11};
+    allocate(&env);
+
+    Client* client = make_client(&env);
+
+    c_reset(&env);
+    while (!WindowShouldClose()) {
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            env.actions[0] = 0;
+            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = UP;
+            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = DOWN;
+            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = LEFT;
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = RIGHT;
+        } else {
+            env.actions[0] = NOOP;
+            //forward_linearlstm(net, env.observations, env.actions);
+        }
+        c_step(&env);
+        c_render(&env);
+    }
+    //free_linearlstm(net);
+    //free(weights);
+    free_allocated(&env);
+    close_client(client);
+}
+
+void test_performance(int timeout) {
+    Terraform env = {
+        .size = 128 
+    };
+    allocate(&env);
+    c_reset(&env);
+
+    int start = time(NULL);
+    int num_steps = 0;
+    while (time(NULL) - start < timeout) {
+        env.actions[0] = rand() % 3;
+        c_step(&env);
+        num_steps++;
+    }
+
+    int end = time(NULL);
+    float sps = num_steps / (end - start);
+    printf("Test Environment SPS: %f\n", sps);
+    free_allocated(&env);
+}
+
+int main() {
+    test_performance(10);
+}
+
