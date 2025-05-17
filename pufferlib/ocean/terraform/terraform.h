@@ -30,6 +30,7 @@ const unsigned char TARGET = 2;
 #define BUCKET_HEIGHT 1.0f
 #define VISION 5
 #define OBSERVATION_SIZE (2*VISION + 1)
+#define TOTAL_OBS (OBSERVATION_SIZE*OBSERVATION_SIZE + 4)
 
 typedef struct Log Log;
 struct Log {
@@ -119,7 +120,7 @@ void init(Terraform* env) {
 }
 
 void allocate(Terraform* env) {
-    env->observations = (unsigned char*)calloc(env->num_agents*121, sizeof(unsigned char));
+    env->observations = (unsigned char*)calloc(env->num_agents*125, sizeof(unsigned char));
     env->actions = (int*)calloc(5*env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
@@ -162,20 +163,26 @@ void compute_all_observations(Terraform* env) {
                 }
                 int idx = (x_offset + x)*env->size + (y_offset + y);
                 if (env->map[idx] <= 0) {
-                    env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = 0;
+                    env->observations[i*TOTAL_OBS + x*OBSERVATION_SIZE + y] = 0;
                 } else {
-                    env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = 1;
+                    env->observations[i*TOTAL_OBS + x*OBSERVATION_SIZE + y] = 1;
                 }
                 //env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = env->map[
                 //    (x_offset + x)*env->size + (y_offset + y)];
             }
         }
+        Dozer* dozer = &env->dozers[i];
+        int idx = i*TOTAL_OBS + OBSERVATION_SIZE*OBSERVATION_SIZE;
+        env->observations[i*TOTAL_OBS + OBSERVATION_SIZE*OBSERVATION_SIZE] = (255.0f*dozer->x)/env->size;
+        env->observations[i*TOTAL_OBS + OBSERVATION_SIZE*OBSERVATION_SIZE + 1] = (255.0f*dozer->y)/env->size;
+        env->observations[i*TOTAL_OBS + OBSERVATION_SIZE*OBSERVATION_SIZE + 2] = 40.0f*dozer->v;
+        env->observations[i*TOTAL_OBS + OBSERVATION_SIZE*OBSERVATION_SIZE + 3] = 50.0f*dozer->heading;
     }
 }
 
 void c_reset(Terraform* env) {
     memcpy(env->map, env->orig_map, env->size*env->size*sizeof(float));
-    memset(env->observations, 0, 121*sizeof(unsigned char));
+    memset(env->observations, 0, env->num_agents*125*sizeof(unsigned char));
     memset(env->returns, 0, env->num_agents*sizeof(float));
     env->tick = 0;
 
