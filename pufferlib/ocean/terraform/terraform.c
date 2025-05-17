@@ -53,8 +53,6 @@ void handle_camera_controls(Client* client) {
         client->camera.position.x = client->camera.target.x + direction.x;
         client->camera.position.y = client->camera.target.y + direction.y;
         client->camera.position.z = client->camera.target.z + direction.z;
-        
-        printf("Camera x: %f, y: %f, z: %f\n", client->camera.position.x, client->camera.position.y, client->camera.position.z);
     }
 }
 
