@@ -72,39 +72,6 @@ float randf(float min, float max) {
     return min + (max - min)*(float)rand()/(float)RAND_MAX;
 }
 
-void init(Terraform* env) {
-    env->orig_map = calloc(env->size*env->size, sizeof(float));
-    env->map = calloc(env->size*env->size, sizeof(float));
-    env->dozers = calloc(env->num_agents, sizeof(Dozer));
-    perlin_noise(env->orig_map, env->size, env->size, 1.0/128.0, 8, 0, 0, 32.0);
-    env->returns = calloc(env->num_agents, sizeof(float));
-}
-
-void allocate(Terraform* env) {
-    env->observations = (unsigned char*)calloc(env->size*env->size, sizeof(unsigned char));
-    env->actions = (int*)calloc(5*env->num_agents, sizeof(int));
-    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
-    init(env);
-}
-
-void free_allocated(Terraform* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
-}
-
-void add_log(Terraform* env) {
-    for (int i = 0; i < env->num_agents; i++) {
-        env->log.perf += env->returns[i];
-        env->log.score += env->returns[i];
-        env->log.episode_length += env->tick;
-        env->log.episode_return += env->returns[i];
-        env->log.n++;
-    }
-}
-
 void perlin_noise(float* map, int width, int height,
         float base_frequency, int octaves, int offset_x, int offset_y, float glob_scale) {
     float frequencies[octaves];
@@ -140,12 +107,48 @@ void perlin_noise(float* map, int width, int height,
     }
 }
 
+void init(Terraform* env) {
+    env->orig_map = calloc(env->size*env->size, sizeof(float));
+    env->map = calloc(env->size*env->size, sizeof(float));
+    env->dozers = calloc(env->num_agents, sizeof(Dozer));
+    perlin_noise(env->orig_map, env->size, env->size, 1.0/128.0, 8, 0, 0, 32.0);
+    env->returns = calloc(env->num_agents, sizeof(float));
+}
+
+void allocate(Terraform* env) {
+    env->observations = (unsigned char*)calloc(env->size*env->size, sizeof(unsigned char));
+    env->actions = (int*)calloc(5*env->num_agents, sizeof(int));
+    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
+    env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
+    init(env);
+}
+
+void free_allocated(Terraform* env) {
+    free(env->observations);
+    free(env->actions);
+    free(env->rewards);
+    free(env->terminals);
+}
+
+void add_log(Terraform* env) {
+    for (int i = 0; i < env->num_agents; i++) {
+        env->log.perf += env->returns[i];
+        env->log.score += env->returns[i];
+        env->log.episode_length += env->tick;
+        env->log.episode_return += env->returns[i];
+        env->log.n++;
+    }
+}
+
 void compute_all_observations(Terraform* env) {
     for (int i = 0; i < env->num_agents; i++) {
         int x_offset = env->dozers[i].x - VISION;
         int y_offset = env->dozers[i].y - VISION;
         for (int x = 0; x < 2 * VISION + 1; x++) {
             for (int y = 0; y < 2 * VISION + 1; y++) {
+                if(x_offset + x < 0 || x_offset + x >= env->size || y_offset + y < 0 || y_offset + y >= env->size) {
+                    continue;
+                }
                 env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = env->map[
                     (x_offset + x)*env->size + (y_offset + y)];
             }
@@ -167,6 +170,8 @@ void c_reset(Terraform* env) {
 }
 
 void c_step(Terraform* env) {
+    printf("step\n"); 
+    printf("tick: %d\n", env->tick);
     env->tick += 1;
     if (env->tick > 512) {
         add_log(env);
@@ -276,6 +281,7 @@ void c_step(Terraform* env) {
             dozer->y = env->size - 1;
         }
     }
+    printf("observations\n");
     compute_all_observations(env);
 
     //int action = env->actions[0];
