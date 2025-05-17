@@ -62,7 +62,7 @@ void demo() {
     //Weights* weights = load_weights("resources/pong_weights.bin", 133764);
     //LinearLSTM* net = make_linearlstm(weights, 1, 8, 3);
 
-    Terraform env = {.size = 128, .num_agents = 8};
+    Terraform env = {.size = 512, .num_agents = 8};
     allocate(&env);
 
     Client* client = make_client(&env);
