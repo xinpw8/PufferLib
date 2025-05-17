@@ -69,9 +69,9 @@ void init(Terraform* env) {
 
 void allocate(Terraform* env) {
     env->observations = (unsigned char*)calloc(env->size*env->size, sizeof(unsigned char));
-    env->actions = (int*)calloc(1, sizeof(int));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
+    env->actions = (int*)calloc(5*env->num_agents, sizeof(int));
+    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
+    env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
     init(env);
 }
 
@@ -91,7 +91,7 @@ void add_log(Terraform* env) {
 }
 
 void perlin_noise(float* map, int width, int height,
-        float base_frequency, int octaves, int offset_x, int offset_y) {
+        float base_frequency, int octaves, int offset_x, int offset_y, float glob_scale) {
     float frequencies[octaves];
     for (int i = 0; i < octaves; i++) {
         frequencies[i] = base_frequency*pow(2, i);
@@ -104,7 +104,7 @@ void perlin_noise(float* map, int width, int height,
             int adr = r*width + c;
             for (int oct = 0; oct < octaves; oct++) {
                 float freq = frequencies[oct];
-                map[adr] = noise2(freq*c + offset_x, freq*r + offset_y);
+                map[adr] += (1.0/pow(2, oct))*noise2(freq*c + offset_x, freq*r + offset_y);
             }
             float val = map[adr];
             if (val < min_value) {
@@ -120,7 +120,7 @@ void perlin_noise(float* map, int width, int height,
     for (int r = 0; r < height; r++) {
         for (int c = 0; c < width; c++) {
             int adr = r*width + c;
-            map[adr] = scale * (map[adr] - min_value);
+            map[adr] = glob_scale * scale * (map[adr] - min_value);
         }
     }
 }
@@ -129,7 +129,7 @@ void c_reset(Terraform* env) {
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->tick = 0;
 
-    perlin_noise(env->map, env->size, env->size, 1.0/64.0, 2, 0, 0);
+    perlin_noise(env->map, env->size, env->size, 1.0/128.0, 8, 0, 0, 32.0);
 
     for (int i = 0; i < env->num_agents; i++) {
         env->dozers[i] = (Dozer){0};
@@ -152,12 +152,14 @@ void c_step(Terraform* env) {
         float bucket_v = atn[2] - 1.0f; // Discrete(3) -> [-1, 1]
         float bucket_tilt = atn[3] - 1.0f; // Discrete(3) -> [-1, 1]
 
+        /*
         dozer->v += accel;
         dozer->heading += steer;
         dozer->bucket_height += bucket_v;
 
         dozer->x += dozer->v*cosf(dozer->heading);
         dozer->y += dozer->v*sinf(dozer->heading);
+        */
     }
 
     //int action = env->actions[0];
@@ -188,7 +190,8 @@ Mesh mesh_from_heightmap(float* heightMap, Vector3 size) {
     int tcCounter = 0;      // Used to count texcoords float by float
     int nCounter = 0;       // Used to count normals float by float
 
-    Vector3 scaleFactor = { size.x/(mapX - 1), 32.0f, size.z/(mapZ - 1) };
+    //Vector3 scaleFactor = { size.x/(mapX - 1), 1.0f, size.z/(mapZ - 1) };
+    Vector3 scaleFactor = { 1.0f, 1.0f, 1.0f};
 
     Vector3 vA = { 0 };
     Vector3 vB = { 0 };
@@ -309,10 +312,10 @@ struct Client {
 Client* make_client(Terraform* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     int px = 64*env->size;
-    InitWindow(800, 600, "PufferLib Terraform");
+    InitWindow(1080, 720, "PufferLib Terraform");
     SetTargetFPS(30);
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 10.0f, 30.0f, 10.0f }; // Camera position
+    camera.position = (Vector3){ 150.0f, 100.0f, 150.0f }; // Camera position
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0f;                                // Camera field-of-view Y
@@ -322,7 +325,7 @@ Client* make_client(Terraform* env) {
     client->mesh = mesh_from_heightmap(env->map, (Vector3){env->size, 1, env->size});
     client->model = LoadModelFromMesh(client->mesh);
 
-    Image checked = GenImageChecked(env->size, env->size, 1, 1, RED, GREEN);
+    Image checked = GenImageChecked(env->size, env->size, 2, 2, PUFF_RED, PUFF_CYAN);
     client->texture = LoadTextureFromImage(checked);
     client->model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
     UnloadImage(checked);
@@ -357,6 +360,13 @@ void c_render(Terraform* env) {
     }
     */
     DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, WHITE);
+    for (int i = 0; i < env->num_agents; i++) {
+        Dozer* dozer = &env->dozers[i];
+        float x = dozer->x;
+        float z = dozer->y;
+        float y = env->map[(int)(x + y*env->size)];
+        DrawCube((Vector3){x, y, z}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
+    }
     EndMode3D();
     DrawText(TextFormat("Camera x: %f", client->camera.position.x), 10, 150, 20, PUFF_WHITE);
     DrawText(TextFormat("Camera y: %f", client->camera.position.y), 10, 170, 20, PUFF_WHITE);
