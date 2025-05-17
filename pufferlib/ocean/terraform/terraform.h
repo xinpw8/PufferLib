@@ -123,11 +123,18 @@ void allocate(Terraform* env) {
     init(env);
 }
 
+void free_initialized(Terraform* env) {
+    free(env->orig_map);
+    free(env->map);
+    free(env->dozers);
+}
+
 void free_allocated(Terraform* env) {
     free(env->observations);
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
+    free_initialized(env);
 }
 
 void add_log(Terraform* env) {
@@ -170,8 +177,6 @@ void c_reset(Terraform* env) {
 }
 
 void c_step(Terraform* env) {
-    printf("step\n"); 
-    printf("tick: %d\n", env->tick);
     env->tick += 1;
     if (env->tick > 512) {
         add_log(env);
@@ -281,11 +286,8 @@ void c_step(Terraform* env) {
             dozer->y = env->size - 1;
         }
     }
-    printf("observations\n");
     compute_all_observations(env);
-
     //int action = env->actions[0];
-
 }
 
 void c_close(Terraform* env) {
@@ -458,6 +460,7 @@ Client* make_client(Terraform* env) {
 
 void close_client(Client* client) {
     CloseWindow();
+    free(client->mesh);
     free(client);
 }
 
