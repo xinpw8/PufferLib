@@ -307,6 +307,7 @@ struct Client {
     Mesh mesh;
     Model model;
     Texture2D texture;
+    Model dozer;
 };
 
 Client* make_client(Terraform* env) {
@@ -320,15 +321,16 @@ Client* make_client(Terraform* env) {
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
-    //client->agent = LoadTexture("resources/puffers_128.png");
     client->camera = camera;
     client->mesh = mesh_from_heightmap(env->map, (Vector3){env->size, 1, env->size});
     client->model = LoadModelFromMesh(client->mesh);
 
-    Image checked = GenImageChecked(env->size, env->size, 2, 2, PUFF_RED, PUFF_CYAN);
-    client->texture = LoadTextureFromImage(checked);
+    //Image checked = GenImageChecked(env->size, env->size, 2, 2, PUFF_RED, PUFF_CYAN);
+    Image img = LoadImage("resources/terraform/perlin.jpg");
+    client->texture = LoadTextureFromImage(img);
     client->model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
-    UnloadImage(checked);
+    client->dozer = LoadModel("resources/terraform/dozer.glb");
+    UnloadImage(img);
     return client;
 }
 
@@ -359,13 +361,13 @@ void c_render(Terraform* env) {
         DrawCubeWires((Vector3){x, height, z}, 1.0f, 1.0f, 1.0f, MAROON);
     }
     */
-    DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, WHITE);
+    DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, PUFF_RED);
     for (int i = 0; i < env->num_agents; i++) {
         Dozer* dozer = &env->dozers[i];
         float x = dozer->x;
         float z = dozer->y;
         float y = env->map[(int)(x + y*env->size)];
-        DrawCube((Vector3){x, y, z}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
+        DrawModel(client->dozer, (Vector3){x, y, z}, 1.0f, WHITE);
     }
     EndMode3D();
     DrawText(TextFormat("Camera x: %f", client->camera.position.x), 10, 150, 20, PUFF_WHITE);
