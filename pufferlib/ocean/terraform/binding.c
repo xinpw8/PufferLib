@@ -1,12 +1,12 @@
-#include "squared.h"
+#include "terraform.h"
 
-#define Env Squared
+#define Env Terraform
 #include "../env_binding.h"
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    env->obs_size = unpack(kwargs, "obs_size");
-    env->map_size = unpack(kwargs, "map_size");
+    env->size = unpack(kwargs, "size");
     env->num_agents = unpack(kwargs, "num_agents");
+    init(env);
     return 0;
 }
 

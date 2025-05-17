@@ -21,8 +21,15 @@ const unsigned char EMPTY = 0;
 const unsigned char AGENT = 1;
 const unsigned char TARGET = 2;
 
-#define BUCKET_MIN_HEIGHT -0.6f
+#define BUCKET_MAX_HEIGHT 1.0f
 #define DOZER_MAX_V 1.0f
+#define DOZER_CAPACITY 20.0f
+#define BUCKET_OFFSET 2.0f
+#define BUCKET_WIDTH 2.5f
+#define BUCKET_LENGTH 0.8f
+#define BUCKET_HEIGHT 1.0f
+#define VISION 5
+#define OBSERVATION_SIZE (2*VISION + 1)
 
 typedef struct Log Log;
 struct Log {
@@ -52,9 +59,11 @@ typedef struct Terraform {
     unsigned char* observations;
     int* actions;
     float* rewards;
+    float* returns;
     unsigned char* terminals;
     int size;
     int tick;
+    float* orig_map;
     float* map;
     int num_agents;
 } Terraform;
@@ -64,8 +73,11 @@ float randf(float min, float max) {
 }
 
 void init(Terraform* env) {
+    env->orig_map = calloc(env->size*env->size, sizeof(float));
     env->map = calloc(env->size*env->size, sizeof(float));
     env->dozers = calloc(env->num_agents, sizeof(Dozer));
+    perlin_noise(env->orig_map, env->size, env->size, 1.0/128.0, 8, 0, 0, 32.0);
+    env->returns = calloc(env->num_agents, sizeof(float));
 }
 
 void allocate(Terraform* env) {
@@ -84,11 +96,13 @@ void free_allocated(Terraform* env) {
 }
 
 void add_log(Terraform* env) {
-    env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
-    env->log.score += env->rewards[0];
-    env->log.episode_length += env->tick;
-    env->log.episode_return += env->rewards[0];
-    env->log.n++;
+    for (int i = 0; i < env->num_agents; i++) {
+        env->log.perf += env->returns[i];
+        env->log.score += env->returns[i];
+        env->log.episode_length += env->tick;
+        env->log.episode_return += env->returns[i];
+        env->log.n++;
+    }
 }
 
 void perlin_noise(float* map, int width, int height,
@@ -126,21 +140,39 @@ void perlin_noise(float* map, int width, int height,
     }
 }
 
+void compute_all_observations(Terraform* env) {
+    for (int i = 0; i < env->num_agents; i++) {
+        int x_offset = env->dozers[i].x - VISION;
+        int y_offset = env->dozers[i].y - VISION;
+        for (int x = 0; x < 2 * VISION + 1; x++) {
+            for (int y = 0; y < 2 * VISION + 1; y++) {
+                env->observations[i*OBSERVATION_SIZE*OBSERVATION_SIZE + x*OBSERVATION_SIZE + y] = env->map[
+                    (x_offset + x)*env->size + (y_offset + y)];
+            }
+        }
+    }
+}
+
 void c_reset(Terraform* env) {
+    memcpy(env->map, env->orig_map, env->size*env->size*sizeof(float));
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->tick = 0;
-
-    perlin_noise(env->map, env->size, env->size, 1.0/128.0, 8, 0, 0, 32.0);
 
     for (int i = 0; i < env->num_agents; i++) {
         env->dozers[i] = (Dozer){0};
         env->dozers[i].x = rand() % env->size;
         env->dozers[i].y = rand() % env->size;
     }
+    compute_all_observations(env);
 }
 
 void c_step(Terraform* env) {
     env->tick += 1;
+    if (env->tick > 512) {
+        add_log(env);
+        c_reset(env);
+    }
+
     memset(env->terminals, 0, env->num_agents*sizeof(unsigned char));
     memset(env->rewards, 0, env->num_agents*sizeof(float));
 
@@ -153,16 +185,81 @@ void c_step(Terraform* env) {
         float bucket_v = atn[2] - 1.0f; // Discrete(3) -> [-1, 1]
         float bucket_tilt = atn[3] - 1.0f; // Discrete(3) -> [-1, 1]
 
-        dozer->v += accel;
-        dozer->heading += steer;
-        dozer->bucket_height += bucket_v;
+        float cx = dozer->x + BUCKET_OFFSET*cosf(dozer->heading);
+        float cy = dozer->y + BUCKET_OFFSET*sinf(dozer->heading);
 
+        for (int x = cx - 5; x < cx + 5; x++) {
+            for (int y = cy - 5; y < cy + 5; y++) {
+                if (x < 0 || x >= env->size || y < 0 || y >= env->size) {
+                    continue;
+                }
+                float map_height = env->map[y*env->size + x];
+                env->map[y*env->size + x] = 0;
+                env->rewards[i] += 0.01f;
+                env->returns[i] += 0.01f;
+                /*
+                float bucket_height_min = map_height + dozer->bucket_height;
+                if (bucket_tilt > 0.0f) {
+                    // Load the bucket
+                    if (dozer->bucket_height >= 0.0f) {
+                        continue;
+                    }
+                    if (dozer->load > DOZER_CAPACITY) {
+                        continue;
+                    }
+                    if (map_height <= 1.0f) {
+                        continue;
+                    }
+                    dozer->load += 1.0f;
+                    env->map[y*env->size + x] -= 1.0f;
+                } else if (bucket_tilt < 0.0f) {
+                    if (dozer->load < 1.0f) {
+                        continue;
+                    }
+                    if (dozer->bucket_height <= 0.0f) {
+                        continue;
+                    }
+                    dozer->load -= 1.0f;
+                    env->map[y*env->size + x] += 1.0f;
+                }
+                */
+            }
+        }
+
+        // Bucket AABB
+        /*
+        float x_min = bucket_cx - BUCKET_WIDTH/2.0f*cosf(dozer->heading) + BUCKET_LENGTH/2.0f*sinf(dozer->heading);
+        float x_max = bucket_cx + BUCKET_WIDTH/2.0f*cosf(dozer->heading) + BUCKET_LENGTH/2.0f*sinf(dozer->heading);
+        float y_min = bucket_cy - BUCKET_WIDTH/2.0f*sinf(dozer->heading) + BUCKET_LENGTH/2.0f*cosf(dozer->heading);
+        float y_max = bucket_cy + BUCKET_WIDTH/2.0f*sinf(dozer->heading) + BUCKET_LENGTH/2.0f*cosf(dozer->heading);
+
+        for (int x = x_min; x < x_max; x++) {
+            for (int y = y_min; y < y_max; y++) {
+                float cell_x = x + 0.5f;
+                float cell_y = y + 0.5f;
+
+            }
+        }
+        */
+
+        dozer->heading += steer;
+
+        dozer->v += accel;
         if (dozer->v > DOZER_MAX_V) {
             dozer->v = DOZER_MAX_V;
         }
         if (dozer->v < -DOZER_MAX_V) {
             dozer->v = -DOZER_MAX_V;
         }
+
+        dozer->bucket_height += bucket_v;
+        if (dozer->bucket_height > BUCKET_MAX_HEIGHT) {
+            dozer->bucket_height = BUCKET_MAX_HEIGHT;
+        }
+        if (dozer->bucket_height < -BUCKET_MAX_HEIGHT) {
+            dozer->bucket_height = -BUCKET_MAX_HEIGHT;
+        }
+
         dozer->x += dozer->v*cosf(dozer->heading);
         dozer->y += dozer->v*sinf(dozer->heading);
 
@@ -179,6 +276,7 @@ void c_step(Terraform* env) {
             dozer->y = env->size - 1;
         }
     }
+    compute_all_observations(env);
 
     //int action = env->actions[0];
 
@@ -188,21 +286,26 @@ void c_close(Terraform* env) {
 }
 
 
-Mesh mesh_from_heightmap(float* heightMap, Vector3 size) {
-    Mesh mesh = { 0 };
-
+Mesh* create_heightmap_mesh(float* heightMap, Vector3 size) {
     int mapX = size.x;
     int mapZ = size.z;
 
     // NOTE: One vertex per pixel
-    mesh.triangleCount = (mapX - 1)*(mapZ - 1)*2;    // One quad every four pixels
+    Mesh* mesh = (Mesh*)calloc(1, sizeof(Mesh));
+    mesh->triangleCount = (mapX - 1)*(mapZ - 1)*2;    // One quad every four pixels
 
-    mesh.vertexCount = mesh.triangleCount*3;
+    mesh->vertexCount = mesh->triangleCount*3;
 
-    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
-    mesh.colors = NULL;
+    mesh->vertices = (float *)RL_MALLOC(mesh->vertexCount*3*sizeof(float));
+    mesh->normals = (float *)RL_MALLOC(mesh->vertexCount*3*sizeof(float));
+    mesh->texcoords = (float *)RL_MALLOC(mesh->vertexCount*2*sizeof(float));
+    mesh->colors = NULL;
+    return mesh;
+}
+
+void update_heightmap_mesh(Mesh* mesh, float* heightMap, Vector3 size) {
+    int mapX = size.x;
+    int mapZ = size.z;
 
     int vCounter = 0;       // Used to count vertices float by float
     int tcCounter = 0;      // Used to count texcoords float by float
@@ -224,82 +327,82 @@ Mesh mesh_from_heightmap(float* heightMap, Vector3 size) {
             //----------------------------------------------------------
 
             // one triangle - 3 vertex
-            mesh.vertices[vCounter] = (float)x*scaleFactor.x;
-            mesh.vertices[vCounter + 1] = heightMap[x + z*mapX]*scaleFactor.y;
-            mesh.vertices[vCounter + 2] = (float)z*scaleFactor.z;
+            mesh->vertices[vCounter] = (float)x*scaleFactor.x;
+            mesh->vertices[vCounter + 1] = heightMap[x + z*mapX]*scaleFactor.y;
+            mesh->vertices[vCounter + 2] = (float)z*scaleFactor.z;
 
-            mesh.vertices[vCounter + 3] = (float)x*scaleFactor.x;
-            mesh.vertices[vCounter + 4] = heightMap[x + (z + 1)*mapX]*scaleFactor.y;
-            mesh.vertices[vCounter + 5] = (float)(z + 1)*scaleFactor.z;
+            mesh->vertices[vCounter + 3] = (float)x*scaleFactor.x;
+            mesh->vertices[vCounter + 4] = heightMap[x + (z + 1)*mapX]*scaleFactor.y;
+            mesh->vertices[vCounter + 5] = (float)(z + 1)*scaleFactor.z;
 
-            mesh.vertices[vCounter + 6] = (float)(x + 1)*scaleFactor.x;
-            mesh.vertices[vCounter + 7] = heightMap[(x + 1) + z*mapX]*scaleFactor.y;
-            mesh.vertices[vCounter + 8] = (float)z*scaleFactor.z;
+            mesh->vertices[vCounter + 6] = (float)(x + 1)*scaleFactor.x;
+            mesh->vertices[vCounter + 7] = heightMap[(x + 1) + z*mapX]*scaleFactor.y;
+            mesh->vertices[vCounter + 8] = (float)z*scaleFactor.z;
 
             // Another triangle - 3 vertex
-            mesh.vertices[vCounter + 9] = mesh.vertices[vCounter + 6];
-            mesh.vertices[vCounter + 10] = mesh.vertices[vCounter + 7];
-            mesh.vertices[vCounter + 11] = mesh.vertices[vCounter + 8];
+            mesh->vertices[vCounter + 9] = mesh->vertices[vCounter + 6];
+            mesh->vertices[vCounter + 10] = mesh->vertices[vCounter + 7];
+            mesh->vertices[vCounter + 11] = mesh->vertices[vCounter + 8];
 
-            mesh.vertices[vCounter + 12] = mesh.vertices[vCounter + 3];
-            mesh.vertices[vCounter + 13] = mesh.vertices[vCounter + 4];
-            mesh.vertices[vCounter + 14] = mesh.vertices[vCounter + 5];
+            mesh->vertices[vCounter + 12] = mesh->vertices[vCounter + 3];
+            mesh->vertices[vCounter + 13] = mesh->vertices[vCounter + 4];
+            mesh->vertices[vCounter + 14] = mesh->vertices[vCounter + 5];
 
-            mesh.vertices[vCounter + 15] = (float)(x + 1)*scaleFactor.x;
-            mesh.vertices[vCounter + 16] = heightMap[(x + 1) + (z + 1)*mapX]*scaleFactor.y;
-            mesh.vertices[vCounter + 17] = (float)(z + 1)*scaleFactor.z;
+            mesh->vertices[vCounter + 15] = (float)(x + 1)*scaleFactor.x;
+            mesh->vertices[vCounter + 16] = heightMap[(x + 1) + (z + 1)*mapX]*scaleFactor.y;
+            mesh->vertices[vCounter + 17] = (float)(z + 1)*scaleFactor.z;
             vCounter += 18;     // 6 vertex, 18 floats
 
             // Fill texcoords array with data
             //--------------------------------------------------------------
-            mesh.texcoords[tcCounter] = (float)x/(mapX - 1);
-            mesh.texcoords[tcCounter + 1] = (float)z/(mapZ - 1);
+            mesh->texcoords[tcCounter] = (float)x/(mapX - 1);
+            mesh->texcoords[tcCounter + 1] = (float)z/(mapZ - 1);
 
-            mesh.texcoords[tcCounter + 2] = (float)x/(mapX - 1);
-            mesh.texcoords[tcCounter + 3] = (float)(z + 1)/(mapZ - 1);
+            mesh->texcoords[tcCounter + 2] = (float)x/(mapX - 1);
+            mesh->texcoords[tcCounter + 3] = (float)(z + 1)/(mapZ - 1);
 
-            mesh.texcoords[tcCounter + 4] = (float)(x + 1)/(mapX - 1);
-            mesh.texcoords[tcCounter + 5] = (float)z/(mapZ - 1);
+            mesh->texcoords[tcCounter + 4] = (float)(x + 1)/(mapX - 1);
+            mesh->texcoords[tcCounter + 5] = (float)z/(mapZ - 1);
 
-            mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
-            mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
+            mesh->texcoords[tcCounter + 6] = mesh->texcoords[tcCounter + 4];
+            mesh->texcoords[tcCounter + 7] = mesh->texcoords[tcCounter + 5];
 
-            mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
-            mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
+            mesh->texcoords[tcCounter + 8] = mesh->texcoords[tcCounter + 2];
+            mesh->texcoords[tcCounter + 9] = mesh->texcoords[tcCounter + 3];
 
-            mesh.texcoords[tcCounter + 10] = (float)(x + 1)/(mapX - 1);
-            mesh.texcoords[tcCounter + 11] = (float)(z + 1)/(mapZ - 1);
+            mesh->texcoords[tcCounter + 10] = (float)(x + 1)/(mapX - 1);
+            mesh->texcoords[tcCounter + 11] = (float)(z + 1)/(mapZ - 1);
             tcCounter += 12;    // 6 texcoords, 12 floats
 
             // Fill normals array with data
             //--------------------------------------------------------------
             for (int i = 0; i < 18; i += 9)
             {
-                vA.x = mesh.vertices[nCounter + i];
-                vA.y = mesh.vertices[nCounter + i + 1];
-                vA.z = mesh.vertices[nCounter + i + 2];
+                vA.x = mesh->vertices[nCounter + i];
+                vA.y = mesh->vertices[nCounter + i + 1];
+                vA.z = mesh->vertices[nCounter + i + 2];
 
-                vB.x = mesh.vertices[nCounter + i + 3];
-                vB.y = mesh.vertices[nCounter + i + 4];
-                vB.z = mesh.vertices[nCounter + i + 5];
+                vB.x = mesh->vertices[nCounter + i + 3];
+                vB.y = mesh->vertices[nCounter + i + 4];
+                vB.z = mesh->vertices[nCounter + i + 5];
 
-                vC.x = mesh.vertices[nCounter + i + 6];
-                vC.y = mesh.vertices[nCounter + i + 7];
-                vC.z = mesh.vertices[nCounter + i + 8];
+                vC.x = mesh->vertices[nCounter + i + 6];
+                vC.y = mesh->vertices[nCounter + i + 7];
+                vC.z = mesh->vertices[nCounter + i + 8];
 
                 vN = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(vB, vA), Vector3Subtract(vC, vA)));
 
-                mesh.normals[nCounter + i] = vN.x;
-                mesh.normals[nCounter + i + 1] = vN.y;
-                mesh.normals[nCounter + i + 2] = vN.z;
+                mesh->normals[nCounter + i] = vN.x;
+                mesh->normals[nCounter + i + 1] = vN.y;
+                mesh->normals[nCounter + i + 2] = vN.z;
 
-                mesh.normals[nCounter + i + 3] = vN.x;
-                mesh.normals[nCounter + i + 4] = vN.y;
-                mesh.normals[nCounter + i + 5] = vN.z;
+                mesh->normals[nCounter + i + 3] = vN.x;
+                mesh->normals[nCounter + i + 4] = vN.y;
+                mesh->normals[nCounter + i + 5] = vN.z;
 
-                mesh.normals[nCounter + i + 6] = vN.x;
-                mesh.normals[nCounter + i + 7] = vN.y;
-                mesh.normals[nCounter + i + 8] = vN.z;
+                mesh->normals[nCounter + i + 6] = vN.x;
+                mesh->normals[nCounter + i + 7] = vN.y;
+                mesh->normals[nCounter + i + 8] = vN.z;
             }
 
             nCounter += 18;     // 6 vertex, 18 floats
@@ -307,9 +410,7 @@ Mesh mesh_from_heightmap(float* heightMap, Vector3 size) {
     }
 
     // Upload vertex data to GPU (static mesh)
-    UploadMesh(&mesh, false);
-
-    return mesh;
+    UploadMesh(mesh, false);
 }
 
 const Color PUFF_RED = (Color){187, 0, 0, 255};
@@ -322,7 +423,7 @@ typedef struct Client Client;
 struct Client {
     Texture2D ball;
     Camera3D camera;
-    Mesh mesh;
+    Mesh* mesh;
     Model model;
     Texture2D texture;
     Model dozer;
@@ -340,13 +441,10 @@ Client* make_client(Terraform* env) {
     camera.fovy = 45.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
     client->camera = camera;
-    client->mesh = mesh_from_heightmap(env->map, (Vector3){env->size, 1, env->size});
-    client->model = LoadModelFromMesh(client->mesh);
 
     //Image checked = GenImageChecked(env->size, env->size, 2, 2, PUFF_RED, PUFF_CYAN);
     Image img = LoadImage("resources/terraform/perlin.jpg");
     client->texture = LoadTextureFromImage(img);
-    client->model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
     client->dozer = LoadModel("resources/terraform/dozer.glb");
     UnloadImage(img);
     return client;
@@ -365,6 +463,18 @@ void c_render(Terraform* env) {
         exit(0);
     }
     Client* client = env->client;
+
+    if (client->mesh == NULL) {
+        UnloadModel(client->model);
+        //UnloadMesh(*client->mesh);
+    }
+    client->mesh = create_heightmap_mesh(env->map, (Vector3){env->size, 1, env->size});
+    update_heightmap_mesh(client->mesh, env->map, (Vector3){env->size, 1, env->size});
+    client->model = LoadModelFromMesh(*client->mesh);
+    client->model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
+
+    //update_heightmap_mesh(client->mesh, env->map, (Vector3){env->size, 1, env->size});
+    //client->model = LoadModelFromMesh(*client->mesh);
 
     BeginDrawing();
     Color road = (Color){35, 35, 37, 255};

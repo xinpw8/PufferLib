@@ -9,28 +9,31 @@ from pufferlib.ocean.terraform import binding
 OBS_SIZE = 11
 
 class Terraform(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, num_agents=4, map_size=128,
-            render_mode=None, log_interval=128, size=11, buf=None, seed=0):
+    def __init__(self, num_envs=1, num_agents=8, map_size=512,
+            render_mode=None, log_interval=128, buf=None, seed=0):
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(OBS_SIZE*OBS_SIZE,), dtype=np.uint8)
-        self.single_action_space = gymnasium.spaces.MultiDiscrete([5, 5, 2, 2])
+        self.single_action_space = gymnasium.spaces.MultiDiscrete([5, 5, 2, 2, 2])
         self.render_mode = render_mode
-        self.num_agents = num_envs*num_envs
+        self.num_agents = num_envs*num_agents
         self.log_interval = log_interval
 
         super().__init__(buf)
-        self.c_envs = binding.vec_init(
-            self.observations,
-            self.actions,
-            self.rewards,
-            self.terminals,
-            self.truncations,
-            num_envs,
-            seed,
-            num_agents=num_agents,
-            obs_size=size,
-            map_size=map_size,
-        )
+        c_envs = []
+        for i in range(num_envs):
+            c_env = binding.env_init(
+                self.observations[i*num_agents:(i+1)*num_agents],
+                self.actions[i*num_agents:(i+1)*num_agents],
+                self.rewards[i*num_agents:(i+1)*num_agents],
+                self.terminals[i*num_agents:(i+1)*num_agents],
+                self.truncations[i*num_agents:(i+1)*num_agents],
+                seed,
+                size=map_size,
+                num_agents=num_agents,
+            )
+            c_envs.append(c_env)
+
+        self.c_envs = binding.vectorize(*c_envs)
  
     def reset(self, seed=None):
         binding.vec_reset(self.c_envs, seed)
