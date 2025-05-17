@@ -36,6 +36,7 @@ struct Log {
 typedef struct Dozer {
     float x;
     float y;
+    float z;
     float v;
     float heading;
     float bucket_height;
@@ -133,8 +134,9 @@ void c_reset(Terraform* env) {
 
     for (int i = 0; i < env->num_agents; i++) {
         env->dozers[i] = (Dozer){0};
-        env->dozers[i].x = randf(0, env->size);
-        env->dozers[i].y = randf(0, env->size);
+        env->dozers[i].x = rand() % env->size;
+        env->dozers[i].y = rand() % env->size;
+        printf("Dozer %d: %f, %f, %f\n", i, env->dozers[i].x, env->dozers[i].y, env->dozers[i].z);
     }
 }
 
@@ -316,8 +318,8 @@ Client* make_client(Terraform* env) {
     InitWindow(1080, 720, "PufferLib Terraform");
     SetTargetFPS(30);
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 150.0f, 100.0f, 150.0f }; // Camera position
-    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
+    camera.position = (Vector3){ 150.0f, 150.0f, 150.0f }; // Camera position
+    camera.target = (Vector3){ 0.0f, -10.0f, 0.0f };      // Camera looking at point
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
@@ -364,10 +366,13 @@ void c_render(Terraform* env) {
     DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, PUFF_RED);
     for (int i = 0; i < env->num_agents; i++) {
         Dozer* dozer = &env->dozers[i];
-        float x = dozer->x;
-        float z = dozer->y;
-        float y = env->map[(int)(x + y*env->size)];
-        DrawModel(client->dozer, (Vector3){x, y, z}, 1.0f, WHITE);
+        int x = (int)dozer->x;
+        int z = (int)dozer->y;  
+        int size = (int)env->size;
+        
+        // Get height from map using correct indexing
+        float y = env->map[z * size + x] + 0.5f;
+        DrawCube((Vector3){dozer->x, y, dozer->y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
     }
     EndMode3D();
     DrawText(TextFormat("Camera x: %f", client->camera.position.x), 10, 150, 20, PUFF_WHITE);
