@@ -170,8 +170,8 @@ void c_reset(Terraform* env) {
 }
 
 void c_step(Terraform* env) {
-    printf("step\n"); 
-    printf("tick: %d\n", env->tick);
+    //printf("step\n"); 
+    //printf("tick: %d\n", env->tick);
     env->tick += 1;
     if (env->tick > 512) {
         add_log(env);
@@ -281,7 +281,7 @@ void c_step(Terraform* env) {
             dozer->y = env->size - 1;
         }
     }
-    printf("observations\n");
+    //printf("observations\n");
     compute_all_observations(env);
 
     //int action = env->actions[0];
@@ -483,8 +483,7 @@ void c_render(Terraform* env) {
     //client->model = LoadModelFromMesh(*client->mesh);
 
     BeginDrawing();
-    Color road = (Color){35, 35, 37, 255};
-    ClearBackground(road);
+    ClearBackground((Color){143, 86, 29, 255});
     BeginMode3D(client->camera);
     /*
     for(int i = 0; i < env->size*env->size; i++) {
@@ -495,7 +494,7 @@ void c_render(Terraform* env) {
         DrawCubeWires((Vector3){x, height, z}, 1.0f, 1.0f, 1.0f, MAROON);
     }
     */
-    DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, PUFF_RED);
+    DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, (Color){156, 50, 20, 255});
     for (int i = 0; i < env->num_agents; i++) {
         Dozer* dozer = &env->dozers[i];
         int x = (int)dozer->x;
