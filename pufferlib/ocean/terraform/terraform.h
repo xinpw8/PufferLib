@@ -7,6 +7,9 @@
 #include <time.h>
 #include "raylib.h"
 #include "simplex.h"
+#include "raymath.h"
+#include "rlgl.h"
+
 
 const unsigned char NOOP = 0;
 const unsigned char DOWN = 1;
@@ -126,7 +129,7 @@ void c_reset(Terraform* env) {
     memset(env->observations, 0, env->size*env->size*sizeof(unsigned char));
     env->tick = 0;
 
-    perlin_noise(env->map, env->size, env->size, 1.0/64.0, 2, 0, 0);
+    perlin_noise(env->map, env->size, env->size, 1.0/4.0, 2, 0, 0);
 
     for (int i = 0; i < env->num_agents; i++) {
         env->dozers[i] = (Dozer){0};
@@ -173,15 +176,22 @@ const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
 typedef struct Client Client;
 struct Client {
     Texture2D ball;
+    Camera3D camera;
 };
 
 Client* make_client(Terraform* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     int px = 64*env->size;
     InitWindow(px, px, "PufferLib Terraform");
-    SetTargetFPS(5);
-
+    SetTargetFPS(30);
+    Camera3D camera = { 0 };
+    camera.position = (Vector3){ 10.0f, 30.0f, 10.0f }; // Camera position
+    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
+    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
+    camera.fovy = 45.0f;                                // Camera field-of-view Y
+    camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
     //client->agent = LoadTexture("resources/puffers_128.png");
+    client->camera = camera;
     return client;
 }
 
@@ -194,13 +204,25 @@ void c_render(Terraform* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
-
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    Client* client = env->client;
 
     BeginDrawing();
-    ClearBackground(PUFF_BACKGROUND);
-
+    Color road = (Color){35, 35, 37, 255};
+    ClearBackground(road);
+    BeginMode3D(client->camera);
+    for(int i = 0; i < env->size*env->size; i++) {
+        float height = env->map[i];
+        int x = i%env->size;
+        int z = i/env->size;
+        DrawCube((Vector3){x, height, z}, 1.0f, 1.0f, 1.0f, DARKGREEN);
+        DrawCubeWires((Vector3){x, height, z}, 1.0f, 1.0f, 1.0f, MAROON);
+    }
+    EndMode3D();
+    DrawText(TextFormat("Camera x: %f", client->camera.position.x), 10, 150, 20, PUFF_WHITE);
+    DrawText(TextFormat("Camera y: %f", client->camera.position.y), 10, 170, 20, PUFF_WHITE);
+    DrawText(TextFormat("Camera z: %f", client->camera.position.z), 10, 190, 20, PUFF_WHITE);
     EndDrawing();
 }
