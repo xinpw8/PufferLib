@@ -89,6 +89,52 @@ class NMMO3(nn.Module):
         value = self.value_fn(flat_hidden)
         return action, value
 
+class Terraform(nn.Module):
+    def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+
+        encode_dim = cnn_channels
+
+        self.network= nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Conv2d(1, cnn_channels, 5, stride=3)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(
+                nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        self.proj = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(encode_dim, hidden_size)),
+            nn.ReLU(),
+        )
+        self.actor = nn.ModuleList([
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, n), std=0.01)
+            for n in env.single_action_space.nvec])
+        self.value = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 1), std=1)
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
+
+    def encode_observations(self, observations, state=None):
+        observations = observations.reshape(-1, 11, 11).unsqueeze(1).float() / 255.0
+        hidden = self.network(observations)
+        return self.proj(hidden)
+
+    def decode_actions(self, hidden):
+        action = [head(hidden) for head in self.actor]
+        value = self.value(hidden)
+        return action, value
+
+
 class Snake(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128,
             use_p3o=False, p3o_horizon=32, use_diayn=False, diayn_skills=8, **kwargs):

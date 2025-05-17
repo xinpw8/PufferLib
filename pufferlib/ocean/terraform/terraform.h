@@ -103,6 +103,9 @@ void perlin_noise(float* map, int width, int height,
         for (int c = 0; c < width; c++) {
             int adr = r*width + c;
             map[adr] = glob_scale * scale * (map[adr] - min_value);
+            if (map[adr] < 24.0f) {
+                map[adr] = 0.0f;
+            }
         }
     }
 }
@@ -450,7 +453,7 @@ Client* make_client(Terraform* env) {
     InitWindow(1080, 720, "PufferLib Terraform");
     SetTargetFPS(30);
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 450.0f, 275.0f, 530.0f }; // Camera position
+    camera.position = (Vector3){ 634.0f, 600.0f, 719.0f }; // Camera position
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0f;                                // Camera field-of-view Y
