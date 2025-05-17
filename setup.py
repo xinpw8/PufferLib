@@ -1,6 +1,7 @@
 #TODO:
 # --no-build-isolation for 5090
 # Make c and torch compile at the same time
+# CUDA_VISIBLE_DEVICES=None LD_PRELOAD=$(gcc -print-file-name=libasan.so) python3.12 -m pufferlib.clean_pufferl eval --train.device cpu
 
 from setuptools import find_packages, find_namespace_packages, setup, Extension
 from Cython.Build import cythonize
@@ -80,13 +81,16 @@ if DEBUG:
         '-O0',
         '-g',
         '-fsanitize=address,undefined,bounds,pointer-overflow,leak',
+        '-fno-omit-frame-pointer',
     ]
     extra_link_args += [
         '-g',
+        '-fsanitize=address,undefined,bounds,pointer-overflow,leak',
     ]
     cxx_args += [
         '-O0',
         '-g',
+        '-static-libasan',
     ]
     nvcc_args += [
         '-O0',
