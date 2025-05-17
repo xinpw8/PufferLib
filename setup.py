@@ -90,7 +90,6 @@ if DEBUG:
     cxx_args += [
         '-O0',
         '-g',
-        '-static-libasan',
     ]
     nvcc_args += [
         '-O0',
