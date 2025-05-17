@@ -545,7 +545,7 @@ void c_render(Terraform* env) {
                 if(x_offset + x < 0 || x_offset + x >= env->size || y_offset + y < 0 || y_offset + y >= env->size) {
                     continue;
                 }
-                DrawCube((Vector3){x_offset + x, yy, y_offset + y}, 1.0f, 1.0f, 1.0f, PUFF_WHITE);
+                DrawCube((Vector3){x_offset + x, yy, y_offset + y}, 0.25f, 0.25f, 0.25f, PUFF_WHITE);
             }
         }
     }
