@@ -100,7 +100,13 @@ void test_performance(int timeout) {
     int start = time(NULL);
     int num_steps = 0;
     while (time(NULL) - start < timeout) {
-        env.actions[0] = rand() % 3;
+        for (int i = 0; i < env.num_agents; i++) {
+            env.actions[5*i] = rand() % 5;
+            env.actions[5*i + 1] = rand() % 5;
+            env.actions[5*i + 2] = rand() % 3;
+            env.actions[5*i + 3] = rand() % 3;
+        }
+
         c_step(&env);
         num_steps++;
     }

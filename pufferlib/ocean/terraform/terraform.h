@@ -152,14 +152,31 @@ void c_step(Terraform* env) {
         float bucket_v = atn[2] - 1.0f; // Discrete(3) -> [-1, 1]
         float bucket_tilt = atn[3] - 1.0f; // Discrete(3) -> [-1, 1]
 
-        /*
         dozer->v += accel;
         dozer->heading += steer;
         dozer->bucket_height += bucket_v;
 
+        if (dozer->v > DOZER_MAX_V) {
+            dozer->v = DOZER_MAX_V;
+        }
+        if (dozer->v < -DOZER_MAX_V) {
+            dozer->v = -DOZER_MAX_V;
+        }
         dozer->x += dozer->v*cosf(dozer->heading);
         dozer->y += dozer->v*sinf(dozer->heading);
-        */
+
+        if (dozer->x < 0) {
+            dozer->x = 0;
+        }
+        if (dozer->x > env->size) {
+            dozer->x = env->size;
+        }
+        if (dozer->y < 0) {
+            dozer->y = 0;
+        }
+        if (dozer->y > env->size) {
+            dozer->y = env->size;
+        }
     }
 
     //int action = env->actions[0];
