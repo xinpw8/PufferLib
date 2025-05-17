@@ -206,6 +206,9 @@ void c_step(Terraform* env) {
                     continue;
                 }
                 float map_height = env->map[y*env->size + x];
+                if (env->map[y*env->size + x] <= 0) {
+                    continue;
+                }
                 env->map[y*env->size + x] = 0;
                 env->rewards[i] += 0.01f;
                 env->returns[i] += 0.01f;
@@ -458,6 +461,7 @@ Client* make_client(Terraform* env) {
     client->texture = LoadTextureFromImage(img);
     client->dozer = LoadModel("resources/terraform/dozer.glb");
     UnloadImage(img);
+    client->mesh = NULL;
     return client;
 }
 
@@ -476,9 +480,8 @@ void c_render(Terraform* env) {
     }
     Client* client = env->client;
 
-    if (client->mesh == NULL) {
+    if (client->mesh != NULL) {
         UnloadModel(client->model);
-        //UnloadMesh(*client->mesh);
     }
     client->mesh = create_heightmap_mesh(env->map, (Vector3){env->size, 1, env->size});
     update_heightmap_mesh(client->mesh, env->map, (Vector3){env->size, 1, env->size});
