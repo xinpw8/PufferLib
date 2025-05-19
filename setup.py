@@ -36,7 +36,6 @@ DEBUG = os.getenv("DEBUG", "0") == "1"
 cython_extension_paths = [
     'pufferlib/ocean/moba/cy_moba',
     'pufferlib/ocean/snake/cy_snake',
-    'pufferlib/ocean/tripletriad/cy_tripletriad',
     'pufferlib/ocean/rware/cy_rware',
     'pufferlib/ocean/trash_pickup/cy_trash_pickup',
     'pufferlib/ocean/cpr/cy_cpr',

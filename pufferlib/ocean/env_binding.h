@@ -667,7 +667,7 @@ static PyModuleDef module = {
     methods
 };
 
-PyMODINIT_FUNC PyInit_binding(void) { \
-    import_array(); \
-    return PyModule_Create(&module); \
+PyMODINIT_FUNC PyInit_binding(void) {
+    import_array();
+    return PyModule_Create(&module);
 }
