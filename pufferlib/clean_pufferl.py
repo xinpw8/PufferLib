@@ -272,7 +272,7 @@ class CleanPuffeRL:
                     self.free_idx += num_full
                     self.full_rows += num_full
 
-                action = action.squeeze(-1).cpu().numpy()
+                action = action.cpu().numpy()
                 if isinstance(logits, torch.distributions.Normal):
                     action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
 
