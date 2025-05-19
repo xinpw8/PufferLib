@@ -178,7 +178,7 @@ void allocate_ctripletriad(CTripleTriad* env) {
     init_ctripletriad(env);
 }
 
-void free_ctripletriad(CTripleTriad* env) {
+void c_close(CTripleTriad* env) {
     free(env->board_x);
     free(env->board_y);
     for(int i=0; i< 2; i++) {
@@ -211,7 +211,7 @@ void free_allocated_ctripletriad(CTripleTriad* env) {
     free(env->observations);
     free(env->terminals);
     free(env->rewards);
-    free_ctripletriad(env);
+    c_close(env);
 }
 
 void compute_observations(CTripleTriad* env) {
