@@ -1,7 +1,8 @@
+#include <time.h>
 #include "pong.h"
 #include "puffernet.h"
 
-int main() {
+void demo() {
     Weights* weights = load_weights("resources/pong_weights.bin", 133764);
     LinearLSTM* net = make_linearlstm(weights, 1, 8, 3);
 
@@ -56,3 +57,40 @@ int main() {
     close_client(env.client);
 }
 
+void test_performance(int timeout) {
+    Pong env = {
+        .width = 500,
+        .height = 640,
+        .paddle_width = 20,
+        .paddle_height = 70,
+        .ball_width = 32,
+        .ball_height = 32,
+        .paddle_speed = 8,
+        .ball_initial_speed_x = 10,
+        .ball_initial_speed_y = 1,
+        .ball_speed_y_increment = 3,
+        .ball_max_speed_y = 13,
+        .max_score = 21,
+        .frameskip = 1,
+        .continuous = 0,
+    };
+    allocate(&env);
+    c_reset(&env);
+
+    int start = time(NULL);
+    int num_steps = 0;
+    while (time(NULL) - start < timeout) {
+        env.actions[0] = rand() % 3;
+        c_step(&env);
+        num_steps++;
+    }
+
+    int end = time(NULL);
+    float sps = num_steps / (end - start);
+    printf("Test Environment SPS: %f\n", sps);
+    free_allocated(&env);
+}
+
+int main() {
+    test_performance(10);
+}

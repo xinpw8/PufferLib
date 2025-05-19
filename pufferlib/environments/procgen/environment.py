@@ -9,7 +9,6 @@ import functools
 import pufferlib
 import pufferlib.emulation
 import pufferlib.environments
-import pufferlib.postprocess
 
 from stable_baselines3.common.atari_wrappers import (
     MaxAndSkipEnv,
@@ -19,7 +18,7 @@ def env_creator(name='bigfish'):
     return functools.partial(make, name)
 
 def make(name, num_envs=1, num_levels=0, start_level=0,
-        distribution_mode='easy', render_mode=None, buf=None):
+        distribution_mode='easy', render_mode=None, buf=None, seed=0):
     '''Atari creation function with default CleanRL preprocessing based on Stable Baselines3 wrappers'''
     assert int(num_envs) == float(num_envs), "num_envs must be an integer"
     num_envs = int(num_envs)
@@ -46,7 +45,7 @@ def make(name, num_envs=1, num_levels=0, start_level=0,
     #envs = gymnasium.wrappers.GrayScaleObservation(envs)
     #envs = gymnasium.wrappers.FrameStack(envs, 4)#, framestack)
     #envs = MaxAndSkipEnv(envs, skip=2)
-    envs = pufferlib.postprocess.EpisodeStats(envs)
+    envs = pufferlib.EpisodeStats(envs)
     return pufferlib.emulation.GymnasiumPufferEnv(env=envs, buf=buf)
 
 class ProcgenWrapper:

@@ -7,9 +7,6 @@ import gymnasium as gym
 import pufferlib
 import pufferlib.emulation
 import pufferlib.environments
-import pufferlib.utils
-import pufferlib.postprocess
-import pufferlib.postprocess
 
 def env_creator(name='breakout'):
     return functools.partial(make, name)
@@ -41,7 +38,7 @@ def make(name, obs_type='grayscale', frameskip=4,
     action_set = env._action_set
                     
     if render_mode != 'human':
-        env = pufferlib.postprocess.ResizeObservation(env, downscale=2)
+        env = pufferlib.ResizeObservation(env, downscale=2)
 
     if framestack > 1:
         env = gym.wrappers.FrameStack(env, framestack)
@@ -51,7 +48,7 @@ def make(name, obs_type='grayscale', frameskip=4,
     else:
         env = AtariPostprocessor(env) # Don't use standard postprocessor
 
-    env = pufferlib.postprocess.EpisodeStats(env)
+    env = pufferlib.EpisodeStats(env)
     env = pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
     return env
 

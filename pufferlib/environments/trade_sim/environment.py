@@ -8,7 +8,7 @@ from nof1.simulation.env import TradingEnvironment
 def env_creator(name='metta'):
     return functools.partial(make, name)
 
-def make(name, config_path='../nof1-trading-sim/config/experiment_config_3.yaml', render_mode='human', buf=None, seed=1):
+def make(name, config_path='../nof1-trading-sim/config/experiment_cv.yaml', render_mode='human', buf=None, seed=1):
     '''Crafter creation function'''
     from nof1.utils.config_manager import ConfigManager
     from nof1.data_ingestion.historical_data_reader import HistoricalDataReader

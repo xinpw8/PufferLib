@@ -19,18 +19,25 @@
 #define BRICK_INDEX_BACKWALL_COLLISION -2
 #define BRICK_INDEX_PADDLE_COLLISION -1
 
-typedef struct Log Log;
-struct Log {
+typedef struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
     float n;
-};
+} Log;
 
-typedef struct Client Client;
-typedef struct Breakout Breakout;
-struct Breakout {
+typedef struct Client {
+    float width;
+    float height;
+    float paddle_width;
+    float paddle_height;
+    float ball_width;
+    float ball_height;    
+    Texture2D ball;
+} Client;
+
+typedef struct Breakout {
     Client* client;
     Log log;
     float* observations;
@@ -68,7 +75,7 @@ struct Breakout {
     int frameskip;
     unsigned char hit_brick;
     int continuous;
-};
+} Breakout;
 
 typedef struct CollisionInfo CollisionInfo;
 struct CollisionInfo {
@@ -469,17 +476,6 @@ void c_step(Breakout* env) {
 }
 
 Color BRICK_COLORS[6] = {RED, ORANGE, YELLOW, GREEN, SKYBLUE, BLUE};
-
-typedef struct Client Client;
-struct Client {
-    float width;
-    float height;
-    float paddle_width;
-    float paddle_height;
-    float ball_width;
-    float ball_height;    
-    Texture2D ball;
-};
 
 static inline bool file_exists(const char* path) {
     return access(path, F_OK) != -1;

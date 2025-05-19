@@ -53,7 +53,7 @@ class Pong(pufferlib.PufferEnv):
             max_score=max_score, frameskip=frameskip, continuous=continuous
         )
 
-    def reset(self, seed=None):
+    def reset(self, seed=0):
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
@@ -80,7 +80,6 @@ class Pong(pufferlib.PufferEnv):
     def close(self):
         binding.vec_close(self.c_envs)
 
-from pufferlib.ocean.pong.cy_pong import CyPong
 #from cy_pong import CyPong
 class CythonPong(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None,
@@ -158,4 +157,3 @@ def test_performance(cls, timeout=10, atn_cache=1024):
 
 if __name__ == '__main__':
     test_performance(Pong)
-    test_performance(CythonPong)

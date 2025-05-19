@@ -8,11 +8,7 @@ import inspect
 
 import pufferlib
 import pufferlib.spaces
-from pufferlib import utils, exceptions
-from pufferlib.environment import set_buffers
 from pufferlib.spaces import Discrete, Tuple, Dict
-import pufferlib.environment
-
 
 def emulate(struct, sample):
     if isinstance(sample, dict):
@@ -58,12 +54,27 @@ def nativize(arr, space, struct_dtype):
     struct = np.asarray(arr).view(struct_dtype)[0]
     return _nativize(struct, space)
 
+# TODO: Uncomment?
 '''
 try:
     from pufferlib.extensions import emulate, nativize
 except ImportError:
     warnings.warn('PufferLib Cython extensions not installed. Using slow Python versions')
 '''
+
+def get_dtype_bounds(dtype):
+    if dtype == bool:
+        return 0, 1
+    elif np.issubdtype(dtype, np.integer):
+        return np.iinfo(dtype).min, np.iinfo(dtype).max
+    elif np.issubdtype(dtype, np.unsignedinteger):
+        return np.iinfo(dtype).min, np.iinfo(dtype).max
+    elif np.issubdtype(dtype, np.floating):
+        # Gym fails on float64
+        return np.finfo(np.float32).min, np.finfo(np.float32).max
+    else:
+        raise ValueError(f"Unsupported dtype: {dtype}")
+
 
 def dtype_from_space(space):
     if isinstance(space, pufferlib.spaces.Tuple):
@@ -110,7 +121,7 @@ def emulate_observation_space(space):
     else:
         dtype = np.dtype(np.uint8)
 
-    mmin, mmax = utils._get_dtype_bounds(dtype)
+    mmin, mmax = get_dtype_bounds(dtype)
     numel = emulated_dtype.itemsize // dtype.itemsize
     emulated_space = gymnasium.spaces.Box(low=mmin, high=mmax, shape=(numel,), dtype=dtype)
     return emulated_space, emulated_dtype
@@ -128,7 +139,7 @@ def emulate_action_space(space):
 
 
 class GymnasiumPufferEnv(gymnasium.Env):
-    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, buf=None):
+    def __init__(self, env=None, env_creator=None, env_args=[], env_kwargs={}, buf=None, seed=0):
         self.env = make_object(env, env_creator, env_args, env_kwargs)
 
         self.initialized = False
@@ -147,14 +158,14 @@ class GymnasiumPufferEnv(gymnasium.Env):
 
         self.is_obs_emulated = self.single_observation_space is not self.env.observation_space
         self.is_atn_emulated = self.single_action_space is not self.env.action_space
-        self.emulated = pufferlib.namespace(
-            observation_dtype = self.observation_space.dtype,
-            emulated_observation_dtype = self.obs_dtype,
+        self.emulated = dict(
+            observation_dtype=self.observation_space.dtype,
+            emulated_observation_dtype=self.obs_dtype,
         )
 
         self.render_modes = 'human rgb_array'.split()
 
-        set_buffers(self, buf)
+        pufferlib.set_buffers(self, buf)
         if isinstance(self.env.observation_space, pufferlib.spaces.Box):
             self.obs_struct = self.observations
         else:
@@ -191,9 +202,9 @@ class GymnasiumPufferEnv(gymnasium.Env):
     def step(self, action):
         '''Execute an action and return (observation, reward, done, info)'''
         if not self.initialized:
-            raise exceptions.APIUsageError('step() called before reset()')
+            raise pufferlib.APIUsageError('step() called before reset()')
         if self.done:
-            raise exceptions.APIUsageError('step() called after environment is done')
+            raise pufferlib.APIUsageError('step() called after environment is done')
 
         # Unpack actions from multidiscrete into the original action space
         if self.is_atn_emulated:
@@ -249,14 +260,14 @@ class PettingZooPufferEnv:
             emulate_action_space(self.env_single_action_space))
         self.is_obs_emulated = self.single_observation_space is not self.env_single_observation_space
         self.is_atn_emulated = self.single_action_space is not self.env_single_action_space
-        self.emulated = pufferlib.namespace(
+        self.emulated = dict(
             observation_dtype = self.single_observation_space.dtype,
             emulated_observation_dtype = self.obs_dtype,
         )
 
         self.num_agents = len(self.possible_agents)
 
-        set_buffers(self, buf)
+        pufferlib.set_buffers(self, buf)
         if isinstance(self.env_single_observation_space, pufferlib.spaces.Box):
             self.obs_struct = self.observations
         else:
@@ -281,14 +292,14 @@ class PettingZooPufferEnv:
     def observation_space(self, agent):
         '''Returns the observation space for a single agent'''
         if agent not in self.possible_agents:
-            raise pufferlib.exceptions.InvalidAgentError(agent, self.possible_agents)
+            raise pufferlib.InvalidAgentError(agent, self.possible_agents)
 
         return self.single_observation_space
 
     def action_space(self, agent):
         '''Returns the action space for a single agent'''
         if agent not in self.possible_agents:
-            raise pufferlib.exceptions.InvalidAgentError(agent, self.possible_agents)
+            raise pufferlib.InvalidAgentError(agent, self.possible_agents)
 
         return self.single_action_space
 
@@ -329,13 +340,13 @@ class PettingZooPufferEnv:
     def step(self, actions):
         '''Step the environment and return (observations, rewards, dones, infos)'''
         if not self.initialized:
-            raise exceptions.APIUsageError('step() called before reset()')
+            raise pufferlib.APIUsageError('step() called before reset()')
         if self.done:
-            raise exceptions.APIUsageError('step() called after environment is done')
+            raise pufferlib.APIUsageError('step() called after environment is done')
 
         if isinstance(actions, np.ndarray):
             if not self.is_action_checked and len(actions) != self.num_agents:
-                raise exceptions.APIUsageError(
+                raise pufferlib.APIUsageError(
                     f'Actions specified as len {len(actions)} but environment has {self.num_agents} agents')
 
             actions = {agent: actions[i] for i, agent in enumerate(self.possible_agents)}
@@ -344,7 +355,7 @@ class PettingZooPufferEnv:
         if not self.is_action_checked:
             for agent in actions:
                 if agent not in self.possible_agents:
-                    raise exceptions.InvalidAgentError(agent, self.possible_agents)
+                    raise pufferlib.InvalidAgentError(agent, self.possible_agents)
 
             self.is_action_checked = check_space(
                 next(iter(actions.values())),
@@ -355,7 +366,7 @@ class PettingZooPufferEnv:
         unpacked_actions = {}
         for agent, atn in actions.items():
             if agent not in self.possible_agents:
-                raise exceptions.InvalidAgentError(agent, self.agents)
+                raise pufferlib.InvalidAgentError(agent, self.agents)
 
             if agent not in self.agents:
                 continue
@@ -435,11 +446,11 @@ def check_space(data, space):
     try:
         contains = space.contains(data)
     except:
-        raise exceptions.APIUsageError(
+        raise pufferlib.APIUsageError(
             f'Error checking space {space} with sample :\n{data}')
 
     if not contains:
-        raise exceptions.APIUsageError(
+        raise pufferlib.APIUsageError(
             f'Data:\n{data}\n not in space:\n{space}')
     
     return True
@@ -462,9 +473,9 @@ def _seed_and_reset(env, seed):
 
     return obs, info
 
-class GymnaxPufferEnv(pufferlib.environment.PufferEnv):
+class GymnaxPufferEnv(pufferlib.PufferEnv):
     def __init__(self, env, env_params, num_envs=1, buf=None):
-        from gymnax.environments.spaces import gymnax_space_to_gym_space
+        from gymnax.spaces import gymnax_space_to_gym_space
 
         gymnax_obs_space = env.observation_space(env_params)
         self.single_observation_space = gymnax_space_to_gym_space(gymnax_obs_space)
