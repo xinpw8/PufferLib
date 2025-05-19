@@ -26,9 +26,8 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
     }
 
     allocate(&env);
-    Client* client = make_client(&env);
-
     c_reset(&env);
+    c_render(&env);
 
     int tick = 0;
     while (!WindowShouldClose()) {
@@ -69,13 +68,13 @@ void demo(int grid_size, int num_agents, int num_trash, int num_bins, int max_st
         }
         tick++;
 
-        c_render(client, &env);
+        c_render(&env);
     }
 
     free_convlstm(net);
     free(weights);
     free_allocated(&env);
-    close_client(client);
+    //close_client(client);
 }
 
 // Performance test function for benchmarking

@@ -23,56 +23,8 @@ typedef struct Log {
     float episode_return;
     float episode_length;
     float trash_collected;
+    float n;
 } Log;
-
-typedef struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-} LogBuffer;
-
-// LogBuffer functions
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return;
-        log.episode_length += logs->logs[i].episode_length;
-        log.trash_collected += logs->logs[i].trash_collected;
-        log.perf += logs->logs[i].perf;
-        log.score += logs->logs[i].score;
-    }
-    log.episode_return /= logs->idx;
-    log.episode_length /= logs->idx;
-    log.trash_collected /= logs->idx;
-    log.score /= logs->idx;
-    log.perf /= logs->idx;
-    logs->idx = 0;
-    return log;
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-}
 
 typedef struct {
     int type; // Entity type: EMPTY, TRASH, TRASH_BIN, AGENT
@@ -87,13 +39,22 @@ typedef struct {
     int index; // Index in the positions array (-1 if not applicable)
 } GridCell;
 
+typedef struct Client {
+    int window_width;
+    int window_height;
+    int header_offset;
+    int cell_size;
+    Texture2D agent_texture;
+} Client;
+
 typedef struct {
     // Interface for PufferLib
+    Client* client;
     char* observations;
     int* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
+    unsigned char* terminals;
+    Log log;
 
     int grid_size;
     int num_agents;
@@ -115,6 +76,15 @@ typedef struct {
 
     bool do_human_control;
 } CTrashPickupEnv;
+
+void add_log(CTrashPickupEnv* env, Log* log) {
+    env->log.perf += log->perf;
+    env->log.score += log->score;
+    env->log.episode_return += log->episode_return;
+    env->log.episode_length += log->episode_length;
+    env->log.trash_collected += log->trash_collected;
+    env->log.n += 1;
+}
 
 int get_grid_index(CTrashPickupEnv* env, int x, int y) {
     return (y * env->grid_size) + x;
@@ -386,25 +356,20 @@ void initialize_env(CTrashPickupEnv* env) {
     env->grid = (GridCell*)calloc(env->grid_size * env->grid_size, sizeof(GridCell));
     env->entities = (Entity*)calloc(env->num_agents + env->num_bins + env->num_trash, sizeof(Entity));
     env->total_num_obs = env->num_agents * ((((env->agent_sight_range * 2 + 1) * (env->agent_sight_range * 2 + 1)) * 5));
-
-    c_reset(env);
 }
 
 void allocate(CTrashPickupEnv* env) {
-
+    initialize_env(env);
     env->observations = (char*)calloc(env->total_num_obs, sizeof(char));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
-
-    initialize_env(env);
+    env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
 }
 
 void c_step(CTrashPickupEnv* env) {
     // Reset reward for each agent
     memset(env->rewards, 0, sizeof(float) * env->num_agents);
-    memset(env->dones, 0, sizeof(unsigned char) * env->num_agents);
+    memset(env->terminals, 0, sizeof(unsigned char) * env->num_agents);
 
     for (int i = 0; i < env->num_agents; i++) {
         move_agent(env, i, env->actions[i]);
@@ -414,7 +379,7 @@ void c_step(CTrashPickupEnv* env) {
     env->current_step++;
     if (env->current_step >= env->max_steps || is_episode_over(env)) 
     {
-        memset(env->dones, 1, sizeof(unsigned char) * env->num_agents);
+        memset(env->terminals, 1, sizeof(unsigned char) * env->num_agents);
 
         Log log = {0};
 
@@ -430,15 +395,14 @@ void c_step(CTrashPickupEnv* env) {
         log.trash_collected = (float) (env->num_trash - total_trash_not_collected);
         log.score = log.trash_collected;
         log.perf = log.score / env->num_trash;
-        add_log(env->log_buffer, &log);
-
+        add_log(env, &log);
         c_reset(env);
     }
 
     compute_observations(env);
 }
 
-void free_initialized(CTrashPickupEnv* env) {
+void c_close(CTrashPickupEnv* env) {
     free(env->grid);
     free(env->entities);
 }
@@ -447,9 +411,8 @@ void free_allocated(CTrashPickupEnv* env) {
     free(env->observations);
     free(env->actions);
     free(env->rewards);
-    free(env->dones);
-    free_logbuffer(env->log_buffer);
-    free_initialized(env);
+    free(env->terminals);
+    c_close(env);
 }
 
 const Color PUFF_RED = (Color){187, 0, 0, 255};
@@ -457,14 +420,6 @@ const Color PUFF_CYAN = (Color){0, 187, 187, 255};
 const Color PUFF_WHITE = (Color){241, 241, 241, 241};
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
 const Color PUFF_LINES = (Color){50, 50, 50, 255};
-
-typedef struct Client {
-    int window_width;
-    int window_height;
-    int header_offset;
-    int cell_size;
-    Texture2D agent_texture;
-} Client;
 
 // Initialize a rendering client
 Client* make_client(CTrashPickupEnv* env) {
@@ -484,7 +439,12 @@ Client* make_client(CTrashPickupEnv* env) {
 }
 
 // Render the TrashPickup environment
-void c_render(Client* client, CTrashPickupEnv* env) {
+void c_render(CTrashPickupEnv* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+    Client* client = env->client;
+
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

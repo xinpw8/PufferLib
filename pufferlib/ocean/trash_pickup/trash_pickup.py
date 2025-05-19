@@ -2,8 +2,7 @@ import numpy as np
 from gymnasium import spaces
 
 import pufferlib
-from pufferlib.ocean.trash_pickup.cy_trash_pickup import CyTrashPickup
-
+from pufferlib.ocean.trash_pickup import binding
 
 class TrashPickupEnv(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, report_interval=1, buf=None, 
@@ -59,33 +58,50 @@ class TrashPickupEnv(pufferlib.PufferEnv):
         self.single_action_space = spaces.Discrete(4)
 
         super().__init__(buf=buf)
-        self.c_envs = CyTrashPickup(self.observations, self.actions, self.rewards, self.terminals, num_envs, num_agents, grid_size, num_trash, num_bins, max_steps, agent_sight_range)
+        c_envs = []
+        for i in range(num_envs):
+            env_id = binding.env_init(
+                self.observations[i*num_agents:(i+1)*num_agents],
+                self.actions[i*num_agents:(i+1)*num_agents],
+                self.rewards[i*num_agents:(i+1)*num_agents],
+                self.terminals[i*num_agents:(i+1)*num_agents],
+                self.truncations[i*num_agents:(i+1)*num_agents],
+                i + seed * num_envs,
+                num_agents=num_agents,
+                grid_size=grid_size,
+                num_trash=num_trash,
+                num_bins=num_bins,
+                max_steps=max_steps,
+                agent_sight_range=agent_sight_range,
+            )
+            c_envs.append(env_id)
+
+        self.c_envs = binding.vectorize(*c_envs)
 
     def reset(self, seed=None):
-        self.c_envs.reset()
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         self.tick += 1
 
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            # print(f"tha log: {log}")
-            if log['episode_length'] > 0:
+            log = binding.vec_log(self.c_envs)
+            if log:
                 info.append(log)
 
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        binding.vec_render(self.c_envs, 0)
         
     def close(self):
-        self.c_envs.close() 
+        binding.vec_close(self.c_envs)
 
 def test_performance(timeout=10, atn_cache=1024):
     env = TrashPickupEnv(num_envs=1024, grid_size=10, num_agents=4,
