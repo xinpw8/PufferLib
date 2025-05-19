@@ -2,7 +2,7 @@ import gymnasium
 import numpy as np 
 
 import pufferlib 
-from pufferlib.ocean.cpr.cy_cpr import CyEnv
+from pufferlib.ocean.cpr import binding
 
 class PyCPR(pufferlib.PufferEnv):
     def __init__(self, 
@@ -33,46 +33,52 @@ class PyCPR(pufferlib.PufferEnv):
         self.report_interval = report_interval
 
         super().__init__(buf)
+        c_envs = []
+        for i in range(num_envs):
+            n = num_agents[i]
+            env_id = binding.env_init(
+                self.observations[i*n:(i+1)*n],
+                self.actions[i*n:(i+1)*n],
+                self.rewards[i*n:(i+1)*n],
+                self.terminals[i*n:(i+1)*n],
+                self.truncations[i*n:(i+1)*n],
+                i + seed * num_envs,
+                width=widths[i],
+                height=heights[i],
+                num_agents=num_agents[i],
+                vision=vision,
+                reward_food=reward_food,
+                interactive_food_reward=interactive_food_reward,
+                reward_move=reward_move,
+                food_base_spawn_rate=food_base_spawn_rate,
+            )
+            c_envs.append(env_id)
 
-        self.c_envs = CyEnv(
-            self.observations, 
-            self.actions, 
-            self.rewards, 
-            self.terminals,
-            self.truncations,
-            self.masks,
-            widths,
-            heights,
-            num_agents,
-            vision, 
-            reward_food,
-            interactive_food_reward,
-            reward_move,
-            food_base_spawn_rate
-        )
+        self.c_envs = binding.vectorize(*c_envs)
 
     def reset(self, seed=None):
         self.tick = 0
-        self.c_envs.reset()
-
+        binding.vec_reset(self.c_envs, seed)
         return self.observations, []
     
     def step(self, actions):
         self.actions[:] = actions 
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         self.tick += 1
 
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            info.append(log)
+            log = binding.vec_log(self.c_envs)
+            if log:
+                info.append(log)
+
         return (self.observations, self.rewards, self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        binding.vec_render(self.c_envs, 0)
 
     def close(self):
-        self.c_envs.close()
+        binding.vec_close(self.c_envs)
 
 if __name__ == "__main__":
     env = PyCPR()
