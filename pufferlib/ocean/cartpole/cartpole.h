@@ -89,6 +89,9 @@ void free_allocated(Cartpole* env) {
     free(env->terminals);
 }
 
+void c_close(Cartpole* env) {
+}
+
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
 const Color PUFF_WHITE = (Color){241, 241, 241, 241};
@@ -116,7 +119,6 @@ void c_render(Cartpole* env) {
         env->client = make_client(env);
     }
 
-    Client* client = env->client;
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
     DrawLine(0, HEIGHT / 1.5, WIDTH, HEIGHT / 1.5, PUFF_CYAN);

@@ -738,6 +738,9 @@ void free_allocated(Enduro* env) {
     free(env->terminals);
 }
 
+void c_close(Enduro* env) {
+}
+
 // Called when a day is failed by player
 // Restarts the game at Day 1
 void reset_round(Enduro* env) {

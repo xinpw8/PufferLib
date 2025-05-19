@@ -63,6 +63,9 @@ void free_allocated_cconnect4(CConnect4* env) {
     free(env->rewards);
 }
 
+void c_close(CConnect4* env) {
+}
+
 void add_log(CConnect4* env) {
     env->log.perf += (float)(env->rewards[0] == PLAYER_WIN);
     env->log.score += env->rewards[0];

@@ -145,7 +145,7 @@ MAKE_FUNCTIONS = {
 
 def env_creator(name='squared', *args, **kwargs):
     if 'puffer_' not in name:
-        raise pufferlib.exceptions.APIUsageError(f'Invalid environment name: {name}')
+        raise pufferlib.APIUsageError(f'Invalid environment name: {name}')
 
     # TODO: Robust sanity / ocean imports
     name = name.replace('puffer_', '')

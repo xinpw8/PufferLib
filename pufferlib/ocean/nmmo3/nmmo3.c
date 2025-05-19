@@ -167,11 +167,11 @@ void demo(int num_players) {
     allocate_mmo(&env);
 
     c_reset(&env);
-    c_render(&env, 0);
+    c_render(&env);
 
     int human_action = ATN_NOOP;
     bool human_mode = false;
-    int i = 0;
+    int i = 1;
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_LEFT_CONTROL)) {
             human_mode = !human_mode;
@@ -185,11 +185,10 @@ void demo(int num_players) {
             c_step(&env);
             //printf("Reward: %f\n\tDeath: %f\n\tProf: %f\n\tComb: %f\n\tItem: %f\n", env.rewards[0].death, env.rewards[0].death, env.rewards[0].prof_lvl, env.rewards[0].comb_lvl, env.rewards[0].item_atk_lvl);
             human_action = ATN_NOOP;
-        } else {
-            int atn = c_render(&env, i/36.0f);
-            if (atn != ATN_NOOP) {
-                human_action = atn;
-            }
+        }
+        int atn = c_render(&env);
+        if (atn != ATN_NOOP) {
+            human_action = atn;
         }
         i = (i + 1) % 36;
     }

@@ -79,6 +79,9 @@ void free_allocated(Pong* env) {
     free(env->terminals);
 }
 
+void c_close(Pong* env) {
+}
+
 void add_log(Pong* env) {
     float score = (float)env->score_r - (float)env->score_l;
     env->log.episode_length += env->tick;

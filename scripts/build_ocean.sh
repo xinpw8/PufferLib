@@ -50,7 +50,7 @@ fi
 FLAGS=(
     -Wall
     -I./$RAYLIB_NAME/include 
-    -I./pufferlib
+    -I./pufferlib/extensions
     "$SRC_DIR/$ENV.c" -o "$ENV"
     ./$RAYLIB_NAME/lib/libraylib.a
     -lm

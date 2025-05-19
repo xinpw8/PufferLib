@@ -4,7 +4,7 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.exceptions import APIUsageError
+from pufferlib import APIUsageError
 from pufferlib.ocean.snake import binding
 
 class Snake(pufferlib.PufferEnv):

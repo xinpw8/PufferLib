@@ -12,7 +12,7 @@
 #define OBSERVATIONS_SIZE 4
 #define ACTIONS_SIZE 2
 #define CONTINUOUS 0
-const char* WEIGHTS_PATH = "/puffertank/test_newbind/pufferlib/pufferlib/resources/cartpole/cartpole_weights.bin";
+const char* WEIGHTS_PATH = "resources/cartpole/cartpole_weights.bin";
 
 float movement(int discrete_action, int userControlMode) {
     if (userControlMode) {
@@ -34,7 +34,7 @@ void demo() {
 
     net = make_linearlstm(weights, 1, OBSERVATIONS_SIZE, ACTIONS_SIZE);
     Cartpole env = {0};
-    env.is_continuous = CONTINUOUS;
+    env.continuous = CONTINUOUS;
     allocate(&env);
     Client* client = make_client(&env);
     c_reset(&env);

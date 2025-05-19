@@ -11,6 +11,7 @@ int main() {
     Client* client = make_client(&env);
 
     c_reset(&env);
+    c_render(&env);
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             env.actions[0] = 0;
@@ -23,7 +24,7 @@ int main() {
             //forward_linearlstm(net, env.observations, env.actions);
         }
         c_step(&env);
-        c_render(client, &env);
+        c_render(&env);
     }
     //free_linearlstm(net);
     //free(weights);

@@ -134,10 +134,9 @@ void demo(int grid_size) {
     GoNet* net = init_gonet(weights, 1, grid_size);
     allocate(&env);
     c_reset(&env);
+    c_render(&env);
  
-    Client* client = make_client(env.width, env.height);
     int tick = 0;
-
     while (!WindowShouldClose()) {
         // User can take control of the paddle
         if(tick % 12 == 0) {
@@ -187,9 +186,9 @@ void demo(int grid_size) {
                 }
             }
         }
-        c_render(client, &env);
+        c_render(&env);
     }
-    close_client(client);
+    //close_client(client);
     free_allocated(&env);
 }
 

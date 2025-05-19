@@ -26,7 +26,7 @@ int main() {
  
     State* levels = calloc(1, sizeof(State));
 
-    create_maze_level(env, 11, 11, 0.85, seed);
+    create_maze_level(env, 31, 31, 0.85, seed);
     init_state(levels, max_size, num_agents);
     get_state(env, levels);
     env->num_maps = 1;
@@ -48,7 +48,7 @@ int main() {
     */
  
     int tick = 0;
-    render(env);
+    c_render(env);
     while (!WindowShouldClose()) {
         // User can take control of the first agent
         env->actions[0] = ATN_FORWARD;
@@ -82,10 +82,10 @@ int main() {
         bool done = false;
         if (tick % 1 == 0) {
             c_step(env);
-            printf("direction: %f\n", env->agents[0].direction);
+            //printf("direction: %f\n", env->agents[0].direction);
 
         }
-        render(env);
+        c_render(env);
     }
     free_allocated_grid(env);
     return 0;

@@ -1075,7 +1075,7 @@ def load_config():
                 value = p[section][key]
 
             fmt = f'--{key}' if section == 'base' else f'--{section}.{key}'
-            parser.add_argument(fmt.replace('_', '-'), default=value)
+            parser.add_argument(fmt.replace('_', '-'), default=value, type=type(value))
 
     parser.add_argument('-h', '--help', default=argparse.SUPPRESS,
         action='help', help='Show this help message and exit')

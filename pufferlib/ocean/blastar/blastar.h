@@ -139,6 +139,9 @@ void c_reset(Blastar* env) {
     env->log = (Log){0};
 }
 
+void c_close(Blastar* env) {
+}
+
 void init(Blastar* env, int num_obs) {
     env->reset_count = 0;
     env->num_obs = num_obs;

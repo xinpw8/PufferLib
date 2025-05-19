@@ -25,10 +25,8 @@ void demo() {
         .continuous = 0,
     };
     allocate(&env);
-
-    env.client = make_client(&env);
-
     c_reset(&env);
+    c_render(&env);
     while (!WindowShouldClose()) {
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -92,5 +90,6 @@ void test_performance(int timeout) {
 }
 
 int main() {
-    test_performance(10);
+    demo();
+    //test_performance(10);
 }

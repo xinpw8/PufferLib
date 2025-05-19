@@ -59,8 +59,10 @@ void union_groups(Group* groups, int pos1, int pos2) {
     }
 }
 
+typedef struct Client Client;
 typedef struct CGo CGo;
 struct CGo {
+    Client* client;
     float* observations;
     int* actions;
     float* rewards;
@@ -157,7 +159,7 @@ void allocate(CGo* env) {
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
 }
 
-void free_initialized(CGo* env) {
+void c_close(CGo* env) {
     free(env->board_x);
     free(env->board_y);
     free(env->board_states);
@@ -174,7 +176,7 @@ void free_allocated(CGo* env) {
     free(env->observations);
     free(env->terminals);
     free(env->rewards);
-    free_initialized(env);
+    c_close(env);
 }
 
 void compute_observations(CGo* env) {
@@ -715,7 +717,6 @@ const Color PUFF_WHITE = (Color){241, 241, 241, 241};
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
 const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
 
-typedef struct Client Client;
 struct Client {
     float width;
     float height;
@@ -733,6 +734,10 @@ Client* make_client(int width, int height) {
 }
 
 void c_render(CGo* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env->width, env->height);
+    }
+
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

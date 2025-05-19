@@ -77,7 +77,16 @@ void init_csnake(CSnake* env) {
     for (int i = 1; i<env->num_snakes; i++)
         env->snake_colors[i] = i%4 + 4; // Randomize snake colors
 }
- 
+
+void c_close(CSnake* env) {
+    free(env->grid);
+    free(env->snake);
+    free(env->snake_lengths);
+    free(env->snake_ptr);
+    free(env->snake_lifetimes);
+    free(env->snake_colors);
+    free(env->snake_logs);
+}
 void allocate_csnake(CSnake* env) {
     int obs_size = (2*env->vision + 1) * (2*env->vision + 1);
     env->observations = (char*)calloc(env->num_snakes*obs_size, sizeof(char));
@@ -87,19 +96,10 @@ void allocate_csnake(CSnake* env) {
 }
 
 void free_csnake(CSnake* env) {
-    if (env == NULL)
-        return;
-
-    free(env->grid);
+    c_close(env);
     free(env->observations);
-    free(env->snake);
-    free(env->snake_lengths);
-    free(env->snake_ptr);
-    free(env->snake_lifetimes);
-    free(env->snake_colors);
     free(env->actions);
     free(env->rewards);
-    free(env->snake_logs);
 }
 
 void compute_observations(CSnake* env) {

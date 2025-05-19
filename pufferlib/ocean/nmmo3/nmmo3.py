@@ -254,7 +254,7 @@ class NMMO3(pufferlib.PufferEnv):
         '''
 
     def close(self):
-        self.c_envs.close()
+        binding.vec_close(self.c_envs)
 
 def test_performance(cls, timeout=10, atn_cache=1024):
     env = cls(num_envs=1)

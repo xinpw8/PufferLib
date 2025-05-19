@@ -797,7 +797,7 @@ void allocate_mmo(MMO* env) {
     init(env);
 }
 
-void free_mmo(MMO* env) {
+void c_close(MMO* env) {
     free(env->counts);
     free(env->terrain);
     free(env->rendered);
@@ -818,7 +818,7 @@ void free_allocated_mmo(MMO* env) {
     free(env->players);
     free(env->enemies);
     free(env->actions);
-    free_mmo(env);
+    c_close(env);
 }
 
 bool is_buy(int mode) {
@@ -2207,7 +2207,7 @@ struct Client {
     int active_overlay;
     int my_player;
     int start_time;
-    float render_delta;
+    int frame;
 };
 
 #define TILE_SPRING_GRASS 0
@@ -2455,7 +2455,7 @@ Client* make_client(MMO* env) {
 
     Client* client = calloc(1, sizeof(Client));
     client->start_time = time(NULL);
-    client->render_delta = 1.0/TICK_FRAMES;
+    client->frame = 0;
     client->command_len = 0;
 
     client->terrain = calloc(env->height*env->width, sizeof(int));
@@ -3117,7 +3117,7 @@ int c_render(MMO* env) {
         env->client = make_client(env);
     }
     Client* client = env->client;
-    float delta = client->render_delta;
+    float delta = (float)client->frame / 36.0f;
 
     BeginDrawing();
     ClearBackground(BLANK);
@@ -3160,6 +3160,10 @@ int c_render(MMO* env) {
     }
 
     EndDrawing();
+    client->frame += 1;
+    if (client->frame >= 36) {
+        client->frame = 0;
+    }
     return action;
 }
 

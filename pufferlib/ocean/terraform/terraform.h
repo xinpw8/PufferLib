@@ -317,7 +317,6 @@ void c_step(Terraform* env) {
 void c_close(Terraform* env) {
 }
 
-
 Mesh* create_heightmap_mesh(float* heightMap, Vector3 size) {
     int mapX = size.x;
     int mapZ = size.z;

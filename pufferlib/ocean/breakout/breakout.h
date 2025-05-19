@@ -121,7 +121,7 @@ void allocate(Breakout* env) {
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
 }
 
-void free_initialized(Breakout* env) {
+void c_close(Breakout* env) {
     free(env->brick_x);
     free(env->brick_y);
     free(env->brick_states);
@@ -132,7 +132,7 @@ void free_allocated(Breakout* env) {
     free(env->observations);
     free(env->terminals);
     free(env->rewards);
-    free_initialized(env);
+    c_close(env);
 }
 
 void add_log(Breakout* env) {

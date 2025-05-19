@@ -57,7 +57,6 @@ class GPUDrive(pufferlib.PufferEnv):
             rewards=self.rewards,
             terminals=self.terminals
         )
-        breakpoint()
 
     def reset(self, seed=0):
         binding.vec_reset(self.c_envs, seed)

@@ -50,6 +50,9 @@ void free_allocated(Squared* env) {
     free(env->terminals);
 }
 
+void c_close(Squared* env) {
+}
+
 void add_log(Squared* env) {
     env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
     env->log.score += env->rewards[0];

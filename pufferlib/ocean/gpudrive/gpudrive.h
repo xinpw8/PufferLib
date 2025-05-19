@@ -231,7 +231,7 @@ Entity* load_map_binary(const char* filename, GPUDrive* env) {
     fread(&env->num_objects, sizeof(int), 1, file);
     fread(&env->num_roads, sizeof(int), 1, file);
     env->num_entities = env->num_objects + env->num_roads;
-    printf("Num entities: %d\n", env->num_entities);
+    //printf("Num entities: %d\n", env->num_entities);
     Entity* entities = (Entity*)malloc(env->num_entities * sizeof(Entity));
     //printf("Num entities: %d\n", env->num_entities);
     for (int i = 0; i < env->num_entities; i++) {
@@ -652,7 +652,7 @@ void init(GPUDrive* env){
     cache_neighbor_offsets(env);
 }
 
-void free_initialized(GPUDrive* env){
+void c_close(GPUDrive* env){
     for(int i = 0; i < env->num_entities; i++){
         free_entity(&env->entities[i]);
     }
@@ -689,11 +689,7 @@ void free_allocated(GPUDrive* env){
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
-    free_initialized(env);
-}
-
-void c_close(GPUDrive* env){
-    free_initialized(env);
+    c_close(env);
 }
 
 float clipSpeed(float speed) {

@@ -135,8 +135,9 @@ Grid* allocate_grid(int max_size, int num_agents, int horizon,
     return env;
 }
 
-void free_env(Grid* env) {
+void c_close(Grid* env) {
     free(env->grid);
+    free(env->counts);
     free(env->agents);
     free(env);
 }
@@ -146,7 +147,7 @@ void free_allocated_grid(Grid* env) {
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
-    free_env(env);
+    c_close(env);
 }
 
 bool in_bounds(Grid* env, int y, int c) {
