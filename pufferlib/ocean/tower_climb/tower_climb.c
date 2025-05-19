@@ -103,16 +103,36 @@ void free_tower_climb_net(TowerClimbNet* net) {
 void demo() {   
     Weights* weights = load_weights("resources/tower_climb_weights.bin", 560407);
     TowerClimbNet* net = init_tower_climb_net(weights, 1);
+
+    int num_maps = 10;
+    Level* levels = calloc(num_maps, sizeof(Level));
+    PuzzleState* puzzle_states = calloc(num_maps, sizeof(PuzzleState));
+
+    for (int i = 0; i < num_maps; i++) {
+        int goal_height = rand() % 4 + 5;
+        int min_moves = 10;
+        int max_moves = 15;
+        init_level(&levels[i]);
+        init_puzzle_state(&puzzle_states[i]);
+        cy_init_random_level(&levels[i], goal_height, max_moves, min_moves, i);
+        levelToPuzzleState(&levels[i], &puzzle_states[i]);
+    }
+
     CTowerClimb* env = allocate();
+    env->num_maps = num_maps;
+    env->all_levels = levels;
+    env->all_puzzles = puzzle_states;
+
     int seed = 0;
     srand(time(NULL));
     int random_level = 5 + (rand() % 4);
     init_random_level(env, random_level, 15, 10, seed);
-    Client* client = make_client(env);
+    c_reset(env);
+    c_render(env);
+    Client* client = env->client;
     client->enable_animations = 1;
     int tick = 0;
     while (!WindowShouldClose()) {
-        int done = 0;
         if (tick % 6 == 0 && !client->isMoving) {
             tick = 0;
             int human_action = env->actions[0];
@@ -120,16 +140,9 @@ void demo() {
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env->actions[0] = human_action;
             }
-            done = c_step(env);
+            c_step(env);
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env->actions[0] = NOOP;
-            }
-            if (done) {
-                seed++;
-                c_reset(env);
-                srand(time(NULL));
-                int random_level_next = 5 + (rand() % 4);
-                init_random_level(env, random_level_next, 15, 10, seed);
             }
         }
         tick++;
@@ -154,7 +167,7 @@ void demo() {
                 env->actions[0] = DROP;
             }
         }
-        c_render(client, env);
+        c_render(env);
     }
     close_client(client);
     free_allocated(env);
@@ -169,13 +182,7 @@ void performance_test() {
     int i = 0;
     while (time(NULL) - start < test_time) {
         env->actions[0] = rand() % 5;
-        int done = 0;
-        done = c_step(env);
-        if (done) {
-            seed++;
-            c_reset(env);
-            init_random_level(env, 8, 25, 15, seed);
-        }
+        c_step(env);
         i++;
     }
     long end = time(NULL);

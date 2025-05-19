@@ -142,60 +142,24 @@ struct Log {
     float score;
     float episode_return;
     float episode_length;
+    float n;
 };
 
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) return log;  // Avoid division by zero
-
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return  += logs->logs[i].episode_return  / logs->idx;
-        log.episode_length  += logs->logs[i].episode_length  / logs->idx;
-        log.score += logs->logs[i].score / logs->idx;
-	    log.perf += logs->logs[i].perf / logs->idx;
-    }
-
-    logs->idx = 0;
-    return log;
-}
-
+typedef struct Client Client;
 typedef struct CTowerClimb CTowerClimb;
 struct CTowerClimb {
+    Client* client;
     unsigned char* observations;
     int* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
+    unsigned char* terminals;
+    unsigned char* truncations;
     Log log;
+    Log buffer;
     float score;
+    int num_maps;
+    Level* all_levels;
+    PuzzleState* all_puzzles;
     Level* level;
     PuzzleState* state;  // Contains blocks bitmask, position, orientation, etc.
     int rows_cleared;
@@ -204,6 +168,15 @@ struct CTowerClimb {
     float reward_illegal_move;
     float reward_move_block;
 };
+
+void add_log(CTowerClimb* env) {
+    env->log.perf += env->buffer.perf;
+    env->log.score += env->buffer.score;
+    env->log.episode_return += env->buffer.episode_return;
+    env->log.episode_length += env->buffer.episode_length;
+    env->log.n += 1.0;
+    env->buffer = (Log){0};
+}
 
 void levelToPuzzleState(Level* level, PuzzleState* state) {
     memset(state->blocks, 0, BLOCK_BYTES);
@@ -247,24 +220,22 @@ CTowerClimb* allocate() {
     env->observations = (unsigned char*)calloc(OBS_VISION+PLAYER_OBS, sizeof(unsigned char));
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
-    env->dones = (unsigned char*)calloc(1, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
     return env;
 }
 
-void free_initialized(CTowerClimb* env) {
+void c_close(CTowerClimb* env) {
 	free_level(env->level);
 	free_puzzle_state(env->state);
+    free(env);
 }
 
 void free_allocated(CTowerClimb* env) {
     free(env->actions);
     free(env->observations);
-    free(env->dones);
+    free(env->terminals);
     free(env->rewards);
-    free_logbuffer(env->log_buffer);
-    free_initialized(env);
-    free(env);
+    c_close(env);
 }
 
 void calculate_window_bounds(int* bounds, int center_pos, int window_size, int max_size) {
@@ -337,23 +308,24 @@ void compute_observations(CTowerClimb* env) {
 }
 
 void c_reset(CTowerClimb* env) {
-    env->log = (Log){0};
-    env->dones[0] = 0;
+    env->terminals[0] = 0;
     env->rows_cleared = 0;
     memset(env->state->blocks, 0, BLOCK_BYTES * sizeof(unsigned char));
+    int idx = rand() % env->num_maps;
+    setPuzzle(env, &env->all_puzzles[idx], &env->all_levels[idx]);
     compute_observations(env);
 }
 
 void illegal_move(CTowerClimb* env){
     env->rewards[0] = env->reward_illegal_move;
-    env->log.episode_return += env->reward_illegal_move;
+    env->buffer.episode_return += env->reward_illegal_move;
 }
 
 void death(CTowerClimb* env){
 	env->rewards[0] = -1;
-	env->log.episode_return -= 1;
-	env->log.perf = 0;
-	add_log(env->log_buffer, &env->log);
+	env->buffer.episode_return -= 1;
+	env->buffer.perf = 0;
+	add_log(env);
 }
 
 int isGoal(  PuzzleState* s,  Level* lvl) {
@@ -382,8 +354,8 @@ int climb(PuzzleState* outState, int action, int mode, CTowerClimb* env, const L
     if(mode == RL_MODE && floor_cleared > env->rows_cleared){
         env->rows_cleared = floor_cleared;
         env->rewards[0] = env->reward_climb_row;
-        env->log.episode_return += env->reward_climb_row;
-        env->log.score = floor_cleared;
+        env->buffer.episode_return += env->reward_climb_row;
+        env->buffer.score = floor_cleared;
     }
     outState->robot_position = cell_next_above;
     outState->robot_state = 0;
@@ -398,7 +370,7 @@ int drop(PuzzleState* outState, int action, int mode, CTowerClimb* env, const Le
     int step_down = next_double_below_cell >= 0 && TEST_BIT(outState->blocks, next_double_below_cell);
     if(mode == RL_MODE){
         env->rewards[0] = env->reward_fall_row;
-        env->log.episode_return += env->reward_fall_row;
+        env->buffer.episode_return += env->reward_fall_row;
     }
     if (step_down){
         outState->robot_position = next_below_cell;
@@ -776,45 +748,44 @@ int applyAction(PuzzleState* outState, int action,  Level* lvl, int mode, CTower
         }
         if (mode == RL_MODE && result == 1){
             env->rewards[0] = env->reward_move_block;
-            env->log.episode_return += env->reward_move_block;
+            env->buffer.episode_return += env->reward_move_block;
         }
         return result;
     }
     return 0;   
 }
 
-int c_step(CTowerClimb* env) {
-    env->log.episode_length += 1.0;
+void c_step(CTowerClimb* env) {
+    env->buffer.episode_length += 1.0;
     env->rewards[0] = 0.0;
-    if(env->log.episode_length > 60){
+    if(env->buffer.episode_length > 60){
          env->rewards[0] = 0;
-         env->log.perf = 0;
-         add_log(env->log_buffer, &env->log);
-         return 1;
+         env->buffer.perf = 0;
+         add_log(env);
+         c_reset(env);
     }
     // Create next state
     int move_result = applyAction(env->state, env->actions[0], env->level, RL_MODE, env);
     if (move_result == MOVE_ILLEGAL) {
         illegal_move(env);
-        return 0;
+        return;
     }
     if (move_result == MOVE_DEATH){
         death(env);
-        return 1;
+        c_reset(env);
     }
     
     // Check for goal state
     if (isGoal(env->state, env->level)) {
         env->rewards[0] = 1.0;
-        env->log.episode_return +=1.0;
-        env->log.perf = 1.0;
-        add_log(env->log_buffer, &env->log);
-        return 1;
+        env->buffer.episode_return +=1.0;
+        env->buffer.perf = 1.0;
+        add_log(env);
+        c_reset(env);
     }
     
     // Update observations
     compute_observations(env);
-    return 0;
 }
 
 typedef struct BFSNode {
@@ -1176,7 +1147,6 @@ typedef enum {
     ANIM_SHIMMY_LEFT,
 } AnimationState;
 
-typedef struct Client Client;
 struct Client {
     float width;
     float height;
@@ -1504,7 +1474,12 @@ static void render_scene(Client* client, CTowerClimb* env) {
     EndDrawing();
 }
 
-void c_render(Client* client, CTowerClimb* env) {
+void c_render(CTowerClimb* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+    Client* client = env->client;
+
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
     // Handle state transitions - drop animation
     if (env->state->robot_state == DEFAULT && client->animState == ANIM_HANGING && client->enable_animations) {
