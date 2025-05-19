@@ -13,6 +13,100 @@ import gymnasium
 import warnings
 warnings.filterwarnings("ignore")
 
+class RandomState:
+    def __init__(self, seed):
+        self.rng = np.random.RandomState(seed)
+
+    def random(self):
+        return self.rng.random()
+
+    def probabilistic_round(self, n):
+            frac, integer = np.modf(n)
+            if self.random() < frac:
+                return int(integer) + 1
+            else:
+                return int(integer)
+
+    def sample(self, ary, n):
+        n_rounded = self.probabilistic_round(n)
+        return self.rng.choice(ary, n_rounded, replace=False).tolist()
+
+    def choice(self, ary):
+        return self.sample(ary, 1)[0]
+
+
+# TODO: Fix this. Was in utils.py. Only used for tests
+def make_zeros_like(data):
+    if isinstance(data, dict):
+        return {k: make_zeros_like(v) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [make_zeros_like(v) for v in data]
+    elif isinstance(data, np.ndarray):
+        return np.zeros_like(data)
+    elif isinstance(data, (int, float)):
+        return 0
+    else:
+        raise ValueError(f'Unsupported type: {type(data)}')
+
+def compare_arrays(array_1, array_2):
+    assert isinstance(array_1, np.ndarray)
+    assert isinstance(array_2, np.ndarray)
+    assert array_1.shape == array_2.shape
+    return np.allclose(array_1, array_2)
+
+def compare_dicts(dict_1, dict_2, idx):
+    assert isinstance(dict_1, (dict, OrderedDict))
+    assert isinstance(dict_2, (dict, OrderedDict))
+
+    if not all(k in dict_2 for k in dict_1):
+        raise ValueError("Keys do not match between dictionaries.")
+
+    for k, v in dict_1.items():
+        if not compare_space_samples(v, dict_2[k], idx):
+            return False
+
+    return True
+
+def compare_lists(list_1, list_2, idx):
+    assert isinstance(list_1, (list, tuple))
+    assert isinstance(list_2, (list, tuple))
+
+    if len(list_1) != len(list_2):
+        raise ValueError("Lengths do not match between lists/tuples.")
+
+    for v1, v2 in zip(list_1, list_2):
+        if not compare_space_samples(v1, v2, idx):
+            return False
+        
+    return True
+    
+def compare_space_samples(sample_1, sample_2, sample_2_batch_idx=None):
+    '''Compare two samples from the same space
+    
+    Optionally, sample_2 may be a batch of samples from the same space
+    concatenated along the first dimension of the leaves. In this case,
+    sample_2_batch_idx specifies which sample to compare.
+    '''
+    if isinstance(sample_1, (dict, OrderedDict)):
+        return compare_dicts(sample_1, sample_2, sample_2_batch_idx)
+    elif isinstance(sample_1, (list, tuple)):
+        return compare_lists(sample_1, sample_2, sample_2_batch_idx)
+    elif isinstance(sample_1, np.ndarray):
+        assert isinstance(sample_2, np.ndarray)
+        if sample_2_batch_idx is not None:
+            sample_2 = sample_2[sample_2_batch_idx]
+        return compare_arrays(sample_1, sample_2)
+    elif isinstance(sample_1, (int, float)):
+        if sample_2_batch_idx is not None:
+            sample_2 = sample_2[sample_2_batch_idx]
+        if isinstance(sample_2, np.ndarray):
+            assert sample_2.size == 1, "Cannot compare scalar to non-scalar."
+            sample_2 = sample_2[0]
+        return sample_1 == sample_2
+    else:
+        raise ValueError(f"Unsupported type: {type(sample_1)}")
+
+
 
 def test_gymnasium_emulation(env_cls, steps=100):
     raw_env = env_cls()

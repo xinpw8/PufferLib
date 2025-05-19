@@ -1,5 +1,4 @@
-from pufferlib import version
-__version__ = version.__version__
+__version__ = '2.0.6'
 
 import os
 import sys
@@ -23,6 +22,5 @@ sys.stderr.close()
 sys.stdout = original_stdout
 sys.stderr = original_stderr
 
-from pufferlib.namespace import namespace, dataclass, Namespace
+from pufferlib.pufferlib import *
 from pufferlib import environments
-from pufferlib.environment import PufferEnv

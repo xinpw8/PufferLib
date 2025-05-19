@@ -1,7 +1,6 @@
 #include <time.h>
 #include <unistd.h>
 #include "gpudrive.h"
-#include "puffernet.h"
 
 // Human control functions
 void handle_human_input(GPUDrive* env) {
@@ -102,17 +101,19 @@ void demo() {
         .human_agent_idx = 0,
         .reward_vehicle_collision = -0.1f,
         .reward_offroad_collision = -0.1f,
-	    .map_name = "resources/gpudrive/binaries/map_063.bin"
+	    .map_name = "resources/gpudrive/binaries/map_086.bin",
+        .spawn_immunity_timer = 30
     };
     allocate(&env);
     c_reset(&env);
-    Client* client = make_client(&env);
+    c_render(&env);
+    //Client* client = make_client(&env);
     printf("Human controlling agent index: %d\n", env.active_agent_indices[env.human_agent_idx]);
     int accel_delta = 1;
     int steer_delta = 1;
     while (!WindowShouldClose()) {
         // Handle camera controls
-        handle_camera_controls(client);
+        handle_camera_controls(env.client);
         int (*actions)[2] = (int(*)[2])env.actions;
         // // Reset all agent actions at the beginning of each frame
         // for(int i = 0; i < env.active_agent_count; i++) {
@@ -160,10 +161,10 @@ void demo() {
         // Handle human input for the controlled agent
         // handle_human_input(&env);
         c_step(&env);
-        c_render(client, &env);
+        c_render(&env);
     }
 
-    close_client(client);
+    close_client(env.client);
     free_allocated(&env);
 }
 
@@ -172,7 +173,7 @@ void performance_test() {
     GPUDrive env = {
         .dynamics_model = CLASSIC,
         .human_agent_idx = 0,
-	    .map_name = "resources/gpudrive/binaries/map_005.bin"
+	    .map_name = "resources/gpudrive/binaries/map_055.bin"
     };
     clock_t start_time, end_time;
     double cpu_time_used;
@@ -205,7 +206,7 @@ void performance_test() {
 }
 
 int main() {
-    // demo();
-    performance_test();
+    demo();
+    // performance_test();
     return 0;
 }

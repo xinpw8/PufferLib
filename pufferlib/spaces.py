@@ -17,9 +17,9 @@ def joint_space(space, n):
             high=np.repeat(space.nvec[None] - 1, n, axis=0),
             shape=(n, len(space)), dtype=space.dtype)
     elif isinstance(space, Box):
-        return gymnasium.spaces.Box(
-            low=np.repeat(space.low[None], n, axis=0),
-            high=np.repeat(space.high[None], n, axis=0),
+        low = np.repeat(space.low[None], n, axis=0)
+        high = np.repeat(space.high[None], n, axis=0)
+        return gymnasium.spaces.Box(low=low, high=high,
             shape=(n, *space.shape), dtype=space.dtype)
     else:
         raise ValueError(f'Unsupported space: {space}')

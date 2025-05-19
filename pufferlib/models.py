@@ -21,7 +21,7 @@ class Default(nn.Module):
     the recurrent cell into encode_observations and put everything after
     into decode_actions.
     '''
-    def __init__(self, env, hidden_size=128, use_p3o=False, p3o_horizon=32, use_diayn=False, diayn_skills=128):
+    def __init__(self, env, hidden_size=128):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_multidiscrete = isinstance(env.single_action_space,
@@ -38,7 +38,6 @@ class Default(nn.Module):
             input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
-            #self.encoder = nn.Linear(np.prod(env.single_observation_space.shape), hidden_size)
             self.encoder = torch.nn.Sequential(
                 nn.Linear(np.prod(env.single_observation_space.shape), hidden_size),
                 nn.GELU(),
@@ -58,32 +57,11 @@ class Default(nn.Module):
             self.decoder_logstd = nn.Parameter(torch.zeros(
                 1, env.single_action_space.shape[0]))
 
-        if use_diayn:
-            self.diayn_discriminator = nn.Sequential(
-                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
-                nn.ReLU(),
-                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, diayn_skills)),
-            )
-
-        self.use_p3o = use_p3o
-        self.p3o_horizon = p3o_horizon
-        if use_p3o:
-            self.value_mean = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, p3o_horizon), std=1)
-            self.value_logstd = nn.Parameter(torch.zeros(1, p3o_horizon))
-
-            #param = np.log10(np.arange(1, N+1))
-            #param = 1 - np.exp(-np.sqrt(np.arange(N)))
-            #self.value_logstd = nn.Parameter(torch.tensor(param).view(1, N))
-            #self.value_logstd = pufferlib.pytorch.layer_init(
-            #    nn.Linear(hidden_size, 32), std=0.01)
-        else:
-            self.value = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, 1), std=1)
+        self.value = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, 1), std=1)
 
     def forward(self, observations, state=None):
         hidden = self.encode_observations(observations, state=state)
-        state.hidden = hidden
         logits, values = self.decode_actions(hidden)
         return logits, values
 
@@ -114,24 +92,16 @@ class Default(nn.Module):
         else:
             logits = self.decoder(hidden)
 
-        if self.use_p3o:
-            mean=self.value_mean(hidden)
-            values = pufferlib.namespace(
-                mean=mean,
-                std=torch.exp(torch.clamp(self.value_logstd, -10, 10)).expand_as(mean),
-            )
-        else:
-            values = self.value(hidden)
-
+        values = self.value(hidden)
         return logits, values
 
-class LSTMWrapper(nn.LSTM):
+class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128):
         '''Wraps your policy with an LSTM without letting you shoot yourself in the
         foot with bad transpose and shape operations. This saves much pain.
         Requires that your policy define encode_observations and decode_actions.
         See the Default policy for an example.'''
-        super().__init__(input_size, hidden_size)
+        super().__init__()
         self.obs_shape = env.single_observation_space.shape
 
         self.policy = policy
@@ -147,11 +117,13 @@ class LSTMWrapper(nn.LSTM):
             elif "weight" in name:
                 nn.init.orthogonal_(param, 1.0)
 
+        self.lstm = nn.LSTM(input_size, hidden_size)
+
         self.cell = torch.nn.LSTMCell(input_size, hidden_size)
-        self.cell.weight_ih = self.weight_ih_l0
-        self.cell.weight_hh = self.weight_hh_l0
-        self.cell.bias_ih = self.bias_ih_l0
-        self.cell.bias_hh = self.bias_hh_l0
+        self.cell.weight_ih = self.lstm.weight_ih_l0
+        self.cell.weight_hh = self.lstm.weight_hh_l0
+        self.cell.bias_ih = self.lstm.bias_ih_l0
+        self.cell.bias_hh = self.lstm.bias_hh_l0
 
         #self.pre_layernorm = nn.LayerNorm(hidden_size)
         #self.post_layernorm = nn.LayerNorm(hidden_size)
@@ -159,8 +131,8 @@ class LSTMWrapper(nn.LSTM):
     def forward(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
         hidden = self.policy.encode_observations(observations, state=state)
-        h = state.lstm_h
-        c = state.lstm_c
+        h = state['lstm_h']
+        c = state['lstm_c']
 
         # TODO: Don't break compile
         if h is not None:
@@ -172,17 +144,17 @@ class LSTMWrapper(nn.LSTM):
         #hidden = self.pre_layernorm(hidden)
         hidden, c = self.cell(hidden, lstm_state)
         #hidden = self.post_layernorm(hidden)
-        state.hidden = hidden
-        state.lstm_h = hidden
-        state.lstm_c = c
+        state['hidden'] = hidden
+        state['lstm_h'] = hidden
+        state['lstm_c'] = c
         logits, values = self.policy.decode_actions(hidden)
         return logits, values
 
     def forward_train(self, observations, state):
         '''Forward function for training. Uses LSTM for fast time-batching'''
         x = observations
-        lstm_h = state.lstm_h
-        lstm_c = state.lstm_c
+        lstm_h = state['lstm_h']
+        lstm_c = state['lstm_c']
 
         x_shape, space_shape = x.shape, self.obs_shape
         x_n, space_n = len(x_shape), len(space_shape)
@@ -210,7 +182,7 @@ class LSTMWrapper(nn.LSTM):
 
         hidden = hidden.transpose(0, 1)
         #hidden = self.pre_layernorm(hidden)
-        hidden, (lstm_h, lstm_c) = super().forward(hidden, lstm_state)
+        hidden, (lstm_h, lstm_c) = self.lstm.forward(hidden, lstm_state)
         #hidden = self.post_layernorm(hidden)
         hidden = hidden.transpose(0, 1)
 
@@ -218,9 +190,9 @@ class LSTMWrapper(nn.LSTM):
         logits, values = self.policy.decode_actions(flat_hidden)
         values = values.reshape(B, TT)
         #state.batch_logits = logits.reshape(B, TT, -1)
-        state.hidden = hidden
-        state.lstm_h = lstm_h.detach()
-        state.lstm_c = lstm_c.detach()
+        state['hidden'] = hidden
+        state['lstm_h'] = lstm_h.detach()
+        state['lstm_c'] = lstm_c.detach()
         return logits, values
 
 class Convolutional(nn.Module):
@@ -257,8 +229,8 @@ class Convolutional(nn.Module):
             nn.Linear(output_size, 1), std=1)
 
     def forward(self, observations, state=None):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
 
     def forward_train(self, observations, state=None):
@@ -300,16 +272,19 @@ class ProcgenResnet(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
                 nn.Linear(mlp_width, 1), std=1)
 
-    def forward(self, observations):
-        hidden, lookup = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden, lookup)
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
         return actions, value
+
+    def forward_train(self, observations, state=None):
+        return self.forward(observations, state)
 
     def encode_observations(self, x):
         hidden = self.network(x.permute((0, 3, 1, 2)) / 255.0)
-        return hidden, None
+        return hidden
  
-    def decode_actions(self, hidden, lookup):
+    def decode_actions(self, hidden):
         '''linear decoder function'''
         action = self.actor(hidden)
         value = self.value(hidden)

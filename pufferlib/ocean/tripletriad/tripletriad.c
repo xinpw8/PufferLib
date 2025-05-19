@@ -1,7 +1,10 @@
 #include "tripletriad.h"
 #include "puffernet.h"
+#include <time.h>
 
-int main() {
+#define NOOP -1
+
+void interactive() {
     Weights* weights = load_weights("resources/tripletriad_weights.bin", 148880);
     LinearLSTM* net = make_linearlstm(weights, 1, 114, 15);
 
@@ -15,12 +18,12 @@ int main() {
     };
     allocate_ctripletriad(&env);
     c_reset(&env); 
-    Client* client = make_client(env.width, env.height);
+    env.client = make_client(env.width, env.height);
 
     int tick = 0;
     int action;
     while (!WindowShouldClose()) {
-        action = -1;
+        action = NOOP;
 
         // User can take control of the player
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -61,15 +64,45 @@ int main() {
         }
 
         tick = (tick + 1) % 45;
+
         if (env.actions[0] != NOOP) {
             c_step(&env);
         }
 
-        c_render(client, &env);
+        c_render(&env);
     }
     free_linearlstm(net);
     free(weights);
-    close_client(client);
+    close_client(env.client);
     free_allocated_ctripletriad(&env);
+}
+
+void performance_test() {
+    long test_time = 10;
+    CTripleTriad env = {
+        .width = 990,
+        .height = 690,
+        .card_width = 576 / 3,
+        .card_height = 672 / 3,
+        .game_over = 0,
+        .num_cards = 10,
+    };
+    allocate_ctripletriad(&env);
+    c_reset(&env);
+
+    long start = time(NULL);
+    int i = 0;
+    while (time(NULL) - start < test_time) {
+        c_step(&env);
+        i++;
+    }
+    long end = time(NULL);
+    printf("SPS: %ld\n", i / (end - start));
+    free_allocated_ctripletriad(&env);
+}
+
+int main() {
+    // performance_test();
+    interactive();
     return 0;
 }

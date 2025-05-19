@@ -5,7 +5,6 @@ import functools
 
 import pufferlib.emulation
 import pufferlib.environments
-import pufferlib.postprocess
 
 ALIASES = {
     'minigrid': 'MiniGrid-LavaGapS7-v0',
@@ -15,14 +14,14 @@ ALIASES = {
 def env_creator(name='minigrid'):
     return functools.partial(make, name=name)
 
-def make(name, render_mode='rgb_array', buf=None):
+def make(name, render_mode='rgb_array', buf=None, seed=0):
     if name in ALIASES:
         name = ALIASES[name]
 
     minigrid = pufferlib.environments.try_import('minigrid')
     env = gymnasium.make(name, render_mode=render_mode)
     env = MiniGridWrapper(env)
-    env = pufferlib.postprocess.EpisodeStats(env)
+    env = pufferlib.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf)
 
 class MiniGridWrapper:

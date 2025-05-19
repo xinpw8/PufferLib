@@ -29,16 +29,17 @@ class NMMO3(nn.Module):
         #self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
         self.num_actions = env.single_action_space.n
         self.factors = np.array([4, 4, 17, 5, 3, 5, 5, 5, 7, 4])
-        self.offsets = torch.tensor([0] + list(np.cumsum(self.factors)[:-1])).cuda().view(1, -1, 1, 1)
+        offsets = torch.tensor([0] + list(np.cumsum(self.factors)[:-1])).view(1, -1, 1, 1)
+        self.register_buffer('offsets', offsets)
         self.cum_facs = np.cumsum(self.factors)
 
         self.multihot_dim = self.factors.sum()
         self.is_continuous = False
 
         self.map_2d = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 256, 5, stride=3)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(self.multihot_dim, 128, 5, stride=3)),
             nn.ReLU(),
-            pufferlib.pytorch.layer_init(nn.Conv2d(256, 256, 3, stride=1)),
+            pufferlib.pytorch.layer_init(nn.Conv2d(128, 128, 3, stride=1)),
             nn.Flatten(),
         )
 
@@ -47,7 +48,7 @@ class NMMO3(nn.Module):
             nn.Flatten(),
         )
         self.proj = nn.Sequential(
-            pufferlib.pytorch.layer_init(nn.Linear(2073, hidden_size)),
+            pufferlib.pytorch.layer_init(nn.Linear(1817, hidden_size)),
             nn.ReLU(),
         )
 
@@ -55,10 +56,6 @@ class NMMO3(nn.Module):
         self.actor = pufferlib.pytorch.layer_init(
             nn.Linear(output_size, self.num_actions), std=0.01)
         self.value_fn = pufferlib.pytorch.layer_init(nn.Linear(output_size, 1), std=1)
-
-        # Pre-allocate allows compilation
-        map_buf = torch.zeros(32768, self.multihot_dim, 11, 15, dtype=torch.float32)
-        self.register_buffer('map_buf', map_buf)
 
     def forward(self, x, state=None):
         hidden = self.encode_observations(x)
@@ -75,15 +72,14 @@ class NMMO3(nn.Module):
         ob_reward = observations[:, -10:]
 
         batch = ob_map.shape[0]
-        map_buf = self.map_buf[:batch]
-        map_buf.zero_()
+        map_buf = torch.zeros(batch, 59, 11, 15, dtype=torch.float32, device=observations.device)
         codes = ob_map.permute(0, 3, 1, 2) + self.offsets
         map_buf.scatter_(1, codes, 1)
         ob_map = self.map_2d(map_buf)
 
         player_discrete = self.player_discrete_encoder(ob_player.int())
 
-        obs = torch.cat([ob_map, player_discrete, ob_player.float(), ob_reward], dim=1)
+        obs = torch.cat([ob_map, player_discrete, ob_player.to(ob_map.dtype), ob_reward], dim=1)
         obs = self.proj(obs)
         return obs
 
@@ -92,6 +88,62 @@ class NMMO3(nn.Module):
         action = self.actor(flat_hidden)
         value = self.value_fn(flat_hidden)
         return action, value
+
+class Terraform(nn.Module):
+    def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+
+        self.net_2d = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Conv2d(1, cnn_channels, 5, stride=3)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(
+                nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        self.net_1d = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(4, hidden_size)),
+            nn.Flatten(),
+        )
+        self.proj = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size + cnn_channels, hidden_size)),
+            nn.ReLU(),
+        )
+        #self.actor = nn.ModuleList([
+        #    pufferlib.pytorch.layer_init(nn.Linear(hidden_size, n), std=0.01)
+        #    for n in env.single_action_space.nvec])
+        self.atn_dim = env.single_action_space.nvec.tolist()
+        self.actor = pufferlib.pytorch.layer_init(nn.Linear(hidden_size, sum(self.atn_dim)), std=0.01)
+        self.value = pufferlib.pytorch.layer_init(
+                nn.Linear(hidden_size, 1), std=1)
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
+
+    def encode_observations(self, observations, state=None):
+        obs_2d = observations[:, :121].reshape(-1, 11, 11).unsqueeze(1).float()# / 255.0
+        obs_1d = observations[:, 121:].reshape(-1, 4).float() / 255.0
+        hidden_2d = self.net_2d(obs_2d)
+        hidden_1d = self.net_1d(obs_1d)
+        hidden = torch.cat([hidden_2d, hidden_1d], dim=1)
+        return self.proj(hidden)
+
+    def decode_actions(self, hidden):
+        action = self.actor(hidden)
+        action = torch.split(action, self.atn_dim, dim=1)
+        #action = [head(hidden) for head in self.actor]
+        value = self.value(hidden)
+        return action, value
+
 
 class Snake(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128,
@@ -344,10 +396,6 @@ class MOBA(nn.Module):
 
     def encode_observations(self, observations, state=None):
         cnn_features = observations[:, :-26].view(-1, 11, 11, 4).long()
-        if cnn_features[:, :, :, 0].max() > 15:
-            print('Invalid map value:', cnn_features[:, :, :, 0].max())
-            breakpoint()
-            exit(1)
         map_features = F.one_hot(cnn_features[:, :, :, 0], 16).permute(0, 3, 1, 2).float()
         extra_map_features = (cnn_features[:, :, :, -3:].float() / 255).permute(0, 3, 1, 2)
         cnn_features = torch.cat([map_features, extra_map_features], dim=1)
@@ -767,17 +815,8 @@ class GPUDrive(nn.Module):
         ego_features = self.ego_encoder(ego_obs)
         partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)
         road_features, _ = self.road_encoder(road_objects).max(dim=1)
-        #partner_features_post_mask = self.post_mask_partner_encoder(partner_features)
-        #road_features_post_mask = self.post_mask_road_encoder(road_features)
         
-        #concat_features = torch.cat([ego_features, road_features_post_mask, partner_features_post_mask], dim=1)
         concat_features = torch.cat([ego_features, road_features, partner_features], dim=1)
-        
-        # Apply max pooling across concatenated features
-        # Reshape to [batch, 3, hidden_size] to pool across the 3 modalities
-        # pooled_features = torch.max(
-        #     concat_features.view(-1, 3, self.hidden_size), dim=1
-        # )[0]
         
         # Pass through shared embedding
         embedding = F.relu(self.shared_embedding(concat_features))

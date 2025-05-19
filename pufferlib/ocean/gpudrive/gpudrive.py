@@ -4,61 +4,85 @@ import json
 import struct
 
 import pufferlib
-from pufferlib.ocean.gpudrive.cy_gpudrive import CyGPUDrive, entity_dtype
+from pufferlib.ocean.gpudrive import binding
 
 class GPUDrive(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode=None, report_interval=1,
+    def __init__(self, render_mode=None, report_interval=1,
             width=1280, height=1024,
             human_agent_idx=0,
             reward_vehicle_collision=-0.1,
             reward_offroad_collision=-0.1,
+            spawn_immunity_timer=30,
+            num_maps=100,
+            num_agents=512,
             buf = None,
             seed=1):
 
         # env
-        self.num_agents = num_envs
         self.render_mode = render_mode
         self.report_interval = report_interval
-        print("Num envs: ", num_envs)
         
         self.num_obs = 6 + 63*7 + 200*7
         self.single_observation_space = gymnasium.spaces.Box(low=-1, high=1,
             shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 13])
-        
-        total_agents, agent_offsets =CyGPUDrive.get_total_agent_count(
-            num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision)
-        
-        self.num_agents = total_agents * 8
-        print("Num agents: ", self.num_agents)
+        agent_offsets, map_ids, num_envs = binding.shared(num_agents=num_agents, num_maps=num_maps)
+        self.num_agents = num_agents
         super().__init__(buf=buf)
-        self.c_envs = CyGPUDrive(self.observations, self.actions, self.rewards, self.masks,
-            self.terminals, num_envs, human_agent_idx, reward_vehicle_collision, reward_offroad_collision, offsets = agent_offsets)
+        env_ids = []
+        for i in range(num_envs):
+            cur = agent_offsets[i]
+            nxt = agent_offsets[i+1]
+            env_id = binding.env_init(
+                self.observations[cur:nxt],
+                self.actions[cur:nxt],
+                self.rewards[cur:nxt],
+                self.terminals[cur:nxt],
+                self.truncations[cur:nxt],
+                seed,
+                human_agent_idx=human_agent_idx,
+                reward_vehicle_collision=reward_vehicle_collision,
+                reward_offroad_collision=reward_offroad_collision,
+                spawn_immunity_timer=spawn_immunity_timer,
+                map_id=map_ids[i],
+                max_agents = nxt-cur
+            )
+            env_ids.append(env_id)
 
+        self.c_envs = binding.vectorize(*env_ids)
+        binding.env_put(
+            env_ids[0],
+            observations=self.observations,
+            actions=self.actions,
+            rewards=self.rewards,
+            terminals=self.terminals
+        )
+        breakpoint()
 
-    def reset(self, seed=None):
-        self.c_envs.reset()
+    def reset(self, seed=0):
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         self.tick+=1
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
+            log = binding.vec_log(self.c_envs)
+            if log:
                 info.append(log)
-                info.append({'total_agents': self.num_agents}) 
+
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        binding.vec_render(self.c_envs, 0)
         
     def close(self):
-        self.c_envs.close() 
+        binding.vec_close(self.c_envs)
+
 def calculate_area(p1, p2, p3):
     # Calculate the area of the triangle using the determinant method
     return 0.5 * abs((p1['x'] - p3['x']) * (p2['y'] - p1['y']) - (p1['x'] - p2['x']) * (p3['y'] - p1['y']))
@@ -103,6 +127,7 @@ def simplify_polyline(geometry, polyline_reduction_threshold):
     return [geometry[i] for i in range(num_points) if not skip[i]]
 
 def save_map_binary(map_data, output_file):
+    trajectory_length = 91
     """Saves map data in a binary format readable by C"""
     with open(output_file, 'wb') as f:
         # Count total entities
@@ -126,32 +151,32 @@ def save_map_binary(map_data, output_file):
                 obj_type = 3;
             f.write(struct.pack('i', obj_type))  # type
             f.write(struct.pack('i', obj.get('id', 0)))   # id  
-            f.write(struct.pack('i', 91))                  # array_size
+            f.write(struct.pack('i', trajectory_length))                  # array_size
             # Write position arrays
             positions = obj.get('position', [])
-            for i in range(91):
+            for i in range(trajectory_length):
                 pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 f.write(struct.pack('f', float(pos.get('x', 0.0))))
-            for i in range(91):
+            for i in range(trajectory_length):
                 pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 f.write(struct.pack('f', float(pos.get('y', 0.0))))
-            for i in range(91):
+            for i in range(trajectory_length):
                 pos = positions[i] if i < len(positions) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 f.write(struct.pack('f', float(pos.get('z', 0.0))))
             
             # Write velocity arrays
             velocities = obj.get('velocity', [])
             for arr, key in [(velocities, 'x'), (velocities, 'y'), (velocities, 'z')]:
-                for i in range(91):
+                for i in range(trajectory_length):
                     vel = arr[i] if i < len(arr) else {'x': 0.0, 'y': 0.0, 'z': 0.0}
                     f.write(struct.pack('f', float(vel.get(key, 0.0))))
             
             # Write heading and valid arrays
             headings = obj.get('heading', [])
-            f.write(struct.pack('91f', *[float(headings[i]) if i < len(headings) else 0.0 for i in range(91)]))
+            f.write(struct.pack(f'{trajectory_length}f', *[float(headings[i]) if i < len(headings) else 0.0 for i in range(trajectory_length)]))
             
             valids = obj.get('valid', [])
-            f.write(struct.pack('91i', *[int(valids[i]) if i < len(valids) else 0 for i in range(91)]))
+            f.write(struct.pack(f'{trajectory_length}i', *[int(valids[i]) if i < len(valids) else 0 for i in range(trajectory_length)]))
             
             # Write scalar fields
             f.write(struct.pack('f', float(obj.get('width', 0.0))))
@@ -167,6 +192,11 @@ def save_map_binary(map_data, output_file):
         for idx, road in enumerate(map_data.get('roads', [])):
             geometry = road.get('geometry', [])
             road_type = road.get('map_element_id', 0)
+            road_type_word = road.get('type', 0)
+            if(road_type_word == "lane"):
+                road_type = 2
+            elif(road_type_word == "road_edge"):
+                road_type = 15
             # breakpoint()
             if(len(geometry) > 10 and road_type <=16):
                 geometry = simplify_polyline(geometry, .1)
@@ -204,6 +234,7 @@ def save_map_binary(map_data, output_file):
             f.write(struct.pack('f', float(goal_pos.get('y', 0.0))))  # Get y value
             f.write(struct.pack('f', float(goal_pos.get('z', 0.0))))  # Get z value
             f.write(struct.pack('i', road.get('mark_as_expert', 0)))
+
 def load_map(map_name, binary_output=None):
     """Loads a JSON map and optionally saves it as binary"""
     with open(map_name, 'r') as f:
@@ -211,9 +242,6 @@ def load_map(map_name, binary_output=None):
     
     if binary_output:
         save_map_binary(map_data, binary_output)
-    
-    entities = np.zeros(1, dtype=entity_dtype())
-    return entities
 
 def process_all_maps():
     """Process all maps and save them as binaries"""
@@ -228,7 +256,7 @@ def process_all_maps():
     data_dir = Path("data/processed/training")
     
     # Get all JSON files in the training directory
-    json_files = sorted(data_dir.glob("*.json"))[0:512]
+    json_files = sorted(data_dir.glob("*.json"))
     
     print(f"Found {len(json_files)} JSON files")
     
@@ -243,13 +271,13 @@ def process_all_maps():
         except Exception as e:
             print(f"Error processing {map_path.name}: {e}")
 
-def test_performance(timeout=10, atn_cache=1024, num_envs=75):
+def test_performance(timeout=10, atn_cache=1024, num_agents=1024):
     import time
 
-    env = GPUDrive(num_envs=num_envs)
+    env = GPUDrive(num_agents=num_agents)
     env.reset()
     tick = 0
-    num_agents = 3968
+    num_agents = 1024
     actions = np.stack([
         np.random.randint(0, space.n + 1, (atn_cache, num_agents))
         for space in env.single_action_space
@@ -262,8 +290,7 @@ def test_performance(timeout=10, atn_cache=1024, num_envs=75):
         tick += 1
 
     print(f'SPS: {num_agents * tick / (time.time() - start)}')
-
-
+    env.close()
 if __name__ == '__main__':
     # test_performance()
     process_all_maps()

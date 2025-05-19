@@ -6,16 +6,16 @@ from pufferlib.ocean.cpr.cy_cpr import CyEnv
 
 class PyCPR(pufferlib.PufferEnv):
     def __init__(self, 
-                num_envs = 1,
+                num_envs=1,
                 widths=[32],
                 heights=[32], 
                 num_agents=[8],  
-                vision=2, 
+                vision=3, 
                 reward_food=1.0, 
                 interactive_food_reward=5.0,
                 reward_move=-0.01,
                 food_base_spawn_rate=2e-3,
-                report_interval=250,
+                report_interval=1,
                 render_mode=None, 
                 buf=None,
                 seed=0,
@@ -24,7 +24,7 @@ class PyCPR(pufferlib.PufferEnv):
         heights = num_envs*heights 
         num_agents = num_envs*num_agents 
 
-        self.single_observation_space = gymnasium.spaces.Box(low=0, high=255, shape=((2*vision+1),(2*vision+1)), dtype=np.uint8)
+        self.single_observation_space = gymnasium.spaces.Box(low=0, high=255, shape=((2*vision+1)*(2*vision+1),), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(5)
         self.render_mode = render_mode
         self.num_agents = sum(num_agents)
@@ -39,6 +39,8 @@ class PyCPR(pufferlib.PufferEnv):
             self.actions, 
             self.rewards, 
             self.terminals,
+            self.truncations,
+            self.masks,
             widths,
             heights,
             num_agents,
@@ -79,13 +81,16 @@ if __name__ == "__main__":
     timeout=30
 
     tot_agents = env.num_agents
-    actions = np.random.randint(0,4,(1024,tot_agents))
+    actions = np.random.randint(0,5,(1024,tot_agents))
 
     import time 
     start = time.time()
-    while time.time() - start < timeout:
+    # while time.time() - start < timeout:
+    while tick < 500:
         atns = actions[tick % 1024]
         env.step(atns)
+        if -1 in env.rewards:
+            breakpoint()
         # env.render()
         tick += 1
 

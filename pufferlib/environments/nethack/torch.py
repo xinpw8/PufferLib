@@ -38,9 +38,14 @@ class Policy(nn.Module):
         self.actor = layer_init(nn.Linear(256, 8), std=0.01)
         self.critic = layer_init(nn.Linear(256, 1), std=1)
 
-    def forward(self, x):
+    def forward(self, x, state=None):
         hidden = self.encode_observations(x)
-        actions, value = self.decode_actions(hidden, None)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def forward_train(self, x, state=None):
+        hidden = self.encode_observations(x)
+        actions, value = self.decode_actions(hidden)
         return actions, value
 
     def encode_observations(self, x):
@@ -57,7 +62,7 @@ class Policy(nn.Module):
         concat = torch.cat([blstats, chars], dim=1)
         return self.proj(concat)
 
-    def decode_actions(self, hidden, lookup, concat=None):
+    def decode_actions(self, hidden):
         value = self.critic(hidden)
         action = self.actor(hidden)
         return action, value
