@@ -3,6 +3,7 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
+#include <time.h>
 #include "raylib.h"
 
 #define NOOP 0
@@ -122,67 +123,22 @@ static const int map_sizes[3] = {110, 200, 320};
 static const int map_rows[3] = {11, 10, 16};
 static const int map_cols[3] = {10, 20, 20};
 static const int* maps[3] = {tiny_map, small_map, medium_map};
-#define LOG_BUFFER_SIZE 1024
 
 static inline int max(int a, int b) {
     return (a > b) ? a : b;
 }
 	
+typedef struct Client Client;
+typedef struct CRware CRware;
 typedef struct Log Log;
+
 struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
+    float n;
 };
-
-
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
-
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    for (int i = 0; i < logs->idx; i++) {
-        log.episode_return += logs->logs[i].episode_return;
-        log.episode_length += logs->logs[i].episode_length;
-        log.score += logs->logs[i].score;   
-        log.perf += fmaxf(0.0, logs->logs[i].score - 0.01*logs->logs[i].episode_length);
-    }
-    log.episode_return /= logs->idx;
-    log.episode_length /= logs->idx;
-    log.score /= logs->idx;
-    log.perf /= logs->idx;
-    logs->idx = 0;
-    return log;
-}
 
 typedef struct MovementGraph MovementGraph;
 struct MovementGraph {
@@ -192,15 +148,14 @@ struct MovementGraph {
     int num_cycles;
 };
 
-
-typedef struct CRware CRware;
 struct CRware {
+    Client* client;
     float* observations;
     int* actions;
     float* rewards;
-    unsigned char* dones;
-    LogBuffer* log_buffer;
-    Log* logs;
+    unsigned char* terminals;
+    Log* agent_logs;
+    Log log;
     float* scores;
     int reward_type;
     int width;
@@ -217,6 +172,14 @@ struct CRware {
     int* original_shelve_locations;
     MovementGraph* movement_graph;
 };
+
+void add_log(CRware* env, Log* agent_log) {
+    env->log.episode_return += agent_log->episode_return;
+    env->log.episode_length += agent_log->episode_length;
+    env->log.score += agent_log->score;   
+    env->log.perf += fmaxf(0.0, agent_log->score - 0.01*agent_log->episode_length);
+    env->log.n += 1;
+}
 
 int find_agent_at_position(CRware* env, int position) {
     for (int i = 0; i < env->num_agents; i++) {
@@ -313,9 +276,9 @@ void init(CRware* env) {
     env->agent_locations = (int*)calloc(env->num_agents, sizeof(int));
     env->agent_directions = (int*)calloc(env->num_agents, sizeof(int));
     env->agent_states = (int*)calloc(env->num_agents, sizeof(int));
-    env->scores = (float*)calloc(env->num_agents,sizeof(float));
+    env->scores = (float*)calloc(env->num_agents, sizeof(float));
     env->movement_graph = init_movement_graph(env);
-    env->logs = (Log*)calloc(env->num_agents, sizeof(Log));
+    env->agent_logs = (Log*)calloc(env->num_agents, sizeof(Log));
     if (env->map_choice == 1) {
         generate_map(env, tiny_map);
     }
@@ -332,11 +295,10 @@ void allocate(CRware* env) {
     env->observations = (float*)calloc(env->num_agents*(SELF_OBS+VISION_OBS), sizeof(float));
     env->actions = (int*)calloc(env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->dones = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
+    env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
 }
 
-void free_initialized(CRware* env) {
+void c_close(CRware* env) {
     free(env->warehouse_states);
     free(env->agent_locations);
     free(env->agent_directions);
@@ -345,17 +307,16 @@ void free_initialized(CRware* env) {
     free(env->movement_graph->cycle_ids);
     free(env->movement_graph->weights);
     free(env->movement_graph);
-    free(env->logs);
+    free(env->agent_logs);
     free(env->scores);
 }
 
 void free_allocated(CRware* env) {
     free(env->actions);
     free(env->observations);
-    free(env->dones);
+    free(env->terminals);
     free(env->rewards);
-    free_logbuffer(env->log_buffer);
-    free_initialized(env);
+    c_close(env);
 }
 
 void compute_observations(CRware* env) {
@@ -405,7 +366,7 @@ void compute_observations(CRware* env) {
 
 void c_reset(CRware* env) {
      
-	env->dones[0] = 0;
+	env->terminals[0] = 0;
     // set agents in center
     env->human_agent_idx = 0;
     if (env->map_choice == 1) {
@@ -417,7 +378,6 @@ void c_reset(CRware* env) {
     }
     for(int x = 0;x<env->num_agents; x++){
 	    env->scores[x] = 0.0;
-        env->logs[x] = (Log){0};
     }
     compute_observations(env);
     
@@ -634,7 +594,7 @@ void pickup_shelf(CRware* env, int agent_idx) {
     int original_map_state = map[agent_location];
     if ((current_position_state == REQUESTED_SHELF) && (agent_state==UNLOADED)) {
         env->rewards[agent_idx] = 0.5;
-	env->logs[agent_idx].episode_return += 0.5;
+	env->agent_logs[agent_idx].episode_return += 0.5;
 	env->agent_states[agent_idx]=HOLDING_REQUESTED_SHELF;
     }
     // return empty shelf
@@ -644,19 +604,19 @@ void pickup_shelf(CRware* env, int agent_idx) {
         env->warehouse_states[agent_location] = original_map_state;
         env->rewards[agent_idx] = 1.0;
 
-        env->logs[agent_idx].score = 1.0;
-        env->logs[agent_idx].episode_return += 1.0;
+        env->agent_logs[agent_idx].score = 1.0;
+        env->agent_logs[agent_idx].episode_return += 1.0;
 
 	    env->scores[agent_idx] = 0;
-        add_log(env->log_buffer, &env->logs[agent_idx]);
-        env->logs[agent_idx] = (Log){0};
+        add_log(env, &env->agent_logs[agent_idx]);
+        env->agent_logs[agent_idx] = (Log){0};
     }
     // drop shelf at goal
     else if (agent_state == HOLDING_REQUESTED_SHELF && current_position_state == GOAL) {
         env->agent_states[agent_idx]=HOLDING_EMPTY_SHELF;
         env->rewards[agent_idx] = 0.5;
-        env->logs[agent_idx].episode_return += 0.5;
-        env->logs[agent_idx].score = 1.0;
+        env->agent_logs[agent_idx].episode_return += 0.5;
+        env->agent_logs[agent_idx].score = 1.0;
         int shelf_count = 0;
         while (shelf_count < 1) {
             shelf_count += request_new_shelf(env);
@@ -722,10 +682,10 @@ void c_step(CRware* env) {
     memset(env->rewards, 0, env->num_agents * sizeof(float));
     MovementGraph* graph = env->movement_graph;
     for (int i = 0; i < env->num_agents; i++) {
-        env->logs[i].episode_length += 1;
+        env->agent_logs[i].episode_length += 1;
         int action = env->actions[i];
         
-	// Handle direction changes and non-movement actions
+	    // Handle direction changes and non-movement actions
         if (action != NOOP && action != TOGGLE_LOAD) {
             env->agent_directions[i] = get_direction(env, action, i);
         }
@@ -758,7 +718,6 @@ const Color PUFF_GREY = (Color){128, 128, 128, 255};
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
 const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
 
-typedef struct Client Client;
 struct Client {
     float width;
     float height;
@@ -775,7 +734,12 @@ Client* make_client(CRware* env) {
     return client;
 }
 
-void c_render(Client* client, CRware* env) {
+void c_render(CRware* env) {
+    if (env->client == NULL) {
+        env->client = make_client(env);
+    }
+    Client* client = env->client;
+
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }

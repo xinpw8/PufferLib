@@ -37,7 +37,7 @@ void demo(int map_choice) {
 
     allocate(&env);
     c_reset(&env);
-    Client* client = make_client(&env);
+    c_render(&env);
 
     int tick = 0;
     while (!WindowShouldClose()) {
@@ -82,9 +82,9 @@ void demo(int map_choice) {
             }
         }
 
-        c_render(client,&env);
+        c_render(&env);
     }
-    close_client(client);
+    //close_client(client);
     free_allocated(&env);
 }
 

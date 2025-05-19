@@ -9,7 +9,7 @@ import numpy as np
 import gymnasium
 
 import pufferlib
-from pufferlib.ocean.rware.cy_rware import CyRware
+from pufferlib.ocean.rware import binding
 
 PLAYER_OBS_N = 27
 
@@ -35,33 +35,51 @@ class Rware(pufferlib.PufferEnv):
         self.single_action_space = gymnasium.spaces.Discrete(5)
 
         super().__init__(buf=buf)
-        self.c_envs = CyRware(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, width, height, map_choice, num_agents, num_requested_shelves, grid_square_size, human_agent_idx)
+        c_envs = []
+        for i in range(num_envs):
+            env_id = binding.env_init(
+                self.observations[i*num_agents:(i+1)*num_agents],
+                self.actions[i*num_agents:(i+1)*num_agents],
+                self.rewards[i*num_agents:(i+1)*num_agents],
+                self.terminals[i*num_agents:(i+1)*num_agents],
+                self.truncations[i*num_agents:(i+1)*num_agents],
+                i + seed * num_envs,
+                width=width,
+                height=height,
+                map_choice=map_choice,
+                num_agents=num_agents,
+                num_requested_shelves=num_requested_shelves,
+                grid_square_size=grid_square_size,
+                human_agent_idx=human_agent_idx
+            )
+            c_envs.append(env_id)
 
+        self.c_envs = binding.vectorize(*c_envs)
 
-    def reset(self, seed=None):
-        self.c_envs.reset()
+    def reset(self, seed=0):
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
     def step(self, actions):
         self.actions[:] = actions
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
         self.tick += 1
 
         info = []
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
+            log = binding.vec_log(self.c_envs)
+            if log:
                 info.append(log)
+
         return (self.observations, self.rewards,
             self.terminals, self.truncations, info)
 
     def render(self):
-        self.c_envs.render()
+        binding.vec_render(self.c_envs, 0)
         
     def close(self):
-        self.c_envs.close() 
+        binding.vec_close(self.c_envs)
 
 def test_performance(timeout=10, atn_cache=1024):
     num_envs=1000;
