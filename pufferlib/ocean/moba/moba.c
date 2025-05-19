@@ -122,23 +122,21 @@ void demo() {
         .script_opponents = script_opponents,
     };
     allocate_moba(&env);
-
-    GameRenderer* renderer = init_game_renderer(32, 41, 23);
-
     c_reset(&env);
-    int frame = 0;
+    c_render(&env);
+    int frame = 1;
     while (!WindowShouldClose()) {
         if (frame % 12 == 0) {
             c_step(&env);
             forward(net, env.observations, env.actions);
         }
-        render_game(renderer, &env, frame);
+        c_render(&env);
         frame = (frame + 1) % 12;
     }
     free_mobanet(net);
     free(weights);
     free_allocated_moba(&env);
-    close_game_renderer(renderer);
+    //close_game_renderer(renderer);
 }
 
 void test_performance(float test_time) {

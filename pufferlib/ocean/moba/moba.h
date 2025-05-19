@@ -114,7 +114,29 @@ struct Log {
     float dire_victory;
     float dire_level;
     float dire_towers_alive;
-   
+
+    float radiant_support_episode_return;
+    float radiant_support_reward_death;
+    float radiant_support_reward_xp;
+    float radiant_support_reward_distance;
+    float radiant_support_reward_tower;
+    float radiant_support_level;
+    float radiant_support_kills;
+    float radiant_support_deaths;
+    float radiant_support_damage_dealt;
+    float radiant_support_damage_received;
+    float radiant_support_healing_dealt;
+    float radiant_support_healing_received;
+    float radiant_support_creeps_killed;
+    float radiant_support_neutrals_killed;
+    float radiant_support_towers_killed;
+    float radiant_support_usage_auto;
+    float radiant_support_usage_q;
+    float radiant_support_usage_w;
+    float radiant_support_usage_e;
+
+    // TODO: Only ported global and radiant support logs for now
+    /*
     PlayerLog radiant_support;
     PlayerLog radiant_assassin;
     PlayerLog radiant_burst;
@@ -126,98 +148,13 @@ struct Log {
     PlayerLog dire_burst;
     PlayerLog dire_tank;
     PlayerLog dire_carry;
+    */
+    float n;
 };
 
-typedef struct LogBuffer LogBuffer;
-struct LogBuffer {
-    Log* logs;
-    int length;
-    int idx;
-};
 
-LogBuffer* allocate_logbuffer(int size) {
-    LogBuffer* logs = (LogBuffer*)calloc(1, sizeof(LogBuffer));
-    logs->logs = (Log*)calloc(size, sizeof(Log));
-    logs->length = size;
-    logs->idx = 0;
-    return logs;
-}
-
-void free_logbuffer(LogBuffer* buffer) {
-    free(buffer->logs);
-    free(buffer);
-}
-
-void add_log(LogBuffer* logs, Log* log) {
-    if (logs->idx == logs->length) {
-        return;
-    }
-    logs->logs[logs->idx] = *log;
-    logs->idx += 1;
-    //printf("Log: %f, %f, %f\n", log->episode_return, log->episode_length, log->score);
-}
-
-Log aggregate_and_clear(LogBuffer* logs) {
-    Log log = {0};
-    if (logs->idx == 0) {
-        return log;
-    }
-    PlayerLog* aggregated[10] = {
-        &log.radiant_support, &log.radiant_assassin, &log.radiant_burst,
-        &log.radiant_tank, &log.radiant_carry, &log.dire_support,
-        &log.dire_assassin, &log.dire_burst, &log.dire_tank, &log.dire_carry
-    };
-    for (int i = 0; i < logs->idx; i++) {
-        log.perf += logs->logs[i].radiant_victory / logs->idx;
-        log.score += logs->logs[i].radiant_towers_alive / logs->idx;
-        log.episode_return += logs->logs[i].episode_return / logs->idx;
-        log.episode_length += logs->logs[i].episode_length / logs->idx;
-        log.reward_death += logs->logs[i].reward_death / logs->idx;
-        log.reward_xp += logs->logs[i].reward_xp / logs->idx;
-        log.reward_distance += logs->logs[i].reward_distance / logs->idx;
-        log.reward_tower += logs->logs[i].reward_tower / logs->idx;
-        log.radiant_victory += logs->logs[i].radiant_victory / logs->idx;
-        log.radiant_level += logs->logs[i].radiant_level / logs->idx;
-        log.radiant_towers_alive += logs->logs[i].radiant_towers_alive / logs->idx;
-        log.dire_victory += logs->logs[i].dire_victory / logs->idx;
-        log.dire_level += logs->logs[i].dire_level / logs->idx;
-        log.dire_towers_alive += logs->logs[i].dire_towers_alive / logs->idx;
-
-        PlayerLog* individual[10] = {
-            &logs->logs[i].radiant_support, &logs->logs[i].radiant_assassin,
-            &logs->logs[i].radiant_burst, &logs->logs[i].radiant_tank,
-            &logs->logs[i].radiant_carry, &logs->logs[i].dire_support,
-            &logs->logs[i].dire_assassin, &logs->logs[i].dire_burst,
-            &logs->logs[i].dire_tank, &logs->logs[i].dire_carry
-        };
-
-        for (int j = 0; j < 10; j++) {
-            aggregated[j]->episode_return += individual[j]->episode_return / logs->idx;
-            aggregated[j]->reward_death += individual[j]->reward_death / logs->idx;
-            aggregated[j]->reward_xp += individual[j]->reward_xp / logs->idx;
-            aggregated[j]->reward_distance += individual[j]->reward_distance / logs->idx;
-            aggregated[j]->reward_tower += individual[j]->reward_tower / logs->idx;
-            aggregated[j]->level += individual[j]->level / logs->idx;
-            aggregated[j]->kills += individual[j]->kills / logs->idx;
-            aggregated[j]->deaths += individual[j]->deaths / logs->idx;
-            aggregated[j]->damage_dealt += individual[j]->damage_dealt / logs->idx;
-            aggregated[j]->damage_received += individual[j]->damage_received / logs->idx;
-            aggregated[j]->healing_dealt += individual[j]->healing_dealt / logs->idx;
-            aggregated[j]->healing_received += individual[j]->healing_received / logs->idx;
-            aggregated[j]->creeps_killed += individual[j]->creeps_killed / logs->idx;
-            aggregated[j]->neutrals_killed += individual[j]->neutrals_killed / logs->idx;
-            aggregated[j]->towers_killed += individual[j]->towers_killed / logs->idx;
-            aggregated[j]->usage_auto += individual[j]->usage_auto / logs->idx;
-            aggregated[j]->usage_q += individual[j]->usage_q / logs->idx;
-            aggregated[j]->usage_w += individual[j]->usage_w / logs->idx;
-            aggregated[j]->usage_e += individual[j]->usage_e / logs->idx;
-        }
-    }
-    logs->idx = 0;
-    return log;
-}
- 
 typedef struct MOBA MOBA;
+typedef struct GameRenderer GameRenderer;
 typedef struct Entity Entity;
 typedef int (*skill)(MOBA*, Entity*, Entity*);
 
@@ -401,6 +338,7 @@ unsigned char* precompute_pathing(Map* map){
 }
 
 struct MOBA {
+    GameRenderer* client;
     int vision_range;
     float agent_speed;
     bool discretize;
@@ -421,8 +359,8 @@ struct MOBA {
     unsigned char* truncations;
     Entity* entities;
     Reward* reward_components;
-    LogBuffer* log_buffer;
-    PlayerLog log[10];
+    Log log;
+    PlayerLog player_logs[10];
 
     float reward_death;
     float reward_xp;
@@ -441,7 +379,52 @@ struct MOBA {
     CachedRNG *rng;
 };
 
-void free_moba(MOBA* env) {
+void add_log(MOBA* env, int radiant_victory, int dire_victory) {
+    Log* log = &env->log;
+    log->n += 1;
+    log->score += radiant_victory;
+    log->perf += radiant_victory;
+    log->episode_length = env->tick;
+    log->radiant_victory = radiant_victory;
+    log->dire_victory = dire_victory;
+    for (int i = 0; i < 5; i++) {
+        log->radiant_level += env->entities[i].level / 5.0f;
+    }
+    for (int i = 5; i < 10; i++) {
+        log->dire_level += env->entities[i].level / 5.0f;
+    }
+    for (int i = 0; i < NUM_TOWERS; i++) {
+        Entity* tower = &env->entities[TOWER_OFFSET + i];
+        if (TOWER_TEAM[i] == 0) {
+            log->radiant_towers_alive += tower->health > 0;
+        } else {
+            log->dire_towers_alive += tower->health > 0;
+        }
+    }
+
+    PlayerLog* radiant_support = &env->player_logs[0];
+    log->radiant_support_episode_return = radiant_support->episode_return;
+    log->radiant_support_reward_death = radiant_support->reward_death;
+    log->radiant_support_reward_xp = radiant_support->reward_xp;
+    log->radiant_support_reward_distance = radiant_support->reward_distance;
+    log->radiant_support_reward_tower = radiant_support->reward_tower;
+    log->radiant_support_level = radiant_support->level;
+    log->radiant_support_kills = radiant_support->kills;
+    log->radiant_support_deaths = radiant_support->deaths;
+    log->radiant_support_damage_dealt = radiant_support->damage_dealt;
+    log->radiant_support_damage_received = radiant_support->damage_received;
+    log->radiant_support_healing_dealt = radiant_support->healing_dealt;
+    log->radiant_support_healing_received = radiant_support->healing_received;
+    log->radiant_support_creeps_killed = radiant_support->creeps_killed;
+    log->radiant_support_neutrals_killed = radiant_support->neutrals_killed;
+    log->radiant_support_towers_killed = radiant_support->towers_killed;
+    log->radiant_support_usage_auto = radiant_support->usage_auto;
+    log->radiant_support_usage_q = radiant_support->usage_q;
+    log->radiant_support_usage_w = radiant_support->usage_w;
+    log->radiant_support_usage_e = radiant_support->usage_e;
+}
+ 
+void c_close(MOBA* env) {
     free(env->reward_components);
     free(env->map->grid);
     free(env->map);
@@ -451,7 +434,6 @@ void free_moba(MOBA* env) {
 }
 
 void free_allocated_moba(MOBA* env) {
-    free_logbuffer(env->log_buffer);
     free(env->rewards);
     free(env->map->pids);
     free(env->ai_path_buffer);
@@ -461,7 +443,7 @@ void free_allocated_moba(MOBA* env) {
     free(env->terminals);
     free(env->truncations);
     free(env->entities);
-    free_moba(env);
+    c_close(env);
 }
 
 void compute_observations(MOBA* env) {
@@ -701,11 +683,11 @@ int attack(MOBA* env, Entity* player, Entity* target, float damage) {
     PlayerLog empty_log = {0};
     PlayerLog* player_log = &empty_log;
     if (player->entity_type == ENTITY_PLAYER) {
-        player_log = &env->log[player->pid];
+        player_log = &env->player_logs[player->pid];
     }
     PlayerLog* target_log = &empty_log;
     if (target->entity_type == ENTITY_PLAYER) {
-        target_log = &env->log[target->pid];
+        target_log = &env->player_logs[target->pid];
     }
 
     if (damage < target->health) {
@@ -790,7 +772,7 @@ int attack(MOBA* env, Entity* player, Entity* target, float damage) {
         int level = ally->level;
         ally->level = calc_level(env, ally->xp);
         if (ally->level > level) {
-            PlayerLog* ally_log = &env->log[ally->pid];
+            PlayerLog* ally_log = &env->player_logs[ally->pid];
             ally_log->level = ally->level;
             env->total_levels_gained += 1;
         }
@@ -823,8 +805,8 @@ int heal(MOBA* env, Entity* player, Entity* target, float amount) {
     if (target->entity_type != ENTITY_PLAYER)
         return 1;
 
-    PlayerLog* player_log = &env->log[player->pid];
-    PlayerLog* target_log = &env->log[target->pid];
+    PlayerLog* player_log = &env->player_logs[player->pid];
+    PlayerLog* target_log = &env->player_logs[target->pid];
     int missing_health = target->max_health - target->health;
     if (amount <= missing_health) {
         target->health += amount;
@@ -1466,7 +1448,7 @@ void step_players(MOBA* env) {
 
     for (int pid = 0; pid < NUM_PLAYERS; pid++) {
         Entity* player = &env->entities[pid];
-        PlayerLog* log = &env->log[pid];
+        PlayerLog* log = &env->player_logs[pid];
         Reward* reward = &env->reward_components[pid];
         // TODO: Is this needed?
         //if (rand() % 1024 == 0)
@@ -1559,11 +1541,11 @@ void step_players(MOBA* env) {
             reward->tower
         );
 
-        env->log[pid].reward_death = reward->death;
-        env->log[pid].reward_xp = reward->xp;
-        env->log[pid].reward_distance = reward->distance;
-        env->log[pid].reward_tower = reward->tower;
-        env->log[pid].episode_return += sum_reward;
+        env->player_logs[pid].reward_death = reward->death;
+        env->player_logs[pid].reward_xp = reward->xp;
+        env->player_logs[pid].reward_distance = reward->distance;
+        env->player_logs[pid].reward_tower = reward->tower;
+        env->player_logs[pid].episode_return += sum_reward;
 
         if (!env->script_opponents || pid < 5) {
             env->rewards[pid] = sum_reward;
@@ -1810,7 +1792,6 @@ MOBA* allocate_moba(MOBA* env) {
     env->rewards = calloc(agents, sizeof(float));
     env->terminals = calloc(agents, sizeof(unsigned char));
     env->truncations = calloc(agents, sizeof(unsigned char));
-    env->log_buffer = allocate_logbuffer(LOG_BUFFER_SIZE);
 
     unsigned char* game_map_npy = read_file("resources/moba/game_map.npy");
     env->ai_path_buffer = calloc(3*8*128*128, sizeof(int));
@@ -1874,7 +1855,7 @@ void c_reset(MOBA* env) {
 
     // Respawn agents
     for (int i = 0; i < NUM_PLAYERS; i++) {
-        env->log[i] = (PlayerLog){0};
+        env->player_logs[i] = (PlayerLog){0};
         Entity* player = &env->entities[i];
         player->pid = i;
         player->target_pid = -1;
@@ -1971,38 +1952,8 @@ void c_step(MOBA* env) {
 
     if (do_reset) {
         env->should_reset = false;
-        Log log = {0};
-        log.episode_length = env->tick;
-        log.radiant_victory = radiant_victory;
-        log.dire_victory = dire_victory;
-        for (int i = 0; i < 5; i++) {
-            log.radiant_level += env->entities[i].level / 5.0f;
-        }
-        for (int i = 5; i < 10; i++) {
-            log.dire_level += env->entities[i].level / 5.0f;
-        }
-        for (int i = 0; i < NUM_TOWERS; i++) {
-            Entity* tower = &env->entities[TOWER_OFFSET + i];
-            if (TOWER_TEAM[i] == 0) {
-                log.radiant_towers_alive += tower->health > 0;
-            } else {
-                log.dire_towers_alive += tower->health > 0;
-            }
-        }
-        log.radiant_support = env->log[0];
-        log.radiant_assassin = env->log[1];
-        log.radiant_burst = env->log[2];
-        log.radiant_tank = env->log[3];
-        log.radiant_carry = env->log[4];
-        log.dire_support = env->log[5];
-        log.dire_assassin = env->log[6];
-        log.dire_burst = env->log[7];
-        log.dire_tank = env->log[8];
-        log.dire_carry = env->log[9];
-        add_log(env->log_buffer, &log);
-        if (do_reset) {
-            c_reset(env);
-        }
+        add_log(env, radiant_victory, dire_victory);
+        c_reset(env);
     }
     compute_observations(env);
 }
@@ -2067,7 +2018,8 @@ void render_map(MapRenderer* renderer, MOBA* env) {
 }
 
 // Player client view
-typedef struct {
+struct GameRenderer {
+    int frame;
     int cell_size;
     int width;
     int height;
@@ -2096,7 +2048,7 @@ typedef struct {
     float last_click_y;
     int render_entities[128*128];
     int human_player;
-} GameRenderer;
+};
 
 GameRenderer* init_game_renderer(int cell_size, int width, int height) {
     GameRenderer* renderer = (GameRenderer*)calloc(1, sizeof(GameRenderer));
@@ -2197,7 +2149,13 @@ void draw_bars(Entity* entity, int x, int y, int width, int height, bool draw_te
     }
 }
 
-int render_game(GameRenderer* renderer, MOBA* env, int frame) {
+int c_render(MOBA* env) {
+    if (env->client == NULL) {
+        env->client = init_game_renderer(32, 41, 23);
+    }
+    GameRenderer* renderer = env->client;
+    int frame = renderer->frame;
+
     Map* map = env->map;
     Entity* my_player = &env->entities[renderer->human_player];
     int ts = renderer->cell_size;
@@ -2468,6 +2426,10 @@ int render_game(GameRenderer* renderer, MOBA* env, int frame) {
     DrawText(TextFormat("Move: %i", player->move_timer), 25*ts, hud_y, 20, (player->move_timer > 0) ? on_color : off_color);
 
     EndDrawing();
+    renderer->frame += 1;
+    if (renderer->frame % FRAMES == 0) {
+        renderer->frame = 0;
+    }
     return 0;
 }
 

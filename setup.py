@@ -34,7 +34,6 @@ DEBUG = os.getenv("DEBUG", "0") == "1"
 # because our C envs are lighter weigh and
 # easier to debug (you can run gdb --args python ...)
 cython_extension_paths = [
-    'pufferlib/ocean/moba/cy_moba',
 ]
 
 # Build raylib for your platform

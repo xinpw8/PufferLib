@@ -6,8 +6,7 @@ import pettingzoo
 import gymnasium
 
 import pufferlib
-from pufferlib.ocean.moba.cy_moba import CyMOBA
-from pufferlib.ocean.moba.cy_moba import entity_dtype, reward_dtype
+from pufferlib.ocean.moba import binding
 
 MAP_OBS_N = 11*11*4
 PLAYER_OBS_N = 26
@@ -27,12 +26,35 @@ class Moba(pufferlib.PufferEnv):
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 7, 3, 2, 2, 2])
 
         super().__init__(buf=buf)
-        self.c_envs = CyMOBA(self.observations, self.actions, self.rewards,
-            self.terminals, num_envs, vision_range, agent_speed, True,
-            reward_death, reward_xp, reward_distance, reward_tower, script_opponents)
 
+        c_envs = []
+        offset = 0
+        players = 5 if script_opponents else 10
+        self.c_state = binding.shared()
+        for i in range(num_envs):
+            env_id = binding.env_init(
+                self.observations[i*players:(i+1)*players],
+                self.actions[i*players:(i+1)*players],
+                self.rewards[i*players:(i+1)*players],
+                self.terminals[i*players:(i+1)*players],
+                self.truncations[i*players:(i+1)*players],
+                i + seed*num_envs,
+                vision_range=vision_range,
+                agent_speed=agent_speed,
+                discretize=discretize,
+                reward_death=reward_death,
+                reward_xp=reward_xp,
+                reward_distance=reward_distance,
+                reward_tower=reward_tower,
+                script_opponents=script_opponents,
+                state=self.c_state,
+            )
+            c_envs.append(env_id)
+
+        self.c_envs = binding.vectorize(*c_envs)
+ 
     def reset(self, seed=0):
-        self.c_envs.reset()
+        binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []
 
@@ -40,24 +62,24 @@ class Moba(pufferlib.PufferEnv):
         self.actions[:] = actions
         self.actions[:, 0] = 100*(self.actions[:, 0] - 3)
         self.actions[:, 1] = 100*(self.actions[:, 1] - 3)
-        self.c_envs.step()
+        binding.vec_step(self.c_envs)
 
         infos = []
         self.tick += 1
         if self.tick % self.report_interval == 0:
-            log = self.c_envs.log()
-            if log['episode_length'] > 0:
-                infos.append(dict(pufferlib.utils.unroll_nested_dict(log)))
+            log = binding.vec_log(self.c_envs)
+            if log:
+                infos.append(log)
 
         return (self.observations, self.rewards,
             self.terminals, self.truncations, infos)
 
     def render(self):
         for frame in range(12):
-            self.c_envs.render(frame)
+            binding.vec_render(self.c_envs)
 
     def close(self):
-        self.c_envs.close()
+        binding.vec_close(self.c_envs)
 
 
 def test_performance(timeout=20, atn_cache=1024, num_envs=400):
