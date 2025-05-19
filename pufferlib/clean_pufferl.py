@@ -823,10 +823,12 @@ def train(args=None, vecenv=None, policy=None, logger=None):
             if pufferl.global_step > 0.20*train_config['total_timesteps']:
                 all_logs.append(logs)
 
+    # Final eval. You can reset the env here, but depending on
+    # your env, this can skew data (i.e. you only collect the shortest
+    # rollouts within a fixed number of epochs)
     i = 0
     stats = {}
-    #vecenv.async_reset(train_config['seed'])
-    while i < 20 or not stats:
+    while i < 32 or not stats:
         stats = pufferl.evaluate()
         i += 1
 
