@@ -721,11 +721,14 @@ def downsample_linear(arr, m):
     return np.interp(x_new, x_old, arr)
 
 def downsample_alt(arr, m):
+    last = arr[-1]
+    arr = arr[:-1]
     arr = np.array(arr)
     n = len(arr)
     n = (n//m)*m
     arr = arr[-n:]
-    return arr.reshape(-1, m).mean(axis=1)
+    downsampled = arr.reshape(-1, m).mean(axis=1)
+    return np.concatenate([downsampled, [last]])
 
 class NoLogger:
     def __init__(self, args):
