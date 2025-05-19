@@ -71,7 +71,6 @@ class Default(nn.Module):
     def encode_observations(self, observations, state=None):
         '''Encodes a batch of observations into hidden states. Assumes
         no time dimension (handled by LSTM wrappers).'''
-        breakpoint()
         batch_size = observations.shape[0]
         if self.is_dict_obs:
             observations = pufferlib.pytorch.nativize_tensor(observations, self.dtype)

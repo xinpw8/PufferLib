@@ -350,6 +350,14 @@ common = cleanrl + [environments[env] for env in [
 # Extensions 
 class BuildExt(build_ext):
     def run(self):
+        # Propagate any build_ext options (e.g., --inplace, --force) to subcommands
+        build_ext_opts = self.distribution.command_options.get('build_ext', {})
+        if build_ext_opts:
+            # Copy flags so build_torch and build_c respect inplace/force
+            self.distribution.command_options['build_torch'] = build_ext_opts.copy()
+            self.distribution.command_options['build_c'] = build_ext_opts.copy()
+
+        # Run the torch and C builds (which will handle copying when inplace is set)
         self.run_command('build_torch')
         self.run_command('build_c')
 
