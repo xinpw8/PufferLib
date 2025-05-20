@@ -450,20 +450,34 @@ class Multiprocessing:
         self.buf['semaphores'][idxs] = STEP
 
     def async_reset(self, seed=0):
+        # Section 1: Flush only pending INFO messages on worker pipes
+        # Loop through all workers and drain any INFO semaphores
+        for worker in range(self.num_workers):
+            sem = self.buf['semaphores'][worker]
+            if sem == INFO:
+                # Drain the pending info message
+                _ = self.recv_pipes[worker].recv()
+                # Mark semaphore back to MAIN
+                self.buf['semaphores'][worker] = MAIN
+
+        # Section 2: Enter recv mode, reset internal buffers
         self.flag = RECV
         self.prev_env_id = []
-        self.flag = RECV
-
-        self.ready_workers = []
-        self.ready_next_workers = [] # Used to evenly sample workers
-        self.waiting_workers = list(range(self.num_workers))
+        # Reset per-worker info lists
         self.infos = [[] for _ in range(self.num_workers)]
+        # Reset worker queues so recv() can schedule them
+        self.ready_workers = []
+        self.waiting_workers = list(range(self.num_workers))
+        # Generate a base seed for each environment
+        seed_list = make_seeds(seed, self.num_environments)
 
+        # Section 3: Reset semaphores to RESET and send each worker an integer seed
+        # Worker will use base seed + per-env offset internally
         self.buf['semaphores'][:] = RESET
         for i in range(self.num_workers):
-            start = i*self.envs_per_worker
-            end = (i+1)*self.envs_per_worker
-            self.send_pipes[i].send(seed+i)
+            # send the first seed for this worker's env batch
+            worker_seed = seed_list[i * self.envs_per_worker]
+            self.send_pipes[i].send(worker_seed)
 
     def notify(self):
         self.buf['notify'][:] = True
