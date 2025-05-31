@@ -117,6 +117,7 @@ def make_multiagent(buf=None, **kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 MAKE_FUNCTIONS = {
+    'ants': 'AntsEnv',
     'breakout': 'Breakout',
     'blastar': 'Blastar',
     'pong': 'Pong',

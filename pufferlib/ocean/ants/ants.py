@@ -20,7 +20,7 @@ class AntsEnv(pufferlib.PufferEnv):
     
     def __init__(self, num_envs=16, width=800, height=600,
                  num_ants=20, reward_food=0.1, reward_delivery=1.0, reward_death=-1.0,
-                 report_interval=1, render_mode=None, buf=None, seed=0):
+                 report_interval=1, render_mode='human', buf=None, seed=0):
         
         if num_envs is not None:
             num_ants = num_envs * [num_ants]
@@ -110,7 +110,7 @@ class AntsEnv(pufferlib.PufferEnv):
     def render(self):
         """Render the first environment"""
         if self.render_mode == "human":
-            binding.vec_render(self.c_envs, self.cell_size)
+            binding.vec_render(self.c_envs, 0)
     
     def close(self):
         """Clean up resources"""
