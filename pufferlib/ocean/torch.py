@@ -131,7 +131,7 @@ class Terraform(nn.Module):
 
         self.net_2d = nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Conv2d(1, cnn_channels, 5, stride=3)),
+                nn.Conv2d(2, cnn_channels, 5, stride=3)),
             nn.ReLU(),
             pufferlib.pytorch.layer_init(
                 nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1)),
@@ -161,8 +161,8 @@ class Terraform(nn.Module):
         return self.forward(x, state)
 
     def encode_observations(self, observations, state=None):
-        obs_2d = observations[:, :121].reshape(-1, 11, 11).unsqueeze(1).float() / 255.0
-        obs_1d = observations[:, 121:].reshape(-1, 4).float() / 255.0
+        obs_2d = observations[:, :242].reshape(-1, 2, 11, 11).float() / 255.0
+        obs_1d = observations[:, 242:].reshape(-1, 4).float() / 255.0
         hidden_2d = self.net_2d(obs_2d)
         hidden_1d = self.net_1d(obs_1d)
         hidden = torch.cat([hidden_2d, hidden_1d], dim=1)

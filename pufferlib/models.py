@@ -59,13 +59,13 @@ class Default(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
-    def forward(self, observations, state=None):
+    def forward_eval(self, observations, state=None):
         hidden = self.encode_observations(observations, state=state)
         logits, values = self.decode_actions(hidden)
         return logits, values
 
-    def forward_train(self, observations, state=None):
-        return self.forward(observations, state)
+    def forward(self, observations, state=None):
+        return self.forward_eval(observations, state)
 
     def encode_observations(self, observations, state=None):
         '''Encodes a batch of observations into hidden states. Assumes
@@ -113,7 +113,7 @@ class LSTMWrapper(nn.Module):
                 continue
             if "bias" in name:
                 nn.init.constant_(param, 0)
-            elif "weight" in name:
+            elif "weight" in name and param.ndim >= 2:
                 nn.init.orthogonal_(param, 1.0)
 
         self.lstm = nn.LSTM(input_size, hidden_size)
@@ -127,7 +127,7 @@ class LSTMWrapper(nn.Module):
         #self.pre_layernorm = nn.LayerNorm(hidden_size)
         #self.post_layernorm = nn.LayerNorm(hidden_size)
 
-    def forward(self, observations, state):
+    def forward_eval(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
         hidden = self.policy.encode_observations(observations, state=state)
         h = state['lstm_h']
@@ -149,7 +149,7 @@ class LSTMWrapper(nn.Module):
         logits, values = self.policy.decode_actions(hidden)
         return logits, values
 
-    def forward_train(self, observations, state):
+    def forward(self, observations, state):
         '''Forward function for training. Uses LSTM for fast time-batching'''
         x = observations
         lstm_h = state['lstm_h']

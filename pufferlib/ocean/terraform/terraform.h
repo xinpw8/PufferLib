@@ -28,9 +28,9 @@ const unsigned char TARGET = 2;
 
 #define MAX_DIRT_HEIGHT 32.0f
 #define BUCKET_MAX_HEIGHT 1.0f
-#define DOZER_MAX_V 5.0f
-#define DOZER_CAPACITY 5000.0f
-#define BUCKET_OFFSET 10.0f
+#define DOZER_MAX_V 2.0f
+#define DOZER_CAPACITY 200.0f
+#define BUCKET_OFFSET 5.0f
 #define BUCKET_WIDTH 2.5f
 #define BUCKET_LENGTH 0.8f
 #define BUCKET_HEIGHT 1.0f
@@ -112,10 +112,10 @@ void perlin_noise(float* map, int width, int height,
         for (int c = 0; c < width; c++) {
             int adr = r*width + c;
             map[adr] = glob_scale * scale * (map[adr] - min_value);
-            if (map[adr] < 20.0f) {
+            if (map[adr] < 64.0f) {
                 map[adr] = 0.0f;
             } else {
-                map[adr] -= 20.0f;
+                map[adr] -= 64.0f;
             }
         }
     }
@@ -129,11 +129,12 @@ void init(Terraform* env) {
     env->orig_map = calloc(env->size*env->size, sizeof(float));
     env->map = calloc(env->size*env->size, sizeof(float));
     env->target_map = calloc(env->size*env->size, sizeof(float));
-    for (int i = 0; i < env->size*env->size; i++) {
-        env->target_map[i] = 2.5f;
-    }
+    //for (int i = 0; i < env->size*env->size; i++) {
+    //    env->target_map[i] = 1.0f;
+    // }
     env->dozers = calloc(env->num_agents, sizeof(Dozer));
-    perlin_noise(env->orig_map, env->size, env->size, 1.0/128.0, 8, 0, 0, MAX_DIRT_HEIGHT);
+    perlin_noise(env->orig_map, env->size, env->size, 1.0/128.0, 8, 0, 0, MAX_DIRT_HEIGHT+64);
+    perlin_noise(env->target_map, env->size, env->size, 1.0/128.0, 8, env->size, env->size, MAX_DIRT_HEIGHT+64);
     env->returns = calloc(env->num_agents, sizeof(float));
 }
 
@@ -163,10 +164,12 @@ void compute_all_observations(Terraform* env) {
             for (int y = 0; y < 2*dialate*VISION + 1; y+=dialate) {
                 if(x_offset + x < 0 || x_offset + x >= env->size || y_offset + y < 0 || y_offset + y >= env->size) {
                     env->observations[obs_idx++] = 0;
+                    env->observations[obs_idx++] = 0;
                     continue;
                 }
                 int idx = (x_offset + x)*env->size + (y_offset + y);
                 env->observations[obs_idx++] = env->map[idx] * (255.0f/MAX_DIRT_HEIGHT);
+                env->observations[obs_idx++] = 127.0 + (env->target_map[idx] - env->map[idx]) * (128.0f/MAX_DIRT_HEIGHT);
             }
         }
         Dozer* dozer = &env->dozers[i];
@@ -180,7 +183,7 @@ void compute_all_observations(Terraform* env) {
 
 void c_reset(Terraform* env) {
     memcpy(env->map, env->orig_map, env->size*env->size*sizeof(float));
-    memset(env->observations, 0, env->num_agents*125*sizeof(unsigned char));
+    memset(env->observations, 0, env->num_agents*246*sizeof(unsigned char));
     memset(env->returns, 0, env->num_agents*sizeof(float));
     env->tick = 0;
 
@@ -198,16 +201,9 @@ void c_step(Terraform* env) {
     //printf("step\n"); 
     //printf("tick: %d\n", env->tick);
     env->tick += 1;
-    if (env->tick % 512 == 0) {
-        float return_added = 0;
-        for (int i = 0; i < env->num_agents; i++) {
-            return_added += env->returns[i] ;
-        }
-        float reward_per_tick = return_added / env->tick / env->num_agents;
-        if (reward_per_tick < 0.01) {
-            add_log(env);
-            c_reset(env);
-        }
+    if (rand() % 5550 == 0) {
+        add_log(env);
+        c_reset(env);
     }
 
     memset(env->terminals, 0, env->num_agents*sizeof(unsigned char));
@@ -224,8 +220,8 @@ void c_step(Terraform* env) {
         float cx = dozer->x + BUCKET_OFFSET*cosf(dozer->heading);
         float cy = dozer->y + BUCKET_OFFSET*sinf(dozer->heading);
 
-        for (int x = cx - 3; x < cx + 3; x++) {
-            for (int y = cy - 3; y < cy + 3; y++) {
+        for (int x = cx - 2; x < cx + 2; x++) {
+            for (int y = cy - 2; y < cy + 2; y++) {
                 if (x < 0 || x >= env->size || y < 0 || y >= env->size) {
                     continue;
                 }
@@ -243,8 +239,8 @@ void c_step(Terraform* env) {
                     }
 
                     // Load up to 1 unit of dirt
-                    float load_amount = 2.5f;
-                    if (map_height <= 2.5f) {
+                    float load_amount = 1.0f;
+                    if (map_height <= 1.0f) {
                         load_amount = map_height;
                     }
 
@@ -262,7 +258,7 @@ void c_step(Terraform* env) {
                         continue;
                     }
 
-                    float unload_amount = 2.5f;
+                    float unload_amount = 1.0f;
                     if (dozer->load < unload_amount) {
                         unload_amount = dozer->load;
                     }
@@ -318,11 +314,27 @@ void c_step(Terraform* env) {
 
         int idx = map_idx(env, dozer->x, dozer->y);
         float dozer_height = env->map[idx];
+
+        // Raytrace collision
+        for (int d=0; d<dozer->v; d++) {
+            float x = dozer->x + d*cosf(dozer->heading);
+            float y = dozer->y + d*sinf(dozer->heading);
+            if (x < 0 || x >= env->size-1 || y < 0 || y >= env->size-1) {
+                continue;
+            }
+
+            int dst_idx = map_idx(env, x, y);
+            float dst_height = env->map[dst_idx];
+            if (fabsf(dozer_height - dst_height) > DOZER_STEP_HEIGHT) {
+                dozer->v = 0;
+            }
+        }
+
+        // Box collision around final destination
         float dst_x = dozer->x + dozer->v*cosf(dozer->heading);
         float dst_y = dozer->y + dozer->v*sinf(dozer->heading);
-
-        for (int x=(int)(dst_x-3.0f); x<=(int)(dst_x+3.0f); x++) {
-            for (int y=(int)(dst_y-3.0f); y<=(int)(dst_y+3.0f); y++) {
+        for (int x=(int)(dst_x-1.0f); x<=(int)(dst_x+1.0f); x++) {
+            for (int y=(int)(dst_y-1.0f); y<=(int)(dst_y+1.0f); y++) {
                 if (x < 0 || x >= env->size-1 || y < 0 || y >= env->size-1) {
                     continue;
                 }
@@ -349,7 +361,17 @@ void c_step(Terraform* env) {
         if (dozer->y >= env->size) {
             dozer->y = env->size - 1;
         }
+
+        // Teleportitis
+        if (rand() % 512 == 0) {
+            do {
+                env->dozers[i].x = rand() % env->size;
+                env->dozers[i].y = rand() % env->size;
+            } while (env->map[map_idx(env, env->dozers[i].x, env->dozers[i].y)] != 0.0f);
+        }
+ 
     }
+
     //printf("observations\n");
     compute_all_observations(env);
     //int action = env->actions[0];
@@ -499,14 +521,21 @@ struct Client {
     Camera3D camera;
     Mesh* mesh;
     Model model;
+    Mesh* target_mesh;
+    Model target_model;
     Texture2D texture;
     Model dozer;
     Shader shader;
+    Shader target_shader;
+    Texture2D shader_terrain;
+    int shader_terrain_loc;
+    unsigned char *shader_terrain_data;
 };
 
 Client* make_client(Terraform* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     InitWindow(1080, 720, "PufferLib Terraform");
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetTargetFPS(600);
     Camera3D camera = { 0 };
                                                        //
@@ -521,9 +550,29 @@ Client* make_client(Terraform* env) {
         TextFormat("resources/terraform/shader_%i.vs", GLSL_VERSION),
         TextFormat("resources/terraform/shader_%i.fs", GLSL_VERSION)
     );
+    client->target_shader = LoadShader(
+        TextFormat("resources/terraform/target_shader_%i.vs", GLSL_VERSION),
+        TextFormat("resources/terraform/target_shader_%i.fs", GLSL_VERSION)
+    );
+
+    Image img = GenImageColor(env->size, env->size, WHITE);
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    client->shader_terrain = LoadTextureFromImage(img);
+    UnloadImage(img);
+
+    client->shader_terrain_loc = GetShaderLocation(client->target_shader, "terrain");
+    SetShaderValueTexture(client->target_shader, client->shader_terrain_loc, client->shader_terrain);
+
+    client->shader_terrain_data = calloc(4*env->size*env->size, sizeof(unsigned char));
+
+    int shader_width_loc = GetShaderLocation(client->target_shader, "width");
+    SetShaderValue(client->target_shader, shader_width_loc, &env->size, SHADER_UNIFORM_INT);
+
+    int shader_height_loc = GetShaderLocation(client->target_shader, "height");
+    SetShaderValue(client->target_shader, shader_height_loc, &env->size, SHADER_UNIFORM_INT);
  
     //Image checked = GenImageChecked(env->size, env->size, 2, 2, PUFF_RED, PUFF_CYAN);
-    Image img = LoadImage("resources/terraform/perlin.jpg");
+    img = LoadImage("resources/terraform/perlin.jpg");
     client->texture = LoadTextureFromImage(img);
     client->dozer = LoadModel("resources/terraform/dozer.glb");
     UnloadImage(img);
@@ -537,30 +586,108 @@ void close_client(Client* client) {
     free(client);
 }
 
+void handle_camera_controls(Client* client) {
+    static Vector2 prev_mouse_pos = {0};
+    static bool is_dragging = false;
+    float camera_move_speed = 0.5f;
+
+    // Handle mouse drag for camera movement
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        prev_mouse_pos = GetMousePosition();
+        is_dragging = true;
+    }
+
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        is_dragging = false;
+    }
+
+    if (is_dragging) {
+        Vector2 current_mouse_pos = GetMousePosition();
+        Vector2 delta = {
+            -(current_mouse_pos.x - prev_mouse_pos.x) * camera_move_speed,
+            (current_mouse_pos.y - prev_mouse_pos.y) * camera_move_speed
+        };
+
+        // Apply 45-degree rotation to the movement
+        // For a -45 degree rotation (clockwise)
+        float cos45 = -0.7071f;  // cos(-45°)
+        float sin45 = 0.7071f; // sin(-45°)
+        Vector2 rotated_delta = {
+            delta.x * cos45 - delta.y * sin45,
+            delta.x * sin45 + delta.y * cos45
+        };
+
+        // Update camera position (only X and Y)
+        client->camera.position.z += rotated_delta.x;
+        client->camera.position.x += rotated_delta.y;
+
+        // Update camera target (only X and Y)
+        client->camera.target.z += rotated_delta.x;
+        client->camera.target.x += rotated_delta.y;
+
+        prev_mouse_pos = current_mouse_pos;
+    }
+
+    // Handle mouse wheel for zoom
+    float wheel = GetMouseWheelMove();
+    if (wheel != 0) {
+        float zoom_factor = 1.0f - (wheel * 0.1f);
+        // Calculate the current direction vector from target to position
+        Vector3 direction = {
+            client->camera.position.x - client->camera.target.x,
+            client->camera.position.y - client->camera.target.y,
+            client->camera.position.z - client->camera.target.z
+        };
+
+        // Scale the direction vector by the zoom factor
+        direction.x *= zoom_factor;
+        direction.y *= zoom_factor;
+        direction.z *= zoom_factor;
+
+        // Update the camera position based on the scaled direction
+        client->camera.position.x = client->camera.target.x + direction.x;
+        client->camera.position.y = client->camera.target.y + direction.y;
+        client->camera.position.z = client->camera.target.z + direction.z;
+    }
+}
+
 void c_render(Terraform* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
         env->client->mesh = create_heightmap_mesh(env->map, (Vector3){env->size, 1, env->size});
         update_heightmap_mesh(env->client->mesh, env->map, (Vector3){env->size, 1, env->size});
         env->client->model = LoadModelFromMesh(*env->client->mesh);
+
+        env->client->target_mesh = create_heightmap_mesh(env->target_map, (Vector3){env->size, 1, env->size});
+        update_heightmap_mesh(env->client->target_mesh, env->target_map, (Vector3){env->size, 1, env->size});
+        env->client->target_model = LoadModelFromMesh(*env->client->target_mesh);
     }
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
     Client* client = env->client;
 
-    Camera3D* camera = &client->camera;
-    float x = env->dozers[0].x;
-    float y = env->dozers[0].y;
-    float z = env->dozers[0].z;
+    handle_camera_controls(client);
+    //Camera3D* camera = &client->camera;
     //camera->position = (Vector3){ x+30, z+100.0f, y+30 };
     //camera->target = (Vector3){ x, 0, y-1};
  
     if (env->tick % 10 == 0) {
-        update_heightmap_mesh(env->client->mesh, env->map, (Vector3){env->size, 1, env->size});
+        update_heightmap_mesh(client->mesh, env->map, (Vector3){env->size, 1, env->size});
+        update_heightmap_mesh(client->target_mesh, env->target_map, (Vector3){env->size, 1, env->size});
+        for (int i = 0; i < env->size*env->size; i++) {
+            client->shader_terrain_data[4*i] = env->map[i];
+            client->shader_terrain_data[4*i+3] = 255;
+        }
+        UpdateTexture(client->shader_terrain, client->shader_terrain_data);
+        SetShaderValueTexture(client->target_shader, env->client->shader_terrain_loc, env->client->shader_terrain);
+
     }
-    client->model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
+    //client->model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
     client->model.materials[0].shader = client->shader;
+
+    //client->target_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = client->texture;
+    client->target_model.materials[0].shader = client->target_shader;
 
     //update_heightmap_mesh(client->mesh, env->map, (Vector3){env->size, 1, env->size});
     //client->model = LoadModelFromMesh(*client->mesh);
@@ -580,6 +707,10 @@ void c_render(Terraform* env) {
 
     BeginShaderMode(client->shader);
     DrawModel(client->model, (Vector3){0, 0, 0}, 1.0f, (Color){156, 50, 20, 255});
+    EndShaderMode();
+
+    BeginShaderMode(client->target_shader);
+    DrawModel(client->target_model, (Vector3){0, 0, 0}, 1.0f, (Color){156, 50, 20, 255});
     EndShaderMode();
 
     for (int i = 0; i < env->num_agents; i++) {
@@ -605,7 +736,7 @@ void c_render(Terraform* env) {
                 if(x_offset + x < 0 || x_offset + x >= env->size || y_offset + y < 0 || y_offset + y >= env->size) {
                     continue;
                 }
-                DrawCube((Vector3){x_offset + x, yy, y_offset + y}, 0.25f, 0.25f, 0.25f, PUFF_WHITE);
+                //DrawCube((Vector3){x_offset + x, yy, y_offset + y}, 0.5f, 0.5f, 0.5f, PUFF_WHITE);
             }
         }
     }

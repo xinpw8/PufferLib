@@ -641,7 +641,6 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
     if 'num_workers' in kwargs:
         if kwargs['num_workers'] == 'auto':
             kwargs['num_workers'] = num_envs
-        
 
         # TODO: None?
         envs_per_worker = num_envs / kwargs['num_workers']
@@ -690,7 +689,6 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
         if not isinstance(env_args[i], (list, tuple)):
             raise pufferlib.APIUsageError('env_args must be a list of lists or tuples')
         if not isinstance(env_kwargs[i], dict):
-            breakpoint()
             raise pufferlib.APIUsageError('env_kwargs must be a list of dictionaries')
 
     # Keeps batch size consistent when debugging with Serial backend

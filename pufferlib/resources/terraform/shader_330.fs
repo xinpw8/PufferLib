@@ -113,7 +113,6 @@ void main()
     if (height < 0.001) {
         finalColor.rgb = start_color.rgb + delta;
     }
- 
 
     //if (height < 5.0) {
     //    float val = 0.5 + height/10.0;

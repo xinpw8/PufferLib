@@ -11,10 +11,10 @@ void demo() {
         .randomize_starting_position = false,
         .min_start_timeout = 0, // randomized ghost delay range
         .max_start_timeout = 49,
-        .frightened_time = 20,   // ghost frighten time
+        .frightened_time = 35,   // ghost frighten time
         .max_mode_changes = 6,
-        .scatter_mode_length = 49,
-        .chase_mode_length = 140,
+        .scatter_mode_length = 700,
+        .chase_mode_length = 70,
     };
     allocate(&env);
     c_reset(&env);
@@ -33,22 +33,18 @@ void demo() {
             human_control = false;
         }
 
-        client->time_accumulator += GetFrameTime();
-        while (client->time_accumulator >= client->step_time) {
-            if (!human_control) {
-                // forward_linearlstm(net, env.observations, env.actions);
-            }
-
-            update_interpolation(client, &env);
-            c_step(&env);
-            client->time_accumulator -= client->step_time;
-
-            if (env.terminals[0]) {
-                c_reset(&env);
-                update_interpolation(client, &env);
-            }
+        if (!human_control) {
+            // forward_linearlstm(net, env.observations, env.actions);
         }
-        c_render(&env);
+
+        c_step(&env);
+        if (env.terminals[0]) {
+            c_reset(&env);
+        }
+
+        for (int i = 0; i < FRAMES; i++) {
+            c_render(&env);
+        }
     }
     // free_linearlstm(net);
     // free(weights);
@@ -75,7 +71,7 @@ void performance_test() {
 }
 
 int main() {
-    // performance_test();
-    demo();
+    performance_test();
+    // demo();
     return 0;
 }

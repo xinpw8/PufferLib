@@ -1,7 +1,7 @@
 #include "terraform.h"
 
 void allocate(Terraform* env) {
-    env->observations = (unsigned char*)calloc(env->num_agents*125, sizeof(unsigned char));
+    env->observations = (unsigned char*)calloc(env->num_agents*246, sizeof(unsigned char));
     env->actions = (int*)calloc(3*env->num_agents, sizeof(int));
     env->rewards = (float*)calloc(env->num_agents, sizeof(float));
     env->terminals = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
@@ -16,62 +16,6 @@ void free_allocated(Terraform* env) {
     free_initialized(env);
 }
 
-void handle_camera_controls(Client* client) {
-    static Vector2 prev_mouse_pos = {0};
-    static bool is_dragging = false;
-    float camera_move_speed = 0.5f;
-    
-    // Handle mouse drag for camera movement
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        prev_mouse_pos = GetMousePosition();
-        is_dragging = true;
-    }
-    
-    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-        is_dragging = false;
-    }
-    
-    if (is_dragging) {
-        Vector2 current_mouse_pos = GetMousePosition();
-        Vector2 delta = {
-            (current_mouse_pos.x - prev_mouse_pos.x) * camera_move_speed,
-            -(current_mouse_pos.y - prev_mouse_pos.y) * camera_move_speed
-        };
-
-        // Update camera position (only X and Y)
-        client->camera.position.x += delta.x;
-        client->camera.position.z += delta.y;
-        
-        // Update camera target (only X and Y)
-        client->camera.target.x += delta.x;
-        client->camera.target.z += delta.y;
-
-        prev_mouse_pos = current_mouse_pos;
-    }
-
-    // Handle mouse wheel for zoom
-    float wheel = GetMouseWheelMove();
-    if (wheel != 0) {
-        float zoom_factor = 1.0f - (wheel * 0.1f);
-        // Calculate the current direction vector from target to position
-        Vector3 direction = {
-            client->camera.position.x - client->camera.target.x,
-            client->camera.position.y - client->camera.target.y,
-            client->camera.position.z - client->camera.target.z
-        };
-        
-        // Scale the direction vector by the zoom factor
-        direction.x *= zoom_factor;
-        direction.y *= zoom_factor;
-        direction.z *= zoom_factor;
-        
-        // Update the camera position based on the scaled direction
-        client->camera.position.x = client->camera.target.x + direction.x;
-        client->camera.position.y = client->camera.target.y + direction.y;
-        client->camera.position.z = client->camera.target.z + direction.z;
-    }
-}
-
 void demo() {
     //Weights* weights = load_weights("resources/pong_weights.bin", 133764);
     //LinearLSTM* net = make_linearlstm(weights, 1, 8, 3);
@@ -82,7 +26,6 @@ void demo() {
     c_reset(&env);
     c_render(&env);
     while (!WindowShouldClose()) {
-        handle_camera_controls(env.client);
         for (int i = 0; i < env.num_agents; i++) {
             env.actions[3*i] = 4; //rand() % 5;
             env.actions[3*i + 1] = rand() % 5;
@@ -91,15 +34,14 @@ void demo() {
         env.actions[0] = 2;
         env.actions[1] = 2;
         env.actions[2] = 0;
-        if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 4;
-        if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 0;
+        if (IsKeyDown(KEY_UP)    || IsKeyPressed(KEY_W)) env.actions[0] = 4;
+        if (IsKeyDown(KEY_DOWN)  || IsKeyPressed(KEY_S)) env.actions[0] = 0;
         if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[1] = 4;
         if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[1] = 0;
         if (IsKeyDown(KEY_SPACE)) env.actions[2] = 1;
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        if (IsKeyPressed(KEY_LEFT_SHIFT)) {
             env.actions[2] = 2;
         }
-        DrawText(TextFormat("Bucket load: %f", env.dozers[0].load), 10, 80, 20, WHITE);
 
         c_step(&env);
         c_render(&env);

@@ -90,7 +90,7 @@ uint64_t bottom_mask(uint64_t column) {
 }
 
 // A bit mask used to create unique representation of the game state.
-uint64_t bottom() {
+uint64_t c_bottom() {
     return UINT64_C(1) << (COLUMNS - 1) * (ROWS + 1);
 }
 
@@ -164,7 +164,7 @@ float negamax(uint64_t pieces, uint64_t other_pieces, int depth) {
 
 int compute_env_move(CConnect4* env) {
     uint64_t piece_mask = env->player_pieces | env->env_pieces;
-    uint64_t hash = env->player_pieces + piece_mask + bottom();
+    uint64_t hash = env->player_pieces + piece_mask + c_bottom();
 
     // Hard coded opening book to handle some early game traps
     // TODO: Add more opening book moves

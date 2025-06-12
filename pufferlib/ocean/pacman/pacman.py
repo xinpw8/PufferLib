@@ -12,9 +12,9 @@ class Pacman(pufferlib.PufferEnv):
             randomize_starting_position = 0,
             min_start_timeout = 0,
             max_start_timeout = 49,
-            frightened_time = 20,
+            frightened_time = 35,
             max_mode_changes = 6,
-            scatter_mode_length = 49,
+            scatter_mode_length = 70,
             chase_mode_length = 140,
             log_interval=128,
             buf=None, seed=0):
@@ -72,7 +72,8 @@ class Pacman(pufferlib.PufferEnv):
             self.terminals, self.truncations, info)
 
     def render(self):
-        binding.vec_render(self.c_envs, 0)
+        for _ in range(7):
+            binding.vec_render(self.c_envs, 0)
 
     def close(self):
         binding.vec_close(self.c_envs)

@@ -120,6 +120,7 @@ MAKE_FUNCTIONS = {
     'ants': 'AntsEnv',
     'breakout': 'Breakout',
     'blastar': 'Blastar',
+    'convert': 'Convert',
     'pong': 'Pong',
     'enduro': 'Enduro',
     'cartpole': 'Cartpole',

@@ -223,11 +223,7 @@ def pareto_points(observations, eps=1e-6):
     pareto = []
     idxs = []
     for idx, obs in enumerate(observations):
-        # TODO: Ties and groups
-        try:
-            higher_score = scores + eps > scores[idx]
-        except:
-            breakpoint()
+        higher_score = scores + eps > scores[idx]
         lower_cost = costs - eps < costs[idx]
         better = higher_score & lower_cost
         better[idx] = False

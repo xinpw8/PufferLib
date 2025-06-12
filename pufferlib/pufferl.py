@@ -2,8 +2,7 @@
 # - Help menu
 # - Docs link
 #python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=1 clean_pufferl.py --env puffer_nmmo3 --mode train
-#from torch.distributed.elastic.multiprocessing.errors import record
-#@record
+from torch.distributed.elastic.multiprocessing.errors import record
 
 import warnings
 warnings.filterwarnings('error', category=RuntimeWarning)
@@ -58,9 +57,9 @@ class PuffeRL:
 
         # Reproducibility
         seed = config['seed']
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+        #random.seed(seed)
+        #np.random.seed(seed)
+        #torch.manual_seed(seed)
 
         # Vecenv info
         vecenv.async_reset(seed)
@@ -231,9 +230,9 @@ class PuffeRL:
 
             profile('eval_copy', epoch)
             o = torch.as_tensor(o)
-            o_device = o.to(device, non_blocking=True)
-            r = torch.as_tensor(r).to(device, non_blocking=True)
-            d = torch.as_tensor(d).to(device, non_blocking=True)
+            o_device = o.to(device)#, non_blocking=True)
+            r = torch.as_tensor(r).to(device)#, non_blocking=True)
+            d = torch.as_tensor(d).to(device)#, non_blocking=True)
 
             profile('eval_forward', epoch)
             with torch.no_grad(), self.amp_context:
@@ -248,7 +247,7 @@ class PuffeRL:
                     state['lstm_h'] = self.lstm_h[env_id.start]
                     state['lstm_c'] = self.lstm_c[env_id.start]
 
-                logits, value = self.policy(o_device, state)
+                logits, value = self.policy.forward_eval(o_device, state)
                 action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
                 r = torch.clamp(r, -1, 1)
 
@@ -308,6 +307,7 @@ class PuffeRL:
         profile.end()
         return self.stats
 
+    @record
     def train(self):
         profile = self.profile
         epoch = self.epoch
@@ -362,7 +362,7 @@ class PuffeRL:
             )
 
             # TODO: Currently only returning traj shaped value as a hack
-            logits, newvalue = self.policy.forward_train(mb_obs, state)
+            logits, newvalue = self.policy(mb_obs, state)
             # TODO: Redundant actions?
             actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
 
@@ -385,6 +385,7 @@ class PuffeRL:
                 config['vtrace_rho_clip'], config['vtrace_c_clip'])
             adv = mb_advantages
             adv = mb_prio * (adv - adv.mean()) / (adv.std() + 1e-8) # TODO: Norm by full batch
+            #adv = mb_prio * (adv - advantages.mean()) / (advantages.std() + 1e-8) # TODO: Norm by full batch
 
             # Losses
             pg_loss1 = -adv * ratio
@@ -472,19 +473,22 @@ class PuffeRL:
             'uptime': time.time() - self.start_time,
             'epoch': int(dist_sum(self.epoch, device)),
             'learning_rate': self.optimizer.param_groups[0]["lr"],
-            **{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
-            **{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
-            **{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
+            **{f'environment/{k}': v for k, v in self.stats.items()},
+            **{f'losses/{k}': v for k, v in self.losses.items()},
+            **{f'performance/{k}': v['elapsed'] for k, v in self.profile},
+            #**{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
+            #**{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
+            #**{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
         }
 
         if torch.distributed.is_initialized():
            if torch.distributed.get_rank() != 0:
-               self.logger.log(logs, self.global_step)
+               self.logger.log(logs, agent_steps)
                return logs
            else:
                return None
 
-        self.logger.log(logs, self.global_step)
+        self.logger.log(logs, agent_steps)
         return logs
 
     def close(self):
@@ -497,6 +501,10 @@ class PuffeRL:
         return path
 
     def save_checkpoint(self):
+        if torch.distributed.is_initialized():
+           if torch.distributed.get_rank() != 0:
+               return
+ 
         run_id = self.logger.run_id
         path = os.path.join(self.config['data_dir'], run_id)
         if not os.path.exists(path):
@@ -524,8 +532,14 @@ class PuffeRL:
 
     def print_dashboard(self, clear=False, idx=[0],
             c1='[cyan]', c2='[white]', b1='[bright_cyan]', b2='[bright_white]'):
-        profile = self.profile
         config = self.config
+        sps = dist_sum(self.sps, config['device'])
+        agent_steps = dist_sum(self.global_step, config['device'])
+        if torch.distributed.is_initialized():
+           if torch.distributed.get_rank() != 0:
+               return
+ 
+        profile = self.profile
         console = Console()
         dashboard = Table(box=rich.box.ROUNDED, expand=True,
             show_header=False, border_style='bright_cyan')
@@ -548,16 +562,15 @@ class PuffeRL:
         idx[0] = (idx[0] - 1) % 10
             
         s = Table(box=None, expand=True)
-        sps = self.sps
         remaining = 'A hair past a freckle'
         if sps != 0:
-            remaining = duration((config['total_timesteps'] - self.global_step)/sps, b2, c2)
+            remaining = duration((config['total_timesteps'] - agent_steps)/sps, b2, c2)
 
         s.add_column(f"{c1}Summary", justify='left', vertical='top', width=10)
         s.add_column(f"{c1}Value", justify='right', vertical='top', width=14)
         s.add_row(f'{c2}Env', f'{b2}{config["env"]}')
         s.add_row(f'{c2}Params', abbreviate(self.model_size, b2, c2))
-        s.add_row(f'{c2}Steps', abbreviate(self.global_step, b2, c2))
+        s.add_row(f'{c2}Steps', abbreviate(agent_steps, b2, c2))
         s.add_row(f'{c2}SPS', abbreviate(sps, b2, c2))
         s.add_row(f'{c2}Epoch', f'{b2}{self.epoch}')
         s.add_row(f'{c2}Uptime', duration(self.uptime, b2, c2))
@@ -676,8 +689,8 @@ class Profile:
         if epoch % self.frequency != 0:
             return
 
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
+        #if torch.cuda.is_available():
+        #    torch.cuda.synchronize()
 
         tick = time.time()
         if len(self.stack) != 0 and not nest:
@@ -693,8 +706,8 @@ class Profile:
         profile['delta'] += delta
 
     def end(self):
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
+        #if torch.cuda.is_available():
+        #    torch.cuda.synchronize()
 
         end = time.time()
         for i in range(len(self.stack)):
@@ -723,6 +736,11 @@ class Utilization(Thread):
             mem = psutil.virtual_memory()
             self.cpu_mem.append(100*mem.active/mem.total)
             if torch.cuda.is_available():
+                # Monitoring in distributed crashes nvml
+                if torch.distributed.is_initialized():
+                   time.sleep(self.delay)
+                   continue
+
                 self.gpu_util.append(torch.cuda.utilization())
                 free, total = torch.cuda.mem_get_info()
                 self.gpu_mem.append(100*(total-free)/total)
@@ -828,7 +846,25 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
     # Assume TorchRun DDP is used if LOCAL_RANK is set
     if 'LOCAL_RANK' in os.environ:
-        torch.distributed.init_process_group(backend='nccl', rank=0, world_size=1)
+        world_size = int(os.environ.get('WORLD_SIZE', 1))
+        print("World size", world_size)
+        master_addr = os.environ.get('MASTER_ADDR', 'localhost')
+        master_port = os.environ.get('MASTER_PORT', '29500')
+        local_rank = int(os.environ["LOCAL_RANK"])
+        print(f"rank: {local_rank}, MASTER_ADDR={master_addr}, MASTER_PORT={master_port}")
+        torch.cuda.set_device(local_rank)
+        args['train']['device'] = torch.cuda.current_device()
+        torch.distributed.init_process_group(backend='nccl', world_size=world_size)
+        policy = policy.to(local_rank)
+        model = torch.nn.parallel.DistributedDataParallel(
+            policy, device_ids=[local_rank], output_device=local_rank
+        )
+        if hasattr(policy, 'lstm'):
+            #model.lstm = policy.lstm
+            model.hidden_size = policy.hidden_size
+
+        model.forward_eval = policy.forward_eval
+        policy = model.to(local_rank)
 
     if args['neptune']:
         logger = NeptuneLogger(args)
@@ -1080,9 +1116,15 @@ def load_config(env_name):
             p.read([puffer_default_config, path])
             if env_name in p['base']['env_name'].split(): break
         else:
-            raise pufferlib.APIUsageError('No config for env_name {}'.format(args.env))
+            raise pufferlib.APIUsageError('No config for env_name {}'.format(env_name))
 
     # Dynamic help menu from config
+    def auto_type(value):
+        """Type inference for numeric args that use 'auto' as a default value"""
+        if value == 'auto': return value
+        if value.isnumeric(): return int(value)
+        return float(value)
+
     for section in p.sections():
         for key in p[section]:
             try:
@@ -1091,7 +1133,11 @@ def load_config(env_name):
                 value = p[section][key]
 
             fmt = f'--{key}' if section == 'base' else f'--{section}.{key}'
-            parser.add_argument(fmt.replace('_', '-'), default=value, type=type(value))
+            parser.add_argument(
+                fmt.replace('_', '-'),
+                default=value,
+                type=auto_type if value == 'auto' else type(value)
+            )
 
     parser.add_argument('-h', '--help', default=argparse.SUPPRESS,
         action='help', help='Show this help message and exit')
