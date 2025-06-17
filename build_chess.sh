@@ -41,7 +41,8 @@ g++ -std=c++17 \
 echo "[ok] Created ./demo_chess"
 
 #------------------------------------------------------------------------------
-# 3. Build Raylib GUI demo (raylib_chess) — requires bundled Raylib binaries
+# 3. Build Raylib GUI demo (raylib_chess)
+#    Requires the pre-built Raylib bundle in raylib-5.5_linux_amd64/
 #------------------------------------------------------------------------------
 if [ -d raylib-5.5_linux_amd64 ]; then
   echo "[build] Compiling raylib_chess …"
@@ -57,5 +58,16 @@ if [ -d raylib-5.5_linux_amd64 ]; then
 else
   echo "[skip] raylib-5.5_linux_amd64 not found — skipping GUI build."
 fi
+
+#------------------------------------------------------------------------------
+# 4. Build SAN-replay validator (replay_chess)
+#------------------------------------------------------------------------------
+echo "[build] Compiling replay_chess …"
+g++ -std=c++17 \
+    -I pufferlib/abseil-cpp \
+    replay_chess.cc \
+    ${ABSL_LIBS} \
+    -lpthread -o replay_chess
+echo "[ok] Created ./replay_chess"
 
 echo "Done.  Remember to set LD_LIBRARY_PATH=. before running the binaries if libchess.so is in the current directory." 
