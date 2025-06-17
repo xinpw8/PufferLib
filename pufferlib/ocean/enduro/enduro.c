@@ -13,6 +13,14 @@
 #include <emscripten/emscripten.h>
 #endif
 
+#ifndef RESOURCE_PREFIX
+#ifdef __EMSCRIPTEN__
+#define RESOURCE_PREFIX ""
+#else
+#define RESOURCE_PREFIX "pufferlib/"
+#endif
+#endif
+
 void get_input(Enduro *env) {
     if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) ||
         (IsKeyDown(KEY_S)    && IsKeyDown(KEY_D)))
@@ -38,75 +46,71 @@ void get_input(Enduro *env) {
         env->actions[0] = ACTION_NOOP;
 }
 
-#ifdef __EMSCRIPTEN__
+static Enduro env = {0};
+static LinearLSTM *net = NULL;
 
-void get_input(Enduro *env);
-
-static Enduro* e = NULL;
-static LinearLSTM* n = NULL;
-
-static void loop(void *unused) {
+static void step_frame(void *unused) {
     if (IsKeyDown(KEY_LEFT_SHIFT))
-        get_input(e);
+        get_input(&env);
     else
-        forward_linearlstm(n, e->observations, e->actions);
+        forward_linearlstm(net, env.observations, env.actions);
 
-    c_step(e);
-    c_render(e);
-}
-
-int main() {
-    Weights *w = load_weights("resources/enduro/enduro_weights.bin", 142218);
-    int ls[1] = {9};
-    n = make_linearlstm(w, 1, 68, ls, 1);
-
-    static Enduro env = {
-        .num_envs = 1,
-        .max_enemies = MAX_ENEMIES,
-        .obs_size = OBSERVATIONS_MAX_SIZE
-    };
-
-    allocate(&env);
-    init(&env);
-    c_reset(&env);
-
-    e = &env;
-
-    emscripten_set_main_loop_arg(loop, NULL, 0, 1);
-    return 0;
-}
-#else
-
-int main() {
-    Weights *w  = load_weights("resources/enduro/enduro_weights.bin", 142218);
-    int ls[1] = {9};
-    LinearLSTM *n = make_linearlstm(w, 1, 68, ls, 1);
-
-    static Enduro env = {
-        .num_envs = 1,
-        .max_enemies = MAX_ENEMIES,
-        .obs_size = OBSERVATIONS_MAX_SIZE
-    };
-
-    allocate(&env);
-    init(&env);
-    c_reset(&env);
+    c_step(&env);
     c_render(&env);
+}
 
-    while (!WindowShouldClose()) {
-        if (IsKeyDown(KEY_LEFT_SHIFT))
-            get_input(&env);
-        else
-            forward_linearlstm(n, env.observations, env.actions);
+#ifndef __EMSCRIPTEN__
+void perftest(float test_time) {
+    Enduro perf_env = {
+        .num_envs = 1,
+        .max_enemies = MAX_ENEMIES,
+        .obs_size = OBSERVATIONS_MAX_SIZE
+    };
 
-        c_step(&env);
-        c_render(&env);
+    allocate(&perf_env);
+    init(&perf_env);
+    c_reset(&perf_env);
+
+    int start = clock();
+    int steps = 0;
+    while (clock() - start < test_time * CLOCKS_PER_SEC) {
+        perf_env.actions[0] = rand() % 9;
+        c_step(&perf_env);
+        steps++;
     }
 
-    free_linearlstm(n);
+    printf("Enduro: %d steps in %.2f seconds (%.2f steps/s)\n", steps, test_time, steps / test_time);
+    free_allocated(&perf_env);
+}
+#endif
+
+int main() {
+    Weights *w = load_weights(RESOURCE_PREFIX "resources/enduro/enduro_weights.bin", 142218);
+    int ls[1] = {9};
+    net = make_linearlstm(w, 1, 68, ls, 1);
+
+    env.num_envs    = 1;
+    env.max_enemies = MAX_ENEMIES;
+    env.obs_size    = OBSERVATIONS_MAX_SIZE;
+
+    allocate(&env);
+    init(&env);
+    c_reset(&env);
+
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg(step_frame, NULL, 0, 1);
+#else
+    c_render(&env);
+    while (!WindowShouldClose()) {
+        step_frame(NULL);
+    }
+
+    perftest(10.0f);
+
+    free_linearlstm(net);
     free(w);
     free_allocated(&env);
+#endif
+
     return 0;
 }
-
-#endif

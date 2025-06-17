@@ -11,6 +11,14 @@
 #include <float.h>
 #include "raylib.h"
 
+#ifndef RESOURCE_PREFIX
+#ifdef __EMSCRIPTEN__
+#define RESOURCE_PREFIX ""
+#else
+#define RESOURCE_PREFIX "pufferlib/"
+#endif
+#endif
+
 // Constant defs
 #define MAX_ENEMIES 10
 #define OBSERVATIONS_MAX_SIZE (8 + (5 * MAX_ENEMIES) + 9 + 1)
@@ -1778,7 +1786,7 @@ void render_car(GameState* gameState) {
     DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
 }
 
-void initRaylib(GameState *gameState) {
+void initRaylib(GameState* gameState) {
     if (!IsWindowReady()) {
         InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
         gameState->renderTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -1788,7 +1796,17 @@ void initRaylib(GameState *gameState) {
 
 void loadTextures(GameState* gameState) { 
     // Load background and mountain textures for different times of day per original env
-    gameState->spritesheet = LoadTexture("resources/enduro/enduro_spritesheet.png");
+    const char* tex_path1 = RESOURCE_PREFIX "resources/enduro/enduro_spritesheet.png";
+#ifdef __EMSCRIPTEN__
+    // On the web build resources are preloaded at root via --preload-file
+    gameState->spritesheet = LoadTexture(tex_path1);
+#else
+    if (!FileExists(tex_path1)) {
+        // Fallback to older relative location if running from pufferlib directory.
+        tex_path1 = "resources/enduro/enduro_spritesheet.png";
+    }
+    gameState->spritesheet = LoadTexture(tex_path1);
+#endif
     
     // Initialize animation variables
     gameState->carAnimationTimer = 0.0f;
