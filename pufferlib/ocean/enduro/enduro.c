@@ -9,89 +9,104 @@
 #include "enduro.h"
 #include "raylib.h"
 #include "puffernet.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
-void get_input(Enduro* env) {
-        if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_D))) {
-            env->actions[0] = ACTION_DOWNRIGHT; // Decelerate and move right
-        } else if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_LEFT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_A))) {
-            env->actions[0] = ACTION_DOWNLEFT; // Decelerate and move left
-        } else if (IsKeyDown(KEY_SPACE) && (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))) {
-            env->actions[0] = ACTION_RIGHTFIRE; // Accelerate and move right
-        } else if (IsKeyDown(KEY_SPACE) && (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))) {
-            env->actions[0] = ACTION_LEFTFIRE; // Accelerate and move left   
-        } else if (IsKeyDown(KEY_SPACE)) {
-            env->actions[0] = ACTION_FIRE; // Accelerate
-        } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-            env->actions[0] = ACTION_DOWN; // Decelerate
-        } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-            env->actions[0] = ACTION_LEFT; // Move left
-        } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-            env->actions[0] = ACTION_RIGHT; // Move right
-        } else {
-            env->actions[0] = ACTION_NOOP; // No action
-        }
+void get_input(Enduro *env) {
+    if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) ||
+        (IsKeyDown(KEY_S)    && IsKeyDown(KEY_D)))
+        env->actions[0] = ACTION_DOWNRIGHT;
+    else if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_LEFT)) ||
+             (IsKeyDown(KEY_S)    && IsKeyDown(KEY_A)))
+        env->actions[0] = ACTION_DOWNLEFT;
+    else if (IsKeyDown(KEY_SPACE) &&
+             (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)))
+        env->actions[0] = ACTION_RIGHTFIRE;
+    else if (IsKeyDown(KEY_SPACE) &&
+             (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)))
+        env->actions[0] = ACTION_LEFTFIRE;
+    else if (IsKeyDown(KEY_SPACE))
+        env->actions[0] = ACTION_FIRE;
+    else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
+        env->actions[0] = ACTION_DOWN;
+    else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
+        env->actions[0] = ACTION_LEFT;
+    else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
+        env->actions[0] = ACTION_RIGHT;
+    else
+        env->actions[0] = ACTION_NOOP;
 }
 
-int demo() {
-    Weights* weights = load_weights("resources/enduro/enduro_weights.bin", 142218);
-    LinearLSTM* net = make_linearlstm(weights, 1, 68, 9);
+#ifdef __EMSCRIPTEN__
 
-    Enduro env = {
+void get_input(Enduro *env);
+
+static Enduro* e = NULL;
+static LinearLSTM* n = NULL;
+
+static void loop(void *unused) {
+    if (IsKeyDown(KEY_LEFT_SHIFT))
+        get_input(e);
+    else
+        forward_linearlstm(n, e->observations, e->actions);
+
+    c_step(e);
+    c_render(e);
+}
+
+int main() {
+    Weights *w = load_weights("resources/enduro/enduro_weights.bin", 142218);
+    int ls[1] = {9};
+    n = make_linearlstm(w, 1, 68, ls, 1);
+
+    static Enduro env = {
         .num_envs = 1,
         .max_enemies = MAX_ENEMIES,
         .obs_size = OBSERVATIONS_MAX_SIZE
     };
 
     allocate(&env);
+    init(&env);
+    c_reset(&env);
 
+    e = &env;
+
+    emscripten_set_main_loop_arg(loop, NULL, 0, 1);
+    return 0;
+}
+#else
+
+int main() {
+    Weights *w  = load_weights("resources/enduro/enduro_weights.bin", 142218);
+    int ls[1] = {9};
+    LinearLSTM *n = make_linearlstm(w, 1, 68, ls, 1);
+
+    static Enduro env = {
+        .num_envs = 1,
+        .max_enemies = MAX_ENEMIES,
+        .obs_size = OBSERVATIONS_MAX_SIZE
+    };
+
+    allocate(&env);
     init(&env);
     c_reset(&env);
     c_render(&env);
 
     while (!WindowShouldClose()) {
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        if (IsKeyDown(KEY_LEFT_SHIFT))
             get_input(&env);
-        } else {
-            forward_linearlstm(net, env.observations, env.actions);
-        }
+        else
+            forward_linearlstm(n, env.observations, env.actions);
 
         c_step(&env);
         c_render(&env);
     }
 
-    free_linearlstm(net);
-    free(weights);
-    //close_client(env.client);
+    free_linearlstm(n);
+    free(w);
     free_allocated(&env);
     return 0;
 }
 
-void perftest(float test_time) {
-    Enduro env = {
-        .num_envs = 1,
-        .max_enemies = MAX_ENEMIES,
-        .obs_size = OBSERVATIONS_MAX_SIZE
-    };
-
-    allocate(&env);
-    init(&env);
-    c_reset(&env);
-
-    int start = time(NULL);
-    int i = 0;
-    while (time(NULL) - start < test_time) {
-        env.actions[0] = rand()%9;
-        c_step(&env);
-        i++;
-    }
-
-    int end = time(NULL);
-    printf("SPS: %f\n", i / (float)(end - start));
-    free_allocated(&env);
-}
-
-int main() {
-   demo();
-   //perftest(10.0f);
-   return 0;
-}
+#endif

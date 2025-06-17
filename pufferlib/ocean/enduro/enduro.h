@@ -726,7 +726,7 @@ void init(Enduro* env) {
 
 void allocate(Enduro* env) {
     env->observations = (float*)calloc(env->obs_size, sizeof(float));
-    env->actions = (int*)calloc(1, sizeof(int));
+    env->actions = (int*)calloc(9, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
 }
@@ -1778,11 +1778,11 @@ void render_car(GameState* gameState) {
     DrawTextureRec(gameState->spritesheet, srcRect, position, WHITE);
 }
 
-void initRaylib(GameState* gameState) {
+void initRaylib(GameState *gameState) {
     if (!IsWindowReady()) {
         InitWindow(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, "puffer_enduro");
-        SetTargetFPS(60);
         gameState->renderTarget = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
+        SetTargetFPS(60);
     }
 }
 
