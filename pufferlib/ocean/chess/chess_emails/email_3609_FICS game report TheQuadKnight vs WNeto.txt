@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs WNeto
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.23"]
+[Time "09:39:06"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "WNeto"]
+[WhiteElo "1333"]
+[BlackElo "1478"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nc6 2. c4 d5 3. Nf3 e6 4. Nc3 Nf6 5. Bg5 Bb4 6. e3 O-O 7. cxd5 Qxd5
+8. Bxf6 Bxc3+ 9. bxc3 gxf6 10. Bd3 Kh8 11. Qc2 Qh5 12. O-O Bd7 13. Be2 Qg6
+14. Bd3 Qg4 15. Rab1 Rg8 16. Ne1 b6 17. Be4 Rad8 18. Bf3 Qg5 19. Nd3 Ne7
+20. Nf4 Bc6 21. Bxc6 Nxc6 22. Qe4 Ne7 23. c4 f5 24. Qf3 Ng6 25. Nh3 Qh6
+26. Rfd1 Nh4 27. Qf4 Rxg2+ 28. Kf1 Qxf4 29. Nxf4 Rxh2 30. c5 Rg8 31. cxb6
+cxb6 32. Rbc1 Nf3 33. Ke2 Ng5 34. Rg1 Ne4 35. Rxg8+ Kxg8 36. Rc8+ Kg7 37. Kd3
+Rxf2 38. d5 exd5 39. Nxd5 Rxa2 40. Ne7 Nf2+ 41. Kd4 Rd2+ 42. Ke5 Re2 43. Nxf5+
+Kg6 44. Rc6+ Kg5 45. Nd4 Rxe3+ 46. Kd6 Rd3 47. Kc7 Ne4 48. Kb7
+{Black forfeits on time} 1-0
+

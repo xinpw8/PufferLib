@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs sbearcat
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.16"]
+[Time "19:57:21"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sbearcat"]
+[WhiteElo "1277"]
+[BlackElo "1300"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 b6 2. c4 Bb7 3. Nc3 e6 4. Nf3 Bb4 5. e3 Ne7 6. Bd3 Ng6 7. O-O Nh4
+8. Nxh4 Qxh4 9. Ne2 Qg4 10. Ng3 Qxd1 11. Rxd1 O-O 12. Ne4 f5 13. Ng5 Be7
+14. e4 fxe4 15. Nxe4 Nc6 16. d5 Nb4 17. dxe6 Nxd3 18. Rxd3 Bxe4 19. Rxd7
+Bc5 20. Be3 Bxe3 21. fxe3 Rae8 22. e7 Rf7 23. Rxc7 Rfxe7 24. Rxe7 Rxe7 25. Rd1
+Kf7 26. b3 Bc6 27. g3 Rxe3 28. h4 Rxg3+ 29. Kh2 Rg2+ 30. Kh3 Rxa2 31. Rd6
+Be8 32. Rd8 Rb2 33. Ra8 Rxb3+ 34. Kg4 Rb4 35. Rxa7+ Kf8 36. Rc7 b5 37. Kf5
+bxc4 38. h5 Rb5+ 39. Kg4 Bxh5+ 40. Kh4 Bf7 41. Rc8+ Ke7 42. Rc7+ Kd6 43. Rxf7
+Rc5 44. Rxg7 c3 45. Rxh7 c2 46. Rh6+ Kc7 47. Rh7+ Kb6 48. Rh6+ Kb5 49. Rh5
+Rxh5+ 50. Kxh5 c1=Q 51. Kg6 Qf1 52. Kg7 Kc5 53. Kg6 Kd5 54. Kg5 Ke5 55. Kg4
+{White resigns} 0-1
+

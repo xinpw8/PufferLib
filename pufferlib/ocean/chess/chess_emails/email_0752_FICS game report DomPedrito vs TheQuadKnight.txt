@@ -1,0 +1,20 @@
+Subject: FICS game report DomPedrito vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.01"]
+[Time "17:06:58"]
+[Round "-"]
+[White "DomPedrito"]
+[Black "TheQuadKnight"]
+[WhiteElo "1390"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 d5 4. dxc5 Bg4 5. exd5 Ne5 6. Bb5+ Nd7 7. c6 bxc6
+8. dxc6 Qa5+ 9. Nc3 a6 10. cxd7+ Bxd7 11. Qxd7#
+{Black checkmated} 1-0
+

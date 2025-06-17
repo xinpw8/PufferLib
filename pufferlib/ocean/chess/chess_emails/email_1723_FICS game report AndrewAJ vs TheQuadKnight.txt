@@ -1,0 +1,26 @@
+Subject: FICS game report AndrewAJ vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.29"]
+[Time "11:00:41"]
+[Round "-"]
+[White "AndrewAJ"]
+[Black "TheQuadKnight"]
+[WhiteElo "1511"]
+[BlackElo "1466"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 d6 5. h3 Na5 6. Bb5+ c6 7. Ba4 b5 8. Bb3
+Nxb3 9. axb3 Nf6 10. Nc3 O-O 11. O-O Re8 12. Kh1 Qb6 13. Qe2 Qc7 14. Nh4
+d5 15. f4 dxe4 16. dxe4 b4 17. Na4 Bd6 18. f5 a5 19. Be3 Ba6 20. Qf3 Bxf1
+21. Rxf1 Be7 22. Nb6 Rab8 23. Nc4 Nd7 24. Qg4 Qd8 25. Nf3 h6 26. Bxh6 Bf6
+27. Nxa5 Qxa5 28. Nd2 Kf8 29. Be3 Nc5 30. Nc4 Qb5 31. Nd6 Qxf1+ 32. Kh2
+Red8 33. Bxc5 Qf4+ 34. Qxf4 exf4 35. Nc8+ Kg8 36. Na7 Rd2 37. Nxc6 Ra8 38. Nxb4
+Rc8 39. Bb6 Bxb2 40. c4 Rb8 41. Bc5 Bc3 42. Nd5 Rxb3 43. Nxf4 Rbb2 44. Kg3
+Be5
+{White resigns} 0-1
+

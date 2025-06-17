@@ -1,0 +1,23 @@
+Subject: FICS game report TBMandalorian vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.06"]
+[Time "09:32:19"]
+[Round "-"]
+[White "TBMandalorian"]
+[Black "TheQuadKnight"]
+[WhiteElo "1395"]
+[BlackElo "1416"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. O-O Nxe4 5. d4 d5 6. Bb3 Nxd4 7. Nxd4
+exd4 8. Re1 Be7 9. Qxd4 O-O 10. Bxd5 Nf6 11. Nc3 c6 12. Bxf7+ Kxf7 13. Qc4+
+Nd5 14. Re3 Be6 15. Rf3+ Kg8 16. Nxd5 Bxd5 17. Rxf8+ Qxf8 18. Qe2 Re8 19. Qg4
+Bf6 20. Be3 Bxb2 21. Rb1 Qf6 22. Bxa7 Bxa2 23. Rd1 Qe7 24. h3 Bd5 25. Kh2
+Be5+ 26. g3 Ra8 27. Be3 Qf7 28. c4 Bf3 29. Qd7 Bxd1
+{White resigns} 0-1
+

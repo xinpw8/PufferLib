@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs snek
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.12"]
+[Time "19:32:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "snek"]
+[WhiteElo "1392"]
+[BlackElo "1418"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 Nc6 3. Nf3 exf4 4. Bc4 Bc5 5. d4 Bb6 6. O-O d5 7. Bxd5 Nce7
+8. Bc4 Bg4 9. c3 Qd7 10. Bxf4 O-O-O 11. h3 Bh5 12. Qd3 a6 13. Nbd2 h6 14. Ne5
+Qe8 15. Bg3 f6 16. Nef3 Bg6 17. Bxa6 bxa6 18. Qxa6+ Kb8 19. Nc4 Qc6 20. Nxb6
+Qxb6 21. Qxb6+ Ka8 22. Qxc7 Rc8 23. Qa5+ Kb7 24. a4 Nc6 25. Qb5+ Ka8 26. a5
+Nge7 27. a6 Rb8 28. Qc5 Rhc8 29. d5 Na7 30. Qxe7 Bxe4 31. Qxe4 Rb6 32. d6+
+Nc6 33. d7 Rd8 34. Bc7 Rxd7 35. Bxb6 Rd6 36. Bc7 Re6 37. Qc4 Na7 38. Qxe6
+g5 39. Qe8+ Nc8 40. Qxc8+ Ka7 41. Nd4 f5 42. Nb5#
+{Black checkmated} 1-0
+

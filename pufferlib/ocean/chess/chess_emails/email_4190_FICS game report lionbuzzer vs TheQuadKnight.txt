@@ -1,0 +1,28 @@
+Subject: FICS game report lionbuzzer vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "11:10:49"]
+[Round "-"]
+[White "lionbuzzer"]
+[Black "TheQuadKnight"]
+[WhiteElo "1626"]
+[BlackElo "1358"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Nxe4 5. d4 Nd6 6. Bxc6 dxc6 7. dxe5
+Nf5 8. Qe2 Be7 9. Rd1 Bd7 10. e6 fxe6 11. Ne5 Nd6 12. Qh5+ g6 13. Nxg6 hxg6
+14. Qxh8+ Bf8 15. Bh6 Qe7 16. Nc3 O-O-O 17. Re1 Bxh6 18. Qxh6 Nf5 19. Qf4
+Rf8 20. Qe5 Nh4 21. Ne4 Qf7 22. Re2 Nf5 23. Nc5 Nd6 24. Rae1 Re8 25. b3
+b6 26. Nxd7 Kxd7 27. c4 c5 28. g3 Nf5 29. Rd1+ Nd4 30. Rxd4+ cxd4 31. Qxd4+
+Kc8 32. Qe4 Kb8 33. Kg2 Re7 34. h4 Qf5 35. Qxf5 gxf5 36. Kf3 Kc8 37. Kf4
+Kd8 38. Ke5 Kd7 39. Rd2+ Ke8 40. Kf6 Rd7 41. Rxd7 Kxd7 42. h5 Kd6 43. h6
+e5 44. h7 e4 45. h8=Q e3 46. Qh5 exf2 47. Qd1+ Kc5 48. Qf3 f1=Q 49. Qxf1
+Kb4 50. Qxf5 Kc3 51. Qb1 Kb4 52. g4 Kc5 53. g5 a5 54. g6 b5 55. g7 bxc4
+56. g8=Q cxb3 57. Qgg1+ Kb4 58. Qxb3#
+{Black checkmated} 1-0
+

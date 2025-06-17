@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs MidlandBigMac
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "21:11:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MidlandBigMac"]
+[WhiteElo "1351"]
+[BlackElo "1588"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 c6 2. c4 d5 3. Nc3 a6 4. e3 g6 5. cxd5 cxd5 6. Nf3 Nc6 7. Bd3 Bg7
+8. O-O Nf6 9. Re1 Bg4 10. h3 Bxf3 11. Qxf3 e6 12. Bd2 O-O 13. Rac1 Rc8 14. Na4
+Nd7 15. Nc5 Nxc5 16. Rxc5 Ne7 17. Rec1 Rxc5 18. Rxc5 Re8 19. Ba5 Qd7 20. Rc7
+Qa4 21. b4 b5 22. Ra7 Qxa2 23. Rxa6 Rf8 24. Bxb5 Nf5 25. g4 Ne7 26. Bd8
+Qb1+ 27. Kg2 Nc8 28. Ba5 Qb2 29. h4 e5 30. h5 exd4 31. hxg6 hxg6 32. Qxd5
+dxe3 33. Qf3 exf2 34. Qxf2 Qe5 35. Ba4 Nd6 36. Bb3 Ne4 37. Qf3 Ng5 38. Qf2
+Qe4+ 39. Kf1
+{Black forfeits on time} 1-0
+

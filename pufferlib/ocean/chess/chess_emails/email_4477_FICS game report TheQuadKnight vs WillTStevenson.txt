@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs WillTStevenson
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "10:52:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "WillTStevenson"]
+[WhiteElo "1259"]
+[BlackElo "1873"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 c5 3. e3 b5 4. Nc3 b4 5. Na4 cxd4 6. exd4 e6 7. Bd2 Nc6
+8. Ne2 Be7 9. g3 O-O 10. Bg2 Rb8 11. Nf4 Ba6 12. Rc1 Nxd4 13. Nd3 d5 14. cxd5
+Bxd3 15. Bf4 Bb5 16. Qxd4 Bxa4 17. Bxb8 Qxb8 18. dxe6 fxe6 19. O-O Kh8 20. b3
+Bb5 21. Rfe1 Rd8 22. Qe3 Rd6 23. a4 bxa3 24. b4 h6 25. Qxa3 Ra6 26. Qc3
+Nd5 27. Bxd5 exd5 28. Qc7 Qxc7 29. Rxc7 Bf6 30. Rcc1 Bc4 31. Kg2 Rb6 32. b5
+Kh7 33. Red1 Rxb5 34. Re1 a5 35. Rb1 Rxb1 36. Rxb1 a4 37. Rc1 a3 38. Rxc4
+a2 39. Rc1 a1=Q 40. Rxa1
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,27 @@
+Subject: FICS game report fregen vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.19"]
+[Time "15:32:56"]
+[Round "-"]
+[White "fregen"]
+[Black "TheQuadKnight"]
+[WhiteElo "1513"]
+[BlackElo "1340"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nf6 3. d3 d5 4. exd5 Nxd5 5. Nf3 Bg4 6. O-O Bc5 7. h3 Bh5
+8. Nc3 Nxc3 9. bxc3 O-O 10. g4 Bg6 11. Nxe5 Nc6 12. Nxc6 bxc6 13. Rb1 Qd6
+14. Qf3 Rae8 15. Bf4 Qf6 16. Kg2 Qxc3 17. Bxc7 Qxc2 18. Rfc1 Qe2 19. Bxf7+
+Rxf7 20. Qxe2 Rxe2 21. Rxc5 Rfxf2+ 22. Kg1 Rg2+ 23. Kh1 Bxd3 24. Rd1 Rh2+
+25. Bxh2 Be4+ 26. Kg1 Rg2+ 27. Kf1 Rxh2 28. Re5 Rh1+ 29. Ke2 Bf3+ 30. Kxf3
+Rxd1 31. Re8+ Kf7 32. Ra8 Rd3+ 33. Kg2 Ra3 34. Rb8 Rxa2+ 35. Kg3 a5 36. Rb7+
+Kf6 37. Rb6 Ke5 38. Rxc6 a4 39. Ra6 a3 40. Ra5+ Kd4 41. Ra4+ Kc3 42. Rf4
+Kb3 43. Rf3+ Kb2 44. Rf2+ Kb1 45. Rf1+ Kb2 46. Rf2+ Kb1 47. Rf1+ Kb2 48. Rf3
+Kc2 49. Rf2+ Kb1 50. Rf1+ Kb2 51. Rf2+ Kb1 52. Rf5 Kb2 53. Rf2+
+{Black forfeits on time} 1-0
+

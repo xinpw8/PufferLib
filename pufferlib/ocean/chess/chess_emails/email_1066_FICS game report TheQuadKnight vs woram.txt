@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs woram
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.23"]
+[Time "11:33:26"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "woram"]
+[WhiteElo "1391"]
+[BlackElo "1595"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Bg5 c6 5. e4 d6 6. e5 dxe5 7. dxe5 Nfd7
+8. e6 fxe6 9. Nf3 O-O 10. Qb3 h6 11. Be3 Na6 12. Rd1 Qc7 13. Ne4 b6 14. c5
+Ndxc5 15. Nxc5 Nxc5 16. Bxc5 bxc5 17. Bc4 Rf6 18. O-O Rb8 19. Qc2 Kh7 20. Bd3
+e5 21. Nh4 Be6 22. Nxg6 Kg8 23. Rfe1 Bxa2 24. Bc4+ Bxc4 25. Qxc4+ Kh7 26. Nxe5
+Rxb2 27. Rd7 Qa5 28. Nf3 Rxf3 29. Qe4+ Kg8 30. gxf3 Rb8 31. Qxe7 Qc3 32. Qf7+
+Kh8 33. Re8+ Rxe8 34. Qxe8+ Kh7 35. Qe4+ Kg8 36. Rd8+ Kf7 37. Qe8+ Kf6 38. Rd6+
+Kg5 39. Qg6+ Kf4 40. Qe4+ Kg5 41. Rg6+ Kh5 42. Qf5+
+{Black resigns} 1-0
+

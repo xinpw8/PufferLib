@@ -1,0 +1,25 @@
+Subject: FICS game report napolion vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.20"]
+[Time "15:47:15"]
+[Round "-"]
+[White "napolion"]
+[Black "TheQuadKnight"]
+[WhiteElo "1454"]
+[BlackElo "1346"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. a3 Bc5 5. d3 O-O 6. Nge2 d6 7. O-O Na5
+8. Ba2 Re8 9. b4 Bd4 10. bxa5 b6 11. Nxd4 exd4 12. Ne2 c5 13. Bg5 h6 14. Bh4
+Be6 15. Bb1 Bg4 16. f3 Bh5 17. Nf4 g5 18. Nxh5 Nxh5 19. Bf2 Nf4 20. g3 Nh3+
+21. Kg2 Qd7 22. Be1 h5 23. f4 g4 24. f5 Kg7 25. c3 dxc3 26. Bxc3+ Kf8 27. Qd2
+Qb5 28. Qh6+ Ke7 29. Qf6+ Kd7 30. Qxf7+ Kc6 31. Qd5+ Kd7 32. Qf7+ Kc6 33. Qxh5
+Rg8 34. f6 Rg5 35. Qf7 c4 36. dxc4 Qa6 37. e5 Qb7 38. Qd5+ Kc7 39. exd6+
+Kb8 40. Qxb7+ Kxb7 41. Be4+ Kb8 42. Bxa8 Kxa8 43. d7 bxa5 44. d8=Q+ Kb7
+{Black resigns} 1-0
+

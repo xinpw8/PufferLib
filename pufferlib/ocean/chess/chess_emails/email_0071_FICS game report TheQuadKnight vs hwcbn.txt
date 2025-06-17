@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs hwcbn
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.12"]
+[Time "15:17:15"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "hwcbn"]
+[WhiteElo "1422"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c5 2. dxc5 e6 3. Nf3 Bxc5 4. e4 Nf6 5. Nc3 Qb6 6. Qe2 Bb4 7. Bd2 O-O
+8. g3 Nc6 9. Bg2 Re8 10. O-O d5 11. exd5 exd5 12. Qd3 Bxc3 13. Bxc3 d4 14. Nxd4
+Be6 15. Nxe6 fxe6 16. Rfe1 Rad8 17. Qc4 Na5 18. Qe2 Nc6 19. Rad1 Nd5 20. Bd2
+Rf8 21. Rf1 e5 22. Qg4 Nf6 23. Qg5 h6 24. Qg6 Ne7 25. Qd3 Rxd3 26. cxd3
+Nc6 27. Rfe1 Qxb2 28. Rb1 Qd4 29. Rxb7 Nd8 30. Rc7 Nd5 31. Rd7 Qxf2+ 32. Kh1
+Qxd2 33. Rg1 Ne3 34. Rd5 Nxg2 35. Rxg2 Qe1+ 36. Rg1 Qf2
+{White forfeits on time} 0-1
+

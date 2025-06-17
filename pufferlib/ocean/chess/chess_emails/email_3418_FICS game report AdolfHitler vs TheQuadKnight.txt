@@ -1,0 +1,23 @@
+Subject: FICS game report AdolfHitler vs TheQuadKnight
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "20:45:14"]
+[Round "-"]
+[White "AdolfHitler"]
+[Black "TheQuadKnight"]
+[WhiteElo "-"]
+[BlackElo "1470"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e3 e5 2. Ne2 Nc6 3. a3 Nf6 4. h3 d6 5. b4 Bf5 6. Bb2 Be7 7. g4 Bg6 8. Bg2
+O-O 9. f4 exf4 10. Nxf4 Be4 11. Bxe4 Nxe4 12. d3 Bh4+ 13. Ke2 Nf2 14. Qd2
+Nxh1 15. Qc3 Ng3+ 16. Kf3 f6 17. Ne6 Qe7 18. Nxf8 Kxf8 19. Nd2 Ne5+ 20. Kg2
+h5 21. gxh5 Ne2 22. Qb3 f5 23. e4 Qg5+ 24. Kf1 Qxd2 25. exf5 Ng3+ 26. Kg1
+Nf3#
+{White checkmated} 0-1
+

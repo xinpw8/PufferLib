@@ -1,0 +1,25 @@
+Subject: FICS game report Diner vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "13:29:06"]
+[Round "-"]
+[White "Diner"]
+[Black "TheQuadKnight"]
+[WhiteElo "1417"]
+[BlackElo "1356"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. e3 Nf6 4. a3 Bg4 5. c4 Bxf3 6. Qxf3 e6 7. Nc3 Be7
+8. Bd3 dxc4 9. Bxc4 O-O 10. O-O Na5 11. Ba2 c5 12. d5 exd5 13. Nxd5 c4 14. Nxe7+
+Qxe7 15. Re1 Qe4 16. Qg3 b5 17. Bd2 Nc6 18. Bc3 Qe6 19. e4 Nh5 20. Qf3 Rfe8
+21. Qxh5 Rad8 22. Qxb5 Ne5 23. Bxe5 Qxe5 24. Qxc4 Qf6 25. h3 Rd2 26. Rf1
+Rxb2 27. Rae1 Rd8 28. e5 Qf5 29. e6 fxe6 30. Qxe6+ Qxe6 31. Bxe6+ Kf8 32. Bg4
+Ra2 33. Re2 Rxa3 34. Rfe1 Ra6 35. Bf3 Rf6 36. Rc2 Re8 37. Rxe8+ Kxe8 38. Rc8+
+Kf7 39. Rc7+ Kg6 40. Rxa7 Rd6 41. Re7 Rb6 42. Be4+ Kf6 43. Rb7 Rd6 44. Bxh7
+{Black forfeits on time} 1-0
+

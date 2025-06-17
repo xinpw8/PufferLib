@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs gawnis
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "10:44:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "gawnis"]
+[WhiteElo "1318"]
+[BlackElo "1545"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 Nc6 5. Be3 a6 6. Nc3 Qc7 7. Bd3 Nf6
+8. Qd2 Bb4 9. a3 Be7 10. O-O Ne5 11. Bf4 d6 12. Be2 b5 13. Nf3 Nc4 14. Bxc4
+bxc4 15. Rfe1 Bb7 16. e5 Nd5 17. Nxd5 Bxd5 18. Nd4 O-O 19. Qb4 Rfb8 20. Qc3
+dxe5 21. Bxe5 Bd6 22. Bxd6 Qxd6 23. Ne2 Qb6 24. Rab1 Qb7 25. Nf4 Qc6 26. Nh5
+f6 27. Qg3 Rb7 28. Nxf6+ Kh8 29. Nxd5 exd5 30. Re5 d4 31. Rbe1 Rbb8 32. Re7
+Qg6 33. Qf3 Rf8
+{White forfeits on time} 0-1
+

@@ -1,0 +1,26 @@
+Subject: FICS game report razvanc vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.23"]
+[Time "09:32:19"]
+[Round "-"]
+[White "razvanc"]
+[Black "TheQuadKnight"]
+[WhiteElo "1516"]
+[BlackElo "1321"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Bc4 Nf6 3. Nf3 Nc6 4. d4 exd4 5. Nxd4 Bc5 6. Nxc6 dxc6 7. Qxd8+
+Kxd8 8. e5 Nd5 9. O-O Be6 10. Rd1 Ke7 11. c3 Rhd8 12. b4 Bb6 13. Bg5+ f6
+14. exf6+ Nxf6 15. Rxd8 Rxd8 16. Bxf6+ Kxf6 17. Be2 Rf8 18. c4 c5 19. a3
+Ke7 20. Nc3 cxb4 21. axb4 Bxf2+ 22. Kh1 Bd4 23. Rc1 Rf2 24. Bf3 Be3 25. Rd1
+c6 26. Ne4 Rb2 27. b5 Bxc4 28. bxc6 bxc6 29. h3 Bf4 30. g3 Be5 31. Nc5 Bxg3
+32. Rd7+ Kf6 33. Ne4+ Ke6 34. Rxg7 Rb1+ 35. Kg2 Be1 36. Nc5+ Kd6 37. Ne4+
+Ke6 38. Bg4+ Ke5 39. Ng5 Rb2+ 40. Kf3 Bd5+ 41. Ke3 Rb3+ 42. Ke2 Rb1 43. Re7+
+Kd6 44. Rxa7 Bc4+ 45. Kf3 Be2+
+{White forfeits on time} 0-1
+

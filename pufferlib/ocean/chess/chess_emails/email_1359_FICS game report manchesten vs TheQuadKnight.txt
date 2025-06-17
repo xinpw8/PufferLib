@@ -1,0 +1,25 @@
+Subject: FICS game report manchesten vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.19"]
+[Time "21:26:56"]
+[Round "-"]
+[White "manchesten"]
+[Black "TheQuadKnight"]
+[WhiteElo "1439"]
+[BlackElo "1458"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6
+8. c3 O-O 9. d4 exd4 10. Nxd4 Bb7 11. Nd2 Re8 12. Nf5 Bf8 13. f4 Na5 14. Bc2
+Rb8 15. a4 Nc4 16. Ng3 Ra8 17. Nxc4 bxc4 18. Qe2 Qd7 19. Qxc4 d5 20. Qb3
+Rab8 21. e5 Bc5+ 22. Be3 d4 23. cxd4 Bxd4 24. Qd3 Bxe3+ 25. Qxe3 Qc6 26. Re2
+Nd5 27. Qe4 g6 28. Nh5 gxh5 29. Qxh7+ Kf8 30. Qxh5 Ke7 31. Qg5+ Kf8 32. Qh6+
+Ke7 33. Qg5+ Kf8 34. Qh6+ Ke7 35. Qh4+ Kf8 36. Qh8+ Ke7 37. Qh4+ Kf8 38. Qh8+
+Ke7
+{Game drawn by mutual agreement} 1/2-1/2
+

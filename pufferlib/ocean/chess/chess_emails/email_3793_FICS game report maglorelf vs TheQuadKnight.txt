@@ -1,0 +1,23 @@
+Subject: FICS game report maglorelf vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.30"]
+[Time "11:46:42"]
+[Round "-"]
+[White "maglorelf"]
+[Black "TheQuadKnight"]
+[WhiteElo "1521"]
+[BlackElo "1346"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ng5 h6 6. Nxf7 Kxf7 7. d4 d5 8. Nc3
+dxe4 9. Bc4+ Be6 10. d5 Bf5 11. Bxf4 Bd6 12. O-O Nd7 13. Bxd6 cxd6 14. Rxf5+
+Ngf6 15. Nxe4 Qe7 16. Qxg4 Ke8 17. Qg6+ Kd8 18. Nxf6 Nxf6 19. Rxf6 Kd7 20. Rf7
+Rhg8 21. Bb5+ Kc7 22. Rxe7+ Kb6 23. Qf7 Kxb5 24. Rxb7+ Kc5 25. b4+ Kc4 26. Rd1
+Raf8 27. Qc7#
+{Black checkmated} 1-0
+

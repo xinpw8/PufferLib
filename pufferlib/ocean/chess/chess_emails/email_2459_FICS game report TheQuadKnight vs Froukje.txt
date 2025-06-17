@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Froukje
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.12"]
+[Time "11:52:03"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Froukje"]
+[WhiteElo "1324"]
+[BlackElo "1848"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c5 2. c3 cxd4 3. cxd4 g6 4. e4 Bg7 5. Nf3 Nc6 6. Nc3 d6 7. Be2 Bg4
+8. Be3 Nf6 9. O-O O-O 10. h3 Bxf3 11. Bxf3 e5 12. d5 Na5 13. b3 a6 14. Rc1
+Nd7 15. Na4 Rc8 16. Rxc8 Qxc8 17. Nb6 Nxb6 18. Bxb6 Qc3 19. Be2 Bh6 20. f3
+Be3+ 21. Bxe3 Qxe3+ 22. Kh1 b5 23. b4 Nb7 24. a4 f5 25. axb5 axb5 26. Bd3
+fxe4 27. Bxe4 Nd8 28. Re1 Qb6 29. Qc1 Nf7 30. f4 exf4 31. Qxf4 Ne5 32. Qh2
+Qf2 33. Rg1 Rf4 34. Bf3 Nxf3 35. Qxf4 Qxg1#
+{White checkmated} 0-1
+

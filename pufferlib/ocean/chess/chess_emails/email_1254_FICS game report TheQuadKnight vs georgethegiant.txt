@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs georgethegiant
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.11"]
+[Time "21:22:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "georgethegiant"]
+[WhiteElo "1398"]
+[BlackElo "1274"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Bc5 3. Nf3 d6 4. d4 exd4 5. Nxd4 Qf6 6. Bb5+ c6 7. Be3 cxb5
+8. Ncxb5 Na6 9. O-O Ne7 10. Nc3 O-O 11. Qd3 Qg6 12. Kh1 Nb4 13. Qe2 d5 14. Nf3
+d4 15. Nxd4 Bxd4 16. Bxd4 Re8 17. f3 Ned5 18. a3 Nxc3 19. Bxc3 Nd5 20. Qc4
+Ne3 21. Qe2 Nxf1 22. Qxf1 f5 23. Qf2 fxe4 24. Re1 exf3 25. Rxe8+ Qxe8 26. Qxf3
+Bd7 27. Qxb7 Bc6 28. Qxg7#
+{Black checkmated} 1-0
+

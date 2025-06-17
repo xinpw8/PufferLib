@@ -1,0 +1,27 @@
+Subject: FICS game report Bloem vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "09:21:59"]
+[Round "-"]
+[White "Bloem"]
+[Black "TheQuadKnight"]
+[WhiteElo "1639"]
+[BlackElo "1327"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. d4 Bd7 5. d5 Nb4 6. Bxd7+ Qxd7 7. O-O f5
+8. Nbd2 Nf6 9. c3 Nd3 10. Qe2 Nf4 11. Qe3 fxe4 12. Nxe4 N6xd5 13. Qe1 Qg4
+14. Ng3 Nd3 15. Qe4 Qxe4 16. Nxe4 Nxc1 17. Raxc1 Nf4 18. Rcd1 Be7 19. Rfe1
+O-O 20. c4 c6 21. Nxd6 Bxd6 22. Rxd6 Rad8 23. Red1 Rxd6 24. Rxd6 e4 25. Ng5
+h6 26. Nxe4 Re8 27. f3 Ne2+ 28. Kf2 Nc1 29. a3 Nb3 30. Rd7 b5 31. cxb5 cxb5
+32. Rb7 Nd4 33. Rxa7 Nc6 34. Rb7 b4 35. a4 Rd8 36. b3 Na5 37. Rxb4 Nc6 38. Rb6
+Nd4 39. b4 Nc2 40. b5 Rd4 41. Ra6 Rb4 42. b6 Na3 43. Ra5 Nc4 44. Rb5 Rxb5
+45. axb5 Nxb6 46. Nc5 Nc4 47. Nd7 Nd6 48. b6 Nf7 49. Nc5 Nd6 50. b7 Nxb7
+51. Nxb7
+{Black forfeits on time} 1-0
+

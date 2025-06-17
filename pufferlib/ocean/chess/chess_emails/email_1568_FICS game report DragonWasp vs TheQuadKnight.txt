@@ -1,0 +1,28 @@
+Subject: FICS game report DragonWasp vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "20:24:21"]
+[Round "-"]
+[White "DragonWasp"]
+[Black "TheQuadKnight"]
+[WhiteElo "1572"]
+[BlackElo "1426"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Bc5 6. Nxe5 Nxe5 7. d4 Bxd4
+8. Qxd4 Ng6 9. e5 Ng8 10. e6 fxe6 11. Qxg7 Qf6 12. Qxf6 Nxf6 13. Nc3 b5
+14. Bb3 c5 15. a4 c4 16. Ba2 Bb7 17. axb5 Rg8 18. Bg5 Nd5 19. Nxd5 exd5
+20. Rae1+ Kf7 21. f4 axb5 22. Bb1 Rae8 23. c3 Rxe1 24. Rxe1 Re8 25. Kf2
+Rxe1 26. Kxe1 Bc8 27. Bf5 Ne7 28. Bg4 Nc6 29. Kd2 b4 30. Ke3 bxc3 31. bxc3
+Na5 32. Kd4 Nb3+ 33. Kxd5 Nd2 34. Bf5 Bb7+ 35. Kd6 Bxg2 36. Kxd7 h5 37. Kd6
+Nf3 38. Kc5 Nxg5 39. fxg5 h4 40. Kxc4 Bb7 41. Kc5 Kg7 42. Kd6 Bf3 43. c4
+h3 44. c5 Bg2 45. c6 Bxc6 46. Kxc6 Kg8 47. Bxh3 Kg7 48. Bg4 Kg6 49. h4 Kg7
+50. Kd6 Kg6 51. Ke6 Kg7 52. Bf5 Kg8 53. Kf6 Kh8 54. Kg6 Kg8 55. Bg4 Kh8
+56. Kf7 Kh7 57. g6+ Kh8 58. g7+ Kh7 59. g8=Q+ Kh6 60. Qg5+ Kh7 61. Qg7#
+{Black checkmated} 1-0
+

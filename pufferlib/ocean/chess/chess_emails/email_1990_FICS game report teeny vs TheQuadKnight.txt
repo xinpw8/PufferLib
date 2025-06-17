@@ -1,0 +1,23 @@
+Subject: FICS game report teeny vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.24"]
+[Time "20:46:28"]
+[Round "-"]
+[White "teeny"]
+[Black "TheQuadKnight"]
+[WhiteElo "1661"]
+[BlackElo "1402"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. h3 e5 2. g3 d5 3. f3 b6 4. e3 Bb7 5. d3 f6 6. c3 Bd6 7. b3 Ne7 8. a3
+Nbc6 9. Ne2 a5 10. Bg2 O-O 11. O-O Re8 12. f4 exf4 13. Nxf4 Nf5 14. g4 Nxe3
+15. Bxe3 Rxe3 16. Nxd5 Ne5 17. Nxe3 Bc5 18. d4 Bxg2 19. Nxg2 Nxg4 20. hxg4
+Bd6 21. Qc1 c5 22. Nd2 cxd4 23. cxd4 Qc7 24. Qxc7 Bxc7 25. Rac1 Rd8 26. Rxc7
+Rxd4 27. Re1 h6 28. Ree7 Rxd2 29. Rxg7+ Kf8 30. Rcf7+ Ke8 31. Rb7 Rd4 32. Rg8#
+{Black checkmated} 1-0
+

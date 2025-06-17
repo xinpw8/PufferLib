@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs RealHuman
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.22"]
+[Time "07:38:57"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "RealHuman"]
+[WhiteElo "1306"]
+[BlackElo "1535"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 c6 4. a4 Qd7 5. e3 b5 6. axb5 cxb5 7. Ra5 Ba6
+8. b3 b4 9. Ne4 Qc6 10. Rc5 Qxe4 11. bxc4 e6 12. Bd3 Qxg2 13. Qf3 Qxf3 14. Nxf3
+Bb7 15. Rc7 Bxf3 16. Rg1 Nd7 17. c5 Ngf6 18. Bb5 g6 19. c6 Nb6 20. Bd2 Bd6
+21. Rd7 Nfxd7 22. cxd7+ Nxd7 23. Bxd7+ Kxd7 24. Rg3
+{White resigns} 0-1
+

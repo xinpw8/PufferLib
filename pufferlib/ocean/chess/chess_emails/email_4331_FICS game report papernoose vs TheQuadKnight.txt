@@ -1,0 +1,22 @@
+Subject: FICS game report papernoose vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "18:04:01"]
+[Round "-"]
+[White "papernoose"]
+[Black "TheQuadKnight"]
+[WhiteElo "1504"]
+[BlackElo "1307"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. Nf3 d5 2. g3 Nc6 3. Bg2 e5 4. d3 Nf6 5. O-O Bg4 6. Nbd2 Qd7 7. b3 Bc5
+8. Bb2 O-O-O 9. a3 h5 10. b4 Bd6 11. Ne1 d4 12. Nef3 Ne7 13. Nc4 e4 14. Nxd4
+h4 15. Nxd6+ Qxd6 16. Nb5 Qb6 17. e3 h3 18. Bxh3 Bxh3 19. Bxf6 Bxf1 20. Bxe7
+Rde8 21. Qg4+ Kb8 22. Nc3 Rxe7 23. Nd5 Qe6 24. Qxg7 Ree8 25. Nf6 Qh3
+{White resigns} 0-1
+

@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs akkaram
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.19"]
+[Time "21:26:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "akkaram"]
+[WhiteElo "1428"]
+[BlackElo "1392"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. e3 Bb4 6. Bb5+ Bd7 7. Bxd7+
+Nbxd7 8. Nf3 Bxc3+ 9. bxc3 O-O 10. Ba3 Re8 11. O-O b6 12. Rc1 c5 13. c4
+cxd4 14. Nxd4 Rc8 15. cxd5 Nxd5 16. Re1 N5f6 17. Bb2 Rxc1 18. Qxc1 Qe7 19. Nf5
+Qf8 20. Qc3 Ne5 21. f4 Ng6 22. Nxg7 Kxg7 23. Qxf6+ Kh6 24. g4 Re6 25. g5+
+Kh5 26. Qf5 Nh4 27. Qxh7+ Kg4 28. Re2 Nf3+ 29. Kg2 Nh4+ 30. Kf2 Rg6 31. Re1
+Qb4 32. Rg1+ Kf5 33. Qh6 Rxh6 34. gxh6 Qxb2+ 35. Kg3 Ng6 36. Kh3 Qf6 37. Rg5+
+Ke4 38. Kg4 Kxe3 39. h3 a5 40. Kh5 a4 41. h7 a3 42. f5 Ne5 43. Rg8 Nc4 44. h8=Q
+Qxf5+ 45. Rg5 Qf3+ 46. Kh6 Qxh3+ 47. Kg7 Nd6 48. Qxh3+ Kd2 49. Qd7 Kc2 50. Qxd6
+Kb2 51. Rb5+ Kxa2 52. Qd2+ Ka1 53. Qc1+ Ka2 54. Qb1#
+{Black checkmated} 1-0
+

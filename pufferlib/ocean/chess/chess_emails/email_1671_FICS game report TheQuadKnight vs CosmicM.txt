@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs CosmicM
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.30"]
+[Time "13:05:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CosmicM"]
+[WhiteElo "1422"]
+[BlackElo "1492"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e3 e5 2. d4 exd4 3. exd4 Nf6 4. Nc3 d5 5. Bg5 Be7 6. Bxf6 Bxf6 7. f3
+c6 8. Nge2 O-O 9. Qd2 Re8 10. O-O-O Bf5 11. g4 Bg6 12. Bg2 Nd7 13. Rhe1
+Nb6 14. a3 Nc4 15. Qf4 Qb6 16. b4 Nxa3 17. Nb1 Nxb1 18. Kxb1 Qxb4+ 19. Kc1
+Qa3+ 20. Kd2 c5 21. Nc3 cxd4 22. Nxd5 Qa5+ 23. Kc1 Qxd5 24. Rxe8+ Rxe8 25. Qd2
+d3 26. f4 Qc5 27. Qxd3 Bxd3 28. Rxd3 Qg1+ 29. Kd2 Qxg2+ 30. Kc1 Qxg4 31. Kb1
+Qxf4 32. Rd1 Qe4 33. Rc1 Qe2 34. Ka2 Qxh2 35. Kb3 Qg3+ 36. Kb4 Qf4+ 37. Kb3
+Qxc1 38. Ka4
+{Black forfeits on time} 1-0
+

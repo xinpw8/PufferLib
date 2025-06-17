@@ -1,0 +1,30 @@
+Subject: FICS game report Toomin vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "15:23:33"]
+[Round "-"]
+[White "Toomin"]
+[Black "TheQuadKnight"]
+[WhiteElo "1464"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 Na5 5. b3 Nxc4 6. bxc4 d6 7. O-O Bg4
+8. h3 Bd4 9. c3 Bxf3 10. Qxf3 Bc5 11. Nd2 Nf6 12. Nb3 Bb6 13. Bg5 O-O 14. Bxf6
+Qxf6 15. Qxf6 gxf6 16. d4 a5 17. a4 c6 18. Rad1 Rad8 19. g4 Ba7 20. Kg2
+Bb8 21. Nxa5 Rc8 22. Nxb7 Rce8 23. Na5 Bc7 24. Nxc6 Rc8 25. Nb4 Ba5 26. dxe5
+dxe5 27. Rd6 Rxc4 28. Rxf6 Rxe4 29. Rb1 Rc8 30. Rf3 Rec4 31. Nd5 e4 32. Re3
+Bxc3 33. Nxc3 Rxc3 34. Rxe4 Ra3 35. Rb7 Rc6 36. Rf4 f6 37. Rb5 Ra2 38. Rbf5
+Kg7 39. a5 Ra6 40. Kg3 R2xa5 41. Rf3 Ra4 42. Rb5 Ra7 43. Rb6 Rf7 44. Rf5
+Kg6 45. f3 Ra3 46. h4 h6 47. h5+ Kg7 48. Rfb5 Rc3 49. Rf5 Re3 50. Kh4 Re5
+51. Rxe5 fxe5 52. Re6 Rxf3 53. Rxe5 Rf7 54. Re6 Kf8 55. Rxh6 Ke7 56. Rg6
+Kf8 57. h6 Ke7 58. Kh5 Rh7 59. g5 Kd7 60. Rg7+ Rxg7 61. hxg7 Ke7 62. g8=Q
+Kd6 63. Qg6+ Kc5 64. Kh6 Kc4 65. Kg7 Kc3 66. Qf7 Kc2 67. Qf6 Kd1 68. g6
+Ke1 69. Kf7 Kd1 70. g7 Kc1 71. g8=Q Kb1
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

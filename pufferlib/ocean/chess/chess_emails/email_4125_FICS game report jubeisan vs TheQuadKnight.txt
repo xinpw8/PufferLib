@@ -1,0 +1,29 @@
+Subject: FICS game report jubeisan vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.16"]
+[Time "16:39:59"]
+[Round "-"]
+[White "jubeisan"]
+[Black "TheQuadKnight"]
+[WhiteElo "1428"]
+[BlackElo "1384"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. Nc3 Bd7 5. cxd5 Nxd5 6. Qb3 Nxc3 7. bxc3
+Nc6 8. e4 a6 9. Qxb7 Bd6 10. Qb3 e5 11. d5 Na5 12. Qc2 Nc4 13. Bxc4 O-O
+14. O-O Bg4 15. Be2 c6 16. c4 Rc8 17. Qa4 cxd5 18. cxd5 a5 19. Bd2 Bd7 20. Qxa5
+Bc7 21. Qc3 Bb6 22. Qxe5 Re8 23. Qg3 Rxe4 24. Bc3 f6 25. Bd3 Rg4 26. Qh3
+h6 27. Qh5 Rxc3 28. Bf5 Bxf5 29. Qxf5 Rgc4 30. Qe6+ Kf8 31. Qxb6 Qxb6 32. Rab1
+Qc5 33. Rb8+ Ke7 34. Re1+ Kd6 35. Rd8+ Kc7 36. Rde8 Rc1 37. g3 Rxe1+ 38. Rxe1
+Rc2 39. Rf1 Qc3 40. Kg2 Rc1 41. Rxc1 Qxc1 42. a4 Qc5 43. Kf1 Qxd5 44. Ke2
+Qc4+ 45. Ke3 Qxa4 46. Nd4 Qa3+ 47. Ke2 Qb2+ 48. Ke3 Qc1+ 49. Ke2 Qc4+ 50. Ke3
+g5 51. Nf5 Qc5+ 52. Ke4 Qe5+ 53. Kf3 Qxf5+ 54. Kg2 Kd6 55. h3 Ke5 56. g4
+Qf4 57. f3 Kd4 58. h4 Ke3 59. hxg5 Qxf3+ 60. Kg1 Ke2 61. gxh6 Qg3+ 62. Kh1
+Kf3 63. h7 Qg2#
+{White checkmated} 0-1
+

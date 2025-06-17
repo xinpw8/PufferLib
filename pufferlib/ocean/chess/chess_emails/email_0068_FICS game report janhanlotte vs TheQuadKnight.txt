@@ -1,0 +1,22 @@
+Subject: FICS game report janhanlotte vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.12"]
+[Time "15:32:26"]
+[Round "-"]
+[White "janhanlotte"]
+[Black "TheQuadKnight"]
+[WhiteElo "1355"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Bc5 6. d4 exd4 7. Ng5 d5
+8. Bxd5 Be6 9. Nxf7 Bxf7 10. Bxf7+ Kxf7 11. Qh5+ g6 12. Qxc5 Nf6 13. O-O
+dxc3 14. Nxc3 Re8 15. Bg5 h6 16. Qc4+ Kg7 17. Bh4 g5 18. Bg3 Nh5 19. Nd5
+Nxg3 20. Qc3+ Ne5 21. fxg3 c6 22. Ne3 Qe7 23. Nf5+
+{Black resigns} 1-0
+

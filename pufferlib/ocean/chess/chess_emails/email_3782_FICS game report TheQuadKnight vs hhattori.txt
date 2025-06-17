@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs hhattori
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.31"]
+[Time "05:34:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "hhattori"]
+[WhiteElo "1340"]
+[BlackElo "1513"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 b6 4. Nf3 Bb7 5. Bg5 dxc4 6. e3 e6 7. Bxc4 Be7
+8. Bd3 Nd5 9. Bxe7 Qxe7 10. Rc1 Qf6 11. Be4 Nxc3 12. Rxc3 Bxe4 13. Ne5 O-O
+14. O-O Qe7 15. Qg4 Bg6 16. Qf3 Nd7 17. Nc6 Qf6 18. Qxf6 Nxf6 19. Ne5 Nd5
+20. Nxg6 hxg6 21. Rcc1 Rac8 22. a3 c5 23. e4 Nf6 24. Rfe1 cxd4 25. Rxc8
+Rxc8 26. e5 Nd5 27. Rd1 Rc2 28. b4 Nc3 29. Ra1 Ne2+ 30. Kf1 Rc1+ 31. Rxc1
+Nxc1 32. Ke1 Nd3+ 33. Kd2 Nxe5 34. Kc2 Nc6 35. Kd3 e5 36. g3 Kf8 37. f4
+f6 38. fxe5 fxe5 39. h4 Ke7 40. g4 Ke6 41. b5 Ne7 42. a4 Nd5 43. Ke4 Nc3+
+44. Kf3 Nxa4 45. g5 Nc3 46. Kf2 Nxb5 47. Ke1 Kf5
+{White resigns} 0-1
+

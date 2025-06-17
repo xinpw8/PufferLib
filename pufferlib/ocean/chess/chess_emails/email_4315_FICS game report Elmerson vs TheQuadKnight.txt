@@ -1,0 +1,28 @@
+Subject: FICS game report Elmerson vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.12"]
+[Time "16:21:06"]
+[Round "-"]
+[White "Elmerson"]
+[Black "TheQuadKnight"]
+[WhiteElo "1427"]
+[BlackElo "1332"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Nxe4 5. d4 Be7 6. dxe5 O-O 7. Re1
+Nc5 8. a3 a6 9. Ba4 b5 10. b4 bxa4 11. bxc5 Bxc5 12. Nc3 Re8 13. Qd5 Bb6
+14. Bg5 Ne7 15. Qxa8 c6 16. Nxa4 Ba5 17. Re2 h6 18. Bh4 g5 19. Bg3 Nd5 20. Nc5
+Qb6 21. Nxd7 Bxd7 22. Qxe8+ Bxe8 23. e6 fxe6 24. Ne5 Bc3 25. Nc4 Qb5 26. Rd1
+Qxc4 27. Rxe6 Nf4 28. Bxf4 Qxf4 29. Re3 Bd4 30. Rf3 Qe4 31. Rfd3 Qe2 32. Rxd4
+Bg6 33. R4d2 Qc4 34. c3 Qc5 35. Rd8+ Kg7 36. R8d7+ Bf7 37. c4 Qf5 38. R7d4
+c5 39. Rd5 Bxd5 40. cxd5 Kf7 41. h3 Ke8 42. Kh2 Kd7 43. g3 Kd6 44. Kg2 h5
+45. f3 g4 46. hxg4 hxg4 47. f4 Qg6 48. Kf2 Qc2+ 49. Ke1 Qc3+ 50. Rd2 Qc1+
+51. Ke2 Qc3 52. Rd3 Qc4 53. Ke3 Qc2 54. Rd2 Qc4 55. Rd3 Qc2 56. Rd2 Qc3+
+57. Rd3 Qxd3+ 58. Kxd3 c4+ 59. Kxc4
+{Black forfeits on time} 1-0
+

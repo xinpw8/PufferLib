@@ -1,0 +1,27 @@
+Subject: FICS game report ZECAURUBU vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.03"]
+[Time "20:05:37"]
+[Round "-"]
+[White "ZECAURUBU"]
+[Black "TheQuadKnight"]
+[WhiteElo "1290"]
+[BlackElo "1394"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e3 d5 2. Nf3 Nc6 3. d4 Nf6 4. Be2 Bg4 5. Nbd2 Ne4 6. c3 Nxd2 7. Bxd2
+Bxf3 8. Bxf3 e5 9. O-O Be7 10. Be2 O-O 11. Bd3 Bd6 12. e4 exd4 13. exd5
+dxc3 14. dxc6 cxd2 15. Qxd2 bxc6 16. Qc2 Qh4 17. g3 Qh6 18. Qxc6 Rab8 19. Rab1
+Rb6 20. Qf3 Rfb8 21. b3 Rb4 22. Bc4 Qg6 23. Rbe1 Bc5 24. Re5 Bd6 25. Re4
+Kf8 26. Rfe1 f5 27. R4e2 R4b6 28. Qd5 Re8 29. Rxe8+ Qxe8 30. Rxe8+ Kxe8
+31. Qf7+ Kd8 32. Qg8+ Kd7 33. Qe6+ Kc6 34. Qd5+ Kd7 35. Qxf5+ Kc6 36. Qe4+
+Kd7 37. Qd5 Kc8 38. Qg8+ Kb7 39. Qxg7 Kc6 40. Qg4 Kb7 41. Kg2 Kc6 42. Qg7
+Kb7 43. Qxh7 Kc6 44. Qe4+ Kd7 45. Be6+ Kd8 46. Qh4+ Ke8 47. Qh5+ Ke7 48. Qf7+
+Kd8 49. Qg8+ Ke7 50. Qf7+ Kd8 51. Qd7#
+{Black checkmated} 1-0
+

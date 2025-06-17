@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs normajeanwhy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.20"]
+[Time "18:29:29"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "normajeanwhy"]
+[WhiteElo "1303"]
+[BlackElo "1415"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 Nc6 5. Nc3 Nxd4 6. Qxd4 Nf6 7. Bg5
+Be7 8. O-O-O b6 9. Bb5 O-O 10. Bxf6 Bxf6 11. e5 Bg5+ 12. f4 Bh6 13. g3 Re8
+14. Bxd7 Bxd7 15. Qxd7 Qxd7 16. Rxd7 Red8 17. Rhd1 Rxd7 18. Rxd7 f6 19. Nb5
+fxe5 20. Kb1 exf4 21. Nc7 Re8 22. Nxe8 Kf8 23. Nd6 fxg3 24. hxg3 g6 25. Rxh7
+Bg7 26. Rh4 Be5 27. Ne4 g5 28. Rg4 Ke7 29. Rxg5 Bd4 30. c3 Be3 31. Re5 Bg1
+32. Ng5 Bh2 33. Rxe6+ Kd7 34. Re3 Kc6 35. g4 Bf4 36. Re6+ Kd7 37. Rg6 Be3
+38. Ne4 Ke7 39. g5 Kf7 40. Rf6+ Kg7 41. g6 Bf4 42. Rxf4 Kxg6 43. Nd6 Kg5
+44. Rf7 a5 45. Nb7 a4 46. Rc7 Kf5 47. Rc6 b5 48. Rb6 Ke4 49. Rxb5 Kd3 50. Rc5
+Ke4 51. b3 Kd3 52. bxa4 Ke4 53. a5
+{Black resigns} 1-0
+

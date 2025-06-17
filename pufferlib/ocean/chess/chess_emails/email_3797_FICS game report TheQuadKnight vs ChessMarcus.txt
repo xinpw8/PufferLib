@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs ChessMarcus
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.30"]
+[Time "11:28:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ChessMarcus"]
+[WhiteElo "1363"]
+[BlackElo "1643"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e5 2. c4 exd4 3. Qxd4 Nc6 4. Qd1 Nf6 5. Nf3 Bb4+ 6. Nc3 d6 7. Bd2
+Bg4 8. h3 Bh5 9. e3 Qd7 10. Be2 O-O-O 11. O-O h6 12. a3 Bxc3 13. Bxc3 Ne4
+14. Bd4 Rhg8 15. b4 g5 16. b5 Ne7 17. Bxa7 g4 18. hxg4 Qxg4 19. g3 Nxg3
+20. Nh2 Nxe2+ 21. Kh1 Qg2#
+{White checkmated} 0-1
+

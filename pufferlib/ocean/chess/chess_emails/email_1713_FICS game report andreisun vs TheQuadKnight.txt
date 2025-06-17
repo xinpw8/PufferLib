@@ -1,0 +1,26 @@
+Subject: FICS game report andreisun vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.29"]
+[Time "14:29:43"]
+[Round "-"]
+[White "andreisun"]
+[Black "TheQuadKnight"]
+[WhiteElo "1750"]
+[BlackElo "1487"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O d6 7. Re1 Na5
+8. d4 exd4 9. Nxd4 Nxb3 10. axb3 Bb7 11. f3 Be7 12. c4 c5 13. Nc2 O-O 14. Nc3
+Nd7 15. Nd5 Bh4 16. g3 Bf6 17. Nce3 Bd4 18. Kg2 Nf6 19. Qc2 Nxd5 20. Nxd5
+Bxd5 21. exd5 Re8 22. Bf4 Qf6 23. Rxe8+ Rxe8 24. Rxa6 Be5 25. Bxe5 Qxe5
+26. Qf2 bxc4 27. bxc4 Rb8 28. Ra2 f6 29. h4 Rb4 30. Qc2 Qd4 31. b3 Rb8 32. Kh3
+g6 33. Ra6 Qe5 34. Qd3 f5 35. Ra2 h6 36. Re2 Qd4 37. Qc2 Qa1 38. Re6 Qf1+
+39. Qg2 Qxg2+ 40. Kxg2 Rxb3 41. Rxd6 Rb2+ 42. Kh3 Rb3 43. Rxg6+ Kf7 44. Rc6
+Rxf3 45. Rxc5 f4 46. Kh2 fxg3+ 47. Kg2 Rc3
+{White forfeits on time} 0-1
+

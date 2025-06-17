@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs ranban
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "07:50:45"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ranban"]
+[WhiteElo "1359"]
+[BlackElo "1415"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 Nc6 3. Nf3 Bc5 4. Bc4 d6 5. Nc3 Nf6 6. d4 exd4 7. Na4 Nxe4
+8. Nxc5 Nxc5 9. O-O Bg4 10. Re1+ Ne6 11. Bxe6 fxe6 12. h3 Bxf3 13. Qxf3
+O-O 14. Rxe6 Qd7 15. f5 Ne5 16. Qe4 Rae8 17. Rxe8 Rxe8 18. Qd5+ Kh8 19. Qxd4
+Qxf5 20. Qxa7 Qxc2 21. Qxb7 Nd3 22. Qb5 Qf2+ 23. Kh1 Re1+ 24. Kh2 Qg1+ 25. Kg3
+h6 26. Qxd3 Rxc1 27. Rxc1 Qxc1 28. b3 Qb2 29. Qa6 Qc3+ 30. Kh2 Qe5+ 31. Kg1
+Kh7 32. Qc8 d5
+{White forfeits on time} 0-1
+

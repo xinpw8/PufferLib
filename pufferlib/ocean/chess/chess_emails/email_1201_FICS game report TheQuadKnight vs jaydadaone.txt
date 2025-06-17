@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs jaydadaone
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.23"]
+[Time "09:26:12"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jaydadaone"]
+[WhiteElo "1407"]
+[BlackElo "1519"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Nc6 3. Bf4 dxc4 4. e3 Na5 5. Nf3 c6 6. a4 Qb6 7. Qc2 Qb3
+8. Qd2 b6 9. Ne5 f6 10. Nf3 Bf5 11. Be2 Qc2 12. O-O e6 13. Nc3 Qb3 14. Nh4
+Qb4 15. Nxf5 exf5 16. Qc2 g5 17. Bg3 Nh6 18. Bh5+ Kd8 19. Rad1 Bd6 20. Bxd6
+Qxd6 21. f3 Kc7 22. e4 fxe4 23. fxe4 Nb3 24. d5 c5 25. Nb5+
+{Black resigns} 1-0
+

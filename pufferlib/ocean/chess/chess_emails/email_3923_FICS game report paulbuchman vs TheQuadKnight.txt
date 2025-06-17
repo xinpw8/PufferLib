@@ -1,0 +1,22 @@
+Subject: FICS game report paulbuchman vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "23:08:55"]
+[Round "-"]
+[White "paulbuchman"]
+[Black "TheQuadKnight"]
+[WhiteElo "1991"]
+[BlackElo "1408"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Be2 h6 9. Nf3 e4 10. Ne5 Bd6 11. d4 Bxe5 12. dxe5 Qxd1+ 13. Bxd1
+Nd5 14. O-O O-O 15. b3 Re8 16. c4 Nc7 17. Bd2 Nb7 18. Nc3 Rxe5 19. Bf4 Rf5
+20. Bxc7 Nc5 21. Bc2 Nd3 22. Nxe4
+{Black resigns} 1-0
+

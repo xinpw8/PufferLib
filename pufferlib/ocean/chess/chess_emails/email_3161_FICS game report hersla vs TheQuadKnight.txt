@@ -1,0 +1,24 @@
+Subject: FICS game report hersla vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "23:28:28"]
+[Round "-"]
+[White "hersla"]
+[Black "TheQuadKnight"]
+[WhiteElo "1566"]
+[BlackElo "1371"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Nc6 4. d4 d5 5. e5 Bg4 6. c3 Be7 7. Bxf4 g5 8. Bg3
+h5 9. Bd3 h4 10. Bf2 f6 11. exf6 Nxf6 12. O-O Qd6 13. h3 Bxf3 14. Qxf3 O-O-O
+15. Nd2 g4 16. hxg4 Rdg8 17. Bf5+ Kb8 18. Qh3 Qf4 19. Be3 Qd6 20. Rae1 Nd8
+21. Bf4 Qb6 22. Nb3 Bd6 23. Bxd6 Qxd6 24. Nc5 b6 25. Nd3 Nf7 26. Nf4 Nh6
+27. Re6 Qf8 28. Ng6 Qg7 29. Nxh8 Nhxg4 30. Bxg4 Nxg4 31. Rg6 Qxh8 32. Rxg4
+Rxg4 33. Qxg4 h3 34. Qxh3
+{Black forfeits on time} 1-0
+

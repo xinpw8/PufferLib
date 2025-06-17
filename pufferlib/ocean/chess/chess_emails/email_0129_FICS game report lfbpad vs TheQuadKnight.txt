@@ -1,0 +1,23 @@
+Subject: FICS game report lfbpad vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.28"]
+[Time "20:21:44"]
+[Round "-"]
+[White "lfbpad"]
+[Black "TheQuadKnight"]
+[WhiteElo "1506"]
+[BlackElo "1333"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 e5 4. d5 Nf6 5. e4 c6 6. Bxc4 Bc5 7. Nge2 Bg4
+8. O-O cxd5 9. exd5 O-O 10. Bg5 Nbd7 11. a3 Bd4 12. Qd3 Bh5 13. Ng3 Bg6
+14. Qf3 e4 15. Ncxe4 h6 16. Bxf6 Nxf6 17. Nxf6+ Bxf6 18. Qb3 Rb8 19. Rac1
+Bg5 20. f4 Bf6 21. f5 Bh7 22. Nh5 Bd4+ 23. Kh1 Qg5 24. Ng3 Rbc8 25. Rcd1
+Be5 26. Bd3
+{White resigns} 0-1
+

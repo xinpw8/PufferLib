@@ -1,0 +1,26 @@
+Subject: FICS game report sfochamp vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "11:04:07"]
+[Round "-"]
+[White "sfochamp"]
+[Black "TheQuadKnight"]
+[WhiteElo "1553"]
+[BlackElo "1422"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 a6 5. Nc3 Bc5 6. Be3 Qb6 7. Na4 Qb4+
+8. c3 Qa5 9. Bd3 Nc6 10. Nxc6 bxc6 11. Nxc5 d5 12. exd5 cxd5 13. Nb3 Qc7
+14. O-O Nf6 15. Bg5 Qe7 16. Bxf6 Qxf6 17. Qg4 Bb7 18. Nd4 e5 19. Nb3 e4
+20. Be2 O-O 21. Nd4 Bc8 22. Qg3 Qh6 23. Rad1 f5 24. a4 f4 25. Nf5 fxg3 26. Nxh6+
+gxh6 27. hxg3 Bf5 28. Rxd5 Rad8 29. Rxd8 Rxd8 30. Bc4+ Kf8 31. Bxa6 Bd7
+32. b3 Be6 33. c4 Rd3 34. Rb1 Bf5 35. Rb2 Rc3 36. Bb5 Rc1+ 37. Kh2 h5 38. a5
+Re1 39. a6 e3 40. fxe3 Be4 41. Ra2 Rxe3 42. a7 Rxb3 43. a8=Q+ Bxa8 44. Rxa8+
+Kf7 45. Ra7+ Kf6
+{White forfeits on time} 0-1
+

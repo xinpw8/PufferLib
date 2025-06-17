@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs zenospinoza
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "12:18:59"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "zenospinoza"]
+[WhiteElo "1412"]
+[BlackElo "1372"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d6 2. Nf3 Nf6 3. d4 Nxe4 4. Qe2 Nf6 5. Nc3 Bg4 6. Bg5 e6 7. h3 Bxf3
+8. Qxf3 c6 9. Ne4 Be7 10. Bd3 h6 11. Bh4 Nbd7 12. Bg3 Nxe4 13. Qxe4 Nf6
+14. Qf4 Qa5+ 15. c3 O-O-O 16. O-O g5 17. Qe3 Nd5 18. Qc1 f5 19. c4 f4 20. Bh2
+Nf6 21. g3 fxg3 22. fxg3 Rhf8 23. Kh1 e5 24. Qe3 Qc7 25. dxe5 dxe5 26. Bf5+
+Kb8 27. g4 Bd6 28. Rfd1 Nd7 29. Rd2 Rfe8 30. Bg1 Nf6 31. Qxa7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report ensoro vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.25"]
+[Time "07:36:24"]
+[Round "-"]
+[White "ensoro"]
+[Black "TheQuadKnight"]
+[WhiteElo "1456"]
+[BlackElo "1322"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. c3 dxc3 4. Bc4 cxb2 5. Bxb2 Bb4+ 6. Nd2 Nc6 7. Nf3
+Nf6 8. Qb3 Qe7 9. O-O d6 10. e5 dxe5 11. Bb5 Be6 12. Qc2 O-O-O 13. Bxc6
+bxc6 14. Qxc6 Bxd2 15. Nxd2 Rxd2 16. Qa8+ Kd7 17. Qxh8 Rxb2 18. Rfd1+ Kc6
+19. Qxg7 Nd5 20. Qxe5 f6 21. Qxb2 Qg7 22. Rac1+ Kd6 23. Qa3+ Kd7 24. Qa4+
+Kd6 25. Rc6+ Ke7 26. Re1 Qg4 27. Qxg4 Kd7 28. Qxe6+ Kd8 29. Qe8#
+{Black checkmated} 1-0
+

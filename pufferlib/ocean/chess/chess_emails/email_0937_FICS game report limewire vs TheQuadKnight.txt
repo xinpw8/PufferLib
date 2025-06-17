@@ -1,0 +1,28 @@
+Subject: FICS game report limewire vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "09:08:56"]
+[Round "-"]
+[White "limewire"]
+[Black "TheQuadKnight"]
+[WhiteElo "1248"]
+[BlackElo "1381"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. b4 d5 2. a3 e5 3. e3 Nf6 4. Bb2 Nc6 5. Be2 a6 6. c4 Be6 7. cxd5 Bxd5
+8. Nf3 Be7 9. Nxe5 Nxe5 10. Bxe5 O-O 11. O-O Nd7 12. Bb2 Bf6 13. Nc3 Bc6
+14. Rb1 Be5 15. d4 Bd6 16. Bf3 Qh4 17. g3 Bxf3 18. Qxf3 Qh3 19. Ne4 Be7
+20. Nc5 Nxc5 21. dxc5 Rad8 22. Qxb7 Rd2 23. Qxa6 Bg5 24. Bd4 h6 25. Qc6
+Rd8 26. Qxc7 Re8 27. Qc6 Kf8 28. Qg2 Qg4 29. Ra1 Bxe3 30. Bxe3 Rxe3 31. Qa8+
+Re8 32. Qg2 Ree2 33. Rae1 Ra2 34. Rxe2 Qxe2 35. Qa8+ Ke7 36. Qb7+ Kf6 37. Qc6+
+Qe6 38. Qf3+ Qf5 39. Qc3+ Kg6 40. Qb3 Qc2 41. Qxc2+ Rxc2 42. Ra1 Kf5 43. Kg2
+Ke4 44. a4 Rb2 45. b5 Kd5 46. c6 Kd6 47. Ra3 Kc5 48. c7 Kb6 49. c8=Q Ka5
+50. Qa8+ Kb4 51. Ra1 Rb3 52. b6 Rc3 53. b7 Kc4 54. Qc8+ Kd3 55. Qxc3+ Kxc3
+56. b8=Q Kd2 57. Qe5
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs graciano
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.16"]
+[Time "19:45:31"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "graciano"]
+[WhiteElo "1271"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Nf3 O-O 5. e3 d6 6. Bd3 Nc6 7. O-O e5 8. d5
+Ne7 9. b3 c6 10. Bd2 Bg4 11. h3 Bd7 12. Qc2 Rc8 13. Ne4 cxd5 14. Nxd6 Rc7
+15. Nxe5 dxc4 16. Bxc4 Be6 17. Ndxf7 Bxf7 18. Nxf7 Rxf7 19. Bxf7+ Kxf7 20. Qd1
+Rd7 21. Qf3 Rxd2 22. Qxb7 Qd7 23. Qxd7 Rxd7 24. Rad1 Rxd1 25. Rxd1 Ned5
+26. g4 Ke6 27. Rc1 Ne4 28. f3 Nd2 29. Kg2 Nxe3+ 30. Kf2 Nd5 31. Re1+ Kd6
+32. Ke2 Bc3 33. Rd1 Ke5 34. Rxd2 Bxd2 35. Kxd2 Kf4 36. Ke2 Nc3+ 37. Kf2
+Nxa2 38. h4 Nc1 39. h5 Nxb3 40. hxg6 hxg6 41. Kg2 Nd4 42. g5 Nxf3 43. Kf2
+Nxg5 44. Ke2 a5 45. Kd2 Ne4+ 46. Kd3 a4 47. Kc4 g5 48. Kb4 g4 49. Kxa4 g3
+50. Kb4 g2 51. Kc4 g1=Q 52. Kb5 Qd4 53. Kc6 Qc5+ 54. Kd7 Ke5 55. Ke8 Ke6
+56. Kd8 Qa7 57. Kc8 Kd6 58. Kd8 Qd7#
+{White checkmated} 0-1
+

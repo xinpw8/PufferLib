@@ -1,0 +1,27 @@
+Subject: FICS game report Newintown vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "20:26:21"]
+[Round "-"]
+[White "Newintown"]
+[Black "TheQuadKnight"]
+[WhiteElo "1378"]
+[BlackElo "1275"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qe5+ 4. Be2 Nf6 5. d4 Qa5 6. Bd2 Qb6 7. Nf3
+e6 8. Rb1 Bd6 9. Na4 Qc6 10. Nc3 O-O 11. O-O Re8 12. Re1 Nd5 13. Bb5 Qb6
+14. Bxe8 c6 15. Nxd5 exd5 16. Ne5 Be6 17. Qf3 Qc7 18. Bxf7+ Bxf7 19. Nxf7
+Qxf7 20. Qxf7+ Kxf7 21. c3 Nd7 22. Re2 Nf6 23. f3 Rd8 24. Rbe1 Rd7 25. Bg5
+h6 26. Bxf6 gxf6 27. h3 f5 28. Kf2 h5 29. h4 Bh2 30. Re6 f4 31. Rh6 Bg3+
+32. Kf1 Bxe1 33. Rh7+ Ke6 34. Rxd7 Kxd7 35. Kxe1 Ke6 36. Kf2 Kd6 37. g3
+fxg3+ 38. Kxg3 Ke6 39. Kf4 Kf6 40. b3 b6 41. a4 c5 42. b4 cxb4 43. cxb4
+a5 44. b5 Ke6 45. Kg5 Ke7 46. Kxh5 Kf6 47. Kg4 Ke6 48. h5 Kf6 49. f4 Kg7
+50. Kg5 Kh7 51. h6 Kh8 52. Kg6 Kg8 53. h7+ Kh8 54. Kf6
+{Black forfeits on time} 1-0
+

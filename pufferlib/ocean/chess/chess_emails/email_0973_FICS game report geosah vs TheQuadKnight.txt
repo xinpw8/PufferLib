@@ -1,0 +1,20 @@
+Subject: FICS game report geosah vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "08:50:39"]
+[Round "-"]
+[White "geosah"]
+[Black "TheQuadKnight"]
+[WhiteElo "1430"]
+[BlackElo "1422"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 5. d4 exd4 6. e5 Ng4 7. c3 dxc3
+8. Bxf7+ Kxf7 9. Qd5+ Ke8 10. Qxc5 Ngxe5 11. Nxe5 Qg5 12. Bxg5
+{Black resigns} 1-0
+

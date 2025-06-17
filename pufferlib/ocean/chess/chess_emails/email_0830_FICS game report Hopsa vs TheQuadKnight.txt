@@ -1,0 +1,22 @@
+Subject: FICS game report Hopsa vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.21"]
+[Time "08:54:44"]
+[Round "-"]
+[White "Hopsa"]
+[Black "TheQuadKnight"]
+[WhiteElo "1812"]
+[BlackElo "1394"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Bg5 f6 3. Bc1 c5 4. Nf3 Nc6 5. e3 Bg4 6. Be2 cxd4 7. exd4 e5
+8. dxe5 fxe5 9. Nxe5 Bxe2 10. Qxe2 Nxe5 11. Qxe5+ Ne7 12. O-O Qd7 13. Bf4
+h6 14. Re1 Rg8 15. Nc3 g6 16. Rad1 Kf7 17. Nxd5 Rd8 18. Nc3 Qc8 19. Rxd8
+Qxd8 20. Qe6+ Kg7 21. Ne4 Qd5 22. Be5+ Qxe5 23. Qxe5+ Kh7 24. Nf6+ Kh8
+{Black resigns} 1-0
+

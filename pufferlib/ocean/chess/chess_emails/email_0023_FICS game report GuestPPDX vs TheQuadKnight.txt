@@ -1,0 +1,21 @@
+Subject: FICS game report GuestPPDX vs TheQuadKnight
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.24"]
+[Time "20:42:00"]
+[Round "-"]
+[White "GuestPPDX"]
+[Black "TheQuadKnight"]
+[WhiteElo "-"]
+[BlackElo "1322"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. e3 Nf6 4. Bxc4 e5 5. Nc3 Bb4 6. Nf3 Nc6 7. O-O exd4
+8. exd4 O-O 9. Bg5 Be7 10. Re1 Re8 11. a3 a6 12. Qd3 b5 13. Bb3 Na5 14. Bc2
+Nc4 15. Rab1 Bb7 16. Bxf6 g6 17. Bxe7 Rxe7 18. Rxe7 Qxe7 19. Bb3
+{Black resigns} 1-0
+

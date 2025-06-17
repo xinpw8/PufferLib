@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs CosmicM
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.03"]
+[Time "09:11:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CosmicM"]
+[WhiteElo "1341"]
+[BlackElo "1549"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. Nf3 O-O 6. Be2 c5 7. Bf4 cxd4
+8. Nxd4 Nc6 9. Nf3 Bg4 10. Rb1 Nh5 11. Be3 a6 12. h3 Bxf3 13. Bxf3 Nf6 14. O-O
+Ne5 15. Be2 Rc8 16. Bd4 Nxc4 17. Bxc4 Rxc4 18. Qd3 b5 19. b3 Rc8 20. Nd5
+Nxd5 21. Bxg7 Kxg7 22. Qxd5 Rc2 23. Rfd1 Qb6 24. Rd2 Rfc8 25. Rbd1 Rxd2
+26. Rxd2 Rc5 27. Qd4+ f6 28. b4 Rc6 29. Qd5 Qc7 30. g3 Rc1+ 31. Kg2 Qc6
+32. Qd3 Rc4 33. a3 Qxe4+ 34. Qxe4 Rxe4 35. f3 Rc4 36. Re2 Kf7 37. Re3 e5
+38. g4 Ke6 39. Kg3 d5 40. h4 d4 41. Rd3 Kd5 42. h5 Rc3 43. Rd1 d3 44. hxg6
+hxg6 45. Kf2 Kd4 46. Ke1 Rxa3 47. Kf2 f5 48. gxf5 gxf5 49. Rg1 e4 50. f4
+Ra2+ 51. Kg3 d2 52. Kh4 e3 53. Rg5 Ke4 54. Kg3 d1=Q 55. Rh5
+{White resigns} 0-1
+

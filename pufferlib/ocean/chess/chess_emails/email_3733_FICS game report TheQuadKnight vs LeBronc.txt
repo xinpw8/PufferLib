@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs LeBronc
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.09"]
+[Time "19:56:11"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "LeBronc"]
+[WhiteElo "1370"]
+[BlackElo "1329"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 c6 2. c4 e6 3. Nc3 a6 4. e3 Bb4 5. Nf3 Bxc3+ 6. bxc3 d6 7. Bd3 Nf6
+8. O-O Nbd7 9. Re1 b6 10. e4 a5 11. Bg5 h6 12. Be3 O-O 13. h4 e5 14. dxe5
+Nxe5 15. Nxe5 dxe5 16. a4 c5 17. Rb1 Bb7 18. Qb3 Bxe4 19. Bxe4 Nxe4 20. f3
+Ng3 21. Bf2 Qxh4 22. Bxg3 Qxg3 23. Qxb6 Rab8 24. Qxc5 Rxb1 25. Rxb1 Qg5
+26. Qxa5 e4 27. Qxg5 hxg5 28. fxe4 Re8 29. Re1 f5 30. Kf2 fxe4 31. c5 Rc8
+32. Rxe4 Rxc5 33. c4 Ra5 34. Kf3 Rxa4 35. Kg4 Ra5 36. g3 Kf7 37. Kh5 g6+
+38. Kg4 Kf6 39. Re3 Ra4 40. Rf3+ Ke6 41. Kxg5 Rxc4 42. Kxg6 Rg4+ 43. Kh5
+Ra4 44. g4 Ke5 45. Rf5+ Ke4 46. Rf6 Ra8 47. Rg6 Rh8+ 48. Kg5 Ke5 49. Rh6
+Rg8+ 50. Rg6 Rh8 51. Rf6 Rg8+ 52. Rg6 Rf8 53. Kh6 Kf4 54. g5 Rh8+ 55. Kg7
+Rh5 56. Rf6+ Kxg5 57. Rg6+ Kf5 58. Rf6+ Ke5 59. Rf7 Kd5 60. Re7 Rg5+ 61. Kf8
+Rf5+ 62. Ke8 Kd6 63. Rd7+ Kc6 64. Re7 Kd5 65. Rd7+ Ke5 66. Re7+ Kf4 67. Kd7
+Rd5+ 68. Ke8 Re5 69. Rxe5 Kxe5
+{Neither player has mating material} 1/2-1/2
+

@@ -1,0 +1,25 @@
+Subject: FICS game report BijuKeralaINDIAN vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "23:59:56"]
+[Round "-"]
+[White "BijuKeralaINDIAN"]
+[Black "TheQuadKnight"]
+[WhiteElo "1447"]
+[BlackElo "1420"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. e5 Nxe5 6. Nc3 a6 7. Bf4 Ng6
+8. Bg3 e5 9. Bd3 exd4 10. Qe2+ Be7 11. O-O-O dxc3 12. Rhe1 cxb2+ 13. Kxb2
+Qb6+ 14. Ka1 Qd4+ 15. c3 Qxc3+ 16. Kb1 Qb4+ 17. Ka1 Qd4+ 18. Kb1 O-O 19. Bxg6
+Re8 20. Rxd4 hxg6 21. Rh4 Nd5 22. Bd6 Nc3+ 23. Kc2 Nxe2 24. Rxe2 Bxh4 25. Rxe8+
+Kh7 26. Be5 f6 27. Bc3 b5 28. g3 Bg5 29. f4 Bh6 30. Re7 Ra7 31. Bxf6 Rc7+
+32. Kb3 Bb7 33. Be5 Bd5+ 34. Kb2 Rc4 35. Rxd7 Rb4+ 36. Kc3 Ra4 37. Rxd5
+Rxa2 38. g4 Ra3+ 39. Kb2 Bxf4 40. Bxf4
+{Black forfeits on time} 1-0
+

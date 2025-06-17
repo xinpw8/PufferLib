@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs WizardX
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.07"]
+[Time "22:41:11"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "WizardX"]
+[WhiteElo "1339"]
+[BlackElo "1294"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 e6 3. d4 a6 4. Be3 b6 5. Nc3 h6 6. dxc5 Bxc5 7. Bxc5 bxc5
+8. Qd6 Qa5 9. O-O-O Nf6 10. e5 Nh7 11. Ne4 Qxa2 12. Qxc5 Qa1+ 13. Kd2 Qxb2
+14. Qxc8+ Ke7 15. Qxh8 Ng5 16. Nd6 Qb4+ 17. Ke2 Nc6 18. Qxa8 Nd8 19. Nxg5
+hxg5 20. Qf3 a5 21. c3 Qb2+ 22. Rd2 Qb6 23. g3 a4 24. Nc4 Qa6 25. Qd3 Qa7
+26. Bg2 a3 27. Ra1 Nc6 28. Nd6 Qc7 29. Qf3 Nxe5 30. Qb7
+{Black forfeits on time} 1-0
+

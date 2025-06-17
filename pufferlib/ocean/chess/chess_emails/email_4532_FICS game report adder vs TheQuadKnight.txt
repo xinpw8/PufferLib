@@ -1,0 +1,28 @@
+Subject: FICS game report adder vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.01"]
+[Time "18:34:59"]
+[Round "-"]
+[White "adder"]
+[Black "TheQuadKnight"]
+[WhiteElo "1459"]
+[BlackElo "1255"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Qf6 6. c3 Nge7 7. Nc2
+Bxe3 8. Nxe3 d6 9. Nd2 Ne5 10. Be2 O-O 11. O-O N7c6 12. Bg4 Qg5 13. Bxc8
+Raxc8 14. f4 Nf3+ 15. Rxf3 Qg6 16. Rg3 Qe6 17. Qf3 f5 18. Nxf5 g6 19. Nh6+
+Kg7 20. Ng4 Rce8 21. Nf2 d5 22. e5 Nxe5 23. Qd1 Nc4 24. Nxc4 dxc4 25. Rf3
+Qe2 26. Qxe2 Rxe2 27. Rb1 h6 28. Ng4 g5 29. fxg5 hxg5 30. Rxf8 Kxf8 31. Nf6
+Kf7 32. Nd5 c6 33. Nb4 Kf6 34. a4 Kf5 35. g3 Kg4 36. Na2 Kf3 37. Rf1+ Ke3
+38. Nc1 Rxb2 39. h4 Rc2 40. hxg5 Rxc3 41. g6 Rxc1 42. Rxc1 Kd3 43. g7 c3
+44. g8=Q c2 45. Qg6+ Kd2 46. Qxc2+ Ke3 47. Rd1 Kf3 48. Rd3+ Kg4 49. Qc4+
+Kf5 50. g4+ Ke5 51. Qd4+ Ke6 52. Qd6+ Kf7 53. Rf3+ Ke8 54. Qf8+ Kd7 55. Qf7+
+Kd6 56. Rf6+ Kc5 57. Qe7+ Kb6 58. Qd8+ Kc5 59. Rf5+
+{Black forfeits on time} 1-0
+

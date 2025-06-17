@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs SacrificioDeRei
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "23:50:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "SacrificioDeRei"]
+[WhiteElo "1378"]
+[BlackElo "1374"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 c6 5. e3 Bd6 6. Bd3 O-O 7. O-O Nbd7
+8. Bd2 e5 9. dxe5 Nxe5 10. Nxe5 Bxe5 11. cxd5 Bxh2+ 12. Kh1 Bc7 13. Ne4
+Ng4 14. Qf3 Qh4+ 15. Qh3 Nxf2+ 16. Rxf2 Bxh3 17. gxh3 Qxh3+ 18. Rh2 Qxh2#
+{White checkmated} 0-1
+

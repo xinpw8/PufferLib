@@ -1,0 +1,26 @@
+Subject: FICS game report bgpinball vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "15:49:17"]
+[Round "-"]
+[White "bgpinball"]
+[Black "TheQuadKnight"]
+[WhiteElo "1625"]
+[BlackElo "1368"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. O-O Bd6 6. d4 exd4 7. Qxd4
+Ne7 8. e5 c5 9. Qc3 Nd5 10. Qd2 Nb4 11. exd6 Bf5 12. Re1+ Kf8 13. Na3 cxd6
+14. c3 Nc6 15. Qe3 b5 16. Qg5 Qxg5 17. Nxg5 Ne5 18. Be3 Nd3 19. Re2 Re8
+20. Rd2 b4 21. cxb4 cxb4 22. Nc4 Ne5 23. Nxe5 dxe5 24. Rad1 f6 25. Nh3 Kf7
+26. Rd7+ Bxd7 27. Rxd7+ Re7 28. Rxe7+ Kxe7 29. Kf1 Rc8 30. Ke2 Rc2+ 31. Kd3
+Rxb2 32. g3 Ke6 33. Bc5 a5 34. f4 exf4 35. Nxf4+ Kf5 36. h4 Rxa2 37. Ne2
+b3 38. Nd4+ Ke5 39. Nxb3 a4 40. Nc1 Ra1 41. Ne2 Rd1+ 42. Kc2 Rh1 43. Bd4+
+Ke4 44. Bc5 Rh2 45. Kd1 Kf3 46. Nd4+ Kxg3 47. Nf5+ Kg4 48. Nxg7 Rxh4 49. Ne8
+{Black forfeits on time} 1-0
+

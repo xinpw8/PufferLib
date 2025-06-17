@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs jubeisan
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.16"]
+[Time "15:28:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jubeisan"]
+[WhiteElo "1360"]
+[BlackElo "1452"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. Bb5 d6 4. Bxc6+ bxc6 5. d4 cxd4 6. Nxd4 e5 7. Nxc6
+Qc7 8. Nb4 a5 9. Nd3 Nf6 10. Nc3 Bb7 11. Bg5 Nxe4 12. Nxe4 Bxe4 13. O-O
+Bxd3 14. Qxd3 Be7 15. Bxe7 Qxe7 16. Rad1 Rd8 17. Rd2 O-O 18. Qb5 Qa7 19. Rfd1
+Rb8 20. Qc6 Rxb2 21. Rxd6 Rxa2 22. Rd7 Rb2 23. Rxa7
+{Black resigns} 1-0
+

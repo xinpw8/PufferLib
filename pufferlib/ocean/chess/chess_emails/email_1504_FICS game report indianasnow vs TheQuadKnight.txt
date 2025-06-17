@@ -1,0 +1,26 @@
+Subject: FICS game report indianasnow vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.12"]
+[Time "19:26:46"]
+[Round "-"]
+[White "indianasnow"]
+[Black "TheQuadKnight"]
+[WhiteElo "1556"]
+[BlackElo "1408"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Bc5 6. d4 exd4 7. O-O Nf6
+8. e5 d5 9. exf6 dxc4 10. fxg7 Rg8 11. Re1+ Be6 12. Bh6 Qd7 13. Qc2 d3 14. Qd2
+O-O-O 15. Qf4 Ne7 16. Ne5 Qd6 17. Qf6 Nd5 18. Qf3 Qb6 19. Rf1 f6 20. Ng4
+f5 21. Ne5 Rde8 22. Nxc4 Qb5 23. Nbd2 Nxc3 24. Qxd3 Rd8 25. Qxc3 Bd4 26. Qc2
+Bxa1 27. Rxa1 Bxc4 28. Nxc4 Qd5 29. h3 b5 30. Ne3 Qd4 31. Qxf5+ Kb8 32. Rd1
+Qb4 33. Rxd8+ Rxd8 34. Qf8 Rxf8 35. gxf8=Q+ Qxf8 36. Bxf8 Kb7 37. Bb4 a6
+38. Nf5 c6 39. Ne7 Kb6 40. Nd5+ Kb7 41. Ne7 a5 42. f4 Ka6 43. f5 axb4 44. f6
+Ka5 45. f7 Ka4 46. f8=Q b3 47. Qa8+
+{Black forfeits on time} 1-0
+

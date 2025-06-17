@@ -1,0 +1,25 @@
+Subject: FICS game report callerfrombeyond vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "14:04:25"]
+[Round "-"]
+[White "callerfrombeyond"]
+[Black "TheQuadKnight"]
+[WhiteElo "1604"]
+[BlackElo "1322"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nc6 3. d4 exd4 4. Nf3 Bc5 5. Ng5 d5 6. Bxd5 Nh6 7. Nxf7
+Nxf7 8. Bxf7+ Kxf7 9. Qh5+ g6 10. Qxc5 Re8 11. O-O Rxe4 12. Bg5 Qe8 13. Nd2
+Re5 14. Qc4+ Be6 15. Qd3 Rxg5 16. Ne4 Rd5 17. Rae1 Kf8 18. Nf6 Qf7 19. Nxd5
+Bxd5 20. f4 Nb4 21. Qxd4 Nxc2 22. Qc5+ Kg7 23. Re7 Qxe7 24. Qxe7+ Bf7 25. Qe5+
+Kg8 26. Qxc7 Ne3 27. Re1 Nf5 28. Qxb7 Re8 29. Rxe8+ Bxe8 30. Qxa7 Bb5 31. a4
+Bc6 32. a5 Ne3 33. Qxe3 Bb5 34. Qe6+ Kg7 35. Qe5+ Kf7 36. Qxb5 Ke7 37. a6
+Ke6 38. Qc5
+{Black resigns} 1-0
+

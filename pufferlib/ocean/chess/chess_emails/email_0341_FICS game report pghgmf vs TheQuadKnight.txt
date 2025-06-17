@@ -1,0 +1,26 @@
+Subject: FICS game report pghgmf vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.12.08"]
+[Time "17:33:17"]
+[Round "-"]
+[White "pghgmf"]
+[Black "TheQuadKnight"]
+[WhiteElo "1368"]
+[BlackElo "1344"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d3 Nc6 3. c3 Nf6 4. h3 d5 5. Nd2 dxe4 6. dxe4 Bc5 7. Qc2 Be6
+8. Be2 O-O 9. g4 a6 10. Nf1 b5 11. Ng3 Ne7 12. Bg5 Ng6 13. Nf3 h6 14. Bd2
+Qe7 15. g5 hxg5 16. Bxg5 Rad8 17. Nh5 Nf4 18. Nxf6+ gxf6 19. Bh6 Nxe2 20. Qxe2
+Rfe8 21. Nh4 f5 22. Nxf5 Bxf5 23. exf5 Kh7 24. Qh5 Qf6 25. Bg5+ Kg7 26. Bxf6+
+Kxf6 27. Qh6+ Ke7 28. f6+ Ke6 29. Qh4 Rg8 30. Ke2 Rg2 31. Rhf1 Rd5 32. Kf3
+Rg6 33. Rae1 Rxf6+ 34. Kg2 Rg6+ 35. Kh1 Bd6 36. Qe4 f6 37. f4 Rg3 38. f5+
+Ke7 39. Qxd5 Rxh3+ 40. Kg2 Rh4 41. Kg3 Rh5 42. Kg4 Rg5+ 43. Kf3 Rh5 44. Rh1
+Rh2 45. Rxh2 Kd8 46. Rh8+ Kd7 47. Qf7+ Kc6
+{White forfeits on time} 0-1
+

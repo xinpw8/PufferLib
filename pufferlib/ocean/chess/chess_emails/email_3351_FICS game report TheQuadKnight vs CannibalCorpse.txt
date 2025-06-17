@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs CannibalCorpse
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.22"]
+[Time "12:24:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CannibalCorpse"]
+[WhiteElo "1429"]
+[BlackElo "1537"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. d3 Nc6 4. Nf3 Nf6 5. Bxf4 Be7 6. Be2 O-O 7. O-O d5
+8. e5 Nd7 9. e6 fxe6 10. Bg3 Nf6 11. Nc3 Bd6 12. Qe1 e5 13. Bd1 Re8 14. Bh4
+Bg4 15. Qg3 Bh5 16. Nxd5 Bg6 17. Bxf6 gxf6 18. Nh4 Kg7 19. Bh5 Bc5+ 20. Ne3
+Bxe3+ 21. Qxe3 Qd4 22. Nf5+ Bxf5 23. Qxd4 Nxd4 24. c3 Nc2 25. Rac1 Ne3 26. Rf3
+Bg4 27. Bxg4 Nxg4 28. h3 Nh6 29. Rcf1 Re6 30. Re3 Rd8 31. d4
+{Black forfeits on time} 1-0
+

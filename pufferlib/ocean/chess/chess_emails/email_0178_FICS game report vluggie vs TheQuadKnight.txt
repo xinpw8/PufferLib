@@ -1,0 +1,25 @@
+Subject: FICS game report vluggie vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.25"]
+[Time "15:37:18"]
+[Round "-"]
+[White "vluggie"]
+[Black "TheQuadKnight"]
+[WhiteElo "1517"]
+[BlackElo "1398"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. Ne5 Qh4+ 6. Kf1 d5 7. Bxd5 Be6
+8. Bxe6 fxe6 9. Qxg4 Qxg4 10. Nxg4 Nd7 11. d4 O-O-O 12. Bxf4 Ngf6 13. Nxf6
+Nxf6 14. Bg5 Be7 15. Bxf6 Bxf6 16. c3 Rhf8 17. Ke2 e5 18. d5 c6 19. c4 a6
+20. Nc3 b5 21. cxb5 axb5 22. dxc6 b4 23. Nd5 Bg5 24. Rhf1 Rg8 25. Rf7 Rdf8
+26. Raf1 Rxf7 27. Rxf7 Bc1 28. Ne7+ Kc7 29. Nxg8+ Kxc6 30. b3 h6 31. Ne7+
+Kc5 32. Nd5 Kd4 33. Kf3 Bd2 34. g4 Kd3 35. Rc7 Bc3 36. Nxc3 bxc3 37. Rxc3+
+Kxc3 38. a4 Kb4 39. h4 Kxb3 40. a5 Kc3 41. a6 Kd4 42. a7
+{Black resigns} 1-0
+

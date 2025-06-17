@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs EladPankovski
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.04"]
+[Time "15:16:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "EladPankovski"]
+[WhiteElo "1432"]
+[BlackElo "1318"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nf6 3. Bg5 c6 4. e3 h6 5. Bh4 Qb6 6. Qc1 e6 7. Bd3 g5 8. Bg3
+Rg8 9. Nc3 h5 10. h3 g4 11. hxg4 Rxg4 12. Ne2 Nbd7 13. Nf4 Ne4 14. Nxh5
+Nxg3 15. Nxg3 Nf6 16. Rh8 Bd7 17. Ne5 Rg7 18. Ke2 O-O-O 19. Rb1 Ne4 20. Nxe4
+dxe4 21. Bxe4 f5 22. Bf3 Bd6 23. Nc4 Qb5 24. Rxd8+ Kxd8 25. b3 Bb4 26. Qh1
+Kc7 27. Qh2+ Kd8 28. Qh8+ Kc7 29. Qxg7 Bd6 30. Bh5 f4 31. Be8 c5 32. dxc5
+Bxc5 33. Qe5+ Kd8 34. Bxd7 Kxd7 35. Rd1+ Ke7 36. Qc7+ Kf6 37. Qd8+ Kf5 38. Ke1
+Qb4+ 39. Kf1 Qb5 40. Kg1 Ke4 41. Qd3#
+{Black checkmated} 1-0
+

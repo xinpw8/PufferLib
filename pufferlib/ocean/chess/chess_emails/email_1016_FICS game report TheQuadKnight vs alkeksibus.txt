@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs alkeksibus
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.03"]
+[Time "19:19:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "alkeksibus"]
+[WhiteElo "1449"]
+[BlackElo "1463"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Ng3 b6 6. Nf3 Bb7 7. Be2 Bd6
+8. Nf1 Nbd7 9. Bg5 h6 10. Be3 Ne4 11. N1d2 Ndf6 12. Nxe4 Nxe4 13. Nd2 Qf6
+14. Bb5+ Kf8 15. Qg4 a6 16. Nxe4 Bxe4 17. Qxe4 axb5 18. Qxa8+
+{Black resigns} 1-0
+

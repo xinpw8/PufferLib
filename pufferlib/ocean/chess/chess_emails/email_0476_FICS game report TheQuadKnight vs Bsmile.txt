@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs Bsmile
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "12:48:29"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Bsmile"]
+[WhiteElo "1401"]
+[BlackElo "1716"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 b6 2. Nf3 Bb7 3. Nc3 e6 4. Bc4 c6 5. d4 d5 6. Bd3 Nd7 7. Bf4 Bb4 8. a3
+Bxc3+ 9. bxc3 Qf6 10. Qd2 e5 11. Nxe5 dxe4 12. Nxd7 Kxd7 13. Bxe4 Re8 14. f3
+Qh4+ 15. Bg3 Rxe4+ 16. fxe4 Qxe4+ 17. Qe2 Nf6 18. Qxe4 Nxe4 19. O-O Nxg3
+20. hxg3 f6 21. Rae1 h5 22. Rf4 Rf8 23. Rfe4 Rf7 24. Rh4 g6 25. Rf4 g5 26. Rfe4
+c5 27. R4e3 c4 28. Kh2 f5 29. Rf1 f4 30. gxf4 gxf4 31. Re5 f3 32. gxf3 h4
+33. f4 Rg7 34. f5 Rg3 35. f6 Rxc3 36. Re7+ Kc8 37. Re8+ Kc7 38. Re7+ Kc6
+39. Rxb7 Kxb7 40. f7 Rxc2+ 41. Kh3 Rc3+ 42. Kxh4 Rxa3 43. f8=Q Rd3 44. Qd6
+Rd2 45. Rf7+ Ka6 46. Qa3+ Kb5 47. Qxa7 Rxd4+ 48. Kg5 Rd5+ 49. Rf5 Rxf5+
+50. Kxf5 Kb4 51. Qd7 b5 52. Qe6 Kb3 53. Qd6 b4 54. Qd5 Kc3 55. Qd1 b3 56. Qc1+
+Kb4 57. Qb1 c3 58. Qa1 c2 59. Qe1+ Ka3 60. Qe7+ Kb2 61. Qa7 c1=Q 62. Qg7+
+Qc3 63. Qg6 Qc2+ 64. Kg4 Qxg6+ 65. Kf3
+{Black ran out of time and White has no material to mate} 1/2-1/2
+

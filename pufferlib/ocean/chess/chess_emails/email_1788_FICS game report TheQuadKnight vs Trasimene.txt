@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs Trasimene
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "06:50:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Trasimene"]
+[WhiteElo "1403"]
+[BlackElo "1493"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Bc5 3. c3 d6 4. d4 exd4 5. cxd4 Bb6 6. Nc3 h6 7. Bd3 Bg4
+8. Be3 Nd7 9. O-O Qe7 10. Nd5 Qd8 11. Nxb6 Nxb6 12. d5 Bxf3 13. Qxf3 Nd7
+14. Rac1 Ne5 15. Qe2 Ne7 16. Bb5+ c6 17. dxc6 bxc6 18. Ba4 O-O 19. Rfd1
+N7g6 20. f4 Qa5 21. b3 Nd7 22. Bxc6 Rac8 23. Bxd7 Rxc1 24. Rxc1 Rd8 25. Bf5
+Ne7 26. Bh3 Qb4 27. Qf3 Qa3 28. Qf2 Nc6 29. f5 Ne5 30. f6 g5 31. Bf5 Nd3
+32. Qd2 Nxc1 33. Qxc1 Qxc1+ 34. Bxc1 d5 35. h4 dxe4 36. Bxe4 gxh4 37. Bxh6
+Rd4 38. Kh2 Rxe4 39. g3 hxg3+ 40. Kxg3 Re2 41. Kf3 Rxa2 42. Bf4 a6 43. b4
+Rb2 44. Bd6 Rd2 45. Bc5 Rd5 46. Ke4 Rd1 47. Ke5 Re1+ 48. Kd6 Rc1 49. Kc6
+Ra1 50. Kb6 Kh7 51. Kc6 Kg6 52. Kb6 Kxf6 53. Kc6 Kf5 54. Kb6 f6 55. Kc6
+Kg5 56. Kb6 f5 57. Kc6 Kg4 58. Kb6 f4 59. Kc7 Kg3 60. Kd7 f3 61. Kd8 Kg2
+62. Kc8 f2 63. Kb7 f1=Q 64. Bf2
+{Black forfeits on time} 1-0
+

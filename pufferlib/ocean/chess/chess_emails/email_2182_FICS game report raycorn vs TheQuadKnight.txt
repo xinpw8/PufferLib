@@ -1,0 +1,23 @@
+Subject: FICS game report raycorn vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.17"]
+[Time "14:39:19"]
+[Round "-"]
+[White "raycorn"]
+[Black "TheQuadKnight"]
+[WhiteElo "1407"]
+[BlackElo "1387"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. c3 e6 4. Bg5 Be7 5. Bxe7 Ngxe7 6. e3 O-O 7. Bd3 f6
+8. O-O e5 9. dxe5 fxe5 10. Be2 Ng6 11. Na3 Be6 12. c4 a6 13. Rc1 e4 14. Nd4
+Qg5 15. Nxe6 Qe5 16. Nxf8 Rxf8 17. cxd5 Nb4 18. Nc4 Qxd5 19. Qxd5+ Nxd5
+20. Nd2 b5 21. Nxe4 Rc8 22. Rfd1 Nf6 23. Nxf6+ gxf6 24. Bg4 Rf8 25. Rxc7
+Ne5 26. Be6+ Kh8 27. f4 Ng4 28. Rdd7 Rb8 29. Rxh7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs BlackSheriff
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "13:10:29"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "BlackSheriff"]
+[WhiteElo "1310"]
+[BlackElo "1459"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d6 2. c4 e5 3. Nc3 exd4 4. Qxd4 Nc6 5. Qd1 Nf6 6. Nf3 Be7 7. Bg5 O-O
+8. Bxf6 Bxf6 9. Rc1 Bg4 10. e3 Ne5 11. Be2 Nxf3+ 12. Bxf3 Bxf3 13. Qxf3
+c6 14. O-O Qa5 15. Rfd1 Rad8 16. a3 Qg5 17. Ne4 Qg6 18. Nxf6+ Qxf6 19. Qxf6
+gxf6 20. Rc2 Rfe8 21. Rcd2 Re6 22. Rd3 f5 23. f3 Kg7 24. Kf2 Kf6 25. h3
+b6 26. b4 Ke5 27. f4+ Kf6 28. g4 fxg4 29. hxg4 Ke7 30. f5 Re4 31. f6+ Ke6
+32. g5 Rxc4 33. Kf3 Rh4 34. Kg3 Re4 35. Kf3 d5 36. Rh1 Rh8 37. Rd4 Rxd4
+38. exd4 Kf5 39. Rh5 Kg6 40. Kg4 h6 41. Rh4 h5+ 42. Kf4 Re8 43. a4 Re4+
+44. Kg3 Re3+ 45. Kf4 Re4+ 46. Kg3 Rxh4 47. Kxh4 a6 48. a5 bxa5 49. Kh3
+{Black forfeits on time} 1-0
+

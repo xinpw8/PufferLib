@@ -1,0 +1,24 @@
+Subject: FICS game report xenoti vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.14"]
+[Time "06:29:35"]
+[Round "-"]
+[White "xenoti"]
+[Black "TheQuadKnight"]
+[WhiteElo "1501"]
+[BlackElo "1318"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 Nf6 6. d4 d6 7. Nd3 Nxe4 8. Bxf4
+h5 9. Qe2 Qe7 10. Nd2 Nc6 11. Qxe4 Qxe4+ 12. Nxe4 Nxd4 13. O-O-O Be6 14. Ng5
+Bf5 15. c3 Ne6 16. g3 O-O-O 17. Nxe6 fxe6 18. Nb4 Be7 19. Bd3 Bxd3 20. Nxd3
+e5 21. Bg5 Bxg5+ 22. hxg5 Rdg8 23. Rdf1 Rxg5 24. Rf7 a6 25. Rhf1 Rgg8 26. Re7
+h4 27. gxh4 g3 28. Rff7 g2 29. Rxc7+ Kb8 30. Rxb7+ Kc8 31. Rg7 g1=Q+ 32. Rxg1
+Rxg1+ 33. Kc2 Kxb7
+{White resigns} 0-1
+

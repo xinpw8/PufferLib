@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Gurcan
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.09"]
+[Time "22:21:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Gurcan"]
+[WhiteElo "1387"]
+[BlackElo "1483"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Bc4 Bg7 7. Bf4 O-O
+8. Qd2 Nc6 9. O-O-O Nh5 10. Bg5 Nxd4 11. Nd5 Nf6 12. Qxd4 Nxd5 13. Qxd5
+Be6 14. Qd3 Bxc4 15. Qxc4 Qb6 16. c3 Rfc8 17. Qe2 Qa5 18. a3 Qxg5+ 19. Kb1
+b5 20. g3 a5 21. f4 Qc5 22. Rd5 Qc6 23. Rxb5 Rcb8 24. Rxb8+ Rxb8 25. Rc1
+Qc5 26. Ka2 Qb6 27. e5 Qb3+ 28. Kb1 Qxa3 29. exd6 exd6 30. Rc2 Bxc3 31. Rxc3
+Qxc3 32. Qc2 Qxc2+ 33. Kxc2 Rb4 34. Kc3 Re4 35. b3 Re2 36. h4 Rh2 37. b4
+Rh3 38. bxa5 Rxg3+ 39. Kb4 Re3 40. Kb5 Re2 41. Kb6 Ra2 42. a6 Rxa6+ 43. Kb7
+d5
+{White forfeits on time} 0-1
+

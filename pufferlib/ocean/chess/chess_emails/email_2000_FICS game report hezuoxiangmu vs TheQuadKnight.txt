@@ -1,0 +1,23 @@
+Subject: FICS game report hezuoxiangmu vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.24"]
+[Time "17:39:59"]
+[Round "-"]
+[White "hezuoxiangmu"]
+[Black "TheQuadKnight"]
+[WhiteElo "1320"]
+[BlackElo "1432"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Nxc6 Qf6 6. Qf3 Qxc6 7. c4
+Nf6 8. Bd3 d6 9. Be3 Bg4 10. Qg3 Bxe3 11. Qxe3 O-O 12. O-O Rfe8 13. f3 Be6
+14. b3 Qd7 15. Nc3 c6 16. Ne2 a6 17. Rad1 b5 18. Nd4 bxc4 19. Nxe6 cxd3
+20. Nf4 Qa7 21. Qxa7 Rxa7 22. Rxd3 d5 23. exd5 cxd5 24. Rfd1 Rae7 25. Nxd5
+Re1+ 26. Rxe1 Rxe1+ 27. Kf2 Ra1 28. Nb4 a5 29. Rd8+ Ne8 30. Rxe8#
+{Black checkmated} 1-0
+

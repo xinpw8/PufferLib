@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs duhme
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.15"]
+[Time "19:00:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "duhme"]
+[WhiteElo "1364"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 b6 2. c4 Bb7 3. d5 e6 4. Nc3 Bb4 5. e4 Nf6 6. Bd3 exd5 7. exd5 O-O
+8. Qc2 Re8+ 9. Ne2 Bxc3+ 10. bxc3 c6 11. d6 c5 12. O-O g6 13. Ng3 Nc6 14. Bg5
+Kg7 15. Ne4 Re6 16. Bh4 Ne5 17. Bxf6+ Rxf6 18. Nxf6 Qxf6 19. Be4 Bxe4 20. Qxe4
+Re8 21. Qd5 Nc6 22. Rfe1 Rxe1+ 23. Rxe1 Qxc3 24. Qe4 Nd4 25. h3 Qxc4 26. Qe5+
+Kg8 27. Qf6 Ne2+ 28. Kh2 Qf4+ 29. Qxf4 Nxf4 30. Re7 Nd3 31. Rxd7 Nxf2 32. Re7
+Kf8 33. Kg3 Nd3 34. Rxa7 Ke8 35. Rb7 c4 36. Rxb6 Ne5 37. Rb2 Kd7 38. Kf4
+f6 39. a4 Nd3+ 40. Ke4 Nxb2 41. a5 Na4 42. Kd4 c3 43. a6 c2 44. a7 Nb6 45. a8=Q
+Nxa8 46. Kd5 c1=Q 47. Ke4 Qd2 48. Kf3 Qxd6 49. Kf2 Nb6
+{White resigns} 0-1
+

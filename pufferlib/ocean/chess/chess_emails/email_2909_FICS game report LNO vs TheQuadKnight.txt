@@ -1,0 +1,21 @@
+Subject: FICS game report LNO vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "13:42:50"]
+[Round "-"]
+[White "LNO"]
+[Black "TheQuadKnight"]
+[WhiteElo "1468"]
+[BlackElo "1396"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 Nf6 6. Nc3 d6 7. Nc4 Nc6 8. d3
+d5 9. exd5 Nxd5 10. Qe2+ Be6 11. Nxd5 Qxd5 12. Bxf4 Nd4 13. Qd2 Nc6 14. O-O-O
+O-O-O 15. Qc3 Rg8 16. Be2 Bg7 17. Rhf1 Bxc3 18. bxc3 Qxg2 19. Ne5 Nxe5
+{White resigns} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report PERUJAW vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.17"]
+[Time "19:50:33"]
+[Round "-"]
+[White "PERUJAW"]
+[Black "TheQuadKnight"]
+[WhiteElo "1504"]
+[BlackElo "1416"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 g6 2. Nc3 Nc6 3. d3 e5 4. Be3 Bg7 5. Qd2 Nf6 6. Be2 O-O 7. Nf3 d6
+8. O-O-O Bg4 9. Kb1 Qd7 10. h3 Be6 11. Ng5 Nb4 12. Nxe6 Qxe6 13. a3 Nc6
+14. g4 Nd4 15. g5 Nd7 16. h4 Nxe2 17. Qxe2 c6 18. h5 d5 19. hxg6 fxg6 20. exd5
+cxd5 21. Bd2 Nc5 22. f3 Rae8 23. Qh2 Kf7 24. f4 Rh8 25. fxe5 Bxe5 26. Rdf1+
+Ke7 27. Qf2 Ref8 28. Qxc5+ Bd6 29. Nxd5+ Kd7 30. Qb5+ Kc8 31. Rxf8+ Rxf8
+32. Qc4+ Kb8 33. Rxh7 Qc8 34. Qd4 Bc5 35. Bf4+ Ka8 36. Qg7 Rxf4 37. Nxf4
+Bb6 38. Nxg6 a6 39. Ne7 Qc7 40. Rh8+ Ka7 41. Qf8 Qg3
+{Black resigns} 1-0
+

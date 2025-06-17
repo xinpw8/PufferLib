@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs bishaftu
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.21"]
+[Time "16:19:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "bishaftu"]
+[WhiteElo "1335"]
+[BlackElo "1588"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 c5 3. e3 cxd4 4. exd4 g6 5. Nf3 Bg7 6. Nc3 O-O 7. Bg5 d5
+8. Bd3 dxc4 9. Bxc4 Qb6 10. Na4 Qc6 11. Qb3 Qe4+ 12. Be3 Nc6 13. Nc5 Qg4
+14. Nxb7 Qxg2 15. Rg1 Qxf3 16. Nc5 Bf5 17. d5 Rab8 18. Qc3 Ne4 19. Qc1 Bxb2
+20. Qd1 Bc3+ 21. Kf1 Bh3+ 22. Rg2 Qxg2+ 23. Ke2 Bg4+ 24. Kd3 Ne5+ 25. Kc2
+Rb2+
+{White resigns} 0-1
+

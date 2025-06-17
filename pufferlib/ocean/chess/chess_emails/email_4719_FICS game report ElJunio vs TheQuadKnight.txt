@@ -1,0 +1,24 @@
+Subject: FICS game report ElJunio vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.20"]
+[Time "18:20:30"]
+[Round "-"]
+[White "ElJunio"]
+[Black "TheQuadKnight"]
+[WhiteElo "1330"]
+[BlackElo "1296"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Bc4 e5 3. Nc3 Nc6 4. Qf3 Nf6 5. Nge2 b6 6. d3 Bd6 7. Bg5 Nd4
+8. Nxd4 exd4 9. Nd5 Be7 10. Nxf6+ Bxf6 11. Bxf6 Qxf6 12. Qxf6 gxf6 13. O-O
+d6 14. f4 f5 15. Bd5 Rb8 16. Rf3 Rg8 17. Rg3 Rxg3 18. hxg3 Be6 19. Bc6+
+Ke7 20. exf5 Bxf5 21. Re1+ Kf8 22. Kf2 Rc8 23. Bd5 Re8 24. Rxe8+ Kxe8 25. a3
+h5 26. Kf3 Ke7 27. Be4 Bg4+ 28. Kf2 Kf6 29. Bf3 Kf5 30. Bxg4+ Kxg4 31. c3
+dxc3 32. bxc3 d5 33. a4 f5 34. d4 c4
+{White resigns} 0-1
+

@@ -1,0 +1,24 @@
+Subject: FICS game report NineMiles vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.09"]
+[Time "14:40:28"]
+[Round "-"]
+[White "NineMiles"]
+[Black "TheQuadKnight"]
+[WhiteElo "1429"]
+[BlackElo "1392"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 Nf6 6. Nxg4 Nxe4 7. Nc3 Ng3
+8. Rg1 d5 9. d4 Rg8 10. Ne5 Qxh4 11. Kd2 Ne4+ 12. Nxe4 dxe4 13. Bc4 Qf2+
+14. Kc3 f6 15. b3 fxe5 16. dxe5 Rg3+ 17. Kb2 Bc5 18. Bd2 Qd4+ 19. Kb1 Ba3
+20. Bc1 Bc5 21. Qxd4 Bxd4 22. Rf1 Bxa1 23. Kxa1 Nc6 24. Rxf4 Rxg2 25. Kb2
+Bd7 26. Bf7+ Ke7 27. Bd5 Nxe5 28. Be3 Bf5 29. Rxf5 b6 30. Bd4 Ng4 31. Rf7+
+Kd6 32. Bxe4 Rd2 33. Bc3 Rxc2+ 34. Kxc2 Re8 35. Bd3 Ne3+ 36. Kb2 Nd5
+{White forfeits on time} 0-1
+

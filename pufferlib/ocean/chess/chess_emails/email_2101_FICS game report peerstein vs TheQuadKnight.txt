@@ -1,0 +1,20 @@
+Subject: FICS game report peerstein vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "15:56:11"]
+[Round "-"]
+[White "peerstein"]
+[Black "TheQuadKnight"]
+[WhiteElo "1443"]
+[BlackElo "1348"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. c3 Nc6 3. Nf3 Nf6 4. d3 d5 5. exd5 Qxd5 6. Be3 Bc5 7. Nbd2 Bxe3
+8. fxe3 Ng4 9. e4 Qc5 10. Nb3 Qf2#
+{White checkmated} 0-1
+

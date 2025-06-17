@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs Campylobacter
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "14:18:18"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Campylobacter"]
+[WhiteElo "1372"]
+[BlackElo "1349"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nf3 dxe4 4. Ne5 Nc6 5. Nxc6 bxc6 6. Nc3 f5 7. Bf4 Bb4
+8. Qd2 Nf6 9. Be5 O-O 10. O-O-O Nd5 11. f3 Nxc3 12. bxc3 Ba3+ 13. Kb1 Rb8+
+14. Ka1 Bb2+ 15. Kb1 Bxc3+ 16. Kc1 Bxd2+ 17. Rxd2
+{White resigns} 0-1
+

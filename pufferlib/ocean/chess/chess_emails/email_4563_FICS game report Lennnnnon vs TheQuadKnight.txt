@@ -1,0 +1,24 @@
+Subject: FICS game report Lennnnnon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "15:19:11"]
+[Round "-"]
+[White "Lennnnnon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1377"]
+[BlackElo "1294"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. c4 Nc6 3. d3 e6 4. Nc3 b6 5. h3 g6 6. Nf3 Bg7 7. Be2 Bxc3+ 8. bxc3
+Nf6 9. Bd2 Qc7 10. Qc1 d5 11. Bg5 dxe4 12. Bxf6 exf3 13. Bxh8 fxg2 14. Rg1
+Qh2 15. Kd2 Qf4+ 16. Kc2 Qxf2 17. Qe1 Qxe1 18. Raxe1 Bd7 19. Bf3 O-O-O 20. Bf6
+Re8 21. Bxg2 Ne7 22. Bxe7 Rxe7 23. Re5 f6 24. Re4 Bc6 25. Rh4 Ba4+ 26. Kd2
+f5 27. Rh6 Kc7 28. h4 Kd6 29. h5 Rg7 30. hxg6 hxg6 31. Bf3 Be8 32. Bh5 Rg8
+33. Bxg6 Bxg6 34. Rgxg6 Rxg6 35. Rxg6 Ke5 36. Rg8
+{Black resigns} 1-0
+

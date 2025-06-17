@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs PopieJopie
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.28"]
+[Time "08:45:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PopieJopie"]
+[WhiteElo "1402"]
+[BlackElo "1442"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 d6 2. d4 Nd7 3. Nf3 c6 4. Bf4 Qc7 5. Nc3 e5 6. Bg3 Ngf6 7. Bc4 Be7
+8. d5 Nh5 9. dxc6 bxc6 10. Bh4 Bxh4 11. Nxh4 Nf4 12. O-O O-O 13. Nf5 Nf6
+14. Nxd6 Bg4 15. f3 Qb6+ 16. Kh1 Nh3 17. gxh3 Bxh3 18. Rg1 Nh5 19. Bf1 Nf4
+20. Rg3 Bxf1 21. Qxf1 Qxb2 22. Ne2 Qxc2 23. Nxf4 exf4 24. Rg4 Rad8 25. Nf5
+g6 26. Nh6+ Kg7 27. Nf5+ Kh8 28. Nh4 Rd2 29. Rg2 Rfd8 30. Rxd2 Rxd2 31. Rc1
+Rxh2+ 32. Kg1 Qxa2 33. Rxc6
+{Game drawn by mutual agreement} 1/2-1/2
+

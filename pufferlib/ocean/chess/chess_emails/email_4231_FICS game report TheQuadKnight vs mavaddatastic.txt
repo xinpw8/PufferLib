@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs mavaddatastic
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "22:10:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mavaddatastic"]
+[WhiteElo "1395"]
+[BlackElo "1570"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 c6 4. e3 e6 5. Nf3 Bd6 6. Bd3 O-O 7. O-O Nbd7
+8. Bd2 Re8 9. Rc1 e5 10. cxd5 cxd5 11. dxe5 Nxe5 12. Nxe5 Bxe5 13. Bb5 Re6
+14. Ba4 Qd6 15. Bb3 Bxh2+ 16. Kh1 Be5 17. Qc2 Ng4 18. Nb5 Rh6+ 19. Kg1 Qf8
+20. f4 Bf6 21. Bxd5 a6 22. Nd4 Bd7 23. Nf5 Bxf5 24. Qxf5 Rg6 25. Bf3 Nh6
+26. Qh3 Qe7 27. f5 Rxg2+ 28. Qxg2 Nxf5 29. e4 Nh4 30. Qg3 Bd4+ 31. Kh2 Re8
+32. Bh6 g6 33. Bg5 Nxf3+ 34. Rxf3 Be5 35. Bf4 Qd6 36. Bxe5 Qxe5 37. Qxe5
+Rxe5 38. Rcf1 Kg7 39. Rxf7+ Kh6 40. Kh3 Rxe4 41. R1f3 Rb4 42. Kg2 Rb6 43. Rh3+
+Kg5 44. Rg3+ Kh5 45. Rxh7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs UGAFootball
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "14:55:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "UGAFootball"]
+[WhiteElo "1384"]
+[BlackElo "1472"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Bc5 3. Nf3 d6 4. d4 exd4 5. Nxd4 Bxd4 6. Qxd4 Qf6 7. Be3
+Qxd4 8. Bxd4 f6 9. f4 Nc6 10. Bf2 Nge7 11. O-O-O O-O 12. Bc4+ Kh8 13. Rhe1
+Bg4 14. Be2 Bxe2 15. Rxe2 Ng6 16. g3 Rae8 17. Rde1 a6 18. Nd5 Rc8 19. h4
+Nge7 20. Nc3 Kg8 21. g4 Ng6 22. Bg3 Nd4 23. Re3 h6 24. h5 Ne7 25. Rd3 Ndc6
+26. Nd5 Nxd5 27. Rxd5 Ne7 28. Rd2 Rfe8 29. Rde2 Nc6 30. e5 Nd4 31. Re3 fxe5
+32. fxe5 dxe5 33. Bxe5 Nc6 34. Bc3 Rxe3 35. Rxe3 Kf7 36. Rd3 Re8 37. Rd7+
+Re7 38. Rxe7+ Nxe7 39. Be5 c6 40. c4 Nc8 41. c5 Ne7 42. Bd6 Nd5 43. Kd2
+Nf6 44. g5 hxg5 45. Ke3 Nxh5 46. Kf3 Kg6 47. Kg4 Nf6+ 48. Kg3 Ne4+ 49. Kg4
+Nxd6 50. cxd6 Kf7 51. d7 Ke7 52. d8=Q+ Ke6 53. Kxg5 Ke5 54. Kg6 Ke4 55. Qe8+
+Kd3 56. Qf7 Kc2 57. Qb3+
+{Black forfeits on time} 1-0
+

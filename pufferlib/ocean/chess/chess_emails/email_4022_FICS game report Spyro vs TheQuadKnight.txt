@@ -1,0 +1,21 @@
+Subject: FICS game report Spyro vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "14:16:15"]
+[Round "-"]
+[White "Spyro"]
+[Black "TheQuadKnight"]
+[WhiteElo "1817"]
+[BlackElo "1327"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. d3 a6 5. f4 b5 6. Bb3 Na5 7. fxe5 Nxb3
+8. axb3 Ng8 9. Nf3 Bb4 10. O-O Bxc3 11. bxc3 Bb7 12. Bg5 Ne7 13. Nd4 O-O
+14. Nf5 Re8 15. Nxe7+ Kh8
+{Black resigns} 1-0
+

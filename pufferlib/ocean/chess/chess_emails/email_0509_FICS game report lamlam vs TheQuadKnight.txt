@@ -1,0 +1,30 @@
+Subject: FICS game report lamlam vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.20"]
+[Time "23:42:19"]
+[Round "-"]
+[White "lamlam"]
+[Black "TheQuadKnight"]
+[WhiteElo "1441"]
+[BlackElo "1370"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 d6 3. d4 exd4 4. Qxd4 Nc6 5. Qd1 Nf6 6. Bd3 Bd7 7. Nge2
+Be7 8. O-O O-O 9. f4 h6 10. f5 Nh7 11. Qe1 Ne5 12. Qg3 Ng5 13. Nf4 Nxd3
+14. cxd3 d5 15. Ncxd5 Bc5+ 16. Kh1 Bd6 17. Qg4 g6 18. h4 Bxf4 19. Bxf4 Nh7
+20. Bxh6 Re8 21. h5 Nf6 22. Nxf6+ Qxf6 23. hxg6 fxg6 24. fxg6 Bxg4 25. Rxf6
+Re5 26. Raf1 Rh5+ 27. Kg1 Rxh6 28. e5 Bh5 29. g7 Kxg7 30. R6f5 Bg6 31. Rg5
+Rh5 32. Rxh5 Bxh5 33. d4 Rd8 34. Rf4 Kg6 35. g4 Kg5 36. Rf5+ Kxg4 37. Rf6
+Rxd4 38. e6 Kg5 39. Rf8 Rd1+ 40. Kf2 Rd2+ 41. Ke3 Rxb2 42. e7 Re2+ 43. Kd3
+Rxe7 44. Ra8 Rd7+ 45. Kc3 a6 46. Ra7 Bf3 47. Ra8 c5 48. Rg8+ Kf4 49. Rf8+
+Ke3 50. Re8+ Kf2 51. Rf8 b5 52. a3 a5 53. Kb3 b4 54. axb4 axb4 55. Rc8 Rd3+
+56. Kc4 Bd5+ 57. Kxc5 Rc3+ 58. Kxb4 Rxc8 59. Kb5 Rd8 60. Kb6 Be6 61. Kb5
+Ke3 62. Kb4 Re8 63. Kb5 Bf7 64. Kb6 Kf4 65. Kb7 Kf5 66. Kb6 Kf6 67. Kb5
+Re6
+{White forfeits on time} 0-1
+

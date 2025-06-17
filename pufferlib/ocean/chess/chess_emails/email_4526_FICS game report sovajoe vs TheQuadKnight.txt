@@ -1,0 +1,25 @@
+Subject: FICS game report sovajoe vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.01"]
+[Time "19:11:21"]
+[Round "-"]
+[White "sovajoe"]
+[Black "TheQuadKnight"]
+[WhiteElo "1302"]
+[BlackElo "1254"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c5 2. e4 cxd4 3. Qxd4 Nc6 4. Qa4 e5 5. c4 Nf6 6. Nc3 Bb4 7. Bg5 Bxc3+
+8. bxc3 O-O 9. Nf3 h6 10. Bh4 a6 11. Qc2 Re8 12. Bd3 Rb8 13. O-O Qe7 14. Bg3
+d6 15. Bh4 b5 16. cxb5 axb5 17. Rab1 b4 18. c4 Bb7 19. Bxf6 Qxf6 20. c5
+Nd4 21. Nxd4 exd4 22. cxd6 Qxd6 23. f4 Qe7 24. e5 f6 25. Rbe1 fxe5 26. Bh7+
+Kh8 27. fxe5 Qg5 28. Rf2 Rbd8 29. e6 Ba6 30. e7 Rxe7 31. Rxe7 Qxe7 32. Qf5
+d3 33. Qf8+ Qxf8 34. Rxf8+ Rxf8 35. h3 d2 36. Kh2 d1=Q 37. Kg3 Be2 38. Kh4
+Qd4+ 39. g4 Qf4 40. Kh5 Bxg4+ 41. hxg4 Qh2+ 42. Kg6 Rf6#
+{White checkmated} 0-1
+

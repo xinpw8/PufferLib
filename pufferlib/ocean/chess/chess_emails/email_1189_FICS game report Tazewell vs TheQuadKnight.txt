@@ -1,0 +1,22 @@
+Subject: FICS game report Tazewell vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.02"]
+[Time "11:00:18"]
+[Round "-"]
+[White "Tazewell"]
+[Black "TheQuadKnight"]
+[WhiteElo "1348"]
+[BlackElo "1429"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Nc6 3. Bf4 Nf6 4. e3 e6 5. Bd3 Bd7 6. h3 Nb4 7. c3 Nxd3+
+8. Qxd3 a6 9. Nbd2 Bb5 10. Qc2 Bd6 11. Ne5 O-O 12. b3 Nh5 13. Bh2 f6 14. Nef3
+Bxh2 15. Rxh2 Qd6 16. g4 e5 17. gxh5 e4 18. O-O-O Be2 19. Rdh1 exf3 20. e4
+Rfe8 21. Nf1 dxe4 22. Ng3 Qa3+ 23. Kb1 Bd3
+{White resigns} 0-1
+

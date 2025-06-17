@@ -1,0 +1,24 @@
+Subject: FICS game report dge vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "10:28:58"]
+[Round "-"]
+[White "dge"]
+[Black "TheQuadKnight"]
+[WhiteElo "1411"]
+[BlackElo "1383"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. b3 Nf6 4. Bb2 e6 5. e3 Bb4+ 6. c3 Ba5 7. Bb5 Bd7
+8. b4 Bb6 9. a4 a6 10. Bd3 a5 11. b5 Ne7 12. Ne5 O-O 13. O-O c6 14. Nxd7
+Qxd7 15. bxc6 bxc6 16. Nd2 c5 17. Bb5 Nc6 18. Ba3 Qd6 19. Nf3 Rac8 20. Rb1
+Bc7 21. Bxc5 Qd7 22. Bxf8 Kxf8 23. Rc1 Qd6 24. c4 Ne4 25. cxd5 exd5 26. Rxc6
+Qe7 27. Qc1 Ng5 28. Nxg5 Qxg5 29. Rxc7 Rd8 30. Rc8 h6 31. Rxd8+ Qxd8 32. Qc5+
+Qe7 33. Qxe7+
+{Black resigns} 1-0
+

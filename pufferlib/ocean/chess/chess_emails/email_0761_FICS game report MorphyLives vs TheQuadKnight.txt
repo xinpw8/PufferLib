@@ -1,0 +1,23 @@
+Subject: FICS game report MorphyLives vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.29"]
+[Time "10:02:26"]
+[Round "-"]
+[White "MorphyLives"]
+[Black "TheQuadKnight"]
+[WhiteElo "1443"]
+[BlackElo "1398"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 c6 4. e3 Bb4 5. Nf3 Nf6 6. Bd3 Qa5 7. Bd2 dxc4
+8. Bxc4 Nd5 9. Bxd5 cxd5 10. O-O Nc6 11. a3 Bd6 12. b4 Qc7 13. Rc1 Qd7 14. Re1
+O-O 15. e4 dxe4 16. Nxe4 Bc7 17. Be3 f5 18. Nc5 Qd6 19. g3 b6 20. Nb3 Bb7
+21. Bf4 Qd7 22. Bxc7 Qxc7 23. Rxe6 Rac8 24. Ne5 Qd8 25. Nxc6 Qd5 26. Ne7+
+Kh8 27. Nxd5 Rc2
+{Black resigns} 1-0
+

@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs GuestZCHL
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.25"]
+[Time "07:29:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "GuestZCHL"]
+[WhiteElo "1322"]
+[BlackElo "-"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e5 3. dxe5 Ng4 4. Nf3 Bc5 5. e3 Nc6 6. h3 Ngxe5 7. Nc3 a5
+8. Be2 d6 9. O-O Be6 10. Ne4 Ba7 11. Neg5 Bd7 12. b3 h6 13. Ne4 f5 14. Nc3
+O-O 15. Bb2 f4 16. Qd5+ Kh8 17. Nb5 Ne7 18. Qd2 N5g6 19. Bd3 Bxb5 20. cxb5
+fxe3 21. fxe3 Qd7 22. Kh1 Qe6 23. Nd4 Bxd4 24. Rxf8+ Rxf8 25. Bxd4 Ne5 26. Bc2
+{Black forfeits on time} 1-0
+

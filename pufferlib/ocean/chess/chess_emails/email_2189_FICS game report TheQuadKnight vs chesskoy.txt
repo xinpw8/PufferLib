@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs chesskoy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.17"]
+[Time "13:46:39"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "chesskoy"]
+[WhiteElo "1391"]
+[BlackElo "1461"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. exd5 exd5 4. Nc3 c6 5. Nf3 Bd6 6. Bd3 Bg4 7. O-O Ne7
+8. Re1 Qc7 9. h3 Bh5 10. Bg5 f6 11. Bh4 O-O 12. Qe2 Re8 13. Nd1 g5 14. Nxg5
+Bxe2 15. Ne6 Qd7 16. Rxe2 Ng6 17. Bxg6 hxg6 18. Nc5 Bxc5 19. Rxe8+ Qxe8
+20. dxc5 Qe1+ 21. Kh2 g5 22. Bg3 Nd7 23. f3 Qf1 24. b4 Re8 25. Bf2 Re2 26. Kg3
+f5 27. h4 gxh4+ 28. Kxh4 Qxg2 29. Bd4 Qh2+ 30. Kg5 Rg2+ 31. Kxf5 Qh5+ 32. Kf4
+Qg5#
+{White checkmated} 0-1
+

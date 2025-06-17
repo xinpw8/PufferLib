@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs fooio
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.11.18"]
+[Time "09:49:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "fooio"]
+[WhiteElo "1428"]
+[BlackElo "1315"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. c4 d5 3. Nc3 c6 4. Nf3 dxc4 5. e4 b5 6. a3 Bb7 7. Be2 Nf6 8. O-O
+Be7 9. Re1 O-O 10. Bf4 Nbd7 11. Rb1 a6 12. b4 cxb3 13. Qxb3 Nb6 14. a4 c5
+15. dxc5 Bxc5 16. axb5 Nxe4 17. bxa6 Bxf2+ 18. Kf1 Bxa6 19. Nxe4 Bxe1 20. Kxe1
+Bxe2 21. Kxe2 Nd5 22. Bg3 Qa5 23. Nfd2 h6 24. Qf3 Rfb8 25. Bxb8
+{Black resigns} 1-0
+

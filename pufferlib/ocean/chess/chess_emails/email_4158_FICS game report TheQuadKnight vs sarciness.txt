@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs sarciness
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.16"]
+[Time "14:12:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sarciness"]
+[WhiteElo "1369"]
+[BlackElo "1495"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 Nf6 2. Nf3 c5 3. Nc3 cxd4 4. Nxd4 Nc6 5. e4 e5 6. Nxc6 bxc6 7. Bg5
+Bb4 8. Qf3 Qa5 9. Bxf6 gxf6 10. Qxf6 Bxc3+ 11. bxc3 Qxc3+ 12. Ke2 Ba6+ 13. Kd1
+Qxa1+ 14. Kd2 Qd4+ 15. Bd3 O-O 16. Qg5+ Kh8 17. Qf6+
+{Game drawn by mutual agreement} 1/2-1/2
+

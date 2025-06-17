@@ -1,0 +1,23 @@
+Subject: FICS game report ninaum vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "13:31:39"]
+[Round "-"]
+[White "ninaum"]
+[Black "TheQuadKnight"]
+[WhiteElo "1682"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. Bc4 Nf6 4. Ng5 Bg4 5. f3 Bh5 6. d4 h6 7. dxe5 hxg5
+8. exf6 Qxf6 9. Nc3 c6 10. Qd2 Be7 11. Qf2 Nd7 12. Bd2 O-O-O 13. Qxa7 d5
+14. exd5 Bc5 15. Qa4 Nb6 16. Qb3 Qd4 17. Ne4 Nxc4 18. O-O-O Rxd5 19. Bxg5
+f6 20. Rxd4 Rxd4 21. Nxc5 fxg5 22. Re1 Nd6 23. Qe6+ Kc7 24. c3 Rd5 25. Qe7+
+Kb6 26. Ne4 Nb5 27. c4 Rc5 28. Qxc5+ Kc7 29. cxb5 Kb8 30. bxc6 Kc7 31. cxb7+
+{Black forfeits on time} 1-0
+

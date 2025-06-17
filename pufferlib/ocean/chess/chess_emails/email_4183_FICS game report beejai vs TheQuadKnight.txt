@@ -1,0 +1,27 @@
+Subject: FICS game report beejai vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "20:54:54"]
+[Round "-"]
+[White "beejai"]
+[Black "TheQuadKnight"]
+[WhiteElo "1596"]
+[BlackElo "1330"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e3 e5 2. b3 Nc6 3. Bb2 Nf6 4. Bb5 Bb4 5. Bxc6 dxc6 6. Bxe5 O-O 7. Nf3
+Ne4 8. h3 Qd5 9. Bb2 Rd8 10. c3 Ba5 11. d4 c5 12. O-O cxd4 13. cxd4 Ng5
+14. Nc3 Bxc3 15. Bxc3 Nxf3+ 16. Qxf3 Qxf3 17. gxf3 Bxh3 18. Rac1 Bxf1 19. Kxf1
+c6 20. Ke2 b5 21. Rg1 f6 22. f4 Rd6 23. Kf3 Rc8 24. Bb4 Rd7 25. Bc5 a5 26. Ke4
+a4 27. b4 g6 28. Kf3 Re8 29. Rh1 Rd5 30. Rc1 Rh5 31. Rg1 Rh3+ 32. Ke2 Kg7
+33. Rg2 g5 34. fxg5 fxg5 35. Rxg5+ Kf6 36. Rg4 h5 37. Rf4+ Kg5 38. Rf7 Re6
+39. Rf4 h4 40. Rf8 Rh1 41. Rf7 h3 42. Rh7 Rh6 43. Rg7+ Rg6 44. Be7+ Kh6
+45. Rf7 h2 46. Bf8+ Kg5 47. Kf3 Rg1 48. Rh7 h1=Q+ 49. Rxh1 Rxh1 50. Bd6
+Rxd6 51. Ke4 Re6+ 52. Kd3 Rhh6 53. f4+ Kf5 54. e4+ Kxf4 55. d5 Reg6
+{White resigns} 0-1
+

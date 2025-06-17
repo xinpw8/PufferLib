@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs philmic
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.17"]
+[Time "06:01:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "philmic"]
+[WhiteElo "1469"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d6 2. c4 c6 3. Nc3 Nf6 4. Bg5 Nbd7 5. e3 g6 6. Nf3 Bg7 7. Bd3 O-O
+8. O-O Qb6 9. Qc2 c5 10. Rab1 cxd4 11. exd4 e5 12. dxe5 Nxe5 13. Nxe5 dxe5
+14. Be3 Qe6 15. f4 Ng4 16. Bd2 Qb6+ 17. Kh1 Nf2+ 18. Rxf2 Qxf2 19. Rf1 Qb6
+20. fxe5 Bxe5 21. Nd5 Qd6 22. Bh6 Bg7 23. Bxg7 Kxg7 24. Qc3+ f6 25. Kg1
+Qc5+ 26. Kh1 Be6 27. Nxf6 Qc6 28. Nd7+ Kg8 29. Nxf8 Rxf8 30. Rxf8+ Kxf8
+31. h3 Qc5 32. Qf6+ Bf7 33. Qd8+ Kg7 34. Qb8 Qb6 35. Qe5+ Kf8 36. b3 Qf2
+37. Qh8+ Bg8 38. Qc3 Qxa2 39. Qb4+ Ke8 40. Qxb7 Qa1+ 41. Kh2 Qe5+ 42. Kh1
+Qe1+ 43. Kh2 Qe5+ 44. Kh1 Qe3 45. Qa8+ Kf7 46. Qb7+ Kf8 47. Qc8+ Kg7 48. Qd7+
+Kh8 49. Qg4 Qxd3 50. Kh2 Qxb3 51. Qh4 Qb6 52. Qxh7+ Kxh7 53. g3 Bxc4 54. h4
+Qb2+ 55. Kh3 Bf1+ 56. Kg4
+{Black forfeits on time} 1-0
+

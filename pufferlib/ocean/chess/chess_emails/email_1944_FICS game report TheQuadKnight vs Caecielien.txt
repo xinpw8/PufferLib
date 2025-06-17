@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Caecielien
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "12:36:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Caecielien"]
+[WhiteElo "1393"]
+[BlackElo "1518"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. Bg5 Ne4 5. cxd5 Nxg5 6. f4 e6 7. fxg5 exd5
+8. e3 Qxg5 9. Qd2 c6 10. Nf3 Qe7 11. Bd3 Bg7 12. O-O-O O-O 13. h4 b5 14. h5
+b4 15. Na4 Ba6 16. Nc5 Bxd3 17. Qxd3 Nd7 18. hxg6 Nxc5 19. gxh7+ Kh8 20. dxc5
+Qxc5+ 21. Kb1 Rae8 22. Nd4 Bxd4 23. exd4 Qe7 24. Qg3 Qe4+ 25. Ka1 Qg6 26. Qxg6
+fxg6 27. Rc1 Re6 28. Rc5 Rf7 29. Ra5 Rfe7 30. a3 bxa3 31. bxa3 Re2 32. Re1
+{White resigns} 0-1
+

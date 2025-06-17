@@ -1,0 +1,29 @@
+Subject: FICS game report skeptyk vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.05"]
+[Time "12:05:02"]
+[Round "-"]
+[White "skeptyk"]
+[Black "TheQuadKnight"]
+[WhiteElo "1298"]
+[BlackElo "1370"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nc6 3. Nc3 Nf6 4. d3 d6 5. Bg5 Na5 6. Bb3 Nxb3 7. axb3 Be7
+8. Qf3 Bg4 9. Qg3 O-O 10. Bxf6 Bxf6 11. Qxg4 c6 12. Qe2 d5 13. Nf3 dxe4
+14. Nxe4 Be7 15. Nxe5 Bf6 16. Nc4 b5 17. Nxf6+ Qxf6 18. Ne3 Qxb2 19. O-O
+Rfe8 20. Qd2 Qd4 21. Rfe1 Qc5 22. c4 Qd4 23. Nf5 Qf6 24. Qf4 Kh8 25. Qf3
+Red8 26. Ng3 Qg6 27. Qe4 Qf6 28. f3 a5 29. Rxa5 g6 30. Rxa8 Rxa8 31. Qe5
+Qxe5 32. Rxe5 Ra1+ 33. Kf2 Ra2+ 34. Re2 Ra3 35. Rb2 bxc4 36. dxc4 f6 37. Ne4
+f5 38. Ng5 Kg7 39. Ne6+ Kf6 40. Nd4 Ra6 41. f4 h6 42. g3 g5 43. Nc2 gxf4
+44. c5 h5 45. gxf4 Kg6 46. Nb4 Kf6 47. Nxa6 Kg6 48. Nb8 Kf6 49. Nxc6 Kg6
+50. Nd4 Kf6 51. Nxf5 Kxf5 52. c6 Kxf4 53. c7 Kg4 54. c8=Q+ Kf4 55. h3 Kg5
+56. Qe6 Kh4 57. Qe4+ Kg5 58. Rd2 Kh6 59. Rd5 Kg7 60. Qe6 Kf8 61. Qc6 Kg7
+62. Rd7+ Kg8 63. Qc8#
+{Black checkmated} 1-0
+

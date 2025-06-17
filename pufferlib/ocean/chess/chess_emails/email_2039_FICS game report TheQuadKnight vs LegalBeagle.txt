@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs LegalBeagle
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.22"]
+[Time "21:13:10"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "LegalBeagle"]
+[WhiteElo "1369"]
+[BlackElo "1592"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 c5 3. Nf3 cxd4 4. Nxd4 e5 5. Nf3 e4 6. Nd4 d5 7. Nc3 dxc4
+8. e3 Nc6 9. Nxc6 Qxd1+ 10. Nxd1 bxc6 11. Bxc4 Bc5 12. Nc3 O-O 13. O-O Bf5
+14. Bd2 Rab8 15. b3 Rfd8 16. Rad1 Bg4 17. f3 Rxd2 18. fxg4 Bxe3+ 19. Kh1
+Rxd1 20. Rxd1 Nxg4 21. Nxe4 Ne5 22. Be2 f5 23. Nd6 g6 24. Re1 Bf2 25. Rf1
+Bc5 26. Nc4 Ng4 27. Bxg4 fxg4 28. Rf4 Re8 29. h3 g3 30. Rf1 Re2 31. a3 Ra2
+32. b4 Be7 33. Re1 Rc2 34. Ne3 Rc3 35. a4 Bxb4 36. Nf1 Kf7 37. Rd1 Ra3 38. Rd7+
+Ke6 39. Rxa7 Ra1 40. Kg1 Bc5+ 41. Kh1 Rxf1#
+{White checkmated} 0-1
+

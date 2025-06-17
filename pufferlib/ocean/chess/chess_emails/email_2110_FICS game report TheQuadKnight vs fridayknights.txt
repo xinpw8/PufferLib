@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs fridayknights
+
+
+[Event "FICS rated losers game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.19"]
+[Time "12:24:49"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "fridayknights"]
+[WhiteElo "1571"]
+[BlackElo "1773"]
+[TimeControl "120+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 f5 2. exf5 Nf6 3. g4 Nxg4 4. Qxg4 g6 5. Qxg6+ hxg6 6. fxg6 Rxh2 7. Rxh2
+Bh6 8. Rxh6 b6 9. g7 Na6 10. Rxb6 axb6 11. Bxa6 Rxa6 12. a4 Rxa4 13. Rxa4
+Ba6 14. Rxa6 e6 15. Rxb6 cxb6 16. f3 Qc7 17. d4 Qxc2 18. b4 Qxc1+ 19. Ke2
+Qxg1 20. Kd2 Qxd4+ 21. Ke2 Qxg7 22. Nc3 Qxc3 23. f4 Qxb4 24. Kf1 Qxf4+
+{White wins by losing all material} 1-0
+

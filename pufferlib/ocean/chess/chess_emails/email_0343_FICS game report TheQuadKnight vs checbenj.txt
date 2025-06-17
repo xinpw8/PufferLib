@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs checbenj
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.12.08"]
+[Time "17:23:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "checbenj"]
+[WhiteElo "1311"]
+[BlackElo "1352"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. c4 Nf6 3. Nc3 c6 4. Nf3 d5 5. Bg5 Be7 6. e3 dxc4 7. Bxc4 h6
+8. Bh4 Nbd7 9. O-O Nb6 10. Bb3 Bd7 11. Qc2 Nfd5 12. Bxe7 Qxe7 13. Rac1 Rc8
+14. a3 O-O 15. Ba2 c5 16. Nxd5 Nxd5 17. Bb1 f5 18. dxc5 Bc6 19. Ne5 Nf6
+20. Ng6 Qf7 21. Nxf8 Rxf8 22. Ba2 Kh8 23. Rfd1 Qg6 24. f3 Bxf3 25. Rf1 Be4
+26. Qd2 Ng4 27. Bxe6 Nxe3 28. Rf2 f4 29. Bh3 Qh5 30. Qd7 Bf5 31. Bxf5 Rxf5
+32. Qd8+ Kh7 33. Re1 Ng4 34. h3 Ne3 35. Qd7 Qg6 36. Rxe3 fxe3 37. Rxf5 e2
+38. Re5 Qb1+ 39. Kf2 Qxb2 40. Rxe2 Qd4+ 41. Qxd4
+{Black resigns} 1-0
+

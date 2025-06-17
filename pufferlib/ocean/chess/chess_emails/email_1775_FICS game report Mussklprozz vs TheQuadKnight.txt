@@ -1,0 +1,30 @@
+Subject: FICS game report Mussklprozz vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "08:20:22"]
+[Round "-"]
+[White "Mussklprozz"]
+[Black "TheQuadKnight"]
+[WhiteElo "1507"]
+[BlackElo "1398"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Bg4 3. Ne5 Bf5 4. c4 e6 5. Nc3 Bd6 6. g3 f6 7. Nf3 Ne7 8. Bg2
+c6 9. O-O Nd7 10. Nh4 Bg6 11. Nxg6 Nxg6 12. e4 O-O 13. exd5 exd5 14. cxd5
+cxd5 15. Bxd5+ Kh8 16. Bxb7 Rb8 17. Bg2 Bb4 18. a3 Ba5 19. b4 Bb6 20. Bf4
+Rc8 21. Nd5 Rc4 22. Nxb6 Nxb6 23. Be3 Nd5 24. Bd2 Rxd4 25. Qc2 Nde7 26. Rad1
+Ne5 27. Be3 Rd7 28. Bc5 Re8 29. Rxd7 Qxd7 30. Rd1 Qc8 31. f4 Nd7 32. Bh3
+f5 33. Bxf5 Nxf5 34. Qxf5 Nxc5 35. Qxc8 Rxc8 36. bxc5 Kg8 37. Rd7 a5 38. Rd5
+Kf7 39. c6 Rxc6 40. Rxa5 Rc2 41. Ra6 Ra2 42. a4 Ke8 43. a5 Kd8 44. g4 Kc8
+45. h4 Kb7 46. Rb6+ Ka7 47. Re6 Rxa5 48. Re7+ Kb6 49. Rxg7 Ra7 50. Rxa7
+Kxa7 51. Kf2 Kb7 52. Ke3 Kc7 53. Ke4 Kd7 54. Kf5 Ke7 55. h5 Kf7 56. g5 Kg7
+57. Ke6 Kf8 58. f5 Kg7 59. f6+ Kf8 60. Kf5 Kf7 61. g6+ hxg6+ 62. hxg6+ Kg8
+63. Ke6 Kf8 64. g7+ Kg8 65. Ke7 Kh7 66. Kf8 Kg6 67. f7 Kh6 68. g8=Q Kh5
+69. Ke7 Kh4 70. f8=Q
+{Black resigns} 1-0
+

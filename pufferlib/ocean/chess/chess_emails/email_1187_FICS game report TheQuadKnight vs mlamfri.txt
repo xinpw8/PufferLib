@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs mlamfri
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.02"]
+[Time "11:16:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mlamfri"]
+[WhiteElo "1430"]
+[BlackElo "1379"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. Nf3 b6 3. c4 e6 4. Nc3 Bb4 5. Bg5 Bb7 6. e3 h6 7. Bh4 g5 8. Bg3
+Ne4 9. Be5 f6 10. Qb3 Bxc3+ 11. bxc3 fxe5 12. Bd3 d6 13. d5 Nc5 14. Bg6+
+Ke7 15. Qc2 Qf8 16. O-O-O Nbd7 17. Bh5 e4 18. Nd2 Nd3+ 19. Kb1 N7c5 20. Nxe4
+Nxe4 21. Rxd3 Qxf2 22. Qd1 Raf8 23. Qg4 Bc8 24. Qxe4 e5 25. Bg4 Bxg4 26. Qxg4
+Qf5 27. Qd1 Rf6 28. Qa4 a5 29. Qd1 Rhf8 30. Kc1 Qf2 31. Rd2 Qxe3 32. h4
+Qxc3+ 33. Rc2 Qa1+ 34. Kd2 Rf2+ 35. Kd3 Qd4#
+{White checkmated} 0-1
+

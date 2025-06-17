@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs luoyun
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.28"]
+[Time "16:42:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "luoyun"]
+[WhiteElo "1360"]
+[BlackElo "1310"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. cxd5 exd5 4. Nf3 Nf6 5. Bf4 Nc6 6. Nc3 Bg4 7. Ne5 Nxe5
+8. dxe5 Be7 9. exf6 Bxf6 10. Qxd5 Bxc3+ 11. bxc3 Qxd5 12. Rd1 Qa5 13. Bd2
+O-O 14. h3 Bf5 15. e3 Rad8 16. Be2 Qxa2 17. g4 Bc2 18. Rc1 Be4 19. Rd1 Bxh1
+20. f3 Bxf3 21. Bxf3 Rfe8 22. Bxb7 Rd3 23. Bc6 Red8 24. e4 Rxd2 25. Rxd2
+Qxd2+ 26. Kf1 Qd1+ 27. Kf2 Rd2+ 28. Ke3 Qe2+ 29. Kf4 g5+ 30. Ke5 f6+ 31. Kxf6
+Qf3+ 32. Kxg5 Qxh3 33. Bd5+ Kh8 34. Kf5 Rg2 35. Ke5 Qxg4 36. Kd4 Rd2+ 37. Kc4
+h5 38. Kc5 h4 39. c4 h3 40. e5 h2 41. e6 Rxd5+ 42. cxd5 h1=Q 43. e7 Qe1
+44. d6 cxd6+ 45. Kxd6 a6 46. Kc7 Qxe7+ 47. Kb6 Qge6+ 48. Ka5 Qc5+
+{White resigns} 0-1
+

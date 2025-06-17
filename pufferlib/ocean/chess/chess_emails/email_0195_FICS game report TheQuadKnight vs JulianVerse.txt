@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs JulianVerse
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "20:00:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "JulianVerse"]
+[WhiteElo "1415"]
+[BlackElo "2041"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Bg5 Bg7 7. Bc4 Nc6
+8. Nf5 gxf5 9. Bxf6 Bxf6 10. Qh5 Bxc3+ 11. bxc3 Ne5 12. Bb5+ Bd7 13. Be2
+Qa5 14. O-O fxe4 15. f4 exf3 16. Bxf3 Rc8 17. Bd5 Qxd5 18. Rf2 Rxc3 19. Raf1
+Nf3+ 20. Rxf3 Qxh5 21. Rxc3 Rg8 22. Rg3 Qc5+ 23. Kh1 Rxg3 24. hxg3 Bc6 25. Kh2
+Qxc2 26. Rg1 Qd2 27. g4 Qf2 28. Kh3 Qxg1 29. Kh4 Qh2+ 30. Kg5 f6+ 31. Kf5
+Qe5#
+{White checkmated} 0-1
+

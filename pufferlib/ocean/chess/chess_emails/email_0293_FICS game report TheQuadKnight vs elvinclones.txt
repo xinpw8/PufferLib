@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs elvinclones
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.09.22"]
+[Time "19:06:12"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "elvinclones"]
+[WhiteElo "1278"]
+[BlackElo "1231"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 b6 2. Nf3 g6 3. c4 Bb7 4. Nc3 e6 5. e3 d6 6. Be2 Nc6 7. Bd2 f5 8. O-O
+Qe7 9. Qb3 h6 10. Rac1 Na5 11. Qc2 Bg7 12. d5 Bxc3 13. Bxc3 Nf6 14. b4 exd5
+15. bxa5 dxc4 16. Qa4+ c6 17. axb6 d5 18. Nd4 O-O 19. Nxc6 Bxc6 20. Qxc6
+axb6 21. Qxb6 Rxa2 22. Bb4 Qxb4 23. Qxb4 Rxe2 24. Rb1 Ra2 25. Rb2 Raa8 26. Rfb1
+Rad8 27. Qe7 Rd7 28. Qe6+ Kg7 29. Rb7 Rff7 30. Rxd7 Nxd7 31. Qxd5 h5 32. Qxc4
+{Black resigns} 1-0
+

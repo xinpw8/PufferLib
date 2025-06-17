@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs JackUnet
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "08:31:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "JackUnet"]
+[WhiteElo "1439"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Bg5 O-O 5. e3 d6 6. Nf3 Nc6 7. Bd3 e5 8. dxe5
+Nxe5 9. Nxe5 dxe5 10. O-O h6 11. Bh4 g5 12. Bg3 Nd7 13. Bb1 f5 14. Qc2 Nf6
+15. h3 f4 16. exf4 exf4 17. Bh2 Be6 18. Re1 Bxc4 19. Ne4 Re8 20. Nxf6+ Qxf6
+21. Qxc4+ Kh8 22. Qc2 Rxe1#
+{White checkmated} 0-1
+

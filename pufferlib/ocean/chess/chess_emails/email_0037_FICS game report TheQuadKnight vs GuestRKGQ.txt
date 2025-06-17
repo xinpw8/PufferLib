@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs GuestRKGQ
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2013.11.14"]
+[Time "09:26:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "GuestRKGQ"]
+[WhiteElo "1344"]
+[BlackElo "-"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 e6 4. Nf3 c5 5. e3 cxd4 6. Nxd4 a6 7. Bxc4 b5
+8. Bb3 Bb7 9. O-O Nf6 10. a3 Bd6 11. Bd2 Qc7 12. h3 h5 13. Nf3 Nbd7 14. Rc1
+Ne5 15. Nd5 Nxf3+ 16. Qxf3 Bxd5 17. Bxd5 Qb8 18. Bxa8 g5 19. Qxf6
+{Black resigns} 1-0
+

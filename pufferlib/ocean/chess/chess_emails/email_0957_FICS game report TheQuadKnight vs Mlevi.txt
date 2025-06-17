@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Mlevi
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.06"]
+[Time "10:56:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Mlevi"]
+[WhiteElo "1358"]
+[BlackElo "1412"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 Be7 5. e3 O-O 6. Qc2 c5 7. e4 cxd4 8. Nxd4
+dxc4 9. Be3 Qc7 10. Ndb5 Qc6 11. O-O-O a6 12. Nd4 Qc7 13. Nf3 b5 14. Ne2
+Nc6 15. Bf4 Qb7 16. Ned4 Nb4 17. Qb1 Nxe4 18. a3 Nxf2 19. Bg5 Nd5 20. Bxe7
+Qxe7 21. Re1 Nxh1 22. Qc2 Bb7 23. Ne2 Nf2 24. Nf4 Nxf4 25. Ne5 N2d3+ 26. Nxd3
+Nxd3+ 27. Bxd3 cxd3 28. Qxd3 b4 29. Qg3 bxa3 30. bxa3 Qf6 31. Qb3 Bd5 32. Qd1
+Rfc8+ 33. Kb1 Rab8+
+{White forfeits on time} 0-1
+

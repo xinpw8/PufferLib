@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs BryantPark
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.09"]
+[Time "18:32:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "BryantPark"]
+[WhiteElo "1427"]
+[BlackElo "1445"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 c5 3. Nc3 cxd4 4. Qxd4 Nc6 5. Qd1 g6 6. Nf3 Bg7 7. Bf4 O-O
+8. e3 d6 9. Bd3 Nh5 10. Bg3 Nxg3 11. hxg3 f5 12. Qb3 Kh8 13. Ng5 e5 14. Rxh7+
+Kg8 15. f4 exf4 16. c5+ d5 17. gxf4 Re8 18. Nxd5 Be6 19. Nxe6 Rxe6 20. Rxg7+
+Kxg7 21. Bc4 Na5 22. Qc3+ Kf8 23. Qh8+ Kf7 24. Qh7+ Kf8 25. Nc7 Rxe3+ 26. Be2
+Rc8 27. Qh8+ Ke7 28. Qg7#
+{Black checkmated} 1-0
+

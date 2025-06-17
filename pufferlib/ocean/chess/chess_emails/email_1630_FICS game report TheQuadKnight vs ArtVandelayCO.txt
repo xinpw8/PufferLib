@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs ArtVandelayCO
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.03"]
+[Time "14:46:43"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ArtVandelayCO"]
+[WhiteElo "1425"]
+[BlackElo "1528"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d5 4. d3 dxe4 5. dxe4 Qxd1+ 6. Kxd1 Nc6 7. Bxf4
+Bg4 8. Nd2 O-O-O 9. Bd3 Nd4 10. h3 Bxf3+ 11. Nxf3 Bc5 12. Kd2 f6 13. Rad1
+Ne7 14. Kc1 Ng6 15. Be3 Ne5 16. Nxe5 fxe5 17. Bg5 Rd7 18. Bc4 h6 19. Bh4
+Re8 20. c3 Ne6 21. Rxd7 Kxd7 22. Rd1+ Kc6 23. a4 a6 24. b4 Be3+ 25. Kc2
+g5 26. Bg3 Bf4 27. Bf2 b5 28. Bd5+ Kd7 29. Bb7+ Ke7 30. g3 Rb8 31. Bxa6
+bxa4 32. gxf4 gxf4 33. b5 Ng5 34. Bh4 Ke6 35. Rd3 Nxe4 36. Kb2 Nc5 37. Rd1
+Nxa6 38. Ka3 Nc5 39. Kb4 Ne4 40. c4 c6 41. Be1 cxb5 42. cxb5 f3 43. Bh4
+Kf5 44. Rf1 Kf4 45. Kxa4 Nd2 46. Rf2 Ne4 47. Rf1 Nc3+ 48. Kb3 Nxb5 49. Kc4
+Nd4 50. Kd5 Rb5+ 51. Kc4 Rb8 52. Re1 Re8 53. Rd1 Ne2 54. Rf1 e4 55. Rf2
+e3 56. Rf1 f2 57. Bxf2 exf2 58. Rxf2+ Kg3 59. Rf1 h5 60. Ra1 Kxh3 61. Ra5
+h4 62. Rg5 Ng3 63. Kd5 Rh8 64. Kd6 Kg2 65. Kd7 h3 66. Ke7 h2 67. Rxg3+ Kxg3
+68. Kf7 h1=Q 69. Ke7 Qc6 70. Kf7 Rh7+ 71. Kf8 Qc8#
+{White checkmated} 0-1
+

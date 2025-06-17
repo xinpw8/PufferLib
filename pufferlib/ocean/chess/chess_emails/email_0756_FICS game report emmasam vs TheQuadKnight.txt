@@ -1,0 +1,26 @@
+Subject: FICS game report emmasam vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.01"]
+[Time "16:44:06"]
+[Round "-"]
+[White "emmasam"]
+[Black "TheQuadKnight"]
+[WhiteElo "1479"]
+[BlackElo "1381"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Bc5 6. O-O Nf6 7. Bd5 O-O
+8. Bxc6 dxc6 9. Nxe5 Qd6 10. Nf3 Nxe4 11. d4 Bb6 12. c3 c5 13. dxc5 Bxc5
+14. Qxd6 Bxd6 15. Nbd2 Nf6 16. b3 Re8 17. c4 Bb7 18. cxb5 axb5 19. Bb2 Ne4
+20. Nxe4 Rxe4 21. a4 Re2 22. Bd4 bxa4 23. Rxa4 Rae8 24. Rfa1 Bc6 25. R4a2
+g5 26. Rxe2 Rxe2 27. Re1 Bxf3 28. Rxe2 Bxe2 29. g3 f5 30. Kg2 Bd3 31. Bc3
+Bb5 32. b4 c5 33. bxc5 Bxc5 34. h4 gxh4 35. gxh4 Kf7 36. Kf3 Kg6 37. Kf4
+Bc6 38. Ke5 Be4 39. h5+ Kxh5 40. f3 Bxf3 41. Kxf5 Bf8 42. Kf4 Bh6+ 43. Kxf3
+Kh4 44. Bd4 Bg5 45. Be3 h6
+{White forfeits on time} 0-1
+

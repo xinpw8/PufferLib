@@ -1,0 +1,25 @@
+Subject: FICS game report chipotle vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "17:26:19"]
+[Round "-"]
+[White "chipotle"]
+[Black "TheQuadKnight"]
+[WhiteElo "1591"]
+[BlackElo "1367"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bf4 Bd6 5. Bg3 Bxg3 6. hxg3 c6 7. e3 Nbd7
+8. Nf3 O-O 9. Bd3 dxc4 10. Bxc4 b5 11. Bd3 Re8 12. a3 e5 13. dxe5 Nd5 14. Bxh7+
+Kh8 15. Nxd5 Nxe5 16. Bg6+ Kg8 17. Bxf7+ Nxf7 18. Ne7+ Qxe7 19. Qd3 Nh6
+20. Nh4 Bg4 21. Qg6 Qf6 22. Qc2 Rad8 23. O-O Bf5 24. Qb3+ Be6 25. Qc2 Nf5
+26. Nf3 Kf7 27. Qxc6 Rh8 28. Rac1 Qh6 29. Ne5+ Kf6 30. Ng4+ Kf7 31. Nxh6+
+Rxh6 32. Qxb5 Rdh8 33. f4 Nxg3 34. Rfe1 Ne4 35. Qb7+ Kf6 36. Qxe4 Bf5 37. Qe5+
+Kf7 38. Qxf5+ Rf6 39. Rc7+ Kf8 40. Qc8#
+{Black checkmated} 1-0
+

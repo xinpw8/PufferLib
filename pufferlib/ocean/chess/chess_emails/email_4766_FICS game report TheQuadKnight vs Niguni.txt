@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs Niguni
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.18"]
+[Time "15:05:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Niguni"]
+[WhiteElo "1318"]
+[BlackElo "1449"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. d3 dxe4 3. Nc3 exd3 4. Qxd3 Qxd3 5. Bxd3 Nf6 6. Nf3 c6 7. O-O
+Bg4 8. Ne5 Bh5 9. Bc4 e6 10. g4 Bg6 11. Nxg6 hxg6 12. f3 Bd6 13. Rf2 Nbd7
+14. b3 Ne5 15. Bb2 Rxh2 16. Kxh2 Nxc4+ 17. f4 Nxg4+ 18. Kg3 Nxf2 19. Kxf2
+Nxb2 20. Rb1 Bxf4 21. Rxb2 Be5 22. Rb1 Bxc3 23. Rd1 Rd8
+{White resigns} 0-1
+

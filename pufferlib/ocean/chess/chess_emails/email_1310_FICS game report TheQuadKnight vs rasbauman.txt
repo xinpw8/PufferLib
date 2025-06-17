@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs rasbauman
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.26"]
+[Time "21:49:57"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "rasbauman"]
+[WhiteElo "1413"]
+[BlackElo "1437"]
+[TimeControl "600+1"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c6 3. Nc3 e5 4. e3 e4 5. Bd2 Bb4 6. f3 Bxc3 7. bxc3 Nf6 8. Ne2
+exf3 9. gxf3 dxc4 10. Rg1 O-O 11. e4 Nh5 12. f4 Qh4+ 13. Ng3 Bg4 14. Be2
+Bxe2 15. Qxe2 b5 16. Qxh5 Qxh5 17. Nxh5 g6 18. Nf6+ Kg7 19. e5 Na6 20. f5
+Nc7 21. Nh5+ Kh8 22. Nf6 Nd5 23. Bh6 Rfd8 24. Ne4 gxf5 25. Bg7+
+{Black resigns} 1-0
+

@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs Potassium
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "15:12:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Potassium"]
+[WhiteElo "1451"]
+[BlackElo "1560"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 f5 2. c4 Nf6 3. Nc3 g6 4. Nf3 Bg7 5. e3 O-O 6. Bd3 d6 7. O-O Nc6 8. Re1
+Nb4 9. Be2 Qe8 10. Qb3 a5 11. a3 Nc6 12. c5+ Kh8 13. Bb5 h6 14. d5 Nxd5
+15. Nxd5 Be6 16. Rd1 Qf7 17. Bc4 a4 18. Qxb7 Na5 19. Qb4 Rfb8 20. Qc3 Nxc4
+21. Qxc4 c6 22. cxd6 Bxd5 23. Qc5 exd6 24. Qxd6 Bxb2 25. Bxb2+ Rxb2 26. Ne5
+Qg7 27. Qxg6 Qxe5 28. Qxh6+ Kg8 29. Qg6+ Qg7 30. Qxg7+ Kxg7 31. f3 Rab8
+32. h3 Kf6 33. Kh2 Bxf3 34. Rd6+ Ke5 35. Rd7 Rxg2+ 36. Kh1 Ra2+ 37. Kg1
+Rg8+ 38. Kf1 Bg2+ 39. Ke1 Rxa1+ 40. Kd2 Ra2+ 41. Kc3 Rxa3+ 42. Kb4 Rxe3
+43. Re7+ Kf4 44. Rc7 Rb8+ 45. Kc5 a3 46. Rxc6 Bxc6 47. Kxc6 Rb2 48. Kd6
+Rd2+ 49. Kc5 Rxh3 50. Kb4 Re3 51. Ka4 a2 52. Kb4 a1=Q 53. Kb5 Qc1 54. Kb6
+Rb3+ 55. Ka5 Qa3#
+{White checkmated} 0-1
+

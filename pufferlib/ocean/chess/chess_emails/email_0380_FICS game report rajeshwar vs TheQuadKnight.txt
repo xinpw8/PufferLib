@@ -1,0 +1,22 @@
+Subject: FICS game report rajeshwar vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.07.12"]
+[Time "20:00:48"]
+[Round "-"]
+[White "rajeshwar"]
+[Black "TheQuadKnight"]
+[WhiteElo "1484"]
+[BlackElo "1413"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. d4 exd4 4. Nxd4 Nf6 5. Bg5 Be7 6. Bd3 Nxe4 7. Bxe7
+Qxe7 8. O-O Nc5 9. Re1 Ne6 10. Nc3 O-O 11. Nd5 Qh4 12. Nf5 Qg5 13. Nfe7+
+Kh8 14. f4 Qh6 15. f5 Nf4 16. Nxc7 Qg5 17. Qf3 Nxd3 18. cxd3 Nc6 19. Nxa8
+Re8 20. Nxc6 Rxe1+ 21. Rxe1 Bd7 22. Ne7 g6 23. fxg6 hxg6 24. Qxf7 Bf5 25. Qg8#
+{Black checkmated} 1-0
+

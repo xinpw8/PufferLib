@@ -1,0 +1,20 @@
+Subject: FICS game report Jaceczko vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.17"]
+[Time "19:48:16"]
+[Round "-"]
+[White "Jaceczko"]
+[Black "TheQuadKnight"]
+[WhiteElo "1345"]
+[BlackElo "1409"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Qf6 6. c3 Nge7 7. b4 Nxd4
+8. Bxd4 Bxd4 9. cxd4 Nc6 10. e5 Qg5 11. h4 Qf4 12. g3 Qe4+
+{White resigns} 0-1
+

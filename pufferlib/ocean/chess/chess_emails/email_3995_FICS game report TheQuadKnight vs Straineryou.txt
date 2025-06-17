@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Straineryou
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "13:41:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Straineryou"]
+[WhiteElo "1343"]
+[BlackElo "1409"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 Nxd5 5. Nf3 Nxc3 6. bxc3 Nc6 7. c4
+b6 8. Qa4 Bb7 9. d5 exd5 10. Ne5 Qd6 11. Bf4 f6 12. Nxc6 Qxc6 13. Qxc6+
+Bxc6 14. Bxc7 dxc4 15. e3 b5 16. Be2 Bb4+ 17. Kd1 O-O 18. Rb1 a5 19. f3
+Rf7 20. Bf4 Rd7+ 21. Kc2 g5 22. Bg3 Rd2+ 23. Kc1 Rxe2 24. Rd1 Ba3+ 25. Rb2
+Bxb2+
+{White resigns} 0-1
+

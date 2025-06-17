@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs eikait
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.10"]
+[Time "15:17:43"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "eikait"]
+[WhiteElo "1375"]
+[BlackElo "1417"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 c6 3. Nf3 d5 4. b3 Bf5 5. Nc3 e6 6. Nh4 Bg6 7. Nxg6 hxg6
+8. Bg5 Be7 9. Qc2 Qa5 10. Rc1 dxc4 11. bxc4 Bb4 12. e3 Bxc3+ 13. Qxc3 Qxc3+
+14. Rxc3 Nbd7 15. Bf4 Ne4 16. Rb3 b6 17. Bd3 f5 18. f3 Nef6 19. O-O Kf7
+20. Rfb1 Rh5 21. a4 g5 22. Bg3 g4 23. Be2 Rah8 24. a5 Kg6 25. axb6 axb6
+26. c5 b5 27. Ra1 Rc8 28. Ra7 Rhh8 29. Bd6 Ra8 30. Rba3 Rxa7 31. Rxa7 Rc8
+32. Be7 gxf3 33. Bxf3 Kf7 34. Bxf6 Kxf6 35. Rxd7 g5 36. h3 g4 37. hxg4 fxg4
+38. Bxg4 Rg8 39. Bf3 Rc8 40. Rd6 Kf5 41. Bxc6 e5 42. Bd7+
+{Black resigns} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report preparationH vs TheQuadKnight
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.06.05"]
+[Time "17:14:57"]
+[Round "-"]
+[White "preparationH"]
+[Black "TheQuadKnight"]
+[WhiteElo "1568"]
+[BlackElo "1303"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Nc6 4. Bc4 Nf6 5. O-O Bc5+ 6. d4 Bb6 7. Bxf4
+O-O 8. c3 d6 9. Kh1 Nxe4 10. Nbd2 Nf6 11. a3 Ne7 12. Bb3 Ng6 13. Be3 Re8
+14. Bc2 c5 15. Bg5 h6 16. dxc5 dxc5 17. Bxf6 Qxf6 18. Nd4 cxd4 19. Rxf6
+gxf6 20. Nf3 dxc3 21. bxc3 Be6 22. Bxg6 fxg6 23. Qd2 Rad8 24. Qxh6 Bf5 25. Nh4
+Bc2 26. Nxg6 Rd1+ 27. Rxd1 Bxd1 28. Qh8+ Kf7 29. Qh7+ Ke6 30. Nf4+ Kd6 31. Qd3+
+Ke5 32. Qe3+ Bxe3
+{White resigns} 0-1
+

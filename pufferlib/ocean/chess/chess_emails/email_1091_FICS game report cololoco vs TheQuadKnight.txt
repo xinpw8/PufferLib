@@ -1,0 +1,27 @@
+Subject: FICS game report cololoco vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.17"]
+[Time "18:14:28"]
+[Round "-"]
+[White "cololoco"]
+[Black "TheQuadKnight"]
+[WhiteElo "1346"]
+[BlackElo "1366"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 e5 2. d3 Nf6 3. Be3 c6 4. g3 d5 5. Bg2 d4 6. Bd2 Na6 7. a3 Nc5 8. Nf3
+Qb6 9. b4 Bg4 10. bxc5 Bxc5 11. h3 Bf5 12. e4 dxe3 13. fxe3 Qb2 14. Nc3
+Bxd3 15. Nxe5 Bxe3 16. Nxd3 Bxd2+ 17. Ke2 Qxc3 18. Qxd2 Qxd2+ 19. Kxd2 O-O-O
+20. Rhd1 Rhe8 21. Kc3 Nh5 22. g4 Ng3 23. Rd2 f5 24. g5 Ne4+ 25. Bxe4 fxe4
+26. Nc5 e3 27. Re2 b6 28. Na6 Kb7 29. Nb4 c5 30. Nd5 Rd7 31. Rae1 b5 32. Nxe3
+Rde7 33. cxb5 Kb6 34. a4 Kb7 35. Kc4 Re5 36. a5 Re4+ 37. Kxc5 R4e5+ 38. Nd5
+Rxe2 39. Rxe2 Rxe2 40. a6+ Kb8 41. h4 Rc2+ 42. Kd6 Rb2 43. Nc3 Rb3 44. Nd5
+Rxb5 45. Ne7 Ra5 46. Nc6+ Kc8 47. Nxa5 g6 48. Kc5 Kd8 49. Nc6+ Kd7 50. Nxa7
+Ke6 51. Nb5 Kf5 52. Kb6 Kg4 53. a7 Kxh4 54. a8=B Kh5 55. Nd6 Kxg5 56. Nf7+
+{Black forfeits on time} 1-0
+

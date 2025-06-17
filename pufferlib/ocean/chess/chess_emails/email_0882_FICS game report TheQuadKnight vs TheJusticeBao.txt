@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs TheJusticeBao
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.18"]
+[Time "06:06:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TheJusticeBao"]
+[WhiteElo "1476"]
+[BlackElo "1539"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. Nf3 Nf6 5. d4 Nc6 6. Bd2 Bg4 7. Be2
+O-O-O 8. Be3 e5 9. O-O exd4 10. Nxd4 Bxe2 11. Ncxe2 Nxd4 12. Bxd4 c5 13. Bc3
+Qc7 14. Qe1 Bd6 15. Ng3 Rhe8 16. Qc1 Bf4 17. Qb1 h5 18. h3 h4 19. Nf5 Ne4
+20. Re1 g6 21. Nxh4 Nxf2 22. Rxe8 Rxe8 23. Qf1 Be3 24. Re1 Nxh3+ 25. Kh1
+Nf2+ 26. Kg1 Ng4+ 27. Kh1 Qh2#
+{White checkmated} 0-1
+

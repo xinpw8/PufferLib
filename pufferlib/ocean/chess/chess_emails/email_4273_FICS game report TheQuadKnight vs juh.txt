@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs juh
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "16:03:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "juh"]
+[WhiteElo "1385"]
+[BlackElo "1493"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. Nf3 c6 5. d4 Bg4 6. Bd2 Nf6 7. Nd5 Qxd5
+8. h3 Bxf3 9. gxf3 Qxd4 10. Qe2 Qxb2 11. Rd1 Qxa2 12. Bc3 Qe6 13. Bxf6 Qxe2+
+14. Bxe2 exf6 15. O-O Nd7 16. Bc4 O-O-O 17. Bxf7 Bb4 18. Be6 Kc7 19. Rd4
+c5 20. Rd5 Nb6 21. Rxd8 Rxd8 22. Rc1 Rd6 23. Bf5 Bc3 24. Bxh7 a5 25. Bd3
+a4 26. Rb1 a3 27. Rb3 Bb2 28. c4 Rxd3 29. Rxb2 axb2 30. Kg2 b1=Q 31. Kg3
+Qg1+ 32. Kf4 Qg5+ 33. Ke4 Rd4#
+{White checkmated} 0-1
+

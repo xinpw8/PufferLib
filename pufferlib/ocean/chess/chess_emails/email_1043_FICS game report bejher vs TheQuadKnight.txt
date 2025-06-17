@@ -1,0 +1,26 @@
+Subject: FICS game report bejher vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.30"]
+[Time "12:08:06"]
+[Round "-"]
+[White "bejher"]
+[Black "TheQuadKnight"]
+[WhiteElo "1432"]
+[BlackElo "1412"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. f4 Bb4 5. e3 Ne4 6. Bd2 c5 7. Nxe4 dxe4
+8. Bxb4 cxb4 9. Qa4+ Bd7 10. Qxb4 Nc6 11. Qa3 Rc8 12. b3 Qh4+ 13. g3 Qh5
+14. Bg2 f5 15. Ne2 Qf7 16. O-O Qe7 17. Qxe7+ Nxe7 18. Nc3 O-O 19. d5 exd5
+20. Nxd5 Nxd5 21. cxd5 Rcd8 22. Rfd1 Be8 23. Rac1 Bf7 24. d6 Rfe8 25. Rc7
+Re6 26. Rxb7 Rexd6 27. Rxd6 Rxd6 28. Rxa7 g6 29. Bf1 Rd1 30. Kf2 Rd2+ 31. Be2
+Be8 32. a4 Bc6 33. Rc7 Be8 34. Ke1 Rb2 35. Bc4+ Kf8 36. h4 Rg2 37. Rxh7
+Rxg3 38. Kd2 Rg2+ 39. Kc3 Rg3 40. Kd4 Rg1 41. Rh8+ Kg7 42. Rxe8 Rg4 43. Re7+
+Kh6 44. Re6 Rxh4 45. a5 Kh5 46. a6 Kg4 47. a7 Rh8 48. Bd5 Ra8 49. Rxg6+
+{Black forfeits on time} 1-0
+

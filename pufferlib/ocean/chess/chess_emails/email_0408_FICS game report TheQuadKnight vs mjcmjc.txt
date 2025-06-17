@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs mjcmjc
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.27"]
+[Time "16:58:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mjcmjc"]
+[WhiteElo "1413"]
+[BlackElo "1172"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e5 3. Nc3 Nc6 4. dxe5 d4 5. Nd5 Nge7 6. Nf3 Nxd5 7. cxd5
+Qxd5 8. e3 Bb4+ 9. Bd2 dxe3 10. Bxb4 exf2+ 11. Kxf2 Qxd1 12. Rxd1 Nxb4 13. Bc4
+O-O 14. Rhe1 b6 15. a3 Na6 16. Bd5 Rb8 17. b4 Bb7 18. Bxb7 Rxb7 19. Rd7
+Nb8 20. Re7 Nc6 21. Rd7 Rd8 22. Red1 Rxd7 23. Rxd7 Nb8 24. Rd8#
+{Black checkmated} 1-0
+

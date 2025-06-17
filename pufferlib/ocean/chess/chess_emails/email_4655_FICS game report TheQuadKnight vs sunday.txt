@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs sunday
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.22"]
+[Time "10:12:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sunday"]
+[WhiteElo "1318"]
+[BlackElo "1560"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. Nc3 d5 3. Bf4 c5 4. Nb5 Na6 5. e3 c4 6. b3 Qa5+ 7. c3 Qxb5
+8. Rb1 Qa5 9. Qd2 Ne4 10. Qc2 Nxc3 11. Ra1 e5 12. dxe5 Ne4+ 13. Kd1 Nb4
+14. Qb2 c3 15. Qe2 c2+ 16. Kc1 Qa3#
+{White checkmated} 0-1
+

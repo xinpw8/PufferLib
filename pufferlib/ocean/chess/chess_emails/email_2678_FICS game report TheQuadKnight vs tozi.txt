@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs tozi
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.05"]
+[Time "09:33:12"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "tozi"]
+[WhiteElo "1343"]
+[BlackElo "1471"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 d6 5. Nf3 Be7 6. Bc4 Nf6 7. O-O Bg4
+8. Nc3 Qd7 9. Nd4 O-O 10. f3 Be6 11. Nxe6 fxe6 12. Bb3 Kh8 13. Ne2 Na5 14. Nf4
+Nxb3 15. Qxb3 e5 16. Ne6 Rf7 17. f4 Nxe4 18. Nxc7 Raf8 19. Qxb7 Nc5 20. Qxa7
+Rc8 21. Nb5 Qxb5 22. Be3 Kg8 23. fxe5 Rxf1+ 24. Rxf1 Qd7 25. Bxc5 Qxa7 26. Bxa7
+Rxc2 27. Bd4 Rd2 28. Bc3 Re2 29. exd6 Bxd6 30. Rd1 Bc5+ 31. Kf1 Rf2+ 32. Ke1
+Rxg2 33. Rd8+ Kf7 34. Rd7+ Ke6 35. Rxg7 Rxh2 36. Rb7 Kd6 37. Be5+ Kd5 38. Bxh2
+Ke4 39. Rd7 Kf3 40. Re7 Bf2+ 41. Kd1 Kg2 42. Kc2 Kxh2 43. Kb3 Kg2 44. a3
+Kf3 45. a4 Kf4 46. a5 Kg3 47. Rf7 Kg2 48. a6
+{Black forfeits on time} 1-0
+

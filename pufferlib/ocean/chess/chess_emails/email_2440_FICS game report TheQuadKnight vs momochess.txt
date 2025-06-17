@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs momochess
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.12"]
+[Time "17:26:22"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "momochess"]
+[WhiteElo "1328"]
+[BlackElo "1690"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 f5 2. c4 Nf6 3. Nc3 g6 4. Nf3 Bg7 5. e3 d6 6. Bd3 O-O 7. O-O Nc6 8. Bd2
+e5 9. dxe5 dxe5 10. Bc2 e4 11. Ne1 Be6 12. c5 Bc4 13. Ne2 Ng4 14. h3 Nge5
+15. b3 Ba6 16. Rc1 Nd3 17. Nxd3 exd3 18. Bxd3 Qxd3 19. Re1 Rad8 20. Rc2
+Rd7 21. Nc1 Qd5 22. Ne2 Rfd8 23. Nf4 Qxd2 24. Rxd2 Rxd2 25. Qc1 Ne5 26. Ne6
+Nd3 27. Nxd8 Nxc1 28. Ne6 Nd3 29. Nxg7 Kxg7 30. Kh2 Nxe1 31. g3 Rxf2+ 32. Kg1
+Rg2+ 33. Kh1 Kf6 34. h4 Ke5 35. g4 Ke4 36. gxf5 Kf3 37. fxg6 Kg3 38. gxh7
+Rh2+ 39. Kg1 Rg2+ 40. Kh1 Rh2+ 41. Kg1 Rg2+ 42. Kh1 Nf3 43. h8=Q Rh2#
+{White checkmated} 0-1
+

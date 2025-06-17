@@ -1,0 +1,25 @@
+Subject: FICS game report jbaslon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.17"]
+[Time "09:28:35"]
+[Round "-"]
+[White "jbaslon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1447"]
+[BlackElo "1404"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nf3 Bg4 4. Ne5 Bf5 5. Nc3 Nf6 6. e3 Nbd7 7. Nxc4
+e6 8. Be2 Bb4 9. O-O O-O 10. a3 Be7 11. Bf3 c6 12. e4 Bg6 13. b4 Nb6 14. Na5
+Qd7 15. Be3 Rfd8 16. Qe2 Nc8 17. Rfd1 b6 18. Nb3 Bf8 19. Rac1 Ne7 20. Bg5
+Ne8 21. Bh4 Nd6 22. Bg3 Rac8 23. d5 cxd5 24. exd5 Ndf5 25. dxe6 Qxe6 26. Qxe6
+Rxd1+ 27. Rxd1 fxe6 28. Be5 Nh4 29. Bb7 Re8 30. g3 Nhf5 31. Ne4 Bh5 32. Rd2
+Ng6 33. Bc7 Re7 34. Bd6 Rd7 35. Bxf8 Rxd2 36. Nexd2 Kxf8 37. Bc6 Ne5 38. Kg2
+Nd3 39. f4 Ne1+ 40. Kf2 Ne3 41. Kxe3 Bg6 42. Ne4 Kf7 43. g4 Ng2+
+{White forfeits on time} 0-1
+

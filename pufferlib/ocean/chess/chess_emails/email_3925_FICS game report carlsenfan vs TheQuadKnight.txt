@@ -1,0 +1,23 @@
+Subject: FICS game report carlsenfan vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "22:58:14"]
+[Round "-"]
+[White "carlsenfan"]
+[Black "TheQuadKnight"]
+[WhiteElo "1463"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. O-O gxf3 6. Qxf3 Bh6 7. d4 Nc6
+8. Bxf4 Bxf4 9. Qxf4 d5 10. Bxd5 f6 11. Nc3 Nxd4 12. e5 c6 13. Qxd4 cxd5
+14. exf6 Be6 15. Rae1 Qd7 16. Nxd5 O-O-O 17. Qc3+ Kb8 18. Rxe6 Qxd5 19. Rfe1
+Nh6 20. Qg3+ Ka8 21. Qg7 Qd4+ 22. Kh1 Nf5 23. Qf7 Rhf8 24. Qxh7 Rxf6 25. Re8
+Rf8 26. Qxf5 Rxf5
+{White resigns} 0-1
+

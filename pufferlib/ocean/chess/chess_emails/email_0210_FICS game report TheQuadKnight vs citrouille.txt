@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs citrouille
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.16"]
+[Time "15:49:13"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "citrouille"]
+[WhiteElo "1389"]
+[BlackElo "1394"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Nf3 O-O 5. Bf4 d6 6. e3 Nc6 7. Be2 Nd7
+8. O-O e5 9. dxe5 dxe5 10. Bg5 f6 11. Bh4 h5 12. Bg3 g5 13. h3 g4 14. Nh4
+gxh3 15. Bxh5 hxg2 16. Kxg2 Nc5 17. Qg4 Bxg4 18. Bxg4 Qd2 19. Rad1 Qxb2
+20. Nd5 Ne4 21. Ng6 Nxg3 22. Kxg3 Rfd8 23. Be6+ Kh7 24. Bf5 Kg8 25. Rh1
+Re8 26. Nxc7 Kf7 27. Nxa8 Rxa8 28. Rd7+ Ke8 29. Rh7 Rd8 30. Rdxg7 Qb4 31. Rh8+
+Qf8 32. Rxf8#
+{Black checkmated} 1-0
+

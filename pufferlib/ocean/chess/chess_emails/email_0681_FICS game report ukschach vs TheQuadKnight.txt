@@ -1,0 +1,26 @@
+Subject: FICS game report ukschach vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "12:47:35"]
+[Round "-"]
+[White "ukschach"]
+[Black "TheQuadKnight"]
+[WhiteElo "1449"]
+[BlackElo "1335"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. Nxe5 Nxe5 5. d4 Nxc4 6. dxc5 Qe7 7. O-O
+b6 8. cxb6 Bb7 9. bxc7 Qxe4 10. Re1 Ne3 11. Rxe3 Qxe3 12. Bxe3 Nf6 13. Nc3
+O-O 14. Bg5 Ne8 15. Be7 Nxc7 16. Bxf8 Rxf8 17. Qxd7 Rc8 18. Rd1 h6 19. Qxc8+
+Bxc8 20. Rd8+ Kh7 21. Rxc8 Ne6 22. Ra8 Nd4 23. Rxa7 Nxc2 24. Nb5 Nb4 25. Nd6
+f6 26. Nf5 Kg6 27. Nxg7 Nc6 28. Rc7 Ne5 29. Ne6 Kf5 30. Nd4+ Ke4 31. Ne2
+Nd3 32. b3 Nb4 33. Rc4+ Kd3 34. Nc1+ Kd2 35. Rxb4 Kxc1 36. Rb6 Kb2 37. a4
+Ka3 38. a5 h5 39. a6 h4 40. a7 h3 41. gxh3 Kb2 42. a8=Q f5 43. Qd5 f4 44. Qd4+
+Kc2 45. Qxf4 Kb2 46. Qd2+ Ka3 47. Qc1+ Ka2 48. Qc2+ Ka3 49. Ra6+ Kb4 50. Qc4#
+{Black checkmated} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs PastorK
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.18"]
+[Time "06:32:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PastorK"]
+[WhiteElo "1385"]
+[BlackElo "1441"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d6 2. Nf3 e5 3. d4 Bg4 4. Be2 exd4 5. Nxd4 Bxe2 6. Qxe2 Nf6 7. Bg5
+Be7 8. Nc3 Nbd7 9. Nd5 Nxd5 10. exd5 Ne5 11. Bxe7 Qxe7 12. f4 Ng6 13. Qxe7+
+Nxe7 14. O-O-O Nxd5 15. Rhe1+ Kd7 16. Nf5 Nxf4 17. Re7+ Kc6 18. Rd4 Ne2+
+19. Rxe2 g6 20. Ng3 f5 21. Rc4+ Kd7 22. Re3 b5 23. Rcc3 c5 24. Rcd3 Rac8
+25. Rd2 Rc6 26. Ne2 g5 27. Nc3 f4 28. Re4 b4 29. Nd5 h5 30. Re7+ Kc8 31. Rde2
+Rh6 32. Rxa7 g4 33. Re8#
+{Black checkmated} 1-0
+

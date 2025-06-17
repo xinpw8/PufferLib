@@ -1,0 +1,29 @@
+Subject: FICS game report thaboss vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.24"]
+[Time "10:35:41"]
+[Round "-"]
+[White "thaboss"]
+[Black "TheQuadKnight"]
+[WhiteElo "1449"]
+[BlackElo "1263"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Bc4 Bc5 5. d3 d6 6. Bg5 O-O 7. h4 h6 8. Bd2
+Bg4 9. Qe2 Qd7 10. O-O-O Na5 11. Bd5 Nxd5 12. Nxd5 c6 13. Bxa5 cxd5 14. exd5
+b6 15. Bc3 Qf5 16. Rdf1 Rfe8 17. Kb1 Bd4 18. Bd2 Rac8 19. c3 Bc5 20. Qd1
+e4 21. dxe4 Rxe4 22. Qc2 Rce8 23. Nd4 Bxd4 24. cxd4 Bh5 25. f3 Re2 26. Qxf5
+Bg6 27. Qxg6 fxg6 28. Rd1 Rxg2 29. Bb4 Ree2 30. Bc3 a5 31. a4 Rgf2 32. Rh3
+Kf7 33. h5 gxh5 34. Rxh5 Rxf3 35. Rhh1 Rff2 36. Rhf1 Rxf1 37. Rxf1+ Ke7
+38. Rf5 g6 39. Rf3 Rg2 40. Rh3 h5 41. Ka2 Kf6 42. Rf3+ Kg5 43. Rf8 h4 44. Be1
+h3 45. Rh8 h2 46. Bg3 Rxg3 47. Rxh2 Kf4 48. Rh6 g5 49. Rxd6 g4 50. Rxb6
+Rd3 51. Rb3 Rxb3 52. Kxb3 g3 53. d6 g2 54. d7 g1=Q 55. d8=Q Qg3+ 56. Kc4
+Qg7 57. Qd5 Qc7+ 58. Qc5 Qf7+ 59. Kb5 Qd7+ 60. Kxa5 Qd8+ 61. Kb4 Qb8+ 62. Kc4
+Qxb2 63. a5
+{Black forfeits on time} 1-0
+

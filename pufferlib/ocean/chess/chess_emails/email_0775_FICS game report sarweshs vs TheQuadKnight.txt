@@ -1,0 +1,27 @@
+Subject: FICS game report sarweshs vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.29"]
+[Time "08:32:20"]
+[Round "-"]
+[White "sarweshs"]
+[Black "TheQuadKnight"]
+[WhiteElo "1465"]
+[BlackElo "1371"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Bb4 4. d3 Nf6 5. Bd2 O-O 6. Be2 d5 7. exd5 Nxd5
+8. Nxd5 Bxd2+ 9. Qxd2 Qxd5 10. O-O Nd4 11. c4 Nxf3+ 12. Bxf3 Qd4 13. b3
+Rb8 14. Rfe1 Bf5 15. Rad1 Rfd8 16. Be2 Re8 17. Qe3 Qb2 18. Rd2 Qc3 19. Red1
+a6 20. Qc5 e4 21. dxe4 Bxe4 22. Qxc7 Bc2 23. Rd8 Bxd1 24. Rxb8 Qe1+ 25. Bf1
+h6 26. Rxe8+ Qxe8 27. Qxb7 Qe1 28. g3 Be2 29. Qg2 Qa1 30. f4 Bxf1 31. Qxf1
+Qxa2 32. Qd1 Qa5 33. Qc1 Qc5+ 34. Kg2 Qc6+ 35. Kh3 Qg6 36. c5 h5 37. c6
+Qg4+ 38. Kg2 h4 39. c7 h3+ 40. Kg1 Qf3 41. c8=Q+ Kh7 42. Q1c2+ g6 43. Q8c6
+Qg2+ 44. Q6xg2 hxg2 45. Kxg2 Kg7 46. Qc4 Kh7 47. Qxa6 Kg7 48. Qb7 Kf6 49. b4
+Kg7 50. b5 Kf6 51. b6 Kg7 52. Qc8 Kf6 53. b7 Kg7 54. b8=Q Kf6 55. Qe5#
+{Black checkmated} 1-0
+

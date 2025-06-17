@@ -1,0 +1,23 @@
+Subject: FICS game report Chelex vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "13:10:54"]
+[Round "-"]
+[White "Chelex"]
+[Black "TheQuadKnight"]
+[WhiteElo "1532"]
+[BlackElo "1418"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. Nf3 d5 2. g3 Nc6 3. c4 e6 4. Bg2 Nf6 5. O-O Bc5 6. d4 Bb6 7. c5 Ba5 8. a3
+Nxd4 9. Nxd4 c6 10. b4 Bc7 11. Bb2 e5 12. Nf3 d4 13. Nbd2 O-O 14. Nc4 b6
+15. Ncxe5 Re8 16. Nxc6 Qd7 17. Ncxd4 bxc5 18. bxc5 Ba6 19. Re1 Ba5 20. Nd2
+Rab8 21. Rb1 Nd5 22. c6 Qd6 23. N2b3 Bxe1 24. Qxe1 Nf6 25. Qc3 Bxe2 26. Nxe2
+Rxe2 27. Rf1 Rc8 28. Nd4 Re7 29. Nf5 Qe6 30. Nxg7 Kxg7
+{White forfeits on time} 0-1
+

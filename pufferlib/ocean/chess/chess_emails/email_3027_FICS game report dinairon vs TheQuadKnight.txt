@@ -1,0 +1,24 @@
+Subject: FICS game report dinairon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.28"]
+[Time "21:11:06"]
+[Round "-"]
+[White "dinairon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1099"]
+[BlackElo "1358"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. O-O Bd6 6. d3 Nf6 7. Nc3 O-O
+8. Bg5 Bg4 9. Bxf6 Qxf6 10. h3 Bh5 11. a3 Bxf3 12. Qxf3 Qxf3 13. gxf3 Be7
+14. b4 c5 15. Nd5 Bd6 16. c4 c6 17. Nb6 Rad8 18. bxc5 Bxc5 19. Na4 Ba7 20. Rad1
+b5 21. cxb5 axb5 22. Nc3 Bd4 23. Ne2 Bc5 24. a4 bxa4 25. Ra1 Ra8 26. Nc3
+a3 27. Kg2 Bd4 28. Rfc1 Rfb8 29. Ra2 Rb2 30. Rxb2 axb2 31. Rc2 Bxc3 32. Rxc3
+b1=Q
+{White resigns} 0-1
+

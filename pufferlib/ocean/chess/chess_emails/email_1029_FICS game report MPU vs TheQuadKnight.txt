@@ -1,0 +1,21 @@
+Subject: FICS game report MPU vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.02"]
+[Time "05:43:53"]
+[Round "-"]
+[White "MPU"]
+[Black "TheQuadKnight"]
+[WhiteElo "1882"]
+[BlackElo "1419"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. d4 a6 5. Bxc6+ bxc6 6. dxe5 dxe5 7. Qxd8+
+Kxd8 8. Nxe5 Be6 9. Nxc6+ Kc8 10. Nd4 Bc4 11. b3 Bc5 12. Be3 Bxd4 13. Bxd4
+Bb5 14. Bxg7
+{Black resigns} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs mackgathey
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.29"]
+[Time "00:23:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mackgathey"]
+[WhiteElo "1386"]
+[BlackElo "1324"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Nc6 4. Bc4 f6 5. d4 g5 6. O-O Bb4 7. Bd2 Bxd2
+8. Nbxd2 d6 9. Re1 Bg4 10. e5 fxe5 11. dxe5 Nxe5 12. Bb5+ c6 13. Be2 Qf6
+14. Nxe5 Bxe2 15. Rxe2 dxe5 16. Ne4 Qe7 17. Qd6 Rd8 18. Qxe7+ Kxe7 19. Nxg5
+Kf6 20. Ne4+ Kf5 21. Nc5 b6 22. Nd3 e4 23. Nf2 Nf6 24. h3 Rhg8 25. Kf1 f3
+26. gxf3 exf3 27. Re3 Kf4 28. Rae1 Rd2 29. Nd3+ Kg3 30. Ne5 Rf2+ 31. Kg1
+Kxh3+ 32. Kh1 Rh2#
+{White checkmated} 0-1
+

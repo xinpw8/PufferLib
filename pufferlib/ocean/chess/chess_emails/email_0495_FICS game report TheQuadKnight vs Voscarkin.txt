@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Voscarkin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "10:52:37"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Voscarkin"]
+[WhiteElo "1421"]
+[BlackElo "1530"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d6 2. c4 e5 3. dxe5 dxe5 4. Qxd8+ Kxd8 5. Nc3 c6 6. Bd2 Kc7 7. O-O-O
+Be6 8. e4 f6 9. f4 Nd7 10. Nf3 Bd6 11. Na4 b6 12. b4 exf4 13. c5 Be5 14. Nxe5
+fxe5 15. Bc3 Bxa2 16. Be2 Bb3 17. cxb6+ axb6 18. Bg4 Bxd1 19. Rxd1 Ngf6
+20. Bxd7 Nxd7 21. Nb2 Ra1+ 22. Kc2 Rxd1 23. Kxd1 Ra8 24. Nc4 Re8 25. Ke2
+b5 26. Na5 g5 27. Kf3 h5 28. h3 Rg8 29. g4 Rh8 30. gxh5 Rxh5 31. Kg4 Rh8
+32. Nb3 Rh4+ 33. Kxg5 Rxh3 34. Nc5 Rxc3 35. Nxd7 Kxd7 36. Kf5 f3 37. Kxe5
+f2 38. Kd4 Rc4+ 39. Ke5 Rxb4 40. Kf5 f1=Q+ 41. Ke5 Qa1+ 42. Kf5 Qd4 43. Kg6
+Qxe4+ 44. Kf7 Qf5+ 45. Kg8 Rg4+ 46. Kh8 Qh5#
+{White checkmated} 0-1
+

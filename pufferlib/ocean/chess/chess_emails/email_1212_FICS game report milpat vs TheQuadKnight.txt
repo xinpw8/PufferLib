@@ -1,0 +1,25 @@
+Subject: FICS game report milpat vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.21"]
+[Time "19:17:00"]
+[Round "-"]
+[White "milpat"]
+[Black "TheQuadKnight"]
+[WhiteElo "1446"]
+[BlackElo "1380"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Bb4 4. Nf3 c5 5. cxd5 cxd4 6. Qa4+ Nc6 7. dxc6
+Bxc3+ 8. bxc3 dxc3 9. cxb7+ Bd7 10. Qe4 Rb8 11. Bf4 Nf6 12. Qb4 Nd5 13. Qd4
+Nxf4 14. Qxg7 Rf8 15. Qxc3 Rxb7 16. e3 Nd5 17. Qe5 Qb6 18. Nd2 Ke7 19. Bc4
+Qd6 20. Qg5+ Nf6 21. Ne4 Qb4+ 22. Nd2 Qc3 23. Rd1 Bb5 24. Bxb5 Rxb5 25. O-O
+Rxg5 26. Nb3 Qe5 27. Nd4 Qc7 28. f4 Rd5 29. f5 exf5 30. Nxf5+ Ke8 31. Rxd5
+Nxd5 32. Ng7+ Ke7 33. Nf5+ Kf6 34. Nd4+ Ke5 35. Rf5+ Ke4 36. Rh5 Qc1+ 37. Kf2
+Qd2+ 38. Kg3 Qxe3+ 39. Nf3 Qf4+ 40. Kf2 Nf6
+{White forfeits on time} 0-1
+

@@ -1,0 +1,28 @@
+Subject: FICS game report aegisword vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.17"]
+[Time "14:22:56"]
+[Round "-"]
+[White "aegisword"]
+[Black "TheQuadKnight"]
+[WhiteElo "1400"]
+[BlackElo "1386"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. a4 d6 5. c3 Be7 6. d3 O-O 7. h4 h6 8. Ng5
+d5 9. exd5 Nxd5 10. Qc2 Nf4 11. Bxf4 exf4 12. d4 Bxg5 13. hxg5 Qxg5 14. Nd2
+Re8+ 15. Kf1 b6 16. Nf3 Qf6 17. Rd1 Bb7 18. Rh5 Na5 19. Rf5 Qg6 20. Bxf7+
+Qxf7 21. Rxf7 Kxf7 22. Ne5+ Ke7 23. Qg6 Nc6 24. Qxg7+ Ke6 25. Qg6+ Ke7 26. Nxc6+
+Bxc6 27. Qxc6 Kf7 28. Re1 Rxe1+ 29. Kxe1 Re8+ 30. Kf1 Rh8 31. Qxc7+ Kg6
+32. Qxf4 h5 33. Qe5 Rh7 34. g3 h4 35. Qe4+ Kg5 36. Qf4+ Kg6 37. gxh4 Rh5
+38. f3 Rf5 39. Qg4+ Kf6 40. Kg2 a6 41. f4 a5 42. h5 Ke6 43. h6 b5 44. axb5
+Kf6 45. h7 Rxb5 46. h8=Q+ Ke7 47. Qgg7+ Kd6 48. Qhh6+ Kd5 49. Qd7+ Kc4 50. Qa6
+Kb3 51. Qaxb5+ Kc2 52. f5 a4 53. f6 a3 54. bxa3 Kxc3 55. f7 Kc2 56. f8=Q
+Kc1 57. Qff1+ Kc2 58. Qbe2+ Kc3 59. Qc6+ Kb3 60. Qec4+ Kb2 61. Qfc1#
+{Black checkmated} 1-0
+

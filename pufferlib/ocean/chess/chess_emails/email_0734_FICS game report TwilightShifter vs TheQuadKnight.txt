@@ -1,0 +1,21 @@
+Subject: FICS game report TwilightShifter vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.03"]
+[Time "08:47:30"]
+[Round "-"]
+[White "TwilightShifter"]
+[Black "TheQuadKnight"]
+[WhiteElo "1468"]
+[BlackElo "1343"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. e4 e5 4. d5 Nf6 5. Nc3 c6 6. Bxc4 Bb4 7. Ne2 cxd5
+8. exd5 Ne4 9. O-O Nd6 10. Qd3 Bf5 11. Bb5+ Nd7 12. Bxd7+ Qxd7 13. Qf3 Bg4
+14. Qg3 O-O 15. h3 Bxc3 16. Nxc3 Nf5 17. Qxg4 Rfd8 18. Bg5 f6 19. Bxf6
+{Black resigns} 1-0
+

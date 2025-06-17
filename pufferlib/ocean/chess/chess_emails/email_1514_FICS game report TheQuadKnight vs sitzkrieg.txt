@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs sitzkrieg
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.11"]
+[Time "17:48:21"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sitzkrieg"]
+[WhiteElo "1418"]
+[BlackElo "1657"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nf6 5. Bb5+ Bd7 6. Qd3 a6 7. Bxd7+
+Qxd7 8. O-O e6 9. Bg5 Be7 10. Ne5 Qd8 11. Qb3 b5 12. a4 O-O 13. axb5 Nfd7
+14. Bxe7 Qxe7 15. bxa6 Nxe5 16. dxe5 Rxa6 17. Rxa6 Nxa6 18. Qb6 Nc5 19. b4
+Ne4 20. f3 Ng5 21. h4 Rc8 22. hxg5 Qxg5 23. Rf2 h5 24. Qd4 Rc4 25. Qd2 Qxe5
+26. Re2 Qf6 27. Na3 Rd4 28. Qe3 Rxb4 29. Qe5 Qh4 30. c4 Rb3 31. Re3 Rb2
+32. Re2 Rb3 33. Kf1 Rxa3 34. cxd5 Ra2 35. Qb8+ Kh7 36. Rxa2 Qc4+ 37. Kg1
+Qxa2 38. Kh2 Qb1 39. Qg3 Qb8 40. Qxb8
+{Black resigns} 1-0
+

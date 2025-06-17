@@ -1,0 +1,28 @@
+Subject: FICS game report Erge vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "11:18:48"]
+[Round "-"]
+[White "Erge"]
+[Black "TheQuadKnight"]
+[WhiteElo "1401"]
+[BlackElo "1349"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. c3 Nf6 4. Bd3 Nc6 5. Ne2 dxc3 6. O-O cxb2 7. Bxb2
+Be7 8. Nbc3 O-O 9. Rc1 a6 10. Bb1 b5 11. Qc2 Re8 12. Nd5 Ne5 13. Bxe5 c6
+14. Nxf6+ Bxf6 15. Bxf6 Qxf6 16. e5 Qg6 17. Qxg6 hxg6 18. Nf4 Rxe5 19. Rfe1
+Rg5 20. Nd3 d5 21. Nc5 Bh3 22. g3 f5 23. Ne6 Rg4 24. Nc7 Ra7 25. Ne6 Kh7
+26. Nc5 Rd4 27. Ne6 Rd2 28. Ng5+ Kh6 29. Nxh3 g5 30. Kg2 f4 31. Ng1 Rf7
+32. Nh3 g4 33. Nxf4 g5 34. Ne6 Rfxf2+ 35. Kg1 Rg2+ 36. Kh1 Rxh2+ 37. Kg1
+Rdg2+ 38. Kf1 Rf2+ 39. Kg1 Rhg2+ 40. Kh1 Rh2+ 41. Kg1 Rhg2+ 42. Kh1 Rh2+
+43. Kg1 Rfg2+ 44. Kf1 Rxg3 45. Nxg5 Rh1+ 46. Kf2 Rxe1 47. Rxe1 Rc3 48. Ne6
+Rf3+ 49. Kg2 Kh5 50. Re5+ Kh4 51. Rf5 Rg3+ 52. Kf2 Rh3 53. Ng5 Rh2+ 54. Ke3
+g3 55. Nf3+
+{Black forfeits on time} 1-0
+

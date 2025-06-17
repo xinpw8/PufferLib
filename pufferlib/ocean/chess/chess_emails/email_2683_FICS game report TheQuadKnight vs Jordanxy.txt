@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs Jordanxy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "19:22:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Jordanxy"]
+[WhiteElo "1339"]
+[BlackElo "765"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 Nf6 2. e5 Nd5 3. d4 d6 4. Nf3 Nc6 5. c4 Nb6 6. c5 Nd7 7. d5 Nb4 8. c6
+bxc6 9. dxc6 Nc5 10. exd6 cxd6 11. Bb5 Rb8 12. c7+ Qd7 13. Bxd7+ Bxd7 14. cxb8=Q+
+Bc8 15. Qxc8#
+{Black checkmated} 1-0
+

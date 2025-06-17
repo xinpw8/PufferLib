@@ -1,0 +1,26 @@
+Subject: FICS game report oldbean vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.10"]
+[Time "15:42:19"]
+[Round "-"]
+[White "oldbean"]
+[Black "TheQuadKnight"]
+[WhiteElo "1594"]
+[BlackElo "1406"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. c3 Nf6 4. Qc2 d5 5. exd5 Nxd5 6. Bc4 Nf6 7. Ng5 Be6
+8. Bxe6 fxe6 9. Nxe6 Qd6 10. Qf5 Be7 11. Nxg7+ Kf7 12. Ne6 Qxe6 13. Qxe6+
+Kxe6 14. O-O Rae8 15. Re1 Kd7 16. Na3 Bc5 17. Nc4 Ng4 18. Ne3 Nxe3 19. dxe3
+Rhf8 20. b4 Bb6 21. Ba3 Ne7 22. c4 c6 23. Rad1+ Kc8 24. c5 Bc7 25. Bb2 Rf7
+26. a4 Ref8 27. f3 Nd5 28. b5 Rg8 29. bxc6 bxc6 30. Rd3 Rxf3 31. Kh1 Rf2
+32. Bc3 Rgxg2 33. e4 Rxh2+ 34. Kg1 Rfg2+ 35. Kf1 Rf2+ 36. Kg1 Rhg2+ 37. Kh1
+Nf4 38. Rde3 Nd5 39. Rh3 Nxc3 40. Rxc3 Rh2+ 41. Kg1 Ba5 42. Rec1 Bxc3 43. Rxc3
+Ra2 44. Rc1 Rhc2 45. Rf1 Rab2 46. Kh1 Kc7 47. Rd1 Rd2 48. Kg1 Rxd1#
+{White checkmated} 0-1
+

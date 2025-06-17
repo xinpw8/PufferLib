@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Mussklprozz
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "08:30:31"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Mussklprozz"]
+[WhiteElo "1392"]
+[BlackElo "1513"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 g6 5. Nc3 Bg7 6. Be3 Nf6 7. Be2 O-O
+8. f4 d5 9. e5 Ne4 10. Nxe4 dxe4 11. g4 f5 12. h4 fxg4 13. Bxg4 Bxg4 14. Nxc6
+Qxd1+ 15. Rxd1 bxc6 16. Rd2 Bf3 17. Rg1 e6 18. Rd6 Rad8 19. Rxc6 Rd1+ 20. Kf2
+Rxg1 21. Kxg1 Rb8 22. b3 Rb7 23. c4 Bf8 24. Rxe6 Kf7 25. Ra6 Be7 26. Rxa7
+Rxa7 27. Bxa7 Bxh4 28. b4 Be2 29. c5 Bb5 30. Kg2 Be1 31. a3 Bc3 32. Kf2
+Ke6 33. Ke3 Kf5 34. Bb8 Bb2 35. e6 Kxe6 36. Kxe4 Bxa3 37. Bd6 Bxb4 38. Kd4
+h5 39. Ke4 h4 40. Kf3 h3 41. Kg3 Bf1 42. Kh2 Kd5 43. Kg3 Bxc5 44. Be5 Bd6
+45. Bc3 Bxf4+ 46. Kxf4 h2 47. Kg5 Bd3 48. Kf6 h1=Q
+{White resigns} 0-1
+

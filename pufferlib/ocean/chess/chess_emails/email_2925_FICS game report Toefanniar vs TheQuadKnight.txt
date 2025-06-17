@@ -1,0 +1,26 @@
+Subject: FICS game report Toefanniar vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "11:50:22"]
+[Round "-"]
+[White "Toefanniar"]
+[Black "TheQuadKnight"]
+[WhiteElo "1376"]
+[BlackElo "1412"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 Nc6 3. c3 e5 4. Bb5 exd4 5. Bxc6+ bxc6 6. exd4 c5 7. Be3
+Nf6 8. dxc5 Qe7 9. Ne2 Ng4 10. Qxd5 Nxe3 11. Qxa8 Nc2+ 12. Kf1 Qd7 13. Qe4+
+Be7 14. Qxc2 O-O 15. Nd2 Re8 16. Rd1 Qe6 17. Nd4 Qf6 18. b4 Bb7 19. Rg1
+Qg5 20. N2f3 Qh6 21. Nf5 Qf6 22. N3h4 Bd8 23. g3 g6 24. Nh6+ Kg7 25. Ng4
+Ba6+ 26. Kg2 Bb7+ 27. Kf1 Qe6 28. Ne3 Qh3+ 29. Nhg2 Bg5 30. Re1 Qxh2 31. Ng4
+Ba6+ 32. c4 Rxe1+ 33. Nxe1 Qh3+ 34. Ng2 Qxg4 35. b5 Bb7 36. c6 Bc8 37. Ne3
+Qf3 38. Qe2 Qe4 39. f4 Bf6 40. Nd5 Bh3+ 41. Kf2 Qd4+ 42. Qe3 Qb2+ 43. Qe2
+Bd4+ 44. Ke1 Qb1+ 45. Qd1
+{Black forfeits on time} 1-0
+

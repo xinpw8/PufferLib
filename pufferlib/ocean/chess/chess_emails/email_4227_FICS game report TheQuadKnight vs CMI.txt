@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs CMI
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "22:36:22"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CMI"]
+[WhiteElo "1387"]
+[BlackElo "1534"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 c6 3. Nc3 e6 4. Nf3 f5 5. e3 Nf6 6. Bd3 Bd6 7. cxd5 cxd5
+8. Bb5+ Nc6 9. Bxc6+ bxc6 10. Bd2 Ba6 11. Rc1 O-O 12. Qa4 Qb6 13. b3 Ne4
+14. Nxe4 fxe4 15. Ne5 Bxe5 16. dxe5 Rac8 17. Bb4 c5 18. Ba3 Rf7 19. Bb2
+Rcf8 20. Ba3 Rxf2 21. b4 cxb4 22. Bxb4 Qxe3+ 23. Kd1 Qe2#
+{White checkmated} 0-1
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs akkaram
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.19"]
+[Time "21:18:01"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "akkaram"]
+[WhiteElo "1429"]
+[BlackElo "1391"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 d6 3. Bb5+ Bd7 4. Bxd7+ Nxd7 5. Nf3 Ngf6 6. O-O Be7 7. d4
+exd4 8. Qxd4 Rc8 9. Re1 O-O 10. Bf4 Re8 11. e5 dxe5 12. Nxe5 Bd6 13. Nxd7
+Qxd7 14. Bxd6 cxd6 15. Rad1 Rc6 16. Qb4 Rxe1+ 17. Rxe1 h6 18. h3 d5 19. Re7
+Qf5 20. Rxb7 d4 21. Rb8+ Kh7 22. Qxd4 Qxc2 23. Qxa7 Re6 24. Qxf7 Re1+ 25. Kh2
+Qf5 26. Rb7 Qf4+
+{White resigns} 0-1
+

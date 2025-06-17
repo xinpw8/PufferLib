@@ -1,0 +1,29 @@
+Subject: FICS game report guiga vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "08:53:32"]
+[Round "-"]
+[White "guiga"]
+[Black "TheQuadKnight"]
+[WhiteElo "1391"]
+[BlackElo "1248"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Bf4 Nf6 3. h3 Nc6 4. Nf3 Bf5 5. Nc3 e6 6. g4 Bg6 7. Bg2 Nb4
+8. O-O Bxc2 9. Qc1 Be4 10. a3 Nc2 11. Ra2 Bxf3 12. Bxf3 Nxd4 13. Bg2 Bd6
+14. Bxd6 Qxd6 15. e3 Nc6 16. Qd2 O-O-O 17. f4 d4 18. Ne4 Nxe4 19. Bxe4 dxe3
+20. Qxe3 Qd4 21. Qxd4 Rxd4 22. Bg2 Rhd8 23. Raa1 Rd2 24. Rf2 Rxf2 25. Kxf2
+Nd4 26. b4 Nb3 27. Rc1 Rd2+ 28. Ke3 Rxg2 29. Rd1 Rg3+ 30. Ke4 Rxh3 31. Rg1
+Nd2+ 32. Ke5 Re3+ 33. Kd4 Rf3 34. f5 Rf4+ 35. Ke3 Rf3+ 36. Kxd2 Rxa3 37. fxe6
+fxe6 38. Re1 Kd7 39. Kc2 c6 40. Rd1+ Ke7 41. Kb2 Ra4 42. Rd4 Ra6 43. Rf4
+Rb6 44. Ka3 a5 45. bxa5 Ra6 46. Ka4 b6 47. Re4 Rxa5+ 48. Kb3 b5 49. Re5
+Ra6 50. Kb4 Kd6 51. Rh5 Rb6 52. Rxh7 g6 53. Rg7 c5+ 54. Kb3 c4+ 55. Kb4
+Rc6 56. Rxg6 c3 57. Rg8 c2 58. Rd8+ Ke5 59. g5 c1=Q 60. Kxb5 Qc4+ 61. Ka5
+Qc2 62. Kb5 Rc3 63. Rf8 Qb2+ 64. Ka4 Ra3#
+{White checkmated} 0-1
+

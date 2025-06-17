@@ -1,0 +1,26 @@
+Subject: FICS game report woram vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.23"]
+[Time "11:24:25"]
+[Round "-"]
+[White "woram"]
+[Black "TheQuadKnight"]
+[WhiteElo "1591"]
+[BlackElo "1395"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. c3 Bg4 5. O-O Nf6 6. Qa4 Bxf3 7. Bxc6+
+bxc6 8. Qxc6+ Nd7 9. gxf3 Be7 10. d3 O-O 11. Be3 Nf6 12. Nd2 Nh5 13. Kh1
+Nf4 14. Bxf4 exf4 15. Rg1 Bh4 16. Rg2 Qf6 17. Rag1 g6 18. d4 Rab8 19. b3
+Kh8 20. Qd5 Qg7 21. Rg4 Bxf2 22. R1g2 Be3 23. Nc4 Qh6 24. Nxe3 fxe3 25. f4
+Qh3 26. R4g3 Qh4 27. Qg5 Qxg5 28. fxg5 f6 29. Rxe3 fxg5 30. Rxg5 Rf2 31. Rg2
+Rf1+ 32. Rg1 Rf2 33. Ra1 Rbf8 34. e5 dxe5 35. dxe5 Rd2 36. e6 Rff2 37. e7
+Rxh2+ 38. Kg1 Rhg2+ 39. Kf1 Rh2 40. e8=Q+ Kg7 41. Qe5+ Kh6 42. Qf4+ g5 43. Re6+
+Kh5 44. Qf3+ g4 45. Re5+ Kh4 46. Qf6+ Kg3 47. Re3#
+{Black checkmated} 1-0
+

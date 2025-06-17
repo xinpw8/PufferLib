@@ -1,0 +1,26 @@
+Subject: FICS game report dbasta vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.10"]
+[Time "11:42:18"]
+[Round "-"]
+[White "dbasta"]
+[Black "TheQuadKnight"]
+[WhiteElo "1440"]
+[BlackElo "1359"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6 bxc6
+8. Ba4 e4 9. Ne5 exd3 10. cxd3 Bd7 11. Qf3 Bb4+ 12. Bd2 Bxd2+ 13. Nxd2 O-O
+14. Bxc6 Nxc6 15. Nxc6 Re8+ 16. Ne5 Be6 17. O-O Qd6 18. Nec4 Qd5 19. Qxd5
+Bxd5 20. Rfe1 Rxe1+ 21. Rxe1 Re8 22. Rxe8+ Nxe8 23. f3 Nc7 24. Kf2 Ne6 25. Ke3
+Bc6 26. b4 Nc7 27. Nb3 Nb5 28. Nc5 Nc3 29. a3 Nd5+ 30. Kd4 Nb6 31. Ke5 Nd7+
+32. Kd6 Nxc5 33. bxc5 Bb5 34. Kd5 Kf8 35. d4 Ke7 36. Nd6 a6 37. Nxb5 axb5
+38. Kc6 Kd8 39. Kxb5 Kc7 40. a4 f5 41. a5 Kb7 42. a6+ Ka7 43. c6 g5 44. c7
+h5 45. c8=Q g4 46. Qb7#
+{Black checkmated} 1-0
+

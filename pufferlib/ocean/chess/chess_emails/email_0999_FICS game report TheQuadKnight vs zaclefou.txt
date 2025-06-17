@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs zaclefou
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.04"]
+[Time "12:05:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "zaclefou"]
+[WhiteElo "1449"]
+[BlackElo "1462"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 e6 3. c3 f5 4. Bf4 Nf6 5. Nbd2 Bd6 6. Bxd6 Qxd6 7. Ne5 O-O
+8. f3 Nbd7 9. e4 Nxe5 10. dxe5 Qxe5 11. Bd3 fxe4 12. fxe4 Nxe4 13. Nf3 Qh5
+14. O-O c6 15. Bxe4 dxe4 16. Nd4 Qc5 17. Rxf8+ Kxf8 18. Qf1+ Kg8 19. Qf2
+e5 20. Nf5 Qxf2+ 21. Kxf2 Bxf5 22. Rf1 Bg6 23. Kg1 Rd8 24. b4 Rd2 25. a4
+Rc2 26. h4 h5 27. Rd1 e3 28. Kf1 Rxc3 29. Rd8+ Kh7 30. Rd7 Bd3+ 31. Ke1
+Rc1#
+{White checkmated} 0-1
+

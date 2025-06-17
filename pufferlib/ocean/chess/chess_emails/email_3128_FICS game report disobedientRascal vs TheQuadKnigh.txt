@@ -1,0 +1,27 @@
+Subject: FICS game report disobedientRascal vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "15:49:38"]
+[Round "-"]
+[White "disobedientRascal"]
+[Black "TheQuadKnight"]
+[WhiteElo "1544"]
+[BlackElo "1355"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. O-O d5 5. exd5 Nxd5 6. Bxd5 Qxd5 7. Nc3
+Qd8 8. d4 Nxd4 9. Nxe5 Be7 10. Re1 O-O 11. Be3 Nf5 12. Qf3 Nxe3 13. Rxe3
+Bf6 14. Rd3 Qe7 15. Nc4 Be6 16. Re1 Rad8 17. Ne5 Rxd3 18. Nxd3 Re8 19. Nd5
+Qd6 20. Nxf6+ gxf6 21. Qxf6 Qc6 22. c3 Bd7 23. Qxc6 Rxe1+ 24. Nxe1 Bxc6
+25. Nd3 a6 26. Ne5 Bd5 27. c4 Be6 28. f4 c6 29. g4 f6 30. f5 fxe5 31. fxe6
+Kf8 32. Kf2 Ke7 33. Ke3 Kxe6 34. b4 b6 35. h4 h6 36. a4 Kf6 37. Ke4 Ke6
+38. h5 Kf6 39. b5 axb5 40. c5 bxc5 41. a5 b4 42. a6 b3 43. a7 b2 44. a8=Q
+b1=Q+ 45. Kf3 Qf1+ 46. Kg3 Qg1+ 47. Kf3 Qh1+ 48. Ke3 Qg1+ 49. Ke4 Qg2+ 50. Kd3
+Qg3+ 51. Kc4 Qf4+ 52. Kxc5 Qc1+ 53. Kd6 Qd1+ 54. Kc7 Qd6+
+{White forfeits on time} 0-1
+

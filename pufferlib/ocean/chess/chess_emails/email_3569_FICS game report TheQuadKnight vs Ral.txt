@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Ral
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.25"]
+[Time "16:11:39"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Ral"]
+[WhiteElo "1390"]
+[BlackElo "1378"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 c6 4. Nf3 Be7 5. e3 Nd7 6. Bd2 g5 7. Bd3 g4 8. Ne5
+Nxe5 9. dxe5 h5 10. Qe2 Bb4 11. O-O-O Qa5 12. a3 Bxa3 13. bxa3 Qxa3+ 14. Kc2
+Qa5 15. Ra1 Qc7 16. cxd5 exd5 17. e4 dxe4 18. Nxe4 Be6 19. Bc3 b6 20. Nd6+
+Kf8 21. Qe4 Bd5 22. Qf5 Nh6 23. Qf6 Kg8 24. Be4 Be6 25. Nf5 Nxf5 26. Bxf5
+Re8 27. Qg5+ Kf8 28. Bxe6 Rxe6 29. Rad1 Re8 30. Qf6 Rg8 31. Qh6+ Rg7 32. Qh8+
+Rg8 33. Qh6+ Rg7 34. Qf6 Qe7 35. Qh6 Qe6 36. Qh8+ Rg8 37. Qxh5 a5 38. Rd6
+Qc4 39. Qh6+ Rg7 40. e6 Qe4+ 41. Kb2 Rxe6 42. Qxg7+ Ke8 43. Qg8+ Ke7 44. Qd8#
+{Black checkmated} 1-0
+

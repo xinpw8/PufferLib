@@ -1,0 +1,23 @@
+Subject: FICS game report Longuelouve vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.31"]
+[Time "08:36:23"]
+[Round "-"]
+[White "Longuelouve"]
+[Black "TheQuadKnight"]
+[WhiteElo "1325"]
+[BlackElo "1409"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Nf6 5. O-O Bc5 6. e5 Ng4 7. Bf4 O-O
+8. h3 d5 9. exd6 Nf6 10. dxc7 Qd7 11. c3 Nh5 12. cxd4 Bxd4 13. Ne5 Qf5 14. Nxc6
+Qxf4 15. Nxd4 Qxc7 16. Na3 Rd8 17. Qxh5 Rxd4 18. Rae1 Bd7 19. Bxf7+ Kf8
+20. Bb3 Bc6 21. Qc5+ Rd6 22. Qf5+ Rf6 23. Qh5 Re8 24. Rxe8+ Bxe8 25. Qxh7
+b5 26. Qg8+ Ke7 27. Qxg7+ Bf7 28. Re1+ Re6
+{Black resigns} 1-0
+

@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs NineMiles
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.09"]
+[Time "14:34:21"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "NineMiles"]
+[WhiteElo "1400"]
+[BlackElo "1421"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 c5 3. e3 g6 4. Nf3 Bg7 5. Bd3 O-O 6. O-O d5 7. Nc3 cxd4
+8. exd4 dxc4 9. Bxc4 Bg4 10. Re1 e6 11. Bg5 Qb6 12. Qd3 Nc6 13. Na4 Qb4
+14. b3 Rac8 15. Ne5 Nxe5 16. dxe5 Bf5 17. Qd4 Ne4 18. a3 Qd2 19. Rad1 Qxd4
+20. Rxd4 Bxe5 21. Rdxe4 Bxe4 22. Rxe4 Bg7 23. Be3 a6 24. Bd4 b5 25. Nb6
+bxc4 26. Nxc8 Rxc8 27. Bxg7 Kxg7 28. Rxc4 Rxc4 29. bxc4 Kf6 30. c5 Ke7 31. f3
+Kd7 32. Kf2 Kc6 33. Ke3 Kxc5 34. Ke4 Kc4 35. g4 Kb3 36. h4 Kxa3 37. f4 a5
+38. Ke5 a4 39. Kf6 Kb4 40. Kxf7 a3 41. Kxe6 a2 42. f5 gxf5 43. gxf5 a1=Q
+44. f6 Qe1+ 45. Kf7 Qxh4 46. Kg7 h5 47. f7 Qf4 48. f8=Q+ Qxf8+ 49. Kxf8
+h4 50. Ke7 h3 51. Ke6 h2 52. Ke5 h1=Q 53. Kf5 Qf3+ 54. Ke6 Kc5 55. Ke5 Qe3+
+56. Kf5 Kd4 57. Kf6 Qe5+ 58. Kg6 Kd5 59. Kf7 Kd6 60. Kg6 Ke6 61. Kh6 Qg3
+62. Kh5 Kf5 63. Kh6 Kf6 64. Kh7 Kf7 65. Kh8 Qg7#
+{White checkmated} 0-1
+

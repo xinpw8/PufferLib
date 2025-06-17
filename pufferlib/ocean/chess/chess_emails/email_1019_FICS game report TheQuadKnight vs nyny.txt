@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs nyny
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.03"]
+[Time "19:03:50"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "nyny"]
+[WhiteElo "1448"]
+[BlackElo "1149"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 b6 2. c4 Bb7 3. Nc3 e6 4. Nf3 Bb4 5. Bd2 h6 6. a3 Bxc3 7. bxc3 Nf6
+8. Bf4 Bxf3 9. exf3 O-O 10. Bd3 d6 11. O-O Nh5 12. Be3 c6 13. Re1 Nd7 14. Qd2
+f5 15. d5 f4 16. dxe6 Ne5 17. Bd4 Qe7 18. Bxe5 dxe5 19. Rxe5 Nf6 20. Qxf4
+Rad8 21. Qf5 g6 22. Qxg6+ Qg7 23. Qxg7+ Kxg7 24. e7 Rxd3 25. exf8=Q+ Kxf8
+26. Rae1 Rxc3 27. h3 Rxc4 28. Re6 Kg7 29. Re7+ Kg6 30. Rxa7 b5 31. Ree7
+Ra4 32. Rxa4 bxa4 33. Re6 Kf5 34. Rxc6 h5 35. Ra6 Nd5 36. Rxa4 Nc3 37. Rc4
+Ne2+ 38. Kf1
+{Black resigns} 1-0
+

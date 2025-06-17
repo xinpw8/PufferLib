@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs elisabeth
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "12:11:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "elisabeth"]
+[WhiteElo "1436"]
+[BlackElo "1681"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 g6 2. Nf3 Bg7 3. Be2 d6 4. O-O Nf6 5. Nc3 O-O 6. d4 c6 7. Bg5 b5 8. Bxf6
+Bxf6 9. e5 Bg7 10. exd6 exd6 11. d5 Re8 12. dxc6 Nxc6 13. Bxb5 Bb7 14. Re1
+Qb6 15. Rxe8+ Rxe8 16. Bxc6 Qxc6 17. Nd4 Qxg2#
+{White checkmated} 0-1
+

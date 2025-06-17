@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs azd
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "15:35:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "azd"]
+[WhiteElo "1421"]
+[BlackElo "1485"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bg5 O-O 5. e3 d5 6. Nf3 c6 7. Bd3 Qa5 8. Qc2
+Ne4 9. Bxe4 dxe4 10. Nd2 Qxg5 11. Ndxe4 Qxg2 12. O-O-O Bxc3 13. Nxc3 Qg6
+14. Rhg1 Qxc2+ 15. Kxc2 Bd7 16. Ne4 Na6 17. a3 Rad8 18. Rg2 f5 19. Ng5 c5
+20. Rdg1 g6 21. h4 Nc7 22. h5 Be8 23. b4 cxd4 24. exd4 b6 25. Kd3 e5 26. d5
+Rd6 27. Kc3 b5 28. Nf3 bxc4 29. Nxe5 Nxd5+ 30. Kxc4 Nf4 31. Rh2 Bf7+ 32. Kc5
+Rd5+ 33. Kc6 Rxe5 34. hxg6 Bxg6 35. Rh4 Ne6 36. Kd6 Re2 37. a4 Rd8+ 38. Ke7
+Rd4 39. Rxd4 Nxd4+ 40. Kf6 Re6+ 41. Kg5 Nf3+ 42. Kf4 Nxg1
+{White resigns} 0-1
+

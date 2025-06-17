@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs TarAnktar
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.28"]
+[Time "23:28:50"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TarAnktar"]
+[WhiteElo "1392"]
+[BlackElo "1395"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Nf3 O-O 5. e3 d6 6. Bd3 c5 7. O-O cxd4
+8. exd4 a6 9. Re1 e6 10. Bg5 Qb6 11. Rb1 Nc6 12. Be3 Ng4 13. c5 Nxe3 14. cxb6
+Nxd1 15. Rbxd1 Nxd4 16. Nxd4 Bxd4 17. Bc2 Bc5 18. Ne4 Bxb6 19. Nxd6 Kg7
+20. Nxc8 Raxc8 21. Bb3 Rfd8 22. Rc1 Rxc1 23. Rxc1 Rd2 24. h3 Rxf2 25. Kh2
+Rxb2 26. Rd1 Ba5 27. Rd7 b6 28. Bxe6 Rf2 29. Bb3 Bb4 30. Rb7 Bc5 31. a4
+a5 32. Rd7 Rb2 33. Rxf7+ Kh6 34. Rf3 Kg5 35. Rg3+ Kh5 36. Rf3 g5 37. Kh1
+Bd6 38. Bd1 Rb1 39. Rd3+ Kh4 40. Rxd6 h6 41. Kh2 Rb4 42. g3#
+{Black checkmated} 1-0
+

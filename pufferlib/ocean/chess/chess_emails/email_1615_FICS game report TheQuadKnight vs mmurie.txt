@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs mmurie
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.04"]
+[Time "11:08:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mmurie"]
+[WhiteElo "1384"]
+[BlackElo "1406"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 e6 5. Nc3 a6 6. Be3 Qc7 7. Be2 Bb4
+8. f4 Nf6 9. e5 Bxc3+ 10. bxc3 Nd5 11. Bd2 b5 12. g4 Bb7 13. Bf3 Nxc3 14. Bxc3
+Nxd4 15. Bxd4 Bxf3 16. Qxf3 Rc8 17. c3 d5 18. f5 Qc4 19. Rf1 b4 20. fxe6
+fxe6 21. Qf7+ Kd8 22. Qxe6 bxc3 23. Rf7 Rc7 24. Bb6 c2 25. Qd7#
+{Black checkmated} 1-0
+

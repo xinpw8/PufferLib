@@ -1,0 +1,24 @@
+Subject: FICS game report ppluche vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.07"]
+[Time "17:59:47"]
+[Round "-"]
+[White "ppluche"]
+[Black "TheQuadKnight"]
+[WhiteElo "1422"]
+[BlackElo "1412"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 Bb4 5. Bd2 O-O 6. e3 Bd7 7. Bd3 c5 8. dxc5
+Bxc5 9. O-O dxc4 10. Bxc4 Bc6 11. Ne5 Be8 12. Qc2 Nc6 13. Nd3 Qc7 14. Nxc5
+Ne5 15. Nxe6 fxe6 16. Bxe6+ Bf7 17. Bxf7+ Qxf7 18. Rad1 Rac8 19. Qa4 Qc7
+20. Bc1 Neg4 21. g3 Ne5 22. Qb5 Nfg4 23. f4 Nc4 24. Rfe1 Qf7 25. Qg5 Qe6
+26. e4 Qb6+ 27. Kg2 Nge3+ 28. Bxe3 Nxe3+ 29. Rxe3 Qxe3 30. Rd7 Rf7 31. Qd5
+Rf8 32. e5 Qe1 33. Qxb7 Rxd7 34. Qxd7 Qc1 35. Qd5+ Kh8 36. Qb3 Qc2+
+{White forfeits on time} 0-1
+

@@ -1,0 +1,27 @@
+Subject: FICS game report CosmicM vs TheQuadKnight
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "20:36:29"]
+[Round "-"]
+[White "CosmicM"]
+[Black "TheQuadKnight"]
+[WhiteElo "1487"]
+[BlackElo "1435"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 d6 3. Bc4 Nc6 4. O-O Nf6 5. d3 Be7 6. h3 Na5 7. a3 Nxc4
+8. dxc4 O-O 9. Nc3 Be6 10. Bg5 Bxc4 11. Bxf6 Bxf1 12. Bxe7 Qxe7 13. Qxf1
+f5 14. exf5 Rxf5 15. Rd1 Raf8 16. Qd3 c6 17. Qxd6 Qxd6 18. Rxd6 g5 19. Rd7
+Rb8 20. Re7 h5 21. Rxe5 Rxe5 22. Nxe5 g4 23. hxg4 Re8 24. f4 hxg4 25. Nxg4
+Rf8 26. g3 Kg7 27. Ne5 Rd8 28. Ne4 Rd4 29. Nc3 Rd2 30. g4 Rxc2 31. Nc4 Rc1+
+32. Kg2 Re1 33. Kf2 Re8 34. Kf3 b5 35. Ne5 a5 36. Nxc6 Rc8 37. Ne5 Rc5 38. b4
+Kf8 39. bxc5 b4 40. axb4 axb4 41. Nb1 b3 42. Nd3 b2 43. Nxb2 Ke8 44. Ke4
+Kd7 45. Ke5 Kc6 46. f5 Kc7 47. g5 Kc6 48. g6 Kxc5 49. f6 Kb4 50. f7 Kb3
+51. f8=Q Kxb2 52. g7 Kxb1 53. g8=Q Kc1
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

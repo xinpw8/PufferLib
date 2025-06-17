@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs hazamsampion
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.24"]
+[Time "13:57:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "hazamsampion"]
+[WhiteElo "1261"]
+[BlackElo "1461"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Nc6 4. e3 e6 5. Bxc4 Nf6 6. Nf3 Be7 7. O-O O-O
+8. Bd2 h6 9. Rc1 a6 10. a4 Nh7 11. Qb3 Kh8 12. Rfd1 Bd7 13. d5 Na5 14. Qa2
+Nxc4 15. Qxc4 exd5 16. Nxd5 b5 17. Qxc7 Qxc7 18. Rxc7 Nf6 19. Nxe7 bxa4
+20. Bb4 Bb5 21. Nc6 Rfe8 22. Ncd4 Nd5 23. Nxb5 Nxb4 24. Nd6 Re6 25. Nxf7+
+Kh7 26. N7e5 Rae8 27. Rdd7 Rxe5 28. Rxg7+ Kh8 29. Nxe5 Rxe5 30. Rh7+ Kg8
+31. Rcg7+ Kf8 32. Rb7 Nc6 33. Rbc7 Ne7 34. Rcxe7 Rxe7 35. Rxe7 Kxe7 36. Kf1
+a5 37. Ke2 Kd6 38. Kd3 Kc5 39. Kc3 Kd5 40. f3 h5 41. g3 Ke5 42. h4 Kf5 43. Kc4
+Ke5 44. Kc3 Kd5 45. g4 hxg4 46. fxg4 Ke5 47. h5 Kf6 48. h6 Kg6 49. Kd4 Kxh6
+50. e4 Kg5 51. Kd5 Kf6 52. e5+ Ke7 53. e6 Ke8 54. Kd6 Kd8 55. e7+ Ke8 56. Ke6
+a3 57. bxa3 a4 58. Ke5 Kxe7 59. Kf5 Kf7 60. g5 Kg7 61. g6 Kg8 62. Kg5 Kg7
+63. Kh5 Kg8 64. Kh6 Kh8 65. g7+ Kg8 66. Kg6
+{Game drawn by stalemate} 1/2-1/2
+

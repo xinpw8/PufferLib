@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs lotfisaid
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "11:27:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "lotfisaid"]
+[WhiteElo "1392"]
+[BlackElo "1510"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. Nf3 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Bd3 Nbd7 6. O-O Nxe4 7. Bxe4
+Nf6 8. d3 Nxe4 9. dxe4 Qxd1 10. Rxd1 Bg4 11. Rd3 e6 12. Bf4 Bc5 13. h3 Bh5
+14. g4 Bg6 15. Re1 Bb6 16. Ne5 Rd8 17. Rxd8+ Bxd8 18. Nxg6 hxg6 19. Kg2
+O-O 20. Rd1 Bb6 21. Bd6 Rd8 22. e5 f5 23. exf6 gxf6 24. Kf1 Kf7 25. Ke1
+e5 26. Bb4 Bxf2+ 27. Ke2 Rxd1 28. Kxd1 Ke6 29. Ke2 Bb6 30. Kf3 Bd4 31. c3
+Bb6 32. a4 c5 33. Ba3 Kd5 34. b4 cxb4 35. cxb4 Kc4 36. a5 Bd8 37. Ke4 Kb3
+38. Bc1 Kxb4 39. Be3 a6 40. Bb6 Bxb6 41. axb6 Kb5 42. Kd5 Kxb6 43. Ke6 e4
+44. Kxf6 e3 45. Kxg6 e2 46. h4 e1=Q 47. g5 Qe4+ 48. Kh6 Qxh4+ 49. Kg6 Kc6
+50. Kf6 b5 51. Kf5 b4 52. g6 Qg3 53. Kf6 b3 54. Kf7 b2 55. g7 Qxg7+ 56. Kxg7
+b1=Q 57. Kf7
+{White resigns} 0-1
+

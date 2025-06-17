@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Sassalbo
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.21"]
+[Time "15:32:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Sassalbo"]
+[WhiteElo "1330"]
+[BlackElo "1380"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 b6 4. cxd5 exd5 5. Nf3 Bb7 6. Bf4 Nd7 7. Nb5 Rc8
+8. Rc1 a6 9. Nxc7+ Ke7 10. Qc2 Ngf6 11. Ne5 Nxe5 12. Bxe5 Kd7 13. Bxf6 gxf6
+14. Qa4+ b5 15. Qa5 Rxc7 16. Rxc7+ Qxc7 17. Qxc7+ Kxc7 18. e3 Bb4+ 19. Kd1
+Bc8 20. Bd3 f5 21. Kc2 Be6 22. Kb1 Rc8 23. Rc1+ Kd7 24. Rxc8 Kxc8 25. a3
+Be1 26. f3 Bf2 27. e4 fxe4 28. fxe4 dxe4 29. Bxe4 Bxd4 30. g3 h6 31. h4
+Bf2 32. Bf3 Bxg3
+{White resigns} 0-1
+

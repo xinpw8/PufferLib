@@ -1,0 +1,28 @@
+Subject: FICS game report BerlinDelta vs TheQuadKnight
+
+
+[Event "FICS rated standard game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.05"]
+[Time "16:02:52"]
+[Round "-"]
+[White "BerlinDelta"]
+[Black "TheQuadKnight"]
+[WhiteElo "1802"]
+[BlackElo "1753"]
+[TimeControl "900+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. Nf3 Nc6 2. g3 e6 3. Bg2 d5 4. O-O Nf6 5. d3 Bd6 6. Bg5 O-O 7. Nbd2 h6
+8. Be3 Bd7 9. c4 Qe7 10. Qc2 Ng4 11. d4 Nxe3 12. fxe3 b6 13. e4 dxe4 14. Nxe4
+Bb4 15. a3 Ba5 16. b4 Nxb4 17. axb4 Bxb4 18. Ne5 Rad8 19. Nxd7 Qxd7 20. e3
+a5 21. Rf2 f5 22. Nc3 g5 23. Raf1 c5 24. Nb5 cxd4 25. exd4 h5 26. Re2 Qc8
+27. Re5 Rfe8 28. Rf3 Qd7 29. Rfe3 Rc8 30. Bf3 g4 31. Bd1 Qc6 32. Be2 Bf8
+33. d5 exd5 34. Rxe8 Rxe8 35. Rxe8 Qxe8 36. cxd5 Bc5+ 37. Kf1 Qd7 38. Bd3
+Qxd5 39. Bxf5 Qf3+ 40. Ke1 Qe3+ 41. Kd1 Qg1+ 42. Kd2 Qxh2+ 43. Kc3 Qxg3+
+44. Kb2 Qe5+ 45. Kb1 Qe1+ 46. Kb2 Qb4+ 47. Qb3+ Qxb3+ 48. Kxb3 Kg7 49. Nd6
+Bxd6 50. Kc4 g3 51. Be4 Kf6 52. Kd3 h4 53. Ke2 h3 54. Kf1 b5 55. Kg1 a4
+56. Bd5 b4 57. Bc4 a3 58. Bd5 Ke5 59. Bf3 a2 60. Bg2 a1=Q+
+{White forfeits on time} 0-1
+

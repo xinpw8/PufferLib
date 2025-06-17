@@ -1,0 +1,25 @@
+Subject: FICS game report Mexloco vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "14:25:24"]
+[Round "-"]
+[White "Mexloco"]
+[Black "TheQuadKnight"]
+[WhiteElo "1451"]
+[BlackElo "1403"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. c4 e6 4. Bg5 Be7 5. Bxe7 Ngxe7 6. Nc3 O-O 7. e3 Na5
+8. b3 c6 9. Bd3 b6 10. Qc2 c5 11. Bxh7+ Kh8 12. Bd3 a6 13. Qe2 Ng6 14. Ng5
+Qxg5 15. h4 Nxh4 16. g3 dxc4 17. Rxh4+ Kg8 18. bxc4 f5 19. O-O-O Bd7 20. Rdh1
+Kf7 21. d5 e5 22. Qh5+ Qxh5 23. Rxh5 e4 24. Be2 Rab8 25. f3 b5 26. cxb5
+axb5 27. fxe4 fxe4 28. Nxe4 Ke7 29. d6+ Kd8 30. Nxc5 Nc4 31. Bxc4 bxc4 32. Kc2
+Bf5+ 33. e4 Bg6 34. Rg5 Rf6 35. Rh8+ Be8 36. Rxg7 Rxd6 37. Rgg8 Ke7 38. Rh7+
+Kd8 39. e5 Rd5 40. Ne6+ Kc8 41. Rxe8+ Rd8 42. Rxd8#
+{Black checkmated} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report sickduck vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.23"]
+[Time "10:11:32"]
+[Round "-"]
+[White "sickduck"]
+[Black "TheQuadKnight"]
+[WhiteElo "1592"]
+[BlackElo "1384"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e3 e5 2. d4 exd4 3. Nf3 d5 4. Nxd4 Nf6 5. c3 Bc5 6. Nd2 Bb6 7. N2b3 c5
+8. Nf3 Bg4 9. Be2 O-O 10. h3 Bh5 11. O-O Nc6 12. Nh2 Bxe2 13. Qxe2 Qd6 14. Ng4
+Nxg4 15. hxg4 Bc7 16. g3 Ne5 17. f4 Nd7 18. Qf3 Rfe8 19. Bd2 b6 20. Rf2
+Re6 21. Re1 Rh6 22. g5 Re6 23. Rh2 Rae8 24. Qh5 h6 25. Ree2 d4 26. cxd4
+cxd4 27. Nxd4 R6e7 28. Nf5 Qd5 29. Nxg7 f6
+{Black resigns} 1-0
+

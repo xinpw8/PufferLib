@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs cybernie
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.05"]
+[Time "16:52:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "cybernie"]
+[WhiteElo "1319"]
+[BlackElo "1164"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. Nc3 e6 3. e4 d6 4. f4 c6 5. Bd2 Nfd7 6. Qf3 Nb6 7. O-O-O N8d7
+8. Nge2 Nc4 9. Be1 Qb6 10. Na4 Qb5 11. b3 Ndb6 12. Nec3 Nxa4 13. Nxb5 cxb5
+14. bxa4 Na3 15. Kb2 d5 16. exd5 bxa4 17. dxe6 Bxe6 18. d5 Bd7 19. Qe4+
+Kd8 20. d6 f5 21. Qxb7 Rc8 22. Ba5+ Ke8 23. Re1+ Kf7 24. Qxd7+ Kg6 25. Qe6+
+Kh5 26. Be2+ Kh4 27. Qxf5 Nc4+ 28. Bxc4 Rxc4 29. Qg5#
+{Black checkmated} 1-0
+

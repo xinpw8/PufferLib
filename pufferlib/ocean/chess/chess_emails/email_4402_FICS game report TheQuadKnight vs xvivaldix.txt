@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs xvivaldix
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.08"]
+[Time "17:43:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "xvivaldix"]
+[WhiteElo "1367"]
+[BlackElo "1442"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d6 2. f4 Nf6 3. e5 dxe5 4. fxe5 Ng4 5. d4 Nc6 6. Nf3 a6 7. h3 Nh6
+8. Bxh6 gxh6 9. Nbd2 Nxd4 10. Nxd4 Qxd4 11. Nf3 Qxb2 12. Bd3 Qc3+ 13. Nd2
+Qxe5+ 14. Ne4 f5 15. Qh5+ Kd8 16. Rd1 Bd7 17. O-O Qd4+ 18. Kh1 fxe4 19. Be2
+Qe3 20. Qe5 Rg8 21. Qd5 Ke8 22. Qxd7#
+{Black checkmated} 1-0
+

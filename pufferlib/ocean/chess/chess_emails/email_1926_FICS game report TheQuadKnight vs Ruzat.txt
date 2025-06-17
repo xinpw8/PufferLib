@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Ruzat
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "14:29:13"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Ruzat"]
+[WhiteElo "1390"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nf6 3. Bc4 Be7 4. Nf3 d6 5. O-O O-O 6. Re1 Bg4 7. h3 Bh5
+8. Nd5 c6 9. Nxe7+ Qxe7 10. d4 exd4 11. Bg5 c5 12. c3 Nc6 13. Bd5 Ne5 14. Bxb7
+Qxb7 15. Bxf6 Nxf3+ 16. gxf3 gxf6 17. Kh2 Kh8 18. cxd4 Qxb2 19. Re2 Qxd4
+20. Rd2 Qe5+ 21. Kg1 Rg8+ 22. Kf1 Qf4 23. Rxd6 Bxf3 24. Qd5 Qh2 25. Ke1
+Rg1+ 26. Kd2 Qxf2+ 27. Kc3 Qe3+ 28. Kb2 Rg2+ 29. Kb1 Rb8+ 30. Qb3 Qe1+ 31. Rd1
+Qxd1#
+{White checkmated} 0-1
+

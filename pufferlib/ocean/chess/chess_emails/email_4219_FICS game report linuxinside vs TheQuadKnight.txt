@@ -1,0 +1,27 @@
+Subject: FICS game report linuxinside vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "23:13:40"]
+[Round "-"]
+[White "linuxinside"]
+[Black "TheQuadKnight"]
+[WhiteElo "1596"]
+[BlackElo "1356"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. Bf4 Nf6 4. e3 e6 5. Bb5 Bb4+ 6. c3 Ba5 7. O-O Bd7
+8. Nbd2 a6 9. Ba4 b5 10. Bc2 O-O 11. b4 Bb6 12. a4 a5 13. axb5 Na7 14. bxa5
+Nxb5 15. axb6 Rxa1 16. Qxa1 cxb6 17. c4 dxc4 18. Nxc4 Nd5 19. Bg5 Qc7 20. Bd3
+Qb7 21. Rb1 Ra8 22. Qb2 Ndc3 23. Nce5 Nxb1 24. Qxb1 Nc3 25. Qc1 Nd5 26. h3
+Rc8 27. Qb2 f6 28. Nxd7 Qxd7 29. Bh4 g5 30. Bg3 Kf7 31. Kh2 Re8 32. e4 Nf4
+33. Bxf4 gxf4 34. Qxb6 Qd8 35. Qb7+ Re7 36. Qb3 f5 37. exf5 Kf6 38. fxe6
+Rxe6 39. d5 Rd6 40. Qc3+ Ke7 41. Qe5+ Kd7 42. Bf5+ Kc7 43. Qc3+ Kb8 44. Qb4+
+Rb6 45. Qc5 Ka7 46. d6 Qb8 47. d7 Qc7 48. Qxc7+ Rb7 49. d8=Q Rxc7 50. Qxc7+
+Ka6 51. Bd3#
+{Black checkmated} 1-0
+

@@ -1,0 +1,19 @@
+Subject: FICS game report sarweshs vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.29"]
+[Time "08:45:22"]
+[Round "-"]
+[White "sarweshs"]
+[Black "TheQuadKnight"]
+[WhiteElo "1461"]
+[BlackElo "1375"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4
+{White forfeits by disconnection} 0-1
+

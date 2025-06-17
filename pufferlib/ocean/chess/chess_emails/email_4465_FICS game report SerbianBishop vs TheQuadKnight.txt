@@ -1,0 +1,27 @@
+Subject: FICS game report SerbianBishop vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "15:46:12"]
+[Round "-"]
+[White "SerbianBishop"]
+[Black "TheQuadKnight"]
+[WhiteElo "1389"]
+[BlackElo "1270"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e3 d5 2. c4 e6 3. b3 Bb4 4. a3 Bd6 5. b4 c5 6. cxd5 cxb4 7. dxe6 Bxe6
+8. Qa4+ Nc6 9. Bb5 Ne7 10. axb4 Be5 11. Bxc6+ Nxc6 12. Ra3 a6 13. b5 axb5
+14. Qxa8 Qxa8 15. Rxa8+ Nd8 16. Ba3 Bf5 17. Nf3 Bf6 18. Nc3 Kd7 19. O-O
+Re8 20. Nxb5 Re6 21. Nfd4 Rb6 22. Bc5 Bxd4 23. Bxd4 Rxb5 24. Bxg7 Be4 25. f3
+Bd3 26. Rc1 Rb2 27. Bc3 Rc2 28. Rxc2 Bxc2 29. d4 Bd3 30. e4 Ba6 31. d5 h6
+32. Ba5 b6 33. Bxb6 Bb7 34. Rxd8+ Ke7 35. d6+ Ke6 36. d7 Bc6 37. Re8+ Kxd7
+38. Rf8 Ke6 39. Rh8 h5 40. Rxh5 Be8 41. Rh6+ f6 42. Bc5 Bf7 43. Bd4 Kd7
+44. Rxf6 Ke8 45. Rxf7 Kxf7 46. f4 Ke7 47. e5 Kf7 48. g3 Ke7 49. f5 Kf7 50. g4
+Ke7 51. g5 Kf7 52. f6 Kf8 53. g6 Ke8 54. e6 Kd8 55. g7 Kc7 56. g8=Q Kc6
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

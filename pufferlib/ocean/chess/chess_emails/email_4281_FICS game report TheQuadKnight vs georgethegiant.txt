@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs georgethegiant
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "15:11:18"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "georgethegiant"]
+[WhiteElo "1373"]
+[BlackElo "1285"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 d6 6. Nxg4 Nf6 7. Nxf6+ Qxf6
+8. d3 h5 9. Nc3 Nc6 10. Qf3 Bg4 11. Qxf4 Qxf4 12. Bxf4 O-O-O 13. Bg5 Re8
+14. Bf6 Rg8 15. Bg5 Be7 16. Nd5 Bxg5 17. hxg5 Rxg5 18. Nf6 Rh8 19. Nxg4
+Rxg4 20. O-O-O Nd4 21. c3 Ne6 22. Be2 Rg5 23. g4 h4 24. Rdf1 Rh7 25. Rh3
+Rg6 26. Rf5 Ng5 27. Rh1 h3 28. Bf3 Nxf3 29. Rxf3 h2 30. Rg3 Kd7 31. Rg2
+Rh3 32. Kd2 Ke6 33. d4 b6 34. Ke2 Rf6 35. g5 Rff3 36. Rgxh2 Re3+ 37. Kd2
+Rxh2+ 38. Rxh2 Rxe4 39. Re2 Rxe2+ 40. Kxe2 Kf5 41. Kd3 Kxg5 42. Kc4 c6 43. d5
+c5 44. b4 f5 45. bxc5 bxc5 46. Kb5 f4 47. Kc6 f3 48. Kxd6 f2 49. Kxc5 f1=Q
+50. d6 Qf2+ 51. Kc6 Qb6+ 52. Kd7 Qb7+ 53. Ke6 Kg6 54. d7 Qb6+ 55. Ke7 Qf6+
+56. Ke8 Kg7 57. d8=Q Qf7#
+{White checkmated} 0-1
+

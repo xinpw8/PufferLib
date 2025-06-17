@@ -1,0 +1,26 @@
+Subject: FICS game report ChessMastaShake vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.13"]
+[Time "18:14:15"]
+[Round "-"]
+[White "ChessMastaShake"]
+[Black "TheQuadKnight"]
+[WhiteElo "1326"]
+[BlackElo "1330"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 4. Nc3 Nf6 5. O-O Be7 6. d4 exd4 7. Nxd4 Ne5
+8. Bb3 c5 9. Nf3 Bd7 10. Nxe5 dxe5 11. Qf3 O-O 12. Qg3 Nh5 13. Qxe5 Nf6
+14. Qg3 Nh5 15. Qf3 Nf6 16. Nd5 Bg4 17. Nxf6+ Bxf6 18. Qxg4 b5 19. c4 a6
+20. f4 Qd4+ 21. Kh1 bxc4 22. e5 Be7 23. Bc2 f6 24. Qh4 Kf7 25. exf6 Bxf6
+26. Qxh7 Rh8 27. Qf5 Qd6 28. Be3 Rae8 29. Bxc5 Qd2 30. Qd7+ Qxd7 31. Rad1
+Qe6 32. Kg1 Qe2 33. Rd7+ Re7 34. Rxe7+ Bxe7 35. Bxe7 Kxe7 36. Rf2 Qe1+ 37. Rf1
+Qh4 38. h3 Qg3 39. Rf3 Qe1+ 40. Rf1 Qe3+ 41. Kh2 Qd2 42. Ba4 Rf8 43. b3
+Rxf4 44. Rxf4 Qxf4+ 45. Kg1 Qf1+ 46. Kxf1 Ke6 47. Kf2 Kd5 48. Kf3 cxb3 49. Ke3
+{Black forfeits on time} 1-0
+

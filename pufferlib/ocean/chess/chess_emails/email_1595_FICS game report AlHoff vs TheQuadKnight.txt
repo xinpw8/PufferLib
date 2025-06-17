@@ -1,0 +1,30 @@
+Subject: FICS game report AlHoff vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "14:41:51"]
+[Round "-"]
+[White "AlHoff"]
+[Black "TheQuadKnight"]
+[WhiteElo "1519"]
+[BlackElo "1410"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Bc5 6. c3 d6 7. d4 exd4
+8. cxd4 Ba7 9. Re1 b5 10. Bc2 O-O 11. a4 Bg4 12. Be3 Re8 13. Nbd2 Nb4 14. Bb1
+Nc6 15. axb5 axb5 16. h3 Bxf3 17. Qxf3 Nxd4 18. Bxd4 Bxd4 19. Rxa8 Qxa8
+20. Nb3 Bxb2 21. Qf5 Be5 22. f4 Bc3 23. Re3 Qa7 24. Kf2 b4 25. Ke2 c5 26. e5
+dxe5 27. fxe5 Bxe5 28. Rxe5 Rxe5+ 29. Qxe5 c4 30. Qd4 Qe7+ 31. Qe3 Qxe3+
+32. Kxe3 cxb3 33. Kd4 Nh5 34. Kc4 Nf4 35. Kxb3 Nxg2 36. Kxb4 Nf4 37. Bf5
+g6 38. Bg4 h5 39. Bc8 Ne6 40. Kc4 Kf8 41. Kd5 Ke7 42. Ke5 Ng5 43. Kf4 f6
+44. h4 Ne6+ 45. Ke4 g5 46. Kf5 gxh4 47. Bxe6 h3 48. Bd5 h2 49. Bh1 Kf7 50. Bd5+
+Ke7 51. Bf3 h4 52. Bh1 h3 53. Kg4 Ke6 54. Kxh3 Ke5 55. Kxh2 f5 56. Kg3 f4+
+57. Kf3 Kf5 58. Bg2 Kg5 59. Bh3 Kf6 60. Bg4 Kg7 61. Ke4 Kf6 62. Kd5 Kg5
+63. Bd7 Kh4 64. Bb5 Kg3 65. Ke4 f3 66. Bf1 f2 67. Ke3 Kh2 68. Kf3 Kg1 69. Bd3
+f1=Q+ 70. Bxf1
+{Neither player has mating material} 1/2-1/2
+

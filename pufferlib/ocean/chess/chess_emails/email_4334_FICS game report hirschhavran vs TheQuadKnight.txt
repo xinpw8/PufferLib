@@ -1,0 +1,22 @@
+Subject: FICS game report hirschhavran vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "17:21:32"]
+[Round "-"]
+[White "hirschhavran"]
+[Black "TheQuadKnight"]
+[WhiteElo "1455"]
+[BlackElo "1308"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Nf6 3. cxd5 Nxd5 4. Nf3 Nc6 5. e4 Nb6 6. d5 Nb4 7. a3 Na6
+8. Ne5 c6 9. Qf3 f6 10. Qh5+ g6 11. Nxg6 hxg6 12. Qxh8 cxd5 13. Bh6 Kd7
+14. Bxf8 dxe4 15. Nc3 Nc4 16. O-O-O+ Nd6 17. Bb5+ Kc7 18. Nd5+ Kb8 19. Bxe7
+Qxh8 20. Bxd6+ Nc7 21. Bxc7#
+{Black checkmated} 1-0
+

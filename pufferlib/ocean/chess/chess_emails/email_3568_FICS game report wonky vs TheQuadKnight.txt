@@ -1,0 +1,23 @@
+Subject: FICS game report wonky vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.25"]
+[Time "16:17:51"]
+[Round "-"]
+[White "wonky"]
+[Black "TheQuadKnight"]
+[WhiteElo "1382"]
+[BlackElo "1398"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e3 d5 2. Be2 e5 3. Nf3 Nc6 4. O-O Nf6 5. Re1 Bf5 6. Bf1 Bc5 7. d3 Qd7
+8. e4 dxe4 9. Nbd2 e3 10. fxe3 Bg4 11. h3 Bh5 12. g4 Bg6 13. d4 Bd6 14. dxe5
+Nxe5 15. a4 Qc6 16. Bb5 Nxf3+ 17. Nxf3 Qxb5 18. axb5 Rd8 19. Qe2 Ne4 20. b3
+Ng3 21. Qg2 Be4 22. Ba3 O-O 23. Bxd6 Rxd6 24. Qxg3 Bxc2 25. Rac1 Bxb3 26. Rxc7
+Rb6 27. Nd4 Bd5 28. Qe5 Be6 29. Nxe6 fxe6 30. Qxg7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,29 @@
+Subject: FICS game report naomi vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.09"]
+[Time "22:40:58"]
+[Round "-"]
+[White "naomi"]
+[Black "TheQuadKnight"]
+[WhiteElo "1439"]
+[BlackElo "1375"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. f4 d5 2. Nf3 Nc6 3. e3 Bg4 4. Be2 Qd6 5. d3 e5 6. h3 Bh5 7. fxe5 Nxe5
+8. Nxe5 Bxe2 9. Qxe2 Qxe5 10. Nc3 Qg3+ 11. Qf2 Bd6 12. Bd2 Qxf2+ 13. Kxf2
+Nf6 14. Rhf1 O-O-O 15. a4 a6 16. Kg1 Rhf8 17. Ne2 Nh5 18. Rac1 f5 19. c4
+g5 20. cxd5 Be5 21. d4 Bg7 22. Ba5 b6 23. Bxb6 Rd7 24. Rc2 f4 25. exf4 gxf4
+26. Rfc1 Rff7 27. Ba5 Kb8 28. Rc6 f3 29. gxf3 Bh6 30. R1c2 Rg7+ 31. Kh2
+Bf4+ 32. Nxf4 Nxf4 33. Rxa6 Nxd5 34. Rac6 Ne3 35. Re2 Nf1+ 36. Kh1 Ng3+
+37. Kg2 Nxe2+ 38. Kf2 Nxd4 39. Rc4 Nf5 40. Rf4 Nd6 41. Be1 Nc4 42. Rxc4
+Rd6 43. Rf4 Rgd7 44. Rf8+ Kb7 45. Rf4 Rd1 46. Rb4+ Kc8 47. Ke2 Rb1 48. a5
+Rd6 49. Re4 Rdd1 50. Re8+ Kb7 51. Kf2 Rxb2+ 52. Kg3 Rd5 53. Bc3 Rbb5 54. Re7
+Rg5+ 55. Kf2 Rb2+ 56. Ke3 Rgb5 57. f4 R2b3 58. Kf3 Rxc3+ 59. Kg4 Rbb3 60. Rxc7+
+Kxc7 61. h4
+{Black forfeits on time} 1-0
+

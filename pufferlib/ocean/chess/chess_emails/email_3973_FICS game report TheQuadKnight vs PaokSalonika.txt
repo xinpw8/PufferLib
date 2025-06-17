@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs PaokSalonika
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "15:51:15"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PaokSalonika"]
+[WhiteElo "1398"]
+[BlackElo "1526"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. f4 d5 3. d3 dxe4 4. Nc3 exd3 5. Bxd3 Nf6 6. Nf3 Bd7 7. O-O Bc5+
+8. Kh1 Ng4 9. Ne4 Bb6 10. h3 Nf6 11. f5 exf5 12. Nxf6+ Qxf6 13. Bg5 Qg6
+14. Qe1+ Be6 15. Bc4 O-O 16. Bxe6 Qxe6 17. Qxe6 fxe6 18. Rae1 h6 19. Be3
+Nd7 20. Nd4 Bxd4 21. Bxd4 Rae8 22. Rf3 b6 23. Rg3 g5 24. Rge3 e5 25. Bxe5
+Nxe5 26. Rxe5 Rxe5 27. Rxe5 Kg7 28. Re7+ Rf7 29. Re5 Kg6 30. Kh2 Rd7 31. Re6+
+Kg7 32. Re2 Kf6 33. g3 c5 34. Kg2 Re7 35. Rd2 a5 36. Kf3 h5 37. Rd6+ Re6
+38. Rd2 g4+ 39. hxg4 hxg4+ 40. Kf2 Kg5 41. c3 Re5 42. Rd6 f4 43. gxf4+ Kxf4
+44. Rxb6 Rd5 45. Rf6+ Kg5 46. Re6 Rd2+ 47. Kg3 Rxb2 48. Re5+ Kf6 49. Rxc5
+Rxa2 50. Rc6+ Ke5 51. Rc5+ Kd6 52. Rc4 Kd5 53. Rxg4 a4 54. Kh4 a3 55. Rg3
+Kc4 56. Rg4+
+{Black forfeits on time} 1-0
+

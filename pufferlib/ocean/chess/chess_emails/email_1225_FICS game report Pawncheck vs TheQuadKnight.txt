@@ -1,0 +1,28 @@
+Subject: FICS game report Pawncheck vs TheQuadKnight
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.09"]
+[Time "12:38:38"]
+[Round "-"]
+[White "Pawncheck"]
+[Black "TheQuadKnight"]
+[WhiteElo "1641"]
+[BlackElo "1414"]
+[TimeControl "120+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 Nf6 6. Nc3 c5 7. Qd1
+b6 8. Bd3 Bb7 9. Bg5 Be7 10. Qd2 d5 11. e5 Ne4 12. Nxe4 dxe4 13. Bxe7 Qxe7
+14. Bb5+ Kf8 15. O-O-O a6 16. Be2 Qxe5 17. Qd6+ Qxd6 18. Rxd6 Ke7 19. Rxb6
+Rhb8 20. Rb3 Kf8 21. Rd1 e3 22. Rxe3 Bxg2 23. Bf3 Bxf3 24. Rxf3 Re8 25. Re3
+a5 26. Rde1 a4 27. Kd2 Rad8+ 28. Kc3 f6 29. Kc4 Rc8 30. Rxe8+ Rxe8 31. Rxe8+
+Kxe8 32. Kxc5 Ke7 33. b3 g5 34. bxa4 h5 35. a5 Kd7 36. a6 Kc7 37. a7 Kb7
+38. Kd6 Kxa7 39. Ke6 g4 40. Kxf6 h4 41. Kg5 g3 42. fxg3 hxg3 43. hxg3 Kb6
+44. Kf5 Kc5 45. Kf6 Kc4 46. g4 Kc3 47. g5 Kxc2 48. g6 Kb2 49. g7 Kxa2 50. g8=Q+
+Kb2 51. Qc8 Kb1 52. Ke5 Kb2 53. Kd4 Kb1 54. Kd3 Kb2 55. Qc7 Ka3 56. Qb8
+Ka4 57. Kc3 Ka3 58. Qa8#
+{Black checkmated} 1-0
+

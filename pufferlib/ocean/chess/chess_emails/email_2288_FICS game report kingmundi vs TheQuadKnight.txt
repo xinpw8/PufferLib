@@ -1,0 +1,27 @@
+Subject: FICS game report kingmundi vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "16:30:01"]
+[Round "-"]
+[White "kingmundi"]
+[Black "TheQuadKnight"]
+[WhiteElo "1477"]
+[BlackElo "1368"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Nc6 3. Nf3 f6 4. d4 d6 5. dxe5 fxe5 6. Bb5 Bd7 7. O-O Nf6
+8. Ng5 h6 9. Bxc6 Bxc6 10. Ne6 Qe7 11. Nd5 Bxd5 12. exd5 c6 13. f4 cxd5
+14. Nxf8 Rxf8 15. fxe5 dxe5 16. c4 O-O-O 17. cxd5 Nxd5 18. Rxf8 Qxf8 19. Qg4+
+Kb8 20. Bd2 Qc5+ 21. Kh1 Nf6 22. Qe2 Qc2 23. Qxe5+ Ka8 24. Be3 Rd1+ 25. Rxd1
+Qxd1+ 26. Bg1 b6 27. Qc7 Qd7 28. Qxd7 Nxd7 29. Bd4 Nf6 30. Bxf6 gxf6 31. Kg1
+a5 32. Kf2 Kb7 33. Kf3 Kc6 34. Kf4 Kc5 35. g4 b5 36. h4 Kc4 37. Kf5 b4 38. Kxf6
+a4 39. g5 a3 40. bxa3 bxa3 41. g6 Kc3 42. g7 Kb2 43. g8=Q Kc2 44. Qb3+ Kd2
+45. Kg6 Ke2 46. Kxh6 Kf2 47. Qxa3 Kg2 48. Kg5 Kf2 49. h5 Ke2 50. h6 Kf2
+51. h7 Ke2 52. h8=Q Kd2 53. Qhh3 Ke2 54. Qb2+ Kd1 55. Qh1#
+{Black checkmated} 1-0
+

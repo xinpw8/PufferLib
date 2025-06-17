@@ -1,0 +1,23 @@
+Subject: FICS game report PianoCraft vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "15:00:08"]
+[Round "-"]
+[White "PianoCraft"]
+[Black "TheQuadKnight"]
+[WhiteElo "1616"]
+[BlackElo "1385"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 d6 4. dxe5 Bg4 5. exd6 Bxf3 6. Qxf3 Bxd6 7. Bb5
+Ne7 8. Bg5 O-O 9. Bxc6 bxc6 10. O-O Qb8 11. b3 Re8 12. Nc3 Be5 13. Rad1
+Qb4 14. Ne2 h6 15. Bd2 Qc5 16. c4 Rad8 17. Be3 Qa3 18. Rd2 Rxd2 19. Bxd2
+Rd8 20. Bc3 Bxc3 21. Nxc3 Qb2 22. Rb1 Qc2 23. Re1 Rd3 24. Qf4 Qxc3 25. Rf1
+Rd7 26. Qg4 Qd3 27. f3 Qe3+ 28. Kh1 Qd4 29. Re1
+{White resigns} 0-1
+

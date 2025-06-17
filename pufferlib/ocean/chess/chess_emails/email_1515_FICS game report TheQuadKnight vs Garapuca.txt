@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs Garapuca
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.11"]
+[Time "17:41:37"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Garapuca"]
+[WhiteElo "1422"]
+[BlackElo "1636"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bg5 d5 5. cxd5 exd5 6. e4 dxe4 7. Qa4+
+Nc6 8. d5 Bxc3+ 9. bxc3 Qxd5 10. Bxf6 gxf6 11. Bc4 Qe5 12. Qb3 O-O 13. Ne2
+Na5 14. Qb4 Nxc4 15. Qxc4 Be6 16. Qd4 Rfd8 17. Qxe5 fxe5 18. O-O Rd2 19. Ng3
+f5 20. a4 Rad8 21. Nh5 Kf7 22. Rab1 b6 23. Rb5 R8d5 24. Rxd5 Rxd5 25. h3
+Rd2 26. Ra1 Rc2 27. a5 Rxc3 28. axb6 axb6 29. Ng3 b5 30. Ne2 Rc2 31. Nc1
+b4 32. Rb1 c5 33. Kf1 f4 34. Ne2 b3 35. g3 Bxh3+ 36. Ke1 fxg3 37. Nxg3 Bg2
+38. Rxb3 c4 39. Rb7+ Kg6 40. Rb5 Rc1+ 41. Ke2 Bf3+ 42. Ke3 Re1+ 43. Kd2
+Rg1 44. Rxe5 h5 45. Nxe4 Bxe4 46. Rxe4 Rg4 47. Rxg4+ hxg4 48. Kc3 Kg5 49. Kxc4
+Kf4 50. Kd3 Kf3 51. Kd2 Kxf2 52. Kd3 g3 53. Ke4 g2 54. Kd5 g1=Q 55. Kd4
+Qg3 56. Kc5 Ke3 57. Kc6 Qf4 58. Kb5 Qc7 59. Ka6 Kd4 60. Kb5 Qc5+ 61. Ka6
+Qb4 62. Ka7 Kc5 63. Ka6 Qb6#
+{White checkmated} 0-1
+

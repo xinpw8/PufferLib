@@ -1,0 +1,27 @@
+Subject: FICS game report TwilightShifter vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.03"]
+[Time "08:57:41"]
+[Round "-"]
+[White "TwilightShifter"]
+[Black "TheQuadKnight"]
+[WhiteElo "1478"]
+[BlackElo "1333"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c5 3. dxc5 dxc4 4. Qxd8+ Kxd8 5. Nf3 e6 6. Ne5 Ke8 7. Be3
+Nd7 8. Nxc4 Nxc5 9. Nc3 Bd7 10. g3 b5 11. Ne5 Rd8 12. Bg2 Bd6 13. Nxd7 Nxd7
+14. Nxb5 Bb4+ 15. Nc3 Ngf6 16. O-O Ke7 17. Rac1 Rhe8 18. a3 Bd6 19. Nb5
+Bb8 20. Bc6 Kf8 21. Bc5+ Kg8 22. Bxa7 Bxa7 23. Nxa7 Re7 24. Nb5 Ne5 25. Rfd1
+Nxc6 26. Re1 Ne5 27. f4 Neg4 28. a4 Red7 29. Nc3 Rd2 30. b4 Rb2 31. b5 Nd5
+32. Nxd5 exd5 33. Rc5 Nf6 34. a5 h6 35. b6 Ne4 36. Rc7 Ra2 37. b7 Rxa5 38. Rc8
+Rb5 39. Rxd8+ Kh7 40. b8=Q Rxb8 41. Rxb8 Nd2 42. Rd1 Nc4 43. Rxd5 Ne3 44. Rd7
+Ng4 45. Rxf7 Kg6 46. Rbb7 Nf6 47. Rxg7+ Kf5 48. e3 Ng4 49. Rgf7+ Nf6 50. e4+
+Kxe4 51. Rxf6 Kf3 52. Rxh6 Kg4
+{Black resigns} 1-0
+

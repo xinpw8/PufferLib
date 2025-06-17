@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs lamlam
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.20"]
+[Time "23:51:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "lamlam"]
+[WhiteElo "1380"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. d4 exd4 4. Nxd4 c5 5. Nf3 Nc6 6. Bc4 Bg4 7. h3 Bh5
+8. Bf4 Bg6 9. Nc3 Nf6 10. e5 Nh5 11. Bh2 Nb4 12. Bb5+ Nc6 13. exd6 Qxd6
+14. Bxd6
+{Black resigns} 1-0
+

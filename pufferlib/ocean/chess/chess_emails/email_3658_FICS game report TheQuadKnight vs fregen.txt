@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs fregen
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.19"]
+[Time "14:48:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "fregen"]
+[WhiteElo "1322"]
+[BlackElo "1531"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 Nf6 2. e5 Ne4 3. d3 Nc5 4. b4 Nca6 5. a3 c6 6. Bb2 e6 7. Nc3 Be7 8. Nf3
+O-O 9. Be2 d5 10. O-O c5 11. Re1 cxb4 12. axb4 Bxb4 13. d4 Nc6 14. Bxa6
+bxa6 15. Qd3 a5 16. Ba3 Bxa3 17. Rxa3 Nb4 18. Qd2 Qe7 19. Rea1 Nc6 20. Nb5
+a6 21. Nd6 Bd7 22. c3 Rfb8 23. Qc2 h6 24. Nd2 Qg5 25. Rb3 Qg6 26. Qb2 Rxb3
+27. Nxb3 Rb8 28. Qa3 Qc2 29. Nxa5 Nxa5 30. Qxa5 Rb1+ 31. Rxb1 Qxb1#
+{White checkmated} 0-1
+

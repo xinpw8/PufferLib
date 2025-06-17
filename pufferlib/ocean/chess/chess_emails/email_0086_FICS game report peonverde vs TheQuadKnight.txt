@@ -1,0 +1,28 @@
+Subject: FICS game report peonverde vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.10"]
+[Time "13:16:38"]
+[Round "-"]
+[White "peonverde"]
+[Black "TheQuadKnight"]
+[WhiteElo "1349"]
+[BlackElo "1383"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. Nf3 d6 2. d4 Nc6 3. b3 e5 4. Bb2 exd4 5. Nxd4 Bd7 6. Nd2 Nf6 7. N2f3
+Be7 8. g3 O-O 9. Bg2 Qc8 10. O-O Nxd4 11. Nxd4 Bh3 12. c4 Bxg2 13. Kxg2
+c5 14. Nb5 Qc6+ 15. Kg1 a6 16. Nc3 Rad8 17. Nd5 Nxd5 18. Qxd5 Qxd5 19. cxd5
+b5 20. Rfd1 a5 21. e4 Rc8 22. Rac1 c4 23. bxc4 bxc4 24. Rc3 Rc5 25. Rdc1
+Rfc8 26. Ba3 R5c7 27. e5 dxe5 28. Bxe7 Rxe7 29. Rxc4 Rxc4 30. Rxc4 f6 31. Rc5
+Ra7 32. a4 Kf7 33. Kf1 Ke7 34. Ke2 Kd6 35. Rb5 g6 36. Kd3 f5 37. f3 Ra6
+38. Kc4 Ra7 39. Rb6+ Kd7 40. Kb5 Kc7 41. Re6 Kd7 42. Rxe5 Rc7 43. Kxa5 Kd6
+44. f4 Rc2 45. Kb4 Rxh2 46. a5 Rb2+ 47. Kc4 Ra2 48. Re6+ Kc7 49. a6 Kb8
+50. Kc5 Kc7 51. Rc6+ Kb8 52. d6 Ka7 53. d7 Rc2+ 54. Kd6 Rd2+ 55. Ke7 Re2+
+56. Re6 Rd2 57. d8=Q Rxd8 58. Kxd8
+{Black forfeits on time} 1-0
+

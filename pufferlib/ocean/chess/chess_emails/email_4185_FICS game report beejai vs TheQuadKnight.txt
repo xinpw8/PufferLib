@@ -1,0 +1,23 @@
+Subject: FICS game report beejai vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "20:48:37"]
+[Round "-"]
+[White "beejai"]
+[Black "TheQuadKnight"]
+[WhiteElo "1590"]
+[BlackElo "1336"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e3 e5 2. b3 Nc6 3. Bb2 d5 4. Bb5 Nf6 5. Bxe5 Bd7 6. Bb2 Bb4 7. Nf3 O-O
+8. O-O Re8 9. d3 a6 10. Bxc6 Bxc6 11. Ne5 Bb5 12. Nd2 c5 13. Ndf3 d4 14. exd4
+cxd4 15. Bxd4 Rc8 16. c4 Bc6 17. Bb2 Bxf3 18. Nxf3 Qd7 19. d4 Rcd8 20. Re1
+Rxe1+ 21. Nxe1 b5 22. Nf3 bxc4 23. bxc4 Bd6 24. h3 Ne4 25. Qd3 Re8 26. Rd1
+Qa7 27. c5 Bxc5 28. dxc5 Qxc5 29. Qd4 Qc2 30. Qxg7#
+{Black checkmated} 1-0
+

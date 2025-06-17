@@ -1,0 +1,22 @@
+Subject: FICS game report beherenow vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "15:24:20"]
+[Round "-"]
+[White "beherenow"]
+[Black "TheQuadKnight"]
+[WhiteElo "1564"]
+[BlackElo "1351"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. Bf4 f6 4. e3 g5 5. Nxg5 fxg5 6. Qh5+ Kd7 7. Qxg5
+Qe8 8. Bb5 e6 9. Be5 Bh6 10. Qg3 a6 11. Bxc6+ Kxc6 12. Bxh8 Ne7 13. Be5
+Nf5 14. Qf3 Kd7 15. O-O Bg5 16. Nc3 h6 17. Nxd5 Nh4 18. Nf6+ Bxf6 19. Qxf6
+Nf5 20. e4 Nd6 21. Bxd6 cxd6 22. e5 b5 23. Qg7+ Kd8 24. exd6 Rb8 25. Qc7#
+{Black checkmated} 1-0
+

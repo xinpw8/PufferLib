@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs chaoticist
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.07"]
+[Time "19:53:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "chaoticist"]
+[WhiteElo "1423"]
+[BlackElo "1503"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 a6 5. Nc3 b5 6. Be3 Bb7 7. g3 b4 8. Nce2
+Bxe4 9. Rg1 Nf6 10. Bg2 d5 11. Bg5 Be7 12. Bxe4 Nxe4 13. Bf4 O-O 14. h4
+Bf6 15. h5 e5 16. f3 exd4 17. fxe4 dxe4 18. h6 Nc6 19. hxg7 Bxg7 20. g4
+d3 21. cxd3 exd3 22. Ng3 Re8+ 23. Kf1 Bxb2 24. Rb1 Bc3 25. Bd2 Qf6+ 26. Nf5
+Nd4 27. Bxc3 bxc3 28. Qxd3 c2 29. Rc1 Rad8 30. Rg2 Nxf5 31. gxf5+ Kh8 32. Qxc2
+a5 33. Qf2 Qa6+ 34. Kg1 Rg8 35. Kh1 Qh6+ 36. Rh2 Qxc1+ 37. Qg1 Rxg1#
+{White checkmated} 0-1
+

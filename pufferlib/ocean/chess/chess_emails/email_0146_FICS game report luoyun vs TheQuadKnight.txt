@@ -1,0 +1,24 @@
+Subject: FICS game report luoyun vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.28"]
+[Time "16:24:11"]
+[Round "-"]
+[White "luoyun"]
+[Black "TheQuadKnight"]
+[WhiteElo "1297"]
+[BlackElo "1373"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c5 3. dxc5 Nf6 4. Nc3 e6 5. cxd5 exd5 6. b4 Nc6 7. e3 Bd7
+8. Bb5 a6 9. Bxc6 Bxc6 10. Nge2 d4 11. Nxd4 Bxg2 12. Rg1 Bh3 13. Bb2 Be7
+14. Qf3 Bd7 15. Rxg7 Qc7 16. Nf5 b6 17. Nxe7 Kxe7 18. Rg2 bxc5 19. Qxf6+
+Kxf6 20. Nd5+ Kf5 21. Nxc7 Rac8 22. Bxh8 Rxh8 23. Nxa6 cxb4 24. Nxb4 Rb8
+25. Rb1 Kf6 26. f3 Bf5 27. Nd5+ Ke6 28. Rxb8 Kxd5 29. e4+ Bxe4 30. fxe4+
+Kxe4 31. Rg7
+{Black resigns} 1-0
+

@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs InstantPoison
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "19:08:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "InstantPoison"]
+[WhiteElo "1430"]
+[BlackElo "1604"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e5 3. dxe5 Ng4 4. Nf3 Bc5 5. e3 Nc6 6. b3 Ngxe5 7. Bb2 Nxf3+
+8. Qxf3 O-O 9. Bd3 Nb4 10. Be4 f5 11. Bd5+ Kh8 12. O-O Nxd5 13. Qxd5 d6
+14. Nc3 Qe7 15. Qf3 c6 16. Ne2 Be6 17. Qg3 Kg8 18. Nf4 g6 19. Nxg6 Kf7 20. Nxe7
+{Black resigns} 1-0
+

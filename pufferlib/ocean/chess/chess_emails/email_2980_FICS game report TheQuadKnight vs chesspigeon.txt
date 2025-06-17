@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs chesspigeon
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.29"]
+[Time "14:58:01"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "chesspigeon"]
+[WhiteElo "1369"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d6 2. Nf3 c6 3. Bc4 e6 4. O-O Nd7 5. d4 Nb6 6. Bb3 Ne7 7. c4 Nd7 8. Nc3
+Ng6 9. Bg5 Be7 10. Bxe7 Qxe7 11. Re1 O-O 12. e5 d5 13. cxd5 cxd5 14. Rc1
+a6 15. Bc2 Nb6 16. Bxg6 fxg6 17. b3 Bd7 18. Qd2 Rac8 19. a4 Na8 20. Ne2
+Rc6 21. Nf4 Rfc8 22. Nh3 h6 23. Nf4 Qg5 24. Rxc6 Qd8 25. Rxc8 Bxc8 26. Nxg6
+Qe8 27. Nfh4 Nb6 28. Qf4 Nd7 29. g4 h5 30. gxh5 Nf8 31. Nxf8 Qxf8 32. Qxf8+
+Kxf8 33. Ng6+ Kf7 34. f4 Bd7 35. Rc1 Ke8 36. Rc7 Kd8 37. Rxb7 Kc8 38. Rb6
+Kc7 39. Rxa6 Kb7 40. Ra5 Kb6 41. Rc5 Kb7 42. b4 Kb8 43. a5 Ba4 44. b5 Kb7
+45. a6+ Kb6 46. Rc6+ Kxb5 47. a7 Kxc6 48. a8=Q+ Kb5 49. Ne7 Kc4 50. Nf5
+Kd3 51. Nxg7 Ke4 52. h6 Bd1 53. h7 Bh5 54. h8=Q Bg6 55. Qa2 Bf5 56. Qh6
+Kxd4 57. Qh3 Kc5 58. Qg3 Kc6
+{White forfeits on time} 0-1
+

@@ -1,0 +1,22 @@
+Subject: FICS game report velaguirapr vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "19:24:03"]
+[Round "-"]
+[White "velaguirapr"]
+[Black "TheQuadKnight"]
+[WhiteElo "1643"]
+[BlackElo "1442"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O d6 7. Re1 Bg4
+8. c3 Be7 9. d4 exd4 10. h3 Bxf3 11. Qxf3 dxc3 12. Nxc3 Nd4 13. Qg3 Nh5
+14. Qg4 Nxb3 15. axb3 g6 16. Nd5 Nf6 17. Bg5 Nxd5 18. exd5 f6 19. Bxf6 h5
+20. Qxg6+ Kd7 21. Bxe7 Qc8 22. Qe6+
+{Black resigns} 1-0
+

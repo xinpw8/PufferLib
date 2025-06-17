@@ -1,0 +1,25 @@
+Subject: FICS game report grabum vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "11:14:33"]
+[Round "-"]
+[White "grabum"]
+[Black "TheQuadKnight"]
+[WhiteElo "1446"]
+[BlackElo "1416"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 d6 6. h3 Na5 7. c3 Nxb3 8. Qxb3
+Nf6 9. d3 Bb7 10. Ng5 Qd7 11. Be3 d5 12. Nd2 Be7 13. Ndf3 Bd6 14. Nd2 c5
+15. exd5 Bxd5 16. Qc2 Bxg2 17. Rg1 Bb7 18. O-O-O h6 19. Nge4 Be7 20. Nxc5
+Bxc5 21. Bxc5 Qd5 22. b4 a5 23. Rxg7 Rc8 24. Ne4 Nxe4 25. dxe4 Qc4 26. Qb3
+Qxb3 27. axb3 axb4 28. Bxb4 Bxe4 29. Re1 f5 30. f3 Bxf3 31. Rxe5+ Kd8 32. Rxf5
+Bc6 33. Rgf7 Re8 34. Kd2 Ra8 35. Re5 Ra2+ 36. Kc1 Rxe5 37. Rf8+ Kd7 38. Rf7+
+Ke6 39. Re7+ Kf5 40. Rf7+ Kg6
+{White forfeits on time} 0-1
+

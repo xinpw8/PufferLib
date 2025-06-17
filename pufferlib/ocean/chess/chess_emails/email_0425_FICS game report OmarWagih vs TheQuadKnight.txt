@@ -1,0 +1,27 @@
+Subject: FICS game report OmarWagih vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.07"]
+[Time "12:21:43"]
+[Round "-"]
+[White "OmarWagih"]
+[Black "TheQuadKnight"]
+[WhiteElo "1449"]
+[BlackElo "1408"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. c4 e5 2. Nc3 Nf6 3. g3 Bc5 4. e3 c6 5. Bg2 d5 6. cxd5 cxd5 7. d4 Bb4
+8. Nf3 Bg4 9. Qa4+ Nc6 10. Nxe5 Bxc3+ 11. bxc3 O-O 12. Ba3 Re8 13. Nxc6
+bxc6 14. O-O Qd7 15. Rab1 Ne4 16. Qc2 Bh3 17. Rfe1 Bxg2 18. Kxg2 Qf5 19. f3
+Nxg3 20. Qxf5 Nxf5 21. e4 dxe4 22. fxe4 Nh4+ 23. Kh1 Re6 24. d5 cxd5 25. exd5
+Rxe1+ 26. Rxe1 Nf3 27. Re7 h6 28. d6 Rd8 29. d7 Kh7 30. Rxf7 Ne5 31. Re7
+Nxd7 32. c4 Nf6 33. Rxa7 Ne4 34. Kg2 Rd2+ 35. Kh3 Rxa2 36. Bc5 Nxc5 37. Rxa2
+Ne4 38. Re2 Nf6 39. Re8 Kg6 40. Rb8 Kh7 41. Rb6 Kg6 42. Rxf6+ Kxf6 43. c5
+Kg6 44. Kg4 Kh7 45. c6 g5 46. c7 h5+ 47. Kxh5 Kg7 48. c8=Q Kf7 49. Qc6 Kg7
+50. Qd5 Kh7 51. Qe5 Kg8 52. Qf5 Kg7 53. Qxg5+ Kh8 54. Qg4 Kh7
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

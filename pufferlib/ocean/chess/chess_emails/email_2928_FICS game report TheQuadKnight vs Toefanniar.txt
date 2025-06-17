@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs Toefanniar
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "11:33:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Toefanniar"]
+[WhiteElo "1389"]
+[BlackElo "1399"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 f6 3. Nf3 d6 4. d4 a6 5. dxe5 fxe5 6. fxe5 Bg4 7. exd6 Bxd6
+8. e5 Bxe5 9. Qxd8+ Kxd8 10. Nxe5 Bh5 11. g4 Bg6 12. h4 Nd7 13. Bg5+ Kc8
+14. Nxg6 hxg6 15. Nc3 c6 16. O-O-O Nh6 17. Be2 Nf6 18. Rhg1 Nf7 19. Bf4
+Rxh4 20. g5 Nh5 21. Bg3 Nxg3 22. Rxg3 Kc7 23. Rf1 Rf8 24. Bc4 b5 25. Bxf7
+a5 26. Rgf3 Rg4 27. Bxg6 Rxf3 28. Rxf3 Rxg5 29. Be4 Rg1+ 30. Kd2 g6 31. Ne2
+Rg4 32. Rf4 Rg5 33. Rf6 a4 34. Rxg6 Re5 35. Rg7+ Kb6 36. Kd3 b4 37. Rg6
+Rc5 38. c3 bxc3 39. Nxc3 Ka5 40. Rxc6 Rg5 41. Rc7 Rg3+ 42. Kd4 Rh3 43. Ra7+
+Kb6 44. Rxa4 Rh2 45. Rb4+ Kc7 46. a4 Rh6 47. a5 Rd6+ 48. Nd5+ Kc8 49. Kc5
+Ra6 50. Nb6+ Kc7 51. Ra4 Kb8 52. Nd7+ Kc7 53. Ne5 Re6 54. a6 Rxe5+ 55. Kd4
+Re8 56. a7 Rd8+ 57. Kc5 Kd7 58. a8=Q Rxa8 59. Rxa8 Ke6 60. b4 Ke5 61. b5
+Kxe4 62. b6 Kd3 63. b7 Kc3 64. b8=Q Kc2 65. Qd8 Kc3 66. Rc8 Kb3 67. Kd6
+Kb4 68. Qb6+ Ka4 69. Ra8#
+{Black checkmated} 1-0
+

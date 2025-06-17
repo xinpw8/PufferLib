@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs toones
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.24"]
+[Time "13:42:18"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "toones"]
+[WhiteElo "1394"]
+[BlackElo "1166"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 b6 2. Nf3 Bb7 3. c4 e6 4. Nc3 Bb4 5. Bf4 Bxc3+ 6. bxc3 Ne7 7. e3 O-O
+8. Bd3 Ng6 9. Bg3 f5 10. h3 Qf6 11. Bxc7 Nh4 12. Nxh4 Qxh4 13. c5 Bxg2 14. Rg1
+Qxh3 15. cxb6 Bf3 16. Qc2 axb6 17. c4 Rf6 18. Be5 Rg6 19. Rxg6 Qh1+ 20. Kd2
+Qh2 21. Rxg7+
+{Black resigns} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report ChemicalMind vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.05"]
+[Time "09:53:29"]
+[Round "-"]
+[White "ChemicalMind"]
+[Black "TheQuadKnight"]
+[WhiteElo "1422"]
+[BlackElo "1314"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. Nxe5 Nf6 6. f3 Bd6 7. Nd3
+O-O 8. O-O Re8 9. b3 Be5 10. Nxe5 Rxe5 11. Bb2 Re8 12. d4 b5 13. Nc3 Qe7
+14. Ne2 Be6 15. e5 Nd5 16. c4 Ne3 17. Qd3 Nxf1 18. Rxf1 Rad8 19. c5 Bd5
+20. f4 Qh4 21. f5 Be4 22. Qe3 Qg4 23. Ng3 Bd5 24. f6 gxf6 25. Rxf6 Kh8 26. h3
+Qd1+ 27. Kh2 Qc2 28. Rf2 Qd1 29. Bc1 Rg8 30. Rd2 Qxc1 31. Qf2 Qc3 32. Nh5
+Bxg2 33. Nf6 Rg6 34. Rc2 Qd3 35. Ng4 Qe4 36. Qxg2 Qxg2+ 37. Rxg2 h5 38. Nf6
+Rxg2+ 39. Kxg2 Rg8+ 40. Kf3
+{Black forfeits on time} 1-0
+

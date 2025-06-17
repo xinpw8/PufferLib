@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs marzak
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.06"]
+[Time "09:50:15"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "marzak"]
+[WhiteElo "1332"]
+[BlackElo "1424"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 Be7 5. Bg5 c5 6. cxd5 exd5 7. dxc5 Bxc5
+8. Nxd5 Qxd5 9. Qa4+ Nc6 10. Bxf6 gxf6 11. Rd1 Bb4+ 12. Nd2 Bd7 13. a3 Ba5
+14. b4 Bb6 15. Qc2 Nd4 16. Qc3 Ba4 17. Rc1 O-O 18. e3 Qe6 19. Bc4 Qe7 20. O-O
+Nc6 21. Nf3 Rac8 22. Rfe1 Kh8 23. Nd4 Ne5 24. Bb5 Rxc3 25. Rxc3 Bxb5 26. Nxb5
+Rg8 27. Rec1 Nf3+ 28. Kf1 Nd2+ 29. Ke2 Ne4 30. Rc8 Rxc8 31. Rxc8+ Kg7 32. a4
+Qxb4
+{White resigns} 0-1
+

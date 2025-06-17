@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs meanadmin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "07:44:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "meanadmin"]
+[WhiteElo "1320"]
+[BlackElo "1510"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e5 2. c3 exd4 3. cxd4 Bb4+ 4. Nc3 Ba5 5. Nf3 Bb6 6. e3 d5 7. Bd3 Be6
+8. Bd2 Nf6 9. Rc1 Nc6 10. Qc2 Qd7 11. Ne5 Nxe5 12. dxe5 Ng4 13. Bxh7 g6
+14. Bxg6 fxg6 15. Qxg6+ Bf7 16. Qg7 O-O-O 17. h3 Rhg8 18. Qh7 Nxe5 19. O-O
+Rh8 20. Qg7 Rdg8 21. Qxe5 Qxh3
+{White resigns} 0-1
+

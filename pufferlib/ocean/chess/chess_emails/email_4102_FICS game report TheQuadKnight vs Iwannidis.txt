@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Iwannidis
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.17"]
+[Time "17:57:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Iwannidis"]
+[WhiteElo "1368"]
+[BlackElo "1156"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. c4 Nf6 3. Nc3 Nc6 4. g3 a6 5. Bg2 b5 6. cxb5 axb5 7. Nf3 Ba6
+8. d4 d6 9. Bg5 Be7 10. dxe5 dxe5 11. Qxd8+ Rxd8 12. Nd5 O-O 13. Nxc7 Nb4
+14. Nxa6 Nxa6 15. O-O Nxe4 16. Bxe7 Nb4 17. Bxf8 Rxf8 18. Nxe5 Re8 19. Nd7
+Nd2 20. Rfe1 Rxe1+ 21. Rxe1 h6 22. Re2 Nc4 23. Re8+ Kh7 24. Nf8+ Kh8 25. Be4
+g5 26. Ne6#
+{Black checkmated} 1-0
+

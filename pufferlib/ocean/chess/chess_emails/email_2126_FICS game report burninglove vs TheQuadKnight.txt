@@ -1,0 +1,29 @@
+Subject: FICS game report burninglove vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "12:39:50"]
+[Round "-"]
+[White "burninglove"]
+[Black "TheQuadKnight"]
+[WhiteElo "1436"]
+[BlackElo "1381"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 e6 4. Bf4 Nf6 5. e3 Nc6 6. Bxc4 Bd6 7. Nge2 O-O
+8. O-O Nd5 9. Bxd5 Bxf4 10. Bxc6 bxc6 11. Nxf4 Bb7 12. Qg4 f5 13. Qg3 g5
+14. Nxe6 Qd6 15. Nxf8 Qxg3 16. fxg3 Rxf8 17. Na4 Ba6 18. Rf2 Bb5 19. Nc5
+h5 20. Ne6 Rf6 21. Nxg5 Kg7 22. Nf3 Kg6 23. Ne5+ Kg7 24. Rc1 Kf8 25. b3
+Ke7 26. a4 Ba6 27. Nxc6+ Kd7 28. Nxa7 Bb7 29. Nb5 c6 30. Nc3 Re6 31. Nd1
+Rf6 32. e4 Ke6 33. exf5+ Rxf5 34. Rxf5 Kxf5 35. Kf2 Ke4 36. Rc4 Ba6 37. Rxc6
+Kxd4 38. Rh6 Bd3 39. Rxh5 Bc2 40. Ne3 Bxb3 41. a5 Be6 42. g4 Bc8 43. g5
+Ke5 44. g6+ Kf6 45. Ng4+ Kxg6 46. Rc5 Bxg4 47. a6 Bf5 48. a7 Be4 49. Rc8
+Bb7 50. a8=Q Bxa8 51. Rxa8 Kf6 52. Rg8 Kf7 53. Rg3 Kf6 54. h4 Ke6 55. h5
+Kf6 56. h6 Kf7 57. h7 Ke7 58. h8=Q Ke6 59. Qh4 Kd6 60. Rg5 Kc6 61. Qh6+
+Kd7 62. Rg7+ Ke8 63. Qh8#
+{Black checkmated} 1-0
+

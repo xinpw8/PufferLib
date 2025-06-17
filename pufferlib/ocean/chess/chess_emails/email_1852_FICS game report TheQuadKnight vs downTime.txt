@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs downTime
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "16:32:13"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "downTime"]
+[WhiteElo "1391"]
+[BlackElo "1450"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. exd5 exd5 4. Nc3 c5 5. dxc5 d4 6. Bb5+ Nc6 7. Bxc6+
+bxc6 8. Qe2+ Be6 9. Ne4 Nf6 10. Bg5 Be7 11. Nd6+ Bxd6 12. cxd6 O-O 13. Nf3
+h6 14. Bh4 g5 15. Bg3 Nh5 16. Be5 f6 17. Bxd4 Nf4 18. Qe4 Nxg2+ 19. Kf1
+Bh3 20. Kg1 Qxd6 21. Rd1 c5 22. Qg6+ Kh8 23. Qxh6+ Kg8 24. Qg6+ Kh8 25. Nxg5
+Bf5 26. Qh6+ Kg8 27. Kxg2 cxd4 28. Qh5 Qd5+ 29. Nf3 Be4 30. Qg4+ Kf7 31. Kg3
+Rg8 32. Rxd4 Rxg4+ 33. Kxg4 Qf5+ 34. Kg3 Bxf3
+{White forfeits on time} 0-1
+

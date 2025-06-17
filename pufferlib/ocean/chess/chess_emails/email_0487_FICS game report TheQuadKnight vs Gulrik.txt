@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Gulrik
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "11:43:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Gulrik"]
+[WhiteElo "1406"]
+[BlackElo "1629"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 c5 2. dxc5 Nf6 3. Nf3 e6 4. Nc3 Nc6 5. e4 Bxc5 6. Bb5 a6 7. Bc4 O-O
+8. O-O d6 9. Qe2 Ba7 10. Be3 Bd7 11. Bxa7 Nxa7 12. Rad1 Bc6 13. e5 Nd5 14. Nxd5
+exd5 15. Bxd5 Re8 16. Qc4 Bxd5 17. Rxd5 Rc8 18. Qd3 Qb6 19. exd6 Red8 20. Ne5
+Rc6 21. Nxc6 Nxc6 22. c4 Nb4 23. Qb3 Nxd5 24. cxd5 Qxd6 25. Qxb7 Qxd5 26. Qxa6
+Ra8 27. Re1 Qxa2 28. Qxa2
+{Black resigns} 1-0
+

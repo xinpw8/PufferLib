@@ -1,0 +1,24 @@
+Subject: FICS game report Gwynplaine vs TheQuadKnight
+
+
+[Event "FICS rated standard game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.22"]
+[Time "11:19:14"]
+[Round "-"]
+[White "Gwynplaine"]
+[Black "TheQuadKnight"]
+[WhiteElo "1712"]
+[BlackElo "1842"]
+[TimeControl "900+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb3 Nxb3 7. axb3
+Nxd5 8. d3 Be7 9. Ne4 O-O 10. O-O f5 11. Nec3 c6 12. f4 Bc5+ 13. Kh1 Qf6
+14. Nxd5 cxd5 15. fxe5 Qxe5 16. Bf4 Qxb2 17. Nd2 b6 18. Re1 Bd4 19. Rb1
+Qa3 20. Nf3 Bc3 21. Re7 Qxe7 22. Ng5 Re8 23. h3 h6 24. Nf3 g5 25. Bh2 g4
+26. hxg4 fxg4 27. Ng1 Qh4 28. Qf1 g3 29. Nf3 Qf4 30. Bg1 Bb7 31. Qc1 Qf6
+32. Bd4 Bxd4 33. Nxd4 Qh4+ 34. Kg1 Qh2+ 35. Kf1 Qh1#
+{White checkmated} 0-1
+

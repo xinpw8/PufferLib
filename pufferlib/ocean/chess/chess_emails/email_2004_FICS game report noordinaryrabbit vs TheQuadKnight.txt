@@ -1,0 +1,24 @@
+Subject: FICS game report noordinaryrabbit vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.24"]
+[Time "16:55:39"]
+[Round "-"]
+[White "noordinaryrabbit"]
+[Black "TheQuadKnight"]
+[WhiteElo "1425"]
+[BlackElo "1416"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Bg4 3. Ne5 Nf6 4. Nxg4 Nxg4 5. e4 Qd7 6. Bb5 c6 7. Be2 Nf6
+8. e5 Ng8 9. Be3 f6 10. f4 fxe5 11. fxe5 e6 12. Nd2 Qc7 13. Nb3 b6 14. Qd2
+c5 15. c3 cxd4 16. cxd4 a5 17. Rc1 Nc6 18. O-O Bb4 19. Qd3 Nge7 20. a3 a4
+21. axb4 axb3 22. Qxb3 Rc8 23. Bb5 Qb7 24. Bxc6+ Nxc6 25. Rxc6 Qxc6 26. b5
+Qc2 27. Qb4 Rc4 28. Qd6 Qg6 29. Qb8+ Kd7 30. Qxh8 Rc8 31. Rf8 Qb1+ 32. Kf2
+Qxb2+ 33. Kf3 Rxf8+ 34. Qxf8 Qb1 35. Qxg7+ Kc8 36. Qg8+ Kb7 37. Qxh7+ Qxh7
+{White resigns} 0-1
+

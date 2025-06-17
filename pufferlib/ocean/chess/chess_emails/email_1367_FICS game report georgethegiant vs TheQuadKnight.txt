@@ -1,0 +1,24 @@
+Subject: FICS game report georgethegiant vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.18"]
+[Time "15:42:02"]
+[Round "-"]
+[White "georgethegiant"]
+[Black "TheQuadKnight"]
+[WhiteElo "1254"]
+[BlackElo "1462"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 e6 5. b3 Bc5 6. Nf3 Qb6 7. Qd2 Nd4
+8. Nxd4 Bxd4 9. c3 Be5 10. Na3 d5 11. exd5 exd5 12. Qe2 Qe6 13. Bb2 Nf6
+14. Rb1 O-O 15. c4 Bxb2 16. Rxb2 Re8 17. Qxe6 Bxe6 18. Bd3 dxc4 19. Nxc4
+Bxc4+ 20. Be2 Bxe2 21. Rxe2 Rxe2+ 22. Kxe2 Re8+ 23. Kf3 Nd5 24. Rd1 Nc3
+25. Rd7 Rb8 26. a3 Nb5 27. a4 Nc3 28. Rd3 Na2 29. Rd2 Nb4 30. Rd4 Nc6 31. Rd6
+a6
+{White resigns} 0-1
+

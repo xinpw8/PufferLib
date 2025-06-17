@@ -1,0 +1,23 @@
+Subject: FICS game report srecko vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "10:45:41"]
+[Round "-"]
+[White "srecko"]
+[Black "TheQuadKnight"]
+[WhiteElo "1429"]
+[BlackElo "1391"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. c3 Be7 5. d4 Nxe4 6. dxe5 O-O 7. O-O Re8
+8. Re1 Nc5 9. b4 Ne6 10. Nbd2 d5 11. exd6 Bxd6 12. Ne4 Be7 13. Qb3 Bd7 14. Bg5
+h6 15. Bxe7 Qxe7 16. Ng3 Ncd8 17. Nf5 Qf6 18. Ng3 b5 19. Bd5 c6 20. Ne4
+Qe7 21. Bxe6 Bxe6 22. Qc2 Bf5 23. Qe2 Qxe4 24. Qxe4 Bxe4 25. Nd4 Nb7 26. f3
+Bd5 27. Rxe8+ Rxe8
+{White resigns} 0-1
+

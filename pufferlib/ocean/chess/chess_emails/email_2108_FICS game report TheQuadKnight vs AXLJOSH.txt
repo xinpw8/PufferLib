@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs AXLJOSH
+
+
+[Event "FICS rated losers game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.19"]
+[Time "12:32:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "AXLJOSH"]
+[WhiteElo "1598"]
+[BlackElo "1699"]
+[TimeControl "120+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. a4 b5 2. axb5 Ba6 3. Rxa6 Nxa6 4. bxa6 f6 5. e3 c5 6. b4 cxb4 7. Ba3
+bxa3 8. Nxa3 g6 9. d3 Kf7 10. Qd2 Qa5 11. Qxa5 Rd8 12. Qxd8 Bh6 13. Qxe7+
+Kxe7 14. f3 Bxe3 15. d4 Bxg1 16. Rxg1 Nh6 17. f4 g5 18. fxg5 fxg5 19. h4
+gxh4 20. d5 h3 21. gxh3 Ng4 22. hxg4 Re8 23. Bc4 h5 24. gxh5 Rg8 25. Rxg8
+Kf6 26. Rf8+ Ke5 27. Bd3 Kxd5 28. Be4+ Kxe4 29. Rf4+ Kxf4 30. Nb1 Ke5 31. c3
+Kf4 32. h6 d6 33. h7 d5 34. h8=Q d4 35. Qxd4+ Kf5 36. Qxa7
+{Black wins by losing all material} 0-1
+

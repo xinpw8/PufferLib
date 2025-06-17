@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs thekidd
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.05"]
+[Time "10:08:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "thekidd"]
+[WhiteElo "1366"]
+[BlackElo "1421"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. d4 exd4 4. Nxd4 h6 5. Nc3 Nf6 6. Bf4 Be7 7. Bc4 O-O
+8. O-O Bd7 9. Re1 Nc6 10. Nf5 Bxf5 11. exf5 Nh7 12. Qd5 Bf6 13. Ne4 Re8
+14. Nxf6+ Qxf6 15. Bg3 Qd8 16. Qxf7+ Kh8 17. Qg6 Qf6 18. Rxe8+ Rxe8 19. Qxe8+
+{Black resigns} 1-0
+

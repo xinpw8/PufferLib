@@ -1,0 +1,25 @@
+Subject: FICS game report SLAVENKO vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.17"]
+[Time "13:54:46"]
+[Round "-"]
+[White "SLAVENKO"]
+[Black "TheQuadKnight"]
+[WhiteElo "1576"]
+[BlackElo "1291"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d3 d5 2. e3 Nc6 3. Ne2 Nf6 4. Ng3 e5 5. Be2 Bc5 6. O-O O-O 7. f4 exf4
+8. Rxf4 d4 9. e4 Bd6 10. Rf1 Bxg3 11. hxg3 Qd6 12. Bg5 Qxg3 13. Bxf6 Bh3
+14. Bf3 gxf6 15. Kh1 Be6 16. Qe1 Qxe1 17. Rxe1 Ne5 18. Rf1 Kh8 19. Nd2 Rg8
+20. Rae1 Bg4 21. Bxg4 Nxg4 22. Rf4 Ne3 23. Rxf6 Rxg2 24. Nf3 Rag8 25. Rxf7
+R2g6 26. Rf4 Ng4 27. Kg2 Ne3+ 28. Kf2 Nxc2 29. Rg1 Rxg1 30. Nxg1 Rxg1 31. Kxg1
+Ne3 32. Kf2 Nd1+ 33. Kf3 Nxb2 34. Rf7 Nxd3 35. Rxc7 Ne5+ 36. Kf4 Nd3+ 37. Kf5
+Nb2 38. Kf6 Na4 39. Rc8#
+{Black checkmated} 1-0
+

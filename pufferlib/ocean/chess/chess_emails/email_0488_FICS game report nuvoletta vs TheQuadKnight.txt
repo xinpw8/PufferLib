@@ -1,0 +1,27 @@
+Subject: FICS game report nuvoletta vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "11:33:13"]
+[Round "-"]
+[White "nuvoletta"]
+[Black "TheQuadKnight"]
+[WhiteElo "1485"]
+[BlackElo "1412"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Nf6 4. e4 e6 5. Bxc4 c5 6. Nge2 Nc6 7. Be3 Bd7
+8. O-O cxd4 9. Nxd4 Ne5 10. Bb3 a6 11. f4 Nc6 12. Nf3 Be7 13. h3 O-O 14. e5
+Ne8 15. Bc2 Nc7 16. Qd3 Nb4 17. Qe2 Nxc2 18. Qxc2 Nb5 19. Ne4 Rc8 20. Qd3
+Bc6 21. Nd6 Nxd6 22. exd6 Bxd6 23. Ng5 f5 24. Nxe6 Qe7 25. Nxf8 Rxf8 26. Rfe1
+Qf6 27. Rad1 Qg6 28. g4 Bc7 29. g5 Qh5 30. Bc1 Bf3 31. Qc4+ Kh8 32. Qxc7
+Qxh3 33. Rd2 Qh1+ 34. Kf2 Qg2+ 35. Ke3 Re8+ 36. Kd4 Re4+ 37. Rxe4 Qg1+ 38. Re3
+h6 39. Qc8+ Kh7 40. Qxf5+ Kg8 41. Qc8+ Kh7 42. Rc2 Qd1+ 43. Ke5 Bg4 44. Qc4
+Qd7 45. Qe4+ g6 46. Qb4 Qe6+ 47. Kd4 Qd7+ 48. Kc3 Qg7+ 49. Qd4 Qc7+ 50. Kd2
+Qa5+ 51. b4 Qb5 52. Rc7+ Kg8 53. Qg7#
+{Black checkmated} 1-0
+

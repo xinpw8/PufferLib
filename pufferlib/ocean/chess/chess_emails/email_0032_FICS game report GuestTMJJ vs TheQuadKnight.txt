@@ -1,0 +1,21 @@
+Subject: FICS game report GuestTMJJ vs TheQuadKnight
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.21"]
+[Time "16:54:37"]
+[Round "-"]
+[White "GuestTMJJ"]
+[Black "TheQuadKnight"]
+[WhiteElo "-"]
+[BlackElo "1278"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Nf6 3. g3 e6 4. Bg2 c5 5. O-O Nc6 6. Bg5 Be7 7. Nbd2 O-O
+8. e3 b5 9. a4 Ba6 10. axb5 Bxb5 11. Re1 a6 12. b3 Qd6 13. c4 cxd4 14. cxb5
+dxe3 15. Rxe3 axb5 16. Rxa8 Rxa8 17. Bf4 Qc5 18. Re1 Nb4 19. Ne5 Ra2
+{White forfeits on time} 0-1
+

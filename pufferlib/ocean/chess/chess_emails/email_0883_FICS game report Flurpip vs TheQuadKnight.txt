@@ -1,0 +1,21 @@
+Subject: FICS game report Flurpip vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.18"]
+[Time "05:59:38"]
+[Round "-"]
+[White "Flurpip"]
+[Black "TheQuadKnight"]
+[WhiteElo "1546"]
+[BlackElo "1483"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. O-O gxf3 6. Qxf3 Bh6 7. Qh5 Qf6
+8. e5 Qg7 9. d4 Ne7 10. Bxf4 Bxf4 11. Rxf4 Ng6 12. Bxf7+ Kd8 13. Qg5+ Ne7
+14. Qxg7
+{Black resigns} 1-0
+

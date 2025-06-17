@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs oradiaa
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.22"]
+[Time "12:36:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "oradiaa"]
+[WhiteElo "1330"]
+[BlackElo "1372"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c6 2. Nf3 d5 3. e5 Bf5 4. c3 e6 5. d4 Nd7 6. Bd3 Bg6 7. Bxg6 hxg6
+8. Nbd2 Nh6 9. Nf1 Nf5 10. Ne3 Be7 11. Nxf5 gxf5 12. h3 g5 13. Qb3 Nb6 14. a4
+Rb8 15. Qd1 g4 16. Ng1 a6 17. b3 c5 18. Bb2 cxd4 19. Qxd4 Rc8 20. a5 Na8
+21. c4 Nc7 22. c5 Nb5 23. Qa4 Bxc5 24. b4 Bd4 25. Bxd4 O-O 26. Bc5 Nc3 27. Qb3
+Ne4 28. hxg4 fxg4 29. Bxf8 Rc3 30. Qd1 Qxf8 31. Qxg4+ Qg7 32. Qh4 Rb3 33. Rc1
+Rc3 34. Rxc3 Nxc3 35. Nf3 Ne4 36. g3 Nc3 37. Qd8+ Qf8 38. Rh8+ Kxh8 39. Qxf8+
+{Black resigns} 1-0
+

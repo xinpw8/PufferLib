@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs thaboss
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.25"]
+[Time "08:57:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "thaboss"]
+[WhiteElo "1258"]
+[BlackElo "1434"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Nf3 d5 5. Bf4 Nh5 6. cxd5 Nxf4 7. e3 Nxd5
+8. Nxd5 Qxd5 9. Rc1 Nc6 10. Bc4 Qa5+ 11. Nd2 O-O 12. O-O b5 13. Nb3 Qb6
+14. Bd3 Bb7 15. Be4 Nd8 16. Nc5 Bxe4 17. Nxe4 Ne6 18. Qf3 c5 19. Nxc5 Nxc5
+20. Rxc5 Rac8 21. Rfc1 Rxc5 22. Rxc5 a6 23. Qe4 e6 24. h4 h5 25. g4 hxg4
+26. Qxg4 Qa5 27. a3 Qe1+ 28. Kg2 Qd2 29. h5 Kh7 30. hxg6+ fxg6 31. Qg3 Qxb2
+32. Rg5 Rf6 33. Qh4+ Bh6 34. Rc5 Rf7 35. Qg3 Qxa3 36. Rc6 Qe7 37. Rd6 a5
+38. Qe5 Qf6 39. Qxe6 Qxf2+
+{White forfeits on time} 0-1
+

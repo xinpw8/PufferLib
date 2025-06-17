@@ -1,0 +1,25 @@
+Subject: FICS game report dionysusv vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "21:15:20"]
+[Round "-"]
+[White "dionysusv"]
+[Black "TheQuadKnight"]
+[WhiteElo "1452"]
+[BlackElo "1316"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. O-O Bd7 5. c3 a6 6. Ba4 b5 7. Bb3 f5 8. exf5
+Bxf5 9. Bd5 Bd7 10. Re1 Rb8 11. d4 Nce7 12. Bb3 Nf6 13. Ng5 d5 14. dxe5
+Ne4 15. Nxe4 dxe4 16. Rxe4 Bf5 17. Rd4 Qc8 18. Nd2 c5 19. Rf4 Ng6 20. Qh5
+c4 21. Bd1 Bc5 22. Rxf5 Rf8 23. Rxf8+ Kxf8 24. Qf3+ Kg8 25. Qd5+ Kh8 26. Nf3
+Qf8 27. Bc2 Rd8 28. Qe4 Qe7 29. h3 Re8 30. Bd2 Qf7 31. Re1 Nxe5 32. Nxe5
+Qxf2+ 33. Kh1 Qxd2 34. Ng6+ hxg6 35. Qxe8+ Kh7 36. Qxg6+ Kg8 37. Re8+ Bf8
+38. Qh7+ Kf7 39. Bg6+ Kf6 40. Rxf8+ Ke5 41. Qh5+
+{Black forfeits on time} 1-0
+

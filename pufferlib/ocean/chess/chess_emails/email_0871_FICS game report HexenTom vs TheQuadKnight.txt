@@ -1,0 +1,24 @@
+Subject: FICS game report HexenTom vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.18"]
+[Time "18:10:51"]
+[Round "-"]
+[White "HexenTom"]
+[Black "TheQuadKnight"]
+[WhiteElo "1649"]
+[BlackElo "1461"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Nf6 4. Bg5 Bf5 5. e3 Nbd7 6. Bxc4 e5 7. d5 Bb4
+8. Qb3 Bxc3+ 9. bxc3 Nb6 10. Rd1 Nxc4 11. Qxc4 Qd7 12. Nf3 Rd8 13. Nxe5
+Qd6 14. Bf4 Qb6 15. O-O O-O 16. h3 h6 17. Rfe1 Ne4 18. f3 Nd6 19. Qb3 g5
+20. Bg3 f6 21. Nd3 Rfe8 22. Bf2 Qxb3 23. axb3 Nb5 24. c4 Nc3 25. Rc1 Bxd3
+26. Rxc3 Bg6 27. e4 Rd7 28. b4 Rde7 29. Bc5 Re5 30. Bd4 R5e7 31. Bxf6 Rf7
+32. Bd4 h5 33. e5 g4 34. hxg4 hxg4 35. e6 Rfe7 36. fxg4 Kh7
+{Black resigns} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report hubbles vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "22:23:40"]
+[Round "-"]
+[White "hubbles"]
+[Black "TheQuadKnight"]
+[WhiteElo "1471"]
+[BlackElo "1329"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Nc3 g4 5. Ne5 Qh4+ 6. Ke2 d6 7. Nc4 g3
+8. h3 Bg4+ 9. Kd3 Bxd1 10. Nxd1 Nc6 11. Be2 Ne5+ 12. Kc3 Nxc4 13. Kxc4 O-O-O
+14. Bf3 Nf6 15. d3 c6 16. Kc3 Bg7 17. Kd2 d5 18. e5 Nd7 19. d4 Nb6 20. Nc3
+Nc4+ 21. Kd1 Ne3+ 22. Ke2 Nxg2 23. Bxg2 f6 24. exf6 Rhe8+ 25. Kf1 Bxf6 26. Ne2
+Qh5 27. Nc3 f3 28. Bf4 fxg2+ 29. Kxg2 Bh4 30. Be5 Rf8 31. Rhe1 Rf2+ 32. Kg1
+Qf3 33. Bxg3 Qg2#
+{White checkmated} 0-1
+

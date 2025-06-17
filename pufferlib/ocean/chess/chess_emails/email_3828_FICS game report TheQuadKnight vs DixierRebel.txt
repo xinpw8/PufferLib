@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs DixierRebel
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "12:37:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "DixierRebel"]
+[WhiteElo "1384"]
+[BlackElo "1462"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 c5 4. Nf3 cxd4 5. Nxd4 d5 6. cxd5 Nxd5 7. e4 Nxc3
+8. bxc3 Bc5 9. Be3 O-O 10. Bc4 Qf6 11. O-O Rd8 12. Qb3 b6 13. Nb5 Na6 14. Bxc5
+Nxc5 15. Qb1 Bb7 16. Nc7 Rac8 17. Nb5 Nxe4 18. Nd4 e5 19. Qxe4 Bxe4
+{White resigns} 0-1
+

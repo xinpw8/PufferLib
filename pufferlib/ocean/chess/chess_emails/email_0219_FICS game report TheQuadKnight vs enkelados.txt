@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs enkelados
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.13"]
+[Time "09:14:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "enkelados"]
+[WhiteElo "1380"]
+[BlackElo "1323"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qc3 Bb4 5. Qxb4 Nxb4 6. a3 Nxc2+ 7. Kd1
+Nxa1 8. Bd2 Nb3 9. Nf3 Nxd2 10. Nfxd2 Nf6 11. Bc4 d5 12. exd5 O-O 13. Re1
+Nxd5 14. Nc3 Nxc3+ 15. bxc3 Qf6 16. Ne4 Qg6 17. f3 Be6 18. Bd3 Bb3+ 19. Kd2
+Qh6+ 20. Re3 f5 21. Nc5 Rfe8 22. Nxb3 Qxe3+ 23. Kc2 Qf2+ 24. Nd2 Rad8 25. Bc4+
+Kf8 26. Bd3 c5 27. c4 a6 28. a4 b5 29. axb5 axb5 30. Kc3 b4+ 31. Kc2 b3+
+32. Kc3 Qd4+ 33. Kxb3 Qxd3+ 34. Ka4 Ra8+ 35. Kb5 Reb8+ 36. Kxc5 Rc8+ 37. Kb5
+Rab8+ 38. Ka4 Qc2+ 39. Nb3 Qxb3+ 40. Ka5 Qxc4 41. g4 fxg4 42. fxg4 Qxg4
+43. h3 Qxh3 44. Ka6 Qe6+ 45. Ka7 Qb6#
+{White checkmated} 0-1
+

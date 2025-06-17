@@ -1,0 +1,24 @@
+Subject: FICS game report ATG vs TheQuadKnight
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.15"]
+[Time "22:42:11"]
+[Round "-"]
+[White "ATG"]
+[Black "TheQuadKnight"]
+[WhiteElo "1653"]
+[BlackElo "1455"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 c5 5. Bb5+ Bd7 6. Qd3 a6 7. Bxd7+
+Nxd7 8. Be3 cxd4 9. Bxd4 Ngf6 10. Nxf6+ Nxf6 11. Nf3 Be7 12. Ng5 Nd5 13. c4
+Nf4 14. Qf3 Bxg5 15. Be3 Nd3+ 16. Ke2 Bxe3 17. Qxe3 Nxb2 18. Rab1 Nxc4 19. Qc3
+Nd6 20. Qxg7 Rf8 21. Qxh7 Qa5 22. Rbd1 Qxa2+ 23. Rd2 Qc4+ 24. Ke1 Qc1+ 25. Ke2
+Qc4+ 26. Qd3 Qg4+ 27. f3 Qxg2+ 28. Ke3 Qxh1 29. Qxd6 Qg1+ 30. Kd3 Qf1+ 31. Kc3
+Qc4+
+{White forfeits on time} 0-1
+

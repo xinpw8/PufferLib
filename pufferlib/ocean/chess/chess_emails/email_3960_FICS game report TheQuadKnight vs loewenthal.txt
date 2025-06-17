@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs loewenthal
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "15:33:45"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "loewenthal"]
+[WhiteElo "1436"]
+[BlackElo "1753"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. c4 Nc6 3. Nc3 Bc5 4. g3 Nf6 5. Bg2 d6 6. Nf3 a5 7. a3 O-O 8. Ne2
+Bg4 9. d4 exd4 10. h3 Be6 11. Nexd4 Bxc4 12. Be3 Nxe4 13. Nxc6 bxc6 14. Bxc5
+Nxc5 15. Nd4 Nd3+ 16. Kd2 c5 17. Bxa8 Qxa8 18. Nc2 Nxf2 19. Qc1 Qd5+ 20. Ke1
+Nxh1 21. Ne3 Re8 22. b3 Bxb3 23. Kf1 Qf3+ 24. Ke1 Rxe3+ 25. Qxe3 Qxe3+
+{White resigns} 0-1
+

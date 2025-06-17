@@ -1,0 +1,28 @@
+Subject: FICS game report westworld vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "20:13:15"]
+[Round "-"]
+[White "westworld"]
+[Black "TheQuadKnight"]
+[WhiteElo "1358"]
+[BlackElo "1287"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 e5 3. h3 Nc6 4. dxe5 Nxe5 5. Nf3 Nxf3+ 6. Qxf3 Nf6 7. Bd3
+Bc5 8. O-O O-O 9. c3 Re8 10. Re1 Ne4 11. Bxe4 dxe4 12. Qe2 Qg5 13. f4 Qg3
+14. Qf2 Qxf2+ 15. Kxf2 Bf5 16. Na3 Be6 17. Nc2 Be7 18. Nd4 Bd7 19. g3 c5
+20. Ne2 Bxh3 21. Bd2 Bg4 22. c4 Rad8 23. Bc3 b6 24. Rad1 Rd3 25. Rxd3 exd3
+26. Nc1 Rd8 27. Bd2 Bf6 28. b3 Bc3 29. Bxc3 d2 30. Bxd2 Rxd2+ 31. Kf1 Rc2
+32. Nd3 Bh3+ 33. Kg1 Rg2+ 34. Kh1 Rd2 35. Ne5 Rxa2 36. Nc6 a6 37. e4 Bg2+
+38. Kg1 Bh3 39. f5 Rg2+ 40. Kh1 Rxg3 41. e5 Bxf5 42. Ne7+ Kf8 43. Nxf5 Rxb3
+44. Nd6 b5 45. cxb5 axb5 46. Rc1 c4 47. Ne4 b4 48. Nd6 c3 49. Ne4 Ra3 50. Nxc3
+bxc3 51. Rc2 Ke7 52. Kg2 Ke6 53. Kf3 Kxe5 54. Ke3 Kd5 55. Kd3 Kc5 56. Rf2
+Kb4 57. Rf4+ Kb3 58. Rxf7 Kb2 59. Rb7+
+{Black forfeits on time} 1-0
+

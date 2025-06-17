@@ -1,0 +1,25 @@
+Subject: FICS game report bluesuede vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.11.18"]
+[Time "10:01:16"]
+[Round "-"]
+[White "bluesuede"]
+[Black "TheQuadKnight"]
+[WhiteElo "1246"]
+[BlackElo "1437"]
+[TimeControl "600+1"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 d6 6. e5 Bf5 7. Bd3
+Qd7 8. O-O Ne7 9. exd6 Nc6 10. Qe3+ Be6 11. Bb5 Bxd6 12. Nc3 a6 13. Bxc6
+Qxc6 14. Qg5 O-O 15. Be3 f6 16. Qh4 Rad8 17. Qe4 Qd7 18. Bf4 Be7 19. Rad1
+Qc8 20. Qf3 Bg4 21. Qg3 Bxd1 22. Nxd1 Qd7 23. Nc3 Bd6 24. Qf3 Qc8 25. Nd5
+Bxf4 26. Ne7+ Kh8 27. Nxc8 Be5 28. Ne7 Rd2 29. Qb3 Rfd8 30. Nf5 b5 31. Ne7
+Rd1 32. Nc6 Rxf1+ 33. Kxf1 Re8 34. Qf7 Rc8 35. Nxe5 fxe5 36. Qe6 Rg8 37. Qxe5
+c6 38. Qd6
+{Black resigns} 1-0
+

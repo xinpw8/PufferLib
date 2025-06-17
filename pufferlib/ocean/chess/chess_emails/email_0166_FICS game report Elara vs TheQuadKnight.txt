@@ -1,0 +1,23 @@
+Subject: FICS game report Elara vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.25"]
+[Time "22:59:10"]
+[Round "-"]
+[White "Elara"]
+[Black "TheQuadKnight"]
+[WhiteElo "1321"]
+[BlackElo "1354"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. e3 c5 3. b3 cxd4 4. exd4 g6 5. Nf3 Nc6 6. a4 Bg7 7. Ba3 Bg4
+8. c3 Qb6 9. Bc5 Qc7 10. Be2 e5 11. O-O exd4 12. Bxd4 Nxd4 13. cxd4 Nf6
+14. Nbd2 O-O 15. Ne5 Bf5 16. Rc1 Qd6 17. Ndf3 Nd7 18. Bd3 Bh6 19. Bxf5 Bxc1
+20. Bxd7 Bf4 21. Bb5 a6 22. Be2 f6 23. Nd3 Bh6 24. Nc5 b6 25. Nd3 Rfe8 26. Nc1
+Re7 27. Bd3 Rc8 28. Bxa6 Rxc1 29. Qd3 Rxf1+
+{White forfeits on time} 0-1
+

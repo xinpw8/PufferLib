@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs Aiman
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.16"]
+[Time "11:43:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Aiman"]
+[WhiteElo "1477"]
+[BlackElo "1527"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 g6 2. Nf3 Bg7 3. c4 d6 4. Nc3 Nc6 5. Bg5 Bg4 6. e3 Bxf3 7. Qxf3 Qd7
+8. c5 O-O-O 9. Qxf7 Bf6 10. Bxf6 Nxf6 11. d5 dxc5 12. dxc6 Qd2#
+{White checkmated} 0-1
+

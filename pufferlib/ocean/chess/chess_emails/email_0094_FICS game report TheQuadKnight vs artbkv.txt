@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs artbkv
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.10"]
+[Time "12:31:22"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "artbkv"]
+[WhiteElo "1384"]
+[BlackElo "1436"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. Nf3 Bf5 3. Nc3 e6 4. Bf4 c5 5. dxc5 Bxc5 6. e4 dxe4 7. Qxd8+
+Kxd8 8. Nh4 Ne7 9. Nxf5 exf5 10. Nb5 Nbc6 11. O-O-O+ Kc8 12. Nc7 Bxf2 13. Nxa8
+Rd8 14. Rxd8+ Kxd8 15. Nc7 Kd7 16. Nb5 a6 17. Nc3 h6 18. g3 g5 19. Bd2 e3
+20. Bc4 exd2+ 21. Kxd2 Ne5 22. Bb3 N7c6 23. Rd1 Ke7 24. Ke2 Bc5 25. Nd5+
+Kf8 26. Ne3 Nd4+ 27. Kd2 Ndf3+ 28. Ke2 Nd4+ 29. Kd2 Ndf3+ 30. Ke2 Nd4+
+{Game drawn by repetition} 1/2-1/2
+

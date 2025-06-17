@@ -1,0 +1,25 @@
+Subject: FICS game report MPU vs TheQuadKnight
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "11:56:38"]
+[Round "-"]
+[White "MPU"]
+[Black "TheQuadKnight"]
+[WhiteElo "1633"]
+[BlackElo "1438"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Nxc6 Qf6 6. Qf3 Qxc6 7. Nc3
+Nf6 8. Bg5 Nxe4 9. Qxe4+ Qxe4+ 10. Nxe4 Bb6 11. O-O-O O-O 12. Be3 Bxe3+
+13. fxe3 Re8 14. Bd3 d5 15. Ng5 Rxe3 16. Rhe1 Rxe1 17. Rxe1 Bg4 18. Bxh7+
+Kh8 19. h3 Bh5 20. g4 Bg6 21. Bxg6 fxg6 22. Re7 Kg8 23. Rxc7 b6 24. Kd2
+a5 25. Kd3 b5 26. a3 Kf8 27. Kd4 Re8 28. Rf7+ Kg8 29. Rb7 Kf8 30. Kxd5 Rd8+
+31. Kc6 Re8 32. Kxb5 Re2 33. Rb8+ Ke7 34. Rb7+ Kf6 35. Nh7+ Ke5 36. Re7+
+Kd5 37. Rxe2 Kd4 38. Kc6 Kc4 39. Re4#
+{Black checkmated} 1-0
+

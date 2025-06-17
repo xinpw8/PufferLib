@@ -1,0 +1,24 @@
+Subject: FICS game report neng vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.20"]
+[Time "18:07:57"]
+[Round "-"]
+[White "neng"]
+[Black "TheQuadKnight"]
+[WhiteElo "1494"]
+[BlackElo "1292"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 d6 3. dxe5 Nc6 4. exd6 Bxd6 5. Nf3 Nf6 6. Bb5 Nxe4 7. O-O
+O-O 8. Bg5 Nf6 9. Nc3 Bd7 10. Nd5 Be7 11. Nxe7+ Qxe7 12. Bxf6 gxf6 13. Bd3
+Ne5 14. Nxe5 fxe5 15. f4 f5 16. fxe5 Qc5+ 17. Kh1 Qxe5 18. Qh5 Kh8 19. Rae1
+Qf6 20. Rf3 Rae8 21. Ref1 Re5 22. Rh3 Rf7 23. Bc4 Rg7 24. b3 f4 25. Rd1
+Rxh5 26. Rxh5 Qg6 27. Bd5 c6 28. Bf3 Bg4 29. Rd8+ Rg8 30. Rxg8+ Qxg8 31. Be4
+Bxh5 32. h3
+{White resigns} 0-1
+

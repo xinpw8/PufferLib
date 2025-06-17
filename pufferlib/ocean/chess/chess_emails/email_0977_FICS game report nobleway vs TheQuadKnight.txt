@@ -1,0 +1,25 @@
+Subject: FICS game report nobleway vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "08:18:03"]
+[Round "-"]
+[White "nobleway"]
+[Black "TheQuadKnight"]
+[WhiteElo "1457"]
+[BlackElo "1454"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Nc6 3. Bc4 Bb4 4. d3 Nf6 5. Ne2 O-O 6. O-O d6 7. Nd5 Nxd5
+8. Bxd5 Ne7 9. Bb3 Ng6 10. c3 Bc5 11. d4 Bb6 12. Kh1 Qf6 13. f4 exd4 14. cxd4
+Bg4 15. Qd3 Bxe2 16. Qxe2 Qxd4 17. f5 Ne5 18. Bf4 Nd3 19. Rad1 Nf2+ 20. Rxf2
+Qxf2 21. Qg4 Kh8 22. Bg5 Rfe8 23. f6 gxf6 24. Bh6 Rg8 25. Qh3 Qxg2+ 26. Qxg2
+Rxg2 27. Kxg2 Rg8+ 28. Kh3 Rg6 29. Bf4 h5 30. Bg3 Kh7 31. Rf1 Kg7 32. Bf4
+Bd4 33. e5 Bxe5 34. Bxe5 dxe5 35. Rd1 Kh6 36. Bxf7 Rg5 37. Be6 h4 38. Rd7
+Kh5 39. Bf7+ Kh6 40. Rd8 f5 41. Rh8+ Kg7 42. Rg8+ Kxf7 43. Rxg5
+{Black forfeits on time} 1-0
+

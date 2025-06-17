@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Kuzman
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.12"]
+[Time "08:55:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Kuzman"]
+[WhiteElo "1384"]
+[BlackElo "1446"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Bd3 Re8
+8. Qc2 Nf8 9. O-O a6 10. Rfe1 dxc4 11. Bxc4 b5 12. Bd3 Bb7 13. Bxf6 Bxf3
+14. Bxe7 Qxe7 15. gxf3 e5 16. Nd5 Qd8 17. Nxc7 Rc8 18. Rac1 Re7 19. dxe5
+Rexc7 20. Qd2 Rxc1 21. Rxc1 Rxc1+ 22. Qxc1 Qxd3 23. Kg2 Qc4 24. Qb1 Ne6
+25. f4 Qd5+ 26. Kf1
+{White resigns} 0-1
+

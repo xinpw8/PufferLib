@@ -1,0 +1,22 @@
+Subject: FICS game report pixfan vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.16"]
+[Time "11:08:39"]
+[Round "-"]
+[White "pixfan"]
+[Black "TheQuadKnight"]
+[WhiteElo "1573"]
+[BlackElo "1390"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. Nf3 d5 2. c4 Nf6 3. cxd5 Nxd5 4. d4 Nc6 5. e4 Nb6 6. d5 Nb8 7. Nc3 e6
+8. Bg5 Be7 9. Bxe7 Qxe7 10. Bb5+ Bd7 11. dxe6 Bxb5 12. exf7+ Kxf7 13. Nxb5
+Qb4+ 14. Nc3 Qxb2 15. Ng5+ Ke7 16. Rc1 N8d7 17. O-O h6 18. Qd4 Qa3 19. Qxg7+
+Kd6 20. Rfd1+ Kc6 21. Nd5+ Qxc1 22. Rxc1+ Kd6 23. Qe7#
+{Black checkmated} 1-0
+

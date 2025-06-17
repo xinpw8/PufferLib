@@ -1,0 +1,30 @@
+Subject: FICS game report Laciapuci vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "12:57:10"]
+[Round "-"]
+[White "Laciapuci"]
+[Black "TheQuadKnight"]
+[WhiteElo "1441"]
+[BlackElo "1398"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. b3 Nc6 3. Bb2 Bc5 4. Bb5 d6 5. Qf3 Qf6 6. Qxf6 Nxf6 7. Bxc6+
+bxc6 8. Nf3 Nxe4 9. O-O Bg4 10. d3 Bxf3 11. dxe4 Bxe4 12. Nd2 Bxc2 13. Rac1
+Bg6 14. Kh1 O-O 15. a3 Bd3 16. Rfe1 Bxf2 17. Red1 Be2 18. Ne4 Bxd1 19. Rxd1
+Be3 20. Rd3 Bh6 21. Rg3 f5 22. Nf6+ Rxf6 23. h4 Bf4 24. Rc3 Rh6 25. g3 Bd2
+26. Rxc6 Ba5 27. b4 Bb6 28. a4 g5 29. a5 Be3 30. Rxc7 gxh4 31. gxh4 Rxh4+
+32. Kg2 f4 33. Rd7 Rg4+ 34. Kf3 Rg3+ 35. Ke4 h5 36. Rxd6 h4 37. Bxe5 h3
+38. Bxf4 Bxf4 39. Kxf4 h2 40. Rh6 Rb3 41. Rxh2 Rxb4+ 42. Ke5 Rb5+ 43. Kd6
+Rxa5 44. Rg2+ Kf7 45. Rf2+ Kg6 46. Rg2+ Rg5 47. Re2 a5 48. Re6+ Kf5 49. Re5+
+Kf4 50. Re2 Ra6+ 51. Kc7 Rg7+ 52. Kb8 Rh6 53. Rf2+ Ke3 54. Rf8 a4 55. Re8+
+Kd4 56. Rd8+ Kc3 57. Rc8+ Kb3 58. Rf8 a3 59. Rf3+ Kb2 60. Rf2+ Kb3 61. Rf3+
+Ka4 62. Rf4+ Kb5 63. Rf5+ Kb6 64. Rf8 a2 65. Ka8 a1=Q+ 66. Kb8 Qe5+ 67. Kc8
+Qe6+ 68. Kb8 Rb7+ 69. Ka8 Ra7+ 70. Kb8 Qd6+ 71. Kc8 Qxf8#
+{White checkmated} 0-1
+

@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs GuestVVJD
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.08"]
+[Time "15:02:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "GuestVVJD"]
+[WhiteElo "1318"]
+[BlackElo "-"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 Bb4 5. cxd5 Ne4 6. Bd2 Nxd2 7. dxe6
+Nxf3+ 8. exf3 O-O 9. exf7+ Rxf7 10. Bc4 Qe7+ 11. Kd2 Be6 12. Re1 Qg5+ 13. Kc2
+Bxc4 14. a3 Bxc3 15. bxc3 Nc6 16. Re4 a5 17. a4 Qxg2 18. Qd2 Qxf3 19. Rae1
+Raf8 20. d5 Bxd5 21. Qxd5 Qxf2+ 22. R1e2 Qg1 23. Re8 Qg6+ 24. Kd2 Qd6 25. Rxf8+
+Kxf8 26. c4 Nb4 27. Qxd6+ cxd6 28. Kc3 Nc6 29. Rd2 Rf6 30. c5 Kf7 31. Rxd6
+Rxd6 32. cxd6 Ke6 33. d7 Kxd7 34. Kc4 h6 35. Kd5 g5 36. Ke4
+{Black forfeits on time} 1-0
+

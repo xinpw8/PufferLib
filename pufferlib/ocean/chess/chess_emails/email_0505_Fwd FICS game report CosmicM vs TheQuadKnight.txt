@@ -1,0 +1,169 @@
+Subject: Fwd: FICS game report CosmicM vs TheQuadKnight
+
+Forwarded conversation
+Subject: FICS game report CosmicM vs TheQuadKnight
+------------------------
+
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 1:52 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "11:48:20"]
+[Round "-"]
+[White "CosmicM"]
+[Black "TheQuadKnight"]
+[WhiteElo "1578"]
+[BlackElo "1336"]
+[TimeControl "180+0"]
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 d5 5. Bxd5 g4 6. O-O gxf3 7. Qxf3 Qg5
+8. d3 Bd6 9. Nc3 Bg4 10. Qf2 f5 11. Bxb7 fxe4 12. Nxe4 Qe5 13. Bxa8 Nf6
+14. Nxd6+ cxd6 15. Bxf4 Qxb2 16. Rab1 Qxa2 17. Rxb8+ Kf7 18. Rxh8 Qe6 19. c4
+Kg6 20. Be4+ Nxe4 21. dxe4 Qxe4 22. Bxd6 Bf5 23. Rg8+ Kh5 24. Qxf5+ Qxf5
+25. Rxf5+ Kh6 26. Ra5
+{Black resigns} 1-0
+
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 2:04 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "11:58:30"]
+[WhiteElo "1584"]
+[BlackElo "1330"]
+1. e4 e5 2. Nf3 d6 3. Bc4 Nc6 4. c3 f5 5. exf5 Bxf5 6. d3 Nf6 7. Bg5 Be7
+8. O-O d5 9. Bb3 O-O 10. Nbd2 e4 11. dxe4 Na5 12. Bxf6 Nxb3 13. Qxb3 Bxf6
+14. exf5 Qd7 15. Rad1 Qxf5 16. h3 c6 17. Nd4 Qd7 18. N2f3 Rfe8 19. c4 Rac8
+20. cxd5 cxd5 21. Rfe1 Rxe1+ 22. Rxe1 Qd6 23. Qd3 Qc5 24. Ne6 Qd6 25. Nfd4
+Re8 26. Qd2 Be7 27. Kf1 Qb6 28. b3 Bb4 29. Qg5 Qa6+ 30. Kg1 Rxe6 31. Nxe6
+Bf8 32. Nxf8 Kxf8 33. Qxd5 Qf6 34. Qe6 Qf7 35. Qxf7+ Kxf7 36. Rc1 Ke6 37.
+Rc7
+a6 38. Rxb7 Kd5 39. Rxg7 h5 40. Rh7 Kd4 41. Rh6 Kc3 42. Rxh5 Kb2 43. Ra5
+Kc2 44. Rxa6 Kb2 45. f4 Kc2 46. f5 Kb2 47. f6 Kc2 48. f7 Kb2 49. f8=Q Kc2
+50. Qc5+ Kb2 51. b4 Ka1 52. a4 Kb2 53. b5 Ka2 54. b6 Kb2 55. Ra5 Ka2 56. Rb5
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 2:39 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "12:07:47"]
+[WhiteElo "1574"]
+[BlackElo "1340"]
+1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 4. d3 Na5 5. Bb5+ c6 6. Ba4 b5 7. Bb3 Nxb3
+8. axb3 Nf6 9. O-O Be7 10. Bg5 O-O 11. Re1 Re8 12. Nbd2 Qc7 13. Nf1 d5 14.
+Bxf6
+Bxf6 15. Ng3 Bg4 16. h3 Bd7 17. Nh5 Be7 18. exd5 g6 19. Ng3 Bf6 20. dxc6
+Bxc6 21. Ne4 Bg7 22. Qd2 f5 23. Ng3 e4 24. dxe4 fxe4 25. Nd4 Rad8 26. c3
+b4 27. Qe3 Bb7 28. Rxa7 Qb6 29. Raa1 bxc3 30. bxc3 Bxd4 31. cxd4 Qxd4 32.
+Qxd4
+Rxd4 33. Ra7 Bd5 34. Rc1 Rf8 35. Rcc7 Rf7 36. Rxf7 Bxf7 37. Rb7 Bd5 38. Rb6
+Rd1+ 39. Kh2 Rd2 40. b4 e3 41. f3 e2 42. Nxe2 Rxe2 43. Rd6 Bxf3 44. b5 Rxg2+
+45. Kh1 Rg5+ 46. Kh2 Rxb5 47. Rd3 Bc6 48. Rc3 Kg7 49. Rxc6 Kh6 50. Rc7 Rb2+
+51. Kg3
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 2:53 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "12:43:52"]
+[WhiteElo "1564"]
+[BlackElo "1350"]
+1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 4. d3 Na5 5. Nc3 Nxc4 6. dxc4 Be6 7. Nd5 c6
+8. Ne3 Qa5+ 9. Bd2 Qc5 10. b3 Nf6 11. O-O Nxe4 12. Bc1 O-O-O 13. Bb2 f6
+14. h3 d5 15. cxd5 cxd5 16. Rc1 d4 17. Ng4 h5 18. Ngh2 Nc3 19. Bxc3 Qxc3
+20. Qe2 a6 21. Nh4 Ba3 22. Rcd1 Bd7 23. Ng6 Rh6 24. Ne7+ Kb8 25. Nd5 Qa5
+26. c4 dxc3 27. Nf3 Bb5 28. Qc2 Bxf1 29. Kxf1 Rxd5 30. Rxd5 Qxd5 31. Qxc3
+Qd1+ 32. Ne1 Bd6 33. Qc2 Qxc2 34. Nxc2 Rg6 35. Ne3 e4 36. h4 Bf4 37. Nd5
+Be5 38. g3 Rh6 39. Ke2 g5 40. Ke3 gxh4 41. gxh4 Rg6 42. Kxe4 Rg4+ 43. Ke3
+Rxh4 44. f3 Kc8 45. Ne7+ Kd7 46. Nf5 Bf4+ 47. Ke4 Bg5+ 48. Nxh4 Bxh4 49. Kf5
+Ke7 50. Kg6 Ke6 51. Kxh5 Be1 52. Kg4 Ke5 53. f4+ Ke4 54. f5 Bd2 55. a4 Kd4
+56. Kh5 Kc5 57. Kg6 Bc3 58. Kf7 Kb4 59. Ke6 Kxb3 60. Kd7 Kxa4 61. Kc7 b5
+{White resigns} 0-1
+
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 3:07 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "13:01:43"]
+[WhiteElo "1556"]
+[BlackElo "1358"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Bc5 3. Bc4 Nf6 4. d3 O-O 5. O-O d6 6. h3 Nc6 7. c3 Na5 8.
+Bb5
+c6 9. Ba4 b5 10. Bc2 Re8 11. b4 Bxf2+ 12. Rxf2 Nb7 13. Bg5 h6 14. Bh4 g5
+15. Nxg5 hxg5 16. Bxg5 Re6 17. Qf3 Kg7 18. Qg3 Nh5 19. Qh4 Qh8 20. Nd2 f6
+21. Bxf6+ Rxf6 22. Raf1 Nf4 23. Qxh8+ Kxh8 24. Kh2 Rg6 25. g3 Nxh3 26. Rf8+
+Kh7 27. R1f7+ Kh6 28. Rh8+ Kg5 29. Rxh3 Bxh3 30. Kxh3 Rh8+ 31. Kg2 Nd8 32.
+Rf5+
+Kg4 33. Bd1#
+{Black checkmated} 1-0
+
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 3:25 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "13:14:38"]
+[WhiteElo "1548"]
+[BlackElo "1366"]
+1. e4 e5 2. Nf3 Nc6 3. Bc4 b6 4. a3 Bb7 5. O-O Nf6 6. d3 Bc5 7. Bg5 Be7
+8. Ba2 O-O 9. Nc3 h6 10. Bxf6 Bxf6 11. Nd5 Rb8 12. c3 Be7 13. Ne3 Bc5 14.
+Nf5
+Ne7 15. Nxe5 Nxf5 16. exf5 Bd6 17. Ng6 Qg5 18. f3 Qh5 19. f4 Qxf5 20. Nxf8
+Rxf8 21. Qd2 Re8 22. d4 Ba6 23. Bb1 Qg4 24. Bd3 Bb7 25. c4 g5 26. fxg5 hxg5
+27. d5 Bf4 28. Qd1 Qh4 29. g3 Be3+ 30. Kg2 Qd4 31. Qf3 Rf8 32. Qf5 Qxb2+
+33. Kh1 Qg7 34. Rae1 Bd4 35. Re4 Bc5 36. Rg4 f6 37. h4 gxh4 38. Rxg7+ Kxg7
+39. Qg6+ Kh8 40. Qh7#
+{Black checkmated} 1-0
+
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 3:40 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "13:36:17"]
+[WhiteElo "1540"]
+[BlackElo "1374"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 d6 3. Bc4 Nc6 4. O-O Be7 5. h3 f5 6. d3 Na5 7. Nc3 Nxc4
+8. dxc4 fxe4 9. Nxe4 Nf6 10. Re1 Nxe4 11. Rxe4 Bf5 12. Re1 O-O 13. b3 Qe8
+14. Qd5+ Kh8 15. Qxb7 Qg6 16. Kh1 Rae8 17. Bb2 Rf7 18. Qc6 Ref8 19. Qxc7
+Bxh3 20. gxh3 Rxf3 21. Qd7 Rxf2 22. Rg1 Qe4+
+{White resigns} 0-1
+
+
+----------
+From: *FICS* <chess@freechess.org>
+Date: Wed, May 19, 2010 at 4:03 PM
+To: TheQuadKnight <paintitblack1@gmail.com>
+
+
+[Time "13:53:58"]
+[WhiteElo "1533"]
+[BlackElo "1381"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Bd7 4. e4 b5 5. Nf3 b4 6. Nd5 e6 7. Nf4 c5 8.
+Bxc4
+Nc6 9. d5 exd5 10. exd5 Na5 11. Be2 Nf6 12. O-O Bd6 13. b3 O-O 14. Qd2 Re8
+15. Re1 Qc7 16. g3 Ne4 17. Qd3 Bg4 18. Be3 Bxf3 19. Bxf3 Ng5 20. Bg2 Be5
+21. Rad1 Rad8 22. Qb5 Bc3 23. Rf1 Ne4 24. Bxe4 Rxe4 25. Qxc5 Qxc5 26. Bxc5
+Nb7 27. Be3 Nd6 28. Rd3 Bf6 29. Rfd1 Nf5 30. Bc1 Nd4 31. Kg2 Nb5 32. Nh5
+Be5 33. f4 Bd6 34. R1d2 Nc3 35. Bb2 Be7 36. f5 g6 37. fxg6 fxg6 38. Nf4
+Rf8 39. Ne6 Rf7 40. Bxc3 bxc3 41. Rxc3 Bf6 42. Rc8+ Rf8 43. Rxf8#
+{Black checkmated} 1-0

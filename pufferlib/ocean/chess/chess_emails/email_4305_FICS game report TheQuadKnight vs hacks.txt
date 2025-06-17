@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs hacks
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.12"]
+[Time "17:17:29"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "hacks"]
+[WhiteElo "1337"]
+[BlackElo "1534"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 b6 2. Nf3 Bb7 3. c4 f5 4. Nc3 e6 5. d5 Nf6 6. dxe6 dxe6 7. Qxd8+ Kxd8
+8. Bg5 Be7 9. Rd1+ Ke8 10. e3 Kf7 11. Ne5+ Ke8 12. c5 Nc6 13. Nxc6 Bxc6
+14. cxb6 axb6 15. Bb5 Bxb5 16. Nxb5 Rxa2 17. Nxc7+ Kf7 18. b3 Bb4+ 19. Kf1
+Rc8 20. Bf4 Rb2 21. g3 Rxb3 22. Kg2 Rb2 23. Rb1 Rxb1 24. Rxb1 Bc5 25. Nb5
+Ra8 26. Nd6+ Bxd6 27. Bxd6 Nd7 28. Bc7 Ra6 29. Rd1 Nc5 30. Rd6 Ne4 31. Rxb6
+Ra2 32. Kg1 Nxf2 33. Bf4 Nh3+ 34. Kf1 Nxf4 35. exf4 Rxh2 36. Rb3 h5 37. Kg1
+Rc2 38. Re3 Kf6 39. Re1 g6 40. Kf1 Rh2 41. Kg1 Rb2 42. Kf1 Rb5 43. Kg1 e5
+44. fxe5+ Rxe5 45. Rxe5 Kxe5 46. Kg2 Kf6 47. Kh3 g5 48. Kg2 Ke5 49. Kf2
+f4 50. Kg2 fxg3 51. Kxg3 Kf5 52. Kf2 h4 53. Ke3 g4 54. Kd4 h3 55. Kd5 h2
+56. Kc5 h1=Q 57. Kb5 Qh6 58. Kb4 Kf4 59. Kb3 g3 60. Kb2 g2 61. Kc3 g1=Q
+62. Kc4 Qgg7 63. Kb4 Qe6 64. Kb5 Qgd7+ 65. Kb4 Qec6 66. Ka5 Qdb7
+{Game drawn by stalemate} 1/2-1/2
+

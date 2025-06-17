@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs Teuton
+
+
+[Event "FICS rated standard game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.22"]
+[Time "11:11:15"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Teuton"]
+[WhiteElo "1752"]
+[BlackElo "1730"]
+[TimeControl "600+10"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. Nc3 g6 4. d4 cxd4 5. Nxd4 Bg7 6. Be3 Nf6 7. Bc4 d6
+8. f3 O-O 9. O-O a6 10. Nxc6 bxc6 11. Qd2 Bb7 12. Rad1 Re8 13. Na4 Nd7 14. f4
+Qc7 15. e5 d5 16. Bb3 e6 17. c4 f6 18. exf6 Nxf6 19. Nc5 Bc8 20. Bd4 Nd7
+21. Nxe6 Rxe6 22. cxd5 Bxd4+ 23. Qxd4
+{Black resigns} 1-0
+

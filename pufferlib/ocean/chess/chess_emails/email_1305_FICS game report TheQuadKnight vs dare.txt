@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs dare
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.27"]
+[Time "09:23:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "dare"]
+[WhiteElo "1408"]
+[BlackElo "1408"]
+[TimeControl "600+1"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 g6 3. d4 cxd4 4. Nxd4 Bg7 5. Nc3 Nc6 6. Be3 Nf6 7. Bc4 O-O
+8. Qd2 e6 9. O-O-O a6 10. f4 b5 11. Bd3 d5 12. e5 Nxd4 13. Bxd4 Nd7 14. g4
+Qh4 15. Rhg1 f6 16. f5 fxe5 17. Bf2 Qh3 18. fxg6 hxg6 19. Bxg6 Nf6 20. Bc5
+Rd8 21. Rdf1 Rd7 22. Qg5 Qxh2 23. Rxf6 Bxf6 24. Qxf6 Bb7 25. Qxe6+
+{Black resigns} 1-0
+

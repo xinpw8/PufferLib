@@ -1,0 +1,23 @@
+Subject: FICS game report Strix vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "12:11:10"]
+[Round "-"]
+[White "Strix"]
+[Black "TheQuadKnight"]
+[WhiteElo "1462"]
+[BlackElo "1306"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Bb5 d6 5. O-O a6 6. Ba4 Be7 7. Re1 O-O
+8. h3 b5 9. Bb3 b4 10. Nd5 Nd4 11. Nxe7+ Qxe7 12. Nxd4 exd4 13. d3 Be6 14. Bg5
+h6 15. Bh4 Bxb3 16. axb3 c5 17. Qf3 g5 18. Bg3 Kh7 19. Ra4 a5 20. Rea1 Qc7
+21. Qxf6 Rg8 22. Bxd6 Qd8 23. Qxd8 Rgxd8 24. Bxc5 Rdc8 25. Bb6 Rxc2 26. Rxa5
+Rac8 27. Bxd4 Rd2 28. Ra7 Kg6 29. R1a6+ Kh5 30. g4+ Kh4 31. Rxh6#
+{Black checkmated} 1-0
+

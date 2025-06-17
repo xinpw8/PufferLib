@@ -1,0 +1,24 @@
+Subject: FICS game report cincomonos vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "14:23:58"]
+[Round "-"]
+[White "cincomonos"]
+[Black "TheQuadKnight"]
+[WhiteElo "1427"]
+[BlackElo "1397"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Bf4 Nf6 4. h3 Bd6 5. Bg5 h6 6. Bh4 g5 7. Bg3 Bxg3 8. fxg3
+Nc6 9. Nf3 Bd7 10. e3 Qe7 11. Nbd2 O-O-O 12. Bd3 dxc4 13. Nxc4 Nd5 14. O-O
+b5 15. e4 bxc4 16. Bxc4 Nb6 17. Ba6+ Kb8 18. Qb3 Bc8 19. Bb5 Nxd4 20. Nxd4
+Rxd4 21. Rac1 Rxe4 22. Qc3 Rd8 23. a4 Red4 24. a5 Nd5 25. Bc6 Rb4 26. Qa3
+Bb7 27. Bb5 a6 28. Bd3 Qf6 29. Rxf6 Nxf6 30. Qxb4 Nd5 31. Qb3 Ne3 32. Bxa6
+Kc8
+{Black resigns} 1-0
+

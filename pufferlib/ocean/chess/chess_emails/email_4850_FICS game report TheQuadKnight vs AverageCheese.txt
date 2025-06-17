@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs AverageCheese
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.14"]
+[Time "18:22:12"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "AverageCheese"]
+[WhiteElo "1282"]
+[BlackElo "1315"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Bf5 3. Nc3 e6 4. cxd5 exd5 5. e3 Bb4 6. Bd3 Be6 7. Nf3 Bg4
+8. h3 Bh5 9. Bb5+ c6 10. Be2 Nf6 11. O-O O-O 12. Ne5 Bxe2 13. Qxe2 Bxc3
+14. bxc3 Nbd7 15. Nf3
+{Black forfeits on time} 1-0
+

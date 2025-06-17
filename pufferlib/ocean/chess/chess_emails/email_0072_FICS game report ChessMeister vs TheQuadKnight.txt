@@ -1,0 +1,25 @@
+Subject: FICS game report ChessMeister vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.11"]
+[Time "20:14:13"]
+[Round "-"]
+[White "ChessMeister"]
+[Black "TheQuadKnight"]
+[WhiteElo "1495"]
+[BlackElo "1429"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 Nc6 2. Nf3 e5 3. Bc4 Bc5 4. Qe2 Nf6 5. Ng5 O-O 6. Nxf7 Rxf7 7. Bxf7+
+Kxf7 8. Qc4+ Kf8 9. Qxc5+ d6 10. Qe3 Nd4 11. Na3 b5 12. c3 Ne6 13. Nxb5
+Bb7 14. d3 a6 15. Na3 Qe7 16. O-O Nc5 17. b4 Na4 18. d4 exd4 19. cxd4 Nxe4
+20. Qf4+ Nf6 21. Bd2 Kg8 22. Rfe1 Qf7 23. Re3 Nb6 24. Rae1 Nbd5 25. Qg3
+Nxe3 26. Qxe3 Re8 27. Qb3 Rxe1+ 28. Bxe1 Bd5 29. Qe3 Ne4 30. Nc2 Qg6 31. f3
+Nf6 32. Bg3 Kf7 33. Ne1 Nh5 34. Qd3 Qxd3 35. Nxd3 Nxg3 36. hxg3 Kf6 37. a3
+Bc4 38. Nf4 c5 39. dxc5 dxc5 40. bxc5 Ke5 41. c6 Bd5 42. c7 Kd6 43. c8=Q
+{Black forfeits on time} 1-0
+

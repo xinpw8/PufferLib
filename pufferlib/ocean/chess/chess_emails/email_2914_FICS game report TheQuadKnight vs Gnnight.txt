@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Gnnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "12:50:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Gnnight"]
+[WhiteElo "1399"]
+[BlackElo "1492"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 d6 6. Nd3 Qf6 7. Nc3 Bh6 8. Nd5
+Qd8 9. N3xf4 Bxf4 10. Nxf4 Qf6 11. d3 Ne7 12. Be2 h5 13. Be3 Ng6 14. Rf1
+Qxh4+ 15. Bf2 g3 16. Nxg6 gxf2+ 17. Rxf2 fxg6 18. Qd2 Rf8 19. Bf3 Bg4 20. O-O-O
+Bxf3 21. gxf3 Nc6 22. Rh2 Qf6 23. Rf2 O-O-O 24. f4 Nd4 25. Qe3 Nc6 26. d4
+g5 27. d5 Nb8 28. Qxa7 gxf4 29. Rd3 f3 30. Rb3 b6 31. Rc3 Qf4+ 32. Kd1 Qxe4
+33. Qxb6 Qxd5+ 34. Rd2 Qf7 35. Qa5 f2
+{White forfeits on time} 0-1
+

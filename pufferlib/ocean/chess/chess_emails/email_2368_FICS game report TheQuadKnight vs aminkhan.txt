@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs aminkhan
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.14"]
+[Time "06:23:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "aminkhan"]
+[WhiteElo "1309"]
+[BlackElo "1370"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 a6 5. Nc3 Nf6 6. Be3 e6 7. Be2 Be7
+8. f4 O-O 9. Qd2 b5 10. O-O-O Bb7 11. Bf3 Nc6 12. g4 Rc8 13. g5 Nd7 14. f5
+b4 15. Nce2 Nxd4 16. Nxd4 e5 17. Ne2 Qc7 18. f6 Bd8 19. fxg7 Re8 20. Rhf1
+Nc5 21. Ng3 Kxg7 22. Nf5+ Kg8 23. Qxd6 Qxd6 24. Nxd6 Nxe4 25. Nxc8 Nxg5
+26. Bxb7
+{Black resigns} 1-0
+

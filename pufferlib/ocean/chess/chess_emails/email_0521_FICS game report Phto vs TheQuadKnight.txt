@@ -1,0 +1,25 @@
+Subject: FICS game report Phto vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.20"]
+[Time "08:22:35"]
+[Round "-"]
+[White "Phto"]
+[Black "TheQuadKnight"]
+[WhiteElo "1529"]
+[BlackElo "1385"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d5 2. e5 Nc6 3. f4 f6 4. Nf3 fxe5 5. Nxe5 Nxe5 6. fxe5 Bf5 7. d4 e6
+8. Qf3 Qh4+ 9. g3 Qe7 10. Qe2 Nh6 11. h3 g5 12. Nc3 Rg8 13. Be3 O-O-O 14. g4
+Bg6 15. O-O-O Qe8 16. Qb5 Qxb5 17. Bxb5 a6 18. Be2 Be7 19. h4 Be4 20. Nxe4
+dxe4 21. hxg5 Nf7 22. Rxh7 Nxg5 23. Rxe7 Nf3 24. Bxf3 exf3 25. Rf1 Rxg4
+26. Rxf3 Rg2 27. Rxe6 Rh8 28. Ref6 Rhh2 29. Rf2 Rg1+ 30. Kd2 Rgg2 31. e6
+Rxf2+ 32. Rxf2 Rxf2+ 33. Bxf2 Kd8 34. Bh4+ Ke8 35. e7 b5 36. Kd3 c6 37. c4
+bxc4+ 38. Kxc4 a5 39. Kc5 a4 40. Kxc6 a3 41. b3 Kf7 42. d5 Kg6 43. e8=Q+
+{Black forfeits on time} 1-0
+

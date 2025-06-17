@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs krrrs
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.03"]
+[Time "11:21:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "krrrs"]
+[WhiteElo "1257"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 Nf6 2. e5 Nd5 3. c4 Nb6 4. Nc3 d6 5. Nf3 Nc6 6. Bd3 g6 7. exd6 cxd6
+8. Qb3 Bg7 9. Ng5 O-O 10. O-O a5 11. a4 Nd4 12. Qd1 Bf5 13. Nge4 Rc8 14. b3
+d5 15. c5 dxe4 16. Bxe4 Bxe4 17. cxb6 Bd3 18. Re1 Nc2 19. Ra2 Nxe1 20. Qxe1
+Re8 21. Ne4 Qxb6 22. Qe3 Rxc1+
+{White resigns} 0-1
+

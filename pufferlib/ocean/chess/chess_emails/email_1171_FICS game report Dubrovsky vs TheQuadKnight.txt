@@ -1,0 +1,26 @@
+Subject: FICS game report Dubrovsky vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.04"]
+[Time "18:03:19"]
+[Round "-"]
+[White "Dubrovsky"]
+[Black "TheQuadKnight"]
+[WhiteElo "1511"]
+[BlackElo "1430"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. d3 Be7 7. c3 O-O 8. Nbd2
+Bb7 9. Nf1 Na5 10. Bc2 d5 11. Ng3 dxe4 12. dxe4 Qxd1+ 13. Kxd1 Rad8+ 14. Ke2
+Nc4 15. Bd3 Nd6 16. Nxe5 Ndxe4 17. Bxe4 Nxe4 18. Nxe4 Bxe4 19. Nf3 Bd5 20. b3
+a5 21. Bf4 Bf6 22. Rac1 Rd7 23. Rhe1 a4 24. c4 bxc4 25. bxc4 Be4 26. Kf1
+Bb2 27. Rxe4 Bxc1 28. Bxc1 Rd1+ 29. Re1 Rxe1+ 30. Kxe1 Re8+ 31. Kd1 Re4
+32. c5 Rg4 33. g3 Rg6 34. Ke2 Re6+ 35. Kd3 f6 36. Nd4 Re1 37. Bd2 Ra1 38. Bf4
+Rxa2 39. Bxc7 Rxf2 40. c6 a3 41. Nb3 a2 42. Kc4 Rf3 43. Na1 Rf1 44. Bd6
+Rxa1 45. c7 Rc1+ 46. Kb3 a1=Q
+{White resigns} 0-1
+

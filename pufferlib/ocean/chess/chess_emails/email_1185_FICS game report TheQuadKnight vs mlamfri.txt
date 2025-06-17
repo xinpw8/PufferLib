@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs mlamfri
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.02"]
+[Time "11:35:49"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mlamfri"]
+[WhiteElo "1428"]
+[BlackElo "1381"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 c5 2. Nf3 g6 3. d4 cxd4 4. Qxd4 Nf6 5. e5 Nc6 6. Qc3 Nd5 7. Qd3 Ndb4
+8. Qb3 Nd4 9. Nxd4 Qa5 10. Bd2 Qxe5+ 11. Be2 Nd5 12. Nf3 Qe4 13. Nc3 Nxc3
+14. Bxc3 f6 15. Rd1 Qg4 16. O-O h5 17. Qd5 Rb8 18. Rfe1 b6 19. Ne5 Qe6 20. Qxe6
+dxe6 21. Nxg6 Kf7 22. Nf4 a6 23. Rd8 b5 24. Bxh5+ Rxh5 25. Nxh5 Bh6 26. Ng3
+Bf4 27. Red1 Bc7 28. Rh8 Kg7 29. Rh4 Bb7 30. Rg4+ Kf7 31. h4 Rh8 32. h5
+Bxg3 33. Rxg3 Rxh5 34. Rh3 Rg5 35. Rh2 e5 36. Rd7 Be4 37. Bb4 Kg6 38. Rxe7
+Bxc2 39. Bc3 Bb1 40. Re6 Bxa2 41. Rxa6 Bc4 42. Bxe5 Rxe5 43. Ra1 b4 44. Rh3
+b3 45. Rg3+ Kf5 46. Rc1 Bd5 47. Rcc3 Ke6 48. Rce3 Kf5 49. Rxe5+ fxe5 50. Rh3
+Ke4 51. Kh2 Kd4 52. g3 Kd3 53. g4+ Kc2 54. g5 Kxb2 55. Rxb3+ Kxb3 56. Kg3
+Kc4 57. Kh4 Kd3 58. Kg3 Ke2 59. g6 Bg8 60. g7 e4 61. Kf4 Kxf2 62. Kxe4 Bh7+
+63. Ke5 Bg8 64. Kf6 Ba2 65. Ke7 Bb3 66. Kf8 Bc4 67. Ke7 Bd5 68. Kf8 Bc4
+69. Ke7 Kf3 70. Kf8 Kg4 71. Ke7 Kg5 72. Kf8 Kg6 73. g8=Q+ Bxg8
+{Neither player has mating material} 1/2-1/2
+

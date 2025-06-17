@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Kastro
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "13:16:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Kastro"]
+[WhiteElo "1398"]
+[BlackElo "1462"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Bc4 Nxe4 6. Bf4 Nxd4 7. Qxd4
+Nf6 8. Be5 d6 9. Bxf6 gxf6 10. Qd5 Be6 11. Bb5+ Bd7 12. Nc3 Bxb5 13. Qxb5+
+Qd7 14. Qxd7+ Kxd7 15. O-O Bh6 16. Rad1 Rac8 17. g3 Rc4 18. f4 Rg8 19. Rfe1
+Bxf4 20. Nd5 Be5 21. Ne3 Ra4 22. Nf5 Rg5 23. Nh6 Ke8 24. Re3 Rh4 25. Kg2
+Rxh6 26. h4 Rxh4 27. Rdd3 Rb4 28. Ra3 a6 29. c3 Rxb2+ 30. Kf3 Rxg3+ 31. Ke4
+Rxe3+ 32. Kxe3 h5 33. Kf3 h4 34. Ra4 h3 35. Rh4 h2 36. c4 Rxa2 37. Rh3 Ra3+
+38. Kg4 Rxh3 39. Kxh3 h1=Q+
+{White resigns} 0-1
+

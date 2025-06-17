@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs PastorK
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "14:18:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PastorK"]
+[WhiteElo "1390"]
+[BlackElo "1348"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. f4 f5 3. Nf3 fxe4 4. Nd4 Nf6 5. d3 exd3 6. Bxd3 Nc6 7. Be3 Nxd4
+8. Bxd4 Be7 9. O-O O-O 10. f5 exf5 11. Bxf5 d6 12. Bd3 c5 13. Be3 Bg4 14. Qd2
+d5 15. c4 d4 16. Bf2 b6 17. Qf4 Be6 18. Nd2 Qd6 19. Qh4 h6 20. Bg3 Qc6 21. Rae1
+Ng4 22. Qxe7
+{Black resigns} 1-0
+

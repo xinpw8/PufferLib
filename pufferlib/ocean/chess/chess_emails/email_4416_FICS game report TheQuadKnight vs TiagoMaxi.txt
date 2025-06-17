@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs TiagoMaxi
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.08"]
+[Time "16:00:45"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TiagoMaxi"]
+[WhiteElo "1318"]
+[BlackElo "1460"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 Nbd7 5. cxd5 exd5 6. e3 c6 7. Bd3 Be7
+8. O-O O-O 9. Bd2 Nb6 10. Qc2 Bg4 11. Be2 Nbd7 12. Rac1 Bd6 13. e4 dxe4
+14. Nxe4 Nxe4 15. Qxe4 Bxf3 16. Qxf3 Qc7 17. h3 Nf6 18. Bg5 Be7 19. Bf4
+Qb6 20. Qc3 Nd5 21. Qf3 Qxb2 22. Rfd1 Rad8 23. Be5 Bd6 24. Rb1 Qxa2 25. Qg3
+Bxe5 26. Qxe5 Rfe8 27. Qg5 Qxe2 28. Re1 Qxe1+ 29. Rxe1 Rxe1+ 30. Kh2 Rde8
+31. f4 R1e4 32. Kg3 f6 33. Qf5 Kf7 34. Qd7+ R4e7 35. Qf5 g6 36. Qg4 h5 37. Qh4
+Re2 38. Kh2 R2e4
+{White forfeits on time} 0-1
+

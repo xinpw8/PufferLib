@@ -1,0 +1,30 @@
+Subject: FICS game report jabara vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "14:20:28"]
+[Round "-"]
+[White "jabara"]
+[Black "TheQuadKnight"]
+[WhiteElo "1448"]
+[BlackElo "1332"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. d4 exd4 6. Qxd4 Nf6 7. Qxd8+
+Kxd8 8. Bg5 Be7 9. e5 Nd5 10. Nbd2 Bxg5 11. Nxg5 Ke8 12. O-O-O Bf5 13. f4
+Nb4 14. Nge4 Nxa2+ 15. Kb1 Nb4 16. c3 Nd3 17. Rhf1 c5 18. h3 Rd8 19. g4
+Bxe4 20. Nxe4 c4 21. Rf3 b5 22. Re3 Ke7 23. f5 Rhe8 24. Nd2 Kf8 25. Nf3
+Nf2 26. Rxd8 Rxd8 27. Nd4 c5 28. Nc6 Rd1+ 29. Kc2 Rh1 30. e6 fxe6 31. fxe6
+Nxh3 32. e7+ Ke8 33. Rf3 Rh2+ 34. Kb1 Re2 35. Rf8+ Kd7 36. Nb8+ Kc7 37. e8=Q
+Rxe8 38. Rxe8 Nf2 39. Nxa6+ Kb6 40. Nb8 g5 41. Re7 h6 42. Re6+ Kc7 43. Na6+
+Kb7 44. Nxc5+ Kc7 45. Rxh6 Nd3 46. Rg6 Nxc5 47. Rxg5 Ne4 48. Rxb5 Nd2+ 49. Kc2
+Nb3 50. Rxb3 cxb3+ 51. Kxb3 Kd6 52. Kc4 Ke6 53. b4 Kf6 54. b5 Kg5 55. b6
+Kxg4 56. b7 Kf4 57. b8=Q+ Kf3 58. Qe8 Kf2 59. Kd3 Kf1 60. Qe2+ Kg1 61. Ke3
+Kh1 62. Kf3 Kg1 63. Kg3 Kh1 64. c4 Kg1 65. c5 Kh1 66. c6 Kg1 67. c7 Kh1
+68. c8=Q Kg1 69. Qg2#
+{Black checkmated} 1-0
+

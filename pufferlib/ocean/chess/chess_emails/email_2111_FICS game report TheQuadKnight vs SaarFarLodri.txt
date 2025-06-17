@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs SaarFarLodri
+
+
+[Event "FICS rated losers game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.19"]
+[Time "12:20:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "SaarFarLodri"]
+[WhiteElo "1576"]
+[BlackElo "2001"]
+[TimeControl "120+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. a4 f6 2. a5 a6 3. c3 g6 4. Ra4 Kf7 5. Qb3+ Ke8 6. Qxg8 Rxg8 7. c4 Rh8
+8. e4 f5 9. exf5 gxf5 10. g4 fxg4 11. Nf3 gxf3 12. Bg2 fxg2 13. Nc3 gxh1=B
+14. f3 Bxf3 15. Ne4 Bxe4 16. d3 Bxd3 17. Ra2 Bxc4 18. b3 Bxb3 19. Rf2 Bh6
+20. Bxh6 Rf8 21. Bxf8 Ra7 22. Bxe7 Qxe7+ 23. Re2 Qxe2+ 24. Kxe2 h5 25. Kf2
+h4 26. Kg2 d6 27. Kf3 h3 28. Kg3 c5 29. Kh4 Nd7 30. Kxh3 Ne5+ 31. Kh4 Nf3+
+32. Kg3 Nxh2 33. Kxh2 Ra8 34. Kg2 b6 35. axb6 Bb7+ 36. Kf2 Kd8 37. Ke1 Kc8
+38. Kf1 a5 39. Ke1 a4 40. Kf1 a3 41. Ke1 a2 42. Kf1 a1=R+ 43. Kf2 c4
+{White forfeits on time} 0-1
+

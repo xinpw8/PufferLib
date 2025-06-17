@@ -1,0 +1,27 @@
+Subject: FICS game report GenesisKhan vs TheQuadKnight
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2016.05.29"]
+[Time "18:34:03"]
+[Round "-"]
+[White "GenesisKhan"]
+[Black "TheQuadKnight"]
+[WhiteElo "1222"]
+[BlackElo "1313"]
+[TimeControl "300+1"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d4 exd4 6. cxd4 Bb4+ 7. Bd2
+Bxd2+ 8. Qxd2 Nxe4 9. Qf4 Nf6 10. d5 Nb4 11. Na3 O-O 12. O-O Nbxd5 13. Qd2
+Nb6 14. Bb3 d6 15. h3 Re8 16. Rfe1 Bd7 17. Nc4 Nxc4 18. Bxc4 b5 19. Bd3
+Bc6 20. Ng5 h6 21. Nf3 Qd7 22. Nd4 Bd5 23. Bxb5 c6 24. Ba4 Rac8 25. a3 Qc7
+26. Rac1 Rxe1+ 27. Qxe1 c5 28. Nf5 Qb6 29. Ne7+ Kh8 30. Nxc8 Qxb2 31. Nxd6
+Qxa3 32. Bc2 Bc6 33. Nxf7+ Kg8 34. Ne5 Bd5 35. Nd3 Qa2 36. Nxc5 Bc4 37. Qe5
+Qa5 38. Qe8+ Nxe8 39. Rd1 Qxc5 40. Bh7+ Kxh7 41. Rf1 Nf6 42. g3 Ne4 43. Kg2
+Nd2 44. Re1 Nb3 45. h4 Qd5+ 46. Kg1 Nd4 47. Re3 Nf3+ 48. Kg2 Qd1 49. Kh3
+Qf1+ 50. Kg4 Nh2+ 51. Kh5 Qd1+ 52. f3 g6#
+{White checkmated} 0-1
+

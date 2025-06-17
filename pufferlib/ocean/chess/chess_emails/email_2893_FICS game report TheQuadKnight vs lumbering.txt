@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs lumbering
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "17:07:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "lumbering"]
+[WhiteElo "1351"]
+[BlackElo "1366"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 e5 6. Nb3 Bb4 7. Bd2 O-O
+8. Bd3 d5 9. exd5 Nxd5 10. Nxd5 Bxd2+ 11. Qxd2 Qxd5 12. Bxh7+ Kxh7 13. Qxd5
+Be6 14. Qe4+ f5 15. Qh4+ Kg8 16. Nc5 Bc8 17. O-O-O b6 18. Nd3 e4 19. Nf4
+Ba6 20. Ng6 Rfd8 21. Qh8+ Kf7 22. Rxd8 Rxd8 23. Ne5+ Ke6 24. Qxg7 Nxe5 25. Qh6+
+Ke7 26. Qg7+ Nf7 27. b3 Rd6 28. c4 Bb7 29. Qg3 a5 30. Rd1 Rxd1+ 31. Kxd1
+Bc6 32. h4 b5 33. cxb5 Bxb5 34. h5 a4 35. Qh4+ Kf8 36. h6 axb3 37. axb3
+Kg8 38. h7+ Kh8 39. Qf6+ Kxh7 40. Qxf7+ Kh6 41. Qxf5 Bd3 42. Qf4+ Kg6 43. b4
+Kg7 44. Qe5+ Kf7 45. b5 Bxb5 46. Qxb5 Kf6 47. Ke2 Ke6 48. Ke3 Kd6 49. Qb4+
+Kd5 50. Qxe4+ Kc5 51. f3 Kd6 52. g3 Kc5 53. f4 Kd6 54. g4 Kc5 55. g5 Kd6
+56. f5 Kc5 57. g6 Kd6 58. f6 Kc5 59. g7 Kd6 60. f7 Kc5 61. g8=Q Kb5 62. f8=Q
+Kb6 63. Qfb4+ Kc7 64. Qee7+ Kc6 65. Qgc4#
+{Black checkmated} 1-0
+

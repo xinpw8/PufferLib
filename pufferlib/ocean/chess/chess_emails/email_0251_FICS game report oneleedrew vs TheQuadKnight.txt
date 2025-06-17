@@ -1,0 +1,22 @@
+Subject: FICS game report oneleedrew vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.24"]
+[Time "08:45:08"]
+[Round "-"]
+[White "oneleedrew"]
+[Black "TheQuadKnight"]
+[WhiteElo "1132"]
+[BlackElo "1334"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e3 e5 2. Bc4 Nc6 3. e4 Nf6 4. f3 d5 5. Bb5 dxe4 6. Bxc6+ bxc6 7. fxe4
+Nxe4 8. d3 Qh4+ 9. g3 Nxg3 10. Nf3 Qh5 11. Be3 Nxh1 12. Nbd2 Bg4 13. Qe2
+Ng3 14. Qf2 Nf5 15. O-O-O Nxe3 16. Qxe3 Be7 17. Qxe5 Bxf3 18. Qxh5 Bxh5
+19. Re1 Rd8 20. Ne4 Rd7 21. Ng5 O-O 22. Re4 Bxg5+
+{White resigns} 0-1
+

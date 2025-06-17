@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs iliapana
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "21:13:43"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "iliapana"]
+[WhiteElo "1340"]
+[BlackElo "1531"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 d6 6. Be3 e6 7. Bb5 Qc7
+8. Nxc6 bxc6 9. Ba4 Ba6 10. e5 Nd5 11. Nxd5 exd5 12. exd6 Bxd6 13. Qd4 O-O
+14. O-O-O Rab8 15. Bd2 Be5 16. Qg4 Bxb2+ 17. Kb1 Bc3+ 18. Bb3 Bxd2 19. Rxd2
+Bc4 20. Kc1 Qa5 21. Bxc4 Qa3+ 22. Kd1 Rb1+ 23. Ke2 Re8+ 24. Qe4 Rxe4#
+{White checkmated} 0-1
+

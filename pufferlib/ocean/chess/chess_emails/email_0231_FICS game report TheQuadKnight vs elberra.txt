@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs elberra
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.09"]
+[Time "13:18:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "elberra"]
+[WhiteElo "1360"]
+[BlackElo "1773"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nf3 Bg7 4. Nc3 O-O 5. e3 c5 6. Be2 d6 7. O-O Nc6 8. dxc5
+dxc5 9. Qxd8 Rxd8 10. Bd2 Bg4 11. Rfd1 a6 12. h3 Bf5 13. Nh4 Bc2 14. Rdc1
+Rxd2 15. Nf3 Rxe2
+{White resigns} 0-1
+

@@ -1,0 +1,22 @@
+Subject: FICS game report danieljimenez vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "17:06:42"]
+[Round "-"]
+[White "danieljimenez"]
+[Black "TheQuadKnight"]
+[WhiteElo "1047"]
+[BlackElo "1316"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qd1 Nf6 5. Nc3 Bb4 6. a3 Bxc3+ 7. bxc3
+d5 8. exd5 Nxd5 9. Qe2+ Qe7 10. Qxe7+ Ncxe7 11. Bd2 Bf5 12. Bd3 O-O-O 13. Bxf5+
+Nxf5 14. Nf3 Rhe8+ 15. Kd1 Nd6 16. Rb1 Nc4 17. Kc1 Nxd2 18. Nxd2 Nxc3 19. Rb3
+Ne2+ 20. Kb2 Rxd2
+{White resigns} 0-1
+

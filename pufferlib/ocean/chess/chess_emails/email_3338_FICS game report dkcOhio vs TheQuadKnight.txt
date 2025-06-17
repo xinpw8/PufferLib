@@ -1,0 +1,27 @@
+Subject: FICS game report dkcOhio vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.22"]
+[Time "15:58:05"]
+[Round "-"]
+[White "dkcOhio"]
+[Black "TheQuadKnight"]
+[WhiteElo "1415"]
+[BlackElo "1394"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O Be7 7. Re1 d6
+8. h3 O-O 9. c3 h6 10. d4 exd4 11. cxd4 Nh7 12. Bf4 Bg5 13. Nxg5 Nxg5 14. Bg3
+Qf6 15. e5 dxe5 16. dxe5 Qg6 17. Bd5 Bb7 18. h4 Ne6 19. Be4 Qxg3 20. fxg3
+Ned4 21. Bxc6 Nxc6 22. Nc3 Rfe8 23. Nd5 Rac8 24. Nf4 Nxe5 25. Qc2 Ng4 26. Rxe8+
+Rxe8 27. Qxc7 Be4 28. Qd7 Rf8 29. Qxg4 f5 30. Qe2 Re8 31. Qd2 Kf7 32. Re1
+g5 33. hxg5 hxg5 34. Nh3 Bc6 35. Rxe8 Bxe8 36. Nxg5+ Kg6 37. Nf3 Bf7 38. Qd6+
+Kg7 39. Qxa6 Be6 40. Qxb5 Kf6 41. Nd4 Bf7 42. Qxf5+ Ke7 43. Nc6+ Kf8 44. a4
+Kg7 45. a5 Kf8 46. a6 Kg8 47. Qxf7+ Kxf7 48. a7 Ke6 49. a8=Q Kf5 50. Nd4+
+Kg4 51. Qf3+ Kg5 52. Qf4+ Kg6 53. Qe5 Kh6 54. Qf5 Kg7 55. Qe6
+{Black forfeits on time} 1-0
+

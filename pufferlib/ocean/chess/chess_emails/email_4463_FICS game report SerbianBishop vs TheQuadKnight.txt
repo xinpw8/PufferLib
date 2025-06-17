@@ -1,0 +1,25 @@
+Subject: FICS game report SerbianBishop vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "15:56:42"]
+[Round "-"]
+[White "SerbianBishop"]
+[Black "TheQuadKnight"]
+[WhiteElo "1391"]
+[BlackElo "1268"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e3 e5 2. c4 f5 3. b3 Nf6 4. Bb2 d6 5. Nc3 Nc6 6. Bd3 Be6 7. Nge2 Qd7
+8. Ng3 O-O-O 9. a4 Nb4 10. Bb1 h5 11. Ba3 Nc6 12. Bd3 h4 13. Nge2 g5 14. b4
+d5 15. b5 Bxa3 16. bxc6 Qd6 17. Nb5 Qxc6 18. Rxa3 dxc4 19. Rc3 Qxg2 20. Rg1
+Qxh2 21. Bxc4 Bd7 22. Rxg5 Ng4 23. Rxg4 fxg4 24. d3 Qh1+ 25. Kd2 Qxd1+ 26. Kxd1
+h3 27. Ng3 h2 28. Bd5 c6 29. Bh1 Kb8 30. Nd6 Rdf8 31. Nge4 g3 32. Nxg3 Rxf2
+33. Rb3 b5 34. axb5 cxb5 35. Nxb5 Bxb5 36. Rxb5+ Kc7 37. Rxe5 Rg8 38. d4
+Rxg3 39. Re7+ Kd6 40. e4 Rg1#
+{White checkmated} 0-1
+

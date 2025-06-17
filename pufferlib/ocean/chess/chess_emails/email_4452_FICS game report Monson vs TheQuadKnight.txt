@@ -1,0 +1,22 @@
+Subject: FICS game report Monson vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "17:06:05"]
+[Round "-"]
+[White "Monson"]
+[Black "TheQuadKnight"]
+[WhiteElo "1520"]
+[BlackElo "1295"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. c3 Bc5 5. O-O d6 6. d4 exd4 7. cxd4 Bb6
+8. Bxf7+ Kxf7 9. Qb3+ Ke8 10. e5 Nd7 11. exd6 Nxd4 12. Nxd4 Bxd4 13. Re1+
+Be5 14. Qe6+ Kf8 15. Rxe5 Nxe5 16. Qxe5 Qe8 17. Qf4+ Kg8 18. Bd2 cxd6 19. Nc3
+Qe5 20. Qc4+ Be6 21. Qc7 Re8 22. Re1 Qf6 23. Ne4 Qe7 24. Nxd6 Qxc7
+{White resigns} 0-1
+

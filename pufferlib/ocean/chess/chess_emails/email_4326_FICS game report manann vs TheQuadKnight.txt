@@ -1,0 +1,25 @@
+Subject: FICS game report manann vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "20:11:31"]
+[Round "-"]
+[White "manann"]
+[Black "TheQuadKnight"]
+[WhiteElo "1478"]
+[BlackElo "1323"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Bc4 Nc6 3. Nf3 Nf6 4. Nc3 Bc5 5. O-O d6 6. d3 Bg4 7. h3 Bh5
+8. g4 Bg6 9. Bg5 h6 10. Bh4 Bh7 11. Nd5 g5 12. Bg3 Ne7 13. c3 Nexd5 14. exd5
+Qe7 15. Re1 O-O-O 16. b4 Bb6 17. a4 a5 18. Qb3 Rhe8 19. Rab1 c5 20. dxc6
+bxc6 21. bxa5 Ba7 22. Ba6+ Kd7 23. Qb7+ Ke6 24. Qxc6 Rb8 25. Qc4+ Kd7 26. Bb5+
+Kd8 27. Bxe8 Rxb1 28. Rxb1 Kxe8 29. Qc6+ Nd7 30. Rb7 Bc5 31. Qc8+ Qd8 32. Qc6
+Qe7 33. d4 Bxd4 34. cxd4 exd4 35. Nxd4 Qe1+ 36. Kg2 Qe7 37. Nf5 Bxf5 38. gxf5
+f6 39. Qc8+ Qd8 40. Qc6 Qe7 41. Qc8+ Qd8
+{White forfeits on time} 0-1
+

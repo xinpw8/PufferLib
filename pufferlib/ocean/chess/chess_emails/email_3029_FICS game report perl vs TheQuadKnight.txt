@@ -1,0 +1,23 @@
+Subject: FICS game report perl vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.28"]
+[Time "20:55:58"]
+[Round "-"]
+[White "perl"]
+[Black "TheQuadKnight"]
+[WhiteElo "1516"]
+[BlackElo "1350"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 Nf6 6. Nxg4 d6 7. Be2 Nc6
+8. d3 Bxg4 9. Bxg4 Nxg4 10. Qxg4 Ne5 11. Qxf4 Rg8 12. Nc3 Rxg2 13. Be3 Qe7
+14. Nd5 Ng6 15. Nf6+ Kd8 16. Qf3 Rxc2 17. Bg5 h6 18. Nd5 hxg5 19. Nxe7 Bxe7
+20. hxg5 Bxg5 21. Qxf7 Bh4+ 22. Rxh4 Nxh4 23. Qf8+ Kd7 24. Qxa8 Nf3+ 25. Kd1
+Rd2+ 26. Kc1 Re2 27. Qf8 Re1+ 28. Kc2 Rxa1 29. Qxf3 Rxa2 30. Qf5+ Kc6 31. d4
+{Black resigns} 1-0
+

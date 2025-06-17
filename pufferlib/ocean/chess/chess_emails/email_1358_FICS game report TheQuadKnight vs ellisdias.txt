@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs ellisdias
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.19"]
+[Time "21:36:23"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ellisdias"]
+[WhiteElo "1458"]
+[BlackElo "1084"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 e6 3. Bf4 c5 4. e3 cxd4 5. exd4 Nc6 6. Bb5 Nf6 7. Qe2 Qa5+
+8. Nc3 a6 9. Bd3 Bb4 10. Bd2 O-O 11. O-O Qc7 12. a3 Bd6 13. Rfe1 e5 14. dxe5
+Nxe5 15. Nxe5 Bg4 16. f3 Bxe5 17. Qxe5 Qxe5 18. Rxe5 Be6 19. g4 d4 20. Ne4
+Nd7 21. Rh5 f5 22. Ng5
+{Black resigns} 1-0
+

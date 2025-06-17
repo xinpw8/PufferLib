@@ -1,0 +1,21 @@
+Subject: FICS game report gGrungean vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.26"]
+[Time "12:14:10"]
+[Round "-"]
+[White "gGrungean"]
+[Black "TheQuadKnight"]
+[WhiteElo "1417"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Nf3 Nc6 4. Bc4 Bc5 5. O-O Nf6 6. Ng5 O-O 7. Re1 Ne5
+8. Bf1 d6 9. f4 Ng6 10. e5 Bg4 11. Qd3 dxe5 12. fxe5 Nd5 13. h3 Nb4 14. Qc4
+Be6 15. Nxe6 fxe6 16. Qxc5 Nd5 17. Bc4 Qh4 18. Bxd5 Qxe1+ 19. Kh2 Qxe5+
+{Black wins by adjudication} 0-1
+

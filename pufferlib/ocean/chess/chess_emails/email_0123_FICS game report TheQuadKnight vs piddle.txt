@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs piddle
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.09"]
+[Time "15:02:47"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "piddle"]
+[WhiteElo "1370"]
+[BlackElo "1347"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qd1 Nf6 5. Nc3 Bb4 6. Bd3 d6 7. Bg5 O-O
+8. Nf3 Bg4 9. h3 Bd7 10. O-O Ne5 11. Nd5 Bc5 12. Nxf6+ gxf6 13. Bh6 Re8
+14. Nh4 Ng6 15. Nf5 Bxf5 16. exf5 Ne5 17. Be2 Qd7 18. g4 Kh8 19. c3 Rg8
+20. a4 Qxf5 21. Kh2 Qg6 22. Qd2 Rae8 23. b4 Bb6 24. a5 Nc6 25. axb6 axb6
+26. Bd3 f5 27. Bxf5 Qf6 28. h4 Qe5+ 29. Bf4
+{Black forfeits on time} 1-0
+

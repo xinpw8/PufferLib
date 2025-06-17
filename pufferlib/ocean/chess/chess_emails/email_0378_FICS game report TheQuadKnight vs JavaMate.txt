@@ -1,0 +1,31 @@
+Subject: FICS game report TheQuadKnight vs JavaMate
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.07.16"]
+[Time "23:43:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "JavaMate"]
+[WhiteElo "1399"]
+[BlackElo "1390"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 d6 2. d4 e5 3. dxe5 dxe5 4. Qxd8+ Kxd8 5. Nc3 c6 6. Be3 Kc7 7. O-O-O
+Bb4 8. Nge2 Be6 9. f4 f6 10. a3 Ba5 11. b4 Bb6 12. Bxb6+ axb6 13. Kb2 Bg4
+14. h3 Bxe2 15. Nxe2 Ne7 16. g4 exf4 17. Nxf4 Ng6 18. Ne6+ Kc8 19. Nxg7
+Ne5 20. Nf5 Kc7 21. Be2 Nbd7 22. Rhf1 c5 23. Bb5 cxb4 24. Ne7 bxa3+ 25. Ka2
+Nc5 26. Nd5+ Kb8 27. Nxb6 Ra5 28. Nd7+ Nexd7 29. Bxd7 Nxe4 30. Rd3 Rd8 31. Bf5
+Rxd3 32. cxd3 Nc3+ 33. Kb3 a2 34. Ra1 h5 35. Kxc3 hxg4 36. Bxg4 f5 37. Bf3
+b5 38. Kb4 Ra4+ 39. Kxb5 Rd4 40. Be2 Rh4 41. Bf1 Rf4 42. Kc5 Kc7 43. d4
+Rf2 44. d5 Rc2+ 45. Kd4 Kd6 46. Bd3 Rd2 47. Ke3 Rh2 48. Bxf5 Kxd5 49. Bg4
+Ke5 50. Kd3 Kf4 51. Kc3 Rg2 52. Kb3 Rxg4 53. hxg4 Kxg4 54. Rxa2 Kf4 55. Rd2
+Ke3 56. Kc3 Ke4 57. Rd3 Kf4 58. Kd4 Kf5 59. Re3 Kf4 60. Re4+ Kf3 61. Kd3
+Kg3 62. Ke3 Kg2 63. Rf4 Kg3 64. Rf3+ Kg4 65. Ke4 Kg5 66. Rf4 Kg6 67. Kf3
+Kg5 68. Ke4 Kg6 69. Ke5 Kg5 70. Rf5+ Kg4 71. Ke4 Kg3 72. Rf3+ Kg4 73. Ke5
+Kxf3
+{Neither player has mating material} 1/2-1/2
+

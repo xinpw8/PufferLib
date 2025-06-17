@@ -1,0 +1,23 @@
+Subject: FICS game report BlackNightt vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.09"]
+[Time "13:52:12"]
+[Round "-"]
+[White "BlackNightt"]
+[Black "TheQuadKnight"]
+[WhiteElo "1379"]
+[BlackElo "1390"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e3 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qc3 Nf6 5. Nf3 d5 6. Bb5 Bb4 7. Qxb4
+Bd7 8. Bxc6 Bxc6 9. Ne5 Rb8 10. O-O Ne4 11. f3 Nd6 12. Rd1 O-O 13. Qg4 Qf6
+14. f4 b6 15. b3 Bb7 16. Bb2 Rbd8 17. Nd2 Qh6 18. Rab1 f6 19. Nef3 Rde8
+20. Re1 Ne4 21. Nxe4 dxe4 22. Nh4 Bc8 23. Qg3 Be6 24. Rbd1 g5 25. fxg5 fxg5
+26. Rd4 Bd7 27. Rxd7 Rf7 28. Rxf7 Kxf7 29. Qxc7+ Re7 30. Qc4+ Ke8 31. Nf5
+{Black resigns} 1-0
+

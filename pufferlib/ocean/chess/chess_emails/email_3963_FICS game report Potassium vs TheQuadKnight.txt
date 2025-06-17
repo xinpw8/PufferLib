@@ -1,0 +1,24 @@
+Subject: FICS game report Potassium vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "15:18:44"]
+[Round "-"]
+[White "Potassium"]
+[Black "TheQuadKnight"]
+[WhiteElo "1566"]
+[BlackElo "1445"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Be2 h6 9. Nxf7 Kxf7 10. Bh5+ Nxh5 11. Qxh5+ Kg8 12. Qxe5 Qe7 13. Qxe7
+Bxe7 14. Nc3 Ba6 15. d3 Bg5 16. Bxg5 hxg5 17. O-O-O Rf8 18. f3 c5 19. Ne4
+Nb7 20. Nxg5 Rh5 21. Ne4 Re8 22. d4 Be2 23. Rde1 Bc4 24. Nf6+ gxf6 25. Rxe8+
+Kg7 26. Re7+ Kg6 27. Rxb7 Bxa2 28. b3 cxd4 29. Rxa7 d3 30. Rxa2 Rc5 31. c4
+Kf5 32. Re1 Rc6 33. Rd2 Rd6 34. Kb2 Kg6 35. Kc3 Kf7 36. Rxd3 Rxd3+ 37. Kxd3
+{Black resigns} 1-0
+

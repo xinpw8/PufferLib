@@ -1,0 +1,31 @@
+Subject: FICS game report elusiveem vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.12"]
+[Time "14:38:12"]
+[Round "-"]
+[White "elusiveem"]
+[Black "TheQuadKnight"]
+[WhiteElo "1499"]
+[BlackElo "1355"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. e3 Nc6 5. Nc3 Bb4 6. Be2 Bd7 7. Bd2 O-O
+8. O-O Re8 9. a3 Bxc3 10. Bxc3 dxc4 11. Bxc4 a6 12. Qc2 Ne7 13. Rfe1 Ned5
+14. e4 Nxc3 15. bxc3 Bc6 16. e5 Bxf3 17. exf6 Bc6 18. fxg7 Kxg7 19. Re5
+Qf6 20. Qd2 Qg6 21. Rg5 Rg8 22. Rxg6+ Kxg6 23. Bd3+ Kf6 24. Qf4+ Ke7 25. Qxc7+
+Ke8 26. g3 Rg5 27. Qf4 Rg8 28. Bxh7 Rf8 29. Re1 Kd7 30. Be4 Bxe4 31. Qxe4
+Rab8 32. d5 Rbe8 33. Qa4+ Kd6 34. c4 b5 35. cxb5 exd5 36. bxa6 Rxe1+ 37. Kg2
+Ree8 38. Qb4+ Kc7 39. Qb7+ Kd6 40. a7 Ra8 41. Qb5 Kc7 42. Qxd5 Kb6 43. Qd6+
+Kxa7 44. Qd7+ Kb6 45. Qd6+ Kb7 46. Qd5+ Ka7 47. a4 Kb8 48. a5 Kc7 49. Qc5+
+Kd7 50. a6 Ke6 51. Qc6+ Ke7 52. a7 Kd8 53. Qd6+ Kc8 54. Qxf8+ Kb7 55. Qxa8+
+Kxa8 56. Kf3 Kxa7 57. Kf4 Ka6 58. Kf5 Kb6 59. Kf6 Kc6 60. Kxf7 Kd6 61. f4
+Kd5 62. g4 Kd6 63. f5 Kd7 64. f6 Kc6 65. Kg7 Kc5 66. f7 Kc4 67. f8=Q Kd4
+68. Qf5 Kc4 69. g5 Kd4 70. g6 Kc3 71. Kh7 Kc4 72. g7 Kc3 73. g8=Q Kb4 74. Qgd5
+Ka3
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs meanadmin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "13:22:39"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "meanadmin"]
+[WhiteElo "1386"]
+[BlackElo "1450"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Bc5 5. Re1 d6 6. d4 exd4 7. Nxd4 Bd7
+8. Nxc6 bxc6 9. Bc4 h5 10. Bg5 Qc8 11. e5 Ng4 12. exd6+ Kf8 13. Be7+ Kg8
+14. Qf3 Bxf2+ 15. Kf1 Nxh2+ 16. Kxf2 Nxf3 17. Kxf3 cxd6 18. Bxd6 Be6 19. Bxe6
+fxe6 20. Nc3 Kh7 21. Ne4 Rf8+ 22. Kg3 e5 23. Ng5+ Kg8 24. Rxe5 Qg4+ 25. Kh2
+Rf2 26. Rg1 Qh4+ 27. Nh3 Rd8 28. Be7 Rdd2 29. Bxh4 Rf8 30. Be7 Re8 31. Nf4
+Rd7 32. Ng6 Kf7 33. g4 Kxg6 34. gxh5+ Kf7 35. Bd6 Rxd6 36. Rxe8 Kxe8 37. Re1+
+Kf8 38. Re2 Rh6 39. Re5 Kf7 40. Kg3 Kf6 41. Kf4 Kf7 42. Rf5+ Ke6 43. c4
+a6 44. b3 g6 45. hxg6 Rxg6 46. Ra5 Rf6+ 47. Ke4 Kd6 48. Rxa6 Re6+ 49. Kd4
+Kc7 50. Kc5 Re5+ 51. Kb4 Re2 52. Kc5 Kb7 53. Rb6+ Ka7 54. a4 Re5+ 55. Kxc6
+Re6+ 56. Kc7 Rxb6 57. c5 Rxb3 58. a5 Rc3 59. Kc6 Ka6 60. Kd6 Kxa5 61. c6
+Kb6 62. Kd7 Rxc6 63. Ke7 Kc5
+{White resigns} 0-1
+

@@ -1,0 +1,22 @@
+Subject: FICS game report letmeexplain vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.05"]
+[Time "16:59:52"]
+[Round "-"]
+[White "letmeexplain"]
+[Black "TheQuadKnight"]
+[WhiteElo "1319"]
+[BlackElo "1333"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. a3 Nf6 3. Nc3 Nc6 4. b4 Be7 5. Bc4 O-O 6. Bb2 d6 7. Nge2 a6
+8. O-O b5 9. Bb3 Bb7 10. Kh1 Ra7 11. d3 Qa8 12. f4 Nd4 13. Nxd4 exd4 14. Nd5
+Nxd5 15. Bxd5 Bxd5 16. exd5 Qxd5 17. Re1 Bf6 18. Qg4 c5 19. bxc5 dxc5 20. Re4
+Re7 21. Rae1 Rfe8 22. Rxe7 Rxe7 23. Qc8+
+{Black resigns} 1-0
+

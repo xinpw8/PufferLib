@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs castleride
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.16"]
+[Time "13:56:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "castleride"]
+[WhiteElo "1368"]
+[BlackElo "1512"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. c3 Nf6 4. d4 exd4 5. Bg5 dxc3 6. Nxc3 Be7 7. e5 Ng8
+8. Bxe7 Ngxe7 9. Bc4 O-O 10. O-O b6 11. Qb3 Bb7 12. Ne4 Na5 13. Qc3 Bxe4
+14. Ng5 Bg6 15. g4 Nxc4 16. Qxc4 c6 17. f4 h6 18. Nh3 Bh7 19. g5 Nf5 20. gxh6
+Nxh6 21. Ng5 Bf5 22. h4 Ng4 23. Qc3 f6 24. Qc4+ Be6 25. Nxe6 dxe6 26. Qxe6+
+Kh8 27. Qxg4 Qd4+ 28. Kh1 Qxb2 29. Qh5+ Kg8 30. Rg1 Rf7 31. exf6 Qxf6 32. Qg5
+Qd4 33. Raf1 Re8 34. h5 Re3 35. Qh4 Qe4+ 36. Kh2 Re2+ 37. Rf2 Rxf4 38. Qd8+
+Kh7 39. h6 Rexf2+ 40. Kh3 Rh4+ 41. Qxh4 Qxh4+
+{White forfeits on time} 0-1
+

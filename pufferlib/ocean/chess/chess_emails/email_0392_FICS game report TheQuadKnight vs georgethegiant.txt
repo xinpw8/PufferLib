@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs georgethegiant
+
+
+[Event "FICS rated wild/fr game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.07.07"]
+[Time "12:03:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "georgethegiant"]
+[WhiteElo "1502"]
+[BlackElo "1577"]
+[TimeControl "600+0"]
+[FEN "brkqnbrn/pppppppp/8/8/8/8/PPPPPPPP/BRKQNBRN w KQkq - 0 1"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e3 e6 2. Nf3 b6 3. Ba6+ Bb7 4. Bxb7+ Kxb7 5. Ng3 c6 6. d4 Bd6 7. Qd3
+f5 8. Ne2 Nf6 9. Ne5 Ng6 10. Nf4 Nxe5 11. dxe5 Bxe5 12. b3 g5 13. Bxe5 gxf4
+14. Bxb8 Qxb8 15. Qd4 Nd5 16. c4 c5 17. Qd1 Nf6 18. Qd2 fxe3 19. fxe3 Qxh2
+20. Rd1 d5 21. cxd5 Rxg2 22. dxe6 Rxd2 23. Rxd2 Qg1+ 24. Kc2 Qxe3 25. Rd7+
+Nxd7 26. exd7 Qe4+ 27. Kc3 Qd4+ 28. Kc2 Qxd7 29. Rd1 Qf7
+{White resigns} 0-1
+

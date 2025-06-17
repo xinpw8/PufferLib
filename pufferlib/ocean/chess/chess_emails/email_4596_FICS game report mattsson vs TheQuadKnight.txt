@@ -1,0 +1,24 @@
+Subject: FICS game report mattsson vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.25"]
+[Time "11:42:12"]
+[Round "-"]
+[White "mattsson"]
+[Black "TheQuadKnight"]
+[WhiteElo "1387"]
+[BlackElo "1276"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Nf6 6. Nxc6 dxc6 7. Bxc5
+Qxd1+ 8. Kxd1 b6 9. Bd4 O-O 10. Bd3 Bg4+ 11. f3 Be6 12. Bxf6 gxf6 13. Nd2
+Rad8 14. Ke2 c5 15. c4 a6 16. Rhd1 Rd4 17. Nb3 Rdd8 18. Rd2 a5 19. Rad1
+a4 20. Nc1 Kh8 21. b3 axb3 22. axb3 Rg8 23. g3 Rg5 24. Bc2 Rxd2+ 25. Rxd2
+f5 26. Kf2 fxe4 27. Bxe4 f5 28. Bc6 Kg7 29. Ne2 Kf6 30. Nf4 Bf7 31. Nd5+
+Kg6 32. Nxc7
+{Black resigns} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report Gamgms vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.17"]
+[Time "09:49:03"]
+[Round "-"]
+[White "Gamgms"]
+[Black "TheQuadKnight"]
+[WhiteElo "1480"]
+[BlackElo "1282"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 d5 5. Bxd5 Be6 6. Bxe6 fxe6 7. O-O
+Bd6 8. d4 Nc6 9. e5 Be7 10. Nc3 Qd7 11. d5 exd5 12. Qxd5 Qxd5 13. Nxd5 Bc5+
+14. Kh1 O-O-O 15. c4 Nge7 16. Nxe7+ Bxe7 17. b3 h6 18. Bb2 Rhe8 19. Rad1
+Nb4 20. a3 Nd3 21. Bc3 Bxa3 22. Ra1 Bc5 23. b4 Nf2+ 24. Rxf2 Bxf2 25. g3
+fxg3 26. hxg3 Bxg3 27. Kg2 Bf4 28. Rxa7 Rd3 29. Ra8+ Kd7 30. e6+ Ke7 31. Bf6+
+Kxf6 32. Rxe8 Re3 33. e7 Rxe7 34. Rf8+ Rf7 35. Rb8 c6 36. Rh8 Kg6 37. Nd4
+Be3 38. Ne6 Rf2+
+{White forfeits on time} 0-1
+

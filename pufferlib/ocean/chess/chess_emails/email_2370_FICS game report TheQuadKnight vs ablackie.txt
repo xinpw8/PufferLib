@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs ablackie
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.14"]
+[Time "06:15:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ablackie"]
+[WhiteElo "1297"]
+[BlackElo "1223"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 b6 2. e4 Bb7 3. Nc3 e6 4. Bc4 Bb4 5. Nf3 Bxc3+ 6. bxc3 Bxe4 7. O-O
+d5 8. Bb5+ c6 9. Be2 Nf6 10. Ng5 Bg6 11. c4 Qc7 12. Ba3 Nbd7 13. Re1 Rd8
+14. Rc1 c5 15. cxd5 Nxd5 16. Bb5 O-O 17. c4 N5f6 18. Qf3 cxd4 19. Bxf8 Kxf8
+20. Ne4 Bxe4 21. Rxe4 Nxe4 22. Qxe4 Nf6 23. Qf3 Qc8 24. c5 a6 25. Bc6 bxc5
+26. Rxc5 e5 27. Rxe5 d3 28. Re1 d2 29. Rd1 Nd5 30. Bxd5 Rxd5 31. Qxd5 Qc1
+32. Qxd2
+{Black resigns} 1-0
+

@@ -1,0 +1,22 @@
+Subject: FICS game report usclaus vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.06"]
+[Time "11:32:08"]
+[Round "-"]
+[White "usclaus"]
+[Black "TheQuadKnight"]
+[WhiteElo "971"]
+[BlackElo "1436"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. e4 Ke7 3. Nf3 Qe8 4. Nc3 Kd8 5. Bb5 c6 6. Ba4 b5 7. Bb3 Nf6
+8. e5 Nd5 9. Bd2 f6 10. O-O Be7 11. Re1 Na6 12. Nxd5 exd5 13. a3 Qg6 14. e6
+dxe6 15. Rxe6 Bxe6 16. Qe2 Re8 17. Re1 Bd6 18. Nh4 Qf7 19. c3 Qc7 20. g3
+Bh3 21. Qxe8#
+{Black checkmated} 1-0
+

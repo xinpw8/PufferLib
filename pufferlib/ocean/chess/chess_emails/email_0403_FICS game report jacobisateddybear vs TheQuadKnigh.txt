@@ -1,0 +1,23 @@
+Subject: FICS game report jacobisateddybear vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.07.02"]
+[Time "14:54:30"]
+[Round "-"]
+[White "jacobisateddybear"]
+[Black "TheQuadKnight"]
+[WhiteElo "1205"]
+[BlackElo "1405"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 d5 5. Nc3 Bb4 6. Nxc6 Bxc3+ 7. bxc3
+bxc6 8. exd5 cxd5 9. c4 Nf6 10. cxd5 O-O 11. Be2 Nxd5 12. Bb2 Bf5 13. Qd4
+Nf6 14. O-O-O Qe7 15. Rhe1 Rad8 16. Qxa7 Rxd1+ 17. Kxd1 Rd8+ 18. Kc1 Qe4
+19. Qc5 Qxg2 20. Qxf5 Qxh2 21. Be5 Qh6+ 22. Qf4 Qg6 23. Bd3 Qh5 24. Bxc7
+Rxd3 25. cxd3 Qc5+ 26. Kd2 Qb4+ 27. Ke2 Qxf4
+{White resigns} 0-1
+

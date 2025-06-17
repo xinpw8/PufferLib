@@ -1,0 +1,21 @@
+Subject: FICS game report frothster vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "08:03:38"]
+[Round "-"]
+[White "frothster"]
+[Black "TheQuadKnight"]
+[WhiteElo "1359"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Bg5 Nc6 3. e3 Bf5 4. Bd3 h6 5. Bxf5 hxg5 6. Ne2 e6 7. Bd3 Nb4
+8. O-O Nxd3 9. Qxd3 Bd6 10. Nd2 Bxh2+ 11. Kh1 Qd6 12. Qb5+ c6 13. Qxb7 Bg1+
+14. Kxg1 Qh2#
+{White checkmated} 0-1
+

@@ -1,0 +1,27 @@
+Subject: FICS game report thekidd vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "16:06:05"]
+[Round "-"]
+[White "thekidd"]
+[Black "TheQuadKnight"]
+[WhiteElo "1388"]
+[BlackElo "1403"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. h3 Nf6 5. d3 O-O 6. O-O d5 7. exd5 Nxd5
+8. Bd2 Nb6 9. Bb3 Nd4 10. Nxd4 Bxd4 11. Bc3 Bc5 12. a3 Re8 13. Qh5 Qf6 14. Kh1
+Be6 15. Bxe6 Rxe6 16. f4 Nd5 17. Bxe5 Qe7 18. Nc3 Nf6 19. Bxf6 Qxf6 20. Ne4
+Qd4 21. Nxc5 Rg6 22. Qe5 Qd8 23. Ne4 Qd7 24. f5 Rc6 25. Rac1 Re8 26. Qf4
+Qe7 27. f6 gxf6 28. Qxf6 Rxf6 29. Nxf6+ Kf8 30. Nxe8 Kxe8 31. Rce1 Qxe1
+32. Rxe1+ Kd7 33. Kh2 Kd6 34. Kg3 f6 35. Kf4 h5 36. Kf5 Kd7 37. Kxf6 c6
+38. Kg5 b5 39. Kxh5 a5 40. g4 c5 41. Kg5 c4 42. dxc4 bxc4 43. h4 c3 44. bxc3
+a4 45. h5 Kc6 46. Re4 Kd5 47. Rd4+ Kc6 48. h6 Kc5 49. h7 Kc6 50. h8=Q Kb6
+51. Qe5 Kb7 52. Rd6 Kb8 53. Qe8+ Kb7 54. Qe7+ Kb8 55. Rd8#
+{Black checkmated} 1-0
+

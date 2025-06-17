@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Alejandreuta
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.01"]
+[Time "14:57:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Alejandreuta"]
+[WhiteElo "1317"]
+[BlackElo "1654"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Nf3 Bg7 5. Bf4 c6 6. e5 Nd5 7. Nxd5 cxd5
+8. Be2 O-O 9. O-O Nc6 10. c3 Bg4 11. Re1 dxe5 12. Bxe5 Bxf3 13. Bxf3 Nxe5
+14. dxe5 e6 15. Qb3 Qe7 16. Rad1 Rac8 17. Qa4 b6 18. Rd3 Rc4 19. Qc2 Rfc8
+20. Be2 Re4 21. Qd2 Rxe5 22. Re3 Qd6 23. Ba6 Rxe3 24. Qxe3 Rd8 25. Rd1 Qc5
+26. Qe2 d4 27. Qe4 e5 28. f4 f5 29. Qf3 e4 30. Qf2 e3 31. Qe2 Bh6 32. Bc4+
+Kg7 33. g3 b5 34. b3 bxc4 35. cxd4 Rxd4 36. Rxd4 Qxd4 37. Qxc4 Qxc4 38. bxc4
+Kf6 39. c5
+{Black forfeits on time} 1-0
+

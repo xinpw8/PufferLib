@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs MickeyyMouse
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.14"]
+[Time "13:29:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MickeyyMouse"]
+[WhiteElo "1369"]
+[BlackElo "1463"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 g6 2. Nc3 Bg7 3. Nf3 d6 4. Bg5 Nf6 5. e3 O-O 6. Bd3 Bg4 7. h3 Bxf3
+8. Qxf3 Nbd7 9. O-O-O c5 10. Qxb7 Rb8 11. Qxa7 Qb6 12. Qxb6 Rxb6 13. Na4
+Rb7 14. Ba6 Rb4 15. b3 Ra8 16. Bb7 Rxb7 17. dxc5 Nxc5 18. Nxc5 dxc5 19. g4
+Rxa2 20. h4 Ra1+ 21. Kd2 Ne4+ 22. Ke2 Rxd1 23. Kxd1 Nxf2+ 24. Ke2 Nxh1 25. h5
+Ng3+ 26. Kf3 Nf1 27. hxg6 fxg6 28. e4 Nh2+ 29. Kg3 Nf1+ 30. Kf2 Nh2 31. Kg3
+Be5+ 32. Bf4 Bxf4+ 33. Kxf4 Nf1 34. Kf3 Nd2+ 35. Ke3 Nb1 36. Kd3 Na3 37. Kc3
+Rb4 38. Kb2 Nb5 39. c4 Nd4 40. Kc3 Rxb3+ 41. Kd2 e5 42. g5 Kg7
+{White resigns} 0-1
+

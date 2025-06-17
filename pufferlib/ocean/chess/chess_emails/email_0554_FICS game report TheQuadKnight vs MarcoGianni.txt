@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs MarcoGianni
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.19"]
+[Time "11:41:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MarcoGianni"]
+[WhiteElo "1327"]
+[BlackElo "1378"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nc6 2. c4 e5 3. d5 Nb8 4. e4 d6 5. f4 Qh4+ 6. g3 Qf6 7. Qa4+ Bd7 8. Qb3
+Na6 9. c5 Nxc5 10. Qb4 Rb8 11. Nc3 exf4 12. Bxf4 g5 13. Be3 Bg4 14. Bd4
+Qe7 15. Bxh8 Nf6 16. Bxf6 Qxf6 17. Be2 Bxe2 18. Ngxe2 Qf3 19. Rf1 Qe3 20. Qb5+
+Ke7 21. Qa5 Nd3+ 22. Kd1 Nxb2+ 23. Kc2 Nc4 24. Qxc7+ Ke8 25. Qxf7+ Kd8 26. Qxf8+
+Kc7 27. Rf7+ Kb6 28. Qxb8 Qd2+ 29. Kb3 Na5+ 30. Ka3 Nc4+ 31. Kb3 Na5+ 32. Ka3
+Nc4+ 33. Kb3 Na5+ 34. Ka4 Qc2+ 35. Ka3 Nc4+ 36. Kb4 Qd3 37. Qxb7#
+{Black checkmated} 1-0
+

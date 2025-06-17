@@ -1,0 +1,20 @@
+Subject: FICS game report pnicolas vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.24"]
+[Time "01:27:07"]
+[Round "-"]
+[White "pnicolas"]
+[Black "TheQuadKnight"]
+[WhiteElo "1457"]
+[BlackElo "1424"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ng5 h6 6. Nxf7 Kxf7 7. Qxg4 Bg7
+8. Bc4+ Kf8 9. O-O Nf6 10. Rxf4 d5 11. Bxd5 Bxg4
+{White resigns} 0-1
+

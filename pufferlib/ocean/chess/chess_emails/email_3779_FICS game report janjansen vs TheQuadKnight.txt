@@ -1,0 +1,22 @@
+Subject: FICS game report janjansen vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.01"]
+[Time "11:47:55"]
+[Round "-"]
+[White "janjansen"]
+[Black "TheQuadKnight"]
+[WhiteElo "1213"]
+[BlackElo "1320"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bc5 5. d3 d6 6. Ng5 O-O 7. Nd5 Na5
+8. c3 Nxc4 9. dxc4 c6 10. Nxf6+ Qxf6 11. Qe2 Re8 12. Be3 Bxe3 13. Qd2 Bxd2+
+14. Kd1 Qxg5 15. g4 Bf4 16. Rg1 Bxh2 17. Rb1 Bxg1 18. Ra1 Qxg4+ 19. Kc2
+Qe2+ 20. Kc1 Bxf2 21. Kb1 Qd1#
+{White checkmated} 0-1
+

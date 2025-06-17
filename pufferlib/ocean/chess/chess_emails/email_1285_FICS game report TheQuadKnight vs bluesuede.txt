@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs bluesuede
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.11.18"]
+[Time "10:19:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "bluesuede"]
+[WhiteElo "1417"]
+[BlackElo "1258"]
+[TimeControl "600+1"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c6 3. Nf3 Nf6 4. Nc3 Nbd7 5. Bf4 Nb6 6. e3 Bg4 7. Be2 Bxf3
+8. Bxf3 Nxc4 9. Qb3 Nb6 10. O-O Qc8 11. Rfe1 Nc4 12. Rad1 e6 13. e4 Be7
+14. exd5 cxd5 15. Nb5 O-O 16. Nc7 Bd6 17. Bxd6 Nxd6 18. Rc1 Nc4 19. Qb4
+Qxc7 20. b3 a5 21. Qc3 Rac8 22. bxc4 dxc4 23. Be2 Ne4 24. Qf3 Nd2 25. Qe3
+c3 26. Rc2 Rfe8 27. Rec1 Nc4 28. Qxc3 b5 29. Bxc4 bxc4 30. Qxc4 Qxc4 31. Rxc4
+Ra8 32. Rc7 Kf8 33. Rb7 Re7 34. Rcc7 Rxc7 35. Rxc7 g6 36. a4 Kg7 37. f4
+h5 38. h3 Kf6 39. Kf2 h4 40. Kf3 Rd8 41. Ke4 Rd5 42. Rc5 Rf5 43. Kf3 Rxc5
+44. dxc5 Ke7 45. Ke4 Kd7 46. Ke5 Ke7 47. Kd4 f6 48. Kc4 Kd7 49. Kb5 Kc7
+50. Kxa5 Kc6 51. Kb4 e5 52. a5 e4 53. a6 e3 54. Kc3 e2 55. Kd2 e1=N 56. Kxe1
+f5 57. Ke2 Kc7 58. Kd3 Kb8 59. Kc4 Ka7 60. Kb5 Kb8 61. Kb6
+{Black resigns} 1-0
+

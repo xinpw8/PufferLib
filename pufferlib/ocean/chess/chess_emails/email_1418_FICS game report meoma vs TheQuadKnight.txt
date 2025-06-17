@@ -1,0 +1,28 @@
+Subject: FICS game report meoma vs TheQuadKnight
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "23:47:16"]
+[Round "-"]
+[White "meoma"]
+[Black "TheQuadKnight"]
+[WhiteElo "1580"]
+[BlackElo "1465"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 c6 2. d4 d6 3. Nf3 Nd7 4. h3 e6 5. Nc3 Ngf6 6. e5 dxe5 7. dxe5 Nd5
+8. Nxd5 cxd5 9. Bd3 Be7 10. O-O O-O 11. Re1 b6 12. Nh2 Bb7 13. Qe2 Qc7 14. Qh5
+h6 15. Bxh6 Qc6 16. Bxg7 f5 17. exf6 Nxf6 18. Bxf6 Rxf6 19. Qh7+ Kf8 20. Qh8+
+Kf7 21. Ng4 Rxh8 22. Nxf6 Bxf6 23. f3 d4 24. b3 e5 25. Re4 Qd7 26. Rg4 Rg8
+27. Bc4+ Kf8 28. Rxg8+ Ke7 29. Rh8 Bd5 30. Rh7+ Kd6 31. Rxd7+ Kxd7 32. Bxd5
+Kd6 33. Be4 Ke7 34. Rd1 Kf7 35. Rd3 Kg7 36. c3 Kh6 37. cxd4 Kg5 38. Kf2
+exd4 39. Ke2 Kf4 40. Kf2 Ke5 41. g3 a6 42. Ke2 b5 43. Rd1 a5 44. Kd3 b4
+45. Rc1 a4 46. Rc5+ Kd6 47. Rc4 Ke5 48. Rxb4 Kd6 49. Rxa4 Ke5 50. Rxd4 Ke6
+51. Rd5 Ke7 52. Rf5 Kf7 53. g4 Kg7 54. b4 Kg6 55. Rxf6+ Kg7 56. b5 Kxf6
+57. b6 Ke6
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

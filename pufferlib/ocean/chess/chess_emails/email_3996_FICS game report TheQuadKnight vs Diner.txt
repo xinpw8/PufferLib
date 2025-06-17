@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Diner
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "13:35:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Diner"]
+[WhiteElo "1349"]
+[BlackElo "1424"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 Nxd5 5. Nxd5 Qxd5 6. Nf3 Nc6 7. e3
+h6 8. Bd2 Bd6 9. Rc1 Qxa2 10. Bc4 Qxb2 11. Bc3 Qb6 12. Rb1 Nb4 13. Qa4+
+Bd7 14. Qa1 a5 15. Ne5 O-O 16. Nxd7 Qc6 17. Nxf8 Nc2+ 18. Kd2 Nxa1 19. Bb5
+Qd5 20. Nd7 Nb3+ 21. Kc2 a4 22. Bd3 Qxg2 23. Rhf1 Qxh2 24. Ne5 Bxe5 25. dxe5
+Qg2 26. Bc4 Nc5 27. Bd4 b6 28. Bb5 Qd5 29. Rbc1 Qb3+ 30. Kd2 Qxb5 31. Bxc5
+bxc5 32. Kd1 Qd3+ 33. Ke1 a3 34. Rd1 Qc3+ 35. Ke2 Qc2+ 36. Kf3 c4 37. Rc1
+Qb3 38. Rb1 Qd3 39. Rbd1 Qc2 40. Rc1 Qa4 41. Rb1 a2 42. Ra1 c3 43. Rfc1
+c2 44. Kg2 Qb3 45. Kf3 Qb1 46. Raxb1 axb1=Q 47. Rxb1 cxb1=Q 48. Kf4 Qf5+
+49. Kg3 Ra4 50. Kg2 Qg4+ 51. Kf1 Ra1#
+{White checkmated} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report pangtira vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.20"]
+[Time "09:53:20"]
+[Round "-"]
+[White "pangtira"]
+[Black "TheQuadKnight"]
+[WhiteElo "1419"]
+[BlackElo "1423"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nf6 3. Nf3 d5 4. exd5 Nxd5 5. Nxe5 Nb6 6. Bxf7+ Ke7 7. O-O
+Nc6 8. Nxc6+ bxc6 9. Bb3 Nd5 10. d3 Be6 11. Bxd5 cxd5 12. Bg5+ Kd7 13. Bxd8
+Rxd8 14. Nc3 Bd6 15. Re1 Rhf8 16. Qe2 Rde8 17. Qh5 Bc5 18. Ne4 dxe4 19. Qxc5
+exd3 20. cxd3 Rf5 21. Qxa7 Ref8 22. f3 Bd5 23. Qd4 c6 24. Qxg7+ R8f7 25. Qd4
+Rg5 26. Re5 Rg6 27. Rxd5+ cxd5 28. Qxd5+ Ke8 29. Re1+ Kf8 30. Qc5+ Kg7 31. Re7
+Rf6 32. Rxf7+ Rxf7 33. Qe5+ Kf8 34. d4 Re7 35. Qc5 Kf7 36. Kf2 Re8 37. d5
+Rd8 38. d6 Ke8 39. f4 Kd7 40. Qc7+ Ke8 41. Qe7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs helwing
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.08"]
+[Time "22:48:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "helwing"]
+[WhiteElo "1337"]
+[BlackElo "1571"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. d4 d5 3. e5 c5 4. c3 Nc6 5. Nf3 Qb6 6. Be2 Bd7 7. Qc2 cxd4 8. O-O
+dxc3 9. Nxc3 Nge7 10. Be3 Qc7 11. Nb5 Qb8 12. Nd6+ Kd8 13. Nxf7+
+{Black resigns} 1-0
+

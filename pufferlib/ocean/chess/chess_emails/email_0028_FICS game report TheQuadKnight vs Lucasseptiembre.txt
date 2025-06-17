@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Lucasseptiembre
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.23"]
+[Time "13:21:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Lucasseptiembre"]
+[WhiteElo "1322"]
+[BlackElo "1234"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bd2 O-O 5. e3 d5 6. Bd3 b6 7. Nge2 Bb7
+8. O-O dxc4 9. Bxc4 c5 10. a3 Bxc3 11. Bxc3 Ne4 12. Bb3 Nxc3 13. bxc3 Qg5
+14. Ng3 Nd7 15. Ba4 Nf6 16. Rb1 Rad8 17. Qe2 Ne4 18. Nxe4 Bxe4 19. f3 Ba8
+20. e4 cxd4 21. cxd4 Rxd4 22. Bc2 Rfd8 23. Rbd1 Qc5 24. Kh1 Qd6 25. Rxd4
+Qxd4 26. Rd1
+{Black forfeits on time} 1-0
+

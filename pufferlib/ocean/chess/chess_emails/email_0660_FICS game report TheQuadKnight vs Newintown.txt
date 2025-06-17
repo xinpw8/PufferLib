@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs Newintown
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "20:52:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Newintown"]
+[WhiteElo "1294"]
+[BlackElo "1359"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 d5 3. d3 exf4 4. Nf3 Bg4 5. Bxf4 dxe4 6. Qe2 Bxf3 7. gxf3
+Qh4+ 8. Bg3 Qe7 9. fxe4 Nc6 10. Bh3
+{Black forfeits by disconnection} 1-0
+

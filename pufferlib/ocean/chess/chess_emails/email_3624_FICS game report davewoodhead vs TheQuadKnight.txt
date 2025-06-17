@@ -1,0 +1,23 @@
+Subject: FICS game report davewoodhead vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.22"]
+[Time "11:20:47"]
+[Round "-"]
+[White "davewoodhead"]
+[Black "TheQuadKnight"]
+[WhiteElo "1489"]
+[BlackElo "1323"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. d3 Bb4 5. Bd2 d5 6. exd5 Nxd5 7. Nxd5
+Bxd2+ 8. Qxd2 Qxd5 9. Be2 O-O 10. c4 Qd6 11. Rd1 Rd8 12. O-O Bf5 13. Qc3
+Rd7 14. c5 Qd5 15. b4 Rad8 16. b5 Nb8 17. Nxe5 Re7 18. f4 f6 19. Bf3 Qd4+
+20. Qxd4 Rxd4 21. Nc4 Bxd3 22. Na5 Bxf1 23. Rxd4 Re1 24. Kf2 Rc1 25. Rd8+
+Kf7 26. Rxb8 Bxb5 27. Nxb7 Rc2+ 28. Kg3 Rxa2 29. Bd5+ Kg6 30. Bxa2 Bc6 31. Nd8
+{Black resigns} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report jelito vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.22"]
+[Time "21:23:51"]
+[Round "-"]
+[White "jelito"]
+[Black "TheQuadKnight"]
+[WhiteElo "1575"]
+[BlackElo "1366"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 b6 5. Nc3 Bc5 6. Qg3 Qf6 7. Nd5 Bxf2+
+8. Qxf2 Qxf2+ 9. Kxf2 Kd8 10. Bb5 Nd4 11. Bd3 c6 12. Nc3 Nf6 13. Nf3 Ng4+
+14. Kg3 Nxf3 15. gxf3 Nf6 16. Bg5 h6 17. Bxf6+ gxf6 18. Kf2 d6 19. Rhg1
+Be6 20. f4 d5 21. exd5 cxd5 22. Bb5 a6 23. Bc6 Rc8 24. Bb7 Rc7 25. Bxa6
+d4 26. Nb5 Rxc2+ 27. Kg3 Rg8+ 28. Kh4 Rxh2#
+{White checkmated} 0-1
+

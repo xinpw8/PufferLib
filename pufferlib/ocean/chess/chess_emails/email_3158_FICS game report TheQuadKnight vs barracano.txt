@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs barracano
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "10:44:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "barracano"]
+[WhiteElo "1375"]
+[BlackElo "1683"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 d5 3. exd5 c6 4. d4 e4 5. Nc3 cxd5 6. Bb5+ Nc6 7. Bxc6+ bxc6
+8. Be3 Nf6 9. Qd2 Bb4 10. O-O-O Qa5 11. Nge2 O-O 12. Kb1 Rb8 13. Bf2 Bg4
+14. Be1 Bxe2 15. Qxe2 Rb6 16. g3 Rfb8 17. b3 Bxc3 18. Bxc3 Qxc3 19. g4 e3
+20. f5 Ne4 21. Rhf1 Nd2+ 22. Rxd2 Qxd2 23. Qf3 e2
+{White resigns} 0-1
+

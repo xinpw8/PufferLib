@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Gnnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.10"]
+[Time "16:34:38"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Gnnight"]
+[WhiteElo "1407"]
+[BlackElo "1482"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e5 2. dxe5 Nc6 3. Nf3 Qe7 4. Bf4 Qb4+ 5. Bd2 Qxb2 6. Bc3 Bb4 7. Qd3
+Qc1+ 8. Qd1 Qxd1+ 9. Kxd1 Bxc3 10. Nxc3 Nge7 11. e3 O-O 12. Nb5 Nd5 13. Bc4
+a6 14. Nbd4 Nxd4 15. exd4 Nf4 16. Re1 b5 17. Bf1 Bb7 18. Re3 Nd5 19. Re1
+h6 20. Be2 Nc3+ 21. Kd2 Nxe2 22. Kxe2 Rfe8 23. Rad1 d6 24. Rd3 dxe5 25. dxe5
+c5 26. Rd7 Bxf3+ 27. Kxf3 c4 28. Kg3 Rad8 29. Ra7 Re6 30. Re3 Rd2 31. Ra8+
+Kh7 32. a3 Rxc2 33. Rf8 Kg6 34. Kf4 Rd2 35. Rg3+ Kh7 36. Rxf7 Rxf2+ 37. Ke3
+Rxf7 38. Rf3 Rxe5+ 39. Kf2 Rxf3+ 40. gxf3 c3 41. Kg3 c2 42. Kf2 c1=Q 43. Kg3
+{White resigns} 0-1
+

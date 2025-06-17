@@ -1,0 +1,28 @@
+Subject: FICS game report mcoimbra vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "20:07:08"]
+[Round "-"]
+[White "mcoimbra"]
+[Black "TheQuadKnight"]
+[WhiteElo "1390"]
+[BlackElo "1415"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. f4 Nc6 2. d4 d5 3. e3 Bf5 4. a3 Nf6 5. Bd3 Ne4 6. Qe2 e6 7. Nf3 Be7 8. O-O
+f6 9. Nh4 g5 10. Qh5+ Bg6 11. Nxg6 hxg6 12. Qxh8+ Kd7 13. Qxd8+ Rxd8 14. Bxe4
+dxe4 15. Nc3 gxf4 16. Rxf4 e5 17. Rxe4 exd4 18. exd4 Kc8 19. Be3 Bd6 20. d5
+Ne5 21. Bf4 Nf7 22. Bxd6 Nxd6 23. Re6 Rf8 24. Rf1 Kd7 25. Rexf6 Re8 26. Rxg6
+Kc8 27. Rgf6 Nc4 28. Rf8 Rxf8 29. Rxf8+ Kd7 30. Rf7+ Kd6 31. Rf1 Nxb2 32. Rb1
+Nc4 33. Rxb7 Ne3 34. Rxa7 Nxc2 35. a4 Nd4 36. a5 c6 37. dxc6 Nxc6 38. Ra6
+Kc5 39. Rxc6+ Kxc6 40. h4 Kb7 41. h5 Ka6 42. h6 Kxa5 43. h7 Kb4 44. Nd5+
+Kc4 45. Ne3+ Kd3 46. Nf5 Ke4 47. Ng3+ Kf4 48. Kf2 Kg5 49. h8=Q Kg6 50. Qg8+
+Kh6 51. Nf5+ Kh5 52. Qh8+ Kg5 53. g4 Kxg4 54. Ng3 Kg5 55. Qg7+ Kf4 56. Qf6+
+Kg4 57. Qf5+ Kh4 58. Qh5#
+{Black checkmated} 1-0
+

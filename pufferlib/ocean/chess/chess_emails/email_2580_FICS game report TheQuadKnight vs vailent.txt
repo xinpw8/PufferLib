@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs vailent
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.08"]
+[Time "19:19:24"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vailent"]
+[WhiteElo "1329"]
+[BlackElo "1391"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. Nf3 d5 3. d3 dxe4 4. dxe4 Qxd1+ 5. Kxd1 Bg4 6. Be2 Nd7 7. Nc3
+O-O-O 8. Bd2 e5 9. Ng5 Bxe2+ 10. Kxe2 Nh6 11. Nf3 Ng8 12. Rhe1 f6 13. Kf1
+Bc5 14. a3 Bd4 15. Rab1 Ne7 16. Ne2 Bb6 17. Bb4 c5 18. Bc3 Nc6 19. Rbd1
+Rhe8 20. Nd2 Nf8 21. Nc4 Ne6 22. Nd6+ Rxd6 23. Rxd6 Ned4 24. b4 Nxc2 25. Red1
+cxb4 26. axb4 N2xb4 27. Rc1 Kc7 28. Rdd1 Na2 29. Rc2 Nxc3 30. Nxc3 Bd4 31. Nb5+
+Kb8 32. Nxd4 Nxd4 33. Rc4 b5 34. Rb4 a6 35. Rc1 Kb7 36. f3 Kb6 37. Ke1 a5
+38. Rb2 b4 39. Kd2 b3 40. Kd3 a4 41. Rc4 Kb5 42. Rxd4 exd4 43. Kxd4 Kb4
+44. Kd3 a3 45. Rb1 Rc8 46. Kd2 b2 47. g3 Kb3 48. f4 a2 49. Rxb2+ Kxb2 50. e5
+fxe5 51. fxe5 a1=Q 52. e6 Qc1+ 53. Kd3 Qc6 54. Kd2 Qxe6 55. Kd1 Rd8#
+{White checkmated} 0-1
+

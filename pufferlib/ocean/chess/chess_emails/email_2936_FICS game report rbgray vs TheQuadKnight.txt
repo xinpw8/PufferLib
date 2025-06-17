@@ -1,0 +1,23 @@
+Subject: FICS game report rbgray vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.31"]
+[Time "23:45:50"]
+[Round "-"]
+[White "rbgray"]
+[Black "TheQuadKnight"]
+[WhiteElo "1434"]
+[BlackElo "1388"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. e3 c5 3. c3 e6 4. dxc5 Bxc5 5. b4 Bd6 6. a4 Nf6 7. Nf3 O-O 8. Be2
+Qc7 9. O-O e5 10. h3 Ne4 11. Bb2 Bd7 12. Na3 f5 13. c4 f4 14. c5 Be7 15. Nxe5
+Bxh3 16. Qxd5+ Kh8 17. Nf7+ Rxf7 18. Qxf7 Nf6 19. Bxf6 gxf6 20. gxh3 fxe3
+21. fxe3 Qg3+ 22. Kh1 Qxh3+ 23. Kg1 Qg3+ 24. Kh1 Qh3+ 25. Kg1 Qg3+ 26. Kh1
+Qh3+ 27. Kg1 Qg3+ 28. Kh1 Qh3+
+{Game drawn by repetition} 1/2-1/2
+

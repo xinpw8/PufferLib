@@ -1,0 +1,19 @@
+Subject: FICS game report TheQuadKnight vs Kiwrin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.15"]
+[Time "18:54:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Kiwrin"]
+[WhiteElo "1360"]
+[BlackElo "1511"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d3 Nc6 3. Be3 Bc5 4. Bxc5
+{Black resigns} 1-0
+

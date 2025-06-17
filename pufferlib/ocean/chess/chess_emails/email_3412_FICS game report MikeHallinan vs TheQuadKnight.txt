@@ -1,0 +1,24 @@
+Subject: FICS game report MikeHallinan vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.19"]
+[Time "22:17:38"]
+[Round "-"]
+[White "MikeHallinan"]
+[Black "TheQuadKnight"]
+[WhiteElo "1529"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 c5 3. Bf4 Nc6 4. e4 dxe4 5. Ng5 cxd4 6. Nxe4 Bf5 7. Ng3
+Bg6 8. Bb5 Qd5 9. Bxc6+ Qxc6 10. Na3 Qxg2 11. Qxd4 Qxh1+ 12. Nxh1 Nf6 13. O-O-O
+e6 14. Qa4+ Ke7 15. Bg5 e5 16. Rd7+ Ke6 17. Bxf6 Kxf6 18. Qh4+ Ke6 19. Rd8
+Be7 20. Qc4+ Kf5 21. Ng3+ Kf6 22. Rxa8 Rxa8 23. Ne4+ Kf5 24. Nc3 Bg5+ 25. Kb1
+Re8 26. b3 e4 27. Nab5 e3 28. Qc5+ Kg4 29. fxe3 Bxe3 30. Qc4+ Kh5 31. Kb2
+Bg5 32. Nd4 Re4 33. Qc5 Kh6
+{White resigns} 0-1
+

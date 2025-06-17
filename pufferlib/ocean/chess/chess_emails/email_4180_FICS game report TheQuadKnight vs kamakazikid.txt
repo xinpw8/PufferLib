@@ -1,0 +1,19 @@
+Subject: FICS game report TheQuadKnight vs kamakazikid
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "21:18:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "kamakazikid"]
+[WhiteElo "1336"]
+[BlackElo "1304"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4
+{Black resigns} 1-0
+

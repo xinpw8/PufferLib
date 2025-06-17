@@ -1,0 +1,23 @@
+Subject: FICS game report simaovieira vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.26"]
+[Time "14:35:56"]
+[Round "-"]
+[White "simaovieira"]
+[Black "TheQuadKnight"]
+[WhiteElo "1590"]
+[BlackElo "1397"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. O-O d6 5. Re1 Be7 6. h3 O-O 7. d4 d5 8. exd5
+Nxd5 9. dxe5 Re8 10. Qxd5 Nb4 11. Qxf7+ Kh8 12. Na3 Rf8 13. Qh5 Bf5 14. Bg5
+Nxc2 15. Rad1 Qe8 16. Qxe8 Rfxe8 17. Nxc2 Bxc2 18. Rc1 Bg6 19. Bxe7 Rxe7
+20. Bf1 Bf7 21. Ng5 Bxa2 22. e6 Rae8 23. Ra1 Bxe6 24. Nxe6 Rxe6 25. Rxe6
+Rxe6 26. Rxa7 Rb6 27. Ra8#
+{Black checkmated} 1-0
+

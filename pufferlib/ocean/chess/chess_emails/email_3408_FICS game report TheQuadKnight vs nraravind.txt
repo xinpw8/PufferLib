@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs nraravind
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "23:20:24"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "nraravind"]
+[WhiteElo "1461"]
+[BlackElo "1583"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. Bg5 Bg7 5. e3 dxc4 6. Bxc4 O-O 7. Nf3 c6
+8. Qb3 Nbd7 9. O-O Qc7 10. Bf4 Qb6 11. Qc2 Nh5 12. Be5 Nxe5 13. Nxe5 Nf6
+14. Rad1 Bd7 15. Nd3 e6 16. Nc5 Rad8 17. N3a4 Qc7 18. Qb3 b5 19. Na6 Qc8
+20. N4c5 bxc4 21. Qxc4 Nd5 22. e4 Nb6 23. Qb3 Rfe8 24. d5 exd5 25. exd5
+Nxd5 26. Ne4 Qxa6 27. Nd6 Rf8 28. a3 Be6 29. Qc2 Rxd6 30. Rc1 Rfd8 31. Rfd1
+Nf6 32. h3 Rxd1+ 33. Rxd1 Rxd1+ 34. Qxd1 Qc8 35. b4 Bd5 36. f3 Qf5 37. Kh2
+Qe5+ 38. Kg1 Qe3+ 39. Kh2 h5 40. Qa4 h4 41. Qa6 Bxf3 42. Qc8+ Kh7 43. gxf3
+Qf2+ 44. Kh1 Qxf3+ 45. Kg1 Ne4 46. Qxc6 Bd4+ 47. Kh2 Qg3+ 48. Kh1 Nf2#
+{White checkmated} 0-1
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs MUYAK
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "13:58:57"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MUYAK"]
+[WhiteElo "1320"]
+[BlackElo "1825"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 g6 3. d4 Bg7 4. Be3 cxd4 5. Bxd4 Nf6 6. Bc4 O-O 7. Nc3 Nc6
+8. e5 Nxd4 9. Nxd4 Ng4 10. Qxg4 d5 11. e6 Bxd4 12. Qxd4 dxc4 13. exf7+ Kxf7
+14. Qxc4+ Be6 15. Qf4+ Kg8 16. Qe5 Qd6 17. Qg3 Rf5 18. Rd1 Re5+ 19. Kf1
+Bc4+ 20. Kg1 Qe6 21. h3 Re1+ 22. Rxe1 Qxe1+ 23. Kh2 Qe6 24. Rd1 Rf8 25. b3
+Ba6 26. a4 Qc6 27. Qe3 b6 28. Nb5 Bb7 29. f3 a6 30. Nd4 Qd6+ 31. Kg1
+{Black forfeits on time} 1-0
+

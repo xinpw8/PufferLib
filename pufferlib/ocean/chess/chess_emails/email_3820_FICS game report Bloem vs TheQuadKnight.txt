@@ -1,0 +1,22 @@
+Subject: FICS game report Bloem vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "15:37:09"]
+[Round "-"]
+[White "Bloem"]
+[Black "TheQuadKnight"]
+[WhiteElo "1594"]
+[BlackElo "1363"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bb5 a6 5. Bxc6 dxc6 6. Qxd4 Qxd4 7. Nxd4
+c5 8. Nf3 Bg4 9. Ne5 Nf6 10. f3 Be6 11. O-O c4 12. f4 Bc5+ 13. Kh1 Nxe4
+14. g3 Bd5 15. Nf3 O-O 16. Nbd2 Rfe8 17. Nxe4 Bxe4 18. c3 Bd3 19. Re1 Bf2
+20. Rd1 Be2
+{White resigns} 0-1
+

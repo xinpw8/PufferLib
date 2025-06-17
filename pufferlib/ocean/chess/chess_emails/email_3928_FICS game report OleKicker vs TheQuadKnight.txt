@@ -1,0 +1,22 @@
+Subject: FICS game report OleKicker vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "22:47:40"]
+[Round "-"]
+[White "OleKicker"]
+[Black "TheQuadKnight"]
+[WhiteElo "1495"]
+[BlackElo "1399"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. Ne5 Nf6 6. Nxf7 Qe7 7. e5 d5
+8. Nxh8 dxc4 9. O-O Qc5+ 10. Kh1 Ne4 11. Qe2 Bf5 12. Rxf4 Qxe5 13. d4 Ng3+
+14. hxg3 Qxe2 15. Rxf5 Qxc2 16. Nc3 Qxf5 17. Bf4 Bg7 18. Re1+ Kf8 19. Be5
+Bxe5 20. Rxe5 Qf1+ 21. Kh2 Nd7 22. Re4 Nf6 23. Rf4 Qxf4 24. gxf4 Kg7
+{White resigns} 0-1
+

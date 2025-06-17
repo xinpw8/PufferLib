@@ -1,0 +1,24 @@
+Subject: FICS game report kvchess vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.21"]
+[Time "09:57:06"]
+[Round "-"]
+[White "kvchess"]
+[Black "TheQuadKnight"]
+[WhiteElo "1397"]
+[BlackElo "1312"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. e3 Bg4 4. Be2 f6 5. O-O Qd7 6. Nbd2 e5 7. dxe5 O-O-O
+8. exf6 Nxf6 9. Nd4 Nxd4 10. Bxg4 Nxg4 11. exd4 Bd6 12. Nf3 h5 13. Re1 h4
+14. h3 Bh2+ 15. Nxh2 Nxh2 16. Kxh2 Qd6+ 17. Kg1 Rhf8 18. Qg4+ Kb8 19. Bf4
+Qf6 20. Be3 b6 21. Rf1 Rf7 22. c3 Rdf8 23. a4 a5 24. b4 axb4 25. cxb4 Qc6
+26. a5 bxa5 27. Rxa5 Qb6 28. Qxh4 Qxb4 29. Rxd5 Qb7 30. Rd8+ Rxd8 31. Qxd8+
+Qc8 32. Qd5 Qb7 33. Qxf7 c6 34. Qf8+ Qc8 35. Bf4+
+{Black resigns} 1-0
+

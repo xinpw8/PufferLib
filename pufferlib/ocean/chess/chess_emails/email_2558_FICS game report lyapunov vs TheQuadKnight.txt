@@ -1,0 +1,29 @@
+Subject: FICS game report lyapunov vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.08"]
+[Time "23:33:37"]
+[Round "-"]
+[White "lyapunov"]
+[Black "TheQuadKnight"]
+[WhiteElo "1442"]
+[BlackElo "1361"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 e6 3. e3 Nf6 4. Be2 c6 5. b3 Nbd7 6. Bb2 Be7 7. O-O a6 8. c4
+b5 9. Nc3 Nb6 10. cxd5 cxd5 11. a3 O-O 12. Qd3 Bd6 13. e4 e5 14. dxe5 dxe4
+15. Nxe4 Nxe4 16. Qxe4 Bh3 17. exd6 Re8 18. Qh4 Qxh4 19. Nxh4 Rxe2 20. gxh3
+Rxb2 21. b4 Rd2 22. Rfd1 Rxd1+ 23. Rxd1 Rd8 24. Nf5 g6 25. Ne7+ Kf8 26. Kg2
+Nd7 27. Kg3 f5 28. f4 Nf6 29. h4 Ne4+ 30. Kf3 Rxd6 31. Rxd6 Nxd6 32. Nc6
+Nc4 33. Nb8 Nxa3 34. Nxa6 Nc2 35. Nc7 Nxb4 36. Nxb5 Nd3 37. Nd4 Ne1+ 38. Kf2
+Nd3+ 39. Ke3 Nc5 40. Nf3 Ke7 41. Ng5 h6 42. Nf3 Kf6 43. h3 Ne6 44. Ne5 Nc5
+45. Kd4 Ne4 46. Nd7+ Kf7 47. Ne5+ Kf6 48. Nf3 Nf2 49. Ng1 g5 50. hxg5+ hxg5
+51. fxg5+ Kxg5 52. Ke3 Nd1+ 53. Kf3 Nc3 54. Kg3 Nd5 55. h4+ Kf6 56. Nf3
+Ne3 57. Kf4 Kg6 58. Ng5 Nd5+ 59. Kg3 Ne7 60. Nf3 Kh5 61. Ne5 Ng6 62. Nxg6
+Kxg6 63. Kf4 Kh5 64. Kg3
+{Black forfeits on time} 1-0
+

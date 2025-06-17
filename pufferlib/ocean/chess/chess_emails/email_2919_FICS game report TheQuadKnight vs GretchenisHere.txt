@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs GretchenisHere
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "12:21:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "GretchenisHere"]
+[WhiteElo "1392"]
+[BlackElo "1472"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 d6 3. Nf3 Nc6 4. Bc4 Be7 5. O-O Nf6 6. Nc3 Bg4 7. h3 Bxf3
+8. Qxf3 Nd4 9. Qd3 O-O 10. fxe5 dxe5 11. Nd5 Bc5 12. Nxf6+ gxf6 13. Bd5
+Nxc2+ 14. Kh1 Nxa1 15. Qg3+ Kh8 16. d3 Rg8 17. Qh4 Rg6 18. Bxf7 Rg7 19. Rxf6
+Be7 20. Bg5 Bxf6 21. Bxf6 Qd7 22. Bxg7+ Kxg7 23. Bc4 Qd6 24. Qg4+ Kf8 25. Qg8+
+Ke7 26. Qxa8 Nc2 27. Qxb7 Nd4 28. Qxa7 Ne2 29. Qa4 Qd4 30. b4 Qg1#
+{White checkmated} 0-1
+

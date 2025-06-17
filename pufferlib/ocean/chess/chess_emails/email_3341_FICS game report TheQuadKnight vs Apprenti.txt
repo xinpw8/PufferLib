@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Apprenti
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.22"]
+[Time "13:49:16"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Apprenti"]
+[WhiteElo "1415"]
+[BlackElo "1446"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 d6 3. Bb5+ c6 4. Bc4 Be7 5. O-O Nf6 6. Nc3 O-O 7. d4 exd4
+8. Qxd4 c5 9. Qd3 Nc6 10. Re1 Bg4 11. Bf4 Bxf3 12. Qxf3 Nd4 13. Qd1 a6 14. e5
+dxe5 15. Bxe5 b5 16. Bf1 Rc8 17. Nb1 Ne6 18. c4 Qxd1 19. Rxd1 b4 20. b3
+Rfd8 21. Rxd8+ Rxd8 22. a3 Nf8 23. axb4 cxb4 24. Rxa6 N6d7 25. Bf4 Nc5 26. Ra7
+Bf6 27. Be2 Nxb3 28. Bc7 Re8 29. Kf1 Bc3 30. Nxc3 bxc3 31. Bf4 c2 32. Rb7
+c1=Q+ 33. Bxc1 Nxc1 34. Rb2 Rc8 35. Ke1 Nxe2 36. Rxe2 Rxc4 37. Kd2 Rc6 38. f3
+g6 39. g4 Re6 40. h3 Rxe2+ 41. Kxe2 Kg7 42. Ke3 Kf6 43. Ke4 Kg5 44. f4+
+Kh4 45. f5 f6 46. fxg6 hxg6 47. Kf4 Kxh3 48. g5 f5 49. Ke5 Kh4 50. Kf6 Kh5
+51. Kf7 Kxg5 52. Kxf8 f4 53. Kf7 f3 54. Ke6 f2 55. Kd5 f1=Q 56. Kd4 Qf5
+{White resigns} 0-1
+

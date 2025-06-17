@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs mjack
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.26"]
+[Time "09:22:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mjack"]
+[WhiteElo "1386"]
+[BlackElo "1695"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Be7 4. h4 d5 5. Nc3 dxe4 6. Nxe4 Bg4 7. Bc4 Bxf3
+8. Qxf3 Bxh4+ 9. g3 Bf6 10. gxf4 Nc6 11. d3 Nd4 12. Qf2 h5 13. Be3 h4 14. Nxf6+
+Nxf6 15. Bxd4 Ng4 16. Qe2+ Kf8 17. Qxg4 Qxd4 18. O-O-O Qf6 19. Rde1 Re8
+20. Rxe8+ Kxe8 21. f5 g5 22. Qe4+ Kf8 23. Qxb7 Qxf5 24. Qxc7 Kg7 25. d4
+Rf8 26. Rf1 Qg6 27. Bd3 Qe6 28. Qxa7 g4 29. Qa5 Qe3+ 30. Kb1 Kh6 31. Qf5
+Qxd3 32. Qxd3 f5 33. Rxf5 Re8 34. Qa6+ Kg7 35. Rg5+ Kf8 36. Qf6#
+{Black checkmated} 1-0
+

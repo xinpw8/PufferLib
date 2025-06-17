@@ -5,8 +5,13 @@
 ENV=$1
 MODE=${2:-local}
 PLATFORM="$(uname -s)"
-SRC_DIR="pufferlib/ocean/$ENV"
-WEB_OUTPUT_DIR="build_web/$ENV"
+# Determine repository root based on script location so the script can be
+# executed from anywhere.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+SRC_DIR="$ROOT_DIR/pufferlib/ocean/$ENV"
+WEB_OUTPUT_DIR="$ROOT_DIR/build_web/$ENV"
 RAYLIB_NAME='raylib-5.5_macos'
 if [ "$PLATFORM" = "Linux" ]; then
     RAYLIB_NAME='raylib-5.5_linux_amd64'
@@ -25,11 +30,13 @@ if [ "$MODE" = "web" ]; then
         "$SRC_DIR/$ENV.c" \
         -O3 \
         -Wall \
-        ./$RAYLIB_NAME/lib/libraylib.a \
-        -I./$RAYLIB_NAME/include \
-        -I./pufferlib\
-        -L. \
-        -L./$RAYLIB_NAME/lib \
+        "$ROOT_DIR/$RAYLIB_NAME/lib/libraylib.a" \
+        -I"$ROOT_DIR/$RAYLIB_NAME/include" \
+        -I"$ROOT_DIR/pufferlib" \
+        -I"$ROOT_DIR/pufferlib/extensions" \
+        -I"$ROOT_DIR/pufferlib/pufferlib/extensions" \
+        -L"$ROOT_DIR" \
+        -L"$ROOT_DIR/$RAYLIB_NAME/lib" \
         -sASSERTIONS=2 \
         -gsource-map \
         -s USE_GLFW=3 \
@@ -37,20 +44,53 @@ if [ "$MODE" = "web" ]; then
         -s ASYNCIFY \
         -sFILESYSTEM \
         -s FORCE_FILESYSTEM=1 \
-        --shell-file ./scripts/minshell.html \
+        -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
+        -s WARN_ON_UNDEFINED_SYMBOLS=0 \
+        --shell-file "$SCRIPT_DIR/minshell.html" \
         -sINITIAL_MEMORY=512MB \
-        -sSTACK_SIZE=512KB \
+        -sTOTAL_STACK=512KB \
         -DPLATFORM_WEB \
+        -D_TIME_BITS=64 \
         -DGRAPHICS_API_OPENGL_ES3 \
         --preload-file pufferlib/resources@resources/ 
     echo "Web build completed: $WEB_OUTPUT_DIR/game.html"
     exit 0
 fi
 
+echo "${FLAGS[@]}"
+
+if [ "$ENV" = "chess" ]; then
+    echo "Building libchess.so (shared library for PufferLib)…"
+
+    # Path to the vendored copy of Abseil that sits **inside** the chess dir.
+    ABSL_DIR="$SRC_DIR/abseil-cpp"
+
+    if [ ! -d "$ABSL_DIR" ]; then
+        echo "Abseil not found locally; cloning a shallow copy..."
+        git clone --depth 1 https://github.com/abseil/abseil-cpp.git "$ABSL_DIR" || {
+            echo "Failed to clone Abseil!"; exit 1; }
+    fi
+
+    clang++ -std=c++17 -g -O2 -shared -fPIC \
+        -I"$ABSL_DIR" \
+        "$SRC_DIR/chess.cpp" \
+        "$ABSL_DIR/absl/strings/str_cat.cc" \
+        "$ABSL_DIR/absl/strings/numbers.cc" \
+        "$ABSL_DIR/absl/strings/ascii.cc" \
+        "$ABSL_DIR/absl/strings/match.cc" \
+        -lpthread -o "$ROOT_DIR/libchess.so"
+
+    echo "Shared library built: libchess.so"
+    exit 0
+fi
+
+# Chess demo compilation removed; chess-specific code is now fully isolated inside the ENV=="chess" block above.
+
 FLAGS=(
     -Wall
     -I./$RAYLIB_NAME/include 
-    -I./pufferlib/extensions
+    -I./pufferlib/extensions \
+    -I./pufferlib/pufferlib/extensions
     "$SRC_DIR/$ENV.c" -o "$ENV"
     ./$RAYLIB_NAME/lib/libraylib.a
     -lm
@@ -58,6 +98,14 @@ FLAGS=(
     -DPLATFORM_DESKTOP
 )
 
+# Provide the legacy include path expected by some test files
+OPEN_SPIEL_PREFIX="$SRC_DIR/open_spiel"
+if [ ! -d "$OPEN_SPIEL_PREFIX" ]; then
+    mkdir -p "$OPEN_SPIEL_PREFIX"
+fi
+if [ ! -e "$OPEN_SPIEL_PREFIX/abseil-cpp" ]; then
+    ln -s ../abseil-cpp "$OPEN_SPIEL_PREFIX/abseil-cpp"
+fi
 
 if [ "$PLATFORM" = "Darwin" ]; then
     FLAGS+=(

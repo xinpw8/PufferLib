@@ -1,0 +1,24 @@
+Subject: FICS game report BerlinDelta vs TheQuadKnight
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "22:47:32"]
+[Round "-"]
+[White "BerlinDelta"]
+[Black "TheQuadKnight"]
+[WhiteElo "1233"]
+[BlackElo "1340"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Nf6 3. e3 Bg4 4. Bd3 c5 5. O-O e6 6. Nbd2 Nc6 7. c4 cxd4
+8. exd4 Nxd4 9. Be2 Nxf3+ 10. Bxf3 Bxf3 11. Qxf3 Bd6 12. cxd5 Nxd5 13. Ne4
+O-O 14. b3 Be7 15. Bb2 Rc8 16. Qg3 Bf6 17. Bxf6 Nxf6 18. Rfd1 Qe7 19. Nd6
+Rcd8 20. Rd2 Ne8 21. Rad1 Nxd6 22. Rxd6 Rxd6 23. Rxd6 Rc8 24. h3 e5 25. Rh6
+Qf6 26. Rxf6 Rc1+ 27. Kh2 g6 28. Qxe5 Rc8 29. Qe7 Rf8 30. Rd6 Kg7 31. Qe5+
+Kg8 32. Qf6 h6 33. Qe5 g5
+{White forfeits on time} 0-1
+

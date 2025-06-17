@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs Bishos
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.03"]
+[Time "19:50:21"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Bishos"]
+[WhiteElo "1462"]
+[BlackElo "1422"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. Nc3 b5 6. Bb3 Be7 7. O-O O-O
+8. d3 d6 9. Bg5 Bg4 10. h3 Bh5 11. g4 Bg6 12. Nh4 Kh8 13. Nxg6+ fxg6 14. h4
+Nd4 15. Bxf6 gxf6 16. Nd5 Nxb3 17. axb3 f5 18. Nxe7 Qxe7 19. gxf5 gxf5 20. f3
+Qxh4 21. Qe2 Rg8+ 22. Qg2 Rxg2+ 23. Kxg2 Rg8#
+{White checkmated} 0-1
+

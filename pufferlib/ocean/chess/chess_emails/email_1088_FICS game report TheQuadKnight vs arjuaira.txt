@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs arjuaira
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.18"]
+[Time "05:05:30"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "arjuaira"]
+[WhiteElo "1358"]
+[BlackElo "1125"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Bg4 3. Nc3 Bxf3 4. exf3 c6 5. Bd3 e6 6. Bf4 Bb4 7. O-O Qb6
+8. Ne2 Be7 9. Rb1 Nf6 10. c4 O-O 11. Qc2 Nh5 12. Be3 g6 13. Bh6 Rd8 14. Kh1
+dxc4 15. Bxc4 Nf6 16. Rfd1 Nd5 17. Ng3 Bd6 18. Ne4 Nb4 19. Qd2 Be7 20. Qf4
+Rxd4 21. Nf6+ Kh8 22. Rxd4 Nc2 23. Nd5 Qxd4 24. Qxf7 Qf6 25. Nxf6
+{Black resigns} 1-0
+

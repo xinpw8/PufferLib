@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs smithers
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.11"]
+[Time "07:33:52"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "smithers"]
+[WhiteElo "1403"]
+[BlackElo "1450"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 c5 4. e3 Nf6 5. Bd3 Bd6 6. Nf3 O-O 7. dxc5 Bxc5
+8. O-O Nc6 9. Qc2 Nb4 10. Qd1 Nxd3 11. Qxd3 Re8 12. Re1 a6 13. a3 Qc7 14. b4
+dxc4 15. Qxc4 Bd6 16. Qxc7 Bxc7 17. Bb2 Bd7 18. Rab1 Bc6 19. Nd2 Rad8 20. Red1
+Be5 21. a4 h6 22. b5 axb5 23. axb5 Be4 24. Ndxe4 Rxd1+ 25. Nxd1 Bxb2 26. Nxf6+
+Bxf6 27. h3 Rc8 28. e4 Rc5 29. Ne3 Bd4 30. Rb4 Bxe3 31. fxe3 b6 32. Kf2
+Kh7 33. Kf3 Kg6 34. Kf4 Kf6 35. g4 g5+ 36. Kf3 Ke5 37. Kg3 Kf6 38. h4 gxh4+
+39. Kxh4 Kg6 40. Kg3 Kg5 41. Kh3 f6 42. Kg3 h5 43. gxh5 Kxh5 44. Kf4 Kh4
+45. Rb3 Kh3 46. Rb4 Kg2 47. Rb2+ Kf1 48. Rb4 Ke2 49. Rb2+ Kd3 50. Rb4 Kc3
+51. Rb1 Kc2 52. Ra1 Rxb5 53. Ra2+ Rb2 54. Ra8 b5 55. Re8 b4 56. Rxe6 b3
+57. Rc6+ Kb1 58. Rd6 Rf2+ 59. Kg3 Re2 60. Rd1+ Kc2 61. Rf1 b2 62. Kf4 b1=Q
+63. Kf5 Qb5+ 64. Kg4 Rd2 65. Rf5
+{Black forfeits on time} 1-0
+

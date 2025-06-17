@@ -1,0 +1,26 @@
+Subject: FICS game report blacknyte vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "12:06:05"]
+[Round "-"]
+[White "blacknyte"]
+[Black "TheQuadKnight"]
+[WhiteElo "1429"]
+[BlackElo "1404"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. b3 g6 2. Bb2 Nf6 3. Bxf6 exf6 4. e3 Bg7 5. d4 O-O 6. c3 b6 7. Nf3 d6
+8. g3 Bb7 9. Bg2 Nc6 10. O-O Rb8 11. Nbd2 Re8 12. Rc1 Ba6 13. c4 Bb7 14. d5
+Ne5 15. Nxe5 fxe5 16. e4 c6 17. Re1 Bh6 18. Rc2 Rc8 19. Bf1 a6 20. Bd3 b5
+21. f3 Qf6 22. Rf1 cxd5 23. exd5 bxc4 24. bxc4 a5 25. Ne4 Qd8 26. h4 f5
+27. Nf2 Be3 28. Kg2 Ba6 29. Qe2 Bd4 30. Nd1 Rf8 31. Ne3 Kg7 32. Re1 f4 33. Ng4
+h5 34. Nh2 fxg3 35. Kxg3 Qf6 36. Qe4 Qf4+ 37. Kg2 Qxe4 38. Bxe4 Bxc4 39. Nf1
+Bxd5 40. Rxc8 Rxc8 41. Bxd5 Kf6 42. Ne3 Bxe3 43. Rxe3 Kf5 44. Re2 Rd8 45. Be4+
+Kf6 46. Kf2
+{Black forfeits on time} 1-0
+

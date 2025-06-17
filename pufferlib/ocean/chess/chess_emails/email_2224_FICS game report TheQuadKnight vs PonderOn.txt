@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs PonderOn
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "21:27:12"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PonderOn"]
+[WhiteElo "1348"]
+[BlackElo "1438"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. d4 d5 3. f3 c5 4. c3 c4 5. b3 Qh4+ 6. g3 Qd8 7. bxc4 Qa5 8. cxd5
+Qxc3+ 9. Nxc3 exd5 10. Nxd5
+{Black resigns} 1-0
+

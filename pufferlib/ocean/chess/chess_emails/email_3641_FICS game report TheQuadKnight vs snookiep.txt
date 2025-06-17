@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs snookiep
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.21"]
+[Time "09:33:31"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "snookiep"]
+[WhiteElo "1306"]
+[BlackElo "1493"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e5 3. dxe5 Ng4 4. Nf3 Bc5 5. e3 Nc6 6. h3 Ngxe5 7. Nxe5
+Nxe5 8. Nc3 O-O 9. Be2 d6 10. Ne4 Bb4+ 11. Bd2 Bxd2+ 12. Qxd2 f5 13. Nc3
+Qg5 14. O-O f4 15. exf4 Qxf4 16. Qxf4 Rxf4 17. b3 Bd7 18. Nd5 c6 19. Nxf4
+{Black resigns} 1-0
+

@@ -155,3 +155,7 @@ pufferlib/ocean/impulse_wars/*-debug/
 pufferlib/ocean/impulse_wars/*-release/
 pufferlib/ocean/impulse_wars/debug-*/
 pufferlib/ocean/impulse_wars/release-*/
+
+# Ignore OAuth secret files
+pufferlib/ocean/chess/token.json
+pufferlib/ocean/chess/client_secret_*.json

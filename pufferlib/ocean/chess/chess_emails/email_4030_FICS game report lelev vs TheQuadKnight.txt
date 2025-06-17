@@ -1,0 +1,23 @@
+Subject: FICS game report lelev vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "13:40:25"]
+[Round "-"]
+[White "lelev"]
+[Black "TheQuadKnight"]
+[WhiteElo "1444"]
+[BlackElo "1318"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nf6 3. f4 exf4 4. d4 Bb4 5. Bxf4 Bxc3+ 6. bxc3 Nxe4 7. Qf3
+d5 8. c4 O-O 9. cxd5 Qxd5 10. c4 Qxd4 11. Rd1 Qc3+ 12. Bd2 Qxf3 13. Nxf3
+Re8 14. Be2 Bg4 15. Rc1 Bxf3 16. Bxf3 Ng3+ 17. Kf2 Nxh1+ 18. Rxh1 Nc6 19. Bc3
+Rad8 20. Rb1 Ne5 21. Bxb7 Nxc4 22. Bc6 Re6 23. Bf3 Ree8 24. Rc1 Ne5 25. Bd1
+Nd3+
+{White resigns} 0-1
+

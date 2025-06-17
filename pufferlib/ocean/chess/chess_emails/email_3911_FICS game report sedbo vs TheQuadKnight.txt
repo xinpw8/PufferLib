@@ -1,0 +1,24 @@
+Subject: FICS game report sedbo vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.24"]
+[Time "19:36:03"]
+[Round "-"]
+[White "sedbo"]
+[Black "TheQuadKnight"]
+[WhiteElo "1594"]
+[BlackElo "1386"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. f3 e5 2. e4 Nc6 3. d4 exd4 4. c3 Nf6 5. cxd4 d5 6. e5 Nd7 7. Nc3 Nb6
+8. Qb3 Be6 9. f4 Na5 10. Qb5+ Nc6 11. Nf3 a6 12. Qd3 Bb4 13. f5 Bxc3+ 14. bxc3
+Bd7 15. Ba3 Ne7 16. f6 gxf6 17. exf6 Nf5 18. Qe2+ Be6 19. g4 Nd6 20. g5
+h6 21. Qe5 Nbc4 22. Bxc4 dxc4 23. g6 Kd7 24. g7 Rg8 25. O-O b6 26. d5 Bg4
+27. Nd4 Re8 28. Qg3 Bh5 29. Nc6 Qc8 30. Ne7 Rxe7 31. fxe7 Kxe7 32. Rfe1+
+Kd7 33. Qh3+ Nf5 34. Qxh5 Ne7 35. Qh3+ Ke8 36. Qe3
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,28 @@
+Subject: FICS game report jaydadaone vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.23"]
+[Time "09:35:25"]
+[Round "-"]
+[White "jaydadaone"]
+[Black "TheQuadKnight"]
+[WhiteElo "1509"]
+[BlackElo "1417"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Bc5 5. Bxc6 dxc6 6. Nxe5 O-O 7. d3
+Re8 8. Nc4 b5 9. Ne3 Qd6 10. Nd2 Qf4 11. Qf3 Qxf3 12. Nxf3 Ng4 13. h3 Nxe3
+14. Bxe3 Bd6 15. Nd4 Bd7 16. Nf5 Be5 17. d4 Bxf5 18. exf5 Bf6 19. c3 Rad8
+20. a4 a6 21. axb5 axb5 22. Ra7 Rd7 23. Rfa1 h6 24. R1a6 Rd5 25. Rxc6 Rxf5
+26. Raxc7 Be7 27. Rb7 b4 28. c4 Kf8 29. c5 Rd8 30. Rxb4 Rfd5 31. Rb7 R8d7
+32. Rc8+ Rd8 33. Rbb8 Ke8 34. b4 Kd7 35. Rxd8+ Bxd8 36. b5 Bc7 37. Rb7 Kc8
+38. Ra7 f5 39. b6 Bb8 40. Rxg7 f4 41. Rg8+ Kb7 42. Rxb8+ Kxb8 43. Bxf4+
+Kb7 44. Be5 Kc6 45. f4 Kd7 46. b7 Rxe5 47. fxe5 Kc7 48. e6 Kxb7 49. e7 Kc7
+50. e8=Q Kb7 51. d5 Ka6 52. Qc6+ Ka5 53. Qb6+ Ka4 54. c6 Ka3 55. c7 Ka2
+56. c8=Q Ka1 57. Qa8#
+{Black checkmated} 1-0
+

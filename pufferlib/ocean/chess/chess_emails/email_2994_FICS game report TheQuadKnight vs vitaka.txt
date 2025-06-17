@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs vitaka
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.29"]
+[Time "00:53:07"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vitaka"]
+[WhiteElo "1354"]
+[BlackElo "1409"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. Bf4 Nf6 4. e3 Bg4 5. c4 e5 6. dxe5 Nxe5 7. Bxe5 Bxf3
+8. Qxf3 dxc4 9. Qxb7 Nd5 10. Qc6+ Qd7 11. Qxa8+ Ke7 12. Nc3 Ke6 13. O-O-O
+c6 14. Nxd5 cxd5 15. Bxc4 Kxe5 16. Rxd5+ Qxd5 17. Qxd5+ Kf6 18. Qc6+ Kg5
+19. Bxf7 g6 20. Qd5+ Kh6 21. g4 Be7 22. h4 Rd8 23. g5+ Kg7 24. Qe5+ Kf8
+25. Be6 Rc8+ 26. Kb1 Ke8 27. Qh8+ Bf8 28. Qxh7 Rd8 29. Qf7#
+{Black checkmated} 1-0
+

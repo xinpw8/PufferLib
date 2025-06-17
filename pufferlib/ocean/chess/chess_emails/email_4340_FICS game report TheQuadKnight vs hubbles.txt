@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs hubbles
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "16:21:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "hubbles"]
+[WhiteElo "1319"]
+[BlackElo "1548"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Nf6 3. c4 e6 4. Nc3 dxc4 5. e3 Be7 6. Bxc4 Nc6 7. O-O O-O
+8. Bd2 Nd5 9. Nxd5 exd5 10. Bd3 b6 11. Rc1 Bg4 12. Rxc6 Qd7 13. Rc1 Rac8
+14. Be2 Bf5 15. Ne5 Qe6 16. Bg4 Bd6 17. Bxf5 Qxf5 18. Qf3 Qg5 19. Ng4 Qh4
+20. h3 f5 21. Ne5 Qf6 22. Nd7 Qf7 23. Nxf8 Qxf8 24. Rfe1 g5 25. g4 Qg7 26. gxf5
+Rf8 27. Qg4 h6 28. Kh1 Qf6 29. Rg1 Re8 30. h4 Re4 31. hxg5 Rxg4 32. gxf6
+Rxg1+ 33. Rxg1+ Kf7 34. Rg6 h5 35. Kg2 h4 36. Kh3 Bf8 37. Kxh4 Bd6 38. Kg5
+a6 39. Rg7+ Kf8 40. Kg6 Ke8 41. f7+ Kd7 42. f8=Q+ Kc6 43. Qe8+ Kb7 44. Qd7
+b5 45. f6 Kb6 46. Qxd6+ cxd6 47. f7 b4 48. f8=Q Kb5 49. Qxd6 Kc4 50. Rc7+
+Kd3 51. Qxb4 Ke4 52. Qb3 a5 53. Rd7 a4 54. Qxd5+ Kd3 55. Rc7 a3 56. Qc4+
+Ke4 57. Qc2+ Kf3 58. Rf7+ Kg2 59. Qf5 axb2 60. Qg5+ Kf1 61. Rh7 Ke2 62. Qg4+
+Kd3
+{White forfeits on time} 0-1
+

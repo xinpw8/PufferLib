@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs WalmanSilaen
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.06"]
+[Time "17:33:18"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "WalmanSilaen"]
+[WhiteElo "1422"]
+[BlackElo "1467"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e5 3. dxe5 Ng4 4. Nf3 Nc6 5. Bf4 Bb4+ 6. Nc3 Qe7 7. Qd5
+d6 8. exd6 cxd6 9. e4 O-O 10. Bd3 a6 11. Bc2 g6 12. O-O Be6 13. Qd3 h6 14. h3
+g5 15. Bd2 Nf6 16. e5 dxe5 17. Rae1 Rad8 18. Qe2 Bd6 19. Ne4 Nxe4 20. Qxe4
+f5 21. Qe2 e4 22. Nh2 Nd4 23. Qh5 Bxh2+ 24. Kxh2 Nxc2 25. Qxh6 Rxd2 26. Qg6+
+Qg7 27. Qxe6+ Kh8 28. Rd1 Nd4 29. Qb6 Rxd1 30. Rxd1 Ne6 31. Qxe6 g4 32. Rd7
+g3+ 33. Kg1
+{Black forfeits on time} 1-0
+

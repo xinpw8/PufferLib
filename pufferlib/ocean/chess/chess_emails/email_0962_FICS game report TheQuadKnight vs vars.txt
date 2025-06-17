@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs vars
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.06"]
+[Time "09:42:24"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vars"]
+[WhiteElo "1347"]
+[BlackElo "1429"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. Bb5 d6 4. d4 a6 5. Ba4 b5 6. d5 Na7 7. c3 bxa4 8. Qxa4+
+Bd7 9. Qxa6 Nb5 10. Qb7 Ra7 11. Qxa7 Nxa7 12. a3 Bg4 13. b4 Nf6 14. Nbd2
+Bxf3 15. gxf3 g6 16. bxc5 dxc5 17. Nc4 Bg7 18. Be3 Nd7 19. e5 Nxe5 20. Nxe5
+Bxe5 21. Rb1 Bxc3+ 22. Ke2 Bd4 23. Bh6 Qc7 24. Rb3 f6 25. Rhb1 Nc8 26. Rb8
+Kf7 27. R1b7 Qe5+ 28. Kf1 Qxd5 29. a4 g5 30. a5 Kg6 31. a6 Kxh6 32. a7 Nxa7
+33. Rxh8 Qxb7 34. Kg2 c4
+{White resigns} 0-1
+

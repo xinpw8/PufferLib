@@ -1,0 +1,22 @@
+Subject: FICS game report thekillerchickens vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.02"]
+[Time "06:30:41"]
+[Round "-"]
+[White "thekillerchickens"]
+[Black "TheQuadKnight"]
+[WhiteElo "1685"]
+[BlackElo "1429"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 e6 3. f4 c5 4. c3 Bd7 5. Bd3 Nc6 6. Nf3 Nf6 7. O-O Be7 8. Nbd2
+O-O 9. Ne5 cxd4 10. exd4 Nxe5 11. fxe5 Ne8 12. Qh5 h6 13. Nf3 Nc7 14. g4
+Bb5 15. Bxb5 Nxb5 16. g5 f6 17. gxf6 gxf6 18. Qxh6 Rf7 19. Kh1 Rg7 20. Bd2
+Qf8 21. Nh4 Qf7 22. Rg1 Kf8 23. Ng6+ Kg8 24. Qh8#
+{Black checkmated} 1-0
+

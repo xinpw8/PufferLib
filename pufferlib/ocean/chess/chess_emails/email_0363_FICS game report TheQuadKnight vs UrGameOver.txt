@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs UrGameOver
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.09.15"]
+[Time "08:07:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "UrGameOver"]
+[WhiteElo "1342"]
+[BlackElo "1425"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d6 2. c4 Nf6 3. Nc3 g6 4. Nf3 Bg7 5. e3 Bg4 6. Be2 Qd7 7. h3 Bxf3
+8. Bxf3 Nc6 9. O-O O-O-O 10. a3 g5 11. b4 g4 12. Bxg4 Nxg4 13. Qxg4 e6 14. Qxg7
+Rdg8 15. Qf6 e5 16. b5 Qxh3 17. Qf3 Qxf3 18. g3 h5 19. Nd5 h4 20. bxc6 bxc6
+21. Ne7+ Kd7 22. Nxg8 hxg3 23. Nf6+ Qxf6 24. fxg3 Qg5 25. Kf2 Rh2+ 26. Ke1
+Qxg3+ 27. Kd1 Qg2 28. Re1 Qc2#
+{White checkmated} 0-1
+

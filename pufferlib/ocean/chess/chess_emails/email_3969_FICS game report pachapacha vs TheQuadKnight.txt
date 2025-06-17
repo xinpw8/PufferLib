@@ -1,0 +1,26 @@
+Subject: FICS game report pachapacha vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "11:28:05"]
+[Round "-"]
+[White "pachapacha"]
+[Black "TheQuadKnight"]
+[WhiteElo "1845"]
+[BlackElo "1425"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. d4 Bb4 5. dxe5 Bxc3+ 6. bxc3 Nxe4 7. Nd4
+Nxc3 8. Nxc6 Nxd1 9. Nxd8 Nc3 10. Nxf7 Kxf7 11. Bc4+ d5 12. exd6+ Ke8 13. dxc7
+b5 14. Bb3 Kd7 15. Bb2 Re8+ 16. Kd2 Ne4+ 17. Kc1 Nc5 18. Bxg7 Kxc7 19. Kb2
+Nxb3 20. axb3 Kb6 21. Bd4+ Kc7 22. Rhe1 Bb7 23. f3 a6 24. Re3 Rxe3 25. Bxe3
+Re8 26. Re1 Bc6 27. Bf4+ Kb6 28. Rxe8 Bxe8 29. b4 a5 30. bxa5+ Kxa5 31. c3
+Bf7 32. Be5 Bc4 33. f4 Kb6 34. g4 Kc6 35. h4 Kd7 36. f5 Ke7 37. g5 Kf7 38. h5
+Kf8 39. g6 hxg6 40. hxg6 Kg8 41. f6 Kf8 42. Ka3 Kg8 43. Kb4 Kf8 44. Kc5
+Kg8 45. Kd6 Kf8 46. Kd7 Kg8 47. Ke7 b4 48. cxb4 Bb5 49. f7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs pallab
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "19:55:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "pallab"]
+[WhiteElo "1425"]
+[BlackElo "1319"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 Nc6 3. dxe5 Nxe5 4. Nf3 d6 5. Nxe5 dxe5 6. Qxd8+ Kxd8 7. Bc4
+f6 8. O-O Bd6 9. Nc3 Ke7 10. Nd5+ Ke8 11. Bd2 Ne7 12. Ne3 b6 13. Nd5 Nxd5
+14. Bxd5 Rb8 15. a3 Bb7 16. Bxb7 Rxb7 17. b4 Kf7 18. c4 Rbb8 19. c5 bxc5
+20. bxc5 Bxc5 21. Rfc1 Bb6 22. Bb4 a5 23. Bc3 Rhd8 24. Rd1 Rd6 25. Rac1
+Rbd8 26. Rxd6 Rxd6 27. h3 Rc6 28. Kf1 Bd4 29. Ke2 Rxc3 30. Rb1 Bb6 31. a4
+Ke6 32. Kd2 Rc4 33. Ra1 Kd6 34. f3 Rd4+ 35. Kc3 Kc5 36. Rb1 Rc4+ 37. Kd3
+Rd4+ 38. Kc3 Kd6 39. g3 Rb4 40. Rxb4 axb4+ 41. Kxb4 Bf2 42. Kb5 c6+ 43. Ka6
+c5 44. Kb7 c4 45. a5 c3 46. a6 c2 47. a7 Bxa7 48. Kxa7 c1=Q 49. f4 exf4
+50. gxf4 Qxf4 51. e5+ Qxe5 52. h4 Kc6 53. h5 Qb5 54. h6 Qb7#
+{White checkmated} 0-1
+

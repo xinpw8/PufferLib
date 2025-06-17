@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs ZlatkoVasilkoski
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.05"]
+[Time "20:06:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ZlatkoVasilkoski"]
+[WhiteElo "1396"]
+[BlackElo "1382"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c5 2. e3 cxd4 3. exd4 Nc6 4. Nf3 Nf6 5. Nc3 h6 6. Bb5 e6 7. Bd2 Bd6
+8. O-O Qc7 9. Re1 a6 10. Ba4 b5 11. Bb3 Na5 12. d5 Bb7 13. dxe6 fxe6 14. Bxe6
+dxe6 15. Rxe6+ Kf7 16. Re1 Rhf8 17. h3 Kg8 18. Qe2 Rae8 19. Qd3 Nc4 20. Rab1
+Bc5 21. Qg6 Rxe1+ 22. Rxe1 Nxd2 23. Nxd2 Bxf2+ 24. Kxf2 Ne4+ 25. Kg1 Nxd2
+26. Qe6+ Kh8 27. Rd1 Qc5+ 28. Kh2 Nc4 29. Ne2 Ne3 30. Rg1 Qg5 31. Ng3 Nf5
+32. Ne2 Kh7 33. g4 Nh4 34. Rf1 Rxf1 35. Ng3 Qd2+ 36. Qe2 Qxe2+ 37. Nxe2
+Rf2+ 38. Kg3 Rxe2 39. Kxh4 Rg2 40. a3 g5+ 41. Kh5 Be4 42. h4 Bg6#
+{White checkmated} 0-1
+

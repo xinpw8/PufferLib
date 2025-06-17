@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs igorfm
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.01"]
+[Time "14:07:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "igorfm"]
+[WhiteElo "1272"]
+[BlackElo "1329"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 c6 4. cxd5 cxd5 5. Nf3 a6 6. e3 Nc6 7. Bd3 Bd7
+8. Qc2 e6 9. Ne5 Bd6 10. e4 Nxd4 11. Qd2 Bxe5 12. f4 Bc7 13. Bb1 Nc6 14. exd5
+exd5 15. Qe3+ Qe7 16. O-O Qxe3+ 17. Bxe3 d4 18. Re1 dxe3 19. Rxe3+ Ne7 20. Ne4
+Bb6 21. Nxf6+ gxf6 22. Kf1 Bxe3 23. Be4 Bb5+ 24. Ke1 Rc8 25. Rd1 Nc6 26. Bxc6+
+Rxc6 27. a3 Ke7 28. g3 Rd8 29. Rb1 Rd5 30. b3 a5 31. a4 Ba6 32. h3 Rdc5
+33. Rd1 Rc1 34. g4 Rxd1+ 35. Kxd1 Bxf4 36. h4 Ke6 37. g5 fxg5 38. hxg5 Bxg5
+39. b4 axb4 40. a5 Bb5 41. a6 Bxa6 42. Ke1 h5 43. Kd1 h4 44. Ke1 h3 45. Kf2
+Rc2+ 46. Kg3 h2 47. Kh3 h1=Q+ 48. Kg4 Qg2+
+{White forfeits on time} 0-1
+

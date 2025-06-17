@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs MilleniumBug
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "09:50:13"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MilleniumBug"]
+[WhiteElo "1389"]
+[BlackElo "1448"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Nc3 Nf6 5. Nf3 Nc6 6. Bb5 Bd7 7. Bg5 e6
+8. Ne5 Be7 9. O-O Nxe5 10. dxe5 Bxb5 11. Nxb5 Ne4 12. Bxe7 Qxe7 13. c4 Rd8
+14. f3 Qc5+ 15. Nd4 dxc4 16. fxe4 Rxd4 17. Qf3 O-O 18. Kh1 Rd3 19. Qf4 Qe3
+20. Rac1 b5 21. Rce1 Qxf4 22. Rxf4 Rfd8 23. g3 Rd2 24. Ref1 R8d7 25. Rb1
+Rd1+ 26. Rxd1 Rxd1+ 27. Kg2 Rd2+ 28. Rf2 Rxf2+ 29. Kxf2 Kf8 30. Ke3 Ke7
+31. Kd4 Kd7 32. Kc5 a6 33. Kb6 b4 34. Kxa6 c3 35. a4 bxa3 36. bxa3 c2 37. a4
+c1=Q 38. a5 Qc6+ 39. Ka7 Qb5 40. a6 Kc7 41. g4 Qb8#
+{White checkmated} 0-1
+

@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs bromelie
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.02"]
+[Time "06:54:07"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "bromelie"]
+[WhiteElo "1442"]
+[BlackElo "1563"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e5 2. dxe5 Nc6 3. Nf3 Qe7 4. Bg5 Qb4+ 5. Nc3 Qxb2 6. Nd5 f6 7. Nxc7+
+Kf7 8. Qd5+ Kg6 9. Qe4+ f5 10. Nh4+ Kxg5 11. Qxf5+ Kh6 12. Qf4+ g5 13. Qxf8+
+Kh5 14. Rd1 Qc3+ 15. Rd2 Qxe5 16. e3 Qxc7 17. Nf3 d6 18. Qe8+ Kh6 19. g4
+Bxg4 20. h3 Bxf3 21. Rg1 Rxe8 22. Be2 Bxe2
+{White resigns} 0-1
+

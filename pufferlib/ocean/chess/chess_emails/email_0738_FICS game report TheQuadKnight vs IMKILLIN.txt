@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs IMKILLIN
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.02"]
+[Time "18:23:15"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "IMKILLIN"]
+[WhiteElo "1354"]
+[BlackElo "1275"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. f4 d5 3. d3 dxe4 4. Nc3 exd3 5. Bxd3 Nc6 6. Nf3 b6 7. O-O Nf6
+8. Ne4 Bb7 9. Bd2 Nxe4 10. Bxe4 Rb8 11. Qe2 Nd4 12. Nxd4 Qxd4+ 13. Be3 Qxe4
+14. Rad1 Bc5 15. Rd3 Bxe3+ 16. Rxe3 Qd4 17. Kh1 O-O 18. c3 Qd5 19. Rg3 Rbd8
+20. Qg4 g6 21. c4 Qxc4 22. Qg5 Qxf1#
+{White checkmated} 0-1
+

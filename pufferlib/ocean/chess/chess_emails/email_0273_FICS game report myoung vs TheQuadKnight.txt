@@ -1,0 +1,22 @@
+Subject: FICS game report myoung vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.18"]
+[Time "15:55:02"]
+[Round "-"]
+[White "myoung"]
+[Black "TheQuadKnight"]
+[WhiteElo "1459"]
+[BlackElo "1313"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d3 Nc6 3. c3 d6 4. h3 Nf6 5. Nf3 Be7 6. Be2 O-O 7. Be3 Bd7 8. O-O
+h6 9. Nbd2 d5 10. Nb3 dxe4 11. dxe4 Nxe4 12. Qc2 Nf6 13. Nc5 Bc8 14. Rad1
+Qe8 15. Bb5 a6 16. Ba4 b5 17. Bb3 Nd7 18. Nxd7 Bxd7 19. Bd5 Rd8 20. Be4
+f5 21. Bd3 e4 22. Qb3+ Kh8 23. Bxe4 fxe4 24. Nd4 Ne5
+{White resigns} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs jtoeMex
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.02"]
+[Time "14:23:45"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jtoeMex"]
+[WhiteElo "1379"]
+[BlackElo "1385"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 d5 3. Nf3 Nc6 4. exd5 Qxd5 5. Nc3 Qa5 6. d3 Bg4 7. Bd2 O-O-O
+8. Qe2 Nd4 9. Qd1 f6 10. h3 Bxf3 11. gxf3 exf4 12. h4 Re8+ 13. Ne4 Qb6 14. Qc1
+f5 15. c3 fxe4 16. cxd4 e3 17. Bc3 Nf6 18. Bh3+ Kb8 19. Bf5 Bb4 20. Be4
+Nxe4 21. dxe4 Rhg8 22. Bxb4 Qxb4+ 23. Qc3 Qxc3+ 24. bxc3 g5 25. hxg5 Rxg5
+26. Ke2 Rg2+ 27. Kf1 Rc2 28. Rxh7 Rxc3 29. Rf7 Rh8 30. Rxf4 b5 31. Kg2 b4
+32. Kg3 a5 33. Rg4 Rf8 34. f4 e2+ 35. Kh4 Rc2 36. Re1 Rxa2 37. f5 b3 38. e5
+Rd2 39. Rxe2 Rxe2 40. e6 Rxf5 41. d5 Rd2 42. e7 Re5 43. Rg8+ Kb7 44. e8=Q
+{Black forfeits on time} 1-0
+

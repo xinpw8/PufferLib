@@ -1,0 +1,24 @@
+Subject: FICS game report dad vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.18"]
+[Time "15:29:29"]
+[Round "-"]
+[White "dad"]
+[Black "TheQuadKnight"]
+[WhiteElo "1467"]
+[BlackElo "1279"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. f4 d5 2. Nf3 Nc6 3. b3 e6 4. Bb2 Nf6 5. e3 Be7 6. Bb5 Bd7 7. d3 a6 8. Bxc6
+Bxc6 9. Ne5 Bb5 10. Nd2 O-O 11. O-O Nd7 12. Ndf3 f6 13. Ng4 c5 14. a4 Bc6
+15. Qe2 Qc7 16. Nd2 Rac8 17. Nf2 e5 18. fxe5 fxe5 19. e4 Nf6 20. exd5 Nxd5
+21. Qxe5 Qxe5 22. Bxe5 Ne3 23. Rfc1 Nxg2 24. Nfe4 Ne3 25. Re1 Nxc2 26. Rf1
+Nxa1 27. Rxa1 Bd7 28. Rc1 b6 29. Nd6 Rc6 30. N2e4 Bxd6 31. Nxd6 Be6 32. Rc3
+Rd8 33. Ne4 Bd5 34. Ng5 Rg6 35. Bf4 Rf8 36. Rc2
+{White resigns} 0-1
+

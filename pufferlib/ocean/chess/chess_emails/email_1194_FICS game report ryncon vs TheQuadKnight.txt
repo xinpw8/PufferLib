@@ -1,0 +1,26 @@
+Subject: FICS game report ryncon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.23"]
+[Time "18:05:49"]
+[Round "-"]
+[White "ryncon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1562"]
+[BlackElo "1424"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. Nc3 Nf6 5. O-O d6 6. h3 O-O 7. d3 Bd7
+8. Bg5 h6 9. Bh4 Na5 10. Nd5 g5 11. Nxg5 Nxc4 12. Nxf6+ Qxf6 13. Nf3 Qf4
+14. Bg3 Qf6 15. dxc4 Kh7 16. c3 a5 17. Nh2 h5 18. Qxh5+ Qh6 19. Qxh6+ Kxh6
+20. Kh1 Rg8 21. a3 f5 22. exf5 Bxf5 23. Nf3 Bd3 24. Rfd1 Bxc4 25. Nh4 Be6
+26. b4 axb4 27. axb4 Rxa1 28. Rxa1 Bb6 29. Rc1 Bc4 30. Nf5+ Kg5 31. Ne3
+Be6 32. Re1 c6 33. h4+ Kh5 34. Kh2 Bd7 35. Rd1 Bc7 36. Nc4 d5 37. Nxe5 Rxg3
+38. fxg3 Bxe5 39. c4 Be6 40. Re1 Bc3 41. Rxe6 dxc4 42. Re4 b5 43. Re6 Bxb4
+44. Rxc6 c3 45. Kh3 Ba5 46. g4#
+{Black checkmated} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report GeorgeV vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "08:06:09"]
+[Round "-"]
+[White "GeorgeV"]
+[Black "TheQuadKnight"]
+[WhiteElo "1557"]
+[BlackElo "1392"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 Nc6 5. d4 g4 6. Bxf4 gxf3 7. Qxf3 Nxd4
+8. Qf2 Qf6 9. e5 Nxc2+ 10. Qxc2 Qxf4 11. Nd2 Qxe5+ 12. Ne4 Bb4+ 13. Kd1
+d5 14. Qa4+ c6 15. Qxb4 Qd4+ 16. Nd2 dxc4 17. Re1+ Be6 18. Re4 Qg1+ 19. Re1
+Qxg2 20. Qxb7 Rd8 21. Re2 Qg1+ 22. Kc2 Qxa1 23. Qxc6+ Kf8 24. Qc7 Rc8 25. Qd6+
+Ne7 26. Ne4 Bf5 27. Kc3 Qc1+ 28. Rc2 Qe3+ 29. Kb4 Qxe4
+{White resigns} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report markybruster vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.01"]
+[Time "17:55:41"]
+[Round "-"]
+[White "markybruster"]
+[Black "TheQuadKnight"]
+[WhiteElo "1319"]
+[BlackElo "1421"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. O-O Nf6 5. Re1 a6 6. Ba4 b5 7. Bb3 Na5
+8. d4 Nxb3 9. axb3 Bb7 10. d5 Be7 11. c4 O-O 12. Nc3 Qd7 13. Bg5 Rfe8 14. Nh4
+Bc8 15. cxb5 Qg4 16. Bxf6 Qxd1 17. Rexd1 Bxf6 18. Nf3 Bg4 19. bxa6 Reb8
+20. Ra3 Rb4 21. Rda1 Bc8 22. a7 Bb7 23. Nd2 Bd8 24. Ra4 Rxa4 25. Rxa4 c6
+26. b4 cxd5 27. exd5 Bb6 28. Nde4 Rd8 29. Kf1 Kf8 30. f3 Ke7 31. Ke2 Ra8
+32. Nb5 Bxd5 33. Nexd6 Bc6 34. Ra6 Bxa7 35. Rxc6 Bb8 36. Rb6 g6 37. Rb7+
+Ke6 38. Nxf7 Ra2 39. Rxb8 Rxb2+ 40. Kf1 Rxb4
+{White forfeits on time} 0-1
+

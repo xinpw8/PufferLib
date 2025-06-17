@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Vinamarino
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.14"]
+[Time "21:46:03"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Vinamarino"]
+[WhiteElo "1383"]
+[BlackElo "1306"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Nf3 O-O 5. Bg5 h6 6. Bh4 g5 7. Nxg5 hxg5
+8. Bxg5 d5 9. h4 dxc4 10. e4 Be7 11. Bxc4 Nbd7 12. Qf3 Nb6 13. Bd3 Qxd4
+14. O-O-O Ba3 15. Bxf6 Bxb2+ 16. Kxb2 Na4+ 17. Kc1 Qxc3+ 18. Bxc3 Nxc3 19. Qg4+
+Kh8 20. h5 Nxa2+ 21. Kc2 Nb4+ 22. Kc3 a5 23. h6 Rg8 24. Qh5 c5 25. h7 Rg6
+26. Qe5+ f6 27. Qh5 Rxg2 28. Qf7 Bd7 29. Qxf6+
+{Black resigns} 1-0
+

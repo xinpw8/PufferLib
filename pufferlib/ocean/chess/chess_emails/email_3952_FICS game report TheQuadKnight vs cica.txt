@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs cica
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "16:20:11"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "cica"]
+[WhiteElo "1430"]
+[BlackElo "1836"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Nf3 c5 5. e3 O-O 6. Bd2 b6 7. Bd3 Bb7 8. O-O
+cxd4 9. Nxd4 d5 10. cxd5 Bxc3 11. Bxc3 Nxd5 12. Qb3 Nxc3 13. Qxc3 Nd7 14. Rac1
+Nc5 15. Bb5 Qg5 16. Bc6 Bxc6 17. Nxc6 h5 18. Qe5 Qh6 19. Qg3 Rac8 20. Ne7+
+Kh7 21. Nxc8 Rxc8 22. Qf4 Qxf4 23. exf4 Rd8 24. Rfd1 Rf8 25. f3 a5 26. a3
+Kg6 27. b4 axb4 28. axb4 Na6 29. b5 Nc5 30. g4 Rb8 31. f5+ exf5 32. gxf5+
+Kxf5 33. Rd5+ Kf4 34. Kg2 Re8 35. Rd4+ Kg5 36. Rd5+ f5 37. Rd6 Re2+ 38. Kg1
+Kf4 39. Rxb6 Nd3 40. Rf1 g5 41. Rc6 Ne5 42. Rc3 Rb2 43. h3 h4 44. Rcc1 Kg3
+45. Rb1 Rg2+ 46. Kh1 Rh2+ 47. Kg1 Rg2+ 48. Kh1 Rh2+ 49. Kg1 Rxh3 50. b6
+Kf4 51. b7 Rg3+ 52. Kh1 Nd7 53. b8=Q+ Nxb8
+{White forfeits on time} 0-1
+

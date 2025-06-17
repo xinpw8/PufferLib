@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs MPU
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.02"]
+[Time "05:49:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MPU"]
+[WhiteElo "1418"]
+[BlackElo "1883"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 d6 4. Bg5 b6 5. e3 Bb7 6. Be2 Nbd7 7. Bf3 c6 8. Nge2
+Be7 9. O-O O-O 10. Qd3 e5 11. Bxf6 Bxf6 12. Be4 g6 13. Bf3 Bg7 14. Ng3 f5
+15. dxe5 Nxe5 16. Qe2 Ba6 17. b3 Nxf3+ 18. gxf3 Bxc3 19. Rad1 Qf6 20. Qd3
+d5 21. Ne2 dxc4 22. Qxc3 Qxc3 23. Nxc3 cxb3 24. Rfe1 bxa2 25. Nxa2 Rfd8
+26. Rc1 c5 27. Nc3 Bb7 28. Kg2 Rd2 29. e4 Rad8 30. Nd5 Bxd5 31. exd5 R8xd5
+32. Re7 Rd7 33. Re8+ Kf7 34. Rh8 Kg7 35. Re8 Kf7 36. Rce1 c4 37. Rc8 b5
+38. Rc5 a6 39. Ra1 R7d6 40. Rc7+ Kf6 41. Rxh7 c3 42. Rc7 b4 43. Rb1 a5 44. Rc5
+R6d5 45. Rc6+ Kg5 46. Kg3 f4+ 47. Kg2 c2 48. Rc1 b3 49. Rb6 a4 50. Rb4 R5d4
+51. Rb5+ Kh6 52. Rb8 Rd1 53. Rh8+ Kg7 54. Rh3 Rxc1
+{White resigns} 0-1
+

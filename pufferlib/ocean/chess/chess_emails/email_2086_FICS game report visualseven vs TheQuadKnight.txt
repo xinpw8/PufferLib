@@ -1,0 +1,22 @@
+Subject: FICS game report visualseven vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "20:47:48"]
+[Round "-"]
+[White "visualseven"]
+[Black "TheQuadKnight"]
+[WhiteElo "1402"]
+[BlackElo "1335"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O d6 7. c3 Nxe4
+8. Bd5 Nxf2 9. Rxf2 Bb7 10. d4 Rb8 11. dxe5 Nxe5 12. Bxf7+ Nxf7 13. Qe2+
+Be7 14. Be3 O-O 15. Nbd2 Bf6 16. Raf1 Ne5 17. Nxe5 dxe5 18. Ne4 Qd5 19. Nxf6+
+Rxf6 20. Rxf6 gxf6 21. Rxf6 Rd8 22. Qg4+ Kh8 23. Rf1 Qxa2 24. Bg5 Rg8 25. Bf6+
+{Black resigns} 1-0
+

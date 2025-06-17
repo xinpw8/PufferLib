@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Fryrip
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "11:14:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Fryrip"]
+[WhiteElo "1412"]
+[BlackElo "1507"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 d6 3. Nc3 Nf6 4. d4 exd4 5. Nxd4 Nc6 6. Nb3 Be7 7. Bg5 O-O
+8. Bb5 Ne5 9. O-O Be6 10. Nd4 Bc4 11. Bxc4 Nxc4 12. Qc1 h6 13. Bh4 Nxe4
+14. Bxe7 Qxe7 15. Re1 Ncd2 16. f3 Qf6 17. Nxe4 Qxd4+ 18. Kh1 Nxe4 19. Rxe4
+Qb6 20. Rg4 d5 21. Qf4 Rae8 22. Qg3 Qxb2 23. Rxg7+ Qxg7 24. Qxg7+ Kxg7 25. Rb1
+b6 26. Rb4 Re1#
+{White checkmated} 0-1
+

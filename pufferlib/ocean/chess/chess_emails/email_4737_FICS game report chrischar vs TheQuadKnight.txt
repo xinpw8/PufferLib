@@ -1,0 +1,26 @@
+Subject: FICS game report chrischar vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.20"]
+[Time "11:19:27"]
+[Round "-"]
+[White "chrischar"]
+[Black "TheQuadKnight"]
+[WhiteElo "1308"]
+[BlackElo "1297"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 c6 6. Nf3 Nbd7 7. Bd3 O-O
+8. O-O h6 9. Bh4 Ne4 10. Bxe7 Qxe7 11. cxd5 exd5 12. Rc1 Ndf6 13. Be2 Re8
+14. Nxe4 Nxe4 15. Nd2 Bf5 16. Nxe4 Bxe4 17. Bf3 Rac8 18. Bxe4 Qxe4 19. Qc2
+Qe6 20. Qe2 b6 21. Qf3 c5 22. dxc5 Rxc5 23. Rxc5 bxc5 24. Rd1 Rd8 25. e4
+d4 26. a3 a5 27. Qf5 Qb3 28. Rb1 Qc2 29. Rf1 d3 30. e5 c4 31. e6 fxe6 32. Qxe6+
+Kh7 33. Qf5+ Kh8 34. Qe4 Qb3 35. Qe7 Rb8 36. Qe4 d2 37. Qb1 c3 38. Qd3 Qxb2
+39. f3 c2 40. Qxd2 Qb1 41. Rxb1 cxb1=Q+ 42. Kf2 Rb2 43. Kg3 Rxd2 44. Kf4
+Qg6 45. Ke3 Rd5 46. Ke2 Qe6+ 47. Kf2 Qe5 48. Kf1 Rd2 49. Kg1
+{Black forfeits on time} 1-0
+

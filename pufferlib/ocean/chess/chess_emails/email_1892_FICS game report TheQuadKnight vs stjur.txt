@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs stjur
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.26"]
+[Time "09:47:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "stjur"]
+[WhiteElo "1405"]
+[BlackElo "1473"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. c3 d6 3. d4 exd4 4. cxd4 Nf6 5. Nc3 Be7 6. f4 Nc6 7. Nf3 Bg4
+8. Bd3 O-O 9. Be3 Nb4 10. O-O Nxd3 11. Qxd3 a6 12. h3 Bd7 13. g4 Qc8 14. f5
+b5 15. g5 Nh5 16. Nd5 Bd8 17. f6 g6 18. h4 b4 19. e5 Bb5 20. Qe4 Bxf1 21. exd6
+Bh3 22. Ne7+ Bxe7 23. dxe7 Re8 24. d5 Bf5 25. Qc4 Qd7 26. Ne5 Qd6 27. Qd4
+Ng3 28. Kf2 Ne4+ 29. Kf3 c5 30. Qd1 Qxe5 31. Bxc5 Nxc5 32. d6 Qe4+ 33. Kf2
+Qxh4+ 34. Kf1 Qf4+ 35. Kg1 Qxg5+ 36. Kf1 Qxf6 37. d7 Nxd7 38. Qxd7 Bxd7+
+39. Ke1 Rxe7+
+{White forfeits on time} 0-1
+

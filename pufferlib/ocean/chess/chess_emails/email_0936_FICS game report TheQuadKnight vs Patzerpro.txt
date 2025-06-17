@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Patzerpro
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "09:15:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Patzerpro"]
+[WhiteElo "1370"]
+[BlackElo "1433"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. c3 d3 5. Bxd3 d6 6. Be3 Bg4 7. Nbd2 Nf6
+8. h3 Bh5 9. O-O Ne5 10. Be2 Bxf3 11. Nxf3 Nxf3+ 12. Bxf3 Nd7 13. Bd4 e5
+14. Be3 Be7 15. Qd2 O-O 16. Bg4 Nf6 17. Bf5 g6 18. Bh6 Re8 19. Qg5 Nxe4
+20. Qg4 Nf6 21. Qg5 Nd5 22. Qg4 Nf6 23. Qg5 Ne4 24. Qg4 Nd2 25. Rfe1 Bf6
+26. Bxd2 d5 27. Bc2 e4 28. Rad1 Qb6 29. Bb3 Rad8 30. Qf4 Be5 31. Qe3 d4
+32. cxd4 Bxd4 33. Qg3 e3 34. fxe3 Bxe3+ 35. Bxe3 Rc8 36. Bxb6 Rxe1+ 37. Rxe1
+axb6 38. Qe5 h5 39. Qe7 Rf8 40. Qxb7 Kg7 41. Re7 Kh6 42. Rxf7 Rxf7 43. Qxf7
+h4 44. Kh2 Kg5 45. Be6 Kh6 46. Qe7 Kh5 47. Qd6 Kg5 48. Qe5+ Kh6 49. Qd6
+Kg5 50. Qxb6 Kf4 51. Bc4 Ke5 52. b3 Ke4 53. a4
+{Black forfeits on time} 1-0
+

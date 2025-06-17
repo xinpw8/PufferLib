@@ -1,0 +1,25 @@
+Subject: FICS game report monoply vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.22"]
+[Time "13:06:56"]
+[Round "-"]
+[White "monoply"]
+[Black "TheQuadKnight"]
+[WhiteElo "1151"]
+[BlackElo "1416"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bc5 5. O-O d6 6. h3 O-O 7. d3 Re8
+8. Bg5 Be6 9. Bb3 Na5 10. Nd5 Nxb3 11. axb3 Bxd5 12. exd5 h6 13. Be3 Bxe3
+14. fxe3 Nxd5 15. e4 Ne3 16. Qe2 Nxf1 17. Qxf1 Rf8 18. d4 Qe7 19. Qe2 f5
+20. exf5 Rxf5 21. dxe5 dxe5 22. Ra5 c5 23. Qc4+ Kh8 24. Rxc5 Raf8 25. Rc7
+Qd6 26. Rxb7 e4 27. Nd4 Rf1+ 28. Qxf1 Rxf1+ 29. Kxf1 Qxd4 30. Rxa7 Qf6+
+31. Ke2 Qxb2 32. Ra8+ Kh7 33. Rc8 Qd4 34. c3 Qd3+ 35. Ke1 e3 36. c4 e2 37. b4
+Qd1+ 38. Kf2 e1=Q#
+{White checkmated} 0-1
+

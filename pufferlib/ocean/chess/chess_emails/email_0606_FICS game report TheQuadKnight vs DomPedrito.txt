@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs DomPedrito
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.13"]
+[Time "18:20:57"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "DomPedrito"]
+[WhiteElo "1322"]
+[BlackElo "1399"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 g6 5. Nxc6 bxc6 6. Be3 Bg7 7. Bd4
+Nf6 8. e5 Nd5 9. e6 Bxd4 10. Qxd4 O-O 11. exf7+ Rxf7 12. Nc3 Qb6 13. Qxb6
+Nxb6 14. O-O-O Rxf2 15. g4 d5 16. Bd3 Bxg4 17. Rde1 e6 18. h3 Bf5 19. Be2
+Re8 20. Nd1 Rf4 21. Ne3 Be4 22. Rhf1 Ref8 23. Rxf4 Rxf4 24. Ng4 Nd7 25. Ba6
+Kg7 26. Bc8 Nf8 27. Bb7 c5 28. a4 h5 29. Ne5 Kf6 30. Nd3 Bxd3 31. cxd3 Rxa4
+32. Kb1 Ke7 33. Bc6 Rf4 34. Rc1 c4 35. dxc4 Rxc4 36. Rxc4 dxc4 37. Bb5 Nd7
+38. Bxc4 Ne5 39. Bb3 Kf6 40. Bc2 Nf3 41. Be4 g5 42. Bxf3 h4 43. Bg4 Ke5
+44. Kc2 Kf6 45. Kd3 e5 46. Ke4 a6 47. b4 Kg6 48. Kxe5
+{Black resigns} 1-0
+

@@ -1,0 +1,27 @@
+Subject: FICS game report zaclefou vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.04"]
+[Time "12:09:55"]
+[Round "-"]
+[White "zaclefou"]
+[Black "TheQuadKnight"]
+[WhiteElo "1470"]
+[BlackElo "1441"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 O-O 6. Bd3 Nbd7 7. Nf3 Re8
+8. O-O dxc4 9. Bxc4 Nb6 10. Bb3 Nbd5 11. Qe2 Nxc3 12. bxc3 Ne4 13. Bxe7
+Qxe7 14. Rac1 c5 15. Qd3 Nd6 16. c4 cxd4 17. Nxd4 Rd8 18. Bc2 Nf5 19. Rfd1
+e5 20. Nxf5 Rxd3 21. Nxe7+ Kf8 22. Ng6+ hxg6 23. Bxd3 Be6 24. Be4 Rb8 25. Bd5
+Bd7 26. Rb1 Ba4 27. Rd2 b6 28. c5 Bd7 29. cxb6 axb6 30. Rdb2 Bf5 31. e4
+Be6 32. Bxe6 fxe6 33. Rxb6 Rd8 34. g3 Rd4 35. R1b4 Rd2 36. a4 Kf7 37. Rb7+
+Kf6 38. a5 Ra2 39. R7b5 Kg5 40. Rxe5+ Kg4 41. Rb1 Kf3 42. Rxe6 Rxf2 43. Rf1
+Rxf1+ 44. Kxf1 Kg4 45. a6 Kh3 46. Rxg6 Kxh2 47. Rxg7 Kh3 48. a7 Kh2 49. a8=Q
+Kh3 50. Qh8#
+{Black checkmated} 1-0
+

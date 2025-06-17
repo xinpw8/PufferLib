@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Masterimargerita
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.03"]
+[Time "11:36:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Masterimargerita"]
+[WhiteElo "1417"]
+[BlackElo "1661"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 Nf6 2. e5 Nd5 3. c4 Nb6 4. a4 d6 5. a5 N6d7 6. e6 fxe6 7. Nf3 Nf6
+8. b3 g6 9. Bb2 Bg7 10. Nc3 e5 11. Bd3 Nc6 12. Ne4 Bg4 13. Nxf6+ exf6 14. h3
+Be6 15. O-O f5 16. Ne1 O-O 17. Bc2 d5 18. d4 dxc4 19. d5 Bxd5 20. bxc4 Bxc4
+21. Bb3 Bxb3 22. Qxb3+ Kh8 23. Nd3 Rb8 24. Nc5 Qe7 25. Ne6 Rfe8 26. Nxg7
+Qxg7 27. Rab1 h6 28. Rfe1 Kh7 29. Qb5 a6 30. Qc5 Qe7 31. Qd5 Qd6 32. Rbd1
+Qxd5 33. Rxd5 e4 34. Rd7+ Re7 35. Rxe7+ Nxe7 36. Bf6 Re8 37. Rd1 Kg8 38. Rd7
+Kf7 39. Be5 Ke6 40. Rxc7 Kxe5 41. Rxb7 Kf6 42. Rb6+ Kf7 43. Rxa6 Rc8 44. Rb6
+Rc6 45. a6 Rxb6 46. a7 Ra6 47. a8=Q Rxa8 48. Kh2 Kf6 49. g3 Ra2 50. h4 Rxf2+
+51. Kh3 e3 52. g4 f4 53. h5 g5
+{Game drawn by stalemate} 1/2-1/2
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs AlHoff
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "14:38:10"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "AlHoff"]
+[WhiteElo "1416"]
+[BlackElo "1513"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Nf3 d5 5. Bg5 O-O 6. cxd5 Bxc3+ 7. bxc3
+exd5 8. e4 dxe4 9. Ne5 Nbd7 10. Be2 Re8 11. Bg4 Nxe5 12. Bxc8 Rxc8 13. dxe5
+Rxe5 14. Qxd8+ Rxd8 15. Bxf6 gxf6 16. O-O Rd3 17. Rac1 Rc5 18. c4 Rd4 19. Rfe1
+Rcxc4 20. Rxc4 Rxc4 21. h3 f5 22. Kh2 Rc2 23. a3 Rxf2 24. Re3 c5 25. Rb3
+b6 26. a4 Ra2 27. Rg3+ Kf8 28. Rg5 Rxa4 29. Rxf5 c4 30. Rh5 c3 31. Rd5 c2
+32. Rd8+ Ke7 33. Rc8 Ra2 34. Kg1 b5 35. Kf2 b4 36. Ke3 b3 37. Kxe4 Ra1 38. Kd3
+c1=Q 39. Rxc1 Rxc1 40. Kd2 b2
+{White resigns} 0-1
+

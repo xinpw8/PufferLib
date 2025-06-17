@@ -1,0 +1,19 @@
+Subject: FICS game report Loni vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.22"]
+[Time "15:44:42"]
+[Round "-"]
+[White "Loni"]
+[Black "TheQuadKnight"]
+[WhiteElo "1964"]
+[BlackElo "1389"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. d4 exd4 4. Nxd4 Nf6 5. Nc3 b6 6. Bb5+ Nbd7 7. Nc6
+{Black resigns} 1-0
+

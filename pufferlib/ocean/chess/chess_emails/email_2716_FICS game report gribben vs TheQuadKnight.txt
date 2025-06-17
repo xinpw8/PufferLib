@@ -1,0 +1,28 @@
+Subject: FICS game report gribben vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "12:33:42"]
+[Round "-"]
+[White "gribben"]
+[Black "TheQuadKnight"]
+[WhiteElo "1463"]
+[BlackElo "1414"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c6 5. Bg5 Nbd7 6. e3 Bd6 7. Bd3 O-O
+8. O-O h6 9. Bxf6 Nxf6 10. Rc1 b6 11. cxd5 cxd5 12. Qe2 Bb7 13. Rc2 Rc8
+14. Rfc1 Qd7 15. Nb5 Bb8 16. Rxc8 Rxc8 17. Rxc8+ Qxc8 18. Qc2 Qxc2 19. Bxc2
+Ba6 20. Nc3 Bc4 21. a3 Ba6 22. Ne5 Kf8 23. Nf3 Ke7 24. h3 Bb7 25. Nd2 e5
+26. Nf3 e4 27. Nd2 Ke6 28. b4 Bc7 29. Kf1 a6 30. Bd1 Bc6 31. Be2 a5 32. b5
+Bd7 33. a4 Bd6 34. Ke1 Bb4 35. Ndb1 g5 36. Kd2 Bc8 37. Kc2 Ke7 38. Nd2 Nd7
+39. Nxd5+ Kd6 40. Nxb4 axb4 41. Nxe4+ Kd5 42. Nd2 Nf6 43. Bf3+ Kd6 44. Kb3
+Be6+ 45. Kxb4 Nd5+ 46. Bxd5 Bxd5 47. g3 f5 48. h4 gxh4 49. gxh4 Ke6 50. a5
+Kd6 51. axb6 Bb7 52. Nc4+ Kd5 53. Ne5 Ke4 54. Kc5 f4 55. exf4 Kxf4 56. Nc4
+Bf3 57. d5 Bxd5 58. Kxd5 Kf3 59. b7 Kxf2 60. b8=Q
+{Black forfeits on time} 1-0
+

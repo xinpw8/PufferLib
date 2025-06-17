@@ -1,0 +1,30 @@
+Subject: FICS game report VandelayChess vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.09.15"]
+[Time "08:54:40"]
+[Round "-"]
+[White "VandelayChess"]
+[Black "TheQuadKnight"]
+[WhiteElo "1231"]
+[BlackElo "1328"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 d5 5. exd5 Nxd5 6. O-O Bc5 7. Bxd5
+Qxd5 8. Nc3 Qd6 9. Ne4 Qe7 10. Nxc5 Qxc5 11. Re1 Bg4 12. h3 Bh5 13. g4 Bg6
+14. d4 Qxc2 15. Qxc2 Bxc2 16. dxe5 O-O-O 17. Bg5 Rd7 18. Rac1 Bg6 19. a3
+h6 20. Bf4 Re8 21. h4 Ne7 22. h5 Bh7 23. g5 Nd5 24. Bd2 hxg5 25. Bxg5 f6
+26. exf6 Rxe1+ 27. Rxe1 b6 28. Re8+ Kb7 29. Ne5 gxf6 30. Nxd7 fxg5 31. Re5
+Nf4 32. Rxg5 Nh3+ 33. Kh2 Nxg5 34. f4 Ne4 35. Nf6 Nxf6 36. Kg3 Nxh5+ 37. Kg4
+Nxf4 38. Kxf4 Bc2 39. Ke3 c5 40. Kd2 Ba4 41. Kc3 Bc6 42. Kc4 a6 43. Kc3
+b5 44. Kd2 Kb6 45. Kc3 a5 46. Kd3 b4 47. Kd2 bxa3 48. bxa3 Kb5 49. Kc3 Ka4
+50. Kb2 c4 51. Ka2 Bd5 52. Kb2 c3+ 53. Kxc3 Kxa3 54. Kd4 Kb3 55. Kxd5 a4
+56. Ke5 a3 57. Kf6 a2 58. Ke7 a1=Q 59. Kd6 Qb2 60. Ke6 Qd2 61. Ke7 Qe3+
+62. Kf6 Qf4+ 63. Kg7 Qf2 64. Kg6 Qg2+ 65. Kh5 Qf3+ 66. Kg6 Qe3 67. Kh5 Qd4
+68. Kh6 Qd5 69. Kg7 Qd6 70. Kh7
+{Black ran out of time and White has no material to mate} 1/2-1/2
+

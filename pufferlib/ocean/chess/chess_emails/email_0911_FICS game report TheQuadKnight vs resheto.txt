@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs resheto
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.13"]
+[Time "08:34:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "resheto"]
+[WhiteElo "1394"]
+[BlackElo "1522"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 b6 4. Nf3 Bb7 5. e3 g6 6. Bd2 Bg7 7. Bd3 O-O 8. O-O
+d6 9. Rc1 Nbd7 10. b4 c5 11. bxc5 dxc5 12. Na4 Qe7 13. Re1 Rac8 14. Ng5
+h6 15. Nf3 g5 16. Qc2 Qd6 17. Ne5 Nxe5 18. dxe5 Qxe5 19. Bc3 Qd6 20. f4
+gxf4 21. exf4 Qxf4 22. Rf1 Qg5 23. Qf2 Ng4 24. Qe2 Qh4 25. h3 Qg3 26. Rfd1
+{White resigns} 0-1
+

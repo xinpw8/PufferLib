@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs MOREofTHORE
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "21:08:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MOREofTHORE"]
+[WhiteElo "1330"]
+[BlackElo "1603"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 g6 2. b3 Bg7 3. Bb2 c5 4. Nf3 cxd4 5. Bxd4 Nf6 6. Nc3 Nc6 7. Bc5 Qa5
+8. b4 Nxb4 9. e4 Qxc5 10. Qd2 Nxc2+ 11. Qxc2 Nxe4 12. Qxe4 Qxc3+ 13. Nd2
+Qxa1+ 14. Nb1 O-O
+{White resigns} 0-1
+

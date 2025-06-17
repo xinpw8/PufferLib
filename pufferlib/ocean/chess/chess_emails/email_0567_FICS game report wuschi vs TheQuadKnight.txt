@@ -1,0 +1,22 @@
+Subject: FICS game report wuschi vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.18"]
+[Time "13:13:47"]
+[Round "-"]
+[White "wuschi"]
+[Black "TheQuadKnight"]
+[WhiteElo "1388"]
+[BlackElo "1361"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. f4 d5 2. Nf3 Nc6 3. b3 e5 4. fxe5 Nxe5 5. Nxe5 Bc5 6. d4 Bb4+ 7. c3 Bd6
+8. Bf4 f6 9. Nd3 Bxf4 10. Nxf4 Qd6 11. e3 Ne7 12. Bd3 c5 13. Qh5+ g6 14. Bxg6+
+Nxg6 15. Nxg6 Rg8 16. Nf4+ Kf8 17. Qxh7 cxd4 18. cxd4 Qb4+ 19. Nd2 Qc3 20. Rd1
+Qxe3+ 21. Ne2 Qg5 22. g3 Bg4 23. Qd3 Re8 24. O-O Bxe2 25. Rde1 Bxd3
+{White resigns} 0-1
+

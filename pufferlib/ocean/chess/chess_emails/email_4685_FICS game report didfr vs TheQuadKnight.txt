@@ -1,0 +1,21 @@
+Subject: FICS game report didfr vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.22"]
+[Time "07:37:04"]
+[Round "-"]
+[White "didfr"]
+[Black "TheQuadKnight"]
+[WhiteElo "1707"]
+[BlackElo "1291"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. Nc3 e5 2. e4 Nf6 3. f4 exf4 4. d4 d6 5. Bxf4 Be7 6. Bc4 O-O 7. Nf3 Bg4
+8. O-O Nbd7 9. Qd3 c6 10. Ng5 h6 11. Nxf7 Rxf7 12. h3 Bh5 13. g4 Bg6 14. Ne2
+d5 15. exd5 cxd5 16. Bb3 Bxd3
+{White resigns} 0-1
+

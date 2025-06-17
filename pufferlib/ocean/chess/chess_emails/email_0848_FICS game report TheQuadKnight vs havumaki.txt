@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs havumaki
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.20"]
+[Time "08:34:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "havumaki"]
+[WhiteElo "1435"]
+[BlackElo "1469"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 g6 2. c4 Bg7 3. Nc3 b6 4. Bf4 Bb7 5. e3 d6 6. Nf3 Nd7 7. Bd3 Ngf6
+8. O-O O-O 9. Rb1 Nh5 10. b4 Nxf4 11. exf4 e5 12. fxe5 dxe5 13. Nxe5 Nxe5
+14. dxe5 Bxe5 15. Nb5 a6 16. Na3 Qh4 17. h3 Qg5 18. Qg4 Qd2 19. Be4 Bxe4
+20. Qxe4 Bg7 21. Rfd1 Qxa2 22. Nc2 Rfe8 23. Qd3 Rad8 24. Qxd8 Rxd8 25. Rxd8+
+Bf8 26. Rc1 Qb2 27. Rdd1 Bxb4 28. Ne3 Bd6 29. Rc2 Qe5 30. Ng4 Qf4 31. Re2
+Kg7 32. Rde1 h5 33. g3 Qf3 34. Re3 Qc6 35. Nf6 Kxf6 36. Re6+ fxe6 37. Rxe6+
+Kxe6 38. Kf1 Qxc4+ 39. Kg2 a5 40. Kg1 a4 41. Kg2 a3 42. Kh2 a2 43. Kg2 a1=Q
+44. h4 Qd5+ 45. Kh3 Qah1#
+{White checkmated} 0-1
+

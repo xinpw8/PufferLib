@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Zestin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.22"]
+[Time "10:05:07"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Zestin"]
+[WhiteElo "1411"]
+[BlackElo "1728"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. f4 Bg7 7. Be3 O-O
+8. Bc4 Nc6 9. O-O Ng4 10. Nxc6 bxc6 11. Bd2 Qb6+ 12. Kh1 Nf2+ 13. Rxf2 Qxf2
+14. f5 d5 15. exd5 Bxf5 16. dxc6 Rad8 17. Nd5 e6 18. c7 Rd7 19. Ne7+ Rxe7
+20. Bb4 Be4 21. Bf1 Bd4 22. Qxd4 Qxd4 23. Bxe7 Rc8 24. Bd8 Qxb2 25. Rd1
+Qxc2 26. Rd7 Qc1 27. Kg1 Qe3+ 28. Kh1 Qf2 29. h3 Qxf1+ 30. Kh2 Qxg2#
+{White checkmated} 0-1
+

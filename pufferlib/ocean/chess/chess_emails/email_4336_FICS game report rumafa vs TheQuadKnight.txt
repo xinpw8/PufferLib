@@ -1,0 +1,23 @@
+Subject: FICS game report rumafa vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "17:09:28"]
+[Round "-"]
+[White "rumafa"]
+[Black "TheQuadKnight"]
+[WhiteElo "1410"]
+[BlackElo "1319"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. e3 Nf6 4. f4 Ne4 5. Nf3 Nd7 6. Bd3 c5 7. O-O b6 8. Nbd2
+Bb7 9. Qc2 Nxd2 10. Bxd2 Be7 11. Bxh7 g6 12. Bxg6 fxg6 13. Qxg6+ Kf8 14. Qxe6
+Qe8 15. cxd5 Qh5 16. Qxd7 Rb8 17. h3 Rg8 18. Qc7 Kf7 19. Ng5+ Kf6 20. Qe5+
+Kg6 21. Qe4+ Kf6 22. Nh7+ Kf7 23. Qe6+ Ke8 24. Nf6+ Kd8 25. Nxh5 Ke8 26. Qxg8+
+Kd7 27. Qxb8
+{Black resigns} 1-0
+

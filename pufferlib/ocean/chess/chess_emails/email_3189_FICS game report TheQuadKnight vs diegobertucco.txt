@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs diegobertucco
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "20:54:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "diegobertucco"]
+[WhiteElo "1340"]
+[BlackElo "1527"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. a3 Bxc3+ 5. bxc3 dxe4 6. c4 Nf6 7. Bb2 Nbd7
+8. d5 e5 9. c5 Nxc5 10. Bxe5 O-O 11. d6 cxd6 12. Qxd6 Qa5+ 13. c3 Nd3+ 14. Bxd3
+exd3 15. Bxf6 gxf6 16. Qxd3 Re8+ 17. Ne2 Qe5 18. Ra2 Bf5 19. Qg3+ Qxg3 20. hxg3
+Bd3 21. Kd1 Rad8 22. Nd4 Bc4 23. Rb2 b5 24. a4 a6 25. axb5 axb5 26. Rd2
+Ra8 27. Nf5 Ra1+ 28. Kc2 Rxh1 29. Nd6 Ree1 30. Nf5 Rc1+ 31. Kb2 Rb1+ 32. Kc2
+Rhc1#
+{White checkmated} 0-1
+

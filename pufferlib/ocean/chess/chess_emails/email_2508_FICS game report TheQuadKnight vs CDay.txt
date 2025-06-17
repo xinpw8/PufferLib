@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs CDay
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.10"]
+[Time "21:43:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CDay"]
+[WhiteElo "1376"]
+[BlackElo "1651"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 g6 2. d4 Bg7 3. Nf3 c5 4. c3 cxd4 5. cxd4 d5 6. Bd3 dxe4 7. Bxe4 Nf6
+8. Bc2 O-O 9. O-O Bg4 10. Be3 Nc6 11. h3 Bxf3 12. Qxf3 Nxd4 13. Bxd4 Qxd4
+14. Qxb7 Rab8 15. Qxe7 Qxb2 16. Na3 Rfe8 17. Qc7 Qxa3 18. Bb3 Rf8 19. Rab1
+Rbc8 20. Bxf7+ Kh8 21. Qb7 Nh5 22. Rfd1 Rcd8 23. Rxd8 Rxd8 24. Qc7 Qd3 25. Rb8
+Qd1+ 26. Kh2 Bf6 27. Be6 Qd4 28. Rb7 Be5+
+{White resigns} 0-1
+

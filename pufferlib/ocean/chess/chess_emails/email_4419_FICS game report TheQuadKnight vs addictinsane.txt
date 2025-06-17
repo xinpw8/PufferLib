@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs addictinsane
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.06"]
+[Time "20:27:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "addictinsane"]
+[WhiteElo "1317"]
+[BlackElo "1351"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c6 3. Nc3 e6 4. Nf3 Nd7 5. e3 dxc4 6. Bxc4 b5 7. Bb3 Ngf6
+8. O-O Bb7 9. Bd2 a6 10. Rc1 Be7 11. Re1 O-O 12. Qc2 a5 13. a4 b4 14. Ne4
+Nxe4 15. Qxe4 Nf6 16. Qd3 c5 17. Rc2 Be4 18. Qc4 Bxc2 19. Bxc2 cxd4 20. Nxd4
+Rc8 21. Qb5 e5 22. Nc6 Rxc6 23. Qxc6 Qxd2 24. Rd1 Qxd1+ 25. Bxd1 Ne8 26. Qb5
+Nd6 27. Qxe5 Re8 28. Qxa5 Nc4 29. Qb5 Rc8 30. Bg4 Nd6 31. Qf1 f5 32. Bf3
+h6 33. Bd5+ Kh8 34. h3 Rd8 35. Be6 Bf6 36. Qd1 Bxb2 37. Qd5 Bc3 38. Bxf5
+b3 39. Qe6 b2 40. Bh7 b1=Q+ 41. Kh2 Kxh7 42. Qe4+ Qxe4 43. f3
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs paoloumali
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.09.22"]
+[Time "18:55:21"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "paoloumali"]
+[WhiteElo "1329"]
+[BlackElo "1142"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. Nf3 Bg4 3. e3 e6 4. h3 Bh5 5. g4 Bg6 6. Nh4 c5 7. Nxg6 fxg6
+8. dxc5 Bxc5 9. Bd2 Nf6 10. Nc3 Nc6 11. Be2 O-O 12. Bf3 Ne4 13. Nxe4 dxe4
+14. Bxe4 Ne5 15. Qe2 Rc8 16. O-O-O a5 17. Bc3 Qc7 18. Rhf1 Bb4 19. Bd4 Nc4
+20. a3 Nxa3 21. bxa3 Bxa3+ 22. Kb1 e5 23. Bd5+ Kh8 24. Bb2 Qb6 25. c4 Rfd8
+26. Ka2 Bc5 27. Bxe5 Qb4 28. Rd3 Qa4+ 29. Kb1 Qb4+ 30. Bb2 Be7 31. e4 a4
+32. Qe3 Ra8 33. Qd4 Bf6 34. e5 Be7 35. Ka2 a3 36. Rb3 Qxb3+ 37. Kxb3 Rxd5
+38. Qxd5 Rd8 39. Qb5 Bg5 40. Re1 Bh4
+{White forfeits on time} 0-1
+

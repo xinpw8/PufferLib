@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs kludwig
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "22:33:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "kludwig"]
+[WhiteElo "1473"]
+[BlackElo "1538"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Nc6 3. Nc3 dxc4 4. e3 e5 5. Nf3 Bg4 6. h3 Bxf3 7. Qxf3 exd4
+8. exd4 Nxd4 9. Qe4+ Be7 10. Be3 c5 11. Rd1 Nf6 12. Qb1 O-O 13. Bxc4 Re8
+14. O-O Bd6 15. Nb5 Bb8 16. Nxd4 cxd4 17. Bxd4 Qc7 18. g3 Qxc4 19. Bxf6
+gxf6 20. Rfe1 Rxe1+ 21. Rxe1 Be5 22. Re4 Qc5 23. b4 Qb6 24. Rg4+ Kf8 25. Qxh7
+Ke7 26. Rg7 Qe6 27. Qc2 Rc8 28. Qxc8 Qxc8 29. Rxf7+ Kxf7 30. h4 Qc2 31. Kg2
+Bd4 32. Kh3 Qxf2 33. Kg4 Be5 34. h5 Qxg3+ 35. Kf5 Qg5+ 36. Ke4
+{Black forfeits on time} 1-0
+

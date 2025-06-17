@@ -1,0 +1,20 @@
+Subject: FICS game report jhpwf vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.17"]
+[Time "09:42:37"]
+[Round "-"]
+[White "jhpwf"]
+[Black "TheQuadKnight"]
+[WhiteElo "636"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nh3 Nc6 3. Ng5 d6 4. f4 exf4 5. Bb5 Qxg5 6. h4 Qg3+ 7. Kf1 Be7
+8. Rh3 Qg6 9. Ba4 Bxh3 10. gxh3 Bxh4 11. b4 Qg3 12. b5 Qf2#
+{White checkmated} 0-1
+

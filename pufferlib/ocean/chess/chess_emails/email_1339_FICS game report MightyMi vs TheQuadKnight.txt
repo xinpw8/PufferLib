@@ -1,0 +1,22 @@
+Subject: FICS game report MightyMi vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.20"]
+[Time "09:00:45"]
+[Round "-"]
+[White "MightyMi"]
+[Black "TheQuadKnight"]
+[WhiteElo "983"]
+[BlackElo "1450"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. e3 Bf5 3. c4 e6 4. Nc3 c5 5. Qa4+ Nc6 6. cxd5 exd5 7. Bb5 Ne7
+8. Nf3 a6 9. Bxc6+ Nxc6 10. Ne5 Qc7 11. Nxd5 Qd6 12. Nb4 cxb4 13. Bd2 b5
+14. Qb3 Nxe5 15. dxe5 Qxe5 16. Bxb4 Bxb4+ 17. Qxb4 a5 18. Qd2 O-O 19. O-O
+Rfd8 20. Qe2 Bd3 21. Qe1
+{White resigns} 0-1
+

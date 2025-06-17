@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs sphinx
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.16"]
+[Time "18:51:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sphinx"]
+[WhiteElo "1363"]
+[BlackElo "1712"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 c5 3. e3 d5 4. Nf3 Nc6 5. Nc3 cxd4 6. exd4 g6 7. Bg5 Bg7
+8. Bxf6 Bxf6 9. Nxd5 Bg7 10. Be2 O-O 11. O-O e6 12. Nc3 Nxd4 13. Nxd4 Bxd4
+14. Qd3 Bg7 15. Rad1 Qa5 16. Rd2 e5 17. Bf3 Be6 18. Bd5 Bxd5 19. Nxd5 e4
+20. Qg3 Qxd2 21. Ne7+ Kh8 22. Qg4 Rae8 23. Nd5 f5 24. Qg5 b5 25. b3 bxc4
+26. bxc4 Qxg5
+{White resigns} 0-1
+

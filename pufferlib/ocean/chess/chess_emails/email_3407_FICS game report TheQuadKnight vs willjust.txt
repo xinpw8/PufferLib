@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs willjust
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "23:26:26"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "willjust"]
+[WhiteElo "1456"]
+[BlackElo "1611"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 e5 6. Nb3 Bb4 7. Bc4 Nxe4
+8. Bd2 Nxc3 9. Bxc3 Bxc3+ 10. bxc3 O-O 11. Qf3 d6 12. O-O Be6 13. Bb5 Qc7
+14. Nd2 a6 15. Ba4 b5 16. Bb3 Bxb3 17. cxb3 Rad8 18. Ne4 f5 19. Ng3 f4 20. Ne4
+d5 21. Ng5 Qe7 22. h4 h6 23. Nh3 Qxh4 24. Rad1 e4 25. Qe2 f3 26. Qe3 fxg2
+27. Kxg2 Rf6 28. Rh1 Rf3 29. Qe2 Rdf8 30. Rdf1 Ne5 31. Ng1 Qg4+ 32. Kh2
+R8f5 33. Qxf3 Nxf3+ 34. Nxf3 exf3 35. Rfg1 Rh5#
+{White checkmated} 0-1
+

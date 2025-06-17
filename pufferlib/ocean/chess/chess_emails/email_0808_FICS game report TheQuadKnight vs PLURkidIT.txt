@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs PLURkidIT
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.23"]
+[Time "08:40:30"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PLURkidIT"]
+[WhiteElo "1413"]
+[BlackElo "1569"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e5 3. e3 exd4 4. exd4 Be7 5. Nc3 O-O 6. Nf3 d5 7. Bd3 dxc4
+8. Bxc4 c6 9. O-O Bg4 10. Qd3 a5 11. Ne5 Be6 12. Bxe6 fxe6 13. Bg5 Nd5 14. Bxe7
+Qxe7 15. Ne4 Nd7 16. Nf3 e5 17. Rfe1 exd4 18. Neg5 Qf6 19. Qxh7#
+{Black checkmated} 1-0
+

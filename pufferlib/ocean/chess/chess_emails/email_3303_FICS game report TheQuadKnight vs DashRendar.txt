@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs DashRendar
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.24"]
+[Time "17:36:25"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "DashRendar"]
+[WhiteElo "1406"]
+[BlackElo "1530"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. c4 c5 3. Nc3 Nc6 4. Nf3 g6 5. g3 Bg7 6. Bg2 Nge7 7. d3 d6 8. O-O
+O-O 9. Bf4 a6 10. a3 Nd4 11. Nxd4 cxd4 12. Ne2 e5 13. Bd2 b5 14. cxb5 axb5
+15. Bb4 Nc6 16. Qb3 Nxb4 17. Qxb4 Qb6 18. f4 Ra4 19. Qb3 Be6 20. Qc2 Rc8
+21. Qd1 Qa6 22. f5 Bd7 23. f6 Bh6 24. h3 b4 25. axb4 Rxa1 26. Qxa1 Qxa1
+27. Rxa1 Be3+ 28. Kh2 h5 29. Ra7 Bb5 30. g4 Bxd3 31. Ng3 h4 32. Nf1 Bf4+
+33. Kg1 Rc1 34. Ra8+ Kh7 35. Rd8 Be3+ 36. Kh2 Bxf1 37. Bxf1 Rxf1 38. Rxd6
+Rf2+ 39. Kh1 Rxb2 40. Rb6 d3 41. Rb7 d2 42. Rxf7+ Kg8 43. Rg7+ Kf8 44. f7
+Kxg7 45. f8=Q+ Kxf8 46. b5 d1=Q#
+{White checkmated} 0-1
+

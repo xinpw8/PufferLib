@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs CannibalCorpse
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.07"]
+[Time "20:24:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CannibalCorpse"]
+[WhiteElo "1340"]
+[BlackElo "1626"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nf6 3. Nc3 Bb4 4. d3 d6 5. Bd2 O-O 6. Be2 Be6 7. O-O c6
+8. a3 Ba5 9. b4 Bb6 10. Na4 Bc7 11. c4 Nbd7 12. Ng5 Re8 13. Nxe6 fxe6 14. Qb3
+Nf8 15. Bg5 Ng6 16. Nc3 Nf4 17. Bd1 a5 18. Ne2 axb4 19. Nxf4 exf4 20. Bh5
+Rf8 21. axb4 Rxa1 22. Rxa1 e5 23. c5+ Kh8 24. cxd6 Qxd6 25. Be2 Bb6 26. g3
+fxg3 27. hxg3 c5 28. bxc5 Qxc5 29. Be3 Qxe3 30. fxe3 Bxe3+ 31. Kg2 b6 32. Qb4
+Nd7 33. Qe7 Rf2+ 34. Kh3 Nf6 35. Qf8+ Ng8 36. Qe8 Bc5 37. Ra8 Rf8 38. Qc6
+Rxa8 39. Qxa8 g6 40. Bg4 Kg7 41. Qb7+ Ne7 42. Be6 Kf6 43. Bd5 h5 44. Qb8
+Kg5 45. Qd8 Kf6 46. Qf8+ Kg5 47. Be6 Nf5 48. Bxf5 Bxf8 49. Bxg6 Kxg6 50. g4
+hxg4+ 51. Kxg4 Be7 52. Kf3 Kg5 53. Ke2 Bb4 54. Kd1 Kf4 55. Kc2 b5 56. Kb3
+Bc5 57. Kc2 Ke3 58. Kc3 Bd4+ 59. Kc2 b4 60. Kb3 Kxd3 61. Kxb4 Kxe4
+{White resigns} 0-1
+

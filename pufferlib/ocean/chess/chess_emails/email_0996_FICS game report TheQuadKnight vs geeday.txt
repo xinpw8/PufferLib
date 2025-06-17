@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs geeday
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.04"]
+[Time "12:19:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "geeday"]
+[WhiteElo "1442"]
+[BlackElo "1264"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. Nc3 d6 4. Bb5 Bd7 5. Bxc6 Bxc6 6. d4 cxd4 7. Nxd4
+e5 8. Nxc6 bxc6 9. O-O Nf6 10. f4 Qe7 11. Qd3 g6 12. Be3 Bh6 13. Rad1 Ng4
+14. Bc1 O-O 15. Qxd6 Qxd6 16. Rxd6 Bxf4 17. Bxf4 exf4 18. Rxf4 Ne3 19. Rxc6
+Nxc2 20. Nd5 Nb4
+{Black resigns} 1-0
+

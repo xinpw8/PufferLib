@@ -1,0 +1,29 @@
+Subject: FICS game report MagicWlady vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.16"]
+[Time "08:58:26"]
+[Round "-"]
+[White "MagicWlady"]
+[Black "TheQuadKnight"]
+[WhiteElo "1428"]
+[BlackElo "1433"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nf6 3. Nc3 Bc5 4. d3 O-O 5. h3 c6 6. Be3 Bxe3 7. fxe3 d5
+8. exd5 cxd5 9. Bb3 Nc6 10. Nf3 Qa5 11. O-O Re8 12. Nh4 Qc5 13. Qd2 d4 14. exd4
+Qxd4+ 15. Qf2 Qxf2+ 16. Rxf2 Nd4 17. Bc4 Bd7 18. Ne4 Be6 19. Nxf6+ gxf6
+20. Bxe6 Rxe6 21. c3 Nc6 22. Raf1 Kg7 23. Nf5+ Kg6 24. g4 h5 25. Kg2 Rg8
+26. Nh4+ Kh7 27. Rxf6 Rxf6 28. Rxf6 hxg4 29. Rxf7+ Kh8 30. Rxb7 gxh3+ 31. Kxh3
+Rg5 32. Rc7 Nd8 33. Rc8 Rg8 34. Ng6+ Kg7 35. Nxe5 Kf6 36. Ng4+ Ke7 37. Rc7+
+Kd6 38. Rxa7 Ne6 39. Kg3 Rf8 40. b4 Nf4 41. Ra6+ Kc7 42. Ra5 Nxd3 43. Rd5
+Nc1 44. a4 Na2 45. c4 Nxb4 46. Rc5+ Kb6 47. Rb5+ Kc6 48. Rxb4 Ra8 49. Ne5+
+Kc5 50. Rb5+ Kd4 51. a5 Re8 52. Rd5+ Kc3 53. a6 Rg8+ 54. Kf4 Ra8 55. Rd6
+Rf8+ 56. Ke4 Rh8 57. Kd5 Rh4 58. a7 Rd4+ 59. Kc5 Rxc4+ 60. Nxc4 Kb3 61. a8=Q
+Kc2 62. Qa3 Kb1 63. Rh6 Kc2 64. Rh2+ Kd1 65. Qa1#
+{Black checkmated} 1-0
+

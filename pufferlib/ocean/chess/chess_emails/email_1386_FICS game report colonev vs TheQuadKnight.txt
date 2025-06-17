@@ -1,0 +1,26 @@
+Subject: FICS game report colonev vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.16"]
+[Time "11:34:28"]
+[Round "-"]
+[White "colonev"]
+[Black "TheQuadKnight"]
+[WhiteElo "1549"]
+[BlackElo "1467"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nf6 3. Bc4 c6 4. f4 exf4 5. d4 d5 6. exd5 cxd5 7. Bd3 Bb4
+8. Nf3 Qe7+ 9. Ne5 Ne4 10. O-O Nxc3 11. bxc3 Bxc3 12. Rb1 Bxd4+ 13. Kh1
+Bxe5 14. Re1 Qd6 15. Qh5 Nc6 16. Bxf4 g6 17. Bxe5 Nxe5 18. Rxe5+ Kd8 19. Qh4+
+f6 20. Rxd5 Qxd5 21. Qxf6+ Kc7 22. Qxh8 b6 23. Qxh7+ Kb8 24. Qxg6 Qxa2 25. Qg3+
+Kb7 26. Be4+ Ka6 27. Qd3+ Ka5 28. Qc3+ Ka6 29. Qd4 Qxb1+ 30. Qg1 Qxg1+ 31. Kxg1
+Bb7 32. Bd3+ Ka5 33. g4 Rg8 34. h3 a6 35. Kf2 b5 36. Kg3 Kb4 37. h4 a5 38. g5
+a4 39. Kf4 a3 40. Bf5 a2 41. Be6 a1=Q 42. Bxg8 Qd4+ 43. Kg3 Qe3+ 44. Kg4
+Qf3#
+{White checkmated} 0-1
+

@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs mazit
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "00:07:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mazit"]
+[WhiteElo "1422"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 b6 2. Nf3 Bb7 3. Nc3 e6 4. e3 Nf6 5. Bb5 Be7 6. Bd2 O-O 7. O-O c6
+8. Bc4 d5 9. Bd3 c5 10. e4 c4 11. Be2 dxe4 12. Ne5 Qxd4 13. Bxc4 Qxe5 14. Re1
+Bd6 15. Nb5 Qxh2+ 16. Kf1 Qh1+ 17. Ke2 Qh5+ 18. Kf1 Qh4 19. Nxd6 Bd5 20. Bxd5
+exd5 21. Bb4 Nc6 22. Nf5 Qh1+ 23. Ke2 Qh5+ 24. f3 exf3+ 25. gxf3 Qxf5 26. Bxf8
+Rxf8 27. Qd3 Qf4 28. Rg1 Re8+ 29. Kf2 Ne4+ 30. Kf1 Ng3+ 31. Kf2 Re2+ 32. Qxe2
+Nxe2 33. Kxe2 Nd4+ 34. Kf2 Qxf3+ 35. Ke1 Nxc2+ 36. Kd2 Nd4 37. Rge1 Qf2+
+38. Kc3 h6 39. Re8+ Kh7 40. Rae1 Nb5+ 41. Kd3 Qxb2 42. R8e7 Qc3+ 43. Ke2
+Nd4+ 44. Kf2 Qf3+ 45. Kg1 Qg3+ 46. Kh1 Nf3 47. R1e3 Qh2#
+{White checkmated} 0-1
+

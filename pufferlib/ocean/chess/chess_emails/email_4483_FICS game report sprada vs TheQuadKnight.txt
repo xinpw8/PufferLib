@@ -1,0 +1,24 @@
+Subject: FICS game report sprada vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "08:27:45"]
+[Round "-"]
+[White "sprada"]
+[Black "TheQuadKnight"]
+[WhiteElo "1347"]
+[BlackElo "1234"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bc5 5. h3 d6 6. O-O Bd7 7. a3 h6 8. d3
+g5 9. Be3 g4 10. hxg4 Bxe3 11. fxe3 Bxg4 12. Qe1 Rg8 13. Qh4 Bxf3 14. Rxf3
+Qe7 15. Rxf6 Rg6 16. Rxg6 Qxh4 17. Rg8+ Ke7 18. Rxa8 h5 19. Nd5+ Kd7 20. Rf8
+Nd8 21. Rf1 c6 22. Nf6+ Ke7 23. Rh8 Qg5 24. Rf3 h4 25. d4 b5 26. Bb3 Qg6
+27. Rxh4 d5 28. Rg4 Qh6 29. exd5 cxd5 30. Nxd5+ Kf8 31. Nc7 Ne6 32. Rxf7+
+Kxf7
+{White forfeits on time} 0-1
+

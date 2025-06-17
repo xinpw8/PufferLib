@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs baisakhi
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "13:46:59"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "baisakhi"]
+[WhiteElo "1329"]
+[BlackElo "1576"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 d6 3. Nc3 g6 4. e3 Bg7 5. Nf3 O-O 6. Bd3 Nbd7 7. O-O c5
+8. Qc2 cxd4 9. exd4 Nb6 10. a3 Bd7 11. Bg5 Rc8 12. b3 h6 13. Bh4 Kh7 14. Rfe1
+e6 15. Ne4 d5 16. Nxf6+ Bxf6 17. Re2 Bxh4 18. Ne5 Bf6 19. Bxg6+ Kg7 20. Bh7
+Bxe5 21. Rxe5 f5 22. cxd5 Rxc2 23. dxe6 Qc7 24. Bxf5 Rc1+ 25. Re1 Rxe1+
+26. Rxe1 Be8 27. Bg4 Bg6 28. g3 Re8 29. f4 Qd6 30. f5 Qxd4+ 31. Kh1 Qxg4
+32. h3 Qxh3+ 33. Kg1 Bxf5 34. e7 Qxg3+ 35. Kf1 Bd3+
+{White forfeits on time} 0-1
+

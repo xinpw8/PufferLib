@@ -1,0 +1,29 @@
+Subject: FICS game report gehlenh vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.19"]
+[Time "10:46:05"]
+[Round "-"]
+[White "gehlenh"]
+[Black "TheQuadKnight"]
+[WhiteElo "1488"]
+[BlackElo "1434"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. f4 d5 2. Nf3 Nc6 3. e3 Bg4 4. Bb5 a6 5. Bxc6+ bxc6 6. h3 Bxf3 7. Qxf3
+Nf6 8. Nc3 Qd6 9. d3 e5 10. O-O Be7 11. fxe5 Qxe5 12. e4 O-O 13. Bf4 Qd4+
+14. Be3 Qe5 15. d4 Qh5 16. e5 Qxf3 17. Rxf3 Ne4 18. Nxe4 dxe4 19. Rf4 f5
+20. exf6 Bxf6 21. Rxe4 Rae8 22. Rxe8 Rxe8 23. Bf2 Re2 24. Re1 Rxc2 25. Rb1
+c5 26. dxc5 Bxb2 27. Rd1 Ba3 28. Rd8+ Kf7 29. Rd7+ Kg6 30. Rxc7 Rxa2 31. Bd4
+Bb2 32. Rxg7+ Kh6 33. Rd7 Ra1+ 34. Kh2 Bxd4 35. Rxd4 Rc1 36. Rd5 Kg6 37. Rd6+
+Kf5 38. c6 Ke5 39. Rd7 Rxc6 40. Rxh7 a5 41. Ra7 Rc5 42. g4 Kf4 43. Rf7+
+Kg5 44. Kg3 a4 45. h4+ Kg6 46. Ra7 Rc3+ 47. Kf4 a3 48. h5+ Kf6 49. g5+ Ke6
+50. h6 Rc4+ 51. Kg3 Rc3+ 52. Kh4 Rc4+ 53. Kh5 Rc3 54. h7 Rh3+ 55. Kg6 Ke5
+56. Ra8 Kf4 57. h8=Q Rg3 58. Qd4+ Kf3 59. Rxa3+ Kg2 60. Qd2+ Kh3 61. Rxg3+
+Kxg3 62. Qe3+ Kg4
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

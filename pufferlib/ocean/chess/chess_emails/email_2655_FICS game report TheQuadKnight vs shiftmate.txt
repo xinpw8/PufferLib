@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs shiftmate
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.05"]
+[Time "21:45:01"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "shiftmate"]
+[WhiteElo "1361"]
+[BlackElo "1377"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 c6 4. e3 b5 5. a4 Bd7 6. axb5 cxb5 7. Nf3 e6
+8. Ne5 Nf6 9. Nxd7 Qxd7 10. b3 b4 11. Nb1 c3 12. Qf3 Nd5 13. e4 Nc7 14. Be3
+Be7 15. Bd3 O-O 16. Qg3 Kh8 17. Qh3 g6 18. Bh6 Rg8 19. e5 Qxd4 20. O-O Nd5
+21. Qf3 f5 22. exf6 Bxf6 23. Rd1 Qe5 24. Qh3 Nc7 25. Ra4 a5 26. Kf1 Nc6
+27. Re1 Qd4 28. Re4 Qd5 29. Rg4 Ne5 30. Nxc3 bxc3 31. Bxg6
+{White resigns} 0-1
+

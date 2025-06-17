@@ -1,0 +1,21 @@
+Subject: FICS game report justinmeek vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.08.05"]
+[Time "20:04:13"]
+[Round "-"]
+[White "justinmeek"]
+[Black "TheQuadKnight"]
+[WhiteElo "1532"]
+[BlackElo "1368"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. c3 dxc3 5. Bc4 Na5 6. Bd3 cxb2 7. Bxb2
+Bb4+ 8. Nbd2 Nc6 9. O-O Nf6 10. e5 Ng4 11. Qb3 O-O 12. Ne4 Nh6 13. Nf6+
+gxf6 14. exf6 Ng4 15. Qd5 Kh8 16. Qh5 h6 17. Qf5 Nxf6 18. Qh7#
+{Black checkmated} 1-0
+

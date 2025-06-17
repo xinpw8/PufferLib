@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Someones
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.20"]
+[Time "19:23:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Someones"]
+[WhiteElo "1289"]
+[BlackElo "1508"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 f5 4. Bxc6 dxc6 5. Nxe5 Nf6 6. exf5 Bc5 7. O-O
+O-O 8. Re1 Bxf5 9. Nc3 Re8 10. d3 Qd4 11. Qe2 Bd6 12. Bf4 Nd7 13. Qh5 Bxe5
+14. Qxf5 Qxf4 15. Qxf4 Bxf4 16. Re4 Rxe4 17. Nxe4 Nf6 18. Nxf6+ gxf6 19. Re1
+Kf8 20. Re4 Bd6 21. Rh4 Kg7 22. Rg4+ Kf7 23. Rh4 Rh8 24. f4 h5 25. Kf2 f5
+26. Kf3 Kf6 27. h3 Be7 28. g4 Kg6 29. g5 Re8 30. Kg2 Bc5 31. c4 Be3 32. Kf3
+Bd2 33. Kg2 Be1
+{White forfeits on time} 0-1
+

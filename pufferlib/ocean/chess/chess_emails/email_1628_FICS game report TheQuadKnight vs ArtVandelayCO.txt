@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs ArtVandelayCO
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.03"]
+[Time "15:01:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ArtVandelayCO"]
+[WhiteElo "1414"]
+[BlackElo "1539"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nf6 3. Bc4 Nc6 4. O-O Bc5 5. Re1 d6 6. c3 Bg4 7. h3 Bh5
+8. g4 Bg6 9. d4 exd4 10. cxd4 Bb6 11. Nc3 O-O 12. Bf4 Qd7 13. a3 Rfe8 14. Ng5
+h6 15. Bxf7+ Bxf7 16. Nxf7 Qxf7 17. g5 hxg5 18. Bxg5 Nxd4 19. Bxf6 Qxf6
+20. Nd5 Qg6+ 21. Kf1 Rxe4 22. Nxb6 axb6 23. Rc1 c5 24. b4 Rae8 25. Rxe4
+Qxe4 26. bxc5 Qh1#
+{White checkmated} 0-1
+

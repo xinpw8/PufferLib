@@ -1,0 +1,24 @@
+Subject: FICS game report CanSicilian vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.02"]
+[Time "19:54:05"]
+[Round "-"]
+[White "CanSicilian"]
+[Black "TheQuadKnight"]
+[WhiteElo "1488"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O d6 7. c3 Be7 8. h3
+O-O 9. d4 Bb7 10. a4 exd4 11. cxd4 Na5 12. Bc2 Bxe4 13. Bxe4 Nxe4 14. Qd3
+d5 15. Ne5 Bf6 16. b4 Nb7 17. axb5 axb5 18. Rxa8 Qxa8 19. f3 Ned6 20. Ng4
+Qd8 21. Nc3 c6 22. Ne2 Nc4 23. Nf4 h6 24. Nh5 Bg5 25. f4 Bh4 26. g3 Be7
+27. f5 Nbd6 28. f6 Bxf6 29. Ngxf6+ gxf6 30. Nxf6+ Kg7 31. Nh5+ Kg8 32. Bxh6
+Ne4 33. Qf3 Qd7 34. Nf6+ Nxf6 35. Qxf6
+{Black resigns} 1-0
+

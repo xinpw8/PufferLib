@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs Linkslover
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.22"]
+[Time "16:29:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Linkslover"]
+[WhiteElo "1364"]
+[BlackElo "1417"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e5 2. dxe5 Nc6 3. Nf3 Qe7 4. Qd5 f6 5. Bf4 fxe5 6. Bxe5 Nxe5 7. Nxe5
+Nf6 8. Qd4 c5 9. Qc3 d6 10. Nf3 Nd5 11. Qd3 Be6 12. Nc3 Nf4 13. Qd2 Qf7
+14. Ng5 Qf5 15. Nxe6 Nxe6 16. e4 Qf6 17. Bb5+ Kf7 18. O-O-O a6 19. Bc4
+{Black forfeits by disconnection} 1-0
+

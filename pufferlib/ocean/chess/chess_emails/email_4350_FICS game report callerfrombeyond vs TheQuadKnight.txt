@@ -1,0 +1,29 @@
+Subject: FICS game report callerfrombeyond vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "13:29:29"]
+[Round "-"]
+[White "callerfrombeyond"]
+[Black "TheQuadKnight"]
+[WhiteElo "1593"]
+[BlackElo "1334"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. Nf3 c5 3. g3 e6 4. Bg2 Nc6 5. O-O cxd4 6. Nxd4 Nxd4 7. Qxd4
+Nf6 8. Bg5 Be7 9. Rd1 O-O 10. c4 e5 11. Qxe5 Nd7 12. Qxe7 Qxe7 13. Bxe7
+Re8 14. Ba3 dxc4 15. Bxb7 Bxb7 16. Re1 Nb6 17. Nc3 Rad8 18. e3 Nd5 19. Nxd5
+Bxd5 20. Rad1 c3 21. bxc3 Bxa2 22. Rxd8 Rxd8 23. Ra1 Bc4 24. Bc5 a6 25. Bd4
+Rc8 26. f4 Bb5 27. e4 f6 28. e5 fxe5 29. fxe5 Re8 30. Kf2 Re6 31. Ke3 Kf7
+32. Ke4 Ke7 33. Kd5 Kd7 34. c4 Bc6+ 35. Kc5 Bb7 36. Rb1 Rc6+ 37. Kb4 Ke6
+38. c5 Rc7 39. Kc4 Bd5+ 40. Kb4 Rb7+ 41. Ka5 Rxb1 42. Kxa6 Ra1+ 43. Kb6
+Rb1+ 44. Kc7 Rc1 45. Be3 Rc2 46. h4 Rc3 47. Bf4 h6 48. Kd8 g5 49. hxg5 hxg5
+50. Bxg5 Rxg3 51. Bf6 Rf3 52. Kc7 Re3 53. Kb6 Rc3 54. Bg7 Rc4 55. Bf6 Re4
+56. c6 Rc4 57. c7 Ba8 58. Ka7 Bd5 59. Kb6 Ba8 60. Ka7 Bd5 61. Kb6 Ba8 62. Kb5
+Bd5 63. Bd8 Kxe5 64. Kb6 Rxc7 65. Bxc7+
+{Neither player has mating material} 1/2-1/2
+

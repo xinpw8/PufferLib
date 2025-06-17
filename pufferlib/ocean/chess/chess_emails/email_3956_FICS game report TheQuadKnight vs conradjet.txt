@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs conradjet
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "15:57:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "conradjet"]
+[WhiteElo "1428"]
+[BlackElo "1435"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. d3 dxe4 3. Nc3 exd3 4. Bxd3 Nf6 5. Nf3 e6 6. Bg5 Be7 7. Qd2
+Bd7 8. Ne4 Nxe4 9. Bxe7 Nxd2 10. Bxd8 Nxf3+ 11. gxf3 Kxd8 12. Rd1 Ke7 13. Be4
+Bc6 14. O-O Bxe4 15. fxe4 Nc6 16. f3 Rad8 17. Rde1 Nd4 18. c3 Nc6 19. b4
+Rd3 20. b5 Ne5 21. Kg2 Rxc3 22. f4 Rc2+ 23. Rf2 Rxf2+ 24. Kxf2 Nd3+ 25. Ke2
+Nxe1 26. Kxe1 Rd8 27. Ke2 Rd4 28. Ke3 Rb4 29. a4 Rxa4 30. b6
+{White resigns} 0-1
+

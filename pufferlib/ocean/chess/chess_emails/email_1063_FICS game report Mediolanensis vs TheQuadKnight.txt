@@ -1,0 +1,30 @@
+Subject: FICS game report Mediolanensis vs TheQuadKnight
+
+
+[Event "FICS rated wild/fr game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.24"]
+[Time "08:19:24"]
+[Round "-"]
+[White "Mediolanensis"]
+[Black "TheQuadKnight"]
+[WhiteElo "1938"]
+[BlackElo "1502"]
+[TimeControl "120+2"]
+[FEN "rkqnrbbn/pppppppp/8/8/8/8/PPPPPPPP/RKQNRBBN w KQkq - 0 1"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. f3 f6 2. e4 e5 3. Bf2 Bf7 4. Ne3 Ng6 5. g3 Ne6 6. Bh3 Ne7 7. c3 Rd8 8. Qc2
+g6 9. a4 f5 10. exf5 gxf5 11. Nxf5 Bg6 12. O-O Ng5 13. Nxe7 Nxh3+ 14. Kg2
+Nf4+ 15. gxf4 Bxc2 16. Nxc8 Kxc8 17. fxe5 Be7 18. Ng3 Rg8 19. Kh1 b6 20. Rfc1
+Bd3 21. b4 Kb7 22. a5 Raf8 23. axb6 cxb6 24. Re1 Rxf3 25. Be3 Rg4 26. Rg1
+Rh4 27. Rg2 Bb5 28. Kg1 Bc6 29. Rf1 Rxf1+ 30. Nxf1 Bxg2 31. Kxg2 Rg4+ 32. Ng3
+h5 33. Kf3 Rg8 34. Nxh5 Rh8 35. Nf6 Rxh2 36. Nxd7 Kc7 37. Nf6 Kd8 38. Ke4
+Bf8 39. Kd5 Ke7 40. Ne4 Bg7 41. Nd6 Rh5 42. Nc8+ Kd7 43. Nxa7 Rxe5+ 44. Kc4
+b5+ 45. Nxb5 Kc6 46. Nd4+ Kd6 47. Kd3 Rd5 48. Ke4 Rh5 49. Nf5+ Kd7 50. Nxg7
+Rh1 51. Nf5 Rh8 52. Nd4 Re8+ 53. Kd5 Rc8 54. b5 Rb8 55. c4 Kc7 56. Nc6 Rb7
+57. Bf4+ Kd7 58. Kc5 Ke6 59. b6 Kf5 60. Bd6 Ke4 61. Kb5 Kd3 62. c5 Kxd2
+63. Ne5 Kc3 64. c6 Rh7 65. b7 Rxb7+ 66. cxb7 Kd4 67. b8=Q Kd5 68. Qb7+
+{Black resigns} 1-0
+

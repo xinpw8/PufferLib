@@ -1,0 +1,23 @@
+Subject: FICS game report Jackske vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.28"]
+[Time "08:23:20"]
+[Round "-"]
+[White "Jackske"]
+[Black "TheQuadKnight"]
+[WhiteElo "1541"]
+[BlackElo "1411"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O d6 5. h3 Nf6 6. Re1 O-O 7. c3 Qe7
+8. d4 exd4 9. cxd4 Bb6 10. Bg5 Be6 11. d5 Na5 12. Bf1 Bd7 13. b4 h6 14. Bh4
+g5 15. Bg3 Rfe8 16. bxa5 Bxa5 17. Nbd2 Nh5 18. Bh2 Nf4 19. Bxf4 gxf4 20. e5
+Bf5 21. exd6 Qxd6 22. Qa4 Rxe1 23. Rxe1 Bb6 24. Nc4 Qc5 25. Nxb6 Qxb6 26. Qxf4
+Qg6 27. Nh4
+{Black resigns} 1-0
+

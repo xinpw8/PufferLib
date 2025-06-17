@@ -1,0 +1,26 @@
+Subject: FICS game report rraavvii vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "15:55:21"]
+[Round "-"]
+[White "rraavvii"]
+[Black "TheQuadKnight"]
+[WhiteElo "1298"]
+[BlackElo "1392"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. O-O gxf3 6. Qxf3 Qg5 7. d4 Nf6
+8. Bxf4 Qg4 9. Be5 Qxf3 10. Rxf3 Nxe4 11. Bxf7+ Ke7 12. Bxh8 Ng5 13. Bf6+
+Kxf7 14. Bxg5+ Ke8 15. Re3+ Kf7 16. Nd2 Nc6 17. Rf1+ Kg6 18. Rxf8 Kxg5 19. Ree8
+Nxd4 20. Rxc8 Rxc8 21. Rxc8 Nxc2 22. Rxc7 Nb4 23. Rxb7 Nxa2 24. Rxd7 Nc1
+25. Rxa7 Ne2+ 26. Kf2 Nf4 27. Rxh7 Nd3+ 28. Ke3 Nxb2 29. Ne4+ Kf5 30. Rf7+
+Ke6 31. Rf6+ Ke5 32. Rf3 Nc4+ 33. Kd3 Nb2+ 34. Kc3 Nd1+ 35. Kd2 Nb2 36. Nc3
+Nc4+ 37. Kc2 Na3+ 38. Kb3 Nb1 39. Nxb1 Ke4 40. h4 Ke5 41. h5 Ke6 42. h6
+Ke5 43. h7 Ke4 44. h8=Q Kd5 45. Qe8 Kd4 46. Qe6 Kc5
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

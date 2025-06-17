@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs purplewizard
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.25"]
+[Time "14:37:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "purplewizard"]
+[WhiteElo "1368"]
+[BlackElo "1584"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Nf3 c6 6. Bg5 Be7 7. e3 O-O
+8. Bd3 h6 9. h4 Bg4 10. Bf4 Nbd7 11. Be2 Re8 12. Ne5 Nxe5 13. Bxe5 Bxe2
+14. Qxe2 Nd7 15. Bf4 Nb6 16. Qg4 Kh8 17. Be5 Bf6 18. Bf4 Qd7 19. Qf3 Nc4
+20. g4 Nxb2 21. g5 Nd3+ 22. Ke2 Nxf4+ 23. Qxf4 Be7 24. gxh6 Bd6 25. hxg7+
+Kg8 26. Qh6 Qg4+ 27. Kf1 f5 28. Qh8+ Kf7 29. Qh7 Qxg7 30. Qxg7+ Kxg7 31. Rg1+
+Kf6 32. Ne2 Rh8 33. Rh1 Rag8 34. Rh3 Rg4 35. h5 Rg5 36. Ng3 Bxg3 37. fxg3
+Rgxh5 38. Rxh5 Rxh5 39. Ke2 Rh2+ 40. Kf3 Rb2 41. a4 Kg5 42. Rg1 Ra2 43. a5
+Rxa5 44. Rg2 Ra3 45. Rg1 c5 46. dxc5 Rc3 47. Rd1 Rxc5 48. Rd4 Kf6 49. Kf4
+Ke6 50. g4 Rc4 51. Rxc4 dxc4 52. gxf5+ Kd6 53. e4 c3 54. f6 c2 55. f7 c1=Q+
+56. Kf5 Qf1+ 57. Kg6 Qg2+ 58. Kh7 Qf3 59. Kg8 Ke7 60. f8=Q+ Qxf8+ 61. Kh7
+Kf6 62. e5+ Kxe5 63. Kg6 Qf6+ 64. Kh5 Kf5
+{Game drawn by stalemate} 1/2-1/2
+

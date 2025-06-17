@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs artbkv
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.10"]
+[Time "12:37:26"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "artbkv"]
+[WhiteElo "1378"]
+[BlackElo "1442"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 e6 5. O-O Bd6 6. d3 O-O 7. Bg5 h6
+8. Bh4 Be7 9. Re1 Ng4 10. Bxe7 Qxe7 11. h3 Nge5 12. Nxe5 Nxe5 13. Bb3 Qg5
+14. Ne2 Nf3+ 15. Kh1 Nxe1 16. Qxe1 d5 17. exd5 exd5 18. Ng3 b6 19. Qe2 Bb7
+20. Re1 a5 21. a4 h5 22. Nxh5 d4 23. Ng3 Bd5 24. Bxd5 Qxd5 25. Ne4 Qc6 26. b3
+Rae8 27. Qg4 f5 28. Qh5 fxe4 29. Rxe4 Rxe4 30. dxe4 Qxe4 31. Qg5 Rxf2 32. Qd8+
+Rf8 33. Qg5 Qxc2 34. Qd5+ Kh8 35. Qh5+ Qh7 36. Qd5 Qh6 37. Qe5 Rf1+ 38. Kh2
+Qf4+ 39. Qxf4 Rxf4 40. Kg3 g5 41. h4 Rxh4 42. Kf3 Kg7 43. g4 Rh3+ 44. Kg2
+Rxb3 45. Kf2 Kf6 46. Ke2 Ke5 47. Kd2 Kf4 48. Kc2 Rc3+ 49. Kd2 c4 50. Ke2
+d3+ 51. Kd2 Rc2+ 52. Kd1 c3 53. Ke1 d2+ 54. Kd1 Rc1+ 55. Ke2 d1=Q+ 56. Kf2
+Qf3#
+{White checkmated} 0-1
+

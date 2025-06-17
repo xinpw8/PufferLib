@@ -1,0 +1,27 @@
+Subject: FICS game report Strix vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "12:22:04"]
+[Round "-"]
+[White "Strix"]
+[Black "TheQuadKnight"]
+[WhiteElo "1471"]
+[BlackElo "1297"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 e6 5. a3 Bc5 6. Be3 d5 7. Nxc6 Qb6
+8. Bxc5 Qxc5 9. exd5 exd5 10. Nd4 Nf6 11. Nc3 Bd7 12. Bb5 Bxb5 13. Ndxb5
+O-O 14. O-O d4 15. Qxd4 Qxd4 16. Nxd4 Rad8 17. Rad1 a6 18. Rfe1 Ng4 19. h3
+Nf6 20. Nf5 Rxd1 21. Rxd1 g6 22. Ne7+ Kg7 23. Ncd5 Re8 24. Nxf6 Rxe7 25. Ng4
+h5 26. Ne3 f5 27. Rd3 f4 28. Nd5 Rd7 29. f3 Kf7 30. Nxf4 Rxd3 31. Nxd3 Ke6
+32. Kf2 Kd5 33. Ke3 g5 34. b3 b5 35. f4 g4 36. hxg4 hxg4 37. g3 a5 38. Ne5
+a4 39. Nxg4 axb3 40. cxb3 b4 41. axb4 Kc6 42. Ke4 Kb5 43. f5 Kxb4 44. f6
+Kxb3 45. f7 Kc3 46. f8=Q Kd2 47. Qf3 Kc2 48. Kd4 Kb2 49. Kc4 Kc1 50. Qf2
+Kd1 51. Kd3 Kc1 52. Qc2#
+{Black checkmated} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs abhishekparab
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.26"]
+[Time "09:35:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "abhishekparab"]
+[WhiteElo "1402"]
+[BlackElo "1467"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 g6 3. d4 cxd4 4. Nxd4 Bg7 5. Nc3 Qb6 6. Be3 Qxb2 7. Na4
+Qb4+ 8. c3 Qa5 9. Rb1 Nf6 10. Rb5 Qc7 11. Rc5 Qd8 12. Nb5 Nc6 13. Bf4 d6
+14. e5 Ne4 15. exd6 Nxc5 16. Nxc5 O-O 17. Nc7 Bxc3+ 18. Bd2 exd6 19. Nxa8
+Re8+ 20. Be2 Bxd2+ 21. Qxd2 Bg4 22. f3 dxc5 23. Qxd8 Rxd8 24. Nc7 Be6 25. g4
+Nd4 26. h4 Nxf3+ 27. Bxf3 Bxa2 28. Bxb7 Bb3 29. Nb5 Rd1+
+{White forfeits on time} 0-1
+

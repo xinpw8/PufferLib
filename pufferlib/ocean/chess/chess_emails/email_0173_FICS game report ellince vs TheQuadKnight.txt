@@ -1,0 +1,23 @@
+Subject: FICS game report ellince vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.25"]
+[Time "18:03:41"]
+[Round "-"]
+[White "ellince"]
+[Black "TheQuadKnight"]
+[WhiteElo "1427"]
+[BlackElo "1386"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Nc6 4. Bc4 Bc5 5. d4 Bb6 6. Bxf4 d6 7. O-O Nf6
+8. Nc3 Bg4 9. Be3 Qe7 10. Kh1 O-O-O 11. Qd3 Rde8 12. Bg5 h6 13. Bxf6 Qxf6
+14. Ne5 Qh4 15. Nxf7 Rhf8 16. Rf4 Qh5 17. Raf1 Bxd4 18. Nxd6+ cxd6 19. Rxf8
+Rxf8 20. Rxf8+ Kd7 21. Bb5 Bf6 22. Nd5 a6 23. Nxf6+ gxf6 24. Bxc6+ Kxc6
+25. Rxf6 Be2 26. Qxd6+ Kb5 27. a4+ Kxa4 28. Qd4+
+{Black forfeits on time} 1-0
+

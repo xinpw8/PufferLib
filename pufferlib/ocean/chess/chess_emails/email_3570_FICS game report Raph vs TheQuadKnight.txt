@@ -1,0 +1,26 @@
+Subject: FICS game report Raph vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.25"]
+[Time "16:05:59"]
+[Round "-"]
+[White "Raph"]
+[Black "TheQuadKnight"]
+[WhiteElo "1752"]
+[BlackElo "1392"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. d4 exd4 6. Qxd4 Qxd4 7. Nxd4
+Bc5 8. c3 Nf6 9. O-O O-O 10. Nd2 Bg4 11. f3 Bh5 12. Nb3 Bb6 13. Bg5 Nd7
+14. h4 c5 15. Nf5 c4+ 16. Nbd4 Bxd4+ 17. Nxd4 c5 18. Nf5 f6 19. Be3 b6 20. g4
+Bf7 21. Rad1 Ne5 22. Bf4 Nd3 23. Bc7 b5 24. b3 Rac8 25. bxc4 bxc4 26. Ne7+
+Kh8 27. Nxc8 Nb2 28. Nd6 Kg8 29. Nxf7 Nxd1 30. Nd6 Ne3 31. Re1 Nc2 32. Rc1
+Ne3 33. Nf5 Nxf5 34. gxf5 Rc8 35. Bd6 Rc6 36. Be7 Kf7 37. Bxc5 Rxc5 38. Kf2
+a5 39. Ke3 Ke7 40. Kd4 Kd6 41. Rb1 Kc6 42. Rb8 g6 43. Rc8+ Kd6 44. Rxc5
+gxf5 45. exf5 a4 46. Rxc4 a3 47. Ra4 h5 48. Ra6+ Ke7 49. Kd5
+{Black resigns} 1-0
+

@@ -1,0 +1,26 @@
+Subject: FICS game report sraffa vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.12"]
+[Time "21:22:37"]
+[Round "-"]
+[White "sraffa"]
+[Black "TheQuadKnight"]
+[WhiteElo "1167"]
+[BlackElo "1398"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. b4 d5 2. Bb2 Nf6 3. Nf3 Nc6 4. b5 Nb4 5. a3 e5 6. axb4 e4 7. Nd4 Bxb4
+8. Ba3 Ba5 9. e3 Bg4 10. Be2 Bxe2 11. Qxe2 c6 12. Bb2 Bb6 13. bxc6 Bxd4
+14. Bxd4 bxc6 15. c4 O-O 16. cxd5 cxd5 17. O-O a5 18. Nc3 Re8 19. Bxf6 Qxf6
+20. Nxd5 Qd6 21. Nc3 Rad8 22. Rxa5 Qxd2 23. Qxd2 Rxd2 24. Rd1 Rxd1+ 25. Nxd1
+Rd8 26. Nc3 Rc8 27. Ra3 f5 28. h3 g6 29. Nd5 Rc1+ 30. Kh2 Rc2 31. Ra8+ Kg7
+32. Ra7+ Kg8 33. Kg3 h6 34. Nf6+ Kf8 35. Rd7 g5 36. Rd8+ Kf7 37. Nh5 Kg6
+38. h4 Kxh5 39. hxg5 hxg5 40. Rh8+ Kg6 41. Rg8+ Kf6 42. Rf8+ Ke5 43. Re8+
+Kf6 44. Rf8+ Ke7 45. Rxf5 Rc6 46. Rxg5 Rf6 47. Rg7+ Ke6
+{White forfeits on time} 0-1
+

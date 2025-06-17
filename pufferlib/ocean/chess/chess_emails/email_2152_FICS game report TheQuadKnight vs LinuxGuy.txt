@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs LinuxGuy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "09:20:01"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "LinuxGuy"]
+[WhiteElo "1381"]
+[BlackElo "1423"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. d4 d5 3. exd5 Qxd5 4. Nc3 Qd8 5. Nf3 b6 6. Bb5+ c6 7. Bc4 Bb7
+8. O-O Nd7 9. Bf4 Ngf6 10. Bg5 Be7 11. Ne5 Nd5 12. Bxe7 Qxe7 13. Re1 N7f6
+14. Bd3 O-O 15. Ne4 Rac8 16. Qf3 Nxe4 17. Qxe4 Nf6 18. Qh4 c5 19. Ng4 h6
+20. Nxf6+ Qxf6 21. Qxf6 gxf6 22. dxc5 bxc5 23. c3 Rfd8 24. Rad1 c4 25. Bc2
+Bd5 26. f3 Rb8 27. Rb1 a5 28. b3 cxb3 29. axb3 Rdc8 30. c4 Bc6 31. Be4 Bxe4
+32. Rxe4 Rd8 33. Ree1 Rd3 34. Rec1 Rbxb3 35. Rxb3 Rxb3 36. c5 Rb8 37. c6
+Rc8 38. Kf2 a4 39. Rc3 a3 40. Rxa3 Rxc6 41. g4 Kg7 42. h4 Rc5 43. h5 f5
+44. Ra4 fxg4 45. fxg4 Rg5 46. Kf3 Kf6 47. Rf4+ Ke7 48. Rd4 Rd5 49. Rf4 f6
+50. Ke3 Ra5 51. Rb4 Ra3+ 52. Kf4 e5+ 53. Kf5 Ra6 54. Rb7+ Kd6 55. Rh7 Ra4
+56. Rxh6 e4 57. Rxf6+ Kd5 58. Rd6+ Kc4 59. g5
+{Black forfeits on time} 1-0
+

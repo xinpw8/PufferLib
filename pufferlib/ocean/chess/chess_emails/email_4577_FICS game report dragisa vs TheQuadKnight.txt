@@ -1,0 +1,26 @@
+Subject: FICS game report dragisa vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "11:00:59"]
+[Round "-"]
+[White "dragisa"]
+[Black "TheQuadKnight"]
+[WhiteElo "1296"]
+[BlackElo "1263"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 dxc4 3. e3 b5 4. a4 c6 5. axb5 cxb5 6. Qf3 e5 7. Qxa8 Nd7
+8. Qxa7 exd4 9. Qxd4 Bc5 10. Qxg7 Ndf6 11. Qxh8 Bf5 12. Nc3 b4 13. Nce2
+Bc2 14. Bd2 c3 15. bxc3 b3 16. Nd4 b2 17. Rc1 bxc1=Q+ 18. Bxc1 Bxd4 19. exd4
+Qe7+ 20. Be2 Bd3 21. Kd2 Ne4+ 22. Kxd3 Nxf2+ 23. Kd2 Qg5+ 24. Ke1 Qxg2 25. Qxg8+
+Qxg8 26. Kxf2 Ke7 27. Nf3 f6 28. Rg1 Qxg1+ 29. Kxg1 h6 30. Kf2 Kf7 31. Ke3
+Kf8 32. Kf4 Kf7 33. Kf5 Kg7 34. Bd3 Kf7 35. Bxh6 Ke7 36. Nh4 Kd7 37. Kxf6
+Kc7 38. Ke5 Kc6 39. d5+ Kc7 40. d6+ Kd7 41. Kd5 Kd8 42. c4 Kd7 43. c5 Kd8
+44. c6 Ke8 45. c7 Kf7
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

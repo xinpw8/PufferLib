@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs nimnim
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "22:31:57"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "nimnim"]
+[WhiteElo "1380"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 b6 2. Nf3 Bb7 3. c4 e6 4. Nc3 c5 5. e3 cxd4 6. Nxd4 Nf6 7. Qc2 Be7
+8. e4 Nc6 9. Bf4 Nxd4 10. Qd3 Bc5 11. Bg5 Nc6 12. Be2 Be7 13. Bf3 O-O 14. e5
+Ne8 15. Bxc6 Bxc6 16. Bxe7 Qxe7 17. O-O d6 18. Rfe1 dxe5 19. Rxe5 Nf6 20. Rd1
+Rad8 21. Qe2 Rxd1+ 22. Qxd1 Nd7 23. Re1 Nc5 24. Qc2 Qg5 25. f3 Bxf3 26. b4
+Nd7 27. Ne4 Bxe4 28. Qxe4 Nf6 29. Qb7 Qd2 30. Ra1 Qd4+ 31. Kf1 Qxa1+ 32. Ke2
+Qxa2+ 33. Kf3 Qxc4 34. Qxa7 Qxb4
+{White resigns} 0-1
+

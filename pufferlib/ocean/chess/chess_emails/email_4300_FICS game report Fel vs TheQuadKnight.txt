@@ -1,0 +1,31 @@
+Subject: FICS game report Fel vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.12"]
+[Time "17:50:22"]
+[Round "-"]
+[White "Fel"]
+[Black "TheQuadKnight"]
+[WhiteElo "1546"]
+[BlackElo "1341"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 c5 3. Nf3 Nf6 4. Be2 cxd4 5. exd4 Nc6 6. O-O e6 7. b3 Bb4
+8. a3 Ba5 9. b4 Bb6 10. Bb2 O-O 11. Ne5 Nxd4 12. Bxd4 Qd6 13. f4 Bxd4+ 14. Qxd4
+Ne4 15. Nd2 Nf6 16. Kh1 b6 17. Rf3 Bb7 18. Rh3 Ne4 19. Nxe4 Qc7 20. Ng5
+f6 21. Nxe6 fxe5 22. Qxe5 Qxe5 23. fxe5 Rfe8 24. Nc7 Rxe5 25. Nxa8 Rxe2
+26. Nc7 d4 27. Rd1 Bxg2+ 28. Kg1 Bxh3 29. Rxd4 Rg2+ 30. Kh1 Rxc2 31. Rd8+
+Kf7 32. Rd1 Bg4 33. Rf1+ Kg6 34. Nd5 Bh3 35. Nf4+ Kg5 36. Nxh3+ Kg4 37. Nf2+
+Kg5 38. Ne4+ Kg6 39. Nd6 Rc3 40. Ra1 Rd3 41. Nc8 Rd7 42. Rc1 Kf7 43. Kg2
+Ke8 44. Kf3 Kd8 45. Ke4 Re7+ 46. Kf4 Rf7+ 47. Ke5 Re7+ 48. Kd6 Rd7+ 49. Ke6
+Rc7 50. Rxc7 Kxc7 51. Nd6 a5 52. bxa5 bxa5 53. Ne8+ Kc6 54. Nxg7 Kb5 55. Nf5
+Ka4 56. Nd4 Kxa3 57. Kd5 a4 58. Kc4 Kb2 59. Kb4 a3 60. Nb3 a2 61. Kc4 Kb1
+62. h4 Kb2 63. h5 h6 64. Kb4 Kc2 65. Na1+ Kb2 66. Nb3 Kc2 67. Ka3 Kb1 68. Nd4
+a1=Q+ 69. Kb3 Qxd4 70. Ka3 Kc1 71. Kb3 Qd3+ 72. Ka4 Kc2 73. Ka5 Qb3 74. Ka6
+Kc3 75. Ka7 Kc4 76. Ka8 Kc5 77. Ka7 Kc6 78. Ka8
+{Black forfeits on time} 1-0
+

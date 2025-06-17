@@ -1,0 +1,21 @@
+Subject: FICS game report CosmicM vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.11"]
+[Time "00:10:15"]
+[Round "-"]
+[White "CosmicM"]
+[Black "TheQuadKnight"]
+[WhiteElo "1551"]
+[BlackElo "1344"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. f4 d5 2. Nf3 Nc6 3. d4 f6 4. e3 Bg4 5. Bb5 e5 6. Bxc6+ bxc6 7. fxe5 fxe5
+8. O-O e4 9. h3 exf3 10. hxg4 fxg2 11. Kxg2 Qh4 12. Qf3 Nf6 13. Nc3 Bd6
+14. Rh1 Qxg4+ 15. Qxg4 Nxg4 16. Bd2 O-O 17. Raf1 c5
+{White resigns} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report freesok vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "23:26:45"]
+[Round "-"]
+[White "freesok"]
+[Black "TheQuadKnight"]
+[WhiteElo "1395"]
+[BlackElo "1362"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Be2 Be7 9. d3 Nd5 10. Ne4 O-O 11. Nbc3 Nf4 12. Bxf4 exf4 13. O-O
+Re8 14. g3 fxg3 15. fxg3 Nb7 16. Bh5 Be6 17. Qf3 g6 18. Bg4 Rf8 19. Ne2
+Nc5 20. Nf4 Nxe4 21. dxe4 Bc5+ 22. Kh1 f5 23. exf5 Bc4 24. Rfd1 Qf6 25. fxg6
+hxg6 26. b3 Bd5 27. Nxd5 Qxf3+ 28. Bxf3 Rxf3 29. Nf4 Be3 30. Rd3 Re8 31. Re1
+g5 32. Ng2 Kf7 33. Rdxe3 Rfxe3 34. Nxe3 Kg6 35. Kg2 Kh5 36. Kf3 g4+ 37. Kf4
+Kg6 38. Ng2 Rf8+ 39. Kxg4 Rf5 40. Nh4+
+{Black forfeits on time} 1-0
+

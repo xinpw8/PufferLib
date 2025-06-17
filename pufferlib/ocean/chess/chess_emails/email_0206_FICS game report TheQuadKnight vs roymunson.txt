@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs roymunson
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "16:01:21"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "roymunson"]
+[WhiteElo "1410"]
+[BlackElo "1435"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. exd5 c6 3. dxc6 e5 4. Nc3 Bc5 5. Nf3 Qb6 6. Qe2 Nxc6 7. Nxe5
+Nxe5 8. Qxe5+ Ne7 9. Qxg7 Bxf2+ 10. Kd1 Rg8 11. Qe5 Bd4 12. Qb5+ Bd7 13. Qxb6
+Bxb6 14. Bb5 Rxg2 15. Bxd7+ Kxd7 16. Re1 Bf2 17. Rf1 Bh4 18. d3 Rc8 19. Bf4
+b5 20. a3 a5 21. Bg3 b4 22. Bxh4 bxc3 23. bxc3 Rxc3 24. Rc1 Nd5 25. Rxf7+
+Ke6 26. Rd7 Kxd7 27. Bg3 Ne3+ 28. Ke1 Nxc2+ 29. Kf1 Ne3+ 30. Ke1 Rxc1#
+{White checkmated} 0-1
+

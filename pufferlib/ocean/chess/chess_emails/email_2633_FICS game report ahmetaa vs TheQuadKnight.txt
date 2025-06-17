@@ -1,0 +1,22 @@
+Subject: FICS game report ahmetaa vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.07"]
+[Time "00:15:10"]
+[Round "-"]
+[White "ahmetaa"]
+[Black "TheQuadKnight"]
+[WhiteElo "1286"]
+[BlackElo "1345"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. Nf3 c6 6. e3 Be7 7. Bd3 O-O
+8. O-O h6 9. Bh4 Bd6 10. Rc1 Bc7 11. cxd5 cxd5 12. Nb5 Bb8 13. Bg3 Nb6 14. a4
+Bxg3 15. hxg3 a6 16. Nc7 Rb8 17. b3 Bd7 18. Qd2 Rc8 19. Qa5 Rxc7 20. Qxb6
+Rxc1 21. Qxd8 Rxf1+ 22. Kxf1 Rxd8 23. Ne5 Be8
+{White resigns} 0-1
+

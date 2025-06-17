@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs wekuches
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "19:35:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "wekuches"]
+[WhiteElo "1438"]
+[BlackElo "1441"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 a6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 e5 6. Nb3 Bb4 7. Bc4 Qc7
+8. Qe2 b5 9. Bd3 Bxc3+ 10. bxc3 O-O 11. O-O d6 12. Bg5 Nbd7 13. c4 bxc4
+14. Bxc4 Bb7 15. Rad1 Bxe4 16. Bxf6 Nxf6 17. f3 Bg6 18. Rd2 a5 19. Rfd1
+Rfd8 20. g4 a4 21. Nc1 Rac8 22. Bd3 Bxd3 23. Nxd3 h6 24. h4 Qb6+ 25. Kh1
+Qc6 26. Qg2 Qb5 27. g5 hxg5 28. hxg5 Nh5 29. Qh3 Nf4 30. Nxf4 exf4 31. Rh2
+Kf8 32. Re1
+{Black resigns} 1-0
+

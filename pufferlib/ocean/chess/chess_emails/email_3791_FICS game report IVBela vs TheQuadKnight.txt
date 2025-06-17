@@ -1,0 +1,27 @@
+Subject: FICS game report IVBela vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.30"]
+[Time "17:27:05"]
+[Round "-"]
+[White "IVBela"]
+[Black "TheQuadKnight"]
+[WhiteElo "1470"]
+[BlackElo "1337"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. d3 h6 7. Nf3 e4
+8. Qe2 Bb4+ 9. c3 Bd6 10. dxe4 O-O 11. Bd3 Bg4 12. h3 Bxf3 13. Qxf3 Re8
+14. O-O Qe7 15. Re1 Qe5 16. g3 c6 17. Bf4 Qe7 18. Nd2 Bxf4 19. Qxf4 cxd5
+20. exd5 Qc5 21. c4 Rad8 22. b3 a6 23. Re3 b5 24. Rae1 bxc4 25. Rxe8+ Rxe8
+26. Rxe8+ Nxe8 27. Bxc4 Nxc4 28. Qxc4 Qd6 29. Ne4 Qe5 30. f4 Qe7 31. d6
+Qd7 32. Qxa6 f5 33. Nc5 Qxd6 34. Qxd6 Nxd6 35. a4 Kf7 36. a5 Ke7 37. a6
+Nb5 38. Nd3 Kd6 39. Ne5 Kc7 40. Kf2 Nd4 41. b4 Nb3 42. b5 Nc5 43. Ke3 Kb6
+44. Kd4 Kxb5 45. a7 Nb3+ 46. Kc3 Na5 47. a8=Q Nb3 48. Qd5+ Ka4 49. Qxb3+
+Ka5 50. Kc4 Ka6 51. Kc5 Ka7 52. Kc6 Ka8 53. Qb7#
+{Black checkmated} 1-0
+

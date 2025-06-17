@@ -1,0 +1,24 @@
+Subject: FICS game report vailent vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.08"]
+[Time "19:29:47"]
+[Round "-"]
+[White "vailent"]
+[Black "TheQuadKnight"]
+[WhiteElo "1398"]
+[BlackElo "1322"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Qf6 6. c3 Nge7 7. Bc4
+O-O 8. O-O Ne5 9. Be2 d5 10. Nd2 b6 11. f4 Nc4 12. Nxc4 dxc4 13. e5 Qg6
+14. Bh5 Qh6 15. Qf3 Bxd4 16. cxd4 c6 17. f5 g5 18. fxg6 Qg7 19. gxf7+ Kh8
+20. Qf6 Ng6 21. Qxc6 Rb8 22. Bg5 Rxf7 23. Bf6 Rxf6 24. Rxf6 Bb7 25. Qd6
+Nf8 26. d5 Re8 27. Bxe8 h6 28. Rxh6+ Kg8 29. Bd7 b5 30. Be6+ Nxe6 31. Qxe6+
+Kf8 32. Rf1+
+{Black resigns} 1-0
+

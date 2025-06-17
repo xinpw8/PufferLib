@@ -1,0 +1,25 @@
+Subject: FICS game report Jorma vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "13:53:17"]
+[Round "-"]
+[White "Jorma"]
+[Black "TheQuadKnight"]
+[WhiteElo "1422"]
+[BlackElo "1326"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. d4 g4 5. Ne5 d6 6. Nxg4 Qh4+ 7. Nf2 h5
+8. c3 Bg4 9. Be2 Nf6 10. e5 Ne4 11. O-O Nxf2 12. Qa4+ c6 13. Rxf2 f3 14. Bxf3
+dxe5 15. Bxg4 hxg4 16. Qb3 Qxh2+ 17. Kf1 Qh1+ 18. Ke2 Qh5 19. dxe5 g3+ 20. Rf3
+Qxe5+ 21. Be3 Bc5 22. Qxf7+ Kd8 23. Qf6+ Qxf6 24. Rxf6 Re8 25. Rf3 Nd7 26. b4
+Ne5 27. Rxg3 Bxe3 28. Rxe3 Nc4 29. Rxe8+ Kxe8 30. Kd3 b5 31. Nd2 Rd8+ 32. Kc2
+Ne5 33. Ne4 Nc4 34. Nf6+ Ke7 35. Ne4 Ne3+ 36. Kb3 Nxg2 37. Rg1 Kf7 38. Rxg2
+Rd1 39. Ng5+
+{Black forfeits on time} 1-0
+

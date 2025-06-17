@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs jonyfin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.01"]
+[Time "09:57:03"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jonyfin"]
+[WhiteElo "1411"]
+[BlackElo "1307"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. Bg5 Ne4 5. Nxe4 dxe4 6. e3 c6 7. f3 Qa5+
+8. Qd2 Qxg5 9. Ne2 exf3 10. gxf3 Qh4+ 11. Ng3 Bg7 12. O-O-O O-O 13. c5 Na6
+14. a3 Nc7 15. Bc4 e6 16. e4 Bd7 17. Ne2 Bh6 18. f4 b5 19. Bb3 a5 20. Kb1
+b4 21. axb4 axb4 22. Qxb4 Nb5 23. d5 Qf2 24. Bc4 Rab8 25. dxe6 Bxe6 26. Bxe6
+fxe6 27. Qd2 Qxc5 28. Rc1 Na3+ 29. Ka2 Qa5 30. Qxa5 Nb5 31. Qxb5 Rxb5 32. Kb1
+Rb4 33. Nc3 Rb3 34. Rcd1 Rxc3 35. bxc3 Bg7 36. Kc2 Bxc3 37. Kxc3 Rc8 38. Rd6
+c5 39. Rhd1 c4 40. Rd8+ Kg7 41. R8d7+ Kh6 42. R1d2 Rg8 43. Rd1 Rf8 44. R1d2
+{Black forfeits on time} 1-0
+

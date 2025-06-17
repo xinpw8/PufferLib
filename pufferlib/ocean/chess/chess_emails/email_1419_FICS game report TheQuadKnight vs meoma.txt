@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs meoma
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "23:44:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "meoma"]
+[WhiteElo "1453"]
+[BlackElo "1591"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nc3 Na6 5. Bd3 Bxd3 6. Qxd3 e6 7. Nf3 Rc8
+8. O-O Bb4 9. Bd2 Bxc3 10. Bxc3 Ne7 11. a3 O-O 12. b4 Nc7 13. Rab1 a6 14. a4
+b5 15. axb5 Nxb5 16. Bb2 Ra8 17. c4 dxc4 18. Qxc4 Qb6 19. Rfd1 Rfd8 20. Nd2
+Nd5 21. Nb3 Rd7 22. Nc5 Rdd8 23. Bc1 a5 24. bxa5 Qxa5 25. Bg5 Rdb8 26. Ra1
+Qc7 27. Rxa8 Rxa8 28. Nb3 h6 29. h3 hxg5 30. Kh1 Qb7 31. Kh2 Ra3 32. Nc5
+Qa7 33. Nd7 Qxd7 34. Qc1 Qb7 35. Rd2 Ra7 36. Rb2 Qd7 37. Qb1 Rb7 38. Ra2
+Nbc3 39. Ra8+ Qe8 40. Qc2
+{Black forfeits on time} 1-0
+

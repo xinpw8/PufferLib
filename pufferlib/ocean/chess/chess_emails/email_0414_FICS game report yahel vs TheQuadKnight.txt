@@ -1,0 +1,27 @@
+Subject: FICS game report yahel vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.18"]
+[Time "08:04:29"]
+[Round "-"]
+[White "yahel"]
+[Black "TheQuadKnight"]
+[WhiteElo "1321"]
+[BlackElo "1426"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. O-O Bc5 5. d4 Nxd4 6. Nxe5 O-O 7. Be3
+d6 8. Bxd4 Bxd4 9. Nxf7 Rxf7 10. Bxf7+ Kxf7 11. Qxd4 Qe7 12. Qc4+ Be6 13. Qb4
+c6 14. Nc3 Re8 15. e5 dxe5 16. Qxe7+ Rxe7 17. Rfe1 Nd7 18. Ne4 Bd5 19. Nd6+
+Kg8 20. Nxb7 Nf6 21. Nc5 Nh5 22. Nd3 e4 23. Nb4 Bf7 24. Nxc6 Rc7 25. Ne5
+Bd5 26. c4 Bb7 27. Red1 Rc8 28. Rd4 Re8 29. Ng4 Nf4 30. Rad1 Ne2+ 31. Kf1
+Nxd4 32. Rxd4 h5 33. Ne3 g6 34. Rd7 Ba6 35. Rxa7 Bc8 36. c5 Re6 37. Rc7
+Re8 38. c6 Ba6+ 39. Ke1 Rb8 40. Ra7 Bd3 41. c7 Rc8 42. Nd5 Kf7 43. Nb6 Re8
+44. c8=Q+ Kf8 45. Nd7+ Ke7 46. Nf6+ Kxf6 47. Qxe8 Kg5 48. Qe5+ Kh6 49. h4
+Bc2 50. Qg7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs ChonnyQ
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.03"]
+[Time "09:25:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ChonnyQ"]
+[WhiteElo "1403"]
+[BlackElo "1437"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d6 4. Bc4 Be6 5. Bxe6 fxe6 6. d4 g5 7. h4 Bh6
+8. Nc3 Nd7 9. Bd2 e5 10. Qe2 g4 11. Ng5 Bxg5 12. hxg5 Qxg5 13. O-O-O O-O-O
+14. Nd5 h5 15. Qc4 c6 16. Nc3 Nb6 17. Qe6+ Kb8 18. dxe5 dxe5 19. g3 Nh6
+20. gxf4 exf4 21. Qe5+ Qxe5 22. Rhf1 f3 23. Be3 Rxd1+ 24. Rxd1 Nf7 25. a3
+Nc4 26. Bd4 Qf4+ 27. Kb1 Nfd6 28. e5 Ne4 29. e6 Nxc3+ 30. Bxc3 f2 31. Bxh8
+f1=Q 32. Rxf1 Qxf1+ 33. Ka2 Qf8 34. Bg7 Qxg7 35. b3 Nd6 36. e7 Qxe7 37. a4
+g3 38. Ka3 g2
+{White resigns} 0-1
+

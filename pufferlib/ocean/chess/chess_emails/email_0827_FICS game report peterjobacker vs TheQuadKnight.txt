@@ -1,0 +1,23 @@
+Subject: FICS game report peterjobacker vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.22"]
+[Time "09:47:26"]
+[Round "-"]
+[White "peterjobacker"]
+[Black "TheQuadKnight"]
+[WhiteElo "1465"]
+[BlackElo "1406"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bb4 5. d4 Bxc3+ 6. bxc3 exd4 7. cxd4
+d5 8. exd5 Nxd5 9. O-O O-O 10. Bb2 Nb6 11. Bd3 Bg4 12. c3 Re8 13. Bc2 Qd5
+14. Qd3 Qh5 15. h3 Bxf3 16. gxf3 Qxh3 17. Bc1 Qh4 18. f4 Qg4+ 19. Kh1 Re6
+20. f5 Rf6 21. Bd2 Rd8 22. Rg1 Qh4+ 23. Kg2 Qg4+ 24. Kf1 Qh3+ 25. Qxh3 Re8
+26. Bg5 h6 27. Bxf6 Kh8 28. Rh1 Rg8 29. Re1 Ne5 30. Qe3 Ng6 31. fxg6 fxg6
+{White forfeits on time} 0-1
+

@@ -1,0 +1,27 @@
+Subject: FICS game report PianoCraft vs TheQuadKnight
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.09"]
+[Time "12:17:51"]
+[Round "-"]
+[White "PianoCraft"]
+[Black "TheQuadKnight"]
+[WhiteElo "1804"]
+[BlackElo "1467"]
+[TimeControl "120+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. d4 Nd7 4. Bc4 Be7 5. O-O b6 6. c3 Bb7 7. Qb3 d5 8. exd5
+Ndf6 9. dxe5 Nxd5 10. Rd1 c6 11. Nd4 Qc7 12. e6 fxe6 13. Nxe6 Qe5 14. Nd4
+O-O-O 15. Nf3 Qb8 16. Bg5 Ngf6 17. Nbd2 h6 18. Bh4 Rhe8 19. Nf1 b5 20. Bxd5
+Nxd5 21. Bxe7 Rxe7 22. a4 Red7 23. axb5 cxb5 24. Qxb5 Nxc3 25. Qc4+ Qc7
+26. Qxc3 Qxc3 27. Rxd7 Qc6 28. Rxd8+ Kxd8 29. Ne3 Qb6 30. h3 Bxf3 31. gxf3
+Qxb2 32. Rd1+ Kc8 33. Kg2 Qb5 34. Rc1+ Kb7 35. Rd1 Qg5+ 36. Kf1 Qb5+ 37. Kg2
+Qg5+ 38. Kh2 Qb5 39. Rd7+ Kb6 40. Rd6+ Ka5 41. Rd5 Qxd5 42. Nxd5 Kb5 43. Kg3
+a5 44. Ne3 a4 45. Nc2 a3 46. Nxa3+ Ka4 47. Nc2 Kb3 48. Ne3 Kc3 49. Kf4 Kd3
+50. Kf5 Ke2 51. f4 Kxf2 52. Ng4+
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs juanefren
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.09"]
+[Time "22:34:12"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "juanefren"]
+[WhiteElo "1380"]
+[BlackElo "1528"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 e5 6. Nb3 Bb4 7. Bc4 Nxe4
+8. Bd2 Nxd2 9. Qxd2 O-O 10. O-O b6 11. Rfe1 d6 12. a3 Bxc3 13. Qxc3 Bb7
+14. Bd5 Rc8 15. Rad1 Nd4 16. Qh3 Bxd5 17. Nxd4 exd4 18. Rxd4 Be6 19. Qd3
+Qc7 20. Rxd6 Qxc2 21. Qxc2 Rxc2 22. b4 Rc3 23. a4 Rfc8 24. Red1 h6 25. h3
+Rc1 26. Rxc1 Rxc1+ 27. Kh2 Ra1 28. a5 bxa5 29. Rd8+ Kh7 30. bxa5 Rxa5 31. Rd2
+Rf5 32. g3 a5 33. h4 a4 34. Kg2 Ra5 35. Rd1 a3 36. Ra1 a2 37. Kh2 Rb5 38. Kg2
+Rb1 39. Rxa2 Bxa2 40. Kh3 Bd5 41. Kg4 Rf1 42. f4 g6 43. h5 f5+ 44. Kh4 gxh5
+45. Kxh5 Rg1 46. Kh4 Bf3 47. Kh3 Rh1#
+{White checkmated} 0-1
+

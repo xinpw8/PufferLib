@@ -1,0 +1,21 @@
+Subject: FICS game report riskylover vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "16:21:15"]
+[Round "-"]
+[White "riskylover"]
+[Black "TheQuadKnight"]
+[WhiteElo "1502"]
+[BlackElo "1345"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 Nc6 5. O-O g4 6. c3 d5 7. exd5 gxf3
+8. dxc6 Bc5+ 9. d4 fxg2 10. Rxf4 Bd6 11. Bxf7+ Kf8 12. Rf2 Qh4 13. cxb7
+Qxh2#
+{White checkmated} 0-1
+

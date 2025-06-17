@@ -1,0 +1,29 @@
+Subject: FICS game report scamsymbolism vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.29"]
+[Time "09:47:31"]
+[Round "-"]
+[White "scamsymbolism"]
+[Black "TheQuadKnight"]
+[WhiteElo "1304"]
+[BlackElo "1455"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Bc5 5. c3 dxc3 6. Bxf7+ Kxf7 7. Qd5+
+Ke8 8. Qxc5 cxb2 9. Bxb2 Nf6 10. O-O d6 11. Qc4 Qe7 12. Nc3 Be6 13. Nd5
+Qf7 14. Nxc7+ Qxc7 15. Qxe6+ Qe7 16. Qc4 Kd7 17. Qb5 Kc7 18. Rfe1 Rae8 19. e5
+dxe5 20. Nxe5 Qb4 21. Qxb4 Nxb4 22. Rac1+ Kb8 23. Nf7 Rhf8 24. Nd6 Rxe1+
+25. Rxe1 Nd3 26. Rb1 Nxb2 27. Rxb2 Rd8 28. Rd2 a6 29. Nc4 Rc8 30. Rc2 Nd5
+31. Ne3 Nxe3 32. Rxc8+ Kxc8 33. fxe3 Kc7 34. Kf2 b5 35. e4 Kc6 36. Ke3 Kd6
+37. Kd4 g5 38. g4 h6 39. e5+ Ke6 40. Ke4 a5 41. Kd4 b4 42. Kc5 Kxe5 43. Kb5
+Kf4 44. Kxa5 Kxg4 45. Kxb4 Kh3 46. a4 Kxh2 47. a5 g4 48. a6 g3 49. a7 g2
+50. a8=Q g1=Q 51. Qb8+ Qg3 52. Qh8 Qg4+ 53. Kc3 Qg3+ 54. Kd2 Qg5+ 55. Kd3
+h5 56. Qb8+ Qg3+ 57. Qxg3+ Kxg3 58. Ke2 h4 59. Kf1 Kh2 60. Kf2 h3 61. Kf1
+Kh1 62. Kf2 h2 63. Kf1
+{Game drawn by stalemate} 1/2-1/2
+

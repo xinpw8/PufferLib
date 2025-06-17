@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs TresMinutosMeVale
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.26"]
+[Time "11:32:43"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TresMinutosMeVale"]
+[WhiteElo "1429"]
+[BlackElo "1658"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nf3 Bg4 4. Nc3 Qd7 5. Be2 Nc6 6. h3 Bh5 7. g4 Bg6
+8. d4 O-O-O 9. Bb5 Nf6 10. Be3 Nd5 11. Nxd5 Qxd5 12. Qe2 Be4 13. Bxc6 Qxc6
+14. Ne5 Qf6 15. f3 Bg6 16. f4 h5 17. f5 Bh7 18. h4 hxg4 19. Qxg4 Bxf5 20. Qg3
+e6 21. Rf1 Bd6 22. O-O-O Bxe5 23. dxe5 Qg6 24. Bg5 Rxd1+ 25. Rxd1 f6 26. exf6
+gxf6 27. Bf4 e5 28. Qxg6 Bxg6 29. Be3 Rxh4 30. Rg1 Be8 31. Rg8 Kd7 32. Rg7+
+Kd8 33. Bc5 b6 34. Be7+ Kc8 35. Bxf6 e4 36. Bxh4 e3 37. Bg3
+{Black resigns} 1-0
+

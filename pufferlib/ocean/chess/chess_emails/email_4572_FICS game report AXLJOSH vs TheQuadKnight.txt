@@ -1,0 +1,22 @@
+Subject: FICS game report AXLJOSH vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "11:40:27"]
+[Round "-"]
+[White "AXLJOSH"]
+[Black "TheQuadKnight"]
+[WhiteElo "1451"]
+[BlackElo "1274"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Qf6 6. c3 Nge7 7. Bb5
+Ne5 8. O-O c6 9. Be2 O-O 10. b4 Bb6 11. a4 a5 12. bxa5 Rxa5 13. f4 c5 14. Nb3
+Ra8 15. fxe5 Qxe5 16. N3d2 Bc7 17. Nf3 Qh5 18. g3 d6 19. Ng5 Qg6 20. Bh5
+Qh6 21. Nxf7 Qxe3+ 22. Kh1 Bh3 23. Re1 Qf2 24. Re2 Bg2#
+{White checkmated} 0-1
+

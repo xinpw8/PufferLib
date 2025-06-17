@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs xixxixxixxix
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "17:24:06"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "xixxixxixxix"]
+[WhiteElo "1386"]
+[BlackElo "1519"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Nxe4 5. Nxe4 d5 6. Bxd5 Qxd5 7. Ng3
+Bd7 8. O-O O-O-O 9. Re1 f6 10. d4 Bg4 11. Qd3 Nxd4 12. Nxd4 Qxd4 13. Qxd4
+Rxd4 14. Be3 Rd8 15. Bxa7 b6 16. f3 Be6 17. Rad1 Bd6 18. Ne4 Kb7 19. Nxd6+
+cxd6 20. Bxb6 Kxb6 21. a3 d5 22. Re2 d4 23. Red2 Rd7 24. Kf2 Rhd8 25. g4
+g6 26. h4 f5 27. gxf5 gxf5 28. Rg1 Rg8 29. Re1 Rd5 30. Red1 Rgd8 31. Kg3
+e4 32. fxe4 fxe4 33. Kf4 e3 34. Rd3 Rf5+ 35. Ke4 Rh5 36. b3 Bf5+ 37. Kf4
+Bxd3 38. cxd3 Rxh4+ 39. Kf3 Rh2 40. Rf1 Rf2+ 41. Rxf2 exf2 42. Kxf2 Re8
+43. Kf3 Kc5 44. Kf4 Re3 45. b4+ Kb5 46. a4+ Kxa4 47. b5 Kxb5 48. Kf5 Rxd3
+49. Ke5 h5 50. Kf4 h4
+{White resigns} 0-1
+

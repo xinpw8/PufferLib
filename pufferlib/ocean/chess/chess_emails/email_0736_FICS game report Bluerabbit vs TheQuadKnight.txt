@@ -1,0 +1,23 @@
+Subject: FICS game report Bluerabbit vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.03"]
+[Time "08:38:26"]
+[Round "-"]
+[White "Bluerabbit"]
+[Black "TheQuadKnight"]
+[WhiteElo "1413"]
+[BlackElo "1355"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ng5 f6 6. Qxg4 fxg5 7. Qh5+ Ke7
+8. Qxg5+ Ke8 9. Qg6+ Ke7 10. Qg5+ Ke8 11. Qxf4 Qe7 12. Bc4 Nf6 13. d3 d6
+14. O-O Bg7 15. Nc3 Be6 16. Nd5 Nxd5 17. exd5 Bd7 18. Bd2 Na6 19. Rae1 Be5
+20. Qh6 Rg8 21. Rf7 Qxf7 22. Rf1 Qe7 23. Qh5+ Kd8 24. c3 Bh3 25. Bg5 Rxg5
+26. hxg5 Bd7 27. d4 Bg3 28. Bd3 Qe3+ 29. Kh1 Qxd3 30. Rf8+ Ke7 31. Qf7#
+{Black checkmated} 1-0
+

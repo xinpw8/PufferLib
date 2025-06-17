@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs kasfisch
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.01.06"]
+[Time "09:01:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "kasfisch"]
+[WhiteElo "1413"]
+[BlackElo "1083"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 c5 2. Nf3 d6 3. Nc3 Nf6 4. d4 cxd4 5. Nxd4 a6 6. Bg5 e6 7. f4 Be7
+8. Qd3 Qc7 9. O-O-O O-O 10. Be2 Nc6 11. Bxf6 Bxf6 12. Nf3 Be7 13. g4 b5
+14. h4 b4 15. Na4 Bd7 16. f5 Na5 17. b3 Bxa4 18. bxa4 Rab8 19. g5 Rfc8 20. Rd2
+Rb6 21. Nd4 e5 22. Nb3 Nxb3+ 23. axb3 Rc6 24. f6 Bd8 25. h5 Rc3 26. Qxd6
+Rxc2+ 27. Kb1 Rxd2 28. Qxd2 Qc6 29. Rd1 Qxe4+ 30. Bd3 Qg4 31. Be2 Qe4+ 32. Bd3
+Qg4 33. Rc1 Rb8 34. Be2 Qe4+ 35. Ka2 gxf6 36. gxf6 Bxf6 37. Rg1+ Kh8 38. Bxa6
+Rb6 39. Bb5 Qd4 40. Qc1 Qc3 41. Qxc3 bxc3 42. Rc1 e4 43. Bc4 Kg7 44. Rg1+
+Kf8 45. Rf1 Ke7 46. a5 Rc6 47. a6 Rc7 48. b4 e3 49. Bd3 c2 50. Rxf6 Kxf6
+51. Kb2 Kg5 52. Bxc2 e2 53. b5 e1=Q 54. b6 Rc6 55. b7 Qb4+ 56. Bb3 Rxa6
+57. b8=Q Qxb8 58. Kc2 Kxh5 59. Kb2 f5 60. Kc2 f4 61. Kb2 f3 62. Kc2 f2 63. Kb2
+f1=Q 64. Kc2 Qc8+ 65. Kd2 Qcf5 66. Kc3 Q5f3+ 67. Kb2 Q1f2+ 68. Kc1 Qf1+
+69. Kb2
+{Black ran out of time and White has no material to mate} 1/2-1/2
+

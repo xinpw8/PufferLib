@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs skeptyk
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.05"]
+[Time "11:24:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "skeptyk"]
+[WhiteElo "1371"]
+[BlackElo "1297"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d6 4. d4 g5 5. h4 Bh6 6. Nc3 g4 7. Nd2 Nc6 8. Be2
+Nxd4 9. O-O Qxh4 10. Nd5 Nxe2+ 11. Qxe2 g3 12. Nf3 Qd8 13. Nxf4 Bg4 14. Qc4
+Bxf3 15. Rxf3 Qh4 16. Nh3 f6 17. Qxc7 Bxc1 18. Rxc1 Qxe4 19. Qg7 Qd4+ 20. Kh1
+O-O-O 21. Qxh8 Qd2 22. Rff1 Qh6 23. Rcd1 Kc7 24. Rf3 Rf8 25. Rxg3 Ne7 26. Qg7
+Qxg7 27. Rxg7 Kd7 28. Re1 Re8 29. Rxh7 Kd8 30. Nf4 Nf5 31. Rxe8+ Kxe8 32. Nd5
+{Black resigns} 1-0
+

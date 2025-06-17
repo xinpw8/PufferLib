@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs woofy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.19"]
+[Time "16:34:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "woofy"]
+[WhiteElo "1391"]
+[BlackElo "1393"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. exd5 Qxd5 3. Nc3 Qe5+ 4. Be2 c6 5. Nf3 Qd6 6. d4 Bf5 7. Be3
+e6 8. O-O Nf6 9. Qd2 Be7 10. Bf4 Qd8 11. Ne5 Nbd7 12. g4 Bg6 13. h4 Nxe5
+14. Bxe5 Ne4 15. Nxe4 Bxe4 16. g5 f6 17. gxf6 Bxf6 18. Qf4 Bf5 19. Rad1
+O-O 20. Bd3 Bxd3 21. Rxd3 Bxh4 22. Qg4 Qg5 23. Qxg5 Bxg5 24. f4 Bf6 25. Rdf3
+Rad8 26. c3 b5 27. a3 a6 28. Kg2 a5 29. Rh1 Rf7 30. Rfh3 h6 31. Rg3 Kf8
+32. Rg6 Bxe5 33. fxe5 Ke7 34. Kh3 Rdf8 35. Rhg1 Rg8 36. Kh4 Rf4+ 37. Kh5
+Rf5+ 38. Kh4 Rf4+ 39. Kh3 Rf3+ 40. Kh2 Rf2+ 41. R1g2 Rf7 42. R2g3 a4 43. Rg2
+Kf8 44. Rxh6 gxh6 45. Rxg8+ Kxg8 46. Kh3 Rf2 47. Kh4 Kg7 48. Kh5 Rxb2 49. Kh4
+Rb3 50. Kg4 Rxc3 51. Kf4 Rxa3
+{White forfeits on time} 0-1
+

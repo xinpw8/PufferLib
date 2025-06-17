@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs sarciness
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.19"]
+[Time "07:50:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sarciness"]
+[WhiteElo "1349"]
+[BlackElo "1427"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 e5 5. Nxc6 bxc6 6. Nc3 Nf6 7. Bc4
+Bb4 8. Bg5 Qa5 9. Bd2 O-O 10. O-O Qc7 11. a3 Bxc3 12. Bxc3 Nxe4 13. Bb4
+d5 14. Bxf8 Kxf8 15. Bd3 Nf6 16. f3 Qb6+ 17. Rf2 Qxb2 18. c4 d4 19. Be4
+Qc3 20. Bxc6 Rb8 21. Rb1 Rxb1 22. Qxb1 Qxc4 23. Qb5 Qc1+ 24. Rf1 Qxa3 25. Qb8
+Qa6 26. Be4 Nxe4 27. fxe4 Qb7 28. Qd6+ Qe7 29. Qb8 Qb7 30. Qxe5 Qb6 31. Kh1
+a5 32. Ra1 d3 33. Qxa5 Qd4 34. Rc1 Be6 35. Qa8+ Ke7 36. Rc7+ Kf6 37. Rxf7+
+Bxf7 38. Qa2 d2
+{White forfeits on time} 0-1
+

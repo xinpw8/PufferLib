@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs boomcity
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.22"]
+[Time "21:36:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "boomcity"]
+[WhiteElo "1391"]
+[BlackElo "1411"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 h6 6. Bh4 O-O 7. cxd5 Nxd5
+8. Bxe7 Nxe7 9. Rc1 Nbc6 10. Bc4 b6 11. d5 exd5 12. Nxd5 Nxd5 13. Bxd5 Bb7
+14. Bxc6 Qxd1+ 15. Kxd1 Rad8+ 16. Ke1 Bxc6 17. Rxc6 Rd7 18. Ne2 Rfd8 19. Nc3
+Rd2 20. Rxc7 Rxb2 21. Rxa7 Rdd2 22. Rc7 Rxf2 23. g3 Rxh2 24. Rxh2 Rxh2 25. Rb7
+Rh3 26. Kf2 Rh2+ 27. Kf3 Rc2 28. Nd5 Rxa2 29. Rxb6 Ra3 30. Ne7+ Kf8 31. Nf5
+Ra8 32. Rb7 Kg8 33. Ne7+ Kh7 34. Nf5 Rf8 35. Nd6 Kg8 36. g4 g5 37. Nf5 Kh7
+38. Nd6 Kg6 39. e4 f6 40. Nf5 h5 41. gxh5+ Kxh5 42. Ng7+ Kg6 43. Ne6 Rf7
+44. Rxf7 Kxf7 45. Nd4 Kg6 46. Kg4 Kf7 47. Kf5 Kg7 48. Nf3 Kf7 49. Nd4 Kg7
+50. Ne6+ Kf7 51. Nxg5+ fxg5 52. Kxg5 Ke6 53. Kf4 Kf6 54. e5+
+{Black forfeits on time} 1-0
+

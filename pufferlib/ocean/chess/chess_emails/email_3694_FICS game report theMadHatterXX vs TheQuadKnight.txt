@@ -1,0 +1,27 @@
+Subject: FICS game report theMadHatterXX vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "14:17:13"]
+[Round "-"]
+[White "theMadHatterXX"]
+[Black "TheQuadKnight"]
+[WhiteElo "1237"]
+[BlackElo "1305"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Bb5 Bc5 5. Bxc6 dxc6 6. Nxe5 Qe7 7. Nf3
+Nxe4 8. O-O Nxc3 9. dxc3 O-O 10. Re1 Be6 11. b4 Bd6 12. Nd4 Qf6 13. f3 Rfe8
+14. Bb2 c5 15. Nxe6 Rxe6 16. Rxe6 Qxe6 17. Rb1 Re8 18. Qd2 cxb4 19. cxb4
+Qc4 20. Qd4 Qxd4+ 21. Bxd4 a6 22. c3 b6 23. a3 Re2 24. Rb3 h6 25. Kf1 Rc2
+26. h3 Bf4 27. a4 b5 28. axb5 axb5 29. Bc5 Bd2 30. Ba7 Bxc3 31. Bb8 c6 32. Bd6
+Bd4 33. Bc5 Bxc5 34. bxc5 Rxc5 35. Re3 Kf8 36. Rd3 Rc1+ 37. Kf2 Rc2+ 38. Kg3
+c5 39. Rd8+ Ke7 40. Rd5 b4 41. Re5+ Kd6 42. Re3 c4 43. Re4 b3 44. Rd4+ Kc5
+45. Re4 b2 46. Re5+ Kb4 47. Re7 b1=Q 48. Rb7+ Ka3 49. Rxb1 c3 50. f4 Rb2
+51. Re1 c2 52. Re3+ Ka2 53. Re2 c1=Q 54. Rxb2+
+{Black forfeits on time} 1-0
+

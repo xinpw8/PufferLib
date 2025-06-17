@@ -1,0 +1,21 @@
+Subject: FICS game report Patrickdupsg vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "00:45:36"]
+[Round "-"]
+[White "Patrickdupsg"]
+[Black "TheQuadKnight"]
+[WhiteElo "1442"]
+[BlackElo "1400"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 g6 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 Bg7 7. Nf3
+c5 8. Be3 Nc6 9. Rc1 cxd4 10. cxd4 O-O 11. Bb5 Qa5+ 12. Qd2 Qxb5 13. Rc5
+Qb1+ 14. Rc1 Qxe4 15. O-O Bh3 16. Ng5 Qxg2#
+{White checkmated} 0-1
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs CosmicM
+
+
+[Event "FICS rated losers game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.17"]
+[Time "23:39:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CosmicM"]
+[WhiteElo "1613"]
+[BlackElo "1469"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 h5 2. g4 hxg4 3. h3 Rxh3 4. Rxh3 gxh3 5. Nxh3 e5 6. dxe5 d6 7. exd6
+cxd6 8. Qxd6 Qxd6 9. b4 Bxh3 10. Bxh3 Qxb4+ 11. Nc3 Qxc3+ 12. Kf1 Qxc2 13. Bd7+
+Nxd7 14. Bh6 Qxe2+ 15. Kxe2 Nxh6 16. f4 Nf5 17. Kd2 Ne3 18. Kxe3 Ne5 19. fxe5
+Bd6 20. exd6 f5 21. d7+ Kxd7 22. a4 f4+ 23. Kxf4 g5+ 24. Kxg5 b5 25. axb5
+a6 26. bxa6 Rxa6 27. Rxa6
+{Black wins by losing all material} 0-1
+

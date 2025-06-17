@@ -1,0 +1,28 @@
+Subject: FICS game report squareenix vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.14"]
+[Time "18:01:48"]
+[Round "-"]
+[White "squareenix"]
+[Black "TheQuadKnight"]
+[WhiteElo "1488"]
+[BlackElo "1268"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Be7 5. Bg5 O-O 6. Nc3 h6 7. Bh4 Na5
+8. Qd2 Nxc4 9. dxc4 d6 10. O-O-O a6 11. g4 Bxg4 12. Qe3 Be6 13. b3 Re8 14. Rhg1
+Ng4 15. Qe2 Bxh4 16. Nxh4 Qxh4 17. f3 Nf6 18. Rg2 Bh3 19. Rg3 Nh5 20. Rgg1
+Nf4 21. Qe3 Ng2 22. Qf2 Qxf2 23. Rdf1 Qd4 24. Nd5 Ne3 25. Rd1 Nxd1 26. Rxd1
+Qa1+ 27. Kd2 Qd4+ 28. Ke2 Qc5 29. b4 Qxc4+ 30. Kf2 Qxc2+ 31. Ke1 Qc4 32. Rc1
+Qf1+ 33. Kd2 Qf2+ 34. Kc3 Bg2 35. Rc2 Qe1+ 36. Kb2 Bxf3 37. Nc3 Bxe4 38. Nxe4
+Qxe4 39. Kb3 d5 40. a3 d4 41. Rc4 Qd3+ 42. Ka2 Qxc4+ 43. Kb2 e4 44. a4 d3
+45. b5 e3 46. bxa6 d2 47. axb7 Rxa4 48. b8=Q Rb4+ 49. Qxb4 Qxb4+ 50. Kc2
+Qd4 51. Kd1 e2+ 52. Kc2 e1=Q 53. Kb3 d1=Q+ 54. Ka2 Qec3 55. h4 Qdb4 56. h5
+Qdb3#
+{White checkmated} 0-1
+

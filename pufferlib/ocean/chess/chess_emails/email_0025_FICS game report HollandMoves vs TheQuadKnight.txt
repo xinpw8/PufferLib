@@ -1,0 +1,24 @@
+Subject: FICS game report HollandMoves vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.23"]
+[Time "13:47:22"]
+[Round "-"]
+[White "HollandMoves"]
+[Black "TheQuadKnight"]
+[WhiteElo "1270"]
+[BlackElo "1333"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nf6 3. Nf3 c6 4. Nxe5 d5 5. exd5 cxd5 6. Bb3 Bc5 7. O-O
+O-O 8. d4 Bb6 9. Be3 Nbd7 10. Nxd7 Bxd7 11. c4 dxc4 12. Bxc4 Rc8 13. b3
+Re8 14. Nc3 a6 15. Bg5 h6 16. Bh4 Bf5 17. Qf3 Bg6 18. Qxb7 Bxd4 19. Nd5
+Bxa1 20. Rxa1 Qd6 21. Bxf6 gxf6 22. g3 Be4 23. Rd1 Rc5 24. Ne3 Qxd1+ 25. Nxd1
+Bxb7 26. Ne3 Kg7 27. g4 Re4 28. Nf5+ Kg6 29. Nh4+ Kg5 30. f3 Re1+ 31. Kf2
+Rh1 32. Kg2 Ra1 33. Kg3 Rxa2 34. f4#
+{Black checkmated} 1-0
+

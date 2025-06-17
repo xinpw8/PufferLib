@@ -1,0 +1,27 @@
+Subject: FICS game report tugntug vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.25"]
+[Time "15:27:43"]
+[Round "-"]
+[White "tugntug"]
+[Black "TheQuadKnight"]
+[WhiteElo "1422"]
+[BlackElo "1382"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Bc4 Bb4 5. Ng5 d5 6. exd5 Na5 7. Nxf7
+Kxf7 8. Bd3 Bxc3 9. bxc3 e4 10. Be2 Qxd5 11. O-O Re8 12. Rb1 Kg8 13. Rb4
+Qg5 14. d4 Bh3 15. Bxg5 Bxg2 16. Kxg2 Nd5 17. Rb5 Nxc3 18. Qd2 Nxb5 19. Bxb5
+Nc6 20. Bxc6 bxc6 21. Qc3 h6 22. Bf4 Rac8 23. Qxc6 Rf8 24. Bg3 Rf6 25. Qxe4
+Rcf8 26. f4 Kf7 27. Qd5+ Kg6 28. Re1 Rf5 29. Re6+ Kh7 30. Qd7 R5f7 31. Re7
+Rxe7 32. Qxe7 Rg8 33. Qxc7 Kh8 34. Qxa7 Rf8 35. h4 Rc8 36. Qa4 Rd8 37. c3
+Rc8 38. Qb4 Ra8 39. a4 Re8 40. a5 Re2+ 41. Kf3 Ra2 42. d5 Rd2 43. d6 Rd5
+44. Ke4 Rh5 45. f5 g6 46. Qb8+ Kg7 47. Be5+ Kf7 48. Qc7+ Kf8 49. Qe7+ Kg8
+50. Qg7#
+{Black checkmated} 1-0
+

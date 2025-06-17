@@ -1,0 +1,23 @@
+Subject: FICS game report HammarbyKappe vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.18"]
+[Time "15:41:16"]
+[Round "-"]
+[White "HammarbyKappe"]
+[Black "TheQuadKnight"]
+[WhiteElo "1465"]
+[BlackElo "1336"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O Nxe4 7. Re1 Nc5
+8. Nxe5 Be7 9. Bxf7+ Kf8 10. Qh5 d6 11. Nxc6 Qd7 12. Bd5 Bf6 13. c3 Bb7
+14. d4 Bxc6 15. Bxc6 Qxc6 16. dxc5 Qxc5 17. Qxc5 dxc5 18. Bf4 Kf7 19. Bxc7
+Rhe8 20. Nd2 Rac8 21. Rxe8 Kxe8 22. Bf4 h6 23. Re1+ Kf7 24. Ne4 Re8 25. Nd6+
+Kg6 26. Nxe8
+{Black resigns} 1-0
+

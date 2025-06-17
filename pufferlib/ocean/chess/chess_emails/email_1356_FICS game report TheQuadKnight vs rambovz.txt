@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs rambovz
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.19"]
+[Time "21:54:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "rambovz"]
+[WhiteElo "1454"]
+[BlackElo "1555"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. Nf3 d5 3. exd5 cxd5 4. d4 Nc6 5. Nc3 Bg4 6. Bf4 e6 7. Be2 Nf6
+8. Nb5 Rc8 9. h3 Bf5 10. c4 a6 11. cxd5 Nxd5 12. Nd6+ Bxd6 13. Bxd6 Qxd6
+14. Qb3 Qb4+ 15. Qxb4 Ndxb4 16. O-O Nc2 17. Rac1 O-O 18. g4 Bg6 19. Nh4
+N6xd4 20. Bd1 Nb4 21. Rxc8 Rxc8 22. Nxg6 hxg6 23. f4 Rc1 24. a3 Nbc2 25. Bxc2
+Rxf1+ 26. Kxf1 Nxc2 27. Ke2 Nd4+ 28. Ke3 Nb5 29. Ke4 f6 30. f5 exf5+ 31. gxf5
+g5 32. Kf3 Kf7 33. Kg4 Nd4 34. h4 gxh4 35. Kxh4 Nxf5+ 36. Kg4 Ke6 37. Kf4
+g5+ 38. Kg4 Ne3+ 39. Kf3 Nc4
+{White resigns} 0-1
+

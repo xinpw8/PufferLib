@@ -1,0 +1,23 @@
+Subject: FICS game report curricurri vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.30"]
+[Time "08:36:59"]
+[Round "-"]
+[White "curricurri"]
+[Black "TheQuadKnight"]
+[WhiteElo "1412"]
+[BlackElo "1378"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 c5 6. Qd1 Bd6 7. Qxd6
+Nf6 8. Bg5 b6 9. Bxf6 gxf6 10. e5 fxe5 11. Qxe5+ Kf8 12. Qxh8+ Ke7 13. Qxh7
+Qe8 14. Bc4 Kd8+ 15. Kd2 Qe5 16. Qxf7 Qxb2 17. Nc3 Qb4 18. a3 Qa5 19. h4
+a6 20. h5 b5 21. Bd5 Rb8 22. h6 Kc7 23. h7 Bb7 24. Bxb7 Kxb7 25. h8=Q Rxh8
+26. Rxh8 b4 27. Qxd7+ Kb6 28. Rb8#
+{Black checkmated} 1-0
+

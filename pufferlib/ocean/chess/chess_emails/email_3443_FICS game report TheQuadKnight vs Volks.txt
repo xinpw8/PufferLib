@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Volks
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.19"]
+[Time "23:04:03"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Volks"]
+[WhiteElo "1440"]
+[BlackElo "1480"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d6 2. d4 Nf6 3. Nc3 c6 4. Nf3 Nbd7 5. Bc4 b5 6. Bd3 Qc7 7. Bf4 e5
+8. dxe5 dxe5 9. Bg5 Be7 10. O-O O-O 11. Qd2 a6 12. Rac1 c5 13. Bxf6 Bxf6
+14. Nd5 Qd8 15. Qc3 c4 16. Be2 Bb7 17. Rcd1 Bxd5 18. Rxd5 Qc7 19. b3 Nb6
+20. Rdd1 Rac8 21. bxc4 Nxc4 22. Bxc4 bxc4 23. Rd5 Rfe8 24. Rfd1 Qb8 25. h3
+g6 26. Rd6 Bg7 27. Rxa6 Rcd8 28. Rxd8 Rxd8 29. Qxc4 Rd1+ 30. Kh2 h6 31. Rc6
+Kh7 32. Rc7 Qb6 33. Nxe5 Qd6 34. f4 Bxe5 35. fxe5 Qxe5+ 36. g3 Rd2+ 37. Kh1
+Rd1+ 38. Kg2 Rd2+ 39. Kf3 Qf6+ 40. Ke3 Qf2#
+{White checkmated} 0-1
+

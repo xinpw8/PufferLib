@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs BerlinDelta
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.01"]
+[Time "13:39:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "BerlinDelta"]
+[WhiteElo "1288"]
+[BlackElo "1096"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 e6 4. cxd5 Nxd5 5. Nf3 Bb4 6. Bd2 Bxc3 7. Bxc3
+Nxc3 8. bxc3 O-O 9. e4 b6 10. Bd3 Bb7 11. O-O Nd7 12. Qc2 g6 13. Rfe1 c5
+14. Rab1 Rc8 15. Bb5 cxd4 16. Nxd4 Nc5 17. c4 Bxe4 18. Rxe4 Nxe4 19. Qxe4
+a6 20. Nc6 Qd2 21. Bxa6 Ra8 22. Ne7+ Kg7 23. Qe5+ Kh6 24. Bb5 Rxa2 25. Qe3+
+Qxe3 26. fxe3 Rd8 27. Nc6 Rdd2 28. g4 Rxh2 29. Ne5 Rag2+ 30. Kf1 Rf2+ 31. Kg1
+Rhg2+ 32. Kh1 Rh2+ 33. Kg1 Rfg2+ 34. Kf1 Rf2+ 35. Ke1 Re2+ 36. Kd1 Rxe3
+37. Nxf7+ Kg7 38. Ng5 Rh1+ 39. Kc2 Re2+ 40. Kd3 Rhh2 41. Bd7 Rd2+ 42. Kc3
+Rxd7 43. Nxe6+ Kf7 44. Ng5+ Kf6 45. Ne4+ Kg7 46. Rf1 Rh3+ 47. Kb4 Rc7 48. Ng5
+Rc5 49. Ne6+ Kh6 50. Nxc5 bxc5+ 51. Kxc5 Rg3 52. Kb4 Rxg4 53. Kb5 Kg7 54. Rc1
+Rd4 55. c5 Rd8 56. c6 Rc8 57. c7 h5 58. Kb6 Kh6 59. Kb7 Rxc7+ 60. Rxc7 h4
+61. Rc6 Kh5 62. Rc5+ g5 63. Kb6 Kg4 64. Rc4+ Kh5 65. Kb5 g4 66. Rc1 h3 67. Rh1
+Kh4 68. Kc4 g3 69. Kc3 g2 70. Kd2 Kg3 71. Re1 h2 72. Rh1 gxh1=Q
+{White forfeits on time} 0-1
+

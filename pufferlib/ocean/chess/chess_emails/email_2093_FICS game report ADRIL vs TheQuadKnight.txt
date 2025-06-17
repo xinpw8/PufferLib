@@ -1,0 +1,26 @@
+Subject: FICS game report ADRIL vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "16:47:22"]
+[Round "-"]
+[White "ADRIL"]
+[Black "TheQuadKnight"]
+[WhiteElo "1581"]
+[BlackElo "1343"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. d3 d6 7. c3 Be7 8. O-O
+O-O 9. Re1 Bg4 10. h3 Bh5 11. Nbd2 Re8 12. Nf1 Bf8 13. Ng3 Bg6 14. Nh4 d5
+15. Nxg6 fxg6 16. Qe2 Na5 17. Bc2 c6 18. Bg5 h6 19. Bxf6 gxf6 20. Qg4 Kh7
+21. h4 h5 22. Nxh5 gxh5 23. Qxh5+ Kg8 24. Re3 Bg7 25. Rg3 Re7 26. exd5 cxd5
+27. Qg6 Qe8 28. Qf5 Qd7 29. Qf3 f5 30. h5 Kf8 31. h6 Bxh6 32. d4 e4 33. Qh5
+Rh7 34. Rg6 Bf4 35. Qe2 Kf7 36. Rb6 Rah8 37. f3 Rh1+ 38. Kf2 e3+ 39. Qxe3
+Bxe3+ 40. Kxe3 Rxa1 41. Kf2 Rh2 42. Rxa6 Nc4 43. Ra8 Qe7 44. Bxf5 Qe3+ 45. Kg3
+Qg1 46. Bh3 Ne3 47. Ra7+ Kf6 48. Ra6+ Kg5 49. Ra7 Nf1#
+{White checkmated} 0-1
+

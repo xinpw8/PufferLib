@@ -1,0 +1,28 @@
+Subject: FICS game report PastorK vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "14:00:12"]
+[Round "-"]
+[White "PastorK"]
+[Black "TheQuadKnight"]
+[WhiteElo "1337"]
+[BlackElo "1401"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. c3 dxc3 4. Bc4 cxb2 5. Bxb2 Nf6 6. Qb3 d5 7. exd5
+Qe7+ 8. Ne2 Bg4 9. f3 Bf5 10. O-O Qc5+ 11. Bd4 Qb4 12. Qe3+ Be7 13. Nd2
+O-O 14. Rfb1 Qd6 15. Rxb7 Nbd7 16. Rab1 Rfe8 17. Qb3 Nb6 18. Bb5 Red8 19. Bc6
+Bc8 20. Rxb6 axb6 21. Bxa8 Nxd5 22. Bxd5 Qxd5 23. Qxd5 Rxd5 24. Nb3 Rb5
+25. Rc1 c5 26. Be5 Bg5 27. Rc4 f5 28. f4 Be7 29. Nc3 Rb4 30. Rxb4 cxb4 31. Nd5
+Bd8 32. Nxb4 Be6 33. Nc6 Bf6 34. Bxf6 gxf6 35. Nbd4 Bd5 36. Nxf5 Bxc6 37. Ne7+
+Kg7 38. Nxc6 Kg6 39. Nd4 Kf7 40. Kf2 Ke7 41. Ke3 Kd6 42. Ke4 Kc5 43. Nf5
+Kb4 44. Ne7 b5 45. Nd5+ Ka3 46. Nxf6 Kxa2 47. Nd5 Ka3 48. f5 b4 49. Nxb4
+Kxb4 50. f6 Kc5 51. f7 Kd6 52. f8=Q+ Kc6 53. Qh8 Kb6 54. Qxh7 Kb5 55. Qf5+
+Ka4 56. Qd5 Ka3 57. Kd3 Ka4 58. Qb7 Ka3 59. Kc3 Ka2 60. Qb3+ Ka1 61. Qb2#
+{Black checkmated} 1-0
+

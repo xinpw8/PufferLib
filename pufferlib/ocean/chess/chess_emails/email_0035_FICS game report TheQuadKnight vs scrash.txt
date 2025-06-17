@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs scrash
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2013.11.14"]
+[Time "09:38:59"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "scrash"]
+[WhiteElo "1344"]
+[BlackElo "1503"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 c5 3. Nf3 cxd4 4. Nxd4 e5 5. Nf3 e4 6. Nd4 Bc5 7. e3 O-O
+8. Nc3 Nc6 9. Nxc6 bxc6 10. Be2 d5 11. O-O Be6 12. a3 dxc4 13. Bd2 Rb8 14. Rb1
+Rb3 15. Na2 Qb6 16. Nb4 a5 17. Nc2 Rxb2 18. Nd4 Bd5 19. Rc1 Bxd4 20. exd4
+Qxd4 21. Bxa5 Qxd1 22. Rfxd1 Ra8 23. Bd2 Rxa3 24. f3 h6 25. Re1 Rxd2 26. fxe4
+Nxe4 27. Bf3 Raa2 28. Bxe4 Bxe4 29. Rxe4 Rxg2+ 30. Kf1 Rgf2+ 31. Kg1 Rxh2
+32. Rexc4 Rhg2+ 33. Kf1 Rgf2+ 34. Kg1 h5 35. Rxc6 h4 36. Kh1 h3 37. Rc8+
+Kh7 38. R8c4 h2 39. Rh4+ Kg6 40. Rc6+ f6 41. Rc5 Ra1+
+{White forfeits on time} 0-1
+

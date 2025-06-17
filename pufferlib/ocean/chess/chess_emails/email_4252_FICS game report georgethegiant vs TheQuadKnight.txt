@@ -1,0 +1,19 @@
+Subject: FICS game report georgethegiant vs TheQuadKnight
+
+
+[Event "FICS rated atomic game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "18:24:02"]
+[Round "-"]
+[White "georgethegiant"]
+[Black "TheQuadKnight"]
+[WhiteElo "-"]
+[BlackElo "-"]
+[TimeControl "120+12"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 Nc6 2. Bc4 Nf6 3. Bxf7#
+{Black's king exploded} 1-0
+

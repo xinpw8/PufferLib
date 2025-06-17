@@ -1,0 +1,23 @@
+Subject: FICS game report alcudia vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "10:51:27"]
+[Round "-"]
+[White "alcudia"]
+[Black "TheQuadKnight"]
+[WhiteElo "1445"]
+[BlackElo "1421"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. h4 g4 5. Ne5 d6 6. Nxg4 Nc6 7. Bb5 Be7
+8. O-O Bxh4 9. Rxf4 h5 10. Nh2 Bg3 11. Rf3 h4 12. Qf1 Be6 13. d4 a6 14. Bxc6+
+bxc6 15. Nc3 Nf6 16. Bg5 Bxh2+ 17. Kh1 Rg8 18. Bxf6 Qd7 19. Kxh2 Rg6 20. d5
+cxd5 21. Nxd5 Bg4 22. Rf4 c6 23. Nb6 Qb7 24. Nxa8 Qxa8 25. Bxh4 Rh6 26. g3
+Qb7 27. Rxg4 Qxb2 28. Re1 Qxc2+ 29. Re2 Qc3 30. Rg8+ Kd7 31. Qxf7#
+{Black checkmated} 1-0
+

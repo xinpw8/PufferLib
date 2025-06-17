@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs timjol
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.20"]
+[Time "15:52:16"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "timjol"]
+[WhiteElo "1340"]
+[BlackElo "1482"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e6 2. c4 Nf6 3. Nc3 Bb4 4. Nf3 Ne4 5. Bd2 Nxd2 6. Qxd2 d5 7. e3 O-O
+8. Bd3 Nc6 9. O-O Be7 10. cxd5 exd5 11. Qc2 g6 12. Rac1 Nb4 13. Qd1 Nxd3
+14. Qxd3 Bf5 15. Qb5 b6 16. Qxd5 Bd6 17. e4 Be6 18. Qc6 Bf4 19. Rc2 Bg4
+20. Nd2 Qxd4 21. Nb3 Qd3 22. Nd5 Be5 23. h3 Be6 24. Ne7+ Kg7 25. Rd2 Qa6
+26. Rfd1 Qxa2 27. Nd4 Bxd4 28. Rxd4 Qxb2 29. Rd8 Raxd8 30. Rxd8 Rxd8 31. Qxc7
+Rd1+ 32. Kh2 Qxf2 33. Qe5+ f6 34. Qc7 Qg1+ 35. Kg3 Rd3+ 36. Kf4 Qf2#
+{White checkmated} 0-1
+

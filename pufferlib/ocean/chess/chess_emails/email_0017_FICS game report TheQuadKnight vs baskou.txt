@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs baskou
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.06.02"]
+[Time "16:40:25"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "baskou"]
+[WhiteElo "1303"]
+[BlackElo "1612"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 Nc6 3. Nf3 d6 4. Bb5 exd4 5. Nxd4 Bd7 6. Nxc6 bxc6 7. Bc4
+Nf6 8. Nc3 Be7 9. O-O O-O 10. Bf4 Be6 11. Bxe6 fxe6 12. e5 Nd5 13. exd6
+cxd6 14. Nxd5 cxd5 15. Bg3 Bh4 16. Bxh4 Qxh4 17. Qe2 Rae8 18. Rae1 Qc4 19. b3
+Qc6 20. Qd3 Rf6 21. c3 Ref8 22. Qe3 e5 23. Qxa7 Qxc3 24. Qe3 Qc6 25. f3
+d4 26. Qd3 Kh8 27. Rc1 Qd5 28. Rc7 e4 29. fxe4 Rxf1+ 30. Qxf1 Rxf1+ 31. Kxf1
+Qa8 32. Ke2 h6 33. Kd3 Kh7 34. Kxd4 Qa7+ 35. Rxa7 Kg6 36. Kd5 Kg5 37. Ra6
+g6 38. Rxd6 h5 39. e5 h4 40. e6 Kf5 41. e7 Kg5 42. h3 Kh5 43. e8=Q Kg5 44. Qe5+
+Kh6 45. Qf4+ Kg7 46. Qxh4 Kf7 47. Qd8 Kg7 48. Qd7+ Kh6 49. g4 Kg5 50. h4+
+Kxh4 51. Qe7+ Kg3 52. Qe6 g5 53. Kc6 Kh4 54. Qe3 Kxg4 55. Rd8 Kh4 56. Rd4+
+g4 57. Qe5 Kh3 58. b4 g3 59. a4 Kg2 60. a5
+{Black forfeits on time} 1-0
+

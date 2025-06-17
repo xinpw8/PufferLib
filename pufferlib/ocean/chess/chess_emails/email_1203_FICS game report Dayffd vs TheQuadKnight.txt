@@ -1,0 +1,23 @@
+Subject: FICS game report Dayffd vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.23"]
+[Time "09:07:54"]
+[Round "-"]
+[White "Dayffd"]
+[Black "TheQuadKnight"]
+[WhiteElo "1409"]
+[BlackElo "1404"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Nf6 3. Bg5 e6 4. Nc3 Be7 5. Nf3 c6 6. e3 O-O 7. Bd3 dxc4
+8. Bxc4 Nbd7 9. O-O h6 10. Bh4 Nd5 11. Bxe7 Qxe7 12. e4 N5f6 13. Bb3 Rd8
+14. e5 Nd5 15. Ne4 N7b6 16. a3 Nc7 17. Qd3 Nb5 18. Bc2 Qd7 19. Nf6+ gxf6
+20. Qh7+ Kf8 21. Qh8+ Ke7 22. Qxf6+ Kf8 23. Qxh6+ Ke7 24. Qf6+ Kf8 25. Ng5
+Qxd4 26. Rad1 Qxf2+ 27. Kxf2
+{Black resigns} 1-0
+

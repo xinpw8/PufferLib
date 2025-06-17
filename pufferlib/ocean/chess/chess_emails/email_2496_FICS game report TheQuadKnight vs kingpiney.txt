@@ -1,0 +1,31 @@
+Subject: FICS game report TheQuadKnight vs kingpiney
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.11"]
+[Time "08:55:37"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "kingpiney"]
+[WhiteElo "1356"]
+[BlackElo "1617"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 c5 2. e3 d6 3. c4 Nc6 4. Nf3 Bg4 5. Be2 Nf6 6. Nc3 Bxf3 7. Bxf3 cxd4
+8. exd4 a6 9. Be3 e6 10. Qa4 Qd7 11. a3 Be7 12. O-O O-O 13. Rfe1 Qc7 14. b4
+d5 15. cxd5 exd5 16. Nxd5 Nxd5 17. Bxd5 b5 18. Qb3 Qd7 19. Rac1 Rac8 20. Qd3
+Bf6 21. Be4 h6 22. Bf5 Ne5 23. dxe5 Rxc1 24. Bxc1 Qxd3 25. Bxd3 Re8 26. Bb2
+g6 27. g3 Bg7 28. f4 f5 29. Rd1 Kf8 30. Bd4 Kg8 31. Bc5 Bf8 32. Bxf8 Kxf8
+33. Bc2 Rc8 34. Bb3 Ke7 35. a4 Rc3 36. Rb1 g5 37. axb5 axb5 38. Bg8 gxf4
+39. gxf4 Rf3 40. Rf1 Rd3 41. Bh7 Ke6 42. Kg2 Rd4 43. Bg8+ Ke7 44. Rf3 Rxb4
+45. Bh7 Ke6 46. Kg3 Rb2 47. Rc3 b4 48. Rc6+ Ke7 49. Rxh6 Rb3+ 50. Kh4 Rb2
+51. Kg5 b3 52. Kxf5 Re2 53. h4 Rh2 54. Kg4 Rg2+ 55. Kf3 Rh2 56. Bg6 b2 57. Rh7+
+Ke6 58. h5 Rh1 59. Rb7 Rf1+ 60. Kg3 Rg1+ 61. Kf2 Rh1 62. Rb6+ Kd5 63. e6
+Kc5 64. e7 Kxb6 65. e8=Q Rh2+ 66. Kg3 Rd2 67. Qe3+ Rd4 68. Qxd4+ Kb5 69. Qxb2+
+Kc5 70. f5 Kd5 71. f6 Ke6 72. f7 Ke7 73. Qf2 Kf8 74. h6 Ke7 75. f8=Q+ Ke6
+76. Qe2+ Kd7 77. Qff1 Kd6 78. Qfd1+ Kc5 79. Qec2+ Kb4 80. Qdb1+ Ka3 81. Qca2#
+{Black checkmated} 1-0
+

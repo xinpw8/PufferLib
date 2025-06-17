@@ -1,0 +1,21 @@
+Subject: FICS game report usukvc vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "08:44:44"]
+[Round "-"]
+[White "usukvc"]
+[Black "TheQuadKnight"]
+[WhiteElo "1494"]
+[BlackElo "1361"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. e3 c5 3. Nf3 e6 4. a3 cxd4 5. Nxd4 Nf6 6. b3 Nc6 7. Bb2 Bc5
+8. Nf3 O-O 9. Nbd2 Re8 10. c3 e5 11. h3 d4 12. cxd4 exd4 13. Rc1 dxe3 14. fxe3
+Rxe3+ 15. Be2 Bb6 16. Rc3 Qe7 17. Rxe3 Qxe3 18. Bxf6 Qf2#
+{White checkmated} 0-1
+

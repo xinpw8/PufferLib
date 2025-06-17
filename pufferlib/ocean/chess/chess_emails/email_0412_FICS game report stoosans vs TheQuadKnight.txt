@@ -1,0 +1,27 @@
+Subject: FICS game report stoosans vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.18"]
+[Time "08:23:19"]
+[Round "-"]
+[White "stoosans"]
+[Black "TheQuadKnight"]
+[WhiteElo "1485"]
+[BlackElo "1426"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Nc6 4. d4 d6 5. Bxf4 Bg4 6. Bc4 Nf6 7. Nc3 Qd7
+8. h3 Bh5 9. g4 Bg6 10. Qe2 Be7 11. O-O-O O-O-O 12. e5 dxe5 13. dxe5 Qe8
+14. exf6 Bxf6 15. Qxe8 Rhxe8 16. Rhe1 Rxd1+ 17. Kxd1 Rd8+ 18. Kc1 Nb4 19. Nb5
+Nxc2 20. Nxa7+ Kb8 21. Nb5 Rd7 22. Re8+ Bd8 23. Rxd8+ Rxd8 24. Bxc7+ Kc8
+25. Bxd8 Kxd8 26. Ne5 Be4 27. Nxf7+ Ke7 28. Nfd6 Bg6 29. Nf5+ Kf6 30. Kxc2
+Bxf5+ 31. gxf5 Kxf5 32. Nd6+ Kf4 33. Nxb7 Kg3 34. Be6 h5 35. a4 g5 36. a5
+g4 37. hxg4 h4 38. g5 h3 39. a6 h2 40. Bd5 h1=Q 41. Bxh1 Kh4 42. a7 Kxg5
+43. Nc5 Kf4 44. a8=Q Kg3 45. Qd5 Kh4 46. Qg8 Kh5 47. Qg3 Kh6 48. Qg4 Kh7
+49. Qg5 Kh8 50. Ne6 Kh7 51. Qg7#
+{Black checkmated} 1-0
+

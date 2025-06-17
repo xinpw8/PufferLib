@@ -1,0 +1,23 @@
+Subject: FICS game report dpzen vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.24"]
+[Time "15:48:07"]
+[Round "-"]
+[White "dpzen"]
+[Black "TheQuadKnight"]
+[WhiteElo "1422"]
+[BlackElo "1419"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. e3 Bb4 5. Bd3 O-O 6. Nf3 Bd7 7. O-O c5 8. cxd5
+exd5 9. dxc5 Bxc5 10. Qc2 Bg4 11. Nd2 d4 12. Nce4 Nxe4 13. Nxe4 Be7 14. exd4
+Qxd4 15. Be3 Qe5 16. Ng3 f5 17. Rfe1 Qf6 18. Bd2 Nc6 19. Bc3 Qf7 20. h3
+Bh5 21. Nxf5 Bf6 22. Bxf6 gxf6 23. Nh6+ Kg7 24. Nxf7 Bxf7 25. Bxh7 Nd4 26. Qe4
+Rad8 27. Bf5 Rfe8 28. Qg4+ Kf8 29. Rxe8+ Rxe8 30. Qxd4
+{Black resigns} 1-0
+

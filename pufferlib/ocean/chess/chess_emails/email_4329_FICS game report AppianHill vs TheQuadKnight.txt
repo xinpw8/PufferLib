@@ -1,0 +1,23 @@
+Subject: FICS game report AppianHill vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "20:01:06"]
+[Round "-"]
+[White "AppianHill"]
+[Black "TheQuadKnight"]
+[WhiteElo "1433"]
+[BlackElo "1316"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d6 5. Nxf7 d5 6. Nxd8 Nxd8 7. exd5
+Bc5 8. d3 Ng4 9. O-O Rf8 10. Nd2 Nxf2 11. Qh5+ g6 12. Qxe5+ Kd7 13. Bb5+
+c6 14. dxc6+ bxc6 15. Qxc5 cxb5 16. Qxf8 Ng4 17. Ne4 Ne6 18. Qd6+ Ke8 19. Nf6+
+Nxf6 20. Rxf6 Bd7 21. Rxe6+ Bxe6 22. Qc6+ Kf7 23. Qxa8 Kf6 24. Qxa7 Kf5
+25. Qf2+
+{Black resigns} 1-0
+

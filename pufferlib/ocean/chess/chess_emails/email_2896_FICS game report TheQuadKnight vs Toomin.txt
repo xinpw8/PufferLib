@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Toomin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "16:47:10"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Toomin"]
+[WhiteElo "1368"]
+[BlackElo "1488"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d6 2. d4 Nf6 3. Nf3 g6 4. Nc3 Bg7 5. Bf4 O-O 6. Bd3 Nbd7 7. Qd2 c5
+8. O-O-O cxd4 9. Nxd4 Nc5 10. Rhe1 Nxd3+ 11. Qxd3 Qb6 12. Bg5 Re8 13. f4
+Nd7 14. Nb3 Nc5 15. Nxc5 Qxc5 16. Nd5 e6 17. Ne3 h6 18. Bh4 Qb4 19. c3 Qa4
+20. Qxd6 Qxa2 21. e5 b6 22. Qc6 Ba6 23. Ng4 Qa1+ 24. Kc2 Qa5 25. Qc7 Qa4+
+26. Kc1 Qa1+ 27. Kc2 Qa4+ 28. Kb1 Qxf4 29. Nf6+ Bxf6 30. Bxf6 Qf5+ 31. Ka2
+Rac8 32. Qd7 Bc4+ 33. Ka3 Qc2 34. Qxe8+ Rxe8 35. Rc1 Qb3#
+{White checkmated} 0-1
+

@@ -1,0 +1,23 @@
+Subject: FICS game report scenicnegro vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.24"]
+[Time "14:04:11"]
+[Round "-"]
+[White "scenicnegro"]
+[Black "TheQuadKnight"]
+[WhiteElo "1390"]
+[BlackElo "1265"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Nf6 3. Nf3 Nc6 4. Bb5 a6 5. Bxc6 dxc6 6. Nxe5 Bd6 7. d4
+O-O 8. Bg5 Re8 9. Qd3 Bxe5 10. dxe5 Qxd3 11. cxd3 Rxe5 12. f4 Re6 13. f5
+Rd6 14. e5 Rxd3 15. exf6 h6 16. Bf4 Bxf5 17. O-O gxf6 18. Bxh6 Kh7 19. Rxf5
+Kxh6 20. Rxf6+ Kg7 21. Raf1 Rf8 22. Ne4 Re3 23. R6f4 Re2 24. Rg4+ Kh6 25. Rf3
+Re1+ 26. Kf2
+{Black resigns} 1-0
+

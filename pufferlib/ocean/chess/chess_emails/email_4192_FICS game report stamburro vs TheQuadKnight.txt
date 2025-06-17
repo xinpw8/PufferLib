@@ -1,0 +1,24 @@
+Subject: FICS game report stamburro vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "10:58:08"]
+[Round "-"]
+[White "stamburro"]
+[Black "TheQuadKnight"]
+[WhiteElo "1469"]
+[BlackElo "1370"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 Nf6 2. Nc3 c6 3. d4 d5 4. Nf3 Bg4 5. Bg5 Nbd7 6. e3 h6 7. Bh4 g5 8. Bg3
+Ne4 9. Be2 Nxc3 10. bxc3 f6 11. cxd5 cxd5 12. h3 Bf5 13. O-O Qc7 14. Rc1
+Qb6 15. Rb1 Qe6 16. Rxb7 Bg7 17. Qb3 O-O 18. c4 dxc4 19. Bxc4 Nc5 20. dxc5
+Qxc4 21. Qxc4+ e6 22. Bd6 Rfc8 23. Qb5 Be4 24. Rb8 Rcxb8 25. Bxb8 a6 26. Qb6
+Bd3 27. Qd8+ Bf8 28. Qxd3 Rxb8 29. Rb1 Rc8 30. Qc4 Rxc5 31. Qxe6+ Kh7 32. Rb7+
+Kg6 33. Qf7+ Kf5 34. Qxf8 Rc1+ 35. Kh2 g4 36. Nh4+ Kg5 37. Rb5+ Kxh4 38. Qxh6#
+{Black checkmated} 1-0
+

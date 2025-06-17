@@ -1,0 +1,22 @@
+Subject: FICS game report zcanucks vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.01"]
+[Time "15:55:02"]
+[Round "-"]
+[White "zcanucks"]
+[Black "TheQuadKnight"]
+[WhiteElo "1469"]
+[BlackElo "1368"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. d4 g4 5. Ne5 d6 6. Nxf7 Kxf7 7. Bxf4 Qf6
+8. g3 h5 9. Bc4+ Ke8 10. O-O Qe7 11. e5 Nc6 12. exd6 cxd6 13. Re1 Qxe1+
+14. Qxe1+ Kd8 15. Nc3 Nxd4 16. Kh1 b6 17. Rc1 Bb7+ 18. Bd5 Bxd5+ 19. Nxd5
+Nf3 20. Qc3 Rc8 21. Qxh8 Ke8 22. Qxg8
+{Black resigns} 1-0
+

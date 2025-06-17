@@ -1,0 +1,24 @@
+Subject: FICS game report etbish vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.09"]
+[Time "21:42:18"]
+[Round "-"]
+[White "etbish"]
+[Black "TheQuadKnight"]
+[WhiteElo "1518"]
+[BlackElo "1364"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d3 Nc6 3. Be2 Nf6 4. Nf3 d5 5. exd5 Nxd5 6. c4 Nf4 7. O-O Bf5
+8. Bxf4 exf4 9. Nc3 Bd6 10. Re1 O-O 11. a3 Re8 12. b4 Ne5 13. Nd5 Nxf3+
+14. Bxf3 c6 15. Rxe8+ Qxe8 16. c5 Be5 17. Rc1 cxd5 18. Bxd5 Rd8 19. Bf3
+Rxd3 20. Qe2 Rd8 21. Bxb7 Bd3 22. Qf3 Bb2 23. Bc6 Qe5 24. Rd1 Bxa3 25. h3
+Bxb4 26. Rxd3 Qe1+ 27. Kh2 Rxd3 28. Qxd3 Bxc5 29. Qd8+ Bf8 30. f3 Qg3+ 31. Kg1
+Qe1+ 32. Kh2 Qg3+ 33. Kh1 Qe1+ 34. Kh2 Qg3+ 35. Kg1 Qe1+ 36. Kh2 Qg3+ 37. Kh1
+{Black forfeits on time} 1-0
+

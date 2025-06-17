@@ -1,0 +1,21 @@
+Subject: FICS game report Fzoozle vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "16:07:40"]
+[Round "-"]
+[White "Fzoozle"]
+[Black "TheQuadKnight"]
+[WhiteElo "1541"]
+[BlackElo "1354"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Be2 h6 9. Nf3 e4 10. Ne5 Qd4 11. f4 Bc5 12. Rf1 O-O 13. c3 Qd6 14. b4
+Bb6 15. bxa5 Bxa5 16. Qa4 Bb6 17. Qxc6 Qd8 18. Qxa8
+{Black resigns} 1-0
+

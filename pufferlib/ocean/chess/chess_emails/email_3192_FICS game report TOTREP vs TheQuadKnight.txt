@@ -1,0 +1,26 @@
+Subject: FICS game report TOTREP vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "20:36:52"]
+[Round "-"]
+[White "TOTREP"]
+[Black "TheQuadKnight"]
+[WhiteElo "1442"]
+[BlackElo "1346"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. b3 e5 2. Bb2 Nc6 3. d3 d5 4. a3 Bc5 5. c3 Qf6 6. e3 d4 7. cxd4 exd4 8. e4
+Ne5 9. Be2 Ne7 10. Nf3 Bg4 11. Nxe5 Bxe2 12. Qxe2 Qxe5 13. Nd2 Ng6 14. Nc4
+Qg5 15. g3 Ne5 16. f4 Qg4 17. Nxe5 Qxe2+ 18. Kxe2 f6 19. Nf3 O-O-O 20. Rac1
+Bb6 21. Rc4 c5 22. b4 Bc7 23. bxc5 b5 24. cxb6 axb6 25. Bxd4 Kb7 26. Rb1
+Rhe8 27. Kd2 Re6 28. e5 fxe5 29. Bxe5 Bxe5 30. Nxe5 Red6 31. Ke3 Re6 32. a4
+g5 33. Ke4 gxf4 34. gxf4 h5 35. d4 Red6 36. Rb5 Rg8 37. a5 Rg2 38. Rxb6+
+Rxb6 39. axb6 Kxb6 40. Kd5 Rxh2 41. f5 h4 42. f6 Rf2 43. Ke6 h3 44. Rc1
+Rg2 45. Rh1 h2 46. f7 Rf2 47. Ke7
+{Black forfeits on time} 1-0
+

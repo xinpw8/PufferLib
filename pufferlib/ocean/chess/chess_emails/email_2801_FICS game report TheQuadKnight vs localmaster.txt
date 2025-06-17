@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs localmaster
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.03"]
+[Time "08:38:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "localmaster"]
+[WhiteElo "1420"]
+[BlackElo "1249"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 d6 5. Nc3 e5 6. Nb3 Nf6 7. Bb5 Be7
+8. Nd5 a6 9. Bxc6+ bxc6 10. Nxf6+ Bxf6 11. Bd2 O-O 12. O-O Bb7 13. Re1 h6
+14. Ba5 Qe7 15. Bb4 Rfd8 16. Qe2 Qc7 17. Ba5 Qd7 18. Bxd8 Bxd8 19. Rad1
+f5 20. Nc5 Qf7 21. Nxb7 Qxb7 22. Rxd6 fxe4 23. Qxe4 Qxb2 24. Qxe5 Qxa2 25. Qe8+
+Kh7 26. Qg6+ Kg8 27. Re8#
+{Black checkmated} 1-0
+

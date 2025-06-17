@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs Papaflesas
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "10:20:38"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Papaflesas"]
+[WhiteElo "1424"]
+[BlackElo "1639"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. c4 c5 3. Nf3 cxd4 4. Nxd4 Nc6 5. Nc3 Nxd4 6. Qxd4 b6 7. Bf4
+Qf6 8. Qd2 Bb7 9. Nb5 Rc8 10. Nxa7 Rxc4 11. e3 Rc5 12. Nb5 d5 13. Nd6+ Bxd6
+14. Bxd6 Rc6 15. Bb4 Ne7 16. Bc3 Qg6 17. Bd3 Qxg2 18. O-O-O Nf5 19. Rhg1
+Qxh2 20. Bxf5 exf5 21. Kb1 Rg6 22. Rxg6 hxg6 23. Bxg7 Rh7 24. Bf6 Qd6 25. Qd4
+Qe6 26. Be5 Rh5 27. Bc7 b5 28. Qb6 Qxb6 29. Bxb6 Rh2 30. Rd2 g5 31. Kc1
+f4 32. exf4 gxf4 33. Bc7 Rh4 34. Rd4 Kd7 35. Bxf4 Kc6 36. Be3 Rh1+ 37. Kd2
+f5 38. Rf4 Rh5 39. Bd4 Kd6 40. Kc3 Ke6 41. Kb4 Bc6 42. a3 Rg5 43. Be3 Rg4
+44. Rxg4 fxg4 45. Bf4 Kf5 46. Bg3 Ke4 47. Kc3 d4+ 48. Kd2 d3 49. b3 Bd5
+50. b4 Bb3 51. Kc3 Bc2 52. Kd2 Kf3 53. Kc3 d2 54. Kxd2 Ba4 55. Kc3 Ke4 56. Bd6
+Kd5 57. Bc5 Ke4 58. Bb6 Kf3 59. Bc5
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs DumbBlonde
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "06:21:10"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "DumbBlonde"]
+[WhiteElo "1409"]
+[BlackElo "1702"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bg5 h6 5. Bh4 O-O 6. Nf3 d6 7. e3 Bxc3+
+8. bxc3 Re8 9. Bd3 e5 10. e4 Nc6 11. O-O Bg4 12. dxe5 Nxe5 13. Be2 Ng6 14. Bg3
+Nxe4 15. Re1 Nxc3 16. Qd2 Nxe2+ 17. Rxe2 Bxf3 18. gxf3 Qf6 19. Rae1 Rxe2
+20. Qxe2 Nh4 21. f4 Nf5 22. Qf3 c6 23. Qb3 b6 24. Qb4 Nd4 25. Qc3 Ne2+
+{White resigns} 0-1
+

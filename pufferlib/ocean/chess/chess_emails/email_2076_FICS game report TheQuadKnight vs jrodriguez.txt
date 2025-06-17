@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs jrodriguez
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "21:55:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jrodriguez"]
+[WhiteElo "1322"]
+[BlackElo "1418"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Bd7 4. e3 b5 5. Bxc4 bxc4 6. Qe2 Be6 7. Nf3 Na6
+8. Ng5 Nb4 9. Nxe6 fxe6 10. Ne4 Qd5 11. Nc3 Nd3+ 12. Kd2 Qxg2 13. Rf1 Nf6
+14. Nb5 Ne4+ 15. Kd1 Ndxf2+ 16. Kc2 Kd7 17. Bd2 Rb8 18. Nc3 Nxc3 19. Bxc3
+Qe4+ 20. Kd2 Nd3 21. Qh5 g6 22. Qc5 Nxc5 23. dxc5 Rg8 24. Rf4 Qg2+ 25. Ke1
+Bh6 26. Rf2 Qg1+ 27. Rf1 Qxh2 28. Bd2 Rxb2 29. Rd1 Bxe3 30. Bxe3+ Kc6 31. Rf2
+Qg1+ 32. Rf1 Qxe3#
+{White checkmated} 0-1
+

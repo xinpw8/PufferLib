@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs MoosMutz
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "22:38:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MoosMutz"]
+[WhiteElo "1346"]
+[BlackElo "1567"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nf6 3. d3 d6 4. Be2 Nc6 5. f4 exf4 6. Bxf4 Be7 7. Nf3 O-O
+8. Qd2 Be6 9. O-O-O a5 10. Ng5 Qd7 11. h3 Rfb8 12. Nxe6 Qxe6 13. Bg5 b5
+14. Nd5 Nd4 15. Bg4 Nxg4 16. Nxe7+ Kf8 17. hxg4 Qxa2 18. Qf4 Qa1+ 19. Kd2
+Qxb2 20. Ke3 Nxc2+ 21. Kf3 Nd4+ 22. Kg3 Ne6 23. Qf5 Nxg5 24. Qxg5 f6 25. Ng6+
+hxg6 26. Qxg6 Qe5+ 27. Kf2 Qg5 28. Rh8+ Ke7 29. Qxg5 fxg5 30. Rh5 Kf6 31. Kg3
+b4 32. Rf1+ Kg6 33. d4 Rb5 34. Re1 b3 35. e5 dxe5 36. dxe5 b2 37. Rf1 b1=Q
+38. e6 Qd3+ 39. Rf3 Qd6+ 40. Kf2 Rb2+ 41. Kg1 Qxe6
+{White resigns} 0-1
+

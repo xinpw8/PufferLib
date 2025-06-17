@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs callerfrombeyond
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "13:47:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "callerfrombeyond"]
+[WhiteElo "1331"]
+[BlackElo "1595"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Nxf6+ exf6 6. Qe2+ Qe7 7. Qxe7+
+Bxe7 8. Nf3 Bg4 9. Be2 O-O 10. Bf4 Re8 11. O-O-O Ba3 12. bxa3 Rxe2 13. Rde1
+Bxf3 14. gxf3 Rxe1+ 15. Rxe1 Na6 16. Re7 b5 17. Rd7 c5 18. Rd6 Nc7 19. dxc5
+Ne6 20. Be3 Rc8 21. c6 h6 22. Bxa7 Kf8 23. Bb6 Ng5 24. c7 Ne6 25. f4 Nxc7
+26. Bxc7 Rxc7 27. Rd8+ Ke7 28. Rb8 Rc5 29. Rb7+ Ke6 30. Rb6+ Kf5 31. Rb7
+Kg6 32. Rb6 Rf5 33. c3 Rxf4 34. Rxb5 Rxf2 35. Kb1 f5 36. a4 f4 37. a5 f3
+38. a6 Rxh2 39. a7 f2 40. Kc2 f1=Q+ 41. Kb3 Qxb5+ 42. Ka3 Qa5+ 43. Kb3 Qxa7
+44. Kc4 Rxa2 45. Kd3 Qc5 46. c4 Ra3+ 47. Kd2 Qxc4 48. Kd1 Qb3+ 49. Kc1 Qb2+
+50. Kd1 Ra2 51. Ke1 Kg5 52. Kf1 Kf4 53. Kg1 g5 54. Kh1 h5 55. Kg1 h4 56. Kf1
+g4 57. Kg1 h3 58. Kh1 g3 59. Kg1 Qe2 60. Kh1 f5 61. Kg1 Qf2+ 62. Kh1 Qf3+
+63. Kg1 h2#
+{White checkmated} 0-1
+

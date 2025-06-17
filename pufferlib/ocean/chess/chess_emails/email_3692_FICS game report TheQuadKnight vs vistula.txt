@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs vistula
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "14:33:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vistula"]
+[WhiteElo "1295"]
+[BlackElo "1517"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 c5 4. Nf3 Nc6 5. cxd5 exd5 6. Bf4 Nf6 7. e3 Be7
+8. dxc5 Bxc5 9. Ne5 Nxe5 10. Bxe5 O-O 11. Bxf6 Qxf6 12. Qxd5 Bb4 13. Rc1
+Be6 14. Qxb7 Rac8 15. Qxb4 Rfd8 16. Be2 Bxa2 17. Nxa2 Rxc1+ 18. Nxc1
+{Black resigns} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs nigelpwalters
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "21:55:26"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "nigelpwalters"]
+[WhiteElo "1374"]
+[BlackElo "1418"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. Bd2 Bxc3 5. Bxc3 dxe4 6. d5 Nf6 7. dxe6
+Qxd1+ 8. Rxd1 Bxe6 9. Bxf6 gxf6 10. Rd4 f5 11. Bc4 O-O 12. Bxe6 fxe6 13. Ne2
+Nc6 14. Rd1 Rad8 15. O-O Rd6 16. Nc3 Rfd8 17. Rxd6 cxd6 18. Nb5 a6 19. Nc7
+Kf7 20. f3 e3 21. Re1 f4 22. g3 Rd7 23. Na8 e5 24. Nb6 Rd8 25. c3 Ke6 26. gxf4
+exf4 27. Kf1 Ne5 28. Rd1 Nxf3 29. Kg2 e2 30. Re1 Nxe1+ 31. Kf2 Nd3+ 32. Kxe2
+Nxb2 33. Kf3 Ke5 34. c4 Nd3 35. h4 Nc5 36. a4 Rg8 37. a5 Rg3+ 38. Kf2 Rh3
+39. h5 Rxh5 40. Kf3 Rh3+ 41. Kg2 Ra3 42. Na8 f3+ 43. Kf2 Ne4+ 44. Kf1 Ra1#
+{White checkmated} 0-1
+

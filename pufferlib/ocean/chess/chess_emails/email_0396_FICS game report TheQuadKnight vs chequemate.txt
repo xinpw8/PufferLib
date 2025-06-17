@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs chequemate
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.07.02"]
+[Time "17:20:47"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "chequemate"]
+[WhiteElo "1390"]
+[BlackElo "1323"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 b6 2. Nf3 Bb7 3. Bd2 e6 4. e3 d5 5. Nc3 c5 6. Be2 Nc6 7. O-O Bd6 8. a3
+Nge7 9. b4 O-O 10. Nb5 a6 11. Nxd6 Qxd6 12. Rb1 c4 13. Re1 b5 14. c3 a5
+15. a4 Ng6 16. axb5 Na7 17. bxa5 e5 18. a6 Bc8 19. b6 Nb5 20. b7 Bxb7 21. axb7
+Rab8 22. Rxb5 e4 23. Ne5 Nxe5 24. dxe5 Qxe5 25. Bc1 Rfc8 26. Qa4 Rc7 27. Bxc4
+Rcxb7 28. Rxd5 Qxc3 29. Rdd1 h6 30. Bd5 Rb4 31. Qc6 Qe5 32. Qd7 Rb1 33. Qxf7+
+Kh7 34. f3 exf3 35. gxf3 Qg5+ 36. Kh1 R1b5 37. Rg1 Qf6 38. Be4+ Kh8 39. Qg6
+Qxg6 40. Bxg6 R8b6 41. Be4 Rb3 42. Bd2 Rb2 43. Bc3 Ra2 44. Bxg7+ Kg8 45. Bd4+
+Kf8 46. Bxb6
+{Black resigns} 1-0
+

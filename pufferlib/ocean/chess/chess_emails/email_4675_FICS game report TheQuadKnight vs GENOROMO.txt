@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs GENOROMO
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.22"]
+[Time "08:22:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "GENOROMO"]
+[WhiteElo "1294"]
+[BlackElo "1342"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 c5 3. Nf3 cxd4 4. Nxd4 Nf6 5. Nc3 Qa5 6. Bc4 Nxe4 7. Bd2
+Nxd2 8. Qxd2 Qc5 9. Qd3 Qe5+ 10. Nde2 Bc5 11. O-O O-O 12. Rad1 d5 13. Bb3
+Bd6 14. Nb5 Qxh2#
+{White checkmated} 0-1
+

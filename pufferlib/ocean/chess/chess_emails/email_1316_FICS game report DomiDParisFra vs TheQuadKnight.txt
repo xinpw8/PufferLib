@@ -1,0 +1,23 @@
+Subject: FICS game report DomiDParisFra vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.21"]
+[Time "13:42:01"]
+[Round "-"]
+[White "DomiDParisFra"]
+[Black "TheQuadKnight"]
+[WhiteElo "1466"]
+[BlackElo "1405"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 e6 5. Nxc6 bxc6 6. c4 Bc5 7. Nc3
+Qb6 8. Qf3 Ne7 9. Bd3 O-O 10. O-O Ng6 11. Na4 Qa5 12. Nxc5 Qxc5 13. Be3
+Qb4 14. b3 Ne5 15. Qe2 d5 16. exd5 cxd5 17. cxd5 Nxd3 18. Qxd3 Rd8 19. Rfd1
+Bb7 20. d6 Bd5 21. Rac1 Rxd6 22. Bc5 Qe4 23. Qxe4 Bxe4 24. Bxd6 Rd8 25. Bc5
+Rxd1+ 26. Rxd1 h6 27. Bxa7 Bc2 28. Rc1 Be4 29. b4
+{Black resigns} 1-0
+

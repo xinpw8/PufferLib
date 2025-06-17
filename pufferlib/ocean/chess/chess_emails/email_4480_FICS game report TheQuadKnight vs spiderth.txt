@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs spiderth
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "08:42:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "spiderth"]
+[WhiteElo "1250"]
+[BlackElo "1722"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. Nf3 dxe4 5. Ng5 Nc6 6. d5 exd5 7. Bd2 Nf6
+8. Bb5 O-O 9. Bxc6 bxc6 10. O-O Bxc3 11. Bxc3 Be6 12. Nxe6 fxe6 13. Qd2
+c5 14. f3 d4 15. Ba5 e3 16. Qd3 Qd6 17. c3 e5 18. Rad1 Nd5 19. Qc4 Kh8 20. b4
+Nxc3 21. Rd3 Qc6 22. bxc5 e4 23. Rxd4 exf3 24. gxf3 e2 25. Re1 Qxf3 26. Bxc3
+Qf2+ 27. Kh1 Qf1+ 28. Rxf1 exf1=Q+ 29. Qxf1 Rxf1+ 30. Kg2 Rc1 31. Bb2 Rc2+
+32. Kf3 Rxb2 33. Rd7 Rxa2 34. Rxc7 Rc2 35. c6 Rxh2 36. Rd7 Rc2 37. c7 Rxc7
+38. Rxc7 a5 39. Ke4 a4 40. Kd5 a3 41. Rc1 a2 42. Ra1 h6 43. Kc4 Kh7 44. Kb3
+h5 45. Rxa2 Rxa2 46. Kxa2 Kg6 47. Kb2 Kf5
+{White resigns} 0-1
+

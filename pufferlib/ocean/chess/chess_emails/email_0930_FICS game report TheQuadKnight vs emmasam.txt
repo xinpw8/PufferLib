@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs emmasam
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "14:27:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "emmasam"]
+[WhiteElo "1380"]
+[BlackElo "1491"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bg5 c5 5. e3 cxd4 6. exd4 O-O 7. Nf3 Qa5
+8. Qc2 Ne4 9. Bd2 Nxd2 10. Qxd2 Nc6 11. Bd3 b6 12. O-O Bb7 13. a3 Bxc3 14. bxc3
+Rac8 15. d5 exd5 16. cxd5 Ne7 17. d6 Ng6 18. Nd4 Qxc3 19. Qxc3 Rxc3 20. Bxg6
+hxg6 21. Nb5 Rc6 22. Rfd1 a6 23. Nc7 Rc8 24. h3 R8xc7 25. dxc7 Rxc7 26. Rac1
+Rxc1 27. Rxc1 Bc6 28. Rc3 b5 29. g4 a5 30. f4 Kf8 31. Kf2 Ke7 32. Ke3 Kd6
+33. Kd4 Kc7 34. Ke5 Kb6 35. h4 b4 36. axb4 axb4 37. Rb3 Kb5 38. Kd4 Ka4
+39. Kc4 Bd5+ 40. Kxd5 Kxb3 41. Kd6 Kc3 42. Kxd7 b3 43. Ke7 b2 44. h5 b1=Q
+45. hxg6 fxg6 46. g5 Qe4+ 47. Kf7 Qxf4+ 48. Kxg7 Qxg5 49. Kf7 Qf5+ 50. Kg7
+Kd4 51. Kh6 g5 52. Kh5 g4+ 53. Kh4 g3 54. Kxg3 Ke3 55. Kg2 Qf4 56. Kg1 Ke2
+57. Kg2 Qg5+ 58. Kh3 Kf3 59. Kh2 Qg2#
+{White checkmated} 0-1
+

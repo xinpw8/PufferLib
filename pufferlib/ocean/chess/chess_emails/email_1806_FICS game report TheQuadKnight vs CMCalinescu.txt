@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs CMCalinescu
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "21:17:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CMCalinescu"]
+[WhiteElo "1391"]
+[BlackElo "1418"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 Nc6 3. Nf3 f5 4. d3 fxe4 5. dxe4 exf4 6. Bxf4 Qe7 7. Nc3
+Nf6 8. e5 d6 9. Bb5 Bd7 10. O-O Nxe5 11. Bxd7+ Nexd7 12. Re1 Ne5 13. Nxe5
+O-O-O 14. Nc6 Qd7 15. Nxd8 Qxd8 16. Bg5 Be7 17. Re2 Re8 18. Qd4 c5 19. Qa4
+Nd7 20. Bxe7 Rxe7 21. Rae1 Rxe2 22. Rxe2 Qb6 23. Re8+
+{Black resigns} 1-0
+

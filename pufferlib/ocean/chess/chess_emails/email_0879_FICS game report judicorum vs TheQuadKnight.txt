@@ -1,0 +1,25 @@
+Subject: FICS game report judicorum vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.18"]
+[Time "06:31:11"]
+[Round "-"]
+[White "judicorum"]
+[Black "TheQuadKnight"]
+[WhiteElo "1419"]
+[BlackElo "1460"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 5. d3 O-O 6. c3 Re8 7. Be3 Bxe3
+8. fxe3 d5 9. exd5 Nxd5 10. e4 Ne3 11. Qe2 Nxf1 12. Qxf1 Be6 13. Bxe6 Rxe6
+14. Nbd2 Qe7 15. Qf2 Rf8 16. Rf1 f5 17. Qg3 fxe4 18. Nxe4 Rg6 19. Qf2 Nd8
+20. Qe3 b6 21. Kh1 Ne6 22. Kg1 Nf4 23. Rf2 Qd7 24. Nxe5 Qe8 25. Nxg6 Nxg6
+26. Rxf8+ Qxf8 27. Ng3 h6 28. Qe6+ Kh7 29. Ne4 Qf4 30. h3 Qe3+ 31. Kh2 Qxd3
+32. Ng3 Qd2 33. Qe2 Qxe2 34. Nxe2 Ne5 35. Nf4 Nd3 36. Nd5 Nxb2 37. Nxc7
+Nc4 38. Nb5 a5 39. Nd6 Nxd6 40. g3 g5 41. Kg2 Kg6 42. Kf3 Kf5 43. Ke3 Ne4
+{White resigns} 0-1
+

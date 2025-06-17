@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs KMagik
+
+
+[Event "FICS unrated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.21"]
+[Time "16:48:16"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "KMagik"]
+[WhiteElo "1278"]
+[BlackElo "1237"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e5 2. c3 d6 3. e4 exd4 4. cxd4 Nf6 5. Nf3 Nxe4 6. Nc3 Nxc3 7. bxc3
+Be7 8. Bc4 O-O 9. O-O d5 10. Bd3 c5 11. Re1 c4 12. Bc2 Bg4 13. h3 Bxh3 14. gxh3
+Qd7 15. Kg2 Bd6 16. Ne5 Qe6 17. Qh5 g6 18. Qh4 f6 19. Nxg6 hxg6 20. Rxe6
+{Black resigns} 1-0
+

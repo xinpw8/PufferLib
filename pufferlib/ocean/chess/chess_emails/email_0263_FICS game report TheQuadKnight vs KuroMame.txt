@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs KuroMame
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.22"]
+[Time "08:27:03"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "KuroMame"]
+[WhiteElo "1302"]
+[BlackElo "977"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 f5 3. Nf3 e6 4. Nc3 Bb4 5. Be2 Nf6 6. Bd2 h6 7. a3 Bxc3 8. Bxc3
+a6 9. Qd2 Nc6 10. O-O-O O-O 11. Ne5 Bd7 12. g4 Ne4 13. Qe1 g5 14. gxf5 exf5
+15. f3 Nxc3 16. Qxc3 Nxe5 17. dxe5 Qe7 18. Rxd5 Be6 19. Rd2 Rfd8 20. Rhd1
+c5 21. Rxd8+ Rxd8 22. Rxd8+ Qxd8 23. Qxc5 b6 24. Qd6 Qe8 25. Bxa6 Bf7 26. Qxb6
+{Black resigns} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs ngptmat
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "10:33:15"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ngptmat"]
+[WhiteElo "1376"]
+[BlackElo "1259"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d6 2. c4 Nf6 3. Nc3 e6 4. Nf3 Be7 5. Bg5 O-O 6. e3 Nc6 7. Bd3 e5 8. dxe5
+Nxe5 9. Nxe5 dxe5 10. O-O Be6 11. Qc2 h6 12. Bh4 c6 13. Bg3 Nd7 14. Rad1
+f6 15. b3 Qc7 16. Ne4 Nc5 17. Nxc5 Bxc5 18. Bh7+ Kh8 19. f4 f5 20. Bg6 e4
+21. Rfe1 Rf6 22. Bh5 g6 23. Be2 Bxe3+ 24. Kh1 Bxf4 25. Bxf4 Qxf4 26. Rf1
+Qc7 27. Qc3 Rf8 28. c5 Kh7 29. Rd6 b6 30. Rfd1 bxc5 31. Qxc5 R8f7 32. Rxc6
+Qf4 33. Rdd6 Bd7 34. Rxf6 Rxf6 35. Rxf6 Qf2 36. Qxf2
+{Black resigns} 1-0
+

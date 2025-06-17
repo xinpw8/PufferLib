@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs HangmanLE
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.01"]
+[Time "10:21:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "HangmanLE"]
+[WhiteElo "1420"]
+[BlackElo "1457"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e6 2. c4 b6 3. Nc3 Bb7 4. Nf3 Bb4 5. Bd2 Ne7 6. e3 O-O 7. Bd3 f5 8. O-O
+Nbc6 9. e4 fxe4 10. Bxe4 Nf5 11. Bg5 Qc8 12. Qc2 Ncxd4 13. Nxd4 Nxd4 14. Qd3
+Bxc3 15. bxc3 Bxe4 16. Qxe4 Nc6 17. Qg4 Rf5 18. Bh6 Qf8 19. Be3 Ne5 20. Qe4
+Re8 21. Rad1 d6 22. Bd4 Ng6 23. f3 e5 24. Be3 Re7 25. a4 a5 26. Rd5 Nf4
+27. Bxf4 Rxf4 28. Qd3 Qe8 29. g3 Rf6 30. c5 bxc5 31. Rd1 Qxa4 32. Qb1 Ref7
+33. Qb8+ Rf8 34. Qxc7 Rxf3 35. Rxd6 Qa2 36. Rd8 Qf2+ 37. Kh1 Rf7 38. Rxf8+
+Rxf8
+{White forfeits on time} 0-1
+

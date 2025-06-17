@@ -1,0 +1,24 @@
+Subject: FICS game report gallileo vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.20"]
+[Time "18:35:26"]
+[Round "-"]
+[White "gallileo"]
+[Black "TheQuadKnight"]
+[WhiteElo "1382"]
+[BlackElo "1313"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 d5 5. Bxd5 c6 6. Bb3 Be6 7. O-O Bxb3
+8. axb3 Bd6 9. d4 f6 10. c4 Ne7 11. e5 Bc7 12. exf6 Nf5 13. Nxg5 Qxf6 14. Qh5+
+Qg6 15. Qxg6+ hxg6 16. Bxf4 Bxf4 17. Rxf4 Nd7 18. Re4+ Ne7 19. Nc3 Nf6 20. Re6
+Rh5 21. Rae1 Ng8 22. Nf3 O-O-O 23. Rxe7 Nxe7 24. Rxe7 Rhh8 25. d5 cxd5 26. Nxd5
+Rd7 27. Re6 Kd8 28. Rxg6 Re8 29. Kf2 Kc8 30. h4 a6 31. h5 Rg8 32. Rxg8+
+Rd8 33. Rxd8+ Kxd8 34. g4
+{Black resigns} 1-0
+

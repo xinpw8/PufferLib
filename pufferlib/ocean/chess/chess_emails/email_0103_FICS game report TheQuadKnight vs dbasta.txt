@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs dbasta
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.10"]
+[Time "11:48:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "dbasta"]
+[WhiteElo "1353"]
+[BlackElo "1446"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 d6 2. d4 Nf6 3. Nc3 Nbd7 4. Bf4 e5 5. Bg3 Be7 6. Bc4 exd4 7. Qxd4
+O-O 8. O-O-O Nc5 9. e5 dxe5 10. Bxe5 Qxd4 11. Bxd4 Ne6 12. Be5 c6 13. Nf3
+Ng4 14. Bg3 b5 15. Bb3 a5 16. a3 b4 17. Ne4 bxa3 18. bxa3 a4 19. Ba2 Ra5
+20. h3 Nf6 21. Bd6 Bxd6 22. Rxd6 c5 23. Nxf6+ gxf6 24. Nd2 Re8 25. Nc4 Ra6
+26. Rxa6 Bxa6 27. Nd6 Rd8 28. Nf5 Nf4 29. Ne7+ Kf8 30. Nc6 Rd6 31. Na7 Nxg2
+32. Rg1 Nf4 33. h4 Ne2+ 34. Kb2 Nxg1 35. Kc3 Nh3 36. Bc4 Bxc4 37. Kxc4 Nxf2
+38. Nb5 Rd2 39. c3 Ne4 40. h5 Rc2 41. h6 Rh2 42. Kd5 Nxc3+ 43. Nxc3 Rxh6
+44. Kxc5 Rh3 45. Kb4 Ke7 46. Nd5+ Ke6 47. Nf4+ Kf5 48. Nxh3 Ke4 49. Kxa4
+f5 50. Kb5 f4 51. Nxf4 Kxf4 52. a4 h5 53. a5 h4 54. a6 h3 55. a7 Kg3 56. a8=Q
+f5 57. Qa3+ Kg2 58. Qa2+ Kg3 59. Qa3+ Kg4 60. Qa4+ f4 61. Qd1+ f3 62. Qg1+
+Kf4 63. Qh2+ Kg4 64. Qg1+ Kf4 65. Qh2+ Kg4 66. Qg1+ Kh4 67. Qf2+ Kg4 68. Qg1+
+Kf4 69. Qh2+ Ke3 70. Qxh3 Ke2 71. Qxf3+ Kxf3
+{Neither player has mating material} 1/2-1/2
+

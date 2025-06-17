@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs aegisword
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.17"]
+[Time "14:17:23"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "aegisword"]
+[WhiteElo "1377"]
+[BlackElo "1409"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 a6 5. Nc3 Nc6 6. Bf4 Qa5 7. Nxc6 bxc6
+8. Be2 Nf6 9. O-O h5 10. e5 Ng4 11. h3 Bb7 12. Bxg4 hxg4 13. Qxg4 O-O-O
+14. Bg5 Re8 15. Ne4 f6 16. exf6 gxf6 17. Bxf6 Be7 18. Bxh8 Rxh8 19. Qg7
+Re8 20. Qf7 Kd8 21. Rad1 Qe5 22. Rfe1 c5 23. Nd6 Bxd6 24. Rxe5 Bxe5 25. Qxd7#
+{Black checkmated} 1-0
+

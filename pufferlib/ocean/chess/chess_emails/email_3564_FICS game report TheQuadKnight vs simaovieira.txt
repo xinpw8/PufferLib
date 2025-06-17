@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs simaovieira
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.26"]
+[Time "14:40:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "simaovieira"]
+[WhiteElo "1391"]
+[BlackElo "1594"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 f5 2. c4 Nf6 3. Nc3 e6 4. Bg5 Be7 5. e3 O-O 6. Nf3 b6 7. Bd3 Bb7 8. O-O
+a5 9. a4 Na6 10. Re1 h6 11. Bf4 Qe8 12. e4 fxe4 13. Nxe4 Nb4 14. Nxf6+ Rxf6
+15. Be5 Bxf3 16. gxf3 Nxd3 17. Qxd3 Qg6+ 18. Qxg6 Rxg6+ 19. Kf1 d6 20. Bg3
+Rf8 21. Re3 Bg5 22. Rd3 Rgf6 23. Re1 Rxf3 24. Rxf3 Rxf3 25. Rxe6 Kf7 26. Re1
+Rb3 27. Re2 Bf6 28. Re3 Rxb2 29. Rf3 Rc2 30. Bh4 Rxc4 31. Bxf6 gxf6 32. d5
+Rxa4 33. Rf5 Rd4 34. Ke2 Kg6 35. Rf3 Rxd5 36. Rg3+ Kf7 37. f4 c5 38. Kf2
+b5 39. Re3 a4 40. Kf3 b4 41. Ke4 Rd4+ 42. Kf3 a3 43. Re1 b3 44. Kf2 c4 45. Ke2
+c3 46. Rd1 Rxd1 47. Kxd1 a2 48. f5 a1=Q+ 49. Ke2 c2 50. Kd3 c1=Q 51. h3
+Qac3+ 52. Ke4 Q1e1+ 53. Kf4 Qce5+ 54. Kg4 Qf1 55. Kh4 Qexf5 56. Kg3 Q1f2#
+{White checkmated} 0-1
+

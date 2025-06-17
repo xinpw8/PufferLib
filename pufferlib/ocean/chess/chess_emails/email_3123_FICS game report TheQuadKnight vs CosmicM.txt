@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs CosmicM
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "16:19:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CosmicM"]
+[WhiteElo "1380"]
+[BlackElo "1582"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 Nf6 2. c4 c6 3. Nc3 e6 4. Bg5 Be7 5. Nf3 d5 6. e3 O-O 7. Bd3 h6 8. h4
+dxc4 9. Bxc4 Nd5 10. Bxe7 Qxe7 11. Bd3 a6 12. e4 Nf4 13. O-O Nxd3 14. Qxd3
+Nd7 15. Rad1 Nf6 16. Rfe1 Qb4 17. Qc2 Qe7 18. Qd2 Nh7 19. g4 Qf6 20. Qe3
+g5 21. h5 Qe7 22. e5 Qb4 23. Re2 Bd7 24. Ne4 Qe7 25. Nc5 Bc8 26. Rd3 f5
+27. exf6 Nxf6 28. Nxe6 Bxe6 29. Qxe6+ Qxe6 30. Rxe6 Nxg4 31. Rg6+ Kh7 32. Ne5
+Nxf2 33. Re3 Nd1 34. Re1 Nxb2 35. Nd7 Rf7 36. Nf8+ Raxf8 37. Re7 Rxe7 38. Rg7+
+Kxg7 39. Kg2 Re4 40. Kh2 Rxd4 41. Kg3 Rh4 42. Kg2 Rxh5 43. Kg3 Rf2 44. Kg4
+Nc4 45. Kxh5 Rxa2 46. Kg4
+{Black ran out of time and White has no material to mate} 1/2-1/2
+

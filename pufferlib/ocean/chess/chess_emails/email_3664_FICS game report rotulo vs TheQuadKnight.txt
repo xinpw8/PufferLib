@@ -1,0 +1,31 @@
+Subject: FICS game report rotulo vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.19"]
+[Time "14:17:38"]
+[Round "-"]
+[White "rotulo"]
+[Black "TheQuadKnight"]
+[WhiteElo "1385"]
+[BlackElo "1331"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. f4 d5 2. Nf3 Nf6 3. e3 Bg4 4. c4 e6 5. cxd5 exd5 6. h3 Bf5 7. Nc3 Qe7
+8. g4 Bd7 9. Ne5 c5 10. Nxd7 Nbxd7 11. Qf3 d4 12. Nd5 Nxd5 13. Qxd5 dxe3
+14. dxe3 Rd8 15. Qg5 Qd6 16. Bd2 Nf6 17. Qe5+ Be7 18. Bb5+ Kf8 19. Qxd6
+Rxd6 20. O-O-O Ne4 21. Bc3 Rb6 22. Bd3 Nf2 23. Rh2 Nxd1 24. Kxd1 Bf6 25. Bxf6
+gxf6 26. Kc2 a6 27. Bc4 Ke7 28. b3 Rd8 29. Rd2 Rxd2+ 30. Kxd2 Rd6+ 31. Kc3
+b5 32. Be2 Re6 33. Kd3 Rd6+ 34. Ke4 Re6+ 35. Kf3 Rd6 36. Ke4 Rd2 37. Bf3
+Rxa2 38. g5 fxg5 39. fxg5 Ra3 40. Bd1 Ra1 41. Bc2 Ra2 42. Bd1 Rb2 43. Kd5
+Rb1 44. Bc2 Rb2 45. Bd1 c4 46. bxc4 bxc4 47. Kxc4 Rh2 48. Bg4 Kd6 49. Kd4
+Rf2 50. Ke4 Rb2 51. Kd4 Rb4+ 52. Kc3 Ra4 53. Kb3 Ra5 54. e4 Rxg5 55. Kb4
+Ke5 56. Bf5 Rg6 57. Bxg6 hxg6 58. h4 f6 59. Ka5 f5 60. Kxa6 fxe4 61. Kb5
+e3 62. Kc4 e2 63. Kd3 e1=Q 64. Kc4 Qg1 65. Kb5 Qf1+ 66. Kc6 Qf2 67. Kd7
+Qf6 68. Kc7 Qg7+ 69. Kb6 Qf6+ 70. Kb5 Qf5 71. Kc4 Qf4+ 72. Kc5 Qf3 73. Kb6
+Qg3 74. Kc7 Qxh4 75. Kb6 Qd4+ 76. Kc7 g5
+{White forfeits on time} 0-1
+

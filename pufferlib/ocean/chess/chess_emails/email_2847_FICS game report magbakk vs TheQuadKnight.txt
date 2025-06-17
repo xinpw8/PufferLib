@@ -1,0 +1,24 @@
+Subject: FICS game report magbakk vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.02"]
+[Time "13:35:47"]
+[Round "-"]
+[White "magbakk"]
+[Black "TheQuadKnight"]
+[WhiteElo "1447"]
+[BlackElo "1391"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. d3 g4 5. Be2 gxf3 6. Bxf3 Bc5 7. Bxf4 Nc6
+8. d4 Be7 9. c3 d6 10. O-O Bd7 11. Qe1 h5 12. Qg3 h4 13. Qg7 Bf6 14. Qxh8
+Bxh8 15. Nd2 Qf6 16. Be3 O-O-O 17. Bh5 Qe7 18. Rxf7 Qe6 19. d5 Qe5 20. Be2
+Nce7 21. Bf4 Qg7 22. Rxg7 Bxg7 23. Rf1 Rf8 24. Bg5 Bf6 25. Bxf6 Nxf6 26. h3
+Ng6 27. Nf3 Nxe4 28. Nd4 Nf4 29. Bd1 Rg8 30. Rxf4 Ng3 31. Rxh4 Ne4 32. Ne6
+Bxe6 33. dxe6 Nd2 34. e7 Nc4 35. Rxc4 Re8 36. Re4 Rxe7 37. Rxe7 Kd8
+{Black resigns} 1-0
+

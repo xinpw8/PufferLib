@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Laciapuci
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "13:56:23"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Laciapuci"]
+[WhiteElo "1398"]
+[BlackElo "1441"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. c4 b6 3. Nc3 Bb7 4. Nf3 Bb4 5. Bd2 Bxf3 6. exf3 Bxc3 7. Bxc3
+Ne7 8. d5 exd5 9. Bxg7 Rg8 10. Bf6 dxc4 11. Bxc4 Rxg2 12. Qb3 d5 13. O-O-O
+Qd6 14. Bxe7 Qxe7 15. Rhe1 Qxe1 16. Rxe1+ Kd8 17. Bxd5 c6 18. Bxf7 Rxf2
+19. Re8+ Kc7 20. Qe6 Kb7 21. Re7+ Ka6 22. Qc4+ b5 23. Qc5 Rxh2 24. Qa3+
+Kb6 25. b4 Na6 26. Qa5#
+{Black checkmated} 1-0
+

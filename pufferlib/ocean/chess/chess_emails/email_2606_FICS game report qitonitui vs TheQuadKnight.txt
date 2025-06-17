@@ -1,0 +1,24 @@
+Subject: FICS game report qitonitui vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.07"]
+[Time "23:11:02"]
+[Round "-"]
+[White "qitonitui"]
+[Black "TheQuadKnight"]
+[WhiteElo "1311"]
+[BlackElo "1368"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e3 e5 2. d3 d5 3. Ne2 Nf6 4. Ng3 Nc6 5. Be2 Bc5 6. O-O d4 7. e4 O-O 8. f4
+exf4 9. Bxf4 Bd6 10. Bg5 h6 11. Bxf6 gxf6 12. Nf5 Bxf5 13. Rxf5 Ne7 14. Rxf6
+Ng6 15. Qf1 Kg7 16. Nd2 Qxf6 17. Qxf6+ Kxf6 18. Nf3 Nf4 19. e5+ Bxe5 20. Nxe5
+Nxe2+ 21. Kf2 Rfe8 22. Ng4+ Kg5 23. h3 Nf4 24. g3 Ng6 25. Kg2 h5 26. Nf2
+Re7 27. Ne4+ Kh6 28. Rf1 Ne5 29. Rf5 Kg7 30. Rxh5 Kg6 31. Rg5+ Kh6 32. g4
+Ng6 33. Rh5+ Kg7 34. g5 Nf4+ 35. Kf3 Nxh5
+{White resigns} 0-1
+

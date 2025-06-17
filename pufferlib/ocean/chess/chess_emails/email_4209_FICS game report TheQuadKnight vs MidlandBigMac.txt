@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs MidlandBigMac
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "00:25:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MidlandBigMac"]
+[WhiteElo "1356"]
+[BlackElo "1600"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c6 2. c3 d5 3. Nf3 g6 4. Bf4 Bg7 5. Nbd2 a6 6. e4 Bg4 7. exd5 cxd5
+8. Bd3 Bxf3 9. Nxf3 e6 10. Ne5 Ne7 11. c4 Nbc6 12. cxd5 Nxd5 13. Nxc6 bxc6
+14. Be5 Bxe5 15. dxe5 Qa5+ 16. Qd2 Qxd2+ 17. Kxd2 O-O 18. Rac1 Rfc8 19. Bc2
+c5 20. Bb3 Nf4 21. g3 Nh5 22. Rhe1 Ng7 23. f4 Nf5 24. Kc2 Nd4+ 25. Kb1 a5
+26. Bc4 a4 27. Re3 Ra7 28. Rec3 Rb8 29. b3 Rab7 30. Kb2 axb3 31. axb3 Kg7
+32. Rb1 Rb4 33. Kc1 h5 34. Rd3 Ne2+ 35. Kd2 Rxc4 36. bxc4 Rxb1 37. Kxe2
+Rb2+ 38. Rd2 Rb4 39. Rc2 f6 40. exf6+ Kxf6 41. Kd3 e5 42. fxe5+ Kxe5 43. Re2+
+Kf5 44. h4 Rb3+ 45. Kd2 Rxg3 46. Rh2 Ra3 47. Ke2 Ra2+ 48. Ke3 Rxh2 49. Kd3
+Rxh4 50. Kc3 Rd4 51. Kb3 g5
+{White resigns} 0-1
+

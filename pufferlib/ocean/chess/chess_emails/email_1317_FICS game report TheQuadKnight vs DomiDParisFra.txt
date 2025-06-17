@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs DomiDParisFra
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.21"]
+[Time "13:33:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "DomiDParisFra"]
+[WhiteElo "1412"]
+[BlackElo "1459"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 c6 3. Nf3 Bf5 4. Nc3 e6 5. Bg5 Nf6 6. Nh4 Bg6 7. Nxg6 hxg6
+8. e3 Be7 9. Bd3 Nbd7 10. Qb3 Qb6 11. Qxb6 Nxb6 12. cxd5 Nfxd5 13. Nxd5
+Nxd5 14. Bxe7 Kxe7 15. a3 g5 16. e4 Nf4 17. Bf1 Rad8 18. g3 Nh3 19. Rd1
+c5 20. d5 exd5 21. exd5 Kd6 22. Bg2 g4 23. f3 gxf3 24. Bxf3 Ng5 25. Bg2
+Rde8+ 26. Kf2 Re5 27. h4 Nh7 28. Rhe1 Rhe8 29. Rxe5 Rxe5 30. Re1 Nf6 31. Rxe5
+Kxe5 32. Ke3 Nxd5+ 33. Kd3 b6 34. Kc4 Ne3+ 35. Kb5 Nxg2 36. Ka6 Ne3 37. Kxa7
+Nd5 38. Ka6 Kf5 39. Kb5 Kg4 40. b4 cxb4 41. axb4 Nxb4 42. Kxb4 Kxg3 43. Kb5
+Kxh4 44. Kxb6 f5 45. Kc5 f4 46. Kd4 Kg3 47. Kd3 Kg2 48. Ke2 f3+ 49. Ke1
+f2+ 50. Ke2 f1=Q+ 51. Ke3 Qc4
+{White resigns} 0-1
+

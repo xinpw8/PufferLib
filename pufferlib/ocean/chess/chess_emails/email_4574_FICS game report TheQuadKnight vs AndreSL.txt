@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs AndreSL
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "11:21:16"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "AndreSL"]
+[WhiteElo "1266"]
+[BlackElo "1408"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e6 3. Nf3 c5 4. e3 Nc6 5. Nc3 d5 6. Bd3 cxd4 7. exd4 a6
+8. Bg5 Be7 9. O-O O-O 10. Re1 h6 11. Bh4 Re8 12. Ne5 Nxe5 13. Rxe5 Bd6 14. Re1
+e5 15. dxe5 Rxe5 16. Qf3 Rxe1+ 17. Rxe1 Be7 18. cxd5 Nxd5 19. Bxe7 Qa5
+{Black resigns} 1-0
+

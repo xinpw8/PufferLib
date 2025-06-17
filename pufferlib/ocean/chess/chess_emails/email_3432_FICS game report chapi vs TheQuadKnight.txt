@@ -1,0 +1,27 @@
+Subject: FICS game report chapi vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "10:15:51"]
+[Round "-"]
+[White "chapi"]
+[Black "TheQuadKnight"]
+[WhiteElo "1429"]
+[BlackElo "1432"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. h3 d6 6. Nc3 O-O 7. Ne2 Re8
+8. c3 Be6 9. Bb3 Na5 10. Bxe6 Bxf2+ 11. Kxf2 Rxe6 12. Rf1 Nc6 13. Kg1 Nh5
+14. Nh2 Ne7 15. Nd4 exd4 16. Qxh5 Ng6 17. cxd4 Rf6 18. Rxf6 Qxf6 19. Bg5
+Qxd4+ 20. Kh1 Qxd3 21. Rf1 Qxe4 22. Ng4 Qe2 23. Rg1 f5 24. Nf6+ gxf6 25. Qxe2
+fxg5 26. Qe6+ Kg7 27. Qxf5 Rf8 28. Qxg5 h6 29. Qg3 Rf4 30. Re1 Kh7 31. Re8
+Rf1+ 32. Kh2 h5 33. Qg5 Rf2 34. Qxh5+ Kg7 35. Qg4 Rxb2 36. Qd4+ Kf7 37. Qxb2
+Kxe8 38. Qxb7 d5 39. Qxc7 d4 40. Qc6+ Ke7 41. Qb7+ Ke6 42. Qxa7 d3 43. Qe3+
+Ne5 44. a4 Kd5 45. a5 Kc4 46. Qxe5 d2 47. Qe2+ Kc3 48. Qd1 Kb4 49. Qxd2+
+Kb5 50. g4 Kc6 51. g5
+{Black resigns} 1-0
+

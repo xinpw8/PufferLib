@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs steuwer
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.23"]
+[Time "09:22:45"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "steuwer"]
+[WhiteElo "1331"]
+[BlackElo "1471"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 b6 2. c4 e6 3. Nc3 Bb7 4. Nf3 Nf6 5. g3 Be7 6. Bg2 c6 7. Bg5 d5 8. Rc1
+O-O 9. b3 Nbd7 10. O-O h6 11. Bf4 Nh5 12. Be5 Nxe5 13. Nxe5 f6 14. Nf3 g5
+15. Qc2 Ng7 16. Qg6 Bc8 17. Qxh6 Kf7 18. e4 Rh8 19. Qxh8 Qxh8 20. exd5 cxd5
+21. cxd5 e5 22. dxe5 f5 23. Rcd1 Ba6 24. Rfe1 Rd8 25. d6 Bf8 26. Nxg5+ Ke8
+27. Bc6+ Rd7 28. e6 Nxe6 29. Rxe6+ Kd8 30. Bxd7 Kxd7 31. Rg6 Qxc3 32. Rg8
+Qc2 33. Re1 Bh6 34. Re7+ Kxd6
+{White forfeits on time} 0-1
+

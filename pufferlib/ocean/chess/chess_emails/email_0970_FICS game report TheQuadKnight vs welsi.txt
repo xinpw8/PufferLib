@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs welsi
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "09:08:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "welsi"]
+[WhiteElo "1400"]
+[BlackElo "1565"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. Nf3 g6 3. Nc3 Bg7 4. e4 d6 5. Bg5 O-O 6. e5 Nfd7 7. Bd3 dxe5
+8. Nd5 Nc6 9. dxe5 Ndxe5 10. Nxe5 Qxd5 11. Nxc6 Qxg5 12. Nb4 Bxb2 13. Rb1
+Bc3+ 14. Kf1 a5 15. a3 axb4 16. axb4 Bg4 17. f3 Bf5 18. Bxf5 Qxf5 19. Kf2
+Rfd8 20. Qe2 Rd2 21. Qxd2 Bxd2 22. Rbd1 Bxb4 23. Rd3 Ra2 24. Rhd1 Rxc2+
+25. Kf1 Qg5 26. Rd8+ Kg7 27. R8d2 Bxd2
+{White resigns} 0-1
+

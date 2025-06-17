@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs jakk
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.16"]
+[Time "11:16:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jakk"]
+[WhiteElo "1385"]
+[BlackElo "1413"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 c6 4. a4 e6 5. e4 Bb4 6. Bxc4 Nf6 7. Qd3 h6 8. Nf3
+O-O 9. O-O a6 10. Bf4 Nbd7 11. Rad1 Nb6 12. Bb3
+{Black forfeits on time} 1-0
+

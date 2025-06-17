@@ -1,0 +1,27 @@
+Subject: FICS game report ayeayesur vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "11:15:44"]
+[Round "-"]
+[White "ayeayesur"]
+[Black "TheQuadKnight"]
+[WhiteElo "1419"]
+[BlackElo "1401"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. a3 d6 5. d3 Nf6 6. Be3 Bxe3 7. fxe3 O-O
+8. O-O Bg4 9. Qe1 Bxf3 10. Rxf3 d5 11. exd5 Nxd5 12. e4 Nf4 13. g3 Nh3+
+14. Kg2 Ng5 15. Rf5 Nd4 16. Rf2 Qd7 17. Qe3 Qh3+ 18. Kh1 Ngf3 19. Rxf3 Nxc2
+20. Qd2 Nxa1 21. Nc3 a6 22. Qc1 b5 23. Bd5 c6 24. Bxc6 Rac8 25. Bd5 a5 26. Qxa1
+b4 27. axb4 axb4 28. Ne2 Qh6 29. Bc4 Kh8 30. b3 f6 31. Kg2 Qd2 32. Rf2 Rfd8
+33. Nd4 Qc3 34. Ne6 Qxa1 35. Nxd8 Rxd8 36. Rf1 Qb2+ 37. Rf2 Qd4 38. Ra2
+h6 39. h3 g6 40. g4 h5 41. Ra6 hxg4 42. hxg4 f5 43. gxf5 gxf5 44. Rh6+ Kg7
+45. Rh4 fxe4 46. Rxe4 Qb2+ 47. Kf3 Qh2 48. Rg4+ Kf6 49. Rg2 Qh3+ 50. Rg3
+Qf1+ 51. Ke4 Qf4#
+{White checkmated} 0-1
+

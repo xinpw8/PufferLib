@@ -1,0 +1,25 @@
+Subject: FICS game report angsthase vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "11:56:31"]
+[Round "-"]
+[White "angsthase"]
+[Black "TheQuadKnight"]
+[WhiteElo "1614"]
+[BlackElo "1393"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 Nc6 3. Bc4 Bc5 4. Qg4 Qf6 5. Nd5 Qxf2+ 6. Kd1 d6 7. Qxg7
+Na5 8. Be2 Bb6 9. c3 Be6 10. Nxb6 axb6 11. Qxh8 O-O-O 12. Qg7 Nc4 13. Qg3
+Qc5 14. b4 Qb5 15. a4 Qd7 16. d3 Nf6 17. dxc4 Rg8 18. Qe3 Ng4 19. Bxg4 Bxg4+
+20. Ne2 Bh5 21. g3 Qg4 22. Re1 f5 23. exf5 Qxf5 24. Kd2 Rg4 25. h3 Rxc4
+26. g4 Qe4 27. Qxe4 Rxe4 28. gxh5 Rf4 29. Nxf4 exf4 30. Kd3 Kd7 31. Bxf4
+c5 32. bxc5 bxc5 33. Rab1 b6 34. a5 Kc6 35. axb6 h6 36. Re7 d5 37. b7 c4+
+38. Kd2 Kc5 39. b8=Q d4 40. Qc7+ Kd5 41. Rb5#
+{Black checkmated} 1-0
+

@@ -1,0 +1,21 @@
+Subject: FICS game report Kamallieur vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "19:38:50"]
+[Round "-"]
+[White "Kamallieur"]
+[Black "TheQuadKnight"]
+[WhiteElo "1428"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. Nf3 e6 3. d4 d5 4. Nc3 Nf6 5. e5 Ne4 6. Bd3 Bb4 7. O-O Nxc3
+8. bxc3 Bxc3 9. Rb1 Nd7 10. h3 O-O 11. Bg5 f6 12. exf6 Nxf6 13. Ne5 Qd6
+14. Qf3 Ne4 15. Bxe4 Rxf3 16. Bxf3 Bxd4 17. Bf4 Bxe5
+{White resigns} 0-1
+

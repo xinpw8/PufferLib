@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs UhOh
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.18"]
+[Time "07:02:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "UhOh"]
+[WhiteElo "1408"]
+[BlackElo "1615"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. Nf3 dxe4 3. Ng5 e5 4. Nxe4 f5 5. Nec3 Be6 6. Be2 Nf6 7. d3 a6
+8. Bg5 Nbd7 9. Bh5+ g6 10. Bf3 Bd6 11. Bxb7 Rb8 12. Bc6 O-O 13. Qc1 Qe8
+14. Nd5 Nxd5 15. Bh6 Rf7 16. Nd2 Nb4 17. Ba4 Nc5 18. Bb3 Nxb3 19. cxb3 Nxd3+
+{White resigns} 0-1
+

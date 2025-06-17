@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs TwentiethMaine
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.24"]
+[Time "14:52:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TwentiethMaine"]
+[WhiteElo "1395"]
+[BlackElo "1437"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Bg5 Be7 6. Nf3 c6 7. e3 Bf5
+8. Bd3 Bxd3 9. Qxd3 O-O 10. O-O Nbd7 11. Rab1 Re8 12. Rfe1 Ne4 13. Bxe7
+Rxe7 14. Nd2 Ndf6 15. Ndxe4 Nxe4 16. f3 Nxc3 17. Qxc3 Qd7 18. e4 dxe4 19. fxe4
+Rd8 20. Rbd1 Rde8 21. Qc2 Qg4 22. e5 h6 23. h3 Qe6 24. Qc5 b6 25. Qa3 Rd8
+26. Re3 Red7 27. Red3 Qd5 28. Qa4 Qe4 29. Qc2 Rxd4 30. Qxc6 Qxe5 31. Rxd4
+Rxd4 32. Qa8+ Kh7 33. Rxd4 Qxd4+ 34. Kh2 a5 35. Qb7 f6 36. Qf3 Qxb2 37. Qf5+
+Kh8 38. Qd5 Qe5+ 39. Qxe5 fxe5 40. Kg3 Kg8 41. Kg4 g6 42. Kf3 Kf7 43. Ke4
+Ke6 44. g3 Kd6 45. h4 b5 46. g4 b4 47. h5
+{Black forfeits on time} 1-0
+

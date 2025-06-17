@@ -1,0 +1,26 @@
+Subject: FICS game report Furao vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "17:02:50"]
+[Round "-"]
+[White "Furao"]
+[Black "TheQuadKnight"]
+[WhiteElo "1427"]
+[BlackElo "1372"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. d3 d6 7. O-O Be7 8. c3
+O-O 9. Re1 Bg4 10. Nbd2 d5 11. exd5 Nxd5 12. Qc2 Nf4 13. Nxe5 Nxe5 14. Rxe5
+Nxd3 15. Bd5 Nxe5 16. Bxa8 Qxa8 17. Qe4 Qxe4 18. Nxe4 Nd3 19. b3 Bf5 20. Ng3
+Bg6 21. Be3 Bf6 22. Bd4 Bxd4 23. cxd4 Rd8 24. h3 Rxd4 25. Ne2 Re4 26. Nc3
+Rf4 27. f3 Ne5 28. Re1 f6 29. Nd5 c6 30. Nxf4 Kf7 31. Rd1 Bc2 32. Rd8 g5
+33. Ne2 Bd3 34. Nd4 c5 35. Ne6 Kxe6 36. Ra8 b4 37. Rxa6+ Bxa6 38. h4 gxh4
+39. Kf2 f5 40. Ke3 Bf1 41. g4 hxg3 42. f4 g2 43. Kf2 Nd3+ 44. Kg1 Nxf4 45. Kf2
+Nh3+ 46. Ke3 g1=Q+ 47. Kd2 Qd4+ 48. Ke1 Qd3 49. a3 Qe2#
+{White checkmated} 0-1
+

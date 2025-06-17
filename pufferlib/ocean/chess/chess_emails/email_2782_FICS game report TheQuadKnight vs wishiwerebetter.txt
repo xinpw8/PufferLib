@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs wishiwerebetter
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.03"]
+[Time "10:55:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "wishiwerebetter"]
+[WhiteElo "1427"]
+[BlackElo "1078"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 d5 3. exd5 e4 4. Bc4 Nf6 5. Nc3 Bg4 6. Nge2 Bc5 7. h3 Bh5
+8. g4 Bxg4 9. hxg4 Nxg4 10. Nxe4 Bb6 11. d4 Qe7 12. N2c3 O-O 13. Qxg4 Bxd4
+14. Bd3 f5 15. Qg5 Qxg5 16. Nxg5 Re8+ 17. Kf1 Nd7 18. Bxf5 Nc5 19. Bxh7+
+Kf8 20. Bg6 Re7 21. Rh8#
+{Black checkmated} 1-0
+

@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Bloem
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "15:40:41"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Bloem"]
+[WhiteElo "1376"]
+[BlackElo "1581"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Bg5 Be7 6. Nf3 O-O 7. e3 Bg4
+8. Bd3 c5 9. h3 Bh5 10. g4 cxd4 11. Bxf6 Bxf6 12. Nb5 dxe3 13. gxh5 exf2+
+14. Kxf2 Qb6+ 15. Nbd4 Bxd4+ 16. Nxd4 Qxd4+ 17. Kg2 Qxb2+ 18. Qc2 Qf6 19. Bxh7+
+Kh8 20. Rhf1 Qg5+ 21. Kh2 Nc6 22. Bf5 Nd4 23. Qd3 Nc6 24. Bg4 Qe5+ 25. Kh1
+Rae8 26. h6 g6 27. h4 Qe4+ 28. Qxe4 Rxe4 29. Bf3 Rxh4+ 30. Kg2 d4 31. Bxc6
+bxc6 32. Rac1 Rxh6 33. Rh1 Rxh1 34. Rxh1+ Kg7 35. Kf3 Rc8 36. Ke4 c5 37. Rc1
+c4 38. Kxd4 c3 39. Rxc3 Rxc3 40. Kxc3 f5 41. Kb4 f4 42. Kb5 f3 43. Kc6 f2
+44. Kb7 f1=Q 45. Kxa7 Qa1 46. Kb7 Qxa2 47. Kc6 Qf7 48. Kd6 g5 49. Kc5 g4
+50. Kd4 g3 51. Ke3 g2 52. Kd3 g1=Q
+{White resigns} 0-1
+

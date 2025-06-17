@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs woodbury
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "22:29:07"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "woodbury"]
+[WhiteElo "1367"]
+[BlackElo "1884"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 d5 3. exd5 c6 4. d4 e4 5. Nc3 cxd5 6. Bb5+ Nc6 7. Be3 Nf6
+8. Qd2 Bb4 9. O-O-O Qa5 10. Bxc6+ bxc6 11. Nge2 Bg4 12. a3 Bxa3 13. h3 Bxb2+
+14. Kxb2 Rb8+ 15. Nb5 Rxb5+
+{White resigns} 0-1
+

@@ -1,0 +1,21 @@
+Subject: FICS game report Marchand vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.11"]
+[Time "13:38:29"]
+[Round "-"]
+[White "Marchand"]
+[Black "TheQuadKnight"]
+[WhiteElo "1694"]
+[BlackElo "1319"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nf3 c6 4. Bg5 f6 5. Bh4 Bb4+ 6. Nbd2 Nd7 7. c5 Bxd2+
+8. Qxd2 e5 9. dxe5 g5 10. Bg3 Nxc5 11. exf6 Qxf6 12. Be5 Qg6 13. Bxh8 h6
+14. e3 Bf5 15. Be2 Ne4 16. Qa5 Ne7 17. O-O Kf7 18. Ne5+
+{Black resigns} 1-0
+

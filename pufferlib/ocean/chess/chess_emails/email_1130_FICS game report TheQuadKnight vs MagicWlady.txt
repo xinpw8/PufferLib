@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs MagicWlady
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.16"]
+[Time "09:09:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MagicWlady"]
+[WhiteElo "1425"]
+[BlackElo "1436"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 g6 2. Nf3 Bg7 3. Bg5 Nf6 4. e3 h6 5. Bc4 hxg5 6. Nxg5 e6 7. Nc3 Nd5
+8. Nxd5 exd5 9. Nxf7 Kxf7 10. Qf3+ Ke8 11. Bxd5 Qe7 12. Bxb7 Rf8 13. Qe4
+Qxe4 14. Bxe4 c6 15. Bxg6+ Kd8 16. O-O d5 17. Rac1 Bf5 18. Bh5 Nd7 19. Be2
+Nf6 20. c4 Kd7 21. Bf3 Be4 22. Be2 Rab8 23. cxd5 Bxd5 24. b3 Ne4 25. Bd3
+Nd2 26. Rfe1 Bh6 27. Rcd1 Nf3+ 28. gxf3 Bxf3 29. Kf1 Bxd1 30. Rxd1 Bxe3
+31. Be2 Kd6 32. Ke1 Bxf2+ 33. Kd2 Rh8 34. Rh1 Bg3 35. h3 Rh4 36. Bg4 Rbh8
+37. Ke3 Rxg4 38. Kf3 Rg7 39. Rg1 Rf8+ 40. Ke2 Rf2+ 41. Kd3 Rxa2 42. Kc4
+Rh2 43. Rf1 Rxh3 44. Rf6+ Kc7 45. Rf5 Bd6 46. Ra5 Kb6 47. b4 Bxb4 48. Kxb4
+Rgg3 49. Rb5+ cxb5 50. d5 Rg4#
+{White checkmated} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report Chadsassou vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "22:36:12"]
+[Round "-"]
+[White "Chadsassou"]
+[Black "TheQuadKnight"]
+[WhiteElo "1472"]
+[BlackElo "1470"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Bf4 Nf6 4. Nc3 Bd6 5. e3 Bxf4 6. exf4 c6 7. Nf3 Nbd7
+8. Ne5 O-O 9. Qb3 dxc4 10. Bxc4 Nxe5 11. fxe5 Nd5 12. O-O Qh4 13. Rad1 b5
+14. Be2 a5 15. a4 b4 16. Nxd5 cxd5 17. Rd3 Ba6 18. Re3 Qxd4 19. Bxa6 Rxa6
+20. Rd1 Qc4 21. Qxc4 dxc4 22. Rc1 Rc8 23. Re4 Rac6 24. Kf1 Rc5 25. f4 c3
+26. bxc3 Rxc3 27. Rxc3 Rxc3 28. Ke2 b3 29. Re3 b2 30. Rxc3 f5 31. Rb3 g5
+32. fxg5 Kg7 33. Rxb2 Kg6 34. h4 h6 35. gxh6 Kxh6 36. g3 Kh5 37. Kf3 Kg6
+38. Rb5 Kf7 39. Rxa5
+{Black resigns} 1-0
+

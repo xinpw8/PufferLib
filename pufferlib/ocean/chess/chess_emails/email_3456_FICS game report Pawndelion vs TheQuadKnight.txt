@@ -1,0 +1,25 @@
+Subject: FICS game report Pawndelion vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.19"]
+[Time "21:53:22"]
+[Round "-"]
+[White "Pawndelion"]
+[Black "TheQuadKnight"]
+[WhiteElo "1408"]
+[BlackElo "1435"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nd2 Nf6 4. e3 Bb4 5. a3 Bxd2+ 6. Qxd2 Nc6 7. b3 Bd7
+8. Bb2 O-O 9. Bd3 dxc4 10. bxc4 Re8 11. Nf3 e5 12. e4 Bg4 13. d5 Bxf3 14. gxf3
+Nd4 15. Bxd4 exd4 16. O-O Qd6 17. Kh1 Re5 18. f4 Rh5 19. e5 Qd7 20. exf6
+Qh3 21. f3 gxf6 22. Qg2+ Qxg2+ 23. Kxg2 Kh8 24. h3 Rg8+ 25. Kh2 Rh4 26. f5
+Rg5 27. Be4 Rgh5 28. Kg3 Rxh3+ 29. Kf2 Rh2+ 30. Ke1 Rb2 31. Rb1 Ra2 32. Rxb7
+Rhh2 33. Rb8+ Kg7 34. Rg1+ Kh6 35. Rb1 Rhe2+ 36. Kd1 Rad2+ 37. Kc1 d3 38. Rh1+
+Kg5 39. Rg1+ Kf4 40. Rg4+ Ke3 41. Bxd3 Kxd3 42. Re4 Rc2+ 43. Kd1 Rh2
+{White forfeits on time} 0-1
+

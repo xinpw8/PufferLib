@@ -1,0 +1,27 @@
+Subject: FICS game report jrodriguez vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "21:42:52"]
+[Round "-"]
+[White "jrodriguez"]
+[Black "TheQuadKnight"]
+[WhiteElo "1557"]
+[BlackElo "1399"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d3 d6 4. c4 Be7 5. Nc3 a6 6. Be3 Na7 7. Be2 c5 8. O-O
+f5 9. exf5 Bxf5 10. Nd5 Nf6 11. Nxf6+ Bxf6 12. Nd2 Nc6 13. Ne4 Nd4 14. Nxf6+
+Qxf6 15. Bxd4 cxd4 16. Bf3 Rb8 17. Qa4+ b5 18. cxb5 axb5 19. Bc6+ Bd7 20. Bxd7+
+Kxd7 21. Qa7+ Ke6 22. Rac1 Ra8 23. Qb6 Rab8 24. Qc6 b4 25. Rfe1 Rhf8 26. Rf1
+Rf7 27. Qc4+ Kf5 28. Qd5 Kg6 29. Qe4+ Kh6 30. Rc6 Rbf8 31. f3 g6 32. Rc4
+Qe6 33. Rxb4 d5 34. Qh4+ Kg7 35. a4 e4 36. dxe4 dxe4 37. a5 exf3 38. Qxd4+
+Kg8 39. g3 Qe2 40. Qf2 Qe5 41. a6 Qa5 42. Rb6 Qxb6 43. Qxb6 f2+ 44. Kg2
+Re8 45. Rxf2 Rxf2+ 46. Kxf2 Rf8+ 47. Kg2 Kg7 48. a7 Rf7 49. a8=Q Kh6 50. Qf3
+Rg7 51. Qbe3+ g5 52. Qe6+ Rg6 53. Qxg6+ Kxg6 54. g4
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report webdog vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.12"]
+[Time "19:13:30"]
+[Round "-"]
+[White "webdog"]
+[Black "TheQuadKnight"]
+[WhiteElo "1577"]
+[BlackElo "1309"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 Nf6 2. g3 Nc6 3. Bg2 b6 4. a3 Bb7 5. e3 Rb8 6. Ne2 e6 7. O-O Be7 8. d4
+d5 9. cxd5 Nxd5 10. Nbc3 Nf6 11. b4 O-O 12. h3 h6 13. Bd2 a5 14. b5 Na7
+15. Bxb7 Rxb7 16. Nf4 c6 17. Qf3 Nd5 18. bxc6 Nxc6 19. Rfc1 Rd7 20. Ncxd5
+exd5 21. Rxc6 g5 22. Nd3 f6 23. Qf5 Bd6 24. Qxd5+ Kg7 25. Qb5 Bc7 26. Rac1
+Rff7 27. Nb2 Rd5 28. Qc4 b5 29. Qc3 Rdd7 30. Nd3 h5 31. Nc5 Rde7 32. Ne6+
+Rxe6 33. Rxe6 Bb6 34. Qc6 Rc7 35. Qxb6 Rxc1+ 36. Bxc1 Qxb6 37. Rxb6
+{Black resigns} 1-0
+

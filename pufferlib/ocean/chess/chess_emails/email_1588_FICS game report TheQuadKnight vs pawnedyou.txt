@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs pawnedyou
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "15:13:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "pawnedyou"]
+[WhiteElo "1421"]
+[BlackElo "1604"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 f5 2. c4 Nf6 3. Nc3 e6 4. Bg5 Be7 5. f3 c5 6. e4 fxe4 7. Nxe4 Nxe4
+8. Bxe7 Qxe7 9. fxe4 Qh4+ 10. Kd2 O-O 11. Nf3 Qf4+ 12. Kc3 cxd4+ 13. Nxd4
+Nc6 14. Rc1 d5 15. cxd5 exd5 16. Kc2 Nxd4+ 17. Qxd4 Be6 18. Kb1 Qxe4+ 19. Qxe4
+dxe4 20. Bc4 Bxc4 21. Rxc4 Rf2 22. g3 Re8 23. h4 e3 24. Re1 e2 25. Rc7 Rf1
+26. Rcc1 Rxe1 27. Rxe1 Re3 28. Kc2 Rxg3 29. Rxe2 Kf7 30. Rf2+ Kg6 31. Rf4
+h5 32. Rb4 Rg4 33. Rxb7 Ra4 34. b4 Rxa2+ 35. Kb3 Ra6 36. b5 Rb6 37. Rxb6+
+axb6 38. Kc4 Kf5 39. Kd5 Kg4 40. Kc6 Kxh4 41. Kxb6 Kg3 42. Ka6 h4 43. b6
+h3 44. b7 h2 45. b8=Q+ Kg2 46. Qb2+ Kh3 47. Qxg7
+{Game drawn by mutual agreement} 1/2-1/2
+

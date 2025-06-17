@@ -1,0 +1,19 @@
+Subject: FICS game report alvis vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.20"]
+[Time "15:44:40"]
+[Round "-"]
+[White "alvis"]
+[Black "TheQuadKnight"]
+[WhiteElo "1414"]
+[BlackElo "1353"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. Nf3 d5 2. e4 dxe4 3. Ne5 f6 4. Qh5+ g6 5. Nxg6 Nc6 6. Ne5#
+{Black checkmated} 1-0
+

@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs dunny
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.30"]
+[Time "19:37:39"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "dunny"]
+[WhiteElo "1336"]
+[BlackElo "1620"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 Nf6 2. e5 Nd5 3. c4 Nb6 4. Nc3 d6 5. Nf3 g6 6. d4 Bg7 7. Bg5 h6 8. Bh4
+g5 9. Bg3 O-O 10. exd6 cxd6 11. Be2 Bf5 12. O-O Bg6 13. h4 g4 14. Nh2 h5
+15. f3 f5 16. Qd3 N8d7 17. fxg4 hxg4 18. Bxg4 Qe8 19. Bxf5 Bxf5 20. Rxf5
+Rxf5 21. Qxf5 Nf6 22. Ng4 Nxg4 23. Qxg4 Kh8 24. b3 e5 25. Rf1 exd4 26. Ne4
+d5 27. Ng5 dxc4 28. Nf7+ Kh7 29. Qh5+ Kg8 30. Bd6 cxb3 31. Nh6+ Bxh6 32. Qxh6
+Qe3+ 33. Qxe3 dxe3 34. Re1 Re8 35. axb3 Nd5 36. Bc5 b6 37. Bd4 Kh7 38. g3
+Kh6 39. Kg2 Kh5 40. Kf3 Rf8+ 41. Ke4 Nb4 42. Kxe3 Nc2+ 43. Kd2 Nxe1 44. Kxe1
+Rf3 45. Kd2 Rxb3 46. Be5 a5 47. Kc2 a4 48. g4+ Kxg4 49. Bf6 Kh5 50. Bg5
+b5 51. Bf6 Rh3 52. Bd4 a3 53. Ba1 Rxh4 54. Kb3 Rh3+ 55. Ka2 b4 56. Bb2 b3+
+57. Kxa3 Rh2 58. Kb4 Rg2 59. Kxb3 Rg3+ 60. Bc3 Rg4
+{White forfeits on time} 0-1
+

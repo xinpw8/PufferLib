@@ -1,0 +1,25 @@
+Subject: FICS game report aththemaniac vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.14"]
+[Time "18:42:27"]
+[Round "-"]
+[White "aththemaniac"]
+[Black "TheQuadKnight"]
+[WhiteElo "1303"]
+[BlackElo "1292"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. O-O a6 5. Ba4 Ne7 6. c3 g6 7. d4 Bg7 8. d5
+b5 9. Bc2 Nb8 10. Nbd2 O-O 11. a4 c6 12. dxc6 Nbxc6 13. axb5 Nb8 14. Nc4
+d5 15. Ncxe5 dxe4 16. Bxe4 Re8 17. Bxa8 Nf5 18. Qxd8 Rxd8 19. b6 a5 20. Rxa5
+Bxe5 21. Nxe5 Nd6 22. Nc6 Nxc6 23. Bxc6 Bd7 24. Bxd7 Rxd7 25. Rd1 Kf8 26. b7
+Nxb7 27. Rxd7 Nxa5 28. b4 Nc6 29. Rc7 Ne7 30. b5 Nd5 31. Rc8+ Ke7 32. c4
+Nf6 33. Rc7+ Ke6 34. b6 Nd7 35. b7 Kd6 36. Bf4+ Ne5 37. Bxe5+ Kxe5 38. Rxf7
+Ke6 39. Rxh7 Kf6 40. b8=Q Kg5 41. Qb6 Kf5
+{White forfeits on time} 0-1
+

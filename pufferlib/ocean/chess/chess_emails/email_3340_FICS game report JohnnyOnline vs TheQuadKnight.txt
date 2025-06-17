@@ -1,0 +1,24 @@
+Subject: FICS game report JohnnyOnline vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.22"]
+[Time "15:45:34"]
+[Round "-"]
+[White "JohnnyOnline"]
+[Black "TheQuadKnight"]
+[WhiteElo "1482"]
+[BlackElo "1408"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nf6 5. Nc3 d6 6. f3 Be7 7. Bc4 Bd7
+8. Be3 O-O 9. O-O a6 10. a3 Re8 11. Qd2 Bf8 12. Bb3 b6 13. Nd5 Nxd4 14. Bxd4
+Nxd5 15. exd5 c6 16. c4 cxd5 17. cxd5 Bb5 18. Rfe1 Be7 19. Rac1 Bf6 20. Bc2
+Bxd4+ 21. Qxd4 Rc8 22. Rxe8+ Qxe8 23. Qd2 Qe5 24. Re1 Qxb2 25. Bxh7+ Kxh7
+26. Qxb2 g6 27. Qf6 Rc5 28. Qxf7+ Kh6 29. Qf4+ Kg7 30. Qxd6 Bc4 31. Re7+
+Kh6 32. Qf4+ Kh5 33. g4+ Kh4 34. Rh7#
+{Black checkmated} 1-0
+

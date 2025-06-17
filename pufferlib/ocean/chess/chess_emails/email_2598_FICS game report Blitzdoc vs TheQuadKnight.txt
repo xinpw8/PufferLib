@@ -1,0 +1,22 @@
+Subject: FICS game report Blitzdoc vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.07"]
+[Time "23:51:57"]
+[Round "-"]
+[White "Blitzdoc"]
+[Black "TheQuadKnight"]
+[WhiteElo "1741"]
+[BlackElo "1368"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. h3 f6 6. O-O Bc5 7. c3 Ne7
+8. d4 exd4 9. cxd4 Bd6 10. Nc3 Be6 11. Qe2 Qd7 12. e5 fxe5 13. dxe5 Bc5
+14. Rd1 Nd5 15. Ne4 Bxh3 16. gxh3 Qxh3 17. Nxc5 Nf4 18. Bxf4 Qg4+ 19. Bg3
+O-O 20. Nd4 Qg5 21. Nde6
+{Black resigns} 1-0
+

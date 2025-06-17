@@ -1,0 +1,25 @@
+Subject: FICS game report kozlik vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.06"]
+[Time "10:54:10"]
+[Round "-"]
+[White "kozlik"]
+[Black "TheQuadKnight"]
+[WhiteElo "1371"]
+[BlackElo "1319"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Bg5 Be7 6. e3 Be6 7. Nf3 Nc6
+8. Bb5 h6 9. Bh4 g5 10. Bg3 Qd7 11. Qa4 Ne4 12. Ne5 Nxc3 13. bxc3 Qc8 14. Nxc6
+Bd7 15. Nxe7 Kxe7 16. Qb4+ Kd8 17. Bd3 Re8 18. O-O f5 19. Rab1 Rb8 20. Qc5
+c6 21. Bxb8 Qxb8 22. Ba6 b6 23. Qa3 f4 24. Bd3 g4 25. Bg6 Rg8 26. Bf7 Rh8
+27. exf4 Qxf4 28. Bh5 Bf5 29. Rbe1 Bd3 30. Qe7+ Kc8 31. Qe6+ Kb8 32. Qxc6
+Bxf1 33. Kxf1 g3 34. Re8+ Rxe8 35. Qxe8+ Kb7 36. Qd7+ Ka6 37. a4 Qc1+ 38. Ke2
+Qc2+ 39. Kf3 Qxc3+
+{Game drawn because both players ran out of time} 1/2-1/2
+

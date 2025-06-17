@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs dimitrisk
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "14:57:57"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "dimitrisk"]
+[WhiteElo "1402"]
+[BlackElo "1557"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 e6 4. Bg5 Be7 5. e3 h6 6. Bh4 O-O 7. Nf3 a6 8. Bd3
+dxc4 9. Bxc4 Nbd7 10. Bd3 c6 11. O-O b5 12. Rc1 c5 13. dxc5 Nxc5 14. Bxf6
+Bxf6 15. Ne4 Nxd3 16. Nxf6+ gxf6 17. Rc3 Nxb2 18. Qc2 Nc4 19. Rd1 Qe7 20. Nd4
+Bb7 21. a4 Rfd8 22. axb5 axb5 23. Nxb5 Ne5 24. Nd4 Ng6 25. h3 e5 26. Nf5
+Rxd1+ 27. Qxd1 Qe6 28. Nxh6+ Kg7 29. Ng4 Rc8 30. Rd3 Rc7 31. Rd6 Qe7 32. Qd3
+e4 33. Qd4 Ne5 34. Nxf6 Rd7 35. Nxd7 f6 36. Nxe5 Qxe5 37. Qxe5 fxe5 38. Rd7+
+Kf6 39. Rxb7 Ke6 40. Rb6+ Kd5 41. Ra6 Kc4 42. h4 Kd5 43. h5 Kc4 44. h6 Kd3
+45. h7 Kc4 46. h8=Q Kb5 47. g4 Kxa6 48. g5 Kb5 49. g6 Kc5 50. g7 Kd5 51. g8=Q+
+Kd6 52. Qf6+ Kc5 53. Qge6 Kb4 54. Qfe7+ Kc3 55. Q6d7 Kb3 56. Qed8 Kb4 57. Q8c7
+Kb3 58. Qdc6 Kb4 59. Q6b7+ Ka4 60. Qcb8 Ka5 61. Q7a7#
+{Black checkmated} 1-0
+

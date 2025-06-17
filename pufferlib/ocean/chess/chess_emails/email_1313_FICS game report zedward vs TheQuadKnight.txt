@@ -1,0 +1,22 @@
+Subject: FICS game report zedward vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.21"]
+[Time "21:11:45"]
+[Round "-"]
+[White "zedward"]
+[Black "TheQuadKnight"]
+[WhiteElo "1466"]
+[BlackElo "1412"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 Bf5 3. Bd3 Bxd3 4. cxd3 e6 5. f4 c5 6. Nf3 Nc6 7. dxc5 Bxc5
+8. d4 Bb6 9. Nc3 Rc8 10. Ne5 Ba5 11. O-O Bxc3 12. bxc3 Nxe5 13. fxe5 Rxc3
+14. Qa4+ Rc6 15. Qxa7 Qc8 16. Ba3 Nh6 17. Rac1 Nf5 18. Rxc6 Qxc6 19. Qb8+
+Kd7 20. Qxh8 Nxe3 21. Rxf7#
+{Black checkmated} 1-0
+

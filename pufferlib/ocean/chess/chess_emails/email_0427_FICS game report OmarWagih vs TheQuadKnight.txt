@@ -1,0 +1,21 @@
+Subject: FICS game report OmarWagih vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.07"]
+[Time "12:14:50"]
+[Round "-"]
+[White "OmarWagih"]
+[Black "TheQuadKnight"]
+[WhiteElo "1451"]
+[BlackElo "1406"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. c4 Nf6 2. Nc3 c6 3. e4 e6 4. d4 d5 5. e5 Ng8 6. cxd5 cxd5 7. a3 Bd7 8. Nf3
+Nc6 9. Bb5 a6 10. Bd3 b5 11. O-O b4 12. axb4 Bxb4 13. Rxa6 Rxa6 14. Bxa6
+Qa5 15. Qa4 Bxc3 16. bxc3 Qxa4
+{White resigns} 0-1
+

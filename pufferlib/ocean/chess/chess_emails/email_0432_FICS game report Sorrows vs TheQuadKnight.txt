@@ -1,0 +1,28 @@
+Subject: FICS game report Sorrows vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.01"]
+[Time "10:03:04"]
+[Round "-"]
+[White "Sorrows"]
+[Black "TheQuadKnight"]
+[WhiteElo "1480"]
+[BlackElo "1402"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nc6 3. Bc4 Bb4 4. d3 d6 5. f4 Na5 6. Bb3 Nxb3 7. axb3 f6
+8. Nf3 Be6 9. Be3 Qd7 10. Rxa7 Rxa7 11. Bxa7 b6 12. f5 Bf7 13. Qa1 Ne7 14. O-O
+O-O 15. Na4 Nc8 16. Bxb6 cxb6 17. c3 Bc5+ 18. Kh1 Bxb3 19. Nxc5 bxc5 20. Qa3
+Bf7 21. Ra1 Nb6 22. b4 cxb4 23. Qxb4 Qc6 24. Ra6 Rb8 25. Nd2 Qb7 26. Ra1
+d5 27. Rb1 dxe4 28. dxe4 g6 29. c4 Qc7 30. c5 Nd7 31. Qc3 Rxb1+ 32. Nxb1
+Qxc5 33. Qxc5 Nxc5 34. fxg6 Bxg6 35. Nc3 Nxe4 36. Nd5 h5 37. Kg1 h4 38. Kf1
+Bh5 39. Ke1 f5 40. Ne7+ Kf7 41. Nxf5 h3 42. g3 Kf6 43. Ne3 Ng5 44. Nd5+
+Ke6 45. Nc7+ Kf5 46. Kf2 Nf3 47. Nd5 Nxh2 48. Ne3+ Ke4 49. Nd1 Ng4+ 50. Ke1
+Nh2 51. Nc3+ Kd3 52. Nd5 Nf3+ 53. Kf2 Bg4 54. Nf4+ Ke4 55. Ne6 Nh2 56. Ng5+
+Kf5
+{White forfeits on time} 0-1
+

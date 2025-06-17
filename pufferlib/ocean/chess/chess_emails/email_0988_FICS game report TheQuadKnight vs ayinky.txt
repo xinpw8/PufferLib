@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs ayinky
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.04"]
+[Time "18:08:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ayinky"]
+[WhiteElo "1433"]
+[BlackElo "1803"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 f5 2. c4 Nf6 3. Nc3 e6 4. Bg5 Be7 5. e3 a6 6. Nf3 c6 7. Bd3 d5 8. Ne5
+O-O 9. Bxf6 Bxf6 10. Qh5 Bxe5 11. dxe5 b5 12. cxd5 cxd5 13. O-O Nc6 14. a3
+Nxe5 15. Rad1 Bd7 16. Ne2 Qf6 17. Nf4 g5 18. Nh3 h6 19. f4 gxf4 20. Nxf4
+Rf7 21. Be2 Rg7 22. Qh3 Rg5 23. Nh5 Qg6 24. Ng3 Be8 25. Rc1 Ng4 26. Rc3
+h5 27. Rf4 Ra7 28. Bxg4 Rxg4 29. Ne2 Rg7 30. Rxg4 hxg4 31. Qg3 Qf6 32. Nf4
+Bf7 33. Rc8+ Kh7 34. h3 e5 35. hxg4 exf4 36. Qh3+ Qh6 37. Rh8+ Kxh8 38. Qxh6+
+Kg8 39. Qxf4 fxg4 40. g3 Bg6 41. Qb8+ Kh7 42. Qf4 Be4 43. Qd6 Rg6 44. Qd7+
+Kh6 45. Qd8 Kg7 46. Qh4 Kf7 47. Qd8 Ke6 48. Qc7 Kf5 49. Qb8 Kg5 50. Qc8
+Kh6 51. Qd8 Kg7 52. Qf8+ Kxf8 53. Kf2 Rf6+ 54. Ke2 Rf3 55. Kd2 Rxg3 56. Kc3
+Rf3 57. Kd4 Rf5 58. Kc5
+{White resigns} 0-1
+

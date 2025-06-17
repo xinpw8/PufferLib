@@ -1,0 +1,25 @@
+Subject: FICS game report Bikfoot vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.19"]
+[Time "10:14:45"]
+[Round "-"]
+[White "Bikfoot"]
+[Black "TheQuadKnight"]
+[WhiteElo "1606"]
+[BlackElo "1435"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. g3 d5 2. Bg2 e6 3. d3 Nf6 4. Nc3 Bc5 5. Bg5 Bd7 6. e4 Bc6 7. e5 h6 8. exf6
+hxg5 9. fxg7 Rg8 10. h4 Rxg7 11. hxg5 Qxg5 12. Nf3 Nd7 13. Nxg5 Rxg5 14. Rh8+
+Nf8 15. d4 Bd6 16. Qd2 Rg6 17. O-O-O O-O-O 18. Kb1 Nd7 19. Rxd8+ Kxd8 20. Rh1
+Ke7 21. Rh6 Rg7 22. f4 Rxg3 23. Qf2 Rg7 24. a3 a6 25. Bh3 Nb6 26. f5 Bd7
+27. fxe6 Bxe6 28. Qf6+ Kf8 29. Rh8+ Rg8 30. Qd8+ Kg7 31. Qxg8+ Kf6 32. Rh6+
+Ke7 33. Bxe6 fxe6 34. Rxe6+ Kd7 35. Qf7+ Kc6 36. Qe8+ Nd7 37. Nxd5 Kxd5
+38. Qxd7 c6 39. Qxd6+ Kc4 40. Qc5#
+{Black checkmated} 1-0
+

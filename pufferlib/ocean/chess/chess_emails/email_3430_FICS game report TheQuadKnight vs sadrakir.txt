@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs sadrakir
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "10:27:35"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sadrakir"]
+[WhiteElo "1436"]
+[BlackElo "1407"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 e5 4. e3 exd4 5. exd4 Nf6 6. Bxc4 Bb4 7. Nf3
+O-O 8. O-O Bg4 9. Bg5 Be7 10. h3 Bh5 11. Qd3 Bg6 12. Qe3 Nc6 13. Rad1 Re8
+14. Ne5 Bd6 15. Nxg6 Rxe3 16. fxe3 hxg6 17. e4 Be7 18. e5 Nh7 19. Bf4 Bg5
+20. Bxg5 Nxg5 21. h4 Ne6 22. d5 Na5 23. dxe6 Nxc4 24. Rxd8+ Rxd8 25. exf7+
+Kf8 26. e6 Nd6 27. Nd5 Nf5 28. g4 Rxd5 29. gxf5 gxf5 30. Re1 f4 31. e7+
+{Black resigns} 1-0
+

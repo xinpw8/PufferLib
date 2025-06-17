@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Prosperace
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.12"]
+[Time "20:53:52"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Prosperace"]
+[WhiteElo "1393"]
+[BlackElo "1848"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 g6 3. d4 cxd4 4. Nxd4 Nc6 5. Nc3 Bg7 6. Be3 Nf6 7. Be2 O-O
+8. f4 d5 9. e5 Ne4 10. g4 Nxc3 11. bxc3 f6 12. f5 fxe5 13. Ne6 Bxe6 14. fxe6
+Qa5 15. Qd2 d4 16. cxd4 Qxd2+ 17. Kxd2 Nxd4 18. Bd3 Rac8 19. Rac1 Nxe6 20. Rhf1
+Nf4 21. Bxa7 Bh6 22. Be3 Nxd3 23. Rxf8+ Bxf8 24. Kxd3 Ra8 25. Ra1 Bg7 26. a4
+e4+ 27. Kxe4 Bxa1 28. Bd4 Rxa4 29. c3 Bxc3 30. Ke3 Bxd4+ 31. Kf3 b5 32. Kg3
+b4 33. Kf3 b3 34. Kg3 b2 35. Kh4 b1=Q 36. Kg5 Qc1+ 37. Kh4 Bf6+ 38. Kh3
+Qe3+ 39. Kg2 Ra2+ 40. Kh1 Qc1#
+{White checkmated} 0-1
+

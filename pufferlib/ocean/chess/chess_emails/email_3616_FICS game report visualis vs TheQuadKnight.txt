@@ -1,0 +1,23 @@
+Subject: FICS game report visualis vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.22"]
+[Time "13:48:40"]
+[Round "-"]
+[White "visualis"]
+[Black "TheQuadKnight"]
+[WhiteElo "1308"]
+[BlackElo "1326"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. a3 Nf6 4. Nc3 Bc5 5. Bb5 d6 6. h3 O-O 7. Bxc6 bxc6
+8. b4 Bb6 9. O-O Bb7 10. Na4 Nxe4 11. c4 a5 12. d3 Nf6 13. b5 cxb5 14. cxb5
+Rb8 15. Qd2 Bxf3 16. gxf3 Bd4 17. Bb2 Rxb5 18. Bxd4 exd4 19. Qf4 Nh5 20. Qxd4
+Qg5+ 21. Kh2 Nf4 22. Nc3 Rf5 23. Rg1 Qf6 24. Qxf6 Rxf6 25. d4 Rh6 26. Rg3
+f5
+{White forfeits by disconnection} 0-1
+

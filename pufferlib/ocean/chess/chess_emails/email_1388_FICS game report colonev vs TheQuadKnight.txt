@@ -1,0 +1,30 @@
+Subject: FICS game report colonev vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.16"]
+[Time "11:12:59"]
+[Round "-"]
+[White "colonev"]
+[Black "TheQuadKnight"]
+[WhiteElo "1565"]
+[BlackElo "1464"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nc3 Nc6 3. f4 e6 4. Bc4 Bd6 5. d3 Nge7 6. Nf3 O-O 7. O-O Na5
+8. Nd2 Nxc4 9. Nxc4 Bc7 10. Ne3 a6 11. a4 d5 12. Ng4 dxe4 13. dxe4 Qxd1
+14. Nxd1 Rd8 15. Nde3 Ng6 16. f5 exf5 17. exf5 Ne5 18. f6 Nxg4 19. fxg7
+Nxe3 20. Bxe3 Be5 21. c3 b6 22. a5 Bc7 23. axb6 Bxb6 24. Rf6 Rb8 25. Bf4
+c4+ 26. Kh1 Rb7 27. Bh6 Rbd7 28. Re1 Rd1 29. Rff1 Rxe1 30. Rxe1 Bf2 31. Rf1
+Bb7 32. h3 Bg3 33. Kg1 Re8 34. Rd1 Re1+ 35. Rxe1 Bxe1 36. Bf4 a5 37. Kf1
+Bh4 38. g3 Bf6 39. Bh6 Bxg7 40. Bxg7 Kxg7 41. Ke2 Bd5 42. Ke3 Be6 43. h4
+a4 44. Kd4 Kf6 45. Ke4 Ke7 46. Kd4 Kd6 47. Ke4 Kc5 48. Kf4 Kb5 49. Kg5 Bd5
+50. Kh6 Be4 51. Kg7 Bd5 52. Kxh7 a3 53. bxa3 Ka4 54. h5 Kxa3 55. Kg7 Kb3
+56. h6 Be4 57. g4 Kxc3 58. g5 Kd4 59. g6 fxg6 60. h7 g5 61. h8=Q c3 62. Qd8+
+Ke3 63. Qc7 Kf3 64. Qxc3+ Kf4 65. Qh3 g4 66. Qh2+ Kg5 67. Qd2+ Kh4 68. Kf6
+Kh3 69. Qe3+ g3 70. Kg5 Kh2 71. Kh4 g2
+{White forfeits on time} 0-1
+

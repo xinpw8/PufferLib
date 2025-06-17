@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs BWLer
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "23:59:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "BWLer"]
+[WhiteElo "1467"]
+[BlackElo "1991"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d3 d5 2. e3 e5 3. Nf3 Nc6 4. e4 Nf6 5. exd5 Nxd5 6. Nc3 Be7 7. Nxd5 Qxd5
+8. Qd2 Bg4 9. Be2 O-O 10. O-O Rad8 11. h3 Bh5 12. c4 Qd7 13. Qc3 f6 14. Re1
+Bg6 15. Nh4 Bc5 16. Nxg6 hxg6 17. Bg4 Qd4 18. Qxd4 Nxd4 19. Re4 Nc2 20. Rb1
+f5 21. Re2 fxg4 22. Rxc2 gxh3 23. gxh3 Rxd3 24. Rd2 Rxd2 25. Bxd2 Rxf2 26. Kh1
+Rxd2 27. Rf1 Bd4 28. b3 Rxa2 29. h4 e4 30. Rf4 Re2 31. Rg4 Kh7 32. h5 gxh5
+33. Rh4 Kh6 34. Rg4 hxg4 35. b4 g3 36. c5 g2+ 37. Kh2 g1=Q+ 38. Kh3 Rh2#
+{White checkmated} 0-1
+

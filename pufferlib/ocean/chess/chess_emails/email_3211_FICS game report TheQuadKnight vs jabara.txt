@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs jabara
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "14:15:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jabara"]
+[WhiteElo "1329"]
+[BlackElo "1451"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 c6 3. Nc3 Nf6 4. cxd5 Nxd5 5. e4 Nxc3 6. bxc3 e5 7. Nf3 exd4
+8. Qxd4 Qxd4 9. cxd4 Bb4+ 10. Bd2 Bxd2+ 11. Nxd2 O-O 12. Bd3 Nd7 13. O-O
+Nf6 14. e5 Nd5 15. Rab1 b6 16. Be4 Be6 17. Nf3 Rfd8 18. Ng5 Nc3 19. Bxh7+
+Kh8 20. Nxe6 fxe6 21. Rbc1 Kxh7 22. Rxc3 Rxd4 23. Rxc6 Rd2 24. Rxe6 Rxa2
+25. h3 Re2 26. Rd1 b5 27. Rd7 a5 28. Ree7 Rg8 29. Rd4 b4 30. Re6 Rb8 31. Rh4+
+Kg8 32. Re7 b3 33. Rg4 b2 34. Rgxg7+ Kf8 35. Rgf7+ Kg8 36. Rg7+ Kh8 37. Rh7+
+Kg8 38. Reg7+ Kf8 39. Rf7+ Ke8 40. Re7+ Kf8 41. Ref7+ Ke8 42. Re7+ Kf8 43. Rhf7+
+Kg8 44. Rg7+ Kh8 45. Rh7+ Kg8 46. Reg7+ Kf8 47. Rf7+
+{Game drawn by mutual agreement} 1/2-1/2
+

@@ -1,0 +1,31 @@
+Subject: FICS game report WindsOfThor vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "13:29:13"]
+[Round "-"]
+[White "WindsOfThor"]
+[Black "TheQuadKnight"]
+[WhiteElo "1546"]
+[BlackElo "1313"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 Nc6 2. Nf3 Nf6 3. e5 Nd5 4. Bc4 e6 5. Bxd5 exd5 6. d4 d6 7. O-O dxe5
+8. Re1 Be7 9. Nxe5 Nxe5 10. dxe5 O-O 11. Nc3 c6 12. Bf4 Bg5 13. Qf3 Re8
+14. Rad1 Bxf4 15. Qxf4 Be6 16. Ne2 c5 17. Ng3 d4 18. c3 Qc7 19. cxd4 cxd4
+20. b3 Rad8 21. Rxd4 Qc3 22. Red1 Rxd4 23. Qxd4 Qxd4 24. Rxd4 Bg4 25. f3
+Be6 26. Ne4 h6 27. f4 Rc8 28. Kf2 Bf5 29. a4 Bxe4 30. Rxe4 Rc3 31. Re3 Rc7
+32. Kf3 Kf8 33. Rd3 Ke7 34. Ke4 f6 35. g4 fxe5 36. fxe5 Ke6 37. Rd6+ Ke7
+38. Rg6 Kf8 39. Rd6 Re7 40. h4 Rc7 41. Kd4 Re7 42. e6 Ke8 43. b4 Kf8 44. Rd8+
+Re8 45. Rxe8+ Kxe8 46. Ke5 Ke7 47. g5 hxg5 48. hxg5 a6 49. g6 b6 50. b5
+axb5 51. axb5 Ke8 52. Kd6 Kd8 53. Kc6 Ke7 54. Kxb6 Kxe6 55. Kc7 Kf6 56. b6
+Kxg6 57. b7 Kh6 58. b8=Q g6 59. Qb4 g5 60. Kd6 Kh5 61. Ke5 g4 62. Kf4 Kh4
+63. Qe1+ Kh5 64. Qg3 Kg6 65. Qxg4+ Kf6 66. Ke4 Ke7 67. Qf5 Kd6 68. Qe5+
+Kc6 69. Kd4 Kb6 70. Kc4 Kb7 71. Qc5 Ka6 72. Kb4 Kb7 73. Qd6 Ka7 74. Kb5
+Ka8 75. Kb6
+{Game drawn by stalemate} 1/2-1/2
+

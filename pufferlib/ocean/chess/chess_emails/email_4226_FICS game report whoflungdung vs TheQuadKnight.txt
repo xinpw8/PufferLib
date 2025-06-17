@@ -1,0 +1,23 @@
+Subject: FICS game report whoflungdung vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "22:40:00"]
+[Round "-"]
+[White "whoflungdung"]
+[Black "TheQuadKnight"]
+[WhiteElo "1174"]
+[BlackElo "1382"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qd1 Nf6 5. Bd3 d5 6. b3 Bb4+ 7. Bd2 Bxd2+
+8. Nxd2 O-O 9. Ngf3 Re8 10. Qe2 dxe4 11. Bxe4 Nxe4 12. Nxe4 f5 13. Qc4+
+Be6 14. Qc3 fxe4 15. Ng5 Qxg5 16. O-O e3 17. fxe3 Bh3 18. g3 Bxf1 19. Rxf1
+Rf8 20. Qc4+ Kh8 21. e4 Qe3+ 22. Kh1 Rxf1+ 23. Qxf1 Qxe4+ 24. Kg1 Rd8 25. h4
+Nd4 26. Qf7 Nf3+ 27. Kg2
+{White resigns} 0-1
+

@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs loewenthal
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.02"]
+[Time "13:19:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "loewenthal"]
+[WhiteElo "1386"]
+[BlackElo "1743"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d5 4. d3 dxe4 5. dxe4 Qxd1+ 6. Kxd1 Nf6 7. Nc3
+Bb4 8. Nb5 Ba5 9. Bxf4 Na6 10. Nbd4 Nxe4 11. Bxa6 bxa6 12. Be3 O-O 13. c3
+Bb6 14. Kc2 Bb7 15. Rhg1 Rad8 16. Rad1 f6 17. Rde1 Nd6 18. Ne6 Rde8 19. Bxb6
+cxb6 20. Nxf8 Rxf8 21. Nd4 Nc4 22. Re7 Bd5 23. Rxa7 b5 24. Rxa6 Ne3+ 25. Kd3
+Nxg2 26. Nf5 Nf4+ 27. Ke3 Ng6 28. Rd6 Bxa2 29. h4 Re8+ 30. Kd4 Be6 31. h5
+Bxf5 32. hxg6 Bxg6 33. Kc5 Re5+ 34. Rd5 Rxd5+ 35. Kxd5 Bd3 36. Kc5 g5 37. Rd1
+Bc4 38. Kb4 h5 39. b3 Be2 40. Re1 Bf3 41. Kxb5 Kg7 42. c4 Kg6 43. c5 h4
+44. c6 h3 45. c7 Bg4 46. Kb6 h2 47. Kb7 Bf5 48. c8=Q Bxc8+ 49. Kxc8 g4 50. b4
+g3 51. b5 g2 52. b6 g1=Q 53. Rxg1+ hxg1=Q 54. b7 Qb1 55. b8=Q Qxb8+ 56. Kxb8
+f5 57. Kc7 f4 58. Kd6 f3 59. Ke5 f2 60. Ke6 f1=Q 61. Kd6 Qe2
+{White resigns} 0-1
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs fabercastle
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.14"]
+[Time "07:06:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "fabercastle"]
+[WhiteElo "1327"]
+[BlackElo "1387"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d6 4. d4 g5 5. Bc4 h6 6. Nc3 Bg7 7. O-O Nc6 8. e5
+d5 9. Nxd5 Be6 10. Nf6+ Bxf6 11. Bxe6 fxe6 12. exf6 Nxf6 13. Re1 Qd7 14. b3
+O-O-O 15. Bb2 Rhe8 16. Ne5 Nxe5 17. dxe5 Nd5 18. Qd4 a6 19. Qa7 Nb6 20. Rad1
+Qc6 21. Bd4 Qxc2 22. Bxb6 Rxd1 23. Qa8+ Kd7 24. Qxe8+ Kxe8 25. Rxd1 Qxd1+
+26. Kf2 Qc2+ 27. Kf1 Qxa2 28. Bxc7 Qxb3 29. Bd6 Qb1+ 30. Kf2 Qc2+ 31. Kf3
+h5 32. g3 Qd3+ 33. Kg2 fxg3 34. hxg3 h4 35. gxh4 gxh4 36. Kh1 Qg3 37. Bc5
+h3 38. Bg1 Qg2#
+{White checkmated} 0-1
+

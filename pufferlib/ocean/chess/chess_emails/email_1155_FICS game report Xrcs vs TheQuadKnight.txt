@@ -1,0 +1,25 @@
+Subject: FICS game report Xrcs vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.09"]
+[Time "18:24:48"]
+[Round "-"]
+[White "Xrcs"]
+[Black "TheQuadKnight"]
+[WhiteElo "1632"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 Nf6 5. Bb5 d6 6. Nf3 Bd7 7. O-O a6
+8. Ba4 Be7 9. c3 O-O 10. Nbd2 Ng4 11. Qe1 Nge5 12. Nd4 Nxd4 13. cxd4 Bxa4
+14. dxe5 Bb5 15. exd6 Qxd6 16. Nf3 Bxf1 17. Qxf1 Rad8 18. Be3 Rfe8 19. Rc1
+c6 20. Nd4 Qe5 21. Nb3 Bd6 22. g3 Qxe4 23. Qh3 Qe6 24. Qf1 Qf6 25. Bd4 Be5
+26. Bb6 Rd7 27. Re1 Rde7 28. Bc5 Bd6 29. Rxe7 Qxe7 30. Be3 Qf6 31. Qd1 Bc7
+32. Qd7 Qe7 33. Qg4 Bd8 34. Kg2 Qd6 35. Bd4 Qd5+ 36. f3 Bf6 37. Bxf6 Qd1
+38. Qxg7#
+{Black checkmated} 1-0
+

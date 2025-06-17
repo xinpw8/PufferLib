@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs quietstevens
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.11"]
+[Time "19:56:03"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "quietstevens"]
+[WhiteElo "1429"]
+[BlackElo "1562"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c6 3. e3 Nf6 4. Nf3 e6 5. Bd3 Bb4+ 6. Nc3 Ne4 7. Bd2 Bxc3
+8. Bxc3 O-O 9. O-O f5 10. Bb4 Rf6 11. Ne5 Rh6 12. f3 Qh4 13. h3 Ng3 14. Be1
+Nd7 15. Rf2 Nxe5 16. dxe5 Rg6 17. Kh2 Nh5 18. Rc2 Qg5 19. f4 Qh6 20. Be2
+Nxf4 21. exf4 Qxf4+ 22. g3 Qxe5 23. Qd3 Bd7 24. Bh5 Rh6 25. Qf3 Qf6 26. Bd2
+e5 27. Bxh6 Qxh6 28. Qe2 Re8 29. cxd5 cxd5 30. Rc7 Bc6 31. Bf3 e4 32. Bg2
+f4 33. Kg1 f3 34. Bxf3 Qd6 35. Rxg7+ Kxg7 36. Bh5 Rf8 37. Qg4+ Kh8 38. Rf1
+Rg8 39. Qf4 Rxg3+ 40. Kh1 Rxh3+ 41. Kg2 Qxf4 42. Rxf4 Rxh5 43. Rf8+ Kg7
+44. Rf2 Rg5+ 45. Kf1 h6 46. Ke2
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Akumida
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "20:38:39"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Akumida"]
+[WhiteElo "1354"]
+[BlackElo "1732"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. Nf3 dxe4 3. Ng5 Nf6 4. Nc3 Bf5 5. d3 h6 6. Ngxe4 Nxe4 7. dxe4
+Qxd1+ 8. Kxd1 Bd7 9. Bf4 Nc6 10. Bxc7 e5 11. Bb5 f6 12. Nd5 b6 13. Ke2 Nd4+
+14. Ke3 Nxb5 15. a4 Bc5+ 16. Kd2 Nd4 17. Rad1 Rc8 18. Kc1 Be6 19. c3 Nc6
+20. b4 Bf8 21. f3 Bxd5 22. exd5 Rxc7 23. dxc6 Rxc6 24. Rd3 Bxb4 25. Rhd1
+Ba3+ 26. Kc2 Rc8 27. Rd7 Be7 28. Rxa7 Rf8 29. Rdd7 Rf7 30. Rab7 Rc6 31. Ra7
+Rxc3+
+{White forfeits on time} 0-1
+

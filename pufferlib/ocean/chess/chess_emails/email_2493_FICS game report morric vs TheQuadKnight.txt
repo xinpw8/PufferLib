@@ -1,0 +1,23 @@
+Subject: FICS game report morric vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.11"]
+[Time "09:46:55"]
+[Round "-"]
+[White "morric"]
+[Black "TheQuadKnight"]
+[WhiteElo "1729"]
+[BlackElo "1365"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 Nc6 5. O-O g4 6. Nc3 gxf3 7. Qxf3 Bh6
+8. d3 Ne5 9. Qh5 Nxc4 10. dxc4 Qf6 11. Nd5 Qd4+ 12. Kh1 Qxc4 13. Bxf4 Bxf4
+14. Rxf4 d6 15. Qxf7+ Kd8 16. Qf8+ Kd7 17. Rf7+ Kc6 18. Rxc7+ Kb5 19. Qe8+
+Bd7 20. Qxd7+ Qc6 21. c4+ Kc5 22. Rxc6+ bxc6 23. b4+ Kxc4 24. Qxc6+ Kd4
+25. Rd1+ Ke5 26. Nc7 Rd8 27. Qd5+ Kf4 28. Qf5+ Ke3 29. Nd5+ Ke2 30. Qf3#
+{Black checkmated} 1-0
+

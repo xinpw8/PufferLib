@@ -1,0 +1,25 @@
+Subject: FICS game report CoolPhones vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "23:09:51"]
+[Round "-"]
+[White "CoolPhones"]
+[Black "TheQuadKnight"]
+[WhiteElo "1479"]
+[BlackElo "1452"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. Nf3 Nf6 2. c4 e5 3. Nxe5 d6 4. Nf3 Bg4 5. Qb3 Be7 6. Qxb7 Nbd7 7. Nc3
+Rb8 8. Qxa7 Nc5 9. d4 Nce4 10. e3 Bxf3 11. gxf3 Ng5 12. Be2 Qd7 13. e4 O-O
+14. Bxg5 Nh5 15. Bxe7 Qxe7 16. Nd5 Qh4 17. b3 Ra8 18. Qxc7 Rfe8 19. Qxd6
+f5 20. e5 Nf4 21. Nxf4 Qxf4 22. b4 Rad8 23. Qc6 Re7 24. Rd1 Rxd4 25. Rxd4
+Qxd4 26. Qd5+ Qxd5 27. cxd5 Rxe5 28. Kd2 Rxd5+ 29. Kc3 Rd8 30. Bc4+ Kf8
+31. Rb1 g6 32. b5 Kg7 33. b6 Rb8 34. a4 Kf6 35. a5 h6 36. a6 g5 37. a7 Ra8
+38. Bd5 Rd8
+{White forfeits on time} 0-1
+

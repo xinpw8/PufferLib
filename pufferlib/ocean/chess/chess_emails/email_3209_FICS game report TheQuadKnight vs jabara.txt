@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs jabara
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "14:27:01"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jabara"]
+[WhiteElo "1327"]
+[BlackElo "1453"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 d5 2. d4 dxe4 3. Nc3 f5 4. Bc4 Nf6 5. Bg5 Nbd7 6. Nge2 Nb6 7. Bxf6
+exf6 8. Bb3 Bb4 9. a3 Ba5 10. Qd2 Qe7 11. O-O-O Bd7 12. Nf4 Bxc3 13. Qxc3
+O-O-O 14. d5 Bb5 15. Ne6 Rd6 16. Qc5 Qd7 17. Nd4 Ba6 18. a4 Nxd5 19. Qxa7
+Nb6 20. a5 Rxd4 21. Rxd4 Qxd4 22. axb6 Kd7 23. Rd1 Bd3 24. cxd3 exd3 25. Qxb7
+Qc5+
+{White forfeits on time} 0-1
+

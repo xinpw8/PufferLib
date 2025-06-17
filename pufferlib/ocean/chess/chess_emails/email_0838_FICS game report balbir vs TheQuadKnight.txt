@@ -1,0 +1,29 @@
+Subject: FICS game report balbir vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.20"]
+[Time "10:29:23"]
+[Round "-"]
+[White "balbir"]
+[Black "TheQuadKnight"]
+[WhiteElo "1482"]
+[BlackElo "1380"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. e3 Nc6 3. Nf3 Bg4 4. Be2 Qd6 5. O-O e5 6. c4 dxc4 7. d5 Nb4
+8. Nc3 O-O-O 9. Bxc4 Nf6 10. a3 Nbxd5 11. Nxd5 Nxd5 12. Bxd5 Qxd5 13. Qxd5
+Rxd5 14. Nd2 Be7 15. f3 Be6 16. b4 Rhd8 17. Rd1 R5d7 18. Kf2 Bh4+ 19. g3
+Be7 20. Ke2 f5 21. Bb2 Bf6 22. e4 fxe4 23. Nxe4 Rxd1 24. Rxd1 Bc4+ 25. Ke3
+Rxd1 26. Nxf6 gxf6 27. f4 Rb1 28. Bc3 Rb3 29. Kd2 Rxa3 30. fxe5 fxe5 31. Bxe5
+Ra2+ 32. Kc3 Rxh2 33. Kxc4 h5 34. Kd5 Rh3 35. Ke6 c6 36. Kf5 Rh1 37. Kg5
+Kd7 38. Bf4 Ke6 39. Kg6 Kd5 40. Kf7 Kc4 41. Bd6 b6 42. Ke7 c5 43. bxc5 bxc5
+44. Kd7 a5 45. Kc7 a4 46. Be5 a3 47. Kb6 a2 48. Ka5 a1=Q+ 49. Bxa1 Rxa1+
+50. Kb6 Kd5 51. Kb5 Kd4 52. Kb6 c4 53. Kc6 Kd3 54. Kd6 c3 55. Ke5 Kd2 56. Kf4
+c2 57. Kg5 c1=Q 58. Kxh5 Qe1 59. g4 Qe2 60. Kh6 Ra5 61. g5 Qg4 62. g6 Rg5
+63. g7 Qh5#
+{White checkmated} 0-1
+

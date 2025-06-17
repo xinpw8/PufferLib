@@ -1,0 +1,27 @@
+Subject: FICS game report velaguirapr vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.24"]
+[Time "18:29:53"]
+[Round "-"]
+[White "velaguirapr"]
+[Black "TheQuadKnight"]
+[WhiteElo "1567"]
+[BlackElo "1413"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O d6 7. Re1 Be7
+8. d3 O-O 9. Bg5 Bg4 10. Nbd2 h6 11. Bh4 Qd7 12. c3 Rfe8 13. Nf1 Bxf3 14. Qxf3
+Qg4 15. Qxg4 Nxg4 16. Bxe7 Rxe7 17. f3 Nf6 18. Ne3 Na5 19. Bc2 c6 20. b4
+Nb7 21. Nf5 Ree8 22. d4 d5 23. exd5 cxd5 24. dxe5 Nd7 25. f4 Re6 26. a4
+Rae8 27. axb5 axb5 28. Nd4 R6e7 29. Nc6 Re6 30. Nd4 R6e7 31. Nxb5 f6 32. Nc7
+Rc8 33. Nxd5 Re6 34. Bb3 fxe5 35. Ne3 Rxc3 36. Bxe6+ Kf8 37. Bxd7 exf4 38. Nd5
+Rd3 39. Ra8+ Kf7 40. Re7+ Kg6 41. Be8+ Kg5 42. Rxb7 Rxd5 43. Rb5 f3 44. Rxd5+
+Kf4 45. gxf3 Kxf3 46. Rc8 Ke3 47. Rc3+ Kf4 48. Rdc5 g5 49. Kf2 g4 50. Bd7
+h5 51. Rf5+ Ke4 52. Rc4+ Kd3 53. Bb5 Kd2 54. Rd5#
+{Black checkmated} 1-0
+

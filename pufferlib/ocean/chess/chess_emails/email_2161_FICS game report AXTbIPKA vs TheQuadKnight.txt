@@ -1,0 +1,26 @@
+Subject: FICS game report AXTbIPKA vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.18"]
+[Time "08:10:22"]
+[Round "-"]
+[White "AXTbIPKA"]
+[Black "TheQuadKnight"]
+[WhiteElo "1431"]
+[BlackElo "1381"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Qf3 Bb7 9. Ba4 Be7 10. d3 O-O 11. Nc3 Rb8 12. O-O Qd4 13. Be3 Qb4
+14. Bb3 Nxb3 15. axb3 Nd5 16. Qe4 Qxe4 17. Ngxe4 Nxe3 18. fxe3 f5 19. Ng3
+g6 20. d4 exd4 21. exd4 Rbd8 22. Rxa7 Rd7 23. Nge2 Rfd8 24. Na4 Bc8 25. Rxd7
+Rxd7 26. Nb6 Rc7 27. Nxc8 Rxc8 28. Ra1 Bf6 29. Ra6 Kg7 30. c3 g5 31. Kf2
+Rb8 32. b4 Rc8 33. Ng3 Kg6 34. Ra5 f4 35. Ne4 h6 36. Nxf6 Kxf6 37. Kf3 Re8
+38. Ra6 Re3+ 39. Kf2 Re6 40. h3 h5 41. c4 g4 42. b5 g3+ 43. Kf3 Re3+ 44. Kxf4
+Re2 45. Rxc6+ Kg7 46. Kxg3 Rxb2 47. d5
+{Black forfeits on time} 1-0
+

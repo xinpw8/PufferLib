@@ -1,0 +1,25 @@
+Subject: FICS game report PlayerForFun vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.06"]
+[Time "11:31:45"]
+[Round "-"]
+[White "PlayerForFun"]
+[Black "TheQuadKnight"]
+[WhiteElo "1459"]
+[BlackElo "1340"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Bc5 3. Qh5 Qf6 4. Nf3 d6 5. d3 h6 6. O-O Ne7 7. Bg5 Qg6
+8. Qxg6 fxg6 9. Bxe7 Kxe7 10. Nc3 c6 11. Ne2 g5 12. Ng3 g4 13. Nh4 Kf6 14. Kh1
+Nd7 15. f4 Nb6 16. fxe5+ Ke7 17. exd6+ Kxd6 18. Ngf5+ Bxf5 19. Nxf5+ Kc7
+20. Nxg7 Nxc4 21. dxc4 Bd6 22. Rae1 Be5 23. Ne6+ Kd6 24. Nf4 h5 25. Ng6
+Rhe8 26. Rf7 Rab8 27. Rh7 g3 28. h3 Bxb2 29. Rxh5 Re6 30. Nf4 Re5 31. Rh6+
+Kc5 32. Nd3+ Kb6 33. Nxe5 Bxe5 34. Re6 Bc3 35. Rd1 Rf8 36. e5 Bd2 37. Rg6
+Rf2 38. Rxg3 Bb4 39. e6
+{Black forfeits on time} 1-0
+

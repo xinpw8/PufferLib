@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs chompiritas
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.09"]
+[Time "22:13:43"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "chompiritas"]
+[WhiteElo "1383"]
+[BlackElo "1485"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nc6 5. Nc3 Bd7 6. Be3 a6 7. Be2 g6
+8. f4 Bg7 9. g4 Nf6 10. Qd2 Bxg4 11. Nxc6 bxc6 12. O-O-O Bxe2 13. Nxe2 O-O
+14. Nc3 Re8 15. Rhg1 Nh5 16. f5 e5 17. Bg5 f6 18. Bh6 Bxh6 19. Qxh6
+{Black resigns} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report mariorx vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.11"]
+[Time "15:47:58"]
+[Round "-"]
+[White "mariorx"]
+[Black "TheQuadKnight"]
+[WhiteElo "1672"]
+[BlackElo "1377"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. Nf3 Bb4 6. e3 c5 7. Bd3 cxd4
+8. exd4 dxc4 9. Bxc4 O-O 10. O-O Qc7 11. Qb3 a5 12. a3 Bd6 13. Nb5 Qb8 14. Nxd6
+Qxd6 15. Rac1 Ne4 16. Be3 e5 17. Rfd1 Qe7 18. d5 Ndc5 19. Qc2 Bg4 20. Be2
+Rac8 21. b4 axb4 22. axb4 Bxf3 23. Bxf3 Nd7 24. Qxe4 Rxc1 25. Rxc1 Nf6 26. Bg5
+h6 27. Bxf6 Qe6
+{Black resigns} 1-0
+

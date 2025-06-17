@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs yanock
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.19"]
+[Time "21:47:59"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "yanock"]
+[WhiteElo "1435"]
+[BlackElo "1278"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 d6 4. e3 Bg7 5. Nf3 O-O 6. Bd3 Bg4 7. O-O e5 8. h3
+exd4 9. exd4 Bxf3 10. Qxf3 Nc6 11. d5 Ne5 12. Qg3 Nh5 13. Qe3 Re8 14. Qd2
+Nxd3 15. Qxd3 Nf4 16. Qf3 Nh5 17. b3 Qf6 18. Qd3 Qxc3 19. Qxc3 Bxc3 20. Rb1
+{Black wins by adjudication} 0-1
+

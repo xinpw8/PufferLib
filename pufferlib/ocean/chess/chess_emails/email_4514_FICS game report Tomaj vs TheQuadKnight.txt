@@ -1,0 +1,26 @@
+Subject: FICS game report Tomaj vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.02"]
+[Time "14:55:35"]
+[Round "-"]
+[White "Tomaj"]
+[Black "TheQuadKnight"]
+[WhiteElo "1472"]
+[BlackElo "1266"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nf6 3. Bf4 Nc6 4. c3 b6 5. Nbd2 e6 6. Qa4 Bb7 7. Ne5 Bd6
+8. Nxc6 Bxc6 9. Qxc6+ Kf8 10. Bxd6+ cxd6 11. Qa4 e5 12. e3 exd4 13. cxd4
+Ne4 14. Nxe4 dxe4 15. Be2 d5 16. O-O g6 17. Rfc1 Kg7 18. Rc2 Rf8 19. Rac1
+Kg8 20. Qc6 Rb8 21. Ba6 Qe7 22. Qxd5 Rfd8 23. Qc6 Rd6 24. Qc7 Qf8 25. Rc6
+Rdd8 26. Qe5 Re8 27. Qf6 Rbd8 28. Rc7 Re6 29. Qf4 Kg7 30. Bc4 Rf6 31. Qxe4
+Qb4 32. b3 Qd2 33. Qc2 Qa5 34. Bf1 b5 35. a4 bxa4 36. bxa4 a6 37. h3 Qf5
+38. Qc5 Qxc5 39. R1xc5 h5 40. Ra7 a5 41. Rcc7 Rf8 42. Bc4 Kg8 43. Rxa5 Kg7
+44. Raa7 Kg8 45. Rab7 Kg7 46. a5 Kg8 47. a6 Kg7 48. a7
+{Black forfeits on time} 1-0
+

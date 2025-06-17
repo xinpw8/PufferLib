@@ -1,0 +1,25 @@
+Subject: FICS game report napolion vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "12:23:46"]
+[Round "-"]
+[White "napolion"]
+[Black "TheQuadKnight"]
+[WhiteElo "1446"]
+[BlackElo "1419"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nc3 d6 3. Bc4 Nc6 4. a3 Na5 5. Ba2 Nc6 6. d3 Bd7 7. Nge2 Nf6
+8. O-O Be7 9. f3 O-O 10. Ng3 Re8 11. b4 Bf8 12. b5 Ne7 13. a4 c6 14. bxc6
+bxc6 15. Ba3 d5 16. exd5 cxd5 17. Nb5 Nc6 18. Bb2 a6 19. Nc3 Be6 20. Bb1
+d4 21. Nce2 Nd5 22. Bc1 Be7 23. Ne4 f5 24. N4g3 Bg5 25. f4 exf4 26. Nxf4
+Qd6 27. Nxe6 Bxc1 28. Qxc1 Ne3 29. Rf2 Qxe6 30. Ba2 Nd5 31. Qd2 Kh8 32. Nxf5
+Qd7 33. Qg5 g6 34. Nh6 Rf8 35. Bxd5 Rxf2 36. Kxf2 Qxd5 37. Qxd5 Ne7 38. Nf7+
+Kg8 39. Qe6 Kf8 40. Qf6 Re8 41. Nh6#
+{Black checkmated} 1-0
+

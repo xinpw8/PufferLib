@@ -1,0 +1,25 @@
+Subject: FICS game report Ikarus vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "17:17:44"]
+[Round "-"]
+[White "Ikarus"]
+[Black "TheQuadKnight"]
+[WhiteElo "1459"]
+[BlackElo "1376"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O Bc5 7. Re1 d6
+8. c3 O-O 9. h3 a5 10. d4 Ba7 11. d5 Ne7 12. c4 c6 13. a4 bxc4 14. Bxc4
+cxd5 15. Bxd5 Nexd5 16. exd5 Bb7 17. Nc3 Qb6 18. Be3 Qxb2 19. Nb5 Bxe3 20. Rxe3
+Nxd5 21. Rb3 Qxb3 22. Qxb3 Nf4 23. Nxd6 Bxf3 24. Qxf3 Rad8 25. Nc4 Rd3 26. Qe4
+f6 27. Ne3 Rfd8 28. Qc4+ Kh8 29. Rb1 R3d4 30. Qf7 R4d7 31. Qc4 Rd4 32. Qc7
+R4d7 33. Qxa5 Ne2+ 34. Kh2 Rd2 35. Rb7 Nf4 36. Qa7 Ne6 37. Nf5 Rxf2 38. Nxg7
+Nf4 39. Nh5 Rxg2+ 40. Kh1 Rd1+ 41. Qg1 Rdxg1#
+{White checkmated} 0-1
+

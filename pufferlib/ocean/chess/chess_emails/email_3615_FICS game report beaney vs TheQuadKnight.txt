@@ -1,0 +1,19 @@
+Subject: FICS game report beaney vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.23"]
+[Time "08:58:40"]
+[Round "-"]
+[White "beaney"]
+[Black "TheQuadKnight"]
+[WhiteElo "1484"]
+[BlackElo "1334"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4
+{Black forfeits by disconnection} 1-0
+

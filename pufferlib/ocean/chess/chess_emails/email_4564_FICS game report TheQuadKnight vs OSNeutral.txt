@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs OSNeutral
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "15:14:04"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "OSNeutral"]
+[WhiteElo "1286"]
+[BlackElo "1304"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 d5 3. Nc3 e6 4. Nf3 Bb4 5. e3 Nc6 6. Bd3 O-O 7. O-O dxc4
+8. Bxc4 Na5 9. Bd3 Bxc3 10. bxc3 Nc6 11. Qc2 Ne7 12. e4 Ng6 13. e5 Nd5 14. Bxg6
+fxg6 15. Qd3 Nf4 16. Qe3 Nd5 17. Qd3 Bd7 18. Ng5 a6 19. c4 Nf4 20. Bxf4
+Rxf4 21. Qe3 Rf5 22. Nf3 Bc6 23. Nd2 Rg5 24. Ne4 Bxe4 25. Qxe4 Qe7 26. d5
+exd5 27. Qxd5+ Kh8 28. Rfe1 Rd8 29. Qxb7 Rd4 30. Qxa6 Rdg4 31. Qc6 Rxe5
+32. Rxe5 Qd6 33. Re8+
+{Black resigns} 1-0
+

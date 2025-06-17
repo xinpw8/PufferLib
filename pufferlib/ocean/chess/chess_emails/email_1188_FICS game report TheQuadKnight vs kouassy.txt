@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs kouassy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.02"]
+[Time "11:07:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "kouassy"]
+[WhiteElo "1435"]
+[BlackElo "1582"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Bf4 O-O 5. e3 d6 6. Nf3 Nc6 7. Be2 Rb8
+8. O-O a6 9. Qc2 Nb4 10. Qa4 Nc6 11. Rab1 Bd7 12. Qc2 Nb4 13. Qb3 a5 14. a3
+Nc6 15. Qc2 b6 16. Nb5 h6 17. b4 axb4 18. axb4 g5 19. Bg3 Nh5 20. h3 Nxg3
+21. fxg3 f5 22. c5 dxc5 23. bxc5 e5 24. Qc4+ Kh7 25. Bd3 e4 26. Ne5 Nxe5
+27. dxe5 Bxb5 28. Qxb5 Qxd3 29. cxb6 Qxe3+ 30. Kh1 Rxb6 31. Qd7 Rxb1 32. Rxb1
+Qxg3 33. e6 Qd6 34. Qxd6 cxd6 35. Rd1 Be5 36. Rb1 Re8 37. Rb7+ Kg6 38. e7
+Kf6 39. g4 f4 40. h4 Rxe7 41. hxg5+ hxg5 42. Rxe7 Kxe7 43. Kg2 d5 44. Kf1
+d4 45. Ke2 d3+ 46. Kf1 Bc3 47. Kf2 e3+ 48. Kf1 Kd6 49. Kg1 Ke5 50. Kf1 Ke4
+51. Kg2 f3+ 52. Kf1 e2+ 53. Kg1 d2
+{White forfeits on time} 0-1
+

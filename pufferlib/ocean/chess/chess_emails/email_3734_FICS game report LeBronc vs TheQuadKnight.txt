@@ -1,0 +1,44 @@
+Subject: FICS game report LeBronc vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.09"]
+[Time "19:49:20"]
+[Round "-"]
+[White "LeBronc"]
+[Black "TheQuadKnight"]
+[WhiteElo "1320"]
+[BlackElo "1379"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. e3 Nbd7 5. Nc3 Bb4 6. Be2 c5 7. h3 cxd4
+8. Nxd4 Bxc3+ 9. bxc3 Ne4 10. Bb2 Nb6 11. cxd5 Qxd5 12. Qb3 Qg5 13. Qb5+
+Qxb5 14. Nxb5 Bd7 15. Nd4 Rc8 16. Bf3 Nxc3 17. Bxc3 Rxc3 18. O-O O-O 19. Bxb7
+Nc4 20. Rfc1 Rxc1+ 21. Rxc1 Nd6 22. Ba6 Rb8 23. Rc7 Bc8 24. Bxc8 Nxc8 25. Nc6
+Rb1+ 26. Kh2 h6 27. Ne7+ Kf8 28. Nxc8 Rb2 29. Rxa7 Rxf2 30. Nd6 Kg8 31. Rxf7
+Re2 32. Ra7 Rxe3 33. a4 Rd3 34. Ne4 e5 35. a5 Rd4 36. Nc5 e4 37. Nxe4 Rxe4
+38. a6 Ra4 39. Ra8+ Kf7 40. a7 Kf6 41. Rf8+ Kg6 42. a8=Q Rxa8 43. Rxa8 Kf6
+44. g4 g5 45. Kg3 Kg6 46. h4 h5 47. hxg5 Kxg5 48. gxh5 Kxh5 49. Ra5+ Kg6
+50. Kg4 Kf6 51. Kf4 Ke6 52. Ke4 Kd6 53. Rd5+ Ke6 54. Re5+ Kf6 55. Kd5 Kg6
+56. Ke6 Kg7 57. Ke7 Kg6 58. Kf8 Kf6 59. Re7 Kf5 60. Rf7+ Ke5 61. Re7+ Kd5
+62. Kf7 Kd4 63. Kf6 Kd5 64. Re6 Kd4 65. Kf5 Kd5 66. Kf6 Kd4 67. Kf5 Kd5
+68. Kf6 Kd4 69. Ke7 Kd5 70. Kd7 Kd4 71. Kd6 Kc4 72. Re5 Kd4 73. Ke6 Kc4
+74. Kd6 Kd4 75. Ke6 Kc4 76. Kd6 Kd4 77. Rh5 Kc4 78. Kc6 Kd4 79. Kb6 Ke4
+80. Ka6 Kd4 81. Ka5 Ke4 82. Ka4 Kd4 83. Ka3 Ke4 84. Ka2 Kd4 85. Rh4+ Kd5
+86. Ka3 Ke5 87. Kb4 Kf5 88. Rh5+ Kg6 89. Rh4 Kg5 90. Rc4 Kf5 91. Kc5 Ke5
+92. Kc6 Kf5 93. Rc5+ Ke6 94. Kb5 Kf6 95. Rd5 Ke6 96. Kc5 Ke7 97. Re5+ Kf6
+98. Kd5 Kf7 99. Kd6 Kf6 100. Kd5 Kf7 101. Rf5+ Ke7 102. Rg5 Kf6 103. Re5
+Kf7 104. Re6 Kf8 105. Kd6 Kf7 106. Kd7 Kf8 107. Kd6 Kf7 108. Kd7 Kf8 109. Kd6
+Kf7 110. Re5 Kf6 111. Kd5 Kf7 112. Re4 Kf6 113. Kd4 Kf7 114. Kd3 Kf6 115. Re3
+Kf5 116. Kd2 Kf6 117. Re2 Kf5 118. Kd1 Kf6 119. Re3 Kf5 120. Kd2 Kf4 121. Kd3
+Kf5 122. Kd4 Kf4 123. Re4+ Kf5 124. Kd5 Kf6 125. Re5 Kf7 126. Kd6 Kf6 127. Re6+
+Kf7 128. Kd7 Kf8 129. Re7 Kg8 130. Kd8 Kf8 131. Re8+ Kf7 132. Kd7 Kf6 133. Re7
+Kf5 134. Kd6 Kf4 135. Re6 Kf3 136. Kd5 Kf2 137. Re5 Kf3 138. Kd4 Kf4 139. Re4+
+Kf3 140. Kd3 Kf2 141. Re3 Kf1 142. Kd2 Kg1 143. Re2 Kf1 144. Re1+ Kf2 145. Kd3
+Kf3 146. Re2 Kf4 147. Re3 Kf5 148. Re4 Kf6 149. Kd4 Kf7 150. Re5 Kf8 151. Kd5
+Kf7 152. Re6 Kf8 153. Kd6
+{Black forfeits on time} 1-0
+

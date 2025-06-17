@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Goawohl
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "15:07:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Goawohl"]
+[WhiteElo "1344"]
+[BlackElo "1126"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 Nf6 5. e5 Nd5 6. Qe2 Nd4 7. Qe4 Nb4
+8. Bc4 Ndxc2+ 9. Kd1 Qg5 10. Bxg5 Nxa1 11. Qf5 d5 12. Qf4 dxc4 13. Qxc4
+Bg4+ 14. Qxg4 h6 15. Bh4 g5 16. Bg3 Rd8+ 17. Nd2 Nd3 18. Ngf3 Nxb2+ 19. Ke2
+Rxd2+ 20. Nxd2 Nc2 21. Qc8+ Ke7 22. Qxc7+ Ke6 23. Qxc2 Bg7 24. Qxb2 Rd8
+25. Qb3+ Rd5 26. Ne4 Bxe5 27. Qxb7 Bxg3 28. Qc8+ Ke5 29. Nc5 Kf6 30. hxg3
+{Black forfeits on time} 1-0
+

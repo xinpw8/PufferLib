@@ -1,0 +1,21 @@
+Subject: FICS game report fassbinder vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.14"]
+[Time "11:06:44"]
+[Round "-"]
+[White "fassbinder"]
+[Black "TheQuadKnight"]
+[WhiteElo "1177"]
+[BlackElo "1260"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Qh5 Nc6 3. Bc4 g6 4. Qf3 Nf6 5. Ne2 Bg7 6. d3 O-O 7. Nbc3 Na5
+8. Bg5 Nxc4 9. dxc4 d6 10. Nd5 Bg4 11. Nxf6+ Bxf6 12. Qxf6 Qxf6 13. Bxf6
+h6 14. f3 Be6 15. b3 g5 16. h4 Kh7 17. hxg5 Kg6 18. Rxh6#
+{Black checkmated} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs antonmarin
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.13"]
+[Time "09:23:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "antonmarin"]
+[WhiteElo "1384"]
+[BlackElo "1551"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. e3 c5 4. Nf3 Nf6 5. Nc3 Nc6 6. Be2 b6 7. O-O Bd6 8. dxc5
+bxc5 9. cxd5 exd5 10. Nxd5 Nxd5 11. Bc4 Nf6 12. Ng5 O-O 13. Bd2 Ne5 14. Bb3
+h6 15. Nf3 Bg4 16. Bc3 Nxf3+ 17. gxf3 Bh3 18. Re1 Ne4 19. Qd5 Nxf2 20. Kxf2
+Qh4+ 21. Ke2 Rad8 22. Qe4 Bg4 23. fxg4 Qxh2+ 24. Kd1 Bg3+ 25. Kc1 Bxe1 26. Qe5
+Bxc3 27. Qxh2
+{Black resigns} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs forrestx
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.27"]
+[Time "19:37:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "forrestx"]
+[WhiteElo "1419"]
+[BlackElo "1120"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 c5 2. Nf3 Qa5+ 3. Nc3 c4 4. e4 b5 5. Bf4 Nf6 6. Be2 Nxe4 7. Bd2 Nxc3
+8. Bxc3 b4 9. Bd2 d5 10. O-O Nc6 11. Re1 Bf5 12. b3 c3 13. Bf4 e6 14. Nh4
+Qb6 15. Nxf5 exf5 16. Bf3+ Be7 17. Bxd5 Rd8 18. Bxc6+ Qxc6 19. Qe2 Rd7 20. Bg5
+f6 21. Bf4 O-O 22. Qd3 Qd5 23. Bg3 g6 24. Re2 Bd6 25. Bxd6 Rxd6 26. Rae1
+Qxd4 27. Qb5 Rb6 28. Qa5 Rf7 29. Re8+ Kg7 30. R8e7 Rxe7 31. Rxe7+ Kh6 32. Re1
+Qd2 33. Rf1 Qxc2 34. Qxa7 Re6 35. Qf7 Ra6 36. Qf8+ Kg5 37. h4+ Kg4 38. Qxb4+
+Kh5 39. g4+ fxg4 40. Qb5+ Kxh4 41. Qxa6 f5 42. Qf6+ g5 43. Kg2 h5 44. Rh1#
+{Black checkmated} 1-0
+

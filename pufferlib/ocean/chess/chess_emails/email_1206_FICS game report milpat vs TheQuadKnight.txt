@@ -1,0 +1,28 @@
+Subject: FICS game report milpat vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.21"]
+[Time "19:49:05"]
+[Round "-"]
+[White "milpat"]
+[Black "TheQuadKnight"]
+[WhiteElo "1425"]
+[BlackElo "1402"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. Nf3 d5 2. c4 c5 3. cxd5 Bg4 4. g3 e6 5. dxe6 Bxf3 6. exf3 fxe6 7. Bb5+
+Nc6 8. Qe2 Qd5 9. O-O Nf6 10. Nc3 Qh5 11. Qxe6+ Be7 12. Bxc6+ bxc6 13. Qxc6+
+Kf7 14. g4 Qe5 15. Ne4 Nxe4 16. Qxe4 Qg5 17. d4 Qf6 18. d5 Bd6 19. g5 Qe5
+20. Qxe5 Bxe5 21. f4 Bd4 22. Be3 Rad8 23. Bxd4 cxd4 24. Rad1 Rxd5 25. Rfe1
+Rhd8 26. Re5 Rxe5 27. fxe5 Ke6 28. f4 Kf5 29. e6 Kxe6 30. Kg2 Kf5 31. Kf3
+a5 32. Rd3 Rb8 33. b3 Rb4 34. h4 h6 35. a3 Rb6 36. Rxd4 Rxb3+ 37. Ke2 Rxa3
+38. Rd5+ Kxf4 39. gxh6 gxh6 40. Rh5 Kg4 41. Rxh6 Ra4 42. Rh8 Kg3 43. h5
+Rh4 44. h6 a4 45. h7 a3 46. Rg8+ Kf4 47. h8=Q Rxh8 48. Rxh8 a2 49. Ra8 a1=Q
+50. Rxa1 Ke5 51. Ke3 Kd6 52. Ke4 Ke6 53. Ra6+ Ke7 54. Ke5 Kf7 55. Kf5 Ke7
+56. Rh6 Kf7
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

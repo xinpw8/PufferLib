@@ -1,0 +1,25 @@
+Subject: FICS game report Xilivai vs TheQuadKnight
+
+
+[Event "FICS rated standard game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.19"]
+[Time "22:54:44"]
+[Round "-"]
+[White "Xilivai"]
+[Black "TheQuadKnight"]
+[WhiteElo "1631"]
+[BlackElo "1959"]
+[TimeControl "900+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nc3 Nc6 3. Bc4 e6 4. Nf3 Bd6 5. Qe2 Nge7 6. a3 Qc7 7. Nb5 Qb8
+8. Qd3 Be5 9. O-O O-O 10. Re1 a6 11. Nc3 Bc7 12. h3 b5 13. Bb3 c4 14. Bxc4
+bxc4 15. Qxc4 Bb7 16. Ng5 Ne5 17. Qe2 d5 18. exd5 Nxd5 19. Qh5 Nf6 20. Qe2
+h6 21. d4 Ng6 22. Nf3 Nf4 23. Qf1 Nxh3+ 24. Kh1 Bxf3 25. Re3 Nxf2+ 26. Qxf2
+Bb7 27. Kg1 Ng4 28. Qe1 Bh2+ 29. Kf1 Nxe3+ 30. Bxe3 Qc7 31. Ra2 a5 32. Qh4
+Ba6+ 33. Ke1 Bg3+ 34. Bf2 Bxh4 35. Bxh4 Qf4 36. Ne2 Qxh4+ 37. Kd1 Qg4 38. c4
+Bxc4 39. b3 Bxb3+ 40. Kc1 Bxa2 41. Kb2 Qxe2+ 42. Kc3 Rfc8#
+{White checkmated} 0-1
+

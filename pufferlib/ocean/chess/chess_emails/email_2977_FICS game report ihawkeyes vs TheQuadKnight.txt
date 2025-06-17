@@ -1,0 +1,24 @@
+Subject: FICS game report ihawkeyes vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.30"]
+[Time "19:35:19"]
+[Round "-"]
+[White "ihawkeyes"]
+[Black "TheQuadKnight"]
+[WhiteElo "1587"]
+[BlackElo "1364"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 d6 5. O-O Be7 6. d4 exd4 7. Nxd4 Bd7
+8. Nf5 O-O 9. Re1 Re8 10. Bg5 h6 11. Bh4 Qc8 12. Qf3 Bxf5 13. Qxf5 Qxf5
+14. exf5 Rad8 15. Rad1 a6 16. Rd2 b5 17. Bb3 Na5 18. Rde2 Rd7 19. Bxf6 gxf6
+20. Nd5 Nxb3 21. axb3 Kf8 22. Nxf6 Bxf6 23. Rxe8+ Kg7 24. Ra8 Bxb2 25. Rxa6
+Bc3 26. Re2 b4 27. Ra8 Kf6 28. g4 Kg5 29. h3 f6 30. Kg2 Kf4 31. f3 Be5 32. h4
+Rh7 33. Re4#
+{Black checkmated} 1-0
+

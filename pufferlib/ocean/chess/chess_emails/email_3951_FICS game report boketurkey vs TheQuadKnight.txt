@@ -1,0 +1,23 @@
+Subject: FICS game report boketurkey vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "16:27:35"]
+[Round "-"]
+[White "boketurkey"]
+[Black "TheQuadKnight"]
+[WhiteElo "1531"]
+[BlackElo "1429"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Nf6 4. Nf3 c6 5. a4 Bg4 6. e3 Nbd7 7. Bxc4 e6
+8. O-O Bb4 9. Be2 Bxc3 10. bxc3 Ne4 11. Qc2 Ng5 12. Ba3 Nxf3+ 13. Bxf3 Bxf3
+14. gxf3 Nb6 15. c4 Qg5+ 16. Kh1 Qh5 17. Qe2 Nd7 18. Bd6 Nf6 19. Rg1 Qh6
+20. Rg2 Nh5 21. Rag1 e5 22. Bxe5 f6 23. Bd6 Rd8 24. c5 b6 25. Qa6 bxc5 26. dxc5
+Kf7 27. Qxa7+ Ke6 28. Qe7+ Kd5 29. Qe4#
+{Black checkmated} 1-0
+

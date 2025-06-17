@@ -1,0 +1,29 @@
+Subject: FICS game report citrouille vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.16"]
+[Time "15:42:29"]
+[Round "-"]
+[White "citrouille"]
+[Black "TheQuadKnight"]
+[WhiteElo "1402"]
+[BlackElo "1381"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. d4 gxf3 6. Qxf3 d6 7. Bxf4 Be7
+8. O-O Be6 9. d5 Bd7 10. Nc3 Na6 11. Bxa6 bxa6 12. Qg3 Nf6 13. e5 dxe5 14. Bxe5
+Nh5 15. Qf3 Rg8 16. Qxh5 Bg4 17. Qxh7 Kd7 18. Rxf7 Re8 19. Ne4 Kc8 20. d6
+cxd6 21. Rd1 Qb6+ 22. Bd4 Qb7 23. Nxd6+ Bxd6 24. Rxb7 Bxd1 25. Rxa7 Rxa7
+26. Qxa7 Re1+ 27. Kf2 Re2+ 28. Kf3 Re7+ 29. Kf2 Rxa7 30. c4 Rf7+ 31. Ke3
+Bxh2 32. b4 Bc2 33. a3 Re7+ 34. Kd2 Bb3 35. Kc3 Ba4 36. c5 Re1 37. g4 Be5
+38. g5 Bxd4+ 39. Kxd4 Rg1 40. Kd5 Rxg5+ 41. Kd6 Rg3 42. c6 Bxc6 43. Kxc6
+Rxa3 44. Kb6 Kb8 45. Kc5 Kb7 46. Kc4 Kb6 47. Kd4 Kb5 48. Kd5 Kxb4 49. Kd6
+Ra5 50. Kc6 Rb5 51. Kd6 a5 52. Ke6 a4 53. Kf6 a3 54. Ke6 a2 55. Kd6 a1=Q
+56. Ke6 Qb2 57. Kd6 Qc3 58. Ke6 Qd4 59. Kf7 Qc4+ 60. Ke7 Qc6 61. Kf7 Qc5
+62. Ke6 Rb6+ 63. Kf7 Qc7+ 64. Ke8 Rb8#
+{White checkmated} 0-1
+

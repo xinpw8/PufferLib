@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs dpzen
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.24"]
+[Time "15:54:22"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "dpzen"]
+[WhiteElo "1411"]
+[BlackElo "1435"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 c6 5. Bf4 Nbd7 6. e3 Be7 7. Bd3 O-O
+8. O-O b6 9. Qc2 Bb7 10. b3 h6 11. e4 dxe4 12. Nxe4 Nxe4 13. Bxe4 Nf6 14. Bd3
+c5 15. Rad1 Bxf3 16. gxf3 cxd4 17. Be5 Bc5 18. Qb2 a5 19. a3 Ra7 20. b4
+axb4 21. axb4 Bd6 22. Bxd4 Nh5 23. Bb1 Qh4 24. Be5 Bxe5 25. Qxe5 Nf4 26. Rd4
+Nh3+ 27. Kg2 Qg5+ 28. Qxg5 Nxg5 29. f4 Nh7 30. Rfd1 Nf6 31. h3 Rfa8 32. Rd8+
+Ne8 33. Be4 Rxd8 34. Rxd8 Kf8 35. Bc6 Re7 36. Rb8 f5 37. Rxb6 Kf7 38. Rb8
+Nc7 39. b5 e5 40. b6 Ne6 41. b7 Nxf4+ 42. Kf3 Ne6 43. Rf8+ Kg6 44. b8=Q
+Nxf8 45. Qd8 Kf6 46. c5 Ne6 47. Qd6 Ra7 48. Bd7 Ra3+ 49. Kg2 Kg5 50. c6
+Kf4
+{White forfeits on time} 0-1
+

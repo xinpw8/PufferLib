@@ -1,0 +1,22 @@
+Subject: FICS game report PedroA vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "15:22:16"]
+[Round "-"]
+[White "PedroA"]
+[Black "TheQuadKnight"]
+[WhiteElo "1439"]
+[BlackElo "1344"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. O-O d5 5. exd5 Nxd5 6. Qe2 Be7 7. Nxe5
+Nxe5 8. Qxe5 Nf6 9. Re1 Ng4 10. Qxg7 Qd6 11. Qxh8+ Kd7 12. Qxh7 b6 13. Bxf7
+Bb7 14. Qf5+ Kc6 15. Re6 Qxe6 16. Qxe6+ Bd6 17. Qxg4 Rf8 18. Qe4+ Kd7 19. Be6+
+Kd8 20. Qxb7 Re8 21. Qc8+ Ke7 22. Qd7+ Kf8 23. Qf7#
+{Black checkmated} 1-0
+

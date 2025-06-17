@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs riffraf
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.20"]
+[Time "11:02:30"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "riffraf"]
+[WhiteElo "1403"]
+[BlackElo "1466"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. exd5 exd5 5. Bd2 Nc6 6. Bb5 Ne7 7. Qf3 O-O
+8. Nge2 Nf5 9. O-O-O Nfxd4 10. Nxd4 Nxd4 11. Qd3 Nxb5 12. Nxb5 Bxd2+ 13. Rxd2
+c6 14. Nc3 Qg5 15. Qe2 b5 16. Kb1 Bg4 17. f3 Rfe8 18. Qd3 Bf5 19. Qd4 c5
+20. Qxd5 Rad8 21. Qc6 Qxd2 22. a3 Qxc2+ 23. Ka2 Be6+ 24. Ka1 b4 25. axb4
+cxb4 26. Ne4 Qxc6
+{White resigns} 0-1
+

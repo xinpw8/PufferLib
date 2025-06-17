@@ -1,0 +1,25 @@
+Subject: FICS game report OrganicChess vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.18"]
+[Time "18:42:42"]
+[Round "-"]
+[White "OrganicChess"]
+[Black "TheQuadKnight"]
+[WhiteElo "1581"]
+[BlackElo "1311"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 Nc6 3. e3 e6 4. c4 Nf6 5. cxd5 exd5 6. Bb5 Bd7 7. O-O a6
+8. Bxc6 Bxc6 9. Ne5 Qd6 10. b3 Bb5 11. Ba3 Qc6 12. Bxf8 Qe6 13. Bxg7 Rg8
+14. Bxf6 Qxf6 15. Re1 Qg5 16. Qf3 f6 17. a4 fxe5 18. axb5 e4 19. Qg3 Qxg3
+20. hxg3 O-O-O 21. bxa6 bxa6 22. Rxa6 Kb7 23. Ra5 c6 24. Rc5 Rd6 25. Nc3
+Rdg6 26. Ra1 h5 27. b4 h4 28. Ne2 Rh8 29. b5 cxb5 30. Rxb5+ Kc7 31. Ra7+
+Kc6 32. Rb2 Rgh6 33. Ra6+ Kd7 34. Rb7+ Kc8 35. Rxh6 Rxh6 36. Rg7 h3 37. gxh3
+Rxh3 38. Nf4 Rh6 39. Nxd5 Rd6
+{Black resigns} 1-0
+

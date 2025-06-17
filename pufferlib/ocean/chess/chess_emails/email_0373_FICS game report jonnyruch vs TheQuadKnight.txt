@@ -1,0 +1,26 @@
+Subject: FICS game report jonnyruch vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.07.18"]
+[Time "18:01:56"]
+[Round "-"]
+[White "jonnyruch"]
+[Black "TheQuadKnight"]
+[WhiteElo "1344"]
+[BlackElo "1380"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 4. c3 Na5 5. Bb5+ c6 6. Ba4 b5 7. Bc2 Nf6
+8. d4 exd4 9. cxd4 Be7 10. Bf4 O-O 11. Nbd2 Re8 12. O-O Bg4 13. Qe2 d5 14. e5
+Ne4 15. Bxe4 dxe4 16. Qxe4 Qd7 17. Rac1 Bb4 18. a3 Bf5 19. Qe2 Bf8 20. Ne4
+Nb7 21. b4 a5 22. Nc5 Nxc5 23. bxc5 Qd5 24. Be3 Be4 25. Nh4 Be7 26. Qg4
+Bxh4 27. Qxh4 Bxg2 28. Rfe1 Qf3 29. Qg3 Qxg3 30. hxg3 Bf3 31. Rc3 Re6 32. Rb1
+f6 33. Bf4 fxe5 34. Bxe5 Rh6 35. Rxf3 Re8 36. a4 bxa4 37. Ra1 Ra8 38. Rxa4
+Re6 39. Rb3 h6 40. f4 g5 41. Kg2 gxf4 42. gxf4 Rg6+ 43. Kh3 Kf7 44. Kh4
+Rag8 45. f5 Rg4+ 46. Kh3 Rg3+ 47. Bxg3
+{Black forfeits on time} 1-0
+

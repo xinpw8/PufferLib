@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs XLNT
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.17"]
+[Time "13:26:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "XLNT"]
+[WhiteElo "1272"]
+[BlackElo "1331"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. c4 c5 3. Nc3 cxd4 4. Qxd4 Nc6 5. Qd1 Nf6 6. Nf3 Bb4 7. e3 Qa5
+8. Bd2 O-O 9. a3 Bxc3 10. Bxc3 Qc7 11. Be2 Ne7 12. O-O Ng6 13. Qd3 d5 14. Bxf6
+dxc4 15. Qxc4 Qxc4 16. Bxc4 gxf6 17. Rac1 a6 18. Rfe1 b5 19. Bb3 Bb7 20. e4
+Nf4 21. Rc7 Rab8 22. Re3 Rfd8 23. g3 Ng6 24. Kg2 f5 25. exf5 Nh8 26. fxe6
+Bxf3+ 27. Kxf3 Rf8 28. exf7+ Kg7 29. Re8 Ng6 30. Rxb8 Ne5+ 31. Kg2 Rxb8
+32. f4 Kf8 33. fxe5 Re8 34. e6 Rxe6 35. Bxe6
+{Black resigns} 1-0
+

@@ -1,0 +1,28 @@
+Subject: FICS game report ChemicalMind vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.05"]
+[Time "09:34:40"]
+[Round "-"]
+[White "ChemicalMind"]
+[Black "TheQuadKnight"]
+[WhiteElo "1428"]
+[BlackElo "1308"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. Nxe5 Bd6 6. Nd3 Nf6 7. f3
+O-O 8. O-O c5 9. e5 c4 10. exf6 cxd3 11. fxg7 Kxg7 12. cxd3 Qf6 13. Nc3
+Qf4 14. g3 Qg5 15. Ne4 Bc5+ 16. Nxc5 Qxc5+ 17. Kg2 Qh5 18. g4 Qd5 19. Qb3
+Qc6 20. Qc3+ Qxc3 21. dxc3 Rd8 22. d4 Be6 23. a3 Re8 24. Bf4 c6 25. Rae1
+Bc4 26. Rxe8 Bxf1+ 27. Kxf1 Rxe8 28. Be5+ Kf8 29. Kf2 Ke7 30. h4 Ke6 31. Kg3
+c5 32. f4 b6 33. f5+ Kd5 34. b3 cxd4 35. Bxd4 Ke4 36. Bxb6 Kd3 37. Bd4 a5
+38. a4 Rb8 39. g5 Rxb3 40. h5 Rxc3 41. Bxc3 Kxc3 42. g6 fxg6 43. hxg6 hxg6
+44. fxg6 Kb4 45. g7 Kxa4 46. g8=Q Kb4 47. Qa2 a4 48. Kf3 a3 49. Ke3 Ka4
+50. Kd3 Kb4 51. Kd4 Ka4 52. Kc4 Ka5 53. Qxa3+ Kb6 54. Qc5+ Kb7 55. Qd6 Ka7
+56. Qb4 Ka8 57. Kc5 Ka7 58. Kc6 Ka8 59. Qb7#
+{Black checkmated} 1-0
+

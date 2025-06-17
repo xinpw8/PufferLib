@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs blore
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "11:10:24"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "blore"]
+[WhiteElo "1336"]
+[BlackElo "1604"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 g6 2. d4 Bg7 3. c3 d5 4. Nd2 dxe4 5. Nxe4 Nd7 6. Nf3 Ngf6 7. Bd3 O-O
+8. O-O Nxe4 9. Bxe4 Nf6 10. Bd3 Bg4 11. Re1 e6 12. h3 Bf5 13. Ne5 Bxd3 14. Qxd3
+Nd7 15. f4 Nxe5 16. fxe5 c5 17. Qe3 cxd4 18. cxd4 Qd5 19. Bd2 Rad8 20. Bc3
+Rfe8 21. Rad1 b5 22. a3 Qb3 23. Qg5 Rd5 24. Rf1 Bxe5 25. Qxe5 Rxe5 26. dxe5
+a5 27. Rd7 Rf8 28. Bd4 b4 29. Bc5 Qxb2 30. Bxf8 Kxf8 31. Rfxf7+ Ke8 32. Rfe7+
+Kf8 33. Rxh7 Qc1+ 34. Kh2 Qf4+ 35. Kg1 Qe3+ 36. Kf1 Ke8 37. Rb7 Qxe5 38. Rbe7+
+Kf8 39. Ra7 Kg8 40. Rhb7 Qf5+ 41. Kg1 Qb1+ 42. Kh2 Qf5 43. Ra8+ Qf8 44. Rxf8+
+Kxf8 45. Rb8+ Ke7 46. Ra8 b3 47. Rxa5 b2 48. Rb5 e5 49. Rxb2 Kd6 50. Rb7
+g5 51. Rg7 g4 52. Rxg4 Kd5 53. Rg6 Kd4 54. Rg5 e4 55. Rg7
+{Game drawn by mutual agreement} 1/2-1/2
+

@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Capitano
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.25"]
+[Time "11:27:09"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Capitano"]
+[WhiteElo "1280"]
+[BlackElo "1341"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e6 2. c4 d5 3. Nc3 c5 4. e3 cxd4 5. exd4 dxc4 6. Bxc4 Nc6 7. d5 exd5
+8. Nxd5 Bb4+ 9. Bd2 Bxd2+ 10. Qxd2 Nge7 11. Rd1 O-O 12. Nxe7+ Qxe7+ 13. Ne2
+Bg4 14. O-O Rad8 15. Qc2 Bxe2 16. Bxe2 Nd4 17. Qd2 Nxe2+ 18. Kh1 Rxd2 19. Rxd2
+Nf4 20. Rfd1 h6 21. g3 Nh3 22. Kg2 Ng5 23. f4 Qe4+ 24. Kf2 Nh3+ 25. Kf1
+Qh1+ 26. Ke2 Re8+ 27. Kd3 Rd8+ 28. Kc2 Rxd2+ 29. Kxd2 Qd5+ 30. Kc1 Qxa2
+31. Rd8+ Kh7 32. Rd7 b5 33. Rxf7 b4 34. Rb7 b3 35. Rb4 a5 36. Rb5 a4 37. Rd5
+a3 38. Rd2 axb2+ 39. Rxb2 Qa1+ 40. Rb1 Qc3+ 41. Kd1 Qc2+ 42. Ke1 Qxb1+ 43. Ke2
+b2 44. Kf3 Qd3+
+{White resigns} 0-1
+

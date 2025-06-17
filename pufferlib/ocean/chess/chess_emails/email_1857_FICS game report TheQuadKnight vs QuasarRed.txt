@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs QuasarRed
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "16:10:10"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "QuasarRed"]
+[WhiteElo "1400"]
+[BlackElo "1556"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nf6 3. Nc3 Nc6 4. d4 exd4 5. Nxd4 Bc5 6. Nxc6 dxc6 7. Qxd8+
+Kxd8 8. Bc4 Bb4 9. Bg5 Ke8 10. Bd2 Ke7 11. O-O-O Be6 12. Bxe6 Kxe6 13. Rhe1
+Rad8 14. f4 Ng4 15. Rf1 Nxh2 16. Rf2 Ng4 17. Rf3 Bxc3 18. Bxc3 Rxd1+ 19. Kxd1
+Rd8+ 20. Ke2 Nf6 21. f5+ Ke7 22. e5 Nd5 23. f6+ gxf6 24. exf6+ Ke6 25. Re3+
+Nxe3 26. Kxe3 Rd5 27. g4 h5 28. gxh5 Rxh5 29. Kf4 b6 30. Be5 Rxe5
+{White resigns} 0-1
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs JTDeteste
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.28"]
+[Time "08:34:04"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "JTDeteste"]
+[WhiteElo "1391"]
+[BlackElo "1437"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 Bf5 4. f3 e6 5. e4 dxe4 6. fxe4 Bg6 7. Qe2 Bb4
+8. Be3 Nxe4 9. Bd2 Qxd4 10. Nxe4 Bxd2+ 11. Qxd2 Qxe4+ 12. Be2 Qxg2 13. Bf3
+Qxd2+ 14. Kxd2 c6 15. Ne2 O-O 16. Rad1 Rd8+ 17. Kc3 Rxd1 18. Rxd1 Na6 19. Nf4
+Bf5 20. Rd7 g5 21. Nh5 g4 22. Be2 Nc5 23. Rd4 Ne4+ 24. Kb4 c5+ 25. Kb3 cxd4
+26. Nf4
+{White resigns} 0-1
+

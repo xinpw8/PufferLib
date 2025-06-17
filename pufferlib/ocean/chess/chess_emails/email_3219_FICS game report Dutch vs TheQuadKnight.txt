@@ -1,0 +1,24 @@
+Subject: FICS game report Dutch vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "13:36:44"]
+[Round "-"]
+[White "Dutch"]
+[Black "TheQuadKnight"]
+[WhiteElo "1446"]
+[BlackElo "1288"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. O-O d5 6. exd5 Nxd5 7. Re1+
+Be7 8. Nxd4 Nxd4 9. Qxd4 c6 10. Qxg7 Rf8 11. Qe5 Be6 12. Nc3 f6 13. Qg3
+Nxc3 14. Qxc3 Bxc4 15. Qxc4 Qd6 16. Bf4 Qd7 17. Rad1 Qg4 18. Qe4 Rf7 19. Qd4
+Rg7 20. Qd7+ Kf8 21. Bg3 f5 22. h3 Qg6 23. Re6 Qg5 24. Rde1 Rd8 25. Qxb7
+f4 26. R6e5 Qxe5 27. Rxe5 Rd1+ 28. Kh2 fxg3+ 29. fxg3 Bd6 30. Rf5+ Ke8 31. Qc8+
+Ke7 32. Qxc6 Bxg3#
+{White checkmated} 0-1
+

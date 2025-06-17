@@ -1,0 +1,30 @@
+Subject: FICS game report DAVORND vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "09:54:36"]
+[Round "-"]
+[White "DAVORND"]
+[Black "TheQuadKnight"]
+[WhiteElo "1590"]
+[BlackElo "1433"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. d4 exd4 3. e5 d6 4. Qxd4 Nc6 5. Bb5 Bd7 6. Bxc6 Bxc6 7. exd6
+Bxd6 8. Bf4 Bxf4 9. Qxf4 Bxg2 10. Nd2 Bxh1 11. O-O-O Nf6 12. Ne4 Qe7 13. Nxf6+
+Qxf6 14. Re1+ Kf8 15. Qb4+ Qd6 16. Qh4 Re8 17. Rd1 Qe5 18. Qb4+ Kg8 19. Nh3
+Bd5 20. Qa4 c6 21. Nf4 Qg5 22. Kb1 h6 23. Nxd5 cxd5 24. Qxe8+ Kh7 25. Qb5
+Rd8 26. Qd3+ Kg8 27. Qd4 Qf5 28. f4 Rc8 29. Qd2 Qe4 30. Ka1 Rc5 31. c3 a6
+32. Qd4 Qe7 33. Qd2 b6 34. Re1 Qd6 35. Qd4 Rc4 36. Qe4 Rxe4 37. Rd1 Qxf4
+38. a3 Qxh2 39. Ka2 Re2 40. Rb1 b5 41. Kb3 a5 42. a4 b4 43. cxb4 Re3+ 44. Ka2
+Qg3 45. bxa5 Rb3 46. a6 Qf4 47. Kxb3 Qc4+ 48. Ka3 Qxa6 49. b3 Qc4 50. a5
+Qc5+ 51. b4 Qc3+ 52. Rb3 Qc1+ 53. Ka4 Qa1+ 54. Ra3 Qc1 55. a6 Qc6+ 56. b5
+Qc4+ 57. Ka5 Qc3+ 58. Rxc3 d4 59. Rd3 Kh7 60. Rxd4 g6 61. a7 h5 62. a8=Q
+Kh6 63. Qe8 h4 64. Rf4 f6 65. Qf7 g5 66. Qxf6+ Kh5 67. Qxg5+ Kxg5 68. Rxh4
+Kxh4 69. b6 Kg3 70. Ka6 Kg2 71. Kb7 Kf2 72. Kc7 Ke1 73. Kd7 Ke2
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

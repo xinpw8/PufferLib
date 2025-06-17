@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs lotfisaid
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "11:17:25"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "lotfisaid"]
+[WhiteElo "1404"]
+[BlackElo "1498"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c6 2. d4 d5 3. exd5 cxd5 4. Nc3 Nc6 5. Bb5 Nf6 6. Bxc6+ bxc6 7. Bg5
+Bf5 8. Bxf6 gxf6 9. Nf3 e6 10. O-O Bg7 11. Nh4 Bg6 12. Nxg6 hxg6 13. h3
+O-O 14. Re1 Qb6 15. b3 f5 16. Ne2 c5 17. Rb1 cxd4 18. Qd3 e5 19. f3 Rfd8
+20. Rbd1 Rac8 21. g4 e4 22. fxe4 dxe4 23. Qg3 d3+ 24. Kh2 dxe2 25. Rxd8+
+Rxd8 26. Rxe2 Qd6 27. Qxd6 Rxd6 28. c4 Rd3 29. gxf5 gxf5 30. Rf2 e3 31. Rxf5
+Rd2+ 32. Kg3 Rxa2 33. c5 e2 34. Kg4 e1=Q 35. c6 Rg2+ 36. Kf4 Rf2+ 37. Kg4
+Rxf5 38. Kxf5 Qe6+ 39. Kf4 Qxc6
+{White resigns} 0-1
+

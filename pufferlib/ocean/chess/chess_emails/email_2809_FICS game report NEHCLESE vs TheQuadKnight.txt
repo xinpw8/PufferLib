@@ -1,0 +1,23 @@
+Subject: FICS game report NEHCLESE vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.03"]
+[Time "07:39:38"]
+[Round "-"]
+[White "NEHCLESE"]
+[Black "TheQuadKnight"]
+[WhiteElo "1554"]
+[BlackElo "1407"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. d3 d6 7. h3 Be7 8. Nc3
+O-O 9. Bg5 Bb7 10. Qd2 Na5 11. O-O Nxb3 12. axb3 h6 13. Bh4 Re8 14. Bxf6
+Bxf6 15. Nh2 d5 16. exd5 Bxd5 17. Nxd5 Qxd5 18. f4 exf4 19. Rxf4 Bxb2 20. Raf1
+Bf6 21. Ng4 Bg5 22. Qc3 Bxf4 23. Rxf4 Re7 24. Nf2 Qd6 25. Rg4 f6 26. Ne4
+Qe5 27. Qc6 Rf8 28. Qxa6 f5
+{White resigns} 0-1
+

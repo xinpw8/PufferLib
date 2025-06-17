@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs LeBronc
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.08"]
+[Time "17:06:06"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "LeBronc"]
+[WhiteElo "1344"]
+[BlackElo "1366"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 e6 3. d4 d5 4. exd5 Qxd5 5. Nc3 Qc6 6. Bb5 Qxb5 7. Nxb5
+f6 8. Nc7+
+{Black resigns} 1-0
+

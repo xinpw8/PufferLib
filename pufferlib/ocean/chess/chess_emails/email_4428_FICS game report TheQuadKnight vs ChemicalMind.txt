@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs ChemicalMind
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.05"]
+[Time "11:07:40"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ChemicalMind"]
+[WhiteElo "1332"]
+[BlackElo "1404"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. c4 e5 2. Nc3 Nf6 3. e4 Bc5 4. g3 O-O 5. Bg2 c6 6. Nge2 d6 7. d4 exd4
+8. Nxd4 Bg4 9. Qd3 Na6 10. a3 Bxd4 11. Qxd4 c5 12. Qd3 Be6 13. Nd5 Nxd5
+14. exd5 Bg4 15. O-O Bh5 16. Bf3 Bg6 17. Be4 Bxe4 18. Qxe4 Nc7 19. Qg4 Qf6
+20. Qe2 b5 21. cxb5 Nxd5 22. Qc2 Rab8 23. a4 Nb4 24. Qc3 Qxc3 25. bxc3 Nd3
+26. Be3 Ne5 27. Bf4 Rfe8 28. Rfe1 Nf3+ 29. Kf1 Nxe1 30. Rxe1 Rxe1+ 31. Kxe1
+Rd8 32. Kd2 Kf8 33. Kd3 g6 34. Ke4 Ke7 35. Bg5+ f6 36. Bf4 Ke6 37. c4 f5+
+38. Ke3 Rd7 39. h4 d5 40. cxd5+ Rxd5 41. Ke2 Rd4 42. Be3 Rxa4 43. Bxc5 Ra5
+44. Kd3 Rxb5 45. Kc4 Ra5 46. Kb4 Ra1 47. Bxa7 Rxa7 48. Kc4 Ra2 49. Kd3 Rxf2
+50. Ke3 Ra2 51. Kf4 h6 52. g4 Ra4+ 53. Kg3 Rxg4+ 54. Kh3 h5 55. Kh2 Rxh4+
+56. Kg3 g5
+{White forfeits on time} 0-1
+

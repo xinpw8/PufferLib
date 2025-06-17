@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Evigion
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.19"]
+[Time "15:26:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Evigion"]
+[WhiteElo "1395"]
+[BlackElo "1711"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. c3 d6 4. d4 exd4 5. cxd4 Bg4 6. Be2 Nf6 7. Nc3 Be7
+8. Bf4 O-O 9. O-O Qd7 10. h3 Bxf3 11. Bxf3 h6 12. e5 dxe5 13. dxe5 Qxd1
+14. Raxd1 Nh7 15. Nd5 Bd8 16. e6 fxe6 17. Nxc7 Rxf4 18. Nxe6 Rxf3 19. gxf3
+Bf6 20. Rfe1 Bxb2 21. Re2 Bf6 22. Nc5 b6 23. Nd7 Bc3 24. Rd3 Nd4 25. Re4
+Nb5 26. a4 Ng5 27. Rf4 Nxh3+ 28. Kg2 Nxf4+ 29. Kg3 Nxd3 30. axb5 Rd8 31. Nxb6
+axb6 32. Kg2 Rd5 33. Kg3 Rxb5 34. f4 Rf5 35. Kg4 Rxf4+ 36. Kg3 Bd4 37. f3
+Ne1 38. Kh2 Nxf3+ 39. Kg3 Be5 40. Kg2 b5 41. Kf1 b4 42. Ke2 b3 43. Kd1 b2
+44. Kc2 Ne1+ 45. Kb1 Rc4 46. Ka2 Rc1 47. Ka3 b1=Q 48. Ka4 Rc4+ 49. Ka5 Bc7+
+50. Ka6 Qb6#
+{White checkmated} 0-1
+

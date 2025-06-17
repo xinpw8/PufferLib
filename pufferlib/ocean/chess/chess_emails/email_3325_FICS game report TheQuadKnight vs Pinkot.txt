@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Pinkot
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.23"]
+[Time "23:59:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Pinkot"]
+[WhiteElo "1392"]
+[BlackElo "1459"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Be7 4. Bc4 Bh4+ 5. g3 fxg3 6. O-O g2 7. Kxg2
+Nh6 8. d4 d5 9. Bxd5 c6 10. Bc4 Be6 11. d5 cxd5 12. exd5 Bg4 13. Bb5+ Nd7
+14. h3 Bxf3+ 15. Qxf3 f6 16. Bxh6 gxh6 17. Qe4+ Kf7 18. Qxh4 Rg8+ 19. Kh2
+Qc7+ 20. Kh1 Qxc2 21. Qf2 Qe4+ 22. Kh2 Qxd5 23. Bxd7 Qxd7 24. Qxf6+ Ke8
+25. Re1+
+{Black resigns} 1-0
+

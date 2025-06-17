@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs dragisa
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "10:54:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "dragisa"]
+[WhiteElo "1271"]
+[BlackElo "1288"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 g6 2. c4 Nf6 3. Nc3 Bg7 4. Nf3 d6 5. e3 O-O 6. Bd3 c6 7. O-O Bg4 8. Bd2
+Nbd7 9. Rc1 e5 10. h3 Bxf3 11. Qxf3 Qe7 12. Rfe1 Rad8 13. dxe5 dxe5 14. e4
+Nc5 15. Bb1 Rxd2 16. b4 Ncd7 17. Bd3 Qxb4 18. Qe3 Rxd3 19. Qxd3 Qe7 20. Qb1
+b6 21. a4 Qc5 22. Ne2 Bh6 23. Rc2 Nxe4 24. Nc3 Nxc3 25. Rxc3 f5 26. Qb2
+Bg7 27. Qb3 e4 28. Rcc1 Ne5 29. Red1 Nd3 30. Rc2 Bd4 31. Kh2 Nxf2 32. Rdd2
+e3 33. Re2 Qe5+ 34. Kg1 c5 35. Qb1 Qg3 36. Kf1 f4 37. Rxf2 exf2 38. Ke2
+Qxg2 39. Kd3 Qf3+ 40. Kd2 f1=Q 41. Qxf1 Qxf1 42. Rc1 Qf2+ 43. Kd3 Re8 44. Rc2
+Re3#
+{White checkmated} 0-1
+

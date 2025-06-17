@@ -1,0 +1,28 @@
+Subject: FICS game report georgethegiant vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.03.18"]
+[Time "19:09:51"]
+[Round "-"]
+[White "georgethegiant"]
+[Black "TheQuadKnight"]
+[WhiteElo "1393"]
+[BlackElo "1341"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 e5 4. Qa4+ Bd7 5. Qxc4 Nc6 6. d5 Nd4 7. Qd3 Bf5
+8. e4 Bg6 9. Nge2 f5 10. Nxd4 exd4 11. Qxd4 Nf6 12. e5 Nd7 13. Bb5 Bc5 14. Qf4
+O-O 15. O-O a6 16. Bc4 b5 17. Bb3 Kh8 18. e6 Nb6 19. Qg5 Qxg5 20. Bxg5 Rfe8
+21. Kh1 h6 22. Bd2 c6 23. dxc6 Rac8 24. a4 bxa4 25. Bxa4 Nxa4 26. Nxa4 Bd4
+27. Bc3 Bxc3 28. Nxc3 Rxc6 29. Rfe1 Rcxe6 30. Rxe6 Rxe6 31. Nd5 Kg8 32. f4
+Kf7 33. g3 Bh7 34. Nc7 Rb6 35. Nxa6 Rxb2 36. Nc5 Rb4 37. Nd3 Rd4 38. Ne5+
+Ke6 39. Re1 Re4 40. Rxe4 fxe4 41. Kg2 g5 42. Kf2 Kf5 43. Nf7 Kg6 44. Ne5+
+Kf6 45. Ke3 gxf4+ 46. gxf4 h5 47. Nd7+ Kf5 48. Nc5 Kg4 49. Nxe4 Bxe4 50. Kxe4
+h4 51. f5 Kh3 52. f6 Kxh2 53. f7 Kg2 54. f8=Q h3 55. Qf3+ Kh2 56. Ke3 Kg1
+57. Qxh3
+{Game drawn by stalemate} 1/2-1/2
+

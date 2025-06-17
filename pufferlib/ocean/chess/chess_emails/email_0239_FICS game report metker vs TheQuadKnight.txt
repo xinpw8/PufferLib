@@ -1,0 +1,29 @@
+Subject: FICS game report metker vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.06"]
+[Time "10:14:51"]
+[Round "-"]
+[White "metker"]
+[Black "TheQuadKnight"]
+[WhiteElo "1429"]
+[BlackElo "1343"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. Bf4 Nc6 3. e3 f6 4. h3 e5 5. dxe5 fxe5 6. Bg3 Nf6 7. Bh4 Be7
+8. Bxf6 Bxf6 9. Qh5+ g6 10. Qd1 Bf5 11. c3 Qd6 12. Nf3 O-O-O 13. Nbd2 g5
+14. Bb5 e4 15. Bxc6 Qxc6 16. Nd4 Bxd4 17. cxd4 Qb5 18. a4 Qxb2 19. O-O Rhg8
+20. Rb1 Qa3 21. Rb3 Qxa4 22. Qe2 g4 23. h4 h5 24. g3 Bd7 25. Rfb1 Qc6 26. Qd1
+b6 27. Rc1 Qf6 28. Rbc3 Rgf8 29. Rxc7+ Kb8 30. Qf1 Rf7 31. R7c2 Rdf8 32. Nb1
+Qf3 33. Nc3 Qxg3+ 34. fxg3 Rxf1+ 35. Rxf1 Rxf1+ 36. Kxf1 a6 37. Nxd5 Be6
+38. Nxb6 Kb7 39. d5 Bf7 40. Na4 Bxd5 41. Nc5+ Kb6 42. Kf2 Kb5 43. Nd7 Kb4
+44. Rc7 a5 45. Ra7 a4 46. Nb6 Bb3 47. Nxa4 Bxa4 48. Ke2 Bc2 49. Kd2 Bd3
+50. Rh7 Kc5 51. Rxh5+ Kd6 52. Rf5 Ke6 53. Ra5 Kf6 54. h5 Kg7 55. Ra6 Kh7
+56. Rd6 Kg7 57. Rxd3 exd3 58. Kxd3 Kh6 59. Ke4 Kxh5 60. Kf4 Kh6 61. Kxg4
+Kg6 62. e4 Kf6 63. Kf4 Ke7 64. g4 Kf7 65. g5 Kg7
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

@@ -1,0 +1,23 @@
+Subject: FICS game report philmic vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.18"]
+[Time "07:09:54"]
+[Round "-"]
+[White "philmic"]
+[Black "TheQuadKnight"]
+[WhiteElo "1415"]
+[BlackElo "1458"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nc6 3. Bc4 Bb4 4. d3 Nge7 5. Bd2 Bxc3 6. Bxc3 d5 7. exd5
+Nxd5 8. Bxe5 Nxe5 9. Qe2 O-O 10. O-O-O Re8 11. Qh5 Nf6 12. Qg5 Nxc4 13. dxc4
+Qe7 14. Nf3 Ne4 15. Qe3 Bg4 16. Rd4 Rad8 17. Rxd8 Rxd8 18. h3 Bf5 19. g4
+Bg6 20. h4 h6 21. h5 Bh7 22. Nh4 Qe6 23. f3 Qxc4 24. fxe4 Bxe4 25. c3 Qa4
+26. Qf2 Qxa2
+{White resigns} 0-1
+

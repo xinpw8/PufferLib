@@ -1,0 +1,23 @@
+Subject: FICS game report yukexin vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.29"]
+[Time "18:42:44"]
+[Round "-"]
+[White "yukexin"]
+[Black "TheQuadKnight"]
+[WhiteElo "1620"]
+[BlackElo "1384"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bc5 5. d3 d6 6. Bg5 O-O 7. Nd5 Na5
+8. Bxf6 gxf6 9. Bb3 Nxb3 10. axb3 c6 11. Nc3 f5 12. exf5 Bxf5 13. O-O Bg4
+14. h3 Bh5 15. Ne4 Bd4 16. c3 Bb6 17. d4 Kh8 18. dxe5 Rg8 19. Nxd6 Qc7 20. Qd3
+f6 21. exf6 Rad8 22. Rfd1 Bxf3 23. Qxf3 Rxd6 24. Rxd6 Qxd6 25. f7 Rf8 26. Re1
+Qd7 27. Re8 Qd6 28. Rxf8+ Qxf8 29. Qf6+ Qg7 30. f8=Q#
+{Black checkmated} 1-0
+

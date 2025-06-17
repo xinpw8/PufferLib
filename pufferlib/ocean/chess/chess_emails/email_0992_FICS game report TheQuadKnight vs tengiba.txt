@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs tengiba
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.04"]
+[Time "12:37:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "tengiba"]
+[WhiteElo "1437"]
+[BlackElo "1501"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e6 2. c4 d5 3. e3 Bb4+ 4. Bd2 Bxd2+ 5. Qxd2 Ne7 6. Nf3 Bd7 7. Nc3
+c6 8. e4 dxe4 9. Nxe4 O-O 10. Nd6 Qc7 11. c5 Nf5 12. Qf4 Na6 13. Bxa6 bxa6
+14. O-O Rab8 15. b3 Rfd8 16. Ne5 Be8 17. Nxf5 exf5 18. Qxf5 Rxd4 19. Rfe1
+Rd5 20. Rad1 Rbd8 21. Rxd5 Rxd5 22. Qe4 f6 23. Nc4 Bf7 24. Nd6 Re5 25. Qb4
+a5 26. Qc3 Rd5 27. Nxf7 Kxf7 28. a3 Qe7 29. Rxe7+ Kxe7 30. Qxa5 Rd1+ 31. Qe1+
+Rxe1#
+{White checkmated} 0-1
+

@@ -1,0 +1,29 @@
+Subject: FICS game report georgethegiant vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.17"]
+[Time "17:07:32"]
+[Round "-"]
+[White "georgethegiant"]
+[Black "TheQuadKnight"]
+[WhiteElo "1361"]
+[BlackElo "1399"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. Ne5 d5 6. Bxd5 Nh6 7. O-O Bd6
+8. d4 Be6 9. Bxe6 fxe6 10. Nxg4 Qg5 11. Nxh6 Qxh6 12. e5 Be7 13. Bxf4 Bg5
+14. Bxg5 Qxg5 15. Nc3 Rg8 16. Rf2 Nc6 17. Qf3 O-O-O 18. Ne2 Nxd4 19. Nxd4
+Rxd4 20. c3 Rg4 21. g3 Qxe5 22. Rd1 Qb5 23. Qf8+ Qe8 24. Qxe8+ Rxe8 25. Kg2
+h5 26. h3 Rg6 27. Rd4 Reg8 28. Rf3 b6 29. Rdf4 e5 30. Re4 Re6 31. g4 hxg4
+32. hxg4 c5 33. Rg3 Kc7 34. Kf3 Kd6 35. c4 Rf6+ 36. Ke3 Rf1 37. Rg2 Re1+
+38. Kd3 Rd1+ 39. Ke3 Rd4 40. g5 Ke6 41. Rxd4 cxd4+ 42. Ke4 Rf8 43. Rg4 Rc8
+44. b3 Rd8 45. Kd3 Kf5 46. Rg1 e4+ 47. Kd2 e3+ 48. Kd3 Ke5 49. g6 Rg8 50. g7
+a6 51. b4 a5 52. a3 axb4 53. axb4 Kf4 54. Kxd4 Kf3 55. c5 bxc5+ 56. bxc5
+Kf2 57. Rg4 e2 58. Rf4+ Ke1 59. Rg4 Kd2 60. Re4 e1=Q 61. Rxe1 Kxe1 62. c6
+Rxg7 63. Kd5 Rg2 64. c7 Rc2 65. Kd6 Rxc7 66. Kxc7
+{Neither player has mating material} 1/2-1/2
+

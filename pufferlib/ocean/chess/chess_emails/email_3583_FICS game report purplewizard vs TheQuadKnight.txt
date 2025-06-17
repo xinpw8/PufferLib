@@ -1,0 +1,28 @@
+Subject: FICS game report purplewizard vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.25"]
+[Time "14:31:23"]
+[Round "-"]
+[White "purplewizard"]
+[Black "TheQuadKnight"]
+[WhiteElo "1580"]
+[BlackElo "1372"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Qf3 Bb7 9. Ba4 Be7 10. d3 O-O 11. O-O Qd4 12. Bb3 c5 13. c3 Bxf3
+14. cxd4 Be2 15. Re1 Bxd3 16. dxe5 Nxb3 17. exf6 Nxa1 18. fxe7 Rfe8 19. Nf3
+Bxb1 20. Bg5 f6 21. Bf4 Bg6 22. Rxa1 Rac8 23. Re1 Rc6 24. h3 Kf7 25. Nd2
+Re6 26. Rxe6 Kxe6 27. Nc4 Kxe7 28. Bd6+ Kd7 29. Bxc5 Rc8 30. b4 Bd3 31. Ne3
+Ke6 32. f3 a5 33. a3 axb4 34. axb4 Ra8 35. Kf2 Ra2+ 36. Kg3 Re2 37. Ng4
+Re1 38. Kf2 Rb1 39. Ne3 Rb2+ 40. Kg3 Re2 41. Ng4 Rb2 42. h4 Bf1 43. Ne3
+Re2 44. Nxf1 Rb2 45. Ne3 Re2 46. Ng4 g5 47. hxg5 fxg5 48. Nf2 h5 49. Ne4
+h4+ 50. Kg4 Rxg2+ 51. Kh5 h3 52. Bd6 h2 53. Bxh2 Rxh2+ 54. Kxg5 Rf2 55. Kf4
+Rh2 56. Ng5+
+{Black forfeits on time} 1-0
+

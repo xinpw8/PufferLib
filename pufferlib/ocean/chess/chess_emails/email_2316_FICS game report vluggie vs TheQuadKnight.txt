@@ -1,0 +1,25 @@
+Subject: FICS game report vluggie vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "13:16:09"]
+[Round "-"]
+[White "vluggie"]
+[Black "TheQuadKnight"]
+[WhiteElo "1591"]
+[BlackElo "1338"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 d6 4. h3 Be7 5. d4 exd4 6. Nxd4 Nxd4 7. Qxd4
+Nf6 8. Bd3 c5 9. Qe3 O-O 10. Bd2 Re8 11. Qf3 Qc7 12. O-O d5 13. exd5 c4
+14. Bf5 Bxf5 15. Qxf5 Bb4 16. Rfe1 Rad8 17. Rxe8+ Rxe8 18. Nb5 Qc5 19. Bxb4
+Qxb4 20. Nc7 Re1+ 21. Rxe1 Qxe1+ 22. Kh2 h6 23. d6 Qd2 24. Qe5 Kh7 25. Nb5
+a6 26. Nd4 Nd7 27. Qf5+ Kh8 28. c3 Nf6 29. d7 Nxd7 30. Qxd7 Qxb2 31. Qc8+
+Kh7 32. Qf5+ Kh8 33. Qf3 b5 34. Nf5 Qxa2 35. Qg3 g6 36. Qe5+ f6 37. Qxf6+
+Kh7 38. Qg7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report slouhend vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.07"]
+[Time "09:45:44"]
+[Round "-"]
+[White "slouhend"]
+[Black "TheQuadKnight"]
+[WhiteElo "1404"]
+[BlackElo "1369"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. Nf3 Nc6 4. Bc4 Nf6 5. Ng5 Bb4+ 6. c3 dxc3 7. bxc3
+Ne5 8. Bb3 Bc5 9. Bf4 h6 10. Bxe5 hxg5 11. O-O d6 12. Bd4 Bxd4 13. cxd4
+Bd7 14. e5 Nh5 15. exd6 cxd6 16. Re1+ Kf8 17. Nc3 Qc7 18. Nd5 Qd8 19. Rc1
+Bc6 20. Ne7 Qd7 21. d5 Bb5 22. Qf3 Re8 23. Ng6+ Kg8 24. Nxh8 Kxh8 25. Qxh5+
+Kg8 26. Qxg5 Rxe1+ 27. Rxe1 Qd8 28. Qxd8+
+{Black resigns} 1-0
+

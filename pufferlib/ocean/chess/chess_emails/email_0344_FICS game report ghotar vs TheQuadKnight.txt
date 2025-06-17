@@ -1,0 +1,27 @@
+Subject: FICS game report ghotar vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.12.08"]
+[Time "17:13:02"]
+[Round "-"]
+[White "ghotar"]
+[Black "TheQuadKnight"]
+[WhiteElo "1092"]
+[BlackElo "1334"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. e3 e6 4. Bxc4 c5 5. Nf3 Nc6 6. Nc3 Nf6 7. O-O Be7
+8. a3 O-O 9. dxc5 Bxc5 10. b4 Be7 11. Qc2 Qc7 12. Bb2 Bd6 13. Rad1 a6 14. Ba2
+b5 15. Bb1 Ne7 16. Ne4 Qxc2 17. Nxf6+ gxf6 18. Bxc2 Rd8 19. Bxf6 Bb7 20. Ng5
+Ng6 21. Bxd8 Rxd8 22. Bxg6 hxg6 23. Rd2 Kf8 24. Rfd1 Ke7 25. f4 f6 26. Ne4
+Bc7 27. Nc5 Bd5 28. e4 Bc6 29. Nxa6 Bb6+ 30. Kf1 Ra8 31. Nc5 Rxa3 32. e5
+fxe5 33. fxe5 Ra8 34. Rd6 Rf8+ 35. Ke2 Bxc5 36. Rxc6 Rf2+ 37. Kd3 Bxb4 38. Rc7+
+Ke8 39. Ra1 Be7 40. Raa7 Bd8 41. Rg7 Rf8 42. Rxg6 Rf5 43. Rxe6+ Kf8 44. Ra8
+Kf7 45. Rd6 Be7 46. e6+ Kf6 47. Rd7 Rd5+ 48. Rxd5 Kxe6 49. Rxb5 Bd6 50. Ra6
+Ke7 51. Rd5 Ke6 52. Rdxd6+ Kf5 53. Ra5+ Kg4 54. Rd4#
+{Black checkmated} 1-0
+

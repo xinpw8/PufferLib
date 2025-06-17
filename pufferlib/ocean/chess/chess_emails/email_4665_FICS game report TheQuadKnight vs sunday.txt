@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs sunday
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.22"]
+[Time "09:07:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sunday"]
+[WhiteElo "1297"]
+[BlackElo "1581"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. g3 d6 5. Bg2 O-O 6. Nf3 Nbd7 7. Bf4 Re8
+8. e3 e5 9. dxe5 dxe5 10. Bg5 h6 11. Bxf6 Bxf6 12. Qd5 Qe7 13. a3 c6 14. Qe4
+Nc5 15. Qc2 e4 16. Nd2 Nd3+ 17. Kf1 Bxc3 18. bxc3 f5 19. f3 Rf8 20. Ke2
+exf3+ 21. Bxf3 Ne5 22. Rhf1 Be6 23. e4 Nxc4 24. exf5 Bd5+ 25. Kd1 Ne3+ 26. Kc1
+Nxc2 27. Bxd5+ cxd5 28. Kxc2 Rxf5 29. Rxf5 gxf5 30. Rf1 Qxa3 31. Rxf5 Rf8
+32. Rxd5 Qa2+ 33. Kd3 Qxd5+
+{White resigns} 0-1
+

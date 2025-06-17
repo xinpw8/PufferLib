@@ -1,0 +1,25 @@
+Subject: FICS game report mchaz vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.05"]
+[Time "22:30:43"]
+[Round "-"]
+[White "mchaz"]
+[Black "TheQuadKnight"]
+[WhiteElo "1414"]
+[BlackElo "1356"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. g3 d5 2. Bg2 e5 3. d3 Nf6 4. Nd2 Bc5 5. e4 c6 6. Ne2 O-O 7. O-O Bg4 8. c3
+dxe4 9. Nxe4 Nxe4 10. Bxe4 f5 11. Bg2 Qd6 12. b4 Bb6 13. a4 f4 14. gxf4
+exf4 15. Bxf4 Rxf4 16. Qb3+ Rf7 17. Ng3 Qxd3 18. Rad1 Qg6 19. Be4 Qf6 20. Rd2
+Bh3 21. Bg2 Bg4 22. c4 Be6 23. Ne4 Qg6 24. Nd6 Rd7 25. Qc3 Bc7 26. c5 b6
+27. Qg3 Qxg3 28. hxg3 a5 29. bxa5 bxc5 30. Ne4 Rxd2 31. Nxd2 Bxa5 32. Ne4
+Nd7 33. Rd1 Bd5 34. Rc1 Bb4 35. Nd6 Bxg2 36. Kxg2 Rd8 37. Nc4 Nf6 38. a5
+Nd5 39. a6 Ra8 40. Rb1 Rxa6 41. f4 Bd2
+{White forfeits on time} 0-1
+

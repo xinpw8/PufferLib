@@ -1,0 +1,24 @@
+Subject: FICS game report henkeflenke vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "12:20:54"]
+[Round "-"]
+[White "henkeflenke"]
+[Black "TheQuadKnight"]
+[WhiteElo "1480"]
+[BlackElo "1394"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 c5 3. e3 dxc4 4. Bxc4 cxd4 5. Qxd4 Qxd4 6. exd4 Nf6 7. Nf3
+Nc6 8. O-O e6 9. Be3 Bd6 10. Nc3 O-O 11. Rad1 b6 12. d5 Na5 13. Be2 exd5
+14. Nxd5 Nxd5 15. Rxd5 Bc7 16. Rc1 Bd8 17. Ne5 Bb7 18. Rd7 Bf6 19. Bf4 Rfe8
+20. Rxb7 Nxb7 21. Bf3 Rab8 22. Nd7 Rbc8 23. Nxf6+ gxf6 24. Rd1 Nc5 25. h3
+Rcd8 26. Rc1 Kg7 27. Rc4 Ne6 28. Bh2 Nd4 29. Bg3 Nxf3+ 30. gxf3 Re1+ 31. Kg2
+Rb1 32. Rg4+ Kf8 33. Bf4 Rxb2 34. Bh6+ Ke7 35. Re4+ Kd7 36. Bf4 Kc8
+{White forfeits on time} 0-1
+

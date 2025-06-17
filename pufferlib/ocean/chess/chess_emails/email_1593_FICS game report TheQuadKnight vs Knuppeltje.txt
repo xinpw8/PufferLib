@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Knuppeltje
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "14:52:26"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Knuppeltje"]
+[WhiteElo "1421"]
+[BlackElo "1437"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 c5 4. Nf3 Bg7 5. e4 cxd4 6. Nxd4 d6 7. Bg5 O-O
+8. Ndb5 a6 9. Nd4 Qa5 10. Nb3 Qxg5 11. Be2 Nc6 12. O-O Bh3 13. Bf3 Ne5 14. Kh1
+Bg4 15. Bxg4 Nfxg4 16. h3 Qh4 17. Qd2 Nf6 18. Nd5 Nxd5 19. cxd5 Nc4 20. Qe2
+Rac8 21. Rac1 b5 22. Rc2 Be5 23. Rfc1 f5 24. Nd2 fxe4 25. Nxe4 Rf4 26. Ng3
+Rcf8 27. Rf1 Rxf2 28. Rxf2 Qxg3 29. Rxf8+ Kxf8 30. Qf2+ Kg7 31. Qxg3 Bxg3
+32. b3 Ne3 33. Re2 Nxd5 34. Kg1 Nc3 35. Re3 Nd5 36. Rxg3 Kh6 37. Rg4 e6
+38. Rh4+ Kg7 39. Rg4 e5 40. Kf2 Ne7 41. Ke3 Nf5+ 42. Ke4 Ne7 43. a3 d5+
+44. Kxe5 Nf5 45. Kxd5 Ne3+ 46. Kd4 Nxg4 47. hxg4 Kf6 48. Ke3
+{Black forfeits on time} 1-0
+

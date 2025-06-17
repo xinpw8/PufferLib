@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs gianto
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "14:19:01"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "gianto"]
+[WhiteElo "1338"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 g6 2. d4 Bg7 3. Nf3 e6 4. Nc3 Ne7 5. Bd3 O-O 6. O-O a6 7. Bg5 b5 8. d5
+exd5 9. Nxd5 f6 10. Bh4 Nxd5 11. exd5 d6 12. c4 Bg4 13. cxb5 axb5 14. Bxb5
+Na6 15. Bc6 Rb8 16. b3 Nc5 17. h3 Bxf3 18. Qxf3 Qe7 19. Rfe1 Qd8 20. a3
+Qc8 21. b4 Nd7 22. Re7 Ne5 23. Qe3 Qa6 24. f4 Nxc6 25. dxc6 Qxc6 26. Rc1
+Qd5 27. Rexc7 f5 28. Qe7 Qd4+ 29. Kh1 Rbe8 30. Qxg7+ Qxg7 31. Rxg7+ Kxg7
+32. Rc7+ Kg8 33. g4 fxg4 34. hxg4 Rxf4 35. Bg3 Rxg4 36. Bxd6 Re3 37. Rc8+
+Kf7 38. Rc7+ Ke8 39. Rxh7 Rxa3 40. Bc5 Ra1+ 41. Kh2 Rc4 42. Rh8+ Kd7 43. Rh7+
+Kc6 44. Rg7 Ra2+ 45. Kg3 Ra3+ 46. Kg2 Rc2+ 47. Bf2 Kb5 48. Rb7+ Kc4 49. Rc7+
+Kb3 50. Rxc2 Kxc2 51. b5 Rb3 52. b6 Kd3 53. Kf1 Kc4 54. Kg2 Kd5 55. Kf1
+Ke4 56. Kg2 g5 57. Kg1 g4 58. Kg2 Rb2 59. Kf1 Kf3 60. Bc5 Rb1#
+{White checkmated} 0-1
+

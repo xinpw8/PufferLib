@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs yuripn
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "20:39:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "yuripn"]
+[WhiteElo "1339"]
+[BlackElo "1550"]
+[TimeControl "240+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 Nc6 3. Nf3 exd4 4. Nxd4 Ne5 5. Nc3 Bc5 6. Bf4 Ng6 7. Bg3
+d6 8. Nb3 Bb6 9. Nd5 Nf6 10. Nxb6 axb6 11. Bd3 O-O 12. O-O Re8 13. Re1 Be6
+14. f4 Bg4 15. Qd2 Bd7 16. f5 Ne5 17. Bh4 Bc6 18. Nd4 Nxd3 19. Nxc6 bxc6
+20. cxd3 Qe7 21. d4 Nxe4 22. Bxe7 Nxd2 23. Bg5 Nc4 24. f6 g6 25. b3 Na3
+26. Rac1 c5 27. dxc5 bxc5 28. Re7 Rxe7 29. fxe7 Re8 30. Re1 Kg7 31. h4 f6
+32. Bd2 Kf7 33. Ba5 Rxe7 34. Rxe7+ Kxe7 35. Bxc7 d5 36. Ba5 c4 37. Bb4+
+Ke6 38. Bxa3 c3
+{White forfeits on time} 0-1
+

@@ -1,0 +1,26 @@
+Subject: FICS game report Malekine vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.03"]
+[Time "18:51:20"]
+[Round "-"]
+[White "Malekine"]
+[Black "TheQuadKnight"]
+[WhiteElo "1532"]
+[BlackElo "1377"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Bc5 5. c3 dxc3 6. O-O cxb2 7. Bxb2
+f6 8. Bxg8 Rxg8 9. Qd5 Bxf2+ 10. Rxf2 Rf8 11. Nc3 d6 12. Rff1 Qe7 13. Rfe1
+Be6 14. Qb5 O-O-O 15. Nd5 Qd7 16. a4 Rfe8 17. Bc3 a6 18. Qb3 Ne5 19. Nxe5
+fxe5 20. Rab1 c6 21. Nb6+ Kc7 22. Nxd7 Bxb3 23. Rxb3 Rxd7 24. Ba5+ Kb8 25. Rf3
+h6 26. Ref1 Ka7 27. Rf7 Ree7 28. Rxe7 Rxe7 29. Bd2 b5 30. a5 Kb7 31. Rf8
+c5 32. Kf2 b4 33. Ke3 Kc6 34. Rb8 g5 35. Rb6+ Kc7 36. g4 Re8 37. Rxa6 Kb7
+38. Rb6+ Kc7 39. Kd3 Ra8 40. Kc4 Rxa5 41. Kd5 Kxb6 42. Kxd6 Kb5 43. Kxe5
+Ra2 44. Be3 c4 45. Kd4 b3 46. e5 b2
+{White resigns} 0-1
+

@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs parmenide
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.01"]
+[Time "14:30:47"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "parmenide"]
+[WhiteElo "1314"]
+[BlackElo "1156"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 Nc6 4. cxd5 Nxd5 5. e3 Nxc3 6. bxc3 e6 7. Nf3
+Be7 8. Bb5 Bd7 9. Qb3 a6 10. Bxc6 Bxc6 11. Ba3 O-O 12. Bxe7 Qxe7 13. Qd1
+Qf6 14. O-O Bd5 15. Qe2 Rfd8 16. c4 Bxf3 17. Qxf3 Qxf3 18. gxf3 b5 19. c5
+c6 20. Rfd1 Rdb8 21. e4 Rd8 22. a3 a5 23. Ra2 b4 24. axb4 axb4 25. Rxa8
+Rxa8 26. d5 exd5 27. exd5 cxd5 28. Rxd5 b3 29. c6 b2 30. Rb5 Ra1+ 31. Kg2
+b1=Q 32. Rxb1 Rxb1 33. c7 Rc1 34. c8=Q+ Rxc8 35. Kg3 Kf8 36. Kf4 Ke7 37. Ke3
+Rc3+ 38. Ke2 Ke6 39. h3 Kf5 40. f4 Kxf4 41. h4 Rc2+ 42. Kf1 Kf3 43. Ke1
+Rc1+ 44. Kd2 Rf1 45. Kd3 Rxf2 46. Kd4 Rh2 47. Ke5 Rxh4 48. Kd6 h5 49. Ke7
+Rf4 50. Kf8 h4 51. Kxg7 h3 52. Kh6 h2 53. Kg7 h1=Q 54. Kf8 Qh7 55. Ke7 f6+
+56. Kd6 Rd4+ 57. Ke6 Qe4+ 58. Kxf6 Rd2 59. Kg5 Qf4+ 60. Kg6 Rg2+ 61. Kh5
+Qh2#
+{White checkmated} 0-1
+

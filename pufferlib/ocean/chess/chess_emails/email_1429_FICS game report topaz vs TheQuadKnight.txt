@@ -1,0 +1,24 @@
+Subject: FICS game report topaz vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "22:39:21"]
+[Round "-"]
+[White "topaz"]
+[Black "TheQuadKnight"]
+[WhiteElo "1510"]
+[BlackElo "1482"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. Bg5 e5 5. Bxf6 Qxf6 6. Nd5 Qd6 7. dxe5
+Qxe5 8. c3 Nc6 9. Bc4 Be6 10. Ne3 Rd8 11. Qb3 Qd6 12. Bxe6 Qd2+ 13. Kf1
+fxe6 14. Qxe6+ Be7 15. Ne2 Qxb2 16. Re1 Rd6 17. Qc8+ Rd8 18. Qe6 Rd2 19. Nc4
+Qxa2 20. Qc8+ Nd8 21. Nxd2 Qxd2 22. Qxc7 e3 23. Qf4 Rf8 24. Qa4+ Nc6 25. f3
+Bh4 26. Rd1 Qb2 27. Qxh4 g6 28. Qe4+ Kf7 29. Qxe3 Re8 30. Rd7+ Kf8 31. Qf4+
+Kg8 32. Qf7+ Kh8 33. Qxh7#
+{Black checkmated} 1-0
+

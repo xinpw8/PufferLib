@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs Baffostanco
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.24"]
+[Time "08:21:56"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Baffostanco"]
+[WhiteElo "1373"]
+[BlackElo "1340"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Bb4 4. Nf3 Nf6 5. e3 h6 6. Bd2 O-O 7. a3 Bxc3 8. Bxc3
+Qd6 9. Bb4 c5 10. Bxc5 Qc6 11. Bxf8 Kxf8 12. cxd5 Nxd5 13. Rc1 Qd7 14. Ne5
+Qd8 15. Bd3 Nd7 16. O-O Nxe5 17. dxe5 a6 18. Qc2 Bd7 19. Bc4 Rc8 20. Qh7
+Bb5 21. Qh8+ Ke7 22. Qxd8+ Kxd8 23. Bxb5 Rxc1 24. Rxc1 axb5 25. e4 Nf4 26. Rc2
+Ke7 27. g3 Nd3 28. Kf1 Nxe5 29. Ke2 Nc4 30. Kd3 Nd6 31. Kd4 f6 32. g4 e5+
+33. Kd5 Nc4 34. b3 Nb6+ 35. Kc5 Nd7+ 36. Kxb5 b6 37. Rc7 Kd6 38. Rb7 Nc5
+39. Rxg7 Nxe4 40. f3 Nc3+ 41. Kxb6 Nd5+ 42. Kb7 Ne7 43. Rh7 f5 44. Rxh6+
+Kc5 45. gxf5 Nxf5 46. Rh5 Nd4 47. Rxe5+ Kd6 48. Re3 Nb5 49. a4 Nd4 50. a5
+Nc6 51. a6 Na5+ 52. Kb6 Nc6 53. a7 Nxa7 54. Kxa7 Kc7 55. b4 Kd6 56. h4 Kd5
+57. h5 Kd4 58. h6 Kxe3 59. h7 Kxf3 60. h8=Q Ke3 61. b5 Ke4 62. b6 Kd5 63. b7
+Ke4 64. b8=Q Kd3 65. Qbg8
+{Black resigns} 1-0
+

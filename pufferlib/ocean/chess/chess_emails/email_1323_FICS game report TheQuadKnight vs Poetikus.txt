@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs Poetikus
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.21"]
+[Time "12:42:10"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Poetikus"]
+[WhiteElo "1431"]
+[BlackElo "1433"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O a6 5. Ba4 Bd6 6. Re1 O-O 7. d4 exd4
+8. Nxd4 Be5 9. Nf3 b5 10. Bb3 d6 11. Bg5 h6 12. Nxe5 Nxe5 13. Bxf6 Qxf6
+14. Bd5 Rb8 15. Nc3 Ng4 16. f3 Ne5 17. Qd2 Bb7 18. Rad1 c6 19. Bb3 Rfd8
+20. a3 d5 21. exd5 cxd5 22. Nxd5 Bxd5 23. Bxd5 Rd6 24. Qc3 Re8 25. Qc7 Rxd5
+26. Rxd5 Nxf3+ 27. gxf3 Rxe1+ 28. Kf2 Qh4+ 29. Qg3 Qxg3+ 30. hxg3 Re7 31. Rd8+
+Kh7 32. Rd6 Ra7 33. Ke3 f6 34. Kd4 Kg6 35. b3 a5 36. c4 bxc4 37. Kxc4 Kg5
+38. Rd4 f5 39. b4 axb4 40. axb4 Ra4 41. Rd5 g6 42. Ra5 Rxb4+ 43. Kxb4 h5
+44. Kb3 h4 45. Ra4 hxg3 46. f4+ Kg4 47. Rd4 g2 48. Rd6 Kxf4 49. Rxg6 Kf3
+50. Rxg2 Kxg2 51. Kc3 f4 52. Kd3 f3 53. Ke3 f2 54. Ke2 f1=Q+ 55. Ke3 Qe1+
+56. Kd4 Kf3 57. Kc5 Qd2 58. Kb6 Qc3 59. Ka6 Qb3
+{White resigns} 0-1
+

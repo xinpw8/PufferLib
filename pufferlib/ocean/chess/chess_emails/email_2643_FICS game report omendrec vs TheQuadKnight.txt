@@ -1,0 +1,23 @@
+Subject: FICS game report omendrec vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.06"]
+[Time "09:53:51"]
+[Round "-"]
+[White "omendrec"]
+[Black "TheQuadKnight"]
+[WhiteElo "1431"]
+[BlackElo "1359"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Qxf3 Nc6 6. Bb5 Bd7 7. Nge2
+a6 8. Bd3 Bg4 9. Qf2 e6 10. Bg5 Be7 11. O-O O-O 12. Rad1 Nb4 13. Bc4 Nxc2
+14. d5 exd5 15. Bxf6 Bxf6 16. Nxd5 b5 17. Bb3 Bxe2 18. Qxe2 Nd4 19. Nxf6+
+Qxf6 20. Qg4 Qe5 21. Qxd4 Qxd4+ 22. Rxd4 Rae8 23. Rd7 c5 24. Bxf7+ Rxf7
+25. Rfxf7 Re1+ 26. Kf2 Re4 27. Rxg7+ Kf8 28. Rxh7 Rf4+ 29. Kg3 Re4 30. Rh8#
+{Black checkmated} 1-0
+

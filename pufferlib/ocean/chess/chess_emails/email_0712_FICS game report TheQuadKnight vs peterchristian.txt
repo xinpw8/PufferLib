@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs peterchristian
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.05"]
+[Time "11:03:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "peterchristian"]
+[WhiteElo "1392"]
+[BlackElo "1441"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. f4 Ne7 3. Nf3 d5 4. d3 dxe4 5. Nc3 Nbc6 6. Ne5 Nxe5 7. fxe5
+exd3 8. Bxd3 Nf5 9. O-O Bc5+ 10. Kh1 O-O 11. Qf3 Rb8 12. Bf4 b6 13. Rad1
+Bb7 14. Qh3 Qh4 15. Bxf5 Qxh3 16. Bxh3 Ba6 17. Rf3 Bb4 18. a3 Bc5 19. b4
+Be7 20. Re3 Bb7 21. Bg4 g5 22. Bg3 h6 23. Bf3 Kg7 24. Bxb7 Rxb7 25. Red3
+g4 26. Rd7 Bg5 27. h4 Be3 28. Ne4 a5 29. Re7 axb4 30. axb4 Ra7 31. Re1
+{Black forfeits on time} 1-0
+

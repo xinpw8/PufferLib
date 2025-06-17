@@ -1,0 +1,25 @@
+Subject: FICS game report ayinky vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "18:04:31"]
+[Round "-"]
+[White "ayinky"]
+[Black "TheQuadKnight"]
+[WhiteElo "1777"]
+[BlackElo "1433"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. g4 d5 2. Bg2 c6 3. h3 e5 4. d3 Nf6 5. c3 Bc5 6. g5 Nh5 7. e4 Nf4 8. Bxf4
+exf4 9. exd5 cxd5 10. h4 d4 11. c4 Nc6 12. Ne2 Bg4 13. f3 Bf5 14. Nxf4 Ne5
+15. Qe2 Bd6 16. O-O O-O 17. Rd1 Re8 18. Nd5 Nxd3 19. Qxd3 Bxd3 20. Rxd3
+Re1+ 21. Kf2 Qe8 22. Rd2 Bc5 23. Kg3 Bd6+ 24. f4 Re2 25. Rxd4 Bc5 26. Rd3
+Bf2+ 27. Kh3 Qe6+ 28. Kh2 Qg4 29. Nbc3 Qxh4+ 30. Rh3 Qg4 31. Nxe2 Qxe2 32. Rf1
+Be3 33. Rxe3 Qxb2 34. Rfe1 h6 35. Kg3 hxg5 36. fxg5 Qxa2 37. Kg4 Qxc4+ 38. Nf4
+Qc8+ 39. Kg3 Qc4 40. Bf3 Qc7 41. Re7 Qc6 42. Bxc6 bxc6 43. Re8+
+{Black forfeits on time} 1-0
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs KennyT
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.12"]
+[Time "18:34:26"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "KennyT"]
+[WhiteElo "1321"]
+[BlackElo "1515"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d6 2. e3 Nd7 3. Nf3 c6 4. c4 g6 5. Nc3 Bg7 6. Be2 Qb6 7. O-O c5 8. Na4
+Qa5 9. Bd2 Qc7 10. b4 cxd4 11. exd4 d5 12. Rc1 dxc4 13. Rxc4 Qd8 14. Nc5
+b5 15. Nxd7 Bxd7 16. Rc5 a6 17. a4 bxa4 18. Qc1 Nf6 19. Bh6 O-O 20. Bxg7
+Kxg7 21. Ne5 Be6 22. Nc6 Qd7 23. Ne5 Qxd4 24. Nc6 Qd6 25. Ne5 Ne4 26. Rd1
+Qb6 27. Rc6 Qxf2+ 28. Kh1 Qxe2 29. Nd7 Nf2+ 30. Kg1 Nxd1 31. Nxf8 Qe1#
+{White checkmated} 0-1
+

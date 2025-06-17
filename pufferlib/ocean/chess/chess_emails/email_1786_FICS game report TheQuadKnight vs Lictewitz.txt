@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs Lictewitz
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "07:04:02"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Lictewitz"]
+[WhiteElo "1423"]
+[BlackElo "1486"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 d6 5. Nc3 Qc7 6. Be3 a6 7. Be2 Nf6
+8. f4 b5 9. g4 b4 10. Nd5 Nxd5 11. exd5 Nxd4 12. Bxd4 Bb7 13. c4 bxc3 14. Bxc3
+e6 15. Bf3 Be7 16. dxe6 Bxf3 17. exf7+ Kxf7 18. Qxf3 Rhe8 19. O-O Kg8 20. Qd5+
+Kh8 21. g5 Qc5+ 22. Qxc5 dxc5 23. h4 Rad8 24. h5 c4 25. h6 Bf8 26. Rae1
+Kg8 27. hxg7 Bxg7 28. Bxg7 Kxg7 29. f5 Rxe1 30. Rxe1 Rd2 31. Re7+ Kg8 32. Rb7
+Re2 33. f6 Re3 34. Kf2 Rd3 35. Ra7 Rd6 36. Rc7 Rb6 37. Rxc4 Rxb2+ 38. Ke3
+Rxa2 39. Kd4 Re2 40. Ra4 Re6 41. Kd5 Rb6 42. Kc5 Rb5+ 43. Kc6 Rxg5 44. Rxa6
+Kf7 45. Kc7 Rg6 46. Kb8 Rxf6 47. Rxf6+ Kxf6 48. Kb7 h5 49. Kb6 h4 50. Kc5
+h3 51. Kd4 h2 52. Ke3 h1=Q 53. Kd3 Qd5+
+{White forfeits on time} 0-1
+

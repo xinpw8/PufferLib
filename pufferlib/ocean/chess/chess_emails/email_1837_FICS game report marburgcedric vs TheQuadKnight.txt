@@ -1,0 +1,23 @@
+Subject: FICS game report marburgcedric vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "17:57:59"]
+[Round "-"]
+[White "marburgcedric"]
+[Black "TheQuadKnight"]
+[WhiteElo "1436"]
+[BlackElo "1375"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Bc4 Nc6 3. Nf3 Bc5 4. b4 Bb6 5. Ba3 Nf6 6. b5 Na5 7. Bxf7+ Kxf7
+8. Nxe5+ Ke6 9. Ng4 Nc4 10. Bb4 Bd4 11. c3 Be5 12. d4 Bd6 13. d5+ Kf7 14. Bxd6
+cxd6 15. Qf3 Rf8 16. Nxf6 Qxf6 17. Qh5+ Kg8 18. O-O b6 19. a4 Bb7 20. Na3
+Nd2 21. Rfd1 Qxf2+ 22. Kh1 Nxe4 23. Nc4 Nxc3 24. Rdc1 Nxd5 25. Nxd6 Nf4
+26. Qg4 Bxg2+
+{White resigns} 0-1
+

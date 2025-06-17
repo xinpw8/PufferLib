@@ -1,0 +1,24 @@
+Subject: FICS game report KeepSmiling vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.18"]
+[Time "15:20:45"]
+[Round "-"]
+[White "KeepSmiling"]
+[Black "TheQuadKnight"]
+[WhiteElo "1482"]
+[BlackElo "1337"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 Nc6 3. c3 e5 4. dxe5 Nxe5 5. f4 Nc6 6. Nf3 Bg4 7. Bd3 Nf6
+8. O-O Bc5 9. Qe1 O-O 10. Nbd2 Re8 11. Qg3 Bxe3+ 12. Kh1 d4 13. Bxh7+ Kxh7
+14. Ng5+ Kg8 15. Nc4 Qd7 16. Nxe3 dxe3 17. Bxe3 Nh5 18. Qf2 Qd5 19. Rad1
+Qxa2 20. h3 Bxd1 21. Rxd1 Qb3 22. Rf1 Qd5 23. f5 Re5 24. Qh4 Nf6 25. Bd4
+Nxd4 26. cxd4 Rxf5 27. Rxf5 Qxf5 28. Nf3 Re8 29. Qf2 Qd5 30. Kh2 Nh5 31. Ne5
+Nf6 32. b4 Nd7 33. Ng4 Nf6 34. Ne5 Nd7 35. h4 Qe4 36. Qxf7+ Kh8 37. Qe7
+{Black forfeits on time} 1-0
+

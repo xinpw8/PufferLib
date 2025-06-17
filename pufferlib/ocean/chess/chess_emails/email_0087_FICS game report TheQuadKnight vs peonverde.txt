@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs peonverde
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.01.10"]
+[Time "13:09:32"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "peonverde"]
+[WhiteElo "1384"]
+[BlackElo "1348"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 e6 3. cxd5 exd5 4. Nf3 Nf6 5. Nc3 c6 6. Bg5 Be7 7. e3 Nbd7
+8. Bd3 O-O 9. O-O Re8 10. Qc2 Nf8 11. Ne5 Ne6 12. Bh4 g6 13. Nf3 Ng7 14. Ng5
+Bf5 15. Bxf5 Nxf5 16. Bg3 Nxg3 17. hxg3 Nd7 18. Nf3 Qb6 19. Kh2 Nf6 20. Rh1
+c5 21. dxc5 Qxc5 22. Rad1 Red8 23. Qa4 Ne4 24. Nxe4 dxe4 25. Nd4 a6 26. Kg1
+b5 27. Qb3 Rac8 28. f3 exf3 29. gxf3 Bf6 30. Qd3 Bxd4 31. exd4 Qc2 32. Qxc2
+Rxc2 33. Rh2 Rxh2 34. Kxh2 Kf8 35. g4 Ke7 36. Kg3 Kd6 37. f4 Kd5 38. Kf3
+Re8 39. f5 Re4 40. f6 Rxd4 41. Re1 Rd3+ 42. Kf4 Rd2 43. Re7 Rf2+ 44. Kg5
+h6+ 45. Kxh6 Rxf6 46. g5 Rf5 47. Ra7 Kc5 48. Rxa6 Kb4 49. Rf6 Rxf6 50. gxf6
+Kc4 51. Kg7 Kd3 52. Kxf7 Kc2 53. Kxg6 Kxb2 54. f7 Kxa2 55. f8=Q b4 56. Qf2+
+Ka3 57. Qa7+ Kb2 58. Qf7 b3 59. Qf6+ Kb1 60. Qf1+ Ka2 61. Qf2+ b2 62. Qa7+
+Kb1 63. Qg1+ Ka2 64. Qa7+ Kb1 65. Qa2+ Kxa2 66. Kg7 b1=Q 67. Kg8
+{Black ran out of time and White has no material to mate} 1/2-1/2
+

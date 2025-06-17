@@ -1,0 +1,25 @@
+Subject: FICS game report ytunde vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "16:51:38"]
+[Round "-"]
+[White "ytunde"]
+[Black "TheQuadKnight"]
+[WhiteElo "1606"]
+[BlackElo "1428"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 c6 4. Bf4 Bd6 5. Bxd6 Qxd6 6. c5 Qe7 7. f4 Nf6
+8. Nf3 Nbd7 9. e3 b6 10. b4 a5 11. a3 Ba6 12. Bxa6 Rxa6 13. O-O O-O 14. Rb1
+Rfa8 15. Rb2 axb4 16. axb4 Ra3 17. Qc1 Ne8 18. Ne5 Nxe5 19. fxe5 bxc5 20. bxc5
+f6 21. Rbf2 Qa7 22. h3 Qa5 23. Nb1 Ra1 24. Qb2 Ra2 25. Qb7 Rxf2 26. Rxf2
+Qe1+ 27. Rf1 Qxe3+ 28. Kh1 Ra2 29. Qd7 Kf8 30. exf6 gxf6 31. Qxh7 Qe2 32. Rg1
+e5 33. Nc3 Qc4 34. Nxa2 Qxa2 35. dxe5 fxe5 36. Rf1+ Nf6 37. Rxf6+ Ke8 38. Qf7+
+Kd8 39. Rd6+ Kc8 40. Rxc6+ Kb8 41. Qc7+ Ka8 42. Qc8+ Ka7 43. Rc7#
+{Black checkmated} 1-0
+

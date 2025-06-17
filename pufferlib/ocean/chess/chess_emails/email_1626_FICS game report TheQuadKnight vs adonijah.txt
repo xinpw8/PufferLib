@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs adonijah
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.03"]
+[Time "15:16:58"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "adonijah"]
+[WhiteElo "1397"]
+[BlackElo "1209"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 Qe7 5. Nc3 Nf6 6. Bb5 a6 7. Bxc6
+dxc6 8. Bd2 Bg4 9. f3 Be6 10. f4 O-O-O 11. f5 Bd7 12. O-O-O g6 13. g4 h5
+14. Qa7 Be8 15. Bg5 Rxd1+ 16. Kxd1 hxg4 17. Nge2 Rh5 18. Bf4 Qb4 19. Kc1
+Bd6 20. e5 Ne4 21. exd6 Nxc3 22. Qa8+ Kd7 23. dxc7 Nxe2+ 24. Kb1 Nc3+ 25. Kc1
+Nxa2+ 26. Kd1 Qd4+ 27. Ke2 Qe4+ 28. Kd2 Qxf4+ 29. Ke2 Qxc7 30. Rd1+ Ke7
+31. f6+ Kxf6 32. Qxe8 Rxh2+ 33. Ke3 Qg3+ 34. Kd4 Qd6+ 35. Kc4 Qxd1 36. Qe3
+Qxc2+ 37. Kd4 Qxb2+ 38. Ke4 Nc3+ 39. Kf4 Qb4+ 40. Kg3 Rh3+ 41. Kf2 Rxe3
+{White resigns} 0-1
+

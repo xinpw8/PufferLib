@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs mecews
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "21:10:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "mecews"]
+[WhiteElo "1312"]
+[BlackElo "1365"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Nb3 Bg7 7. Bg5 O-O
+8. Bc4 Nc6 9. f4 a6 10. e5 Nd7 11. O-O dxe5 12. Nd5 exf4 13. Rxf4 b5 14. Bd3
+Nce5 15. Bxe7
+{Black resigns} 1-0
+

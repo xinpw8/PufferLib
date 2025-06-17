@@ -1,0 +1,35 @@
+Subject: Fwd: FICS game report BerlinDelta vs mopuma
+
+Help me analysis this, it's a cool come from behind win after I got confused for a bit about what to do. 
+
+Sent via Mazda from the Fastlane. 
+
+Begin forwarded message:
+
+> From: FICS <chess@freechess.org>
+> Date: November 28, 2010 4:18:21 PM CST
+> To: BerlinDelta <davisise@yahoo.com>
+> Subject: FICS game report BerlinDelta vs mopuma
+> 
+
+> 
+> [Event "FICS rated blitz game"]
+> [Site "FICS, San Jose, California USA"]
+> [Date "2010.11.28"]
+> [Time "14:03:29"]
+> [Round "-"]
+> [White "BerlinDelta"]
+> [Black "mopuma"]
+> [WhiteElo "1284"]
+> [BlackElo "1276"]
+> [TimeControl "600+0"]
+> [Mode "ICS"]
+> [Result "1-0"]
+> 
+> 1. e4 c5 2. Bc4 Nc6 3. Nc3 g6 4. Nf3 Bg7 5. d3 e6 6. Bf4 d6 7. O-O Nge7
+> 8. Nb5 e5 9. Bg5 a6 10. Nc3 h6 11. Bh4 g5 12. Bg3 O-O 13. Ne2 Bg4 14. Nc3
+> Nd4 15. h3 Bh5 16. Nd5 Nxf3+ 17. gxf3 Ng6 18. Kg2 Nh4+ 19. Bxh4 gxh4 20. Kh2
+> Kh8 21. Rg1 Rg8 22. c3 b5 23. Bb3 a5 24. d4 exd4 25. cxd4 Bxd4 26. Qd2 Qf8
+> 27. Rxg8+ Kxg8 28. Rg1+ Kh8 29. Ne7 Bxf3 30. Rg8+ Qxg8 31. Nxg8 Rxg8 32. Qxh6#
+> {Black checkmated} 1-0
+> 

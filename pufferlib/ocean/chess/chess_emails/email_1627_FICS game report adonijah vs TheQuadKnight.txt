@@ -1,0 +1,31 @@
+Subject: FICS game report adonijah vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.03"]
+[Time "15:06:44"]
+[Round "-"]
+[White "adonijah"]
+[Black "TheQuadKnight"]
+[WhiteElo "1197"]
+[BlackElo "1409"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. f3 Nc6 3. Bg5 g6 4. e3 Bg7 5. c4 dxc4 6. Bxc4 f6 7. Bh4 e5 8. d5
+Na5 9. Bb5+ c6 10. dxc6 Qxd1+ 11. Kxd1 bxc6 12. Ba4 Ba6 13. b4 O-O-O+ 14. Nd2
+Nc4 15. Be1 f5 16. Bxc6 e4 17. Rc1 Nb2+ 18. Kc2 Nd3 19. Rb1 Ne7 20. Bh4
+Nxc6 21. Bxd8 Rxd8 22. b5 Ncb4+ 23. Kd1 Nf2+ 24. Ke2 Nxh1 25. Rxb4 Bc3 26. Rc4+
+Kb8 27. Rxc3 Bxb5+ 28. Ke1 Rd3 29. Rxd3 Bxd3 30. fxe4 fxe4 31. Nh3 Kc7 32. Nf4
+Kd6 33. Nxd3 exd3 34. Kf1 Ke5 35. Kg1 Kd5 36. Kxh1 Kc5 37. Kg1 Kb4 38. Kf1
+Ka3 39. e4 Kxa2 40. e5 Kb2 41. e6 Kc2 42. Nf3 a5 43. e7 a4 44. e8=Q a3 45. Qc8+
+Kb2 46. Qb8+ Kc3 47. Qe5+ Kb3 48. Nd2+ Kc2 49. Ke1 a2 50. Qa1 h5 51. Qxa2+
+Kc3 52. h4 Kd4 53. Nf3+ Ke3 54. Ng5 Kf4 55. Nf3 Ke3 56. Ne5 Ke4 57. Nc4
+Kd4 58. Nd2 Ke3 59. Nf3 Kf4 60. Qd2+ Ke4 61. Ng5+ Kd4 62. Qf4+ Kc3 63. Qc7+
+Kd4 64. Qd6+ Kc3 65. Qxg6 d2+ 66. Kd1 Kd4 67. Qxh5 Ke3 68. Qf3+ Kd4 69. h5
+Ke5 70. h6 Kd4 71. h7 Kc4 72. h8=Q Kb4 73. Qh4+ Kc5 74. Qf5+ Kd6 75. Qh6+
+Ke7 76. Qfh7+ Ke8 77. Q6g7 Kd8 78. Qhg8#
+{Black checkmated} 1-0
+

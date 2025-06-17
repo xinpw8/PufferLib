@@ -1,0 +1,28 @@
+Subject: FICS game report kdick vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "18:37:10"]
+[Round "-"]
+[White "kdick"]
+[Black "TheQuadKnight"]
+[WhiteElo "1457"]
+[BlackElo "1384"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. O-O Bd6 6. h3 Nf6 7. d4 exd4
+8. e5 Bc5 9. exf6 Qxf6 10. Bg5 Qg6 11. g4 h6 12. Re1+ Be6 13. Bh4 O-O 14. Ne5
+Qh7 15. Qd3 Qxd3 16. Nxd3 Bb6 17. c3 c5 18. cxd4 c4 19. Nc5 Bxc5 20. dxc5
+Rfe8 21. Nd2 Rad8 22. Ne4 Rd4 23. Rad1 Rxd1 24. Rxd1 Bxg4 25. hxg4 Rxe4
+26. f3 Re2 27. Rc1 Rxb2 28. Rxc4 Rxa2 29. Rb4 Ra1+ 30. Kg2 Ra2+ 31. Kh3
+g5 32. Bg3 b6 33. cxb6 cxb6 34. Rxb6 a5 35. Be5 a4 36. Rb8+ Kh7 37. Kg3
+Re2 38. Bb2 Re1 39. Ra8 Re2 40. Ba3 Re3 41. Rxa4 Re2 42. Ra8 Ra2 43. Ra7
+Kg6 44. Bc5 h5 45. Rxa2 f6 46. Ra6 hxg4 47. fxg4 Kg7 48. Bd4 Kf7 49. Rxf6+
+Ke7 50. Rf5 Kd7 51. Rxg5 Kc7 52. Rg6 Kb7 53. Kf4 Kc7 54. Rf6 Kd7 55. g5
+Kc7 56. g6 Kb7
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

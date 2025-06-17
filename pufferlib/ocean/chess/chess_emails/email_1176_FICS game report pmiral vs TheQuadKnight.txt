@@ -1,0 +1,23 @@
+Subject: FICS game report pmiral vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.04"]
+[Time "17:22:08"]
+[Round "-"]
+[White "pmiral"]
+[Black "TheQuadKnight"]
+[WhiteElo "1439"]
+[BlackElo "1453"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. e4 e5 4. d5 c6 5. Bxc4 Nf6 6. f3 cxd5 7. Bxd5 Bd7
+8. Qb3 Nc6 9. Bxf7+ Ke7 10. Be3 b6 11. Nc3 Qc7 12. Nd5+ Nxd5 13. Bxd5 Kd8
+14. Bg5+ Be7 15. Bxe7+ Kxe7 16. Ne2 Rac8 17. O-O g5 18. Rac1 h5 19. Ng3
+g4 20. Nf5+ Bxf5 21. Rxc6 Qd7 22. Qb4+ Kd8 23. Rd6 gxf3 24. Rxd7+ Bxd7 25. Rxf3
+Rc1+ 26. Rf1 Rf8 27. Qxf8+
+{Black resigns} 1-0
+

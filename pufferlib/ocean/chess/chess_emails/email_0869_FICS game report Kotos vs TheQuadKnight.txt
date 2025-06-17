@@ -1,0 +1,25 @@
+Subject: FICS game report Kotos vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.18"]
+[Time "18:20:06"]
+[Round "-"]
+[White "Kotos"]
+[Black "TheQuadKnight"]
+[WhiteElo "1520"]
+[BlackElo "1453"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. Nc3 Nf6 5. d3 d6 6. Bg5 O-O 7. Qd2 Bg4
+8. h3 Bxf3 9. gxf3 h6 10. Bh4 g5 11. Bg3 Nd4 12. O-O-O Nxf3 13. Qe2 Nd4
+14. Qf1 a6 15. h4 b5 16. Bd5 Nxd5 17. Nxd5 c6 18. Ne3 Qa5 19. a3 Bxa3 20. bxa3
+Nf3 21. Qe2 Qxa3+ 22. Kb1 Qb4+ 23. Kc1 Qa3+ 24. Kb1 Qb4+ 25. Kc1 Qa3+ 26. Kb1
+Qb4+ 27. Ka1 Qc3+ 28. Kb1 Nd4 29. hxg5 Qb4+ 30. Kc1 Qa3+ 31. Kd2 hxg5 32. Qh5
+Qb4+ 33. c3 Qb2+ 34. Ke1 Qe2+ 35. Qxe2 Nxe2 36. Kxe2 f6 37. Nf5 Kf7 38. Rh7+
+Ke6 39. Re7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs misterd
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.06.05"]
+[Time "19:28:52"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "misterd"]
+[WhiteElo "1311"]
+[BlackElo "1483"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e5 3. Nc3 exd4 4. Qxd4 c5 5. Qe5+ Be7 6. Nf3 d6 7. Qf4 O-O
+8. e4 Nc6 9. Be2 Nb4 10. O-O Nh5 11. Qd2 g6 12. a3 Nc6 13. Nb5 a6 14. Nc3
+Be6 15. Nd5 Bxd5 16. exd5 Ne5 17. Nxe5 dxe5 18. Qd3 Nf4 19. Qe3 Bg5 20. Qxe5
+Re8 21. Qc3 Nxe2+ 22. Kh1 Nxc3 23. Bxg5 Qxg5 24. bxc3 Re7 25. Rad1 Rae8
+26. d6 Rd7 27. g3 Re6 28. f4 Qf5 29. Rfe1 Rxe1+ 30. Rxe1 Rxd6 31. Re5 Qxe5
+32. f5 Qxf5
+{White resigns} 0-1
+

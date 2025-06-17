@@ -1,0 +1,22 @@
+Subject: FICS game report connaisseur vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.11"]
+[Time "13:30:20"]
+[Round "-"]
+[White "connaisseur"]
+[Black "TheQuadKnight"]
+[WhiteElo "2042"]
+[BlackElo "1326"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nc3 Nc6 3. Bg5 e6 4. Bxd8 Nxd8 5. e4 dxe4 6. Nxe4 f5 7. Ng3
+Bd6 8. Nf3 Nf6 9. Bc4 Nc6 10. O-O f4 11. Ne2 Bd7 12. Ng5 Na5 13. Bxe6 Bxe6
+14. Nxe6 Nc4 15. Nxg7+ Kf7 16. Nf5 Bf8 17. Nxf4 Rd8 18. Nh5 Ne4 19. b3 Ncd6
+20. Nxd6+ Bxd6 21. Qf3+
+{Black resigns} 1-0
+

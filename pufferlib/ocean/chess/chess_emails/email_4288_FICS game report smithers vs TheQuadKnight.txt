@@ -1,0 +1,27 @@
+Subject: FICS game report smithers vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "12:37:33"]
+[Round "-"]
+[White "smithers"]
+[Black "TheQuadKnight"]
+[WhiteElo "1517"]
+[BlackElo "1389"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Nf6 5. O-O Bc5 6. c3 O-O 7. cxd4 Bb6
+8. e5 Nh5 9. Ng5 d5 10. exd6 Nf6 11. dxc7 Bxc7 12. g3 Nxd4 13. Be3 Nf5 14. Qf3
+Nxe3 15. Qxe3 Nd5 16. Qd3 Nf6 17. Qxd8 Rxd8 18. Nxf7 Rd4 19. Bb3 Kf8 20. Nc3
+Bh3 21. Rfd1 Rxd1+ 22. Rxd1 Bb6 23. Nd6 Ng4 24. Nde4 Re8 25. Rd7 Rxe4 26. Nxe4
+Nf6 27. Rf7+ Ke8 28. Nxf6+ gxf6 29. Rxf6 Kd8 30. Rf7 Kc8 31. Rxh7 Bd8 32. Rxh3
+Bc7 33. Kg2 Kd7 34. f4 Kc6 35. Rh7 Kb6 36. Rxc7 Kb5 37. f5 Kb6 38. Rxb7+
+Kxb7 39. f6 Kc7 40. f7 Kd7 41. f8=Q Kc6 42. Qd8 Kc5 43. Kf3 Kc6 44. Ke4
+Kc5 45. g4 Kc6 46. g5 Kc5 47. g6 Kc6 48. g7 Kc5 49. g8=Q Kc6 50. Qge8+ Kc5
+51. Qc8+ Kb4 52. Qe7+ Ka5 53. Qec7+
+{Black forfeits on time} 1-0
+

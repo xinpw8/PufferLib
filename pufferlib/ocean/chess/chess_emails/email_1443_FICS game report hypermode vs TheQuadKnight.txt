@@ -1,0 +1,24 @@
+Subject: FICS game report hypermode vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "13:06:24"]
+[Round "-"]
+[White "hypermode"]
+[Black "TheQuadKnight"]
+[WhiteElo "1660"]
+[BlackElo "1443"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. e5 Ng4 6. c3 Ngxe5 7. Qe2 d6
+8. cxd4 Nxd4 9. Nxd4 Be7 10. O-O O-O 11. Bb3 a5 12. Bf4 b6 13. Nc3 c6 14. Bxe5
+Ba6 15. Bc4 b5 16. Nxc6 Qc7 17. Nxe7+ Qxe7 18. Bxd6 Qxd6 19. Bxb5 Rfe8 20. Qf3
+Bxb5 21. Nxb5 Qb6 22. a4 Rad8 23. Rfe1 Re6 24. Rad1 Rde8 25. Rxe6 Qxe6 26. h3
+h6 27. Qd5 Qf6 28. Nc3 Qb6 29. Qb5 Qe6 30. Qxa5 Qb3 31. Qb5 Qc2 32. Qxe8+
+Kh7 33. Qe4+ Qxe4 34. Nxe4 f5 35. Nd6 Kg6 36. b4
+{Black resigns} 1-0
+

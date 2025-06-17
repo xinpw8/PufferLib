@@ -1,0 +1,24 @@
+Subject: FICS game report Jonfern vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "07:50:49"]
+[Round "-"]
+[White "Jonfern"]
+[Black "TheQuadKnight"]
+[WhiteElo "1460"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 d6 5. d4 exd4 6. cxd4 Bb6 7. Qb3 Qe7
+8. O-O Nf6 9. e5 dxe5 10. dxe5 Ng4 11. Bg5 Qd7 12. e6 fxe6 13. Bxe6 Qxe6
+14. Qxe6+ Bxe6 15. Re1 Bxf2+ 16. Kf1 Bxe1 17. Kxe1 O-O 18. Nc3 Rae8 19. Kd1
+h6 20. Bd2 Rd8 21. Kc2 Nge5 22. Rd1 Bf5+ 23. Kc1 Nd3+ 24. Kb1 Nf2+ 25. Ka1
+Nxd1 26. Nxd1 Bc2 27. Nc3 Rxf3 28. gxf3 Rxd2 29. a3 Rxh2 30. Nd5 Rh3 31. f4
+Nd4 32. b4 Bb3 33. Kb2 Bxd5
+{White resigns} 0-1
+

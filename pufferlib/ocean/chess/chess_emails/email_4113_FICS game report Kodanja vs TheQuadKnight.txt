@@ -1,0 +1,27 @@
+Subject: FICS game report Kodanja vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.17"]
+[Time "08:50:20"]
+[Round "-"]
+[White "Kodanja"]
+[Black "TheQuadKnight"]
+[WhiteElo "1427"]
+[BlackElo "1393"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Be7 5. Re1 d6 6. h3 Bd7 7. c3 O-O
+8. d4 a6 9. Ba4 b5 10. Bb3 Na5 11. Bc2 exd4 12. cxd4 Nc4 13. Nbd2 Nb6 14. e5
+dxe5 15. dxe5 Nfd5 16. Be4 Qc8 17. Qb3 Be6 18. Qd3 Rd8 19. Qe2 Nf4 20. Qf1
+Nbd5 21. Nb3 Bxh3 22. Bxf4 Bxg2 23. Qxg2 Nxf4 24. Qh2 Qg4+ 25. Kf1 h5 26. Bxa8
+Rxa8 27. Qg3 Qf5 28. Nbd4 Qd3+ 29. Kg1 g5 30. Rad1 Qg6 31. Nc6 Bc5 32. Ncd4
+Rd8 33. Nb3 Rxd1 34. Qxg5 Qxg5+ 35. Nxg5 Rxe1+ 36. Kh2 Bxf2 37. Nh3 Be3
+38. Nxf4 Bxf4+ 39. Kh3 Re3+ 40. Kg2 Bg5 41. Kf2 h4 42. Nd2 Bf4 43. Nf3 h3
+44. Kg1 h2+ 45. Nxh2 Bxh2+ 46. Kxh2 Re2+ 47. Kg3 Rxb2 48. Kf3 Rxa2 49. Ke4
+Ra4+ 50. Kd5 b4 51. Kc6 b3 52. Kb7 b2 53. Kxc7 b1=Q 54. Kd7 Qe1
+{White forfeits on time} 0-1
+

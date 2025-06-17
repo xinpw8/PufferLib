@@ -1,0 +1,30 @@
+Subject: FICS game report Campylobacter vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "14:21:12"]
+[Round "-"]
+[White "Campylobacter"]
+[Black "TheQuadKnight"]
+[WhiteElo "1358"]
+[BlackElo "1363"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. d4 exd4 5. Nxd4 Bd7 6. Nxc6 Bxc6 7. Bxc6+
+bxc6 8. O-O Nf6 9. Nc3 Rb8 10. Re1 Be7 11. b3 O-O 12. Bg5 h6 13. Bxf6 Bxf6
+14. Qd3 Re8 15. Rad1 Be5 16. g3 Rb4 17. a3 Rd4 18. Qf3 Rxd1 19. Nxd1 d5
+20. exd5 cxd5 21. Qf5 Bd6 22. Rxe8+ Qxe8 23. Qd3 Qe1+ 24. Kg2 Qe4+ 25. Qxe4
+dxe4 26. a4 f5 27. c4 g6 28. Nc3 Be5 29. Nb5 a6 30. Na7 Bd4 31. Nc6 Bc5
+32. b4 Bf8 33. b5 axb5 34. cxb5 Bc5 35. a5 Kf7 36. a6 Ke6 37. a7 Bxa7 38. Nxa7
+Kd6 39. Nc6 Kc5 40. Ne7 Kxb5 41. Nxg6 c5 42. Kf1 c4 43. Ke2 Kb4 44. Kd2
+Kb3 45. Kc1 Kc3 46. Ne7 Kd3 47. Nxf5 Ke2 48. Nd6 Kxf2 49. Nxe4+ Kg2 50. Kc2
+Kxh2 51. Kc3 Kg2 52. Kxc4 Kf3 53. Kd4 Kg4 54. Ke3 h5 55. Kf2 h4 56. Nf6+
+Kg5 57. Ne4+ Kg4 58. Nf6+ Kg5 59. Nh7+ Kg4 60. Nf6+ Kg5 61. g4 Kxf6 62. Kg2
+Kg5 63. Kh3 Kh6 64. Kxh4 Kg6 65. g5 Kg7 66. Kh5 Kf7 67. Kh6 Kg8 68. Kg6
+Kh8 69. Kf7 Kh7 70. g6+ Kh8 71. g7+ Kh7 72. g8=Q+ Kh6 73. Qg6#
+{Black checkmated} 1-0
+

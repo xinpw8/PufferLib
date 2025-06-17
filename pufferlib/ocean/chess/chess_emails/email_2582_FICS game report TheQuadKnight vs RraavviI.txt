@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs RraavviI
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.08"]
+[Time "16:23:45"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "RraavviI"]
+[WhiteElo "1321"]
+[BlackElo "1384"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. Nxe5 Qd4 6. Qh5 Qxe4+ 7. Kf1
+Nh6 8. d3 Qf5 9. Qxf5 Bxf5 10. Nc3 O-O-O 11. Be3 Bg6 12. Nxg6 fxg6 13. Ne4
+Bd6 14. Ng5 Rdf8 15. Ne6 Rf6 16. Nxg7 Ng4 17. Bd4 Be5 18. Bxe5 Nxe5 19. h3
+Rg8 20. Re1 Nxd3 21. cxd3 Rxg7 22. Re8+ Kd7 23. Re1 Re7 24. Rxe7+ Kxe7 25. f3
+Kd6 26. Kf2 Rf5 27. Re1 Rd5 28. Re3 Rb5 29. b3
+{Black forfeits on time} 1-0
+

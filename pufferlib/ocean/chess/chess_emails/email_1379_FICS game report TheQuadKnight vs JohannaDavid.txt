@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs JohannaDavid
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.16"]
+[Time "12:32:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "JohannaDavid"]
+[WhiteElo "1477"]
+[BlackElo "1797"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Be3 Bg7 7. f3 O-O
+8. Qd2 Nc6 9. O-O-O Bd7 10. g4 Rc8 11. Kb1 Bxg4 12. fxg4 Nxg4 13. Bg1 Bh6
+14. Qd3 Nge5 15. Qh3 Bg7 16. Be2 Na5 17. Qg3 Nac4 18. Nb3 a5 19. Bd4 a4
+20. Nxa4 b5 21. Nc3 b4 22. Nd5 e6 23. Nxb4 Qc7 24. a3 Rb8 25. Na6 Qb7 26. Nxb8
+Rxb8 27. Bxc4 Nxc4 28. Bxg7 Kxg7 29. Qc3+ Ne5 30. Rxd6 f6 31. Nd4 Nc4 32. Nxe6+
+Kh6 33. Nc5 Qb5 34. Nd3 Nxd6 35. Qxf6 Nc4 36. Qh4+ Kg7 37. Qe7+ Kg8 38. Qe6+
+Kg7 39. Qe7+ Kh6 40. Rf1 Nd2+
+{White forfeits on time} 0-1
+

@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs PhilidorsMate
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "23:25:48"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PhilidorsMate"]
+[WhiteElo "1370"]
+[BlackElo "1555"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e5 3. Nc3 exd4 4. Qxd4 Nc6 5. Qe3+ Be6 6. cxd5 Bb4 7. dxe6
+Nf6 8. exf7+ Kxf7 9. Bd2 Re8 10. Qf3 Nd4 11. Qf4 Nc2+ 12. Kd1 Nxa1 13. Qxb4
+Qd7 14. e3 Rad8 15. Nb1 c5 16. Bc4+ Kg6 17. Qxc5 Rc8 18. Qb4 Ne4 19. Bb5
+Nxf2+ 20. Ke2 Qg4+ 21. Nf3 Qxb4 22. Bxb4 Nxh1 23. Bxe8+ Rxe8 24. Nc3 Nc2
+25. Ba3 Nxa3 26. bxa3 Rc8 27. Nh4+ Kf7 28. Ne4 h6 29. Nf5 Rc2+ 30. Kf3 Rxa2
+31. Nfd6+ Ke6 32. Nxb7 Rxa3 33. Nbc5+ Kd5 34. Nd7 a5 35. Nec5 a4 36. Na6
+Ra2 37. Nb4+ Kc4 38. Nxa2 Kb3 39. Ne5 Kxa2 40. Nd3 Kb1 41. Nb4 a3 42. Ke4
+Nf2+ 43. Kf3 Nd1 44. Ke2 Nc3+ 45. Kd3 Nd5 46. Nxd5
+{Black forfeits on time} 1-0
+

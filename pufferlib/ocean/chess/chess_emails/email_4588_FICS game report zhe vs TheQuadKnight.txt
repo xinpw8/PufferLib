@@ -1,0 +1,24 @@
+Subject: FICS game report zhe vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.26"]
+[Time "09:50:09"]
+[Round "-"]
+[White "zhe"]
+[Black "TheQuadKnight"]
+[WhiteElo "1525"]
+[BlackElo "1251"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. f4 Nc6 3. Nf3 e6 4. Bb5 d5 5. e5 Bd7 6. c4 a6 7. Bxc6 Bxc6 8. O-O
+dxc4 9. Nc3 b5 10. Qe1 Ne7 11. a3 Ng6 12. Qe3 Be7 13. Ne2 b4 14. axb4 cxb4
+15. Kh1 a5 16. Nfd4 Qc7 17. Nxc6 Qxc6 18. Nd4 Qc5 19. Qe4 O-O 20. Nc6 Qb5
+21. Nxe7+ Nxe7 22. Rg1 Rfd8 23. Qf3 Ng6 24. Qf2 Qd5 25. h3 Qe4 26. Rf1 Rd4
+27. Qf3 Qxf4 28. Qxa8+ Nf8 29. Rxf4 Rxf4 30. d3 Rf1+ 31. Kh2 c3 32. bxc3
+bxc3 33. Ba3 Re1 34. Qxf8#
+{Black checkmated} 1-0
+

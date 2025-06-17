@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs CanSicilian
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "14:46:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CanSicilian"]
+[WhiteElo "1382"]
+[BlackElo "1568"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 a6 5. Nc3 Qc7 6. Be3 b5 7. Be2 Bb7
+8. f4 Nf6 9. Bf3 Bb4 10. e5 Bxc3+ 11. bxc3 Qxc3+ 12. Kf2 Nd5 13. Re1 O-O
+14. f5 f6 15. fxe6 fxe5 16. e7 Nxe7 17. Kg1 Bxf3 18. Nxf3 e4 19. Bd4 Qc6
+20. Ne5 Qf6 21. Nxd7 Qh4 22. Nxf8 Kxf8 23. Rf1+ Ke8 24. Bxg7 Nd7 25. Rc1
+Qg5 26. Bf6 Nxf6 27. Qd6 Rd8 28. Qxf6 Qxf6 29. Rxf6 Rd2 30. Rcf1 e3 31. Rf8+
+Kd7 32. R8f7 e2 33. Re1 Rd1 34. Kf2 Rxe1 35. Kxe1 Ke6 36. Kxe2 Kxf7 37. g3
+Nd5 38. h4 Nb4 39. Ke3 Nxa2 40. Kd3 Nb4+ 41. Kc3 Nd5+ 42. Kd4 Nf6 43. Ke3
+Ng4+ 44. Kf3 Nh6 45. Kg2 Kg6 46. Kf3 Kh5 47. Kf2 Kg4 48. Kg2 Nf5 49. Kf2
+Nxg3 50. Kg2 Ne4 51. Kh2 Kxh4 52. Kg1 Nc3 53. Kf1 b4 54. Ke1 a5 55. Kf2
+a4 56. Ke3 a3 57. Kd4
+{Black forfeits on time} 1-0
+

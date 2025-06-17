@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs wart
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.01"]
+[Time "10:21:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "wart"]
+[WhiteElo "1311"]
+[BlackElo "1238"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d6 4. d3 g5 5. h4 g4 6. Ng5 h6 7. Bxf4 hxg5 8. Bxg5
+Be7 9. Be2 Bxg5 10. hxg5 Rxh1+ 11. Bf1 Qxg5 12. Nd2 Qe3+ 13. Qe2 Qxe2+ 14. Kxe2
+Nc6 15. Re1 Be6 16. b3 O-O-O 17. c4 Nd4+ 18. Kd1 Nf6 19. Re3 Nh5 20. Kc1
+Nf4 21. Kb2 Rdh8 22. g3 Nh3 23. Bg2 Rd1 24. Nb1 Nf2 25. Kc3 Nf3 26. Na3
+Rc1+ 27. Kb2 Rd1 28. Kc3 Rh2 29. Bxf3 gxf3 30. Rxf3 Ng4 31. Rf4 Rdd2 32. d4
+Rxa2 33. Nb5 Rac2+ 34. Kb4 b6 35. d5 a5+ 36. Ka4 Ra2+ 37. Na3 Bd7#
+{White checkmated} 0-1
+

@@ -1,0 +1,28 @@
+Subject: FICS game report midasmyth vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.20"]
+[Time "13:19:33"]
+[Round "-"]
+[White "midasmyth"]
+[Black "TheQuadKnight"]
+[WhiteElo "1424"]
+[BlackElo "1427"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Bb4 5. Qa4+ Nc6 6. cxd5 exd5 7. e3 Bd7
+8. Bb5 Bxc3+ 9. bxc3 h6 10. Bh4 a6 11. Bd3 b5 12. Qc2 O-O 13. Nf3 Bg4 14. Nd2
+Qd6 15. O-O Rfe8 16. f3 Bd7 17. e4 dxe4 18. fxe4 Qe6 19. Bxf6 gxf6 20. d5
+Qe5 21. dxc6 Bxc6 22. Rf5 Qd6 23. Raf1 Rad8 24. R1f3 Bd7 25. Rxf6 Be6 26. Rxh6
+Kf8 27. Rh8+ Ke7 28. Rxe8+ Rxe8 29. Nb3 Rh8 30. h3 Rg8 31. Nd4 Bd7 32. Nf5+
+Bxf5 33. exf5 Qe5 34. Qe2 Qxe2 35. Bxe2 Rd8 36. f6+ Ke6 37. Bd3 c5 38. c4
+Rb8 39. Kf2 b4 40. Be4 a5 41. Bd5+ Ke5 42. Bxf7 a4 43. Bg6 b3 44. axb3 a3
+45. Re3+ Kxf6 46. Bb1 Ra8 47. Re2 Kf7 48. g4 Kf6 49. Kg3 Kg5 50. h4+ Kh6
+51. g5+ Kg7 52. Kg4 Rd8 53. Kh5 Rd4 54. Ra2 Rd1 55. Bg6 Rb1 56. Rxa3 Rb2
+57. Ra7+
+{Black forfeits on time} 1-0
+

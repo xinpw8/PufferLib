@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs Spyro
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "14:01:44"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Spyro"]
+[WhiteElo "1330"]
+[BlackElo "1814"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 Nc6 2. Nf3 d5 3. exd5 Qxd5 4. Nc3 Qa5 5. Bb5 Bd7 6. d4 O-O-O 7. d5
+a6 8. dxc6 Bxc6 9. Bd3 f6 10. O-O e5 11. Be3 Ne7 12. Qe2 Nf5 13. Bxf5+ Kb8
+14. Rad1 Re8 15. Qc4 g6 16. Be4 Bxe4 17. Qxe4 f5 18. Qd3 Bg7 19. Qe2 h6
+20. b3 Qxc3 21. Qd3 Qxd3 22. Rxd3 e4 23. Rd7 Bf6 24. Nd2 g5 25. Nc4 f4 26. Bc5
+Bc3 27. Rf7 b6 28. Be7 b5 29. Na3 Kb7 30. Bf6 Bxf6 31. Rxf6 Rh7 32. c4 b4
+33. Nc2 a5 34. a3 bxa3 35. Nxa3 c6 36. Re1 Kb6 37. Rd6 Kc5 38. Rd2 Kb4 39. Nc2+
+Kxb3 40. Nd4+ Kc3 41. Red1 Rc7 42. Nf5 h5 43. h3 Kxc4 44. Nd6+ Kc3 45. Nxe8
+Rb7 46. Rd7 Rb8 47. Rd8 Rb4 48. Rc1+ Kb2 49. Rcd1 a4 50. Nc7 a3 51. Na6
+Rb5 52. Rb8 a2 53. Rxb5+ cxb5 54. Nb4 a1=Q 55. Rxa1 Kxa1 56. Nc2+ Kb1 57. Nd4
+b4 58. Nb5 Kb2 59. Nd4 b3 60. Nxb3 Kxb3 61. Kf1 Kc3 62. Ke2 Kd4 63. f3 e3
+64. h4 gxh4 65. Kf1 Kd3 66. Ke1 e2 67. Kf2 Kd2
+{White forfeits on time} 0-1
+

@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs UGAFootball
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "15:08:59"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "UGAFootball"]
+[WhiteElo "1404"]
+[BlackElo "1452"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. f4 Nc6 3. Nf3 d6 4. Bc4 exf4 5. O-O Ne5 6. Bb3 Bg4 7. d4 Nxf3+
+8. Rxf3 Bxf3 9. Qxf3 f6 10. Bxf4 Ne7 11. Nc3 a6 12. Re1 Nc6 13. Qh5+ g6
+14. Qd5 Qe7 15. e5 O-O-O 16. Qe6+ Qxe6 17. Bxe6+ Kb8 18. exf6 Nxd4 19. Nd5
+Nxe6 20. Rxe6 c6 21. Nb6 Kc7 22. Nc4 b5 23. Ne3 h6 24. h4 Kd7 25. Re4 d5
+26. Rd4 Bc5 27. Rd3 Rhf8 28. Bxh6 Rfe8 29. f7 Rxe3 30. Rxe3 Bxe3+ 31. Bxe3
+Rf8 32. Bc5 Rxf7 33. Kh2 Ke6 34. g3 Rf3 35. Kh3 Rf7 36. Bd4 Rf1 37. c3 Ra1
+38. a3 Ra2 39. b4 Rd2 40. Kg4 Kf7 41. h5 gxh5+ 42. Kxh5 c5 43. g4 cxd4 44. cxd4
+Rxd4 45. Kg5 Rd3 46. Kh5 Rxa3 47. Kg5 Rb3 48. Kf4 Rxb4+ 49. Kg5 Rxg4+ 50. Kh5
+{Black ran out of time and White has no material to mate} 1/2-1/2
+

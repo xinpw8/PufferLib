@@ -1,0 +1,23 @@
+Subject: FICS game report Hakim vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.05"]
+[Time "08:37:43"]
+[Round "-"]
+[White "Hakim"]
+[Black "TheQuadKnight"]
+[WhiteElo "1420"]
+[BlackElo "1308"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Qf6 6. c3 Nge7 7. Bc4
+O-O 8. O-O d6 9. Nc2 Ne5 10. Be2 Bb6 11. Kh1 Qg6 12. Nd2 Ng4 13. Bxg4 Bxg4
+14. f3 Be6 15. Qe2 c5 16. Nc4 Bc7 17. Bf4 Rad8 18. Rad1 Bxc4 19. Qxc4 b6
+20. Ne3 d5 21. exd5 Bxf4 22. Qxf4 Rfe8 23. c4 Nc8 24. Rfe1 Nd6 25. Ng4 Qc2
+26. b3 b5 27. Rc1 Qd3 28. Rxe8+ Nxe8 29. Ne5 Qd4 30. Qxf7+ Kh8 31. Qf8#
+{Black checkmated} 1-0
+

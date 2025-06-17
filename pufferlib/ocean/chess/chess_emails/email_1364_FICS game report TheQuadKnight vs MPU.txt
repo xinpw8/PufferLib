@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs MPU
+
+
+[Event "FICS rated wild/fr game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.19"]
+[Time "20:36:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "MPU"]
+[WhiteElo "1505"]
+[BlackElo "2065"]
+[TimeControl "300+0"]
+[FEN "nbqrknbr/pppppppp/8/8/8/8/PPPPPPPP/NBQRKNBR w KQkq - 0 1"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. c3 Nb6 2. d4 c6 3. Nb3 f6 4. Ng3 Ng6 5. Bc2 Bf7 6. Nf5 O-O 7. h4 e6 8. h5
+exf5 9. hxg6 Bxg6 10. e4 fxe4 11. Qb1 d5 12. f3 f5 13. Be3 Bg3+ 14. Kf1
+Nc4 15. Bf2 f4 16. fxe4 Qg4 17. exd5 Bxf2 18. Kxf2 Qg3+ 19. Kg1 Ne3 20. Bxg6
+Qxg2#
+{White checkmated} 0-1
+

@@ -1,0 +1,20 @@
+Subject: FICS game report biglooser vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.02"]
+[Time "13:46:17"]
+[Round "-"]
+[White "biglooser"]
+[Black "TheQuadKnight"]
+[WhiteElo "1492"]
+[BlackElo "1378"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. Bxf7+ Kxf7 6. Ne5+ Ke8 7. Qxg4
+Qf6 8. Qh5+ Ke7 9. O-O Qxe5 10. Qxe5+ Kd8 11. Qxh8
+{Black resigns} 1-0
+

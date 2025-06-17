@@ -1,0 +1,24 @@
+Subject: FICS game report Steftcho vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.06.08"]
+[Time "11:44:46"]
+[Round "-"]
+[White "Steftcho"]
+[Black "TheQuadKnight"]
+[WhiteElo "1466"]
+[BlackElo "1427"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c3 e6 3. Qc2 c5 4. e3 cxd4 5. exd4 Nc6 6. Bd3 e5 7. dxe5 Nxe5
+8. Qe2 Qe7 9. Bc2 Nf6 10. Be3 Nc4 11. Ba4+ Bd7 12. Bxd7+ Qxd7 13. Bc5+ Ne4
+14. Bxf8 Rxf8 15. f3 O-O-O 16. fxe4 dxe4 17. Nh3 Qd5 18. O-O e3 19. b3 Ne5
+20. Nf4 Qe4 21. Na3 Rd2 22. Qe1 Rfd8 23. Nc4 Nd3 24. Nxd2 Qxf4 25. Rxf4
+Nxe1 26. Rxe1 exd2 27. Rd1 f6 28. Rf2 h5 29. Rfxd2 Rxd2 30. Rxd2 g5 31. Rf2
+Kd7 32. Rxf6 g4 33. Rf5 Ke6 34. Rxh5
+{Black resigns} 1-0
+

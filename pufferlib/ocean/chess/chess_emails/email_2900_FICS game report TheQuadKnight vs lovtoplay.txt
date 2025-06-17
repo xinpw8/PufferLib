@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs lovtoplay
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.01"]
+[Time "15:52:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "lovtoplay"]
+[WhiteElo "1376"]
+[BlackElo "1464"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 b6 3. d4 cxd4 4. Nxd4 Bb7 5. Nc3 g6 6. Bf4 Bg7 7. Bc4 d6
+8. Nd5 Nd7 9. Nb5 Bxd5 10. Bxd5 Rb8 11. Nxa7 Qc7 12. Nb5 Qc5 13. c4 Ngf6
+14. Nc3 O-O 15. O-O Nh5 16. Be3 Qb4 17. Rb1 Nc5 18. a3 Qa5 19. Bd2 Qa7 20. Nb5
+Qd7 21. b4 Nd3 22. Qe2 Ne5 23. f4 Nxf4 24. Bxf4 Qc7 25. Nxc7 Rbc8 26. Bxe5
+Bxe5 27. Qf3 Kg7 28. Nb5 e6 29. Bb7 Rxc4 30. Ba6 Rc3 31. Qg4 Rc2 32. Nc7
+Rxc7 33. Bb5 Rc2 34. a4 Rc3 35. a5 bxa5 36. bxa5 Ra3 37. a6 Ra5 38. Rfc1
+h6 39. Rc7 h5 40. Qg5 Bf6 41. Qf4 e5 42. Qf3 Rxb5 43. Rf1 Bg5 44. g4 Bh6
+{White forfeits on time} 0-1
+

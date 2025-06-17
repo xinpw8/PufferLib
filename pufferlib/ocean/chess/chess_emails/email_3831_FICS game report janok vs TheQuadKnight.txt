@@ -1,0 +1,29 @@
+Subject: FICS game report janok vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "12:16:50"]
+[Round "-"]
+[White "janok"]
+[Black "TheQuadKnight"]
+[WhiteElo "1480"]
+[BlackElo "1361"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. f3 Nbd7 5. e4 dxe4 6. fxe4 c6 7. e5 Nxe5
+8. dxe5 Qxd1+ 9. Nxd1 Ne4 10. Bd3 Bb4+ 11. Ke2 Nc5 12. Bc2 O-O 13. a3 Ba5
+14. b4 Bb6 15. bxc5 Bxc5 16. Be3 Be7 17. Nf3 Rd8 18. Nc3 a6 19. Rad1 b5
+20. Bb6 Rxd1 21. Rxd1 a5 22. cxb5 cxb5 23. Nxb5 Rb8 24. Bd8 Kf8 25. Bxe7+
+Kxe7 26. Nd6 Ba6+ 27. Ke1 Rb2 28. Nd4 Ra2 29. Nc6+ Kf8 30. Nb5 g6 31. Nc7
+Rxc2 32. Rd8+ Kg7 33. Nxa6 Rxc6 34. Rd6 Rc1+ 35. Kd2 Ra1 36. Rd3 Ra2+ 37. Ke3
+Rxg2 38. Nc5 Rxh2 39. Ne4 Rh3+ 40. Kd4 Rxd3+ 41. Kxd3 h5 42. Nf6 Kh6 43. Kc4
+g5 44. Kb5 h4 45. Kxa5 h3 46. Ng4+ Kh5 47. Nh2 Kh4 48. Kb5 Kg3 49. Nf1+
+Kg2 50. Nh2 g4 51. a4 g3 52. a5 gxh2 53. a6 h1=Q 54. Kb6 Qb1+ 55. Kc7 h2
+56. Kd7 h1=Q 57. a7 Qbd1+ 58. Kc7 Qhe1 59. Kc6 Qc3+ 60. Kb5 Qb1+ 61. Ka4
+Qca1#
+{White checkmated} 0-1
+

@@ -1,0 +1,28 @@
+Subject: FICS game report CosmicM vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.09"]
+[Time "12:23:21"]
+[Round "-"]
+[White "CosmicM"]
+[Black "TheQuadKnight"]
+[WhiteElo "1618"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 5. d3 d6 6. Bg5 Na5 7. Bb5+ c6
+8. Ba4 b5 9. Bb3 Nxb3 10. axb3 O-O 11. h3 h6 12. Bh4 Re8 13. Qe2 d5 14. c3
+dxe4 15. dxe4 Bb6 16. b4 Bb7 17. Nbd2 c5 18. Bxf6 Qxf6 19. bxc5 Bxc5 20. Nb3
+Bb6 21. Rad1 Ba6 22. Rd2 b4 23. c4 Qe6 24. Rc2 Rac8 25. Nbd2 b3 26. Rcc1
+Ba5 27. Rfd1 Red8 28. Nxb3 Bb6 29. Rxd8+ Rxd8 30. Nbd2 Ba5 31. b3 Qd6 32. Rd1
+Bb7 33. Ra1 Bxd2 34. Rxa7 Bc8 35. Nxd2 Qxd2 36. Qf3 Qd1+ 37. Qxd1 Rxd1+
+38. Kh2 Be6 39. Rb7 Rd2 40. f3 Rb2 41. c5 Rc2 42. b4 Bc4 43. b5 Rb2 44. b6
+Rb5 45. c6 Be6 46. c7 Rc5 47. Rb8+ Kh7 48. b7 Rxc7 49. Rh8+ Kxh8 50. b8=Q+
+Rc8 51. Qb6 Re8 52. Qb4 Kg8 53. Qc3 g6 54. Qxe5 Kf8 55. Qg3 Bxh3 56. Qxh3
+Kg7 57. Qg3 Kf8 58. f4 Kg8 59. e5 Kf8 60. f5 Kg7
+{White forfeits on time} 0-1
+

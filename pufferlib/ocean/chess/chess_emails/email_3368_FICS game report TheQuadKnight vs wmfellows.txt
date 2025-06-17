@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs wmfellows
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.21"]
+[Time "19:46:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "wmfellows"]
+[WhiteElo "1446"]
+[BlackElo "1199"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e6 2. d4 a6 3. Nc3 b5 4. Nf3 d5 5. Bf4 c5 6. exd5 exd5 7. dxc5 Bxc5
+8. Nxd5 Nf6 9. Nc7+ Kf8 10. Qxd8+ Ne8 11. Qxe8#
+{Black checkmated} 1-0
+

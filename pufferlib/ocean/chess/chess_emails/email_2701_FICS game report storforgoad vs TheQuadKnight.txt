@@ -1,0 +1,30 @@
+Subject: FICS game report storforgoad vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "14:03:34"]
+[Round "-"]
+[White "storforgoad"]
+[Black "TheQuadKnight"]
+[WhiteElo "1172"]
+[BlackElo "1384"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 d6 5. O-O Na5 6. Nbd2 Nxc4 7. Nxc4
+Be6 8. Ne3 Be7 9. Ng5 Bd7 10. Nd5 h6 11. Nxf6+ Bxf6 12. Nf3 O-O 13. c3 c6
+14. d4 Re8 15. dxe5 dxe5 16. Be3 Qc7 17. Qd2 Rad8 18. Bxh6 gxh6 19. Qxh6
+Bg7 20. Qg5 Qd6 21. Rad1 Qf6 22. Qe3 b6 23. Rd3 Bh6 24. Qe2 Bg4 25. Rxd8
+Rxd8 26. h3 Rd2 27. Qc4 Bxf3 28. gxf3 Qxf3 29. Qxc6 Rd3 30. Qxh6 Qxe4 31. Qg5+
+Kf8 32. Qg4 Qd5 33. Qb4+ Kg7 34. Qg4+ Kf6 35. h4 Qxa2 36. Qg5+ Ke6 37. h5
+Qxb2 38. h6 Qxc3 39. h7 Rh3 40. Qg4+ Kd6 41. Rd1+ Kc5 42. Qc8+ Kb4 43. Qxc3+
+Rxc3 44. h8=Q Rc5 45. Qh4+ Rc4 46. Rb1+ Kc5 47. Qh3 b5 48. Qc8+ Kd4 49. Rd1+
+Ke4 50. Qb7+ Kf5 51. Qxf7+ Ke4 52. Qxa7 Kf4 53. Qe3+ Kf5 54. Qd3+ Ke6 55. Qd7+
+Kf6 56. Qxb5 Rg4+ 57. Kh2 Rh4+ 58. Kg3 Rh5 59. Qc6+ Kf5 60. Qf3+ Kg5 61. Qg4+
+Kh6 62. Rd6+ Kh7 63. Qxh5+ Kg8 64. Qg5+ Kf8 65. Rd8+ Kf7 66. Qf5+ Ke7 67. Rd7+
+Ke8 68. Qf7#
+{Black checkmated} 1-0
+

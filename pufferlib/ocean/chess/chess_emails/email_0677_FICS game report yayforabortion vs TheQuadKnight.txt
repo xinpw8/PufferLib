@@ -1,0 +1,25 @@
+Subject: FICS game report yayforabortion vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "13:09:56"]
+[Round "-"]
+[White "yayforabortion"]
+[Black "TheQuadKnight"]
+[WhiteElo "1423"]
+[BlackElo "1328"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Bc5 4. O-O d6 5. c3 f5 6. d4 exd4 7. cxd4 Bb6
+8. d5 a6 9. Ba4 fxe4 10. Nd4 Bxd4 11. Qxd4 Nf6 12. dxc6 b5 13. Bb3 Bf5 14. Bg5
+Qe7 15. Bxf6 gxf6 16. Nc3 Rd8 17. Nd5 Qe5 18. Nxf6+ Ke7 19. Qxe5+ dxe5 20. Nd5+
+Kd6 21. Ne3 Be6 22. Bxe6 Kxe6 23. Rad1 Rdf8 24. Rd7 Rc8 25. Rfd1 Rhg8 26. Nf1
+Rge8 27. Ng3 h6 28. Nxe4 Kf5 29. Ng3+ Kf4 30. Rf7+ Kg5 31. Rdd7 e4 32. Rde7
+Rcd8 33. Nxe4+ Kg6 34. h3 Rd1+ 35. Kh2 Red8 36. g4 h5 37. Rg7+ Kh6 38. Rh7+
+Kg6 39. Reg7#
+{Black checkmated} 1-0
+

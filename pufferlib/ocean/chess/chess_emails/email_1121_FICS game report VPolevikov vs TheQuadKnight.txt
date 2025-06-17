@@ -1,0 +1,26 @@
+Subject: FICS game report VPolevikov vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.16"]
+[Time "18:07:44"]
+[Round "-"]
+[White "VPolevikov"]
+[Black "TheQuadKnight"]
+[WhiteElo "1485"]
+[BlackElo "1406"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 e5 2. e4 Nc6 3. Nf3 Bc5 4. Nc3 Nf6 5. h3 O-O 6. Be2 d6 7. O-O Nd4
+8. g4 Ne6 9. d3 c6 10. Kg2 d5 11. cxd5 cxd5 12. Nxe5 dxe4 13. dxe4 Qxd1
+14. Rxd1 Bb4 15. f3 b6 16. Be3 Bb7 17. a3 Be7 18. Nd5 Bxd5 19. exd5 Nc5
+20. b4 Na4 21. d6 Bd8 22. Ba6 Re8 23. f4 Nc3 24. Rdc1 Ncd5 25. Kf3 Nxe3
+26. Kxe3 Nd5+ 27. Kf3 Bf6 28. Rd1 Nc3 29. Rd3 Na4 30. d7 Red8 31. Rc1 Nb2
+32. Rd2 Na4 33. Rc8 Rf8 34. Bb7 Rb8 35. d8=Q Bxd8 36. Rxb8 Be7 37. Rxf8+
+Kxf8 38. Nd7+ Ke8 39. Rc2 Kxd7 40. Bc6+ Kd6 41. Bxa4 a6 42. Ke4 b5 43. Bb3
+Bf6 44. Rd2+ Ke7 45. g5 Bc3 46. Rd3 Bb2 47. a4 Ba3 48. axb5 Bxb4 49. bxa6
+{Black forfeits on time} 1-0
+

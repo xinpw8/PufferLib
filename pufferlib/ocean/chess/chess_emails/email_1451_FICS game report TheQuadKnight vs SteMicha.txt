@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs SteMicha
+
+
+[Event "FICS rated lightning game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "12:03:47"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "SteMicha"]
+[WhiteElo "1433"]
+[BlackElo "1111"]
+[TimeControl "60+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bg5 h6 5. Bh4 d6 6. e3 Nbd7 7. Qf3 O-O
+8. g4 Bxc3+ 9. bxc3 c5 10. g5 hxg5 11. Bxg5 b6 12. h4 Rb8 13. h5 Bb7 14. e4
+Bxe4 15. Qxe4 Nxe4 16. Bxd8 Rfxd8 17. h6 g6 18. h7+ Kh8 19. Bg2 Nxc3 20. d5
+exd5 21. Bxd5 Ne5 22. Bxf7 Nxf7 23. Ne2 Re8 24. Kf1 Nxe2 25. Re1 Nc3 26. Rxe8+
+Rxe8 27. Rh2 Ng5 28. Rg2 Kg7 29. Rxg5 Re2 30. Rg3 Rxa2 31. Rxc3 a5 32. Rh3
+Kh8 33. Rh6 Rc2 34. Rxg6 Rxc4 35. Rxd6 a4 36. Rd8+ Kxh7 37. Rd7+ Kg6 38. Rd6+
+{Black forfeits on time} 1-0
+

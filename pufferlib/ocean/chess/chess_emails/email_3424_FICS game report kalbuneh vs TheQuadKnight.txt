@@ -1,0 +1,22 @@
+Subject: FICS game report kalbuneh vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.20"]
+[Time "10:57:39"]
+[Round "-"]
+[White "kalbuneh"]
+[Black "TheQuadKnight"]
+[WhiteElo "1488"]
+[BlackElo "1453"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nf3 b5 4. e4 Bg4 5. Be2 c6 6. Nc3 Nd7 7. a4 a6 8. axb5
+cxb5 9. Be3 e5 10. d5 Bb4 11. O-O Ne7 12. d6 Ng6 13. Nd5 Bc5 14. Nc7+ Kf8
+15. Nxa8 Qxa8 16. Bxc5 Nxc5 17. Nd2 Bxe2 18. Qxe2 Nd3 19. Rab1 Ngf4 20. Qe3
+f5 21. exf5 Qxg2#
+{White checkmated} 0-1
+

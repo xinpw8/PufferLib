@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs gaunab
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.23"]
+[Time "11:19:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "gaunab"]
+[WhiteElo "1411"]
+[BlackElo "1408"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 e6 3. Nf3 b6 4. Bg5 h6 5. Bh4 Ba6 6. e3 Bb4+ 7. Nc3 Be7
+8. Bd3 d5 9. cxd5 O-O 10. dxe6 fxe6 11. Bc2 Kh8 12. Ne5 Re8 13. Qf3 Nbd7
+14. Nf7+
+{Black resigns} 1-0
+

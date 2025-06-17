@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs Dayffd
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.02.23"]
+[Time "08:58:23"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Dayffd"]
+[WhiteElo "1395"]
+[BlackElo "1418"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. Bg5 e6 7. Bc4 h6
+8. Bh4 Be7 9. O-O b5 10. Be2 Bb7 11. f4 O-O 12. Bf3 e5 13. Nf5 Nc6 14. Nxe7+
+Qxe7 15. Bxf6 Qxf6 16. fxe5 dxe5 17. Nd5 Qd6 18. Qe2 Nd4 19. Qf2 Nxf3+ 20. Qxf3
+Bxd5 21. exd5 Rad8 22. Rad1 Qc5+ 23. Qf2 Qxf2+ 24. Rxf2 Rd6 25. Re2 f6 26. b3
+b4 27. Re4 a5 28. Rc4 Rfd8 29. Rc5 e4 30. Rxa5 f5 31. Rb5 f4 32. Rxb4 Re8
+33. h3 g5 34. c4 e3 35. Re1 Re4 36. Rb7 Rd4 37. Rc7 Rd2 38. a4 h5 39. b4
+g4 40. hxg4 hxg4 41. Rc6 e2 42. Kf2 g3+ 43. Kf3 Rd8 44. Kxf4 Rf8+ 45. Kxg3
+Rf1 46. Rxe2 Rxe2 47. c5 Rb1 48. Rb6 Rb3+ 49. Kf4 Rxg2 50. d6 Rc2 51. Ke4
+Rxc5 52. d7 Rc4+ 53. Kd5 Rd3+ 54. Kxc4 Rxd7 55. b5 Kf7 56. a5 Re7 57. Rd6
+Re4+ 58. Kc5 Re7 59. b6 Re1 60. b7 Rc1+ 61. Kb6 Rb1+ 62. Ka7 Ra1 63. b8=Q
+Rxa5+ 64. Kb7 Rb5+ 65. Rb6 Rxb6+ 66. Kxb6
+{Black resigns} 1-0
+

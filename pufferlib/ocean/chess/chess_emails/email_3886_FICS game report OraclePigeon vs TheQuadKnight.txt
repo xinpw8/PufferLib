@@ -1,0 +1,23 @@
+Subject: FICS game report OraclePigeon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.25"]
+[Time "17:02:37"]
+[Round "-"]
+[White "OraclePigeon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1561"]
+[BlackElo "1364"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 d5 2. Bc4 Bh3 3. Bxd5 Bxg2 4. Qh5 e6 5. Bxb7 Bxh1 6. Bxa8 Qf6 7. Qb5+
+Ke7 8. e5 Qg6 9. Bxh1 Qxg1+ 10. Qf1 Qxh2 11. d4 Nc6 12. Be3 f6 13. Bxc6
+fxe5 14. Nd2 exd4 15. Bxd4 Nf6 16. Nf3 Qf4 17. Rd1 Kf7 18. c3 Nd5 19. Qh3
+g5 20. Qh5+ Kg8 21. Qxg5+ Qxg5 22. Nxg5 Bg7 23. Bxg7 Kxg7 24. Nxe6+ Kf7
+25. Bxd5 c6 26. Bb3 Re8 27. Rd7+ Kf6 28. Rd6 Kf5 29. Rxc6 a5 30. Kd2
+{Black resigns} 1-0
+

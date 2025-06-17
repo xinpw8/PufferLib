@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs jancha
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.17"]
+[Time "10:01:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jancha"]
+[WhiteElo "1288"]
+[BlackElo "1428"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. Bc4 e5 7. Nf3 b5
+8. Bb3 Bb7 9. Be3 Nxe4 10. Nxe4 Bxe4 11. Ng5 Bg6 12. O-O Be7 13. Qd2 O-O
+14. Rac1 Nc6 15. c3 Na5 16. Bc2 Nc4 17. Qd5 Nxe3 18. fxe3 Bxg5 19. Bxg6
+hxg6 20. Rf2 Bxe3 21. Rf1 Qb6 22. Qf3 Bxf2+ 23. Qxf2 Rad8 24. Qxb6 d5 25. Qc5
+f5 26. g3 d4 27. cxd4 exd4 28. Rd1 d3 29. Qc3 Rfe8 30. Rxd3 Rc8 31. Qb3+
+Kh7 32. Kg2 Re2+ 33. Kh3 Rcc2 34. Qf7 Rxh2#
+{White checkmated} 0-1
+

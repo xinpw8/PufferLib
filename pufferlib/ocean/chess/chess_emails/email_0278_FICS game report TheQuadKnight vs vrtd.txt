@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs vrtd
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.18"]
+[Time "12:56:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vrtd"]
+[WhiteElo "1292"]
+[BlackElo "1441"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e6 2. c4 d5 3. Nc3 Bb4 4. Bd2 Nf6 5. Nf3 O-O 6. e3 a6 7. Be2 c5 8. dxc5
+Bxc5 9. cxd5 Nxd5 10. Ne4 Ba7 11. O-O Nc6 12. Qc2 h6 13. Rad1 f5 14. Nc3
+Nxc3 15. Bxc3 Qe7 16. Nd4 Nxd4 17. Bxd4 b5 18. a4 b4 19. Qc4 a5 20. Rc1
+Bxd4 21. exd4 Bb7 22. Qd3 Rfc8 23. Bf3 Bxf3 24. Qxf3 Qg5 25. Rxc8+ Rxc8
+26. h3 Rc1 27. Qe2 Rxf1+ 28. Qxf1 Qd2 29. Qc4 Qe1+ 30. Kh2 Kh7 31. Qc2 Kg6
+32. g4 Qf1 33. gxf5+ exf5 34. d5 Qe1 35. Qc6+ Kh7 36. d6 Qxf2+ 37. Qg2 Qf4+
+38. Qg3 Qd2+ 39. Kg1 Qd1+ 40. Kg2 Qd2+ 41. Kf3 Qd3+ 42. Kg2 Qd2+ 43. Kg1
+Qd1+ 44. Kf2 Qd2+ 45. Kf3 Qd1+ 46. Kf4 Qxd6+ 47. Kf3 Qxg3+ 48. Kxg3 Kg6
+49. Kf4 Kf6 50. b3 g5+ 51. Kf3 Ke5 52. Ke3 f4+ 53. Kf3 Kf5 54. Ke2 Ke4 55. Kf2
+h5 56. Kg2 g4 57. Kf2 gxh3 58. Kg1 Ke3 59. Kh2 f3 60. Kxh3 f2 61. Kg3 f1=Q
+62. Kh4 Qg2 63. Kxh5 Qg3 64. Kh6 Qg4 65. Kh7 Qg5 66. Kh8 Ke4 67. Kh7 Ke5
+68. Kh8 Kf6 69. Kh7 Qg7#
+{White checkmated} 0-1
+

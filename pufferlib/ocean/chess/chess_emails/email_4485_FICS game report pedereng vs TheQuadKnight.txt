@@ -1,0 +1,22 @@
+Subject: FICS game report pedereng vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.03"]
+[Time "18:18:01"]
+[Round "-"]
+[White "pedereng"]
+[Black "TheQuadKnight"]
+[WhiteElo "1218"]
+[BlackElo "1251"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nc3 Nc6 3. Bb5 e5 4. Bxc6 dxc6 5. Nf3 g6 6. O-O Bg7 7. Re1 Nf6
+8. d3 Be6 9. Bg5 c4 10. d4 exd4 11. Nxd4 c5 12. Nxe6 Qxd1 13. Raxd1 fxe6
+14. e5 Nd7 15. Nb5 Bxe5 16. f4 Bb8 17. Rxe6+ Kf7 18. Rde1 Bxf4 19. Re7+
+Kf8 20. Nc3 Bxg5 21. Rxd7 Bd2 22. Ree7 Re8 23. Rf7+ Kg8 24. Rg7+ Kf8 25. Rdf7#
+{Black checkmated} 1-0
+

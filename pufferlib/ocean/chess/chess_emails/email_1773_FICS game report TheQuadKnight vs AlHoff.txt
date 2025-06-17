@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs AlHoff
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.28"]
+[Time "11:37:54"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "AlHoff"]
+[WhiteElo "1387"]
+[BlackElo "1555"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Bg5 Bg7 7. Bc4 O-O
+8. Qd2 Nc6 9. Nxc6 bxc6 10. O-O-O Rb8 11. a3 Qb6 12. b3 a5 13. a4 Rd8 14. Bh6
+Bh8 15. Qf4 d5 16. exd5 cxd5 17. Nxd5 Nxd5 18. Bxd5 e6 19. Bc4 Rd4 20. Rxd4
+Bxd4 21. f3 Bd7 22. Rd1 Bh8 23. Rxd7 Qb4 24. Bxe6 Qe1+ 25. Rd1 Qe5 26. Qxf7#
+{Black checkmated} 1-0
+

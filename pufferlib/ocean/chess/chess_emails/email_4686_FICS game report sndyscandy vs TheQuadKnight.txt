@@ -1,0 +1,20 @@
+Subject: FICS game report sndyscandy vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.22"]
+[Time "07:34:56"]
+[Round "-"]
+[White "sndyscandy"]
+[Black "TheQuadKnight"]
+[WhiteElo "1541"]
+[BlackElo "1294"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. Nf3 d5 2. d4 Nc6 3. e3 e6 4. c3 Bd6 5. Bd3 Nf6 6. Nbd2 O-O 7. e4 dxe4
+8. Nxe4 Re8 9. Nxf6+ Qxf6 10. Bg5
+{Black resigns} 1-0
+

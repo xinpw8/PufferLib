@@ -1,0 +1,25 @@
+Subject: FICS game report JBD vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.11"]
+[Time "11:03:01"]
+[Round "-"]
+[White "JBD"]
+[Black "TheQuadKnight"]
+[WhiteElo "1771"]
+[BlackElo "1319"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nc3 Nc6 3. f4 exf4 4. Nf3 g5 5. Bb5 g4 6. Ng1 d6 7. d4 Bd7 8. d5
+Ne5 9. Bxd7+ Qxd7 10. Bxf4 Nf6 11. Qd4 O-O-O 12. Qxa7 c6 13. O-O-O Qc7 14. h3
+Nh5 15. Bxe5 dxe5 16. hxg4 Nf4 17. g3 Ng2 18. Rh2 Ne3 19. Qxe3 Rg8 20. Rxh7
+Rxg4 21. Nge2 Be7 22. Rxf7 Rd7 23. Qf3 Rg8 24. Rh1 Bg5+ 25. Kb1 Rxf7 26. Qg4+
+Kb8 27. dxc6 bxc6 28. Rh5 Rfg7 29. Qe6 Qe7 30. Qxc6 Rg6 31. Qb5+ Kc8 32. Nd5
+Qe6 33. Rh7 R6g7 34. Qc5+ Kd8 35. Rxg7 Rxg7 36. Qf8+ Qe8 37. Qxg7 Qd7 38. Qxg5+
+Kc8 39. Qxe5 Kb7 40. Qd4 Qc6 41. Qe5 Ka6 42. Nd4 Qh6 43. Qc7 Qh1#
+{White checkmated} 0-1
+

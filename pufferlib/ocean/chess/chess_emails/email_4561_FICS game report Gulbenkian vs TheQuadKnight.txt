@@ -1,0 +1,21 @@
+Subject: FICS game report Gulbenkian vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.27"]
+[Time "07:55:22"]
+[Round "-"]
+[White "Gulbenkian"]
+[Black "TheQuadKnight"]
+[WhiteElo "1244"]
+[BlackElo "1280"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 d6 3. Nf3 exf4 4. Bc4 g5 5. O-O g4 6. Ne1 f3 7. gxf3 g3 8. hxg3
+Bh3 9. Rf2 Qg5 10. Kh2 Qh5 11. Kg1 Nf6 12. g4 Bxg4 13. fxg4 Rg8 14. Rxf6
+Rxg4+ 15. Ng2 Qg5 16. Bxf7+ Ke7
+{White resigns} 0-1
+

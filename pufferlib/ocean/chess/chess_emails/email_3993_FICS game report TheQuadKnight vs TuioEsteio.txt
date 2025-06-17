@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs TuioEsteio
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "13:52:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TuioEsteio"]
+[WhiteElo "1331"]
+[BlackElo "1478"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. f4 Nc6 3. Nf3 d6 4. d3 Bg4 5. Be2 Nf6 6. O-O Be7 7. h3 Bxf3
+8. Bxf3 O-O 9. fxe5 Nxe5 10. Nc3 Nfd7 11. Bh5 g6 12. Bf3 f5 13. Bh6 Rf7
+14. exf5 Rxf5 15. Bd5+ Kh8 16. Rxf5 gxf5 17. Qh5 Nf6 18. Qg5 Bf8 19. Bxf8
+Qxf8 20. Rf1 Qg7 21. Qxf5 Nxd5 22. Nxd5 Rg8 23. g4 Re8 24. Nf6 Rf8 25. Qe6
+Qf7 26. Qxf7 Rxf7 27. Nd5 Rxf1+ 28. Kxf1 c6 29. Ne7 Kg7 30. Ke2 Kf7 31. Nf5
+Kf6 32. Ke3 Nf7 33. Kf4 d5 34. h4 a5 35. g5+ Kg6 36. Ne7+ Kh5 37. Nf5 Kg6
+38. Kg4 Ne5+ 39. Kf4 Nf7 40. Ng3 h5 41. c3 Nd6 42. a3 b5 43. b4 a4 44. Ke5
+Nf5 45. Nxf5
+{Black resigns} 1-0
+

@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs nobleway
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "08:15:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "nobleway"]
+[WhiteElo "1446"]
+[BlackElo "1465"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 c6 3. c4 Nf6 4. Nc3 Bg4 5. cxd5 cxd5 6. h3 Bxf3 7. exf3
+e6 8. Bg5 Be7 9. Be2 a6 10. O-O Nc6 11. Rc1 O-O 12. a3 Re8 13. f4 Rc8 14. Qb3
+Nxd4 15. Qxb7 Nxe2+ 16. Nxe2 Rxc1 17. Rxc1 Ne4 18. Bxe7 Qxe7 19. Qxe7 Rxe7
+20. Rc8+
+{Black resigns} 1-0
+

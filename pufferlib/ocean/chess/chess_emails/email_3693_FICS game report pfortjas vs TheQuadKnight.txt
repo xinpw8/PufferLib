@@ -1,0 +1,24 @@
+Subject: FICS game report pfortjas vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "14:25:15"]
+[Round "-"]
+[White "pfortjas"]
+[Black "TheQuadKnight"]
+[WhiteElo "935"]
+[BlackElo "1293"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 Nf6 4. e3 Bg4 5. f3 Bf5 6. Bxc4 Nc6 7. Nge2 e6
+8. O-O Bd6 9. e4 Bg6 10. Bb5 Be7 11. Qa4 O-O 12. Bxc6 bxc6 13. Qxc6 Rb8
+14. Nf4 Qxd4+ 15. Kh1 Bd6 16. Nxg6 hxg6 17. Nb5 Qe5 18. Nxd6 Qxd6 19. Qxd6
+cxd6 20. b3 g5 21. Ba3 Rfd8 22. Rfd1 Rb6 23. Bc5 Ra6 24. e5 Nd7 25. exd6
+Nxc5 26. d7 Rxd7 27. Rxd7 Nxd7 28. Rd1 Nc5 29. Rd8+ Kh7 30. g4 Rxa2 31. Rc8
+Nxb3 32. Rc3 Nd4 33. Rc7 Kg6 34. Rd7 Nxf3 35. Rd3 Rxh2#
+{White checkmated} 0-1
+

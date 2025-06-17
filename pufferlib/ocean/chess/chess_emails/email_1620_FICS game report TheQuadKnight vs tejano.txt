@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs tejano
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.03"]
+[Time "15:52:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "tejano"]
+[WhiteElo "1394"]
+[BlackElo "1486"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 c6 3. Nc3 d5 4. Bg5 Bf5 5. Nf3 e6 6. e3 h6 7. Bxf6 Qxf6
+8. Bd3 Bxd3 9. Qxd3 Nd7 10. cxd5 exd5 11. O-O Bd6 12. Rae1 O-O 13. e4 dxe4
+14. Nxe4 Qg6 15. Nh4 Qg4 16. Nxd6 Qxh4 17. Nxb7 Rab8 18. Nc5 Nxc5 19. dxc5
+Rxb2 20. Re4 Qg5 21. Rfe1 Qxc5 22. Re8 Qxf2+ 23. Kh1 Qxg2#
+{White checkmated} 0-1
+

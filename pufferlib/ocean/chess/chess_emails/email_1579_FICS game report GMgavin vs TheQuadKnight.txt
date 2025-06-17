@@ -1,0 +1,26 @@
+Subject: FICS game report GMgavin vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.05"]
+[Time "18:43:11"]
+[Round "-"]
+[White "GMgavin"]
+[Black "TheQuadKnight"]
+[WhiteElo "1638"]
+[BlackElo "1413"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Bc4 Nf6 3. d3 Bc5 4. Nc3 d6 5. f4 exf4 6. Bxf4 O-O 7. Nf3 Nc6
+8. Qd2 Na5 9. Bb3 Nxb3 10. axb3 c6 11. Be3 Qb6 12. Bxc5 Qxc5 13. Qf2 Qxf2+
+14. Kxf2 Ng4+ 15. Ke2 f5 16. h3 fxe4 17. hxg4 exf3+ 18. gxf3 d5 19. Rh3
+Bd7 20. Kd2 a6 21. Rah1 h6 22. Rg3 b5 23. g5 hxg5 24. Rxg5 Rxf3 25. b4 a5
+26. bxa5 Rxa5 27. Ne2 Rf2 28. Ke3 Rf8 29. Rhg1 Rf7 30. Ng3 Ra2 31. Rb1 Re7+
+32. Kd2 Be6 33. Nh5 Kf8 34. Rf1+ Ke8 35. Nxg7+ Kd7 36. Nh5 Rxb2 37. Rf8
+c5 38. Nf6+ Kc6 39. Ra8 c4 40. d4 b4 41. Ra6+ Kb5 42. Ra8 b3 43. Rb8+ Kc6
+44. Kc3 Rxc2+ 45. Kb4 Rb7+ 46. Rxb7 Kxb7 47. Nxd5 Bxd5 48. Rxd5 b2
+{White forfeits on time} 0-1
+

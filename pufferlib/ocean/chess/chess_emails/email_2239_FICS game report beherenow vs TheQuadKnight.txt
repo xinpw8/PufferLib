@@ -1,0 +1,27 @@
+Subject: FICS game report beherenow vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "14:37:13"]
+[Round "-"]
+[White "beherenow"]
+[Black "TheQuadKnight"]
+[WhiteElo "1539"]
+[BlackElo "1376"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 e6 2. Nc3 c6 3. d3 d5 4. Nf3 Nf6 5. Bf4 Bb4 6. a3 Bxc3+ 7. bxc3 dxc4
+8. d4 Nd5 9. Bd2 O-O 10. e4 Nb6 11. a4 a5 12. Be2 Bd7 13. O-O Qe7 14. Ne5
+Be8 15. Nxc4 N8d7 16. f4 Nxc4 17. Bxc4 Nf6 18. Bd3 c5 19. g4 Qd8 20. Be3
+Qb6 21. Rb1 Qc6 22. g5 Nxe4 23. Qf3 Nxc3 24. Qxc6 Bxc6 25. Rbc1 cxd4 26. Bxd4
+Nd5 27. Bb5 Rac8 28. Be5 Bxb5 29. axb5 f6 30. Bd6 Rfd8 31. Ba3 Nxf4 32. Rxf4
+Rxc1+ 33. Bxc1 fxg5 34. Rc4 h6 35. b6 a4 36. Ba3 Rd3 37. Rxa4 Rd1+ 38. Kg2
+Ra1 39. Ra7 Kh7 40. Bd6 Rd1 41. Bg3 Rd7 42. Bc7 e5 43. Bxe5 h5 44. Bc7 g4
+45. Rxb7 h4 46. Ra7 h3+ 47. Kg3 Rd3+ 48. Kxg4 Rb3 49. b7 Rb4+ 50. Bf4 Rxf4+
+51. Kxf4
+{Black forfeits on time} 1-0
+

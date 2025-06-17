@@ -1,0 +1,24 @@
+Subject: FICS game report eggert vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "17:51:58"]
+[Round "-"]
+[White "eggert"]
+[Black "TheQuadKnight"]
+[WhiteElo "1484"]
+[BlackElo "1406"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. O-O Bc5 5. Re1 O-O 6. c3 Re8 7. h3 d5
+8. exd5 Na5 9. Bb5 c6 10. dxc6 bxc6 11. Ba4 Ba6 12. b4 e4 13. bxa5 exf3
+14. Bxc6 Rxe1+ 15. Qxe1 Rc8 16. Bxf3 Qd7 17. d4 Bd6 18. Bg5 Re8 19. Qd2
+Ne4 20. Bxe4 Rxe4 21. Be3 Qf5 22. a4 Bf4 23. Bxf4 Rxf4 24. f3 Qe6 25. Na3
+Rf6 26. Nb5 Qe7 27. Re1 Qd7 28. d5 h6 29. c4 Kf8 30. c5 Bxb5 31. c6 Bxc6
+32. Qb4+ Rd6 33. dxc6 Qxc6 34. Qb8+ Rd8 35. Qxd8+ Qe8 36. Qxe8#
+{Black checkmated} 1-0
+

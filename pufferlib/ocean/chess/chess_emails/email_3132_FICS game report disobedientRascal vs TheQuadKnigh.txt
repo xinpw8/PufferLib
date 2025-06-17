@@ -1,0 +1,21 @@
+Subject: FICS game report disobedientRascal vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.27"]
+[Time "15:27:14"]
+[Round "-"]
+[White "disobedientRascal"]
+[Black "TheQuadKnight"]
+[WhiteElo "1561"]
+[BlackElo "1338"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. c3 dxc3 4. Bc4 cxb2 5. Bxb2 Nc6 6. Qd5 Nh6 7. Bc1
+Bb4+ 8. Kf1 Qf6 9. Bxh6 gxh6 10. Ne2 Qxa1 11. Qxf7+ Kd8 12. g3 Qxb1+ 13. Kg2
+Qxe4+ 14. f3 Qg6 15. Qf4 d6 16. Nd4 Nxd4 17. Qxd4 Qc2+ 18. Kf1 Bh3+
+{White resigns} 0-1
+

@@ -1,0 +1,24 @@
+Subject: FICS game report miguelkarranza vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2012.02.22"]
+[Time "10:02:45"]
+[Round "-"]
+[White "miguelkarranza"]
+[Black "TheQuadKnight"]
+[WhiteElo "1370"]
+[BlackElo "1376"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. Nf3 d5 2. c4 dxc4 3. Qa4+ Bd7 4. Qxc4 Nc6 5. d3 Nf6 6. g3 e6 7. Bg2 Be7
+8. Bf4 O-O 9. Ne5 Nxe5 10. Bxe5 a6 11. Bxb7 Bb5 12. Qc1 Rb8 13. Bc6 Bxc6
+14. Qxc6 Bd6 15. Bxd6 cxd6 16. O-O Rxb2 17. Nc3 Nd5 18. Nxd5 exd5 19. Qxd5
+Qb6 20. e3 Rb8 21. d4 Rb1 22. a4 Rxa1 23. Rxa1 Qb2 24. Rf1 Qb4 25. a5 Rb5
+26. Qa8+ Rb8 27. Qxa6 h6 28. Qc6 Qxa5 29. Rc1 Qa8 30. d5 Qxc6 31. Rxc6 Rc8
+32. Rxc8+ Kh7 33. e4
+{Black resigns} 1-0
+

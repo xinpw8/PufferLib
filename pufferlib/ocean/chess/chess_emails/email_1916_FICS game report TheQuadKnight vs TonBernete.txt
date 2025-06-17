@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs TonBernete
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.26"]
+[Time "06:11:38"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TonBernete"]
+[WhiteElo "1381"]
+[BlackElo "1705"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 Nf6 2. c4 c5 3. e3 e6 4. Nc3 d5 5. cxd5 exd5 6. Nf3 Nc6 7. Bb5 Be7
+8. O-O O-O 9. Bd2 a6 10. Ba4 b5 11. Nxb5 axb5 12. Bxb5 Bd7 13. dxc5 Bxc5
+14. Rc1 Qb6 15. a4 Ne4 16. Nd4 Bxd4 17. exd4 Nxd2 18. Qxd2 Rfc8 19. Rfe1
+Be6 20. Qc3 Ne7 21. Qb3 Rxc1 22. Rxc1 Rc8 23. Rxc8+ Nxc8 24. f3 g6 25. g4
+Qxd4+ 26. Kg2 Nd6 27. Bc6 Qd2+ 28. Kg3 Qe1+ 29. Kh3 Nc4 30. Qb8+ Kg7 31. b4
+h5 32. b5 hxg4+ 33. fxg4 Qe3+ 34. Qg3 Qxg3+ 35. Kxg3 d4 36. Be4 Kf6 37. Bd3
+Na5 38. b6 Ke5 39. Ba6 Bd5 40. Kf2 Kf4 41. h3 Ke4 42. Bc8 d3 43. Bd7 Kd4
+44. Be8 Kc3 45. Bb5 d2 46. Be2 Kc2 47. Kf1 Bc4 48. Bxc4
+{Black forfeits on time} 1-0
+

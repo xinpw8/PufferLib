@@ -1,0 +1,22 @@
+Subject: FICS game report JBFelo vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.16"]
+[Time "18:21:58"]
+[Round "-"]
+[White "JBFelo"]
+[Black "TheQuadKnight"]
+[WhiteElo "1737"]
+[BlackElo "1264"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O a6 5. Ba4 Be7 6. Re1 b5 7. Bb3 O-O
+8. a4 Bb7 9. axb5 axb5 10. Rxa8 Qxa8 11. Na3 Bxa3 12. bxa3 b4 13. axb4 Nxb4
+14. Nxe5 Bxe4 15. f3 Bxc2 16. Bxc2 Re8 17. d4 Nxc2 18. Qxc2 d6 19. Nd3 Rxe1+
+20. Nxe1 Nd5 21. Qe4 Nf6 22. Qxa8+ Ne8 23. Qxe8#
+{Black checkmated} 1-0
+

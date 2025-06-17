@@ -1,0 +1,23 @@
+Subject: FICS game report jetix vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.13"]
+[Time "23:45:46"]
+[Round "-"]
+[White "jetix"]
+[Black "TheQuadKnight"]
+[WhiteElo "1658"]
+[BlackElo "1357"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. d3 a6 5. Bxc6 dxc6 6. Nxe5 Bd6 7. Nf3
+O-O 8. O-O Bg4 9. h3 Bh5 10. g4 Bg6 11. e5 Bxe5 12. Nxe5 Qd4 13. Nf3 Qd5
+14. Nc3 Qd6 15. Bg5 Nd5 16. Nxd5 Qxd5 17. Be3 Rfe8 18. Nd2 c5 19. Qf3 Qe5
+20. Nc4 Qe6 21. Qxb7 f5 22. f3 fxg4 23. hxg4 Qd7 24. Nb6 Rab8 25. Qxb8 Qxg4+
+26. fxg4 Rxb8 27. Nd5 Rxb2 28. Ne7+ Kh8 29. Rf8#
+{Black checkmated} 1-0
+

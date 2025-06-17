@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs carduelis
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.25"]
+[Time "15:40:51"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "carduelis"]
+[WhiteElo "1402"]
+[BlackElo "1108"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 c6 4. e3 e6 5. a4 Bb4 6. Bxc4 Bxc3+ 7. bxc3 Nf6
+8. Nf3 O-O 9. O-O a6 10. Ba3 Re8 11. Bc5 b5 12. axb5 cxb5 13. Bxb5 Nfd7
+14. Bxd7 Qxd7 15. c4 Bb7 16. Ne5 Qd8 17. Qg4 Qf6 18. f4 Nc6 19. Qg3 Qf5
+20. d5 exd5 21. cxd5 Nxe5 22. fxe5 Qxe5 23. Qxe5 Rxe5 24. e4 Rae8 25. Rab1
+Bc8 26. Rb8 Rxe4 27. d6 Re1 28. Rxe1
+{Black forfeits on time} 1-0
+

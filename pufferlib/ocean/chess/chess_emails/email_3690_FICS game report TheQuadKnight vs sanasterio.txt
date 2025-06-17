@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs sanasterio
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.04.17"]
+[Time "14:43:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sanasterio"]
+[WhiteElo "1319"]
+[BlackElo "1499"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c5 2. e3 cxd4 3. exd4 Nf6 4. c4 Ne4 5. Bd3 Qa5+ 6. Bd2 Nxd2 7. Nxd2
+g6 8. Nf3 Bg7 9. O-O d6 10. Nb3 Qc7 11. Rc1 Bg4 12. Be4 O-O 13. c5 Nc6 14. d5
+Ne5 15. cxd6 Qxd6 16. Nbd4 Rac8 17. h3 Bxf3 18. Nxf3 Nxf3+ 19. Bxf3 Rfd8
+20. Rxc8 Rxc8 21. Qd2 b6 22. Re1 Kf8 23. b3 Bc3 24. Qc2 Qd7 25. Rc1 Qc7
+26. Qd1 Qe5 27. Bg4 f5 28. Bf3 Rd8 29. Qd3 Bd4 30. Rc4 Bc5 31. b4 Bd6 32. a3
+Qa1+ 33. Qf1 Qxa3 34. g4 Qxf3 35. gxf5 Qxf5 36. f3 Qg5+ 37. Kf2 Qg3+
+{White forfeits on time} 0-1
+

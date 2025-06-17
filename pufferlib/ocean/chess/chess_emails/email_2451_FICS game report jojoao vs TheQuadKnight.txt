@@ -1,0 +1,22 @@
+Subject: FICS game report jojoao vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.12"]
+[Time "16:54:09"]
+[Round "-"]
+[White "jojoao"]
+[Black "TheQuadKnight"]
+[WhiteElo "1515"]
+[BlackElo "1307"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qa4 Nf6 5. c3 Bc5 6. Bg5 O-O 7. Bd3 Re8
+8. Nf3 h6 9. Bh4 g5 10. Bg3 Nxe4 11. Bxe4 f5 12. O-O Rxe4 13. h3 Rxa4 14. Nbd2
+d6 15. Nb3 Bb6 16. Rad1 g4 17. Nfd2 f4 18. Bxf4 Rxf4 19. c4 gxh3 20. g3
+Qg5 21. Kh2 Rf8 22. f4 Qg4 23. Nf3 h5 24. Ng5 Qe2+ 25. Kh1 Qg2#
+{White checkmated} 0-1
+

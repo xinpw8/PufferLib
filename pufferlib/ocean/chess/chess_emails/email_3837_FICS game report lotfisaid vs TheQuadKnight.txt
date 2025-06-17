@@ -1,0 +1,26 @@
+Subject: FICS game report lotfisaid vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.26"]
+[Time "11:42:27"]
+[Round "-"]
+[White "lotfisaid"]
+[Black "TheQuadKnight"]
+[WhiteElo "1525"]
+[BlackElo "1377"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bf4 Nbd7 5. e3 Bd6 6. Bg3 Bxg3 7. hxg3 Ne4
+8. Bd3 Nxc3 9. bxc3 dxc4 10. Bxc4 Nf6 11. Ne2 Nd5 12. Qb3 c6 13. Nf4 O-O
+14. Bd3 b5 15. Bxh7+ Kh8 16. Bd3+ Kg8 17. Ke2 Nf6 18. Rh2 Re8 19. Rah1 Kf8
+20. Rh8+ Ke7 21. R8h2 Kd7 22. Rc1 Qe7 23. Kf1 Bb7 24. f3 Rab8 25. e4 e5
+26. Ne2 g6 27. Qc2 a5 28. Kf2 a4 29. c4 Rbc8 30. Rhh1 c5 31. d5 Qd6 32. cxb5
+Qb6 33. Qxa4 c4+ 34. Kf1 cxd3 35. Nc3 d2 36. Rd1 Rxc3 37. Qb4 Rc1 38. Qxd2
+Rxd1+ 39. Qxd1 Qxb5+ 40. Kf2 Ba6 41. g4 Qb2+ 42. Kg3 Qxa2 43. Qc1 Qa4 44. Qg5
+Ke7 45. Rc1 Rd8 46. Rc7+ Rd7 47. d6+ Ke6 48. Rxd7 Qxd7 49. f4 Qxd6 50. f5+
+{Black forfeits on time} 1-0
+

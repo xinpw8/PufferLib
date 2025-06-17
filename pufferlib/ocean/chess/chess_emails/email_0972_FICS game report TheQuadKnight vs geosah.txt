@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs geosah
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.05"]
+[Time "08:52:28"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "geosah"]
+[WhiteElo "1414"]
+[BlackElo "1438"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e5 3. dxe5 Ng4 4. Nf3 Nc6 5. e3 Ngxe5 6. Nxe5 Nxe5 7. Nc3
+Be7 8. Nd5 d6 9. c5 dxc5 10. Nxe7 Qxe7 11. Be2 O-O 12. O-O b6 13. f4 Ng6
+14. Bf3 Rb8 15. Bd2 Bb7 16. Rc1 Bxf3 17. Qxf3 Rfe8 18. Rce1 Qe4 19. Qf2
+Ne7 20. Bc3 Nd5 21. Be5 f6 22. Bc3 Re6 23. Qg3 Rbe8 24. f5 R6e7 25. a3 Nxc3
+26. bxc3 Qd3 27. Rf3 Qxc3 28. e4 Qc4 29. Qg4 Rxe4 30. Rxe4 Qxe4 31. Qxe4
+Rxe4 32. Rd3 Rd4 33. Re3 Kf7 34. Kf2 b5 35. Kf3 c4 36. g4 Rd3 37. Rxd3 cxd3
+38. Ke3 Ke7 39. Kxd3 Kd6 40. Kd4 c5+ 41. Kd3 Kd5 42. h4 c4+ 43. Kc3 a5 44. g5
+fxg5 45. hxg5 b4+ 46. axb4 axb4+ 47. Kxb4 Ke5 48. Kxc4 Kxf5 49. g6 Kxg6
+50. Kd4 h5 51. Ke3 Kg5 52. Kf3 Kf5 53. Kg3 g5 54. Kh3 Kf4 55. Kh2 g4 56. Kg2
+h4 57. Kh2 Kf3 58. Kh1 g3 59. Kg1 h3 60. Kh1 g2+ 61. Kg1 h2+ 62. Kxh2 Kf2
+63. Kh3 g1=Q 64. Kh4 Kf3 65. Kh5 Kf4 66. Kh6 Kf5 67. Kh7 Kf6 68. Kh8 Qg7#
+{White checkmated} 0-1
+

@@ -1,0 +1,26 @@
+Subject: FICS game report DIABLOD vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2014.05.21"]
+[Time "17:21:48"]
+[Round "-"]
+[White "DIABLOD"]
+[Black "TheQuadKnight"]
+[WhiteElo "1265"]
+[BlackElo "1400"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 c5 3. Bf4 Nc6 4. e3 Nf6 5. Bb5 Bd7 6. dxc5 e6 7. O-O Bxc5
+8. c3 O-O 9. b4 Be7 10. Bxc6 bxc6 11. Be5 a5 12. Qd3 axb4 13. cxb4 Ne4 14. a3
+c5 15. bxc5 Bxc5 16. Nc3 Nxc3 17. Qxc3 f6 18. Bxf6 Qxf6 19. Qxc5 Rac8 20. Qd6
+Rfd8 21. Qe5 Qf7 22. Ng5 Qg6 23. f4 h6 24. Nf3 Bb5 25. Rfe1 Bd3 26. Nd4
+Be4 27. Qxe6+ Qxe6 28. Nxe6 Re8 29. Nd4 Rc3 30. a4 Bd3 31. a5 Bc4 32. a6
+Ra8 33. a7 Kf7 34. Reb1 Rxe3 35. Rb7+ Kf6 36. Rb8 Re8 37. Rxe8 Rxe8 38. a8=Q
+Rxa8 39. Rxa8 g5 40. fxg5+ hxg5 41. Ra1 Ke5 42. Nf3+ Kf5 43. Re1 Bb3 44. Nd4+
+Kf4 45. Nxb3 g4 46. g3+ Kf3 47. Nd2#
+{Black checkmated} 1-0
+

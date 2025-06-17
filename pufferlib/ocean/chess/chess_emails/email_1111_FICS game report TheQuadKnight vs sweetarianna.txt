@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs sweetarianna
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.17"]
+[Time "09:45:05"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "sweetarianna"]
+[WhiteElo "1413"]
+[BlackElo "1649"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 c6 4. Bf4 dxc4 5. e3 b5 6. a3 Nf6 7. Be2 Nd5 8. Bg3
+Nxc3 9. bxc3 Bb7 10. Bf3 Nd7 11. Ne2 Nf6 12. O-O Be7 13. Re1 O-O 14. Qc2
+Qd7 15. Nf4 Nd5 16. Be4 f5 17. Bf3 Bg5 18. Nh3 Be7 19. Be5 Bd6 20. Bxd6
+Qxd6 21. Ng5 h6 22. Bxd5 cxd5 23. Nf3 Rad8 24. Ne5 Rf6 25. Qe2 Bc8 26. Qh5
+Kh7 27. Nf7 Qf8 28. Nxd8 Qxd8 29. Qh4 Qe7 30. f3 Qf7 31. e4 fxe4 32. fxe4
+Rf4 33. Qg3 Bb7 34. Rf1 Rxf1+ 35. Rxf1 Qg6 36. e5 Qxg3 37. hxg3 Kg6 38. Kh2
+a5 39. Rb1 Bc6 40. Kh3 Kg5 41. Rf1 h5 42. Rf7 Kg6 43. Rc7 Be8 44. Re7 Bf7
+45. Kh4 b4 46. axb4 axb4 47. cxb4 Bg8 48. b5 Kh6 49. b6 g5+ 50. Kh3 g4+
+51. Kh4 Bh7 52. b7
+{Black forfeits on time} 1-0
+

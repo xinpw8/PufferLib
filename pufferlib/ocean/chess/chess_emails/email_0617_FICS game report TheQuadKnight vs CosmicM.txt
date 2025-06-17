@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs CosmicM
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.12"]
+[Time "21:17:52"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CosmicM"]
+[WhiteElo "1336"]
+[BlackElo "1635"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. e4 e5 2. Nc3 Nc6 3. Nf3 Nf6 4. Bb5 Be7 5. d3 d6 6. Be3 Bd7 7. O-O a6
+8. Ba4 O-O 9. Rb1 Ng4 10. Qd2 Nxe3 11. Qxe3 f5 12. exf5 Bxf5 13. Nd5 Bg4
+14. Nd2 Nd4 15. Nxe7+ Qxe7 16. f3 Bd7 17. Bxd7 Qxd7 18. c3 Nf5 19. Qe4 Qf7
+20. Rbe1 Qg6 21. Qxb7 Nh4 22. Rf2 Rfb8 23. Qe4 Qg5 24. Qg4 Qf6 25. g3 Ng6
+26. Qe4 Ra7 27. b3 c5 28. Qd5+ Kh8 29. Ne4 Qf8 30. Nxd6 Rd8 31. Qxc5 Rad7
+32. Ne4 Rxd3 33. Ref1 Qxc5 34. Nxc5 Rxc3 35. Ne6 Rdc8 36. f4 exf4 37. gxf4
+h6 38. f5 Ne5 39. f6 gxf6 40. Rxf6 Ng4 41. Rf8+ Rxf8 42. Rxf8+ Kh7 43. Rf7+
+Kg6 44. Rg7+ Kf5 45. Nd4+ Kf4 46. Ne2+ Kf3 47. Nxc3 h5 48. Rf7+ Ke3 49. h3
+Kd3 50. hxg4 Kxc3 51. gxh5 Kb2 52. h6 Kxa2 53. h7 Kxb3 54. h8=Q a5 55. Qe5
+a4 56. Rd7 a3 57. Qc5 Ka2 58. Rb7 Ka1 59. Qc1+ Ka2 60. Rb8
+{Game drawn by stalemate} 1/2-1/2
+

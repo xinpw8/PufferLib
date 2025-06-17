@@ -1,0 +1,28 @@
+Subject: FICS game report kohttp vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.06"]
+[Time "09:48:45"]
+[Round "-"]
+[White "kohttp"]
+[Black "TheQuadKnight"]
+[WhiteElo "1492"]
+[BlackElo "1341"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 d6 6. Bc4 Nf6 7. O-O
+Be7 8. Re1 O-O 9. Nc3 Re8 10. e5 c5 11. Qf4 dxe5 12. Rxe5 Kf8 13. Be3 Bd6
+14. Rxe8+ Kxe8 15. Bb5+ Kf8 16. Qf3 a6 17. Bd3 Qc7 18. h3 Rb8 19. Ne4 Nd5
+20. Nxd6 Qxd6 21. Bxh7 Nxe3 22. Qxe3 b5 23. Re1 Bb7 24. Be4 Re8 25. Qf3
+Qd2 26. Re2 Qd1+ 27. Kh2 Bxe4 28. Rxe4 Qd6+ 29. g3 Rxe4 30. Qxe4 Qd2 31. Qa8+
+Ke7 32. Qb7+ Kf8 33. Qc8+ Ke7 34. Qxc5+ Kf6 35. Qb6+ Ke5 36. Qe3+ Qxe3 37. fxe3
+Ke4 38. g4 Kxe3 39. Kg3 Kd2 40. a4 Kxc2 41. axb5 axb5 42. b4 Kb3 43. h4
+Kxb4 44. h5 Kc4 45. g5 b4 46. h6 gxh6 47. gxh6 b3 48. h7 b2 49. h8=Q b1=Q
+50. Qc8+ Kd3 51. Qd7+ Ke2 52. Qe7+ Kd2 53. Qg5+ Kd1 54. Qd5+ Kc1 55. Qxf7
+Qc2 56. Qf1+ Qd1 57. Qc4+
+{Black forfeits on time} 1-0
+

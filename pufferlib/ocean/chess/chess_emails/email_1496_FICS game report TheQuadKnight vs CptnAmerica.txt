@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs CptnAmerica
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.12"]
+[Time "21:20:00"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "CptnAmerica"]
+[WhiteElo "1403"]
+[BlackElo "1547"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 Bb4 6. Be3 Bxc3+ 7. bxc3
+Nxe4 8. Bd3 Nf6 9. O-O d6 10. Qf3 O-O 11. Bg5 Nbd7 12. Bf4 e5 13. Nf5 exf4
+14. Nxd6 Qc7 15. Ne4 Nxe4 16. Bxe4 Nf6 17. Bd3 Bg4
+{White resigns} 0-1
+

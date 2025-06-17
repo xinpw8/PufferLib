@@ -1,0 +1,21 @@
+Subject: FICS game report TheQuadKnight vs TonyMac
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.27"]
+[Time "09:11:06"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TonyMac"]
+[WhiteElo "1403"]
+[BlackElo "1739"]
+[TimeControl "600+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Nf3 c5 5. e3 Nc6 6. Bd2 d5 7. cxd5 exd5
+8. dxc5 Bxc5 9. Bb5 O-O 10. O-O a6 11. Ba4 Bg4 12. h3 Bh5 13. Rc1 Qd6 14. Bb3
+d4 15. exd4 Nxd4 16. g4 Nxg4 17. Nxd4 Qh2#
+{White checkmated} 0-1
+

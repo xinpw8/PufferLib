@@ -1,0 +1,19 @@
+Subject: FICS game report TheQuadKnight vs jvarandas
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.08"]
+[Time "09:08:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jvarandas"]
+[WhiteElo "1369"]
+[BlackElo "1549"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 g6
+{Black forfeits by disconnection} 1-0
+

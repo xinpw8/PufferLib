@@ -1,0 +1,23 @@
+Subject: FICS game report klawrence vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.30"]
+[Time "09:52:28"]
+[Round "-"]
+[White "klawrence"]
+[Black "TheQuadKnight"]
+[WhiteElo "1375"]
+[BlackElo "1390"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. d3 a6 5. Ba4 b5 6. Bb3 Na5 7. a3 Nxb3
+8. cxb3 d6 9. h3 Be7 10. O-O O-O 11. Nh2 c6 12. f4 Re8 13. f5 d5 14. Qf3
+dxe4 15. dxe4 Bc5+ 16. Kh1 Qd4 17. b4 Ba7 18. Ng4 Nxe4 19. Nc3 Nxc3 20. bxc3
+Qc4 21. f6 e4 22. Qg3 Bb8 23. Ne5 Qxf1+ 24. Kh2 Bxe5 25. Qxe5 Rxe5 26. fxg7
+e3 27. Bb2 e2
+{White resigns} 0-1
+

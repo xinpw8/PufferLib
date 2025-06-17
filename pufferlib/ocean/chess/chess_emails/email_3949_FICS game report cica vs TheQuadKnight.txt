@@ -1,0 +1,26 @@
+Subject: FICS game report cica vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "16:39:33"]
+[Round "-"]
+[White "cica"]
+[Black "TheQuadKnight"]
+[WhiteElo "1844"]
+[BlackElo "1422"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 e5 2. Nc3 g6 3. g3 Bg7 4. Bg2 Nf6 5. e3 c6 6. Nge2 d6 7. O-O O-O 8. b3
+Bg4 9. h3 Bh5 10. Bb2 Bxe2 11. Nxe2 d5 12. cxd5 Nxd5 13. d4 Nb6 14. dxe5
+Qxd1 15. Rfxd1 N8d7 16. f4 Rfe8 17. Kf2 f6 18. exf6 Bxf6 19. Bxf6 Nxf6 20. Nc3
+Nfd5 21. Nxd5 Nxd5 22. Bxd5+ cxd5 23. Rxd5 Re7 24. Rad1 Rae8 25. R1d3 b6
+26. Rd7 Rxd7 27. Rxd7 a5 28. Rb7 Re6 29. Kf3 Rc6 30. g4 Kf8 31. Rxh7 Rc2
+32. Rb7 Rc6 33. h4 Ke8 34. h5 gxh5 35. gxh5 Kd8 36. e4 Rh6 37. Kg4 Kc8 38. Rg7
+b5 39. Kg5 Rh8 40. h6 Rd8 41. h7 a4 42. Rg8 axb3 43. Rxd8+ Kxd8 44. h8=Q+
+Kc7 45. axb3
+{Black resigns} 1-0
+

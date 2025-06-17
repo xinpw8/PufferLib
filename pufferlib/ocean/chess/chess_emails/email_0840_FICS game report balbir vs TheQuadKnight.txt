@@ -1,0 +1,24 @@
+Subject: FICS game report balbir vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.20"]
+[Time "10:17:12"]
+[Round "-"]
+[White "balbir"]
+[Black "TheQuadKnight"]
+[WhiteElo "1470"]
+[BlackElo "1392"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. e3 e6 3. Bd3 Nf6 4. Nf3 c5 5. O-O cxd4 6. exd4 Bd6 7. c3 O-O
+8. Bg5 Nbd7 9. Bh4 h6 10. Re1 g5 11. Nxg5 hxg5 12. Bxg5 Kg7 13. Qf3 Rg8
+14. Nd2 Kf8 15. h4 Ke8 16. c4 dxc4 17. Nxc4 Be7 18. Ne5 Nd5 19. Bxe7 Qxe7
+20. Bb5 Nf6 21. Rad1 a6 22. Ba4 b5 23. Qxa8 bxa4 24. Qxc8+ Qd8 25. Qxa6
+Nd5 26. Qxa4 Nb6 27. Qb5 Qa8 28. g3 Ke7 29. Nxd7 Nxd7 30. d5 Nf6 31. d6+
+Kd8 32. Qb6+ Kc8 33. Qc7#
+{Black checkmated} 1-0
+

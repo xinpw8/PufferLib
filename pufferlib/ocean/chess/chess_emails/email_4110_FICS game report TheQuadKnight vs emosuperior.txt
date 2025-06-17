@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs emosuperior
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.17"]
+[Time "09:02:31"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "emosuperior"]
+[WhiteElo "1402"]
+[BlackElo "1439"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 c5 2. Nf3 cxd4 3. Nxd4 Nf6 4. Nc3 e5 5. Nf3 Nc6 6. e4 d6 7. Bg5 Be7
+8. Bb5 Bd7 9. Nd5 O-O 10. Bxf6 Bxf6 11. Nxf6+ Qxf6 12. O-O a6 13. Ba4 b5
+14. Bb3 Rac8 15. Qd2 Bg4 16. Ne1 Nd4 17. f3 Nxb3 18. axb3 Bh5 19. Rxa6 Rfd8
+20. g4 Bg6 21. Ng2 h5 22. h4 hxg4 23. fxg4 Qe6 24. h5 Bxe4 25. Ne3 Rc6 26. Ra5
+d5 27. Rxb5 d4 28. Nc4 Qxg4+ 29. Kf2 Qh4+ 30. Ke2 Qxh5+ 31. Ke1 f6 32. Qf2
+Qh6 33. Ke2 Bxc2 34. Rg1 Bxb3 35. Nxe5 Rc2+ 36. Kf3 Rxf2+ 37. Kxf2 fxe5
+38. Rxb3 Qf4+ 39. Rf3 Qd2+ 40. Kg3 e4 41. Rf2 Qg5+ 42. Kh2 Qh4+ 43. Kg2
+e3 44. Rff1 Rd5 45. Rh1 Rg5+ 46. Kf3 Qg3+ 47. Ke2 Qg2+ 48. Kd3 Qd2+ 49. Ke4
+e2 50. Rfg1 Qe3#
+{White checkmated} 0-1
+

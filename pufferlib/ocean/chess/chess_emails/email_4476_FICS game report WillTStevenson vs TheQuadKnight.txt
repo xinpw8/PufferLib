@@ -1,0 +1,27 @@
+Subject: FICS game report WillTStevenson vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.04"]
+[Time "10:58:55"]
+[Round "-"]
+[White "WillTStevenson"]
+[Black "TheQuadKnight"]
+[WhiteElo "1857"]
+[BlackElo "1275"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O d6 5. d4 Bd7 6. dxe5 Nxe4 7. exd6
+Nxd6 8. Re1+ Be7 9. Bxc6 Bxc6 10. Qe2 Nc8 11. Bg5 f6 12. Bf4 O-O 13. Qe6+
+Kh8 14. Nc3 Bd7 15. Qb3 Bd6 16. Bxd6 Nxd6 17. Rad1 Re8 18. Nd4 Nf5 19. Nxf5
+Rxe1+ 20. Rxe1 Bxf5 21. Qxb7 Rb8 22. Qc6 Bd7 23. Qd5 Rxb2 24. Rd1 Rxc2 25. Qxd7
+Qxd7 26. Rxd7 h6 27. Rd3 c5 28. h3 c4 29. Re3 Rd2 30. Re4 g5 31. Rxc4 Rc2
+32. Rc8+ Kg7 33. Rc7+ Kg6 34. a4 a5 35. f3 Kf5 36. Nb5 Rxc7 37. Nxc7 Ke5
+38. Kf2 Kd4 39. Ne8 Kd5 40. Nxf6+ Kc5 41. Ke3 Kb4 42. Kd2 Kxa4 43. Kc2 Kb4
+44. Kb2 a4 45. Ng8 a3+ 46. Ka2 h5 47. Nf6 g4 48. Nxh5 gxf3 49. gxf3 Kc4
+50. f4 Kd4 51. f5 Ke4 52. f6 Kf5 53. f7 Kg5 54. f8=Q Kxh5 55. Qf4
+{Black forfeits on time} 1-0
+

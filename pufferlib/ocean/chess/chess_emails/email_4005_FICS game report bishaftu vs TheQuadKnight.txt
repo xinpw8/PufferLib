@@ -1,0 +1,27 @@
+Subject: FICS game report bishaftu vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.21"]
+[Time "16:23:27"]
+[Round "-"]
+[White "bishaftu"]
+[Black "TheQuadKnight"]
+[WhiteElo "1591"]
+[BlackElo "1332"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 d6 4. d4 Bd7 5. Bxc6 Bxc6 6. Nc3 Nf6 7. Bg5 Be7
+8. Qd3 Ng4 9. Bxe7 Qxe7 10. h3 Nf6 11. O-O-O Rd8 12. d5 Bd7 13. Nb5 Bxb5
+14. Qxb5+ Nd7 15. Qxb7 Nc5 16. Qc6+ Qd7 17. Qxd7+ Rxd7 18. Rhe1 O-O 19. b3
+Rc8 20. Kb2 a5 21. a3 h6 22. Nd2 Rb8 23. Nc4 a4 24. b4 Na6 25. Na5 f6 26. Nc6
+Rb6 27. c4 Nb8 28. Nxb8 Rxb8 29. Rc1 Rdd8 30. c5 Rdc8 31. Rc4 Rb5 32. Rec1
+Ra8 33. cxd6 cxd6 34. Rc7 Kh7 35. R1c6 Rd8 36. Ra7 Rbb8 37. Rcc7 Rg8 38. Rxa4
+Rbc8 39. Raa7 Rxc7 40. Rxc7 Rb8 41. Rc6 Kg6 42. Rxd6 Kg5 43. Rd7 g6 44. Kb3
+f5 45. exf5 gxf5 46. d6 e4 47. a4 f4 48. Re7 e3 49. fxe3 Rd8 50. exf4+ Kxf4
+51. d7 h5 52. Kc4 h4 53. Kc5 Kg3 54. Rg7+ Kh2 55. Kc6 Kg1 56. Kc7 Rh8
+{White forfeits on time} 0-1
+

@@ -1,0 +1,30 @@
+Subject: FICS game report shiftmate vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.05"]
+[Time "22:10:17"]
+[Round "-"]
+[White "shiftmate"]
+[Black "TheQuadKnight"]
+[WhiteElo "1384"]
+[BlackElo "1354"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. d3 Nf6 4. Be2 d5 5. Nc3 dxe4 6. dxe4 Qxd1+ 7. Bxd1
+Bb4 8. Bd2 Bg4 9. Nd5 Bxd2+ 10. Nxd2 Bxd1 11. Nxc7+ Kd7 12. Nxa8 Bh5 13. f3
+Rxa8 14. O-O-O Kc7 15. Nc4 Rd8 16. Rxd8 Kxd8 17. Rd1+ Kc7 18. h3 g5 19. g4
+Bg6 20. Nd6 h5 21. Nf5 hxg4 22. hxg4 Bxf5 23. exf5 Nd4 24. Rd3 b6 25. c3
+Ne2+ 26. Kd2 Nf4 27. Re3 Kd6 28. Re1 Kd5 29. Rd1 Kc4 30. Kc2 N6d5 31. b3+
+Kc5 32. Re1 Kd6 33. Re4 Nf6 34. Re1 Kd5 35. Rd1+ Kc5 36. Rd8 e4 37. Rc8+
+Kd6 38. fxe4 Nxe4 39. Rd8+ Kc6 40. Rc8+ Kd7 41. Rf8 f6 42. Rf7+ Kc6 43. Rxa7
+Nf2 44. c4 Nxg4 45. b4 Ne3+ 46. Kc3 Nxf5 47. b5+ Kc5 48. Rc7+ Kd6 49. Rc6+
+Ke5 50. Rxb6 g4 51. Rb8 g3 52. Rg8 g2 53. a4 Ne2+ 54. Kd2 g1=Q 55. Rxg1
+Nxg1 56. a5 Nf3+ 57. Kc3 Nd6 58. a6 Nc8 59. Kb4 Nb6 60. c5 Na8 61. b6 f5
+62. b7 Nd2 63. bxa8=Q f4 64. Qe8+ Kd4 65. Qh8+ Ke3 66. Qe8+ Kf2 67. Kc3
+f3 68. Kxd2 Kg2 69. Qg8+
+{Black forfeits on time} 1-0
+

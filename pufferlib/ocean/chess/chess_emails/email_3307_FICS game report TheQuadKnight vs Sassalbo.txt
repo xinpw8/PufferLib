@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Sassalbo
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.24"]
+[Time "17:14:42"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Sassalbo"]
+[WhiteElo "1424"]
+[BlackElo "1419"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5 5. Bg5 c6 6. e4 Be7 7. exd5 Nxd5
+8. Bxe7 Nxe7 9. Qf3 O-O 10. Nge2 Nd5 11. Nxd5 Qxd5 12. Qxd5 cxd5 13. Nc3
+Nc6 14. Rd1 Be6 15. Bb5 a6 16. Ba4 b5 17. Bb3 Na5 18. Bc2 Nc4 19. b3 Nd6
+20. O-O Rac8 21. Rd3 Bf5 22. Nxd5 Bxd3 23. Ne7+ Kh8 24. Nxc8 Nxc8 25. Bxd3
+Nd6 26. Rd1 Rd8 27. f3 Nb7 28. Be4 Nc5 29. d5 Ne6 30. Kf2 Ng5 31. h4 Nxe4+
+32. fxe4 f6 33. Kf3 Kg8 34. Kf4 Kf7 35. g4 h6 36. h5 g6 37. Rd4 gxh5 38. gxh5
+Rc8 39. Kf5 Rc2 40. a4 Rc3 41. axb5 axb5 42. b4 Rc4 43. Rd2 Rxb4 44. Ra2
+Ra4 45. Rc2 Rc4 46. Ra2 Ra4 47. Rc2 Rc4
+{Game drawn by mutual agreement} 1/2-1/2
+

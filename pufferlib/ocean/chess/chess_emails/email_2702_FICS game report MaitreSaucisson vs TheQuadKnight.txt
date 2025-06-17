@@ -1,0 +1,27 @@
+Subject: FICS game report MaitreSaucisson vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.04"]
+[Time "13:56:10"]
+[Round "-"]
+[White "MaitreSaucisson"]
+[Black "TheQuadKnight"]
+[WhiteElo "1579"]
+[BlackElo "1388"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nc6 3. d3 a6 4. a4 Na5 5. Ba2 c6 6. Nf3 b5 7. Nxe5 Nh6 8. Bxh6
+gxh6 9. Nxf7 Qf6 10. Nxh8 Bc5 11. Bf7+ Ke7 12. O-O Qxh8 13. Bh5 Qxb2 14. Nd2
+Bd6 15. axb5 Qe5 16. f4 Qg7 17. Rxa5 cxb5 18. c4 Bc5+ 19. Kh1 d6 20. cxb5
+Bb7 21. bxa6 Bxa6 22. Nf3 Rg8 23. Nh4 Bc8 24. Qe2 Bb6 25. Rb5 Bd8 26. f5
+Qg5 27. f6+ Kf8 28. Rxg5 Rxg5 29. Nf5 Be6 30. Nxd6 Bc7 31. e5 Bd5 32. Bf3
+Be6 33. Ne4 Rg8 34. d4 h5 35. Bxh5 Bf7 36. Bxf7 Kxf7 37. Qh5+ Kf8 38. f7
+Rg7 39. Nc5 Bb6 40. Ne6+ Ke7 41. Nxg7 Kd7 42. f8=Q Kc7 43. Qd6+ Kb7 44. Qf7+
+Ka6 45. Ra1+ Kb5 46. Qfd7+ Kc4 47. Q7c6+ Kd3 48. d5 Ke3 49. e6 Ke2 50. e7
+Bc5 51. e8=Q+
+{Black forfeits on time} 1-0
+

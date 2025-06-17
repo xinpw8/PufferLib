@@ -1,0 +1,23 @@
+Subject: FICS game report Silvermoon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.14"]
+[Time "06:46:28"]
+[Round "-"]
+[White "Silvermoon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1603"]
+[BlackElo "1344"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Nf3 e6 3. Bf4 Nf6 4. e3 Bd6 5. Ne5 O-O 6. Nd2 Nbd7 7. Ndf3 c5
+8. Nxf7 Rxf7 9. Bxd6 cxd4 10. exd4 Nb6 11. Be5 Nc4 12. Bxc4 dxc4 13. O-O
+Ng4 14. Qe2 Qd5 15. c3 b5 16. h3 Nxe5 17. Qxe5 Qd7 18. Rae1 Rf5 19. Qe2
+Rf6 20. Ne5 Qd6 21. Qe4 Rb8 22. Ng4 Rg6 23. Qe5 Qd7 24. Qxb8 h5 25. Ne5
+Kh7 26. Nxd7 Bxd7 27. Qxa7 Bc6 28. f3 e5 29. Rxe5
+{Black resigns} 1-0
+

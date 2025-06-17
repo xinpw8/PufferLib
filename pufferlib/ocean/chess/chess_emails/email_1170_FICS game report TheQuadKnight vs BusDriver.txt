@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs BusDriver
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.04"]
+[Time "18:18:53"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "BusDriver"]
+[WhiteElo "1440"]
+[BlackElo "1489"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 e6 3. Nf3 c6 4. Nc3 Nf6 5. Bg5 Nbd7 6. e3 g6 7. Bd3 Bg7 8. O-O
+O-O 9. b4 b6 10. a4 Ba6 11. cxd5 Bxd3 12. Qxd3 cxd5 13. Nb5 a6 14. Nc3 Qe7
+15. Rab1 Qd6 16. Bf4 Qc6 17. Rfc1 Qb7 18. Bg3 Rac8 19. Ne2 Ne4 20. Ne5 Nxg3
+21. Nxg3 Bxe5 22. dxe5 Nxe5 23. Qe2 Nc4 24. Rc2 Qd7 25. b5 axb5 26. Rxb5
+Ra8 27. Ra2 Rfc8 28. Qd1 Rc6 29. Rb4 Rac8 30. Rc2 Nxe3 31. fxe3 Rxc2 32. Ne2
+Qd6 33. Rb1 Qe5 34. Qd3 Qe4 35. Qxe4 dxe4 36. Nd4 Ra2 37. Nb5 Rcc2 38. Nd6
+Rxg2+ 39. Kf1 Raf2+ 40. Ke1 Rxh2 41. Kd1 Rf1#
+{White checkmated} 0-1
+

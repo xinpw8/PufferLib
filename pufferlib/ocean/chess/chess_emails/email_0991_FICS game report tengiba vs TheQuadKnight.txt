@@ -1,0 +1,28 @@
+Subject: FICS game report tengiba vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.04"]
+[Time "12:43:55"]
+[Round "-"]
+[White "tengiba"]
+[Black "TheQuadKnight"]
+[WhiteElo "1508"]
+[BlackElo "1430"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. c4 e5 2. g3 Nc6 3. Bg2 Nf6 4. e3 Be7 5. h3 d6 6. Ne2 Bf5 7. a3 O-O 8. Nbc3
+Na5 9. d3 c6 10. e4 Be6 11. O-O d5 12. exd5 cxd5 13. cxd5 Nxd5 14. Nxd5
+Bxd5 15. Bxd5 Qxd5 16. b4 Nc6 17. Nc3 Qd7 18. g4 Nd4 19. Ne4 Bh4 20. Be3
+f5 21. Nc5 Qc8 22. Bxd4 exd4 23. Qb3+ Kh8 24. Rac1 fxg4 25. Ne6 Qe8 26. Nxf8
+gxh3 27. Kh2 Qxf8 28. Qe6 Re8 29. Qxh3 g5 30. Rc7 Qf4+ 31. Kh1 Qxc7 32. Qf5
+Qg7 33. Rg1 Rf8 34. Qg4 b6 35. Rf1 Rxf2 36. Rxf2 Bxf2 37. Qc8+ Qg8 38. Qf5
+Qa8+ 39. Kh2 Be3 40. Qf6+ Kg8 41. Qe6+ Kg7 42. Qe5+ Kh6 43. Qf6+ Kh5 44. Qf7+
+Kg4 45. Qe6+ Kf3 46. Qh3+ Ke2 47. Qg2+ Kxd3 48. Qxa8 Kc3 49. Qxa7 d3 50. Qxh7
+Kc2 51. Qc7+ Kd2 52. Qc4 Ke2 53. Qg4+ Kd2 54. Qg2+ Kc3 55. Qe2 d2 56. Qd1
+Kd4 57. Kg2 Kd3 58. Kf3 Kd4 59. Ke2 Kd5 60. Kd3
+{Black forfeits on time} 1-0
+

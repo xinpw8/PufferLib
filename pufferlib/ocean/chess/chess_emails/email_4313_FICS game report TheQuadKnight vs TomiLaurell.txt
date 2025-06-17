@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs TomiLaurell
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.12"]
+[Time "16:33:19"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "TomiLaurell"]
+[WhiteElo "1336"]
+[BlackElo "1539"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 d6 3. Nc3 c6 4. d4 exd4 5. Nxd4 g6 6. Bf4 Bg7 7. Bc4 d5
+8. exd5 c5 9. Qe2+ Ne7 10. d6 Bxd4 11. dxe7 Qxe7 12. Qxe7+ Kxe7 13. Nd5+
+Kd7 14. O-O-O Nc6 15. Bb5 a6 16. Nf6+ Ke6 17. Bxc6 Kxf6 18. Bf3 Bxf2 19. Rhf1
+Bd4 20. Bd2 Kg7 21. Bd5 Rf8 22. h3 a5 23. Rf3 Ra6 24. Bc3 Bxc3 25. Rxc3
+b6 26. Bc4 Ra7 27. Rb3 Rb7 28. Bd5 Re7 29. Rf3 Be6 30. Bxe6 fxe6 31. Rxf8
+Kxf8 32. Rf1+ Rf7 33. Rxf7+ Kxf7 34. Kd2 Kf6 35. Ke3 Kf5 36. Kf3 e5 37. g4+
+Kg5 38. Ke4 Kf6 39. h4 h6 40. h5 gxh5 41. gxh5 Ke6 42. c3 b5 43. b3 a4 44. bxa4
+bxa4 45. a3 c4 46. Kf3 Kf5 47. Ke3 e4 48. Kd4 Kf4 49. Kxc4 e3 50. Kd3 Kf3
+51. c4 e2 52. c5 e1=Q 53. c6 Qd1+ 54. Kc4 Qc1+ 55. Kb5 Qxa3 56. Kb6 Qb4+
+57. Kc7 Qe7+ 58. Kb6 a3 59. c7 Qxc7+ 60. Kxc7 a2 61. Kd6 a1=Q 62. Ke6 Qa6+
+63. Ke5 Kg4 64. Kd4 Kxh5 65. Ke3 Kg5 66. Kf3 h5 67. Ke4 h4 68. Ke3 h3 69. Kd2
+h2 70. Kc3 h1=Q 71. Kd4 Qd6+ 72. Kc3 Qc1+ 73. Kb3 Qb6+ 74. Ka4 Qa1#
+{White checkmated} 0-1
+

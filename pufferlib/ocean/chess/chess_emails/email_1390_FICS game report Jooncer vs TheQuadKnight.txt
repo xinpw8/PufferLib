@@ -1,0 +1,22 @@
+Subject: FICS game report Jooncer vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.16"]
+[Time "11:01:58"]
+[Round "-"]
+[White "Jooncer"]
+[Black "TheQuadKnight"]
+[WhiteElo "1532"]
+[BlackElo "1478"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 Nf6 5. e5 Nd5 6. Qe4 Nb6 7. Be3 d5
+8. exd6+ Kd7 9. dxc7 Kxc7 10. Nd2 g6 11. O-O-O Bf5 12. Bf4+ Kc8 13. Qf3
+Bg7 14. Bb5 Qf6 15. c3 Ne5 16. Bxe5 Qxe5 17. Nc4 Qf6 18. Nd6+ Kc7 19. Qxb7+
+Kd8 20. Nxf5+
+{Black resigns} 1-0
+

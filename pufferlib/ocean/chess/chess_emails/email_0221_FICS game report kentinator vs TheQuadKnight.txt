@@ -1,0 +1,23 @@
+Subject: FICS game report kentinator vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.13"]
+[Time "08:49:11"]
+[Round "-"]
+[White "kentinator"]
+[Black "TheQuadKnight"]
+[WhiteElo "1425"]
+[BlackElo "1364"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 5. d4 exd4 6. e5 Ng8 7. Ng5 Nh6
+8. Qh5 Qe7 9. Nxf7 Nxf7 10. Bg5 Qxg5 11. Qxf7+ Kd8 12. Qd5 Qxe5 13. Qf3
+d6 14. Nd2 Be6 15. Rfe1 Qg5 16. Bxe6 Qxd2 17. Qf7 Ne7 18. Bh3 Qg5 19. f4
+Qf6 20. Qc4 Rf8 21. Kh1 Nc6 22. a3 a6 23. b4 Bb6 24. Re6 Qxf4 25. Rae1 Ne5
+26. Qd5 Qf1+ 27. Rxf1 Rxf1#
+{White checkmated} 0-1
+

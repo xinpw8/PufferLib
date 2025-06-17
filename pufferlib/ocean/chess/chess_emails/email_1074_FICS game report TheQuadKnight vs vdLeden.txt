@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs vdLeden
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.18"]
+[Time "07:11:08"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vdLeden"]
+[WhiteElo "1400"]
+[BlackElo "1475"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 f5 2. c4 Nf6 3. Nc3 e6 4. Qc2 Be7 5. e4 fxe4 6. Nxe4 O-O 7. Bd3 Nxe4
+8. Bxe4 Nc6 9. Bxh7+ Kh8 10. d5 Bh4 11. Nf3 Ne7 12. Nxh4 Nf5 13. Bxf5 exf5
+14. Ng6+ Kg8 15. Nxf8 Qe7+ 16. Ne6 dxe6 17. O-O exd5 18. Bf4 dxc4 19. Qxc4+
+Be6 20. Qxc7 Qh4 21. Bg3 Qd4 22. Qxb7 Bd5 23. Qc7 Qe4 24. f3 Qd4+ 25. Bf2
+Qxb2 26. Rad1 Qxa2 27. Bd4 Bf7 28. Qe5 Kf8 29. Qxg7+ Ke8 30. Rfe1+ Kd8 31. Bxa7+
+Kc7 32. Qe5+ Kb7 33. Qe7+ Ka6 34. Rd6+ Kb5 35. Qe5+ Kc4 36. Rd4+ Kb3 37. Qe3+
+{Black resigns} 1-0
+

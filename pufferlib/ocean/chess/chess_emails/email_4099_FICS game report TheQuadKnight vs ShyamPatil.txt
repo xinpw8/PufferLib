@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs ShyamPatil
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.17"]
+[Time "18:17:41"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ShyamPatil"]
+[WhiteElo "1360"]
+[BlackElo "1463"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 dxc4 4. e3 e6 5. Bxc4 Bb4 6. Nf3 O-O 7. Bd2 c6
+8. O-O Nbd7 9. Qc2 a5 10. Ne4 Be7 11. Neg5 h6 12. Ne4 b5 13. Nxf6+ Nxf6
+14. Bd3 Bb7 15. Ne5 Rc8 16. Rac1 c5 17. dxc5 Rxc5 18. Qd1 Rxe5 19. Bc3 Rg5
+20. f4 Rxg2+ 21. Kh1 Rd2+ 22. Kg1 Rxd1 23. Rcxd1 Bc5 24. Bh7+ Nxh7 25. Rxd8
+Rxd8 26. Kf2 Nf6 27. Rg1 Nd5 28. Rxg7+ Kf8 29. Be5 Bxe3+ 30. Kf3 Bxf4 31. Bc7
+Bxc7 32. Rh7 Bf4 33. h4 e5 34. h5 Kg8 35. Rxf7
+{White resigns} 0-1
+

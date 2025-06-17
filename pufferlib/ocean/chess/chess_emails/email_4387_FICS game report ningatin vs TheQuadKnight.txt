@@ -1,0 +1,22 @@
+Subject: FICS game report ningatin vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.09"]
+[Time "18:25:25"]
+[Round "-"]
+[White "ningatin"]
+[Black "TheQuadKnight"]
+[WhiteElo "1508"]
+[BlackElo "1372"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. Bg5 c5 3. Nc3 Nc6 4. Nf3 Bg4 5. dxc5 Bxf3 6. exf3 Qa5 7. Qxd5
+Rd8 8. Qe4 f6 9. Be3 Nb4 10. Bb5+ Kf7 11. Bc4+ Ke8 12. Bb3 Nh6 13. O-O Nf7
+14. Rfd1 Ne5 15. Rxd8+ Kxd8 16. Rd1+ Ke8 17. Qxb7 Nbc6 18. Qc8+ Nd8 19. f4
+Nc6 20. Qd7#
+{Black checkmated} 1-0
+

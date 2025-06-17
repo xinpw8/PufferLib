@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs lelev
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.19"]
+[Time "09:28:27"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "lelev"]
+[WhiteElo "1325"]
+[BlackElo "1438"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. Bg5 O-O 5. e4 d6 6. Bxf6 Bxf6 7. Nf3 Nd7
+8. e5 dxe5 9. dxe5 Nxe5 10. Ne4 Bg7 11. Qxd8 Rxd8 12. Nxe5 Bxe5 13. b3 Bxa1
+14. Be2 Bf5 15. Bf3 c6 16. O-O Bg7 17. Nc5 b6 18. Na4 Rac8 19. Re1 Bf8 20. g4
+Be6 21. Nc3 Rd3 22. Re3 Rxe3 23. fxe3 Bg7 24. Ne4 h6 25. h4 b5 26. cxb5
+cxb5 27. h5 Rc2 28. hxg6 fxg6 29. g5 h5 30. Ng3 Rxa2 31. b4 Bc4 32. Ne4
+a5 33. Nc5 axb4 34. Nd7 b3 35. Nc5 b2 36. Be4 Ra1+ 37. Kg2 b1=Q 38. Bxb1
+Rxb1 39. Kf3 b4 40. Kf4 b3 41. Nxb3 Bxb3 42. Kf3 Rd1 43. Kg3 Rd5 44. Kh4
+Rf5 45. e4 Rf2 46. e5 Bxe5 47. Kh3 Bd4 48. Kg3 e5 49. Kh3 e4 50. Kg3 Be6
+51. Kh4 e3 52. Kg3 e2 53. Kh4 e1=Q 54. Kg3 Qg1+ 55. Kh4 Rh2#
+{White checkmated} 0-1
+

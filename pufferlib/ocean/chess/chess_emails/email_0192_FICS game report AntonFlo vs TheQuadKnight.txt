@@ -1,0 +1,25 @@
+Subject: FICS game report AntonFlo vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.19"]
+[Time "15:19:35"]
+[Round "-"]
+[White "AntonFlo"]
+[Black "TheQuadKnight"]
+[WhiteElo "1636"]
+[BlackElo "1398"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. g3 e5 2. Bg2 d5 3. b3 Nf6 4. Bb2 Nc6 5. e3 Bc5 6. Qe2 Bf5 7. Nc3 O-O
+8. O-O-O Re8 9. h4 d4 10. Nb5 d3 11. Qf1 dxc2 12. Re1 Bd3 13. Ne2 Nb4 14. Nbc3
+a5 15. a3 Nc6 16. Bxc6 bxc6 17. Qg2 a4 18. b4 Bb6 19. Qxc6 Qd6 20. Qxd6
+cxd6 21. f4 Ba6 22. Kxc2 Bb7 23. Rhg1 Ne4 24. g4 Nxc3 25. Bxc3 Rac8 26. Kb2
+exf4 27. Nxf4 Re7 28. h5 Rce8 29. Rg3 d5 30. Rc1 d4 31. exd4 Bc7 32. Rf1
+Ba6 33. Rf2 Re4 34. Rgf3 Bb7 35. Nd3 R4e7 36. Rf5 Bc8 37. Rc5 Bxg4 38. Rg2
+Bd1 39. d5 Bd6 40. Rxg7+ Kf8 41. Rc6
+{Black forfeits on time} 1-0
+

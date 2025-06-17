@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs surfertony
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.10"]
+[Time "21:23:20"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "surfertony"]
+[WhiteElo "1311"]
+[BlackElo "1419"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 b6 2. c4 Bb7 3. Nf3 e6 4. Nc3 Nc6 5. e4 Qe7 6. Be2 O-O-O 7. d5 Nb8
+8. e5 f6 9. d6 cxd6 10. exd6 Qxd6 11. Qc2 Nh6 12. Be3 Nf5 13. Rc1 Nc6 14. c5
+Qc7 15. cxb6 axb6 16. Na4 Bb4+ 17. Bd2 Bxd2+ 18. Nxd2 Nfd4 19. Qc4 Nxe2
+20. Qxe2 Qd6 21. a3 Kb8 22. Nc4 Qc5 23. Naxb6 Nd4 24. Qd3 Bxg2 25. Rg1 Nf3+
+26. Ke2 Nxg1+ 27. Kd1 Rc8 28. Qg3+ Kb7 29. Nd6+ Kxb6 30. Rxc5 Rxc5 31. Qxg2
+Rd5+ 32. Ke1 Rxd6 33. Qxg1 Rc8 34. Qg3 Rc1+ 35. Ke2 Rc2+ 36. Ke3 Rdd2 37. Qb8+
+Ka5 38. Qa7+ Kb5 39. Qb7+ Kc4 40. Qc7+ Kb3 41. Qb6+ Ka2 42. Qb4 Rxb2 43. Qxd2
+Rxd2 44. Kxd2 Kxa3 45. f3 Kb4 46. Ke3 Kc5 47. h3 Kd5 48. Kf2 Ke5 49. Kg3
+Kf5 50. Kf2 d5 51. Kg3 e5 52. Kf2 Kf4 53. Ke2 d4 54. Kf2 g5 55. Ke2 h5 56. Kf2
+g4 57. Ke2 gxh3 58. Kf2 h2 59. Kg2 d3 60. Kxh2 d2 61. Kg2 d1=Q 62. Kf2 Qxf3+
+63. Kg1 Qg4+ 64. Kh1 Kg3
+{White forfeits on time} 0-1
+

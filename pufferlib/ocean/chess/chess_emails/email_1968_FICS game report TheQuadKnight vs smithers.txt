@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs smithers
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "09:37:23"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "smithers"]
+[WhiteElo "1352"]
+[BlackElo "1448"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 e5 6. Nb3 d6 7. Be3 Be6
+8. Be2 a6 9. f4 Be7 10. g4 O-O 11. h4 d5 12. g5 Ne8 13. f5 d4 14. fxe6 dxe3
+15. exf7+ Kxf7 16. Bc4+ Kg6 17. Qg4 h5 18. gxh6+ Kxh6 19. h5 Bg5 20. Nd5
+Nf6 21. Qf5 Qe8 22. Nc7 Ne7 23. Nxe8 Nxf5 24. Nxf6 gxf6 25. exf5 Rac8 26. Bd3
+Rfe8 27. Na5 e4 28. Be2 Rxc2 29. Nc4 b5 30. Nd6 Re7 31. b3 Rd7 32. Nxe4
+Rd4 33. Nxg5 fxg5 34. Rh3 Rdd2 35. Rxe3 g4 36. Rd1 Rxd1+ 37. Kxd1 Rxa2 38. Bxg4
+Kg5 39. Rg3 Kh4 40. Rg1 Ra1+ 41. Ke2 Rxg1 42. Bf3
+{Black forfeits on time} 1-0
+

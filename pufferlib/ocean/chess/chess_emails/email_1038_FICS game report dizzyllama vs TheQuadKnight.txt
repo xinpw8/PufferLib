@@ -1,0 +1,23 @@
+Subject: FICS game report dizzyllama vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.01"]
+[Time "09:33:35"]
+[Round "-"]
+[White "dizzyllama"]
+[Black "TheQuadKnight"]
+[WhiteElo "1365"]
+[BlackElo "1410"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 Nc6 4. Bc4 Be7 5. O-O Nf6 6. d3 O-O 7. Bxf4 d5
+8. exd5 Nxd5 9. Bd2 Nf6 10. Ng5 Bg4 11. Qc1 Ne5 12. Bb3 h6 13. Ne4 Nc6 14. Bxh6
+Nd4 15. Bxg7 Ne2+ 16. Kh1 Nxc1 17. Bxf6 Nxb3 18. axb3 Bxf6 19. Nxf6+ Kh8
+20. Nxg4 Qh4 21. Ne5 Kg7 22. Nc3 Rae8 23. Nf3 Qh5 24. Nb5 Rh8 25. Nxc7 Re3
+26. h3 Qg6 27. Nd5 Re2 28. Nf4 Qc6
+{White forfeits on time} 0-1
+

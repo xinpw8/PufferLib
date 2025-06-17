@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs ranban
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.14"]
+[Time "00:06:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ranban"]
+[WhiteElo "1353"]
+[BlackElo "1501"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 Nf6 3. Nc3 c5 4. cxd5 cxd4 5. Qxd4 Nc6 6. Qa4 Nxd5 7. Nxd5
+Qxd5 8. Nf3 Bg4 9. e4 Qh5 10. Be2 e6 11. Qb3 Na5 12. Qb5+ Qxb5 13. Bxb5+
+Nc6 14. Bxc6+ bxc6 15. Nd4 Kd7 16. O-O Bc5 17. Nb3 Bb6 18. Re1 Rhd8 19. Be3
+Bxe3 20. Rxe3 Ke8 21. f3 Bh5 22. Rc1 Rac8 23. Nc5 Rd2 24. Nd3 Rd8 25. Nf4
+Bg6 26. Nxg6 hxg6 27. Rxc6 Rxb2 28. Re1 Rdd2 29. Rc8+ Kd7 30. Rh8 Rxg2+
+31. Kh1 Rxa2 32. Rg1 Rxg1+ 33. Kxg1 a5 34. h4 Ke7 35. Rh7 Kf6 36. Rh8 a4
+37. Ra8 a3 38. Kf1 Ra1+ 39. Ke2 a2 40. Kd2 Rh1 41. Rxa2 Rh2+ 42. Kc3 Rxa2
+43. Kd4 Rf2 44. Ke3 Rh2 45. f4 Rxh4 46. e5+ Kf5 47. Kf3 Rxf4+ 48. Ke3 g5
+49. Ke2 g4 50. Kd3 g3 51. Kc3 g2 52. Kb3 g1=Q 53. Kc3 Qg3+ 54. Kd2 Rf2+
+55. Kc1 Qg1#
+{White checkmated} 0-1
+

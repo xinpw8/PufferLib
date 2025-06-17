@@ -1,0 +1,28 @@
+Subject: FICS game report PastorK vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.25"]
+[Time "13:02:57"]
+[Round "-"]
+[White "PastorK"]
+[Black "TheQuadKnight"]
+[WhiteElo "1347"]
+[BlackElo "1391"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. Bf4 Bf5 3. e3 e6 4. Nf3 Nf6 5. Nh4 Be4 6. f3 Bg6 7. Nxg6 hxg6
+8. e4 c6 9. Bg5 dxe4 10. fxe4 Be7 11. Bxf6 Bxf6 12. c3 Nd7 13. Bc4 Nb6 14. Bb3
+Bh4+ 15. Kf1 Qf6+ 16. Qf3 Qg5 17. Na3 f5 18. e5 O-O 19. Bxe6+ Kh7 20. g3
+Qg4 21. Kf2 Qxf3+ 22. Kxf3 Bg5 23. h4 Be7 24. Nc2 Rae8 25. Bb3 Nd5 26. Ne3
+f4 27. Nxd5 fxg3+ 28. Kxg3 cxd5 29. Bxd5 g5 30. hxg5+ Kg6 31. Bxb7 Kxg5
+32. Raf1 Rxf1 33. Rxf1 Kh6 34. Bc6 Rb8 35. b4 a6 36. d5 Bg5 37. Rf3 Rh8
+38. d6 Kg6 39. Kg4 Rh4+ 40. Kg3 Rh1 41. Be4+ Kh6 42. Rf6+ gxf6 43. Bxh1
+Kg6 44. d7 Kg7 45. d8=Q fxe5 46. Qxg5+ Kf7 47. Qxe5 Kf8 48. Qd6+ Kf7 49. Qxa6
+Kg7 50. Qa7+ Kg6 51. b5 Kf6 52. b6 Ke5 53. b7 Kf5 54. b8=Q Kf6 55. Qf8+
+Kg6 56. Qa6+ Kg5 57. Qff6+ Kh5
+{White ran out of time and Black has no material to mate} 1/2-1/2
+

@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs ssez
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.28"]
+[Time "12:56:43"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "ssez"]
+[WhiteElo "1385"]
+[BlackElo "1308"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Bc4 Bg7 7. f4 Nbd7
+8. g4 Qa5 9. Bd2 Qc5 10. Ndb5 Qxc4 11. e5 dxe5 12. fxe5 Nxe5 13. g5 Nfg4
+14. Bf4 O-O 15. Bxe5 Bxe5 16. Qd2 Bxc3 17. Nxc3 Bf5 18. O-O-O b5 19. b3
+Qe6 20. Rhe1 Qb6 21. Nd5 Qf2 22. Qb4 e6 23. Ne7+ Kg7 24. Qc3+ f6 25. gxf6+
+Rxf6 26. Rd7 Kh6 27. h3 Ne3 28. Rxe3 Qf1+ 29. Kb2 Rf7 30. Nxf5+ exf5 31. Rxf7
+{Black resigns} 1-0
+

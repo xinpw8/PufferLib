@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs copperwindow
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.22"]
+[Time "15:06:36"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "copperwindow"]
+[WhiteElo "1398"]
+[BlackElo "1614"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 d6 3. Nc3 Bf5 4. Nf3 Nbd7 5. e3 c5 6. Bd3 Bxd3 7. Qxd3 g6
+8. Bd2 Bg7 9. O-O O-O 10. Rac1 Re8 11. a3 a6 12. b4 b6 13. bxc5 bxc5 14. Ne4
+Nxe4 15. Qxe4 Nf6 16. Qd3 cxd4 17. Nxd4 Rb8 18. Rb1 Qc7 19. Rfc1 Nd7 20. Bc3
+Ne5 21. Qe2 Qxc4 22. Qxc4 Nxc4 23. Nc6 Rxb1 24. Rxb1 Bxc3 25. Rc1 d5 26. Rxc3
+Kf8 27. e4 Rc8 28. Na7 Rc7 29. exd5 Rb7 30. h3 Nd6 31. Nc6 Rb5 32. Rd3 Rc5
+33. g3 Rc2 34. Kg2 Ne4 35. Rf3 Rd2 36. Rf4 f5 37. g4 Rxd5 38. gxf5 gxf5
+39. Nb4 Ra5 40. f3 Nf6 41. Nc6 Rxa3 42. Rxf5 Ra2+ 43. Kg3 Kf7 44. Re5 Ng8
+45. Nd8+ Ke8 46. Nc6 a5 47. Rxa5 Rxa5 48. Nxa5 Kf7 49. Nc4 Ke6 50. Ne3 Ke5
+51. f4+ Ke4 52. Kg4 Nf6+ 53. Kg5 Kxe3 54. h4 Ke4 55. h5 Kd5 56. h6 Ke6 57. f5+
+Ke5
+{White forfeits on time} 0-1
+

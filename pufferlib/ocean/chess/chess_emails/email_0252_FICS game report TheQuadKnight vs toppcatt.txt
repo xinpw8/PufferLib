@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs toppcatt
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.11.24"]
+[Time "08:37:17"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "toppcatt"]
+[WhiteElo "1322"]
+[BlackElo "1434"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 e6 2. Nf3 Nf6 3. Nc3 Bb4 4. Bd2 O-O 5. a3 Be7 6. e4 d6 7. Bc4 c6 8. Qe2
+b5 9. Bb3 a5 10. O-O-O Ba6 11. Qe1 b4 12. axb4 axb4 13. Ne2 Nxe4 14. Bxb4
+Nd7 15. Ng3 Nxg3 16. fxg3 Nb6 17. Bd2 Bc4 18. Kb1 Bxb3 19. cxb3 Nd5 20. Rc1
+Qb6 21. b4 Bf6 22. g4 Bxd4 23. Nxd4 Qxd4 24. Rf1 Qd3+ 25. Rc2 Ra4 26. Rf3
+Ra1+ 27. Kxa1 Qxc2 28. Qc1 Ra8+ 29. Ra3 Rxa3+ 30. bxa3 Qxc1+ 31. Bxc1 Kf8
+32. Bd2 Ke7 33. Ka2 Kd7 34. Kb3 Kc7 35. a4 Kb6 36. Kc4 Nf6 37. a5+ Kb7 38. Bf4
+d5+ 39. Kc5 Nxg4 40. h3 e5 41. Bg3 Ne3 42. b5 cxb5 43. Kxb5 Nxg2 44. a6+
+Kb8 45. Bf2 Nf4 46. Bc5 Ne6 47. Kb6 Nxc5 48. a7+ Ka8 49. Kxc5 f6 50. Kxd5
+{Black forfeits on time} 1-0
+

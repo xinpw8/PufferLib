@@ -1,0 +1,22 @@
+Subject: FICS game report TheQuadKnight vs Cheeseheadtothe
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.03"]
+[Time "14:19:11"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Cheeseheadtothe"]
+[WhiteElo "1255"]
+[BlackElo "1577"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. c4 Nc6 3. Nc3 Nf6 4. f3 g6 5. Bd3 Nd4 6. Nge2 e5 7. f4 Bd6 8. fxe5
+Bxe5 9. Nxd4 Bxd4 10. Nd5 Nxd5 11. cxd5 Qf6 12. Rf1 Qh4+ 13. g3 Qxh2 14. Qf3
+O-O 15. Rh1 Bf2+ 16. Kf1 Qxg3 17. Qxg3 Bxg3 18. Bc4 Bf4 19. d3 Bxc1 20. Rxc1
+d6 21. Rc2 f5 22. Rch2 fxe4+ 23. Ke2 Bg4+ 24. Ke3 Rf3+ 25. Kxe4 Re8#
+{White checkmated} 0-1
+

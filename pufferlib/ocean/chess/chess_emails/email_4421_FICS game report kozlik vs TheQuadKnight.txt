@@ -1,0 +1,27 @@
+Subject: FICS game report kozlik vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.06"]
+[Time "11:06:46"]
+[Round "-"]
+[White "kozlik"]
+[Black "TheQuadKnight"]
+[WhiteElo "1377"]
+[BlackElo "1313"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7 5. e3 Nbd7 6. Nf3 O-O 7. Ne5 Nxe5
+8. dxe5 Nd7 9. Bxe7 Qxe7 10. cxd5 Nxe5 11. dxe6 Bxe6 12. Be2 Rfd8 13. Qc2
+Bg4 14. O-O Bxe2 15. Qxe2 Qh4 16. Qb5 Ng4 17. h3 Nf6 18. Qxb7 Rab8 19. Qxc7
+Rdc8 20. Qxa7 Rxb2 21. Rad1 h6 22. Nd5 Ne4 23. Ne7+ Kh7 24. Nxc8 Rxf2 25. Rxf2
+Qxf2+ 26. Kh1 Ng3+ 27. Kh2 Nf1+ 28. Rxf1 Qxf1 29. Nd6 Qf6 30. Nxf7 Kg6 31. Qc7
+Qxf7 32. Qxf7+ Kxf7 33. a4 Ke6 34. Kg3 Kd7 35. Kf4 Kc7 36. Ke5 Kb6 37. Ke6
+Ka5 38. Kf7 Kxa4 39. Kxg7 Kb4 40. Kxh6 Kc5 41. Kg5 Kd5 42. Kf4 Ke6 43. g4
+Kf6 44. h4 Kg6 45. h5+ Kh6 46. e4 Kg7 47. g5 Kh7 48. Kf5 Kg7 49. e5 Kh7
+50. Kf6 Kg8 51. e6 Kf8 52. g6 Ke8 53. h6 Kf8 54. h7 Ke8 55. h8=Q#
+{Black checkmated} 1-0
+

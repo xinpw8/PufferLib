@@ -1,0 +1,23 @@
+Subject: FICS game report TheQuadKnight vs Bsmile
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.24"]
+[Time "13:02:52"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Bsmile"]
+[WhiteElo "1421"]
+[BlackElo "1696"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 b6 2. Nf3 Bb7 3. Nc3 e6 4. b3 Bb4 5. Bb2 f6 6. a3 Bxc3 7. Bxc3 Bxe4
+8. Be2 Bb7 9. O-O Nc6 10. Ra2 Qe7 11. Nd4 Nxd4 12. Bxd4 e5 13. Bc3 c6 14. Re1
+d5 15. d4 e4 16. f3 f5 17. g4 Nf6 18. gxf5 O-O 19. fxe4 Nxe4 20. Bb4 Qg5+
+21. Bg4 Rxf5 22. h3 h5 23. c4 hxg4 24. hxg4 Rf4 25. Rg2 a5 26. Bd2 Nxd2
+27. Qxd2 Raf8 28. Ree2 Rf1+ 29. Kh2 Qh4#
+{White checkmated} 0-1
+

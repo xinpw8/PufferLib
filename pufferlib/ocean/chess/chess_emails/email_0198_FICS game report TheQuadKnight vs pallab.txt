@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs pallab
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2011.12.18"]
+[Time "19:42:33"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "pallab"]
+[WhiteElo "1421"]
+[BlackElo "1323"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 Bf5 3. Nc3 Nc6 4. cxd5 Nb4 5. e4 Bg6 6. Bb5+ c6 7. dxc6 Nxc6
+8. d5 a6 9. dxc6 axb5 10. Qxd8+ Rxd8 11. cxb7 Rb8 12. Nxb5 Rxb7 13. Nd4
+e5 14. Nf5 Bxf5 15. exf5 Bb4+ 16. Bd2 Bxd2+ 17. Kxd2 Rxb2+ 18. Ke3 Nf6 19. Nf3
+O-O 20. Rhd1 Rc8 21. Rd2 Rxd2 22. Kxd2 Ne4+ 23. Ke3 Nf6 24. Rd1 h6 25. Rd2
+Rc3+ 26. Ke2 Ne4 27. Rb2 Ng5 28. Nxe5 Rc5 29. Nd3 Rxf5 30. Rb8+ Kh7 31. Rb7
+Ra5 32. Rb2 Ra6 33. f4 Ne6 34. g3 Nd4+ 35. Ke3 Ne6 36. Ne5 Nc5 37. Nxf7
+Re6+ 38. Ne5 Nd7 39. Kd4 Nxe5 40. fxe5 Kg6 41. a4 Kf5 42. Re2 Kg6 43. a5
+Kf7 44. Kd5 Ra6 45. e6+ Ke7 46. Ra2 Ra7 47. Ra4 g5 48. a6 h5 49. Re4 Rxa6
+50. Rc4 Ra5+ 51. Kd4 Rf5 52. Rc7+ Kd8 53. Rg7 Rf8 54. e7+ Ke8 55. exf8=Q+
+Kxf8 56. Rg8+ Kf7 57. h3 Kxg8 58. g4 Kh7 59. gxh5 Kh6 60. Kd5 Kxh5 61. Ke5
+{Black forfeits on time} 1-0
+

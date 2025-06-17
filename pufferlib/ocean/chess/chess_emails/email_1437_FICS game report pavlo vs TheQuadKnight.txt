@@ -1,0 +1,24 @@
+Subject: FICS game report pavlo vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.07.13"]
+[Time "14:20:05"]
+[Round "-"]
+[White "pavlo"]
+[Black "TheQuadKnight"]
+[WhiteElo "1267"]
+[BlackElo "1447"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 c5 2. Nf3 e6 3. Nc3 d5 4. exd5 exd5 5. d4 c4 6. h3 Nf6 7. Bg5 Be7
+8. Be2 Ne4 9. Bf4 O-O 10. O-O Re8 11. Ne5 Bb4 12. Nxe4 dxe4 13. Bxc4 Be6
+14. d5 Bf5 15. c3 Bd6 16. Qd4 f6 17. Ng4 Bxg4 18. hxg4 Bxf4 19. f3 Be5 20. Qe3
+exf3 21. Qxf3 Nd7 22. Rae1 Nb6 23. Bb3 Qd6 24. Rd1 Rad8 25. Qd3 Bh2+ 26. Kh1
+Qg3 27. Qf5 Re2 28. Qf3 Qxf3 29. Rxf3 Be5 30. d6+ Kf8 31. c4 Rxd6 32. c5
+Rxd1+ 33. Rf1 Rxf1#
+{White checkmated} 0-1
+

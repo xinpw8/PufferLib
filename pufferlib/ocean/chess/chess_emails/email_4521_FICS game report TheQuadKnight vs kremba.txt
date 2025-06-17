@@ -1,0 +1,27 @@
+Subject: FICS game report TheQuadKnight vs kremba
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.02"]
+[Time "14:14:59"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "kremba"]
+[WhiteElo "1257"]
+[BlackElo "1556"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 c6 4. a4 e6 5. e3 Bb4 6. Bxc4 Bxc3+ 7. bxc3 Qa5
+8. Qb3 Ne7 9. Ne2 Nd5 10. e4 Nb6 11. O-O Nxc4 12. Qxc4 Bd7 13. Rd1 O-O 14. d5
+cxd5 15. exd5 Na6 16. Nd4 exd5 17. Qb3 Nc5 18. Qb4 Qxb4 19. cxb4 Ne4 20. Nf3
+Be6 21. Be3 a5 22. b5 Nd6 23. Ng5 Nc4 24. Nxe6 fxe6 25. Bc5 Rfc8 26. Bd4
+e5 27. Be3 d4 28. Bd2 b6 29. Ra2 Rc5 30. Re1 Re8 31. f3 h6 32. g3 g5 33. f4
+Nxd2 34. Rxd2 gxf4 35. gxf4 Rd5 36. fxe5 Rexe5 37. Rxe5 Rxe5 38. Rxd4 Rg5+
+39. Kh1 Rg6 40. h3 Kf7 41. Rg4 Kf6 42. Kg2 Rxg4+ 43. hxg4 Ke5 44. Kg3 Kd4
+45. Kh4 Kc4 46. Kh5 Kb4 47. Kxh6 Kxa4 48. g5 Kxb5 49. g6 a4 50. g7 a3 51. g8=Q
+Ka4 52. Qa2 b5 53. Kg6 b4 54. Qc2+ b3 55. Qc4+ Ka5 56. Qxb3
+{Black forfeits on time} 1-0
+

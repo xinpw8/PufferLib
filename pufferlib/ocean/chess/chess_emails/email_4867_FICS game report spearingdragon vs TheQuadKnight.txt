@@ -1,0 +1,26 @@
+Subject: FICS game report spearingdragon vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.14"]
+[Time "10:47:35"]
+[Round "-"]
+[White "spearingdragon"]
+[Black "TheQuadKnight"]
+[WhiteElo "1222"]
+[BlackElo "1266"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Na5 6. Bb5+ c6 7. dxc6
+bxc6 8. Qf3 Bb7 9. Ba4 h6 10. Ne4 Be7 11. b3 O-O 12. Bb2 c5 13. d3 Nc6 14. Nbd2
+Nd4 15. Bxd4 cxd4 16. O-O Bb4 17. Qe2 Qa5 18. a3 Bxe4 19. Nxe4 Be7 20. Bc6
+Rac8 21. Nxf6+ Bxf6 22. Bd7 Rc7 23. Bg4 Qc5 24. Rfc1 Bg5 25. b4 Qc3 26. Rd1
+Qxc2 27. Qxc2 Rxc2 28. a4 Rfc8 29. b5 R8c3 30. a5 g6 31. b6 f5 32. b7 Rb2
+33. Rab1 Rcb3 34. Bf3 Rxb1 35. Rf1 Rxf1+ 36. Kxf1 e4 37. dxe4 Bd2 38. exf5
+Rb2 39. a6 Kg7 40. g3 Rb1+ 41. Kg2 Be1 42. h4 Rb2 43. Kh3 Rxf2 44. b8=Q
+Rc2 45. Qb7+ Kh8 46. f6 Rf2 47. Qg7#
+{Black checkmated} 1-0
+

@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs Reconquistador
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.19"]
+[Time "10:20:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Reconquistador"]
+[WhiteElo "1431"]
+[BlackElo "2025"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. Bg5 c5 5. e3 Qa5 6. Qc2 cxd4 7. exd4 Qxg5
+8. Nf3 Qa5 9. Bd3 b6 10. O-O Bxc3 11. bxc3 Bb7 12. Rab1 O-O 13. Rb5 Qa3
+14. Rb4 Nc6 15. Ra4 Qe7 16. Re1 h6 17. d5 Na5 18. Nd4 Rac8 19. Qe2 Qc5 20. Nb3
+Nxb3 21. axb3 a6 22. b4 Qc7 23. dxe6 dxe6 24. c5 bxc5 25. bxc5 a5 26. Ba6
+Bxa6 27. Qxa6 Ra8 28. Qb5 Rfc8 29. c6 Qxc6 30. Rxa5 Qxb5 31. Rxb5 Rxc3 32. Rb7
+Rac8 33. h3 Rc1 34. Rxc1 Rxc1+ 35. Kh2 Rc2 36. Rb8+ Kh7 37. Kg3 Ne4+ 38. Kg4
+g5
+{White resigns} 0-1
+

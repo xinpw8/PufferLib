@@ -1,0 +1,28 @@
+Subject: FICS game report visualseven vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.21"]
+[Time "21:21:57"]
+[Round "-"]
+[White "visualseven"]
+[Black "TheQuadKnight"]
+[WhiteElo "1410"]
+[BlackElo "1327"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 b5 5. Bb3 Nf6 6. O-O d6 7. c3 Na5 8. Bc2
+Be7 9. h3 O-O 10. d4 exd4 11. cxd4 c6 12. Re1 Re8 13. Nc3 b4 14. Ne2 Bf8
+15. Ng3 Nb7 16. Bg5 Be7 17. e5 dxe5 18. dxe5 Nd5 19. Bxe7 Qxe7 20. Nf5 Bxf5
+21. Rb1 Bxc2 22. Qxc2 Rac8 23. Rbd1 a5 24. Nd4 Qg5 25. e6 Nf4 26. exf7+
+Kxf7 27. Qc4+ Re6 28. Qf1 Nxh3+ 29. Kh2 Rxe1 30. Rxe1 Qf4+ 31. Kxh3 Qxd4
+32. g3 Qxb2 33. Qc4+ Kf8 34. Re4 g5 35. Qe6 Qxf2 36. Qe7+ Kg8 37. Qe6+ Kg7
+38. Qxc8 Qf1+ 39. Kg4 h5+ 40. Kxg5 Qc1+ 41. Kxh5 Qh6+ 42. Kg4 Nd6 43. Re7+
+Nf7 44. Qf5 Qg6+ 45. Qxg6+ Kxg6 46. Re6+ Kg7 47. Rxc6 Ne5+ 48. Kf4 Nxc6
+49. Ke4 a4 50. Kd3 b3 51. axb3 a3 52. Kc2 a2 53. Kb2 a1=Q+ 54. Kxa1 Ne5
+55. Kb2 Nf3 56. Kc3 Ng5 57. Kc4
+{Black forfeits on time} 1-0
+

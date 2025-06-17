@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs blore
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.15"]
+[Time "11:03:18"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "blore"]
+[WhiteElo "1325"]
+[BlackElo "1615"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 g6 3. Nf3 Bg7 4. e3 O-O 5. Bd3 c5 6. O-O cxd4 7. exd4 d5
+8. b3 dxc4 9. bxc4 Nc6 10. Ba3 Nxd4 11. Nxd4 Qxd4 12. Qd2 Qxa1 13. Nc3 Ne4
+14. Nxe4 Qe5 15. Re1 Qd4 16. Bc5 Qb2 17. Qe3 Be6 18. Bxe7 Rfe8 19. Bc5 Rac8
+20. Nd6 Red8 21. Nxc8 Rxc8 22. Bxa7 Qxa2 23. Bd4 Bxd4 24. Qxd4 Bxc4 25. Bxc4
+Qxc4 26. Qd7 b5 27. Re8+ Rxe8 28. Qxe8+ Kg7 29. Qe5+ Kf8 30. h3 b4 31. Qh8+
+Ke7 32. Qe5+ Kd7 33. Qf6 b3 34. Qb6 Qc1+ 35. Kh2 Qc7+ 36. Qxc7+ Kxc7 37. g3
+b2
+{White resigns} 0-1
+

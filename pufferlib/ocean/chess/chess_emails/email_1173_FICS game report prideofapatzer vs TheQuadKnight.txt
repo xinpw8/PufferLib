@@ -1,0 +1,29 @@
+Subject: FICS game report prideofapatzer vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.03.04"]
+[Time "17:45:37"]
+[Round "-"]
+[White "prideofapatzer"]
+[Black "TheQuadKnight"]
+[WhiteElo "1797"]
+[BlackElo "1429"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Bc5 5. c3 O-O 6. d4 exd4 7. cxd4 Bb6
+8. Nc3 d6 9. Bg5 h6 10. Bh4 Bd7 11. e5 dxe5 12. dxe5 g5 13. exf6 gxh4 14. Nxh4
+Be6 15. Qxd8 Raxd8 16. Rad1 Nd4 17. Bd3 Rd6 18. Ne4 Rd7 19. Ng3 Rfd8 20. Kh1
+Bxa2 21. Rfe1 Ne6 22. Bc2 Bxf2 23. Ngf5 Rxd1 24. Rxd1 Rxd1+ 25. Bxd1 Nf4
+26. Nxh6+ Kf8 27. N6f5 Bd5 28. Bf3 Bxf3 29. Nxf3 Bc5 30. g3 Nd5 31. Ne5
+Ke8 32. Ng7+ Kd8 33. Nxf7+ Kc8 34. Ne6 Bb6 35. Ne5 Nxf6 36. g4 a6 37. g5
+Ne8 38. g6 c6 39. g7 Nxg7 40. Nxg7 Bc7 41. Nc4 b5 42. Ne3 Be5 43. Ngf5 Bxb2
+44. Kg2 Kc7 45. Kf3 Kb6 46. Ke4 Bh8 47. h4 a5 48. h5 a4 49. Kd3 c5 50. Kc2
+b4 51. Nd5+ Kb5 52. Nh6 a3 53. Kb3 Bd4 54. Nf5 Kc6 55. Nde7+ Kd7 56. Nxd4
+Kxe7 57. Nf5+ Kf6 58. Ng3 Kg7 59. Kc4 a2 60. Nf5+ Kf6 61. h6 a1=Q 62. h7
+Qc1+ 63. Kb5 Qf4 64. h8=Q+ Ke6 65. Ng7+ Ke5 66. Qe8+ Kd4 67. Ne6+ Kc3 68. Nxf4
+{Black forfeits on time} 1-0
+

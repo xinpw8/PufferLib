@@ -1,0 +1,27 @@
+Subject: FICS game report MOREofTHORE vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.05.26"]
+[Time "21:11:58"]
+[Round "-"]
+[White "MOREofTHORE"]
+[Black "TheQuadKnight"]
+[WhiteElo "1606"]
+[BlackElo "1327"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. d4 Nc6 3. dxe5 Nxe5 4. Nf3 Ng6 5. Bc4 Nf6 6. e5 Bb4+ 7. c3 d5
+8. exf6 dxc4 9. Qxd8+ Kxd8 10. cxb4 Re8+ 11. Be3 gxf6 12. Nc3 Bg4 13. O-O-O+
+Kc8 14. Nd5 Bxf3 15. gxf3 Re6 16. Rhe1 Ne5 17. Bf4 Nd3+ 18. Kb1 Rxe1 19. Rxe1
+Nxe1 20. Kc1 Nd3+ 21. Kd2 Nxf4 22. Nxf4 c6 23. Kc3 b5 24. Ne2 a5 25. a3
+a4 26. Kd4 Kd7 27. Kc5 Re8 28. Nd4 Rg8 29. f4 Kc7 30. Nxc6 Rg2 31. Kxb5
+Rxf2 32. Ne7 Rxb2 33. Kxc4 Rxh2 34. b5 h5 35. Kb4 h4 36. Kxa4 h3 37. Nf5
+Rg2 38. Nh4 h2 39. Nxg2 h1=Q 40. Ne3 Qe4+ 41. Ka5 Qxe3 42. a4 Qd2+ 43. Ka6
+Qd6+ 44. Ka5 Qb6+ 45. Kb4 Qd4+ 46. Ka5 Qxf4 47. Ka6 f5 48. Ka7 Qe5 49. b6+
+Kc6 50. b7 Qd4+ 51. Kb8 Qe5+
+{White forfeits on time} 0-1
+

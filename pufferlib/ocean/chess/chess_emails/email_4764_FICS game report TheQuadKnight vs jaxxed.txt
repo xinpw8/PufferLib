@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs jaxxed
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.18"]
+[Time "15:14:25"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "jaxxed"]
+[WhiteElo "1308"]
+[BlackElo "1613"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. Nf3 dxe4 5. Ne5 Bb4 6. Bg5 Nbd7 7. Qg4 Nxg4
+8. Bxd8 Ngxe5 9. dxe5 Kxd8 10. O-O-O Bxc3 11. bxc3 Ke7 12. Bb5 Nxe5 13. c4
+c6 14. Ba4 Bd7 15. Bb3 Rhd8 16. Rhe1 f5 17. h3 c5 18. g4 Bc6 19. f4 Nf3
+20. Re3 Rxd1+ 21. Kxd1 Rd8+ 22. Kc1 Kf6 23. g5+ Nxg5 24. fxg5+ Kxg5 25. c3
+Rd3 26. Rxd3 exd3 27. Kd2 Be4 28. Ba4 e5 29. Bd7 Kf4 30. Be6 b6 31. Bd5
+g5 32. Bxe4 Kxe4 33. a4 h5 34. Kd1 Ke3 35. Kc1 g4 36. hxg4 hxg4 37. Kd1
+g3 38. a5 g2 39. Kc1 bxa5 40. Kb2 g1=Q 41. Kb3 d2 42. Ka4 d1=Q+ 43. Kb5
+Qd6 44. Ka4 Qb6 45. Ka3 Qa1#
+{White checkmated} 0-1
+

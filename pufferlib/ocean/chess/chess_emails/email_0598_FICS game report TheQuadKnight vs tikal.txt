@@ -1,0 +1,25 @@
+Subject: FICS game report TheQuadKnight vs tikal
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.05.14"]
+[Time "08:25:34"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "tikal"]
+[WhiteElo "1347"]
+[BlackElo "1378"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 c6 3. Nc3 Qa5 4. Bd2 Qd8 5. cxd5 cxd5 6. e4 dxe4 7. Nxe4
+Bf5 8. Bd3 a6 9. Nf3 Bxe4 10. Bxe4 Qb6 11. Bc3 e6 12. Qa4+ Nd7 13. Ne5 Nf6
+14. Nxd7 Nxd7 15. O-O Be7 16. d5 exd5 17. Bxd5 O-O 18. Rfe1 Qd6 19. Bxb7
+Ra7 20. Be4 Bf6 21. Bb4 Nc5 22. Rac1 Nxa4 23. Bxd6 Nxb2 24. Bxf8 Kxf8 25. Rc8+
+Ke7 26. Bf5+ Kd6 27. Re2 Na4 28. Rd2+ Ke5 29. Bh3 Rb7 30. Re8+ Kf4 31. g3+
+Kg5 32. f4+ Kh6 33. g4 Bc3 34. g5+ Kh5 35. Rg2 Rb1+ 36. Kf2 Bd4+ 37. Kg3
+Rc1 38. Bg4+ Kg6 39. Kh4 f6 40. Rf8 h6 41. f5+ Kh7 42. g6#
+{Black checkmated} 1-0
+

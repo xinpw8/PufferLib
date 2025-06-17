@@ -1,0 +1,26 @@
+Subject: FICS game report TheQuadKnight vs Thegermain
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.03.23"]
+[Time "11:21:18"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Thegermain"]
+[WhiteElo "1415"]
+[BlackElo "1524"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "1-0"]
+
+1. d4 d5 2. c4 dxc4 3. Nc3 e5 4. e3 exd4 5. exd4 Bd6 6. Bxc4 Ne7 7. Nf3
+O-O 8. Qd3 Nbc6 9. Ng5 Bf5 10. Qf3 Nb4 11. Nge4 Nc2+ 12. Kd2 Nxd4 13. Qe3
+Bb4 14. Rd1 Nec6 15. a3 Bxc3+ 16. Kxc3 Nb5+ 17. Kc2 Nbd4+ 18. Rxd4 Nxd4+
+19. Kc3 Nc6 20. Bd2 Qe7 21. f3 Rad8 22. Rd1 Ne5 23. Qxa7 Nxc4 24. Kxc4 Bxe4
+25. fxe4 Qxe4+ 26. Kb3 Rd3+ 27. Ka2 Qd5+ 28. Kb1 Rxd2 29. Rxd2 Qxd2 30. Qxb7
+Re8 31. Qxc7 g6 32. Ka2 Re2 33. Qb6 Qd5+ 34. Qb3 Qxb3+ 35. Kxb3 Rxg2 36. Kb4
+Rxh2 37. Kb3 Rf2 38. a4 h5 39. Kb4 Re2 40. b3 h4 41. Kc3 h3 42. b4 Re8 43. b5
+h2 44. b6 h1=Q 45. a5 Qf3+ 46. Kb4
+{Black forfeits on time} 1-0
+

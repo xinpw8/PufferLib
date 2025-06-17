@@ -1,0 +1,24 @@
+Subject: FICS game report TheQuadKnight vs Fritxer
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.02.17"]
+[Time "10:39:07"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "Fritxer"]
+[WhiteElo "1275"]
+[BlackElo "1269"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 g6 2. d4 Bg7 3. Nf3 d6 4. Nc3 Nf6 5. Bc4 O-O 6. Bf4 Nbd7 7. O-O a6
+8. Re1 b5 9. Bb3 Nb6 10. a4 b4 11. Na2 a5 12. c3 bxc3 13. bxc3 Bb7 14. c4
+Nxe4 15. c5 dxc5 16. dxc5 Qxd1 17. Raxd1 Nxc5 18. Bc2 Ne6 19. Be3 Rad8 20. Nc1
+Rxd1 21. Rxd1 Bxf3 22. gxf3 Nc4 23. Bb3 Nxe3 24. fxe3 Rc8 25. Bxe6 fxe6
+26. Rd7 Bf6 27. Nd3 c5 28. e4 c4 29. Nf4 c3 30. Nxe6 c2 31. Rc7 Rxc7 32. Nxc7
+c1=Q+ 33. Kg2 Qxc7
+{White resigns} 0-1
+

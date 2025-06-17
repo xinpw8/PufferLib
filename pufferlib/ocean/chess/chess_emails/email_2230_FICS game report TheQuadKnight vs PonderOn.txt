@@ -1,0 +1,30 @@
+Subject: FICS game report TheQuadKnight vs PonderOn
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.16"]
+[Time "20:44:55"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "PonderOn"]
+[WhiteElo "1353"]
+[BlackElo "1433"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e6 2. g3 d5 3. Bg2 Nf6 4. Nc3 c5 5. e4 cxd4 6. Qxd4 Nc6 7. Qd1 d4
+8. Nb5 e5 9. f4 a6 10. fxe5 axb5 11. exf6 Qxf6 12. Nf3 Bc5 13. Bg5 Qg6 14. Qd3
+O-O 15. O-O-O f6 16. Bd2 Bg4 17. a3 Rad8 18. Qxb5 Bxf3 19. Bxf3 Ba7 20. Qxb7
+Rc8 21. Rhe1 Ne5 22. Bg2 d3 23. c3 Bf2 24. Rf1 Bc5 25. Bf4 Qe8 26. Qd5+
+Kh8 27. Bh3 Rc7 28. Bxe5 Qxe5 29. Qxd3 Bb6 30. Rf5 Qe7 31. Qd6 Be3+ 32. Kc2
+Qxe4+ 33. Kb3 Rb8+ 34. Ka2 Qc4+ 35. Ka1 Rcb7 36. Qd8+ Rxd8 37. Rxd8+ Qg8
+38. Rxg8+ Kxg8 39. Ra5 g6 40. Be6+ Kg7 41. Bd5 Ra7 42. Rxa7+ Bxa7 43. b4
+f5 44. c4 Kf6 45. a4 Ke5 46. b5 Kd4 47. a5 Kc5 48. a6 h6 49. Kb2 g5 50. Kc3
+f4 51. gxf4 gxf4 52. h4 Bb6 53. h5 Kd6 54. Be4 Ke5 55. Bg6 f3 56. Bd3 Kf4
+57. Kb4 Ke3 58. Bf1 Kf2 59. c5 Kxf1 60. cxb6 Kg1 61. b7 f2 62. b8=Q f1=Q
+63. Qg8+ Kh2 64. Qb8+ Kh3 65. Qc8+ Kh4 66. Qd8+ Kxh5 67. Qd5+ Kg4 68. Qc4+
+Kg3 69. Qxf1 h5 70. b6 h4 71. b7 h3 72. b8=Q+ Kg4
+{White forfeits on time} 0-1
+

@@ -1,0 +1,29 @@
+Subject: FICS game report TheQuadKnight vs helwing
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.09"]
+[Time "00:28:14"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "helwing"]
+[WhiteElo "1377"]
+[BlackElo "1550"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. f4 exf4 3. Nf3 d6 4. Bc4 h6 5. d4 g5 6. O-O Bg7 7. e5 Nc6 8. d5
+Nxe5 9. Nxe5 Bxe5 10. Nc3 Ne7 11. Re1 Bf6 12. Ne4 Bg7 13. Rb1 O-O 14. b3
+Bf5 15. Bb2 Ng6 16. Bd3 Ne5 17. Bf1 Qd7 18. Kh1 Bg4 19. Qd4 f5 20. Nf2 Bh5
+21. Qb4 Rab8 22. Nd3 Rfe8 23. Nxe5 dxe5 24. Qc5 Qd6 25. Qc4 Bf7 26. Rbd1
+Kh7 27. Qd3 e4 28. Qc4 Bxb2 29. c3 b5 30. Qc6 Qxc6 31. dxc6 Bxc3 32. Rd7
+Kg6 33. Rc1 b4 34. a3 Bb2 35. Rc5 Bxa3 36. Rxc7 Rbc8 37. Rxa7 Bxb3 38. Ba6
+Rcd8 39. h3 Be6 40. c7 Rd1+ 41. Kh2 b3 42. Rc6 b2 43. Rb7 b1=Q 44. Rxb1
+Rxb1 45. Bc4 Rc1 46. c8=Q Rxc8 47. Rxe6+ Kg7 48. Ba6 e3 49. Bxc8 Rxc8 50. Re7+
+Kf6 51. Ra7 Bc5 52. Ra1 e2 53. Re1 Re8 54. Kh1 Bb4 55. Rc1 e1=Q+ 56. Rxe1
+Rxe1+ 57. Kh2 Bd6 58. g3 fxg3+ 59. Kg2 Re2+ 60. Kf3 Rf2+ 61. Ke3 g2 62. Kd3
+g1=Q 63. Kc4 Qc1+ 64. Kb5 Rb2+ 65. Ka6 Qa1#
+{White checkmated} 0-1
+

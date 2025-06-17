@@ -1,0 +1,20 @@
+Subject: FICS game report TheQuadKnight vs vladicaboy
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2010.04.06"]
+[Time "09:12:06"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "vladicaboy"]
+[WhiteElo "1381"]
+[BlackElo "1420"]
+[TimeControl "300+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 c6 3. Nc3 e6 4. Nf3 Nf6 5. e3 Nbd7 6. Qc2 Bd6 7. e4 Nxe4
+8. Nxe4 dxe4 9. Qxe4 e5 10. Be3 Nf6 11. Qd3 e4 12. Qe2 exf3 13. Qxf3 Bg4
+{White resigns} 0-1
+

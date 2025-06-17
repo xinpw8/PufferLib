@@ -1,0 +1,22 @@
+Subject: FICS game report javelinos vs TheQuadKnight
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.29"]
+[Time "08:47:54"]
+[Round "-"]
+[White "javelinos"]
+[Black "TheQuadKnight"]
+[WhiteElo "1412"]
+[BlackElo "1431"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 3. Nc3 Bc5 4. Nxe5 Nxe5 5. d4 Bxd4 6. Qxd4 d6 7. Bf4
+Qe7 8. O-O-O Nf6 9. Bb5+ Bd7 10. Bxd7+ Nexd7 11. e5 dxe5 12. Bxe5 Nxe5 13. f4
+Nc6 14. Qa4 O-O 15. Rhe1 Qc5 16. g4 h6 17. g5 hxg5 18. fxg5 Qxg5+ 19. Kb1
+Rad8 20. Rxd8 Rxd8 21. Nb5 Qg4 22. Qb3 Rd1+
+{White resigns} 0-1
+

@@ -1,0 +1,28 @@
+Subject: FICS game report TheQuadKnight vs forland
+
+
+[Event "FICS rated blitz game"]
+[Site "FICS, San Jose, California USA"]
+[Date "2009.06.02"]
+[Time "13:11:46"]
+[Round "-"]
+[White "TheQuadKnight"]
+[Black "forland"]
+[WhiteElo "1394"]
+[BlackElo "1379"]
+[TimeControl "180+0"]
+[Mode "ICS"]
+[Result "0-1"]
+
+1. d4 e5 2. dxe5 Bb4+ 3. Bd2 Nc6 4. Bxb4 Nxb4 5. Nf3 Qe7 6. Nc3 f6 7. exf6
+Nxf6 8. e3 O-O 9. Bc4+ Kh8 10. a3 Nc6 11. O-O d6 12. Nb5 Bg4 13. h3 Bh5
+14. Bd3 Ne4 15. Bxe4 Qxe4 16. Nxc7 Rac8 17. Qxd6 Bxf3 18. gxf3 Qxf3 19. Ne6
+Rf6 20. Qd7 Rg6+ 21. Ng5 Rxg5+ 22. Qg4 Rxg4+ 23. hxg4 Qxg4+ 24. Kh2 h5 25. f3
+Qh4+ 26. Kg2 Rd8 27. Rad1 Rxd1 28. Rxd1 Qg5+ 29. Kf2 h4 30. Rd7 Qg3+ 31. Ke2
+Qh2+ 32. Kd3 Qe5 33. Rf7 Qxb2 34. Rf8+ Kh7 35. Rf4 Qxa3+ 36. Ke2 Qb2 37. Rxh4+
+Kg8 38. Kd2 a5 39. Re4 Nb4 40. Re8+ Kf7 41. Rc8 a4 42. e4 a3 43. Rc7+ Kg8
+44. Rxb7 a2 45. Rxb4 Qxb4+ 46. Ke3 a1=Q 47. Kf4 Qad4 48. Kg4 Qbd6 49. Kg5
+Q4e5+ 50. Kg4 Qdf6 51. Kh3 Qef4 52. Kg2 Qxf3+ 53. Kg1 Qf2+ 54. Kh1 Qg5 55. e5
+Qfg2#
+{White checkmated} 0-1
+
