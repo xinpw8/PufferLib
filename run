@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+# Wrapper script for training or evaluating PufferLib Chess.
+# Usage:
+#   ./run train        # starts training
+#   ./run eval         # evaluates the latest trained model
+#   ./run play         # runs single-environment evaluation with rendering
+
+set -euo pipefail
+
+# Add the current directory (where libchess.so is) to LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 {train|eval|play}" >&2
+  exit 1
+fi
+
+CMD="$1"
+shift || true  # Remove the command name from arguments
+
+# Directory where trained .pt model files are stored
+EXP_DIR="/puffertank/release_test_pufferlib/pufferlib/experiments"
+
+case "$CMD" in
+  train)
+    exec puffer train puffer_chess "$@"
+    ;;
+
+  eval|evaluate)
+    # Recursively find the most recently modified model .pt file (exclude trainer_state.pt)
+    MODEL_PATH=$(find "${EXP_DIR}" -type f -name 'model_*.pt' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2- || true)
+    if [[ -z "${MODEL_PATH}" ]]; then
+      echo "Error: No .pt model files found in ${EXP_DIR}" >&2
+      exit 1
+    fi
+    # Use our custom evaluation script that actually shows results
+    NUM_GAMES=20
+    if [[ $# -gt 0 && "$1" == "--games" ]]; then
+      NUM_GAMES="$2"
+      shift 2
+    fi
+    exec python simple_chess_eval.py "${MODEL_PATH}" "${NUM_GAMES}"
+    ;;
+
+  play)
+    # Human-viewable single-environment run with live rendering
+    # Use latest checkpoint if available, else random policy
+    MODEL_PATH=$(find "${EXP_DIR}" -type f -name 'model_*.pt' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2- || true)
+    if [[ -n "${MODEL_PATH}" ]]; then
+      exec puffer eval puffer_chess --vec.num-envs 1 --render-mode auto --load-model-path "${MODEL_PATH}" "$@"
+    else
+      exec puffer eval puffer_chess --vec.num-envs 1 --render-mode auto "$@"
+    fi
+    ;;
+
+  *)
+    echo "Unknown command: ${CMD}" >&2
+    echo "Usage: $0 {train|eval|play}" >&2
+    exit 1
+    ;;
+
+esac 

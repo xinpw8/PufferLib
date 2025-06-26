@@ -32,7 +32,7 @@
 #include "absl/random/uniform_real_distribution.h"
 #include "str_cat.h"
 #include "clock.h"
-#include "time.h"
+#include "absl_time.h"
 #include "absl/types/optional.h"
 #include "span.h"
 

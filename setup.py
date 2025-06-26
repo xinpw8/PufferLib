@@ -46,6 +46,10 @@ RAYLIB_URL = 'https://github.com/raysan5/raylib/releases/download/5.5/'
 RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
 RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 
+# Define the path to libchess.so relative to this setup.py file
+# LIBCHESS_SO_PATH = os.path.join(os.path.dirname(__file__), 'libchess.so')
+# print(f"LIBCHESS_SO_PATH: {LIBCHESS_SO_PATH}") # Debugging print statement
+
 def download_raylib(platform, ext):
     if not os.path.exists(platform):
         urllib.request.urlretrieve(RAYLIB_URL + platform + ext, platform + ext)
@@ -289,12 +293,6 @@ environments = {
         'procgen-mirror==0.10.7', # Procgen mirror for 3.11 and 3.12 support
         # Note: You need glfw==2.7 after installing for some torch versions
     ],
-    #'smac': [
-    #    'git+https://github.com/oxwhirl/smac.git',
-    #],
-    #'stable-retro': [
-    #    'git+https://github.com/Farama-Foundation/stable-retro.git',
-    #]
     'slimevolley': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
@@ -389,41 +387,83 @@ extension_kwargs = dict(
     extra_objects=[RAYLIB_A],
 )
 
+# ============================================================================
+# CHESS-ONLY BUILD CONFIGURATION 
+# ============================================================================
+# This setup has been modified to only compile the chess environment.
+# To restore full compilation, uncomment the c_extensions list below and 
+# remove the filter on cpp_extension_paths.
+# ============================================================================
+
 # Put C env names here. PufferLib will look for
 # pufferlib/ocean/<name>/binding.c
 c_extensions_names = [
-    'gpudrive',
-    'squared',
-    'pong',
-    'boids',
-    'breakout',
-    'enduro',
-    'blastar',
-    'grid',
-    'nmmo3',
-    'tactical',
-    'connect4',
-    'go',
-    'cartpole'
+    # TEMPORARILY COMMENTED OUT TO ONLY BUILD CHESS
+    # 'gpudrive',
+    # 'squared',
+    # 'pong',
+    # 'boids',
+    # 'breakout',
+    # 'enduro',
+    # 'blastar',
+    # 'grid',
+    # 'nmmo3',
+    # 'tactical',
+    # 'connect4',
+    # 'go',
+    # 'cartpole'
 ]
 
 # TODO: Include other C files so rebuild is auto?
 c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
-c_extensions = [
+# TEMPORARILY COMMENTING OUT ALL C EXTENSIONS TO ONLY BUILD CHESS
+# c_extensions = [
+#     Extension(
+#         path.rstrip('.c').replace('/', '.'),
+#         sources=[path],
+#         **extension_kwargs,
+#     )
+#     for path in c_extension_paths
+# ]
+c_extensions = []  # Only compile chess (C++ extension)
+
+# C++ extensions that need g++ compiler
+cpp_extension_paths = glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True)
+# FILTER TO ONLY CHESS
+cpp_extension_paths = [path for path in cpp_extension_paths if 'chess' in path]
+
+# Find Abseil static libraries for chess
+def find_abseil_libs():
+    abseil_dir = os.path.join(os.path.dirname(__file__), '..', 'open_spiel_src', 'open_spiel', 'abseil-cpp', 'build')
+    if os.path.exists(abseil_dir):
+        return glob.glob(f'{abseil_dir}/**/*.a', recursive=True)
+    return []
+
+absl_libs = find_abseil_libs()
+
+cpp_extensions = [
     Extension(
-        path.rstrip('.c').replace('/', '.'),
+        path.rstrip('.cpp').replace('/', '.'),
         sources=[path],
-        **extension_kwargs,
+        language='c++',
+        include_dirs=INCLUDE + [os.path.join(os.path.dirname(__file__), '..', 'open_spiel_src', 'open_spiel', 'abseil-cpp')],
+        extra_compile_args=['-std=c++17', '-fpermissive', '-D_GLIBCXX_USE_CXX11_ABI=0'],
+        extra_link_args=extra_link_args,
+        extra_objects=[RAYLIB_A] + absl_libs,
+        libraries=['pthread', 'chess'],
+        library_dirs=[os.path.dirname(__file__)],
     )
-    for path in c_extension_paths
+    for path in cpp_extension_paths
 ]
+
 c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
+cpp_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in cpp_extension_paths]
 
 # Check if CUDA compiler is available. You need cuda dev, not just runtime.
 torch_sources = [
     "pufferlib/extensions/pufferlib.cpp",
 ]
-if shutil.which("nvcc"):
+if shutil.which("nvcc") and os.path.exists("pufferlib/extensions/cuda/pufferlib.cu"):
     extension = CUDAExtension
     torch_sources.append("pufferlib/extensions/cuda/pufferlib.cu")
 else:
@@ -434,15 +474,16 @@ torch_extensions = [
         "pufferlib._C",
         torch_sources,
         extra_compile_args = {
-            "cxx": cxx_args,
+            "cxx": ["/usr/bin/clang++", "-std=c++17", "-D_GLIBCXX_USE_CXX11_ABI=0"] + cxx_args,
             "nvcc": nvcc_args,
-        }
+        },
     ),
 ]
 
 # Prevent Conda from injecting garbage compile flags
 from distutils.sysconfig import get_config_vars
 cfg_vars = get_config_vars()
+cfg_vars['CXX'] = '/usr/bin/clang++' # Force clang++ globally for distutils
 for key in ('CC', 'CXX', 'LDSHARED'):
     if cfg_vars[key]:
         cfg_vars[key] = cfg_vars[key].replace('-B /root/anaconda3/compiler_compat', '')
@@ -459,7 +500,7 @@ setup(
     "PufferAI's library of RL tools and utilities",
     long_description_content_type="text/markdown",
     version=VERSION,
-    packages=find_namespace_packages() + find_packages() + c_extension_paths + ['pufferlib/extensions'],
+    packages=find_namespace_packages() + find_packages() + c_extension_paths + cpp_extension_paths + ['pufferlib/extensions'],
     package_data={
         "pufferlib": [RAYLIB_NAME + '/lib/libraylib.a']
     },
@@ -486,7 +527,7 @@ setup(
         'common': common,
         **environments,
     },
-    ext_modules = c_extensions + torch_extensions,
+    ext_modules = c_extensions + torch_extensions + cpp_extensions,
     cmdclass={
         "build_ext": BuildExt,
         "build_torch": TorchBuildExt,

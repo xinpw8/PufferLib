@@ -73,6 +73,7 @@ if [ "$ENV" = "chess" ]; then
 
     clang++ -std=c++17 -g -O2 -shared -fPIC \
         -I"$ABSL_DIR" \
+        -D_GLIBCXX_USE_CXX11_ABI=0 \
         "$SRC_DIR/chess.cpp" \
         "$ABSL_DIR/absl/strings/str_cat.cc" \
         "$ABSL_DIR/absl/strings/numbers.cc" \

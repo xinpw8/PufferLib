@@ -1,5 +1,11 @@
-Build the native code with one script.
-Validate thousands of real games quickly (mass_replay_chess.py ⇄ replay_chess).
+The assignment here was to port from openspiel. 
+Sticking close to the original at first is fine. 
+I want you to understand if there are any major design decisions they made for speed or to make it work for RL, as well as how much of their bloat is there for no reason.
+
+I don't have a good feel for how much code chess should take, but I don't think it should be unreasonable to have a fast simple C version.
+
+Possibly, we'd be better off porting the needed abseil functionality to STL since a lot of what's in 
+abseil has been added to STL in the meantime...It probably shouldnt be "1:1 port all the envs." It should be "env parity between open spiel and puffer"
 
 1. scripts/build_chess.sh (bash)
 • One-command builder.

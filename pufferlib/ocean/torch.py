@@ -853,3 +853,84 @@ class GPUDrive(nn.Module):
         action = torch.split(action, self.atn_dim, dim=1)
         value = self.value_fn(flat_hidden)
         return action, value
+    
+    
+# Optional: Custom Chess Policy for better performance
+# Place this in pufferlib/ocean/policy/chess_policy.py
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ChessRecurrent(nn.Module):
+    """Feed-forward encoder/decoder; temporal logic is provided by the common
+    pufferlib.models.LSTMWrapper (see ChessRecurrentLSTM below)."""
+    def __init__(self, env, input_size=2560, hidden_size=256, **kwargs):
+        super().__init__()
+
+        self.hidden_size = hidden_size
+
+        # ----- Encoders -----
+        self.board_encoder = nn.Sequential(
+            nn.Linear(768, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU()
+        )
+        self.move_encoder = nn.Sequential(
+            nn.Linear(256 + 1536, 512), nn.ReLU(), nn.Linear(512, 256), nn.ReLU()
+        )
+
+        self.combiner = nn.Sequential(
+            nn.Linear(512, hidden_size), nn.ReLU()
+        )
+
+        # ----- Heads -----
+        self.policy_head = nn.Linear(hidden_size, 256)  # 256 move logits
+        self.value_head = nn.Sequential(
+            nn.Linear(hidden_size, 128), nn.ReLU(), nn.Linear(128, 1)
+        )
+
+        # Continuous/Multidiscrete flags for PufferLib bookkeeping
+        self.is_continuous = False
+
+        # Storage for per-step legal-move mask to apply during decode
+        self._legal_mask = None
+
+    def encode_observations(self, obs, state=None):
+        """Split observation into board state and move information."""
+        # obs shape: (batch, 2560) - Enhanced with piece information
+        board_state = obs[:, :768]
+        legal_moves = obs[:, 768:1024]
+        move_encodings = obs[:, 1024:2560]  # Now 1536 elements with piece info
+        # Save mask for later use in decode_actions
+        self._legal_mask = legal_moves
+        
+        # Encode board and moves separately
+        board_features = self.board_encoder(board_state)
+        move_features = self.move_encoder(torch.cat([legal_moves, move_encodings], dim=-1))
+        
+        # Combine features
+        combined = torch.cat([board_features, move_features], dim=-1)
+        return self.combiner(combined)
+    
+    def decode_actions(self, hidden):
+        """Return masked logits and value given hidden state."""
+        logits = self.policy_head(hidden)
+        if self._legal_mask is not None:
+            logits = logits.masked_fill(self._legal_mask < 0.5, float('-inf'))
+        value = self.value_head(hidden).squeeze(-1)
+        return logits, value
+
+    # Convenience forward for direct (non-wrapped) calls
+    def forward(self, obs, state=None):
+        hidden = self.encode_observations(obs, state)
+        logits, value = self.decode_actions(hidden)
+        return logits, value
+
+
+# ---------------------------------------------------------------------------
+# Wrapper class that provides temporal reasoning via standard LSTMWrapper
+# ---------------------------------------------------------------------------
+
+
+class ChessRecurrentLSTM(pufferlib.models.LSTMWrapper):
+    def __init__(self, env, policy, input_size=256, hidden_size=256):
+        super().__init__(env, policy, input_size, hidden_size)

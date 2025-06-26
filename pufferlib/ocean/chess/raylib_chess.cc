@@ -256,6 +256,25 @@ int main(int argc, char **argv) {
                 inputBuf.clear();
             }
         }
+
+        // Render current board
+        const int BOARD_SIZE = 8;
+        int squareSize = SCREEN_W / BOARD_SIZE;
+
+        BeginDrawing();
+        ClearBackground(PUFF_BG);
+
+        for (int y = 0; y < BOARD_SIZE; ++y) {
+            for (int x = 0; x < BOARD_SIZE; ++x) {
+                RLColor color = ((x + y) % 2 == 0) ? PUFF_WHITE : PUFF_CYAN;
+                DrawRectangle(x * squareSize, y * squareSize, squareSize, squareSize, color);
+
+                auto sq = open_spiel::chess_common::Square{(int8_t)x, (int8_t)y};
+                DrawPieceSprite(env->ctx->board.at(sq), x * squareSize, y * squareSize, squareSize);
+            }
+        }
+
+        EndDrawing();
     }
 
     return 0;

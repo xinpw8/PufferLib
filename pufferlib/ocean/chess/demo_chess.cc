@@ -16,7 +16,7 @@ int main() {
 
     for (int t = 0; t < 200 && !env.terminals[0]; ++t) {
         std::vector<open_spiel::chess::Move> moves;
-        env.board.GenerateLegalMoves([&](const open_spiel::chess::Move &mv) {
+        env.ctx->board.GenerateLegalMoves([&](const open_spiel::chess::Move &mv) {
             moves.push_back(mv); return true;
         });
         if (moves.empty()) { std::cout << "No legal moves – game over!\n"; break; }
@@ -42,7 +42,7 @@ int main() {
         }
         got:
         env.actions[0] = ((chosen.from.y*8+chosen.from.x)<<6)| (chosen.to.y*8+chosen.to.x);
-        c_step(&env);
+c_step(&env);
         c_render(&env);
     }
     free_allocated(&env);
