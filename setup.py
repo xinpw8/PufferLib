@@ -412,15 +412,20 @@ extension_kwargs = dict(
 # TODO: Include other C files so rebuild is auto?
 c_extensions = []
 if not NO_OCEAN:
-    c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
-    c_extensions = [
-        Extension(
-            path.rstrip('.c').replace('/', '.'),
+    c_extension_paths = glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True)
+    for path in c_extension_paths:
+        ext_name = path.rstrip('.c').replace('/', '.')
+        c_ext = Extension(
+            ext_name,
             sources=[path],
-            **extension_kwargs,
+            language='c++',  # Compile with C++ to ensure symbols are defined
+            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + ['-std=c++17', '-x', 'c++'],  # Add C++ flag
+            include_dirs=extension_kwargs.get('include_dirs', []),
+            extra_link_args=extension_kwargs.get('extra_link_args', []),
+            extra_objects=extension_kwargs.get('extra_objects', []),
         )
-        for path in c_extension_paths
-    ]
+        c_extensions.append(c_ext)
+
     c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
 
     for c_ext in c_extensions:

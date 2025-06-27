@@ -37,8 +37,8 @@ typedef struct CChess {
     unsigned char* terminals;
     
     // static values from config/ocean/chess.ini
-    float reward_valid_move;
-    float reward_invalid_move;
+    float reward_valid;
+    float reward_invalid;
     float reward_agent_captures_enemy_piece;
     float reward_enemy_captures_agent_piece;
     float reward_win;
@@ -49,19 +49,21 @@ typedef struct CChess {
     void* context;
 } CChess;
 
+typedef struct ChessContext ChessContext;
+
 // pufferlib required functions
-void c_init(CChess* env);
+void init(CChess* env);
 void allocate(CChess* env);
 void free_allocated(CChess* env);
 void c_reset(CChess* env);
 void compute_observation(CChess* env, ChessContext* ctx);
-void add_log(Log* log, ChessContext* ctx, bool win, bool loss, bool draw);
+void add_log(Log* log, const ChessContext* ctx, bool win, bool loss, bool draw);
 void c_step(CChess* env);
 void c_render(CChess* env);
 void c_close(CChess* env);
 
 #ifdef __cplusplus
-}
+} // extern "C"
 #endif
 
 // c++ implementation
@@ -74,6 +76,7 @@ void c_close(CChess* env);
 #include <algorithm>
 #include <iostream>
 #include <functional>
+#include <cassert>
 
 namespace chess {
 
@@ -138,6 +141,84 @@ struct Move {
                is_castle_long == other.is_castle_long;
     }
 };
+
+chess::Move action_to_move_direct(int action, const chess::ChessBoard& board) {
+    // Special case: castling
+    if (action == 4672 || action == 4673) {
+        Square king_sq = board.find_king(board.side_to_move());
+        if (action == 4672) { // Kingside
+            return chess::Move{king_sq, {6, king_sq.y}, 
+                {board.side_to_move(), chess::KING}, chess::EMPTY, true, false};
+        } else { // Queenside
+            return chess::Move{king_sq, {2, king_sq.y}, 
+                {board.side_to_move(), chess::KING}, chess::EMPTY, false, true};
+        }
+    }
+    
+    // Regular moves
+    int from_idx = action / 73;
+    int dest_idx = action % 73;
+    
+    Square from = {int8_t(from_idx % 8), int8_t(from_idx / 8)};
+    
+    // Get piece at from square
+    const Piece& piece = board.at(from);
+    chess::Color color = board.side_to_move();
+    
+    // Reflect square for black
+    if (color == chess::BLACK) {
+        from.y = 7 - from.y;
+    }
+    
+    Square to;
+    PieceType promotion = chess::EMPTY;
+    
+    if (dest_idx < 9) {
+        // Underpromotion
+        int promo_idx = dest_idx / 3;
+        int dir_idx = dest_idx % 3;
+        
+        // Promotion types: 0=Rook, 1=Bishop, 2=Knight
+        const PieceType promo_types[3] = {chess::ROOK, chess::BISHOP, chess::KNIGHT};
+        promotion = promo_types[promo_idx];
+        
+        // Directions: -1, 0, 1 (left diagonal, straight, right diagonal)
+        const int x_offsets[3] = {-1, 0, 1};
+        to = {int8_t(from.x + x_offsets[dir_idx]), int8_t(from.y + 1)};
+    } else {
+        // Normal moves or queen promotions
+        dest_idx -= 9;
+        
+        // Decode destination using queen+knight move pattern
+        if (dest_idx < 56) {
+            // Queen-like moves
+            const int directions[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+            int dir = dest_idx / 7;
+            int dist = (dest_idx % 7) + 1;
+            to = {int8_t(from.x + directions[dir][0] * dist), 
+                  int8_t(from.y + directions[dir][1] * dist)};
+        } else {
+            // Knight moves
+            const int knight_moves[8][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
+            int knight_idx = dest_idx - 56;
+            to = {int8_t(from.x + knight_moves[knight_idx][0]), 
+                  int8_t(from.y + knight_moves[knight_idx][1])};
+        }
+        
+        // Check for queen promotion
+        if (piece.type == chess::PAWN && from.y == 6 && to.y == 7) {
+            promotion = chess::QUEEN;
+        }
+    }
+    
+    // Reflect back for black
+    if (color == chess::BLACK) {
+        from.y = 7 - from.y;
+        to.y = 7 - to.y;
+    }
+    
+    return chess::Move{from, to, piece, promotion};
+}
 
 // zobrist hashing for position identification
 class ZobristHash {
@@ -310,6 +391,15 @@ public:
     uint64_t hash() const {
         int8_t ep_file = (ep_square >= 0) ? (ep_square & 7) : -1;
         return zobrist.hash_position(board, castling_rights, ep_file, to_move);
+    }
+    
+    Square find_king(Color color) const {
+        for (int sq = 0; sq < 64; ++sq) {
+            if (board[sq].type == KING && board[sq].color == color) {
+                return {int8_t(sq & 7), int8_t(sq >> 3)};
+            }
+        }
+        return {-1, -1};
     }
     
     // move generation with yield pattern for performance
@@ -781,8 +871,8 @@ struct ChessContext {
     float episode_return = 0.0f;
     
     // config vars from python
-    float c_reward_valid_move = 0.0f;
-    float c_reward_invalid_move = 0.0f;
+    float c_reward_valid = 0.0f;
+    float c_reward_invalid = 0.0f;
     float c_reward_agent_captures_enemy_piece = 0.0f;
     float c_reward_enemy_captures_agent_piece = 0.0f;
     float c_reward_win = 0.0f;
@@ -807,8 +897,8 @@ void add_log(Log* log, const ChessContext* ctx, bool win, bool loss, bool draw) 
     log->game_won += win;
     log->game_lost += loss;
     log->game_drawn += draw;
-    log->reward_valid += ctx->c_reward_valid_move;
-    log->reward_invalid += ctx->c_reward_invalid_move;
+    log->reward_valid += ctx->c_reward_valid;
+    log->reward_invalid += ctx->c_reward_invalid;
     log->reward_agent_captures_enemy_piece += ctx->c_reward_agent_captures_enemy_piece;
     log->reward_enemy_captures_agent_piece += ctx->c_reward_enemy_captures_agent_piece;
     log->reward_win += ctx->c_reward_win;
@@ -816,13 +906,13 @@ void add_log(Log* log, const ChessContext* ctx, bool win, bool loss, bool draw) 
     log->reward_loss += ctx->c_reward_loss;
 }
 
-void c_init(CChess* env) {
+void init(CChess* env) {
     env->context = new ChessContext(12345);
 }
 
 void allocate(CChess* env) {
-    // 64 squares for observations
-    env->observations = (float*)calloc(64, sizeof(float));
+    // 8×8×21 = 1344 observations
+    env->observations = (float*)calloc(1344, sizeof(float));
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -849,8 +939,8 @@ void c_reset(CChess* env) {
     ctx->episode_return = 0.0f;
 
     // zero counters
-    ctx->c_reward_valid_move = 0.0f;
-    ctx->c_reward_invalid_move = 0.0f;
+    ctx->c_reward_valid = 0.0f;
+    ctx->c_reward_invalid = 0.0f;
     ctx->c_reward_agent_captures_enemy_piece = 0.0f;
     ctx->c_reward_enemy_captures_agent_piece = 0.0f;
     ctx->c_reward_win = 0.0f;
@@ -871,178 +961,213 @@ void c_reset(CChess* env) {
 }
 
 void compute_observation(CChess* env, ChessContext* ctx) {
-    for (int sq = 0; sq < 64; sq++) {
-        const auto& piece = ctx->board.at({int8_t(sq & 7), int8_t(sq >> 3)});
-        env->observations[sq] = piece.to_obs();
+    // Total size: 8*8*21 = 1344 floats
+    int idx = 0;
+    
+    // 12 piece planes (6 types × 2 colors)
+    for (int color = 0; color < 2; color++) {
+        for (int type = 1; type <= 6; type++) { // KING=1 to PAWN=6
+            for (int y = 0; y < 8; y++) {
+                for (int x = 0; x < 8; x++) {
+                    const auto& p = ctx->board.at({int8_t(x), int8_t(y)});
+                    env->observations[idx++] = (p.color == color && p.type == type) ? 1.0f : 0.0f;
+                }
+            }
+        }
     }
+    
+    // Empty squares plane
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            env->observations[idx++] = ctx->board.at({int8_t(x), int8_t(y)}).type == chess::EMPTY ? 1.0f : 0.0f;
+        }
+    }
+    
+    // Repetition count plane (normalized to 0-1 for 1-3 repetitions)
+    uint64_t hash = ctx->board.hash();
+    int reps = ctx->position_history[hash];
+    float rep_val = (reps - 1) / 2.0f; // Maps 1->0, 2->0.5, 3->1
+    for (int i = 0; i < 64; i++) {
+        env->observations[idx++] = rep_val;
+    }
+    
+    // Side to move plane
+    float side_val = ctx->board.side_to_move() == chess::WHITE ? 0.0f : 1.0f;
+    for (int i = 0; i < 64; i++) {
+        env->observations[idx++] = side_val;
+    }
+    
+    // Irreversible move counter plane (halfmove clock normalized to 0-1)
+    float halfmove_val = ctx->board.get_halfmove_clock() / 101.0f;
+    for (int i = 0; i < 64; i++) {
+        env->observations[idx++] = halfmove_val;
+    }
+    
+    // 4 castling rights planes
+    uint8_t rights = ctx->board.get_castling_rights();
+    for (int i = 0; i < 4; i++) {
+        float castle_val = (rights & (1 << (3-i))) ? 1.0f : 0.0f;
+        for (int j = 0; j < 64; j++) {
+            env->observations[idx++] = castle_val;
+        }
+    }
+    
+    // Should be exactly 1344 floats
+    assert(idx == 1344);
 }
 
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
-    const auto& moves = ctx->board.legal_moves();
     float reward = 0.0f;
-
     bool terminal = false;
-    bool win = false;
-    bool loss = false;
-    bool draw = false;
-
-    // agent (white) to move:
-    // map action to move
+    bool win = false, loss = false, draw = false;
+    
+    // Get agent's move
     int action_idx = *env->actions;
     chess::Move selected_move;
     bool valid_move = false;
     
-    // find move with matching action index
-    for (const auto& move : moves) {
-        if (chess::ChessBoard::move_to_action(move) == action_idx) {
-            selected_move = move;
-            valid_move = true;
-            break;
-        }
-    }
+    // Use efficient action_to_move_direct instead of looping through all moves
+    selected_move = action_to_move_direct(action_idx, ctx->board);
     
-    if (valid_move) {
-        // agent (white) capturing a black piece?
+    // Validate the move
+    const auto& legal_moves = ctx->board.legal_moves();
+    valid_move = std::find(legal_moves.begin(), legal_moves.end(), selected_move) != legal_moves.end();
+    
+    if (!valid_move) {
+        // Invalid move - penalize and don't change state
+        reward = env->reward_invalid;
+        ctx->c_reward_invalid += env->reward_invalid;
+    } else {
+        // Valid move - process it
+        
+        // Check for capture before move
         const auto& captured = ctx->board.at(selected_move.to);
         if (captured.type != chess::EMPTY) {
             reward += env->reward_agent_captures_enemy_piece;
             ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
         }
         
-        // apply agent (white) move
+        // Apply white's move
         ctx->board.apply_move(selected_move);
-        reward += env->reward_valid_move;
-        ctx->c_reward_valid_move += env->reward_valid_move;
+        reward += env->reward_valid;
+        ctx->c_reward_valid += env->reward_valid;
         
-        // update position history (for 3-fold repetition detection)
+        // Update position history
         uint64_t hash = ctx->board.hash();
         ctx->position_history[hash]++;
         
-        // opponent (black) to move:
-        const auto& opp_moves = ctx->board.legal_moves();
-        if (opp_moves.empty()) {
-            // black (opponent) has no legal moves, apply either checkmate (white win) or stalemate (draw)
+        // Check if white's move ended the game
+        
+        // 1. Threefold repetition
+        if (ctx->position_history[hash] >= 3) {
+            terminal = true;
+            draw = true;
+            reward += env->reward_draw;
+            ctx->c_reward_draw += env->reward_draw;
+        }
+        // 2. 50-move rule
+        else if (ctx->board.get_halfmove_clock() >= 100) {
+            terminal = true;
+            draw = true;
+            reward += env->reward_draw;
+            ctx->c_reward_draw += env->reward_draw;
+        }
+        // 3. Insufficient material
+        else if (ctx->board.is_insufficient_material()) {
+            terminal = true;
+            draw = true;
+            reward += env->reward_draw;
+            ctx->c_reward_draw += env->reward_draw;
+        }
+        // 4. Check if black has any moves
+        else if (ctx->board.legal_moves().empty()) {
             terminal = true;
             if (ctx->board.is_check()) {
+                // Checkmate - white wins
+                win = true;
                 reward += env->reward_win;
                 ctx->c_reward_win += env->reward_win;
-                win = true; // checkmate (agent (white) win)
             } else {
+                // Stalemate
+                draw = true;
                 reward += env->reward_draw;
                 ctx->c_reward_draw += env->reward_draw;
-                draw = true; // stalemate (draw)
             }
-        } else {
-            // black (opponent) has legal moves, apply random move
-            std::uniform_int_distribution<> dist(0, opp_moves.size() - 1);
-            const auto& opp_move = opp_moves[dist(ctx->rng)];
+        }
+        
+        // If game not over, black plays
+        if (!terminal) {
+            const auto& black_moves = ctx->board.legal_moves();
+            std::uniform_int_distribution<> dist(0, black_moves.size() - 1);
+            const auto& black_move = black_moves[dist(ctx->rng)];
             
-            // opponent (black) capturing a white piece?
-            if (ctx->board.at(opp_move.to).type != chess::EMPTY) {
+            // Check for capture
+            if (ctx->board.at(black_move.to).type != chess::EMPTY) {
                 reward += env->reward_enemy_captures_agent_piece;
                 ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
-            }            
-
-            // apply opponent (black) move
-            ctx->board.apply_move(opp_move);
+            }
+            
+            // Apply black's move
+            ctx->board.apply_move(black_move);
             ctx->position_history[ctx->board.hash()]++;
-        }        
-    } else {
-        // invalid (white) move
-        // penalize agent (white) for invalid move
-        reward = env->reward_invalid_move;
-        ctx->c_reward_invalid_move += env->reward_invalid_move;
-    }
-
-    // opponent (black) to move:
-    if (!terminal) {
-        const auto& white_moves = ctx->board.legal_moves();
-        if (white_moves.empty()) {
-            terminal = true;
-            if (ctx->board.is_check()) {
-                reward += env->reward_loss;
-                ctx->c_reward_loss += env->reward_loss;
-                loss = true;
-            } else {
+            
+            // Check if black's move ended the game
+            
+            // 1. Threefold repetition
+            if (ctx->position_history[ctx->board.hash()] >= 3) {
+                terminal = true;
+                draw = true;
                 reward += env->reward_draw;
                 ctx->c_reward_draw += env->reward_draw;
-                draw = true;
             }
-        }
-    }
-
-    bool terminal = false;
-    bool win = false;
-    bool loss = false;
-    bool draw = false;
-    
-    // is agent (white) checkmated or is there a stalemate?
-    if (ctx->board.legal_moves().empty()) {
-        terminal = true;
-        if (ctx->board.is_check()) {
-            reward = env->reward_loss;  // agent (white) checkmated == agent (white) loss
-            ctx->c_reward_loss += env->reward_loss;
-            loss = true;
-        } else {
-            reward = env->reward_draw;  // agent (white) stalemated == agent (white) draw
-            ctx->c_reward_draw += env->reward_draw;
-            draw = true;
-        }
-    }
-    
-    // is opponent (black) checkmated?
-    if (!terminal && ctx->board.legal_moves().empty()) {
-        terminal = true;
-        reward = env->reward_win;  // opponent (black) checkmated == agent (white) win
-        ctx->c_reward_win += env->reward_win;
-        win = true;
-    }
-    
-    // 3-fold repetition draw? (automatically accepted by both players upon detection)
-    if (!terminal) {
-        for (const auto& [pos, count] : ctx->position_history) {
-            if (count >= 3) {
+            // 2. 50-move rule
+            else if (ctx->board.get_halfmove_clock() >= 100) {
                 terminal = true;
-                reward = env->reward_draw;
-                ctx->c_reward_draw += env->reward_draw;
                 draw = true;
-                break;
+                reward += env->reward_draw;
+                ctx->c_reward_draw += env->reward_draw;
+            }
+            // 3. Insufficient material
+            else if (ctx->board.is_insufficient_material()) {
+                terminal = true;
+                draw = true;
+                reward += env->reward_draw;
+                ctx->c_reward_draw += env->reward_draw;
+            }
+            // 4. Check if white has any moves
+            else if (ctx->board.legal_moves().empty()) {
+                terminal = true;
+                if (ctx->board.is_check()) {
+                    // Checkmate - black wins
+                    loss = true;
+                    reward += env->reward_loss;
+                    ctx->c_reward_loss += env->reward_loss;
+                } else {
+                    // Stalemate
+                    draw = true;
+                    reward += env->reward_draw;
+                    ctx->c_reward_draw += env->reward_draw;
+                }
             }
         }
     }
     
-    // 50-move rule draw? (automatically applied)
-    if (!terminal && ctx->board.get_halfmove_clock() >= 100) {
-        terminal = true;
-        reward = env->reward_draw;
-        ctx->c_reward_draw += env->reward_draw;
-        draw = true;
-    }
-    
-    // insufficient material draw? (automatically applied)
-    if (!terminal && ctx->board.is_insufficient_material()) {
-        terminal = true;
-        reward = env->reward_draw;
-        ctx->c_reward_draw += env->reward_draw;
-        draw = true;
-    }
-    
-    // update observations
-    compute_observation(env, ctx);
-
-    // update episode tracking
-    ctx->step_count += 1;
+    // Update episode tracking
+    ctx->step_count++;
     ctx->episode_return += reward;
     
-    // on terminal, compute final win/loss/draw rewards and call add_log()
-    if (terminal) {
-        add_log(&env->log, ctx, win, loss, draw);
-        ctx->c_n += 1.0f;
-    }
+    // Update observation
+    compute_observation(env, ctx);
     
+    // Set outputs
     *env->rewards = reward;
     *env->terminals = terminal ? 1 : 0;
+    
+    // Log if terminal
+    if (terminal) {
+        add_log(&env->log, ctx, win, loss, draw);
+    }
 }
 
 void c_render(CChess* env) {
@@ -1054,5 +1179,4 @@ void c_close(CChess* env) {
 }
 
 } // extern "C"
-
 #endif // __cplusplus

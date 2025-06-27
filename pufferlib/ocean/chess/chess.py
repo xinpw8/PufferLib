@@ -11,7 +11,8 @@ class Chess(pufferlib.PufferEnv):
     
     def __init__(self, num_envs=1, render_mode=None, log_interval=1,
                  reward_valid=0.01, reward_invalid=-0.1,
-                 reward_capture=0.05, reward_captured=-0.05,
+                 reward_agent_captures_enemy_piece=0.05,
+                 reward_enemy_captures_agent_piece=-0.05,
                  reward_win=1.0, reward_draw=0.0, reward_loss=-1.0,
                  buf=None, seed=0):
         
@@ -20,23 +21,24 @@ class Chess(pufferlib.PufferEnv):
         self.log_interval = log_interval
         self.tick = 0
         
-        # Observations: 64 squares with piece values
-        self.num_obs = 64
-        # Actions: 4674 following OpenSpiel's encoding
-        self.num_act = 4674
+        # observations: 21 channels of 8x8 = 8*8*21 = 1344
+        self.num_obs = 8*8*21
+        # actions: 4674 following openspiel encoding
+        self.num_actions = 4674
         
         self.single_observation_space = gymnasium.spaces.Box(
             low=-6, high=6, shape=(self.num_obs,), dtype=np.float32)
-        self.single_action_space = gymnasium.spaces.Discrete(self.num_act)
+        self.single_action_space = gymnasium.spaces.Discrete(self.num_actions)
         
         super().__init__(buf=buf)
         
-        # Initialize C environments
+        # initialize c environments
         self.c_envs = binding.vec_init(
             self.observations, self.actions, self.rewards,
             self.terminals, self.truncations, num_envs, seed,
             reward_valid=reward_valid, reward_invalid=reward_invalid,
-            reward_capture=reward_capture, reward_captured=reward_captured,
+            reward_agent_captures_enemy_piece=reward_agent_captures_enemy_piece,
+            reward_enemy_captures_agent_piece=reward_enemy_captures_agent_piece,
             reward_win=reward_win, reward_draw=reward_draw, 
             reward_loss=reward_loss)
     
