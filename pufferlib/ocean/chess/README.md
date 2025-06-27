@@ -1,56 +1,34 @@
-The assignment here was to port from openspiel. 
-Sticking close to the original at first is fine. 
-I want you to understand if there are any major design decisions they made for speed or to make it work for RL, as well as how much of their bloat is there for no reason.
+open-spiel bloat assessment:
+framework: ~60%
+extra features: ~30%
+abseil vs stl: ~10%
 
-I don't have a good feel for how much code chess should take, but I don't think it should be unreasonable to have a fast simple C version.
+Features to keep:
 
-Possibly, we'd be better off porting the needed abseil functionality to STL since a lot of what's in 
-abseil has been added to STL in the meantime...It probably shouldnt be "1:1 port all the envs." It should be "env parity between open spiel and puffer"
+Zobrist Hashing: 
+Open-spiel implementation: open_spiel/games/chess/chess_board.cc uses a Zobrist table (kZobristTable) to compute a 64-bit hash for board positions. The SetBoard and ApplyMove functions update this hash incrementally as pieces move using XOR operations. Hashes are stored.
+Reason to keep: lightweight threefold repetition (==identical game state has occurred 3 times at any point during game) detection.
 
-1. scripts/build_chess.sh (bash)
-• One-command builder.
-Rebuilds static Abseil if it isn’t present.
-Compiles three native binaries and drops them in pufferlib/:
-demo_chess
-replay_chess
-raylib_chess (if the Raylib 5.5 bundle exists)
-Run from anywhere:
-chmod +x pufferlib/scripts/build_chess.sh
-pufferlib/scripts/build_chess.sh        
+PassthroughHash:
+Open-spiel implementation: open_spiel/games/chess/chess_board.h defines a RepetitionTable as absl::flat_hash_map<uint64_t, int, Zobrist::PassthroughHash>, a struct which returns the key itself. The lookup key is therefore the Zobrist hash, making it unnecessary to apply a second (redundant) hashing function.
+Reason to keep: threefold repetition is expensive to detect.
 
-Note: binaries appear in pufferlib top dir.
+Legal-move caching:
+Open-spiel implementation: open_spiel/games/chess/chess.h ChessState class's variable mutable absl::optional<std::vector<Move>> cached_legal_actions_ stores a list of all legal moves. LegalActions method checks if it's filled and populates with GenerateLegalMoves if not. Any action modifying the game state (e.g. DoApplyAction) invalidates the cache by calling cached_legal_actions_.reset(). Cached legal moves prevent regenerating the list repeatedly for a given game state.
+Reason to keep: generating legal moves is computationally expensive, especially if it is necessary to query them multiple times for a given game state.
 
-2. replay_chess (C++ → pufferlib/replay_chess)
-source: pufferlib/pufferlib/ocean/chess/replay_chess.cc
-• “Headless” validator used by CI tests and mass-replay.
-Takes one argument: a text file that contains only whitespace-separated SAN moves.
-Replays the game through the native CChess engine and exits 0 if every move was legal.
-Usage: ./pufferlib/replay_chess moves.txt
+Yield-based move generation:
+Open-spiel implementation: open_spiel/games/chess/chess_board.cc uses a callback-based approach to generate moves. The primary function is GenerateLegalMoves(const std::function<void(const Move&)>& yield), which takes a function (yield) as an argument. Pseudo-legal moves are generated one at a time and passed to yield, allowing quick determination if any legal move exists, since it can return early on first legal move.
+Reason to keep: avoids expensive computation of moves.
 
-3. demo_chess (console demo)
-source: pufferlib/pufferlib/ocean/chess/demo_chess.cc
-• Minimal interactive CLI to play against the engine.
-Accepts coordinate input like e2e4, or r for a random move, q to quit.
-Renders an ASCII board after every move.
+Simple array board representation:
+Open-spiel implementation: open_spiel/games/chess/chess_board.h represents the board as std::array<Piece, kBoardSize> board_; kBoardSize is 64. Each element holds the piece occupying that square.
+Reason to keep: avoids bitboard alternative.
 
-4. raylib_chess (GUI demo)
-source: pufferlib/pufferlib/ocean/chess/raylib_chess.cc
-• Optional graphical viewer built with Raylib 5.5.
-Needs the pre-built bundle in raylib-5.5_linux_amd64/ (already present in repo).
-If a PGN path is supplied it auto-animates the game; otherwise it opens an interactive board (click-and-drag to move).
+Game-state representation:
+Open-spiel implementation: open_spiel/games/chess/chess.cc uses ObservationTensor method to create a flat vector representing a multi-layered tensor of shape {kObservationTensorShape[0], kObservationTensorShape[1], kObservationTensorShape[2]}, defined as {8, 8, 21}. Each 8x8 plane represents a piece type (white pawn, black pawn, white bishop, etc.), repetition count, castling rights, and whose turn it is.
+Reason to keep: rich feature engineering allows effective learning.
 
-5. tools/extract_pgn_moves.py (Python)
-• Streams through a huge PGN, strips headers/comments, returns plain move strings.
-Used both for quick inspection and also by the batch tester.
-
-6. tools/mass_replay_chess.py (Python)
-• Batch harness that glues the extractor and replay_chess together.
-Validates N games from any PGN with PyTest-style dot output.
-
-python tools/mass_replay_chess.py /puffertank/release_test_pufferlib/pufferlib/resources/chess/games_database/ficsgamesdb_2024_standard_nomovetimes_443694.pgn -n 1000
-....................................................................
-Summary: 1000 passed / 1000 total
-
-7. flat_chess_env.h (C++)
-• Single-translation-unit “CChess” environment embedded inside pufferlib/pufferlib/ocean/chess/.
-Wraps OpenSpiel’s C++ chess engine behind a tiny C interface (allocate, c_step, etc.) so PufferLib (or any RL loop) can drive it at high speed.
+Fixed 4674-Dimensional Action Space:
+Open-spiel implementation: open_spiel/games/chess/chess.h sets kNumDistinctActions to 4674. open_spiel/games/chess/chess.cc uses MoveToAction and ActionToMove to encode all possible moves (including all possible pawn promotions, UCI-style long algebraic notation for other moves, all from/to square combinations) into a single integer between 0 and 4673. 
+Reason to keep: avoids structured actions (e.g. piece, then destination); standard RL approach for chess.
