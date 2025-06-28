@@ -127,27 +127,6 @@ class LSTMWrapper(nn.Module):
         #self.pre_layernorm = nn.LayerNorm(hidden_size)
         #self.post_layernorm = nn.LayerNorm(hidden_size)
 
-    def forward_eval(self, observations, state):
-        '''Forward function for inference. 3x faster than using LSTM directly'''
-        hidden = self.policy.encode_observations(observations, state=state)
-        h = state['lstm_h']
-        c = state['lstm_c']
-
-        # TODO: Don't break compile
-        if h is not None:
-            assert h.shape[0] == c.shape[0] == observations.shape[0], 'LSTM state must be (h, c)'
-            lstm_state = (h, c)
-        else:
-            lstm_state = None
-
-        #hidden = self.pre_layernorm(hidden)
-        hidden, c = self.cell(hidden, lstm_state)
-        #hidden = self.post_layernorm(hidden)
-        state['hidden'] = hidden
-        state['lstm_h'] = hidden
-        state['lstm_c'] = c
-        logits, values = self.policy.decode_actions(hidden)
-        return logits, values
 
     def forward(self, observations, state):
         '''Forward function for training. Uses LSTM for fast time-batching'''
@@ -173,6 +152,9 @@ class LSTMWrapper(nn.Module):
         else:
             lstm_state = None
 
+        # Extract mask before reshaping (for chess, mask is at indices 1344:6018)
+        legal_masks = x[..., 1344:6018].reshape(B*TT, -1)
+        
         x = x.reshape(B*TT, *space_shape)
         hidden = self.policy.encode_observations(x, state)
         assert hidden.shape == (B*TT, self.input_size)
@@ -180,19 +162,122 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.reshape(B, TT, self.input_size)
 
         hidden = hidden.transpose(0, 1)
-        #hidden = self.pre_layernorm(hidden)
         hidden, (lstm_h, lstm_c) = self.lstm.forward(hidden, lstm_state)
-        #hidden = self.post_layernorm(hidden)
         hidden = hidden.transpose(0, 1)
 
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)
         logits, values = self.policy.decode_actions(flat_hidden)
+        
+        # Apply mask after getting logits
+        mask_value = -1e8
+        masked_logits = logits.masked_fill(legal_masks < 0.5, mask_value)
+        # Add small epsilon for numerical stability
+        masked_logits = masked_logits + legal_masks * 1e-10
+        
         values = values.reshape(B, TT)
-        #state.batch_logits = logits.reshape(B, TT, -1)
         state['hidden'] = hidden
         state['lstm_h'] = lstm_h.detach()
         state['lstm_c'] = lstm_c.detach()
-        return logits, values
+        return masked_logits, values
+
+    # Also modify forward_eval similarly:
+    def forward_eval(self, observations, state):
+        '''Forward function for inference. 3x faster than using LSTM directly'''
+        # Extract mask
+        legal_mask = observations[:, 1344:6018]
+        
+        hidden = self.policy.encode_observations(observations, state=state)
+        h = state['lstm_h']
+        c = state['lstm_c']
+
+        if h is not None:
+            assert h.shape[0] == c.shape[0] == observations.shape[0], 'LSTM state must be (h, c)'
+            lstm_state = (h, c)
+        else:
+            lstm_state = None
+
+        hidden, c = self.cell(hidden, lstm_state)
+        state['hidden'] = hidden
+        state['lstm_h'] = hidden
+        state['lstm_c'] = c
+        
+        logits, values = self.policy.decode_actions(hidden)
+        
+        # Apply mask
+        mask_value = -1e8
+        masked_logits = logits.masked_fill(legal_mask < 0.5, mask_value)
+        masked_logits = masked_logits + legal_mask * 1e-10
+        
+        return masked_logits, values
+
+
+
+    # def forward_eval(self, observations, state):
+    #     '''Forward function for inference. 3x faster than using LSTM directly'''
+    #     hidden = self.policy.encode_observations(observations, state=state)
+    #     h = state['lstm_h']
+    #     c = state['lstm_c']
+
+    #     # TODO: Don't break compile
+    #     if h is not None:
+    #         assert h.shape[0] == c.shape[0] == observations.shape[0], 'LSTM state must be (h, c)'
+    #         lstm_state = (h, c)
+    #     else:
+    #         lstm_state = None
+
+    #     #hidden = self.pre_layernorm(hidden)
+    #     hidden, c = self.cell(hidden, lstm_state)
+    #     #hidden = self.post_layernorm(hidden)
+    #     state['hidden'] = hidden
+    #     state['lstm_h'] = hidden
+    #     state['lstm_c'] = c
+    #     logits, values = self.policy.decode_actions(hidden)
+    #     return logits, values
+
+    # def forward(self, observations, state):
+    #     '''Forward function for training. Uses LSTM for fast time-batching'''
+    #     x = observations
+    #     lstm_h = state['lstm_h']
+    #     lstm_c = state['lstm_c']
+
+    #     x_shape, space_shape = x.shape, self.obs_shape
+    #     x_n, space_n = len(x_shape), len(space_shape)
+    #     if x_shape[-space_n:] != space_shape:
+    #         raise ValueError('Invalid input tensor shape', x.shape)
+
+    #     if x_n == space_n + 1:
+    #         B, TT = x_shape[0], 1
+    #     elif x_n == space_n + 2:
+    #         B, TT = x_shape[:2]
+    #     else:
+    #         raise ValueError('Invalid input tensor shape', x.shape)
+
+    #     if lstm_h is not None:
+    #         assert lstm_h.shape[1] == lstm_c.shape[1] == B, 'LSTM state must be (h, c)'
+    #         lstm_state = (lstm_h, lstm_c)
+    #     else:
+    #         lstm_state = None
+
+    #     x = x.reshape(B*TT, *space_shape)
+    #     hidden = self.policy.encode_observations(x, state)
+    #     assert hidden.shape == (B*TT, self.input_size)
+
+    #     hidden = hidden.reshape(B, TT, self.input_size)
+
+    #     hidden = hidden.transpose(0, 1)
+    #     #hidden = self.pre_layernorm(hidden)
+    #     hidden, (lstm_h, lstm_c) = self.lstm.forward(hidden, lstm_state)
+    #     #hidden = self.post_layernorm(hidden)
+    #     hidden = hidden.transpose(0, 1)
+
+    #     flat_hidden = hidden.reshape(B*TT, self.hidden_size)
+    #     logits, values = self.policy.decode_actions(flat_hidden)
+    #     values = values.reshape(B, TT)
+    #     #state.batch_logits = logits.reshape(B, TT, -1)
+    #     state['hidden'] = hidden
+    #     state['lstm_h'] = lstm_h.detach()
+    #     state['lstm_c'] = lstm_c.detach()
+    #     return logits, values
 
 class Convolutional(nn.Module):
     def __init__(self, env, *args, framestack, flat_size,

@@ -466,6 +466,72 @@ public:
                 case KNIGHT: promo_offset = 3; break;
             }
             base_action = 64 * 64 + from_idx * 4 + promo_offset;
+        } else {
+            // Normal moves (non-promotion)
+            int dest_val = -1; // This will be the relative 'dest_idx' (0-72)
+
+            int dx = move.to.x - move.from.x;
+            int dy = move.to.y - move.from.y;
+
+            // 1. Knight moves (dest_val 65-72)
+            const int knight_moves[8][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
+            for (int i = 0; i < 8; ++i) {
+                if (dx == knight_moves[i][0] && dy == knight_moves[i][1]) {
+                    dest_val = 65 + i;
+                    break;
+                }
+            }
+
+            // 2. Sliding moves (Queen-like, dest_val 9-64)
+            if (dest_val == -1) {
+                const int directions[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+                for (int i = 0; i < 8; ++i) {
+                    int dir_dx = directions[i][0];
+                    int dir_dy = directions[i][1];
+                    
+                    // Check if this move is in this direction
+                    if (dir_dx == 0 && dir_dy != 0) { // Vertical movement
+                        if (dx == 0 && dy != 0 && ((dy > 0) == (dir_dy > 0))) {
+                            int dist = abs(dy);
+                            if (dist >= 1 && dist <= 7) {
+                                dest_val = 9 + (i * 7 + (dist - 1));
+                                break;
+                            }
+                        }
+                    } else if (dir_dx != 0 && dir_dy == 0) { // Horizontal movement
+                        if (dy == 0 && dx != 0 && ((dx > 0) == (dir_dx > 0))) {
+                            int dist = abs(dx);
+                            if (dist >= 1 && dist <= 7) {
+                                dest_val = 9 + (i * 7 + (dist - 1));
+                                break;
+                            }
+                        }
+                    } else if (dir_dx != 0 && dir_dy != 0) { // Diagonal movement
+                        if (dx != 0 && dy != 0 && abs(dx) == abs(dy) && 
+                            ((dx > 0) == (dir_dx > 0)) && ((dy > 0) == (dir_dy > 0))) {
+                            int dist = abs(dx);
+                            if (dist >= 1 && dist <= 7) {
+                                dest_val = 9 + (i * 7 + (dist - 1));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If dest_val is still -1, it means the move is not found in the defined action types.
+            // This implies it's either an invalid move or a special pawn move that is not captured by sliding logic.
+            // However, pawn single/double pushes and captures should map to these sliding moves.
+            // The current action_to_move_direct handles pawn moves implicitly through the sliding/knight categories.
+            
+            if (dest_val == -1) {
+                // This is a critical error in the action encoding/decoding.
+                // It means a legal chess::Move object cannot be converted into a valid OpenSpiel action index.
+                // For now, return a placeholder that will likely result in an invalid move in c_step.
+                return -1; 
+            }
+
+            base_action = from_idx * 73 + dest_val;
         }
         
         return base_action;
@@ -783,84 +849,106 @@ private:
 
 // static initialization
 ZobristHash ChessBoard::zobrist;
-
-// Move this function AFTER ChessBoard class definition
 Move action_to_move_direct(int action, const ChessBoard& board) {
     // Special case: castling
     if (action == 4672 || action == 4673) {
         Square king_sq = board.find_king(board.side_to_move());
         if (action == 4672) { // Kingside
-            return Move{king_sq, {6, king_sq.y}, 
-                {board.side_to_move(), KING}, EMPTY, true, false};
+            Move m{king_sq, {6, king_sq.y}, {board.side_to_move(), KING}, EMPTY};
+            m.is_castle_short = true;
+            return m;
         } else { // Queenside
-            return Move{king_sq, {2, king_sq.y}, 
-                {board.side_to_move(), KING}, EMPTY, false, true};
+            Move m{king_sq, {2, king_sq.y}, {board.side_to_move(), KING}, EMPTY};
+            m.is_castle_long = true;
+            return m;
         }
     }
     
-    // Regular moves
+    // Handle promotions (actions 4096-4351)
+    if (action >= 4096 && action < 4352) {
+        int promo_action = action - 4096;
+        int from_idx = promo_action / 4;
+        int promo_type = promo_action % 4;
+        
+        Square from = {int8_t(from_idx % 8), int8_t(from_idx / 8)};
+        const Piece& piece = board.at(from);
+        
+        // Determine promotion piece (Q=0, R=1, B=2, N=3)
+        PieceType promotion = QUEEN;
+        switch (promo_type) {
+            case 0: promotion = QUEEN; break;
+            case 1: promotion = ROOK; break;
+            case 2: promotion = BISHOP; break;
+            case 3: promotion = KNIGHT; break;
+        }
+        
+        // For promotions, we need to figure out the destination
+        // Promotions only happen when pawns reach the last rank
+        int dir = (board.side_to_move() == WHITE) ? 1 : -1;
+        int dest_rank = (board.side_to_move() == WHITE) ? 7 : 0;
+        
+        // Check straight ahead
+        Square to = {from.x, int8_t(dest_rank)};
+        if (board.at(to).type == EMPTY) {
+            return Move{from, to, piece, promotion};
+        }
+        
+        // Check diagonal captures
+        for (int dx = -1; dx <= 1; dx += 2) {
+            to = {int8_t(from.x + dx), int8_t(dest_rank)};
+            if (to.is_valid() && board.at(to).type != EMPTY && board.at(to).color != piece.color) {
+                return Move{from, to, piece, promotion};
+            }
+        }
+        
+        // This shouldn't happen with valid actions
+        return Move{{-1, -1}, {-1, -1}, {NO_COLOR, EMPTY}, EMPTY};
+    }
+    
+    // Regular moves (0-4095)
     int from_idx = action / 73;
-    int dest_idx = action % 73;
+    int dest_val = action % 73;
     
     Square from = {int8_t(from_idx % 8), int8_t(from_idx / 8)};
-    
-    // Get piece at from square
     const Piece& piece = board.at(from);
-    Color color = board.side_to_move();
     
-    // Reflect square for black
-    if (color == BLACK) {
-        from.y = 7 - from.y;
-    }
-    
+    // Determine destination based on dest_val
     Square to;
-    PieceType promotion = EMPTY;
     
-    if (dest_idx < 9) {
-        // Underpromotion
-        int promo_idx = dest_idx / 3;
-        int dir_idx = dest_idx % 3;
+    if (dest_val >= 0 && dest_val < 9) {
+        // Underpromotion moves (should not happen here, handled above)
+        // This range should be empty for regular moves
+        return Move{{-1, -1}, {-1, -1}, {NO_COLOR, EMPTY}, EMPTY};
+    } else if (dest_val >= 9 && dest_val < 65) {
+        // Sliding moves (9-64): queen-like moves in 8 directions, up to 7 squares
+        int move_idx = dest_val - 9;
+        int direction = move_idx / 7;
+        int distance = (move_idx % 7) + 1;
         
-        // Promotion types: 0=Rook, 1=Bishop, 2=Knight
-        const PieceType promo_types[3] = {ROOK, BISHOP, KNIGHT};
-        promotion = promo_types[promo_idx];
+        // Direction vectors: MUST match move_to_action directions exactly
+        const int directions[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
         
-        // Directions: -1, 0, 1 (left diagonal, straight, right diagonal)
-        const int x_offsets[3] = {-1, 0, 1};
-        to = {int8_t(from.x + x_offsets[dir_idx]), int8_t(from.y + 1)};
+        to = {int8_t(from.x + directions[direction][0] * distance),
+              int8_t(from.y + directions[direction][1] * distance)};
+    } else if (dest_val >= 65 && dest_val < 73) {
+        // Knight moves (65-72)
+        int knight_idx = dest_val - 65;
+        // MUST match move_to_action knight_moves exactly
+        const int knight_moves[8][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
+        
+        to = {int8_t(from.x + knight_moves[knight_idx][0]),
+              int8_t(from.y + knight_moves[knight_idx][1])};
     } else {
-        // Normal moves or queen promotions
-        dest_idx -= 9;
-        
-        // Decode destination using queen+knight move pattern
-        if (dest_idx < 56) {
-            // Queen-like moves
-            const int directions[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-            int dir = dest_idx / 7;
-            int dist = (dest_idx % 7) + 1;
-            to = {int8_t(from.x + directions[dir][0] * dist), 
-                  int8_t(from.y + directions[dir][1] * dist)};
-        } else {
-            // Knight moves
-            const int knight_moves[8][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
-            int knight_idx = dest_idx - 56;
-            to = {int8_t(from.x + knight_moves[knight_idx][0]), 
-                  int8_t(from.y + knight_moves[knight_idx][1])};
-        }
-        
-        // Check for queen promotion
-        if (piece.type == PAWN && from.y == 6 && to.y == 7) {
-            promotion = QUEEN;
-        }
+        // Invalid dest_val
+        return Move{{-1, -1}, {-1, -1}, {NO_COLOR, EMPTY}, EMPTY};
     }
     
-    // Reflect back for black
-    if (color == BLACK) {
-        from.y = 7 - from.y;
-        to.y = 7 - to.y;
+    // Validate destination is on board
+    if (!to.is_valid()) {
+        return Move{{-1, -1}, {-1, -1}, {NO_COLOR, EMPTY}, EMPTY};
     }
     
-    return Move{from, to, piece, promotion};
+    return Move{from, to, piece, EMPTY};
 }
 
 // passthrough hash for repetition detection
@@ -902,7 +990,7 @@ struct ChessContext {
     float c_black_checkmated = 0.0f;
 
     // max depth
-    int max_depth = 100;
+    int max_depth = 10000;
 
     ChessContext(unsigned seed) : rng(seed) {}
 };
@@ -937,8 +1025,8 @@ void init(CChess* env) {
 }
 
 void allocate(CChess* env) {
-    // 8×8×21 = 1344 observations
-    env->observations = (float*)calloc(1344, sizeof(float));
+    // 8×8×21 = 1344 board features + 4674 legal move mask = 6018
+    env->observations = (float*)calloc(6018, sizeof(float));
     env->actions = (int*)calloc(1, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
@@ -955,12 +1043,12 @@ void free_allocated(CChess* env) {
 void c_reset(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
     
-    // reset board
+    // Reset board
     ctx->board.reset();
     ctx->position_history.clear();
     ctx->position_history[ctx->board.hash()] = 1;
     
-    // reset episode tracking
+    // Reset episode tracking
     ctx->step_count = 0;
     ctx->episode_return = 0.0f;
 
@@ -985,15 +1073,18 @@ void c_reset(CChess* env) {
     ctx->c_white_checkmated = 0.0f;
     ctx->c_black_checkmated = 0.0f;
     
-    // write initial observation
+    // CRITICAL: Ensure observation is written
     compute_observation(env, ctx);
     
+    // CRITICAL: Ensure outputs are initialized
     env->terminals[0] = 0;
     env->rewards[0] = 0.0f;
+    
+
 }
 
 void compute_observation(CChess* env, ChessContext* ctx) {
-    // Total size: 8*8*21 = 1344 floats
+    // Total size: 8*8*21 + 4674 legal move mask = 6018 floats
     int idx = 0;
     
     // 12 piece planes (6 types × 2 colors)
@@ -1044,35 +1135,76 @@ void compute_observation(CChess* env, ChessContext* ctx) {
         }
     }
     
-    // Should be exactly 1344 floats
+    // En passant target square plane
+    int8_t ep_square = ctx->board.get_ep_square();
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            env->observations[idx++] = (ep_square == y * 8 + x) ? 1.0f : 0.0f;
+        }
+    }
+    
+    // Should be exactly 1344 floats at this point
     assert(idx == 1344);
+    
+    // legal move mask (4674 values)
+    // Initialize all to 0 (illegal)
+    for (int i = 0; i < 4674; i++) {
+        env->observations[idx + i] = 0.0f;
+    }
+    
+    // Set legal moves to 1
+    // Get legal moves from chess engine
+    const auto& legal_moves = ctx->board.legal_moves();
+
+    // For each legal move, set corresponding mask bit to 1
+    for (const auto& move : legal_moves) {
+        int action_idx = chess::ChessBoard::move_to_action(move);
+        // move_to_action converts chess move to 0-4673 index
+        if (action_idx >= 0 && action_idx < 4674) {
+            env->observations[idx + action_idx] = 1.0f;
+        }
+    }
+    
+    // obs is now [board_features_0, ..., board_features_1343, legal_move_mask_0, ..., legal_move_mask_4673]
+    // board_features is 1344 floats, legal_move_mask is 4674 floats
+    idx += 4674;
+    assert(idx == 6018);
 }
 
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
     float reward = 0.0f;
     bool terminal = false;
-    bool win = false, loss = false, draw = false;
+    bool win = false;
+    bool loss = false;
+    bool draw = false;
     ctx->step_count += 1;
     
-    // Get agent's move
+    // Get the action
     int action_idx = *env->actions;
-    chess::Move selected_move;
+    
+    // Decode the move
+    chess::Move selected_move = chess::action_to_move_direct(action_idx, ctx->board);
+    
+    // Validate move
     bool valid_move = false;
-    
-    // Use efficient action_to_move_direct instead of looping through all moves
-    selected_move = chess::action_to_move_direct(action_idx, ctx->board);
-    
-    // Validate the move
     const auto& legal_moves = ctx->board.legal_moves();
-    valid_move = std::find(legal_moves.begin(), legal_moves.end(), selected_move) != legal_moves.end();
     
+    // Check if decoded move is in legal moves
+    for (const auto& legal_move : legal_moves) {
+        if (selected_move == legal_move) {
+            valid_move = true;
+            break;
+        }
+    }
+
     if (!valid_move) {
-        // Invalid move - penalize and don't change state
         reward = env->reward_invalid;
         ctx->c_reward_invalid += env->reward_invalid;
+        
+        // Update observation even for invalid moves
+        compute_observation(env, ctx);
     } else {
-        // Valid move - process it
         
         // Check for capture before move
         const auto& captured = ctx->board.at(selected_move.to);
@@ -1141,10 +1273,13 @@ void c_step(CChess* env) {
                 ctx->c_reward_draw += env->reward_draw;
             }
         }
-        
-        // If game not over, black plays
-        if (!terminal) {
-            const auto& black_moves = ctx->board.legal_moves();
+    }
+    
+    // If game not over, black plays (moved outside of the valid_move else block)
+    // This ensures black always plays unless game is already terminal from white's move
+    if (!terminal) {
+        const auto& black_moves = ctx->board.legal_moves();
+        if (!black_moves.empty()) { // Ensure there are moves for black
             std::uniform_int_distribution<> dist(0, black_moves.size() - 1);
             const auto& black_move = black_moves[dist(ctx->rng)];
             
@@ -1212,28 +1347,31 @@ void c_step(CChess* env) {
         }
     }
     
-    // Update observation
-    compute_observation(env, ctx);
-    
-    // Set outputs
-    env->rewards[0] = reward;
-    env->terminals[0] = terminal ? 1 : 0;
-
-    // Check if max depth is reached
-    if (ctx->step_count >= ctx->max_depth) {
+    // Final check for max depth, after both players have had a chance to move
+    if (!terminal && ctx->step_count >= ctx->max_depth) {
         terminal = true;
-        draw = true;
+        draw = true; // Game ends in draw if max depth is reached
         ctx->c_max_depth += 1;
         reward += env->reward_draw;
         ctx->c_reward_draw += env->reward_draw;
     }
 
+    // Always update observation to reflect current state
+    // (Note: for invalid moves, we already called this above)
+    if (valid_move) {
+        compute_observation(env, ctx);
+    }
+    
+    // At the end, always set outputs
+    env->rewards[0] = reward;
+    env->terminals[0] = terminal ? 1 : 0;
+    
+    // Add episode return tracking
     ctx->episode_return += reward;
-        
-    // Log if terminal
+    
     if (terminal) {
         add_log(env, ctx, win, loss, draw);
-        c_reset(env); // must call manually reset on terminal
+        c_reset(env);
     }
 }
 

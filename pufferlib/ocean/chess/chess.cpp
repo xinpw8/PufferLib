@@ -41,7 +41,7 @@ struct ChessNet {
 #define CHESS_NUM_WEIGHTS 2119363
 
 static ChessNet *init_chessnet(Weights *weights, int num_agents) {
-    ChessNet *net = calloc(1, sizeof(ChessNet));
+    ChessNet *net = (ChessNet *)calloc(1, sizeof(ChessNet));
     net->num_agents = num_agents;
 
     // Board encoder: 1344 -> 512 -> 256
@@ -136,20 +136,57 @@ int main() {
     // For now, just run environment without network to test basic functionality
     const int total_steps = 1000;
     int games_played = 0;
+    int valid_moves = 0;
+    int invalid_moves = 0;
     
     for (int i = 0; i < total_steps; i++) {
-        // Use simple random actions for now
-        env.actions[0] = i % 4674;
+        // Get the chess context to access legal moves
+        auto* ctx = (ChessContext*)env.context;
+        const auto& legal_moves = ctx->board.legal_moves();
+        
+        if (legal_moves.empty()) {
+            printf("No legal moves available at step %d\n", i + 1);
+            break;
+        }
+        
+        // Pick a random legal move
+        int move_idx = rand() % legal_moves.size();
+        const auto& selected_move_from_legal_list = legal_moves[move_idx];
+        
+        // Convert legal move to action index
+        int chosen_action_idx = chess::ChessBoard::move_to_action(selected_move_from_legal_list);
+        env.actions[0] = chosen_action_idx;
+
+        // Debugging print
+        printf("Step %d: Chosen legal move (from_x=%d, from_y=%d, to_x=%d, to_y=%d, promo=%d) -> action_idx=%d\n",
+                i + 1, selected_move_from_legal_list.from.x, selected_move_from_legal_list.from.y,
+                selected_move_from_legal_list.to.x, selected_move_from_legal_list.to.y,
+                (int)selected_move_from_legal_list.promotion, chosen_action_idx);
 
         // Step environment
         c_step(&env);
+        
+        // Track valid vs invalid moves
+        if (env.rewards[0] == env.reward_invalid) {
+            invalid_moves++;
+        } else {
+            valid_moves++;
+        }
+        
         if (env.terminals[0]) {
             games_played++;
+            printf("Game %d completed after %d steps\n", games_played, i + 1);
             c_reset(&env);
+        }
+        
+        // Print progress every 100 steps
+        if ((i + 1) % 100 == 0) {
+            printf("Step %d: valid=%d, invalid=%d, games=%d\n", i + 1, valid_moves, invalid_moves, games_played);
         }
     }
 
     printf("Completed %d steps, %d games played\n", total_steps, games_played);
+    printf("Valid moves: %d, Invalid moves: %d\n", valid_moves, invalid_moves);
 
     // Cleanup
     c_close(&env);

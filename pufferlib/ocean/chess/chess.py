@@ -21,15 +21,17 @@ class Chess(pufferlib.PufferEnv):
         self.tick = 0
         
         # observations: 21 channels of 8x8 = 8*8*21 = 1344
-        self.num_obs = 8*8*21
+        self.num_obs = 8*8*21 + 4674 # legal move mask
         # actions: 4674 following openspiel encoding
         self.num_actions = 4674
         
         self.single_observation_space = gymnasium.spaces.Box(
-            low=-6, high=6, shape=(self.num_obs,), dtype=np.float32)
+            low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(self.num_actions)
         
         super().__init__(buf=buf)
+        
+        self.actions = np.zeros((num_envs,), dtype=np.int32)
         
         # initialize c environments
         self.c_envs = binding.vec_init(
@@ -42,6 +44,10 @@ class Chess(pufferlib.PufferEnv):
             reward_loss=reward_loss)
     
     def reset(self, seed=None):
+        if seed is None:
+            # Ensure the underlying C++ binding always receives an int
+            # Using 0 as a sensible default to keep deterministic behaviour
+            seed = 0
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         return self.observations, []

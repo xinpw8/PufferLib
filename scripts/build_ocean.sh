@@ -72,28 +72,22 @@ fi
 echo "${FLAGS[@]}"
 
 if [ "$ENV" = "chess" ]; then
-    echo "Building libchess.so (shared library for PufferLib)…"
+    echo "Building chess binary for local testing…"
 
-    # Path to the vendored copy of Abseil that sits **inside** the chess dir.
-    ABSL_DIR="$SRC_DIR/abseil-cpp"
+    echo "ROOT_DIR: $ROOT_DIR"
+    echo "SRC_DIR: $SRC_DIR"
+    echo "Attempting to compile with:"
+    echo "clang++ -std=c++17 -g -O2 -o chess \\"
+    echo "    -I\"$ROOT_DIR/pufferlib/extensions\" \\"
+    echo "    \"$SRC_DIR/chess.cpp\" \\"
+    echo "    -lpthread -lm"
 
-    if [ ! -d "$ABSL_DIR" ]; then
-        echo "Abseil not found locally; cloning a shallow copy..."
-        git clone --depth 1 https://github.com/abseil/abseil-cpp.git "$ABSL_DIR" || {
-            echo "Failed to clone Abseil!"; exit 1; }
-    fi
-
-    clang++ -std=c++17 -g -O2 -shared -fPIC \
-        -I"$ABSL_DIR" \
-        -D_GLIBCXX_USE_CXX11_ABI=0 \
+    clang++ -std=c++17 -g -O2 -o chess \
+        -I"$ROOT_DIR/pufferlib/extensions" \
         "$SRC_DIR/chess.cpp" \
-        "$ABSL_DIR/absl/strings/str_cat.cc" \
-        "$ABSL_DIR/absl/strings/numbers.cc" \
-        "$ABSL_DIR/absl/strings/ascii.cc" \
-        "$ABSL_DIR/absl/strings/match.cc" \
-        -lpthread -o "$ROOT_DIR/libchess.so"
+        -lpthread -lm
 
-    echo "Shared library built: libchess.so"
+    echo "Binary built: chess"
     exit 0
 fi
 
