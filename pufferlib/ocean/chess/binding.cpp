@@ -1,4 +1,4 @@
-// binding.c
+// binding.cpp
 #include "chess.h"
 #define Env CChess
 #include "../env_binding.h"
@@ -11,7 +11,7 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->reward_win = unpack(kwargs,"reward_win");
     env->reward_draw = unpack(kwargs,"reward_draw");
     env->reward_loss = unpack(kwargs,"reward_loss");
-    
+   
     init(env); // alloc & new ChessContext
     return 0;
 }
@@ -31,6 +31,13 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "game_won", log->game_won);
     assign_to_dict(dict, "game_lost", log->game_lost);
     assign_to_dict(dict, "game_drawn", log->game_drawn);
+    assign_to_dict(dict, "stalemate", log->stalemate);
+    assign_to_dict(dict, "insufficient_material", log->insufficient_material);
+    assign_to_dict(dict, "threefold_repetition", log->threefold_repetition);
+    assign_to_dict(dict, "fifty_move_rule", log->fifty_move_rule);
+    assign_to_dict(dict, "max_depth", log->max_depth);
+    assign_to_dict(dict, "white_checkmated", log->white_checkmated);
+    assign_to_dict(dict, "black_checkmated", log->black_checkmated);
     assign_to_dict(dict, "n", log->n);
     return 0;
 }

@@ -83,6 +83,7 @@ if not NO_OCEAN:
 extra_compile_args = [
     '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
     '-DPLATFORM_DESKTOP',
+    '-fpermissive',
 ]
 extra_link_args = [
     '-fwrapv'
@@ -414,7 +415,7 @@ c_extensions = []
 if not NO_OCEAN:
     c_extension_paths = glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True)
     for path in c_extension_paths:
-        ext_name = path.rstrip('.c').replace('/', '.')
+        ext_name = os.path.splitext(path)[0].replace('/', '.')
         c_ext = Extension(
             ext_name,
             sources=[path],

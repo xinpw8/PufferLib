@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 import time
 
-import pufferlib.ocean.chess.chess as chess_env
+import pufferlib.ocean.chess_old.chess as chess_env
 
 
 # Chess policy architecture (copied from pufferlib/ocean/torch.py)

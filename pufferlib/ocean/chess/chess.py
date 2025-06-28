@@ -5,7 +5,6 @@ import gymnasium
 import pufferlib
 from pufferlib.ocean.chess import binding
 
-
 class Chess(pufferlib.PufferEnv):
     """Chess environment compatible with OpenSpiel's action space."""
     
