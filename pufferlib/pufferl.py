@@ -1,13 +1,9 @@
-# TODO: Add information
-# - Help menu
-# - Docs link
-#python -m torch.distributed.run --standalone --nnodes=1 --nproc-per-node=1 clean_pufferl.py --env puffer_nmmo3 --mode train
-# torchrun --standalone --nnodes=1 --nproc-per-node=6 -m pufferlib.pufferl train puffer_nmmo3
-from torch.distributed.elastic.multiprocessing.errors import record
+# puffer [train | eval | sweep] [env_name] [optional args] -- See https://puffer.ai for full details
+# This is the same as python -m pufferlib.pufferl [train | eval | sweep] [env_name] [optional args]
+# Distributed example: torchrun --standalone --nnodes=1 --nproc-per-node=6 -m pufferlib.pufferl train puffer_nmmo3
 
 import warnings
 warnings.filterwarnings('error', category=RuntimeWarning)
-
 
 import os
 import sys
@@ -27,6 +23,7 @@ import psutil
 
 import torch
 import torch.distributed
+from torch.distributed.elastic.multiprocessing.errors import record
 import torch.utils.cpp_extension
 
 import pufferlib
@@ -48,6 +45,8 @@ rich.traceback.install(show_locals=False)
 import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
+# Assume advantage kernel has been built if CUDA compiler is available
+ADVANTAGE_CUDA = shutil.which("nvcc") is not None
 
 class PuffeRL:
     def __init__(self, config, vecenv, policy, logger=None):
@@ -216,17 +215,20 @@ class PuffeRL:
         config = self.config
         device = config['device']
 
+        if config['use_rnn']:
+            for k in self.lstm_h:
+                self.lstm_h[k].zero_()
+                self.lstm_c[k].zero_()
+
         self.full_rows = 0
         while self.full_rows < self.segments:
             profile('env', epoch)
             o, r, d, t, info, env_id, mask = self.vecenv.recv()
 
             profile('eval_misc', epoch)
-            # TODO: Port to vecenv
             env_id = slice(env_id[0], env_id[-1] + 1)
 
-            # TODO: Handle truncations
-            done_mask = d + t
+            done_mask = d + t # TODO: Handle truncations separately
             self.global_step += int(mask.sum())
 
             profile('eval_copy', epoch)
@@ -273,9 +275,7 @@ class PuffeRL:
                 self.terminals[batch_rows, l] = d.float()
                 self.values[batch_rows, l] = value.flatten()
 
-                # TODO: Handle masks!!
-                #indices = np.where(mask)[0]
-                #data.ep_lengths[env_id[mask]] += 1
+                # Note: We are not yet handling masks in this version
                 self.ep_lengths[env_id] += 1
                 if l+1 >= config['bptt_horizon']:
                     num_full = env_id.stop - env_id.start
@@ -330,8 +330,7 @@ class PuffeRL:
 
             shape = self.values.shape
             advantages = torch.zeros(shape, device=device)
-            # TODO: robustify
-            torch.ops.pufferlib.compute_puff_advantage(self.values, self.rewards,
+            advantages = compute_puff_advantage(self.values, self.rewards,
                 self.terminals, self.ratio, advantages, config['gamma'],
                 config['gae_lambda'], config['vtrace_rho_clip'], config['vtrace_c_clip'])
 
@@ -362,31 +361,26 @@ class PuffeRL:
                 lstm_c=None,
             )
 
-            # TODO: Currently only returning traj shaped value as a hack
             logits, newvalue = self.policy(mb_obs, state)
-            # TODO: Redundant actions?
             actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
 
             profile('train_misc', epoch)
             newlogprob = newlogprob.reshape(mb_logprobs.shape)
             logratio = newlogprob - mb_logprobs
             ratio = logratio.exp()
-            self.ratio[idx] = ratio # TODO: Experiment with this
+            self.ratio[idx] = ratio.detach()
 
-            # TODO: Only do this if we are KL clipping? Saves 1-2% compute
             with torch.no_grad():
                 old_approx_kl = (-logratio).mean()
                 approx_kl = ((ratio - 1) - logratio).mean()
                 clipfrac = ((ratio - 1.0).abs() > config['clip_coef']).float().mean()
 
-            # TODO: Do you need to do this? Policy hasn't changed
             adv = advantages[idx]
-            torch.ops.pufferlib.compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
+            adv = compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
                 ratio, adv, config['gamma'], config['gae_lambda'],
                 config['vtrace_rho_clip'], config['vtrace_c_clip'])
             adv = mb_advantages
-            adv = mb_prio * (adv - adv.mean()) / (adv.std() + 1e-8) # TODO: Norm by full batch
-            #adv = mb_prio * (adv - advantages.mean()) / (advantages.std() + 1e-8) # TODO: Norm by full batch
+            adv = mb_prio * (adv - adv.mean()) / (adv.std() + 1e-8)
 
             # Losses
             pg_loss1 = -adv * ratio
@@ -402,7 +396,7 @@ class PuffeRL:
             entropy_loss = entropy.mean()
 
             loss = pg_loss + config['vf_coef']*v_loss - config['ent_coef']*entropy_loss
-            self.amp_context.__enter__() # TODO: Debug
+            self.amp_context.__enter__() # TODO: AMP needs some debugging
 
             # This breaks vloss clipping?
             self.values[idx] = newvalue.detach().float()
@@ -554,7 +548,7 @@ class PuffeRL:
         table.add_column(justify="right", width=13)
 
         table.add_row(
-            f'{b1}PufferLib {b2}2.0.0 {idx[0]*" "}:blowfish:',
+            f'{b1}PufferLib {b2}3.0 {idx[0]*" "}:blowfish:',
             f'{c1}CPU: {b2}{np.mean(self.utilization.cpu_util):.1f}{c2}%',
             f'{c1}GPU: {b2}{np.mean(self.utilization.gpu_util):.1f}{c2}%',
             f'{c1}DRAM: {b2}{np.mean(self.utilization.cpu_mem):.1f}{c2}%',
@@ -636,6 +630,29 @@ class PuffeRL:
             console.print(dashboard)
 
         print('\033[0;0H' + capture.get())
+
+def compute_puff_advantage(values, rewards, terminals,
+        ratio, advantages, gamma, gae_lambda, vtrace_rho_clip, vtrace_c_clip):
+    '''CUDA kernel for puffer advantage with automatic CPU fallback. You need
+    nvcc (in cuda-dev-tools or in a cuda-dev docker base) for PufferLib to
+    compile the fast version.'''
+
+    device = values.device
+    if not ADVANTAGE_CUDA:
+        values = values.cpu()
+        rewards = rewards.cpu()
+        terminals = terminals.cpu()
+        ratio = ratio.cpu()
+        advantages = advantages.cpu()
+
+    torch.ops.pufferlib.compute_puff_advantage(values, rewards, terminals,
+        ratio, advantages, gamma, gae_lambda, vtrace_rho_clip, vtrace_c_clip)
+
+    if not ADVANTAGE_CUDA:
+        return advantages.to(device)
+
+    return advantages
+
 
 def abbreviate(num, b2, c2):
     if num < 1e3:
@@ -754,9 +771,12 @@ class Utilization(Thread):
     def stop(self):
         self.stopped = True
 
-def downsample_alt(arr, m):
+def downsample(arr, m):
     if len(arr) < m:
         return arr
+
+    if m == 0:
+        return [arr[-1]]
 
     orig_arr = arr
     last = arr[-1]
@@ -968,6 +988,7 @@ def sweep(args=None, env_name=None):
         raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
 
     sweep = sweep_cls(args['sweep'])
+    points_per_run = args['sweep']['downsample']
     target_key = f'environment/{args["sweep"]["metric"]}'
     for i in range(args['max_runs']):
         seed = time.time_ns() & 0xFFFFFFFF
@@ -978,9 +999,9 @@ def sweep(args=None, env_name=None):
         total_timesteps = args['train']['total_timesteps']
         all_logs = train(env_name, args=args)
         all_logs = [e for e in all_logs if target_key in e]
-        scores = downsample_alt([log[target_key] for log in all_logs], 10)
-        costs = downsample_alt([log['uptime'] for log in all_logs], 10)
-        timesteps = downsample_alt([log['agent_steps'] for log in all_logs], 10)
+        scores = downsample([log[target_key] for log in all_logs], points_per_run)
+        costs = downsample([log['uptime'] for log in all_logs], points_per_run)
+        timesteps = downsample([log['agent_steps'] for log in all_logs], points_per_run)
         for score, cost, timestep in zip(scores, costs, timesteps):
             args['train']['total_timesteps'] = timestep
             sweep.observe(args, score, cost)
@@ -1055,9 +1076,6 @@ def load_policy(args, vecenv):
 
     load_id = args['load_id']
     if load_id is not None:
-        if args['mode'] not in ('train', 'eval'):
-            raise pufferlib.APIUsageError('load_id requires mode to be train or eval')
-
         if args['neptune']:
             path = NeptuneLogger(args, load_id, mode='read-only').download()
         elif args['wandb']:
@@ -1065,14 +1083,18 @@ def load_policy(args, vecenv):
         else:
             raise pufferlib.APIUsageError('No run id provided for eval')
 
-        policy.load_state_dict(torch.load(path, map_location=device))
+        state_dict = torch.load(path, map_location=device)
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+        policy.load_state_dict(state_dict)
 
     load_path = args['load_model_path']
     if load_path == 'latest':
         load_path = max(glob.glob("experiments/*.pt"), key=os.path.getctime)
 
     if load_path is not None:
-        policy.load_state_dict(torch.load(load_path, map_location=args['train']['device']))
+        state_dict = torch.load(load_path, map_location=device)
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+        policy.load_state_dict(state_dict)
         #state_path = os.path.join(*load_path.split('/')[:-1], 'state.pt')
         #optim_state = torch.load(state_path)['optimizer_state_dict']
         #pufferl.optimizer.load_state_dict(optim_state)
@@ -1155,8 +1177,6 @@ def load_config(env_name):
         prev[subkey] = value
 
     args['train']['use_rnn'] = args['rnn_name'] is not None
-    #args['train']['env'] = env_name
-    #args['env_name'] = env_name
     return args
 
 def main():

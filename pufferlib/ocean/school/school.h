@@ -75,6 +75,7 @@ typedef struct {
     float perf;
     float score;
     float collision_rate;
+    float oob_rate;
     float episode_return;
     float episode_length;
     float n;
@@ -121,7 +122,7 @@ typedef struct {
     Entity* agents;
     Entity* bases;
     float* observations;
-    int* actions;
+    float* actions;
     float* rewards;
     unsigned char* terminals;
     int width;
@@ -253,6 +254,9 @@ void respawn(School* env, int idx) {
     Entity* agent = &env->agents[idx];
     int army = agent->army;
     agent->orientation = QuaternionIdentity();
+    agent->vx = 0;
+    agent->vy = 0;
+    agent->vz = 0;
 
     if (agent->unit == DRONE) {
         int team_mothership_idx = 64*(idx / 64); // Hardcoded per army
@@ -450,10 +454,10 @@ bool attack_aa(Entity *agent, Entity *target) {
     return false;
 }
 
-void move_basic(School* env, Entity* agent, int* actions) {
-    float d_vx = ((float)actions[0] - 4.0f)/400.0f;
-    float d_vy = ((float)actions[1] - 4.0f)/400.0f;
-    float d_vz = ((float)actions[2] - 4.0f)/400.0f;
+void move_basic(School* env, Entity* agent, float* actions) {
+    float d_vx = actions[0]/100.0f;
+    float d_vy = actions[1]/100.0f;
+    float d_vz = actions[2]/100.0f;
 
     agent->vx += d_vx;
     agent->vy += d_vy;
@@ -472,8 +476,8 @@ void move_basic(School* env, Entity* agent, int* actions) {
     agent->z = clip(agent->z, -env->size_z, env->size_z);
 }
 
-void move_ground(School* env, Entity* agent, int* actions) {
-    float d_theta = -((float)actions[1] - 4.0f)/40.0f;
+void move_ground(School* env, Entity* agent, float* actions) {
+    float d_theta = -actions[1]/10.0f;
 
     // Update speed and clamp
     agent->speed = agent->max_speed * MAX_SPEED;
@@ -495,11 +499,10 @@ void move_ground(School* env, Entity* agent, int* actions) {
     agent->y = ground_height(env, agent->x, agent->z);
 }
 
-void move_ship(School* env, Entity* agent, int* actions, int i) {
+void move_ship(School* env, Entity* agent, float* actions, int i) {
     // Compute deltas from actions (same as original)
-    float d_pitch = agent->max_turn * ((float)actions[0] - 4.0f) / 40.0f;
-    float d_roll = agent->max_turn * ((float)actions[1] - 4.0f) / 40.0f;
-    
+    float d_pitch = agent->max_turn * actions[0] / 10.0f;
+    float d_roll = agent->max_turn * actions[1] / 10.0f;
 
     // Update speed and clamp
     agent->speed = agent->max_speed * MAX_SPEED;
@@ -716,11 +719,13 @@ void c_step(School* env) {
 
         bool done = false;
         float collision = 0.0f;
+        float oob = 0.0f;
         float reward = 0.0f;
         if (agent->health <= 0) {
             done = true;
             reward = 0.0f;
-        } else if (agent->unit == DRONE || agent->unit == FIGHTER || agent->unit == BOMBER || agent->unit == MOTHERSHIP) {
+        }
+        if (agent->unit == DRONE || agent->unit == FIGHTER || agent->unit == BOMBER || agent->unit == MOTHERSHIP) {
             // Crash into terrain
             float terrain_height = ground_height(env, agent->x, agent->z);
             if (agent->y < terrain_height) {
@@ -728,6 +733,15 @@ void c_step(School* env) {
                 done = true;
                 reward = -1.0f;
             }
+        }
+        if (
+            agent->x < -0.95f*env->size_x || agent->x > 0.95f*env->size_x ||
+            agent->z < -0.95f*env->size_z || agent->z > 0.95f*env->size_z ||
+            agent->y > 0.95f*env->size_y
+        ) {
+            done = true;
+            reward = -1.0f;
+            oob = 1.0f;
         }
 
         if (done) {
@@ -740,6 +754,7 @@ void c_step(School* env) {
             env->log.episode_length += agent->episode_length;
             env->log.episode_return += agent->episode_return;
             env->log.collision_rate += collision;
+            env->log.oob_rate += oob;
             env->log.n++;
             agent->episode_length = 0;
             agent->episode_return = 0;
@@ -777,8 +792,8 @@ void c_step(School* env) {
                 continue;
             }
             agent->target = j;
-            env->rewards[i] += 1.0f;
-            agent->episode_return += 1.0f;
+            env->rewards[i] += 0.25f;
+            agent->episode_return += 0.25f;
             target->health -= agent->attack_damage;
             break;
         }

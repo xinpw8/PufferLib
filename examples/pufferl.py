@@ -19,15 +19,15 @@ class Policy(torch.nn.Module):
         self.action_head = torch.nn.Linear(128, env.single_action_space.n)
         self.value_head = torch.nn.Linear(128, 1)
 
-    def forward(self, observations, state=None):
+    def forward_eval(self, observations, state=None):
         hidden = self.net(observations)
         logits = self.action_head(hidden)
         values = self.value_head(hidden)
         return logits, values
 
     # We use this to work around a major torch perf issue
-    def forward_train(self, observations, state=None):
-        return self.forward(observations, state)
+    def forward(self, observations, state=None):
+        return self.forward_eval(observations, state)
 
 # Managing your own trainer
 if __name__ == '__main__':

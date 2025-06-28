@@ -70,10 +70,8 @@ static int my_put(Env* env, PyObject* args, PyObject* kwargs) {
 static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
     int num_agents = unpack(kwargs, "num_agents");
     int num_maps = unpack(kwargs, "num_maps");
-    // GPUDrive* temp_envs = calloc(num_envs, sizeof(GPUDrive));
-    // PyObject* agent_offsets = PyList_New(num_envs+1);
-    // PyObject* map_ids = PyList_New(num_envs);
-    srand(time(NULL));
+    clock_gettime(CLOCK_REALTIME, &ts);
+    srand(ts.tv_nsec);
     int total_agent_count = 0;
     int env_count = 0;
     int max_envs = num_agents;
@@ -114,8 +112,8 @@ static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
     PyObject* resized_agent_offsets = PyList_GetSlice(agent_offsets, 0, env_count + 1);
     PyObject* resized_map_ids = PyList_GetSlice(map_ids, 0, env_count);
     //
-    Py_DECREF(agent_offsets);
-    Py_DECREF(map_ids);
+    //Py_DECREF(agent_offsets);
+    //Py_DECREF(map_ids);
     // create a tuple
     PyObject* tuple = PyTuple_New(3);
     PyTuple_SetItem(tuple, 0, resized_agent_offsets);
@@ -142,14 +140,16 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->human_agent_idx = unpack(kwargs, "human_agent_idx");
     env->reward_vehicle_collision = unpack(kwargs, "reward_vehicle_collision");
     env->reward_offroad_collision = unpack(kwargs, "reward_offroad_collision");
+    env->reward_goal_post_respawn = unpack(kwargs, "reward_goal_post_respawn");
+    env->reward_vehicle_collision_post_respawn = unpack(kwargs, "reward_vehicle_collision_post_respawn");
     env->spawn_immunity_timer = unpack(kwargs, "spawn_immunity_timer");
     int map_id = unpack(kwargs, "map_id");
     int max_agents = unpack(kwargs, "max_agents");
 
     char map_file[100];
     sprintf(map_file, "resources/gpudrive/binaries/map_%03d.bin", map_id);
-    env->map_name = map_file;
     env->num_agents = max_agents;
+    env->map_name = strdup(map_file);
     init(env);
     return 0;
 }

@@ -20,7 +20,7 @@ discAimToContAim = np.array([
 class ImpulseWars(pufferlib.PufferEnv):
     def __init__(
         self,
-        num_envs: int = 0,
+        num_envs: int = 1,
         num_drones: int = 2,
         num_agents: int = 1,
         enable_teams: bool = False,

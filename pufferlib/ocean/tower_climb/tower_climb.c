@@ -101,7 +101,7 @@ void free_tower_climb_net(TowerClimbNet* net) {
 }
 
 void demo() {   
-    Weights* weights = load_weights("resources/tower_climb_weights.bin", 560407);
+    Weights* weights = load_weights("resources/tower_climb/tower_climb_weights.bin", 560407);
     TowerClimbNet* net = init_tower_climb_net(weights, 1);
 
     int num_maps = 1;  // Generate 1 map only to start faster
@@ -190,6 +190,12 @@ void demo() {
     }
     close_client(client);
     free_allocated(env);
+    free_tower_climb_net(net);
+    free(weights);
+    free(levels[0].map);
+    free(levels);
+    free(puzzle_states[0].blocks);
+    free(puzzle_states);
 }
 
 void performance_test() {

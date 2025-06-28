@@ -114,7 +114,7 @@ class Logit(Space):
 def _params_from_puffer_sweep(sweep_config):
     param_spaces = {}
     for name, param in sweep_config.items():
-        if name in ('method', 'metric', 'goal'):
+        if name in ('method', 'metric', 'goal', 'downsample'):
             continue
 
         assert isinstance(param, dict)

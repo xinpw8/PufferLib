@@ -477,10 +477,6 @@ void c_step(Breakout* env) {
 
 Color BRICK_COLORS[6] = {RED, ORANGE, YELLOW, GREEN, SKYBLUE, BLUE};
 
-static inline bool file_exists(const char* path) {
-    return access(path, F_OK) != -1;
-}
-
 Client* make_client(Breakout* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = env->width;
@@ -491,38 +487,9 @@ Client* make_client(Breakout* env) {
     client->ball_height = env->ball_height;
 
     InitWindow(env->width, env->height, "PufferLib Breakout");
-    SetTargetFPS(60);
+    SetTargetFPS(60 / env->frameskip);
 
-    char texturePath[PATH_MAX] = {0};
-    char resolvedPath[PATH_MAX] = {0};
-
-    const char* candidatePaths[] = {
-        "./resources/puffers_128.png",
-        "./pufferlib/resources/puffers_128.png",
-        "./pufferlib/pufferlib/resources/puffers_128.png"
-    };
-
-    int found = 0;
-    for (size_t i = 0; i < sizeof(candidatePaths)/sizeof(candidatePaths[0]); i++) {
-        if (file_exists(candidatePaths[i])) {
-            if (realpath(candidatePaths[i], resolvedPath) != NULL) {
-                strncpy(texturePath, resolvedPath, PATH_MAX - 1);
-                found = 1;
-                break;
-            }
-        }
-    }
-
-    if (!found) {
-        TraceLog(LOG_ERROR, "Failed to find puffers_128.png from current directory.");
-        CloseWindow();
-        free(client);
-        exit(EXIT_FAILURE);
-    }
-
-    client->ball = LoadTexture(texturePath);
-    TraceLog(LOG_INFO, "Resource path resolution: %s", texturePath);
-
+    client->ball = LoadTexture("resources/shared/puffers_128.png");
     return client;
 }
 

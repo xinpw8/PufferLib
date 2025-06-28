@@ -13,11 +13,19 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SRC_DIR="$ROOT_DIR/pufferlib/ocean/$ENV"
 WEB_OUTPUT_DIR="$ROOT_DIR/build_web/$ENV"
 RAYLIB_NAME='raylib-5.5_macos'
+BOX2D_NAME='box2d-macos-arm64'
 if [ "$PLATFORM" = "Linux" ]; then
     RAYLIB_NAME='raylib-5.5_linux_amd64'
+    BOX2D_NAME='box2d-linux-amd64'
 fi
 if [ "$MODE" = "web" ]; then
     RAYLIB_NAME='raylib-5.5_webassembly'
+    BOX2D_NAME='box2d-web'
+fi
+
+LINK_ARCHIVES="./$RAYLIB_NAME/lib/libraylib.a"
+if [ "$ENV" = "impulse_wars" ]; then
+    LINK_ARCHIVES="$LINK_ARCHIVES ./$BOX2D_NAME/libbox2d.a"
 fi
 
 # Create build output directory
@@ -48,11 +56,15 @@ if [ "$MODE" = "web" ]; then
         -s WARN_ON_UNDEFINED_SYMBOLS=0 \
         --shell-file "$SCRIPT_DIR/minshell.html" \
         -sINITIAL_MEMORY=512MB \
+        -sALLOW_MEMORY_GROWTH \
+        -sSTACK_SIZE=512KB \
+        -DNDEBUG \
         -sTOTAL_STACK=512KB \
         -DPLATFORM_WEB \
         -D_TIME_BITS=64 \
         -DGRAPHICS_API_OPENGL_ES3 \
-        --preload-file pufferlib/resources@resources/ 
+        --preload-file pufferlib/resources/$1@resources/$1 \
+        --preload-file pufferlib/resources/shared@resources/shared 
     echo "Web build completed: $WEB_OUTPUT_DIR/game.html"
     exit 0
 fi
@@ -93,9 +105,10 @@ FLAGS=(
     -I./pufferlib/extensions \
     -I./pufferlib/pufferlib/extensions
     "$SRC_DIR/$ENV.c" -o "$ENV"
-    ./$RAYLIB_NAME/lib/libraylib.a
+    $LINK_ARCHIVES
     -lm
     -lpthread
+    -ferror-limit=3
     -DPLATFORM_DESKTOP
 )
 
@@ -130,7 +143,7 @@ if [ "$MODE" = "local" ]; then
     clang -g -O0 ${FLAGS[@]}
 elif [ "$MODE" = "fast" ]; then
     echo "Building optimized $ENV for local testing..."
-    clang -pg -O2 ${FLAGS[@]}
+    clang -pg -O2 -DNDEBUG ${FLAGS[@]}
     echo "Built to: $ENV"
 else
     echo "Invalid mode specified: local|fast|web"

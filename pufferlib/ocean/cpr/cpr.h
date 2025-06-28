@@ -636,7 +636,7 @@ Renderer *init_renderer(int cell_size, int width, int height) {
   InitWindow(width * cell_size, height * cell_size, "CPR");
   SetTargetFPS(10);
 
-  renderer->puffer = LoadTexture("resources/cpr/puffers_128.png");
+  renderer->puffer = LoadTexture("resources/shared/puffers_128.png");
   return renderer;
 }
 

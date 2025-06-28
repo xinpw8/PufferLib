@@ -37,6 +37,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Mac files
+.DS_Store
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -148,8 +151,8 @@ experiments/
 wandb/
 .neptune/
 raylib*/
+box2d*/
 
-# TODO: remove
 # Temp Impulse Wars files
 pufferlib/ocean/impulse_wars/*-debug/
 pufferlib/ocean/impulse_wars/*-release/
@@ -159,3 +162,4 @@ pufferlib/ocean/impulse_wars/release-*/
 # Ignore OAuth secret files
 pufferlib/ocean/chess/token.json
 pufferlib/ocean/chess/client_secret_*.json
+pufferlib/ocean/impulse_wars/benchmark/

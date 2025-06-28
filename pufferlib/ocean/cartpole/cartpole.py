@@ -4,7 +4,7 @@ import pufferlib
 from pufferlib.ocean.cartpole import binding
 
 class Cartpole(pufferlib.PufferEnv):
-    def __init__(self, num_envs=1, render_mode='human', report_interval=1, continuous=True, buf=None, seed=0):
+    def __init__(self, num_envs=1, render_mode='human', report_interval=1, continuous=False, buf=None, seed=0):
         self.render_mode = render_mode
         self.num_agents = num_envs
         self.report_interval = report_interval
