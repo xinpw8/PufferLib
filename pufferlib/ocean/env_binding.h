@@ -657,6 +657,8 @@ static PyMethodDef methods[] = {
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
     {"shared", (PyCFunction)my_shared, METH_VARARGS | METH_KEYWORDS, "Shared state"},
+    {"env_set_self_play", env_set_self_play, METH_VARARGS, "Enable self-play mode"},
+    {"vec_set_self_play", vec_set_self_play, METH_VARARGS, "Enable self-play mode on every env in a VecEnv"},
     MY_METHODS,
     {NULL, NULL, 0, NULL}
 };

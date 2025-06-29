@@ -1179,6 +1179,52 @@ def load_config(env_name):
     args['train']['use_rnn'] = args['rnn_name'] is not None
     return args
 
+def train_selfplay(env_name='puffer_chess', config=None):
+    """Training loop for self-play"""
+    
+    # Load config
+    args = config or load_config(env_name)
+    device = args['train']['device']
+    
+    # Inject self_play flag into env kwargs so every spawned Chess instance
+    # (including those in worker processes) starts in self-play mode.
+    args['env']['self_play'] = True
+
+    # Create self-play environment and shared policy
+    from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
+    base_env = load_env(env_name, args)
+    policy = load_policy(args, base_env)
+    
+    # Wrap environment with self-play
+    vecenv = ChessSelfPlayWrapper(base_env, policy, device)
+    
+    # Add env name so PuffeRL.print_dashboard can display it
+    train_config = dict(**args['train'], env=env_name)
+
+    # Train with shared policy
+    if args['neptune']:
+        logger = NeptuneLogger(args)
+    elif args['wandb']:
+        logger = WandbLogger(args)
+    else:
+        logger = None
+
+    pufferl = PuffeRL(train_config, vecenv, policy, logger)
+    
+    while pufferl.global_step < args['train']['total_timesteps']:
+        # During evaluation, both players use the current policy
+        pufferl.evaluate()
+        
+        # During training, we train on games played between
+        # the current policy (both sides)
+        pufferl.train()
+        
+        # Periodically save checkpoints
+        if pufferl.epoch % 100 == 0:
+            pufferl.save_checkpoint()
+    
+    return pufferl.close()
+
 def main():
     err = 'Usage: puffer [train, eval, sweep, autotune, profile, export] [env_name] [optional args]. --help for more info'
     if len(sys.argv) < 3:
@@ -1198,6 +1244,8 @@ def main():
         profile(env_name=env_name)
     elif mode == 'export':
         export(env_name=env_name)
+    elif mode == 'selfplay':
+        train_selfplay(env_name=env_name)
     else:
         raise pufferlib.APIUsageError(err)
 

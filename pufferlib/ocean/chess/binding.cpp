@@ -1,18 +1,47 @@
 // binding.cpp
+#pragma once
+#include <Python.h> // makes PyObject visible
 #include "chess.h"
 #define Env CChess
+
+// forward-declare so env_binding.h can use it
+static PyObject* env_set_self_play(PyObject* self, PyObject* args);
+static PyObject* vec_set_self_play(PyObject* self, PyObject* args);
+
+// Define custom methods for chess module
+#define MY_METHODS \
+    {"env_set_self_play", env_set_self_play, METH_VARARGS, "Enable self-play mode"}, \
+    {"vec_set_self_play", vec_set_self_play, METH_VARARGS, "Enable self-play mode for vector env"}, \
+    {NULL, NULL, 0, NULL}
+
 #include "../env_binding.h"
 
+static PyObject* env_set_self_play(PyObject* self, PyObject* args) {
+    Env* env = unpack_env(args);
+    if (!env) return NULL;
+    set_self_play_mode(env, true);
+    Py_RETURN_NONE;
+}
+
+// Enable self-play for every env in a VecEnv
+static PyObject* vec_set_self_play(PyObject* self, PyObject* args) {
+    VecEnv* vec = unpack_vecenv(args);
+    if (!vec) return NULL;
+    for (int i = 0; i < vec->num_envs; ++i)
+        set_self_play_mode(vec->envs[i], true);
+    Py_RETURN_NONE;
+}
+
+
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    env->reward_valid   = unpack(kwargs,"reward_valid");
-    env->reward_invalid = unpack(kwargs,"reward_invalid");
-    env->reward_agent_captures_enemy_piece = unpack(kwargs,"reward_agent_captures_enemy_piece");
-    env->reward_enemy_captures_agent_piece = unpack(kwargs,"reward_enemy_captures_agent_piece");
-    env->reward_win = unpack(kwargs,"reward_win");
-    env->reward_draw = unpack(kwargs,"reward_draw");
-    env->reward_loss = unpack(kwargs,"reward_loss");
-   
-    init(env); // alloc & new ChessContext
+    env->reward_valid = unpack(kwargs, "reward_valid");
+    env->reward_invalid = unpack(kwargs, "reward_invalid");
+    env->reward_agent_captures_enemy_piece = unpack(kwargs, "reward_agent_captures_enemy_piece");
+    env->reward_enemy_captures_agent_piece = unpack(kwargs, "reward_enemy_captures_agent_piece");
+    env->reward_win = unpack(kwargs, "reward_win");
+    env->reward_draw = unpack(kwargs, "reward_draw");
+    env->reward_loss = unpack(kwargs, "reward_loss");
+    init(env);  // alloc & new ChessContext
     return 0;
 }
 

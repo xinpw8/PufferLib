@@ -13,7 +13,7 @@ class Chess(pufferlib.PufferEnv):
                  reward_agent_captures_enemy_piece=0.05,
                  reward_enemy_captures_agent_piece=-0.05,
                  reward_win=1.0, reward_draw=0.0, reward_loss=-1.0,
-                 buf=None, seed=0):
+                 buf=None, seed=0, self_play=False):
         
         self.num_agents = num_envs
         self.render_mode = render_mode
@@ -29,6 +29,8 @@ class Chess(pufferlib.PufferEnv):
             low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(self.num_actions)
         
+        self.self_play = self_play
+        
         super().__init__(buf=buf)
         
         self.actions = np.zeros((num_envs,), dtype=np.int32)
@@ -42,6 +44,12 @@ class Chess(pufferlib.PufferEnv):
             reward_enemy_captures_agent_piece=reward_enemy_captures_agent_piece,
             reward_win=reward_win, reward_draw=reward_draw, 
             reward_loss=reward_loss)
+        
+        # If requested, enable self-play inside the C++ envs immediately so that
+        # worker processes inherit the correct behaviour without additional
+        # calls from the parent process.
+        if self.self_play:
+            binding.vec_set_self_play(self.c_envs)
     
     def reset(self, seed=None):
         if seed is None:

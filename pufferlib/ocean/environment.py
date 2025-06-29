@@ -116,6 +116,17 @@ def make_multiagent(buf=None, **kwargs):
     env = pufferlib.MultiagentEpisodeStats(env)
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
+def make_chess_selfplay(num_envs=1024, device='cuda', **kwargs):
+    from pufferlib.ocean.chess.chess import Chess
+    from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
+    from pufferlib.ocean.torch import ChessRecurrent, Recurrent    
+    base_env = Chess(num_envs=num_envs, **kwargs)    
+    policy = ChessRecurrent(base_env)
+    policy = Recurrent(base_env, policy, input_size=256, hidden_size=256)
+    policy = policy.to(device)    
+    env = ChessSelfPlayWrapper(base_env, policy, device=device)
+    return env, policy
+
 MAKE_FUNCTIONS = {
     'chess': 'Chess',
     'breakout': 'Breakout',
@@ -155,6 +166,7 @@ MAKE_FUNCTIONS = {
     'asteroids': 'Asteroids',
     'spaces': make_spaces,
     'multiagent': make_multiagent,
+    'chess_selfplay': make_chess_selfplay,
 }
 
 def env_creator(name='squared', *args, **kwargs):

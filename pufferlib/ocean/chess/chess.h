@@ -1061,8 +1061,17 @@ struct ChessContext {
     // max depth
     int max_depth = 10000;
 
+    // Self-play support
+    bool self_play_mode = false;
+bool waiting_for_black_move = false;
+
     ChessContext(unsigned seed) : rng(seed) {}
 };
+
+extern "C" void set_self_play_mode(CChess* env, bool enabled) {
+    auto* ctx = (ChessContext*)env->context;
+    ctx->self_play_mode = enabled;
+}
 
 extern "C" {
 
@@ -1141,6 +1150,9 @@ void c_reset(CChess* env) {
     ctx->c_max_depth = 0.0f;
     ctx->c_white_checkmated = 0.0f;
     ctx->c_black_checkmated = 0.0f;
+    
+    // Reset self-play state - always start with white's turn
+    ctx->waiting_for_black_move = false;
     
     // CRITICAL: Ensure observation is written
     compute_observation(env, ctx);
@@ -1239,7 +1251,6 @@ void compute_observation(CChess* env, ChessContext* ctx) {
     idx += 4674;
     assert(idx == 6018);
 }
-
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
     
@@ -1253,6 +1264,10 @@ void c_step(CChess* env) {
     bool win = false;
     bool loss = false;
     bool draw = false;
+    
+    // Self-play turn tracking
+    const bool handling_black = ctx->self_play_mode && ctx->waiting_for_black_move;
+
     ctx->step_count += 1;
     
     // Get the action
@@ -1276,28 +1291,32 @@ void c_step(CChess* env) {
     if (!valid_move) {
         reward = env->reward_invalid;
         ctx->c_reward_invalid += env->reward_invalid;
-        
-        // Update observation even for invalid moves
-        compute_observation(env, ctx);
     } else {
         
         // Check for capture before move
         const auto& captured = ctx->board.at(selected_move.to);
         if (captured.type != chess::EMPTY) {
-            reward += env->reward_agent_captures_enemy_piece;
-            ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
+            if (handling_black) {
+                reward += env->reward_enemy_captures_agent_piece;
+                ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
+            } else {
+                reward += env->reward_agent_captures_enemy_piece;
+                ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
+            }
         }
         
-        // Apply white's move
+        // Apply move
         ctx->board.apply_move(selected_move);
-        reward += env->reward_valid;
-        ctx->c_reward_valid += env->reward_valid;
+        if (!handling_black) {
+            reward += env->reward_valid;
+            ctx->c_reward_valid += env->reward_valid;
+        }
         
         // Update position history
         uint64_t hash = ctx->board.hash();
         ctx->position_history[hash]++;
         
-        // Check if white's move ended the game
+        // Check if move ended the game
         
         // 1. Threefold repetition
         if (ctx->position_history[hash] >= 3) {
@@ -1306,7 +1325,6 @@ void c_step(CChess* env) {
             ctx->c_threefold_repetition += 1;
             reward += env->reward_draw;
             ctx->c_reward_draw += env->reward_draw;
-            printf("Threefold repetition detected (White's move): %s\n", ctx->board.fen().c_str());
         }
         // 2. 50-move rule
         else if (ctx->board.get_halfmove_clock() >= 100) {
@@ -1332,15 +1350,23 @@ void c_step(CChess* env) {
             reward += env->reward_draw;
             ctx->c_reward_draw += env->reward_draw;
         }
-        // 5. Check if black has any moves
+        // 5. No legal moves for the opponent whose turn is next
         else if (ctx->board.legal_moves().empty()) {
             terminal = true;
             if (ctx->board.is_check()) {
-                // Checkmate - white wins
-                win = true;
-                ctx->c_black_checkmated += 1;
-                reward += env->reward_win;
-                ctx->c_reward_win += env->reward_win;
+                if (handling_black) {
+                    // Black has no moves and is in check → white wins
+                    win = true;
+                    ctx->c_black_checkmated += 1;
+                    reward += env->reward_win;
+                    ctx->c_reward_win += env->reward_win;
+                } else {
+                    // White has no moves and is in check → black wins
+                    loss = true;
+                    ctx->c_white_checkmated += 1;
+                    reward += env->reward_loss;
+                    ctx->c_reward_loss += env->reward_loss;
+                }
             } else {
                 // Stalemate
                 draw = true;
@@ -1351,95 +1377,85 @@ void c_step(CChess* env) {
         }
     }
     
-    // If game not over, black plays (moved outside of the valid_move else block)
-    // This ensures black always plays unless game is already terminal from white's move
-    if (!terminal) {
-        const auto& black_moves = ctx->board.legal_moves();
-        if (!black_moves.empty()) { // Ensure there are moves for black
-            std::uniform_int_distribution<> dist(0, black_moves.size() - 1);
-            const auto& black_move = black_moves[dist(ctx->rng)];
-            
-            // Check for capture
-            if (ctx->board.at(black_move.to).type != chess::EMPTY) {
-                reward += env->reward_enemy_captures_agent_piece;
-                ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
-            }
-            
-            // Apply black's move
-            ctx->board.apply_move(black_move);
-            ctx->position_history[ctx->board.hash()]++;
-            
-            // Check if black's move ended the game
-            
-            // 1. Threefold repetition
-            if (ctx->position_history[ctx->board.hash()] >= 3) {
-                terminal = true;
-                draw = true;
-                ctx->c_threefold_repetition += 1;
-                reward += env->reward_draw;
-                ctx->c_reward_draw += env->reward_draw;
-                printf("Threefold repetition detected (Black's move): %s\n", ctx->board.fen().c_str());
-            }
-            // 2. 50-move rule
-            else if (ctx->board.get_halfmove_clock() >= 100) {
-                terminal = true;
-                draw = true;
-                ctx->c_fifty_move_rule += 1;
-                reward += env->reward_draw;
-                ctx->c_reward_draw += env->reward_draw;
-            }
-            // 3. Insufficient material
-            else if (ctx->board.is_insufficient_material()) {
-                terminal = true;
-                draw = true;
-                ctx->c_insufficient_material += 1;
-                reward += env->reward_draw;
-                ctx->c_reward_draw += env->reward_draw;
-            }
-            // 4. Max depth
-            else if (ctx->step_count >= ctx->max_depth) {
-                terminal = true;
-                draw = true;
-                ctx->c_max_depth += 1;
-                reward += env->reward_draw;
-                ctx->c_reward_draw += env->reward_draw;
-            }
-            // 4. Check if white has any moves
-            else if (ctx->board.legal_moves().empty()) {
-                terminal = true;
-                if (ctx->board.is_check()) {
-                    // Checkmate - black wins
-                    loss = true;
-                    ctx->c_white_checkmated += 1;
-                    reward += env->reward_loss;
-                    ctx->c_reward_loss += env->reward_loss;
-                } else {
-                    // Stalemate
+    // Turn management -------------------------------------------------------
+    if (ctx->self_play_mode) {
+        if (!terminal) {
+            ctx->waiting_for_black_move = !ctx->waiting_for_black_move;
+        }
+        // No automatic random move in self-play
+    } else {
+        // Original random black move (only after white’s move and if game not over)
+        if (!handling_black && !terminal) {
+            const auto& black_moves = ctx->board.legal_moves();
+            if (!black_moves.empty()) {
+                std::uniform_int_distribution<> dist(0, black_moves.size() - 1);
+                const auto& black_move = black_moves[dist(ctx->rng)];
+                
+                // Capture
+                if (ctx->board.at(black_move.to).type != chess::EMPTY) {
+                    reward += env->reward_enemy_captures_agent_piece;
+                    ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
+                }
+                
+                ctx->board.apply_move(black_move);
+                ctx->position_history[ctx->board.hash()]++;
+                
+                // Repeat terminal checks for black’s move
+                if (ctx->position_history[ctx->board.hash()] >= 3) {
+                    terminal = true;
                     draw = true;
-                    ctx->c_stalemate += 1;
+                    ctx->c_threefold_repetition += 1;
                     reward += env->reward_draw;
                     ctx->c_reward_draw += env->reward_draw;
+                } else if (ctx->board.get_halfmove_clock() >= 100) {
+                    terminal = true;
+                    draw = true;
+                    ctx->c_fifty_move_rule += 1;
+                    reward += env->reward_draw;
+                    ctx->c_reward_draw += env->reward_draw;
+                } else if (ctx->board.is_insufficient_material()) {
+                    terminal = true;
+                    draw = true;
+                    ctx->c_insufficient_material += 1;
+                    reward += env->reward_draw;
+                    ctx->c_reward_draw += env->reward_draw;
+                } else if (ctx->step_count >= ctx->max_depth) {
+                    terminal = true;
+                    draw = true;
+                    ctx->c_max_depth += 1;
+                    reward += env->reward_draw;
+                    ctx->c_reward_draw += env->reward_draw;
+                } else if (ctx->board.legal_moves().empty()) {
+                    terminal = true;
+                    if (ctx->board.is_check()) {
+                        loss = true;
+                        ctx->c_white_checkmated += 1;
+                        reward += env->reward_loss;
+                        ctx->c_reward_loss += env->reward_loss;
+                    } else {
+                        draw = true;
+                        ctx->c_stalemate += 1;
+                        reward += env->reward_draw;
+                        ctx->c_reward_draw += env->reward_draw;
+                    }
                 }
             }
         }
     }
     
-    // Final check for max depth, after both players have had a chance to move
+    // Final max-depth check
     if (!terminal && ctx->step_count >= ctx->max_depth) {
         terminal = true;
-        draw = true; // Game ends in draw if max depth is reached
+        draw = true;
         ctx->c_max_depth += 1;
         reward += env->reward_draw;
         ctx->c_reward_draw += env->reward_draw;
     }
 
     // Always update observation to reflect current state
-    // (Note: for invalid moves, we already called this above)
-    if (valid_move) {
-        compute_observation(env, ctx);
-    }
+    compute_observation(env, ctx);
     
-    // At the end, always set outputs
+    // Set outputs
     env->rewards[0] = reward;
     env->terminals[0] = terminal ? 1 : 0;
     
