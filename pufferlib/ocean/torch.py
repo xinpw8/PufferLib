@@ -940,66 +940,6 @@ class ChessRecurrent(nn.Module):
         value = self.value_head(hidden).squeeze(-1)
         return masked_logits, value
 
-# class ChessRecurrent(nn.Module):
-#     """Feed-forward encoder/decoder for chess observations and legal move mask."""
-#     def __init__(self, env=None, hidden_size=256, num_actions=4674, **kwargs):
-#         super().__init__()
-#         # Board-only encoder: 21 channels × 8×8 = 1344 dims
-#         self.board_encoder = nn.Sequential(
-#             nn.Linear(1344, 512),
-#             nn.ReLU(),
-#             nn.Linear(512, 256),
-#             nn.ReLU()
-#         )
-#         # Combiner now just projects board_features to hidden state
-#         self.combiner = nn.Sequential(
-#             nn.Linear(256, hidden_size),
-#             nn.ReLU()
-#         )
-#         # Output heads
-#         self.policy_head = nn.Linear(hidden_size, num_actions)
-#         self.value_head = nn.Sequential(
-#             nn.Linear(hidden_size, 128),
-#             nn.ReLU(),
-#             nn.Linear(128, 1)
-#         )
-#         self.is_continuous = False
-
-#     def encode_observations(self, obs, state=None):
-#         # board_features is 1344 floats, legal_move_mask is 4674 floats 
-#         # first 1344 is board, next 4674 is legal mask
-#         board_state = obs[:, :1344] # extract board features
-#         legal_mask = obs[:, 1344:6018] # extract legal move mask
-#         self._legal_mask = legal_mask # save mask for use in decode_actions
-        
-#         # only board features are encoded and passed through the network
-#         board_features = self.board_encoder(board_state)
-#         hidden = self.combiner(board_features)
-#         return hidden
-
-#     def decode_actions(self, hidden, state=None):
-#         # NN outputs raw scores for all 4674 actions
-#         logits = self.policy_head(hidden) # (batch_size, 4674)
-#         # logits look like [0.5, -0.2, 1.3, 0.8, -1.1, ...]
-        
-#         # Apply legal move mask to set illegal moves to -inf so they have 0 probability
-#         if hasattr(self, '_legal_mask') and self._legal_mask is not None:
-#             # masked_fill: if mask < 0.5 (illegal), set score to -inf
-#             logits = logits.masked_fill(self._legal_mask < 0.5, float('-inf'))
-            
-#         # After masking:
-#         # legal_mask:   [0,    0,    1,   0,    1,   ...]
-#         # logits before:[0.5, -0.2, 1.3, 0.8, -1.1, ...]  
-#         # logits after: [-inf, -inf, 1.3, -inf, -1.1, ...]
-            
-#         value = self.value_head(hidden).squeeze(-1)
-#         return logits, value
-
-#     def forward(self, obs, state=None):
-#         hidden = self.encode_observations(obs, state)
-#         logits, value = self.decode_actions(hidden)
-#         return logits, value
-        
         
 class Tetris(nn.Module):
     def __init__(

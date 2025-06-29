@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sstream>
 
 #ifdef __cplusplus
 extern "C" {
@@ -317,6 +318,74 @@ public:
     uint8_t get_castling_rights() const { return castling_rights; }
     int8_t get_ep_square() const { return ep_square; }
     uint8_t get_halfmove_clock() const { return halfmove_clock; }
+    
+    std::string fen() const {
+        std::string result;
+        
+        // Board representation
+        for (int y = 7; y >= 0; y--) {
+            int empty_count = 0;
+            for (int x = 0; x < 8; x++) {
+                const Piece& p = board[y * 8 + x];
+                if (p.type == EMPTY) {
+                    empty_count++;
+                } else {
+                    if (empty_count > 0) {
+                        result += std::to_string(empty_count);
+                        empty_count = 0;
+                    }
+                    char piece_char;
+                    switch (p.type) {
+                        case KING: piece_char = 'k'; break;
+                        case QUEEN: piece_char = 'q'; break;
+                        case ROOK: piece_char = 'r'; break;
+                        case BISHOP: piece_char = 'b'; break;
+                        case KNIGHT: piece_char = 'n'; break;
+                        case PAWN: piece_char = 'p'; break;
+                        default: piece_char = '?'; break;
+                    }
+                    if (p.color == WHITE) {
+                        piece_char = std::toupper(piece_char);
+                    }
+                    result += piece_char;
+                }
+            }
+            if (empty_count > 0) {
+                result += std::to_string(empty_count);
+            }
+            if (y > 0) result += '/';
+        }
+        
+        // Side to move
+        result += (to_move == WHITE) ? " w " : " b ";
+        
+        // Castling rights
+        bool has_castling = false;
+        if (castling_rights & 0x8) { result += 'K'; has_castling = true; }
+        if (castling_rights & 0x4) { result += 'Q'; has_castling = true; }
+        if (castling_rights & 0x2) { result += 'k'; has_castling = true; }
+        if (castling_rights & 0x1) { result += 'q'; has_castling = true; }
+        if (!has_castling) result += '-';
+        
+        // En passant
+        result += ' ';
+        if (ep_square >= 0) {
+            int file = ep_square & 7;
+            int rank = ep_square >> 3;
+            result += ('a' + file);
+            result += ('1' + rank);
+        } else {
+            result += '-';
+        }
+        
+        // Halfmove clock and fullmove number
+        result += ' ';
+        result += std::to_string(halfmove_clock);
+        result += ' ';
+        result += std::to_string(fullmove_number);
+        
+        return result;
+    }
     
     uint64_t hash() const {
         int8_t ep_file = (ep_square >= 0) ? (ep_square & 7) : -1;
@@ -1173,6 +1242,12 @@ void compute_observation(CChess* env, ChessContext* ctx) {
 
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
+    
+    // Auto-reset if game is terminal
+    if (env->terminals[0] == 1) {
+        c_reset(env);
+    }
+
     float reward = 0.0f;
     bool terminal = false;
     bool win = false;
@@ -1231,6 +1306,7 @@ void c_step(CChess* env) {
             ctx->c_threefold_repetition += 1;
             reward += env->reward_draw;
             ctx->c_reward_draw += env->reward_draw;
+            printf("Threefold repetition detected (White's move): %s\n", ctx->board.fen().c_str());
         }
         // 2. 50-move rule
         else if (ctx->board.get_halfmove_clock() >= 100) {
@@ -1302,6 +1378,7 @@ void c_step(CChess* env) {
                 ctx->c_threefold_repetition += 1;
                 reward += env->reward_draw;
                 ctx->c_reward_draw += env->reward_draw;
+                printf("Threefold repetition detected (Black's move): %s\n", ctx->board.fen().c_str());
             }
             // 2. 50-move rule
             else if (ctx->board.get_halfmove_clock() >= 100) {
@@ -1371,12 +1448,38 @@ void c_step(CChess* env) {
     
     if (terminal) {
         add_log(env, ctx, win, loss, draw);
-        c_reset(env);
+        // envs in pufferlib MUST RESET THEMSELVES!
+        // reset called at top of c_step for clarity
     }
 }
 
 void c_render(CChess* env) {
-    ((ChessContext*)env->context)->board.render();
+    // Capture the board representation as a string
+    std::stringstream ss;
+    ss << "\n  a b c d e f g h\n";
+    const auto& board = ((ChessContext*)env->context)->board;
+    for (int y = 7; y >= 0; y--) {
+        ss << (y + 1) << " ";
+        for (int x = 0; x < 8; x++) {
+            const chess::Piece& p = board.at({int8_t(x), int8_t(y)});
+            char c = '.';
+            if (p.type != chess::EMPTY) {
+                const char* pieces = " KQRBNP";
+                c = pieces[p.type];
+                if (p.color == chess::BLACK) c += 32;  // Lowercase
+            }
+            ss << c << " ";
+        }
+        ss << (y + 1) << "\n";
+    }
+    ss << "  a b c d e f g h\n";
+    ss << (board.side_to_move() == chess::WHITE ? "White" : "Black") << " to move\n";
+    
+    // Store the result in a global buffer that Python can access
+    static std::string render_buffer;
+    render_buffer = ss.str();
+    // Note: This is a temporary fix. A proper solution would involve modifying the Python binding
+    // to return this string, but for now we'll use a global buffer
 }
 
 void c_close(CChess* env) {

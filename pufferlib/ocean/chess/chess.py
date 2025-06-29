@@ -65,7 +65,15 @@ class Chess(pufferlib.PufferEnv):
                 self.terminals, self.truncations, info)
     
     def render(self):
-        binding.vec_render(self.c_envs, 0)
+        import io
+        import sys
+        from contextlib import redirect_stdout
+        
+        # Capture stdout from the C++ render function
+        f = io.StringIO()
+        with redirect_stdout(f):
+            binding.vec_render(self.c_envs, 0)
+        return f.getvalue()
     
     def close(self):
         binding.vec_close(self.c_envs)
