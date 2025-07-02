@@ -252,9 +252,8 @@ class PuffeRL:
 
                 logits, value = self.policy.forward_eval(o_device, state)
                 action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
-                r = torch.clamp(r, -1, 1)
 
-            profile('eval_copy', epoch)
+            profile('eval_copy', epoch, nest=True)
             with torch.no_grad():
                 if config['use_rnn']:
                     self.lstm_h[env_id.start] = state['lstm_h']
@@ -265,7 +264,7 @@ class PuffeRL:
                 batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
 
                 if config['cpu_offload']:
-                    self.observations[batch_rows, l] = o
+                    self.observations[batch_rows, l] = o.clone()
                 else:
                     self.observations[batch_rows, l] = o_device
 

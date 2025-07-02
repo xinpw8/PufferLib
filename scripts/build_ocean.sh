@@ -76,18 +76,23 @@ if [ "$ENV" = "chess" ]; then
 
     echo "ROOT_DIR: $ROOT_DIR"
     echo "SRC_DIR: $SRC_DIR"
-    echo "Attempting to compile with:"
-    echo "clang++ -std=c++17 -g -O2 -o chess \\"
-    echo "    -I\"$ROOT_DIR/pufferlib/extensions\" \\"
-    echo "    \"$SRC_DIR/chess.cpp\" \\"
-    echo "    -lpthread -lm"
+    echo "RAYLIB_NAME: $RAYLIB_NAME"
+    echo "Attempting to compile with raylib support:"
 
-    clang++ -std=c++17 -g -O2 -o chess \
-        -I"$ROOT_DIR/pufferlib/extensions" \
-        "$SRC_DIR/chess.cpp" \
-        -lpthread -lm
+    if [ -d "$ROOT_DIR/$RAYLIB_NAME" ]; then
+        clang++ -std=c++17 -g -O2 -o chess \
+            -I"$ROOT_DIR/$RAYLIB_NAME/include" \
+            -I"$ROOT_DIR/pufferlib/extensions" \
+            -I"$ROOT_DIR/pufferlib/pufferlib/extensions" \
+            "$SRC_DIR/chess.cpp" \
+            "$ROOT_DIR/$RAYLIB_NAME/lib/libraylib.a" \
+            -lm -lpthread -ldl -lrt -lX11 \
+            -DPLATFORM_DESKTOP
 
-    echo "Binary built: chess"
+        echo "Binary built: chess (with raylib graphics)"
+    else
+        echo "Error: $RAYLIB_NAME directory not found. Cannot build graphical chess."
+    fi
     exit 0
 fi
 

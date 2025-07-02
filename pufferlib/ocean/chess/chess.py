@@ -13,6 +13,8 @@ class Chess(pufferlib.PufferEnv):
                  reward_agent_captures_enemy_piece=0.05,
                  reward_enemy_captures_agent_piece=-0.05,
                  reward_win=1.0, reward_draw=0.0, reward_loss=-1.0,
+                 reward_check=0.01,
+                 max_depth=200,
                  buf=None, seed=0, self_play=False):
         
         self.num_agents = num_envs
@@ -43,7 +45,8 @@ class Chess(pufferlib.PufferEnv):
             reward_agent_captures_enemy_piece=reward_agent_captures_enemy_piece,
             reward_enemy_captures_agent_piece=reward_enemy_captures_agent_piece,
             reward_win=reward_win, reward_draw=reward_draw, 
-            reward_loss=reward_loss)
+            reward_loss=reward_loss, max_depth=max_depth,
+            reward_check=reward_check)
         
         # If requested, enable self-play inside the C++ envs immediately so that
         # worker processes inherit the correct behaviour without additional
@@ -51,10 +54,16 @@ class Chess(pufferlib.PufferEnv):
         if self.self_play:
             binding.vec_set_self_play(self.c_envs)
     
-    def reset(self, seed=None):
+    def set_fen(self, env_id: int, fen: str):
+        binding.vec_set_fen(self.c_envs, fen)
+    
+    def reset(self, *, seed=None, fen=None):
+        if fen is not None:
+            self.set_fen(0, fen)
+            self.tick = 0
+            return self.observations, []
+        
         if seed is None:
-            # Ensure the underlying C++ binding always receives an int
-            # Using 0 as a sensible default to keep deterministic behaviour
             seed = 0
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0

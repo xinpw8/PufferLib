@@ -890,6 +890,7 @@ class ChessRecurrent(nn.Module):
             nn.Linear(128, 1)
         )
         self.is_continuous = False
+        self.is_multidiscrete = False
 
     def encode_observations(self, obs, state=None):
         # For LSTM compatibility, we only encode board features here
@@ -899,17 +900,19 @@ class ChessRecurrent(nn.Module):
         hidden = self.combiner(board_features)
         return hidden
 
-    def decode_actions(self, hidden, state=None):
+    def decode_actions(self, hidden, legal_mask):
         # Just compute raw logits here, masking happens elsewhere
-        logits = self.policy_head(hidden)
+        raw_logits = self.policy_head(hidden)
+        
+        # DEBUG: Check if the legal mask has any legal moves
+        if torch.sum(legal_mask) == 0:
+            print("WARNING: ChessRecurrent.decode_actions received a legal mask with NO legal moves.")
+
+        # Apply masking
+        logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
+        
         value = self.value_head(hidden).squeeze(-1)
         
-        # Add this check in your training loop after getting actions from the policy
-        if torch.isnan(logits).any():
-            print("WARNING: NaN detected in policy logits!")
-        if torch.isinf(logits).any():
-            print("WARNING: Inf detected in policy logits!")            
-            
         return logits, value
 
     def forward(self, obs, state=None):
@@ -918,27 +921,15 @@ class ChessRecurrent(nn.Module):
         board_state = obs[:, :1344]
         legal_mask = obs[:, 1344:6018]
         
-        # check if there is at least one legal move
-        if (legal_mask.sum(dim=1) == 0).any():
-            print("WARNING: Environment with no legal moves detected!")
-        
         # Encode board
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
         
         # Decode to get raw logits
-        logits = self.policy_head(hidden)
-        
-        # Apply mask using large negative value (not -inf to avoid NaN)
-        mask_value = -1e8  # Large negative but finite
-        masked_logits = logits.masked_fill(legal_mask < 0.5, mask_value)
-        
-        # Add small epsilon to prevent numerical issues
-        # This ensures even if all moves are masked, we don't get NaN
-        masked_logits = masked_logits + legal_mask * 1e-10
-        
+        logits = self.policy_head(hidden).masked_fill(legal_mask<0.5, -1e8)
+
         value = self.value_head(hidden).squeeze(-1)
-        return masked_logits, value
+        return logits, value
 
         
 class Tetris(nn.Module):

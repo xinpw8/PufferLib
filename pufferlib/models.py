@@ -33,7 +33,25 @@ class Default(nn.Module):
         except:
             self.is_dict_obs = isinstance(env.observation_space, pufferlib.spaces.Dict) 
 
-        if self.is_dict_obs:
+        # Check if this is a chess environment by examining observation space
+        try:
+            obs_shape = env.single_observation_space.shape
+            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 6018)  # 1344 board + 4674 mask
+        except:
+            self.is_chess = False
+
+        if self.is_chess:
+            # Chess-specific architecture
+            # Board features: 1344 dims (21 channels × 8×8)
+            # Legal mask: 4674 dims
+            self.board_encoder = nn.Sequential(
+                nn.Linear(1344, 512),
+                nn.ReLU(),
+                nn.Linear(512, hidden_size),
+                nn.ReLU()
+            )
+            input_size = hidden_size
+        elif self.is_dict_obs:
             self.dtype = pufferlib.pytorch.nativize_dtype(env.emulated)
             input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
@@ -48,8 +66,13 @@ class Default(nn.Module):
             self.decoder = pufferlib.pytorch.layer_init(
                     nn.Linear(hidden_size, sum(self.action_nvec)), std=0.01)
         elif not self.is_continuous:
-            self.decoder = pufferlib.pytorch.layer_init(
-                nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+            if self.is_chess:
+                # Chess has 4674 possible actions
+                self.decoder = pufferlib.pytorch.layer_init(
+                    nn.Linear(hidden_size, 4674), std=0.01)
+            else:
+                self.decoder = pufferlib.pytorch.layer_init(
+                    nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
         else:
             self.decoder_mean = pufferlib.pytorch.layer_init(
                 nn.Linear(hidden_size, env.single_action_space.shape[0]), std=0.01)
@@ -60,8 +83,16 @@ class Default(nn.Module):
             nn.Linear(hidden_size, 1), std=1)
 
     def forward_eval(self, observations, state=None):
+        if not hasattr(self, "_dbg_printed"):
+            print("DEBUG: Default policy forward_eval called – this should NOT happen for chess.")
+            self._dbg_printed = True
         hidden = self.encode_observations(observations, state=state)
-        logits, values = self.decode_actions(hidden)
+        if self.is_chess:
+            # Extract legal mask and apply action masking
+            legal_mask = observations[:, 1344:6018]  # 4674 legal move mask
+            logits, values = self.decode_actions(hidden, legal_mask)
+        else:
+            logits, values = self.decode_actions(hidden)
         return logits, values
 
     def forward(self, observations, state=None):
@@ -71,14 +102,20 @@ class Default(nn.Module):
         '''Encodes a batch of observations into hidden states. Assumes
         no time dimension (handled by LSTM wrappers).'''
         batch_size = observations.shape[0]
-        if self.is_dict_obs:
+        
+        if self.is_chess:
+            # Chess: encode only board features (first 1344 dims)
+            board_features = observations[:, :1344]
+            return self.board_encoder(board_features.float())
+        elif self.is_dict_obs:
             observations = pufferlib.pytorch.nativize_tensor(observations, self.dtype)
             observations = torch.cat([v.view(batch_size, -1) for v in observations.values()], dim=1)
+            return self.encoder(observations.float())
         else: 
             observations = observations.view(batch_size, -1)
-        return self.encoder(observations.float())
+            return self.encoder(observations.float())
 
-    def decode_actions(self, hidden):
+    def decode_actions(self, hidden, legal_mask=None):
         '''Decodes a batch of hidden states into (multi)discrete actions.
         Assumes no time dimension (handled by LSTM wrappers).'''
         if self.is_multidiscrete:
@@ -89,7 +126,18 @@ class Default(nn.Module):
             std = torch.exp(logstd)
             logits = torch.distributions.Normal(mean, std)
         else:
-            logits = self.decoder(hidden)
+            raw_logits = self.decoder(hidden)
+            
+            if self.is_chess and legal_mask is not None:
+                # Apply action masking as described in the PPO paper
+                # Set invalid actions to very negative logits (-1e8)
+                logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
+                
+                # Debug check for empty masks
+                if torch.sum(legal_mask) == 0:
+                    print("WARNING: Default policy received empty legal mask for chess!")
+            else:
+                logits = raw_logits
 
         values = self.value(hidden)
         return logits, values
@@ -152,9 +200,6 @@ class LSTMWrapper(nn.Module):
         else:
             lstm_state = None
 
-        # Extract mask before reshaping (for chess, mask is at indices 1344:6018)
-        legal_masks = x[..., 1344:6018].reshape(B*TT, -1)
-        
         x = x.reshape(B*TT, *space_shape)
         hidden = self.policy.encode_observations(x, state)
         assert hidden.shape == (B*TT, self.input_size)
@@ -166,26 +211,19 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.transpose(0, 1)
 
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)
-        logits, values = self.policy.decode_actions(flat_hidden)
-        
-        # Apply mask after getting logits
-        mask_value = -1e8
-        masked_logits = logits.masked_fill(legal_masks < 0.5, mask_value)
-        # Add small epsilon for numerical stability
-        masked_logits = masked_logits + legal_masks * 1e-10
+        # FIX: Extract legal mask from original observations, not reshaped x
+        legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:6018] # (B·TT, 4674)
+        logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
         
         values = values.reshape(B, TT)
         state['hidden'] = hidden
         state['lstm_h'] = lstm_h.detach()
         state['lstm_c'] = lstm_c.detach()
-        return masked_logits, values
+        return logits, values
 
     # Also modify forward_eval similarly:
     def forward_eval(self, observations, state):
         '''Forward function for inference. 3x faster than using LSTM directly'''
-        # Extract mask
-        legal_mask = observations[:, 1344:6018]
-        
         hidden = self.policy.encode_observations(observations, state=state)
         h = state['lstm_h']
         c = state['lstm_c']
@@ -196,20 +234,16 @@ class LSTMWrapper(nn.Module):
         else:
             lstm_state = None
 
+        # Extract mask before reshaping (for chess, mask is at indices 1344:6018)
+        legal_mask = observations[:, 1344:6018] # (B·TT, 4674)
+        
         hidden, c = self.cell(hidden, lstm_state)
         state['hidden'] = hidden
         state['lstm_h'] = hidden
         state['lstm_c'] = c
         
-        logits, values = self.policy.decode_actions(hidden)
-        
-        # Apply mask
-        mask_value = -1e8
-        masked_logits = logits.masked_fill(legal_mask < 0.5, mask_value)
-        masked_logits = masked_logits + legal_mask * 1e-10
-        
-        return masked_logits, values
-
+        logits, values = self.policy.decode_actions(hidden, legal_mask)
+        return logits, values
 
 
     # def forward_eval(self, observations, state):
