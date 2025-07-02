@@ -442,3 +442,29 @@ class ConvSequence(nn.Module):
     def get_output_shape(self):
         _c, h, w = self._input_shape
         return (self._out_channels, (h + 1) // 2, (w + 1) // 2)
+
+# Convenience factory so external training scripts can just call
+#   pufferlib.models.policy_for(env)
+# without caring which concrete implementation is used.
+
+
+def policy_for(env, **kwargs):
+    """Return an appropriate policy network for `env`.
+
+    For chess (obs size 6018) we create a ChessRecurrent wrapped with the
+    generic LSTMWrapper. For everything else we fall back to the historical
+    Default model so existing non-chess code paths keep working.
+    """
+    try:
+        obs_shape = env.single_observation_space.shape
+        is_chess = (len(obs_shape) == 1 and obs_shape[0] == 6018)
+    except Exception:
+        is_chess = False
+
+    if is_chess:
+        from pufferlib.ocean.torch import ChessRecurrent
+        hidden = kwargs.pop('hidden_size', 256)
+        base = ChessRecurrent(env, hidden_size=hidden)
+        return LSTMWrapper(env, base, input_size=hidden, hidden_size=hidden)
+    else:
+        return Default(env, **kwargs)

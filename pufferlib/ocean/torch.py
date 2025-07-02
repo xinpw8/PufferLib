@@ -12,9 +12,9 @@ import torch.nn.functional as F
 import pufferlib
 import pufferlib.models
 
-from pufferlib.models import Default as Policy
-from pufferlib.models import Convolutional as Conv
-Recurrent = pufferlib.models.LSTMWrapper
+from pufferlib.models import LSTMWrapper as Recurrent
+from pufferlib.models import Default as _OldDefault
+
 from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
 
@@ -1082,3 +1082,26 @@ class Drone(nn.Module):
 
         values = self.value(hidden)
         return logits, values
+
+def Policy(env, **kwargs):
+    """Factory returning the appropriate policy for the given environment.
+
+    If the observation matches the chess shape (6018,) we build a
+    ChessRecurrent model and wrap it with the generic LSTMWrapper so that
+    temporal batching works out of the box. Otherwise we fall back to the
+    legacy Default policy so existing non-chess environments remain
+    functional.
+    """
+    # Chess: obs = 1344 board planes + 4674 legal-move mask
+    try:
+        is_chess = (len(env.single_observation_space.shape) == 1 and
+                    env.single_observation_space.shape[0] == 6018)
+    except AttributeError:
+        is_chess = False
+
+    if is_chess:
+        hidden_size = kwargs.pop('hidden_size', 256)
+        base = ChessRecurrent(env, hidden_size=hidden_size)
+        return Recurrent(env, base, input_size=hidden_size, hidden_size=hidden_size)
+    else:
+        return _OldDefault(env, **kwargs)

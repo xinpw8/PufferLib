@@ -104,6 +104,9 @@ class ChessSelfPlayWrapper:
             # Execute black's move
             obs, black_rewards, dones, truncs, info = self.env.step(black_actions)
             
+            # White to play again on next call
+            self.black_turn = False
+            
             # Return white's rewards (not black's)
             return obs, rewards, dones, truncs, info
     

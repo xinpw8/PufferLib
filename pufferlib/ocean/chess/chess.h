@@ -1,6 +1,19 @@
 // chess.h
 #pragma once
 
+// Comment out the next line (or pass -DDEBUG_LOG=0 on the compiler command line)
+// to turn every DBG() call into a no-op.
+#ifndef DEBUG_LOG
+#define DEBUG_LOG 0          // 0 = disabled, 1 = enabled
+#endif
+
+#if DEBUG_LOG
+  #include <iostream>
+  #define DBG(expr) do { std::cerr << expr; } while (0)
+#else
+  #define DBG(expr) do { } while (0)
+#endif
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -293,7 +306,7 @@ public:
         if (*p == ' ') p++;
         
         // Debug print
-        std::cout << "Castling rights char: '" << *p << "'" << std::endl;
+        DBG("Castling rights char: '" << *p << "'" << std::endl);
         
         // CORRECTED LOGIC
         if (*p == ' ') p++; // Skip leading space
@@ -310,7 +323,7 @@ public:
         }        
         
         // Debug print
-        std::cout << "Final castling rights: 0x" << std::hex << (int)castling_rights << std::dec << std::endl;
+        DBG("Final castling rights: 0x" << std::hex << (int)castling_rights << std::dec << std::endl);
         
         // parse en passant
         ep_square = -1;
@@ -447,35 +460,35 @@ public:
             Square from = {int8_t(sq & 7), int8_t(sq >> 3)};
             
             // Debug print
-            std::cout << "Found piece: ";
+            DBG("Found piece: ");
             const char* type_names[] = {"EMPTY", "KING", "QUEEN", "ROOK", "BISHOP", "KNIGHT", "PAWN"};
             const char* color_names[] = {"WHITE", "BLACK", "NO_COLOR"};
-            std::cout << color_names[piece.color] << " " << type_names[piece.type];
-            std::cout << " at " << char('a' + from.x) << (from.y + 1) << std::endl;
+            DBG(color_names[piece.color] << " " << type_names[piece.type]);
+            DBG(" at " << char('a' + from.x) << (from.y + 1) << std::endl);
             
             switch (piece.type) {
                 case PAWN: 
-                    std::cout << "  Generating pawn moves..." << std::endl;
+                    DBG("  Generating pawn moves..." << std::endl);
                     generate_pawn_moves(from, yield); 
                     break;
                 case KNIGHT: 
-                    std::cout << "  Generating knight moves..." << std::endl;
+                    DBG("  Generating knight moves..." << std::endl);
                     generate_knight_moves(from, yield); 
                     break;
                 case BISHOP: 
-                    std::cout << "  Generating bishop moves..." << std::endl;
+                    DBG("  Generating bishop moves..." << std::endl);
                     generate_bishop_moves(from, yield); 
                     break;
                 case ROOK: 
-                    std::cout << "  Generating rook moves..." << std::endl;
+                    DBG("  Generating rook moves..." << std::endl);
                     generate_rook_moves(from, yield); 
                     break;
                 case QUEEN: 
-                    std::cout << "  Generating queen moves..." << std::endl;
+                    DBG("  Generating queen moves..." << std::endl);        
                     generate_queen_moves(from, yield); 
                     break;
                 case KING: 
-                    std::cout << "  Generating king moves..." << std::endl;
+                    DBG("  Generating king moves..." << std::endl);
                     generate_king_moves(from, yield); 
                     break;
             }
@@ -486,23 +499,29 @@ public:
         if (!cached_legal_moves) {
             cached_legal_moves = std::vector<Move>();
             
-            std::cout << "Generating legal moves..." << std::endl;
+            DBG("Generating legal moves..." << std::endl);
             generate_pseudo_legal_moves([this](const Move& move) {
-                std::cout << "  Testing move: " << int(move.from.x) << "," << int(move.from.y) << " -> " << int(move.to.x) << "," << int(move.to.y) << std::endl;
+                DBG("  Testing move: " << int(move.from.x) << "," << int(move.from.y) << " -> " << int(move.to.x) << "," << int(move.to.y) << std::endl);
                 
                 ChessBoard test = *this;
                 test.apply_move_unchecked(move);
                 
                 if (!test.is_in_check(to_move)) {
-                    std::cout << "    Legal move found!" << std::endl;
+                    DBG("    Legal move found!" << std::endl);
                     cached_legal_moves->push_back(move);
                 } else {
-                    std::cout << "    Move leaves king in check, discarded" << std::endl;
+                    DBG("    Move leaves king in check, discarded" << std::endl);
                 }
                 return true;  // continue generating
             });
             
-            std::cout << "Total legal moves: " << cached_legal_moves->size() << std::endl;
+            // Sort deterministically by action id for reproducibility
+            std::sort(cached_legal_moves->begin(), cached_legal_moves->end(),
+                      [](const Move& a, const Move& b){
+                          return ChessBoard::move_to_action(a) < ChessBoard::move_to_action(b);
+                      });
+
+            DBG("Total legal moves: " << cached_legal_moves->size() << std::endl);
         }
         return *cached_legal_moves;
     }
@@ -676,10 +695,12 @@ public:
     
     // follows openspiel encoding logic
     static int move_to_action(const Move& move) {
-        // optional pass move (variants): fixed slot 4674
-        if (move == kPassMove)         return 4674;
-        if (move.is_castle_long)       return 4672;   // queenside
-        if (move.is_castle_short)      return 4673;   // kingside
+        // Pass move occupies dedicated slot 0, matching OpenSpiel spec
+        if (move == kPassMove)         return 0;
+
+        // Castling slots immediately follow the 64×73 block (4672 indices)
+        if (move.is_castle_long)       return 4672;   // queenside (left)
+        if (move.is_castle_short)      return 4673;   // kingside (right)
 
         // --- rotate board so mover is always White --------------------------------
         Move m = move;
@@ -696,16 +717,16 @@ public:
 
         // --- under-promotions ------------------------------------------------------
         if (m.promotion != PieceType::QUEEN && m.promotion != PieceType::EMPTY) {
-            // piece order: R, N, B  → indices 0,1,2
-            const int promo_index =
-                (m.promotion == PieceType::ROOK)   ? 0 :
-                (m.promotion == PieceType::KNIGHT) ? 1 : 2;
+            // OpenSpiel ordering:
+            //   Under-promotion piece order: Knight, Bishop, Rook
+            static constexpr PieceType kUnder[3] = {
+                KNIGHT, BISHOP, ROOK
+            };
+            const int promo_index = std::find(std::begin(kUnder), std::end(kUnder), m.promotion) - std::begin(kUnder);
 
-            // direction order: straight, left diag, right diag
-            // (after rotation: dx = 0, -1, +1 respectively)
+            // Direction order: left capture (-1), straight (0), right capture (+1)
             const int dir_index =
-                (dx == 0)   ? 0 :
-                (dx == -1)  ? 1 : 2;
+                (dx == -1) ? 0 : (dx == 0) ? 1 : 2;
 
             return from_base + promo_index * 3 + dir_index;
         }
@@ -741,9 +762,9 @@ public:
         
     // debug rendering
     void render() const {
-        std::cout << "\n  a b c d e f g h\n";
+        DBG("\n  a b c d e f g h\n");
         for (int y = 7; y >= 0; y--) {
-            std::cout << (y + 1) << " ";
+            DBG((y + 1) << " ");
             for (int x = 0; x < 8; x++) {
                 const Piece& p = board[y * 8 + x];
                 char c = '.';
@@ -752,12 +773,12 @@ public:
                     c = pieces[p.type];
                     if (p.color == BLACK) c += 32;  // Lowercase
                 }
-                std::cout << c << " ";
+                DBG(c << " ");
             }
-            std::cout << (y + 1) << "\n";
+            DBG((y + 1) << "\n");
         }
-        std::cout << "  a b c d e f g h\n";
-        std::cout << (to_move == WHITE ? "White" : "Black") << " to move\n";
+        DBG("  a b c d e f g h\n");
+        DBG((to_move == WHITE ? "White" : "Black") << " to move\n");
     }
     
 private:
@@ -952,23 +973,23 @@ private:
         const Piece& piece = at(from);
         const int moves[][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
         
-        std::cout << "    Knight at " << char('a' + from.x) << (from.y + 1) << std::endl;
+        DBG("    Knight at " << char('a' + from.x) << (from.y + 1) << std::endl);
         
         for (auto& m : moves) {
             Square to = {int8_t(from.x + m[0]), int8_t(from.y + m[1])};
-            std::cout << "      Checking move to " << char('a' + to.x) << (to.y + 1);
-            std::cout << " - valid: " << (to.is_valid() ? "YES" : "NO");
+            DBG("      Checking move to " << char('a' + to.x) << (to.y + 1));
+            DBG(" - valid: " << (to.is_valid() ? "YES" : "NO"));
             
             if (to.is_valid()) {
                 const Piece& target = at(to);
-                std::cout << ", target: " << (target.type == EMPTY ? "EMPTY" : "PIECE");
-                std::cout << ", target color: " << (target.color == WHITE ? "WHITE" : target.color == BLACK ? "BLACK" : "NO_COLOR");
+                DBG(", target: " << (target.type == EMPTY ? "EMPTY" : "PIECE"));
+                DBG(", target color: " << (target.color == WHITE ? "WHITE" : target.color == BLACK ? "BLACK" : "NO_COLOR"));
             }
             
-            std::cout << std::endl;
+            DBG(std::endl);
             
             if (to.is_valid() && (at(to).type == EMPTY || at(to).color != piece.color)) {
-                std::cout << "      YIELDING MOVE" << std::endl;
+                DBG("      YIELDING MOVE" << std::endl);
                 if (!yield(Move{from, to, piece, EMPTY})) return;
             }
         }
@@ -1037,7 +1058,8 @@ private:
             if ((castling_rights & short_mask) &&
                 at({5, int8_t(rank)}).type == EMPTY &&
                 at({6, int8_t(rank)}).type == EMPTY &&
-                !is_square_attacked({5, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE)) {
+                !is_square_attacked({5, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE) &&
+                !is_square_attacked({6, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE)) {
                 
                 Move m{from, {6, int8_t(rank)}, piece, EMPTY};
                 m.is_castle_short = true;
@@ -1049,7 +1071,8 @@ private:
                 at({1, int8_t(rank)}).type == EMPTY &&
                 at({2, int8_t(rank)}).type == EMPTY &&
                 at({3, int8_t(rank)}).type == EMPTY &&
-                !is_square_attacked({3, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE)) {
+                !is_square_attacked({3, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE) &&
+                !is_square_attacked({2, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE)) {
                 
                 Move m{from, {2, int8_t(rank)}, piece, EMPTY};
                 m.is_castle_long = true;
@@ -1323,26 +1346,17 @@ void compute_observation(CChess* env, ChessContext* ctx) {
         // User requested no masking: allow every action
         for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 1.0f;
     } else {
-        // Exhaustive build guaranteeing symmetry
-        int legal_count = 0;
-        for (int action_id = 0; action_id < 4674; ++action_id) {
-            chess::Move mv = chess::action_to_move_direct(action_id, ctx->board);
-            chess::ChessBoard tmp = ctx->board;
-            if (tmp.apply_move(mv)) {
+        // Efficient build: mark only actually legal moves (O(#legal_moves))
+        const auto &legal_moves = ctx->board.legal_moves();
+        for (const auto &mv : legal_moves) {
+            int action_id = chess::ChessBoard::move_to_action(mv);
+            if (action_id >= 0 && action_id < 4674) {
                 env->observations[idx + action_id] = 1.0f;
-                legal_count++;
             }
         }
-        
-        // Debug output once
-        static bool mask_debug_shown = false;
-        if (!mask_debug_shown) {
-            mask_debug_shown = true;
-            printf("Legal action mask: %d actions out of 4674 (%.1f%%)\n", 
-                   legal_count, 100.0f * legal_count / 4674.0f);
-        }
+        // Pass move (action 0) is intentionally left disabled for chess.
     }
-    
+
     // obs is now [board_features_0, ..., board_features_1343, legal_move_mask_0, ..., legal_move_mask_4673]
     // board_features is 1344 floats, legal_move_mask is 4674 floats
     idx += 4674;
@@ -1382,9 +1396,6 @@ void c_step(CChess* env) {
     int material_opp_before    = material_value(player_color_before == chess::WHITE ? chess::BLACK : chess::WHITE);
     int material_diff_before   = material_player_before - material_opp_before;
 
-    // Increment environment step counter
-    ctx->step_count += 1;
-
     float reward = 0.0f;
     bool terminal = false;
     bool win = false;
@@ -1407,9 +1418,9 @@ void c_step(CChess* env) {
         is_legal = tmp.apply_move(selected_move);
     }
 
-    static int dbg_illegal_count = 0;
-
     if (is_legal) {
+        // Count this ply
+        ctx->step_count += 1;
         reward += env->reward_valid;
         ctx->c_reward_valid += env->reward_valid;
         ctx->board.apply_move(selected_move);
@@ -1417,19 +1428,25 @@ void c_step(CChess* env) {
         reward += env->reward_invalid;
         ctx->c_reward_invalid += env->reward_invalid;
 
+        // Static counter for limited illegal-move logging
+        static int dbg_illegal_count = 0;
+
         if (dbg_illegal_count < 20) {
             ++dbg_illegal_count;
-            // printf("ILLEGAL[%d] action=%d  fen=%s\n", dbg_illegal_count, action_idx, ctx->board.fen().c_str());
-            // printf("  Legal moves: %d\n", (int)legal_moves.size());
+            DBG("ILLEGAL[" << dbg_illegal_count << "] action=" << action_idx << "  mask=" << env->observations[1344 + action_idx] << std::endl);
+            DBG("  FEN=" << ctx->board.fen() << std::endl);
+            DBG("  Legal moves: " << legal_moves.size() << std::endl);
             if (!legal_moves.empty()) {
-                // printf("  First legal action: %d\n", chess::ChessBoard::move_to_action(legal_moves[0]));
+                DBG("  First legal action: " << chess::ChessBoard::move_to_action(legal_moves[0]) << std::endl);
+                int cnt = std::min<size_t>(5, legal_moves.size());
+                DBG("  Some legal ids: ");
+                for (int i = 0; i < cnt; ++i) {
+                    DBG(chess::ChessBoard::move_to_action(legal_moves[i]) << (i+1==cnt?"\n":" "));
+                }
             }
         }
 
-        // Fallback to a random legal move
-        if (!legal_moves.empty()) {
-            ctx->board.apply_move(legal_moves[rand() % legal_moves.size()]);
-        }
+        // OpenSpiel "invalid" mode: leave board unchanged and let the episode continue
     }
     
     // Check for game over after player's move
