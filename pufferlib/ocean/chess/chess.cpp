@@ -2,7 +2,18 @@
 #include <time.h>
 #include <math.h>
 #include "chess.h"
-#include "puffernet.h"
+#include "../../extensions/puffernet.h"
+#include "stockfish_wrapper.h"
+#include <cstdlib>
+#include <cstdio>
+#include <string>
+#include <utility>
+#include <cstring>
+#include <unistd.h> // Added for access() to check executable presence
+#include <algorithm>
+#include <vector>
+#include <sstream>
+#include <fstream>
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,6 +21,18 @@ extern "C" {
 #include "raylib.h" 
 #ifdef __cplusplus
 }
+#endif
+
+// Preserve raylib color constants before undefining macros that clash with our enum names
+static const Color RL_WHITE = WHITE;
+static const Color RL_BLACK = BLACK;
+
+// Raylib defines macros WHITE, BLACK that clash with chess::Color constants used later with qualification.
+#ifdef WHITE
+#undef WHITE
+#endif
+#ifdef BLACK
+#undef BLACK
 #endif
 
 // -----------------------------------------------------------------------------
@@ -53,6 +76,13 @@ struct ChessNet {
 // LSTM: 4 * ((256+256)*256 + 256) = 4 * 131328 = 525312
 // Total: 2644675 (file has ~2,646,339 - close match)
 #define CHESS_NUM_WEIGHTS 2646339
+
+// Utility to mask invalid move logits before softmax sampling
+static inline void mask_logits(float *logits, const float *legal, int size) {
+    for (int i = 0; i < size; ++i) {
+        if (legal[i] < 0.5f) logits[i] = -1e9f; // effectively -inf
+    }
+}
 
 static ChessNet *init_chessnet(Weights *weights, int num_agents) {
     ChessNet *net = (ChessNet *)calloc(1, sizeof(ChessNet));
@@ -118,6 +148,10 @@ static void forward_chessnet(ChessNet *net, float *observations, int *actions) {
     
     // Policy head: 256 -> 4674 (using LSTM hidden state)
     linear(net->policy_head, net->lstm->state_h);
+    
+    // Mask illegal moves (observations[1344:1344+4674])
+    const float *legal = observations + 1344;
+    mask_logits(net->policy_head->output, legal, 4674);
     
     // Select action using softmax sampling for more natural play
     softmax_multidiscrete(net->md, net->policy_head->output, actions);
@@ -212,7 +246,7 @@ static void render_chess_board(CChess *env, const ChessPieceTextures *textures) 
     const int BOARD_SIZE = 512;
     const int SQUARE_SIZE = BOARD_SIZE / 8;
     const int BOARD_OFFSET_X = 50;
-    const int BOARD_OFFSET_Y = 50;
+    const int BOARD_OFFSET_Y = 70;
     
     // Clear background
     ClearBackground(RAYWHITE);
@@ -232,7 +266,7 @@ static void render_chess_board(CChess *env, const ChessPieceTextures *textures) 
             int square_y = BOARD_OFFSET_Y + y * SQUARE_SIZE;
             
             DrawRectangle(square_x, square_y, SQUARE_SIZE, SQUARE_SIZE, square_color);
-            DrawRectangleLines(square_x, square_y, SQUARE_SIZE, SQUARE_SIZE, BLACK);
+            DrawRectangleLines(square_x, square_y, SQUARE_SIZE, SQUARE_SIZE, RL_BLACK);
         }
     }
     
@@ -254,7 +288,7 @@ static void render_chess_board(CChess *env, const ChessPieceTextures *textures) 
                     float piece_x = BOARD_OFFSET_X + x * SQUARE_SIZE + (SQUARE_SIZE - scaled_width) / 2.0f;
                     float piece_y = BOARD_OFFSET_Y + y * SQUARE_SIZE + (SQUARE_SIZE - scaled_height) / 2.0f;
                     
-                    DrawTextureEx(texture, (Vector2){piece_x, piece_y}, 0.0f, scale, WHITE);
+                    DrawTextureEx(texture, (Vector2){piece_x, piece_y}, 0.0f, scale, RL_WHITE);
                 } else {
                     // Debug: draw a colored circle if texture didn't load
                     Color debug_color = (piece.color == 0) ? BLUE : RED;
@@ -268,210 +302,523 @@ static void render_chess_board(CChess *env, const ChessPieceTextures *textures) 
     
     // Draw UI info
     const char *to_move = (board.side_to_move() == 0) ? "White" : "Black"; // WHITE = 0
-    DrawText(TextFormat("Turn: %s", to_move), BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y, 20, BLACK);
+    DrawText(TextFormat("Turn: %s", to_move), BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y, 20, RL_BLACK);
     
-    DrawText(TextFormat("Step: %d", ctx->step_count), BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y + 30, 20, BLACK);
-    DrawText(TextFormat("Return: %.2f", ctx->episode_return), BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y + 60, 20, BLACK);
+    DrawText(TextFormat("Step: %d", ctx->step_count), BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y + 30, 20, RL_BLACK);
+    DrawText(TextFormat("Return: %.2f", ctx->episode_return), BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y + 60, 20, RL_BLACK);
     
     if (board.is_check()) {
         DrawText("CHECK!", BOARD_OFFSET_X + BOARD_SIZE + 20, BOARD_OFFSET_Y + 100, 24, RED);
     }
     
-    // Instructions
-    DrawText("Hold SHIFT for human control", 10, 10, 16, DARKGRAY);
-    DrawText("Click square to move", 10, 30, 16, DARKGRAY);
-    DrawText("Press R to reset game", 10, 50, 16, DARKGRAY);
+    // Instructions below board
+    int instr_y = BOARD_OFFSET_Y + BOARD_SIZE + 10;
+    DrawText("Left-click: select piece, then destination (White)", 10, instr_y, 16, DARKGRAY);
+    DrawText("Engine (Black) replies automatically", 10, instr_y + 20, 16, DARKGRAY);
+    DrawText("Press R to reset game", 10, instr_y + 40, 16, DARKGRAY);
 }
 
-void demo() {
-    // Initialize Chess Environment
-    CChess env = {
-        .reward_valid = 0.0f,
-        .reward_invalid = -0.1f,
-        .reward_agent_captures_enemy_piece = 0.05f,
-        .reward_enemy_captures_agent_piece = -0.05f,
-        .reward_win = 1.0f,
-        .reward_draw = 0.0f,
-        .reward_loss = -1.0f,
-    };
+// -----------------------------------------------------------------------------
+// New structures and helpers for GUI menu and gameplay modes
+// -----------------------------------------------------------------------------
+// Gameplay modes selectable from the main menu
+enum GameMode {
+    GM_PLAYER_STOCKFISH = 0,
+    GM_AGENT_STOCKFISH,
+    GM_AGENT_AGENT,
+    GM_AGENT_RANDOM,
+    GM_RANDOM_RANDOM,
+    GM_COUNT
+};
 
-    // Load weights and initialize network
-    printf("Attempting to load %d weights from file...\n", CHESS_NUM_WEIGHTS);
-    Weights *weights = load_weights("resources/chess/puffer_chess_weights.bin", CHESS_NUM_WEIGHTS);
-    if (!weights) {
-        printf("ERROR: Failed to load weights!\n");
-        return;
+static const char *GAME_MODE_NAMES[GM_COUNT] = {
+    "Player vs Stockfish",
+    "Agent vs Stockfish",
+    "Agent vs Agent",
+    "Agent vs Random",
+    "Random vs Random"
+};
+
+// -----------------------------------------------------------------------------
+// Session statistics
+// -----------------------------------------------------------------------------
+static int session_wins  = 0;
+static int session_losses = 0;
+static int session_draws  = 0;
+
+// Store the last game outcome for the GUI to use
+static bool last_game_was_win = false;
+static bool last_game_was_loss = false;
+static bool last_game_was_draw = false;
+
+// -----------------------------------------------------------------------------
+// Runtime-adjustable UI positioning (arrow/HJKL style)                
+// -----------------------------------------------------------------------------
+static int panel_offset_x = 0;   // horizontal offset for side-panel text
+static int panel_offset_y = 166;   // vertical   offset for side-panel text
+static int last_panel_offset_x = 0;
+static int last_panel_offset_y = 166;
+
+// -----------------------------------------------------------------------------
+// Helper to convert Move to UCI string (from board perspective)
+static std::string move_to_uci(const chess::Move &m) {
+    if (m.from.x < 0) return "0000";
+    char buf[6] = {0};
+    buf[0] = 'a' + m.from.x;
+    buf[1] = '1' + m.from.y;
+    buf[2] = 'a' + m.to.x;
+    buf[3] = '1' + m.to.y;
+    if (m.promotion != chess::EMPTY) {
+        switch (m.promotion) {
+            case chess::QUEEN:  buf[4] = 'q'; break;
+            case chess::ROOK:   buf[4] = 'r'; break;
+            case chess::BISHOP: buf[4] = 'b'; break;
+            case chess::KNIGHT: buf[4] = 'n'; break;
+            default: break;
+        }
     }
-    printf("Successfully loaded weights! Size: %d\n", weights->size);
-    
-    ChessNet *net = init_chessnet(weights, 1);
-    printf("Network initialized successfully.\n");
-    
-    // Initialize environment
-    allocate(&env);
-    init(&env);
-    c_reset(&env);
+    return std::string(buf);
+}
 
-    // Initialize Raylib
-    const int WINDOW_WIDTH = 800;
-    const int WINDOW_HEIGHT = 650;
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "PufferLib Chess Evaluation");
+// -----------------------------------------------------------------------------
+// Globals toggles
+// -----------------------------------------------------------------------------
+static bool show_bestmove = false;
+
+// Move history for current game
+static std::vector<std::string> game_moves;
+
+// Draw side information panel (right of board)
+static void draw_side_panel(const CChess *env, const ChessPieceTextures *textures, GameMode mode, int elo_setting, ChessNet *white_net, ChessNet *black_net) {
+    const int BASE_PANEL_X = 580;
+    const int BASE_START_Y = 50;
+
+    const int PANEL_X = BASE_PANEL_X + panel_offset_x;
+    const int START_Y = BASE_START_Y + panel_offset_y;
+
+    int y = START_Y;
+    auto *ctx = (ChessContext*)env->context;
+
+    // Player labels
+    std::string white_label, black_label;
+    switch (mode) {
+        case GM_PLAYER_STOCKFISH: white_label = "Human"; black_label = "Stockfish(" + std::to_string(elo_setting) + ")"; break;
+        case GM_AGENT_STOCKFISH:  white_label = "Agent"; black_label = "Stockfish(" + std::to_string(elo_setting) + ")"; break;
+        case GM_AGENT_AGENT:      white_label = "Agent"; black_label = "Agent"; break;
+        case GM_AGENT_RANDOM:     white_label = "Agent"; black_label = "Random"; break;
+        case GM_RANDOM_RANDOM:    white_label = "Random"; black_label = "Random"; break;
+        default: break;
+    }
+    DrawText(TextFormat("White: %s", white_label.c_str()), PANEL_X, y, 18, RL_BLACK); y += 22;
+    DrawText(TextFormat("Black: %s", black_label.c_str()), PANEL_X, y, 18, RL_BLACK); y += 28;
+
+    // Stockfish evaluation (centipawns, white perspective)
+    DrawText(TextFormat("Eval: %d cp", (int)ctx->stockfish_eval), PANEL_X, y, 18, (ctx->stockfish_eval > 0 ? DARKGREEN : RED)); y += 26;
+
+    // Session stats
+    DrawText("Session W/L/D", PANEL_X, y, 18, RL_BLACK); y += 20;
+    DrawText(TextFormat("%d / %d / %d", session_wins, session_losses, session_draws), PANEL_X, y, 18, RL_BLACK); y += 28;
+
+    // Reward breakdown (last step)
+    DrawText("Rewards", PANEL_X, y, 18, RL_BLACK); y += 20;
+    DrawText(TextFormat("step %.3f", env->rewards[0]), PANEL_X, y, 16, RL_BLACK); y += 18;
+    DrawText(TextFormat("valid %.2f", ctx->c_reward_valid), PANEL_X, y, 16, RL_BLACK); y += 18;
+    DrawText(TextFormat("invalid %.2f", ctx->c_reward_invalid), PANEL_X, y, 16, RL_BLACK); y += 18;
+    DrawText(TextFormat("capture %.2f", ctx->c_reward_agent_captures_enemy_piece), PANEL_X, y, 16, RL_BLACK); y += 18;
+    DrawText(TextFormat("lostPiece %.2f", ctx->c_reward_enemy_captures_agent_piece), PANEL_X, y, 16, RL_BLACK); y += 18;
+    DrawText(TextFormat("check %.2f", ctx->c_reward_check), PANEL_X, y, 16, RL_BLACK); y += 18;
+    DrawText(TextFormat("material %.2f", ctx->c_reward_material_diff), PANEL_X, y, 16, RL_BLACK); y += 22;
+
+    // Move list
+    DrawText("Moves", PANEL_X, y, 18, RL_BLACK); y += 20;
+    int move_line = 0;
+    for (const auto &mv : game_moves) {
+        DrawText(mv.c_str(), PANEL_X, y + move_line * 16, 16, RL_BLACK);
+        move_line++;
+        if (move_line > 20) break; // clip
+    }
+
+    // Best move recommendation (optional)
+    if (show_bestmove && ctx->sf && ctx->sf->ok()) {
+        std::string best = ctx->sf->bestmove(ctx->board.fen(), 20);
+        DrawText(TextFormat("Best: %s", best.c_str()), PANEL_X, START_Y - 24, 18, BLUE);
+    }
+}
+
+// Helper to select an action for a ChessNet agent given current env observation
+static int agent_select_action(ChessNet *net, CChess *env) {
+    int action = 0;
+    forward_chessnet(net, env->observations, &action);
+    return action;
+}
+
+// Helper to select a random legal move (returns action id)
+static int random_select_action(const ChessContext *ctx) {
+    const auto &legal = ctx->board.legal_moves();
+    if (legal.empty()) return 0;
+    int idx = rand() % legal.size();
+    return chess::ChessBoard::move_to_action(legal[idx]);
+}
+
+// -----------------------------------------------------------------------------
+// Replace original main loop with GUI-enabled version
+// -----------------------------------------------------------------------------
+int main() {
+    printf("PufferLib Chess Evaluation – GUI Menu Version\n");
+    srand(static_cast<unsigned>(time(NULL)));
+
+    // ------------------------------------------------------------
+    // Load agent weights once (used for all agent-controlled sides)
+    // ------------------------------------------------------------
+    const char *weights_path = "resources/chess/puffer_chess_weights.bin";
+    Weights *weights_white = load_weights(weights_path, CHESS_NUM_WEIGHTS);
+    Weights *weights_black = load_weights(weights_path, CHESS_NUM_WEIGHTS);
+    if (!weights_white || !weights_black) {
+        fprintf(stderr, "ERROR: Could not load weights at %s\n", weights_path);
+        return 1;
+    }
+    ChessNet *agent_net_white = init_chessnet(weights_white, 1);
+    ChessNet *agent_net_black = init_chessnet(weights_black, 1);
+
+    // ------------------------------------------------------------
+    // Setup Raylib window
+    // ------------------------------------------------------------
+    const int WINDOW_WIDTH = 900;
+    const int WINDOW_HEIGHT = 700;
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "PufferLib Chess – Menu");
+    // Allow ESC to quit; use 'M' to return to menu during play
+    // (Raylib default ESC exit remains enabled)
     SetTargetFPS(60);
-    
-    // Load piece textures
+
+    // ------------------------------------------------------------
+    // Load piece textures (shared between menu & game)
+    // ------------------------------------------------------------
     ChessPieceTextures textures = load_piece_textures();
-    printf("Piece textures loaded, starting game loop...\n");
-    fflush(stdout);
-    
-    // Game loop
-    int tick = 0;
-    bool ai_move_pending = false;
-    printf("Entering main game loop...\n");
-    fflush(stdout);
-    
+
+    // ------------------------------------------------------------
+    // Game/environment objects (re-created when starting a match)
+    // ------------------------------------------------------------
+    CChess env = {0};
+    ChessNet *white_net = nullptr;
+    ChessNet *black_net = nullptr;
+    int elo_setting = 1320; // default ELO for Stockfish (weak)
+
+    bool in_menu       = true;
+    int menu_index     = 0;
+    GameMode game_mode = GM_PLAYER_STOCKFISH;
+
+    static std::ofstream pgn_log("game_log.pgn", std::ios::app);
+
     while (!WindowShouldClose()) {
-        // Handle input
-        if (IsKeyPressed(KEY_R)) {
-            c_reset(&env);
-            ai_move_pending = false;
-        }
-        
-        // AI move logic (slower pace for viewing)
-        if (tick % 90 == 0 && !ai_move_pending) { // Move every 1.5 seconds
-            tick = 0;
-            
-            if (!env.terminals[0]) {
-                // Get AI action
-                if (!IsKeyDown(KEY_LEFT_SHIFT)) {
-                    printf("Running neural network forward pass...\n");
-                    printf("Board features (first 20): ");
-                    for (int i = 0; i < 20; i++) {
-                        printf("%.1f ", env.observations[i]);
-                    }
-                    printf("\n");
-                    printf("Side to move area (960-970): ");
-                    for (int i = 960; i < 970; i++) {
-                        printf("%.1f ", env.observations[i]);
-                    }
-                    printf("\n");
-                    
-                    // Count non-zero values in first 1344 (board features)
-                    int nonzero_count = 0;
-                    for (int i = 0; i < 1344; i++) {
-                        if (env.observations[i] > 0.0f) nonzero_count++;
-                    }
-                    printf("Non-zero values in board features (1344): %d\n", nonzero_count);
-                    
-                    forward_chessnet(net, env.observations, env.actions);
-                    printf("AI selected action: %d\n", env.actions[0]);
-                    ai_move_pending = true;
-                }
-            }
-        }
-        
-        // Apply move if pending
-        if (ai_move_pending) {
-            c_step(&env);
-            ai_move_pending = false;
-            
-            // Check if game ended
-            if (env.terminals[0]) {
-                printf("Game ended! Final return: %.2f\n", 
-                       ((ChessContext*)env.context)->episode_return);
-            }
-        }
-        
-        tick++;
-        
-        // Human control (basic click-to-move system)
-        if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            Vector2 mousePos = GetMousePosition();
-            
-            // Convert mouse to board coordinates
-            int board_x = (mousePos.x - 50) / 64;
-            int board_y = (mousePos.y - 50) / 64;
-            
-            if (board_x >= 0 && board_x < 8 && board_y >= 0 && board_y < 8) {
-                // Simple: just try random legal move (proper click-to-move would be more complex)
-                ChessContext *ctx = (ChessContext*)env.context;
-                const auto& legal_moves = ctx->board.legal_moves();
-                
-                if (!legal_moves.empty()) {
-                    int move_idx = rand() % legal_moves.size();
-                    const auto& selected_move = legal_moves[move_idx];
-                    env.actions[0] = chess::ChessBoard::move_to_action(selected_move);
-                    c_step(&env);
-                }
-            }
-        }
-        
-        // Render
         BeginDrawing();
-        render_chess_board(&env, &textures);
+        if (in_menu) {
+            // --------------------------
+            // MAIN MENU RENDER + INPUT
+            // --------------------------
+            ClearBackground(RAYWHITE);
+            DrawText("PufferLib Chess", 50, 20, 32, RL_BLACK);
+            DrawText("Use UP / DOWN to choose, LEFT / RIGHT to adjust, ENTER to start", 50, 60, 18, DARKGRAY);
+
+            for (int i = 0; i < GM_COUNT; ++i) {
+                Color col = (i == menu_index) ? RED : RL_BLACK;
+                // Build menu label without nested TextFormat calls (avoids undefined behaviour with static buffers)
+                char menu_label[64] = {0};
+                if (i == GM_PLAYER_STOCKFISH || i == GM_AGENT_STOCKFISH) {
+                    snprintf(menu_label, sizeof(menu_label), "%s (ELO %d)", GAME_MODE_NAMES[i], elo_setting);
+                } else {
+                    snprintf(menu_label, sizeof(menu_label), "%s", GAME_MODE_NAMES[i]);
+                }
+                DrawText(menu_label, 80, 120 + i * 30, 20, col);
+            }
+
+            // Input handling
+            if (IsKeyPressed(KEY_UP))    menu_index = (menu_index + GM_COUNT - 1) % GM_COUNT;
+            if (IsKeyPressed(KEY_DOWN))  menu_index = (menu_index + 1) % GM_COUNT;
+
+            // Adjust ELO when Player vs Stockfish or Agent vs Stockfish is selected (hold for fast change)
+            if (menu_index == GM_PLAYER_STOCKFISH || menu_index == GM_AGENT_STOCKFISH) {
+                int delta = 0;
+                if (IsKeyDown(KEY_LEFT))  delta -= 5; // faster while holding
+                if (IsKeyDown(KEY_RIGHT)) delta += 5;
+                if (delta != 0) {
+                    elo_setting = std::clamp(elo_setting + delta, 300, 3500);
+                }
+            }
+
+            // Start game
+            if (IsKeyPressed(KEY_ENTER)) {
+                game_mode = static_cast<GameMode>(menu_index);
+                in_menu   = false;
+
+                // Initialise environment fresh for each match
+                env.reward_valid = 0.0f;
+                env.reward_invalid = -0.1f;
+                env.reward_agent_captures_enemy_piece = 0.05f;
+                env.reward_enemy_captures_agent_piece = -0.05f;
+                env.reward_win = 1.0f;
+                env.reward_draw = 0.0f;
+                env.reward_loss = -1.0f;
+                env.reward_check = 0.0f;
+                env.reward_material_diff = 0.0f;
+                env.max_depth = 512;  // From config/ocean/chess.ini
+
+                allocate(&env);
+                init(&env);
+                c_reset(&env);
+
+                // Enable / disable Stockfish depending on mode
+                auto *ctx = (ChessContext *)env.context;
+                if (game_mode == GM_PLAYER_STOCKFISH || game_mode == GM_AGENT_STOCKFISH) {
+                    // Initialise Stockfish engine explicitly now that automatic
+                    // startup has been removed from init()
+                    enable_stockfish_black(&env, nullptr, elo_setting, 10);
+                    ctx->stockfish_enabled = true;
+                } else {
+                    ctx->stockfish_enabled = false;
+                }
+
+                white_net = (game_mode == GM_AGENT_STOCKFISH || game_mode == GM_AGENT_AGENT || game_mode == GM_AGENT_RANDOM) ? agent_net_white : nullptr;
+                black_net = (game_mode == GM_AGENT_AGENT) ? agent_net_black : nullptr;
+            }
+        } else {
+            // --------------------------
+            // GAMEPLAY RENDER + LOGIC
+            // --------------------------
+            int sim_steps = IsKeyDown(KEY_RIGHT) ? 8 : 1; // speed-up while holding RIGHT
+
+            auto *ctx = (ChessContext *)env.context;
+            for (int step = 0; step < sim_steps && !env.terminals[0]; ++step) {
+                // Toggle best move display
+                if (IsKeyPressed(KEY_B)) show_bestmove = !show_bestmove;
+
+                // Decide which side to supply an action for
+                if (ctx->board.side_to_move() == chess::WHITE) {
+                    switch (game_mode) {
+                        case GM_PLAYER_STOCKFISH: {
+                            // Human move handled via mouse clicks inside render function
+                            break; }
+                        case GM_AGENT_STOCKFISH:
+                        case GM_AGENT_AGENT:
+                        case GM_AGENT_RANDOM: {
+                            int chosen_action;
+                            if (white_net) chosen_action = agent_select_action(white_net, &env);
+                            else chosen_action = random_select_action(ctx);
+                            env.actions[0] = chosen_action;
+
+                            // Record move
+                            chess::Move mv = chess::action_to_move_lookup(chosen_action, ctx->board);
+                            if (mv.from.x >= 0) {
+                                game_moves.push_back(move_to_uci(mv));
+                            }
+
+                            c_step(&env);
+                            break; }
+                        case GM_RANDOM_RANDOM: {
+                            env.actions[0] = random_select_action(ctx);
+                            {
+                                auto mv = chess::action_to_move_lookup(env.actions[0], ctx->board);
+                                if (mv.from.x >= 0) game_moves.push_back(move_to_uci(mv));
+                            }
+                            c_step(&env);
+                            break; }
+                        default: break;
+                    }
+                } else { // Black to move
+                    switch (game_mode) {
+                        case GM_PLAYER_STOCKFISH: {
+                            // Stockfish handled internally in c_step()
+                            break; }
+                        case GM_AGENT_STOCKFISH: {
+                            // Stockfish black handled internally; nothing to do
+                            break; }
+                        case GM_AGENT_AGENT: {
+                            int chosen_action;
+                            if (black_net) chosen_action = agent_select_action(black_net, &env);
+                            else chosen_action = random_select_action(ctx);
+                            env.actions[0] = chosen_action;
+                            {
+                                auto mv = chess::action_to_move_lookup(chosen_action, ctx->board);
+                                if (mv.from.x >= 0) game_moves.push_back(move_to_uci(mv));
+                            }
+                            c_step(&env);
+                            break; }
+                        case GM_AGENT_RANDOM: {
+                            env.actions[0] = random_select_action(ctx);
+                            {
+                                auto mv = chess::action_to_move_lookup(env.actions[0], ctx->board);
+                                if (mv.from.x >= 0) game_moves.push_back(move_to_uci(mv));
+                            }
+                            c_step(&env);
+                            break; }
+                        case GM_RANDOM_RANDOM: {
+                            env.actions[0] = random_select_action(ctx);
+                            {
+                                auto mv = chess::action_to_move_lookup(env.actions[0], ctx->board);
+                                if (mv.from.x >= 0) game_moves.push_back(move_to_uci(mv));
+                            }
+                            c_step(&env);
+                            break; }
+                        default: break;
+                    }
+                }
+
+                // Update session stats when the game ends using ctx flags
+                if (env.terminals[0]) {
+                    // Check specific game-ending conditions from the context
+                    bool game_was_win = false;
+                    bool game_was_loss = false;
+                    bool game_was_draw = false;
+                    
+                    // Win: we checkmated the opponent (black was checkmated since we play white)
+                    if (ctx->c_black_checkmated > 0) {
+                        game_was_win = true;
+                        fprintf(stderr, "[DEBUG] Game ended: WIN (black checkmated)\n");
+                    }
+                    // Loss: we were checkmated (white was checkmated)
+                    else if (ctx->c_white_checkmated > 0) {
+                        game_was_loss = true;
+                        fprintf(stderr, "[DEBUG] Game ended: LOSS (white checkmated)\n");
+                    }
+                    // Draw: any other terminal condition
+                    else {
+                        game_was_draw = true;
+                        const char* draw_reason = "unknown";
+                        if (ctx->c_stalemate > 0) draw_reason = "stalemate";
+                        else if (ctx->c_insufficient_material > 0) draw_reason = "insufficient material";
+                        else if (ctx->c_threefold_repetition > 0) draw_reason = "threefold repetition";
+                        else if (ctx->c_fifty_move_rule > 0) draw_reason = "fifty move rule";
+                        else if (ctx->c_max_depth > 0) draw_reason = "max depth";
+                        fprintf(stderr, "[DEBUG] Game ended: DRAW (%s)\n", draw_reason);
+                    }
+                    
+                    // Update session statistics
+                    if (game_was_win) session_wins++;
+                    else if (game_was_loss) session_losses++;
+                    else session_draws++;
+                    
+                    // Store for GUI use
+                    last_game_was_win = game_was_win;
+                    last_game_was_loss = game_was_loss;
+                    last_game_was_draw = game_was_draw;
+                    
+                    // Write PGN-like line (simple UCI list) to log
+                    if (pgn_log.is_open()) {
+                        std::ostringstream oss;
+                        int move_num = 1;
+                        for (size_t i = 0; i < game_moves.size(); ++i) {
+                            if (i % 2 == 0) oss << move_num++ << ".";
+                            oss << game_moves[i] << " ";
+                        }
+                        oss << "\n";
+                        pgn_log << oss.str();
+                        pgn_log.flush();
+                    }
+
+                    // Start new game automatically in same mode
+                    game_moves.clear();
+                    c_reset(&env);
+                }
+            }
+
+            // Handle player input for human moves (only if it's player's turn and correct mode)
+            if (game_mode == GM_PLAYER_STOCKFISH && ctx->board.side_to_move() == chess::WHITE) {
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    // Reuse existing click-to-move logic from demo
+                    Vector2 mp = GetMousePosition();
+                    int bx = (mp.x - 50) / 64;
+                    int by = (mp.y - 70) / 64;
+                    fprintf(stderr, "[CLICK] raw=(%.1f,%.1f) -> board bx=%d by=%d\n", mp.x, mp.y, bx, by);
+                    static int sel_fx = -1, sel_fy = -1;
+                    static bool selecting = false;
+
+                    if (bx >= 0 && bx < 8 && by >= 0 && by < 8) {
+                        int board_x = bx;
+                        int board_y = 7 - by;
+
+                        if (!selecting) {
+                            chess::Square pos{(int8_t)board_x, (int8_t)board_y};
+                            const chess::Piece &p = ctx->board.at(pos);
+                            if (p.color == chess::WHITE && p.type != chess::EMPTY) {
+                                sel_fx = board_x;
+                                sel_fy = board_y;
+                                selecting = true;
+                                fprintf(stderr, "[SELECT] piece at %c%d selected\n", 'a'+sel_fx, sel_fy+1);
+                            }
+                        } else {
+                            const auto &legal = ctx->board.legal_moves();
+                            chess::Move chosen = chess::kPassMove;
+                            for (const auto &mv : legal) {
+                                if (mv.from.x == sel_fx && mv.from.y == sel_fy && mv.to.x == board_x && mv.to.y == board_y) {
+                                    chosen = mv; break; }
+                            }
+                            selecting = false;
+                            if (!(chosen == chess::kPassMove)) {
+                                env.actions[0] = chess::ChessBoard::move_to_action(chosen);
+                                fprintf(stderr, "[MOVE] action id=%d\n", env.actions[0]);
+                                c_step(&env);
+                            }
+                            fprintf(stderr, "[DEST] attempt move %c%d -> %c%d\n", 'a'+sel_fx, sel_fy+1, 'a'+board_x, board_y+1);
+                        }
+                    }
+                }
+            }
+
+            // Allow reset / return to menu
+            if (IsKeyPressed(KEY_R)) {
+                c_reset(&env);
+            }
+
+            // Adjust side-panel position on-the-fly (vim-style H/J/K/L)
+            const int MOVE_STEP = (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) ? 5 : 2;
+            if (IsKeyDown(KEY_H)) panel_offset_x -= MOVE_STEP;
+            if (IsKeyDown(KEY_L)) panel_offset_x += MOVE_STEP;
+            if (IsKeyDown(KEY_K)) panel_offset_y -= MOVE_STEP;
+            if (IsKeyDown(KEY_J)) panel_offset_y += MOVE_STEP;
+
+            // Clamp to window bounds
+            panel_offset_x = std::clamp(panel_offset_x, -550,  550);
+            panel_offset_y = std::clamp(panel_offset_y, -300,  300);
+
+            // Console log offsets on change
+            if (panel_offset_x != last_panel_offset_x || panel_offset_y != last_panel_offset_y) {
+                printf("Panel offset now (%d, %d)\n", panel_offset_x, panel_offset_y);
+                fflush(stdout);
+                last_panel_offset_x = panel_offset_x;
+                last_panel_offset_y = panel_offset_y;
+            }
+
+            if (IsKeyPressed(KEY_M)) {
+                // Clean up current game resources and safely return to menu
+                c_close(&env);
+                free_allocated(&env);
+                memset(&env, 0, sizeof(env));
+
+                in_menu = true;
+                // End the current drawing frame early to avoid dereferencing freed pointers
+                EndDrawing();
+                continue; // start next loop iteration (menu)
+            }
+
+            // Render board / UI
+            ClearBackground(RAYWHITE);
+            render_chess_board(&env, &textures);
+            draw_side_panel(&env, &textures, game_mode, elo_setting, white_net, black_net);
+            DrawText(TextFormat("M:Menu  R:Reset  →:Speed  H/J/K/L:Move panel  Offset:(%d,%d)", panel_offset_x, panel_offset_y), 10, WINDOW_HEIGHT - 30, 16, DARKGRAY);
+        }
         EndDrawing();
     }
-    
-    // Cleanup
+
+    // Cleanup global resources
     unload_piece_textures(&textures);
     CloseWindow();
-    free_chessnet(net);
     c_close(&env);
     free_allocated(&env);
-}
-
-void performance_test() {
-    // Environment parameters
-    CChess env = {
-        .reward_valid = 0.0f,
-        .reward_invalid = -0.1f,
-        .reward_agent_captures_enemy_piece = 0.05f,
-        .reward_enemy_captures_agent_piece = -0.05f,
-        .reward_win = 1.0f,
-        .reward_draw = 0.0f,
-        .reward_loss = -1.0f,
-    };
-    
-    allocate(&env);
-    init(&env);
-    c_reset(&env);
-
-    long test_time = 10;
-    long start = time(NULL);
-    int i = 0;
-    
-    while (time(NULL) - start < test_time) {
-        // Pick a random legal move
-        ChessContext *ctx = (ChessContext*)env.context;
-        const auto& legal_moves = ctx->board.legal_moves();
-        
-        if (!legal_moves.empty()) {
-            int move_idx = rand() % legal_moves.size();
-            const auto& selected_move = legal_moves[move_idx];
-            env.actions[0] = chess::ChessBoard::move_to_action(selected_move);
-        } else {
-            env.actions[0] = 0; // Invalid move will trigger terminal
-        }
-        
-        c_step(&env);
-        
-        if (env.terminals[0]) {
-            c_reset(&env);
-        }
-        
-        i++;
-    }
-    
-    long end = time(NULL);
-    printf("SPS: %ld\n", i / (end - start));
-    free_allocated(&env);
-}
-
-int main() {
-    printf("PufferLib Chess Evaluation\n");
-    printf("Loading weights from: resources/chess/puffer_chess_weights.bin\n");
-    printf("Expected weights: %d\n", CHESS_NUM_WEIGHTS);
-    
-    demo();
-    // performance_test();
+    free_chessnet(agent_net_white);
+    free_chessnet(agent_net_black);
+    free(weights_white);
+    free(weights_black);
     return 0;
 }
+
+#ifndef USE_HEADER_STOCKFISH
+#endif

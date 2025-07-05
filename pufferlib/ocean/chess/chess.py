@@ -14,7 +14,14 @@ class Chess(pufferlib.PufferEnv):
                  reward_enemy_captures_agent_piece=-0.05,
                  reward_win=1.0, reward_draw=0.0, reward_loss=-1.0,
                  reward_check=0.01,
-                 max_depth=200,
+                 max_depth=200, reward_material_diff=0.0,
+                 debug_disable_mask=0,
+                 # Stockfish integration
+                 stockfish_enabled=1,
+                 stockfish_cmd=None,
+                 stockfish_elo=1320,
+                 stockfish_search_ms=10,
+                 stockfish_hash_mb: int = 4,
                  buf=None, seed=0, self_play=False):
         
         self.num_agents = num_envs
@@ -46,12 +53,24 @@ class Chess(pufferlib.PufferEnv):
             reward_enemy_captures_agent_piece=reward_enemy_captures_agent_piece,
             reward_win=reward_win, reward_draw=reward_draw, 
             reward_loss=reward_loss, max_depth=max_depth,
-            reward_check=reward_check)
+            reward_check=reward_check, reward_material_diff=reward_material_diff,
+            debug_disable_mask=debug_disable_mask)
         
-        # If requested, enable self-play inside the C++ envs immediately so that
-        # worker processes inherit the correct behaviour without additional
-        # calls from the parent process.
-        if self.self_play:
+        # (Re)configure Stockfish engine based on user settings
+        if stockfish_enabled:
+            # None values propagate as Py_None and get default handling in C++
+            binding.vec_enable_stockfish_black(
+                self.c_envs,
+                stockfish_cmd if stockfish_cmd is not None else None,
+                int(stockfish_elo),
+                int(stockfish_search_ms),
+                stockfish_hash_mb)
+        else:
+            # Disable by setting search time to 0 ms – cheapest way without new C API
+            binding.vec_enable_stockfish_black(self.c_envs, stockfish_cmd or None, int(stockfish_elo), 0)
+        
+        # Enable self-play (agents alternate colours) only when explicitly requested.
+        if self_play:
             binding.vec_set_self_play(self.c_envs)
     
     def set_fen(self, env_id: int, fen: str):

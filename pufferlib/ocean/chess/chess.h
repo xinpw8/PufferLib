@@ -19,6 +19,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sstream>
+#include <string>
+#include <utility>
+#ifdef __cplusplus
+#include "stockfish_wrapper.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,7 +34,9 @@ typedef struct Log {
     float perf;
     float score;
     float episode_length;
-    float episode_return;
+    float episode_return;            // combined (existing)
+    float episode_return_white;      // new – white perspective total
+    float episode_return_black;      // new – black perspective total
     float reward_valid;
     float reward_invalid;
     float reward_agent_captures_enemy_piece;
@@ -40,17 +47,23 @@ typedef struct Log {
     float game_won;
     float game_lost;
     float game_drawn;
-    float n;
-
     float stalemate;
     float insufficient_material;
     float threefold_repetition;
-    float white_checkmated;
-    float black_checkmated;
     float fifty_move_rule;
     float max_depth;
+    float white_checkmated; // black checkmates white
+    float black_checkmated; // white checkmates black
+    float white_moves;
+    float black_moves;
+    float valid_moves;
+    float invalid_moves;
+    float invalid_moves_white;
+    float invalid_moves_black;
     float reward_check;
     float reward_material_diff;
+    float stockfish_eval;
+    float n;
 } Log;
 
 typedef struct CChess {
@@ -68,9 +81,9 @@ typedef struct CChess {
     float reward_win;
     float reward_draw;
     float reward_loss;
-
-    // New reward for delivering check to opponent
     float reward_check;
+    float reward_material_diff;
+    int max_depth;
 
     // Debug helper: when true, compute_observation will NOT mask legal moves
     bool debug_disable_mask;
@@ -92,6 +105,9 @@ void c_step(CChess* env);
 void c_render(CChess* env);
 void c_close(CChess* env);
 
+// Enable Stockfish as the black-side opponent. Pass binary path or NULL for default.
+void enable_stockfish_black(CChess* env, const char* stockfish_cmd, int elo, int search_ms);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
@@ -107,7 +123,7 @@ void c_close(CChess* env);
 #include <iostream>
 #include <functional>
 #include <cassert>
-
+#include <mutex>
 
 namespace chess {
 
@@ -174,6 +190,9 @@ struct Move {
                is_castle_short == other.is_castle_short &&
                is_castle_long == other.is_castle_long;
     }
+    
+    // Convenience inequality operator – avoids repetitive !(a == b)
+    bool operator!=(const Move& other) const { return !(*this == other); }
 };
 
 inline constexpr Move kPassMove{{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
@@ -781,6 +800,10 @@ public:
         DBG((to_move == WHITE ? "White" : "Black") << " to move\n");
     }
     
+    // Expose a safe way to clear the cached legal-move vector from outside
+    // the class (e.g. after an illegal move that leaves the board unchanged).
+    void invalidate_cache() const { cached_legal_moves.reset(); }
+    
 private:
     void apply_move_unchecked(const Move& move) {
         // Update halfmove clock
@@ -898,7 +921,7 @@ private:
             bool is_diagonal = (i == 0 || i == 2 || i == 5 || i == 7);
             
             for (int dist = 1; dist < 8; dist++) {
-                Square from{ sq.x + directions[i][0]*dist, sq.y + directions[i][1]*dist };
+                Square from{ int8_t(sq.x + directions[i][0]*dist), int8_t(sq.y + directions[i][1]*dist) };
                 if (!from.is_valid()) break;
 
                 const Piece& p = at(from);
@@ -1112,6 +1135,41 @@ struct PassthroughHash {
 
 } // namespace chess
 
+// Forward declaration for per-environment Stockfish instances
+class Stockfish;
+namespace chess {
+    struct ChessBoard;
+}
+
+// Convert UCI algebraic string to a Move object (returns kPassMove if not legal)
+inline chess::Move uci_to_move(const std::string &uci, const chess::ChessBoard &board) {
+    if (uci.size() < 4) return chess::kPassMove;
+
+    int fx = uci[0] - 'a';
+    int fy = uci[1] - '1';
+    int tx = uci[2] - 'a';
+    int ty = uci[3] - '1';
+
+    chess::PieceType promo = chess::EMPTY;
+    if (uci.size() == 5) {
+        switch (uci[4]) {
+            case 'q': promo = chess::QUEEN;  break;
+            case 'r': promo = chess::ROOK;   break;
+            case 'b': promo = chess::BISHOP; break;
+            case 'n': promo = chess::KNIGHT; break;
+        }
+    }
+
+    const auto &legal = board.legal_moves();
+    for (const auto &m : legal) {
+        if (m.from.x == fx && m.from.y == fy && m.to.x == tx && m.to.y == ty &&
+            (promo == chess::EMPTY || promo == m.promotion)) {
+            return m;
+        }
+    }
+    return chess::kPassMove;
+}
+
 struct ChessContext {
     chess::ChessBoard board;
     std::unordered_map<uint64_t, int, chess::PassthroughHash> position_history;
@@ -1144,13 +1202,22 @@ struct ChessContext {
     float c_max_depth = 0.0f;
     float c_white_checkmated = 0.0f;
     float c_black_checkmated = 0.0f;
-
-    // max depth
-    int max_depth = 10000;
-
-    // Self-play support
+    float c_white_moves = 0.0f;
+    float c_black_moves = 0.0f;
+    float c_valid_moves = 0.0f;
+    float c_invalid_moves = 0.0f;
+    float c_episode_return_white = 0.0f;
+    float c_episode_return_black = 0.0f;
+    float c_invalid_moves_white = 0.0f;
+    float c_invalid_moves_black = 0.0f;
+    float c_perf = 0.0f;
+    float c_score = 0.0f;
     bool self_play_mode = false;
     bool waiting_for_black_move = false;
+    Stockfish* sf = nullptr;   // stockfish engine instance (plays black only)
+    float stockfish_eval = 0.0f; // last evaluation in centipawns (white perspective)
+    bool stockfish_enabled = true; // enabled by default
+    int   max_depth = 0;  // per-episode step limit
 
     ChessContext(unsigned seed) : rng(seed) {}
 };
@@ -1185,12 +1252,12 @@ extern "C" void set_debug_disable_mask(CChess* env, bool enabled) {
 extern "C" {
 
 void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool draw) {
-    env->log.n += 1;
+    env->log.perf += ctx->c_perf;
+    env->log.score += ctx->c_score;
     env->log.episode_length += ctx->step_count;
     env->log.episode_return += ctx->episode_return;
-    env->log.game_won += win;
-    env->log.game_lost += loss;
-    env->log.game_drawn += draw;
+    env->log.episode_return_white += ctx->c_episode_return_white;
+    env->log.episode_return_black += ctx->c_episode_return_black;
     env->log.reward_valid += ctx->c_reward_valid;
     env->log.reward_invalid += ctx->c_reward_invalid;
     env->log.reward_agent_captures_enemy_piece += ctx->c_reward_agent_captures_enemy_piece;
@@ -1198,20 +1265,38 @@ void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool dra
     env->log.reward_win += ctx->c_reward_win;
     env->log.reward_draw += ctx->c_reward_draw;
     env->log.reward_loss += ctx->c_reward_loss;
-    env->log.reward_check += ctx->c_reward_check;
-    env->log.reward_material_diff += ctx->c_reward_material_diff;
+    env->log.game_won += win;
+    env->log.game_lost += loss;
+    env->log.game_drawn += draw;
     env->log.stalemate += ctx->c_stalemate;
     env->log.insufficient_material += ctx->c_insufficient_material;
     env->log.threefold_repetition += ctx->c_threefold_repetition;
     env->log.fifty_move_rule += ctx->c_fifty_move_rule;
     env->log.max_depth += ctx->c_max_depth;
-    env->log.white_checkmated += ctx->c_white_checkmated;
-    env->log.black_checkmated += ctx->c_black_checkmated;
+    env->log.white_checkmated += ctx->c_white_checkmated; // black checkmates white
+    env->log.black_checkmated += ctx->c_black_checkmated; // white checkmates black
+    env->log.white_moves += ctx->c_white_moves;
+    env->log.black_moves += ctx->c_black_moves;
+    env->log.valid_moves += ctx->c_valid_moves;
+    env->log.invalid_moves += ctx->c_invalid_moves;
+    env->log.invalid_moves_white += ctx->c_invalid_moves_white;
+    env->log.invalid_moves_black += ctx->c_invalid_moves_black;
+    env->log.reward_check += ctx->c_reward_check;
+    env->log.reward_material_diff += ctx->c_reward_material_diff;
+    env->log.stockfish_eval += ctx->stockfish_eval;
+    env->log.n += 1;
 }
 
 void init(CChess* env) {
     env->context = new ChessContext(12345);
     env->debug_disable_mask = false;
+    auto* ctx = (ChessContext*)env->context;
+    ctx->stockfish_enabled = false;      // start disabled
+    // max_depth is set from config via the calling code (binding.cpp or chess.cpp)
+    ctx->max_depth = env->max_depth;
+    // Use bundled Stockfish binary (resolved in enable_stockfish_black) rather than
+    // hard-coded system path to avoid illegal-instruction crashes on CPUs lacking AVX2.
+    // Note: ELO will be overridden by training config via vec_enable_stockfish_black
 }
 
 void allocate(CChess* env) {
@@ -1227,7 +1312,12 @@ void free_allocated(CChess* env) {
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
-    delete (ChessContext*)env->context;
+    auto* ctx = (ChessContext*)env->context;
+    if (ctx && ctx->sf) {
+        delete ctx->sf;
+        ctx->sf = nullptr;
+    }
+    delete ctx;
 }
 
 void c_reset(CChess* env) {
@@ -1265,6 +1355,12 @@ void c_reset(CChess* env) {
     ctx->c_white_checkmated = 0.0f;
     ctx->c_black_checkmated = 0.0f;
     
+    // Reset move counters
+    ctx->c_white_moves = 0.0f;
+    ctx->c_black_moves = 0.0f;
+    ctx->c_valid_moves = 0.0f;
+    ctx->c_invalid_moves = 0.0f;
+    
     // Reset self-play state - always start with white's turn
     ctx->waiting_for_black_move = false;
 
@@ -1273,6 +1369,11 @@ void c_reset(CChess* env) {
     // CRITICAL: Ensure outputs are initialized
     env->terminals[0] = 0;
     env->rewards[0] = 0.0f;
+
+    ctx->c_episode_return_white = 0.0f;
+    ctx->c_episode_return_black = 0.0f;
+
+    ctx->stockfish_eval = 0.0f;
 }
 
 void compute_observation(CChess* env, ChessContext* ctx) {
@@ -1343,7 +1444,6 @@ void compute_observation(CChess* env, ChessContext* ctx) {
     for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 0.0f;
 
     if (env->debug_disable_mask) {
-        // User requested no masking: allow every action
         for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 1.0f;
     } else {
         // Efficient build: mark only actually legal moves (O(#legal_moves))
@@ -1366,6 +1466,64 @@ void compute_observation(CChess* env, ChessContext* ctx) {
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
         
+    // ---------------------------------------------------------------------
+    // EARLY TERMINAL CHECK: the side-to-move may already be in a game-ending
+    // position (checkmated, stalemate, etc.) before it gets a chance to
+    // select an action.  In that case we must mark the episode as terminal
+    // *from the perspective of the current player* and apply the
+    // appropriate draw/loss rewards.
+    // ---------------------------------------------------------------------
+    const auto early_legal_moves = ctx->board.legal_moves();
+    if (early_legal_moves.empty()) {
+        bool early_checkmate  = ctx->board.is_checkmate();
+        bool early_stalemate  = ctx->board.is_stalemate();
+        bool early_insuffmat  = ctx->board.is_insufficient_material();
+
+        if (early_checkmate || early_stalemate || early_insuffmat) {
+            // fprintf(stderr, "[EARLY TERMINAL] early_checkmate=%d early_stalemate=%d early_insuffmat=%d\n", 
+                    // early_checkmate, early_stalemate, early_insuffmat);
+            float early_reward = 0.0f;
+            bool early_draw  = false;
+            bool early_loss  = false;
+            bool early_win   = false; // never happens here, but keep for symmetry
+
+            if (early_checkmate) {
+                // Current side has no legal moves and is in check -> LOSS
+                early_loss = true;
+                early_reward += env->reward_loss;
+                ctx->c_reward_loss += env->reward_loss;
+
+                // Update side-specific counters
+                if (ctx->board.side_to_move() == chess::WHITE)
+                    ctx->c_white_checkmated += 1;
+                else
+                    ctx->c_black_checkmated += 1;
+            } else {
+                early_draw = true;
+                early_reward += env->reward_draw;
+                ctx->c_reward_draw += env->reward_draw;
+
+                if (early_stalemate)          ctx->c_stalemate              += 1;
+                if (early_insuffmat)          ctx->c_insufficient_material  += 1;
+            }
+
+            // Update outputs and log, then hard-reset the environment
+            env->rewards[0]   = early_reward;
+            env->terminals[0] = 1;
+
+            ctx->episode_return += early_reward;
+            if (ctx->board.side_to_move() == chess::WHITE) {
+                ctx->c_episode_return_white += early_reward;
+            } else {
+                ctx->c_episode_return_black += early_reward;
+            }
+
+            add_log(env, ctx, early_win, early_loss, early_draw);
+            c_reset(env);  // envs must reset themselves!!
+            return; // Finished this step early
+        }
+    }
+
     // Always update observation to reflect current state (fresh after reset if terminal)
     compute_observation(env, ctx);
     
@@ -1423,10 +1581,19 @@ void c_step(CChess* env) {
         ctx->step_count += 1;
         reward += env->reward_valid;
         ctx->c_reward_valid += env->reward_valid;
-        ctx->board.apply_move(selected_move);
+        bool applied_ok = ctx->board.apply_move(selected_move);
+        // fprintf(stderr, "[APPLY] ok=%d  after FEN=%s\n", applied_ok, ctx->board.fen().c_str());
+        ctx->board.invalidate_cache();   // already done in apply_move
+
+        // Reward for giving check immediately after the move
+        if (ctx->board.is_check()) {
+            reward += env->reward_check;
+            ctx->c_reward_check += env->reward_check;
+        }
     } else {
         reward += env->reward_invalid;
         ctx->c_reward_invalid += env->reward_invalid;
+        ctx->board.invalidate_cache();   // ensure mask stays in sync
 
         // Static counter for limited illegal-move logging
         static int dbg_illegal_count = 0;
@@ -1445,57 +1612,76 @@ void c_step(CChess* env) {
                 }
             }
         }
-
         // OpenSpiel "invalid" mode: leave board unchanged and let the episode continue
     }
     
     // Check for game over after player's move
     if (ctx->board.is_checkmate()) {
+        // fprintf(stderr, "[TERMINAL] Checkmate detected\n");
         terminal = true;
         win = true; // Player (whose turn it was) checkmated the opponent
         ctx->c_reward_win += env->reward_win;
+        // Track which side was checkmated
         if (player_color_before == chess::WHITE) {
             ctx->c_black_checkmated += 1;
         } else {
             ctx->c_white_checkmated += 1;
         }
+
+        // Apply win reward to current step
+        reward += env->reward_win;
     } else if (ctx->board.is_stalemate()) {
+        // fprintf(stderr, "[TERMINAL] Stalemate detected\n");
         terminal = true;
         draw = true;
         ctx->c_stalemate += 1;
         ctx->c_reward_draw += env->reward_draw;
+
+        // Apply draw reward
+        reward += env->reward_draw;
     } else if (ctx->board.is_insufficient_material()) {
+        fprintf(stderr, "[TERMINAL] Insufficient material detected\n");
         terminal = true;
         draw = true;
         ctx->c_insufficient_material += 1;
         ctx->c_reward_draw += env->reward_draw;
+
+        reward += env->reward_draw;
     } else if (ctx->board.get_halfmove_clock() >= 100) { // 50-move rule
+        // fprintf(stderr, "[TERMINAL] 50-move rule detected\n");
         terminal = true;
         draw = true;
         ctx->c_fifty_move_rule += 1;
         ctx->c_reward_draw += env->reward_draw;
-    } else {
+
+        reward += env->reward_draw;
+    } else if (is_legal) {
+        // Only update position history for legal moves that actually changed the board
         uint64_t current_hash = ctx->board.hash();
         ctx->position_history[current_hash]++;
         if (ctx->position_history[current_hash] >= 3) { // Threefold repetition
+            // fprintf(stderr, "[TERMINAL] Threefold repetition detected\n");
             terminal = true;
             draw = true;
             ctx->c_threefold_repetition += 1;
             ctx->c_reward_draw += env->reward_draw;
+
+            reward += env->reward_draw;
         }
     }
     
     // Final max-depth check
     if (!terminal && ctx->step_count >= ctx->max_depth) {
+        // fprintf(stderr, "[TERMINAL] Max depth reached: %d >= %d\n", ctx->step_count, ctx->max_depth);
         terminal = true;
         draw = true;
         ctx->c_max_depth += 1;
         ctx->c_reward_draw += env->reward_draw;
+
+        reward += env->reward_draw;
     }
 
-    // -------------------------------------------------------------------
     // Material differential reward (computed at the end of both moves)
-    // -------------------------------------------------------------------
     const chess::Color player_color_after = player_color_before; // unchanged for the episode perspective
     int material_player_after = material_value(player_color_after);
     int material_opp_after    = material_value(player_color_after == chess::WHITE ? chess::BLACK : chess::WHITE);
@@ -1503,8 +1689,139 @@ void c_step(CChess* env) {
 
     int delta_material = material_diff_after - material_diff_before;
     if (delta_material != 0) {
-        reward += delta_material;
-        ctx->c_reward_material_diff += delta_material;
+        // Scaled material differential reward (positive if agent gained material, negative otherwise)
+        float scaled_mat_reward = delta_material * env->reward_material_diff;
+        reward += scaled_mat_reward;
+        ctx->c_reward_material_diff += scaled_mat_reward;
+
+        // Capture-specific rewards (flat, regardless of piece value)
+        if (delta_material > 0) {
+            reward += env->reward_agent_captures_enemy_piece;
+            ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
+        } else if (delta_material < 0) {
+            reward += env->reward_enemy_captures_agent_piece;
+            ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
+        }
+    }
+
+    // ---------------- Stockfish automatic black move -----------------
+    // fprintf(stderr, "[STOCKFISH] enabled=%d sf_ptr=%p side_to_move=%s\n", 
+            // ctx->stockfish_enabled, ctx->sf, ctx->board.side_to_move() == chess::WHITE ? "WHITE" : "BLACK");
+    if (!terminal && ctx->stockfish_enabled && ctx->sf && ctx->board.side_to_move() == chess::BLACK) {
+        // Material before Stockfish move (white perspective)
+        int mat_before_b_white = material_value(chess::WHITE);
+        int mat_before_b_black = material_value(chess::BLACK);
+        int diff_before_b = mat_before_b_white - mat_before_b_black;
+
+        // Get Stockfish move and evaluation
+        auto sf_res = ctx->sf->bestmove_with_score(ctx->board.fen(), 10);
+        ctx->stockfish_eval = static_cast<float>(sf_res.second);
+
+        // fprintf(stderr, "[Stockfish] bestmove %s (cp %d)\n", sf_res.first.c_str(), sf_res.second);
+
+        // Helper to convert a Move into UCI (same logic as chess.cpp version)
+        auto move_to_uci_local = [](const chess::Move &m) -> std::string {
+            if (m.from.x < 0) return "0000";
+            char buf[6] = {0};
+            buf[0] = 'a' + m.from.x;
+            buf[1] = '1' + m.from.y;
+            buf[2] = 'a' + m.to.x;
+            buf[3] = '1' + m.to.y;
+            if (m.promotion != chess::EMPTY) {
+                switch (m.promotion) {
+                    case chess::QUEEN:  buf[4] = 'q'; break;
+                    case chess::ROOK:   buf[4] = 'r'; break;
+                    case chess::BISHOP: buf[4] = 'b'; break;
+                    case chess::KNIGHT: buf[4] = 'n'; break;
+                    default: break;
+                }
+            }
+            return std::string(buf);
+        };
+
+        // Translate UCI → Move by matching against current legal moves
+        chess::Move sf_move = chess::kPassMove;
+        {
+            const auto &legal = ctx->board.legal_moves();
+            for (const auto &mv : legal) {
+                if (move_to_uci_local(mv) == sf_res.first) {
+                    sf_move = mv;
+                    break;
+                }
+            }
+        }
+
+        // If still invalid, mark terminal and reset
+        if (sf_move == chess::kPassMove) {
+            // fprintf(stderr, "[Stockfish] WARNING – engine move not found in legal set, terminating episode.\n");
+            // fprintf(stderr, "[TERMINAL] Stockfish invalid move\n");
+            env->terminals[0] = 1;
+            terminal = true;
+        }
+
+        bool applied = (sf_move != chess::kPassMove) ? ctx->board.apply_move(sf_move) : false;
+        if (applied) {
+            ctx->step_count += 1;
+            ctx->c_black_moves += 1;
+            ctx->c_valid_moves += 1;
+            ctx->board.invalidate_cache();
+
+            // Reward / penalty from material change due to black move
+            int mat_after_b_white = material_value(chess::WHITE);
+            int mat_after_b_black = material_value(chess::BLACK);
+            int diff_after_b = mat_after_b_white - mat_after_b_black;
+            int delta_b = diff_after_b - diff_before_b;
+
+            if (delta_b != 0) {
+                float scaled_mat_reward_b = delta_b * env->reward_material_diff;
+                reward += scaled_mat_reward_b;
+                ctx->c_reward_material_diff += scaled_mat_reward_b;
+
+                if (delta_b > 0) {
+                    reward += env->reward_agent_captures_enemy_piece;
+                    ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
+                } else if (delta_b < 0) {
+                    reward += env->reward_enemy_captures_agent_piece;
+                    ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
+                }
+            }
+
+            // Update position history after Stockfish move
+            uint64_t sf_hash = ctx->board.hash();
+            ctx->position_history[sf_hash]++;
+
+            // Check terminal after Stockfish move (white's perspective)
+            if (ctx->board.is_checkmate()) {
+                // fprintf(stderr, "[TERMINAL] Checkmate after Stockfish move\n");
+                terminal = true;
+                loss = true;
+                ctx->c_white_checkmated += 1;
+                reward += env->reward_loss;
+                ctx->c_reward_loss += env->reward_loss;
+            } else if (ctx->board.is_stalemate() || ctx->board.is_insufficient_material() || ctx->board.get_halfmove_clock() >= 100) {
+                // fprintf(stderr, "[TERMINAL] Draw condition after Stockfish move\n");
+                terminal = true;
+                draw = true;
+                ctx->c_reward_draw += env->reward_draw;
+                reward += env->reward_draw;
+                if (ctx->board.is_stalemate()) ctx->c_stalemate += 1;
+                if (ctx->board.is_insufficient_material()) ctx->c_insufficient_material += 1;
+                if (ctx->board.get_halfmove_clock() >= 100) ctx->c_fifty_move_rule += 1;
+            } else if (ctx->position_history[sf_hash] >= 3) {
+                // Check for threefold repetition after Stockfish move
+                // fprintf(stderr, "[TERMINAL] Threefold repetition after Stockfish move\n");
+                terminal = true;
+                draw = true;
+                ctx->c_threefold_repetition += 1;
+                ctx->c_reward_draw += env->reward_draw;
+                reward += env->reward_draw;
+            }
+        }
+
+        // After Stockfish move, observation should reflect new position (white to move)
+        if (!terminal) {
+            compute_observation(env, ctx);
+        }
     }
 
     // Set outputs
@@ -1513,12 +1830,52 @@ void c_step(CChess* env) {
     
     // Add episode return tracking
     ctx->episode_return += reward;
-    
-    // PROPER PUFFERLIB PATTERN: Reset immediately when terminal, like other envs
-    if (terminal) {
-        add_log(env, ctx, win, loss, draw);
-        c_reset(env);  // Reset immediately for next episode
+    if (player_color_before == chess::WHITE) {
+        ctx->c_episode_return_white += reward;
+    } else {
+        ctx->c_episode_return_black += reward;
     }
+    
+    // ------------------------------------------------------------------
+    // Toggle waiting_for_black_move so that reward calculations on the
+    // next call reflect the correct player perspective when self-play
+    // is enabled.  We intentionally flip the flag *after* computing all
+    // rewards that depend on the mover (player_color_before) so those
+    // calculations use the pre-move value.
+    // ------------------------------------------------------------------
+    if (ctx->self_play_mode && !terminal) {
+        ctx->waiting_for_black_move = !ctx->waiting_for_black_move;
+    }
+
+    // call reset() immediately on terminal
+    if (terminal) {
+        // fprintf(stderr, "[TERMINAL] Game ended: win=%d loss=%d draw=%d\n", win, loss, draw);
+        add_log(env, ctx, win, loss, draw);
+        c_reset(env);  // envs must reset themselves!!
+    }
+
+    // Track move counts for diagnostics
+    if (player_color_before == chess::WHITE) {
+        ctx->c_white_moves += 1;
+    } else {
+        ctx->c_black_moves += 1;
+    }
+
+    // Track validity statistics
+    if (is_legal) {
+        ctx->c_valid_moves += 1;
+    } else {
+        ctx->c_invalid_moves += 1;
+        if (player_color_before == chess::WHITE) {
+            ctx->c_invalid_moves_white += 1;
+        } else {
+            ctx->c_invalid_moves_black += 1;
+        }
+    }
+
+    // just after bool is_legal = ...
+    // fprintf(stderr, "[STEP] action %d legal=%d  FEN=%s\n",
+            // action_idx, is_legal, ctx->board.fen().c_str());
 }
 
 void c_render(CChess* env) {
@@ -1534,7 +1891,7 @@ void c_render(CChess* env) {
             if (p.type != chess::EMPTY) {
                 const char* pieces = " KQRBNP";
                 c = pieces[p.type];
-                if (p.color == chess::BLACK) c += 32;  // Lowercase
+                if (p.color == chess::BLACK) c += 32;
             }
             ss << c << " ";
         }
@@ -1577,7 +1934,46 @@ bool test_action_symmetry(const chess::ChessBoard& board) {
     }
     
     // printf("Action symmetry test: %d failures out of %d legal moves\n", 
-           failures, (int)legal_moves.size();
+    //        failures, (int)legal_moves.size());
     return failures == 0;
 }
 #endif // __cplusplus
+
+extern "C" void enable_stockfish_black(CChess* env, const char* stockfish_cmd, int elo, int search_ms) {
+    if (!env) return;
+    ChessContext* ctx = (ChessContext*)env->context;
+    if (!ctx) return;
+
+    // Clean up existing instance if any
+    if (ctx->sf) {
+        delete ctx->sf;
+        ctx->sf = nullptr;
+    }
+
+    // Resolve Stockfish binary path for this environment
+    const char* cmd = nullptr;
+
+    if (stockfish_cmd && stockfish_cmd[0]) {
+        cmd = stockfish_cmd;
+    }
+
+    if (!cmd) {
+        const char* candidates[] = {
+            "pufferlib/Stockfish/src/stockfish",
+            "./pufferlib/Stockfish/src/stockfish",
+            "Stockfish/src/stockfish",
+            "./Stockfish/src/stockfish",
+            "stockfish",
+            nullptr
+        };
+        for (int i = 0; candidates[i]; ++i) {
+            if (access(candidates[i], X_OK) == 0) { cmd = candidates[i]; break; }
+        }
+    }
+
+    if (!cmd) cmd = "stockfish";
+
+    // Create per-environment Stockfish instance
+    ctx->sf = new Stockfish(cmd, elo, search_ms);
+    ctx->stockfish_enabled = ctx->sf && ctx->sf->ok();
+}

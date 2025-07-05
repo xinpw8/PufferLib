@@ -413,21 +413,44 @@ extension_kwargs = dict(
 # TODO: Include other C files so rebuild is auto?
 c_extensions = []
 if not NO_OCEAN:
-    c_extension_paths = glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True)
+    c_extension_paths = (
+        glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/**/binding.cpp', recursive=True)
+    )
+
     for path in c_extension_paths:
+        ext_dir  = os.path.dirname(path)
         ext_name = os.path.splitext(path)[0].replace('/', '.')
+
+        # Collect all C/C++ translation units in the same directory so
+        # symbols defined outside binding.cpp (e.g., enable_stockfish_black)
+        # are linked into the shared object.
+        extra_sources = []
+        for pattern in ('*.cpp', '*.c'):
+            for p in glob.glob(os.path.join(ext_dir, pattern)):
+                # The standalone chess.cpp contains a full GUI + main() and
+                # re-defines every symbol from chess.h.  Including it in the
+                # Python extension causes duplicate-symbol link errors.
+                if 'chess.cpp' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.cpp already includes chess.h
+                if p == path:
+                    continue  # never re-add binding.cpp itself
+                extra_sources.append(p)
+
         c_ext = Extension(
             ext_name,
-            sources=[path],
-            language='c++',  # Compile with C++ to ensure symbols are defined
-            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + ['-std=c++17', '-x', 'c++'],  # Add C++ flag
+            sources=[path] + extra_sources,
+            language='c++',  # Force C++ to avoid missing vtables / symbols
+            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + ['-std=c++17', '-x', 'c++'],
             include_dirs=extension_kwargs.get('include_dirs', []),
             extra_link_args=extension_kwargs.get('extra_link_args', []),
             extra_objects=extension_kwargs.get('extra_objects', []),
         )
+
         c_extensions.append(c_ext)
 
-    c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
+    # Remember extension directories so they install as namespace packages
+    c_extension_paths = [os.path.dirname(p) for p in c_extension_paths]
 
     for c_ext in c_extensions:
         if "impulse_wars" in c_ext.name:

@@ -117,15 +117,28 @@ def make_multiagent(buf=None, **kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 def make_chess_selfplay(num_envs=1024, device='cuda', **kwargs):
+    """Create a chess self-play environment where white and black have
+    *independent* networks.  Returns `(env, white_policy, black_policy)`."""
+
     from pufferlib.ocean.chess.chess import Chess
     from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
-    from pufferlib.ocean.torch import ChessRecurrent, Recurrent    
-    base_env = Chess(num_envs=num_envs, **kwargs)    
-    policy = ChessRecurrent(base_env)
-    policy = Recurrent(base_env, policy, input_size=256, hidden_size=256)
-    policy = policy.to(device)    
-    env = ChessSelfPlayWrapper(base_env, policy, device=device)
-    return env, policy
+    from pufferlib.ocean.torch import ChessRecurrent, Recurrent
+
+    base_env = Chess(num_envs=num_envs, **kwargs)
+
+    # White network
+    white_core = ChessRecurrent(base_env)
+    white_policy = Recurrent(base_env, white_core, input_size=256, hidden_size=256).to(device)
+
+    # Black network – separate parameters
+    black_core = ChessRecurrent(base_env)
+    black_policy = Recurrent(base_env, black_core, input_size=256, hidden_size=256).to(device)
+
+    env = ChessSelfPlayWrapper(base_env, white_policy, black_policy, device=device)
+
+    # For backward-compatibility keep original two-value return when callers
+    # use unpacking with only two variables.
+    return env, white_policy, black_policy
 
 MAKE_FUNCTIONS = {
     'chess': 'Chess',

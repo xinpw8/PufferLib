@@ -12,6 +12,7 @@ import ast
 import time
 import random
 import shutil
+import math
 import argparse
 import importlib
 import configparser
@@ -27,9 +28,9 @@ from torch.distributed.elastic.multiprocessing.errors import record
 import torch.utils.cpp_extension
 
 import pufferlib
-import pufferlib.sweep
-import pufferlib.vector
-import pufferlib.pytorch
+from pufferlib import sweep
+from pufferlib import vector
+from pufferlib import pytorch
 try:
     from pufferlib import _C
 except ImportError:
@@ -87,11 +88,11 @@ class PuffeRL:
 
         device = config['device']
         self.observations = torch.zeros(segments, horizon, *obs_space.shape,
-            dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_space.dtype],
+            dtype=pytorch.numpy_to_torch_dtype_dict[obs_space.dtype],
             pin_memory=device == 'cuda' and config['cpu_offload'],
             device='cpu' if config['cpu_offload'] else device)
         self.actions = torch.zeros(segments, horizon, *atn_space.shape, device=device,
-            dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_space.dtype])
+            dtype=pytorch.numpy_to_torch_dtype_dict[atn_space.dtype])
         self.values = torch.zeros(segments, horizon, device=device)
         self.logprobs = torch.zeros(segments, horizon, device=device)
         self.rewards = torch.zeros(segments, horizon, device=device)
@@ -251,7 +252,7 @@ class PuffeRL:
                     state['lstm_c'] = self.lstm_c[env_id.start]
 
                 logits, value = self.policy.forward_eval(o_device, state)
-                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
+                action, logprob, _ = pytorch.sample_logits(logits)
 
             profile('eval_copy', epoch, nest=True)
             with torch.no_grad():
@@ -361,7 +362,7 @@ class PuffeRL:
             )
 
             logits, newvalue = self.policy(mb_obs, state)
-            actions, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
+            actions, newlogprob, entropy = pytorch.sample_logits(logits, action=mb_actions)
 
             profile('train_misc', epoch)
             newlogprob = newlogprob.reshape(mb_logprobs.shape)
@@ -865,6 +866,26 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
     vecenv = vecenv or load_env(env_name, args)
     policy = policy or load_policy(args, vecenv)
 
+    # Enable Stockfish for chess environments in regular training
+    if env_name == 'puffer_chess' and not args['env'].get('self_play', False):
+        from pufferlib.ocean.chess import binding
+        
+        # Find the C vector environment handle
+        c_vec = getattr(vecenv, 'c_envs', None)
+        if c_vec is None and hasattr(vecenv, 'driver_env'):
+            c_vec = getattr(vecenv.driver_env, 'c_envs', None)
+        
+        if c_vec is not None:
+            # Enable Stockfish as black opponent with default settings
+            engine_elo = args['env'].get('stockfish_elo', 1320)
+            engine_search_ms = args['env'].get('stockfish_search_ms', 10)
+            engine_path = args['env'].get('stockfish_path', None)
+            
+            print(f"[Chess] Enabling Stockfish opponent (ELO={engine_elo}, search_ms={engine_search_ms})")
+            binding.vec_enable_stockfish_black(c_vec, engine_path, engine_elo, engine_search_ms)
+        else:
+            print("[Chess] WARNING: Could not find C environment handle to enable Stockfish")
+
     # Assume TorchRun DDP is used if LOCAL_RANK is set
     if 'LOCAL_RANK' in os.environ:
         world_size = int(os.environ.get('WORLD_SIZE', 1))
@@ -922,16 +943,204 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
     pufferl.logger.close(model_path)
     return all_logs
 
+def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=True, engine_depth=2, engine_path=None, engine_elo=1320, engine_search_ms=10):
+    """Training loop for self-play.
+
+    If `use_engine_opponent` is True, the C++ core internally plugs in a
+    Stockfish instance that generates every Black reply – no Python round-trip.
+    When disabled, the environment falls back to mirror self-play handled in
+    Python.
+    """
+
+    args = config or load_config(env_name)
+    device = args['train']['device']
+    
+    # Inject self_play flag into env kwargs so every spawned Chess instance
+    # (including those in worker processes) starts in self-play mode.
+    args['env']['self_play'] = not use_engine_opponent  # Only enable self_play when NOT using Stockfish!
+
+    from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
+
+    base_env = load_env(env_name, args)
+    policy = load_policy(args, base_env)
+
+    if use_engine_opponent:
+        # Native Stockfish integration – enable once per VecEnv.
+        from pufferlib.ocean.chess import binding
+
+        # The base_env can be a driver-specific wrapper (Serial, Ray, etc.).
+        # Attempt to locate the underlying C handle robustly.
+        c_vec = getattr(base_env, 'c_envs', None)
+        if c_vec is None and hasattr(base_env, 'driver_env'):
+            c_vec = getattr(base_env.driver_env, 'c_envs', None)
+
+        if c_vec is None:
+            raise pufferlib.APIUsageError('Failed to locate native Chess VecEnv handle for Stockfish toggle.')
+
+        # Toggle Stockfish for all sub-envs (black side only) – optional custom binary path
+        if engine_path:
+            binding.vec_enable_stockfish_black(c_vec, engine_path, engine_elo, engine_search_ms)
+        else:
+            # Let C++ auto-detect the Stockfish binary
+            binding.vec_enable_stockfish_black(c_vec, None, engine_elo, engine_search_ms)
+
+        # No additional Python plumbing needed – the C++ core now generates
+        # every black reply internally, so the plain environment is ready.
+        vecenv = base_env
+    else:
+        vecenv = ChessSelfPlayWrapper(base_env, policy, device)
+    
+    # Add env name so PuffeRL.print_dashboard can display it
+    train_config = dict(**args['train'], env=env_name)
+
+    # Train with shared policy
+    if args['neptune']:
+        logger = NeptuneLogger(args)
+    elif args['wandb']:
+        logger = WandbLogger(args)
+    else:
+        logger = None
+
+    pufferl = PuffeRL(train_config, vecenv, policy, logger)
+    
+    while pufferl.global_step < args['train']['total_timesteps']:
+        # During evaluation, both players use the current policy
+        pufferl.evaluate()
+        
+        # During training, we train on games played between
+        # the current policy (both sides)
+        pufferl.train()
+        
+        # Periodically save checkpoints
+        if pufferl.epoch % 100 == 0:
+            pufferl.save_checkpoint()
+    
+    return pufferl.close()
+
+# ----------------------------------------------------------------------
+# Helper: arena-style self-play evaluation for Chess
+# ----------------------------------------------------------------------
+
+def evaluate_chess_self_play(policy, vecenv, args, num_games):
+    """Play `num_games` self-play games using `policy` on both sides and
+    return a dict with win/draw/loss counts and an approximate Elo delta.
+
+    The Elo estimate assumes a logistic model with draw=0.5."""
+
+    device = args['train']['device']
+    wins = draws = losses = 0
+
+    move_cap = args.get('move_limit', 1024)
+
+    start_time = time.time()
+
+    for game_idx in range(num_games):
+        obs, _ = vecenv.reset()
+
+        # Fresh recurrent state for each episode if the network is RNN-based
+        state = {}
+        if args['train']['use_rnn']:
+            hdim = policy.hidden_size
+            n_agents = vecenv.num_agents
+            state = {
+                'lstm_h': torch.zeros(n_agents, hdim, device=device),
+                'lstm_c': torch.zeros(n_agents, hdim, device=device),
+            }
+
+        done = np.array([False])
+        ply = 0
+        while not done.any():
+            with torch.no_grad():
+                ob_t = torch.as_tensor(obs).to(device)
+                logits, _ = policy.forward_eval(ob_t, state)
+                action, _, _ = pytorch.sample_logits(logits)
+                action = action.cpu().numpy().reshape(vecenv.action_space.shape)
+
+            obs, reward, done, _, _ = vecenv.step(action)
+
+            ply += 1
+            if ply >= move_cap:
+                # Hard draw after move_cap half-moves to avoid pathological games
+                done[...] = True
+                reward[...] = 0.0  # Draw
+
+        # Terminal – outcome from white's perspective
+        final_r = reward[0]
+        if final_r > 1e-4:
+            wins += 1
+        elif final_r < -1e-4:
+            losses += 1
+        else:
+            draws += 1
+
+        # Progress output every game
+        elapsed = time.time() - start_time
+        eta = (elapsed / (game_idx + 1)) * (num_games - game_idx - 1)
+        print(f"[Eval] Game {game_idx+1}/{num_games} finished in {ply} ply. "
+              f"Score so far W/D/L: {wins}/{draws}/{losses}. ETA {eta:.1f}s", flush=True)
+
+    total = wins + draws + losses
+    score = (wins + 0.5 * draws) / total if total > 0 else 0.5
+    elo = 0.0
+    if 0.0 < score < 1.0:
+        elo = -400.0 * math.log10(1.0 / score - 1.0)
+
+    return {
+        'wins': wins,
+        'draws': draws,
+        'losses': losses,
+        'elo': elo,
+    }
+
 def eval(env_name, args=None, vecenv=None, policy=None):
     args = args or load_config(env_name)
+    # args['render_mode'] = 'raylib'
+    # args['env']['render_mode'] = 'raylib'
     args['vec'] = dict(backend='Serial', num_envs=1)
-    vecenv = vecenv or load_env(env_name, args)
-    if not isinstance(vecenv, pufferlib.vector.Serial):
+    args['env']['self_play'] = True                      # C++ core toggles
+
+    # Automatically load the most recent checkpoint if the caller did not
+    # specify a concrete path via --load-model-path.  This makes
+    #   $ puffer eval puffer_chess
+    # work out-of-the-box after training without having to hunt for the
+    # checkpoint filename.
+    if args.get('load_model_path') is None:
+        args['load_model_path'] = 'latest'
+
+    # plain Chess env (already vectorised Serial)
+    base_env = load_env(env_name, args)
+    policy    = policy or load_policy(args, base_env)
+
+    # wrap only if wanted
+    if args.get('chess_self_play', True):
+        from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
+        vecenv = ChessSelfPlayWrapper(base_env, policy,
+                                      device=args['train']['device'])
+    else:
+        vecenv = base_env
+        
+    def is_serial(v):
+        return isinstance(v, vector.Serial)
+
+    # single guard, no duplicate afterwards
+    if not (is_serial(vecenv) or
+            (isinstance(vecenv, ChessSelfPlayWrapper) and is_serial(vecenv.env))):
         raise pufferlib.APIUsageError('eval requires Serial vector env')
 
-    policy = policy or load_policy(args, vecenv)
+    # ---------------------------------------------------------------
+    # Headless arena-style evaluation for self-play chess
+    # ---------------------------------------------------------------
+    eval_games = args.get('eval_games', 0)
+    if eval_games:
+        results = evaluate_chess_self_play(policy, vecenv, args, eval_games)
+        print(f"Self-play evaluation over {eval_games} games → "
+              f"Wins: {results['wins']} | Draws: {results['draws']} | "
+              f"Losses: {results['losses']} | Estimated Elo Δ: {results['elo']:.1f}")
+        return
+
+    # ---------- nothing else changes below ----------
     ob, info = vecenv.reset()
-    driver = vecenv.driver_env
+    driver = vecenv.driver_env                # forwarded by wrapper
     num_agents = vecenv.observation_space.shape[0]
     device = args['train']['device']
 
@@ -942,6 +1151,26 @@ def eval(env_name, args=None, vecenv=None, policy=None):
             lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
         )
 
+    # Special low-tech console renderer for quick debugging when evaluating
+    # the standalone chess environment.
+    if env_name == 'puffer_chess':
+        max_moves = 200
+        moves = 0
+        while moves < max_moves:
+            render = driver.render()          # string from C++ render()
+            print('\033[0;0H' + render)       # always print; forget raylib here
+
+            with torch.no_grad():
+                ob_t = torch.as_tensor(ob).to(device)
+                logits, _ = policy.forward_eval(ob_t, state)
+                action, _, _ = pytorch.sample_logits(logits)
+                action = action.cpu().numpy().reshape(vecenv.action_space.shape)
+
+            ob, rew, done, trunc, _ = vecenv.step(action)
+            moves += 1
+            if done.any(): break  
+    
+    
     frames = []
     while True:
         render = driver.render()
@@ -962,7 +1191,7 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
             logits, value = policy.forward_eval(ob, state)
-            action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
+            action, logprob, _ = pytorch.sample_logits(logits)
             action = action.cpu().numpy().reshape(vecenv.action_space.shape)
 
         if isinstance(logits, torch.distributions.Normal):
@@ -975,6 +1204,9 @@ def eval(env_name, args=None, vecenv=None, policy=None):
             imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
             frames.append('Done')
 
+    if env_name == 'puffer_chess' and args['render_mode'] == 'auto':
+        args['render_mode'] = args['env']['render_mode'] = 'ansi'
+
 def sweep(args=None, env_name=None):
     args = args or load_config(env_name)
     if not args['wandb'] and not args['neptune']:
@@ -982,7 +1214,7 @@ def sweep(args=None, env_name=None):
 
     method = args['sweep'].pop('method')
     try:
-        sweep_cls = getattr(pufferlib.sweep, method)
+        sweep_cls = getattr(sweep, method)
     except:
         raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
 
@@ -1048,14 +1280,14 @@ def autotune(args=None, env_name=None, vecenv=None, policy=None):
     env_module = importlib.import_module(module_name)
     env_name = args['env_name']
     make_env = env_module.env_creator(env_name)
-    pufferlib.vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
+    vector.autotune(make_env, batch_size=args['train']['env_batch_size'])
  
 def load_env(env_name, args):
     package = args['package']
     module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
     env_module = importlib.import_module(module_name)
     make_env = env_module.env_creator(env_name)
-    return pufferlib.vector.make(make_env, env_kwargs=args['env'], **args['vec'])
+    return vector.make(make_env, env_kwargs=args['env'], **args['vec'])
 
 def load_policy(args, vecenv):
     package = args['package']
@@ -1123,6 +1355,10 @@ def load_config(env_name):
     parser.add_argument('--neptune-project', type=str, default='ablations')
     parser.add_argument('--local-rank', type=int, default=0, help='Used by torchrun for DDP')
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
+    parser.add_argument('--eval-games', type=int, default=0,
+        help='Number of self-play evaluation games to run in headless mode (chess only)')
+    parser.add_argument('--move-limit', type=int, default=1024,
+        help='Maximum ply (half-moves) per game during headless chess evaluation; draws after this')
     args = parser.parse_known_args()[0]
 
     # Load defaults and config
@@ -1178,54 +1414,8 @@ def load_config(env_name):
     args['train']['use_rnn'] = args['rnn_name'] is not None
     return args
 
-def train_selfplay(env_name='puffer_chess', config=None):
-    """Training loop for self-play"""
-    
-    # Load config
-    args = config or load_config(env_name)
-    device = args['train']['device']
-    
-    # Inject self_play flag into env kwargs so every spawned Chess instance
-    # (including those in worker processes) starts in self-play mode.
-    args['env']['self_play'] = True
-
-    # Create self-play environment and shared policy
-    from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
-    base_env = load_env(env_name, args)
-    policy = load_policy(args, base_env)
-    
-    # Wrap environment with self-play
-    vecenv = ChessSelfPlayWrapper(base_env, policy, device)
-    
-    # Add env name so PuffeRL.print_dashboard can display it
-    train_config = dict(**args['train'], env=env_name)
-
-    # Train with shared policy
-    if args['neptune']:
-        logger = NeptuneLogger(args)
-    elif args['wandb']:
-        logger = WandbLogger(args)
-    else:
-        logger = None
-
-    pufferl = PuffeRL(train_config, vecenv, policy, logger)
-    
-    while pufferl.global_step < args['train']['total_timesteps']:
-        # During evaluation, both players use the current policy
-        pufferl.evaluate()
-        
-        # During training, we train on games played between
-        # the current policy (both sides)
-        pufferl.train()
-        
-        # Periodically save checkpoints
-        if pufferl.epoch % 100 == 0:
-            pufferl.save_checkpoint()
-    
-    return pufferl.close()
-
 def main():
-    err = 'Usage: puffer [train, eval, sweep, autotune, profile, export] [env_name] [optional args]. --help for more info'
+    err = 'Usage: puffer [train, eval, sweep, autotune, profile, export, selfplay] [env_name] [optional args]. --help for more info'
     if len(sys.argv) < 3:
         raise pufferlib.APIUsageError(err)
 
