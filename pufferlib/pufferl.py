@@ -866,25 +866,10 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
     vecenv = vecenv or load_env(env_name, args)
     policy = policy or load_policy(args, vecenv)
 
-    # Enable Stockfish for chess environments in regular training
+    # Stockfish is already enabled in the Chess environment constructor
+    # No need to enable it again here for regular training
     if env_name == 'puffer_chess' and not args['env'].get('self_play', False):
-        from pufferlib.ocean.chess import binding
-        
-        # Find the C vector environment handle
-        c_vec = getattr(vecenv, 'c_envs', None)
-        if c_vec is None and hasattr(vecenv, 'driver_env'):
-            c_vec = getattr(vecenv.driver_env, 'c_envs', None)
-        
-        if c_vec is not None:
-            # Enable Stockfish as black opponent with default settings
-            engine_elo = args['env'].get('stockfish_elo', 1320)
-            engine_search_ms = args['env'].get('stockfish_search_ms', 10)
-            engine_path = args['env'].get('stockfish_path', None)
-            
-            print(f"[Chess] Enabling Stockfish opponent (ELO={engine_elo}, search_ms={engine_search_ms})")
-            binding.vec_enable_stockfish_black(c_vec, engine_path, engine_elo, engine_search_ms)
-        else:
-            print("[Chess] WARNING: Could not find C environment handle to enable Stockfish")
+        print(f"[Chess] Stockfish opponent already enabled in environment (ELO={args['env'].get('stockfish_elo', 900)}, search_ms={args['env'].get('stockfish_search_ms', 10)})")
 
     # Assume TorchRun DDP is used if LOCAL_RANK is set
     if 'LOCAL_RANK' in os.environ:
@@ -943,7 +928,7 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
     pufferl.logger.close(model_path)
     return all_logs
 
-def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=True, engine_depth=2, engine_path=None, engine_elo=1320, engine_search_ms=10):
+def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=False, engine_depth=2, engine_path=None, engine_elo=1320, engine_search_ms=10):
     """Training loop for self-play.
 
     If `use_engine_opponent` is True, the C++ core internally plugs in a
@@ -1296,12 +1281,12 @@ def load_policy(args, vecenv):
 
     device = args['train']['device']
     policy_cls = getattr(env_module.torch, args['policy_name'])
-    policy = policy_cls(vecenv.driver_env, **args['policy'])
+    policy = policy_cls(vecenv, **args['policy'])
 
     rnn_name = args['rnn_name']
     if rnn_name is not None:
         rnn_cls = getattr(env_module.torch, args['rnn_name'])
-        policy = rnn_cls(vecenv.driver_env, policy, **args['rnn'])
+        policy = rnn_cls(vecenv, policy, **args['rnn'])
 
     policy = policy.to(device)
 

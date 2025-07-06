@@ -9,17 +9,21 @@ class Chess(pufferlib.PufferEnv):
     """Chess environment compatible with OpenSpiel's action space."""
     
     def __init__(self, num_envs=1, render_mode=None, log_interval=1,
-                 reward_valid=0.01, reward_invalid=-0.1,
+                 reward_valid=0.01,
+                 reward_invalid=-0.1,
                  reward_agent_captures_enemy_piece=0.05,
                  reward_enemy_captures_agent_piece=-0.05,
-                 reward_win=1.0, reward_draw=0.0, reward_loss=-1.0,
+                 reward_win=1.0,
+                 reward_draw=0.0,
+                 reward_loss=-1.0,
                  reward_check=0.01,
-                 max_depth=200, reward_material_diff=0.0,
+                 max_depth=200,
+                 reward_material_diff=0.0,
                  debug_disable_mask=0,
                  # Stockfish integration
                  stockfish_enabled=1,
                  stockfish_cmd=None,
-                 stockfish_elo=1320,
+                 stockfish_elo=800,
                  stockfish_search_ms=10,
                  stockfish_hash_mb: int = 4,
                  buf=None, seed=0, self_play=False):
@@ -46,15 +50,29 @@ class Chess(pufferlib.PufferEnv):
         
         # initialize c environments
         self.c_envs = binding.vec_init(
-            self.observations, self.actions, self.rewards,
-            self.terminals, self.truncations, num_envs, seed,
-            reward_valid=reward_valid, reward_invalid=reward_invalid,
+            self.observations,
+            self.actions,
+            self.rewards,
+            self.terminals,
+            self.truncations,
+            num_envs,
+            seed,
+            reward_valid=reward_valid,
+            reward_invalid=reward_invalid,
             reward_agent_captures_enemy_piece=reward_agent_captures_enemy_piece,
             reward_enemy_captures_agent_piece=reward_enemy_captures_agent_piece,
-            reward_win=reward_win, reward_draw=reward_draw, 
-            reward_loss=reward_loss, max_depth=max_depth,
-            reward_check=reward_check, reward_material_diff=reward_material_diff,
-            debug_disable_mask=debug_disable_mask)
+            reward_win=reward_win,
+            reward_draw=reward_draw,
+            reward_loss=reward_loss,
+            max_depth=max_depth,
+            reward_check=reward_check,
+            reward_material_diff=reward_material_diff,
+            debug_disable_mask=debug_disable_mask,
+            stockfish_enabled=stockfish_enabled,
+            stockfish_cmd=stockfish_cmd,
+            stockfish_elo=stockfish_elo,
+            stockfish_search_ms=stockfish_search_ms,
+            stockfish_hash_mb=stockfish_hash_mb)
         
         # (Re)configure Stockfish engine based on user settings
         if stockfish_enabled:
@@ -65,9 +83,6 @@ class Chess(pufferlib.PufferEnv):
                 int(stockfish_elo),
                 int(stockfish_search_ms),
                 stockfish_hash_mb)
-        else:
-            # Disable by setting search time to 0 ms – cheapest way without new C API
-            binding.vec_enable_stockfish_black(self.c_envs, stockfish_cmd or None, int(stockfish_elo), 0)
         
         # Enable self-play (agents alternate colours) only when explicitly requested.
         if self_play:
@@ -119,8 +134,7 @@ def test_performance(timeout=10, num_envs=1000):
     """Benchmark environment speed."""
     env = Chess(num_envs=num_envs)
     env.reset()
-    
-    # Pre-generate random actions
+
     action_cache = np.random.randint(0, env.single_action_space.n, 
                                     (1000, num_envs))
     

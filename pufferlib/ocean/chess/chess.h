@@ -23,6 +23,8 @@
 #include <utility>
 #ifdef __cplusplus
 #include "stockfish_wrapper.h"
+#include <mutex>
+#include <memory>
 #endif
 
 #ifdef __cplusplus
@@ -82,9 +84,12 @@ typedef struct CChess {
     float reward_draw;
     float reward_loss;
     float reward_check;
-    float reward_material_diff;
     int max_depth;
+    float reward_material_diff;
 
+    // Stockfish integration
+    bool stockfish_enabled;
+    
     // Debug helper: when true, compute_observation will NOT mask legal moves
     bool debug_disable_mask;
 
@@ -1214,10 +1219,11 @@ struct ChessContext {
     float c_score = 0.0f;
     bool self_play_mode = false;
     bool waiting_for_black_move = false;
-    Stockfish* sf = nullptr;   // stockfish engine instance (plays black only)
+    // Stockfish* sf = nullptr;   // stockfish engine instance (plays black only)
+    std::unique_ptr<Stockfish> sf; 
     float stockfish_eval = 0.0f; // last evaluation in centipawns (white perspective)
     bool stockfish_enabled = true; // enabled by default
-    int   max_depth = 0;  // per-episode step limit
+    int max_depth = 0;  // per-episode step limit
 
     ChessContext(unsigned seed) : rng(seed) {}
 };
@@ -1291,9 +1297,9 @@ void init(CChess* env) {
     env->context = new ChessContext(12345);
     env->debug_disable_mask = false;
     auto* ctx = (ChessContext*)env->context;
-    ctx->stockfish_enabled = false;      // start disabled
-    // max_depth is set from config via the calling code (binding.cpp or chess.cpp)
+    ctx->stockfish_enabled = env->stockfish_enabled;
     ctx->max_depth = env->max_depth;
+    // max_depth is set from chess.ini
     // Use bundled Stockfish binary (resolved in enable_stockfish_black) rather than
     // hard-coded system path to avoid illegal-instruction crashes on CPUs lacking AVX2.
     // Note: ELO will be overridden by training config via vec_enable_stockfish_black
@@ -1312,12 +1318,12 @@ void free_allocated(CChess* env) {
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
+
     auto* ctx = (ChessContext*)env->context;
-    if (ctx && ctx->sf) {
-        delete ctx->sf;
-        ctx->sf = nullptr;
+    if (ctx) {
+        ctx->sf.reset();         // unique_ptr handles destruction
+        delete ctx;
     }
-    delete ctx;
 }
 
 void c_reset(CChess* env) {
@@ -1705,8 +1711,6 @@ void c_step(CChess* env) {
     }
 
     // ---------------- Stockfish automatic black move -----------------
-    // fprintf(stderr, "[STOCKFISH] enabled=%d sf_ptr=%p side_to_move=%s\n", 
-            // ctx->stockfish_enabled, ctx->sf, ctx->board.side_to_move() == chess::WHITE ? "WHITE" : "BLACK");
     if (!terminal && ctx->stockfish_enabled && ctx->sf && ctx->board.side_to_move() == chess::BLACK) {
         // Material before Stockfish move (white perspective)
         int mat_before_b_white = material_value(chess::WHITE);
@@ -1714,12 +1718,13 @@ void c_step(CChess* env) {
         int diff_before_b = mat_before_b_white - mat_before_b_black;
 
         // Get Stockfish move and evaluation
-        auto sf_res = ctx->sf->bestmove_with_score(ctx->board.fen(), 10);
+        // CRITICAL FIX: Remove hardcoded 10ms, use configured search time
+        auto sf_res = ctx->sf->bestmove_with_score(ctx->board.fen());  // Uses configured search_ms
         ctx->stockfish_eval = static_cast<float>(sf_res.second);
 
         // fprintf(stderr, "[Stockfish] bestmove %s (cp %d)\n", sf_res.first.c_str(), sf_res.second);
 
-        // Helper to convert a Move into UCI (same logic as chess.cpp version)
+        // Helper to convert a Move into UCI
         auto move_to_uci_local = [](const chess::Move &m) -> std::string {
             if (m.from.x < 0) return "0000";
             char buf[6] = {0};
@@ -1740,24 +1745,53 @@ void c_step(CChess* env) {
         };
 
         // Translate UCI → Move by matching against current legal moves
+        const auto &legal = ctx->board.legal_moves();
         chess::Move sf_move = chess::kPassMove;
-        {
-            const auto &legal = ctx->board.legal_moves();
-            for (const auto &mv : legal) {
-                if (move_to_uci_local(mv) == sf_res.first) {
-                    sf_move = mv;
-                    break;
+        for (const auto &mv : legal) {
+            if (move_to_uci_local(mv) == sf_res.first) {
+                sf_move = mv;
+                break;
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Recovery if the engine produced an illegal move
+        // ------------------------------------------------------------------
+        if (sf_move == chess::kPassMove) {
+            // 1) Restart the engine and retry once
+            if (ctx->sf) {
+                fprintf(stderr, "[Stockfish] Move %s not found in legal moves, restarting engine\n", sf_res.first.c_str());
+                ctx->sf->restart_engine();
+                // CRITICAL FIX: Use configured search time, not hardcoded value
+                auto sf_res_retry = ctx->sf->bestmove_with_score(ctx->board.fen());
+                for (const auto &mv : legal) {
+                    if (move_to_uci_local(mv) == sf_res_retry.first) {
+                        sf_move = mv;
+                        ctx->stockfish_eval = static_cast<float>(sf_res_retry.second);
+                        break;
+                    }
                 }
             }
         }
 
-        // If still invalid, mark terminal and reset
+        if (sf_move == chess::kPassMove && !legal.empty()) {
+            // 2) Final fallback – choose a random legal move so play continues
+            fprintf(stderr, "[Stockfish] Still no valid move, using random fallback\n");
+            std::uniform_int_distribution<int> dist(0, static_cast<int>(legal.size()) - 1);
+            sf_move = legal[dist(ctx->rng)];
+        }
+
+        // If still invalid after all recovery attempts, abort the episode
         if (sf_move == chess::kPassMove) {
-            // fprintf(stderr, "[Stockfish] WARNING – engine move not found in legal set, terminating episode.\n");
-            // fprintf(stderr, "[TERMINAL] Stockfish invalid move\n");
+            fprintf(stderr, "[Stockfish] No legal moves available, terminating episode\n");
             env->terminals[0] = 1;
             terminal = true;
+            // Mark as draw rather than undefined
+            draw = true;
+            ctx->c_reward_draw += env->reward_draw;
+            reward += env->reward_draw;
         }
+
 
         bool applied = (sf_move != chess::kPassMove) ? ctx->board.apply_move(sf_move) : false;
         if (applied) {
@@ -1765,6 +1799,7 @@ void c_step(CChess* env) {
             ctx->c_black_moves += 1;
             ctx->c_valid_moves += 1;
             ctx->board.invalidate_cache();
+
 
             // Reward / penalty from material change due to black move
             int mat_after_b_white = material_value(chess::WHITE);
@@ -1944,11 +1979,8 @@ extern "C" void enable_stockfish_black(CChess* env, const char* stockfish_cmd, i
     ChessContext* ctx = (ChessContext*)env->context;
     if (!ctx) return;
 
-    // Clean up existing instance if any
-    if (ctx->sf) {
-        delete ctx->sf;
-        ctx->sf = nullptr;
-    }
+    // Don't reset if we already have an instance - this was causing memory leaks
+    // ctx->sf.reset(); // REMOVED - this was resetting before checking, causing leaks
 
     // Resolve Stockfish binary path for this environment
     const char* cmd = nullptr;
@@ -1974,6 +2006,9 @@ extern "C" void enable_stockfish_black(CChess* env, const char* stockfish_cmd, i
     if (!cmd) cmd = "stockfish";
 
     // Create per-environment Stockfish instance
-    ctx->sf = new Stockfish(cmd, elo, search_ms);
+    // ctx->sf = new Stockfish(cmd, elo, search_ms);
+    if (!ctx->sf) { // construct only once
+        ctx->sf = std::make_unique<Stockfish>(cmd, elo, search_ms);
+    }
     ctx->stockfish_enabled = ctx->sf && ctx->sf->ok();
 }

@@ -58,22 +58,24 @@ class Serial:
         return self.agents_per_batch
  
     def __init__(self, env_creators, env_args, env_kwargs, num_envs, buf=None, seed=0, **kwargs):
-        self.driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
-        self.agents_per_batch = self.driver_env.num_agents * num_envs
+        driver = env_creators[0](*env_args[0], **env_kwargs[0])
+        self.agents_per_batch = driver.num_agents * num_envs
         self.num_agents = self.agents_per_batch
 
-        self.single_observation_space = self.driver_env.single_observation_space
-        self.single_action_space = self.driver_env.single_action_space
+        self.single_observation_space = driver.single_observation_space
+        self.single_action_space = driver.single_action_space
         self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
 
-
         set_buffers(self, buf)
+
+        driver.close()
 
         self.envs = []
         ptr = 0
+        agents_per_env_val = driver.num_agents
         for i in range(num_envs):
-            end = ptr + self.driver_env.num_agents
+            end = ptr + agents_per_env_val
             buf_i = dict(
                 observations=self.observations[ptr:end],
                 rewards=self.rewards[ptr:end],
@@ -270,7 +272,7 @@ class Multiprocessing:
         # with the resource tracker that spams warnings and does not work with
         # forked processes. So for now, RawArray is much more reliable.
         # You can't send a RawArray through a pipe.
-        self.driver_env = driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
+        driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
         is_native = isinstance(driver_env, PufferEnv)
         self.emulated = False if is_native else driver_env.emulated
         self.num_agents = num_agents = driver_env.num_agents * num_envs
@@ -293,6 +295,8 @@ class Multiprocessing:
         self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
         self.agent_ids = np.arange(num_agents).reshape(num_workers, agents_per_worker)
+        driver_env.close()
+        self.driver_env = None
 
         from multiprocessing import RawArray, set_start_method
         # Mac breaks without setting fork... but setting it breaks sweeps on 2nd run
