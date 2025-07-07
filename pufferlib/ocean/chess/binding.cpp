@@ -94,9 +94,19 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "reward_win", log->reward_win);
     assign_to_dict(dict, "reward_draw", log->reward_draw);
     assign_to_dict(dict, "reward_loss", log->reward_loss);
+    assign_to_dict(dict, "reward_win_white", log->reward_win_white);
+    assign_to_dict(dict, "reward_win_black", log->reward_win_black);
+    assign_to_dict(dict, "reward_loss_white", log->reward_loss_white);
+    assign_to_dict(dict, "reward_loss_black", log->reward_loss_black);
+    assign_to_dict(dict, "reward_draw_white", log->reward_draw_white);
+    assign_to_dict(dict, "reward_draw_black", log->reward_draw_black);
     assign_to_dict(dict, "game_won", log->game_won);
     assign_to_dict(dict, "game_lost", log->game_lost);
     assign_to_dict(dict, "game_drawn", log->game_drawn);
+    assign_to_dict(dict, "white_win", log->white_win);
+    assign_to_dict(dict, "white_loss", log->white_loss);
+    assign_to_dict(dict, "black_win", log->black_win);
+    assign_to_dict(dict, "black_loss", log->black_loss);
     assign_to_dict(dict, "stalemate", log->stalemate);
     assign_to_dict(dict, "insufficient_material", log->insufficient_material);
     assign_to_dict(dict, "threefold_repetition", log->threefold_repetition);
@@ -113,6 +123,23 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "reward_check", log->reward_check);
     assign_to_dict(dict, "reward_material_diff", log->reward_material_diff);
     assign_to_dict(dict, "stockfish_eval", log->stockfish_eval);
+    assign_to_dict(dict, "en_passant_white", log->en_passant_white);
+    assign_to_dict(dict, "en_passant_black", log->en_passant_black);
+    assign_to_dict(dict, "white_castle_kingside", log->white_castle_kingside);
+    assign_to_dict(dict, "white_castle_queenside", log->white_castle_queenside);
+    assign_to_dict(dict, "black_castle_kingside", log->black_castle_kingside);
+    assign_to_dict(dict, "black_castle_queenside", log->black_castle_queenside);
+    assign_to_dict(dict, "white_promotion_count", log->white_promotion_count);
+    assign_to_dict(dict, "white_promotion_knight", log->white_promotion_knight);
+    assign_to_dict(dict, "white_promotion_bishop", log->white_promotion_bishop);
+    assign_to_dict(dict, "white_promotion_rook", log->white_promotion_rook);
+    assign_to_dict(dict, "white_promotion_queen", log->white_promotion_queen);
+    assign_to_dict(dict, "black_promotion_count", log->black_promotion_count);
+    assign_to_dict(dict, "black_promotion_knight", log->black_promotion_knight);
+    assign_to_dict(dict, "black_promotion_bishop", log->black_promotion_bishop);
+    assign_to_dict(dict, "black_promotion_rook", log->black_promotion_rook);
+    assign_to_dict(dict, "black_promotion_queen", log->black_promotion_queen);
+    
     assign_to_dict(dict, "n", log->n);
     return 0;
 }

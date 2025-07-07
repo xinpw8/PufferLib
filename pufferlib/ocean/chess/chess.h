@@ -46,9 +46,21 @@ typedef struct Log {
     float reward_win;
     float reward_draw;
     float reward_loss;
+    // Perspective-based reward tracking
+    float reward_win_white;          // win rewards from white's perspective
+    float reward_win_black;          // win rewards from black's perspective  
+    float reward_loss_white;         // loss rewards from white's perspective
+    float reward_loss_black;         // loss rewards from black's perspective
+    float reward_draw_white;         // draw rewards from white's perspective
+    float reward_draw_black;         // draw rewards from black's perspective
     float game_won;
     float game_lost;
     float game_drawn;
+    // New separate win/loss tracking from both perspectives
+    float white_win;                 // white wins (from white's perspective)
+    float white_loss;                // white losses (from white's perspective)
+    float black_win;                 // black wins (from black's perspective)
+    float black_loss;                // black losses (from black's perspective)
     float stalemate;
     float insufficient_material;
     float threefold_repetition;
@@ -65,6 +77,25 @@ typedef struct Log {
     float reward_check;
     float reward_material_diff;
     float stockfish_eval;
+    // En passant captures
+    float en_passant_white;          // white captures via en passant
+    float en_passant_black;          // black captures via en passant
+    // Castling moves
+    float white_castle_kingside;     // white castles kingside
+    float white_castle_queenside;    // white castles queenside
+    float black_castle_kingside;     // black castles kingside
+    float black_castle_queenside;    // black castles queenside
+    // Pawn promotions
+    float white_promotion_count;     // total white pawn promotions
+    float white_promotion_knight;    // white promotes to knight
+    float white_promotion_bishop;    // white promotes to bishop
+    float white_promotion_rook;      // white promotes to rook
+    float white_promotion_queen;     // white promotes to queen
+    float black_promotion_count;     // total black pawn promotions
+    float black_promotion_knight;    // black promotes to knight
+    float black_promotion_bishop;    // black promotes to bishop
+    float black_promotion_rook;      // black promotes to rook
+    float black_promotion_queen;     // black promotes to queen
     float n;
 } Log;
 
@@ -1194,6 +1225,13 @@ struct ChessContext {
     float c_reward_loss = 0.0f;
     float c_reward_check = 0.0f;
     float c_reward_material_diff = 0.0f;
+    // Perspective-based reward tracking during episodes
+    float c_reward_win_white = 0.0f;
+    float c_reward_win_black = 0.0f;
+    float c_reward_loss_white = 0.0f;
+    float c_reward_loss_black = 0.0f;
+    float c_reward_draw_white = 0.0f;
+    float c_reward_draw_black = 0.0f;
 
     // env logging vars
     float c_game_won = 0.0f;
@@ -1217,6 +1255,25 @@ struct ChessContext {
     float c_invalid_moves_black = 0.0f;
     float c_perf = 0.0f;
     float c_score = 0.0f;
+    // En passant tracking
+    float c_en_passant_white = 0.0f;
+    float c_en_passant_black = 0.0f;
+    // Castling tracking
+    float c_white_castle_kingside = 0.0f;
+    float c_white_castle_queenside = 0.0f;
+    float c_black_castle_kingside = 0.0f;
+    float c_black_castle_queenside = 0.0f;
+    // Promotion tracking
+    float c_white_promotion_count = 0.0f;
+    float c_white_promotion_knight = 0.0f;
+    float c_white_promotion_bishop = 0.0f;
+    float c_white_promotion_rook = 0.0f;
+    float c_white_promotion_queen = 0.0f;
+    float c_black_promotion_count = 0.0f;
+    float c_black_promotion_knight = 0.0f;
+    float c_black_promotion_bishop = 0.0f;
+    float c_black_promotion_rook = 0.0f;
+    float c_black_promotion_queen = 0.0f;
     bool self_play_mode = false;
     bool waiting_for_black_move = false;
     // Stockfish* sf = nullptr;   // stockfish engine instance (plays black only)
@@ -1224,6 +1281,19 @@ struct ChessContext {
     float stockfish_eval = 0.0f; // last evaluation in centipawns (white perspective)
     bool stockfish_enabled = true; // enabled by default
     int max_depth = 0;  // per-episode step limit
+    
+    // NEW: Consecutive check tracking for anti-collapse measures
+    int consecutive_checks_white = 0;  // consecutive checks by white
+    int consecutive_checks_black = 0;  // consecutive checks by black
+    int checks_given_white = 0;        // total checks given by white this game
+    int checks_given_black = 0;        // total checks given by black this game
+    int moves_since_progress = 0;      // moves since last capture or pawn move
+    bool last_move_was_check = false;  // whether the last move was a check
+    chess::Color last_checking_color = chess::WHITE; // who gave the last check
+    
+    // Anti-draw measures
+    float repetition_penalty_multiplier = 1.0f;  // increases with repetitions
+    bool position_repeated_recently = false;     // track if position was repeated recently
 
     ChessContext(unsigned seed) : rng(seed) {}
 };
@@ -1255,11 +1325,39 @@ extern "C" void set_debug_disable_mask(CChess* env, bool enabled) {
     env->debug_disable_mask = enabled;
 }
 
+// Game outcome structure for capturing results before reset
+struct GameOutcome {
+    bool game_ended = false;
+    bool white_won = false;
+    bool black_won = false;
+    bool is_draw = false;
+    std::string draw_reason = "";
+};
+
+// Global variable definition
+GameOutcome last_game_outcome;
+
 extern "C" {
 
 void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool draw) {
-    env->log.perf += ctx->c_perf;
-    env->log.score += ctx->c_score;
+    // Capture game outcome before counters get reset
+    last_game_outcome.game_ended = true;
+    
+    if (ctx->c_black_checkmated > 0) {
+        last_game_outcome.white_won = true;
+        last_game_outcome.draw_reason = "";
+    } else if (ctx->c_white_checkmated > 0) {
+        last_game_outcome.black_won = true;
+        last_game_outcome.draw_reason = "";
+    } else {
+        last_game_outcome.is_draw = true;
+        if (ctx->c_stalemate > 0) last_game_outcome.draw_reason = "stalemate";
+        else if (ctx->c_insufficient_material > 0) last_game_outcome.draw_reason = "insufficient material";
+        else if (ctx->c_threefold_repetition > 0) last_game_outcome.draw_reason = "threefold repetition";
+        else if (ctx->c_fifty_move_rule > 0) last_game_outcome.draw_reason = "fifty move rule";
+        else if (ctx->c_max_depth > 0) last_game_outcome.draw_reason = "max depth";
+        else last_game_outcome.draw_reason = "unknown";
+    }
     env->log.episode_length += ctx->step_count;
     env->log.episode_return += ctx->episode_return;
     env->log.episode_return_white += ctx->c_episode_return_white;
@@ -1270,10 +1368,48 @@ void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool dra
     env->log.reward_enemy_captures_agent_piece += ctx->c_reward_enemy_captures_agent_piece;
     env->log.reward_win += ctx->c_reward_win;
     env->log.reward_draw += ctx->c_reward_draw;
-    env->log.reward_loss += ctx->c_reward_loss;
+    env->log.reward_loss += ctx->c_reward_loss_white + ctx->c_reward_loss_black;  // Keep original for backward compatibility
+    
+    // Legacy game_won/game_lost/game_drawn (kept for backward compatibility)
+    // Fix: game_lost should track losses from white's perspective
+    bool white_lost = (ctx->c_white_checkmated > 0); // black checkmated white
     env->log.game_won += win;
-    env->log.game_lost += loss;
+    env->log.game_lost += white_lost ? 1 : 0;  // Fixed: track white losses consistently
     env->log.game_drawn += draw;
+    
+    // Perspective-based reward tracking
+    env->log.reward_win_white += ctx->c_reward_win_white;
+    env->log.reward_win_black += ctx->c_reward_win_black;
+    env->log.reward_loss_white += ctx->c_reward_loss_white;
+    env->log.reward_loss_black += ctx->c_reward_loss_black;
+    env->log.reward_draw_white += ctx->c_reward_draw_white;
+    env->log.reward_draw_black += ctx->c_reward_draw_black;
+    
+    // New separate perspective-based tracking
+    // Determine actual game outcome from checkmate counters
+    bool white_won = (ctx->c_black_checkmated > 0);  // white checkmated black
+    bool is_draw = draw; // any draw condition
+    
+    // Track from white's perspective
+    if (white_won) {
+        env->log.white_win += 1;
+        env->log.black_loss += 1;
+    } else if (white_lost) {
+        env->log.white_loss += 1;
+        env->log.black_win += 1;
+    } else if (is_draw) {
+        // Draws don't count as wins or losses for either side
+    }
+    
+    // Calculate performance metrics (white win rate)
+    float total_games = env->log.white_win + env->log.white_loss + env->log.game_drawn;
+    if (total_games > 0) {
+        env->log.perf = env->log.white_win / total_games;
+    }
+    
+    // Calculate score (white wins minus white losses)
+    env->log.score = env->log.white_win - env->log.white_loss;
+    
     env->log.stalemate += ctx->c_stalemate;
     env->log.insufficient_material += ctx->c_insufficient_material;
     env->log.threefold_repetition += ctx->c_threefold_repetition;
@@ -1290,6 +1426,23 @@ void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool dra
     env->log.reward_check += ctx->c_reward_check;
     env->log.reward_material_diff += ctx->c_reward_material_diff;
     env->log.stockfish_eval += ctx->stockfish_eval;
+    env->log.en_passant_white += ctx->c_en_passant_white;
+    env->log.en_passant_black += ctx->c_en_passant_black;
+    env->log.white_castle_kingside += ctx->c_white_castle_kingside;
+    env->log.white_castle_queenside += ctx->c_white_castle_queenside;
+    env->log.black_castle_kingside += ctx->c_black_castle_kingside;
+    env->log.black_castle_queenside += ctx->c_black_castle_queenside;
+    env->log.white_promotion_count += ctx->c_white_promotion_count;
+    env->log.white_promotion_knight += ctx->c_white_promotion_knight;
+    env->log.white_promotion_bishop += ctx->c_white_promotion_bishop;
+    env->log.white_promotion_rook += ctx->c_white_promotion_rook;
+    env->log.white_promotion_queen += ctx->c_white_promotion_queen;
+    env->log.black_promotion_count += ctx->c_black_promotion_count;
+    env->log.black_promotion_knight += ctx->c_black_promotion_knight;
+    env->log.black_promotion_bishop += ctx->c_black_promotion_bishop;
+    env->log.black_promotion_rook += ctx->c_black_promotion_rook;
+    env->log.black_promotion_queen += ctx->c_black_promotion_queen;
+    
     env->log.n += 1;
 }
 
@@ -1348,6 +1501,14 @@ void c_reset(CChess* env) {
     ctx->c_reward_loss = 0.0f;
     ctx->c_reward_check = 0.0f;
     ctx->c_reward_material_diff = 0.0f;
+    
+    // Reset perspective-based reward tracking
+    ctx->c_reward_win_white = 0.0f;
+    ctx->c_reward_win_black = 0.0f;
+    ctx->c_reward_loss_white = 0.0f;
+    ctx->c_reward_loss_black = 0.0f;
+    ctx->c_reward_draw_white = 0.0f;
+    ctx->c_reward_draw_black = 0.0f;
 
     ctx->c_game_won = 0.0f;
     ctx->c_game_lost = 0.0f;
@@ -1370,16 +1531,46 @@ void c_reset(CChess* env) {
     // Reset self-play state - always start with white's turn
     ctx->waiting_for_black_move = false;
 
+    // Reset episode return tracking
+    ctx->c_episode_return_white = 0.0f;
+    ctx->c_episode_return_black = 0.0f;
+
+    // Reset new tracking counters BEFORE compute_observation
+    ctx->c_en_passant_white = 0.0f;
+    ctx->c_en_passant_black = 0.0f;
+    ctx->c_white_castle_kingside = 0.0f;
+    ctx->c_white_castle_queenside = 0.0f;
+    ctx->c_black_castle_kingside = 0.0f;
+    ctx->c_black_castle_queenside = 0.0f;
+    ctx->c_white_promotion_count = 0.0f;
+    ctx->c_white_promotion_knight = 0.0f;
+    ctx->c_white_promotion_bishop = 0.0f;
+    ctx->c_white_promotion_rook = 0.0f;
+    ctx->c_white_promotion_queen = 0.0f;
+    ctx->c_black_promotion_count = 0.0f;
+    ctx->c_black_promotion_knight = 0.0f;
+    ctx->c_black_promotion_bishop = 0.0f;
+    ctx->c_black_promotion_rook = 0.0f;
+    ctx->c_black_promotion_queen = 0.0f;
+
+    ctx->stockfish_eval = 0.0f;
+    
+    // Reset NEW tracking variables
+    ctx->consecutive_checks_white = 0;
+    ctx->consecutive_checks_black = 0;
+    ctx->checks_given_white = 0;
+    ctx->checks_given_black = 0;
+    ctx->moves_since_progress = 0;
+    ctx->last_move_was_check = false;
+    ctx->last_checking_color = chess::WHITE;
+    ctx->repetition_penalty_multiplier = 1.0f;
+    ctx->position_repeated_recently = false;
+
     compute_observation(env, ctx);
 
     // CRITICAL: Ensure outputs are initialized
     env->terminals[0] = 0;
     env->rewards[0] = 0.0f;
-
-    ctx->c_episode_return_white = 0.0f;
-    ctx->c_episode_return_black = 0.0f;
-
-    ctx->stockfish_eval = 0.0f;
 }
 
 void compute_observation(CChess* env, ChessContext* ctx) {
@@ -1471,6 +1662,12 @@ void compute_observation(CChess* env, ChessContext* ctx) {
 
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
+    
+    // Guard: If environment is already terminal, reset and return
+    if (env->terminals[0]) {
+        c_reset(env);
+        return;
+    }
         
     // ---------------------------------------------------------------------
     // EARLY TERMINAL CHECK: the side-to-move may already be in a game-ending
@@ -1499,15 +1696,25 @@ void c_step(CChess* env) {
                 early_reward += env->reward_loss;
                 ctx->c_reward_loss += env->reward_loss;
 
-                // Update side-specific counters
-                if (ctx->board.side_to_move() == chess::WHITE)
+                // Update side-specific counters and perspective-based rewards
+                if (ctx->board.side_to_move() == chess::WHITE) {
                     ctx->c_white_checkmated += 1;
-                else
+                    ctx->c_reward_loss_white += env->reward_loss;
+                } else {
                     ctx->c_black_checkmated += 1;
+                    ctx->c_reward_loss_black += env->reward_loss;
+                }
             } else {
                 early_draw = true;
                 early_reward += env->reward_draw;
                 ctx->c_reward_draw += env->reward_draw;
+                
+                // Track perspective-based early draw rewards
+                if (ctx->board.side_to_move() == chess::WHITE) {
+                    ctx->c_reward_draw_white += env->reward_draw;
+                } else {
+                    ctx->c_reward_draw_black += env->reward_draw;
+                }
 
                 if (early_stalemate)          ctx->c_stalemate              += 1;
                 if (early_insuffmat)          ctx->c_insufficient_material  += 1;
@@ -1525,7 +1732,8 @@ void c_step(CChess* env) {
             }
 
             add_log(env, ctx, early_win, early_loss, early_draw);
-            c_reset(env);  // envs must reset themselves!!
+            // DO NOT call c_reset here - let the training loop see the terminal state
+            // The reset will happen on the next call to step() or reset()
             return; // Finished this step early
         }
     }
@@ -1587,15 +1795,123 @@ void c_step(CChess* env) {
         ctx->step_count += 1;
         reward += env->reward_valid;
         ctx->c_reward_valid += env->reward_valid;
+        
+        // Store en passant square before applying the move
+        int8_t ep_square_before = ctx->board.get_ep_square();
+        
         bool applied_ok = ctx->board.apply_move(selected_move);
         // fprintf(stderr, "[APPLY] ok=%d  after FEN=%s\n", applied_ok, ctx->board.fen().c_str());
         ctx->board.invalidate_cache();   // already done in apply_move
 
-        // Reward for giving check immediately after the move
-        if (ctx->board.is_check()) {
-            reward += env->reward_check;
-            ctx->c_reward_check += env->reward_check;
+        // Track special moves for logging
+        if (applied_ok) {
+            // Track castling moves
+            if (selected_move.is_castle_short) {
+                if (player_color_before == chess::WHITE) {
+                    ctx->c_white_castle_kingside += 1;
+                } else {
+                    ctx->c_black_castle_kingside += 1;
+                }
+            } else if (selected_move.is_castle_long) {
+                if (player_color_before == chess::WHITE) {
+                    ctx->c_white_castle_queenside += 1;
+                } else {
+                    ctx->c_black_castle_queenside += 1;
+                }
+            }
+            
+            // Track en passant captures (using stored en passant square from before move)
+            if (selected_move.piece.type == chess::PAWN && 
+                selected_move.to.index() == ep_square_before && ep_square_before >= 0) {
+                if (player_color_before == chess::WHITE) {
+                    ctx->c_en_passant_white += 1;
+                } else {
+                    ctx->c_en_passant_black += 1;
+                }
+            }
+            
+            // Track pawn promotions
+            if (selected_move.promotion != chess::EMPTY) {
+                if (player_color_before == chess::WHITE) {
+                    ctx->c_white_promotion_count += 1;
+                    switch (selected_move.promotion) {
+                        case chess::QUEEN:  ctx->c_white_promotion_queen += 1; break;
+                        case chess::ROOK:   ctx->c_white_promotion_rook += 1; break;
+                        case chess::BISHOP: ctx->c_white_promotion_bishop += 1; break;
+                        case chess::KNIGHT: ctx->c_white_promotion_knight += 1; break;
+                        default: break;
+                    }
+                } else {
+                    ctx->c_black_promotion_count += 1;
+                    switch (selected_move.promotion) {
+                        case chess::QUEEN:  ctx->c_black_promotion_queen += 1; break;
+                        case chess::ROOK:   ctx->c_black_promotion_rook += 1; break;
+                        case chess::BISHOP: ctx->c_black_promotion_bishop += 1; break;
+                        case chess::KNIGHT: ctx->c_black_promotion_knight += 1; break;
+                        default: break;
+                    }
+                }
+            }
         }
+
+        // NEW: Anti-exploitation check reward system
+        bool current_move_is_check = ctx->board.is_check();
+        if (current_move_is_check) {
+            // Track check sequences to prevent exploitation
+            if (ctx->last_move_was_check && ctx->last_checking_color == player_color_before) {
+                // Consecutive check by same player
+                if (player_color_before == chess::WHITE) {
+                    ctx->consecutive_checks_white++;
+                } else {
+                    ctx->consecutive_checks_black++;
+                }
+            } else {
+                // First check in sequence or different player
+                ctx->consecutive_checks_white = (player_color_before == chess::WHITE) ? 1 : 0;
+                ctx->consecutive_checks_black = (player_color_before == chess::BLACK) ? 1 : 0;
+            }
+            
+            // Update total check counters
+            if (player_color_before == chess::WHITE) {
+                ctx->checks_given_white++;
+            } else {
+                ctx->checks_given_black++;
+            }
+            
+            // Apply diminishing returns for consecutive checks to prevent exploitation
+            int consecutive_checks = (player_color_before == chess::WHITE) ? 
+                                   ctx->consecutive_checks_white : ctx->consecutive_checks_black;
+            
+            float check_reward = env->reward_check;
+            if (consecutive_checks > 3) {
+                // Heavily diminish reward for excessive consecutive checks
+                check_reward *= 0.1f * (1.0f / consecutive_checks);
+            } else if (consecutive_checks > 2) {
+                // Moderate diminishing returns
+                check_reward *= 0.5f;
+            }
+            
+            // Additional penalty if too many checks given overall (prevents check spam)
+            int total_checks = (player_color_before == chess::WHITE) ? 
+                             ctx->checks_given_white : ctx->checks_given_black;
+            if (total_checks > 10) {
+                check_reward *= 0.5f; // Halve reward for excessive checking
+            }
+            
+            reward += check_reward;
+            ctx->c_reward_check += check_reward;
+            
+            // Update tracking variables
+            ctx->last_move_was_check = true;
+            ctx->last_checking_color = player_color_before;
+        } else {
+            // Reset consecutive check counter if no check
+            ctx->consecutive_checks_white = 0;
+            ctx->consecutive_checks_black = 0;
+            ctx->last_move_was_check = false;
+        }
+        
+
     } else {
         reward += env->reward_invalid;
         ctx->c_reward_invalid += env->reward_invalid;
@@ -1627,52 +1943,153 @@ void c_step(CChess* env) {
         terminal = true;
         win = true; // Player (whose turn it was) checkmated the opponent
         ctx->c_reward_win += env->reward_win;
-        // Track which side was checkmated
+        ctx->c_reward_loss += env->reward_loss;  // Track total loss rewards
+        
+        // Track perspective-based win rewards for the winner and loss rewards for the loser
         if (player_color_before == chess::WHITE) {
+            // White wins, black loses
+            ctx->c_reward_win_white += env->reward_win;
+            ctx->c_reward_loss_black += env->reward_loss;  // Track loss from black's perspective
             ctx->c_black_checkmated += 1;
         } else {
+            // Black wins, white loses  
+            ctx->c_reward_win_black += env->reward_win;
+            ctx->c_reward_loss_white += env->reward_loss;  // Track loss from white's perspective
             ctx->c_white_checkmated += 1;
         }
 
-        // Apply win reward to current step
+        // Apply win reward to current step (from current player's perspective)
         reward += env->reward_win;
     } else if (ctx->board.is_stalemate()) {
         // fprintf(stderr, "[TERMINAL] Stalemate detected\n");
         terminal = true;
         draw = true;
         ctx->c_stalemate += 1;
-        ctx->c_reward_draw += env->reward_draw;
+        
+        // ANTI-COLLUSION: Apply penalties for suspicious stalemates
+        float draw_reward = env->reward_draw;
+        
+        // Penalty for early stalemate (might indicate collusion)
+        if (ctx->step_count < 30) {
+            draw_reward *= 0.3f; // Penalty for very early stalemate
+        }
+        
+        // Ensure draw reward is never positive to prevent exploitation
+        if (draw_reward > 0.0f) {
+            draw_reward = -0.05f; // Small negative reward for stalemate
+        }
+        
+        ctx->c_reward_draw += draw_reward;
+        
+        // Track perspective-based draw rewards
+        if (player_color_before == chess::WHITE) {
+            ctx->c_reward_draw_white += draw_reward;
+        } else {
+            ctx->c_reward_draw_black += draw_reward;
+        }
 
         // Apply draw reward
-        reward += env->reward_draw;
+        reward += draw_reward;
     } else if (ctx->board.is_insufficient_material()) {
         fprintf(stderr, "[TERMINAL] Insufficient material detected\n");
         terminal = true;
         draw = true;
         ctx->c_insufficient_material += 1;
-        ctx->c_reward_draw += env->reward_draw;
+        
+        // Insufficient material is a legitimate draw, but still discourage it slightly
+        float draw_reward = env->reward_draw;
+        if (draw_reward > 0.0f) {
+            draw_reward = 0.0f; // Neutral reward for legitimate draws
+        }
+        
+        ctx->c_reward_draw += draw_reward;
+        
+        // Track perspective-based draw rewards
+        if (player_color_before == chess::WHITE) {
+            ctx->c_reward_draw_white += draw_reward;
+        } else {
+            ctx->c_reward_draw_black += draw_reward;
+        }
 
-        reward += env->reward_draw;
+        reward += draw_reward;
     } else if (ctx->board.get_halfmove_clock() >= 100) { // 50-move rule
         // fprintf(stderr, "[TERMINAL] 50-move rule detected\n");
         terminal = true;
         draw = true;
         ctx->c_fifty_move_rule += 1;
-        ctx->c_reward_draw += env->reward_draw;
+        
+        // 50-move rule indicates lack of progress - apply penalty
+        float draw_reward = env->reward_draw;
+        if (draw_reward > 0.0f) {
+            draw_reward = -0.2f; // Penalty for 50-move rule draws
+        } else {
+            draw_reward *= 1.5f; // Increase existing penalty
+        }
+        
+        ctx->c_reward_draw += draw_reward;
+        
+        // Track perspective-based draw rewards
+        if (player_color_before == chess::WHITE) {
+            ctx->c_reward_draw_white += draw_reward;
+        } else {
+            ctx->c_reward_draw_black += draw_reward;
+        }
 
-        reward += env->reward_draw;
+        reward += draw_reward;
     } else if (is_legal) {
         // Only update position history for legal moves that actually changed the board
         uint64_t current_hash = ctx->board.hash();
         ctx->position_history[current_hash]++;
+        
+        // Check for recent repetition to identify potential collusion
+        bool recent_repetition = false;
+        if (ctx->position_history[current_hash] >= 2) {
+            recent_repetition = true;
+            ctx->position_repeated_recently = true;
+            ctx->repetition_penalty_multiplier *= 1.5f; // Increase penalty for future repetitions
+        }
+        
         if (ctx->position_history[current_hash] >= 3) { // Threefold repetition
             // fprintf(stderr, "[TERMINAL] Threefold repetition detected\n");
             terminal = true;
             draw = true;
             ctx->c_threefold_repetition += 1;
-            ctx->c_reward_draw += env->reward_draw;
+            
+            // ANTI-COLLUSION: Apply penalties for suspicious threefold repetition
+            float draw_reward = env->reward_draw;
+            
+            // Penalty for early repetition (indicates collusion)
+            if (ctx->step_count < 20) {
+                draw_reward *= 0.1f; // Severe penalty for very early draws
+            } else if (ctx->step_count < 40) {
+                draw_reward *= 0.5f; // Moderate penalty for early draws
+            }
+            
+            // Penalty for repetition without progress
+            if (ctx->moves_since_progress > 10) {
+                draw_reward *= 0.3f; // Penalty for stalling
+            }
+            
+            // Penalty for repeated position cycling
+            if (ctx->repetition_penalty_multiplier > 2.0f) {
+                draw_reward *= 0.2f; // Heavy penalty for excessive repetition
+            }
+            
+            // Ensure draw reward is never positive to prevent exploitation
+            if (draw_reward > 0.0f) {
+                draw_reward = -0.1f; // Force small negative reward for draws
+            }
+            
+            ctx->c_reward_draw += draw_reward;
+            
+            // Track perspective-based draw rewards
+            if (player_color_before == chess::WHITE) {
+                ctx->c_reward_draw_white += draw_reward;
+            } else {
+                ctx->c_reward_draw_black += draw_reward;
+            }
 
-            reward += env->reward_draw;
+            reward += draw_reward;
         }
     }
     
@@ -1682,9 +2099,25 @@ void c_step(CChess* env) {
         terminal = true;
         draw = true;
         ctx->c_max_depth += 1;
-        ctx->c_reward_draw += env->reward_draw;
+        
+        // Max depth reached indicates game dragged on too long - apply penalty
+        float draw_reward = env->reward_draw;
+        if (draw_reward > 0.0f) {
+            draw_reward = -0.3f; // Penalty for max depth draws
+        } else {
+            draw_reward *= 2.0f; // Double existing penalty
+        }
+        
+        ctx->c_reward_draw += draw_reward;
+        
+        // Track perspective-based draw rewards
+        if (player_color_before == chess::WHITE) {
+            ctx->c_reward_draw_white += draw_reward;
+        } else {
+            ctx->c_reward_draw_black += draw_reward;
+        }
 
-        reward += env->reward_draw;
+        reward += draw_reward;
     }
 
     // Material differential reward (computed at the end of both moves)
@@ -1707,6 +2140,15 @@ void c_step(CChess* env) {
         } else if (delta_material < 0) {
             reward += env->reward_enemy_captures_agent_piece;
             ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
+        }
+    }
+    
+    // Track moves without progress (captures or pawn moves) for anti-draw measures
+    if (is_legal) {
+        if (delta_material == 0 && selected_move.piece.type != chess::PAWN) {
+            ctx->moves_since_progress++;
+        } else {
+            ctx->moves_since_progress = 0;
         }
     }
 
@@ -1789,16 +2231,49 @@ void c_step(CChess* env) {
             // Mark as draw rather than undefined
             draw = true;
             ctx->c_reward_draw += env->reward_draw;
+            
+            // Track perspective-based draw rewards for Stockfish no legal moves
+            ctx->c_reward_draw_white += env->reward_draw;  // Always white perspective vs Stockfish
+            
             reward += env->reward_draw;
         }
 
 
+        // Store en passant square before Stockfish move
+        int8_t sf_ep_square_before = ctx->board.get_ep_square();
+        
         bool applied = (sf_move != chess::kPassMove) ? ctx->board.apply_move(sf_move) : false;
         if (applied) {
             ctx->step_count += 1;
             ctx->c_black_moves += 1;
             ctx->c_valid_moves += 1;
             ctx->board.invalidate_cache();
+            
+            // Track Stockfish special moves for logging (always black perspective)
+            // Track castling moves
+            if (sf_move.is_castle_short) {
+                ctx->c_black_castle_kingside += 1;
+            } else if (sf_move.is_castle_long) {
+                ctx->c_black_castle_queenside += 1;
+            }
+            
+            // Track en passant captures (using stored en passant square from before move)
+            if (sf_move.piece.type == chess::PAWN && 
+                sf_move.to.index() == sf_ep_square_before && sf_ep_square_before >= 0) {
+                ctx->c_en_passant_black += 1;
+            }
+            
+            // Track pawn promotions
+            if (sf_move.promotion != chess::EMPTY) {
+                ctx->c_black_promotion_count += 1;
+                switch (sf_move.promotion) {
+                    case chess::QUEEN:  ctx->c_black_promotion_queen += 1; break;
+                    case chess::ROOK:   ctx->c_black_promotion_rook += 1; break;
+                    case chess::BISHOP: ctx->c_black_promotion_bishop += 1; break;
+                    case chess::KNIGHT: ctx->c_black_promotion_knight += 1; break;
+                    default: break;
+                }
+            }
 
 
             // Reward / penalty from material change due to black move
@@ -1833,11 +2308,18 @@ void c_step(CChess* env) {
                 ctx->c_white_checkmated += 1;
                 reward += env->reward_loss;
                 ctx->c_reward_loss += env->reward_loss;
+                
+                // Track perspective-based loss reward (always white's perspective when Stockfish checkmates)
+                ctx->c_reward_loss_white += env->reward_loss;
             } else if (ctx->board.is_stalemate() || ctx->board.is_insufficient_material() || ctx->board.get_halfmove_clock() >= 100) {
                 // fprintf(stderr, "[TERMINAL] Draw condition after Stockfish move\n");
                 terminal = true;
                 draw = true;
                 ctx->c_reward_draw += env->reward_draw;
+                
+                // Track perspective-based draw rewards for Stockfish draw conditions
+                ctx->c_reward_draw_white += env->reward_draw;  // Always white perspective vs Stockfish
+                
                 reward += env->reward_draw;
                 if (ctx->board.is_stalemate()) ctx->c_stalemate += 1;
                 if (ctx->board.is_insufficient_material()) ctx->c_insufficient_material += 1;
@@ -1849,6 +2331,10 @@ void c_step(CChess* env) {
                 draw = true;
                 ctx->c_threefold_repetition += 1;
                 ctx->c_reward_draw += env->reward_draw;
+                
+                // Track perspective-based draw rewards for Stockfish threefold repetition
+                ctx->c_reward_draw_white += env->reward_draw;  // Always white perspective vs Stockfish
+                
                 reward += env->reward_draw;
             }
         }
