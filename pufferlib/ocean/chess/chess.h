@@ -745,6 +745,40 @@ public:
             return true;
         }
         
+        // MISSING CASE: K+B+B vs K (two bishops of same color vs lone king)
+        // This is insufficient material for checkmate
+        if (white_bishops >= 2 && white_knights == 0 && 
+            black_bishops == 0 && black_knights == 0) {
+            // Check if all white bishops are on the same color squares
+            bool all_same_color = (!white_light_bishop && white_dark_bishop) || 
+                                 (white_light_bishop && !white_dark_bishop);
+            if (all_same_color) {
+                return true;
+            }
+        }
+        
+        if (black_bishops >= 2 && black_knights == 0 && 
+            white_bishops == 0 && white_knights == 0) {
+            // Check if all black bishops are on the same color squares  
+            bool all_same_color = (!black_light_bishop && black_dark_bishop) || 
+                                 (black_light_bishop && !black_dark_bishop);
+            if (all_same_color) {
+                return true;
+            }
+        }
+        
+        // MISSING CASE: K+N+N vs K (two knights vs lone king)
+        // This is generally insufficient for checkmate
+        if (white_knights >= 2 && white_bishops == 0 && 
+            black_bishops == 0 && black_knights == 0) {
+            return true;
+        }
+        
+        if (black_knights >= 2 && black_bishops == 0 && 
+            white_bishops == 0 && white_knights == 0) {
+            return true;
+        }
+        
         return false;
     }
     

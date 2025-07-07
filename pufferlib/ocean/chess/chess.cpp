@@ -500,6 +500,17 @@ static bool last_game_was_draw = false;
 
 // Function to update session statistics based on game outcome
 static void update_session_stats(GameMode mode, bool white_won, bool black_won, bool is_draw) {
+    // Validate input parameters
+    int outcome_count = (white_won ? 1 : 0) + (black_won ? 1 : 0) + (is_draw ? 1 : 0);
+    if (outcome_count != 1) {
+        printf("[ERROR] update_session_stats called with invalid parameters: white_won=%d black_won=%d is_draw=%d\n",
+               white_won, black_won, is_draw);
+        return;
+    }
+    
+    printf("[DEBUG] update_session_stats: mode=%s white_won=%d black_won=%d is_draw=%d\n",
+           GAME_MODE_NAMES[mode], white_won, black_won, is_draw);
+    
     session_stats.total_games++;
     
     if (white_won) {
@@ -509,7 +520,7 @@ static void update_session_stats(GameMode mode, bool white_won, bool black_won, 
         session_stats.black_stats.games++;
         session_stats.black_stats.losses++;
     } else if (black_won) {
-        session_stats.total_losses++;
+        session_stats.total_losses++;  // Note: total_losses represents black wins (from white's perspective)
         session_stats.white_stats.games++;
         session_stats.white_stats.losses++;
         session_stats.black_stats.games++;
@@ -1133,6 +1144,21 @@ int main() {
                     if (last_game_outcome.black_won) {
                         printf("[DEBUG] *** BLACK WIN DETECTED *** This should increment black wins!\n");
                     }
+                    if (last_game_outcome.white_won) {
+                        printf("[DEBUG] *** WHITE WIN DETECTED *** This should increment white wins!\n");
+                    }
+                    if (last_game_outcome.is_draw) {
+                        printf("[DEBUG] *** DRAW DETECTED *** Reason: %s\n", last_game_outcome.draw_reason.c_str());
+                    }
+                    
+                    // Validate outcome consistency
+                    int outcome_count = (last_game_outcome.white_won ? 1 : 0) + 
+                                       (last_game_outcome.black_won ? 1 : 0) + 
+                                       (last_game_outcome.is_draw ? 1 : 0);
+                    if (outcome_count != 1) {
+                        printf("[ERROR] Invalid game outcome! Multiple outcomes detected: white_won=%d black_won=%d is_draw=%d\n",
+                               last_game_outcome.white_won, last_game_outcome.black_won, last_game_outcome.is_draw);
+                    }
                     
                     // Update session statistics
                     update_session_stats(game_mode, last_game_outcome.white_won, last_game_outcome.black_won, last_game_outcome.is_draw);
@@ -1140,6 +1166,8 @@ int main() {
                     // Debug: Print updated statistics
                     printf("[DEBUG] After update - Total games: %d, White wins: %d, Black wins: %d, Draws: %d\n",
                            session_stats.total_games, session_stats.total_wins, session_stats.total_losses, session_stats.total_draws);
+                    printf("[DEBUG] Legacy counters: session_wins=%d session_losses=%d session_draws=%d\n",
+                           session_wins, session_losses, session_draws);
                     printf("[DEBUG] White stats: %d/%d/%d, Black stats: %d/%d/%d\n",
                            session_stats.white_stats.wins, session_stats.white_stats.losses, session_stats.white_stats.draws,
                            session_stats.black_stats.wins, session_stats.black_stats.losses, session_stats.black_stats.draws);
