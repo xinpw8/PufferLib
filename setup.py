@@ -433,6 +433,9 @@ if not NO_OCEAN:
                 # Python extension causes duplicate-symbol link errors.
                 if 'chess.cpp' in p and '/chess/' in p.replace('\\', '/'):
                     continue  # skip – binding.cpp already includes chess.h
+                # Skip game_replay_tool.cpp as it's a standalone executable
+                if 'game_replay_tool.cpp' in p:
+                    continue  # skip – standalone tool with main()
                 if p == path:
                     continue  # never re-add binding.cpp itself
                 extra_sources.append(p)

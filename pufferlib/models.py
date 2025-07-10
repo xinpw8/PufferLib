@@ -211,9 +211,12 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.transpose(0, 1)
 
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)
-        # FIX: Extract legal mask from original observations, not reshaped x
-        legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:6018] # (B·TT, 4674)
-        logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
+        # FIXED: Check if this is chess and extract legal mask from original observations
+        if len(self.obs_shape) == 1 and self.obs_shape[0] == 6018:  # Chess
+            legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:6018]  # (B·TT, 4674)
+            logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
+        else:
+            logits, values = self.policy.decode_actions(flat_hidden)
         
         values = values.reshape(B, TT)
         state['hidden'] = hidden
@@ -234,15 +237,17 @@ class LSTMWrapper(nn.Module):
         else:
             lstm_state = None
 
-        # Extract mask before reshaping (for chess, mask is at indices 1344:6018)
-        legal_mask = observations[:, 1344:6018] # (B·TT, 4674)
-        
         hidden, c = self.cell(hidden, lstm_state)
         state['hidden'] = hidden
         state['lstm_h'] = hidden
         state['lstm_c'] = c
         
-        logits, values = self.policy.decode_actions(hidden, legal_mask)
+        # FIXED: Check if this is chess and extract legal mask
+        if len(self.obs_shape) == 1 and self.obs_shape[0] == 6018:  # Chess
+            legal_mask = observations[:, 1344:6018]  # Legal move mask
+            logits, values = self.policy.decode_actions(hidden, legal_mask)
+        else:
+            logits, values = self.policy.decode_actions(hidden)
         return logits, values
 
 

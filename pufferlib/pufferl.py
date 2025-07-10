@@ -49,6 +49,7 @@ signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 # Assume advantage kernel has been built if CUDA compiler is available
 ADVANTAGE_CUDA = shutil.which("nvcc") is not None
 
+
 class PuffeRL:
     def __init__(self, config, vecenv, policy, logger=None):
         # Backend perf optimization
@@ -494,6 +495,7 @@ class PuffeRL:
         path = os.path.join(self.config['data_dir'], f'{run_id}.pt')
         shutil.copy(model_path, path)
         return path
+    
 
     def save_checkpoint(self):
         if torch.distributed.is_initialized():
@@ -931,19 +933,53 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=False, engine_depth=2, engine_path=None, engine_elo=1320, engine_search_ms=10):
     """Training loop for self-play.
 
-    If `use_engine_opponent` is True, the C++ core internally plugs in a
-    Stockfish instance that generates every Black reply – no Python round-trip.
-    When disabled, the environment falls back to mirror self-play handled in
-    Python.
+    For chess, when self_play is enabled in config, uses native dual-agent self-play
+    where white and black are separate RL agents with shared network weights.
     """
 
     args = config or load_config(env_name)
     device = args['train']['device']
     
-    # Inject self_play flag into env kwargs so every spawned Chess instance
-    # (including those in worker processes) starts in self-play mode.
-    args['env']['self_play'] = not use_engine_opponent  # Only enable self_play when NOT using Stockfish!
+    # For chess, check if self_play is enabled in config
+    if env_name == 'puffer_chess':
+        config_self_play = args['env'].get('self_play', False)
+        
+        if config_self_play:
+            # Native dual-agent self-play - use environment directly like NMMO/MOBA
+            print("[Chess] Using native dual-agent self-play mode")
+            vecenv = load_env(env_name, args)
+            policy = load_policy(args, vecenv)
+            
+            # Add env name so PuffeRL.print_dashboard can display it
+            train_config = dict(**args['train'], env=env_name)
 
+            # Set up logging
+            logger = None
+            if args['neptune']:
+                logger = NeptuneLogger(args)
+            elif args['wandb']:
+                logger = WandbLogger(args)
+
+            pufferl = PuffeRL(train_config, vecenv, policy, logger)
+            
+            while pufferl.global_step < args['train']['total_timesteps']:
+                pufferl.evaluate()
+                pufferl.train()
+                
+                # Periodically save checkpoints
+                if pufferl.epoch % 100 == 0:
+                    pufferl.save_checkpoint()
+            
+            return pufferl.close()
+        else:
+            # Fall back to wrapper approach for backward compatibility
+            args['env']['self_play'] = not use_engine_opponent
+    else:
+        # For non-chess environments, use original logic
+        args['env']['self_play'] = not use_engine_opponent
+
+    # Original wrapper-based approach for chess when self_play is not in config,
+    # or for other environments
     from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
 
     base_env = load_env(env_name, args)
@@ -973,7 +1009,7 @@ def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=Fal
         # every black reply internally, so the plain environment is ready.
         vecenv = base_env
     else:
-        vecenv = ChessSelfPlayWrapper(base_env, policy, device)
+        vecenv = ChessSelfPlayWrapper(base_env, policy, device=device)
     
     # Add env name so PuffeRL.print_dashboard can display it
     train_config = dict(**args['train'], env=env_name)
