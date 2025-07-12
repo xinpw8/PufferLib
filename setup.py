@@ -417,6 +417,9 @@ if not NO_OCEAN:
         glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True) +
         glob.glob('pufferlib/pufferlib/ocean/**/binding.cpp', recursive=True)
     )
+    
+    # Filter out backup directories
+    c_extension_paths = [p for p in c_extension_paths if 'backup' not in p]
 
     for path in c_extension_paths:
         ext_dir  = os.path.dirname(path)
@@ -432,6 +435,9 @@ if not NO_OCEAN:
                 # re-defines every symbol from chess.h.  Including it in the
                 # Python extension causes duplicate-symbol link errors.
                 if 'chess.cpp' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.cpp already includes chess.h
+                # Skip chess_original.cpp as it also re-defines symbols from chess.h
+                if 'chess_original.cpp' in p and '/chess/' in p.replace('\\', '/'):
                     continue  # skip – binding.cpp already includes chess.h
                 # Skip game_replay_tool.cpp as it's a standalone executable
                 if 'game_replay_tool.cpp' in p:

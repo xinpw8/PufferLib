@@ -84,6 +84,7 @@ if [ "$ENV" = "chess" ]; then
             -I"$ROOT_DIR/$RAYLIB_NAME/include" \
             -I"$ROOT_DIR/pufferlib/extensions" \
             -I"$ROOT_DIR/pufferlib/pufferlib/extensions" \
+            -I"$SRC_DIR/include" \
             "$SRC_DIR/chess.cpp" \
             "$ROOT_DIR/$RAYLIB_NAME/lib/libraylib.a" \
             -lm -lpthread -ldl -lrt -lX11 \

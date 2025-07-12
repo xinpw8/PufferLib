@@ -32,3 +32,4 @@ Reason to keep: rich feature engineering allows effective learning.
 Fixed 4674-Dimensional Action Space:
 Open-spiel implementation: open_spiel/games/chess/chess.h sets kNumDistinctActions to 4674. open_spiel/games/chess/chess.cc uses MoveToAction and ActionToMove to encode all possible moves (including all possible pawn promotions, UCI-style long algebraic notation for other moves, all from/to square combinations) into a single integer between 0 and 4673. 
 Reason to keep: avoids structured actions (e.g. piece, then destination); standard RL approach for chess.
+(flat integer encoding represents all possiblemoves in any chess position.)

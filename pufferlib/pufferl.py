@@ -992,7 +992,7 @@ def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=Fal
         # The base_env can be a driver-specific wrapper (Serial, Ray, etc.).
         # Attempt to locate the underlying C handle robustly.
         c_vec = getattr(base_env, 'c_envs', None)
-        if c_vec is None and hasattr(base_env, 'driver_env'):
+        if c_vec is None and hasattr(base_env, 'driver_env') and base_env.driver_env is not None:
             c_vec = getattr(base_env.driver_env, 'c_envs', None)
 
         if c_vec is None:

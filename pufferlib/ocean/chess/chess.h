@@ -1,6 +1,4 @@
 // chess.h
-#pragma once
-
 // Comment out the next line (or pass -DDEBUG_LOG=0 on the compiler command line)
 // to turn every DBG() call into a no-op.
 #ifndef DEBUG_LOG
@@ -9,7 +7,28 @@
 
 #if DEBUG_LOG
   #include <iostream>
-  #define DBG(expr) do { std::cerr << expr; } while (0)
+  #include <fstream>
+  
+  // Global debug file stream
+  static std::ofstream debug_file_stream;
+  static bool debug_file_initialized = false;
+  
+  // Initialize debug file if not already done
+  static void init_debug_file() {
+      if (!debug_file_initialized) {
+          debug_file_stream.open("chess_debug.log", std::ios::app);
+          debug_file_initialized = true;
+      }
+  }
+  
+  #define DBG(expr) do { \
+      init_debug_file(); \
+      std::cerr << expr; \
+      if (debug_file_stream.is_open()) { \
+          debug_file_stream << expr; \
+          debug_file_stream.flush(); \
+      } \
+  } while (0)
 #else
   #define DBG(expr) do { } while (0)
 #endif
@@ -418,10 +437,23 @@ public:
     }
     
     void reset() {
+        // DEBUG: Track direct board resets
+        static int board_reset_counter = 0;
+        board_reset_counter++;
+        
+        DBG("[BOARD_RESET_DEBUG] ChessBoard::reset() called (reset #" << board_reset_counter << ")" << std::endl);
+        DBG("[BOARD_RESET_DEBUG] Board state BEFORE board reset:" << std::endl);
+        DBG("[BOARD_RESET_DEBUG]   Side to move: " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[BOARD_RESET_DEBUG]   FEN: " << to_fen() << std::endl);
+        
         // standard starting position
         const char* start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         set_from_fen(start_fen);
         cached_legal_moves.reset();
+        
+        DBG("[BOARD_RESET_DEBUG] Board state AFTER board reset:" << std::endl);
+        DBG("[BOARD_RESET_DEBUG]   Side to move: " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[BOARD_RESET_DEBUG]   FEN: " << to_fen() << std::endl);
     }
     
     void set_from_fen(const char* fen) {
@@ -749,21 +781,19 @@ public:
         if (!cached_legal_moves) {
             cached_legal_moves = std::vector<Move>();
             
-            DBG("Generating legal moves..." << std::endl);
+            // PERFORMANCE FIX: Use pseudo-legal moves instead of full legal move validation
+            // This eliminates the expensive board copying and check testing on every step
             generate_pseudo_legal_moves([this](const Move& move) {
-                DBG("  Testing move: " << int(move.from.x) << "," << int(move.from.y) << " -> " << int(move.to.x) << "," << int(move.to.y) << std::endl);
-                
-                ChessBoard test = *this;
-                Color moving_player = to_move;  // Save who is moving before applying the move
-                test.apply_move_unchecked(move);
-                
-                // After apply_move_unchecked, to_move has switched to the opponent
-                // We need to check if the player who just moved is in check
-                if (!test.is_in_check(moving_player)) {
-                    DBG("    Legal move found!" << std::endl);
+                // For each pseudo-legal move, verify it doesn't leave the king in check
+                // Create a temporary board to test the move
+                ChessBoard test_board = *this;
+                test_board.apply_move_unchecked(move); // Apply the move without legality check
+                test_board.to_move = (to_move == WHITE) ? BLACK : WHITE; // Switch turn for check test
+
+                const Piece& piece_to_move = at(move.from);
+
+                if (!test_board.is_in_check(piece_to_move.color)) {
                     cached_legal_moves->push_back(move);
-                } else {
-                    DBG("    Move leaves king in check, discarded" << std::endl);
                 }
                 return true;  // continue generating
             });
@@ -771,10 +801,11 @@ public:
             // Sort deterministically by action id for reproducibility
             std::sort(cached_legal_moves->begin(), cached_legal_moves->end(),
                       [](const Move& a, const Move& b){
-                          return ChessBoard::move_to_action(a) < ChessBoard::move_to_action(b);
+                          return move_to_action(a) < move_to_action(b);
                       });
 
-            DBG("Total legal moves: " << cached_legal_moves->size() << std::endl);
+            DBG("[LEGAL_MOVES_DEBUG] Total legal moves: " << cached_legal_moves->size() << std::endl);
+            DBG("[LEGAL_MOVES_DEBUG] Final original board state - side: " << (to_move == WHITE ? "WHITE" : "BLACK") << ", hash: " << hash() << std::endl);
         }
         return *cached_legal_moves;
     }
@@ -1078,6 +1109,21 @@ public:
     
 private:
     void apply_move_unchecked(const Move& move) {
+        // DEBUG: Track move application
+        static int move_application_counter = 0;
+        move_application_counter++;
+        
+        DBG("[BOARD_APPLY_DEBUG] ChessBoard::apply_move_unchecked() called (move #" << move_application_counter << ")" << std::endl);
+        DBG("[BOARD_APPLY_DEBUG] BEFORE move application:" << std::endl);
+        DBG("[BOARD_APPLY_DEBUG]   Side to move: " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[BOARD_APPLY_DEBUG]   Fullmove: " << fullmove_number << std::endl);
+        DBG("[BOARD_APPLY_DEBUG]   Move: from " << char('a' + move.from.x) << (move.from.y + 1));
+        DBG(" to " << char('a' + move.to.x) << (move.to.y + 1));
+        if (move.promotion != EMPTY) {
+            DBG(" promotion " << (int)move.promotion);
+        }
+        DBG(std::endl);
+        
         // Update halfmove clock
         if (move.piece.type == PAWN || at(move.to).type != EMPTY) {
             halfmove_clock = 0;
@@ -1147,8 +1193,15 @@ private:
         if (move.to.index() == 63) castling_rights &= ~0x2;  // k
         
         // switch sides
+        chess::Color old_side = to_move;
         to_move = (to_move == WHITE) ? BLACK : WHITE;
         if (to_move == WHITE) fullmove_number++;
+        
+        DBG("[BOARD_APPLY_DEBUG] AFTER move application:" << std::endl);
+        DBG("[BOARD_APPLY_DEBUG]   Side switched from " << (old_side == WHITE ? "WHITE" : "BLACK"));
+        DBG(" to " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[BOARD_APPLY_DEBUG]   Fullmove: " << fullmove_number << std::endl);
+        DBG("[BOARD_APPLY_DEBUG]   New FEN: " << to_fen() << std::endl);
     }
     
     bool is_in_check(Color color) const {
@@ -1440,8 +1493,9 @@ Move action_to_move_direct(int action, const ChessBoard& board) {
     int dest_index = action % kNumActionDestinations;
     
     // Convert from_square to coordinates
-    int from_x = from_square % 8;
-    int from_y = from_square / 8;
+    // FIXED: Match the encoding which uses (x * 8 + y), so x = from_square / 8, y = from_square % 8
+    int from_x = from_square / 8;
+    int from_y = from_square % 8;
     
     // Validate from square
     if (from_x < 0 || from_x >= 8 || from_y < 0 || from_y >= 8) {
@@ -1578,13 +1632,39 @@ Move action_to_move_direct(int action, const ChessBoard& board) {
 }
 
 Move action_to_move_lookup(int action, const ChessBoard& board) {
+    DBG("[ACTION_DECODE_DEBUG] Converting action " << action << " to move" << std::endl);
+    
     const auto& moves = board.legal_moves();
+    DBG("[ACTION_DECODE_DEBUG] Board has " << moves.size() << " legal moves" << std::endl);
+    
     for (const auto& m : moves) {
-        if (ChessBoard::move_to_action(m) == action) {
+        int move_action = ChessBoard::move_to_action(m);
+        if (move_action == action) {
+            DBG("[ACTION_DECODE_DEBUG] Found matching legal move: ");
+            DBG("from " << char('a' + m.from.x) << (m.from.y + 1));
+            DBG(" to " << char('a' + m.to.x) << (m.to.y + 1));
+            if (m.promotion != EMPTY) {
+                DBG(" promotion " << (int)m.promotion);
+            }
+            DBG(" (action " << move_action << ")" << std::endl);
             return m;
         }
     }
+    
     // If no legal move matches the action, return a sentinel invalid move
+    DBG("[ACTION_DECODE_DEBUG] *** NO LEGAL MOVE FOUND FOR ACTION " << action << " ***" << std::endl);
+    DBG("[ACTION_DECODE_DEBUG] Available legal actions:" << std::endl);
+    for (size_t i = 0; i < std::min((size_t)10, moves.size()); i++) {
+        int legal_action = ChessBoard::move_to_action(moves[i]);
+        DBG("[ACTION_DECODE_DEBUG]   Action " << legal_action << ": ");
+        DBG("from " << char('a' + moves[i].from.x) << (moves[i].from.y + 1));
+        DBG(" to " << char('a' + moves[i].to.x) << (moves[i].to.y + 1));
+        if (moves[i].promotion != EMPTY) {
+            DBG(" promotion " << (int)moves[i].promotion);
+        }
+        DBG(std::endl);
+    }
+    
     return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
 }
 
@@ -1638,6 +1718,26 @@ struct ChessContext {
     // episode tracking vars
     int step_count = 0;
     float episode_return = 0.0f;
+    
+    // PERFORMANCE OPTIMIZATION: Cache legal moves to avoid recomputing multiple times per step
+    mutable std::optional<std::vector<chess::Move>> cached_step_legal_moves;
+    mutable uint64_t cached_step_board_hash = 0;
+    
+    // Helper function to get legal moves with caching
+    const std::vector<chess::Move>& get_legal_moves_cached() const {
+        uint64_t current_hash = board.hash();
+        if (!cached_step_legal_moves || cached_step_board_hash != current_hash) {
+            cached_step_legal_moves = board.legal_moves();
+            cached_step_board_hash = current_hash;
+        }
+        return *cached_step_legal_moves;
+    }
+    
+    // Clear the cache when board changes
+    void invalidate_legal_moves_cache() {
+        cached_step_legal_moves.reset();
+        cached_step_board_hash = 0;
+    }
     
     // config vars from python
     float c_reward_valid = 0.0f;
@@ -1983,10 +2083,26 @@ void free_allocated(CChess* env) {
 void c_reset(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
     
+    // DEBUG: Track reset calls with stack trace
+    static int reset_call_counter = 0;
+    reset_call_counter++;
+    
+    DBG("[RESET_DEBUG] ===== c_reset called (reset #" << reset_call_counter << ") =====" << std::endl);
+    DBG("[RESET_DEBUG] Board state BEFORE reset:" << std::endl);
+    DBG("[RESET_DEBUG]   Side to move: " << (ctx->board.side_to_move() == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[RESET_DEBUG]   Board hash: " << ctx->board.hash() << std::endl);
+    DBG("[RESET_DEBUG]   FEN: " << ctx->board.to_fen() << std::endl);
+    
     // Reset board
     ctx->board.reset();
     ctx->position_history.clear();
     ctx->position_history[ctx->board.hash()] = 1;
+    
+    DBG("[RESET_DEBUG] Board state AFTER reset:" << std::endl);
+    DBG("[RESET_DEBUG]   Side to move: " << (ctx->board.side_to_move() == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[RESET_DEBUG]   Board hash: " << ctx->board.hash() << std::endl);
+    DBG("[RESET_DEBUG]   FEN: " << ctx->board.to_fen() << std::endl);
+    DBG("[RESET_DEBUG] ===== c_reset complete =====" << std::endl);
     
     // Reset episode tracking
     ctx->step_count = 0;
@@ -2075,6 +2191,9 @@ void c_reset(CChess* env) {
     
     // CRITICAL: Reset GUI mode tracking
     ctx->last_processed_hash = 0;
+    
+    // Clear legal moves cache
+    ctx->invalidate_legal_moves_cache();
 
     compute_observation(env, ctx);
 
@@ -2157,16 +2276,38 @@ void compute_observation(CChess* env, ChessContext* ctx) {
     for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 0.0f;
 
     if (env->debug_disable_mask) {
+        DBG("[OBSERVATION_DEBUG] Legal move masking DISABLED - all actions allowed" << std::endl);
         for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 1.0f;
     } else {
         // mark only actually legal moves (O(#legal_moves))
-        const auto &legal_moves = ctx->board.legal_moves();
+        const auto &legal_moves = ctx->get_legal_moves_cached();
+        DBG("[OBSERVATION_DEBUG] Computing legal move mask - " << legal_moves.size() << " legal moves found" << std::endl);
+        
+        int legal_actions_set = 0;
         for (const auto &mv : legal_moves) {
             int action_id = chess::ChessBoard::move_to_action(mv);
             if (action_id >= 0 && action_id < 4674) {
                 env->observations[idx + action_id] = 1.0f;
+                legal_actions_set++;
+                
+                // Debug first few legal actions
+                if (legal_actions_set <= 5) {
+                    DBG("[OBSERVATION_DEBUG] Legal action " << action_id << " (move ");
+                    DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
+                    DBG(char('a' + mv.to.x) << (mv.to.y + 1));
+                    if (mv.promotion != chess::EMPTY) {
+                        DBG(" promotion " << (int)mv.promotion);
+                    }
+                    DBG(")" << std::endl);
+                }
+            } else {
+                DBG("[OBSERVATION_DEBUG] WARNING: Invalid action ID " << action_id << " for move ");
+                DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
+                DBG(char('a' + mv.to.x) << (mv.to.y + 1) << std::endl);
             }
         }
+        
+        DBG("[OBSERVATION_DEBUG] Set " << legal_actions_set << " legal actions in mask" << std::endl);
         // Pass move (action 0) is intentionally left disabled for chess.
     }
 
@@ -2182,6 +2323,7 @@ void compute_dual_agent_observations(CChess* env, ChessContext* ctx) {
     // Agent 1 (Black): Always sees the board from black's perspective
     
     chess::Color current_player = ctx->board.side_to_move();
+    DBG("[DUAL_OBS_DEBUG] Computing dual agent observations - current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
     
     // Compute base observation features (same for both agents)
     int base_idx = 0;
@@ -2190,6 +2332,8 @@ void compute_dual_agent_observations(CChess* env, ChessContext* ctx) {
     for (int agent = 0; agent < 2; agent++) {
         int agent_offset = agent * 6018;  // Each agent has 6018 floats
         int idx = agent_offset;
+        
+        DBG("[DUAL_OBS_DEBUG] Computing observations for agent " << agent << " (" << (agent == 0 ? "WHITE" : "BLACK") << ") at offset " << agent_offset << std::endl);
         
         // 12 piece planes (6 types × 2 colors) - same for both agents
         for (int color = 0; color < 2; color++) {
@@ -2265,21 +2409,47 @@ void compute_dual_agent_observations(CChess* env, ChessContext* ctx) {
 
         if (env->debug_disable_mask) {
             // Debug mode: all moves legal for both agents
+            DBG("[DUAL_OBS_DEBUG] Legal move masking DISABLED for agent " << agent << " - all actions allowed" << std::endl);
             for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 1.0f;
         } else {
             // Agent 0 (White): Only show legal moves when it's white's turn
             // Agent 1 (Black): Only show legal moves when it's black's turn
             chess::Color agent_color = (agent == 0) ? chess::WHITE : chess::BLACK;
             
+            DBG("[DUAL_OBS_DEBUG] Agent " << agent << " (" << (agent_color == chess::WHITE ? "WHITE" : "BLACK") << ") turn check: ");
+            DBG("current_player=" << (current_player == chess::WHITE ? "WHITE" : "BLACK"));
+            
             if (current_player == agent_color) {
                 // It's this agent's turn - show legal moves
-                const auto &legal_moves = ctx->board.legal_moves();
+                const auto &legal_moves = ctx->get_legal_moves_cached();
+                DBG(", it's their turn - setting " << legal_moves.size() << " legal moves" << std::endl);
+                
+                int legal_actions_set = 0;
                 for (const auto &mv : legal_moves) {
                     int action_id = chess::ChessBoard::move_to_action(mv);
                     if (action_id >= 0 && action_id < 4674) {
                         env->observations[idx + action_id] = 1.0f;
+                        legal_actions_set++;
+                        
+                        // Debug first few legal actions
+                        if (legal_actions_set <= 3) {
+                            DBG("[DUAL_OBS_DEBUG] Agent " << agent << " legal action " << action_id << " (move ");
+                            DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
+                            DBG(char('a' + mv.to.x) << (mv.to.y + 1));
+                            if (mv.promotion != chess::EMPTY) {
+                                DBG(" promotion " << (int)mv.promotion);
+                            }
+                            DBG(")" << std::endl);
+                        }
+                    } else {
+                        DBG("[DUAL_OBS_DEBUG] WARNING: Agent " << agent << " invalid action ID " << action_id << " for move ");
+                        DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
+                        DBG(char('a' + mv.to.x) << (mv.to.y + 1) << std::endl);
                     }
                 }
+                DBG("[DUAL_OBS_DEBUG] Agent " << agent << " set " << legal_actions_set << " legal actions in mask" << std::endl);
+            } else {
+                DBG(", not their turn - mask remains all zeros" << std::endl);
             }
             // If it's not this agent's turn, legal mask remains all zeros
         }
@@ -2293,17 +2463,40 @@ void compute_dual_agent_observations(CChess* env, ChessContext* ctx) {
 void c_step(CChess* env) {
     auto* ctx = (ChessContext*)env->context;
     
+    // DEBUG: Track function entry and board state
+    static int step_call_counter = 0;
+    step_call_counter++;
+    
+    chess::Color entry_side_to_move = ctx->board.side_to_move();
+    uint64_t entry_hash = ctx->board.hash();
+    
+    DBG("[C_STEP_DEBUG] ===== c_step called (call #" << step_call_counter << ") =====" << std::endl);
+    DBG("[C_STEP_DEBUG] ENTRY - Side to move: " << (entry_side_to_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[C_STEP_DEBUG] ENTRY - Board hash: " << entry_hash << std::endl);
+    DBG("[C_STEP_DEBUG] dual_agent_self_play_mode: " << ctx->dual_agent_self_play_mode << std::endl);
+    DBG("[C_STEP_DEBUG] self_play_mode: " << ctx->self_play_mode << std::endl);
+    
     // REMOVED PROBLEMATIC GUARD: Don't auto-reset on terminal - let caller handle it
     // The previous guard was causing immediate resets and 1-step games
     
     // Check if we're in dual agent self-play mode
     if (ctx->dual_agent_self_play_mode) {
+        DBG("[C_STEP_DEBUG] Taking dual agent path" << std::endl);
         c_step_dual_agent(env);
-        return;
+    } else {
+        // Original single agent logic for backward compatibility
+        DBG("[C_STEP_DEBUG] Taking single agent path" << std::endl);
+        c_step_single_agent(env);
     }
     
-    // Original single agent logic for backward compatibility
-    c_step_single_agent(env);
+    // DEBUG: Track function exit and board state
+    chess::Color exit_side_to_move = ctx->board.side_to_move();
+    uint64_t exit_hash = ctx->board.hash();
+    
+    DBG("[C_STEP_DEBUG] EXIT - Side to move: " << (exit_side_to_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[C_STEP_DEBUG] EXIT - Board hash: " << exit_hash << std::endl);
+    DBG("[C_STEP_DEBUG] EXIT - Side changed during c_step: " << (entry_side_to_move != exit_side_to_move ? "YES" : "NO") << std::endl);
+    DBG("[C_STEP_DEBUG] ===== c_step complete (call #" << step_call_counter << ") =====" << std::endl);
 }
 
 void c_step_dual_agent(CChess* env) {
@@ -2314,6 +2507,11 @@ void c_step_dual_agent(CChess* env) {
     
     chess::Color current_player = ctx->board.side_to_move();
     int action_idx = (current_player == chess::WHITE) ? env->actions[0] : env->actions[1];
+    
+    // DEBUG: Print action and current player
+    DBG("[DUAL_AGENT_DEBUG] Current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[DUAL_AGENT_DEBUG] Received actions - White: " << env->actions[0] << ", Black: " << env->actions[1] << std::endl);
+    DBG("[DUAL_AGENT_DEBUG] Using action: " << action_idx << " for " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
     
     // IMPORTANT: We only process the action from the current player
     // The other agent's action is ignored (not counted as invalid)
@@ -2348,11 +2546,15 @@ void c_step_dual_agent(CChess* env) {
     int black_material_before = material_value(chess::BLACK);
     
     // Early terminal check
-    const auto early_legal_moves = ctx->board.legal_moves();
+    const auto early_legal_moves = ctx->get_legal_moves_cached();
+    DBG("[DUAL_AGENT_DEBUG] Legal moves available: " << early_legal_moves.size() << std::endl);
+    
     if (early_legal_moves.empty()) {
         bool early_checkmate = ctx->board.is_checkmate();
         bool early_stalemate = ctx->board.is_stalemate();
         bool early_insuffmat = ctx->board.is_insufficient_material();
+        
+        DBG("[DUAL_AGENT_DEBUG] No legal moves - checkmate: " << early_checkmate << ", stalemate: " << early_stalemate << ", insufficient material: " << early_insuffmat << std::endl);
         
         if (early_checkmate || early_stalemate || early_insuffmat) {
             terminal = true;
@@ -2417,15 +2619,65 @@ void c_step_dual_agent(CChess* env) {
     // Decode and validate the move from the CURRENT PLAYER ONLY
     chess::Move selected_move = chess::action_to_move_lookup(action_idx, ctx->board);
     
+    DBG("[DUAL_AGENT_DEBUG] Action " << action_idx << " decoded to move: ");
+    if (selected_move.from.x >= 0 && selected_move.from.y >= 0 && selected_move.to.x >= 0 && selected_move.to.y >= 0) {
+        DBG("from " << char('a' + selected_move.from.x) << (selected_move.from.y + 1));
+        DBG(" to " << char('a' + selected_move.to.x) << (selected_move.to.y + 1));
+        if (selected_move.promotion != chess::EMPTY) {
+            DBG(" promotion " << (int)selected_move.promotion);
+        }
+        DBG(std::endl);
+    } else {
+        DBG("INVALID COORDINATES (" << (int)selected_move.from.x << "," << (int)selected_move.from.y << " -> " << (int)selected_move.to.x << "," << (int)selected_move.to.y << ")" << std::endl);
+    }
+    
     bool is_legal = false;
     {
         chess::ChessBoard tmp = ctx->board;
         is_legal = tmp.apply_move(selected_move);
     }
     
+    DBG("[DUAL_AGENT_DEBUG] Move legality check: " << (is_legal ? "LEGAL" : "ILLEGAL") << std::endl);
+    
+    // DEBUG: If move is illegal, check if action was in legal mask
+    if (!is_legal) {
+        DBG("[DUAL_AGENT_DEBUG] *** ILLEGAL MOVE DETECTED ***" << std::endl);
+        DBG("[DUAL_AGENT_DEBUG] Action " << action_idx << " should have been masked!" << std::endl);
+        
+        // Check if this action was in the legal move mask
+        // This requires checking the observation that was used to generate this action
+        compute_dual_agent_observations(env, ctx);
+        chess::Color agent_color = current_player;
+        int agent_index = (agent_color == chess::WHITE) ? 0 : 1;
+        int mask_offset = agent_index * 6018 + 1344; // Skip to legal mask for this agent
+        
+        DBG("[DUAL_AGENT_DEBUG] Legal mask for action " << action_idx << ": " << env->observations[mask_offset + action_idx] << std::endl);
+        
+        // Print some legal moves for comparison
+        DBG("[DUAL_AGENT_DEBUG] Available legal moves:" << std::endl);
+        for (size_t i = 0; i < std::min((size_t)5, early_legal_moves.size()); i++) {
+            const auto& legal_move = early_legal_moves[i];
+            int legal_action = chess::ChessBoard::move_to_action(legal_move);
+            DBG("[DUAL_AGENT_DEBUG]   Move " << i << ": action " << legal_action);
+            DBG(" from " << char('a' + legal_move.from.x) << (legal_move.from.y + 1));
+            DBG(" to " << char('a' + legal_move.to.x) << (legal_move.to.y + 1));
+            DBG(" (mask value: " << env->observations[mask_offset + legal_action] << ")" << std::endl);
+        }
+    }
+    
     if (is_legal) {
         // Valid move - apply it
         ctx->step_count += 1;
+        
+        // DEBUG: Track board state before and after move application
+        chess::Color player_before_move = ctx->board.side_to_move();
+        uint64_t hash_before_move = ctx->board.hash();
+        std::string fen_before_move = ctx->board.to_fen();
+        
+        DBG("[MOVE_APPLICATION_DEBUG] BEFORE move application:" << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   Side to move: " << (player_before_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   Board hash: " << hash_before_move << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   FEN: " << fen_before_move << std::endl);
         
         // Give valid move reward to current player
         if (current_player == chess::WHITE) {
@@ -2442,6 +2694,21 @@ void c_step_dual_agent(CChess* env) {
         // Apply the move
         bool applied_ok = ctx->board.apply_move(selected_move);
         ctx->board.invalidate_cache();
+        ctx->invalidate_legal_moves_cache();  // Clear cache after move
+        
+        // DEBUG: Track board state after move application
+        chess::Color player_after_move = ctx->board.side_to_move();
+        uint64_t hash_after_move = ctx->board.hash();
+        std::string fen_after_move = ctx->board.to_fen();
+        
+        DBG("[MOVE_APPLICATION_DEBUG] AFTER move application:" << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   Applied successfully: " << applied_ok << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   Side to move: " << (player_after_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   Board hash: " << hash_after_move << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   FEN: " << fen_after_move << std::endl);
+        DBG("[MOVE_APPLICATION_DEBUG]   Side changed: " << (player_before_move != player_after_move ? "YES" : "NO") << std::endl);
+        
+        DBG("[DUAL_AGENT_DEBUG] Move applied successfully: " << applied_ok << std::endl);
         
         // Track action for complete game logging
         if (applied_ok) {
@@ -2566,6 +2833,50 @@ void c_step_dual_agent(CChess* env) {
     } else {
         // Invalid move - penalize ONLY the current player
         // The other agent's action is ignored completely
+        DBG("[DUAL_AGENT_DEBUG] Applying invalid move penalty to " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+        
+        // CRITICAL DEBUG: Log complete invalid move details
+        DBG("[INVALID_MOVE_DEBUG] ===== INVALID MOVE DETECTED =====" << std::endl);
+        static int invalid_move_counter = 0;
+        invalid_move_counter++;
+        DBG("[INVALID_MOVE_DEBUG] Invalid move #" << invalid_move_counter << std::endl);
+        DBG("[INVALID_MOVE_DEBUG] Current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+        DBG("[INVALID_MOVE_DEBUG] Invalid action: " << action_idx << std::endl);
+        DBG("[INVALID_MOVE_DEBUG] Board FEN: " << ctx->board.to_fen() << std::endl);
+        DBG("[INVALID_MOVE_DEBUG] Board hash: " << ctx->board.hash() << std::endl);
+        
+        // Log all legal moves and their action IDs
+        const auto& all_legal_moves = ctx->get_legal_moves_cached();
+        DBG("[INVALID_MOVE_DEBUG] Legal moves available (" << all_legal_moves.size() << "):" << std::endl);
+        for (size_t i = 0; i < all_legal_moves.size(); i++) {
+            const auto& legal_move = all_legal_moves[i];
+            int legal_action = chess::ChessBoard::move_to_action(legal_move);
+            DBG("[INVALID_MOVE_DEBUG]   " << i << ": action " << legal_action);
+            DBG(" from " << char('a' + legal_move.from.x) << (legal_move.from.y + 1));
+            DBG(" to " << char('a' + legal_move.to.x) << (legal_move.to.y + 1));
+            if (legal_move.promotion != chess::EMPTY) {
+                DBG(" promotion " << (int)legal_move.promotion);
+            }
+            DBG(std::endl);
+        }
+        
+        // Check if the action was properly masked
+        compute_dual_agent_observations(env, ctx);
+        chess::Color agent_color = current_player;
+        int agent_index = (agent_color == chess::WHITE) ? 0 : 1;
+        int mask_offset = agent_index * 6018 + 1344;
+        float mask_value = env->observations[mask_offset + action_idx];
+        
+        DBG("[INVALID_MOVE_DEBUG] Action " << action_idx << " mask value: " << mask_value << std::endl);
+        DBG("[INVALID_MOVE_DEBUG] Agent " << agent_index << " (" << (agent_color == chess::WHITE ? "WHITE" : "BLACK") << ") mask offset: " << mask_offset << std::endl);
+        
+        // Check if action is out of bounds
+        if (action_idx < 0 || action_idx >= 4674) {
+            DBG("[INVALID_MOVE_DEBUG] ACTION OUT OF BOUNDS! Valid range: 0-4673" << std::endl);
+        }
+        
+        DBG("[INVALID_MOVE_DEBUG] ===== END INVALID MOVE DEBUG =====" << std::endl);
+        
         if (current_player == chess::WHITE) {
             white_reward += env->reward_invalid_white;
             ctx->c_invalid_moves_white += 1;
@@ -2574,6 +2885,7 @@ void c_step_dual_agent(CChess* env) {
             ctx->c_invalid_moves_black += 1;
         }
         ctx->board.invalidate_cache();
+        ctx->invalidate_legal_moves_cache();  // Clear cache after invalid move
     }
     
     // Check for game over conditions
@@ -2758,10 +3070,36 @@ void c_step_dual_agent(CChess* env) {
         // Don't reset here - let the training loop handle it
     }
     
+    // DEBUG: Check board state consistency before computing observations
+    chess::Color pre_obs_side = ctx->board.side_to_move();
+    uint64_t pre_obs_hash = ctx->board.hash();
+    std::string pre_obs_fen = ctx->board.to_fen();
+    
+    DBG("[CONSISTENCY_DEBUG] Board state BEFORE observation computation:" << std::endl);
+    DBG("[CONSISTENCY_DEBUG]   Side to move: " << (pre_obs_side == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[CONSISTENCY_DEBUG]   Board hash: " << pre_obs_hash << std::endl);
+    DBG("[CONSISTENCY_DEBUG]   FEN: " << pre_obs_fen << std::endl);
+    
     // Compute observations for both agents (if not terminal)
     if (!terminal) {
         // For dual agents, we need to compute observations from both perspectives
         compute_dual_agent_observations(env, ctx);
+    }
+    
+    // DEBUG: Check board state consistency after computing observations
+    chess::Color post_obs_side = ctx->board.side_to_move();
+    uint64_t post_obs_hash = ctx->board.hash();
+    std::string post_obs_fen = ctx->board.to_fen();
+    
+    DBG("[CONSISTENCY_DEBUG] Board state AFTER observation computation:" << std::endl);
+    DBG("[CONSISTENCY_DEBUG]   Side to move: " << (post_obs_side == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[CONSISTENCY_DEBUG]   Board hash: " << post_obs_hash << std::endl);
+    DBG("[CONSISTENCY_DEBUG]   Board state changed during obs computation: " << (pre_obs_hash != post_obs_hash ? "YES" : "NO") << std::endl);
+    
+    if (pre_obs_hash != post_obs_hash) {
+        DBG("[CONSISTENCY_DEBUG] *** BOARD STATE CORRUPTION DETECTED *** " << std::endl);
+        DBG("[CONSISTENCY_DEBUG] FEN changed from: " << pre_obs_fen << std::endl);
+        DBG("[CONSISTENCY_DEBUG] FEN changed to:   " << post_obs_fen << std::endl);
     }
 }
 
@@ -2774,6 +3112,10 @@ void c_step_single_agent(CChess* env) {
     
     chess::Color current_player = ctx->board.side_to_move();
     int action_idx = env->actions[0];  // Single action for single agent
+    
+    // DEBUG: Print action and current player
+    DBG("[SINGLE_AGENT_DEBUG] Current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    DBG("[SINGLE_AGENT_DEBUG] Received action: " << action_idx << std::endl);
     
     // Initialize rewards and terminal state
     float reward = 0.0f;
@@ -2805,11 +3147,15 @@ void c_step_single_agent(CChess* env) {
     int black_material_before = material_value(chess::BLACK);
     
     // Early terminal check
-    const auto early_legal_moves = ctx->board.legal_moves();
+    const auto early_legal_moves = ctx->get_legal_moves_cached();
+    DBG("[SINGLE_AGENT_DEBUG] Legal moves available: " << early_legal_moves.size() << std::endl);
+    
     if (early_legal_moves.empty()) {
         bool early_checkmate = ctx->board.is_checkmate();
         bool early_stalemate = ctx->board.is_stalemate();
         bool early_insuffmat = ctx->board.is_insufficient_material();
+        
+        DBG("[SINGLE_AGENT_DEBUG] No legal moves - checkmate: " << early_checkmate << ", stalemate: " << early_stalemate << ", insufficient material: " << early_insuffmat << std::endl);
         
         if (early_checkmate || early_stalemate || early_insuffmat) {
             terminal = true;
@@ -2861,10 +3207,47 @@ void c_step_single_agent(CChess* env) {
         // White's turn - use the action provided by the agent/human
         chess::Move selected_move = chess::action_to_move_lookup(action_idx, ctx->board);
         
+        DBG("[SINGLE_AGENT_DEBUG] Action " << action_idx << " decoded to move: ");
+        if (selected_move.from.x >= 0 && selected_move.from.y >= 0 && selected_move.to.x >= 0 && selected_move.to.y >= 0) {
+            DBG("from " << char('a' + selected_move.from.x) << (selected_move.from.y + 1));
+            DBG(" to " << char('a' + selected_move.to.x) << (selected_move.to.y + 1));
+            if (selected_move.promotion != chess::EMPTY) {
+                DBG(" promotion " << (int)selected_move.promotion);
+            }
+            DBG(std::endl);
+        } else {
+            DBG("INVALID COORDINATES (" << (int)selected_move.from.x << "," << (int)selected_move.from.y << " -> " << (int)selected_move.to.x << "," << (int)selected_move.to.y << ")" << std::endl);
+        }
+        
         bool is_legal = false;
         {
             chess::ChessBoard tmp = ctx->board;
             is_legal = tmp.apply_move(selected_move);
+        }
+        
+        DBG("[SINGLE_AGENT_DEBUG] Move legality check: " << (is_legal ? "LEGAL" : "ILLEGAL") << std::endl);
+        
+        // DEBUG: If move is illegal, check if action was in legal mask
+        if (!is_legal) {
+            DBG("[SINGLE_AGENT_DEBUG] *** ILLEGAL MOVE DETECTED ***" << std::endl);
+            DBG("[SINGLE_AGENT_DEBUG] Action " << action_idx << " should have been masked!" << std::endl);
+            
+            // Check if this action was in the legal move mask
+            compute_observation(env, ctx);
+            int mask_offset = 1344; // Skip to legal mask
+            
+            DBG("[SINGLE_AGENT_DEBUG] Legal mask for action " << action_idx << ": " << env->observations[mask_offset + action_idx] << std::endl);
+            
+            // Print some legal moves for comparison
+            DBG("[SINGLE_AGENT_DEBUG] Available legal moves:" << std::endl);
+            for (size_t i = 0; i < std::min((size_t)5, early_legal_moves.size()); i++) {
+                const auto& legal_move = early_legal_moves[i];
+                int legal_action = chess::ChessBoard::move_to_action(legal_move);
+                DBG("[SINGLE_AGENT_DEBUG]   Move " << i << ": action " << legal_action);
+                DBG(" from " << char('a' + legal_move.from.x) << (legal_move.from.y + 1));
+                DBG(" to " << char('a' + legal_move.to.x) << (legal_move.to.y + 1));
+                DBG(" (mask value: " << env->observations[mask_offset + legal_action] << ")" << std::endl);
+            }
         }
         
         if (is_legal) {
@@ -2879,6 +3262,9 @@ void c_step_single_agent(CChess* env) {
             // Apply the move
             bool applied_ok = ctx->board.apply_move(selected_move);
             ctx->board.invalidate_cache();
+            ctx->invalidate_legal_moves_cache();  // Clear cache after move
+            
+            DBG("[SINGLE_AGENT_DEBUG] Move applied successfully: " << applied_ok << std::endl);
             
             // Track action for complete game logging
             if (applied_ok) {
@@ -2936,6 +3322,7 @@ void c_step_single_agent(CChess* env) {
             
         } else {
             // Invalid move - penalize
+            DBG("[SINGLE_AGENT_DEBUG] Applying invalid move penalty to WHITE" << std::endl);
             reward += env->reward_invalid_white;  // Single agent is always white
             ctx->c_invalid_moves_white += 1;
             ctx->board.invalidate_cache();

@@ -133,9 +133,13 @@ class Default(nn.Module):
                 # Set invalid actions to very negative logits (-1e8)
                 logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
                 
-                # Debug check for empty masks
+                # Handle empty legal masks (dual-agent mode when it's not this agent's turn)
+                # In dual-agent chess, agents receive empty legal masks when it's not their turn.
+                # This is expected behavior - the agent shouldn't act, and the training framework
+                # will ignore this agent's output anyway.
                 if torch.sum(legal_mask) == 0:
-                    print("WARNING: Default policy received empty legal mask for chess!")
+                    # All actions are already masked to -1e8, which is correct
+                    pass
             else:
                 logits = raw_logits
 
@@ -211,7 +215,8 @@ class LSTMWrapper(nn.Module):
         hidden = hidden.transpose(0, 1)
 
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)
-        # FIXED: Check if this is chess and extract legal mask from original observations
+        
+        # Check if this is chess and extract legal mask from original observations
         if len(self.obs_shape) == 1 and self.obs_shape[0] == 6018:  # Chess
             legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:6018]  # (B·TT, 4674)
             logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
@@ -242,7 +247,7 @@ class LSTMWrapper(nn.Module):
         state['lstm_h'] = hidden
         state['lstm_c'] = c
         
-        # FIXED: Check if this is chess and extract legal mask
+        # Check if this is chess and extract legal mask
         if len(self.obs_shape) == 1 and self.obs_shape[0] == 6018:  # Chess
             legal_mask = observations[:, 1344:6018]  # Legal move mask
             logits, values = self.policy.decode_actions(hidden, legal_mask)

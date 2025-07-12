@@ -891,6 +891,7 @@ class ChessRecurrent(nn.Module):
         )
         self.is_continuous = False
         self.is_multidiscrete = False
+        self.action_size = num_actions
 
     def encode_observations(self, obs, state=None):
         # For LSTM compatibility, we only encode board features here
@@ -900,20 +901,65 @@ class ChessRecurrent(nn.Module):
         hidden = self.combiner(board_features)
         return hidden
 
+    def get_action(self, obs, temperature=1.0):
+        """Get action with proper OpenSpiel-style legal action masking"""
+        
+        # 1. Get legal actions from the legal mask in observations
+        legal_mask = obs[:, 1344:6018]  # 4674 legal move mask
+        legal_actions = torch.where(legal_mask[0] > 0.5)[0]
+        
+        if len(legal_actions) == 0:
+            # No legal moves - should not happen in normal chess
+            print("WARNING: No legal actions available!")
+            return 0
+        
+        # 2. Create action mask (CRITICAL!)
+        action_mask = torch.zeros(self.action_size, device=obs.device)
+        action_mask[legal_actions] = 1.0
+        
+        # 3. Get network output (logits)
+        board_state = obs[:, :1344]
+        board_features = self.board_encoder(board_state)
+        hidden = self.combiner(board_features)
+        logits = self.policy_head(hidden)
+        
+        # 4. Apply mask to PREVENT illegal actions
+        # Method 1: Set illegal action logits to -infinity
+        masked_logits = logits.clone()
+        masked_logits[0, action_mask == 0] = float('-inf')
+        
+        # 5. Sample action (now guaranteed to be legal)
+        probs = F.softmax(masked_logits / temperature, dim=-1)
+        action = torch.multinomial(probs, 1).item()
+        
+        return action
+
     def decode_actions(self, hidden, legal_mask):
-        # Just compute raw logits here, masking happens elsewhere
+        # Get raw logits
         raw_logits = self.policy_head(hidden)
         
-        # DEBUG: Check if the legal mask has any legal moves
-        if torch.sum(legal_mask) == 0:
-            print("WARNING: ChessRecurrent.decode_actions received a legal mask with NO legal moves.")
-
-        # Apply masking
-        logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
+        # Check if the legal mask has any legal moves
+        batch_size = legal_mask.shape[0]
+        masked_logits = raw_logits.clone()
+        
+        # Apply hard masking: set illegal actions to -inf
+        for i in range(batch_size):
+            legal_actions = torch.where(legal_mask[i] > 0.5)[0]
+            if len(legal_actions) > 0:
+                # Normal case: legal moves available
+                action_mask = torch.zeros(self.action_size, device=legal_mask.device)
+                action_mask[legal_actions] = 1.0
+                # Apply mask
+                masked_logits[i, action_mask == 0] = float('-inf')
+            else:
+                # Empty legal mask case: This happens in dual-agent mode when it's not this agent's turn.
+                # In this case, the agent shouldn't act, so we set all actions to -inf.
+                # The training framework will ignore this agent's output anyway.
+                masked_logits[i, :] = float('-inf')
         
         value = self.value_head(hidden).squeeze(-1)
         
-        return logits, value
+        return masked_logits, value
 
     def forward(self, obs, state=None):
         # This forward is used during non-LSTM inference
@@ -925,10 +971,9 @@ class ChessRecurrent(nn.Module):
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
         
-        # Decode to get raw logits
-        logits = self.policy_head(hidden).masked_fill(legal_mask<0.5, -1e8)
+        # Decode with proper masking
+        logits, value = self.decode_actions(hidden, legal_mask)
 
-        value = self.value_head(hidden).squeeze(-1)
         return logits, value
 
         
