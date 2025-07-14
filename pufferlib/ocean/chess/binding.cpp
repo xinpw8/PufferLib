@@ -1,4 +1,4 @@
-// binding.cpp
+// binding.c
 #pragma once
 #include <Python.h> // makes PyObject visible
 #include "chess.h"
@@ -162,9 +162,7 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "black_promotion_bishop", log->black_promotion_bishop);
     assign_to_dict(dict, "black_promotion_rook", log->black_promotion_rook);
     assign_to_dict(dict, "black_promotion_queen", log->black_promotion_queen);
-    
-    assign_to_dict(dict, "n", log->n);
-    
+
     // Game logging fields
     assign_to_dict(dict, "last_move_from", log->last_move_from);
     assign_to_dict(dict, "last_move_to", log->last_move_to);
@@ -174,107 +172,10 @@ static int my_log(PyObject* dict, Log* log) {
     
     // Add complete game logging fields
     assign_to_dict(dict, "complete_game_move_count", log->complete_game_move_count);
-    assign_to_dict(dict, "complete_game_action_0", log->complete_game_action_0);
-    assign_to_dict(dict, "complete_game_action_1", log->complete_game_action_1);
-    assign_to_dict(dict, "complete_game_action_2", log->complete_game_action_2);
-    assign_to_dict(dict, "complete_game_action_3", log->complete_game_action_3);
-    assign_to_dict(dict, "complete_game_action_4", log->complete_game_action_4);
-    assign_to_dict(dict, "complete_game_action_5", log->complete_game_action_5);
-    assign_to_dict(dict, "complete_game_action_6", log->complete_game_action_6);
-    assign_to_dict(dict, "complete_game_action_7", log->complete_game_action_7);
-    assign_to_dict(dict, "complete_game_action_8", log->complete_game_action_8);
-    assign_to_dict(dict, "complete_game_action_9", log->complete_game_action_9);
-    assign_to_dict(dict, "complete_game_action_10", log->complete_game_action_10);
-    assign_to_dict(dict, "complete_game_action_11", log->complete_game_action_11);
-    assign_to_dict(dict, "complete_game_action_12", log->complete_game_action_12);
-    assign_to_dict(dict, "complete_game_action_13", log->complete_game_action_13);
-    assign_to_dict(dict, "complete_game_action_14", log->complete_game_action_14);
-    assign_to_dict(dict, "complete_game_action_15", log->complete_game_action_15);
-    assign_to_dict(dict, "complete_game_action_16", log->complete_game_action_16);
-    assign_to_dict(dict, "complete_game_action_17", log->complete_game_action_17);
-    assign_to_dict(dict, "complete_game_action_18", log->complete_game_action_18);
-    assign_to_dict(dict, "complete_game_action_19", log->complete_game_action_19);
-    assign_to_dict(dict, "complete_game_action_20", log->complete_game_action_20);
-    assign_to_dict(dict, "complete_game_action_21", log->complete_game_action_21);
-    assign_to_dict(dict, "complete_game_action_22", log->complete_game_action_22);
-    assign_to_dict(dict, "complete_game_action_23", log->complete_game_action_23);
-    assign_to_dict(dict, "complete_game_action_24", log->complete_game_action_24);
-    assign_to_dict(dict, "complete_game_action_25", log->complete_game_action_25);
-    assign_to_dict(dict, "complete_game_action_26", log->complete_game_action_26);
-    assign_to_dict(dict, "complete_game_action_27", log->complete_game_action_27);
-    assign_to_dict(dict, "complete_game_action_28", log->complete_game_action_28);
-    assign_to_dict(dict, "complete_game_action_29", log->complete_game_action_29);
-    assign_to_dict(dict, "complete_game_action_30", log->complete_game_action_30);
-    assign_to_dict(dict, "complete_game_action_31", log->complete_game_action_31);
-    assign_to_dict(dict, "complete_game_action_32", log->complete_game_action_32);
-    assign_to_dict(dict, "complete_game_action_33", log->complete_game_action_33);
-    assign_to_dict(dict, "complete_game_action_34", log->complete_game_action_34);
-    assign_to_dict(dict, "complete_game_action_35", log->complete_game_action_35);
-    assign_to_dict(dict, "complete_game_action_36", log->complete_game_action_36);
-    assign_to_dict(dict, "complete_game_action_37", log->complete_game_action_37);
-    assign_to_dict(dict, "complete_game_action_38", log->complete_game_action_38);
-    assign_to_dict(dict, "complete_game_action_39", log->complete_game_action_39);
-    assign_to_dict(dict, "complete_game_action_40", log->complete_game_action_40);
-    assign_to_dict(dict, "complete_game_action_41", log->complete_game_action_41);
-    assign_to_dict(dict, "complete_game_action_42", log->complete_game_action_42);
-    assign_to_dict(dict, "complete_game_action_43", log->complete_game_action_43);
-    assign_to_dict(dict, "complete_game_action_44", log->complete_game_action_44);
-    assign_to_dict(dict, "complete_game_action_45", log->complete_game_action_45);
-    assign_to_dict(dict, "complete_game_action_46", log->complete_game_action_46);
-    assign_to_dict(dict, "complete_game_action_47", log->complete_game_action_47);
-    assign_to_dict(dict, "complete_game_action_48", log->complete_game_action_48);
-    assign_to_dict(dict, "complete_game_action_49", log->complete_game_action_49);
-    assign_to_dict(dict, "complete_game_action_50", log->complete_game_action_50);
-    assign_to_dict(dict, "complete_game_action_51", log->complete_game_action_51);
-    assign_to_dict(dict, "complete_game_action_52", log->complete_game_action_52);
-    assign_to_dict(dict, "complete_game_action_53", log->complete_game_action_53);
-    assign_to_dict(dict, "complete_game_action_54", log->complete_game_action_54);
-    assign_to_dict(dict, "complete_game_action_55", log->complete_game_action_55);
-    assign_to_dict(dict, "complete_game_action_56", log->complete_game_action_56);
-    assign_to_dict(dict, "complete_game_action_57", log->complete_game_action_57);
-    assign_to_dict(dict, "complete_game_action_58", log->complete_game_action_58);
-    assign_to_dict(dict, "complete_game_action_59", log->complete_game_action_59);
-    assign_to_dict(dict, "complete_game_action_60", log->complete_game_action_60);
-    assign_to_dict(dict, "complete_game_action_61", log->complete_game_action_61);
-    assign_to_dict(dict, "complete_game_action_62", log->complete_game_action_62);
-    assign_to_dict(dict, "complete_game_action_63", log->complete_game_action_63);
-    assign_to_dict(dict, "complete_game_action_64", log->complete_game_action_64);
-    assign_to_dict(dict, "complete_game_action_65", log->complete_game_action_65);
-    assign_to_dict(dict, "complete_game_action_66", log->complete_game_action_66);
-    assign_to_dict(dict, "complete_game_action_67", log->complete_game_action_67);
-    assign_to_dict(dict, "complete_game_action_68", log->complete_game_action_68);
-    assign_to_dict(dict, "complete_game_action_69", log->complete_game_action_69);
-    assign_to_dict(dict, "complete_game_action_70", log->complete_game_action_70);
-    assign_to_dict(dict, "complete_game_action_71", log->complete_game_action_71);
-    assign_to_dict(dict, "complete_game_action_72", log->complete_game_action_72);
-    assign_to_dict(dict, "complete_game_action_73", log->complete_game_action_73);
-    assign_to_dict(dict, "complete_game_action_74", log->complete_game_action_74);
-    assign_to_dict(dict, "complete_game_action_75", log->complete_game_action_75);
-    assign_to_dict(dict, "complete_game_action_76", log->complete_game_action_76);
-    assign_to_dict(dict, "complete_game_action_77", log->complete_game_action_77);
-    assign_to_dict(dict, "complete_game_action_78", log->complete_game_action_78);
-    assign_to_dict(dict, "complete_game_action_79", log->complete_game_action_79);
-    assign_to_dict(dict, "complete_game_action_80", log->complete_game_action_80);
-    assign_to_dict(dict, "complete_game_action_81", log->complete_game_action_81);
-    assign_to_dict(dict, "complete_game_action_82", log->complete_game_action_82);
-    assign_to_dict(dict, "complete_game_action_83", log->complete_game_action_83);
-    assign_to_dict(dict, "complete_game_action_84", log->complete_game_action_84);
-    assign_to_dict(dict, "complete_game_action_85", log->complete_game_action_85);
-    assign_to_dict(dict, "complete_game_action_86", log->complete_game_action_86);
-    assign_to_dict(dict, "complete_game_action_87", log->complete_game_action_87);
-    assign_to_dict(dict, "complete_game_action_88", log->complete_game_action_88);
-    assign_to_dict(dict, "complete_game_action_89", log->complete_game_action_89);
-    assign_to_dict(dict, "complete_game_action_90", log->complete_game_action_90);
-    assign_to_dict(dict, "complete_game_action_91", log->complete_game_action_91);
-    assign_to_dict(dict, "complete_game_action_92", log->complete_game_action_92);
-    assign_to_dict(dict, "complete_game_action_93", log->complete_game_action_93);
-    assign_to_dict(dict, "complete_game_action_94", log->complete_game_action_94);
-    assign_to_dict(dict, "complete_game_action_95", log->complete_game_action_95);
-    assign_to_dict(dict, "complete_game_action_96", log->complete_game_action_96);
-    assign_to_dict(dict, "complete_game_action_97", log->complete_game_action_97);
-    assign_to_dict(dict, "complete_game_action_98", log->complete_game_action_98);
-    assign_to_dict(dict, "complete_game_action_99", log->complete_game_action_99);
+    // Note: complete_game_moves_serialized removed to comply with PufferLib float-only logging spec
 
+    // n field is always last per pufferlib spec
+    assign_to_dict(dict, "n", log->n);
     return 0;
 }
 
