@@ -414,8 +414,10 @@ extension_kwargs = dict(
 c_extensions = []
 if not NO_OCEAN:
     c_extension_paths = (
-        glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True) +
-        glob.glob('pufferlib/pufferlib/ocean/**/binding.cpp', recursive=True)
+        glob.glob('pufferlib/ocean/chess/binding.c', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/chess/binding.c', recursive=True) +
+        glob.glob('pufferlib/ocean/chess/binding.cpp', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/chess/binding.cpp', recursive=True)
     )
     
     # Filter out backup directories
@@ -426,7 +428,7 @@ if not NO_OCEAN:
         ext_name = os.path.splitext(path)[0].replace('/', '.')
 
         # Collect all C/C++ translation units in the same directory so
-        # symbols defined outside binding.cpp (e.g., enable_stockfish_black)
+        # symbols defined outside binding.c/cpp (e.g., enable_stockfish_black)
         # are linked into the shared object.
         extra_sources = []
         for pattern in ('*.cpp', '*.c'):
@@ -435,22 +437,30 @@ if not NO_OCEAN:
                 # re-defines every symbol from chess.h.  Including it in the
                 # Python extension causes duplicate-symbol link errors.
                 if 'chess.cpp' in p and '/chess/' in p.replace('\\', '/'):
-                    continue  # skip – binding.cpp already includes chess.h
+                    continue  # skip – binding.c already includes chess.h
                 # Skip chess_original.cpp as it also re-defines symbols from chess.h
                 if 'chess_original.cpp' in p and '/chess/' in p.replace('\\', '/'):
-                    continue  # skip – binding.cpp already includes chess.h
+                    continue  # skip – binding.c already includes chess.h
                 # Skip game_replay_tool.cpp as it's a standalone executable
                 if 'game_replay_tool.cpp' in p:
                     continue  # skip – standalone tool with main()
                 if p == path:
-                    continue  # never re-add binding.cpp itself
+                    continue  # never re-add binding.c/cpp itself
                 extra_sources.append(p)
 
+        # Determine language and flags based on binding file type
+        if path.endswith('.cpp'):
+            language = 'c++'
+            compile_flags = ['-std=c++17', '-x', 'c++']
+        else:  # .c files
+            language = 'c'
+            compile_flags = ['-std=c99']
+        
         c_ext = Extension(
             ext_name,
             sources=[path] + extra_sources,
-            language='c++',  # Force C++ to avoid missing vtables / symbols
-            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + ['-std=c++17', '-x', 'c++'],
+            language=language,
+            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + compile_flags,
             include_dirs=extension_kwargs.get('include_dirs', []),
             extra_link_args=extension_kwargs.get('extra_link_args', []),
             extra_objects=extension_kwargs.get('extra_objects', []),

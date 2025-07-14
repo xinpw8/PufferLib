@@ -867,12 +867,12 @@ class GPUDrive(nn.Module):
         return action, value
 
 class ChessRecurrent(nn.Module):
-    """Feed-forward encoder/decoder for chess observations and legal move mask."""
-    def __init__(self, env=None, hidden_size=256, num_actions=4674, **kwargs):
+    """Optimized MLP encoder/decoder for chess observations with UCI action space."""
+    def __init__(self, env=None, hidden_size=256, num_actions=1924, **kwargs):
         super().__init__()
-        # Board-only encoder: 21 channels × 8×8 = 1344 dims
+        # Simple MLP encoder for flattened chess board (much faster than CNN)
         self.board_encoder = nn.Sequential(
-            nn.Linear(1344, 512),
+            nn.Linear(1344, 512),  # 21 * 8 * 8 = 1344
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU()
@@ -882,7 +882,7 @@ class ChessRecurrent(nn.Module):
             nn.Linear(256, hidden_size),
             nn.ReLU()
         )
-        # Output heads
+        # Output heads for UCI action space
         self.policy_head = nn.Linear(hidden_size, num_actions)
         self.value_head = nn.Sequential(
             nn.Linear(hidden_size, 128),
@@ -896,16 +896,16 @@ class ChessRecurrent(nn.Module):
     def encode_observations(self, obs, state=None):
         # For LSTM compatibility, we only encode board features here
         # Mask will be handled in the LSTM wrapper's forward method
-        board_state = obs[:, :1344]
+        board_state = obs[:, :1344]  # 21 channels * 8 * 8 = 1344 (flattened)
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
         return hidden
 
     def get_action(self, obs, temperature=1.0):
-        """Get action with proper OpenSpiel-style legal action masking"""
+        """Get action with proper UCI-based legal action masking"""
         
         # 1. Get legal actions from the legal mask in observations
-        legal_mask = obs[:, 1344:6018]  # 4674 legal move mask
+        legal_mask = obs[:, 1344:3268]  # 1924 UCI legal move mask
         legal_actions = torch.where(legal_mask[0] > 0.5)[0]
         
         if len(legal_actions) == 0:
@@ -935,27 +935,12 @@ class ChessRecurrent(nn.Module):
         return action
 
     def decode_actions(self, hidden, legal_mask):
-        # Get raw logits
+        # Get raw logits for UCI actions
         raw_logits = self.policy_head(hidden)
         
-        # Check if the legal mask has any legal moves
-        batch_size = legal_mask.shape[0]
-        masked_logits = raw_logits.clone()
-        
-        # Apply hard masking: set illegal actions to -inf
-        for i in range(batch_size):
-            legal_actions = torch.where(legal_mask[i] > 0.5)[0]
-            if len(legal_actions) > 0:
-                # Normal case: legal moves available
-                action_mask = torch.zeros(self.action_size, device=legal_mask.device)
-                action_mask[legal_actions] = 1.0
-                # Apply mask
-                masked_logits[i, action_mask == 0] = float('-inf')
-            else:
-                # Empty legal mask case: This happens in dual-agent mode when it's not this agent's turn.
-                # In this case, the agent shouldn't act, so we set all actions to -inf.
-                # The training framework will ignore this agent's output anyway.
-                masked_logits[i, :] = float('-inf')
+        # Optimized vectorized masking: convert legal_mask (0/1) to -inf/0 mask
+        # Where legal_mask==0, we want -inf; where legal_mask==1, we want 0 (no change)
+        masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
         
         value = self.value_head(hidden).squeeze(-1)
         
@@ -965,9 +950,9 @@ class ChessRecurrent(nn.Module):
         # This forward is used during non-LSTM inference
         # Extract components
         board_state = obs[:, :1344]
-        legal_mask = obs[:, 1344:6018]
+        legal_mask = obs[:, 1344:3268]  # 1924 UCI actions
         
-        # Encode board
+        # Encode board with MLP
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
         

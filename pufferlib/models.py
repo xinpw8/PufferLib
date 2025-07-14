@@ -36,7 +36,7 @@ class Default(nn.Module):
         # Check if this is a chess environment by examining observation space
         try:
             obs_shape = env.single_observation_space.shape
-            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 6018)  # 1344 board + 4674 mask
+            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3268)  # 1344 board + 1924 mask
         except:
             self.is_chess = False
 
@@ -89,7 +89,7 @@ class Default(nn.Module):
         hidden = self.encode_observations(observations, state=state)
         if self.is_chess:
             # Extract legal mask and apply action masking
-            legal_mask = observations[:, 1344:6018]  # 4674 legal move mask
+            legal_mask = observations[:, 1344:3268]  # 1924 UCI legal move mask
             logits, values = self.decode_actions(hidden, legal_mask)
         else:
             logits, values = self.decode_actions(hidden)
@@ -217,8 +217,8 @@ class LSTMWrapper(nn.Module):
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)
         
         # Check if this is chess and extract legal mask from original observations
-        if len(self.obs_shape) == 1 and self.obs_shape[0] == 6018:  # Chess
-            legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:6018]  # (B·TT, 4674)
+        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3268:  # Chess
+            legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:3268]  # (B·TT, 1924)
             logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
         else:
             logits, values = self.policy.decode_actions(flat_hidden)
@@ -248,11 +248,20 @@ class LSTMWrapper(nn.Module):
         state['lstm_c'] = c
         
         # Check if this is chess and extract legal mask
-        if len(self.obs_shape) == 1 and self.obs_shape[0] == 6018:  # Chess
-            legal_mask = observations[:, 1344:6018]  # Legal move mask
+        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3268:  # Chess (1344 board + 1924 UCI actions)
+            legal_mask = observations[:, 1344:3268]  # Legal move mask
             logits, values = self.policy.decode_actions(hidden, legal_mask)
         else:
-            logits, values = self.policy.decode_actions(hidden)
+            # Debug: print actual obs_shape when check fails
+            print(f"DEBUG: obs_shape check failed. obs_shape={self.obs_shape}, len={len(self.obs_shape)}, obs_shape[0]={self.obs_shape[0] if len(self.obs_shape) > 0 else 'N/A'}")
+            print(f"DEBUG: Expected chess obs_shape=(3268,), got {self.obs_shape}")
+            # For ChessRecurrent, we always need legal mask - extract it
+            if hasattr(self.policy, 'action_size') and self.policy.action_size == 1924:
+                print("DEBUG: Detected ChessRecurrent policy, extracting legal mask")
+                legal_mask = observations[:, 1344:1344+1924]  # Extract legal mask
+                logits, values = self.policy.decode_actions(hidden, legal_mask)
+            else:
+                logits, values = self.policy.decode_actions(hidden)
         return logits, values
 
 
@@ -461,13 +470,13 @@ class ConvSequence(nn.Module):
 def policy_for(env, **kwargs):
     """Return an appropriate policy network for `env`.
 
-    For chess (obs size 6018) we create a ChessRecurrent wrapped with the
+    For chess (obs size 3268) we create a ChessRecurrent wrapped with the
     generic LSTMWrapper. For everything else we fall back to the historical
     Default model so existing non-chess code paths keep working.
     """
     try:
         obs_shape = env.single_observation_space.shape
-        is_chess = (len(obs_shape) == 1 and obs_shape[0] == 6018)
+        is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3268)
     except Exception:
         is_chess = False
 

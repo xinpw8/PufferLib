@@ -31,7 +31,7 @@ class Chess(pufferlib.PufferEnv):
                  stockfish_search_ms=10,
                  stockfish_hash_mb: int = 4,
                  full_game_logging_frequency=5000000,
-                 buf=None, seed=0, self_play=False):
+                 buf=None, seed=0, self_play=True):
         
         self.num_envs = num_envs
         self.render_mode = render_mode
@@ -52,9 +52,9 @@ class Chess(pufferlib.PufferEnv):
         self.full_game_logging_frequency = full_game_logging_frequency
         
         # observations: 21 channels of 8x8 = 8*8*21 = 1344
-        self.num_obs = 8*8*21 + 4674 # legal move mask
-        # actions: 4674 following openspiel encoding
-        self.num_actions = 4674
+        self.num_obs = 8*8*21 + 1924 # legal move mask
+        # actions: 1924 UCI-based encoding
+        self.num_actions = 1924
         
         # Single agent observation and action spaces (PufferLib will create multi-agent versions)
         self.single_observation_space = gymnasium.spaces.Box(
@@ -112,7 +112,7 @@ class Chess(pufferlib.PufferEnv):
     
     def _action_to_algebraic(self, action_id):
         """Convert action ID to algebraic notation - simplified for logging."""
-        if action_id < 0 or action_id >= 4674:
+        if action_id < 0 or action_id >= 1924:
             return None
             
         # Pass move
@@ -290,19 +290,20 @@ class Chess(pufferlib.PufferEnv):
         """
         # Actions are already in the correct format from PufferLib
         self.actions[:] = actions
+        print(f"actions from chess.py: {actions}")
         
         # Step the C++ environments
         binding.vec_step(self.c_envs)
         self.tick += 1
-        
+        print(f"tick from chess.py: {self.tick}")
         # Always get info to track moves
         info_dict = binding.vec_log(self.c_envs)
-        
+        print(f"info_dict from chess.py: {info_dict}")
         # Track moves if we have info
         if info_dict:
             self._track_move_from_info(info_dict)
             
-            # Check for game end (keeping this for any other logic that might depend on it)
+            # Check for game end (for game logging)
             if self.tracking_game:
                 game_won = info_dict.get('game_won', 0)
                 game_lost = info_dict.get('game_lost', 0)

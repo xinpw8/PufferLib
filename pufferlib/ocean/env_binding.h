@@ -561,6 +561,20 @@ static int assign_to_dict(PyObject* dict, char* key, float value) {
     return 0;
 }
 
+static int assign_to_dict(PyObject* dict, char* key, const char* value) {
+    PyObject* v = PyUnicode_FromString(value);
+    if (v == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Failed to convert string value");
+        return 1;
+    }
+    if(PyDict_SetItemString(dict, key, v) < 0) {
+        PyErr_SetString(PyExc_TypeError, "Failed to set string value");
+        return 1;
+    }
+    Py_DECREF(v);
+    return 0;
+}
+
 static PyObject* vec_log(PyObject* self, PyObject* args) {
     VecEnv* vec = unpack_vecenv(args);
     if (!vec) {
@@ -657,10 +671,6 @@ static PyMethodDef methods[] = {
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
     {"shared", (PyCFunction)my_shared, METH_VARARGS | METH_KEYWORDS, "Shared state"},
-    {"env_set_self_play", env_set_self_play, METH_VARARGS, "Enable self-play mode"},
-    {"vec_set_self_play", vec_set_self_play, METH_VARARGS, "Enable self-play mode on every env in a VecEnv"},
-    {"env_set_fen", env_set_fen, METH_VARARGS, "Load a FEN into a single env"},
-    {"vec_set_fen", vec_set_fen, METH_VARARGS, "Load a FEN into every env in a VecEnv"},
     MY_METHODS,
     {NULL, NULL, 0, NULL}
 };

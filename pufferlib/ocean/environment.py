@@ -117,8 +117,8 @@ def make_multiagent(buf=None, **kwargs):
     return pufferlib.emulation.PettingZooPufferEnv(env=env, buf=buf)
 
 def make_chess_selfplay(num_envs=1024, device='cuda', **kwargs):
-    """Create a chess self-play environment where white and black have
-    *independent* networks.  Returns `(env, white_policy, black_policy)`."""
+    """Create a chess self-play environment where white and black share
+    a single network with perspective flipping. Returns `(env, shared_policy)`."""
 
     from pufferlib.ocean.chess.chess import Chess
     from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
@@ -126,19 +126,15 @@ def make_chess_selfplay(num_envs=1024, device='cuda', **kwargs):
 
     base_env = Chess(num_envs=num_envs, **kwargs)
 
-    # White network
-    white_core = ChessRecurrent(base_env)
-    white_policy = Recurrent(base_env, white_core, input_size=256, hidden_size=256).to(device)
+    # Single shared network for both white and black with perspective flipping
+    shared_core = ChessRecurrent(base_env, num_actions=1924)  # Updated action space
+    shared_policy = Recurrent(base_env, shared_core, input_size=256, hidden_size=256).to(device)
 
-    # Black network – separate parameters
-    black_core = ChessRecurrent(base_env)
-    black_policy = Recurrent(base_env, black_core, input_size=256, hidden_size=256).to(device)
+    # Use same policy for both colors - perspective flipping handled in environment
+    env = ChessSelfPlayWrapper(base_env, shared_policy, shared_policy, device=device)
 
-    env = ChessSelfPlayWrapper(base_env, white_policy, black_policy, device=device)
-
-    # For backward-compatibility keep original two-value return when callers
-    # use unpacking with only two variables.
-    return env, white_policy, black_policy
+    # Return single shared policy (backward compatibility: return tuple)
+    return env, shared_policy, shared_policy
 
 MAKE_FUNCTIONS = {
     'chess': 'Chess',
