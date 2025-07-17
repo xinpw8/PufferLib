@@ -80,15 +80,30 @@ if [ "$ENV" = "chess" ]; then
     echo "Attempting to compile with raylib support:"
 
     if [ -d "$ROOT_DIR/$RAYLIB_NAME" ]; then
-        clang++ -std=c++17 -g -O2 -o chess \
+        # Compile C file separately as C
+        clang -g -O2 -c \
+            -I"$SRC_DIR" \
+            "$SRC_DIR/chess_action_mapping.c" \
+            -o /tmp/chess_action_mapping.o \
+            -DPLATFORM_DESKTOP
+        
+        # Compile C++ file and link with C object
+        clang++ -g -O2 -o chess \
             -I"$ROOT_DIR/$RAYLIB_NAME/include" \
             -I"$ROOT_DIR/pufferlib/extensions" \
             -I"$ROOT_DIR/pufferlib/pufferlib/extensions" \
-            -I"$SRC_DIR/include" \
+            -I"$SRC_DIR" \
             "$SRC_DIR/chess.cpp" \
+            /tmp/chess_action_mapping.o \
             "$ROOT_DIR/$RAYLIB_NAME/lib/libraylib.a" \
             -lm -lpthread -ldl -lrt -lX11 \
             -DPLATFORM_DESKTOP
+
+        # Check if the compilation was successful
+        if [ $? -ne 0 ]; then
+            echo "Compilation failed."
+            exit 1
+        fi
 
         echo "Binary built: chess (with raylib graphics)"
     else

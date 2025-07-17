@@ -33,17 +33,16 @@ class Chess(pufferlib.PufferEnv):
                  full_game_logging_frequency=5000000,
                  buf=None, seed=0, self_play=True):
         
+        print(f"[Chess DEBUG] Chess.__init__ called with self_play={self_play}")
+        
         self.num_envs = num_envs
         self.render_mode = render_mode
         self.log_interval = log_interval
         self.tick = 0
         self.self_play = self_play
-        
-        # Set number of agents based on mode
-        if self_play:
-            self.num_agents = 2 * num_envs  # White and black agents for each game
-        else:
-            self.num_agents = num_envs  # Single agent vs Stockfish
+        # In self-play mode, each environment has 2 agents (white and black)
+        # In single-agent mode, each environment has 1 agent
+        self.num_agents = num_envs * 2 if self_play else num_envs
         
         # Game logging
         self.game_moves = []
@@ -52,9 +51,9 @@ class Chess(pufferlib.PufferEnv):
         self.full_game_logging_frequency = full_game_logging_frequency
         
         # observations: 21 channels of 8x8 = 8*8*21 = 1344
-        self.num_obs = 8*8*21 + 1924 # legal move mask
-        # actions: 1924 UCI-based encoding
-        self.num_actions = 1924
+        self.num_obs = 8*8*21 + 1968 # legal move mask
+        # actions: 1968 UCI-based encoding
+        self.num_actions = 1968
         
         # Single agent observation and action spaces (PufferLib will create multi-agent versions)
         self.single_observation_space = gymnasium.spaces.Box(
@@ -177,8 +176,8 @@ class Chess(pufferlib.PufferEnv):
                 game_moves.append((action_id, move_notation))
         
         # Calculate global timesteps (environment steps * number of environments)
-        global_timesteps = self.tick * self.num_envs
-        last_logged_global = self.last_logged_step * self.num_envs
+        global_timesteps = self.tick * self.num_agents
+        last_logged_global = self.last_logged_step * self.num_agents
         global_steps_since_last = global_timesteps - last_logged_global
         
         # Save the first complete game that occurs after each logging interval (using global timesteps)
@@ -268,7 +267,7 @@ class Chess(pufferlib.PufferEnv):
     def set_fen(self, env_id: int, fen: str):
         binding.vec_set_fen(self.c_envs, fen)
     
-    def reset(self, *, seed=None, fen=None):
+    def reset(self, seed=None, fen=None):
         if fen is not None:
             self.set_fen(0, fen)
             self.tick = 0
@@ -290,28 +289,29 @@ class Chess(pufferlib.PufferEnv):
         """
         # Actions are already in the correct format from PufferLib
         self.actions[:] = actions
-        print(f"actions from chess.py: {actions}")
         
         # Step the C++ environments
         binding.vec_step(self.c_envs)
         self.tick += 1
-        print(f"tick from chess.py: {self.tick}")
+        
+        # Print debug info on first step to confirm training has started
+        if self.tick == 1:
+            print(f"[Chess] Training started! First step completed.")
+            print(f"[Chess] Environment: {self.num_envs} games, {self.num_agents} total agents")
+            # Print a sample of the observations to verify they're not all zeros
+            print(f"[Chess] Sample observations (first 10): {self.observations[0][:10]}")
+            print(f"[Chess] Observation sum (should be >0): {self.observations.sum()}")
+        
         # Always get info to track moves
         info_dict = binding.vec_log(self.c_envs)
-        print(f"info_dict from chess.py: {info_dict}")
-        # Track moves if we have info
-        if info_dict:
-            self._track_move_from_info(info_dict)
-            
-            # Check for game end (for game logging)
-            if self.tracking_game:
-                game_won = info_dict.get('game_won', 0)
-                game_lost = info_dict.get('game_lost', 0)
-                game_drawn = info_dict.get('game_drawn', 0)
-                
-                if game_won > 0 or game_lost > 0 or game_drawn > 0:
-                    # Game ended, stop tracking but don't save (complete game logging handles this)
-                    self.tracking_game = False
+        
+        # Print profiling data periodically (every 1000 steps)
+        if self.tick % 1000 == 0:
+            try:
+                binding.print_profile()
+                print(f"[Chess] Step {self.tick} - Profiling data printed above")
+            except Exception as e:
+                print(f"[Chess] Error printing profile: {e}")
         
         info = []
         if self.tick % self.log_interval == 0:
@@ -333,6 +333,14 @@ class Chess(pufferlib.PufferEnv):
     
     def close(self):
         binding.vec_close(self.c_envs)
+    
+    def print_profiling_data(self):
+        """Print C++ profiling data to console."""
+        try:
+            binding.print_profile()
+            print("[Chess] Profiling data printed above")
+        except Exception as e:
+            print(f"[Chess] Error accessing profiling data: {e}")
 
 
 def test_performance(timeout=10, num_envs=1000):

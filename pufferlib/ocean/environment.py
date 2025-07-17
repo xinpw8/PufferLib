@@ -186,6 +186,10 @@ def env_creator(name='squared', *args, **kwargs):
     name = name.replace('puffer_', '')
     try:
         module = importlib.import_module(f'pufferlib.ocean.{name}.{name}')
-        return getattr(module, MAKE_FUNCTIONS[name])
+        env_class = getattr(module, MAKE_FUNCTIONS[name])
+        print(f"[DEBUG] env_creator: creating {name} with args={args}, kwargs={kwargs}")
+        return env_class
     except ModuleNotFoundError:
-        return MAKE_FUNCTIONS[name]
+        env_class = MAKE_FUNCTIONS[name]
+        print(f"[DEBUG] env_creator: creating {name} from MAKE_FUNCTIONS with args={args}, kwargs={kwargs}")
+        return env_class

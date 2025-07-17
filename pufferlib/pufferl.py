@@ -943,6 +943,8 @@ def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=Fal
     # For chess, check if self_play is enabled in config
     if env_name == 'puffer_chess':
         config_self_play = args['env'].get('self_play', False)
+        print(f"[DEBUG] config_self_play = {config_self_play}")
+        print(f"[DEBUG] args['env'] = {args['env']}")
         
         if config_self_play:
             # Native dual-agent self-play - use environment directly like NMMO/MOBA
@@ -1308,6 +1310,7 @@ def load_env(env_name, args):
     module_name = 'pufferlib.ocean' if package == 'ocean' else f'pufferlib.environments.{package}'
     env_module = importlib.import_module(module_name)
     make_env = env_module.env_creator(env_name)
+    print(f"[DEBUG] load_env: env_kwargs = {args['env']}")
     return vector.make(make_env, env_kwargs=args['env'], **args['vec'])
 
 def load_policy(args, vecenv):

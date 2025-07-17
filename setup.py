@@ -441,6 +441,12 @@ if not NO_OCEAN:
                 # Skip chess_original.cpp as it also re-defines symbols from chess.h
                 if 'chess_original.cpp' in p and '/chess/' in p.replace('\\', '/'):
                     continue  # skip – binding.c already includes chess.h
+                # Skip the problematic c_plus_plus_chess_full_impl_not_updated.cpp
+                if 'c_plus_plus_chess_full_impl_not_updated.cpp' in p:
+                    continue  # skip – has missing dependencies
+                # Skip chess.c as it conflicts with chess.h included in binding.cpp
+                if 'chess.c' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.cpp already includes chess.h
                 # Skip game_replay_tool.cpp as it's a standalone executable
                 if 'game_replay_tool.cpp' in p:
                     continue  # skip – standalone tool with main()

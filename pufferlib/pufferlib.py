@@ -44,6 +44,7 @@ def set_buffers(env, buf=None):
 
 class PufferEnv:
     def __init__(self, buf=None):
+        print(f"[DEBUG] PufferEnv.__init__ called with buf={buf}")
         if not hasattr(self, 'single_observation_space'):
             raise APIUsageError(ENV_ERROR.format('single_observation_space'))
         if not hasattr(self, 'single_action_space'):

@@ -868,7 +868,7 @@ class GPUDrive(nn.Module):
 
 class ChessRecurrent(nn.Module):
     """Optimized MLP encoder/decoder for chess observations with UCI action space."""
-    def __init__(self, env=None, hidden_size=256, num_actions=1924, **kwargs):
+    def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
         super().__init__()
         # Simple MLP encoder for flattened chess board (much faster than CNN)
         self.board_encoder = nn.Sequential(
@@ -905,7 +905,7 @@ class ChessRecurrent(nn.Module):
         """Get action with proper UCI-based legal action masking"""
         
         # 1. Get legal actions from the legal mask in observations
-        legal_mask = obs[:, 1344:3268]  # 1924 UCI legal move mask
+        legal_mask = obs[:, 1344:3312]  # 1968 UCI legal move mask
         legal_actions = torch.where(legal_mask[0] > 0.5)[0]
         
         if len(legal_actions) == 0:
@@ -950,7 +950,7 @@ class ChessRecurrent(nn.Module):
         # This forward is used during non-LSTM inference
         # Extract components
         board_state = obs[:, :1344]
-        legal_mask = obs[:, 1344:3268]  # 1924 UCI actions
+        legal_mask = obs[:, 1344:3312]  # 1968 UCI actions
         
         # Encode board with MLP
         board_features = self.board_encoder(board_state)
@@ -1116,16 +1116,16 @@ class Drone(nn.Module):
 def Policy(env, **kwargs):
     """Factory returning the appropriate policy for the given environment.
 
-    If the observation matches the chess shape (6018,) we build a
+    If the observation matches the chess shape (3312,) we build a
     ChessRecurrent model and wrap it with the generic LSTMWrapper so that
     temporal batching works out of the box. Otherwise we fall back to the
     legacy Default policy so existing non-chess environments remain
     functional.
     """
-    # Chess: obs = 1344 board planes + 4674 legal-move mask
+    # Chess: obs = 1344 board planes + 1968 legal-move mask
     try:
         is_chess = (len(env.single_observation_space.shape) == 1 and
-                    env.single_observation_space.shape[0] == 6018)
+                    env.single_observation_space.shape[0] == 3312)
     except AttributeError:
         is_chess = False
 

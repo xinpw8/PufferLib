@@ -21,7 +21,7 @@ class Default(nn.Module):
     the recurrent cell into encode_observations and put everything after
     into decode_actions.
     '''
-    def __init__(self, env, hidden_size=128):
+    def __init__(self, env, hidden_size=256):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_multidiscrete = isinstance(env.single_action_space,
@@ -36,14 +36,14 @@ class Default(nn.Module):
         # Check if this is a chess environment by examining observation space
         try:
             obs_shape = env.single_observation_space.shape
-            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3268)  # 1344 board + 1924 mask
+            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3312)  # 1344 board + 1968 mask
         except:
             self.is_chess = False
 
         if self.is_chess:
             # Chess-specific architecture
             # Board features: 1344 dims (21 channels × 8×8)
-            # Legal mask: 4674 dims
+            # Legal mask: 1968 dims
             self.board_encoder = nn.Sequential(
                 nn.Linear(1344, 512),
                 nn.ReLU(),
@@ -67,9 +67,9 @@ class Default(nn.Module):
                     nn.Linear(hidden_size, sum(self.action_nvec)), std=0.01)
         elif not self.is_continuous:
             if self.is_chess:
-                # Chess has 4674 possible actions
+                # Chess has 1968 possible actions
                 self.decoder = pufferlib.pytorch.layer_init(
-                    nn.Linear(hidden_size, 4674), std=0.01)
+                    nn.Linear(hidden_size, 1968), std=0.01)
             else:
                 self.decoder = pufferlib.pytorch.layer_init(
                     nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
@@ -89,7 +89,7 @@ class Default(nn.Module):
         hidden = self.encode_observations(observations, state=state)
         if self.is_chess:
             # Extract legal mask and apply action masking
-            legal_mask = observations[:, 1344:3268]  # 1924 UCI legal move mask
+            legal_mask = observations[:, 1344:3312]  # 1968 UCI legal move mask
             logits, values = self.decode_actions(hidden, legal_mask)
         else:
             logits, values = self.decode_actions(hidden)
@@ -217,8 +217,8 @@ class LSTMWrapper(nn.Module):
         flat_hidden = hidden.reshape(B*TT, self.hidden_size)
         
         # Check if this is chess and extract legal mask from original observations
-        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3268:  # Chess
-            legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:3268]  # (B·TT, 1924)
+        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3312:  # Chess
+            legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:3312]  # (B·TT, 1968)
             logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
         else:
             logits, values = self.policy.decode_actions(flat_hidden)
@@ -248,17 +248,17 @@ class LSTMWrapper(nn.Module):
         state['lstm_c'] = c
         
         # Check if this is chess and extract legal mask
-        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3268:  # Chess (1344 board + 1924 UCI actions)
-            legal_mask = observations[:, 1344:3268]  # Legal move mask
+        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3312:  # Chess (1344 board + 1968 UCI actions)
+            legal_mask = observations[:, 1344:3312]  # Legal move mask
             logits, values = self.policy.decode_actions(hidden, legal_mask)
         else:
             # Debug: print actual obs_shape when check fails
             print(f"DEBUG: obs_shape check failed. obs_shape={self.obs_shape}, len={len(self.obs_shape)}, obs_shape[0]={self.obs_shape[0] if len(self.obs_shape) > 0 else 'N/A'}")
-            print(f"DEBUG: Expected chess obs_shape=(3268,), got {self.obs_shape}")
+            print(f"DEBUG: Expected chess obs_shape=(3312,), got {self.obs_shape}")
             # For ChessRecurrent, we always need legal mask - extract it
-            if hasattr(self.policy, 'action_size') and self.policy.action_size == 1924:
+            if hasattr(self.policy, 'action_size') and self.policy.action_size == 1968:
                 print("DEBUG: Detected ChessRecurrent policy, extracting legal mask")
-                legal_mask = observations[:, 1344:1344+1924]  # Extract legal mask
+                legal_mask = observations[:, 1344:1344+1968]  # Extract legal mask
                 logits, values = self.policy.decode_actions(hidden, legal_mask)
             else:
                 logits, values = self.policy.decode_actions(hidden)
@@ -476,7 +476,7 @@ def policy_for(env, **kwargs):
     """
     try:
         obs_shape = env.single_observation_space.shape
-        is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3268)
+        is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3312)
     except Exception:
         is_chess = False
 
