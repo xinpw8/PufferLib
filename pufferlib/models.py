@@ -148,121 +148,91 @@ class Default(nn.Module):
 
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128):
-        '''Wraps your policy with an LSTM without letting you shoot yourself in the
-        foot with bad transpose and shape operations. This saves much pain.
-        Requires that your policy define encode_observations and decode_actions.
-        See the Default policy for an example.'''
+        '''Wraps your policy with an LSTM.'''
         super().__init__()
         self.obs_shape = env.single_observation_space.shape
-
         self.policy = policy
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.is_continuous = self.policy.is_continuous
 
-        for name, param in self.named_parameters():
-            if 'layer_norm' in name:
-                continue
-            if "bias" in name:
-                nn.init.constant_(param, 0)
-            elif "weight" in name and param.ndim >= 2:
-                nn.init.orthogonal_(param, 1.0)
-
+        # LSTM layer for fast parallel training
         self.lstm = nn.LSTM(input_size, hidden_size)
 
-        self.cell = torch.nn.LSTMCell(input_size, hidden_size)
+        # LSTMCell for fast sequential evaluation (inference)
+        self.cell = nn.LSTMCell(input_size, hidden_size)
+
+        # Sync weights between the training and eval layers
         self.cell.weight_ih = self.lstm.weight_ih_l0
         self.cell.weight_hh = self.lstm.weight_hh_l0
         self.cell.bias_ih = self.lstm.bias_ih_l0
         self.cell.bias_hh = self.lstm.bias_hh_l0
 
-        #self.pre_layernorm = nn.LayerNorm(hidden_size)
-        #self.post_layernorm = nn.LayerNorm(hidden_size)
-
+        # Initialize weights
+        for name, param in self.named_parameters():
+            if 'bias' in name:
+                nn.init.constant_(param, 0)
+            elif 'weight' in name and 'layer_norm' not in name:
+                nn.init.orthogonal_(param, 1.0)
 
     def forward(self, observations, state):
-        '''Forward function for training. Uses LSTM for fast time-batching'''
-        x = observations
-        lstm_h = state['lstm_h']
-        lstm_c = state['lstm_c']
+        '''Forward function for training. Handles state as either tuple (h, c) or dictionary.'''
+        B, TT, *space_shape = observations.shape
 
-        x_shape, space_shape = x.shape, self.obs_shape
-        x_n, space_n = len(x_shape), len(space_shape)
-        if x_shape[-space_n:] != space_shape:
-            raise ValueError('Invalid input tensor shape', x.shape)
-
-        if x_n == space_n + 1:
-            B, TT = x_shape[0], 1
-        elif x_n == space_n + 2:
-            B, TT = x_shape[:2]
-        else:
-            raise ValueError('Invalid input tensor shape', x.shape)
-
-        if lstm_h is not None:
-            assert lstm_h.shape[1] == lstm_c.shape[1] == B, 'LSTM state must be (h, c)'
-            lstm_state = (lstm_h, lstm_c)
-        else:
-            lstm_state = None
-
-        x = x.reshape(B*TT, *space_shape)
-        hidden = self.policy.encode_observations(x, state)
-        assert hidden.shape == (B*TT, self.input_size)
-
-        hidden = hidden.reshape(B, TT, self.input_size)
-
-        hidden = hidden.transpose(0, 1)
-        hidden, (lstm_h, lstm_c) = self.lstm.forward(hidden, lstm_state)
-        hidden = hidden.transpose(0, 1)
-
-        flat_hidden = hidden.reshape(B*TT, self.hidden_size)
+        encoded_obs = self.policy.encode_observations(
+            observations.reshape(B * TT, *space_shape)
+        )
+        hidden = encoded_obs.reshape(B, TT, self.input_size).transpose(0, 1)
         
-        # Check if this is chess and extract legal mask from original observations
-        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3312:  # Chess
-            legal_mask = observations.reshape(B*TT, *space_shape)[:, 1344:3312]  # (B·TT, 1968)
-            logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
+        # Handle state as dictionary (from pufferl.py) or tuple
+        if isinstance(state, dict):
+            h = state.get('lstm_h')
+            c = state.get('lstm_c')
+            lstm_state = (h, c) if h is not None and c is not None else None
         else:
-            logits, values = self.policy.decode_actions(flat_hidden)
+            lstm_state = state
+            
+        hidden, (next_h, next_c) = self.lstm.forward(hidden, lstm_state)
         
+        flat_hidden = hidden.transpose(0, 1).reshape(B * TT, self.hidden_size)
+        
+        # Unconditional chess logic for training
+        legal_mask = observations.reshape(B * TT, *space_shape)[:, 1344:3312]
+        logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
+
         values = values.reshape(B, TT)
-        state['hidden'] = hidden
-        state['lstm_h'] = lstm_h.detach()
-        state['lstm_c'] = lstm_c.detach()
-        return logits, values
-
-    # Also modify forward_eval similarly:
-    def forward_eval(self, observations, state):
-        '''Forward function for inference. 3x faster than using LSTM directly'''
-        hidden = self.policy.encode_observations(observations, state=state)
-        h = state['lstm_h']
-        c = state['lstm_c']
-
-        if h is not None:
-            assert h.shape[0] == c.shape[0] == observations.shape[0], 'LSTM state must be (h, c)'
-            lstm_state = (h, c)
-        else:
-            lstm_state = None
-
-        hidden, c = self.cell(hidden, lstm_state)
-        state['hidden'] = hidden
-        state['lstm_h'] = hidden
-        state['lstm_c'] = c
         
-        # Check if this is chess and extract legal mask
-        if len(self.obs_shape) == 1 and self.obs_shape[0] == 3312:  # Chess (1344 board + 1968 UCI actions)
-            legal_mask = observations[:, 1344:3312]  # Legal move mask
-            logits, values = self.policy.decode_actions(hidden, legal_mask)
+        # Return only logits and values for training (when lstm_state is None)
+        # Return state tuple only when actually using RNN state
+        if lstm_state is None:
+            return logits, values
         else:
-            # Debug: print actual obs_shape when check fails
-            print(f"DEBUG: obs_shape check failed. obs_shape={self.obs_shape}, len={len(self.obs_shape)}, obs_shape[0]={self.obs_shape[0] if len(self.obs_shape) > 0 else 'N/A'}")
-            print(f"DEBUG: Expected chess obs_shape=(3312,), got {self.obs_shape}")
-            # For ChessRecurrent, we always need legal mask - extract it
-            if hasattr(self.policy, 'action_size') and self.policy.action_size == 1968:
-                print("DEBUG: Detected ChessRecurrent policy, extracting legal mask")
-                legal_mask = observations[:, 1344:1344+1968]  # Extract legal mask
-                logits, values = self.policy.decode_actions(hidden, legal_mask)
-            else:
-                logits, values = self.policy.decode_actions(hidden)
+            return logits, values, (next_h.detach(), next_c.detach())
+
+    def forward_eval(self, observations, state):
+        '''Forward function for inference. Assumes state is a dictionary.'''
+        hidden = self.policy.encode_observations(observations)
+        
+        # --- THIS IS THE FIX ---
+        # Correctly get LSTM state from the state DICTIONARY
+        h = state.get('lstm_h')
+        c = state.get('lstm_c')
+        
+        # PufferLib initializes state with zero tensors, so h and c should not be None
+        # after the first step.
+        lstm_state = (h, c)
+
+        next_h, next_c = self.cell(hidden, lstm_state)
+
+        # Unconditional chess logic for evaluation
+        legal_mask = observations[:, 1344:3312]
+        logits, values = self.policy.decode_actions(next_h, legal_mask)
+        
+        # Update the state dictionary in-place for the next evaluation step
+        state['lstm_h'] = next_h
+        state['lstm_c'] = next_c
+
         return logits, values
+
 
 
     # def forward_eval(self, observations, state):
@@ -466,24 +436,14 @@ class ConvSequence(nn.Module):
 #   pufferlib.models.policy_for(env)
 # without caring which concrete implementation is used.
 
-
 def policy_for(env, **kwargs):
-    """Return an appropriate policy network for `env`.
-
-    For chess (obs size 3268) we create a ChessRecurrent wrapped with the
-    generic LSTMWrapper. For everything else we fall back to the historical
-    Default model so existing non-chess code paths keep working.
     """
-    try:
-        obs_shape = env.single_observation_space.shape
-        is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3312)
-    except Exception:
-        is_chess = False
+    Policy factory, now hardcoded to always return the ChessRecurrent policy
+    wrapped in an LSTMWrapper for your use case.
+    """
+    from pufferlib.ocean.torch import ChessRecurrent
 
-    if is_chess:
-        from pufferlib.ocean.torch import ChessRecurrent
-        hidden = kwargs.pop('hidden_size', 256)
-        base = ChessRecurrent(env, hidden_size=hidden)
-        return LSTMWrapper(env, base, input_size=hidden, hidden_size=hidden)
-    else:
-        return Default(env, **kwargs)
+    hidden = kwargs.pop('hidden_size', 256)
+    base = ChessRecurrent(env, hidden_size=hidden)
+    # The LSTMWrapper now requires input_size for the hidden state from the base policy
+    return LSTMWrapper(env, base, input_size=hidden, hidden_size=hidden)

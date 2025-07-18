@@ -866,10 +866,142 @@ class GPUDrive(nn.Module):
         value = self.value_fn(flat_hidden)
         return action, value
 
+# class ChessLSTM(Recurrent):
+#     def __init__(self, env, policy, input_size, hidden_size):
+#         super().__init__(env, policy, input_size, hidden_size)
+
+# class ChessRecurrent(nn.Module):
+#     """Optimized MLP encoder/decoder for chess observations with UCI action space."""
+#     def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
+#         super().__init__()
+#         # Simple MLP encoder for flattened chess board (much faster than CNN)
+#         self.board_encoder = nn.Sequential(
+#             nn.Linear(1344, 512),  # 21 * 8 * 8 = 1344
+#             nn.ReLU(),
+#             nn.Linear(512, 256),
+#             nn.ReLU()
+#         )
+#         # Combiner projects board_features to hidden state
+#         self.combiner = nn.Sequential(
+#             nn.Linear(256, hidden_size),
+#             nn.ReLU()
+#         )
+#         # Output heads for UCI action space
+#         self.policy_head = nn.Linear(hidden_size, num_actions)
+#         self.value_head = nn.Sequential(
+#             nn.Linear(hidden_size, 128),
+#             nn.ReLU(),
+#             nn.Linear(128, 1)
+#         )
+#         self.is_continuous = False
+#         self.is_multidiscrete = False
+#         self.action_size = num_actions
+
+#     def encode_observations(self, obs, state=None):
+#         # For LSTM compatibility, we only encode board features here
+#         # Mask will be handled in the LSTM wrapper's forward method
+#         board_state = obs[:, :1344]  # 21 channels * 8 * 8 = 1344 (flattened)
+#         board_features = self.board_encoder(board_state)
+#         hidden = self.combiner(board_features)
+#         return hidden
+
+#     def get_action(self, obs, temperature=1.0):
+#         """Get action with proper UCI-based legal action masking"""
+        
+#         # 1. Get legal actions from the legal mask in observations
+#         legal_mask = obs[:, 1344:3312]  # 1968 UCI legal move mask
+#         legal_actions = torch.where(legal_mask[0] > 0.5)[0]
+        
+#         if len(legal_actions) == 0:
+#             # No legal moves - should not happen in normal chess
+#             print("WARNING: No legal actions available!")
+#             return 0
+        
+#         # 2. Create action mask (CRITICAL!)
+#         action_mask = torch.zeros(self.action_size, device=obs.device)
+#         action_mask[legal_actions] = 1.0
+        
+#         # 3. Get network output (logits)
+#         board_state = obs[:, :1344]
+#         board_features = self.board_encoder(board_state)
+#         hidden = self.combiner(board_features)
+#         logits = self.policy_head(hidden)
+        
+#         # 4. Apply mask to PREVENT illegal actions
+#         # Method 1: Set illegal action logits to -infinity
+#         masked_logits = logits.clone()
+#         masked_logits[0, action_mask == 0] = float('-inf')
+        
+#         # 5. Sample action (now guaranteed to be legal)
+#         probs = F.softmax(masked_logits / temperature, dim=-1)
+#         action = torch.multinomial(probs, 1).item()
+        
+#         return action
+
+#     # File: pufferlib/ocean/torch.py
+#     # Inside the ChessRecurrent class
+
+#     def decode_actions(self, hidden, legal_mask):
+#         # Get raw logits for UCI actions
+#         raw_logits = self.policy_head(hidden)
+#         print(f"[POLICY DIAGNOSTIC] decode_actions called.")
+
+#         # --- START OF NEW DIAGNOSTIC ---
+#         # Add a check that only runs once to avoid spamming the log
+#         if not hasattr(self, '_mask_printed'):
+#             num_legal_moves = torch.sum(legal_mask).item()
+#             print(f"[POLICY DIAGNOSTIC] decode_actions received legal_mask.")
+#             print(f"[POLICY DIAGNOSTIC] Mask shape: {legal_mask.shape}, Num legal moves in mask: {num_legal_moves}")
+#             # Print a small sample of the mask
+#             print(f"[POLICY DIAGNOSTIC] Mask sample (first 10): {legal_mask[0, :10]}")
+#             self._mask_printed = True
+#         # --- END OF NEW DIAGNOSTIC ---
+
+#         # Optimized vectorized masking
+#         masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
+
+#         value = self.value_head(hidden).squeeze(-1)
+
+#         return masked_logits, value
+
+#     # def decode_actions(self, hidden, legal_mask):
+#     #     # Get raw logits for UCI actions
+#     #     raw_logits = self.policy_head(hidden)
+        
+#     #     # Optimized vectorized masking: convert legal_mask (0/1) to -inf/0 mask
+#     #     # Where legal_mask==0, we want -inf; where legal_mask==1, we want 0 (no change)
+#     #     masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
+        
+#     #     value = self.value_head(hidden).squeeze(-1)
+        
+#     #     return masked_logits, value
+
+#     def forward(self, obs, state=None):
+#         # This forward is used during non-LSTM inference
+#         # Extract components
+#         board_state = obs[:, :1344]
+#         legal_mask = obs[:, 1344:3312]  # 1968 UCI actions
+        
+#         # Encode board with MLP
+#         board_features = self.board_encoder(board_state)
+#         hidden = self.combiner(board_features)
+        
+#         # Decode with proper masking
+#         logits, value = self.decode_actions(hidden, legal_mask)
+
+#         return logits, value
+
+
+class ChessLSTM(Recurrent):
+    def __init__(self, env, policy, input_size, hidden_size):
+        super().__init__(env, policy, input_size, hidden_size)
+
 class ChessRecurrent(nn.Module):
     """Optimized MLP encoder/decoder for chess observations with UCI action space."""
     def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
         super().__init__()
+        # self.is_chess attribute is no longer needed
+        
         # Simple MLP encoder for flattened chess board (much faster than CNN)
         self.board_encoder = nn.Sequential(
             nn.Linear(1344, 512),  # 21 * 8 * 8 = 1344
@@ -895,68 +1027,27 @@ class ChessRecurrent(nn.Module):
 
     def encode_observations(self, obs, state=None):
         # For LSTM compatibility, we only encode board features here
-        # Mask will be handled in the LSTM wrapper's forward method
-        board_state = obs[:, :1344]  # 21 channels * 8 * 8 = 1344 (flattened)
+        board_state = obs[:, :1344].float()
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
         return hidden
-
-    def get_action(self, obs, temperature=1.0):
-        """Get action with proper UCI-based legal action masking"""
-        
-        # 1. Get legal actions from the legal mask in observations
-        legal_mask = obs[:, 1344:3312]  # 1968 UCI legal move mask
-        legal_actions = torch.where(legal_mask[0] > 0.5)[0]
-        
-        if len(legal_actions) == 0:
-            # No legal moves - should not happen in normal chess
-            print("WARNING: No legal actions available!")
-            return 0
-        
-        # 2. Create action mask (CRITICAL!)
-        action_mask = torch.zeros(self.action_size, device=obs.device)
-        action_mask[legal_actions] = 1.0
-        
-        # 3. Get network output (logits)
-        board_state = obs[:, :1344]
-        board_features = self.board_encoder(board_state)
-        hidden = self.combiner(board_features)
-        logits = self.policy_head(hidden)
-        
-        # 4. Apply mask to PREVENT illegal actions
-        # Method 1: Set illegal action logits to -infinity
-        masked_logits = logits.clone()
-        masked_logits[0, action_mask == 0] = float('-inf')
-        
-        # 5. Sample action (now guaranteed to be legal)
-        probs = F.softmax(masked_logits / temperature, dim=-1)
-        action = torch.multinomial(probs, 1).item()
-        
-        return action
 
     def decode_actions(self, hidden, legal_mask):
         # Get raw logits for UCI actions
         raw_logits = self.policy_head(hidden)
         
-        # Optimized vectorized masking: convert legal_mask (0/1) to -inf/0 mask
-        # Where legal_mask==0, we want -inf; where legal_mask==1, we want 0 (no change)
+        # Optimized vectorized masking is applied here
         masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
-        
         value = self.value_head(hidden).squeeze(-1)
         
         return masked_logits, value
 
     def forward(self, obs, state=None):
-        # This forward is used during non-LSTM inference
-        # Extract components
+        # Non-LSTM inference path
         board_state = obs[:, :1344]
-        legal_mask = obs[:, 1344:3312]  # 1968 UCI actions
+        legal_mask = obs[:, 1344:3312]
         
-        # Encode board with MLP
-        board_features = self.board_encoder(board_state)
-        hidden = self.combiner(board_features)
-        
-        # Decode with proper masking
+        hidden = self.encode_observations(board_state)
         logits, value = self.decode_actions(hidden, legal_mask)
 
         return logits, value

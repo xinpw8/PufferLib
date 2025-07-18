@@ -110,7 +110,7 @@ def make_spaces(buf=None, **kwargs):
     env = pufferlib.EpisodeStats(env)
     return pufferlib.emulation.GymnasiumPufferEnv(env=env, buf=buf, **kwargs)
 
-def make_multiagent(buf=None, **kwargs):
+def make_multiagent(buf=None, **kwargs) -> pufferlib.emulation.PettingZooPufferEnv:
     from . import sanity
     env = sanity.Multiagent()
     env = pufferlib.MultiagentEpisodeStats(env)
@@ -136,8 +136,23 @@ def make_chess_selfplay(num_envs=1024, device='cuda', **kwargs):
     # Return single shared policy (backward compatibility: return tuple)
     return env, shared_policy, shared_policy
 
+# CPettingZooChess class removed - replaced with proper AECEnv implementation in aec_chess.py
+
+def make_pettingzoo_chess(buf=None, seed=None, **kwargs):
+    """Create a high-performance PettingZoo-based chess environment for proper turn-based self-play."""
+    from pufferlib.ocean.chess.fast_pettingzoo_chess import FastPettingZooChess
+    
+    # Remove seed from kwargs to avoid conflict with positional argument
+    kwargs.pop('seed', None)
+    
+    # Create fast chess environment - no wrapper needed since it's already PufferLib compatible
+    env = FastPettingZooChess(seed=seed, buf=buf, **kwargs)
+    
+    return env
+
 MAKE_FUNCTIONS = {
     'chess': 'Chess',
+    'pettingzoo_chess': 'make_pettingzoo_chess',
     'breakout': 'Breakout',
     'blastar': 'Blastar',
     'convert': 'Convert',
@@ -190,6 +205,13 @@ def env_creator(name='squared', *args, **kwargs):
         print(f"[DEBUG] env_creator: creating {name} with args={args}, kwargs={kwargs}")
         return env_class
     except ModuleNotFoundError:
-        env_class = MAKE_FUNCTIONS[name]
+        env_class_name = MAKE_FUNCTIONS[name]
         print(f"[DEBUG] env_creator: creating {name} from MAKE_FUNCTIONS with args={args}, kwargs={kwargs}")
+        # If it's a string, get the actual function from current module
+        if isinstance(env_class_name, str):
+            import sys
+            current_module = sys.modules[__name__]
+            env_class = getattr(current_module, env_class_name)
+        else:
+            env_class = env_class_name
         return env_class

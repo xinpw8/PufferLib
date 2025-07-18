@@ -923,188 +923,206 @@ void render_chess_board(CChess *env, ChessPieceTextures *textures) {
                      BOARD_SIZE + 4, RL_BLACK);
 }
 
-int main() {
-  printf("PufferLib Chess Evaluation – GUI Menu Version\n");
-  srand(time(NULL));
+// int main() {
+//   printf("PufferLib Chess Evaluation – GUI Menu Version\n");
+//   srand(time(NULL));
 
-#if PUFFER_REPLAY_ENABLED
-  global_game_logger =
-      new GameLogger("pufferlib/resources/chess/training_logs/complete_games");
-#endif
-
-  const char *weights_path = "resources/chess/puffer_chess_weights.bin";
-  Weights *weights = load_weights(weights_path, CHESS_NUM_WEIGHTS);
-  if (!weights) {
-    fprintf(stderr, "ERROR: Could not load weights\n");
-    return 1;
-  }
-  ChessNet *agent_net = init_chessnet(weights, 2);
-
-  InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "PufferLib Chess – Menu");
-  SetTargetFPS(60);
-  ChessPieceTextures textures = load_piece_textures();
-
-  CChess env = {0};
-  global_env_ptr = &env;
-  int elo_setting = 1320;
-  bool in_menu = true;
-  int menu_index = 0;
-  GameMode game_mode = GM_PLAYER_STOCKFISH;
-
-  while (!WindowShouldClose()) {
-    BeginDrawing();
-    if (in_menu) {
-      ClearBackground(RL_RAYWHITE);
-      DrawText("PufferLib Chess", 50, 20, 32, RL_BLACK);
-      for (int i = 0; i < GM_COUNT; ++i) {
-        ::Color col = (i == menu_index) ? RL_RED : RL_BLACK;
-#if !PUFFER_REPLAY_ENABLED
-        if (i == GM_GAME_REPLAY)
-          col = RL_DARKGRAY;
-#endif
-        DrawText(GAME_MODE_NAMES[i], 80, 120 + i * 30, 20, col);
-      }
-      if (IsKeyPressed(KEY_UP))
-        menu_index = (menu_index + GM_COUNT - 1) % GM_COUNT;
-      if (IsKeyPressed(KEY_DOWN))
-        menu_index = (menu_index + 1) % GM_COUNT;
-      if (IsKeyPressed(KEY_ENTER)) {
-        game_mode = static_cast<GameMode>(menu_index);
-#if !PUFFER_REPLAY_ENABLED
-        if (game_mode == GM_GAME_REPLAY)
-          continue;
-#endif
-        game_moves.clear();
-        in_menu = false;
-
-        env.max_depth = 500;
-        allocate(&env);
-        set_dual_agent_self_play_mode(&env, game_mode == GM_AGENT_AGENT);
-        c_reset(&env);
-
-        if (game_mode == GM_GAME_REPLAY) {
-          load_available_games();
-          show_game_list = true;
-        }
-      }
-    } else if (show_game_list) {
-      render_game_list_screen();
-      handle_game_list_input();
-      if (!show_game_list && !replay_mode_active)
-        in_menu = true;
-    } else if (replay_mode_active) {
-      render_game_replay_screen(&env, &textures);
-      handle_game_replay_input();
-      if (!replay_mode_active)
-        show_game_list = true;
-    } else {
-      // Gameplay loop
-      if (IsKeyPressed(KEY_M)) {
-        in_menu = true;
-        free_allocated(&env);
-        continue;
-      }
-      if (IsKeyPressed(KEY_R)) {
-        game_moves.clear();
-        c_reset(&env);
-      }
-
-      auto *ctx = env.ctx;
-      bool is_human_turn =
-          (game_mode == GM_PLAYER_STOCKFISH || game_mode == GM_PLAYER_RANDOM) &&
-          ctx->board.to_move == C_WHITE;
-
-      if (!game_paused && !env.terminals[0] && !is_human_turn) {
-        compute_observation_with_perspective(&env, ctx);
-        int action = 0;
-        int agent_idx = (ctx->board.to_move == C_WHITE) ? 0 : 1;
-
-        if (game_mode == GM_AGENT_AGENT ||
-            (game_mode == GM_AGENT_STOCKFISH &&
-             ctx->board.to_move == C_WHITE) ||
-            (game_mode == GM_RANDOM_AGENT && ctx->board.to_move == C_BLACK)) {
-          action = agent_select_action(agent_net, &env, agent_idx);
-        } else if (game_mode == GM_PLAYER_STOCKFISH) {
-          // Stockfish moves handled by c_step
-        } else {
-          action = random_select_action(&env);
-        }
-
-        env.actions[agent_idx] = action;
-        c_step(&env);
-        check_and_update_game_outcome(&env, game_mode);
-      }
-
-      if (is_human_turn && !env.terminals[0]) {
-        // Handle promotion selection if dialog is active
-        if (show_promotion_selection) {
-          handle_promotion_selection();
-        } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-          static int sel_fx = -1, sel_fy = -1;
-          Vector2 mp = GetMousePosition();
-          int bx = (mp.x - BOARD_OFFSET_X) / SQUARE_SIZE;
-          int screen_rank = ((mp.y - BOARD_OFFSET_Y) / SQUARE_SIZE);
-          int by = 7 - screen_rank;
-          printf("[DEBUG] Mouse pos: (%.1f, %.1f), bx=%d, screen_rank=%d, by=%d\n", 
-                 mp.x, mp.y, bx, screen_rank, by);
-          if (bx >= 0 && bx < 8 && by >= 0 && by < 8) {
-            if (sel_fx == -1) {
-              const Piece *p = get_piece_const(&ctx->board, bx, by);
-              if (p && p->type != EMPTY && p->color == C_WHITE) {
-                sel_fx = bx;
-                sel_fy = by;
-              }
-            } else {
-              printf("[DEBUG] Mouse click: checking move from (%d,%d) to (%d,%d)\n", sel_fx, sel_fy, bx, by);
-              if (is_promotion_move(&env, sel_fx, sel_fy, bx, by)) {
-                printf("[DEBUG] Mouse click: PROMOTION MOVE DETECTED - setting show_promotion_selection=true\n");
-                show_promotion_selection = true;
-                promotion_from_x = sel_fx;
-                promotion_from_y = sel_fy;
-                promotion_to_x = bx;
-                promotion_to_y = by;
-              } else {
-                printf("[DEBUG] Mouse click: REGULAR MOVE - processing normally\n");
-                UIMove move = {{(int8_t)sel_fx, (int8_t)sel_fy},
-                               {(int8_t)bx, (int8_t)by},
-                               EMPTY};
-                std::string uci = uimove_to_uci(move);
-                int action_id = uci_to_action_id(uci.c_str());
-                printf("[DEBUG] Mouse click: sel_fx=%d, sel_fy=%d, bx=%d, by=%d\n", sel_fx, sel_fy, bx, by);
-                printf("[DEBUG] UCI='%s' -> action_id=%d\n", uci.c_str(), action_id);
-                env.actions[0] = action_id;
-                c_step(&env);
-                check_and_update_game_outcome(&env, game_mode);
-              }
-              sel_fx = -1;
-              sel_fy = -1;
-            }
-          }
-        }
-      }
-
-      ClearBackground(RL_RAYWHITE);
-      render_chess_board(&env, &textures);
-      
-      // Render promotion selection dialog if active
-      if (show_promotion_selection) {
-        render_promotion_selection();
-      }
-    }
-    EndDrawing();
-  }
-
-#if PUFFER_REPLAY_ENABLED
-  delete global_game_logger;
-#endif
-  
-  // Close Raylib window first, which will automatically cleanup textures
-  CloseWindow();
-  
-  // Skip manual memory cleanup - let the OS handle it on process exit
-  // Manual cleanup can cause double-free issues with shared references
-  return 0;
-}
+// #if PUFFER_REPLAY_ENABLED
+//   global_game_logger =
+//       new GameLogger("pufferlib/resources/chess/training_logs/complete_games");
+// #endif
+// 
+//   const char *weights_path = "resources/chess/puffer_chess_weights.bin";
+//   Weights *weights = NULL;
+//   
+//   // Try to load weights, but continue with zero weights if file doesn't exist
+//   FILE *weight_file = fopen(weights_path, "rb");
+//   if (weight_file) {
+//     fclose(weight_file);
+//     weights = load_weights(weights_path, CHESS_NUM_WEIGHTS);
+//     if (!weights) {
+//       fprintf(stderr, "ERROR: Could not load weights from %s\n", weights_path);
+//       return 1;
+//     }
+//     printf("Loaded pre-trained weights from %s\n", weights_path);
+//   } else {
+//     printf("No pre-trained weights found at %s, initializing with zero weights\n", weights_path);
+//     weights = (Weights*)calloc(1, sizeof(Weights) + CHESS_NUM_WEIGHTS*sizeof(float));
+//     weights->data = (float*)(weights + 1);
+//     weights->size = CHESS_NUM_WEIGHTS;
+//     weights->idx = 0;
+//     // Initialize with small random values for better training
+//     for (int i = 0; i < CHESS_NUM_WEIGHTS; i++) {
+//       weights->data[i] = ((float)rand() / RAND_MAX - 0.5f) * 0.02f;
+//     }
+//   }
+//   ChessNet *agent_net = init_chessnet(weights, 2);
+// 
+//   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "PufferLib Chess – Menu");
+//   SetTargetFPS(60);
+//   ChessPieceTextures textures = load_piece_textures();
+// 
+//   CChess env = {0};
+//   global_env_ptr = &env;
+//   int elo_setting = 1320;
+//   bool in_menu = true;
+//   int menu_index = 0;
+//   GameMode game_mode = GM_PLAYER_STOCKFISH;
+// 
+//   while (!WindowShouldClose()) {
+//     BeginDrawing();
+//     if (in_menu) {
+//       ClearBackground(RL_RAYWHITE);
+//       DrawText("PufferLib Chess", 50, 20, 32, RL_BLACK);
+//       for (int i = 0; i < GM_COUNT; ++i) {
+//         ::Color col = (i == menu_index) ? RL_RED : RL_BLACK;
+// #if !PUFFER_REPLAY_ENABLED
+//         if (i == GM_GAME_REPLAY)
+//           col = RL_DARKGRAY;
+// #endif
+//         DrawText(GAME_MODE_NAMES[i], 80, 120 + i * 30, 20, col);
+//       }
+//       if (IsKeyPressed(KEY_UP))
+//         menu_index = (menu_index + GM_COUNT - 1) % GM_COUNT;
+//       if (IsKeyPressed(KEY_DOWN))
+//         menu_index = (menu_index + 1) % GM_COUNT;
+//       if (IsKeyPressed(KEY_ENTER)) {
+//         game_mode = static_cast<GameMode>(menu_index);
+// #if !PUFFER_REPLAY_ENABLED
+//         if (game_mode == GM_GAME_REPLAY)
+//           continue;
+// #endif
+//         game_moves.clear();
+//         in_menu = false;
+// 
+//         env.max_depth = 500;
+//         allocate(&env);
+//         set_dual_agent_self_play_mode(&env, game_mode == GM_AGENT_AGENT);
+//         c_reset(&env);
+// 
+//         if (game_mode == GM_GAME_REPLAY) {
+//           load_available_games();
+//           show_game_list = true;
+//         }
+//       }
+//     } else if (show_game_list) {
+//       render_game_list_screen();
+//       handle_game_list_input();
+//       if (!show_game_list && !replay_mode_active)
+//         in_menu = true;
+//     } else if (replay_mode_active) {
+//       render_game_replay_screen(&env, &textures);
+//       handle_game_replay_input();
+//       if (!replay_mode_active)
+//         show_game_list = true;
+//     } else {
+//       // Gameplay loop
+//       if (IsKeyPressed(KEY_M)) {
+//         in_menu = true;
+//         free_allocated(&env);
+//         continue;
+//       }
+//       if (IsKeyPressed(KEY_R)) {
+//         game_moves.clear();
+//         c_reset(&env);
+//       }
+// 
+//       auto *ctx = env.ctx;
+//       bool is_human_turn =
+//           (game_mode == GM_PLAYER_STOCKFISH || game_mode == GM_PLAYER_RANDOM) &&
+//           ctx->board.to_move == C_WHITE;
+// 
+//       if (!game_paused && !env.terminals[0] && !is_human_turn) {
+//         compute_observation_with_perspective(&env, ctx);
+//         int action = 0;
+//         int agent_idx = (ctx->board.to_move == C_WHITE) ? 0 : 1;
+// 
+//         if (game_mode == GM_AGENT_AGENT ||
+//             (game_mode == GM_AGENT_STOCKFISH &&
+//              ctx->board.to_move == C_WHITE) ||
+//             (game_mode == GM_RANDOM_AGENT && ctx->board.to_move == C_BLACK)) {
+//           action = agent_select_action(agent_net, &env, agent_idx);
+//         } else if (game_mode == GM_PLAYER_STOCKFISH) {
+//           // Stockfish moves handled by c_step
+//         } else {
+//           action = random_select_action(&env);
+//         }
+// 
+//         env.actions[agent_idx] = action;
+//         c_step(&env);
+//         check_and_update_game_outcome(&env, game_mode);
+//       }
+// 
+//       if (is_human_turn && !env.terminals[0]) {
+//         // Handle promotion selection if dialog is active
+//         if (show_promotion_selection) {
+//           handle_promotion_selection();
+//         } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+//           static int sel_fx = -1, sel_fy = -1;
+//           Vector2 mp = GetMousePosition();
+//           int bx = (mp.x - BOARD_OFFSET_X) / SQUARE_SIZE;
+//           int screen_rank = ((mp.y - BOARD_OFFSET_Y) / SQUARE_SIZE);
+//           int by = 7 - screen_rank;
+//           printf("[DEBUG] Mouse pos: (%.1f, %.1f), bx=%d, screen_rank=%d, by=%d\n", 
+//                  mp.x, mp.y, bx, screen_rank, by);
+//           if (bx >= 0 && bx < 8 && by >= 0 && by < 8) {
+//             if (sel_fx == -1) {
+//               const Piece *p = get_piece_const(&ctx->board, bx, by);
+//               if (p && p->type != EMPTY && p->color == C_WHITE) {
+//                 sel_fx = bx;
+//                 sel_fy = by;
+//               }
+//             } else {
+//               printf("[DEBUG] Mouse click: checking move from (%d,%d) to (%d,%d)\n", sel_fx, sel_fy, bx, by);
+//               if (is_promotion_move(&env, sel_fx, sel_fy, bx, by)) {
+//                 printf("[DEBUG] Mouse click: PROMOTION MOVE DETECTED - setting show_promotion_selection=true\n");
+//                 show_promotion_selection = true;
+//                 promotion_from_x = sel_fx;
+//                 promotion_from_y = sel_fy;
+//                 promotion_to_x = bx;
+//                 promotion_to_y = by;
+//               } else {
+//                 printf("[DEBUG] Mouse click: REGULAR MOVE - processing normally\n");
+//                 UIMove move = {{(int8_t)sel_fx, (int8_t)sel_fy},
+//                                {(int8_t)bx, (int8_t)by},
+//                                EMPTY};
+//                 std::string uci = uimove_to_uci(move);
+//                 int action_id = uci_to_action_id(uci.c_str());
+//                 printf("[DEBUG] Mouse click: sel_fx=%d, sel_fy=%d, bx=%d, by=%d\n", sel_fx, sel_fy, bx, by);
+//                 printf("[DEBUG] UCI='%s' -> action_id=%d\n", uci.c_str(), action_id);
+//                 env.actions[0] = action_id;
+//                 c_step(&env);
+//                 check_and_update_game_outcome(&env, game_mode);
+//               }
+//               sel_fx = -1;
+//               sel_fy = -1;
+//             }
+//           }
+//         }
+//       }
+// 
+//       ClearBackground(RL_RAYWHITE);
+//       render_chess_board(&env, &textures);
+//       
+//       // Render promotion selection dialog if active
+//       if (show_promotion_selection) {
+//         render_promotion_selection();
+//       }
+//     }
+//     EndDrawing();
+//   }
+// 
+// #if PUFFER_REPLAY_ENABLED
+//   delete global_game_logger;
+// #endif
+//   
+//   // Close Raylib window first, which will automatically cleanup textures
+// //   CloseWindow();
+// //   
+// //   // Skip manual memory cleanup - let the OS handle it on process exit
+// //   // Manual cleanup can cause double-free issues with shared references
+// //   return 0;
+// // }
 
 // #include <stdio.h>
 // #include <stdlib.h>
@@ -1115,129 +1133,127 @@ int main() {
 // #include "chess.h"
 // #include "raylib.h"
 
-// // Forward declarations for local functions
-// void test_performance(float test_time);
-// int demo();
+// Forward declarations for local functions
+void test_performance(float test_time);
+int demo();
 
-// /**
-//  * @brief Performance test for the CChess environment.
-//  * @param test_time The duration of the performance test in seconds.
-//  */
-// void test_performance(float test_time) {
-//   const int num_envs = 2048;
+/**
+ * @brief Performance test for the CChess environment.
+ * @param test_time The duration of the performance test in seconds.
+ */
+void test_performance(float test_time) {
+  const int num_envs = 2048;
 
-//   CChess *envs = (CChess *)malloc(sizeof(CChess) * num_envs);
-//   if (!envs) {
-//     printf("Failed to allocate memory for environments.\n");
-//     return;
-//   }
+  CChess *envs = (CChess *)malloc(sizeof(CChess) * num_envs);
+  if (!envs) {
+    printf("Failed to allocate memory for environments.\n");
+    return;
+  }
 
-//   printf("Allocating and initializing %d chess environments...\n", num_envs);
+  printf("Allocating and initializing %d chess environments...\n", num_envs);
 
-//   // Initialize each environment in the batch
-//   for (int i = 0; i < num_envs; i++) {
-//     // --- CRITICAL FIX: SET CONFIGURATION *BEFORE* ALLOCATE ---
-//     // The allocate() function calls init(), which copies these values.
-//     // They MUST be set first.
-//     envs[i].max_depth = 500;
-//     envs[i].reward_valid = 0.0f;
-//     envs[i].reward_invalid_white = 0.0f;
-//     envs[i].reward_invalid_black = 0.0f;
-//     envs[i].reward_agent_captures_enemy_piece = 0.0f;
-//     envs[i].reward_enemy_captures_agent_piece = 0.0f;
-//     envs[i].reward_draw = 0.0f;
-//     envs[i].reward_win_white = 1.0f;
-//     envs[i].reward_loss_white = -1.0f;
-//     envs[i].reward_win_black = 1.0f;
-//     envs[i].reward_loss_black = -1.0f;
-//     envs[i].reward_check_white = 0.0f;
-//     envs[i].reward_check_black = 0.0f;
-//     envs[i].reward_material_diff_white = 0.0f;
-//     envs[i].reward_material_diff_black = 0.0f;
-//     envs[i].debug_disable_mask = false;
-//     envs[i].stockfish_enabled = false;
+  // Initialize each environment in the batch
+  for (int i = 0; i < num_envs; i++) {
+    // --- CRITICAL FIX: SET CONFIGURATION *BEFORE* ALLOCATE ---
+    // The allocate() function calls init(), which copies these values.
+    // They MUST be set first.
+    envs[i].max_depth = 500;
+    envs[i].reward_valid = 0.0f;
+    envs[i].reward_invalid_white = 0.0f;
+    envs[i].reward_invalid_black = 0.0f;
+    envs[i].reward_agent_captures_enemy_piece = 0.0f;
+    envs[i].reward_enemy_captures_agent_piece = 0.0f;
+    envs[i].reward_draw = 0.0f;
+    envs[i].reward_win_white = 1.0f;
+    envs[i].reward_loss_white = -1.0f;
+    envs[i].reward_win_black = 1.0f;
+    envs[i].reward_loss_black = -1.0f;
+    envs[i].reward_check_white = 0.0f;
+    envs[i].reward_check_black = 0.0f;
+    envs[i].reward_material_diff_white = 0.0f;
+    envs[i].reward_material_diff_black = 0.0f;
+    envs[i].debug_disable_mask = false;
+    envs[i].stockfish_enabled = false;
 
-//     // Now that configuration is set, it's safe to allocate.
-//     allocate(&envs[i]);
+    // Now that configuration is set, it's safe to allocate.
+    allocate(&envs[i]);
 
-//     // Reset the environment to the starting game state.
-//     c_reset(&envs[i]);
-//   }
+    // Reset the environment to the starting game state.
+    c_reset(&envs[i]);
+  }
 
-//   printf("Starting realistic performance test for %.1f seconds...\n",
-//          test_time);
+  printf("Starting realistic performance test for %.1f seconds...\n",
+         test_time);
 
-//   // Allocate a buffer to store legal actions for one environment.
-//   // This is done once to avoid repeated allocation in the hot loop.
-//   int *legal_actions = (int *)malloc(sizeof(int) * TOTAL_CHESS_ACTIONS);
-//   if (!legal_actions) {
-//     printf("Failed to allocate memory for legal_actions buffer.\n");
-//     for (int i = 0; i < num_envs; i++) {
-//       free_allocated(&envs[i]);
-//     }
-//     free(envs);
-//     return;
-//   }
+  // Allocate a buffer to store legal actions for one environment.
+  // This is done once to avoid repeated allocation in the hot loop.
+  int *legal_actions = (int *)malloc(sizeof(int) * TOTAL_CHESS_ACTIONS);
+  if (!legal_actions) {
+    printf("Failed to allocate memory for legal_actions buffer.\n");
+    for (int i = 0; i < num_envs; i++) {
+      free_allocated(&envs[i]);
+    }
+    free(envs);
+    return;
+  }
 
-//   time_t start_time = time(NULL);
-//   long long total_batch_steps = 0;
+  time_t start_time = time(NULL);
+  long long total_batch_steps = 0;
 
-//   // Main performance loop
-//   while (time(NULL) - start_time < test_time) {
-//     for (int i = 0; i < num_envs; i++) {
-//       // --- INTEGRATED REALISTIC ACTION SELECTION ---
-//       int num_legal_actions = 0;
+  // Main performance loop
+  while (time(NULL) - start_time < test_time) {
+    for (int i = 0; i < num_envs; i++) {
+      // --- INTEGRATED REALISTIC ACTION SELECTION ---
+      int num_legal_actions = 0;
 
-//       // The observation contains the action mask at the end.
-//       // The offset is the size of the board planes (21 planes * 8x8 squares
-//       =
-//       // 1344).
-//       const int MASK_OFFSET = 1344;
-//       float *mask = &envs[i].observations[MASK_OFFSET];
+      // The observation contains the action mask at the end.
+      // The offset is the size of the board planes (21 planes * 8x8 squares = 1344).
+      const int MASK_OFFSET = 1344;
+      float *mask = &envs[i].observations[MASK_OFFSET];
 
-//       // Build a list of all legal action indices from the mask.
-//       for (int j = 0; j < TOTAL_CHESS_ACTIONS; j++) {
-//         if (mask[j] == 1.0f) {
-//           legal_actions[num_legal_actions++] = j;
-//         }
-//       }
+      // Build a list of all legal action indices from the mask.
+      for (int j = 0; j < TOTAL_CHESS_ACTIONS; j++) {
+        if (mask[j] == 1.0f) {
+          legal_actions[num_legal_actions++] = j;
+        }
+      }
 
-//       // If there are legal moves, pick one at random.
-//       // Otherwise, the game is over and will be reset by c_step,
-//       // so the next action doesn't matter. We can default to 0.
-//       if (num_legal_actions > 0) {
-//         envs[i].actions[0] = legal_actions[rand() % num_legal_actions];
-//       } else {
-//         envs[i].actions[0] = 0; // Fallback for terminal states
-//       }
+      // If there are legal moves, pick one at random.
+      // Otherwise, the game is over and will be reset by c_step,
+      // so the next action doesn't matter. We can default to 0.
+      if (num_legal_actions > 0) {
+        envs[i].actions[0] = legal_actions[rand() % num_legal_actions];
+      } else {
+        envs[i].actions[0] = 0; // Fallback for terminal states
+      }
 
-//       c_step(&envs[i]);
-//     }
-//     total_batch_steps++;
-//   }
-//   time_t end_time = time(NULL);
+      c_step(&envs[i]);
+    }
+    total_batch_steps++;
+  }
+  time_t end_time = time(NULL);
 
-//   // Free the legal actions buffer
-//   free(legal_actions);
+  // Free the legal actions buffer
+  free(legal_actions);
 
-//   float elapsed_time = (float)(end_time - start_time);
-//   if (elapsed_time < 1)
-//     elapsed_time = 1;
+  float elapsed_time = (float)(end_time - start_time);
+  if (elapsed_time < 1)
+    elapsed_time = 1;
 
-//   double total_individual_steps = (double)num_envs * total_batch_steps;
-//   double sps = total_individual_steps / elapsed_time;
+  double total_individual_steps = (double)num_envs * total_batch_steps;
+  double sps = total_individual_steps / elapsed_time;
 
-//   printf("\n--- Performance Test Results ---\n");
-//   printf("Elapsed time: %.2f seconds\n", elapsed_time);
-//   printf("Total individual steps: %.0f\n", total_individual_steps);
-//   printf("Steps Per Second (SPS): %.2f\n", sps);
-//   printf("--------------------------------\n");
+  printf("\n--- Performance Test Results ---\n");
+  printf("Elapsed time: %.2f seconds\n", elapsed_time);
+  printf("Total individual steps: %.0f\n", total_individual_steps);
+  printf("Steps Per Second (SPS): %.2f\n", sps);
+  printf("--------------------------------\n");
 
-//   for (int i = 0; i < num_envs; i++) {
-//     free_allocated(&envs[i]);
-//   }
-//   free(envs);
-// }
+  for (int i = 0; i < num_envs; i++) {
+    free_allocated(&envs[i]);
+  }
+  free(envs);
+}
 
 // /**
 //  * @brief A simple graphical demo of the chess environment using Raylib.
@@ -1345,16 +1361,16 @@ int main() {
 //   return 0;
 // }
 
-// int main(int argc, char **argv) {
-//   srand(time(NULL));
+int main(int argc, char **argv) {
+  srand(time(NULL));
 
-//   if (argc > 1 && strcmp(argv[1], "demo") == 0) {
-//     printf("Running graphical demo...\n");
-//     demo();
-//   } else {
-//     printf("Running performance test...\n");
-//     test_performance(30);
-//   }
+  if (argc > 1 && strcmp(argv[1], "demo") == 0) {
+    printf("Demo mode not available in this build\n");
+    // demo();
+  } else {
+    printf("Running performance test...\n");
+    test_performance(30);
+  }
 
-//   return 0;
-// }
+  return 0;
+}

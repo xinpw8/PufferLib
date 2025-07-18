@@ -277,6 +277,9 @@ class Chess(pufferlib.PufferEnv):
             seed = 0
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0
+        # Reshape observations from (num_envs, agents_per_env, features) to (total_agents, features)
+        if self.self_play:
+            self.observations = self.observations.reshape(self.num_agents, -1)
         return self.observations, []
     
     def step(self, actions):
@@ -294,8 +297,9 @@ class Chess(pufferlib.PufferEnv):
         binding.vec_step(self.c_envs)
         self.tick += 1
         
-        # Print debug info on first step to confirm training has started
-        if self.tick == 1:
+        # Print debug info only once per process (not per reset)
+        if not hasattr(Chess, '_debug_printed_once'):
+            Chess._debug_printed_once = True
             print(f"[Chess] Training started! First step completed.")
             print(f"[Chess] Environment: {self.num_envs} games, {self.num_agents} total agents")
             # Print a sample of the observations to verify they're not all zeros
@@ -316,6 +320,10 @@ class Chess(pufferlib.PufferEnv):
         info = []
         if self.tick % self.log_interval == 0:
             info.append(info_dict)
+        
+        # Reshape observations from (num_envs, agents_per_env, features) to (total_agents, features)
+        if self.self_play:
+            self.observations = self.observations.reshape(self.num_agents, -1)
         
         return (self.observations, self.rewards,
                 self.terminals, self.truncations, info)
