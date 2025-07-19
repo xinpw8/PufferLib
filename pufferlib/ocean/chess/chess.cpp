@@ -471,9 +471,7 @@ struct SessionStats {
 };
 SessionStats session_stats;
 
-// Forward declarations removed - functions defined later in file
-
-} // namespace chess
+}
 using namespace chess;
 
 // Forward declarations for functions defined later

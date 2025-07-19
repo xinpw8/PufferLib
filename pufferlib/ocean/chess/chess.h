@@ -271,6 +271,12 @@ typedef struct ChessContext {
   char stockfish_cmd[256];
   int stockfish_elo;
   int stockfish_search_ms;
+  
+  // PERFORMANCE OPTIMIZATION: Observation caching
+  float cached_observation[1344];  // 21 * 8 * 8 board planes only
+  bool observation_cached;
+  uint64_t cached_observation_hash;
+  PieceColor cached_observation_player;
 } ChessContext;
 
 // === PUFFERLIB ENVIRONMENT STRUCTURE ===
@@ -1057,13 +1063,13 @@ static void chess_generate_legal_moves(ChessContext *ctx, LegalMoves *moves) {
 }
 
 static int chess_generate_legal_moves_uci(ChessContext *ctx) {
-//   PROFILE_START(profile_move_gen_uci_ticks)
-//   // Check cache
-//   uint64_t current_hash = hash_position(&ctx->board);
-//   if (ctx->legal_moves_cached && ctx->cached_board_hash == current_hash) {
-//     PROFILE_STOP(profile_move_gen_uci_ticks)
-//     return ctx->legal_moves_count;
-//   }
+  PROFILE_START(profile_move_gen_uci_ticks)
+  // Check cache
+  uint64_t current_hash = ctx->board.zobrist_hash;
+  if (ctx->legal_moves_cached && ctx->cached_board_hash == current_hash) {
+    PROFILE_STOP(profile_move_gen_uci_ticks)
+    return ctx->legal_moves_count;
+  }
 
   // Generate legal moves
   LegalMoves moves;
@@ -1089,11 +1095,11 @@ static int chess_generate_legal_moves_uci(ChessContext *ctx) {
     ctx->legal_moves_count++;
   }
 
-//   // Cache the result
-//   ctx->legal_moves_cached = true;
-//   ctx->cached_board_hash = current_hash;
+  // Cache the result
+  ctx->legal_moves_cached = true;
+  ctx->cached_board_hash = current_hash;
 
-//   PROFILE_STOP(profile_move_gen_uci_ticks)
+  PROFILE_STOP(profile_move_gen_uci_ticks)
   return ctx->legal_moves_count;
 }
 
@@ -1342,31 +1348,48 @@ static void init_board(ChessBoard *board) {
 static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
                                              PieceColor player,
                                              int obs_offset) {
-  // Clear the board observation planes
-  memset(&env->observations[obs_offset], 0, 1344 * sizeof(float));
-  int idx = 0;
+  uint64_t current_hash = ctx->board.zobrist_hash;
+  
+  // PERFORMANCE OPTIMIZATION: Check if board observation is cached
+  if (ctx->observation_cached && 
+      ctx->cached_observation_hash == current_hash && 
+      ctx->cached_observation_player == player) {
+    // Use cached board observation (first 1344 floats)
+    memcpy(&env->observations[obs_offset], ctx->cached_observation, 1344 * sizeof(float));
+  } else {
+    // Compute fresh board observation
+    memset(&env->observations[obs_offset], 0, 1344 * sizeof(float));
+    int idx = 0;
 
-  // --- SINGLE PASS OVER THE BOARD (Correct) ---
-  for (int y_white_perspective = 0; y_white_perspective < 8;
-       y_white_perspective++) {
-    for (int x = 0; x < 8; x++) {
-      int y_actual =
-          (player == C_WHITE) ? y_white_perspective : (7 - y_white_perspective);
-      int square_index_actual = y_actual * 8 + x;
-      const Piece *p = &ctx->board.board[square_index_actual];
-      int obs_square_idx = y_white_perspective * 8 + x;
+    // --- SINGLE PASS OVER THE BOARD (Correct) ---
+    for (int y_white_perspective = 0; y_white_perspective < 8;
+         y_white_perspective++) {
+      for (int x = 0; x < 8; x++) {
+        int y_actual =
+            (player == C_WHITE) ? y_white_perspective : (7 - y_white_perspective);
+        int square_index_actual = y_actual * 8 + x;
+        const Piece *p = &ctx->board.board[square_index_actual];
+        int obs_square_idx = y_white_perspective * 8 + x;
 
-      if (p->type == EMPTY) {
-        env->observations[obs_offset + 12 * 64 + obs_square_idx] = 1.0f;
-      } else {
-        int plane_offset = (p->color == player) ? 0 : 6;
-        int piece_plane = p->type - 1;
-        env->observations[obs_offset + (plane_offset + piece_plane) * 64 +
-                          obs_square_idx] = 1.0f;
+        if (p->type == EMPTY) {
+          env->observations[obs_offset + 12 * 64 + obs_square_idx] = 1.0f;
+        } else {
+          int plane_offset = (p->color == player) ? 0 : 6;
+          int piece_plane = p->type - 1;
+          env->observations[obs_offset + (plane_offset + piece_plane) * 64 +
+                            obs_square_idx] = 1.0f;
+        }
       }
     }
+    
+    // Cache the computed board observation
+    memcpy(ctx->cached_observation, &env->observations[obs_offset], 1344 * sizeof(float));
+    ctx->observation_cached = true;
+    ctx->cached_observation_hash = current_hash;
+    ctx->cached_observation_player = player;
   }
-  idx = 1344; // Start index for the legal move mask
+  
+  int idx = 1344; // Start index for the legal move mask
 
   // --- LEGAL MOVE MASK (Corrected Logic) ---
 
@@ -1890,6 +1913,7 @@ static bool apply_uci_move(ChessContext *ctx, const char *uci_str) {
 
   // Clear caches
   ctx->legal_moves_cached = false;
+  ctx->observation_cached = false;
   ctx->step_count++;
   // Add to complete game log
   int action_id = uci_to_action_id(uci_str);
@@ -2113,6 +2137,7 @@ void c_reset(CChess *env) {
 
   // Clear caches
   env->context.legal_moves_cached = false;
+  env->context.observation_cached = false;
 
   // Clear position history
   memset(&env->context.position_history, 0, sizeof(PositionHistory));
