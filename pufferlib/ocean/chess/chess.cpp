@@ -36,12 +36,11 @@
 #define PUFFER_REPLAY_ENABLED 0
 #endif
 
-// Chess-specific neural network wrapper
-#include "chess_net_wrapper.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+// PufferLib C headers for the neural network
+#include "../../extensions/puffernet.h"
 #include "chess.h" // CONTAINS ALL ENV LOGIC!! NO CHESS LOGIC IN chess.cpp!!!
 // We train on chess.h and we eval on the identical chess.h that we trained on!!
 #include "chess_action_mapping.h"
@@ -113,21 +112,21 @@ static inline void mask_logits(float *logits, const float *legal, int size) {
 }
 
 static ChessNet *init_chessnet(Weights *weights, int num_agents) {
-  ChessNet *net = static_cast<ChessNet*>(calloc(1, sizeof(ChessNet)));
+  ChessNet *net = (ChessNet *)calloc(1, sizeof(ChessNet));
   net->num_agents = num_agents;
-  net->board_enc1 = ChessNetUtils::make_linear_cpp(weights, num_agents, 1344, 512);
-  net->board_relu1 = ChessNetUtils::make_relu_cpp(num_agents, 512);
-  net->board_enc2 = ChessNetUtils::make_linear_cpp(weights, num_agents, 512, 256);
-  net->board_relu2 = ChessNetUtils::make_relu_cpp(num_agents, 256);
-  net->combiner = ChessNetUtils::make_linear_cpp(weights, num_agents, 256, 256);
-  net->comb_relu = ChessNetUtils::make_relu_cpp(num_agents, 256);
-  net->lstm = ChessNetUtils::make_lstm_cpp(weights, num_agents, 256, 256);
-  net->policy_head = ChessNetUtils::make_linear_cpp(weights, num_agents, 256, 1968);
-  net->value_head1 = ChessNetUtils::make_linear_cpp(weights, num_agents, 256, 128);
-  net->value_relu = ChessNetUtils::make_relu_cpp(num_agents, 128);
-  net->value_head2 = ChessNetUtils::make_linear_cpp(weights, num_agents, 128, 1);
+  net->board_enc1 = make_linear(weights, num_agents, 1344, 512);
+  net->board_relu1 = make_relu(num_agents, 512);
+  net->board_enc2 = make_linear(weights, num_agents, 512, 256);
+  net->board_relu2 = make_relu(num_agents, 256);
+  net->combiner = make_linear(weights, num_agents, 256, 256);
+  net->comb_relu = make_relu(num_agents, 256);
+  net->lstm = make_lstm(weights, num_agents, 256, 256);
+  net->policy_head = make_linear(weights, num_agents, 256, 1968);
+  net->value_head1 = make_linear(weights, num_agents, 256, 128);
+  net->value_relu = make_relu(num_agents, 128);
+  net->value_head2 = make_linear(weights, num_agents, 128, 1);
   int logit_sizes[1] = {1968};
-  net->md = ChessNetUtils::make_multidiscrete_cpp(num_agents, logit_sizes, 1);
+  net->md = make_multidiscrete(num_agents, logit_sizes, 1);
   return net;
 }
 
@@ -1580,7 +1579,7 @@ int demo() {
   FILE *weight_file = fopen(weights_path, "rb");
   if (weight_file) {
     fclose(weight_file);
-    weights = ChessNetUtils::load_weights_cpp(weights_path, CHESS_NUM_WEIGHTS);
+    weights = load_weights(weights_path, CHESS_NUM_WEIGHTS);
     if (!weights) {
       fprintf(stderr, "ERROR: Could not load weights from %s\n", weights_path);
       return 1;
@@ -2061,7 +2060,7 @@ int demo_console() {
   FILE *weight_file = fopen(weights_path, "rb");
   if (weight_file) {
     fclose(weight_file);
-    weights = ChessNetUtils::load_weights_cpp(weights_path, CHESS_NUM_WEIGHTS);
+    weights = load_weights(weights_path, CHESS_NUM_WEIGHTS);
     if (!weights) {
       fprintf(stderr, "ERROR: Could not load weights from %s\n", weights_path);
       return 1;

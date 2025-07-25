@@ -109,5 +109,8 @@ Opening frequency of PGN-style UCI logs:
 python analyze_openings.py /puffertank/release_test_pufferlib/pufferlib/resources/chess/training_logs/complete_games
 
 chess.cpp commands:
-./chess demo - opens GUI
-./chess browser - replay saved games from training
+    Usage:
+    ./chess demo     - Interactive chess demo
+    ./chess console  - Console chess demo
+    ./chess browser  - Browse and view training games
+    ./chess          - Run performance test
