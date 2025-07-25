@@ -190,10 +190,14 @@ typedef struct ChessContext {
   bool self_play_mode;
 
   // Complete game logging
-  int complete_game_actions[1024]; // 1024 is big enough
+  char complete_game_moves[1024][6]; // Store canonical UCI moves (e.g., "e2e4")
   int complete_game_action_count;
   char serialized_moves[1024]; // Comma-separated action IDs for efficient
                                // logging
+  
+  // Simple game logging tracking
+  int steps_since_last_log;      // Steps in this environment since last game log
+  int game_logging_frequency;    // Log games every N steps (from config)
 
   // Reward configuration (copied from CChess for performance)
   float c_reward_valid;
@@ -339,6 +343,26 @@ void set_self_play_mode(CChess *env, bool enabled);
 void c_set_fen(CChess *env, const char *fen);
 
 // === CHESS HELPER FUNCTIONS ===
+
+// Material calculation using standard chess piece values
+int calculate_material_value(ChessBoard *board, PieceColor color) {
+  int total = 0;
+  for (int i = 0; i < 64; i++) {
+    Piece *p = &board->board[i];
+    if (p->type != EMPTY && p->color == color) {
+      switch (p->type) {
+        case PAWN:   total += 1; break;
+        case KNIGHT: total += 3; break;
+        case BISHOP: total += 3; break;
+        case ROOK:   total += 5; break;
+        case QUEEN:  total += 9; break;
+        case KING:   total += 0; break; // King has no material value
+        default: break;
+      }
+    }
+  }
+  return total;
+}
 
 // Board access
 static inline Piece *get_piece(ChessBoard *board, int x, int y) {
@@ -513,9 +537,109 @@ static void serialize_complete_game_moves(ChessContext *ctx) {
     if (i > 0) {
       strcat(ctx->serialized_moves, ",");
     }
-    sprintf(temp, "%d", ctx->complete_game_actions[i]);
+    // Convert UCI move back to action ID for serialization compatibility
+    int action_id = uci_to_action_id(ctx->complete_game_moves[i]);
+    sprintf(temp, "%d", action_id);
     strcat(ctx->serialized_moves, temp);
   }
+}
+
+// Write complete game to file for analysis
+static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
+  // Re-enabled for debugging game logging functionality
+  printf("[C++ DEBUG] write_complete_game_to_file called: env_id=%d, action_count=%d\n", 
+         env_id, ctx->complete_game_action_count);
+  
+  if (ctx->complete_game_action_count == 0) {
+    printf("[C++ DEBUG] No actions to log\n");
+    return;
+  }
+
+  // Create directory if needed
+  system("mkdir -p resources/chess/training_logs/complete_games");
+  
+  // Determine game result and termination reason
+  char result_str[16] = "*";      // Default: incomplete/ongoing
+  char termination[64] = "depth_limit";  // Default termination reason
+  
+  if (ctx->c_white_checkmated > 0) {
+    strcpy(result_str, "0-1");
+    strcpy(termination, "white_checkmated");
+  } else if (ctx->c_black_checkmated > 0) {
+    strcpy(result_str, "1-0");
+    strcpy(termination, "black_checkmated");
+  } else if (ctx->c_stalemate > 0) {
+    strcpy(result_str, "1/2-1/2");
+    strcpy(termination, "stalemate");
+  } else if (ctx->c_fifty_move_rule > 0) {
+    strcpy(result_str, "1/2-1/2");
+    strcpy(termination, "fifty_move_rule");
+  } else if (ctx->c_threefold_repetition > 0) {
+    strcpy(result_str, "1/2-1/2");
+    strcpy(termination, "threefold_repetition");
+  } else if (ctx->c_insufficient_material > 0) {
+    strcpy(result_str, "1/2-1/2");
+    strcpy(termination, "insufficient_material");
+  }
+  
+  // Generate filename with timestamp, env_id, result and termination
+  time_t now = time(NULL);
+  char filename[256];
+  
+  // Create safe result and termination strings for filename
+  char safe_result[16], safe_termination[64];
+  strcpy(safe_result, result_str);
+  strcpy(safe_termination, termination);
+  
+  // Replace problematic characters only in result/termination parts
+  for (char *p = safe_result; *p; p++) {
+    if (*p == '/' || *p == '-') *p = '_';
+  }
+  for (char *p = safe_termination; *p; p++) {
+    if (*p == '/' || *p == '-') *p = '_';
+  }
+  
+  sprintf(filename, "resources/chess/training_logs/complete_games/game_%d_%ld_%s_%s.pgn", 
+          env_id, now, safe_result, safe_termination);
+  
+  FILE* file = fopen(filename, "w");
+  if (!file) {
+    printf("[Chess] Failed to open game log file: %s\n", filename);
+    return;
+  }
+  
+  // Write PGN header
+  fprintf(file, "[Event \"PufferLib Training Game\"]\n");
+  fprintf(file, "[Site \"Environment %d\"]\n", env_id);
+  fprintf(file, "[Date \"%ld\"]\n", now);
+  fprintf(file, "[White \"AI-White\"]\n");
+  fprintf(file, "[Black \"AI-Black\"]\n");
+  fprintf(file, "[Result \"%s\"]\n", result_str);
+  fprintf(file, "[Termination \"%s\"]\n", termination);
+  fprintf(file, "\n");
+  
+  // Write moves in algebraic notation
+  int move_number = 1;
+  for (int i = 0; i < ctx->complete_game_action_count; i++) {
+    // Use the stored canonical UCI move directly
+    const char* uci_move = ctx->complete_game_moves[i];
+    
+    // Simple UCI to algebraic (basic format: from-to, e.g. e2e4)
+    if (i % 2 == 0) {
+      fprintf(file, "%d. %s ", move_number, uci_move);
+      if (i == ctx->complete_game_action_count - 1) fprintf(file, "\n");
+    } else {
+      fprintf(file, "%s ", uci_move);
+      if (i % 4 == 1) fprintf(file, "\n");
+      move_number++;
+    }
+  }
+  
+  if (ctx->complete_game_action_count % 2 == 1) fprintf(file, "\n");
+  fprintf(file, "%s\n", result_str);
+  
+  fclose(file);
+  printf("[Chess] Logged complete game to %s\n", filename);
 }
 
 // === PERSPECTIVE FLIPPING FOR SELF-PLAY ===
@@ -1348,10 +1472,13 @@ static void init_board(ChessBoard *board) {
 static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
                                              PieceColor player,
                                              int obs_offset) {
+//   printf("[DEBUG_OBS] compute_single_agent_observation called for %s at offset %d\n",
+//          (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset);
   uint64_t current_hash = ctx->board.zobrist_hash;
   
   // PERFORMANCE OPTIMIZATION: Check if board observation is cached
-  if (ctx->observation_cached && 
+  // DISABLED FOR DEBUGGING: Force fresh observation generation
+  if (false && ctx->observation_cached && 
       ctx->cached_observation_hash == current_hash && 
       ctx->cached_observation_player == player) {
     // Use cached board observation (first 1344 floats)
@@ -1395,11 +1522,16 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
 
   // *** THE FIX: Force legal moves to be regenerated for the current player ***
   // This prevents using a stale cache from the other player's turn.
-//   ctx->legal_moves_cached = false;
+  ctx->legal_moves_cached = false;
   chess_generate_legal_moves_uci(ctx);
 
   PieceColor current_player_turn = ctx->board.to_move;
   bool is_player_turn = (player == current_player_turn);
+  
+  // printf("[ACTION_MASK_DEBUG] Player=%s, current_turn=%s, is_player_turn=%s\n", 
+  //        (player == C_WHITE) ? "WHITE" : "BLACK",
+  //        (current_player_turn == C_WHITE) ? "WHITE" : "BLACK", 
+  //        is_player_turn ? "YES" : "NO");
 
   // Always clear the agent's mask first
   memset(&env->observations[obs_offset + idx], 0,
@@ -1410,8 +1542,13 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
     for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
       env->observations[obs_offset + idx + i] = 1.0f;
     }
-  } else if (is_player_turn) {
-    // // If it's this agent's turn, populate the mask correctly
+  } else if (ctx->dual_agent_self_play_mode || is_player_turn) {
+    // In dual-agent mode, both agents get action masks for moves from their perspective
+    // In single-agent mode, only populate mask when it's the player's turn
+    // printf("[ACTION_MASK_FIX] %s agent: dual_agent_mode=%s, is_player_turn=%s, will_populate_mask=YES\n",
+    //        (player == C_WHITE) ? "WHITE" : "BLACK",
+    //        ctx->dual_agent_self_play_mode ? "YES" : "NO",
+    //        is_player_turn ? "YES" : "NO");
     // printf("[ACTION_MASK_DEBUG] Computing mask for %s at obs_offset=%d, legal_moves=%d\n", 
     //        (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, ctx->legal_moves_count);
     
@@ -1431,6 +1568,10 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
       if (action_id >= 0) {
         env->observations[obs_offset + idx + action_id] = 1.0f;
         valid_actions_set++;
+        // if (valid_actions_set <= 3) {  // Log first 3 action IDs for debugging
+        //   printf("[ACTION_ID_DEBUG] %s: %s -> action_id %d\n", 
+        //          (player == C_WHITE) ? "WHITE" : "BLACK", perspective_uci, action_id);
+        // }
         if (player == C_BLACK && i < 5) {  // Log first 5 for black
         //   printf("[ACTION_MASK_DEBUG] BLACK: %s -> %s -> action %d (masked at idx %d)\n", 
         //          canonical_uci, perspective_uci, action_id, obs_offset + idx + action_id);
@@ -1442,32 +1583,119 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
     }
     // printf("[ACTION_MASK_DEBUG] %s: Set %d valid actions in mask\n", 
     //        (player == C_WHITE) ? "WHITE" : "BLACK", valid_actions_set);
+  } else {
+    // printf("[ACTION_MASK_FIX] %s agent: dual_agent_mode=%s, is_player_turn=%s, will_populate_mask=NO (mask stays empty)\n",
+    //        (player == C_WHITE) ? "WHITE" : "BLACK",
+    //        ctx->dual_agent_self_play_mode ? "YES" : "NO",
+    //        is_player_turn ? "YES" : "NO");
   }
-  // If it's not the player's turn, the mask correctly remains all zeros.
+  // In dual-agent mode, both agents always get valid action masks
+  // In single-agent mode, non-active players get empty masks (all zeros)
 }
 
+// Corrected version of the observation generation orchestrator.
+// This function should replace the old `compute_observation_with_perspective`.
+
+// COLOR MONITORING: Validates observation data integrity at generation point
+void validate_chess_observation_integrity(CChess *env, ChessContext *ctx, PieceColor player, int obs_offset) {
+  // SENTINEL 1: Check observation buffer bounds
+  // In the new single-agent-view architecture, the offset for the active player
+  // is ALWAYS 0.
+  const int expected_offset = 0; // <-- NEW, CORRECT LOGIC
+  if (obs_offset != expected_offset) {
+    printf("[MONITOR_FATAL] Chess.h observation offset mismatch!\n");
+    printf("  Expected %s at offset %d, got offset %d\n",
+           (player == C_WHITE) ? "WHITE" : "BLACK", expected_offset,
+           obs_offset);
+    printf("  This indicates an error in the calling function.\n");
+    printf("  FIX: Ensure all calls to compute_single_agent_observation pass 0 "
+           "as the offset.\n");
+    exit(1);
+  }
+
+  // SENTINEL 2: Validate observation content signature  
+  float *obs = &env->observations[obs_offset];
+  float board_sum = 0.0f;
+  for (int i = 0; i < 1344; i++) board_sum += obs[i];
+  
+  float mask_sum = 0.0f;
+  for (int i = 1344; i < 3312; i++) mask_sum += obs[i];
+
+  if (board_sum < 1.0f || mask_sum < 1.0f) {
+    printf("[MONITOR_FATAL] Chess.h observation content invalid!\n");
+    printf("  %s observation at offset %d: board_sum=%.3f mask_sum=%.3f\n",
+           (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum, mask_sum);
+    printf("  Board sum should be >1 (pieces present), mask sum should be >1 (legal moves exist).\n");
+    printf("  FIX: Check compute_single_agent_observation() is writing correct data.\n");
+    exit(1);
+  }
+
+  // SENTINEL 3: Validate perspective correctness
+  PieceColor current_turn = ctx->board.to_move;
+//   printf("[MONITOR_OK] Chess.h: Generated %s observation (offset=%d, board_sum=%.1f, mask_sum=%.0f) on %s's turn\n",
+//          (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum, mask_sum,
+//          (current_turn == C_WHITE) ? "WHITE" : "BLACK");
+}
+
+// void compute_observation_with_perspective(CChess *env, ChessContext *ctx) {
+//   PROFILE_START(profile_compute_obs_ticks)
+  
+//   // printf("[COMPUTE_OBS] Called for turn=%s, fullmove=%d\n",
+//   //        (ctx->board.to_move == C_WHITE) ? "WHITE" : "BLACK", ctx->board.fullmove_number);
+
+//   // In a dual-agent environment, we must generate an observation for BOTH agents
+//   // every time the state changes. Each agent gets its own slice of the observation buffer.
+//   // The 'observations' pointer in the CChess struct points to the start of the memory
+//   // block for this specific game environment.
+
+//   if (ctx->self_play_mode && ctx->dual_agent_self_play_mode) {
+//     // This is the standard 2-player self-play mode.
+
+//     // Define the size of a single agent's observation to calculate offsets.
+//     const int single_obs_size = 3312; // 1344 board + 1968 mask
+
+//     // === Generate Observation for Agent 0 (White) ===
+//     // This observation will be written to the first slice of the environment's
+//     // observation buffer, starting at offset 0.
+//     int white_obs_offset = 0;
+//     compute_single_agent_observation(env, ctx, C_WHITE, white_obs_offset);
+//     validate_chess_observation_integrity(env, ctx, C_WHITE, white_obs_offset);
+
+//     // === Generate Observation for Agent 1 (Black) ===
+//     // This observation will be written to the second slice, starting immediately
+//     // after Agent 0's data.
+//     int black_obs_offset = single_obs_size;
+//     compute_single_agent_observation(env, ctx, C_BLACK, black_obs_offset);
+//     validate_chess_observation_integrity(env, ctx, C_BLACK, black_obs_offset);
+
+//   } else {
+//     // This logic handles a single-agent mode (e.g., playing vs. an engine).
+//     // In this case, there is only one agent, and it always writes to offset 0.
+//     PieceColor current_player = ctx->board.to_move;
+//     compute_single_agent_observation(env, ctx, current_player, 0);
+//   }
+
+//   PROFILE_STOP(profile_compute_obs_ticks)
+// }
+
+// In chess.h
 void compute_observation_with_perspective(CChess *env, ChessContext *ctx) {
   PROFILE_START(profile_compute_obs_ticks)
 
+  // The board state reflects the current player's turn.
+  // We generate the observation for this player from their perspective.
   PieceColor current_player = ctx->board.to_move;
 
-  if (ctx->self_play_mode && ctx->dual_agent_self_play_mode) {
-    // Multi-agent mode: Both agents see the same board state
-    // Both WHITE and BLACK agents write to the SAME observation location
-    // since they observe the same game state (perspective handled in observation encoding)
-    
-    // printf("[OBS_DEBUG] ENV_ID=%d Dual-agent mode: computing shared observation\n", env->env_id);
-    
-    // Compute observation for current player (the one whose turn it is)
-    // Both agents get the same observation since they see the same board
-    compute_single_agent_observation(env, ctx, current_player, 0);
-    
-  } else {
-    // Single-agent mode: only compute for current player at offset 0
-    // printf("[OBS_DEBUG] Single-agent mode: computing observation for %s player at offset 0\n", 
-    //        (current_player == C_WHITE) ? "WHITE" : "BLACK");
-    compute_single_agent_observation(env, ctx, current_player, 0);
-  }
+  // The obs_offset is always 0 because the framework expects one observation
+  // per env.
+  int obs_offset = 0;
+
+  // Compute the observation for the current player and write it to the start of
+  // the buffer.
+  compute_single_agent_observation(env, ctx, current_player, obs_offset);
+
+  // Optional: you could add a validation check here for the single observation
+  validate_chess_observation_integrity(env, ctx, current_player, obs_offset);
 
   PROFILE_STOP(profile_compute_obs_ticks)
 }
@@ -1915,10 +2143,14 @@ static bool apply_uci_move(ChessContext *ctx, const char *uci_str) {
   ctx->legal_moves_cached = false;
   ctx->observation_cached = false;
   ctx->step_count++;
-  // Add to complete game log
-  int action_id = uci_to_action_id(uci_str);
-  if (action_id >= 0 && ctx->complete_game_action_count < ctx->c_max_depth) {
-    ctx->complete_game_actions[ctx->complete_game_action_count++] = action_id;
+  // Add to complete game log - store the canonical UCI move
+  if (ctx->complete_game_action_count < 1024) {
+    strcpy(ctx->complete_game_moves[ctx->complete_game_action_count], uci_str);
+    ctx->complete_game_action_count++;
+    // printf("[DEBUG] Recorded move %s (total: %d)\n", uci_str, ctx->complete_game_action_count);
+  } else {
+    printf("[DEBUG] Failed to record move: count=%d, max=1024\n", 
+           ctx->complete_game_action_count);
   }
 
   PROFILE_STOP(profile_apply_uci_move_ticks)
@@ -2110,6 +2342,14 @@ void c_reset(CChess *env) {
   env->context.complete_game_action_count = 0;
   env->context.serialized_moves[0] =
       '\0'; // Initialize serialized_moves buffer to empty
+  
+  // Don't reset game logging frequency - it's set once at init
+  // env->context.game_logging_frequency = 500000;
+  // DEBUG: Explicitly preserve the logging frequency that was set during init
+  if (env->context.game_logging_frequency == 0) {
+    // This shouldn't happen - frequency should be preserved from init
+    printf("[C++ DEBUG] WARN: Reset detected zero frequency, but config should preserve it\n");
+  }
 
   // Reset statistics
   env->context.c_white_moves = 0;
@@ -2117,6 +2357,20 @@ void c_reset(CChess *env) {
   env->context.c_valid_moves = 0;
   env->context.c_invalid_moves_white = 0;
   env->context.c_invalid_moves_black = 0;
+
+  // Reset game outcome counters (CRITICAL BUG FIX)
+  env->context.c_white_win = 0;
+  env->context.c_black_win = 0;
+  env->context.c_white_loss = 0;
+  env->context.c_black_loss = 0;
+  env->context.c_game_drawn = 0;
+  env->context.c_max_depth = 0;
+  env->context.c_white_checkmated = 0;
+  env->context.c_black_checkmated = 0;
+  env->context.c_stalemate = 0;
+  env->context.c_insufficient_material = 0;
+  env->context.c_threefold_repetition = 0;
+  env->context.c_fifty_move_rule = 0;
 
   // Reset accumulated reward counters
   env->context.accumulated_reward_valid = 0.0f;
@@ -2151,45 +2405,103 @@ void c_reset(CChess *env) {
 
 void c_step(CChess *env) {
   PROFILE_START(profile_c_step_ticks)
+  
+  // Increment step counter for game logging
+  env->context.steps_since_last_log++;
 
-  // In self-play mode: agent 0 = white, agent 1 = black
-  // Get action from the agent whose turn it is
-  PieceColor current_player = env->context.board.to_move;
-  int agent_idx = (current_player == C_WHITE) ? 0 : 1;
+//   // In self-play mode: agent 0 = white, agent 1 = black
+//   // Get action from the agent whose turn it is
+//   PieceColor current_player = env->context.board.to_move;
+//   int agent_idx = (current_player == C_WHITE) ? 0 : 1;
   
-  // In dual-agent mode, both agents provide actions but only current player's action is used
-  // This follows the OpenSpiel pattern where actions[curr_player] is the only action processed
+//   printf("[C_STEP_ENTRY] Turn: %s (agent %d), fullmove: %d, halfmove: %d\n",
+//          (current_player == C_WHITE) ? "WHITE" : "BLACK", agent_idx,
+//          env->context.board.fullmove_number, env->context.board.halfmove_clock);
+  
+//   // CRITICAL: In dual-agent mode, only process actions for the current player
+//   // SAFEGUARD: Handle training loop calling wrong agent
+//   int correct_agent_idx = agent_idx;
+//   if (env->context.dual_agent_self_play_mode) {
+//     // Determine which agent should actually move based on board state
+//     int expected_agent = (current_player == C_WHITE) ? 0 : 1;
+    
+//     if (agent_idx != expected_agent) {
+//       printf("[TRAINING_LOOP_FIX] Board says %s's turn (agent %d), but called with agent %d. Using correct agent.\n",
+//              (current_player == C_WHITE) ? "WHITE" : "BLACK", expected_agent, agent_idx);
+//       correct_agent_idx = expected_agent;
+//     }
+//   }
+  
+//   // Use the action from the correct agent (the one whose turn it actually is)
+//   int action_idx = env->actions[correct_agent_idx];
+
+  // In a single-agent-view architecture, the Python wrapper ALWAYS places the
+  // action for the current player in the first slot of the actions buffer.
+  // We no longer need to determine the agent_idx based on color.
+  int agent_idx = 0;
+
+  // The action is now correctly read from env->actions[0] for BOTH White and
+  // Black.
   int action_idx = env->actions[agent_idx];
-  
+
   // CRITICAL FIX: Validate that the chosen action is actually in the action mask
-  // If not, this indicates an agent is trying to act when it's not their turn
-  int obs_offset = 0; // Both agents share same observation  
+  // Calculate the correct observation offset for the CURRENT player.
+  const int single_obs_size = 3312; // 1344 board + 1968 mask
+  int obs_offset = 0; // <-- NEW, CORRECT LOGIC
   int mask_start_idx = 1344; // Start of action mask in observation
   
-  // Check if the chosen action is legal (in the action mask)
+  // Generate fresh legal moves to validate against
+  chess_generate_legal_moves_uci(&env->context);
+  
+  // Check if the chosen action corresponds to a legal move
+  bool action_is_legal = false;
+  int fallback_action = -1;
+  
   if (action_idx >= 0 && action_idx < TOTAL_CHESS_ACTIONS) {
-    bool action_is_legal = (env->observations[obs_offset + mask_start_idx + action_idx] > 0.5f);
+    const char* chosen_uci = ACTION_ID_TO_UCI[action_idx];
     
-    if (!action_is_legal) {
-      // The agent chose an illegal action - find the first legal action as a fallback
-      int fallback_action = -1;
-      for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
-        if (env->observations[obs_offset + mask_start_idx + i] > 0.5f) {
-          fallback_action = i;
-          break;
-        }
+    // Check if this action corresponds to any legal move
+    for (int i = 0; i < env->context.legal_moves_count; i++) {
+      const char* legal_uci = env->context.legal_moves_buffer[i];
+      char perspective_uci[6];
+      
+      // For BLACK, we need to flip the canonical move to match the action space
+      if (env->context.board.to_move == C_BLACK) {
+        flip_uci_for_black_perspective(legal_uci, perspective_uci);
+      } else {
+        strcpy(perspective_uci, legal_uci);
       }
       
-      if (fallback_action >= 0) {
-        // printf("[ACTION_DEBUG] %s agent chose illegal action %d, using fallback action %d\n", 
-        //        (current_player == C_WHITE) ? "WHITE" : "BLACK", action_idx, fallback_action);
-        action_idx = fallback_action;
-      } else {
-        printf("[ERROR] No legal actions available for %s agent!\n", 
-               (current_player == C_WHITE) ? "WHITE" : "BLACK");
-        PROFILE_STOP(profile_c_step_ticks)
-        return;
+      if (strcmp(chosen_uci, perspective_uci) == 0) {
+        action_is_legal = true;
+        break;
       }
+      
+      // Store first legal action as fallback
+      if (fallback_action == -1) {
+        fallback_action = uci_to_action_id(perspective_uci);
+      }
+    }
+  }
+
+//   // NEW, CLEANER LOGGING
+//   printf("[C_STEP_DEBUG] %s's turn: Chose action %d (%s) from agent 0. "
+//          "legal=%s, legal_moves=%d\n",
+//          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK", action_idx,
+//          ACTION_ID_TO_UCI[action_idx], action_is_legal ? "YES" : "NO",
+//          env->context.legal_moves_count);
+
+  if (!action_is_legal) {
+    if (fallback_action >= 0) {
+    //   printf("[ACTION_DEBUG] %s agent chose illegal action %d (%s), using fallback action %d (%s)\n", 
+    //          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK", action_idx, ACTION_ID_TO_UCI[action_idx],
+    //          fallback_action, ACTION_ID_TO_UCI[fallback_action]);
+      action_idx = fallback_action;
+    } else {
+    //   printf("[ERROR] No legal actions available for %s agent!\n", 
+    //          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK");
+      PROFILE_STOP(profile_c_step_ticks)
+      return;
     }
   }
   
@@ -2216,7 +2528,7 @@ void c_step(CChess *env) {
   const char *uci_move_white_perspective = ACTION_ID_TO_UCI[action_idx];
   char uci_move_canonical[6];
   
-  if (current_player == C_BLACK) {
+  if (env->context.board.to_move == C_BLACK) {
     // The black agent chose this action based on its flipped perspective.
     // The action maps to a move in white perspective coordinates, but since
     // the black agent sees the board flipped, this move should be interpreted
@@ -2242,7 +2554,7 @@ void c_step(CChess *env) {
 
   // 4. Validate against the ground truth.
   if (!is_action_legal) {
-    const char* turn_color = (current_player == C_WHITE) ? "WHITE" : "BLACK";
+    const char* turn_color = (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK";
     printf("[ERROR] Illegal move attempted (ground truth validation): action %d (%s) - %s's turn (agent %d)\n", 
            action_idx, uci_move_canonical, turn_color, agent_idx);
     
@@ -2254,7 +2566,7 @@ void c_step(CChess *env) {
 
     // Invalidate the move, penalize the agent, and end the step without applying the move.
     // Note: You may want to assign a penalty here. For now, we just return.
-    if (current_player == C_WHITE) {
+    if (env->context.board.to_move == C_WHITE) {
         env->context.c_invalid_moves_white += 1;
         env->rewards[agent_idx] += env->context.c_reward_invalid_white;
     } else {
@@ -2290,12 +2602,34 @@ void c_step(CChess *env) {
     }
   }
 
-  // Apply the move
-  apply_uci_move(&env->context, uci_move_canonical);
+//   // Apply the move
+//   printf("[MOVE_APPLY] Applying move %s for %s\n", uci_move_canonical, 
+//          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK");
+  bool move_applied = apply_uci_move(&env->context, uci_move_canonical);
+//   printf("[MOVE_APPLY] Move applied successfully: %s, new turn: %s\n", 
+//          move_applied ? "YES" : "NO",
+//          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK");
 
   // Assign rewards
   env->rewards[agent_idx] += env->context.c_reward_valid;
   env->context.accumulated_reward_valid += env->context.c_reward_valid;
+  
+  // Apply material advantage rewards every step
+  int white_material = calculate_material_value(&env->context.board, C_WHITE);
+  int black_material = calculate_material_value(&env->context.board, C_BLACK);
+  int material_diff = white_material - black_material;  // Positive when WHITE ahead
+  
+  // Reward based on material advantage: positive for advantage, negative for disadvantage
+  float white_material_reward = material_diff * env->context.c_reward_material_diff_white;
+  float black_material_reward = -material_diff * env->context.c_reward_material_diff_black;
+  
+  // Apply material advantage rewards every step
+  env->rewards[0] += white_material_reward;  // WHITE gets + for advantage, - for disadvantage
+  env->rewards[1] += black_material_reward;  // BLACK gets + for advantage, - for disadvantage
+  
+  // Track accumulated material rewards for logging
+  env->context.accumulated_reward_material_diff_white += white_material_reward;
+  env->context.accumulated_reward_material_diff_black += black_material_reward;
   
   // Assign capture rewards if this was a capture
   if (is_capture) {
@@ -2303,7 +2637,7 @@ void c_step(CChess *env) {
     env->context.accumulated_reward_agent_captures_enemy_piece += env->context.c_reward_agent_captures_enemy_piece;
     // Also track en passant captures
     if (is_en_passant) {
-      if (current_player == C_WHITE) {
+      if (env->context.board.to_move == C_WHITE) {
         env->context.c_en_passant_white += 1;
       } else {
         env->context.c_en_passant_black += 1;
@@ -2311,7 +2645,7 @@ void c_step(CChess *env) {
     }
   }
 
-  if (current_player == C_WHITE) {
+  if (env->context.board.to_move == C_WHITE) {
     env->context.c_white_moves += 1;
   } else {
     env->context.c_black_moves += 1;
@@ -2337,28 +2671,30 @@ void c_step(CChess *env) {
     game_over = true;
     if (is_in_check(&env->context.board, env->context.board.to_move)) {
       // CHECKMATE
-      if (current_player == C_WHITE) { // White delivered mate
-        float win_reward = env->context.c_reward_win_white;
-        // Both agents get shared reward based on game outcome
-        env->rewards[0] += win_reward;
-        env->rewards[1] += win_reward;  // Same team, shared reward
-        env->context.c_black_checkmated += 1;
-        env->context.c_white_win += 1;
-        env->context.c_black_loss += 1;
-        // Add accumulated reward tracking for logging
-        env->context.accumulated_reward_win_white += win_reward;
-        env->context.accumulated_reward_loss_black += env->context.c_reward_loss_black;
-      } else { // Black delivered mate
+      if (env->context.board.to_move == C_WHITE) { // White is checkmated (black won)
         float win_reward = env->context.c_reward_win_black;
+        float loss_reward = env->context.c_reward_loss_white;
         // Both agents get shared reward based on game outcome
         env->rewards[0] += win_reward;
-        env->rewards[1] += win_reward;  // Same team, shared reward
+        env->rewards[1] += loss_reward;
         env->context.c_white_checkmated += 1;
         env->context.c_black_win += 1;
         env->context.c_white_loss += 1;
         // Add accumulated reward tracking for logging
         env->context.accumulated_reward_win_black += win_reward;
         env->context.accumulated_reward_loss_white += env->context.c_reward_loss_white;
+      } else { // Black is checkmated (white won)
+        float win_reward = env->context.c_reward_win_white;
+        float loss_reward = env->context.c_reward_loss_black;
+        // Both agents get shared reward based on game outcome
+        env->rewards[0] += win_reward;
+        env->rewards[1] += loss_reward;
+        env->context.c_black_checkmated += 1;
+        env->context.c_white_win += 1;
+        env->context.c_black_loss += 1;
+        // Add accumulated reward tracking for logging
+        env->context.accumulated_reward_win_white += win_reward;
+        env->context.accumulated_reward_loss_black += env->context.c_reward_loss_black;
       }
     } else {
       // STALEMATE
@@ -2411,8 +2747,42 @@ void c_step(CChess *env) {
         (float)env->context.complete_game_action_count;
     add_log(env);
 
+    // Check if we should log this complete game BEFORE reset - ONLY for env_id 512 (first active env)
+    if (env->env_id == 512) {
+      // printf("[C++ DEBUG] Game over: env_id=%d, steps=%d, freq=%d, actions=%d\n", 
+      //        env->env_id, env->context.steps_since_last_log, env->context.game_logging_frequency,
+      //        env->context.complete_game_action_count);
+      if (env->context.game_logging_frequency > 0 && env->context.steps_since_last_log >= env->context.game_logging_frequency) {
+        printf("[C++ DEBUG] Logging game from env %d!\n", env->env_id);
+        write_complete_game_to_file(&env->context, env->env_id);
+        env->context.steps_since_last_log = 0; // Reset counter
+      } else {
+        // printf("[C++ DEBUG] Not logging: freq=%d, steps=%d\n", 
+        //        env->context.game_logging_frequency, env->context.steps_since_last_log);
+      }
+    } else {
+      // Still do the frequency check for all envs, just don't log
+      if (env->context.game_logging_frequency > 0 && env->context.steps_since_last_log >= env->context.game_logging_frequency) {
+        env->context.steps_since_last_log = 0; // Reset counter
+      }
+    }
+    
+    // Debug: Always print for any env that completes a game
+    if (env->context.complete_game_action_count > 0) {
+    //   printf("[C++ DEBUG] Game completed in env %d with %d actions (steps_since_last_log=%d)\n", 
+    //          env->env_id, env->context.complete_game_action_count, env->context.steps_since_last_log);
+    }
+
+    // Save values before reset
+    int saved_steps = env->context.steps_since_last_log;
+    int saved_freq = env->context.game_logging_frequency;
+
     // AUTO-RESET: Manually reset the environment to start a new game
     c_reset(env);
+    
+    // Restore saved values after reset
+    env->context.steps_since_last_log = saved_steps;
+    env->context.game_logging_frequency = saved_freq;
   } else {
     // Compute new observation if the game is not over
     compute_observation_with_perspective(env, &env->context);

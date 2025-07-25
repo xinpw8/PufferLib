@@ -186,7 +186,63 @@ def entropy_probs(logits, probs):
     p_log_p = logits * probs
     return -p_log_p.sum(-1)
 
+def _validate_pytorch_chess_logits(logits, location):
+    """COLOR MONITORING: Validates chess logits at pytorch.py level"""
+    if isinstance(logits, torch.Tensor):
+        if logits.numel() == 0:
+            print(f"[MONITOR_FATAL] Pytorch.py: Empty logits tensor at {location}")
+            print(f"  Action sampling received empty logits")
+            print(f"  FIX: Check policy output in models.py/torch.py")
+            exit(1)
+            
+        if logits.shape[-1] == 1968:  # Chess UCI actions
+            batch_size = logits.shape[0] if len(logits.shape) > 1 else 1
+            
+            # Check for NaN/+inf before sampling (allow -inf for action masking)
+            if torch.isnan(logits).any() or (logits == float('inf')).any():
+                nan_count = torch.isnan(logits).sum().item()
+                pos_inf_count = (logits == float('inf')).sum().item()
+                print(f"[MONITOR_FATAL] Pytorch.py: Invalid logits at {location}")
+                print(f"  NaN values: {nan_count}, Positive Inf values: {pos_inf_count}")
+                print(f"  This will cause sampling to fail")
+                print(f"  FIX: Check neural network weights or input preprocessing")
+                exit(1)
+                
+            # Check for no legal actions (all logits == -inf)
+            if (logits > -1e10).sum() == 0:
+                print(f"[MONITOR_WARNING] Pytorch.py: No legal actions at {location}")
+                print(f"  All logits masked - possible game over or bug")
+                
+            # Check logit range for chess
+            logit_min, logit_max = logits.min().item(), logits.max().item()
+            # print(f"[MONITOR_OK] Pytorch.py: Chess logits valid at {location} "
+            #       f"(batch={batch_size}, range=[{logit_min:.1f},{logit_max:.1f}])")
+
+def _validate_pytorch_chess_actions(action, location):
+    """COLOR MONITORING: Validates chess actions at pytorch.py level"""
+    if action is None or action.numel() == 0:
+        print(f"[MONITOR_FATAL] Pytorch.py: Empty action tensor at {location}")
+        print(f"  Action sampling produced empty actions")
+        print(f"  FIX: Check multinomial sampling logic")
+        exit(1)
+        
+    # Check action validity for chess
+    if (action < 0).any() or (action >= 1968).any():
+        invalid_mask = (action < 0) | (action >= 1968)
+        invalid_actions = action[invalid_mask]
+        print(f"[MONITOR_FATAL] Pytorch.py: Invalid chess actions at {location}")
+        print(f"  Invalid actions (first 10): {invalid_actions[:10].tolist()}")
+        print(f"  Valid range: [0, 1967] for UCI chess actions")
+        print(f"  FIX: Check action space definition or sampling bounds")
+        exit(1)
+        
+    # print(f"[MONITOR_OK] Pytorch.py: Chess actions valid at {location} "
+    #       f"(shape={action.shape}, range=[{action.min()},{action.max()}])")
+
 def sample_logits(logits, action=None):
+    # --- COLOR MONITORING: Validate logits before sampling ---
+    _validate_pytorch_chess_logits(logits, "sample_logits() input")
+    
     is_discrete = isinstance(logits, torch.Tensor)
     if isinstance(logits, torch.distributions.Normal):
         batch = logits.loc.shape[0]
@@ -214,6 +270,9 @@ def sample_logits(logits, action=None):
         probs = torch.nan_to_num(probs, 1e-8, 1e-8, 1e-8)
         action = torch.multinomial(probs.reshape(-1, probs.shape[-1]), 1, replacement=True).int()
         action = action.reshape(probs.shape[:-1])
+        
+        # --- COLOR MONITORING: Validate sampled actions ---
+        _validate_pytorch_chess_actions(action, "sample_logits() output")
     else:
         batch = logits[0].shape[0]
         action = action.view(batch, -1).T

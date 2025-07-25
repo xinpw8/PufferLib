@@ -589,8 +589,9 @@ static PyObject* vec_log(PyObject* self, PyObject* args) {
         Env* env = vec->envs[i];
         for (int j = 0; j < num_keys; j++) {
             ((float*)&aggregate)[j] += ((float*)&env->log)[j];
-            ((float*)&env->log)[j] = 0.0f;
         }
+        // Reset logs after successful collection to prevent double-counting
+        memset(&env->log, 0, sizeof(Log));
     }
 
     PyObject* dict = PyDict_New();

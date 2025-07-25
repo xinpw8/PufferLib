@@ -131,9 +131,39 @@ class Serial:
         self.infos = infos
         self._avg_infos()
 
+    def _validate_vector_chess_actions(self, actions, location):
+        """COLOR MONITORING: Validates chess actions at vector.py level"""
+        if actions is None or actions.size == 0:
+            print(f"[MONITOR_FATAL] Vector.py: Empty actions at {location}")
+            print(f"  Vector layer received empty action array")
+            print(f"  FIX: Check action generation in pufferl.py")
+            exit(1)
+            
+        # Check action validity for potential chess actions
+        if not all(isinstance(a, (int, np.integer)) for a in actions.flat):
+            print(f"[MONITOR_FATAL] Vector.py: Non-integer actions at {location}")
+            print(f"  Actions must be integers for discrete action spaces")
+            print(f"  Action types: {[type(a) for a in actions.flat[:5]]}")
+            print(f"  FIX: Check action sampling in pytorch.py")
+            exit(1)
+            
+        if any(a < 0 or a >= 1968 for a in actions.flat):
+            invalid_actions = [a for a in actions.flat if a < 0 or a >= 1968]
+            print(f"[MONITOR_FATAL] Vector.py: Invalid chess actions at {location}")
+            print(f"  Invalid actions (first 10): {invalid_actions[:10]}")
+            print(f"  Valid range: [0, 1967] for UCI chess actions")
+            print(f"  FIX: Check action space bounds in pytorch.py")
+            exit(1)
+            
+        # print(f"[MONITOR_OK] Vector.py: Actions valid at {location} "
+        #       f"(shape={actions.shape}, range=[{actions.min()}, {actions.max()}])")
+
     def send(self, actions):
         if not actions.flags.contiguous:
             actions = np.ascontiguousarray(actions)
+
+        # --- COLOR MONITORING: Validate actions entering vector layer ---
+        self._validate_vector_chess_actions(actions, "send()")
 
         actions = send_precheck(self, actions)
         rewards, dones, truncateds, self.infos = [], [], [], []
@@ -160,8 +190,44 @@ class Serial:
         for env in self.envs:
             env.notify()
 
+    def _validate_vector_chess_data(self, obs, location):
+        """COLOR MONITORING: Validates chess data at vector.py level"""
+        if obs is None or obs.size == 0:
+            print(f"[MONITOR_FATAL] Vector.py: Empty observations at {location}")
+            print(f"  Vector layer received empty observation array")
+            print(f"  FIX: Check environment reset/step in chess.py")
+            exit(1)
+            
+        # Check if this looks like chess observations
+        if obs.shape[-1] == 3312:  # Chess observation detected
+            batch_size = obs.shape[0]
+            # print(f"[MONITOR_OK] Vector.py: Chess observations detected at {location} "
+            #       f"(batch_size={batch_size}, obs_shape={obs.shape})")
+                  
+            # Validate chess-specific structure
+            board_sums = obs[:, :1344].sum(axis=1)
+            mask_sums = obs[:, 1344:3312].sum(axis=1)
+            
+            if any(board_sums < 1.0) or any(mask_sums < 1.0):
+                invalid_indices = [i for i in range(batch_size) 
+                                 if board_sums[i] < 1.0 or mask_sums[i] < 1.0]
+                print(f"[MONITOR_FATAL] Vector.py: Invalid chess observations at {location}")
+                print(f"  Invalid batch indices: {invalid_indices}")
+                print(f"  Board sums: {board_sums}")
+                print(f"  Mask sums: {mask_sums}")
+                print(f"  FIX: Check observation generation in chess.h/chess.py")
+                exit(1)
+                
+            # print(f"[MONITOR_OK] Vector.py: Chess observations valid - "
+            #       f"board_sums=[{board_sums.min():.1f}-{board_sums.max():.1f}], "
+            #       f"mask_sums=[{mask_sums.min():.0f}-{mask_sums.max():.0f}]")
+
     def recv(self):
         recv_precheck(self)
+        
+        # --- COLOR MONITORING: Validate observations leaving vector layer ---
+        self._validate_vector_chess_data(self.observations, "recv()")
+        
         return (self.observations, self.rewards, self.terminals, self.truncations,
             self.infos, self.agent_ids, self.masks)
 

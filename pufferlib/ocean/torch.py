@@ -1000,8 +1000,6 @@ class ChessRecurrent(nn.Module):
     """Optimized MLP encoder/decoder for chess observations with UCI action space."""
     def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
         super().__init__()
-        # self.is_chess attribute is no longer needed
-        
         # Simple MLP encoder for flattened chess board (much faster than CNN)
         self.board_encoder = nn.Sequential(
             nn.Linear(1344, 512),  # 21 * 8 * 8 = 1344
@@ -1027,6 +1025,9 @@ class ChessRecurrent(nn.Module):
 
     def encode_observations(self, obs, state=None):
         # For LSTM compatibility, we only encode board features here
+        # Handle both 1D and 2D tensor inputs
+        if obs.dim() == 1:
+            obs = obs.unsqueeze(0)
         board_state = obs[:, :1344].float()
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
@@ -1036,21 +1037,25 @@ class ChessRecurrent(nn.Module):
         # Get raw logits for UCI actions
         raw_logits = self.policy_head(hidden)
         
-        # Optimized vectorized masking is applied here
-        masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
+        # Apply masking: set invalid actions to -inf
+        masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+        
         value = self.value_head(hidden).squeeze(-1)
         
         return masked_logits, value
 
     def forward(self, obs, state=None):
         # Non-LSTM inference path
-        board_state = obs[:, :1344]
+        hidden = self.encode_observations(obs[:, :1344])
         legal_mask = obs[:, 1344:3312]
-        
-        hidden = self.encode_observations(board_state)
         logits, value = self.decode_actions(hidden, legal_mask)
-
         return logits, value
+
+def Policy(env, **kwargs):
+    """Factory returning the appropriate policy for the given environment."""
+    hidden_size = kwargs.pop('hidden_size', 256)
+    base = ChessRecurrent(env, hidden_size=hidden_size)
+    return ChessLSTM(env, base, input_size=hidden_size, hidden_size=hidden_size)
 
         
 class Tetris(nn.Module):
@@ -1169,9 +1174,77 @@ class Drone(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
+    def _validate_chess_torch_inputs(self, observations, location):
+        """COLOR MONITORING: Validates chess inputs at torch.py policy level"""
+        if observations is None or observations.numel() == 0:
+            print(f"[MONITOR_FATAL] Torch.py: Empty observations at {location}")
+            print(f"  Chess policy received empty observation tensor")
+            print(f"  FIX: Check models.py policy forwarding")
+            exit(1)
+            
+        if observations.shape[-1] == 3312:  # Chess observations
+            batch_size = observations.shape[0]
+            board_part = observations[:, :1344]
+            mask_part = observations[:, 1344:3312]
+            
+            # Validate content structure
+            board_sums = board_part.sum(dim=1)
+            mask_sums = mask_part.sum(dim=1)
+            
+            if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
+                print(f"[MONITOR_FATAL] Torch.py: Invalid chess observations at {location}")
+                print(f"  Board sums: {board_sums}")
+                print(f"  Mask sums: {mask_sums}")
+                print(f"  FIX: Check observation encoding in chess.h")
+                exit(1)
+                
+            print(f"[MONITOR_OK] Torch.py: Chess policy inputs valid at {location} "
+                  f"(batch={batch_size}, board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
+                  f"mask_range=[{mask_sums.min():.0f},{mask_sums.max():.0f}])")
+
+    def _validate_chess_torch_outputs(self, logits, values, location):
+        """COLOR MONITORING: Validates chess outputs at torch.py policy level"""
+        if logits is None or logits.numel() == 0:
+            print(f"[MONITOR_FATAL] Torch.py: Empty logits at {location}")
+            print(f"  Chess policy generated empty logits")
+            print(f"  FIX: Check policy_head in ChessRecurrent model")
+            exit(1)
+            
+        if logits.shape[-1] == 1968:  # Chess UCI actions
+            batch_size = logits.shape[0]
+            
+            # Validate logits quality - allow -inf for action masking but not +inf or NaN
+            if torch.isnan(logits).any() or (logits == float('inf')).any():
+                nan_count = torch.isnan(logits).sum().item()
+                pos_inf_count = (logits == float('inf')).sum().item()
+                print(f"[MONITOR_FATAL] Torch.py: Invalid logits at {location}")
+                print(f"  NaN values: {nan_count}, Positive Inf values: {pos_inf_count}")
+                print(f"  FIX: Check neural network training or input preprocessing")
+                exit(1)
+                
+            # Check for no legal actions (all logits == -inf except perhaps some)
+            if (logits > -1e10).sum() == 0:  # No finite logits
+                print(f"[MONITOR_WARNING] Torch.py: No legal actions at {location}")
+                print(f"  All logits masked - possible game over or bug")
+                
+            # Check for reasonable logit distribution
+            logit_min, logit_max = logits.min().item(), logits.max().item()
+            masked_count = (logits <= -1e7).sum().item()  # Count masked actions
+            
+            print(f"[MONITOR_OK] Torch.py: Chess policy outputs valid at {location} "
+                  f"(batch={batch_size}, logit_range=[{logit_min:.1f},{logit_max:.1f}], "
+                  f"masked_actions={masked_count}, value_range=[{values.min():.3f},{values.max():.3f}])")
+
     def forward_eval(self, observations, state=None):
+        # --- COLOR MONITORING: Validate chess-specific policy inputs ---
+        self._validate_chess_torch_inputs(observations, "ChessRecurrent.forward_eval() input")
+        
         hidden = self.encode_observations(observations, state=state)
         logits, values = self.decode_actions(hidden)
+        
+        # --- COLOR MONITORING: Validate chess-specific policy outputs ---
+        self._validate_chess_torch_outputs(logits, values, "ChessRecurrent.forward_eval() output")
+        
         return logits, values
 
     def forward(self, observations, state=None):

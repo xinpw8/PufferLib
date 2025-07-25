@@ -150,9 +150,22 @@ def make_pettingzoo_chess(buf=None, seed=None, **kwargs):
     
     return env
 
+def make_double_buffered_chess(buf=None, seed=None, **kwargs):
+    """Create a double-buffered chess environment for separated white/black episodes."""
+    from pufferlib.ocean.chess.double_buffered_chess import DoubleBufferedChess
+    
+    # Remove seed from kwargs to avoid conflict with positional argument
+    kwargs.pop('seed', None)
+    
+    # Create double-buffered chess environment
+    env = DoubleBufferedChess(seed=seed, buf=buf, **kwargs)
+    
+    return env
+
 MAKE_FUNCTIONS = {
     'chess': 'Chess',
     'pettingzoo_chess': 'make_pettingzoo_chess',
+    'double_buffered_chess': 'make_double_buffered_chess',
     'breakout': 'Breakout',
     'blastar': 'Blastar',
     'convert': 'Convert',

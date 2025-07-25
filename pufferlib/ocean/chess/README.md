@@ -73,6 +73,7 @@ How implemented:
 
         1 plane for the repetition count
 
+
         1 plane for the side-to-move (always 0, as it's from the current player's perspective)
 
         1 plane for the 50-move rule clock
@@ -94,3 +95,19 @@ How implemented:
     The constant TOTAL_CHESS_ACTIONS (which is 1924) is used throughout the code for action masking and validation (e.g., in compute_observation_with_perspective and c_step).
 
     The allocate function explicitly reserves space for a 1924-dimensional action space.
+
+
+
+UPDATED SECTION - IMPORTANT!!
+Regarding self-play actually working:
+best way to do masking is half the agents run 1 step and half run the next step. but they can't go in the same     │
+│   episode. an episode has to be all of 1 agent's moves. data from each agent must remain separate. the actual fix    │
+│   is for each episode to contain 1 player's data. hack double-buffered vec so 1 call to step you get 1 player's      │
+│   data and then on the next call to step() you get the other player's data.  
+
+Opening frequency of PGN-style UCI logs:
+python analyze_openings.py /puffertank/release_test_pufferlib/pufferlib/resources/chess/training_logs/complete_games
+
+chess.cpp commands:
+./chess demo - opens GUI
+./chess browser - replay saved games from training

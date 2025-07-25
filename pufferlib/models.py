@@ -82,10 +82,74 @@ class Default(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
+    def _validate_chess_policy_inputs(self, observations, location):
+        """COLOR MONITORING: Validates chess inputs at policy level"""
+        if observations is None or observations.numel() == 0:
+            print(f"[MONITOR_FATAL] Models.py: Empty observations at {location}")
+            print(f"  Policy received empty observation tensor")
+            print(f"  FIX: Check pufferl.py observation processing")
+            exit(1)
+            
+        if observations.shape[-1] == 3312:  # Chess observations
+            batch_size = observations.shape[0]
+            board_part = observations[:, :1344]
+            mask_part = observations[:, 1344:3312]
+            
+            board_sums = board_part.sum(dim=1)
+            mask_sums = mask_part.sum(dim=1)
+            
+            if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
+                print(f"[MONITOR_FATAL] Models.py: Invalid chess observations at {location}")
+                print(f"  Board sums: {board_sums}")
+                print(f"  Mask sums: {mask_sums}")
+                print(f"  FIX: Check observation generation pipeline")
+                exit(1)
+                
+            print(f"[MONITOR_OK] Models.py: Chess policy inputs valid at {location} "
+                  f"(batch={batch_size}, board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
+                  f"mask_range=[{mask_sums.min():.0f},{mask_sums.max():.0f}])")
+
+    def _validate_chess_policy_outputs(self, logits, value, location):
+        """COLOR MONITORING: Validates chess outputs at policy level"""
+        if logits is None or (hasattr(logits, 'numel') and logits.numel() == 0):
+            print(f"[MONITOR_FATAL] Models.py: Empty logits at {location}")
+            print(f"  Policy generated empty logits tensor")
+            print(f"  FIX: Check decode_actions() in chess policy")
+            exit(1)
+            
+        if hasattr(logits, 'shape') and logits.shape[-1] == 1968:  # Chess UCI actions
+            batch_size = logits.shape[0]
+            
+            # Check for invalid logits (NaN, inf)
+            if torch.isnan(logits).any() or torch.isinf(logits).any():
+                nan_count = torch.isnan(logits).sum().item()
+                inf_count = torch.isinf(logits).sum().item()
+                print(f"[MONITOR_FATAL] Models.py: Invalid logits at {location}")
+                print(f"  NaN values: {nan_count}, Inf values: {inf_count}")
+                print(f"  FIX: Check neural network weights or action masking")
+                exit(1)
+                
+            # Check logit range (should be reasonable for softmax)
+            logit_min, logit_max = logits.min().item(), logits.max().item()
+            if logit_max - logit_min > 100:  # Extreme range indicates masking issues
+                print(f"[MONITOR_FATAL] Models.py: Extreme logit range at {location}")
+                print(f"  Logit range: [{logit_min:.1f}, {logit_max:.1f}]")
+                print(f"  This suggests action masking problems")
+                print(f"  FIX: Check legal move mask application in chess policy")
+                exit(1)
+                
+            print(f"[MONITOR_OK] Models.py: Chess policy outputs valid at {location} "
+                  f"(batch={batch_size}, logit_range=[{logit_min:.1f},{logit_max:.1f}], "
+                  f"value_range=[{value.min():.3f},{value.max():.3f}])")
+
     def forward_eval(self, observations, state=None):
         if not hasattr(self, "_dbg_printed"):
             print("DEBUG: Default policy forward_eval called – this should NOT happen for chess.")
             self._dbg_printed = True
+            
+        # --- COLOR MONITORING: Validate policy inputs ---
+        self._validate_chess_policy_inputs(observations, "forward_eval() input")
+            
         hidden = self.encode_observations(observations, state=state)
         if self.is_chess:
             # Extract legal mask and apply action masking
@@ -93,6 +157,10 @@ class Default(nn.Module):
             logits, values = self.decode_actions(hidden, legal_mask)
         else:
             logits, values = self.decode_actions(hidden)
+        
+        # --- COLOR MONITORING: Validate policy outputs ---
+        self._validate_chess_policy_outputs(logits, values, "forward_eval() output")
+        
         return logits, values
 
     def forward(self, observations, state=None):
@@ -146,6 +214,7 @@ class Default(nn.Module):
         values = self.value(hidden)
         return logits, values
 
+
 class LSTMWrapper(nn.Module):
     def __init__(self, env, policy, input_size=128, hidden_size=128):
         '''Wraps your policy with an LSTM.'''
@@ -195,9 +264,10 @@ class LSTMWrapper(nn.Module):
         
         flat_hidden = hidden.transpose(0, 1).reshape(B * TT, self.hidden_size)
         
-        # Unconditional chess logic for training
-        legal_mask = observations.reshape(B * TT, *space_shape)[:, 1344:3312]
-        logits, values = self.policy.decode_actions(flat_hidden, legal_mask)
+        # Extract legal masks from observations (chess-specific)
+        legal_masks = observations.reshape(B * TT, *space_shape)[:, 1344:3312]
+        
+        logits, values = self.policy.decode_actions(flat_hidden, legal_masks)
 
         values = values.reshape(B, TT)
         
@@ -212,20 +282,18 @@ class LSTMWrapper(nn.Module):
         '''Forward function for inference. Assumes state is a dictionary.'''
         hidden = self.policy.encode_observations(observations)
         
-        # --- THIS IS THE FIX ---
         # Correctly get LSTM state from the state DICTIONARY
         h = state.get('lstm_h')
         c = state.get('lstm_c')
         
-        # PufferLib initializes state with zero tensors, so h and c should not be None
-        # after the first step.
         lstm_state = (h, c)
 
         next_h, next_c = self.cell(hidden, lstm_state)
 
-        # Unconditional chess logic for evaluation
-        legal_mask = observations[:, 1344:3312]
-        logits, values = self.policy.decode_actions(next_h, legal_mask)
+        # Extract legal masks from observations (chess-specific)
+        legal_masks = observations[:, 1344:3312]
+        
+        logits, values = self.policy.decode_actions(next_h, legal_masks)
         
         # Update the state dictionary in-place for the next evaluation step
         state['lstm_h'] = next_h

@@ -80,14 +80,21 @@ if [ "$ENV" = "chess" ]; then
     echo "Attempting to compile with raylib support:"
 
     if [ -d "$ROOT_DIR/$RAYLIB_NAME" ]; then
-        # Compile C file separately as C
+        # Compile C files separately as C
         clang -g -O2 -c \
             -I"$SRC_DIR" \
             "$SRC_DIR/chess_action_mapping.c" \
             -o /tmp/chess_action_mapping.o \
             -DPLATFORM_DESKTOP
+            
+        clang -g -O2 -c \
+            -I"$ROOT_DIR/pufferlib/extensions" \
+            -I"$ROOT_DIR/pufferlib/pufferlib/extensions" \
+            "$SRC_DIR/chess_net_c_bridge.c" \
+            -o /tmp/chess_net_c_bridge.o \
+            -DPLATFORM_DESKTOP
         
-        # Compile C++ file and link with C object
+        # Compile C++ file and link with C objects
         clang++ -g -O2 -o chess \
             -I"$ROOT_DIR/$RAYLIB_NAME/include" \
             -I"$ROOT_DIR/pufferlib/extensions" \
@@ -95,6 +102,7 @@ if [ "$ENV" = "chess" ]; then
             -I"$SRC_DIR" \
             "$SRC_DIR/chess.cpp" \
             /tmp/chess_action_mapping.o \
+            /tmp/chess_net_c_bridge.o \
             "$ROOT_DIR/$RAYLIB_NAME/lib/libraylib.a" \
             -lm -lpthread -ldl -lrt -lX11 \
             -DPLATFORM_DESKTOP

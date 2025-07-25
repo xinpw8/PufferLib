@@ -208,6 +208,64 @@ class PuffeRL:
 
         return (self.global_step - self.last_log_step) / (time.time() - self.last_log_time)
 
+    def _validate_pufferl_chess_observations(self, obs_tensor, location):
+        """COLOR MONITORING: Validates chess observations at pufferl.py level"""
+        if obs_tensor is None or obs_tensor.numel() == 0:
+            print(f"[MONITOR_FATAL] Pufferl.py: Empty observation tensor at {location}")
+            print(f"  Training loop received empty observations")
+            print(f"  FIX: Check vector.py recv() or environment generation")
+            exit(1)
+            
+        # Check if this looks like chess observations
+        if obs_tensor.shape[-1] == 3312:  # Chess detected
+            batch_size = obs_tensor.shape[0]
+            
+            # Validate tensor properties
+            if obs_tensor.dtype not in [torch.float32, torch.float64]:
+                print(f"[MONITOR_FATAL] Pufferl.py: Invalid tensor dtype at {location}")
+                print(f"  Expected float32/float64, got {obs_tensor.dtype}")
+                print(f"  FIX: Check tensor conversion in vector.py or chess.py")
+                exit(1)
+                
+            # Validate chess content
+            board_sums = obs_tensor[:, :1344].sum(dim=1)
+            mask_sums = obs_tensor[:, 1344:3312].sum(dim=1)
+            
+            if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
+                invalid_indices = torch.where((board_sums < 1.0) | (mask_sums < 1.0))[0]
+                print(f"[MONITOR_FATAL] Pufferl.py: Invalid chess observations at {location}")
+                print(f"  Invalid batch indices: {invalid_indices.tolist()}")
+                print(f"  Board sums: {board_sums}")
+                print(f"  Mask sums: {mask_sums}")
+                print(f"  FIX: Check observation pipeline from chess.h through vector.py")
+                exit(1)
+                
+            # print(f"[MONITOR_OK] Pufferl.py: Chess observations valid at {location} "
+            #       f"(batch={batch_size}, device={obs_tensor.device}, "
+            #       f"board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
+            #       f"mask_range=[{mask_sums.min():.0f},{mask_sums.max():.0f}])")
+
+    def _validate_pufferl_chess_actions(self, action_tensor, location):
+        """COLOR MONITORING: Validates chess actions at pufferl.py level"""
+        if action_tensor is None or action_tensor.numel() == 0:
+            print(f"[MONITOR_FATAL] Pufferl.py: Empty action tensor at {location}")
+            print(f"  Training loop generated empty actions")
+            print(f"  FIX: Check policy.forward_eval() or pytorch.sample_logits()")
+            exit(1)
+            
+        # Validate action range (chess UCI actions: 0-1967)
+        if (action_tensor < 0).any() or (action_tensor >= 1968).any():
+            invalid_mask = (action_tensor < 0) | (action_tensor >= 1968)
+            invalid_actions = action_tensor[invalid_mask]
+            print(f"[MONITOR_FATAL] Pufferl.py: Invalid chess actions at {location}")
+            print(f"  Invalid actions (first 10): {invalid_actions[:10].tolist()}")
+            print(f"  Valid range: [0, 1967] for UCI chess actions")
+            print(f"  FIX: Check action space or policy output in models.py/torch.py")
+            exit(1)
+            
+        # print(f"[MONITOR_OK] Pufferl.py: Chess actions valid at {location} "
+        #       f"(shape={action_tensor.shape}, range=[{action_tensor.min()},{action_tensor.max()}])")
+
     def evaluate(self):
         profile = self.profile
         epoch = self.epoch
@@ -235,6 +293,10 @@ class PuffeRL:
 
             profile('eval_copy', epoch)
             o = torch.as_tensor(o)
+            
+            # --- COLOR MONITORING: Validate observations entering training loop ---
+            self._validate_pufferl_chess_observations(o, "evaluate() recv")
+            
             o_device = o.to(device)#, non_blocking=True)
             r = torch.as_tensor(r).to(device)#, non_blocking=True)
             d = torch.as_tensor(d).to(device)#, non_blocking=True)
@@ -254,6 +316,9 @@ class PuffeRL:
 
                 logits, value = self.policy.forward_eval(o_device, state)
                 action, logprob, _ = pytorch.sample_logits(logits)
+                
+                # --- COLOR MONITORING: Validate actions from policy ---
+                self._validate_pufferl_chess_actions(action, "evaluate() policy output")
 
             profile('eval_copy', epoch, nest=True)
             with torch.no_grad():
@@ -288,6 +353,19 @@ class PuffeRL:
                 action = action.cpu().numpy()
                 if isinstance(logits, torch.distributions.Normal):
                     action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
+
+                # --- COLOR MONITORING: Validate numpy actions before sending to env ---
+                if action.size > 0 and all(0 <= a < 1968 for a in action.flat):
+                    pass
+                    # print(f"[MONITOR_OK] Pufferl.py: Sending valid chess actions to env "
+                    #       f"(shape={action.shape}, range=[{action.min()},{action.max()}])")
+                elif action.size > 0:
+                    invalid_actions = [a for a in action.flat if not (0 <= a < 1968)]
+                    print(f"[MONITOR_FATAL] Pufferl.py: Invalid actions being sent to environment!")
+                    print(f"  Invalid actions (first 10): {invalid_actions[:10]}")
+                    print(f"  Valid range: [0, 1967] for UCI chess actions")
+                    print(f"  FIX: Check action processing in evaluate() method")
+                    exit(1)
 
             profile('eval_misc', epoch)
             for i in info:
@@ -864,6 +942,7 @@ class WandbLogger:
         return f'{data_dir}/{model_file}'
  
 def train(env_name, args=None, vecenv=None, policy=None, logger=None):
+    import os  # Ensure os is available in this scope
     args = args or load_config(env_name)
     vecenv = vecenv or load_env(env_name, args)
     policy = policy or load_policy(args, vecenv)
@@ -903,10 +982,97 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
     train_config = dict(**args['train'], env=env_name)
     pufferl = PuffeRL(train_config, vecenv, policy, logger)
 
+    # Initialize frozen policy for chess self-play
+    if 'chess' in env_name:
+        try:
+            # Initial frozen policy setup for all chess environments
+            policy_updates_applied = 0
+            
+            # Save initial policy to shared location for multiprocessing workers
+            import tempfile
+            policy_file = os.path.join(tempfile.gettempdir(), 'puffer_chess_policy.pth')
+            import torch
+            torch.save(pufferl.policy.state_dict(), policy_file)
+            
+            if hasattr(pufferl.vecenv, 'envs'):
+                for env in pufferl.vecenv.envs:
+                    if hasattr(env, 'episode_per_color') and env.episode_per_color:
+                        env.update_frozen_policy(pufferl.policy)
+                        policy_updates_applied += 1
+            elif hasattr(pufferl.vecenv, 'notify') and hasattr(pufferl.vecenv, 'num_workers'):
+                # For multiprocessing backend, use notify mechanism
+                pufferl.vecenv.notify()
+                total_games = pufferl.vecenv.num_workers * 512
+                policy_updates_applied = total_games
+            elif hasattr(pufferl.vecenv, 'episode_per_color') and pufferl.vecenv.episode_per_color:
+                pufferl.vecenv.update_frozen_policy(pufferl.policy)
+                policy_updates_applied += 1
+            elif hasattr(pufferl.vecenv, 'driver_env') and hasattr(pufferl.vecenv.driver_env, 'episode_per_color') and pufferl.vecenv.driver_env.episode_per_color:
+                pufferl.vecenv.driver_env.update_frozen_policy(pufferl.policy)
+                policy_updates_applied += 1
+            
+            if policy_updates_applied > 0:
+                print(f"[Chess Self-Play] Initial frozen policy set for {policy_updates_applied} environments")
+            else:
+                print(f"[Chess Self-Play] No episode-per-color environments found - using dual-agent mode")
+        except Exception as e:
+            print(f"[Chess Self-Play] Failed to initialize frozen policy: {e}")
+            import traceback
+            traceback.print_exc()
+
     all_logs = []
+    episode_count = 0
     while pufferl.global_step < train_config['total_timesteps']:
         pufferl.evaluate()
         logs = pufferl.train()
+        
+        # Update frozen policy for episode-per-color chess self-play
+        if 'chess' in env_name:
+            episode_count += 1
+            # Get frozen policy update frequency from config args
+            update_frequency = args['env'].get('frozen_policy_update_frequency', 50)
+            
+            if episode_count % update_frequency == 0:
+                try:
+                    print(f"[Chess Debug] Policy update triggered at epoch {episode_count} (frequency: every {update_frequency} epochs)")
+                    # Schedule policy update for all chess environments
+                    policy_updates_scheduled = 0
+                    
+                    # Save policy to shared location for multiprocessing workers
+                    import tempfile
+                    import os
+                    policy_file = os.path.join(tempfile.gettempdir(), 'puffer_chess_policy.pth')
+                    import torch
+                    torch.save(pufferl.policy.state_dict(), policy_file)
+                    
+                    if hasattr(pufferl.vecenv, 'envs'):
+                        # print(f"[Chess Debug] Path 1: Found {len(pufferl.vecenv.envs)} environments")
+                        for env in pufferl.vecenv.envs:
+                            if hasattr(env, 'episode_per_color') and env.episode_per_color:
+                                env.update_frozen_policy(pufferl.policy)
+                                policy_updates_scheduled += 1
+                    elif hasattr(pufferl.vecenv, 'notify') and hasattr(pufferl.vecenv, 'num_workers'):
+                        total_games = pufferl.vecenv.num_workers * 512  # 4 workers * 512 games each
+                        # print(f"[Chess Debug] Using multiprocessing notify mechanism for {pufferl.vecenv.num_workers} workers ({total_games} total games)")
+                        # For multiprocessing backend, use notify mechanism
+                        pufferl.vecenv.notify()
+                        # Count all workers (each manages 512 games)
+                        policy_updates_scheduled = pufferl.vecenv.num_workers
+                    elif hasattr(pufferl.vecenv, 'episode_per_color') and pufferl.vecenv.episode_per_color:
+                        print(f"[Chess Debug] Path 2: Using vecenv directly")
+                        pufferl.vecenv.update_frozen_policy(pufferl.policy)
+                        policy_updates_scheduled += 1
+                    elif hasattr(pufferl.vecenv, 'driver_env') and hasattr(pufferl.vecenv.driver_env, 'episode_per_color') and pufferl.vecenv.driver_env.episode_per_color:
+                        print(f"[Chess Debug] Path 3: Using driver_env only (workers won't get updates!)")
+                        pufferl.vecenv.driver_env.update_frozen_policy(pufferl.policy)
+                        policy_updates_scheduled += 1
+                    
+                    if policy_updates_scheduled > 0:
+                        print(f"[Chess Self-Play] Policy updated for {policy_updates_scheduled} environments (epoch {episode_count})")
+                except Exception as e:
+                    print(f"[Chess Self-Play] Failed to update policy: {e}")
+                    import traceback
+                    traceback.print_exc()
 
         if logs is not None:
             if pufferl.global_step > 0.20*train_config['total_timesteps']:
@@ -927,6 +1093,27 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
     pufferl.print_dashboard()
     model_path = pufferl.close()
+    
+    # Clean up shared memory files for chess
+    if 'chess' in env_name:
+        try:
+            import tempfile
+            
+            policy_sync_dir = os.path.join(tempfile.gettempdir(), 'puffer_chess_policies')
+            if os.path.exists(policy_sync_dir):
+                for policy_file in glob.glob(os.path.join(policy_sync_dir, '*')):
+                    try:
+                        os.remove(policy_file)
+                    except:
+                        pass
+                try:
+                    os.rmdir(policy_sync_dir)
+                except:
+                    pass
+            print("[Chess] Cleaned up shared policy files")
+        except Exception as e:
+            print(f"[Chess] Failed to clean up shared policy files: {e}")
+    
     pufferl.logger.close(model_path)
     return all_logs
 
