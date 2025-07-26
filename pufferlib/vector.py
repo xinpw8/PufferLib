@@ -199,14 +199,14 @@ class Serial:
             exit(1)
             
         # Check if this looks like chess observations
-        if obs.shape[-1] == 3312:  # Chess observation detected
+        if obs.shape[-1] == 3440:  # Chess observation detected
             batch_size = obs.shape[0]
             # print(f"[MONITOR_OK] Vector.py: Chess observations detected at {location} "
             #       f"(batch_size={batch_size}, obs_shape={obs.shape})")
                   
             # Validate chess-specific structure
-            board_sums = obs[:, :1344].sum(axis=1)
-            mask_sums = obs[:, 1344:3312].sum(axis=1)
+            board_sums = obs[:, :1472].sum(axis=1)
+            mask_sums = obs[:, 1472:3440].sum(axis=1)
             
             if any(board_sums < 1.0) or any(mask_sums < 1.0):
                 invalid_indices = [i for i in range(batch_size) 

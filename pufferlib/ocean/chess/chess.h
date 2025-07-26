@@ -686,56 +686,6 @@ static inline void flip_uci_for_black_perspective(const char *original_uci,
 
 // === LEGAL MOVE GENERATION (PURE C, OPTIMIZED) ===
 
-// Helper function to check if a specific piece can attack a specific square
-static bool can_piece_attack_square(const ChessBoard *board, Square from, Square to, PieceType piece_type, PieceColor piece_color) {
-  int dx = to.x - from.x;
-  int dy = to.y - from.y;
-  
-  switch (piece_type) {
-    case PAWN: {
-      int direction = (piece_color == C_WHITE) ? 1 : -1;
-      // Pawn can only capture diagonally
-      return (dy == direction && (dx == 1 || dx == -1));
-    }
-    case KNIGHT:
-      return ((abs(dx) == 2 && abs(dy) == 1) || (abs(dx) == 1 && abs(dy) == 2));
-    case BISHOP:
-      if (abs(dx) != abs(dy)) return false; // Must be diagonal
-      // Check if path is clear
-      for (int i = 1; i < abs(dx); i++) {
-        int check_x = from.x + (dx > 0 ? i : -i);
-        int check_y = from.y + (dy > 0 ? i : -i);
-        const Piece *p = get_piece_const(board, check_x, check_y);
-        if (p && p->type != EMPTY) return false;
-      }
-      return true;
-    case ROOK:
-      if (dx != 0 && dy != 0) return false; // Must be straight line
-      // Check if path is clear
-      if (dx == 0) {
-        int step = (dy > 0) ? 1 : -1;
-        for (int y = from.y + step; y != to.y; y += step) {
-          const Piece *p = get_piece_const(board, from.x, y);
-          if (p && p->type != EMPTY) return false;
-        }
-      } else {
-        int step = (dx > 0) ? 1 : -1;
-        for (int x = from.x + step; x != to.x; x += step) {
-          const Piece *p = get_piece_const(board, x, from.y);
-          if (p && p->type != EMPTY) return false;
-        }
-      }
-      return true;
-    case QUEEN:
-      // Queen combines rook and bishop movement
-      return can_piece_attack_square(board, from, to, ROOK, piece_color) ||
-             can_piece_attack_square(board, from, to, BISHOP, piece_color);
-    case KING:
-      return (abs(dx) <= 1 && abs(dy) <= 1 && (dx != 0 || dy != 0));
-    default:
-      return false;
-  }
-}
 
 static bool is_square_attacked(const ChessBoard *board, Square sq,
                                PieceColor by_color) {
@@ -1646,21 +1596,9 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
         
         bool can_capture = false;
         if (p->type != EMPTY && p->color != player) {
-          // Check if any of the current player's pieces can capture this square
-          for (int from_y = 0; from_y < 8; from_y++) {
-            for (int from_x = 0; from_x < 8; from_x++) {
-              const Piece *attacker = &ctx->board.board[from_y * 8 + from_x];
-              if (attacker->type != EMPTY && attacker->color == player) {
-                Square from_sq = {(int8_t)from_x, (int8_t)from_y};
-                Square to_sq = {(int8_t)x, (int8_t)y_actual};
-                if (can_piece_attack_square(&ctx->board, from_sq, to_sq, attacker->type, player)) {
-                  can_capture = true;
-                  goto capture_found;
-                }
-              }
-            }
-          }
-          capture_found:;
+          // Use optimized is_square_attacked function instead of nested loops
+          Square target_sq = {(int8_t)x, (int8_t)y_actual};
+          can_capture = is_square_attacked(&ctx->board, target_sq, player);
         }
         env->observations[obs_offset + idx++] = can_capture ? 1.0f : 0.0f;
       }

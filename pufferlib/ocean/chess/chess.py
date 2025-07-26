@@ -417,7 +417,7 @@ class Chess(pufferlib.PufferEnv):
         # Convert observation to tensor and ensure it has batch dimension
         obs_tensor = torch.from_numpy(observation).float()
         if obs_tensor.dim() == 1:
-            obs_tensor = obs_tensor.unsqueeze(0)  # Add batch dimension: [3312] -> [1, 3312]
+            obs_tensor = obs_tensor.unsqueeze(0)  # Add batch dimension: [3440] -> [1, 3440]
         
         # Move tensor to same device as policy
         device = next(self.frozen_policy.parameters()).device
@@ -440,7 +440,7 @@ class Chess(pufferlib.PufferEnv):
         with torch.no_grad():
             # Call policy with appropriate arguments based on whether it needs state
             if self.frozen_policy_state is not None:
-                # LSTM policy needs state and time dimension: [1, 3312] -> [1, 1, 3312]
+                # LSTM policy needs state and time dimension: [1, 3440] -> [1, 1, 3440]
                 obs_tensor_with_time = obs_tensor.unsqueeze(1)  # Add time dimension
                 logits, _, new_state = self.frozen_policy(obs_tensor_with_time, self.frozen_policy_state)
                 # Update state for next inference (maintain LSTM memory)

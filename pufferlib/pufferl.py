@@ -217,7 +217,7 @@ class PuffeRL:
             exit(1)
             
         # Check if this looks like chess observations
-        if obs_tensor.shape[-1] == 3312:  # Chess detected
+        if obs_tensor.shape[-1] == 3440:  # Chess detected
             batch_size = obs_tensor.shape[0]
             
             # Validate tensor properties
@@ -228,8 +228,8 @@ class PuffeRL:
                 exit(1)
                 
             # Validate chess content
-            board_sums = obs_tensor[:, :1344].sum(dim=1)
-            mask_sums = obs_tensor[:, 1344:3312].sum(dim=1)
+            board_sums = obs_tensor[:, :1472].sum(dim=1)
+            mask_sums = obs_tensor[:, 1472:3440].sum(dim=1)
             
             if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
                 invalid_indices = torch.where((board_sums < 1.0) | (mask_sums < 1.0))[0]
