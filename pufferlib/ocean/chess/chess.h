@@ -572,19 +572,12 @@ static void serialize_complete_game_moves(ChessContext *ctx) {
 
 // Write complete game to file for analysis
 static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
-  // Re-enabled for debugging game logging functionality
-  printf("[C++ DEBUG] write_complete_game_to_file called: env_id=%d, action_count=%d\n", 
-         env_id, ctx->complete_game_action_count);
-  
   if (ctx->complete_game_action_count == 0) {
-    printf("[C++ DEBUG] No actions to log\n");
     return;
   }
 
   // Create directory if needed
-  printf("[CHESS_DEBUG] Creating directory: resources/chess/training_logs/complete_games\n");
-  int mkdir_result = system("mkdir -p resources/chess/training_logs/complete_games");
-  printf("[CHESS_DEBUG] mkdir result: %d\n", mkdir_result);
+  system("mkdir -p resources/chess/training_logs/complete_games");
   
   // Determine game result and termination reason
   char result_str[16] = "*";      // Default: incomplete/ongoing
@@ -630,13 +623,9 @@ static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
   sprintf(filename, "resources/chess/training_logs/complete_games/game_%d_%ld_%s_%s.pgn", 
           env_id, now, safe_result, safe_termination);
   
-  printf("[CHESS_DEBUG] Attempting to create file: %s\n", filename);
   FILE* file = fopen(filename, "w");
   if (!file) {
-    printf("[CHESS_DEBUG] FAILED to open game log file: %s (errno: %d)\n", filename, errno);
     return;
-  } else {
-    printf("[CHESS_DEBUG] Successfully opened file for writing: %s\n", filename);
   }
   
   // Write PGN header
@@ -2408,9 +2397,7 @@ void init(CChess *env) {
   // Designate the first environment as the logging environment
   if (logging_env_id == -1) {
     logging_env_id = env->env_id;
-    printf("[CHESS_DEBUG] Designated env_id %d as the logging environment\n", logging_env_id);
   }
-  printf("[CHESS_DEBUG] Created environment with env_id %d (logging_env_id=%d)\n", env->env_id, logging_env_id);
 
   init_board(&env->context.board);
   env->context.dual_agent_self_play_mode = true; // Default to self-play
@@ -2921,23 +2908,11 @@ void c_step(CChess *env) {
     // notify_game_end(env->context.c_white_win > 0, env->context.c_black_win > 0, env->context.c_game_drawn > 0);
 
     // Check if we should log this complete game BEFORE reset - log from every 100th env
-    printf("[CHESS_DEBUG] Game ended in env_id %d (logging_env_id=%d)\n", env->env_id, logging_env_id);
     if (env->env_id % 100 == 0) {  // Log from every 100th environment
-      printf("[CHESS_DEBUG] Game over in LOGGING env: env_id=%d, steps=%d, freq=%d, actions=%d\n", 
-             env->env_id, env->context.steps_since_last_log, env->context.game_logging_frequency,
-             env->context.complete_game_action_count);
       if (env->context.game_logging_frequency > 0 && env->context.steps_since_last_log >= env->context.game_logging_frequency) {
-        printf("[CHESS_DEBUG] ATTEMPTING TO LOG game from env %d!\n", env->env_id);
         write_complete_game_to_file(&env->context, env->env_id);
         env->context.steps_since_last_log = 0; // Reset counter
-      } else {
-        printf("[CHESS_DEBUG] Not logging: freq=%d, steps=%d (freq>0: %s, steps>=freq: %s)\n", 
-               env->context.game_logging_frequency, env->context.steps_since_last_log,
-               (env->context.game_logging_frequency > 0) ? "YES" : "NO",
-               (env->context.steps_since_last_log >= env->context.game_logging_frequency) ? "YES" : "NO");
       }
-    } else {
-      printf("[CHESS_DEBUG] Game ended in NON-logging env %d (skipped)\n", env->env_id);
     }
     
     // Debug: Always print for any env that completes a game
