@@ -78,8 +78,9 @@ typedef struct Log {
   float episode_return_white; // new – white perspective total
   float episode_return_black; // new – black perspective total
   float reward_valid;
-  float reward_agent_captures_enemy_piece;
-  float reward_enemy_captures_agent_piece;
+  float reward_white_captures_enemy_piece;
+  float reward_black_captures_enemy_piece;
+  float reward_max_depth_termination;
   float reward_draw;
   // Perspective-based reward tracking
   float reward_win_white;  // win rewards from white's perspective
@@ -203,8 +204,9 @@ typedef struct ChessContext {
   float c_reward_valid;
   float c_reward_invalid_white;
   float c_reward_invalid_black;
-  float c_reward_agent_captures_enemy_piece;
-  float c_reward_enemy_captures_agent_piece;
+  float c_reward_white_captures_enemy_piece;
+  float c_reward_black_captures_enemy_piece;
+  float c_reward_max_depth_termination;
   float c_reward_draw;
   float c_reward_win_white;
   float c_reward_win_black;
@@ -214,11 +216,13 @@ typedef struct ChessContext {
   float c_reward_check_black;
   float c_reward_material_diff_white;
   float c_reward_material_diff_black;
+  bool c_use_piece_value_capture_rewards;
+  float c_piece_value_reward_multiplier;
 
   // ACCUMULATED REWARD COUNTERS (for add_log aggregation)
   float accumulated_reward_valid;
-  float accumulated_reward_agent_captures_enemy_piece;
-  float accumulated_reward_enemy_captures_agent_piece;
+  float accumulated_reward_white_captures_enemy_piece;
+  float accumulated_reward_black_captures_enemy_piece;
   float accumulated_reward_draw;
   float accumulated_reward_win_white;
   float accumulated_reward_win_black;
@@ -296,8 +300,8 @@ typedef struct CChess {
   float reward_valid;
   float reward_invalid_white;
   float reward_invalid_black;
-  float reward_agent_captures_enemy_piece;
-  float reward_enemy_captures_agent_piece;
+  float reward_white_captures_enemy_piece;
+  float reward_black_captures_enemy_piece;
   float reward_draw;
   float reward_win_white;
   float reward_win_black;
@@ -308,6 +312,9 @@ typedef struct CChess {
   int max_depth;
   float reward_material_diff_white;
   float reward_material_diff_black;
+  float reward_max_depth_termination;
+  bool use_piece_value_capture_rewards;
+  float piece_value_reward_multiplier;
 
   // Debug settings
   bool debug_disable_mask;
@@ -362,6 +369,19 @@ int calculate_material_value(ChessBoard *board, PieceColor color) {
     }
   }
   return total;
+}
+
+// Get individual piece value for capture rewards
+int get_piece_value(PieceType piece_type) {
+  switch (piece_type) {
+    case PAWN:   return 1;
+    case KNIGHT: return 3;
+    case BISHOP: return 3;
+    case ROOK:   return 5;
+    case QUEEN:  return 9;
+    case KING:   return 0; // King cannot be captured in normal play
+    default:     return 0;
+  }
 }
 
 // Board access
@@ -2291,10 +2311,13 @@ void init(CChess *env) {
   env->context.c_reward_valid = env->reward_valid;
   env->context.c_reward_invalid_white = env->reward_invalid_white;
   env->context.c_reward_invalid_black = env->reward_invalid_black;
-  env->context.c_reward_agent_captures_enemy_piece =
-      env->reward_agent_captures_enemy_piece;
-  env->context.c_reward_enemy_captures_agent_piece =
-      env->reward_enemy_captures_agent_piece;
+  env->context.c_reward_white_captures_enemy_piece =
+      env->reward_white_captures_enemy_piece;
+  env->context.c_reward_black_captures_enemy_piece =
+      env->reward_black_captures_enemy_piece;
+  env->context.c_reward_max_depth_termination = env->reward_max_depth_termination;
+  env->context.c_use_piece_value_capture_rewards = env->use_piece_value_capture_rewards;
+  env->context.c_piece_value_reward_multiplier = env->piece_value_reward_multiplier;
   env->context.c_reward_draw = env->reward_draw;
   env->context.c_reward_win_white = env->reward_win_white;
   env->context.c_reward_win_black = env->reward_win_black;
@@ -2333,7 +2356,14 @@ void free_allocated(CChess *env) {
 }
 
 void c_reset(CChess *env) {
+  printf("[C_RESET DEBUG] c_reset called - resetting step_count from %d to 0\n", env->context.step_count);
   init_board(&env->context.board);
+
+  // Reset terminals and rewards for both agents
+  env->terminals[0] = 0;
+  env->terminals[1] = 0;
+  env->rewards[0] = 0.0f;
+  env->rewards[1] = 0.0f;
 
   // Reset episode tracking
   env->context.step_count = 0;
@@ -2342,6 +2372,7 @@ void c_reset(CChess *env) {
   env->context.complete_game_action_count = 0;
   env->context.serialized_moves[0] =
       '\0'; // Initialize serialized_moves buffer to empty
+  env->context.steps_since_last_log = 0;
   
   // Don't reset game logging frequency - it's set once at init
   // env->context.game_logging_frequency = 500000;
@@ -2374,8 +2405,8 @@ void c_reset(CChess *env) {
 
   // Reset accumulated reward counters
   env->context.accumulated_reward_valid = 0.0f;
-  env->context.accumulated_reward_agent_captures_enemy_piece = 0.0f;
-  env->context.accumulated_reward_enemy_captures_agent_piece = 0.0f;
+  env->context.accumulated_reward_white_captures_enemy_piece = 0.0f;
+  env->context.accumulated_reward_black_captures_enemy_piece = 0.0f;
   env->context.accumulated_reward_draw = 0.0f;
   env->context.accumulated_reward_win_white = 0.0f;
   env->context.accumulated_reward_win_black = 0.0f;
@@ -2405,6 +2436,14 @@ void c_reset(CChess *env) {
 
 void c_step(CChess *env) {
   PROFILE_START(profile_c_step_ticks)
+  
+  // Safety checks
+  if (!env) {
+    printf("[C_STEP DEBUG] ERROR: env is NULL\n");
+    return;
+  }
+  
+  printf("[C_STEP DEBUG] env=%p, step_count=%d, max_depth=%d\n", (void*)env, env->context.step_count, env->max_depth);
   
   // Increment step counter for game logging
   env->context.steps_since_last_log++;
@@ -2633,8 +2672,34 @@ void c_step(CChess *env) {
   
   // Assign capture rewards if this was a capture
   if (is_capture) {
-    env->rewards[agent_idx] += env->context.c_reward_agent_captures_enemy_piece;
-    env->context.accumulated_reward_agent_captures_enemy_piece += env->context.c_reward_agent_captures_enemy_piece;
+    float capture_reward = 0.0f;
+    
+    if (env->context.c_use_piece_value_capture_rewards) {
+      // Use piece-value-based rewards
+      PieceType captured_piece_type = PAWN; // Default for en passant
+      if (!is_en_passant && destination_piece) {
+        captured_piece_type = destination_piece->type;
+      }
+      int piece_value = get_piece_value(captured_piece_type);
+      capture_reward = piece_value * env->context.c_piece_value_reward_multiplier;
+    } else {
+      // Use fixed capture rewards
+      if (env->context.board.to_move == C_WHITE) {
+        capture_reward = env->context.c_reward_white_captures_enemy_piece;
+      } else {
+        capture_reward = env->context.c_reward_black_captures_enemy_piece;
+      }
+    }
+    
+    // Apply the capture reward
+    env->rewards[agent_idx] += capture_reward;
+    
+    // Track accumulated rewards for logging
+    if (env->context.board.to_move == C_WHITE) {
+      env->context.accumulated_reward_white_captures_enemy_piece += capture_reward;
+    } else {
+      env->context.accumulated_reward_black_captures_enemy_piece += capture_reward;
+    }
     // Also track en passant captures
     if (is_en_passant) {
       if (env->context.board.to_move == C_WHITE) {
@@ -2662,6 +2727,7 @@ void c_step(CChess *env) {
   env->context.episode_return_black += env->rewards[1];
 
   // Check for game over conditions
+  printf("[TERMINATION DEBUG] Checking game over: step_count=%d, max_depth=%d\n", env->context.step_count, env->max_depth);
   bool game_over = false;
   bool any_legal_move_exists = false;
   chess_generate_legal_moves_yield(&env->context, first_move_callback,
@@ -2730,9 +2796,10 @@ void c_step(CChess *env) {
     // Add accumulated reward tracking for logging
     env->context.accumulated_reward_draw += env->context.c_reward_draw;
   } else if (env->max_depth > 0 && env->context.step_count >= env->max_depth) {
+    printf("[TERMINATION DEBUG] MAX DEPTH REACHED: step_count=%d >= max_depth=%d\n", env->context.step_count, env->max_depth);
     game_over = true; // MAX DEPTH / TRUNCATION
-    env->rewards[0] += env->context.c_reward_draw;
-    env->rewards[1] += env->context.c_reward_draw;
+    env->rewards[0] += env->context.c_reward_max_depth_termination;
+    env->rewards[1] += env->context.c_reward_max_depth_termination;
     env->context.c_max_depth += 1;
     env->context.c_game_drawn += 1;
     // Add accumulated reward tracking for logging
@@ -2746,6 +2813,10 @@ void c_step(CChess *env) {
     env->log.complete_game_move_count =
         (float)env->context.complete_game_action_count;
     add_log(env);
+    
+    // Notify UI about game end via function call (before auto-reset clears counters)
+    void notify_game_end(int white_won, int black_won, int is_draw);
+    notify_game_end(env->context.c_white_win > 0, env->context.c_black_win > 0, env->context.c_game_drawn > 0);
 
     // Check if we should log this complete game BEFORE reset - ONLY for env_id 512 (first active env)
     if (env->env_id == 512) {
@@ -2804,10 +2875,10 @@ void add_log(CChess *env) {
 
   // Reward aggregates (from accumulated counters during this game)
   env->log.reward_valid += env->context.accumulated_reward_valid;
-  env->log.reward_agent_captures_enemy_piece +=
-      env->context.accumulated_reward_agent_captures_enemy_piece;
-  env->log.reward_enemy_captures_agent_piece +=
-      env->context.accumulated_reward_enemy_captures_agent_piece;
+  env->log.reward_white_captures_enemy_piece +=
+      env->context.accumulated_reward_white_captures_enemy_piece;
+  env->log.reward_black_captures_enemy_piece +=
+      env->context.accumulated_reward_black_captures_enemy_piece;
   env->log.reward_draw += env->context.accumulated_reward_draw;
   env->log.reward_win_white += env->context.accumulated_reward_win_white;
   env->log.reward_win_black += env->context.accumulated_reward_win_black;

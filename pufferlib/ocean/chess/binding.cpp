@@ -90,8 +90,9 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->reward_valid = unpack(kwargs, "reward_valid");
     env->reward_invalid_white = unpack(kwargs, "reward_invalid_white");
     env->reward_invalid_black = unpack(kwargs, "reward_invalid_black");
-    env->reward_agent_captures_enemy_piece = unpack(kwargs, "reward_agent_captures_enemy_piece");
-    env->reward_enemy_captures_agent_piece = unpack(kwargs, "reward_enemy_captures_agent_piece");
+    env->reward_white_captures_enemy_piece = unpack(kwargs, "reward_white_captures_enemy_piece");
+    env->reward_black_captures_enemy_piece = unpack(kwargs, "reward_black_captures_enemy_piece");
+    env->reward_max_depth_termination = unpack(kwargs, "reward_max_depth_termination");
     env->reward_draw = unpack(kwargs, "reward_draw");
     env->reward_win_white = unpack(kwargs, "reward_win_white");
     env->reward_win_black = unpack(kwargs, "reward_win_black");
@@ -102,6 +103,8 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->reward_material_diff_white = unpack(kwargs, "reward_material_diff_white");
     env->reward_material_diff_black = unpack(kwargs, "reward_material_diff_black");
     env->max_depth = (int)unpack(kwargs, "max_depth");
+    env->use_piece_value_capture_rewards = (bool)unpack(kwargs, "use_piece_value_capture_rewards");
+    env->piece_value_reward_multiplier = unpack(kwargs, "piece_value_reward_multiplier");
     env->debug_disable_mask = (bool)unpack(kwargs, "debug_disable_mask");  // FIX: Pass debug flag to C++
     
     // Set game logging frequency from config
@@ -129,8 +132,8 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "episode_return_white", log->episode_return_white);
     assign_to_dict(dict, "episode_return_black", log->episode_return_black);
     assign_to_dict(dict, "reward_valid", log->reward_valid);
-    assign_to_dict(dict, "reward_agent_captures_enemy_piece", log->reward_agent_captures_enemy_piece);
-    assign_to_dict(dict, "reward_enemy_captures_agent_piece", log->reward_enemy_captures_agent_piece);
+    assign_to_dict(dict, "reward_white_captures_enemy_piece", log->reward_white_captures_enemy_piece);
+    assign_to_dict(dict, "reward_black_captures_enemy_piece", log->reward_black_captures_enemy_piece);
     assign_to_dict(dict, "reward_draw", log->reward_draw);
     assign_to_dict(dict, "reward_win_white", log->reward_win_white);
     assign_to_dict(dict, "reward_win_black", log->reward_win_black);

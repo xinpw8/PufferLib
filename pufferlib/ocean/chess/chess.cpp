@@ -520,8 +520,25 @@ struct SessionStats {
 };
 SessionStats session_stats;
 
+// Global flag to track when a game just ended - set by c_step, read by UI
+struct GameEndInfo {
+  bool game_just_ended = false;
+  bool white_won = false;
+  bool black_won = false;
+  bool is_draw = false;
+} game_end_info;
+
 }
 using namespace chess;
+
+// Function called by chess.h when a game ends (before auto-reset)
+extern "C" void notify_game_end(int white_won, int black_won, int is_draw) {
+  printf("[NOTIFY_GAME_END] Called with: white_won=%d, black_won=%d, is_draw=%d\n", white_won, black_won, is_draw);
+  game_end_info.game_just_ended = true;
+  game_end_info.white_won = (white_won > 0);
+  game_end_info.black_won = (black_won > 0);
+  game_end_info.is_draw = (is_draw > 0);
+}
 
 // Forward declarations for functions defined later
 void update_session_stats(GameMode mode, bool white_won, bool black_won, bool is_draw);
@@ -744,13 +761,23 @@ bool replay_mode_active = false; // Must be defined
 #endif
 
 void check_and_update_game_outcome(CChess *env, GameMode mode) {
-  if (env->terminals[0] && !game_ending_processed) {
-    bool white_won = env->log.white_win > 0.5;
-    bool black_won = env->log.black_win > 0.5;
-    bool is_draw = env->log.game_drawn > 0.5;
+  printf("[DEBUG] check_and_update_game_outcome called: terminals[0]=%d, game_ending_processed=%d\n", 
+         env->terminals[0], game_ending_processed);
+  printf("[DEBUG] Global flag: game_just_ended=%d, white_won=%d, black_won=%d, is_draw=%d\n",
+         game_end_info.game_just_ended, game_end_info.white_won, game_end_info.black_won, game_end_info.is_draw);
+  
+  if (game_end_info.game_just_ended && !game_ending_processed) {
+    bool white_won = game_end_info.white_won;
+    bool black_won = game_end_info.black_won;
+    bool is_draw = game_end_info.is_draw;
     
-    // Auto-pause the game when it ends
-    game_paused = true;
+    // Clear the flag so we don't process this game end multiple times
+    game_end_info.game_just_ended = false;
+    
+    // Auto-pause the game when it ends (but only for human vs modes, not agent vs agent/random)
+    if (mode == GM_PLAYER_AGENT || mode == GM_PLAYER_STOCKFISH || mode == GM_PLAYER_RANDOM) {
+      game_paused = true;
+    }
     
     // Log the final position (terminal state reached) - only once
     printf("[GAME END] Final position after %d moves:\n", (int)game_moves.size());
@@ -769,8 +796,16 @@ void check_and_update_game_outcome(CChess *env, GameMode mode) {
     
     update_session_stats(mode, white_won, black_won, is_draw);
     
-    // Mark as processed to prevent multiple calls
+    // Mark as processed to prevent multiple calls for this game
     game_ending_processed = true;
+    
+    // For automatic game modes (agent vs agent/random), reset the flag after a short delay
+    // so the next game can be processed. For human modes, keep it set until manual reset.
+    if (mode == GM_AGENT_AGENT || mode == GM_AGENT_RANDOM || mode == GM_AGENT_STOCKFISH || mode == GM_RANDOM_AGENT) {
+      // Reset the flag so the next game can be detected
+      // We do this immediately since auto-reset will start a new game right away
+      game_ending_processed = false;
+    }
     
     // DON'T clear game_moves - keep them for navigation
     // game_moves will be cleared only when starting a new game (R key or menu)
@@ -779,6 +814,11 @@ void check_and_update_game_outcome(CChess *env, GameMode mode) {
 
 void update_session_stats(GameMode mode, bool white_won, bool black_won,
                           bool is_draw) {
+  printf("[STATS DEBUG] update_session_stats called: mode=%d, white_won=%d, black_won=%d, is_draw=%d\n", 
+         mode, white_won, black_won, is_draw);
+  printf("[STATS DEBUG] Before update: total_games=%d, agent_games=%d, human_games=%d\n",
+         session_stats.total_games, session_stats.agent_stats.games, session_stats.human_stats.games);
+  
   session_stats.total_games++;
   if (white_won) {
     session_stats.total_wins++;
@@ -817,6 +857,13 @@ void update_session_stats(GameMode mode, bool white_won, bool black_won,
     else
       session_stats.agent_stats.add_draw();
   }
+  
+  printf("[STATS DEBUG] After update: total_games=%d, agent_games=%d, human_games=%d\n",
+         session_stats.total_games, session_stats.agent_stats.games, session_stats.human_stats.games);
+  printf("[STATS DEBUG] Agent stats: wins=%d, losses=%d, draws=%d\n",
+         session_stats.agent_stats.wins, session_stats.agent_stats.losses, session_stats.agent_stats.draws);
+  printf("[STATS DEBUG] Human stats: wins=%d, losses=%d, draws=%d\n",
+         session_stats.human_stats.wins, session_stats.human_stats.losses, session_stats.human_stats.draws);
 }
 
 int agent_select_action(ChessNet *net, CChess *env, int agent_idx) {
@@ -1361,8 +1408,8 @@ void test_performance(float test_time) {
     envs[i].reward_valid = 0.0f;
     envs[i].reward_invalid_white = 0.0f;
     envs[i].reward_invalid_black = 0.0f;
-    envs[i].reward_agent_captures_enemy_piece = 0.0f;
-    envs[i].reward_enemy_captures_agent_piece = 0.0f;
+    // envs[i].reward_agent_captures_enemy_piece = 0.0f;
+    // envs[i].reward_enemy_captures_agent_piece = 0.0f;
     envs[i].reward_draw = 0.0f;
     envs[i].reward_win_white = 1.0f;
     envs[i].reward_loss_white = -1.0f;
@@ -1683,6 +1730,8 @@ int demo() {
         game_moves.clear();
         viewing_history = false;
         current_move_index = -1;
+        game_paused = false; // Reset pause state
+        game_ending_processed = false; // Reset game ending flag
         in_menu = false;
  
         env.max_depth = 500;
@@ -1721,6 +1770,8 @@ int demo() {
         game_moves.clear();
         viewing_history = false;
         current_move_index = -1;
+        game_paused = false; // Reset pause state
+        game_ending_processed = false; // Reset game ending flag
         
         // Properly reinitialize the environment (same as starting from menu)
         free_allocated(&env);
@@ -1776,23 +1827,25 @@ int demo() {
         apply_moves_to_current_position(&env, game_moves.size()); // Show final position
       }
  
-      auto *ctx = env.ctx;
-      bool is_human_turn =
-          (game_mode == GM_PLAYER_AGENT || game_mode == GM_PLAYER_STOCKFISH || game_mode == GM_PLAYER_RANDOM) &&
-          ctx->board.to_move == C_WHITE;
+      bool is_human_turn = false;
+      if (env.ctx != nullptr) {
+        is_human_turn =
+            (game_mode == GM_PLAYER_AGENT || game_mode == GM_PLAYER_STOCKFISH || game_mode == GM_PLAYER_RANDOM) &&
+            env.ctx->board.to_move == C_WHITE;
+      }
  
-      if (!game_paused && !env.terminals[0] && !is_human_turn) {
+      if (!game_paused && !env.terminals[0] && !is_human_turn && env.ctx != nullptr) {
         // Ensure observations are computed before agent acts (needed for network inference)
-        compute_observation_with_perspective(&env, ctx);
+        compute_observation_with_perspective(&env, env.ctx);
         
         int action = 0;
-        int agent_idx = (ctx->board.to_move == C_WHITE) ? 0 : 1;
+        int agent_idx = (env.ctx->board.to_move == C_WHITE) ? 0 : 1;
  
         if (game_mode == GM_AGENT_AGENT ||
-            (game_mode == GM_AGENT_STOCKFISH && ctx->board.to_move == C_WHITE) ||
-            (game_mode == GM_AGENT_RANDOM && ctx->board.to_move == C_WHITE) ||
-            (game_mode == GM_RANDOM_AGENT && ctx->board.to_move == C_BLACK) ||
-            (game_mode == GM_PLAYER_AGENT && ctx->board.to_move == C_BLACK)) {
+            (game_mode == GM_AGENT_STOCKFISH && env.ctx->board.to_move == C_WHITE) ||
+            (game_mode == GM_AGENT_RANDOM && env.ctx->board.to_move == C_WHITE) ||
+            (game_mode == GM_RANDOM_AGENT && env.ctx->board.to_move == C_BLACK) ||
+            (game_mode == GM_PLAYER_AGENT && env.ctx->board.to_move == C_BLACK)) {
           action = agent_select_action(agent_net, &env, 0);  // Standard Ocean pattern
           
           printf("[AGENT] Selected action %d\n", action);
@@ -1804,7 +1857,12 @@ int demo() {
  
         // Standard Ocean pattern: simple action assignment + c_step
         env.actions[0] = action;
+        printf("[DEBUG] About to call c_step with env=%p\n", (void*)&env);
         c_step(&env);
+        
+        // Check for game termination immediately after c_step (before auto-reset)
+        // The core logic will set terminals[0]=1 then auto-reset, so we need to detect it here
+        check_and_update_game_outcome(&env, game_mode);
         
         // Add back GUI functionality: move recording and stats (after c_step)
         // Use ACTION_ID_TO_UCI mapping for reliable move recording
@@ -1849,9 +1907,9 @@ int demo() {
           int by = 7 - screen_rank;
           printf("[DEBUG] Mouse pos: (%.1f, %.1f), bx=%d, screen_rank=%d, by=%d\n", 
                  mp.x, mp.y, bx, screen_rank, by);
-          if (bx >= 0 && bx < 8 && by >= 0 && by < 8) {
+          if (bx >= 0 && bx < 8 && by >= 0 && by < 8 && env.ctx != nullptr) {
             if (sel_fx == -1) {
-              const Piece *p = get_piece_const(&ctx->board, bx, by);
+              const Piece *p = get_piece_const(&env.ctx->board, bx, by);
               if (p && p->type != EMPTY && p->color == C_WHITE) {
                 sel_fx = bx;
                 sel_fy = by;
@@ -1906,18 +1964,18 @@ int demo() {
       DrawText(mode_text, BOARD_OFFSET_X, 20, 20, RL_BLACK);
       
       // Display current turn and move number above the board
-      if (ctx != nullptr) {
-        const char* turn_text = ctx->board.to_move == C_WHITE ? "White's Turn" : "Black's Turn";
+      if (env.ctx != nullptr) {
+        const char* turn_text = env.ctx->board.to_move == C_WHITE ? "White's Turn" : "Black's Turn";
         char move_num_text[64];
         if (viewing_history) {
           snprintf(move_num_text, sizeof(move_num_text), "Viewing: Move %d/%d (arrows to navigate)", 
                   current_move_index + 1, (int)game_moves.size());
         } else {
-          snprintf(move_num_text, sizeof(move_num_text), "Move #%d", (ctx->board.fullmove_number));
+          snprintf(move_num_text, sizeof(move_num_text), "Move #%d", (env.ctx->board.fullmove_number));
         }
         
         if (!env.terminals[0] && !viewing_history) {
-          DrawText(turn_text, BOARD_OFFSET_X, 45, 16, ctx->board.to_move == C_WHITE ? RL_BLUE : RL_DARKBLUE);
+          DrawText(turn_text, BOARD_OFFSET_X, 45, 16, env.ctx->board.to_move == C_WHITE ? RL_BLUE : RL_DARKBLUE);
         }
         
         ::Color move_color = viewing_history ? RL_ORANGE : RL_DARKGRAY;
@@ -1975,8 +2033,8 @@ int demo() {
       }
       
       // Display session statistics (moved to right of recent moves to avoid overlap)
-      if (session_stats.total_games > 0 && session_stats.total_games < 10000) {
-        int session_stats_x = 750; // To the right of recent moves at x=578
+      if (session_stats.total_games >= 0 && session_stats.total_games < 10000) {
+        int session_stats_x = 550 + SQUARE_SIZE; // Move right by one chess board square width
         DrawText("Session Stats:", session_stats_x, 20, 16, RL_BLACK);
         char games_text[32], wins_text[32], losses_text[32], draws_text[32];
         snprintf(games_text, sizeof(games_text), "Games: %d", session_stats.total_games);
@@ -1987,6 +2045,21 @@ int demo() {
         DrawText(wins_text, session_stats_x, 60, 14, RL_DARKGREEN);
         DrawText(losses_text, session_stats_x, 80, 14, RL_DARKRED);
         DrawText(draws_text, session_stats_x, 100, 14, RL_ORANGE);
+        
+        // Debug: Show game state
+        char debug_text[128];
+        snprintf(debug_text, sizeof(debug_text), "DEBUG: term=%d, end_proc=%d, mode=%d, steps=%d/%d", 
+                env.terminals[0], game_ending_processed, game_mode,
+                env.ctx ? env.ctx->step_count : -1, env.max_depth);
+        DrawText(debug_text, session_stats_x, 120, 10, RL_DARKGRAY);
+        
+        // Debug: Print session stats to console every few frames
+        static int debug_counter = 0;
+        if (debug_counter++ % 300 == 0) { // Every ~5 seconds at 60fps
+          printf("[STATS DEBUG] Session: games=%d, wins=%d, losses=%d, draws=%d\n",
+                 session_stats.total_games, session_stats.total_wins, 
+                 session_stats.total_losses, session_stats.total_draws);
+        }
         
         // Show both player and agent stats separately (if they have games played)
         if (session_stats.human_stats.games > 0) {
