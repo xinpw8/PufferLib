@@ -17,7 +17,6 @@ class Chess(pufferlib.PufferEnv):
                  reward_invalid_black=-0.01,
                  reward_white_captures_enemy_piece=0.05,
                  reward_black_captures_enemy_piece=0.05,
-                 reward_max_depth_termination=-0.1,
                  reward_draw=0.0,
                  reward_win_white=1.0,
                  reward_win_black=1.0,
@@ -28,8 +27,6 @@ class Chess(pufferlib.PufferEnv):
                  max_depth=200,
                  reward_material_diff_white=0.0,
                  reward_material_diff_black=0.0,
-                 use_piece_value_capture_rewards=False,
-                 piece_value_reward_multiplier=0.1,
                  debug_disable_mask=0,
                  stockfish_enabled=0,
                  stockfish_cmd=None,
@@ -83,7 +80,7 @@ class Chess(pufferlib.PufferEnv):
         self.backend_num_agents = num_envs # * 2 if self.self_play else num_envs
 
         # Define single-agent spaces
-        self.num_obs = 8*8*21 + 1968 # board state + legal move mask
+        self.num_obs = 8*8*23 + 1968 # board state + legal move mask (23 planes: 21 original + 2 threat channels)
         self.num_actions = 1968
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
@@ -106,7 +103,6 @@ class Chess(pufferlib.PufferEnv):
             reward_invalid_black=reward_invalid_black,
             reward_white_captures_enemy_piece=reward_white_captures_enemy_piece,
             reward_black_captures_enemy_piece=reward_black_captures_enemy_piece,
-            reward_max_depth_termination=reward_max_depth_termination,
             reward_draw=reward_draw,
             reward_win_white=reward_win_white,
             reward_win_black=reward_win_black,
@@ -117,8 +113,6 @@ class Chess(pufferlib.PufferEnv):
             max_depth=max_depth,
             reward_material_diff_white=reward_material_diff_white,
             reward_material_diff_black=reward_material_diff_black,
-            use_piece_value_capture_rewards=use_piece_value_capture_rewards,
-            piece_value_reward_multiplier=piece_value_reward_multiplier,
             debug_disable_mask=debug_disable_mask,
             stockfish_enabled=stockfish_enabled,
             stockfish_elo=stockfish_elo,

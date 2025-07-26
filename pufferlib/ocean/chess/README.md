@@ -105,6 +105,25 @@ best way to do masking is half the agents run 1 step and half run the next step.
 │   is for each episode to contain 1 player's data. hack double-buffered vec so 1 call to step you get 1 player's      │
 │   data and then on the next call to step() you get the other player's data.  
 
+
+Legal Move Mask: (exact indices may be off if things were added/removed from obs)
+the last 1968 elements of the observations array is a legal move mask, generated in the env as such: 
+obs[:, 1344:3312]
+
+models.py decode_actions() generates raw logits for all 1968 possible moves
+raw_logits = self.decoder(hidden)
+, 
+forward_eval() extracts the legal move mask from the env,
+legal_move_mask = obs[:, 1344:3312]
+,
+decode_actions() sets the illegal logits to -1e8 ~ -inf
+logits = raw_logits.masked_fill(legal_move_mask < 0.5, -1e8)
+,
+pytorch.py sample_logits() samples from the masked logits
+action = torch.multinomial(probs.reshape(-1, probs.shape[-1]), 1, replacement=True).int()
+
+
+
 Opening frequency of PGN-style UCI logs:
 python analyze_openings.py /puffertank/release_test_pufferlib/pufferlib/resources/chess/training_logs/complete_games
 

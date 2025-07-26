@@ -281,7 +281,7 @@ typedef struct ChessContext {
   int stockfish_search_ms;
   
   // PERFORMANCE OPTIMIZATION: Observation caching
-  float cached_observation[1344];  // 21 * 8 * 8 board planes only
+  float cached_observation[1472];  // 23 * 8 * 8 board planes only
   bool observation_cached;
   uint64_t cached_observation_hash;
   PieceColor cached_observation_player;
@@ -348,6 +348,11 @@ void c_close(CChess *env);
 void set_dual_agent_self_play_mode(CChess *env, bool enabled);
 void set_self_play_mode(CChess *env, bool enabled);
 void c_set_fen(CChess *env, const char *fen);
+
+// Stub implementation for notify_game_end
+void notify_game_end(int white_won, int black_won, int is_draw) {
+  // Stub implementation - could be used for logging or callbacks
+}
 
 // === CHESS HELPER FUNCTIONS ===
 
@@ -680,6 +685,57 @@ static inline void flip_uci_for_black_perspective(const char *original_uci,
 }
 
 // === LEGAL MOVE GENERATION (PURE C, OPTIMIZED) ===
+
+// Helper function to check if a specific piece can attack a specific square
+static bool can_piece_attack_square(const ChessBoard *board, Square from, Square to, PieceType piece_type, PieceColor piece_color) {
+  int dx = to.x - from.x;
+  int dy = to.y - from.y;
+  
+  switch (piece_type) {
+    case PAWN: {
+      int direction = (piece_color == C_WHITE) ? 1 : -1;
+      // Pawn can only capture diagonally
+      return (dy == direction && (dx == 1 || dx == -1));
+    }
+    case KNIGHT:
+      return ((abs(dx) == 2 && abs(dy) == 1) || (abs(dx) == 1 && abs(dy) == 2));
+    case BISHOP:
+      if (abs(dx) != abs(dy)) return false; // Must be diagonal
+      // Check if path is clear
+      for (int i = 1; i < abs(dx); i++) {
+        int check_x = from.x + (dx > 0 ? i : -i);
+        int check_y = from.y + (dy > 0 ? i : -i);
+        const Piece *p = get_piece_const(board, check_x, check_y);
+        if (p && p->type != EMPTY) return false;
+      }
+      return true;
+    case ROOK:
+      if (dx != 0 && dy != 0) return false; // Must be straight line
+      // Check if path is clear
+      if (dx == 0) {
+        int step = (dy > 0) ? 1 : -1;
+        for (int y = from.y + step; y != to.y; y += step) {
+          const Piece *p = get_piece_const(board, from.x, y);
+          if (p && p->type != EMPTY) return false;
+        }
+      } else {
+        int step = (dx > 0) ? 1 : -1;
+        for (int x = from.x + step; x != to.x; x += step) {
+          const Piece *p = get_piece_const(board, x, from.y);
+          if (p && p->type != EMPTY) return false;
+        }
+      }
+      return true;
+    case QUEEN:
+      // Queen combines rook and bishop movement
+      return can_piece_attack_square(board, from, to, ROOK, piece_color) ||
+             can_piece_attack_square(board, from, to, BISHOP, piece_color);
+    case KING:
+      return (abs(dx) <= 1 && abs(dy) <= 1 && (dx != 0 || dy != 0));
+    default:
+      return false;
+  }
+}
 
 static bool is_square_attacked(const ChessBoard *board, Square sq,
                                PieceColor by_color) {
@@ -1501,11 +1557,11 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
   if (false && ctx->observation_cached && 
       ctx->cached_observation_hash == current_hash && 
       ctx->cached_observation_player == player) {
-    // Use cached board observation (first 1344 floats)
-    memcpy(&env->observations[obs_offset], ctx->cached_observation, 1344 * sizeof(float));
+    // Use cached board observation (first 1472 floats)
+    memcpy(&env->observations[obs_offset], ctx->cached_observation, 1472 * sizeof(float));
   } else {
     // Compute fresh board observation
-    memset(&env->observations[obs_offset], 0, 1344 * sizeof(float));
+    memset(&env->observations[obs_offset], 0, 1472 * sizeof(float));
     int idx = 0;
 
     // --- SINGLE PASS OVER THE BOARD (Correct) ---
@@ -1529,14 +1585,114 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
       }
     }
     
+    // --- NON-PIECE PLANES ---
+    // Now set idx to start after piece planes (13 planes * 64 squares each)
+    idx = 13 * 64;
+
+    // Plane 13: Repetition count plane (using actual position history)
+    int reps = get_position_count(ctx, ctx->board.zobrist_hash);
+    float rep_val = (reps >= 2) ? 1.0f : 0.0f; // Simplified: 0 for 1 rep, 1 for 2+ reps
+    for (int i = 0; i < 64; i++) {
+      env->observations[obs_offset + idx++] = rep_val;
+    }
+
+    // Plane 14: Side to move plane (always 0 from current player's perspective)
+    for (int i = 0; i < 64; i++) {
+      env->observations[obs_offset + idx++] = 0.0f;
+    }
+
+    // Plane 15: Halfmove clock plane
+    float halfmove_val = ctx->board.halfmove_clock / 100.0f; // Normalize to 0-1 range
+    for (int i = 0; i < 64; i++) {
+      env->observations[obs_offset + idx++] = halfmove_val;
+    }
+
+    // Planes 16-19: Castling rights planes (4 planes, flipped for black perspective)
+    uint8_t rights = ctx->board.castle_rights;
+    if (player == C_BLACK) {
+      // Flip castling rights for Black's perspective
+      uint8_t flipped = 0;
+      if (rights & 4) flipped |= 1; // BK -> WK
+      if (rights & 8) flipped |= 2; // BQ -> WQ
+      if (rights & 1) flipped |= 4; // WK -> BK
+      if (rights & 2) flipped |= 8; // WQ -> BQ
+      rights = flipped;
+    }
+
+    for (int i = 0; i < 4; i++) {
+      float castle_val = (rights & (1 << i)) ? 1.0f : 0.0f;
+      for (int j = 0; j < 64; j++) {
+        env->observations[obs_offset + idx++] = castle_val;
+      }
+    }
+
+    // Plane 20: En passant target square plane (flipped for black perspective)
+    int8_t ep_square = ctx->board.ep_square;
+    if (ep_square != -1 && player == C_BLACK) {
+      int ep_x = ep_square % 8;
+      int ep_y = ep_square / 8;
+      ep_square = (7 - ep_y) * 8 + ep_x;
+    }
+    for (int i = 0; i < 64; i++) {
+      env->observations[obs_offset + idx++] = (ep_square == i) ? 1.0f : 0.0f;
+    }
+
+    // Plane 21: Pieces the current player can capture on next turn
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        int y_actual = (player == C_WHITE) ? y : (7 - y);
+        int square_index = y_actual * 8 + x;
+        const Piece *p = &ctx->board.board[square_index];
+        
+        bool can_capture = false;
+        if (p->type != EMPTY && p->color != player) {
+          // Check if any of the current player's pieces can capture this square
+          for (int from_y = 0; from_y < 8; from_y++) {
+            for (int from_x = 0; from_x < 8; from_x++) {
+              const Piece *attacker = &ctx->board.board[from_y * 8 + from_x];
+              if (attacker->type != EMPTY && attacker->color == player) {
+                Square from_sq = {(int8_t)from_x, (int8_t)from_y};
+                Square to_sq = {(int8_t)x, (int8_t)y_actual};
+                if (can_piece_attack_square(&ctx->board, from_sq, to_sq, attacker->type, player)) {
+                  can_capture = true;
+                  goto capture_found;
+                }
+              }
+            }
+          }
+          capture_found:;
+        }
+        env->observations[obs_offset + idx++] = can_capture ? 1.0f : 0.0f;
+      }
+    }
+
+    // Plane 22: Pieces that can capture the current player's pieces on next turn
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        int y_actual = (player == C_WHITE) ? y : (7 - y);
+        int square_index = y_actual * 8 + x;
+        const Piece *p = &ctx->board.board[square_index];
+        
+        bool under_threat = false;
+        if (p->type != EMPTY && p->color == player) {
+          // Check if any opponent pieces can capture this square
+          Square target_sq = {(int8_t)x, (int8_t)y_actual};
+          under_threat = is_square_attacked(&ctx->board, target_sq, (PieceColor)(1 - player));
+        }
+        env->observations[obs_offset + idx++] = under_threat ? 1.0f : 0.0f;
+      }
+    }
+
+    assert(idx == 1472); // 23 * 8 * 8
+    
     // Cache the computed board observation
-    memcpy(ctx->cached_observation, &env->observations[obs_offset], 1344 * sizeof(float));
+    memcpy(ctx->cached_observation, &env->observations[obs_offset], 1472 * sizeof(float));
     ctx->observation_cached = true;
     ctx->cached_observation_hash = current_hash;
     ctx->cached_observation_player = player;
   }
   
-  int idx = 1344; // Start index for the legal move mask
+  int action_mask_idx = 1472; // Start index for the legal move mask
 
   // --- LEGAL MOVE MASK (Corrected Logic) ---
 
@@ -1554,13 +1710,13 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
   //        is_player_turn ? "YES" : "NO");
 
   // Always clear the agent's mask first
-  memset(&env->observations[obs_offset + idx], 0,
+  memset(&env->observations[obs_offset + action_mask_idx], 0,
          TOTAL_CHESS_ACTIONS * sizeof(float));
 
   if (env->debug_disable_mask) {
     // Debug mode to make all moves legal
     for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
-      env->observations[obs_offset + idx + i] = 1.0f;
+      env->observations[obs_offset + action_mask_idx + i] = 1.0f;
     }
   } else if (ctx->dual_agent_self_play_mode || is_player_turn) {
     // In dual-agent mode, both agents get action masks for moves from their perspective
@@ -1586,7 +1742,7 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
 
       int action_id = uci_to_action_id(perspective_uci);
       if (action_id >= 0) {
-        env->observations[obs_offset + idx + action_id] = 1.0f;
+        env->observations[obs_offset + action_mask_idx + action_id] = 1.0f;
         valid_actions_set++;
         // if (valid_actions_set <= 3) {  // Log first 3 action IDs for debugging
         //   printf("[ACTION_ID_DEBUG] %s: %s -> action_id %d\n", 
@@ -1594,7 +1750,7 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
         // }
         if (player == C_BLACK && i < 5) {  // Log first 5 for black
         //   printf("[ACTION_MASK_DEBUG] BLACK: %s -> %s -> action %d (masked at idx %d)\n", 
-        //          canonical_uci, perspective_uci, action_id, obs_offset + idx + action_id);
+        //          canonical_uci, perspective_uci, action_id, obs_offset + action_mask_idx + action_id);
         }
       } else if (player == C_BLACK && i < 5) {
         // printf("[ACTION_MASK_DEBUG] BLACK: %s -> %s -> NO ACTION ID FOUND\n", 
@@ -1672,7 +1828,7 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx, PieceC
 //     // This is the standard 2-player self-play mode.
 
 //     // Define the size of a single agent's observation to calculate offsets.
-//     const int single_obs_size = 3312; // 1344 board + 1968 mask
+//     const int single_obs_size = 3440; // 1472 board + 1968 mask
 
 //     // === Generate Observation for Agent 0 (White) ===
 //     // This observation will be written to the first slice of the environment's
@@ -2335,7 +2491,7 @@ void allocate(CChess *env) {
   // flipping
   const int num_players = 2;
   const int obs_size =
-      3312; // 21*8*8 board planes + 1968 action mask = 1344 + 1968
+      3440; // 23*8*8 board planes + 1968 action mask = 1472 + 1968
 
   env->observations = (float *)calloc(num_players * obs_size, sizeof(float));
   env->actions = (int *)calloc(num_players, sizeof(int));
@@ -2356,7 +2512,7 @@ void free_allocated(CChess *env) {
 }
 
 void c_reset(CChess *env) {
-  printf("[C_RESET DEBUG] c_reset called - resetting step_count from %d to 0\n", env->context.step_count);
+//   printf("[C_RESET DEBUG] c_reset called - resetting step_count from %d to 0\n", env->context.step_count);
   init_board(&env->context.board);
 
   // Reset terminals and rewards for both agents
@@ -2437,13 +2593,8 @@ void c_reset(CChess *env) {
 void c_step(CChess *env) {
   PROFILE_START(profile_c_step_ticks)
   
-  // Safety checks
-  if (!env) {
-    printf("[C_STEP DEBUG] ERROR: env is NULL\n");
-    return;
-  }
-  
-  printf("[C_STEP DEBUG] env=%p, step_count=%d, max_depth=%d\n", (void*)env, env->context.step_count, env->max_depth);
+ 
+//   printf("[C_STEP DEBUG] env=%p, step_count=%d, max_depth=%d\n", (void*)env, env->context.step_count, env->max_depth);
   
   // Increment step counter for game logging
   env->context.steps_since_last_log++;
@@ -2485,9 +2636,9 @@ void c_step(CChess *env) {
 
   // CRITICAL FIX: Validate that the chosen action is actually in the action mask
   // Calculate the correct observation offset for the CURRENT player.
-  const int single_obs_size = 3312; // 1344 board + 1968 mask
+  const int single_obs_size = 3440; // 1472 board + 1968 mask
   int obs_offset = 0; // <-- NEW, CORRECT LOGIC
-  int mask_start_idx = 1344; // Start of action mask in observation
+  int mask_start_idx = 1472; // Start of action mask in observation
   
   // Generate fresh legal moves to validate against
   chess_generate_legal_moves_uci(&env->context);
@@ -2594,14 +2745,14 @@ void c_step(CChess *env) {
   // 4. Validate against the ground truth.
   if (!is_action_legal) {
     const char* turn_color = (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK";
-    printf("[ERROR] Illegal move attempted (ground truth validation): action %d (%s) - %s's turn (agent %d)\n", 
-           action_idx, uci_move_canonical, turn_color, agent_idx);
+    // printf("[ERROR] Illegal move attempted (ground truth validation): action %d (%s) - %s's turn (agent %d)\n", 
+    //        action_idx, uci_move_canonical, turn_color, agent_idx);
     
-    // Log the actual legal moves for debugging
-    printf("[DEBUG] Agent %d has %d actual legal moves:\n", agent_idx, env->context.legal_moves_count);
-    for (int i=0; i < env->context.legal_moves_count && i < 10; i++) { // Print first 10
-        printf("  - %s\n", env->context.legal_moves_buffer[i]);
-    }
+    // // Log the actual legal moves for debugging
+    // printf("[DEBUG] Agent %d has %d actual legal moves:\n", agent_idx, env->context.legal_moves_count);
+    // for (int i=0; i < env->context.legal_moves_count && i < 10; i++) { // Print first 10
+    //     printf("  - %s\n", env->context.legal_moves_buffer[i]);
+    // }
 
     // Invalidate the move, penalize the agent, and end the step without applying the move.
     // Note: You may want to assign a penalty here. For now, we just return.
@@ -2727,7 +2878,7 @@ void c_step(CChess *env) {
   env->context.episode_return_black += env->rewards[1];
 
   // Check for game over conditions
-  printf("[TERMINATION DEBUG] Checking game over: step_count=%d, max_depth=%d\n", env->context.step_count, env->max_depth);
+//   printf("[TERMINATION DEBUG] Checking game over: step_count=%d, max_depth=%d\n", env->context.step_count, env->max_depth);
   bool game_over = false;
   bool any_legal_move_exists = false;
   chess_generate_legal_moves_yield(&env->context, first_move_callback,
@@ -2796,7 +2947,7 @@ void c_step(CChess *env) {
     // Add accumulated reward tracking for logging
     env->context.accumulated_reward_draw += env->context.c_reward_draw;
   } else if (env->max_depth > 0 && env->context.step_count >= env->max_depth) {
-    printf("[TERMINATION DEBUG] MAX DEPTH REACHED: step_count=%d >= max_depth=%d\n", env->context.step_count, env->max_depth);
+    // printf("[TERMINATION DEBUG] MAX DEPTH REACHED: step_count=%d >= max_depth=%d\n", env->context.step_count, env->max_depth);
     game_over = true; // MAX DEPTH / TRUNCATION
     env->rewards[0] += env->context.c_reward_max_depth_termination;
     env->rewards[1] += env->context.c_reward_max_depth_termination;
@@ -2815,8 +2966,7 @@ void c_step(CChess *env) {
     add_log(env);
     
     // Notify UI about game end via function call (before auto-reset clears counters)
-    void notify_game_end(int white_won, int black_won, int is_draw);
-    notify_game_end(env->context.c_white_win > 0, env->context.c_black_win > 0, env->context.c_game_drawn > 0);
+    // notify_game_end(env->context.c_white_win > 0, env->context.c_black_win > 0, env->context.c_game_drawn > 0);
 
     // Check if we should log this complete game BEFORE reset - ONLY for env_id 512 (first active env)
     if (env->env_id == 512) {

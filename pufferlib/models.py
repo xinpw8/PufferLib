@@ -36,16 +36,16 @@ class Default(nn.Module):
         # Check if this is a chess environment by examining observation space
         try:
             obs_shape = env.single_observation_space.shape
-            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3312)  # 1344 board + 1968 mask
+            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3440)  # 1472 board + 1968 mask
         except:
             self.is_chess = False
 
         if self.is_chess:
             # Chess-specific architecture
-            # Board features: 1344 dims (21 channels × 8×8)
+            # Board features: 1472 dims (23 channels × 8×8)
             # Legal mask: 1968 dims
             self.board_encoder = nn.Sequential(
-                nn.Linear(1344, 512),
+                nn.Linear(1472, 512),
                 nn.ReLU(),
                 nn.Linear(512, hidden_size),
                 nn.ReLU()
@@ -90,10 +90,10 @@ class Default(nn.Module):
             print(f"  FIX: Check pufferl.py observation processing")
             exit(1)
             
-        if observations.shape[-1] == 3312:  # Chess observations
+        if observations.shape[-1] == 3440:  # Chess observations
             batch_size = observations.shape[0]
-            board_part = observations[:, :1344]
-            mask_part = observations[:, 1344:3312]
+            board_part = observations[:, :1472]
+            mask_part = observations[:, 1472:3440]
             
             board_sums = board_part.sum(dim=1)
             mask_sums = mask_part.sum(dim=1)
@@ -153,7 +153,7 @@ class Default(nn.Module):
         hidden = self.encode_observations(observations, state=state)
         if self.is_chess:
             # Extract legal mask and apply action masking
-            legal_mask = observations[:, 1344:3312]  # 1968 UCI legal move mask
+            legal_mask = observations[:, 1472:3440]  # 1968 UCI legal move mask
             logits, values = self.decode_actions(hidden, legal_mask)
         else:
             logits, values = self.decode_actions(hidden)
@@ -172,8 +172,8 @@ class Default(nn.Module):
         batch_size = observations.shape[0]
         
         if self.is_chess:
-            # Chess: encode only board features (first 1344 dims)
-            board_features = observations[:, :1344]
+            # Chess: encode only board features (first 1472 dims)
+            board_features = observations[:, :1472]
             return self.board_encoder(board_features.float())
         elif self.is_dict_obs:
             observations = pufferlib.pytorch.nativize_tensor(observations, self.dtype)
@@ -265,7 +265,7 @@ class LSTMWrapper(nn.Module):
         flat_hidden = hidden.transpose(0, 1).reshape(B * TT, self.hidden_size)
         
         # Extract legal masks from observations (chess-specific)
-        legal_masks = observations.reshape(B * TT, *space_shape)[:, 1344:3312]
+        legal_masks = observations.reshape(B * TT, *space_shape)[:, 1472:3440]
         
         logits, values = self.policy.decode_actions(flat_hidden, legal_masks)
 
@@ -291,7 +291,7 @@ class LSTMWrapper(nn.Module):
         next_h, next_c = self.cell(hidden, lstm_state)
 
         # Extract legal masks from observations (chess-specific)
-        legal_masks = observations[:, 1344:3312]
+        legal_masks = observations[:, 1472:3440]
         
         logits, values = self.policy.decode_actions(next_h, legal_masks)
         

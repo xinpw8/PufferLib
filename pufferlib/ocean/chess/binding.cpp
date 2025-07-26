@@ -87,28 +87,25 @@ static PyObject* vec_set_fen(PyObject* self, PyObject* args) {
 }
 
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    env->reward_valid = unpack(kwargs, "reward_valid");
-    env->reward_invalid_white = unpack(kwargs, "reward_invalid_white");
-    env->reward_invalid_black = unpack(kwargs, "reward_invalid_black");
-    env->reward_white_captures_enemy_piece = unpack(kwargs, "reward_white_captures_enemy_piece");
-    env->reward_black_captures_enemy_piece = unpack(kwargs, "reward_black_captures_enemy_piece");
-    env->reward_max_depth_termination = unpack(kwargs, "reward_max_depth_termination");
-    env->reward_draw = unpack(kwargs, "reward_draw");
-    env->reward_win_white = unpack(kwargs, "reward_win_white");
-    env->reward_win_black = unpack(kwargs, "reward_win_black");
-    env->reward_loss_white = unpack(kwargs, "reward_loss_white");
-    env->reward_loss_black = unpack(kwargs, "reward_loss_black");
-    env->reward_check_white = unpack(kwargs, "reward_check_white");
-    env->reward_check_black = unpack(kwargs, "reward_check_black");
-    env->reward_material_diff_white = unpack(kwargs, "reward_material_diff_white");
-    env->reward_material_diff_black = unpack(kwargs, "reward_material_diff_black");
-    env->max_depth = (int)unpack(kwargs, "max_depth");
-    env->use_piece_value_capture_rewards = (bool)unpack(kwargs, "use_piece_value_capture_rewards");
-    env->piece_value_reward_multiplier = unpack(kwargs, "piece_value_reward_multiplier");
-    env->debug_disable_mask = (bool)unpack(kwargs, "debug_disable_mask");  // FIX: Pass debug flag to C++
+    env->reward_valid = unpack(kwargs, (char*)"reward_valid");
+    env->reward_invalid_white = unpack(kwargs, (char*)"reward_invalid_white");
+    env->reward_invalid_black = unpack(kwargs, (char*)"reward_invalid_black");
+    env->reward_white_captures_enemy_piece = unpack(kwargs, (char*)"reward_white_captures_enemy_piece");
+    env->reward_black_captures_enemy_piece = unpack(kwargs, (char*)"reward_black_captures_enemy_piece");
+    env->reward_draw = unpack(kwargs, (char*)"reward_draw");
+    env->reward_win_white = unpack(kwargs, (char*)"reward_win_white");
+    env->reward_win_black = unpack(kwargs, (char*)"reward_win_black");
+    env->reward_loss_white = unpack(kwargs, (char*)"reward_loss_white");
+    env->reward_loss_black = unpack(kwargs, (char*)"reward_loss_black");
+    env->reward_check_white = unpack(kwargs, (char*)"reward_check_white");
+    env->reward_check_black = unpack(kwargs, (char*)"reward_check_black");
+    env->reward_material_diff_white = unpack(kwargs, (char*)"reward_material_diff_white");
+    env->reward_material_diff_black = unpack(kwargs, (char*)"reward_material_diff_black");
+    env->max_depth = (int)unpack(kwargs, (char*)"max_depth");
+    env->debug_disable_mask = (bool)unpack(kwargs, (char*)"debug_disable_mask");  // FIX: Pass debug flag to C++
     
     // Set game logging frequency from config
-    int full_game_logging_frequency = (int)unpack(kwargs, "full_game_logging_frequency");
+    int full_game_logging_frequency = (int)unpack(kwargs, (char*)"full_game_logging_frequency");
     printf("[C++ DEBUG] Init: full_game_logging_frequency=%d\n", full_game_logging_frequency);
     
     init(env);    

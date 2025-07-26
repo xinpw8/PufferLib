@@ -520,25 +520,8 @@ struct SessionStats {
 };
 SessionStats session_stats;
 
-// Global flag to track when a game just ended - set by c_step, read by UI
-struct GameEndInfo {
-  bool game_just_ended = false;
-  bool white_won = false;
-  bool black_won = false;
-  bool is_draw = false;
-} game_end_info;
-
 }
 using namespace chess;
-
-// Function called by chess.h when a game ends (before auto-reset)
-extern "C" void notify_game_end(int white_won, int black_won, int is_draw) {
-  printf("[NOTIFY_GAME_END] Called with: white_won=%d, black_won=%d, is_draw=%d\n", white_won, black_won, is_draw);
-  game_end_info.game_just_ended = true;
-  game_end_info.white_won = (white_won > 0);
-  game_end_info.black_won = (black_won > 0);
-  game_end_info.is_draw = (is_draw > 0);
-}
 
 // Forward declarations for functions defined later
 void update_session_stats(GameMode mode, bool white_won, bool black_won, bool is_draw);
@@ -764,15 +747,15 @@ void check_and_update_game_outcome(CChess *env, GameMode mode) {
   printf("[DEBUG] check_and_update_game_outcome called: terminals[0]=%d, game_ending_processed=%d\n", 
          env->terminals[0], game_ending_processed);
   printf("[DEBUG] Global flag: game_just_ended=%d, white_won=%d, black_won=%d, is_draw=%d\n",
-         game_end_info.game_just_ended, game_end_info.white_won, game_end_info.black_won, game_end_info.is_draw);
+         last_game_outcome.game_ended, last_game_outcome.white_won, last_game_outcome.black_won, last_game_outcome.is_draw);
   
-  if (game_end_info.game_just_ended && !game_ending_processed) {
-    bool white_won = game_end_info.white_won;
-    bool black_won = game_end_info.black_won;
-    bool is_draw = game_end_info.is_draw;
+  if (last_game_outcome.game_ended && !game_ending_processed) {
+    bool white_won = last_game_outcome.white_won;
+    bool black_won = last_game_outcome.black_won;
+    bool is_draw = last_game_outcome.is_draw;
     
     // Clear the flag so we don't process this game end multiple times
-    game_end_info.game_just_ended = false;
+    last_game_outcome.game_ended = false;
     
     // Auto-pause the game when it ends (but only for human vs modes, not agent vs agent/random)
     if (mode == GM_PLAYER_AGENT || mode == GM_PLAYER_STOCKFISH || mode == GM_PLAYER_RANDOM) {
@@ -875,8 +858,8 @@ int agent_select_action(ChessNet *net, CChess *env, int agent_idx) {
   
   // Quick observation sanity check
   float board_sum = 0.0f, mask_sum = 0.0f;
-  for (int i = 0; i < 1344; i++) board_sum += env->observations[i];
-  for (int i = 1344; i < 1344 + TOTAL_CHESS_ACTIONS; i++) {
+  for (int i = 0; i < 1472; i++) board_sum += env->observations[i];
+  for (int i = 1472; i < 1472 + TOTAL_CHESS_ACTIONS; i++) {
     if (env->observations[i] > 0.5f) mask_sum += 1.0f;
   }
   printf("[AGENT] Board pieces: %.0f, Legal moves: %.0f\n", board_sum, mask_sum);
@@ -889,7 +872,7 @@ int agent_select_action(ChessNet *net, CChess *env, int agent_idx) {
 
 int random_select_action(CChess *env) {
   // Standard Ocean pattern: use action mask from observations to find legal actions
-  float *action_mask = &env->observations[1344]; // Action mask starts at index 1344
+  float *action_mask = &env->observations[1472]; // Action mask starts at index 1472
   
   // Collect legal actions
   int legal_actions[TOTAL_CHESS_ACTIONS];

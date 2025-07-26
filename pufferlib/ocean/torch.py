@@ -876,7 +876,7 @@ class GPUDrive(nn.Module):
 #         super().__init__()
 #         # Simple MLP encoder for flattened chess board (much faster than CNN)
 #         self.board_encoder = nn.Sequential(
-#             nn.Linear(1344, 512),  # 21 * 8 * 8 = 1344
+#             nn.Linear(1472, 512),  # 23 * 8 * 8 = 1472
 #             nn.ReLU(),
 #             nn.Linear(512, 256),
 #             nn.ReLU()
@@ -900,7 +900,7 @@ class GPUDrive(nn.Module):
 #     def encode_observations(self, obs, state=None):
 #         # For LSTM compatibility, we only encode board features here
 #         # Mask will be handled in the LSTM wrapper's forward method
-#         board_state = obs[:, :1344]  # 21 channels * 8 * 8 = 1344 (flattened)
+#         board_state = obs[:, :1472]  # 23 channels * 8 * 8 = 1472 (flattened)
 #         board_features = self.board_encoder(board_state)
 #         hidden = self.combiner(board_features)
 #         return hidden
@@ -909,7 +909,7 @@ class GPUDrive(nn.Module):
 #         """Get action with proper UCI-based legal action masking"""
         
 #         # 1. Get legal actions from the legal mask in observations
-#         legal_mask = obs[:, 1344:3312]  # 1968 UCI legal move mask
+#         legal_mask = obs[:, 1472:3440]  # 1968 UCI legal move mask
 #         legal_actions = torch.where(legal_mask[0] > 0.5)[0]
         
 #         if len(legal_actions) == 0:
@@ -980,7 +980,7 @@ class GPUDrive(nn.Module):
 #         # This forward is used during non-LSTM inference
 #         # Extract components
 #         board_state = obs[:, :1344]
-#         legal_mask = obs[:, 1344:3312]  # 1968 UCI actions
+#         legal_mask = obs[:, 1472:3440]  # 1968 UCI actions
         
 #         # Encode board with MLP
 #         board_features = self.board_encoder(board_state)
@@ -1002,7 +1002,7 @@ class ChessRecurrent(nn.Module):
         super().__init__()
         # Simple MLP encoder for flattened chess board (much faster than CNN)
         self.board_encoder = nn.Sequential(
-            nn.Linear(1344, 512),  # 21 * 8 * 8 = 1344
+            nn.Linear(1472, 512),  # 23 * 8 * 8 = 1472
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU()
@@ -1028,7 +1028,7 @@ class ChessRecurrent(nn.Module):
         # Handle both 1D and 2D tensor inputs
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
-        board_state = obs[:, :1344].float()
+        board_state = obs[:, :1472].float()
         board_features = self.board_encoder(board_state)
         hidden = self.combiner(board_features)
         return hidden
@@ -1046,8 +1046,8 @@ class ChessRecurrent(nn.Module):
 
     def forward(self, obs, state=None):
         # Non-LSTM inference path
-        hidden = self.encode_observations(obs[:, :1344])
-        legal_mask = obs[:, 1344:3312]
+        hidden = self.encode_observations(obs[:, :1472])
+        legal_mask = obs[:, 1472:3440]
         logits, value = self.decode_actions(hidden, legal_mask)
         return logits, value
 
@@ -1182,10 +1182,10 @@ class Drone(nn.Module):
             print(f"  FIX: Check models.py policy forwarding")
             exit(1)
             
-        if observations.shape[-1] == 3312:  # Chess observations
+        if observations.shape[-1] == 3440:  # Chess observations
             batch_size = observations.shape[0]
-            board_part = observations[:, :1344]
-            mask_part = observations[:, 1344:3312]
+            board_part = observations[:, :1472]
+            mask_part = observations[:, 1472:3440]
             
             # Validate content structure
             board_sums = board_part.sum(dim=1)
@@ -1286,10 +1286,10 @@ def Policy(env, **kwargs):
     legacy Default policy so existing non-chess environments remain
     functional.
     """
-    # Chess: obs = 1344 board planes + 1968 legal-move mask
+    # Chess: obs = 1472 board planes + 1968 legal-move mask
     try:
         is_chess = (len(env.single_observation_space.shape) == 1 and
-                    env.single_observation_space.shape[0] == 3312)
+                    env.single_observation_space.shape[0] == 3440)
     except AttributeError:
         is_chess = False
 
