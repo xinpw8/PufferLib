@@ -36,7 +36,7 @@ class Default(nn.Module):
         # Check if this is a chess environment by examining observation space
         try:
             obs_shape = env.single_observation_space.shape
-            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 3440)  # 1472 board + 1968 mask
+            self.is_chess = (len(obs_shape) == 1 and obs_shape[0] == 1537)  # 1472 board + 1 + 64 sparse mask
         except:
             self.is_chess = False
 
@@ -90,24 +90,24 @@ class Default(nn.Module):
             print(f"  FIX: Check pufferl.py observation processing")
             exit(1)
             
-        if observations.shape[-1] == 3440:  # Chess observations
+        if observations.shape[-1] == 1537:  # Chess observations (sparse format)
             batch_size = observations.shape[0]
             board_part = observations[:, :1472]
-            mask_part = observations[:, 1472:3440]
+            # Sparse mask: num_legal_moves at 1472, action_ids from 1473 onwards
+            num_legal_moves = observations[:, 1472]
             
             board_sums = board_part.sum(dim=1)
-            mask_sums = mask_part.sum(dim=1)
             
-            if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
+            if (board_sums < 1.0).any() or (num_legal_moves < 0).any() or (num_legal_moves > 64).any():
                 print(f"[MONITOR_FATAL] Models.py: Invalid chess observations at {location}")
                 print(f"  Board sums: {board_sums}")
-                print(f"  Mask sums: {mask_sums}")
+                print(f"  Num legal moves: {num_legal_moves}")
                 print(f"  FIX: Check observation generation pipeline")
                 exit(1)
                 
             print(f"[MONITOR_OK] Models.py: Chess policy inputs valid at {location} "
                   f"(batch={batch_size}, board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
-                  f"mask_range=[{mask_sums.min():.0f},{mask_sums.max():.0f}])")
+                  f"legal_moves_range=[{num_legal_moves.min():.0f},{num_legal_moves.max():.0f}])")
 
     def _validate_chess_policy_outputs(self, logits, value, location):
         """COLOR MONITORING: Validates chess outputs at policy level"""
@@ -142,6 +142,7 @@ class Default(nn.Module):
                   f"(batch={batch_size}, logit_range=[{logit_min:.1f},{logit_max:.1f}], "
                   f"value_range=[{value.min():.3f},{value.max():.3f}])")
 
+
     def forward_eval(self, observations, state=None):
         if not hasattr(self, "_dbg_printed"):
             print("DEBUG: Default policy forward_eval called – this should NOT happen for chess.")
@@ -152,8 +153,9 @@ class Default(nn.Module):
             
         hidden = self.encode_observations(observations, state=state)
         if self.is_chess:
-            # Extract legal mask and apply action masking
-            legal_mask = observations[:, 1472:3440]  # 1968 UCI legal move mask
+            # Convert sparse mask to dense format using GPU-optimized operations
+            from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+            legal_mask = sparse_to_dense_gpu(observations)
             logits, values = self.decode_actions(hidden, legal_mask)
         else:
             logits, values = self.decode_actions(hidden)
@@ -226,7 +228,7 @@ class LSTMWrapper(nn.Module):
 
         # LSTM layer for fast parallel training
         self.lstm = nn.LSTM(input_size, hidden_size)
-
+        
         # LSTMCell for fast sequential evaluation (inference)
         self.cell = nn.LSTMCell(input_size, hidden_size)
 
@@ -242,6 +244,7 @@ class LSTMWrapper(nn.Module):
                 nn.init.constant_(param, 0)
             elif 'weight' in name and 'layer_norm' not in name:
                 nn.init.orthogonal_(param, 1.0)
+        
 
     def forward(self, observations, state):
         '''Forward function for training. Handles state as either tuple (h, c) or dictionary.'''
@@ -264,8 +267,13 @@ class LSTMWrapper(nn.Module):
         
         flat_hidden = hidden.transpose(0, 1).reshape(B * TT, self.hidden_size)
         
-        # Extract legal masks from observations (chess-specific)
-        legal_masks = observations.reshape(B * TT, *space_shape)[:, 1472:3440]
+        # Convert sparse legal masks to dense format (chess-specific)
+        flat_observations = observations.reshape(B * TT, *space_shape)
+        if flat_observations.shape[-1] == 1537:  # Chess sparse format
+            from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+            legal_masks = sparse_to_dense_gpu(flat_observations)
+        else:
+            legal_masks = None
         
         logits, values = self.policy.decode_actions(flat_hidden, legal_masks)
 
@@ -290,8 +298,12 @@ class LSTMWrapper(nn.Module):
 
         next_h, next_c = self.cell(hidden, lstm_state)
 
-        # Extract legal masks from observations (chess-specific)
-        legal_masks = observations[:, 1472:3440]
+        # Convert sparse legal masks to dense format (chess-specific)
+        if observations.shape[-1] == 1537:  # Chess sparse format
+            from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+            legal_masks = sparse_to_dense_gpu(observations)
+        else:
+            legal_masks = None
         
         logits, values = self.policy.decode_actions(next_h, legal_masks)
         

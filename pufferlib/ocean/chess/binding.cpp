@@ -106,17 +106,14 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     
     // Set game logging frequency from config
     int full_game_logging_frequency = (int)unpack(kwargs, (char*)"full_game_logging_frequency");
-    printf("[C++ DEBUG] Init: full_game_logging_frequency=%d\n", full_game_logging_frequency);
     
     init(env);    
     
     // Set frequency AFTER init to avoid being wiped by memset
     if (full_game_logging_frequency > 0) {
         env->context.game_logging_frequency = full_game_logging_frequency;
-        printf("[C++ DEBUG] Set env->context.game_logging_frequency = %d (after init)\n", full_game_logging_frequency);
     } else {
         env->context.game_logging_frequency = 500000; // default
-        printf("[C++ DEBUG] Using default game_logging_frequency = 500000 (after init)\n");
     }    
     return 0;
 }

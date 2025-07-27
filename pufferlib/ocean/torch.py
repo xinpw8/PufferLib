@@ -1044,10 +1044,13 @@ class ChessRecurrent(nn.Module):
         
         return masked_logits, value
 
+
     def forward(self, obs, state=None):
         # Non-LSTM inference path
         hidden = self.encode_observations(obs[:, :1472])
-        legal_mask = obs[:, 1472:3440]
+        # Convert sparse mask to dense format using GPU operations
+        from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+        legal_mask = sparse_to_dense_gpu(obs)
         logits, value = self.decode_actions(hidden, legal_mask)
         return logits, value
 
@@ -1182,25 +1185,25 @@ class Drone(nn.Module):
             print(f"  FIX: Check models.py policy forwarding")
             exit(1)
             
-        if observations.shape[-1] == 3440:  # Chess observations
+        if observations.shape[-1] == 1537:  # Chess observations (sparse format)
             batch_size = observations.shape[0]
             board_part = observations[:, :1472]
-            mask_part = observations[:, 1472:3440]
+            # Sparse mask: num_legal_moves at 1472, action_ids from 1473 onwards
+            num_legal_moves = observations[:, 1472]
             
             # Validate content structure
             board_sums = board_part.sum(dim=1)
-            mask_sums = mask_part.sum(dim=1)
             
-            if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
+            if (board_sums < 1.0).any() or (num_legal_moves < 0).any() or (num_legal_moves > 64).any():
                 print(f"[MONITOR_FATAL] Torch.py: Invalid chess observations at {location}")
                 print(f"  Board sums: {board_sums}")
-                print(f"  Mask sums: {mask_sums}")
+                print(f"  Num legal moves: {num_legal_moves}")
                 print(f"  FIX: Check observation encoding in chess.h")
                 exit(1)
                 
             print(f"[MONITOR_OK] Torch.py: Chess policy inputs valid at {location} "
                   f"(batch={batch_size}, board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
-                  f"mask_range=[{mask_sums.min():.0f},{mask_sums.max():.0f}])")
+                  f"legal_moves_range=[{num_legal_moves.min():.0f},{num_legal_moves.max():.0f}])")
 
     def _validate_chess_torch_outputs(self, logits, values, location):
         """COLOR MONITORING: Validates chess outputs at torch.py policy level"""
@@ -1289,7 +1292,7 @@ def Policy(env, **kwargs):
     # Chess: obs = 1472 board planes + 1968 legal-move mask
     try:
         is_chess = (len(env.single_observation_space.shape) == 1 and
-                    env.single_observation_space.shape[0] == 3440)
+                    env.single_observation_space.shape[0] == 1537)
     except AttributeError:
         is_chess = False
 

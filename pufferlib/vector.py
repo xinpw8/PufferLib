@@ -198,23 +198,25 @@ class Serial:
             print(f"  FIX: Check environment reset/step in chess.py")
             exit(1)
             
-        # Check if this looks like chess observations
-        if obs.shape[-1] == 3440:  # Chess observation detected
+        # Check if this looks like chess observations (sparse format)
+        if obs.shape[-1] == 1537:  # Chess observation detected (sparse format)
             batch_size = obs.shape[0]
             # print(f"[MONITOR_OK] Vector.py: Chess observations detected at {location} "
             #       f"(batch_size={batch_size}, obs_shape={obs.shape})")
                   
-            # Validate chess-specific structure
+            # Validate chess-specific structure (sparse format)
             board_sums = obs[:, :1472].sum(axis=1)
-            mask_sums = obs[:, 1472:3440].sum(axis=1)
+            # For sparse format: check if we have legal moves count and some action IDs
+            num_legal_moves = obs[:, 1472]  # Count of legal moves
+            has_legal_moves = num_legal_moves > 0
             
-            if any(board_sums < 1.0) or any(mask_sums < 1.0):
+            if any(board_sums < 1.0) or any(~has_legal_moves):
                 invalid_indices = [i for i in range(batch_size) 
-                                 if board_sums[i] < 1.0 or mask_sums[i] < 1.0]
+                                 if board_sums[i] < 1.0 or not has_legal_moves[i]]
                 print(f"[MONITOR_FATAL] Vector.py: Invalid chess observations at {location}")
                 print(f"  Invalid batch indices: {invalid_indices}")
                 print(f"  Board sums: {board_sums}")
-                print(f"  Mask sums: {mask_sums}")
+                print(f"  Legal moves counts: {num_legal_moves}")
                 print(f"  FIX: Check observation generation in chess.h/chess.py")
                 exit(1)
                 

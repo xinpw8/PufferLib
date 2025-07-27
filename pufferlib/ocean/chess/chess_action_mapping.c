@@ -1,6 +1,59 @@
 #include "chess_action_mapping.h"
 #include <string.h>
 
+// Hash table for fast UCI to action ID lookup
+#define HASH_TABLE_SIZE 4096  // Power of 2 for fast modulo
+#define MAX_HASH_CHAIN 8      // Maximum chain length
+
+typedef struct {
+    const char* uci_str;
+    int action_id;
+} HashEntry;
+
+static HashEntry hash_table[HASH_TABLE_SIZE][MAX_HASH_CHAIN];
+static int hash_table_initialized = 0;
+
+// Simple hash function for UCI strings (typically 4-5 characters)
+static unsigned int hash_uci(const char* uci_str) {
+    unsigned int hash = 5381;
+    const char* p = uci_str;
+    while (*p) {
+        hash = ((hash << 5) + hash) + *p;  // hash * 33 + c
+        p++;
+    }
+    return hash & (HASH_TABLE_SIZE - 1);  // Fast modulo for power of 2
+}
+
+// Initialize hash table (called once)
+static void init_uci_hash_table() {
+    if (hash_table_initialized) return;
+    
+    // Clear hash table
+    for (int i = 0; i < HASH_TABLE_SIZE; i++) {
+        for (int j = 0; j < MAX_HASH_CHAIN; j++) {
+            hash_table[i][j].uci_str = NULL;
+            hash_table[i][j].action_id = -1;
+        }
+    }
+    
+    // Populate hash table
+    for (int action_id = 0; action_id < TOTAL_CHESS_ACTIONS; action_id++) {
+        const char* uci_str = ACTION_ID_TO_UCI[action_id];
+        unsigned int hash = hash_uci(uci_str);
+        
+        // Find empty slot in chain
+        for (int chain_idx = 0; chain_idx < MAX_HASH_CHAIN; chain_idx++) {
+            if (hash_table[hash][chain_idx].uci_str == NULL) {
+                hash_table[hash][chain_idx].uci_str = uci_str;
+                hash_table[hash][chain_idx].action_id = action_id;
+                break;
+            }
+        }
+    }
+    
+    hash_table_initialized = 1;
+}
+
 const char* ACTION_ID_TO_UCI[TOTAL_CHESS_ACTIONS] = {
     "a1a2",  // 0
     "a1a3",  // 1
@@ -1972,13 +2025,27 @@ const char* ACTION_ID_TO_UCI[TOTAL_CHESS_ACTIONS] = {
     "h2h1n",  // 1967
 };
 
+// Fast UCI to action ID lookup using hash table
 int uci_to_action_id(const char* uci_str) {
     if (!uci_str) return -1;
     
-    for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
-        if (strcmp(ACTION_ID_TO_UCI[i], uci_str) == 0) {
-            return i;
+    // Initialize hash table on first call
+    if (!hash_table_initialized) {
+        init_uci_hash_table();
+    }
+    
+    unsigned int hash = hash_uci(uci_str);
+    
+    // Search chain at hash location
+    for (int chain_idx = 0; chain_idx < MAX_HASH_CHAIN; chain_idx++) {
+        const HashEntry* entry = &hash_table[hash][chain_idx];
+        if (entry->uci_str == NULL) {
+            break;  // End of chain
+        }
+        if (strcmp(entry->uci_str, uci_str) == 0) {
+            return entry->action_id;
         }
     }
+    
     return -1;  // UCI string not found
 }

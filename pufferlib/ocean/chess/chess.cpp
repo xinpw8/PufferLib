@@ -102,7 +102,7 @@ struct ChessNet {
   Multidiscrete *md;
 };
 
-#define CHESS_NUM_WEIGHTS 1950897
+#define CHESS_NUM_WEIGHTS 2016433
 
 static inline void mask_logits(float *logits, const float *legal, int size) {
   for (int i = 0; i < size; ++i) {
@@ -114,7 +114,7 @@ static inline void mask_logits(float *logits, const float *legal, int size) {
 static ChessNet *init_chessnet(Weights *weights, int num_agents) {
   ChessNet *net = (ChessNet *)calloc(1, sizeof(ChessNet));
   net->num_agents = num_agents;
-  net->board_enc1 = make_linear(weights, num_agents, 1344, 512);
+  net->board_enc1 = make_linear(weights, num_agents, 1472, 512);
   net->board_relu1 = make_relu(num_agents, 512);
   net->board_enc2 = make_linear(weights, num_agents, 512, 256);
   net->board_relu2 = make_relu(num_agents, 256);
@@ -156,7 +156,24 @@ static void reset_lstm_state(ChessNet *net) {
 
 static void forward_chessnet(ChessNet *net, float *observations, int *actions) {
   float *board_obs = observations;
-  float *legal_mask = observations + 1344; // This is 1968-dimensional from chess.h
+  
+  // Convert sparse action mask to dense format
+  // observations[1472] = num_legal_moves
+  // observations[1473:1537] = action_ids (up to 64)
+  static float dense_legal_mask[TOTAL_CHESS_ACTIONS];
+  memset(dense_legal_mask, 0, sizeof(dense_legal_mask));
+  
+  int num_legal_moves = (int)observations[1472];
+  if (num_legal_moves > 0 && num_legal_moves <= 64) {
+    for (int i = 0; i < num_legal_moves; i++) {
+      int action_id = (int)observations[1473 + i];
+      if (action_id >= 0 && action_id < TOTAL_CHESS_ACTIONS) {
+        dense_legal_mask[action_id] = 1.0f;
+      }
+    }
+  }
+  
+  float *legal_mask = dense_legal_mask;
   
   linear(net->board_enc1, board_obs);
   relu(net->board_relu1, net->board_enc1->output);
@@ -749,6 +766,23 @@ void check_and_update_game_outcome(CChess *env, GameMode mode) {
   printf("[DEBUG] Global flag: game_just_ended=%d, white_won=%d, black_won=%d, is_draw=%d\n",
          last_game_outcome.game_ended, last_game_outcome.white_won, last_game_outcome.black_won, last_game_outcome.is_draw);
   
+  // Check if game just ended by looking at terminals[0] directly
+  if (env->terminals[0] && !game_ending_processed) {
+    // Game just ended - determine the outcome from the log counters
+    bool white_won = (env->log.white_win > 0);
+    bool black_won = (env->log.black_win > 0);
+    bool is_draw = (env->log.game_drawn > 0);
+    
+    printf("[DEBUG] Direct terminal detection: white_win=%d, black_win=%d, draw=%d\n",
+           env->log.white_win, env->log.black_win, env->log.game_drawn);
+           
+    // Set the outcome for processing
+    last_game_outcome.game_ended = true;
+    last_game_outcome.white_won = white_won;
+    last_game_outcome.black_won = black_won;
+    last_game_outcome.is_draw = is_draw;
+  }
+  
   if (last_game_outcome.game_ended && !game_ending_processed) {
     bool white_won = last_game_outcome.white_won;
     bool black_won = last_game_outcome.black_won;
@@ -857,12 +891,16 @@ int agent_select_action(ChessNet *net, CChess *env, int agent_idx) {
   int action;
   
   // Quick observation sanity check
-  float board_sum = 0.0f, mask_sum = 0.0f;
+  float board_sum = 0.0f;
   for (int i = 0; i < 1472; i++) board_sum += env->observations[i];
-  for (int i = 1472; i < 1472 + TOTAL_CHESS_ACTIONS; i++) {
-    if (env->observations[i] > 0.5f) mask_sum += 1.0f;
+  int num_legal_moves = (int)env->observations[1472];
+  printf("[AGENT] Board pieces: %.0f, Legal moves: %d\n", board_sum, num_legal_moves);
+  
+  // If no legal moves, the game should be over - don't call the neural network
+  if (num_legal_moves == 0) {
+    printf("[AGENT] No legal moves available - game should be terminal\n");
+    return 0; // Return any action, it won't be used since game is over
   }
-  printf("[AGENT] Board pieces: %.0f, Legal moves: %.0f\n", board_sum, mask_sum);
   
   // Standard Ocean pattern: trust env->observations (computed by environment)
   forward_chessnet(net, env->observations, &action);
@@ -871,22 +909,20 @@ int agent_select_action(ChessNet *net, CChess *env, int agent_idx) {
 }
 
 int random_select_action(CChess *env) {
-  // Standard Ocean pattern: use action mask from observations to find legal actions
-  float *action_mask = &env->observations[1472]; // Action mask starts at index 1472
+  // Use sparse action mask: observations[1472] = count, observations[1473:1537] = action IDs
+  int num_legal_moves = (int)env->observations[1472];
   
-  // Collect legal actions
-  int legal_actions[TOTAL_CHESS_ACTIONS];
-  int num_legal = 0;
-  for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
-    if (action_mask[i] > 0.5f) {
-      legal_actions[num_legal++] = i;
-    }
+  if (num_legal_moves == 0) {
+    printf("[RANDOM] No legal moves available - game should be terminal\n");
+    return 0;
   }
   
-  if (num_legal == 0) return 0;
+  // Select random legal action from the sparse list
+  int random_index = rand() % num_legal_moves;
+  int action = (int)env->observations[1473 + random_index];
   
-  // Select random legal action
-  return legal_actions[rand() % num_legal];
+  printf("[RANDOM] Selected action %d from %d legal moves\n", action, num_legal_moves);
+  return action;
 }
 
 // Check if a move is a promotion by using the environment's move generation system
@@ -1293,8 +1329,6 @@ void render_chess_board(CChess *env, ChessPieceTextures *textures) {
 //           int bx = (mp.x - BOARD_OFFSET_X) / SQUARE_SIZE;
 //           int screen_rank = ((mp.y - BOARD_OFFSET_Y) / SQUARE_SIZE);
 //           int by = 7 - screen_rank;
-//           printf("[DEBUG] Mouse pos: (%.1f, %.1f), bx=%d, screen_rank=%d, by=%d\n", 
-//                  mp.x, mp.y, bx, screen_rank, by);
 //           if (bx >= 0 && bx < 8 && by >= 0 && by < 8) {
 //             if (sel_fx == -1) {
 //               const Piece *p = get_piece_const(&ctx->board, bx, by);
@@ -1303,23 +1337,18 @@ void render_chess_board(CChess *env, ChessPieceTextures *textures) {
 //                 sel_fy = by;
 //               }
 //             } else {
-//               printf("[DEBUG] Mouse click: checking move from (%d,%d) to (%d,%d)\n", sel_fx, sel_fy, bx, by);
 //               if (is_promotion_move(&env, sel_fx, sel_fy, bx, by)) {
-//                 printf("[DEBUG] Mouse click: PROMOTION MOVE DETECTED - setting show_promotion_selection=true\n");
 //                 show_promotion_selection = true;
 //                 promotion_from_x = sel_fx;
 //                 promotion_from_y = sel_fy;
 //                 promotion_to_x = bx;
 //                 promotion_to_y = by;
 //               } else {
-//                 printf("[DEBUG] Mouse click: REGULAR MOVE - processing normally\n");
 //                 UIMove move = {{(int8_t)sel_fx, (int8_t)sel_fy},
 //                                {(int8_t)bx, (int8_t)by},
 //                                EMPTY};
 //                 std::string uci = uimove_to_uci(move);
 //                 int action_id = uci_to_action_id(uci.c_str());
-//                 printf("[DEBUG] Mouse click: sel_fx=%d, sel_fy=%d, bx=%d, by=%d\n", sel_fx, sel_fy, bx, by);
-//                 printf("[DEBUG] UCI='%s' -> action_id=%d\n", uci.c_str(), action_id);
 //                 env.actions[0] = action_id;
 //                 c_step(&env);
 //                 check_and_update_game_outcome(&env, game_mode);
@@ -1715,6 +1744,13 @@ int demo() {
         current_move_index = -1;
         game_paused = false; // Reset pause state
         game_ending_processed = false; // Reset game ending flag
+        
+        // Reset game outcome flags for new game
+        last_game_outcome.game_ended = false;
+        last_game_outcome.white_won = false;
+        last_game_outcome.black_won = false;
+        last_game_outcome.is_draw = false;
+        
         in_menu = false;
  
         env.max_depth = 500;
@@ -1755,6 +1791,12 @@ int demo() {
         current_move_index = -1;
         game_paused = false; // Reset pause state
         game_ending_processed = false; // Reset game ending flag
+        
+        // Reset game outcome flags for new game
+        last_game_outcome.game_ended = false;
+        last_game_outcome.white_won = false;
+        last_game_outcome.black_won = false;
+        last_game_outcome.is_draw = false;
         
         // Properly reinitialize the environment (same as starting from menu)
         free_allocated(&env);
@@ -1838,10 +1880,76 @@ int demo() {
           action = random_select_action(&env);
         }
  
-        // Standard Ocean pattern: simple action assignment + c_step
-        env.actions[0] = action;
-        printf("[DEBUG] About to call c_step with env=%p\n", (void*)&env);
-        c_step(&env);
+        // Check if we should skip c_step due to game ending conditions
+        int num_legal_moves = (int)env.observations[1472];
+        
+        // Check for various terminal conditions
+        bool should_force_terminal = false;
+        bool white_won = false, black_won = false, is_draw = false;
+        
+        if (num_legal_moves == 0) {
+          // No legal moves - checkmate or stalemate
+          should_force_terminal = true;
+          if (env.ctx->board.to_move == C_WHITE) {
+            black_won = true;
+            printf("[GAME] Black wins - White has no legal moves\n");
+          } else {
+            white_won = true;
+            printf("[GAME] White wins - Black has no legal moves\n");
+          }
+        }
+        // Add 50-move rule check (halfmove_clock >= 100)
+        else if (env.ctx->halfmove_clock >= 100) {
+          should_force_terminal = true;
+          is_draw = true;
+          printf("[GAME] Draw by 50-move rule (halfmove_clock=%d)\n", env.ctx->halfmove_clock);
+        }
+        // Add step limit check (max_depth reached)
+        else if (env.step_count >= env.max_depth) {
+          should_force_terminal = true;
+          is_draw = true;
+          printf("[GAME] Draw by step limit (step_count=%d, max_depth=%d)\n", env.step_count, env.max_depth);
+        }
+        
+        if (should_force_terminal) {
+          printf("[GAME] Forcing game termination\n");
+          // Manually set terminal state and outcome flags
+          env.terminals[0] = 1;
+          
+          // Set appropriate log counters based on outcome
+          if (white_won) {
+            env.log.white_win = 1;
+          } else if (black_won) {
+            env.log.black_win = 1;
+          } else if (is_draw) {
+            env.log.game_drawn = 1;
+          }
+          
+          // Immediately set the global outcome flag for stats processing
+          last_game_outcome.game_ended = true;
+          last_game_outcome.white_won = white_won;
+          last_game_outcome.black_won = black_won;
+          last_game_outcome.is_draw = is_draw;
+        } else {
+          // Standard Ocean pattern: simple action assignment + c_step
+          env.actions[0] = action;
+          printf("[DEBUG] About to call c_step with env=%p\n", (void*)&env);
+          
+          // Debug: Print board state before move (only for castling moves)
+          const char* uci_move = (action >= 0 && action < TOTAL_CHESS_ACTIONS) ? ACTION_ID_TO_UCI[action] : "invalid";
+          if (uci_move && (strstr(uci_move, "e1g1") || strstr(uci_move, "e1c1") || strstr(uci_move, "e8g8") || strstr(uci_move, "e8c8"))) {
+            printf("[CASTLING] Before %s: observing position...\n", uci_move);
+            compute_observation_with_perspective(&env, env.ctx);
+          }
+          
+          c_step(&env);
+          
+          // Debug: Print board state after move (only for castling moves)
+          if (uci_move && (strstr(uci_move, "e1g1") || strstr(uci_move, "e1c1") || strstr(uci_move, "e8g8") || strstr(uci_move, "e8c8"))) {
+            printf("[CASTLING] After %s: re-observing position...\n", uci_move);
+            compute_observation_with_perspective(&env, env.ctx);
+          }
+        }
         
         // Check for game termination immediately after c_step (before auto-reset)
         // The core logic will set terminals[0]=1 then auto-reset, so we need to detect it here

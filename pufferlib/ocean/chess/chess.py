@@ -80,8 +80,10 @@ class Chess(pufferlib.PufferEnv):
         self.backend_num_agents = num_envs # * 2 if self.self_play else num_envs
 
         # Define single-agent spaces
-        self.num_obs = 8*8*23 + 1968 # board state + legal move mask (23 planes: 21 original + 2 threat channels)
         self.num_actions = 1968
+        # SPARSE ACTION MASK: [board_state(1472)] + [num_legal_moves(1)] + [legal_action_ids(64)]
+        self.MAX_LEGAL_MOVES = 64  # Conservative upper bound for legal moves
+        self.num_obs = 8*8*23 + 1 + self.MAX_LEGAL_MOVES # board state + sparse legal moves
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(self.num_actions)
@@ -155,6 +157,7 @@ class Chess(pufferlib.PufferEnv):
             # Main process: set up policy distribution system
             self._setup_policy_distribution_system()
             print(f"[Chess] Main process: Policy distribution system initialized")
+    
     
     def _setup_shared_policy_system(self):
         """Set up shared memory system for frozen policy in worker processes."""
@@ -423,8 +426,19 @@ class Chess(pufferlib.PufferEnv):
         device = next(self.frozen_policy.parameters()).device
         obs_tensor = obs_tensor.to(device)
         
-        # Extract legal move mask (last 1968 elements of observation)
-        legal_mask_np = observation[self.num_obs-self.num_actions:]  # Last 1968 elements
+        # Convert sparse action mask to dense format for neural network
+        # Extract sparse mask: [num_legal_moves(1)] + [action_ids(64)]
+        num_legal_moves = int(observation[1472])
+        action_ids = observation[1473:1473+64].astype(int)  # Get action IDs
+        
+        # Create dense mask
+        legal_mask_np = np.zeros(self.num_actions, dtype=np.float32)
+        if num_legal_moves > 0:
+            valid_action_ids = action_ids[:num_legal_moves]
+            # Clamp to valid range to prevent out-of-bounds
+            valid_action_ids = np.clip(valid_action_ids, 0, self.num_actions - 1)
+            legal_mask_np[valid_action_ids] = 1.0
+        
         legal_mask = torch.from_numpy(legal_mask_np).float()
         if legal_mask.dim() == 1:
             legal_mask = legal_mask.unsqueeze(0)  # Add batch dimension: [1968] -> [1, 1968]
@@ -460,9 +474,17 @@ class Chess(pufferlib.PufferEnv):
     
     def _get_heuristic_action(self, observation):
         """Get a reasonable heuristic action when no frozen policy is available."""
-        # Extract legal move mask
-        legal_mask = observation[self.num_obs-self.num_actions:]
-        legal_actions = np.where(legal_mask > 0.5)[0]
+        # Convert sparse mask to dense for processing
+        # Extract sparse mask: [num_legal_moves(1)] + [action_ids(64)]
+        num_legal_moves = int(observation[1472])
+        action_ids = observation[1473:1473+64].astype(int)  # Get action IDs
+        
+        if num_legal_moves > 0:
+            valid_action_ids = action_ids[:num_legal_moves]
+            # Clamp to valid range to prevent out-of-bounds
+            legal_actions = np.clip(valid_action_ids, 0, self.num_actions - 1)
+        else:
+            legal_actions = np.array([], dtype=int)
         
         if len(legal_actions) == 0:
             raise RuntimeError("No legal moves available for heuristic!")
@@ -514,12 +536,10 @@ class Chess(pufferlib.PufferEnv):
         
         # Only print debug info occasionally to reduce spam
         if self.tick % 100 == 0:  # Only every 100 ticks
-            # print(f"[Chess Debug] move_count: {move_count}, global_timesteps: {global_timesteps}, frequency: {self.full_game_logging_frequency}")
             pass  # Keep the if block valid
         
         if (global_timesteps - last_logged_global >= self.full_game_logging_frequency):
             # The C++ write_complete_game_to_file function handles the actual logging for env_id 0
-            # print(f"[Chess] Triggered complete game logging at global timestep {global_timesteps:,} (move_count: {move_count})")
             self.last_logged_step = self.tick
 
     def _save_complete_game(self, moves, info):
@@ -975,7 +995,6 @@ if __name__ == '__main__':
 #                  full_game_logging_frequency=5000000,
 #                  buf=None, seed=0, self_play=True):
         
-#         print(f"[Chess DEBUG] Chess.__init__ called with self_play={self_play}")
         
 #         self.num_envs = num_envs
 #         self.render_mode = render_mode

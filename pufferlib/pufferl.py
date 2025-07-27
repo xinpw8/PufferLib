@@ -217,7 +217,7 @@ class PuffeRL:
             exit(1)
             
         # Check if this looks like chess observations
-        if obs_tensor.shape[-1] == 3440:  # Chess detected
+        if obs_tensor.shape[-1] == 1537:  # Chess detected (sparse format)
             batch_size = obs_tensor.shape[0]
             
             # Validate tensor properties
@@ -229,21 +229,21 @@ class PuffeRL:
                 
             # Validate chess content
             board_sums = obs_tensor[:, :1472].sum(dim=1)
-            mask_sums = obs_tensor[:, 1472:3440].sum(dim=1)
+            num_legal_moves = obs_tensor[:, 1472]
             
-            if (board_sums < 1.0).any() or (mask_sums < 1.0).any():
-                invalid_indices = torch.where((board_sums < 1.0) | (mask_sums < 1.0))[0]
+            if (board_sums < 1.0).any() or (num_legal_moves < 0).any() or (num_legal_moves > 64).any():
+                invalid_indices = torch.where((board_sums < 1.0) | (num_legal_moves < 0) | (num_legal_moves > 64))[0]
                 print(f"[MONITOR_FATAL] Pufferl.py: Invalid chess observations at {location}")
                 print(f"  Invalid batch indices: {invalid_indices.tolist()}")
                 print(f"  Board sums: {board_sums}")
-                print(f"  Mask sums: {mask_sums}")
+                print(f"  Num legal moves: {num_legal_moves}")
                 print(f"  FIX: Check observation pipeline from chess.h through vector.py")
                 exit(1)
                 
             # print(f"[MONITOR_OK] Pufferl.py: Chess observations valid at {location} "
             #       f"(batch={batch_size}, device={obs_tensor.device}, "
             #       f"board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
-            #       f"mask_range=[{mask_sums.min():.0f},{mask_sums.max():.0f}])")
+            #       f"legal_moves_range=[{num_legal_moves.min():.0f},{num_legal_moves.max():.0f}])")
 
     def _validate_pufferl_chess_actions(self, action_tensor, location):
         """COLOR MONITORING: Validates chess actions at pufferl.py level"""

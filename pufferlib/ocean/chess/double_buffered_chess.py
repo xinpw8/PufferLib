@@ -116,7 +116,40 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
         if obs_tensor.dim() == 1:
             obs_tensor = obs_tensor.unsqueeze(0)
             
-        # Get action from frozen policy
+        # Extract sparse action mask and convert to dense format for action masking
+        device = obs_tensor.device
+        num_legal_moves = int(observation[1472])
+        action_ids = observation[1473:1473+64].astype(int)  # Get action IDs
+        
+        # Check observation format and extract action mask
+        if observation.shape[0] != 1537:
+            print(f"[DEBUG] Unexpected observation shape: {observation.shape}, expected (1537,)")
+            # Try to handle old format or error gracefully
+            if observation.shape[0] == 3440:
+                print("[DEBUG] Using old dense format")
+                legal_mask_np = observation[-1968:]
+                legal_mask = torch.from_numpy(legal_mask_np).float().to(device)
+                if legal_mask.dim() == 1:
+                    legal_mask = legal_mask.unsqueeze(0)
+            else:
+                print("[DEBUG] Unknown observation format, using fallback")
+                return self._get_heuristic_action(observation)
+        else:
+            # Create dense mask from sparse representation
+            legal_mask_np = np.zeros(1968, dtype=np.float32)
+            if num_legal_moves > 0:
+                valid_action_ids = action_ids[:num_legal_moves]
+                # Clamp to valid range to prevent out-of-bounds
+                valid_action_ids = np.clip(valid_action_ids, 0, 1967)
+                legal_mask_np[valid_action_ids] = 1.0
+            else:
+                return self._get_heuristic_action(observation)
+            
+            legal_mask = torch.from_numpy(legal_mask_np).float().to(device)
+            if legal_mask.dim() == 1:
+                legal_mask = legal_mask.unsqueeze(0)  # Add batch dimension
+            
+        # Get action from frozen policy with action masking
         with torch.no_grad():
             if hasattr(self.frozen_policy, 'forward_eval'):
                 # Handle LSTM policies with forward_eval method
@@ -124,30 +157,51 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
                     # Initialize LSTM state as dictionary with zero tensors
                     batch_size = obs_tensor.shape[0]
                     hidden_size = self.frozen_policy.hidden_size
-                    device = obs_tensor.device
                     self.frozen_policy_state = {
                         'lstm_h': torch.zeros(batch_size, hidden_size, device=device),
                         'lstm_c': torch.zeros(batch_size, hidden_size, device=device)
                     }
                 
                 action_logits, values = self.frozen_policy.forward_eval(obs_tensor, self.frozen_policy_state)
-                action_probs = torch.softmax(action_logits, dim=-1)
+                # Apply action masking - set illegal actions to -inf
+                masked_logits = action_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+                action_probs = torch.softmax(masked_logits, dim=-1)
+                
+                # Safety check: if all probabilities are NaN/inf, fall back to heuristic
+                if torch.isnan(action_probs).any() or torch.isinf(action_probs).any() or action_probs.sum() == 0:
+                    print(f"[DEBUG] ERROR in action probs! Falling back to heuristic action")
+                    return self._get_heuristic_action(observation)
+                
                 action = torch.multinomial(action_probs, 1).squeeze(-1)
                 # Note: LSTMWrapper.forward_eval doesn't return updated state for single-step inference
             else:
                 # Simple policy without LSTM
                 action_logits = self.frozen_policy(obs_tensor)
-                action_probs = torch.softmax(action_logits, dim=-1)
+                # Apply action masking - set illegal actions to -inf
+                masked_logits = action_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+                action_probs = torch.softmax(masked_logits, dim=-1)
+                
+                # Safety check: if all probabilities are NaN/inf, fall back to heuristic
+                if torch.isnan(action_probs).any() or torch.isinf(action_probs).any() or action_probs.sum() == 0:
+                    print(f"[DEBUG] ERROR in action probs! Falling back to heuristic action")
+                    return self._get_heuristic_action(observation)
+                
                 action = torch.multinomial(action_probs, 1).squeeze(-1)
                 
         return action.cpu().numpy()
     
     def _get_heuristic_action(self, observation):
         """Get a reasonable heuristic action when no frozen policy is available."""
-        # Extract legal move mask (assuming it's at the end of observation)
-        num_actions = 1968  # Chess action space size
-        legal_mask = observation[-num_actions:]
-        legal_actions = np.where(legal_mask > 0.5)[0]
+        # Extract sparse action mask and convert to legal actions list
+        num_legal_moves = int(observation[1472])
+        action_ids = observation[1473:1473+64].astype(int)  # Get action IDs
+        
+        if num_legal_moves > 0:
+            valid_action_ids = action_ids[:num_legal_moves]
+            # Clamp to valid range to prevent out-of-bounds
+            legal_actions = np.clip(valid_action_ids, 0, 1967)
+        else:
+            legal_actions = np.array([], dtype=int)
         
         if len(legal_actions) == 0:
             return np.array([0])  # Fallback

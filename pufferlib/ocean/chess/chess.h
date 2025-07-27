@@ -200,6 +200,7 @@ typedef struct ChessContext {
   // Simple game logging tracking
   int steps_since_last_log;      // Steps in this environment since last game log
   int game_logging_frequency;    // Log games every N steps (from config)
+  bool log_next_game;            // Flag set by Python layer to trigger logging
 
   // Reward configuration (copied from CChess for performance)
   float c_reward_valid;
@@ -572,12 +573,14 @@ static void serialize_complete_game_moves(ChessContext *ctx) {
 
 // Write complete game to file for analysis
 static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
+  // Re-enabled for debugging game logging functionality
+  
   if (ctx->complete_game_action_count == 0) {
     return;
   }
 
   // Create directory if needed
-  system("mkdir -p resources/chess/training_logs/complete_games");
+  int mkdir_result = system("mkdir -p resources/chess/training_logs/complete_games");
   
   // Determine game result and termination reason
   char result_str[16] = "*";      // Default: incomplete/ongoing
@@ -626,6 +629,7 @@ static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
   FILE* file = fopen(filename, "w");
   if (!file) {
     return;
+  } else {
   }
   
   // Write PGN header
@@ -1409,26 +1413,7 @@ static void init_board(ChessBoard *board) {
 //   }
   
 //   // DEBUG: Always show legal move count
-//   printf("[DEBUG] Legal moves generated: %d for player %s (turn: %s, cached: %s)\n",
-//          ctx->legal_moves_count,
-//          (player == C_WHITE) ? "WHITE" : "BLACK",
-//          (ctx->board.to_move == C_WHITE) ? "WHITE" : "BLACK",
-//          ctx->legal_moves_cached ? "YES" : "NO");
   
-//   if (ctx->legal_moves_count == 0) {
-//     printf("[DEBUG] WARNING: No legal moves generated for player %s!\n", 
-//            (player == C_WHITE) ? "WHITE" : "BLACK");
-//     printf("[DEBUG] Board state: to_move=%s, halfmove=%d, fullmove=%d, cached=%s\n",
-//            (ctx->board.to_move == C_WHITE) ? "WHITE" : "BLACK",
-//            ctx->board.halfmove_clock, ctx->board.fullmove_number,
-//            ctx->legal_moves_cached ? "YES" : "NO");
-    
-//     // Try to force regeneration
-//     printf("[DEBUG] Forcing legal move regeneration...\n");
-//     ctx->legal_moves_cached = false;
-//     chess_generate_legal_moves_uci(ctx);
-//     printf("[DEBUG] After forced regen: %d legal moves\n", ctx->legal_moves_count);
-//   }
 
 //   // CRITICAL FIX: Only set legal moves for the player whose turn it is
 //   // In dual-agent mode, only the current player should have legal moves
@@ -1444,15 +1429,8 @@ static void init_board(ChessBoard *board) {
 // //   }
 
 //   // Clear mask
-//   printf("[DEBUG] Clearing action mask for player %s at offset %d (idx=%d to %d)\n", 
-//          (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, obs_offset + idx, 
-//          obs_offset + idx + TOTAL_CHESS_ACTIONS - 1);
 //   memset(&env->observations[obs_offset + idx], 0, TOTAL_CHESS_ACTIONS * sizeof(float));
   
-//   printf("[DEBUG] Action mask: player=%s, current_turn=%s, is_player_turn=%s\n",
-//          (player == C_WHITE) ? "WHITE" : "BLACK",
-//          (current_player == C_WHITE) ? "WHITE" : "BLACK", 
-//          is_player_turn ? "YES" : "NO");
 
 //   if (env->debug_disable_mask) {
 //     for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
@@ -1468,7 +1446,6 @@ static void init_board(ChessBoard *board) {
 //       // So for black, we must flip the canonical UCI move to match the policy's perspective.
 //       if (player == C_BLACK) {
 //         flip_uci_for_black_perspective(canonical_uci, perspective_uci);
-//         printf("[DEBUG BLACK] Canonical: %s -> Perspective: %s\n", canonical_uci, perspective_uci);
 //       } else {
 //         strcpy(perspective_uci, canonical_uci);
 //       }
@@ -1478,11 +1455,7 @@ static void init_board(ChessBoard *board) {
 //         int mask_idx = obs_offset + idx + action_id;
 //         env->observations[mask_idx] = 1.0f;
 //         float verify_value = env->observations[mask_idx];
-//         printf("[DEBUG] Legal move %s -> action %d (masked) at idx=%d for player %s, verify=%.1f\n", 
-//                perspective_uci, action_id, mask_idx,
-//                (player == C_WHITE) ? "WHITE" : "BLACK", verify_value);
 //       } else {
-//         printf("[DEBUG] UCI move %s NOT FOUND in action mapping!\n", perspective_uci);
 //       }
 //     }
 //   }
@@ -1493,8 +1466,6 @@ static void init_board(ChessBoard *board) {
 static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
                                              PieceColor player,
                                              int obs_offset) {
-//   printf("[DEBUG_OBS] compute_single_agent_observation called for %s at offset %d\n",
-//          (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset);
   uint64_t current_hash = ctx->board.zobrist_hash;
   
   // PERFORMANCE OPTIMIZATION: Check if board observation is cached
@@ -1625,49 +1596,36 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
     ctx->cached_observation_player = player;
   }
   
-  int action_mask_idx = 1472; // Start index for the legal move mask
+  // --- SPARSE LEGAL MOVE MASK ---
+  // Format: [num_legal_moves(1)] + [legal_action_ids(MAX_LEGAL_MOVES)]
+  int sparse_mask_idx = 1472; // Start index for sparse mask
+  const int MAX_LEGAL_MOVES = 64;
 
-  // --- LEGAL MOVE MASK (Corrected Logic) ---
-
-  // *** THE FIX: Force legal moves to be regenerated for the current player ***
-  // This prevents using a stale cache from the other player's turn.
-  ctx->legal_moves_cached = false;
-  chess_generate_legal_moves_uci(ctx);
+  // Use cached legal moves when available (Zobrist hash-based caching)
+  if (!ctx->legal_moves_cached) {
+    chess_generate_legal_moves_uci(ctx);
+  }
 
   PieceColor current_player_turn = ctx->board.to_move;
   bool is_player_turn = (player == current_player_turn);
+
+  // Initialize sparse mask: num_legal_moves + action_ids
+  int num_legal_moves = 0;
+  float *action_ids_ptr = &env->observations[obs_offset + sparse_mask_idx + 1];
   
-  // printf("[ACTION_MASK_DEBUG] Player=%s, current_turn=%s, is_player_turn=%s\n", 
-  //        (player == C_WHITE) ? "WHITE" : "BLACK",
-  //        (current_player_turn == C_WHITE) ? "WHITE" : "BLACK", 
-  //        is_player_turn ? "YES" : "NO");
-
-  // Always clear the agent's mask first
-  memset(&env->observations[obs_offset + action_mask_idx], 0,
-         TOTAL_CHESS_ACTIONS * sizeof(float));
-
   if (env->debug_disable_mask) {
-    // Debug mode to make all moves legal
-    for (int i = 0; i < TOTAL_CHESS_ACTIONS; i++) {
-      env->observations[obs_offset + action_mask_idx + i] = 1.0f;
+    // Debug mode: All moves are legal (first 64 actions for sparse representation)
+    env->observations[obs_offset + sparse_mask_idx] = (float)MAX_LEGAL_MOVES;
+    for (int i = 0; i < MAX_LEGAL_MOVES; i++) {
+      action_ids_ptr[i] = (float)i;
     }
   } else if (ctx->dual_agent_self_play_mode || is_player_turn) {
-    // In dual-agent mode, both agents get action masks for moves from their perspective
-    // In single-agent mode, only populate mask when it's the player's turn
-    // printf("[ACTION_MASK_FIX] %s agent: dual_agent_mode=%s, is_player_turn=%s, will_populate_mask=YES\n",
-    //        (player == C_WHITE) ? "WHITE" : "BLACK",
-    //        ctx->dual_agent_self_play_mode ? "YES" : "NO",
-    //        is_player_turn ? "YES" : "NO");
-    // printf("[ACTION_MASK_DEBUG] Computing mask for %s at obs_offset=%d, legal_moves=%d\n", 
-    //        (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, ctx->legal_moves_count);
-    
-    int valid_actions_set = 0;
-    for (int i = 0; i < ctx->legal_moves_count; i++) {
+    // Generate sparse representation of legal moves
+    for (int i = 0; i < ctx->legal_moves_count && num_legal_moves < MAX_LEGAL_MOVES; i++) {
       const char *canonical_uci = ctx->legal_moves_buffer[i];
       char perspective_uci[6];
 
       if (player == C_BLACK) {
-        // For black, flip the canonical move to the policy's perspective
         flip_uci_for_black_perspective(canonical_uci, perspective_uci);
       } else {
         strcpy(perspective_uci, canonical_uci);
@@ -1675,31 +1633,14 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
 
       int action_id = uci_to_action_id(perspective_uci);
       if (action_id >= 0) {
-        env->observations[obs_offset + action_mask_idx + action_id] = 1.0f;
-        valid_actions_set++;
-        // if (valid_actions_set <= 3) {  // Log first 3 action IDs for debugging
-        //   printf("[ACTION_ID_DEBUG] %s: %s -> action_id %d\n", 
-        //          (player == C_WHITE) ? "WHITE" : "BLACK", perspective_uci, action_id);
-        // }
-        if (player == C_BLACK && i < 5) {  // Log first 5 for black
-        //   printf("[ACTION_MASK_DEBUG] BLACK: %s -> %s -> action %d (masked at idx %d)\n", 
-        //          canonical_uci, perspective_uci, action_id, obs_offset + action_mask_idx + action_id);
-        }
-      } else if (player == C_BLACK && i < 5) {
-        // printf("[ACTION_MASK_DEBUG] BLACK: %s -> %s -> NO ACTION ID FOUND\n", 
-        //        canonical_uci, perspective_uci);
+        action_ids_ptr[num_legal_moves] = (float)action_id;
+        num_legal_moves++;
       }
     }
-    // printf("[ACTION_MASK_DEBUG] %s: Set %d valid actions in mask\n", 
-    //        (player == C_WHITE) ? "WHITE" : "BLACK", valid_actions_set);
-  } else {
-    // printf("[ACTION_MASK_FIX] %s agent: dual_agent_mode=%s, is_player_turn=%s, will_populate_mask=NO (mask stays empty)\n",
-    //        (player == C_WHITE) ? "WHITE" : "BLACK",
-    //        ctx->dual_agent_self_play_mode ? "YES" : "NO",
-    //        is_player_turn ? "YES" : "NO");
   }
-  // In dual-agent mode, both agents always get valid action masks
-  // In single-agent mode, non-active players get empty masks (all zeros)
+  
+  // Store the count of legal moves
+  env->observations[obs_offset + sparse_mask_idx] = (float)num_legal_moves;
 }
 
 // Corrected version of the observation generation orchestrator.
@@ -1761,7 +1702,7 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx, PieceC
 //     // This is the standard 2-player self-play mode.
 
 //     // Define the size of a single agent's observation to calculate offsets.
-//     const int single_obs_size = 3440; // 1472 board + 1968 mask
+//     const int single_obs_size = 1537; // 1472 board + sparse mask (1 + 64)
 
 //     // === Generate Observation for Agent 0 (White) ===
 //     // This observation will be written to the first slice of the environment's
@@ -2256,10 +2197,7 @@ static bool apply_uci_move(ChessContext *ctx, const char *uci_str) {
   if (ctx->complete_game_action_count < 1024) {
     strcpy(ctx->complete_game_moves[ctx->complete_game_action_count], uci_str);
     ctx->complete_game_action_count++;
-    // printf("[DEBUG] Recorded move %s (total: %d)\n", uci_str, ctx->complete_game_action_count);
   } else {
-    printf("[DEBUG] Failed to record move: count=%d, max=1024\n", 
-           ctx->complete_game_action_count);
   }
 
   PROFILE_STOP(profile_apply_uci_move_ticks)
@@ -2385,6 +2323,7 @@ static bool is_insufficient_material(ChessContext *ctx) {
 
 static int global_env_counter = 0;
 static int logging_env_id = -1;  // ID of the designated logging environment
+static int first_active_env_id = -1;  // Track the first environment that actually runs games
 
 void init(CChess *env) {
   memset(&env->context, 0, sizeof(ChessContext));
@@ -2430,7 +2369,7 @@ void allocate(CChess *env) {
   // flipping
   const int num_players = 2;
   const int obs_size =
-      3440; // 23*8*8 board planes + 1968 action mask = 1472 + 1968
+      1537; // 23*8*8 board planes + sparse action mask = 1472 + 1 + 64
 
   env->observations = (float *)calloc(num_players * obs_size, sizeof(float));
   env->actions = (int *)calloc(num_players, sizeof(int));
@@ -2451,7 +2390,6 @@ void free_allocated(CChess *env) {
 }
 
 void c_reset(CChess *env) {
-//   printf("[C_RESET DEBUG] c_reset called - resetting step_count from %d to 0\n", env->context.step_count);
   init_board(&env->context.board);
 
   // Reset terminals and rewards for both agents
@@ -2474,7 +2412,6 @@ void c_reset(CChess *env) {
   // DEBUG: Explicitly preserve the logging frequency that was set during init
   if (env->context.game_logging_frequency == 0) {
     // This shouldn't happen - frequency should be preserved from init
-    printf("[C++ DEBUG] WARN: Reset detected zero frequency, but config should preserve it\n");
   }
 
   // Reset statistics
@@ -2533,10 +2470,8 @@ void c_step(CChess *env) {
   PROFILE_START(profile_c_step_ticks)
   
  
-//   printf("[C_STEP DEBUG] env=%p, step_count=%d, max_depth=%d\n", (void*)env, env->context.step_count, env->max_depth);
   
-  // Increment step counter for game logging
-  env->context.steps_since_last_log++;
+  // Game logging counter is incremented when games end, not on every step
 
 //   // In self-play mode: agent 0 = white, agent 1 = black
 //   // Get action from the agent whose turn it is
@@ -2573,14 +2508,14 @@ void c_step(CChess *env) {
   // Black.
   int action_idx = env->actions[agent_idx];
 
-  // CRITICAL FIX: Validate that the chosen action is actually in the action mask
+  // OPTIMIZATION: Generate legal moves only ONCE per step (was being called 4+ times)
+  // This single generation will be used for: action validation, observation, and game-over detection
+  chess_generate_legal_moves_uci(&env->context);
+  
   // Calculate the correct observation offset for the CURRENT player.
-  const int single_obs_size = 3440; // 1472 board + 1968 mask
+  const int single_obs_size = 1537; // 1472 board + sparse mask (1 + 64)
   int obs_offset = 0; // <-- NEW, CORRECT LOGIC
   int mask_start_idx = 1472; // Start of action mask in observation
-  
-  // Generate fresh legal moves to validate against
-  chess_generate_legal_moves_uci(&env->context);
   
   // Check if the chosen action corresponds to a legal move
   bool action_is_legal = false;
@@ -2613,18 +2548,9 @@ void c_step(CChess *env) {
     }
   }
 
-//   // NEW, CLEANER LOGGING
-//   printf("[C_STEP_DEBUG] %s's turn: Chose action %d (%s) from agent 0. "
-//          "legal=%s, legal_moves=%d\n",
-//          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK", action_idx,
-//          ACTION_ID_TO_UCI[action_idx], action_is_legal ? "YES" : "NO",
-//          env->context.legal_moves_count);
 
   if (!action_is_legal) {
     if (fallback_action >= 0) {
-    //   printf("[ACTION_DEBUG] %s agent chose illegal action %d (%s), using fallback action %d (%s)\n", 
-    //          (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK", action_idx, ACTION_ID_TO_UCI[action_idx],
-    //          fallback_action, ACTION_ID_TO_UCI[fallback_action]);
       action_idx = fallback_action;
     } else {
     //   printf("[ERROR] No legal actions available for %s agent!\n", 
@@ -2634,9 +2560,6 @@ void c_step(CChess *env) {
     }
   }
   
-//   printf("[ACTION_DEBUG] %s's turn (agent %d) chose action %d (%s)\n", 
-//          (current_player == C_WHITE) ? "WHITE" : "BLACK", agent_idx, 
-//          action_idx, ACTION_ID_TO_UCI[action_idx]);
 
   // Clear all agent rewards and terminals
   for (int i = 0; i < 2; i++) {
@@ -2668,9 +2591,8 @@ void c_step(CChess *env) {
     strcpy(uci_move_canonical, uci_move_white_perspective);
   }
 
-  // 2. Generate the definitive list of legal moves for the CURRENT board state.
-  //    This check uses the ground-truth board, not the observation buffer.
-  chess_generate_legal_moves_uci(&env->context);
+  // 2. Use the legal moves already generated at the start of c_step (OPTIMIZATION)
+  //    No need to regenerate - we already have the definitive list.
 
   // 3. Check if the chosen move is in the freshly generated list.
   bool is_action_legal = false;
@@ -2687,11 +2609,6 @@ void c_step(CChess *env) {
     // printf("[ERROR] Illegal move attempted (ground truth validation): action %d (%s) - %s's turn (agent %d)\n", 
     //        action_idx, uci_move_canonical, turn_color, agent_idx);
     
-    // // Log the actual legal moves for debugging
-    // printf("[DEBUG] Agent %d has %d actual legal moves:\n", agent_idx, env->context.legal_moves_count);
-    // for (int i=0; i < env->context.legal_moves_count && i < 10; i++) { // Print first 10
-    //     printf("  - %s\n", env->context.legal_moves_buffer[i]);
-    // }
 
     // Invalidate the move, penalize the agent, and end the step without applying the move.
     // Note: You may want to assign a penalty here. For now, we just return.
@@ -2816,12 +2733,9 @@ void c_step(CChess *env) {
   env->context.episode_return_white += env->rewards[0];
   env->context.episode_return_black += env->rewards[1];
 
-  // Check for game over conditions
-//   printf("[TERMINATION DEBUG] Checking game over: step_count=%d, max_depth=%d\n", env->context.step_count, env->max_depth);
+  // Check for game over conditions using already-generated legal moves (OPTIMIZATION)
   bool game_over = false;
-  bool any_legal_move_exists = false;
-  chess_generate_legal_moves_yield(&env->context, first_move_callback,
-                                   &any_legal_move_exists);
+  bool any_legal_move_exists = (env->context.legal_moves_count > 0);
 
   if (!any_legal_move_exists) {
     game_over = true;
@@ -2886,7 +2800,6 @@ void c_step(CChess *env) {
     // Add accumulated reward tracking for logging
     env->context.accumulated_reward_draw += env->context.c_reward_draw;
   } else if (env->max_depth > 0 && env->context.step_count >= env->max_depth) {
-    // printf("[TERMINATION DEBUG] MAX DEPTH REACHED: step_count=%d >= max_depth=%d\n", env->context.step_count, env->max_depth);
     game_over = true; // MAX DEPTH / TRUNCATION
     env->rewards[0] += env->context.c_reward_max_depth_termination;
     env->rewards[1] += env->context.c_reward_max_depth_termination;
@@ -2907,18 +2820,30 @@ void c_step(CChess *env) {
     // Notify UI about game end via function call (before auto-reset clears counters)
     // notify_game_end(env->context.c_white_win > 0, env->context.c_black_win > 0, env->context.c_game_drawn > 0);
 
-    // Check if we should log this complete game BEFORE reset - log from every 100th env
-    if (env->env_id % 100 == 0) {  // Log from every 100th environment
+    // Check if we should log this complete game BEFORE reset
+    
+    // Designate the first environment that completes a game as the logging environment
+    if (first_active_env_id == -1) {
+      first_active_env_id = env->env_id;
+      logging_env_id = env->env_id;
+    }
+    
+    // Only log from the designated logging environment to avoid spam from 512 environments
+    if (env->env_id == logging_env_id) {
+      // Increment game counter for the logging environment
+      env->context.steps_since_last_log++;
+      
+      
+      // Log every N games completed by the logging environment
       if (env->context.game_logging_frequency > 0 && env->context.steps_since_last_log >= env->context.game_logging_frequency) {
         write_complete_game_to_file(&env->context, env->env_id);
         env->context.steps_since_last_log = 0; // Reset counter
       }
+    } else {
     }
     
     // Debug: Always print for any env that completes a game
     if (env->context.complete_game_action_count > 0) {
-    //   printf("[C++ DEBUG] Game completed in env %d with %d actions (steps_since_last_log=%d)\n", 
-    //          env->env_id, env->context.complete_game_action_count, env->context.steps_since_last_log);
     }
 
     // Save values before reset
@@ -2934,6 +2859,26 @@ void c_step(CChess *env) {
   } else {
     // Compute new observation if the game is not over
     compute_observation_with_perspective(env, &env->context);
+  }
+
+  // PROFILING: Print performance statistics every 1000 steps
+  static int profiling_step_count = 0;
+  profiling_step_count++;
+  if (profiling_step_count % 1000 == 0) {
+    double total_time = (double)profile_c_step_ticks / CLOCKS_PER_SEC;
+    double move_gen_time = (double)profile_move_gen_uci_ticks / CLOCKS_PER_SEC;
+    double obs_time = (double)profile_compute_obs_ticks / CLOCKS_PER_SEC;
+    double legal_move_time = (double)profile_is_legal_move_ticks / CLOCKS_PER_SEC;
+    double square_attack_time = (double)profile_is_square_attacked_ticks / CLOCKS_PER_SEC;
+    double apply_move_time = (double)profile_apply_uci_move_ticks / CLOCKS_PER_SEC;
+    
+    // printf("[CHESS_PROFILE] Step %d - Total: %.3fs, MoveGen: %.3fs (%.1f%%), Obs: %.3fs (%.1f%%), LegalCheck: %.3fs (%.1f%%), SquareAttack: %.3fs (%.1f%%), ApplyMove: %.3fs (%.1f%%)\n",
+    //        profiling_step_count, total_time,
+    //        move_gen_time, move_gen_time/total_time*100,
+    //        obs_time, obs_time/total_time*100,
+    //        legal_move_time, legal_move_time/total_time*100,
+    //        square_attack_time, square_attack_time/total_time*100,
+    //        apply_move_time, apply_move_time/total_time*100);
   }
 
   PROFILE_STOP(profile_c_step_ticks)
