@@ -208,10 +208,8 @@ def _validate_pytorch_chess_logits(logits, location):
                 print(f"  FIX: Check neural network weights or input preprocessing")
                 exit(1)
                 
-            # Check for no legal actions (all logits == -inf)
-            if (logits > -1e10).sum() == 0:
-                print(f"[MONITOR_WARNING] Pytorch.py: No legal actions at {location}")
-                print(f"  All logits masked - possible game over or bug")
+            # Note: 0 legal actions (all logits == -inf) is valid for terminal states
+            # (checkmate, stalemate, draw, depth limit, etc.) - no warning needed
                 
             # Check logit range for chess
             logit_min, logit_max = logits.min().item(), logits.max().item()
@@ -262,6 +260,16 @@ def sample_logits(logits, action=None):
             padding_value=-torch.inf
         ).permute(1,2,0)
 
+    # Handle terminal states where all logits are masked (-inf)
+    # Check if any batch elements have all actions masked
+    all_masked = (logits > -1e10).sum(dim=-1) == 0
+    
+    if all_masked.any():
+        # For terminal states, create uniform distribution over all actions
+        # This prevents NaN in logsumexp and allows training to continue
+        uniform_logits = torch.zeros_like(logits)
+        logits = torch.where(all_masked.unsqueeze(-1), uniform_logits, logits)
+    
     # This can fail on nans etc
     normalized_logits = logits - logits.logsumexp(dim=-1, keepdim=True)
     probs = logits_to_probs(logits)

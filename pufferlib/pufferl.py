@@ -1424,7 +1424,8 @@ def sweep(args=None, env_name=None):
 
     method = args['sweep'].pop('method')
     try:
-        sweep_cls = getattr(sweep, method)
+        import pufferlib.sweep as sweep_module
+        sweep_cls = getattr(sweep_module, method)
     except:
         raise pufferlib.APIUsageError(f'Invalid sweep method {method}. See pufferlib.sweep')
 

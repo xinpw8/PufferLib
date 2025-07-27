@@ -1,3 +1,4 @@
+import os
 from pdb import set_trace as T
 import numpy as np
 
@@ -154,7 +155,11 @@ class Default(nn.Module):
         hidden = self.encode_observations(observations, state=state)
         if self.is_chess:
             # Convert sparse mask to dense format using GPU-optimized operations
-            from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+            # Fixed import
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), 'ocean', 'chess'))
+            import sparse_utils
+            sparse_to_dense_gpu = sparse_utils.sparse_to_dense_gpu
             legal_mask = sparse_to_dense_gpu(observations)
             logits, values = self.decode_actions(hidden, legal_mask)
         else:
@@ -270,7 +275,11 @@ class LSTMWrapper(nn.Module):
         # Convert sparse legal masks to dense format (chess-specific)
         flat_observations = observations.reshape(B * TT, *space_shape)
         if flat_observations.shape[-1] == 1537:  # Chess sparse format
-            from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+            # Fixed import
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), 'ocean', 'chess'))
+            import sparse_utils
+            sparse_to_dense_gpu = sparse_utils.sparse_to_dense_gpu
             legal_masks = sparse_to_dense_gpu(flat_observations)
         else:
             legal_masks = None
@@ -294,13 +303,30 @@ class LSTMWrapper(nn.Module):
         h = state.get('lstm_h')
         c = state.get('lstm_c')
         
-        lstm_state = (h, c)
+        # Handle LSTM state dimensions - cell expects 2D tensors (batch, hidden)
+        if h is not None and h.dim() == 3:
+            h = h.squeeze(0)  # Remove layer dimension: (1, batch, hidden) -> (batch, hidden)
+        if c is not None and c.dim() == 3:
+            c = c.squeeze(0)  # Remove layer dimension: (1, batch, hidden) -> (batch, hidden)
+            
+        lstm_state = (h, c) if h is not None and c is not None else None
 
-        next_h, next_c = self.cell(hidden, lstm_state)
+        if lstm_state is not None:
+            next_h, next_c = self.cell(hidden, lstm_state)
+        else:
+            # Initialize LSTM state if not provided
+            batch_size = hidden.shape[0]
+            device = hidden.device
+            next_h = torch.zeros(batch_size, self.hidden_size, device=device)
+            next_c = torch.zeros(batch_size, self.hidden_size, device=device)
 
         # Convert sparse legal masks to dense format (chess-specific)
         if observations.shape[-1] == 1537:  # Chess sparse format
-            from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+            # Fixed import
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), 'ocean', 'chess'))
+            import sparse_utils
+            sparse_to_dense_gpu = sparse_utils.sparse_to_dense_gpu
             legal_masks = sparse_to_dense_gpu(observations)
         else:
             legal_masks = None
@@ -308,8 +334,9 @@ class LSTMWrapper(nn.Module):
         logits, values = self.policy.decode_actions(next_h, legal_masks)
         
         # Update the state dictionary in-place for the next evaluation step
-        state['lstm_h'] = next_h
-        state['lstm_c'] = next_c
+        # Add back the layer dimension for consistency: (batch, hidden) -> (1, batch, hidden)
+        state['lstm_h'] = next_h.unsqueeze(0)
+        state['lstm_c'] = next_c.unsqueeze(0)
 
         return logits, values
 

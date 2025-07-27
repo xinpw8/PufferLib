@@ -1049,7 +1049,12 @@ class ChessRecurrent(nn.Module):
         # Non-LSTM inference path
         hidden = self.encode_observations(obs[:, :1472])
         # Convert sparse mask to dense format using GPU operations
-        from pufferlib.ocean.chess.sparse_utils import sparse_to_dense_gpu
+        # Fixed import
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'chess'))
+        import sparse_utils
+        sparse_to_dense_gpu = sparse_utils.sparse_to_dense_gpu
         legal_mask = sparse_to_dense_gpu(obs)
         logits, value = self.decode_actions(hidden, legal_mask)
         return logits, value

@@ -96,7 +96,9 @@ How implemented:
 
     The allocate function explicitly reserves space for a 1924-dimensional action space.
 
-
+New Sparse Representation Action Mask
+  - Board planes from indices 0-1471 (23 * 8 * 8 = 1472)
+  - Sparse mask: count at index 1472, action IDs from 1473-1536 (64 max)
 
 UPDATED SECTION - IMPORTANT!!
 Regarding self-play actually working:

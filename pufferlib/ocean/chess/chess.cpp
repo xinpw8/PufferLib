@@ -773,7 +773,7 @@ void check_and_update_game_outcome(CChess *env, GameMode mode) {
     bool black_won = (env->log.black_win > 0);
     bool is_draw = (env->log.game_drawn > 0);
     
-    printf("[DEBUG] Direct terminal detection: white_win=%d, black_win=%d, draw=%d\n",
+    printf("[DEBUG] Direct terminal detection: white_win=%.0f, black_win=%.0f, draw=%.0f\n",
            env->log.white_win, env->log.black_win, env->log.game_drawn);
            
     // Set the outcome for processing
@@ -1038,7 +1038,9 @@ void handle_promotion_selection() {
     std::string uci = uimove_to_uci(promoted_move);
     printf("[DEBUG] handle_promotion_selection: promotion UCI='%s'\n", uci.c_str());
     global_env_ptr->actions[0] = uci_to_action_id(uci.c_str());
-    game_moves.push_back(uci);
+    if (!viewing_history) {
+      game_moves.push_back(uci);
+    }
     c_step(global_env_ptr);
     promotion_from_x = -1;
     promotion_from_y = -1;
@@ -1058,7 +1060,9 @@ void handle_promotion_selection() {
     std::string uci = uimove_to_uci(promoted_move);
     printf("[DEBUG] handle_promotion_selection: promotion UCI='%s'\n", uci.c_str());
     global_env_ptr->actions[0] = uci_to_action_id(uci.c_str());
-    game_moves.push_back(uci);
+    if (!viewing_history) {
+      game_moves.push_back(uci);
+    }
     c_step(global_env_ptr);
     promotion_from_x = -1;
     promotion_from_y = -1;
@@ -1078,7 +1082,9 @@ void handle_promotion_selection() {
     std::string uci = uimove_to_uci(promoted_move);
     printf("[DEBUG] handle_promotion_selection: promotion UCI='%s'\n", uci.c_str());
     global_env_ptr->actions[0] = uci_to_action_id(uci.c_str());
-    game_moves.push_back(uci);
+    if (!viewing_history) {
+      game_moves.push_back(uci);
+    }
     c_step(global_env_ptr);
     promotion_from_x = -1;
     promotion_from_y = -1;
@@ -1098,7 +1104,9 @@ void handle_promotion_selection() {
     std::string uci = uimove_to_uci(promoted_move);
     printf("[DEBUG] handle_promotion_selection: promotion UCI='%s'\n", uci.c_str());
     global_env_ptr->actions[0] = uci_to_action_id(uci.c_str());
-    game_moves.push_back(uci);
+    if (!viewing_history) {
+      game_moves.push_back(uci);
+    }
     c_step(global_env_ptr);
     promotion_from_x = -1;
     promotion_from_y = -1;
@@ -1116,6 +1124,14 @@ std::string uimove_to_uci(const UIMove &move) {
   // Debug output
   printf("[DEBUG] uimove_to_uci: from=(%d,%d) to=(%d,%d)\n", 
          move.from.x, move.from.y, move.to.x, move.to.y);
+  
+  // Validate coordinates are within chess board bounds
+  if (move.from.x < 0 || move.from.x > 7 || move.from.y < 0 || move.from.y > 7 ||
+      move.to.x < 0 || move.to.x > 7 || move.to.y < 0 || move.to.y > 7) {
+    printf("[ERROR] uimove_to_uci: Invalid coordinates - from=(%d,%d) to=(%d,%d)\n", 
+           move.from.x, move.from.y, move.to.x, move.to.y);
+    return "a1a1"; // Return invalid move
+  }
   
   if (move.promotion != EMPTY) {
     switch (move.promotion) {
@@ -1814,8 +1830,8 @@ int demo() {
         game_paused = !game_paused;
       }
       
-      // Arrow key navigation through move history (like browser feature)
-      if (IsKeyDown(KEY_LEFT) && !game_moves.empty()) {
+      // Arrow key navigation through move history (only when game is over)
+      if (IsKeyPressed(KEY_LEFT) && !game_moves.empty() && env.terminals[0]) {
         if (!viewing_history) {
           // Start viewing history from the last move
           current_move_index = game_moves.size() - 1;
@@ -1825,16 +1841,19 @@ int demo() {
         }
         // Apply moves up to current_move_index to show that position
         apply_moves_to_current_position(&env, current_move_index + 1);
+        printf("[HISTORY] Viewing move %d of %d\n", current_move_index + 1, (int)game_moves.size());
       }
-      if (IsKeyDown(KEY_RIGHT) && viewing_history) {
+      if (IsKeyPressed(KEY_RIGHT) && viewing_history && env.terminals[0]) {
         if (current_move_index < (int)game_moves.size() - 1) {
           current_move_index++;
           // Apply moves up to current_move_index to show that position  
           apply_moves_to_current_position(&env, current_move_index + 1);
+          printf("[HISTORY] Viewing move %d of %d\n", current_move_index + 1, (int)game_moves.size());
         } else {
           // Return to live game position
           viewing_history = false;
           current_move_index = -1;
+          printf("[HISTORY] Returned to live position\n");
           // Restore the current game state by applying all moves
           apply_moves_to_current_position(&env, game_moves.size());
         }
@@ -1859,7 +1878,7 @@ int demo() {
             env.ctx->board.to_move == C_WHITE;
       }
  
-      if (!game_paused && !env.terminals[0] && !is_human_turn && env.ctx != nullptr) {
+      if (!game_paused && !env.terminals[0] && !is_human_turn && !viewing_history && env.ctx != nullptr) {
         // Ensure observations are computed before agent acts (needed for network inference)
         compute_observation_with_perspective(&env, env.ctx);
         
@@ -1899,16 +1918,16 @@ int demo() {
           }
         }
         // Add 50-move rule check (halfmove_clock >= 100)
-        else if (env.ctx->halfmove_clock >= 100) {
+        else if (env.ctx->board.halfmove_clock >= 100) {
           should_force_terminal = true;
           is_draw = true;
-          printf("[GAME] Draw by 50-move rule (halfmove_clock=%d)\n", env.ctx->halfmove_clock);
+          printf("[GAME] Draw by 50-move rule (halfmove_clock=%d)\n", env.ctx->board.halfmove_clock);
         }
         // Add step limit check (max_depth reached)
-        else if (env.step_count >= env.max_depth) {
+        else if (env.ctx->step_count >= env.max_depth) {
           should_force_terminal = true;
           is_draw = true;
-          printf("[GAME] Draw by step limit (step_count=%d, max_depth=%d)\n", env.step_count, env.max_depth);
+          printf("[GAME] Draw by step limit (step_count=%d, max_depth=%d)\n", env.ctx->step_count, env.max_depth);
         }
         
         if (should_force_terminal) {
@@ -1961,7 +1980,9 @@ int demo() {
           const char* uci_move = ACTION_ID_TO_UCI[action];
           if (uci_move && strlen(uci_move) > 0) {
             printf("[DEBUG] Action %d -> UCI: %s\n", action, uci_move);
-            game_moves.push_back(std::string(uci_move));
+            if (!viewing_history) {
+              game_moves.push_back(std::string(uci_move));
+            }
             printf("[MOVE] Played: %s (action %d)\n", uci_move, action);
           } else {
             printf("[DEBUG] Action %d has no valid UCI mapping\n", action);
@@ -2027,7 +2048,9 @@ int demo() {
                 c_step(&env);
                 
                 // Record human move in game history
-                game_moves.push_back(uci);
+                if (!viewing_history) {
+                  game_moves.push_back(uci);
+                }
                 printf("[MOVE] Human played: %s (action %d)\n", uci.c_str(), action_id);
                 
                 check_and_update_game_outcome(&env, game_mode);

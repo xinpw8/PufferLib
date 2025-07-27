@@ -1219,6 +1219,7 @@ static int chess_generate_legal_moves_uci(ChessContext *ctx) {
     PROFILE_STOP(profile_move_gen_uci_ticks)
     return ctx->legal_moves_count;
   }
+  
 
   // Generate legal moves
   LegalMoves moves;
@@ -1247,6 +1248,7 @@ static int chess_generate_legal_moves_uci(ChessContext *ctx) {
   // Cache the result
   ctx->legal_moves_cached = true;
   ctx->cached_board_hash = current_hash;
+
 
   PROFILE_STOP(profile_move_gen_uci_ticks)
   return ctx->legal_moves_count;
@@ -1666,19 +1668,41 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx, PieceC
   // SENTINEL 2: Validate observation content signature  
   float *obs = &env->observations[obs_offset];
   float board_sum = 0.0f;
-  for (int i = 0; i < 1344; i++) board_sum += obs[i];
+  for (int i = 0; i < 1472; i++) board_sum += obs[i];
   
-  float mask_sum = 0.0f;
-  for (int i = 1344; i < 3312; i++) mask_sum += obs[i];
-
-  if (board_sum < 1.0f || mask_sum < 1.0f) {
+  // Sparse mask validation  
+  // Format: [num_legal_moves(1)] + [action_ids(64)]
+  float num_legal_moves = obs[1472];
+  float sparse_mask_sum = 0.0f;
+  
+  // Count number of valid action IDs (should equal num_legal_moves)
+  if (num_legal_moves > 0 && num_legal_moves <= 64) {
+    for (int i = 0; i < (int)num_legal_moves; i++) {
+      int action_id = (int)obs[1473 + i];
+      if (action_id >= 0 && action_id < 1968) {
+        sparse_mask_sum += 1.0f;
+      }
+    }
+  }
+  
+  // Check basic observation integrity
+  if (board_sum < 1.0f) {
     printf("[MONITOR_FATAL] Chess.h observation content invalid!\n");
-    printf("  %s observation at offset %d: board_sum=%.3f mask_sum=%.3f\n",
-           (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum, mask_sum);
-    printf("  Board sum should be >1 (pieces present), mask sum should be >1 (legal moves exist).\n");
+    printf("  %s observation at offset %d: board_sum=%.3f num_legal_moves=%.0f sparse_valid_count=%.0f\n",
+           (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum, num_legal_moves, sparse_mask_sum);
+    printf("  Board sum should be >1 (pieces present).\n");
     printf("  FIX: Check compute_single_agent_observation() is writing correct data.\n");
     exit(1);
   }
+
+  // Check for uninitialized board (real error condition)
+  if (board_sum < 10.0f) {
+    printf("[CHESS_FATAL] Board sum is %.1f - board appears uninitialized!\n", board_sum);
+    printf("  This suggests the environment reset is not working properly.\n");
+    exit(1);
+  }
+  
+  // 0 legal moves is normal for terminal positions - no need to spam logs
 
   // SENTINEL 3: Validate perspective correctness
   PieceColor current_turn = ctx->board.to_move;
@@ -2468,8 +2492,6 @@ void c_reset(CChess *env) {
 
 void c_step(CChess *env) {
   PROFILE_START(profile_c_step_ticks)
-  
- 
   
   // Game logging counter is incremented when games end, not on every step
 
