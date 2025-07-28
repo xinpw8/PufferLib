@@ -916,7 +916,13 @@ class Chess(pufferlib.PufferEnv):
         return f.getvalue()
     
     def close(self):
-        binding.vec_close(self.c_envs)
+        if hasattr(self, 'c_envs') and self.c_envs is not None:
+            try:
+                binding.vec_close(self.c_envs)
+            except Exception as e:
+                print(f"[Chess] Warning: Error closing C environments: {e}")
+            finally:
+                self.c_envs = None
     
     def print_profiling_data(self):
         try:

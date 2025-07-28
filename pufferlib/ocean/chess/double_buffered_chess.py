@@ -429,7 +429,13 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
         return self.base_env.render()
     
     def close(self):
-        self.base_env.close()
+        if hasattr(self, 'base_env') and self.base_env is not None:
+            try:
+                self.base_env.close()
+            except Exception as e:
+                print(f"[DoubleBufferedChess] Warning: Error closing base environment: {e}")
+            finally:
+                self.base_env = None
     
     @property
     def emulated(self):

@@ -82,9 +82,17 @@ class PuffeRL:
         horizon = config['bptt_horizon']
         segments = batch_size // horizon
         self.segments = segments
+        
+        print(f"[PUFFERL_DEBUG] Configuration check:")
+        print(f"  num_envs: {vecenv.num_envs}")
+        print(f"  total_agents: {total_agents}")
+        print(f"  batch_size: {batch_size}")
+        print(f"  bptt_horizon: {horizon}")
+        print(f"  segments: {segments}")
+        
         if total_agents > segments:
             raise pufferlib.APIUsageError(
-                f'Total agents {total_agents} <= segments {segments}'
+                f'Total agents {total_agents} > segments {segments}. batch_size={batch_size}, horizon={horizon}, num_envs={vecenv.num_envs}. Increase batch_size or decrease bptt_horizon.'
             )
 
         device = config['device']
@@ -281,9 +289,37 @@ class PuffeRL:
                 self.lstm_c[k].zero_()
 
         self.full_rows = 0
+        recv_timeout_count = 0
+        max_recv_timeouts = 5
+        
         while self.full_rows < self.segments:
             profile('env', epoch)
-            o, r, d, t, info, env_id, mask = self.vecenv.recv()
+            
+            # Add timeout to recv call to prevent infinite hangs
+            try:
+                import signal
+                
+                def recv_timeout_handler(signum, frame):
+                    raise TimeoutError("vecenv.recv() timed out")
+                
+                signal.signal(signal.SIGALRM, recv_timeout_handler)
+                signal.alarm(30)  # 30 second timeout for recv
+                
+                try:
+                    o, r, d, t, info, env_id, mask = self.vecenv.recv()
+                    recv_timeout_count = 0  # Reset counter on successful recv
+                finally:
+                    signal.alarm(0)  # Cancel timeout
+                    
+            except TimeoutError:
+                recv_timeout_count += 1
+                print(f"[PUFFERL_ERROR] vecenv.recv() timed out ({recv_timeout_count}/{max_recv_timeouts})")
+                
+                if recv_timeout_count >= max_recv_timeouts:
+                    raise RuntimeError(f"vecenv.recv() timed out {max_recv_timeouts} times - training cannot continue")
+                
+                # Try to continue with next iteration
+                continue
 
             profile('eval_misc', epoch)
             env_id = slice(env_id[0], env_id[-1] + 1)
@@ -566,12 +602,36 @@ class PuffeRL:
         return logs
 
     def close(self):
+        import time as time_module
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] PuffeRL.close() called")
+        
+        vecenv_close_start = time_module.time()
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] About to close vecenv...")
         self.vecenv.close()
+        vecenv_close_time = time_module.time() - vecenv_close_start
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] Vecenv close took {vecenv_close_time:.2f}s")
+        
+        util_stop_start = time_module.time()
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] About to stop utilization...")
         self.utilization.stop()
+        util_stop_time = time_module.time() - util_stop_start
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] Utilization stop took {util_stop_time:.2f}s")
+        
+        checkpoint_start = time_module.time()
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] About to save checkpoint...")
         model_path = self.save_checkpoint()
+        checkpoint_time = time_module.time() - checkpoint_start
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] Checkpoint save took {checkpoint_time:.2f}s")
+        
+        copy_start = time_module.time()
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] About to copy model file...")
         run_id = self.logger.run_id
         path = os.path.join(self.config['data_dir'], f'{run_id}.pt')
         shutil.copy(model_path, path)
+        copy_time = time_module.time() - copy_start
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] Model copy took {copy_time:.2f}s")
+        
+        print(f"[PUFFERL_DEBUG] [{time_module.strftime('%H:%M:%S')}] PuffeRL.close() completed")
         return path
     
 
@@ -863,7 +923,16 @@ def downsample(arr, m):
     arr = arr[:-1]
     arr = np.array(arr)
     n = len(arr)
+    
+    # If array is smaller than m after removing last element, just return original
+    if n < m:
+        return orig_arr
+    
     n = (n//m)*m
+    # If n becomes 0, we can't reshape, so return original array
+    if n == 0:
+        return orig_arr
+        
     arr = arr[-n:]
     downsampled = arr.reshape(m, -1).mean(axis=1)
     return np.concatenate([downsampled, [last]])
@@ -1022,9 +1091,21 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
     all_logs = []
     episode_count = 0
+    import time as time_module
     while pufferl.global_step < train_config['total_timesteps']:
+        if pufferl.global_step % 100000 == 0:  # Log every 100K steps
+            print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Step {pufferl.global_step} / {train_config['total_timesteps']}")
+        
+        eval_start = time_module.time()
+        print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] About to call evaluate() at step {pufferl.global_step}")
         pufferl.evaluate()
+        eval_time = time_module.time() - eval_start
+        print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Evaluate() completed in {eval_time:.2f}s, about to call train() at step {pufferl.global_step}")
+        
+        train_step_start = time_module.time()
         logs = pufferl.train()
+        train_step_time = time_module.time() - train_step_start
+        print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Train() completed in {train_step_time:.2f}s, step now {pufferl.global_step}")
         
         # Update frozen policy for episode-per-color chess self-play
         if 'chess' in env_name:
@@ -1081,20 +1162,35 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
     # Final eval. You can reset the env here, but depending on
     # your env, this can skew data (i.e. you only collect the shortest
     # rollouts within a fixed number of epochs)
+    print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Training loop completed, starting final evaluation...")
+    final_eval_start = time_module.time()
     i = 0
     stats = {}
     while i < 32 or not stats:
         stats = pufferl.evaluate()
         i += 1
+    final_eval_time = time_module.time() - final_eval_start
+    print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Final evaluation completed in {final_eval_time:.2f}s")
 
+    logging_start = time_module.time()
     logs = pufferl.mean_and_log()
     if logs is not None:
         all_logs.append(logs)
+    logging_time = time_module.time() - logging_start
+    print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Final logging completed in {logging_time:.2f}s")
 
+    dashboard_start = time_module.time()
     pufferl.print_dashboard()
+    dashboard_time = time_module.time() - dashboard_start
+    print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Dashboard print completed in {dashboard_time:.2f}s")
+    
+    close_start = time_module.time()
     model_path = pufferl.close()
+    close_time = time_module.time() - close_start
+    print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] PuffeRL close completed in {close_time:.2f}s")
     
     # Clean up shared memory files for chess
+    cleanup_start = time_module.time()
     if 'chess' in env_name:
         try:
             import tempfile
@@ -1110,12 +1206,26 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
                     os.rmdir(policy_sync_dir)
                 except:
                     pass
-            print("[Chess] Cleaned up shared policy files")
+            print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Chess cleanup completed")
         except Exception as e:
-            print(f"[Chess] Failed to clean up shared policy files: {e}")
+            print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Failed to clean up shared policy files: {e}")
+    cleanup_time = time_module.time() - cleanup_start
+    print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] File cleanup completed in {cleanup_time:.2f}s")
     
-    pufferl.logger.close(model_path)
-    return all_logs
+    # Don't close logger yet if we're in a sweep - let sweep handle cleanup
+    logger_close_start = time_module.time()
+    if not args.get('_sweep_mode', False):
+        print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Non-sweep mode: closing logger and pufferl...")
+        pufferl.logger.close(model_path)
+        pufferl.close()
+        logger_close_time = time_module.time() - logger_close_start
+        print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Logger/pufferl close completed in {logger_close_time:.2f}s")
+        return all_logs
+    else:
+        # In sweep mode, return both logs and pufferl instance for proper cleanup
+        logger_close_time = time_module.time() - logger_close_start
+        print(f"[TRAIN_DEBUG] [{time_module.strftime('%H:%M:%S')}] Sweep mode: returning pufferl for cleanup (took {logger_close_time:.2f}s)")
+        return all_logs, pufferl
 
 def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=False, engine_depth=2, engine_path=None, engine_elo=1320, engine_search_ms=10):
     """Training loop for self-play.
@@ -1422,6 +1532,10 @@ def sweep(args=None, env_name=None):
     if not args['wandb'] and not args['neptune']:
         raise pufferlib.APIUsageError('Sweeps require either wandb or neptune')
 
+    # Store original args to avoid corruption between runs
+    import copy
+    original_args = copy.deepcopy(args)
+    
     method = args['sweep'].pop('method')
     try:
         import pufferlib.sweep as sweep_module
@@ -1432,24 +1546,280 @@ def sweep(args=None, env_name=None):
     sweep = sweep_cls(args['sweep'])
     points_per_run = args['sweep']['downsample']
     target_key = f'environment/{args["sweep"]["metric"]}'
+    # Track environment and pufferl instance for proper cleanup
+    current_vecenv = None
+    current_pufferl = None
+    
     for i in range(args['max_runs']):
+        import time as time_module
+        run_start_time = time_module.time()
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Starting run {i+1}/{args['max_runs']}")
+        
+        # Clean up previous run's resources
+        if current_pufferl is not None:
+            cleanup_start = time_module.time()
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Closing previous run's pufferl...")
+            try:
+                # Don't save checkpoint or close logger - just close the environment
+                # Set a flag to avoid cleanup loops
+                if hasattr(current_pufferl, 'vecenv'):
+                    current_pufferl.vecenv = None  # Prevent vecenv.close() in pufferl.close()
+                current_pufferl.close()
+                del current_pufferl
+                current_pufferl = None
+                cleanup_time = time_module.time() - cleanup_start
+                print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] PuffeRL cleanup took {cleanup_time:.2f}s")
+            except Exception as e:
+                cleanup_time = time_module.time() - cleanup_start
+                print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Failed to close previous pufferl after {cleanup_time:.2f}s: {e}")
+        
+        if current_vecenv is not None:
+            cleanup_start = time_module.time()
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Closing previous run's vecenv...")
+            try:
+                # More defensive cleanup - check if vecenv is still valid before closing
+                if hasattr(current_vecenv, 'close') and callable(getattr(current_vecenv, 'close', None)):
+                    current_vecenv.close()
+                del current_vecenv
+                current_vecenv = None
+                cleanup_time = time_module.time() - cleanup_start
+                print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Vecenv cleanup took {cleanup_time:.2f}s")
+            except Exception as e:
+                cleanup_time = time_module.time() - cleanup_start
+                print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Failed to close previous vecenv after {cleanup_time:.2f}s: {e}")
+                # Force cleanup by setting to None even if close failed
+                current_vecenv = None
+        
+        # Clean up any stale policy files between runs for double_buffered_chess
+        if 'double_buffered_chess' in env_name:
+            import tempfile
+            import os
+            policy_file = os.path.join(tempfile.gettempdir(), 'puffer_chess_policy.pth')
+            if os.path.exists(policy_file):
+                try:
+                    os.remove(policy_file)
+                    print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Cleaned up stale policy file for run {i+1}")
+                except Exception as e:
+                    print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Failed to clean policy file: {e}")
+        
+        # Force garbage collection and multiprocessing cleanup
+        gc_start = time_module.time()
+        import gc
+        gc.collect()
+        gc_time = time_module.time() - gc_start
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Garbage collection took {gc_time:.2f}s")
+        
+        # Shorter sleep for multiprocessing cleanup - 5 seconds was excessive
+        if i > 0 and 'double_buffered_chess' in env_name:
+            sleep_start = time_module.time()
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Waiting 2 seconds for multiprocessing cleanup...")
+            time.sleep(2)
+            sleep_time = time_module.time() - sleep_start
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Sleep completed in {sleep_time:.2f}s")
+        
+        setup_start = time_module.time()
+        
+        # CRITICAL FIX: Reload base configuration for each run to avoid parameter corruption
+        base_args = load_config(env_name)
+        # Copy over sweep-specific settings
+        args = base_args
+        args['wandb'] = base_args.get('wandb', False) or original_args.get('wandb', False)
+        args['neptune'] = base_args.get('neptune', False) or original_args.get('neptune', False)
+        args['sweep'] = original_args['sweep']
+        
         seed = time.time_ns() & 0xFFFFFFFF
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+        
+        # Debug: Print args before sweep.suggest
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Before sweep.suggest - num_envs: {args['env']['num_envs']}, batch_size: {args['train']['batch_size']}")
+        
         sweep.suggest(args)
+        
+        # Debug: Print args after sweep.suggest
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] After sweep.suggest - num_envs: {args['env']['num_envs']}, batch_size: {args['train']['batch_size']}")
+        
         total_timesteps = args['train']['total_timesteps']
-        all_logs = train(env_name, args=args)
+        setup_time = time_module.time() - setup_start
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Run setup took {setup_time:.2f}s")
+        
+        # Mark that we're in sweep mode so train function returns pufferl instance
+        args['_sweep_mode'] = True
+        
+        # Validate parameters before creating environment
+        def validate_parameters(args):
+            batch_size = args['train']['batch_size']
+            bptt_horizon = args['train']['bptt_horizon']
+            num_envs = args['env']['num_envs']
+            
+            # Basic sanity checks
+            if batch_size <= 0 or bptt_horizon <= 0 or num_envs <= 0:
+                return False, "Batch size, BPTT horizon, and num_envs must be positive"
+            
+            # Check if configuration is likely to cause resource issues
+            total_agents = num_envs * 2  # Chess has 2 agents per env
+            segments = batch_size // bptt_horizon
+            
+            if total_agents > segments:
+                return False, f"Total agents {total_agents} > segments {segments}. This will cause training to hang."
+            
+            # Memory usage estimate (rough heuristic)
+            estimated_memory_gb = (batch_size * bptt_horizon * 8 * 4) / (1024**3)  # 8 obs dims, 4 bytes per float
+            if estimated_memory_gb > 8:  # Arbitrary threshold
+                return False, f"Estimated memory usage {estimated_memory_gb:.1f}GB exceeds reasonable limits"
+            
+            return True, "Valid"
+        
+        # Validate parameters
+        is_valid, validation_msg = validate_parameters(args)
+        if not is_valid:
+            print(f"[SWEEP_ERROR] [{time_module.strftime('%H:%M:%S')}] Run {i+1} has invalid parameters: {validation_msg}")
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Skipping to next run")
+            continue
+        
+        # Create fresh environment and policy for this run
+        env_start = time_module.time()
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Creating fresh environment for run {i+1}")
+        
+        try:
+            current_vecenv = load_env(env_name, args)
+            policy = load_policy(args, current_vecenv)
+        except Exception as e:
+            print(f"[SWEEP_ERROR] [{time_module.strftime('%H:%M:%S')}] Failed to create environment for run {i+1}: {e}")
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Skipping to next run")
+            continue
+            
+        env_time = time_module.time() - env_start
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Environment creation took {env_time:.2f}s")
+        
+        # Create fresh logger for this run to avoid state conflicts
+        logger = None
+        if args['neptune']:
+            logger = NeptuneLogger(args)
+        elif args['wandb']:
+            logger = WandbLogger(args)
+        
+        # Train with the fresh environment and capture PuffeRL instance for cleanup
+        train_start = time_module.time()
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Starting training for run {i+1}")
+        
+        # Add robust error handling and timeout for training
+        train_result = None
+        training_failed = False
+        timeout_seconds = 600  # 10 minute timeout per run
+        
+        try:
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError(f"Training run {i+1} timed out after {timeout_seconds} seconds")
+            
+            # Set up timeout
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout_seconds)
+            
+            try:
+                train_result = train(env_name, args=args, vecenv=current_vecenv, policy=policy, logger=logger)
+            finally:
+                signal.alarm(0)  # Cancel timeout
+                
+        except TimeoutError as e:
+            print(f"[SWEEP_ERROR] [{time_module.strftime('%H:%M:%S')}] {e}")
+            training_failed = True
+        except Exception as e:
+            print(f"[SWEEP_ERROR] [{time_module.strftime('%H:%M:%S')}] Training run {i+1} failed with error: {e}")
+            training_failed = True
+        
+        train_time = time_module.time() - train_start
+        
+        if training_failed:
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Training run {i+1} failed after {train_time:.2f}s, skipping to next run")
+            # Clean up failed run
+            if current_pufferl is not None:
+                try:
+                    current_pufferl.close()
+                except:
+                    pass
+            if current_vecenv is not None:
+                try:
+                    current_vecenv.close()
+                except:
+                    pass
+            continue  # Skip to next run
+            
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Training completed in {train_time:.2f}s")
+        
+        if isinstance(train_result, tuple):
+            all_logs, current_pufferl = train_result
+        else:
+            all_logs = train_result
+            current_pufferl = None
+            
+        processing_start = time_module.time()
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Total logs: {len(all_logs)}")
+        if len(all_logs) > 0:
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Sample log keys: {list(all_logs[0].keys())}")
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Looking for target_key: {target_key}")
+        
         all_logs = [e for e in all_logs if target_key in e]
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Filtered logs with target key: {len(all_logs)}")
+        
+        if len(all_logs) == 0:
+            print(f"[SWEEP_ERROR] [{time_module.strftime('%H:%M:%S')}] No logs found with target key '{target_key}' - sweep cannot continue!")
+            # Clean up before returning
+            if current_pufferl is not None:
+                try:
+                    current_pufferl.close()
+                except:
+                    pass
+            if current_vecenv is not None:
+                try:
+                    current_vecenv.close()
+                except:
+                    pass
+            return
+            
         scores = downsample([log[target_key] for log in all_logs], points_per_run)
         costs = downsample([log['uptime'] for log in all_logs], points_per_run)
         timesteps = downsample([log['agent_steps'] for log in all_logs], points_per_run)
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Downsampled: {len(scores)} scores, {len(costs)} costs")
         for score, cost, timestep in zip(scores, costs, timesteps):
             args['train']['total_timesteps'] = timestep
             sweep.observe(args, score, cost)
 
         # Prevent logging final eval steps as training steps
         args['train']['total_timesteps'] = total_timesteps
+        processing_time = time_module.time() - processing_start
+        total_run_time = time_module.time() - run_start_time
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Log processing took {processing_time:.2f}s")
+        print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Total run {i+1} time: {total_run_time:.2f}s")
+    
+    # Final cleanup
+    import time as time_module
+    final_cleanup_start = time_module.time()
+    print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Starting final cleanup...")
+    
+    if current_pufferl is not None:
+        try:
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Final cleanup: closing pufferl...")
+            # Close logger first
+            model_path = current_pufferl.save_checkpoint()
+            current_pufferl.logger.close(model_path)
+            # Then close pufferl
+            current_pufferl.close()
+        except Exception as e:
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Failed final pufferl cleanup: {e}")
+    
+    if current_vecenv is not None:
+        try:
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Final cleanup: closing vecenv...")
+            current_vecenv.close()
+        except Exception as e:
+            print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Failed final vecenv cleanup: {e}")
+    
+    final_cleanup_time = time_module.time() - final_cleanup_start
+    print(f"[SWEEP_DEBUG] [{time_module.strftime('%H:%M:%S')}] Final cleanup took {final_cleanup_time:.2f}s")
 
 def profile(args=None, env_name=None, vecenv=None, policy=None):
     args = load_config()

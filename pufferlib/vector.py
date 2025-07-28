@@ -552,8 +552,31 @@ class Multiprocessing:
 
     def close(self):
         self.driver_env.close()
+        # Graceful shutdown: send CLOSE signal first, then terminate if needed
+        try:
+            for send_pipe in self.send_pipes:
+                if send_pipe:
+                    send_pipe.send((CLOSE, None, None))
+        except Exception:
+            pass  # Pipes might already be closed
+        
+        # Give processes time to clean up gracefully
+        import time
+        time.sleep(0.1)
+        
         for p in self.processes:
-            p.terminate()
+            if p.is_alive():
+                p.terminate()
+                # Wait a bit for terminate to complete
+                p.join(timeout=1.0)
+            if p.is_alive():
+                # Force kill if still alive
+                import os
+                import signal
+                try:
+                    os.kill(p.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass  # Process already dead
 
 class Ray():
     '''Runs environments in parallel on multiple processes using Ray
