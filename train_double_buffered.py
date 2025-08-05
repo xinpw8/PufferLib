@@ -26,7 +26,7 @@ def run_training_demo():
     
     # Run training with reduced parameters for demo  
     cmd = [
-        "puffer", "train", "puffer_double_buffered_chess",
+        "puffer", "train", "puffer_chess", "--wandb"
         # "--train.total-timesteps", "200000000",
         # "--vec.num-envs", "2",         # Small scale
         # "--vec.num-workers", "2",      # Match num-envs  
@@ -70,7 +70,7 @@ def check_implementation():
         return False
     
     # Check if config exists
-    config_path = "pufferlib/config/ocean/double_buffered_chess.ini"
+    config_path = "pufferlib/config/ocean/chess.ini"
     if not os.path.exists(config_path):
         print("❌ Configuration file not found at", config_path)
         return False

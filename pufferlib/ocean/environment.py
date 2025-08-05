@@ -201,6 +201,7 @@ MAKE_FUNCTIONS = {
     'pacman': 'Pacman',
     'checkers': 'Checkers',
     'asteroids': 'Asteroids',
+    'chess': 'Chess',
     'spaces': make_spaces,
     'multiagent': make_multiagent,
     'chess_selfplay': make_chess_selfplay,

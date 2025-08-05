@@ -208,12 +208,8 @@ static void forward_chessnet(ChessNet *net, float *observations, int *actions) {
   printf("[DEBUG] forward_chessnet: softmax_multidiscrete returned actions[0]=%d (max allowed: %d)\n", 
          actions[0], TOTAL_CHESS_ACTIONS - 1);
   
-  // Ensure output action is within valid range
-  if (actions[0] >= TOTAL_CHESS_ACTIONS || actions[0] < 0) {
-    printf("[WARNING] Neural network selected invalid action %d (valid range: 0-%d), clamping to 0\n", 
-           actions[0], TOTAL_CHESS_ACTIONS - 1);
-    actions[0] = 0;
-  }
+  // Neural network should only output valid actions due to proper action masking
+  // If this fails, the action masking or neural network has a bug that must be fixed
   
   linear(net->value_head1, net->lstm->state_h);
   relu(net->value_relu, net->value_head1->output);
@@ -912,9 +908,10 @@ int random_select_action(CChess *env) {
   // Use sparse action mask: observations[1472] = count, observations[1473:1537] = action IDs
   int num_legal_moves = (int)env->observations[1472];
   
+  // Assert that we have legal moves - if not, the game should have been terminated
   if (num_legal_moves == 0) {
-    printf("[RANDOM] No legal moves available - game should be terminal\n");
-    return 0;
+    printf("[ERROR] random_select_action called with no legal moves! Game should be terminal!\n");
+    exit(1);  // This is a bug that must be fixed
   }
   
   // Select random legal action from the sparse list
@@ -1411,6 +1408,9 @@ void render_chess_board(CChess *env, ChessPieceTextures *textures) {
 // Forward declarations for local functions
 void test_performance(float test_time);
 int demo();
+int demo_console();
+int game_browser();
+int puzzle_train();
 
 /**
  * @brief Performance test for the CChess environment.
@@ -2828,6 +2828,533 @@ int game_browser() {
   return 0;
 }
 
+// Simple JSON puzzle parser (avoiding external dependencies)
+struct Puzzle {
+  std::string puzzle_fen;
+  std::string solution;
+};
+
+// Extract string value from JSON for a given key
+std::string extract_json_string(const std::string& json, const std::string& key) {
+  std::string search_key = "\"" + key + "\"";
+  size_t key_pos = json.find(search_key);
+  if (key_pos == std::string::npos) return "";
+  
+  size_t colon_pos = json.find(':', key_pos);
+  if (colon_pos == std::string::npos) return "";
+  
+  size_t quote_start = json.find('"', colon_pos + 1);
+  if (quote_start == std::string::npos) return "";
+  
+  size_t quote_end = json.find('"', quote_start + 1);
+  if (quote_end == std::string::npos) return "";
+  
+  return json.substr(quote_start + 1, quote_end - quote_start - 1);
+}
+
+// Load puzzles from JSON file (matching Python implementation)
+std::vector<Puzzle> load_puzzles_from_json(const char* filename, int max_puzzles = 1000) {
+  std::vector<Puzzle> puzzles;
+  
+  std::ifstream file(filename);
+  if (!file.is_open()) {
+    printf("[Chess] Error: Could not open puzzle file: %s\n", filename);
+    return puzzles;
+  }
+  
+  std::string content((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+  file.close();
+  
+  // Find all puzzle objects
+  size_t pos = 0;
+  while (pos < content.length() && puzzles.size() < max_puzzles) {
+    size_t obj_start = content.find('{', pos);
+    if (obj_start == std::string::npos) break;
+    
+    size_t obj_end = content.find('}', obj_start);
+    if (obj_end == std::string::npos) break;
+    
+    std::string puzzle_json = content.substr(obj_start, obj_end - obj_start + 1);
+    
+    Puzzle p;
+    p.puzzle_fen = extract_json_string(puzzle_json, "puzzle_fen");
+    p.solution = extract_json_string(puzzle_json, "solution");
+    
+    if (!p.puzzle_fen.empty() && !p.solution.empty()) {
+      puzzles.push_back(p);
+    }
+    
+    pos = obj_end + 1;
+  }
+  
+  // Shuffle puzzles (matching Python)
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(puzzles.begin(), puzzles.end(), g);
+  
+  printf("[Chess] Loaded %zu puzzles from %s\n", puzzles.size(), filename);
+  return puzzles;
+}
+
+/**
+ * @brief Puzzle training visualization - shows exactly what happens during training
+ * Uses the EXACT logic from chess.h without modification
+ */
+int puzzle_train() {
+  printf("=== PUZZLE TRAINING VISUALIZATION ===\n");
+  printf("This shows EXACTLY what happens during puzzle training.\n");
+  printf("Using identical logic from chess.h with raylib rendering\n\n");
+  
+  // Initialize Raylib
+  const int screen_width = 1000;
+  const int screen_height = 700;
+  InitWindow(screen_width, screen_height, "PufferLib Chess - Puzzle Training Visualization");
+  SetTargetFPS(30);  // Normal FPS for responsive controls
+  
+  // Load piece textures
+  ChessPieceTextures textures = load_piece_textures();
+  
+  // Create a single environment with puzzle mode
+  CChess env;
+  
+  // Set configuration BEFORE allocate (critical!)
+  env.max_depth = 240;  // No depth limit in puzzle mode
+  env.reward_valid = -0.001f;
+  env.reward_invalid_white = 0.0f;
+  env.reward_invalid_black = 0.0f;
+  env.reward_white_captures_enemy_piece = 0.2f;
+  env.reward_black_captures_enemy_piece = -0.2f;
+  env.reward_draw = -0.5f;
+  env.reward_win_white = 1.0f;
+  env.reward_win_black = -1.0f;
+  env.reward_loss_white = -1.0f;
+  env.reward_loss_black = 1.0f;
+  env.reward_check_white = 0.1f;
+  env.reward_check_black = -0.1f;
+  env.reward_material_diff_white = 0.0001f;
+  env.reward_material_diff_black = -0.0001f;
+  // Use default values from config (chess.ini)
+  env.reward_puzzle_solved = 1.0f;
+  env.reward_puzzle_failed = -0.0001f;  
+  env.reward_correct_move = 0.1f;
+  env.debug_disable_mask = 0;
+  
+  // Allocate and initialize
+  allocate(&env);
+  c_reset(&env);
+  
+  // Load puzzles from actual database (matching training)
+  const char* puzzle_file = "pufferlib/resources/chess/filtered_puzzles/white_1move_easy.json";
+  std::vector<Puzzle> puzzles = load_puzzles_from_json(puzzle_file);
+  
+  if (puzzles.empty()) {
+    printf("No puzzles loaded. Exiting.\n");
+    CloseWindow();
+    return 1;
+  }
+  
+  // Enable puzzle mode
+  set_puzzle_mode(&env, true);
+  set_puzzle_difficulty(&env, 1);
+  set_puzzle_training_params(&env, 100, 0.9f);  // 100 tries max, 90% threshold
+  
+  // Load first puzzle
+  int current_puzzle_index = 0;
+  std::string current_fen = puzzles[current_puzzle_index].puzzle_fen;
+  std::string current_solution = puzzles[current_puzzle_index].solution;
+  static char solution_moves[1][6];  // Make it static and mutable
+  strcpy(solution_moves[0], current_solution.c_str());
+  const char* solution_ptr = solution_moves[0];
+  set_puzzle_data(&env, current_fen.c_str(), &solution_ptr, 1);
+  
+  printf("Puzzle %d/%zu loaded:\n", current_puzzle_index + 1, puzzles.size());
+  printf("FEN: %s\n", current_fen.c_str());
+  printf("Solution: %s\n", solution_moves[0]);
+  printf("Side to move: %s\n", env.context.board.to_move == C_WHITE ? "WHITE" : "BLACK");
+  printf("\nPress SPACE to step through moves, ESC to exit\n\n");
+  
+  int total_steps = 0;
+  const char* last_move = "";
+  float last_reward = 0;
+  bool show_solution = true;
+  bool just_reset = false;
+  int reset_flash_frames = 0;
+  int last_tries_count = 0;  // Track tries count for display
+  
+  // For move animation
+  bool animating_move = false;
+  int animation_frames = 0;
+  int move_from_square = -1;
+  int move_to_square = -1;
+  float anim_progress = 0.0f;
+  Piece animating_piece = {C_WHITE, EMPTY};  // Store the piece being animated
+  
+  bool continue_puzzles = true;
+  while (!WindowShouldClose() && continue_puzzles) {
+    // Check if current puzzle is complete
+    if (env.terminals[0]) {
+      // Current puzzle solved - show summary
+      printf("\n=== PUZZLE COMPLETE ===\n");
+      printf("Tries: %d\n", last_tries_count);
+      printf("Press SPACE to load next puzzle, ESC to exit\n");
+      
+      // Wait for user input
+      bool waiting = true;
+      while (waiting && !WindowShouldClose()) {
+        if (IsKeyPressed(KEY_SPACE)) {
+          // Load next puzzle
+          printf("\nLoading next puzzle...\n");
+          
+          // Load next puzzle from database (matching training)
+          current_puzzle_index = (current_puzzle_index + 1) % puzzles.size();
+          current_fen = puzzles[current_puzzle_index].puzzle_fen;
+          current_solution = puzzles[current_puzzle_index].solution;
+          strcpy(solution_moves[0], current_solution.c_str());  // Update solution for display
+          
+          // Reset environment 
+          c_reset(&env);
+          
+          // Re-enable puzzle mode and set the new puzzle
+          set_puzzle_mode(&env, true);
+          set_puzzle_difficulty(&env, 1);
+          set_puzzle_training_params(&env, 100, 0.9f);  // 100 tries max
+          solution_ptr = solution_moves[0];
+          set_puzzle_data(&env, current_fen.c_str(), &solution_ptr, 1);
+          
+          // Reset counters for new puzzle
+          total_steps = 0;
+          last_tries_count = 0;
+          last_move = "";
+          last_reward = 0;
+          just_reset = false;
+          reset_flash_frames = 0;
+          animating_move = false;
+          animation_frames = 0;
+          
+          // Get the new puzzle info
+          printf("\nPuzzle %d/%zu loaded\n", current_puzzle_index + 1, puzzles.size());
+          printf("FEN: %s\n", env.context.puzzle_fen);
+          printf("Solution: %s\n", solution_moves[0]);
+          printf("Side to move: %s\n", env.context.board.to_move == C_WHITE ? "WHITE" : "BLACK");
+          printf("\nPress SPACE to step through moves, ESC to exit\n\n");
+          
+          waiting = false;
+        } else if (IsKeyPressed(KEY_ESCAPE)) {
+          continue_puzzles = false;
+          waiting = false;
+        }
+        
+        // Keep drawing during wait
+        BeginDrawing();
+        ClearBackground(RL_RAYWHITE);
+        DrawText("Puzzle Complete! Press SPACE for next puzzle or ESC to exit", 200, 350, 20, RL_DARKGREEN);
+        EndDrawing();
+      }
+      continue;
+    }
+    // Handle input - make SPACE more responsive (but wait for animation)
+    if (IsKeyPressed(KEY_SPACE) && !animating_move) {
+      total_steps++;
+      
+      // Generate all legal moves (same as training)
+      chess_generate_all_legal_moves(&env.context);
+      
+      // Get legal moves for current player
+      char (*moves_buffer)[6];
+      int moves_count;
+      if (env.context.board.to_move == C_WHITE) {
+        moves_buffer = env.context.white_legal_moves_buffer;
+        moves_count = env.context.white_legal_moves_count;
+      } else {
+        moves_buffer = env.context.black_legal_moves_buffer;
+        moves_count = env.context.black_legal_moves_count;
+      }
+      
+      printf("Step %d: %s to move, %d legal moves\n", 
+             total_steps, 
+             env.context.board.to_move == C_WHITE ? "WHITE" : "BLACK",
+             moves_count);
+      
+      // Pick a random legal move (simulating untrained NN)
+      if (moves_count > 0) {
+        int random_idx = rand() % moves_count;
+        last_move = moves_buffer[random_idx];
+        
+        // Convert to action ID
+        int action_id = -1;
+        
+        // For white, use move directly
+        if (env.context.board.to_move == C_WHITE) {
+          action_id = uci_to_action_id(last_move);
+        } else {
+          // For black, need to flip perspective
+          char flipped_move[6];
+          flip_uci_for_black_perspective(last_move, flipped_move);
+          action_id = uci_to_action_id(flipped_move);
+        }
+        
+        printf("  Move: %s (action %d), ", last_move, action_id);
+        printf("puzzle_mode=%d, ", env.context.puzzle_mode ? 1 : 0);
+        
+        // Set up move animation BEFORE executing the move
+        if (strlen(last_move) >= 4) {
+          int from_x = last_move[0] - 'a';
+          int from_y = last_move[1] - '1';
+          int to_x = last_move[2] - 'a';
+          int to_y = last_move[3] - '1';
+          move_from_square = from_y * 8 + from_x;
+          move_to_square = to_y * 8 + to_x;
+          
+          // Capture the piece BEFORE the move is executed
+          if (move_from_square >= 0 && move_from_square < 64) {
+            animating_piece = env.context.board.board[move_from_square];
+          }
+          
+          animating_move = true;
+          animation_frames = 15;  // 0.5 second animation at 30 FPS
+          anim_progress = 0.0f;
+        }
+        
+        // Save tries count BEFORE executing the move (in case puzzle is solved)
+        int tries_before = env.context.puzzle_tries_this_env;
+        
+        // Execute the move through c_step (same as training)
+        env.actions[0] = action_id;
+        c_step(&env);
+        
+        // Update last tries count for display
+        if (env.context.puzzle_completed) {
+          last_tries_count = tries_before + 1;  // Add 1 for the solving move
+        } else {
+          last_tries_count = env.context.puzzle_tries_this_env;
+        }
+        
+        last_reward = env.rewards[0];
+        printf("Reward: %.4f (step_count=%d, complete_game_action_count=%d)\n", 
+               last_reward, env.context.step_count, env.context.complete_game_action_count);
+        
+        // Print puzzle state
+        if (env.context.puzzle_mode) {
+          printf("  Puzzle: tries=%d, ", last_tries_count);
+          if (env.context.puzzle_completed) {
+            printf("SOLVED!\n");
+          } else if (last_reward < -0.5) {
+            printf("WRONG (position reset)\n");
+            just_reset = true;
+            reset_flash_frames = 30; // Flash for 30 frames
+            // Don't clear animation state on reset - let it play out
+            // The piece will animate to the wrong square then board will reset
+          } else {
+            printf("continuing...\n");
+          }
+        }
+      }
+    }
+    
+    if (IsKeyPressed(KEY_S)) {
+      show_solution = !show_solution;
+    }
+    
+    // Draw
+    BeginDrawing();
+    ClearBackground(RL_RAYWHITE);
+    
+    // Draw board
+    const int SQUARE_SIZE = 64;
+    const int BOARD_X = 50;
+    const int BOARD_Y = 50;
+    
+    // Draw board squares
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        Color color = ((x + y) % 2 == 0) ? RL_BEIGE : RL_BROWN;
+        // Flash red if position was just reset
+        if (reset_flash_frames > 0) {
+          color = ((x + y) % 2 == 0) ? 
+            (Color){255, 200, 200, 255} : (Color){255, 150, 150, 255};
+        }
+        DrawRectangle(BOARD_X + x * SQUARE_SIZE, BOARD_Y + y * SQUARE_SIZE, 
+                      SQUARE_SIZE, SQUARE_SIZE, color);
+      }
+    }
+    
+    // Decrement flash counter
+    if (reset_flash_frames > 0) reset_flash_frames--;
+    
+    // Draw pieces - IMPORTANT: Read current board state
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        int square = (7 - y) * 8 + x;  // Flip y-axis for display
+        Piece* piece = &env.context.board.board[square];
+        
+        // Skip the source square during animation (piece is moving FROM here)
+        if (animating_move && square == move_from_square) {
+          continue;  // Don't draw at source position during animation
+        }
+        
+        if (piece->type != EMPTY) {
+          Texture2D tex = get_piece_texture(&textures, piece->color, piece->type);
+          if (tex.id > 0) {
+            // Scale to fit in square with some padding
+            float max_dim = (tex.width > tex.height) ? tex.width : tex.height;
+            float scale = (SQUARE_SIZE * 0.8f) / max_dim;
+            
+            // Center pieces in squares
+            float piece_x = BOARD_X + x * SQUARE_SIZE + (SQUARE_SIZE - tex.width * scale) / 2;
+            float piece_y = BOARD_Y + y * SQUARE_SIZE + (SQUARE_SIZE - tex.height * scale) / 2;
+            DrawTextureEx(tex, 
+                         (Vector2){piece_x, piece_y},
+                         0.0f, scale, RL_WHITE);
+          }
+        }
+      }
+    }
+    
+    // Draw animated moving piece
+    if (animating_move && animating_piece.type != EMPTY) {
+      int from_x = move_from_square % 8;
+      int from_y = 7 - (move_from_square / 8);
+      int to_x = move_to_square % 8;
+      int to_y = 7 - (move_to_square / 8);
+      
+      Texture2D tex = get_piece_texture(&textures, animating_piece.color, animating_piece.type);
+      if (tex.id > 0) {
+        float max_dim = (tex.width > tex.height) ? tex.width : tex.height;
+        float scale = (SQUARE_SIZE * 0.8f) / max_dim;
+        
+        // Interpolate position
+        float current_x = BOARD_X + (from_x + (to_x - from_x) * anim_progress) * SQUARE_SIZE;
+        float current_y = BOARD_Y + (from_y + (to_y - from_y) * anim_progress) * SQUARE_SIZE;
+        current_x += (SQUARE_SIZE - tex.width * scale) / 2;
+        current_y += (SQUARE_SIZE - tex.height * scale) / 2;
+        
+        DrawTextureEx(tex, 
+                     (Vector2){current_x, current_y},
+                     0.0f, scale, RL_WHITE);
+      }
+      
+      // Update animation
+      if (animation_frames > 0) {
+        animation_frames--;
+        anim_progress = 1.0f - ((float)animation_frames / 15.0f);
+      } else {
+        animating_move = false;
+        anim_progress = 0.0f;
+      }
+    }
+    
+    // Draw coordinates
+    for (int i = 0; i < 8; i++) {
+      char rank_str[2] = {(char)('8' - i), '\0'};
+      char file_str[2] = {(char)('a' + i), '\0'};
+      DrawText(rank_str, BOARD_X - 20, BOARD_Y + i * SQUARE_SIZE + 25, 16, RL_DARKGRAY);
+      DrawText(file_str, BOARD_X + i * SQUARE_SIZE + 28, BOARD_Y + 8 * SQUARE_SIZE + 5, 16, RL_DARKGRAY);
+    }
+    
+    // Draw info panel
+    int info_x = BOARD_X + 9 * SQUARE_SIZE;
+    int info_y = BOARD_Y;
+    
+    DrawText("PUZZLE TRAINING VISUALIZATION", info_x, info_y, 20, RL_BLACK);
+    DrawText("Showing EXACT chess.h logic", info_x, info_y + 25, 14, RL_DARKGRAY);
+    
+    DrawText("Controls:", info_x, info_y + 60, 16, RL_BLACK);
+    DrawText("SPACE - Step through moves", info_x, info_y + 80, 14, RL_DARKGRAY);
+    DrawText("S - Toggle solution display", info_x, info_y + 100, 14, RL_DARKGRAY);
+    DrawText("ESC - Exit", info_x, info_y + 120, 14, RL_DARKGRAY);
+    
+    // Show puzzle info
+    DrawText("Puzzle Info:", info_x, info_y + 160, 16, RL_BLACK);
+    char turn_text[32];
+    snprintf(turn_text, sizeof(turn_text), "Turn: %s", 
+             env.context.board.to_move == C_WHITE ? "WHITE" : "BLACK");
+    DrawText(turn_text, info_x, info_y + 180, 14, RL_DARKGRAY);
+    
+    if (show_solution) {
+      char solution_text[64];
+      snprintf(solution_text, sizeof(solution_text), "Solution: %s", solution_moves[0]);
+      DrawText(solution_text, info_x, info_y + 200, 14, RL_DARKGREEN);
+    }
+    
+    char tries_text[64];
+    snprintf(tries_text, sizeof(tries_text), "Tries: %d", 
+             env.context.puzzle_tries_this_env);
+    DrawText(tries_text, info_x, info_y + 220, 14, RL_DARKGRAY);
+    
+    char steps_text[32];
+    snprintf(steps_text, sizeof(steps_text), "Total steps: %d", total_steps);
+    DrawText(steps_text, info_x, info_y + 240, 14, RL_DARKGRAY);
+    
+    // Show last move and reward
+    if (total_steps > 0) {
+      char move_text[64];
+      snprintf(move_text, sizeof(move_text), "Last move: %s", last_move);
+      DrawText(move_text, info_x, info_y + 280, 14, RL_DARKGRAY);
+      
+      char reward_text[64];
+      snprintf(reward_text, sizeof(reward_text), "Reward: %.2f", last_reward);
+      Color reward_color = (last_reward > 0) ? RL_DARKGREEN : RL_DARKRED;
+      DrawText(reward_text, info_x, info_y + 300, 14, reward_color);
+    }
+    
+    // Show accumulated stats
+    DrawText("Accumulated Stats:", info_x, info_y + 340, 16, RL_BLACK);
+    char failed_text[64];
+    snprintf(failed_text, sizeof(failed_text), "Failed reward: %.2f", 
+             env.context.accumulated_reward_puzzle_failed);
+    DrawText(failed_text, info_x, info_y + 360, 14, RL_DARKRED);
+    
+    char solved_text[64];
+    snprintf(solved_text, sizeof(solved_text), "Solved reward: %.2f", 
+             env.context.accumulated_reward_puzzle_solved);
+    DrawText(solved_text, info_x, info_y + 380, 14, RL_DARKGREEN);
+    
+    // Show if puzzle is complete
+    if (env.context.puzzle_completed) {
+      DrawText("PUZZLE SOLVED!", info_x, info_y + 420, 24, RL_DARKGREEN);
+    } else if (env.terminals[0]) {
+      DrawText("MAX TRIES REACHED", info_x, info_y + 420, 20, RL_DARKRED);
+    }
+    
+    // Debug info - move to right side panel
+    char debug_text[128];
+    snprintf(debug_text, sizeof(debug_text), "Board hash: %llu", 
+             (unsigned long long)env.context.board.zobrist_hash);
+    DrawText(debug_text, info_x, info_y + 460, 12, RL_DARKGRAY);
+    
+    EndDrawing();
+  }
+  
+  // Final summary
+  printf("\n=== FINAL SUMMARY ===\n");
+  printf("Total steps: %d\n", total_steps);
+  printf("Episode terminated: %s\n", env.terminals[0] ? "YES" : "NO");
+  
+  // Get final log data (already added in c_step when puzzle was solved)
+  Log* log = &env.log;
+  printf("\nFinal log data:\n");
+  printf("  - puzzle_attempts: %.0f\n", log->puzzle_attempts);
+  printf("  - puzzle_solved: %.0f\n", log->puzzle_solved);
+  printf("  - puzzle_wrong_moves: %.0f\n", log->puzzle_wrong_moves);
+  printf("  - puzzle_correct_moves: %.0f\n", log->puzzle_correct_moves);
+  printf("  - reward_puzzle_failed: %.4f\n", log->reward_puzzle_failed);
+  printf("  - reward_puzzle_solved: %.4f\n", log->reward_puzzle_solved);
+  printf("  - reward_puzzle_correct_move: %.4f\n", log->reward_puzzle_correct_move);
+  printf("  - episode_return: %.4f\n", log->episode_return);
+  printf("    (return = solved %.4f + failed %.4f + correct %.4f)\n",
+         log->reward_puzzle_solved, log->reward_puzzle_failed, log->reward_puzzle_correct_move);
+  printf("  - episode_length: %.0f (final step_count=%d, complete_game_action_count=%d)\n", 
+         log->episode_length, env.context.step_count, env.context.complete_game_action_count);
+  
+  // Cleanup
+  unload_piece_textures(&textures);
+  CloseWindow();
+  free_allocated(&env);
+  
+  return 0;
+}
+
 int main(int argc, char **argv) {
   srand(time(NULL));
 
@@ -2840,12 +3367,16 @@ int main(int argc, char **argv) {
   } else if (argc > 1 && strcmp(argv[1], "browser") == 0) {
     printf("Starting game browser...\n");
     return game_browser();
+  } else if (argc > 1 && strcmp(argv[1], "puzzle_train") == 0) {
+    printf("Starting puzzle training visualization...\n");
+    return puzzle_train();
   } else {
     printf("Usage:\n");
-    printf("  %s demo     - Interactive chess demo\n", argv[0]);
-    printf("  %s console  - Console chess demo\n", argv[0]);
-    printf("  %s browser  - Browse and view training games\n", argv[0]);
-    printf("  %s          - Run performance test\n", argv[0]);
+    printf("  %s demo         - Interactive chess demo\n", argv[0]);
+    printf("  %s console      - Console chess demo\n", argv[0]);
+    printf("  %s browser      - Browse and view training games\n", argv[0]);
+    printf("  %s puzzle_train - Visualize puzzle training logic\n", argv[0]);
+    printf("  %s              - Run performance test\n", argv[0]);
     printf("\nRunning performance test...\n");
     test_performance(10);
   }

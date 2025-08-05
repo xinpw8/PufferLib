@@ -1,3 +1,4 @@
+# chess.py
 import numpy as np
 import gymnasium
 
@@ -12,18 +13,18 @@ class Chess(pufferlib.PufferEnv):
     """
     
     def __init__(self, num_envs=1, render_mode=None, log_interval=1,
-                 reward_valid=0.01,
-                 reward_invalid_white=-0.01,
-                 reward_invalid_black=-0.01,
-                 reward_white_captures_enemy_piece=0.05,
-                 reward_black_captures_enemy_piece=0.05,
-                 reward_draw=0.0,
-                 reward_win_white=1.0,
-                 reward_win_black=1.0,
-                 reward_loss_white=-1.0,
-                 reward_loss_black=-1.0,
-                 reward_check_white=0.01,
-                 reward_check_black=0.01,
+                 reward_valid=0.0,
+                 reward_invalid_white=0.0,
+                 reward_invalid_black=0.0,
+                 reward_white_captures_enemy_piece=0.0,
+                 reward_black_captures_enemy_piece=0.0,
+                 reward_draw=-0.0,
+                 reward_win_white=0.0,
+                 reward_win_black=0.0,
+                 reward_loss_white=0.0,
+                 reward_loss_black=0.0,
+                 reward_check_white=0.0,
+                 reward_check_black=0.0,
                  max_depth=200,
                  reward_material_diff_white=0.0,
                  reward_material_diff_black=0.0,
@@ -34,11 +35,22 @@ class Chess(pufferlib.PufferEnv):
                  stockfish_search_ms=10,
                  stockfish_hash_mb: int = 4,
                  full_game_logging_frequency=5000000,
-                 buf=None, seed=0, self_play=True, episode_per_color=False):
+                 buf=None, seed=0, self_play=False, episode_per_color=False,
+                 puzzle_mode=False, puzzle_difficulty=1, puzzle_success_threshold=0.9,
+                 puzzle_database_path=None, reward_puzzle_solved=1.0, 
+                 reward_puzzle_failed=-0.1, reward_correct_move=0.5,
+                 puzzle_tries_per_env=10, reward_puzzle_correct_piece=0.01,
+                 reward_puzzle_closer_to_target=0.02, reward_puzzle_correct_promotion=0.01,
+                 moves_per_episode=None, frozen_policy_update_frequency=None):
         
+        self.binding = binding
         # Initialization print removed for performance
-        self.self_play = self_play
-        self.episode_per_color = episode_per_color  # Enable episode-per-color self-play
+        self.puzzle_mode = puzzle_mode  # Set puzzle mode first
+        # moves_per_episode and frozen_policy_update_frequency are ignored in puzzle mode or when not syncing colors/batches
+        # In puzzle mode, force self_play to False
+        self.self_play = self_play if not puzzle_mode else False
+        self.episode_per_color = episode_per_color if not puzzle_mode else False  # No episode-per-color in puzzle mode
+        
         self._active_player = 0  # 0: White's turn, 1: Black's turn
         
         # Episode-per-color segregation for clean advantage estimation
@@ -65,7 +77,13 @@ class Chess(pufferlib.PufferEnv):
             print(f"[Chess] Episode horizon: {self.episode_horizon} steps per episode")
             print(f"[Chess] Frozen policy will update every {self.freeze_policy_every} episodes")
             if self._multiprocessing_mode:
-                print(f"[Chess] WARNING: Multiprocessing detected - using fallback opponent strategy")
+                print(f"[Chess] Multiprocessing detected - using distributed policy coordination")
+        elif self.puzzle_mode:
+            # In puzzle mode, disable all self-play/frozen policy logic
+            self._multiprocessing_mode = False
+            self.frozen_policy = None  
+            self._initial_policy_set = True  # Skip frozen policy initialization
+            print(f"[Chess] Puzzle mode - no self-play or frozen policy needed")
         else:
             # Initialize attributes needed for policy management even when episode_per_color is False
             self._multiprocessing_mode = False
@@ -74,6 +92,9 @@ class Chess(pufferlib.PufferEnv):
         # The number of agents the training framework will see.
         # In self-play, we expose one player per game at a time.
         self.num_agents = num_envs
+        self.num_envs = num_envs  # PuffeRL expects this attribute
+        self.agents_per_batch = num_envs  # PuffeRL expects this for LSTM
+        self.max_depth = max_depth  # Store for debugging
 
         # The number of agent slots required by the C++ backend.
         # In self-play, this is 2 per game (White, Black).
@@ -94,11 +115,25 @@ class Chess(pufferlib.PufferEnv):
 
         # Now, self.observations, self.rewards, etc., are sized for the C++ backend,
         # while self.observation_space and self.action_space are sized for the framework.
+        
+        # Check the actual buffer size allocated
+        actual_num_envs = num_envs
+        if hasattr(self, 'observations'):
+            # Check the actual buffer size allocated by PufferEnv
+            buffer_size = self.observations.shape[0] if hasattr(self.observations, 'shape') else len(self.observations)
+            if buffer_size != num_envs:
+                print(f"[CHESS] Buffer allocated for {buffer_size} envs, but requested {num_envs} envs")
+                actual_num_envs = buffer_size
+        
+        # Update our tracking variables
+        self.num_agents = actual_num_envs
+        self.num_envs = actual_num_envs
+        self.agents_per_batch = actual_num_envs
 
         # Initialize C environments, passing the full buffers
         self.c_envs = binding.vec_init(
             self.observations, self.actions, self.rewards, self.terminals, self.truncations,
-            num_envs,  # This is the number of concurrent games
+            actual_num_envs,  # Use the actual number based on buffer size
             seed,
             reward_valid=reward_valid,
             reward_invalid_white=reward_invalid_white,
@@ -115,6 +150,12 @@ class Chess(pufferlib.PufferEnv):
             max_depth=max_depth,
             reward_material_diff_white=reward_material_diff_white,
             reward_material_diff_black=reward_material_diff_black,
+            reward_puzzle_solved=reward_puzzle_solved,
+            reward_puzzle_failed=reward_puzzle_failed,
+            reward_correct_move=reward_correct_move,
+            reward_puzzle_correct_piece=reward_puzzle_correct_piece,
+            reward_puzzle_closer_to_target=reward_puzzle_closer_to_target,
+            reward_puzzle_correct_promotion=reward_puzzle_correct_promotion,
             debug_disable_mask=debug_disable_mask,
             stockfish_enabled=stockfish_enabled,
             stockfish_elo=stockfish_elo,
@@ -128,6 +169,7 @@ class Chess(pufferlib.PufferEnv):
         if self.self_play:
             binding.vec_set_dual_agent_self_play(self.c_envs)
             # Self-play prints removed for performance
+            
         else:
             # Stockfish mode print removed for performance
             pass
@@ -139,6 +181,220 @@ class Chess(pufferlib.PufferEnv):
         self.games_completed = 0
         self.full_game_logging_frequency = full_game_logging_frequency
         self.last_logged_step = 0
+        
+        # Puzzle system initialization (before using it)
+        self.puzzle_mode = puzzle_mode
+        self.puzzle_difficulty = puzzle_difficulty
+        self.puzzle_success_threshold = puzzle_success_threshold
+        self.puzzle_database_path = puzzle_database_path
+        self.reward_puzzle_solved = reward_puzzle_solved
+        self.reward_puzzle_failed = reward_puzzle_failed
+        self.reward_correct_move = reward_correct_move
+        self.puzzle_tries_per_env = puzzle_tries_per_env
+        
+        # Per-environment puzzle tracking 
+        self.env_puzzle_tries = [0] * num_envs  # Tries per env for current puzzle
+        self.env_puzzle_successes = [0] * num_envs  # Successes per env for current puzzle
+        
+        # Global puzzle tracking - shared across all environments
+        self.global_puzzle_attempts = 0  # Total attempts across all envs for current puzzle
+        self.global_puzzle_successes = 0  # Total successes across all envs for current puzzle
+        self.current_global_puzzle_id = 0  # Which puzzle all envs are working on
+        
+        # Legacy tracking for compatibility
+        self.puzzle_solved_count = 0
+        self.puzzle_total_count = 0
+        self.current_puzzles = []
+        self.puzzle_solutions = []
+        self.puzzle_move_count = []
+        
+        if self.puzzle_mode:
+            self._load_puzzles()
+            self.current_puzzle_index = 0
+            self.puzzle_move_index = 0  # Track progress through current puzzle solution
+            self.current_puzzle_step = 0  # Track progress within current puzzle
+            self.current_puzzle_fen = None
+            self.current_puzzle_solution = []
+            
+            # Enable puzzle mode in C++ backend now that everything is initialized
+            binding.vec_set_puzzle_mode(self.c_envs, True)
+            binding.vec_set_puzzle_difficulty(self.c_envs, puzzle_difficulty)
+            
+            # Set the new puzzle training parameters in C++
+            binding.vec_set_puzzle_training_params(self.c_envs, self.puzzle_tries_per_env, self.puzzle_success_threshold)
+            
+            if len(self.current_puzzles) > 0:
+                print(f"[Chess] Puzzle mode: {len(self.current_puzzles)} puzzles loaded, threshold: {puzzle_success_threshold:.1%}")
+    
+    def _load_puzzles(self):
+        """Load puzzles from JSON files for current difficulty level."""
+        import random
+        import os
+        import json
+        
+        # TEMPORARY: Hard-code a specific puzzle for testing
+        # This puzzle has solution h4h7 (Queen from h4 to h7)
+        hardcoded_puzzle = {
+            'id': 'test_puzzle_h4h7',
+            'puzzle_fen': '6rk/1pr3pp/p5b1/P7/1P5Q/2Bq2P1/5PK1/RB6 w - - 0 1',
+            'solution': ['h4h7']
+        }
+        self.current_puzzles = [hardcoded_puzzle]
+        print(f"[Chess] Using hard-coded puzzle: {hardcoded_puzzle['id']}")
+        print(f"[Chess] FEN: {hardcoded_puzzle['puzzle_fen']}")
+        print(f"[Chess] Solution: {hardcoded_puzzle['solution']}")
+        return
+        
+        # Map difficulty levels to puzzle ratings
+        difficulty_map = {
+            1: 'easy',     # 500-1199 rating
+            2: 'medium',   # 1200-1799 rating
+            3: 'hard',     # 1800-2399 rating
+            4: 'expert'    # 2400+ rating
+        }
+        
+        # Use filtered puzzles directory - they're at chess/filtered_puzzles, not games_database/filtered_puzzles
+        if os.path.isabs(self.puzzle_database_path):
+            # For absolute paths
+            chess_dir = os.path.dirname(os.path.dirname(self.puzzle_database_path))
+            filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
+        else:
+            # For relative paths - go up from games_database to chess dir
+            games_database_dir = os.path.dirname(self.puzzle_database_path)
+            chess_dir = os.path.dirname(games_database_dir)
+            filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
+        
+        # Select difficulty file
+        if self.puzzle_difficulty in difficulty_map:
+            puzzle_file = os.path.join(filtered_dir, f"white_1move_{difficulty_map[self.puzzle_difficulty]}.json")
+        else:
+            # Default to all puzzles if difficulty not mapped
+            puzzle_file = os.path.join(filtered_dir, "white_1move_all.json")
+            
+        # Check if filtered puzzles exist, otherwise use original database
+        if not os.path.exists(puzzle_file):
+            print(f"[Chess] Error: Puzzle file not found: {puzzle_file}")
+            self.current_puzzles = []
+            return
+        
+        try:
+            with open(puzzle_file, 'r') as f:
+                all_puzzles = json.load(f)
+            
+            # Shuffle and select puzzles
+            random.shuffle(all_puzzles)
+            self.current_puzzles = all_puzzles[:1000]  # Limit to 1000 puzzles
+            
+        except Exception as e:
+            print(f"[Chess] Error loading puzzle database: {e}")
+            self.current_puzzles = []
+    
+    
+    def _start_new_puzzle(self):
+        """Start a new puzzle by setting up the position and solution."""
+        if not self.puzzle_mode or not self.current_puzzles:
+            return
+            
+        # Get next puzzle (cycle through available puzzles)
+        puzzle = self.current_puzzles[self.current_puzzle_index % len(self.current_puzzles)]
+        self.current_puzzle_index += 1
+        
+        # Set up puzzle state - use puzzle_fen which is the position AFTER the setup move
+        self.current_puzzle_fen = puzzle['puzzle_fen']  # This is the actual puzzle position
+        self.current_puzzle_solution = puzzle['solution']
+        self.puzzle_move_index = 0
+        
+        # Set puzzle data in C++ backend - this will load FEN and solution
+        import pufferlib.ocean.chess.binding as binding
+        try:
+            binding.vec_set_puzzle_data(self.c_envs, self.current_puzzle_fen, self.current_puzzle_solution)
+            print(f"[Chess] Started puzzle {puzzle['id']}: {self.current_puzzle_fen}")
+            print(f"[Chess] Solution: {self.current_puzzle_solution}")
+        except Exception as e:
+            print(f"[Chess] Error setting puzzle data: {e}")
+    
+    def _check_puzzle_move(self, action_taken):
+        """Check if the action matches the expected puzzle solution move."""
+        if not self.puzzle_mode or not self.current_puzzle_solution:
+            return False, False  # not_puzzle_move, puzzle_complete
+            
+        # Convert action to UCI move (this will need chess engine integration)
+        # For now, assume we have a way to convert action to UCI
+        expected_move = self.current_puzzle_solution[self.puzzle_move_index]
+        
+        # This is a placeholder - we'd need to implement action->UCI conversion
+        # For the basic implementation, we'll assume moves match for now
+        move_correct = True  # Placeholder logic
+        
+        if move_correct:
+            self.puzzle_move_index += 1
+            puzzle_complete = self.puzzle_move_index >= len(self.current_puzzle_solution)
+            return True, puzzle_complete
+        else:
+            return False, False  # Wrong move, puzzle failed
+    
+    def _step_puzzle_mode(self, actions):
+        """
+        Handle puzzle solving - now delegated to optimized C++ implementation.
+        C++ handles all logic: try limits, global coordination, performance metrics.
+        """
+        import numpy as np
+        import pufferlib.ocean.chess.binding as binding
+        
+        print(f"[CHESS.PY DEBUG] _step_puzzle_mode called with actions: {actions}")
+        # Execute the move - C++ handles all puzzle logic efficiently
+        self.actions[0:len(actions)] = actions
+        print(f"[CHESS.PY DEBUG] Calling binding.vec_step()")
+        binding.vec_step(self.c_envs)
+        print(f"[CHESS.PY DEBUG] binding.vec_step() returned")
+        self.tick += 1
+        
+        # Get results from C++
+        obs = self.observations
+        rewards = self.rewards
+        terminals = self.terminals
+        truncations = self.truncations
+        
+        # Handle info logging (reduced frequency for performance)
+        info = []
+        if self.tick % self.log_interval == 0:  # Log less frequently
+            info_dict = binding.vec_log(self.c_envs)
+            if info_dict:  # Only append if we got actual data
+                info.append(info_dict)
+                # Debug: print what stats we're collecting
+                if self.tick % 100 == 0:
+                    print(f"[CHESS DEBUG] tick={self.tick}, info_dict keys: {list(info_dict[0].keys()) if info_dict else 'None'}")
+                # Always print puzzle stats when collected
+                if info_dict and isinstance(info_dict, list) and len(info_dict) > 0:
+                    for env_idx, env_info in enumerate(info_dict):
+                        if isinstance(env_info, dict) and 'puzzle_attempts' in env_info:
+                            print(f"[INFO COLLECTED] tick={self.tick}, env={env_idx}, "
+                                  f"puzzle_attempts={env_info['puzzle_attempts']}, "
+                                  f"puzzle_wrong_moves={env_info['puzzle_wrong_moves']}, "
+                                  f"puzzle_success_rate={env_info.get('puzzle_success_rate', 0)}")
+        
+        return (obs, rewards, terminals, truncations, info)
+    
+    def _advance_to_next_puzzle(self):
+        """Advance all environments to the next puzzle."""
+        # TEMPORARY: Instead of advancing to next puzzle, repeat the same puzzle
+        print(f"[Chess] Puzzle solved! Repeating the same puzzle for easier learning.")
+        
+        # Reset global tracking for the same puzzle
+        self.global_puzzle_attempts = 0
+        self.global_puzzle_successes = 0
+        
+        # Reset per-environment tracking
+        self.env_puzzle_tries = [0] * self.num_envs
+        self.env_puzzle_successes = [0] * self.num_envs
+        
+        # Don't increment puzzle ID or index - keep using the same puzzle
+        # self.current_global_puzzle_id += 1  # COMMENTED OUT
+        # self.current_puzzle_index = (self.current_puzzle_index + 1) % len(self.current_puzzles)  # COMMENTED OUT
+        
+        # Start the same puzzle again on all environments
+        self._start_new_puzzle()
+        print(f"[Chess] All environments now working on puzzle {self.current_global_puzzle_id} (same puzzle)")
     
     def _detect_multiprocessing_mode(self):
         """Detect if we're running in a multiprocessing worker process."""
@@ -353,19 +609,22 @@ class Chess(pufferlib.PufferEnv):
         self.frozen_policy.eval()  # Set to evaluation mode
         
         # Freeze all parameters
-        for param in self.frozen_policy.parameters():
-            param.requires_grad = False
+        if hasattr(self.frozen_policy, 'parameters'):
+            for param in self.frozen_policy.parameters():
+                param.requires_grad = False
         
         # Optimize LSTM memory layout to avoid warning
-        for module in self.frozen_policy.modules():
-            if hasattr(module, 'flatten_parameters'):
-                module.flatten_parameters()
+        if hasattr(self.frozen_policy, 'modules'):
+            for module in self.frozen_policy.modules():
+                if hasattr(module, 'flatten_parameters'):
+                    module.flatten_parameters()
         
         # Initialize LSTM state if the policy has LSTM
         self._initialize_frozen_policy_state()
         
-        # Distribute policy to all workers
-        self._distribute_policy_to_workers(current_policy)
+        # Distribute policy to all workers  
+        if hasattr(current_policy, 'named_parameters'):
+            self._distribute_policy_to_workers(current_policy)
             
         self.policy_update_counter += 1
         self._initial_policy_set = True
@@ -423,7 +682,11 @@ class Chess(pufferlib.PufferEnv):
             obs_tensor = obs_tensor.unsqueeze(0)  # Add batch dimension: [3440] -> [1, 3440]
         
         # Move tensor to same device as policy
-        device = next(self.frozen_policy.parameters()).device
+        if hasattr(self.frozen_policy, 'parameters'):
+            params = list(self.frozen_policy.parameters())
+            device = next(iter(params)).device if params else 'cpu'
+        else:
+            device = 'cpu'
         obs_tensor = obs_tensor.to(device)
         
         # Convert sparse action mask to dense format for neural network
@@ -583,6 +846,10 @@ class Chess(pufferlib.PufferEnv):
     def reset(self, seed=None, fen=None):
         if fen is not None:
             self.set_fen(0, fen)
+            # Still need to call vec_reset to compute legal moves
+            if seed is None:
+                seed = 0
+            binding.vec_reset(self.c_envs, seed)
             self.tick = 0
             self._active_player = 0
             if self.self_play:
@@ -591,6 +858,11 @@ class Chess(pufferlib.PufferEnv):
                 return white_obs, []
             return self.observations, []
 
+        # In puzzle mode, start a new puzzle instead of standard reset
+        if self.puzzle_mode:
+            self.current_puzzle_step = 0  # Reset puzzle progress
+            self._start_new_puzzle()
+            
         if seed is None:
             seed = 0
         binding.vec_reset(self.c_envs, seed)
@@ -728,6 +1000,12 @@ class Chess(pufferlib.PufferEnv):
         - Episode 1: Neural network plays BLACK, frozen policy plays WHITE
         - Episodes alternate to ensure clean advantage computation boundaries
         """
+        print(f"[CHESS.PY DEBUG] step() called with actions: {actions}")
+        # Puzzle mode: validate move and terminate episode immediately
+        if self.puzzle_mode:
+            print(f"[CHESS.PY DEBUG] Puzzle mode enabled, calling _step_puzzle_mode")
+            return self._step_puzzle_mode(actions)
+            
         # Ensure frozen policy exists if episode-per-color is enabled
         self._ensure_frozen_policy_exists()
         if not self.self_play:
@@ -923,6 +1201,12 @@ class Chess(pufferlib.PufferEnv):
                 print(f"[Chess] Warning: Error closing C environments: {e}")
             finally:
                 self.c_envs = None
+    
+    def notify(self):
+        """Handle notifications from multiprocessing backend."""
+        # In puzzle mode or regular mode, we don't need policy updates
+        # This method is required by the multiprocessing backend
+        pass
     
     def print_profiling_data(self):
         try:

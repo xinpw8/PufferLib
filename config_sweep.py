@@ -137,29 +137,21 @@ class ChessSweep:
         """Create a new config file with modified parameters"""
         config = self.load_base_config()
         
-        # Apply parameter changes
+        # Apply parameter changes with constraint validation
         for param_name, value in params.items():
             section, key = param_name.split('_', 1)
             if section in config:
                 config[section][key] = str(value)
-                
-                # Special handling for env.num_envs - also update vec.num_envs  
-                if section == 'env' and key == 'num_envs':
-                    # The working config has vec.num_envs = vec.num_workers = 4
-                    # This suggests vec.num_envs should equal num_workers for multiprocessing
-                    num_workers = int(config['vec']['num_workers'])
-                    config['vec']['num_envs'] = str(num_workers)
-                    
-                    # Check that env.num_envs is reasonable for the number of workers
-                    envs_per_worker = int(value) // num_workers
-                    print(f"[RUN {run_id}] Auto-set vec.num_envs = {num_workers} (env.num_envs = {value}, {envs_per_worker} envs/worker)")
                     
             else:
                 print(f"[RUN {run_id}] WARNING: Section '{section}' not found for param {param_name}")
         
-        # Set shorter timesteps for sweep testing
-        # Need at least batch_size timesteps to avoid division by zero
-        config['train']['total_timesteps'] = '65536'
+        # Use timesteps from base config or sweep parameters
+        
+        # Update vec.num_envs to match workers
+        num_workers = int(config['vec']['num_workers'])
+        config['vec']['num_envs'] = str(num_workers)
+        print(f"[RUN {run_id}] Using config: num_envs={config['env']['num_envs']}, batch_size={config['train']['batch_size']}, bptt_horizon={config['train']['bptt_horizon']}")
         
         # Create unique config file for this run
         config_filename = f"sweep_run_{run_id:03d}.ini"
@@ -182,12 +174,13 @@ class ChessSweep:
             bptt_horizon = int(config['train']['bptt_horizon'])
             minibatch_size = int(config['train']['minibatch_size'])
             
-            total_agents = env_num_envs * 2  # Chess has 2 agents per env
+            # For chess, each environment has 2 agents (white and black)
+            total_agents = env_num_envs * 2
             segments = batch_size // bptt_horizon
             
-            # Check critical parameter relationships
+            # CRITICAL: Check PufferLib constraint - total_agents must be <= segments
             if total_agents > segments:
-                return False, f"Total agents {total_agents} > segments {segments}"
+                return False, f"INVALID: total_agents {total_agents} > segments {segments} (batch_size={batch_size}, bptt_horizon={bptt_horizon})"
                 
             if minibatch_size > batch_size:
                 return False, f"Minibatch size {minibatch_size} > batch size {batch_size}"
@@ -367,17 +360,26 @@ class ChessSweep:
         for run_id in range(1, num_runs + 1):
             print(f"\n📋 Generating config for run {run_id}/{num_runs}")
             
-            # Generate parameters and create config
-            params = self.generate_sweep_params(run_id)
-            config_path = self.create_sweep_config(params, run_id)
-            
-            # Validate the generated config
-            is_valid, validation_msg = self.validate_config(config_path)
-            if not is_valid:
-                print(f"[RUN {run_id}] ❌ Invalid config: {validation_msg}")
+            # Retry logic to generate valid parameters
+            max_retries = 10
+            for attempt in range(max_retries):
+                # Generate parameters and create config
+                params = self.generate_sweep_params(run_id)
+                config_path = self.create_sweep_config(params, run_id)
+                
+                # Validate the generated config
+                is_valid, validation_msg = self.validate_config(config_path)
+                if is_valid:
+                    print(f"[RUN {run_id}] ✅ Generated valid config: {validation_msg}")
+                    break
+                else:
+                    print(f"[RUN {run_id}] ⚠️ Attempt {attempt+1}/{max_retries} - Invalid config: {validation_msg}")
+                    if attempt == max_retries - 1:
+                        print(f"[RUN {run_id}] ❌ Failed to generate valid config after {max_retries} attempts")
+                        continue
+            else:
+                # If we've exhausted all retries, skip this run
                 continue
-            
-            print(f"[RUN {run_id}] ✅ Generated valid config: {validation_msg}")
             
             # Run training
             success, elapsed, stdout, stderr = self.run_training_with_config(
@@ -528,11 +530,13 @@ if __name__ == "__main__":
             sorted_runs = sorted(runs_with_scores, key=lambda x: x['protein_score'], reverse=True)
             for i, run in enumerate(sorted_runs[:3]):
                 print(f"  {i+1}. Run {run['run_id']}: score={run['protein_score']:.3f}, time={run['elapsed_time']:.1f}s")
-        elif successful:
-            print(f"\n🏆 Completed runs (ranked by time, no Protein scores available):")
-            sorted_runs = sorted(successful, key=lambda x: x['elapsed_time'])
-            for i, run in enumerate(sorted_runs[:3]):
-                print(f"  {i+1}. Run {run['run_id']}: {run['elapsed_time']:.1f}s")
+        else:
+            successful_runs = [r for r in results if r['success']]
+            if successful_runs:
+                print(f"\n🏆 Completed runs (ranked by time, no Protein scores available):")
+                sorted_runs = sorted(successful_runs, key=lambda x: x['elapsed_time'])
+                for i, run in enumerate(sorted_runs[:3]):
+                    print(f"  {i+1}. Run {run['run_id']}: {run['elapsed_time']:.1f}s")
                 
     except KeyboardInterrupt:
         print("\n⚠️ Sweep interrupted by user")

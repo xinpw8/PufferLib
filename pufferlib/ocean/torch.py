@@ -12,11 +12,28 @@ import torch.nn.functional as F
 import pufferlib
 import pufferlib.models
 
-from pufferlib.models import LSTMWrapper as Recurrent
+from pufferlib.models import LSTMWrapper
 from pufferlib.models import Default as _OldDefault
 
 from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
+
+
+class Recurrent(LSTMWrapper):
+    """LSTM wrapper that properly handles Default policy's hidden size."""
+    def __init__(self, env, policy, input_size=None, hidden_size=None, **kwargs):
+        # If sizes not specified, infer from the policy
+        if input_size is None:
+            # Default policy outputs 256-dim hidden states
+            if hasattr(policy, 'hidden_size'):
+                input_size = policy.hidden_size
+            else:
+                input_size = 256  # Default policy's hidden size
+                
+        if hidden_size is None:
+            hidden_size = input_size
+            
+        super().__init__(env, policy, input_size=input_size, hidden_size=hidden_size)
 
 
 class Boids(nn.Module):
@@ -52,7 +69,7 @@ class Boids(nn.Module):
         action = self.actor(flat_hidden).split(self.action_vec, dim=1)
         return action, value
 
-class NMMO3LSTM(pufferlib.models.LSTMWrapper):
+class NMMO3LSTM(Recurrent):
     def __init__(self, env, policy, input_size=512, hidden_size=512):
         super().__init__(env, policy, input_size, hidden_size)
 
@@ -865,205 +882,162 @@ class GPUDrive(nn.Module):
         action = torch.split(action, self.atn_dim, dim=1)
         value = self.value_fn(flat_hidden)
         return action, value
-
-# class ChessLSTM(Recurrent):
-#     def __init__(self, env, policy, input_size, hidden_size):
-#         super().__init__(env, policy, input_size, hidden_size)
-
-# class ChessRecurrent(nn.Module):
-#     """Optimized MLP encoder/decoder for chess observations with UCI action space."""
-#     def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
-#         super().__init__()
-#         # Simple MLP encoder for flattened chess board (much faster than CNN)
-#         self.board_encoder = nn.Sequential(
-#             nn.Linear(1472, 512),  # 23 * 8 * 8 = 1472
-#             nn.ReLU(),
-#             nn.Linear(512, 256),
-#             nn.ReLU()
-#         )
-#         # Combiner projects board_features to hidden state
-#         self.combiner = nn.Sequential(
-#             nn.Linear(256, hidden_size),
-#             nn.ReLU()
-#         )
-#         # Output heads for UCI action space
-#         self.policy_head = nn.Linear(hidden_size, num_actions)
-#         self.value_head = nn.Sequential(
-#             nn.Linear(hidden_size, 128),
-#             nn.ReLU(),
-#             nn.Linear(128, 1)
-#         )
-#         self.is_continuous = False
-#         self.is_multidiscrete = False
-#         self.action_size = num_actions
-
-#     def encode_observations(self, obs, state=None):
-#         # For LSTM compatibility, we only encode board features here
-#         # Mask will be handled in the LSTM wrapper's forward method
-#         board_state = obs[:, :1472]  # 23 channels * 8 * 8 = 1472 (flattened)
-#         board_features = self.board_encoder(board_state)
-#         hidden = self.combiner(board_features)
-#         return hidden
-
-#     def get_action(self, obs, temperature=1.0):
-#         """Get action with proper UCI-based legal action masking"""
-        
-#         # 1. Get legal actions from the legal mask in observations
-#         legal_mask = obs[:, 1472:3440]  # 1968 UCI legal move mask
-#         legal_actions = torch.where(legal_mask[0] > 0.5)[0]
-        
-#         if len(legal_actions) == 0:
-#             # No legal moves - should not happen in normal chess
-#             print("WARNING: No legal actions available!")
-#             return 0
-        
-#         # 2. Create action mask (CRITICAL!)
-#         action_mask = torch.zeros(self.action_size, device=obs.device)
-#         action_mask[legal_actions] = 1.0
-        
-#         # 3. Get network output (logits)
-#         board_state = obs[:, :1344]
-#         board_features = self.board_encoder(board_state)
-#         hidden = self.combiner(board_features)
-#         logits = self.policy_head(hidden)
-        
-#         # 4. Apply mask to PREVENT illegal actions
-#         # Method 1: Set illegal action logits to -infinity
-#         masked_logits = logits.clone()
-#         masked_logits[0, action_mask == 0] = float('-inf')
-        
-#         # 5. Sample action (now guaranteed to be legal)
-#         probs = F.softmax(masked_logits / temperature, dim=-1)
-#         action = torch.multinomial(probs, 1).item()
-        
-#         return action
-
-#     # File: pufferlib/ocean/torch.py
-#     # Inside the ChessRecurrent class
-
-#     def decode_actions(self, hidden, legal_mask):
-#         # Get raw logits for UCI actions
-#         raw_logits = self.policy_head(hidden)
-#         print(f"[POLICY DIAGNOSTIC] decode_actions called.")
-
-#         # --- START OF NEW DIAGNOSTIC ---
-#         # Add a check that only runs once to avoid spamming the log
-#         if not hasattr(self, '_mask_printed'):
-#             num_legal_moves = torch.sum(legal_mask).item()
-#             print(f"[POLICY DIAGNOSTIC] decode_actions received legal_mask.")
-#             print(f"[POLICY DIAGNOSTIC] Mask shape: {legal_mask.shape}, Num legal moves in mask: {num_legal_moves}")
-#             # Print a small sample of the mask
-#             print(f"[POLICY DIAGNOSTIC] Mask sample (first 10): {legal_mask[0, :10]}")
-#             self._mask_printed = True
-#         # --- END OF NEW DIAGNOSTIC ---
-
-#         # Optimized vectorized masking
-#         masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
-
-#         value = self.value_head(hidden).squeeze(-1)
-
-#         return masked_logits, value
-
-#     # def decode_actions(self, hidden, legal_mask):
-#     #     # Get raw logits for UCI actions
-#     #     raw_logits = self.policy_head(hidden)
-        
-#     #     # Optimized vectorized masking: convert legal_mask (0/1) to -inf/0 mask
-#     #     # Where legal_mask==0, we want -inf; where legal_mask==1, we want 0 (no change)
-#     #     masked_logits = raw_logits.masked_fill(legal_mask < 0.5, -1e8)
-        
-#     #     value = self.value_head(hidden).squeeze(-1)
-        
-#     #     return masked_logits, value
-
-#     def forward(self, obs, state=None):
-#         # This forward is used during non-LSTM inference
-#         # Extract components
-#         board_state = obs[:, :1344]
-#         legal_mask = obs[:, 1472:3440]  # 1968 UCI actions
-        
-#         # Encode board with MLP
-#         board_features = self.board_encoder(board_state)
-#         hidden = self.combiner(board_features)
-        
-#         # Decode with proper masking
-#         logits, value = self.decode_actions(hidden, legal_mask)
-
-#         return logits, value
-
-
-class ChessLSTM(Recurrent):
-    def __init__(self, env, policy, input_size, hidden_size):
+    
+    
+class ChessConvLSTM(Recurrent):
+    def __init__(self, env, policy, input_size=256, hidden_size=256):
         super().__init__(env, policy, input_size, hidden_size)
 
-class ChessRecurrent(nn.Module):
-    """Optimized MLP encoder/decoder for chess observations with UCI action space."""
-    def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
+class ChessConvRecurrent(nn.Module):
+    """CNN-based chess model inspired by the Go implementation"""
+    def __init__(self, env=None, cnn_channels=64, hidden_size=256, num_actions=1968, **kwargs):
         super().__init__()
-        # Simple MLP encoder for flattened chess board (much faster than CNN)
-        self.board_encoder = nn.Sequential(
-            nn.Linear(1472, 512),  # 23 * 8 * 8 = 1472
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU()
-        )
-        # Combiner projects board_features to hidden state
-        self.combiner = nn.Sequential(
-            nn.Linear(256, hidden_size),
-            nn.ReLU()
-        )
-        # Output heads for UCI action space
-        self.policy_head = nn.Linear(hidden_size, num_actions)
-        self.value_head = nn.Sequential(
-            nn.Linear(hidden_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1)
-        )
+        self.hidden_size = hidden_size
         self.is_continuous = False
+        
+        # Chess board has 23 channels (piece types + game state)
+        # We'll reshape the flat 1472 observation to 23x8x8
+        self.cnn = nn.Sequential(
+            layer_init(nn.Conv2d(23, cnn_channels, 3, stride=1, padding=1)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(cnn_channels, cnn_channels * 2, 3, stride=1, padding=1)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(cnn_channels * 2, cnn_channels * 2, 3, stride=1, padding=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        
+        # Calculate CNN output size: 128 channels * 8 * 8
+        cnn_flat_size = (cnn_channels * 2) * 8 * 8
+        
+        # Additional features beyond board state (if any)
+        # For now just project CNN features to hidden size
+        self.proj = layer_init(nn.Linear(cnn_flat_size, hidden_size))
+        
+        # Policy and value heads
+        self.policy_head = layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
+        self.value_head = nn.Sequential(
+            layer_init(nn.Linear(hidden_size, 128)),
+            nn.ReLU(),
+            layer_init(nn.Linear(128, 1), std=1)
+        )
+        
         self.is_multidiscrete = False
         self.action_size = num_actions
-
+        
+        # Store last observation for legal mask extraction
+        self._last_obs = None
+    
     def encode_observations(self, obs, state=None):
-        # For LSTM compatibility, we only encode board features here
-        # Handle both 1D and 2D tensor inputs
+        """Encode observations using CNN on board representation"""
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
-        board_state = obs[:, :1472].float()
-        board_features = self.board_encoder(board_state)
-        hidden = self.combiner(board_features)
+        
+        # Store full observation for legal mask extraction in decode_actions
+        self._last_obs = obs
+        
+        batch_size = obs.shape[0]
+        
+        # Extract board state and reshape to 2D
+        # Chess uses 23 planes (1472 = 23 * 8 * 8)
+        board_state = obs[:, :1472].view(batch_size, 23, 8, 8).float()
+        
+        # Pass board through CNN
+        cnn_features = self.cnn(board_state)
+        
+        # Project to hidden size
+        hidden = F.relu(self.proj(cnn_features))
+        
         return hidden
-
-    def decode_actions(self, hidden, legal_mask):
+    
+    def decode_actions(self, hidden, legal_mask=None):
+        """Decode actions with legal move masking"""
+        # If legal_mask not provided, extract from stored observations
+        if legal_mask is None and self._last_obs is not None:
+            legal_mask = self._extract_legal_mask(self._last_obs)
+        
         # Get raw logits for UCI actions
         raw_logits = self.policy_head(hidden)
         
         # Apply masking: set invalid actions to -inf
-        masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+        if legal_mask is not None:
+            masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+        else:
+            masked_logits = raw_logits
         
         value = self.value_head(hidden).squeeze(-1)
         
         return masked_logits, value
-
-
+    
+    def _extract_legal_mask(self, obs):
+        """Extract legal mask from observation tensor"""
+        batch_size = obs.shape[0]
+        legal_mask = torch.zeros(batch_size, self.action_size, device=obs.device)
+        
+        # Process each batch element
+        for batch_idx in range(batch_size):
+            num_uint32_values = int(obs[batch_idx, 1472].item())
+            num_bitfields = num_uint32_values // 2
+            
+            # Process each bitfield (stored as pairs of uint32)
+            for field_idx in range(num_bitfields):
+                # Reconstruct uint64 from two uint32 values
+                low = int(obs[batch_idx, 1473 + field_idx * 2].item())
+                high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
+                bitfield = (high << 32) | low
+                
+                # Set bits for legal actions
+                for bit_idx in range(64):
+                    if bitfield & (1 << bit_idx):
+                        action_idx = field_idx * 64 + bit_idx
+                        if action_idx < self.action_size:
+                            legal_mask[batch_idx, action_idx] = 1.0
+        
+        return legal_mask
+    
     def forward(self, obs, state=None):
-        # Non-LSTM inference path
+        """Forward pass for non-LSTM inference"""
+        print(f"[TORCH.PY DEBUG] ChessConvRecurrent.forward() called with obs shape: {obs.shape}")
         hidden = self.encode_observations(obs[:, :1472])
-        # Convert sparse mask to dense format using GPU operations
-        # Fixed import
-        import sys
-        import os
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'chess'))
-        import sparse_utils
-        sparse_to_dense_gpu = sparse_utils.sparse_to_dense_gpu
-        legal_mask = sparse_to_dense_gpu(obs)
+        print(f"[TORCH.PY DEBUG] encode_observations returned hidden shape: {hidden.shape}")
+        
+        # Convert sparse bitfield mask to dense format
+        # NEW FORMAT: [num_uint32_values] + [low_0, high_0, low_1, high_1, ...]
+        # Each pair of uint32 values represents one uint64 bitfield
+        batch_size = obs.shape[0]
+        legal_mask = torch.zeros(batch_size, self.action_size, device=obs.device)
+        
+        # Process each batch element
+        for batch_idx in range(batch_size):
+            num_uint32_values = int(obs[batch_idx, 1472].item())
+            num_bitfields = num_uint32_values // 2
+            
+            # Process each bitfield (stored as pairs of uint32)
+            for field_idx in range(num_bitfields):
+                # Reconstruct uint64 from two uint32 values
+                low = int(obs[batch_idx, 1473 + field_idx * 2].item())
+                high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
+                bitfield = (high << 32) | low
+                
+                # Set bits for legal actions
+                for bit_idx in range(64):
+                    if bitfield & (1 << bit_idx):
+                        action_idx = field_idx * 64 + bit_idx
+                        if action_idx < self.action_size:
+                            legal_mask[batch_idx, action_idx] = 1.0
+        
         logits, value = self.decode_actions(hidden, legal_mask)
+        print(f"[TORCH.PY DEBUG] decode_actions returned logits shape: {logits.shape}, value shape: {value.shape}")
+        print(f"[TORCH.PY DEBUG] forward() completed")
         return logits, value
 
-def Policy(env, **kwargs):
-    """Factory returning the appropriate policy for the given environment."""
+
+def ChessConvPolicy(env, **kwargs):
+    """Factory for CNN-based chess policy"""
     hidden_size = kwargs.pop('hidden_size', 256)
-    base = ChessRecurrent(env, hidden_size=hidden_size)
-    return ChessLSTM(env, base, input_size=hidden_size, hidden_size=hidden_size)
+    cnn_channels = kwargs.pop('cnn_channels', 64)
+    base = ChessConvRecurrent(env, cnn_channels=cnn_channels, hidden_size=hidden_size)
+    return ChessConvLSTM(env, base, input_size=hidden_size, hidden_size=hidden_size)
 
         
 class Tetris(nn.Module):
@@ -1288,13 +1262,13 @@ class Drone(nn.Module):
 def Policy(env, **kwargs):
     """Factory returning the appropriate policy for the given environment.
 
-    If the observation matches the chess shape (3312,) we build a
+    If the observation matches the chess shape (1537,) we build a
     ChessRecurrent model and wrap it with the generic LSTMWrapper so that
     temporal batching works out of the box. Otherwise we fall back to the
     legacy Default policy so existing non-chess environments remain
     functional.
     """
-    # Chess: obs = 1472 board planes + 1968 legal-move mask
+    # Chess: obs = 1472 board planes + sparse legal-move mask
     try:
         is_chess = (len(env.single_observation_space.shape) == 1 and
                     env.single_observation_space.shape[0] == 1537)
@@ -1306,4 +1280,6 @@ def Policy(env, **kwargs):
         base = ChessRecurrent(env, hidden_size=hidden_size)
         return Recurrent(env, base, input_size=hidden_size, hidden_size=hidden_size)
     else:
+        # For non-chess environments using Default policy
+        # Default policy outputs 256-dim hidden states
         return _OldDefault(env, **kwargs)

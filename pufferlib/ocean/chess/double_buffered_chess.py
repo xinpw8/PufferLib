@@ -28,7 +28,7 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
     one specific color in this episode."
     """
     
-    def __init__(self, num_envs=1, moves_per_episode=8, buf=None, seed=None, **kwargs):
+    def __init__(self, num_envs=1, moves_per_episode=8, buf=None, seed=None, puzzle_tries_per_env=10, **kwargs):
         """
         Args:
             num_envs: Number of parallel chess games
@@ -43,11 +43,14 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
         
         # Extract and override conflicting parameters
         chess_kwargs = kwargs.copy()
-        chess_kwargs['self_play'] = True  # Force self-play
-        chess_kwargs['episode_per_color'] = False  # Disable base env episode management - wrapper handles it
+        # Respect config settings instead of forcing
+        chess_kwargs['self_play'] = kwargs.get('self_play', False)
+        chess_kwargs['episode_per_color'] = False  # Base env shouldn't handle this - wrapper does
         
         # Remove DoubleBufferedChess-specific parameters that Chess doesn't understand
         chess_kwargs.pop('frozen_policy_update_frequency', None)
+        # Pass through puzzle parameters
+        chess_kwargs['puzzle_tries_per_env'] = puzzle_tries_per_env
         
         self.base_env = Chess(
             num_envs=num_envs, 
@@ -58,6 +61,7 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
         
         self.num_envs = num_envs
         self.num_agents = num_envs  # Required by vector backend
+        self.agents_per_batch = num_envs  # PuffeRL expects this for LSTM
         self.moves_per_episode = moves_per_episode
         
         # Copy observation and action spaces from base environment
@@ -68,7 +72,7 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
         super().__init__(buf=buf)
         
         # Expose episode_per_color attribute for training loop detection
-        self.episode_per_color = True
+        self.episode_per_color = kwargs.get('episode_per_color', False)
         
         # Episode tracking
         self.current_episode_color = 0  # 0: WHITE episode, 1: BLACK episode
@@ -132,8 +136,8 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
                 if legal_mask.dim() == 1:
                     legal_mask = legal_mask.unsqueeze(0)
             else:
-                print("[DEBUG] Unknown observation format, using fallback")
-                return self._get_heuristic_action(observation)
+                print("[ERROR] Unknown observation format! This should never happen!")
+                raise ValueError(f"Unknown observation format with shape {observation.shape}")
         else:
             # Create dense mask from sparse representation
             legal_mask_np = np.zeros(1968, dtype=np.float32)
@@ -257,6 +261,9 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
         Returns episode data only when the current episode is complete.
         Each episode contains moves from only one color.
         """
+        # If not using episode-per-color mode, just pass through
+        if not self.episode_per_color:
+            return self.base_env.step(actions)
         # Determine whose turn it is in the actual game
         white_to_move = (self.game_move_count % 2) == 0
         
@@ -374,6 +381,10 @@ class DoubleBufferedChess(pufferlib.PufferEnv):
     
     def notify(self):
         """Handle notifications from multiprocessing backend (e.g., policy updates)."""
+        # Skip frozen policy updates in puzzle mode
+        if hasattr(self.base_env, 'puzzle_mode') and self.base_env.puzzle_mode:
+            return
+            
         import tempfile
         import os
         import torch

@@ -35,23 +35,19 @@ from torch.utils.cpp_extension import (
     CUDA_HOME,
 )
 
-
-VERSION = "2.0.6"
-
 # Build with DEBUG=1 to enable debug symbols
 DEBUG = os.getenv("DEBUG", "0") == "1"
+NO_OCEAN = os.getenv("NO_OCEAN", "0") == "1"
+NO_TRAIN = os.getenv("NO_TRAIN", "0") == "1"
 
 # Build raylib for your platform
 RAYLIB_URL = 'https://github.com/raysan5/raylib/releases/download/5.5/'
 RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
 RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 
-# Define the path to libchess.so relative to this setup.py file
-# LIBCHESS_SO_PATH = os.path.join(os.path.dirname(__file__), 'libchess.so')
-# print(f"LIBCHESS_SO_PATH: {LIBCHESS_SO_PATH}") # Debugging print statement
-
 def download_raylib(platform, ext):
     if not os.path.exists(platform):
+        print(f'Downloading Raylib {platform}')
         urllib.request.urlretrieve(RAYLIB_URL + platform + ext, platform + ext)
         if ext == '.zip':
             with zipfile.ZipFile(platform + ext, 'r') as zip_ref:
@@ -63,12 +59,31 @@ def download_raylib(platform, ext):
         os.remove(platform + ext)
         urllib.request.urlretrieve(RLIGHTS_URL, platform + '/include/rlights.h')
 
-download_raylib('raylib-5.5_webassembly', '.zip')
+if not NO_OCEAN:
+    download_raylib('raylib-5.5_webassembly', '.zip')
+
+BOX2D_URL = 'https://github.com/capnspacehook/box2d/releases/latest/download/'
+BOX2D_NAME = 'box2d-macos-arm64' if platform.system() == "Darwin" else 'box2d-linux-amd64'
+
+def download_box2d(platform):
+    if not os.path.exists(platform):
+        ext = ".tar.gz"
+
+        print(f'Downloading Box2D {platform}')
+        urllib.request.urlretrieve(BOX2D_URL + platform + ext, platform + ext)
+        with tarfile.open(platform + ext, 'r') as tar_ref:
+            tar_ref.extractall()
+
+        os.remove(platform + ext)
+
+if not NO_OCEAN:
+    download_box2d('box2d-web')
 
 # Shared compile args for all platforms
 extra_compile_args = [
     '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
     '-DPLATFORM_DESKTOP',
+    '-fpermissive',
 ]
 extra_link_args = [
     '-fwrapv'
@@ -122,7 +137,8 @@ if system == 'Linux':
     extra_link_args += [
         '-Bsymbolic-functions',
     ]
-    download_raylib('raylib-5.5_linux_amd64', '.tar.gz')
+    if not NO_OCEAN:
+        download_raylib('raylib-5.5_linux_amd64', '.tar.gz')
 elif system == 'Darwin':
     extra_compile_args += [
         '-Wno-error=int-conversion',
@@ -134,9 +150,13 @@ elif system == 'Darwin':
         '-framework', 'OpenGL',
         '-framework', 'IOKit',
     ]
-    download_raylib('raylib-5.5_macos', '.tar.gz')
+    if not NO_OCEAN:
+        download_raylib('raylib-5.5_macos', '.tar.gz')
 else:
     raise ValueError(f'Unsupported system: {system}')
+
+if not NO_OCEAN:
+    download_box2d(BOX2D_NAME)
 
 # Default Gym/Gymnasium/PettingZoo versions
 # Gym:
@@ -161,6 +181,7 @@ environments = {
     'atari': [
         f'gym=={GYM_VERSION}',
         f'gymnasium[accept-rom-license]=={GYMNASIUM_VERSION}',
+        'opencv-python==3.4.17.63',
         'ale_py==0.9.0',
     ],
     'box2d': [
@@ -290,9 +311,16 @@ environments = {
     'procgen': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
+        'stable_baselines3==2.1.0',
         'procgen-mirror==0.10.7', # Procgen mirror for 3.11 and 3.12 support
         # Note: You need glfw==2.7 after installing for some torch versions
     ],
+    #'smac': [
+    #    'git+https://github.com/oxwhirl/smac.git',
+    #],
+    #'stable-retro': [
+    #    'git+https://github.com/Farama-Foundation/stable-retro.git',
+    #]
     'slimevolley': [
         f'gym=={GYM_VERSION}',
         f'gymnasium=={GYMNASIUM_VERSION}',
@@ -300,6 +328,7 @@ environments = {
     ],
     'vizdoom': [
         'vizdoom==1.2.3',
+        'stable_baselines3==2.1.0',
     ],
 }
 
@@ -312,20 +341,14 @@ docs = [
     'furo==2023.3.27',
 ]
 
-train = [
-    'stable_baselines3==2.1.0',
-    'tensorboard==2.11.2',
-    'torch',
-    'tyro==0.8.6',
-    'wandb==0.19.1',
-    'scipy',
-    'pyro-ppl',
-    'neptune',
-    'heavyball',
-]
-
 ray = [
     'ray==2.23.0',
+]
+
+cleanrl = [
+    'stable_baselines3==2.1.0',
+    'tensorboard==2.11.2',
+    'tyro==0.8.6',
 ]
 
 # These are the environments that PufferLib has made
@@ -334,7 +357,7 @@ ray = [
 # We force updated versions of Gym/Gymnasium/PettingZoo here to
 # ensure that users do not have issues with conflicting versions
 # when switching to incompatible environments
-common = train + [environments[env] for env in [
+common = [environments[env] for env in [
     'atari',
     #'box2d',
     'bsuite',
@@ -379,7 +402,7 @@ class TorchBuildExt(cpp_extension.BuildExtension):
         super().run()
 
 RAYLIB_A = f'{RAYLIB_NAME}/lib/libraylib.a'
-INCLUDE = [numpy.get_include(), 'raylib/include']
+INCLUDE = [numpy.get_include(), 'raylib/include', f'{BOX2D_NAME}/include', f'{BOX2D_NAME}/src']
 extension_kwargs = dict(
     include_dirs=INCLUDE,
     extra_compile_args=extra_compile_args,
@@ -387,103 +410,104 @@ extension_kwargs = dict(
     extra_objects=[RAYLIB_A],
 )
 
-# ============================================================================
-# BUILD CONFIGURATION - EXCLUDES CHESS
-# ============================================================================
-# This setup has been modified to compile all environments EXCEPT chess.
-# Chess requires special handling and should be built separately.
-# ============================================================================
-
-# Put C env names here. PufferLib will look for
-# pufferlib/ocean/<name>/binding.c
-c_extensions_names = [
-    'gpudrive',
-    'squared',
-    'pong',
-    'boids',
-    'breakout',
-    'enduro',
-    'blastar',
-    'grid',
-    'nmmo3',
-    'tactical',
-    'connect4',
-    'go',
-    'cartpole'
-]
-
 # TODO: Include other C files so rebuild is auto?
-c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
-# EXCLUDE environments with issues: impulse_wars and rocket_lander (Box2D dependency)
-c_extension_paths = [path for path in c_extension_paths 
-                     if 'impulse_wars' not in path and 'rocket_lander' not in path]
-# Build all C extensions normally
-c_extensions = [
-    Extension(
-        path.rstrip('.c').replace('/', '.'),
-        sources=[path],
-        **extension_kwargs,
+c_extensions = []
+if not NO_OCEAN:
+    c_extension_paths = (
+        glob.glob('pufferlib/ocean/chess/binding.c', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/chess/binding.c', recursive=True) +
+        glob.glob('pufferlib/ocean/chess/binding.cpp', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/chess/binding.cpp', recursive=True)
     )
-    for path in c_extension_paths
-]
+    
+    # Filter out backup directories
+    c_extension_paths = [p for p in c_extension_paths if 'backup' not in p]
 
-# C++ extensions that need g++ compiler
-cpp_extension_paths = glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True)
-# EXCLUDE CHESS from C++ extensions
-cpp_extension_paths = [path for path in cpp_extension_paths if 'chess' not in path]
+    for path in c_extension_paths:
+        ext_dir  = os.path.dirname(path)
+        ext_name = os.path.splitext(path)[0].replace('/', '.')
 
-# Find Abseil static libraries for chess
-def find_abseil_libs():
-    abseil_dir = os.path.join(os.path.dirname(__file__), '..', 'open_spiel_src', 'open_spiel', 'abseil-cpp', 'build')
-    if os.path.exists(abseil_dir):
-        return glob.glob(f'{abseil_dir}/**/*.a', recursive=True)
-    return []
+        # Collect all C/C++ translation units in the same directory so
+        # symbols defined outside binding.c/cpp (e.g., enable_stockfish_black)
+        # are linked into the shared object.
+        extra_sources = []
+        for pattern in ('*.cpp', '*.c'):
+            for p in glob.glob(os.path.join(ext_dir, pattern)):
+                # The standalone chess.cpp contains a full GUI + main() and
+                # re-defines every symbol from chess.h.  Including it in the
+                # Python extension causes duplicate-symbol link errors.
+                if 'chess.cpp' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.c already includes chess.h
+                # Skip chess_original.cpp as it also re-defines symbols from chess.h
+                if 'chess_original.cpp' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.c already includes chess.h
+                # Skip the problematic c_plus_plus_chess_full_impl_not_updated.cpp
+                if 'c_plus_plus_chess_full_impl_not_updated.cpp' in p:
+                    continue  # skip – has missing dependencies
+                # Skip chess.c as it conflicts with chess.h included in binding.cpp
+                if 'chess.c' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.cpp already includes chess.h
+                # Skip game_replay_tool.cpp as it's a standalone executable
+                if 'game_replay_tool.cpp' in p:
+                    continue  # skip – standalone tool with main()
+                if p == path:
+                    continue  # never re-add binding.c/cpp itself
+                extra_sources.append(p)
 
-absl_libs = find_abseil_libs()
+        # Determine language and flags based on binding file type
+        if path.endswith('.cpp'):
+            language = 'c++'
+            compile_flags = ['-std=c++17', '-x', 'c++']
+        else:  # .c files
+            language = 'c'
+            compile_flags = ['-std=c99']
+        
+        c_ext = Extension(
+            ext_name,
+            sources=[path] + extra_sources,
+            language=language,
+            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + compile_flags,
+            include_dirs=extension_kwargs.get('include_dirs', []),
+            extra_link_args=extension_kwargs.get('extra_link_args', []),
+            extra_objects=extension_kwargs.get('extra_objects', []),
+        )
 
-cpp_extensions = [
-    Extension(
-        path.rstrip('.cpp').replace('/', '.'),
-        sources=[path],
-        language='c++',
-        include_dirs=INCLUDE,
-        extra_compile_args=['-std=c++17', '-fpermissive', '-D_GLIBCXX_USE_CXX11_ABI=0'],
-        extra_link_args=extra_link_args,
-        extra_objects=[RAYLIB_A],
-        libraries=['pthread'],
-        library_dirs=[os.path.dirname(__file__)],
-    )
-    for path in cpp_extension_paths
-]
+        c_extensions.append(c_ext)
 
-c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
-cpp_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in cpp_extension_paths]
+    # Remember extension directories so they install as namespace packages
+    c_extension_paths = [os.path.dirname(p) for p in c_extension_paths]
+
+    for c_ext in c_extensions:
+        if "impulse_wars" in c_ext.name:
+            print(f"Adding {c_ext.name} to extra objects")
+            c_ext.extra_objects.append(f'{BOX2D_NAME}/libbox2d.a')
 
 # Check if CUDA compiler is available. You need cuda dev, not just runtime.
-torch_sources = [
-    "pufferlib/extensions/pufferlib.cpp",
-]
-if shutil.which("nvcc") and os.path.exists("pufferlib/extensions/cuda/pufferlib.cu"):
-    extension = CUDAExtension
-    torch_sources.append("pufferlib/extensions/cuda/pufferlib.cu")
-else:
-    extension = CppExtension
+torch_extensions = []
+if not NO_TRAIN:
+    torch_sources = [
+        "pufferlib/extensions/pufferlib.cpp",
+    ]
+    if shutil.which("nvcc"):
+        extension = CUDAExtension
+        torch_sources.append("pufferlib/extensions/cuda/pufferlib.cu")
+    else:
+        extension = CppExtension
 
-torch_extensions = [
-   extension(
-        "pufferlib._C",
-        torch_sources,
-        extra_compile_args = {
-            "cxx": ["/usr/bin/clang++", "-std=c++17", "-D_GLIBCXX_USE_CXX11_ABI=0"] + cxx_args,
-            "nvcc": nvcc_args,
-        },
-    ),
-]
+    torch_extensions = [
+       extension(
+            "pufferlib._C",
+            torch_sources,
+            extra_compile_args = {
+                "cxx": cxx_args,
+                "nvcc": nvcc_args,
+            }
+        ),
+    ]
 
 # Prevent Conda from injecting garbage compile flags
 from distutils.sysconfig import get_config_vars
 cfg_vars = get_config_vars()
-cfg_vars['CXX'] = '/usr/bin/clang++' # Force clang++ globally for distutils
 for key in ('CC', 'CXX', 'LDSHARED'):
     if cfg_vars[key]:
         cfg_vars[key] = cfg_vars[key].replace('-B /root/anaconda3/compiler_compat', '')
@@ -494,66 +518,58 @@ for key, value in cfg_vars.items():
     if value and '-fno-strict-overflow' in str(value):
         cfg_vars[key] = value.replace('-fno-strict-overflow', '')
 
+install_requires = [
+    'numpy<2.0',
+    f'gym<={GYM_VERSION}',
+    f'gymnasium<={GYMNASIUM_VERSION}',
+    f'pettingzoo<={PETTINGZOO_VERSION}',
+    'shimmy[gym-v21]',
+    'setuptools'
+]
+
+if not NO_TRAIN:
+    install_requires += [
+        'torch',
+        'psutil',
+        'pynvml',
+        'rich',
+        'rich_argparse',
+        'imageio',
+        'pyro-ppl',
+        'heavyball',
+        'neptune',
+        'wandb',
+    ]
+
 setup(
     name="pufferlib",
-    description="PufferAI Library"
-    "PufferAI's library of RL tools and utilities",
+    version="3.0.0",
     long_description_content_type="text/markdown",
-    version=VERSION,
-    packages=find_namespace_packages() + find_packages() + c_extension_paths + cpp_extension_paths + ['pufferlib/extensions'],
+    packages=find_namespace_packages() + find_packages() + c_extension_paths + ['pufferlib/extensions'],
     package_data={
         "pufferlib": [RAYLIB_NAME + '/lib/libraylib.a']
     },
     include_package_data=True,
-    install_requires=[
-        'numpy',
-        'opencv-python==3.4.17.63',
-        'rich',
-        'rich_argparse',
-        f'gym<={GYM_VERSION}',
-        f'gymnasium<={GYMNASIUM_VERSION}',
-        f'pettingzoo<={PETTINGZOO_VERSION}',
-        'torch',
-        'shimmy[gym-v21]',
-        'psutil==5.9.5',
-        'pynvml',
-        'imageio',
-        'setuptools'
-    ],
+    install_requires=install_requires,
     extras_require={
         'docs': docs,
         'ray': ray,
-        'train': train,
+        'cleanrl': cleanrl,
         'common': common,
         **environments,
     },
-    ext_modules = c_extensions + torch_extensions + cpp_extensions,
+    ext_modules = c_extensions + torch_extensions,
     cmdclass={
         "build_ext": BuildExt,
         "build_torch": TorchBuildExt,
         "build_c": CBuildExt,
     },
     include_dirs=[numpy.get_include(), RAYLIB_NAME + '/include'],
-    python_requires=">=3.9",
-    license="MIT",
-    author="Joseph Suarez",
-    author_email="jsuarez@puffer.ai",
-    url="https://github.com/PufferAI/PufferLib",
-    keywords=["Puffer", "AI", "RL", "Reinforcement Learning"],
     entry_points={
         'console_scripts': [
             'puffer = pufferlib.pufferl:main',
         ],
     },
-    classifiers=[
-        "Intended Audience :: Science/Research",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-    ],
 )
 #stable_baselines3
 #supersuit==3.3.5
