@@ -33,6 +33,15 @@ class Recurrent(LSTMWrapper):
         if hidden_size is None:
             hidden_size = input_size
             
+        # Important: env can be None for chess when created directly
+        if env is None:
+            # Create a dummy env-like object with the chess observation shape
+            class DummyEnv:
+                class Space:
+                    shape = (1537,)
+                single_observation_space = Space()
+            env = DummyEnv()
+            
         super().__init__(env, policy, input_size=input_size, hidden_size=hidden_size)
 
 
@@ -884,40 +893,116 @@ class GPUDrive(nn.Module):
         return action, value
     
     
+class ResidualBlock(nn.Module):
+    """Residual block with batch normalization for chess CNN"""
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = layer_init(nn.Conv2d(channels, channels, 3, stride=1, padding=1))
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = layer_init(nn.Conv2d(channels, channels, 3, stride=1, padding=1))
+        self.bn2 = nn.BatchNorm2d(channels)
+        
+    def forward(self, x):
+        identity = x
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out = F.relu(out + identity)
+        return out
+
+
 class ChessConvLSTM(Recurrent):
     def __init__(self, env, policy, input_size=256, hidden_size=256):
         super().__init__(env, policy, input_size, hidden_size)
 
 class ChessConvRecurrent(nn.Module):
-    """CNN-based chess model inspired by the Go implementation"""
+    """CNN-based chess model with proper feature engineering for different observation types"""
     def __init__(self, env=None, cnn_channels=64, hidden_size=256, num_actions=1968, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_continuous = False
         
-        # Chess board has 23 channels (piece types + game state)
-        # We'll reshape the flat 1472 observation to 23x8x8
-        self.cnn = nn.Sequential(
-            layer_init(nn.Conv2d(23, cnn_channels, 3, stride=1, padding=1)),
+        # Chess board has 23 channels with different types:
+        # 0-11: Piece positions (multi-hot, needs embedding)
+        # 12: Empty squares
+        # 13-20: Game state info (scalar values)
+        # 21-22: Attack/defense maps (tactical info)
+        
+        # Embedding for piece positions (12 piece types + empty)
+        self.piece_embedding_dim = 16
+        self.piece_embeddings = nn.ModuleList([
+            nn.Embedding(2, self.piece_embedding_dim) for _ in range(13)  # 12 piece types + 1 empty
+        ])
+        
+        # CNN for piece positions after embedding
+        # Input: 13 * embedding_dim channels
+        self.piece_cnn = nn.Sequential(
+            layer_init(nn.Conv2d(13 * self.piece_embedding_dim, cnn_channels, 3, stride=1, padding=1)),
+            nn.BatchNorm2d(cnn_channels),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1, padding=1)),
+            nn.BatchNorm2d(cnn_channels),
             nn.ReLU(),
             layer_init(nn.Conv2d(cnn_channels, cnn_channels * 2, 3, stride=1, padding=1)),
+            nn.BatchNorm2d(cnn_channels * 2),
             nn.ReLU(),
-            layer_init(nn.Conv2d(cnn_channels * 2, cnn_channels * 2, 3, stride=1, padding=1)),
+        )
+        
+        # CNN for attack/defense maps (channels 21-22)
+        self.tactical_cnn = nn.Sequential(
+            layer_init(nn.Conv2d(2, 32, 3, stride=1, padding=1)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(32, 64, 3, stride=1, padding=1)),
+            nn.ReLU(),
+        )
+        
+        # Process game state info (channels 13-20)
+        # These are mostly binary flags except halfmove clock
+        self.game_state_encoder = nn.Sequential(
+            layer_init(nn.Linear(8 * 64, 128)),  # 8 channels * 8x8
+            nn.ReLU(),
+            layer_init(nn.Linear(128, 64)),
+            nn.ReLU(),
+        )
+        
+        # Residual blocks for deeper processing
+        self.residual_blocks = nn.ModuleList([
+            ResidualBlock(cnn_channels * 2) for _ in range(3)
+        ])
+        
+        # Combine all features
+        # Piece CNN: (cnn_channels * 2) * 8 * 8
+        # Tactical CNN: 64 * 8 * 8  
+        # Game state: 64
+        combined_cnn_channels = (cnn_channels * 2) + 64
+        self.combined_cnn = nn.Sequential(
+            layer_init(nn.Conv2d(combined_cnn_channels, hidden_size // 4, 1)),
             nn.ReLU(),
             nn.Flatten(),
         )
         
-        # Calculate CNN output size: 128 channels * 8 * 8
-        cnn_flat_size = (cnn_channels * 2) * 8 * 8
+        cnn_flat_size = (hidden_size // 4) * 8 * 8
         
-        # Additional features beyond board state (if any)
-        # For now just project CNN features to hidden size
-        self.proj = layer_init(nn.Linear(cnn_flat_size, hidden_size))
+        # Final projection combining all features
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(cnn_flat_size + 64, hidden_size)),
+            nn.LayerNorm(hidden_size),
+            nn.ReLU(),
+            layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.LayerNorm(hidden_size),
+            nn.ReLU(),
+        )
         
-        # Policy and value heads
-        self.policy_head = layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
+        # Policy and value heads with improved architecture
+        self.policy_head = nn.Sequential(
+            layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU(),
+            layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
+        )
+        
         self.value_head = nn.Sequential(
-            layer_init(nn.Linear(hidden_size, 128)),
+            layer_init(nn.Linear(hidden_size, 256)),
+            nn.ReLU(),
+            layer_init(nn.Linear(256, 128)),
             nn.ReLU(),
             layer_init(nn.Linear(128, 1), std=1)
         )
@@ -927,9 +1012,12 @@ class ChessConvRecurrent(nn.Module):
         
         # Store last observation for legal mask extraction
         self._last_obs = None
+        
+        # Update observation size to match actual chess environment (1535 not 1537)
+        self.obs_size = 1535  # 1472 board + 1 num_uint32 + 62 uint32 values
     
     def encode_observations(self, obs, state=None):
-        """Encode observations using CNN on board representation"""
+        """Encode observations with proper feature engineering for each channel type"""
         if obs.dim() == 1:
             obs = obs.unsqueeze(0)
         
@@ -940,13 +1028,42 @@ class ChessConvRecurrent(nn.Module):
         
         # Extract board state and reshape to 2D
         # Chess uses 23 planes (1472 = 23 * 8 * 8)
-        board_state = obs[:, :1472].view(batch_size, 23, 8, 8).float()
+        board_state = obs[:, :1472].view(batch_size, 23, 8, 8)
         
-        # Pass board through CNN
-        cnn_features = self.cnn(board_state)
+        # 1. Process piece positions (channels 0-12) with embeddings
+        piece_channels = []
+        for i in range(13):  # 12 piece types + 1 empty
+            channel = board_state[:, i:i+1, :, :].long()  # Shape: [batch, 1, 8, 8]
+            # Embed each position (0 or 1 -> embedding)
+            embedded = self.piece_embeddings[i](channel).squeeze(1)  # Shape: [batch, 8, 8, embedding_dim]
+            embedded = embedded.permute(0, 3, 1, 2)  # Shape: [batch, embedding_dim, 8, 8]
+            piece_channels.append(embedded)
         
-        # Project to hidden size
-        hidden = F.relu(self.proj(cnn_features))
+        piece_features = torch.cat(piece_channels, dim=1)  # Shape: [batch, 13*embedding_dim, 8, 8]
+        piece_features = self.piece_cnn(piece_features)
+        
+        # Apply residual blocks
+        for res_block in self.residual_blocks:
+            piece_features = res_block(piece_features)
+        
+        # 2. Process attack/defense maps (channels 21-22)
+        tactical_features = board_state[:, 21:23, :, :].float()
+        tactical_features = self.tactical_cnn(tactical_features)
+        
+        # 3. Process game state info (channels 13-20)
+        game_state = board_state[:, 13:21, :, :].float()
+        game_state_flat = game_state.view(batch_size, -1)
+        game_state_features = self.game_state_encoder(game_state_flat)
+        
+        # 4. Combine piece and tactical features via concatenation
+        combined_spatial = torch.cat([piece_features, tactical_features], dim=1)
+        combined_spatial = self.combined_cnn(combined_spatial)
+        
+        # 5. Combine all features
+        all_features = torch.cat([combined_spatial, game_state_features], dim=1)
+        
+        # Final projection
+        hidden = self.proj(all_features)
         
         return hidden
     
@@ -997,9 +1114,7 @@ class ChessConvRecurrent(nn.Module):
     
     def forward(self, obs, state=None):
         """Forward pass for non-LSTM inference"""
-        print(f"[TORCH.PY DEBUG] ChessConvRecurrent.forward() called with obs shape: {obs.shape}")
         hidden = self.encode_observations(obs[:, :1472])
-        print(f"[TORCH.PY DEBUG] encode_observations returned hidden shape: {hidden.shape}")
         
         # Convert sparse bitfield mask to dense format
         # NEW FORMAT: [num_uint32_values] + [low_0, high_0, low_1, high_1, ...]
@@ -1027,8 +1142,6 @@ class ChessConvRecurrent(nn.Module):
                             legal_mask[batch_idx, action_idx] = 1.0
         
         logits, value = self.decode_actions(hidden, legal_mask)
-        print(f"[TORCH.PY DEBUG] decode_actions returned logits shape: {logits.shape}, value shape: {value.shape}")
-        print(f"[TORCH.PY DEBUG] forward() completed")
         return logits, value
 
 
@@ -1218,14 +1331,14 @@ class Drone(nn.Module):
                   f"masked_actions={masked_count}, value_range=[{values.min():.3f},{values.max():.3f}])")
 
     def forward_eval(self, observations, state=None):
-        # --- COLOR MONITORING: Validate chess-specific policy inputs ---
-        self._validate_chess_torch_inputs(observations, "ChessRecurrent.forward_eval() input")
+        # # --- COLOR MONITORING: Validate chess-specific policy inputs ---
+        # self._validate_chess_torch_inputs(observations, "ChessRecurrent.forward_eval() input")
         
         hidden = self.encode_observations(observations, state=state)
         logits, values = self.decode_actions(hidden)
         
-        # --- COLOR MONITORING: Validate chess-specific policy outputs ---
-        self._validate_chess_torch_outputs(logits, values, "ChessRecurrent.forward_eval() output")
+        # # --- COLOR MONITORING: Validate chess-specific policy outputs ---
+        # self._validate_chess_torch_outputs(logits, values, "ChessRecurrent.forward_eval() output")
         
         return logits, values
 
@@ -1259,6 +1372,128 @@ class Drone(nn.Module):
         values = self.value(hidden)
         return logits, values
 
+class ChessRecurrent(nn.Module):
+    """Simpler chess model with basic feature engineering for the default policy"""
+    def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        
+        # Process piece positions (channels 0-12) with a simple embedding layer
+        # Instead of individual embeddings, use a shared linear layer
+        self.piece_encoder = nn.Sequential(
+            layer_init(nn.Linear(13 * 64, 256)),  # 13 channels * 8x8
+            nn.ReLU(),
+            layer_init(nn.Linear(256, 128)),
+            nn.ReLU(),
+        )
+        
+        # Process attack/defense maps (channels 21-22)
+        self.tactical_encoder = nn.Sequential(
+            layer_init(nn.Linear(2 * 64, 64)),  # 2 channels * 8x8
+            nn.ReLU(),
+        )
+        
+        # Process game state (channels 13-20)
+        self.game_state_encoder = nn.Sequential(
+            layer_init(nn.Linear(8 * 64, 64)),  # 8 channels * 8x8
+            nn.ReLU(),
+        )
+        
+        # Combine all features - simplified to avoid potential NaN issues
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(128 + 64 + 64, hidden_size)),
+            nn.ReLU(),
+        )
+        
+        # Policy and value heads
+        self.policy_head = layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
+        
+        self.is_multidiscrete = False
+        self.action_size = num_actions
+        self._last_obs = None
+        
+        # Update observation size to match actual chess environment (1535 not 1537)
+        self.obs_size = 1535  # 1472 board + 1 num_uint32 + 62 uint32 values
+    
+    def encode_observations(self, obs, state=None):
+        """Encode observations with basic feature engineering"""
+        if obs.dim() == 1:
+            obs = obs.unsqueeze(0)
+        
+        self._last_obs = obs
+        batch_size = obs.shape[0]
+        
+        # Extract board state
+        board_state = obs[:, :1472].view(batch_size, 23, 8, 8)
+        
+        # 1. Process piece positions (channels 0-12)
+        piece_features = board_state[:, :13, :, :].float()
+        piece_features = piece_features.view(batch_size, -1)
+        piece_encoded = self.piece_encoder(piece_features)
+        
+        # 2. Process attack/defense maps (channels 21-22)
+        tactical_features = board_state[:, 21:23, :, :].float()
+        tactical_features = tactical_features.view(batch_size, -1)
+        tactical_encoded = self.tactical_encoder(tactical_features)
+        
+        # 3. Process game state (channels 13-20)
+        game_state = board_state[:, 13:21, :, :].float()
+        game_state = game_state.view(batch_size, -1)
+        game_state_encoded = self.game_state_encoder(game_state)
+        
+        # Combine all features
+        all_features = torch.cat([piece_encoded, tactical_encoded, game_state_encoded], dim=1)
+        hidden = self.proj(all_features)
+        
+        return hidden
+    
+    def decode_actions(self, hidden, legal_mask=None):
+        """Decode actions with legal move masking"""
+        if legal_mask is None and self._last_obs is not None:
+            legal_mask = self._extract_legal_mask(self._last_obs)
+        
+        raw_logits = self.policy_head(hidden)
+        
+        if legal_mask is not None:
+            masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+        else:
+            masked_logits = raw_logits
+        
+        value = self.value_head(hidden).squeeze(-1)
+        return masked_logits, value
+    
+    def _extract_legal_mask(self, obs):
+        """Extract legal mask from observation tensor"""
+        batch_size = obs.shape[0]
+        legal_mask = torch.zeros(batch_size, self.action_size, device=obs.device)
+        
+        for batch_idx in range(batch_size):
+            num_uint32_values = int(obs[batch_idx, 1472].item())
+            num_bitfields = num_uint32_values // 2
+            
+            for field_idx in range(num_bitfields):
+                low = int(obs[batch_idx, 1473 + field_idx * 2].item())
+                high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
+                bitfield = (high << 32) | low
+                
+                for bit_idx in range(64):
+                    if bitfield & (1 << bit_idx):
+                        action_idx = field_idx * 64 + bit_idx
+                        if action_idx < self.action_size:
+                            legal_mask[batch_idx, action_idx] = 1.0
+        
+        return legal_mask
+    
+    def forward(self, obs, state=None):
+        """Forward pass"""
+        hidden = self.encode_observations(obs)
+        legal_mask = self._extract_legal_mask(obs)
+        logits, value = self.decode_actions(hidden, legal_mask)
+        return logits, value
+
+
 def Policy(env, **kwargs):
     """Factory returning the appropriate policy for the given environment.
 
@@ -1268,18 +1503,32 @@ def Policy(env, **kwargs):
     legacy Default policy so existing non-chess environments remain
     functional.
     """
-    # Chess: obs = 1472 board planes + sparse legal-move mask
+    # Chess: obs = 1472 board planes + sparse legal-move mask  
+    # Updated to match actual observation space (1535 = 1472 + 1 + 62)
     try:
         is_chess = (len(env.single_observation_space.shape) == 1 and
-                    env.single_observation_space.shape[0] == 1537)
+                    env.single_observation_space.shape[0] == 1535)
     except AttributeError:
         is_chess = False
 
     if is_chess:
+        # Extract chess-specific parameters
         hidden_size = kwargs.pop('hidden_size', 256)
-        base = ChessRecurrent(env, hidden_size=hidden_size)
-        return Recurrent(env, base, input_size=hidden_size, hidden_size=hidden_size)
+        use_advanced_cnn = kwargs.pop('use_advanced_cnn', False)
+        cnn_channels = kwargs.pop('cnn_channels', 64)
+        
+        # Choose which chess model to use
+        if use_advanced_cnn:
+            base = ChessConvRecurrent(env, cnn_channels=cnn_channels, hidden_size=hidden_size)
+        else:
+            base = ChessRecurrent(env, hidden_size=hidden_size)
+        
+        # Pass remaining kwargs to Recurrent (if any)
+        return Recurrent(env, base, input_size=hidden_size, hidden_size=hidden_size, **kwargs)
     else:
-        # For non-chess environments using Default policy
+        # For non-chess environments - remove chess-specific params before passing to Default
+        kwargs.pop('use_advanced_cnn', None)
+        kwargs.pop('cnn_channels', None)
+        
         # Default policy outputs 256-dim hidden states
         return _OldDefault(env, **kwargs)

@@ -7000,16 +7000,18 @@ void c_reset(CChess *env) {
   env->context.episode_return_white = 0.0f;
   
   // Reset puzzle episode tracking
-  printf("[DEBUG RESET] Before reset: solves=%d, tries=%d\n", 
-         env->context.puzzle_solves_this_episode,
-         env->context.puzzle_tries_this_episode);
+  // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
+  // printf("[DEBUG RESET] Before reset: solves=%d, tries=%d\n", 
+  //        env->context.puzzle_solves_this_episode,
+  //        env->context.puzzle_tries_this_episode);
   env->context.puzzle_tries_this_episode = 0;
   env->context.puzzle_solves_this_episode = 0;
-  printf("[DEBUG RESET] After reset: solves=%d, tries=%d\n", 
-         env->context.puzzle_solves_this_episode,
-         env->context.puzzle_tries_this_episode);
+  // printf("[DEBUG RESET] After reset: solves=%d, tries=%d\n", 
+  //        env->context.puzzle_solves_this_episode,
+  //        env->context.puzzle_tries_this_episode);
   
-  printf("[EPISODE RESET] Starting new episode (step_count reset to 0)\n");
+  // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
+  // printf("[EPISODE RESET] Starting new episode (step_count reset to 0)\n");
   env->context.episode_return_black = 0.0f;
 
   env->context.complete_game_action_count = 0;
@@ -7135,10 +7137,11 @@ void c_step(CChess *env) {
       solve_rate = 100.0f * env->context.puzzle_solves_this_episode / 
                    env->context.puzzle_tries_this_episode;
     }
-    printf("[ENV %3d] step=%4d | solve_rate=%5.1f%% | tries=%3d | solves=%3d\n",
-           env->env_id, env->context.step_count, solve_rate,
-           env->context.puzzle_tries_this_episode,
-           env->context.puzzle_solves_this_episode);
+    // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
+    // printf("[ENV %3d] step=%4d | solve_rate=%5.1f%% | tries=%3d | solves=%3d\n",
+    //        env->env_id, env->context.step_count, solve_rate,
+    //        env->context.puzzle_tries_this_episode,
+    //        env->context.puzzle_solves_this_episode);
   }
   
   PROFILE_START(profile_c_step_ticks)
@@ -7307,6 +7310,8 @@ void c_step(CChess *env) {
   bool move_applied = apply_uci_move(&env->context, uci_move_canonical);
   
   // Direct step logging in puzzle mode - log every 50 steps
+  // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
+  /*
   if (env->context.puzzle_mode && env->context.step_count % 50 == 0) {
     printf("[PUZZLE STEP] step_count=%d, wrong_moves=%.0f, solves=%d, tries=%d\n", 
            env->context.step_count,
@@ -7314,6 +7319,7 @@ void c_step(CChess *env) {
            env->context.puzzle_solves_this_episode,
            env->context.puzzle_tries_this_episode);
   }
+  */
   // printf("[MOVE_APPLY] Move applied successfully: %s, new turn: %s\n",
   // move_applied ? "YES" : "NO",
   // (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK");
@@ -7326,11 +7332,12 @@ void c_step(CChess *env) {
            env->context.step_count,
            env->context.puzzle_solves_this_episode,
            env->context.puzzle_tries_this_episode);
-    printf("[EPISODE END] Reached 100 steps - terminating. Puzzle stats: solves=%d, tries=%d, solve_rate=%.2f%%\n",
-           env->context.puzzle_solves_this_episode,
-           env->context.puzzle_tries_this_episode,
-           env->context.puzzle_tries_this_episode > 0 ? 
-           (100.0f * env->context.puzzle_solves_this_episode / env->context.puzzle_tries_this_episode) : 0.0f);
+    // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
+    // printf("[EPISODE END] Reached 100 steps - terminating. Puzzle stats: solves=%d, tries=%d, solve_rate=%.2f%%\n",
+    //        env->context.puzzle_solves_this_episode,
+    //        env->context.puzzle_tries_this_episode,
+    //        env->context.puzzle_tries_this_episode > 0 ? 
+    //        (100.0f * env->context.puzzle_solves_this_episode / env->context.puzzle_tries_this_episode) : 0.0f);
     env->terminals[0] = 1;
     env->terminals[1] = 1;
     add_log(env);
