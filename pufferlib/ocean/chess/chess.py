@@ -364,6 +364,9 @@ class Chess(pufferlib.PufferEnv):
         if np.any(terminals):
             print(f"[AUTO-RESET] Resetting all environments due to termination")
             binding.vec_reset(self.c_envs, 0)  # Reset with seed 0
+            # CRITICAL: Clear terminals after reset to prevent reset loop
+            terminals[:] = False
+            self.terminals[:] = 0
             # Update observations after reset
             obs = self.observations
         

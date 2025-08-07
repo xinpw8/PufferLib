@@ -7001,13 +7001,13 @@ void c_reset(CChess *env) {
   
   // Reset puzzle episode tracking
   printf("[DEBUG RESET] Before reset: solves=%d, tries=%d\n", 
-         env->context.puzzle_tries_this_episode,
-         env->context.puzzle_solves_this_episode);
+         env->context.puzzle_solves_this_episode,
+         env->context.puzzle_tries_this_episode);
   env->context.puzzle_tries_this_episode = 0;
   env->context.puzzle_solves_this_episode = 0;
   printf("[DEBUG RESET] After reset: solves=%d, tries=%d\n", 
-         env->context.puzzle_tries_this_episode,
-         env->context.puzzle_solves_this_episode);
+         env->context.puzzle_solves_this_episode,
+         env->context.puzzle_tries_this_episode);
   
   printf("[EPISODE RESET] Starting new episode (step_count reset to 0)\n");
   env->context.episode_return_black = 0.0f;
