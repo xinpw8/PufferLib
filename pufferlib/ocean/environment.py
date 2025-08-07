@@ -216,11 +216,11 @@ def env_creator(name='squared', *args, **kwargs):
     try:
         module = importlib.import_module(f'pufferlib.ocean.{name}.{name}')
         env_class = getattr(module, MAKE_FUNCTIONS[name])
-        print(f"[DEBUG] env_creator: creating {name} with args={args}, kwargs={kwargs}")
+        # print(f"[DEBUG] env_creator: creating {name} with args={args}, kwargs={kwargs}")
         return env_class
     except ModuleNotFoundError:
         env_class_name = MAKE_FUNCTIONS[name]
-        print(f"[DEBUG] env_creator: creating {name} from MAKE_FUNCTIONS with args={args}, kwargs={kwargs}")
+        # print(f"[DEBUG] env_creator: creating {name} from MAKE_FUNCTIONS with args={args}, kwargs={kwargs}")
         # If it's a string, get the actual function from current module
         if isinstance(env_class_name, str):
             import sys

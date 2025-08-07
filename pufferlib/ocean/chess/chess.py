@@ -362,7 +362,7 @@ class Chess(pufferlib.PufferEnv):
         # Note: vec_reset resets ALL environments, not individual ones
         # This is a limitation but ensures consistency
         if np.any(terminals):
-            print(f"[AUTO-RESET] Resetting all environments due to termination")
+            # print(f"[AUTO-RESET] Resetting all environments due to termination")
             binding.vec_reset(self.c_envs, 0)  # Reset with seed 0
             # CRITICAL: Clear terminals after reset to prevent reset loop
             terminals[:] = False

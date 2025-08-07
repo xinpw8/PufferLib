@@ -7326,12 +7326,12 @@ void c_step(CChess *env) {
   
   // Check if we've reached EXACTLY 100 steps - terminate episode ONCE
   // Changed from >= to == to prevent repeated termination messages
-  if (env->context.step_count == 100) {
-    printf("[DEBUG] ENV PTR=%p, context PTR=%p\n", (void*)env, (void*)&env->context);
-    printf("[DEBUG] step_count=%d, solves=%d, tries=%d\n", 
-           env->context.step_count,
-           env->context.puzzle_solves_this_episode,
-           env->context.puzzle_tries_this_episode);
+  if (env->context.step_count == 5) {
+    // printf("[DEBUG] ENV PTR=%p, context PTR=%p\n", (void*)env, (void*)&env->context);
+    // printf("[DEBUG] step_count=%d, solves=%d, tries=%d\n", 
+    //        env->context.step_count,
+    //        env->context.puzzle_solves_this_episode,
+    //        env->context.puzzle_tries_this_episode);
     // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
     // printf("[EPISODE END] Reached 100 steps - terminating. Puzzle stats: solves=%d, tries=%d, solve_rate=%.2f%%\n",
     //        env->context.puzzle_solves_this_episode,

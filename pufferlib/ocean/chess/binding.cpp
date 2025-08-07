@@ -231,8 +231,8 @@ static int my_log(PyObject* dict, Log* log) {
         static int log_counter = 0;
         log_counter++;
         if (log_counter % 50 == 0) {  // Every 50 logs
-            printf("[STATS DEBUG] Aggregated log: attempts=%.1f, solved=%.1f, rate=%.3f\n",
-                   log->puzzle_attempts, log->puzzle_solved, correct_success_rate);
+            // printf("[STATS DEBUG] Aggregated log: attempts=%.1f, solved=%.1f, rate=%.3f\n",
+            //        log->puzzle_attempts, log->puzzle_solved, correct_success_rate);
             fflush(stdout);
         }
     } else {

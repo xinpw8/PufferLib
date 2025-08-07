@@ -1152,25 +1152,25 @@ class Serial:
         self._avg_infos()
 
     def send(self, actions):
-        print(f"[VECTOR DEBUG] Serial.send() called with actions shape: {actions.shape}")
+        # print(f"[VECTOR DEBUG] Serial.send() called with actions shape: {actions.shape}")
         if not actions.flags.contiguous:
             actions = np.ascontiguousarray(actions)
 
         actions = send_precheck(self, actions)
-        print(f"[VECTOR DEBUG] After send_precheck, actions shape: {actions.shape}")
+        # print(f"[VECTOR DEBUG] After send_precheck, actions shape: {actions.shape}")
         rewards, dones, truncateds, self.infos = [], [], [], []
         ptr = 0
         for idx, env in enumerate(self.envs):
             end = ptr + self.agents_per_env[idx]
             atns = actions[ptr:end]
-            print(f"[VECTOR DEBUG] Env {idx}: calling step with actions {ptr}:{end}, shape {atns.shape}")
+            # print(f"[VECTOR DEBUG] Env {idx}: calling step with actions {ptr}:{end}, shape {atns.shape}")
             if env.done:
-                print(f"[VECTOR DEBUG] Env {idx} is done, calling reset")
+                # print(f"[VECTOR DEBUG] Env {idx} is done, calling reset")
                 o, i = env.reset()
             else:
-                print(f"[VECTOR DEBUG] Env {idx}: calling step()")
+                # print(f"[VECTOR DEBUG] Env {idx}: calling step()")
                 o, r, d, t, i = env.step(atns)
-                print(f"[VECTOR DEBUG] Env {idx}: step() returned")
+                # print(f"[VECTOR DEBUG] Env {idx}: step() returned")
 
             if i:
                 if isinstance(i, list):
@@ -1187,9 +1187,9 @@ class Serial:
             env.notify()
 
     def recv(self):
-        print(f"[VECTOR DEBUG] Serial.recv() called")
+        # print(f"[VECTOR DEBUG] Serial.recv() called")
         recv_precheck(self)
-        print(f"[VECTOR DEBUG] Serial.recv() returning data")
+        # print(f"[VECTOR DEBUG] Serial.recv() returning data")
         return (self.observations, self.rewards, self.terminals, self.truncations,
             self.infos, self.agent_ids, self.masks)
 

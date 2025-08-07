@@ -1101,11 +1101,11 @@ class ChessConvRecurrent(nn.Module):
                 # Reconstruct uint64 from two uint32 values
                 low = int(obs[batch_idx, 1473 + field_idx * 2].item())
                 high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
-                bitfield = (high << 32) | low
+                mask_u64 = int((int(high) << 32) | int(low))
                 
                 # Set bits for legal actions
                 for bit_idx in range(64):
-                    if bitfield & (1 << bit_idx):
+                    if mask_u64 & (1 << bit_idx):
                         action_idx = field_idx * 64 + bit_idx
                         if action_idx < self.action_size:
                             legal_mask[batch_idx, action_idx] = 1.0
@@ -1132,11 +1132,11 @@ class ChessConvRecurrent(nn.Module):
                 # Reconstruct uint64 from two uint32 values
                 low = int(obs[batch_idx, 1473 + field_idx * 2].item())
                 high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
-                bitfield = (high << 32) | low
+                mask_u64 = int((int(high) << 32) | int(low))
                 
                 # Set bits for legal actions
                 for bit_idx in range(64):
-                    if bitfield & (1 << bit_idx):
+                    if mask_u64 & (1 << bit_idx):
                         action_idx = field_idx * 64 + bit_idx
                         if action_idx < self.action_size:
                             legal_mask[batch_idx, action_idx] = 1.0
@@ -1517,14 +1517,12 @@ def Policy(env, **kwargs):
         use_advanced_cnn = kwargs.pop('use_advanced_cnn', False)
         cnn_channels = kwargs.pop('cnn_channels', 64)
         
-        # Choose which chess model to use
+        # Choose which chess model to use and return the BASE model
+        # It will be wrapped by Recurrent via rnn_name in the config
         if use_advanced_cnn:
-            base = ChessConvRecurrent(env, cnn_channels=cnn_channels, hidden_size=hidden_size)
+            return ChessConvRecurrent(env, cnn_channels=cnn_channels, hidden_size=hidden_size, **kwargs)
         else:
-            base = ChessRecurrent(env, hidden_size=hidden_size)
-        
-        # Pass remaining kwargs to Recurrent (if any)
-        return Recurrent(env, base, input_size=hidden_size, hidden_size=hidden_size, **kwargs)
+            return ChessRecurrent(env, hidden_size=hidden_size, **kwargs)
     else:
         # For non-chess environments - remove chess-specific params before passing to Default
         kwargs.pop('use_advanced_cnn', None)

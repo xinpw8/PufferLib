@@ -2429,7 +2429,7 @@ class PuffeRL:
 
         return (self.global_step - self.last_log_step) / (time.time() - self.last_log_time)
 
-    def evaluate(self):
+    def evaluate(self, count_steps: bool = True):
         profile = self.profile
         epoch = self.epoch
         profile('eval', epoch)
@@ -2452,7 +2452,8 @@ class PuffeRL:
             env_id = slice(env_id[0], env_id[-1] + 1)
 
             done_mask = d + t # TODO: Handle truncations separately
-            self.global_step += int(mask.sum())
+            if count_steps:
+                self.global_step += int(mask.sum())
 
             profile('eval_copy', epoch)
             o = torch.as_tensor(o)
@@ -2706,12 +2707,19 @@ class PuffeRL:
            else:
                return None
 
+        # Ensure strictly increasing step values for external loggers (e.g., Neptune)
+        if agent_steps <= self.last_log_step:
+            return None
         self.logger.log(logs, agent_steps)
         return logs
 
     def close(self):
         self.vecenv.close()
         self.utilization.stop()
+        try:
+            self.utilization.join(timeout=2)
+        except Exception:
+            pass
         model_path = self.save_checkpoint()
         run_id = self.logger.run_id
         path = os.path.join(self.config['data_dir'], f'{self.config["env"]}_{run_id}.pt')
@@ -2965,6 +2973,7 @@ class Profile:
 class Utilization(Thread):
     def __init__(self, delay=1, maxlen=20):
         super().__init__()
+        self.daemon = True
         self.cpu_mem = deque([0], maxlen=maxlen)
         self.cpu_util = deque([0], maxlen=maxlen)
         self.gpu_util = deque([0], maxlen=maxlen)
@@ -2974,24 +2983,31 @@ class Utilization(Thread):
         self.start()
 
     def run(self):
-        while not self.stopped:
-            self.cpu_util.append(100*psutil.cpu_percent()/psutil.cpu_count())
-            mem = psutil.virtual_memory()
-            self.cpu_mem.append(100*mem.active/mem.total)
-            if torch.cuda.is_available():
-                # Monitoring in distributed crashes nvml
-                if torch.distributed.is_initialized():
-                   time.sleep(self.delay)
-                   continue
+        try:
+            while not self.stopped:
+                self.cpu_util.append(100*psutil.cpu_percent()/psutil.cpu_count())
+                mem = psutil.virtual_memory()
+                self.cpu_mem.append(100*mem.active/mem.total)
+                if torch.cuda.is_available():
+                    # Monitoring in distributed crashes nvml
+                    if torch.distributed.is_initialized():
+                       time.sleep(self.delay)
+                       continue
 
-                self.gpu_util.append(torch.cuda.utilization())
-                free, total = torch.cuda.mem_get_info()
-                self.gpu_mem.append(100*(total-free)/total)
-            else:
-                self.gpu_util.append(0)
-                self.gpu_mem.append(0)
+                    try:
+                        self.gpu_util.append(torch.cuda.utilization())
+                        free, total = torch.cuda.mem_get_info()
+                        self.gpu_mem.append(100*(total-free)/total)
+                    except Exception:
+                        self.gpu_util.append(0)
+                        self.gpu_mem.append(0)
+                else:
+                    self.gpu_util.append(0)
+                    self.gpu_mem.append(0)
 
-            time.sleep(self.delay)
+                time.sleep(self.delay)
+        except Exception:
+            pass
 
     def stop(self):
         self.stopped = True
@@ -3040,6 +3056,7 @@ class NeptuneLogger:
         )
         self.run_id = neptune._sys_id
         self.neptune = neptune
+        self.args = args
         for k, v in pufferlib.unroll_nested_dict(args):
             neptune[k].append(v)
 
@@ -3048,7 +3065,15 @@ class NeptuneLogger:
             self.neptune[k].append(v, step=step)
 
     def close(self, model_path):
-        self.neptune['model'].track_files(model_path)
+        # Only upload artifacts when explicitly enabled to avoid sweep slowdowns
+        upload_flag = False
+        try:
+            upload_flag = bool(int(self.args.get('train', {}).get('upload_model_artifact', 0)))
+        except Exception:
+            upload_flag = bool(self.args.get('train', {}).get('upload_model_artifact', False))
+
+        if upload_flag and model_path is not None:
+            self.neptune['model'].track_files(model_path)
         self.neptune.stop()
 
     def download(self):
@@ -3138,18 +3163,16 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
             if pufferl.global_step > 0.20*train_config['total_timesteps']:
                 all_logs.append(logs)
 
-    # Final eval. You can reset the env here, but depending on
-    # your env, this can skew data (i.e. you only collect the shortest
-    # rollouts within a fixed number of epochs)
-    i = 0
-    stats = {}
-    while i < 32 or not stats:
-        stats = pufferl.evaluate()
-        i += 1
+    # Optional final eval for reporting, disabled by default for sweeps
+    final_eval_iters = int(train_config.get('final_eval_iters', 0))
+    for _ in range(final_eval_iters):
+        pufferl.evaluate(count_steps=False)
 
-    logs = pufferl.mean_and_log()
-    if logs is not None:
-        all_logs.append(logs)
+    # Only log a final summary if we advanced beyond the last logged step
+    if pufferl.global_step > pufferl.last_log_step:
+        logs = pufferl.mean_and_log()
+        if logs is not None:
+            all_logs.append(logs)
 
     pufferl.print_dashboard()
     model_path = pufferl.close()
