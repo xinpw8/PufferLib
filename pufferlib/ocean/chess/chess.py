@@ -102,9 +102,9 @@ class Chess(pufferlib.PufferEnv):
 
         # Define single-agent spaces
         self.num_actions = 1968
-        # SPARSE ACTION MASK: [board_state(1472)] + [num_legal_moves(1)] + [legal_action_ids(64)]
-        self.MAX_LEGAL_MOVES = 64  # Conservative upper bound for legal moves
-        self.num_obs = 8*8*23 + 1 + self.MAX_LEGAL_MOVES # board state + sparse legal moves
+        # BITFIELD ACTION MASK: [board_state(1472)] + [num_uint32_values(1)] + [bitfield_data(62)]
+        self.NUM_UINT32_VALUES = 62  # 31 bitfields * 2 uint32 per bitfield for 1968 actions
+        self.num_obs = 8*8*23 + 1 + self.NUM_UINT32_VALUES # board state + bitfield legal moves
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(self.num_actions)
@@ -232,12 +232,14 @@ class Chess(pufferlib.PufferEnv):
         import os
         import json
         
-        # TEMPORARY: Hard-code a specific puzzle for testing
-        # This puzzle has solution h4h7 (Queen from h4 to h7)
+        # SIMPLE MATE-IN-1 PUZZLE: White to move and mate
+        # White king on g3, white rook on a2, black king on h1
+        # White to move: a2a1# delivers checkmate 
+        # Solution: a2a1 (Rook to a1 delivers checkmate)
         hardcoded_puzzle = {
-            'id': 'test_puzzle_h4h7',
-            'puzzle_fen': '6rk/1pr3pp/p5b1/P7/1P5Q/2Bq2P1/5PK1/RB6 w - - 0 1',
-            'solution': ['h4h7']
+            'id': 'simple_mate_in_1', 
+            'puzzle_fen': '8/8/8/8/8/6K1/R7/7k w - - 0 1',
+            'solution': ['a2a1']
         }
         self.current_puzzles = [hardcoded_puzzle]
         print(f"[Chess] Using hard-coded puzzle: {hardcoded_puzzle['id']}")
@@ -341,19 +343,29 @@ class Chess(pufferlib.PufferEnv):
         import numpy as np
         import pufferlib.ocean.chess.binding as binding
         
-        print(f"[CHESS.PY DEBUG] _step_puzzle_mode called with actions: {actions}")
         # Execute the move - C++ handles all puzzle logic efficiently
         self.actions[0:len(actions)] = actions
-        print(f"[CHESS.PY DEBUG] Calling binding.vec_step()")
         binding.vec_step(self.c_envs)
-        print(f"[CHESS.PY DEBUG] binding.vec_step() returned")
         self.tick += 1
+        
+        # Log global step count periodically
+        if self.tick % 100 == 0:
+            print(f"[GLOBAL STEP] tick={self.tick}")
         
         # Get results from C++
         obs = self.observations
         rewards = self.rewards
         terminals = self.terminals
         truncations = self.truncations
+        
+        # AUTO-RESET: Reset all environments if any terminated
+        # Note: vec_reset resets ALL environments, not individual ones
+        # This is a limitation but ensures consistency
+        if np.any(terminals):
+            print(f"[AUTO-RESET] Resetting all environments due to termination")
+            binding.vec_reset(self.c_envs, 0)  # Reset with seed 0
+            # Update observations after reset
+            obs = self.observations
         
         # Handle info logging (reduced frequency for performance)
         info = []
@@ -362,23 +374,15 @@ class Chess(pufferlib.PufferEnv):
             if info_dict:  # Only append if we got actual data
                 info.append(info_dict)
                 # Debug: print what stats we're collecting
-                if self.tick % 100 == 0:
-                    print(f"[CHESS DEBUG] tick={self.tick}, info_dict keys: {list(info_dict[0].keys()) if info_dict else 'None'}")
-                # Always print puzzle stats when collected
-                if info_dict and isinstance(info_dict, list) and len(info_dict) > 0:
-                    for env_idx, env_info in enumerate(info_dict):
-                        if isinstance(env_info, dict) and 'puzzle_attempts' in env_info:
-                            print(f"[INFO COLLECTED] tick={self.tick}, env={env_idx}, "
-                                  f"puzzle_attempts={env_info['puzzle_attempts']}, "
-                                  f"puzzle_wrong_moves={env_info['puzzle_wrong_moves']}, "
-                                  f"puzzle_success_rate={env_info.get('puzzle_success_rate', 0)}")
+                # Debug logging removed for performance
+                # No debug printing
         
         return (obs, rewards, terminals, truncations, info)
     
     def _advance_to_next_puzzle(self):
         """Advance all environments to the next puzzle."""
         # TEMPORARY: Instead of advancing to next puzzle, repeat the same puzzle
-        print(f"[Chess] Puzzle solved! Repeating the same puzzle for easier learning.")
+        # Repeat the same puzzle for easier learning
         
         # Reset global tracking for the same puzzle
         self.global_puzzle_attempts = 0
@@ -394,7 +398,7 @@ class Chess(pufferlib.PufferEnv):
         
         # Start the same puzzle again on all environments
         self._start_new_puzzle()
-        print(f"[Chess] All environments now working on puzzle {self.current_global_puzzle_id} (same puzzle)")
+        # All environments now working on same puzzle
     
     def _detect_multiprocessing_mode(self):
         """Detect if we're running in a multiprocessing worker process."""
@@ -689,18 +693,27 @@ class Chess(pufferlib.PufferEnv):
             device = 'cpu'
         obs_tensor = obs_tensor.to(device)
         
-        # Convert sparse action mask to dense format for neural network
-        # Extract sparse mask: [num_legal_moves(1)] + [action_ids(64)]
-        num_legal_moves = int(observation[1472])
-        action_ids = observation[1473:1473+64].astype(int)  # Get action IDs
+        # Convert bitfield action mask to dense format for neural network
+        # Extract bitfield mask: [num_uint32_values(1)] + [bitfield_data(62)]
+        num_uint32_values = int(observation[1472])
         
         # Create dense mask
         legal_mask_np = np.zeros(self.num_actions, dtype=np.float32)
-        if num_legal_moves > 0:
-            valid_action_ids = action_ids[:num_legal_moves]
-            # Clamp to valid range to prevent out-of-bounds
-            valid_action_ids = np.clip(valid_action_ids, 0, self.num_actions - 1)
-            legal_mask_np[valid_action_ids] = 1.0
+        
+        # Process bitfields
+        num_bitfields = num_uint32_values // 2
+        for i in range(num_bitfields):
+            if 1473 + i * 2 + 1 < len(observation):
+                low = int(observation[1473 + i * 2])
+                high = int(observation[1473 + i * 2 + 1])
+                bitfield = (high << 32) | low
+                
+                # Set bits for legal actions
+                for bit_idx in range(64):
+                    if bitfield & (1 << bit_idx):
+                        action_idx = i * 64 + bit_idx
+                        if action_idx < self.num_actions:
+                            legal_mask_np[action_idx] = 1.0
         
         legal_mask = torch.from_numpy(legal_mask_np).float()
         if legal_mask.dim() == 1:
@@ -737,15 +750,28 @@ class Chess(pufferlib.PufferEnv):
     
     def _get_heuristic_action(self, observation):
         """Get a reasonable heuristic action when no frozen policy is available."""
-        # Convert sparse mask to dense for processing
-        # Extract sparse mask: [num_legal_moves(1)] + [action_ids(64)]
-        num_legal_moves = int(observation[1472])
-        action_ids = observation[1473:1473+64].astype(int)  # Get action IDs
+        # Convert bitfield mask to legal actions list for processing
+        # Extract bitfield mask: [num_uint32_values(1)] + [bitfield_data(62)]
+        num_uint32_values = int(observation[1472])
         
-        if num_legal_moves > 0:
-            valid_action_ids = action_ids[:num_legal_moves]
-            # Clamp to valid range to prevent out-of-bounds
-            legal_actions = np.clip(valid_action_ids, 0, self.num_actions - 1)
+        # Extract legal actions from bitfields
+        legal_actions = []
+        num_bitfields = num_uint32_values // 2
+        for i in range(num_bitfields):
+            if 1473 + i * 2 + 1 < len(observation):
+                low = int(observation[1473 + i * 2])
+                high = int(observation[1473 + i * 2 + 1])
+                bitfield = (high << 32) | low
+                
+                # Extract legal actions from this bitfield
+                for bit_idx in range(64):
+                    if bitfield & (1 << bit_idx):
+                        action_idx = i * 64 + bit_idx
+                        if action_idx < self.num_actions:
+                            legal_actions.append(action_idx)
+        
+        if len(legal_actions) > 0:
+            legal_actions = np.array(legal_actions)
         else:
             legal_actions = np.array([], dtype=int)
         
@@ -1000,10 +1026,8 @@ class Chess(pufferlib.PufferEnv):
         - Episode 1: Neural network plays BLACK, frozen policy plays WHITE
         - Episodes alternate to ensure clean advantage computation boundaries
         """
-        print(f"[CHESS.PY DEBUG] step() called with actions: {actions}")
         # Puzzle mode: validate move and terminate episode immediately
         if self.puzzle_mode:
-            print(f"[CHESS.PY DEBUG] Puzzle mode enabled, calling _step_puzzle_mode")
             return self._step_puzzle_mode(actions)
             
         # Ensure frozen policy exists if episode-per-color is enabled

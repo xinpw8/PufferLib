@@ -3356,8 +3356,8 @@ def load_config(env_name):
     parser.add_argument('--wandb-project', type=str, default='pufferlib')
     parser.add_argument('--wandb-group', type=str, default='debug')
     parser.add_argument('--neptune', action='store_true', help='Use neptune for logging')
-    parser.add_argument('--neptune-name', type=str, default='pufferai')
-    parser.add_argument('--neptune-project', type=str, default='ablations')
+    parser.add_argument('--neptune-name', type=str, default='xinpw8')
+    parser.add_argument('--neptune-project', type=str, default='chess')
     parser.add_argument('--local-rank', type=int, default=0, help='Used by torchrun for DDP')
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
     args = parser.parse_known_args()[0]

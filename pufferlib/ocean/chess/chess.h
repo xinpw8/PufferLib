@@ -2729,7 +2729,7 @@
   
 //   // Verify this is a mate-in-1 puzzle (white to move, 1 move solution)
 //   if (solution_length != 1) {
-//     printf("[PUZZLE WARNING] Not a mate-in-1 puzzle! Has %d moves.\n", solution_length);
+//     // Warning: Not mate-in-1 solution_length);
 //   }
 //   if (env->context.board.to_move != C_WHITE) {
 //     printf("[PUZZLE ERROR] Puzzle starts with BLACK to move! Only WHITE should move in puzzles.\n");
@@ -3144,7 +3144,7 @@
     
 // //     // Apply the move
 // //     if (!move_applied) {
-// //       printf("[PUZZLE ERROR] Move failed to apply: %s\n", uci_move_canonical);
+// //       // Move failed to apply
 // //       env->terminals[agent_idx] = 1;
 // //       return;
 // //     }
@@ -3176,7 +3176,7 @@
       
 // //       if (strcmp(uci_move_canonical, expected_move) == 0) {
 // //         // Correct move! Award reward and advance to next move
-// //         printf("[PUZZLE] Correct move! Move %d/%d completed.\n", 
+// //         // Correct move 
 // //                env->context.puzzle_move_index + 1, env->context.puzzle_solution_length);
 // //         env->rewards[agent_idx] += env->reward_correct_move;
 // //         env->context.accumulated_reward_puzzle_correct_move += env->reward_correct_move;
@@ -3233,7 +3233,7 @@
 // //           return;
 // //         } else {
 // //           // More moves to make - recompute observation for next move
-// //           printf("[PUZZLE] Continuing to next move in solution...\n");
+// //           // Continue to next move
 // //           compute_observation_with_perspective(env, &env->context);
 // //           return;
 // //         }
@@ -3244,7 +3244,7 @@
 // //         // Parse the expected and actual moves
 // //         ChessMove expected_move;
 // //         if (!parse_uci_move(env->context.puzzle_solution[env->context.puzzle_move_index], &expected_move)) {
-// //           printf("[PUZZLE] Failed to parse expected move: %s\n", 
+// //           // Failed to parse expected move 
 // //                  env->context.puzzle_solution[env->context.puzzle_move_index]);
 // //         } else {
 // //           // Parse the actual move made
@@ -3837,7 +3837,7 @@
 
 //     // Apply the move
 //     if (!move_applied) {
-//       printf("[PUZZLE ERROR] Move failed to apply: %s\n", uci_move_canonical);
+//       // Move failed to apply
 //       env->terminals[agent_idx] = 1;
 //       return;
 //     }
@@ -3869,7 +3869,7 @@
 
 //       if (strcmp(uci_move_canonical, expected_move) == 0) {
 //         // Correct move! Award reward and advance to next move
-//         printf("[PUZZLE] Correct move! Move %d/%d completed.\n",
+//         // Correct move
 //                env->context.puzzle_move_index + 1,
 //                env->context.puzzle_solution_length);
 //         env->rewards[agent_idx] += env->reward_correct_move;
@@ -3935,7 +3935,7 @@
 //           return;
 //         } else {
 //           // More moves to make - recompute observation for next move
-//           printf("[PUZZLE] Continuing to next move in solution...\n");
+//           // Continue to next move
 //           compute_observation_with_perspective(env, &env->context);
 //           return;
 //         }
@@ -3948,7 +3948,7 @@
 //         if (!parse_uci_move(
 //                 env->context.puzzle_solution[env->context.puzzle_move_index],
 //                 &expected_move)) {
-//           printf("[PUZZLE] Failed to parse expected move: %s\n",
+//           // Failed to parse expected move
 //                  env->context.puzzle_solution[env->context.puzzle_move_index]);
 //         } else {
 //           // Parse the actual move made
@@ -4015,7 +4015,7 @@
 //   // IMPORTANT: Skip all regular game logic in puzzle mode
 //   if (env->context.puzzle_mode) {
 //     // This should never be reached due to returns above, but just in case
-//     printf("[PUZZLE WARNING] Reached end of puzzle block without proper "
+//     // Warning: reached end of puzzle block
 //            "return!\n");
 //     compute_observation_with_perspective(env, &env->context);
 //     return;
@@ -4684,98 +4684,11 @@ typedef struct {
 } Square;
 // === PUFFERLIB LOG STRUCTURE ===
 typedef struct Log {
-  float perf;
-  float score;
+  float perf;          // Required by PufferLib
+  float score;         // Use for solve percentage
   float episode_length;
-  float episode_return;       // combined (existing)
-  float episode_return_white; // new – white perspective total
-  float episode_return_black; // new – black perspective total
-  float reward_valid;
-  float reward_white_captures_enemy_piece;
-  float reward_black_captures_enemy_piece;
-  float reward_max_depth_termination;
-  float reward_draw;
-  // Perspective-based reward tracking
-  float reward_win_white;  // win rewards from white's perspective
-  float reward_win_black;  // win rewards from black's perspective
-  float reward_loss_white; // loss rewards from white's perspective
-  float reward_loss_black; // loss rewards from black's perspective
-  float reward_draw_white; // draw rewards from white's perspective
-  float reward_draw_black; // draw rewards from black's perspective
-  float game_drawn;
-  // New separate win/loss tracking from both perspectives
-  float white_win;  // white wins (from white's perspective)
-  float white_loss; // white losses (from white's perspective)
-  float black_win;  // black wins (from black's perspective)
-  float black_loss; // black losses (from black's perspective)
-  float stalemate;
-  float insufficient_material;
-  float threefold_repetition;
-  float fifty_move_rule;
-  float max_depth;
-  float white_checkmated; // black checkmates white
-  float black_checkmated; // white checkmates black
-  float white_moves;
-  float black_moves;
-  float valid_moves;
-  float invalid_moves_white;
-  float invalid_moves_black;
-  float reward_check_white;
-  float reward_check_black;
-  float reward_material_diff_white;
-  float reward_material_diff_black;
-  float stockfish_eval;
-  // En passant captures
-  float en_passant_white; // white captures via en passant
-  float en_passant_black; // black captures via en passant
-  // Castling moves
-  float white_castle_kingside;  // white castles kingside
-  float white_castle_queenside; // white castles queenside
-  float black_castle_kingside;  // black castles kingside
-  float black_castle_queenside; // black castles queenside
-  // Pawn promotions
-  float white_promotion_count;  // total white pawn promotions
-  float white_promotion_knight; // white promotes to knight
-  float white_promotion_bishop; // white promotes to bishop
-  float white_promotion_rook;   // white promotes to rook
-  float white_promotion_queen;  // white promotes to queen
-  float black_promotion_count;  // total black pawn promotions
-  float black_promotion_knight; // black promotes to knight
-  float black_promotion_bishop; // black promotes to bishop
-  float black_promotion_rook;   // black promotes to rook
-  float black_promotion_queen;  // black promotes to queen
-  // Game logging fields expected by binding.cpp
-  float last_move_from;
-  float last_move_to;
-  float last_move_promotion;
-  float game_step_logged;
-  float game_moves_count;
-  float complete_game_move_count;
-
-  // float-only logging spec
-  // Puzzle mode statistics
-  float puzzle_solved;   // puzzles solved successfully
-  float puzzle_attempts; // total puzzle attempts (first move of each puzzle)
-  float puzzle_correct_moves; // correct moves made in puzzles
-  float puzzle_wrong_moves;   // wrong moves made in puzzles
-  float puzzle_difficulty;    // current puzzle difficulty level
-  float puzzle_success_rate;  // success rate: solved / attempts
-
-  // New: Performance metrics
-  float puzzle_current_id;       // Current puzzle ID all envs are working on
-  float puzzle_global_attempts;  // Total attempts across all envs for current
-                                 // puzzle
-  float puzzle_global_successes; // Total successes across all envs for current
-                                 // puzzle
-  float puzzle_avg_samples_to_solve; // Average samples needed to solve puzzles
-  float puzzle_avg_time_to_solve;    // Average wall clock time to solve puzzles
-
-  // Puzzle rewards tracking
-  float reward_puzzle_solved;
-  float reward_puzzle_failed;
-  float reward_puzzle_correct_move;
-  // n field is always last per pufferlib spec
-  float n;
+  float episode_return;
+  float n;             // Required by PufferLib - always last
 } Log;
 
 // === CHESS BOARD STATE ===
@@ -4835,8 +4748,9 @@ typedef struct ChessContext {
   int puzzle_solved_this_env;   // Track solves for this specific environment
 
   // New: Global puzzle training logic
+  int puzzle_tries_this_episode;    // Total puzzle tries during the episode
+  int puzzle_solves_this_episode;   // Total puzzle solves during the episode
   int puzzle_tries_this_env;    // Current tries for this env on current puzzle
-                                // (max 10)
   int puzzle_max_tries_per_env; // Maximum tries per env before reset (default
                                 // 10)
   clock_t puzzle_start_time;    // Wall clock time when puzzle started
@@ -4900,7 +4814,7 @@ typedef struct ChessContext {
   float puzzle_attempts_this_episode;
   float puzzle_correct_moves_this_episode;
   float puzzle_wrong_moves_this_episode;
-  float puzzle_solved_this_episode;
+  float puzzle_solve_rate_this_episode;  // Solves / tries ratio for logging
   // Accumulated statistics (for logging)
   float c_white_moves;
   float c_black_moves;
@@ -6179,26 +6093,30 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
     ctx->cached_observation_player = player;
   }
 
-  // --- SPARSE LEGAL MOVE MASK ---
-  // Python expects format: [num_legal_moves(1)] + [action_id_0, action_id_1, ..., action_id_63]
-  // This is a sparse list of legal action IDs, NOT a bitfield format
-  int sparse_mask_idx = 1472; // Start index for sparse mask
-  const int MAX_LEGAL_MOVES = 64;
+  // --- BITFIELD LEGAL MOVE MASK ---
+  // Python expects format: [num_uint32_values(1)] + [low_0, high_0, low_1, high_1, ...]
+  // Each pair of uint32 values represents one uint64 bitfield
+  int bitfield_mask_idx = 1472; // Start index for bitfield mask
+  
+  // Calculate number of uint64 bitfields needed (1968 actions / 64 bits = 31 bitfields)
+  const int NUM_BITFIELDS = (1968 + 63) / 64; // = 31 bitfields
+  const int NUM_UINT32_VALUES = NUM_BITFIELDS * 2; // = 62 uint32 values
   
   // Ensure we have legal moves for both players
   chess_generate_all_legal_moves(ctx);
   PieceColor current_player_turn = ctx->board.to_move;
   bool is_player_turn = (player == current_player_turn);
   
-  // Initialize sparse action list
-  int num_legal_moves = 0;
-  float *action_ids_ptr = &env->observations[obs_offset + sparse_mask_idx + 1];
-
+  // Initialize bitfields to zero
+  uint64_t bitfields[NUM_BITFIELDS];
+  memset(bitfields, 0, sizeof(bitfields));
+  
   if (env->debug_disable_mask) {
-    // Debug mode: All moves are legal (first 64 actions for sparse representation)
-    env->observations[obs_offset + sparse_mask_idx] = (float)MAX_LEGAL_MOVES;
-    for (int i = 0; i < MAX_LEGAL_MOVES; i++) {
-      action_ids_ptr[i] = (float)i;
+    // Debug mode: All moves are legal
+    for (int i = 0; i < 1968; i++) {
+      int bitfield_idx = i / 64;
+      int bit_idx = i % 64;
+      bitfields[bitfield_idx] |= (1ULL << bit_idx);
     }
   } else if (ctx->dual_agent_self_play_mode || is_player_turn) {
     // Get the appropriate move buffer based on current turn
@@ -6216,8 +6134,8 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
       action_ids = ctx->black_legal_action_ids;
     }
 
-    // Add each legal move to the sparse list
-    for (int i = 0; i < moves_count && num_legal_moves < MAX_LEGAL_MOVES; i++) {
+    // Set bits for each legal move
+    for (int i = 0; i < moves_count; i++) {
       int action_id;
 
       // Use pre-computed action IDs when possible
@@ -6231,23 +6149,27 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
       }
 
       if (action_id >= 0 && action_id < 1968) {
-        action_ids_ptr[num_legal_moves] = (float)action_id;
-        num_legal_moves++;
+        int bitfield_idx = action_id / 64;
+        int bit_idx = action_id % 64;
+        bitfields[bitfield_idx] |= (1ULL << bit_idx);
         
-        // Debug: Check if this is h4h7 or h4d8
-        if (action_id == 1395) {
-          // printf("[MASK DEBUG] h4h7 (action 1395) added to sparse list at index %d\n", num_legal_moves - 1);
-          // fflush(stdout);
-        } else if (action_id == 1413) {
-          // printf("[MASK DEBUG] h4d8 (action 1413) added to sparse list at index %d\n", num_legal_moves - 1);
-          // fflush(stdout);
-        }
+        // Debug: Action 42 tracking (removed printf for performance)
       }
     }
   }
 
-  // Store the count of legal moves
-  env->observations[obs_offset + sparse_mask_idx] = (float)num_legal_moves;
+  // Store the number of uint32 values
+  env->observations[obs_offset + bitfield_mask_idx] = (float)NUM_UINT32_VALUES;
+  
+  // Store bitfields as pairs of uint32 values
+  for (int i = 0; i < NUM_BITFIELDS; i++) {
+    uint64_t bitfield = bitfields[i];
+    uint32_t low = (uint32_t)(bitfield & 0xFFFFFFFF);
+    uint32_t high = (uint32_t)(bitfield >> 32);
+    
+    env->observations[obs_offset + bitfield_mask_idx + 1 + i * 2] = (float)low;
+    env->observations[obs_offset + bitfield_mask_idx + 1 + i * 2 + 1] = (float)high;
+  }
 }
 // Corrected version of the observation generation orchestrator.
 // This function should replace the old `compute_observation_with_perspective`.
@@ -6274,18 +6196,29 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx,
   for (int i = 0; i < 1472; i++)
     board_sum += obs[i];
 
-  // Sparse mask validation
-  // Format: [num_legal_moves(1)] + [action_ids(64)]
-  float num_legal_moves = obs[1472];
-  float sparse_mask_sum = num_legal_moves;
-
-  // Validate that action IDs are in valid range
-  int num_moves = (int)num_legal_moves;
-  if (num_moves > 0 && num_moves <= 64) {
-    for (int i = 0; i < num_moves; i++) {
-      int action_id = (int)obs[1473 + i];
-      if (action_id < 0 || action_id >= 1968) {
-        printf("[MONITOR_WARNING] Invalid action ID %d at index %d\n", action_id, i);
+  // Bitfield mask validation
+  // Format: [num_uint32_values(1)] + [low_0, high_0, low_1, high_1, ...]
+  float num_uint32_values = obs[1472];
+  
+  // Validate that we have the expected number of uint32 values (62 for 1968 actions)
+  const int EXPECTED_UINT32_VALUES = 62; // 31 bitfields * 2 uint32 per bitfield
+  if ((int)num_uint32_values != EXPECTED_UINT32_VALUES) {
+    printf("[MONITOR_WARNING] Unexpected num_uint32_values: got %.0f, expected %d\n", 
+           num_uint32_values, EXPECTED_UINT32_VALUES);
+  }
+  
+  // Count total legal actions by examining bitfields
+  int total_legal_actions = 0;
+  int num_bitfields = (int)num_uint32_values / 2;
+  for (int i = 0; i < num_bitfields && i < 31; i++) {
+    uint32_t low = (uint32_t)obs[1473 + i * 2];
+    uint32_t high = (uint32_t)obs[1473 + i * 2 + 1];
+    uint64_t bitfield = ((uint64_t)high << 32) | low;
+    
+    // Count set bits in this bitfield
+    for (int bit = 0; bit < 64; bit++) {
+      if (bitfield & (1ULL << bit)) {
+        total_legal_actions++;
       }
     }
   }
@@ -6293,9 +6226,9 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx,
   // Check basic observation integrity
   if (board_sum < 1.0f) {
     printf("[MONITOR_FATAL] Chess.h observation content invalid!\n");
-    printf(" %s observation at offset %d: board_sum=%.3f num_legal_moves=%.0f\n",
+    printf(" %s observation at offset %d: board_sum=%.3f total_legal_actions=%d\n",
            (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum,
-           num_legal_moves);
+           total_legal_actions);
     printf(" Board sum should be >1 (pieces present).\n");
     printf(" FIX: Check compute_single_agent_observation() is writing correct "
            "data.\n");
@@ -6718,7 +6651,7 @@ static bool apply_uci_move(ChessContext *ctx, const char *uci_str) {
   ctx->black_moves_cached = false;
   ctx->position_fully_cached = false;
   ctx->observation_cached = false;
-  ctx->step_count++;
+  // Step count is now incremented in c_step() where it belongs
   // Add to complete game log - store the canonical UCI move
   if (ctx->complete_game_action_count < 1024) {
     strcpy(ctx->complete_game_moves[ctx->complete_game_action_count], uci_str);
@@ -6887,21 +6820,21 @@ static void init_board(ChessBoard *board) {
 void init(CChess *env) {
   memset(&env->context, 0, sizeof(ChessContext));
   memset(&env->log, 0, sizeof(Log));
-  // Initialize puzzle logging fields with default values
-  env->log.puzzle_difficulty = 1.0f;   // Default to difficulty 1
-  env->log.puzzle_success_rate = 0.0f; // Will be calculated post-aggregation
+  // Puzzle logging will use score and perf fields
 
   // CRITICAL: Explicitly initialize episode-specific puzzle stats to ensure they start at 0
   env->context.puzzle_attempts_this_episode = 0.0f;
   env->context.puzzle_correct_moves_this_episode = 0.0f;
   env->context.puzzle_wrong_moves_this_episode = 0.0f;
-  env->context.puzzle_solved_this_episode = 0.0f;
+  env->context.puzzle_solve_rate_this_episode = 0.0f;
 
   // Initialize puzzle tracking
   env->context.puzzle_attempts_this_env = 0;
   env->context.puzzle_solved_this_env = 0;
 
   // Initialize new puzzle training fields
+  env->context.puzzle_tries_this_episode = 0;
+  env->context.puzzle_solves_this_episode = 0;
   env->context.puzzle_tries_this_env = 0;
   env->context.puzzle_max_tries_per_env = 10; // Default
   env->context.puzzle_start_time = 0;
@@ -6919,10 +6852,7 @@ void init(CChess *env) {
   env->ctx = &env->context;
   env->env_id = global_env_counter++; // Simple counter
   
-  printf("[INIT] Environment %d created, puzzle stats: attempts=%.1f, wrong=%.1f, solved=%.1f\n", 
-         env->env_id, env->context.puzzle_attempts_this_episode,
-         env->context.puzzle_wrong_moves_this_episode,
-         env->context.puzzle_solved_this_episode);
+  // Debug: Environment created (removed printf for performance)
 
   // Designate the first environment as the logging environment
   if (logging_env_id == -1) {
@@ -6999,30 +6929,26 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   c_set_fen(env, fen);
 
   // Print initial puzzle position
-  printf("\n[PUZZLE] New puzzle loaded (ID: %d)\n", env->global_puzzle_id);
-  printf("FEN: %s\n", fen);
-  printf("Solution length: %d moves\n", solution_length);
-  printf("Solution: ");
-  for (int i = 0; i < solution_length; i++) {
-    printf("%s ", solution_moves[i]);
-  }
-  printf("\n");
+  // Debug: Puzzle loaded (removed prints for performance)
 
   // Verify this is a mate-in-1 puzzle (white to move, 1 move solution)
   if (solution_length != 1) {
-    printf("[PUZZLE WARNING] Not a mate-in-1 puzzle! Has %d moves.\n",
+    // Warning: Not mate-in-1
+    printf("[PUZZLE WARNING] Solution has %d moves, expected 1\n",
            solution_length);
   }
   if (env->context.board.to_move != C_WHITE) {
-    printf("[PUZZLE ERROR] Puzzle starts with BLACK to move! Only WHITE should "
+    // Error: Black to move
+    printf("[PUZZLE ERROR] Black to move - only white should "
            "move in puzzles.\n");
   }
 
-  printf("Initial position:\n");
-  print_board_state(&env->context.board);
+  // Debug: Initial position (removed print for performance)
 }
 void set_puzzle_difficulty(CChess *env, int difficulty) {
-  env->log.puzzle_difficulty = (float)difficulty;
+  // Puzzle difficulty tracking removed - using simplified Log struct
+  (void)env;  // Suppress unused parameter warning
+  (void)difficulty;  // Suppress unused parameter warning
 }
 void set_puzzle_training_params(CChess *env, int max_tries_per_env,
                                 float success_threshold) {
@@ -7053,11 +6979,9 @@ void free_allocated(CChess *env) {
 }
 void c_reset(CChess *env) {
   // DEBUG: Print when reset is called
-  printf("[DEBUG] c_reset called - puzzle_mode=%d, puzzle_completed=%d\n",
-         env->context.puzzle_mode, env->context.puzzle_completed);
+  // Debug: c_reset called (removed printf for performance)
 
-  // Preserve puzzle difficulty and stats across resets
-  float saved_puzzle_difficulty = env->log.puzzle_difficulty;
+  // Preserve puzzle stats across resets
   int saved_puzzle_attempts = env->context.puzzle_attempts_this_env;
   int saved_puzzle_solved = env->context.puzzle_solved_this_env;
 
@@ -7074,6 +6998,18 @@ void c_reset(CChess *env) {
   // Reset episode tracking
   env->context.step_count = 0;
   env->context.episode_return_white = 0.0f;
+  
+  // Reset puzzle episode tracking
+  printf("[DEBUG RESET] Before reset: solves=%d, tries=%d\n", 
+         env->context.puzzle_tries_this_episode,
+         env->context.puzzle_solves_this_episode);
+  env->context.puzzle_tries_this_episode = 0;
+  env->context.puzzle_solves_this_episode = 0;
+  printf("[DEBUG RESET] After reset: solves=%d, tries=%d\n", 
+         env->context.puzzle_tries_this_episode,
+         env->context.puzzle_solves_this_episode);
+  
+  printf("[EPISODE RESET] Starting new episode (step_count reset to 0)\n");
   env->context.episode_return_black = 0.0f;
 
   env->context.complete_game_action_count = 0;
@@ -7087,11 +7023,11 @@ void c_reset(CChess *env) {
     env->context.puzzle_failed = false;
     env->context.puzzle_move_index = 0;
     // Reset episode-specific puzzle stats
-    printf("[PUZZLE STATS RESET] Resetting puzzle stats to 0\n");
+    // Debug: Resetting puzzle stats (removed printf for performance)
     env->context.puzzle_attempts_this_episode = 0.0f;
     env->context.puzzle_correct_moves_this_episode = 0.0f;
     env->context.puzzle_wrong_moves_this_episode = 0.0f;
-    env->context.puzzle_solved_this_episode = 0.0f;
+    env->context.puzzle_solve_rate_this_episode = 0.0f;
   }
 
   // Don't reset game logging frequency - it's set once at init
@@ -7143,18 +7079,12 @@ void c_reset(CChess *env) {
   env->context.accumulated_reward_puzzle_correct_move = 0.0f;
 
   // Reset puzzle stats accumulation
-  printf("[GENERAL RESET] Before reset: attempts=%.1f, wrong=%.1f, solved=%.1f\n",
-         env->context.puzzle_attempts_this_episode,
-         env->context.puzzle_wrong_moves_this_episode,
-         env->context.puzzle_solved_this_episode);
+  // Debug: Reset stats before (removed printf for performance)
   env->context.puzzle_attempts_this_episode = 0.0f;
   env->context.puzzle_correct_moves_this_episode = 0.0f;
   env->context.puzzle_wrong_moves_this_episode = 0.0f;
-  env->context.puzzle_solved_this_episode = 0.0f;
-  printf("[GENERAL RESET] After reset: attempts=%.1f, wrong=%.1f, solved=%.1f\n",
-         env->context.puzzle_attempts_this_episode,
-         env->context.puzzle_wrong_moves_this_episode,
-         env->context.puzzle_solved_this_episode);
+  env->context.puzzle_solve_rate_this_episode = 0.0f;
+  // Debug: Reset stats after (removed printf for performance)
   // Clear caches
   env->context.white_moves_cached = false;
   env->context.black_moves_cached = false;
@@ -7175,15 +7105,42 @@ void c_reset(CChess *env) {
   // Compute initial observation
   compute_observation_with_perspective(env, &env->context);
 
-  // Restore puzzle difficulty and stats after reset
-  env->log.puzzle_difficulty = saved_puzzle_difficulty;
+  // Restore puzzle stats after reset
   env->context.puzzle_attempts_this_env = saved_puzzle_attempts;
   env->context.puzzle_solved_this_env = saved_puzzle_solved;
 }
 
 void c_step(CChess *env) {
-  // printf("[C_STEP DEBUG] c_step called\n");
-  // fflush(stdout);
+  // CRITICAL FIX: Check if episode already terminated BEFORE incrementing
+  // This prevents the infinite loop where step_count keeps increasing past 100
+  // BUT ALSO: Don't keep re-triggering the termination check!
+  if (env->terminals && (env->terminals[0] || env->terminals[1])) {
+    // Episode is already terminated, don't process any more steps
+    // Keep terminals set and give zero rewards
+    env->terminals[0] = 1;
+    env->terminals[1] = 1;
+    env->rewards[0] = 0.0f;
+    env->rewards[1] = 0.0f;
+    // DON'T increment step count - episode is over!
+    return;
+  }
+  
+  // Only increment if not terminated
+  env->context.step_count++;
+  
+  // Log this env's stats every 50 steps
+  if (env->context.step_count % 50 == 0) {
+    float solve_rate = 0.0f;
+    if (env->context.puzzle_tries_this_episode > 0) {
+      solve_rate = 100.0f * env->context.puzzle_solves_this_episode / 
+                   env->context.puzzle_tries_this_episode;
+    }
+    printf("[ENV %3d] step=%4d | solve_rate=%5.1f%% | tries=%3d | solves=%3d\n",
+           env->env_id, env->context.step_count, solve_rate,
+           env->context.puzzle_tries_this_episode,
+           env->context.puzzle_solves_this_episode);
+  }
+  
   PROFILE_START(profile_c_step_ticks)
   // Definitive Guard Clause: If the puzzle is marked as completed (either
   // solved or failed), the episode is over. The environment must remain
@@ -7289,19 +7246,18 @@ void c_step(CChess *env) {
       env->context.puzzle_wrong_moves_this_episode += 1.0f;
       env->context.puzzle_attempts_this_episode += 1.0f;
       env->context.puzzle_tries_this_env++;
+      env->context.puzzle_tries_this_episode++;  // Track attempt for episode
       env->global_puzzle_attempts++;
       // Check if we've exceeded max tries for this puzzle
       if (env->context.puzzle_tries_this_env >=
           env->context.puzzle_max_tries_per_env) {
-        // Terminate episode after max tries
-        env->context.puzzle_failed = true;
-        printf("[EPISODE END] Setting terminal=1 for puzzle fail (max tries). Stats: attempts=%.1f, wrong=%.1f\n",
+        // Don't terminate - continue episode for 8192 steps
+        // Reset puzzle for next attempt
+        env->context.puzzle_failed = false;
+        env->context.puzzle_tries_this_env = 0;
+        printf("[PUZZLE] Max tries reached, resetting puzzle. Stats: attempts=%.1f, wrong=%.1f\n",
                env->context.puzzle_attempts_this_episode,
                env->context.puzzle_wrong_moves_this_episode);
-        env->terminals[agent_idx] = 1;
-        add_log(env);
-        compute_observation_with_perspective(env, &env->context);
-        return;
       }
       // Reset the puzzle to its starting position for another try
       c_set_fen(env, env->context.puzzle_fen);
@@ -7349,15 +7305,44 @@ void c_step(CChess *env) {
   // Store whose turn it was before the move (the player making the move)
   PieceColor moving_player = env->context.board.to_move;
   bool move_applied = apply_uci_move(&env->context, uci_move_canonical);
+  
+  // Direct step logging in puzzle mode - log every 50 steps
+  if (env->context.puzzle_mode && env->context.step_count % 50 == 0) {
+    printf("[PUZZLE STEP] step_count=%d, wrong_moves=%.0f, solves=%d, tries=%d\n", 
+           env->context.step_count,
+           env->context.puzzle_wrong_moves_this_episode,
+           env->context.puzzle_solves_this_episode,
+           env->context.puzzle_tries_this_episode);
+  }
   // printf("[MOVE_APPLY] Move applied successfully: %s, new turn: %s\n",
   // move_applied ? "YES" : "NO",
   // (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK");
+  
+  // Check if we've reached EXACTLY 100 steps - terminate episode ONCE
+  // Changed from >= to == to prevent repeated termination messages
+  if (env->context.step_count == 100) {
+    printf("[DEBUG] ENV PTR=%p, context PTR=%p\n", (void*)env, (void*)&env->context);
+    printf("[DEBUG] step_count=%d, solves=%d, tries=%d\n", 
+           env->context.step_count,
+           env->context.puzzle_solves_this_episode,
+           env->context.puzzle_tries_this_episode);
+    printf("[EPISODE END] Reached 100 steps - terminating. Puzzle stats: solves=%d, tries=%d, solve_rate=%.2f%%\n",
+           env->context.puzzle_solves_this_episode,
+           env->context.puzzle_tries_this_episode,
+           env->context.puzzle_tries_this_episode > 0 ? 
+           (100.0f * env->context.puzzle_solves_this_episode / env->context.puzzle_tries_this_episode) : 0.0f);
+    env->terminals[0] = 1;
+    env->terminals[1] = 1;
+    add_log(env);
+    compute_observation_with_perspective(env, &env->context);
+    return;
+  }
+  
   // PUZZLE MODE - Special handling
   if (env->context.puzzle_mode) {
     // In puzzle mode, only white should be moving
     if (moving_player != C_WHITE) {
-      printf("[PUZZLE ERROR] Black tried to move in puzzle mode! This should "
-             "not happen!\n");
+      // Error: Black move in puzzle mode
       env->terminals[agent_idx] = 1;
       return;
     }
@@ -7365,27 +7350,19 @@ void c_step(CChess *env) {
     static int board_print_counter = 0;
     board_print_counter++;
     if (board_print_counter <= 20 || board_print_counter % 50 == 0) {
-      printf("\n[PUZZLE] Board before move (puzzle move %d/%d):\n",
-             env->context.puzzle_move_index + 1,
-             env->context.puzzle_solution_length);
-      fflush(stdout);
-      print_board_state(&env->context.board);
-      fflush(stdout);
-      printf("[PUZZLE DEBUG] Env %d attempting move (step %d)\n", env->env_id, board_print_counter);
+      // Debug: Board before move (removed print for performance)
+      // Debug: Board state and move attempt (removed prints for performance)
       fflush(stdout);
     }
     // Apply the move
     if (!move_applied) {
-      printf("[PUZZLE ERROR] Move failed to apply: %s\n", uci_move_canonical);
+      // Move failed to apply
       env->terminals[agent_idx] = 1;
       return;
     }
     // Print board AFTER the move (with same limiting)
     if (board_print_counter <= 20 || board_print_counter % 50 == 0) {
-      printf("[PUZZLE] Move played: %s by WHITE\n", uci_move_canonical);
-      fflush(stdout);
-      print_board_state(&env->context.board);
-      fflush(stdout);
+      // Move played
     }
   } else {
     // Non-puzzle mode - normal move application
@@ -7410,32 +7387,17 @@ void c_step(CChess *env) {
       // COMBINED FIX: Increment counters for EVERY attempt, BEFORE checking correctness
       env->context.puzzle_attempts_this_episode += 1.0f;
       env->global_puzzle_attempts++; // CRITICAL: Count all global attempts
-      printf("[PUZZLE ATTEMPT] attempts_this_episode now: %.1f\n", env->context.puzzle_attempts_this_episode);
+      // Debug: Puzzle attempt (removed print for performance)
       
-      // Print progress every 100 attempts
-      static int global_step_counter = 0;
-      global_step_counter++;
-      if (global_step_counter % 100 == 0) {
-        printf("\n[TRAINING PROGRESS] Total steps: %d, Puzzle attempts: %d, Successes: %d (%.1f%%)\n", 
-               global_step_counter, env->global_puzzle_attempts, env->global_puzzle_successes,
-               env->global_puzzle_attempts > 0 ? (float)env->global_puzzle_successes / env->global_puzzle_attempts * 100.0f : 0.0f);
+      // No progress printing
         
-        // Print per-episode stats for debugging
-        printf("[DEBUG] Episode stats: puzzle_attempts=%.1f, puzzle_solved=%.1f, rate=%.3f\n",
-               env->log.puzzle_attempts, env->log.puzzle_solved, 
-               env->log.puzzle_attempts > 0 ? env->log.puzzle_solved / env->log.puzzle_attempts : 0.0f);
-        printf("[DEBUG] Context: attempts_this_episode=%.1f, correct_moves=%.1f, wrong_moves=%.1f\n",
-               env->context.puzzle_attempts_this_episode, 
-               env->context.puzzle_correct_moves_this_episode,
-               env->context.puzzle_wrong_moves_this_episode);
-        fflush(stdout);
-      }
+        // No debug stats
       
       if (strcmp(uci_move_canonical, expected_move) == 0) {
         // Correct move! Award reward and advance to next move
-        printf("[PUZZLE] Correct move! Move %d/%d completed.\n",
-               env->context.puzzle_move_index + 1,
-               env->context.puzzle_solution_length);
+        // printf("[PUZZLE] Correct move %d/%d\n",
+        //        env->context.puzzle_move_index + 1,
+        //        env->context.puzzle_solution_length);
         fflush(stdout);
         env->rewards[agent_idx] += env->reward_correct_move;
         env->context.accumulated_reward_puzzle_correct_move +=
@@ -7447,11 +7409,8 @@ void c_step(CChess *env) {
         // Check if puzzle is complete
         if (env->context.puzzle_move_index >=
             env->context.puzzle_solution_length) {
-          // Puzzle solved! Award completion reward
-          printf("[PUZZLE] PUZZLE SOLVED! Terminating episode.\n");
-          fflush(stdout);
-          printf("[PUZZLE DEBUG] Env %d solved!\n", env->env_id);
-          fflush(stdout);
+        //   // Puzzle solved! Award completion reward
+        //   printf("[PUZZLE] PUZZLE SOLVED! Continuing episode (not terminating).\n");
           env->rewards[agent_idx] += env->reward_puzzle_solved;
           env->context.accumulated_reward_puzzle_solved +=
               env->reward_puzzle_solved;
@@ -7459,20 +7418,12 @@ void c_step(CChess *env) {
           env->context.puzzle_completed = true;
           env->global_puzzle_successes++;
           
-          // Debug logging for curriculum progression
-          if (env->global_puzzle_attempts % 10 == 0 || env->global_puzzle_attempts >= 20) {
-            printf("[PUZZLE CURRICULUM] Progress: %d attempts, %d successes, rate: %.2f%%\n", 
-                   env->global_puzzle_attempts, env->global_puzzle_successes,
-                   (float)env->global_puzzle_successes / env->global_puzzle_attempts * 100.0f);
-            fflush(stdout);
-          }
+          // No debug logging
           
           // Calculate performance metrics
           clock_t solve_time = clock() - env->context.puzzle_start_time;
-          env->log.puzzle_avg_time_to_solve =
-              (float)solve_time / CLOCKS_PER_SEC;
-          env->log.puzzle_avg_samples_to_solve =
-              (float)env->context.puzzle_samples_to_solve;
+          // Time and sample tracking removed - using simplified Log struct
+          (void)solve_time;  // Suppress unused variable warning
           // Check if global threshold reached (simplified check)
           if (env->global_puzzle_attempts >= 20) { // Minimum sample
             float global_success_rate = (float)env->global_puzzle_successes /
@@ -7486,45 +7437,38 @@ void c_step(CChess *env) {
           }
           // Track puzzle solved in context for later logging
           env->context.puzzle_solved_this_env++;
-          env->context.puzzle_solved_this_episode += 1.0f;
-          // Update global logging info (these are okay to set directly as
-          // they're global state)
-          env->log.puzzle_current_id = (float)env->global_puzzle_id;
-          env->log.puzzle_global_attempts = (float)env->global_puzzle_attempts;
-          env->log.puzzle_global_successes =
-              (float)env->global_puzzle_successes;
+          env->context.puzzle_solves_this_episode++;  // Track solve for episode
+          env->context.puzzle_tries_this_episode++;   // Track attempt for episode
+          // Global puzzle tracking removed - using simplified Log struct
           // Reset for next puzzle
           env->context.puzzle_tries_this_env = 0;
           env->context.puzzle_samples_to_solve = 0;
           env->context.puzzle_start_time = 0;
-          // Terminate episode - puzzle complete
-          printf("[EPISODE END] Setting terminal=1 for puzzle SUCCESS! Stats: attempts=%.1f, solved=%.1f\n",
-                 env->context.puzzle_attempts_this_episode,
-                 env->context.puzzle_solved_this_episode);
-          env->terminals[agent_idx] = 1;
-          add_log(env);
+          // Don't terminate - continue episode for 8192 steps
+          // Reset puzzle for next attempt
+          c_set_fen(env, env->context.puzzle_fen);
+          env->context.puzzle_move_index = 0;
+          env->context.puzzle_failed = false;
+          env->context.puzzle_completed = false;
           compute_observation_with_perspective(env, &env->context);
           return;
         } else {
           // More moves to make - recompute observation for next move
-          printf("[PUZZLE] Continuing to next move in solution...\n");
+          // Continue to next move
           compute_observation_with_perspective(env, &env->context);
           return;
         }
       } else {
         // Wrong move! Give penalty and reward shaping
-        printf("[PUZZLE] Incorrect move! Expected %s, got %s. Terminating episode.\n",
-               expected_move, uci_move_canonical);
-        fflush(stdout);
-        printf("[PUZZLE DEBUG] Env %d failed attempt\n", env->env_id);
-        fflush(stdout);
+        // Incorrect move
         float total_penalty = env->reward_puzzle_failed;
         // Parse the expected and actual moves
         ChessMove expected_move;
         if (!parse_uci_move(
                 env->context.puzzle_solution[env->context.puzzle_move_index],
                 &expected_move)) {
-          printf("[PUZZLE] Failed to parse expected move: %s\n",
+          // Failed to parse expected move
+          printf("[PUZZLE ERROR] Failed to parse expected move: %s\n",
                  env->context.puzzle_solution[env->context.puzzle_move_index]);
         } else {
           // Parse the actual move made
@@ -7568,27 +7512,21 @@ void c_step(CChess *env) {
         // Track wrong moves in context for later logging
         env->context.puzzle_wrong_moves_this_episode += 1.0f;
         env->context.puzzle_tries_this_env++;
-        printf("[WRONG MOVE] wrong_moves_this_episode now: %.1f, tries_this_env: %d\n",
-               env->context.puzzle_wrong_moves_this_episode,
-               env->context.puzzle_tries_this_env);
+        env->context.puzzle_tries_this_episode++;  // Track attempt for episode
+        // printf("[WRONG MOVE] wrong_moves_this_episode now: %.1f, tries_this_env: %d\n",
+        //        env->context.puzzle_wrong_moves_this_episode,
+        //        env->context.puzzle_tries_this_env);
         // NOTE: global_puzzle_attempts already incremented above for ALL attempts
-        
-        // // Terminate the episode IMMEDIATELY on failure
-        // env->context.puzzle_failed = true;
-        // env->terminals[agent_idx] = 1; // End the episode now
-        
-        // add_log(env);
-        // compute_observation_with_perspective(env, &env->context);
-        // return; // Exit. The next call will be a reset for a new episode
-        env->context.puzzle_tries_this_env++;
 
         // Check if we've exceeded max tries for this puzzle
         if (env->context.puzzle_tries_this_env >=
             env->context.puzzle_max_tries_per_env) {
-          // Terminate episode after max tries
-          env->context.puzzle_failed = true;
-          env->terminals[agent_idx] = 1;
-          add_log(env);
+          // Don't terminate - continue episode for 8192 steps
+          // Reset puzzle for next attempt
+          env->context.puzzle_failed = false;
+          env->context.puzzle_tries_this_env = 0;
+          c_set_fen(env, env->context.puzzle_fen);
+          env->context.puzzle_move_index = 0;
           compute_observation_with_perspective(env, &env->context);
           return;
         } else {
@@ -7794,8 +7732,7 @@ void c_step(CChess *env) {
     // Mark both agents as terminal
     env->terminals[0] = 1;
     env->terminals[1] = 1;
-    env->log.complete_game_move_count =
-        (float)env->context.complete_game_action_count;
+    // Complete game move count removed - using simplified Log struct
     add_log(env);
     // Notify UI about game end via function call (before auto-reset clears
     // counters) notify_game_end(env->context.c_white_win > 0,
@@ -7817,7 +7754,7 @@ void c_step(CChess *env) {
           env->context.steps_since_last_log >=
               env->context.game_logging_frequency) {
         write_complete_game_to_file(&env->context, env->env_id);
-        env->log.game_step_logged = 1.0;       // Indicate a game was logged
+        // Game step logging removed - using simplified Log struct
         env->context.steps_since_last_log = 0; // Reset counter
       }
     } else {
@@ -7866,114 +7803,23 @@ void c_step(CChess *env) {
 
 // === PUFFERLIB LOGGING FUNCTION ===
 void add_log(CChess *env) {
-  // Debug logging for episode termination
-  static int episode_counter = 0;
-  episode_counter++;
-  if (episode_counter % 20 == 0) {
-    printf("[ADD_LOG] Episode %d ended: attempts=%.1f, solved=%.1f, log_total_attempts=%.1f, log_total_solved=%.1f\n",
-           episode_counter, env->context.puzzle_attempts_this_episode, env->context.puzzle_solved_this_episode,
-           env->log.puzzle_attempts, env->log.puzzle_solved);
-    fflush(stdout);
-  }
-  
-  // Aggregate counters into log structure using = for PufferLib (CRITICAL!)
+  // Only log the essential metrics as requested
   env->log.episode_length += (float)env->context.step_count;
   env->log.episode_return +=
       env->context.episode_return_white + env->context.episode_return_black;
-  env->log.episode_return_white += env->context.episode_return_white;
-  env->log.episode_return_black += env->context.episode_return_black;
-  // Reward aggregates (from accumulated counters during this game)
-  env->log.reward_valid += env->context.accumulated_reward_valid;
-  env->log.reward_white_captures_enemy_piece +=
-      env->context.accumulated_reward_white_captures_enemy_piece;
-  env->log.reward_black_captures_enemy_piece +=
-      env->context.accumulated_reward_black_captures_enemy_piece;
-  env->log.reward_draw += env->context.accumulated_reward_draw;
-  env->log.reward_win_white += env->context.accumulated_reward_win_white;
-  env->log.reward_win_black += env->context.accumulated_reward_win_black;
-  env->log.reward_loss_white += env->context.accumulated_reward_loss_white;
-  env->log.reward_loss_black += env->context.accumulated_reward_loss_black;
-  env->log.reward_draw_white += env->context.accumulated_reward_draw_white;
-  env->log.reward_draw_black += env->context.accumulated_reward_draw_black;
-  env->log.reward_check_white += env->context.accumulated_reward_check_white;
-  env->log.reward_check_black += env->context.accumulated_reward_check_black;
-  env->log.reward_material_diff_white +=
-      env->context.accumulated_reward_material_diff_white;
-  env->log.reward_material_diff_black +=
-      env->context.accumulated_reward_material_diff_black;
-  env->log.stockfish_eval += env->context.accumulated_stockfish_eval;
-  // Game outcome counters (use incremental values from current game)
-  env->log.white_win += (float)env->context.c_white_win;
-  env->log.white_loss += (float)env->context.c_white_loss;
-  env->log.black_win += (float)env->context.c_black_win;
-  env->log.black_loss += (float)env->context.c_black_loss;
-  env->log.game_drawn += (float)env->context.c_game_drawn;
-  env->log.stalemate += (float)env->context.c_stalemate;
-  env->log.insufficient_material += (float)env->context.c_insufficient_material;
-  env->log.threefold_repetition += (float)env->context.c_threefold_repetition;
-  env->log.fifty_move_rule += (float)env->context.c_fifty_move_rule;
-  env->log.max_depth += (float)env->context.c_max_depth;
-  env->log.white_checkmated += (float)env->context.c_white_checkmated;
-  env->log.black_checkmated += (float)env->context.c_black_checkmated;
-  // Move statistics
-  env->log.white_moves += (float)env->context.c_white_moves;
-  env->log.black_moves += (float)env->context.c_black_moves;
-  env->log.valid_moves += (float)env->context.c_valid_moves;
-  env->log.invalid_moves_white += (float)env->context.c_invalid_moves_white;
-  env->log.invalid_moves_black += (float)env->context.c_invalid_moves_black;
-  // Castling and special moves
-  env->log.en_passant_white += (float)env->context.c_en_passant_white;
-  env->log.en_passant_black += (float)env->context.c_en_passant_black;
-  env->log.white_castle_kingside += (float)env->context.c_white_castle_kingside;
-  env->log.white_castle_queenside +=
-      (float)env->context.c_white_castle_queenside;
-  env->log.black_castle_kingside += (float)env->context.c_black_castle_kingside;
-  env->log.black_castle_queenside +=
-      (float)env->context.c_black_castle_queenside;
-  // Promotion statistics
-  env->log.white_promotion_count += (float)env->context.c_white_promotion_count;
-  env->log.white_promotion_knight +=
-      (float)env->context.c_white_promotion_knight;
-  env->log.white_promotion_bishop +=
-      (float)env->context.c_white_promotion_bishop;
-  env->log.white_promotion_rook += (float)env->context.c_white_promotion_rook;
-  env->log.white_promotion_queen += (float)env->context.c_white_promotion_queen;
-  env->log.black_promotion_count += (float)env->context.c_black_promotion_count;
-  env->log.black_promotion_knight +=
-      (float)env->context.c_black_promotion_knight;
-  env->log.black_promotion_bishop +=
-      (float)env->context.c_black_promotion_bishop;
-  env->log.black_promotion_rook += (float)env->context.c_black_promotion_rook;
-  env->log.black_promotion_queen += (float)env->context.c_black_promotion_queen;
-  // Add puzzle rewards to log
-  env->log.reward_puzzle_solved +=
-      env->context.accumulated_reward_puzzle_solved;
-  env->log.reward_puzzle_failed +=
-      env->context.accumulated_reward_puzzle_failed;
-  env->log.reward_puzzle_correct_move +=
-      env->context.accumulated_reward_puzzle_correct_move;
-
-  // Add puzzle stats to log - use assignment (=) not accumulation (+=) for per-episode stats
-  printf("[ADD_LOG] Setting log stats: attempts=%.1f, wrong_moves=%.1f, solved=%.1f\n",
-         env->context.puzzle_attempts_this_episode,
-         env->context.puzzle_wrong_moves_this_episode,
-         env->context.puzzle_solved_this_episode);
-  env->log.puzzle_solved = env->context.puzzle_solved_this_episode;
-  env->log.puzzle_attempts = env->context.puzzle_attempts_this_episode;
-  env->log.puzzle_correct_moves =
-      env->context.puzzle_correct_moves_this_episode;
-  env->log.puzzle_wrong_moves = env->context.puzzle_wrong_moves_this_episode;
-
-  // Don't calculate success rate in add_log - it gets summed incorrectly
-  // Success rate should be calculated post-aggregation
-  // Calculate performance metrics after aggregation
-  float total_games =
-      env->log.white_win + env->log.white_loss + env->log.game_drawn;
-  if (total_games > 0) {
-    env->log.perf = env->log.white_win / total_games; // White win rate
+  
+  // Puzzle solve rate tracking for this episode
+  if (env->context.puzzle_mode && env->context.puzzle_tries_this_episode > 0) {
+    // Compute solve rate as solves / tries for this episode
+    env->context.puzzle_solve_rate_this_episode = 
+        (float)env->context.puzzle_solves_this_episode / 
+        (float)env->context.puzzle_tries_this_episode;
+    
+    // Log the solve rate using score field
+    env->log.score += env->context.puzzle_solve_rate_this_episode;
+    env->log.perf += 1.0f;  // Count episodes for average calculation
   }
-  env->log.score =
-      env->log.white_win - env->log.white_loss; // Win-loss difference
+  
   // Increment n (must be last for PufferLib aggregation)
   env->log.n += 1.0f;
 }
