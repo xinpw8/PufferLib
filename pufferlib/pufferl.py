@@ -2408,7 +2408,22 @@ class PuffeRL:
         self.last_log_step = 0
         self.last_log_time = time.time()
         self.start_time = time.time()
-        self.utilization = Utilization()
+        # Allow disabling utilization monitor to avoid teardown races
+        if config.get('monitor_utilization', True):
+            self.utilization = Utilization()
+        else:
+            class _NoUtil:
+                def __init__(self):
+                    from collections import deque
+                    self.cpu_mem = deque([0], maxlen=20)
+                    self.cpu_util = deque([0], maxlen=20)
+                    self.gpu_util = deque([0], maxlen=20)
+                    self.gpu_mem = deque([0], maxlen=20)
+                def stop(self):
+                    pass
+                def join(self, timeout=None):
+                    pass
+            self.utilization = _NoUtil()
         self.profile = Profile()
         self.stats = defaultdict(list)
         self.last_stats = defaultdict(list)
@@ -2741,7 +2756,23 @@ class PuffeRL:
         if os.path.exists(model_path):
             return model_path
 
-        torch.save(self.uncompiled_policy.state_dict(), model_path)
+        # Fix for infinite recursion in state_dict()
+        # This can happen when LSTM wrappers create circular references
+        try:
+            import sys
+            original_limit = sys.getrecursionlimit()
+            sys.setrecursionlimit(5000)  # Temporarily increase limit
+            state_dict = self.uncompiled_policy.state_dict()
+            sys.setrecursionlimit(original_limit)  # Restore original
+        except RecursionError:
+            # If recursion still happens, try to break circular references
+            print("Warning: RecursionError in state_dict(), attempting workaround...")
+            # Try alternate approach - save the whole model
+            torch.save(self.uncompiled_policy, model_path + '.full')
+            print(f"Saved full model to {model_path}.full instead")
+            return model_path + '.full'
+        
+        torch.save(state_dict, model_path)
 
         state = {
             'optimizer_state_dict': self.optimizer.state_dict(),
@@ -3457,3 +3488,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    

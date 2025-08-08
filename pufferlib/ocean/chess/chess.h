@@ -7326,7 +7326,7 @@ void c_step(CChess *env) {
   
   // Check if we've reached EXACTLY 100 steps - terminate episode ONCE
   // Changed from >= to == to prevent repeated termination messages
-  if (env->context.step_count == 5) {
+  if (env->context.step_count == 40) {
     // printf("[DEBUG] ENV PTR=%p, context PTR=%p\n", (void*)env, (void*)&env->context);
     // printf("[DEBUG] step_count=%d, solves=%d, tries=%d\n", 
     //        env->context.step_count,
