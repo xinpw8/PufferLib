@@ -2271,7 +2271,13 @@ class PuffeRL:
     def __init__(self, config, vecenv, policy, logger=None):
         # Backend perf optimization
         torch.set_float32_matmul_precision('high')
-        torch.backends.cudnn.deterministic = config['torch_deterministic']
+        # Convert to bool if it's an int or string
+        deterministic = config['torch_deterministic']
+        if isinstance(deterministic, str):
+            deterministic = deterministic.lower() in ('true', '1', 'yes')
+        elif isinstance(deterministic, int):
+            deterministic = bool(deterministic)
+        torch.backends.cudnn.deterministic = deterministic
         torch.backends.cudnn.benchmark = True
 
         # Reproducibility
@@ -2305,11 +2311,14 @@ class PuffeRL:
             )
 
         device = config['device']
-        self.observations = torch.zeros(segments, horizon, *obs_space.shape,
+        # Handle cases where shape might not be a tuple
+        obs_shape = obs_space.shape if isinstance(obs_space.shape, tuple) else (obs_space.shape,)
+        self.observations = torch.zeros(segments, horizon, *obs_shape,
             dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_space.dtype],
-            pin_memory=device == 'cuda' and config['cpu_offload'],
+            pin_memory=bool(device == 'cuda' and config['cpu_offload']),
             device='cpu' if config['cpu_offload'] else device)
-        self.actions = torch.zeros(segments, horizon, *atn_space.shape, device=device,
+        atn_shape = atn_space.shape if isinstance(atn_space.shape, tuple) else (atn_space.shape,) if hasattr(atn_space, 'shape') else ()
+        self.actions = torch.zeros(segments, horizon, *atn_shape, device=device,
             dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_space.dtype])
         self.values = torch.zeros(segments, horizon, device=device)
         self.logprobs = torch.zeros(segments, horizon, device=device)
@@ -3288,6 +3297,8 @@ def profile(args=None, env_name=None, vecenv=None, policy=None):
     prof.export_chrome_trace("trace.json")
 
 def export(args=None, env_name=None, vecenv=None, policy=None):
+    import os
+    
     args = args or load_config(env_name)
     vecenv = vecenv or load_env(env_name, args)
     policy = policy or load_policy(args, vecenv)
@@ -3297,10 +3308,52 @@ def export(args=None, env_name=None, vecenv=None, policy=None):
         weights.append(param.data.cpu().numpy().flatten())
         print(name, param.shape, param.data.cpu().numpy().ravel()[0])
     
-    path = f'{args["env_name"]}_weights.bin'
+    # Determine the appropriate resources directory
+    env_name_clean = args["env_name"]
+    if env_name_clean.startswith('puffer_'):
+        env_name_clean = env_name_clean[7:]  # Remove 'puffer_' prefix
+    
+    # Check if this is an Ocean environment
+    if args.get('package') == 'ocean':
+        # Create resources directory for Ocean environments
+        resources_dir = f'resources/{env_name_clean}'
+        
+        # Also check common alternative paths
+        if not os.path.exists(resources_dir):
+            # Try pufferlib/resources path
+            alt_path = f'pufferlib/resources/{env_name_clean}'
+            if os.path.exists(os.path.dirname(alt_path)):
+                resources_dir = alt_path
+        
+        # Create directory if it doesn't exist
+        os.makedirs(resources_dir, exist_ok=True)
+        path = f'{resources_dir}/{env_name_clean}_weights.bin'
+        
+        # Also save a copy in the current directory for backward compatibility
+        backup_path = f'{args["env_name"]}_weights.bin'
+    else:
+        # For non-Ocean environments, use current directory
+        path = f'{args["env_name"]}_weights.bin'
+        backup_path = None
+    
     weights = np.concatenate(weights)
     weights.tofile(path)
     print(f'Saved {len(weights)} weights to {path}')
+    
+    # Save backup copy if specified
+    if backup_path:
+        weights.tofile(backup_path)
+        print(f'Also saved backup to {backup_path}')
+    
+    # For chess specifically, also save to the path expected by the C++ eval
+    if env_name_clean == 'chess':
+        chess_eval_path = 'resources/chess/puffer_chess_weights.bin'
+        if os.path.exists('resources/chess') or os.path.exists('pufferlib/resources/chess'):
+            if os.path.exists('pufferlib/resources/chess'):
+                chess_eval_path = 'pufferlib/resources/chess/puffer_chess_weights.bin'
+            os.makedirs(os.path.dirname(chess_eval_path), exist_ok=True)
+            weights.tofile(chess_eval_path)
+            print(f'Also saved for C++ eval at {chess_eval_path}')
 
 def autotune(args=None, env_name=None, vecenv=None, policy=None):
     package = args['package']

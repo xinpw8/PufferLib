@@ -1134,6 +1134,7 @@ static PyObject *vec_init(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     env->observations = (void *)((char *)PyArray_DATA(observations) +
                                  i * PyArray_STRIDE(observations, 0));
+    printf("[C++ INIT] Env %d observations buffer address: %p\n", i, env->observations);
     env->actions = (void *)((char *)PyArray_DATA(actions) +
                             i * PyArray_STRIDE(actions, 0));
     env->rewards = (void *)((char *)PyArray_DATA(rewards) +

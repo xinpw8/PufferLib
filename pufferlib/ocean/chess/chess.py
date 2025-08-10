@@ -41,7 +41,7 @@ class Chess(pufferlib.PufferEnv):
                  reward_puzzle_failed=-0.1, reward_correct_move=0.5,
                  puzzle_tries_per_env=10, reward_puzzle_correct_piece=0.01,
                  reward_puzzle_closer_to_target=0.02, reward_puzzle_correct_promotion=0.01,
-                 moves_per_episode=None, frozen_policy_update_frequency=None):
+                 puzzle_set_size=10, moves_per_episode=None, frozen_policy_update_frequency=None):
         
         self.binding = binding
         # Initialization print removed for performance
@@ -102,9 +102,9 @@ class Chess(pufferlib.PufferEnv):
 
         # Define single-agent spaces
         self.num_actions = 1968
-        # BITFIELD ACTION MASK: [board_state(1472)] + [num_uint32_values(1)] + [bitfield_data(62)]
-        self.NUM_UINT32_VALUES = 62  # 31 bitfields * 2 uint32 per bitfield for 1968 actions
-        self.num_obs = 8*8*23 + 1 + self.NUM_UINT32_VALUES # board state + bitfield legal moves
+        # OBSERVATION SPACE: Board state + sparse legal move mask
+        # Sparse mask format: [num_legal_moves(1)] + [legal_action_ids(64)]
+        self.num_obs = 8*8*23 + 1 + 64  # board state (1472) + sparse mask (65)
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(self.num_obs,), dtype=np.float32)
         self.single_action_space = gymnasium.spaces.Discrete(self.num_actions)
@@ -130,6 +130,10 @@ class Chess(pufferlib.PufferEnv):
         self.num_envs = actual_num_envs
         self.agents_per_batch = actual_num_envs
 
+        # DEBUG: Check memory address of observations
+        print(f"[PYTHON INIT] observations buffer address: {self.observations.ctypes.data:x}")
+        print(f"[PYTHON INIT] observations shape: {self.observations.shape}, dtype: {self.observations.dtype}")
+        
         # Initialize C environments, passing the full buffers
         self.c_envs = binding.vec_init(
             self.observations, self.actions, self.rewards, self.terminals, self.truncations,
@@ -187,10 +191,12 @@ class Chess(pufferlib.PufferEnv):
         self.puzzle_difficulty = puzzle_difficulty
         self.puzzle_success_threshold = puzzle_success_threshold
         self.puzzle_database_path = puzzle_database_path
-        self.reward_puzzle_solved = reward_puzzle_solved
-        self.reward_puzzle_failed = reward_puzzle_failed
-        self.reward_correct_move = reward_correct_move
+        # Use reasonable reward values for RL (typically 0-1 range)
+        self.reward_puzzle_solved = 1.0 if reward_puzzle_solved == 100.0 else reward_puzzle_solved
+        self.reward_puzzle_failed = -0.1 if reward_puzzle_failed == -10.0 else reward_puzzle_failed
+        self.reward_correct_move = 0.1 if reward_correct_move == 10.0 else reward_correct_move
         self.puzzle_tries_per_env = puzzle_tries_per_env
+        self.puzzle_set_size = puzzle_set_size
         
         # Per-environment puzzle tracking 
         self.env_puzzle_tries = [0] * num_envs  # Tries per env for current puzzle
@@ -223,7 +229,18 @@ class Chess(pufferlib.PufferEnv):
             # Set the new puzzle training parameters in C++
             binding.vec_set_puzzle_training_params(self.c_envs, self.puzzle_tries_per_env, self.puzzle_success_threshold)
             
+            # Set all puzzles in the C++ backend
             if len(self.current_puzzles) > 0:
+                # Log first few puzzles being sent
+                print(f"[Chess] Sending {len(self.current_puzzles)} puzzles to environments")
+                for i in range(min(5, len(self.current_puzzles))):
+                    puzzle = self.current_puzzles[i]
+                    print(f"  Puzzle {i}: {puzzle['id']} - FEN: {puzzle['puzzle_fen'][:40]}... Solution: {puzzle['solution'][0]}")
+                if len(self.current_puzzles) > 5:
+                    print(f"  ... and {len(self.current_puzzles) - 5} more puzzles")
+                
+                # TEMPORARILY ENABLED: This will trigger the hardcoded puzzle in C++
+                binding.vec_set_puzzle_set(self.c_envs, self.current_puzzles)
                 print(f"[Chess] Puzzle mode: {len(self.current_puzzles)} puzzles loaded, threshold: {puzzle_success_threshold:.1%}")
     
     def _load_puzzles(self):
@@ -232,20 +249,44 @@ class Chess(pufferlib.PufferEnv):
         import os
         import json
         
-        # SIMPLE MATE-IN-1 PUZZLE: White to move and mate
-        # White king on g3, white rook on a2, black king on h1
-        # White to move: a2a1# delivers checkmate 
-        # Solution: a2a1 (Rook to a1 delivers checkmate)
-        hardcoded_puzzle = {
-            'id': 'simple_mate_in_1', 
-            'puzzle_fen': '8/8/8/8/8/6K1/R7/7k w - - 0 1',
-            'solution': ['a2a1']
-        }
-        self.current_puzzles = [hardcoded_puzzle]
-        print(f"[Chess] Using hard-coded puzzle: {hardcoded_puzzle['id']}")
-        print(f"[Chess] FEN: {hardcoded_puzzle['puzzle_fen']}")
-        print(f"[Chess] Solution: {hardcoded_puzzle['solution']}")
-        return
+        # Use puzzle set size from initialization
+        puzzle_set_size = self.puzzle_set_size
+        
+        # Skip hardcoded puzzles if we're in puzzle mode (will load from JSON file below)
+        if not self.puzzle_mode:
+            # Define a set of simple mate-in-1 puzzles with few pieces
+            # These are from the filtered_puzzles file, with 4-5 pieces total
+            simple_puzzles = [
+                # K+R vs k+r puzzle
+                {'id': '0IL1Z', 'puzzle_fen': '8/8/1R6/8/8/3K4/4r3/3k4 w - - 25 66', 'solution': ['b6b1']},
+                # K+Q vs k+q puzzles  
+                {'id': '0JV7w', 'puzzle_fen': '8/8/8/8/8/2Q1K3/8/1q1k4 w - - 0 60', 'solution': ['c3d2']},
+                {'id': '00T85', 'puzzle_fen': '8/8/8/8/8/4K3/5Q2/1qk5 w - - 6 54', 'solution': ['f2d2']},
+                {'id': '09rCC', 'puzzle_fen': '8/8/8/8/8/6KQ/8/5qk1 w - - 0 68', 'solution': ['h3h2']},
+                {'id': '0MZvc', 'puzzle_fen': '8/8/8/8/8/5K2/7k/4Q1q1 w - - 0 66', 'solution': ['e1h4']},
+                # K+R vs k+r+p puzzles
+                {'id': '0AsAa', 'puzzle_fen': '7k/5K2/8/8/p4R2/8/8/r7 w - - 2 65', 'solution': ['f4h4']},
+                {'id': '0c9yz', 'puzzle_fen': '4k3/8/4K2R/6p1/8/8/6r1/8 w - - 0 67', 'solution': ['h6h8']},
+                {'id': '0Z647', 'puzzle_fen': '8/8/4R3/1p6/k6r/2K5/8/8 w - - 0 73', 'solution': ['e6a6']},
+                {'id': '04jun', 'puzzle_fen': '1R6/8/8/8/8/6p1/r6k/5K2 w - - 0 74', 'solution': ['b8h8']},
+                {'id': '0X5EW', 'puzzle_fen': '5k2/6r1/5K2/8/R7/4p3/8/8 w - - 2 69', 'solution': ['a4a8']},
+                # Additional simple puzzles
+                {'id': '0Kakp', 'puzzle_fen': '8/2q5/8/8/5r2/4K3/Q7/3k4 w - - 6 67', 'solution': ['a2d2']},
+                {'id': '01bSB', 'puzzle_fen': '8/8/p7/2Q5/k1K5/8/8/7q w - - 2 53', 'solution': ['c5b4']},
+                {'id': '0CZgJ', 'puzzle_fen': 'Q7/4K1kp/6q1/8/8/8/8/8 w - - 24 64', 'solution': ['a8f8']},
+                {'id': '04I75', 'puzzle_fen': '5k2/2R5/5K1p/8/6r1/8/8/8 w - - 0 62', 'solution': ['c7c8']},
+                {'id': '09kuV', 'puzzle_fen': '5k2/6p1/4K3/8/8/8/R7/6r1 w - - 4 58', 'solution': ['a2a8']},
+                # Also add the original simple puzzle
+                {'id': 'simple_mate_in_1', 'puzzle_fen': '8/8/8/8/8/6K1/R7/7k w - - 0 1', 'solution': ['a2a1']}
+            ]
+            
+            # Randomly select puzzles up to the requested set size
+            random.shuffle(simple_puzzles)
+            self.current_puzzles = simple_puzzles[:min(puzzle_set_size, len(simple_puzzles))]
+            
+            print(f"[Chess] Loaded {len(self.current_puzzles)} simple mate-in-1 puzzles")
+            for i, puzzle in enumerate(self.current_puzzles):
+                print(f"  {i+1}. {puzzle['id']}: {puzzle['solution'][0]}")
         
         # Map difficulty levels to puzzle ratings
         difficulty_map = {
@@ -267,7 +308,12 @@ class Chess(pufferlib.PufferEnv):
             filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
         
         # Select difficulty file
-        if self.puzzle_difficulty in difficulty_map:
+        # For puzzle training, always use the easy collection (has 2705 mate-in-1 puzzles)
+        if self.puzzle_mode:
+            # Always use easy collection for puzzle mode training
+            puzzle_file = os.path.join(filtered_dir, "white_1move_easy.json")
+            print(f"[Chess] Puzzle mode enabled - using ALL mate-in-1 puzzles from: {puzzle_file}")
+        elif self.puzzle_difficulty in difficulty_map:
             puzzle_file = os.path.join(filtered_dir, f"white_1move_{difficulty_map[self.puzzle_difficulty]}.json")
         else:
             # Default to all puzzles if difficulty not mapped
@@ -285,7 +331,12 @@ class Chess(pufferlib.PufferEnv):
             
             # Shuffle and select puzzles
             random.shuffle(all_puzzles)
-            self.current_puzzles = all_puzzles[:1000]  # Limit to 1000 puzzles
+            # Use ALL puzzles when in puzzle mode for training, otherwise limit to 1000
+            if self.puzzle_mode:
+                self.current_puzzles = all_puzzles  # Use ALL puzzles for training
+                print(f"[Chess] Loaded {len(all_puzzles)} puzzles for training")
+            else:
+                self.current_puzzles = all_puzzles[:1000]  # Limit to 1000 for evaluation
             
         except Exception as e:
             print(f"[Chess] Error loading puzzle database: {e}")
@@ -294,24 +345,17 @@ class Chess(pufferlib.PufferEnv):
     
     def _start_new_puzzle(self):
         """Start a new puzzle by setting up the position and solution."""
-        if not self.puzzle_mode or not self.current_puzzles:
+        if not self.puzzle_mode:
             return
             
-        # Get next puzzle (cycle through available puzzles)
-        puzzle = self.current_puzzles[self.current_puzzle_index % len(self.current_puzzles)]
-        self.current_puzzle_index += 1
-        
-        # Set up puzzle state - use puzzle_fen which is the position AFTER the setup move
-        self.current_puzzle_fen = puzzle['puzzle_fen']  # This is the actual puzzle position
-        self.current_puzzle_solution = puzzle['solution']
-        self.puzzle_move_index = 0
-        
-        # Set puzzle data in C++ backend - this will load FEN and solution
+        # Call set_puzzle_data with dummy values - C++ will override with hardcoded puzzle
         import pufferlib.ocean.chess.binding as binding
         try:
-            binding.vec_set_puzzle_data(self.c_envs, self.current_puzzle_fen, self.current_puzzle_solution)
-            print(f"[Chess] Started puzzle {puzzle['id']}: {self.current_puzzle_fen}")
-            print(f"[Chess] Solution: {self.current_puzzle_solution}")
+            # Dummy values - will be overridden by hardcoded puzzle in C++
+            dummy_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+            dummy_solution = ["e2e4"]  # Dummy move
+            binding.vec_set_puzzle_data(self.c_envs, dummy_fen, dummy_solution)
+            print(f"[Chess] Called set_puzzle_data (will be overridden by C++ hardcoded puzzle)")
         except Exception as e:
             print(f"[Chess] Error setting puzzle data: {e}")
     
@@ -345,6 +389,10 @@ class Chess(pufferlib.PufferEnv):
         
         # Execute the move - C++ handles all puzzle logic efficiently
         self.actions[0:len(actions)] = actions
+        
+        # DEBUG: Check observations BEFORE step
+        print(f"[PYTHON PRE-STEP] obs[22]={self.observations.flat[22]:.1f} obs[136]={self.observations.flat[136]:.1f} obs[391]={self.observations.flat[391]:.1f}")
+        
         binding.vec_step(self.c_envs)
         self.tick += 1
         
@@ -358,9 +406,20 @@ class Chess(pufferlib.PufferEnv):
         terminals = self.terminals
         truncations = self.truncations
         
+        # DEBUG: Print what Python receives (only first few times)
+        if self.tick <= 5 or self.tick % 100 == 1:
+            import numpy as np
+            print(f"[PYTHON OBS] Shape: {obs.shape if hasattr(obs, 'shape') else 'unknown'}")
+            print(f"[PYTHON OBS] First 20 values: {obs.flat[:20] if hasattr(obs, 'flat') else 'cannot flatten'}")
+            print(f"[PYTHON OBS] Nonzero count: {np.count_nonzero(obs) if hasattr(obs, '__iter__') else 'cannot count'}")
+            print(f"[PYTHON OBS] Type: {type(obs)}, dtype: {obs.dtype if hasattr(obs, 'dtype') else 'unknown'}")
+        
         # AUTO-RESET: Reset all environments if any terminated
         # Note: vec_reset resets ALL environments, not individual ones
         # This is a limitation but ensures consistency
+        # CRITICAL: Capture rewards BEFORE reset!
+        final_rewards = rewards.copy() if np.any(terminals) else rewards
+        
         if np.any(terminals):
             # print(f"[AUTO-RESET] Resetting all environments due to termination")
             binding.vec_reset(self.c_envs, 0)  # Reset with seed 0
@@ -369,6 +428,8 @@ class Chess(pufferlib.PufferEnv):
             self.terminals[:] = 0
             # Update observations after reset
             obs = self.observations
+            # Use the captured rewards, not the reset ones
+            rewards = final_rewards
         
         # Handle info logging (reduced frequency for performance)
         info = []
@@ -400,7 +461,8 @@ class Chess(pufferlib.PufferEnv):
         # self.current_puzzle_index = (self.current_puzzle_index + 1) % len(self.current_puzzles)  # COMMENTED OUT
         
         # Start the same puzzle again on all environments
-        self._start_new_puzzle()
+        # TEMPORARILY DISABLED: Using hardcoded puzzle in C++ for debugging
+        # self._start_new_puzzle()
         # All environments now working on same puzzle
     
     def _detect_multiprocessing_mode(self):
@@ -890,6 +952,7 @@ class Chess(pufferlib.PufferEnv):
         # In puzzle mode, start a new puzzle instead of standard reset
         if self.puzzle_mode:
             self.current_puzzle_step = 0  # Reset puzzle progress
+            # Call _start_new_puzzle to trigger set_puzzle_data 
             self._start_new_puzzle()
             
         if seed is None:
@@ -897,6 +960,9 @@ class Chess(pufferlib.PufferEnv):
         binding.vec_reset(self.c_envs, seed)
         self.tick = 0
         self._active_player = 0  # Reset to White's turn
+        
+        # DEBUG: Check what Python sees after C++ reset
+        print(f"[PYTHON POST-RESET] obs[22]={self.observations.flat[22]:.1f} obs[136]={self.observations.flat[136]:.1f} obs[391]={self.observations.flat[391]:.1f}")
 
         # Reset episode-per-color state
         if self.episode_per_color:

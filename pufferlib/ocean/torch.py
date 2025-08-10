@@ -1674,6 +1674,8 @@ def Policy(env, **kwargs):
         # For non-chess environments - remove chess-specific params before passing to Default
         kwargs.pop('use_advanced_cnn', None)
         kwargs.pop('cnn_channels', None)
+        kwargs.pop('use_simple_model', None)  # Remove unsupported parameter
+        kwargs.pop('use_advanced_cnn', None)  # Remove unsupported parameter
         
         # Default policy outputs 256-dim hidden states
         return _OldDefault(env, **kwargs)

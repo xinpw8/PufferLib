@@ -17,6 +17,7 @@ static PyObject* env_set_puzzle_mode(PyObject* self, PyObject* args);
 static PyObject* vec_set_puzzle_mode(PyObject* self, PyObject* args);
 static PyObject* env_set_puzzle_data(PyObject* self, PyObject* args);
 static PyObject* vec_set_puzzle_data(PyObject* self, PyObject* args);
+static PyObject* vec_set_puzzle_set(PyObject* self, PyObject* args);
 static PyObject* env_set_puzzle_difficulty(PyObject* self, PyObject* args);
 static PyObject* vec_set_puzzle_difficulty(PyObject* self, PyObject* args);
 static PyObject* env_set_puzzle_training_params(PyObject* self, PyObject* args);
@@ -35,6 +36,7 @@ static PyObject* vec_set_puzzle_training_params(PyObject* self, PyObject* args);
     {"vec_set_puzzle_mode", vec_set_puzzle_mode, METH_VARARGS, "Enable puzzle mode for vector env"}, \
     {"env_set_puzzle_data", env_set_puzzle_data, METH_VARARGS, "Set puzzle data for single env"}, \
     {"vec_set_puzzle_data", vec_set_puzzle_data, METH_VARARGS, "Set puzzle data for vector env"}, \
+    {"vec_set_puzzle_set", vec_set_puzzle_set, METH_VARARGS, "Set multiple puzzles for vector env"}, \
     {"env_set_puzzle_difficulty", env_set_puzzle_difficulty, METH_VARARGS, "Set puzzle difficulty for single env"}, \
     {"vec_set_puzzle_difficulty", vec_set_puzzle_difficulty, METH_VARARGS, "Set puzzle difficulty for vector env"}, \
     {"env_set_puzzle_training_params", env_set_puzzle_training_params, METH_VARARGS, "Set puzzle training params for single env"}, \
@@ -355,6 +357,73 @@ static PyObject* vec_set_puzzle_data(PyObject* self, PyObject* args) {
     for (int i = 0; i < vec->num_envs; ++i) {
         set_puzzle_data(vec->envs[i], fen, solution_moves, solution_length);
     }
+    
+    Py_RETURN_NONE;
+}
+
+static PyObject* vec_set_puzzle_set(PyObject* self, PyObject* args) {
+    VecEnv* vec = unpack_vecenv(args);
+    if (!vec) return NULL;
+    
+    PyObject* puzzles_list = PyTuple_GetItem(args, 1);
+    if (!PyList_Check(puzzles_list)) {
+        PyErr_SetString(PyExc_TypeError, "Puzzles must be a list");
+        return NULL;
+    }
+    
+    int num_puzzles = PyList_Size(puzzles_list);
+    const char** fens = (const char**)malloc(num_puzzles * sizeof(const char*));
+    const char*** solutions = (const char***)malloc(num_puzzles * sizeof(const char**));
+    int* solution_lengths = (int*)malloc(num_puzzles * sizeof(int));
+    
+    for (int i = 0; i < num_puzzles; i++) {
+        PyObject* puzzle = PyList_GetItem(puzzles_list, i);
+        if (!puzzle || !PyDict_Check(puzzle)) {
+            printf("[ERROR] Puzzle %d is not a dictionary\n", i);
+            continue;
+        }
+        
+        PyObject* fen_obj = PyDict_GetItemString(puzzle, "puzzle_fen");
+        PyObject* solution_obj = PyDict_GetItemString(puzzle, "solution");
+        
+        if (!fen_obj || !PyUnicode_Check(fen_obj)) {
+            printf("[ERROR] Puzzle %d has invalid FEN\n", i);
+            continue;
+        }
+        if (!solution_obj || !PyList_Check(solution_obj)) {
+            printf("[ERROR] Puzzle %d has invalid solution list\n", i); 
+            continue;
+        }
+        
+        fens[i] = PyUnicode_AsUTF8(fen_obj);
+        
+        int sol_len = PyList_Size(solution_obj);
+        solution_lengths[i] = sol_len;
+        solutions[i] = (const char**)malloc(sol_len * sizeof(const char*));
+        
+        for (int j = 0; j < sol_len; j++) {
+            PyObject* move = PyList_GetItem(solution_obj, j);
+            if (move && PyUnicode_Check(move)) {
+                solutions[i][j] = PyUnicode_AsUTF8(move);
+            } else {
+                printf("[ERROR] Puzzle %d solution move %d is invalid\n", i, j);
+                solutions[i][j] = ""; 
+            }
+        }
+    }
+    
+    // Set puzzle set for all environments
+    for (int env_idx = 0; env_idx < vec->num_envs; env_idx++) {
+        set_puzzle_set(vec->envs[env_idx], num_puzzles, fens, solutions, solution_lengths);
+    }
+    
+    // Clean up allocated memory
+    for (int i = 0; i < num_puzzles; i++) {
+        free(solutions[i]);
+    }
+    free(fens);
+    free(solutions);
+    free(solution_lengths);
     
     Py_RETURN_NONE;
 }
