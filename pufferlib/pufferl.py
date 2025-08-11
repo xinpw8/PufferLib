@@ -104,6 +104,30 @@ class PuffeRL:
         self.ep_indices = torch.arange(total_agents, device=device, dtype=torch.int32)
         self.free_idx = total_agents
 
+        if config['il_batch_size'] == 'auto' and config['il_bptt_horizon'] == 'auto':
+            raise pufferlib.APIUsageError('Must specify batch_size or bptt_horizon')
+        elif config['il_batch_size'] == 'auto':
+            config['il_batch_size'] = total_agents * config['il_bptt_horizon']
+        elif config['il_bptt_horizon'] == 'auto':
+            config['il_bptt_horizon'] = config['il_batch_size'] // total_agents
+
+        il_batch_size = config['il_batch_size']
+        il_horizon = config['il_bptt_horizon']
+        il_segments = batch_size // horizon
+        self.gold_observations = torch.zeros(il_segments, il_horizon, *obs_space.shape,
+            dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_space.dtype],
+            pin_memory=device == 'cuda' and config['cpu_offload'],
+            device='cpu' if config['cpu_offload'] else device)
+        self.gold_actions = torch.zeros(il_segments, il_horizon, *atn_space.shape, device=device,
+            dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_space.dtype])
+        self.gold_values = torch.zeros(il_segments, il_horizon, device=device)
+        self.gold_rewards = torch.zeros(il_segments, il_horizon, device=device)
+        self.gold_rewards = torch.zeros(il_segments, il_horizon, device=device)
+        self.gold_terminals = torch.zeros(il_segments, il_horizon, device=device)
+        self.il_minibatch_size = config['il_minibatch_size']
+        self.il_bptt_horizon = il_horizon
+        self.il_segments = segments
+
         # LSTM
         if config['use_rnn']:
             n = vecenv.agents_per_batch
@@ -126,11 +150,32 @@ class PuffeRL:
 
         self.accumulate_minibatches = max(1, minibatch_size // max_minibatch_size)
         self.total_minibatches = int(config['update_epochs'] * batch_size / self.minibatch_size)
+        self.total_il_minibatches = int(config['il_update_epochs'] * il_batch_size / self.il_minibatch_size)
         self.minibatch_segments = self.minibatch_size // horizon 
         if self.minibatch_segments * horizon != self.minibatch_size:
             raise pufferlib.APIUsageError(
                 f'minibatch_size {self.minibatch_size} must be divisible by bptt_horizon {horizon}'
             )
+
+        il_minibatch_size = config['il_minibatch_size']
+        self.il_minibatch_size = min(il_minibatch_size, max_minibatch_size)
+        if il_minibatch_size > max_minibatch_size and il_minibatch_size % max_minibatch_size != 0:
+            raise pufferlib.APIUsageError(
+                f'il_minibatch_size {il_minibatch_size} > max_minibatch_size {max_minibatch_size} must divide evenly')
+
+        if batch_size < il_minibatch_size:
+            raise pufferlib.APIUsageError(
+                f'batch_size {batch_size} must be >= il_minibatch_size {il_minibatch_size}'
+            )
+
+        self.accumulate_minibatches = max(1, minibatch_size // max_minibatch_size)
+        self.total_minibatches = int(config['update_epochs'] * batch_size / self.minibatch_size)
+        self.minibatch_segments = self.minibatch_size // horizon 
+        if self.minibatch_segments * horizon != self.minibatch_size:
+            raise pufferlib.APIUsageError(
+                f'minibatch_size {self.minibatch_size} must be divisible by bptt_horizon {horizon}'
+            )
+
 
         # Torch compile
         self.uncompiled_policy = policy
@@ -424,16 +469,94 @@ class PuffeRL:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
+        # Resample and fill gold for imitation
+        profile('train_misc', epoch, nest=True)
+        n = self.rewards.shape[0]
+        all_rewards = torch.concatenate((self.rewards, self.gold_rewards), dim=0)
+        best_idxs = torch.argsort(all_rewards.sum(1), descending=True)[:self.il_segments]
+        self.gold_rewards = all_rewards[best_idxs]
+
+        all_observations = torch.concatenate((self.observations, self.gold_observations), dim=0)
+        self.gold_observations = all_observations[best_idxs]
+
+        all_actions = torch.concatenate((self.actions, self.gold_actions), dim=0)
+        self.gold_actions = all_actions[best_idxs]
+
+        all_values = torch.concatenate((self.values, self.gold_values), dim=0)
+        self.gold_values = all_values[best_idxs]
+
+        all_terminals = torch.concatenate((self.terminals, self.gold_terminals), dim=0)
+        self.gold_terminals = all_terminals[best_idxs]
+
+        shape = self.values.shape
+
+        for mb in range(self.total_il_minibatches):
+            profile('train_misc', epoch, nest=True)
+            self.amp_context.__enter__()
+
+            profile('train_copy', epoch)
+            idx = torch.randint(0, self.segments, (int(self.il_minibatch_size/self.il_bptt_horizon),))
+            mb_obs = self.gold_observations[idx]
+            mb_actions = self.gold_actions[idx].view(self.il_minibatch_size, -1).squeeze(-1)
+            mb_values = self.gold_values[idx]
+            mb_rewards = self.gold_rewards[idx]
+            mb_terminals = self.gold_terminals[idx]
+
+            profile('train_forward', epoch)
+            if not config['use_rnn']:
+                mb_obs = mb_obs.reshape(-1, *self.vecenv.single_observation_space.shape)
+
+            state = dict(
+                action=mb_actions,
+                lstm_h=None,
+                lstm_c=None,
+            )
+
+            logits, newvalue = self.policy(mb_obs, state)
+            imitation_loss = torch.nn.functional.cross_entropy(logits, mb_actions)
+
+            _, _, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
+
+            profile('train_misc', epoch)
+
+            il_adv = torch.zeros(mb_values.shape, device=device)
+            il_ratio = torch.ones(mb_values.shape, device=device)
+            adv = compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
+                il_ratio, il_adv, config['gamma'], config['gae_lambda'],
+                config['vtrace_rho_clip'], config['vtrace_c_clip'])
+            mb_returns = adv + mb_values
+
+            v_loss = ((newvalue - mb_returns) ** 2).mean()
+
+            entropy_loss = entropy.mean()
+            losses['imitate'] += imitation_loss.item() / self.total_minibatches
+            losses['gold_reward'] += self.gold_rewards.mean().item() / self.total_minibatches
+
+            loss = imitation_loss - config['ent_coef']*entropy_loss + config['vf_coef']*v_loss
+
+            self.amp_context.__enter__() # TODO: AMP needs some debugging
+
+            # Logging
+            profile('train_misc', epoch)
+
+            # Learn on accumulated minibatches
+            profile('learn', epoch)
+            loss.backward()
+            if (mb + 1) % self.accumulate_minibatches == 0:
+                torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config['max_grad_norm'])
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+
         # Reprioritize experience
         profile('train_misc', epoch)
         if config['anneal_lr']:
             self.scheduler.step()
 
-        y_pred = self.values.flatten()
-        y_true = advantages.flatten() + self.values.flatten()
-        var_y = y_true.var()
-        explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
-        losses['explained_variance'] = explained_var.item()
+        #y_pred = self.values.flatten()
+        #y_true = advantages.flatten() + self.values.flatten()
+        #var_y = y_true.var()
+        #explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
+        #losses['explained_variance'] = explained_var.item()
 
         profile.end()
         logs = None
