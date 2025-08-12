@@ -913,6 +913,13 @@ class ResidualBlock(nn.Module):
 class ChessConvLSTM(Recurrent):
     def __init__(self, env, policy, input_size=256, hidden_size=256):
         super().__init__(env, policy, input_size, hidden_size)
+        self.chess_policy = policy  # Keep reference to chess policy
+    
+    def forward(self, observations, state=None):
+        """Override to use chess policy's masked forward"""
+        print(f"[ChessConvLSTM] Forward called")
+        # Use the chess policy's forward which has masking
+        return self.chess_policy.forward(observations, state)
 
 class ChessConvRecurrent(nn.Module):
     """CNN-based chess model with proper feature engineering for different observation types"""
@@ -1031,6 +1038,7 @@ class ChessConvRecurrent(nn.Module):
         
         # Store full observation for legal mask extraction in decode_actions
         self._last_obs = obs
+        print(f"[ENCODE] Stored obs shape {obs.shape} for masking")
         
         batch_size = obs.shape[0]
         
@@ -1075,19 +1083,36 @@ class ChessConvRecurrent(nn.Module):
         
         return hidden
     
-    def decode_actions(self, hidden, legal_mask=None):
+    def forward(self, observations, state=None):
+        """Forward pass with action masking for chess"""
+        print(f"[CHESS FORWARD] Called with obs shape: {observations.shape}")
+        hidden = self.encode_observations(observations, state)
+        logits, values = self.decode_actions(hidden)
+        print(f"[CHESS FORWARD] Returning logits shape: {logits.shape}")
+        return logits, values
+    
+    def decode_actions(self, hidden, observations=None, legal_mask=None):
         """Decode actions with legal move masking"""
-        # If legal_mask not provided, extract from stored observations
-        if legal_mask is None and self._last_obs is not None:
-            legal_mask = self._extract_legal_mask(self._last_obs)
+        # Try to get observations from multiple sources
+        if observations is None:
+            observations = self._last_obs
+        
+        # If legal_mask not provided, extract from observations
+        if legal_mask is None and observations is not None:
+            legal_mask = self._extract_legal_mask(observations)
+            print(f"[DECODE] Extracted mask with {legal_mask.sum().item():.0f} legal actions")
+        else:
+            print(f"[DECODE] No mask available! obs={observations is not None}, mask={legal_mask is not None}")
         
         # Get raw logits for UCI actions
         raw_logits = self.policy_head(hidden)
         
         # Apply masking: set invalid actions to -inf
         if legal_mask is not None:
+            print(f"[DECODE] Applying mask to {raw_logits.shape} logits")
             masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
         else:
+            print(f"[DECODE] NO MASKING APPLIED!")
             masked_logits = raw_logits
         
         value = self.value_head(hidden).squeeze(-1)
@@ -1453,41 +1478,39 @@ class ChessRecurrent(nn.Module):
 
     def _create_legal_mask(self, obs):
         """
-        Generates a vectorized legal move mask from an observation tensor.
+        Generates a legal move mask from a sparse action list in observations.
+        
+        Format expected from C++:
+        - obs[1472]: Number of legal moves
+        - obs[1473..1536]: Legal action IDs (up to 64)
         """
         batch_size = obs.shape[0]
         device = obs.device
 
-        # Legal move data starts at index 1473 and has 62 elements
-        legal_data = obs[:, 1473:1473+62]
+        # Debug: Print observation values for legal moves
+        print(f"[ChessRecurrent.mask] obs[1472] (num_legal): {obs[0, 1472].item()}")
+        print(f"[ChessRecurrent.mask] First few action IDs: {obs[0, 1473:1478].tolist()}")
         
-        # Reconstruct 31 uint64 bitfields from 62 uint32 values
-        lows = legal_data[:, 0::2].long()
-        highs = legal_data[:, 1::2].long()
-        bitfields = (highs << 32) | lows
-
-        # Create a tensor to check all 64 bits at once
-        bit_check_mask = (1 << torch.arange(64, device=device)).long()
-
-        # Unpack all bits for the entire batch in one operation
-        unpacked_bits = (bitfields.unsqueeze(2) & bit_check_mask.view(1, 1, -1)) != 0
-        legal_mask_full = unpacked_bits.view(batch_size, -1)
-
-        # Mask out invalid bitfields for each sample
-        num_uint32_values = obs[:, 1472].long()
-        num_bitfields = num_uint32_values // 2
+        # Create a full mask of zeros (all moves illegal by default)
+        legal_mask = torch.zeros((batch_size, self.num_actions), dtype=torch.bool, device=device)
         
-        field_indices = torch.arange(31, device=device).unsqueeze(0)
-        valid_field_mask = field_indices < num_bitfields.unsqueeze(1)
+        # Process each sample in the batch
+        for b in range(batch_size):
+            num_legal = int(obs[b, 1472].item())
+            if num_legal > 0 and num_legal <= 64:  # Sanity check
+                # Get the legal action IDs
+                legal_action_ids = obs[b, 1473:1473+num_legal].long()
+                # Mark these actions as legal
+                valid_ids = (legal_action_ids >= 0) & (legal_action_ids < self.num_actions)
+                legal_mask[b, legal_action_ids[valid_ids]] = True
         
-        # Apply the field mask and truncate to the number of actions
-        final_mask = (legal_mask_full.view(batch_size, 31, 64) & valid_field_mask.unsqueeze(2)).view(batch_size, -1)
-        return final_mask[:, :self.num_actions]
+        return legal_mask
 
     def encode_observations(self, obs, state=None):
         """Encodes observations and stores the original obs for later use."""
         # Store the observation so decode_actions can create the legal mask
         self._last_obs = obs
+        print(f"[ChessRecurrent.encode] Storing obs shape {obs.shape} for masking")
         
         board_state = obs[:, :1472].view(-1, 23, 8, 8)
         cnn_output = self.cnn(board_state.float())
@@ -1502,11 +1525,15 @@ class ChessRecurrent(nn.Module):
         # If called from a wrapper, legal_mask will be None. Generate it.
         if legal_mask is None:
             if self._last_obs is None:
+                print(f"[ChessRecurrent.decode] ERROR: _last_obs is None! Cannot mask!")
                 raise ValueError("Cannot decode actions: _last_obs is not set.")
+            print(f"[ChessRecurrent.decode] Creating mask from stored obs shape {self._last_obs.shape}")
             legal_mask = self._create_legal_mask(self._last_obs)
+            print(f"[ChessRecurrent.decode] Mask has {legal_mask.sum().item():.0f} legal actions")
 
         raw_logits = self.policy_head(hidden)
         masked_logits = raw_logits.masked_fill(legal_mask == 0, float('-inf'))
+        print(f"[ChessRecurrent.decode] Applied mask to logits shape {raw_logits.shape}")
         value = self.value_head(hidden).squeeze(-1)
         return masked_logits, value
 

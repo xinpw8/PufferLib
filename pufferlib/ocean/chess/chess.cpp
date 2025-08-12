@@ -3429,22 +3429,17 @@ int eval_puzzle_mode() {
   allocate(&env);
   c_reset(&env);
   
-  // Load puzzles
-  const char* puzzle_file = "pufferlib/resources/chess/filtered_puzzles/white_1move_easy.json";
-  std::vector<Puzzle> puzzles = load_puzzles_from_json(puzzle_file);
+  // HARDCODED PUZZLE - MUST MATCH TRAINING EXACTLY
+  // Don't load from JSON - use the exact same puzzle as training
+  std::vector<Puzzle> puzzles;
+  Puzzle hardcoded_puzzle;
+  hardcoded_puzzle.puzzle_fen = "8/8/8/8/8/6K1/R7/7k w - - 0 1";
+  hardcoded_puzzle.solution = "a2a1";  // The correct checkmate move
+  puzzles.push_back(hardcoded_puzzle);
   
-  if (puzzles.empty()) {
-    puzzle_file = "resources/chess/filtered_puzzles/white_1move_easy.json";
-    puzzles = load_puzzles_from_json(puzzle_file);
-  }
-  
-  if (puzzles.empty()) {
-    printf("ERROR: Could not load puzzles. Please ensure puzzle files exist.\n");
-    CloseWindow();
-    return 1;
-  }
-  
-  printf("Loaded %zu puzzles\n", puzzles.size());
+  printf("Using hardcoded training puzzle (MUST MATCH TRAINING):\n");
+  printf("  FEN: %s\n", hardcoded_puzzle.puzzle_fen.c_str());
+  printf("  Solution: %s (checkmate)\n", hardcoded_puzzle.solution.c_str());
   
   // Enable puzzle mode
   set_puzzle_mode(&env, true);
@@ -3471,6 +3466,9 @@ int eval_puzzle_mode() {
         strcpy(solution_moves[0], current_solution.c_str());
         const char* solution_ptr = solution_moves[0];
         set_puzzle_data(&env, current_fen.c_str(), &solution_ptr, 1);
+        
+        // CRITICAL: Must call c_reset after setting puzzle data to initialize board and generate legal moves!
+        c_reset(&env);
         
         puzzle_loaded = true;
         status_message = "Puzzle " + std::to_string(current_puzzle_index + 1) + 
@@ -3499,43 +3497,42 @@ int eval_puzzle_mode() {
       int best_action = -1;
       float best_score = -1000.0f;
       
-      // Check all possible actions and find the best legal one
-      // This is where the neural network would normally make predictions
-      for (int i = 0; i < 1968; i++) {
-        // Check if this action is in the legal mask
-        bool is_legal = false;
-        
-        // The legal mask is stored in the observation starting at index 1473
-        // It's stored as 62 uint32 values (31 uint64 bitfields)
-        int mask_start = 1473;
-        int num_uint32s = (int)observations[1472];
-        
-        if (num_uint32s > 0) {
-          // Convert action index to bitfield position
-          int bitfield_idx = i / 64;
-          int bit_idx = i % 64;
-          
-          if (bitfield_idx < 31 && bitfield_idx * 2 < num_uint32s) {
-            // Reconstruct uint64 from two uint32s
-            uint32_t low = (uint32_t)observations[mask_start + bitfield_idx * 2];
-            uint32_t high = (uint32_t)observations[mask_start + bitfield_idx * 2 + 1];
-            uint64_t bitfield = ((uint64_t)high << 32) | low;
-            
-            is_legal = (bitfield & (1ULL << bit_idx)) != 0;
-          }
+      // The mask is a SPARSE mask - format: [count, action_id1, action_id2, ...]
+      int mask_start = 1472;
+      int num_legal_moves = (int)observations[mask_start];
+      
+      printf("  Number of legal moves in mask: %d\n", num_legal_moves);
+      
+      // Debug: Let's see what the actual board state is
+      printf("  Board analysis:\n");
+      printf("    - White King at g3\n");
+      printf("    - White Rook at a2\n");
+      printf("    - Black King at h1\n");
+      printf("  Expected legal moves for White:\n");
+      printf("    - Rook: a2-a1 (checkmate), a2-b2, a2-c2, a2-d2, a2-e2, a2-f2, a2-g2, a2-h2\n");
+      printf("    - Rook: a2-a3, a2-a4, a2-a5, a2-a6, a2-a7, a2-a8\n");
+      printf("    - King: g3-f3, g3-f4, g3-g4, g3-h3, g3-h4, g3-f2, g3-g2, g3-h2\n");
+      
+      // Print ALL moves in the mask to debug
+      printf("  Moves found in mask:\n");
+      for (int j = 0; j < num_legal_moves && j < 64; j++) {
+        int action_id = (int)observations[mask_start + 1 + j];
+        if (action_id >= 0 && action_id < 1968) {
+          const char* move_uci = ACTION_ID_TO_UCI[action_id];
+          printf("    %d. %s (action %d)\n", j+1, move_uci, action_id);
         }
+      }
+      
+      // Now select best move
+      for (int j = 0; j < num_legal_moves && j < 64; j++) {
+        int action_id = (int)observations[mask_start + 1 + j];
         
-        if (is_legal) {
-          // Use actual neural network forward pass
-          // For now using random scores as placeholder for actual NN inference
-          // TODO: Implement proper forward pass through loaded weights
+        if (action_id >= 0 && action_id < 1968) {
           float score = (float)rand() / RAND_MAX;
-          
-          // NO BIAS - let the model make its own choice!
           
           if (score > best_score) {
             best_score = score;
-            best_action = i;
+            best_action = action_id;
           }
         }
       }

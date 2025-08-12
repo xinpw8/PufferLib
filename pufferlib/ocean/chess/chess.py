@@ -355,7 +355,7 @@ class Chess(pufferlib.PufferEnv):
             dummy_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
             dummy_solution = ["e2e4"]  # Dummy move
             binding.vec_set_puzzle_data(self.c_envs, dummy_fen, dummy_solution)
-            print(f"[Chess] Called set_puzzle_data (will be overridden by C++ hardcoded puzzle)")
+            # print(f"[Chess] Called set_puzzle_data")
         except Exception as e:
             print(f"[Chess] Error setting puzzle data: {e}")
     
@@ -391,7 +391,7 @@ class Chess(pufferlib.PufferEnv):
         self.actions[0:len(actions)] = actions
         
         # DEBUG: Check observations BEFORE step
-        print(f"[PYTHON PRE-STEP] obs[22]={self.observations.flat[22]:.1f} obs[136]={self.observations.flat[136]:.1f} obs[391]={self.observations.flat[391]:.1f}")
+        # print(f"[PYTHON PRE-STEP] obs[22]={self.observations.flat[22]:.1f} obs[136]={self.observations.flat[136]:.1f} obs[391]={self.observations.flat[391]:.1f}")
         
         binding.vec_step(self.c_envs)
         self.tick += 1
@@ -406,6 +406,10 @@ class Chess(pufferlib.PufferEnv):
         terminals = self.terminals
         truncations = self.truncations
         
+        # DEBUG: Print actual reward values
+        if self.tick % 10 == 1:
+            print(f"[REWARD DEBUG] tick={self.tick}, rewards={rewards[:min(5, len(rewards))]}, terminals={terminals[:min(5, len(terminals))]}")
+        
         # DEBUG: Print what Python receives (only first few times)
         if self.tick <= 5 or self.tick % 100 == 1:
             import numpy as np
@@ -414,22 +418,17 @@ class Chess(pufferlib.PufferEnv):
             print(f"[PYTHON OBS] Nonzero count: {np.count_nonzero(obs) if hasattr(obs, '__iter__') else 'cannot count'}")
             print(f"[PYTHON OBS] Type: {type(obs)}, dtype: {obs.dtype if hasattr(obs, 'dtype') else 'unknown'}")
         
-        # AUTO-RESET: Reset all environments if any terminated
-        # Note: vec_reset resets ALL environments, not individual ones
-        # This is a limitation but ensures consistency
-        # CRITICAL: Capture rewards BEFORE reset!
-        final_rewards = rewards.copy() if np.any(terminals) else rewards
+        # Auto-reset AFTER returning terminal signal
+        # This is a workaround for the training framework not calling reset
+        if hasattr(self, '_prev_terminals') and np.any(self._prev_terminals):
+            print(f"[PYTHON] Auto-resetting after previous terminal (tick={self.tick})")
+            binding.vec_reset(self.c_envs, 0)
+            self._prev_terminals = np.zeros_like(terminals)
         
-        if np.any(terminals):
-            # print(f"[AUTO-RESET] Resetting all environments due to termination")
-            binding.vec_reset(self.c_envs, 0)  # Reset with seed 0
-            # CRITICAL: Clear terminals after reset to prevent reset loop
-            terminals[:] = False
-            self.terminals[:] = 0
-            # Update observations after reset
-            obs = self.observations
-            # Use the captured rewards, not the reset ones
-            rewards = final_rewards
+        # Store terminals for next step
+        if not hasattr(self, '_prev_terminals'):
+            self._prev_terminals = np.zeros_like(terminals)
+        self._prev_terminals[:] = terminals
         
         # Handle info logging (reduced frequency for performance)
         info = []

@@ -1568,7 +1568,7 @@
 
 // // // Helper function to compute observation for a single agent
 // // static void compute_single_agent_observation(CChess *env, ChessContext *ctx, PieceColor player, int obs_offset) {
-// //   // printf("[OBSERVE] Computing observation for player %s at offset %d\n", 
+// //   // // printf("[OBSERVE] Computing observation for player %s at offset %d\n", 
 // //   //        (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset);
 // //   // fflush(stdout);
 // //   int idx = 0;
@@ -1977,7 +1977,7 @@
 // // void compute_observation_with_perspective(CChess *env, ChessContext *ctx) {
 // //   PROFILE_START(profile_compute_obs_ticks)
   
-// //   // printf("[COMPUTE_OBS] Called for turn=%s, fullmove=%d\n",
+// //   // // printf("[COMPUTE_OBS] Called for turn=%s, fullmove=%d\n",
 // //   //        (ctx->board.to_move == C_WHITE) ? "WHITE" : "BLACK", ctx->board.fullmove_number);
 
 // //   // In a dual-agent environment, we must generate an observation for BOTH agents
@@ -2718,7 +2718,7 @@
 //   c_set_fen(env, fen);
   
 //   // Print initial puzzle position
-//   printf("\n[PUZZLE] New puzzle loaded (ID: %d)\n", env->global_puzzle_id);
+//   // printf("\n[PUZZLE] New puzzle loaded (ID: %d)\n", env->global_puzzle_id);
 //   printf("FEN: %s\n", fen);
 //   printf("Solution length: %d moves\n", solution_length);
 //   printf("Solution: ");
@@ -2732,7 +2732,7 @@
 //     // Warning: Not mate-in-1 solution_length);
 //   }
 //   if (env->context.board.to_move != C_WHITE) {
-//     printf("[PUZZLE ERROR] Puzzle starts with BLACK to move! Only WHITE should move in puzzles.\n");
+//     // printf("[PUZZLE ERROR] Puzzle starts with BLACK to move! Only WHITE should move in puzzles.\n");
 //   }
   
 //   printf("Initial position:\n");
@@ -2910,7 +2910,7 @@
   
 // //   // DEBUG: Check if we're being called after puzzle completion
 // //   if (env->context.puzzle_mode && env->context.puzzle_completed) {
-// //     printf("[DEBUG] c_step called AFTER puzzle completion! This should not happen!\n");
+// //     // printf("[DEBUG] c_step called AFTER puzzle completion! This should not happen!\n");
 // //     printf("[DEBUG] Current player: %s, step_count: %d\n", 
 // //            (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK",
 // //            env->context.step_count);
@@ -3022,7 +3022,7 @@
 
 // //   // Debug: Print action index in puzzle mode
 // //   if (env->context.puzzle_mode && env->context.puzzle_tries_this_env < 5) {
-// //     // printf("[PUZZLE DEBUG] Action index received: %d (TOTAL_CHESS_ACTIONS=%d)\n", action_idx, TOTAL_CHESS_ACTIONS);
+// //     // // printf("[PUZZLE DEBUG] Action index received: %d (TOTAL_CHESS_ACTIONS=%d)\n", action_idx, TOTAL_CHESS_ACTIONS);
 // //   }
   
 // //   // Validate action before executing
@@ -3132,13 +3132,13 @@
 // //   if (env->context.puzzle_mode) {
 // //     // In puzzle mode, only white should be moving
 // //     if (moving_player != C_WHITE) {
-// //       printf("[PUZZLE ERROR] Black tried to move in puzzle mode! This should not happen!\n");
+// //       // printf("[PUZZLE ERROR] Black tried to move in puzzle mode! This should not happen!\n");
 // //       env->terminals[agent_idx] = 1;
 // //       return;
 // //     }
     
 // //     // Print board BEFORE the move
-// //     printf("\n[PUZZLE] Board before move (puzzle move %d/%d):\n", 
+// //     // printf("\n[PUZZLE] Board before move (puzzle move %d/%d):\n", 
 // //            env->context.puzzle_move_index + 1, env->context.puzzle_solution_length);
 // //     print_board_state(&env->context.board);
     
@@ -3150,7 +3150,7 @@
 // //     }
     
 // //     // Print board AFTER the move
-// //     printf("[PUZZLE] Move played: %s by WHITE\n", uci_move_canonical);
+// //     // printf("[PUZZLE] Move played: %s by WHITE\n", uci_move_canonical);
 // //     print_board_state(&env->context.board);
 // //   } else {
 // //     // Non-puzzle mode - normal move application
@@ -3189,7 +3189,7 @@
 // //         // Check if puzzle is complete
 // //         if (env->context.puzzle_move_index >= env->context.puzzle_solution_length) {
 // //           // Puzzle solved! Award completion reward
-// //           printf("[PUZZLE] PUZZLE SOLVED! Terminating episode.\n");
+// //           // printf("[PUZZLE] PUZZLE SOLVED! Terminating episode.\n");
 // //           env->rewards[agent_idx] += env->reward_puzzle_solved;
 // //           env->context.accumulated_reward_puzzle_solved += env->reward_puzzle_solved;
 // //           env->context.episode_return_white += env->reward_puzzle_solved;
@@ -3322,7 +3322,7 @@
 // //   // IMPORTANT: Skip all regular game logic in puzzle mode
 // //   if (env->context.puzzle_mode) {
 // //     // This should never be reached due to returns above, but just in case
-// //     printf("[PUZZLE WARNING] Reached end of puzzle block without proper return!\n");
+// //     // printf("[PUZZLE WARNING] Reached end of puzzle block without proper return!\n");
 // //     compute_observation_with_perspective(env, &env->context);
 // //     return;
 // //   }
@@ -3705,7 +3705,7 @@
 //   env->terminals[agent_idx] = 0;
 //   // Debug: Print action index in puzzle mode
 //   if (env->context.puzzle_mode && env->context.puzzle_tries_this_env < 5) {
-//     // printf("[PUZZLE DEBUG] Action index received: %d
+//     // // printf("[PUZZLE DEBUG] Action index received: %d
 //     // (TOTAL_CHESS_ACTIONS=%d)\n", action_idx, TOTAL_CHESS_ACTIONS);
 //   }
 
@@ -3823,14 +3823,14 @@
 //   if (env->context.puzzle_mode) {
 //     // In puzzle mode, only white should be moving
 //     if (moving_player != C_WHITE) {
-//       printf("[PUZZLE ERROR] Black tried to move in puzzle mode! This should "
+//       // printf("[PUZZLE ERROR] Black tried to move in puzzle mode! This should "
 //              "not happen!\n");
 //       env->terminals[agent_idx] = 1;
 //       return;
 //     }
 
 //     // Print board BEFORE the move
-//     printf("\n[PUZZLE] Board before move (puzzle move %d/%d):\n",
+//     // printf("\n[PUZZLE] Board before move (puzzle move %d/%d):\n",
 //            env->context.puzzle_move_index + 1,
 //            env->context.puzzle_solution_length);
 //     print_board_state(&env->context.board);
@@ -3843,7 +3843,7 @@
 //     }
 
 //     // Print board AFTER the move
-//     printf("[PUZZLE] Move played: %s by WHITE\n", uci_move_canonical);
+//     // printf("[PUZZLE] Move played: %s by WHITE\n", uci_move_canonical);
 //     print_board_state(&env->context.board);
 //   } else {
 //     // Non-puzzle mode - normal move application
@@ -3885,7 +3885,7 @@
 //         if (env->context.puzzle_move_index >=
 //             env->context.puzzle_solution_length) {
 //           // Puzzle solved! Award completion reward
-//           printf("[PUZZLE] PUZZLE SOLVED! Terminating episode.\n");
+//           // printf("[PUZZLE] PUZZLE SOLVED! Terminating episode.\n");
 //           env->rewards[agent_idx] += env->reward_puzzle_solved;
 //           env->context.accumulated_reward_puzzle_solved +=
 //               env->reward_puzzle_solved;
@@ -4642,7 +4642,7 @@
 #define DEBUG_LOG 0
 #endif
 #if DEBUG_LOG
-#define DBG(expr) printf("%s", expr)
+// #define DBG(expr) printf("%s", expr)
 #else
 #define DBG(expr)                                                              \
   do {                                                                         \
@@ -4925,6 +4925,10 @@ typedef struct CChess {
                                // puzzle
   float global_puzzle_success_threshold; // Threshold to advance (default 0.9)
   int puzzle_max_tries_per_env; // Max tries per env before reset (default 10)
+  
+  // Persistent puzzle tracking that survives log resets
+  int total_puzzle_attempts;   // Total puzzle attempts since init
+  int total_puzzle_solves;     // Total puzzles solved since init
 } CChess;
 // === ADDITIONAL BINDING FUNCTIONS ===
 void enable_stockfish_black(CChess *env, const char *stockfish_cmd, int elo,
@@ -4945,6 +4949,7 @@ void init(CChess *env);
 void allocate(CChess *env);
 void free_allocated(CChess *env);
 void add_log(CChess *env);
+void update_puzzle_score(CChess *env);
 void c_reset(CChess *env);
 void c_step(CChess *env);
 void c_render(CChess *env);
@@ -4960,11 +4965,11 @@ void notify_game_end(int white_won, int black_won, int is_draw) {
 // === CHESS HELPER FUNCTIONS ===
 // Print board in human-readable format
 void print_board_state(ChessBoard *board) {
-  printf("\n a b c d e f g h\n");
-  printf(" ---------------\n");
+  // printf("\n a b c d e f g h\n");
+  // printf(" ---------------\n");
 
   for (int y = 7; y >= 0; y--) {
-    printf("%d|", y + 1);
+    // printf("%d|", y + 1);
     for (int x = 0; x < 8; x++) {
       Piece *p = &board->board[y * 8 + x];
       char piece_char = ' ';
@@ -4997,14 +5002,14 @@ void print_board_state(ChessBoard *board) {
         }
       }
 
-      printf("%c ", piece_char);
+      // printf("%c ", piece_char);
     }
-    printf("|%d\n", y + 1);
+    // printf("|%d\n", y + 1);
   }
 
-  printf(" ---------------\n");
-  printf(" a b c d e f g h\n");
-  printf("Turn: %s\n\n", (board->to_move == C_WHITE) ? "WHITE" : "BLACK");
+  // printf(" ---------------\n");
+  // printf(" a b c d e f g h\n");
+  // printf("Turn: %s\n\n", (board->to_move == C_WHITE) ? "WHITE" : "BLACK");
 }
 // Material calculation using standard chess piece values
 int calculate_material_value(ChessBoard *board, PieceColor color) {
@@ -5202,7 +5207,7 @@ static void serialize_complete_game_moves(ChessContext *ctx) {
     }
     // Convert UCI move back to action ID for serialization compatibility
     int action_id = uci_to_action_id(ctx->complete_game_moves[i]);
-    sprintf(temp, "%d", action_id);
+    // sprintf(temp, "%d", action_id);
     strcat(ctx->serialized_moves, temp);
   }
 }
@@ -5272,14 +5277,14 @@ static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
   }
 
   // Write PGN header
-  fprintf(file, "[Event \"PufferLib Training Game\"]\n");
-  fprintf(file, "[Site \"Environment %d\"]\n", env_id);
-  fprintf(file, "[Date \"%ld\"]\n", now);
-  fprintf(file, "[White \"AI-White\"]\n");
-  fprintf(file, "[Black \"AI-Black\"]\n");
-  fprintf(file, "[Result \"%s\"]\n", result_str);
-  fprintf(file, "[Termination \"%s\"]\n", termination);
-  fprintf(file, "\n");
+  // fprintf(file, "[Event \"PufferLib Training Game\"]\n");
+  // fprintf(file, "[Site \"Environment %d\"]\n", env_id);
+  // fprintf(file, "[Date \"%ld\"]\n", now);
+  // fprintf(file, "[White \"AI-White\"]\n");
+  // fprintf(file, "[Black \"AI-Black\"]\n");
+  // fprintf(file, "[Result \"%s\"]\n", result_str);
+  // fprintf(file, "[Termination \"%s\"]\n", termination);
+  // fprintf(file, "\n");
 
   // Write moves in algebraic notation
   int move_number = 1;
@@ -5289,23 +5294,26 @@ static void write_complete_game_to_file(ChessContext *ctx, int env_id) {
 
     // Simple UCI to algebraic (basic format: from-to, e.g. e2e4)
     if (i % 2 == 0) {
-      fprintf(file, "%d. %s ", move_number, uci_move);
-      if (i == ctx->complete_game_action_count - 1)
-        fprintf(file, "\n");
+      // fprintf(file, "%d. %s ", move_number, uci_move);
+      if (i == ctx->complete_game_action_count - 1) {
+        // fprintf(file, "\n");
+      }
     } else {
-      fprintf(file, "%s ", uci_move);
-      if (i % 4 == 1)
-        fprintf(file, "\n");
+      // fprintf(file, "%s ", uci_move);
+      if (i % 4 == 1) {
+        // fprintf(file, "\n");
+      }
       move_number++;
     }
   }
 
-  if (ctx->complete_game_action_count % 2 == 1)
-    fprintf(file, "\n");
-  fprintf(file, "%s\n", result_str);
+  if (ctx->complete_game_action_count % 2 == 1) {
+    // fprintf(file, "\n");
+  }
+  // fprintf(file, "%s\n", result_str);
 
   fclose(file);
-  printf("[Chess] Logged complete game to %s\n", filename);
+  // printf("[Chess] Logged complete game to %s\n", filename);
 }
 // === PERSPECTIVE FLIPPING FOR SELF-PLAY ===
 static inline void flip_uci_for_black_perspective(const char *original_uci,
@@ -5570,14 +5578,14 @@ static void add_legal_move(ChessContext *ctx, LegalMoves *moves,
     
   // DEBUG: Check for f7f8 move
   if (move.from.x == 5 && move.from.y == 6 && move.to.x == 5 && move.to.y == 7) {
-    printf("[F7F8 DEBUG] Checking legality of f7f8 move\n");
+//     // printf("[F7F8 DEBUG] Checking legality of f7f8 move\n");
     fflush(stdout);
   }
   
   if (chess_is_legal_move(ctx, move)) {
     // DEBUG: f7f8 passed legality check
     if (move.from.x == 5 && move.from.y == 6 && move.to.x == 5 && move.to.y == 7) {
-      printf("[F7F8 DEBUG] *** f7f8 PASSED legality check! Adding to moves list at index %d ***\n", moves->count);
+//       printf("[F7F8 DEBUG] *** f7f8 PASSED legality check! Adding to moves list at index %d ***\n", moves->count);
       fflush(stdout);
     }
     
@@ -5586,7 +5594,7 @@ static void add_legal_move(ChessContext *ctx, LegalMoves *moves,
   } else {
     // DEBUG: f7f8 failed legality check
     if (move.from.x == 5 && move.from.y == 6 && move.to.x == 5 && move.to.y == 7) {
-      printf("[F7F8 DEBUG] XXX f7f8 FAILED legality check! NOT added to moves XXX\n");
+//       // printf("[F7F8 DEBUG] XXX f7f8 FAILED legality check! NOT added to moves XXX\n");
       fflush(stdout);
     }
   }
@@ -5694,7 +5702,7 @@ static void generate_pseudo_legal_moves_for_piece(ChessContext *ctx,
       
       // DEBUG: Special check for Queen on f7
       if (piece->type == QUEEN && from.x == 5 && from.y == 6) {
-        printf("[F7F8 DEBUG] Generating moves for Queen on f7 (square 53)\n");
+//         // printf("[F7F8 DEBUG] Generating moves for Queen on f7 (square 53)\n");
         fflush(stdout);
       }
     }
@@ -5710,7 +5718,7 @@ static void generate_pseudo_legal_moves_for_piece(ChessContext *ctx,
           
         // DEBUG: Check for f7f8 move
         if (piece->type == QUEEN && from.x == 5 && from.y == 6 && to.x == 5 && to.y == 7) {
-          printf("[F7F8 DEBUG] Found f7f8 candidate: Queen from (%d,%d) to (%d,%d)\n", from.x, from.y, to.x, to.y);
+//           printf("[F7F8 DEBUG] Found f7f8 candidate: Queen from (%d,%d) to (%d,%d)\n", from.x, from.y, to.x, to.y);
           fflush(stdout);
         }
         
@@ -5722,9 +5730,9 @@ static void generate_pseudo_legal_moves_for_piece(ChessContext *ctx,
             
             // DEBUG: Special logging for f7f8
             if (piece->type == QUEEN && from.x == 5 && from.y == 6 && to.x == 5 && to.y == 7) {
-              printf("[F7F8 DEBUG] f7f8 is a CAPTURE (target: type=%d, color=%d). Calling add_legal_move...\n", 
-                     target->type, target->color);
-              fflush(stdout);
+//               printf("[F7F8 DEBUG] f7f8 is a CAPTURE (target: type=%d, color=%d). Calling add_legal_move...\n", 
+//                      target->type, target->color);
+//               fflush(stdout);
             }
             
             add_legal_move(ctx, moves, move);
@@ -6033,8 +6041,8 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
   static int debug_call_count = 0;
   debug_call_count++;
   if (debug_call_count <= 20) {
-    printf("[OBS ENTRY %d] Turn: %s\n", debug_call_count, 
-           ctx->board.to_move == C_WHITE ? "WHITE" : "BLACK");
+//     // printf("[OBS ENTRY %d] Turn: %s\n", debug_call_count, 
+//            ctx->board.to_move == C_WHITE ? "WHITE" : "BLACK");
   }
 
   // PERFORMANCE OPTIMIZATION: Check if board observation is cached
@@ -6053,13 +6061,13 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
     // DEBUG: Count non-empty squares
     int piece_count = 0;
     
-    printf("[COMPUTE_OBS] Starting compute_single_agent_observation for player %s at offset %d\n",
-           player == C_WHITE ? "WHITE" : "BLACK", obs_offset);
-    printf("[COMPUTE_OBS] env->observations pointer: %p\n", (void*)env->observations);
+//     // printf("[COMPUTE_OBS] Starting compute_single_agent_observation for player %s at offset %d\n",
+//            player == C_WHITE ? "WHITE" : "BLACK", obs_offset);
+//     // printf("[COMPUTE_OBS] env->observations pointer: %p\n", (void*)env->observations);
     
     // CRITICAL DEBUG: Test if we can write and read back
     env->observations[0] = 999.0f;
-    printf("[MEMORY TEST] Wrote 999.0 to obs[0], readback = %.1f\n", env->observations[0]);
+//     printf("[MEMORY TEST] Wrote 999.0 to obs[0], readback = %.1f\n", env->observations[0]);
     env->observations[0] = 0.0f;  // Reset it
     
     // --- SINGLE PASS OVER THE BOARD (Correct) ---
@@ -6082,8 +6090,8 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
           
           // DEBUG: Verify write immediately
           if (piece_count <= 3) {
-            printf("[OBS VERIFY] Just wrote env->observations[%d] = 1.0, readback = %.1f\n", 
-                   obs_idx, env->observations[obs_idx]);
+//             // printf("[OBS VERIFY] Just wrote env->observations[%d] = 1.0, readback = %.1f\n", 
+//                    obs_idx, env->observations[obs_idx]);
           }
           
           // DEBUG: Print piece encoding details
@@ -6098,18 +6106,18 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
               case KING: piece_name = "KING"; break;
               default: break;
             }
-            printf("[OBS ENCODE] Piece %d: %s %s at square %d (x=%d,y=%d) -> obs[%d]=1.0\n",
-                   piece_count,
-                   p->color == C_WHITE ? "WHITE" : "BLACK",
-                   piece_name,
-                   square_index_actual, x, y_actual, obs_idx);
+//             // printf("[OBS ENCODE] Piece %d: %s %s at square %d (x=%d,y=%d) -> obs[%d]=1.0\n",
+//                    piece_count,
+//                    p->color == C_WHITE ? "WHITE" : "BLACK",
+//                    piece_name,
+//                    square_index_actual, x, y_actual, obs_idx);
           }
           
           // DEBUG: Print Queen on f7
           if (p->type == QUEEN && square_index_actual == 53) { // f7 = 6*8+5 = 53
-            printf("[OBS DEBUG] Found Queen on f7 (square %d), set obs[%d] = 1.0\n", 
-                   square_index_actual, 
-                   obs_offset + (plane_offset + piece_plane) * 64 + obs_square_idx);
+//             // printf("[OBS DEBUG] Found Queen on f7 (square %d), set obs[%d] = 1.0\n", 
+//                    square_index_actual, 
+//                    obs_offset + (plane_offset + piece_plane) * 64 + obs_square_idx);
             fflush(stdout);
           }
         }
@@ -6118,7 +6126,7 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
     
     // DEBUG: Print piece count
     if (piece_count < 10) {
-      printf("[OBS DEBUG] WARNING: Only %d pieces found on board!\n", piece_count);
+//       // printf("[OBS DEBUG] WARNING: Only %d pieces found on board!\n", piece_count);
       fflush(stdout);
     }
 
@@ -6281,11 +6289,11 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
   
   // DEBUG: Verify sparse mask was written correctly
   if (env->env_id == 0 && num_legal_moves > 0) {
-    printf("[SPARSE MASK] Stored %d legal moves at index %d\n", num_legal_moves, obs_offset + sparse_mask_idx);
-    printf("[SPARSE MASK] First 3 action IDs: %.0f, %.0f, %.0f\n",
-           env->observations[obs_offset + sparse_mask_idx + 1],
-           env->observations[obs_offset + sparse_mask_idx + 2],
-           env->observations[obs_offset + sparse_mask_idx + 3]);
+//     // printf("[SPARSE MASK] Stored %d legal moves at index %d\n", num_legal_moves, obs_offset + sparse_mask_idx);
+//     // printf("[SPARSE MASK] First 3 action IDs: %.0f, %.0f, %.0f\n",
+//            env->observations[obs_offset + sparse_mask_idx + 1],
+//            env->observations[obs_offset + sparse_mask_idx + 2],
+//            env->observations[obs_offset + sparse_mask_idx + 3]);
   }
   
   // DEBUG: Removed orphaned FEN printing code that was causing compilation errors
@@ -6296,7 +6304,7 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
             empty_count++;
           } else {
             if (empty_count > 0) {
-              printf("%d", empty_count);
+              // printf("%d", empty_count);
               empty_count = 0;
             }
             char piece_char;
@@ -6312,75 +6320,75 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
             if (p->color == C_WHITE) {
               piece_char = toupper(piece_char);
             }
-            printf("%c", piece_char);
+            // printf("%c", piece_char);
           }
         }
         if (empty_count > 0) {
-          printf("%d", empty_count);
+          // printf("%d", empty_count);
         }
-        if (rank > 0) printf("/");
+        // if (rank > 0) printf("/");
       }
       // Print remaining FEN fields
-      printf(" %c", (board->to_move == C_WHITE) ? 'w' : 'b');
+      // printf(" %c", (board->to_move == C_WHITE) ? 'w' : 'b');
       
       // Castling rights
-      printf(" ");
+      // printf(" ");
       if (board->castle_rights == 0) {
-        printf("-");
+        // printf("-");
       } else {
-        if (board->castle_rights & 0x01) printf("K");
-        if (board->castle_rights & 0x02) printf("Q");
-        if (board->castle_rights & 0x04) printf("k");
-        if (board->castle_rights & 0x08) printf("q");
+        // if (board->castle_rights & 0x01) printf("K");
+        // if (board->castle_rights & 0x02) printf("Q");
+        // if (board->castle_rights & 0x04) printf("k");
+        // if (board->castle_rights & 0x08) printf("q");
       }
       
       // En passant square
-      printf(" ");
+      // printf(" ");
       if (board->ep_square == -1) {
-        printf("-");
+        // printf("-");
       } else {
         int ep_file = board->ep_square % 8;
         int ep_rank = board->ep_square / 8;
-        printf("%c%d", 'a' + ep_file, ep_rank + 1);
+        // printf("%c%d", 'a' + ep_file, ep_rank + 1);
       }
       
       // Halfmove clock and fullmove number
-      printf(" %d %d\n", board->halfmove_clock, board->fullmove_number);
+      // printf(" %d %d\n", board->halfmove_clock, board->fullmove_number);
       
       // Check key pieces for our endgame position
-      printf("[BOARD STATE] Piece at a2: ");
+      // printf("[BOARD STATE] Piece at a2: ");
       Piece* piece_a2 = &board->board[1 * 8 + 0];  // row 1, col 0 = a2
       if (piece_a2->type == EMPTY) {
-        printf("EMPTY\n");
+        // printf("EMPTY\n");
       } else {
         const char* type_str = (piece_a2->type == ROOK) ? "Rook" : 
                                (piece_a2->type == KING) ? "King" : "Other";
         const char* color_str = (piece_a2->color == C_WHITE) ? "White" : "Black";
-        printf("%s %s\n", color_str, type_str);
+        // printf("%s %s\n", color_str, type_str);
       }
       
-      printf("[BOARD STATE] White King at g3: ");
+      // printf("[BOARD STATE] White King at g3: ");
       Piece* wk = &board->board[2 * 8 + 6];  // row 2, col 6 = g3
-      printf("%s\n", (wk->type == KING && wk->color == C_WHITE) ? "YES" : "NO");
+      // printf("%s\n", (wk->type == KING && wk->color == C_WHITE) ? "YES" : "NO");
       
-      printf("[BOARD STATE] Black King at h1: ");
+      // printf("[BOARD STATE] Black King at h1: ");
       Piece* bk = &board->board[0 * 8 + 7];  // row 0, col 7 = h1
-      printf("%s\n", (bk->type == KING && bk->color == C_BLACK) ? "YES" : "NO");
+      // printf("%s\n", (bk->type == KING && bk->color == C_BLACK) ? "YES" : "NO");
       
       // Print all legal moves to debug
-      printf("[LEGAL MOVES LIST] %d moves:\n", moves_count);
+      // printf("[LEGAL MOVES LIST] %d moves:\n", moves_count);
       for (int i = 0; i < moves_count && i < 10; i++) {
         int action_id = uci_to_action_id(moves_buffer[i]);
-        printf("  Move %d: %s (action %d)\n", i, moves_buffer[i], action_id);
+        // printf("  Move %d: %s (action %d)\n", i, moves_buffer[i], action_id);
       }
       if (moves_count > 10) {
-        printf("  ... and %d more moves\n", moves_count - 10);
+        // printf("  ... and %d more moves\n", moves_count - 10);
       }
       
       // Check what piece is at f7 (reuse board from above)
       Piece* f7_piece = get_piece(board, 5, 6); // f=5, 7=6 (0-indexed)
       if (f7_piece && f7_piece->type != EMPTY) {
-        printf("[BOARD CHECK] Piece at f7: %s %s\n",
+        // printf("[BOARD CHECK] Piece at f7: %s %s\n",
                f7_piece->color == C_WHITE ? "White" : "Black",
                f7_piece->type == QUEEN ? "Queen" : 
                f7_piece->type == KING ? "King" :
@@ -6389,13 +6397,13 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
                f7_piece->type == KNIGHT ? "Knight" :
                f7_piece->type == PAWN ? "Pawn" : "Unknown");
       } else {
-        printf("[BOARD CHECK] No piece at f7!\n");
+        // printf("[BOARD CHECK] No piece at f7!\n");
       }
       
       // Check what piece is at f8
       Piece* f8_piece = get_piece(board, 5, 7); // f=5, 8=7 (0-indexed)
       if (f8_piece && f8_piece->type != EMPTY) {
-        printf("[BOARD CHECK] Piece at f8: %s %s\n",
+        // printf("[BOARD CHECK] Piece at f8: %s %s\n",
                f8_piece->color == C_WHITE ? "White" : "Black",
                f8_piece->type == QUEEN ? "Queen" : 
                f8_piece->type == KING ? "King" :
@@ -6404,7 +6412,7 @@ static void compute_single_agent_observation(CChess *env, ChessContext *ctx,
                f8_piece->type == KNIGHT ? "Knight" :
                f8_piece->type == PAWN ? "Pawn" : "Unknown");
       } else {
-        printf("[BOARD CHECK] Square f8 is empty\n");
+        // printf("[BOARD CHECK] Square f8 is empty\n");
       }
     }
     */
@@ -6421,13 +6429,13 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx,
   // is ALWAYS 0.
   const int expected_offset = 0; // <-- NEW, CORRECT LOGIC
   if (obs_offset != expected_offset) {
-    printf("[MONITOR_FATAL] Chess.h observation offset mismatch!\n");
-    printf(" Expected %s at offset %d, got offset %d\n",
-           (player == C_WHITE) ? "WHITE" : "BLACK", expected_offset,
-           obs_offset);
-    printf(" This indicates an error in the calling function.\n");
-    printf(" FIX: Ensure all calls to compute_single_agent_observation pass 0 "
-           "as the offset.\n");
+    // printf("[MONITOR_FATAL] Chess.h observation offset mismatch!\n");
+    // printf(" Expected %s at offset %d, got offset %d\n",
+    //        (player == C_WHITE) ? "WHITE" : "BLACK", expected_offset,
+    //        obs_offset);
+    // printf(" This indicates an error in the calling function.\n");
+    // printf(" FIX: Ensure all calls to compute_single_agent_observation pass 0 "
+    //        "as the offset.\n");
     exit(1);
   }
   // SENTINEL 2: Validate observation content signature
@@ -6455,20 +6463,20 @@ void validate_chess_observation_integrity(CChess *env, ChessContext *ctx,
 
   // Check basic observation integrity
   if (board_sum < 1.0f) {
-    printf("[MONITOR_FATAL] Chess.h observation content invalid!\n");
-    printf(" %s observation at offset %d: board_sum=%.3f total_legal_actions=%d\n",
-           (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum,
-           total_legal_actions);
-    printf(" Board sum should be >1 (pieces present).\n");
-    printf(" FIX: Check compute_single_agent_observation() is writing correct "
-           "data.\n");
+    // printf("[MONITOR_FATAL] Chess.h observation content invalid!\n");
+    // printf(" %s observation at offset %d: board_sum=%.3f total_legal_actions=%d\n",
+    //        (player == C_WHITE) ? "WHITE" : "BLACK", obs_offset, board_sum,
+    //        total_legal_actions);
+    // printf(" Board sum should be >1 (pieces present).\n");
+    // printf(" FIX: Check compute_single_agent_observation() is writing correct "
+    //        "data.\n");
     exit(1);
   }
   // Check for uninitialized board (real error condition)
   if (board_sum < 10.0f) {
-    printf("[CHESS_FATAL] Board sum is %.1f - board appears uninitialized!\n",
-           board_sum);
-    printf(" This suggests the environment reset is not working properly.\n");
+    // printf("[CHESS_FATAL] Board sum is %.1f - board appears uninitialized!\n",
+    //        board_sum);
+    // printf(" This suggests the environment reset is not working properly.\n");
     exit(1);
   }
 
@@ -6496,33 +6504,33 @@ void compute_observation_with_perspective(CChess *env, ChessContext *ctx) {
   validate_chess_observation_integrity(env, ctx, current_player, obs_offset);
   
   // DEBUG: Print full observation to verify values
-  printf("[OBS FULL] Nonzero observation values:\n");
+//   // printf("[OBS FULL] Nonzero observation values:\n");
   int nonzero_count = 0;
   for (int i = 0; i < 1537; i++) {  // Check ALL observation values including action mask
     if (env->observations[i] != 0.0f) {
       if (nonzero_count < 70) {  // Print first 70 nonzero values
-        printf("  obs[%d] = %.1f", i, env->observations[i]);
+        // printf("  obs[%d] = %.1f", i, env->observations[i]);
         // Identify which plane this is
         if (i < 832) {
           int plane = i / 64;
           int square = i % 64;
-          printf(" (plane %d, square %d)", plane, square);
+          // printf(" (plane %d, square %d)", plane, square);
         }
-        printf("\n");
+        // printf("\n");
       }
       nonzero_count++;
     }
   }
-  printf("[OBS FULL] Total nonzero values: %d/1537\n", nonzero_count);
+//   // printf("[OBS FULL] Total nonzero values: %d/1537\n", nonzero_count);
   
   // Check if the buffer is actually being written to
-  printf("[OBS BUFFER] Key indices: obs[22]=%.1f obs[136]=%.1f obs[391]=%.1f obs[1472]=%.1f\n",
-         env->observations[22], env->observations[136], env->observations[391], env->observations[1472]);
-  printf("[OBS BUFFER] First 10 raw values: ");
-  for (int i = 0; i < 10; i++) {
-    printf("%.1f ", env->observations[i]);
-  }
-  printf("\n");
+//   // printf("[OBS BUFFER] Key indices: obs[22]=%.1f obs[136]=%.1f obs[391]=%.1f obs[1472]=%.1f\n",
+//          env->observations[22], env->observations[136], env->observations[391], env->observations[1472]);
+//   // printf("[OBS BUFFER] First 10 raw values: ");
+//   for (int i = 0; i < 10; i++) {
+//     printf("%.1f ", env->observations[i]);
+//   }
+//   printf("\n");
   
   PROFILE_STOP(profile_compute_obs_ticks)
 }
@@ -7027,6 +7035,11 @@ static int logging_env_id = -1; // ID of the designated logging environment
 static int first_active_env_id =
     -1; // Track the first environment that actually runs games
 
+// Global puzzle tracking shared across ALL environments
+// Use -1 as sentinel to detect first initialization
+static int global_total_puzzle_attempts = -1;
+static int global_total_puzzle_solves = 0;
+
 static void init_board(ChessBoard *board) {
   memset(board, 0, sizeof(ChessBoard));
   const char *start_fen =
@@ -7108,7 +7121,16 @@ void init(CChess *env) {
     env->global_puzzle_successes = 0;
     env->global_puzzle_success_threshold = 0.9f;
     env->puzzle_max_tries_per_env = 10;
+    
+    // Initialize global counters only once
+    if (global_total_puzzle_attempts == -1) {
+      global_total_puzzle_attempts = 0;
+      global_total_puzzle_solves = 0;
+//       // printf("[GLOBAL INIT] Initialized global puzzle counters\n");
+    }
   }
+  
+  // Per-env counters removed - using global counters instead
   // Set up convenience pointer to avoid repeated dereferencing
   env->ctx = &env->context;
   env->env_id = global_env_counter++; // Simple counter
@@ -7251,22 +7273,18 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   if (!env->context.puzzle_mode)
     return;
 
-  // TEMPORARY HARDCODE FOR DEBUGGING - Simple endgame position
+  // HARDCODED PUZZLE FOR FOCUSED TRAINING - Simple endgame position
   const char* DEBUG_FEN = "8/8/8/8/8/6K1/R7/7k w - - 0 1";
   const char* DEBUG_SOLUTION = "a2a1";  // Checkmate move
   
-  printf("[HARDCODED] Overriding puzzle with DEBUG FEN\n");
-  printf("[HARDCODED] FEN: %s\n", DEBUG_FEN);
-  printf("[HARDCODED] Expected move: %s\n", DEBUG_SOLUTION);
-
   // Reset tries counter when loading new puzzle
   env->context.puzzle_tries_this_env = 0;
 
-  // Store puzzle FEN - USE HARDCODED VALUE
+  // Store puzzle FEN - USE HARDCODED VALUE for focused training
   strncpy(env->context.puzzle_fen, DEBUG_FEN, sizeof(env->context.puzzle_fen) - 1);
   env->context.puzzle_fen[sizeof(env->context.puzzle_fen) - 1] = '\0';
 
-  // Store solution moves - USE HARDCODED VALUE
+  // Store solution moves - USE HARDCODED VALUE for focused training
   env->context.puzzle_solution_length = 1;
   strncpy(env->context.puzzle_solution[0], DEBUG_SOLUTION, 5);
   env->context.puzzle_solution[0][5] = '\0';
@@ -7278,7 +7296,7 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
 
   // Load the FEN position and cache it for quick reset
   if (!parse_fen(DEBUG_FEN, &env->context.board)) {
-    printf("[ERROR] Failed to parse puzzle FEN: %s\n", DEBUG_FEN);
+//     printf("[ERROR] Failed to parse puzzle FEN: %s\n", DEBUG_FEN);
     init_board(&env->context.board);  // Fallback to starting position
   }
   
@@ -7287,9 +7305,9 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   env->context.puzzle_board_cached = true;
   
   // DEBUG: Verify cache is correct
-  printf("[CACHE DEBUG] Created puzzle cache with piece at a2: %s\n",
-         (env->context.puzzle_board_cache.board[8].type == ROOK && 
-          env->context.puzzle_board_cache.board[8].color == C_WHITE) ? "WHITE ROOK" : "EMPTY/OTHER");
+//   printf("[CACHE DEBUG] Created puzzle cache with piece at a2: %s\n",
+//          (env->context.puzzle_board_cache.board[8].type == ROOK && 
+//           env->context.puzzle_board_cache.board[8].color == C_WHITE) ? "WHITE ROOK" : "EMPTY/OTHER");
 
   // Print initial puzzle position
   // Debug: Puzzle loaded (removed prints for performance)
@@ -7297,13 +7315,13 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   // Verify this is a mate-in-1 puzzle (white to move, 1 move solution)
   if (solution_length != 1) {
     // Warning: Not mate-in-1
-    printf("[PUZZLE WARNING] Solution has %d moves, expected 1\n",
-           solution_length);
+//     // printf("[PUZZLE WARNING] Solution has %d moves, expected 1\n",
+//            solution_length);
   }
   if (env->context.board.to_move != C_WHITE) {
     // Error: Black to move
-    printf("[PUZZLE ERROR] Black to move - only white should "
-           "move in puzzles.\n");
+//     // printf("[PUZZLE ERROR] Black to move - only white should "
+//            "move in puzzles.\n");
   }
 
   // Debug: Initial position (removed print for performance)
@@ -7323,9 +7341,9 @@ void set_puzzle_set(CChess *env, int num_puzzles, const char **fens,
   const char* DEBUG_FEN = "8/8/8/8/8/6K1/R7/7k w - - 0 1";
   const char* DEBUG_SOLUTION = "a2a1";  // Checkmate move
   
-  printf("[HARDCODED SET] Overriding ALL puzzles with DEBUG FEN\n");
-  printf("[HARDCODED SET] FEN: %s\n", DEBUG_FEN);
-  printf("[HARDCODED SET] Expected move: %s\n", DEBUG_SOLUTION);
+//   // // printf("[HARDCODED SET] Overriding ALL puzzles with DEBUG FEN\n");
+//   // printf("[HARDCODED SET] FEN: %s\n", DEBUG_FEN);
+//   // printf("[HARDCODED SET] Expected move: %s\n", DEBUG_SOLUTION);
   
   // Override to just 1 puzzle
   env->context.puzzle_set_size = 1;
@@ -7343,7 +7361,7 @@ void set_puzzle_set(CChess *env, int num_puzzles, const char **fens,
   env->context.current_puzzle_idx = 0;
   
   // Disabled for training - prints for every env and clutters output
-  // printf("[PUZZLE] Loaded set of %d puzzles\n", env->context.puzzle_set_size);
+  // // printf("[PUZZLE] Loaded set of %d puzzles\n", env->context.puzzle_set_size);
   
   // Load the first puzzle
   if (env->context.puzzle_set_size > 0) {
@@ -7360,8 +7378,8 @@ void set_puzzle_set(CChess *env, int num_puzzles, const char **fens,
 
 void set_puzzle_training_params(CChess *env, int max_tries_per_env,
                                 float success_threshold) {
-  printf("[PUZZLE PARAMS] Setting max_tries_per_env = %d, success_threshold = %.2f\n", 
-         max_tries_per_env, success_threshold);
+//   // printf("[PUZZLE PARAMS] Setting max_tries_per_env = %d, success_threshold = %.2f\n", 
+//          max_tries_per_env, success_threshold);
   env->puzzle_max_tries_per_env = max_tries_per_env;
   env->global_puzzle_success_threshold = success_threshold;
   env->context.puzzle_max_tries_per_env = max_tries_per_env;
@@ -7400,7 +7418,7 @@ void c_reset(CChess *env) {
   if (env->context.puzzle_mode && env->context.puzzle_board_cached) {
     // Restore the cached puzzle board state
     env->context.board = env->context.puzzle_board_cache;
-    printf("[C_RESET] Restored cached puzzle board\n");
+    // printf("[C_RESET] Restored cached puzzle board\n");
     
     // Clear move caches and regenerate legal moves
     env->context.white_moves_cached = false;
@@ -7410,12 +7428,16 @@ void c_reset(CChess *env) {
     
     // Generate legal moves for the current position
     int num_moves = chess_generate_legal_moves_uci(&env->context);
-    printf("[C_RESET] Generated %d legal moves after board restore\n", num_moves);
+    // printf("[C_RESET] Generated %d legal moves after board restore\n", num_moves);
+    
+    // CRITICAL FIX: Must recalculate observation after restoring puzzle board
+    // The observation cache must be invalidated when board state changes
+    env->context.observation_cached = false;
     
   } else if (env->context.puzzle_mode && env->context.puzzle_set_size > 0 && strlen(env->context.puzzle_fen) > 0) {
     // Parse the puzzle FEN if no cache available
     if (!parse_fen(env->context.puzzle_fen, &env->context.board)) {
-      printf("[C_RESET ERROR] Failed to parse puzzle FEN: %s\n", env->context.puzzle_fen);
+      // printf("[C_RESET ERROR] Failed to parse puzzle FEN: %s\n", env->context.puzzle_fen);
       init_board(&env->context.board);
     }
     env->context.board.fen_was_set = false; // Reset flag so next reset works
@@ -7541,12 +7563,12 @@ void c_reset(CChess *env) {
   // CRITICAL: Generate legal moves before computing observation!
   chess_generate_all_legal_moves(&env->context);
   // Compute initial observation
-  printf("[OBS COMPUTE] Line 7525: c_reset initial observation\n");
+//   // printf("[OBS COMPUTE] Line 7525: c_reset initial observation\n");
   compute_observation_with_perspective(env, &env->context);
   
   // DEBUG: Check observation right after reset
-  printf("[RESET OBS CHECK] After reset, obs[22]=%.1f obs[136]=%.1f obs[391]=%.1f\n",
-         env->observations[22], env->observations[136], env->observations[391]);
+//   // printf("[RESET OBS CHECK] After reset, obs[22]=%.1f obs[136]=%.1f obs[391]=%.1f\n",
+//          env->observations[22], env->observations[136], env->observations[391]);
 
   // Restore puzzle stats after reset
   env->context.puzzle_attempts_this_env = saved_puzzle_attempts;
@@ -7555,18 +7577,47 @@ void c_reset(CChess *env) {
 
 void c_step(CChess *env) {
   static int step_count = 0;
+  static int debug_step_count = 0;  // For debug prints
   step_count++;
-  printf("[C_STEP ENTRY %d] rewards[0]=%f, terminals[0]=%d\n", step_count, env->rewards[0], env->terminals[0]);
   
-  // CRITICAL FIX: Check if episode already terminated BEFORE clearing rewards
-  // If episode is done, keep the terminal rewards visible to Python!
+  printf("\n[C_STEP %d START] terminals[0]=%d, puzzle_failed=%d, puzzle_completed=%d\n", 
+         step_count, env->terminals[0], env->context.puzzle_failed, env->context.puzzle_completed);
+  printf("  Puzzle FEN: %.50s...\n", env->context.puzzle_fen ? env->context.puzzle_fen : "NULL");
+  
+  // Show full board position 
+  printf("  Board (8-1):\n");
+  for (int y = 7; y >= 0; y--) {
+    printf("    %d: ", y+1);
+    for (int x = 0; x < 8; x++) {
+      Piece* p = get_piece(&env->context.board, x, y);
+      if (p && p->type != EMPTY) {
+        // Map piece types: KING=1, QUEEN=2, ROOK=3, BISHOP=4, KNIGHT=5, PAWN=6
+        char pc = '.';
+        switch(p->type) {
+          case 1: pc = 'K'; break; // KING
+          case 2: pc = 'Q'; break; // QUEEN
+          case 3: pc = 'R'; break; // ROOK
+          case 4: pc = 'B'; break; // BISHOP
+          case 5: pc = 'N'; break; // KNIGHT
+          case 6: pc = 'P'; break; // PAWN
+        }
+        if (p->color == C_BLACK) pc = pc + 32; // lowercase  
+        printf("%c", pc);
+      } else {
+        printf(".");
+      }
+    }
+    printf("\n");
+  }
+  printf("       abcdefgh\n");
+  
+  // CRITICAL FIX: Check if episode already terminated
+  // If terminals is set, reset for next episode
   if (env->terminals && (env->terminals[0] || env->terminals[1])) {
-    // Episode is already terminated, don't process any more steps
-    // Keep terminals set and DON'T clear rewards - Python needs to see them!
-    env->terminals[0] = 1;
-    env->terminals[1] = 1;
-    // DON'T increment step count - episode is over!
-    return;
+    printf("[C_STEP %d] Episode terminated (terminals[0]=%d), resetting for next episode\n", 
+           step_count, env->terminals[0]);
+    c_reset(env);  // Reset the environment for the next episode
+    // After reset, terminals should be 0, so we can continue with the new episode
   }
   
   // Clear rewards from previous step (standard pattern in ocean envs)
@@ -7592,19 +7643,27 @@ void c_step(CChess *env) {
   }
   
   PROFILE_START(profile_c_step_ticks)
-  // Definitive Guard Clause: If the puzzle is marked as completed (either
-  // solved or failed), the episode is over. The environment must remain
-  // inert until the next c_reset() call. PufferLib may continue to call
-  // c_step to fill its buffer, so we must handle this gracefully.
-  if (env->context.puzzle_mode &&
-      (env->context.puzzle_completed || env->context.puzzle_failed)) {
-    // Ensure terminal state is maintained 
-    // DO NOT ZERO REWARDS - the puzzle solve reward was just given!
+  // Handle puzzle reset AFTER showing failed state
+  // If puzzle_failed is true, it means we showed the wrong move last step
+  // Now we need to reset the puzzle for another attempt (unless we already terminated)
+  if (env->context.puzzle_mode && env->context.puzzle_failed && !env->terminals[0]) {
+    // Reset the puzzle to starting position for another try
+    printf("[PUZZLE] Resetting puzzle after failed attempt\n");
+    c_set_fen(env, env->context.puzzle_fen);
+    env->context.puzzle_move_index = 0;
+    env->context.puzzle_failed = false;
+    
+    // Generate legal moves for reset position
+    chess_generate_all_legal_moves(&env->context);
+    compute_observation_with_perspective(env, &env->context);
+    return; // Skip processing action this step - just show reset state
+  }
+  
+  // Handle completed puzzles - remain inert until reset
+  if (env->context.puzzle_mode && env->context.puzzle_completed) {
     env->terminals[0] = 1;
     env->terminals[1] = 1;
-    // env->rewards[0] = 0.0f;  // REMOVED - this was clearing puzzle rewards!
-    // env->rewards[1] = 0.0f;  // REMOVED - this was clearing puzzle rewards!
-    return; // Exit immediately.
+    return;
   }
   // Game logging counter is incremented when games end, not on every step
   // // In self-play mode: agent 0 = white, agent 1 = black
@@ -7637,9 +7696,16 @@ void c_step(CChess *env) {
   // The action is now correctly read from env->actions[0] for BOTH White and
   // Black.
   int action_idx = env->actions[agent_idx];
+  printf("[ACTION] Agent chose action %d\n", action_idx);
+  
   // Generate moves for BOTH players if not cached
   // This ensures we always have the right moves available
   chess_generate_all_legal_moves(&env->context);
+  
+  // Print who's turn it is and legal moves
+  printf("[TURN] %s to move\n", env->context.board.to_move == C_WHITE ? "WHITE" : "BLACK");
+  printf("[LEGAL MOVES] White: %.0f, Black: %.0f\n", 
+         env->context.c_white_moves, env->context.c_black_moves);
   // Calculate the correct observation offset for the CURRENT player.
   const int single_obs_size = 1537; // 1472 board + sparse mask (1 + 64)
   int obs_offset = 0;               // <-- NEW, CORRECT LOGIC
@@ -7675,6 +7741,15 @@ void c_step(CChess *env) {
     moves_buffer = env->context.black_legal_moves_buffer;
     moves_count = env->context.black_legal_moves_count;
   }
+  
+  // Print the actual legal moves
+  printf("  Legal moves (%d): ", moves_count);
+  for (int i = 0; i < moves_count && i < 10; i++) {
+    printf("%s ", moves_buffer[i]);
+  }
+  if (moves_count > 10) printf("... (%d more)", moves_count - 10);
+  printf("\n");
+  
   for (int i = 0; i < moves_count; i++) {
     if (strcmp(moves_buffer[i], uci_move_canonical) == 0) {
       is_action_legal = true;
@@ -7685,6 +7760,9 @@ void c_step(CChess *env) {
   if (!is_action_legal) {
     const char *turn_color =
         (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK";
+    printf("[ILLEGAL MOVE] Action %d -> %s is not legal for %s\n", 
+           action_idx, uci_move_canonical, turn_color);
+    printf("[ILLEGAL MOVE] Checked %d legal moves\n", moves_count);
     // printf("[ERROR] Illegal move attempted (ground truth validation): action
     // %d (%s) - %s's turn (agent %d)\n", action_idx, uci_move_canonical,
     // turn_color, agent_idx);
@@ -7705,7 +7783,7 @@ void c_step(CChess *env) {
         env->terminals[0] = 1;
         env->terminals[1] = 1;
         add_log(env);
-        // printf("[OBS COMPUTE] Line 7679: Puzzle episode termination (max tries)\n");
+        // // printf("[OBS COMPUTE] Line 7679: Puzzle episode termination (max tries)\n");
         compute_observation_with_perspective(env, &env->context);
         return;
       }
@@ -7717,20 +7795,18 @@ void c_step(CChess *env) {
         // Reset puzzle for next attempt
         env->context.puzzle_failed = false;
         env->context.puzzle_tries_this_env = 0;
-        // printf("[PUZZLE] Max tries reached, resetting puzzle. Stats: attempts=%.1f, wrong=%.1f\n",
+        // // printf("[PUZZLE] Max tries reached, resetting puzzle. Stats: attempts=%.1f, wrong=%.1f\n",
         //        env->context.puzzle_attempts_this_episode,
         //        env->context.puzzle_wrong_moves_this_episode);
       }
-      // Reset the puzzle to its starting position for another try
-      c_set_fen(env, env->context.puzzle_fen);
-      env->context.puzzle_move_index = 0;
-      env->context.puzzle_failed = false;
-      // Clear terminals and continue
-      env->terminals[0] = 0;
-      env->terminals[1] = 0;
-      // CRITICAL: Regenerate legal moves after resetting the board!
-      chess_generate_all_legal_moves(&env->context);
+      // DON'T reset yet - let agent see the penalty with current board
+      // Mark for reset on NEXT step
+      env->context.puzzle_failed = true;
+      
+      // Compute observation with CURRENT board (no move was made)
       compute_observation_with_perspective(env, &env->context);
+      
+      printf("[ILLEGAL MOVE] Showing penalty, will reset on next step\n");
       return;
     } else if (env->context.board.to_move == C_WHITE) {
       env->context.c_invalid_moves_white += 1;
@@ -7768,13 +7844,16 @@ void c_step(CChess *env) {
   // (env->context.board.to_move == C_WHITE) ? "WHITE" : "BLACK");
   // Store whose turn it was before the move (the player making the move)
   PieceColor moving_player = env->context.board.to_move;
+  printf("[MOVE] Attempting to apply: %s\n", uci_move_canonical);
   bool move_applied = apply_uci_move(&env->context, uci_move_canonical);
+  printf("[MOVE] Applied=%d, new turn: %s\n", move_applied,
+         env->context.board.to_move == C_WHITE ? "WHITE" : "BLACK");
   
   // Direct step logging in puzzle mode - log every 50 steps
   // DISABLED FOR PERFORMANCE - printf in hot path kills training speed!
   /*
   if (env->context.puzzle_mode && env->context.step_count % 50 == 0) {
-    printf("[PUZZLE STEP] step_count=%d, wrong_moves=%.0f, solves=%d, tries=%d\n", 
+//     // printf("[PUZZLE STEP] step_count=%d, wrong_moves=%.0f, solves=%d, tries=%d\n", 
            env->context.step_count,
            env->context.puzzle_wrong_moves_this_episode,
            env->context.puzzle_solves_this_episode,
@@ -7796,23 +7875,35 @@ void c_step(CChess *env) {
       env->terminals[agent_idx] = 1;
       return;
     }
-    // Print board BEFORE the move (limit printing to avoid spam)
-    static int board_print_counter = 0;
-    board_print_counter++;
-    if (board_print_counter <= 20 || board_print_counter % 50 == 0) {
-      // Debug: Board before move (removed print for performance)
-      // Debug: Board state and move attempt (removed prints for performance)
-      fflush(stdout);
+    
+    // DEBUG: Print observation BEFORE move (first few steps only)
+    debug_step_count++;
+    if (debug_step_count <= 5) {
+      printf("\n[STEP %d] BEFORE MOVE:\n", debug_step_count);
+      printf("  Move attempted: %s\n", uci_move_canonical);
+      printf("  Observation sample (first 10): ");
+      for (int i = 0; i < 10; i++) {
+        printf("%.1f ", env->observations[i]);
+      }
+      printf("\n");
+      printf("  Mask at 1472: count=%.0f, first 5 actions: ", env->observations[1472]);
+      for (int i = 0; i < 5 && i < (int)env->observations[1472]; i++) {
+        int action_id = (int)env->observations[1473 + i];
+        printf("%d(%s) ", action_id, ACTION_ID_TO_UCI[action_id]);
+      }
+      printf("\n");
     }
+    
     // Apply the move
     if (!move_applied) {
       // Move failed to apply
       env->terminals[agent_idx] = 1;
       return;
     }
-    // Print board AFTER the move (with same limiting)
-    if (board_print_counter <= 20 || board_print_counter % 50 == 0) {
-      // Move played
+    
+    // Move was applied - board state has changed
+    if (debug_step_count <= 5) {
+      printf("  Move APPLIED successfully\n");
     }
   } else {
     // Non-puzzle mode - normal move application
@@ -7822,7 +7913,10 @@ void c_step(CChess *env) {
   }
   // PUZZLE MODE - Check if move is correct
   if (move_applied && env->context.puzzle_mode) {
+    printf("[PUZZLE CHECK] move_applied=%d, puzzle_mode=%d\n", move_applied, env->context.puzzle_mode);
     if (env->context.puzzle_move_index < env->context.puzzle_solution_length) {
+      printf("[PUZZLE CHECK] Checking move index %d/%d\n", 
+             env->context.puzzle_move_index, env->context.puzzle_solution_length);
       // Track timing on first move of puzzle
       if (env->context.puzzle_move_index == 0) {
         env->context.puzzle_samples_to_solve++;
@@ -7835,8 +7929,8 @@ void c_step(CChess *env) {
           env->context.puzzle_solution[env->context.puzzle_move_index];
       
       // DEBUG: Print what move we got
-      printf("[PUZZLE DEBUG] Action %d converted to UCI: %s, Expected: %s\n", 
-             action_idx, uci_move_canonical, expected_move);
+//       // printf("[PUZZLE DEBUG] Action %d converted to UCI: %s, Expected: %s\n", 
+//              action_idx, uci_move_canonical, expected_move);
       
       // COMBINED FIX: Increment counters for EVERY attempt, BEFORE checking correctness
       env->context.puzzle_attempts_this_episode += 1.0f;
@@ -7848,7 +7942,7 @@ void c_step(CChess *env) {
         // No debug stats
       
       // Log puzzle training details with rewards and state
-      // printf("[PUZZLE TRAIN] Env %d | Puzzle idx: %d | Tries: %d | FEN: %s | Expected: %s | Agent chose: %s | Action: %d | ",
+      // // printf("[PUZZLE TRAIN] Env %d | Puzzle idx: %d | Tries: %d | FEN: %s | Expected: %s | Agent chose: %s | Action: %d | ",
       //        env->env_id, env->context.current_puzzle_idx, env->context.puzzle_tries_this_env,
       //        env->context.puzzle_fen, expected_move, uci_move_canonical, action_idx);
       
@@ -7862,15 +7956,15 @@ void c_step(CChess *env) {
       //        env->observations[22], env->observations[136], env->observations[391], num_nonzero);
       
       int cmp_result = strcmp(uci_move_canonical, expected_move);
-      printf("[PUZZLE DEBUG] strcmp result: %d (0 means equal)\n", cmp_result);
+//       // printf("[PUZZLE DEBUG] strcmp result: %d (0 means equal)\n", cmp_result);
       
       if (cmp_result == 0) {
         // Correct move! Award reward and advance to next move
-        printf("[PUZZLE DEBUG] CORRECT MOVE! Agent idx=%d, Adding rewards: correct=%f, solved=%f\n",
-               agent_idx, env->reward_correct_move, env->reward_puzzle_solved);
-        printf("[PUZZLE DEBUG] Before: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
+//         // printf("[PUZZLE DEBUG] CORRECT MOVE! Agent idx=%d, Adding rewards: correct=%f, solved=%f\n",
+//                agent_idx, env->reward_correct_move, env->reward_puzzle_solved);
+//         // printf("[PUZZLE DEBUG] Before: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
         env->rewards[agent_idx] += env->reward_correct_move;
-        printf("[PUZZLE DEBUG] After: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
+//         // printf("[PUZZLE DEBUG] After: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
         env->context.accumulated_reward_puzzle_correct_move +=
             env->reward_correct_move;
         env->context.episode_return_white += env->reward_correct_move;
@@ -7878,14 +7972,14 @@ void c_step(CChess *env) {
         // Track correct moves in context for later logging
         env->context.puzzle_correct_moves_this_episode += 1.0f;
         // Check if puzzle is complete
-        printf("[PUZZLE DEBUG] After increment: move_index=%d, solution_length=%d\n", 
-               env->context.puzzle_move_index, env->context.puzzle_solution_length);
+//         // printf("[PUZZLE DEBUG] After increment: move_index=%d, solution_length=%d\n", 
+//                env->context.puzzle_move_index, env->context.puzzle_solution_length);
         if (env->context.puzzle_move_index >=
             env->context.puzzle_solution_length) {
         //   // Puzzle solved! Award completion reward
-          printf("[PUZZLE DEBUG] PUZZLE SOLVED! Adding solved reward: %f\n", env->reward_puzzle_solved);
+//           // printf("[PUZZLE DEBUG] PUZZLE SOLVED! Adding solved reward: %f\n", env->reward_puzzle_solved);
           env->rewards[agent_idx] += env->reward_puzzle_solved;
-          printf("[PUZZLE DEBUG] Final reward: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
+//           // printf("[PUZZLE DEBUG] Final reward: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
           env->context.accumulated_reward_puzzle_solved +=
               env->reward_puzzle_solved;
           env->context.episode_return_white += env->reward_puzzle_solved;
@@ -7916,13 +8010,13 @@ void c_step(CChess *env) {
                 }
                 
                 // Load the new puzzle
-                // printf("[PUZZLE ROTATE] Env %d switching to puzzle %d (was %d)\n", 
+                // // printf("[PUZZLE ROTATE] Env %d switching to puzzle %d (was %d)\n", 
                 //        env->env_id, new_idx, env->context.current_puzzle_idx);
                 set_puzzle_data(env, env->context.puzzle_set_fens[new_idx], 
                                new_solution, 
                                env->context.puzzle_set_solution_lengths[new_idx]);
                 
-                // printf("[PUZZLE] Switching to puzzle %d from set\n", new_idx);
+                // // printf("[PUZZLE] Switching to puzzle %d from set\n", new_idx);
               }
               env->global_puzzle_id++;
               env->global_puzzle_attempts = 0;
@@ -7934,30 +8028,42 @@ void c_step(CChess *env) {
           env->context.puzzle_solves_this_episode++;  // Track solve for episode
           env->context.puzzle_tries_this_episode++;   // Track attempt for episode
           
+          // Update GLOBAL persistent counters (shared across all envs)
+          global_total_puzzle_solves++;
+          global_total_puzzle_attempts++;
+          
+          // Update puzzle score for logging
+          update_puzzle_score(env);
+          
           // Print total reward after all components are added
           // printf("CORRECT! Total Reward: %.2f\n", env->rewards[agent_idx]);
           // fflush(stdout);
           
-          // CRITICAL FIX: Reset to puzzle state BEFORE computing observation
-          // The agent needs to see the pre-move board state associated with the reward
-          // printf("[PUZZLE RESET] Restoring puzzle state for final observation\n");
-          env->context.board = env->context.puzzle_board_cache;
+          // IMPORTANT: DO NOT reset board - agent needs to see the RESULT of their move
+          // The agent needs to see the POST-MOVE board state with the reward signal
+          // // printf("[PUZZLE SOLVED] Keeping post-move board state for observation\n");
+          // env->context.board already has the move applied - keep it!
           
           // CRITICAL FIX: Terminate episode immediately after correct move
           // One attempt = one episode for proper RL training
           env->terminals[0] = 1;
           env->terminals[1] = 1;
           add_log(env);
-          // printf("[OBS COMPUTE] Line 7903: After correct move - computing obs with PUZZLE state\n");
-          printf("[BEFORE OBS] rewards[0]=%f\n", env->rewards[0]);
+          // // // printf("[OBS COMPUTE] Line 7903: After correct move - computing obs with POST-MOVE state\n");
+//           // printf("[BEFORE OBS] rewards[0]=%f\n", env->rewards[0]);
           compute_observation_with_perspective(env, &env->context);
-          printf("[AFTER OBS] rewards[0]=%f\n", env->rewards[0]);
-          printf("[PUZZLE RETURN] About to return with rewards[0]=%f, ptr=%p\n", 
-                 env->rewards[0], (void*)env->rewards);
-          // Try writing to different locations to debug
-          float* raw_ptr = (float*)env->rewards;
-          printf("[DEBUG] Writing 99.9 to raw_ptr[0]\n");
-          raw_ptr[0] = 99.9f;
+          
+          // DEBUG: Print observation AFTER correct move
+          if (debug_step_count <= 5) {
+            printf("[STEP %d] AFTER CORRECT MOVE (terminal, reward=%.1f):\n", 
+                   debug_step_count, env->rewards[0]);
+            printf("  Observation sample (first 10): ");
+            for (int i = 0; i < 10; i++) {
+              printf("%.1f ", env->observations[i]);
+            }
+            printf("\n");
+          }
+          
           return;
           
           // Code below is now unreachable since we terminate immediately
@@ -7978,14 +8084,15 @@ void c_step(CChess *env) {
       } else {
         // Wrong move! Give penalty and reward shaping
         float total_penalty = env->reward_puzzle_failed;
-        // printf("WRONG! Penalty: %.2f\n", total_penalty);
+        printf("[DEBUG] env->reward_puzzle_failed = %.4f, total_penalty = %.4f\n", 
+               env->reward_puzzle_failed, total_penalty);
         // Parse the expected and actual moves
         ChessMove expected_move;
         if (!parse_uci_move(
                 env->context.puzzle_solution[env->context.puzzle_move_index],
                 &expected_move)) {
           // Failed to parse expected move
-          // printf("[PUZZLE ERROR] Failed to parse expected move: %s\n",
+          // // printf("[PUZZLE ERROR] Failed to parse expected move: %s\n",
           //        env->context.puzzle_solution[env->context.puzzle_move_index]);
         } else {
           // Parse the actual move made
@@ -8021,8 +8128,12 @@ void c_step(CChess *env) {
             total_penalty += shaping_reward;
           }
         }
+        printf("[PUZZLE WRONG] Expected: %s, Got: %s, Penalty: %.2f\n",
+               env->context.puzzle_solution[env->context.puzzle_move_index],
+               uci_move_canonical, total_penalty);
         env->rewards[agent_idx] += total_penalty;
         env->context.accumulated_reward_puzzle_failed += total_penalty;
+        printf("[PUZZLE WRONG] Set rewards[%d] = %.2f\n", agent_idx, env->rewards[agent_idx]);
         // In puzzle mode, only white plays, so only update white's episode
         // return
         env->context.episode_return_white += total_penalty;
@@ -8030,6 +8141,13 @@ void c_step(CChess *env) {
         env->context.puzzle_wrong_moves_this_episode += 1.0f;
         env->context.puzzle_tries_this_env++;
         env->context.puzzle_tries_this_episode++;  // Track attempt for episode
+        
+        // Update GLOBAL persistent counter for failed attempt
+        global_total_puzzle_attempts++;
+        
+        // Update puzzle score for logging
+        update_puzzle_score(env);
+        
         // printf("[WRONG MOVE] wrong_moves_this_episode now: %.1f, tries_this_env: %d\n",
         //        env->context.puzzle_wrong_moves_this_episode,
         //        env->context.puzzle_tries_this_env);
@@ -8037,39 +8155,33 @@ void c_step(CChess *env) {
 
         // ALWAYS reset the board after a wrong move, even if about to terminate
         // This ensures the observation shows the correct puzzle position
-        // printf("[PUZZLE RESET] After wrong move! Resetting to FEN: %s\n", env->context.puzzle_fen);
+        // // printf("[PUZZLE RESET] After wrong move! Resetting to FEN: %s\n", env->context.puzzle_fen);
         
-        // Use cached board state for quick reset
-        if (env->context.puzzle_board_cached) {
-          // DEBUG: Check cache integrity
-          // printf("[CACHE DEBUG] Wrong move reset - cache has piece at a2: %s\n",
-          //        (env->context.puzzle_board_cache.board[8].type == ROOK && 
-          //         env->context.puzzle_board_cache.board[8].color == C_WHITE) ? "WHITE ROOK" : "EMPTY/OTHER");
-          
-          env->context.board = env->context.puzzle_board_cache;  // Restore cached board
-          // printf("[PUZZLE RESET] Using cached board state\n");
-        } else {
-          // printf("[ERROR] No cached puzzle board! Parsing FEN again\n");
-          if (!parse_fen(env->context.puzzle_fen, &env->context.board)) {
-            // printf("[ERROR] Failed to parse puzzle FEN!\n");
-            init_board(&env->context.board);
-          }
-        }
-        
+        // IMPORTANT: Agent needs to see the RESULT of their wrong move
+        // Mark puzzle as failed
         env->context.puzzle_move_index = 0;
-        env->context.puzzle_failed = false;
+        env->context.puzzle_failed = true;
         
-        // CRITICAL: Regenerate legal moves after resetting the board!
-        chess_generate_all_legal_moves(&env->context);
-
-        // CRITICAL FIX: Terminate episode immediately after wrong move
-        // One attempt = one episode for proper RL training
-        // printf("[TERMINATING] Episode ending immediately after wrong move\n");
+        // ALWAYS terminate after a wrong move so agent sees the consequence
+        // The episode boundary is critical for RL learning
         env->terminals[0] = 1;
         env->terminals[1] = 1;
+        printf("[PUZZLE] Wrong move - terminating episode (try %d/%d)\n",
+               env->context.puzzle_tries_this_episode, 
+               env->context.puzzle_max_tries_per_env);
+        
         add_log(env);
-        // printf("[OBS COMPUTE] Line 8016: After wrong move - terminating episode\n");
+        
+        // Show the post-move state so agent can learn from the mistake
         compute_observation_with_perspective(env, &env->context);
+        
+        printf("[C_STEP %d END] After wrong move:\n", step_count);
+        printf("  terminals[0]=%d, rewards[0]=%.2f\n", env->terminals[0], env->rewards[0]);
+        printf("  puzzle_failed=%d\n", env->context.puzzle_failed);
+        printf("  puzzle_tries_this_episode=%d/%d\n", 
+               env->context.puzzle_tries_this_episode, 
+               env->context.puzzle_max_tries_per_env);
+        
         return;
       }
     }
@@ -8077,9 +8189,9 @@ void c_step(CChess *env) {
   // IMPORTANT: Skip all regular game logic in puzzle mode
   if (env->context.puzzle_mode) {
     // This should never be reached due to returns above, but just in case
-    // printf("[PUZZLE WARNING] Reached end of puzzle block without proper "
+    // // printf("[PUZZLE WARNING] Reached end of puzzle block without proper "
     //        "return!\n");
-    // printf("[OBS COMPUTE] Line 8081: Puzzle failsafe\n");
+    // // printf("[OBS COMPUTE] Line 8081: Puzzle failsafe\n");
     compute_observation_with_perspective(env, &env->context);
     return;
   }
@@ -8306,12 +8418,12 @@ void c_step(CChess *env) {
   } else {
     // Compute new observation if the game is not over
     if (env->context.puzzle_mode) {
-      printf("[OBS COMPUTE ERROR] Line 8308: SHOULD NOT REACH HERE IN PUZZLE MODE!\n");
-      printf("[OBS COMPUTE ERROR] Board state - rook at a2: %s\n",
-             (env->context.board.board[8].type == ROOK && 
-              env->context.board.board[8].color == C_WHITE) ? "YES" : "NO");
+//       // // printf("[OBS COMPUTE ERROR] Line 8308: SHOULD NOT REACH HERE IN PUZZLE MODE!\n");
+//       // printf("[OBS COMPUTE ERROR] Board state - rook at a2: %s\n",
+//              (env->context.board.board[8].type == ROOK && 
+//               env->context.board.board[8].color == C_WHITE) ? "YES" : "NO");
     }
-    printf("[OBS COMPUTE] Line 8308: Regular game continue\n");
+//     // printf("[OBS COMPUTE] Line 8308: Regular game continue\n");
     compute_observation_with_perspective(env, &env->context);
   }
   // PROFILING: Print performance statistics every 1000 steps
@@ -8337,10 +8449,10 @@ void c_step(CChess *env) {
     // apply_move_time, apply_move_time/total_time*100);
   }
   PROFILE_STOP(profile_c_step_ticks);
-  // printf("[C_STEP DEBUG] c_step completed\n");
+  // // printf("[C_STEP DEBUG] c_step completed\n");
   // fflush(stdout);
-  printf("[C_STEP EXIT] Final rewards: env->rewards[0]=%f, env->rewards[1]=%f, rewards ptr=%p\n", 
-         env->rewards[0], env->rewards[1], (void*)env->rewards);
+  // printf("[C_STEP EXIT] Final rewards: env->rewards[0]=%f, env->rewards[1]=%f, rewards ptr=%p\n", 
+  //        env->rewards[0], env->rewards[1], (void*)env->rewards);
 }
 
 // === PUFFERLIB LOGGING FUNCTION ===
@@ -8350,25 +8462,49 @@ void add_log(CChess *env) {
   env->log.episode_return +=
       env->context.episode_return_white + env->context.episode_return_black;
   
-  // Puzzle solve rate tracking for this episode
-  if (env->context.puzzle_mode && env->context.puzzle_tries_this_episode > 0) {
-    // Compute solve rate as solves / tries for this episode
-    env->context.puzzle_solve_rate_this_episode = 
-        (float)env->context.puzzle_solves_this_episode / 
-        (float)env->context.puzzle_tries_this_episode;
-    
-    // Log the solve rate using score field
-    env->log.score += env->context.puzzle_solve_rate_this_episode;
-    env->log.perf += 1.0f;  // Count episodes for average calculation
+  // For puzzle mode, ALWAYS set score based on global counters
+  // This ensures all environments report the same score for correct averaging
+  if (env->context.puzzle_mode && global_total_puzzle_attempts > 0) {
+    float solve_rate = (float)global_total_puzzle_solves / (float)global_total_puzzle_attempts;
+    env->log.score = solve_rate;
+    env->log.perf = (float)global_total_puzzle_attempts;
   }
   
   // Increment n (must be last for PufferLib aggregation)
   env->log.n += 1.0f;
 }
+
+// Update puzzle score continuously (called from c_step)
+// NOTE: This updates only the calling environment's log, but the global score
+// should be propagated to ALL environments for correct averaging
+void update_puzzle_score(CChess *env) {
+  if (env->context.puzzle_mode && global_total_puzzle_attempts > 0) {
+    float solve_rate = (float)global_total_puzzle_solves / (float)global_total_puzzle_attempts;
+    env->log.score = solve_rate;
+    env->log.perf = (float)global_total_puzzle_attempts;
+    // Debug output only from env 0 to avoid spam
+    if (env->env_id == 0) {
+//       // printf("[PUZZLE SCORE] %d/%d solves, rate=%f\n",
+//              global_total_puzzle_solves, global_total_puzzle_attempts, solve_rate);
+    }
+  }
+}
+
+// Update ALL environments' scores to the global score
+// This ensures correct averaging in vec_log
+void update_all_puzzle_scores(CChess *env) {
+  if (env->context.puzzle_mode && global_total_puzzle_attempts > 0) {
+    float solve_rate = (float)global_total_puzzle_solves / (float)global_total_puzzle_attempts;
+    // This only updates the current env, but we need a different approach
+    // The real fix is to make sure add_log sets the same score for all envs
+    env->log.score = solve_rate;
+    env->log.perf = (float)global_total_puzzle_attempts;
+  }
+}
 void c_render(CChess *env) {
-  printf("\n +---+---+---+---+---+---+---+---+\n");
+  // printf("\n +---+---+---+---+---+---+---+---+\n");
   for (int y = 7; y >= 0; y--) {
-    printf("%d |", y + 1);
+    // printf("%d |", y + 1);
     for (int x = 0; x < 8; x++) {
       const Piece *p = get_piece_const(&env->context.board, x, y);
       char piece_char = ' ';
@@ -8379,14 +8515,14 @@ void c_render(CChess *env) {
           piece_char = piece_char + ('a' - 'A'); // Make lowercase
         }
       }
-      printf(" %c |", piece_char);
+      // printf(" %c |", piece_char);
     }
-    printf("\n +---+---+---+---+---+---+---+---+\n");
+    // printf("\n +---+---+---+---+---+---+---+---+\n");
   }
-  printf(" a b c d e f g h\n");
-  printf("\nTo move: %s\n",
-         (env->context.board.to_move == C_WHITE) ? "White" : "Black");
-  printf("Step: %d\n", env->context.step_count);
+  // printf(" a b c d e f g h\n");
+  // printf("\nTo move: %s\n",
+  //        (env->context.board.to_move == C_WHITE) ? "White" : "Black");
+  // printf("Step: %d\n", env->context.step_count);
 }
 void c_close(CChess *env) {
   // Core cleanup for chess environment
@@ -8555,43 +8691,43 @@ void c_set_fen(CChess *env, const char *fen) {
 void c_print_profile_data() {
   profile_total_ticks = profile_c_step_ticks;
   if (profile_total_ticks == 0) {
-    printf("No profiling data collected yet.\n");
+    // printf("No profiling data collected yet.\n");
     return;
   }
-  printf("\n--- Chess Engine Profile ---\n");
-  printf("Function | Time (ms) | %% of Total\n");
-  printf("---------------------------------------|-----------|------------\n");
+  // printf("\n--- Chess Engine Profile ---\n");
+  // printf("Function | Time (ms) | %% of Total\n");
+  // printf("---------------------------------------|-----------|------------\n");
   double total_ms = (double)profile_total_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf("c_step (Total) | %9.2f | %8.2f%%\n", total_ms, 100.0);
+  // printf("c_step (Total) | %9.2f | %8.2f%%\n", total_ms, 100.0);
   double move_gen_ms =
       (double)profile_move_gen_uci_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> chess_generate_legal_moves_uci | %9.2f | %8.2f%%\n", move_gen_ms,
-         (move_gen_ms / total_ms) * 100);
+  // printf(" -> chess_generate_legal_moves_uci | %9.2f | %8.2f%%\n", move_gen_ms,
+  //        (move_gen_ms / total_ms) * 100);
   double is_legal_ms =
       (double)profile_is_legal_move_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> chess_is_legal_move | %9.2f | %8.2f%%\n", is_legal_ms,
-         (is_legal_ms / total_ms) * 100);
+  // printf(" -> chess_is_legal_move | %9.2f | %8.2f%%\n", is_legal_ms,
+  //        (is_legal_ms / total_ms) * 100);
   double is_attacked_ms =
       (double)profile_is_square_attacked_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> is_square_attacked | %9.2f | %8.2f%%\n", is_attacked_ms,
-         (is_attacked_ms / total_ms) * 100);
+  // printf(" -> is_square_attacked | %9.2f | %8.2f%%\n", is_attacked_ms,
+  //        (is_attacked_ms / total_ms) * 100);
   double make_move_ms =
       (double)profile_make_move_fast_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> make_move_fast | %9.2f | %8.2f%%\n", make_move_ms,
-         (make_move_ms / total_ms) * 100);
+  // printf(" -> make_move_fast | %9.2f | %8.2f%%\n", make_move_ms,
+  //        (make_move_ms / total_ms) * 100);
   double unmake_move_ms =
       (double)profile_unmake_move_fast_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> unmake_move_fast | %9.2f | %8.2f%%\n", unmake_move_ms,
-         (unmake_move_ms / total_ms) * 100);
+  // printf(" -> unmake_move_fast | %9.2f | %8.2f%%\n", unmake_move_ms,
+  //        (unmake_move_ms / total_ms) * 100);
   double apply_uci_ms =
       (double)profile_apply_uci_move_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> apply_uci_move | %9.2f | %8.2f%%\n", apply_uci_ms,
-         (apply_uci_ms / total_ms) * 100);
+  // printf(" -> apply_uci_move | %9.2f | %8.2f%%\n", apply_uci_ms,
+  //        (apply_uci_ms / total_ms) * 100);
   double compute_obs_ms =
       (double)profile_compute_obs_ticks * 1000.0 / CLOCKS_PER_SEC;
-  printf(" -> compute_observation_with_perspective | %9.2f | %8.2f%%\n",
-         compute_obs_ms, (compute_obs_ms / total_ms) * 100);
-  printf("----------------------------------------------------------\n");
+  // printf(" -> compute_observation_with_perspective | %9.2f | %8.2f%%\n",
+  //        compute_obs_ms, (compute_obs_ms / total_ms) * 100);
+  // printf("----------------------------------------------------------\n");
 }
 
 #endif // CHESS_H
