@@ -1,4 +1,4 @@
-## puffer [train | eval | sweep] [env_name] [optional args] -- See https://puffer.ai for full detail0
+# puffer [train | eval | sweep] [env_name] [optional args] -- See https://puffer.ai for full detail0
 # This is the same as python -m pufferlib.pufferl [train | eval | sweep] [env_name] [optional args]
 # Distributed example: torchrun --standalone --nnodes=1 --nproc-per-node=6 -m pufferlib.pufferl train puffer_nmmo3
 
@@ -374,6 +374,7 @@ class PuffeRL:
         anneal_beta = b0 + (1 - b0)*a*self.epoch/self.total_epochs
         self.ratio[:] = 1
 
+        '''
         for mb in range(self.total_minibatches):
             profile('train_misc', epoch, nest=True)
             self.amp_context.__enter__()
@@ -468,6 +469,7 @@ class PuffeRL:
                 torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config['max_grad_norm'])
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+        '''
 
         # Resample and fill gold for imitation
         profile('train_misc', epoch, nest=True)
@@ -487,6 +489,11 @@ class PuffeRL:
 
         all_terminals = torch.concatenate((self.terminals, self.gold_terminals), dim=0)
         self.gold_terminals = all_terminals[best_idxs]
+
+        # Experimental - prevent data staleness and accumulating similar segments
+        drop_idxs = torch.randint(0, self.segments, (16,))
+        self.gold_rewards[drop_idxs] = 0
+
 
         shape = self.values.shape
 
@@ -526,13 +533,22 @@ class PuffeRL:
                 config['vtrace_rho_clip'], config['vtrace_c_clip'])
             mb_returns = adv + mb_values
 
-            v_loss = ((newvalue - mb_returns) ** 2).mean()
+            newvalue = newvalue.view(mb_returns.shape)
+            v_clipped = mb_values + torch.clamp(newvalue - mb_values, -vf_clip, vf_clip)
+            v_loss_unclipped = (newvalue - mb_returns) ** 2
+            v_loss_clipped = (v_clipped - mb_returns) ** 2
+            v_loss = 0.5*torch.max(v_loss_unclipped, v_loss_clipped).mean()
+            self.gold_values[idx] = newvalue.detach().float()
 
             entropy_loss = entropy.mean()
             losses['imitate'] += imitation_loss.item() / self.total_minibatches
+            losses['entropy'] += entropy_loss.item() / self.total_minibatches
             losses['gold_reward'] += self.gold_rewards.mean().item() / self.total_minibatches
 
-            loss = imitation_loss - config['ent_coef']*entropy_loss + config['vf_coef']*v_loss
+            #loss = config['vf_coef']*v_loss
+            #loss = imitation_loss - config['ent_coef']*entropy_loss + config['vf_coef']*v_loss
+            #loss = imitation_loss + config['vf_coef']*v_loss
+            loss = imitation_loss - config['ent_coef']*entropy_loss
 
             self.amp_context.__enter__() # TODO: AMP needs some debugging
 
