@@ -91,18 +91,25 @@ struct GameOutcome {
 };
 GameOutcome last_game_outcome;
 
-// ChessNet definition
+// ChessNet definition - matches Python ChessRecurrent architecture
 typedef struct ChessNet ChessNet;
 struct ChessNet {
   int num_agents;
-  Linear *board_enc1, *board_enc2, *combiner, *policy_head, *value_head1,
-      *value_head2;
+  Conv2D *conv1, *conv2;  // Conv2d layers
+  ReLU *relu1, *relu2;    // ReLU activations
+  Linear *proj;           // Projection from flattened conv to hidden
+  ReLU *proj_relu;        // ReLU after projection
+  LSTM *lstm;             // LSTM layer
+  Linear *policy_head;    // Policy head
+  Linear *value_head;     // Value head
+  Multidiscrete *md;      // Action sampler
+  
+  // Keep old pointers for compatibility but set to NULL
+  Linear *board_enc1, *board_enc2, *combiner, *value_head1, *value_head2;
   ReLU *board_relu1, *board_relu2, *comb_relu, *value_relu;
-  LSTM *lstm;
-  Multidiscrete *md;
 };
 
-#define CHESS_NUM_WEIGHTS 2016433
+#define CHESS_NUM_WEIGHTS 960753
 
 static inline void mask_logits(float *logits, const float *legal, int size) {
   for (int i = 0; i < size; ++i) {
@@ -114,35 +121,73 @@ static inline void mask_logits(float *logits, const float *legal, int size) {
 static ChessNet *init_chessnet(Weights *weights, int num_agents) {
   ChessNet *net = (ChessNet *)calloc(1, sizeof(ChessNet));
   net->num_agents = num_agents;
-  net->board_enc1 = make_linear(weights, num_agents, 1472, 512);
-  net->board_relu1 = make_relu(num_agents, 512);
-  net->board_enc2 = make_linear(weights, num_agents, 512, 256);
-  net->board_relu2 = make_relu(num_agents, 256);
-  net->combiner = make_linear(weights, num_agents, 256, 256);
-  net->comb_relu = make_relu(num_agents, 256);
-  net->lstm = make_lstm(weights, num_agents, 256, 256);
-  net->policy_head = make_linear(weights, num_agents, 256, 1968);
-  net->value_head1 = make_linear(weights, num_agents, 256, 128);
-  net->value_relu = make_relu(num_agents, 128);
-  net->value_head2 = make_linear(weights, num_agents, 128, 1);
+  
+  // Match the actual Python ChessRecurrent model architecture:
+  // Conv2d(23, 64, kernel=3, padding=1) -> stays 8x8 in PyTorch
+  // Conv2d(64, 64, kernel=3, padding=1) -> stays 8x8 in PyTorch
+  // Flatten to 64*8*8 = 4096
+  // Linear(4096, 128)
+  // LSTM(128, 128)
+  // Linear(128, 1968) for policy
+  // Linear(128, 1) for value
+  
+  // ISSUE: C++ Conv2D doesn't support padding, so output will be smaller
+  // 8x8 -> 6x6 after first conv (no padding)
+  // 6x6 -> 4x4 after second conv (no padding)
+  // This means 64*4*4 = 1024 instead of 4096
+  // But the weights expect 4096 -> 128 linear layer
+  
+  // Implement Conv2D with manual padding to match PyTorch padding=1
+  // With padding=1, 8x8 input stays 8x8 output for 3x3 kernel
+  
+  // First conv: 23 input channels, 64 output channels, 3x3 kernel
+  // Input will be padded from 8x8 to 10x10, then conv produces 8x8
+  net->conv1 = make_conv2d(weights, num_agents, 10, 10, 23, 64, 3, 1);
+  net->relu1 = make_relu(num_agents, 64 * 8 * 8);
+  
+  // Second conv: 64 input channels, 64 output channels, 3x3 kernel  
+  // Input will be padded from 8x8 to 10x10, then conv produces 8x8
+  net->conv2 = make_conv2d(weights, num_agents, 10, 10, 64, 64, 3, 1);
+  net->relu2 = make_relu(num_agents, 64 * 8 * 8);
+  
+  // Projection from flattened conv output to hidden size
+  net->proj = make_linear(weights, num_agents, 64 * 8 * 8, 128);
+  net->proj_relu = make_relu(num_agents, 128);
+  
+  // LSTM with 128 input, 128 hidden
+  net->lstm = make_lstm(weights, num_agents, 128, 128);
+  
+  // Policy and value heads
+  net->policy_head = make_linear(weights, num_agents, 128, 1968);
+  net->value_head = make_linear(weights, num_agents, 128, 1);
+  
+  // Set unused pointers to NULL for compatibility
+  net->board_enc1 = NULL;
+  net->board_enc2 = NULL;
+  net->combiner = NULL;
+  net->value_head1 = NULL;
+  net->value_head2 = NULL;
+  net->board_relu1 = NULL;
+  net->board_relu2 = NULL;
+  net->comb_relu = NULL;
+  net->value_relu = NULL;
+  
   int logit_sizes[1] = {1968};
   net->md = make_multidiscrete(num_agents, logit_sizes, 1);
   return net;
 }
 
 static void free_chessnet(ChessNet *net) {
-  free(net->board_enc1);
-  free(net->board_relu1);
-  free(net->board_enc2);
-  free(net->board_relu2);
-  free(net->combiner);
-  free(net->comb_relu);
-  free(net->lstm);
-  free(net->policy_head);
-  free(net->value_head1);
-  free(net->value_relu);
-  free(net->value_head2);
-  free(net->md);
+  if (net->conv1) free(net->conv1);
+  if (net->conv2) free(net->conv2);
+  if (net->relu1) free(net->relu1);
+  if (net->relu2) free(net->relu2);
+  if (net->proj) free(net->proj);
+  if (net->proj_relu) free(net->proj_relu);
+  if (net->lstm) free(net->lstm);
+  if (net->policy_head) free(net->policy_head);
+  if (net->value_head) free(net->value_head);
+  if (net->md) free(net->md);
   free(net);
 }
 
@@ -154,7 +199,31 @@ static void reset_lstm_state(ChessNet *net) {
   printf("[DEBUG] LSTM state reset to zero\n");
 }
 
+// Helper function to add padding to input for conv2d
+static void pad_input_2d(float *input, float *padded, int batch, int height, int width, int channels, int pad) {
+  // Clear padded buffer
+  int padded_h = height + 2 * pad;
+  int padded_w = width + 2 * pad;
+  memset(padded, 0, batch * padded_h * padded_w * channels * sizeof(float));
+  
+  // Copy input to center of padded buffer (NHWC format)
+  for (int b = 0; b < batch; b++) {
+    for (int h = 0; h < height; h++) {
+      for (int w = 0; w < width; w++) {
+        for (int c = 0; c < channels; c++) {
+          int in_idx = b * height * width * channels + h * width * channels + w * channels + c;
+          int out_idx = b * padded_h * padded_w * channels + 
+                        (h + pad) * padded_w * channels + 
+                        (w + pad) * channels + c;
+          padded[out_idx] = input[in_idx];
+        }
+      }
+    }
+  }
+}
+
 static void forward_chessnet(ChessNet *net, float *observations, int *actions) {
+  // First 1472 values are the board state (23 channels * 8 * 8)
   float *board_obs = observations;
   
   // Convert sparse action mask to dense format
@@ -175,13 +244,38 @@ static void forward_chessnet(ChessNet *net, float *observations, int *actions) {
   
   float *legal_mask = dense_legal_mask;
   
-  linear(net->board_enc1, board_obs);
-  relu(net->board_relu1, net->board_enc1->output);
-  linear(net->board_enc2, net->board_relu1->output);
-  relu(net->board_relu2, net->board_enc2->output);
-  linear(net->combiner, net->board_relu2->output);
-  relu(net->comb_relu, net->combiner->output);
-  lstm(net->lstm, net->comb_relu->output);
+  // Convert board from CHW to HWC format for Conv2D
+  static float board_hwc[1 * 8 * 8 * 23];  // NHWC format
+  for (int c = 0; c < 23; c++) {
+    for (int h = 0; h < 8; h++) {
+      for (int w = 0; w < 8; w++) {
+        int chw_idx = c * 64 + h * 8 + w;
+        int nhwc_idx = h * 8 * 23 + w * 23 + c;
+        board_hwc[nhwc_idx] = board_obs[chw_idx];
+      }
+    }
+  }
+  
+  // Apply padding for first conv layer (8x8 -> 10x10)
+  static float padded1[1 * 10 * 10 * 23];
+  pad_input_2d(board_hwc, padded1, 1, 8, 8, 23, 1);
+  
+  // First conv layer
+  conv2d(net->conv1, padded1);
+  relu(net->relu1, net->conv1->output);
+  
+  // Apply padding for second conv layer (8x8 -> 10x10)
+  static float padded2[1 * 10 * 10 * 64];
+  pad_input_2d(net->relu1->output, padded2, 1, 8, 8, 64, 1);
+  
+  // Second conv layer
+  conv2d(net->conv2, padded2);
+  relu(net->relu2, net->conv2->output);
+  
+  // Linear projection and LSTM
+  linear(net->proj, net->relu2->output);
+  relu(net->proj_relu, net->proj->output);
+  lstm(net->lstm, net->proj_relu->output);
   linear(net->policy_head, net->lstm->state_h);
   
   // Debug: check if network is producing meaningful outputs BEFORE masking
@@ -211,9 +305,8 @@ static void forward_chessnet(ChessNet *net, float *observations, int *actions) {
   // Neural network should only output valid actions due to proper action masking
   // If this fails, the action masking or neural network has a bug that must be fixed
   
-  linear(net->value_head1, net->lstm->state_h);
-  relu(net->value_relu, net->value_head1->output);
-  linear(net->value_head2, net->value_relu->output);
+  // Value head (single linear layer, no need for value_head1/2)
+  linear(net->value_head, net->lstm->state_h);
 }
 
 // Chess piece textures
@@ -3377,7 +3470,7 @@ int eval_puzzle_mode() {
   ChessPieceTextures textures = load_piece_textures();
   
   // Load weights
-  const char *weights_path = "resources/chess/puffer_chess_weights.bin";
+  const char *weights_path = "pufferlib/resources/chess/puffer_chess_weights.bin";
   Weights *weights = NULL;
   
   FILE *weight_file = fopen(weights_path, "rb");
@@ -3410,9 +3503,8 @@ int eval_puzzle_mode() {
     }
   }
   
-  // Create neural network (simplified version for demo)
-  ChessNet* net = (ChessNet*)malloc(sizeof(ChessNet));
-  net->num_agents = 1;
+  // Create neural network with loaded weights
+  ChessNet* net = init_chessnet(weights, 1);
   
   // Create environment
   CChess env;
@@ -3523,19 +3615,12 @@ int eval_puzzle_mode() {
         }
       }
       
-      // Now select best move
-      for (int j = 0; j < num_legal_moves && j < 64; j++) {
-        int action_id = (int)observations[mask_start + 1 + j];
-        
-        if (action_id >= 0 && action_id < 1968) {
-          float score = (float)rand() / RAND_MAX;
-          
-          if (score > best_score) {
-            best_score = score;
-            best_action = action_id;
-          }
-        }
-      }
+      // Use neural network to select best move
+      int selected_action = -1;
+      forward_chessnet(net, observations, &selected_action);
+      
+      // The network returns the best action directly
+      best_action = selected_action;
       
       if (best_action >= 0) {
         // Display the chosen move

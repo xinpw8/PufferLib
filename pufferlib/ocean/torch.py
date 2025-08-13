@@ -913,13 +913,13 @@ class ResidualBlock(nn.Module):
 class ChessConvLSTM(Recurrent):
     def __init__(self, env, policy, input_size=256, hidden_size=256):
         super().__init__(env, policy, input_size, hidden_size)
-        self.chess_policy = policy  # Keep reference to chess policy
+        # Don't store another reference to policy - it's already in self.policy from parent class
     
     def forward(self, observations, state=None):
         """Override to use chess policy's masked forward"""
         print(f"[ChessConvLSTM] Forward called")
-        # Use the chess policy's forward which has masking
-        return self.chess_policy.forward(observations, state)
+        # Use the chess policy's forward which has masking (use self.policy from parent)
+        return self.policy.forward(observations, state)
 
 class ChessConvRecurrent(nn.Module):
     """CNN-based chess model with proper feature engineering for different observation types"""
@@ -1487,9 +1487,9 @@ class ChessRecurrent(nn.Module):
         batch_size = obs.shape[0]
         device = obs.device
 
-        # Debug: Print observation values for legal moves
-        print(f"[ChessRecurrent.mask] obs[1472] (num_legal): {obs[0, 1472].item()}")
-        print(f"[ChessRecurrent.mask] First few action IDs: {obs[0, 1473:1478].tolist()}")
+        # # Debug: Print observation values for legal moves
+        # print(f"[ChessRecurrent.mask] obs[1472] (num_legal): {obs[0, 1472].item()}")
+        # print(f"[ChessRecurrent.mask] First few action IDs: {obs[0, 1473:1478].tolist()}")
         
         # Create a full mask of zeros (all moves illegal by default)
         legal_mask = torch.zeros((batch_size, self.num_actions), dtype=torch.bool, device=device)
@@ -1510,7 +1510,7 @@ class ChessRecurrent(nn.Module):
         """Encodes observations and stores the original obs for later use."""
         # Store the observation so decode_actions can create the legal mask
         self._last_obs = obs
-        print(f"[ChessRecurrent.encode] Storing obs shape {obs.shape} for masking")
+        # print(f"[ChessRecurrent.encode] Storing obs shape {obs.shape} for masking")
         
         board_state = obs[:, :1472].view(-1, 23, 8, 8)
         cnn_output = self.cnn(board_state.float())
@@ -1527,13 +1527,13 @@ class ChessRecurrent(nn.Module):
             if self._last_obs is None:
                 print(f"[ChessRecurrent.decode] ERROR: _last_obs is None! Cannot mask!")
                 raise ValueError("Cannot decode actions: _last_obs is not set.")
-            print(f"[ChessRecurrent.decode] Creating mask from stored obs shape {self._last_obs.shape}")
+            # print(f"[ChessRecurrent.decode] Creating mask from stored obs shape {self._last_obs.shape}")
             legal_mask = self._create_legal_mask(self._last_obs)
-            print(f"[ChessRecurrent.decode] Mask has {legal_mask.sum().item():.0f} legal actions")
+            # print(f"[ChessRecurrent.decode] Mask has {legal_mask.sum().item():.0f} legal actions")
 
         raw_logits = self.policy_head(hidden)
         masked_logits = raw_logits.masked_fill(legal_mask == 0, float('-inf'))
-        print(f"[ChessRecurrent.decode] Applied mask to logits shape {raw_logits.shape}")
+        # print(f"[ChessRecurrent.decode] Applied mask to logits shape {raw_logits.shape}")
         value = self.value_head(hidden).squeeze(-1)
         return masked_logits, value
 
@@ -1545,127 +1545,6 @@ class ChessRecurrent(nn.Module):
         # Call decode_actions without a mask, relying on its internal logic.
         logits, value = self.decode_actions(hidden)
         return logits, value
-
-# class ChessRecurrent(nn.Module):
-#     """Simpler chess model with basic feature engineering for the default policy"""
-#     def __init__(self, env=None, hidden_size=256, num_actions=1968, **kwargs):
-#         super().__init__()
-#         self.hidden_size = hidden_size
-#         self.is_continuous = False
-        
-#         # Process piece positions (channels 0-12) with a simple embedding layer
-#         # Instead of individual embeddings, use a shared linear layer
-#         self.piece_encoder = nn.Sequential(
-#             layer_init(nn.Linear(13 * 64, 256)),  # 13 channels * 8x8
-#             nn.ReLU(),
-#             layer_init(nn.Linear(256, 128)),
-#             nn.ReLU(),
-#         )
-        
-#         # Process attack/defense maps (channels 21-22)
-#         self.tactical_encoder = nn.Sequential(
-#             layer_init(nn.Linear(2 * 64, 64)),  # 2 channels * 8x8
-#             nn.ReLU(),
-#         )
-        
-#         # Process game state (channels 13-20)
-#         self.game_state_encoder = nn.Sequential(
-#             layer_init(nn.Linear(8 * 64, 64)),  # 8 channels * 8x8
-#             nn.ReLU(),
-#         )
-        
-#         # Combine all features - simplified to avoid potential NaN issues
-#         self.proj = nn.Sequential(
-#             layer_init(nn.Linear(128 + 64 + 64, hidden_size)),
-#             nn.ReLU(),
-#         )
-        
-#         # Policy and value heads
-#         self.policy_head = layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
-#         self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
-        
-#         self.is_multidiscrete = False
-#         self.action_size = num_actions
-#         self._last_obs = None
-        
-#         # Update observation size to match actual chess environment (1535 not 1537)
-#         self.obs_size = 1535  # 1472 board + 1 num_uint32 + 62 uint32 values
-    
-#     def encode_observations(self, obs, state=None):
-#         """Encode observations with basic feature engineering"""
-#         if obs.dim() == 1:
-#             obs = obs.unsqueeze(0)
-        
-#         self._last_obs = obs
-#         batch_size = obs.shape[0]
-        
-#         # Extract board state
-#         board_state = obs[:, :1472].view(batch_size, 23, 8, 8)
-        
-#         # 1. Process piece positions (channels 0-12)
-#         piece_features = board_state[:, :13, :, :].float()
-#         piece_features = piece_features.view(batch_size, -1)
-#         piece_encoded = self.piece_encoder(piece_features)
-        
-#         # 2. Process attack/defense maps (channels 21-22)
-#         tactical_features = board_state[:, 21:23, :, :].float()
-#         tactical_features = tactical_features.view(batch_size, -1)
-#         tactical_encoded = self.tactical_encoder(tactical_features)
-        
-#         # 3. Process game state (channels 13-20)
-#         game_state = board_state[:, 13:21, :, :].float()
-#         game_state = game_state.view(batch_size, -1)
-#         game_state_encoded = self.game_state_encoder(game_state)
-        
-#         # Combine all features
-#         all_features = torch.cat([piece_encoded, tactical_encoded, game_state_encoded], dim=1)
-#         hidden = self.proj(all_features)
-        
-#         return hidden
-    
-#     def decode_actions(self, hidden, legal_mask=None):
-#         """Decode actions with legal move masking"""
-#         if legal_mask is None and self._last_obs is not None:
-#             legal_mask = self._extract_legal_mask(self._last_obs)
-        
-#         raw_logits = self.policy_head(hidden)
-        
-#         if legal_mask is not None:
-#             masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
-#         else:
-#             masked_logits = raw_logits
-        
-#         value = self.value_head(hidden).squeeze(-1)
-#         return masked_logits, value
-    
-#     def _extract_legal_mask(self, obs):
-#         """Extract legal mask from observation tensor"""
-#         batch_size = obs.shape[0]
-#         legal_mask = torch.zeros(batch_size, self.action_size, device=obs.device)
-        
-#         for batch_idx in range(batch_size):
-#             num_uint32_values = int(obs[batch_idx, 1472].item())
-#             num_bitfields = num_uint32_values // 2
-            
-#             for field_idx in range(num_bitfields):
-#                 low = int(obs[batch_idx, 1473 + field_idx * 2].item())
-#                 high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
-#                 bitfield = (high << 32) | low
-                
-#                 for bit_idx in range(64):
-#                     if bitfield & (1 << bit_idx):
-#                         action_idx = field_idx * 64 + bit_idx
-#                         if action_idx < self.action_size:
-#                             legal_mask[batch_idx, action_idx] = 1.0
-        
-#         return legal_mask
-    
-#     def forward(self, obs, state=None):
-#         """Forward pass"""
-#         hidden = self.encode_observations(obs)
-#         legal_mask = self._extract_legal_mask(obs)
-#         logits, value = self.decode_actions(hidden, legal_mask)
-#         return logits, value
 
 
 def Policy(env, **kwargs):

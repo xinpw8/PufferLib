@@ -231,13 +231,14 @@ class Chess(pufferlib.PufferEnv):
             
             # Set all puzzles in the C++ backend
             if len(self.current_puzzles) > 0:
-                # Log first few puzzles being sent
+                # Log ALL puzzles being sent when puzzle_set_size is small
                 print(f"[Chess] Sending {len(self.current_puzzles)} puzzles to environments")
-                for i in range(min(5, len(self.current_puzzles))):
+                num_to_show = len(self.current_puzzles) if len(self.current_puzzles) <= 10 else 5
+                for i in range(num_to_show):
                     puzzle = self.current_puzzles[i]
-                    print(f"  Puzzle {i}: {puzzle['id']} - FEN: {puzzle['puzzle_fen'][:40]}... Solution: {puzzle['solution'][0]}")
-                if len(self.current_puzzles) > 5:
-                    print(f"  ... and {len(self.current_puzzles) - 5} more puzzles")
+                    print(f"  Puzzle {i}: {puzzle['id']} - FEN: {puzzle['puzzle_fen'][:60]}... Solution: {puzzle['solution'][0]}")
+                if len(self.current_puzzles) > num_to_show:
+                    print(f"  ... and {len(self.current_puzzles) - num_to_show} more puzzles")
                 
                 # TEMPORARILY ENABLED: This will trigger the hardcoded puzzle in C++
                 binding.vec_set_puzzle_set(self.c_envs, self.current_puzzles)
@@ -297,7 +298,10 @@ class Chess(pufferlib.PufferEnv):
         }
         
         # Use filtered puzzles directory - they're at chess/filtered_puzzles, not games_database/filtered_puzzles
-        if os.path.isabs(self.puzzle_database_path):
+        if self.puzzle_database_path is None:
+            # Default path if none provided
+            filtered_dir = "pufferlib/resources/chess/filtered_puzzles"
+        elif os.path.isabs(self.puzzle_database_path):
             # For absolute paths
             chess_dir = os.path.dirname(os.path.dirname(self.puzzle_database_path))
             filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
@@ -329,12 +333,14 @@ class Chess(pufferlib.PufferEnv):
             with open(puzzle_file, 'r') as f:
                 all_puzzles = json.load(f)
             
-            # Shuffle and select puzzles
+            # Shuffle and select puzzles based on puzzle_set_size
             random.shuffle(all_puzzles)
-            # Use ALL puzzles when in puzzle mode for training, otherwise limit to 1000
+            # Respect puzzle_set_size from config
             if self.puzzle_mode:
-                self.current_puzzles = all_puzzles  # Use ALL puzzles for training
-                print(f"[Chess] Loaded {len(all_puzzles)} puzzles for training")
+                # Use puzzle_set_size to limit the number of puzzles
+                num_to_use = min(self.puzzle_set_size, len(all_puzzles))
+                self.current_puzzles = all_puzzles[:num_to_use]
+                print(f"[Chess] Loaded {len(self.current_puzzles)} puzzles for training (puzzle_set_size={self.puzzle_set_size})")
             else:
                 self.current_puzzles = all_puzzles[:1000]  # Limit to 1000 for evaluation
             
@@ -348,14 +354,40 @@ class Chess(pufferlib.PufferEnv):
         if not self.puzzle_mode:
             return
             
-        # Call set_puzzle_data with dummy values - C++ will override with hardcoded puzzle
+        # Select a puzzle from the loaded puzzles
         import pufferlib.ocean.chess.binding as binding
         try:
-            # Dummy values - will be overridden by hardcoded puzzle in C++
-            dummy_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-            dummy_solution = ["e2e4"]  # Dummy move
-            binding.vec_set_puzzle_data(self.c_envs, dummy_fen, dummy_solution)
-            # print(f"[Chess] Called set_puzzle_data")
+            if self.current_puzzles and len(self.current_puzzles) > 0:
+                # Select next puzzle (cycling through them)
+                if not hasattr(self, 'puzzle_index'):
+                    self.puzzle_index = 0
+                
+                # If puzzle_set_size is 1, always use the same puzzle (index 0)
+                if self.puzzle_set_size == 1:
+                    puzzle = self.current_puzzles[0]  # Always use the first (and only) puzzle
+                else:
+                    puzzle = self.current_puzzles[self.puzzle_index % len(self.current_puzzles)]
+                    self.puzzle_index += 1
+                
+                # Get FEN and solution from puzzle
+                puzzle_fen = puzzle.get('puzzle_fen', puzzle.get('fen', ''))
+                solution = puzzle.get('solution', [])
+                
+                if puzzle_fen and solution:
+                    # Set the real puzzle data
+                    binding.vec_set_puzzle_data(self.c_envs, puzzle_fen, solution)
+                    self.current_puzzle_fen = puzzle_fen
+                    self.current_puzzle_solution = solution
+                    puzzle_idx = self.current_puzzles.index(puzzle) if puzzle in self.current_puzzles else -1
+                    print(f"[Chess] Reset #{self.tick}: Using puzzle {puzzle_idx+1}/{len(self.current_puzzles)} - {puzzle.get('id', 'unknown')}: {solution[0] if solution else 'no solution'}")
+                else:
+                    print(f"[Chess] Invalid puzzle data: fen={puzzle_fen}, solution={solution}")
+            else:
+                print(f"[Chess] No puzzles loaded! Using dummy values")
+                # Fallback to dummy values if no puzzles loaded
+                dummy_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                dummy_solution = ["e2e4"]  # Dummy move
+                binding.vec_set_puzzle_data(self.c_envs, dummy_fen, dummy_solution)
         except Exception as e:
             print(f"[Chess] Error setting puzzle data: {e}")
     
