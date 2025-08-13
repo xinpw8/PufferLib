@@ -50,7 +50,7 @@ signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 ADVANTAGE_CUDA = shutil.which("nvcc") is not None
 
 class PuffeRL:
-    def __init__(self, config, vecenv, policy, logger=None):
+    def __init__(self, config, vecenv, expert_vecenv, policy, expert, logger=None):
         # Backend perf optimization
         torch.set_float32_matmul_precision('high')
         torch.backends.cudnn.deterministic = config['torch_deterministic']
@@ -64,6 +64,8 @@ class PuffeRL:
 
         # Vecenv info
         vecenv.async_reset(seed)
+        expert_vecenv.async_reset(seed)
+
         obs_space = vecenv.single_observation_space
         atn_space = vecenv.single_action_space
         total_agents = vecenv.num_agents
@@ -121,8 +123,7 @@ class PuffeRL:
         self.gold_actions = torch.zeros(il_segments, il_horizon, *atn_space.shape, device=device,
             dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[atn_space.dtype])
         self.gold_values = torch.zeros(il_segments, il_horizon, device=device)
-        self.gold_rewards = torch.zeros(il_segments, il_horizon, device=device)
-        self.gold_rewards = torch.zeros(il_segments, il_horizon, device=device)
+        self.gold_rewards = torch.zeros(il_segments, il_horizon, device=device) - 100
         self.gold_terminals = torch.zeros(il_segments, il_horizon, device=device)
         self.il_minibatch_size = config['il_minibatch_size']
         self.il_bptt_horizon = il_horizon
@@ -230,6 +231,7 @@ class PuffeRL:
         # Initializations
         self.config = config
         self.vecenv = vecenv
+        self.expert_vecenv = expert_vecenv
         self.epoch = 0
         self.global_step = 0
         self.last_log_step = 0
@@ -240,6 +242,9 @@ class PuffeRL:
         self.stats = defaultdict(list)
         self.last_stats = defaultdict(list)
         self.losses = {}
+
+        #expert.load_state_dict(torch.load('breakout.pt'))
+        self.expert = expert
 
         # Dashboard
         self.model_size = sum(p.numel() for p in policy.parameters() if p.requires_grad)
@@ -273,7 +278,7 @@ class PuffeRL:
         self.full_rows = 0
         while self.full_rows < self.segments:
             profile('env', epoch)
-            o, r, d, t, info, env_id, mask = self.vecenv.recv()
+            o, r, d, t, info, env_id, mask = self.expert_vecenv.recv()
 
             profile('eval_misc', epoch)
             env_id = slice(env_id[0], env_id[-1] + 1)
@@ -338,6 +343,58 @@ class PuffeRL:
                 if isinstance(logits, torch.distributions.Normal):
                     action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
 
+            profile('env', epoch)
+            self.expert_vecenv.send(action)
+
+        profile('eval_misc', epoch)
+        self.free_idx = self.total_agents
+        self.ep_indices = torch.arange(self.total_agents, device=device, dtype=torch.int32)
+        self.ep_lengths.zero_()
+        profile.end()
+
+        for _ in range(64):
+            profile('env', epoch)
+            o, r, d, t, info, env_id, mask = self.vecenv.recv()
+
+            profile('eval_misc', epoch)
+            env_id = slice(env_id[0], env_id[-1] + 1)
+
+            done_mask = d + t # TODO: Handle truncations separately
+            self.global_step += int(mask.sum())
+
+            profile('eval_copy', epoch)
+            o = torch.as_tensor(o)
+            o_device = o.to(device)#, non_blocking=True)
+            r = torch.as_tensor(r).to(device)#, non_blocking=True)
+            d = torch.as_tensor(d).to(device)#, non_blocking=True)
+
+            profile('eval_forward', epoch)
+            with torch.no_grad(), self.amp_context:
+                state = dict(
+                    reward=r,
+                    done=d,
+                    env_id=env_id,
+                    mask=mask,
+                )
+
+                if config['use_rnn']:
+                    state['lstm_h'] = self.lstm_h[env_id.start]
+                    state['lstm_c'] = self.lstm_c[env_id.start]
+
+                logits, value = self.policy.forward_eval(o_device, state)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
+                r = torch.clamp(r, -1, 1)
+
+            profile('eval_copy', epoch)
+            with torch.no_grad():
+                if config['use_rnn']:
+                    self.lstm_h[env_id.start] = state['lstm_h']
+                    self.lstm_c[env_id.start] = state['lstm_c']
+
+                action = action.cpu().numpy()
+                if isinstance(logits, torch.distributions.Normal):
+                    action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
+
             profile('eval_misc', epoch)
             for i in info:
                 for k, v in pufferlib.unroll_nested_dict(i):
@@ -351,11 +408,7 @@ class PuffeRL:
             profile('env', epoch)
             self.vecenv.send(action)
 
-        profile('eval_misc', epoch)
-        self.free_idx = self.total_agents
-        self.ep_indices = torch.arange(self.total_agents, device=device, dtype=torch.int32)
-        self.ep_lengths.zero_()
-        profile.end()
+
         return self.stats
 
     @record
@@ -491,8 +544,15 @@ class PuffeRL:
         self.gold_terminals = all_terminals[best_idxs]
 
         # Experimental - prevent data staleness and accumulating similar segments
-        drop_idxs = torch.randint(0, self.segments, (16,))
-        self.gold_rewards[drop_idxs] = 0
+        #drop_idxs = torch.randint(0, self.segments, (16,))
+        #self.gold_rewards[drop_idxs] = 0
+        '''
+        self.gold_rewards = self.rewards
+        self.gold_values = self.values
+        self.gold_terminals = self.terminals
+        self.gold_actions = self.actions
+        self.gold_observations = self.observations
+        '''
 
 
         shape = self.values.shape
@@ -632,6 +692,7 @@ class PuffeRL:
 
     def close(self):
         self.vecenv.close()
+        self.expert_vecenv.close()
         self.utilization.stop()
         model_path = self.save_checkpoint()
         run_id = self.logger.run_id
@@ -1022,7 +1083,9 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
         os.environ["CUDA_VISIBLE_DEVICES"] = str(local_rank)
 
     vecenv = vecenv or load_env(env_name, args)
+    expert_vecenv = load_env(env_name, args)
     policy = policy or load_policy(args, vecenv, env_name)
+    expert = load_policy(args, vecenv, env_name)
 
     if 'LOCAL_RANK' in os.environ:
         args['train']['device'] = torch.cuda.current_device()
@@ -1044,7 +1107,7 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
         logger = WandbLogger(args)
 
     train_config = dict(**args['train'], env=env_name)
-    pufferl = PuffeRL(train_config, vecenv, policy, logger)
+    pufferl = PuffeRL(train_config, vecenv, expert_vecenv, policy, expert, logger)
 
     all_logs = []
     while pufferl.global_step < train_config['total_timesteps']:
