@@ -253,41 +253,41 @@ class Chess(pufferlib.PufferEnv):
         # Use puzzle set size from initialization
         puzzle_set_size = self.puzzle_set_size
         
-        # Skip hardcoded puzzles if we're in puzzle mode (will load from JSON file below)
-        if not self.puzzle_mode:
-            # Define a set of simple mate-in-1 puzzles with few pieces
-            # These are from the filtered_puzzles file, with 4-5 pieces total
-            simple_puzzles = [
-                # K+R vs k+r puzzle
-                {'id': '0IL1Z', 'puzzle_fen': '8/8/1R6/8/8/3K4/4r3/3k4 w - - 25 66', 'solution': ['b6b1']},
-                # K+Q vs k+q puzzles  
-                {'id': '0JV7w', 'puzzle_fen': '8/8/8/8/8/2Q1K3/8/1q1k4 w - - 0 60', 'solution': ['c3d2']},
-                {'id': '00T85', 'puzzle_fen': '8/8/8/8/8/4K3/5Q2/1qk5 w - - 6 54', 'solution': ['f2d2']},
-                {'id': '09rCC', 'puzzle_fen': '8/8/8/8/8/6KQ/8/5qk1 w - - 0 68', 'solution': ['h3h2']},
-                {'id': '0MZvc', 'puzzle_fen': '8/8/8/8/8/5K2/7k/4Q1q1 w - - 0 66', 'solution': ['e1h4']},
-                # K+R vs k+r+p puzzles
-                {'id': '0AsAa', 'puzzle_fen': '7k/5K2/8/8/p4R2/8/8/r7 w - - 2 65', 'solution': ['f4h4']},
-                {'id': '0c9yz', 'puzzle_fen': '4k3/8/4K2R/6p1/8/8/6r1/8 w - - 0 67', 'solution': ['h6h8']},
-                {'id': '0Z647', 'puzzle_fen': '8/8/4R3/1p6/k6r/2K5/8/8 w - - 0 73', 'solution': ['e6a6']},
-                {'id': '04jun', 'puzzle_fen': '1R6/8/8/8/8/6p1/r6k/5K2 w - - 0 74', 'solution': ['b8h8']},
-                {'id': '0X5EW', 'puzzle_fen': '5k2/6r1/5K2/8/R7/4p3/8/8 w - - 2 69', 'solution': ['a4a8']},
-                # Additional simple puzzles
-                {'id': '0Kakp', 'puzzle_fen': '8/2q5/8/8/5r2/4K3/Q7/3k4 w - - 6 67', 'solution': ['a2d2']},
-                {'id': '01bSB', 'puzzle_fen': '8/8/p7/2Q5/k1K5/8/8/7q w - - 2 53', 'solution': ['c5b4']},
-                {'id': '0CZgJ', 'puzzle_fen': 'Q7/4K1kp/6q1/8/8/8/8/8 w - - 24 64', 'solution': ['a8f8']},
-                {'id': '04I75', 'puzzle_fen': '5k2/2R5/5K1p/8/6r1/8/8/8 w - - 0 62', 'solution': ['c7c8']},
-                {'id': '09kuV', 'puzzle_fen': '5k2/6p1/4K3/8/8/8/R7/6r1 w - - 4 58', 'solution': ['a2a8']},
-                # Also add the original simple puzzle
-                {'id': 'simple_mate_in_1', 'puzzle_fen': '8/8/8/8/8/6K1/R7/7k w - - 0 1', 'solution': ['a2a1']}
-            ]
-            
-            # Randomly select puzzles up to the requested set size
-            random.shuffle(simple_puzzles)
-            self.current_puzzles = simple_puzzles[:min(puzzle_set_size, len(simple_puzzles))]
-            
-            print(f"[Chess] Loaded {len(self.current_puzzles)} simple mate-in-1 puzzles")
-            for i, puzzle in enumerate(self.current_puzzles):
-                print(f"  {i+1}. {puzzle['id']}: {puzzle['solution'][0]}")
+        # # Skip hardcoded puzzles if we're in puzzle mode (will load from JSON file below)
+        # if not self.puzzle_mode:
+        #     # Define a set of simple mate-in-1 puzzles with few pieces
+        #     # These are from the filtered_puzzles file, with 4-5 pieces total
+        #     simple_puzzles = [
+        #         # K+R vs k+r puzzle
+        #         {'id': '0IL1Z', 'puzzle_fen': '8/8/1R6/8/8/3K4/4r3/3k4 w - - 25 66', 'solution': ['b6b1']},
+        #         # K+Q vs k+q puzzles  
+        #         {'id': '0JV7w', 'puzzle_fen': '8/8/8/8/8/2Q1K3/8/1q1k4 w - - 0 60', 'solution': ['c3d2']},
+        #         {'id': '00T85', 'puzzle_fen': '8/8/8/8/8/4K3/5Q2/1qk5 w - - 6 54', 'solution': ['f2d2']},
+        #         {'id': '09rCC', 'puzzle_fen': '8/8/8/8/8/6KQ/8/5qk1 w - - 0 68', 'solution': ['h3h2']},
+        #         {'id': '0MZvc', 'puzzle_fen': '8/8/8/8/8/5K2/7k/4Q1q1 w - - 0 66', 'solution': ['e1h4']},
+        #         # K+R vs k+r+p puzzles
+        #         {'id': '0AsAa', 'puzzle_fen': '7k/5K2/8/8/p4R2/8/8/r7 w - - 2 65', 'solution': ['f4h4']},
+        #         {'id': '0c9yz', 'puzzle_fen': '4k3/8/4K2R/6p1/8/8/6r1/8 w - - 0 67', 'solution': ['h6h8']},
+        #         {'id': '0Z647', 'puzzle_fen': '8/8/4R3/1p6/k6r/2K5/8/8 w - - 0 73', 'solution': ['e6a6']},
+        #         {'id': '04jun', 'puzzle_fen': '1R6/8/8/8/8/6p1/r6k/5K2 w - - 0 74', 'solution': ['b8h8']},
+        #         {'id': '0X5EW', 'puzzle_fen': '5k2/6r1/5K2/8/R7/4p3/8/8 w - - 2 69', 'solution': ['a4a8']},
+        #         # Additional simple puzzles
+        #         {'id': '0Kakp', 'puzzle_fen': '8/2q5/8/8/5r2/4K3/Q7/3k4 w - - 6 67', 'solution': ['a2d2']},
+        #         {'id': '01bSB', 'puzzle_fen': '8/8/p7/2Q5/k1K5/8/8/7q w - - 2 53', 'solution': ['c5b4']},
+        #         {'id': '0CZgJ', 'puzzle_fen': 'Q7/4K1kp/6q1/8/8/8/8/8 w - - 24 64', 'solution': ['a8f8']},
+        #         {'id': '04I75', 'puzzle_fen': '5k2/2R5/5K1p/8/6r1/8/8/8 w - - 0 62', 'solution': ['c7c8']},
+        #         {'id': '09kuV', 'puzzle_fen': '5k2/6p1/4K3/8/8/8/R7/6r1 w - - 4 58', 'solution': ['a2a8']},
+        #         # Also add the original simple puzzle
+        #         {'id': 'simple_mate_in_1', 'puzzle_fen': '8/8/8/8/8/6K1/R7/7k w - - 0 1', 'solution': ['a2a1']}
+        #     ]
+        #     
+        #     # Randomly select puzzles up to the requested set size
+        #     random.shuffle(simple_puzzles)
+        #     self.current_puzzles = simple_puzzles[:min(puzzle_set_size, len(simple_puzzles))]
+        #     
+        #     print(f"[Chess] Loaded {len(self.current_puzzles)} simple mate-in-1 puzzles")
+        #     for i, puzzle in enumerate(self.current_puzzles):
+        #         print(f"  {i+1}. {puzzle['id']}: {puzzle['solution'][0]}")
         
         # Map difficulty levels to puzzle ratings
         difficulty_map = {
@@ -297,31 +297,37 @@ class Chess(pufferlib.PufferEnv):
             4: 'expert'    # 2400+ rating
         }
         
-        # Use filtered puzzles directory - they're at chess/filtered_puzzles, not games_database/filtered_puzzles
-        if self.puzzle_database_path is None:
-            # Default path if none provided
-            filtered_dir = "pufferlib/resources/chess/filtered_puzzles"
-        elif os.path.isabs(self.puzzle_database_path):
-            # For absolute paths
-            chess_dir = os.path.dirname(os.path.dirname(self.puzzle_database_path))
-            filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
+        # Check if puzzle_database_path is a direct JSON file path
+        if self.puzzle_database_path and self.puzzle_database_path.endswith('.json'):
+            # Use the JSON file directly
+            puzzle_file = self.puzzle_database_path
+            print(f"[Chess] Using puzzle file directly from config: {puzzle_file}")
         else:
-            # For relative paths - go up from games_database to chess dir
-            games_database_dir = os.path.dirname(self.puzzle_database_path)
-            chess_dir = os.path.dirname(games_database_dir)
-            filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
-        
-        # Select difficulty file
-        # For puzzle training, always use the easy collection (has 2705 mate-in-1 puzzles)
-        if self.puzzle_mode:
-            # Always use easy collection for puzzle mode training
-            puzzle_file = os.path.join(filtered_dir, "white_1move_easy.json")
-            print(f"[Chess] Puzzle mode enabled - using ALL mate-in-1 puzzles from: {puzzle_file}")
-        elif self.puzzle_difficulty in difficulty_map:
-            puzzle_file = os.path.join(filtered_dir, f"white_1move_{difficulty_map[self.puzzle_difficulty]}.json")
-        else:
-            # Default to all puzzles if difficulty not mapped
-            puzzle_file = os.path.join(filtered_dir, "white_1move_all.json")
+            # Use filtered puzzles directory - they're at chess/filtered_puzzles, not games_database/filtered_puzzles
+            if self.puzzle_database_path is None:
+                # Default path if none provided
+                filtered_dir = "pufferlib/resources/chess/filtered_puzzles"
+            elif os.path.isabs(self.puzzle_database_path):
+                # For absolute paths
+                chess_dir = os.path.dirname(os.path.dirname(self.puzzle_database_path))
+                filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
+            else:
+                # For relative paths - go up from games_database to chess dir
+                games_database_dir = os.path.dirname(self.puzzle_database_path)
+                chess_dir = os.path.dirname(games_database_dir)
+                filtered_dir = os.path.join(chess_dir, "filtered_puzzles")
+            
+            # Select difficulty file
+            # For puzzle training, always use the easy collection (has 2705 mate-in-1 puzzles)
+            if self.puzzle_mode:
+                # Always use easy collection for puzzle mode training
+                puzzle_file = os.path.join(filtered_dir, "white_1move_easy.json")
+                print(f"[Chess] Puzzle mode enabled - using ALL mate-in-1 puzzles from: {puzzle_file}")
+            elif self.puzzle_difficulty in difficulty_map:
+                puzzle_file = os.path.join(filtered_dir, f"white_1move_{difficulty_map[self.puzzle_difficulty]}.json")
+            else:
+                # Default to all puzzles if difficulty not mapped
+                puzzle_file = os.path.join(filtered_dir, "white_1move_all.json")
             
         # Check if filtered puzzles exist, otherwise use original database
         if not os.path.exists(puzzle_file):

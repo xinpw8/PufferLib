@@ -7273,21 +7273,23 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   if (!env->context.puzzle_mode)
     return;
 
-  // HARDCODED PUZZLE FOR FOCUSED TRAINING - Simple endgame position
-  const char* DEBUG_FEN = "8/8/8/8/8/6K1/R7/7k w - - 0 1";
-  const char* DEBUG_SOLUTION = "a2a1";  // Checkmate move
+  // // HARDCODED PUZZLE FOR FOCUSED TRAINING - Simple endgame position
+  // const char* DEBUG_FEN = "8/8/8/8/8/6K1/R7/7k w - - 0 1";
+  // const char* DEBUG_SOLUTION = "a2a1";  // Checkmate move
   
   // Reset tries counter when loading new puzzle
   env->context.puzzle_tries_this_env = 0;
 
-  // Store puzzle FEN - USE HARDCODED VALUE for focused training
-  strncpy(env->context.puzzle_fen, DEBUG_FEN, sizeof(env->context.puzzle_fen) - 1);
+  // Store puzzle FEN - USE THE ACTUAL FEN PASSED AS PARAMETER
+  strncpy(env->context.puzzle_fen, fen, sizeof(env->context.puzzle_fen) - 1);
   env->context.puzzle_fen[sizeof(env->context.puzzle_fen) - 1] = '\0';
 
-  // Store solution moves - USE HARDCODED VALUE for focused training
-  env->context.puzzle_solution_length = 1;
-  strncpy(env->context.puzzle_solution[0], DEBUG_SOLUTION, 5);
-  env->context.puzzle_solution[0][5] = '\0';
+  // Store solution moves - USE THE ACTUAL SOLUTION PASSED AS PARAMETER
+  env->context.puzzle_solution_length = solution_length;
+  for (int i = 0; i < solution_length && i < 10; i++) {
+    strncpy(env->context.puzzle_solution[i], solution_moves[i], 5);
+    env->context.puzzle_solution[i][5] = '\0';
+  }
 
   // Reset puzzle state
   env->context.puzzle_move_index = 0;
@@ -7295,8 +7297,8 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   env->context.puzzle_failed = false;
 
   // Load the FEN position and cache it for quick reset
-  if (!parse_fen(DEBUG_FEN, &env->context.board)) {
-//     printf("[ERROR] Failed to parse puzzle FEN: %s\n", DEBUG_FEN);
+  if (!parse_fen(fen, &env->context.board)) {
+//     printf("[ERROR] Failed to parse puzzle FEN: %s\n", fen);
     init_board(&env->context.board);  // Fallback to starting position
   }
   
