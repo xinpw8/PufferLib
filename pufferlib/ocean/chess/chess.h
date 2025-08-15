@@ -4752,8 +4752,9 @@ typedef struct ChessContext {
   
   // Multiple puzzle support
   #define MAX_PUZZLE_SET_SIZE 20
+  #define MAX_PUZZLE_MOVES 10  // Maximum moves per puzzle solution
   char puzzle_set_fens[MAX_PUZZLE_SET_SIZE][128];      // FENs for puzzle set
-  char puzzle_set_solutions[MAX_PUZZLE_SET_SIZE][10][6]; // Solutions for each puzzle
+  char puzzle_set_solutions[MAX_PUZZLE_SET_SIZE][MAX_PUZZLE_MOVES][6]; // Solutions for each puzzle
   int puzzle_set_solution_lengths[MAX_PUZZLE_SET_SIZE];  // Solution lengths
   int puzzle_set_size;          // Number of puzzles in the set
   int current_puzzle_idx;       // Index of current puzzle in set
@@ -7338,33 +7339,18 @@ void set_puzzle_set(CChess *env, int num_puzzles, const char **fens,
 const char ***solution_moves, const int *solution_lengths) {
 if (!env->context.puzzle_mode)
 return;
-// HARDCODED PUZZLE SET FOR TRAINING
-const char* puzzle_fens[6] = {
-"8/8/8/8/8/6K1/R7/7k w - - 0 1",
-"8/8/8/8/8/6K1/5R2/7k w - - 1 1",
-"8/8/8/8/8/6K1/4R3/7k w - - 1 1",
-"8/8/8/8/8/6K1/3R4/7k w - - 1 1",
-"8/8/8/8/8/6K1/2R5/7k w - - 1 1",
-"8/8/8/8/8/6K1/1R6/7k w - - 1 1"
-};
-const char* puzzle_solutions[6] = {
-"a2a1",
-"f2f1",
-"e2e1",
-"d2d1",
-"c2c1",
-"b2b1"
-};
-// Set to 6 puzzles
-env->context.puzzle_set_size = 6;
-// Store the hardcoded puzzles
-for (int i = 0; i < 6; i++) {
-strncpy(env->context.puzzle_set_fens[i], puzzle_fens[i], 127);
+// Use the actual puzzles passed as parameters
+env->context.puzzle_set_size = num_puzzles;
+// Store the puzzles from parameters
+for (int i = 0; i < num_puzzles && i < MAX_PUZZLE_SET_SIZE; i++) {
+strncpy(env->context.puzzle_set_fens[i], fens[i], 127);
 env->context.puzzle_set_fens[i][127] = '\0';
-// Store solution (all are length 1)
-env->context.puzzle_set_solution_lengths[i] = 1;
-strncpy(env->context.puzzle_set_solutions[i][0], puzzle_solutions[i], 5);
-env->context.puzzle_set_solutions[i][0][5] = '\0';
+// Store solution moves
+env->context.puzzle_set_solution_lengths[i] = solution_lengths[i];
+for (int j = 0; j < solution_lengths[i] && j < MAX_PUZZLE_MOVES; j++) {
+strncpy(env->context.puzzle_set_solutions[i][j], solution_moves[i][j], 5);
+env->context.puzzle_set_solutions[i][j][5] = '\0';
+}
 }
 // No initial load here - c_reset will select and load randomly
 }
