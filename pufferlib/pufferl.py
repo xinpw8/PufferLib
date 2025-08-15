@@ -115,7 +115,7 @@ class PuffeRL:
 
         il_batch_size = config['il_batch_size']
         il_horizon = config['il_bptt_horizon']
-        il_segments = batch_size // horizon
+        il_segments = il_batch_size // horizon
         self.gold_observations = torch.zeros(il_segments, il_horizon, *obs_space.shape,
             dtype=pufferlib.pytorch.numpy_to_torch_dtype_dict[obs_space.dtype],
             pin_memory=device == 'cuda' and config['cpu_offload'],
@@ -125,9 +125,10 @@ class PuffeRL:
         self.gold_values = torch.zeros(il_segments, il_horizon, device=device)
         self.gold_rewards = torch.zeros(il_segments, il_horizon, device=device) - 100
         self.gold_terminals = torch.zeros(il_segments, il_horizon, device=device)
+        self.il_batch_size = config['il_batch_size']
         self.il_minibatch_size = config['il_minibatch_size']
         self.il_bptt_horizon = il_horizon
-        self.il_segments = segments
+        self.il_segments = il_segments
 
         # LSTM
         if config['use_rnn']:
@@ -528,19 +529,27 @@ class PuffeRL:
         profile('train_misc', epoch, nest=True)
         n = self.rewards.shape[0]
         all_rewards = torch.concatenate((self.rewards, self.gold_rewards), dim=0)
-        best_idxs = torch.argsort(all_rewards.sum(1), descending=True)[:self.il_segments]
-        self.gold_rewards = all_rewards[best_idxs]
-
         all_observations = torch.concatenate((self.observations, self.gold_observations), dim=0)
-        self.gold_observations = all_observations[best_idxs]
-
         all_actions = torch.concatenate((self.actions, self.gold_actions), dim=0)
-        self.gold_actions = all_actions[best_idxs]
-
         all_values = torch.concatenate((self.values, self.gold_values), dim=0)
-        self.gold_values = all_values[best_idxs]
-
         all_terminals = torch.concatenate((self.terminals, self.gold_terminals), dim=0)
+
+
+        shape = all_values.shape
+        advantages = torch.zeros(shape, device=device)
+        ratio = torch.ones(shape, device=device)
+        advantages = compute_puff_advantage(all_values, all_rewards,
+            all_terminals, ratio, advantages, config['gamma'],
+            config['gae_lambda'], config['vtrace_rho_clip'], config['vtrace_c_clip'])
+
+        best_idxs = torch.argsort(advantages.sum(1), descending=True)[:self.il_segments]
+        best_idxs = torch.argsort(all_rewards.sum(1), descending=True)[:self.il_segments]
+
+
+        self.gold_rewards = all_rewards[best_idxs]
+        self.gold_observations = all_observations[best_idxs]
+        self.gold_actions = all_actions[best_idxs]
+        self.gold_values = all_values[best_idxs]
         self.gold_terminals = all_terminals[best_idxs]
 
         # Experimental - prevent data staleness and accumulating similar segments
@@ -557,17 +566,60 @@ class PuffeRL:
 
         shape = self.values.shape
 
-        for mb in range(self.total_il_minibatches):
+        segments_per_batch = int(self.il_minibatch_size/self.il_bptt_horizon)
+        for i in range(0, self.il_segments, segments_per_batch):
+            s = slice(i, i+segments_per_batch)
+            mb_obs = self.gold_observations[s]
+
+            state = dict(
+                lstm_h=None,
+                lstm_c=None,
+            )
+
+            with torch.no_grad():
+                logits, newvalue = self.policy(mb_obs, state)
+                self.gold_values[s] = newvalue.float()
+ 
+        #for mb in range(self.total_il_minibatches):
+        for mb in range(16):
             profile('train_misc', epoch, nest=True)
             self.amp_context.__enter__()
 
+            shape = self.gold_values.shape
+            advantages = torch.zeros(shape, device=device)
+            ratio = torch.ones(shape, device=device)
+            advantages = compute_puff_advantage(self.gold_values, self.gold_rewards,
+                self.gold_terminals, ratio, advantages, config['gamma'],
+                config['gae_lambda'], config['vtrace_rho_clip'], config['vtrace_c_clip'])
+
+
+            adv = advantages.mean(axis=1).detach()
+            adv = torch.exp(adv)
+            #adv = self.gold_rewards.sum(axis=1)
+            #adv[adv < 0] = 0
+            prio_probs = (adv + 1e-6)/(adv.sum() + 1e-6)
+            samples = int(self.il_minibatch_size/self.il_bptt_horizon)
+            idx = torch.multinomial(prio_probs, samples)
+            #idx = torch.argsort(advantages.sum(axis=1), descending=True)
+            #samples = int(self.il_minibatch_size/self.il_bptt_horizon)
+            #idx = idx[:samples]
+
+            '''
+            adv = advantages.abs().sum(axis=1)
+            prio_weights = torch.nan_to_num(adv**a, 0, 0, 0)
+            prio_probs = (prio_weights + 1e-6)/(prio_weights.sum() + 1e-6)
+            idx = torch.multinomial(prio_probs, self.minibatch_segments)
+            mb_prio = (self.segments*prio_probs[idx, None])**-anneal_beta
+            '''
+ 
             profile('train_copy', epoch)
-            idx = torch.randint(0, self.segments, (int(self.il_minibatch_size/self.il_bptt_horizon),))
+            #idx = torch.randint(0, self.segments, (int(self.il_minibatch_size/self.il_bptt_horizon),))
             mb_obs = self.gold_observations[idx]
             mb_actions = self.gold_actions[idx].view(self.il_minibatch_size, -1).squeeze(-1)
             mb_values = self.gold_values[idx]
             mb_rewards = self.gold_rewards[idx]
             mb_terminals = self.gold_terminals[idx]
+            mb_advantages = advantages[idx]
 
             profile('train_forward', epoch)
             if not config['use_rnn']:
@@ -580,7 +632,11 @@ class PuffeRL:
             )
 
             logits, newvalue = self.policy(mb_obs, state)
-            imitation_loss = torch.nn.functional.cross_entropy(logits, mb_actions)
+            self.gold_values[idx] = newvalue.detach()
+            #imitation_loss = mb_advantages.view(-1, 1) * torch.nn.functional.cross_entropy(logits, mb_actions, reduction='none')
+            #imitation_loss = imitation_loss.mean()
+            imitation_loss = (mb_advantages > 0).view(-1) * torch.nn.functional.cross_entropy(logits, mb_actions, reduction='none')
+            imitation_loss = imitation_loss.mean()
 
             _, _, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
 
@@ -588,10 +644,10 @@ class PuffeRL:
 
             il_adv = torch.zeros(mb_values.shape, device=device)
             il_ratio = torch.ones(mb_values.shape, device=device)
-            adv = compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
+            il_adv = compute_puff_advantage(mb_values, mb_rewards, mb_terminals,
                 il_ratio, il_adv, config['gamma'], config['gae_lambda'],
                 config['vtrace_rho_clip'], config['vtrace_c_clip'])
-            mb_returns = adv + mb_values
+            mb_returns = il_adv + mb_values
 
             newvalue = newvalue.view(mb_returns.shape)
             v_clipped = mb_values + torch.clamp(newvalue - mb_values, -vf_clip, vf_clip)
@@ -601,14 +657,16 @@ class PuffeRL:
             self.gold_values[idx] = newvalue.detach().float()
 
             entropy_loss = entropy.mean()
-            losses['imitate'] += imitation_loss.item() / self.total_minibatches
-            losses['entropy'] += entropy_loss.item() / self.total_minibatches
-            losses['gold_reward'] += self.gold_rewards.mean().item() / self.total_minibatches
+            losses['imitate'] += imitation_loss.item() / 16
+            losses['entropy'] += entropy_loss.item() / 16
+            losses['gold_reward'] += self.gold_rewards.mean().item() / 16
+            losses['advantages'] += mb_advantages.mean().item() / 16
+            losses['samples'] += (mb_advantages > 0).sum().item() / 16
 
             #loss = config['vf_coef']*v_loss
             #loss = imitation_loss - config['ent_coef']*entropy_loss + config['vf_coef']*v_loss
-            #loss = imitation_loss + config['vf_coef']*v_loss
-            loss = imitation_loss - config['ent_coef']*entropy_loss
+            loss = imitation_loss + config['vf_coef']*v_loss + config['ent_coef']*entropy_loss
+            #loss = imitation_loss - config['ent_coef']*entropy_loss
 
             self.amp_context.__enter__() # TODO: AMP needs some debugging
 
