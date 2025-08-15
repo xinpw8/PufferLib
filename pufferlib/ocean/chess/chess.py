@@ -428,9 +428,9 @@ class Chess(pufferlib.PufferEnv):
         binding.vec_step(self.c_envs)
         self.tick += 1
         
-        # Log global step count periodically
-        if self.tick % 100 == 0:
-            print(f"[GLOBAL STEP] tick={self.tick}")
+        # # Log global step count periodically
+        # if self.tick % 100 == 0:
+        #     print(f"[GLOBAL STEP] tick={self.tick}")
         
         # Get results from C++
         obs = self.observations
@@ -438,22 +438,22 @@ class Chess(pufferlib.PufferEnv):
         terminals = self.terminals
         truncations = self.truncations
         
-        # DEBUG: Print actual reward values
-        if self.tick % 10 == 1:
-            print(f"[REWARD DEBUG] tick={self.tick}, rewards={rewards[:min(5, len(rewards))]}, terminals={terminals[:min(5, len(terminals))]}")
+        # # DEBUG: Print actual reward values
+        # if self.tick % 10 == 1:
+        #     print(f"[REWARD DEBUG] tick={self.tick}, rewards={rewards[:min(5, len(rewards))]}, terminals={terminals[:min(5, len(terminals))]}")
         
-        # DEBUG: Print what Python receives (only first few times)
-        if self.tick <= 5 or self.tick % 100 == 1:
-            import numpy as np
-            print(f"[PYTHON OBS] Shape: {obs.shape if hasattr(obs, 'shape') else 'unknown'}")
-            print(f"[PYTHON OBS] First 20 values: {obs.flat[:20] if hasattr(obs, 'flat') else 'cannot flatten'}")
-            print(f"[PYTHON OBS] Nonzero count: {np.count_nonzero(obs) if hasattr(obs, '__iter__') else 'cannot count'}")
-            print(f"[PYTHON OBS] Type: {type(obs)}, dtype: {obs.dtype if hasattr(obs, 'dtype') else 'unknown'}")
+        # # DEBUG: Print what Python receives (only first few times)
+        # if self.tick <= 5 or self.tick % 100 == 1:
+        #     import numpy as np
+        #     print(f"[PYTHON OBS] Shape: {obs.shape if hasattr(obs, 'shape') else 'unknown'}")
+        #     print(f"[PYTHON OBS] First 20 values: {obs.flat[:20] if hasattr(obs, 'flat') else 'cannot flatten'}")
+        #     print(f"[PYTHON OBS] Nonzero count: {np.count_nonzero(obs) if hasattr(obs, '__iter__') else 'cannot count'}")
+        #     print(f"[PYTHON OBS] Type: {type(obs)}, dtype: {obs.dtype if hasattr(obs, 'dtype') else 'unknown'}")
         
         # Auto-reset AFTER returning terminal signal
         # This is a workaround for the training framework not calling reset
         if hasattr(self, '_prev_terminals') and np.any(self._prev_terminals):
-            print(f"[PYTHON] Auto-resetting after previous terminal (tick={self.tick})")
+            # print(f"[PYTHON] Auto-resetting after previous terminal (tick={self.tick})")
             binding.vec_reset(self.c_envs, 0)
             self._prev_terminals = np.zeros_like(terminals)
         
