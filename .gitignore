@@ -159,3 +159,7 @@ pufferlib/ocean/impulse_wars/*-release/
 pufferlib/ocean/impulse_wars/debug-*/
 pufferlib/ocean/impulse_wars/release-*/
 pufferlib/ocean/impulse_wars/benchmark/
+
+# Large database files
+pufferlib/resources/chess/games_database/ficsgamesdb_2024_standard_nomovetimes_443694.pgn
+pufferlib/resources/chess/games_database/lichess_db_puzzle.csv.zst

@@ -482,6 +482,36 @@ class Multiprocessing:
     def notify(self):
         self.buf['notify'][:] = True
 
+    def get_puzzle_solution_actions(self):
+        """Get puzzle solution actions from all environments"""
+        if not hasattr(self.driver_env, 'get_puzzle_solution_actions'):
+            return None
+            
+        # First, ensure driver env has been reset so it has puzzle data
+        # Check if driver env has puzzle loaded
+        driver_solution = self.driver_env.get_puzzle_solution_actions()
+        
+        # If driver doesn't have a valid solution, try resetting it
+        if driver_solution is None or len(driver_solution) == 0 or driver_solution[0] < 0:
+            # Reset driver env to load puzzle
+            try:
+                self.driver_env.reset()
+                driver_solution = self.driver_env.get_puzzle_solution_actions()
+                print(f"[Vector Debug] Reset driver env, new solution: {driver_solution[:1] if driver_solution is not None else 'None'}")
+            except Exception as e:
+                print(f"[Vector Debug] Failed to reset driver env: {e}")
+        
+        # Check what driver returns after potential reset
+        if driver_solution is not None and len(driver_solution) > 0:
+            # If driver has valid solution, replicate for all envs
+            if driver_solution[0] >= 0:
+                # All environments should have the same puzzle/solution
+                return np.full(self.num_environments, driver_solution[0])
+        
+        # Still no solution - this shouldn't happen
+        print(f"[Vector Debug] No valid solution from driver: {driver_solution[:1] if driver_solution is not None else 'None'}")
+        return np.full(self.num_environments, -1)
+    
     def close(self):
         self.driver_env.close()
         for p in self.processes:

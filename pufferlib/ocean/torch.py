@@ -12,11 +12,37 @@ import torch.nn.functional as F
 import pufferlib
 import pufferlib.models
 
-from pufferlib.models import Default as Policy
-from pufferlib.models import Convolutional as Conv
-Recurrent = pufferlib.models.LSTMWrapper
+from pufferlib.models import LSTMWrapper
+from pufferlib.models import Default as _OldDefault
+
 from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
+
+
+class Recurrent(LSTMWrapper):
+    """LSTM wrapper that properly handles Default policy's hidden size."""
+    def __init__(self, env, policy, input_size=None, hidden_size=None, **kwargs):
+        # If sizes not specified, infer from the policy
+        if input_size is None:
+            # Default policy outputs 256-dim hidden states
+            if hasattr(policy, 'hidden_size'):
+                input_size = policy.hidden_size
+            else:
+                input_size = 256  # Default policy's hidden size
+                
+        if hidden_size is None:
+            hidden_size = input_size
+            
+        # Important: env can be None for chess when created directly
+        if env is None:
+            # Create a dummy env-like object with the chess observation shape
+            class DummyEnv:
+                class Space:
+                    shape = (1537,)
+                single_observation_space = Space()
+            env = DummyEnv()
+            
+        super().__init__(env, policy, input_size=input_size, hidden_size=hidden_size)
 
 
 class Boids(nn.Module):
@@ -52,7 +78,7 @@ class Boids(nn.Module):
         action = self.actor(flat_hidden).split(self.action_vec, dim=1)
         return action, value
 
-class NMMO3LSTM(pufferlib.models.LSTMWrapper):
+class NMMO3LSTM(Recurrent):
     def __init__(self, env, policy, input_size=512, hidden_size=512):
         super().__init__(env, policy, input_size, hidden_size)
 
@@ -189,25 +215,16 @@ class Terraform(nn.Module):
         value = self.value(hidden)
         return action, value
 
-
 class G2048(nn.Module):
-    def __init__(self, env, cnn_channels=32, hidden_size=128):
+    def __init__(self, env, hidden_size=128):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_continuous = False
 
-        self.cnn = nn.Sequential(
-            pufferlib.pytorch.layer_init(
-                nn.Conv2d(1, cnn_channels, 2, stride=1)),
+        self.encoder= torch.nn.Sequential(
+            nn.Linear(12*np.prod(env.single_observation_space.shape), hidden_size),
             nn.GELU(),
-            pufferlib.pytorch.layer_init(
-                nn.Conv2d(cnn_channels, cnn_channels, 2, stride=1)),
-            nn.Flatten(),
-            nn.GELU(),
-            pufferlib.pytorch.layer_init(
-            nn.Linear(128, hidden_size), std=0.01),
         )
-
         self.decoder = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
         self.value = pufferlib.pytorch.layer_init(
@@ -222,9 +239,9 @@ class G2048(nn.Module):
         return self.forward_eval(x, state)
 
     def encode_observations(self, observations, state=None):
-        #observations = F.one_hot(observations.long(), 16).view(-1, 16, 4, 4).float()
-        observations = observations.float().view(-1, 1, 4, 4)
-        return self.cnn(observations)
+        observations = F.one_hot(observations.long(), 12).view(-1, 12*16).float()
+        #observations = observations.float().view(-1, 16) / 11.0
+        return self.encoder(observations)
 
     def decode_actions(self, hidden):
         action = self.decoder(hidden)
@@ -785,38 +802,44 @@ class ImpulseWarsPolicy(nn.Module):
             t = torch.as_tensor(mapSpace.sample()[None])
             return self.mapCNN(t).shape[1]
 
-class Drive(nn.Module):
+class GPUDrive(nn.Module):
     def __init__(self, env, input_size=128, hidden_size=128, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Linear(7, input_size)),
-            nn.LayerNorm(input_size),
+                nn.Linear(6, input_size)),
             # nn.ReLU(),
-            pufferlib.pytorch.layer_init(
-                nn.Linear(input_size, input_size))
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
         max_road_objects = 13
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, input_size)),
-            nn.LayerNorm(input_size),
             # nn.ReLU(),
-            pufferlib.pytorch.layer_init(
-                nn.Linear(input_size, input_size))
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
         max_partner_objects = 7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, input_size)),
-            nn.LayerNorm(input_size),
             # nn.ReLU(),
-            pufferlib.pytorch.layer_init(
-                nn.Linear(input_size, input_size))
+            # pufferlib.pytorch.layer_init(
+            #    nn.Linear(input_size, input_size))
         )
 
-
+        '''
+        self.post_mask_road_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size)),
+        )
+        self.post_mask_partner_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size)),
+        )
+        '''
         self.shared_embedding = nn.Sequential(
             nn.GELU(),
             pufferlib.pytorch.layer_init(nn.Linear(3*input_size,  hidden_size)),
@@ -838,7 +861,7 @@ class Drive(nn.Module):
         return self.forward(x, state)
    
     def encode_observations(self, observations, state=None):
-        ego_dim = 7
+        ego_dim = 6
         partner_dim = 63 * 7
         road_dim = 200*7
         ego_obs = observations[:, :ego_dim]
@@ -851,6 +874,7 @@ class Drive(nn.Module):
         road_categorical = road_objects[:, :, 6]
         road_onehot = F.one_hot(road_categorical.long(), num_classes=7)  # Shape: [batch, 200, 7]
         road_objects = torch.cat([road_continuous, road_onehot], dim=2)
+
         ego_features = self.ego_encoder(ego_obs)
         partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)
         road_features, _ = self.road_encoder(road_objects).max(dim=1)
@@ -867,7 +891,336 @@ class Drive(nn.Module):
         action = torch.split(action, self.atn_dim, dim=1)
         value = self.value_fn(flat_hidden)
         return action, value
+    
+    
+class ResidualBlock(nn.Module):
+    """Residual block with batch normalization for chess CNN"""
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = layer_init(nn.Conv2d(channels, channels, 3, stride=1, padding=1))
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = layer_init(nn.Conv2d(channels, channels, 3, stride=1, padding=1))
+        self.bn2 = nn.BatchNorm2d(channels)
+        
+    def forward(self, x):
+        identity = x
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out = F.relu(out + identity)
+        return out
 
+
+class ChessConvLSTM(Recurrent):
+    def __init__(self, env, policy, input_size=256, hidden_size=256):
+        super().__init__(env, policy, input_size, hidden_size)
+        # Don't store another reference to policy - it's already in self.policy from parent class
+    
+    def forward(self, observations, state=None):
+        """Override to use chess policy's masked forward"""
+        print(f"[ChessConvLSTM] Forward called")
+        # Use the chess policy's forward which has masking (use self.policy from parent)
+        return self.policy.forward(observations, state)
+
+class ChessConvRecurrent(nn.Module):
+    """CNN-based chess model with proper feature engineering for different observation types"""
+    def __init__(self, env=None, cnn_channels=64, hidden_size=256, num_actions=1968, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        
+        # Chess board has 23 channels with different types:
+        # 0-11: Piece positions (multi-hot, needs embedding)
+        # 12: Empty squares
+        # 13-20: Game state info (scalar values)
+        # 21-22: Attack/defense maps (tactical info)
+        
+        # Embedding for piece positions (12 piece types + empty)
+        self.piece_embedding_dim = 16
+        self.piece_embeddings = nn.ModuleList([
+            nn.Embedding(2, self.piece_embedding_dim) for _ in range(13)  # 12 piece types + 1 empty
+        ])
+        
+        self.proj = nn.Sequential(
+            layer_init(nn.Conv2d(23, 64, 3, padding=1)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(64, 64, 3, padding=1)),
+            nn.Flatten(),
+            layer_init(nn.Linear(64*8*8, hidden_size)),
+        )
+        
+        # # CNN for piece positions after embedding
+        # # Input: 13 * embedding_dim channels
+        # self.piece_cnn = nn.Sequential(
+        #     layer_init(nn.Conv2d(13 * self.piece_embedding_dim, cnn_channels, 3, stride=1, padding=1)),
+        #     nn.BatchNorm2d(cnn_channels),
+        #     nn.ReLU(),
+        #     layer_init(nn.Conv2d(cnn_channels, cnn_channels, 3, stride=1, padding=1)),
+        #     nn.BatchNorm2d(cnn_channels),
+        #     nn.ReLU(),
+        #     layer_init(nn.Conv2d(cnn_channels, cnn_channels * 2, 3, stride=1, padding=1)),
+        #     nn.BatchNorm2d(cnn_channels * 2),
+        #     nn.ReLU(),
+        # )
+        
+        # # CNN for attack/defense maps (channels 21-22)
+        # self.tactical_cnn = nn.Sequential(
+        #     layer_init(nn.Conv2d(2, 32, 3, stride=1, padding=1)),
+        #     nn.ReLU(),
+        #     layer_init(nn.Conv2d(32, 64, 3, stride=1, padding=1)),
+        #     nn.ReLU(),
+        # )
+        
+        # # Process game state info (channels 13-20)
+        # # These are mostly binary flags except halfmove clock
+        # self.game_state_encoder = nn.Sequential(
+        #     layer_init(nn.Linear(8 * 64, 128)),  # 8 channels * 8x8
+        #     nn.ReLU(),
+        #     layer_init(nn.Linear(128, 64)),
+        #     nn.ReLU(),
+        # )
+        
+        # # Residual blocks for deeper processing
+        # self.residual_blocks = nn.ModuleList([
+        #     ResidualBlock(cnn_channels * 2) for _ in range(3)
+        # ])
+        
+        # # Combine all features
+        # # Piece CNN: (cnn_channels * 2) * 8 * 8
+        # # Tactical CNN: 64 * 8 * 8  
+        # # Game state: 64
+        # combined_cnn_channels = (cnn_channels * 2) + 64
+        # self.combined_cnn = nn.Sequential(
+        #     layer_init(nn.Conv2d(combined_cnn_channels, hidden_size // 4, 1)),
+        #     nn.ReLU(),
+        #     nn.Flatten(),
+        # )
+        
+        # cnn_flat_size = (hidden_size // 4) * 8 * 8
+        
+        # # Final projection combining all features
+        # self.proj = nn.Sequential(
+        #     layer_init(nn.Linear(cnn_flat_size + 64, hidden_size)),
+        #     nn.LayerNorm(hidden_size),
+        #     nn.ReLU(),
+        #     layer_init(nn.Linear(hidden_size, hidden_size)),
+        #     nn.LayerNorm(hidden_size),
+        #     nn.ReLU(),
+        # )
+        
+        # Policy and value heads with improved architecture
+        self.policy_head = nn.Sequential(
+            layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU(),
+            layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
+        )
+        
+        self.value_head = nn.Sequential(
+            layer_init(nn.Linear(hidden_size, 256)),
+            nn.ReLU(),
+            layer_init(nn.Linear(256, 128)),
+            nn.ReLU(),
+            layer_init(nn.Linear(128, 1), std=1)
+        )
+        
+        self.is_multidiscrete = False
+        self.action_size = num_actions
+        
+        # Store last observation for legal mask extraction
+        self._last_obs = None
+        
+        # Update observation size to match actual chess environment (1535 not 1537)
+        self.obs_size = 1535  # 1472 board + 1 num_uint32 + 62 uint32 values
+    
+    def encode_observations(self, obs, state=None):
+        """Encode observations with proper feature engineering for each channel type"""
+        if obs.dim() == 1:
+            obs = obs.unsqueeze(0)
+        
+        # Store full observation for legal mask extraction in decode_actions
+        self._last_obs = obs
+        print(f"[ENCODE] Stored obs shape {obs.shape} for masking")
+        
+        batch_size = obs.shape[0]
+        
+        # Extract board state and reshape to 2D
+        # Chess uses 23 planes (1472 = 23 * 8 * 8)
+        board_state = obs[:, :1472].view(batch_size, 23, 8, 8)
+        
+        # 1. Process piece positions (channels 0-12) with embeddings
+        piece_channels = []
+        for i in range(13):  # 12 piece types + 1 empty
+            channel = board_state[:, i:i+1, :, :].long()  # Shape: [batch, 1, 8, 8]
+            # Embed each position (0 or 1 -> embedding)
+            embedded = self.piece_embeddings[i](channel).squeeze(1)  # Shape: [batch, 8, 8, embedding_dim]
+            embedded = embedded.permute(0, 3, 1, 2)  # Shape: [batch, embedding_dim, 8, 8]
+            piece_channels.append(embedded)
+        
+        piece_features = torch.cat(piece_channels, dim=1)  # Shape: [batch, 13*embedding_dim, 8, 8]
+        piece_features = self.piece_cnn(piece_features)
+        
+        # Apply residual blocks
+        for res_block in self.residual_blocks:
+            piece_features = res_block(piece_features)
+        
+        # 2. Process attack/defense maps (channels 21-22)
+        tactical_features = board_state[:, 21:23, :, :].float()
+        tactical_features = self.tactical_cnn(tactical_features)
+        
+        # 3. Process game state info (channels 13-20)
+        game_state = board_state[:, 13:21, :, :].float()
+        game_state_flat = game_state.view(batch_size, -1)
+        game_state_features = self.game_state_encoder(game_state_flat)
+        
+        # 4. Combine piece and tactical features via concatenation
+        combined_spatial = torch.cat([piece_features, tactical_features], dim=1)
+        combined_spatial = self.combined_cnn(combined_spatial)
+        
+        # 5. Combine all features
+        all_features = torch.cat([combined_spatial, game_state_features], dim=1)
+        
+        # Final projection
+        hidden = self.proj(all_features)
+        
+        return hidden
+    
+    def forward(self, observations, state=None):
+        """Forward pass with action masking for chess"""
+        print(f"[CHESS FORWARD] Called with obs shape: {observations.shape}")
+        hidden = self.encode_observations(observations, state)
+        logits, values = self.decode_actions(hidden)
+        print(f"[CHESS FORWARD] Returning logits shape: {logits.shape}")
+        return logits, values
+    
+    def decode_actions(self, hidden, observations=None, legal_mask=None):
+        """Decode actions with legal move masking"""
+        # Try to get observations from multiple sources
+        if observations is None:
+            observations = self._last_obs
+        
+        # If legal_mask not provided, extract from observations
+        if legal_mask is None and observations is not None:
+            legal_mask = self._extract_legal_mask(observations)
+            print(f"[DECODE] Extracted mask with {legal_mask.sum().item():.0f} legal actions")
+        else:
+            print(f"[DECODE] No mask available! obs={observations is not None}, mask={legal_mask is not None}")
+        
+        # Get raw logits for UCI actions
+        raw_logits = self.policy_head(hidden)
+        
+        # Apply masking: set invalid actions to -inf
+        if legal_mask is not None:
+            print(f"[DECODE] Applying mask to {raw_logits.shape} logits")
+            masked_logits = raw_logits.masked_fill(legal_mask < 0.5, float('-inf'))
+        else:
+            print(f"[DECODE] NO MASKING APPLIED!")
+            masked_logits = raw_logits
+        
+        value = self.value_head(hidden).squeeze(-1)
+        
+        return masked_logits, value
+    
+    def _extract_legal_mask(self, obs):
+        """Extract legal mask from observation tensor"""
+        batch_size = obs.shape[0]
+        legal_mask = torch.zeros(batch_size, self.action_size, device=obs.device)
+        
+        # Process each batch element
+        for batch_idx in range(batch_size):
+            num_uint32_values = int(obs[batch_idx, 1472].item())
+            num_bitfields = num_uint32_values // 2
+            
+            # Process each bitfield (stored as pairs of uint32)
+            for field_idx in range(num_bitfields):
+                # Reconstruct uint64 from two uint32 values
+                low = int(obs[batch_idx, 1473 + field_idx * 2].item())
+                high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
+                mask_u64 = int((int(high) << 32) | int(low))
+                
+                # Set bits for legal actions
+                for bit_idx in range(64):
+                    if mask_u64 & (1 << bit_idx):
+                        action_idx = field_idx * 64 + bit_idx
+                        if action_idx < self.action_size:
+                            legal_mask[batch_idx, action_idx] = 1.0
+        
+        return legal_mask
+    
+    # def _extract_legal_mask(self, obs):
+    #     batch_size = obs.shape[0]
+    #     device = obs.device
+    #     legal_mask = torch.zeros(batch_size, self.action_size, device=device)
+        
+    #     # Extract num_uint32_values (batched)
+    #     num_uint32_values = obs[:, 1472].long()  # Shape: [batch]
+    #     max_bitfields = (num_uint32_values.max() // 2).item()  # Max across batch for padding
+        
+    #     # Extract all uint32 pairs (pad shorter sequences)
+    #     mask_data = obs[:, 1473:1473 + num_uint32_values.max()].long()  # [batch, max_uint32]
+    #     # Mask invalid entries
+    #     valid_mask = torch.arange(mask_data.shape[1], device=device).unsqueeze(0) < num_uint32_values.unsqueeze(1)
+    #     mask_data = mask_data * valid_mask.long()
+        
+    #     # Reshape to pairs: [batch, max_bitfields, 2]
+    #     mask_pairs = mask_data.view(batch_size, -1, 2)
+        
+    #     # Reconstruct uint64 bitfields: high << 32 | low
+    #     bitfields = (mask_pairs[:, :, 1] << 32) | mask_pairs[:, :, 0]  # [batch, max_bitfields]
+        
+    #     # Expand bitfields to bits: use bit manipulation
+    #     bit_idx = torch.arange(64, device=device).unsqueeze(0).unsqueeze(0)  # [1, 1, 64]
+    #     bits = (bitfields.unsqueeze(-1) & (1 << bit_idx)).ne(0).float()  # [batch, max_bitfields, 64]
+        
+    #     # Compute action indices: field_idx * 64 + bit_idx
+    #     field_idx = torch.arange(max_bitfields, device=device).unsqueeze(0).unsqueeze(-1)  # [1, max_bitfields, 1]
+    #     action_indices = field_idx * 64 + bit_idx  # [1, max_bitfields, 64]
+        
+    #     # Scatter into legal_mask (only where bits==1 and action_idx < action_size)
+    #     valid_actions = (bits > 0) & (action_indices < self.action_size)
+    #     legal_mask.scatter_add_(1, action_indices[valid_actions].long(), bits[valid_actions])
+        
+    #     return legal_mask.clamp(max=1.0)  # Ensure binary
+    
+    def forward(self, obs, state=None):
+        """Forward pass for non-LSTM inference"""
+        hidden = self.encode_observations(obs[:, :1472])
+        
+        # Convert sparse bitfield mask to dense format
+        # NEW FORMAT: [num_uint32_values] + [low_0, high_0, low_1, high_1, ...]
+        # Each pair of uint32 values represents one uint64 bitfield
+        batch_size = obs.shape[0]
+        legal_mask = torch.zeros(batch_size, self.action_size, device=obs.device)
+        
+        # Process each batch element
+        for batch_idx in range(batch_size):
+            num_uint32_values = int(obs[batch_idx, 1472].item())
+            num_bitfields = num_uint32_values // 2
+            
+            # Process each bitfield (stored as pairs of uint32)
+            for field_idx in range(num_bitfields):
+                # Reconstruct uint64 from two uint32 values
+                low = int(obs[batch_idx, 1473 + field_idx * 2].item())
+                high = int(obs[batch_idx, 1473 + field_idx * 2 + 1].item())
+                mask_u64 = int((int(high) << 32) | int(low))
+                
+                # Set bits for legal actions
+                for bit_idx in range(64):
+                    if mask_u64 & (1 << bit_idx):
+                        action_idx = field_idx * 64 + bit_idx
+                        if action_idx < self.action_size:
+                            legal_mask[batch_idx, action_idx] = 1.0
+        
+        logits, value = self.decode_actions(hidden, legal_mask)
+        return logits, value
+
+
+def ChessConvPolicy(env, **kwargs):
+    """Factory for CNN-based chess policy"""
+    hidden_size = kwargs.pop('hidden_size', 256)
+    cnn_channels = kwargs.pop('cnn_channels', 64)
+    base = ChessConvRecurrent(env, cnn_channels=cnn_channels, hidden_size=hidden_size)
+    return ChessConvLSTM(env, base, input_size=hidden_size, hidden_size=hidden_size)
+
+        
 class Tetris(nn.Module):
     def __init__(
         self, 
@@ -984,9 +1337,77 @@ class Drone(nn.Module):
         self.value = pufferlib.pytorch.layer_init(
             nn.Linear(hidden_size, 1), std=1)
 
+    def _validate_chess_torch_inputs(self, observations, location):
+        """COLOR MONITORING: Validates chess inputs at torch.py policy level"""
+        if observations is None or observations.numel() == 0:
+            print(f"[MONITOR_FATAL] Torch.py: Empty observations at {location}")
+            print(f"  Chess policy received empty observation tensor")
+            print(f"  FIX: Check models.py policy forwarding")
+            exit(1)
+            
+        if observations.shape[-1] == 1537:  # Chess observations (sparse format)
+            batch_size = observations.shape[0]
+            board_part = observations[:, :1472]
+            # Sparse mask: num_legal_moves at 1472, action_ids from 1473 onwards
+            num_legal_moves = observations[:, 1472]
+            
+            # Validate content structure
+            board_sums = board_part.sum(dim=1)
+            
+            if (board_sums < 1.0).any() or (num_legal_moves < 0).any() or (num_legal_moves > 64).any():
+                print(f"[MONITOR_FATAL] Torch.py: Invalid chess observations at {location}")
+                print(f"  Board sums: {board_sums}")
+                print(f"  Num legal moves: {num_legal_moves}")
+                print(f"  FIX: Check observation encoding in chess.h")
+                exit(1)
+                
+            print(f"[MONITOR_OK] Torch.py: Chess policy inputs valid at {location} "
+                  f"(batch={batch_size}, board_range=[{board_sums.min():.1f},{board_sums.max():.1f}], "
+                  f"legal_moves_range=[{num_legal_moves.min():.0f},{num_legal_moves.max():.0f}])")
+
+    def _validate_chess_torch_outputs(self, logits, values, location):
+        """COLOR MONITORING: Validates chess outputs at torch.py policy level"""
+        if logits is None or logits.numel() == 0:
+            print(f"[MONITOR_FATAL] Torch.py: Empty logits at {location}")
+            print(f"  Chess policy generated empty logits")
+            print(f"  FIX: Check policy_head in ChessRecurrent model")
+            exit(1)
+            
+        if logits.shape[-1] == 1968:  # Chess UCI actions
+            batch_size = logits.shape[0]
+            
+            # Validate logits quality - allow -inf for action masking but not +inf or NaN
+            if torch.isnan(logits).any() or (logits == float('inf')).any():
+                nan_count = torch.isnan(logits).sum().item()
+                pos_inf_count = (logits == float('inf')).sum().item()
+                print(f"[MONITOR_FATAL] Torch.py: Invalid logits at {location}")
+                print(f"  NaN values: {nan_count}, Positive Inf values: {pos_inf_count}")
+                print(f"  FIX: Check neural network training or input preprocessing")
+                exit(1)
+                
+            # Check for no legal actions (all logits == -inf except perhaps some)
+            if (logits > -1e10).sum() == 0:  # No finite logits
+                print(f"[MONITOR_WARNING] Torch.py: No legal actions at {location}")
+                print(f"  All logits masked - possible game over or bug")
+                
+            # Check for reasonable logit distribution
+            logit_min, logit_max = logits.min().item(), logits.max().item()
+            masked_count = (logits <= -1e7).sum().item()  # Count masked actions
+            
+            print(f"[MONITOR_OK] Torch.py: Chess policy outputs valid at {location} "
+                  f"(batch={batch_size}, logit_range=[{logit_min:.1f},{logit_max:.1f}], "
+                  f"masked_actions={masked_count}, value_range=[{values.min():.3f},{values.max():.3f}])")
+
     def forward_eval(self, observations, state=None):
+        # # --- COLOR MONITORING: Validate chess-specific policy inputs ---
+        # self._validate_chess_torch_inputs(observations, "ChessRecurrent.forward_eval() input")
+        
         hidden = self.encode_observations(observations, state=state)
         logits, values = self.decode_actions(hidden)
+        
+        # # --- COLOR MONITORING: Validate chess-specific policy outputs ---
+        # self._validate_chess_torch_outputs(logits, values, "ChessRecurrent.forward_eval() output")
+        
         return logits, values
 
     def forward(self, observations, state=None):
@@ -1018,3 +1439,149 @@ class Drone(nn.Module):
 
         values = self.value(hidden)
         return logits, values
+    
+
+# A dummy layer_init for standalone execution
+def layer_init(layer, std=np.sqrt(2)):
+    nn.init.orthogonal_(layer.weight, std)
+    nn.init.constant_(layer.bias, 0.0)
+    return layer
+
+class ChessRecurrent(nn.Module):
+    """
+    A fast, CNN-based chess policy compatible with PufferLib wrappers.
+    It uses a CNN for board processing and vectorized legal move masking.
+    """
+    def __init__(self, env=None, cnn_channels=64, hidden_size=256, num_actions=1968, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_actions = num_actions
+        self.is_continuous = False
+
+        self.cnn = nn.Sequential(
+            layer_init(nn.Conv2d(23, cnn_channels, kernel_size=3, padding=1)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, padding=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        cnn_flat_size = cnn_channels * 8 * 8
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(cnn_flat_size, hidden_size)),
+            nn.ReLU(),
+        )
+        self.policy_head = layer_init(nn.Linear(hidden_size, num_actions), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
+        
+        # This will store the last observation for use in decode_actions
+        self._last_obs = None
+
+    def _create_legal_mask(self, obs):
+        """
+        Generates a legal move mask from a sparse action list in observations.
+        
+        Format expected from C++:
+        - obs[1472]: Number of legal moves
+        - obs[1473..1536]: Legal action IDs (up to 64)
+        """
+        batch_size = obs.shape[0]
+        device = obs.device
+
+        # # Debug: Print observation values for legal moves
+        # print(f"[ChessRecurrent.mask] obs[1472] (num_legal): {obs[0, 1472].item()}")
+        # print(f"[ChessRecurrent.mask] First few action IDs: {obs[0, 1473:1478].tolist()}")
+        
+        # Create a full mask of zeros (all moves illegal by default)
+        legal_mask = torch.zeros((batch_size, self.num_actions), dtype=torch.bool, device=device)
+        
+        # Process each sample in the batch
+        for b in range(batch_size):
+            num_legal = int(obs[b, 1472].item())
+            if num_legal > 0 and num_legal <= 64:  # Sanity check
+                # Get the legal action IDs
+                legal_action_ids = obs[b, 1473:1473+num_legal].long()
+                # Mark these actions as legal
+                valid_ids = (legal_action_ids >= 0) & (legal_action_ids < self.num_actions)
+                legal_mask[b, legal_action_ids[valid_ids]] = True
+        
+        return legal_mask
+
+    def encode_observations(self, obs, state=None):
+        """Encodes observations and stores the original obs for later use."""
+        # Store the observation so decode_actions can create the legal mask
+        self._last_obs = obs
+        # print(f"[ChessRecurrent.encode] Storing obs shape {obs.shape} for masking")
+        
+        board_state = obs[:, :1472].view(-1, 23, 8, 8)
+        cnn_output = self.cnn(board_state.float())
+        hidden = self.proj(cnn_output)
+        return hidden
+
+    def decode_actions(self, hidden, legal_mask=None):
+        """
+        Decodes actions. If legal_mask is not provided, it generates one
+        from the stored observation tensor.
+        """
+        # If called from a wrapper, legal_mask will be None. Generate it.
+        if legal_mask is None:
+            if self._last_obs is None:
+                print(f"[ChessRecurrent.decode] ERROR: _last_obs is None! Cannot mask!")
+                raise ValueError("Cannot decode actions: _last_obs is not set.")
+            # print(f"[ChessRecurrent.decode] Creating mask from stored obs shape {self._last_obs.shape}")
+            legal_mask = self._create_legal_mask(self._last_obs)
+            # print(f"[ChessRecurrent.decode] Mask has {legal_mask.sum().item():.0f} legal actions")
+
+        raw_logits = self.policy_head(hidden)
+        masked_logits = raw_logits.masked_fill(legal_mask == 0, float('-inf'))
+        # print(f"[ChessRecurrent.decode] Applied mask to logits shape {raw_logits.shape}")
+        value = self.value_head(hidden).squeeze(-1)
+        return masked_logits, value
+
+    def forward(self, obs, state=None):
+        """
+        A standard forward pass for when the policy is not wrapped.
+        """
+        hidden = self.encode_observations(obs)
+        # Call decode_actions without a mask, relying on its internal logic.
+        logits, value = self.decode_actions(hidden)
+        return logits, value
+
+
+def Policy(env, **kwargs):
+    """Factory returning the appropriate policy for the given environment.
+
+    If the observation matches the chess shape (1537,) we build a
+    ChessRecurrent model and wrap it with the generic LSTMWrapper so that
+    temporal batching works out of the box. Otherwise we fall back to the
+    legacy Default policy so existing non-chess environments remain
+    functional.
+    """
+    # Chess: obs = 1472 board planes + sparse legal-move mask  
+    # Updated to match actual observation space (1535 = 1472 + 1 + 62)
+    try:
+        is_chess = (len(env.single_observation_space.shape) == 1 and
+                    env.single_observation_space.shape[0] == 1535)
+    except AttributeError:
+        is_chess = False
+
+    if is_chess:
+        # Extract chess-specific parameters
+        hidden_size = kwargs.pop('hidden_size', 256)
+        use_advanced_cnn = kwargs.pop('use_advanced_cnn', False)
+        cnn_channels = kwargs.pop('cnn_channels', 64)
+        
+        # Choose which chess model to use and return the BASE model
+        # It will be wrapped by Recurrent via rnn_name in the config
+        if use_advanced_cnn:
+            return ChessConvRecurrent(env, cnn_channels=cnn_channels, hidden_size=hidden_size, **kwargs)
+        else:
+            return ChessRecurrent(env, hidden_size=hidden_size, **kwargs)
+    else:
+        # For non-chess environments - remove chess-specific params before passing to Default
+        kwargs.pop('use_advanced_cnn', None)
+        kwargs.pop('cnn_channels', None)
+        kwargs.pop('use_simple_model', None)  # Remove unsupported parameter
+        kwargs.pop('use_advanced_cnn', None)  # Remove unsupported parameter
+        
+        # Default policy outputs 256-dim hidden states
+        return _OldDefault(env, **kwargs)

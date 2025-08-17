@@ -1,0 +1,290 @@
+[
+  {
+    "id": "0H4pj",
+    "initial_fen": "r1qk3r/5Q1n/2p1p3/p2p4/Pp1p4/3P4/1PP3Pb/RNB1R2K b - - 1 21",
+    "puzzle_fen": "r1qk3r/5Q2/2p1p3/p2p2n1/Pp1p4/3P4/1PP3Pb/RNB1R2K w - - 2 22",
+    "setup_move": "h7g5",
+    "solution": [
+      "c1g5"
+    ],
+    "rating": 1811,
+    "themes": "hangingPiece mate mateIn1 middlegame oneMove",
+    "popularity": 88
+  },
+  {
+    "id": "0KkBn",
+    "initial_fen": "r7/ppp5/4Q1B1/3p4/3P4/2P1kP2/Pq4P1/5K2 b - - 7 35",
+    "puzzle_fen": "r7/ppp5/4Q1B1/3p4/3P4/2P2P2/Pq1k2P1/5K2 w - - 8 36",
+    "setup_move": "e3d2",
+    "solution": [
+      "e6e1"
+    ],
+    "rating": 1815,
+    "themes": "endgame mate mateIn1 oneMove",
+    "popularity": 94
+  },
+  {
+    "id": "0ADTm",
+    "initial_fen": "r2q1r1k/pp2b2p/2b1pnB1/2npB2Q/8/2P1P1N1/PP3PPP/R4RK1 b - - 2 17",
+    "puzzle_fen": "r2q1r1k/pp1nb2p/2b1pnB1/3pB2Q/8/2P1P1N1/PP3PPP/R4RK1 w - - 3 18",
+    "setup_move": "c5d7",
+    "solution": [
+      "h5h7"
+    ],
+    "rating": 1818,
+    "themes": "kingsideAttack mate mateIn1 middlegame oneMove pin",
+    "popularity": 93
+  },
+  {
+    "id": "0Ny25",
+    "initial_fen": "2rR3k/1b2Q2p/p5p1/1p2Pp2/5P1P/P7/BP3qP1/7K b - - 1 35",
+    "puzzle_fen": "3r3k/1b2Q2p/p5p1/1p2Pp2/5P1P/P7/BP3qP1/7K w - - 0 36",
+    "setup_move": "c8d8",
+    "solution": [
+      "e7f6"
+    ],
+    "rating": 1819,
+    "themes": "endgame master mate mateIn1 oneMove",
+    "popularity": 96
+  },
+  {
+    "id": "0Q0Tj",
+    "initial_fen": "8/p7/6Bp/1p4p1/b1p5/Pk4P1/1P5P/2K5 b - - 1 39",
+    "puzzle_fen": "8/p7/6Bp/1p4p1/b7/Pkp3P1/1P5P/2K5 w - - 0 40",
+    "setup_move": "c4c3",
+    "solution": [
+      "g6f7"
+    ],
+    "rating": 1824,
+    "themes": "bishopEndgame endgame mate mateIn1 oneMove",
+    "popularity": 89
+  },
+  {
+    "id": "0InOi",
+    "initial_fen": "2rq2r1/3kpQ2/3p4/pNn1p3/PpB4p/1P5P/2P3P1/3R3K b - - 1 23",
+    "puzzle_fen": "2rq1r2/3kpQ2/3p4/pNn1p3/PpB4p/1P5P/2P3P1/3R3K w - - 2 24",
+    "setup_move": "g8f8",
+    "solution": [
+      "d1d6"
+    ],
+    "rating": 1828,
+    "themes": "master mate mateIn1 middlegame oneMove pin",
+    "popularity": 79
+  },
+  {
+    "id": "0ND4d",
+    "initial_fen": "r1bqrb1k/pp4B1/2p2pQ1/4nN2/3P4/2P5/PP3PPP/R4RK1 b - - 8 18",
+    "puzzle_fen": "r1bqrbk1/pp4B1/2p2pQ1/4nN2/3P4/2P5/PP3PPP/R4RK1 w - - 9 19",
+    "setup_move": "h8g8",
+    "solution": [
+      "f5h6"
+    ],
+    "rating": 1831,
+    "themes": "master mate mateIn1 middlegame oneMove",
+    "popularity": 98
+  },
+  {
+    "id": "01hf5",
+    "initial_fen": "8/1p4kp/5Qp1/3pP2r/4qP2/8/P1rB1R2/6K1 b - - 2 34",
+    "puzzle_fen": "8/1p5p/5Qpk/3pP2r/4qP2/8/P1rB1R2/6K1 w - - 3 35",
+    "setup_move": "g7h6",
+    "solution": [
+      "f6f8"
+    ],
+    "rating": 1844,
+    "themes": "endgame master mate mateIn1 oneMove",
+    "popularity": 80
+  },
+  {
+    "id": "0MjtQ",
+    "initial_fen": "2r1k2r/4ppb1/p2p1p1p/qp1R4/4PPP1/4Q3/PPP4P/1K3BR1 b k - 0 16",
+    "puzzle_fen": "2r1k2r/4ppb1/p2p3p/qp1R1p2/4PPP1/4Q3/PPP4P/1K3BR1 w k - 0 17",
+    "setup_move": "f6f5",
+    "solution": [
+      "g4f5"
+    ],
+    "rating": 1849,
+    "themes": "advantage middlegame oneMove",
+    "popularity": 85
+  },
+  {
+    "id": "05CzU",
+    "initial_fen": "r1b3k1/p2p1R1p/1p4pB/1P6/2Bbq3/8/P5PP/2R4K b - - 0 27",
+    "puzzle_fen": "r5k1/pb1p1R1p/1p4pB/1P6/2Bbq3/8/P5PP/2R4K w - - 1 28",
+    "setup_move": "c8b7",
+    "solution": [
+      "f7f8"
+    ],
+    "rating": 1850,
+    "themes": "doubleCheck mate mateIn1 middlegame oneMove",
+    "popularity": 72
+  },
+  {
+    "id": "0Y6dd",
+    "initial_fen": "r1b4r/ppqk1Bbp/2nNQ1p1/8/8/B6P/PPp2PP1/3RK2R b K - 1 19",
+    "puzzle_fen": "r1bk3r/ppq2Bbp/2nNQ1p1/8/8/B6P/PPp2PP1/3RK2R w K - 2 20",
+    "setup_move": "d7d8",
+    "solution": [
+      "d6b7"
+    ],
+    "rating": 1853,
+    "themes": "doubleCheck mate mateIn1 middlegame oneMove",
+    "popularity": 87
+  },
+  {
+    "id": "0BOuo",
+    "initial_fen": "2Q5/p7/5p2/4k3/P1Bq4/6P1/1p4PK/8 b - - 0 50",
+    "puzzle_fen": "2Q5/p7/5p2/4k3/P1Bq4/6P1/6PK/1q6 w - - 0 51",
+    "setup_move": "b2b1q",
+    "solution": [
+      "c8e6"
+    ],
+    "rating": 1854,
+    "themes": "endgame mate mateIn1 oneMove",
+    "popularity": 26
+  },
+  {
+    "id": "0H6MP",
+    "initial_fen": "r1bk1Qr1/3n1pP1/pp2pq2/1Np3p1/2P5/2P5/P3BPPP/3RK2R b K - 1 17",
+    "puzzle_fen": "r1bk1r2/3n1pP1/pp2pq2/1Np3p1/2P5/2P5/P3BPPP/3RK2R w K - 0 18",
+    "setup_move": "g8f8",
+    "solution": [
+      "g7f8q"
+    ],
+    "rating": 1889,
+    "themes": "advancedPawn mate mateIn1 middlegame oneMove pin promotion",
+    "popularity": 77
+  },
+  {
+    "id": "0O55I",
+    "initial_fen": "6R1/p2Q3p/1b2pp2/5k2/5PP1/1P2P3/P1KP3r/5q2 b - - 0 43",
+    "puzzle_fen": "6R1/p2Q3p/1b2pp2/8/4kPP1/1P2P3/P1KP3r/5q2 w - - 1 44",
+    "setup_move": "f5e4",
+    "solution": [
+      "d7c6"
+    ],
+    "rating": 1890,
+    "themes": "endgame mate mateIn1 oneMove",
+    "popularity": 90
+  },
+  {
+    "id": "0bM7v",
+    "initial_fen": "8/7p/7k/p4Q2/1p4P1/1P6/q4PK1/8 b - - 0 38",
+    "puzzle_fen": "8/7p/7k/p4Q2/1p4P1/1q6/5PK1/8 w - - 0 39",
+    "setup_move": "a2b3",
+    "solution": [
+      "f5f6"
+    ],
+    "rating": 1890,
+    "themes": "endgame mate mateIn1 oneMove queenEndgame",
+    "popularity": 92
+  },
+  {
+    "id": "09tTn",
+    "initial_fen": "r7/1p4R1/1Bnk3p/3p1B2/Pb5P/3P1b2/4rP2/1KR5 b - - 0 27",
+    "puzzle_fen": "8/1p4R1/1Bnk3p/3p1B2/rb5P/3P1b2/4rP2/1KR5 w - - 0 28",
+    "setup_move": "a8a4",
+    "solution": [
+      "b6c7"
+    ],
+    "rating": 1899,
+    "themes": "mate mateIn1 middlegame oneMove",
+    "popularity": 82
+  },
+  {
+    "id": "0aZ41",
+    "initial_fen": "2q1r2k/1r3R1p/p1p1QNpB/1pb1P3/8/8/PPP2PPP/4R1K1 b - - 0 23",
+    "puzzle_fen": "4r2k/1r3R1p/p1p1qNpB/1pb1P3/8/8/PPP2PPP/4R1K1 w - - 0 24",
+    "setup_move": "c8e6",
+    "solution": [
+      "h6g7"
+    ],
+    "rating": 1907,
+    "themes": "master mate mateIn1 middlegame oneMove",
+    "popularity": 95
+  },
+  {
+    "id": "07ygB",
+    "initial_fen": "6k1/5p2/4pQp1/4B1P1/1p1Pp2P/p6K/8/1q6 b - - 3 53",
+    "puzzle_fen": "5k2/5p2/4pQp1/4B1P1/1p1Pp2P/p6K/8/1q6 w - - 4 54",
+    "setup_move": "g8f8",
+    "solution": [
+      "f6d8"
+    ],
+    "rating": 1961,
+    "themes": "endgame master",
+    "popularity": 84
+  },
+  {
+    "id": "0CUav",
+    "initial_fen": "r7/p3R3/2pN2p1/1p1pPbkp/8/P4PP1/1n2K2P/8 b - - 0 41",
+    "puzzle_fen": "r7/p3R3/2pN2p1/1p1pPbkp/2n5/P4PP1/4K2P/8 w - - 1 42",
+    "setup_move": "b2c4",
+    "solution": [
+      "d6f7"
+    ],
+    "rating": 1966,
+    "themes": "endgame mate mateIn1 oneMove",
+    "popularity": 92
+  },
+  {
+    "id": "0L0xa",
+    "initial_fen": "rnb2r2/pppk4/7p/4QP1q/3p2p1/3B4/P2B1KPP/4R3 b - - 2 23",
+    "puzzle_fen": "r1b2r2/pppk4/2n4p/4QP1q/3p2p1/3B4/P2B1KPP/4R3 w - - 3 24",
+    "setup_move": "b8c6",
+    "solution": [
+      "e5d5"
+    ],
+    "rating": 1973,
+    "themes": "mate mateIn1 middlegame oneMove",
+    "popularity": 91
+  },
+  {
+    "id": "00zqB",
+    "initial_fen": "3r1rk1/pp6/5pb1/2p2q2/8/P2P4/1PP4Q/2K3RR b - - 1 27",
+    "puzzle_fen": "3r1rk1/pp6/5pb1/5q2/2p5/P2P4/1PP4Q/2K3RR w - - 0 28",
+    "setup_move": "c5c4",
+    "solution": [
+      "h2h7"
+    ],
+    "rating": 1985,
+    "themes": "mate mateIn1 middlegame oneMove pin",
+    "popularity": 91
+  },
+  {
+    "id": "0VB7d",
+    "initial_fen": "r2q1n2/pp3k1B/1bp2pQB/3p3P/3P2b1/2P2N2/P4PP1/4R1K1 b - - 2 21",
+    "puzzle_fen": "r2q4/pp3k1B/1bp2pnB/3p3P/3P2b1/2P2N2/P4PP1/4R1K1 w - - 0 22",
+    "setup_move": "f8g6",
+    "solution": [
+      "h5g6"
+    ],
+    "rating": 1993,
+    "themes": "mate mateIn1 middlegame oneMove",
+    "popularity": 93
+  },
+  {
+    "id": "04hNd",
+    "initial_fen": "8/7p/2p5/3q1pQ1/4p3/5kPP/3P1P2/6K1 b - - 2 35",
+    "puzzle_fen": "8/7p/2p5/5pQ1/4p3/3q1kPP/3P1P2/6K1 w - - 3 36",
+    "setup_move": "d5d3",
+    "solution": [
+      "g5h5"
+    ],
+    "rating": 2003,
+    "themes": "endgame mate mateIn1 oneMove queenEndgame",
+    "popularity": 90
+  },
+  {
+    "id": "0Ct8C",
+    "initial_fen": "8/1R3nk1/n2p1N2/2pP1pP1/7P/r7/6B1/7K b - - 0 36",
+    "puzzle_fen": "8/1R3nk1/n2p1N2/3P1pP1/2p4P/r7/6B1/7K w - - 0 37",
+    "setup_move": "c5c4",
+    "solution": [
+      "f6h5"
+    ],
+    "rating": 2102,
+    "themes": "advantage endgame master oneMove",
+    "popularity": 71
+  }
+]

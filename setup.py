@@ -1,6 +1,20 @@
-# Debug command:
-#    DEBUG=1 python setup.py build_ext --inplace --force
-#    CUDA_VISIBLE_DEVICES=None LD_PRELOAD=$(gcc -print-file-name=libasan.so) python3.12 -m pufferlib.clean_pufferl eval --train.device cpu
+#TODO:
+# --no-build-isolation for 5090
+# Make c and torch compile at the same time
+# CUDA_VISIBLE_DEVICES=None LD_PRELOAD=$(gcc -print-file-name=libasan.so) python3.12 -m pufferlib.clean_pufferl eval --train.device cpu
+'''
+Pain points for docs:
+    - Build in C first
+    - Make sure obs types match in C and python
+    - Getting obs and action spaces and types correct
+    - Double check obs are not zero
+    - Correct reset behavior
+    - Make sure rewards look correct
+    - don't forget params/init in binding
+    - Use debug mode to catch segaults
+    - TODO: Add check on num agents vs obs shape!!
+'''
+
 
 from setuptools import find_packages, find_namespace_packages, setup, Extension
 import numpy
@@ -69,6 +83,7 @@ if not NO_OCEAN:
 extra_compile_args = [
     '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
     '-DPLATFORM_DESKTOP',
+    '-fpermissive',
 ]
 extra_link_args = [
     '-fwrapv'
@@ -153,6 +168,215 @@ if not NO_OCEAN:
 # - <= 0.20 is missing dict methods for gym.spaces.Dict
 # - 0.18-0.21 require setuptools<=65.5.0
 
+GYMNASIUM_VERSION = '0.29.1'
+GYM_VERSION = '0.23'
+PETTINGZOO_VERSION = '1.24.1'
+
+environments = {
+    'avalon': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'avalon-rl==1.0.0',
+    ],
+    'atari': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium[accept-rom-license]=={GYMNASIUM_VERSION}',
+        'opencv-python==3.4.17.63',
+        'ale_py==0.9.0',
+    ],
+    'box2d': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium[box2d]=={GYMNASIUM_VERSION}',
+        'swig==4.1.1',
+    ],
+    'bsuite': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'bsuite==0.3.5',
+    ],
+    'butterfly': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        f'pettingzoo[butterfly]=={PETTINGZOO_VERSION}',
+    ],
+    'classic_control': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+    ],
+    'crafter': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'crafter==1.8.3',
+    ],
+    'craftax': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'craftax',
+    ],
+    'dm_control': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'dm_control==1.0.11',
+    ],
+    'dm_lab': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'gym_deepmindlab==0.1.2',
+        'dm_env==1.6',
+    ],
+    'griddly': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'griddly==1.6.7',
+        'imageio',
+    ],
+    'kinetix': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'kinetix-env',
+    ],
+    'magent': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'pettingzoo==1.19.0',
+        'magent==0.2.4',
+        # The Magent2 package is broken for now
+        #'magent2==0.3.2',
+    ],
+    'metta': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'omegaconf',
+        'hydra-core',
+        'duckdb',
+    ],
+    'microrts': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'ffmpeg==1.4',
+        'gym_microrts==0.3.2',
+    ],
+    'minerl': [
+        'gym==0.17.0',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        #'git+https://github.com/minerllabs/minerl'
+        # Compatiblity warning with urllib3 and chardet
+        #'requests==2.31.0',
+    ],
+    'minigrid': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'minigrid==2.3.1',
+    ],
+    'minihack': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'minihack==0.1.5',
+    ],
+    'mujoco': [
+        f'gymnasium[mujoco]==1.0.0',
+        'moviepy',
+    ],
+    'nethack': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'nle==0.9.1',
+    ],
+    'nmmo': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        f'pettingzoo=={PETTINGZOO_VERSION}',
+        'nmmo>=2.1',
+    ],
+    'open_spiel': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'open_spiel==1.3',
+        'pettingzoo==1.19.0',
+    ],
+    'pokemon_red': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'pokegym>=0.2.0',
+        'einops==0.6.1',
+        'matplotlib',
+        'scikit-image',
+        'pyboy<2.0.0',
+        'hnswlib==0.7.0',
+        'mediapy',
+        'pandas==2.0.2',
+        'pettingzoo',
+        'websockets',
+    ],
+    'procgen': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'stable_baselines3==2.1.0',
+        'procgen-mirror==0.10.7', # Procgen mirror for 3.11 and 3.12 support
+        # Note: You need glfw==2.7 after installing for some torch versions
+    ],
+    #'smac': [
+    #    'git+https://github.com/oxwhirl/smac.git',
+    #],
+    #'stable-retro': [
+    #    'git+https://github.com/Farama-Foundation/stable-retro.git',
+    #]
+    'slimevolley': [
+        f'gym=={GYM_VERSION}',
+        f'gymnasium=={GYMNASIUM_VERSION}',
+        'slimevolley==0.1.0',
+    ],
+    'vizdoom': [
+        'vizdoom==1.2.3',
+        'stable_baselines3==2.1.0',
+    ],
+}
+
+docs = [
+    'sphinx==5.0.0',
+    'sphinx-rtd-theme==0.5.1',
+    'sphinxcontrib-youtube==1.0.1',
+    'sphinx-rtd-theme==0.5.1',
+    'sphinx-design==0.4.1',
+    'furo==2023.3.27',
+]
+
+ray = [
+    'ray==2.23.0',
+]
+
+cleanrl = [
+    'stable_baselines3==2.1.0',
+    'tensorboard==2.11.2',
+    'tyro==0.8.6',
+]
+
+# These are the environments that PufferLib has made
+# compatible with the latest version of Gym/Gymnasium/PettingZoo
+# They are included in PufferTank as a default heavy install
+# We force updated versions of Gym/Gymnasium/PettingZoo here to
+# ensure that users do not have issues with conflicting versions
+# when switching to incompatible environments
+common = [environments[env] for env in [
+    'atari',
+    #'box2d',
+    'bsuite',
+    #'butterfly',
+    'classic_control',
+    'crafter',
+    'dm_control',
+    'dm_lab',
+    'griddly',
+    'microrts',
+    'minigrid',
+    'minihack',
+    'nethack',
+    'nmmo',
+    'pokemon_red',
+    'procgen',
+    'vizdoom',
+]]
+
 # Extensions 
 class BuildExt(build_ext):
     def run(self):
@@ -186,28 +410,77 @@ extension_kwargs = dict(
     extra_objects=[RAYLIB_A],
 )
 
-# Find C extensions
+# TODO: Include other C files so rebuild is auto?
 c_extensions = []
 if not NO_OCEAN:
-    c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
-    c_extensions = [
-        Extension(
-            path.rstrip('.c').replace('/', '.'),
-            sources=[path],
-            **extension_kwargs,
+    c_extension_paths = (
+        glob.glob('pufferlib/ocean/chess/binding.c', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/chess/binding.c', recursive=True) +
+        glob.glob('pufferlib/ocean/chess/binding.cpp', recursive=True) +
+        glob.glob('pufferlib/pufferlib/ocean/chess/binding.cpp', recursive=True)
+    )
+    
+    # Filter out backup directories
+    c_extension_paths = [p for p in c_extension_paths if 'backup' not in p]
+
+    for path in c_extension_paths:
+        ext_dir  = os.path.dirname(path)
+        ext_name = os.path.splitext(path)[0].replace('/', '.')
+
+        # Collect all C/C++ translation units in the same directory so
+        # symbols defined outside binding.c/cpp (e.g., enable_stockfish_black)
+        # are linked into the shared object.
+        extra_sources = []
+        for pattern in ('*.cpp', '*.c'):
+            for p in glob.glob(os.path.join(ext_dir, pattern)):
+                # The standalone chess.cpp contains a full GUI + main() and
+                # re-defines every symbol from chess.h.  Including it in the
+                # Python extension causes duplicate-symbol link errors.
+                if 'chess.cpp' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.c already includes chess.h
+                # Skip chess_original.cpp as it also re-defines symbols from chess.h
+                if 'chess_original.cpp' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.c already includes chess.h
+                # Skip the problematic c_plus_plus_chess_full_impl_not_updated.cpp
+                if 'c_plus_plus_chess_full_impl_not_updated.cpp' in p:
+                    continue  # skip – has missing dependencies
+                # Skip chess.c as it conflicts with chess.h included in binding.cpp
+                if 'chess.c' in p and '/chess/' in p.replace('\\', '/'):
+                    continue  # skip – binding.cpp already includes chess.h
+                # Skip game_replay_tool.cpp as it's a standalone executable
+                if 'game_replay_tool.cpp' in p:
+                    continue  # skip – standalone tool with main()
+                if p == path:
+                    continue  # never re-add binding.c/cpp itself
+                extra_sources.append(p)
+
+        # Determine language and flags based on binding file type
+        if path.endswith('.cpp'):
+            language = 'c++'
+            compile_flags = ['-std=c++17', '-x', 'c++']
+        else:  # .c files
+            language = 'c'
+            compile_flags = ['-std=c99']
+        
+        c_ext = Extension(
+            ext_name,
+            sources=[path] + extra_sources,
+            language=language,
+            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + compile_flags,
+            include_dirs=extension_kwargs.get('include_dirs', []),
+            extra_link_args=extension_kwargs.get('extra_link_args', []),
+            extra_objects=extension_kwargs.get('extra_objects', []),
         )
-        for path in c_extension_paths if 'matsci' not in path
-    ]
-    c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
+
+        c_extensions.append(c_ext)
+
+    # Remember extension directories so they install as namespace packages
+    c_extension_paths = [os.path.dirname(p) for p in c_extension_paths]
 
     for c_ext in c_extensions:
         if "impulse_wars" in c_ext.name:
             print(f"Adding {c_ext.name} to extra objects")
             c_ext.extra_objects.append(f'{BOX2D_NAME}/libbox2d.a')
-
-        if 'matsci' in c_ext.name:
-            c_ext.include_dirs.append('/usr/local/include')
-            c_ext.extra_link_args.extend(['-L/usr/local/lib', '-llammps'])
 
 # Check if CUDA compiler is available. You need cuda dev, not just runtime.
 torch_extensions = []
@@ -246,12 +519,12 @@ for key, value in cfg_vars.items():
         cfg_vars[key] = value.replace('-fno-strict-overflow', '')
 
 install_requires = [
-    'setuptools',
     'numpy<2.0',
+    f'gym<={GYM_VERSION}',
+    f'gymnasium<={GYMNASIUM_VERSION}',
+    f'pettingzoo<={PETTINGZOO_VERSION}',
     'shimmy[gym-v21]',
-    'gym==0.23',
-    'gymnasium==0.29.1',
-    'pettingzoo==1.24.1',
+    'setuptools'
 ]
 
 if not NO_TRAIN:
@@ -269,13 +542,22 @@ if not NO_TRAIN:
     ]
 
 setup(
+    name="pufferlib",
     version="3.0.0",
+    long_description_content_type="text/markdown",
     packages=find_namespace_packages() + find_packages() + c_extension_paths + ['pufferlib/extensions'],
     package_data={
         "pufferlib": [RAYLIB_NAME + '/lib/libraylib.a']
     },
     include_package_data=True,
     install_requires=install_requires,
+    extras_require={
+        'docs': docs,
+        'ray': ray,
+        'cleanrl': cleanrl,
+        'common': common,
+        **environments,
+    },
     ext_modules = c_extensions + torch_extensions,
     cmdclass={
         "build_ext": BuildExt,
@@ -283,4 +565,17 @@ setup(
         "build_c": CBuildExt,
     },
     include_dirs=[numpy.get_include(), RAYLIB_NAME + '/include'],
+    entry_points={
+        'console_scripts': [
+            'puffer = pufferlib.pufferl:main',
+        ],
+    },
 )
+#stable_baselines3
+#supersuit==3.3.5
+#'git+https://github.com/oxwhirl/smac.git',
+
+#curl -L -o smac.zip https://blzdistsc2-a.akamaihd.net/Linux/SC2.4.10.zip
+#unzip -P iagreetotheeula smac.zip 
+#curl -L -o maps.zip https://github.com/oxwhirl/smac/releases/download/v0.1-beta1/SMAC_Maps.zip
+#unzip maps.zip && mv SMAC_Maps/ StarCraftII/Maps/
