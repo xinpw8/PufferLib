@@ -2495,9 +2495,9 @@ class PuffeRL:
                         if logits.shape[-1] > 364:
                             print(f"[EVAL DEBUG] Action 364 (c1c8) prob={probs[364].item():.6f}")
                 
-                # For evaluation, use deterministic action selection (argmax) 
-                # when we have very high confidence
-                if epoch >= 5:  # After initial training
+                # For regular training, always sample to allow exploration
+                # The BC loss will guide the model to learn correct actions
+                if epoch >= 5:  # After initial training for regular RL
                     with torch.no_grad():
                         probs = torch.softmax(logits, dim=-1)
                         max_probs, _ = torch.max(probs, dim=-1)
@@ -2670,16 +2670,27 @@ class PuffeRL:
             current_bc_coef = config.get('bc_coef', 0) * (config.get('bc_anneal', 1) ** self.epoch)
             
             # Only apply BC loss if we're in puzzle mode and have a positive coefficient
-            if hasattr(self.vecenv, 'get_puzzle_solution_actions') and current_bc_coef > 0:
+            # Try both vecenv and driver_env for puzzle solutions
+            has_puzzle_method = False
+            puzzle_env = None
+            
+            if hasattr(self.vecenv, 'get_puzzle_solution_actions'):
+                has_puzzle_method = True
+                puzzle_env = self.vecenv
+            elif hasattr(self.vecenv, 'driver_env') and hasattr(self.vecenv.driver_env, 'get_puzzle_solution_actions'):
+                has_puzzle_method = True
+                puzzle_env = self.vecenv.driver_env
+                
+            if has_puzzle_method and current_bc_coef > 0:
                 try:
                     # Get the correct actions for ALL environments
                     # This returns the solution for the current puzzle state in each environment
-                    solution_actions = self.vecenv.get_puzzle_solution_actions()
+                    solution_actions = puzzle_env.get_puzzle_solution_actions()
                     
                     # Debug: Print solution actions every 10 epochs
                     if self.epoch % 10 == 0 and mb == 0:
                         print(f"[BC Debug] Epoch {self.epoch}: Retrieved solution actions: {solution_actions[:5] if solution_actions is not None else None}")
-                        print(f"[BC Debug] BC coef: {current_bc_coef:.3f}, Has get_puzzle method: {hasattr(self.vecenv, 'get_puzzle_solution_actions')}")
+                        print(f"[BC Debug] BC coef: {current_bc_coef:.3f}, Using {'driver_env' if puzzle_env == self.vecenv.driver_env else 'vecenv'}")
                     
                     if solution_actions is not None and len(solution_actions) > 0:
                         # Convert to tensor
@@ -3354,8 +3365,20 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
             logits, value = policy.forward_eval(ob, state)
-            action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
-            action = action.cpu().numpy().reshape(vecenv.action_space.shape)
+            
+            # Use deterministic actions for puzzle mode evaluation
+            # Check if we're in puzzle mode (check driver_env for the attribute)
+            is_puzzle_mode = (hasattr(driver, 'puzzle_mode') and driver.puzzle_mode) or \
+                           (hasattr(vecenv, 'driver_env') and hasattr(vecenv.driver_env, 'puzzle_mode') and vecenv.driver_env.puzzle_mode)
+            
+            if is_puzzle_mode:
+                # Deterministic: use argmax for puzzle evaluation
+                action = logits.argmax(dim=-1)
+                action = action.cpu().numpy().reshape(vecenv.action_space.shape)
+            else:
+                # Stochastic: sample for regular gameplay
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
+                action = action.cpu().numpy().reshape(vecenv.action_space.shape)
 
         if isinstance(logits, torch.distributions.Normal):
             action = np.clip(action, vecenv.action_space.low, vecenv.action_space.high)

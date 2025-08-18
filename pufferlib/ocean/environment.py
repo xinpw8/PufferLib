@@ -167,8 +167,17 @@ def env_creator(name='squared', *args, **kwargs):
 
     # TODO: Robust sanity / ocean imports
     name = name.replace('puffer_', '')
+    
+    # Check if it's already a callable function
+    if name in MAKE_FUNCTIONS and callable(MAKE_FUNCTIONS[name]):
+        return MAKE_FUNCTIONS[name]
+    
+    # Otherwise, it's a class name string that needs to be imported
     try:
         module = importlib.import_module(f'pufferlib.ocean.{name}.{name}')
-        return getattr(module, MAKE_FUNCTIONS[name])
+        cls_name = MAKE_FUNCTIONS[name]
+        cls = getattr(module, cls_name)
+        # Return a callable that creates instances of the class
+        return lambda *args, **kwargs: cls(*args, **kwargs)
     except ModuleNotFoundError:
-        return MAKE_FUNCTIONS[name]
+        raise pufferlib.APIUsageError(f'Could not find environment module for {name}')
