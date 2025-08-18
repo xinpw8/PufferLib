@@ -4762,6 +4762,10 @@ typedef struct ChessContext {
   // Cached puzzle board state for quick reset
   ChessBoard puzzle_board_cache;   // Cached board state for current puzzle
   bool puzzle_board_cached;        // Whether we have a cached board state
+  
+  // Cached solution action ID for BC training
+  int cached_solution_action;      // Action ID of first solution move, cached when puzzle loads
+  bool solution_action_cached;     // Whether we have a cached solution action
 
   // New: Global puzzle training logic
   int puzzle_tries_this_episode;    // Total puzzle tries during the episode
@@ -7311,6 +7315,27 @@ void set_puzzle_data(CChess *env, const char *fen, const char *solution_moves[],
   // Cache the puzzle board state for quick reset
   env->context.puzzle_board_cache = env->context.board;  // Deep copy the board
   env->context.puzzle_board_cached = true;
+  
+  // Cache the solution action ID for BC training
+  env->context.solution_action_cached = false;
+  if (solution_length > 0) {
+    const char* first_move = solution_moves[0];
+    int action_id = uci_to_action_id(first_move);
+    
+    // If playing as black, flip the perspective
+    if (env->context.board.to_move == C_BLACK) {
+      char flipped_uci[6];
+      flip_uci_for_black_perspective(first_move, flipped_uci);
+      action_id = uci_to_action_id(flipped_uci);
+    }
+    
+    env->context.cached_solution_action = action_id;
+    env->context.solution_action_cached = true;
+    
+    if (env->env_id == 0) {
+      printf("[PUZZLE CACHE] Cached solution action ID: %d for move: %s\n", action_id, first_move);
+    }
+  }
   
   // DEBUG: Verify cache is correct
 //   printf("[CACHE DEBUG] Created puzzle cache with piece at a2: %s\n",

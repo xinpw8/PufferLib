@@ -489,8 +489,9 @@ static PyObject* env_get_puzzle_solution_action(PyObject* self, PyObject* args) 
         return PyLong_FromLong(-1);  // Return -1 if no solution available
     }
     
-    // Get the current move in the solution
-    const char* solution_move = env->context.puzzle_solution[env->context.puzzle_move_index];
+    // For training, always return the FIRST move of the solution (index 0)
+    // This is what the model should learn for the current puzzle position
+    const char* solution_move = env->context.puzzle_solution[0];
     
     // Convert UCI move to action ID
     int action_id = uci_to_action_id(solution_move);
@@ -517,20 +518,9 @@ static PyObject* vec_get_puzzle_solution_actions(PyObject* self, PyObject* args)
         CChess* env = vec->envs[i];
         int action_id = -1;  // Default to -1 if no solution
         
-        // Check if we're in puzzle mode and have a solution
-        if (env->context.puzzle_mode && env->context.puzzle_solution_length > 0) {
-            // Get the current move in the solution
-            const char* solution_move = env->context.puzzle_solution[env->context.puzzle_move_index];
-            
-            // Convert UCI move to action ID
-            action_id = uci_to_action_id(solution_move);
-            
-            // If playing as black, we need to flip the perspective
-            if (env->context.board.to_move == C_BLACK) {
-                char flipped_uci[6];
-                flip_uci_for_black_perspective(solution_move, flipped_uci);
-                action_id = uci_to_action_id(flipped_uci);
-            }
+        // Use cached solution if available
+        if (env->context.puzzle_mode && env->context.solution_action_cached) {
+            action_id = env->context.cached_solution_action;
         }
         
         // Add to list (PyList_SetItem steals reference)

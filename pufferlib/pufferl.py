@@ -2327,6 +2327,8 @@ class PuffeRL:
         self.truncations = torch.zeros(segments, horizon, device=device)
         self.ratio = torch.ones(segments, horizon, device=device)
         self.importance = torch.ones(segments, horizon, device=device)
+        # Store puzzle solutions for BC training
+        self.puzzle_solutions = torch.full((segments, horizon), -1, device=device, dtype=torch.long)
         self.ep_lengths = torch.zeros(total_agents, device=device, dtype=torch.int32)
         self.ep_indices = torch.arange(total_agents, device=device, dtype=torch.int32)
         self.free_idx = total_agents
@@ -2459,6 +2461,19 @@ class PuffeRL:
 
             profile('eval_misc', epoch)
             env_id = slice(env_id[0], env_id[-1] + 1)
+            
+            # Capture puzzle solutions RIGHT AFTER receiving observations
+            # This is when puzzles are freshly loaded after auto-reset
+            if hasattr(self.vecenv, 'get_puzzle_solution_actions'):
+                try:
+                    solutions = self.vecenv.get_puzzle_solution_actions()
+                    if solutions is not None:
+                        # Store solutions for later use in rollout buffer
+                        self.current_puzzle_solutions = torch.from_numpy(solutions).to(config['device'])
+                        if epoch % 10 == 0 and self.full_rows == 0:
+                            print(f"[Solution Debug] Got solutions after recv: {solutions[:4]}")
+                except:
+                    self.current_puzzle_solutions = None
 
             done_mask = d + t # TODO: Handle truncations separately
             if count_steps:
@@ -2533,6 +2548,13 @@ class PuffeRL:
                 # Fast path for fully vectorized envs
                 l = self.ep_lengths[env_id.start].item()
                 batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
+
+                # Store the puzzle solutions we captured earlier
+                if hasattr(self, 'current_puzzle_solutions') and self.current_puzzle_solutions is not None:
+                    # Map env_id range to batch_rows indices
+                    for i, row in enumerate(range(batch_rows.start, batch_rows.stop)):
+                        if i < len(self.current_puzzle_solutions):
+                            self.puzzle_solutions[row, l] = self.current_puzzle_solutions[i]
 
                 if config['cpu_offload']:
                     self.observations[batch_rows, l] = o
@@ -2669,89 +2691,86 @@ class PuffeRL:
             bc_loss = torch.tensor(0.0, device=device)
             current_bc_coef = config.get('bc_coef', 0) * (config.get('bc_anneal', 1) ** self.epoch)
             
-            # Only apply BC loss if we're in puzzle mode and have a positive coefficient
-            # Try both vecenv and driver_env for puzzle solutions
-            has_puzzle_method = False
-            puzzle_env = None
-            
-            if hasattr(self.vecenv, 'get_puzzle_solution_actions'):
-                has_puzzle_method = True
-                puzzle_env = self.vecenv
-            elif hasattr(self.vecenv, 'driver_env') and hasattr(self.vecenv.driver_env, 'get_puzzle_solution_actions'):
-                has_puzzle_method = True
-                puzzle_env = self.vecenv.driver_env
-                
-            if has_puzzle_method and current_bc_coef > 0:
+            # Use stored puzzle solutions from rollout buffer
+            if current_bc_coef > 0:
                 try:
-                    # Get the correct actions for ALL environments
-                    # This returns the solution for the current puzzle state in each environment
-                    solution_actions = puzzle_env.get_puzzle_solution_actions()
+                    # Get stored solutions for this minibatch
+                    mb_solutions = self.puzzle_solutions[idx].flatten()
+                    
+                    # Filter out valid solutions (not -1)
+                    valid_mask = mb_solutions >= 0
                     
                     # Debug: Print solution actions every 10 epochs
                     if self.epoch % 10 == 0 and mb == 0:
-                        print(f"[BC Debug] Epoch {self.epoch}: Retrieved solution actions: {solution_actions[:5] if solution_actions is not None else None}")
-                        print(f"[BC Debug] BC coef: {current_bc_coef:.3f}, Using {'driver_env' if puzzle_env == self.vecenv.driver_env else 'vecenv'}")
+                        valid_solutions = mb_solutions[valid_mask] if valid_mask.any() else torch.tensor([])
+                        print(f"[BC Debug] Epoch {self.epoch}: Stored solutions (first 10): {mb_solutions[:10].tolist()}")
+                        print(f"[BC Debug] Valid solutions: {valid_mask.sum().item()}/{len(mb_solutions)}")
+                        print(f"[BC Debug] BC coef: {current_bc_coef:.3f}")
                     
-                    if solution_actions is not None and len(solution_actions) > 0:
-                        # Convert to tensor
-                        solution_tensor = torch.from_numpy(solution_actions).to(device)
-                        
-                        # idx contains the sampled segment indices
-                        # We need to get the corresponding environment indices
-                        # For simplicity, if we have a single puzzle, all envs have the same solution
-                        # So we can just use the first solution and replicate
+                    if valid_mask.any():
+                        # Get valid solutions
+                        valid_solutions = mb_solutions[valid_mask]
+                        valid_indices = torch.where(valid_mask)[0]
                         
                         # Get the batch size from logits
                         batch_size = logits.shape[0]
                         
-                        # For single puzzle mode, all environments have the same solution
-                        # Just replicate the solution for the batch
-                        if solution_tensor.shape[0] > 0:
-                            # Take the first valid solution (they should all be the same for single puzzle)
-                            single_solution = solution_tensor[0].item()
+                        # Create target actions using the stored solutions
+                        # Map the valid solutions to their corresponding positions in the batch
+                        if len(valid_solutions) > 0:
+                            # Create target tensor initialized with -1 (will be masked)
+                            target_actions = torch.full((batch_size,), -1, dtype=torch.long, device=device)
                             
-                            # Only proceed if we have a valid solution
-                            if single_solution >= 0:
-                                # Create target tensor for the whole batch
-                                target_actions = torch.full((batch_size,), single_solution, dtype=torch.long, device=device)
-                                
+                            # Fill in the valid solutions at their corresponding indices
+                            # Note: valid_indices are positions in the flattened mb_solutions
+                            # We need to map them back to batch positions
+                            for i, (idx_pos, sol) in enumerate(zip(valid_indices, valid_solutions)):
+                                if idx_pos < batch_size:
+                                    target_actions[idx_pos] = sol
+                            
+                            # Create mask for valid targets
+                            target_mask = target_actions >= 0
+                            
+                            if target_mask.any():
                                 # Reshape logits for loss computation
                                 logits_flat = logits.reshape(-1, logits.shape[-1])
                                 
-                                # Make sure dimensions match
-                                if logits_flat.shape[0] == target_actions.shape[0]:
-                                    # Compute cross-entropy loss
-                                    bc_loss = torch.nn.functional.cross_entropy(
-                                        logits_flat, target_actions, reduction='mean'
-                                    )
-                                    
-                                    # Debug every 10 epochs
-                                    if self.epoch % 10 == 0 and mb == 0:
-                                        print(f"[BC Debug] Computing BC loss: solution={single_solution}, batch_size={batch_size}, bc_loss={bc_loss.item():.4f}")
+                                # Get only the valid logits and targets
+                                valid_logits = logits_flat[target_mask]
+                                valid_targets = target_actions[target_mask]
+                                
+                                # Compute cross-entropy loss only on valid samples
+                                bc_loss = torch.nn.functional.cross_entropy(
+                                    valid_logits, valid_targets, reduction='mean'
+                                )
+                                
+                                # Debug every 10 epochs
+                                if self.epoch % 10 == 0 and mb == 0:
+                                    num_valid = len(valid_targets)
+                                    unique_solutions = torch.unique(valid_targets)
+                                    print(f"[BC Debug] Computing BC loss: {num_valid} valid samples, "
+                                          f"unique solutions: {unique_solutions.tolist()[:5]}, "
+                                          f"bc_loss={bc_loss.item():.4f}")
                                     
                                     # Debug logging - more frequently to see learning progress
-                                    if self.epoch % 10 == 0 and mb == 0:
-                                        with torch.no_grad():
-                                            probs = torch.softmax(logits_flat, dim=-1)
-                                            correct_probs = probs[:, single_solution].mean()
-                                            
-                                            # Get top 5 predicted actions
-                                            top_probs, top_actions = torch.topk(probs[0], 5)
-                                            
-                                            # Check if correct action is in top predictions
-                                            correct_rank = (probs[0] >= probs[0, single_solution]).sum().item()
-                                            
-                                            print(f"[BC Debug] Epoch {self.epoch}: BC loss={bc_loss.item():.4f}, "
-                                                  f"Correct action prob={correct_probs.item():.6f}, "
-                                                  f"BC coef={current_bc_coef:.4f}")
-                                            print(f"[BC Debug] Solution action={single_solution}, Rank={correct_rank}/1968")
-                                            print(f"[BC Debug] Top 5 actions: {top_actions.tolist()} with probs: {top_probs.tolist()[:5]}")
-                                            
-                                            # Also check what actions are being taken during evaluation
-                                            if hasattr(self, 'last_actions_taken'):
-                                                action_counts = torch.bincount(self.last_actions_taken, minlength=1968)
-                                                if single_solution < len(action_counts):
-                                                    print(f"[BC Debug] Times correct action was taken: {action_counts[single_solution].item()}/{len(self.last_actions_taken)}")
+                                    with torch.no_grad():
+                                        # Compute accuracy on valid samples
+                                        probs = torch.softmax(valid_logits, dim=-1)
+                                        
+                                        # Get predictions
+                                        _, predicted = torch.max(valid_logits, dim=-1)
+                                        accuracy = (predicted == valid_targets).float().mean()
+                                        
+                                        # For each unique solution, compute the average probability
+                                        for sol in unique_solutions[:3]:  # Check first 3 unique solutions
+                                            sol_mask = valid_targets == sol
+                                            if sol_mask.any():
+                                                sol_probs = probs[sol_mask, sol].mean()
+                                                print(f"[BC Debug] Solution {sol.item()}: avg prob={sol_probs.item():.6f}")
+                                        
+                                        print(f"[BC Debug] Epoch {self.epoch}: BC loss={bc_loss.item():.4f}, "
+                                              f"Accuracy={accuracy.item():.3f}, "
+                                              f"BC coef={current_bc_coef:.4f}")
                 except Exception as e:
                     # Fail gracefully if something goes wrong
                     if self.epoch == 0 and mb == 0:
