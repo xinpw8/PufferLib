@@ -483,9 +483,15 @@ class Chess(pufferlib.PufferEnv):
             info_dict = binding.vec_log(self.c_envs)
             if info_dict:  # Only append if we got actual data
                 info.append(info_dict)
-                # Debug: print what stats we're collecting
-                # Debug logging removed for performance
-                # No debug printing
+        
+        # ALWAYS create info dict for correct actions (not just when logging)
+        if len(info) == 0:
+            info = [{}]
+            
+        # Add correct actions for supervised learning - collect every step for BC training
+        if hasattr(binding, 'vec_get_correct_actions'):
+            correct_actions = binding.vec_get_correct_actions(self.c_envs)
+            info[0]['correct_action'] = correct_actions
         
         return (obs, rewards, terminals, truncations, info)
     
@@ -1332,16 +1338,7 @@ class Chess(pufferlib.PufferEnv):
             binding.vec_render(self.c_envs, 0)
         return f.getvalue()
     
-    def get_puzzle_solution_actions(self):
-        """Get the correct action indices for the current puzzle states"""
-        if hasattr(self, 'c_envs'):
-            # Vector environment - returns a list from C++
-            solution_list = self.binding.vec_get_puzzle_solution_actions(self.c_envs)
-            # Convert to numpy array
-            return np.array(solution_list, dtype=np.int32)
-        else:
-            # Single environment - not typically used but included for completeness
-            return np.array([self.binding.env_get_puzzle_solution_action(self.c_env)])
+# Removed get_puzzle_solution_actions - BC learning now uses standard reward signals
     
     def close(self):
         if hasattr(self, 'c_envs') and self.c_envs is not None:

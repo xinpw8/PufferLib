@@ -23,7 +23,7 @@ static PyObject* vec_set_puzzle_difficulty(PyObject* self, PyObject* args);
 static PyObject* env_set_puzzle_training_params(PyObject* self, PyObject* args);
 static PyObject* vec_set_puzzle_training_params(PyObject* self, PyObject* args);
 static PyObject* env_get_puzzle_solution_action(PyObject* self, PyObject* args);
-static PyObject* vec_get_puzzle_solution_actions(PyObject* self, PyObject* args);
+static PyObject* vec_get_correct_actions(PyObject* self, PyObject* args);
 
 // Define custom methods for chess module
 #define MY_METHODS \
@@ -44,7 +44,7 @@ static PyObject* vec_get_puzzle_solution_actions(PyObject* self, PyObject* args)
     {"env_set_puzzle_training_params", env_set_puzzle_training_params, METH_VARARGS, "Set puzzle training params for single env"}, \
     {"vec_set_puzzle_training_params", vec_set_puzzle_training_params, METH_VARARGS, "Set puzzle training params for vector env"}, \
     {"env_get_puzzle_solution_action", env_get_puzzle_solution_action, METH_VARARGS, "Get puzzle solution action for single env"}, \
-    {"vec_get_puzzle_solution_actions", vec_get_puzzle_solution_actions, METH_VARARGS, "Get puzzle solution actions for vector env"}, \
+    {"vec_get_correct_actions", vec_get_correct_actions, METH_VARARGS, "Get correct actions for all environments"}, \
     {NULL, NULL, 0, NULL}
 
 #include "../env_binding.h"
@@ -506,11 +506,11 @@ static PyObject* env_get_puzzle_solution_action(PyObject* self, PyObject* args) 
     return PyLong_FromLong(action_id);
 }
 
-static PyObject* vec_get_puzzle_solution_actions(PyObject* self, PyObject* args) {
+static PyObject* vec_get_correct_actions(PyObject* self, PyObject* args) {
     VecEnv* vec = unpack_vecenv(args);
     if (!vec) return NULL;
     
-    // Create a Python list to return the solution actions
+    // Create a Python list to return the correct actions
     PyObject* result = PyList_New(vec->num_envs);
     if (!result) return NULL;
     
@@ -518,7 +518,7 @@ static PyObject* vec_get_puzzle_solution_actions(PyObject* self, PyObject* args)
         CChess* env = vec->envs[i];
         int action_id = -1;  // Default to -1 if no solution
         
-        // Use cached solution if available
+        // Get cached solution if available (for puzzle mode)
         if (env->context.puzzle_mode && env->context.solution_action_cached) {
             action_id = env->context.cached_solution_action;
         }
@@ -527,6 +527,5 @@ static PyObject* vec_get_puzzle_solution_actions(PyObject* self, PyObject* args)
         PyList_SetItem(result, i, PyLong_FromLong(action_id));
     }
     
-    // Return the list directly - Python side will convert to numpy if needed
     return result;
 }

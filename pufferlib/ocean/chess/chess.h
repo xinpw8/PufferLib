@@ -7675,6 +7675,10 @@ if (env->context.puzzle_mode && env->context.puzzle_set_size > 0) {
 // For single puzzle training (puzzle_set_size=1), always use puzzle 0
 if (env->context.puzzle_set_size == 1) {
 env->context.current_puzzle_idx = 0;
+if (env->env_id < 4) {
+  printf("[PUZZLE INIT] Env %d: Using puzzle 0 (set_size=1), solution=%s\n", 
+         env->env_id, env->context.puzzle_set_solutions[0][0]);
+}
 } else {
 env->context.current_puzzle_idx = rand() % env->context.puzzle_set_size;
 }
@@ -8226,6 +8230,8 @@ void c_step(CChess *env) {
       
       if (cmp_result == 0) {
         // Correct move! Award reward and advance to next move
+        printf("[PUZZLE CORRECT] env_id=%d, expected=%s, got action_idx=%d (move=%s)\n", 
+               env->env_id, expected_move, action_idx, uci_move_canonical);
 //         // printf("[PUZZLE DEBUG] CORRECT MOVE! Agent idx=%d, Adding rewards: correct=%f, solved=%f\n",
 //                agent_idx, env->reward_correct_move, env->reward_puzzle_solved);
 //         // printf("[PUZZLE DEBUG] Before: env->rewards[%d] = %f\n", agent_idx, env->rewards[agent_idx]);
@@ -8237,12 +8243,12 @@ void c_step(CChess *env) {
         env->context.puzzle_move_index++;
         // Track correct moves in context for later logging
         env->context.puzzle_correct_moves_this_episode += 1.0f;
-        // Check if puzzle is complete
-//         // printf("[PUZZLE DEBUG] After increment: move_index=%d, solution_length=%d\n", 
-//                env->context.puzzle_move_index, env->context.puzzle_solution_length);
-        if (env->context.puzzle_move_index >=
-            env->context.puzzle_solution_length) {
-        //   // Puzzle solved! Award completion reward
+        // Check if puzzle is complete - ALL moves must be correct
+        // puzzle_move_index is only incremented for correct moves
+        if (env->context.puzzle_move_index >= env->context.puzzle_solution_length) {
+          // All required moves completed correctly - puzzle solved!
+          // For mate-in-1: this means the single correct move was played and should result in checkmate
+          // For multi-step: this means all moves in sequence were correct
           printf("[PUZZLE SOLVED] env_id=%d, global_successes=%d, global_attempts=%d\n", 
                  env->env_id, env->global_puzzle_successes + 1, env->global_puzzle_attempts);
           env->rewards[agent_idx] += env->reward_puzzle_solved;

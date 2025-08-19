@@ -2462,18 +2462,26 @@ class PuffeRL:
             profile('eval_misc', epoch)
             env_id = slice(env_id[0], env_id[-1] + 1)
             
-            # Capture puzzle solutions RIGHT AFTER receiving observations
-            # This is when puzzles are freshly loaded after auto-reset
-            if hasattr(self.vecenv, 'get_puzzle_solution_actions'):
-                try:
-                    solutions = self.vecenv.get_puzzle_solution_actions()
-                    if solutions is not None:
-                        # Store solutions for later use in rollout buffer
-                        self.current_puzzle_solutions = torch.from_numpy(solutions).to(config['device'])
-                        if epoch % 10 == 0 and self.full_rows == 0:
-                            print(f"[Solution Debug] Got solutions after recv: {solutions[:4]}")
-                except:
-                    self.current_puzzle_solutions = None
+            # Collect correct actions from info for supervised learning
+            self.current_correct_actions = None
+            
+            # Debug every step initially to diagnose issue
+            if self.global_step < 10:
+                print(f"[BC DEBUG] Step {self.global_step}: info type={type(info)}, len={len(info)}")
+                if len(info) > 0:
+                    print(f"[BC DEBUG] Step {self.global_step}: info[0] type={type(info[0])}, keys={info[0].keys() if isinstance(info[0], dict) else 'not dict'}")
+                    if isinstance(info[0], dict) and 'correct_action' in info[0]:
+                        print(f"[BC DEBUG] Step {self.global_step}: correct_action found! Value: {info[0]['correct_action']}")
+            
+            if len(info) > 0 and isinstance(info[0], dict) and 'correct_action' in info[0]:
+                correct_actions = info[0]['correct_action']
+                if correct_actions is not None:
+                    self.current_correct_actions = torch.from_numpy(np.array(correct_actions)).to(config['device'])
+                    # Debug: Log that we received correct actions
+                    if self.global_step % 100 == 0 or self.global_step < 10:
+                        print(f"[BC Collection] Step {self.global_step}: Received {len(correct_actions)} correct actions, first 5: {correct_actions[:5]}")
+            elif self.global_step % 100 == 0 or self.global_step < 10:
+                print(f"[BC Collection] Step {self.global_step}: No correct actions in info (info len: {len(info)})")
 
             done_mask = d + t # TODO: Handle truncations separately
             if count_steps:
@@ -2549,12 +2557,34 @@ class PuffeRL:
                 l = self.ep_lengths[env_id.start].item()
                 batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
 
-                # Store the puzzle solutions we captured earlier
-                if hasattr(self, 'current_puzzle_solutions') and self.current_puzzle_solutions is not None:
-                    # Map env_id range to batch_rows indices
+                # Store correct actions for supervised learning
+                if hasattr(self, 'current_correct_actions') and self.current_correct_actions is not None:
+                    # Initialize correct actions buffer if needed
+                    if not hasattr(self, 'correct_actions_buffer'):
+                        self.correct_actions_buffer = torch.full(
+                            (self.segments, config['bptt_horizon']), -1, 
+                            dtype=torch.long, device=config['device']
+                        )
+                        print(f"[BC Buffer] Created correct_actions_buffer with shape {self.correct_actions_buffer.shape}")
+                    
+                    # Store correct actions for this batch of environments
+                    env_start = env_id.start
+                    env_stop = env_id.stop
+                    
+                    # Debug mismatch
+                    if self.global_step < 10 or self.global_step % 1000 == 0:
+                        print(f"[BC STORE DEBUG] Step {self.global_step}: env_range={env_stop-env_start}, correct_actions_len={len(self.current_correct_actions)}, batch_rows={batch_rows}, l={l}")
+                    
+                    # Handle multiprocessing: correct_actions might be for subset of envs
+                    # Store what we have, matching indices
+                    stored_count = 0
                     for i, row in enumerate(range(batch_rows.start, batch_rows.stop)):
-                        if i < len(self.current_puzzle_solutions):
-                            self.puzzle_solutions[row, l] = self.current_puzzle_solutions[i]
+                        if i < len(self.current_correct_actions):
+                            self.correct_actions_buffer[row, l] = self.current_correct_actions[i]
+                            stored_count += 1
+                    
+                    if self.global_step < 10 or self.global_step % 1000 == 0:
+                        print(f"[BC Buffer] Step {self.global_step}: Stored {stored_count}/{env_stop-env_start} correct actions at timestep {l}")
 
                 if config['cpu_offload']:
                     self.observations[batch_rows, l] = o
@@ -2687,95 +2717,43 @@ class PuffeRL:
 
             entropy_loss = entropy.mean()
             
-            # Supervised learning loss for puzzle solutions
+            # Supervised learning loss using correct actions from info
             bc_loss = torch.tensor(0.0, device=device)
             current_bc_coef = config.get('bc_coef', 0) * (config.get('bc_anneal', 1) ** self.epoch)
             
-            # Use stored puzzle solutions from rollout buffer
-            if current_bc_coef > 0:
-                try:
-                    # Get stored solutions for this minibatch
-                    mb_solutions = self.puzzle_solutions[idx].flatten()
+            # Always debug first few epochs
+            if epoch < 3 and mb == 0:
+                print(f"[BC TRAIN DEBUG] Epoch {epoch}, MB {mb}: bc_coef={current_bc_coef:.3f}, has buffer={hasattr(self, 'correct_actions_buffer')}")
+                if hasattr(self, 'correct_actions_buffer'):
+                    print(f"[BC TRAIN DEBUG] Buffer shape: {self.correct_actions_buffer.shape}, idx shape: {idx.shape}")
+                    print(f"[BC TRAIN DEBUG] First 10 buffer values at idx[0:10],0: {self.correct_actions_buffer[idx[:10], 0].tolist()}")
+            
+            if current_bc_coef > 0 and hasattr(self, 'correct_actions_buffer'):
+                # Get correct actions for this minibatch from rollout buffer
+                mb_correct_actions = self.correct_actions_buffer[idx, 0]  # Only first timestep for mate-in-1 puzzles
+                
+                # Filter out invalid actions (-1)
+                valid_mask = mb_correct_actions >= 0
+                
+                if valid_mask.any():
+                    # Get valid targets and corresponding logits
+                    valid_logits = logits[valid_mask]
+                    valid_targets = mb_correct_actions[valid_mask]
                     
-                    # Filter out valid solutions (not -1)
-                    valid_mask = mb_solutions >= 0
+                    # Compute cross-entropy loss
+                    bc_loss = torch.nn.functional.cross_entropy(valid_logits, valid_targets)
                     
-                    # Debug: Print solution actions every 10 epochs
+                    # Debug logging
                     if self.epoch % 10 == 0 and mb == 0:
-                        valid_solutions = mb_solutions[valid_mask] if valid_mask.any() else torch.tensor([])
-                        print(f"[BC Debug] Epoch {self.epoch}: Stored solutions (first 10): {mb_solutions[:10].tolist()}")
-                        print(f"[BC Debug] Valid solutions: {valid_mask.sum().item()}/{len(mb_solutions)}")
-                        print(f"[BC Debug] BC coef: {current_bc_coef:.3f}")
-                    
-                    if valid_mask.any():
-                        # Get valid solutions
-                        valid_solutions = mb_solutions[valid_mask]
-                        valid_indices = torch.where(valid_mask)[0]
-                        
-                        # Get the batch size from logits
-                        batch_size = logits.shape[0]
-                        
-                        # Create target actions using the stored solutions
-                        # Map the valid solutions to their corresponding positions in the batch
-                        if len(valid_solutions) > 0:
-                            # Create target tensor initialized with -1 (will be masked)
-                            target_actions = torch.full((batch_size,), -1, dtype=torch.long, device=device)
-                            
-                            # Fill in the valid solutions at their corresponding indices
-                            # Note: valid_indices are positions in the flattened mb_solutions
-                            # We need to map them back to batch positions
-                            for i, (idx_pos, sol) in enumerate(zip(valid_indices, valid_solutions)):
-                                if idx_pos < batch_size:
-                                    target_actions[idx_pos] = sol
-                            
-                            # Create mask for valid targets
-                            target_mask = target_actions >= 0
-                            
-                            if target_mask.any():
-                                # Reshape logits for loss computation
-                                logits_flat = logits.reshape(-1, logits.shape[-1])
-                                
-                                # Get only the valid logits and targets
-                                valid_logits = logits_flat[target_mask]
-                                valid_targets = target_actions[target_mask]
-                                
-                                # Compute cross-entropy loss only on valid samples
-                                bc_loss = torch.nn.functional.cross_entropy(
-                                    valid_logits, valid_targets, reduction='mean'
-                                )
-                                
-                                # Debug every 10 epochs
-                                if self.epoch % 10 == 0 and mb == 0:
-                                    num_valid = len(valid_targets)
-                                    unique_solutions = torch.unique(valid_targets)
-                                    print(f"[BC Debug] Computing BC loss: {num_valid} valid samples, "
-                                          f"unique solutions: {unique_solutions.tolist()[:5]}, "
-                                          f"bc_loss={bc_loss.item():.4f}")
-                                    
-                                    # Debug logging - more frequently to see learning progress
-                                    with torch.no_grad():
-                                        # Compute accuracy on valid samples
-                                        probs = torch.softmax(valid_logits, dim=-1)
-                                        
-                                        # Get predictions
-                                        _, predicted = torch.max(valid_logits, dim=-1)
-                                        accuracy = (predicted == valid_targets).float().mean()
-                                        
-                                        # For each unique solution, compute the average probability
-                                        for sol in unique_solutions[:3]:  # Check first 3 unique solutions
-                                            sol_mask = valid_targets == sol
-                                            if sol_mask.any():
-                                                sol_probs = probs[sol_mask, sol].mean()
-                                                print(f"[BC Debug] Solution {sol.item()}: avg prob={sol_probs.item():.6f}")
-                                        
-                                        print(f"[BC Debug] Epoch {self.epoch}: BC loss={bc_loss.item():.4f}, "
-                                              f"Accuracy={accuracy.item():.3f}, "
-                                              f"BC coef={current_bc_coef:.4f}")
-                except Exception as e:
-                    # Fail gracefully if something goes wrong
-                    if self.epoch == 0 and mb == 0:
-                        print(f"[BC Warning] Failed to compute BC loss: {e}")
-
+                        with torch.no_grad():
+                            accuracy = (torch.argmax(valid_logits, dim=-1) == valid_targets).float().mean()
+                            unique_targets = torch.unique(valid_targets)
+                            print(f"[BC Debug] Epoch {self.epoch}: {len(valid_targets)} valid samples, "
+                                  f"unique actions: {unique_targets.tolist()[:5]}, "
+                                  f"bc_loss={bc_loss.item():.4f}, accuracy={accuracy.item():.3f}")
+                elif epoch < 3 and mb == 0:
+                    print(f"[BC TRAIN DEBUG] No valid actions in minibatch! All values: {mb_correct_actions[:10].tolist()}")
+            
             # Combine losses
             loss = pg_loss + config['vf_coef']*v_loss - config['ent_coef']*entropy_loss + current_bc_coef * bc_loss
             self.amp_context.__enter__() # TODO: AMP needs some debugging
@@ -2792,7 +2770,8 @@ class PuffeRL:
             losses['approx_kl'] += approx_kl.item() / self.total_minibatches
             losses['clipfrac'] += clipfrac.item() / self.total_minibatches
             losses['importance'] += ratio.mean().item() / self.total_minibatches
-            # Always log BC loss if we're trying to compute it
+            
+            # Log BC loss if computed
             if current_bc_coef > 0:
                 losses['bc_loss'] = losses.get('bc_loss', 0) + bc_loss.item() / self.total_minibatches
                 losses['bc_coef'] = current_bc_coef
