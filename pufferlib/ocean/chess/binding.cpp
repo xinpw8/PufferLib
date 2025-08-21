@@ -518,9 +518,12 @@ static PyObject* vec_get_correct_actions(PyObject* self, PyObject* args) {
         CChess* env = vec->envs[i];
         int action_id = -1;  // Default to -1 if no solution
         
-        // Get cached solution if available (for puzzle mode)
-        if (env->context.puzzle_mode && env->context.solution_action_cached) {
-            action_id = env->context.cached_solution_action;
+        // Get cached solution from the pre-cached array for ALL puzzles
+        if (env->context.puzzle_mode && env->context.puzzle_solutions_cached) {
+            int puzzle_idx = env->context.current_puzzle_idx;
+            if (puzzle_idx >= 0 && puzzle_idx < env->context.puzzle_set_size) {
+                action_id = env->context.puzzle_solution_action_ids[puzzle_idx];
+            }
         }
         
         // Add to list (PyList_SetItem steals reference)

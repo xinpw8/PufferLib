@@ -4766,6 +4766,10 @@ typedef struct ChessContext {
   // Cached solution action ID for BC training
   int cached_solution_action;      // Action ID of first solution move, cached when puzzle loads
   bool solution_action_cached;     // Whether we have a cached solution action
+  
+  // Cache ALL puzzle solution action IDs for BC training
+  int puzzle_solution_action_ids[MAX_PUZZLE_SET_SIZE];  // Action IDs for all puzzles
+  bool puzzle_solutions_cached;                          // Whether all solutions are cached
 
   // New: Global puzzle training logic
   int puzzle_tries_this_episode;    // Total puzzle tries during the episode
@@ -7118,6 +7122,7 @@ void init(CChess *env) {
   env->context.puzzle_start_time = 0;
   env->context.puzzle_samples_to_solve = 0;
   env->context.puzzle_board_cached = false;  // No cached board yet
+  env->context.puzzle_solutions_cached = false;  // No cached solutions yet
 
   // Initialize global puzzle coordination (first env sets defaults)
   if (global_env_counter == 1) { // First environment
@@ -7391,6 +7396,23 @@ if (env->env_id == 0 && i == 0 && j == 0) {
 }
 }
 }
+
+// Cache ALL puzzle solution action IDs upfront for BC training
+env->context.puzzle_solutions_cached = true;
+for (int i = 0; i < env->context.puzzle_set_size; i++) {
+  if (solution_lengths[i] > 0) {
+    const char* first_move = solution_moves[i][0];
+    int action_id = uci_to_action_id(first_move);
+    env->context.puzzle_solution_action_ids[i] = action_id;
+    
+    if (env->env_id == 0 && i < 10) {  // Print first 10 for debugging
+      printf("[CACHE ALL] Puzzle %d: %s -> action %d\n", i, first_move, action_id);
+    }
+  } else {
+    env->context.puzzle_solution_action_ids[i] = -1;
+  }
+}
+
 // No initial load here - c_reset will select and load randomly
 }
 void set_puzzle_training_params(CChess *env, int max_tries_per_env,
@@ -7685,9 +7707,15 @@ if (env->env_id < 4) {
          env->env_id, env->context.puzzle_set_solutions[0][0]);
 }
 } else {
-// Random puzzle selection for better training diversity
-// Each reset randomly selects a puzzle from the set
-env->context.current_puzzle_idx = rand() % env->context.puzzle_set_size;
+// Balanced round-robin puzzle selection to ensure equal training
+// Each environment cycles through all puzzles systematically
+static int env_puzzle_counters[256] = {0};  // Track puzzle index per env
+int env_idx = env->env_id % 256;
+
+// Each env starts at different offset and cycles through all puzzles
+int starting_offset = env_idx % env->context.puzzle_set_size;
+env->context.current_puzzle_idx = (starting_offset + env_puzzle_counters[env_idx]) % env->context.puzzle_set_size;
+env_puzzle_counters[env_idx]++;  // Advance to next puzzle for next reset
 }
 const char* selected_fen = env->context.puzzle_set_fens[env->context.current_puzzle_idx];
 // Create temporary array of solution pointers

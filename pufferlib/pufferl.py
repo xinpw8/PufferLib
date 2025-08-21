@@ -2478,8 +2478,11 @@ class PuffeRL:
                 if correct_actions is not None:
                     self.current_correct_actions = torch.from_numpy(np.array(correct_actions)).to(config['device'])
                     # Debug: Log that we received correct actions
-                    if self.global_step % 100 == 0 or self.global_step < 10:
-                        print(f"[BC Collection] Step {self.global_step}: Received {len(correct_actions)} correct actions, first 5: {correct_actions[:5]}")
+                    if self.global_step % 100 == 0 or self.global_step < 20:
+                        unique_actions = set([a for a in correct_actions if a >= 0])
+                        print(f"[BC Collection] Step {self.global_step}: Received {len(correct_actions)} correct actions")
+                        print(f"  Actions: {correct_actions}")
+                        print(f"  Unique valid actions: {unique_actions}")
             elif self.global_step % 100 == 0 or self.global_step < 10:
                 print(f"[BC Collection] Step {self.global_step}: No correct actions in info (info len: {len(info)})")
 
@@ -2578,13 +2581,18 @@ class PuffeRL:
                     # Handle multiprocessing: correct_actions might be for subset of envs
                     # Store what we have, matching indices
                     stored_count = 0
+                    stored_actions = []
                     for i, row in enumerate(range(batch_rows.start, batch_rows.stop)):
                         if i < len(self.current_correct_actions):
-                            self.correct_actions_buffer[row, l] = self.current_correct_actions[i]
+                            correct_action = self.current_correct_actions[i].item()
+                            self.correct_actions_buffer[row, l] = correct_action
+                            stored_actions.append(correct_action)
                             stored_count += 1
                     
-                    if self.global_step < 10 or self.global_step % 1000 == 0:
+                    if self.global_step < 20 or self.global_step % 1000 == 0:
                         print(f"[BC Buffer] Step {self.global_step}: Stored {stored_count}/{env_stop-env_start} correct actions at timestep {l}")
+                        print(f"  Stored actions: {stored_actions}")
+                        print(f"  Buffer row range: {batch_rows.start}-{batch_rows.stop}")
 
                 if config['cpu_offload']:
                     self.observations[batch_rows, l] = o
@@ -2722,11 +2730,15 @@ class PuffeRL:
             current_bc_coef = config.get('bc_coef', 0) * (config.get('bc_anneal', 1) ** self.epoch)
             
             # Always debug first few epochs
-            if epoch < 3 and mb == 0:
+            if epoch < 5 and mb == 0:
                 print(f"[BC TRAIN DEBUG] Epoch {epoch}, MB {mb}: bc_coef={current_bc_coef:.3f}, has buffer={hasattr(self, 'correct_actions_buffer')}")
                 if hasattr(self, 'correct_actions_buffer'):
                     print(f"[BC TRAIN DEBUG] Buffer shape: {self.correct_actions_buffer.shape}, idx shape: {idx.shape}")
-                    print(f"[BC TRAIN DEBUG] First 10 buffer values at idx[0:10],0: {self.correct_actions_buffer[idx[:10], 0].tolist()}")
+                    sampled_actions = self.correct_actions_buffer[idx[:20], 0].tolist()
+                    valid_sampled = [a for a in sampled_actions if a >= 0]
+                    unique_sampled = set(valid_sampled)
+                    print(f"[BC TRAIN DEBUG] First 20 sampled actions: {sampled_actions}")
+                    print(f"[BC TRAIN DEBUG] Valid actions: {len(valid_sampled)}, Unique: {unique_sampled}")
             
             if current_bc_coef > 0 and hasattr(self, 'correct_actions_buffer'):
                 # Get correct actions for this minibatch from rollout buffer
