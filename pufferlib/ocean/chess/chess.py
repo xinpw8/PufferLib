@@ -508,9 +508,9 @@ class Chess(pufferlib.PufferEnv):
         self.env_puzzle_tries = [0] * self.num_envs
         self.env_puzzle_successes = [0] * self.num_envs
         
-        # Don't increment puzzle ID or index - keep using the same puzzle
-        # self.current_global_puzzle_id += 1  # COMMENTED OUT
-        # self.current_puzzle_index = (self.current_puzzle_index + 1) % len(self.current_puzzles)  # COMMENTED OUT
+        # Increment to next puzzle for all environments
+        self.current_global_puzzle_id += 1
+        # self.current_puzzle_index = (self.current_puzzle_index + 1) % len(self.current_puzzles)  # Not needed with C++ puzzle management
         
         # Start the same puzzle again on all environments
         # TEMPORARILY DISABLED: Using hardcoded puzzle in C++ for debugging

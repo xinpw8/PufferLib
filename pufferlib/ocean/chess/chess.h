@@ -4751,7 +4751,7 @@ typedef struct ChessContext {
   int puzzle_solved_this_env;   // Track solves for this specific environment
   
   // Multiple puzzle support
-  #define MAX_PUZZLE_SET_SIZE 20
+  #define MAX_PUZZLE_SET_SIZE 5000
   #define MAX_PUZZLE_MOVES 10  // Maximum moves per puzzle solution
   char puzzle_set_fens[MAX_PUZZLE_SET_SIZE][128];      // FENs for puzzle set
   char puzzle_set_solutions[MAX_PUZZLE_SET_SIZE][MAX_PUZZLE_MOVES][6]; // Solutions for each puzzle
@@ -7184,7 +7184,8 @@ void init(CChess *env) {
   env->context.puzzle_completed = false;
   env->context.puzzle_failed = false;
   env->context.puzzle_set_size = 0;
-  env->context.current_puzzle_idx = 0;
+  // Start each environment at a different puzzle for diversity
+  env->context.current_puzzle_idx = env->env_id % 150;  // Distribute starting points
   
   // Initialize random seed for puzzle selection
   srand(time(NULL) ^ (uintptr_t)env);
@@ -7369,8 +7370,12 @@ void set_puzzle_set(CChess *env, int num_puzzles, const char **fens,
 const char ***solution_moves, const int *solution_lengths) {
 if (!env->context.puzzle_mode)
 return;
-// Use the actual puzzles passed as parameters
-env->context.puzzle_set_size = num_puzzles;
+// Cap puzzle set size at MAX_PUZZLE_SET_SIZE to prevent buffer overflow
+if (num_puzzles > MAX_PUZZLE_SET_SIZE) {
+  printf("[WARNING] Requested %d puzzles but MAX_PUZZLE_SET_SIZE=%d. Using first %d puzzles.\n", 
+         num_puzzles, MAX_PUZZLE_SET_SIZE, MAX_PUZZLE_SET_SIZE);
+}
+env->context.puzzle_set_size = (num_puzzles <= MAX_PUZZLE_SET_SIZE) ? num_puzzles : MAX_PUZZLE_SET_SIZE;
 // Store the puzzles from parameters
 for (int i = 0; i < num_puzzles && i < MAX_PUZZLE_SET_SIZE; i++) {
 strncpy(env->context.puzzle_set_fens[i], fens[i], 127);
@@ -7680,6 +7685,8 @@ if (env->env_id < 4) {
          env->env_id, env->context.puzzle_set_solutions[0][0]);
 }
 } else {
+// Random puzzle selection for better training diversity
+// Each reset randomly selects a puzzle from the set
 env->context.current_puzzle_idx = rand() % env->context.puzzle_set_size;
 }
 const char* selected_fen = env->context.puzzle_set_fens[env->context.current_puzzle_idx];
