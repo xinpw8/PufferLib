@@ -2736,7 +2736,8 @@ class PuffeRL:
             entropy_loss = entropy.mean()
             
             # Supervised learning loss using correct actions from info
-            bc_loss = torch.tensor(0.0, device=device)
+            # Initialize with a differentiable zero tensor
+            bc_loss = torch.zeros(1, device=device, requires_grad=True)
             
             # Always debug first few epochs
             if epoch < 5 and mb == 0:
@@ -2757,8 +2758,25 @@ class PuffeRL:
                 valid_mask = mb_correct_actions >= 0
                 
                 if valid_mask.any():
+                    # Debug shapes
+                    if epoch < 3 and mb == 0:
+                        print(f"[BC SHAPE DEBUG] logits shape: {logits.shape}, valid_mask shape: {valid_mask.shape}")
+                        print(f"[BC SHAPE DEBUG] minibatch_segments: {self.minibatch_segments}, minibatch_size: {self.minibatch_size}")
+                        print(f"[BC SHAPE DEBUG] use_rnn: {config.get('use_rnn', False)}")
+                    
+                    # Logits come out as [minibatch_size, action_dim] regardless of use_rnn
+                    # We need to get only the first timestep of each segment for BC loss
+                    horizon = config['bptt_horizon']
+                    if logits.shape[0] == self.minibatch_size:
+                        # Reshape logits back to [minibatch_segments, horizon, action_dim] and take first timestep
+                        logits_reshaped = logits.view(self.minibatch_segments, horizon, -1)
+                        segment_logits = logits_reshaped[:, 0, :]  # First timestep of each segment
+                    else:
+                        # Already in correct shape
+                        segment_logits = logits
+                    
                     # Get valid targets and corresponding logits
-                    valid_logits = logits[valid_mask]
+                    valid_logits = segment_logits[valid_mask]
                     valid_targets = mb_correct_actions[valid_mask]
                     
                     # Compute cross-entropy loss
@@ -2776,7 +2794,16 @@ class PuffeRL:
                     print(f"[BC TRAIN DEBUG] No valid actions in minibatch! All values: {mb_correct_actions[:10].tolist()}")
             
             # Combine losses
-            loss = pg_loss + config['vf_coef']*v_loss - config['ent_coef']*entropy_loss + current_bc_coef * bc_loss
+            # DeepMind-style: Use ONLY BC loss for puzzle training (no RL)
+            if current_bc_coef > 50:  # High BC coefficient means pure supervised learning
+                # For pure BC, we need valid actions or skip this minibatch
+                if bc_loss.numel() == 1 and bc_loss.item() == 0:
+                    # No valid actions, use small RL loss to maintain gradients
+                    loss = 0.001 * (pg_loss + config['vf_coef']*v_loss)
+                else:
+                    loss = bc_loss  # Pure supervised learning like DeepMind
+            else:
+                loss = pg_loss + config['vf_coef']*v_loss - config['ent_coef']*entropy_loss + current_bc_coef * bc_loss
             self.amp_context.__enter__() # TODO: AMP needs some debugging
 
             # This breaks vloss clipping?
@@ -2814,7 +2841,7 @@ class PuffeRL:
         y_true = advantages.flatten() + self.values.flatten()
         var_y = y_true.var()
         explained_var = torch.nan if var_y == 0 else 1 - (y_true - y_pred).var() / var_y
-        losses['explained_variance'] = explained_var.item()
+        losses['explained_variance'] = explained_var.item() if torch.is_tensor(explained_var) else explained_var
 
         profile.end()
         logs = None

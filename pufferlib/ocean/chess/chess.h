@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <unistd.h>  // For getpid()
 // Enable debug logging for development (set to 0 to disable)
 #ifndef DEBUG_LOG
 #define DEBUG_LOG 0
@@ -2874,69 +2875,111 @@ if (env->env_id < 4) {
 
 static int total_resets = 0;
 static int total_num_envs = -1;
+static bool rand_seeded = false;
+
+// Seed random number generator ONCE per process with better entropy
+if (!rand_seeded) {
+    // Use env_id for additional entropy since workers may start at same time
+    unsigned int seed = time(NULL) ^ getpid() ^ (env->env_id * 1000000);
+    srand(seed);
+    rand_seeded = true;
+    printf("[RANDOM] Env %d: Seeded with %u\n", env->env_id, seed);
+}
 
 // Detect total number of environments
 if (total_num_envs == -1 || env->env_id >= total_num_envs) {
   total_num_envs = env->env_id + 1;
 }
 
-// DeepMind-style: Sequential iteration through shuffled dataset
-// Initialize puzzle order for this environment if needed
-if (!env->context.puzzle_order_initialized) {
-    // Initialize with sequential order
-    for (int i = 0; i < env->context.puzzle_set_size; i++) {
-        env->context.puzzle_order[i] = i;
+// Simple random puzzle selection for each environment using proper randomness
+// Open /dev/urandom fresh each time to avoid file handle issues in multiprocessing
+FILE* urandom_fp = fopen("/dev/urandom", "rb");
+if (urandom_fp) {
+    unsigned int random_val;
+    if (fread(&random_val, sizeof(random_val), 1, urandom_fp) == 1) {
+        env->context.current_puzzle_idx = random_val % env->context.puzzle_set_size;
+    } else {
+        // Read failed, fallback to rand()
+        env->context.current_puzzle_idx = rand() % env->context.puzzle_set_size;
     }
-    
-    // Fisher-Yates shuffle to randomize order
-    for (int i = env->context.puzzle_set_size - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        int temp = env->context.puzzle_order[i];
-        env->context.puzzle_order[i] = env->context.puzzle_order[j];
-        env->context.puzzle_order[j] = temp;
-    }
-    
-    env->context.puzzle_position = 0;
-    env->context.puzzle_order_initialized = true;
-    
-    if (env->env_id < 4) {
-        printf("[PUZZLE INIT] Env %d: Shuffled %d puzzles, first 5: [%d,%d,%d,%d,%d]\n",
-               env->env_id, env->context.puzzle_set_size,
-               env->context.puzzle_order[0], env->context.puzzle_order[1],
-               env->context.puzzle_order[2], env->context.puzzle_order[3],
-               env->context.puzzle_order[4]);
-    }
+    fclose(urandom_fp);  // Always close the file handle immediately
+} else {
+    // Fallback to rand() if /dev/urandom unavailable
+    env->context.current_puzzle_idx = rand() % env->context.puzzle_set_size;
 }
 
-// Select next puzzle in sequence
-env->context.current_puzzle_idx = env->context.puzzle_order[env->context.puzzle_position];
-env->context.puzzle_position++;
-
-// If we've gone through all puzzles, reshuffle and start over (new epoch)
-if (env->context.puzzle_position >= env->context.puzzle_set_size) {
-    // Reshuffle for next epoch
-    for (int i = env->context.puzzle_set_size - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        int temp = env->context.puzzle_order[i];
-        env->context.puzzle_order[i] = env->context.puzzle_order[j];
-        env->context.puzzle_order[j] = temp;
-    }
-    env->context.puzzle_position = 0;
-    
-    if (env->env_id < 4) {
-        printf("[PUZZLE EPOCH] Env %d: Completed epoch, reshuffled. New first 5: [%d,%d,%d,%d,%d]\n",
-               env->env_id, env->context.puzzle_order[0], env->context.puzzle_order[1],
-               env->context.puzzle_order[2], env->context.puzzle_order[3],
-               env->context.puzzle_order[4]);
-    }
-}
-
-// Debug logging
-if (env->env_id < 4 && total_resets % 100 == 0) {
-    printf("[PUZZLE SELECT] Env %d: position %d/%d, puzzle %d (action %d)\n", 
-           env->env_id, env->context.puzzle_position-1, env->context.puzzle_set_size,
-           env->context.current_puzzle_idx,
+// Debug logging - only log every 10th selection per env
+static int env_selections[16] = {0};
+env_selections[env->env_id]++;
+if (env_selections[env->env_id] % 10 == 0) {
+    printf("[PUZZLE SELECT] Env %d: puzzle_idx=%d (out of %d), action=%d\n", 
+           env->env_id, env->context.current_puzzle_idx, env->context.puzzle_set_size,
            env->context.puzzle_solution_action_ids[env->context.current_puzzle_idx]);
+}
+
+// Track puzzle frequency
+static int selections[500] = {0};
+static int total_selections = 0;
+selections[env->context.current_puzzle_idx]++;
+total_selections++;
+
+// Every 100 selections, show puzzle distribution
+if (total_selections % 100 == 0) {
+    int unique_puzzles_used = 0;
+    int max_count = 0;
+    int most_common_puzzle = -1;
+    
+    printf("\n[PUZZLE DISTRIBUTION] After %d selections:\n", total_selections);
+    printf("Top 20 most selected puzzles:\n");
+    
+    // Count unique puzzles first
+    for (int i = 0; i < env->context.puzzle_set_size; i++) {
+        if (selections[i] > 0) unique_puzzles_used++;
+    }
+    
+    // Create sorted list of puzzles by frequency
+    int sorted_indices[500];
+    int sorted_counts[500];
+    int num_used = 0;
+    
+    // Copy and sort
+    for (int i = 0; i < env->context.puzzle_set_size; i++) {
+        if (selections[i] > 0) {
+            sorted_indices[num_used] = i;
+            sorted_counts[num_used] = selections[i];
+            num_used++;
+        }
+    }
+    
+    // Simple bubble sort for top puzzles
+    for (int i = 0; i < num_used && i < 20; i++) {
+        for (int j = i + 1; j < num_used; j++) {
+            if (sorted_counts[j] > sorted_counts[i]) {
+                int tmp = sorted_counts[i];
+                sorted_counts[i] = sorted_counts[j];
+                sorted_counts[j] = tmp;
+                tmp = sorted_indices[i];
+                sorted_indices[i] = sorted_indices[j];
+                sorted_indices[j] = tmp;
+            }
+        }
+    }
+    
+    // Print top 20
+    for (int i = 0; i < 20 && i < num_used; i++) {
+        printf("  Puzzle %3d: %5d times (action %4d)\n", 
+               sorted_indices[i], sorted_counts[i], 
+               env->context.puzzle_solution_action_ids[sorted_indices[i]]);
+    }
+    
+    printf("\nUNIQUE PUZZLES USED: %d / %d (%.1f%%)\n", 
+           unique_puzzles_used, env->context.puzzle_set_size,
+           100.0 * unique_puzzles_used / env->context.puzzle_set_size);
+    
+    // Check if rand() is working
+    printf("Random test: %d, %d, %d, %d, %d\n",
+           rand() % 500, rand() % 500, rand() % 500, 
+           rand() % 500, rand() % 500);
 }
 
 total_resets++;
@@ -3326,13 +3369,11 @@ void c_step(CChess *env) {
       // Check if we've exceeded max tries for this puzzle
       if (env->context.puzzle_tries_this_env >=
           env->context.puzzle_max_tries_per_env) {
-        // Don't terminate - continue episode for 8192 steps
-        // Reset puzzle for next attempt
-        env->context.puzzle_failed = false;
-        env->context.puzzle_tries_this_env = 0;
-        // // printf("[PUZZLE] Max tries reached, resetting puzzle. Stats: attempts=%.1f, wrong=%.1f\n",
-        //        env->context.puzzle_attempts_this_episode,
-        //        env->context.puzzle_wrong_moves_this_episode);
+        // TERMINATE the episode to move to a new puzzle
+        env->terminals[0] = 1;
+        env->terminals[1] = 1;
+        add_log(env);
+        // printf("[PUZZLE] Max tries reached, terminating to select new puzzle\n");
       }
       // DON'T reset yet - let agent see the penalty with current board
       // Mark for reset on NEXT step
