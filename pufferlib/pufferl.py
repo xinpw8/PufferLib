@@ -2653,6 +2653,9 @@ class PuffeRL:
         vf_clip = config['vf_clip_coef']
         anneal_beta = b0 + (1 - b0)*a*self.epoch/self.total_epochs
         self.ratio[:] = 1
+        
+        # Calculate BC coefficient before the minibatch loop
+        current_bc_coef = config.get('bc_coef', 0) * (config.get('bc_anneal', 1) ** self.epoch)
 
         for mb in range(self.total_minibatches):
             profile('train_misc', epoch, nest=True)
@@ -2665,11 +2668,18 @@ class PuffeRL:
                 config['gae_lambda'], config['vtrace_rho_clip'], config['vtrace_c_clip'])
 
             profile('train_copy', epoch)
-            adv = advantages.abs().sum(axis=1)
-            prio_weights = torch.nan_to_num(adv**a, 0, 0, 0)
-            prio_probs = (prio_weights + 1e-6)/(prio_weights.sum() + 1e-6)
-            idx = torch.multinomial(prio_probs, self.minibatch_segments)
-            mb_prio = (self.segments*prio_probs[idx, None])**-anneal_beta
+            # DeepMind-style uniform sampling for BC training
+            if current_bc_coef > 0:
+                # Uniform random sampling like DeepMind
+                idx = torch.randperm(self.segments)[:self.minibatch_segments]
+                mb_prio = torch.ones((self.minibatch_segments, 1), device=device)
+            else:
+                # Keep priority sampling for regular RL
+                adv = advantages.abs().sum(axis=1)
+                prio_weights = torch.nan_to_num(adv**a, 0, 0, 0)
+                prio_probs = (prio_weights + 1e-6)/(prio_weights.sum() + 1e-6)
+                idx = torch.multinomial(prio_probs, self.minibatch_segments)
+                mb_prio = (self.segments*prio_probs[idx, None])**-anneal_beta
             mb_obs = self.observations[idx]
             mb_actions = self.actions[idx]
             mb_logprobs = self.logprobs[idx]
@@ -2727,7 +2737,6 @@ class PuffeRL:
             
             # Supervised learning loss using correct actions from info
             bc_loss = torch.tensor(0.0, device=device)
-            current_bc_coef = config.get('bc_coef', 0) * (config.get('bc_anneal', 1) ** self.epoch)
             
             # Always debug first few epochs
             if epoch < 5 and mb == 0:
