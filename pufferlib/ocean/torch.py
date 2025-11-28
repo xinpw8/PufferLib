@@ -19,6 +19,53 @@ from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
 
 
+class Diablo(nn.Module):
+    def __init__(self, env, cnn_channels=32, hidden_size=256, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        h, w, c = env.single_observation_space.shape
+
+        self.cnn = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Conv2d(c, cnn_channels, kernel_size=3, padding=1)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, padding=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        cnn_out_dim = cnn_channels * h * w
+        # Project CNN output to hidden_size for LSTM compatibility
+        self.encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(cnn_out_dim, hidden_size)),
+            nn.ReLU(),
+        )
+        self.actor = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
+        self.value_fn = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, 1), std=1)
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations)
+        return self.decode_actions(hidden)
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
+
+    def encode_observations(self, observations, state=None):
+        # observations come in (B, H, W, C) or (B, T, H, W, C) for LSTM
+        if observations.dim() == 5:
+            B, T, H, W, C = observations.shape
+            observations = observations.view(B * T, H, W, C)
+        x = observations.permute(0, 3, 1, 2).float()
+        x = self.cnn(x)
+        return self.encoder(x)
+
+    def decode_actions(self, hidden, state=None):
+        logits = self.actor(hidden)
+        value = self.value_fn(hidden)
+        return logits, value
+
+
 class Boids(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()

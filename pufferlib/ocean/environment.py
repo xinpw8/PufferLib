@@ -151,6 +151,7 @@ MAKE_FUNCTIONS = {
     'shared_pool': 'PyCPR',
     'impulse_wars': 'ImpulseWars',
     'drive': 'Drive',
+    'diablo': 'Diablo',
     'pacman': 'Pacman',
     'tmaze': 'TMaze',
     'checkers': 'Checkers',
