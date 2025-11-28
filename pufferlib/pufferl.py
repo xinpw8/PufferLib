@@ -1018,6 +1018,10 @@ def eval(env_name, args=None, vecenv=None, policy=None):
             #cv2.imshow('frame', render)
             #cv2.waitKey(1)
             #time.sleep(1/args['fps'])
+        elif driver.render_mode == 'human':
+            # For human render mode, the game runs in real-time
+            # Add delay to match game speed
+            time.sleep(1/args['fps'])
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)

@@ -1,180 +1,183 @@
 """
-Native PufferEnv wrapper around the real DevilutionX-AI Gym env.
-This launches the DevilutionX binary in headless step mode, shares
-memory with the game, and converts the dungeon bitfield + status
-into a (21, 21, 24) float tensor that matches the original CNN
-training pipeline (19 environment flags + 5 status channels).
+Diablo PufferEnv - Native C binding with DevilutionX shared memory interface.
+
+This launches the DevilutionX binary and interfaces via shared memory,
+with observation computation and action submission handled in C for performance.
 """
 
 import configparser
-import os
-import sys
-from pathlib import Path
-
 import gymnasium
 import numpy as np
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
 
 import pufferlib
 
 
 def _resolve_ai_path():
+    """Find DevilutionX-AI directory."""
     root = Path(__file__).resolve().parents[4]
     ai_dir = root / "DevilutionX-AI" / "ai"
     if str(ai_dir) not in sys.path:
-        sys.path.append(str(ai_dir))
+        sys.path.insert(0, str(ai_dir))
     return ai_dir
 
 
 AI_PATH = _resolve_ai_path()
-# Import after path injection
+
+# Import DevilutionX-AI modules for game launching
 try:
-    import diablo_env  # type: ignore  # noqa: E402
-    import diablo_state  # type: ignore  # noqa: E402
+    import procutils
 except ImportError as e:
     raise ImportError(
-        "Diablo integration requires the DevilutionX-AI Python deps "
-        "(e.g., numba, futex). Install them via "
-        "`pip install -r ../DevilutionX-AI/ai/requirements.txt` from the repo root."
+        "Diablo integration requires the DevilutionX-AI Python deps. "
+        "Install them via `pip install -r ../DevilutionX-AI/ai/requirements.txt`"
     ) from e
 
+# Import C binding
+try:
+    from pufferlib.ocean.diablo import binding
+except ImportError:
+    binding = None
 
+
+# Constants
 ENV_ID_DEFAULT = "Diablo-FindNextLevel-v1"
-ENV_STATUS_HIGH = 0xFFFFF
-ENV_STATUS_LEN = 5  # monsters_cnt, hp, mode, x, y
-ENV_FLAG_COUNT = len(diablo_state.EnvironmentFlag)
-OBS_CHANNELS = ENV_FLAG_COUNT + ENV_STATUS_LEN
-OBS_SHAPE = (21, 21, OBS_CHANNELS)  # view radius 10 -> 21x21
-
-
-def _bitfield_to_channels(env_bitfield: np.ndarray, env_status: np.ndarray) -> np.ndarray:
-    """Convert (H,W) uint32 dungeon bitfield + status into (H,W,C) float32."""
-    bit_indices = np.arange(ENV_FLAG_COUNT, dtype=np.uint32)
-    bit_planes = ((env_bitfield[..., None] >> bit_indices) & 1).astype(np.float32)
-    status_norm = np.clip(env_status.astype(np.float32) / ENV_STATUS_HIGH, 0.0, 1.0)
-    status_planes = np.broadcast_to(status_norm.reshape(1, 1, -1), env_bitfield.shape + (ENV_STATUS_LEN,))
-    return np.concatenate([bit_planes, status_planes], axis=-1)
+VIEW_RADIUS = 10
+VIEW_SIZE = 2 * VIEW_RADIUS + 1  # 21
+ENV_FLAG_COUNT = 19
+ENV_STATUS_LEN = 5
+OBS_CHANNELS = ENV_FLAG_COUNT + ENV_STATUS_LEN  # 24
+OBS_SHAPE = (VIEW_SIZE, VIEW_SIZE, OBS_CHANNELS)
 
 
 def _load_defaults(ai_path: Path):
+    """Load default config from DevilutionX-AI."""
     cfg_path = ai_path / "diablo-ai.ini"
     cfg = configparser.ConfigParser()
     cfg.read(cfg_path)
     defaults = {
         "diablo_build_path": (ai_path.parent / "build"),
-        "mshared_filename": cfg["default"]["diablo-mshared-filename"],
+        "mshared_filename": cfg.get("default", "diablo-mshared-filename", fallback="devilutionx-shared.mem"),
     }
     return defaults
 
 
-def _env_to_ascii(env_bitfield: np.ndarray, game=None) -> str:
-    """Convert environment bitfield to ASCII representation."""
-    EF = diablo_state.EnvironmentFlag
-    lines = []
-    h, w = env_bitfield.shape
+def _find_shared_memory_offset(pid, mshared_path, timeout=30):
+    """
+    Wait for shared memory file to be created and find the memory offset
+    by examining /proc/PID/maps.
+    """
+    # Wait for file to exist
+    start = time.time()
+    while not os.path.exists(mshared_path):
+        if time.time() - start > timeout:
+            raise TimeoutError(f"Shared memory file {mshared_path} not created within {timeout}s")
+        time.sleep(0.1)
 
-    for j in range(h):
-        row_chars = []
-        for i in range(w):
-            tile = env_bitfield[j, i]
-            if tile == 0:
-                s = ' '
-            elif tile & EF.Player.value:
-                s = '↓'  # Default player direction
-            elif tile & EF.Monster.value:
-                s = '@'
-            elif tile & EF.Goal.value:
-                s = '⚑'
-            elif tile & EF.Wall.value:
-                s = '#'
-            elif tile & EF.Door.value:
-                s = 'd' if tile & EF.Open.value else 'D'
-            elif tile & EF.Chest.value:
-                s = 'C' if tile & EF.Interactable.value else 'c'
-            elif tile & EF.Barrel.value:
-                s = 'B'
-            elif tile & EF.Item.value:
-                s = 'I'
-            elif tile & EF.NextTrigger.value:
-                s = 'v'
-            elif tile & EF.PrevTrigger.value:
-                s = '^'
-            elif tile & EF.WarpTrigger.value:
-                s = '$'
-            elif tile & EF.Visible.value:
-                s = '.'
-            elif tile & EF.Explored.value:
-                s = ' '
-            else:
-                s = ' '
-            row_chars.append(s)
-        lines.append(' '.join(row_chars))
+    # Give the game a moment to fully initialize
+    time.sleep(0.5)
 
-    return '\n'.join(lines)
+    # Find memory offset from /proc/PID/maps
+    try:
+        offset = procutils.find_shared_memory_offset(pid, mshared_path)
+    except Exception:
+        # Fallback: use a common base offset
+        # This is the minimum address from VARS in devilutionx.py
+        offset = 5865768
+    return offset
 
 
-class _WrappedEnv:
-    """Thin wrapper holding a single DevilutionX-AI Gym env instance."""
+class _GameInstance:
+    """Manages a single DevilutionX game instance."""
 
-    def __init__(self, env_id, game_cfg):
-        env_cls = {e["id"]: e["entry_point"] for e in diablo_env.DIABLO_ENVS}[env_id]
-        # diablo_state expects to find diablo.ini.template in the CWD
-        cwd = os.getcwd()
-        try:
-            os.chdir(AI_PATH)
-            game = diablo_state.DiabloGame.run_or_attach(game_cfg)
-        finally:
-            os.chdir(cwd)
-        env_cfg = game_cfg.copy()
-        env_cfg["seed"] = game_cfg["seed"]
-        env_cls.tune_config(env_cfg)
-        self.env = env_cls(env_cfg, game=game)
-        self.game = game
-        self.ep_return = 0.0
-        self.ep_len = 0
-        self._last_obs = None
+    def __init__(self, game_cfg, ai_path):
+        self.proc = None
+        self.state_dir = None
+        self.log_file = None
+        self.mshared_path = None
+        self.base_offset = 0
 
-    def reset(self, seed=None):
-        obs, _ = self.env.reset(seed=seed)
-        self.ep_return = 0.0
-        self.ep_len = 0
-        self._last_obs = obs
-        return obs
+        # Read and format config template
+        cfg_template_path = ai_path / "diablo.ini.template"
+        with open(cfg_template_path, "r") as f:
+            cfg = f.read()
 
-    def step(self, action):
-        obs, reward, terminated, truncated, info = self.env.step(int(action))
-        self.ep_return += reward
-        self.ep_len += 1
-        self._last_obs = obs
-        done = terminated or truncated
-        log = None
-        if done:
-            log = {
-                "episode_return": float(self.ep_return),
-                "episode_length": float(self.ep_len),
-                "perf": float(self.ep_return),
-                "success_rate": 1.0 if reward > 0 else 0.0,
-                "n": 1.0,
-            }
-            obs, _ = self.env.reset()
-            self.ep_return = 0.0
-            self.ep_len = 0
-            self._last_obs = obs
-        return obs, reward, terminated, truncated, info, log
+        cfg = cfg.format(
+            seed=game_cfg["seed"],
+            fixed_seed=1 if game_cfg.get("fixed-seed", False) else 0,
+            automap_active=1 if game_cfg.get("gui", False) else 0,
+            skip_progress=1 if game_cfg.get("gui", False) else 0,
+            skip_animation=0 if game_cfg.get("gui", False) else 1,  # Show animations in GUI
+            headless=0 if game_cfg.get("gui", False) else 1,
+            game_ticks_per_step=game_cfg.get("game-ticks-per-step", 10),
+            step_mode=1,  # Always use step mode - game reads from ring buffer
+            mshared_filename=game_cfg["mshared-filename"],
+            no_monsters=1 if game_cfg.get("no-monsters", False) else 0,
+            harmless_barrels=1 if game_cfg.get("harmless-barrels", False) else 0,
+            no_auto_walk_on_seconday_action=1 if game_cfg.get("no-auto-walk-on-seconday-action", True) else 0,
+        )
 
-    def render_ascii(self) -> str:
-        """Return ASCII representation of the current game state."""
-        if self._last_obs is None:
-            return ""
-        env_bitfield = self._last_obs.get("env", np.zeros((21, 21), dtype=np.uint32))
-        header = f"Episode Return: {self.ep_return:.2f} | Steps: {self.ep_len}"
-        ascii_map = _env_to_ascii(env_bitfield, self.game)
-        return f"{header}\n\n{ascii_map}"
+        # Create temp directory for game state
+        prefix = f"diablo-{game_cfg['seed']}-{os.getpid()}-"
+        self.state_dir = tempfile.TemporaryDirectory(prefix=prefix)
+        cfg_file_path = os.path.join(self.state_dir.name, "diablo.ini")
+        with open(cfg_file_path, "w") as f:
+            f.write(cfg)
+
+        self.log_file = open(os.path.join(self.state_dir.name, "diablo.log"), "w", buffering=1)
+
+        # Launch game binary
+        cmd = [
+            game_cfg["diablo-bin-path"],
+            "--config-dir", self.state_dir.name,
+            "--save-dir", self.state_dir.name,
+        ]
+        if not game_cfg.get("gui", False):
+            cmd.append("-n")  # Skip intro videos
+
+        # Clean environment (pygame can mess with SDL_AUDIODRIVER)
+        env = os.environ.copy()
+        if "SDL_AUDIODRIVER" in env:
+            del env["SDL_AUDIODRIVER"]
+
+        self.proc = subprocess.Popen(cmd, stdout=self.log_file, stderr=self.log_file, env=env)
+        self.mshared_path = os.path.abspath(
+            os.path.join(self.state_dir.name, game_cfg["mshared-filename"])
+        )
+
+        # Find memory offset
+        self.base_offset = _find_shared_memory_offset(self.proc.pid, self.mshared_path)
 
     def close(self):
-        self.env.close()
+        """Terminate game and clean up."""
+        if self.proc:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+            self.proc = None
+        if self.log_file:
+            self.log_file.close()
+            self.log_file = None
+        if self.state_dir:
+            self.state_dir.cleanup()
+            self.state_dir = None
 
 
 class Diablo(pufferlib.PufferEnv):
+    """
+    Diablo environment using native C bindings for performance.
+
+    Launches DevilutionX game binaries and interfaces via shared memory.
+    Observation computation and action submission are handled in C.
+    """
+
     def __init__(
         self,
         render_mode=None,
@@ -182,14 +185,20 @@ class Diablo(pufferlib.PufferEnv):
         seed=0,
         env_id=ENV_ID_DEFAULT,
         game_ticks_per_step=10,
-        view_radius=10,
+        view_radius=VIEW_RADIUS,
         no_monsters=False,
         harmless_barrels=False,
         fixed_seed=False,
         diablo_build_path=None,
         mshared_filename=None,
+        max_steps=10000,
         buf=None,
     ):
+        if binding is None:
+            raise ImportError(
+                "Diablo C binding not compiled. Run: python setup.py build_ext --inplace --force"
+            )
+
         defaults = _load_defaults(AI_PATH)
         build_path = Path(diablo_build_path) if diablo_build_path else Path(defaults["diablo_build_path"])
         build_path = build_path.expanduser().resolve()
@@ -200,85 +209,110 @@ class Diablo(pufferlib.PufferEnv):
         if not (build_path / "spawn.mpq").exists():
             raise FileNotFoundError(f"spawn.mpq missing in {build_path}; download per DevilutionX-AI README")
 
+        # Force single env when rendering (you only want to watch one game)
+        self.render_mode = render_mode if render_mode else None
+        if self.render_mode == "human":
+            num_envs = 1
+
         self.num_envs = num_envs
         self.num_agents = num_envs
         self.agents_per_batch = num_envs
-        # Handle empty string from INI config as None
-        self.render_mode = render_mode if render_mode else None
+        self.view_radius = view_radius
+        self.max_steps = max_steps
+        self.game_ticks_per_step = game_ticks_per_step
+
         self.single_observation_space = gymnasium.spaces.Box(
             low=0.0, high=1.0, shape=OBS_SHAPE, dtype=np.float32
         )
         self.single_action_space = gymnasium.spaces.Discrete(11)
-        self.env_id = env_id
 
         super().__init__(buf=buf)
 
-        self._envs = []
-        seeds = [seed + i for i in range(num_envs)]
+        # Launch game instances
+        self._games = []
+        self._c_envs = []
+
         for idx in range(num_envs):
             game_cfg = {
                 "mshared-filename": mshared,
                 "diablo-bin-path": str((build_path / "devilutionx").resolve()),
-                "seed": seeds[idx],
+                "seed": seed + idx,
                 "no-monsters": no_monsters,
                 "harmless-barrels": harmless_barrels,
                 "no-auto-walk-on-seconday-action": True,
                 "view-radius": view_radius,
                 "game-ticks-per-step": game_ticks_per_step,
                 "step-mode": True,
-                "gui": False if render_mode is None else True,
+                "gui": render_mode == "human",
                 "fixed-seed": fixed_seed,
-                "log-to-stdout": False,
-                "no-actions": False,
-                "exploration-door-attraction": False,
-                "exploration-door-backtrack-penalty": False,
             }
-            self._envs.append(_WrappedEnv(env_id, game_cfg))
 
+            # Launch game
+            game = _GameInstance(game_cfg, AI_PATH)
+            self._games.append(game)
+
+            # Initialize C environment
+            env_id = binding.env_init(
+                self.observations[idx : idx + 1],
+                self.actions[idx : idx + 1],
+                self.rewards[idx : idx + 1],
+                self.terminals[idx : idx + 1],
+                self.truncations[idx : idx + 1],
+                seed + idx,
+                view_radius=view_radius,
+                max_steps=max_steps,
+                game_ticks_per_step=game_ticks_per_step,
+            )
+
+            # Pass mmap info to C binding
+            binding.env_put(
+                env_id,
+                mmap_path=game.mshared_path,
+                base_offset=game.base_offset,
+                step_mode=True,  # Always use step mode
+                goal_x=0,  # Will be set by reset
+                goal_y=0,
+            )
+
+            self._c_envs.append(env_id)
+
+        # Create vectorized env handle
+        self.c_vec = binding.vectorize(*self._c_envs)
         self._reset_all()
 
     def _reset_all(self):
-        for i, env in enumerate(self._envs):
-            obs = env.reset()
-            self._write_obs(i, obs)
-        self.rewards[:] = 0.0
-        self.terminals[:] = 0
-        self.truncations[:] = 0
-
-    def _write_obs(self, idx, obs_dict):
-        obs_img = _bitfield_to_channels(obs_dict["env"], obs_dict["env-status"])
-        self.observations[idx] = obs_img
+        """Reset all environments."""
+        binding.vec_reset(self.c_vec, 0)
 
     def reset(self, seed=0):
-        for i, env in enumerate(self._envs):
-            obs = env.reset(seed=seed + i)
-            self._write_obs(i, obs)
+        """Reset all environments."""
+        binding.vec_reset(self.c_vec, seed)
         return self.observations, []
 
     def step(self, actions):
+        """Step all environments."""
+        self.actions[:] = actions
+        binding.vec_step(self.c_vec)
+
         info_list = []
-        self.terminals[:] = 0
-        self.truncations[:] = 0
-        for i, (env, action) in enumerate(zip(self._envs, actions)):
-            obs, reward, terminated, truncated, info, log = env.step(action)
-            self.rewards[i] = reward
-            self.terminals[i] = 1 if terminated else 0
-            self.truncations[i] = 1 if truncated else 0
-            self._write_obs(i, obs)
-            if log:
-                info_list.append(log)
+        log = binding.vec_log(self.c_vec)
+        if log:
+            info_list.append(log)
+
         return self.observations, self.rewards, self.terminals, self.truncations, info_list
 
     def render(self):
-        """Render the environment.
-
-        - render_mode='ansi': returns ASCII string representation
-        - render_mode='human': GUI is handled by DevilutionX (launched with gui=True)
-        """
-        if self.render_mode == 'ansi' and self._envs:
-            return self._envs[0].render_ascii()
+        """Render is handled by DevilutionX when gui=True."""
+        if self.render_mode == "human" and self._c_envs:
+            binding.vec_render(self.c_vec, 0)
         return None
 
     def close(self):
-        for env in self._envs:
-            env.close()
+        """Clean up all resources."""
+        if hasattr(self, "c_vec") and self.c_vec:
+            binding.vec_close(self.c_vec)
+            self.c_vec = None
+        for game in getattr(self, "_games", []):
+            game.close()
+        self._games = []
+        self._c_envs = []

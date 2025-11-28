@@ -190,6 +190,8 @@ extension_kwargs = dict(
 c_extensions = []
 if not NO_OCEAN:
     c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
+    # Diablo uses a different extension config (no raylib)
+    diablo_paths = [p for p in c_extension_paths if 'ocean/diablo/' in p]
     c_extension_paths = [p for p in c_extension_paths if 'ocean/diablo/' not in p]
     c_extensions = [
         Extension(
@@ -199,7 +201,29 @@ if not NO_OCEAN:
         )
         for path in c_extension_paths if 'matsci' not in path
     ]
+
+    # Add Diablo extension without raylib (it only needs system headers for mmap/futex)
+    diablo_compile_args = [
+        '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
+    ]
+    if DEBUG:
+        diablo_compile_args += ['-O0', '-g']
+    else:
+        diablo_compile_args += ['-O2', '-flto']
+
+    for diablo_path in diablo_paths:
+        c_extensions.append(Extension(
+            diablo_path.rstrip('.c').replace('/', '.'),
+            sources=[diablo_path],
+            include_dirs=[numpy.get_include()],
+            extra_compile_args=diablo_compile_args,
+            extra_link_args=['-fwrapv'],
+        ))
+
     c_extension_paths = [os.path.join(*path.split('/')[:-1]) for path in c_extension_paths]
+    # Add diablo to paths
+    for diablo_path in diablo_paths:
+        c_extension_paths.append(os.path.join(*diablo_path.split('/')[:-1]))
 
     for c_ext in c_extensions:
         if "impulse_wars" in c_ext.name:
