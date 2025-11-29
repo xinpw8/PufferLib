@@ -53,6 +53,7 @@ ENV_FLAG_COUNT = 19
 ENV_STATUS_LEN = 5
 OBS_CHANNELS = ENV_FLAG_COUNT + ENV_STATUS_LEN  # 24
 OBS_SHAPE = (VIEW_SIZE, VIEW_SIZE, OBS_CHANNELS)
+MIN_VAR_ADDR = 5865768  # minimum addr from devilutionx.py VARS
 
 
 def _load_defaults(ai_path: Path):
@@ -70,7 +71,8 @@ def _load_defaults(ai_path: Path):
 def _find_shared_memory_offset(pid, mshared_path, timeout=30):
     """
     Wait for shared memory file to be created and find the memory offset
-    by examining /proc/PID/maps.
+    by examining /proc/PID/maps. Uses the same calculation as procutils.py:
+    offset = mapped_addr - base_addr, where base_addr is the first mapping.
     """
     # Wait for file to exist
     start = time.time()
@@ -79,17 +81,30 @@ def _find_shared_memory_offset(pid, mshared_path, timeout=30):
             raise TimeoutError(f"Shared memory file {mshared_path} not created within {timeout}s")
         time.sleep(0.1)
 
-    # Give the game a moment to fully initialize
-    time.sleep(0.5)
+    # Read /proc/<pid>/maps to find the mapping offset
+    # This matches procutils.get_mapped_file_and_offset_of_pid
+    maps_path = f"/proc/{pid}/maps"
+    if os.path.exists(maps_path):
+        with open(maps_path, "r") as f:
+            lines = f.readlines()
+            if not lines:
+                return MIN_VAR_ADDR
 
-    # Find memory offset from /proc/PID/maps
-    try:
-        offset = procutils.find_shared_memory_offset(pid, mshared_path)
-    except Exception:
-        # Fallback: use a common base offset
-        # This is the minimum address from VARS in devilutionx.py
-        offset = 5865768
-    return offset
+            # Get base address from first mapping (like procutils.py)
+            first_parts = lines[0].strip().split()
+            base_addr = int(first_parts[0].split("-")[0], 16)
+
+            # Find the shared memory file mapping
+            for line in lines:
+                parts = line.strip().split()
+                if len(parts) >= 6 and parts[-1].endswith(os.path.basename(mshared_path)):
+                    mapped_addr = int(parts[0].split("-")[0], 16)
+                    # Offset = difference between shared file mapping and base
+                    offset = mapped_addr - base_addr
+                    return offset
+
+    # Fallback: use minimum VAR addr
+    return MIN_VAR_ADDR
 
 
 class _GameInstance:

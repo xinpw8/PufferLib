@@ -33,9 +33,10 @@ static int my_put(Env* env, PyObject* args, PyObject* kwargs) {
         return 1;
     }
 
-    uint32_t base_offset = (uint32_t)unpack(kwargs, "base_offset");
-    if (PyErr_Occurred()) {
-        return 1;
+    PyObject* base_obj = PyDict_GetItemString(kwargs, "base_offset");
+    uint64_t base_offset = 0;
+    if (base_obj && PyLong_Check(base_obj)) {
+        base_offset = PyLong_AsUnsignedLongLong(base_obj);
     }
 
     /* Initialize mmap */

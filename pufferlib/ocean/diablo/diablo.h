@@ -138,6 +138,12 @@ typedef struct {
     uint32_t sol_data;
 } MemoryOffsets;
 
+/* Player struct field offsets (from devilutionx.py) */
+#define PLAYER_HP_OFFSET    16216
+#define PLAYER_MODE_OFFSET  16304
+#define PLAYER_POS_OFFSET   16595  /* position.tile.x/y (uint8) */
+#define PM_DEATH            8  /* from devilutionx.py PLR_MODE */
+
 /* Ring buffer entry */
 typedef struct {
     uint32_t en_type;
@@ -200,7 +206,7 @@ struct Diablo {
     void* mmap_base;
     size_t mmap_size;
     int mmap_fd;
-    uint32_t base_offset;
+    uint64_t base_offset;
 
     /* Memory offsets (absolute from mmap_base) */
     MemoryOffsets offsets;
@@ -277,25 +283,23 @@ static inline RingQueue* get_events_queue(Diablo* env) {
 }
 
 static inline int32_t get_player_x(Diablo* env) {
-    /* Player position.x is at offset 0 in Player struct */
-    int32_t* pos = (int32_t*)mem_ptr(env, env->offsets.player);
+    uint8_t* pos = (uint8_t*)mem_ptr(env, env->offsets.player + PLAYER_POS_OFFSET);
     return pos[0];
 }
 
 static inline int32_t get_player_y(Diablo* env) {
-    int32_t* pos = (int32_t*)mem_ptr(env, env->offsets.player);
+    uint8_t* pos = (uint8_t*)mem_ptr(env, env->offsets.player + PLAYER_POS_OFFSET);
     return pos[1];
 }
 
 static inline int32_t get_player_hp(Diablo* env) {
-    /* _pHitPoints is at a specific offset in Player - needs verification */
-    /* For now, return a placeholder */
-    return 100;
+    int32_t* hp = (int32_t*)mem_ptr(env, env->offsets.player + PLAYER_HP_OFFSET);
+    return *hp;
 }
 
 static inline int32_t get_player_mode(Diablo* env) {
-    /* _pmode field offset - needs verification */
-    return 0;
+    uint8_t* mode = (uint8_t*)mem_ptr(env, env->offsets.player + PLAYER_MODE_OFFSET);
+    return *mode;
 }
 
 static inline uint8_t get_dFlags(Diablo* env, int x, int y) {
@@ -331,6 +335,36 @@ static inline TriggerStruct* get_trigger(Diablo* env, int idx) {
 static inline size_t get_active_monster_count(Diablo* env) {
     size_t* cnt = (size_t*)mem_ptr(env, env->offsets.active_monster_count);
     return *cnt;
+}
+
+static inline uint64_t get_game_ticks(Diablo* env) {
+    uint64_t* ticks = (uint64_t*)mem_ptr(env, env->offsets.game_ticks);
+    return *ticks;
+}
+
+/* Send NEW game command to DevilutionX */
+static inline void send_new_game(Diablo* env) {
+    RingQueue* input = get_input_queue(env);
+    if (ring_has_capacity(input)) {
+        RingEntry* entry = ring_get_submit_entry(input);
+        entry->en_tag = 0;
+        entry->en_data1 = 0;
+        entry->en_data2 = 0;
+        entry->en_type = RING_KEY_NEW | RING_F_SINGLE_TICK;
+        ring_submit(input);
+    } else {
+        /* If queue is full, drop outstanding entries to recover */
+        input->read_idx = input->write_idx;
+    }
+
+    /* Wait a few ticks to let the game process the NEW command */
+    uint64_t start_ticks = get_game_ticks(env);
+    for (int i = 0; i < 50; i++) { /* ~50ms */
+        if (get_game_ticks(env) > start_ticks) {
+            break;
+        }
+        usleep(1000);
+    }
 }
 
 /* Check if tile is a wall using SOLData */
@@ -555,17 +589,26 @@ void add_log(Diablo* env) {
 void c_reset(Diablo* env) {
     if (!env->initialized) return;
 
-    /* NOTE: Don't send new game command on reset - the game is already initialized.
-     * The Python side handles game launching. We just need to reset our tracking
-     * and compute the initial observation from the current game state.
-     *
-     * If we do need to reset the game (e.g., after terminal), the step function
-     * handles that by auto-resetting.
-     */
+    /* Sync with DevilutionX step loop */
+    send_new_game(env);
+
+    /* Wait for player to be initialized (needed for GUI mode with menus)
+     * Player is ready when HP > 0 and position != (0,0) */
+    for (int wait = 0; wait < 1000; wait++) {  /* up to 10 seconds */
+        int32_t hp = get_player_hp(env);
+        int px = get_player_x(env);
+        int py = get_player_y(env);
+        if (hp > 0 && (px != 0 || py != 0)) {
+            break;  /* Player is initialized */
+        }
+        usleep(10000);  /* 10ms */
+    }
 
     /* Reset episode tracking */
     env->ep_return = 0.0f;
     env->ep_len = 0;
+    if (env->rewards) env->rewards[0] = 0.0f;
+    if (env->terminals) env->terminals[0] = 0;
 
     /* Compute initial observation from current game state */
     compute_observation(env);
@@ -593,13 +636,24 @@ void c_step(Diablo* env) {
     /* Compute observation */
     compute_observation(env);
 
-    /* Check termination conditions */
+/* Check termination conditions */
     int terminated = 0;
     float reward = -0.001f;  /* Small step penalty to encourage efficiency */
 
-    /* Check if reached goal (only if goal is set, i.e., not at 0,0) */
+    /* Get player state */
+    int32_t hp = get_player_hp(env);
+    int32_t mode = get_player_mode(env);
     int px = get_player_x(env);
     int py = get_player_y(env);
+
+    /* Player death ends the episode, but only if player was initialized
+     * (HP > 0 or position != 0,0 indicates player exists) */
+    if ((hp <= 0 || mode == PM_DEATH) && (px != 0 || py != 0)) {
+        reward = -1.0f;
+        terminated = 1;
+    }
+
+    /* Check if reached goal (only if goal is set, i.e., not at 0,0) */
     if ((env->goal_x != 0 || env->goal_y != 0) &&
         px == env->goal_x && py == env->goal_y) {
         reward = 1.0f;
@@ -619,6 +673,8 @@ void c_step(Diablo* env) {
 
     if (terminated) {
         add_log(env);
+        /* Restart the game to skip death menus */
+        send_new_game(env);
         c_reset(env);
     }
 }
@@ -642,7 +698,7 @@ void c_close(Diablo* env) {
 }
 
 /* Initialize shared memory mapping */
-int init_mmap(Diablo* env, const char* mmap_path, uint32_t base_offset) {
+int init_mmap(Diablo* env, const char* mmap_path, uint64_t base_offset) {
     env->mmap_fd = open(mmap_path, O_RDWR);
     if (env->mmap_fd < 0) {
         return -1;
