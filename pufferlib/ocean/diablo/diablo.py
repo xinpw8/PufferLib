@@ -225,7 +225,8 @@ class Diablo(pufferlib.PufferEnv):
             raise FileNotFoundError(f"spawn.mpq missing in {build_path}; download per DevilutionX-AI README")
 
         # Force single env when rendering (you only want to watch one game)
-        self.render_mode = render_mode if render_mode else None
+        # Handle "none" string as None (from config file)
+        self.render_mode = render_mode if render_mode and render_mode != "none" else None
         if self.render_mode == "human":
             num_envs = 1
 

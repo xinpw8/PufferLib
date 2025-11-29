@@ -10,7 +10,40 @@
 
 #define Env Diablo
 #define MY_PUT
+#define MY_VEC_STEP
 #include "../env_binding.h"
+
+/* Parallel vec_step: submit all -> wait all -> finish all
+ * This overrides the sequential default from env_binding.h */
+static PyObject* vec_step(PyObject* self, PyObject* arg) {
+    int num_args = PyTuple_Size(arg);
+    if (num_args != 1) {
+        PyErr_SetString(PyExc_TypeError, "vec_step requires 1 argument");
+        return NULL;
+    }
+
+    VecEnv* vec = unpack_vecenv(arg);
+    if (!vec) {
+        return NULL;
+    }
+
+    /* Phase 1: Submit all actions (non-blocking) */
+    for (int i = 0; i < vec->num_envs; i++) {
+        c_submit(vec->envs[i]);
+    }
+
+    /* Phase 2: Wait for all games to complete their steps */
+    for (int i = 0; i < vec->num_envs; i++) {
+        c_wait(vec->envs[i]);
+    }
+
+    /* Phase 3: Compute observations and check terminations */
+    for (int i = 0; i < vec->num_envs; i++) {
+        c_finish(vec->envs[i]);
+    }
+
+    Py_RETURN_NONE;
+}
 
 /* Helper to get string from kwargs */
 static const char* unpack_string(PyObject* kwargs, const char* key) {

@@ -589,19 +589,22 @@ void add_log(Diablo* env) {
 void c_reset(Diablo* env) {
     if (!env->initialized) return;
 
-    /* Sync with DevilutionX step loop */
+    /* Send NEW game command and wait for it to be processed */
     send_new_game(env);
+    wait_step_complete(env);
 
-    /* Wait for player to be initialized (needed for GUI mode with menus)
+    /* Wait for player to be initialized by sending NOOPs until ready
      * Player is ready when HP > 0 and position != (0,0) */
-    for (int wait = 0; wait < 1000; wait++) {  /* up to 10 seconds */
+    for (int wait = 0; wait < 500; wait++) {
         int32_t hp = get_player_hp(env);
         int px = get_player_x(env);
         int py = get_player_y(env);
         if (hp > 0 && (px != 0 || py != 0)) {
             break;  /* Player is initialized */
         }
-        usleep(10000);  /* 10ms */
+        /* Send NOOP to advance game state and wait for completion */
+        submit_action(env, ACTION_STAND);
+        wait_step_complete(env);
     }
 
     /* Reset episode tracking */
@@ -614,29 +617,33 @@ void c_reset(Diablo* env) {
     compute_observation(env);
 }
 
-/* Step environment */
-void c_step(Diablo* env) {
+/* Phase 1: Submit action to game (non-blocking) */
+static inline void c_submit(Diablo* env) {
+    if (!env->initialized) return;
+    int action = env->actions[0];
+    submit_action(env, action);
+}
+
+/* Phase 2: Wait for game to complete step */
+static inline void c_wait(Diablo* env) {
+    if (!env->initialized) return;
+    wait_step_complete(env);
+}
+
+/* Phase 3: Compute observation and check termination */
+static inline void c_finish(Diablo* env) {
     if (!env->initialized) {
         env->terminals[0] = 0;
         env->rewards[0] = 0;
         return;
     }
 
-    /* Submit action */
-    int action = env->actions[0];
-    submit_action(env, action);
-
-    /* Small delay to let game process the action
-     * TODO: Implement proper synchronization via events queue
-     */
-    usleep(10000);  /* 10ms delay */
-
     env->ep_len++;
 
     /* Compute observation */
     compute_observation(env);
 
-/* Check termination conditions */
+    /* Check termination conditions */
     int terminated = 0;
     float reward = -0.001f;  /* Small step penalty to encourage efficiency */
 
@@ -665,8 +672,6 @@ void c_step(Diablo* env) {
         terminated = 1;
     }
 
-    /* TODO: check player death, find level exit trigger, etc. */
-
     env->rewards[0] = reward;
     env->ep_return += reward;
     env->terminals[0] = terminated ? 1 : 0;
@@ -677,6 +682,13 @@ void c_step(Diablo* env) {
         send_new_game(env);
         c_reset(env);
     }
+}
+
+/* Step environment (sequential fallback, for compatibility) */
+void c_step(Diablo* env) {
+    c_submit(env);
+    c_wait(env);
+    c_finish(env);
 }
 
 /* Render (no-op for now, game handles its own rendering) */

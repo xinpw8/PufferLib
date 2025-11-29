@@ -505,6 +505,11 @@ static PyObject* vec_reset(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+/* Default sequential vec_step - can be overridden with MY_VEC_STEP */
+#ifdef MY_VEC_STEP
+/* Forward declaration - user provides implementation after including this header */
+static PyObject* vec_step(PyObject* self, PyObject* arg);
+#else
 static PyObject* vec_step(PyObject* self, PyObject* arg) {
     int num_args = PyTuple_Size(arg);
     if (num_args != 1) {
@@ -522,6 +527,7 @@ static PyObject* vec_step(PyObject* self, PyObject* arg) {
     }
     Py_RETURN_NONE;
 }
+#endif
 
 static PyObject* vec_render(PyObject* self, PyObject* args) {
     int num_args = PyTuple_Size(args);
