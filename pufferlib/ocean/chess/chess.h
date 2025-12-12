@@ -128,6 +128,13 @@ static const char* PIECE_CHARS[] = {
     "p", "n", "b", "r", "q", "k"
 };
 
+static const char* PIECE_UNICODE[] = {
+    "",
+    "♙", "♘", "♗", "♖", "♕", "♔",
+    "", "",
+    "♟", "♞", "♝", "♜", "♛", "♚"
+};
+
 static const int PIECE_VALUES_CP[7] = {0, 100, 320, 330, 500, 900, 0};
 
 // Piece-Square Tables (numbers calculated from Stockfish)
@@ -353,6 +360,8 @@ typedef struct {
 typedef struct {
     Texture2D pieces;
     int cell_size;
+    Font piece_font;
+    int use_unicode_pieces;
 } Client;
 
 typedef struct {
@@ -2060,6 +2069,65 @@ void c_step(Chess* env) {
     populate_observations(env);
 }
 
+static Font load_piece_font(int cell_size, int* loaded) {
+    const char* candidates[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf",
+        "/System/Library/Fonts/Supplemental/Apple Symbols.ttf",
+        "C:\\Windows\\Fonts\\seguisym.ttf"
+    };
+
+    int codepoints[] = {0x2654, 0x2655, 0x2656, 0x2657, 0x2658, 0x2659, 0x265A, 0x265B, 0x265C, 0x265D, 0x265E, 0x265F};
+    Font font = {0};
+    size_t candidate_count = sizeof(candidates) / sizeof(candidates[0]);
+    size_t codepoint_count = sizeof(codepoints) / sizeof(codepoints[0]);
+
+    for (size_t i = 0; i < candidate_count; i++) {
+        if (!FileExists(candidates[i])) {
+            continue;
+        }
+        font = LoadFontEx(candidates[i], cell_size, codepoints, (int)codepoint_count);
+        if (font.texture.id != 0) {
+            if (loaded) {
+                *loaded = 1;
+            }
+            SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+            return font;
+        }
+    }
+
+    if (loaded) {
+        *loaded = 0;
+    }
+    return GetFontDefault();
+}
+
+static void draw_piece(Chess* env, Piece pc, int file, int rank, int cell_size) {
+    if (pc == NO_PIECE) {
+        return;
+    }
+    
+    Color pc_color = color_of(pc) == CHESS_WHITE 
+        ? (Color){255, 255, 255, 255}
+        : (Color){0, 0, 0, 255};
+
+    int draw_x = file * cell_size;
+    int draw_y = (7 - rank) * cell_size;
+
+    if (env->client && env->client->use_unicode_pieces) {
+        float icon_size = cell_size * 0.85f;
+        Vector2 pos = {
+            draw_x + (cell_size - icon_size) / 2.0f,
+            draw_y + (cell_size - icon_size) / 2.0f - cell_size * 0.05f
+        };
+        DrawTextEx(env->client->piece_font, PIECE_UNICODE[pc], pos, icon_size, 0, pc_color);
+    } else {
+        int x = draw_x + cell_size / 4;
+        int y = draw_y + cell_size / 8;
+        DrawText(PIECE_CHARS[pc], x, y, cell_size / 2, pc_color);
+    }
+}
+
 // GUI is a tad scuffed, but it works.
 void c_render(Chess* env) {
     const int cell_size = 64;
@@ -2071,6 +2139,9 @@ void c_render(Chess* env) {
         SetTargetFPS(env->render_fps > 0 ? env->render_fps : 30);
         env->client = (Client*)calloc(1, sizeof(Client));
         env->client->cell_size = cell_size;
+        int font_loaded = 0;
+        env->client->piece_font = load_piece_font(cell_size, &font_loaded);
+        env->client->use_unicode_pieces = font_loaded;
         
         env->white_score = 0.0f;
         env->black_score = 0.0f;
@@ -2207,14 +2278,7 @@ void c_render(Chess* env) {
         if (pc != NO_PIECE) {
             int file = file_of(sq);
             int rank = rank_of(sq);
-            int x = file * cell_size + cell_size / 4;
-            int y = (7 - rank) * cell_size + cell_size / 8;
-            
-            Color pc_color = color_of(pc) == CHESS_WHITE 
-                ? (Color){255, 255, 255, 255}
-                : (Color){0, 0, 0, 255};
-            
-            DrawText(PIECE_CHARS[pc], x, y, cell_size / 2, pc_color);
+            draw_piece(env, pc, file, rank, cell_size);
         }
     }
     
@@ -2299,12 +2363,7 @@ void c_render(Chess* env) {
                 DrawRectangle(f * cell_size, (7 - r) * cell_size, cell_size, cell_size, sq_color);
                 Piece pc = piece_on(&env->pos, (Square)make_square(f, r));
                 if (pc != NO_PIECE) {
-                    int x = f * cell_size + cell_size / 4;
-                    int y = (7 - r) * cell_size + cell_size / 8;
-                    Color pc_color = color_of(pc) == CHESS_WHITE 
-                        ? (Color){255, 255, 255, 255}
-                        : (Color){0, 0, 0, 255};
-                    DrawText(PIECE_CHARS[pc], x, y, cell_size / 2, pc_color);
+                    draw_piece(env, pc, f, r, cell_size);
                 }
             }
         }
@@ -2362,6 +2421,9 @@ void c_render(Chess* env) {
 
 void c_close(Chess* env) {
     if (env->client != NULL) {
+        if (env->client->use_unicode_pieces && env->client->piece_font.texture.id != 0) {
+            UnloadFont(env->client->piece_font);
+        }
         if (IsWindowReady()) {
             CloseWindow();
         }
