@@ -189,38 +189,6 @@ class Terraform(nn.Module):
         value = self.value(hidden)
         return action, value
 
-class G2048(nn.Module):
-    def __init__(self, env, hidden_size=128):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.is_continuous = False
-
-        self.encoder= torch.nn.Sequential(
-            nn.Linear(12*np.prod(env.single_observation_space.shape), hidden_size),
-            nn.GELU(),
-        )
-        self.decoder = pufferlib.pytorch.layer_init(
-            nn.Linear(hidden_size, env.single_action_space.n), std=0.01)
-        self.value = pufferlib.pytorch.layer_init(
-            nn.Linear(hidden_size, 1), std=1)
-
-    def forward_eval(self, observations, state=None):
-        hidden = self.encode_observations(observations)
-        actions, value = self.decode_actions(hidden)
-        return actions, value
-
-    def forward(self, x, state=None):
-        return self.forward_eval(x, state)
-
-    def encode_observations(self, observations, state=None):
-        observations = F.one_hot(observations.long(), 12).view(-1, 12*16).float()
-        #observations = observations.float().view(-1, 16) / 11.0
-        return self.encoder(observations)
-
-    def decode_actions(self, hidden):
-        action = self.decoder(hidden)
-        value = self.value(hidden)
-        return action, value
 
 class Snake(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128):
@@ -589,7 +557,6 @@ class ImpulseWarsPolicy(nn.Module):
         num_drones: int = 2,
         continuous: bool = False,
         is_training: bool = True,
-        device: str = "cuda",
         **kwargs,
     ):
         super().__init__()
@@ -607,13 +574,13 @@ class ImpulseWarsPolicy(nn.Module):
             + [self.obsInfo.wallTypes + 1] * self.obsInfo.numFloatingWallObs
             + [self.numDrones + 1] * self.obsInfo.numProjectileObs,
         )
-        discreteOffsets = torch.tensor([0] + list(np.cumsum(self.discreteFactors)[:-1]), device=device).view(
+        discreteOffsets = torch.tensor([0] + list(np.cumsum(self.discreteFactors)[:-1])).view(
             1, -1
         )
         self.register_buffer("discreteOffsets", discreteOffsets, persistent=False)
         self.discreteMultihotDim = self.discreteFactors.sum()
 
-        multihotBuffer = torch.zeros(batch_size, self.discreteMultihotDim, device=device)
+        multihotBuffer = torch.zeros(batch_size, self.discreteMultihotDim)
         self.register_buffer("multihotOutput", multihotBuffer, persistent=False)
 
         # most of the observation is a 2D array of bytes, but the end
@@ -776,44 +743,38 @@ class ImpulseWarsPolicy(nn.Module):
             t = torch.as_tensor(mapSpace.sample()[None])
             return self.mapCNN(t).shape[1]
 
-class GPUDrive(nn.Module):
+class Drive(nn.Module):
     def __init__(self, env, input_size=128, hidden_size=128, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.ego_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
-                nn.Linear(6, input_size)),
+                nn.Linear(7, input_size)),
+            nn.LayerNorm(input_size),
             # nn.ReLU(),
-            # pufferlib.pytorch.layer_init(
-            #    nn.Linear(input_size, input_size))
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size))
         )
         max_road_objects = 13
         self.road_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_road_objects, input_size)),
+            nn.LayerNorm(input_size),
             # nn.ReLU(),
-            # pufferlib.pytorch.layer_init(
-            #    nn.Linear(input_size, input_size))
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size))
         )
         max_partner_objects = 7
         self.partner_encoder = nn.Sequential(
             pufferlib.pytorch.layer_init(
                 nn.Linear(max_partner_objects, input_size)),
+            nn.LayerNorm(input_size),
             # nn.ReLU(),
-            # pufferlib.pytorch.layer_init(
-            #    nn.Linear(input_size, input_size))
+            pufferlib.pytorch.layer_init(
+                nn.Linear(input_size, input_size))
         )
 
-        '''
-        self.post_mask_road_encoder = nn.Sequential(
-            pufferlib.pytorch.layer_init(
-                nn.Linear(input_size, input_size)),
-        )
-        self.post_mask_partner_encoder = nn.Sequential(
-            pufferlib.pytorch.layer_init(
-                nn.Linear(input_size, input_size)),
-        )
-        '''
+
         self.shared_embedding = nn.Sequential(
             nn.GELU(),
             pufferlib.pytorch.layer_init(nn.Linear(3*input_size,  hidden_size)),
@@ -835,7 +796,7 @@ class GPUDrive(nn.Module):
         return self.forward(x, state)
    
     def encode_observations(self, observations, state=None):
-        ego_dim = 6
+        ego_dim = 7
         partner_dim = 63 * 7
         road_dim = 200*7
         ego_obs = observations[:, :ego_dim]
@@ -848,7 +809,6 @@ class GPUDrive(nn.Module):
         road_categorical = road_objects[:, :, 6]
         road_onehot = F.one_hot(road_categorical.long(), num_classes=7)  # Shape: [batch, 200, 7]
         road_objects = torch.cat([road_continuous, road_onehot], dim=2)
-
         ego_features = self.ego_encoder(ego_obs)
         partner_features, _ = self.partner_encoder(partner_objects).max(dim=1)
         road_features, _ = self.road_encoder(road_objects).max(dim=1)
@@ -1125,6 +1085,68 @@ class Drone(nn.Module):
         else:
             logits = self.decoder(hidden)
 
+        values = self.value(hidden)
+        return logits, values
+
+
+class G2048(nn.Module):
+    def __init__(self, env, hidden_size=128):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+
+        num_obs = np.prod(env.single_observation_space.shape)
+
+        if hidden_size <= 256:
+            self.encoder = torch.nn.Sequential(
+                pufferlib.pytorch.layer_init(nn.Linear(num_obs, 512)),
+                nn.GELU(),
+                pufferlib.pytorch.layer_init(nn.Linear(512, 256)),
+                nn.GELU(),
+                pufferlib.pytorch.layer_init(nn.Linear(256, hidden_size)),
+                nn.GELU(),
+            )
+        else:
+            self.encoder = torch.nn.Sequential(
+                pufferlib.pytorch.layer_init(nn.Linear(num_obs, 2*hidden_size)),
+                nn.GELU(),
+                pufferlib.pytorch.layer_init(nn.Linear(2*hidden_size, hidden_size)),
+                nn.GELU(),
+                pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
+                nn.GELU(),
+            )
+
+        num_atns = env.single_action_space.n
+        self.decoder = torch.nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.GELU(),
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, num_atns), std=0.01),
+        )
+        self.value = torch.nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.GELU(),
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, 1), std=1.0),
+        )
+
+    def forward_eval(self, observations, state=None):
+        hidden = self.encode_observations(observations, state=state)
+        logits, values = self.decode_actions(hidden)
+        return logits, values
+
+    def forward(self, observations, state=None):
+        return self.forward_eval(observations, state)
+
+    def encode_observations(self, observations, state=None):
+        batch_size = observations.shape[0]
+        observations = observations.view(batch_size, -1).float()
+
+        # Scale the feat 1 (tile**1.5)
+        observations[:, :16] = observations[:, :16] / 100.0
+
+        return self.encoder(observations)
+
+    def decode_actions(self, hidden):
+        logits = self.decoder(hidden)
         values = self.value(hidden)
         return logits, values
 

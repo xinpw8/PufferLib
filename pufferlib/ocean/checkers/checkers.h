@@ -7,13 +7,13 @@
 #include <string.h>
 #include <time.h>
 
-const unsigned char EMPTY = 0;
-const unsigned char AGENT = 1;
-const unsigned char OPPONENT = 3;
-const unsigned char AGENT_PAWN = 1;
-const unsigned char AGENT_KING = 2;
-const unsigned char OPPONENT_PAWN = 3;
-const unsigned char OPPONENT_KING = 4;
+#define EMPTY 0
+#define AGENT 1
+#define OPPONENT 3
+#define AGENT_PAWN 1
+#define AGENT_KING 2
+#define OPPONENT_PAWN 3
+#define OPPONENT_KING 4
 
 // Required struct. Only use floats!
 typedef struct {

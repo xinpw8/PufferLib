@@ -86,7 +86,11 @@ class Policy(nn.Module):
         )
         batch_indices = torch.arange(B * TT, device=token_observations.device).unsqueeze(-1).expand_as(atr_values)
 
+        # Add bounds checking to prevent out-of-bounds access
         valid_tokens = coords_byte != 0xFF
+        valid_tokens = valid_tokens & (x_coord_indices < self.out_width) & (y_coord_indices < self.out_height)
+        valid_tokens = valid_tokens & (atr_indices < 22)  # Also check attribute indices
+        
         box_obs[
             batch_indices[valid_tokens],
             atr_indices[valid_tokens],

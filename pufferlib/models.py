@@ -56,15 +56,17 @@ class Default(nn.Module):
             input_size = int(sum(np.prod(v.shape) for v in env.env.observation_space.values()))
             self.encoder = nn.Linear(input_size, self.hidden_size)
         else:
+            num_obs = np.prod(env.single_observation_space.shape)
             self.encoder = torch.nn.Sequential(
-                nn.Linear(np.prod(env.single_observation_space.shape), hidden_size),
+                pufferlib.pytorch.layer_init(nn.Linear(num_obs, hidden_size)),
                 nn.GELU(),
             )
-
+            
         if self.is_multidiscrete:
             self.action_nvec = tuple(env.single_action_space.nvec)
+            num_atns = sum(self.action_nvec)
             self.decoder = pufferlib.pytorch.layer_init(
-                    nn.Linear(hidden_size, sum(self.action_nvec)), std=0.01)
+                    nn.Linear(hidden_size, num_atns), std=0.01)
         elif not self.is_continuous:
             if self.is_chess:
                 # Chess has 4674 possible actions

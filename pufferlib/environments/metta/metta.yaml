@@ -1,47 +1,52 @@
 name: "GDY-MettaGrid"
-_target_: metta.mettagrid.mettagrid_env.MettaGridEnv
 
 report_stats_interval: 100
 normalize_rewards: false
 
 sampling: 0
 desync_episodes: true
+
 game:
-  num_agents: 512
+  # Required list of inventory items
+  inventory_item_names:
+    - ore_red
+    - ore_blue
+    - ore_green
+    - battery_red
+    - battery_blue
+    - battery_green
+    - heart
+    - armor
+    - laser
+    - blueprint
+
+  num_agents: 64
   obs_width: 11
   obs_height: 11
-  num_observation_tokens: 128
+  num_observation_tokens: 200
   max_steps: 1000
 
-  diversity_bonus:
-    enabled: false
-    similarity_coef: 0.5  # Coefficient for within-group similarity
-    diversity_coef: 0.5   # Coefficient for between-group diversity
+  # Global observation tokens configuration
+  global_obs:
+    episode_completion_pct: true
+    last_action: true
+    last_reward: true
+    resource_rewards: false
+
+  # Show recipe inputs in observations for all converters
+  recipe_details_obs: false
 
   agent:
-    default_item_max: 10
-    # the agent should be able to pick up as many hearts as they want, even if
-    # "normal" item limits are lower
-    heart_max: 255
+    default_resource_limit: 10
+    resource_limits:
+      heart: 255
     freeze_duration: 10
+    action_failure_penalty: 0.0
+    
     rewards:
-      # action_failure_penalty: 0.00001
-      action_failure_penalty: 0
-
-      ore.red: 0.25
-      ore.blue: 0.0
-      ore.green: 0.0
-      ore.red_max: 1000
-      ore.blue_max: 0
-      ore.green_max: 0
-      battery.red: 0.5
-      battery.blue: 0.0
-      battery.green: 0.0
-      battery.red_max: 1000
-      battery.blue_max: 0
-      battery.green_max: 0
-      heart: 1.0
-      heart_max: 1000
+      inventory:
+        heart: 1
+      stats: {}
 
   groups:
     agent:
@@ -49,151 +54,152 @@ game:
       sprite: 0
       props: {}
 
-    team_1:
-      id: 1
-      sprite: 1
-      group_reward_pct: 0.5
-      props: {}
-
-    team_2:
-      id: 2
-      sprite: 4
-      group_reward_pct: 0.5
-      props: {}
-
-    team_3:
-      id: 3
-      sprite: 8
-      group_reward_pct: 0.5
-      props: {}
-
-    team_4:
-      id: 4
-      sprite: 1
-      group_reward_pct: 0.5
-      props: {}
-
-    prey:
-      id: 5
-      sprite: 12
-      props: {}
-
-    predator:
-      id: 6
-      sprite: 6
-      props: {}
-
   objects:
     altar:
-      input_battery.red: 3
-      output_heart: 1
+      type_id: 8
+      input_resources:
+        battery_red: 3
+      output_resources:
+        heart: 1
       max_output: 5
       conversion_ticks: 1
       cooldown: 10
-      initial_items: 0
+      initial_resource_count: 0
+
+    wall:
+      type_id: 1
+      swappable: false
+
+    block:
+      type_id: 14
+      swappable: true
 
     mine_red:
-      output_ore.red: 1
+      type_id: 2
+      output_resources:
+        ore_red: 1
       color: 0
       max_output: 5
-      conversion_ticks: 50
-      cooldown: 1
-      initial_items: 1
+      conversion_ticks: 1
+      cooldown: 50
+      initial_resource_count: 0
 
     mine_blue:
+      type_id: 3
       color: 1
-      output_ore.blue: 1
+      output_resources:
+        ore_blue: 1
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 50
+      initial_resource_count: 0
 
     mine_green:
-      output_ore.green: 1
+      type_id: 4
+      output_resources:
+        ore_green: 1
       color: 2
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 50
+      initial_resource_count: 0
 
     generator_red:
-      input_ore.red: 1
-      output_battery.red: 1
+      type_id: 5
+      input_resources:
+        ore_red: 1
+      output_resources:
+        battery_red: 1
       color: 0
       max_output: 5
       conversion_ticks: 1
       cooldown: 25
-      initial_items: 0
+      initial_resource_count: 0
 
     generator_blue:
-      input_ore.blue: 1
-      output_battery.blue: 1
+      type_id: 6
+      input_resources:
+        ore_blue: 1
+      output_resources:
+        battery_blue: 1
       color: 1
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 25
+      initial_resource_count: 0
 
     generator_green:
-      input_ore.green: 1
-      output_battery.green: 1
+      type_id: 7
+      input_resources:
+        ore_green: 1
+      output_resources:
+        battery_green: 1
       color: 2
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 25
+      initial_resource_count: 0
 
     armory:
-      input_ore.red: 3
-      output_armor: 1
+      type_id: 9
+      input_resources:
+        ore_red: 3
+      output_resources:
+        armor: 1
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 10
+      initial_resource_count: 0
 
     lasery:
-      input_ore.red: 1
-      input_battery.red: 2
-      output_laser: 1
+      type_id: 10
+      input_resources:
+        ore_red: 1
+        battery_red: 2
+      output_resources:
+        laser: 1
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 10
+      initial_resource_count: 0
 
     lab:
-      input_ore.red: 3
-      input_battery.red: 3
-      output_blueprint: 1
+      type_id: 11
+      input_resources:
+        ore_red: 3
+        battery_red: 3
+      output_resources:
+        blueprint: 1
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 5
+      initial_resource_count: 0
 
     factory:
-      input_blueprint: 1
-      input_ore.red: 5
-      input_battery.red: 5
-      output_armor: 5
-      output_laser: 5
+      type_id: 12
+      input_resources:
+        blueprint: 1
+        ore_red: 5
+        battery_red: 5
+      output_resources:
+        armor: 5
+        laser: 5
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
+      cooldown: 5
+      initial_resource_count: 0
 
     temple:
-      input_heart: 1
-      input_blueprint: 1
-      output_heart: 5
+      type_id: 13
+      input_resources:
+        heart: 1
+        blueprint: 1
+      output_resources:
+        heart: 5
       max_output: 5
       conversion_ticks: 1
-      cooldown: 1
-      initial_items: 1
-
-    wall:
-      swappable: false
-
-    block:
-      swappable: true
+      cooldown: 5
+      initial_resource_count: 0
 
   actions:
     noop:
@@ -207,22 +213,18 @@ game:
     get_items:
       enabled: true
     attack:
-      enabled: false
+      enabled: true
+      consumed_resources:
+        laser: 1
+      defense_resources:
+        armor: 1
     swap:
-      enabled: false
+      enabled: true
     change_color:
       enabled: false
-
-  reward_sharing:
-    groups:
-      team_1:
-        team_1: 0.5
-      team_2:
-        team_2: 0.5
-      team_3:
-        team_3: 0.5
-      team_4:
-        team_4: 0.5
+    change_glyph:
+      enabled: false
+      number_of_glyphs: 4
 
   map_builder:
     _target_: metta.mettagrid.room.multi_room.MultiRoom
@@ -231,16 +233,16 @@ game:
 
     room:
       _target_: metta.mettagrid.room.random.Random
-      width: 256
-      height: 256
+      width: 64
+      height: 64
       border_width: 0
 
-      agents: 512
+      agents: 64
 
       objects:
-        mine: 1024
-        generator: 512
-        altar: 256
+        mine_red: 128
+        generator_red: 64
+        altar: 32
         armory: 0
         lasery: 0
         lab: 0

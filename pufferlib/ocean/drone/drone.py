@@ -8,17 +8,17 @@ class Drone(pufferlib.PufferEnv):
     def __init__(
         self,
         num_envs=16,
+        num_drones=64,
+        max_rings=5,
         render_mode=None,
-        report_interval=1,
+        report_interval=1024,
         buf=None,
         seed=0,
-        max_rings=10,
-        max_moves=1000,
     ):
         self.single_observation_space = gymnasium.spaces.Box(
             low=-1,
             high=1,
-            shape=(25,),
+            shape=(26,),
             dtype=np.float32,
         )
 
@@ -26,7 +26,7 @@ class Drone(pufferlib.PufferEnv):
             low=-1, high=1, shape=(4,), dtype=np.float32
         )
 
-        self.num_agents = num_envs
+        self.num_agents = num_envs*num_drones
         self.render_mode = render_mode
         self.report_interval = report_interval
         self.tick = 0
@@ -35,17 +35,16 @@ class Drone(pufferlib.PufferEnv):
         self.actions = self.actions.astype(np.float32)
 
         c_envs = []
-        for env_num in range(num_envs):
+        for i in range(num_envs):
             c_envs.append(binding.env_init(
-                self.observations[env_num:(env_num+1)],
-                self.actions[env_num:(env_num+1)],
-                self.rewards[env_num:(env_num+1)],
-                self.terminals[env_num:(env_num+1)],
-                self.truncations[env_num:(env_num+1)],
-                env_num,
-                report_interval=self.report_interval,
+                self.observations[i*num_drones:(i+1)*num_drones],
+                self.actions[i*num_drones:(i+1)*num_drones],
+                self.rewards[i*num_drones:(i+1)*num_drones],
+                self.terminals[i*num_drones:(i+1)*num_drones],
+                self.truncations[i*num_drones:(i+1)*num_drones],
+                i,
+                num_agents=num_drones,
                 max_rings=max_rings,
-                max_moves=max_moves,
             ))
 
         self.c_envs = binding.vectorize(*c_envs)
