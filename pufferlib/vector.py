@@ -58,31 +58,29 @@ class Serial:
         return self.agents_per_batch
  
     def __init__(self, env_creators, env_args, env_kwargs, num_envs, buf=None, seed=0, **kwargs):
-        driver = env_creators[0](*env_args[0], **env_kwargs[0])
-        self.agents_per_batch = driver.num_agents * num_envs
+        self.driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
+        self.agents_per_batch = self.driver_env.num_agents * num_envs
         self.num_agents = self.agents_per_batch
-
-        self.single_observation_space = driver.single_observation_space
-        self.single_action_space = driver.single_action_space
-        self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch)
+        self.selfplay = getattr(self.driver_env, 'selfplay', False)
+        self.single_observation_space = self.driver_env.single_observation_space
+        self.single_action_space = self.driver_env.single_action_space
+        self.factor = 2 if self.selfplay else 1
+        self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch*self.factor)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
 
+
         set_buffers(self, buf)
-
-        driver.close()
-
         self.envs = []
         ptr = 0
-        agents_per_env_val = driver.num_agents
         for i in range(num_envs):
-            end = ptr + agents_per_env_val
+            end = ptr + self.driver_env.num_agents
             buf_i = dict(
                 observations=self.observations[ptr:end],
                 rewards=self.rewards[ptr:end],
                 terminals=self.terminals[ptr:end],
                 truncations=self.truncations[ptr:end],
                 masks=self.masks[ptr:end],
-                actions=self.actions[ptr:end]
+                actions=self.actions[ptr*self.factor:(end)*self.factor]
             )
             ptr = end
             seed_i = seed + i if seed is not None else None
@@ -99,6 +97,9 @@ class Serial:
         self.flag = RESET
 
     def _avg_infos(self):
+        if not self.infos:
+            return
+
         infos = {}
         for e in self.infos:
             for k, v in pufferlib.unroll_nested_dict(e):
@@ -115,6 +116,9 @@ class Serial:
                 infos[k] = np.mean(infos[k])
             except:
                 del infos[k]
+
+        # Store averaged infos as a single-element list for recv()
+        self.infos = [infos] if infos else []
 
     def async_reset(self, seed=None):
         self.flag = RECV
@@ -136,12 +140,11 @@ class Serial:
     def send(self, actions):
         if not actions.flags.contiguous:
             actions = np.ascontiguousarray(actions)
-
         actions = send_precheck(self, actions)
         rewards, dones, truncateds, self.infos = [], [], [], []
         ptr = 0
         for idx, env in enumerate(self.envs):
-            end = ptr + self.agents_per_env[idx]
+            end = ptr + self.agents_per_env[idx] * self.factor
             atns = actions[ptr:end]
             if env.done:
                 o, i = env.reset()
@@ -172,11 +175,15 @@ class Serial:
             env.close()
 
 def _worker_process(env_creators, env_args, env_kwargs, obs_shape, obs_dtype, atn_shape, atn_dtype,
-        num_envs, num_agents, num_workers, worker_idx, send_pipe, recv_pipe, shm, is_native, seed):
+        num_envs, num_agents, num_workers, worker_idx, send_pipe, recv_pipe, shm, is_native, seed, selfplay):
 
     # Environments read and write directly to shared memory
     shape = (num_workers, num_envs*num_agents)
-    atn_arr = np.ndarray((*shape, *atn_shape),
+    if selfplay:
+        action_shape = (num_workers, num_envs*num_agents*2)
+    else:
+        action_shape = shape
+    atn_arr = np.ndarray((*action_shape, *atn_shape),
         dtype=atn_dtype, buffer=shm['actions'])[worker_idx]
     buf = dict(
         observations=np.ndarray((*shape, *obs_shape),
@@ -272,7 +279,9 @@ class Multiprocessing:
         # with the resource tracker that spams warnings and does not work with
         # forked processes. So for now, RawArray is much more reliable.
         # You can't send a RawArray through a pipe.
-        driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
+        self.driver_env = driver_env = env_creators[0](*env_args[0], **env_kwargs[0])
+        self.selfplay = getattr(self.driver_env, 'selfplay', False)
+        factor = 2 if self.selfplay else 1
         is_native = isinstance(driver_env, PufferEnv)
         self.emulated = False if is_native else driver_env.emulated
         self.num_agents = num_agents = driver_env.num_agents * num_envs
@@ -292,18 +301,16 @@ class Multiprocessing:
 
         self.single_observation_space = driver_env.single_observation_space
         self.single_action_space = driver_env.single_action_space
-        self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch)
+        self.action_space = pufferlib.spaces.joint_space(self.single_action_space, self.agents_per_batch*factor)
         self.observation_space = pufferlib.spaces.joint_space(self.single_observation_space, self.agents_per_batch)
         self.agent_ids = np.arange(num_agents).reshape(num_workers, agents_per_worker)
-        driver_env.close()
-        self.driver_env = None
 
         from multiprocessing import RawArray, set_start_method
         # Mac breaks without setting fork... but setting it breaks sweeps on 2nd run
         #set_start_method('fork')
         self.shm = dict(
             observations=RawArray(obs_ctype, num_agents * int(np.prod(obs_shape))),
-            actions=RawArray(atn_ctype, num_agents * int(np.prod(atn_shape))),
+            actions=RawArray(atn_ctype, num_agents * int(np.prod(atn_shape)) * 2),
             rewards=RawArray('f', num_agents),
             terminals=RawArray('b', num_agents),
             truncateds=RawArray('b', num_agents),
@@ -312,9 +319,13 @@ class Multiprocessing:
             notify=RawArray('b', num_workers),
         )
         shape = (num_workers, agents_per_worker)
+        if self.selfplay:
+            action_shape = (num_workers, agents_per_worker * factor)
+        else:
+            action_shape = shape
         self.obs_batch_shape = (self.agents_per_batch, *obs_shape)
-        self.atn_batch_shape = (self.workers_per_batch, agents_per_worker, *atn_shape)
-        self.actions = np.ndarray((*shape, *atn_shape),
+        self.atn_batch_shape = (self.workers_per_batch, agents_per_worker*factor, *atn_shape)
+        self.actions = np.ndarray((*action_shape, *atn_shape),
             dtype=atn_dtype, buffer=self.shm['actions'])
         self.buf = dict(
             observations=np.ndarray((*shape, *obs_shape),
@@ -344,7 +355,7 @@ class Multiprocessing:
                     env_kwargs[start:end], obs_shape, obs_dtype,
                     atn_shape, atn_dtype, envs_per_worker, driver_env.num_agents,
                     num_workers, i, w_send_pipes[i], w_recv_pipes[i],
-                    self.shm, is_native, seed_i)
+                    self.shm, is_native, seed_i, self.selfplay)
             )
             p.start()
             self.processes.append(p)
@@ -641,7 +652,6 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
             raise pufferlib.APIUsageError('Native vectorization is for PufferEnvs that handle all per-process vectorization internally. If you want to run multiple separate Python instances on a single process, use Serial or Multiprocessing instead')
 
         return vecenv
-
     if 'num_workers' in kwargs:
         if kwargs['num_workers'] == 'auto':
             kwargs['num_workers'] = num_envs
@@ -672,7 +682,6 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
 
     if env_kwargs is None:
         env_kwargs = {}
-
     if not isinstance(env_creator_or_creators, (list, tuple)):
         env_creators = [env_creator_or_creators] * num_envs
         env_args = [env_args] * num_envs
@@ -708,7 +717,7 @@ def make(env_creator_or_creators, env_args=None, env_kwargs=None, backend=Puffer
             raise pufferlib.APIUsageError(f'Invalid argument: {k}')
 
     # TODO: First step action space check
-    
+     
     return backend(env_creators, env_args, env_kwargs, num_envs, **kwargs)
 
 def make_seeds(seed, num_envs):

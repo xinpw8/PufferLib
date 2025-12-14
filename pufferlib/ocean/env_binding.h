@@ -291,6 +291,22 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         return NULL;
     }
 
+    int agents_per_env = 1;
+    if (kwargs != NULL) {
+        PyObject* ape_obj = PyDict_GetItemString(kwargs, "agents_per_env");
+        if (ape_obj != NULL) {
+            if (!PyObject_TypeCheck(ape_obj, &PyLong_Type)) {
+                PyErr_SetString(PyExc_TypeError, "agents_per_env must be an integer");
+                return NULL;
+            }
+            agents_per_env = PyLong_AsLong(ape_obj);
+            if (agents_per_env <= 0) {
+                PyErr_SetString(PyExc_ValueError, "agents_per_env must be greater than 0");
+                return NULL;
+            }
+        }
+    }
+
     VecEnv* vec = (VecEnv*)calloc(1, sizeof(VecEnv));
     if (!vec) {
         PyErr_SetString(PyExc_MemoryError, "Failed to allocate vec env");
@@ -334,6 +350,11 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         PyErr_SetString(PyExc_ValueError, "Batched Observations must be at least 2D");
         return NULL;
     }
+    npy_intp required_agents = (npy_intp)num_envs * (npy_intp)agents_per_env;
+    if (PyArray_DIMS(observations)[0] < required_agents) {
+        PyErr_SetString(PyExc_ValueError, "Observations first dimension must be >= num_envs * agents_per_env");
+        return NULL;
+    }
 
     PyObject* act = PyTuple_GetItem(args, 1);
     if (!PyObject_TypeCheck(act, &PyArray_Type)) {
@@ -347,6 +368,10 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
     if (PyArray_ITEMSIZE(actions) == sizeof(double)) {
         PyErr_SetString(PyExc_ValueError, "Action tensor passed as float64 (pass np.float32 buffer)");
+        return NULL;
+    }
+    if (PyArray_DIMS(actions)[0] < required_agents) {
+        PyErr_SetString(PyExc_ValueError, "Actions first dimension must be >= num_envs * agents_per_env");
         return NULL;
     }
 
@@ -364,6 +389,10 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         PyErr_SetString(PyExc_ValueError, "Rewards must be 1D");
         return NULL;
     }
+    if (PyArray_DIMS(rewards)[0] < required_agents) {
+        PyErr_SetString(PyExc_ValueError, "Rewards length must be >= num_envs * agents_per_env");
+        return NULL;
+    }
 
     PyObject* term = PyTuple_GetItem(args, 3);
     if (!PyObject_TypeCheck(term, &PyArray_Type)) {
@@ -379,6 +408,10 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         PyErr_SetString(PyExc_ValueError, "Terminals must be 1D");
         return NULL;
     }
+    if (PyArray_DIMS(terminals)[0] < required_agents) {
+        PyErr_SetString(PyExc_ValueError, "Terminals length must be >= num_envs * agents_per_env");
+        return NULL;
+    }
 
     PyObject* trunc = PyTuple_GetItem(args, 4);
     if (!PyObject_TypeCheck(trunc, &PyArray_Type)) {
@@ -392,6 +425,10 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
     if (PyArray_NDIM(truncations) != 1) {
         PyErr_SetString(PyExc_ValueError, "Truncations must be 1D");
+        return NULL;
+    }
+    if (PyArray_DIMS(truncations)[0] < required_agents) {
+        PyErr_SetString(PyExc_ValueError, "Truncations length must be >= num_envs * agents_per_env");
         return NULL;
     }
 
@@ -414,10 +451,11 @@ static PyObject* vec_init(PyObject* self, PyObject* args, PyObject* kwargs) {
         // // Make sure the log is initialized to 0
         memset(&env->log, 0, sizeof(Log));
         
-        env->observations = (void*)((char*)PyArray_DATA(observations) + i*PyArray_STRIDE(observations, 0));
-        env->actions = (void*)((char*)PyArray_DATA(actions) + i*PyArray_STRIDE(actions, 0));
-        env->rewards = (void*)((char*)PyArray_DATA(rewards) + i*PyArray_STRIDE(rewards, 0));
-        env->terminals = (void*)((char*)PyArray_DATA(terminals) + i*PyArray_STRIDE(terminals, 0));
+        npy_intp agent_base = (npy_intp)i * (npy_intp)agents_per_env;
+        env->observations = (void*)((char*)PyArray_DATA(observations) + agent_base*PyArray_STRIDE(observations, 0));
+        env->actions = (void*)((char*)PyArray_DATA(actions) + agent_base*PyArray_STRIDE(actions, 0));
+        env->rewards = (void*)((char*)PyArray_DATA(rewards) + agent_base*PyArray_STRIDE(rewards, 0));
+        env->terminals = (void*)((char*)PyArray_DATA(terminals) + agent_base*PyArray_STRIDE(terminals, 0));
         // env->truncations = (void*)((char*)PyArray_DATA(truncations) + i*PyArray_STRIDE(truncations, 0));
 
         // Assumes each process has the same number of environments
@@ -584,11 +622,12 @@ static PyObject* vec_log(PyObject* self, PyObject* args) {
         return dict;
     }
 
-    // Average
+    // Average all fields except n (keep n as the count)
     float n = aggregate.n;
     for (int i = 0; i < num_keys; i++) {
         ((float*)&aggregate)[i] /= n;
     }
+    aggregate.n = n;  // Restore n to be the count, not n/n=1
 
     // User populates dict
     my_log(dict, &aggregate);
@@ -657,10 +696,6 @@ static PyMethodDef methods[] = {
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
     {"shared", (PyCFunction)my_shared, METH_VARARGS | METH_KEYWORDS, "Shared state"},
-    {"env_set_self_play", env_set_self_play, METH_VARARGS, "Enable self-play mode"},
-    {"vec_set_self_play", vec_set_self_play, METH_VARARGS, "Enable self-play mode on every env in a VecEnv"},
-    {"env_set_fen", env_set_fen, METH_VARARGS, "Load a FEN into a single env"},
-    {"vec_set_fen", vec_set_fen, METH_VARARGS, "Load a FEN into every env in a VecEnv"},
     MY_METHODS,
     {NULL, NULL, 0, NULL}
 };

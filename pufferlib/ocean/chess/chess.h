@@ -1,3647 +1,2442 @@
-// chess.h
-// Comment out the next line (or pass -DDEBUG_LOG=0 on the compiler command line)
-// to turn every DBG() call into a no-op.
-#ifndef DEBUG_LOG
-#define DEBUG_LOG 0          // 0 = disabled, 1 = enabled
-#endif
-
-#if DEBUG_LOG
-  #include <iostream>
-  #include <fstream>
-  
-  // Global debug file stream
-  static std::ofstream debug_file_stream;
-  static bool debug_file_initialized = false;
-  
-  // Initialize debug file if not already done
-  static void init_debug_file() {
-      if (!debug_file_initialized) {
-          debug_file_stream.open("chess_debug.log", std::ios::app);
-          debug_file_initialized = true;
-      }
-  }
-  
-  #define DBG(expr) do { \
-      init_debug_file(); \
-      std::cerr << expr; \
-      if (debug_file_stream.is_open()) { \
-          debug_file_stream << expr; \
-          debug_file_stream.flush(); \
-      } \
-  } while (0)
-#else
-  #define DBG(expr) do { } while (0)
-#endif
-
-#include <stdint.h>
-#include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 #include <stdbool.h>
-#include <sstream>
-#include <string>
-#include <utility>
-#ifdef __cplusplus
-#include "stockfish_wrapper.h"
-#include <mutex>
-#include <memory>
-#endif
+#include <assert.h>
+#include <math.h>
+#include <unistd.h> 
+#include "raylib.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef uint64_t Bitboard;
+typedef uint64_t Key;
+typedef uint32_t Square;
+typedef uint32_t Move;
+typedef uint32_t Piece;
+typedef int32_t Value;
+typedef int32_t Depth;
+typedef uint8_t ChessColor;
 
-// pufferlib required structs
-typedef struct Log {
+#define U64 uint64_t
+
+enum {
+    SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
+    SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
+    SQ_A3, SQ_B3, SQ_C3, SQ_D3, SQ_E3, SQ_F3, SQ_G3, SQ_H3,
+    SQ_A4, SQ_B4, SQ_C4, SQ_D4, SQ_E4, SQ_F4, SQ_G4, SQ_H4,
+    SQ_A5, SQ_B5, SQ_C5, SQ_D5, SQ_E5, SQ_F5, SQ_G5, SQ_H5,
+    SQ_A6, SQ_B6, SQ_C6, SQ_D6, SQ_E6, SQ_F6, SQ_G6, SQ_H6,
+    SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
+    SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8,
+    SQ_NONE = 64
+};
+
+enum { PAWN = 1, KNIGHT, BISHOP, ROOK, QUEEN, KING };
+
+enum {
+    NO_PIECE = 0,
+    W_PAWN = 1, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
+    B_PAWN = 9, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING
+};
+
+enum { CHESS_WHITE = 0, CHESS_BLACK = 1 };
+
+enum {
+    NO_CASTLING = 0,
+    WHITE_OO = 1, WHITE_OOO = 2,
+    BLACK_OO = 4, BLACK_OOO = 8,
+    WHITE_CASTLING = 3, BLACK_CASTLING = 12,
+    ANY_CASTLING = 15
+};
+
+
+enum { NORMAL, PROMOTION, ENPASSANT, CASTLING };
+
+enum {
+    NORTH = 8, EAST = 1, SOUTH = -8, WEST = -1,
+    NORTH_EAST = 9, SOUTH_EAST = -7,
+    NORTH_WEST = 7, SOUTH_WEST = -9
+};
+
+enum { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8 };
+enum { FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H };
+
+
+enum {
+    VALUE_ZERO = 0,
+    VALUE_DRAW = 0,
+    VALUE_MATE = 32000,
+    VALUE_INFINITE = 32001,
+};
+
+
+
+#define MOVE_NONE 0
+#define MOVE_NULL 65
+
+#define make_move(from, to) ((Move)((to) | ((from) << 6)))
+#define make_promotion(from, to, pt) ((Move)((to) | ((from) << 6) | (PROMOTION << 14) | (((pt) - KNIGHT) << 12)))
+#define make_enpassant(from, to) ((Move)((to) | ((from) << 6) | (ENPASSANT << 14)))
+#define make_castling(from, to) ((Move)((to) | ((from) << 6) | (CASTLING << 14)))
+
+#define from_sq(m) (((m) >> 6) & 0x3f)
+#define to_sq(m) ((m) & 0x3f)
+#define type_of_m(m) ((m) >> 14)
+#define promotion_type(m) ((((m) >> 12) & 3) + KNIGHT)
+
+#define make_square(f, r) ((Square)(((r) << 3) + (f)))
+#define file_of(s) ((s) & 7)
+#define rank_of(s) ((s) >> 3)
+#define make_piece(c, pt) ((Piece)(((c) << 3) + (pt)))
+#define type_of_p(p) ((p) & 7)
+#define color_of(p) ((p) >> 3)
+#define relative_square(c, s) ((Square)((s) ^ ((c) * 56)))
+#define relative_rank(c, r) ((r) ^ ((c) * 7))
+
+#define pieces(pos) ((pos)->byTypeBB[0])
+#define pieces_p(pos, p) ((pos)->byTypeBB[p])
+#define pieces_c(pos, c) ((pos)->byColorBB[c])
+#define pieces_cp(pos, c, p) (pieces_p(pos, p) & pieces_c(pos, c))
+#define piece_on(pos, s) ((pos)->board[s])
+#define is_empty(pos, s) (piece_on(pos, s) == NO_PIECE)
+
+#define MAX_SERVED_MOVES 64
+#define MAX_GAME_PLIES 2048
+
+#define FileABB 0x0101010101010101ULL
+#define FileBBB (FileABB << 1)
+#define FileCBB (FileABB << 2)
+#define FileDBB (FileABB << 3)
+#define FileEBB (FileABB << 4)
+#define FileFBB (FileABB << 5)
+#define FileGBB (FileABB << 6)
+#define FileHBB (FileABB << 7)
+
+#define Rank1BB 0xFFULL
+#define Rank2BB (Rank1BB << 8)
+#define Rank3BB (Rank1BB << 16)
+#define Rank4BB (Rank1BB << 24)
+#define Rank5BB (Rank1BB << 32)
+#define Rank6BB (Rank1BB << 40)
+#define Rank7BB (Rank1BB << 48)
+#define Rank8BB (Rank1BB << 56)
+
+static const char* PIECE_CHARS[] = {
+    "",
+    "P", "N", "B", "R", "Q", "K",
+    "", "",
+    "p", "n", "b", "r", "q", "k"
+};
+
+static const char* PIECE_UNICODE[] = {
+    "",
+    "♙", "♘", "♗", "♖", "♕", "♔",
+    "", "",
+    "♟", "♞", "♝", "♜", "♛", "♚"
+};
+
+static const int PIECE_VALUES_CP[7] = {0, 100, 320, 330, 500, 900, 0};
+
+// Piece-Square Tables (numbers calculated from Stockfish)
+static inline int mirror_file(int file) {
+    return file < 4 ? file : (7 - file);
+}
+
+static const int PawnPST_MG[64] = {
+    0,   0,   0,   0,   0,   0,   0,   0,
+    -11,  7,  7, 17, 17,  7,  7, -11,
+    -16, -3, 23, 23, 23, 23, -3, -16,
+    -14, -7, 20, 24, 24, 20, -7, -14,
+    -5, -2, -1, 12, 12, -1, -2,  -5,
+    -11,-12, -2,  4,  4, -2,-12, -11,
+    -2, 20,-10, -2, -2,-10, 20,  -2,
+    0,   0,   0,   0,   0,   0,   0,   0
+};
+
+static const int PawnPST_EG[64] = {
+    0,  0,  0,  0,  0,  0,  0,  0,
+    -3, -1,  7,  2,  2,  7, -1, -3,
+    -2,  2,  6, -1, -1,  6,  2, -2,
+    7, -4, -8,  2,  2, -8, -4,  7,
+    13, 10, -1, -8, -8, -1, 10, 13,
+    16,  6,  1, 16, 16,  1,  6, 16,
+    1,-12,  6, 25, 25,  6,-12,  1,
+    0,  0,  0,  0,  0,  0,  0,  0
+};
+
+static const int KnightPST_MG[64] = {
+    -169,-96,-80,-79,-79,-80,-96,-169,
+    -79,-39,-24, -9, -9,-24,-39, -79,
+    -64,-20,  4, 19, 19,  4,-20, -64,
+    -28,  5, 41, 47, 47, 41,  5, -28,
+    -29, 13, 42, 52, 52, 42, 13, -29,
+    -11, 28, 63, 55, 55, 63, 28, -11,
+    -67,-21,  6, 37, 37,  6,-21, -67,
+    -200,-80,-53,-32,-32,-53,-80,-200
+};
+
+static const int KnightPST_EG[64] = {
+    -105,-74,-46,-18,-18,-46,-74,-105,
+    -70,-56,-15,  6,  6,-15,-56, -70,
+    -38,-33, -5, 27, 27, -5,-33, -38,
+    -36,  0, 13, 34, 34, 13,  0, -36,
+    -41,-20,  4, 35, 35,  4,-20, -41,
+    -51,-38,-17, 19, 19,-17,-38, -51,
+    -64,-45,-37, 16, 16,-37,-45, -64,
+    -98,-89,-53,-16,-16,-53,-89, -98
+};
+
+static const int BishopPST_MG[64] = {
+    -49, -7,-10,-34,-34,-10, -7,-49,
+    -24,  9, 15,  1,  1, 15,  9,-24,
+    -9, 22, -3, 12, 12, -3, 22, -9,
+    4,  9, 18, 40, 40, 18,  9,  4,
+    -8, 27, 13, 30, 30, 13, 27, -8,
+    -17, 14, -6,  6,  6, -6, 14,-17,
+    -19,-13,  7,-11,-11,  7,-13,-19,
+    -47, -7,-17,-29,-29,-17, -7,-47
+};
+
+static const int BishopPST_EG[64] = {
+    -58,-31,-37,-19,-19,-37,-31,-58,
+    -34, -9,-14,  4,  4,-14, -9,-34,
+    -23,  0, -3, 16, 16, -3,  0,-23,
+    -26, -3, -5, 16, 16, -5, -3,-26,
+    -26, -4, -7, 14, 14, -7, -4,-26,
+    -24, -2,  0, 13, 13,  0, -2,-24,
+    -34,-10,-12,  6,  6,-12,-10,-34,
+    -55,-32,-36,-17,-17,-36,-32,-55
+};
+
+static const int RookPST_MG[64] = {
+    -24,-15, -8,  0,  0, -8,-15,-24,
+    -18, -5, -1,  1,  1, -1, -5,-18,
+    -19,-10,  1,  0,  0,  1,-10,-19,
+    -21, -7, -4, -4, -4, -4, -7,-21,
+    -21,-12, -1,  4,  4, -1,-12,-21,
+    -23,-10,  1,  6,  6,  1,-10,-23,
+    -11,  8,  9, 12, 12,  9,  8,-11,
+    -25,-18,-11,  2,  2,-11,-18,-25
+};
+
+static const int RookPST_EG[64] = {
+    0,  3,  0,  3,  3,  0,  3,  0,
+    -7, -5, -5, -1, -1, -5, -5, -7,
+    6, -7,  3,  3,  3,  3, -7,  6,
+    0,  4, -2,  1,  1, -2,  4,  0,
+    -7,  5, -5, -7, -7, -5,  5, -7,
+    3,  2, -1,  3,  3, -1,  2,  3,
+    -1,  7, 11, -1, -1, 11,  7, -1,
+    6,  4,  6,  2,  2,  6,  4,  6
+};
+
+static const int QueenPST_MG[64] = {
+    3, -5, -5,  4,  4, -5, -5,  3,
+    -3,  5,  8, 12, 12,  8,  5, -3,
+    -3,  6, 13,  7,  7, 13,  6, -3,
+    4,  5,  9,  8,  8,  9,  5,  4,
+    0, 14, 12,  5,  5, 12, 14,  0,
+    -4, 10,  6,  8,  8,  6, 10, -4,
+    -5,  6, 10,  8,  8, 10,  6, -5,
+    -2, -2,  1, -2, -2,  1, -2, -2
+};
+
+static const int QueenPST_EG[64] = {
+    -69,-57,-47,-26,-26,-47,-57,-69,
+    -55,-31,-22, -4, -4,-22,-31,-55,
+    -39,-18, -9,  3,  3, -9,-18,-39,
+    -23, -3, 13, 24, 24, 13, -3,-23,
+    -29, -6,  9, 21, 21,  9, -6,-29,
+    -38,-18,-12,  1,  1,-12,-18,-38,
+    -50,-27,-24, -8, -8,-24,-27,-50,
+    -75,-52,-43,-36,-36,-43,-52,-75
+};
+
+static const int KingPST_MG[64] = {
+    272,325,273,190,190,273,325,272,
+    277,305,241,183,183,241,305,277,
+    198,253,168,120,120,168,253,198,
+    169,191,136,108,108,136,191,169,
+    145,176,112, 69, 69,112,176,145,
+    122,159, 85, 36, 36, 85,159,122,
+    87,120, 64, 25, 25, 64,120, 87,
+    64, 87, 49,  0,  0, 49, 87, 64
+};
+
+static const int KingPST_EG[64] = {
+    0, 41, 80, 93, 93, 80, 41,  0,
+    57, 98,138,131,131,138, 98, 57,
+    86,138,165,173,173,165,138, 86,
+    103,152,168,169,169,168,152,103,
+    98,166,197,194,194,197,166, 98,
+    87,164,174,189,189,174,164, 87,
+    40, 99,128,141,141,128, 99, 40,
+    5, 60, 75, 75, 75, 75, 60,  5
+};
+
+static uint64_t prng_state = 1070372;
+static inline uint64_t prng_rand(void) {
+    prng_state ^= prng_state >> 12;
+    prng_state ^= prng_state << 25;
+    prng_state ^= prng_state >> 27;
+    return prng_state * 2685821657736338717ULL;
+}
+
+extern Bitboard SquareBB[65];
+extern Bitboard FileBB[8];
+extern Bitboard RankBB[8];
+extern Bitboard PawnAttacks[2][64];
+extern Bitboard KnightAttacks[64];
+extern Bitboard KingAttacks[64];
+extern Bitboard BetweenBB[64][64];
+extern Bitboard LineBB[64][64];
+
+extern Bitboard rook_file_attacks[8][256];
+extern Bitboard rook_rank_attacks[8][256];
+
+typedef struct {
+    Key psq[16][64];
+    Key enpassant[8];
+    Key castling[16];
+    Key side;
+} Zobrist;
+
+extern Zobrist zob;
+
+typedef struct {
+    Bitboard byTypeBB[7];    // [0]=all, [1-6]=PAWN,KNIGHT,BISHOP,ROOK,QUEEN,KING
+    Bitboard byColorBB[2];
+    uint8_t board[64];
+    uint8_t pieceCount[16];
+    ChessColor sideToMove;
+    uint8_t castlingRights;
+    uint8_t epSquare;
+    uint8_t rule50;
+    uint16_t gamePly;
+    Key key;
+    int16_t materialScore;
+    int16_t psqtScore;
+    int16_t cachedEval;
+    uint8_t evalValid;
+} Position;
+
+typedef struct {
+    Move move;
+    int16_t value;
+} ExtMove;
+
+typedef struct {
+    ExtMove moves[256];
+    int count;
+} MoveList;
+
+enum {
+    O_BOARD = 0,
+    O_SIDE = 768,
+    O_CASTLE = 770,
+    O_EP = 786,
+    O_PICK_PHASE = 851,
+    O_SELECTED_PIECE = 853,
+    O_VALID_PIECES = 917,
+    O_VALID_DESTS = 981,
+    O_VALID_PROMOS = 1045,
+    OBS_SIZE = 1077
+};
+
+
+typedef struct {
     float perf;
     float score;
-    float episode_length;
-    float episode_return;            // combined (existing)
-    float episode_return_white;      // new – white perspective total
-    float episode_return_black;      // new – black perspective total
-    float reward_valid;
-    float reward_agent_captures_enemy_piece;
-    float reward_enemy_captures_agent_piece;
-    float reward_draw;
-    // Perspective-based reward tracking
-    float reward_win_white;          // win rewards from white's perspective
-    float reward_win_black;          // win rewards from black's perspective  
-    float reward_loss_white;         // loss rewards from white's perspective
-    float reward_loss_black;         // loss rewards from black's perspective
-    float reward_draw_white;         // draw rewards from white's perspective
-    float reward_draw_black;         // draw rewards from black's perspective
-    float game_drawn;
-    // New separate win/loss tracking from both perspectives
-    float white_win;                 // white wins (from white's perspective)
-    float white_loss;                // white losses (from white's perspective)
-    float black_win;                 // black wins (from black's perspective)
-    float black_loss;                // black losses (from black's perspective)
-    float stalemate;
-    float insufficient_material;
-    float threefold_repetition;
-    float fifty_move_rule;
-    float max_depth;
-    float white_checkmated; // black checkmates white
-    float black_checkmated; // white checkmates black
-    float white_moves;
-    float black_moves;
-    float valid_moves;
-    float invalid_moves_white;
-    float invalid_moves_black;
-    float reward_check_white;
-    float reward_check_black;
-    float reward_material_diff_white;
-    float reward_material_diff_black;
-    float stockfish_eval;
-    // En passant captures
-    float en_passant_white;          // white captures via en passant
-    float en_passant_black;          // black captures via en passant
-    // Castling moves
-    float white_castle_kingside;     // white castles kingside
-    float white_castle_queenside;    // white castles queenside
-    float black_castle_kingside;     // black castles kingside
-    float black_castle_queenside;    // black castles queenside
-    // Pawn promotions
-    float white_promotion_count;     // total white pawn promotions
-    float white_promotion_knight;    // white promotes to knight
-    float white_promotion_bishop;    // white promotes to bishop
-    float white_promotion_rook;      // white promotes to rook
-    float white_promotion_queen;     // white promotes to queen
-    float black_promotion_count;     // total black pawn promotions
-    float black_promotion_knight;    // black promotes to knight
-    float black_promotion_bishop;    // black promotes to bishop
-    float black_promotion_rook;      // black promotes to rook
-    float black_promotion_queen;     // black promotes to queen
+    float draw_rate;
+    float timeout_rate;
+    float chess_moves;          // Average chess moves per game
+    float episode_length;       // Average episode length in ticks (2-phase system)
+    float episode_return;
+    float invalid_action_rate;
+    float game_length_score;    
     float n;
-    
-    // Game logging - track last move and game state
-    float last_move_from;            // source square (0-63)
-    float last_move_to;              // destination square (0-63)
-    float last_move_promotion;       // promotion piece (0=none, 1=queen, 2=rook, 3=bishop, 4=knight)
-    float game_step_logged;          // global step when game should be logged
-    float game_moves_count;          // number of moves in current game
-    
-    // Complete game logging - store all moves as action IDs
-    float complete_game_move_count;  // number of moves in complete game
-    float complete_game_action_0;    // first move action ID
-    float complete_game_action_1;    // second move action ID
-    float complete_game_action_2;    // third move action ID
-    float complete_game_action_3;    // fourth move action ID
-    float complete_game_action_4;    // fifth move action ID
-    float complete_game_action_5;    // sixth move action ID
-    float complete_game_action_6;    // seventh move action ID
-    float complete_game_action_7;    // eighth move action ID
-    float complete_game_action_8;    // ninth move action ID
-    float complete_game_action_9;    // tenth move action ID
-    float complete_game_action_10;   // 11th move action ID
-    float complete_game_action_11;   // 12th move action ID
-    float complete_game_action_12;   // 13th move action ID
-    float complete_game_action_13;   // 14th move action ID
-    float complete_game_action_14;   // 15th move action ID
-    float complete_game_action_15;   // 16th move action ID
-    float complete_game_action_16;   // 17th move action ID
-    float complete_game_action_17;   // 18th move action ID
-    float complete_game_action_18;   // 19th move action ID
-    float complete_game_action_19;   // 20th move action ID
-    float complete_game_action_20;   // 21st move action ID
-    float complete_game_action_21;   // 22nd move action ID
-    float complete_game_action_22;   // 23rd move action ID
-    float complete_game_action_23;   // 24th move action ID
-    float complete_game_action_24;   // 25th move action ID
-    float complete_game_action_25;   // 26th move action ID
-    float complete_game_action_26;   // 27th move action ID
-    float complete_game_action_27;   // 28th move action ID
-    float complete_game_action_28;   // 29th move action ID
-    float complete_game_action_29;   // 30th move action ID
-    float complete_game_action_30;   // 31st move action ID
-    float complete_game_action_31;   // 32nd move action ID
-    float complete_game_action_32;   // 33rd move action ID
-    float complete_game_action_33;   // 34th move action ID
-    float complete_game_action_34;   // 35th move action ID
-    float complete_game_action_35;   // 36th move action ID
-    float complete_game_action_36;   // 37th move action ID
-    float complete_game_action_37;   // 38th move action ID
-    float complete_game_action_38;   // 39th move action ID
-    float complete_game_action_39;   // 40th move action ID
-    float complete_game_action_40;   // 41st move action ID
-    float complete_game_action_41;   // 42nd move action ID
-    float complete_game_action_42;   // 43rd move action ID
-    float complete_game_action_43;   // 44th move action ID
-    float complete_game_action_44;   // 45th move action ID
-    float complete_game_action_45;   // 46th move action ID
-    float complete_game_action_46;   // 47th move action ID
-    float complete_game_action_47;   // 48th move action ID
-    float complete_game_action_48;   // 49th move action ID
-    float complete_game_action_49;   // 50th move action ID
-    float complete_game_action_50;   // 51st move action ID
-    float complete_game_action_51;   // 52nd move action ID
-    float complete_game_action_52;   // 53rd move action ID
-    float complete_game_action_53;   // 54th move action ID
-    float complete_game_action_54;   // 55th move action ID
-    float complete_game_action_55;   // 56th move action ID
-    float complete_game_action_56;   // 57th move action ID
-    float complete_game_action_57;   // 58th move action ID
-    float complete_game_action_58;   // 59th move action ID
-    float complete_game_action_59;   // 60th move action ID
-    float complete_game_action_60;   // 61st move action ID
-    float complete_game_action_61;   // 62nd move action ID
-    float complete_game_action_62;   // 63rd move action ID
-    float complete_game_action_63;   // 64th move action ID
-    float complete_game_action_64;   // 65th move action ID
-    float complete_game_action_65;   // 66th move action ID
-    float complete_game_action_66;   // 67th move action ID
-    float complete_game_action_67;   // 68th move action ID
-    float complete_game_action_68;   // 69th move action ID
-    float complete_game_action_69;   // 70th move action ID
-    float complete_game_action_70;   // 71st move action ID
-    float complete_game_action_71;   // 72nd move action ID
-    float complete_game_action_72;   // 73rd move action ID
-    float complete_game_action_73;   // 74th move action ID
-    float complete_game_action_74;   // 75th move action ID
-    float complete_game_action_75;   // 76th move action ID
-    float complete_game_action_76;   // 77th move action ID
-    float complete_game_action_77;   // 78th move action ID
-    float complete_game_action_78;   // 79th move action ID
-    float complete_game_action_79;   // 80th move action ID
-    float complete_game_action_80;   // 81st move action ID
-    float complete_game_action_81;   // 82nd move action ID
-    float complete_game_action_82;   // 83rd move action ID
-    float complete_game_action_83;   // 84th move action ID
-    float complete_game_action_84;   // 85th move action ID
-    float complete_game_action_85;   // 86th move action ID
-    float complete_game_action_86;   // 87th move action ID
-    float complete_game_action_87;   // 88th move action ID
-    float complete_game_action_88;   // 89th move action ID
-    float complete_game_action_89;   // 90th move action ID
-    float complete_game_action_90;   // 91st move action ID
-    float complete_game_action_91;   // 92nd move action ID
-    float complete_game_action_92;   // 93rd move action ID
-    float complete_game_action_93;   // 94th move action ID
-    float complete_game_action_94;   // 95th move action ID
-    float complete_game_action_95;   // 96th move action ID
-    float complete_game_action_96;   // 97th move action ID
-    float complete_game_action_97;   // 98th move action ID
-    float complete_game_action_98;   // 99th move action ID
-    float complete_game_action_99;   // 100th move action ID
 } Log;
 
-typedef struct CChess {
+typedef struct {
+    Texture2D pieces;
+    int cell_size;
+    Font piece_font;
+    int use_unicode_pieces;
+} Client;
+
+typedef struct {
+    Piece captured;
+    uint8_t castlingRights;
+    uint8_t epSquare;
+    uint8_t rule50;
+    int16_t materialScore;
+    int16_t psqtScore;
+    Key key;
+    uint8_t pliesFromNull;
+} UndoInfo;
+
+typedef struct {
     Log log;
-    float* observations;
+    Client* client;
+    uint8_t* observations;
     int* actions;
     float* rewards;
     unsigned char* terminals;
     
-    // static values from config/ocean/chess.ini
-    float reward_valid;
-    float reward_invalid_white;
-    float reward_invalid_black;
-    float reward_agent_captures_enemy_piece;
-    float reward_enemy_captures_agent_piece;
+    Position pos;
+    MoveList legal_moves;
+    ChessColor legal_moves_side;
+    Key legal_moves_key;
+    int game_result;
+    int tick;
+    int chess_moves;
+    int max_moves;
     float reward_draw;
-    float reward_win_white;
-    float reward_win_black;
-    float reward_loss_white;
-    float reward_loss_black;
-    float reward_check_white;
-    float reward_check_black;
-    int max_depth;
-    float reward_material_diff_white;
-    float reward_material_diff_black;
-
-    // Stockfish integration
-    bool stockfish_enabled;
+    int render_fps;
+    int selfplay;
+    int human_play;
     
-    // Debug helper: when true, compute_observation will NOT mask legal moves
-    bool debug_disable_mask;
-
-    // opaque pointer to C++ context
-    void* context;
-} CChess;
-
-typedef struct ChessContext ChessContext;
-
-// pufferlib required functions
-void init(CChess* env);
-void allocate(CChess* env);
-void free_allocated(CChess* env);
-void c_reset(CChess* env);
-void compute_observation(CChess* env, ChessContext* ctx);
-void compute_dual_agent_observations(CChess* env, ChessContext* ctx);
-void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool draw);
-void c_step(CChess* env);
-void c_step_dual_agent(CChess* env);
-void c_step_single_agent(CChess* env);
-void c_render(CChess* env);
-void c_close(CChess* env);
-
-// Enable Stockfish as the black-side opponent. Pass binary path or NULL for default.
-void enable_stockfish_black(CChess* env, const char* stockfish_cmd, int elo, int search_ms);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
-// c++ implementation
-#ifdef __cplusplus
-
-#include <vector>
-#include <unordered_map>
-#include <optional>
-#include <random>
-#include <algorithm>
-#include <iostream>
-#include <functional>
-#include <cassert>
-#include <mutex>
-
-namespace chess {
-
-static constexpr int kNumActionDestinations = 73;
-static constexpr int kNumUnderPromotions    = 9;   // 3 pieces × 3 dirs
-
-// piece types matching openspiel's encoding for nn compatibility
-enum PieceType : uint8_t {
-    EMPTY = 0,
-    KING = 1,
-    QUEEN = 2,
-    ROOK = 3,
-    BISHOP = 4,
-    KNIGHT = 5,
-    PAWN = 6
-};
-
-enum Color : uint8_t {
-    WHITE = 0,
-    BLACK = 1,
-    NO_COLOR = 2
-};
-
-struct Square {
-    int8_t x, y;
+    char starting_fen[128];
+    char** fen_curriculum;
+    int num_fens;
     
-    bool operator==(const Square& other) const {
-        return x == other.x && y == other.y;
+    UndoInfo undo_stack[MAX_GAME_PLIES];
+    int undo_stack_ptr;
+    
+    int invalid_actions_this_episode;
+    
+    int pick_phase[2];
+    Square selected_square[2];
+    MoveList valid_destinations[2];
+    float reward_invalid_piece;
+    float reward_invalid_move;
+    float reward_valid_piece;
+    float reward_valid_move;
+    float reward_material;
+    float reward_position;  // PST-based positional reward
+    float reward_castling;
+    float reward_repetition;
+    
+    int enable_50_move_rule;
+    int enable_threefold_repetition;
+    
+    int learner_color; // 0 for White, 1 for Black
+    int human_color;
+    float white_score;
+    float black_score;
+    float learner_wins;
+    float learner_losses; 
+    float learner_draws;
+    char last_result[32];
+} Chess;
+
+
+static inline Bitboard sq_bb(Square s) {
+    return SquareBB[s];
+}
+
+static inline int popcount(Bitboard b) {
+    return __builtin_popcountll(b);
+}
+
+static inline Square lsb(Bitboard b) {
+    assert(b);
+    return __builtin_ctzll(b);
+}
+
+static inline Square pop_lsb(Bitboard* b) {
+    Square s = lsb(*b);
+    *b &= *b - 1;
+    return s;
+}
+
+static inline bool more_than_one(Bitboard b) {
+    return b & (b - 1);
+}
+
+static inline Bitboard shift_bb(int Direction, Bitboard b) {
+    return Direction == NORTH ? b << 8
+         : Direction == SOUTH ? b >> 8
+         : Direction == EAST ? (b & ~FileHBB) << 1
+         : Direction == WEST ? (b & ~FileABB) >> 1
+         : Direction == NORTH_EAST ? (b & ~FileHBB) << 9
+         : Direction == SOUTH_EAST ? (b & ~FileHBB) >> 7
+         : Direction == NORTH_WEST ? (b & ~FileABB) << 7
+         : Direction == SOUTH_WEST ? (b & ~FileABB) >> 9
+         : 0;
+}
+
+static inline Bitboard pawn_attacks_bb(ChessColor c, Square s) {
+    return PawnAttacks[c][s];
+}
+
+static inline Bitboard knight_attacks_bb(Square s) {
+    return KnightAttacks[s];
+}
+
+static inline Bitboard king_attacks_bb(Square s) {
+    return KingAttacks[s];
+}
+
+
+static inline Bitboard rook_attacks_bb(Square s, Bitboard occupied) {
+    Bitboard attacks = 0;
+    int r = rank_of(s), f = file_of(s);
+    for (int rr = r + 1; rr < 8; rr++) {
+        Square sq = make_square(f, rr);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    for (int rr = r - 1; rr >= 0; rr--) {
+        Square sq = make_square(f, rr);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    for (int ff = f + 1; ff < 8; ff++) {
+        Square sq = make_square(ff, r);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    for (int ff = f - 1; ff >= 0; ff--) {
+        Square sq = make_square(ff, r);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    return attacks;
+}
+
+static inline Bitboard bishop_attacks_bb(Square s, Bitboard occupied) {
+    Bitboard attacks = 0;
+    int r = rank_of(s), f = file_of(s);
+    for (int rr = r + 1, ff = f + 1; rr < 8 && ff < 8; rr++, ff++) {
+        Square sq = make_square(ff, rr);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    for (int rr = r - 1, ff = f + 1; rr >= 0 && ff < 8; rr--, ff++) {
+        Square sq = make_square(ff, rr);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    for (int rr = r - 1, ff = f - 1; rr >= 0 && ff >= 0; rr--, ff--) {
+        Square sq = make_square(ff, rr);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    for (int rr = r + 1, ff = f - 1; rr < 8 && ff >= 0; rr++, ff--) {
+        Square sq = make_square(ff, rr);
+        attacks |= sq_bb(sq);
+        if (occupied & sq_bb(sq)) break;
+    }
+    return attacks;
+}
+
+static inline Bitboard queen_attacks_bb(Square s, Bitboard occupied) {
+    return rook_attacks_bb(s, occupied) | bishop_attacks_bb(s, occupied);
+}
+
+
+Bitboard SquareBB[65];
+Bitboard FileBB[8];
+Bitboard RankBB[8];
+Bitboard PawnAttacks[2][64];
+Bitboard KnightAttacks[64];
+Bitboard KingAttacks[64];
+Bitboard BetweenBB[64][64];
+Bitboard LineBB[64][64];
+Zobrist zob;
+
+static bool bitboards_initialized = false;
+
+void init_bitboards(void) {
+    if (bitboards_initialized) return;
+    
+    for (int c = 0; c < 2; c++) {
+        for (int pt = PAWN; pt <= KING; pt++) {
+            for (int s = 0; s < 64; s++) {
+                zob.psq[make_piece(c, pt)][s] = prng_rand();
+            }
+        }
+    }
+    for (int f = 0; f < 8; f++) {
+        zob.enpassant[f] = prng_rand();
+    }
+    for (int cr = 0; cr < 16; cr++) {
+        zob.castling[cr] = prng_rand();
+    }
+    zob.side = prng_rand();
+    
+    for (int i = 0; i < 64; i++) {
+        SquareBB[i] = 1ULL << i;
+    }
+    SquareBB[64] = 0;
+    
+    FileBB[0] = FileABB; FileBB[1] = FileBBB; FileBB[2] = FileCBB; FileBB[3] = FileDBB;
+    FileBB[4] = FileEBB; FileBB[5] = FileFBB; FileBB[6] = FileGBB; FileBB[7] = FileHBB;
+    
+    RankBB[0] = Rank1BB; RankBB[1] = Rank2BB; RankBB[2] = Rank3BB; RankBB[3] = Rank4BB;
+    RankBB[4] = Rank5BB; RankBB[5] = Rank6BB; RankBB[6] = Rank7BB; RankBB[7] = Rank8BB;
+    
+    for (int s = 0; s < 64; s++) {
+        Bitboard bb = sq_bb(s);
+        PawnAttacks[CHESS_WHITE][s] = shift_bb(NORTH_WEST, bb) | shift_bb(NORTH_EAST, bb);
+        PawnAttacks[CHESS_BLACK][s] = shift_bb(SOUTH_WEST, bb) | shift_bb(SOUTH_EAST, bb);
     }
     
-    bool is_valid() const {
-        return x >= 0 && x < 8 && y >= 0 && y < 8;
-    }
-    
-    int index() const { return y * 8 + x; }
-};
-
-struct Piece {
-    Color color;
-    PieceType type;
-    
-    bool operator==(const Piece& other) const {
-        return color == other.color && type == other.type;
-    }
-    
-    int8_t to_obs() const {
-        if (type == EMPTY) return 0;
-        int sign = (color == WHITE) ? 1 : -1;
-        return sign * static_cast<int8_t>(type);
-    }
-};
-
-struct Move {
-    Square from;
-    Square to;
-    Piece piece;
-    PieceType promotion;
-    bool is_castle_short = false;
-    bool is_castle_long = false;
-    
-    bool operator==(const Move& other) const {
-        return from == other.from && to == other.to && 
-               piece == other.piece && promotion == other.promotion &&
-               is_castle_short == other.is_castle_short &&
-               is_castle_long == other.is_castle_long;
-    }
-    
-    // Convenience inequality operator – avoids repetitive !(a == b)
-    bool operator!=(const Move& other) const { return !(*this == other); }
-};
-
-inline constexpr Move kPassMove{{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-
-// zobrist hashing for position identification
-class ZobristHash {
-    uint64_t pieces[2][7][64];  // [color][piece_type][square]
-    uint64_t castling[4];
-    uint64_t ep_file[8];
-    uint64_t black_to_move;
-    
-public:
-    ZobristHash() {
-        std::mt19937_64 rng(12345);  // fixed seed
+    int knight_dirs[] = {-17, -15, -10, -6, 6, 10, 15, 17};
+    for (int s = 0; s < 64; s++) {
+        Bitboard attack = 0;
+        int file = file_of(s);
+        int rank = rank_of(s);
         
-        for (int c = 0; c < 2; c++) {
-            for (int p = 0; p < 7; p++) {
-                for (int sq = 0; sq < 64; sq++) {
-                    pieces[c][p][sq] = rng();
+        for (int i = 0; i < 8; i++) {
+            int to = s + knight_dirs[i];
+            if (to >= 0 && to < 64) {
+                int to_file = file_of(to);
+                int to_rank = rank_of(to);
+                if (abs(to_file - file) <= 2 && abs(to_rank - rank) <= 2) {
+                    attack |= sq_bb(to);
                 }
             }
         }
-        
-        for (int i = 0; i < 4; i++) castling[i] = rng();
-        for (int i = 0; i < 8; i++) ep_file[i] = rng();
-        black_to_move = rng();
+        KnightAttacks[s] = attack;
     }
     
-    uint64_t hash_position(const Piece board[64], uint8_t castle_rights, 
-                          int8_t ep_file, Color to_move) const {
-        uint64_t hash = 0;
+    int king_dirs[] = {-9, -8, -7, -1, 1, 7, 8, 9};
+    for (int s = 0; s < 64; s++) {
+        Bitboard attack = 0;
+        int file = file_of(s);
         
-        for (int sq = 0; sq < 64; sq++) {
-            if (board[sq].type != EMPTY) {
-                hash ^= pieces[board[sq].color][board[sq].type][sq];
+        for (int i = 0; i < 8; i++) {
+            int to = s + king_dirs[i];
+            if (to >= 0 && to < 64) {
+                int to_file = file_of(to);
+                if (abs(to_file - file) <= 1) {
+                    attack |= sq_bb(to);
+                }
             }
         }
-        
-        for (int i = 0; i < 4; i++) {
-            if (castle_rights & (1 << i)) {
-                hash ^= castling[i];
-            }
-        }
-        
-        if (ep_file >= 0) {
-            hash ^= this->ep_file[ep_file];
-        }
-        
-        if (to_move == BLACK) {
-            hash ^= black_to_move;
-        }
-        
-        return hash;
-    }
-};
-
-// main chess board class
-class ChessBoard {
-    Piece board[64];
-    Color to_move = WHITE;
-    uint8_t castling_rights = 0xF;  // KQkq
-    int8_t ep_square = -1;  // En passant target square
-    uint8_t halfmove_clock = 0;
-    uint32_t fullmove_number = 1;  // Use 32-bit to prevent overflow
-    
-    // performance optimizations
-    mutable std::optional<std::vector<Move>> cached_legal_moves;
-    static ZobristHash zobrist;
-    
-public:
-    ChessBoard() {
-        reset();
+        KingAttacks[s] = attack;
     }
     
-    void reset() {
-        // DEBUG: Track direct board resets
-        static int board_reset_counter = 0;
-        board_reset_counter++;
-        
-        DBG("[BOARD_RESET_DEBUG] ChessBoard::reset() called (reset #" << board_reset_counter << ")" << std::endl);
-        DBG("[BOARD_RESET_DEBUG] Board state BEFORE board reset:" << std::endl);
-        DBG("[BOARD_RESET_DEBUG]   Side to move: " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[BOARD_RESET_DEBUG]   FEN: " << to_fen() << std::endl);
-        
-        // standard starting position
-        const char* start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        set_from_fen(start_fen);
-        cached_legal_moves.reset();
-        
-        DBG("[BOARD_RESET_DEBUG] Board state AFTER board reset:" << std::endl);
-        DBG("[BOARD_RESET_DEBUG]   Side to move: " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[BOARD_RESET_DEBUG]   FEN: " << to_fen() << std::endl);
-    }
-    
-    void set_from_fen(const char* fen) {
-        // Initialize all members to default values first
-        to_move = WHITE;
-        castling_rights = 0;
-        ep_square = -1;
-        halfmove_clock = 0;
-        fullmove_number = 1;
-        
-        memset(board, 0, sizeof(board));
-        
-        int x = 0, y = 7;
-        const char* p = fen;
-        
-        // parse board
-        while (*p && *p != ' ') {
-            if (*p == '/') {
-                x = 0;
-                y--;
-            } else if (*p >= '1' && *p <= '8') {
-                x += (*p - '0');
-            } else {
-                Color color = (*p >= 'A' && *p <= 'Z') ? WHITE : BLACK;
-                PieceType type = EMPTY;
+    for (int s1 = 0; s1 < 64; s1++) {
+        for (int s2 = 0; s2 < 64; s2++) {
+            BetweenBB[s1][s2] = 0;
+            LineBB[s1][s2] = 0;
+            
+            if (s1 == s2) continue;
+            
+            int f1 = file_of(s1), r1 = rank_of(s1);
+            int f2 = file_of(s2), r2 = rank_of(s2);
+            int df = f2 - f1, dr = r2 - r1;
+            
+            if (df == 0 || dr == 0 || abs(df) == abs(dr)) {
+                int step_f = df == 0 ? 0 : (df > 0 ? 1 : -1);
+                int step_r = dr == 0 ? 0 : (dr > 0 ? 1 : -1);
                 
-                switch (*p | 32) {  // Convert to lowercase
-                    case 'k': type = KING; break;
-                    case 'q': type = QUEEN; break;
-                    case 'r': type = ROOK; break;
-                    case 'b': type = BISHOP; break;
-                    case 'n': type = KNIGHT; break;
-                    case 'p': type = PAWN; break;
-                }
+                LineBB[s1][s2] = sq_bb(s1) | sq_bb(s2);
                 
-                if (type != EMPTY) {
-                    board[y * 8 + x] = {color, type};
-                    x++;
+                int f = f1 + step_f;
+                int r = r1 + step_r;
+                
+                while (f != f2 || r != r2) {
+                    Square sq = make_square(f, r);
+                    BetweenBB[s1][s2] |= sq_bb(sq);
+                    LineBB[s1][s2] |= sq_bb(sq);
+                    f += step_f;
+                    r += step_r;
                 }
             }
-            p++;
-        }
-        
-        // parse side to move
-        if (*p == ' ') p++;
-        to_move = (*p == 'w') ? WHITE : BLACK;
-        p++;
-        
-        // parse castling rights
-        castling_rights = 0;
-        if (*p == ' ') p++;
-        
-        // Debug print
-        DBG("Castling rights char: '" << *p << "'" << std::endl);
-        
-        // CORRECTED LOGIC
-        if (*p == ' ') p++; // Skip leading space
-        while (*p && *p != ' ') {
-            switch (*p) {
-                case 'K': castling_rights |= 0x8; break;
-                case 'Q': castling_rights |= 0x4; break;
-                case 'k': castling_rights |= 0x2; break;
-                case 'q': castling_rights |= 0x1; break;
-                case '-': break; // Handle the case of no castling rights
-                default:  break; // Or handle unexpected characters
-            }
-            p++;
-        }        
-        
-        // Debug print
-        DBG("Final castling rights: 0x" << std::hex << (int)castling_rights << std::dec << std::endl);
-        
-        // parse en passant
-        ep_square = -1;
-        if (*p == ' ') p++;
-        if (*p && *p != '-' && *p != ' ') {
-            int file = *p - 'a';
-            p++;
-            if (*p && *p >= '1' && *p <= '8') {
-                int rank = *p - '1';
-                ep_square = rank * 8 + file;
-            }
-            p++;
-        } else if (*p == '-') {
-            p++; // Skip the '-'
-        }
-        
-        // parse halfmove clock
-        if (*p == ' ') p++;
-        halfmove_clock = 0;
-        while (*p && *p != ' ') {
-            halfmove_clock = halfmove_clock * 10 + (*p - '0');
-            p++;
-        }
-        
-        // parse fullmove number
-        if (*p == ' ') p++;
-        fullmove_number = 0;
-        while (*p && *p != ' ') {
-            fullmove_number = fullmove_number * 10 + (*p - '0');
-            p++;
         }
     }
     
-    const Piece& at(Square sq) const {
-        static const Piece empty = {NO_COLOR, EMPTY};
-        if (!sq.is_valid()) return empty;
-        return board[sq.index()];
-    }
-    
-    Color side_to_move() const { return to_move; }
-    uint8_t get_castling_rights() const { return castling_rights; }
-    int8_t get_ep_square() const { return ep_square; }
-    uint8_t get_halfmove_clock() const { return halfmove_clock; }
-    
-    std::string fen() const {
-        std::string result;
-        
-        // Board representation
-        for (int y = 7; y >= 0; y--) {
-            int empty_count = 0;
-            for (int x = 0; x < 8; x++) {
-                const Piece& p = board[y * 8 + x];
-                if (p.type == EMPTY) {
-                    empty_count++;
-                } else {
-                    if (empty_count > 0) {
-                        result += std::to_string(empty_count);
-                        empty_count = 0;
-                    }
-                    char piece_char;
-                    switch (p.type) {
-                        case KING: piece_char = 'k'; break;
-                        case QUEEN: piece_char = 'q'; break;
-                        case ROOK: piece_char = 'r'; break;
-                        case BISHOP: piece_char = 'b'; break;
-                        case KNIGHT: piece_char = 'n'; break;
-                        case PAWN: piece_char = 'p'; break;
-                        default: piece_char = '?'; break;
-                    }
-                    if (p.color == WHITE) {
-                        piece_char = std::toupper(piece_char);
-                    }
-                    result += piece_char;
-                }
-            }
-            if (empty_count > 0) {
-                result += std::to_string(empty_count);
-            }
-            if (y > 0) result += '/';
-        }
-        
-        // Side to move
-        result += (to_move == WHITE) ? " w " : " b ";
-        
-        // Castling rights
-        bool has_castling = false;
-        if (castling_rights & 0x8) { result += 'K'; has_castling = true; }
-        if (castling_rights & 0x4) { result += 'Q'; has_castling = true; }
-        if (castling_rights & 0x2) { result += 'k'; has_castling = true; }
-        if (castling_rights & 0x1) { result += 'q'; has_castling = true; }
-        if (!has_castling) result += '-';
-        
-        // En passant
-        result += ' ';
-        if (ep_square >= 0) {
-            int file = ep_square & 7;
-            int rank = ep_square >> 3;
-            result += ('a' + file);
-            result += ('1' + rank);
-        } else {
-            result += '-';
-        }
-        
-        // Halfmove clock and fullmove number
-        result += ' ';
-        result += std::to_string(halfmove_clock);
-        result += ' ';
-        result += std::to_string(fullmove_number);
-        
-        return result;
-    }
-    
-    uint64_t hash() const {
-        int8_t ep_file = (ep_square >= 0) ? (ep_square & 7) : -1;
-        return zobrist.hash_position(board, castling_rights, ep_file, to_move);
-    }
-    
-    std::string to_fen() const {
-        std::string fen;
-        
-        // Board position
-        for (int rank = 7; rank >= 0; rank--) {
-            int empty_count = 0;
-            for (int file = 0; file < 8; file++) {
-                const Piece& p = board[rank * 8 + file];
-                if (p.type == EMPTY) {
-                    empty_count++;
-                } else {
-                    if (empty_count > 0) {
-                        fen += std::to_string(empty_count);
-                        empty_count = 0;
-                    }
-                    
-                    char piece_char;
-                    switch (p.type) {
-                        case KING: piece_char = 'k'; break;
-                        case QUEEN: piece_char = 'q'; break;
-                        case ROOK: piece_char = 'r'; break;
-                        case BISHOP: piece_char = 'b'; break;
-                        case KNIGHT: piece_char = 'n'; break;
-                        case PAWN: piece_char = 'p'; break;
-                        default: piece_char = '?'; break;
-                    }
-                    
-                    if (p.color == WHITE) {
-                        piece_char = std::toupper(piece_char);
-                    }
-                    
-                    fen += piece_char;
-                }
-            }
-            
-            if (empty_count > 0) {
-                fen += std::to_string(empty_count);
-            }
-            
-            if (rank > 0) {
-                fen += '/';
-            }
-        }
-        
-        // Side to move
-        fen += (to_move == WHITE) ? " w " : " b ";
-        
-        // Castling rights
-        std::string castling;
-        if (castling_rights & 0x8) castling += 'K';  // White kingside
-        if (castling_rights & 0x4) castling += 'Q';  // White queenside
-        if (castling_rights & 0x2) castling += 'k';  // Black kingside
-        if (castling_rights & 0x1) castling += 'q';  // Black queenside
-        
-        if (castling.empty()) {
-            fen += "-";
-        } else {
-            fen += castling;
-        }
-        
-        // En passant target square
-        if (ep_square >= 0) {
-            char file_char = 'a' + (ep_square % 8);
-            char rank_char = '1' + (ep_square / 8);
-            fen += " ";
-            fen += file_char;
-            fen += rank_char;
-        } else {
-            fen += " -";
-        }
-        
-        // Halfmove clock and fullmove number
-        fen += " " + std::to_string(halfmove_clock);
-        fen += " " + std::to_string(fullmove_number);
-        
-        return fen;
-    }
-    
-    Square find_king(Color color) const {
-        for (int sq = 0; sq < 64; ++sq) {
-            if (board[sq].type == KING && board[sq].color == color) {
-                return {int8_t(sq & 7), int8_t(sq >> 3)};
-            }
-        }
-        return {-1, -1};
-    }
-    
-    // move generation with yield pattern for performance
-    template<typename Fn>
-    void generate_pseudo_legal_moves(Fn yield) const {
-        for (int sq = 0; sq < 64; sq++) {
-            const Piece& piece = board[sq];
-            if (piece.type == EMPTY || piece.color != to_move) continue;
-            
-            Square from = {int8_t(sq & 7), int8_t(sq >> 3)};
-            
-            // Debug print
-            DBG("Found piece: ");
-            const char* type_names[] = {"EMPTY", "KING", "QUEEN", "ROOK", "BISHOP", "KNIGHT", "PAWN"};
-            const char* color_names[] = {"WHITE", "BLACK", "NO_COLOR"};
-            DBG(color_names[piece.color] << " " << type_names[piece.type]);
-            DBG(" at " << char('a' + from.x) << (from.y + 1) << std::endl);
-            
-            switch (piece.type) {
-                case PAWN: 
-                    DBG("  Generating pawn moves..." << std::endl);
-                    generate_pawn_moves(from, yield); 
-                    break;
-                case KNIGHT: 
-                    DBG("  Generating knight moves..." << std::endl);
-                    generate_knight_moves(from, yield); 
-                    break;
-                case BISHOP: 
-                    DBG("  Generating bishop moves..." << std::endl);
-                    generate_bishop_moves(from, yield); 
-                    break;
-                case ROOK: 
-                    DBG("  Generating rook moves..." << std::endl);
-                    generate_rook_moves(from, yield); 
-                    break;
-                case QUEEN: 
-                    DBG("  Generating queen moves..." << std::endl);        
-                    generate_queen_moves(from, yield); 
-                    break;
-                case KING: 
-                    DBG("  Generating king moves..." << std::endl);
-                    generate_king_moves(from, yield); 
-                    break;
-                case EMPTY:
-                    // Empty squares don't generate moves
-                    break;
-            }
-        }
-    }
-    
-    const std::vector<Move>& legal_moves() const {
-        if (!cached_legal_moves) {
-            cached_legal_moves = std::vector<Move>();
-            
-            // PERFORMANCE FIX: Use pseudo-legal moves instead of full legal move validation
-            // This eliminates the expensive board copying and check testing on every step
-            generate_pseudo_legal_moves([this](const Move& move) {
-                // For each pseudo-legal move, verify it doesn't leave the king in check
-                // Create a temporary board to test the move
-                ChessBoard test_board = *this;
-                test_board.apply_move_unchecked(move); // Apply the move without legality check
-                test_board.to_move = (to_move == WHITE) ? BLACK : WHITE; // Switch turn for check test
+    bitboards_initialized = true;
+}
 
-                const Piece& piece_to_move = at(move.from);
+static inline int get_pst_value(Piece pc, Square sq);
 
-                if (!test_board.is_in_check(piece_to_move.color)) {
-                    cached_legal_moves->push_back(move);
-                }
-                return true;  // continue generating
-            });
+void pos_set_startpos(Position* pos) {
+    memset(pos, 0, sizeof(Position));
+    
+    const char* fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    pos_set(pos, fen);
+}
+
+void pos_set(Position* pos, const char* fen) {
+    memset(pos, 0, sizeof(Position));
+    
+    int rank = 7, file = 0;
+    const char* ptr = fen;
+    
+    while (*ptr && *ptr != ' ') {
+        char c = *ptr++;
+        
+        if (c == '/') {
+            rank--;
+            file = 0;
+        } else if (c >= '1' && c <= '8') {
+            file += c - '0';
+        } else {
+            Square sq = make_square(file, rank);
+            Piece pc = NO_PIECE;
+            int pt = 0, color = 0;
             
-            // Sort deterministically by action id for reproducibility
-            std::sort(cached_legal_moves->begin(), cached_legal_moves->end(),
-                      [](const Move& a, const Move& b){
-                          return move_to_action(a) < move_to_action(b);
-                      });
-
-            DBG("[LEGAL_MOVES_DEBUG] Total legal moves: " << cached_legal_moves->size() << std::endl);
-            DBG("[LEGAL_MOVES_DEBUG] Final original board state - side: " << (to_move == WHITE ? "WHITE" : "BLACK") << ", hash: " << hash() << std::endl);
+            switch (c) {
+                case 'P': pc = W_PAWN; pt = PAWN; color = CHESS_WHITE; break;
+                case 'N': pc = W_KNIGHT; pt = KNIGHT; color = CHESS_WHITE; break;
+                case 'B': pc = W_BISHOP; pt = BISHOP; color = CHESS_WHITE; break;
+                case 'R': pc = W_ROOK; pt = ROOK; color = CHESS_WHITE; break;
+                case 'Q': pc = W_QUEEN; pt = QUEEN; color = CHESS_WHITE; break;
+                case 'K': pc = W_KING; pt = KING; color = CHESS_WHITE; break;
+                case 'p': pc = B_PAWN; pt = PAWN; color = CHESS_BLACK; break;
+                case 'n': pc = B_KNIGHT; pt = KNIGHT; color = CHESS_BLACK; break;
+                case 'b': pc = B_BISHOP; pt = BISHOP; color = CHESS_BLACK; break;
+                case 'r': pc = B_ROOK; pt = ROOK; color = CHESS_BLACK; break;
+                case 'q': pc = B_QUEEN; pt = QUEEN; color = CHESS_BLACK; break;
+                case 'k': pc = B_KING; pt = KING; color = CHESS_BLACK; break;
+            }
+            
+            if (pc != NO_PIECE) {
+                pos->board[sq] = pc;
+                pos->byTypeBB[pt] |= sq_bb(sq);
+                pos->byColorBB[color] |= sq_bb(sq);
+                pos->byTypeBB[0] |= sq_bb(sq);
+                pos->pieceCount[pc]++;
+            }
+            file++;
         }
-        return *cached_legal_moves;
     }
     
-    bool apply_move(const Move& move) {
-        // validate move is legal
-        const auto& moves = legal_moves();
-        if (std::find(moves.begin(), moves.end(), move) == moves.end()) {
-            return false;
+    if (*ptr == ' ') ptr++;
+    
+    pos->sideToMove = (*ptr == 'w') ? CHESS_WHITE : CHESS_BLACK;
+    ptr += 2;
+    
+    pos->castlingRights = NO_CASTLING;
+    while (*ptr && *ptr != ' ') {
+        if (*ptr == 'K') pos->castlingRights |= WHITE_OO;
+        else if (*ptr == 'Q') pos->castlingRights |= WHITE_OOO;
+        else if (*ptr == 'k') pos->castlingRights |= BLACK_OO;
+        else if (*ptr == 'q') pos->castlingRights |= BLACK_OOO;
+        ptr++;
+    }
+    
+
+    if (*ptr == ' ') ptr++;
+    
+    pos->epSquare = SQ_NONE;
+    if (*ptr != '-') {
+        int ep_file = ptr[0] - 'a';
+        int ep_rank = ptr[1] - '1';
+        pos->epSquare = make_square(ep_file, ep_rank);
+    }
+    
+    pos->materialScore = 0;
+    pos->psqtScore = 0;
+    
+    for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
+        Piece pc = pos->board[sq];
+        if (pc == NO_PIECE) continue;
+        
+        int pt = type_of_p(pc);
+        ChessColor c = color_of(pc);
+        int sign = (c == CHESS_WHITE) ? 1 : -1;
+        
+        pos->materialScore += sign * PIECE_VALUES_CP[pt];
+        
+        pos->psqtScore += sign * get_pst_value(pc, sq);
+    }
+    
+    pos->key = 0;
+    for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
+        Piece pc = pos->board[sq];
+        if (pc != NO_PIECE) {
+            pos->key ^= zob.psq[pc][sq];
+        }
+    }
+    if (pos->sideToMove == CHESS_BLACK) {
+        pos->key ^= zob.side;
+    }
+    if (pos->castlingRights) {
+        pos->key ^= zob.castling[pos->castlingRights];
+    }
+    if (pos->epSquare != SQ_NONE) {
+        pos->key ^= zob.enpassant[file_of(pos->epSquare)];
+    }
+}
+
+
+static void add_move(MoveList* ml, Move m) {
+    ml->moves[ml->count].move = m;
+    ml->moves[ml->count].value = 0;
+    ml->count++;
+}
+
+static void generate_pawn_moves(Position* pos, MoveList* ml, ChessColor us) {
+    ChessColor them = !us;
+    int up = (us == CHESS_WHITE) ? NORTH : SOUTH;
+    Bitboard rank7 = (us == CHESS_WHITE) ? Rank7BB : Rank2BB;
+    Bitboard rank3 = (us == CHESS_WHITE) ? Rank3BB : Rank6BB;
+    
+    Bitboard pawns = pieces_cp(pos, us, PAWN);
+    Bitboard pawnsOn7 = pawns & rank7;
+    Bitboard pawnsNotOn7 = pawns & ~rank7;
+    
+    Bitboard enemies = pieces_c(pos, them);
+    Bitboard empty = ~pieces(pos);
+    
+    Bitboard b1 = shift_bb(up, pawnsNotOn7) & empty;
+    Bitboard b2 = shift_bb(up, b1 & rank3) & empty;
+    
+    while (b1) {
+        Square to = pop_lsb(&b1);
+        add_move(ml, make_move(to - up, to));
+    }
+    
+    while (b2) {
+        Square to = pop_lsb(&b2);
+        add_move(ml, make_move(to - up - up, to));
+    }
+    
+    if (pawnsOn7) {
+        Bitboard b3 = shift_bb(up, pawnsOn7) & empty;
+        while (b3) {
+            Square to = pop_lsb(&b3);
+            Square from = to - up;
+            add_move(ml, make_promotion(from, to, QUEEN));
+            add_move(ml, make_promotion(from, to, ROOK));
+            add_move(ml, make_promotion(from, to, BISHOP));
+            add_move(ml, make_promotion(from, to, KNIGHT));
+        }
+    }
+    
+    Bitboard b4 = shift_bb(up + WEST, pawnsNotOn7) & enemies;
+    Bitboard b5 = shift_bb(up + EAST, pawnsNotOn7) & enemies;
+    
+    while (b4) {
+        Square to = pop_lsb(&b4);
+        add_move(ml, make_move(to - up - WEST, to));
+    }
+    
+    while (b5) {
+        Square to = pop_lsb(&b5);
+        add_move(ml, make_move(to - up - EAST, to));
+    }
+    
+    if (pawnsOn7) {
+        Bitboard b6 = shift_bb(up + WEST, pawnsOn7) & enemies;
+        Bitboard b7 = shift_bb(up + EAST, pawnsOn7) & enemies;
+        
+        while (b6) {
+            Square to = pop_lsb(&b6);
+            Square from = to - up - WEST;
+            add_move(ml, make_promotion(from, to, QUEEN));
+            add_move(ml, make_promotion(from, to, ROOK));
+            add_move(ml, make_promotion(from, to, BISHOP));
+            add_move(ml, make_promotion(from, to, KNIGHT));
         }
         
-        apply_move_unchecked(move);
-        cached_legal_moves.reset();
+        while (b7) {
+            Square to = pop_lsb(&b7);
+            Square from = to - up - EAST;
+            add_move(ml, make_promotion(from, to, QUEEN));
+            add_move(ml, make_promotion(from, to, ROOK));
+            add_move(ml, make_promotion(from, to, BISHOP));
+            add_move(ml, make_promotion(from, to, KNIGHT));
+        }
+    }
+    
+    if (pos->epSquare != SQ_NONE) {
+        Bitboard ep_pawns = pawnsNotOn7 & pawn_attacks_bb(them, pos->epSquare);
+        while (ep_pawns) {
+            Square from = pop_lsb(&ep_pawns);
+            add_move(ml, make_enpassant(from, pos->epSquare));
+        }
+    }
+}
+
+static void generate_piece_moves(Position* pos, MoveList* ml, int pt, ChessColor us) {
+    Bitboard pieces_bb = pieces_cp(pos, us, pt);
+    Bitboard target = ~pieces_c(pos, us);
+    Bitboard occupied = pieces(pos);
+    
+    while (pieces_bb) {
+        Square from = pop_lsb(&pieces_bb);
+        Bitboard attacks = 0;
+        
+        switch (pt) {
+            case KNIGHT:
+                attacks = knight_attacks_bb(from);
+                break;
+            case BISHOP:
+                attacks = bishop_attacks_bb(from, occupied);
+                break;
+            case ROOK:
+                attacks = rook_attacks_bb(from, occupied);
+                break;
+            case QUEEN:
+                attacks = queen_attacks_bb(from, occupied);
+                break;
+            case KING:
+                attacks = king_attacks_bb(from);
+                break;
+        }
+        
+        attacks &= target;
+        
+        while (attacks) {
+            Square to = pop_lsb(&attacks);
+            add_move(ml, make_move(from, to));
+        }
+    }
+}
+
+static bool is_square_attacked(Position* pos, Square sq, ChessColor by_color) {
+    Bitboard occupied = pieces(pos);
+    
+    if (pawn_attacks_bb(!by_color, sq) & pieces_cp(pos, by_color, PAWN))
+        return true;
+    
+    if (knight_attacks_bb(sq) & pieces_cp(pos, by_color, KNIGHT))
+        return true;
+    
+    if (bishop_attacks_bb(sq, occupied) & (pieces_cp(pos, by_color, BISHOP) | pieces_cp(pos, by_color, QUEEN)))
+        return true;
+    
+    if (rook_attacks_bb(sq, occupied) & (pieces_cp(pos, by_color, ROOK) | pieces_cp(pos, by_color, QUEEN)))
+        return true;
+    
+    if (king_attacks_bb(sq) & pieces_cp(pos, by_color, KING))
+        return true;
+    
+    return false;
+}
+
+ static void generate_castling(Position* pos, MoveList* ml, ChessColor us) {
+    Bitboard occupied = pieces(pos);
+    
+    if (us == CHESS_WHITE) {
+        if (pos->castlingRights & WHITE_OO) {
+            if (!(occupied & (sq_bb(SQ_F1) | sq_bb(SQ_G1)))) {
+                add_move(ml, make_castling(SQ_E1, SQ_G1));
+            }
+        }
+        if (pos->castlingRights & WHITE_OOO) {
+            if (!(occupied & (sq_bb(SQ_D1) | sq_bb(SQ_C1) | sq_bb(SQ_B1)))) {
+                add_move(ml, make_castling(SQ_E1, SQ_C1));
+            }
+        }
+    } else {
+        if (pos->castlingRights & BLACK_OO) {
+            if (!(occupied & (sq_bb(SQ_F8) | sq_bb(SQ_G8)))) {
+                add_move(ml, make_castling(SQ_E8, SQ_G8));
+            }
+        }
+        if (pos->castlingRights & BLACK_OOO) {
+            if (!(occupied & (sq_bb(SQ_D8) | sq_bb(SQ_C8) | sq_bb(SQ_B8)))) {
+                add_move(ml, make_castling(SQ_E8, SQ_C8));
+            }
+        }
+    }
+}
+
+static Bitboard attackers_to_sq(Position* pos, Square sq, Bitboard occupied) {
+    return (pawn_attacks_bb(CHESS_WHITE, sq) & pieces_cp(pos, CHESS_BLACK, PAWN))
+         | (pawn_attacks_bb(CHESS_BLACK, sq) & pieces_cp(pos, CHESS_WHITE, PAWN))
+         | (knight_attacks_bb(sq) & pieces_p(pos, KNIGHT))
+         | (king_attacks_bb(sq) & pieces_p(pos, KING))
+         | (bishop_attacks_bb(sq, occupied) & (pieces_p(pos, BISHOP) | pieces_p(pos, QUEEN)))
+         | (rook_attacks_bb(sq, occupied) & (pieces_p(pos, ROOK) | pieces_p(pos, QUEEN)));
+}
+
+static inline Bitboard all_pawn_attacks(Bitboard pawns, ChessColor c) {
+    if (c == CHESS_WHITE) {
+        return ((pawns << 7) & ~FileHBB) | ((pawns << 9) & ~FileABB);
+    } else {
+        return ((pawns >> 7) & ~FileABB) | ((pawns >> 9) & ~FileHBB);
+    }
+}
+
+bool is_check(Position* pos, ChessColor c) {
+    Bitboard king_bb = pieces_cp(pos, c, KING);
+    if (!king_bb) return false;
+    Square king_sq = lsb(king_bb);
+    return (attackers_to_sq(pos, king_sq, pieces(pos)) & pieces_c(pos, !c)) != 0;
+}
+
+static inline bool is_legal_move(Position* pos, Move m) {
+    ChessColor us = pos->sideToMove;
+    ChessColor them = (ChessColor)!us;
+    int mt = type_of_m(m);
+    if (mt == CASTLING) {
+        if (is_check(pos, us)) return false;
+        Square from = from_sq(m), to = to_sq(m);
+        Square mid = (from + to) / 2;
+        if (is_square_attacked(pos, mid, them) || is_square_attacked(pos, to, them)) return false;
         return true;
     }
+    if (mt == ENPASSANT) {
+        Bitboard king_bb = pieces_cp(pos, us, KING);
+        if (!king_bb) return false;
+        Square ksq = lsb(king_bb);
+        Square from = from_sq(m), to = to_sq(m);
+        Square capsq = (us == CHESS_WHITE) ? (to - 8) : (to + 8);
+        Bitboard occ = pieces(pos) ^ sq_bb(from) ^ sq_bb(capsq) ^ sq_bb(to);
+        return (attackers_to_sq(pos, ksq, occ) & pieces_c(pos, them)) == 0;
+    }
+    UndoInfo u[1]; int p = 0;
+    do_move(pos, m, u, &p);
+    bool ok = !is_check(pos, us);
+    undo_move(pos, m, u, &p);
+    return ok;
+}
+
+static inline void generate_pseudo_legal(Position* pos, MoveList* ml, ChessColor us) {
+    ml->count = 0;
+    generate_pawn_moves(pos, ml, us);
+    generate_piece_moves(pos, ml, KNIGHT, us);
+    generate_piece_moves(pos, ml, BISHOP, us);
+    generate_piece_moves(pos, ml, ROOK, us);
+    generate_piece_moves(pos, ml, QUEEN, us);
+    generate_piece_moves(pos, ml, KING, us);
+    generate_castling(pos, ml, us);
+}
+
+void generate_legal(Position* pos, MoveList* ml, UndoInfo* undo_stack, int* undo_stack_ptr) {
+    MoveList pseudo;
+    generate_pseudo_legal(pos, &pseudo, pos->sideToMove);
+    ml->count = 0;
+    for (int i = 0; i < pseudo.count; i++) {
+        if (is_legal_move(pos, pseudo.moves[i].move))
+            ml->moves[ml->count++] = pseudo.moves[i];
+    }
+}
+
+
+static inline int get_material_value(Piece pc) {
+    return PIECE_VALUES_CP[type_of_p(pc)];
+}
+
+static inline int get_pst_value_phase(Piece pc, Square sq, int phase) {
+    int pt = type_of_p(pc);
+    ChessColor c = color_of(pc);
+    Square s = (c == CHESS_WHITE) ? sq : (sq ^ 56);
     
-    bool is_check() const {
-        return is_in_check(to_move);
+    int mg, eg;
+    switch (pt) {
+        case PAWN:
+            mg = PawnPST_MG[s];
+            eg = PawnPST_EG[s];
+            break;
+        case KNIGHT:
+            mg = KnightPST_MG[s];
+            eg = KnightPST_EG[s];
+            break;
+        case BISHOP:
+            mg = BishopPST_MG[s];
+            eg = BishopPST_EG[s];
+            break;
+        case ROOK:
+            mg = RookPST_MG[s];
+            eg = RookPST_EG[s];
+            break;
+        case QUEEN:
+            mg = QueenPST_MG[s];
+            eg = QueenPST_EG[s];
+            break;
+        case KING:
+            mg = KingPST_MG[s];
+            eg = KingPST_EG[s];
+            break;
+        default:
+            return 0;
     }
     
-    bool is_checkmate() const {
-        return is_in_check(to_move) && legal_moves().empty();
-    }
-    
-    bool is_stalemate() const {
-        return !is_in_check(to_move) && legal_moves().empty();
-    }
-    
-    bool is_insufficient_material() const {
-        // Count pieces by type for each color
-        int white_pawns = 0, black_pawns = 0;
-        int white_rooks = 0, black_rooks = 0;
-        int white_queens = 0, black_queens = 0;
-        int white_bishops = 0, black_bishops = 0;
-        int white_knights = 0, black_knights = 0;
-        bool white_light_bishop = false, white_dark_bishop = false;
-        bool black_light_bishop = false, black_dark_bishop = false;
+    return (mg * phase + eg * (24 - phase)) / 24;
+}
+
+static inline int get_pst_value(Piece pc, Square sq) {
+    return get_pst_value_phase(pc, sq, 12);
+}
+
+void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
+    if (m == MOVE_NULL) {
+        undo_stack[*undo_stack_ptr].captured = NO_PIECE;
+        undo_stack[*undo_stack_ptr].castlingRights = pos->castlingRights;
+        undo_stack[*undo_stack_ptr].epSquare = pos->epSquare;
+        undo_stack[*undo_stack_ptr].rule50 = pos->rule50;
+        undo_stack[*undo_stack_ptr].materialScore = pos->materialScore;
+        undo_stack[*undo_stack_ptr].psqtScore = pos->psqtScore;
+        undo_stack[*undo_stack_ptr].key = pos->key;
+        undo_stack[*undo_stack_ptr].pliesFromNull = 0;
+        (*undo_stack_ptr)++;
         
-        for (int sq = 0; sq < 64; sq++) {
-            const Piece& p = board[sq];
-            if (p.type == EMPTY) continue;
-            
-            switch (p.type) {
-                case PAWN:
-                    if (p.color == WHITE) white_pawns++;
-                    else black_pawns++;
-                    break;
-                    
-                case ROOK:
-                    if (p.color == WHITE) white_rooks++;
-                    else black_rooks++;
-                    break;
-                    
-                case QUEEN:
-                    if (p.color == WHITE) white_queens++;
-                    else black_queens++;
-                    break;
-                    
-                case BISHOP:
-                    if (p.color == WHITE) {
-                        white_bishops++;
-                        // Check if bishop is on light or dark square
-                        if (((sq & 7) + (sq >> 3)) & 1) {
-                            white_light_bishop = true;
-                        } else {
-                            white_dark_bishop = true;
-                        }
-                    } else {
-                        black_bishops++;
-                        // Check if bishop is on light or dark square
-                        if (((sq & 7) + (sq >> 3)) & 1) {
-                            black_light_bishop = true;
-                        } else {
-                            black_dark_bishop = true;
-                        }
+        if (pos->epSquare != SQ_NONE) {
+            pos->key ^= zob.enpassant[file_of(pos->epSquare)];
+            pos->epSquare = SQ_NONE;
+        }
+        pos->sideToMove = !pos->sideToMove;
+        pos->key ^= zob.side;
+        return;
+    }
+    
+    Square from = from_sq(m);
+    Square to = to_sq(m);
+    int move_type = type_of_m(m);
+    Piece pc = piece_on(pos, from);
+    Piece captured = piece_on(pos, to);
+    int pt = type_of_p(pc);
+    ChessColor us = pos->sideToMove;
+    ChessColor them = !us;
+    
+    undo_stack[*undo_stack_ptr].captured = captured;
+    undo_stack[*undo_stack_ptr].castlingRights = pos->castlingRights;
+    undo_stack[*undo_stack_ptr].epSquare = pos->epSquare;
+    undo_stack[*undo_stack_ptr].rule50 = pos->rule50;
+    undo_stack[*undo_stack_ptr].materialScore = pos->materialScore;
+    undo_stack[*undo_stack_ptr].psqtScore = pos->psqtScore;
+    undo_stack[*undo_stack_ptr].key = pos->key;
+    undo_stack[*undo_stack_ptr].pliesFromNull = (*undo_stack_ptr > 0) ? undo_stack[*undo_stack_ptr - 1].pliesFromNull + 1 : 0;
+    (*undo_stack_ptr)++;
+    
+    int sign = (us == CHESS_WHITE) ? 1 : -1;
+    int mat_delta = 0, pst_delta = 0;
+    
+    pst_delta -= sign * get_pst_value(pc, from);
+    
+    if (captured != NO_PIECE) {
+        int cap_sign = (color_of(captured) == CHESS_WHITE) ? 1 : -1;
+        mat_delta -= cap_sign * get_material_value(captured);
+        pst_delta -= cap_sign * get_pst_value(captured, to);
+    }
+    
+    if (pt == PAWN || captured != NO_PIECE) {
+        pos->rule50 = 0;
+        undo_stack[*undo_stack_ptr - 1].pliesFromNull = 0;
+    }
+    else {
+        pos->rule50++;
+    }
+    
+    if (pos->epSquare != SQ_NONE) {
+        pos->key ^= zob.enpassant[file_of(pos->epSquare)];
+    }
+    pos->epSquare = SQ_NONE;
+    
+    if (move_type == CASTLING) {
+        pos->key ^= zob.psq[pc][from];
+        
+        pos->board[from] = NO_PIECE;
+        pos->board[to] = pc;
+        pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
+        pst_delta += sign * get_pst_value(pc, to);
+        pos->key ^= zob.psq[pc][to];
+        
+        Square rook_from, rook_to;
+        if (to > from) { 
+            rook_from = from + 3;
+            rook_to = from + 1;
+        } else {
+            rook_from = from - 4;
+            rook_to = from - 1;
+        }
+        
+        Piece rook = piece_on(pos, rook_from);
+        pos->key ^= zob.psq[rook][rook_from];
+        pos->board[rook_from] = NO_PIECE;
+        pos->board[rook_to] = rook;
+        pos->byTypeBB[ROOK] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
+        pos->byColorBB[us] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
+        pos->byTypeBB[0] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
+        pst_delta -= sign * get_pst_value(rook, rook_from);
+        pst_delta += sign * get_pst_value(rook, rook_to);
+        pos->key ^= zob.psq[rook][rook_to]; 
+        
+    } else if (move_type == ENPASSANT) {
+        pos->key ^= zob.psq[pc][from];
+        
+        pos->board[from] = NO_PIECE;
+        pos->board[to] = pc;
+        pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
+        pst_delta += sign * get_pst_value(pc, to); 
+        pos->key ^= zob.psq[pc][to];
+        
+        Square cap_sq = to + (us == CHESS_WHITE ? SOUTH : NORTH);
+        Piece cap_pawn = piece_on(pos, cap_sq);
+        pos->key ^= zob.psq[cap_pawn][cap_sq];
+        pos->board[cap_sq] = NO_PIECE;
+        pos->byTypeBB[PAWN] ^= sq_bb(cap_sq);
+        pos->byColorBB[them] ^= sq_bb(cap_sq);
+        pos->byTypeBB[0] ^= sq_bb(cap_sq);
+        pos->pieceCount[cap_pawn]--;
+        int cap_sign = (color_of(cap_pawn) == CHESS_WHITE) ? 1 : -1;
+        mat_delta -= cap_sign * get_material_value(cap_pawn);
+        pst_delta -= cap_sign * get_pst_value(cap_pawn, cap_sq);
+        
+    } else {
+        pos->key ^= zob.psq[pc][from];
+        
+        if (captured != NO_PIECE) {
+            pos->key ^= zob.psq[captured][to];
+            int cap_pt = type_of_p(captured);
+            pos->byTypeBB[cap_pt] ^= sq_bb(to);
+            pos->byColorBB[them] ^= sq_bb(to);
+            pos->byTypeBB[0] ^= sq_bb(to);
+            pos->pieceCount[captured]--;
+        }
+        
+		pos->board[from] = NO_PIECE;
+		pos->board[to] = pc;
+		pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
+		pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
+		pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
+        pst_delta += sign * get_pst_value(pc, to);
+        pos->key ^= zob.psq[pc][to];
+        
+        if (move_type == PROMOTION) {
+            int promo_pt = promotion_type(m);
+            Piece promo_pc = make_piece(us, promo_pt);
+            pos->key ^= zob.psq[pc][to];
+            pos->board[to] = promo_pc;
+            pos->byTypeBB[pt] ^= sq_bb(to);
+            pos->byTypeBB[promo_pt] ^= sq_bb(to);
+            pos->pieceCount[pc]--;
+            pos->pieceCount[promo_pc]++;
+            pos->key ^= zob.psq[promo_pc][to];
+            mat_delta -= sign * get_material_value(pc);
+            mat_delta += sign * get_material_value(promo_pc);
+            pst_delta -= sign * get_pst_value(pc, to);
+            pst_delta += sign * get_pst_value(promo_pc, to);
+        }
+        
+        if (pt == PAWN) {
+            int diff = to - from;
+            if (diff == 16 || diff == -16) {
+                Square ep_sq = (from + to) / 2;
+                if (pawn_attacks_bb(us, ep_sq) & pieces_cp(pos, them, PAWN)) {
+                    pos->epSquare = ep_sq;
+                    pos->key ^= zob.enpassant[file_of(ep_sq)];
+                }
+            }
+        }
+    }
+    
+    uint8_t old_castling = pos->castlingRights;
+    if (pt == KING) {
+        pos->castlingRights &= us == CHESS_WHITE ? ~WHITE_CASTLING : ~BLACK_CASTLING;
+    }
+    if (from == SQ_A1 || to == SQ_A1) pos->castlingRights &= ~WHITE_OOO;
+    if (from == SQ_H1 || to == SQ_H1) pos->castlingRights &= ~WHITE_OO;
+    if (from == SQ_A8 || to == SQ_A8) pos->castlingRights &= ~BLACK_OOO;
+    if (from == SQ_H8 || to == SQ_H8) pos->castlingRights &= ~BLACK_OO;
+    
+    if (old_castling != pos->castlingRights) {
+        pos->key ^= zob.castling[old_castling];
+        pos->key ^= zob.castling[pos->castlingRights];
+    }
+    
+    pos->materialScore += mat_delta;
+    pos->psqtScore += pst_delta;
+    
+    pos->sideToMove = them;
+    pos->key ^= zob.side;
+    pos->gamePly++;
+}
+
+void undo_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
+    (*undo_stack_ptr)--;
+    UndoInfo* undo = &undo_stack[*undo_stack_ptr];
+    
+    if (m == MOVE_NULL) {
+        pos->castlingRights = undo->castlingRights;
+        pos->epSquare = undo->epSquare;
+        pos->rule50 = undo->rule50;
+        pos->materialScore = undo->materialScore;
+        pos->psqtScore = undo->psqtScore;
+        pos->key = undo->key;
+        pos->sideToMove = !pos->sideToMove;
+        return;
+    }
+    
+    Square from = from_sq(m);
+    Square to = to_sq(m);
+    int move_type = type_of_m(m);
+    ChessColor us = !pos->sideToMove;
+    ChessColor them = pos->sideToMove;
+    
+    Piece pc = piece_on(pos, to);
+    int pt = type_of_p(pc);
+    
+    pos->castlingRights = undo->castlingRights;
+    pos->epSquare = undo->epSquare;
+    pos->rule50 = undo->rule50;
+    pos->materialScore = undo->materialScore;
+    pos->psqtScore = undo->psqtScore;
+    pos->key = undo->key;
+    pos->sideToMove = us;
+    pos->gamePly--;
+    
+    if (move_type == CASTLING) {
+        pos->board[to] = NO_PIECE;
+        pos->board[from] = pc;
+        pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
+        
+        Square rook_from, rook_to;
+        if (to > from) {
+            rook_from = from + 3;
+            rook_to = from + 1;
+        } else {
+            rook_from = from - 4;
+            rook_to = from - 1;
+        }
+        
+        Piece rook = piece_on(pos, rook_to);
+        pos->board[rook_to] = NO_PIECE;
+        pos->board[rook_from] = rook;
+        pos->byTypeBB[ROOK] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
+        pos->byColorBB[us] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
+        pos->byTypeBB[0] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
+        
+    } else if (move_type == ENPASSANT) {
+        pos->board[to] = NO_PIECE;
+        pos->board[from] = pc;
+        pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
+
+        
+        Square cap_sq = to + (us == CHESS_WHITE ? SOUTH : NORTH);
+        Piece cap_pawn = make_piece(them, PAWN);
+        pos->board[cap_sq] = cap_pawn;
+        pos->byTypeBB[PAWN] ^= sq_bb(cap_sq);
+        pos->byColorBB[them] ^= sq_bb(cap_sq);
+        pos->byTypeBB[0] ^= sq_bb(cap_sq);
+        pos->pieceCount[cap_pawn]++;
+        
+    } else {
+        if (move_type == PROMOTION) {
+            int promo_pt = promotion_type(m);
+            Piece promo_pc = make_piece(us, promo_pt);
+            pc = make_piece(us, PAWN);
+            pt = PAWN;
+            pos->board[to] = NO_PIECE;
+            pos->byTypeBB[promo_pt] ^= sq_bb(to);
+            pos->byTypeBB[pt] ^= sq_bb(to);
+            pos->pieceCount[promo_pc]--;
+            pos->pieceCount[pc]++;
+        }
+        
+        pos->board[to] = undo->captured;
+        pos->board[from] = pc;
+        pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
+        pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
+        
+        if (undo->captured != NO_PIECE) {
+            int cap_pt = type_of_p(undo->captured);
+            pos->byTypeBB[cap_pt] ^= sq_bb(to);
+            pos->byColorBB[them] ^= sq_bb(to);
+            pos->byTypeBB[0] ^= sq_bb(from);
+            pos->pieceCount[undo->captured]++;
+        } else {
+            pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
+        }
+    }
+}
+
+static inline bool is_insufficient_material(const Position* pos) {
+    if (pieces_p(pos, PAWN) | pieces_p(pos, ROOK) | pieces_p(pos, QUEEN))
+        return false;
+
+    int wN = popcount(pieces_cp(pos, CHESS_WHITE, KNIGHT));
+    int bN = popcount(pieces_cp(pos, CHESS_BLACK, KNIGHT));
+    int wB = popcount(pieces_cp(pos, CHESS_WHITE, BISHOP));
+    int bB = popcount(pieces_cp(pos, CHESS_BLACK, BISHOP));
+    int totalMinors = wN + bN + wB + bB;
+
+    if (totalMinors == 0)
+        return true;
+
+    if (totalMinors == 1)
+        return true;
+
+    if (totalMinors == 2) {
+        if ((wN == 2 && wB == 0 && bN == 0 && bB == 0) || (bN == 2 && bB == 0 && wN == 0 && wB == 0))
+            return true;
+        if ((wN + wB) == 1 && (bN + bB) == 1)
+            return true;
+    }
+
+    return false;
+}
+
+bool is_draw_with_history(Position* pos, UndoInfo* undo_stack, int undo_stack_ptr) {
+    if (pos->rule50 >= 100)
+        return true;
+    
+    if (is_insufficient_material(pos))
+        return true;
+
+    // Backward scan for repetitions
+    int e = (undo_stack_ptr > 0) ? undo_stack[undo_stack_ptr - 1].pliesFromNull - 4 : -1;
+    if (e >= 0) {
+        int repetitions = 0;
+        for (int i = 4; i <= e + 4; i += 2) {
+            int idx = undo_stack_ptr - 1 - i;
+            if (idx >= 0 && undo_stack[idx].key == pos->key) {
+                repetitions++;
+                if (repetitions >= 2) {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+int game_result_with_legal_count(Position* pos, int legal_count, UndoInfo* undo_stack, int undo_stack_ptr, 
+                                  int enable_50_move_rule, int enable_threefold_repetition) {
+    if (legal_count == 0) {
+        if (is_check(pos, pos->sideToMove)) {
+            return pos->sideToMove == CHESS_WHITE ? 1 : 2;
+        } else {
+            return 3;
+        }
+    }
+    
+    if (is_insufficient_material(pos)) {
+        return 3;
+    }
+    
+    if (enable_50_move_rule && pos->rule50 >= 100) {
+        return 3;
+    }
+    
+    if (enable_threefold_repetition && undo_stack_ptr > 0) {
+        uint8_t plies = undo_stack[undo_stack_ptr - 1].pliesFromNull;
+        
+        if (plies >= 4) {
+            int repetitions = 0;
+            // Search backward: only check positions with same side to move (step by 2 plies)
+            for (int i = 4; i <= plies; i += 2) {
+                int idx = undo_stack_ptr - 1 - i;
+                if (idx >= 0 && undo_stack[idx].key == pos->key) {
+                    repetitions++;
+                    if (repetitions >= 2) {
+                        return 3;
                     }
-                    break;
-                    
-                case KNIGHT:
-                    if (p.color == WHITE) white_knights++;
-                    else black_knights++;
-                    break;
-                    
-                case KING:
-                    // Kings don't affect insufficient material calculation
-                    break;
-                    
-                case EMPTY:
-                    // Empty squares don't affect insufficient material calculation
-                    break;
+                }
             }
         }
-        
-        // If either side has pawns, rooks, or queens, there is sufficient material
-        if (white_pawns > 0 || black_pawns > 0 || 
-            white_rooks > 0 || black_rooks > 0 || 
-            white_queens > 0 || black_queens > 0) {
-            return false;
+    }
+    
+    return 0;
+}
+
+uint64_t perft(Position* pos, int depth) {
+    if (depth == 0)
+        return 1ULL;
+    
+    UndoInfo local_undo[512];
+    int local_ptr = 0;
+    
+    MoveList ml;
+    generate_legal(pos, &ml, local_undo, &local_ptr);
+    
+    uint64_t nodes = 0;
+    for (int i = 0; i < ml.count; i++) {
+        Move m = ml.moves[i].move;
+        do_move(pos, m, local_undo, &local_ptr);
+        nodes += perft(pos, depth - 1);
+        undo_move(pos, m, local_undo, &local_ptr);
+    }
+    
+    return nodes;
+}
+
+
+void populate_observations(Chess* env) {
+    uint8_t* obs = env->observations;
+    Position* pos = &env->pos;
+    
+    int num_players = env->selfplay ? 2 : 1;
+    for (int player_iter = 0; player_iter < num_players; player_iter++) {
+        int player = env->selfplay ? player_iter : env->learner_color;
+        int buffer_idx;
+        if (env->selfplay) {
+            buffer_idx = (env->learner_color == CHESS_WHITE) ? player_iter : (1 - player_iter);
+        } else {
+            buffer_idx = 0;
         }
         
-        // Now we only have kings, bishops, and knights
+        uint8_t* player_obs = obs + (buffer_idx * OBS_SIZE);
+        uint8_t* board_planes = player_obs + O_BOARD;
+        memset(board_planes, 0, 12 * 64);
         
-        // Rule 1: K vs K
-        if (white_bishops == 0 && white_knights == 0 && 
-            black_bishops == 0 && black_knights == 0) {
-            return true;
-        }
+        ChessColor us = (ChessColor)player;  // 0=White, 1=Black
         
-        // Rule 2: K+B vs K (White has one bishop, Black has nothing)
-        if (white_bishops == 1 && white_knights == 0 && 
-            black_bishops == 0 && black_knights == 0) {
-            return true;
-        }
+        Bitboard occupied = pos->byTypeBB[0];
+        while (occupied) {
+            Square sq = pop_lsb(&occupied);
+        Piece p = pos->board[sq];
         
-        // Rule 2: K vs K+B (Black has one bishop, White has nothing)
-        if (black_bishops == 1 && black_knights == 0 && 
-            white_bishops == 0 && white_knights == 0) {
-            return true;
-        }
-        
-        // Rule 3: K+N vs K (White has one knight, Black has nothing)
-        if (white_knights == 1 && white_bishops == 0 && 
-            black_bishops == 0 && black_knights == 0) {
-            return true;
-        }
-        
-        // Rule 3: K vs K+N (Black has one knight, White has nothing)
-        if (black_knights == 1 && black_bishops == 0 && 
-            white_bishops == 0 && white_knights == 0) {
-            return true;
-        }
-        
-        // Rule 4: K+B* vs K+B* (all bishops on same colored squares)
-        if (white_knights == 0 && black_knights == 0 && 
-            white_bishops > 0 && black_bishops > 0) {
-            // All bishops must be on the same color squares
-            bool all_on_light = (white_light_bishop || black_light_bishop) && 
-                               !white_dark_bishop && !black_dark_bishop;
-            bool all_on_dark = (white_dark_bishop || black_dark_bishop) && 
-                              !white_light_bishop && !black_light_bishop;
+        int plane;
+            int obs_sq;
             
-            if (all_on_light || all_on_dark) {
-                return true;
+            if (player == 1) {
+                obs_sq = sq ^ 56;
+                int piece_color = color_of(p);
+                int piece_type = type_of_p(p);
+                if (piece_color == CHESS_BLACK) {
+                    plane = piece_type - 1;
+                } else {
+                    plane = 6 + (piece_type - 1);
+                }
+            } else {
+                obs_sq = sq;
+        if (p >= B_PAWN) {
+            plane = 6 + (p - B_PAWN);
+        } else {
+            plane = p - 1;
+        }
+            }
+            board_planes[plane * 64 + obs_sq] = 1;
+        }
+        
+        uint8_t* side_onehot = player_obs + O_SIDE;
+        side_onehot[0] = 0; side_onehot[1] = 0;
+        side_onehot[(pos->sideToMove == us) ? 0 : 1] = 1;
+        
+        uint8_t* castle_onehot = player_obs + O_CASTLE;
+        memset(castle_onehot, 0, 16);
+        uint8_t castle_rights = pos->castlingRights;
+        if (player == 1) {
+            uint8_t flipped = 0;
+            if (castle_rights & BLACK_OO) flipped |= WHITE_OO;
+            if (castle_rights & BLACK_OOO) flipped |= WHITE_OOO;
+            if (castle_rights & WHITE_OO) flipped |= BLACK_OO;
+            if (castle_rights & WHITE_OOO) flipped |= BLACK_OOO;
+            castle_rights = flipped;
+        }
+        castle_onehot[castle_rights] = 1;
+
+        uint8_t* ep_onehot = player_obs + O_EP;
+        memset(ep_onehot, 0, 65);
+    if (pos->epSquare < 64) {
+            int ep_sq = (player == 1) ? (pos->epSquare ^ 56) : pos->epSquare;
+            ep_onehot[ep_sq] = 1;
+    } else {
+        ep_onehot[64] = 1;
+    }
+    
+        uint8_t* valid_pieces = player_obs + O_VALID_PIECES;
+        uint8_t* valid_dests = player_obs + O_VALID_DESTS;
+        memset(valid_pieces, 0, 64);
+        memset(valid_dests, 0, 64);
+        
+        int player_idx = (int)us;
+        
+        if (pos->sideToMove != us) {
+            env->pick_phase[player_idx] = 0;
+            env->selected_square[player_idx] = SQ_NONE;
+            env->valid_destinations[player_idx].count = 0;
+            
+            MoveList next_player_legal;
+            Position temp_pos = *pos;
+            temp_pos.sideToMove = !temp_pos.sideToMove;
+            temp_pos.key ^= zob.side;
+            UndoInfo local_undo[64];
+            int local_undo_ptr = 0;
+            generate_legal(&temp_pos, &next_player_legal, local_undo, &local_undo_ptr);
+            
+            if (next_player_legal.count > 0) {
+                memset(valid_pieces, 0, 64);
+                for (int i = 0; i < next_player_legal.count; i++) {
+                    Square from = from_sq(next_player_legal.moves[i].move);
+                    Square obs_sq = (us == CHESS_BLACK) ? (from ^ 56) : from;
+                    valid_pieces[obs_sq] = 1;
+                }
+            } else {
+                memset(valid_pieces, 1, 64);
+            }
+            memset(valid_dests, 0, 64);
+        } else {
+            if (env->pick_phase[player_idx] == 0) {
+                if (env->legal_moves.count > 0) {
+                    for (int i = 0; i < env->legal_moves.count; i++) {
+                        Square from = from_sq(env->legal_moves.moves[i].move);
+                        int view_from = (player == 1) ? (from ^ 56) : from;
+                        valid_pieces[view_from] = 1;
+                    }
+                } else {
+                    memset(valid_pieces, 1, 64);
+                }
+            } else {
+                if (env->valid_destinations[player_idx].count > 0) {
+                    for (int i = 0; i < env->valid_destinations[player_idx].count; i++) {
+                        Square to = to_sq(env->valid_destinations[player_idx].moves[i].move);
+                        int view_to = (player == 1) ? (to ^ 56) : to;
+                        valid_dests[view_to] = 1;
+                    }
+                }
             }
         }
         
-        // Additional insufficient material cases:
-        // K+B vs K+B (same color bishops)
-        if (white_bishops == 1 && white_knights == 0 && 
-            black_bishops == 1 && black_knights == 0) {
-            bool same_color_bishops = (white_light_bishop && black_light_bishop) || 
-                                     (white_dark_bishop && black_dark_bishop);
-            if (same_color_bishops) {
-                return true;
+        uint8_t* phase_onehot = player_obs + O_PICK_PHASE;
+        phase_onehot[0] = 0; phase_onehot[1] = 0;
+        phase_onehot[env->pick_phase[player_idx]] = 1;
+        
+        uint8_t* selected_piece_plane = player_obs + O_SELECTED_PIECE;
+        memset(selected_piece_plane, 0, 64);
+        if (env->pick_phase[player_idx] == 1 && env->selected_square[player_idx] != SQ_NONE) {
+            int view_selected = (player == 1) ? (env->selected_square[player_idx] ^ 56) : env->selected_square[player_idx];
+            selected_piece_plane[view_selected] = 1;
+        }
+        
+        // Mask for valid promotion pieces (actions 64-95: 4 rows by 8 files)
+        uint8_t* valid_promos = player_obs + O_VALID_PROMOS;
+        memset(valid_promos, 0, 32);
+        
+        if (env->pick_phase[player_idx] == 1 && env->valid_destinations[player_idx].count > 0) {
+            for (int i = 0; i < env->valid_destinations[player_idx].count; i++) {
+                Move m = env->valid_destinations[player_idx].moves[i].move;
+                if (type_of_m(m) == PROMOTION) {
+                    int type_idx = QUEEN - promotion_type(m);
+                    int file_idx = file_of(to_sq(m));
+                    valid_promos[type_idx * 8 + file_idx] = 1;
+                }
             }
         }
-        
-        // K+N vs K+N
-        if (white_knights == 1 && white_bishops == 0 && 
-            black_knights == 1 && black_bishops == 0) {
-            return true;
-        }
-        
-        // K+B vs K+N (generally considered insufficient, though technically possible to mate)
-        // This is debatable, but many engines consider this insufficient
-        if ((white_bishops == 1 && white_knights == 0 && 
-             black_knights == 1 && black_bishops == 0) ||
-            (white_knights == 1 && white_bishops == 0 && 
-             black_bishops == 1 && black_knights == 0)) {
-            return true;
-        }
-        
-        // MISSING CASE: K+B+B vs K (two bishops of same color vs lone king)
-        // This is insufficient material for checkmate
-        if (white_bishops >= 2 && white_knights == 0 && 
-            black_bishops == 0 && black_knights == 0) {
-            // Check if all white bishops are on the same color squares
-            bool all_same_color = (!white_light_bishop && white_dark_bishop) || 
-                                 (white_light_bishop && !white_dark_bishop);
-            if (all_same_color) {
-                return true;
+    }
+}
+
+void generate_random_fen(char* fen_out) {
+    char board[64];
+    memset(board, '.', 64);
+    
+    int wk_sq, bk_sq;
+    do {
+        wk_sq = rand() % 64;
+        bk_sq = rand() % 64;
+        int wk_rank = wk_sq / 8, wk_file = wk_sq % 8;
+        int bk_rank = bk_sq / 8, bk_file = bk_sq % 8;
+        int rank_diff = abs(wk_rank - bk_rank);
+        int file_diff = abs(wk_file - bk_file);
+        if (wk_sq != bk_sq && (rank_diff > 1 || file_diff > 1)) break;
+    } while (1);
+    
+    board[wk_sq] = 'K';
+    board[bk_sq] = 'k';
+    
+    const char* white_pieces = "QRRNNBBPP";
+    const char* black_pieces = "qrrnnbbpp";
+    int num_white = rand() % 16;
+    int num_black = rand() % 16;
+    
+    for (int i = 0; i < num_white; i++) {
+        int sq, rank;
+        char piece;
+        do {
+            sq = rand() % 64;
+            rank = sq / 8;
+            piece = white_pieces[rand() % 9];
+        } while (board[sq] != '.' || (piece == 'P' && (rank == 0 || rank == 7)));
+        board[sq] = piece;
+    }
+    
+    for (int i = 0; i < num_black; i++) {
+        int sq, rank;
+        char piece;
+        do {
+            sq = rand() % 64;
+            rank = sq / 8;
+            piece = black_pieces[rand() % 9];
+        } while (board[sq] != '.' || (piece == 'p' && (rank == 0 || rank == 7)));
+        board[sq] = piece;
+    }
+    
+    char* ptr = fen_out;
+    for (int rank = 7; rank >= 0; rank--) {
+        int empty = 0;
+        for (int file = 0; file < 8; file++) {
+            char piece = board[rank * 8 + file];
+            if (piece == '.') {
+                empty++;
+            } else {
+                if (empty > 0) {
+                    *ptr++ = '0' + empty;
+                    empty = 0;
+                }
+                *ptr++ = piece;
             }
         }
-        
-        if (black_bishops >= 2 && black_knights == 0 && 
-            white_bishops == 0 && white_knights == 0) {
-            // Check if all black bishops are on the same color squares  
-            bool all_same_color = (!black_light_bishop && black_dark_bishop) || 
-                                 (black_light_bishop && !black_dark_bishop);
-            if (all_same_color) {
-                return true;
-            }
-        }
-        
-        // MISSING CASE: K+N+N vs K (two knights vs lone king)
-        // This is generally insufficient for checkmate
-        if (white_knights >= 2 && white_bishops == 0 && 
-            black_bishops == 0 && black_knights == 0) {
-            return true;
-        }
-        
-        if (black_knights >= 2 && black_bishops == 0 && 
-            white_bishops == 0 && white_knights == 0) {
-            return true;
-        }
-        
+        if (empty > 0) *ptr++ = '0' + empty;
+        if (rank > 0) *ptr++ = '/';
+    }
+    strcpy(ptr, " w - - 0 1");
+}
+
+void c_reset(Chess* env) {
+    env->tick = 0;
+    env->chess_moves = 0;
+    env->game_result = 0;
+    env->undo_stack_ptr = 0;
+    env->invalid_actions_this_episode = 0;
+    
+    env->pick_phase[0] = 0;
+    env->pick_phase[1] = 0;
+    env->selected_square[0] = SQ_NONE;
+    env->selected_square[1] = SQ_NONE;
+    env->valid_destinations[0].count = 0;
+    env->valid_destinations[1].count = 0;
+    env->learner_color = 1 - env->learner_color;
+    
+    // Select starting position or curriculum
+    if (env->num_fens > 0) {
+        int fen_idx = rand() % env->num_fens;
+        pos_set(&env->pos, env->fen_curriculum[fen_idx]);
+    } else if (strcmp(env->starting_fen, "random") == 0) {
+        char random_fen[128];
+        generate_random_fen(random_fen);
+        pos_set(&env->pos, random_fen);
+    } else {
+        pos_set(&env->pos, env->starting_fen);
+    }
+    
+    generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+    env->legal_moves_side = env->pos.sideToMove;
+    env->legal_moves_key = env->pos.key;
+    populate_observations(env);
+}
+
+bool process_player_action(Chess* env, int action, ChessColor player) {
+    if (env->pos.sideToMove != player) {
         return false;
     }
     
-    // follows openspiel encoding logic
-    static int move_to_action(const Move& move) {
-        // Pass move occupies dedicated slot 0, matching OpenSpiel spec
-        if (move == kPassMove)         return 0;
-
-        // Castling slots immediately follow the 64×73 block (4672 indices)
-        if (move.is_castle_long)       return 4672;   // queenside (left)
-        if (move.is_castle_short)      return 4673;   // kingside (right)
-
-        // --- rotate board so mover is always White --------------------------------
-        Move m = move;
-        if (m.piece.color == Color::BLACK) {
-            m.from.y = 7 - m.from.y;
-            m.to.y   = 7 - m.to.y;
+    if (action < 0) action = 0;
+    if (action >= 96) action = 95;
+    
+    // Actions 64-95 are promotion selections (4 rows by 8 files)
+    bool is_promotion_selection = (action >= 64 && action <= 95);
+    Square picked_sq = SQ_NONE;
+    
+    if (!is_promotion_selection) {
+        picked_sq = (Square)action;
+        if (player == CHESS_BLACK) {
+            picked_sq = action ^ 56;
         }
-
-        const int from_base =
-            (m.from.x * 8 + m.from.y) * kNumActionDestinations;
-
-        const int dx = m.to.x - m.from.x;   // file  difference
-        const int dy = m.to.y - m.from.y;   // rank difference
-
-        // --- under-promotions ------------------------------------------------------
-        if (m.promotion != PieceType::QUEEN && m.promotion != PieceType::EMPTY) {
-            // OpenSpiel ordering:
-            //   Under-promotion piece order: Knight, Bishop, Rook
-            static constexpr PieceType kUnder[3] = {
-                KNIGHT, BISHOP, ROOK
-            };
-            const int promo_index = std::find(std::begin(kUnder), std::end(kUnder), m.promotion) - std::begin(kUnder);
-
-            // Direction order: left capture (-1), straight (0), right capture (+1)
-            const int dir_index =
-                (dx == -1) ? 0 : (dx == 0) ? 1 : 2;
-
-            return from_base + promo_index * 3 + dir_index;
-        }
-
-        // --- queen-style moves -----------------------------------------------------
-        int dest_index = -1;
-        if (dx == 0) {                               // vertical
-            if (dy > 0)        dest_index =        (dy - 1);          // N 0-6
-            else               dest_index = 28 + (-dy - 1);           // S 28-34
-        } else if (dy == 0) {                        // horizontal
-            if (dx > 0)        dest_index = 14 + (dx - 1);            // E 14-20
-            else               dest_index = 42 + (-dx - 1);           // W 42-48
-        } else if (dx ==  dy) {                      // main diagonal
-            if (dx > 0)        dest_index =  7 + (dx - 1);            // NE 7-13
-            else               dest_index = 35 + (-dx - 1);           // SW 35-41
-        } else if (dx == -dy) {                      // anti-diagonal
-            if (dx > 0)        dest_index = 21 + (dx - 1);            // SE 21-27
-            else               dest_index = 49 + (-dx - 1);           // NW 49-55
-        } else {                                     // knight
-            static constexpr int kKnight[8][2] = {
-                {-2,-1}, {-2, 1}, {-1,-2}, {-1, 2},
-                { 2,-1}, { 2, 1}, { 1,-2}, { 1, 2}
-            };
-            for (int i = 0; i < 8; ++i)
-                if (dx == kKnight[i][0] && dy == kKnight[i][1]) {
-                    dest_index = 56 + i;             // 56-63
-                    break;
-                }
-        }
-
-        return from_base + kNumUnderPromotions + dest_index;
-    }
-        
-    // debug rendering
-    void render() const {
-        DBG("\n  a b c d e f g h\n");
-        for (int y = 7; y >= 0; y--) {
-            DBG((y + 1) << " ");
-            for (int x = 0; x < 8; x++) {
-                const Piece& p = board[y * 8 + x];
-                char c = '.';
-                if (p.type != EMPTY) {
-                    const char* pieces = " KQRBNP";
-                    c = pieces[p.type];
-                    if (p.color == BLACK) c += 32;  // Lowercase
-                }
-                DBG(c << " ");
-            }
-            DBG((y + 1) << "\n");
-        }
-        DBG("  a b c d e f g h\n");
-        DBG((to_move == WHITE ? "White" : "Black") << " to move\n");
     }
     
-    // Expose a safe way to clear the cached legal-move vector from outside
-    // the class (e.g. after an illegal move that leaves the board unchanged).
-    void invalidate_cache() const { cached_legal_moves.reset(); }
+    int pidx = (int)player;
     
-private:
-    void apply_move_unchecked(const Move& move) {
-        // DEBUG: Track move application
-        static int move_application_counter = 0;
-        move_application_counter++;
-        
-        DBG("[BOARD_APPLY_DEBUG] ChessBoard::apply_move_unchecked() called (move #" << move_application_counter << ")" << std::endl);
-        DBG("[BOARD_APPLY_DEBUG] BEFORE move application:" << std::endl);
-        DBG("[BOARD_APPLY_DEBUG]   Side to move: " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[BOARD_APPLY_DEBUG]   Fullmove: " << fullmove_number << std::endl);
-        DBG("[BOARD_APPLY_DEBUG]   Move: from " << char('a' + move.from.x) << (move.from.y + 1));
-        DBG(" to " << char('a' + move.to.x) << (move.to.y + 1));
-        if (move.promotion != EMPTY) {
-            DBG(" promotion " << (int)move.promotion);
-        }
-        DBG(std::endl);
-        
-        // Update halfmove clock
-        if (move.piece.type == PAWN || at(move.to).type != EMPTY) {
-            halfmove_clock = 0;
-        } else {
-            halfmove_clock++;
-        }
-        
-        // handle castling
-        if (move.is_castle_short || move.is_castle_long) {
-            int rank = (to_move == WHITE) ? 0 : 7;
-            int king_file = 4;
-            int rook_from = move.is_castle_short ? 7 : 0;
-            int rook_to = move.is_castle_short ? 5 : 3;
-            int king_to = move.is_castle_short ? 6 : 2;
-            
-            // move king
-            board[rank * 8 + king_to] = board[rank * 8 + king_file];
-            board[rank * 8 + king_file] = {NO_COLOR, EMPTY};
-            
-            // move rook
-            board[rank * 8 + rook_to] = board[rank * 8 + rook_from];
-            board[rank * 8 + rook_from] = {NO_COLOR, EMPTY};
-        } else {
-            // handle en passant capture
-            if (move.piece.type == PAWN && move.to.index() == ep_square) {
-                int captured_pawn = move.to.x + move.from.y * 8;
-                board[captured_pawn] = {NO_COLOR, EMPTY};
+    if (env->legal_moves_side != env->pos.sideToMove || 
+        env->legal_moves.count == 0 || 
+        env->legal_moves_key != env->pos.key) {
+        generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+        env->legal_moves_side = env->pos.sideToMove;
+        env->legal_moves_key = env->pos.key;
+    }
+    
+    if (env->legal_moves.count == 0) {
+        return false;
+    }
+    
+    if (env->pick_phase[pidx] == 0) {
+        if (picked_sq >= 64) {
+            if (player == env->learner_color) {
+                env->rewards[0] += env->reward_invalid_piece;
+                env->invalid_actions_this_episode++;
             }
-            
-            // move piece
-            board[move.to.index()] = board[move.from.index()];
-            board[move.from.index()] = {NO_COLOR, EMPTY};
-            
-            // handle promotion
-            if (move.promotion != EMPTY) {
-                board[move.to.index()].type = move.promotion;
-            }
-            
-            // update en passant square
-            ep_square = -1;
-            if (move.piece.type == PAWN) {
-                int dy = move.to.y - move.from.y;
-                if (abs(dy) == 2) {
-                    ep_square = move.from.x + (move.from.y + dy/2) * 8;
+            return false;
+        }
+
+        Piece pc = piece_on(&env->pos, picked_sq);
+        
+        if (pc != NO_PIECE && color_of(pc) == player) {
+            env->valid_destinations[pidx].count = 0;
+            for (int i = 0; i < env->legal_moves.count; i++) {
+                Move m = env->legal_moves.moves[i].move;
+                if (from_sq(m) == picked_sq) {
+                    env->valid_destinations[pidx].moves[env->valid_destinations[pidx].count++] = env->legal_moves.moves[i];
                 }
             }
-        }
-        
-        // update castling rights
-        if (move.piece.type == KING) {
-            if (to_move == WHITE) {
-                castling_rights &= ~0xC;  // Clear KQ
+            
+            if (env->valid_destinations[pidx].count > 0) {
+                env->selected_square[pidx] = picked_sq;
+                env->pick_phase[pidx] = 1;
+                if (player == env->learner_color) env->rewards[0] += env->reward_valid_piece;
             } else {
-                castling_rights &= ~0x3;  // Clear kq
+                if (player == env->learner_color) {
+                    env->rewards[0] += env->reward_invalid_piece;
+                    env->invalid_actions_this_episode++;
+                }
             }
-        } else if (move.piece.type == ROOK) {
-            if (move.from.index() == 0) castling_rights &= ~0x4;  // Q
-            if (move.from.index() == 7) castling_rights &= ~0x8;  // K
-            if (move.from.index() == 56) castling_rights &= ~0x1; // q
-            if (move.from.index() == 63) castling_rights &= ~0x2; // k
+        } else {
+            if (player == env->learner_color) {
+                env->rewards[0] += env->reward_invalid_piece;
+                env->invalid_actions_this_episode++;
+            }
         }
-        
-        // captures affect opponent's castling rights
-        if (move.to.index() == 0) castling_rights &= ~0x4;   // Q
-        if (move.to.index() == 7) castling_rights &= ~0x8;   // K
-        if (move.to.index() == 56) castling_rights &= ~0x1;  // q
-        if (move.to.index() == 63) castling_rights &= ~0x2;  // k
-        
-        // switch sides
-        chess::Color old_side = to_move;
-        to_move = (to_move == WHITE) ? BLACK : WHITE;
-        if (to_move == WHITE) fullmove_number++;
-        
-        DBG("[BOARD_APPLY_DEBUG] AFTER move application:" << std::endl);
-        DBG("[BOARD_APPLY_DEBUG]   Side switched from " << (old_side == WHITE ? "WHITE" : "BLACK"));
-        DBG(" to " << (to_move == WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[BOARD_APPLY_DEBUG]   Fullmove: " << fullmove_number << std::endl);
-        DBG("[BOARD_APPLY_DEBUG]   New FEN: " << to_fen() << std::endl);
+        return false;
     }
     
-    bool is_in_check(Color color) const {
-        // find king
-        Square king_sq = {-1, -1};
-        for (int sq = 0; sq < 64; sq++) {
-            if (board[sq].type == KING && board[sq].color == color) {
-                king_sq = {int8_t(sq & 7), int8_t(sq >> 3)};
+    Move chosen_move = MOVE_NONE;
+    Square selected_sq = env->selected_square[pidx];
+    
+    // Handle promotion piece selection (actions 64-95)
+    if (is_promotion_selection) {
+        int promo_idx = action - 64;
+        int promo_row = promo_idx / 8; // 0-3
+        int promo_file = promo_idx % 8; // 0-7
+        int desired_promo = QUEEN - promo_row;
+        
+        for (int i = 0; i < env->valid_destinations[pidx].count; i++) {
+            Move m = env->valid_destinations[pidx].moves[i].move;
+            if ((int)type_of_m(m) == PROMOTION && 
+                promotion_type(m) == desired_promo &&
+                file_of(to_sq(m)) == promo_file) {
+                
+                chosen_move = m;
                 break;
             }
         }
-        
-        if (!king_sq.is_valid()) return false;
-        
-        // check if any opponent piece attacks the king
-        Color opp = (color == WHITE) ? BLACK : WHITE;
-        return is_square_attacked(king_sq, opp);
+    } else {
+        for (int i = 0; i < env->valid_destinations[pidx].count; i++) {
+            if (to_sq(env->valid_destinations[pidx].moves[i].move) == picked_sq) {
+                chosen_move = env->valid_destinations[pidx].moves[i].move;
+                break;
+            }
+        }
     }
     
-    bool is_square_attacked(Square sq, Color by_color) const {
-        // check pawn attacks
-        int pawn_dir = (by_color == WHITE) ? 1 : -1;
-        for (int dx = -1; dx <= 1; dx += 2) {
-            Square from = {int8_t(sq.x + dx), int8_t(sq.y - pawn_dir)};
-            if (from.is_valid() && at(from).type == PAWN && at(from).color == by_color) {
-                return true;
-            }
-        }
-        
-        // check knight attacks
-        const int knight_moves[][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
-        for (auto& m : knight_moves) {
-            Square from = {int8_t(sq.x + m[0]), int8_t(sq.y + m[1])};
-            if (from.is_valid() && at(from).type == KNIGHT && at(from).color == by_color) {
-                return true;
-            }
-        }
-        
-        // check sliding pieces
-        const int directions[][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-        for (int i = 0; i < 8; i++) {
-            bool is_diagonal = (i == 0 || i == 2 || i == 5 || i == 7);
-            
-            for (int dist = 1; dist < 8; dist++) {
-                Square from{ int8_t(sq.x + directions[i][0]*dist), int8_t(sq.y + directions[i][1]*dist) };
-                if (!from.is_valid()) break;
-
-                const Piece& p = at(from);
-                if (p.type == EMPTY) continue;        // keep going through empties
-
-                if (p.color == by_color) {           // only a *same-colour* piece can attack
-                    if (dist == 1 && p.type == KING) return true;
-                    if (p.type == QUEEN)             return true;
-                    if (is_diagonal && p.type == BISHOP) return true;
-                    if (!is_diagonal && p.type == ROOK)  return true;
+    if (chosen_move == MOVE_NONE && selected_sq != SQ_NONE) {
+        for (int i = 0; i < env->legal_moves.count; i++) {
+            Move m = env->legal_moves.moves[i].move;
+            if (from_sq(m) == selected_sq && to_sq(m) == picked_sq) {
+                chosen_move = m;
+                env->valid_destinations[pidx].count = 0;
+                for (int j = 0; j < env->legal_moves.count; j++) {
+                    if (from_sq(env->legal_moves.moves[j].move) == selected_sq) {
+                        env->valid_destinations[pidx].moves[env->valid_destinations[pidx].count++] = env->legal_moves.moves[j];
+                    }
                 }
-                break;                               // stop, regardless of colour
+                break;
             }
         }
-        
+    }
+    
+    if (chosen_move == MOVE_NONE) {
+        if (player == env->learner_color) {
+            env->rewards[0] += env->reward_invalid_move;
+            env->invalid_actions_this_episode++;
+        }
+        env->pick_phase[pidx] = 0;
+        env->selected_square[pidx] = SQ_NONE;
+        env->valid_destinations[pidx].count = 0;
         return false;
     }
     
-    // move generation helpers
-    template<typename Fn>
-    void generate_pawn_moves(Square from, Fn yield) const {
-        const Piece& piece = at(from);
-        int dir = (piece.color == WHITE) ? 1 : -1;
-        int start_rank = (piece.color == WHITE) ? 1 : 6;
-        int promo_rank = (piece.color == WHITE) ? 7 : 0;
-        
-        // forward moves
-        // 1. Single forward move
-        Square to = {from.x, int8_t(from.y + dir)};
-        if (to.is_valid() && at(to).type == EMPTY) {
-            if (to.y == promo_rank) {
-                // generate all promotions
-                for (auto promo : {QUEEN, ROOK, BISHOP, KNIGHT}) {
-                    if (!yield(Move{from, to, piece, promo})) return;
-                }
-            } else {
-                if (!yield(Move{from, to, piece, EMPTY})) return;
-            }
-        }
-                
-        // 2. Double push from start (separate check vs single forward moves)
-        if (from.y == start_rank) {
-            Square in_front = {from.x, int8_t(from.y + dir)};
-            Square two_in_front = {from.x, int8_t(from.y + 2*dir)};
-            if (two_in_front.is_valid() && at(in_front).type == EMPTY && at(two_in_front).type == EMPTY) {
-                if (!yield(Move{from, two_in_front, piece, EMPTY})) return;
-            }
-        }
-        
-        // captures
-        for (int dx = -1; dx <= 1; dx += 2) {
-            Square cap = {int8_t(from.x + dx), int8_t(from.y + dir)};
-            if (!cap.is_valid()) continue;
-            
-            bool can_capture = (at(cap).type != EMPTY && at(cap).color != piece.color) ||
-                              (cap.index() == ep_square);
-            
-            if (can_capture) {
-                if (cap.y == promo_rank) {
-                    for (auto promo : {QUEEN, ROOK, BISHOP, KNIGHT}) {
-                        if (!yield(Move{from, cap, piece, promo})) return;
-                    }
-                } else {
-                    if (!yield(Move{from, cap, piece, EMPTY})) return;
-                }
-            }
-        }
+    if (player == env->learner_color) env->rewards[0] += env->reward_valid_move;
+    env->chess_moves++;
+    env->pick_phase[pidx] = 0;
+    env->selected_square[pidx] = SQ_NONE;
+    env->valid_destinations[pidx].count = 0;
+
+    
+    if (env->reward_castling != 0.0f && player == env->learner_color && (int)type_of_m(chosen_move) == CASTLING) {
+        env->rewards[0] += env->reward_castling;
     }
     
-    template<typename Fn>
-    void generate_knight_moves(Square from, Fn yield) const {
-        const Piece& piece = at(from);
-        const int moves[][2] = {{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
-        
-        DBG("    Knight at " << char('a' + from.x) << (from.y + 1) << std::endl);
-        
-        for (auto& m : moves) {
-            Square to = {int8_t(from.x + m[0]), int8_t(from.y + m[1])};
-            DBG("      Checking move to " << char('a' + to.x) << (to.y + 1));
-            DBG(" - valid: " << (to.is_valid() ? "YES" : "NO"));
-            
-            // CRITICAL FIX: Add explicit boundary check to prevent off-board moves
-            if (to.x < 0 || to.x >= 8 || to.y < 0 || to.y >= 8) {
-                DBG(" - SKIPPING: off-board move" << std::endl);
-                continue;
-            }
-            
-            if (to.is_valid()) {
-                const Piece& target = at(to);
-                DBG(", target: " << (target.type == EMPTY ? "EMPTY" : "PIECE"));
-                DBG(", target color: " << (target.color == WHITE ? "WHITE" : target.color == BLACK ? "BLACK" : "NO_COLOR"));
-            }
-            
-            DBG(std::endl);
-            
-            if (to.is_valid() && (at(to).type == EMPTY || at(to).color != piece.color)) {
-                DBG("      YIELDING MOVE" << std::endl);
-                if (!yield(Move{from, to, piece, EMPTY})) return;
-            }
-        }
+    do_move(&env->pos, chosen_move, env->undo_stack, &env->undo_stack_ptr);
+    
+    if (env->undo_stack_ptr > 0 && env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull > 99) {
+        env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull = 99;
     }
     
-    template<typename Fn>
-    void generate_sliding_moves(Square from, const int dirs[][2], int num_dirs, Fn yield) const {
-        const Piece& piece = at(from);
-        
-        for (int d = 0; d < num_dirs; d++) {
-            for (int dist = 1; dist < 8; dist++) {
-                Square to = {int8_t(from.x + dirs[d][0] * dist), 
-                            int8_t(from.y + dirs[d][1] * dist)};
-                
-                // CRITICAL FIX: Add explicit boundary check to prevent off-board moves
-                if (to.x < 0 || to.x >= 8 || to.y < 0 || to.y >= 8) {
+    if (env->reward_repetition != 0.0f && player == env->learner_color && env->undo_stack_ptr > 0) {
+        uint8_t plies = env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull;
+        if (plies >= 4) {
+            Key current_key = env->pos.key;
+            for (int i = 4; i <= plies; i += 2) {
+                int idx = env->undo_stack_ptr - 1 - i;
+                if (idx >= 0 && env->undo_stack[idx].key == current_key) {
+                    env->rewards[0] += env->reward_repetition;
                     break;
                 }
-                
-                if (!to.is_valid()) break;
-                
-                if (at(to).type == EMPTY) {
-                    if (!yield(Move{from, to, piece, EMPTY})) return;
-                } else {
-                    if (at(to).color != piece.color) {
-                        if (!yield(Move{from, to, piece, EMPTY})) return;
-                    }
-                    break;  // cannot jump over pieces
-                }
             }
         }
     }
     
-    template<typename Fn>
-    void generate_bishop_moves(Square from, Fn yield) const {
-        const int dirs[][2] = {{-1,-1},{-1,1},{1,-1},{1,1}};
-        generate_sliding_moves(from, dirs, 4, yield);
-    }
-    
-    template<typename Fn>
-    void generate_rook_moves(Square from, Fn yield) const {
-        const int dirs[][2] = {{-1,0},{1,0},{0,-1},{0,1}};
-        generate_sliding_moves(from, dirs, 4, yield);
-    }
-    
-    template<typename Fn>
-    void generate_queen_moves(Square from, Fn yield) const {
-        const int dirs[][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-        generate_sliding_moves(from, dirs, 8, yield);
-    }
-    
-    template<typename Fn>
-    void generate_king_moves(Square from, Fn yield) const {
-        const Piece& piece = at(from);
-        const int dirs[][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-        
-        // regular moves
-        for (auto& d : dirs) {
-            Square to = {int8_t(from.x + d[0]), int8_t(from.y + d[1])};
-            
-            // CRITICAL FIX: Add explicit boundary check to prevent off-board moves
-            if (to.x < 0 || to.x >= 8 || to.y < 0 || to.y >= 8) {
-                continue;
-            }
-            
-            if (to.is_valid() && (at(to).type == EMPTY || at(to).color != piece.color)) {
-                if (!yield(Move{from, to, piece, EMPTY})) return;
-            }
-        }
-        
-        // castling
-        if (!is_in_check(piece.color)) {
-            int rank = (piece.color == WHITE) ? 0 : 7;
-            uint8_t short_mask = (piece.color == WHITE) ? 0x8 : 0x2;
-            uint8_t long_mask = (piece.color == WHITE) ? 0x4 : 0x1;
-            
-            // short castle
-            if ((castling_rights & short_mask) &&
-                at({5, int8_t(rank)}).type == EMPTY &&
-                at({6, int8_t(rank)}).type == EMPTY &&
-                !is_square_attacked({5, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE) &&
-                !is_square_attacked({6, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE)) {
-                
-                Move m{from, {6, int8_t(rank)}, piece, EMPTY};
-                m.is_castle_short = true;
-                if (!yield(m)) return;
-            }
-            
-            // long castle
-            if ((castling_rights & long_mask) &&
-                at({1, int8_t(rank)}).type == EMPTY &&
-                at({2, int8_t(rank)}).type == EMPTY &&
-                at({3, int8_t(rank)}).type == EMPTY &&
-                !is_square_attacked({3, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE) &&
-                !is_square_attacked({2, int8_t(rank)}, (piece.color == WHITE) ? BLACK : WHITE)) {
-                
-                Move m{from, {2, int8_t(rank)}, piece, EMPTY};
-                m.is_castle_long = true;
-                if (!yield(m)) return;
-            }
-        }
-    }
-};
-
-// static initialization
-ZobristHash ChessBoard::zobrist;
-
-// Forward declaration
-Move action_to_move_lookup(int action, const ChessBoard& board);
-
-// This is the reverse of move_to_action
-Move action_to_move_direct(int action, const ChessBoard& board) {
-    // Special cases first
-    if (action == 0) return kPassMove;
-    if (action == 4672) {
-        // Queenside castling
-        Square king_pos = board.find_king(board.side_to_move());
-        if (king_pos.is_valid()) {
-            int rank = (board.side_to_move() == WHITE) ? 0 : 7;
-            Move m{king_pos, {2, int8_t(rank)}, {board.side_to_move(), KING}, EMPTY};
-            m.is_castle_long = true;
-            return m;
-        }
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    if (action == 4673) {
-        // Kingside castling
-        Square king_pos = board.find_king(board.side_to_move());
-        if (king_pos.is_valid()) {
-            int rank = (board.side_to_move() == WHITE) ? 0 : 7;
-            Move m{king_pos, {6, int8_t(rank)}, {board.side_to_move(), KING}, EMPTY};
-            m.is_castle_short = true;
-            return m;
-        }
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    
-    // Regular moves: decode from action ID
-    if (action < 1 || action > 4671) {
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    
-    // Decode from square and destination index
-    // Action encoding: action = from_base + dest_index, where from_base = from_square * 73
-    // So: from_square = action / 73, dest_index = action % 73
-    int from_square = action / kNumActionDestinations;
-    int dest_index = action % kNumActionDestinations;
-    
-    // Convert from_square to coordinates
-    // FIXED: Match the encoding which uses (x * 8 + y), so x = from_square / 8, y = from_square % 8
-    int from_x = from_square / 8;
-    int from_y = from_square % 8;
-    
-    // Validate from square
-    if (from_x < 0 || from_x >= 8 || from_y < 0 || from_y >= 8) {
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    
-    Square from{int8_t(from_x), int8_t(from_y)};
-    
-    // Get the piece at the from square
-    const Piece& piece = board.at(from);
-    if (piece.type == EMPTY || piece.color != board.side_to_move()) {
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    
-    // Create rotated coordinates for move calculation (always from white's perspective)
-    int calc_from_y = from_y;
-    if (board.side_to_move() == BLACK) {
-        calc_from_y = 7 - from_y;
-    }
-    
-    // Handle under-promotions (first 9 destination indices)
-    if (dest_index < kNumUnderPromotions) {
-        int promo_piece_idx = dest_index / 3;
-        int direction = dest_index % 3;
-        
-        static constexpr PieceType kUnder[3] = {KNIGHT, BISHOP, ROOK};
-        static constexpr int kDirs[3] = {-1, 0, 1}; // left capture, straight, right capture
-        
-        if (promo_piece_idx >= 3) {
-            return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-        }
-        
-        int to_x = from_x + kDirs[direction];
-        int to_y = calc_from_y + ((board.side_to_move() == WHITE) ? 1 : -1);
-        
-        // Convert back to actual board coordinates
-        if (board.side_to_move() == BLACK) {
-            to_y = 7 - to_y;
-        }
-        
-        // Validate destination
-        if (to_x < 0 || to_x >= 8 || to_y < 0 || to_y >= 8) {
-            return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-        }
-        
-        Square to{int8_t(to_x), int8_t(to_y)};
-        return {from, to, piece, kUnder[promo_piece_idx]};
-    }
-    
-    // Handle regular moves (queen-style and knight)
-    int queen_dest_index = dest_index - kNumUnderPromotions;
-    
-    int dx = 0, dy = 0;
-    
-    if (queen_dest_index >= 0 && queen_dest_index < 7) {
-        // North (0-6)
-        dx = 0;
-        dy = queen_dest_index + 1;
-    } else if (queen_dest_index >= 7 && queen_dest_index < 14) {
-        // Northeast (7-13)
-        int dist = queen_dest_index - 7 + 1;
-        dx = dist;
-        dy = dist;
-    } else if (queen_dest_index >= 14 && queen_dest_index < 21) {
-        // East (14-20)
-        dx = queen_dest_index - 14 + 1;
-        dy = 0;
-    } else if (queen_dest_index >= 21 && queen_dest_index < 28) {
-        // Southeast (21-27)
-        int dist = queen_dest_index - 21 + 1;
-        dx = dist;
-        dy = -dist;
-    } else if (queen_dest_index >= 28 && queen_dest_index < 35) {
-        // South (28-34)
-        dx = 0;
-        dy = -(queen_dest_index - 28 + 1);
-    } else if (queen_dest_index >= 35 && queen_dest_index < 42) {
-        // Southwest (35-41)
-        int dist = queen_dest_index - 35 + 1;
-        dx = -dist;
-        dy = -dist;
-    } else if (queen_dest_index >= 42 && queen_dest_index < 49) {
-        // West (42-48)
-        dx = -(queen_dest_index - 42 + 1);
-        dy = 0;
-    } else if (queen_dest_index >= 49 && queen_dest_index < 56) {
-        // Northwest (49-55)
-        int dist = queen_dest_index - 49 + 1;
-        dx = -dist;
-        dy = dist;
-    } else if (queen_dest_index >= 56 && queen_dest_index < 64) {
-        // Knight moves (56-63)
-        static constexpr int kKnight[8][2] = {
-            {-2,-1}, {-2, 1}, {-1,-2}, {-1, 2},
-            { 2,-1}, { 2, 1}, { 1,-2}, { 1, 2}
-        };
-        int knight_idx = queen_dest_index - 56;
-        if (knight_idx >= 0 && knight_idx < 8) {
-            dx = kKnight[knight_idx][0];
-            dy = kKnight[knight_idx][1];
-        } else {
-            return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-        }
-    } else {
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    
-    // Calculate destination square
-    int to_x = from_x + dx;
-    int to_y = calc_from_y + dy;
-    
-    // Convert back to actual board coordinates
-    if (board.side_to_move() == BLACK) {
-        to_y = 7 - to_y;
-    }
-    
-    // Validate destination
-    if (to_x < 0 || to_x >= 8 || to_y < 0 || to_y >= 8) {
-        return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-    }
-    
-    Square to{int8_t(to_x), int8_t(to_y)};
-    
-    // Check for queen promotion (pawn moving to promotion rank)
-    PieceType promotion = EMPTY;
-    if (piece.type == PAWN) {
-        int promotion_rank = (board.side_to_move() == WHITE) ? 7 : 0;
-        if (to_y == promotion_rank) {
-            promotion = QUEEN; // Default to queen promotion for non-under-promotion moves
-        }
-    }
-    
-    return {from, to, piece, promotion};
+    return true;
 }
 
-Move action_to_move_lookup(int action, const ChessBoard& board) {
-    DBG("[ACTION_DECODE_DEBUG] Converting action " << action << " to move" << std::endl);
-    
-    const auto& moves = board.legal_moves();
-    DBG("[ACTION_DECODE_DEBUG] Board has " << moves.size() << " legal moves" << std::endl);
-    
-    for (const auto& m : moves) {
-        int move_action = ChessBoard::move_to_action(m);
-        if (move_action == action) {
-            DBG("[ACTION_DECODE_DEBUG] Found matching legal move: ");
-            DBG("from " << char('a' + m.from.x) << (m.from.y + 1));
-            DBG(" to " << char('a' + m.to.x) << (m.to.y + 1));
-            if (m.promotion != EMPTY) {
-                DBG(" promotion " << (int)m.promotion);
-            }
-            DBG(" (action " << move_action << ")" << std::endl);
-            return m;
-        }
+void clip_rewards(Chess* env) {
+    if (env->rewards[0] > 1.0f) {
+        env->rewards[0] = 1.0f;
     }
-    
-    // If no legal move matches the action, return a sentinel invalid move
-    DBG("[ACTION_DECODE_DEBUG] *** NO LEGAL MOVE FOUND FOR ACTION " << action << " ***" << std::endl);
-    DBG("[ACTION_DECODE_DEBUG] Available legal actions:" << std::endl);
-    for (size_t i = 0; i < std::min((size_t)10, moves.size()); i++) {
-        int legal_action = ChessBoard::move_to_action(moves[i]);
-        DBG("[ACTION_DECODE_DEBUG]   Action " << legal_action << ": ");
-        DBG("from " << char('a' + moves[i].from.x) << (moves[i].from.y + 1));
-        DBG(" to " << char('a' + moves[i].to.x) << (moves[i].to.y + 1));
-        if (moves[i].promotion != EMPTY) {
-            DBG(" promotion " << (int)moves[i].promotion);
-        }
-        DBG(std::endl);
-    }
-    
-    return {{-1,-1},{-1,-1},{NO_COLOR, EMPTY}, EMPTY};
-}
-
-// passthrough hash for repetition detection
-struct PassthroughHash {
-    size_t operator()(uint64_t x) const { return x; }
-};
-
-} // namespace chess
-
-// Forward declaration for per-environment Stockfish instances
-class Stockfish;
-namespace chess {
-    struct ChessBoard;
-}
-
-// Convert UCI algebraic string to a Move object (returns kPassMove if not legal)
-inline chess::Move uci_to_move(const std::string &uci, const chess::ChessBoard &board) {
-    if (uci.size() < 4) return chess::kPassMove;
-
-    int fx = uci[0] - 'a';
-    int fy = uci[1] - '1';
-    int tx = uci[2] - 'a';
-    int ty = uci[3] - '1';
-
-    chess::PieceType promo = chess::EMPTY;
-    if (uci.size() == 5) {
-        switch (uci[4]) {
-            case 'q': promo = chess::QUEEN;  break;
-            case 'r': promo = chess::ROOK;   break;
-            case 'b': promo = chess::BISHOP; break;
-            case 'n': promo = chess::KNIGHT; break;
-        }
-    }
-
-    const auto &legal = board.legal_moves();
-    for (const auto &m : legal) {
-        if (m.from.x == fx && m.from.y == fy && m.to.x == tx && m.to.y == ty &&
-            (promo == chess::EMPTY || promo == m.promotion)) {
-            return m;
-        }
-    }
-    return chess::kPassMove;
-}
-
-struct ChessContext {
-    chess::ChessBoard board;
-    std::unordered_map<uint64_t, int, chess::PassthroughHash> position_history;
-    std::mt19937 rng;
-    
-    // episode tracking vars
-    int step_count = 0;
-    float episode_return = 0.0f;
-    
-    // PERFORMANCE OPTIMIZATION: Cache legal moves to avoid recomputing multiple times per step
-    mutable std::optional<std::vector<chess::Move>> cached_step_legal_moves;
-    mutable uint64_t cached_step_board_hash = 0;
-    
-    // Helper function to get legal moves with caching
-    const std::vector<chess::Move>& get_legal_moves_cached() const {
-        uint64_t current_hash = board.hash();
-        if (!cached_step_legal_moves || cached_step_board_hash != current_hash) {
-            cached_step_legal_moves = board.legal_moves();
-            cached_step_board_hash = current_hash;
-        }
-        return *cached_step_legal_moves;
-    }
-    
-    // Clear the cache when board changes
-    void invalidate_legal_moves_cache() {
-        cached_step_legal_moves.reset();
-        cached_step_board_hash = 0;
-    }
-    
-    // config vars from python
-    float c_reward_valid = 0.0f;
-    float c_reward_invalid = 0.0f;
-    float c_reward_agent_captures_enemy_piece = 0.0f;
-    float c_reward_enemy_captures_agent_piece = 0.0f;
-    float c_reward_draw = 0.0f;
-    float c_reward_win = 0.0f;
-    float c_reward_loss = 0.0f;
-    float c_reward_check = 0.0f;
-    float c_reward_check_white = 0.0f;
-    float c_reward_check_black = 0.0f;
-    float c_reward_material_diff = 0.0f;
-    float c_reward_material_diff_white = 0.0f;
-    float c_reward_material_diff_black = 0.0f;
-    // Perspective-based reward tracking during episodes
-    float c_reward_win_white = 0.0f;
-    float c_reward_win_black = 0.0f;
-    float c_reward_loss_white = 0.0f;
-    float c_reward_loss_black = 0.0f;
-    float c_reward_draw_white = 0.0f;
-    float c_reward_draw_black = 0.0f;
-
-    // env logging vars
-    float c_game_drawn = 0.0f;
-    float c_n = 0.0f;
-    float c_stalemate = 0.0f;
-    float c_insufficient_material = 0.0f;
-    float c_threefold_repetition = 0.0f;
-    float c_fifty_move_rule = 0.0f;
-    float c_max_depth = 0.0f;
-    float c_white_checkmated = 0.0f;
-    float c_black_checkmated = 0.0f;
-    float c_white_moves = 0.0f;
-    float c_black_moves = 0.0f;
-    float c_valid_moves = 0.0f;
-    float c_invalid_moves = 0.0f;
-    float c_episode_return_white = 0.0f;
-    float c_episode_return_black = 0.0f;
-    float c_invalid_moves_white = 0.0f;
-    float c_invalid_moves_black = 0.0f;
-    float c_perf = 0.0f;
-    float c_score = 0.0f;
-    // En passant tracking
-    float c_en_passant_white = 0.0f;
-    float c_en_passant_black = 0.0f;
-    // Castling tracking
-    float c_white_castle_kingside = 0.0f;
-    float c_white_castle_queenside = 0.0f;
-    float c_black_castle_kingside = 0.0f;
-    float c_black_castle_queenside = 0.0f;
-    // Promotion tracking
-    float c_white_promotion_count = 0.0f;
-    float c_white_promotion_knight = 0.0f;
-    float c_white_promotion_bishop = 0.0f;
-    float c_white_promotion_rook = 0.0f;
-    float c_white_promotion_queen = 0.0f;
-    float c_black_promotion_count = 0.0f;
-    float c_black_promotion_knight = 0.0f;
-    float c_black_promotion_bishop = 0.0f;
-    float c_black_promotion_rook = 0.0f;
-    float c_black_promotion_queen = 0.0f;
-    bool self_play_mode = false;
-    bool dual_agent_self_play_mode = false;  // True dual agent self-play where both agents act simultaneously
-    bool waiting_for_black_move = false;
-    // Stockfish* sf = nullptr;   // stockfish engine instance (plays black only)
-    std::unique_ptr<Stockfish> sf; 
-    float stockfish_eval = 0.0f; // last evaluation in centipawns (white perspective)
-    bool stockfish_enabled = true; // enabled by default
-    int max_depth = 0;  // per-episode step limit
-    
-    // NEW: Consecutive check tracking for anti-collapse measures
-    int consecutive_checks_white = 0;  // consecutive checks by white
-    int consecutive_checks_black = 0;  // consecutive checks by black
-    int checks_given_white = 0;        // total checks given by white this game
-    int checks_given_black = 0;        // total checks given by black this game
-    int moves_since_progress = 0;      // moves since last capture or pawn move
-    bool last_move_was_check = false;  // whether the last move was a check
-    chess::Color last_checking_color = chess::WHITE; // who gave the last check
-    
-    // Anti-draw measures
-    float repetition_penalty_multiplier = 1.0f;  // increases with repetitions
-    bool position_repeated_recently = false;     // track if position was repeated recently
-    
-    // Complete game tracking
-    std::vector<int> complete_game_actions;  // store all action IDs for current game
-    
-    // GUI mode tracking to prevent duplicate step counting
-    uint64_t last_processed_hash = 0;  // hash of last processed board position
-
-    ChessContext(unsigned seed) : rng(seed) {}
-};
-
-// Forward declaration
-bool test_action_symmetry(const chess::ChessBoard& board);
-
-extern "C" void set_self_play_mode(CChess* env, bool enabled) {
-    auto* ctx = (ChessContext*)env->context;
-    ctx->self_play_mode = enabled;
-}
-
-extern "C" void set_dual_agent_self_play_mode(CChess* env, bool enabled) {
-    auto* ctx = (ChessContext*)env->context;
-    ctx->dual_agent_self_play_mode = enabled;
-    // When dual agent mode is enabled, disable regular self-play mode
-    if (enabled) {
-        ctx->self_play_mode = false;
+    if (env->rewards[0] < -1.0f) {
+        env->rewards[0] = -1.0f;
     }
 }
 
-extern "C" void c_set_fen(CChess* env, const char* fen) {
-    auto* ctx = static_cast<ChessContext*>(env->context);
-
-    ctx->board.set_from_fen(fen);          // load position
-    ctx->position_history.clear();         // repetition starts fresh
-    ctx->position_history[ctx->board.hash()] = 1;
-
-    ctx->step_count = 0;                   // treat as new episode
-    ctx->waiting_for_black_move = false;   // always leave white to move
-
-    compute_observation(env, ctx);         // rebuild obs + mask
-    env->terminals[0] = 0;
-    env->rewards[0]   = 0.0f;
-}
-
-extern "C" void set_debug_disable_mask(CChess* env, bool enabled) {
-    env->debug_disable_mask = enabled;
-}
-
-// Game outcome structure for capturing results before reset
-struct GameOutcome {
-    bool game_ended = false;
-    bool white_won = false;
-    bool black_won = false;
-    bool is_draw = false;
-    std::string draw_reason = "";
-};
-
-// Global variable definition
-GameOutcome last_game_outcome;
-
-extern "C" {
-
-void add_log(CChess* env, const ChessContext* ctx, bool win, bool loss, bool draw) {
-    // Capture game outcome before counters get reset
-    last_game_outcome.game_ended = true;
-    
-    // FIXED: Check max depth first - max depth games should always be draws
-    if (ctx->c_max_depth > 0) {
-        last_game_outcome.is_draw = true;
-        last_game_outcome.draw_reason = "max depth";
-    } else if (ctx->c_black_checkmated > 0) {
-        last_game_outcome.white_won = true;
-        last_game_outcome.draw_reason = "";
-    } else if (ctx->c_white_checkmated > 0) {
-        last_game_outcome.black_won = true;
-        last_game_outcome.draw_reason = "";
-    } else {
-        last_game_outcome.is_draw = true;
-        if (ctx->c_stalemate > 0) last_game_outcome.draw_reason = "stalemate";
-        else if (ctx->c_insufficient_material > 0) last_game_outcome.draw_reason = "insufficient material";
-        else if (ctx->c_threefold_repetition > 0) last_game_outcome.draw_reason = "threefold repetition";
-        else if (ctx->c_fifty_move_rule > 0) last_game_outcome.draw_reason = "fifty move rule";
-        else last_game_outcome.draw_reason = "unknown";
+void human_play(Chess* env) {
+    if (!env->human_play) {
+        return;
     }
     
-    // Store complete game actions in log
-    int actual_move_count = static_cast<int>(ctx->complete_game_actions.size());
-    env->log.complete_game_move_count = static_cast<float>(std::min(actual_move_count, 100));
-    
-    // Debug output
-    DBG("[add_log] Complete game has " << actual_move_count << " moves, storing " << env->log.complete_game_move_count << std::endl);
-    if (actual_move_count > 0) {
-        DBG("[add_log] First few actions: ");
-        for (int i = 0; i < std::min(5, actual_move_count); i++) {
-            DBG(ctx->complete_game_actions[i] << " ");
-        }
-        DBG(std::endl);
+    if (env->selfplay && env->human_play) {
+        fprintf(stderr, "FATAL: selfplay=1 AND human_play=1 is invalid configuration\n");
+        exit(1);
     }
     
-    // Initialize all action fields to -1 (invalid)
-    float* action_fields[100] = {
-        &env->log.complete_game_action_0, &env->log.complete_game_action_1, &env->log.complete_game_action_2, 
-        &env->log.complete_game_action_3, &env->log.complete_game_action_4, &env->log.complete_game_action_5,
-        &env->log.complete_game_action_6, &env->log.complete_game_action_7, &env->log.complete_game_action_8,
-        &env->log.complete_game_action_9, &env->log.complete_game_action_10, &env->log.complete_game_action_11,
-        &env->log.complete_game_action_12, &env->log.complete_game_action_13, &env->log.complete_game_action_14,
-        &env->log.complete_game_action_15, &env->log.complete_game_action_16, &env->log.complete_game_action_17,
-        &env->log.complete_game_action_18, &env->log.complete_game_action_19, &env->log.complete_game_action_20,
-        &env->log.complete_game_action_21, &env->log.complete_game_action_22, &env->log.complete_game_action_23,
-        &env->log.complete_game_action_24, &env->log.complete_game_action_25, &env->log.complete_game_action_26,
-        &env->log.complete_game_action_27, &env->log.complete_game_action_28, &env->log.complete_game_action_29,
-        &env->log.complete_game_action_30, &env->log.complete_game_action_31, &env->log.complete_game_action_32,
-        &env->log.complete_game_action_33, &env->log.complete_game_action_34, &env->log.complete_game_action_35,
-        &env->log.complete_game_action_36, &env->log.complete_game_action_37, &env->log.complete_game_action_38,
-        &env->log.complete_game_action_39, &env->log.complete_game_action_40, &env->log.complete_game_action_41,
-        &env->log.complete_game_action_42, &env->log.complete_game_action_43, &env->log.complete_game_action_44,
-        &env->log.complete_game_action_45, &env->log.complete_game_action_46, &env->log.complete_game_action_47,
-        &env->log.complete_game_action_48, &env->log.complete_game_action_49, &env->log.complete_game_action_50,
-        &env->log.complete_game_action_51, &env->log.complete_game_action_52, &env->log.complete_game_action_53,
-        &env->log.complete_game_action_54, &env->log.complete_game_action_55, &env->log.complete_game_action_56,
-        &env->log.complete_game_action_57, &env->log.complete_game_action_58, &env->log.complete_game_action_59,
-        &env->log.complete_game_action_60, &env->log.complete_game_action_61, &env->log.complete_game_action_62,
-        &env->log.complete_game_action_63, &env->log.complete_game_action_64, &env->log.complete_game_action_65,
-        &env->log.complete_game_action_66, &env->log.complete_game_action_67, &env->log.complete_game_action_68,
-        &env->log.complete_game_action_69, &env->log.complete_game_action_70, &env->log.complete_game_action_71,
-        &env->log.complete_game_action_72, &env->log.complete_game_action_73, &env->log.complete_game_action_74,
-        &env->log.complete_game_action_75, &env->log.complete_game_action_76, &env->log.complete_game_action_77,
-        &env->log.complete_game_action_78, &env->log.complete_game_action_79, &env->log.complete_game_action_80,
-        &env->log.complete_game_action_81, &env->log.complete_game_action_82, &env->log.complete_game_action_83,
-        &env->log.complete_game_action_84, &env->log.complete_game_action_85, &env->log.complete_game_action_86,
-        &env->log.complete_game_action_87, &env->log.complete_game_action_88, &env->log.complete_game_action_89,
-        &env->log.complete_game_action_90, &env->log.complete_game_action_91, &env->log.complete_game_action_92,
-        &env->log.complete_game_action_93, &env->log.complete_game_action_94, &env->log.complete_game_action_95,
-        &env->log.complete_game_action_96, &env->log.complete_game_action_97, &env->log.complete_game_action_98,
-        &env->log.complete_game_action_99
-    };
-    
-    // Set all actions to -1 initially
-    for (int i = 0; i < 100; i++) {
-        *(action_fields[i]) = -1.0f;
-    }
-    
-    // Copy actual actions
-    for (int i = 0; i < std::min(actual_move_count, 100); i++) {
-        *(action_fields[i]) = static_cast<float>(ctx->complete_game_actions[i]);
-        DBG("[add_log] Stored action " << i << ": " << ctx->complete_game_actions[i] << std::endl);
-    }
-    
-    env->log.episode_length += ctx->step_count;
-    env->log.episode_return += ctx->episode_return;
-    env->log.episode_return_white += ctx->c_episode_return_white;
-    env->log.episode_return_black += ctx->c_episode_return_black;
-    env->log.reward_valid += ctx->c_reward_valid;
-    env->log.reward_agent_captures_enemy_piece += ctx->c_reward_agent_captures_enemy_piece;
-    env->log.reward_enemy_captures_agent_piece += ctx->c_reward_enemy_captures_agent_piece;
-    env->log.reward_draw += ctx->c_reward_draw;
-    
-    // Perspective-based reward tracking
-    env->log.reward_win_white += ctx->c_reward_win_white;
-    env->log.reward_win_black += ctx->c_reward_win_black;
-    env->log.reward_loss_white += ctx->c_reward_loss_white;
-    env->log.reward_loss_black += ctx->c_reward_loss_black;
-    env->log.reward_draw_white += ctx->c_reward_draw_white;
-    env->log.reward_draw_black += ctx->c_reward_draw_black;
-    
-    // FIXED: Corrected win/loss/draw tracking - max depth games are always draws
-    if (ctx->c_max_depth > 0) {
-        // Max depth reached - always a draw regardless of rewards
-        env->log.game_drawn += 1;
-    } else if (ctx->c_black_checkmated > 0) {
-        // White checkmated black - white wins
-        env->log.white_win += 1;
-        env->log.black_loss += 1;
-    } else if (ctx->c_white_checkmated > 0) {
-        // Black checkmated white - black wins
-        env->log.black_win += 1;
-        env->log.white_loss += 1;
-    } else {
-        // No checkmate and no max depth - this is a draw from other causes
-        env->log.game_drawn += 1;
-    }
-    
-    // Calculate performance metrics (white win rate)
-    float total_games = env->log.white_win + env->log.white_loss + env->log.game_drawn;
-    if (total_games > 0) {
-        env->log.perf = env->log.white_win / total_games;
-    }
-    
-    // Calculate score (white wins minus white losses)
-    env->log.score = env->log.white_win - env->log.white_loss;
-    
-    env->log.stalemate += ctx->c_stalemate;
-    env->log.insufficient_material += ctx->c_insufficient_material;
-    env->log.threefold_repetition += ctx->c_threefold_repetition;
-    env->log.fifty_move_rule += ctx->c_fifty_move_rule;
-    env->log.max_depth += ctx->c_max_depth;
-    env->log.white_checkmated += ctx->c_white_checkmated; // black checkmates white
-    env->log.black_checkmated += ctx->c_black_checkmated; // white checkmates black
-    env->log.white_moves += ctx->c_white_moves;
-    env->log.black_moves += ctx->c_black_moves;
-    env->log.valid_moves += ctx->c_valid_moves;
-    env->log.invalid_moves_white += ctx->c_invalid_moves_white;
-    env->log.invalid_moves_black += ctx->c_invalid_moves_black;
-    env->log.reward_check_white += ctx->c_reward_check_white;
-    env->log.reward_check_black += ctx->c_reward_check_black;
-    env->log.reward_material_diff_white += ctx->c_reward_material_diff_white;
-    env->log.reward_material_diff_black += ctx->c_reward_material_diff_black;
-    env->log.stockfish_eval += ctx->stockfish_eval;
-    env->log.en_passant_white += ctx->c_en_passant_white;
-    env->log.en_passant_black += ctx->c_en_passant_black;
-    env->log.white_castle_kingside += ctx->c_white_castle_kingside;
-    env->log.white_castle_queenside += ctx->c_white_castle_queenside;
-    env->log.black_castle_kingside += ctx->c_black_castle_kingside;
-    env->log.black_castle_queenside += ctx->c_black_castle_queenside;
-    env->log.white_promotion_count += ctx->c_white_promotion_count;
-    env->log.white_promotion_knight += ctx->c_white_promotion_knight;
-    env->log.white_promotion_bishop += ctx->c_white_promotion_bishop;
-    env->log.white_promotion_rook += ctx->c_white_promotion_rook;
-    env->log.white_promotion_queen += ctx->c_white_promotion_queen;
-    env->log.black_promotion_count += ctx->c_black_promotion_count;
-    env->log.black_promotion_knight += ctx->c_black_promotion_knight;
-    env->log.black_promotion_bishop += ctx->c_black_promotion_bishop;
-    env->log.black_promotion_rook += ctx->c_black_promotion_rook;
-    env->log.black_promotion_queen += ctx->c_black_promotion_queen;
-    
-    env->log.n += 1;
-}
 
-void init(CChess* env) {
-    env->context = new ChessContext(12345);
-    // REMOVED: env->debug_disable_mask = false;  // Don't override the value set in binding.cpp
-    auto* ctx = (ChessContext*)env->context;
-    ctx->stockfish_enabled = env->stockfish_enabled;
-    ctx->max_depth = env->max_depth;
-    // max_depth is set from chess.ini
-    // Use bundled Stockfish binary (resolved in enable_stockfish_black) rather than
-    // hard-coded system path to avoid illegal-instruction crashes on CPUs lacking AVX2.
-    // Note: ELO will be overridden by training config via vec_enable_stockfish_black
-}
-
-void allocate(CChess* env) {
-    // 8×8×21 = 1344 board features + 4674 legal move mask = 6018
-    env->observations = (float*)calloc(6018, sizeof(float));
-    env->actions = (int*)calloc(1, sizeof(int));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
-}
-
-void free_allocated(CChess* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
-
-    auto* ctx = (ChessContext*)env->context;
-    if (ctx) {
-        ctx->sf.reset();         // unique_ptr handles destruction
-        delete ctx;
+    if (env->human_color == -1) {
+        env->actions[0] = -1;
+        return;
+    }
+    
+    ChessColor current_side = env->pos.sideToMove;
+    if (current_side == env->human_color) {
+        env->actions[0] = -1;
     }
 }
 
-void c_reset(CChess* env) {
-    auto* ctx = (ChessContext*)env->context;
+void c_step(Chess* env) {
+    if (!env->selfplay && !env->human_play) {
+        fprintf(stderr, "FATAL: selfplay=0 AND human_play=0 is invalid configuration\n");
+        exit(1);
+    }
     
-    // DEBUG: Track reset calls with stack trace
-    static int reset_call_counter = 0;
-    reset_call_counter++;
-    
-    DBG("[RESET_DEBUG] ===== c_reset called (reset #" << reset_call_counter << ") =====" << std::endl);
-    DBG("[RESET_DEBUG] Board state BEFORE reset:" << std::endl);
-    DBG("[RESET_DEBUG]   Side to move: " << (ctx->board.side_to_move() == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[RESET_DEBUG]   Board hash: " << ctx->board.hash() << std::endl);
-    DBG("[RESET_DEBUG]   FEN: " << ctx->board.to_fen() << std::endl);
-    
-    // Reset board
-    ctx->board.reset();
-    ctx->position_history.clear();
-    ctx->position_history[ctx->board.hash()] = 1;
-    
-    DBG("[RESET_DEBUG] Board state AFTER reset:" << std::endl);
-    DBG("[RESET_DEBUG]   Side to move: " << (ctx->board.side_to_move() == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[RESET_DEBUG]   Board hash: " << ctx->board.hash() << std::endl);
-    DBG("[RESET_DEBUG]   FEN: " << ctx->board.to_fen() << std::endl);
-    DBG("[RESET_DEBUG] ===== c_reset complete =====" << std::endl);
-    
-    // Reset episode tracking
-    ctx->step_count = 0;
-    ctx->episode_return = 0.0f;
-    
-    // Reset game logging
-    env->log.game_moves_count = 0;
-
-    // zero counters
-    ctx->c_reward_valid = 0.0f;
-    ctx->c_reward_agent_captures_enemy_piece = 0.0f;
-    ctx->c_reward_enemy_captures_agent_piece = 0.0f;
-    ctx->c_reward_draw = 0.0f;
-    ctx->c_reward_check_white = 0.0f;
-    ctx->c_reward_check_black = 0.0f;
-    ctx->c_reward_material_diff_white = 0.0f;
-    ctx->c_reward_material_diff_black = 0.0f;
-    
-    // Reset perspective-based reward tracking
-    ctx->c_reward_win_white = 0.0f;
-    ctx->c_reward_win_black = 0.0f;
-    ctx->c_reward_loss_white = 0.0f;
-    ctx->c_reward_loss_black = 0.0f;
-    ctx->c_reward_draw_white = 0.0f;
-    ctx->c_reward_draw_black = 0.0f;
-
-    ctx->c_game_drawn = 0.0f;
-    ctx->c_n = 0.0f;
-    ctx->c_stalemate = 0.0f;
-    ctx->c_insufficient_material = 0.0f;
-    ctx->c_threefold_repetition = 0.0f;
-    ctx->c_fifty_move_rule = 0.0f;
-    ctx->c_max_depth = 0.0f;
-    ctx->c_white_checkmated = 0.0f;
-    ctx->c_black_checkmated = 0.0f;
-    
-    // Reset move counters
-    ctx->c_white_moves = 0.0f;
-    ctx->c_black_moves = 0.0f;
-    ctx->c_valid_moves = 0.0f;
-    ctx->c_invalid_moves = 0.0f;
-    ctx->c_invalid_moves_white = 0.0f;
-    ctx->c_invalid_moves_black = 0.0f;
-
-    
-    // Reset self-play state - always start with white's turn
-    ctx->waiting_for_black_move = false;
-
-    // Reset episode return tracking
-    ctx->c_episode_return_white = 0.0f;
-    ctx->c_episode_return_black = 0.0f;
-
-    // Reset new tracking counters BEFORE compute_observation
-    ctx->c_en_passant_white = 0.0f;
-    ctx->c_en_passant_black = 0.0f;
-    ctx->c_white_castle_kingside = 0.0f;
-    ctx->c_white_castle_queenside = 0.0f;
-    ctx->c_black_castle_kingside = 0.0f;
-    ctx->c_black_castle_queenside = 0.0f;
-    ctx->c_white_promotion_count = 0.0f;
-    ctx->c_white_promotion_knight = 0.0f;
-    ctx->c_white_promotion_bishop = 0.0f;
-    ctx->c_white_promotion_rook = 0.0f;
-    ctx->c_white_promotion_queen = 0.0f;
-    ctx->c_black_promotion_count = 0.0f;
-    ctx->c_black_promotion_knight = 0.0f;
-    ctx->c_black_promotion_bishop = 0.0f;
-    ctx->c_black_promotion_rook = 0.0f;
-    ctx->c_black_promotion_queen = 0.0f;
-
-    ctx->stockfish_eval = 0.0f;
-    
-    // Reset NEW tracking variables
-    ctx->consecutive_checks_white = 0;
-    ctx->consecutive_checks_black = 0;
-    ctx->checks_given_white = 0;
-    ctx->checks_given_black = 0;
-    ctx->moves_since_progress = 0;
-    ctx->last_move_was_check = false;
-    ctx->last_checking_color = chess::WHITE;
-    ctx->repetition_penalty_multiplier = 1.0f;
-    ctx->position_repeated_recently = false;
-    
-    // Reset complete game tracking
-    ctx->complete_game_actions.clear();
-    
-    // CRITICAL: Reset GUI mode tracking
-    ctx->last_processed_hash = 0;
-    
-    // Clear legal moves cache
-    ctx->invalidate_legal_moves_cache();
-
-    compute_observation(env, ctx);
-
-    // CRITICAL: Ensure outputs are initialized and terminal flags are cleared
-    env->terminals[0] = 0;
     env->rewards[0] = 0.0f;
+    env->terminals[0] = 0;
+    env->tick++;
     
-    // For dual agent mode, also reset second agent
-    if (ctx->dual_agent_self_play_mode) {
-        env->terminals[1] = 0;
-        env->rewards[1] = 0.0f;
+    int action;
+    if (env->human_play) {
+        human_play(env);
     }
-}
-
-void compute_observation(CChess* env, ChessContext* ctx) {
-    // Total size: 8*8*21 + 4674 legal move mask = 6018 floats
-    int idx = 0;
-    
-    // 12 piece planes (6 types × 2 colors)
-    for (int color = 0; color < 2; color++) {
-        for (int type = 1; type <= 6; type++) { // KING=1 to PAWN=6
-            for (int y = 0; y < 8; y++) {
-                for (int x = 0; x < 8; x++) {
-                    const auto& p = ctx->board.at({int8_t(x), int8_t(y)});
-                    env->observations[idx++] = (p.color == color && p.type == type) ? 1.0f : 0.0f;
-                }
-            }
-        }
-    }
-    
-    // Empty squares plane
-    for (int y = 0; y < 8; y++) {
-        for (int x = 0; x < 8; x++) {
-            env->observations[idx++] = ctx->board.at({int8_t(x), int8_t(y)}).type == chess::EMPTY ? 1.0f : 0.0f;
-        }
-    }
-    
-    // Repetition count plane (normalized to 0-1 for 1-3 repetitions)
-    uint64_t hash = ctx->board.hash();
-    int reps = ctx->position_history[hash];
-    float rep_val = (reps - 1) / 2.0f; // Maps 1->0, 2->0.5, 3->1
-    for (int i = 0; i < 64; i++) {
-        env->observations[idx++] = rep_val;
-    }
-    
-    // Side to move plane
-    float side_val = ctx->board.side_to_move() == chess::WHITE ? 0.0f : 1.0f;
-    for (int i = 0; i < 64; i++) {
-        env->observations[idx++] = side_val;
-    }
-    
-    // Irreversible move counter plane (halfmove clock normalized to 0-1)
-    float halfmove_val = ctx->board.get_halfmove_clock() / 101.0f;
-    for (int i = 0; i < 64; i++) {
-        env->observations[idx++] = halfmove_val;
-    }
-    
-    // 4 castling rights planes
-    uint8_t rights = ctx->board.get_castling_rights();
-    for (int i = 0; i < 4; i++) {
-        float castle_val = (rights & (1 << (3-i))) ? 1.0f : 0.0f;
-        for (int j = 0; j < 64; j++) {
-            env->observations[idx++] = castle_val;
-        }
-    }
-    
-    // En passant target square plane
-    int8_t ep_square = ctx->board.get_ep_square();
-    for (int y = 0; y < 8; y++) {
-        for (int x = 0; x < 8; x++) {
-            env->observations[idx++] = (ep_square == y * 8 + x) ? 1.0f : 0.0f;
-        }
-    }
-    
-    // Should be exactly 1344 floats at this point
-    assert(idx == 1344);
-    
-    // Build legal move mask -------------------------------------------------
-    // First zero mask
-    for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 0.0f;
-
-    if (env->debug_disable_mask) {
-        DBG("[OBSERVATION_DEBUG] Legal move masking DISABLED - all actions allowed" << std::endl);
-        for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 1.0f;
+    if (env->selfplay) {
+        ChessColor current_side = env->pos.sideToMove;
+        action = (current_side == env->learner_color) ? env->actions[0] : env->actions[1];
     } else {
-        // mark only actually legal moves (O(#legal_moves))
-        const auto &legal_moves = ctx->get_legal_moves_cached();
-        DBG("[OBSERVATION_DEBUG] Computing legal move mask - " << legal_moves.size() << " legal moves found" << std::endl);
-        
-        int legal_actions_set = 0;
-        for (const auto &mv : legal_moves) {
-            int action_id = chess::ChessBoard::move_to_action(mv);
-            if (action_id >= 0 && action_id < 4674) {
-                env->observations[idx + action_id] = 1.0f;
-                legal_actions_set++;
-                
-                // Debug first few legal actions
-                if (legal_actions_set <= 5) {
-                    DBG("[OBSERVATION_DEBUG] Legal action " << action_id << " (move ");
-                    DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
-                    DBG(char('a' + mv.to.x) << (mv.to.y + 1));
-                    if (mv.promotion != chess::EMPTY) {
-                        DBG(" promotion " << (int)mv.promotion);
-                    }
-                    DBG(")" << std::endl);
-                }
-            } else {
-                DBG("[OBSERVATION_DEBUG] WARNING: Invalid action ID " << action_id << " for move ");
-                DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
-                DBG(char('a' + mv.to.x) << (mv.to.y + 1) << std::endl);
-            }
+        action = env->actions[0];
+    }
+    
+    if (action == -1) {
+        if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+            generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+            env->legal_moves_side = env->pos.sideToMove;
+            env->legal_moves_key = env->pos.key;
         }
-        
-        DBG("[OBSERVATION_DEBUG] Set " << legal_actions_set << " legal actions in mask" << std::endl);
-        // Pass move (action 0) is intentionally left disabled for chess.
+        populate_observations(env);
+        return;
     }
 
-    // obs is now [board_features_0, ..., board_features_1343, legal_move_mask_0, ..., legal_move_mask_4673]
-    // board_features is 1344 floats, legal_move_mask is 4674 floats
-    idx += 4674;
-    assert(idx == 6018);
-}
-
-void compute_dual_agent_observations(CChess* env, ChessContext* ctx) {
-    // For dual-agent mode, we need to compute separate observations for each agent
-    // Agent 0 (White): Always sees the board from white's perspective
-    // Agent 1 (Black): Always sees the board from black's perspective
+    bool use_dense_rewards = (env->reward_material != 0.0f || env->reward_position != 0.0f);
+    int16_t mat_before = 0, pst_before = 0;
+    if (use_dense_rewards) {
+        mat_before = env->pos.materialScore;
+        pst_before = env->pos.psqtScore;
+    }
     
-    chess::Color current_player = ctx->board.side_to_move();
-    DBG("[DUAL_OBS_DEBUG] Computing dual agent observations - current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
+    ChessColor mover = env->pos.sideToMove;
     
-    // Compute base observation features (same for both agents)
-    int base_idx = 0;
+    bool move_completed = process_player_action(env, action, mover);
+    if (move_completed && use_dense_rewards) {
+        int16_t mat_after = env->pos.materialScore;
+        int16_t pst_after = env->pos.psqtScore;
+        int mat_delta = mat_after - mat_before;
+        int pst_delta = pst_after - pst_before;
+        float mat_reward = (float)mat_delta / 100.0f * env->reward_material;
+        float pos_reward = (float)pst_delta / 50.0f * env->reward_position;
+        if (env->learner_color == CHESS_BLACK) {
+            mat_reward = -mat_reward;
+            pos_reward = -pos_reward;
+        }
+        
+        env->rewards[0] += mat_reward + pos_reward;
+        clip_rewards(env);
+    }
     
-    // For both agents, compute the same board features (first 1344 floats)
-    for (int agent = 0; agent < 2; agent++) {
-        int agent_offset = agent * 6018;  // Each agent has 6018 floats
-        int idx = agent_offset;
-        
-        DBG("[DUAL_OBS_DEBUG] Computing observations for agent " << agent << " (" << (agent == 0 ? "WHITE" : "BLACK") << ") at offset " << agent_offset << std::endl);
-        
-        // 12 piece planes (6 types × 2 colors) - same for both agents
-        for (int color = 0; color < 2; color++) {
-            for (int type = 1; type <= 6; type++) { // KING=1 to PAWN=6
-                for (int y = 0; y < 8; y++) {
-                    for (int x = 0; x < 8; x++) {
-                        const auto& p = ctx->board.at({int8_t(x), int8_t(y)});
-                        env->observations[idx++] = (p.color == color && p.type == type) ? 1.0f : 0.0f;
-                    }
-                }
-            }
+    if (move_completed) {
+        if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+            generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+            env->legal_moves_side = env->pos.sideToMove;
+            env->legal_moves_key = env->pos.key;
         }
+        populate_observations(env);
+    }
+    
+    // Terminate on: chess move limit, undo stack overflow, OR tick limit (1x max_moves)
+    if (env->chess_moves >= env->max_moves || env->undo_stack_ptr >= MAX_GAME_PLIES - 2 || env->tick >= env->max_moves) {
+        env->terminals[0] = 1;
+        env->rewards[0] = env->reward_draw;
+        env->log.perf = (env->log.perf * env->log.n + 0.5f) / (env->log.n + 1.0f);
+        env->log.draw_rate += 1.0f;
+        env->log.timeout_rate += 1.0f;
+        env->log.chess_moves += env->chess_moves;
+        env->log.episode_length += env->tick;
+        float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
+        env->log.invalid_action_rate += invalid_rate;
+        float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
+        env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
+        float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
+        env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
         
-        // Empty squares plane - same for both agents
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                env->observations[idx++] = ctx->board.at({int8_t(x), int8_t(y)}).type == chess::EMPTY ? 1.0f : 0.0f;
-            }
-        }
-        
-        // Repetition count plane - same for both agents
-        uint64_t hash = ctx->board.hash();
-        int reps = ctx->position_history[hash];
-        float rep_val = (reps - 1) / 2.0f; // Maps 1->0, 2->0.5, 3->1
-        for (int i = 0; i < 64; i++) {
-            env->observations[idx++] = rep_val;
-        }
-        
-        // Side to move plane - DIFFERENT for each agent
-        // Agent 0 (White): 0.0 when white to move, 1.0 when black to move
-        // Agent 1 (Black): 1.0 when white to move, 0.0 when black to move
-        float side_val;
-        if (agent == 0) {
-            // White agent perspective
-            side_val = ctx->board.side_to_move() == chess::WHITE ? 0.0f : 1.0f;
-        } else {
-            // Black agent perspective  
-            side_val = ctx->board.side_to_move() == chess::BLACK ? 0.0f : 1.0f;
-        }
-        for (int i = 0; i < 64; i++) {
-            env->observations[idx++] = side_val;
-        }
-        
-        // Irreversible move counter plane - same for both agents
-        float halfmove_val = ctx->board.get_halfmove_clock() / 101.0f;
-        for (int i = 0; i < 64; i++) {
-            env->observations[idx++] = halfmove_val;
-        }
-        
-        // 4 castling rights planes - same for both agents
-        uint8_t rights = ctx->board.get_castling_rights();
-        for (int i = 0; i < 4; i++) {
-            float castle_val = (rights & (1 << (3-i))) ? 1.0f : 0.0f;
-            for (int j = 0; j < 64; j++) {
-                env->observations[idx++] = castle_val;
-            }
-        }
-        
-        // En passant target square plane - same for both agents
-        int8_t ep_square = ctx->board.get_ep_square();
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                env->observations[idx++] = (ep_square == y * 8 + x) ? 1.0f : 0.0f;
-            }
-        }
-        
-        // Should be exactly 1344 floats at this point for this agent
-        assert(idx == agent_offset + 1344);
-        
-        // Build legal move mask - DIFFERENT for each agent
-        // First zero the mask
-        for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 0.0f;
-
-        if (env->debug_disable_mask) {
-            // Debug mode: all moves legal for both agents
-            DBG("[DUAL_OBS_DEBUG] Legal move masking DISABLED for agent " << agent << " - all actions allowed" << std::endl);
-            for (int i = 0; i < 4674; ++i) env->observations[idx + i] = 1.0f;
-        } else {
-            // Agent 0 (White): Only show legal moves when it's white's turn
-            // Agent 1 (Black): Only show legal moves when it's black's turn
-            chess::Color agent_color = (agent == 0) ? chess::WHITE : chess::BLACK;
+        env->log.n += 1.0f;
+        c_reset(env);
+        return;
+    }
+    
+    if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+        generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+        env->legal_moves_side = env->pos.sideToMove;
+        env->legal_moves_key = env->pos.key;
+    }
+    env->game_result = game_result_with_legal_count(&env->pos, env->legal_moves.count, env->undo_stack, env->undo_stack_ptr,
+                                                     env->enable_50_move_rule, env->enable_threefold_repetition);
+    
+    if (env->game_result != 0) {
+        env->terminals[0] = 1;
+        float win_value = 0.0f;
+        if (env->game_result == 3) {
+            env->rewards[0] = env->reward_draw;
+            win_value = 0.5f;
+            env->log.draw_rate += 1.0f;
             
-            DBG("[DUAL_OBS_DEBUG] Agent " << agent << " (" << (agent_color == chess::WHITE ? "WHITE" : "BLACK") << ") turn check: ");
-            DBG("current_player=" << (current_player == chess::WHITE ? "WHITE" : "BLACK"));
-            
-            if (current_player == agent_color) {
-                // It's this agent's turn - show legal moves
-                const auto &legal_moves = ctx->get_legal_moves_cached();
-                DBG(", it's their turn - setting " << legal_moves.size() << " legal moves" << std::endl);
-                
-                int legal_actions_set = 0;
-                for (const auto &mv : legal_moves) {
-                    int action_id = chess::ChessBoard::move_to_action(mv);
-                    if (action_id >= 0 && action_id < 4674) {
-                        env->observations[idx + action_id] = 1.0f;
-                        legal_actions_set++;
-                        
-                        // Debug first few legal actions
-                        if (legal_actions_set <= 3) {
-                            DBG("[DUAL_OBS_DEBUG] Agent " << agent << " legal action " << action_id << " (move ");
-                            DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
-                            DBG(char('a' + mv.to.x) << (mv.to.y + 1));
-                            if (mv.promotion != chess::EMPTY) {
-                                DBG(" promotion " << (int)mv.promotion);
-                            }
-                            DBG(")" << std::endl);
-                        }
-                    } else {
-                        DBG("[DUAL_OBS_DEBUG] WARNING: Agent " << agent << " invalid action ID " << action_id << " for move ");
-                        DBG(char('a' + mv.from.x) << (mv.from.y + 1) << " -> ");
-                        DBG(char('a' + mv.to.x) << (mv.to.y + 1) << std::endl);
-                    }
-                }
-                DBG("[DUAL_OBS_DEBUG] Agent " << agent << " set " << legal_actions_set << " legal actions in mask" << std::endl);
+            env->white_score += 0.5f;
+            env->black_score += 0.5f;
+            env->learner_draws += 1.0f;
+            strcpy(env->last_result, "Draw");
+        } else if (env->game_result == 1) {
+            if (env->learner_color == CHESS_WHITE) {
+                env->rewards[0] = -1.0f;
+                win_value = 0.0f;
             } else {
-                DBG(", not their turn - mask remains all zeros" << std::endl);
+                env->rewards[0] = 1.0f;
+                win_value = 1.0f;
             }
-            // If it's not this agent's turn, legal mask remains all zeros
+            env->black_score += 1.0f;
+            if (env->learner_color == CHESS_BLACK) {
+                env->learner_wins += 1.0f;
+            } else {
+                env->learner_losses += 1.0f;
+            }
+            strcpy(env->last_result, "Black Wins");
+            env->log.draw_rate += 0.0f;
+        } else if (env->game_result == 2) {
+            if (env->learner_color == CHESS_WHITE) {
+                env->rewards[0] = 1.0f;
+                win_value = 1.0f;
+            } else {
+                env->rewards[0] = -1.0f;
+                win_value = 0.0f;
+            }
+            env->white_score += 1.0f;
+            if (env->learner_color == CHESS_WHITE) {
+                env->learner_wins += 1.0f;
+            } else {
+                env->learner_losses += 1.0f;
+            }
+            strcpy(env->last_result, "White Wins");
+            env->log.draw_rate += 0.0f;
         }
         
-        // Move to next section
-        idx += 4674;
-        assert(idx == agent_offset + 6018);
-    }
-}
-
-void c_step(CChess* env) {
-    auto* ctx = (ChessContext*)env->context;
-    
-    // DEBUG: Track function entry and board state
-    static int step_call_counter = 0;
-    step_call_counter++;
-    
-    chess::Color entry_side_to_move = ctx->board.side_to_move();
-    uint64_t entry_hash = ctx->board.hash();
-    
-    DBG("[C_STEP_DEBUG] ===== c_step called (call #" << step_call_counter << ") =====" << std::endl);
-    DBG("[C_STEP_DEBUG] ENTRY - Side to move: " << (entry_side_to_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[C_STEP_DEBUG] ENTRY - Board hash: " << entry_hash << std::endl);
-    DBG("[C_STEP_DEBUG] dual_agent_self_play_mode: " << ctx->dual_agent_self_play_mode << std::endl);
-    DBG("[C_STEP_DEBUG] self_play_mode: " << ctx->self_play_mode << std::endl);
-    
-    // REMOVED PROBLEMATIC GUARD: Don't auto-reset on terminal - let caller handle it
-    // The previous guard was causing immediate resets and 1-step games
-    
-    // Check if we're in dual agent self-play mode
-    if (ctx->dual_agent_self_play_mode) {
-        DBG("[C_STEP_DEBUG] Taking dual agent path" << std::endl);
-        c_step_dual_agent(env);
-    } else {
-        // Original single agent logic for backward compatibility
-        DBG("[C_STEP_DEBUG] Taking single agent path" << std::endl);
-        c_step_single_agent(env);
+        env->log.perf = (env->log.perf * env->log.n + win_value) / (env->log.n + 1.0f);
+        env->log.timeout_rate += 0.0f;
+        env->log.chess_moves += env->chess_moves;
+        env->log.episode_length += env->tick;
+        float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
+        env->log.invalid_action_rate += invalid_rate;
+        
+        float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
+        env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
+        
+        float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
+        env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
+        
+        env->log.n += 1.0f;
+        c_reset(env);
+        return;
     }
     
-    // DEBUG: Track function exit and board state
-    chess::Color exit_side_to_move = ctx->board.side_to_move();
-    uint64_t exit_hash = ctx->board.hash();
-    
-    DBG("[C_STEP_DEBUG] EXIT - Side to move: " << (exit_side_to_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[C_STEP_DEBUG] EXIT - Board hash: " << exit_hash << std::endl);
-    DBG("[C_STEP_DEBUG] EXIT - Side changed during c_step: " << (entry_side_to_move != exit_side_to_move ? "YES" : "NO") << std::endl);
-    DBG("[C_STEP_DEBUG] ===== c_step complete (call #" << step_call_counter << ") =====" << std::endl);
+    populate_observations(env);
 }
 
-void c_step_dual_agent(CChess* env) {
-    auto* ctx = (ChessContext*)env->context;
-    
-    // In dual agent mode, we expect actions[0] = white_action, actions[1] = black_action
-    // But we only execute the action for the player whose turn it is
-    
-    chess::Color current_player = ctx->board.side_to_move();
-    int action_idx = (current_player == chess::WHITE) ? env->actions[0] : env->actions[1];
-    
-    // DEBUG: Print action and current player
-    DBG("[DUAL_AGENT_DEBUG] Current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[DUAL_AGENT_DEBUG] Received actions - White: " << env->actions[0] << ", Black: " << env->actions[1] << std::endl);
-    DBG("[DUAL_AGENT_DEBUG] Using action: " << action_idx << " for " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    
-    // IMPORTANT: We only process the action from the current player
-    // The other agent's action is ignored (not counted as invalid)
-    
-    // Initialize rewards for both agents
-    float white_reward = 0.0f;
-    float black_reward = 0.0f;
-    bool terminal = false;
-    
-    // Helper lambda to compute total material for a given color
-    auto material_value = [&](chess::Color color) {
-        int total = 0;
-        for (int y = 0; y < 8; ++y) {
-            for (int x = 0; x < 8; ++x) {
-                const auto& p = ctx->board.at({(int8_t)x, (int8_t)y});
-                if (p.color != color) continue;
-                switch (p.type) {
-                    case chess::PAWN:   total += 1; break;
-                    case chess::KNIGHT: total += 3; break;
-                    case chess::BISHOP: total += 3; break;
-                    case chess::ROOK:   total += 5; break;
-                    case chess::QUEEN:  total += 9; break;
-                    default: break;
-                }
-            }
-        }
-        return total;
+static Font load_piece_font(int cell_size, int* loaded) {
+    const char* candidates[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf",
+        "/System/Library/Fonts/Supplemental/Apple Symbols.ttf",
+        "C:\\Windows\\Fonts\\seguisym.ttf"
     };
-    
-    // Compute initial material balance
-    int white_material_before = material_value(chess::WHITE);
-    int black_material_before = material_value(chess::BLACK);
-    
-    // Early terminal check
-    const auto early_legal_moves = ctx->get_legal_moves_cached();
-    DBG("[DUAL_AGENT_DEBUG] Legal moves available: " << early_legal_moves.size() << std::endl);
-    
-    if (early_legal_moves.empty()) {
-        bool early_checkmate = ctx->board.is_checkmate();
-        bool early_stalemate = ctx->board.is_stalemate();
-        bool early_insuffmat = ctx->board.is_insufficient_material();
-        
-        DBG("[DUAL_AGENT_DEBUG] No legal moves - checkmate: " << early_checkmate << ", stalemate: " << early_stalemate << ", insufficient material: " << early_insuffmat << std::endl);
-        
-        if (early_checkmate || early_stalemate || early_insuffmat) {
-            terminal = true;
-            
-            if (early_checkmate) {
-                // Current player is checkmated - loses
-                if (current_player == chess::WHITE) {
-                    white_reward = env->reward_loss_white;
-                    black_reward = env->reward_win_black;
-                    ctx->c_reward_loss_white += env->reward_loss_white;
-                    ctx->c_reward_win_black += env->reward_win_black;
-                    ctx->c_white_checkmated += 1;
-                } else {
-                    black_reward = env->reward_loss_black;
-                    white_reward = env->reward_win_white;
-                    ctx->c_reward_loss_black += env->reward_loss_black;
-                    ctx->c_reward_win_white += env->reward_win_white;
-                    ctx->c_black_checkmated += 1;
-                }
-            } else {
-                // Draw
-                white_reward = env->reward_draw;
-                black_reward = env->reward_draw;
-                ctx->c_reward_draw_white += env->reward_draw;
-                ctx->c_reward_draw_black += env->reward_draw;
-                
-                if (early_stalemate) ctx->c_stalemate += 1;
-                if (early_insuffmat) ctx->c_insufficient_material += 1;
-            }
-            
-            // Set outputs
-            env->rewards[0] = white_reward;  // White agent reward
-            env->rewards[1] = black_reward;  // Black agent reward
-            env->terminals[0] = 1;
-            env->terminals[1] = 1;
-            
-            // Update episode returns
-            ctx->c_episode_return_white += white_reward;
-            ctx->c_episode_return_black += black_reward;
-            ctx->episode_return += white_reward + black_reward;
-            
-            // FIXED: Determine outcomes based on CHESS RULES, not rewards
-            // Never use rewards to determine game outcomes!
-            bool win = false;
-            bool loss = false; 
-            bool draw = false;
-            
-            // Determine outcome based on actual game state
-            if (early_checkmate) {
-                // Someone was checkmated - this is a win/loss
-                win = true;
-            } else {
-                // Stalemate or insufficient material - this is a draw
-                draw = true;
-            }
-            
-            add_log(env, ctx, win, loss, draw);
-            return;
-        }
-    }
-    
-    // Decode and validate the move from the CURRENT PLAYER ONLY
-    chess::Move selected_move = chess::action_to_move_lookup(action_idx, ctx->board);
-    
-    DBG("[DUAL_AGENT_DEBUG] Action " << action_idx << " decoded to move: ");
-    if (selected_move.from.x >= 0 && selected_move.from.y >= 0 && selected_move.to.x >= 0 && selected_move.to.y >= 0) {
-        DBG("from " << char('a' + selected_move.from.x) << (selected_move.from.y + 1));
-        DBG(" to " << char('a' + selected_move.to.x) << (selected_move.to.y + 1));
-        if (selected_move.promotion != chess::EMPTY) {
-            DBG(" promotion " << (int)selected_move.promotion);
-        }
-        DBG(std::endl);
-    } else {
-        DBG("INVALID COORDINATES (" << (int)selected_move.from.x << "," << (int)selected_move.from.y << " -> " << (int)selected_move.to.x << "," << (int)selected_move.to.y << ")" << std::endl);
-    }
-    
-    bool is_legal = false;
-    {
-        chess::ChessBoard tmp = ctx->board;
-        is_legal = tmp.apply_move(selected_move);
-    }
-    
-    DBG("[DUAL_AGENT_DEBUG] Move legality check: " << (is_legal ? "LEGAL" : "ILLEGAL") << std::endl);
-    
-    // DEBUG: If move is illegal, check if action was in legal mask
-    if (!is_legal) {
-        DBG("[DUAL_AGENT_DEBUG] *** ILLEGAL MOVE DETECTED ***" << std::endl);
-        DBG("[DUAL_AGENT_DEBUG] Action " << action_idx << " should have been masked!" << std::endl);
-        
-        // Check if this action was in the legal move mask
-        // This requires checking the observation that was used to generate this action
-        compute_dual_agent_observations(env, ctx);
-        chess::Color agent_color = current_player;
-        int agent_index = (agent_color == chess::WHITE) ? 0 : 1;
-        int mask_offset = agent_index * 6018 + 1344; // Skip to legal mask for this agent
-        
-        DBG("[DUAL_AGENT_DEBUG] Legal mask for action " << action_idx << ": " << env->observations[mask_offset + action_idx] << std::endl);
-        
-        // Print some legal moves for comparison
-        DBG("[DUAL_AGENT_DEBUG] Available legal moves:" << std::endl);
-        for (size_t i = 0; i < std::min((size_t)5, early_legal_moves.size()); i++) {
-            const auto& legal_move = early_legal_moves[i];
-            int legal_action = chess::ChessBoard::move_to_action(legal_move);
-            DBG("[DUAL_AGENT_DEBUG]   Move " << i << ": action " << legal_action);
-            DBG(" from " << char('a' + legal_move.from.x) << (legal_move.from.y + 1));
-            DBG(" to " << char('a' + legal_move.to.x) << (legal_move.to.y + 1));
-            DBG(" (mask value: " << env->observations[mask_offset + legal_action] << ")" << std::endl);
-        }
-    }
-    
-    if (is_legal) {
-        // Valid move - apply it
-        ctx->step_count += 1;
-        
-        // DEBUG: Track board state before and after move application
-        chess::Color player_before_move = ctx->board.side_to_move();
-        uint64_t hash_before_move = ctx->board.hash();
-        std::string fen_before_move = ctx->board.to_fen();
-        
-        DBG("[MOVE_APPLICATION_DEBUG] BEFORE move application:" << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   Side to move: " << (player_before_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   Board hash: " << hash_before_move << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   FEN: " << fen_before_move << std::endl);
-        
-        // Give valid move reward to current player
-        if (current_player == chess::WHITE) {
-            white_reward += env->reward_valid;
-            ctx->c_reward_valid += env->reward_valid;
-        } else {
-            black_reward += env->reward_valid;
-            ctx->c_reward_valid += env->reward_valid;
-        }
-        
-        // Store en passant square before applying the move
-        int8_t ep_square_before = ctx->board.get_ep_square();
-        
-        // Apply the move
-        bool applied_ok = ctx->board.apply_move(selected_move);
-        ctx->board.invalidate_cache();
-        ctx->invalidate_legal_moves_cache();  // Clear cache after move
-        
-        // DEBUG: Track board state after move application
-        chess::Color player_after_move = ctx->board.side_to_move();
-        uint64_t hash_after_move = ctx->board.hash();
-        std::string fen_after_move = ctx->board.to_fen();
-        
-        DBG("[MOVE_APPLICATION_DEBUG] AFTER move application:" << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   Applied successfully: " << applied_ok << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   Side to move: " << (player_after_move == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   Board hash: " << hash_after_move << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   FEN: " << fen_after_move << std::endl);
-        DBG("[MOVE_APPLICATION_DEBUG]   Side changed: " << (player_before_move != player_after_move ? "YES" : "NO") << std::endl);
-        
-        DBG("[DUAL_AGENT_DEBUG] Move applied successfully: " << applied_ok << std::endl);
-        
-        // Track action for complete game logging
-        if (applied_ok) {
-            ctx->complete_game_actions.push_back(action_idx);
-        }
-        
-        // Track last move for logging
-        if (applied_ok) {
-            env->log.last_move_from = selected_move.from.index();
-            env->log.last_move_to = selected_move.to.index();
-            env->log.last_move_promotion = (selected_move.promotion == chess::QUEEN) ? 1 :
-                                          (selected_move.promotion == chess::ROOK) ? 2 :
-                                          (selected_move.promotion == chess::BISHOP) ? 3 :
-                                          (selected_move.promotion == chess::KNIGHT) ? 4 : 0;
-            env->log.game_moves_count += 1;
-        }
-        
-        // Track special moves
-        if (applied_ok) {
-            // Castling
-            if (selected_move.is_castle_short) {
-                if (current_player == chess::WHITE) {
-                    ctx->c_white_castle_kingside += 1;
-                } else {
-                    ctx->c_black_castle_kingside += 1;
-                }
-            } else if (selected_move.is_castle_long) {
-                if (current_player == chess::WHITE) {
-                    ctx->c_white_castle_queenside += 1;
-                } else {
-                    ctx->c_black_castle_queenside += 1;
-                }
-            }
-            
-            // En passant
-            if (selected_move.piece.type == chess::PAWN && 
-                selected_move.to.index() == ep_square_before && ep_square_before >= 0) {
-                if (current_player == chess::WHITE) {
-                    ctx->c_en_passant_white += 1;
-                } else {
-                    ctx->c_en_passant_black += 1;
-                }
-            }
-            
-            // Promotions
-            if (selected_move.promotion != chess::EMPTY) {
-                if (current_player == chess::WHITE) {
-                    ctx->c_white_promotion_count += 1;
-                    switch (selected_move.promotion) {
-                        case chess::QUEEN:  ctx->c_white_promotion_queen += 1; break;
-                        case chess::ROOK:   ctx->c_white_promotion_rook += 1; break;
-                        case chess::BISHOP: ctx->c_white_promotion_bishop += 1; break;
-                        case chess::KNIGHT: ctx->c_white_promotion_knight += 1; break;
-                        default: break;
-                    }
-                } else {
-                    ctx->c_black_promotion_count += 1;
-                    switch (selected_move.promotion) {
-                        case chess::QUEEN:  ctx->c_black_promotion_queen += 1; break;
-                        case chess::ROOK:   ctx->c_black_promotion_rook += 1; break;
-                        case chess::BISHOP: ctx->c_black_promotion_bishop += 1; break;
-                        case chess::KNIGHT: ctx->c_black_promotion_knight += 1; break;
-                        default: break;
-                    }
-                }
-            }
-        }
-        
-        // Check reward
-        bool current_move_is_check = ctx->board.is_check();
-        if (current_move_is_check) {
-            float check_reward = (current_player == chess::WHITE) ? env->reward_check_white : env->reward_check_black;
-            
-            // Anti-exploitation: diminishing returns for consecutive checks
-            if (ctx->last_move_was_check && ctx->last_checking_color == current_player) {
-                if (current_player == chess::WHITE) {
-                    ctx->consecutive_checks_white++;
-                } else {
-                    ctx->consecutive_checks_black++;
-                }
-                
-                int consecutive_checks = (current_player == chess::WHITE) ? 
-                                       ctx->consecutive_checks_white : ctx->consecutive_checks_black;
-                
-                if (consecutive_checks > 3) {
-                    check_reward *= 0.1f * (1.0f / consecutive_checks);
-                } else if (consecutive_checks > 2) {
-                    check_reward *= 0.5f;
-                }
-            } else {
-                ctx->consecutive_checks_white = (current_player == chess::WHITE) ? 1 : 0;
-                ctx->consecutive_checks_black = (current_player == chess::BLACK) ? 1 : 0;
-            }
-            
-            // Track total checks
-            if (current_player == chess::WHITE) {
-                ctx->checks_given_white++;
-                white_reward += check_reward;
-                ctx->c_reward_check_white += check_reward;
-            } else {
-                ctx->checks_given_black++;
-                black_reward += check_reward;
-                ctx->c_reward_check_black += check_reward;
-            }
-            
-            ctx->last_move_was_check = true;
-            ctx->last_checking_color = current_player;
-        } else {
-            ctx->consecutive_checks_white = 0;
-            ctx->consecutive_checks_black = 0;
-            ctx->last_move_was_check = false;
-        }
-        
-        // Track move counts - ONLY count legal moves from current player
-        if (current_player == chess::WHITE) {
-            ctx->c_white_moves += 1;
-        } else {
-            ctx->c_black_moves += 1;
-        }
-        ctx->c_valid_moves += 1;
-        
-    } else {
-        // Invalid move - penalize ONLY the current player
-        // The other agent's action is ignored completely
-        DBG("[DUAL_AGENT_DEBUG] Applying invalid move penalty to " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-        
-        // CRITICAL DEBUG: Log complete invalid move details
-        DBG("[INVALID_MOVE_DEBUG] ===== INVALID MOVE DETECTED =====" << std::endl);
-        static int invalid_move_counter = 0;
-        invalid_move_counter++;
-        DBG("[INVALID_MOVE_DEBUG] Invalid move #" << invalid_move_counter << std::endl);
-        DBG("[INVALID_MOVE_DEBUG] Current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-        DBG("[INVALID_MOVE_DEBUG] Invalid action: " << action_idx << std::endl);
-        DBG("[INVALID_MOVE_DEBUG] Board FEN: " << ctx->board.to_fen() << std::endl);
-        DBG("[INVALID_MOVE_DEBUG] Board hash: " << ctx->board.hash() << std::endl);
-        
-        // Log all legal moves and their action IDs
-        const auto& all_legal_moves = ctx->get_legal_moves_cached();
-        DBG("[INVALID_MOVE_DEBUG] Legal moves available (" << all_legal_moves.size() << "):" << std::endl);
-        for (size_t i = 0; i < all_legal_moves.size(); i++) {
-            const auto& legal_move = all_legal_moves[i];
-            int legal_action = chess::ChessBoard::move_to_action(legal_move);
-            DBG("[INVALID_MOVE_DEBUG]   " << i << ": action " << legal_action);
-            DBG(" from " << char('a' + legal_move.from.x) << (legal_move.from.y + 1));
-            DBG(" to " << char('a' + legal_move.to.x) << (legal_move.to.y + 1));
-            if (legal_move.promotion != chess::EMPTY) {
-                DBG(" promotion " << (int)legal_move.promotion);
-            }
-            DBG(std::endl);
-        }
-        
-        // Check if the action was properly masked
-        compute_dual_agent_observations(env, ctx);
-        chess::Color agent_color = current_player;
-        int agent_index = (agent_color == chess::WHITE) ? 0 : 1;
-        int mask_offset = agent_index * 6018 + 1344;
-        float mask_value = env->observations[mask_offset + action_idx];
-        
-        DBG("[INVALID_MOVE_DEBUG] Action " << action_idx << " mask value: " << mask_value << std::endl);
-        DBG("[INVALID_MOVE_DEBUG] Agent " << agent_index << " (" << (agent_color == chess::WHITE ? "WHITE" : "BLACK") << ") mask offset: " << mask_offset << std::endl);
-        
-        // Check if action is out of bounds
-        if (action_idx < 0 || action_idx >= 4674) {
-            DBG("[INVALID_MOVE_DEBUG] ACTION OUT OF BOUNDS! Valid range: 0-4673" << std::endl);
-        }
-        
-        DBG("[INVALID_MOVE_DEBUG] ===== END INVALID MOVE DEBUG =====" << std::endl);
-        
-        if (current_player == chess::WHITE) {
-            white_reward += env->reward_invalid_white;
-            ctx->c_invalid_moves_white += 1;
-        } else {
-            black_reward += env->reward_invalid_black;
-            ctx->c_invalid_moves_black += 1;
-        }
-        ctx->board.invalidate_cache();
-        ctx->invalidate_legal_moves_cache();  // Clear cache after invalid move
-    }
-    
-    // Check for game over conditions
-    if (is_legal) {
-        if (ctx->board.is_checkmate()) {
-            terminal = true;
-            // The player who just moved won, opponent lost
-            if (current_player == chess::WHITE) {
-                white_reward += env->reward_win_white;
-                black_reward += env->reward_loss_black;
-                ctx->c_reward_win_white += env->reward_win_white;
-                ctx->c_reward_loss_black += env->reward_loss_black;
-                ctx->c_black_checkmated += 1;
-            } else {
-                black_reward += env->reward_win_black;
-                white_reward += env->reward_loss_white;
-                ctx->c_reward_win_black += env->reward_win_black;
-                ctx->c_reward_loss_white += env->reward_loss_white;
-                ctx->c_white_checkmated += 1;
-            }
-        } else if (ctx->board.is_stalemate()) {
-            terminal = true;
-            float draw_reward = env->reward_draw;
-            
-            // Anti-collusion penalties
-            if (ctx->step_count < 30) {
-                draw_reward *= 0.3f;
-            }
-            if (draw_reward > 0.0f) {
-                draw_reward = -0.05f;
-            }
-            
-            white_reward += draw_reward;
-            black_reward += draw_reward;
-            ctx->c_reward_draw_white += draw_reward;
-            ctx->c_reward_draw_black += draw_reward;
-            ctx->c_stalemate += 1;
-        } else if (ctx->board.is_insufficient_material()) {
-            terminal = true;
-            float draw_reward = env->reward_draw;
-            if (draw_reward > 0.0f) {
-                draw_reward = 0.0f;
-            }
-            
-            white_reward += draw_reward;
-            black_reward += draw_reward;
-            ctx->c_reward_draw_white += draw_reward;
-            ctx->c_reward_draw_black += draw_reward;
-            ctx->c_insufficient_material += 1;
-        } else if (ctx->board.get_halfmove_clock() >= 100) {
-            terminal = true;
-            float draw_reward = env->reward_draw;
-            if (draw_reward > 0.0f) {
-                draw_reward = -0.2f;
-            } else {
-                draw_reward *= 1.5f;
-            }
-            
-            white_reward += draw_reward;
-            black_reward += draw_reward;
-            ctx->c_reward_draw_white += draw_reward;
-            ctx->c_reward_draw_black += draw_reward;
-            ctx->c_fifty_move_rule += 1;
-        } else {
-            // Update position history and check for threefold repetition
-            uint64_t current_hash = ctx->board.hash();
-            ctx->position_history[current_hash]++;
-            
-            if (ctx->position_history[current_hash] >= 3) {
-                terminal = true;
-                float draw_reward = env->reward_draw;
-                
-                // Anti-collusion penalties
-                if (ctx->step_count < 20) {
-                    draw_reward *= 0.1f;
-                } else if (ctx->step_count < 40) {
-                    draw_reward *= 0.5f;
-                }
-                
-                if (draw_reward > 0.0f) {
-                    draw_reward = -0.1f;
-                }
-                
-                white_reward += draw_reward;
-                black_reward += draw_reward;
-                ctx->c_reward_draw_white += draw_reward;
-                ctx->c_reward_draw_black += draw_reward;
-                ctx->c_threefold_repetition += 1;
-            }
-        }
-    }
-    
-    // Max depth check
-    if (!terminal && ctx->step_count >= ctx->max_depth) {
-        terminal = true;
-        float draw_reward = env->reward_draw;
-        if (draw_reward > 0.0f) {
-            draw_reward = -0.3f;
-        } else {
-            draw_reward *= 2.0f;
-        }
-        
-        white_reward += draw_reward;
-        black_reward += draw_reward;
-        ctx->c_reward_draw_white += draw_reward;
-        ctx->c_reward_draw_black += draw_reward;
-        ctx->c_max_depth += 1;
-    }
-    
-    // Material differential rewards
-    if (is_legal) {
-        int white_material_after = material_value(chess::WHITE);
-        int black_material_after = material_value(chess::BLACK);
-        
-        int white_material_delta = white_material_after - white_material_before;
-        int black_material_delta = black_material_after - black_material_before;
-        
-        if (white_material_delta != 0) {
-            float white_mat_reward = white_material_delta * env->reward_material_diff_white;
-            white_reward += white_mat_reward;
-            ctx->c_reward_material_diff_white += white_mat_reward;
-            
-            if (white_material_delta > 0) {
-                white_reward += env->reward_agent_captures_enemy_piece;
-                ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
-            } else if (white_material_delta < 0) {
-                white_reward += env->reward_enemy_captures_agent_piece;
-                ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
-            }
-        }
-        
-        if (black_material_delta != 0) {
-            float black_mat_reward = black_material_delta * env->reward_material_diff_black;
-            black_reward += black_mat_reward;
-            ctx->c_reward_material_diff_black += black_mat_reward;
-            
-            if (black_material_delta > 0) {
-                black_reward += env->reward_agent_captures_enemy_piece;
-                ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
-            } else if (black_material_delta < 0) {
-                black_reward += env->reward_enemy_captures_agent_piece;
-                ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
-            }
-        }
-    }
-    
-    // Set outputs
-    env->rewards[0] = white_reward;  // White agent reward
-    env->rewards[1] = black_reward;  // Black agent reward
-    env->terminals[0] = terminal ? 1 : 0;
-    env->terminals[1] = terminal ? 1 : 0;
-    
-    // Update episode returns
-    ctx->c_episode_return_white += white_reward;
-    ctx->c_episode_return_black += black_reward;
-    ctx->episode_return += white_reward + black_reward;
-    
-    // Terminal handling
-    if (terminal) {
-        // FIXED: Determine outcomes based on CHESS RULES, not rewards
-        // Never use rewards to determine game outcomes!
-        bool win = false;
-        bool loss = false; 
-        bool draw = false;
-        
-        // Determine outcome based on actual game state counters
-        if (ctx->c_max_depth > 0) {
-            // Max depth reached - always a draw
-            draw = true;
-        } else if (ctx->c_black_checkmated > 0) {
-            // White checkmated black - white wins
-            win = true;
-        } else if (ctx->c_white_checkmated > 0) {
-            // Black checkmated white - black wins  
-            win = true; // From perspective of winner
-        } else {
-            // Any other terminal condition is a draw
-            draw = true;
-        }
-        
-        add_log(env, ctx, win, loss, draw);
-        // Don't reset here - let the training loop handle it
-    }
-    
-    // DEBUG: Check board state consistency before computing observations
-    chess::Color pre_obs_side = ctx->board.side_to_move();
-    uint64_t pre_obs_hash = ctx->board.hash();
-    std::string pre_obs_fen = ctx->board.to_fen();
-    
-    DBG("[CONSISTENCY_DEBUG] Board state BEFORE observation computation:" << std::endl);
-    DBG("[CONSISTENCY_DEBUG]   Side to move: " << (pre_obs_side == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[CONSISTENCY_DEBUG]   Board hash: " << pre_obs_hash << std::endl);
-    DBG("[CONSISTENCY_DEBUG]   FEN: " << pre_obs_fen << std::endl);
-    
-    // Compute observations for both agents (if not terminal)
-    if (!terminal) {
-        // For dual agents, we need to compute observations from both perspectives
-        compute_dual_agent_observations(env, ctx);
-    }
-    
-    // DEBUG: Check board state consistency after computing observations
-    chess::Color post_obs_side = ctx->board.side_to_move();
-    uint64_t post_obs_hash = ctx->board.hash();
-    std::string post_obs_fen = ctx->board.to_fen();
-    
-    DBG("[CONSISTENCY_DEBUG] Board state AFTER observation computation:" << std::endl);
-    DBG("[CONSISTENCY_DEBUG]   Side to move: " << (post_obs_side == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[CONSISTENCY_DEBUG]   Board hash: " << post_obs_hash << std::endl);
-    DBG("[CONSISTENCY_DEBUG]   Board state changed during obs computation: " << (pre_obs_hash != post_obs_hash ? "YES" : "NO") << std::endl);
-    
-    if (pre_obs_hash != post_obs_hash) {
-        DBG("[CONSISTENCY_DEBUG] *** BOARD STATE CORRUPTION DETECTED *** " << std::endl);
-        DBG("[CONSISTENCY_DEBUG] FEN changed from: " << pre_obs_fen << std::endl);
-        DBG("[CONSISTENCY_DEBUG] FEN changed to:   " << post_obs_fen << std::endl);
-    }
-}
 
-void c_step_single_agent(CChess* env) {
-    // Original single agent step logic for backward compatibility
-    auto* ctx = (ChessContext*)env->context;
-    
-    // In single-agent mode, the human/AI agent plays white, and Stockfish (or other logic) plays black
-    // We only get one action from the training loop, which is for the white player
-    
-    chess::Color current_player = ctx->board.side_to_move();
-    int action_idx = env->actions[0];  // Single action for single agent
-    
-    // DEBUG: Print action and current player
-    DBG("[SINGLE_AGENT_DEBUG] Current player: " << (current_player == chess::WHITE ? "WHITE" : "BLACK") << std::endl);
-    DBG("[SINGLE_AGENT_DEBUG] Received action: " << action_idx << std::endl);
-    
-    // Initialize rewards and terminal state
-    float reward = 0.0f;
-    bool terminal = false;
-    
-    // Helper lambda to compute total material for a given color
-    auto material_value = [&](chess::Color color) {
-        int total = 0;
-        for (int y = 0; y < 8; ++y) {
-            for (int x = 0; x < 8; ++x) {
-                const auto& p = ctx->board.at({(int8_t)x, (int8_t)y});
-                if (p.color != color) continue;
-                switch (p.type) {
-                    case chess::PAWN:   total += 1; break;
-                    case chess::KNIGHT: total += 3; break;
-                    case chess::BISHOP: total += 3; break;
-                    case chess::ROOK:   total += 5; break;
-                    case chess::QUEEN:  total += 9; break;
-                    case chess::EMPTY:  break;
-                    default: break;
-                }
-            }
-        }
-        return total;
-    };
-    
-    // Compute initial material balance
-    int white_material_before = material_value(chess::WHITE);
-    int black_material_before = material_value(chess::BLACK);
-    
-    // Early terminal check
-    const auto early_legal_moves = ctx->get_legal_moves_cached();
-    DBG("[SINGLE_AGENT_DEBUG] Legal moves available: " << early_legal_moves.size() << std::endl);
-    
-    if (early_legal_moves.empty()) {
-        bool early_checkmate = ctx->board.is_checkmate();
-        bool early_stalemate = ctx->board.is_stalemate();
-        bool early_insuffmat = ctx->board.is_insufficient_material();
-        
-        DBG("[SINGLE_AGENT_DEBUG] No legal moves - checkmate: " << early_checkmate << ", stalemate: " << early_stalemate << ", insufficient material: " << early_insuffmat << std::endl);
-        
-        if (early_checkmate || early_stalemate || early_insuffmat) {
-            terminal = true;
-            
-            if (early_checkmate) {
-                // Current player is checkmated - loses
-                if (current_player == chess::WHITE) {
-                    ctx->c_white_checkmated += 1;
-                } else {
-                    ctx->c_black_checkmated += 1;
-                }
-            } else {
-                // Draw
-                reward = env->reward_draw;
-                
-                if (early_stalemate) ctx->c_stalemate += 1;
-                if (early_insuffmat) ctx->c_insufficient_material += 1;
-            }
-            
-            // Set outputs
-            env->rewards[0] = reward;
-            env->terminals[0] = 1;
-            
-            // Update episode return
-            ctx->episode_return += reward;
-            
-            // FIXED: Determine outcomes based on CHESS RULES, not rewards
-            // Never use rewards to determine game outcomes!
-            bool win = false;
-            bool loss = false; 
-            bool draw = false;
-            
-            // Determine outcome based on actual game state
-            if (early_checkmate) {
-                // Someone was checkmated - this is a win/loss
-                win = true;
-            } else {
-                // Stalemate or insufficient material - this is a draw
-                draw = true;
-            }
-            
-            add_log(env, ctx, win, loss, draw);
-            return;
-        }
-    }
-    
-    // Handle the move based on whose turn it is
-    if (current_player == chess::WHITE) {
-        // White's turn - use the action provided by the agent/human
-        chess::Move selected_move = chess::action_to_move_lookup(action_idx, ctx->board);
-        
-        DBG("[SINGLE_AGENT_DEBUG] Action " << action_idx << " decoded to move: ");
-        if (selected_move.from.x >= 0 && selected_move.from.y >= 0 && selected_move.to.x >= 0 && selected_move.to.y >= 0) {
-            DBG("from " << char('a' + selected_move.from.x) << (selected_move.from.y + 1));
-            DBG(" to " << char('a' + selected_move.to.x) << (selected_move.to.y + 1));
-            if (selected_move.promotion != chess::EMPTY) {
-                DBG(" promotion " << (int)selected_move.promotion);
-            }
-            DBG(std::endl);
-        } else {
-            DBG("INVALID COORDINATES (" << (int)selected_move.from.x << "," << (int)selected_move.from.y << " -> " << (int)selected_move.to.x << "," << (int)selected_move.to.y << ")" << std::endl);
-        }
-        
-        bool is_legal = false;
-        {
-            chess::ChessBoard tmp = ctx->board;
-            is_legal = tmp.apply_move(selected_move);
-        }
-        
-        DBG("[SINGLE_AGENT_DEBUG] Move legality check: " << (is_legal ? "LEGAL" : "ILLEGAL") << std::endl);
-        
-        // DEBUG: If move is illegal, check if action was in legal mask
-        if (!is_legal) {
-            DBG("[SINGLE_AGENT_DEBUG] *** ILLEGAL MOVE DETECTED ***" << std::endl);
-            DBG("[SINGLE_AGENT_DEBUG] Action " << action_idx << " should have been masked!" << std::endl);
-            
-            // Check if this action was in the legal move mask
-            compute_observation(env, ctx);
-            int mask_offset = 1344; // Skip to legal mask
-            
-            DBG("[SINGLE_AGENT_DEBUG] Legal mask for action " << action_idx << ": " << env->observations[mask_offset + action_idx] << std::endl);
-            
-            // Print some legal moves for comparison
-            DBG("[SINGLE_AGENT_DEBUG] Available legal moves:" << std::endl);
-            for (size_t i = 0; i < std::min((size_t)5, early_legal_moves.size()); i++) {
-                const auto& legal_move = early_legal_moves[i];
-                int legal_action = chess::ChessBoard::move_to_action(legal_move);
-                DBG("[SINGLE_AGENT_DEBUG]   Move " << i << ": action " << legal_action);
-                DBG(" from " << char('a' + legal_move.from.x) << (legal_move.from.y + 1));
-                DBG(" to " << char('a' + legal_move.to.x) << (legal_move.to.y + 1));
-                DBG(" (mask value: " << env->observations[mask_offset + legal_action] << ")" << std::endl);
-            }
-        }
-        
-        if (is_legal) {
-            // Valid move - apply it
-            ctx->step_count += 1;
-            reward += env->reward_valid;
-            ctx->c_reward_valid += env->reward_valid;
-            
-            // Store en passant square before applying the move
-            int8_t ep_square_before = ctx->board.get_ep_square();
-            
-            // Apply the move
-            bool applied_ok = ctx->board.apply_move(selected_move);
-            ctx->board.invalidate_cache();
-            ctx->invalidate_legal_moves_cache();  // Clear cache after move
-            
-            DBG("[SINGLE_AGENT_DEBUG] Move applied successfully: " << applied_ok << std::endl);
-            
-            // Track action for complete game logging
-            if (applied_ok) {
-                ctx->complete_game_actions.push_back(action_idx);
-            }
-            
-            // Track last move for logging
-            if (applied_ok) {
-                env->log.last_move_from = selected_move.from.index();
-                env->log.last_move_to = selected_move.to.index();
-                env->log.last_move_promotion = (selected_move.promotion == chess::QUEEN) ? 1 :
-                                              (selected_move.promotion == chess::ROOK) ? 2 :
-                                              (selected_move.promotion == chess::BISHOP) ? 3 :
-                                              (selected_move.promotion == chess::KNIGHT) ? 4 : 0;
-                env->log.game_moves_count += 1;
-            }
-            
-            // Track special moves
-            if (applied_ok) {
-                // Castling
-                if (selected_move.is_castle_short) {
-                    ctx->c_white_castle_kingside += 1;
-                } else if (selected_move.is_castle_long) {
-                    ctx->c_white_castle_queenside += 1;
-                }
-                
-                // En passant
-                if (selected_move.piece.type == chess::PAWN && 
-                    selected_move.to.index() == ep_square_before && ep_square_before >= 0) {
-                    ctx->c_en_passant_white += 1;
-                }
-                
-                // Promotions
-                if (selected_move.promotion != chess::EMPTY) {
-                    ctx->c_white_promotion_count += 1;
-                    switch (selected_move.promotion) {
-                        case chess::QUEEN:  ctx->c_white_promotion_queen += 1; break;
-                        case chess::ROOK:   ctx->c_white_promotion_rook += 1; break;
-                        case chess::BISHOP: ctx->c_white_promotion_bishop += 1; break;
-                        case chess::KNIGHT: ctx->c_white_promotion_knight += 1; break;
-                        default: break;
-                    }
-                }
-            }
-            
-            // Check reward
-            bool current_move_is_check = ctx->board.is_check();
-            if (current_move_is_check) {
-                reward += env->reward_check_white;
-                ctx->c_reward_check_white += env->reward_check_white;
-            }
-            
-            ctx->c_white_moves += 1;
-            ctx->c_valid_moves += 1;
-            
-        } else {
-            // Invalid move - penalize
-            DBG("[SINGLE_AGENT_DEBUG] Applying invalid move penalty to WHITE" << std::endl);
-            reward += env->reward_invalid_white;  // Single agent is always white
-            ctx->c_invalid_moves_white += 1;
-            ctx->board.invalidate_cache();
-        }
-        
-        // Material differential rewards
-        if (is_legal) {
-            int white_material_after = material_value(chess::WHITE);
-            int white_material_delta = white_material_after - white_material_before;
-            
-            if (white_material_delta != 0) {
-                float mat_reward = white_material_delta * env->reward_material_diff_white;
-                reward += mat_reward;
-                ctx->c_reward_material_diff_white += mat_reward;
-                
-                if (white_material_delta > 0) {
-                    reward += env->reward_agent_captures_enemy_piece;
-                    ctx->c_reward_agent_captures_enemy_piece += env->reward_agent_captures_enemy_piece;
-                } else if (white_material_delta < 0) {
-                    reward += env->reward_enemy_captures_agent_piece;
-                    ctx->c_reward_enemy_captures_agent_piece += env->reward_enemy_captures_agent_piece;
-                }
-            }
-        }
-        
-            } else {
-        // Black's turn - handle Stockfish or other AI
-        if (ctx->stockfish_enabled && ctx->sf) {
-            // Let Stockfish make the move
-            std::string fen = ctx->board.to_fen();
-            auto [move_uci, eval_cp] = ctx->sf->bestmove_with_score(fen);
-            ctx->stockfish_eval = eval_cp;
-            
-            chess::Move sf_move = uci_to_move(move_uci, ctx->board);
-            if (sf_move.from.is_valid() && sf_move.to.is_valid()) {
-                bool applied_ok = ctx->board.apply_move(sf_move);
-                if (applied_ok) {
-                    ctx->step_count += 1;
-                    ctx->c_black_moves += 1;
-                    ctx->c_valid_moves += 1;
-                    ctx->board.invalidate_cache();
-                    
-                    // Track action for complete game logging
-                    int stockfish_action = chess::ChessBoard::move_to_action(sf_move);
-                    ctx->complete_game_actions.push_back(stockfish_action);
-                    
-                    // Track last move for logging
-                    env->log.last_move_from = sf_move.from.index();
-                    env->log.last_move_to = sf_move.to.index();
-                    env->log.last_move_promotion = (sf_move.promotion == chess::QUEEN) ? 1 :
-                                                  (sf_move.promotion == chess::ROOK) ? 2 :
-                                                  (sf_move.promotion == chess::BISHOP) ? 3 :
-                                                  (sf_move.promotion == chess::KNIGHT) ? 4 : 0;
-                    env->log.game_moves_count += 1;
-                    
-                    // Track special moves for black
-                    if (sf_move.is_castle_short) {
-                        ctx->c_black_castle_kingside += 1;
-                    } else if (sf_move.is_castle_long) {
-                        ctx->c_black_castle_queenside += 1;
-                    }
-                    
-                    // En passant
-                    if (sf_move.piece.type == chess::PAWN && 
-                        sf_move.to.index() == ctx->board.get_ep_square()) {
-                        ctx->c_en_passant_black += 1;
-                    }
-                    
-                    // Promotions
-                    if (sf_move.promotion != chess::EMPTY) {
-                        ctx->c_black_promotion_count += 1;
-                        switch (sf_move.promotion) {
-                            case chess::QUEEN:  ctx->c_black_promotion_queen += 1; break;
-                            case chess::ROOK:   ctx->c_black_promotion_rook += 1; break;
-                            case chess::BISHOP: ctx->c_black_promotion_bishop += 1; break;
-                            case chess::KNIGHT: ctx->c_black_promotion_knight += 1; break;
-                            default: break;
-                        }
-                    }
-                }
-            }
-        } else {
-            // FIXED: When Stockfish is disabled, make random black moves
-            // This is critical for "agent vs random" mode to work properly
-            const auto& legal_moves = ctx->board.legal_moves();
-            if (!legal_moves.empty()) {
-                // Select random legal move for black
-                std::uniform_int_distribution<int> dist(0, legal_moves.size() - 1);
-                int move_index = dist(ctx->rng);
-                const chess::Move& random_move = legal_moves[move_index];
-                
-                bool applied_ok = ctx->board.apply_move(random_move);
-                if (applied_ok) {
-                    ctx->step_count += 1;
-                    ctx->c_black_moves += 1;
-                    ctx->c_valid_moves += 1;
-                    ctx->board.invalidate_cache();
-                    
-                    // Track action for complete game logging
-                    int random_action = chess::ChessBoard::move_to_action(random_move);
-                    ctx->complete_game_actions.push_back(random_action);
-                    
-                    // Track last move for logging
-                    env->log.last_move_from = random_move.from.index();
-                    env->log.last_move_to = random_move.to.index();
-                    env->log.last_move_promotion = (random_move.promotion == chess::QUEEN) ? 1 :
-                                                  (random_move.promotion == chess::ROOK) ? 2 :
-                                                  (random_move.promotion == chess::BISHOP) ? 3 :
-                                                  (random_move.promotion == chess::KNIGHT) ? 4 : 0;
-                    env->log.game_moves_count += 1;
-                    
-                    // Track special moves for black
-                    if (random_move.is_castle_short) {
-                        ctx->c_black_castle_kingside += 1;
-                    } else if (random_move.is_castle_long) {
-                        ctx->c_black_castle_queenside += 1;
-                    }
-                    
-                    // En passant
-                    if (random_move.piece.type == chess::PAWN && 
-                        random_move.to.index() == ctx->board.get_ep_square()) {
-                        ctx->c_en_passant_black += 1;
-                    }
-                    
-                    // Promotions
-                    if (random_move.promotion != chess::EMPTY) {
-                        ctx->c_black_promotion_count += 1;
-                        switch (random_move.promotion) {
-                            case chess::QUEEN:  ctx->c_black_promotion_queen += 1; break;
-                            case chess::ROOK:   ctx->c_black_promotion_rook += 1; break;
-                            case chess::BISHOP: ctx->c_black_promotion_bishop += 1; break;
-                            case chess::KNIGHT: ctx->c_black_promotion_knight += 1; break;
-                            default: break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Check for game over conditions
-    if (ctx->board.is_checkmate()) {
-        terminal = true;
-        if (ctx->board.side_to_move() == chess::WHITE) {
-            // White is checkmated - black wins
-            reward += env->reward_draw;  // Treat as draw for single agent
-            ctx->c_white_checkmated += 1;
-        } else {
-            // Black is checkmated - white wins
-            reward += env->reward_draw;  // Treat as draw for single agent
-            ctx->c_black_checkmated += 1;
-        }
-    } else if (ctx->board.is_stalemate()) {
-        terminal = true;
-        reward += env->reward_draw;
-        ctx->c_stalemate += 1;
-    } else if (ctx->board.is_insufficient_material()) {
-        terminal = true;
-        reward += env->reward_draw;
-        ctx->c_insufficient_material += 1;
-    } else if (ctx->board.get_halfmove_clock() >= 100) {
-        terminal = true;
-        reward += env->reward_draw;
-        ctx->c_fifty_move_rule += 1;
-    } else {
-        // Update position history and check for threefold repetition
-        uint64_t current_hash = ctx->board.hash();
-        ctx->position_history[current_hash]++;
-        
-        if (ctx->position_history[current_hash] >= 3) {
-            terminal = true;
-            reward += env->reward_draw;
-            ctx->c_threefold_repetition += 1;
-        }
-    }
-    
-    // Max depth check
-    if (!terminal && ctx->step_count >= ctx->max_depth) {
-        terminal = true;
-        reward += env->reward_draw;
-        ctx->c_max_depth += 1;
-    }
-    
-    // Set outputs
-    env->rewards[0] = reward;
-    env->terminals[0] = terminal ? 1 : 0;
-    
-    // Update episode return
-    ctx->episode_return += reward;
-    
-    // Terminal handling
-    if (terminal) {
-        // FIXED: Determine outcomes based on CHESS RULES, not rewards
-        // Never use rewards to determine game outcomes!
-        bool win = false;
-        bool loss = false; 
-        bool draw = false;
-        
-        // Determine outcome based on actual game state counters
-        if (ctx->c_max_depth > 0) {
-            // Max depth reached - always a draw
-            draw = true;
-        } else if (ctx->c_black_checkmated > 0) {
-            // Black was checkmated - white wins
-            win = true;
-        } else if (ctx->c_white_checkmated > 0) {
-            // White was checkmated - black wins
-            win = true; // From perspective of winner
-        } else {
-            // Any other terminal condition is a draw
-            draw = true;
-        }
-        
-        add_log(env, ctx, win, loss, draw);
-        // Don't reset here - let the training loop handle it
-    }
-    
-    // Compute observations (if not terminal)
-    if (!terminal) {
-        compute_observation(env, ctx);
-    }
-}
+    int codepoints[] = {0x2654, 0x2655, 0x2656, 0x2657, 0x2658, 0x2659, 0x265A, 0x265B, 0x265C, 0x265D, 0x265E, 0x265F};
+    Font font = {0};
+    size_t candidate_count = sizeof(candidates) / sizeof(candidates[0]);
+    size_t codepoint_count = sizeof(codepoints) / sizeof(codepoints[0]);
 
-void c_render(CChess* env) {
-    // Capture the board representation as a string
-    std::stringstream ss;
-    ss << "\n  a b c d e f g h\n";
-    const auto& board = ((ChessContext*)env->context)->board;
-    for (int y = 7; y >= 0; y--) {
-        ss << (y + 1) << " ";
-        for (int x = 0; x < 8; x++) {
-            const chess::Piece& p = board.at({int8_t(x), int8_t(y)});
-            char c = '.';
-            if (p.type != chess::EMPTY) {
-                const char* pieces = " KQRBNP";
-                c = pieces[p.type];
-                if (p.color == chess::BLACK) c += 32;
-            }
-            ss << c << " ";
-        }
-        ss << (y + 1) << "\n";
-    }
-    ss << "  a b c d e f g h\n";
-    ss << (board.side_to_move() == chess::WHITE ? "White" : "Black") << " to move\n";
-    
-    // Store the result in a global buffer that Python can access
-    static std::string render_buffer;
-    render_buffer = ss.str();
-    // Note: This is a temporary fix. A proper solution would involve modifying the Python binding
-    // to return this string, but for now we'll use a global buffer
-}
-
-void c_close(CChess* env) {
-    // close nothing?
-}
-
-} // extern "C"
-
-// Test action encoding symmetry
-bool test_action_symmetry(const chess::ChessBoard& board) {
-    const auto& legal_moves = board.legal_moves();
-    int failures = 0;
-    
-    for (const auto& move : legal_moves) {
-        int action = chess::ChessBoard::move_to_action(move);
-        if (action < 0 || action >= 4674) {
-            // printf("Invalid action %d for move\n", action);
-            failures++;
+    for (size_t i = 0; i < candidate_count; i++) {
+        if (!FileExists(candidates[i])) {
             continue;
         }
+        font = LoadFontEx(candidates[i], cell_size, codepoints, (int)codepoint_count);
+        if (font.texture.id != 0) {
+            if (loaded) {
+                *loaded = 1;
+            }
+            SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+            return font;
+        }
+    }
+
+    if (loaded) {
+        *loaded = 0;
+    }
+    return GetFontDefault();
+}
+
+static void draw_piece(Chess* env, Piece pc, int file, int rank, int cell_size) {
+    if (pc == NO_PIECE) {
+        return;
+    }
+    
+    Color pc_color = color_of(pc) == CHESS_WHITE 
+        ? (Color){255, 255, 255, 255}
+        : (Color){0, 0, 0, 255};
+
+    int draw_x = file * cell_size;
+    int draw_y = (7 - rank) * cell_size;
+
+    if (env->client && env->client->use_unicode_pieces) {
+        float icon_size = cell_size * 0.85f;
+        Vector2 pos = {
+            draw_x + (cell_size - icon_size) / 2.0f,
+            draw_y + (cell_size - icon_size) / 2.0f - cell_size * 0.05f
+        };
+        DrawTextEx(env->client->piece_font, PIECE_UNICODE[pc], pos, icon_size, 0, pc_color);
+    } else {
+        int x = draw_x + cell_size / 4;
+        int y = draw_y + cell_size / 8;
+        DrawText(PIECE_CHARS[pc], x, y, cell_size / 2, pc_color);
+    }
+}
+
+// GUI is a tad scuffed, but it works.
+void c_render(Chess* env) {
+    const int cell_size = 64;
+    const int board_size = 8 * cell_size;
+    
+    if (env->client == NULL) {
+        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        InitWindow(board_size, board_size + 80, "PufferLib Chess - AI vs Opponent");
+        SetTargetFPS(env->render_fps > 0 ? env->render_fps : 30);
+        env->client = (Client*)calloc(1, sizeof(Client));
+        env->client->cell_size = cell_size;
+        int font_loaded = 0;
+        env->client->piece_font = load_piece_font(cell_size, &font_loaded);
+        env->client->use_unicode_pieces = font_loaded;
         
-        chess::Move decoded = chess::action_to_move_direct(action, board);
-        if (!(decoded == move)) {
-            // printf("Round-trip failure: action=%d\n", action);
-            failures++;
+        env->white_score = 0.0f;
+        env->black_score = 0.0f;
+        env->learner_wins = 0.0f;
+        env->learner_losses = 0.0f;
+        env->learner_draws = 0.0f;
+        strcpy(env->last_result, "Game starting...");
+    }
+    
+    if (IsKeyDown(KEY_ESCAPE) || WindowShouldClose()) {
+        CloseWindow();
+        exit(0);
+    }
+    
+
+    if (env->human_play && env->human_color == -1) {
+        BeginDrawing();
+        ClearBackground((Color){40, 40, 40, 255});
+        
+        DrawText("Choose Your Color", 256 - 100, 200, 24, WHITE);
+        
+        int button_width = 120;
+        int button_height = 40;
+        int center_x = 256;
+        int white_y = 280;
+        int black_y = 340;
+        
+        Rectangle white_button = {center_x - button_width/2, white_y, button_width, button_height};
+        Rectangle black_button = {center_x - button_width/2, black_y, button_width, button_height};
+        
+        DrawRectangleRec(white_button, LIGHTGRAY);
+        DrawRectangleLinesEx(white_button, 2, BLACK);
+        DrawText("Play White", center_x - 45, white_y + 12, 18, BLACK);
+        
+        DrawRectangleRec(black_button, GRAY);
+        DrawRectangleLinesEx(black_button, 2, BLACK);
+        DrawText("Play Black", center_x - 45, black_y + 12, 18, WHITE);
+        
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Vector2 mousePos = GetMousePosition();
+            if (CheckCollisionPointRec(mousePos, white_button)) {
+                env->human_color = CHESS_WHITE;
+                env->learner_color = CHESS_BLACK;
+            } else if (CheckCollisionPointRec(mousePos, black_button)) {
+                env->human_color = CHESS_BLACK;
+                env->learner_color = CHESS_WHITE;
+            }
+        }
+        
+        EndDrawing();
+        return;
+    }
+    
+    // Speed controls
+    static int paused = 0;
+    static int frame_delay = 12;
+    
+    static int selected_sq = -1;
+    if (env->human_play && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mp = GetMousePosition();
+        int file = (int)(mp.x) / cell_size;
+        int rank = 7 - ((int)(mp.y) / cell_size);
+        if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
+            int clicked_sq = (int)make_square(file, rank);
+            if (selected_sq == -1) {
+
+                if (env->pos.sideToMove == env->human_color) {
+                    Piece pc = piece_on(&env->pos, (Square)clicked_sq);
+                    if (pc != NO_PIECE && color_of(pc) == env->human_color) {
+                        bool has_from = false;
+                        for (int i = 0; i < env->legal_moves.count; i++) {
+                            if ((int)from_sq(env->legal_moves.moves[i].move) == clicked_sq) { has_from = true; break; }
+                        }
+                        if (has_from) selected_sq = clicked_sq;
+                    }
+                }
+            } else {
+                Move chosen = MOVE_NONE;
+                for (int i = 0; i < env->legal_moves.count; i++) {
+                    Move m = env->legal_moves.moves[i].move;
+                    if ((int)from_sq(m) == selected_sq && (int)to_sq(m) == clicked_sq) { chosen = m; break; }
+                }
+                if (chosen != MOVE_NONE) {
+                    do_move(&env->pos, chosen, env->undo_stack, &env->undo_stack_ptr);
+                    env->tick++;
+                    env->chess_moves++;
+                    generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+                    env->legal_moves_side = env->pos.sideToMove;
+                    env->legal_moves_key = env->pos.key;
+                    env->actions[0] = -1;
+                    populate_observations(env);
+                }
+                selected_sq = -1;
+            }
+        }
+    }
+
+    BeginDrawing();
+    ClearBackground((Color){40, 40, 40, 255});
+    
+    for (int rank = 0; rank < 8; rank++) {
+        for (int file = 0; file < 8; file++) {
+            Color square_color = ((rank + file) % 2 == 1) 
+                ? (Color){240, 217, 181, 255}
+                : (Color){181, 136, 99, 255};
+            
+            int draw_x = file * cell_size;
+            int draw_y = (7 - rank) * cell_size;
+            DrawRectangle(draw_x, draw_y, cell_size, cell_size, square_color);
+
+            if (selected_sq != -1) {
+                int sel_f = file_of((Square)selected_sq);
+                int sel_r = rank_of((Square)selected_sq);
+                if (sel_f == file && sel_r == rank) {
+                    DrawRectangleLines(draw_x, draw_y, cell_size, cell_size, (Color){255, 215, 0, 255});
+                }
+                for (int i = 0; i < env->legal_moves.count; i++) {
+                    Move m = env->legal_moves.moves[i].move;
+                    if ((int)from_sq(m) == selected_sq) {
+                        Square to = to_sq(m);
+                        int tf = file_of(to);
+                        int tr = rank_of(to);
+                        if (tf == file && tr == rank) {
+                            DrawRectangleLines(draw_x+2, draw_y+2, cell_size-4, cell_size-4, (Color){0, 200, 0, 255});
+                        }
+                    }
+                }
+            }
         }
     }
     
-    // printf("Action symmetry test: %d failures out of %d legal moves\n", 
-    //        failures, (int)legal_moves.size());
-    return failures == 0;
-}
-#endif // __cplusplus
-
-extern "C" void enable_stockfish_black(CChess* env, const char* stockfish_cmd, int elo, int search_ms) {
-    if (!env) return;
-    ChessContext* ctx = (ChessContext*)env->context;
-    if (!ctx) return;
-
-    // Don't reset if we already have an instance - this was causing memory leaks
-    // ctx->sf.reset(); // REMOVED - this was resetting before checking, causing leaks
-
-    // Resolve Stockfish binary path for this environment
-    const char* cmd = nullptr;
-
-    if (stockfish_cmd && stockfish_cmd[0]) {
-        cmd = stockfish_cmd;
-    }
-
-    if (!cmd) {
-        const char* candidates[] = {
-            "pufferlib/Stockfish/src/stockfish",
-            "./pufferlib/Stockfish/src/stockfish",
-            "Stockfish/src/stockfish",
-            "./Stockfish/src/stockfish",
-            "stockfish",
-            nullptr
-        };
-        for (int i = 0; candidates[i]; ++i) {
-            if (access(candidates[i], X_OK) == 0) { cmd = candidates[i]; break; }
+    for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
+        Piece pc = piece_on(&env->pos, sq);
+        if (pc != NO_PIECE) {
+            int file = file_of(sq);
+            int rank = rank_of(sq);
+            draw_piece(env, pc, file, rank, cell_size);
         }
     }
-
-    if (!cmd) cmd = "stockfish";
-
-    // Create per-environment Stockfish instance
-    // ctx->sf = new Stockfish(cmd, elo, search_ms);
-    if (!ctx->sf) { // construct only once
-        ctx->sf = std::make_unique<Stockfish>(cmd, elo, search_ms);
+    
+    const int scoreboard_y = board_size + 10;
+    char score_text[128];
+    snprintf(score_text, sizeof(score_text), "White: %.1f  Black: %.1f", 
+             env->white_score, env->black_score);
+    DrawText(score_text, 10, scoreboard_y, 20, WHITE);
+    
+    char learner_text[128];
+    snprintf(learner_text, sizeof(learner_text), "Learner: %.0f-%.0f-%.0f (W-L-D)", 
+             env->learner_wins, env->learner_losses, env->learner_draws);
+    DrawText(learner_text, 10, scoreboard_y + 55, 16, GREEN);
+    
+    if (env->last_result[0] != '\0') {
+        Color result_color = YELLOW;
+        if (strstr(env->last_result, "White")) result_color = (Color){240, 217, 181, 255};
+        else if (strstr(env->last_result, "Black")) result_color = (Color){100, 100, 100, 255};
+        
+        DrawText(env->last_result, 10, scoreboard_y + 25, 18, result_color);
     }
-    ctx->stockfish_enabled = ctx->sf && ctx->sf->ok();
+    
+    char move_text[64];
+    snprintf(move_text, sizeof(move_text), "Move: %d", env->chess_moves);
+    DrawText(move_text, board_size - 100, scoreboard_y, 18, LIGHTGRAY);
+    
+    const char* learner_str = (env->learner_color == CHESS_WHITE) ? "Learner: White" : "Learner: Black";
+    DrawText(learner_str, board_size - 120, scoreboard_y + 25, 16, LIGHTGRAY);
+    
+    const int btn_width = 36;
+    const int btn_height = 24;
+    const int btn_y = scoreboard_y + 45;
+    const int btn_start_x = board_size / 2 - 70;
+    
+    Rectangle minus_btn = {btn_start_x, btn_y, btn_width, btn_height};
+    DrawRectangleRec(minus_btn, DARKGRAY);
+    DrawRectangleLinesEx(minus_btn, 2, LIGHTGRAY);
+    DrawText("-", btn_start_x + 14, btn_y + 4, 20, WHITE);
+    
+    Rectangle pause_btn = {btn_start_x + btn_width + 5, btn_y, btn_width + 10, btn_height};
+    DrawRectangleRec(pause_btn, paused ? MAROON : DARKGREEN);
+    DrawRectangleLinesEx(pause_btn, 2, LIGHTGRAY);
+    DrawText(paused ? ">" : "||", btn_start_x + btn_width + 14, btn_y + 4, 18, WHITE);
+    
+    Rectangle plus_btn = {btn_start_x + 2*btn_width + 20, btn_y, btn_width, btn_height};
+    DrawRectangleRec(plus_btn, DARKGRAY);
+    DrawRectangleLinesEx(plus_btn, 2, LIGHTGRAY);
+    DrawText("+", btn_start_x + 2*btn_width + 32, btn_y + 4, 20, WHITE);
+    
+    // Speed indicator
+    char speed_text[32];
+    int speed_val = frame_delay > 0 ? 60 / frame_delay : 60;
+    snprintf(speed_text, sizeof(speed_text), "%dx", speed_val > 0 ? speed_val : 1);
+    DrawText(speed_text, btn_start_x + 3*btn_width + 30, btn_y + 4, 18, paused ? RED : LIGHTGRAY);
+    
+    EndDrawing();
+    
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mouse = GetMousePosition();
+        if (CheckCollisionPointRec(mouse, minus_btn)) {
+            frame_delay = frame_delay < 60 ? frame_delay + 4 : 60;
+        }
+        if (CheckCollisionPointRec(mouse, pause_btn)) {
+            paused = !paused;
+        }
+        if (CheckCollisionPointRec(mouse, plus_btn)) {
+            frame_delay = frame_delay > 4 ? frame_delay - 4 : 1;
+        }
+    }
+    
+    if (IsKeyPressed(KEY_SPACE)) paused = !paused;
+    if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) frame_delay = frame_delay > 4 ? frame_delay - 4 : 1;
+    if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) frame_delay = frame_delay < 60 ? frame_delay + 4 : 60;
+    
+    while (paused) {
+        BeginDrawing();
+        ClearBackground(DARKGRAY);
+        
+        for (int r = 0; r < 8; r++) {
+            for (int f = 0; f < 8; f++) {
+                Color sq_color = ((r + f) % 2 == 0) ? (Color){181, 136, 99, 255} : (Color){240, 217, 181, 255};
+                DrawRectangle(f * cell_size, (7 - r) * cell_size, cell_size, cell_size, sq_color);
+                Piece pc = piece_on(&env->pos, (Square)make_square(f, r));
+                if (pc != NO_PIECE) {
+                    draw_piece(env, pc, f, r, cell_size);
+                }
+            }
+        }
+        
+        DrawRectangle(0, board_size, board_size, 80, (Color){40, 40, 40, 255});
+        DrawText("PAUSED", board_size / 2 - 50, scoreboard_y + 10, 24, RED);
+        
+        DrawRectangleRec(minus_btn, DARKGRAY);
+        DrawRectangleLinesEx(minus_btn, 2, LIGHTGRAY);
+        DrawText("-", btn_start_x + 14, btn_y + 4, 20, WHITE);
+        
+        DrawRectangleRec(pause_btn, MAROON);
+        DrawRectangleLinesEx(pause_btn, 2, LIGHTGRAY);
+        DrawText(">", btn_start_x + btn_width + 18, btn_y + 4, 18, WHITE);
+        
+        DrawRectangleRec(plus_btn, DARKGRAY);
+        DrawRectangleLinesEx(plus_btn, 2, LIGHTGRAY);
+        DrawText("+", btn_start_x + 2*btn_width + 32, btn_y + 4, 20, WHITE);
+        
+        snprintf(speed_text, sizeof(speed_text), "%dx", speed_val > 0 ? speed_val : 1);
+        DrawText(speed_text, btn_start_x + 3*btn_width + 30, btn_y + 4, 18, RED);
+        
+        EndDrawing();
+        
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Vector2 mouse = GetMousePosition();
+            if (CheckCollisionPointRec(mouse, pause_btn)) {
+                paused = 0;
+                break;
+            }
+            if (CheckCollisionPointRec(mouse, minus_btn)) {
+                frame_delay = frame_delay < 60 ? frame_delay + 4 : 60;
+                speed_val = 60 / frame_delay;
+            }
+            if (CheckCollisionPointRec(mouse, plus_btn)) {
+                frame_delay = frame_delay > 4 ? frame_delay - 4 : 1;
+                speed_val = 60 / frame_delay;
+            }
+        }
+        if (IsKeyPressed(KEY_SPACE)) {
+            paused = 0;
+            break;
+        }
+        if (IsKeyDown(KEY_ESCAPE) || WindowShouldClose()) {
+            CloseWindow();
+            exit(0);
+        }
+        usleep(16000); 
+    }
+
+    if (frame_delay > 1 && !(env->human_play && env->human_color != -1 && env->pos.sideToMove == env->human_color)) {
+        usleep(frame_delay * 16000);
+    }
+}
+
+void c_close(Chess* env) {
+    if (env->client != NULL) {
+        if (env->client->use_unicode_pieces && env->client->piece_font.texture.id != 0) {
+            UnloadFont(env->client->piece_font);
+        }
+        if (IsWindowReady()) {
+            CloseWindow();
+        }
+        free(env->client);
+        env->client = NULL;
+    }
+    if (env->fen_curriculum != NULL) {
+        for (int i = 0; i < env->num_fens; i++) {
+            free(env->fen_curriculum[i]);
+        }
+        free(env->fen_curriculum);
+        env->fen_curriculum = NULL;
+        env->num_fens = 0;
+    }
 }

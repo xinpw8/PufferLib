@@ -13,10 +13,114 @@ import pufferlib
 import pufferlib.models
 
 from pufferlib.models import LSTMWrapper as Recurrent
+from pufferlib.models import Default as Policy
 from pufferlib.models import Default as _OldDefault
+from pufferlib.models import Convolutional as Conv
 
 from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
+
+
+class ChessCNN(nn.Module):
+    def __init__(self, env, cnn_channels=32, hidden_size=256, use_action_masking=1, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        self.use_action_masking = bool(use_action_masking)
+        self.network = nn.Sequential(
+            layer_init(nn.Conv2d(20, cnn_channels, 5, stride=3)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(cnn_channels, cnn_channels, 2, stride=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(cnn_channels, hidden_size)),
+            nn.ReLU(),
+        )
+
+        # Output: 64 squares + 32 promotion options (4 types * 8 files) = 96 actions
+        self.actor = layer_init(nn.Linear(hidden_size, 96), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
+
+        self.last_observations = None
+
+    def load_state_dict(self, state_dict, strict=True):
+        super().load_state_dict(state_dict, strict=strict)
+        self.last_observations = None
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        logits, value = self.decode_actions(hidden, state)
+        return logits, value
+
+    def forward_eval(self, observations, state=None):
+        """Forward pass for evaluation/rollout"""
+        hidden = self.encode_observations(observations, state)
+        logits, value = self.decode_actions(hidden, state)
+        return logits, value
+
+    def encode_observations(self, observations, state=None):
+        B = observations.shape[0]
+        obs = observations.float()
+        board = obs[:, :768].view(B, 12, 8, 8)
+
+        side_onehot = obs[:, 768:770]
+        side_plane = side_onehot[:, 1:2].view(B, 1, 1, 1).expand(-1, -1, 8, 8)
+
+        castle_onehot = obs[:, 770:786]
+        castle_idx = castle_onehot.argmax(dim=1)
+
+        castle_planes = []
+        for i in range(4):
+            has_right = ((castle_idx & (1 << i)) > 0).float()
+            plane = has_right.view(B, 1, 1, 1).expand(-1, -1, 8, 8)
+            castle_planes.append(plane)
+        castle_planes = torch.cat(castle_planes, dim=1)
+
+        ep_onehot = obs[:, 786:851]
+        ep_idx = ep_onehot.argmax(dim=1)
+        ep_plane = (ep_idx < 64).float().view(B, 1, 1, 1).expand(-1, -1, 8, 8)
+
+        # Phase plane (1 channel)
+        phase_onehot = obs[:, 851:853]
+        phase_plane = phase_onehot[:, 1:2].view(B, 1, 1, 1).expand(-1, -1, 8, 8)
+
+        selected_piece = obs[:, 853:917].view(B, 1, 8, 8)
+
+        board_input = torch.cat([board, side_plane, castle_planes, ep_plane, phase_plane, selected_piece], dim=1)
+
+        self.last_observations = observations.detach()
+
+        hidden = self.network(board_input)
+        return self.proj(hidden)
+
+    def decode_actions(self, hidden, state=None):
+        logits = self.actor(hidden)
+
+        if self.use_action_masking and self.last_observations is not None:
+            obs = self.last_observations.float()
+            phase_onehot = obs[:, 851:853]
+            pick_phase = phase_onehot[:, 1]
+            valid_pieces = obs[:, 917:981]
+            valid_dests = obs[:, 981:1045]
+            valid_promos = obs[:, 1045:1077]
+
+            valid_pieces_binary = (valid_pieces > 0.5).float()
+            valid_dests_binary = (valid_dests > 0.5).float()
+            valid_promos_binary = (valid_promos > 0.5).float()
+            mask_squares = torch.where(pick_phase.unsqueeze(1) > 0.5, valid_dests_binary, valid_pieces_binary)
+            mask = torch.cat([mask_squares, valid_promos_binary], dim=1)
+
+            all_masked = (mask == 0).all(dim=1)
+            if all_masked.any():
+                for idx in torch.where(all_masked)[0]:
+                    mask[idx] = 1
+
+            logits = logits.masked_fill(mask == 0, -1e8)
+
+        value = self.value_head(hidden)
+        return logits, value
 
 
 class Boids(nn.Module):
@@ -869,9 +973,7 @@ class ChessRecurrent(nn.Module):
         legal_actions = torch.where(legal_mask[0] > 0.5)[0]
         
         if len(legal_actions) == 0:
-            # No legal moves - should not happen in normal chess
-            print("WARNING: No legal actions available!")
-            return 0
+            raise RuntimeError('No legal actions available: legal-mask is empty')
         
         # 2. Create action mask (CRITICAL!)
         action_mask = torch.zeros(self.action_size, device=obs.device)
@@ -912,9 +1014,8 @@ class ChessRecurrent(nn.Module):
                 # Apply mask
                 masked_logits[i, action_mask == 0] = float('-inf')
             else:
-                # Empty legal mask case: This happens in dual-agent mode when it's not this agent's turn.
-                # In this case, the agent shouldn't act, so we set all actions to -inf.
-                # The training framework will ignore this agent's output anyway.
+                # Strict: empty mask is never valid for an agent we're sampling.
+                # The trainer must not sample actions for these rows.
                 masked_logits[i, :] = float('-inf')
         
         value = self.value_head(hidden).squeeze(-1)
@@ -1150,25 +1251,3 @@ class G2048(nn.Module):
         values = self.value(hidden)
         return logits, values
 
-def Policy(env, **kwargs):
-    """Factory returning the appropriate policy for the given environment.
-
-    If the observation matches the chess shape (6018,) we build a
-    ChessRecurrent model and wrap it with the generic LSTMWrapper so that
-    temporal batching works out of the box. Otherwise we fall back to the
-    legacy Default policy so existing non-chess environments remain
-    functional.
-    """
-    # Chess: obs = 1344 board planes + 4674 legal-move mask
-    try:
-        is_chess = (len(env.single_observation_space.shape) == 1 and
-                    env.single_observation_space.shape[0] == 6018)
-    except AttributeError:
-        is_chess = False
-
-    if is_chess:
-        hidden_size = kwargs.pop('hidden_size', 256)
-        base = ChessRecurrent(env, hidden_size=hidden_size)
-        return Recurrent(env, base, input_size=hidden_size, hidden_size=hidden_size)
-    else:
-        return _OldDefault(env, **kwargs)

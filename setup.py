@@ -12,6 +12,41 @@ import tarfile
 import platform
 import shutil
 
+def _find_lammps_include_dir():
+    # Allow explicit override
+    include_dir = os.getenv('LAMMPS_INCLUDE_DIR')
+    if include_dir and os.path.exists(os.path.join(include_dir, 'lammps', 'library.h')):
+        return include_dir
+
+    lammps_dir = os.getenv('LAMMPS_DIR')
+    if lammps_dir:
+        candidate = os.path.join(lammps_dir, 'include')
+        if os.path.exists(os.path.join(candidate, 'lammps', 'library.h')):
+            return candidate
+
+    for base in ('/usr/local/include', '/usr/include'):
+        if os.path.exists(os.path.join(base, 'lammps', 'library.h')):
+            return base
+
+    return None
+
+def _find_lammps_lib_dir():
+    # Allow explicit override
+    lib_dir = os.getenv('LAMMPS_LIB_DIR')
+    if lib_dir and os.path.isdir(lib_dir):
+        return lib_dir
+
+    lammps_dir = os.getenv('LAMMPS_DIR')
+    if lammps_dir:
+        for candidate in (os.path.join(lammps_dir, 'lib'), os.path.join(lammps_dir, 'lib64')):
+            if os.path.isdir(candidate):
+                return candidate
+
+    for base in ('/usr/local/lib', '/usr/lib', '/usr/lib64'):
+        if os.path.isdir(base):
+            return base
+    return None
+
 from setuptools.command.build_ext import build_ext
 from torch.utils import cpp_extension
 from torch.utils.cpp_extension import (
@@ -178,7 +213,7 @@ class TorchBuildExt(cpp_extension.BuildExtension):
         self.extensions = [e for e in self.extensions if e.name == "pufferlib._C"]
         super().run()
 
-INCLUDE = [f'{BOX2D_NAME}/include', f'{BOX2D_NAME}/src']
+INCLUDE = [f'{BOX2D_NAME}/include', f'{BOX2D_NAME}/src', 'pufferlib/extensions']
 RAYLIB_A = f'{RAYLIB_NAME}/lib/libraylib.a'
 extension_kwargs = dict(
     include_dirs=INCLUDE,
@@ -190,10 +225,18 @@ extension_kwargs = dict(
 # Find C extensions
 c_extensions = []
 if not NO_OCEAN:
-    c_extension_paths = (
-        glob.glob('pufferlib/ocean/**/binding.cpp', recursive=True) +
-        glob.glob('pufferlib/pufferlib/ocean/**/binding.cpp', recursive=True)
-    )
+    c_extension_paths = []
+    for pattern in ('binding.cpp', 'binding.c'):
+        c_extension_paths.extend(
+            glob.glob(f'pufferlib/ocean/**/{pattern}', recursive=True)
+        )
+        c_extension_paths.extend(
+            glob.glob(f'pufferlib/pufferlib/ocean/**/{pattern}', recursive=True)
+        )
+
+    # Deduplicate while preserving order
+    seen_paths = set()
+    c_extension_paths = [p for p in c_extension_paths if not (p in seen_paths or seen_paths.add(p))]
     
     # Filter out backup directories
     c_extension_paths = [p for p in c_extension_paths if 'backup' not in p]
@@ -219,18 +262,38 @@ if not NO_OCEAN:
                 # Skip game_replay_tool.cpp as it's a standalone executable
                 if 'game_replay_tool.cpp' in p:
                     continue  # skip – standalone tool with main()
+                if p.endswith('.c'):
+                    try:
+                        with open(p, 'r', encoding='utf-8', errors='ignore') as fh:
+                            contents = fh.read()
+                    except OSError:
+                        contents = ''
+                    if 'int main' in contents:
+                        continue  # skip demo binaries with their own entry point
                 if p == path:
                     continue  # never re-add binding.cpp itself
                 extra_sources.append(p)
 
+        is_c_extension = path.endswith('.c')
+        language = 'c' if is_c_extension else 'c++'
+        compile_args = list(extension_kwargs.get('extra_compile_args', []))
+        if is_c_extension:
+            compile_args = compile_args + ['-std=gnu99']
+        else:
+            compile_args = compile_args + ['-std=c++17', '-x', 'c++']
+
+        include_dirs = list(extension_kwargs.get('include_dirs', []))
+        link_args = list(extension_kwargs.get('extra_link_args', []))
+        extra_objects = list(extension_kwargs.get('extra_objects', []))
+
         c_ext = Extension(
             ext_name,
             sources=[path] + extra_sources,
-            language='c++',  # Force C++ to avoid missing vtables / symbols
-            extra_compile_args=extension_kwargs.get('extra_compile_args', []) + ['-std=c++17', '-x', 'c++'],
-            include_dirs=extension_kwargs.get('include_dirs', []),
-            extra_link_args=extension_kwargs.get('extra_link_args', []),
-            extra_objects=extension_kwargs.get('extra_objects', []),
+            language=language,
+            extra_compile_args=compile_args,
+            include_dirs=include_dirs,
+            extra_link_args=link_args,
+            extra_objects=extra_objects,
         )
 
         c_extensions.append(c_ext)
@@ -238,6 +301,9 @@ if not NO_OCEAN:
     # Remember extension directories so they install as namespace packages
     c_extension_paths = [os.path.dirname(p) for p in c_extension_paths]
 
+    # Configure optional extensions and skip those with missing system deps.
+    build_matsci = os.getenv('BUILD_MATSCI', '0') == '1'
+    filtered_extensions = []
     for c_ext in c_extensions:
         if "impulse_wars" in c_ext.name:
             print(f"Adding {c_ext.name} to extra objects")
@@ -248,8 +314,29 @@ if not NO_OCEAN:
                 c_ext.include_dirs.append(impulse_include)
 
         if 'matsci' in c_ext.name:
-            c_ext.include_dirs.append('/usr/local/include')
-            c_ext.extra_link_args.extend(['-L/usr/local/lib', '-llammps'])
+            lammps_include = _find_lammps_include_dir()
+            lammps_lib = _find_lammps_lib_dir()
+
+            if lammps_include is None and not build_matsci:
+                print('Skipping matsci extension: LAMMPS headers not found. '
+                      'Set BUILD_MATSCI=1 and LAMMPS_INCLUDE_DIR=/path/to/include to build.')
+                continue
+
+            if lammps_include is not None:
+                c_ext.include_dirs.append(lammps_include)
+            else:
+                # BUILD_MATSCI=1 but include dir not found; let compiler error be explicit.
+                c_ext.include_dirs.append('/usr/local/include')
+
+            if lammps_lib is not None:
+                c_ext.extra_link_args.extend([f'-L{lammps_lib}', '-llammps'])
+            else:
+                # Best-effort default
+                c_ext.extra_link_args.extend(['-L/usr/local/lib', '-llammps'])
+
+        filtered_extensions.append(c_ext)
+
+    c_extensions = filtered_extensions
 
 # Define cmdclass outside of setup to add dynamic commands
 cmdclass = {

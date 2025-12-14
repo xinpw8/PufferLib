@@ -75,21 +75,37 @@ class PuffeRL:
         total_agents = vecenv.num_agents
         self.total_agents = total_agents
 
+        # Some environments (notably chess self-play) expose two agents per game,
+        # but only one agent acts per step (turn-based). For experience collection,
+        # we want one stream per game, not per exposed agent.
+        experience_agents = total_agents
+        if (
+            config.get('env') == 'puffer_chess'
+            and hasattr(atn_space, 'n')
+            and atn_space.n == 4674
+            and getattr(obs_space, 'shape', None) is not None
+            and len(obs_space.shape) == 1
+            and obs_space.shape[0] >= 6018
+            and total_agents % 2 == 0
+        ):
+            experience_agents = total_agents // 2
+        self.experience_agents = experience_agents
+
         # Experience
         if config['batch_size'] == 'auto' and config['bptt_horizon'] == 'auto':
             raise pufferlib.APIUsageError('Must specify batch_size or bptt_horizon')
         elif config['batch_size'] == 'auto':
-            config['batch_size'] = total_agents * config['bptt_horizon']
+            config['batch_size'] = experience_agents * config['bptt_horizon']
         elif config['bptt_horizon'] == 'auto':
-            config['bptt_horizon'] = config['batch_size'] // total_agents
+            config['bptt_horizon'] = config['batch_size'] // experience_agents
 
         batch_size = config['batch_size']
         horizon = config['bptt_horizon']
         segments = batch_size // horizon
         self.segments = segments
-        if total_agents > segments:
+        if experience_agents > segments:
             raise pufferlib.APIUsageError(
-                f'Total agents {total_agents} <= segments {segments}'
+                f'Total agents {experience_agents} <= segments {segments}'
             )
 
         device = config['device']
@@ -106,9 +122,9 @@ class PuffeRL:
         self.truncations = torch.zeros(segments, horizon, device=device)
         self.ratio = torch.ones(segments, horizon, device=device)
         self.importance = torch.ones(segments, horizon, device=device)
-        self.ep_lengths = torch.zeros(total_agents, device=device, dtype=torch.int32)
-        self.ep_indices = torch.arange(total_agents, device=device, dtype=torch.int32)
-        self.free_idx = total_agents
+        self.ep_lengths = torch.zeros(experience_agents, device=device, dtype=torch.int32)
+        self.ep_indices = torch.arange(experience_agents, device=device, dtype=torch.int32)
+        self.free_idx = experience_agents
 
         # LSTM
         if config['use_rnn']:
@@ -246,6 +262,9 @@ class PuffeRL:
             profile('env', epoch)
             o, r, d, t, info, env_id, mask = self.vecenv.recv()
 
+            # Keep concrete agent ids (needed for turn-based multi-agent handling)
+            env_ids = env_id
+
             profile('eval_misc', epoch)
             env_id = slice(env_id[0], env_id[-1] + 1)
 
@@ -272,7 +291,43 @@ class PuffeRL:
                     state['lstm_c'] = self.lstm_c[env_id.start]
 
                 logits, value = self.policy.forward_eval(o_device, state)
-                action, logprob, _ = pytorch.sample_logits(logits)
+
+                # Chess (dual-agent) is turn-based but exposed as 2 agents.
+                # Only the side-to-move has a non-empty legal-action mask.
+                # Do not sample for the non-turn agent, or sample_logits will NaN on all -inf rows.
+                if (config.get('env') == 'puffer_chess'
+                    and o_device.ndim == 2
+                    and o_device.shape[1] >= 6018
+                    and hasattr(self.vecenv.single_action_space, 'n')
+                    and self.vecenv.single_action_space.n == 4674):
+                    legal_mask = o_device[:, 1344:6018]
+                    active = (legal_mask.sum(dim=1) > 0.5)
+                    if isinstance(mask, np.ndarray):
+                        active = active & torch.as_tensor(mask, device=active.device, dtype=torch.bool)
+
+                    # Only count steps we can actually store.
+                    # If the rollout buffer is full (segments exhausted), we continue stepping
+                    # to finish in-flight sequences, but we stop allocating new rows.
+                    env_ids_t = torch.as_tensor(env_ids, device=device, dtype=torch.int64)
+                    if getattr(self, 'experience_agents', self.total_agents) != self.total_agents:
+                        stream_ids = env_ids_t // 2
+                    else:
+                        stream_ids = env_ids_t
+                    agent_rows = self.ep_indices[stream_ids].to(torch.int64)
+                    row_ok = (agent_rows >= 0) & (agent_rows < int(self.segments))
+                    store_active = active & row_ok
+
+                    action = torch.zeros((o_device.shape[0],), device=device, dtype=torch.int32)
+                    logprob = torch.zeros((o_device.shape[0],), device=device, dtype=torch.float32)
+                    if active.any():
+                        a_act, a_logprob, _ = pytorch.sample_logits(logits[active])
+                        action[active] = a_act
+                        logprob[active] = a_logprob
+
+                    # Count only acting-agent steps
+                    self.global_step += int(store_active.sum().item()) - int(mask.sum())
+                else:
+                    action, logprob, _ = pytorch.sample_logits(logits)
 
             profile('eval_copy', epoch, nest=True)
             with torch.no_grad():
@@ -280,33 +335,95 @@ class PuffeRL:
                     self.lstm_h[env_id.start] = state['lstm_h']
                     self.lstm_c[env_id.start] = state['lstm_c']
 
-                # Fast path for fully vectorized envs
-                l = self.ep_lengths[env_id.start].item()
-                batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
+                # Chess dual-agent: store only for active (side-to-move) agents.
+                if (config.get('env') == 'puffer_chess'
+                    and o_device.ndim == 2
+                    and o_device.shape[1] >= 6018
+                    and hasattr(self.vecenv.single_action_space, 'n')
+                    and self.vecenv.single_action_space.n == 4674):
+                    legal_mask = o_device[:, 1344:6018]
+                    active = (legal_mask.sum(dim=1) > 0.5)
+                    if isinstance(mask, np.ndarray):
+                        active = active & torch.as_tensor(mask, device=active.device, dtype=torch.bool)
 
-                if config['cpu_offload']:
-                    self.observations[batch_rows, l] = o.clone()
+                    env_ids_t = torch.as_tensor(env_ids, device=device, dtype=torch.int64)
+                    if getattr(self, 'experience_agents', self.total_agents) != self.total_agents:
+                        stream_ids = env_ids_t // 2
+                    else:
+                        stream_ids = env_ids_t
+                    agent_rows = self.ep_indices[stream_ids].to(torch.int64)
+                    row_ok = (agent_rows >= 0) & (agent_rows < int(self.segments))
+                    store_active = active & row_ok
+
+                    for local_i, agent_id in enumerate(env_ids):
+                        if not bool(store_active[local_i].item()):
+                            continue
+                        agent_id = int(agent_id)
+                        stream_id = agent_id
+                        if getattr(self, 'experience_agents', self.total_agents) != self.total_agents:
+                            stream_id = agent_id // 2
+
+                        l = int(self.ep_lengths[stream_id].item())
+                        row = int(self.ep_indices[stream_id].item())
+
+                        # Defensive: never write outside the rollout buffer
+                        if row < 0 or row >= self.segments:
+                            continue
+
+                        if config['cpu_offload']:
+                            self.observations[row, l] = o[local_i]
+                        else:
+                            self.observations[row, l] = o_device[local_i]
+
+                        self.actions[row, l] = action[local_i]
+                        self.logprobs[row, l] = logprob[local_i]
+                        self.rewards[row, l] = r[local_i]
+                        self.terminals[row, l] = d[local_i].float()
+                        self.values[row, l] = value[local_i].flatten()
+
+                        self.ep_lengths[stream_id] += 1
+                        if l + 1 >= config['bptt_horizon']:
+                            # Allocate a new row only if there is space.
+                            # Otherwise, mark the agent as not-collecting; we will keep stepping
+                            # until all already-allocated rows are filled.
+                            if self.free_idx < self.segments:
+                                self.ep_indices[stream_id] = self.free_idx
+                                self.ep_lengths[stream_id] = 0
+                                self.free_idx += 1
+                            else:
+                                self.ep_indices[stream_id] = -1
+                                self.ep_lengths[stream_id] = 0
+                            self.full_rows += 1
+
+                    action = action.cpu().numpy()
                 else:
-                    self.observations[batch_rows, l] = o_device
+                    # Fast path for fully vectorized envs
+                    l = self.ep_lengths[env_id.start].item()
+                    batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
 
-                self.actions[batch_rows, l] = action
-                self.logprobs[batch_rows, l] = logprob
-                self.rewards[batch_rows, l] = r
-                self.terminals[batch_rows, l] = d.float()
-                self.values[batch_rows, l] = value.flatten()
+                    if config['cpu_offload']:
+                        self.observations[batch_rows, l] = o.clone()
+                    else:
+                        self.observations[batch_rows, l] = o_device
 
-                # Note: We are not yet handling masks in this version
-                self.ep_lengths[env_id] += 1
-                if l+1 >= config['bptt_horizon']:
-                    num_full = env_id.stop - env_id.start
-                    self.ep_indices[env_id] = self.free_idx + torch.arange(num_full, device=config['device']).int()
-                    self.ep_lengths[env_id] = 0
-                    self.free_idx += num_full
-                    self.full_rows += num_full
+                    self.actions[batch_rows, l] = action
+                    self.logprobs[batch_rows, l] = logprob
+                    self.rewards[batch_rows, l] = r
+                    self.terminals[batch_rows, l] = d.float()
+                    self.values[batch_rows, l] = value.flatten()
 
-                action = action.cpu().numpy()
-                if isinstance(logits, torch.distributions.Normal):
-                    action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
+                    # Note: We are not yet handling masks in this version
+                    self.ep_lengths[env_id] += 1
+                    if l+1 >= config['bptt_horizon']:
+                        num_full = env_id.stop - env_id.start
+                        self.ep_indices[env_id] = self.free_idx + torch.arange(num_full, device=config['device']).int()
+                        self.ep_lengths[env_id] = 0
+                        self.free_idx += num_full
+                        self.full_rows += num_full
+
+                    action = action.cpu().numpy()
+                    if isinstance(logits, torch.distributions.Normal):
+                        action = np.clip(action, self.vecenv.action_space.low, self.vecenv.action_space.high)
 
             profile('eval_misc', epoch)
             for i in info:
@@ -318,12 +435,17 @@ class PuffeRL:
                     else:
                         self.stats[k].append(v)
 
+            # Selfplay environments expect factor*num_agents actions
+            # Duplicate each action since only the active player's is used
+            if getattr(self.vecenv, 'selfplay', False):
+                action = np.repeat(action, 2)
+
             profile('env', epoch)
             self.vecenv.send(action)
 
         profile('eval_misc', epoch)
-        self.free_idx = self.total_agents
-        self.ep_indices = torch.arange(self.total_agents, device=device, dtype=torch.int32)
+        self.free_idx = getattr(self, 'experience_agents', self.total_agents)
+        self.ep_indices = torch.arange(self.free_idx, device=device, dtype=torch.int32)
         self.ep_lengths.zero_()
         profile.end()
         return self.stats
@@ -908,22 +1030,95 @@ class WandbLogger:
         model_file = max(os.listdir(data_dir))
         return f'{data_dir}/{model_file}'
 
+class SweepzLogger:
+    """Logger for sweepz.ai - real-time RL experiment tracking"""
+    def __init__(self, args, load_id=None, mode='async'):
+        import sweepz
+
+        # Check CLI args first, then config file, then env var
+        train_cfg = args.get('train', {})
+        api_key = (args.get('sweepz_api_key') or
+                   train_cfg.get('sweepz_api_key') or
+                   os.environ.get('SWEEPZ_API_KEY'))
+        host = (args.get('sweepz_host') or
+                train_cfg.get('sweepz_host') or
+                os.environ.get('SWEEPZ_HOST', 'ws://localhost:4000'))
+
+        if not api_key or api_key == 'None':
+            raise ValueError("sweepz_api_key required. Set via --sweepz-api-key, config, or SWEEPZ_API_KEY env var")
+
+        sweepz.init(api_key=api_key, host=host)
+
+        env_name = args.get('env_name', args.get('env', 'unknown'))
+        run_name = f"puffer-{env_name}"
+
+        # Flatten config for logging
+        config = {}
+        for section, values in args.items():
+            if isinstance(values, dict):
+                for k, v in values.items():
+                    if isinstance(v, (str, int, float, bool, list)):
+                        config[f"{section}.{k}"] = v
+            elif isinstance(values, (str, int, float, bool)):
+                config[section] = values
+
+        tags = [env_name]
+        if args.get('tag'):
+            tags.append(args['tag'])
+
+        self._run = sweepz.Run(name=run_name, config=config, tags=tags)
+        self._run.__enter__()
+        self.run_id = self._run._run_id
+        self._last_episode_return = None
+
+    def log(self, logs, step):
+        if not self._run or not self._run._connected:
+            return
+
+        metrics = {}
+
+        # Performance
+        if 'SPS' in logs:
+            metrics['sps'] = logs['SPS']
+
+        # Losses and metrics
+        for key, value in logs.items():
+            if key.startswith('losses/'):
+                metrics[key.replace('losses/', '')] = value
+            elif key.startswith('performance/'):
+                metrics[key.replace('performance/', 'perf_')] = value
+
+        if 'learning_rate' in logs:
+            metrics['lr'] = logs['learning_rate']
+        if 'explained_variance' in logs:
+            metrics['explained_variance'] = logs['explained_variance']
+
+        self._run.log(step=step, **metrics)
+
+        # Log episode if we have new data
+        episode_return = logs.get('environment/episode_return')
+        episode_length = logs.get('environment/episode_length')
+
+        if episode_return is not None and episode_return != self._last_episode_return:
+            self._last_episode_return = episode_return
+            self._run.episode(
+                reward=float(episode_return),
+                length=int(episode_length) if episode_length else 0,
+                termination="truncated",
+            )
+
+    def close(self, model_path, early_stop):
+        if self._run:
+            if early_stop:
+                self._run.log(early_stopped=True)
+            self._run.__exit__(None, None, None)
+            self._run = None
+
+    def download(self):
+        raise NotImplementedError("Model download not yet supported for sweepz")
+
 def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop_fn=None):
     args = args or load_config(env_name)
-
-    # not needed anymore?
-    # vecenv = vecenv or load_env(env_name, args)
-    # policy = policy or load_policy(args, vecenv)
-
-    # Stockfish is already enabled in the Chess environment constructor
-    # No need to enable it again here for regular training
-    if env_name == 'puffer_chess' and not args['env'].get('self_play', False):
-        print(f"[Chess] Stockfish opponent already enabled in environment (ELO={args['env'].get('stockfish_elo', 900)}, search_ms={args['env'].get('stockfish_search_ms', 10)})")
-
-    # Stockfish is already enabled in the Chess environment constructor
-    # No need to enable it again here for regular training
-    if env_name == 'puffer_chess' and not args['env'].get('self_play', False):
-        print(f"[Chess] Stockfish opponent already enabled in environment (ELO={args['env'].get('stockfish_elo', 900)}, search_ms={args['env'].get('stockfish_search_ms', 10)})")
 
     # Assume TorchRun DDP is used if LOCAL_RANK is set
     if 'LOCAL_RANK' in os.environ:
@@ -957,6 +1152,8 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
         logger = NeptuneLogger(args)
     elif args['wandb']:
         logger = WandbLogger(args)
+    elif args.get('sweepz'):
+        logger = SweepzLogger(args)
 
     train_config = { **args['train'], 'env': env_name }
     pufferl = PuffeRL(train_config, vecenv, policy, logger)
@@ -1006,112 +1203,42 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
     pufferl.logger.close(model_path, early_stop=False)
     return all_logs
 
-def train_selfplay(env_name='puffer_chess', config=None, use_engine_opponent=False, engine_depth=2, engine_path=None, engine_elo=1320, engine_search_ms=10):
+def train_selfplay(env_name='puffer_chess', config=None):
     """Training loop for self-play.
 
-    For chess, when self_play is enabled in config, uses native dual-agent self-play
-    where white and black are separate RL agents with shared network weights.
+    Uses native dual-agent self-play where white and black are separate RL agents
+    with shared network weights.
     """
-
     args = config or load_config(env_name)
-    device = args['train']['device']
-    
-    # For chess, check if self_play is enabled in config
-    if env_name == 'puffer_chess':
-        config_self_play = args['env'].get('self_play', False)
-        
-        if config_self_play:
-            # Native dual-agent self-play - use environment directly like NMMO/MOBA
-            print("[Chess] Using native dual-agent self-play mode")
-            vecenv = load_env(env_name, args)
-            policy = load_policy(args, vecenv)
-            
-            # Add env name so PuffeRL.print_dashboard can display it
-            train_config = dict(**args['train'], env=env_name)
 
-            # Set up logging
-            logger = None
-            if args['neptune']:
-                logger = NeptuneLogger(args)
-            elif args['wandb']:
-                logger = WandbLogger(args)
+    # Ensure selfplay is enabled
+    args['env']['selfplay'] = 1
 
-            pufferl = PuffeRL(train_config, vecenv, policy, logger)
-            
-            while pufferl.global_step < args['train']['total_timesteps']:
-                pufferl.evaluate()
-                pufferl.train()
-                
-                # Periodically save checkpoints
-                if pufferl.epoch % 100 == 0:
-                    pufferl.save_checkpoint()
-            
-            return pufferl.close()
-        else:
-            # Fall back to wrapper approach for backward compatibility
-            args['env']['self_play'] = not use_engine_opponent
-    else:
-        # For non-chess environments, use original logic
-        args['env']['self_play'] = not use_engine_opponent
+    # Native dual-agent self-play - use environment directly like NMMO/MOBA
+    print(f"[{env_name}] Using native dual-agent self-play mode")
+    vecenv = load_env(env_name, args)
+    policy = load_policy(args, vecenv, env_name)
 
-    # Original wrapper-based approach for chess when self_play is not in config,
-    # or for other environments
-    from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
-
-    base_env = load_env(env_name, args)
-    policy = load_policy(args, base_env)
-
-    if use_engine_opponent:
-        # Native Stockfish integration – enable once per VecEnv.
-        from pufferlib.ocean.chess import binding
-
-        # The base_env can be a driver-specific wrapper (Serial, Ray, etc.).
-        # Attempt to locate the underlying C handle robustly.
-        c_vec = getattr(base_env, 'c_envs', None)
-        if c_vec is None and hasattr(base_env, 'driver_env') and base_env.driver_env is not None:
-            c_vec = getattr(base_env.driver_env, 'c_envs', None)
-
-        if c_vec is None:
-            raise pufferlib.APIUsageError('Failed to locate native Chess VecEnv handle for Stockfish toggle.')
-
-        # Toggle Stockfish for all sub-envs (black side only) – optional custom binary path
-        if engine_path:
-            binding.vec_enable_stockfish_black(c_vec, engine_path, engine_elo, engine_search_ms)
-        else:
-            # Let C++ auto-detect the Stockfish binary
-            binding.vec_enable_stockfish_black(c_vec, None, engine_elo, engine_search_ms)
-
-        # No additional Python plumbing needed – the C++ core now generates
-        # every black reply internally, so the plain environment is ready.
-        vecenv = base_env
-    else:
-        vecenv = ChessSelfPlayWrapper(base_env, policy, device=device)
-    
     # Add env name so PuffeRL.print_dashboard can display it
     train_config = dict(**args['train'], env=env_name)
 
-    # Train with shared policy
+    # Set up logging
+    logger = None
     if args['neptune']:
         logger = NeptuneLogger(args)
     elif args['wandb']:
         logger = WandbLogger(args)
-    else:
-        logger = None
 
     pufferl = PuffeRL(train_config, vecenv, policy, logger)
-    
+
     while pufferl.global_step < args['train']['total_timesteps']:
-        # During evaluation, both players use the current policy
         pufferl.evaluate()
-        
-        # During training, we train on games played between
-        # the current policy (both sides)
         pufferl.train()
-        
+
         # Periodically save checkpoints
         if pufferl.epoch % 100 == 0:
             pufferl.save_checkpoint()
-    
+
     return pufferl.close()
 
 # ----------------------------------------------------------------------
@@ -1196,43 +1323,19 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         backend = 'Serial'
 
     args['vec'] = dict(backend=backend, num_envs=1)
-    vecenv = vecenv or load_env(env_name, args)
-    if not isinstance(vecenv, pufferlib.vector.Serial):
-        raise pufferlib.APIUsageError('eval requires Serial vector env')
-    
-        args['env']['self_play'] = True                      # C++ core toggles
 
     # Automatically load the most recent checkpoint if the caller did not
-    # specify a concrete path via --load-model-path.  This makes
-    #   $ puffer eval puffer_chess
-    # work out-of-the-box after training without having to hunt for the
-    # checkpoint filename.
+    # specify a concrete path via --load-model-path.
     if args.get('load_model_path') is None:
         args['load_model_path'] = 'latest'
 
-    # plain Chess env (already vectorised Serial)
-    base_env = load_env(env_name, args)
-    policy    = policy or load_policy(args, base_env)
-
-    # wrap only if wanted
-    if args.get('chess_self_play', True):
-        from pufferlib.ocean.chess.selfplay_wrapper import ChessSelfPlayWrapper
-        vecenv = ChessSelfPlayWrapper(base_env, policy,
-                                      device=args['train']['device'])
-    else:
-        vecenv = base_env
-        
-    def is_serial(v):
-        return isinstance(v, vector.Serial)
-
-    # single guard, no duplicate afterwards
-    if not (is_serial(vecenv) or
-            (isinstance(vecenv, ChessSelfPlayWrapper) and is_serial(vecenv.env))):
+    vecenv = vecenv or load_env(env_name, args)
+    if not isinstance(vecenv, vector.Serial):
         raise pufferlib.APIUsageError('eval requires Serial vector env')
-    
-        # ---------------------------------------------------------------
+
+    policy = policy or load_policy(args, vecenv, env_name)
+
     # Headless arena-style evaluation for self-play chess
-    # ---------------------------------------------------------------
     eval_games = args.get('eval_games', 0)
     if eval_games:
         results = evaluate_chess_self_play(policy, vecenv, args, eval_games)
@@ -1241,11 +1344,8 @@ def eval(env_name, args=None, vecenv=None, policy=None):
               f"Losses: {results['losses']} | Estimated Elo Δ: {results['elo']:.1f}")
         return
 
-    # ---------- nothing else changes below ----------
-
-    policy = policy or load_policy(args, vecenv, env_name)
     ob, info = vecenv.reset()
-    driver = vecenv.driver_env                # forwarded by wrapper
+    driver = vecenv.driver_env
     num_agents = vecenv.observation_space.shape[0]
     device = args['train']['device']
 
@@ -1262,8 +1362,8 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         max_moves = 200
         moves = 0
         while moves < max_moves:
-            render = driver.render()          # string from C++ render()
-            print('\033[0;0H' + render)       # always print; forget raylib here
+            render = driver.render()
+            print('\033[0;0H' + render)
 
             with torch.no_grad():
                 ob_t = torch.as_tensor(ob).to(device)
@@ -1273,9 +1373,10 @@ def eval(env_name, args=None, vecenv=None, policy=None):
 
             ob, rew, done, trunc, _ = vecenv.step(action)
             moves += 1
-            if done.any(): break  
-    
-    
+            if done.any():
+                break
+        return
+
     frames = []
     while True:
         render = driver.render()
@@ -1286,13 +1387,6 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         if driver.render_mode == 'ansi':
             print('\033[0;0H' + render + '\n')
             time.sleep(1/args['fps'])
-        elif driver.render_mode == 'rgb_array':
-            pass
-            #import cv2
-            #render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
-            #cv2.imshow('frame', render)
-            #cv2.waitKey(1)
-            #time.sleep(1/args['fps'])
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
@@ -1308,8 +1402,8 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         if len(frames) > 0 and len(frames) == args['save_frames']:
             import imageio
             imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
-            print(f'Saved {len(frames)} frames to {args["gif_path"]}')        
-            
+            print(f'Saved {len(frames)} frames to {args["gif_path"]}')
+
         if env_name == 'puffer_chess' and args['render_mode'] == 'auto':
             args['render_mode'] = args['env']['render_mode'] = 'ansi'
 
@@ -1538,6 +1632,9 @@ def make_parser():
     parser.add_argument('--neptune', action='store_true', help='Use neptune for logging')
     parser.add_argument('--neptune-name', type=str, default='pufferai')
     parser.add_argument('--neptune-project', type=str, default='ablations')
+    parser.add_argument('--sweepz', action='store_true', help='Use sweepz.ai for logging')
+    parser.add_argument('--sweepz-api-key', type=str, default=None, help='sweepz.ai API key')
+    parser.add_argument('--sweepz-host', type=str, default='ws://localhost:4000', help='sweepz.ai server')
     parser.add_argument('--no-model-upload', action='store_true', help='Do not upload models to wandb or neptune')
     parser.add_argument('--local-rank', type=int, default=0, help='Used by torchrun for DDP')
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
