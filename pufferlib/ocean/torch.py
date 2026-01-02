@@ -19,105 +19,133 @@ from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
 
 
-class ChessCNN(nn.Module):
-    def __init__(self, env, cnn_channels=32, hidden_size=256, use_action_masking=1, **kwargs):
+class Chess(nn.Module):
+    def __init__(self, env, cnn_channels=128, hidden_size=512, embed_dim=32, use_action_masking=1, **kwargs):
         super().__init__()
         self.hidden_size = hidden_size
         self.is_continuous = False
         self.use_action_masking = bool(use_action_masking)
-        self.network = nn.Sequential(
-            layer_init(nn.Conv2d(20, cnn_channels, 5, stride=3)),
+        self.num_actions = env.single_action_space.n
+
+        self.spatial_cnn = nn.Sequential(
+            layer_init(nn.Conv2d(18, cnn_channels, 3, stride=2, padding=1)),
             nn.ReLU(),
-            layer_init(nn.Conv2d(cnn_channels, cnn_channels, 2, stride=1)),
+            layer_init(nn.Conv2d(cnn_channels, cnn_channels, 3, stride=2, padding=1)),
             nn.ReLU(),
             nn.Flatten(),
         )
+        cnn_flat_size = cnn_channels * 4
+
+        self.side_embed = nn.Embedding(2, embed_dim)
+        self.castle_embed = nn.Embedding(16, embed_dim)
+        self.ep_embed = nn.Embedding(65, embed_dim)
+        self.phase_embed = nn.Embedding(2, embed_dim)
+
+        self.scalar_size = 3
+
+        total_features = cnn_flat_size + 4 * embed_dim + self.scalar_size
+
         self.proj = nn.Sequential(
-            layer_init(nn.Linear(cnn_channels, hidden_size)),
+            layer_init(nn.Linear(total_features, hidden_size)),
             nn.ReLU(),
         )
-        
-        # Output: 64 squares + 32 promotion options (4 types * 8 files) = 96 actions
-        self.actor = layer_init(nn.Linear(hidden_size, 96), std=0.01)
+
+        self.actor = layer_init(nn.Linear(hidden_size, self.num_actions), std=0.01)
         self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
-        
+
         self.last_observations = None
-    
+
     def load_state_dict(self, state_dict, strict=True):
         super().load_state_dict(state_dict, strict=strict)
         self.last_observations = None
-    
+
     def forward(self, observations, state=None):
         hidden = self.encode_observations(observations, state)
         logits, value = self.decode_actions(hidden, state)
         return logits, value
-    
+
     def forward_eval(self, observations, state=None):
-        """Forward pass for evaluation/rollout"""
-        hidden = self.encode_observations(observations, state)
-        logits, value = self.decode_actions(hidden, state)
-        return logits, value
-    
+        return self.forward(observations, state)
+
     def encode_observations(self, observations, state=None):
         B = observations.shape[0]
         obs = observations.float()
+
         board = obs[:, :768].view(B, 12, 8, 8)
-
-        side_onehot = obs[:, 768:770]
-        side_plane = side_onehot[:, 1:2].view(B, 1, 1, 1).expand(-1, -1, 8, 8)
-
-        castle_onehot = obs[:, 770:786]
-        castle_idx = castle_onehot.argmax(dim=1)
-
-        castle_planes = []
-        for i in range(4):
-            has_right = ((castle_idx & (1 << i)) > 0).float()
-            plane = has_right.view(B, 1, 1, 1).expand(-1, -1, 8, 8)
-            castle_planes.append(plane)
-        castle_planes = torch.cat(castle_planes, dim=1)
-        
-        ep_onehot = obs[:, 786:851]
-        ep_idx = ep_onehot.argmax(dim=1)
-        ep_plane = (ep_idx < 64).float().view(B, 1, 1, 1).expand(-1, -1, 8, 8)
-        
-        # Phase plane (1 channel)
-        phase_onehot = obs[:, 851:853]
-        phase_plane = phase_onehot[:, 1:2].view(B, 1, 1, 1).expand(-1, -1, 8, 8)
-        
         selected_piece = obs[:, 853:917].view(B, 1, 8, 8)
-        
-        board_input = torch.cat([board, side_plane, castle_planes, ep_plane, phase_plane, selected_piece], dim=1)
-        
+        valid_pieces = obs[:, 917:981].view(B, 1, 8, 8)
+        valid_dests = obs[:, 981:1045].view(B, 1, 8, 8)
+        valid_promos = obs[:, 1045:1077].view(B, 1, 4, 8)
+        valid_promos_padded = F.pad(valid_promos, (0, 0, 0, 4), value=0).view(B, 1, 8, 8)
+        self_check_plane = obs[:, 1077:1141].view(B, 1, 8, 8)
+        opp_check_plane = obs[:, 1141:1205].view(B, 1, 8, 8)
+
+        spatial_input = torch.cat([
+            board, selected_piece, valid_pieces, valid_dests, 
+            valid_promos_padded, self_check_plane, opp_check_plane
+        ], dim=1)
+        spatial_features = self.spatial_cnn(spatial_input)
+
+        side_idx = obs[:, 768:770].argmax(dim=1)
+        side_features = self.side_embed(side_idx)
+
+        castle_idx = obs[:, 770:786].argmax(dim=1)
+        castle_features = self.castle_embed(castle_idx)
+
+        ep_idx = obs[:, 786:851].argmax(dim=1)
+        ep_features = self.ep_embed(ep_idx)
+
+        phase_idx = obs[:, 851:853].argmax(dim=1)
+        phase_features = self.phase_embed(phase_idx)
+
+        rule50_scalar = obs[:, 1205:1206] / 255.0
+        repetition_scalar = obs[:, 1206:1207] / 255.0
+        pass_valid = obs[:, 1207:1208] / 255.0
+        scalars = torch.cat([rule50_scalar, repetition_scalar, pass_valid], dim=1)
+
         self.last_observations = observations.detach()
-        
-        hidden = self.network(board_input)
-        return self.proj(hidden)
-    
+
+        x = torch.cat([spatial_features, side_features, castle_features, ep_features, phase_features, scalars], dim=1)
+        x = self.proj(x)
+
+        return x
+
     def decode_actions(self, hidden, state=None):
         logits = self.actor(hidden)
-        
+
         if self.use_action_masking and self.last_observations is not None:
             obs = self.last_observations.float()
+
+            pass_valid = obs[:, 1207] > 0.5
+
             phase_onehot = obs[:, 851:853]
             pick_phase = phase_onehot[:, 1]
             valid_pieces = obs[:, 917:981]
             valid_dests = obs[:, 981:1045]
             valid_promos = obs[:, 1045:1077]
-            
+
             valid_pieces_binary = (valid_pieces > 0.5).float()
             valid_dests_binary = (valid_dests > 0.5).float()
             valid_promos_binary = (valid_promos > 0.5).float()
             mask_squares = torch.where(pick_phase.unsqueeze(1) > 0.5, valid_dests_binary, valid_pieces_binary)
-            mask = torch.cat([mask_squares, valid_promos_binary], dim=1)
-            
+
+            chess_mask = torch.cat([mask_squares, valid_promos_binary], dim=1)
+            pass_mask = pass_valid.unsqueeze(1).float()
+
+            chess_mask = torch.where(pass_valid.unsqueeze(1), torch.zeros_like(chess_mask), chess_mask)
+            pass_mask = torch.where(pass_valid.unsqueeze(1), torch.ones_like(pass_mask), torch.zeros_like(pass_mask))
+
+            mask = torch.cat([chess_mask, pass_mask], dim=1)
+
             all_masked = (mask == 0).all(dim=1)
             if all_masked.any():
                 for idx in torch.where(all_masked)[0]:
                     mask[idx] = 1
-            
+
             logits = logits.masked_fill(mask == 0, -1e8)
-        
+
         value = self.value_head(hidden)
+
         return logits, value
 
 class Boids(nn.Module):

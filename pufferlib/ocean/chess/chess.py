@@ -13,7 +13,8 @@ class Chess(pufferlib.PufferEnv):
                  render_fps=30, selfplay=1, human_play=0,
                  starting_fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                  random_fen_pct=0,
-                 enable_50_move_rule=1, enable_threefold_repetition=1):
+                 enable_50_move_rule=1, enable_threefold_repetition=1,
+                 debug=0):
         
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -22,11 +23,12 @@ class Chess(pufferlib.PufferEnv):
         self.tick = 0
         self.selfplay = selfplay
         self.random_fen_pct = random_fen_pct
+        self.debug = debug
         
         factor = 2 if selfplay else 1
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=255, shape=(1077*factor,), dtype=np.uint8)
-        self.single_action_space = gymnasium.spaces.Discrete(96)
+            low=0, high=255, shape=(1208*factor,), dtype=np.uint8)
+        self.single_action_space = gymnasium.spaces.Discrete(97)
         
         super().__init__(buf)
         
@@ -66,7 +68,8 @@ class Chess(pufferlib.PufferEnv):
                 enable_50_move_rule=enable_50_move_rule,
                 enable_threefold_repetition=enable_threefold_repetition,
                 learner_color=i % 2,
-                seed=seed + i
+                seed=seed + i,
+                debug=debug
             ))
         self.c_envs = binding.vectorize(*c_envs)
     

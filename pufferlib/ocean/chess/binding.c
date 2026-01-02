@@ -35,6 +35,8 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->log_pgn_choice_made = 1;
     env->pgn_filename[0] = '\0';
     env->pgn_game_number = 0;
+    env->debug_mode = 0;
+    env->learner_color = 0; 
     
     if (kwargs != NULL) {
         PyObject* max_moves_obj = PyDict_GetItemString(kwargs, "max_moves");
@@ -151,6 +153,11 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
                 env->starting_fen[sizeof(env->starting_fen) - 1] = '\0';
             }
         }
+        
+        PyObject* debug_obj = PyDict_GetItemString(kwargs, "debug");
+        if (debug_obj != NULL && PyLong_Check(debug_obj)) {
+            env->debug_mode = (int)PyLong_AsLong(debug_obj);
+        }
     }
     
     return 0;
@@ -167,5 +174,10 @@ static int my_log(PyObject *dict, Log *log) {
     
     float avg_invalid_rate = (log->n > 0) ? (log->invalid_action_rate / log->n) : 0.0f;
     assign_to_dict(dict, "invalid_action_rate", avg_invalid_rate);
+    
+    float avg_material = (log->n > 0) ? (log->material_score / log->n) : 0.0f;
+    float avg_positional = (log->n > 0) ? (log->positional_score / log->n) : 0.0f;
+    assign_to_dict(dict, "material_score", avg_material);
+    assign_to_dict(dict, "positional_score", avg_positional);
     return 0;
 }
