@@ -136,7 +136,85 @@ static const char* PIECE_UNICODE[] = {
     "♟", "♞", "♝", "♜", "♛", "♚"
 };
 
+static const char* PIECE_FILLED[] = {
+    "",
+    "♟", "♞", "♝", "♜", "♛", "♚",
+    "", "",
+    "♟", "♞", "♝", "♜", "♛", "♚"
+};
+
 static const int PIECE_VALUES_CP[7] = {0, 100, 320, 330, 500, 900, 0};
+
+static const int PHASE_VALUES[7] = {0, 0, 1, 1, 2, 4, 0};
+#define TOTAL_PHASE 24
+
+static const int SUNFISH_PIECE_VALUES_CP[7] = {0, 136, 782, 830, 1289, 2529, 32000};
+
+static const int SunfishPawnPST[64] = {
+    0, 0, 0, 0, 0, 0, 0, 0,
+    15, 31, 20, 14, 23, 11, 37, 24,
+    -1, -3, 15, 26, 1, 10, -7, -9,
+    8, -1, -5, 13, 24, 11, -10, 3,
+    -9, -18, 8, 32, 43, 25, -4, -16,
+    -9, -13, -40, 22, 26, -40, 1, -22,
+    2, 0, 15, 3, 11, 22, 11, -1,
+    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static const int SunfishKnightPST[64] = {
+    -200, -80, -53, -32, -32, -53, -80, -200,
+    -67, -21, 6, 37, 37, 6, -21, -67,
+    -11, 28, 63, 55, 55, 63, 28, -11,
+    -29, 13, 42, 52, 52, 42, 13, -29,
+    -28, 5, 41, 47, 47, 41, 5, -28,
+    -64, -20, 4, 19, 19, 4, -20, -64,
+    -79, -39, -24, -9, -9, -24, -39, -79,
+    -169, -96, -80, -79, -79, -80, -96, -169
+};
+
+static const int SunfishBishopPST[64] = {
+    -48, -3, -12, -25, -25, -12, -3, -48,
+    -21, -19, 10, -6, -6, 10, -19, -21,
+    -17, 4, -1, 8, 8, -1, 4, -17,
+    -7, 30, 23, 28, 28, 23, 30, -7,
+    1, 8, 26, 37, 37, 26, 8, 1,
+    -8, 24, -3, 15, 15, -3, 24, -8,
+    -18, 7, 14, 3, 3, 14, 7, -18,
+    -44, -4, -11, -28, -28, -11, -4, -44
+};
+
+static const int SunfishRookPST[64] = {
+    -22, -24, -6, 4, 4, -6, -24, -22,
+    -8, 6, 10, 12, 12, 10, 6, -8,
+    -24, -4, 4, 10, 10, 4, -4, -24,
+    -24, -12, -1, 6, 6, -1, -12, -24,
+    -13, -5, -4, -6, -6, -4, -5, -13,
+    -21, -7, 3, -1, -1, 3, -7, -21,
+    -18, -10, -5, 9, 9, -5, -10, -18,
+    -24, -13, -7, 2, 2, -7, -13, -24
+};
+
+static const int SunfishQueenPST[64] = {
+    -2, -2, 1, -2, -2, 1, -2, -2,
+    -5, 6, 10, 8, 8, 10, 6, -5,
+    -4, 10, 6, 8, 8, 6, 10, -4,
+    0, 14, 12, 5, 5, 12, 14, 0,
+    4, 5, 9, 8, 8, 9, 5, 4,
+    -3, 6, 13, 7, 7, 13, 6, -3,
+    -3, 5, 8, 12, 12, 8, 5, -3,
+    3, -5, -5, 4, 4, -5, -5, 3
+};
+
+static const int SunfishKingPST[64] = {
+    6, 8, 4, 0, 0, 4, 8, 6,
+    8, 12, 6, 2, 2, 6, 12, 8,
+    12, 15, 8, 3, 3, 8, 15, 12,
+    14, 17, 11, 6, 6, 11, 17, 15,
+    16, 19, 13, 10, 10, 13, 19, 16,
+    19, 25, 16, 12, 12, 16, 25, 19,
+    27, 30, 24, 18, 18, 24, 30, 27,
+    27, 32, 27, 19, 19, 27, 32, 27
+};
 
 // Piece-Square Tables (numbers calculated from Stockfish)
 static inline int mirror_file(int file) {
@@ -317,6 +395,9 @@ typedef struct {
     Key key;
     int16_t materialScore;
     int16_t psqtScore;
+    int16_t psqtScore_mg;
+    int16_t psqtScore_eg;
+    int8_t gamePhase;
     int16_t cachedEval;
     uint8_t evalValid;
 } Position;
@@ -341,9 +422,16 @@ enum {
     O_VALID_PIECES = 917,
     O_VALID_DESTS = 981,
     O_VALID_PROMOS = 1045,
-    OBS_SIZE = 1077
+    O_SELF_CHECK_PLANE = 1077,
+    O_OPP_CHECK_PLANE = 1141,
+    O_RULE50 = 1205,
+    O_REPETITION = 1206,
+    O_PASS_VALID = 1207,
+    OBS_SIZE = 1208
 };
 
+#define PASS_ACTION 96
+#define NUM_ACTIONS 97
 
 typedef struct {
     float perf;
@@ -354,7 +442,9 @@ typedef struct {
     float episode_length;       // Average episode length in ticks (2-phase system)
     float episode_return;
     float invalid_action_rate;
-    float game_length_score;    
+    float game_length_score;
+    float material_score;
+    float positional_score;
     float n;
 } Log;
 
@@ -372,6 +462,9 @@ typedef struct {
     uint8_t rule50;
     int16_t materialScore;
     int16_t psqtScore;
+    int16_t psqtScore_mg;
+    int16_t psqtScore_eg;
+    int8_t gamePhase;
     Key key;
     uint8_t pliesFromNull;
 } UndoInfo;
@@ -443,8 +536,34 @@ typedef struct {
     int log_pgn_choice_made;
     char pgn_filename[128];
     int pgn_game_number;
+    
+    int white_captured[6];
+    int black_captured[6];
+    
+    int debug_mode;
+    
+#ifdef CHESS_DEBUG_BUILD
+    int debug_paused;
+    int debug_history_idx;
+    int debug_history_count;
+    int debug_view_player;
+    int debug_selected_plane;
+    #define DEBUG_HISTORY_SIZE 100
+    uint8_t debug_obs_history[DEBUG_HISTORY_SIZE][OBS_SIZE * 2];
+    Position debug_pos_history[DEBUG_HISTORY_SIZE];
+    int debug_pick_phase_history[DEBUG_HISTORY_SIZE][2];
+    Square debug_selected_sq_history[DEBUG_HISTORY_SIZE][2];
+    int debug_actions_history[DEBUG_HISTORY_SIZE][2];
+    Move debug_last_move_history[DEBUG_HISTORY_SIZE];
+    int debug_chess_moves_history[DEBUG_HISTORY_SIZE];
+    float debug_rewards_history[DEBUG_HISTORY_SIZE];
+#endif
 } Chess;
 
+void pos_set(Position* pos, const char* fen);
+void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr);
+void undo_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr);
+void export_pgn_append(Chess* env, const char* filename, int append);
 
 static inline Bitboard sq_bb(Square s) {
     return SquareBB[s];
@@ -669,6 +788,9 @@ void init_bitboards(void) {
 }
 
 static inline int get_pst_value(Piece pc, Square sq);
+static inline int get_pst_mg(Piece pc, Square sq);
+static inline int get_pst_eg(Piece pc, Square sq);
+static inline int blend_pst(int mg, int eg, int phase);
 
 void pos_set_startpos(Position* pos) {
     memset(pos, 0, sizeof(Position));
@@ -748,6 +870,9 @@ void pos_set(Position* pos, const char* fen) {
     
     pos->materialScore = 0;
     pos->psqtScore = 0;
+    pos->psqtScore_mg = 0;
+    pos->psqtScore_eg = 0;
+    pos->gamePhase = 0;
     
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         Piece pc = pos->board[sq];
@@ -758,9 +883,13 @@ void pos_set(Position* pos, const char* fen) {
         int sign = (c == CHESS_WHITE) ? 1 : -1;
         
         pos->materialScore += sign * PIECE_VALUES_CP[pt];
-        
-        pos->psqtScore += sign * get_pst_value(pc, sq);
+        pos->psqtScore_mg += sign * get_pst_mg(pc, sq);
+        pos->psqtScore_eg += sign * get_pst_eg(pc, sq);
+        pos->gamePhase += PHASE_VALUES[pt];
     }
+    
+    if (pos->gamePhase > TOTAL_PHASE) pos->gamePhase = TOTAL_PHASE;
+    pos->psqtScore = blend_pst(pos->psqtScore_mg, pos->psqtScore_eg, pos->gamePhase);
     
     pos->key = 0;
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
@@ -1097,6 +1226,60 @@ static int see_capture(Position* pos, Move m) {
     return gain[0];
 }
 
+static int see_square(Position* pos, Square sq, Piece defender, Bitboard occupied) {
+    ChessColor defender_color = color_of(defender);
+    ChessColor attacker_color = !defender_color;
+    
+    Bitboard attackers = attackers_to_sq(pos, sq, occupied);
+    Bitboard side_attackers = attackers & pieces_c(pos, attacker_color);
+    
+    if (!side_attackers) return 0;
+    
+    int gain[32];
+    int depth = 0;
+    
+    gain[0] = -get_material_value(defender);
+    
+    Square attacker_sq;
+    Piece moving = least_valuable_attacker(pos, side_attackers, attacker_color, &attacker_sq);
+    if (moving == NO_PIECE) return 0;
+    
+    occupied ^= sq_bb(attacker_sq);
+    ChessColor side = defender_color;
+    
+    while (1) {
+        depth++;
+        gain[depth] = get_material_value(moving) - gain[depth - 1];
+        
+        if (gain[depth] < 0 && gain[depth - 1] < 0) break;
+        
+        attackers &= occupied;
+        Bitboard current_side_attackers = attackers & pieces_c(pos, side);
+        if (!current_side_attackers) break;
+        
+        moving = least_valuable_attacker(pos, current_side_attackers, side, &attacker_sq);
+        if (moving == NO_PIECE) break;
+        
+        occupied ^= sq_bb(attacker_sq);
+        
+        if (type_of_p(moving) == PAWN || type_of_p(moving) == BISHOP || type_of_p(moving) == QUEEN) {
+            attackers |= bishop_attacks_bb(sq, occupied) & (pieces_p(pos, BISHOP) | pieces_p(pos, QUEEN));
+        }
+        if (type_of_p(moving) == ROOK || type_of_p(moving) == QUEEN) {
+            attackers |= rook_attacks_bb(sq, occupied) & (pieces_p(pos, ROOK) | pieces_p(pos, QUEEN));
+        }
+        
+        side = !side;
+        if (depth >= 31) break;
+    }
+    
+    while (--depth > 0) {
+        gain[depth - 1] = -(-gain[depth - 1] > gain[depth] ? -gain[depth - 1] : gain[depth]);
+    }
+    
+    return gain[0];
+}
+
 static inline int get_pst_value_phase(Piece pc, Square sq, int phase) {
     int pt = type_of_p(pc);
     ChessColor c = color_of(pc);
@@ -1139,6 +1322,93 @@ static inline int get_pst_value(Piece pc, Square sq) {
     return get_pst_value_phase(pc, sq, 12);
 }
 
+static inline int get_pst_mg(Piece pc, Square sq) {
+    int pt = type_of_p(pc);
+    ChessColor c = color_of(pc);
+    Square s = (c == CHESS_WHITE) ? sq : (sq ^ 56);
+    
+    switch (pt) {
+        case PAWN:   return PawnPST_MG[s];
+        case KNIGHT: return KnightPST_MG[s];
+        case BISHOP: return BishopPST_MG[s];
+        case ROOK:   return RookPST_MG[s];
+        case QUEEN:  return QueenPST_MG[s];
+        case KING:   return KingPST_MG[s];
+        default:     return 0;
+    }
+}
+
+static inline int get_pst_eg(Piece pc, Square sq) {
+    int pt = type_of_p(pc);
+    ChessColor c = color_of(pc);
+    Square s = (c == CHESS_WHITE) ? sq : (sq ^ 56);
+    
+    switch (pt) {
+        case PAWN:   return PawnPST_EG[s];
+        case KNIGHT: return KnightPST_EG[s];
+        case BISHOP: return BishopPST_EG[s];
+        case ROOK:   return RookPST_EG[s];
+        case QUEEN:  return QueenPST_EG[s];
+        case KING:   return KingPST_EG[s];
+        default:     return 0;
+    }
+}
+
+static inline int blend_pst(int mg, int eg, int phase) {
+    if (phase > TOTAL_PHASE) phase = TOTAL_PHASE;
+    if (phase < 0) phase = 0;
+    return (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
+}
+
+static inline int get_sunfish_pst_value(Piece pc, Square sq) {
+    int pt = type_of_p(pc);
+    ChessColor c = color_of(pc);
+    int rank = rank_of(sq);
+    int file = file_of(sq);
+    
+    const int* pst_table = NULL;
+    int sunfish_idx;
+    
+    switch (pt) {
+        case PAWN:   pst_table = SunfishPawnPST; break;
+        case KNIGHT: pst_table = SunfishKnightPST; break;
+        case BISHOP: pst_table = SunfishBishopPST; break;
+        case ROOK:   pst_table = SunfishRookPST; break;
+        case QUEEN:  pst_table = SunfishQueenPST; break;
+        case KING:   pst_table = SunfishKingPST; break;
+        default: return 0;
+    }
+    
+    if (c == CHESS_WHITE) {
+        sunfish_idx = (7 - rank) * 8 + file;
+    } else {
+        int flipped_rank = 7 - rank;
+        int flipped_file = 7 - file;
+        sunfish_idx = flipped_rank * 8 + flipped_file;
+    }
+    
+    int pst_val = pst_table[sunfish_idx];
+    return (c == CHESS_WHITE) ? pst_val : -pst_val;
+}
+
+static inline int32_t evaluate_sunfish(Position* pos) {
+    int32_t eval = 0;
+    
+    for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
+        Piece pc = pos->board[sq];
+        if (pc == NO_PIECE) continue;
+        
+        int pt = type_of_p(pc);
+        ChessColor c = color_of(pc);
+        int sign = (c == CHESS_WHITE) ? 1 : -1;
+        
+        eval += sign * SUNFISH_PIECE_VALUES_CP[pt];
+        eval += get_sunfish_pst_value(pc, sq);
+    }
+    
+    return eval;
+}
+
 void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
     if (m == MOVE_NULL) {
         undo_stack[*undo_stack_ptr].captured = NO_PIECE;
@@ -1147,6 +1417,9 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
         undo_stack[*undo_stack_ptr].rule50 = pos->rule50;
         undo_stack[*undo_stack_ptr].materialScore = pos->materialScore;
         undo_stack[*undo_stack_ptr].psqtScore = pos->psqtScore;
+        undo_stack[*undo_stack_ptr].psqtScore_mg = pos->psqtScore_mg;
+        undo_stack[*undo_stack_ptr].psqtScore_eg = pos->psqtScore_eg;
+        undo_stack[*undo_stack_ptr].gamePhase = pos->gamePhase;
         undo_stack[*undo_stack_ptr].key = pos->key;
         undo_stack[*undo_stack_ptr].pliesFromNull = 0;
         (*undo_stack_ptr)++;
@@ -1175,19 +1448,30 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
     undo_stack[*undo_stack_ptr].rule50 = pos->rule50;
     undo_stack[*undo_stack_ptr].materialScore = pos->materialScore;
     undo_stack[*undo_stack_ptr].psqtScore = pos->psqtScore;
+    undo_stack[*undo_stack_ptr].psqtScore_mg = pos->psqtScore_mg;
+    undo_stack[*undo_stack_ptr].psqtScore_eg = pos->psqtScore_eg;
+    undo_stack[*undo_stack_ptr].gamePhase = pos->gamePhase;
     undo_stack[*undo_stack_ptr].key = pos->key;
     undo_stack[*undo_stack_ptr].pliesFromNull = (*undo_stack_ptr > 0) ? undo_stack[*undo_stack_ptr - 1].pliesFromNull + 1 : 0;
     (*undo_stack_ptr)++;
     
     int sign = (us == CHESS_WHITE) ? 1 : -1;
     int mat_delta = 0, pst_delta = 0;
+    int mg_delta = 0, eg_delta = 0;
+    int phase_delta = 0;
     
     pst_delta -= sign * get_pst_value(pc, from);
+    mg_delta -= sign * get_pst_mg(pc, from);
+    eg_delta -= sign * get_pst_eg(pc, from);
     
     if (captured != NO_PIECE) {
         int cap_sign = (color_of(captured) == CHESS_WHITE) ? 1 : -1;
+        int cap_pt = type_of_p(captured);
         mat_delta -= cap_sign * get_material_value(captured);
         pst_delta -= cap_sign * get_pst_value(captured, to);
+        mg_delta -= cap_sign * get_pst_mg(captured, to);
+        eg_delta -= cap_sign * get_pst_eg(captured, to);
+        phase_delta -= PHASE_VALUES[cap_pt];
     }
     
     if (pt == PAWN || captured != NO_PIECE) {
@@ -1212,6 +1496,8 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
         pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
         pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
         pst_delta += sign * get_pst_value(pc, to);
+        mg_delta += sign * get_pst_mg(pc, to);
+        eg_delta += sign * get_pst_eg(pc, to);
         pos->key ^= zob.psq[pc][to];
         
         Square rook_from, rook_to;
@@ -1232,6 +1518,10 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
         pos->byTypeBB[0] ^= sq_bb(rook_from) ^ sq_bb(rook_to);
         pst_delta -= sign * get_pst_value(rook, rook_from);
         pst_delta += sign * get_pst_value(rook, rook_to);
+        mg_delta -= sign * get_pst_mg(rook, rook_from);
+        mg_delta += sign * get_pst_mg(rook, rook_to);
+        eg_delta -= sign * get_pst_eg(rook, rook_from);
+        eg_delta += sign * get_pst_eg(rook, rook_to);
         pos->key ^= zob.psq[rook][rook_to]; 
         
     } else if (move_type == ENPASSANT) {
@@ -1242,7 +1532,9 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
         pos->byTypeBB[pt] ^= sq_bb(from) ^ sq_bb(to);
         pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
         pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
-        pst_delta += sign * get_pst_value(pc, to); 
+        pst_delta += sign * get_pst_value(pc, to);
+        mg_delta += sign * get_pst_mg(pc, to);
+        eg_delta += sign * get_pst_eg(pc, to);
         pos->key ^= zob.psq[pc][to];
         
         Square cap_sq = to + (us == CHESS_WHITE ? SOUTH : NORTH);
@@ -1256,6 +1548,8 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
         int cap_sign = (color_of(cap_pawn) == CHESS_WHITE) ? 1 : -1;
         mat_delta -= cap_sign * get_material_value(cap_pawn);
         pst_delta -= cap_sign * get_pst_value(cap_pawn, cap_sq);
+        mg_delta -= cap_sign * get_pst_mg(cap_pawn, cap_sq);
+        eg_delta -= cap_sign * get_pst_eg(cap_pawn, cap_sq);
         
     } else {
         pos->key ^= zob.psq[pc][from];
@@ -1275,6 +1569,8 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
 		pos->byColorBB[us] ^= sq_bb(from) ^ sq_bb(to);
 		pos->byTypeBB[0] ^= sq_bb(from) ^ sq_bb(to);
         pst_delta += sign * get_pst_value(pc, to);
+        mg_delta += sign * get_pst_mg(pc, to);
+        eg_delta += sign * get_pst_eg(pc, to);
         pos->key ^= zob.psq[pc][to];
         
         if (move_type == PROMOTION) {
@@ -1291,6 +1587,11 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
             mat_delta += sign * get_material_value(promo_pc);
             pst_delta -= sign * get_pst_value(pc, to);
             pst_delta += sign * get_pst_value(promo_pc, to);
+            mg_delta -= sign * get_pst_mg(pc, to);
+            mg_delta += sign * get_pst_mg(promo_pc, to);
+            eg_delta -= sign * get_pst_eg(pc, to);
+            eg_delta += sign * get_pst_eg(promo_pc, to);
+            phase_delta += PHASE_VALUES[promo_pt];
         }
         
         if (pt == PAWN) {
@@ -1320,7 +1621,12 @@ void do_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr) {
     }
     
     pos->materialScore += mat_delta;
-    pos->psqtScore += pst_delta;
+    pos->psqtScore_mg += mg_delta;
+    pos->psqtScore_eg += eg_delta;
+    pos->gamePhase += phase_delta;
+    if (pos->gamePhase > TOTAL_PHASE) pos->gamePhase = TOTAL_PHASE;
+    if (pos->gamePhase < 0) pos->gamePhase = 0;
+    pos->psqtScore = blend_pst(pos->psqtScore_mg, pos->psqtScore_eg, pos->gamePhase);
     
     pos->sideToMove = them;
     pos->key ^= zob.side;
@@ -1337,6 +1643,9 @@ void undo_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr)
         pos->rule50 = undo->rule50;
         pos->materialScore = undo->materialScore;
         pos->psqtScore = undo->psqtScore;
+        pos->psqtScore_mg = undo->psqtScore_mg;
+        pos->psqtScore_eg = undo->psqtScore_eg;
+        pos->gamePhase = undo->gamePhase;
         pos->key = undo->key;
         pos->sideToMove = !pos->sideToMove;
         return;
@@ -1356,6 +1665,9 @@ void undo_move(Position* pos, Move m, UndoInfo* undo_stack, int* undo_stack_ptr)
     pos->rule50 = undo->rule50;
     pos->materialScore = undo->materialScore;
     pos->psqtScore = undo->psqtScore;
+    pos->psqtScore_mg = undo->psqtScore_mg;
+    pos->psqtScore_eg = undo->psqtScore_eg;
+    pos->gamePhase = undo->gamePhase;
     pos->key = undo->key;
     pos->sideToMove = us;
     pos->gamePly--;
@@ -1621,32 +1933,9 @@ void populate_observations(Chess* env) {
         memset(valid_dests, 0, 64);
         
         int player_idx = (int)us;
+        ChessColor side_to_move = pos->sideToMove;
         
-        if (pos->sideToMove != us) {
-            env->pick_phase[player_idx] = 0;
-            env->selected_square[player_idx] = SQ_NONE;
-            env->valid_destinations[player_idx].count = 0;
-            
-            MoveList next_player_legal;
-            Position temp_pos = *pos;
-            temp_pos.sideToMove = !temp_pos.sideToMove;
-            temp_pos.key ^= zob.side;
-            UndoInfo local_undo[64];
-            int local_undo_ptr = 0;
-            generate_legal(&temp_pos, &next_player_legal, local_undo, &local_undo_ptr);
-            
-            if (next_player_legal.count > 0) {
-                memset(valid_pieces, 0, 64);
-                for (int i = 0; i < next_player_legal.count; i++) {
-                    Square from = from_sq(next_player_legal.moves[i].move);
-                    Square obs_sq = (us == CHESS_BLACK) ? (from ^ 56) : from;
-                    valid_pieces[obs_sq] = 1;
-                }
-            } else {
-                memset(valid_pieces, 1, 64);
-            }
-            memset(valid_dests, 0, 64);
-        } else {
+        if (side_to_move == us) {
             if (env->pick_phase[player_idx] == 0) {
                 if (env->legal_moves.count > 0) {
                     for (int i = 0; i < env->legal_moves.count; i++) {
@@ -1666,7 +1955,12 @@ void populate_observations(Chess* env) {
                     }
                 }
             }
+        } else {
+            memset(valid_pieces, 0, 64);
+            memset(valid_dests, 0, 64);
         }
+
+        player_obs[O_PASS_VALID] = (side_to_move != us) ? 255 : 0;
         
         uint8_t* phase_onehot = player_obs + O_PICK_PHASE;
         phase_onehot[0] = 0; phase_onehot[1] = 0;
@@ -1679,7 +1973,6 @@ void populate_observations(Chess* env) {
             selected_piece_plane[view_selected] = 1;
         }
         
-        // Mask for valid promotion pieces (actions 64-95: 4 rows by 8 files)
         uint8_t* valid_promos = player_obs + O_VALID_PROMOS;
         memset(valid_promos, 0, 32);
         
@@ -1693,6 +1986,65 @@ void populate_observations(Chess* env) {
                 }
             }
         }
+        
+        uint8_t* self_check_plane = player_obs + O_SELF_CHECK_PLANE;
+        uint8_t* opp_check_plane = player_obs + O_OPP_CHECK_PLANE;
+        memset(self_check_plane, 0, 64);
+        memset(opp_check_plane, 0, 64);
+        
+        ChessColor them = (ChessColor)!us;
+        Bitboard our_king = pieces_cp(pos, us, KING);
+        Bitboard their_king = pieces_cp(pos, them, KING);
+        
+        if (our_king) {
+            Square our_king_sq = lsb(our_king);
+            Bitboard our_attackers = attackers_to_sq(pos, our_king_sq, pieces(pos)) & pieces_c(pos, them);
+            if (our_attackers) {
+                int view_king = (us == CHESS_BLACK) ? (our_king_sq ^ 56) : our_king_sq;
+                self_check_plane[view_king] = 1;
+                while (our_attackers) {
+                    Square attacker_sq = pop_lsb(&our_attackers);
+                    int view_attacker = (us == CHESS_BLACK) ? (attacker_sq ^ 56) : attacker_sq;
+                    self_check_plane[view_attacker] = 1;
+                }
+            }
+        }
+        
+        if (their_king) {
+            Square their_king_sq = lsb(their_king);
+            Bitboard their_attackers = attackers_to_sq(pos, their_king_sq, pieces(pos)) & pieces_c(pos, us);
+            if (their_attackers) {
+                int view_king = (us == CHESS_BLACK) ? (their_king_sq ^ 56) : their_king_sq;
+                opp_check_plane[view_king] = 1;
+                while (their_attackers) {
+                    Square attacker_sq = pop_lsb(&their_attackers);
+                    int view_attacker = (us == CHESS_BLACK) ? (attacker_sq ^ 56) : attacker_sq;
+                    opp_check_plane[view_attacker] = 1;
+                }
+            }
+        }
+        
+        player_obs[O_RULE50] = (uint8_t)((pos->rule50 * 255) / 100);
+        
+        uint8_t rep_val = 255;
+        if (env->undo_stack_ptr >= 4) {
+            uint8_t plies = env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull;
+            if (plies >= 4) {
+                int repetitions = 0;
+                for (int i = 4; i <= plies; i += 2) {
+                    int idx = env->undo_stack_ptr - i;
+                    if (idx >= 0 && env->undo_stack[idx].key == pos->key) {
+                        repetitions++;
+                    }
+                }
+                if (repetitions >= 2) {
+                    rep_val = 0;
+                } else if (repetitions == 1) {
+                    rep_val = 128;
+                }
+            }
+        }
+        player_obs[O_REPETITION] = rep_val;
     }
 }
 
@@ -1778,6 +2130,9 @@ void c_reset(Chess* env) {
     env->valid_destinations[0].count = 0;
     env->valid_destinations[1].count = 0;
     
+    memset(env->white_captured, 0, sizeof(env->white_captured));
+    memset(env->black_captured, 0, sizeof(env->black_captured));
+    
     if (env->human_play) {
         env->human_color = -1;
     } else {
@@ -1797,6 +2152,7 @@ void c_reset(Chess* env) {
     env->legal_moves_side = env->pos.sideToMove;
     env->legal_moves_key = env->pos.key;
     populate_observations(env);
+
 }
 
 bool process_player_action(Chess* env, int action, ChessColor player) {
@@ -1807,7 +2163,6 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
     if (action < 0) action = 0;
     if (action >= 96) action = 95;
     
-    // Actions 64-95 are promotion selections (4 rows by 8 files)
     bool is_promotion_selection = (action >= 64 && action <= 95);
     Square picked_sq = SQ_NONE;
     
@@ -1874,7 +2229,6 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
     Move chosen_move = MOVE_NONE;
     Square selected_sq = env->selected_square[pidx];
     
-    // Handle promotion piece selection (actions 64-95)
     if (is_promotion_selection) {
         int promo_idx = action - 64;
         int promo_row = promo_idx / 8; // 0-3
@@ -1945,18 +2299,60 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
     env->last_move = chosen_move;
     Piece captured = piece_on(&env->pos, to_sq(chosen_move));
     if (env->reward_material != 0.0f) {
-        if ((int)type_of_m(chosen_move) == PROMOTION && captured == NO_PIECE) {
-            env->last_see_value = -1;
+        if ((int)type_of_m(chosen_move) == PROMOTION) {
+            Square to = to_sq(chosen_move);
+            ChessColor them = !env->pos.sideToMove;
+            if (captured != NO_PIECE) {
+                env->last_see_value = see_capture(&env->pos, chosen_move);
+            } else if (is_square_attacked(&env->pos, to, them)) {
+                env->last_see_value = -1;
+            } else {
+                env->last_see_value = 0;
+            }
         } else if (captured != NO_PIECE) {
             env->last_see_value = see_capture(&env->pos, chosen_move);
         } else {
-            env->last_see_value = 0;
+            Square to = to_sq(chosen_move);
+            Square from = from_sq(chosen_move);
+            ChessColor them = !env->pos.sideToMove;
+            if (is_square_attacked(&env->pos, to, them)) {
+                Piece moving_piece = piece_on(&env->pos, from);
+                Bitboard occupied = (pieces(&env->pos) ^ sq_bb(from)) | sq_bb(to);
+                env->last_see_value = see_square(&env->pos, to, moving_piece, occupied);
+            } else {
+                env->last_see_value = 0;
+            }
         }
     } else {
         env->last_see_value = 0;
     }
     
+    ChessColor side_before_move = env->pos.sideToMove;
     do_move(&env->pos, chosen_move, env->undo_stack, &env->undo_stack_ptr);
+    
+    if (env->undo_stack_ptr > 0) {
+        Piece cap = env->undo_stack[env->undo_stack_ptr - 1].captured;
+        if (cap != NO_PIECE) {
+            int pt = type_of_p(cap) - 1;
+            if (pt >= 0 && pt < 6) {
+                if (color_of(cap) == CHESS_WHITE) {
+                    env->white_captured[pt]++;
+                } else {
+                    env->black_captured[pt]++;
+                }
+            }
+        } else if ((int)type_of_m(chosen_move) == ENPASSANT) {
+            Piece cap_pawn = (side_before_move == CHESS_WHITE) ? B_PAWN : W_PAWN;
+            int pt = type_of_p(cap_pawn) - 1;
+            if (pt >= 0 && pt < 6) {
+                if (color_of(cap_pawn) == CHESS_WHITE) {
+                    env->white_captured[pt]++;
+                } else {
+                    env->black_captured[pt]++;
+                }
+            }
+        }
+    }
     
     if (env->undo_stack_ptr > 0 && env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull > 99) {
         env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull = 99;
@@ -1980,11 +2376,11 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
 }
 
 void clip_rewards(Chess* env) {
-    if (env->rewards[0] > 1.0f) {
-        env->rewards[0] = 1.0f;
+    if (env->rewards[0] > 0.9f) {
+        env->rewards[0] = 0.9f;
     }
-    if (env->rewards[0] < -1.0f) {
-        env->rewards[0] = -1.0f;
+    if (env->rewards[0] < -0.9f) {
+        env->rewards[0] = -0.9f;
     }
 }
 
@@ -2017,10 +2413,15 @@ void c_step(Chess* env) {
     }
     
     if (!env->human_play && env->selfplay && !env->log_pgn_choice_made) {
-        env->rewards[0] = 0.0f;
-        env->terminals[0] = 0;
-        populate_observations(env);
-        return;
+        if (env->debug_mode) {
+            env->log_pgn = 0;
+            env->log_pgn_choice_made = 1;
+        } else {
+            env->rewards[0] = 0.0f;
+            env->terminals[0] = 0;
+            populate_observations(env);
+            return;
+        }
     }
     
     env->rewards[0] = 0.0f;
@@ -2047,6 +2448,11 @@ void c_step(Chess* env) {
         populate_observations(env);
         return;
     }
+    
+    if (action == PASS_ACTION) {
+        populate_observations(env);
+        return;
+    }
 
     bool use_dense_rewards = (env->reward_material != 0.0f || env->reward_position != 0.0f);
     int16_t mat_before = 0, pst_before = 0;
@@ -2067,8 +2473,8 @@ void c_step(Chess* env) {
         float mat_reward = 0.0f;
         float pos_reward = 0.0f;
 
-        float raw_mat = (float)mat_delta / 100.0f * env->reward_material;
-        float raw_pos = (float)pst_delta / 50.0f * env->reward_position;
+        float raw_mat = (float)mat_delta / 900.0f * env->reward_material;
+        float raw_pos = (float)pst_delta / 1000.0f * env->reward_position;
 
         if (env->learner_color == CHESS_BLACK) {
             raw_mat = -raw_mat;
@@ -2093,16 +2499,25 @@ void c_step(Chess* env) {
             }
             pos_reward = raw_pos;
         } else {
-            if (env->reward_material != 0.0f) {
-                mat_reward = raw_mat; 
-            }
-            if (env->reward_position != 0.0f) {
-                pos_reward = raw_pos;
-            }
+            mat_reward = raw_mat;
+            pos_reward = raw_pos;
         }
         
         env->rewards[0] += mat_reward + pos_reward;
-        clip_rewards(env);
+    }
+    
+    if (move_completed && mover == env->learner_color && env->reward_material != 0.0f) {
+        if (env->last_see_value < 0) {
+            float hanging_penalty = (float)env->last_see_value / 900.0f * env->reward_material;
+            env->rewards[0] += hanging_penalty;
+        }
+    }
+    
+    if (env->rewards[0] > 0.9f) {
+        env->rewards[0] = 0.9f;
+    }
+    if (env->rewards[0] < -0.9f) {
+        env->rewards[0] = -0.9f;
     }
     if (move_completed) {
         if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
@@ -2127,6 +2542,11 @@ void c_step(Chess* env) {
         env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
         float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
         env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
+        float mat = (float)env->pos.materialScore / 100.0f;
+        float pst = (float)env->pos.psqtScore / 100.0f;
+        if (env->learner_color == CHESS_BLACK) { mat = -mat; pst = -pst; }
+        env->log.material_score += mat;
+        env->log.positional_score += pst;
         
         env->log.n += 1.0f;
         c_reset(env);
@@ -2200,6 +2620,12 @@ void c_step(Chess* env) {
         float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
         env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
         
+        float mat = (float)env->pos.materialScore / 100.0f;
+        float pst = (float)env->pos.psqtScore / 100.0f;
+        if (env->learner_color == CHESS_BLACK) { mat = -mat; pst = -pst; }
+        env->log.material_score += mat;
+        env->log.positional_score += pst;
+        
         env->log.n += 1.0f;
         
         if (env->human_play) {
@@ -2240,7 +2666,6 @@ int move_to_san(Position* pos, Move m, char* buf) {
             ptr += 5;
         }
     } else {
-        // Piece letter (not for pawns)
         if (pt != PAWN) {
             *ptr++ = piece_chars[pt];
             
@@ -2424,6 +2849,10 @@ static void draw_piece(Chess* env, Piece pc, int file, int rank, int cell_size) 
     Color pc_color = color_of(pc) == CHESS_WHITE 
         ? (Color){255, 255, 255, 255}
         : (Color){0, 0, 0, 255};
+    
+    Color outline = (color_of(pc) == CHESS_WHITE) 
+        ? (Color){0, 0, 0, 220} 
+        : (Color){255, 255, 255, 180};
 
     int draw_x = file * cell_size;
     int draw_y = (7 - rank) * cell_size;
@@ -2434,10 +2863,26 @@ static void draw_piece(Chess* env, Piece pc, int file, int rank, int cell_size) 
             draw_x + (cell_size - icon_size) / 2.0f,
             draw_y + (cell_size - icon_size) / 2.0f - cell_size * 0.05f
         };
-        DrawTextEx(env->client->piece_font, PIECE_UNICODE[pc], pos, icon_size, 0, pc_color);
+        const char* str = PIECE_FILLED[pc];
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) {
+                    Vector2 opos = (Vector2){pos.x + dx, pos.y + dy};
+                    DrawTextEx(env->client->piece_font, str, opos, icon_size, 0, outline);
+                }
+            }
+        }
+        DrawTextEx(env->client->piece_font, str, pos, icon_size, 0, pc_color);
     } else {
         int x = draw_x + cell_size / 4;
         int y = draw_y + cell_size / 8;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) {
+                    DrawText(PIECE_CHARS[pc], x + dx, y + dy, cell_size / 2, outline);
+                }
+            }
+        }
         DrawText(PIECE_CHARS[pc], x, y, cell_size / 2, pc_color);
     }
 }
@@ -2696,17 +3141,46 @@ void c_render(Chess* env) {
              env->white_score, env->black_score);
     DrawText(score_text, 10, scoreboard_y, 20, WHITE);
     
+    int32_t engine_eval = evaluate_sunfish(&env->pos);
+    char eval_text[64];
+    float eval_pawns = engine_eval / 100.0f;
+    snprintf(eval_text, sizeof(eval_text), "Engine eval: %.2f", eval_pawns);
+    Color eval_color = (engine_eval > 0) ? (Color){240, 217, 181, 255} : 
+                      (engine_eval < 0) ? (Color){100, 100, 100, 255} : WHITE;
+    DrawText(eval_text, 10, scoreboard_y + 30, 16, eval_color);
+    
     char learner_text[128];
     snprintf(learner_text, sizeof(learner_text), "Learner: %.0f-%.0f-%.0f (W-L-D)", 
              env->learner_wins, env->learner_losses, env->learner_draws);
     DrawText(learner_text, 10, scoreboard_y + 55, 16, GREEN);
+    
+    int captured_y = scoreboard_y + 75;
+    char white_captured_text[128] = "White captured: ";
+    char black_captured_text[128] = "Black captured: ";
+    int white_len = strlen(white_captured_text);
+    int black_len = strlen(black_captured_text);
+    
+    const char* piece_chars = "PNBRQK";
+    for (int pt = 0; pt < 6; pt++) {
+        for (int i = 0; i < env->white_captured[pt]; i++) {
+            white_captured_text[white_len++] = piece_chars[pt];
+        }
+        for (int i = 0; i < env->black_captured[pt]; i++) {
+            black_captured_text[black_len++] = piece_chars[pt];
+        }
+    }
+    white_captured_text[white_len] = '\0';
+    black_captured_text[black_len] = '\0';
+    
+    DrawText(white_captured_text, 10, captured_y, 14, (Color){240, 217, 181, 255});
+    DrawText(black_captured_text, 10, captured_y + 18, 14, (Color){100, 100, 100, 255});
     
     if (env->last_result[0] != '\0') {
         Color result_color = YELLOW;
         if (strstr(env->last_result, "White")) result_color = (Color){240, 217, 181, 255};
         else if (strstr(env->last_result, "Black")) result_color = (Color){100, 100, 100, 255};
         
-        DrawText(env->last_result, 10, scoreboard_y + 25, 18, result_color);
+        DrawText(env->last_result, 10, captured_y + 40, 18, result_color);
     }
     
     char move_text[64];
