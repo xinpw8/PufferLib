@@ -12,7 +12,7 @@
 #define NUM_DIRECTIONS 4
 #define ENV_WIN -1
 #define PLAYER_WIN 1
-#define MAX_CHANGE_PER_MOVE 362
+#define MAX_CHANGED_PER_MOVE 362
 static const int DIRECTIONS[NUM_DIRECTIONS][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 //  LD_LIBRARY_PATH=raylib/lib ./go
 
@@ -87,7 +87,6 @@ struct CGo {
     uint8_t* board_states;
     uint8_t* previous_board_state;
     int last_capture_position;
-    uint8_t* temp_board_states;
     int moves_made;
     int* capture_count;
     float komi;
@@ -181,7 +180,6 @@ void init(CGo* env) {
     env->visited = (uint8_t*)calloc(grid_size, sizeof(uint8_t)); 
     env->current_version = 1; 
     env->previous_board_state = (uint8_t*)calloc(grid_size, sizeof(uint8_t));
-    env->temp_board_states = (uint8_t*)calloc(grid_size, sizeof(uint8_t));
     env->capture_count = (int*)calloc(2, sizeof(int));
     env->groups = (Group*)calloc(grid_size, sizeof(Group));
     env->temp_groups = (Group*)calloc(grid_size, sizeof(Group));
@@ -208,7 +206,6 @@ void c_close(CGo* env) {
     free(env->board_states);
     free(env->visited);
     free(env->previous_board_state);
-    free(env->temp_board_states);
     free(env->capture_count);
     free(env->temp_groups);
     free(env->groups);
@@ -399,6 +396,9 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
 
     while (front != rear) {
         int pos = queue[front++];
+        env->old_board_values[env->changed_count] = board[pos];  // captured_player
+        env->changed_pos[env->changed_count] = pos;
+        env->changed_count++;
         board[pos] = 0;  // Remove stone
         env->capture_count[capturing_player - 1]++;  // Update capturing player's count
 	if(capturing_player == env->side){
@@ -437,7 +437,7 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
 }
 
 
-int count_liberties(CGo* env, int root, int* queue) {
+int count_liberties(CGo* env, int root, int* queue, uint8_t* board) {
     increment_version(env);
     int liberties = 0;
     int front = 0;
@@ -462,26 +462,17 @@ int count_liberties(CGo* env, int root, int* queue) {
                 continue;
             }
 
-            int temp_npos = env->temp_board_states[npos];
+            int temp_npos = board[npos];
             if (temp_npos == 0) {
                 liberties++;
                 env->visited[npos] = env->current_version;
-            } else if (temp_npos == env->temp_board_states[root]) {
+            } else if (temp_npos == board[root]) {
                 queue[rear++] = npos;
                 env->visited[npos] = env->current_version;
             }
         }
     }
     return liberties;
-}
-
-int is_ko(CGo* env) {
-    for (int i = 0; i < (env->grid_size) * (env->grid_size); i++) {
-        if (env->temp_board_states[i] != env->previous_board_state[i]) {
-            return 0;  // Not a ko
-        }
-    }
-    return 1;  // Is a ko
 }
 
 int make_move(CGo* env, int pos, int player){
@@ -494,15 +485,19 @@ int make_move(CGo* env, int pos, int player){
         }
         return 0 ;
     }
-    int cap0 = env->capture_count[0];
-    int cap1 = env->capture_count[1];
-    float r0 = env->rewards[0];
-    float er0 = env->log.episode_return;
+    env->old_capture_count[0] = env->capture_count[0];
+    env->old_capture_count[1] = env->capture_count[1];
+    env->old_reward = env->rewards[0];
+    env->old_episode_return = env->log.episode_return;
+
+    env->changed_count = 0;
+
+    env->old_board_values[env->changed_count] = env->board_states[pos];
+    env->changed_pos[env->changed_count++] = pos;
+    env->board_states[pos] = player;
     // temp structures
-    memcpy(env->temp_board_states, env->board_states, sizeof(uint8_t) * (env->grid_size) * (env->grid_size));
     memcpy(env->temp_groups, env->groups, sizeof(Group) * (env->grid_size) * (env->grid_size));
     // create new group
-    env->temp_board_states[pos] = player;
     env->temp_groups[pos].parent = pos;
     env->temp_groups[pos].rank = 0;
     env->temp_groups[pos].size = 1;
@@ -523,10 +518,10 @@ int make_move(CGo* env, int pos, int player){
         if (!is_valid_position(env, nx, ny)) {
             continue;
         }
-        if (env->temp_board_states[npos] == player) {
+        if (env->board_states[npos] == player) {
             union_groups(env->temp_groups, pos, npos);
             affected_groups[affected_count++] = npos;
-        } else if (env->temp_board_states[npos] == 3 - player) {
+        } else if (env->board_states[npos] == 3 - player) {
             affected_groups[affected_count++] = npos;
         }
     }
@@ -534,15 +529,15 @@ int make_move(CGo* env, int pos, int player){
     // Recalculate liberties only for affected groups
     for (int i = 0; i < affected_count; i++) {
         int root = find(env->temp_groups, affected_groups[i]);
-        env->temp_groups[root].liberties = count_liberties(env, root, queue);
+        env->temp_groups[root].liberties = count_liberties(env, root, queue, env->board_states);
     }
 
     // Check for captures
     bool captured = false;
     for (int i = 0; i < affected_count; i++) {
         int root = find(env->temp_groups, affected_groups[i]);
-        if (env->temp_board_states[root] == 3 - player && env->temp_groups[root].liberties == 0) {
-            capture_group(env, env->temp_board_states, root, affected_groups, &affected_count);
+        if (env->board_states[root] == 3 - player && env->temp_groups[root].liberties == 0) {
+            capture_group(env, env->board_states, root, affected_groups, &affected_count);
             captured = true;
         }
     }
@@ -550,38 +545,39 @@ int make_move(CGo* env, int pos, int player){
     if (captured) {
         for (int i = 0; i < affected_count; i++) {
             int root = find(env->temp_groups, affected_groups[i]);
-            env->temp_groups[root].liberties = count_liberties(env, root, queue);
+            env->temp_groups[root].liberties = count_liberties(env, root, queue, env->board_states);
         }
         // Check for ko rule violation
-        if(is_ko(env)) {
-            env->capture_count[0] = cap0;
-            env->capture_count[1] = cap1;
-            env->rewards[0] = r0;
-            env->log.episode_return = er0;
-
-            if(player == env->side){
-                env->illegal_move_count+=1;
-            }
-            return 0;
-        }
     }
+
     // self capture
     int root = find(env->temp_groups, pos);
     if (env->temp_groups[root].liberties == 0) {
-        env->capture_count[0] = cap0;
-        env->capture_count[1] = cap1;
-        env->rewards[0] = r0;
-        env->log.episode_return = er0;
-        if(player == env->side){
-            env->illegal_move_count+=1;
-        }
-        return 0;
+        goto rollback;
+    }
+
+    if(captured && memcmp(env->board_states, env->previous_board_state, env->grid_size*env->grid_size*sizeof(uint8_t)) == 0){
+        goto rollback;
     }
     memcpy(env->previous_board_state, env->board_states, sizeof(uint8_t) * (env->grid_size) * (env->grid_size));
-    memcpy(env->board_states, env->temp_board_states, sizeof(uint8_t) * (env->grid_size) * (env->grid_size));
     memcpy(env->groups, env->temp_groups, sizeof(Group) * (env->grid_size) * (env->grid_size));
+    for(int i = 0; i < env->changed_count; i++){
+        env->previous_board_state[env->changed_pos[i]] = env->old_board_values[i];
+    }
     return 1;
 
+rollback:
+    for (int i = 0; i < env->changed_count; i++) {
+        env->board_states[env->changed_pos[i]] = env->old_board_values[i];
+    }
+    env->capture_count[0] = env->old_capture_count[0];
+    env->capture_count[1] = env->old_capture_count[1];
+    env->rewards[0] = env->old_reward;
+    env->log.episode_return = env->old_episode_return;
+
+    if (player == env->side) env->illegal_move_count++;
+
+    return 0;
 }
 
 
@@ -726,7 +722,6 @@ void c_reset(CGo* env) {
     env->score = 0;
     for (int i = 0; i < (env->grid_size)*(env->grid_size); i++) {
         env->board_states[i] = 0;
-        env->temp_board_states[i] = 0;
         env->visited[i] = 0;
         env->previous_board_state[i] = 0;
         env->groups[i].parent = i;
