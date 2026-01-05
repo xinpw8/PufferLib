@@ -215,7 +215,7 @@ void free_allocated(CGo* env) {
 }
 
 void compute_observations(CGo* env) {
-    int obs_len = env->grid_size * env->grid_size * 4 + 1;
+    int obs_len = env->grid_size * env->grid_size * 4 + 2;
     int N = env->grid_size * env->grid_size;
     int iterations = env->selfplay ? 2 : 1;
 
@@ -231,6 +231,7 @@ void compute_observations(CGo* env) {
             self = 3 - env->side;
             opp = env->side;
         }
+        int turn = env->turn + 1 == self ? 1 : 0;
 
         // Memory Layout: [Current Self][Current Opp][Prev Self][Prev Opp]
         float* plane_self      = current_obs;
@@ -251,6 +252,7 @@ void compute_observations(CGo* env) {
 
         // Set the color bit at the very end
         current_obs[4 * N] = (float)(self - 1);
+        current_obs[4 * N + 1] = (float)(turn);
     } 
 }
 
@@ -740,7 +742,7 @@ void clip_rewards(CGo* env){
 
 void end_game(CGo* env){
     compute_score_tromp_taylor(env);
-    /*if (env->score > 0) {
+    if (env->score > 0) {
         env->rewards[0] = 1.0;
     }
     else if (env->score < 0) {
@@ -748,8 +750,8 @@ void end_game(CGo* env){
     }
     else {
         env->rewards[0] = 0.0;
-    }*/
-    env->rewards[0] = env->score / 10.0f;
+    }
+    //env->rewards[0] = env->score / 10.0f;
     clip_rewards(env);
     env->terminals[0] = 1;
     add_log(env);

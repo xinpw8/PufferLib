@@ -38,7 +38,7 @@ class Go(pufferlib.PufferEnv):
         self.tick = 0
         self.selfplay = selfplay
         factor = 2 if selfplay else 1
-        self.num_obs = (grid_size) * (grid_size)*4 + 1
+        self.num_obs = (grid_size) * (grid_size)*4 + 2
         self.num_act = (grid_size) * (grid_size) + 1
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=1,
             shape=(self.num_obs*factor,), dtype=np.float32)

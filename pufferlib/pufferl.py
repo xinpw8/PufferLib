@@ -153,7 +153,7 @@ class PuffeRL:
 
         if vecenv.selfplay:
             self.opponent_pool = {}
-            self.max_opponent_history = 300
+            self.max_opponent_history = 2000
             self.opponent_pool_ids = []
             self.saved_policy_count = 0
             self.active_policies = np.zeros(total_agents, dtype=np.int32)
@@ -360,14 +360,16 @@ class PuffeRL:
 
         d1 = k * (scores - expected)         # updates for player 0 (vector)
         d2 = -d1                             # equal and opposite for opponents
-
-        elos[0] += d1.sum()
+        
+        M = scores.size
+        elos[0] += d1.sum() / M
 
         # Aggregate by opponent id to avoid repeated writes
         uniq, inv = np.unique(opp_ids, return_inverse=True)
         agg = np.bincount(inv, weights=d2, minlength=uniq.size)  # sums per unique opponent
-        elos[uniq] += agg
-        np.maximum(elos, 0.0, out=elos)
+        agg_counts = np.bincount(inv, minlength=uniq.size)
+        normal_agg = agg / agg_counts
+        elos[uniq] += normal_agg
         self.elos[:] = elos
  
     def evaluate(self):
@@ -405,7 +407,7 @@ class PuffeRL:
                 ap = self.active_policies[batch_rows]
                 boundaries = self.boundary_mask[batch_rows]
                 elos = np.asarray(self.elos, dtype=np.float32)
-                self.elo_batch_update(elos, ap, r, d, cut = self.cut, k=4.0) 
+                self.elo_batch_update(elos, ap, r, d, cut = self.cut, k=20) 
                 self._update_quality_score(r[self.cut:], d[self.cut:], self.cur_opp_id)
                 done_indices = np.flatnonzero(d == 1)
                 done_indices = done_indices[done_indices >= self.cut]
@@ -611,7 +613,7 @@ class PuffeRL:
         anneal_beta = b0 + (1 - b0)*a*self.epoch/self.total_epochs
         self.ratio[:] = 1
         # Save weights for selfplay
-        if (self.selfplay and epoch % 10 == 0):
+        if (self.selfplay and epoch % 50 == 0 and epoch != 0):
             profile('train_selfplay', epoch)
             snapshot = {k: v.clone().cpu() for k, v in self.policy.state_dict().items()}
             self.saved_policy_count+=1

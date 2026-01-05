@@ -482,10 +482,12 @@ class Go(nn.Module):
         # Pass board through cnn
         N = self.grid_size
         batch_size = observations.shape[0]
-        board_data = observations[:, :-1]
+        board_data = observations[:, :-2]
         boards = board_data.view(batch_size, 4, N, N)
         self.current_mask = (boards[:, 0] + boards[:, 1]) > 0
-        color_bit = observations[:,-1].view(batch_size, 1, 1, 1)
+        turn_bit = observations[:,-1] > 0.5
+        self.current_mask[~turn_bit] = True
+        color_bit = observations[:,-2].view(batch_size, 1, 1, 1)
         color_plane = color_bit.expand(batch_size, 1 , N, N)
         x = torch.cat([boards, color_plane], dim=1)
         x = self.cnn(x)
