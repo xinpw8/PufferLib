@@ -12,6 +12,7 @@
 #define NUM_DIRECTIONS 4
 #define ENV_WIN -1
 #define PLAYER_WIN 1
+#define MAX_CHANGE_PER_MOVE 362
 static const int DIRECTIONS[NUM_DIRECTIONS][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 //  LD_LIBRARY_PATH=raylib/lib ./go
 
@@ -90,7 +91,8 @@ struct CGo {
     int moves_made;
     int* capture_count;
     float komi;
-    int* visited;
+    uint8_t* visited;
+    uint8_t current_version;
     Group* groups;
     Group* temp_groups;
     float reward_move_pass;
@@ -107,6 +109,12 @@ struct CGo {
     int pass_move_count;
     int previous_move;
     int human_play;
+    int changed_pos[MAX_CHANGED_PER_MOVE];
+    uint8_t old_board_values[MAX_CHANGED_PER_MOVE];
+    int changed_count;
+    int old_capture_count[2];
+    float old_reward;
+    float old_episode_return;
 };
 
 void add_log(CGo* env) {
@@ -170,7 +178,8 @@ void init(CGo* env) {
     env->board_x = (int*)calloc(board_render_size, sizeof(int));
     env->board_y = (int*)calloc(board_render_size, sizeof(int));
     env->board_states = (uint8_t*)calloc(grid_size, sizeof(uint8_t));
-    env->visited = (int*)calloc(grid_size, sizeof(int));
+    env->visited = (uint8_t*)calloc(grid_size, sizeof(uint8_t)); 
+    env->current_version = 1; 
     env->previous_board_state = (uint8_t*)calloc(grid_size, sizeof(uint8_t));
     env->temp_board_states = (uint8_t*)calloc(grid_size, sizeof(uint8_t));
     env->capture_count = (int*)calloc(2, sizeof(int));
@@ -183,13 +192,12 @@ void init(CGo* env) {
 void allocate(CGo* env) {
     init(env);
     if(env->selfplay){
-        env->observations = (float*)calloc(2*((env->grid_size)*(env->grid_size)*4 +1), sizeof(float));
+        env->observations = (float*)calloc(2*((env->grid_size)*(env->grid_size)*4 +2), sizeof(float));
         env->actions = (int*)calloc(2, sizeof(int));
     } else{
         env->observations = (float*)calloc((env->grid_size)*(env->grid_size)*4 +1, sizeof(float));
         env->actions = (int*)calloc(1, sizeof(int));
     }
-    env->actions = (int*)calloc(2, sizeof(int));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (unsigned char*)calloc(1, sizeof(unsigned char));
 }
@@ -212,6 +220,14 @@ void free_allocated(CGo* env) {
     free(env->terminals);
     free(env->rewards);
     c_close(env);
+}
+
+static inline void increment_version(CGo* env) {
+    env->current_version++;
+    if (env->current_version == 0) { 
+        memset(env->visited, 0, (env->grid_size) * (env->grid_size));
+        env->current_version = 1;
+    }
 }
 
 void compute_observations(CGo* env) {
@@ -260,9 +276,6 @@ int is_valid_position(CGo* env, int x, int y) {
     return (x >= 0 && x < env->grid_size && y >= 0 && y < env->grid_size);
 }
 
-void reset_visited(CGo* env) {
-    memset(env->visited, 0, sizeof(int) * (env->grid_size) * (env->grid_size));
-}
 
 void flood_fill(CGo* env, int x, int y, int* territory, int player) {
     if (!is_valid_position(env, x, y)) {
@@ -270,10 +283,10 @@ void flood_fill(CGo* env, int x, int y, int* territory, int player) {
     }
 
     int pos = y * (env->grid_size) + x;
-    if (env->visited[pos] || env->board_states[pos] != 0) {
+    if (env->visited[pos] == env->current_version || env->board_states[pos] != 0) {
         return;
     }
-    env->visited[pos] = 1;
+    env->visited[pos] = env->current_version;
     territory[player]++;
     // Check adjacent positions
     for (int i = 0; i < 4; i++) {
@@ -286,8 +299,7 @@ void compute_score_tromp_taylor(CGo* env) {
     int opponent_score = 0;
     int player = env->side;
     int opponent = 3 - player;
-    reset_visited(env);
-    
+    increment_version(env); 
     // Queue for BFS
     int queue_size = (env->grid_size) * (env->grid_size);
     int queue[queue_size];
@@ -304,7 +316,7 @@ void compute_score_tromp_taylor(CGo* env) {
     // Then process empty territories
     for (int start_pos = 0; start_pos < queue_size; start_pos++) {
         // Skip if not empty or already visited
-        if (env->board_states[start_pos] != 0 || env->visited[start_pos]) {
+        if (env->board_states[start_pos] != 0 || env->visited[start_pos] == env->current_version) {
             continue;
         }
         
@@ -314,7 +326,7 @@ void compute_score_tromp_taylor(CGo* env) {
         int bordering_player = 0;  // 0=neutral, 1=player1, 2=player2, 3=mixed
         
         queue[rear++] = start_pos;
-        env->visited[start_pos] = 1;
+        env->visited[start_pos] = env->current_version;
         
         // Process connected empty points
         while (front < rear) {
@@ -336,9 +348,9 @@ void compute_score_tromp_taylor(CGo* env) {
                 int neighbor_color = env->board_states[npos];
                 if (neighbor_color ==0) {
                     // Add unvisited empty points to queue
-                    if(!env->visited[npos]) {
+                    if(env->visited[npos] != env->current_version) {
                         queue[rear++] = npos;
-                        env->visited[npos] = 1;
+                        env->visited[npos] = env->current_version;
                     }
                 } else if (bordering_player == 0) {
                     bordering_player = neighbor_color;
@@ -372,9 +384,7 @@ int find_in_group(int* group, int group_size, int value) {
 
 
 void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int* affected_count) {
-    // Reset visited array
-    reset_visited(env);
-
+    increment_version(env);
     // Use a queue for BFS
     int queue_size = (env->grid_size) * (env->grid_size);
     int queue[queue_size];
@@ -385,7 +395,7 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
     int capturing_player = 3 - captured_player;          // Player who captures
 
     queue[rear++] = root;
-    env->visited[root] = 1;
+    env->visited[root] = env->current_version;
 
     while (front != rear) {
         int pos = queue[front++];
@@ -410,8 +420,8 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
                 continue;
             }
 
-            if (board[npos] == captured_player && !env->visited[npos]) {
-                env->visited[npos] = 1;
+            if (board[npos] == captured_player && env->visited[npos]!=env->current_version) {
+                env->visited[npos] = env->current_version;
                 queue[rear++] = npos;
             }
             else if (board[npos] == capturing_player) {
@@ -428,13 +438,13 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
 
 
 int count_liberties(CGo* env, int root, int* queue) {
-    reset_visited(env);
+    increment_version(env);
     int liberties = 0;
     int front = 0;
     int rear = 0;
     
     queue[rear++] = root;
-    env->visited[root] = 1;
+    env->visited[root] = env->current_version;
     while (front < rear) {
         int pos = queue[front++];
         int x = pos % (env->grid_size);
@@ -448,17 +458,17 @@ int count_liberties(CGo* env, int root, int* queue) {
             }
             
             int npos = ny * (env->grid_size) + nx;
-            if (env->visited[npos]) {
+            if (env->visited[npos]== env->current_version) {
                 continue;
             }
 
             int temp_npos = env->temp_board_states[npos];
             if (temp_npos == 0) {
                 liberties++;
-                env->visited[npos] = 1;
+                env->visited[npos] = env->current_version;
             } else if (temp_npos == env->temp_board_states[root]) {
                 queue[rear++] = npos;
-                env->visited[npos] = 1;
+                env->visited[npos] = env->current_version;
             }
         }
     }
@@ -606,11 +616,11 @@ void enemy_random_move(CGo* env, int side){
 }
 
 int find_group_liberty(CGo* env, int root){
-    reset_visited(env);
+    increment_version(env);
     int queue[(env->grid_size)*(env->grid_size)];
     int front = 0, rear = 0;
     queue[rear++] = root;
-    env->visited[root] = 1;
+    env->visited[root] = env->current_version;
 
     while(front < rear){
         int pos = queue[front++];
@@ -626,8 +636,8 @@ int find_group_liberty(CGo* env, int root){
             }
             if(env->board_states[npos] == 0){
                 return npos; // Found a liberty
-            } else if(env->board_states[npos] == env->board_states[root] && !env->visited[npos]){
-                env->visited[npos] = 1;
+            } else if(env->board_states[npos] == env->board_states[root] && env->visited[npos] != env->current_version){
+                env->visited[npos] = env->current_version;
                 queue[rear++] = npos;
             }
         }
