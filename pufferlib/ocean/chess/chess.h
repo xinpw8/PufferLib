@@ -1325,6 +1325,82 @@ bool is_check(Position* pos, ChessColor c) {
     return (attackers_to_sq(pos, king_sq, pieces(pos)) & pieces_c(pos, !c)) != 0;
 }
 
+static Bitboard compute_pinned(Position* pos, ChessColor c) {
+    Bitboard pinned = 0;
+    Bitboard our_pieces = pieces_c(pos, c);
+    Bitboard king_bb = pieces_cp(pos, c, KING);
+    if (!king_bb) return 0;
+    
+    Square ksq = lsb(king_bb);
+    ChessColor them = !c;
+    Bitboard occupied = pieces(pos);
+    
+    // Potential diagonal pinners
+    Bitboard diag_pinners = (pieces_cp(pos, them, BISHOP) | pieces_cp(pos, them, QUEEN)) 
+                          & bishop_attacks_bb(ksq, 0);  // Empty board attacks
+    
+    while (diag_pinners) {
+        Square pinner_sq = pop_lsb(&diag_pinners);
+        Bitboard between = BetweenBB[ksq][pinner_sq] & occupied;
+        if (popcount(between) == 1) {
+            pinned |= between & our_pieces;
+        }
+    }
+    
+    // Potential rook/file pinners
+    Bitboard rook_pinners = (pieces_cp(pos, them, ROOK) | pieces_cp(pos, them, QUEEN)) 
+                          & rook_attacks_bb(ksq, 0);  // Empty board attacks
+    
+    while (rook_pinners) {
+        Square pinner_sq = pop_lsb(&rook_pinners);
+        Bitboard between = BetweenBB[ksq][pinner_sq] & occupied;
+        if (popcount(between) == 1) {
+            pinned |= between & our_pieces;
+        }
+    }
+    
+    return pinned;
+}
+
+static inline bool is_legal_move_fast(Position* pos, Move m, Bitboard pinned, Square ksq, ChessColor us) {
+    Square from = from_sq(m);
+    Square to = to_sq(m);
+    int mt = type_of_m(m);
+    
+    // King moves always need full check
+    if (from == ksq) {
+        if (mt == CASTLING) {
+            // Castling checks path squares
+            ChessColor them = !us;
+            if (is_check(pos, us)) return false;
+            Square mid = (from + to) / 2;
+            Bitboard occ = pieces(pos) ^ sq_bb(from);
+            if (attackers_to_sq(pos, mid, occ) & pieces_c(pos, them)) return false;
+            if (attackers_to_sq(pos, to, occ) & pieces_c(pos, them)) return false;
+            return true;
+        }
+        // Regular king move - check destination isn't attacked
+        Bitboard occ = pieces(pos) ^ sq_bb(from);
+        return !(attackers_to_sq(pos, to, occ) & pieces_c(pos, !us));
+    }
+    
+    // En passant is tricky - always do full check
+    if (mt == ENPASSANT) {
+        Bitboard occ = pieces(pos) ^ sq_bb(from) ^ sq_bb(to);
+        Square capsq = to + (us == CHESS_WHITE ? -8 : 8);
+        occ ^= sq_bb(capsq);
+        return !(attackers_to_sq(pos, ksq, occ) & pieces_c(pos, !us));
+    }
+    
+    // If piece is not pinned, move is legal
+    if (!(pinned & sq_bb(from))) {
+        return true;
+    }
+    
+    // Pinned piece can only move along the pin ray
+    return LineBB[ksq][from] & sq_bb(to);
+}
+
 static inline bool is_legal_move(Position* pos, Move m) {
     ChessColor us = pos->sideToMove;
     ChessColor them = (ChessColor)!us;
@@ -1366,10 +1442,27 @@ static inline void generate_pseudo_legal(Position* pos, MoveList* ml, ChessColor
 void generate_legal(Position* pos, MoveList* ml, UndoInfo* undo_stack, int* undo_stack_ptr) {
     MoveList pseudo;
     generate_pseudo_legal(pos, &pseudo, pos->sideToMove);
+    ChessColor us = pos->sideToMove;
+    Bitboard king_bb = pieces_cp(pos, us, KING);
+    Square ksq = king_bb ? lsb(king_bb) : SQ_NONE;
+    Bitboard pinned = compute_pinned(pos, us);
+    bool in_check = is_check(pos, us);
+    
     ml->count = 0;
     for (int i = 0; i < pseudo.count; i++) {
-        if (is_legal_move(pos, pseudo.moves[i].move))
-            ml->moves[ml->count++] = pseudo.moves[i];
+        Move m = pseudo.moves[i].move;
+        
+        // If in check, must do full verification
+        if (in_check) {
+            if (is_legal_move(pos, m)) {
+                ml->moves[ml->count++] = pseudo.moves[i];
+            }
+        } else {
+            // Not in check - use fast path
+            if (is_legal_move_fast(pos, m, pinned, ksq, us)) {
+                ml->moves[ml->count++] = pseudo.moves[i];
+            }
+        }
     }
 }
 
@@ -2119,7 +2212,6 @@ void populate_observations(Chess* env) {
         }
         
         uint8_t* side_onehot = player_obs + O_SIDE;
-        side_onehot[0] = 0; side_onehot[1] = 0;
         side_onehot[(pos->sideToMove == us) ? 0 : 1] = 1;
         
         uint8_t* castle_onehot = player_obs + O_CASTLE;
@@ -2135,7 +2227,6 @@ void populate_observations(Chess* env) {
         castle_onehot[castle_rights] = 1;
 
         uint8_t* ep_onehot = player_obs + O_EP;
-        memset(ep_onehot, 0, 65);
     if (pos->epSquare < 64) {
             int ep_sq = (player == 1) ? (pos->epSquare ^ 56) : pos->epSquare;
             ep_onehot[ep_sq] = 1;
@@ -2157,9 +2248,7 @@ void populate_observations(Chess* env) {
                         int view_from = (player == 1) ? (from ^ 56) : from;
                         valid_pieces[view_from] = 1;
                     }
-                } else {
-                    memset(valid_pieces, 1, 64);
-                }
+                } 
             } else {
                 if (env->valid_destinations[player_idx].count > 0) {
                     for (int i = 0; i < env->valid_destinations[player_idx].count; i++) {
@@ -2173,7 +2262,6 @@ void populate_observations(Chess* env) {
         player_obs[O_PASS_VALID] = (side_to_move != us) ? 255 : 0;
         
         uint8_t* phase_onehot = player_obs + O_PICK_PHASE;
-        phase_onehot[0] = 0; phase_onehot[1] = 0;
         phase_onehot[env->pick_phase[player_idx]] = 1;
         
         uint8_t* selected_piece_plane = player_obs + O_SELECTED_PIECE;
@@ -2731,7 +2819,6 @@ void c_step(Chess* env) {
             env->legal_moves_side = env->pos.sideToMove;
             env->legal_moves_key = env->pos.key;
         }
-        populate_observations(env);
     }
     
     if (env->chess_moves >= env->max_moves || env->undo_stack_ptr >= MAX_GAME_PLIES - 2) {
