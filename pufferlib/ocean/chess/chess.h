@@ -370,8 +370,65 @@ extern Bitboard KingAttacks[64];
 extern Bitboard BetweenBB[64][64];
 extern Bitboard LineBB[64][64];
 
-extern Bitboard rook_file_attacks[8][256];
-extern Bitboard rook_rank_attacks[8][256];
+static Bitboard BishopMasks[64];
+static uint64_t BishopMagics[64];
+static int BishopShifts[64];
+static Bitboard BishopTable[64 * 512];
+static Bitboard* BishopAttacks[64];
+static const uint64_t BISHOP_MAGICS[64] = {
+    9368648609924554880ULL, 9009475591934976ULL,     4504776450605056ULL,
+    1130334595844096ULL,    1725202480235520ULL,     288516396277699584ULL,
+    613618303369805920ULL,  10168455467108368ULL,    9046920051966080ULL,
+    36031066926022914ULL,   1152925941509587232ULL,  9301886096196101ULL,
+    290536121828773904ULL,  5260205533369993472ULL,  7512287909098426400ULL,
+    153141218749450240ULL,  9241386469758076456ULL,  5352528174448640064ULL,
+    2310346668982272096ULL, 1154049638051909890ULL,  282645627930625ULL,
+    2306405976892514304ULL, 11534281888680707074ULL, 72339630111982113ULL,
+    8149474640617539202ULL, 2459884588819024896ULL,  11675583734899409218ULL,
+    1196543596102144ULL,    5774635144585216ULL,     145242600416216065ULL,
+    2522607328671633440ULL, 145278609400071184ULL,   5101802674455216ULL,
+    650979603259904ULL,     9511646410653040801ULL,  1153493285013424640ULL,
+    18016048314974752ULL,   4688397299729694976ULL,  9226754220791842050ULL,
+    4611969694574863363ULL, 145532532652773378ULL,   5265289125480634376ULL,
+    288239448330604544ULL,  2395019802642432ULL,     14555704381721968898ULL,
+    2324459974457168384ULL, 23652833739932677ULL,    282583111844497ULL,
+    4629880776036450560ULL, 5188716322066279440ULL,  146367151686549765ULL,
+    1153170821083299856ULL, 2315697107408912522ULL,  2342448293961403408ULL,
+    2309255902098161920ULL, 469501395595331584ULL,   4615626809856761874ULL,
+    576601773662552642ULL,  621501155230386208ULL,   13835058055890469376ULL,
+    3748138521932726784ULL, 9223517207018883457ULL,  9237736128969216257ULL,
+    1127068154855556ULL,
+};
+
+static Bitboard RookMasks[64];
+static uint64_t RookMagics[64];
+static int RookShifts[64];
+static Bitboard RookTable[64 * 4096];  // Rooks need more entries (up to 12 bits)
+static Bitboard* RookAttacks[64];
+static const uint64_t ROOK_MAGICS[64] = {
+    612498416294952992ULL,  2377936612260610304ULL,  36037730568766080ULL,
+    72075188908654856ULL,   144119655536003584ULL,   5836666216720237568ULL,
+    9403535813175676288ULL, 1765412295174865024ULL,  3476919663777054752ULL,
+    288300746238222339ULL,  9288811671472386ULL,     146648600474026240ULL,
+    3799946587537536ULL,    704237264700928ULL,      10133167915730964ULL,
+    2305983769267405952ULL, 9223634270415749248ULL,  10344480540467205ULL,
+    9376496898355021824ULL, 2323998695235782656ULL,  9241527722809755650ULL,
+    189159985010188292ULL,  2310421375767019786ULL,  4647717014536733827ULL,
+    5585659813035147264ULL, 1442911135872321664ULL,  140814801969667ULL,
+    1188959108457300100ULL, 288815318485696640ULL,   758869733499076736ULL,
+    234750139167147013ULL,  2305924931420225604ULL,  9403727128727390345ULL,
+    9223970239903959360ULL, 309094713112139074ULL,   38290492990967808ULL,
+    3461016597114651648ULL, 181289678366835712ULL,   4927518981226496513ULL,
+    1155212901905072225ULL, 36099167912755202ULL,    9024792514543648ULL,
+    4611826894462124048ULL, 291045264466247688ULL,   83880127713378308ULL,
+    1688867174481936ULL,    563516973121544ULL,      9227888831703941123ULL,
+    703691741225216ULL,     45203259517829248ULL,    693563138976596032ULL,
+    4038638777286134272ULL, 865817582546978176ULL,   13835621555058516608ULL,
+    11541041685463296ULL,   288511853443695360ULL,   283749161902275ULL,
+    176489098445378ULL,     2306124759338845321ULL,  720584805193941061ULL,
+    4977040710267061250ULL, 10097633331715778562ULL, 325666550235288577ULL,
+    1100057149646ULL,
+};
 
 typedef struct {
     Key psq[16][64];
@@ -613,7 +670,7 @@ static inline Bitboard king_attacks_bb(Square s) {
 }
 
 
-static inline Bitboard rook_attacks_bb(Square s, Bitboard occupied) {
+static inline Bitboard rook_attacks_slow(Square s, Bitboard occupied) {
     Bitboard attacks = 0;
     int r = rank_of(s), f = file_of(s);
     for (int rr = r + 1; rr < 8; rr++) {
@@ -639,7 +696,17 @@ static inline Bitboard rook_attacks_bb(Square s, Bitboard occupied) {
     return attacks;
 }
 
+static inline Bitboard rook_attacks_bb(Square s, Bitboard occupied) {
+    occupied &= RookMasks[s];
+    return RookAttacks[s][(occupied * RookMagics[s]) >> RookShifts[s]];
+}
+
 static inline Bitboard bishop_attacks_bb(Square s, Bitboard occupied) {
+    occupied &= BishopMasks[s];
+    return BishopAttacks[s][(occupied * BishopMagics[s]) >> BishopShifts[s]];
+}
+
+static inline Bitboard bishop_attacks_slow(Square s, Bitboard occupied) {
     Bitboard attacks = 0;
     int r = rank_of(s), f = file_of(s);
     for (int rr = r + 1, ff = f + 1; rr < 8 && ff < 8; rr++, ff++) {
@@ -681,6 +748,152 @@ Bitboard LineBB[64][64];
 Zobrist zob;
 
 static bool bitboards_initialized = false;
+
+static Bitboard index_to_occupancy(int index, Bitboard mask) {
+    Bitboard occ = 0;
+    int bits = popcount(mask);
+    for (int i = 0; i < bits; i++) {
+        Square sq = lsb(mask);
+        mask &= mask - 1;
+        if (index & (1 << i)) occ |= sq_bb(sq);
+    }
+    return occ;
+}
+static Bitboard compute_bishop_mask(Square s) {
+    Bitboard mask = 0;
+    int r = rank_of(s), f = file_of(s);
+    for (int rr = r + 1, ff = f + 1; rr < 7 && ff < 7; rr++, ff++) mask |= sq_bb(make_square(ff, rr));
+    for (int rr = r - 1, ff = f + 1; rr > 0 && ff < 7; rr--, ff++) mask |= sq_bb(make_square(ff, rr));
+    for (int rr = r - 1, ff = f - 1; rr > 0 && ff > 0; rr--, ff--) mask |= sq_bb(make_square(ff, rr));
+    for (int rr = r + 1, ff = f - 1; rr < 7 && ff > 0; rr++, ff--) mask |= sq_bb(make_square(ff, rr));
+    return mask;
+}
+
+static void init_bishop_magics(void) {
+    Bitboard* table_ptr = BishopTable;
+    int errors = 0;
+    
+    for (Square sq = 0; sq < 64; sq++) {
+        BishopMasks[sq] = compute_bishop_mask(sq);
+        BishopMagics[sq] = BISHOP_MAGICS[sq];
+        
+        int bits = popcount(BishopMasks[sq]);
+        BishopShifts[sq] = 64 - bits;
+        BishopAttacks[sq] = table_ptr;
+        
+        int num_entries = 1 << bits;
+        memset(table_ptr, 0, num_entries * sizeof(Bitboard));
+        
+        for (int i = 0; i < num_entries; i++) {
+            Bitboard occ = index_to_occupancy(i, BishopMasks[sq]);
+            Bitboard attacks = bishop_attacks_slow(sq, occ);
+            uint64_t idx = (occ * BishopMagics[sq]) >> BishopShifts[sq];
+            
+            if (table_ptr[idx] != 0 && table_ptr[idx] != attacks) {
+                printf("BAD MAGIC sq=%d idx=%lu\n", sq, idx);
+                errors++;
+            }
+            table_ptr[idx] = attacks;
+        }
+        table_ptr += num_entries;
+    }
+    
+    if (errors) {
+        printf("Bishop magic init FAILED with %d errors\n", errors);
+        exit(1);
+    }
+}
+static void test_bishop_magics(void) {
+    printf("Testing bishop magics...\n");
+    int errors = 0;
+    
+    // Test all squares with random occupancies
+    for (Square sq = 0; sq < 64; sq++) {
+        for (int test = 0; test < 1000; test++) {
+            Bitboard occ = prng_rand() & prng_rand(); // Random sparse occupancy
+            Bitboard fast = bishop_attacks_bb(sq, occ);
+            Bitboard slow = bishop_attacks_slow(sq, occ);
+            
+            if (fast != slow) {
+                printf("MISMATCH sq=%d occ=%lu fast=%lu slow=%lu\n", sq, occ, fast, slow);
+                errors++;
+            }
+        }
+    }
+    
+    if (errors == 0) {
+        printf("Bishop magics: ALL TESTS PASSED\n");
+    } else {
+        printf("Bishop magics: %d FAILURES\n", errors);
+        exit(1);
+    }
+}
+
+static Bitboard compute_rook_mask(Square s) {
+    Bitboard mask = 0;
+    int r = rank_of(s), f = file_of(s);
+    for (int rr = r + 1; rr < 7; rr++) mask |= sq_bb(make_square(f, rr));
+    for (int rr = r - 1; rr > 0; rr--) mask |= sq_bb(make_square(f, rr));
+    for (int ff = f + 1; ff < 7; ff++) mask |= sq_bb(make_square(ff, r));
+    for (int ff = f - 1; ff > 0; ff--) mask |= sq_bb(make_square(ff, r));
+    return mask;
+}
+
+static void init_rook_magics(void) {
+    Bitboard* table_ptr = RookTable;
+    int errors = 0;
+    
+    for (Square sq = 0; sq < 64; sq++) {
+        RookMasks[sq] = compute_rook_mask(sq);
+        RookMagics[sq] = ROOK_MAGICS[sq];
+        
+        int bits = popcount(RookMasks[sq]);
+        RookShifts[sq] = 64 - bits;
+        RookAttacks[sq] = table_ptr;
+        
+        int num_entries = 1 << bits;
+        memset(table_ptr, 0, num_entries * sizeof(Bitboard));
+        
+        for (int i = 0; i < num_entries; i++) {
+            Bitboard occ = index_to_occupancy(i, RookMasks[sq]);
+            Bitboard attacks = rook_attacks_slow(sq, occ);
+            uint64_t idx = (occ * RookMagics[sq]) >> RookShifts[sq];
+            
+            if (table_ptr[idx] != 0 && table_ptr[idx] != attacks) {
+                printf("BAD ROOK MAGIC sq=%d idx=%lu\n", sq, idx);
+                errors++;
+            }
+            table_ptr[idx] = attacks;
+        }
+        table_ptr += num_entries;
+    }
+    
+    if (errors) {
+        printf("Rook magic init FAILED with %d errors\n", errors);
+        exit(1);
+    }
+}
+
+static void test_rook_magics(void) {
+    printf("Testing rook magics...\n");
+    int errors = 0;
+    
+    for (Square sq = 0; sq < 64; sq++) {
+        for (int test = 0; test < 1000; test++) {
+            Bitboard occ = prng_rand() & prng_rand();
+            Bitboard fast = rook_attacks_bb(sq, occ);
+            Bitboard slow = rook_attacks_slow(sq, occ);
+            
+            if (fast != slow) {
+                printf("ROOK MISMATCH sq=%d\n", sq);
+                errors++;
+            }
+        }
+    }
+    
+    printf(errors ? "Rook magics: %d FAILURES\n" : "Rook magics: ALL TESTS PASSED\n", errors);
+    if (errors) exit(1);
+}
 
 void init_bitboards(void) {
     if (bitboards_initialized) return;
@@ -783,9 +996,13 @@ void init_bitboards(void) {
             }
         }
     }
-    
+    init_bishop_magics(); 
+    //test_bishop_magics();
+    init_rook_magics();
+    //test_rook_magics();
     bitboards_initialized = true;
 }
+
 
 static inline int get_pst_value(Piece pc, Square sq);
 static inline int get_pst_mg(Piece pc, Square sq);
@@ -1868,17 +2085,17 @@ void populate_observations(Chess* env) {
         }
         
         uint8_t* player_obs = obs + (buffer_idx * OBS_SIZE);
+        memset(player_obs, 0, OBS_SIZE);
         uint8_t* board_planes = player_obs + O_BOARD;
-        memset(board_planes, 0, 12 * 64);
         
         ChessColor us = (ChessColor)player;  // 0=White, 1=Black
         
         Bitboard occupied = pos->byTypeBB[0];
         while (occupied) {
             Square sq = pop_lsb(&occupied);
-        Piece p = pos->board[sq];
-        
-        int plane;
+            Piece p = pos->board[sq];
+            
+            int plane;
             int obs_sq;
             
             if (player == 1) {
@@ -1892,11 +2109,11 @@ void populate_observations(Chess* env) {
                 }
             } else {
                 obs_sq = sq;
-        if (p >= B_PAWN) {
-            plane = 6 + (p - B_PAWN);
-        } else {
-            plane = p - 1;
-        }
+                if (p >= B_PAWN) {
+                    plane = 6 + (p - B_PAWN);
+                } else {
+                    plane = p - 1;
+                }
             }
             board_planes[plane * 64 + obs_sq] = 1;
         }
@@ -1906,7 +2123,6 @@ void populate_observations(Chess* env) {
         side_onehot[(pos->sideToMove == us) ? 0 : 1] = 1;
         
         uint8_t* castle_onehot = player_obs + O_CASTLE;
-        memset(castle_onehot, 0, 16);
         uint8_t castle_rights = pos->castlingRights;
         if (player == 1) {
             uint8_t flipped = 0;
@@ -1929,8 +2145,6 @@ void populate_observations(Chess* env) {
     
         uint8_t* valid_pieces = player_obs + O_VALID_PIECES;
         uint8_t* valid_dests = player_obs + O_VALID_DESTS;
-        memset(valid_pieces, 0, 64);
-        memset(valid_dests, 0, 64);
         
         int player_idx = (int)us;
         ChessColor side_to_move = pos->sideToMove;
@@ -1955,11 +2169,7 @@ void populate_observations(Chess* env) {
                     }
                 }
             }
-        } else {
-            memset(valid_pieces, 0, 64);
-            memset(valid_dests, 0, 64);
-        }
-
+        } 
         player_obs[O_PASS_VALID] = (side_to_move != us) ? 255 : 0;
         
         uint8_t* phase_onehot = player_obs + O_PICK_PHASE;
@@ -1967,14 +2177,12 @@ void populate_observations(Chess* env) {
         phase_onehot[env->pick_phase[player_idx]] = 1;
         
         uint8_t* selected_piece_plane = player_obs + O_SELECTED_PIECE;
-        memset(selected_piece_plane, 0, 64);
         if (env->pick_phase[player_idx] == 1 && env->selected_square[player_idx] != SQ_NONE) {
             int view_selected = (player == 1) ? (env->selected_square[player_idx] ^ 56) : env->selected_square[player_idx];
             selected_piece_plane[view_selected] = 1;
         }
         
         uint8_t* valid_promos = player_obs + O_VALID_PROMOS;
-        memset(valid_promos, 0, 32);
         
         if (env->pick_phase[player_idx] == 1 && env->valid_destinations[player_idx].count > 0) {
             for (int i = 0; i < env->valid_destinations[player_idx].count; i++) {
@@ -1989,8 +2197,6 @@ void populate_observations(Chess* env) {
         
         uint8_t* self_check_plane = player_obs + O_SELF_CHECK_PLANE;
         uint8_t* opp_check_plane = player_obs + O_OPP_CHECK_PLANE;
-        memset(self_check_plane, 0, 64);
-        memset(opp_check_plane, 0, 64);
         
         ChessColor them = (ChessColor)!us;
         Bitboard our_king = pieces_cp(pos, us, KING);

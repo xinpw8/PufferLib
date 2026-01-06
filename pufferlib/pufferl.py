@@ -613,7 +613,7 @@ class PuffeRL:
         anneal_beta = b0 + (1 - b0)*a*self.epoch/self.total_epochs
         self.ratio[:] = 1
         # Save weights for selfplay
-        if (self.selfplay and epoch % 50 == 0 and epoch != 0):
+        if (self.selfplay and epoch % 10 == 0 and epoch != 0):
             profile('train_selfplay', epoch)
             snapshot = {k: v.clone().cpu() for k, v in self.policy.state_dict().items()}
             self.saved_policy_count+=1
