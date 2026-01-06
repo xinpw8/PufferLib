@@ -460,7 +460,7 @@ class Go(nn.Module):
 
         self.grid_size = int(np.sqrt((obs_size-1)/4))
         cnn_flat_size = cnn_channels * self.grid_size * self.grid_size
-        self.current_mask = None 
+        self.current_mask = None
         
         self.proj = pufferlib.pytorch.layer_init(nn.Linear(cnn_flat_size, hidden_size))
 

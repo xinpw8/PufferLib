@@ -108,6 +108,7 @@ struct CGo {
     int pass_move_count;
     int previous_move;
     int human_play;
+    // undo stack
     int changed_pos[MAX_CHANGED_PER_MOVE];
     uint8_t old_board_values[MAX_CHANGED_PER_MOVE];
     int changed_count;
