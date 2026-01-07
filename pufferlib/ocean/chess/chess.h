@@ -2278,7 +2278,6 @@ void populate_observations(Chess* env) {
             }
         }
         
-        ChessColor them = (ChessColor)!us;
         player_obs[O_SELF_CHECK] = is_check(pos, us) ? 255 : 0;
         player_obs[O_OPP_CHECK] = is_check(pos, them) ? 255 : 0;
         

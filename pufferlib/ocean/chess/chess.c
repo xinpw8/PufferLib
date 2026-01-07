@@ -376,12 +376,13 @@ void c_render_debug(Chess* env) {
         debug_draw_obs_plane_with_pieces(obs + active_buffer_offset + O_SELECTED_PIECE, pos,
                             obs_start_x + col_width * 2, obs_y, mini_cell,
                             "Selected Piece", YELLOW, view_player, -1, 1);
-        debug_draw_obs_plane_with_pieces(obs + active_buffer_offset + O_SELF_CHECK_PLANE, pos,
+        /*debug_draw_obs_plane_with_pieces(obs + active_buffer_offset + O_SELF_CHECK_PLANE, pos,
                             obs_start_x + col_width * 3, obs_y, mini_cell,
                             "In Check (self)", (Color){255, 50, 50, 200}, view_player, -2, 1);
         debug_draw_obs_plane_with_pieces(obs + active_buffer_offset + O_OPP_CHECK_PLANE, pos,
                             obs_start_x + col_width * 4, obs_y, mini_cell,
                             "Checking (opp)", (Color){255, 150, 50, 200}, view_player, -2, 0);
+          */                  
         obs_y += mini_cell * 8 + 30;
         int promo_counts[4];
         debug_draw_promo_plane(obs + active_buffer_offset + O_VALID_PROMOS, 
