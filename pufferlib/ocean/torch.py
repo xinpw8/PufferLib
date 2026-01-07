@@ -42,8 +42,13 @@ class Chess(nn.Module):
         self.phase_embed = nn.Embedding(2, embed_dim)
 
         self.scalar_size = 5
-
-        total_features = cnn_flat_size + 4 * embed_dim + self.scalar_size
+        self.scalar_layer = nn.Sequential(
+            layer_init(nn.Linear(self.scalar_size, hidden_size)),
+            nn.ReLU(),
+            layer_init(nn.Linear(hidden_size, self.hidden_size)),
+            nn.ReLU(),
+        )
+        total_features = cnn_flat_size + 4 * embed_dim + self.hidden_size
 
         self.proj = nn.Sequential(
             layer_init(nn.Linear(total_features, hidden_size)),
@@ -101,6 +106,7 @@ class Chess(nn.Module):
         repetition_scalar = obs[:, 1080:1081] / 255.0
         pass_valid = obs[:, 1081:1082] / 255.0
         scalars = torch.cat([self_check, opp_check, rule50_scalar, repetition_scalar, pass_valid], dim=1)
+        scalars = self.scalar_layer(scalars)
 
         self.last_observations = observations.detach()
 
