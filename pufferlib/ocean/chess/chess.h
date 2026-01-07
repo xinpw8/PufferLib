@@ -479,12 +479,12 @@ enum {
     O_VALID_PIECES = 917,
     O_VALID_DESTS = 981,
     O_VALID_PROMOS = 1045,
-    O_SELF_CHECK_PLANE = 1077,
-    O_OPP_CHECK_PLANE = 1141,
-    O_RULE50 = 1205,
-    O_REPETITION = 1206,
-    O_PASS_VALID = 1207,
-    OBS_SIZE = 1208
+    O_SELF_CHECK = 1077,
+    O_OPP_CHECK = 1078,
+    O_RULE50 = 1079,
+    O_REPETITION = 1080,
+    O_PASS_VALID = 1081,
+    OBS_SIZE = 1082
 };
 
 #define PASS_ACTION 96
@@ -2278,39 +2278,9 @@ void populate_observations(Chess* env) {
             }
         }
         
-        uint8_t* self_check_plane = player_obs + O_SELF_CHECK_PLANE;
-        uint8_t* opp_check_plane = player_obs + O_OPP_CHECK_PLANE;
-        
-        Bitboard our_king = pieces_cp(pos, us, KING);
-        Bitboard their_king = pieces_cp(pos, them, KING);
-        
-        if (our_king) {
-            Square our_king_sq = lsb(our_king);
-            Bitboard our_attackers = attackers_to_sq(pos, our_king_sq, pieces(pos)) & pieces_c(pos, them);
-            if (our_attackers) {
-                int view_king = (us == CHESS_BLACK) ? (our_king_sq ^ 56) : our_king_sq;
-                self_check_plane[view_king] = 1;
-                while (our_attackers) {
-                    Square attacker_sq = pop_lsb(&our_attackers);
-                    int view_attacker = (us == CHESS_BLACK) ? (attacker_sq ^ 56) : attacker_sq;
-                    self_check_plane[view_attacker] = 1;
-                }
-            }
-        }
-        
-        if (their_king) {
-            Square their_king_sq = lsb(their_king);
-            Bitboard their_attackers = attackers_to_sq(pos, their_king_sq, pieces(pos)) & pieces_c(pos, us);
-            if (their_attackers) {
-                int view_king = (us == CHESS_BLACK) ? (their_king_sq ^ 56) : their_king_sq;
-                opp_check_plane[view_king] = 1;
-                while (their_attackers) {
-                    Square attacker_sq = pop_lsb(&their_attackers);
-                    int view_attacker = (us == CHESS_BLACK) ? (attacker_sq ^ 56) : attacker_sq;
-                    opp_check_plane[view_attacker] = 1;
-                }
-            }
-        }
+        ChessColor them = (ChessColor)!us;
+        player_obs[O_SELF_CHECK] = is_check(pos, us) ? 255 : 0;
+        player_obs[O_OPP_CHECK] = is_check(pos, them) ? 255 : 0;
         
         player_obs[O_RULE50] = (uint8_t)((pos->rule50 * 255) / 100);
         
