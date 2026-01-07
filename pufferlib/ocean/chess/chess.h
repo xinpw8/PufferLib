@@ -2182,33 +2182,28 @@ void populate_observations(Chess* env) {
         uint8_t* board_planes = player_obs + O_BOARD;
         
         ChessColor us = (ChessColor)player;  // 0=White, 1=Black
-        
+        ChessColor them = (ChessColor)!us;
+
         Bitboard occupied = pos->byTypeBB[0];
-        while (occupied) {
-            Square sq = pop_lsb(&occupied);
-            Piece p = pos->board[sq];
-            
-            int plane;
-            int obs_sq;
-            
-            if (player == 1) {
-                obs_sq = sq ^ 56;
-                int piece_color = color_of(p);
-                int piece_type = type_of_p(p);
-                if (piece_color == CHESS_BLACK) {
-                    plane = piece_type - 1;
-                } else {
-                    plane = 6 + (piece_type - 1);
-                }
-            } else {
-                obs_sq = sq;
-                if (p >= B_PAWN) {
-                    plane = 6 + (p - B_PAWN);
-                } else {
-                    plane = p - 1;
-                }
+        int flip = player * 56;
+        // our pieces
+        for (int pt = PAWN; pt <= KING; pt++) {
+            Bitboard bb = pieces_cp(pos, player, pt);
+            int plane = pt - 1;  // 0-5
+            while (bb) {
+                Square sq = pop_lsb(&bb);
+                board_planes[plane * 64 + (sq ^ flip)] = 1;
             }
-            board_planes[plane * 64 + obs_sq] = 1;
+        }
+        
+        // Their pieces (planes 6-11)
+        for (int pt = PAWN; pt <= KING; pt++) {
+            Bitboard bb = pieces_cp(pos, them, pt);
+            int plane = 6 + (pt - 1);  // 6-11
+            while (bb) {
+                Square sq = pop_lsb(&bb);
+                board_planes[plane * 64 + (sq ^ flip)] = 1;
+            }
         }
         
         uint8_t* side_onehot = player_obs + O_SIDE;
@@ -2227,12 +2222,12 @@ void populate_observations(Chess* env) {
         castle_onehot[castle_rights] = 1;
 
         uint8_t* ep_onehot = player_obs + O_EP;
-    if (pos->epSquare < 64) {
-            int ep_sq = (player == 1) ? (pos->epSquare ^ 56) : pos->epSquare;
-            ep_onehot[ep_sq] = 1;
-    } else {
-        ep_onehot[64] = 1;
-    }
+        if (pos->epSquare < 64) {
+                int ep_sq = (player == 1) ? (pos->epSquare ^ 56) : pos->epSquare;
+                ep_onehot[ep_sq] = 1;
+        } else {
+            ep_onehot[64] = 1;
+        }
     
         uint8_t* valid_pieces = player_obs + O_VALID_PIECES;
         uint8_t* valid_dests = player_obs + O_VALID_DESTS;
@@ -2286,7 +2281,6 @@ void populate_observations(Chess* env) {
         uint8_t* self_check_plane = player_obs + O_SELF_CHECK_PLANE;
         uint8_t* opp_check_plane = player_obs + O_OPP_CHECK_PLANE;
         
-        ChessColor them = (ChessColor)!us;
         Bitboard our_king = pieces_cp(pos, us, KING);
         Bitboard their_king = pieces_cp(pos, them, KING);
         
