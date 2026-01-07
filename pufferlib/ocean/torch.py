@@ -28,7 +28,7 @@ class Chess(nn.Module):
         self.num_actions = env.single_action_space.n
 
         self.spatial_cnn = nn.Sequential(
-            layer_init(nn.Conv2d(18, cnn_channels, 3, stride=2, padding=1)),
+            layer_init(nn.Conv2d(16, cnn_channels, 3, stride=2, padding=1)),
             nn.ReLU(),
             layer_init(nn.Conv2d(cnn_channels, cnn_channels, 3, stride=2, padding=1)),
             nn.ReLU(),
@@ -41,7 +41,7 @@ class Chess(nn.Module):
         self.ep_embed = nn.Embedding(65, embed_dim)
         self.phase_embed = nn.Embedding(2, embed_dim)
 
-        self.scalar_size = 3
+        self.scalar_size = 5
 
         total_features = cnn_flat_size + 4 * embed_dim + self.scalar_size
 
@@ -77,12 +77,9 @@ class Chess(nn.Module):
         valid_dests = obs[:, 981:1045].view(B, 1, 8, 8)
         valid_promos = obs[:, 1045:1077].view(B, 1, 4, 8)
         valid_promos_padded = F.pad(valid_promos, (0, 0, 0, 4), value=0).view(B, 1, 8, 8)
-        self_check_plane = obs[:, 1077:1141].view(B, 1, 8, 8)
-        opp_check_plane = obs[:, 1141:1205].view(B, 1, 8, 8)
 
         spatial_input = torch.cat([
-            board, selected_piece, valid_pieces, valid_dests, 
-            valid_promos_padded, self_check_plane, opp_check_plane
+            board, selected_piece, valid_pieces, valid_dests, valid_promos_padded
         ], dim=1)
         spatial_features = self.spatial_cnn(spatial_input)
 
@@ -98,10 +95,12 @@ class Chess(nn.Module):
         phase_idx = obs[:, 851:853].argmax(dim=1)
         phase_features = self.phase_embed(phase_idx)
 
-        rule50_scalar = obs[:, 1205:1206] / 255.0
-        repetition_scalar = obs[:, 1206:1207] / 255.0
-        pass_valid = obs[:, 1207:1208] / 255.0
-        scalars = torch.cat([rule50_scalar, repetition_scalar, pass_valid], dim=1)
+        self_check = obs[:, 1077:1078] / 255.0
+        opp_check = obs[:, 1078:1079] / 255.0
+        rule50_scalar = obs[:, 1079:1080] / 255.0
+        repetition_scalar = obs[:, 1080:1081] / 255.0
+        pass_valid = obs[:, 1081:1082] / 255.0
+        scalars = torch.cat([self_check, opp_check, rule50_scalar, repetition_scalar, pass_valid], dim=1)
 
         self.last_observations = observations.detach()
 
@@ -116,7 +115,7 @@ class Chess(nn.Module):
         if self.use_action_masking and self.last_observations is not None:
             obs = self.last_observations.float()
 
-            pass_valid = obs[:, 1207] > 0.5
+            pass_valid = obs[:, 1081] > 0.5
 
             phase_onehot = obs[:, 851:853]
             pick_phase = phase_onehot[:, 1]
@@ -147,6 +146,7 @@ class Chess(nn.Module):
         value = self.value_head(hidden)
 
         return logits, value
+
 
 class Boids(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
