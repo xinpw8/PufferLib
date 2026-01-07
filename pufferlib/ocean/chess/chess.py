@@ -27,7 +27,7 @@ class Chess(pufferlib.PufferEnv):
         
         factor = 2 if selfplay else 1
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=255, shape=(1208*factor,), dtype=np.uint8)
+            low=0, high=255, shape=(1082*factor,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(97)
         
         super().__init__(buf)
