@@ -546,6 +546,7 @@ typedef struct {
     int render_fps;
     int selfplay;
     int human_play;
+    int random_bot;
     
     char starting_fen[128];
     char** fen_curriculum;
@@ -2665,10 +2666,167 @@ void human_play(Chess* env) {
         env->actions[0] = -1;
     }
 }
+void random_bot_move(Chess* env) {
+    if (!env->random_bot) {
+        return;
+    }
+    
+    ChessColor opp_color = !env->learner_color;
+    
+    if (env->pos.sideToMove != opp_color) {
+        return;
+    }
+    
+    // Ensure legal moves are up to date
+    if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+        generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+        env->legal_moves_side = env->pos.sideToMove;
+        env->legal_moves_key = env->pos.key;
+    }
+    
+    if (env->legal_moves.count == 0) {
+        return;
+    }
+    
+    // Pick a random legal move
+    int idx = rand() % env->legal_moves.count;
+    Move chosen = env->legal_moves.moves[idx].move;
+    
+    int pidx = (int)opp_color;
+    
+    // Execute the move directly
+    env->chess_moves++;
+    env->pick_phase[pidx] = 0;
+    env->selected_square[pidx] = SQ_NONE;
+    env->valid_destinations[pidx].count = 0;
+    
+    if (env->log_pgn && env->pgn_move_count < MAX_GAME_PLIES) {
+        env->pgn_moves[env->pgn_move_count++] = chosen;
+    }
+    
+    env->last_move = chosen;
+    
+    ChessColor side_before = env->pos.sideToMove;
+    do_move(&env->pos, chosen, env->undo_stack, &env->undo_stack_ptr);
+    
+    // Track captured pieces
+    if (env->undo_stack_ptr > 0) {
+        Piece cap = env->undo_stack[env->undo_stack_ptr - 1].captured;
+        if (cap != NO_PIECE) {
+            int pt = type_of_p(cap) - 1;
+            if (pt >= 0 && pt < 6) {
+                if (color_of(cap) == CHESS_WHITE) {
+                    env->white_captured[pt]++;
+                } else {
+                    env->black_captured[pt]++;
+                }
+            }
+        } else if ((int)type_of_m(chosen) == ENPASSANT) {
+            Piece cap_pawn = (side_before == CHESS_WHITE) ? B_PAWN : W_PAWN;
+            int pt = type_of_p(cap_pawn) - 1;
+            if (pt >= 0 && pt < 6) {
+                if (color_of(cap_pawn) == CHESS_WHITE) {
+                    env->white_captured[pt]++;
+                } else {
+                    env->black_captured[pt]++;
+                }
+            }
+        }
+        
+        if (env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull > 99) {
+            env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull = 99;
+        }
+    }
+    
+    // Regenerate legal moves for the learner
+    generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+    env->legal_moves_side = env->pos.sideToMove;
+    env->legal_moves_key = env->pos.key;
+}
 
+
+void end_game(Chess* env){
+    env->terminals[0] = 1;
+    float win_value = 0.0f;
+    if (env->game_result == 3) {
+        env->rewards[0] = env->reward_draw;
+        win_value = 0.5f;
+        env->log.draw_rate += 1.0f;
+        
+        env->white_score += 0.5f;
+        env->black_score += 0.5f;
+        env->learner_draws += 1.0f;
+        strcpy(env->last_result, "Draw");
+    } else if (env->game_result == 1) {
+        if (env->learner_color == CHESS_WHITE) {
+            env->rewards[0] = -1.0f;
+            win_value = 0.0f;
+        } else {
+            env->rewards[0] = 1.0f;
+            win_value = 1.0f;
+        }
+        env->black_score += 1.0f;
+        if (env->learner_color == CHESS_BLACK) {
+            env->learner_wins += 1.0f;
+        } else {
+            env->learner_losses += 1.0f;
+        }
+        strcpy(env->last_result, "Black Wins");
+        env->log.draw_rate += 0.0f;
+    } else if (env->game_result == 2) {
+        if (env->learner_color == CHESS_WHITE) {
+            env->rewards[0] = 1.0f;
+            win_value = 1.0f;
+        } else {
+            env->rewards[0] = -1.0f;
+            win_value = 0.0f;
+        }
+        env->white_score += 1.0f;
+        if (env->learner_color == CHESS_WHITE) {
+            env->learner_wins += 1.0f;
+        } else {
+            env->learner_losses += 1.0f;
+        }
+        strcpy(env->last_result, "White Wins");
+        env->log.draw_rate += 0.0f;
+    }
+        
+    env->log.perf = (env->log.perf * env->log.n + win_value) / (env->log.n + 1.0f);
+    env->log.timeout_rate += 0.0f;
+    env->log.chess_moves += env->chess_moves;
+    env->log.episode_length += env->tick;
+    float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
+    env->log.invalid_action_rate += invalid_rate;
+    
+    float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
+    env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
+    
+    float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
+    env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
+    
+    float mat = (float)env->pos.materialScore / 100.0f;
+    float pst = (float)env->pos.psqtScore / 100.0f;
+    if (env->learner_color == CHESS_BLACK) { mat = -mat; pst = -pst; }
+    env->log.material_score += mat;
+    env->log.positional_score += pst;
+    
+    env->log.n += 1.0f;
+    
+    if (env->human_play) {
+        env->show_game_end_popup = 1;
+    } else {
+        if (env->log_pgn && env->pgn_filename[0] != '\0') {
+            env->pgn_game_number++;
+            export_pgn_append(env, env->pgn_filename, 1);
+        }
+        c_reset(env);
+    }
+    return;
+ 
+}
 void c_step(Chess* env) {
-    if (!env->selfplay && !env->human_play) {
-        fprintf(stderr, "FATAL: selfplay=0 AND human_play=0 is invalid configuration\n");
+    if (!env->selfplay && !env->human_play && !env->random_bot) {
+        fprintf(stderr, "FATAL: selfplay=0 AND human_play=0 and random_bot=0 is invalid configuration\n");
         exit(1);
     }
     
@@ -2687,6 +2845,23 @@ void c_step(Chess* env) {
     env->rewards[0] = 0.0f;
     env->terminals[0] = 0;
     env->tick++;
+
+    if (env->random_bot && env->pos.sideToMove != env->learner_color) {
+        random_bot_move(env);
+        
+        env->game_result = game_result_with_legal_count(&env->pos, env->legal_moves.count, 
+            env->undo_stack, env->undo_stack_ptr,
+            env->enable_50_move_rule, env->enable_threefold_repetition);
+        
+        if (env->game_result != 0) {
+            end_game(env);
+        }
+        
+        populate_observations(env);
+        if (env->pos.sideToMove != env->learner_color) {
+            return;
+        }
+    }
     
     int action;
     if (env->human_play) {
@@ -2828,82 +3003,7 @@ void c_step(Chess* env) {
                                                      env->enable_50_move_rule, env->enable_threefold_repetition);
     
     if (env->game_result != 0) {
-        env->terminals[0] = 1;
-        float win_value = 0.0f;
-        if (env->game_result == 3) {
-            env->rewards[0] = env->reward_draw;
-            win_value = 0.5f;
-            env->log.draw_rate += 1.0f;
-            
-            env->white_score += 0.5f;
-            env->black_score += 0.5f;
-            env->learner_draws += 1.0f;
-            strcpy(env->last_result, "Draw");
-        } else if (env->game_result == 1) {
-            if (env->learner_color == CHESS_WHITE) {
-                env->rewards[0] = -1.0f;
-                win_value = 0.0f;
-            } else {
-                env->rewards[0] = 1.0f;
-                win_value = 1.0f;
-            }
-            env->black_score += 1.0f;
-            if (env->learner_color == CHESS_BLACK) {
-                env->learner_wins += 1.0f;
-            } else {
-                env->learner_losses += 1.0f;
-            }
-            strcpy(env->last_result, "Black Wins");
-            env->log.draw_rate += 0.0f;
-        } else if (env->game_result == 2) {
-            if (env->learner_color == CHESS_WHITE) {
-                env->rewards[0] = 1.0f;
-                win_value = 1.0f;
-            } else {
-                env->rewards[0] = -1.0f;
-                win_value = 0.0f;
-            }
-            env->white_score += 1.0f;
-            if (env->learner_color == CHESS_WHITE) {
-                env->learner_wins += 1.0f;
-            } else {
-                env->learner_losses += 1.0f;
-            }
-            strcpy(env->last_result, "White Wins");
-            env->log.draw_rate += 0.0f;
-        }
-        
-        env->log.perf = (env->log.perf * env->log.n + win_value) / (env->log.n + 1.0f);
-        env->log.timeout_rate += 0.0f;
-        env->log.chess_moves += env->chess_moves;
-        env->log.episode_length += env->tick;
-        float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
-        env->log.invalid_action_rate += invalid_rate;
-        
-        float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
-        env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
-        
-        float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
-        env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
-        
-        float mat = (float)env->pos.materialScore / 100.0f;
-        float pst = (float)env->pos.psqtScore / 100.0f;
-        if (env->learner_color == CHESS_BLACK) { mat = -mat; pst = -pst; }
-        env->log.material_score += mat;
-        env->log.positional_score += pst;
-        
-        env->log.n += 1.0f;
-        
-        if (env->human_play) {
-            env->show_game_end_popup = 1;
-        } else {
-            if (env->log_pgn && env->pgn_filename[0] != '\0') {
-                env->pgn_game_number++;
-                export_pgn_append(env, env->pgn_filename, 1);
-            }
-            c_reset(env);
-        }
-        return;
+        end_game(env);
     }
     
     populate_observations(env);

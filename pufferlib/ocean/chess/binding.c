@@ -26,6 +26,7 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->render_fps = 30;
     env->selfplay = 1;
     env->human_play = 0;
+    env->random_bot = 0;
     env->human_color = -1;
     env->fen_curriculum = NULL;
     env->num_fens = 0;
@@ -128,6 +129,12 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
         if (human_obj != NULL && PyLong_Check(human_obj)) {
             env->human_play = (int)PyLong_AsLong(human_obj);
         }
+
+        PyObject* random_bot_obj = PyDict_GetItemString(kwargs, "random_bot");
+        if (random_bot_obj != NULL && PyLong_Check(random_bot_obj)) {
+            env->random_bot = (int)PyLong_AsLong(random_bot_obj);
+        }
+
 
         PyObject* learner_color_obj = PyDict_GetItemString(kwargs, "learner_color");
         if (learner_color_obj != NULL && PyLong_Check(learner_color_obj)) {
