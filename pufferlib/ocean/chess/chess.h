@@ -2471,9 +2471,6 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
                 env->selected_square[pidx] = picked_sq;
                 env->pick_phase[pidx] = 1;
                 if (player == env->learner_color) env->rewards[0] += env->reward_valid_piece;
-                else {
-                    env->opp_in_check = 0;
-                }
             } else {
                 if (player == env->learner_color) {
                     env->rewards[0] += env->reward_invalid_piece;
@@ -2779,7 +2776,9 @@ void c_step(Chess* env) {
         env->opp_in_check = 1;
         env->rewards[0] += env->reward_check;
     }
-    
+    if (move_completed && mover == !env->learner_color){
+        env->opp_in_check = 0;
+    }
     
     /*if (env->rewards[0] > 0.9f) {
         env->rewards[0] = 0.9f;
