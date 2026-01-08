@@ -568,6 +568,7 @@ typedef struct {
     float reward_position;  // PST-based positional reward
     float reward_castling;
     float reward_repetition;
+    float reward_check;
     
     int last_see_value;
     Move last_move;
@@ -576,6 +577,7 @@ typedef struct {
     int enable_threefold_repetition;
     
     int learner_color; // 0 for White, 1 for Black
+    int opp_in_check;
     int human_color;
     float white_score;
     float black_score;
@@ -2379,6 +2381,7 @@ void c_reset(Chess* env) {
     env->invalid_actions_this_episode = 0;
     env->pgn_move_count = 0;
     env->show_game_end_popup = 0;
+    env->opp_in_check = 0;
     
     env->pick_phase[0] = 0;
     env->pick_phase[1] = 0;
@@ -2468,6 +2471,9 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
                 env->selected_square[pidx] = picked_sq;
                 env->pick_phase[pidx] = 1;
                 if (player == env->learner_color) env->rewards[0] += env->reward_valid_piece;
+                else {
+                    env->opp_in_check = 0;
+                }
             } else {
                 if (player == env->learner_color) {
                     env->rewards[0] += env->reward_invalid_piece;
@@ -2769,13 +2775,18 @@ void c_step(Chess* env) {
             env->rewards[0] += hanging_penalty;
         }
     }
+    if (move_completed && mover == env->learner_color && env->opp_in_check == 0 && is_check(&env->pos, !env->learner_color)){
+        env->opp_in_check = 1;
+        env->rewards[0] += env->reward_check;
+    }
     
-    if (env->rewards[0] > 0.9f) {
+    
+    /*if (env->rewards[0] > 0.9f) {
         env->rewards[0] = 0.9f;
     }
     if (env->rewards[0] < -0.9f) {
         env->rewards[0] = -0.9f;
-    }
+    }*/
     if (move_completed) {
         if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
             generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
@@ -3243,7 +3254,6 @@ void c_render(Chess* env) {
         DrawRectangleRec(no_button, MAROON);
         DrawRectangleLinesEx(no_button, 2, WHITE);
         DrawText("No Logging", center_x - 45, no_y + 12, 16, WHITE);
-        
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Vector2 mousePos = GetMousePosition();
             if (CheckCollisionPointRec(mousePos, yes_button)) {

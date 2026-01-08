@@ -107,6 +107,13 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
             env->reward_repetition = (float)PyLong_AsDouble(reward_repetition_obj);
         }
 
+        PyObject* reward_check = PyDict_GetItemString(kwargs, "reward_check");
+        if (reward_check != NULL && PyFloat_Check(reward_check)) {
+            env->reward_check = (float)PyFloat_AsDouble(reward_check);
+        } else if (reward_check != NULL && PyLong_Check(reward_check)) {
+            env->reward_check = (float)PyLong_AsDouble(reward_check);
+        }
+
         PyObject* fps_obj = PyDict_GetItemString(kwargs, "render_fps");
         if (fps_obj != NULL && PyLong_Check(fps_obj)) {
             env->render_fps = (int)PyLong_AsLong(fps_obj);
