@@ -992,7 +992,18 @@ void init_bitboards(void) {
                 while (f != f2 || r != r2) {
                     Square sq = make_square(f, r);
                     BetweenBB[s1][s2] |= sq_bb(sq);
-                    LineBB[s1][s2] |= sq_bb(sq);
+                    f += step_f;
+                    r += step_r;
+                }
+
+                f = f1;
+                r = r1;
+                while (f - step_f >= 0 && f - step_f < 8 && r - step_r >= 0 && r - step_r < 8) {
+                    f -= step_f;
+                    r -= step_r;
+                }
+                while (f >= 0 && f < 8 && r >= 0 && r < 8) {
+                    LineBB[s1][s2] |= sq_bb(make_square(f, r));
                     f += step_f;
                     r += step_r;
                 }
