@@ -1357,6 +1357,40 @@ def run_match(env_name, args=None, vecenv=None, model_A_path="", model_B_path=""
     print(f"Match Complete: A vs B | Win Rate A: {win_rate:.4f} ({wins_A}/{draws}/{losses_A} of {games_played})")
     return win_rate, wins_A, draws, games_played
 
+
+def match(env_name, args=None):
+    """Run a head-to-head match between two policies."""
+    args = args or load_config(env_name)
+    
+    model_a = args.get('model_a') or args.get('load_model_path')
+    model_b = args.get('model_b') or args.get('load_enemy_model_path')
+    num_games = args.get('match_games', 1024)
+    
+    if not model_a or not model_b:
+        raise pufferlib.APIUsageError('Match mode requires --model-a and --model-b paths')
+    
+    backend = args['vec']['backend']
+    args['vec'] = dict(backend=backend, num_envs=1)
+    vecenv = load_env(env_name, args)
+    
+    try:
+        win_rate, wins_a, draws, total = run_match(
+            env_name, args, vecenv, model_a, model_b, num_games
+        )
+        losses_a = total - wins_a - draws
+        print(f"\n{'='*60}")
+        print(f"Model A: {Path(model_a).stem}")
+        print(f"Model B: {Path(model_b).stem}")
+        print(f"Games:   {total}")
+        print(f"A wins:  {wins_a} ({100*wins_a/total:.1f}%)")
+        print(f"Draws:   {draws} ({100*draws/total:.1f}%)")
+        print(f"B wins:  {losses_a} ({100*losses_a/total:.1f}%)")
+        print(f"A win rate (W + 0.5*D): {win_rate:.4f}")
+        print(f"{'='*60}")
+    finally:
+        vecenv.close()
+    
+    return win_rate, wins_a, draws, total
             
 def round_robin_tournament(env_name, args=None, num_games: int = 1024):
     args = load_config(env_name)
@@ -1745,6 +1779,12 @@ def make_parser():
     parser.add_argument('--no-model-upload', action='store_true', help='Do not upload models to wandb or neptune')
     parser.add_argument('--local-rank', type=int, default=0, help='Used by torchrun for DDP')
     parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
+    parser.add_argument('--model-a', type=str, default=None,
+        help='Path to policy A checkpoint (for match mode)')
+    parser.add_argument('--model-b', type=str, default=None,
+        help='Path to policy B checkpoint (for match mode)')
+    parser.add_argument('--match-games', type=int, default=1024,
+        help='Number of games to play in match mode')
     return parser
 
 def process_config(config, parser=None):
@@ -1805,6 +1845,8 @@ def main():
         eval(env_name=env_name)
     elif mode == 'sweep':
         sweep(env_name=env_name)
+    elif mode == 'match':
+        match(env_name=env_name)
     elif mode == 'tournament':
         round_robin_tournament(env_name=env_name)
     elif mode == 'autotune':
