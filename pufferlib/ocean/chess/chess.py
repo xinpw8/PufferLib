@@ -1,8 +1,11 @@
 import gymnasium
 import numpy as np
+import os
 
 import pufferlib
 from pufferlib.ocean.chess import binding
+
+CHESS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class Chess(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, log_interval=1, buf=None, seed=0,
@@ -14,6 +17,7 @@ class Chess(pufferlib.PufferEnv):
                  render_fps=30, selfplay=1, human_play=0, random_bot = 0,
                  starting_fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                  random_fen_pct=0,
+                 fen_file=None,
                  enable_50_move_rule=1, enable_threefold_repetition=1,
                  debug=0):
         
@@ -25,6 +29,10 @@ class Chess(pufferlib.PufferEnv):
         self.selfplay = selfplay
         self.random_fen_pct = random_fen_pct
         self.debug = debug
+        
+        if fen_file and not os.path.isabs(fen_file):
+            fen_file = os.path.join(CHESS_DIR, fen_file)
+        self.c_curriculum = binding.shared(fen_file=fen_file)
         
         factor = 2 if selfplay else 1
         self.single_observation_space = gymnasium.spaces.Box(
@@ -68,6 +76,7 @@ class Chess(pufferlib.PufferEnv):
                 random_bot=random_bot,
                 starting_fen=starting_fen,
                 random_fen=use_random_fen,
+                fen_curriculum=self.c_curriculum,
                 enable_50_move_rule=enable_50_move_rule,
                 enable_threefold_repetition=enable_threefold_repetition,
                 learner_color=i % 2,
