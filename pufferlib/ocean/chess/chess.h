@@ -543,7 +543,7 @@ typedef struct {
     int chess_moves;
     int max_moves;
     float reward_draw;
-    float episode_reward;
+    float episode_reward;  // Accumulate episode reward (like g2048)
     int render_fps;
     int selfplay;
     int human_play;
@@ -2411,8 +2411,10 @@ void c_reset(Chess* env) {
         env->learner_color = 1 - env->learner_color;
     }
     
-    // Select starting position or curriculum
-    if (env->random_fen) {
+    if (env->fen_curriculum != NULL && env->num_fens > 0) {
+        int idx = rand() % env->num_fens;
+        pos_set(&env->pos, env->fen_curriculum[idx]);
+    } else if (env->random_fen) {
         char fen_buf[128];
         generate_random_fen(fen_buf);
         pos_set(&env->pos, fen_buf);
@@ -2987,6 +2989,7 @@ void c_step(Chess* env) {
     if (env->chess_moves >= env->max_moves || env->undo_stack_ptr >= MAX_GAME_PLIES - 2) {
         env->terminals[0] = 1;
         env->rewards[0] = env->reward_draw;
+        // Accumulate final reward and log episode return
         env->episode_reward += env->rewards[0];
         env->log.episode_return += env->episode_reward;
         
@@ -3023,6 +3026,7 @@ void c_step(Chess* env) {
     if (env->game_result != 0) {
         end_game(env);
     } else {
+        // Accumulate intermediate rewards (end_game handles its own accumulation)
         env->episode_reward += env->rewards[0];
     }
     
@@ -3042,6 +3046,7 @@ int move_to_san(Position* pos, Move m, char* buf) {
     int pt = type_of_p(pc);
     ChessColor us = pos->sideToMove;
     
+    // Castling
     if (move_type == CASTLING) {
         if (to > from) {
             strcpy(ptr, "O-O");
@@ -3709,12 +3714,6 @@ void c_close(Chess* env) {
         free(env->client);
         env->client = NULL;
     }
-    if (env->fen_curriculum != NULL) {
-        for (int i = 0; i < env->num_fens; i++) {
-            free(env->fen_curriculum[i]);
-        }
-        free(env->fen_curriculum);
-        env->fen_curriculum = NULL;
-        env->num_fens = 0;
-    }
+    env->fen_curriculum = NULL;
+    env->num_fens = 0;
 }
