@@ -185,13 +185,8 @@ static int my_log(PyObject *dict, Log *log) {
     assign_to_dict(dict, "chess_moves", log->chess_moves);
     assign_to_dict(dict, "episode_length", log->episode_length);
     assign_to_dict(dict, "episode_return", log->episode_return);
-    
-    float avg_invalid_rate = (log->n > 0) ? (log->invalid_action_rate / log->n) : 0.0f;
-    assign_to_dict(dict, "invalid_action_rate", avg_invalid_rate);
-    
-    float avg_material = (log->n > 0) ? (log->material_score / log->n) : 0.0f;
-    float avg_positional = (log->n > 0) ? (log->positional_score / log->n) : 0.0f;
-    assign_to_dict(dict, "material_score", avg_material);
-    assign_to_dict(dict, "positional_score", avg_positional);
+    assign_to_dict(dict, "invalid_action_rate", log->invalid_action_rate);
+    assign_to_dict(dict, "material_score", log->material_score);
+    assign_to_dict(dict, "positional_score", log->positional_score);
     return 0;
 }

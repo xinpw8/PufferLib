@@ -543,6 +543,7 @@ typedef struct {
     int chess_moves;
     int max_moves;
     float reward_draw;
+    float episode_reward;
     int render_fps;
     int selfplay;
     int human_play;
@@ -984,11 +985,9 @@ void init_bitboards(void) {
                 int step_f = df == 0 ? 0 : (df > 0 ? 1 : -1);
                 int step_r = dr == 0 ? 0 : (dr > 0 ? 1 : -1);
                 
-                LineBB[s1][s2] = sq_bb(s1) | sq_bb(s2);
-                
+                // BetweenBB: squares strictly between s1 and s2
                 int f = f1 + step_f;
                 int r = r1 + step_r;
-                
                 while (f != f2 || r != r2) {
                     Square sq = make_square(f, r);
                     BetweenBB[s1][s2] |= sq_bb(sq);
@@ -1316,10 +1315,10 @@ static bool is_square_attacked(Position* pos, Square sq, ChessColor by_color) {
 }
 
 static Bitboard attackers_to_sq(Position* pos, Square sq, Bitboard occupied) {
-    return (pawn_attacks_bb(CHESS_WHITE, sq) & pieces_cp(pos, CHESS_BLACK, PAWN))
-         | (pawn_attacks_bb(CHESS_BLACK, sq) & pieces_cp(pos, CHESS_WHITE, PAWN))
-         | (knight_attacks_bb(sq) & pieces_p(pos, KNIGHT))
-         | (king_attacks_bb(sq) & pieces_p(pos, KING))
+    return (pawn_attacks_bb(CHESS_WHITE, sq) & pieces_cp(pos, CHESS_BLACK, PAWN) & occupied)
+         | (pawn_attacks_bb(CHESS_BLACK, sq) & pieces_cp(pos, CHESS_WHITE, PAWN) & occupied)
+         | (knight_attacks_bb(sq) & pieces_p(pos, KNIGHT) & occupied)
+         | (king_attacks_bb(sq) & pieces_p(pos, KING) & occupied)
          | (bishop_attacks_bb(sq, occupied) & (pieces_p(pos, BISHOP) | pieces_p(pos, QUEEN)))
          | (rook_attacks_bb(sq, occupied) & (pieces_p(pos, ROOK) | pieces_p(pos, QUEEN)));
 }
@@ -2391,6 +2390,7 @@ void c_reset(Chess* env) {
     env->game_result = 0;
     env->undo_stack_ptr = 0;
     env->invalid_actions_this_episode = 0;
+    env->episode_reward = 0.0f;
     env->pgn_move_count = 0;
     env->show_game_end_popup = 0;
     env->opp_in_check = 0;
@@ -2802,6 +2802,10 @@ void end_game(Chess* env){
         env->log.draw_rate += 0.0f;
     }
         
+    // Accumulate final reward and log episode return
+    env->episode_reward += env->rewards[0];
+    env->log.episode_return += env->episode_reward;
+    
     env->log.perf = (env->log.perf * env->log.n + win_value) / (env->log.n + 1.0f);
     env->log.timeout_rate += 0.0f;
     env->log.chess_moves += env->chess_moves;
@@ -2983,6 +2987,9 @@ void c_step(Chess* env) {
     if (env->chess_moves >= env->max_moves || env->undo_stack_ptr >= MAX_GAME_PLIES - 2) {
         env->terminals[0] = 1;
         env->rewards[0] = env->reward_draw;
+        env->episode_reward += env->rewards[0];
+        env->log.episode_return += env->episode_reward;
+        
         env->log.perf = (env->log.perf * env->log.n + 0.5f) / (env->log.n + 1.0f);
         env->log.draw_rate += 1.0f;
         env->log.timeout_rate += 1.0f;
@@ -3015,6 +3022,8 @@ void c_step(Chess* env) {
     
     if (env->game_result != 0) {
         end_game(env);
+    } else {
+        env->episode_reward += env->rewards[0];
     }
     
     populate_observations(env);
@@ -3033,7 +3042,6 @@ int move_to_san(Position* pos, Move m, char* buf) {
     int pt = type_of_p(pc);
     ChessColor us = pos->sideToMove;
     
-    // Castling
     if (move_type == CASTLING) {
         if (to > from) {
             strcpy(ptr, "O-O");
