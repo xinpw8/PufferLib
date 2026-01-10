@@ -4,9 +4,62 @@
 #define MY_SHARED
 #include "../env_binding.h"
 
+typedef struct {
+    char** fens;
+    int num_fens;
+} FenCurriculum;
+
 static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
     init_bitboards();
-    Py_RETURN_NONE;
+    
+    PyObject* fen_file_obj = PyDict_GetItemString(kwargs, "fen_file");
+    if (fen_file_obj == NULL || fen_file_obj == Py_None) {
+        Py_RETURN_NONE;
+    }
+    
+    const char* fen_file = PyUnicode_AsUTF8(fen_file_obj);
+    if (fen_file == NULL) {
+        Py_RETURN_NONE;
+    }
+    
+    FILE* f = fopen(fen_file, "r");
+    if (f == NULL) {
+        PyErr_Format(PyExc_FileNotFoundError, "Could not open FEN file: %s", fen_file);
+        return NULL;
+    }
+    
+    int num_fens = 0;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        if (line[0] != '#' && line[0] != '\n' && line[0] != '\r') {
+            num_fens++;
+        }
+    }
+    
+    if (num_fens == 0) {
+        fclose(f);
+        Py_RETURN_NONE;
+    }
+    
+    FenCurriculum* curriculum = malloc(sizeof(FenCurriculum));
+    curriculum->fens = malloc(num_fens * sizeof(char*));
+    curriculum->num_fens = num_fens;
+    
+    rewind(f);
+    int idx = 0;
+    while (fgets(line, sizeof(line), f) && idx < num_fens) {
+        if (line[0] != '#' && line[0] != '\n' && line[0] != '\r') {
+            size_t len = strlen(line);
+            while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
+                line[--len] = '\0';
+            }
+            curriculum->fens[idx++] = strdup(line);
+        }
+    }
+    fclose(f);
+    
+    printf("Loaded %d FENs from %s\n", curriculum->num_fens, fen_file);
+    return PyLong_FromVoidPtr(curriculum);
 }
 
 static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
@@ -157,6 +210,15 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
         PyObject* random_fen_obj = PyDict_GetItemString(kwargs, "random_fen");
         if (random_fen_obj != NULL && PyLong_Check(random_fen_obj)) {
             env->random_fen = (int)PyLong_AsLong(random_fen_obj);
+        }
+        
+        PyObject* curriculum_obj = PyDict_GetItemString(kwargs, "fen_curriculum");
+        if (curriculum_obj != NULL && PyLong_Check(curriculum_obj)) {
+            FenCurriculum* curriculum = (FenCurriculum*)PyLong_AsVoidPtr(curriculum_obj);
+            if (curriculum != NULL) {
+                env->fen_curriculum = curriculum->fens;
+                env->num_fens = curriculum->num_fens;
+            }
         }
         
         PyObject* fen_obj = PyDict_GetItemString(kwargs, "starting_fen");
