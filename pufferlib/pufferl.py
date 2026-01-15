@@ -153,9 +153,12 @@ class PuffeRL:
 
         if vecenv.selfplay:
             self.opponent_pool = {}
+            self.historical_winrate = 0
+            self.historical_gamecount = 0
             self.max_opponent_history = 2000
             self.opponent_pool_ids = []
             self.saved_policy_count = 0
+            self.swapped_once = 0
             self.active_policies = np.zeros(total_agents, dtype=np.int32)
             self.elos = [0]
             if pool is not None:
@@ -326,10 +329,17 @@ class PuffeRL:
     def _sample_new_opponent(self):
         if len(self.opponent_pool_ids) == 0:
             return
-        pool_ids = np.array(self.opponent_pool_ids, dtype=np.int32)
-        qs = np.array([self.opponent_qualities.get(pid,0.0) for pid in pool_ids])
-        probs = softmax(qs)
+        if len(self.opponent_pool_ids) < 6:
+            pool_ids = np.array(self.opponent_pool_ids, dtype=np.int32)
+        else:
+            pool_ids = np.array(self.opponent_pool_ids[:-5], dtype=np.int32)
+        recency_weights = np.arange(1, len(pool_ids) + 1)
+        recency_weights = recency_weights ** 2  
+        probs = recency_weights / recency_weights.sum()
+        
         new_id = np.random.choice(pool_ids, p=probs)
+        #qs = np.array([self.opponent_qualities.get(pid,0.0) for pid in pool_ids])
+        #probs = softmax(qs)
         return int(new_id)
     def elo_batch_update(self, elos: np.ndarray, ap: np.ndarray, r: np.ndarray, d: np.ndarray, cut: int, k:float = 4.0):
         # Done games in the 20% tail
@@ -351,7 +361,7 @@ class PuffeRL:
         opp_ids = opp_ids[valid]
         # Map reward to Elo score ∈ {1, 0.5, 0}
         rv = r[idx]
-        scores = np.where(rv > 0, 1.0, np.where(rv < 0, 0.0, 0.5))
+        scores = np.where(rv > 0, 1.0, np.where(rv <= -1.0, 0.0, 0.5))
 
         r1 = elos[0]                        
         r2 = elos[opp_ids]                   
@@ -413,6 +423,18 @@ class PuffeRL:
                 done_indices = done_indices[done_indices >= self.cut]
                 tail_first = slice(self.cut, self.vecenv.agents_per_batch)
                 tail_end = slice(self.vecenv.agents_per_batch + self.cut, 2*self.vecenv.agents_per_batch)
+                # update historical winrates
+                if(len(done_indices) > 0 and self.cur_opp_id != 0):
+                    new_games = len(done_indices)
+                    new_points = np.sum((r[done_indices] + 1.0) / 2.0)
+                    old_count = self.historical_gamecount
+                    self.historical_gamecount += len(done_indices)
+                    if self.historical_gamecount == new_games:
+                        self.historical_winrate = new_points / new_games if new_games > 0 else 0.5
+                    else:
+                        self.historical_winrate = (
+                            (self.historical_winrate * old_count) + new_points
+                        ) / self.historical_gamecount
                 profile('sp_sampling', epoch)
                 # select new opponent
                 if(len(done_indices) > 0 and len(self.opponent_pool) > 0):
@@ -424,17 +446,23 @@ class PuffeRL:
                         ap[done_indices] = self.cur_opp_id
                     if (not self.swap_armed
                         and self.done_since_swap >= self.swap_quota
-                        and len(self.opponent_pool_ids) > 0):
-                        
+                        and len(self.opponent_pool_ids) > 0
+                        and (self.swapped_once == 0  # Bootstrap case: pure self-play warmup
+                        or (self.historical_winrate > 0.80 
+                             and self.historical_gamecount >= self.swap_quota))):
+                       
                         self.swap_armed = True
                         self.done_since_swap = 0
                         self.boundary_mask[:] = False
+                        self.swapped_once = 1
                         pool_ids = np.array(self.opponent_pool_ids, dtype=np.int32)
                         self.new_opp_id = self._sample_new_opponent()
                     if self.swap_armed and self.boundary_mask[tail_first].all() and self.boundary_mask[tail_end].all():
                         self.swap_armed = False
                         self.cur_opp_id = self.new_opp_id
                         self.new_opp_id = 0
+                        self.historical_winrate = 0.5
+                        self.historical_gamecount = 0
                         if self.cur_opp_id in self.opponent_pool:
                             weights = self.opponent_pool[self.cur_opp_id]
                             self.cur_opp_slot = self.pool.rotate_new_policy(weights, self.cur_opp_id)
@@ -772,6 +800,7 @@ class PuffeRL:
         agent_steps = int(dist_sum(self.global_step, device))
         if self.selfplay and self.stats.items() and len(self.elos) > 0:
             self.stats['elo'] = self.elos[0]
+            self.stats['historical_winrate'] = self.historical_winrate
         logs = {
             'SPS': dist_sum(self.sps, device),
             'agent_steps': agent_steps,
@@ -931,6 +960,7 @@ class PuffeRL:
         if self.selfplay and self.stats['perf']:
             if(len(self.elos) > 0):
                 self.stats['elo'] = self.elos[0]
+                self.stats['historical_winrate'] = self.historical_winrate
         for metric, value in (self.stats or self.last_stats).items():
             try: # Discard non-numeric values
                 int(value)
@@ -1290,7 +1320,7 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
     pufferl.logger.close(model_path, early_stop=False)
     return all_logs
 
-def run_match(env_name, args=None, vecenv=None, model_A_path="", model_B_path="", num_games: int = 1024):
+def run_match(env_name, args=None, vecenv=None, model_A_path="", model_B_path="", num_games: int = 4096):
     try:
         args['load_model_path'] = model_A_path
         policy_A = load_policy(args, vecenv, env_name)
@@ -1364,7 +1394,7 @@ def match(env_name, args=None):
     
     model_a = args.get('model_a') or args.get('load_model_path')
     model_b = args.get('model_b') or args.get('load_enemy_model_path')
-    num_games = args.get('match_games', 1024)
+    num_games = args.get('match_games', 4096)
     
     if not model_a or not model_b:
         raise pufferlib.APIUsageError('Match mode requires --model-a and --model-b paths')
@@ -1783,7 +1813,7 @@ def make_parser():
         help='Path to policy A checkpoint (for match mode)')
     parser.add_argument('--model-b', type=str, default=None,
         help='Path to policy B checkpoint (for match mode)')
-    parser.add_argument('--match-games', type=int, default=1024,
+    parser.add_argument('--match-games', type=int, default=4096,
         help='Number of games to play in match mode')
     return parser
 
