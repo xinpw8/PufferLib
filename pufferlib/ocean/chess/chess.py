@@ -17,6 +17,7 @@ class Chess(pufferlib.PufferEnv):
                  render_fps=30, selfplay=1, human_play=0, random_bot = 0,
                  starting_fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                  random_fen_pct=0,
+                 fen_curric_pct=0,
                  fen_file=None,
                  enable_50_move_rule=1, enable_threefold_repetition=1,
                  debug=0):
@@ -34,6 +35,7 @@ class Chess(pufferlib.PufferEnv):
             fen_file = os.path.join(CHESS_DIR, fen_file)
         self.c_curriculum = binding.shared(fen_file=fen_file)
         
+        self.fen_curric_pct = fen_curric_pct
         factor = 2 if selfplay else 1
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=255, shape=(1082*factor,), dtype=np.uint8)
@@ -46,8 +48,7 @@ class Chess(pufferlib.PufferEnv):
         c_envs = []
         for i in range(num_envs):
             if random_fen_pct > 0 and random_fen_pct < 100:
-                step = 100 // random_fen_pct
-                use_random_fen = 1 if (i % step == 0) else 0
+                use_random_fen = 1 if random.random() < random_fen_pct / 100 else 0
             elif random_fen_pct >= 100:
                 use_random_fen = 1
             else:
@@ -76,6 +77,7 @@ class Chess(pufferlib.PufferEnv):
                 random_bot=random_bot,
                 starting_fen=starting_fen,
                 random_fen=use_random_fen,
+                fen_curric_pct = fen_curric_pct,
                 fen_curriculum=self.c_curriculum,
                 enable_50_move_rule=enable_50_move_rule,
                 enable_threefold_repetition=enable_threefold_repetition,

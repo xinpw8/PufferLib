@@ -211,6 +211,14 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
         if (random_fen_obj != NULL && PyLong_Check(random_fen_obj)) {
             env->random_fen = (int)PyLong_AsLong(random_fen_obj);
         }
+
+        env->fen_curric_pct = 0;
+        PyObject* fen_curric_pct = PyDict_GetItemString(kwargs, "fen_curric_pct");
+        if (fen_curric_pct != NULL && PyFloat_Check(fen_curric_pct)) {
+            env->fen_curric_pct = (float)PyFloat_AsDouble(fen_curric_pct);
+        } else if (fen_curric_pct != NULL && PyLong_Check(fen_curric_pct)) {
+            env->fen_curric_pct = (float)PyLong_AsDouble(fen_curric_pct);
+        }
         
         PyObject* curriculum_obj = PyDict_GetItemString(kwargs, "fen_curriculum");
         if (curriculum_obj != NULL && PyLong_Check(curriculum_obj)) {

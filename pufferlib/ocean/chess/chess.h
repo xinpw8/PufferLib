@@ -551,6 +551,7 @@ typedef struct {
     
     char starting_fen[128];
     char** fen_curriculum;
+    float fen_curric_pct;
     int num_fens;
     int random_fen;
     
@@ -2412,8 +2413,15 @@ void c_reset(Chess* env) {
     }
     
     if (env->fen_curriculum != NULL && env->num_fens > 0) {
-        int idx = rand() % env->num_fens;
-        pos_set(&env->pos, env->fen_curriculum[idx]);
+        float randvalue = (float)rand() / (float)(RAND_MAX);
+        if(env->fen_curric_pct >= randvalue){
+            int idx = rand() % env->num_fens;
+            pos_set(&env->pos, env->fen_curriculum[idx]);
+        }
+        else {
+            pos_set(&env->pos, env->starting_fen);
+        }
+
     } else if (env->random_fen) {
         char fen_buf[128];
         generate_random_fen(fen_buf);
