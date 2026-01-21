@@ -18,7 +18,7 @@ import importlib
 import configparser
 from pathlib import Path
 import itertools
-
+import copy
 
 from threading import Thread
 from collections import defaultdict, deque
@@ -336,11 +336,11 @@ class PuffeRL:
         recency_weights = np.arange(1, len(pool_ids) + 1)
         recency_weights = recency_weights ** 2  
         probs = recency_weights / recency_weights.sum()
-        
         new_id = np.random.choice(pool_ids, p=probs)
         #qs = np.array([self.opponent_qualities.get(pid,0.0) for pid in pool_ids])
         #probs = softmax(qs)
         return int(new_id)
+
     def elo_batch_update(self, elos: np.ndarray, ap: np.ndarray, r: np.ndarray, d: np.ndarray, cut: int, k:float = 4.0):
         # Done games in the 20% tail
         done_idx = np.flatnonzero(d == 1)
@@ -450,7 +450,7 @@ class PuffeRL:
                         and (self.swapped_once == 0  # Bootstrap case: pure self-play warmup
                         or (self.historical_winrate > 0.80 
                              and self.historical_gamecount >= self.swap_quota))):
-                       
+
                         self.swap_armed = True
                         self.done_since_swap = 0
                         self.boundary_mask[:] = False
@@ -1270,6 +1270,10 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
     if vecenv.selfplay:
         pool = PolicyPool(lambda: load_policy(args, vecenv, env_name), train_config['device'],6) 
         pufferl = PuffeRL(train_config, vecenv, policy, logger, pool)
+        copy_args = copy.deepcopy(args)
+        backend = args['vec']['backend']
+        copy_args['vec'] = dict(backend=backend, num_envs=1)
+        #vecenv_eval = load_env(env_name, copy_args)
     else:
 
         pool = PolicyPool(lambda: load_policy(args, vecenv, env_name), train_config['device'],6) 
@@ -1279,6 +1283,7 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
     logging_threshold = min(0.20*train_config['total_timesteps'], 100_000_000)
     all_logs = []
 
+    match_test_threshold = 100_000_000
     while pufferl.global_step < train_config['total_timesteps']:
         if train_config['device'] == 'cuda':
             torch.compiler.cudagraph_mark_step_begin()
@@ -1286,7 +1291,14 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
         if train_config['device'] == 'cuda':
             torch.compiler.cudagraph_mark_step_begin()
         logs = pufferl.train()
-
+        '''if pufferl.global_step > match_test_threshold and vecenv.selfplay:
+            target_opp = "experiments/chess_target/puffer_chess_PUF-12651.pt"
+            latest_model = max(glob.glob(f"experiments/{env_name}*/model*.pt"), key=os.path.getctime)
+            match_test_threshold = pufferl.global_step + 100_000_000
+            win_info = run_match(env_name, copy.deepcopy(args), vecenv_eval, latest_model,target_opp, 4096) 
+            wins = win_info[0]
+            pufferl.logger.log({'environment/target_winrate': wins}, pufferl.global_step)
+        '''
         if logs is not None:
             should_stop_early = False
             if early_stop_fn is not None:
@@ -1318,6 +1330,8 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
     pufferl.print_dashboard()
     model_path = pufferl.close()
     pufferl.logger.close(model_path, early_stop=False)
+    #if vecenv.selfplay:
+    #    vecenv_eval.close()
     return all_logs
 
 def run_match(env_name, args=None, vecenv=None, model_A_path="", model_B_path="", num_games: int = 4096):
@@ -1405,7 +1419,7 @@ def match(env_name, args=None):
     
     try:
         win_rate, wins_a, draws, total = run_match(
-            env_name, args, vecenv, model_a, model_b, num_games
+            env_name, args, vecenv, model_a, model_b, 4096
         )
         losses_a = total - wins_a - draws
         print(f"\n{'='*60}")
@@ -1422,7 +1436,7 @@ def match(env_name, args=None):
     
     return win_rate, wins_a, draws, total
             
-def round_robin_tournament(env_name, args=None, num_games: int = 1024):
+def round_robin_tournament(env_name, args=None, num_games: int = 100):
     args = load_config(env_name)
     directory = args['tournament_directory']
     backend = args['vec']['backend']
@@ -1594,7 +1608,8 @@ def sweep(args=None, env_name=None):
     points_per_run = args['sweep']['downsample']
     target_key = f'environment/{args["sweep"]["metric"]}'
     running_target_buffer = deque(maxlen=30)
-
+    
+    
     def stop_if_perf_below(logs):
         if stop_if_loss_nan(logs):
             logs['is_loss_nan'] = True
@@ -1616,6 +1631,9 @@ def sweep(args=None, env_name=None):
                 logs['is_loss_nan'] = False
                 return True
         return False
+    if args['env']['selfplay']:
+        target_opp = "experiments/chess_target/puffer_chess_PUF-12651.pt"
+        selfplay = 1
 
     for i in range(args['max_runs']):
         seed = time.time_ns() & 0xFFFFFFFF
@@ -1627,7 +1645,7 @@ def sweep(args=None, env_name=None):
         if i > 0:
             sweep.suggest(args)
 
-        all_logs = train(env_name, args=args, early_stop_fn=stop_if_perf_below)
+        all_logs = train(env_name, args=args, early_stop_fn=None)
         all_logs = [e for e in all_logs if target_key in e]
 
         if not all_logs:
@@ -1635,12 +1653,32 @@ def sweep(args=None, env_name=None):
             continue
 
         total_timesteps = args['train']['total_timesteps']
-
         scores = downsample([log[target_key] for log in all_logs], points_per_run)
         costs = downsample([log['uptime'] for log in all_logs], points_per_run)
         timesteps = downsample([log['agent_steps'] for log in all_logs], points_per_run)
 
+        if selfplay:
+            latest_model = max(glob.glob(f"experiments/{env_name}*.pt"), key=os.path.getctime)
+            run_id = latest_model.split('_')[-1].split('.')[0]
+            vecenv = load_env(env_name, args)
+            win_info = run_match(env_name, args, vecenv, latest_model,target_opp, 4096) 
+            wins = win_info[0]
+            scores = [wins for _ in range(points_per_run)]
+            if args['neptune']:
+               import neptune as nept
+               neptune_name = args['neptune_name']
+               neptune_project = args['neptune_project']
+               run = nept.init_run(
+                    project=f"{neptune_name}/{neptune_project}",
+                    with_id=run_id,                   
+                )
+               run["metrics/target_winrate"] = wins
+               run.stop()
+            vecenv.close()
+            vecenv = None
+
         is_final_loss_nan = all_logs[-1].get('is_loss_nan', False)
+        
         if is_final_loss_nan:
             s = scores.pop()
             c = costs.pop()
