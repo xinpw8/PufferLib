@@ -184,7 +184,7 @@ class Chess(nn.Module):
             nn.ReLU(),
             nn.Flatten(),
         )
-        cnn_flat_size = cnn_channels * 64
+        cnn_flat_size = cnn_channels * 4
         self.side_embed = nn.Embedding(2, embed_dim)
         self.castle_embed = nn.Embedding(16, embed_dim)
         self.ep_embed = nn.Embedding(65, embed_dim)
