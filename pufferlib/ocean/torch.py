@@ -83,6 +83,12 @@ class ChessTwo(nn.Module):
         obs = observations.float()
 
         board = obs[:, :768].view(B, 12, 8, 8)
+        #capture_planes = obs[:, 768:896].view(B, 2, 8, 8)
+
+        #selected_piece = obs[:, 981:1045].view(B, 1, 8, 8)  
+        #valid_pieces = obs[:, 1045:1109].view(B, 1, 8, 8)  
+        #valid_dests = obs[:, 1109:1173].view(B, 1, 8, 8)   
+        #valid_promos = obs[:, 1173:1205].view(B, 1, 4, 8)   
         selected_piece = obs[:, 853:917].view(B, 1, 8, 8)
         valid_pieces = obs[:, 917:981].view(B, 1, 8, 8)
         valid_dests = obs[:, 981:1045].view(B, 1, 8, 8)
@@ -105,15 +111,19 @@ class ChessTwo(nn.Module):
         spatial_features = x.flatten(1)
 
         side_idx = obs[:, 768:770].argmax(dim=1)
+        #side_idx = obs[:, 896:898].argmax(dim=1)
         side_features = self.side_embed(side_idx)
 
         castle_idx = obs[:, 770:786].argmax(dim=1)
+        #castle_idx = obs[:, 898:914].argmax(dim=1)       
         castle_features = self.castle_embed(castle_idx)
 
         ep_idx = obs[:, 786:851].argmax(dim=1)
+        #ep_idx = obs[:, 914:979].argmax(dim=1)          
         ep_features = self.ep_embed(ep_idx)
 
         phase_idx = obs[:, 851:853].argmax(dim=1)
+        #phase_idx = obs[:, 979:981].argmax(dim=1)     
         phase_features = self.phase_embed(phase_idx)
 
         self_check = obs[:, 1077:1078] / 255.0
@@ -121,6 +131,11 @@ class ChessTwo(nn.Module):
         rule50_scalar = obs[:, 1079:1080] / 255.0
         repetition_scalar = obs[:, 1080:1081] / 255.0
         pass_valid = obs[:, 1081:1082] / 255.0
+        #self_check = obs[:, 1205:1206] / 255.0           
+        #opp_check = obs[:, 1206:1207] / 255.0    
+        #rule50_scalar = obs[:, 1207:1208] / 255.0  
+        #repetition_scalar = obs[:, 1208:1209] / 255.0 
+        #pass_valid = obs[:, 1209:1210] / 255.0       
         scalars = torch.cat([self_check, opp_check, rule50_scalar, repetition_scalar, pass_valid], dim=1)
         scalars = self.scalar_layer(scalars)
 
@@ -143,6 +158,13 @@ class ChessTwo(nn.Module):
             valid_pieces = obs[:, 917:981]
             valid_dests = obs[:, 981:1045]
             valid_promos = obs[:, 1045:1077]
+            #pass_valid = obs[:, 1209] > 0.5           
+
+            #phase_onehot = obs[:, 979:981]             
+            #pick_phase = phase_onehot[:, 1]
+            #valid_pieces = obs[:, 1045:1109]         
+            #valid_dests = obs[:, 1109:1173]         
+            #valid_promos = obs[:, 1173:1205]       
 
             valid_pieces_binary = (valid_pieces > 0.5).float()
             valid_dests_binary = (valid_dests > 0.5).float()

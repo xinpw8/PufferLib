@@ -258,5 +258,7 @@ static int my_log(PyObject *dict, Log *log) {
     assign_to_dict(dict, "invalid_action_rate", log->invalid_action_rate);
     assign_to_dict(dict, "material_score", log->material_score);
     assign_to_dict(dict, "positional_score", log->positional_score);
+    assign_to_dict(dict, "white_win_rate", log->white_winrate);
+    assign_to_dict(dict, "black_win_rate", log->black_winrate);
     return 0;
 }

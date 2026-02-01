@@ -1436,13 +1436,13 @@ def match(env_name, args=None):
     
     return win_rate, wins_a, draws, total
             
-def round_robin_tournament(env_name, args=None, num_games: int = 100):
+def round_robin_tournament(env_name, args=None, num_games: int = 4096):
     args = load_config(env_name)
     directory = args['tournament_directory']
     backend = args['vec']['backend']
     args['vec'] = dict(backend=backend, num_envs=1)
     vecenv = load_env(env_name, args)
-    model_paths = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.pt')]
+    model_paths = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('000.pt')]
     num_models = len(model_paths)
     if num_models < 2:
         print(f"Need at least 2 models for a tournament. Got {num_models}")
