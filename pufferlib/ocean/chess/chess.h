@@ -469,6 +469,24 @@ typedef struct {
     int count;
 } MoveList;
 
+/*enum {
+    O_BOARD = 0,
+    O_SIDE = 896,       
+    O_CASTLE = 898,   
+    O_EP = 914,      
+    O_PICK_PHASE = 979, 
+    O_SELECTED_PIECE = 981, 
+    O_VALID_PIECES = 1045, 
+    O_VALID_DESTS = 1109,   
+    O_VALID_PROMOS = 1173,  
+    O_SELF_CHECK = 1205, 
+    O_OPP_CHECK = 1206,
+    O_RULE50 = 1207,
+    O_REPETITION = 1208,
+    O_PASS_VALID = 1209,
+    OBS_SIZE = 1210  
+};*/
+
 enum {
     O_BOARD = 0,
     O_SIDE = 768,
@@ -503,6 +521,8 @@ typedef struct {
     float material_score;
     float positional_score;
     float n;
+    float white_winrate;
+    float black_winrate;
 } Log;
 
 typedef struct {
@@ -2219,6 +2239,72 @@ void populate_observations(Chess* env) {
                 board_planes[plane * 64 + (sq ^ flip)] = 1;
             }
         }
+        /*
+        // capture planes
+        uint8_t* our_captures_plane = player_obs + O_BOARD + 12*64;  // Example offset, adjust to your plane order
+        uint8_t* opp_threats_plane = player_obs + O_BOARD + 13*64;
+
+        ChessColor side_to_move = pos->sideToMove;
+        memset(our_captures_plane, 0, 64);
+        if (side_to_move == us && env->legal_moves.count > 0) {
+            for (int i = 0; i < env->legal_moves.count; i++) {
+                Move m = env->legal_moves.moves[i].move;
+                Piece captured = piece_on(&env->pos, to_sq(m));
+                if (captured != NO_PIECE || type_of_m(m) == ENPASSANT) {  // True capture or EP
+                    Square to = to_sq(m);
+                    int view_to = (player == 1) ? (to ^ 56) : to;
+                    our_captures_plane[view_to] = 1;  // Or 255 for full
+                }
+            }
+        }
+
+        memset(opp_threats_plane, 0, 64);
+        Bitboard our_pieces_bb = pieces_c(&env->pos, us);
+        Bitboard occupied_us = pieces(&env->pos);
+
+        Bitboard opp_attacks = 0;
+
+        // Pawns
+        Bitboard opp_pawns = pieces_cp(&env->pos, them, PAWN);
+        opp_attacks |= all_pawn_attacks(opp_pawns, them); 
+
+        // Knights
+        Bitboard opp_knights = pieces_cp(&env->pos, them, KNIGHT);
+        while (opp_knights) {
+            Square s = pop_lsb(&opp_knights);
+            opp_attacks |= knight_attacks_bb(s);
+        }
+
+        // King
+        Square opp_king = lsb(pieces_cp(&env->pos, them, KING));
+        if (opp_king != SQ_NONE) opp_attacks |= king_attacks_bb(opp_king);
+
+        Bitboard opp_bishops = pieces_cp(&env->pos, them, BISHOP);
+        while (opp_bishops) {
+            Square s = pop_lsb(&opp_bishops);
+            opp_attacks |= bishop_attacks_bb(s, occupied_us);
+        }
+        Bitboard opp_rooks = pieces_cp(&env->pos, them, ROOK);
+        while (opp_rooks) {
+            Square s = pop_lsb(&opp_rooks);
+            opp_attacks |= rook_attacks_bb(s, occupied_us);
+        }
+        Bitboard opp_queens = pieces_cp(&env->pos, them, QUEEN);
+        while (opp_queens) {
+            Square s = pop_lsb(&opp_queens);
+            opp_attacks |= queen_attacks_bb(s, occupied_us);
+        }
+
+        // Now intersect with our pieces
+        Bitboard threatened = opp_attacks & our_pieces_bb;
+        while (threatened) {
+            Square sq = pop_lsb(&threatened);
+            int view_sq = (player == 1) ? (sq ^ 56) : sq;
+            opp_threats_plane[view_sq] = 1;  // Or 255
+        }
+        */
+        
+        ChessColor side_to_move = pos->sideToMove;
         
         uint8_t* side_onehot = player_obs + O_SIDE;
         side_onehot[(pos->sideToMove == us) ? 0 : 1] = 1;
@@ -2247,7 +2333,6 @@ void populate_observations(Chess* env) {
         uint8_t* valid_dests = player_obs + O_VALID_DESTS;
         
         int player_idx = (int)us;
-        ChessColor side_to_move = pos->sideToMove;
         
         if (side_to_move == us) {
             if (env->pick_phase[player_idx] == 0) {
@@ -2789,6 +2874,7 @@ void end_game(Chess* env){
         env->black_score += 1.0f;
         if (env->learner_color == CHESS_BLACK) {
             env->learner_wins += 1.0f;
+            env->log.black_winrate = (env->log.black_winrate * env->log.n + win_value) / (env->log.n + 1.0f);
         } else {
             env->learner_losses += 1.0f;
         }
@@ -2798,6 +2884,7 @@ void end_game(Chess* env){
         if (env->learner_color == CHESS_WHITE) {
             env->rewards[0] = 1.0f;
             win_value = 1.0f;
+            env->log.white_winrate = (env->log.white_winrate * env->log.n + win_value) / (env->log.n + 1.0f);
         } else {
             env->rewards[0] = -1.0f;
             win_value = 0.0f;

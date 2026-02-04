@@ -15,12 +15,12 @@ class Moba(pufferlib.PufferEnv):
     def __init__(self, num_envs=4, vision_range=5, agent_speed=1.0,
             discretize=True, reward_death=-1.0, reward_xp=0.006,
             reward_distance=0.05, reward_tower=3.0, report_interval=32,
-            script_opponents=True, render_mode='human', buf=None, seed=0):
+            script_opponents=True, render_mode='human', buf=None, selfplay=0, seed=0):
 
         self.report_interval = report_interval
         self.render_mode = render_mode
         self.num_agents = 5*num_envs if script_opponents else 10*num_envs
-
+        self.selfplay = selfplay
         self.single_observation_space = gymnasium.spaces.Box(low=0, high=255,
             shape=(MAP_OBS_N + PLAYER_OBS_N,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.MultiDiscrete([7, 7, 3, 2, 2, 2])
