@@ -30,6 +30,7 @@ class ChessTwo(nn.Module):
         self.conv1 = layer_init(nn.Conv2d(16, cnn_channels, kernel_size=3, stride=1, padding=1))
         self.conv2 = layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1, padding=1))
         self.conv3 = layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1, padding=1))
+        self.conv4 = layer_init(nn.Conv2d(cnn_channels, hidden_size, kernel_size=3, stride=1, padding=1))
 
         # Dynamically compute flattened size (robust, no hardcoding)
         with torch.no_grad():
@@ -39,6 +40,8 @@ class ChessTwo(nn.Module):
             x = nn.ReLU()(self.conv2(x))
             x = self.conv3(x)
             x = x + residual
+            x = nn.ReLU()(x)
+            x = self.conv4(x)
             x = nn.ReLU()(x)
             cnn_flat_size = x.flatten(1).shape[1]  # 256 * 64 = 16384
 
@@ -101,6 +104,8 @@ class ChessTwo(nn.Module):
         x = nn.ReLU()(x)
         x = self.conv3(x)
         x = x + residual
+        x = nn.ReLU()(x)
+        x = self.conv4(x)
         x = nn.ReLU()(x)
         spatial_features = x.flatten(1)
 

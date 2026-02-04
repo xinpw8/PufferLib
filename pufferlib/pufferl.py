@@ -1853,6 +1853,8 @@ def make_parser():
         help='Path to policy B checkpoint (for match mode)')
     parser.add_argument('--match-games', type=int, default=4096,
         help='Number of games to play in match mode')
+    parser.add_argument('--models-folder',type=str, default=None)
+    parser.add_argument('--lc0-path', type=str, default=None)
     return parser
 
 def process_config(config, parser=None):
