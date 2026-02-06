@@ -112,8 +112,8 @@ def obs_to_board_fast(obs: np.ndarray, viewer_is_white: bool) -> chess.Board:
 @dataclass
 class MaiaConfig:
     path: str = "./lc0"                     # Path to lc0 executable
-    weights_path: str = "model_files/maia-1100.pb.gz"
-    backend: Optional[str] = None           # e.g., "cuda-auto", "blas", etc.
+    weights_path: str = "lc0/model_files/maia-1100.pb.gz"
+    backend: Optional[str] = "cudnn"           # e.g., "cuda-auto", "blas", etc.
     time_limit: float = 0.1
     nodes_limit: Optional[int] = None       # If set, overrides time_limit
     threads: int = 2
@@ -418,9 +418,9 @@ def main():
     parser.add_argument('env_name', type=str, nargs='?', default='puffer_chess')
     parser.add_argument('--models-folder', type=str, required=True, help='Folder containing .pt model files')
     parser.add_argument('--lc0-path', type=str, default='./lc0')
-    parser.add_argument('--weights-path', type=str, default='model_files/maia-1100.pb.gz')
+    parser.add_argument('--weights-path', type=str, default='lc0/model_files/maia-1100.pb.gz')
     parser.add_argument('--backend', type=str, default=None, help='LC0 backend, e.g. cuda-auto')
-    parser.add_argument('--nodes-limit', type=int, default=None, help='Fixed nodes per move (lower = weaker)')
+    parser.add_argument('--nodes-limit', type=int, default=1, help='Fixed nodes per move (lower = weaker)')
     parser.add_argument('--time-limit', type=float, default=0.1, help='Time per move if nodes-limit omitted')
     parser.add_argument('--threads', type=int, default=2)
     parser.add_argument('--num-games', type=int, default=4096)
@@ -519,7 +519,7 @@ def main():
         return opponent_elo + elo_diff
     
     estimated_elos = [winrate_to_elo(wr, 1100) for wr in win_rates]
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 5))
     # Plot 1: Win Rate
     ax1.plot(epochs, win_rates, marker='o', linewidth=2, markersize=6, color='blue')
     ax1.set_xlabel('Epoch', fontsize=12)
@@ -537,6 +537,16 @@ def main():
     ax2.grid(True, alpha=0.3)
     ax2.axhline(y=1100, color='red', linestyle='--', alpha=0.7, label=f'Maia (1100)')
     ax2.legend()
+
+    # Plot 3: Estimated Elo (Log x-axis)
+    ax3.plot(epochs, estimated_elos, marker='s', linewidth=2, markersize=6, color='purple')
+    ax3.set_xlabel('Epoch (log scale)', fontsize=12)
+    ax3.set_ylabel('Estimated Elo', fontsize=12)
+    ax3.set_title(f'Estimated Elo (vs Maia 1100) - Log Scale', fontsize=14)
+    ax3.set_xscale('log')
+    ax3.grid(True, alpha=0.3, which='both')
+    ax3.axhline(y=1100, color='red', linestyle='--', alpha=0.7, label=f'Maia (1100)')
+    ax3.legend()
 
     plt.tight_layout()
     plt.savefig(args.output_plot, dpi=150)
