@@ -469,7 +469,7 @@ typedef struct {
     int count;
 } MoveList;
 
-enum {
+/*enum {
     // Relational NNUE tokens
     O_TOKEN_COUNT = 0,                    
     O_TOKEN_DATA  = 2,                  
@@ -490,9 +490,9 @@ enum {
     O_PASS_VALID = 443,
 
     OBS_SIZE = 444
-};
+};*/
 
-/*enum {
+enum {
     O_BOARD = 0,
     O_SIDE = 768,
     O_CASTLE = 770,
@@ -508,7 +508,7 @@ enum {
     O_REPETITION = 1080,
     O_PASS_VALID = 1081,
     OBS_SIZE = 1082
-};*/
+};
 
 #define PASS_ACTION 96
 #define NUM_ACTIONS 97
@@ -2225,9 +2225,9 @@ void populate_observations(Chess* env) {
         
         uint8_t* player_obs = obs + (buffer_idx * OBS_SIZE);
         memset(player_obs, 0, OBS_SIZE);
-        //uint8_t* board_planes = player_obs + O_BOARD;
+        uint8_t* board_planes = player_obs + O_BOARD;
         
-        uint16_t* token_count_ptr = (uint16_t*)(player_obs + O_TOKEN_COUNT);
+        /*uint16_t* token_count_ptr = (uint16_t*)(player_obs + O_TOKEN_COUNT);
         uint16_t* token_buffer = (uint16_t*)(player_obs + O_TOKEN_DATA);
         int token_count = 0;
         ChessColor us = (ChessColor)player;  // 0=White, 1=Black
@@ -2263,9 +2263,15 @@ void populate_observations(Chess* env) {
         }
 
         *token_count_ptr = (uint16_t)token_count;
+        */
+        ChessColor us = (ChessColor)player;  // 0=White, 1=Black
+        ChessColor them = (ChessColor)!us;
+
+        int flip = player * 56;
+
 
         // our pieces
-        /*for (int pt = PAWN; pt <= KING; pt++) {
+        for (int pt = PAWN; pt <= KING; pt++) {
             Bitboard bb = pieces_cp(pos, player, pt);
             int plane = pt - 1;  // 0-5
             while (bb) {
@@ -2282,7 +2288,7 @@ void populate_observations(Chess* env) {
                 Square sq = pop_lsb(&bb);
                 board_planes[plane * 64 + (sq ^ flip)] = 1;
             }
-        }*/
+        }
         /*
         // capture planes
         uint8_t* our_captures_plane = player_obs + O_BOARD + 12*64;  // Example offset, adjust to your plane order
