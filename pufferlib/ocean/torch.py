@@ -18,6 +18,187 @@ Recurrent = pufferlib.models.LSTMWrapper
 from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
 
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class ChessNNUE(nn.Module):
+
+    def __init__(self, env, hidden_size=512, rel_embed_dim=256, meta_embed_dim=32, use_action_masking=1):
+        super().__init__()
+
+        self.is_continuous = False
+        self.hidden_size = hidden_size
+        self.use_action_masking = bool(use_action_masking)
+        self.num_actions = env.single_action_space.n
+
+        # 64 * 12 * 64 = 49152 relational tokens
+        self.rel_embed = nn.Embedding(49152, rel_embed_dim)
+
+        self.side_embed = nn.Embedding(2, meta_embed_dim)
+        self.castle_embed = nn.Embedding(16, meta_embed_dim)
+        self.ep_embed = nn.Embedding(65, meta_embed_dim)
+        self.phase_embed = nn.Embedding(2, meta_embed_dim)
+
+        self.scalar_layer = nn.Sequential(
+            nn.Linear(5, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU()
+        )
+
+        total_features = rel_embed_dim + 4 * meta_embed_dim + hidden_size
+
+        self.proj = nn.Sequential(
+            nn.Linear(total_features, hidden_size),
+            nn.ReLU()
+        )
+
+        self.actor = nn.Linear(hidden_size, self.num_actions)
+        self.value_head = nn.Linear(hidden_size, 1)
+
+        self.last_observations = None
+
+    def load_state_dict(self, state_dict, strict=True):
+        super().load_state_dict(state_dict, strict=strict)
+        self.last_observations = None
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        return self.decode_actions(hidden, state)
+
+    def forward_eval(self, observations, state=None):
+        return self.forward(observations, state)
+
+
+    def _decode_tokens(self, obs_u8):
+        B = obs_u8.shape[0]
+
+        # token_count = bytes [0,1]
+        token_count = (
+            obs_u8[:, 0].int() +
+            (obs_u8[:, 1].int() << 8)
+        ).long()
+
+        # tokens = bytes [2:130] -64x2
+        raw = obs_u8[:, 2:130].int().view(B, 64, 2)
+
+        tokens = (
+            raw[..., 0] +
+            (raw[..., 1] << 8)
+        ).long()
+
+        token_count = token_count.clamp(0, 64)
+        tokens = tokens.clamp(0, 49151)
+
+        return tokens, token_count
+
+    def encode_observations(self, observations, state=None):
+
+        if observations.dtype != torch.uint8:
+            obs = observations.to(torch.uint8)
+        else:
+            obs = observations
+
+        B = obs.shape[0]
+
+        # ---------- Relational tokens ----------
+        tokens, token_count = self._decode_tokens(obs)
+
+        tok_emb = self.rel_embed(tokens)
+
+        mask = (
+            torch.arange(64, device=tok_emb.device)[None, :] <
+            token_count[:, None]
+        ).unsqueeze(-1)
+
+        rel_features = (tok_emb * mask).sum(dim=1)
+
+        # ---------- Metadata embeddings ----------
+        side_idx = obs[:, 130:132].float().argmax(dim=1)
+        castle_idx = obs[:, 132:148].float().argmax(dim=1)
+        ep_idx = obs[:, 148:213].float().argmax(dim=1)
+        phase_idx = obs[:, 213:215].float().argmax(dim=1)
+
+        side_features = self.side_embed(side_idx)
+        castle_features = self.castle_embed(castle_idx)
+        ep_features = self.ep_embed(ep_idx)
+        phase_features = self.phase_embed(phase_idx)
+
+        # ---------- Scalars ----------
+        scalars = torch.stack([
+            obs[:, 439].float() / 255.0,
+            obs[:, 440].float() / 255.0,
+            obs[:, 441].float() / 255.0,
+            obs[:, 442].float() / 255.0,
+            obs[:, 443].float() / 255.0,
+        ], dim=1)
+
+        scalars = self.scalar_layer(scalars)
+
+        self.last_observations = observations.detach()
+
+        x = torch.cat([
+            rel_features,
+            side_features,
+            castle_features,
+            ep_features,
+            phase_features,
+            scalars
+        ], dim=1)
+
+        return self.proj(x)
+
+    def decode_actions(self, hidden, state=None):
+
+        logits = self.actor(hidden)
+
+        if self.use_action_masking and self.last_observations is not None:
+
+            obs = self.last_observations
+            if obs.dtype != torch.uint8:
+                obs = obs.to(torch.uint8)
+
+            pass_valid = obs[:, 443].float() > 0.5
+
+            phase_onehot = obs[:, 213:215].float()
+            pick_phase = phase_onehot[:, 1]
+
+            valid_pieces = obs[:, 279:343].float()
+            valid_dests = obs[:, 343:407].float()
+            valid_promos = obs[:, 407:439].float()
+
+            valid_pieces_binary = (valid_pieces > 0.5).float()
+            valid_dests_binary = (valid_dests > 0.5).float()
+            valid_promos_binary = (valid_promos > 0.5).float()
+
+            mask_squares = torch.where(
+                pick_phase.unsqueeze(1) > 0.5,
+                valid_dests_binary,
+                valid_pieces_binary
+            )
+
+            chess_mask = torch.cat([mask_squares, valid_promos_binary], dim=1)
+            pass_mask = pass_valid.unsqueeze(1).float()
+
+            chess_mask = torch.where(pass_valid.unsqueeze(1), torch.zeros_like(chess_mask), chess_mask)
+            pass_mask = torch.where(pass_valid.unsqueeze(1), torch.ones_like(pass_mask), torch.zeros_like(pass_mask))
+
+            mask = torch.cat([chess_mask, pass_mask], dim=1)
+
+            all_masked = (mask == 0).all(dim=1)
+            if all_masked.any():
+                mask[all_masked] = 1
+
+            logits = logits.masked_fill(mask == 0, -1e8)
+
+        value = self.value_head(hidden)
+
+        return logits, value
+
+
 class ChessTwo(nn.Module):
     def __init__(self, env, cnn_channels=256, hidden_size=512, embed_dim=32, use_action_masking=1, **kwargs):
         super().__init__()
@@ -30,6 +211,7 @@ class ChessTwo(nn.Module):
         self.conv1 = layer_init(nn.Conv2d(16, cnn_channels, kernel_size=3, stride=1, padding=1))
         self.conv2 = layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1, padding=1))
         self.conv3 = layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1, padding=1))
+        self.conv4 = layer_init(nn.Conv2d(cnn_channels, hidden_size, kernel_size=3, stride=1, padding=1))
 
         # Dynamically compute flattened size (robust, no hardcoding)
         with torch.no_grad():
@@ -39,6 +221,8 @@ class ChessTwo(nn.Module):
             x = nn.ReLU()(self.conv2(x))
             x = self.conv3(x)
             x = x + residual
+            x = nn.ReLU()(x)
+            x = self.conv4(x)
             x = nn.ReLU()(x)
             cnn_flat_size = x.flatten(1).shape[1]  # 256 * 64 = 16384
 
@@ -107,6 +291,8 @@ class ChessTwo(nn.Module):
         x = nn.ReLU()(x)
         x = self.conv3(x)
         x = x + residual
+        x = nn.ReLU()(x)
+        x = self.conv4(x)
         x = nn.ReLU()(x)
         spatial_features = x.flatten(1)
 

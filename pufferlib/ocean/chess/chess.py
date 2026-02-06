@@ -38,7 +38,7 @@ class Chess(pufferlib.PufferEnv):
         self.fen_curric_pct = fen_curric_pct
         factor = 2 if selfplay else 1
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=255, shape=(1082*factor,), dtype=np.uint8)
+            low=0, high=255, shape=(444*factor,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(97)
         
         super().__init__(buf)

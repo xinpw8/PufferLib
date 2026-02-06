@@ -71,7 +71,7 @@ enum {
 };
 
 
-
+#define MAX_TOKENS 64
 #define MOVE_NONE 0
 #define MOVE_NULL 65
 
@@ -469,25 +469,30 @@ typedef struct {
     int count;
 } MoveList;
 
-/*enum {
-    O_BOARD = 0,
-    O_SIDE = 896,       
-    O_CASTLE = 898,   
-    O_EP = 914,      
-    O_PICK_PHASE = 979, 
-    O_SELECTED_PIECE = 981, 
-    O_VALID_PIECES = 1045, 
-    O_VALID_DESTS = 1109,   
-    O_VALID_PROMOS = 1173,  
-    O_SELF_CHECK = 1205, 
-    O_OPP_CHECK = 1206,
-    O_RULE50 = 1207,
-    O_REPETITION = 1208,
-    O_PASS_VALID = 1209,
-    OBS_SIZE = 1210  
-};*/
-
 enum {
+    // Relational NNUE tokens
+    O_TOKEN_COUNT = 0,                    
+    O_TOKEN_DATA  = 2,                  
+    // Meta data
+    O_SIDE = 130,                      
+    O_CASTLE = 132,                   
+    O_EP = 148,                      
+    O_PICK_PHASE = 213,             
+    O_SELECTED_PIECE = 215,        
+    O_VALID_PIECES = 279,         
+    O_VALID_DESTS = 343,         
+    O_VALID_PROMOS = 407,       
+
+    O_SELF_CHECK = 439,
+    O_OPP_CHECK = 440,
+    O_RULE50 = 441,
+    O_REPETITION = 442,
+    O_PASS_VALID = 443,
+
+    OBS_SIZE = 444
+};
+
+/*enum {
     O_BOARD = 0,
     O_SIDE = 768,
     O_CASTLE = 770,
@@ -503,7 +508,7 @@ enum {
     O_REPETITION = 1080,
     O_PASS_VALID = 1081,
     OBS_SIZE = 1082
-};
+};*/
 
 #define PASS_ACTION 96
 #define NUM_ACTIONS 97
@@ -2195,6 +2200,13 @@ uint64_t perft(Position* pos, int depth) {
     
     return nodes;
 }
+static inline uint16_t make_rel_token(int king_sq, int piece_type, int piece_sq) {
+    return (uint16_t)(
+        king_sq * 12 * 64 +
+        piece_type * 64 +
+        piece_sq
+    );
+}
 
 
 void populate_observations(Chess* env) {
@@ -2213,15 +2225,47 @@ void populate_observations(Chess* env) {
         
         uint8_t* player_obs = obs + (buffer_idx * OBS_SIZE);
         memset(player_obs, 0, OBS_SIZE);
-        uint8_t* board_planes = player_obs + O_BOARD;
+        //uint8_t* board_planes = player_obs + O_BOARD;
         
+        uint16_t* token_count_ptr = (uint16_t*)(player_obs + O_TOKEN_COUNT);
+        uint16_t* token_buffer = (uint16_t*)(player_obs + O_TOKEN_DATA);
+        int token_count = 0;
         ChessColor us = (ChessColor)player;  // 0=White, 1=Black
         ChessColor them = (ChessColor)!us;
 
         Bitboard occupied = pos->byTypeBB[0];
         int flip = player * 56;
+        Square white_king_sq =
+            lsb(pieces_cp(pos, CHESS_WHITE, KING));
+
+        Square black_king_sq =
+            lsb(pieces_cp(pos, CHESS_BLACK, KING));
+
+        int wking = white_king_sq ^ flip;
+        int bking = black_king_sq ^ flip;
+        for (int color = CHESS_WHITE; color <= CHESS_BLACK; color++) {
+            for (int pt = PAWN; pt <= KING; pt++) {
+                Bitboard bb = pieces_cp(pos, color, pt);
+                int piece_type = (color == CHESS_WHITE)
+                    ? (pt - 1)
+                    : (6 + (pt - 1));
+                while (bb) {
+                    Square sq = pop_lsb(&bb);
+                    int psq = sq ^ flip;
+                    if (token_count < MAX_TOKENS - 1) {
+                        token_buffer[token_count++] =
+                            make_rel_token(wking, piece_type, psq);
+                        token_buffer[token_count++] =
+                            make_rel_token(bking, piece_type, psq);
+                    }
+                }
+            }
+        }
+
+        *token_count_ptr = (uint16_t)token_count;
+
         // our pieces
-        for (int pt = PAWN; pt <= KING; pt++) {
+        /*for (int pt = PAWN; pt <= KING; pt++) {
             Bitboard bb = pieces_cp(pos, player, pt);
             int plane = pt - 1;  // 0-5
             while (bb) {
@@ -2238,7 +2282,7 @@ void populate_observations(Chess* env) {
                 Square sq = pop_lsb(&bb);
                 board_planes[plane * 64 + (sq ^ flip)] = 1;
             }
-        }
+        }*/
         /*
         // capture planes
         uint8_t* our_captures_plane = player_obs + O_BOARD + 12*64;  // Example offset, adjust to your plane order
