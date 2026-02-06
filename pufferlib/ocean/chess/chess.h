@@ -2986,14 +2986,15 @@ void c_step(Chess* env) {
         exit(1);
     }
     
+    if (env->human_play && env->human_color == -1) {
+        return;
+    }
+    
     if (!env->human_play && env->selfplay && !env->log_pgn_choice_made) {
         if (env->debug_mode) {
             env->log_pgn = 0;
             env->log_pgn_choice_made = 1;
         } else {
-            env->rewards[0] = 0.0f;
-            env->terminals[0] = 0;
-            populate_observations(env);
             return;
         }
     }
@@ -3578,10 +3579,15 @@ void c_render(Chess* env) {
     static int frame_delay = 12;
     
     static int selected_sq = -1;
+    int flip_board = (env->human_play && env->human_color == CHESS_BLACK) ? 1 : 0;
     if (env->human_play && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Vector2 mp = GetMousePosition();
         int file = (int)(mp.x) / cell_size;
         int rank = 7 - ((int)(mp.y) / cell_size);
+        if (flip_board) {
+            file = 7 - file;
+            rank = 7 - rank;
+        }
         if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
             int clicked_sq = (int)make_square(file, rank);
             if (selected_sq == -1) {
@@ -3629,8 +3635,10 @@ void c_render(Chess* env) {
                 ? (Color){240, 217, 181, 255}
                 : (Color){181, 136, 99, 255};
             
-            int draw_x = file * cell_size;
-            int draw_y = (7 - rank) * cell_size;
+            int display_file = flip_board ? (7 - file) : file;
+            int display_rank = flip_board ? (7 - rank) : rank;
+            int draw_x = display_file * cell_size;
+            int draw_y = (7 - display_rank) * cell_size;
             DrawRectangle(draw_x, draw_y, cell_size, cell_size, square_color);
 
             if (selected_sq != -1) {
@@ -3659,7 +3667,9 @@ void c_render(Chess* env) {
         if (pc != NO_PIECE) {
             int file = file_of(sq);
             int rank = rank_of(sq);
-            draw_piece(env, pc, file, rank, cell_size);
+            int display_file = flip_board ? (7 - file) : file;
+            int display_rank = flip_board ? (7 - rank) : rank;
+            draw_piece(env, pc, display_file, display_rank, cell_size);
         }
     }
     
