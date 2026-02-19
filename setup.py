@@ -33,7 +33,13 @@ NO_TRAIN = os.getenv("NO_TRAIN", "0") == "1"
 
 # Build raylib for your platform
 RAYLIB_URL = 'https://github.com/raysan5/raylib/releases/download/5.5/'
-RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
+IS_ARM64 = platform.machine() in ('aarch64', 'arm64')
+if platform.system() == "Darwin":
+    RAYLIB_NAME = 'raylib-5.5_macos'
+elif IS_ARM64:
+    RAYLIB_NAME = 'raylib-5.5_linux_aarch64'
+else:
+    RAYLIB_NAME = 'raylib-5.5_linux_amd64'
 RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 
 def download_raylib(platform, ext):
@@ -55,7 +61,12 @@ if not NO_OCEAN:
     download_raylib(RAYLIB_NAME, '.tar.gz')
 
 BOX2D_URL = 'https://github.com/capnspacehook/box2d/releases/latest/download/'
-BOX2D_NAME = 'box2d-macos-arm64' if platform.system() == "Darwin" else 'box2d-linux-amd64'
+if platform.system() == "Darwin":
+    BOX2D_NAME = 'box2d-macos-arm64'
+elif IS_ARM64:
+    BOX2D_NAME = 'box2d-linux-arm64'
+else:
+    BOX2D_NAME = 'box2d-linux-amd64'
 
 def download_box2d(platform):
     if not os.path.exists(platform):
@@ -153,7 +164,9 @@ else:
 # - <= 0.20 is missing dict methods for gym.spaces.Dict
 # - 0.18-0.21 require setuptools<=65.5.0
 
-# Extensions 
+# Extensions
+c_extension_paths = []  # Initialize for NO_OCEAN case
+
 class BuildExt(build_ext):
     def run(self):
         # Propagate any build_ext options (e.g., --inplace, --force) to subcommands
@@ -212,6 +225,7 @@ if not NO_OCEAN:
         if 'matsci' in c_ext.name:
             c_ext.include_dirs.append('/usr/local/include')
             c_ext.extra_link_args.extend(['-L/usr/local/lib', '-llammps'])
+
 
 # Define cmdclass outside of setup to add dynamic commands
 cmdclass = {

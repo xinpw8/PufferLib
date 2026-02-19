@@ -963,3 +963,121 @@ class G2048(nn.Module):
         logits = self.decoder(hidden)
         values = self.value(hidden)
         return logits, values
+
+
+class PokeBattleLSTM(pufferlib.models.LSTMWrapper):
+    def __init__(self, env, policy, input_size=256, hidden_size=256):
+        super().__init__(env, policy, input_size, hidden_size)
+
+
+class PokeBattle(nn.Module):
+    """Custom network for Gen 1 OU Pokemon Battle with proper action masking.
+
+    Observation layout (140 features):
+      [0-22]    My active Pokemon (23): hp, species, types, stats, stages,
+                status one-hot (6), volatiles (confused/seeded/sub/recharge/trapped)
+      [23-24]   My side conditions (2): reflect, light_screen
+      [25-52]   My moves (4x7=28): type, power, acc, pp_frac, is_physical,
+                has_stab, type_effectiveness_vs_opp
+      [53-76]   My team (6x4=24): hp_frac, status, type, is_alive
+      [77-99]   Opp active Pokemon (23): same layout as my active
+      [100-101]  Opp side conditions (2): reflect, light_screen
+      [102-125] Opp team (6x4=24): hp_frac, status, type, is_alive
+      [126-129] Battle info (4): turn, mode, my_alive_count, opp_alive_count
+      [130-139] Action mask (10): valid actions
+    """
+
+    def __init__(self, env, hidden_size=256, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        self.num_actions = env.single_action_space.n  # 10
+        self.obs_size = 140  # Single player obs size (selfplay doubles this)
+
+        # Shared active pokemon encoder: 23 (active) + 2 (side conditions) = 25
+        self.active_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(25, 64)),
+            nn.ReLU(),
+        )
+
+        # Move encoder: 28 features (4 moves x 7 per move)
+        self.move_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(28, 64)),
+            nn.ReLU(),
+        )
+
+        # Shared team encoder: 24 features (6 pokemon x 4 per pokemon)
+        self.team_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(24, 48)),
+            nn.ReLU(),
+        )
+
+        # Battle context: 4 features
+        self.context_encoder = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(4, 16)),
+            nn.ReLU(),
+        )
+
+        # Combined: 64 (my_active+side) + 64 (opp_active+side) + 64 (moves)
+        #         + 48 (my_team) + 48 (opp_team) + 16 (context) = 304
+        combined_size = 64 + 64 + 64 + 48 + 48 + 16
+        self.combine = nn.Sequential(
+            pufferlib.pytorch.layer_init(nn.Linear(combined_size, hidden_size)),
+            nn.ReLU(),
+            pufferlib.pytorch.layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU(),
+        )
+
+        self.actor = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, self.num_actions), std=0.01)
+        self.value_fn = pufferlib.pytorch.layer_init(
+            nn.Linear(hidden_size, 1), std=1)
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations)
+        actions, value = self.decode_actions(hidden)
+        return actions, value
+
+    def forward_train(self, x, state=None):
+        return self.forward(x, state)
+
+    def encode_observations(self, observations, state=None):
+        obs = observations.float()
+
+        # In selfplay mode, obs is doubled [learner_obs | opponent_obs].
+        # Only use the learner's observation (first half).
+        if obs.shape[-1] > self.obs_size:
+            obs = obs[:, :self.obs_size]
+
+        # Extract observation components matching C pack_player_obs layout
+        my_active = obs[:, 0:23]
+        my_side = obs[:, 23:25]
+        my_moves = obs[:, 25:53]
+        my_team = obs[:, 53:77]
+        opp_active = obs[:, 77:100]
+        opp_side = obs[:, 100:102]
+        opp_team = obs[:, 102:126]
+        battle_info = obs[:, 126:130]
+        self.action_mask = obs[:, 130:140]
+
+        # Encode each component (active encoder shared, team encoder shared)
+        my_active_enc = self.active_encoder(torch.cat([my_active, my_side], dim=1))
+        opp_active_enc = self.active_encoder(torch.cat([opp_active, opp_side], dim=1))
+        my_moves_enc = self.move_encoder(my_moves)
+        my_team_enc = self.team_encoder(my_team)
+        opp_team_enc = self.team_encoder(opp_team)
+        context_enc = self.context_encoder(battle_info)
+
+        combined = torch.cat([
+            my_active_enc, opp_active_enc, my_moves_enc,
+            my_team_enc, opp_team_enc, context_enc
+        ], dim=1)
+
+        return self.combine(combined)
+
+    def decode_actions(self, flat_hidden):
+        action = self.actor(flat_hidden)
+        # Apply action mask: set logits of invalid actions to -inf
+        action = action.masked_fill(self.action_mask == 0, -1e9)
+        value = self.value_fn(flat_hidden)
+        return action, value
