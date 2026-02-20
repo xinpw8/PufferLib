@@ -29,6 +29,15 @@ typedef struct Client Client;
 #define OBS_SIZE        140
 #define MAX_TURNS       500
 
+// Reward shaping weights (per-step intermediate rewards)
+// Rewards are normalized by max team HP (~2400 for 6 pokemon)
+#define REWARD_DAMAGE_DEALT   0.05f   // per HP of damage dealt to opponent (normalized)
+#define REWARD_DAMAGE_TAKEN  -0.05f   // per HP of damage taken (normalized)
+#define REWARD_KO_OPPONENT    0.1f    // bonus for KOing an opponent pokemon
+#define REWARD_KO_SELF       -0.1f    // penalty for own pokemon being KOed
+#define REWARD_WIN            1.0f    // terminal win
+#define REWARD_LOSS          -1.0f    // terminal loss
+
 // Bot mode constants
 #define BOT_RANDOM      0
 #define BOT_HEURISTIC   1   // 1-ply minimax with evaluation
@@ -1880,6 +1889,26 @@ static void resolve_turn(Battle* battle, int p1_action, int p2_action) {
 }
 
 // ============================================================================
+// Reward Shaping Helpers
+// ============================================================================
+
+static int total_team_hp(Player* p) {
+    int total = 0;
+    for (int i = 0; i < NUM_POKEMON; i++) {
+        total += p->team[i].hp;
+    }
+    return total;
+}
+
+static int total_team_max_hp(Player* p) {
+    int total = 0;
+    for (int i = 0; i < NUM_POKEMON; i++) {
+        total += p->team[i].max_hp;
+    }
+    return total;
+}
+
+// ============================================================================
 // Check Win Condition
 // ============================================================================
 
@@ -2396,6 +2425,16 @@ void c_step(PokeBattle* env) {
     env->last_p1_action = p1_action;
     env->last_p2_action = p2_action;
 
+    // Snapshot state before resolve for reward shaping
+    int pre_p1_hp = total_team_hp(&env->battle.players[0]);
+    int pre_p2_hp = total_team_hp(&env->battle.players[1]);
+    int pre_p1_alive = env->battle.players[0].alive_count;
+    int pre_p2_alive = env->battle.players[1].alive_count;
+    float p1_max_hp = (float)total_team_max_hp(&env->battle.players[0]);
+    float p2_max_hp = (float)total_team_max_hp(&env->battle.players[1]);
+    if (p1_max_hp < 1.0f) p1_max_hp = 1.0f;
+    if (p2_max_hp < 1.0f) p2_max_hp = 1.0f;
+
     // Resolve the turn
     resolve_turn(&env->battle, p1_action, p2_action);
 
@@ -2409,38 +2448,57 @@ void c_step(PokeBattle* env) {
         }
     }
 
+    // Compute reward shaping from HP/KO deltas
+    int post_p1_hp = total_team_hp(&env->battle.players[0]);
+    int post_p2_hp = total_team_hp(&env->battle.players[1]);
+    int post_p1_alive = env->battle.players[0].alive_count;
+    int post_p2_alive = env->battle.players[1].alive_count;
+
+    // Damage dealt/taken (normalized by max HP)
+    int p1_damage_taken = pre_p1_hp - post_p1_hp;  // positive = lost HP
+    int p2_damage_taken = pre_p2_hp - post_p2_hp;  // positive = lost HP
+    int p1_kos_scored = pre_p2_alive - post_p2_alive;  // how many opp fainted
+    int p1_kos_lost = pre_p1_alive - post_p1_alive;    // how many own fainted
+
+    // P1's shaping reward: good to deal damage and KO, bad to take damage and lose mons
+    float p1_shaping = 0.0f;
+    p1_shaping += REWARD_DAMAGE_DEALT * (float)p2_damage_taken / p2_max_hp;
+    p1_shaping += REWARD_DAMAGE_TAKEN * (float)p1_damage_taken / p1_max_hp;
+    p1_shaping += REWARD_KO_OPPONENT * (float)p1_kos_scored;
+    p1_shaping += REWARD_KO_SELF * (float)p1_kos_lost;
+
     // Check for game end
     int result = check_winner(&env->battle);
     env->last_result = result;
     int done = (result != 0) || (env->tick >= MAX_TURNS);
 
-    // Assign rewards
+    // Assign rewards: shaping + terminal
     if (env->selfplay) {
-        // Selfplay: reward from learner's perspective only
+        float learner_shaping = (env->learner_side == 0) ? p1_shaping : -p1_shaping;
+        env->rewards[0] = learner_shaping;
         if (result == 1) {
-            // P1 wins
-            env->rewards[0] = (env->learner_side == 0) ? 1.0f : -1.0f;
+            env->rewards[0] += (env->learner_side == 0) ? REWARD_WIN : REWARD_LOSS;
         } else if (result == -1) {
-            // P2 wins
-            env->rewards[0] = (env->learner_side == 0) ? -1.0f : 1.0f;
+            env->rewards[0] += (env->learner_side == 0) ? REWARD_LOSS : REWARD_WIN;
         }
-        env->p1_episode_return += (result == 1) ? 1.0f : ((result == -1) ? -1.0f : 0.0f);
+        env->p1_episode_return += env->rewards[0];
     } else {
-        // Non-selfplay: rewards from each player's perspective
+        float p2_shaping = -p1_shaping;  // zero-sum
+        env->rewards[0] = p1_shaping;
         if (result == 1) {
-            env->rewards[0] = 1.0f;
-            env->p1_episode_return += 1.0f;
-            if (env->num_agents == 2) {
-                env->rewards[1] = -1.0f;
-                env->p2_episode_return -= 1.0f;
-            }
+            env->rewards[0] += REWARD_WIN;
         } else if (result == -1) {
-            env->rewards[0] = -1.0f;
-            env->p1_episode_return -= 1.0f;
-            if (env->num_agents == 2) {
-                env->rewards[1] = 1.0f;
-                env->p2_episode_return += 1.0f;
+            env->rewards[0] += REWARD_LOSS;
+        }
+        env->p1_episode_return += env->rewards[0];
+        if (env->num_agents == 2) {
+            env->rewards[1] = p2_shaping;
+            if (result == 1) {
+                env->rewards[1] += REWARD_LOSS;
+            } else if (result == -1) {
+                env->rewards[1] += REWARD_WIN;
             }
+            env->p2_episode_return += env->rewards[1];
         }
     }
 
