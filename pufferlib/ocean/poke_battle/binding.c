@@ -182,6 +182,17 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "p1_wins", log->p1_wins);
     assign_to_dict(dict, "p2_wins", log->p2_wins);
     assign_to_dict(dict, "draws", log->draws);
+
+    // Per-species win rates (only emit species that appeared in games)
+    for (int i = 1; i <= NUM_SPECIES; i++) {
+        if (log->species_games[i] > 0.0f) {
+            char key[64];
+            snprintf(key, sizeof(key), "wr_%s", SPECIES_DATA[i].name);
+            // Convert spaces to underscores for clean metric names
+            for (char* p = key; *p; p++) { if (*p == ' ') *p = '_'; }
+            assign_to_dict(dict, key, log->species_wins[i] / log->species_games[i]);
+        }
+    }
     return 0;
 }
 

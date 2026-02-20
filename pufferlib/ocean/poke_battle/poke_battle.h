@@ -491,6 +491,9 @@ typedef struct {
     float p2_wins;
     float draws;
     float n;
+    // Per-species tracking: wins and games when species was on learner's team
+    float species_wins[NUM_SPECIES + 1];  // indexed by SpeciesID (1-20)
+    float species_games[NUM_SPECIES + 1]; // indexed by SpeciesID (1-20)
 } Log;
 
 // Battle event types for the render log
@@ -550,6 +553,7 @@ typedef struct {
     float p1_episode_return;
     float p2_episode_return;
     unsigned long long seed;
+    unsigned long long rng_state;     // per-env xorshift64 state (for OpenMP thread safety)
     unsigned long long episode_count;
     Client* client;             // raylib render client (lazy init, NULL in headless)
     int mouse_action;           // -1=none, 0-9=clicked action, -2=restart
@@ -560,7 +564,7 @@ typedef struct {
 } PokeBattle;
 
 // Global pointer for event logging from nested functions
-static PokeBattle* g_event_env = NULL;
+static __thread PokeBattle* g_event_env = NULL;
 
 static void evt_push(int type, int d1, int d2, int d3) {
     if (!g_event_env || g_event_env->event_count >= MAX_EVENTS) return;
@@ -575,7 +579,7 @@ static void evt_push(int type, int d1, int d2, int d3) {
 // Random Number Generator (xorshift64)
 // ============================================================================
 
-static unsigned long long pb_rng_state = 12345;
+static __thread unsigned long long pb_rng_state = 12345;
 
 static inline unsigned long long pb_rng_next(void) {
     pb_rng_state ^= pb_rng_state << 13;
@@ -2309,6 +2313,7 @@ void init(PokeBattle* env) {
     if (env->mcts_iterations <= 0) env->mcts_iterations = MCTS_DEFAULT_ITERATIONS;
     if (env->mcts_depth <= 0) env->mcts_depth = MCTS_DEFAULT_DEPTH;
     pb_rng_state = env->seed;
+    env->rng_state = pb_rng_state;
 }
 
 static void pack_observations(PokeBattle* env) {
@@ -2363,9 +2368,12 @@ void c_reset(PokeBattle* env) {
     env->battle.mode = 0;
 
     pack_observations(env);
+    env->rng_state = pb_rng_state;
 }
 
 void c_step(PokeBattle* env) {
+    // Load per-env RNG state into thread-local for OpenMP safety
+    pb_rng_state = env->rng_state;
     // Set up event logging
     g_event_env = env;
     env->event_count = 0;
@@ -2538,6 +2546,22 @@ void c_step(PokeBattle* env) {
         env->log.episode_length += (float)env->tick;
         env->log.n += 1.0f;
 
+        // Per-species tracking: record wins/games for learner's team
+        {
+            int learner_idx = env->selfplay ? env->learner_side : 0;
+            int won = (env->selfplay)
+                ? ((result == 1 && env->learner_side == 0) || (result == -1 && env->learner_side == 1))
+                : (result == 1);
+            Player* learner = &env->battle.players[learner_idx];
+            for (int s = 0; s < NUM_POKEMON; s++) {
+                SpeciesID sp = learner->team[s].species;
+                if (sp > 0 && sp <= NUM_SPECIES) {
+                    env->log.species_games[sp] += 1.0f;
+                    if (won) env->log.species_wins[sp] += 1.0f;
+                }
+            }
+        }
+
         if (env->auto_reset) {
             c_reset(env);
         } else {
@@ -2546,6 +2570,9 @@ void c_step(PokeBattle* env) {
     } else {
         pack_observations(env);
     }
+
+    // Save thread-local RNG state back to per-env struct
+    env->rng_state = pb_rng_state;
 }
 
 // c_render is defined in render.h (provides full Showdown battle UI)

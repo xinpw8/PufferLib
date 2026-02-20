@@ -87,9 +87,11 @@ if not NO_OCEAN:
 extra_compile_args = [
     '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',
     '-DPLATFORM_DESKTOP',
+    '-fopenmp',
 ]
 extra_link_args = [
-    '-fwrapv'
+    '-fwrapv',
+    '-fopenmp',
 ]
 cxx_args = [
     '-fdiagnostics-color=always',

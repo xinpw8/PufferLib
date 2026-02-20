@@ -260,5 +260,116 @@ Methodical record of training runs, eval results, and changes for the Gen1 OU Po
 
 ---
 
+## Run 004 — Train vs MCTS bot + OpenMP parallelization (killed at epoch 600)
+
+**Date**: 2026-02-20
+**Branch**: `poke-battle`
+**Commit**: uncommitted (OpenMP parallelization + per-species tracking on top of `09341483`)
+**WandB**: `6gssin6j`
+**Checkpoint**: `experiments/puffer_poke_battle_6gssin6j/model_puffer_poke_battle_000600.pt` (epoch 600)
+**Status**: Killed early — perf plateaued at ~85% (same ceiling as Run 003)
+
+### Changes from Run 003
+1. **Train vs MCTS bot** (`bot_mode` 1→2): Agent trains against Monte Carlo tree search bot (128 iterations, depth 5) instead of heuristic bot.
+2. **OpenMP parallelization**: Added `#pragma omp parallel for` to `vec_step` loop in `env_binding.h`, made `pb_rng_state` and `g_event_env` thread-local, added per-env RNG state to `PokeBattle` struct. Build flags `-fopenmp` added to `setup.py`. Enables multi-core C env stepping.
+3. **Per-species win rate tracking**: Added `species_wins[]` and `species_games[]` to Log struct, reported as `wr_<Species>` metrics in dashboard.
+
+### Training Config (changes only)
+| Parameter | Run 003 | Run 004 |
+|---|---|---|
+| bot_mode | 1 (heuristic) | 2 (MCTS) |
+| mcts_iterations | — | 128 |
+| mcts_depth | — | 5 |
+| epochs (actual) | 954 (full run) | 600 (killed early) |
+| agent_steps | 1,034,944,512 | ~410M |
+| *all other params* | *same* | *same* |
+
+### OpenMP Performance Impact
+MCTS bot was severely CPU-bottlenecked (23.5K SPS single-threaded, 95% wall time in env step). OpenMP parallelization across 20 DGX Spark cores yielded:
+
+| Metric | Before (Run 003 equivalent) | After (Run 004) |
+|---|---|---|
+| MCTS SPS (8192 envs) | ~23,500 | **~329,000** |
+| Speedup | 1x | **14x** |
+| CPU usage | 31% (1 core) | ~307% (multi-core) |
+| GPU usage | 4-5% | ~26% |
+| Env time % | 95% | ~64% |
+
+### Dashboard Snapshot (at kill)
+| Metric | Value |
+|---|---|
+| SPS | 177,700 |
+| CPU | 306.9% |
+| GPU | 26.3% |
+| Steps | 410M |
+| Epoch | 391→600 |
+| Uptime | 38 min |
+| perf | 0.837 |
+| p1_wins | 0.837 |
+| p2_wins | 0.163 |
+| episode_length | 39.8 |
+| entropy | 0.375 |
+| explained_variance | 0.437 |
+
+### Eval Results (at checkpoint epoch 600)
+| Opponent | Episodes | Wins | Losses | Draws | Win Rate |
+|---|---|---|---|---|---|
+| Random bot | 100 | 100 | 0 | 0 | **100.0%** |
+| Heuristic bot | 100 | 72 | 28 | 0 | **72.0%** |
+| MCTS bot | 100 | 92 | 8 | 0 | **92.0%** |
+| Human | 8 | 5 | 3 | 0 | **62.5%** |
+
+### Comparison: All Runs
+| Opponent | Run 001 | Run 002 | Run 003 | Run 004 |
+|---|---|---|---|---|
+| Random | 60.0% | 98.0% | 100.0% | **100.0%** |
+| Heuristic | 1.0% | 38.0% | 85.0% | **72.0%** |
+| MCTS | 2.0% | 44.0% | 80.0% | **92.0%** |
+| Human | 0.0% | 57.1% | 100.0% | **62.5%** |
+
+### Key Observations
+
+**MCTS win rate improved, heuristic win rate dropped.** Training vs MCTS (92% vs MCTS) produced a policy that specializes against random-rollout opponents but is weaker vs the exhaustive minimax heuristic (72% vs 85% in Run 003). The human win rate dropped from 100% to 62.5% — the Run 003 policy (trained vs heuristic) was more robust overall.
+
+**Same ~85% ceiling.** Training perf plateaued at 83.7% vs MCTS, mirroring Run 003's 82.9% vs heuristic. This confirms the ceiling is structural, not opponent-dependent.
+
+### Species Win Rate Analysis (random-vs-random diagnostic)
+
+To investigate the ~85% ceiling, a diagnostic was run: 100K games of random-vs-random (selfplay, both sides take random actions). Outcomes reflect pure team composition + RNG variance:
+
+| Species | Random WR | Delta | Smogon Tier |
+|---|---|---|---|
+| Lapras | 58.2% | +8.6pp | C3 |
+| Rhydon | 55.1% | +5.5pp | B1 |
+| Starmie | 54.4% | +4.8pp | A |
+| Slowbro | 54.0% | +4.4pp | C2 |
+| Jynx | 53.6% | +4.0pp | B2 |
+| Zapdos | 50.7% | +1.1pp | B1 |
+| Persian | 50.6% | +1.0pp | C3 |
+| Articuno | 50.5% | +0.9pp | C2 |
+| Tauros | 50.0% | +0.4pp | S1 |
+| Snorlax | 49.6% | -0.0pp | S2 |
+| Chansey | 49.4% | -0.2pp | A |
+| Exeggutor | 49.3% | -0.3pp | A |
+| Cloyster | 49.2% | -0.4pp | B2 |
+| Golem | 49.2% | -0.5pp | D |
+| Dragonite | 48.9% | -0.7pp | C3 |
+| Jolteon | 47.8% | -1.8pp | C1 |
+| Alakazam | 47.6% | -2.0pp | B1 |
+| Gengar | 43.7% | -5.9pp | B2 |
+| Hypno | 42.1% | -7.5pp | D |
+
+**16.1pp spread** between best (Lapras 58.2%) and worst (Hypno 42.1%) species. Random-play ranking does NOT correlate with competitive (Smogon) tiers — Tauros (S1 Smogon) is dead-center with random play because it requires intelligent use of Body Slam paralysis + crit mechanics.
+
+**Conclusion**: The ~85% ceiling across both Run 003 and Run 004 is driven by team composition variance in `generate_ou_team()`. ~15% of random team matchups are fundamentally unfavorable regardless of play quality, compounded by Gen 1's high in-battle RNG variance (permanent freeze, crits, sleep turns).
+
+### Next Steps (Planned)
+1. Consider curriculum training: random → heuristic → MCTS for broader generalization
+2. Weight team generation toward stronger compositions (remove Hypno/Machamp from pool, or use Smogon tier weights)
+3. Try selfplay for more robust generalization
+4. Longer training vs MCTS (killed early, may not have fully converged)
+
+---
+
 *Eval command: `python -m pufferlib.ocean.poke_battle.eval` (all bots) or `--human` (GUI play)*
 *Specify checkpoint: `--model-path experiments/puffer_poke_battle_RUNID/model_puffer_poke_battle_EPOCH.pt`*
