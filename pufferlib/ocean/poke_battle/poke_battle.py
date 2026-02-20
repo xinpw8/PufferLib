@@ -22,7 +22,7 @@ OBS_SIZE = 140
 class PokeBattle(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, log_interval=128, buf=None,
                  seed=0, selfplay=1, bot_mode=0, mcts_iterations=128,
-                 mcts_depth=5):
+                 mcts_depth=5, auto_reset=1):
         self.render_mode = render_mode
         self.log_interval = log_interval
         self.selfplay = selfplay
@@ -60,13 +60,20 @@ class PokeBattle(pufferlib.PufferEnv):
                 bot_mode=bot_mode,
                 mcts_iterations=mcts_iterations,
                 mcts_depth=mcts_depth,
+                auto_reset=auto_reset,
             )
             c_envs.append(c_env)
 
+        self.c_env_handles = c_envs
         self.c_envs = binding.vectorize(*c_envs)
 
-    def reset(self, seed=0):
-        binding.vec_reset(self.c_envs, seed)
+    def reset(self, seed=None):
+        if seed is not None:
+            base_seed = int(seed)
+            for i, handle in enumerate(self.c_env_handles):
+                # Honor caller-provided reset seed for this env backend.
+                binding.env_put(handle, seed=base_seed + i, episode_count=0)
+        binding.vec_reset(self.c_envs, int(seed or 0))
         self.tick = 0
         return self.observations, []
 
@@ -86,6 +93,18 @@ class PokeBattle(pufferlib.PufferEnv):
 
     def render(self):
         binding.vec_render(self.c_envs, 0)
+
+    def get_state(self, env_idx=0):
+        '''Inspect raw simulator state for debugging/evaluation tooling.'''
+        return binding.env_get(self.c_env_handles[env_idx])
+
+    def get_states(self):
+        return [binding.env_get(h) for h in self.c_env_handles]
+
+    def render_get_action(self, env_idx=0):
+        '''Render battle UI and block until human clicks a valid action.
+        Returns action int (0-9), or -1 if window closed.'''
+        return binding.env_render_get_action(self.c_env_handles[env_idx])
 
     def close(self):
         binding.vec_close(self.c_envs)

@@ -10,6 +10,10 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <assert.h>
+
+// Forward declare Client for render.h
+typedef struct Client Client;
 
 // ============================================================================
 // Constants
@@ -195,7 +199,7 @@ static const unsigned char TYPE_CHART[NUM_TYPES][NUM_TYPES] = {
     /* POISON   */ {     2,  2,  2,  2,  3,  2,  2,  1,  1,  2,  2,  3,  1,  1,  2 },
     /* GROUND   */ {     2,  3,  2,  3,  1,  2,  2,  3,  2,  0,  2,  1,  3,  2,  2 },
     /* FLYING   */ {     2,  2,  2,  1,  3,  2,  3,  2,  2,  2,  2,  3,  1,  2,  2 },
-    /* PSYCHIC  */ {     2,  2,  2,  2,  2,  2,  3,  3,  2,  2,  1,  2,  2,  0,  2 },
+    /* PSYCHIC  */ {     2,  2,  2,  2,  2,  2,  3,  3,  2,  2,  1,  2,  2,  2,  2 },
     /* BUG      */ {     2,  1,  2,  2,  3,  2,  1,  3,  2,  1,  3,  2,  2,  1,  2 },
     /* ROCK     */ {     2,  3,  2,  2,  2,  3,  1,  2,  1,  3,  2,  3,  2,  2,  2 },
     /* GHOST    */ {     0,  2,  2,  2,  2,  2,  2,  2,  2,  2,  0,  2,  2,  3,  2 },
@@ -480,6 +484,40 @@ typedef struct {
     float n;
 } Log;
 
+// Battle event types for the render log
+enum {
+    EVT_NONE = 0,
+    EVT_MOVE_USED,       // player used move (data1=player_idx, data2=move_id, data3=species)
+    EVT_MOVE_MISSED,     // move missed (data1=player_idx, data2=move_id, data3=species)
+    EVT_IMMUNE,          // type immunity (data1=player_idx, data2=move_id, data3=def_species)
+    EVT_DAMAGE,          // damage dealt (data1=player_idx, data2=amount, data3=species)
+    EVT_CRITICAL,        // critical hit (data1=player_idx)
+    EVT_FAINT,           // pokemon fainted (data1=player_idx, data3=species)
+    EVT_SWITCH,          // switched pokemon (data1=player_idx, data3=new_species)
+    EVT_STATUS,          // status inflicted (data1=player_idx, data2=status, data3=species)
+    EVT_STAT_CHANGE,     // stat stage changed (data1=player_idx, data2=stat<<4|direction, data3=species)
+    EVT_HEAL,            // healed HP (data1=player_idx, data2=amount, data3=species)
+    EVT_SLEEP,           // couldn't move: asleep (data1=player_idx, data3=species)
+    EVT_FROZEN,          // couldn't move: frozen (data1=player_idx, data3=species)
+    EVT_PARALYZED,       // fully paralyzed (data1=player_idx, data3=species)
+    EVT_CONFUSED_HIT,    // hit self in confusion (data1=player_idx, data3=species)
+    EVT_RECHARGING,      // recharging (data1=player_idx, data3=species)
+    EVT_SUBSTITUTE,      // substitute took damage (data1=player_idx, data2=amount)
+    EVT_SUB_BROKE,       // substitute broke (data1=player_idx)
+    EVT_SUPER_EFFECTIVE, // super effective (data1=player_idx)
+    EVT_NOT_EFFECTIVE,   // not very effective (data1=player_idx)
+    EVT_WAKE_UP,         // woke up (data1=player_idx, data3=species)
+};
+
+#define MAX_EVENTS 64
+
+typedef struct {
+    int type;
+    int data1;      // typically player_idx (0 or 1)
+    int data2;      // context-dependent
+    int data3;      // typically species ID
+} BattleEvent;
+
 // PufferLib environment struct
 typedef struct {
     Log log;
@@ -495,12 +533,34 @@ typedef struct {
     int bot_mode;         // 0 = random, 1 = heuristic (1-ply), 2 = MCTS
     int mcts_iterations;  // number of rollouts for MCTS bot
     int mcts_depth;       // rollout depth for MCTS bot
+    int auto_reset;       // 1 = reset immediately on done, 0 = wait for caller reset
     int tick;
+    int last_p1_action;   // validated action from previous step
+    int last_p2_action;   // validated action from previous step
+    int last_result;      // previous step result: 1 p1 win, -1 p2 win, 0 draw/ongoing
     float p1_episode_return;
     float p2_episode_return;
     unsigned long long seed;
     unsigned long long episode_count;
+    Client* client;             // raylib render client (lazy init, NULL in headless)
+    int mouse_action;           // -1=none, 0-9=clicked action, -2=restart
+
+    // Event buffer for battle log
+    BattleEvent events[MAX_EVENTS];
+    int event_count;
 } PokeBattle;
+
+// Global pointer for event logging from nested functions
+static PokeBattle* g_event_env = NULL;
+
+static void evt_push(int type, int d1, int d2, int d3) {
+    if (!g_event_env || g_event_env->event_count >= MAX_EVENTS) return;
+    BattleEvent* e = &g_event_env->events[g_event_env->event_count++];
+    e->type = type;
+    e->data1 = d1;
+    e->data2 = d2;
+    e->data3 = d3;
+}
 
 // ============================================================================
 // Random Number Generator (xorshift64)
@@ -640,6 +700,7 @@ static int calculate_damage(Pokemon* attacker, Pokemon* defender,
     }
 
     // Apply stat stages (not on critical hits)
+    // Gen 1 Showdown: crits bypass stat stages AND burn's attack halving
     if (!is_critical) {
         if (is_physical) {
             atk_stat = apply_stage(atk_stat, atk_player->atk_stage);
@@ -648,11 +709,10 @@ static int calculate_damage(Pokemon* attacker, Pokemon* defender,
             atk_stat = apply_stage(atk_stat, atk_player->spc_stage);
             def_stat = apply_stage(def_stat, def_player->spc_stage);
         }
-    }
-
-    // Burn halves attack (physical only)
-    if (attacker->status == STATUS_BURN && is_physical) {
-        atk_stat /= 2;
+        // Burn halves attack (physical only) - inside !is_critical per Showdown
+        if (attacker->status == STATUS_BURN && is_physical) {
+            atk_stat /= 2;
+        }
     }
 
     // Reflect halves physical damage, Light Screen halves special damage
@@ -685,10 +745,17 @@ static int calculate_damage(Pokemon* attacker, Pokemon* defender,
         damage = damage * 3 / 2;
     }
 
-    // Type effectiveness
-    float eff = type_effectiveness_float(mdata->type, defender->type1, defender->type2);
-    if (eff == 0.0f) return 0;
-    damage = (int)(damage * eff);
+    // Type effectiveness (Showdown Gen 1: per-type integer multiply with floor)
+    int e1 = TYPE_CHART[mdata->type][defender->type1];
+    if (e1 == 0) return 0;
+    if (e1 == 3) { damage = damage * 20 / 10; }
+    if (e1 == 1) { damage = damage * 5 / 10; }
+    if (defender->type2 != TYPE_NONE && defender->type2 != defender->type1) {
+        int e2 = TYPE_CHART[mdata->type][defender->type2];
+        if (e2 == 0) return 0;
+        if (e2 == 3) { damage = damage * 20 / 10; }
+        if (e2 == 1) { damage = damage * 5 / 10; }
+    }
 
     // Random factor: 217-255 / 255 (in Gen 1)
     int rand_factor = pb_rand_range(217, 256);
@@ -746,9 +813,10 @@ static int check_accuracy(Player* atk_player, Player* def_player, MoveSlot* move
 
     if (acc > 255) acc = 255;
 
-    // Gen 1: 1/256 miss glitch - even 100% moves can miss
-    int roll = pb_rand_int(256);
-    return roll < acc * 256 / 100;
+    // Gen 1: 1/256 miss glitch - even 100% accuracy becomes 255/256
+    int scaled = acc * 255 / 100;
+    if (scaled > 255) scaled = 255;
+    return pb_rand_int(256) < scaled;
 }
 
 // ============================================================================
@@ -799,9 +867,9 @@ static void reset_volatile(Player* p) {
     p->confusion_turns = 0;
     p->is_seeded = 0;
     p->substitute_hp = 0;
-    // NOTE: has_reflect and has_light_screen are SIDE conditions in Gen 1.
-    // They persist for the player's side regardless of switching, so they
-    // are NOT reset here.
+    // Showdown Gen 1: Reflect/Light Screen are volatile, cleared on switch
+    p->has_reflect = 0;
+    p->has_light_screen = 0;
     p->is_recharging = 0;
     p->is_trapped = 0;
     p->trap_turns = 0;
@@ -1043,27 +1111,38 @@ static int try_inflict_status(Pokemon* target, StatusCondition status) {
 // ============================================================================
 
 static void apply_move_effect(Player* atk_player, Player* def_player,
-                             MoveSlot* move_slot, int damage_dealt) {
+                             MoveSlot* move_slot, int damage_dealt, int atk_pidx) {
     const MoveData* mdata = &MOVE_DATA[move_slot->id];
     Pokemon* attacker = active_pokemon(atk_player);
     Pokemon* defender = active_pokemon(def_player);
+    int def_pidx = 1 - atk_pidx;
 
     switch (mdata->effect) {
     case EFFECT_PARALYZE_CHANCE:
+        // Showdown Gen 1: secondary status blocked if move type matches target type
         if (pb_rand_chance(mdata->effect_chance)) {
-            try_inflict_status(defender, STATUS_PARALYSIS);
+            if (defender->type1 != mdata->type && defender->type2 != mdata->type) {
+                if (try_inflict_status(defender, STATUS_PARALYSIS))
+                    evt_push(EVT_STATUS, def_pidx, STATUS_PARALYSIS, defender->species);
+            }
         }
         break;
 
     case EFFECT_BURN_CHANCE:
         if (pb_rand_chance(mdata->effect_chance)) {
-            try_inflict_status(defender, STATUS_BURN);
+            if (defender->type1 != mdata->type && defender->type2 != mdata->type) {
+                if (try_inflict_status(defender, STATUS_BURN))
+                    evt_push(EVT_STATUS, def_pidx, STATUS_BURN, defender->species);
+            }
         }
         break;
 
     case EFFECT_FREEZE_CHANCE:
         if (pb_rand_chance(mdata->effect_chance)) {
-            try_inflict_status(defender, STATUS_FREEZE);
+            if (defender->type1 != mdata->type && defender->type2 != mdata->type) {
+                if (try_inflict_status(defender, STATUS_FREEZE))
+                    evt_push(EVT_STATUS, def_pidx, STATUS_FREEZE, defender->species);
+            }
         }
         break;
 
@@ -1071,6 +1150,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         if (pb_rand_chance(mdata->effect_chance)) {
             if (def_player->spc_stage > -MAX_STAT_STAGE) {
                 def_player->spc_stage--;
+                evt_push(EVT_STAT_CHANGE, def_pidx, (2 << 4) | 0, defender->species);
             }
         }
         break;
@@ -1079,6 +1159,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         if (pb_rand_chance(mdata->effect_chance)) {
             if (def_player->spe_stage > -MAX_STAT_STAGE) {
                 def_player->spe_stage--;
+                evt_push(EVT_STAT_CHANGE, def_pidx, (3 << 4) | 0, defender->species);
             }
         }
         break;
@@ -1087,6 +1168,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         if (pb_rand_chance(mdata->effect_chance)) {
             if (def_player->def_stage > -MAX_STAT_STAGE) {
                 def_player->def_stage--;
+                evt_push(EVT_STAT_CHANGE, def_pidx, (1 << 4) | 0, defender->species);
             }
         }
         break;
@@ -1096,10 +1178,12 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
             int recoil = damage_dealt * mdata->effect_chance / 100;
             if (recoil < 1) recoil = 1;
             attacker->hp -= recoil;
+            evt_push(EVT_DAMAGE, atk_pidx, recoil, attacker->species);
             if (attacker->hp <= 0) {
                 attacker->hp = 0;
                 attacker->is_alive = 0;
                 atk_player->alive_count--;
+                evt_push(EVT_FAINT, atk_pidx, 0, attacker->species);
             }
         }
         break;
@@ -1109,6 +1193,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         attacker->hp = 0;
         attacker->is_alive = 0;
         atk_player->alive_count--;
+        evt_push(EVT_FAINT, atk_pidx, 0, attacker->species);
         break;
 
     case EFFECT_HYPER_BEAM:
@@ -1126,6 +1211,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
             if (attacker->hp > attacker->max_hp) {
                 attacker->hp = attacker->max_hp;
             }
+            evt_push(EVT_HEAL, atk_pidx, heal, attacker->species);
         }
         break;
 
@@ -1134,43 +1220,63 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         Type tw_type = mdata->type;
         float eff = type_effectiveness_float(tw_type, defender->type1, defender->type2);
         if (eff > 0.0f) {
-            try_inflict_status(defender, STATUS_PARALYSIS);
+            if (try_inflict_status(defender, STATUS_PARALYSIS))
+                evt_push(EVT_STATUS, def_pidx, STATUS_PARALYSIS, defender->species);
+        } else {
+            evt_push(EVT_IMMUNE, atk_pidx, move_slot->id, defender->species);
         }
         break;
     }
 
     case EFFECT_SLEEP:
-        try_inflict_status(defender, STATUS_SLEEP);
+        if (try_inflict_status(defender, STATUS_SLEEP))
+            evt_push(EVT_STATUS, def_pidx, STATUS_SLEEP, defender->species);
         break;
 
-    case EFFECT_RECOVER:
+    case EFFECT_RECOVER: {
+        int prev_hp = attacker->hp;
         attacker->hp += attacker->max_hp / 2;
         if (attacker->hp > attacker->max_hp) {
             attacker->hp = attacker->max_hp;
         }
+        int healed = attacker->hp - prev_hp;
+        if (healed > 0) evt_push(EVT_HEAL, atk_pidx, healed, attacker->species);
         break;
+    }
 
     case EFFECT_REST:
         if (attacker->hp < attacker->max_hp) {
+            int prev_hp = attacker->hp;
             attacker->hp = attacker->max_hp;
             attacker->status = STATUS_SLEEP;
             attacker->sleep_turns = 2; // Rest always sleeps exactly 2 turns
+            evt_push(EVT_HEAL, atk_pidx, attacker->hp - prev_hp, attacker->species);
+            evt_push(EVT_STATUS, atk_pidx, STATUS_SLEEP, attacker->species);
         }
         break;
 
     case EFFECT_BOOST_ATK_2:
-        atk_player->atk_stage += 2;
-        if (atk_player->atk_stage > MAX_STAT_STAGE) atk_player->atk_stage = MAX_STAT_STAGE;
+        if (atk_player->atk_stage < MAX_STAT_STAGE) {
+            atk_player->atk_stage += 2;
+            if (atk_player->atk_stage > MAX_STAT_STAGE) atk_player->atk_stage = MAX_STAT_STAGE;
+            evt_push(EVT_STAT_CHANGE, atk_pidx, (0 << 4) | 1, attacker->species);
+        }
         break;
 
     case EFFECT_BOOST_SPC_2:
-        atk_player->spc_stage += 2;
-        if (atk_player->spc_stage > MAX_STAT_STAGE) atk_player->spc_stage = MAX_STAT_STAGE;
+        if (atk_player->spc_stage < MAX_STAT_STAGE) {
+            atk_player->spc_stage += 2;
+            if (atk_player->spc_stage > MAX_STAT_STAGE) atk_player->spc_stage = MAX_STAT_STAGE;
+            evt_push(EVT_STAT_CHANGE, atk_pidx, (2 << 4) | 1, attacker->species);
+        }
         break;
 
     case EFFECT_BOOST_SPE_2:
-        atk_player->spe_stage += 2;
-        if (atk_player->spe_stage > MAX_STAT_STAGE) atk_player->spe_stage = MAX_STAT_STAGE;
+        if (atk_player->spe_stage < MAX_STAT_STAGE) {
+            atk_player->spe_stage += 2;
+            if (atk_player->spe_stage > MAX_STAT_STAGE) atk_player->spe_stage = MAX_STAT_STAGE;
+            evt_push(EVT_STAT_CHANGE, atk_pidx, (3 << 4) | 1, attacker->species);
+        }
         break;
 
     case EFFECT_SUBSTITUTE:
@@ -1187,7 +1293,10 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         Type t_type = mdata->type;
         float eff = type_effectiveness_float(t_type, defender->type1, defender->type2);
         if (eff > 0.0f) {
-            try_inflict_status(defender, STATUS_TOXIC);
+            if (try_inflict_status(defender, STATUS_TOXIC))
+                evt_push(EVT_STATUS, def_pidx, STATUS_TOXIC, defender->species);
+        } else {
+            evt_push(EVT_IMMUNE, atk_pidx, move_slot->id, defender->species);
         }
         break;
     }
@@ -1248,14 +1357,16 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
 // Execute Move
 // ============================================================================
 
-static int execute_move(Player* atk_player, Player* def_player, int move_idx) {
+static int execute_move(Player* atk_player, Player* def_player, int move_idx, int atk_pidx) {
     Pokemon* attacker = active_pokemon(atk_player);
     Pokemon* defender = active_pokemon(def_player);
+    int def_pidx = 1 - atk_pidx;
 
     if (!attacker->is_alive) return 0;
 
     // Check if recharging (Hyper Beam)
     if (atk_player->is_recharging) {
+        evt_push(EVT_RECHARGING, atk_pidx, 0, attacker->species);
         atk_player->is_recharging = 0;
         return 0;
     }
@@ -1266,28 +1377,24 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx) {
         if (attacker->sleep_turns <= 0) {
             attacker->status = STATUS_NONE;
             attacker->sleep_turns = 0;
-            // In Gen 1, wake up but can't act this turn
+            evt_push(EVT_WAKE_UP, atk_pidx, 0, attacker->species);
             return 0;
         }
-        return 0; // still asleep
+        evt_push(EVT_SLEEP, atk_pidx, attacker->sleep_turns, attacker->species);
+        return 0;
     }
 
-    // Check freeze (Gen 1: frozen forever unless hit by Fire move)
+    // Check freeze (Gen 1 Showdown: frozen permanently, thawed only by opponent's Fire move)
     if (attacker->status == STATUS_FREEZE) {
-        // Small chance to thaw in our implementation (for playability)
-        // Actually in competitive Gen 1, freeze is broken by Fire moves from opponent.
-        // For game balance, let's give a 10% thaw chance per turn
-        if (pb_rand_chance(10)) {
-            attacker->status = STATUS_NONE;
-        } else {
-            return 0;
-        }
+        evt_push(EVT_FROZEN, atk_pidx, 0, attacker->species);
+        return 0;
     }
 
     // Check paralysis (25% chance of full paralysis)
     if (attacker->status == STATUS_PARALYSIS) {
-        if (pb_rand_chance(25)) {
-            return 0; // fully paralyzed, can't move
+        if (pb_rand_int(256) < 63) {
+            evt_push(EVT_PARALYZED, atk_pidx, 0, attacker->species);
+            return 0;
         }
     }
 
@@ -1297,14 +1404,16 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx) {
         if (atk_player->confusion_turns <= 0) {
             atk_player->is_confused = 0;
         } else if (pb_rand_chance(50)) {
-            // Hit self in confusion - deal 40 power typeless physical damage
-            int self_dmg = ((2 * 100 / 5 + 2) * 40 * calc_stat(attacker->base_atk) /
-                           calc_stat(attacker->base_def)) / 50 + 2;
+            evt_push(EVT_CONFUSED_HIT, atk_pidx, 0, attacker->species);
+            int conf_atk = apply_stage(calc_stat(attacker->base_atk), atk_player->atk_stage);
+            int conf_def = apply_stage(calc_stat(attacker->base_def), atk_player->def_stage);
+            int self_dmg = ((2 * 100 / 5 + 2) * 40 * conf_atk / conf_def) / 50 + 2;
             attacker->hp -= self_dmg;
             if (attacker->hp <= 0) {
                 attacker->hp = 0;
                 attacker->is_alive = 0;
                 atk_player->alive_count--;
+                evt_push(EVT_FAINT, atk_pidx, 0, attacker->species);
             }
             return 0;
         }
@@ -1362,14 +1471,17 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx) {
 
     const MoveData* mdata = &MOVE_DATA[move_slot->id];
 
+    evt_push(EVT_MOVE_USED, atk_pidx, move_slot->id, attacker->species);
+
     // Accuracy check
     if (mdata->accuracy > 0 && !check_accuracy(atk_player, def_player, move_slot)) {
-        return 0; // missed
+        evt_push(EVT_MOVE_MISSED, atk_pidx, move_slot->id, attacker->species);
+        return 0;
     }
 
     // For status moves (power == 0), just apply effect
     if (mdata->power == 0 && mdata->effect != EFFECT_FIXED_DAMAGE) {
-        apply_move_effect(atk_player, def_player, move_slot, 0);
+        apply_move_effect(atk_player, def_player, move_slot, 0, atk_pidx);
         return 1;
     }
 
@@ -1378,25 +1490,48 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx) {
     int damage = calculate_damage(attacker, defender, atk_player, def_player,
                                  move_slot, is_critical);
 
-    if (damage == 0) return 1; // type immunity
+    if (damage == 0) {
+        evt_push(EVT_IMMUNE, atk_pidx, move_slot->id, defender->species);
+        return 1;
+    }
+
+    if (is_critical) {
+        evt_push(EVT_CRITICAL, atk_pidx, 0, 0);
+    }
+
+    // Type effectiveness hints
+    float eff = type_effectiveness_float(mdata->type, defender->type1, defender->type2);
+    if (eff > 1.5f) evt_push(EVT_SUPER_EFFECTIVE, atk_pidx, 0, 0);
+    else if (eff > 0.0f && eff < 0.9f) evt_push(EVT_NOT_EFFECTIVE, atk_pidx, 0, 0);
 
     // Apply damage to substitute or directly
     if (def_player->substitute_hp > 0) {
+        evt_push(EVT_SUBSTITUTE, def_pidx, damage, 0);
         def_player->substitute_hp -= damage;
         if (def_player->substitute_hp <= 0) {
             def_player->substitute_hp = 0;
+            evt_push(EVT_SUB_BROKE, def_pidx, 0, 0);
         }
-        // Secondary effects don't apply when hitting substitute
     } else {
+        int prev_hp = defender->hp;
         defender->hp -= damage;
         if (defender->hp <= 0) {
             defender->hp = 0;
             defender->is_alive = 0;
             def_player->alive_count--;
         }
+        evt_push(EVT_DAMAGE, def_pidx, prev_hp - defender->hp, defender->species);
+        if (!defender->is_alive) {
+            evt_push(EVT_FAINT, def_pidx, 0, defender->species);
+        }
+
+        // Gen 1 Showdown: Fire-type damaging move thaws frozen target
+        if (defender->status == STATUS_FREEZE && mdata->type == TYPE_FIRE && damage > 0) {
+            defender->status = STATUS_NONE;
+        }
 
         // Apply secondary effect
-        apply_move_effect(atk_player, def_player, move_slot, damage);
+        apply_move_effect(atk_player, def_player, move_slot, damage, atk_pidx);
     }
 
     return 1;
@@ -1406,19 +1541,22 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx) {
 // End-of-turn Effects
 // ============================================================================
 
-static void apply_end_of_turn(Player* p, Player* opponent) {
+static void apply_end_of_turn(Player* p, Player* opponent, int pidx) {
     Pokemon* poke = active_pokemon(p);
     if (!poke->is_alive) return;
+    int opp_pidx = 1 - pidx;
 
     // Burn damage: 1/16 max HP
     if (poke->status == STATUS_BURN) {
         int burn_dmg = poke->max_hp / 16;
         if (burn_dmg < 1) burn_dmg = 1;
         poke->hp -= burn_dmg;
+        evt_push(EVT_DAMAGE, pidx, burn_dmg, poke->species);
         if (poke->hp <= 0) {
             poke->hp = 0;
             poke->is_alive = 0;
             p->alive_count--;
+            evt_push(EVT_FAINT, pidx, 0, poke->species);
             return;
         }
     }
@@ -1428,10 +1566,12 @@ static void apply_end_of_turn(Player* p, Player* opponent) {
         int poison_dmg = poke->max_hp / 16;
         if (poison_dmg < 1) poison_dmg = 1;
         poke->hp -= poison_dmg;
+        evt_push(EVT_DAMAGE, pidx, poison_dmg, poke->species);
         if (poke->hp <= 0) {
             poke->hp = 0;
             poke->is_alive = 0;
             p->alive_count--;
+            evt_push(EVT_FAINT, pidx, 0, poke->species);
             return;
         }
     }
@@ -1442,10 +1582,12 @@ static void apply_end_of_turn(Player* p, Player* opponent) {
         if (toxic_dmg < 1) toxic_dmg = 1;
         poke->hp -= toxic_dmg;
         poke->toxic_counter++;
+        evt_push(EVT_DAMAGE, pidx, toxic_dmg, poke->species);
         if (poke->hp <= 0) {
             poke->hp = 0;
             poke->is_alive = 0;
             p->alive_count--;
+            evt_push(EVT_FAINT, pidx, 0, poke->species);
             return;
         }
     }
@@ -1461,10 +1603,13 @@ static void apply_end_of_turn(Player* p, Player* opponent) {
             if (opp_poke->hp > opp_poke->max_hp) {
                 opp_poke->hp = opp_poke->max_hp;
             }
+            evt_push(EVT_DAMAGE, pidx, seed_dmg, poke->species);
+            evt_push(EVT_HEAL, opp_pidx, seed_dmg, opp_poke->species);
             if (poke->hp <= 0) {
                 poke->hp = 0;
                 poke->is_alive = 0;
                 p->alive_count--;
+                evt_push(EVT_FAINT, pidx, 0, poke->species);
                 return;
             }
         }
@@ -1638,12 +1783,14 @@ static void resolve_turn(Battle* battle, int p1_action, int p2_action) {
             int switch_target = p1_action - 4;
             if (can_switch(p1, switch_target)) {
                 do_switch(p1, switch_target);
+                evt_push(EVT_SWITCH, 0, 0, p1->team[p1->active_idx].species);
             }
         }
         if ((battle->mode == 2 || battle->mode == 3) && p2_action >= 4 && p2_action <= 9) {
             int switch_target = p2_action - 4;
             if (can_switch(p2, switch_target)) {
                 do_switch(p2, switch_target);
+                evt_push(EVT_SWITCH, 1, 0, p2->team[p2->active_idx].species);
             }
         }
         battle->mode = 0;
@@ -1662,12 +1809,14 @@ static void resolve_turn(Battle* battle, int p1_action, int p2_action) {
         int target = p1_action - 4;
         if (can_switch(p1, target)) {
             do_switch(p1, target);
+            evt_push(EVT_SWITCH, 0, 0, p1->team[p1->active_idx].species);
         }
     }
     if (p2_switching) {
         int target = p2_action - 4;
         if (can_switch(p2, target)) {
             do_switch(p2, target);
+            evt_push(EVT_SWITCH, 1, 0, p2->team[p2->active_idx].species);
         }
     }
 
@@ -1690,32 +1839,32 @@ static void resolve_turn(Battle* battle, int p1_action, int p2_action) {
         if (p2_move >= NUM_MOVE_SLOTS) p2_move = 0;
 
         if (p1_first) {
-            execute_move(p1, p2, p1_move);
+            execute_move(p1, p2, p1_move, 0);
             if (active_pokemon(p2)->is_alive) {
-                execute_move(p2, p1, p2_move);
+                execute_move(p2, p1, p2_move, 1);
             }
         } else {
-            execute_move(p2, p1, p2_move);
+            execute_move(p2, p1, p2_move, 1);
             if (active_pokemon(p1)->is_alive) {
-                execute_move(p1, p2, p1_move);
+                execute_move(p1, p2, p1_move, 0);
             }
         }
     } else if (!p1_switching) {
         // P1 uses move (P2 already switched)
         int p1_move = p1_action;
         if (p1_move >= NUM_MOVE_SLOTS) p1_move = 0;
-        execute_move(p1, p2, p1_move);
+        execute_move(p1, p2, p1_move, 0);
     } else if (!p2_switching) {
         // P2 uses move (P1 already switched)
         int p2_move = p2_action;
         if (p2_move >= NUM_MOVE_SLOTS) p2_move = 0;
-        execute_move(p2, p1, p2_move);
+        execute_move(p2, p1, p2_move, 1);
     }
     // Both switched: nothing more to do
 
     // End of turn effects
-    apply_end_of_turn(p1, p2);
-    apply_end_of_turn(p2, p1);
+    apply_end_of_turn(p1, p2, 0);
+    apply_end_of_turn(p2, p1, 1);
 
     // Check for fainted Pokemon that need replacement
     int p1_fainted = !active_pokemon(p1)->is_alive && p1->alive_count > 0;
@@ -1882,6 +2031,10 @@ static float evaluate_position(Battle* battle, int side) {
 // ============================================================================
 
 static int heuristic_action(Battle* battle, int player_idx, int mode) {
+    // Suppress event logging during heuristic simulations
+    PokeBattle* saved_event_env = g_event_env;
+    g_event_env = NULL;
+
     int mask[NUM_ACTIONS];
     get_action_mask(&battle->players[player_idx], mode, player_idx, mask);
 
@@ -1893,7 +2046,10 @@ static int heuristic_action(Battle* battle, int player_idx, int mode) {
     for (int i = 0; i < NUM_ACTIONS; i++) {
         if (mask[i]) legal[n_legal++] = i;
     }
-    if (n_legal <= 1) return n_legal == 0 ? 0 : legal[0];
+    if (n_legal <= 1) {
+        g_event_env = saved_event_env;
+        return n_legal == 0 ? 0 : legal[0];
+    }
 
     int opp_legal[NUM_ACTIONS], n_opp_legal = 0;
     for (int i = 0; i < NUM_ACTIONS; i++) {
@@ -1937,6 +2093,7 @@ static int heuristic_action(Battle* battle, int player_idx, int mode) {
     }
 
     pb_rng_state = saved_rng;
+    g_event_env = saved_event_env;
     return best_action;
 }
 
@@ -1947,6 +2104,10 @@ static int heuristic_action(Battle* battle, int player_idx, int mode) {
 
 static int mcts_action(Battle* battle, int player_idx, int mode,
                        int iterations, int depth) {
+    // Suppress event logging during MCTS simulations
+    PokeBattle* saved_event_env = g_event_env;
+    g_event_env = NULL;
+
     int mask[NUM_ACTIONS];
     get_action_mask(&battle->players[player_idx], mode, player_idx, mask);
 
@@ -2021,6 +2182,7 @@ static int mcts_action(Battle* battle, int player_idx, int mode,
         }
     }
 
+    g_event_env = saved_event_env;
     return best_action;
 }
 
@@ -2043,12 +2205,78 @@ static int bot_action(PokeBattle* env, int player_idx) {
 // PufferLib Interface: init, reset, step, render, close
 // ============================================================================
 
+static void validate_battle_rules(void) {
+    // === Type Chart Assertions ===
+    // Psychic deals normal damage to Ghost (NOT immune) — Showdown Gen 1
+    assert(TYPE_CHART[TYPE_PSYCHIC][TYPE_GHOST] == 2);
+    // Ghost is immune to Psychic
+    assert(TYPE_CHART[TYPE_GHOST][TYPE_PSYCHIC] == 0);
+    // Ghost immune to Normal
+    assert(TYPE_CHART[TYPE_NORMAL][TYPE_GHOST] == 0);
+    // Normal immune to Ghost
+    assert(TYPE_CHART[TYPE_GHOST][TYPE_NORMAL] == 0);
+    // Bug and Poison mutually SE (Gen 1)
+    assert(TYPE_CHART[TYPE_BUG][TYPE_POISON] == 3);
+    assert(TYPE_CHART[TYPE_POISON][TYPE_BUG] == 3);
+    // Ice neutral to Fire (Gen 1)
+    assert(TYPE_CHART[TYPE_ICE][TYPE_FIRE] == 2);
+    // Psychic SE against Fighting and Poison
+    assert(TYPE_CHART[TYPE_PSYCHIC][TYPE_FIGHTING] == 3);
+    assert(TYPE_CHART[TYPE_PSYCHIC][TYPE_POISON] == 3);
+
+    // === Stat Formula Assertions ===
+    assert(calc_hp(75) == 353);    // Tauros HP: 2*75+203
+    assert(calc_hp(250) == 703);   // Chansey HP: 2*250+203
+    assert(calc_stat(135) == 368); // Alakazam Spc: 2*135+98
+
+    // === Move Data Assertions ===
+    assert(MOVE_DATA[MOVE_BODY_SLAM].type == TYPE_NORMAL);
+    assert(MOVE_DATA[MOVE_BODY_SLAM].power == 85);
+    assert(MOVE_DATA[MOVE_BODY_SLAM].effect == EFFECT_PARALYZE_CHANCE);
+    assert(MOVE_DATA[MOVE_BODY_SLAM].effect_chance == 30);
+    assert(MOVE_DATA[MOVE_PSYCHIC].type == TYPE_PSYCHIC);
+    assert(MOVE_DATA[MOVE_PSYCHIC].power == 90);
+    assert(MOVE_DATA[MOVE_BLIZZARD].power == 120);
+    assert(MOVE_DATA[MOVE_BLIZZARD].effect_chance == 10);
+    assert(MOVE_DATA[MOVE_THUNDER_WAVE].type == TYPE_ELECTRIC);
+    assert(MOVE_DATA[MOVE_THUNDER_WAVE].power == 0);
+    assert(MOVE_DATA[MOVE_EXPLOSION].effect == EFFECT_SELF_DESTRUCT);
+
+    // === Species Data Assertions ===
+    assert(SPECIES_DATA[SPECIES_TAUROS].type1 == TYPE_NORMAL);
+    assert(SPECIES_DATA[SPECIES_TAUROS].base_hp == 75);
+    assert(SPECIES_DATA[SPECIES_TAUROS].base_spe == 110);
+    assert(SPECIES_DATA[SPECIES_GENGAR].type1 == TYPE_GHOST);
+    assert(SPECIES_DATA[SPECIES_GENGAR].type2 == TYPE_POISON);
+    assert(SPECIES_DATA[SPECIES_STARMIE].type1 == TYPE_WATER);
+    assert(SPECIES_DATA[SPECIES_STARMIE].type2 == TYPE_PSYCHIC);
+
+    // === Physical/Special Split Assertions (Gen 1) ===
+    assert(TYPE_IS_PHYSICAL[TYPE_NORMAL] == 1);
+    assert(TYPE_IS_PHYSICAL[TYPE_FIRE] == 0);
+    assert(TYPE_IS_PHYSICAL[TYPE_FIGHTING] == 1);
+    assert(TYPE_IS_PHYSICAL[TYPE_PSYCHIC] == 0);
+    assert(TYPE_IS_PHYSICAL[TYPE_GHOST] == 1);
+
+    // === Stat Stage Table Assertions ===
+    assert(STAGE_NUMER[6] == 2 && STAGE_DENOM[6] == 2);   // Stage 0 = 1x
+    assert(STAGE_NUMER[12] == 8 && STAGE_DENOM[12] == 2);  // Stage +6 = 4x
+    assert(STAGE_NUMER[0] == 2 && STAGE_DENOM[0] == 8);    // Stage -6 = 0.25x
+}
+
 void init(PokeBattle* env) {
+    validate_battle_rules();
     memset(&env->battle, 0, sizeof(Battle));
     env->tick = 0;
+    env->last_p1_action = 0;
+    env->last_p2_action = 0;
+    env->last_result = 0;
     env->p1_episode_return = 0.0f;
     env->p2_episode_return = 0.0f;
     env->episode_count = 0;
+    env->client = NULL;
+    env->mouse_action = -1;
+    if (env->auto_reset != 0 && env->auto_reset != 1) env->auto_reset = 1;
     if (env->mcts_iterations <= 0) env->mcts_iterations = MCTS_DEFAULT_ITERATIONS;
     if (env->mcts_depth <= 0) env->mcts_depth = MCTS_DEFAULT_DEPTH;
     pb_rng_state = env->seed;
@@ -2082,8 +2310,13 @@ static void pack_observations(PokeBattle* env) {
 
 void c_reset(PokeBattle* env) {
     env->tick = 0;
+    env->last_p1_action = 0;
+    env->last_p2_action = 0;
+    env->last_result = 0;
     env->p1_episode_return = 0.0f;
     env->p2_episode_return = 0.0f;
+    env->terminals[0] = 0;
+    env->rewards[0] = 0.0f;
     env->episode_count++;
 
     // Seed RNG
@@ -2104,6 +2337,10 @@ void c_reset(PokeBattle* env) {
 }
 
 void c_step(PokeBattle* env) {
+    // Set up event logging
+    g_event_env = env;
+    env->event_count = 0;
+
     // Zero rewards and terminals
     env->rewards[0] = 0.0f;
     env->terminals[0] = 0;
@@ -2156,12 +2393,25 @@ void c_step(PokeBattle* env) {
                                            env->battle.mode, 1);
         }
     }
+    env->last_p1_action = p1_action;
+    env->last_p2_action = p2_action;
 
     // Resolve the turn
     resolve_turn(&env->battle, p1_action, p2_action);
 
+    // Auto-resolve opponent-only forced switches in single-agent mode.
+    // When P2's Pokemon faints, the bot picks a replacement immediately
+    // so the human player never has to "pass" through a dead turn.
+    if (!env->selfplay && env->num_agents == 1) {
+        while (env->battle.mode == 2) {
+            int bot_switch = bot_action(env, 1);
+            resolve_turn(&env->battle, 0, bot_switch);
+        }
+    }
+
     // Check for game end
     int result = check_winner(&env->battle);
+    env->last_result = result;
     int done = (result != 0) || (env->tick >= MAX_TURNS);
 
     // Assign rewards
@@ -2202,44 +2452,52 @@ void c_step(PokeBattle* env) {
 
         // Log metrics
         if (env->selfplay) {
-            env->log.episode_return = env->rewards[0]; // learner's result
+            // Accumulate episode stats until vec_log flushes and averages them.
+            env->log.episode_return += env->rewards[0]; // learner's result
+            env->log.score += env->rewards[0];
             int learner_won = (result == 1 && env->learner_side == 0) ||
                              (result == -1 && env->learner_side == 1);
             int learner_lost = (result == 1 && env->learner_side == 1) ||
                               (result == -1 && env->learner_side == 0);
-            env->log.perf = learner_won ? 1.0f : (learner_lost ? 0.0f : 0.5f);
-            env->log.p1_wins = learner_won ? 1.0f : 0.0f;
-            env->log.p2_wins = learner_lost ? 1.0f : 0.0f;
-            env->log.draws = (result == 0) ? 1.0f : 0.0f;
+            env->log.perf += learner_won ? 1.0f : (learner_lost ? 0.0f : 0.5f);
+            env->log.p1_wins += learner_won ? 1.0f : 0.0f;
+            env->log.p2_wins += learner_lost ? 1.0f : 0.0f;
+            env->log.draws += (result == 0) ? 1.0f : 0.0f;
         } else {
-            env->log.episode_return = env->p1_episode_return;
-            env->log.score = env->p1_episode_return;
+            env->log.episode_return += env->p1_episode_return;
+            env->log.score += env->p1_episode_return;
             if (result == 1) {
-                env->log.perf = 1.0f;
-                env->log.p1_wins = 1.0f;
+                env->log.perf += 1.0f;
+                env->log.p1_wins += 1.0f;
             } else if (result == -1) {
-                env->log.perf = 0.0f;
-                env->log.p2_wins = 1.0f;
+                env->log.perf += 0.0f;
+                env->log.p2_wins += 1.0f;
             } else {
-                env->log.perf = 0.5f;
-                env->log.draws = 1.0f;
+                env->log.perf += 0.5f;
+                env->log.draws += 1.0f;
             }
         }
-        env->log.episode_length = (float)env->tick;
-        env->log.n++;
+        env->log.episode_length += (float)env->tick;
+        env->log.n += 1.0f;
 
-        c_reset(env);
+        if (env->auto_reset) {
+            c_reset(env);
+        } else {
+            pack_observations(env);
+        }
     } else {
         pack_observations(env);
     }
 }
 
-void c_render(PokeBattle* env) {
-    (void)env; // No rendering in headless mode
-}
+// c_render is defined in render.h (provides full Showdown battle UI)
+#include "render.h"
 
 void c_close(PokeBattle* env) {
-    (void)env; // No dynamic allocations to free
+    if (env->client) {
+        close_client(env->client);
+        env->client = NULL;
+    }
 }
 
 #endif // POKE_BATTLE_H
