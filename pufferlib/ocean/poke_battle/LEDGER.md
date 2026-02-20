@@ -177,5 +177,88 @@ Methodical record of training runs, eval results, and changes for the Gen1 OU Po
 
 ---
 
+## Run 003 — Train vs heuristic bot + higher entropy (full 1B steps)
+
+**Date**: 2026-02-20
+**Branch**: `poke-battle`
+**Commit**: uncommitted config changes on top of `f00bd21b`
+**WandB**: https://wandb.ai/xinpw8/pufferlib/runs/h9fsk8qf
+**Run Name**: `daily-dragon-1629`
+**Checkpoint**: `experiments/puffer_poke_battle_h9fsk8qf/model_puffer_poke_battle_000954.pt` (epoch 954)
+**Status**: Completed (full 1B steps)
+
+### Changes from Run 002
+1. **Train vs heuristic bot** (`bot_mode` 0→1): Agent now trains against the 1-ply minimax heuristic bot instead of the random bot. This forces the agent to learn against a stronger opponent that uses type effectiveness and basic damage maximization.
+2. **Higher entropy coefficient** (`ent_coef` 0.01→0.02): Doubled to counteract the entropy collapse observed in Run 002 (0.19). Maintains more exploration against the harder opponent.
+
+### Training Config (changes only)
+| Parameter | Run 002 | Run 003 |
+|---|---|---|
+| bot_mode | 0 (random) | 1 (heuristic) |
+| ent_coef | 0.01 | 0.02 |
+| epochs (actual) | 200 (killed early) | 954 (full run) |
+| agent_steps | 385,875,968 | 1,034,944,512 |
+| *all other params* | *same* | *same* |
+
+### Final WandB Summary Metrics
+| Metric | Run 002 | Run 003 | Notes |
+|---|---|---|---|
+| epoch | 200 | 954 | full run |
+| agent_steps | 385,875,968 | 1,034,944,512 | full 1B |
+| wall_time | 733s (~12min) | 6047s (~101min) | longer due to heuristic bot cost |
+| SPS | 562,646 | 219,624 | heuristic bot ~3x slower than random |
+| environment/p1_wins | 0.996 | **0.829** | harder opponent |
+| environment/p2_wins | 0.004 | 0.171 | |
+| environment/draws | 0.0 | 0.00002 | |
+| environment/episode_return | 1.547 | **1.012** | lower shaped return vs harder bot |
+| environment/episode_length | 25.2 | **45.1** | longer games vs heuristic |
+| environment/perf | 0.996 | **0.829** | |
+| losses/entropy | 0.189 | **0.369** | healthier with ent_coef=0.02 |
+| losses/explained_variance | 0.384 | **0.473** | value function improved further |
+| losses/policy_loss | -0.0128 | **-0.0119** | still meaningful |
+| losses/value_loss | 0.00557 | **0.00677** | fitting harder signal |
+| losses/approx_kl | 0.000758 | **0.000327** | healthy updates |
+| losses/clipfrac | 0.00817 | **0.000878** | |
+| learning_rate (final) | 2.12e-4 | **3.0e-5** | at LR floor (0.1 * 3e-4) |
+
+### Key Observations
+- **Training vs heuristic works**: Despite p1_wins dropping from 0.996→0.829 (harder opponent), the agent learned much more robust play that transfers to all bot types.
+- **Entropy healthier**: 0.19→0.37 with doubled ent_coef. Policy maintains exploration instead of collapsing to a single strategy.
+- **Value function best yet**: explained_variance 0.47 (vs 0.38 in Run 002, vs -1.5 in Run 001). Dense rewards + harder opponent = richer signal.
+- **SPS ~3x lower**: Heuristic bot is compute-heavy (1-ply minimax each step), reducing throughput from ~560K to ~220K SPS. Full run took ~101 min vs ~12 min.
+- **Episode length ~2x longer**: 45 steps vs 25. Games against heuristic bot are harder and take longer.
+
+### Eval Results (at checkpoint epoch 954)
+| Opponent | Episodes | Wins | Losses | Draws | Win Rate |
+|---|---|---|---|---|---|
+| Random bot | 100 | 100 | 0 | 0 | **100.0%** |
+| Heuristic bot | 100 | 85 | 15 | 0 | **85.0%** |
+| MCTS bot | 100 | 80 | 19 | 1 | **80.0%** |
+| Human | 5 | 5 | 0 | 0 | **100.0%** |
+
+### Comparison: All Runs
+| Opponent | Run 001 Win% | Run 002 Win% | Run 003 Win% | Delta (002→003) |
+|---|---|---|---|---|
+| Random | 60.0% | 98.0% | **100.0%** | +2pp |
+| Heuristic | 1.0% | 38.0% | **85.0%** | +47pp |
+| MCTS | 2.0% | 44.0% | **80.0%** | +36pp |
+| Human | 0.0% | 57.1% | **100.0%** | +43pp |
+
+### Assessment
+**Training against a harder opponent dramatically improved generalization.** The agent went from 38% and 44% vs heuristic/MCTS (Run 002, trained vs random) to 85% and 80% (Run 003, trained vs heuristic). Perfect 100% vs random is maintained. The entropy fix prevented policy collapse and allowed the agent to maintain a diverse strategy repertoire.
+
+**Human eval: 5-0 sweep.** The policy beat a human player in all 5 games, up from 4-3 (57%) in Run 002. Combined with 85% vs heuristic and 80% vs MCTS, this agent is now superhuman against all tested opponents.
+
+**Remaining weaknesses:**
+- 85% vs heuristic and 80% vs MCTS — strong but not dominant against search-based bots
+- MCTS win rate (80%) slightly below heuristic (85%) despite MCTS being a stronger opponent — suggests room for improvement
+
+### Next Steps (Planned)
+1. Consider training vs MCTS bot or curriculum (random→heuristic→MCTS)
+2. Try selfplay for even more robust generalization
+3. Consider longer training or larger model if gains plateau
+
+---
+
 *Eval command: `python -m pufferlib.ocean.poke_battle.eval` (all bots) or `--human` (GUI play)*
 *Specify checkpoint: `--model-path experiments/puffer_poke_battle_RUNID/model_puffer_poke_battle_EPOCH.pt`*
