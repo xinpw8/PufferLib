@@ -142,6 +142,7 @@ def eval_human(model_path, device='cuda', episodes=10):
     lstm_c = torch.zeros(1, policy.hidden_size, device=device)
 
     wins, losses, draws = 0, 0, 0
+    closed = False
 
     try:
         for ep in range(1, episodes + 1):
@@ -152,7 +153,8 @@ def eval_human(model_path, device='cuda', episodes=10):
             while True:
                 human_action = env.render_get_action(0)
                 if human_action == -1:
-                    return
+                    closed = True
+                    break
                 if human_action == -2:
                     break
 
@@ -182,9 +184,19 @@ def eval_human(model_path, device='cuda', episodes=10):
                     lstm_h.zero_()
                     lstm_c.zero_()
 
-        print(f'\n  Final: W={wins} L={losses} D={draws} / {wins+losses+draws} games')
+            if closed:
+                break
+
     finally:
         env.close()
+        total = wins + losses + draws
+        if total > 0:
+            wr = 100.0 * wins / total
+            print(f'\n  Human vs Policy: {total} games played')
+            print(f'  {"You":<12} {"Wins":>6} {"Losses":>6} {"Draws":>6} {"Win%":>7}')
+            print(f'  {"-"*12} {"-"*6} {"-"*6} {"-"*6} {"-"*7}')
+            print(f'  {"Human":<12} {wins:>6} {losses:>6} {draws:>6} {wr:>6.1f}%')
+            print(f'  {"Policy":<12} {losses:>6} {wins:>6} {draws:>6} {100-wr:>6.1f}%')
 
 
 def main():
