@@ -364,6 +364,8 @@ def create_static_env_build_class(env_name):
             for ext in self.extensions:
                 ext.extra_objects = [RAYLIB_A, static_lib]
 
+            # Copy .so directly into source tree (like --inplace)
+            self.inplace = 1
             super().run()
 
     return StaticEnvBuildExt
