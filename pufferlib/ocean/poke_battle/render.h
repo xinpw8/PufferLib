@@ -123,6 +123,10 @@ struct Client {
     // Game result overlay
     int show_result;
     char result_text[64];
+
+    // Player controller labels (set by demo before each render)
+    char p1_label[32];
+    char p2_label[32];
 };
 
 // ============================================================================
@@ -627,11 +631,9 @@ static void draw_battle_field(Client* client, PokeBattle* env) {
         DrawText(name, 470 - tw / 2, 133, 14, WHITE);
     }
 
-    // Opponent stat bar (top-left)
+    // Opponent stat bar (top-left) — fixed height to prevent team icon jitter
     {
-        int has_stages = (p2->atk_stage || p2->def_stage || p2->spc_stage || p2->spe_stage);
-        int box_h = has_stages ? 76 : 60;
-        DrawRectangleRounded((Rectangle){20, 30, 240, (float)box_h}, 0.15f, 4, (Color){0x20, 0x30, 0x20, 0xDD});
+        DrawRectangleRounded((Rectangle){20, 30, 240, 72}, 0.15f, 4, (Color){0x20, 0x30, 0x20, 0xDD});
 
         const char* name = SPECIES_DATA[opp_species].name;
         DrawText(name, 30, 36, 18, WHITE);
@@ -647,16 +649,13 @@ static void draw_battle_field(Client* client, PokeBattle* env) {
         }
 
         // Stat stage indicators
-        if (has_stages) {
+        if (p2->atk_stage || p2->def_stage || p2->spc_stage || p2->spe_stage) {
             draw_stat_stages(30, 74, p2);
         }
     }
 
-    // Opponent team icons
-    {
-        int has_stages = (p2->atk_stage || p2->def_stage || p2->spc_stage || p2->spe_stage);
-        draw_team_icons(30, has_stages ? 112 : 96, p2);
-    }
+    // Opponent team icons (fixed y)
+    draw_team_icons(30, 106, p2);
 
     // --- Player side (bottom-left area) ---
 
@@ -678,11 +677,9 @@ static void draw_battle_field(Client* client, PokeBattle* env) {
         DrawText(name, 190 - tw / 2, 253, 14, WHITE);
     }
 
-    // Player stat bar (bottom-right of battle area)
+    // Player stat bar (bottom-right) — fixed height to prevent team icon overflow
     {
-        int has_stages = (p1->atk_stage || p1->def_stage || p1->spc_stage || p1->spe_stage);
-        int box_h = has_stages ? 86 : 70;
-        DrawRectangleRounded((Rectangle){370, 260, 270, (float)box_h}, 0.15f, 4, (Color){0x20, 0x30, 0x20, 0xDD});
+        DrawRectangleRounded((Rectangle){370, 260, 270, 80}, 0.15f, 4, (Color){0x20, 0x30, 0x20, 0xDD});
 
         const char* name = SPECIES_DATA[own_species].name;
         DrawText(name, 380, 266, 18, WHITE);
@@ -698,15 +695,26 @@ static void draw_battle_field(Client* client, PokeBattle* env) {
         }
 
         // Stat stage indicators
-        if (has_stages) {
-            draw_stat_stages(380, 328, p1);
+        if (p1->atk_stage || p1->def_stage || p1->spc_stage || p1->spe_stage) {
+            draw_stat_stages(380, 324, p1);
         }
     }
 
-    // Player team icons
-    {
-        int has_stages = (p1->atk_stage || p1->def_stage || p1->spc_stage || p1->spe_stage);
-        draw_team_icons(380, has_stages ? 352 : 336, p1);
+    // Player team icons (fixed y, must end before BATTLE_H=360)
+    draw_team_icons(380, 344, p1);
+
+    // Player controller labels
+    if (client->p2_label[0]) {
+        int tw = MeasureText(client->p2_label, 14);
+        DrawRectangleRounded((Rectangle){20, 10, (float)(tw + 16), 18},
+                             0.3f, 4, (Color){0xCC, 0x33, 0x33, 0xCC});
+        DrawText(client->p2_label, 28, 12, 14, WHITE);
+    }
+    if (client->p1_label[0]) {
+        int tw = MeasureText(client->p1_label, 14);
+        DrawRectangleRounded((Rectangle){(float)(640 - tw - 16), 244, (float)(tw + 16), 18},
+                             0.3f, 4, (Color){0x33, 0x66, 0xCC, 0xCC});
+        DrawText(client->p1_label, 640 - tw - 8, 246, 14, WHITE);
     }
 
     // Turn counter (top center)

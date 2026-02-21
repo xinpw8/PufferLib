@@ -10,8 +10,14 @@ WEB_OUTPUT_DIR="build_web/$ENV"
 RAYLIB_NAME='raylib-5.5_macos'
 BOX2D_NAME='box2d-macos-arm64'
 if [ "$PLATFORM" = "Linux" ]; then
-    RAYLIB_NAME='raylib-5.5_linux_amd64'
-    BOX2D_NAME='box2d-linux-amd64'
+    ARCH="$(uname -m)"
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        RAYLIB_NAME='raylib-5.5_linux_aarch64'
+        BOX2D_NAME='box2d-linux-arm64'
+    else
+        RAYLIB_NAME='raylib-5.5_linux_amd64'
+        BOX2D_NAME='box2d-linux-amd64'
+    fi
 fi
 if [ "$MODE" = "web" ]; then
     RAYLIB_NAME='raylib-5.5_webassembly'
@@ -74,7 +80,6 @@ FLAGS=(
     $LINK_ARCHIVES
     -lm
     -lpthread
-    -ferror-limit=3
     -DPLATFORM_DESKTOP
 )
 
@@ -87,6 +92,8 @@ if [ "$PLATFORM" = "Darwin" ]; then
     )
 fi
 
+CC="${CC:-$(command -v clang 2>/dev/null || command -v gcc 2>/dev/null)}"
+
 echo ${FLAGS[@]}
 
 if [ "$MODE" = "local" ]; then
@@ -97,11 +104,11 @@ if [ "$MODE" = "local" ]; then
             -fsanitize=address,undefined,bounds,pointer-overflow,leak
             -fno-omit-frame-pointer
         )
-    fi  
-    clang -g -O0 ${FLAGS[@]}
+    fi
+    $CC -g -O0 ${FLAGS[@]}
 elif [ "$MODE" = "fast" ]; then
     echo "Building optimized $ENV for local testing..."
-    clang -pg -O2 -DNDEBUG ${FLAGS[@]}
+    $CC -pg -O2 -DNDEBUG ${FLAGS[@]}
     echo "Built to: $ENV"
 else
     echo "Invalid mode specified: local|fast|web"
