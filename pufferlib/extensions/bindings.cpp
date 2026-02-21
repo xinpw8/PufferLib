@@ -250,6 +250,47 @@ PYBIND11_MODULE(_C, m) {
     m.def("profiler_start", &profiler_start);
     m.def("profiler_stop", &profiler_stop);
 
+    // Selfplay bindings
+    m.def("load_opponent_weights", [](py::object pufferl_obj, py::dict state_dict, int slot) {
+        auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+        TORCH_CHECK(pufferl.opponent_pool != nullptr, "No opponent pool (selfplay not enabled)");
+        TORCH_CHECK(slot >= 0 && slot < pufferl.opponent_pool->n_slots, "Invalid pool slot");
+        Policy* opp = pufferl.opponent_pool->policies[slot];
+        auto named_params = opp->named_parameters();
+        for (auto& item : state_dict) {
+            std::string key = py::str(item.first);
+            Tensor value = item.second.cast<Tensor>().to(torch::kCUDA).to(PRECISION_DTYPE);
+            for (auto& np : named_params) {
+                if (np.key() == key) {
+                    np.value().data().copy_(value);
+                    break;
+                }
+            }
+        }
+        opp->eval();
+    });
+
+    m.def("set_active_opponent", [](py::object pufferl_obj, int slot, int policy_id) {
+        auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+        pufferl.active_opponent_slot = slot;
+        // Zero opponent RNN states for the tail 20% when swapping
+        int num_buffers = pufferl.hypers.num_buffers;
+        int block_size = pufferl.hypers.total_agents / num_buffers;
+        int cut = pufferl.selfplay_cut;
+        int tail = block_size - cut;
+        for (int buf = 0; buf < num_buffers; buf++) {
+            if (tail > 0) {
+                pufferl.opponent_states[buf].narrow(1, cut, tail).zero_();
+            }
+        }
+    });
+
+    m.def("get_opponent_pool_size", [](py::object pufferl_obj) -> int {
+        auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+        if (!pufferl.opponent_pool) return 0;
+        return pufferl.opponent_pool->n_slots;
+    });
+
     py::class_<Muon>(m, "Muon")
         .def_readwrite("lr", &Muon::lr)
         .def_readwrite("weight_buffer", &Muon::weight_buffer)
@@ -308,7 +349,9 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("policy_fp32", &PuffeRL::policy_fp32)
         .def_readwrite("muon", &PuffeRL::muon)
         .def_readwrite("hypers", &PuffeRL::hypers)
-        .def_readwrite("rollouts", &PuffeRL::rollouts);
+        .def_readwrite("rollouts", &PuffeRL::rollouts)
+        .def_readwrite("selfplay", &PuffeRL::selfplay)
+        .def_readwrite("active_opponent_slot", &PuffeRL::active_opponent_slot);
 
     py::class_<PolicyLSTM, std::shared_ptr<PolicyLSTM>, torch::nn::Module> cls(m, "PolicyLSTM");
     cls.def(py::init<int, int, int>());

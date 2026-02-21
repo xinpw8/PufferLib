@@ -1,7 +1,8 @@
 #include "slimevolley.h"
-#define OBS_SIZE 12
-#define NUM_ATNS 3
-#define ACT_SIZES {2, 2, 2}
+// Selfplay mode: doubled obs [learner(12) | opponent(12)], interleaved actions [learner(3) | opponent(3)]
+#define OBS_SIZE 24
+#define NUM_ATNS 6
+#define ACT_SIZES {2, 2, 2, 2, 2, 2}
 #define OBS_TYPE FLOAT
 #define ACT_TYPE DOUBLE
 
@@ -9,7 +10,9 @@
 #include "env_binding.h"
 
 void my_init(Env* env, Dict* kwargs) {
-    env->num_agents = dict_get(kwargs, "num_agents")->value;
+    DictItem* sp = dict_get_unsafe(kwargs, "selfplay");
+    env->selfplay = sp ? (int)sp->value : 0;
+    env->num_agents = 1;  // Always 1 logical agent with doubled obs layout
     init(env);
 }
 

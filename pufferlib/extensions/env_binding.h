@@ -94,6 +94,7 @@ typedef struct StaticVec {
     StaticThreading* threading;
     int obs_size;
     int num_atns;
+    int selfplay;
 } StaticVec;
 
 // Callback types

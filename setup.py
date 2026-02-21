@@ -36,10 +36,16 @@ if shutil.which('ccache'):
 DEBUG = os.getenv("DEBUG", "0") == "1"
 NO_OCEAN = os.getenv("NO_OCEAN", "0") == "1"
 NO_TRAIN = os.getenv("NO_TRAIN", "0") == "1"
+IS_ARM64 = platform.machine() in ('aarch64', 'arm64')
 
 # Build raylib for your platform
 RAYLIB_URL = 'https://github.com/raysan5/raylib/releases/download/5.5/'
-RAYLIB_NAME = 'raylib-5.5_macos' if platform.system() == "Darwin" else 'raylib-5.5_linux_amd64'
+if platform.system() == "Darwin":
+    RAYLIB_NAME = 'raylib-5.5_macos'
+elif IS_ARM64:
+    RAYLIB_NAME = 'raylib-5.5_linux_aarch64'
+else:
+    RAYLIB_NAME = 'raylib-5.5_linux_amd64'
 RLIGHTS_URL = 'https://raw.githubusercontent.com/raysan5/raylib/refs/heads/master/examples/shaders/rlights.h'
 
 def download_raylib(platform, ext):
@@ -61,7 +67,12 @@ if not NO_OCEAN:
     download_raylib(RAYLIB_NAME, '.tar.gz')
 
 BOX2D_URL = 'https://github.com/capnspacehook/box2d/releases/latest/download/'
-BOX2D_NAME = 'box2d-macos-arm64' if platform.system() == "Darwin" else 'box2d-linux-amd64'
+if platform.system() == "Darwin":
+    BOX2D_NAME = 'box2d-macos-arm64'
+elif IS_ARM64:
+    BOX2D_NAME = 'box2d-linux-arm64'
+else:
+    BOX2D_NAME = 'box2d-linux-amd64'
 
 def download_box2d(platform):
     if not os.path.exists(platform):
@@ -328,8 +339,9 @@ def create_static_env_build_class(env_name):
             static_obj = f'pufferlib/extensions/libstatic_{env_name}.o'
 
             # -g?
+            c_compiler = shutil.which('clang') or shutil.which('gcc') or 'cc'
             clang_cmd = [
-                'clang', '-c', '-O2', '-DNDEBUG',
+                c_compiler, '-c', '-O2', '-DNDEBUG',
                 '-I.', '-Ipufferlib/extensions', f'-Ipufferlib/ocean/{env_name}',
                 f'-I./{RAYLIB_NAME}/include', '-I/usr/local/cuda/include',
                 '-DPLATFORM_DESKTOP',
@@ -377,7 +389,57 @@ if not NO_OCEAN:
 # Check if CUDA compiler is available. You need cuda dev, not just runtime.
 import torch
 cuda_home = os.environ.get('CUDA_HOME') or os.environ.get('CUDA_PATH') or torch.utils.cpp_extension.CUDA_HOME or '/usr/local/cuda'
-nvtx_lib_dir = os.path.join(cuda_home, 'lib64')  # Common on Linux; fall back to 'lib' if needed
+site_packages_dir = os.path.dirname(os.path.realpath(torch.__file__))
+site_packages_dir = os.path.dirname(site_packages_dir)
+
+home_dir = os.path.expanduser('~')
+candidate_nvtx_lib_dirs = [
+    os.path.join(site_packages_dir, 'nvidia', 'nvtx', 'lib'),
+    os.path.join(home_dir, '.venv', 'lib', 'python3.12', 'site-packages', 'nvidia', 'nvtx', 'lib'),
+    os.path.join(cuda_home, 'lib64'),
+]
+nvtx_lib_dir = candidate_nvtx_lib_dirs[-1]
+for d in candidate_nvtx_lib_dirs:
+    if os.path.exists(os.path.join(d, 'libnvToolsExt.so')) or os.path.exists(os.path.join(d, 'libnvToolsExt.so.1')):
+        nvtx_lib_dir = d
+        break
+
+candidate_nccl_include_dirs = [
+    os.path.join(site_packages_dir, 'nvidia', 'nccl', 'include'),
+    os.path.join(home_dir, '.venv', 'lib', 'python3.12', 'site-packages', 'nvidia', 'nccl', 'include'),
+]
+candidate_nccl_lib_dirs = [
+    os.path.join(site_packages_dir, 'nvidia', 'nccl', 'lib'),
+    os.path.join(home_dir, '.venv', 'lib', 'python3.12', 'site-packages', 'nvidia', 'nccl', 'lib'),
+]
+nccl_include_dir = candidate_nccl_include_dirs[0]
+for d in candidate_nccl_include_dirs:
+    if os.path.exists(os.path.join(d, 'nccl.h')):
+        nccl_include_dir = d
+        break
+
+nccl_lib_dir = candidate_nccl_lib_dirs[0]
+for d in candidate_nccl_lib_dirs:
+    if os.path.exists(os.path.join(d, 'libnccl.so')) or os.path.exists(os.path.join(d, 'libnccl.so.2')):
+        nccl_lib_dir = d
+        break
+
+# Some wheel layouts ship only SONAME files (e.g. libnccl.so.2).
+# Create linker-name symlinks so "-l<name>" works with distutils.
+for lib_dir, soname, linkname in [
+    (nvtx_lib_dir, 'libnvToolsExt.so.1', 'libnvToolsExt.so'),
+    (nccl_lib_dir, 'libnccl.so.2', 'libnccl.so'),
+]:
+    soname_path = os.path.join(lib_dir, soname)
+    link_path = os.path.join(lib_dir, linkname)
+    try:
+        if os.path.exists(soname_path) and not os.path.exists(link_path):
+            os.symlink(soname, link_path)
+    except OSError:
+        # Non-fatal: if symlink creation fails, linker may still resolve
+        # the library from system locations.
+        pass
+
 nvtx_lib = 'nvToolsExt'
 torch_extensions = []
 if not NO_TRAIN:
@@ -394,11 +456,19 @@ if not NO_TRAIN:
     import torch
     # Note: Use build_<envname> (e.g. build_breakout, build_drive) to build with static env linking
     # build_torch alone won't link any env - it's for the training code only
+    torch_include_dirs = [pybind11.get_include(), torch.utils.cpp_extension.include_paths()[0]]
+    if os.path.exists(nccl_include_dir):
+        torch_include_dirs.append(nccl_include_dir)
+
+    torch_library_dirs = [nvtx_lib_dir]
+    if os.path.exists(nccl_lib_dir):
+        torch_library_dirs.append(nccl_lib_dir)
+
     torch_extensions = [
        extension(
             "pufferlib._C",
             torch_sources,
-            include_dirs=[pybind11.get_include(), torch.utils.cpp_extension.include_paths()[0]],
+            include_dirs=torch_include_dirs,
             extra_compile_args = {
                 "cxx": extra_compile_args + cxx_args,
                 "nvcc": nvcc_args,
@@ -406,7 +476,7 @@ if not NO_TRAIN:
             extra_link_args=extra_link_args,
             extra_objects=[RAYLIB_A],
             libraries=[nvtx_lib, 'omp5', 'nccl', 'nvidia-ml'],
-            library_dirs=[nvtx_lib_dir],
+            library_dirs=torch_library_dirs,
         ),
     ]
 

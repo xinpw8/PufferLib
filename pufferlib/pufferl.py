@@ -46,6 +46,161 @@ from rich.console import Console
 from rich_argparse import RichHelpFormatter
 rich.traceback.install(show_locals=False)
 
+LN10_BY_400 = np.log(10) / 400.0
+
+def softmax(x):
+    e = np.exp(x - np.max(x))
+    return e / e.sum()
+
+def _get_trained_state_dict(policy_fp32, muon):
+    """Read trained weights from Muon's contiguous weight buffer.
+
+    Muon's init_contiguous_weights() maps parameters into a flat buffer via set_data().
+    We read directly from weight_buffer for robustness, using named_parameters()
+    only for the names and shapes (which are always correct).
+    """
+    weight_buffer = muon.weight_buffer
+    state_dict = {}
+    offset = 0
+    for name, param in policy_fp32.named_parameters():
+        size = param.numel()
+        state_dict[name] = weight_buffer.narrow(0, offset, size).view(param.shape).detach().clone()
+        offset += size
+    return state_dict
+
+class SelfplayManager:
+    """Manages opponent pool, quality-weighted sampling, ELO, and swap tracking for selfplay."""
+    def __init__(self, pufferl_cpp, total_agents, num_buffers, n_slots=6):
+        self.pufferl_cpp = pufferl_cpp
+        self.total_agents = int(total_agents)
+        self.num_buffers = int(num_buffers)
+        self.block_size = self.total_agents // self.num_buffers
+        self.cut = int(0.8 * self.block_size)
+        self.tail = self.block_size - self.cut
+        self.n_slots = n_slots
+        self._rot_idx = 0
+
+        # Opponent pool storage (CPU state dicts)
+        self.opponent_pool = {}           # policy_id -> CPU state_dict
+        self.opponent_pool_ids = []
+        self.saved_policy_count = 0
+        self.max_opponent_history = 300
+
+        # ELO tracking
+        self.elos = [0.0]  # index 0 = learner, rest = opponents
+
+        # Quality-weighted sampling
+        self.opponent_qualities = {}
+        self.quality_lr = 0.01
+
+        # Swap tracking (epoch-level)
+        self.cur_opp_id = 0
+        self.done_since_swap = 0
+        self.swap_quota = int(total_agents * 0.2)
+
+    def save_snapshot(self, policy_fp32, muon, epoch):
+        """Save current policy to opponent pool. Called every 10 epochs."""
+        if epoch == 0 or epoch % 10 != 0:
+            return
+        snapshot = {k: v.cpu() for k, v in _get_trained_state_dict(policy_fp32, muon).items()}
+        self.saved_policy_count += 1
+        pid = self.saved_policy_count
+        self.opponent_pool[pid] = snapshot
+        start_q = max(self.opponent_qualities.values()) if self.opponent_qualities else 0.0
+        self.opponent_qualities[pid] = start_q
+        self.opponent_pool_ids.append(pid)
+        self.elos.append(self.elos[0])
+        # Evict oldest
+        if len(self.opponent_pool_ids) > self.max_opponent_history:
+            oldest = self.opponent_pool_ids.pop(0)
+            self.opponent_pool.pop(oldest, None)
+
+    def sample_opponent(self):
+        """Quality-weighted opponent sampling."""
+        if not self.opponent_pool_ids:
+            return 0
+        ids = np.array(self.opponent_pool_ids, dtype=np.int32)
+        qs = np.array([self.opponent_qualities.get(p, 0.0) for p in ids])
+        probs = softmax(qs)
+        return int(np.random.choice(ids, p=probs))
+
+    def load_opponent(self, policy_id):
+        """Load opponent weights into C++ pool and activate."""
+        if policy_id == 0 or policy_id not in self.opponent_pool:
+            return
+        slot = self._rot_idx
+        weights = self.opponent_pool[policy_id]
+        _C.load_opponent_weights(self.pufferl_cpp, weights, slot)
+        _C.set_active_opponent(self.pufferl_cpp, slot, policy_id)
+        self.cur_opp_id = policy_id
+        self._rot_idx = (slot + 1) % self.n_slots
+
+    def update_from_rollout(self, rollouts):
+        """Process rollout terminals/rewards for swap tracking and ELO updates.
+        Called once per epoch after evaluate()."""
+        terminals = rollouts.terminals.cpu()  # [horizon, total_agents]
+        rewards = rollouts.rewards.cpu()      # [horizon, total_agents]
+
+        total_tail_done = 0
+        total_tail_wins = 0
+        total_tail_losses = 0
+
+        for buf in range(self.num_buffers):
+            start = buf * self.block_size + self.cut
+            end = (buf + 1) * self.block_size
+            tail_terms = terminals[:, start:end]
+            tail_rewards = rewards[:, start:end]
+            done_mask = tail_terms > 0.5
+            n_done = done_mask.sum().item()
+            total_tail_done += n_done
+            total_tail_wins += ((tail_rewards > 0) & done_mask).sum().item()
+            total_tail_losses += ((tail_rewards < 0) & done_mask).sum().item()
+
+        # ELO update
+        if total_tail_done > 0 and self.cur_opp_id > 0:
+            elos = np.array(self.elos, dtype=np.float64)
+            wins = total_tail_wins
+            losses = total_tail_losses
+            total = total_tail_done
+            win_rate = wins / total if total > 0 else 0.5
+            score = win_rate
+            r1 = elos[0]
+            # Find opponent ELO index
+            if self.cur_opp_id < len(elos):
+                r2 = elos[self.cur_opp_id]
+            else:
+                r2 = r1
+            expected = 1.0 / (1.0 + np.exp((r2 - r1) * LN10_BY_400))
+            k = 4.0
+            delta = k * total * (score - expected)
+            elos[0] += delta
+            if self.cur_opp_id < len(elos):
+                elos[self.cur_opp_id] -= delta
+            np.maximum(elos, 0.0, out=elos)
+            self.elos = elos.tolist()
+
+        # Quality update: decrease quality of opponents we beat
+        if total_tail_wins > 0 and self.cur_opp_id in self.opponent_qualities:
+            pool_ids = np.array(self.opponent_pool_ids)
+            qs = np.array([self.opponent_qualities.get(pid, 0.0) for pid in pool_ids])
+            probs = softmax(qs)
+            try:
+                idx = np.where(pool_ids == self.cur_opp_id)[0][0]
+                pi = probs[idx]
+            except IndexError:
+                pi = 1.0
+            N = len(pool_ids)
+            decrement = self.quality_lr / (N * max(pi, 1e-6))
+            self.opponent_qualities[self.cur_opp_id] -= decrement * total_tail_wins
+
+        # Swap tracking
+        self.done_since_swap += total_tail_done
+        if self.done_since_swap >= self.swap_quota and len(self.opponent_pool_ids) > 0:
+            self.done_since_swap = 0
+            new_id = self.sample_opponent()
+            if new_id != 0:
+                self.load_opponent(new_id)
+
 import signal # Aggressively exit on ctrl+c
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
@@ -91,6 +246,15 @@ class PuffeRL:
         self.pufferl_cpp = _C.create_pufferl(config, vec_config, env_config, policy_config)
         self.rollouts = self.pufferl_cpp.rollouts
 
+        # Selfplay
+        self.selfplay = self.pufferl_cpp.selfplay
+        self.selfplay_mgr = None
+        if self.selfplay:
+            n_slots = _C.get_opponent_pool_size(self.pufferl_cpp)
+            self.selfplay_mgr = SelfplayManager(
+                self.pufferl_cpp, vec_config['total_agents'],
+                vec_config['num_buffers'], n_slots)
+
         # Initializations
         self.config = config
         self.epoch = 0
@@ -127,9 +291,17 @@ class PuffeRL:
         self.global_step += self.batch_size
 
     def train(self):
+        # Selfplay: process rollout for swap tracking / ELO before training
+        if self.selfplay_mgr:
+            self.selfplay_mgr.update_from_rollout(self.rollouts)
+
         _C.train(self.pufferl_cpp)
         logs = None
         self.epoch += 1
+
+        # Selfplay: save policy snapshot for opponent pool
+        if self.selfplay_mgr:
+            self.selfplay_mgr.save_snapshot(self.policy_fp32, self.pufferl_cpp.muon, self.epoch)
         done_training = self.global_step >= self.config['total_timesteps']
         if done_training or self.global_step == 0 or time.time() > self.last_log_time + 0.6:
             torch.cuda.synchronize()
@@ -158,8 +330,18 @@ class PuffeRL:
         config = self.config
         device = config['device']
         agent_steps = int(self.global_step * config['gpus'])
+        selfplay_logs = {}
+        if self.selfplay_mgr:
+            mgr = self.selfplay_mgr
+            selfplay_logs = {
+                'selfplay/learner_elo': mgr.elos[0],
+                'selfplay/pool_size': len(mgr.opponent_pool_ids),
+                'selfplay/cur_opponent': mgr.cur_opp_id,
+                'selfplay/snapshots_saved': mgr.saved_policy_count,
+            }
         logs = {
             'SPS': int(self.sps * config['gpus']),
+            'environment/SPS': int(self.sps * config['gpus']),
             'agent_steps': int(agent_steps * config['gpus']),
             'uptime': self.uptime,
             'epoch': int(self.epoch * config['gpus']),
@@ -167,6 +349,7 @@ class PuffeRL:
             **{f'environment/{k}': v for k, v in logs.items()},
             **{f'losses/{k}': v for k, v in self.losses.items()},
             **{f'performance/{k}': v for k, v in self.profile.items()},
+            **selfplay_logs,
             #**{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
             #**{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
             #**{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
@@ -219,7 +402,7 @@ class PuffeRL:
         if os.path.exists(model_path):
             return model_path
 
-        torch.save(dict(self.policy_fp32.named_parameters()), model_path)
+        torch.save(_get_trained_state_dict(self.policy_fp32, self.pufferl_cpp.muon), model_path)
 
         state = {
             #'optimizer_state_dict': self.optimizer.state_dict(),

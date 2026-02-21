@@ -392,9 +392,9 @@ typedef struct {
     double* actions; // Required. double* for new API
     float* rewards; // Required
     float* terminals; // Required
-    int num_agents; // Number of agents being trained. Either 1 or 2. If 1, the first agent is trained and the second is a bot.
-    float* bot_observations; // Optional, for bot control
-    double* bot_actions; // Optional, for bot control
+    int num_agents; // Always 1 with selfplay binding (one logical agent per env)
+    int selfplay; // 0 = bot opponent, 1 = selfplay (opponent actions from actions[3:6])
+    double* bot_actions; // For bot control when selfplay=0
     int tick;
     Texture2D puffers;
 } SlimeVolley;
@@ -413,8 +413,7 @@ void init(SlimeVolley* env) {
     *env->fence_stub = (Ball){ .x = 0, .y = REF_WALL_HEIGHT, .vx=0, .vy=0, .r=REF_WALL_WIDTH/2.0, .c=FENCE_COLOR};
     env->agents = calloc(2, sizeof(Agent));
     env->ball = malloc(sizeof(Ball));
-    if (env->num_agents == 1) {
-        env->bot_observations = calloc(12, sizeof(float));
+    if (!env->selfplay) {
         env->bot_actions = calloc(3, sizeof(double));
     }
 }
@@ -433,19 +432,9 @@ void c_reset(SlimeVolley* env) {
         .r = 0.5,
         .c = BALL_COLOR
     };
+    // Both agents write obs to the doubled buffer: [learner_obs(12) | opponent_obs(12)]
     for (int i=0; i < 2; i++) {
-        float* observations;
-        if (i == 0) {
-            observations = env->observations;
-        }
-        else {
-            if (env->num_agents == 1) {
-                observations = env->bot_observations;
-            }
-            else {
-                observations = &env->observations[12]; // second agent in two-agent mode
-            }
-        }
+        float* observations = env->observations + i * 12;
         env->agents[i] = (Agent){
             .dir = i == 0 ? -1 : 1,
             .x = i == 0 ? -REF_W/4 : REF_W/4,
@@ -499,23 +488,20 @@ void abranti_simple_bot(float* obs, double* action) {
 void c_step(SlimeVolley* env) {
     env->rewards[0] = 0;
     env->terminals[0] = 0;
-    if (env->num_agents == 2){
-        env->rewards[1] = 0;
-        env->terminals[1] = 0;
-    }
-    
+
     Agent* left = &env->agents[0];
     Agent* right = &env->agents[1];
     Ball* ball = env->ball;
 
     env->tick++;
+    // Learner (left) actions always from actions[0:3]
     agent_set_action(left, &env->actions[0]);
-    if (env->num_agents == 1){
+    // Opponent (right) actions: from actions[3:6] in selfplay, or bot otherwise
+    if (env->selfplay) {
+        agent_set_action(right, &env->actions[3]);
+    } else {
         abranti_simple_bot(right->observations, env->bot_actions);
         agent_set_action(right, env->bot_actions);
-    }
-    else {
-        agent_set_action(right, &env->actions[3]);
     }
 
     // Update
@@ -548,26 +534,18 @@ void c_step(SlimeVolley* env) {
         if (right_reward == -1){
             right->lives--;
             env->rewards[0] = 1.0f;
-            if (env->num_agents == 2){
-                env->rewards[1] = -1.0f;
-            }
         }
         else{
             left->lives--;
             env->rewards[0] = -1.0f;
-            if (env->num_agents == 2){
-                env->rewards[1] = 1.0f;
-            }
         }
     }
+    // Both agents update observations (writes to doubled obs buffer)
     agent_update_state(left, ball, right);
     agent_update_state(right, ball, left);
 
     if (env->tick > MAX_TICKS || left->lives <= 0 || right->lives <= 0){
         env->terminals[0] = 1;
-        if (env->num_agents == 2){
-            env->terminals[1] = 1;
-        }
         env->log.perf = (left->lives - right->lives + 5.0f)  / 10.0f; // normalize to 0-1
         env->log.score = (float)(left->lives - right->lives);
         env->log.episode_return = (5.0f - right->lives);
@@ -575,7 +553,7 @@ void c_step(SlimeVolley* env) {
         env->log.n++;
         c_reset(env);
     }
-    
+
 }
 
 // Required function. Should handle creating the client on first call
@@ -637,8 +615,7 @@ void c_close(SlimeVolley* env) {
     free(env->fence);
     free(env->fence_stub);
     free(env->ball);
-    if (env->num_agents == 1) {
-        free(env->bot_observations);
+    if (!env->selfplay) {
         free(env->bot_actions);
     }
     if (IsWindowReady()) {

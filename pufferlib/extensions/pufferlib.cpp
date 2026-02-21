@@ -201,6 +201,14 @@ typedef struct {
     float accum[NUM_PROF];
 } ProfileT;
 
+// Opponent pool for selfplay: holds N policy slots with pre-loaded weights
+typedef struct {
+    vector<Policy*> policies;     // N opponent policy slots (bf16, eval mode)
+    vector<int> policy_ids;       // slot -> saved_policy_id mapping
+    int n_slots;
+    int _rot_idx;                 // rotating load index
+} OpponentPool;
+
 typedef struct {
     Policy* policy_bf16;  // Working weights (bf16) - used for forward/backward
     Policy* policy_fp32;  // Master weights (fp32) - used for optimizer
@@ -229,6 +237,20 @@ typedef struct {
     bool train_captured;
     uint64_t rng_seed;
     Tensor rng_offset;  // CUDA tensor so increment is graphable
+
+    // Self-play fields
+    bool selfplay;
+    int selfplay_obs_half;           // half of full obs size (learner portion)
+    int selfplay_learner_atns;       // number of learner action heads (e.g. 3)
+    int selfplay_cut;                // 80% split point per buffer
+    OpponentPool* opponent_pool;
+    int active_opponent_slot;        // which pool slot is active for tail 20%
+
+    // Per-buffer opponent RNN states and scratch buffers
+    vector<Tensor> opponent_states;  // [num_buffers] each: {num_layers, block_size, hidden}
+    vector<Tensor> sp_opp_actions;   // [num_buffers] each: {block_size, learner_atns}
+    vector<Tensor> sp_opp_logprobs;  // [num_buffers] each: {block_size}
+    vector<Tensor> sp_opp_values;    // [num_buffers] each: {block_size}
 } PuffeRL;
 
 Dict* log_environments_impl(PuffeRL& pufferl) {
@@ -256,10 +278,111 @@ extern "C" void thread_init_wrapper(void* ctx, int buf) {
     at::cuda::setCurrentCUDAStream(pufferl->torch_streams[buf]);
 }
 
-// Called by vecenv per buffer thread
-extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
+// Selfplay inference callback: obs splitting, opponent forward, action interleaving
+extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     torch::NoGradGuard no_grad;
     PuffeRL* pufferl = (PuffeRL*)ctx;
+    HypersT& hypers = pufferl->hypers;
+    profile_begin("fused_rollout_selfplay", hypers.profile);
+
+    RolloutBuf& rollouts = pufferl->rollouts;
+    EnvBuf& env = pufferl->env;
+    int block_size = pufferl->vec->total_agents / hypers.num_buffers;
+    int start = buf * block_size;
+    int obs_half = pufferl->selfplay_obs_half;
+    int cut = pufferl->selfplay_cut;  // 80% split point within buffer
+    int tail = block_size - cut;
+    int learner_atns = pufferl->selfplay_learner_atns;
+
+    // 1. Get full doubled obs and split
+    Tensor full_obs = env.obs.narrow(0, start, block_size);        // [block_size, 24]
+    Tensor learner_obs = full_obs.narrow(1, 0, obs_half);          // [block_size, 12]
+    Tensor opponent_obs = full_obs.narrow(1, obs_half, obs_half);  // [block_size, 12]
+
+    // 2. Copy only learner obs to rollout buffer (not full doubled obs)
+    rollouts.observations.select(0, t).narrow(0, start, block_size).copy_(learner_obs, true);
+    Tensor rewards = env.rewards.narrow(0, start, block_size);
+    rollouts.rewards.select(0, t).narrow(0, start, block_size).copy_(rewards, true);
+    Tensor terminals = env.terminals.narrow(0, start, block_size);
+    rollouts.terminals.select(0, t).narrow(0, start, block_size).copy_(terminals, true);
+
+    // 3. Learner forward pass (all agents in buffer)
+    Tensor& state = pufferl->buffer_states[buf];
+    auto [logits, value, state_out] = pufferl->policy_bf16->forward(learner_obs, state);
+    state.copy_(state_out, false);
+
+    // 4. Sample learner actions into rollout buffer
+    Tensor learner_actions = rollouts.actions.select(0, t).narrow(0, start, block_size);
+    Tensor logprobs = rollouts.logprobs.select(0, t).narrow(0, start, block_size);
+    Tensor values = rollouts.values.select(0, t).narrow(0, start, block_size);
+    sample_actions(logits, value, learner_actions, logprobs, values,
+        pufferl->act_sizes, pufferl->act_sizes_cpu,
+        pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+
+    // 5. Opponent forward pass - first 80% (use current learner policy as opponent)
+    Tensor& opp_state = pufferl->opponent_states[buf];
+    Tensor& opp_actions = pufferl->sp_opp_actions[buf];
+    Tensor& opp_logprobs = pufferl->sp_opp_logprobs[buf];
+    Tensor& opp_values = pufferl->sp_opp_values[buf];
+
+    if (cut > 0) {
+        Tensor opp_obs_80 = opponent_obs.narrow(0, 0, cut);
+        Tensor opp_state_80 = opp_state.narrow(1, 0, cut);
+        auto [opp_logits_80, opp_val_80, opp_state_out_80] =
+            pufferl->policy_bf16->forward(opp_obs_80, opp_state_80);
+        opp_state.narrow(1, 0, cut).copy_(opp_state_out_80, false);
+
+        Tensor opp_act_80 = opp_actions.narrow(0, 0, cut);
+        Tensor opp_lp_80 = opp_logprobs.narrow(0, 0, cut);
+        Tensor opp_v_80 = opp_values.narrow(0, 0, cut);
+        sample_actions(opp_logits_80, opp_val_80, opp_act_80, opp_lp_80, opp_v_80,
+            pufferl->act_sizes, pufferl->act_sizes_cpu,
+            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+    }
+
+    // 6. Opponent forward pass - last 20% (use historical pool policy)
+    if (tail > 0) {
+        Tensor opp_obs_20 = opponent_obs.narrow(0, cut, tail);
+        Tensor opp_state_20 = opp_state.narrow(1, cut, tail);
+
+        Policy* opp_policy;
+        int slot = pufferl->active_opponent_slot;
+        if (slot >= 0 && slot < pufferl->opponent_pool->n_slots
+                && pufferl->opponent_pool->policy_ids[slot] > 0) {
+            opp_policy = pufferl->opponent_pool->policies[slot];
+        } else {
+            opp_policy = pufferl->policy_bf16;  // fallback to learner
+        }
+
+        auto [opp_logits_20, opp_val_20, opp_state_out_20] =
+            opp_policy->forward(opp_obs_20, opp_state_20);
+        opp_state.narrow(1, cut, tail).copy_(opp_state_out_20, false);
+
+        Tensor opp_act_20 = opp_actions.narrow(0, cut, tail);
+        Tensor opp_lp_20 = opp_logprobs.narrow(0, cut, tail);
+        Tensor opp_v_20 = opp_values.narrow(0, cut, tail);
+        sample_actions(opp_logits_20, opp_val_20, opp_act_20, opp_lp_20, opp_v_20,
+            pufferl->act_sizes, pufferl->act_sizes_cpu,
+            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+    }
+
+    // 7. Interleave actions into env buffer: [learner(3) | opponent(3)] per agent
+    Tensor env_actions = env.actions.narrow(0, start, block_size);  // [block_size, 6]
+    env_actions.narrow(1, 0, learner_atns).copy_(learner_actions, true);
+    env_actions.narrow(1, learner_atns, learner_atns).copy_(opp_actions, true);
+
+    profile_end(hypers.profile);
+}
+
+// Called by vecenv per buffer thread
+extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
+    PuffeRL* pufferl = (PuffeRL*)ctx;
+    if (pufferl->selfplay) {
+        net_callback_selfplay(ctx, buf, t);
+        return;
+    }
+
+    torch::NoGradGuard no_grad;
     HypersT& hypers = pufferl->hypers;
     profile_begin("fused_rollout", hypers.profile);
 
@@ -549,8 +672,8 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     int act_n = act_sizes.sum().item<int>();
 
     pufferl->vec = vec;
-    pufferl->act_sizes = act_sizes.to(torch::kCUDA);
-    pufferl->act_sizes_cpu = act_sizes.to(torch::kInt64).contiguous();
+    // Note: act_sizes may be narrowed below for selfplay (learner-only heads)
+    // Store to PuffeRL after selfplay adjustments
     pufferl->losses = torch::zeros({NUM_LOSSES}, cuda_f32);
     for (int i = 0; i < NUM_TRAIN_EVENTS; i++) {
         cudaEventCreate(&pufferl->profile.events[i]);
@@ -586,6 +709,39 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     int hidden_size = hypers.hidden_size;
     int num_layers = hypers.num_layers;
     bool kernels = hypers.kernels;
+
+    // Detect selfplay from env kwargs and StaticVec
+    bool selfplay = vec->selfplay;
+    pufferl->selfplay = selfplay;
+    pufferl->opponent_pool = nullptr;
+    pufferl->active_opponent_slot = -1;
+
+    if (selfplay) {
+        int full_obs_size = input_size;  // e.g. 24
+        pufferl->selfplay_obs_half = full_obs_size / 2;  // e.g. 12
+        input_size = pufferl->selfplay_obs_half;  // policy sees learner obs only
+
+        // Halve action heads: first half is learner, second half is opponent
+        pufferl->selfplay_learner_atns = num_action_heads / 2;  // e.g. 3
+        num_action_heads = pufferl->selfplay_learner_atns;
+        act_sizes = act_sizes.narrow(0, 0, num_action_heads);  // {2, 2, 2}
+        act_n = act_sizes.sum().item<int>();  // 6
+
+        // Compute per-buffer 80% cut
+        int block_size = hypers.total_agents / hypers.num_buffers;
+        pufferl->selfplay_cut = (int)(0.8f * block_size);
+
+        // Disable CUDA graphs (incompatible with dynamic opponent routing)
+        hypers.cudagraphs = -1;
+
+        printf("Selfplay enabled: obs_half=%d, learner_atns=%d, cut=%d/%d\n",
+            pufferl->selfplay_obs_half, pufferl->selfplay_learner_atns,
+            pufferl->selfplay_cut, block_size);
+    }
+
+    // Store (possibly narrowed) act_sizes
+    pufferl->act_sizes = act_sizes.to(torch::kCUDA);
+    pufferl->act_sizes_cpu = act_sizes.to(torch::kInt64).contiguous();
 
     // Decoder output size: discrete = act_n (sum of action sizes), continuous = num_action_heads
     bool is_continuous = pufferl->is_continuous;
@@ -639,6 +795,37 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     pufferl->buffer_states.resize(num_buffers);
     for (int i = 0; i < num_buffers; i++) {
         pufferl->buffer_states[i] = pufferl->policy_bf16->initial_state(batch, torch::kCUDA);
+    }
+
+    // Selfplay: create opponent pool and per-buffer scratch buffers
+    if (selfplay) {
+        int n_slots = 6;
+        pufferl->opponent_pool = new OpponentPool();
+        pufferl->opponent_pool->n_slots = n_slots;
+        pufferl->opponent_pool->_rot_idx = 0;
+        for (int i = 0; i < n_slots; i++) {
+            Policy* opp = create_policy(env_name, input_size, hidden_size,
+                decoder_output_size, num_layers, act_n, is_continuous, kernels);
+            opp->to(torch::kCUDA);
+            opp->to(PRECISION_DTYPE);
+            opp->eval();
+            for (auto& p : opp->parameters()) p.set_requires_grad(false);
+            pufferl->opponent_pool->policies.push_back(opp);
+            pufferl->opponent_pool->policy_ids.push_back(0);
+        }
+        printf("Selfplay: created opponent pool with %d slots\n", n_slots);
+
+        // Per-buffer opponent RNN states and scratch buffers
+        pufferl->opponent_states.resize(num_buffers);
+        pufferl->sp_opp_actions.resize(num_buffers);
+        pufferl->sp_opp_logprobs.resize(num_buffers);
+        pufferl->sp_opp_values.resize(num_buffers);
+        for (int i = 0; i < num_buffers; i++) {
+            pufferl->opponent_states[i] = pufferl->policy_bf16->initial_state(batch, torch::kCUDA);
+            pufferl->sp_opp_actions[i] = torch::zeros({batch, num_action_heads}, cuda_f64);
+            pufferl->sp_opp_logprobs[i] = torch::zeros({batch}, cuda_t);
+            pufferl->sp_opp_values[i] = torch::zeros({batch}, cuda_t);
+        }
     }
 
     if (hypers.cudagraphs >= 0) {
@@ -729,6 +916,19 @@ void close_impl(PuffeRL& pufferl) {
     // Reset CUDA graphs first (they hold references to tensor memory)
     pufferl.train_cudagraph.reset();
     pufferl.fused_rollout_cudagraphs.clear();
+
+    // Clean up selfplay resources
+    if (pufferl.opponent_pool) {
+        for (auto* p : pufferl.opponent_pool->policies) {
+            delete p;
+        }
+        delete pufferl.opponent_pool;
+        pufferl.opponent_pool = nullptr;
+    }
+    pufferl.opponent_states.clear();
+    pufferl.sp_opp_actions.clear();
+    pufferl.sp_opp_logprobs.clear();
+    pufferl.sp_opp_values.clear();
 
     delete pufferl.muon;
     pufferl.muon = nullptr;
