@@ -371,5 +371,46 @@ To investigate the ~85% ceiling, a diagnostic was run: 100K games of random-vs-r
 
 ---
 
+## Run 005 — Post-parity-rules eval (Showdown [Gen 1] OU alignment)
+
+**Date**: 2026-02-22  
+**Branch**: `poke-battle`  
+**Commit**: `df2b40f4` (RBY OU parity clauses + tests)  
+**WandB Run**: `891hhxc2`  
+**Checkpoint**: `experiments/puffer_poke_battle_891hhxc2.pt`  
+**Status**: Eval-only validation after implementing clause/rules parity
+
+### Purpose
+Confirm that the model from run `891hhxc2` remains strong after environment updates for Showdown-aligned Gen 1 OU rules:
+- Sleep Clause Mod
+- Freeze Clause Mod
+- Species Clause validation for fixed teams
+- Endless Battle Clause handling
+- Explicit [Gen 1] OU standard-rule parity assertions (OHKO/Evasion/Dig/Fly bans in move pool)
+
+### Eval Environment
+- Venv: `pufferlib/.pufferlib`
+- Device: CPU (to avoid interference with active GPU training run)
+- Command:
+  - `python -m pufferlib.ocean.poke_battle.eval --model-path /home/spark-advantage/pufferlib/experiments/puffer_poke_battle_891hhxc2.pt --episodes 1000 --device cpu`
+
+### Eval Results (1000 episodes per bot)
+| Opponent | Episodes | Wins | Losses | Draws | Win Rate |
+|---|---|---|---|---|---|
+| Random bot | 1000 | 998 | 2 | 0 | **99.8%** |
+| Heuristic bot | 1000 | 769 | 231 | 0 | **76.9%** |
+| MCTS bot | 1000 | 857 | 143 | 0 | **85.7%** |
+
+### Rule-Parity Validation
+- Command:
+  - `python -m pytest -q tests/test_poke_battle_rules_parity.py`
+- Result: `8 passed`
+
+### Notes
+- No regressions observed from parity-rule changes in this checkpoint’s bot eval profile.
+- Relative ordering remains sensible (Random > MCTS > Heuristic win rate in this snapshot), with strong absolute performance against all three bot types.
+
+---
+
 *Eval command: `python -m pufferlib.ocean.poke_battle.eval` (all bots) or `--human` (GUI play)*
 *Specify checkpoint: `--model-path experiments/puffer_poke_battle_RUNID/model_puffer_poke_battle_EPOCH.pt`*
