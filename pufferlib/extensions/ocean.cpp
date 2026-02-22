@@ -436,6 +436,132 @@ class G2048Decoder : public Decoder {
     }
 };
 
+// Chess encoder: spatial CNN with geometric priors (adapted from ChessSeven)
+// Obs layout (1082 bytes per player):
+//   0-767:    12 piece planes × 64 squares (uint8, 0/255)
+//   768-769:  side to move (2-byte one-hot)
+//   770-785:  castling rights (16-byte one-hot)
+//   786-850:  en passant (65-byte one-hot)
+//   851-852:  phase (2-byte one-hot: piece selection vs dest selection)
+//   853-916:  selected piece (64 bytes, per-square)
+//   917-980:  valid pieces mask (64 bytes)
+//   981-1044: valid destinations mask (64 bytes)
+//   1045-1076: valid promotions (32 bytes)
+//   1077-1081: scalars (self_check, opp_check, rule50, repetition, pass_valid)
+class ChessEncoder : public Encoder {
+    public:
+        // CNN pipeline: 1×1 → channel projection → 3×3 depthwise + residual
+        nn::Conv2d square_embed{nullptr};   // (spatial_in, square_dim, 1×1)
+        nn::Conv2d channel_proj{nullptr};   // (square_dim, proj_dim, 1×1)
+        nn::Conv2d spatial_mix{nullptr};    // (proj_dim, proj_dim, 3×3, groups=proj_dim)
+
+        // Categorical embeddings
+        nn::Embedding side_embed{nullptr};     // (2, embed_dim/2)
+        nn::Embedding castle_embed{nullptr};   // (16, embed_dim)
+        nn::Embedding ep_embed{nullptr};       // (65, embed_dim)
+        nn::Embedding phase_embed{nullptr};    // (2, embed_dim/2)
+
+        // Final projection to hidden_size
+        nn::Linear proj{nullptr};
+
+        // Pre-computed geometric feature planes (registered buffer)
+        Tensor square_geo_planes;  // (1, 4, 8, 8)
+
+        int input, hidden;
+
+        static constexpr int SQUARE_DIM = 64;
+        static constexpr int PROJ_DIM = 8;
+        static constexpr int EMBED_DIM = 32;
+        // 12 piece planes + selected_piece + valid_pieces + valid_dests = 15 from obs + 4 geometric
+        static constexpr int SPATIAL_IN = 19;
+
+    ChessEncoder(int input, int hidden) : input(input), hidden(hidden) {
+        // CNN pipeline (adapted from ChessSeven's depthwise separable approach)
+        square_embed = register_module("square_embed", nn::Conv2d(
+            nn::Conv2dOptions(SPATIAL_IN, SQUARE_DIM, 1)));
+        nn::init::orthogonal_(square_embed->weight, std::sqrt(2.0));
+        nn::init::constant_(square_embed->bias, 0.0);
+
+        channel_proj = register_module("channel_proj", nn::Conv2d(
+            nn::Conv2dOptions(SQUARE_DIM, PROJ_DIM, 1)));
+        nn::init::orthogonal_(channel_proj->weight, std::sqrt(2.0));
+        nn::init::constant_(channel_proj->bias, 0.0);
+
+        spatial_mix = register_module("spatial_mix", nn::Conv2d(
+            nn::Conv2dOptions(PROJ_DIM, PROJ_DIM, 3).padding(1).groups(PROJ_DIM)));
+        nn::init::orthogonal_(spatial_mix->weight, std::sqrt(2.0));
+        nn::init::constant_(spatial_mix->bias, 0.0);
+
+        // Categorical embeddings
+        side_embed = register_module("side_embed", nn::Embedding(2, EMBED_DIM / 2));
+        castle_embed = register_module("castle_embed", nn::Embedding(16, EMBED_DIM));
+        ep_embed = register_module("ep_embed", nn::Embedding(65, EMBED_DIM));
+        phase_embed = register_module("phase_embed", nn::Embedding(2, EMBED_DIM / 2));
+
+        // Projection: board_flat(512) + promos(32) + embeddings(96) + scalars(5) = 645
+        int board_flat = 64 * PROJ_DIM;  // = 512
+        int total_features = board_flat + 32 + 3 * EMBED_DIM + 5;  // = 645
+        proj = register_module("proj", nn::Linear(
+            nn::LinearOptions(total_features, hidden).bias(true)));
+        nn::init::orthogonal_(proj->weight, std::sqrt(2.0));
+        nn::init::constant_(proj->bias, 0.0);
+
+        // Pre-compute geometric feature planes (diagonal, anti-diagonal, center distance, square color)
+        auto sqs = torch::arange(64, torch::kFloat32);
+        auto r = torch::div(sqs, 8, "floor");
+        auto f = torch::fmod(sqs, 8);
+        auto diag = (r + f) / 14.0;
+        auto anti = (r - f + 7) / 14.0;
+        auto cdist = (torch::where(r < 4, 3 - r, r - 4) +
+                      torch::where(f < 4, 3 - f, f - 4)) / 6.0;
+        auto sq_color = ((r + f).to(torch::kInt64) % 2).to(torch::kFloat32);
+        square_geo_planes = register_buffer("square_geo_planes",
+            torch::stack({diag, anti, cdist, sq_color}, 0).view({1, 4, 8, 8}));
+    }
+
+    Tensor forward(Tensor x) override {
+        int64_t B = x.size(0);
+        auto target_dtype = square_embed->weight.dtype();
+
+        // 1. Extract spatial features and reshape to (B, C, 8, 8)
+        // Piece planes: 12 channels
+        Tensor board = x.narrow(1, 0, 768).view({B, 12, 8, 8}).to(target_dtype);
+        // Selected piece: 1 channel
+        Tensor selected = x.narrow(1, 853, 64).view({B, 1, 8, 8}).to(target_dtype);
+        // Valid pieces: 1 channel
+        Tensor valid_pieces = x.narrow(1, 917, 64).view({B, 1, 8, 8}).to(target_dtype);
+        // Valid dests: 1 channel
+        Tensor valid_dests = x.narrow(1, 981, 64).view({B, 1, 8, 8}).to(target_dtype);
+        // Geometric planes: 4 channels (pre-computed buffer)
+        Tensor geo = square_geo_planes.to(target_dtype).expand({B, -1, -1, -1});
+
+        // Cat spatial input: (B, 19, 8, 8)
+        Tensor spatial = torch::cat({board, selected, valid_pieces, valid_dests, geo}, 1);
+
+        // 2. CNN pipeline: 1×1 embed → 1×1 project → 3×3 depthwise mix + residual
+        Tensor h = torch::relu(square_embed->forward(spatial));
+        h = torch::relu(channel_proj->forward(h));
+        h = h + torch::relu(spatial_mix->forward(h));  // residual connection
+        Tensor board_features = h.flatten(1);  // (B, 64 * PROJ_DIM = 512)
+
+        // 3. Promotions: flat binary mask (B, 32)
+        Tensor promos = (x.narrow(1, 1045, 32) > 0).to(target_dtype);
+
+        // 4. Categorical embeddings (one-hot → argmax → embedding lookup)
+        Tensor side_f = side_embed->forward(x.narrow(1, 768, 2).argmax(1)).to(target_dtype);
+        Tensor castle_f = castle_embed->forward(x.narrow(1, 770, 16).argmax(1)).to(target_dtype);
+        Tensor ep_f = ep_embed->forward(x.narrow(1, 786, 65).argmax(1)).to(target_dtype);
+        Tensor phase_f = phase_embed->forward(x.narrow(1, 851, 2).argmax(1)).to(target_dtype);
+
+        // 5. Scalars: normalized to [0, 1]
+        Tensor scalars = x.narrow(1, 1077, 5).to(target_dtype) / 255.0;
+
+        // 6. Concatenate all features and project
+        Tensor features = torch::cat({board_features, promos, side_f, castle_f, ep_f, phase_f, scalars}, 1);
+        return torch::relu(proj->forward(features));
+    }
+};
+
 // Create policy with env-specific encoder/decoder
 Policy* create_policy(const std::string& env_name, int input_size, int hidden_size,
         int decoder_output_size, int num_layers, int act_n, bool is_continuous, bool kernels) {
@@ -453,6 +579,9 @@ Policy* create_policy(const std::string& env_name, int input_size, int hidden_si
         dec = std::make_shared<NMMO3Decoder>(hidden_size, decoder_output_size);
     } else if (env_name == "puffer_drive") {
         enc = std::make_shared<DriveEncoder>(input_size, hidden_size);
+        dec = std::make_shared<DefaultDecoder>(hidden_size, decoder_output_size, is_continuous);
+    } else if (env_name == "puffer_chess") {
+        enc = std::make_shared<ChessEncoder>(input_size, hidden_size);
         dec = std::make_shared<DefaultDecoder>(hidden_size, decoder_output_size, is_continuous);
     } else {
         enc = std::make_shared<DefaultEncoder>(input_size, hidden_size);

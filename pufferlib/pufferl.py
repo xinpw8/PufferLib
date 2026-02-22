@@ -87,7 +87,7 @@ class SelfplayManager:
         self.max_opponent_history = 300
 
         # ELO tracking
-        self.elos = [0.0]  # index 0 = learner, rest = opponents
+        self.elos = [1000.0]  # index 0 = learner, rest = opponents (baseline 1000)
 
         # Quality-weighted sampling
         self.opponent_qualities = {}
@@ -116,10 +116,12 @@ class SelfplayManager:
             self.opponent_pool.pop(oldest, None)
 
     def sample_opponent(self):
-        """Quality-weighted opponent sampling."""
+        """Epsilon-greedy opponent sampling: 30% uniform random, 70% quality-weighted."""
         if not self.opponent_pool_ids:
             return 0
         ids = np.array(self.opponent_pool_ids, dtype=np.int32)
+        if np.random.random() < 0.3:
+            return int(np.random.choice(ids))
         qs = np.array([self.opponent_qualities.get(p, 0.0) for p in ids])
         probs = softmax(qs)
         return int(np.random.choice(ids, p=probs))
@@ -156,14 +158,11 @@ class SelfplayManager:
             total_tail_wins += ((tail_rewards > 0) & done_mask).sum().item()
             total_tail_losses += ((tail_rewards < 0) & done_mask).sum().item()
 
-        # ELO update
-        if total_tail_done > 0 and self.cur_opp_id > 0:
+        # ELO update (only from decisive games: wins+losses, excluding draws)
+        decisive = total_tail_wins + total_tail_losses
+        if decisive > 0 and self.cur_opp_id > 0:
             elos = np.array(self.elos, dtype=np.float64)
-            wins = total_tail_wins
-            losses = total_tail_losses
-            total = total_tail_done
-            win_rate = wins / total if total > 0 else 0.5
-            score = win_rate
+            score = total_tail_wins / decisive
             r1 = elos[0]
             # Find opponent ELO index
             if self.cur_opp_id < len(elos):
@@ -171,12 +170,11 @@ class SelfplayManager:
             else:
                 r2 = r1
             expected = 1.0 / (1.0 + np.exp((r2 - r1) * LN10_BY_400))
-            k = 4.0
-            delta = k * total * (score - expected)
+            k = 32.0
+            delta = k * (score - expected)
             elos[0] += delta
             if self.cur_opp_id < len(elos):
                 elos[self.cur_opp_id] -= delta
-            np.maximum(elos, 0.0, out=elos)
             self.elos = elos.tolist()
 
         # Quality update: decrease quality of opponents we beat
@@ -500,7 +498,11 @@ class PuffeRL:
         if self.stats:
             self.last_stats = self.stats
 
-        for metric, value in (self.stats or self.last_stats).items():
+        display_stats = dict(self.stats or self.last_stats)
+        if self.selfplay_mgr:
+            display_stats['elo'] = self.selfplay_mgr.elos[0]
+
+        for metric, value in display_stats.items():
             try: # Discard non-numeric values
                 int(value)
             except:

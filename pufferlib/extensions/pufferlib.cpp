@@ -231,6 +231,7 @@ typedef struct {
     Tensor losses;         // (NUM_LOSSES,) float32 accumulator for loss components
     ProfileT profile;
     nvmlDevice_t nvml_device;
+    bool chess_action_mask; // Apply observation-based action masking for chess
     int epoch;
     int train_warmup;
     bool rollout_captured;
@@ -278,6 +279,46 @@ extern "C" void thread_init_wrapper(void* ctx, int buf) {
     at::cuda::setCurrentCUDAStream(pufferl->torch_streams[buf]);
 }
 
+// Apply chess action masking: extract valid-move masks from observation, mask logits
+// Obs layout (per player, 1082 bytes):
+//   851: pick_phase[2] (one-hot: [selecting_piece, selecting_dest])
+//   917: valid_pieces[64] (0/255 per square)
+//   981: valid_dests[64]  (0/255 per square)
+//  1045: valid_promos[32] (0/255 per promo slot)
+//  1081: pass_valid[1]    (0/255)
+// Action encoding: 0-63 = board squares, 64-95 = promotions, 96 = pass
+static void apply_chess_mask(Tensor& logits, const Tensor& obs) {
+    int N = logits.size(0);
+    int A = logits.size(-1);
+    auto device = logits.device();
+
+    // Extract phase indicators (uint8: 0 or 255)
+    auto picking_piece = (obs.narrow(-1, 851, 1) > 0);  // [N, 1] bool
+    auto picking_dest  = (obs.narrow(-1, 852, 1) > 0);  // [N, 1] bool
+
+    // Extract validity masks
+    auto valid_pieces = (obs.narrow(-1, 917, 64) > 0);   // [N, 64] bool
+    auto valid_dests  = (obs.narrow(-1, 981, 64) > 0);   // [N, 64] bool
+    auto valid_promos = (obs.narrow(-1, 1045, 32) > 0);  // [N, 32] bool
+    auto pass_valid   = (obs.narrow(-1, 1081, 1) > 0);   // [N, 1] bool
+
+    // Build action mask [N, A] (A=97)
+    auto mask = torch::zeros({N, A}, torch::dtype(torch::kBool).device(device));
+
+    // Phase 0 (piece selection): valid piece squares
+    mask.narrow(1, 0, 64).bitwise_or_(picking_piece & valid_pieces);
+
+    // Phase 1 (destination): valid dest squares + promotion actions
+    mask.narrow(1, 0, 64).bitwise_or_(picking_dest & valid_dests);
+    mask.narrow(1, 64, 32).bitwise_or_(picking_dest & valid_promos);
+
+    // Pass action (action 96)
+    mask.narrow(1, 96, 1).bitwise_or_(pass_valid);
+
+    // Invalid actions → -1e9 (effectively -inf for softmax)
+    logits.masked_fill_(~mask, -1e9f);
+}
+
 // Selfplay inference callback: obs splitting, opponent forward, action interleaving
 extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     torch::NoGradGuard no_grad;
@@ -311,6 +352,11 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     auto [logits, value, state_out] = pufferl->policy_bf16->forward(learner_obs, state);
     state.copy_(state_out, false);
 
+    // 3b. Action masking: restrict to legal moves
+    if (pufferl->chess_action_mask) {
+        apply_chess_mask(logits.mean, learner_obs);
+    }
+
     // 4. Sample learner actions into rollout buffer
     Tensor learner_actions = rollouts.actions.select(0, t).narrow(0, start, block_size);
     Tensor logprobs = rollouts.logprobs.select(0, t).narrow(0, start, block_size);
@@ -331,6 +377,10 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
         auto [opp_logits_80, opp_val_80, opp_state_out_80] =
             pufferl->policy_bf16->forward(opp_obs_80, opp_state_80);
         opp_state.narrow(1, 0, cut).copy_(opp_state_out_80, false);
+
+        if (pufferl->chess_action_mask) {
+            apply_chess_mask(opp_logits_80.mean, opp_obs_80);
+        }
 
         Tensor opp_act_80 = opp_actions.narrow(0, 0, cut);
         Tensor opp_lp_80 = opp_logprobs.narrow(0, 0, cut);
@@ -357,6 +407,10 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
         auto [opp_logits_20, opp_val_20, opp_state_out_20] =
             opp_policy->forward(opp_obs_20, opp_state_20);
         opp_state.narrow(1, cut, tail).copy_(opp_state_out_20, false);
+
+        if (pufferl->chess_action_mask) {
+            apply_chess_mask(opp_logits_20.mean, opp_obs_20);
+        }
 
         Tensor opp_act_20 = opp_actions.narrow(0, cut, tail);
         Tensor opp_lp_20 = opp_logprobs.narrow(0, cut, tail);
@@ -546,6 +600,14 @@ void train_impl(PuffeRL& pufferl) {
             }
 
             auto [logits, newvalue] = pufferl.policy_bf16->forward_train(graph.mb_obs, graph.mb_state);
+
+            // Action masking during training: must match rollout masking for correct PPO ratios
+            if (pufferl.chess_action_mask) {
+                auto flat_logits = logits.mean.view({-1, logits.mean.size(-1)});
+                auto flat_obs = graph.mb_obs.view({-1, graph.mb_obs.size(-1)});
+                apply_chess_mask(flat_logits, flat_obs);
+            }
+
             Tensor newvalue_out = graph.mb_newvalue.view({graph.mb_ratio.size(0), graph.mb_ratio.size(1)});
 
             // TODO: Try using global (epoch-level) adv mean/std instead of per-minibatch
@@ -713,6 +775,7 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     // Detect selfplay from env kwargs and StaticVec
     bool selfplay = vec->selfplay;
     pufferl->selfplay = selfplay;
+    pufferl->chess_action_mask = false;
     pufferl->opponent_pool = nullptr;
     pufferl->active_opponent_slot = -1;
 
@@ -733,6 +796,12 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
 
         // Disable CUDA graphs (incompatible with dynamic opponent routing)
         hypers.cudagraphs = -1;
+
+        // Enable chess action masking when obs layout matches chess (1082 bytes per player)
+        pufferl->chess_action_mask = (pufferl->selfplay_obs_half == 1082);
+        if (pufferl->chess_action_mask) {
+            printf("Chess action masking enabled (obs_half=1082)\n");
+        }
 
         printf("Selfplay enabled: obs_half=%d, learner_atns=%d, cut=%d/%d\n",
             pufferl->selfplay_obs_half, pufferl->selfplay_learner_atns,

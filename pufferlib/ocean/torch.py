@@ -21,6 +21,112 @@ from pufferlib.pytorch import layer_init, _nativize_dtype, nativize_tensor
 import numpy as np
 
 
+class ChessSeven(nn.Module):
+    def __init__(self, env, square_dim=64, proj_dim=8, hidden_size=256,
+                 embed_dim=32, use_action_masking=1, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        self.use_action_masking = bool(use_action_masking)
+        self.num_actions = env.single_action_space.n
+
+        sqs = torch.arange(64, dtype=torch.float32)
+        r, f = sqs // 8, sqs % 8
+        diag = (r + f) / 14.0
+        anti = (r - f + 7) / 14.0
+        cdist = (torch.where(r < 4, 3 - r, r - 4) + torch.where(f < 4, 3 - f, f - 4)) / 6.0
+        sq_color = ((r + f) % 2).float()
+        square_geo_planes = torch.stack([diag, anti, cdist, sq_color], dim=0).view(1, 4, 8, 8)
+        self.register_buffer('square_geo_planes', square_geo_planes)
+
+        # 15 spatial channels from obs + 4 geometric = 19
+        self.square_embed = layer_init(nn.Conv2d(19, square_dim, kernel_size=1))
+        self.channel_proj = layer_init(nn.Conv2d(square_dim, proj_dim, kernel_size=1))
+        self.spatial_mix = layer_init(nn.Conv2d(
+            proj_dim, proj_dim, kernel_size=3, padding=1, groups=proj_dim))
+
+        if embed_dim % 2 != 0:
+            raise ValueError(f'embed_dim must be even, got {embed_dim}')
+        self.side_embed = nn.Embedding(2, embed_dim // 2)
+        self.castle_embed = nn.Embedding(16, embed_dim)
+        self.ep_embed = nn.Embedding(65, embed_dim)
+        self.phase_embed = nn.Embedding(2, embed_dim // 2)
+
+        board_flat = 64 * proj_dim + 32
+        total_features = board_flat + (3 * embed_dim) + 5
+
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(total_features, hidden_size)),
+            nn.ReLU(),
+        )
+
+        self.actor = layer_init(nn.Linear(hidden_size, self.num_actions), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
+        self.current_mask = None
+
+    def encode_observations(self, observations, state=None):
+        B = observations.shape[0]
+        obs = observations
+
+        # Spatial features from 1082-byte obs layout
+        board = obs[:, :768].float().view(B, 12, 8, 8)
+        selected = obs[:, 853:917].float().view(B, 1, 8, 8)
+        valid_pieces_sp = obs[:, 917:981].float().view(B, 1, 8, 8)
+        valid_dests_sp = obs[:, 981:1045].float().view(B, 1, 8, 8)
+        geo = self.square_geo_planes.expand(B, -1, -1, -1)
+        x = torch.cat([board, selected, valid_pieces_sp, valid_dests_sp, geo], dim=1)
+
+        x = F.relu(self.square_embed(x))
+        x = F.relu(self.channel_proj(x))
+        x = x + F.relu(self.spatial_mix(x))
+        board_features = x.flatten(1)
+
+        promos_mask = obs[:, 1045:1077] > 0
+        promos = promos_mask.float()
+
+        side_features = self.side_embed(obs[:, 768:770].argmax(1))
+        castle_features = self.castle_embed(obs[:, 770:786].argmax(1))
+        ep_features = self.ep_embed(obs[:, 786:851].argmax(1))
+        phase_features = self.phase_embed(obs[:, 851:853].argmax(1))
+        scalars = obs[:, 1077:1082].float() / 255.0
+
+        if self.use_action_masking:
+            pick_phase = obs[:, 852] > 0
+            pass_valid = obs[:, 1081] > 0
+            valid_pieces_mask = obs[:, 917:981] > 0
+            valid_dests_mask = obs[:, 981:1045] > 0
+
+            mask_squares = torch.where(pick_phase.unsqueeze(1), valid_dests_mask, valid_pieces_mask)
+            full_mask = torch.cat([mask_squares, promos_mask, pass_valid.unsqueeze(1)], dim=1)
+            full_mask[:, :-1] = full_mask[:, :-1] & (~pass_valid.unsqueeze(1))
+            all_masked = ~full_mask.any(dim=1, keepdim=True)
+            full_mask = full_mask | all_masked
+            self.current_mask = full_mask
+        else:
+            self.current_mask = None
+
+        x = torch.cat([board_features, promos,
+                        side_features, castle_features, ep_features, phase_features,
+                        scalars], dim=1)
+        x = self.proj(x)
+        return x
+
+    def decode_actions(self, hidden, state=None):
+        logits = self.actor(hidden)
+        if self.use_action_masking and self.current_mask is not None:
+            logits.masked_fill_(~self.current_mask, -1e8)
+        value = self.value_head(hidden)
+        return logits, value
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        logits, value = self.decode_actions(hidden, state)
+        return logits, value
+
+    def forward_eval(self, observations, state=None):
+        return self.forward(observations, state)
+
+
 class Boids(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()

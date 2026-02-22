@@ -6,7 +6,12 @@
 #include <assert.h>
 #include <math.h>
 #include <time.h>
-#include <unistd.h> 
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <spawn.h>
 #include "raylib.h"
 
 typedef uint64_t Bitboard;
@@ -574,6 +579,14 @@ typedef struct {
     int selfplay;
     int human_play;
     int random_bot;
+    int stockfish_bot;
+    int stockfish_limit_strength;
+    int stockfish_elo;
+    int stockfish_movetime_ms;
+    FILE* stockfish_in;
+    FILE* stockfish_out;
+    int stockfish_pid;
+    int stockfish_ready;
     
     char starting_fen[128];
     char** fen_curriculum;
@@ -2823,50 +2836,373 @@ void human_play(Chess* env) {
         env->actions[0] = -1.0;
     }
 }
-void random_bot_move(Chess* env) {
-    if (!env->random_bot) {
+
+static inline char piece_to_fen_char(Piece p) {
+    switch (p) {
+        case W_PAWN: return 'P';
+        case W_KNIGHT: return 'N';
+        case W_BISHOP: return 'B';
+        case W_ROOK: return 'R';
+        case W_QUEEN: return 'Q';
+        case W_KING: return 'K';
+        case B_PAWN: return 'p';
+        case B_KNIGHT: return 'n';
+        case B_BISHOP: return 'b';
+        case B_ROOK: return 'r';
+        case B_QUEEN: return 'q';
+        case B_KING: return 'k';
+        default: return 0;
+    }
+}
+
+static int position_to_fen(const Position* pos, char* out, size_t out_size) {
+    if (!pos || !out || out_size == 0) {
+        return 0;
+    }
+
+    size_t off = 0;
+#define APPEND_FMT(...) do { \
+    int n = snprintf(out + off, out_size - off, __VA_ARGS__); \
+    if (n < 0 || (size_t)n >= out_size - off) { \
+        out[out_size - 1] = '\0'; \
+        return 0; \
+    } \
+    off += (size_t)n; \
+} while (0)
+
+    for (int rank = 7; rank >= 0; rank--) {
+        int empty = 0;
+        for (int file = 0; file < 8; file++) {
+            int sq = rank * 8 + file;
+            Piece p = (Piece)pos->board[sq];
+            if (p == NO_PIECE) {
+                empty++;
+                continue;
+            }
+            if (empty > 0) {
+                APPEND_FMT("%d", empty);
+                empty = 0;
+            }
+            char pc = piece_to_fen_char(p);
+            if (pc == 0) {
+                return 0;
+            }
+            APPEND_FMT("%c", pc);
+        }
+        if (empty > 0) {
+            APPEND_FMT("%d", empty);
+        }
+        if (rank > 0) {
+            APPEND_FMT("/");
+        }
+    }
+
+    APPEND_FMT(" %c ", pos->sideToMove == CHESS_WHITE ? 'w' : 'b');
+
+    if (pos->castlingRights == NO_CASTLING) {
+        APPEND_FMT("- ");
+    } else {
+        if (pos->castlingRights & WHITE_OO) APPEND_FMT("K");
+        if (pos->castlingRights & WHITE_OOO) APPEND_FMT("Q");
+        if (pos->castlingRights & BLACK_OO) APPEND_FMT("k");
+        if (pos->castlingRights & BLACK_OOO) APPEND_FMT("q");
+        APPEND_FMT(" ");
+    }
+
+    if (pos->epSquare == SQ_NONE) {
+        APPEND_FMT("- ");
+    } else {
+        int file = file_of(pos->epSquare);
+        int rank = rank_of(pos->epSquare);
+        APPEND_FMT("%c%c ", (char)('a' + file), (char)('1' + rank));
+    }
+
+    int fullmove = (int)(pos->gamePly / 2) + 1;
+    APPEND_FMT("%u %d", (unsigned)pos->rule50, fullmove);
+
+#undef APPEND_FMT
+    return 1;
+}
+
+static int parse_uci_square(const char* sq_str, Square* out_sq) {
+    if (!sq_str || !out_sq) {
+        return 0;
+    }
+    char file = sq_str[0];
+    char rank = sq_str[1];
+    if (file < 'a' || file > 'h' || rank < '1' || rank > '8') {
+        return 0;
+    }
+    int f = file - 'a';
+    int r = rank - '1';
+    *out_sq = (Square)(r * 8 + f);
+    return 1;
+}
+
+static int promotion_char_to_piece_type(char c) {
+    switch (c) {
+        case 'q': case 'Q': return QUEEN;
+        case 'r': case 'R': return ROOK;
+        case 'b': case 'B': return BISHOP;
+        case 'n': case 'N': return KNIGHT;
+        default: return 0;
+    }
+}
+
+static int parse_bestmove_line(const char* line, Square* from, Square* to, int* promo_type) {
+    if (!line || !from || !to || !promo_type) {
+        return 0;
+    }
+    char move_str[32];
+    if (sscanf(line, "bestmove %31s", move_str) != 1) {
+        return 0;
+    }
+    if (strcmp(move_str, "(none)") == 0 || strlen(move_str) < 4) {
+        return 0;
+    }
+    if (!parse_uci_square(&move_str[0], from) || !parse_uci_square(&move_str[2], to)) {
+        return 0;
+    }
+    *promo_type = 0;
+    if (strlen(move_str) >= 5) {
+        *promo_type = promotion_char_to_piece_type(move_str[4]);
+        if (*promo_type == 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void stockfish_stop(Chess* env);
+
+static int stockfish_start(Chess* env) {
+    if (!env || !env->stockfish_bot) {
+        return 0;
+    }
+    if (env->stockfish_ready && env->stockfish_in != NULL && env->stockfish_out != NULL) {
+        return 1;
+    }
+
+    const char* path = getenv("PUFFER_STOCKFISH_PATH");
+    if (path == NULL || path[0] == '\0') {
+        path = "/usr/games/stockfish";
+        if (access(path, X_OK) != 0) {
+            path = "stockfish";
+        }
+    }
+
+    int to_child[2];
+    int from_child[2];
+    if (pipe(to_child) != 0 || pipe(from_child) != 0) {
+        fprintf(stderr, "WARNING: Failed to create pipes for Stockfish (%s)\n", strerror(errno));
+        env->stockfish_bot = 0;
+        return 0;
+    }
+
+    // Use posix_spawn instead of fork to avoid CUDA/fork interaction crashes
+    posix_spawn_file_actions_t file_actions;
+    posix_spawn_file_actions_init(&file_actions);
+    posix_spawn_file_actions_adddup2(&file_actions, to_child[0], STDIN_FILENO);
+    posix_spawn_file_actions_adddup2(&file_actions, from_child[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&file_actions, from_child[1], STDERR_FILENO);
+    posix_spawn_file_actions_addclose(&file_actions, to_child[0]);
+    posix_spawn_file_actions_addclose(&file_actions, to_child[1]);
+    posix_spawn_file_actions_addclose(&file_actions, from_child[0]);
+    posix_spawn_file_actions_addclose(&file_actions, from_child[1]);
+
+    extern char **environ;
+    char* const argv[] = {(char*)path, NULL};
+    pid_t pid;
+    int spawn_rc = posix_spawnp(&pid, path, &file_actions, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&file_actions);
+
+    if (spawn_rc != 0) {
+        fprintf(stderr, "WARNING: Failed to spawn Stockfish process (%s)\n", strerror(spawn_rc));
+        close(to_child[0]); close(to_child[1]);
+        close(from_child[0]); close(from_child[1]);
+        env->stockfish_bot = 0;
+        return 0;
+    }
+
+    close(to_child[0]);
+    close(from_child[1]);
+
+    FILE* sf_in = fdopen(to_child[1], "w");
+    FILE* sf_out = fdopen(from_child[0], "r");
+    if (sf_in == NULL || sf_out == NULL) {
+        fprintf(stderr, "WARNING: Failed to open Stockfish streams\n");
+        if (sf_in) fclose(sf_in);
+        if (sf_out) fclose(sf_out);
+        kill(pid, SIGTERM);
+        waitpid(pid, NULL, 0);
+        env->stockfish_bot = 0;
+        return 0;
+    }
+
+    if (setvbuf(sf_in, NULL, _IOLBF, 0) != 0 || setvbuf(sf_out, NULL, _IOLBF, 0) != 0) {
+        fprintf(stderr, "WARNING: Failed to set Stockfish stream buffering\n");
+    }
+
+    env->stockfish_in = sf_in;
+    env->stockfish_out = sf_out;
+    env->stockfish_pid = (int)pid;
+    env->stockfish_ready = 0;
+
+    char line[512];
+    fprintf(sf_in, "uci\n");
+    fflush(sf_in);
+
+    int got_uciok = 0;
+    for (int i = 0; i < 1024; i++) {
+        if (!fgets(line, sizeof(line), sf_out)) {
+            break;
+        }
+        if (strncmp(line, "uciok", 5) == 0) {
+            got_uciok = 1;
+            break;
+        }
+    }
+
+    if (!got_uciok) {
+        fprintf(stderr, "WARNING: Failed to start Stockfish at '%s'\n", path);
+        stockfish_stop(env);
+        env->stockfish_bot = 0;
+        return 0;
+    }
+
+    fprintf(sf_in, "setoption name Threads value 1\n");
+    if (env->stockfish_limit_strength) {
+        fprintf(sf_in, "setoption name UCI_LimitStrength value true\n");
+        fprintf(sf_in, "setoption name UCI_Elo value %d\n", env->stockfish_elo);
+    }
+    fprintf(sf_in, "isready\n");
+    fflush(sf_in);
+
+    int got_readyok = 0;
+    for (int i = 0; i < 1024; i++) {
+        if (!fgets(line, sizeof(line), sf_out)) {
+            break;
+        }
+        if (strncmp(line, "readyok", 7) == 0) {
+            got_readyok = 1;
+            break;
+        }
+    }
+    if (!got_readyok) {
+        fprintf(stderr, "WARNING: Stockfish did not reply with readyok\n");
+        stockfish_stop(env);
+        env->stockfish_bot = 0;
+        return 0;
+    }
+
+    env->stockfish_ready = 1;
+    return 1;
+}
+
+static void stockfish_stop(Chess* env) {
+    if (!env) {
         return;
     }
-    
-    ChessColor opp_color = !env->learner_color;
-    
-    if (env->pos.sideToMove != opp_color) {
-        return;
+    if (env->stockfish_in != NULL) {
+        fprintf(env->stockfish_in, "quit\n");
+        fflush(env->stockfish_in);
+        fclose(env->stockfish_in);
+        env->stockfish_in = NULL;
     }
-    
-    // Ensure legal moves are up to date
+    if (env->stockfish_out != NULL) {
+        fclose(env->stockfish_out);
+        env->stockfish_out = NULL;
+    }
+    if (env->stockfish_pid > 0) {
+        waitpid((pid_t)env->stockfish_pid, NULL, 0);
+        env->stockfish_pid = -1;
+    }
+    env->stockfish_ready = 0;
+}
+
+static int stockfish_select_move(Chess* env, Move* out_move) {
+    if (!env || !out_move) {
+        return 0;
+    }
+    if (!stockfish_start(env)) {
+        return 0;
+    }
+
     if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
         generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
         env->legal_moves_side = env->pos.sideToMove;
         env->legal_moves_key = env->pos.key;
     }
-    
     if (env->legal_moves.count == 0) {
-        return;
+        return 0;
     }
-    
-    // Pick a random legal move
-    int idx = rand() % env->legal_moves.count;
-    Move chosen = env->legal_moves.moves[idx].move;
-    
+
+    char fen[160];
+    if (!position_to_fen(&env->pos, fen, sizeof(fen))) {
+        return 0;
+    }
+
+    int movetime = env->stockfish_movetime_ms > 0 ? env->stockfish_movetime_ms : 30;
+    fprintf(env->stockfish_in, "position fen %s\n", fen);
+    fprintf(env->stockfish_in, "go movetime %d\n", movetime);
+    fflush(env->stockfish_in);
+
+    char line[512];
+    Square from = SQ_NONE, to = SQ_NONE;
+    int promo_type = 0;
+    int got_move = 0;
+    for (int i = 0; i < 4096; i++) {
+        if (!fgets(line, sizeof(line), env->stockfish_out)) {
+            break;
+        }
+        if (strncmp(line, "bestmove", 8) == 0) {
+            got_move = parse_bestmove_line(line, &from, &to, &promo_type);
+            break;
+        }
+    }
+    if (!got_move) {
+        return 0;
+    }
+
+    for (int i = 0; i < env->legal_moves.count; i++) {
+        Move m = env->legal_moves.moves[i].move;
+        if (from_sq(m) != from || to_sq(m) != to) {
+            continue;
+        }
+        if (promo_type != 0) {
+            if ((int)type_of_m(m) == PROMOTION && promotion_type(m) == promo_type) {
+                *out_move = m;
+                return 1;
+            }
+            continue;
+        }
+        if ((int)type_of_m(m) == PROMOTION) {
+            continue;
+        }
+        *out_move = m;
+        return 1;
+    }
+
+    return 0;
+}
+
+static void execute_opponent_move(Chess* env, ChessColor opp_color, Move chosen) {
     int pidx = (int)opp_color;
-    
-    // Execute the move directly
+
     env->chess_moves++;
     env->pick_phase[pidx] = 0;
     env->selected_square[pidx] = SQ_NONE;
     env->valid_destinations[pidx].count = 0;
-    
+
     if (env->log_pgn && env->pgn_move_count < MAX_GAME_PLIES) {
         env->pgn_moves[env->pgn_move_count++] = chosen;
     }
-    
+
     env->last_move = chosen;
-    
+
     ChessColor side_before = env->pos.sideToMove;
     do_move(&env->pos, chosen, env->undo_stack, &env->undo_stack_ptr);
-    
-    // Track captured pieces
+
     if (env->undo_stack_ptr > 0) {
         Piece cap = env->undo_stack[env->undo_stack_ptr - 1].captured;
         if (cap != NO_PIECE) {
@@ -2889,16 +3225,69 @@ void random_bot_move(Chess* env) {
                 }
             }
         }
-        
+
         if (env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull > 99) {
             env->undo_stack[env->undo_stack_ptr - 1].pliesFromNull = 99;
         }
     }
-    
-    // Regenerate legal moves for the learner
+
     generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
     env->legal_moves_side = env->pos.sideToMove;
     env->legal_moves_key = env->pos.key;
+}
+
+void random_bot_move(Chess* env) {
+    if (!env->random_bot) {
+        return;
+    }
+    
+    ChessColor opp_color = !env->learner_color;
+    
+    if (env->pos.sideToMove != opp_color) {
+        return;
+    }
+    
+    // Ensure legal moves are up to date
+    if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+        generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+        env->legal_moves_side = env->pos.sideToMove;
+        env->legal_moves_key = env->pos.key;
+    }
+    
+    if (env->legal_moves.count == 0) {
+        return;
+    }
+
+    int idx = rand() % env->legal_moves.count;
+    Move chosen = env->legal_moves.moves[idx].move;
+    execute_opponent_move(env, opp_color, chosen);
+}
+
+void stockfish_bot_move(Chess* env) {
+    if (!env->stockfish_bot) {
+        return;
+    }
+
+    ChessColor opp_color = !env->learner_color;
+    if (env->pos.sideToMove != opp_color) {
+        return;
+    }
+
+    if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+        generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+        env->legal_moves_side = env->pos.sideToMove;
+        env->legal_moves_key = env->pos.key;
+    }
+    if (env->legal_moves.count == 0) {
+        return;
+    }
+
+    Move chosen = MOVE_NONE;
+    if (!stockfish_select_move(env, &chosen)) {
+        int idx = rand() % env->legal_moves.count;
+        chosen = env->legal_moves.moves[idx].move;
+    }
+    execute_opponent_move(env, opp_color, chosen);
 }
 
 
@@ -2925,7 +3314,7 @@ void end_game(Chess* env){
         env->black_score += 1.0f;
         if (env->learner_color == CHESS_BLACK) {
             env->learner_wins += 1.0f;
-            env->log.black_winrate = (env->log.black_winrate * env->log.n + win_value) / (env->log.n + 1.0f);
+            env->log.black_winrate += win_value;
         } else {
             env->learner_losses += 1.0f;
         }
@@ -2935,7 +3324,7 @@ void end_game(Chess* env){
         if (env->learner_color == CHESS_WHITE) {
             env->rewards[0] = 1.0f;
             win_value = 1.0f;
-            env->log.white_winrate = (env->log.white_winrate * env->log.n + win_value) / (env->log.n + 1.0f);
+            env->log.white_winrate += win_value;
         } else {
             env->rewards[0] = -1.0f;
             win_value = 0.0f;
@@ -2954,18 +3343,18 @@ void end_game(Chess* env){
     env->episode_reward += env->rewards[0];
     env->log.episode_return += env->episode_reward;
     
-    env->log.perf = (env->log.perf * env->log.n + win_value) / (env->log.n + 1.0f);
+    env->log.perf += win_value;
     env->log.timeout_rate += 0.0f;
     env->log.chess_moves += env->chess_moves;
     env->log.episode_length += env->tick;
     float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
     env->log.invalid_action_rate += invalid_rate;
-    
+
     float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
-    env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
-    
-    float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
-    env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
+    env->log.game_length_score += length_score;
+
+    float is_draw = (env->game_result == 3) ? 1.0f : 0.0f;
+    env->log.score += win_value + 0.2f * length_score - 0.1f * is_draw;
     
     float mat = (float)env->pos.materialScore / 100.0f;
     float pst = (float)env->pos.psqtScore / 100.0f;
@@ -2988,8 +3377,8 @@ void end_game(Chess* env){
  
 }
 void c_step(Chess* env) {
-    if (!env->selfplay && !env->human_play && !env->random_bot) {
-        fprintf(stderr, "FATAL: selfplay=0 AND human_play=0 and random_bot=0 is invalid configuration\n");
+    if (!env->selfplay && !env->human_play && !env->random_bot && !env->stockfish_bot) {
+        fprintf(stderr, "FATAL: selfplay=0 AND human_play=0 and random_bot=0 and stockfish_bot=0 is invalid configuration\n");
         exit(1);
     }
     
@@ -3010,8 +3399,12 @@ void c_step(Chess* env) {
     env->terminals[0] = 0.0f;
     env->tick++;
 
-    if (env->random_bot && env->pos.sideToMove != env->learner_color) {
-        random_bot_move(env);
+    if ((env->random_bot || env->stockfish_bot) && env->pos.sideToMove != env->learner_color) {
+        if (env->stockfish_bot) {
+            stockfish_bot_move(env);
+        } else {
+            random_bot_move(env);
+        }
         
         env->game_result = game_result_with_legal_count(&env->pos, env->legal_moves.count, 
             env->undo_stack, env->undo_stack_ptr,
@@ -3140,7 +3533,7 @@ void c_step(Chess* env) {
         env->episode_reward += env->rewards[0];
         env->log.episode_return += env->episode_reward;
         
-        env->log.perf = (env->log.perf * env->log.n + 0.5f) / (env->log.n + 1.0f);
+        env->log.perf += 0.5f;
         env->log.draw_rate += 1.0f;
         env->log.timeout_rate += 1.0f;
         env->log.chess_moves += env->chess_moves;
@@ -3148,9 +3541,8 @@ void c_step(Chess* env) {
         float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
         env->log.invalid_action_rate += invalid_rate;
         float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
-        env->log.game_length_score = (env->log.game_length_score * env->log.n + length_score) / (env->log.n + 1.0f);
-        float avg_draw_rate = (env->log.n > 0) ? (env->log.draw_rate / env->log.n) : 0.0f;
-        env->log.score = env->log.perf + 0.2f * env->log.game_length_score - 0.1f * avg_draw_rate;
+        env->log.game_length_score += length_score;
+        env->log.score += 0.5f + 0.2f * length_score - 0.1f;
         float mat = (float)env->pos.materialScore / 100.0f;
         float pst = (float)env->pos.psqtScore / 100.0f;
         if (env->learner_color == CHESS_BLACK) { mat = -mat; pst = -pst; }
@@ -3860,6 +4252,7 @@ void c_render(Chess* env) {
 }
 
 void c_close(Chess* env) {
+    stockfish_stop(env);
     if (env->client != NULL) {
         if (env->client->use_unicode_pieces && env->client->piece_font.texture.id != 0) {
             UnloadFont(env->client->piece_font);

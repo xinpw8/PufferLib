@@ -25,6 +25,22 @@ void my_init(Env* env, Dict* kwargs) {
     DictItem* rb = dict_get_unsafe(kwargs, "random_bot");
     env->random_bot = rb ? (int)rb->value : 0;
 
+    DictItem* sf = dict_get_unsafe(kwargs, "stockfish_bot");
+    env->stockfish_bot = sf ? (int)sf->value : 0;
+
+    DictItem* sfls = dict_get_unsafe(kwargs, "stockfish_limit_strength");
+    env->stockfish_limit_strength = sfls ? (int)sfls->value : 1;
+
+    DictItem* sfelo = dict_get_unsafe(kwargs, "stockfish_elo");
+    env->stockfish_elo = sfelo ? (int)sfelo->value : 2200;
+
+    DictItem* sfms = dict_get_unsafe(kwargs, "stockfish_movetime_ms");
+    env->stockfish_movetime_ms = sfms ? (int)sfms->value : 30;
+
+    if (env->stockfish_bot) {
+        env->random_bot = 0;
+    }
+
     DictItem* mm = dict_get_unsafe(kwargs, "max_moves");
     env->max_moves = mm ? (int)mm->value : 500;
 
@@ -35,6 +51,10 @@ void my_init(Env* env, Dict* kwargs) {
     env->num_fens = 0;
     env->random_fen = 0;
     env->debug_mode = 0;
+    env->stockfish_in = NULL;
+    env->stockfish_out = NULL;
+    env->stockfish_pid = -1;
+    env->stockfish_ready = 0;
 
     // Alternate learner_color across envs (using static counter)
     static int _color_counter = 0;
@@ -45,20 +65,42 @@ void my_init(Env* env, Dict* kwargs) {
     env->log_pgn_choice_made = 1;
     env->log_pgn = 0;
 
-    // Default reward shaping
-    env->reward_draw = 0.0f;
-    env->reward_invalid_piece = -0.01f;
-    env->reward_invalid_move = -0.01f;
-    env->reward_valid_piece = 0.0f;
-    env->reward_valid_move = 0.0f;
-    env->reward_material = 0.0f;
-    env->reward_position = 0.0f;
-    env->reward_castling = 0.0f;
-    env->reward_repetition = 0.0f;
-    env->reward_check = 0.0f;
+    // Reward shaping (configurable via ini)
+    DictItem* rd = dict_get_unsafe(kwargs, "reward_draw");
+    env->reward_draw = rd ? (float)rd->value : -0.5f;
 
-    env->enable_50_move_rule = 1;
-    env->enable_threefold_repetition = 1;
+    DictItem* rip = dict_get_unsafe(kwargs, "reward_invalid_piece");
+    env->reward_invalid_piece = rip ? (float)rip->value : -0.01f;
+
+    DictItem* rim = dict_get_unsafe(kwargs, "reward_invalid_move");
+    env->reward_invalid_move = rim ? (float)rim->value : -0.01f;
+
+    DictItem* rvp = dict_get_unsafe(kwargs, "reward_valid_piece");
+    env->reward_valid_piece = rvp ? (float)rvp->value : 0.0f;
+
+    DictItem* rvm = dict_get_unsafe(kwargs, "reward_valid_move");
+    env->reward_valid_move = rvm ? (float)rvm->value : 0.0f;
+
+    DictItem* rmat = dict_get_unsafe(kwargs, "reward_material");
+    env->reward_material = rmat ? (float)rmat->value : 0.1f;
+
+    DictItem* rpos = dict_get_unsafe(kwargs, "reward_position");
+    env->reward_position = rpos ? (float)rpos->value : 0.0f;
+
+    DictItem* rcast = dict_get_unsafe(kwargs, "reward_castling");
+    env->reward_castling = rcast ? (float)rcast->value : 0.0f;
+
+    DictItem* rrep = dict_get_unsafe(kwargs, "reward_repetition");
+    env->reward_repetition = rrep ? (float)rrep->value : -0.05f;
+
+    DictItem* rchk = dict_get_unsafe(kwargs, "reward_check");
+    env->reward_check = rchk ? (float)rchk->value : 0.01f;
+
+    DictItem* e50 = dict_get_unsafe(kwargs, "enable_50_move_rule");
+    env->enable_50_move_rule = e50 ? (int)e50->value : 1;
+
+    DictItem* e3r = dict_get_unsafe(kwargs, "enable_threefold_repetition");
+    env->enable_threefold_repetition = e3r ? (int)e3r->value : 0;  // Disabled by default for training
 
     strcpy(env->starting_fen, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
@@ -93,6 +135,11 @@ void my_init(Env* env, Dict* kwargs) {
     generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
     env->legal_moves_side = env->pos.sideToMove;
     env->legal_moves_key = env->pos.key;
+
+    // Start Stockfish process eagerly during init (before CUDA training loop)
+    if (env->stockfish_bot) {
+        stockfish_start(env);
+    }
 }
 
 void my_log(Log* log, Dict* out) {
