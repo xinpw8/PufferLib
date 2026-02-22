@@ -43,6 +43,17 @@ static int dict_set_obj(PyObject* dict, const char* key, PyObject* obj) {
     return rc;
 }
 
+static void sanitize_metric_key(char* key) {
+    for (char* p = key; *p; p++) {
+        char c = *p;
+        int is_alpha = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+        int is_digit = (c >= '0' && c <= '9');
+        if (!(is_alpha || is_digit || c == '_')) {
+            *p = '_';
+        }
+    }
+}
+
 static const char* status_to_str(StatusCondition s) {
     switch (s) {
         case STATUS_SLEEP: return "slp";
@@ -294,16 +305,73 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "team_builder_recent_winrate", log->team_builder_recent_winrate);
     assign_to_dict(dict, "team_builder_pool_coverage", log->team_builder_pool_coverage);
 
-    // Per-species win rates (only emit species that appeared in games)
+    float wr_by_species[NUM_SPECIES + 1] = {0};
+    float pick_by_species[NUM_SPECIES + 1] = {0};
+    float score_by_species[NUM_SPECIES + 1] = {0};
+
+    // Per-species diagnostics (only emit species that appeared in games)
+    // `species_games` is averaged by vec_log, so this is recent pick-rate per episode.
     for (int i = 1; i <= NUM_SPECIES; i++) {
         if (log->species_games[i] > 0.0f) {
+            pick_by_species[i] = log->species_games[i];
+            wr_by_species[i] = log->species_wins[i] / log->species_games[i];
+
             char key[64];
             snprintf(key, sizeof(key), "wr_%s", SPECIES_DATA[i].name);
-            // Convert spaces to underscores for clean metric names
-            for (char* p = key; *p; p++) { if (*p == ' ') *p = '_'; }
-            assign_to_dict(dict, key, log->species_wins[i] / log->species_games[i]);
+            sanitize_metric_key(key);
+            assign_to_dict(dict, key, wr_by_species[i]);
+
+            snprintf(key, sizeof(key), "pick_%s", SPECIES_DATA[i].name);
+            sanitize_metric_key(key);
+            assign_to_dict(dict, key, pick_by_species[i]);
         }
     }
+
+    // Build a compact "current best team" snapshot from recent builder behavior.
+    // Score prioritizes pick-rate, then win-rate, then OU prior base weight.
+    for (int i = 0; i < OU_LEGAL_SIZE; i++) {
+        SpeciesID sp = OU_LEGAL[i];
+        float pick_rate = pick_by_species[sp];
+        float wr = (pick_rate > 0.0f) ? wr_by_species[sp] : 0.5f;
+        score_by_species[sp] = 4.0f * pick_rate + wr + 0.03f * species_base_weight(sp);
+    }
+
+    int used[NUM_SPECIES + 1] = {0};
+    float best_mean_wr = 0.0f;
+    float best_mean_pick = 0.0f;
+    for (int slot = 0; slot < NUM_POKEMON; slot++) {
+        SpeciesID best_sp = SPECIES_NONE;
+        float best_score = -1.0e30f;
+        for (int i = 0; i < OU_LEGAL_SIZE; i++) {
+            SpeciesID sp = OU_LEGAL[i];
+            if (used[sp]) continue;
+            float s = score_by_species[sp];
+            if (s > best_score) {
+                best_score = s;
+                best_sp = sp;
+            }
+        }
+        if (best_sp == SPECIES_NONE) break;
+        used[best_sp] = 1;
+        float pick_rate = pick_by_species[best_sp];
+        float wr = (pick_rate > 0.0f) ? wr_by_species[best_sp] : 0.5f;
+
+        char key[80];
+        snprintf(key, sizeof(key), "team_builder_best_species_%d", slot + 1);
+        assign_to_dict(dict, key, (float)best_sp);
+        snprintf(key, sizeof(key), "team_builder_best_species_%d_pick_rate", slot + 1);
+        assign_to_dict(dict, key, pick_rate);
+        snprintf(key, sizeof(key), "team_builder_best_species_%d_wr", slot + 1);
+        assign_to_dict(dict, key, wr);
+        snprintf(key, sizeof(key), "team_builder_best_species_%d_score", slot + 1);
+        assign_to_dict(dict, key, best_score);
+
+        best_mean_wr += wr;
+        best_mean_pick += pick_rate;
+    }
+    assign_to_dict(dict, "team_builder_best_team_mean_wr", best_mean_wr / (float)NUM_POKEMON);
+    assign_to_dict(dict, "team_builder_best_team_mean_pick_rate", best_mean_pick / (float)NUM_POKEMON);
+
     return 0;
 }
 

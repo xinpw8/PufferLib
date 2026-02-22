@@ -457,3 +457,113 @@ That report includes:
   - Result: `26 passed`
 - External legality sweep using official Showdown TeamValidator (`[Gen 1] OU`, commit `95aad7df02abd58dd737e0acdac22e5d049d360e`):
   - Result: `Invalid species count: 0` across all 149 modeled species sets
+
+---
+
+## Run 007 — RNN-required MCTS retrain prep + SPS characterization
+
+**Date**: 2026-02-22  
+**Branch**: `poke-battle`  
+**Commit baseline**: `ec946f00`  
+**Status**: Profiling + config tuning complete; launch command finalized
+
+### Goal
+User-requested retrain target:
+1. Keep **RNN enabled** (required).
+2. Train policy against strongest available opponent: **MCTS bot** (`bot_mode=2`).
+3. Keep adaptive team learning enabled so policy learns team quality/composition.
+4. Push SPS as high as possible without weakening the opponent.
+
+All commands were run from:
+- `source .pufferlib/bin/activate`
+
+### Environment/Trainer verification
+- Confirmed adaptive team builder signal is exposed in trainer logs:
+  - `environment/team_builder_recent_winrate`
+  - `environment/team_builder_pool_coverage`
+  - per-species rates: `environment/wr_<Species>`
+- Confirmed RNN path is active by default (`rnn_name=PokeBattleLSTM`).
+
+### Throughput profiling summary
+
+#### 1) Env-only SPS (MCTS 128, depth 5, team_builder_mode=1)
+| env.num_envs | SPS |
+|---|---|
+| 2,048 | 189,893 |
+| 4,096 | 246,794 |
+| 8,192 | 233,255 |
+| 12,288 | **284,444** |
+
+#### 2) Multiprocessing backend sweep (same opponent settings)
+`PufferEnv` single-process backend outperformed tested `Multiprocessing` configs for this workload.
+
+| Config | SPS |
+|---|---|
+| `PufferEnv` 8,192 | **229,086** |
+| MP `8x128` | 84,650 |
+| MP `12x128` | 91,204 |
+| MP `16x128` | 114,135 |
+| MP `16x256` | 155,886 |
+| MP `20x256` | 97,013 |
+
+#### 3) End-to-end training SPS (RNN ON, MCTS 128)
+Representative probes:
+- `env.num_envs=8192, horizon=128`: `sps_mean=115,067`, `sps_max=143,203`
+- `env.num_envs=12288, horizon=128`: `sps_mean=131,354`, `sps_max=148,275`
+- `env.num_envs=12288, horizon=64, minibatch=65536`: `sps_mean=133,310`
+- `env.num_envs=16384, horizon=128`: `sps_mean=118,470`
+- foreground sanity launch with tuned config: epoch-1 `SPS=95.5K`
+
+### 1M+ SPS feasibility findings
+- With **strongest MCTS** (`mcts_iterations=128`, `mcts_depth=5`) and RNN enabled, this setup is in the ~`100K-150K` training SPS regime.
+- 1M+ is **not** achievable under these strength constraints on this machine.
+- Env-only MCTS sweep showed 1M+ only when reducing search budget substantially (example: `mcts_iterations=32` gave ~`1,075,002` env SPS), which weakens the opponent and was rejected for this run objective.
+
+### Issues found and fixed during prep
+1. Non-RNN policy path lacked `forward_eval` on `PokeBattle` model.  
+   - Fix: added `forward_eval` pass-through in `pufferlib/ocean/torch.py`.
+   - RNN training path remains unchanged.
+2. Detected unrelated background load affecting SPS (stale `puffer_chess` training process).  
+   - Terminated during profiling to obtain clean measurements.
+3. Team-quality observability was incomplete for monitoring learned composition online.  
+   - Fix: expanded `vec_log` team-builder diagnostics in `pufferlib/ocean/poke_battle/binding.c` to emit:
+     - per-species recent selection rates: `environment/pick_<Species>`
+     - inferred best team slots:
+       - `environment/team_builder_best_species_1..6`
+       - `environment/team_builder_best_species_<slot>_pick_rate`
+       - `environment/team_builder_best_species_<slot>_wr`
+       - `environment/team_builder_best_species_<slot>_score`
+     - summary metrics:
+       - `environment/team_builder_best_team_mean_wr`
+       - `environment/team_builder_best_team_mean_pick_rate`
+   - Added regression coverage: `tests/test_poke_battle_team_builder.py::test_team_builder_best_team_metrics_are_logged`.
+
+### Config updates applied
+Updated `pufferlib/config/ocean/poke_battle.ini`:
+- `env.num_envs = 12288`
+- `env.team_builder_mode = 1`
+- `train.horizon = 64`
+- `train.minibatch_size = 65536`
+- kept strongest-opponent settings:
+  - `env.bot_mode = 2`
+  - `env.mcts_iterations = 128`
+  - `env.mcts_depth = 5`
+
+### Validation
+- `pytest -q tests/test_poke_battle_team_builder.py`
+- Result: `4 passed`
+
+### Launch command (RNN + strongest MCTS + team builder)
+```bash
+source .pufferlib/bin/activate
+python -m pufferlib.pufferl train puffer_poke_battle \
+  --wandb \
+  --wandb-project pufferlib \
+  --wandb-group poke-battle-mcts-team-builder \
+  --tag mcts128_tb1_rnn_env12288_h64
+```
+
+### Final assessment
+- Training objective (RNN + strongest MCTS + team composition learning) is configured and validated.
+- Throughput is tuned to the best stable point found without weakening opponent strength.
+- The 1M+ SPS target conflicts with `mcts_iterations=128` strength requirements on current hardware.

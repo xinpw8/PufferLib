@@ -1038,6 +1038,9 @@ class PokeBattle(nn.Module):
         actions, value = self.decode_actions(hidden)
         return actions, value
 
+    def forward_eval(self, observations, state=None):
+        return self.forward(observations, state)
+
     def forward_train(self, x, state=None):
         return self.forward(x, state)
 
