@@ -422,3 +422,38 @@ Confirm that the model from run `891hhxc2` remains strong after environment upda
 
 *Eval command: `python -m pufferlib.ocean.poke_battle.eval` (all bots) or `--human` (GUI play)*
 *Specify checkpoint: `--model-path experiments/puffer_poke_battle_RUNID/model_puffer_poke_battle_EPOCH.pt`*
+
+---
+
+## Run 006 — Full Showdown Gen1 OU legality parity closure
+
+**Date**: 2026-02-22  
+**Branch**: `poke-battle`  
+**Status**: Implementation + validation complete (rules + team legality + hardcoded moveset legality)
+
+### Scope
+This pass closed all remaining identified gaps for full `[Gen 1] OU` legality parity in the local env implementation:
+- strict fixed-team species legality (`SPECIES_NONE` rejected)
+- robust endless stall detection under switch/no-impact loops
+- full 149-species hardcoded moveset legality check against Showdown TeamValidator (no-tradeback Gen1 OU)
+
+### Canonical report
+Full technical audit details are documented in:
+- `pufferlib/ocean/poke_battle/SHOWDOWN_GEN1_OU_LEGALITY_REPORT_2026-02-22.md`
+
+That report includes:
+- exact Showdown source references (format/ruleset/validator semantics)
+- discrepancy inventory
+- all species-level move corrections
+- validation commands and outputs
+- reproducibility steps
+
+### Quick verification summary
+- Build:
+  - `source /home/spark-advantage/pufferlib/.pufferlib/bin/activate`
+  - `python setup.py build_poke_battle --inplace --force`
+- Tests:
+  - `python -m pytest -q tests/test_poke_battle_rules_parity.py tests/test_poke_battle_team_builder.py tests/test_poke_battle_moveset_legality.py`
+  - Result: `26 passed`
+- External legality sweep using official Showdown TeamValidator (`[Gen 1] OU`, commit `95aad7df02abd58dd737e0acdac22e5d049d360e`):
+  - Result: `Invalid species count: 0` across all 149 modeled species sets

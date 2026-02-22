@@ -29,6 +29,14 @@ static int dict_set_str(PyObject* dict, const char* key, const char* value) {
     return rc;
 }
 
+static int dict_set_double(PyObject* dict, const char* key, double value) {
+    PyObject* obj = PyFloat_FromDouble(value);
+    if (!obj) return -1;
+    int rc = PyDict_SetItemString(dict, key, obj);
+    Py_DECREF(obj);
+    return rc;
+}
+
 static int dict_set_obj(PyObject* dict, const char* key, PyObject* obj) {
     int rc = PyDict_SetItemString(dict, key, obj);
     Py_DECREF(obj);
@@ -57,6 +65,20 @@ static const char* safe_species_name(SpeciesID id) {
 static const char* safe_move_name(MoveID id) {
     if (id <= MOVE_NONE || id > NUM_MOVES) return "None";
     return MOVE_DATA[id].name;
+}
+
+static double team_builder_recent_winrate_env(const Env* env) {
+    if (env->team_builder_recent_count <= 0) return 0.5;
+    return (double)env->team_builder_recent_sum / (double)env->team_builder_recent_count;
+}
+
+static int team_builder_unique_species_seen_env(const Env* env) {
+    int seen = 0;
+    for (int i = 0; i < OU_LEGAL_SIZE; i++) {
+        SpeciesID sp = OU_LEGAL[i];
+        if (env->learner_species_games[sp] > 0.0f) seen++;
+    }
+    return seen;
 }
 
 static PyObject* pack_move(const MoveSlot* move) {
@@ -166,6 +188,14 @@ static PyObject* pack_player(const Player* player) {
 
 // Parse a Python list/tuple of NUM_POKEMON ints into a SpeciesID array.
 // Returns 0 if key not present (no-op), 1 on success, -1 on error.
+static int is_ou_legal_species(long species_id) {
+    if (species_id <= 0 || species_id > NUM_SPECIES) return 0;
+    for (int i = 0; i < OU_LEGAL_SIZE; i++) {
+        if ((long)OU_LEGAL[i] == species_id) return 1;
+    }
+    return 0;
+}
+
 static int parse_team(PyObject* kwargs, const char* key, SpeciesID* out) {
     PyObject* obj = PyDict_GetItemString(kwargs, key);
     if (!obj || obj == Py_None) return 0;
@@ -196,14 +226,17 @@ static int parse_team(PyObject* kwargs, const char* key, SpeciesID* out) {
                          key, i, val, NUM_SPECIES);
             return -1;
         }
-        if (val > 0) {
-            if (used[val]) {
-                PyErr_Format(PyExc_ValueError,
-                             "%s violates Species Clause: duplicate species id %ld", key, val);
-                return -1;
-            }
-            used[val] = 1;
+        if (!is_ou_legal_species(val)) {
+            PyErr_Format(PyExc_ValueError,
+                         "%s[%d] = %ld is not an OU-legal Gen 1 species id", key, i, val);
+            return -1;
         }
+        if (used[val]) {
+            PyErr_Format(PyExc_ValueError,
+                         "%s violates Species Clause: duplicate species id %ld", key, val);
+            return -1;
+        }
+        used[val] = 1;
         out[i] = (SpeciesID)val;
     }
     return 1;
@@ -239,6 +272,9 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->mcts_depth = (int)unpack(kwargs, "mcts_depth");
     env->auto_reset = (int)unpack(kwargs, "auto_reset");
     init(env);
+    if (parse_int_kwarg(kwargs, "team_builder_mode",
+                        TEAM_BUILDER_DISABLED, TEAM_BUILDER_ADAPTIVE,
+                        &env->team_builder_mode) < 0) return -1;
     if (parse_team(kwargs, "p1_team", env->p1_fixed_team) < 0) return -1;
     if (parse_team(kwargs, "p2_team", env->p2_fixed_team) < 0) return -1;
     if (parse_int_kwarg(kwargs, "force_accuracy", -1, 1, &env->force_accuracy) < 0) return -1;
@@ -255,6 +291,8 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "p1_wins", log->p1_wins);
     assign_to_dict(dict, "p2_wins", log->p2_wins);
     assign_to_dict(dict, "draws", log->draws);
+    assign_to_dict(dict, "team_builder_recent_winrate", log->team_builder_recent_winrate);
+    assign_to_dict(dict, "team_builder_pool_coverage", log->team_builder_pool_coverage);
 
     // Per-species win rates (only emit species that appeared in games)
     for (int i = 1; i <= NUM_SPECIES; i++) {
@@ -277,6 +315,8 @@ static PyObject* my_get(PyObject* dict, Env* env) {
             dict_set_long(dict, "learner_side", env->learner_side) < 0 ||
             dict_set_long(dict, "bot_mode", env->bot_mode) < 0 ||
             dict_set_long(dict, "auto_reset", env->auto_reset) < 0 ||
+            dict_set_long(dict, "team_builder_mode", env->team_builder_mode) < 0 ||
+            dict_set_long(dict, "team_builder_unique_species_seen", team_builder_unique_species_seen_env(env)) < 0 ||
             dict_set_long(dict, "stale_turns", env->stale_turns) < 0 ||
             dict_set_long(dict, "enforce_endless_clause", env->enforce_endless_clause) < 0 ||
             dict_set_long(dict, "force_accuracy", env->force_accuracy) < 0 ||
@@ -294,6 +334,11 @@ static PyObject* my_get(PyObject* dict, Env* env) {
             dict_set_long(dict, "ohko_clause", 1) < 0 ||
             dict_set_long(dict, "evasion_moves_clause", 1) < 0 ||
             dict_set_long(dict, "endless_battle_clause", 1) < 0) {
+        return NULL;
+    }
+    if (dict_set_double(dict, "team_builder_recent_winrate", team_builder_recent_winrate_env(env)) < 0 ||
+            dict_set_double(dict, "team_builder_pool_coverage",
+                            (double)team_builder_unique_species_seen_env(env) / (double)OU_LEGAL_SIZE) < 0) {
         return NULL;
     }
 
@@ -336,6 +381,19 @@ static int my_put(Env* env, PyObject* args, PyObject* kwargs) {
         unsigned long long episode_count = PyLong_AsUnsignedLongLong(ep_obj);
         if (PyErr_Occurred()) return -1;
         env->episode_count = episode_count;
+    }
+
+    int parsed_team_builder_mode = 0;
+    int next_team_builder_mode = env->team_builder_mode;
+    parsed_team_builder_mode = parse_int_kwarg(kwargs, "team_builder_mode",
+                                              TEAM_BUILDER_DISABLED, TEAM_BUILDER_ADAPTIVE,
+                                              &next_team_builder_mode);
+    if (parsed_team_builder_mode < 0) return -1;
+    if (parsed_team_builder_mode == 1 && next_team_builder_mode != env->team_builder_mode) {
+        env->team_builder_mode = next_team_builder_mode;
+        team_builder_reset_state(env);
+    } else if (parsed_team_builder_mode == 1) {
+        env->team_builder_mode = next_team_builder_mode;
     }
 
     if (parse_team(kwargs, "p1_team", env->p1_fixed_team) < 0) return -1;

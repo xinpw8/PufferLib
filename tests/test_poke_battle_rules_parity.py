@@ -146,6 +146,27 @@ def test_species_clause_rejects_duplicate_fixed_team():
         env.close()
 
 
+def test_species_clause_rejects_species_none_in_fixed_team():
+    bad_team = [
+        0,
+        SPECIES_TAUROS,
+        SPECIES_CHANSEY,
+        SPECIES_SNORLAX,
+        SPECIES_ALAKAZAM,
+        SPECIES_EXEGGUTOR,
+    ]
+    with pytest.raises(ValueError, match="OU-legal"):
+        env = PokeBattle(
+            num_envs=1,
+            selfplay=1,
+            auto_reset=0,
+            seed=3,
+            p1_team=bad_team,
+            p2_team=DEFAULT_UNIQUE_TEAM,
+        )
+        env.close()
+
+
 def test_species_clause_accepts_unique_team_and_reports_ruleset():
     env = make_env(DEFAULT_UNIQUE_TEAM, DEFAULT_UNIQUE_TEAM)
     try:
@@ -170,6 +191,22 @@ def test_endless_battle_clause_terminates_stale_battle():
         state = env.get_state(0)
         for _ in range(50):
             done, state = step(env, 2, 2)  # Stun Spore into already paralyzed targets
+            if done:
+                break
+        assert done
+        assert state["stale_turns"] >= 32
+    finally:
+        env.close()
+
+
+def test_endless_battle_clause_detects_switch_stall_loops():
+    env = make_env(DEFAULT_UNIQUE_TEAM, DEFAULT_UNIQUE_TEAM, enforce_endless_clause=1)
+    try:
+        done = False
+        state = env.get_state(0)
+        for i in range(80):
+            action = 5 if (i % 2 == 0) else 4
+            done, state = step(env, action, action)
             if done:
                 break
         assert done
