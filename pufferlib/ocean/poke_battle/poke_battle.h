@@ -28,6 +28,7 @@ typedef struct Client Client;
 #define NUM_ACTIONS     10   // 0-3 = moves, 4-9 = switch to pokemon 0-5
 #define OBS_SIZE        140
 #define MAX_TURNS       500
+#define ENDLESS_BATTLE_STALE_TURNS 32
 
 // Reward shaping weights (per-step intermediate rewards)
 // Rewards are normalized by max team HP (~2400 for 6 pokemon)
@@ -446,6 +447,9 @@ typedef struct {
     int sleep_turns;      // turns remaining asleep
     int toxic_counter;    // toxic damage counter (increases each turn)
     int is_alive;
+    // Clause source tracking: side index (0/1) that inflicted sleep/freeze, or -1
+    int sleep_source_side;
+    int freeze_source_side;
 } Pokemon;
 
 typedef struct {
@@ -470,9 +474,6 @@ typedef struct {
     int is_recharging;    // hyper beam recharge
     int is_trapped;       // wrap/bind
     int trap_turns;
-
-    // Track for sleep clause
-    int num_opp_slept;    // number of opponent's pokemon we've put to sleep
 } Player;
 
 typedef struct {
@@ -557,6 +558,17 @@ typedef struct {
     unsigned long long episode_count;
     Client* client;             // raylib render client (lazy init, NULL in headless)
     int mouse_action;           // -1=none, 0-9=clicked action, -2=restart
+    int stale_turns;            // endless-battle stall counter
+    unsigned long long last_progress_signature;
+    int enforce_endless_clause; // 1=enabled, 0=disabled
+    // Determinism hooks for parity tests
+    // -1 = normal behavior, 0 = force false, 1 = force true
+    int force_accuracy;
+    int force_secondary;
+
+    // Fixed team support: SPECIES_NONE in [0] = use random generation
+    SpeciesID p1_fixed_team[NUM_POKEMON];
+    SpeciesID p2_fixed_team[NUM_POKEMON];
 
     // Event buffer for battle log
     BattleEvent events[MAX_EVENTS];
@@ -600,6 +612,12 @@ static inline int pb_rand_range(int min, int max) {
 // Returns 1 with probability percent/100
 static inline int pb_rand_chance(int percent) {
     return pb_rand_int(100) < percent;
+}
+
+static inline int forced_coin_flip(int override_value, int fallback_percent) {
+    if (override_value == 0) return 0;
+    if (override_value == 1) return 1;
+    return pb_rand_chance(fallback_percent);
 }
 
 // ============================================================================
@@ -692,12 +710,12 @@ static int calculate_damage(Pokemon* attacker, Pokemon* defender,
                            MoveSlot* move_slot, int is_critical) {
     const MoveData* mdata = &MOVE_DATA[move_slot->id];
 
-    if (mdata->power == 0) return 0; // status move
-
     // Fixed damage moves
     if (mdata->effect == EFFECT_FIXED_DAMAGE) {
         return 100; // level 100
     }
+
+    if (mdata->power == 0) return 0; // status move
 
     int power = mdata->power;
     int is_physical = TYPE_IS_PHYSICAL[mdata->type];
@@ -810,6 +828,9 @@ static int check_accuracy(Player* atk_player, Player* def_player, MoveSlot* move
 
     // Moves with 0 accuracy always hit (self-targeting moves like Recover, Swords Dance)
     if (mdata->accuracy == 0) return 1;
+    if (g_event_env && g_event_env->force_accuracy >= 0) {
+        return g_event_env->force_accuracy ? 1 : 0;
+    }
 
     int acc = mdata->accuracy;
 
@@ -856,6 +877,8 @@ static void init_pokemon(Pokemon* poke, SpeciesID species) {
     poke->sleep_turns = 0;
     poke->toxic_counter = 0;
     poke->is_alive = 1;
+    poke->sleep_source_side = -1;
+    poke->freeze_source_side = -1;
 
     for (int i = 0; i < NUM_MOVE_SLOTS; i++) {
         MoveID mid = sdata->moveset[i];
@@ -1076,12 +1099,33 @@ static void get_action_mask(Player* p, int mode, int player_idx, int mask[NUM_AC
     }
 }
 
+static int side_has_opponent_inflicted_status(Player* side, StatusCondition status, int source_side) {
+    if (!side || source_side < 0) return 0;
+    for (int i = 0; i < NUM_POKEMON; i++) {
+        Pokemon* mon = &side->team[i];
+        if (mon->hp <= 0 || mon->status != status) continue;
+        if (status == STATUS_SLEEP && mon->sleep_source_side == source_side) return 1;
+        if (status == STATUS_FREEZE && mon->freeze_source_side == source_side) return 1;
+    }
+    return 0;
+}
+
 // ============================================================================
 // Apply Status Effect
 // ============================================================================
 
-static int try_inflict_status(Pokemon* target, StatusCondition status) {
+static int try_inflict_status(Player* target_side, Pokemon* target,
+                             StatusCondition status, int source_side) {
     if (target->status != STATUS_NONE) return 0; // already has status
+
+    if (status == STATUS_SLEEP &&
+        side_has_opponent_inflicted_status(target_side, STATUS_SLEEP, source_side)) {
+        return 0;
+    }
+    if (status == STATUS_FREEZE &&
+        side_has_opponent_inflicted_status(target_side, STATUS_FREEZE, source_side)) {
+        return 0;
+    }
 
     // Type immunities
     if (status == STATUS_PARALYSIS) {
@@ -1112,6 +1156,15 @@ static int try_inflict_status(Pokemon* target, StatusCondition status) {
     target->status = status;
     if (status == STATUS_SLEEP) {
         target->sleep_turns = pb_rand_range(1, 8); // Gen 1: 1-7 turns
+        target->sleep_source_side = source_side;
+    } else {
+        target->sleep_source_side = -1;
+        target->sleep_turns = 0;
+    }
+    if (status == STATUS_FREEZE) {
+        target->freeze_source_side = source_side;
+    } else {
+        target->freeze_source_side = -1;
     }
     if (status == STATUS_TOXIC) {
         target->toxic_counter = 1;
@@ -1129,38 +1182,39 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
     Pokemon* attacker = active_pokemon(atk_player);
     Pokemon* defender = active_pokemon(def_player);
     int def_pidx = 1 - atk_pidx;
+    int secondary_override = g_event_env ? g_event_env->force_secondary : -1;
 
     switch (mdata->effect) {
     case EFFECT_PARALYZE_CHANCE:
         // Showdown Gen 1: secondary status blocked if move type matches target type
-        if (pb_rand_chance(mdata->effect_chance)) {
+        if (forced_coin_flip(secondary_override, mdata->effect_chance)) {
             if (defender->type1 != mdata->type && defender->type2 != mdata->type) {
-                if (try_inflict_status(defender, STATUS_PARALYSIS))
+                if (try_inflict_status(def_player, defender, STATUS_PARALYSIS, atk_pidx))
                     evt_push(EVT_STATUS, def_pidx, STATUS_PARALYSIS, defender->species);
             }
         }
         break;
 
     case EFFECT_BURN_CHANCE:
-        if (pb_rand_chance(mdata->effect_chance)) {
+        if (forced_coin_flip(secondary_override, mdata->effect_chance)) {
             if (defender->type1 != mdata->type && defender->type2 != mdata->type) {
-                if (try_inflict_status(defender, STATUS_BURN))
+                if (try_inflict_status(def_player, defender, STATUS_BURN, atk_pidx))
                     evt_push(EVT_STATUS, def_pidx, STATUS_BURN, defender->species);
             }
         }
         break;
 
     case EFFECT_FREEZE_CHANCE:
-        if (pb_rand_chance(mdata->effect_chance)) {
+        if (forced_coin_flip(secondary_override, mdata->effect_chance)) {
             if (defender->type1 != mdata->type && defender->type2 != mdata->type) {
-                if (try_inflict_status(defender, STATUS_FREEZE))
+                if (try_inflict_status(def_player, defender, STATUS_FREEZE, atk_pidx))
                     evt_push(EVT_STATUS, def_pidx, STATUS_FREEZE, defender->species);
             }
         }
         break;
 
     case EFFECT_LOWER_SPECIAL:
-        if (pb_rand_chance(mdata->effect_chance)) {
+        if (forced_coin_flip(secondary_override, mdata->effect_chance)) {
             if (def_player->spc_stage > -MAX_STAT_STAGE) {
                 def_player->spc_stage--;
                 evt_push(EVT_STAT_CHANGE, def_pidx, (2 << 4) | 0, defender->species);
@@ -1169,7 +1223,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         break;
 
     case EFFECT_LOWER_SPEED:
-        if (pb_rand_chance(mdata->effect_chance)) {
+        if (forced_coin_flip(secondary_override, mdata->effect_chance)) {
             if (def_player->spe_stage > -MAX_STAT_STAGE) {
                 def_player->spe_stage--;
                 evt_push(EVT_STAT_CHANGE, def_pidx, (3 << 4) | 0, defender->species);
@@ -1178,7 +1232,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         break;
 
     case EFFECT_LOWER_DEFENSE:
-        if (pb_rand_chance(mdata->effect_chance)) {
+        if (forced_coin_flip(secondary_override, mdata->effect_chance)) {
             if (def_player->def_stage > -MAX_STAT_STAGE) {
                 def_player->def_stage--;
                 evt_push(EVT_STAT_CHANGE, def_pidx, (1 << 4) | 0, defender->species);
@@ -1233,7 +1287,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         Type tw_type = mdata->type;
         float eff = type_effectiveness_float(tw_type, defender->type1, defender->type2);
         if (eff > 0.0f) {
-            if (try_inflict_status(defender, STATUS_PARALYSIS))
+            if (try_inflict_status(def_player, defender, STATUS_PARALYSIS, atk_pidx))
                 evt_push(EVT_STATUS, def_pidx, STATUS_PARALYSIS, defender->species);
         } else {
             evt_push(EVT_IMMUNE, atk_pidx, move_slot->id, defender->species);
@@ -1242,7 +1296,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
     }
 
     case EFFECT_SLEEP:
-        if (try_inflict_status(defender, STATUS_SLEEP))
+        if (try_inflict_status(def_player, defender, STATUS_SLEEP, atk_pidx))
             evt_push(EVT_STATUS, def_pidx, STATUS_SLEEP, defender->species);
         break;
 
@@ -1263,6 +1317,8 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
             attacker->hp = attacker->max_hp;
             attacker->status = STATUS_SLEEP;
             attacker->sleep_turns = 2; // Rest always sleeps exactly 2 turns
+            attacker->sleep_source_side = atk_pidx;
+            attacker->freeze_source_side = -1;
             evt_push(EVT_HEAL, atk_pidx, attacker->hp - prev_hp, attacker->species);
             evt_push(EVT_STATUS, atk_pidx, STATUS_SLEEP, attacker->species);
         }
@@ -1306,7 +1362,7 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
         Type t_type = mdata->type;
         float eff = type_effectiveness_float(t_type, defender->type1, defender->type2);
         if (eff > 0.0f) {
-            if (try_inflict_status(defender, STATUS_TOXIC))
+            if (try_inflict_status(def_player, defender, STATUS_TOXIC, atk_pidx))
                 evt_push(EVT_STATUS, def_pidx, STATUS_TOXIC, defender->species);
         } else {
             evt_push(EVT_IMMUNE, atk_pidx, move_slot->id, defender->species);
@@ -1332,6 +1388,13 @@ static void apply_move_effect(Player* atk_player, Player* def_player,
     case EFFECT_LEECH_SEED:
         if (defender->type1 != TYPE_GRASS && defender->type2 != TYPE_GRASS) {
             def_player->is_seeded = 1;
+        }
+        break;
+
+    case EFFECT_TRAPPING:
+        if (damage_dealt > 0 && defender->is_alive) {
+            def_player->is_trapped = 1;
+            def_player->trap_turns = pb_rand_range(2, 6); // 2-5 turns
         }
         break;
 
@@ -1390,6 +1453,7 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx, in
         if (attacker->sleep_turns <= 0) {
             attacker->status = STATUS_NONE;
             attacker->sleep_turns = 0;
+            attacker->sleep_source_side = -1;
             evt_push(EVT_WAKE_UP, atk_pidx, 0, attacker->species);
             return 0;
         }
@@ -1541,6 +1605,7 @@ static int execute_move(Player* atk_player, Player* def_player, int move_idx, in
         // Gen 1 Showdown: Fire-type damaging move thaws frozen target
         if (defender->status == STATUS_FREEZE && mdata->type == TYPE_FIRE && damage > 0) {
             defender->status = STATUS_NONE;
+            defender->freeze_source_side = -1;
         }
 
         // Apply secondary effect
@@ -1912,6 +1977,51 @@ static int total_team_max_hp(Player* p) {
     return total;
 }
 
+static inline unsigned long long signature_mix(unsigned long long h, unsigned long long v) {
+    h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+    return h;
+}
+
+static unsigned long long battle_progress_signature(const Battle* battle) {
+    unsigned long long h = 0x14650fb0739d0383ULL;
+    h = signature_mix(h, (unsigned long long)battle->mode);
+
+    for (int side = 0; side < 2; side++) {
+        const Player* p = &battle->players[side];
+        h = signature_mix(h, (unsigned long long)p->active_idx);
+        h = signature_mix(h, (unsigned long long)p->alive_count);
+        h = signature_mix(h, (unsigned long long)(p->atk_stage + 6));
+        h = signature_mix(h, (unsigned long long)(p->def_stage + 6));
+        h = signature_mix(h, (unsigned long long)(p->spc_stage + 6));
+        h = signature_mix(h, (unsigned long long)(p->spe_stage + 6));
+        h = signature_mix(h, (unsigned long long)(p->accuracy_stage + 6));
+        h = signature_mix(h, (unsigned long long)(p->evasion_stage + 6));
+        h = signature_mix(h, (unsigned long long)p->is_confused);
+        h = signature_mix(h, (unsigned long long)p->confusion_turns);
+        h = signature_mix(h, (unsigned long long)p->is_seeded);
+        h = signature_mix(h, (unsigned long long)p->substitute_hp);
+        h = signature_mix(h, (unsigned long long)p->has_reflect);
+        h = signature_mix(h, (unsigned long long)p->has_light_screen);
+        h = signature_mix(h, (unsigned long long)p->is_recharging);
+        h = signature_mix(h, (unsigned long long)p->is_trapped);
+        h = signature_mix(h, (unsigned long long)p->trap_turns);
+
+        for (int i = 0; i < NUM_POKEMON; i++) {
+            const Pokemon* mon = &p->team[i];
+            h = signature_mix(h, (unsigned long long)mon->species);
+            h = signature_mix(h, (unsigned long long)mon->hp);
+            h = signature_mix(h, (unsigned long long)mon->max_hp);
+            h = signature_mix(h, (unsigned long long)mon->status);
+            h = signature_mix(h, (unsigned long long)mon->sleep_turns);
+            h = signature_mix(h, (unsigned long long)mon->toxic_counter);
+            h = signature_mix(h, (unsigned long long)mon->is_alive);
+            h = signature_mix(h, (unsigned long long)(mon->sleep_source_side + 1));
+            h = signature_mix(h, (unsigned long long)(mon->freeze_source_side + 1));
+        }
+    }
+    return h;
+}
+
 // ============================================================================
 // Check Win Condition
 // ============================================================================
@@ -2238,6 +2348,13 @@ static int bot_action(PokeBattle* env, int player_idx) {
 // PufferLib Interface: init, reset, step, render, close
 // ============================================================================
 
+static int move_present_in_pool(const char* name) {
+    for (int i = 1; i <= NUM_MOVES; i++) {
+        if (strcmp(MOVE_DATA[i].name, name) == 0) return 1;
+    }
+    return 0;
+}
+
 static void validate_battle_rules(void) {
     // === Type Chart Assertions ===
     // Psychic deals normal damage to Ghost (NOT immune) — Showdown Gen 1
@@ -2295,6 +2412,18 @@ static void validate_battle_rules(void) {
     assert(STAGE_NUMER[6] == 2 && STAGE_DENOM[6] == 2);   // Stage 0 = 1x
     assert(STAGE_NUMER[12] == 8 && STAGE_DENOM[12] == 2);  // Stage +6 = 4x
     assert(STAGE_NUMER[0] == 2 && STAGE_DENOM[0] == 8);    // Stage -6 = 0.25x
+
+    // === Showdown [Gen 1] OU Standard Rule Alignment ===
+    // Ruleset reference:
+    // data/mods/gen1/rulesets.ts -> Standard
+    // banlist includes Dig/Fly + OHKO + Evasion moves via clauses.
+    assert(!move_present_in_pool("Dig"));
+    assert(!move_present_in_pool("Fly"));
+    assert(!move_present_in_pool("Fissure"));
+    assert(!move_present_in_pool("Guillotine"));
+    assert(!move_present_in_pool("Horn Drill"));
+    assert(!move_present_in_pool("Double Team"));
+    assert(!move_present_in_pool("Minimize"));
 }
 
 void init(PokeBattle* env) {
@@ -2309,6 +2438,13 @@ void init(PokeBattle* env) {
     env->episode_count = 0;
     env->client = NULL;
     env->mouse_action = -1;
+    env->stale_turns = 0;
+    env->last_progress_signature = 0;
+    env->enforce_endless_clause = 1;
+    env->force_accuracy = -1;
+    env->force_secondary = -1;
+    memset(env->p1_fixed_team, 0, sizeof(env->p1_fixed_team));
+    memset(env->p2_fixed_team, 0, sizeof(env->p2_fixed_team));
     if (env->auto_reset != 0 && env->auto_reset != 1) env->auto_reset = 1;
     if (env->mcts_iterations <= 0) env->mcts_iterations = MCTS_DEFAULT_ITERATIONS;
     if (env->mcts_depth <= 0) env->mcts_depth = MCTS_DEFAULT_DEPTH;
@@ -2352,20 +2488,30 @@ void c_reset(PokeBattle* env) {
     env->terminals[0] = 0;
     env->rewards[0] = 0.0f;
     env->episode_count++;
+    env->stale_turns = 0;
 
     // Seed RNG
     pb_rng_state = env->seed + env->episode_count * 1000003ULL;
 
-    // Generate teams
+    // Generate teams (use fixed team if configured, else random)
     SpeciesID team1[NUM_POKEMON], team2[NUM_POKEMON];
-    generate_ou_team(team1);
-    generate_ou_team(team2);
+    if (env->p1_fixed_team[0] != SPECIES_NONE) {
+        memcpy(team1, env->p1_fixed_team, sizeof(team1));
+    } else {
+        generate_ou_team(team1);
+    }
+    if (env->p2_fixed_team[0] != SPECIES_NONE) {
+        memcpy(team2, env->p2_fixed_team, sizeof(team2));
+    } else {
+        generate_ou_team(team2);
+    }
 
     // Initialize players
     init_player(&env->battle.players[0], team1);
     init_player(&env->battle.players[1], team2);
     env->battle.turn = 0;
     env->battle.mode = 0;
+    env->last_progress_signature = battle_progress_signature(&env->battle);
 
     pack_observations(env);
     env->rng_state = pb_rng_state;
@@ -2443,6 +2589,8 @@ void c_step(PokeBattle* env) {
     if (p1_max_hp < 1.0f) p1_max_hp = 1.0f;
     if (p2_max_hp < 1.0f) p2_max_hp = 1.0f;
 
+    unsigned long long pre_progress_signature = battle_progress_signature(&env->battle);
+
     // Resolve the turn
     resolve_turn(&env->battle, p1_action, p2_action);
 
@@ -2478,7 +2626,21 @@ void c_step(PokeBattle* env) {
     // Check for game end
     int result = check_winner(&env->battle);
     env->last_result = result;
-    int done = (result != 0) || (env->tick >= MAX_TURNS);
+    unsigned long long post_progress_signature = battle_progress_signature(&env->battle);
+    if (result == 0 && env->battle.mode == 0 && post_progress_signature == pre_progress_signature) {
+        env->stale_turns++;
+    } else {
+        env->stale_turns = 0;
+    }
+    env->last_progress_signature = post_progress_signature;
+
+    int endless_draw = env->enforce_endless_clause &&
+        (env->stale_turns >= ENDLESS_BATTLE_STALE_TURNS);
+    if (endless_draw) {
+        result = 0;
+        env->last_result = 0;
+    }
+    int done = (result != 0) || endless_draw || (env->tick >= MAX_TURNS);
 
     // Assign rewards: shaping + terminal
     if (env->selfplay) {

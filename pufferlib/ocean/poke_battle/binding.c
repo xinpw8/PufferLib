@@ -85,6 +85,9 @@ static PyObject* pack_pokemon(const Pokemon* p) {
             dict_set_long(out, "is_alive", p->is_alive) < 0 ||
             dict_set_long(out, "status", p->status) < 0 ||
             dict_set_str(out, "status_name", status_to_str(p->status)) < 0 ||
+            dict_set_long(out, "sleep_turns", p->sleep_turns) < 0 ||
+            dict_set_long(out, "sleep_source_side", p->sleep_source_side) < 0 ||
+            dict_set_long(out, "freeze_source_side", p->freeze_source_side) < 0 ||
             dict_set_long(out, "type1", p->type1) < 0 ||
             dict_set_long(out, "type2", p->type2) < 0) {
         Py_DECREF(out);
@@ -161,6 +164,71 @@ static PyObject* pack_player(const Player* player) {
     return out;
 }
 
+// Parse a Python list/tuple of NUM_POKEMON ints into a SpeciesID array.
+// Returns 0 if key not present (no-op), 1 on success, -1 on error.
+static int parse_team(PyObject* kwargs, const char* key, SpeciesID* out) {
+    PyObject* obj = PyDict_GetItemString(kwargs, key);
+    if (!obj || obj == Py_None) return 0;
+
+    if (!PySequence_Check(obj)) {
+        PyErr_Format(PyExc_TypeError, "%s must be a list or tuple", key);
+        return -1;
+    }
+    Py_ssize_t len = PySequence_Length(obj);
+    if (len != NUM_POKEMON) {
+        PyErr_Format(PyExc_ValueError, "%s must have exactly %d elements, got %zd",
+                     key, NUM_POKEMON, len);
+        return -1;
+    }
+    int used[NUM_SPECIES + 1];
+    memset(used, 0, sizeof(used));
+    for (int i = 0; i < NUM_POKEMON; i++) {
+        PyObject* item = PySequence_GetItem(obj, i);
+        if (!item || !PyLong_Check(item)) {
+            Py_XDECREF(item);
+            PyErr_Format(PyExc_TypeError, "%s[%d] must be an integer", key, i);
+            return -1;
+        }
+        long val = PyLong_AsLong(item);
+        Py_DECREF(item);
+        if (val < 0 || val > NUM_SPECIES) {
+            PyErr_Format(PyExc_ValueError, "%s[%d] = %ld is not a valid species ID (0-%d)",
+                         key, i, val, NUM_SPECIES);
+            return -1;
+        }
+        if (val > 0) {
+            if (used[val]) {
+                PyErr_Format(PyExc_ValueError,
+                             "%s violates Species Clause: duplicate species id %ld", key, val);
+                return -1;
+            }
+            used[val] = 1;
+        }
+        out[i] = (SpeciesID)val;
+    }
+    return 1;
+}
+
+// Parse optional int kwarg into [min_val, max_val].
+// Returns 0 if key missing, 1 on success, -1 on error.
+static int parse_int_kwarg(PyObject* kwargs, const char* key, int min_val, int max_val, int* out) {
+    PyObject* obj = PyDict_GetItemString(kwargs, key);
+    if (!obj || obj == Py_None) return 0;
+    if (!PyLong_Check(obj)) {
+        PyErr_Format(PyExc_TypeError, "%s must be an integer", key);
+        return -1;
+    }
+    long value = PyLong_AsLong(obj);
+    if (PyErr_Occurred()) return -1;
+    if (value < min_val || value > max_val) {
+        PyErr_Format(PyExc_ValueError, "%s must be in [%d, %d], got %ld",
+                     key, min_val, max_val, value);
+        return -1;
+    }
+    *out = (int)value;
+    return 1;
+}
+
 static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->num_agents = (int)unpack(kwargs, "num_agents");
     env->seed = (unsigned long long)unpack(kwargs, "seed");
@@ -171,6 +239,11 @@ static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
     env->mcts_depth = (int)unpack(kwargs, "mcts_depth");
     env->auto_reset = (int)unpack(kwargs, "auto_reset");
     init(env);
+    if (parse_team(kwargs, "p1_team", env->p1_fixed_team) < 0) return -1;
+    if (parse_team(kwargs, "p2_team", env->p2_fixed_team) < 0) return -1;
+    if (parse_int_kwarg(kwargs, "force_accuracy", -1, 1, &env->force_accuracy) < 0) return -1;
+    if (parse_int_kwarg(kwargs, "force_secondary", -1, 1, &env->force_secondary) < 0) return -1;
+    if (parse_int_kwarg(kwargs, "enforce_endless_clause", 0, 1, &env->enforce_endless_clause) < 0) return -1;
     return 0;
 }
 
@@ -204,12 +277,23 @@ static PyObject* my_get(PyObject* dict, Env* env) {
             dict_set_long(dict, "learner_side", env->learner_side) < 0 ||
             dict_set_long(dict, "bot_mode", env->bot_mode) < 0 ||
             dict_set_long(dict, "auto_reset", env->auto_reset) < 0 ||
+            dict_set_long(dict, "stale_turns", env->stale_turns) < 0 ||
+            dict_set_long(dict, "enforce_endless_clause", env->enforce_endless_clause) < 0 ||
+            dict_set_long(dict, "force_accuracy", env->force_accuracy) < 0 ||
+            dict_set_long(dict, "force_secondary", env->force_secondary) < 0 ||
             dict_set_long(dict, "last_p1_action", env->last_p1_action) < 0 ||
             dict_set_long(dict, "last_p2_action", env->last_p2_action) < 0 ||
             dict_set_long(dict, "last_result", env->last_result) < 0 ||
             dict_set_long(dict, "mouse_action", env->mouse_action) < 0 ||
             dict_set_long(dict, "p1_active_idx", env->battle.players[0].active_idx) < 0 ||
-            dict_set_long(dict, "p2_active_idx", env->battle.players[1].active_idx) < 0) {
+            dict_set_long(dict, "p2_active_idx", env->battle.players[1].active_idx) < 0 ||
+            dict_set_str(dict, "ruleset", "[Gen 1] OU") < 0 ||
+            dict_set_long(dict, "sleep_clause_mod", 1) < 0 ||
+            dict_set_long(dict, "freeze_clause_mod", 1) < 0 ||
+            dict_set_long(dict, "species_clause", 1) < 0 ||
+            dict_set_long(dict, "ohko_clause", 1) < 0 ||
+            dict_set_long(dict, "evasion_moves_clause", 1) < 0 ||
+            dict_set_long(dict, "endless_battle_clause", 1) < 0) {
         return NULL;
     }
 
@@ -253,6 +337,12 @@ static int my_put(Env* env, PyObject* args, PyObject* kwargs) {
         if (PyErr_Occurred()) return -1;
         env->episode_count = episode_count;
     }
+
+    if (parse_team(kwargs, "p1_team", env->p1_fixed_team) < 0) return -1;
+    if (parse_team(kwargs, "p2_team", env->p2_fixed_team) < 0) return -1;
+    if (parse_int_kwarg(kwargs, "force_accuracy", -1, 1, &env->force_accuracy) < 0) return -1;
+    if (parse_int_kwarg(kwargs, "force_secondary", -1, 1, &env->force_secondary) < 0) return -1;
+    if (parse_int_kwarg(kwargs, "enforce_endless_clause", 0, 1, &env->enforce_endless_clause) < 0) return -1;
 
     return 0;
 }

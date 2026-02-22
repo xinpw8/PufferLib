@@ -18,11 +18,79 @@ import pufferlib
 
 OBS_SIZE = 140
 
+RBY_OU_RULESET = '[Gen 1] OU'
+RBY_OU_STANDARD_RULES = (
+    'Obtainable',
+    'Desync Clause Mod',
+    'Sleep Clause Mod',
+    'Freeze Clause Mod',
+    'Species Clause',
+    'Nickname Clause',
+    'OHKO Clause',
+    'Evasion Moves Clause',
+    'Endless Battle Clause',
+    'HP Percentage Mod',
+    'Cancel Mod',
+)
+
+# Species ID constants (must match SpeciesID enum in poke_battle.h)
+SPECIES_NONE      = 0
+SPECIES_TAUROS    = 1
+SPECIES_CHANSEY   = 2
+SPECIES_SNORLAX   = 3
+SPECIES_ALAKAZAM  = 4
+SPECIES_EXEGGUTOR = 5
+SPECIES_STARMIE   = 6
+SPECIES_GENGAR    = 7
+SPECIES_JYNX      = 8
+SPECIES_ZAPDOS    = 9
+SPECIES_RHYDON    = 10
+SPECIES_CLOYSTER  = 11
+SPECIES_GOLEM     = 12
+SPECIES_LAPRAS    = 13
+SPECIES_SLOWBRO   = 14
+SPECIES_JOLTEON   = 15
+SPECIES_PERSIAN   = 16
+SPECIES_HYPNO     = 17
+SPECIES_ARTICUNO  = 18
+SPECIES_DRAGONITE = 19
+SPECIES_MACHAMP   = 20
+
+SPECIES_NAMES = {
+    0: 'None', 1: 'Tauros', 2: 'Chansey', 3: 'Snorlax', 4: 'Alakazam',
+    5: 'Exeggutor', 6: 'Starmie', 7: 'Gengar', 8: 'Jynx', 9: 'Zapdos',
+    10: 'Rhydon', 11: 'Cloyster', 12: 'Golem', 13: 'Lapras', 14: 'Slowbro',
+    15: 'Jolteon', 16: 'Persian', 17: 'Hypno', 18: 'Articuno',
+    19: 'Dragonite', 20: 'Machamp',
+}
+
+# Preset competitive team compositions
+TEAMS = {
+    'ultimate': [SPECIES_SLOWBRO, SPECIES_JYNX, SPECIES_EXEGGUTOR,
+                 SPECIES_LAPRAS, SPECIES_ZAPDOS, SPECIES_TAUROS],
+    'big6':     [SPECIES_TAUROS, SPECIES_CHANSEY, SPECIES_SNORLAX,
+                 SPECIES_ALAKAZAM, SPECIES_EXEGGUTOR, SPECIES_STARMIE],
+    'sleep_offense': [SPECIES_JYNX, SPECIES_EXEGGUTOR, SPECIES_GENGAR,
+                      SPECIES_TAUROS, SPECIES_STARMIE, SPECIES_SNORLAX],
+    'anti_slowbro':  [SPECIES_ZAPDOS, SPECIES_JOLTEON, SPECIES_EXEGGUTOR,
+                      SPECIES_ALAKAZAM, SPECIES_STARMIE, SPECIES_GENGAR],
+    'balanced': [SPECIES_TAUROS, SPECIES_STARMIE, SPECIES_ZAPDOS,
+                 SPECIES_SNORLAX, SPECIES_ALAKAZAM, SPECIES_GENGAR],
+    'ice_core': [SPECIES_JYNX, SPECIES_LAPRAS, SPECIES_ARTICUNO,
+                 SPECIES_STARMIE, SPECIES_ALAKAZAM, SPECIES_TAUROS],
+}
+
+
+def team_str(team):
+    '''Pretty-print a team list of species IDs.'''
+    return ' / '.join(SPECIES_NAMES.get(s, f'?{s}') for s in team)
+
 
 class PokeBattle(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, log_interval=128, buf=None,
                  seed=0, selfplay=1, bot_mode=0, mcts_iterations=128,
-                 mcts_depth=5, auto_reset=1):
+                 mcts_depth=5, auto_reset=1, p1_team=None, p2_team=None,
+                 force_accuracy=-1, force_secondary=-1, enforce_endless_clause=1):
         self.render_mode = render_mode
         self.log_interval = log_interval
         self.selfplay = selfplay
@@ -44,15 +112,15 @@ class PokeBattle(pufferlib.PufferEnv):
         if selfplay:
             self.actions = np.zeros(num_envs * 2, dtype=np.int32)
 
+        # Resolve team names to lists
+        if isinstance(p1_team, str):
+            p1_team = TEAMS[p1_team]
+        if isinstance(p2_team, str):
+            p2_team = TEAMS[p2_team]
+
         c_envs = []
         for i in range(num_envs):
-            c_env = binding.env_init(
-                self.observations[i:i+1],
-                self.actions[i*factor:(i+1)*factor],
-                self.rewards[i:i+1],
-                self.terminals[i:i+1],
-                self.truncations[i:i+1],
-                seed + i,
+            init_kwargs = dict(
                 num_agents=factor,
                 seed=seed + i,
                 selfplay=selfplay,
@@ -61,6 +129,23 @@ class PokeBattle(pufferlib.PufferEnv):
                 mcts_iterations=mcts_iterations,
                 mcts_depth=mcts_depth,
                 auto_reset=auto_reset,
+                force_accuracy=force_accuracy,
+                force_secondary=force_secondary,
+                enforce_endless_clause=enforce_endless_clause,
+            )
+            if p1_team is not None:
+                init_kwargs['p1_team'] = list(p1_team)
+            if p2_team is not None:
+                init_kwargs['p2_team'] = list(p2_team)
+
+            c_env = binding.env_init(
+                self.observations[i:i+1],
+                self.actions[i*factor:(i+1)*factor],
+                self.rewards[i:i+1],
+                self.terminals[i:i+1],
+                self.truncations[i:i+1],
+                seed + i,
+                **init_kwargs,
             )
             c_envs.append(c_env)
 
@@ -100,6 +185,10 @@ class PokeBattle(pufferlib.PufferEnv):
 
     def get_states(self):
         return [binding.env_get(h) for h in self.c_env_handles]
+
+    def put_state(self, env_idx=0, **kwargs):
+        '''Write selected simulator fields exposed by env_put for tests/debugging.'''
+        return binding.env_put(self.c_env_handles[env_idx], **kwargs)
 
     def render_get_action(self, env_idx=0):
         '''Render battle UI and block until human clicks a valid action.
