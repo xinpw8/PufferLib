@@ -17,8 +17,7 @@ class Chess(pufferlib.PufferEnv):
                  random_fen_pct=0,
                  fen_curric_pct=0,
                  fen_file=None,
-                 enable_50_move_rule=1, enable_threefold_repetition=1,
-                 debug=0):
+                 enable_50_move_rule=1, enable_threefold_repetition=1):
         
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -27,7 +26,6 @@ class Chess(pufferlib.PufferEnv):
         self.tick = 0
         self.selfplay = selfplay
         self.random_fen_pct = random_fen_pct
-        self.debug = debug
         
         if fen_file and not os.path.isabs(fen_file):
             fen_file = os.path.join(CHESS_DIR, fen_file)
@@ -74,8 +72,7 @@ class Chess(pufferlib.PufferEnv):
                 enable_50_move_rule=enable_50_move_rule,
                 enable_threefold_repetition=enable_threefold_repetition,
                 learner_color=i % 2,
-                seed=seed + i,
-                debug=debug
+                seed=seed + i
             ))
         self.c_envs = binding.vectorize(*c_envs)
     
