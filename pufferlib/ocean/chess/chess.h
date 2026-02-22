@@ -382,6 +382,7 @@ typedef struct {
     
     int white_captured[6];
     int black_captured[6];
+    int render_paused;
 } Chess;
 
 static inline Bitboard sq_bb(Square s) {
@@ -1885,6 +1886,9 @@ void c_reset(Chess* env) {
 }
 
 void c_step(Chess* env) {
+    if (env->render_paused && env->client != NULL) {
+        return;
+    }
     if (env->mode == CHESS_MODE_HUMAN && env->human_color == -1) {
         return;
     }
@@ -2280,8 +2284,9 @@ void c_render(Chess* env) {
     const int cell_size = 64;
     const int board_size = 8 * cell_size;
     const int scoreboard_y = board_size + 10;
-    static int paused = 0;
-    static int frame_delay = 12;
+    static int speed_idx = 3;
+    static const int SPEED_FPS[] = {2, 5, 10, 30, 60, 120, 0};
+    static const int NUM_SPEEDS = 7;
     static int selected_sq = -1;
     
     if (env->client == NULL) {
@@ -2294,11 +2299,15 @@ void c_render(Chess* env) {
     Vector2 mouse = GetMousePosition();
     int clicked = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
     
-    if (IsKeyPressed(KEY_SPACE)) paused = !paused;
-    if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) frame_delay = frame_delay > 4 ? frame_delay - 4 : 1;
-    if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) frame_delay = frame_delay < 60 ? frame_delay + 4 : 60;
+    if (IsKeyPressed(KEY_SPACE)) env->render_paused = !env->render_paused;
+    if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) {
+        if (speed_idx < NUM_SPEEDS - 1) { speed_idx++; SetTargetFPS(SPEED_FPS[speed_idx]); }
+    }
+    if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) {
+        if (speed_idx > 0) { speed_idx--; SetTargetFPS(SPEED_FPS[speed_idx]); }
+    }
     
-    if (!paused && env->mode == CHESS_MODE_HUMAN && env->human_color != -1 && !env->show_game_end_popup && clicked) {
+    if (!env->render_paused && env->mode == CHESS_MODE_HUMAN && env->human_color != -1 && !env->show_game_end_popup && clicked) {
         int file = (int)(mouse.x) / cell_size;
         int rank = 7 - ((int)(mouse.y) / cell_size);
         if (flip_board) { file = 7 - file; rank = 7 - rank; }
@@ -2330,7 +2339,7 @@ void c_render(Chess* env) {
             }
         }
     }
-    
+
     BeginDrawing();
     ClearBackground((Color){40, 40, 40, 255});
     
@@ -2502,17 +2511,38 @@ void c_render(Chess* env) {
             int bc = env->black_captured[pt];
             if (bc > 0) {
                 Piece bpc = (Piece)(B_PAWN + pt);
+                Color outline = (Color){255, 255, 255, 180};
                 if (env->client && env->client->use_unicode_pieces) {
-                    DrawTextEx(env->client->piece_font, PIECE_FILLED[bpc],
-                        (Vector2){(float)black_x, (float)(cap_y + 17)}, 16.0f, 0.0f, black_cap_color);
+                    Vector2 pos = {(float)black_x, (float)(cap_y + 17)};
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            if (dx != 0 || dy != 0) {
+                                DrawTextEx(env->client->piece_font, PIECE_FILLED[bpc],
+                                    (Vector2){pos.x + dx, pos.y + dy}, 16.0f, 0.0f, outline);
+                            }
+                        }
+                    }
+                    DrawTextEx(env->client->piece_font, PIECE_FILLED[bpc], pos, 16.0f, 0.0f, black_cap_color);
                     black_x += 16;
                 } else {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            if (dx != 0 || dy != 0)
+                                DrawText(PIECE_CHARS[bpc], black_x + dx, cap_y + 18 + dy, 14, outline);
+                        }
+                    }
                     DrawText(PIECE_CHARS[bpc], black_x, cap_y + 18, 14, black_cap_color);
                     black_x += 12;
                 }
                 if (bc > 1) {
                     char mult[8];
                     snprintf(mult, sizeof(mult), "x%d", bc);
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            if (dx != 0 || dy != 0)
+                                DrawText(mult, black_x + dx, cap_y + 20 + dy, 10, outline);
+                        }
+                    }
                     DrawText(mult, black_x, cap_y + 20, 10, black_cap_color);
                     black_x += MeasureText(mult, 10) + 4;
                 } else {
@@ -2538,16 +2568,19 @@ void c_render(Chess* env) {
         DrawRectangleRec(minus_btn, DARKGRAY);
         DrawRectangleLinesEx(minus_btn, 2, LIGHTGRAY);
         DrawText("-", btn_x + 14, btn_y + 4, 20, WHITE);
-        DrawRectangleRec(pause_btn, paused ? MAROON : DARKGREEN);
+        DrawRectangleRec(pause_btn, env->render_paused ? MAROON : DARKGREEN);
         DrawRectangleLinesEx(pause_btn, 2, LIGHTGRAY);
-        DrawText(paused ? ">" : "||", btn_x + btn_w + 14, btn_y + 4, 18, WHITE);
+        DrawText(env->render_paused ? ">" : "||", btn_x + btn_w + 14, btn_y + 4, 18, WHITE);
         DrawRectangleRec(plus_btn, DARKGRAY);
         DrawRectangleLinesEx(plus_btn, 2, LIGHTGRAY);
         DrawText("+", btn_x + 2 * btn_w + 32, btn_y + 4, 20, WHITE);
-        int speed_val = frame_delay > 0 ? 60 / frame_delay : 60;
         char speed_buf[32];
-        snprintf(speed_buf, sizeof(speed_buf), "%dx", speed_val > 0 ? speed_val : 1);
-        DrawText(speed_buf, btn_x + 3 * btn_w + 30, btn_y + 4, 18, paused ? RED : LIGHTGRAY);
+        if (SPEED_FPS[speed_idx] == 0) {
+            snprintf(speed_buf, sizeof(speed_buf), "max");
+        } else {
+            snprintf(speed_buf, sizeof(speed_buf), "%dfps", SPEED_FPS[speed_idx]);
+        }
+        DrawText(speed_buf, btn_x + 3 * btn_w + 30, btn_y + 4, 14, env->render_paused ? RED : LIGHTGRAY);
         
         Rectangle restart_btn = {0, 0, 0, 0};
         if (env->mode == CHESS_MODE_HUMAN) {
@@ -2557,87 +2590,24 @@ void c_render(Chess* env) {
             DrawText("Exit", board_size - 53, minus_btn.y + 4, 16, WHITE);
         }
         
-        if (paused) {
+        if (env->render_paused) {
             DrawRectangle(0, 0, board_size, board_size, (Color){0, 0, 0, 120});
             DrawText("PAUSED", board_size / 2 - 60, board_size / 2 - 15, 30, RED);
         }
         
         if (clicked) {
-            if (CheckCollisionPointRec(mouse, minus_btn)) frame_delay = frame_delay < 60 ? frame_delay + 4 : 60;
-            if (CheckCollisionPointRec(mouse, pause_btn)) paused = !paused;
-            if (CheckCollisionPointRec(mouse, plus_btn))  frame_delay = frame_delay > 4 ? frame_delay - 4 : 1;
+            if (CheckCollisionPointRec(mouse, minus_btn)) {
+                if (speed_idx > 0) { speed_idx--; SetTargetFPS(SPEED_FPS[speed_idx]); }
+            }
+            if (CheckCollisionPointRec(mouse, pause_btn)) env->render_paused = !env->render_paused;
+            if (CheckCollisionPointRec(mouse, plus_btn)) {
+                if (speed_idx < NUM_SPEEDS - 1) { speed_idx++; SetTargetFPS(SPEED_FPS[speed_idx]); }
+            }
             if (env->mode == CHESS_MODE_HUMAN && CheckCollisionPointRec(mouse, restart_btn)) c_reset(env);
         }
     }
     
     EndDrawing();
-    
-    // Pause: block thread so c_step doesn't advance. Must call BeginDrawing/EndDrawing
-    // each iteration so raylib pumps input events and the window stays responsive.
-    while (paused) {
-        BeginDrawing();
-        ClearBackground((Color){40, 40, 40, 255});
-        for (int rank = 0; rank < 8; rank++) {
-            for (int file = 0; file < 8; file++) {
-                Color sq_color = ((rank + file) % 2 == 1) ? (Color){240, 217, 181, 255} : (Color){181, 136, 99, 255};
-                int draw_file = flip_board ? (7 - file) : file;
-                int draw_rank = flip_board ? (7 - rank) : rank;
-                int draw_x = draw_file * cell_size;
-                int draw_y = (7 - draw_rank) * cell_size;
-                DrawRectangle(draw_x, draw_y, cell_size, cell_size, sq_color);
-            }
-        }
-        for (int pt = PAWN; pt <= KING; pt++) {
-            Bitboard bb = pieces_p(&env->pos, pt);
-            while (bb) {
-                Square sq = pop_lsb(&bb);
-                Piece pc = piece_on(&env->pos, sq);
-                int f = file_of(sq), r = rank_of(sq);
-                int draw_f = flip_board ? (7 - f) : f;
-                int draw_r = flip_board ? (7 - r) : r;
-                draw_piece(env, pc, draw_f, draw_r, cell_size);
-            }
-        }
-        
-        DrawRectangle(0, 0, board_size, board_size, (Color){0, 0, 0, 120});
-        DrawText("PAUSED", board_size / 2 - 60, board_size / 2 - 15, 30, RED);
-        
-        int p_bw = 36;
-        int p_bh = 24;
-        int p_by = scoreboard_y + 100;
-        int p_bx = env->mode == CHESS_MODE_HUMAN ? board_size / 2 - 100 : board_size / 2 - 70;
-        Rectangle p_minus = {p_bx, p_by, p_bw, p_bh};
-        Rectangle p_pause = {p_bx + p_bw + 5, p_by, p_bw + 10, p_bh};
-        Rectangle p_plus = {p_bx + 2 * p_bw + 20, p_by, p_bw, p_bh};
-        DrawRectangleRec(p_minus, DARKGRAY);
-        DrawRectangleLinesEx(p_minus, 2, LIGHTGRAY);
-        DrawText("-", p_bx + 14, p_by + 4, 20, WHITE);
-        DrawRectangleRec(p_pause, MAROON);
-        DrawRectangleLinesEx(p_pause, 2, LIGHTGRAY);
-        DrawText(">", p_bx + p_bw + 14, p_by + 4, 18, WHITE);
-        DrawRectangleRec(p_plus, DARKGRAY);
-        DrawRectangleLinesEx(p_plus, 2, LIGHTGRAY);
-        DrawText("+", p_bx + 2 * p_bw + 32, p_by + 4, 20, WHITE);
-        int p_speed_val = frame_delay > 0 ? 60 / frame_delay : 60;
-        char p_speed_buf[32];
-        snprintf(p_speed_buf, sizeof(p_speed_buf), "%dx", p_speed_val > 0 ? p_speed_val : 1);
-        DrawText(p_speed_buf, p_bx + 3 * p_bw + 30, p_by + 4, 18, RED);
-        
-        EndDrawing();
-        
-        if (IsKeyDown(KEY_ESCAPE) || WindowShouldClose()) { CloseWindow(); exit(0); }
-        if (IsKeyPressed(KEY_SPACE)) { paused = 0; break; }
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            Vector2 pm = GetMousePosition();
-            if (CheckCollisionPointRec(pm, p_pause)) { paused = 0; break; }
-            if (CheckCollisionPointRec(pm, p_minus)) frame_delay = frame_delay < 60 ? frame_delay + 4 : 60;
-            if (CheckCollisionPointRec(pm, p_plus))  frame_delay = frame_delay > 4 ? frame_delay - 4 : 1;
-        }
-    }
-    
-    if (frame_delay > 1 && !(env->mode == CHESS_MODE_HUMAN && env->human_color != -1 && env->pos.sideToMove == env->human_color)) {
-        usleep(frame_delay * 16000);
-    }
 }
 
 void c_close(Chess* env) {
