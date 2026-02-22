@@ -86,12 +86,6 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->log_pgn_choice_made = 1;
     env->pgn_filename[0] = '\0';
     env->pgn_game_number = 0;
-    env->learner_color = 0;
-    env->white_score = 0.0f;
-    env->black_score = 0.0f;
-    env->learner_wins = 0.0f;
-    env->learner_losses = 0.0f;
-    env->learner_draws = 0.0f;
     strcpy(env->last_result, "Game starting...");
     
     if (kwargs != NULL) {
