@@ -1897,6 +1897,12 @@ void c_step(Chess* env) {
         env->log_pgn_choice_made = 1;
     }
 
+    if (env->mode == CHESS_MODE_HUMAN && env->show_game_end_popup) {
+        env->rewards[0] = 0.0f;
+        env->terminals[0] = 0;
+        return;
+    }
+
     if (env->legal_dirty) {
         generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
         env->legal_dirty = 0;
@@ -2260,7 +2266,7 @@ static void draw_piece(Chess* env, Piece pc, int file, int rank, int cell_size) 
 static void init_chess_client(Chess* env, int cell_size) {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     int board_size = 8 * cell_size;
-    InitWindow(board_size, board_size + 80, "PufferLib Chess - AI vs Opponent");
+    InitWindow(board_size, board_size + 140, "PufferLib Chess - AI vs Opponent");
     SetTargetFPS(env->render_fps > 0 ? env->render_fps : 30);
     env->client = (Client*)calloc(1, sizeof(Client));
     env->client->cell_size = cell_size;
@@ -2454,22 +2460,67 @@ void c_render(Chess* env) {
         DrawText(buf, 10, scoreboard_y, 20, WHITE);
         
         snprintf(buf, sizeof(buf), "Learner: %.0f-%.0f-%.0f (W-L-D)", env->learner_wins, env->learner_losses, env->learner_draws);
-        DrawText(buf, 10, scoreboard_y + 30, 16, GREEN);
+        DrawText(buf, 10, scoreboard_y + 22, 16, GREEN);
         
-        // Captured pieces
-        int cap_y = scoreboard_y + 75;
-        char wcap[128] = "White captured: ";
-        char bcap[128] = "Black captured: ";
-        int wl = strlen(wcap), bl = strlen(bcap);
-        const char* pc_chars = "PNBRQK";
-        for (int pt = 0; pt < 6; pt++) {
-            for (int i = 0; i < env->white_captured[pt]; i++) wcap[wl++] = pc_chars[pt];
-            for (int i = 0; i < env->black_captured[pt]; i++) bcap[bl++] = pc_chars[pt];
+        snprintf(buf, sizeof(buf), "Move: %d", env->chess_moves);
+        DrawText(buf, board_size - 100, scoreboard_y, 18, LIGHTGRAY);
+        
+        if (env->mode != CHESS_MODE_HUMAN) {
+            DrawText(env->learner_color == CHESS_WHITE ? "Learner: White" : "Learner: Black",
+                     board_size - 120, scoreboard_y + 22, 16, LIGHTGRAY);
         }
-        wcap[wl] = '\0'; bcap[bl] = '\0';
-        DrawText(wcap, 10, cap_y, 14, (Color){240, 217, 181, 255});
-        DrawText(bcap, 10, cap_y + 18, 14, (Color){100, 100, 100, 255});
         
+        int cap_y = scoreboard_y + 42;
+        int cap_x_start = 10;
+        Color white_cap_color = (Color){240, 217, 181, 255};
+        Color black_cap_color = (Color){100, 100, 100, 255};
+        int white_x = cap_x_start;
+        int black_x = cap_x_start;
+
+        for (int pt = 0; pt < 6; pt++) {
+            int wc = env->white_captured[pt];
+            if (wc > 0) {
+                Piece wpc = (Piece)(W_PAWN + pt);
+                if (env->client && env->client->use_unicode_pieces) {
+                    DrawTextEx(env->client->piece_font, PIECE_FILLED[wpc],
+                        (Vector2){(float)white_x, (float)(cap_y - 1)}, 16.0f, 0.0f, white_cap_color);
+                    white_x += 16;
+                } else {
+                    DrawText(PIECE_CHARS[wpc], white_x, cap_y, 14, white_cap_color);
+                    white_x += 12;
+                }
+                if (wc > 1) {
+                    char mult[8];
+                    snprintf(mult, sizeof(mult), "x%d", wc);
+                    DrawText(mult, white_x, cap_y + 2, 10, white_cap_color);
+                    white_x += MeasureText(mult, 10) + 4;
+                } else {
+                    white_x += 4;
+                }
+            }
+
+            int bc = env->black_captured[pt];
+            if (bc > 0) {
+                Piece bpc = (Piece)(B_PAWN + pt);
+                if (env->client && env->client->use_unicode_pieces) {
+                    DrawTextEx(env->client->piece_font, PIECE_FILLED[bpc],
+                        (Vector2){(float)black_x, (float)(cap_y + 17)}, 16.0f, 0.0f, black_cap_color);
+                    black_x += 16;
+                } else {
+                    DrawText(PIECE_CHARS[bpc], black_x, cap_y + 18, 14, black_cap_color);
+                    black_x += 12;
+                }
+                if (bc > 1) {
+                    char mult[8];
+                    snprintf(mult, sizeof(mult), "x%d", bc);
+                    DrawText(mult, black_x, cap_y + 20, 10, black_cap_color);
+                    black_x += MeasureText(mult, 10) + 4;
+                } else {
+                    black_x += 4;
+                }
+            }
+        }
+
         if (env->last_result[0] != '\0') {
             Color rc = YELLOW;
             if (strstr(env->last_result, "White")) rc = (Color){240, 217, 181, 255};
@@ -2477,17 +2528,9 @@ void c_render(Chess* env) {
             DrawText(env->last_result, 10, cap_y + 40, 18, rc);
         }
         
-        snprintf(buf, sizeof(buf), "Move: %d", env->chess_moves);
-        DrawText(buf, board_size - 100, scoreboard_y, 18, LIGHTGRAY);
-        
-        if (env->mode != CHESS_MODE_HUMAN) {
-            DrawText(env->learner_color == CHESS_WHITE ? "Learner: White" : "Learner: Black",
-                     board_size - 120, scoreboard_y + 25, 16, LIGHTGRAY);
-        }
-        
         int btn_w = 36;
         int btn_h = 24;
-        int btn_y = scoreboard_y + 45;
+        int btn_y = scoreboard_y + 100;
         int btn_x = env->mode == CHESS_MODE_HUMAN ? board_size / 2 - 100 : board_size / 2 - 70;
         Rectangle minus_btn = {btn_x, btn_y, btn_w, btn_h};
         Rectangle pause_btn = {btn_x + btn_w + 5, btn_y, btn_w + 10, btn_h};
@@ -2561,7 +2604,7 @@ void c_render(Chess* env) {
         
         int p_bw = 36;
         int p_bh = 24;
-        int p_by = scoreboard_y + 45;
+        int p_by = scoreboard_y + 100;
         int p_bx = env->mode == CHESS_MODE_HUMAN ? board_size / 2 - 100 : board_size / 2 - 70;
         Rectangle p_minus = {p_bx, p_by, p_bw, p_bh};
         Rectangle p_pause = {p_bx + p_bw + 5, p_by, p_bw + 10, p_bh};
