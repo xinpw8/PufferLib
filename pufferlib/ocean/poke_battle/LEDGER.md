@@ -401,6 +401,14 @@ Confirm that the model from run `891hhxc2` remains strong after environment upda
 | Heuristic bot | 1000 | 769 | 231 | 0 | **76.9%** |
 | MCTS bot | 1000 | 857 | 143 | 0 | **85.7%** |
 
+### Human Eval (X11 session)
+- Games played: 6
+
+| Player | Wins | Losses | Draws | Win Rate |
+|---|---|---|---|---|
+| Human | 2 | 4 | 0 | **33.3%** |
+| Policy | 4 | 2 | 0 | **66.7%** |
+
 ### Rule-Parity Validation
 - Command:
   - `python -m pytest -q tests/test_poke_battle_rules_parity.py`
