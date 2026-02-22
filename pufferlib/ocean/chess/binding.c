@@ -69,17 +69,14 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->reward_draw = 0.0f;
     env->reward_invalid_piece = -0.1f;
     env->reward_invalid_move = -0.1f;
-    env->reward_valid_piece = 0.0f;
-    env->reward_valid_move = 0.0f;
-    env->reward_material = 0.0f;
-    env->reward_position = 0.0f;
-    env->reward_castling = 0.0f;
     env->reward_repetition = 0.0f;
     env->client = NULL;
     env->render_fps = 30;
     env->selfplay = 1;
     env->human_play = 0;
     env->random_bot = 0;
+    env->mode = CHESS_MODE_SELFPLAY;
+    env->legal_dirty = 1;
     env->human_color = -1;
     env->fen_curriculum = NULL;
     env->num_fens = 0;
@@ -89,8 +86,13 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->log_pgn_choice_made = 1;
     env->pgn_filename[0] = '\0';
     env->pgn_game_number = 0;
-    env->debug_mode = 0;
-    env->learner_color = 0; 
+    env->learner_color = 0;
+    env->white_score = 0.0f;
+    env->black_score = 0.0f;
+    env->learner_wins = 0.0f;
+    env->learner_losses = 0.0f;
+    env->learner_draws = 0.0f;
+    strcpy(env->last_result, "Game starting...");
     
     if (kwargs != NULL) {
         PyObject* max_moves_obj = PyDict_GetItemString(kwargs, "max_moves");
@@ -119,53 +121,11 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
             env->reward_invalid_move = (float)PyLong_AsDouble(reward_invalid_move_obj);
         }
 
-        PyObject* reward_valid_piece_obj = PyDict_GetItemString(kwargs, "reward_valid_piece");
-        if (reward_valid_piece_obj != NULL && PyFloat_Check(reward_valid_piece_obj)) {
-            env->reward_valid_piece = (float)PyFloat_AsDouble(reward_valid_piece_obj);
-        } else if (reward_valid_piece_obj != NULL && PyLong_Check(reward_valid_piece_obj)) {
-            env->reward_valid_piece = (float)PyLong_AsDouble(reward_valid_piece_obj);
-        }
-
-        PyObject* reward_valid_move_obj = PyDict_GetItemString(kwargs, "reward_valid_move");
-        if (reward_valid_move_obj != NULL && PyFloat_Check(reward_valid_move_obj)) {
-            env->reward_valid_move = (float)PyFloat_AsDouble(reward_valid_move_obj);
-        } else if (reward_valid_move_obj != NULL && PyLong_Check(reward_valid_move_obj)) {
-            env->reward_valid_move = (float)PyLong_AsDouble(reward_valid_move_obj);
-        }
-
-        PyObject* reward_material_obj = PyDict_GetItemString(kwargs, "reward_material");
-        if (reward_material_obj != NULL && PyFloat_Check(reward_material_obj)) {
-            env->reward_material = (float)PyFloat_AsDouble(reward_material_obj);
-        } else if (reward_material_obj != NULL && PyLong_Check(reward_material_obj)) {
-            env->reward_material = (float)PyLong_AsDouble(reward_material_obj);
-        }
-
-        PyObject* reward_position_obj = PyDict_GetItemString(kwargs, "reward_position");
-        if (reward_position_obj != NULL && PyFloat_Check(reward_position_obj)) {
-            env->reward_position = (float)PyFloat_AsDouble(reward_position_obj);
-        } else if (reward_position_obj != NULL && PyLong_Check(reward_position_obj)) {
-            env->reward_position = (float)PyLong_AsDouble(reward_position_obj);
-        }
-
-        PyObject* reward_castling_obj = PyDict_GetItemString(kwargs, "reward_castling");
-        if (reward_castling_obj != NULL && PyFloat_Check(reward_castling_obj)) {
-            env->reward_castling = (float)PyFloat_AsDouble(reward_castling_obj);
-        } else if (reward_castling_obj != NULL && PyLong_Check(reward_castling_obj)) {
-            env->reward_castling = (float)PyLong_AsDouble(reward_castling_obj);
-        }
-
         PyObject* reward_repetition_obj = PyDict_GetItemString(kwargs, "reward_repetition");
         if (reward_repetition_obj != NULL && PyFloat_Check(reward_repetition_obj)) {
             env->reward_repetition = (float)PyFloat_AsDouble(reward_repetition_obj);
         } else if (reward_repetition_obj != NULL && PyLong_Check(reward_repetition_obj)) {
             env->reward_repetition = (float)PyLong_AsDouble(reward_repetition_obj);
-        }
-
-        PyObject* reward_check = PyDict_GetItemString(kwargs, "reward_check");
-        if (reward_check != NULL && PyFloat_Check(reward_check)) {
-            env->reward_check = (float)PyFloat_AsDouble(reward_check);
-        } else if (reward_check != NULL && PyLong_Check(reward_check)) {
-            env->reward_check = (float)PyLong_AsDouble(reward_check);
         }
 
         PyObject* fps_obj = PyDict_GetItemString(kwargs, "render_fps");
@@ -238,10 +198,28 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
             }
         }
         
-        PyObject* debug_obj = PyDict_GetItemString(kwargs, "debug");
-        if (debug_obj != NULL && PyLong_Check(debug_obj)) {
-            env->debug_mode = (int)PyLong_AsLong(debug_obj);
+    }
+
+    if (env->human_play) {
+        if (env->selfplay || env->random_bot) {
+            PyErr_SetString(PyExc_ValueError,
+                "human_play mode requires selfplay=0 and random_bot=0");
+            return -1;
         }
+        env->mode = CHESS_MODE_HUMAN;
+    } else if (env->selfplay) {
+        if (env->random_bot) {
+            PyErr_SetString(PyExc_ValueError,
+                "selfplay mode requires random_bot=0");
+            return -1;
+        }
+        env->mode = CHESS_MODE_SELFPLAY;
+    } else if (env->random_bot) {
+        env->mode = CHESS_MODE_RANDOM_BOT;
+    } else {
+        PyErr_SetString(PyExc_ValueError,
+            "invalid mode: one of selfplay=1, human_play=1, or random_bot=1 must be set");
+        return -1;
     }
     
     return 0;
@@ -256,9 +234,5 @@ static int my_log(PyObject *dict, Log *log) {
     assign_to_dict(dict, "episode_length", log->episode_length);
     assign_to_dict(dict, "episode_return", log->episode_return);
     assign_to_dict(dict, "invalid_action_rate", log->invalid_action_rate);
-    assign_to_dict(dict, "material_score", log->material_score);
-    assign_to_dict(dict, "positional_score", log->positional_score);
-    assign_to_dict(dict, "white_win_rate", log->white_winrate);
-    assign_to_dict(dict, "black_win_rate", log->black_winrate);
     return 0;
 }

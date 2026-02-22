@@ -10,11 +10,9 @@ CHESS_DIR = os.path.dirname(os.path.abspath(__file__))
 class Chess(pufferlib.PufferEnv):
     def __init__(self, num_envs=1, render_mode=None, log_interval=1, buf=None, seed=0,
                  max_moves=500, reward_draw=0.0,
-                 reward_invalid_piece=-0.01, reward_invalid_move=-0.01, 
-                 reward_valid_piece=0.0, reward_valid_move=0.0,
-                 reward_material=0.0, reward_position=0.0, reward_castling=0.0, reward_repetition=0.0,
-                 reward_check=0.0,
-                 render_fps=30, selfplay=1, human_play=0, random_bot = 0,
+                 reward_invalid_piece=-0.01, reward_invalid_move=-0.01,
+                 reward_repetition=0.0,
+                 render_fps=30, selfplay=1, human_play=0, random_bot=0,
                  starting_fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                  random_fen_pct=0,
                  fen_curric_pct=0,
@@ -38,7 +36,7 @@ class Chess(pufferlib.PufferEnv):
         self.fen_curric_pct = fen_curric_pct
         factor = 2 if selfplay else 1
         self.single_observation_space = gymnasium.spaces.Box(
-            low=0, high=255, shape=(1082*factor,), dtype=np.uint8)
+            low=0, high=255, shape=(1129*factor,), dtype=np.uint8)
         self.single_action_space = gymnasium.spaces.Discrete(97)
         
         super().__init__(buf)
@@ -64,13 +62,7 @@ class Chess(pufferlib.PufferEnv):
                 reward_draw=reward_draw,
                 reward_invalid_piece=reward_invalid_piece,
                 reward_invalid_move=reward_invalid_move,
-                reward_valid_piece=reward_valid_piece,
-                reward_valid_move=reward_valid_move,
-                reward_material=reward_material,
-                reward_position=reward_position,
-                reward_castling=reward_castling,
                 reward_repetition=reward_repetition,
-                reward_check=reward_check,
                 render_fps=render_fps,
                 selfplay=selfplay,
                 human_play=human_play,
