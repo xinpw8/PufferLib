@@ -567,3 +567,79 @@ python -m pufferlib.pufferl train puffer_poke_battle \
 - Training objective (RNN + strongest MCTS + team composition learning) is configured and validated.
 - Throughput is tuned to the best stable point found without weakening opponent strength.
 - The 1M+ SPS target conflicts with `mcts_iterations=128` strength requirements on current hardware.
+
+---
+
+## Run 008 — Replace Render Placeholders with Official Showdown Sprites
+
+**Date**: 2026-02-23  
+**Status**: complete
+
+### Goal
+Remove fallback placeholder sprites for non-top-20 species in the Raylib battle renderer by using official Pokemon Showdown sprites for all modeled species.
+
+### Changes
+- `pufferlib/ocean/poke_battle/render.h`
+  - Replaced the fixed 20-entry `RENDER_SPECIES_NAMES` table with dynamic slug generation from `SPECIES_DATA[id].name`.
+  - Added `species_sprite_slug(...)` that normalizes names to Showdown IDs by lowercasing and stripping non-alphanumeric characters:
+    - `Mr. Mime -> mrmime`
+    - `Farfetch'd -> farfetchd`
+    - `Nidoran-F -> nidoranf`
+    - `Nidoran-M -> nidoranm`
+  - Sprite load path now works for all `NUM_SPECIES=149` entries.
+- `pufferlib/resources/poke_battle/download_sprites.py`
+  - Switched from hardcoded 20 species to all modeled Gen1 species via `LEGAL_SPECIES_IDS` and `SPECIES_NAMES`.
+  - Added the same Showdown-ID normalization rule used by the renderer.
+  - Added completion/failure summary reporting.
+
+### Asset sync command
+```bash
+source .pufferlib/bin/activate
+python pufferlib/resources/poke_battle/download_sprites.py
+```
+
+### Validation
+- Download result: `149 species x2 views = 298 files`, `No download failures`.
+- On-disk counts:
+  - `pufferlib/resources/poke_battle/sprites/gen1`: `149`
+  - `pufferlib/resources/poke_battle/sprites/gen1-back`: `149`
+- Consistency check (slug mapping vs files): `checked=149 missing=0`.
+- Rebuilt extension:
+```bash
+source .pufferlib/bin/activate
+python setup.py build_poke_battle --inplace --force
+```
+
+---
+
+## Run 009 — Post-Train Eval Snapshot (Learned Team + Human Check)
+
+**Date**: 2026-02-23  
+**Run**: `xinpw8/pufferlib/ummlv1to`  
+**Checkpoint**: `experiments/puffer_poke_battle_ummlv1to/model_puffer_poke_battle_000636.pt`
+
+### Human vs policy (GUI quick check)
+Result from user-run head-to-head:
+- Human: `0W / 3L / 0D` (`0.0%`)
+- Policy: `3W / 0L / 0D` (`100.0%`)
+
+### Learned-team extraction note
+- W&B summary keys for `team_builder_best_species_*` can surface non-integer blended values (e.g. `3.75`), which can violate Species Clause when naively cast.
+- For evaluation, use the latest **legal** 6-slot row from history scan:
+  - species IDs: `[14, 4, 2, 6, 3, 5]`
+  - species names: `Slowbro / Alakazam / Chansey / Starmie / Snorlax / Exeggutor`
+
+### Learned team vs bots (fixed policy team, random legal opponent teams)
+- Eval script artifact:
+  - `experiments/puffer_poke_battle_ummlv1to/manual_eval_20260222_175254/learned_team_vs_bots.json`
+- Results:
+  - `Random`: `99.75%` (`405W / 1L / 0D`, 406 episodes)
+  - `Heuristic`: `92.10%` (`373W / 32L / 0D`, 405 episodes)
+  - `MCTS`: `95.27%` (`383W / 19L / 0D`, 402 episodes)
+
+### Operational follow-up
+- Post-train eval watcher launched in detached tmux session:
+  - session: `poke_post_eval_ummlv1to`
+  - watches train PID `299968`
+  - writes outputs under:
+    - `experiments/puffer_poke_battle_ummlv1to/post_eval_<timestamp>/`

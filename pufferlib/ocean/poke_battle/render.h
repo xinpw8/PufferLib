@@ -5,6 +5,7 @@
 #define POKE_BATTLE_RENDER_H
 
 #include "raylib.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -75,18 +76,6 @@ static const char* TYPE_NAMES[NUM_TYPES + 1] = {
 };
 
 // ============================================================================
-// Species Name Mapping (matches SPECIES_DATA order, 1-indexed)
-// ============================================================================
-
-static const char* RENDER_SPECIES_NAMES[NUM_SPECIES + 1] = {
-    NULL,
-    "tauros", "chansey", "snorlax", "alakazam", "exeggutor",
-    "starmie", "gengar", "jynx", "zapdos", "rhydon",
-    "cloyster", "golem", "lapras", "slowbro", "jolteon",
-    "persian", "hypno", "articuno", "dragonite", "machamp",
-};
-
-// ============================================================================
 // Client Struct
 // ============================================================================
 
@@ -148,6 +137,26 @@ static void log_add(Client* client, const char* text, Color color) {
 static const char* species_name(int id) {
     if (id <= SPECIES_NONE || id > NUM_SPECIES) return "???";
     return SPECIES_DATA[id].name;
+}
+
+// Convert in-engine species names to Pokemon Showdown sprite IDs.
+// Examples: "Mr. Mime" -> "mrmime", "Farfetch'd" -> "farfetchd".
+static void species_sprite_slug(int species_id, char* out, size_t out_len) {
+    if (!out || out_len == 0) return;
+    out[0] = '\0';
+    if (species_id <= SPECIES_NONE || species_id > NUM_SPECIES) return;
+
+    const char* name = SPECIES_DATA[species_id].name;
+    if (!name) return;
+
+    size_t j = 0;
+    for (size_t i = 0; name[i] != '\0' && j + 1 < out_len; i++) {
+        unsigned char c = (unsigned char)name[i];
+        if (isalnum(c)) {
+            out[j++] = (char)tolower(c);
+        }
+    }
+    out[j] = '\0';
 }
 
 static const char* move_name(int id) {
@@ -322,10 +331,11 @@ static Client* make_client(PokeBattle* env) {
     client->sprites_loaded = 0;
     for (int s = 1; s <= NUM_SPECIES; s++) {
         char path[256];
-        const char* name = RENDER_SPECIES_NAMES[s];
-        if (!name) continue;
+        char sprite_slug[64];
+        species_sprite_slug(s, sprite_slug, sizeof(sprite_slug));
+        if (!sprite_slug[0]) continue;
 
-        snprintf(path, 256, "pufferlib/resources/poke_battle/sprites/gen1/%s.png", name);
+        snprintf(path, 256, "pufferlib/resources/poke_battle/sprites/gen1/%s.png", sprite_slug);
         Image img = LoadImage(path);
         if (img.data) {
             client->front_sprites[s] = LoadTextureFromImage(img);
@@ -333,7 +343,7 @@ static Client* make_client(PokeBattle* env) {
             client->sprites_loaded++;
         }
 
-        snprintf(path, 256, "pufferlib/resources/poke_battle/sprites/gen1-back/%s.png", name);
+        snprintf(path, 256, "pufferlib/resources/poke_battle/sprites/gen1-back/%s.png", sprite_slug);
         img = LoadImage(path);
         if (img.data) {
             client->back_sprites[s] = LoadTextureFromImage(img);
