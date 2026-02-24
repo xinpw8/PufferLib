@@ -1,5 +1,6 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
+#include <omp.h>
 
 // Forward declarations for env-specific functions supplied by user
 static int my_log(PyObject* dict, Log* log);
@@ -524,9 +525,12 @@ static PyObject* vec_step(PyObject* self, PyObject* arg) {
         return NULL;
     }
 
+    Py_BEGIN_ALLOW_THREADS
+    #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < vec->num_envs; i++) {
         c_step(vec->envs[i]);
     }
+    Py_END_ALLOW_THREADS
     Py_RETURN_NONE;
 }
 

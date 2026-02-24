@@ -14,6 +14,16 @@
 #include <spawn.h>
 #include "raylib.h"
 
+// Curriculum annealing globals (shared across all envs)
+static int _g_sf_random_pct = -1;          // Integer used in game logic
+static float _g_sf_random_pct_f = -1.0f;   // Float for smooth annealing
+static float _g_ema_wr = 0.0f;             // EMA of combined learner win rate
+static int _g_annealing_games = 0;         // Total games (for warmup)
+
+#define EMA_ALPHA 0.001f                    // ~1000 game effective window
+#define ANNEAL_WR_THRESHOLD 0.15f           // Start annealing above this
+#define ANNEAL_RATE 0.0001f                 // Per-game decrease per unit excess WR
+
 typedef uint64_t Bitboard;
 typedef uint64_t Key;
 typedef uint32_t Square;
@@ -533,6 +543,19 @@ typedef struct {
     float n;
     float white_winrate;
     float black_winrate;
+    float white_lossrate;
+    float black_lossrate;
+    float draw_by_stalemate;
+    float draw_by_insufficient;
+    float draw_by_50move;
+    float draw_by_repetition;
+    float opponent_winrate;
+    float stockfish_random_pct;
+    float stockfish_query_pct;
+    float ema_winrate;
+    float tutor_piece_match;
+    float tutor_move_match;
+    float tutor_total;
 } Log;
 
 typedef struct {
@@ -583,6 +606,9 @@ typedef struct {
     int stockfish_limit_strength;
     int stockfish_elo;
     int stockfish_movetime_ms;
+    int stockfish_depth;
+    int stockfish_random_pct;
+    int stockfish_query_pct;
     FILE* stockfish_in;
     FILE* stockfish_out;
     int stockfish_pid;
@@ -593,6 +619,10 @@ typedef struct {
     float fen_curric_pct;
     int num_fens;
     int random_fen;
+
+    char** fen_curriculum_dm;   // DeepMind FEN curriculum
+    int num_fens_dm;            // Count of DeepMind FENs
+    float deepmind_fen_pct;     // Fraction of curriculum resets that use DeepMind FENs
     
     UndoInfo undo_stack[MAX_GAME_PLIES];
     int undo_stack_ptr;
@@ -642,7 +672,16 @@ typedef struct {
     int black_captured[6];
     
     int debug_mode;
-    
+
+    // Move tutor (expert-guided training from pre-computed Stockfish data)
+    uint16_t* tutor_moves_dm;      // Pointer to global packed-move array
+    uint16_t tutor_target;          // Packed target for current episode (0 = none)
+    int tutor_phase;                // 0=piece, 1=dest, 2=done
+    float reward_tutor_piece;       // Bonus for matching expert's source square
+    float reward_tutor_move;        // Bonus for matching expert's destination
+    float reward_tutor_wrong;       // Penalty for wrong move (optional, default 0)
+    int tutor_only_mode;            // If 1, episode ends after first move attempt
+
 #ifdef CHESS_DEBUG_BUILD
     int debug_paused;
     int debug_history_idx;
@@ -2156,27 +2195,35 @@ bool is_draw_with_history(Position* pos, UndoInfo* undo_stack, int undo_stack_pt
     return false;
 }
 
-int game_result_with_legal_count(Position* pos, int legal_count, UndoInfo* undo_stack, int undo_stack_ptr, 
+// Game result codes:
+// 0 = game continues
+// 1 = Black wins (White checkmated)
+// 2 = White wins (Black checkmated)
+// 3 = Draw by stalemate
+// 4 = Draw by insufficient material
+// 5 = Draw by 50-move rule
+// 6 = Draw by threefold repetition
+int game_result_with_legal_count(Position* pos, int legal_count, UndoInfo* undo_stack, int undo_stack_ptr,
                                   int enable_50_move_rule, int enable_threefold_repetition) {
     if (legal_count == 0) {
         if (is_check(pos, pos->sideToMove)) {
             return pos->sideToMove == CHESS_WHITE ? 1 : 2;
         } else {
-            return 3;
+            return 3;  // Stalemate
         }
     }
-    
+
     if (is_insufficient_material(pos)) {
-        return 3;
+        return 4;
     }
-    
+
     if (enable_50_move_rule && pos->rule50 >= 100) {
-        return 3;
+        return 5;
     }
-    
+
     if (enable_threefold_repetition && undo_stack_ptr >= 4) {
         uint8_t plies = undo_stack[undo_stack_ptr - 1].pliesFromNull;
-        
+
         if (plies >= 4) {
             int repetitions = 0;
             for (int i = 4; i <= plies; i += 2) {
@@ -2184,13 +2231,13 @@ int game_result_with_legal_count(Position* pos, int legal_count, UndoInfo* undo_
                 if (idx >= 0 && undo_stack[idx].key == pos->key) {
                     repetitions++;
                     if (repetitions >= 2) {
-                        return 3;
+                        return 6;
                     }
                 }
             }
         }
     }
-    
+
     return 0;
 }
 
@@ -2560,12 +2607,41 @@ void c_reset(Chess* env) {
     } else {
         env->learner_color = 1 - env->learner_color;
     }
-    
+
+    env->tutor_target = 0;
+    env->tutor_phase = 0;
+
     if (env->fen_curriculum != NULL && env->num_fens > 0) {
         float randvalue = (float)rand() / (float)(RAND_MAX);
         if(env->fen_curric_pct >= randvalue){
-            int idx = rand() % env->num_fens;
-            pos_set(&env->pos, env->fen_curriculum[idx]);
+            // Pick which curriculum: DeepMind or original
+            float dm_roll = (float)rand() / (float)(RAND_MAX);
+            if (env->fen_curriculum_dm != NULL && env->num_fens_dm > 0
+                && dm_roll < env->deepmind_fen_pct) {
+                int idx = rand() % env->num_fens_dm;
+                pos_set(&env->pos, env->fen_curriculum_dm[idx]);
+
+                // Load tutor target if available
+                if (env->tutor_moves_dm != NULL && env->tutor_moves_dm[idx] != 0) {
+                    uint16_t packed = env->tutor_moves_dm[idx];
+                    // Force learner to play whichever side the FEN says moves next
+                    env->learner_color = (int)env->pos.sideToMove;
+
+                    uint16_t from_abs = packed & 0x3F;
+                    uint16_t to_abs = (packed >> 6) & 0x3F;
+                    uint16_t promo = (packed >> 12) & 0xF;
+
+                    // Convert absolute squares to learner perspective
+                    if (env->learner_color == CHESS_BLACK) {
+                        from_abs = from_abs ^ 56;
+                        to_abs = to_abs ^ 56;
+                    }
+                    env->tutor_target = from_abs | (to_abs << 6) | (promo << 12);
+                }
+            } else {
+                int idx = rand() % env->num_fens;
+                pos_set(&env->pos, env->fen_curriculum[idx]);
+            }
         }
         else {
             pos_set(&env->pos, env->starting_fen);
@@ -2582,6 +2658,27 @@ void c_reset(Chess* env) {
     generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
     env->legal_moves_side = env->pos.sideToMove;
     env->legal_moves_key = env->pos.key;
+
+    // Validate tutor target against legal moves
+    if (env->tutor_target != 0) {
+        uint16_t t_from = env->tutor_target & 0x3F;
+        uint16_t t_to = (env->tutor_target >> 6) & 0x3F;
+        // Convert back from learner perspective to absolute squares
+        uint16_t abs_from = (env->learner_color == CHESS_BLACK) ? (t_from ^ 56) : t_from;
+        uint16_t abs_to = (env->learner_color == CHESS_BLACK) ? (t_to ^ 56) : t_to;
+        int found = 0;
+        for (int i = 0; i < env->legal_moves.count; i++) {
+            Move m = env->legal_moves.moves[i].move;
+            if (from_sq(m) == abs_from && to_sq(m) == abs_to) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            env->tutor_target = 0;  // Invalid target, clear it
+        }
+    }
+
     populate_observations(env);
 
 }
@@ -2642,6 +2739,16 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
                 env->selected_square[pidx] = picked_sq;
                 env->pick_phase[pidx] = 1;
                 if (player == env->learner_color) env->rewards[0] += env->reward_valid_piece;
+                // Tutor: reward for matching expert's source square
+                if (player == env->learner_color && env->tutor_target != 0 && env->tutor_phase == 0) {
+                    uint16_t tutor_from = env->tutor_target & 0x3F;
+                    if ((uint16_t)action == tutor_from) {
+                        env->rewards[0] += env->reward_tutor_piece;
+                        env->log.tutor_piece_match += 1.0f;
+                    }
+                    env->tutor_phase = 1;
+                    env->log.tutor_total += 1.0f;
+                }
             } else {
                 if (player == env->learner_color) {
                     env->rewards[0] += env->reward_invalid_piece;
@@ -2706,13 +2813,48 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
             env->rewards[0] += env->reward_invalid_move;
             env->invalid_actions_this_episode++;
         }
+        // Tutor: failed move attempt ends tutor phase
+        if (player == env->learner_color && env->tutor_target != 0 && env->tutor_phase == 1) {
+            env->tutor_phase = 2;
+        }
         env->pick_phase[pidx] = 0;
         env->selected_square[pidx] = SQ_NONE;
         env->valid_destinations[pidx].count = 0;
         return false;
     }
-    
+
     if (player == env->learner_color) env->rewards[0] += env->reward_valid_move;
+
+    // Tutor: reward for matching expert's destination
+    if (player == env->learner_color && env->tutor_target != 0 && env->tutor_phase == 1) {
+        uint16_t tutor_to = (env->tutor_target >> 6) & 0x3F;
+        uint16_t tutor_promo = (env->tutor_target >> 12) & 0xF;
+        int match = 0;
+        if (is_promotion_selection) {
+            // For promotions, compare destination file and promo type
+            int promo_idx = action - 64;
+            int promo_file = promo_idx % 8;
+            int promo_row = promo_idx / 8;
+            int desired_promo = QUEEN - promo_row;
+            // tutor_to is in learner perspective; get file
+            int tutor_file = tutor_to & 7;
+            if (promo_file == tutor_file && tutor_promo != 0 && desired_promo == (int)tutor_promo) {
+                match = 1;
+            }
+        } else {
+            if ((uint16_t)action == tutor_to) {
+                match = 1;
+            }
+        }
+        if (match) {
+            env->rewards[0] += env->reward_tutor_move;
+            env->log.tutor_move_match += 1.0f;
+        } else if (env->reward_tutor_wrong != 0.0f) {
+            env->rewards[0] += env->reward_tutor_wrong;
+        }
+        env->tutor_phase = 2;
+    }
+
     env->chess_moves++;
     env->pick_phase[pidx] = 0;
     env->selected_square[pidx] = SQ_NONE;
@@ -2723,7 +2865,7 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
         env->rewards[0] += env->reward_castling;
     }
     
-    if ((env->human_play || env->log_pgn) && env->pgn_move_count < MAX_GAME_PLIES) {
+    if ((env->human_play || env->log_pgn || env->stockfish_bot) && env->pgn_move_count < MAX_GAME_PLIES) {
         env->pgn_moves[env->pgn_move_count++] = chosen_move;
     }
     
@@ -3071,6 +3213,7 @@ static int stockfish_start(Chess* env) {
     }
 
     fprintf(sf_in, "setoption name Threads value 1\n");
+    fprintf(sf_in, "setoption name Hash value 1\n");
     if (env->stockfish_limit_strength) {
         fprintf(sf_in, "setoption name UCI_LimitStrength value true\n");
         fprintf(sf_in, "setoption name UCI_Elo value %d\n", env->stockfish_elo);
@@ -3120,6 +3263,24 @@ static void stockfish_stop(Chess* env) {
     env->stockfish_ready = 0;
 }
 
+// Convert a Move to UCI string (e.g. "e2e4", "e7e8q" for promotion)
+static void move_to_uci(Move m, char* buf) {
+    const char files[] = "abcdefgh";
+    const char ranks[] = "12345678";
+    Square from = from_sq(m);
+    Square to = to_sq(m);
+    buf[0] = files[file_of(from)];
+    buf[1] = ranks[rank_of(from)];
+    buf[2] = files[file_of(to)];
+    buf[3] = ranks[rank_of(to)];
+    buf[4] = '\0';
+    if ((int)type_of_m(m) == PROMOTION) {
+        const char promos[] = " pnbrqk";
+        buf[4] = promos[promotion_type(m)];
+        buf[5] = '\0';
+    }
+}
+
 static int stockfish_select_move(Chess* env, Move* out_move) {
     if (!env || !out_move) {
         return 0;
@@ -3137,14 +3298,27 @@ static int stockfish_select_move(Chess* env, Move* out_move) {
         return 0;
     }
 
-    char fen[160];
-    if (!position_to_fen(&env->pos, fen, sizeof(fen))) {
-        return 0;
+    // Send full game history so Stockfish can detect repetitions.
+    // Without history, Stockfish sees each position as fresh and will
+    // blindly repeat the same "best" move, letting the agent exploit
+    // threefold repetition for free draws.
+    if (env->pgn_move_count > 0) {
+        fprintf(env->stockfish_in, "position fen %s moves", env->starting_fen);
+        char uci[8];
+        for (int i = 0; i < env->pgn_move_count; i++) {
+            move_to_uci(env->pgn_moves[i], uci);
+            fprintf(env->stockfish_in, " %s", uci);
+        }
+        fprintf(env->stockfish_in, "\n");
+    } else {
+        fprintf(env->stockfish_in, "position fen %s\n", env->starting_fen);
     }
-
-    int movetime = env->stockfish_movetime_ms > 0 ? env->stockfish_movetime_ms : 30;
-    fprintf(env->stockfish_in, "position fen %s\n", fen);
-    fprintf(env->stockfish_in, "go movetime %d\n", movetime);
+    if (env->stockfish_depth > 0) {
+        fprintf(env->stockfish_in, "go depth %d\n", env->stockfish_depth);
+    } else {
+        int movetime = env->stockfish_movetime_ms > 0 ? env->stockfish_movetime_ms : 30;
+        fprintf(env->stockfish_in, "go movetime %d\n", movetime);
+    }
     fflush(env->stockfish_in);
 
     char line[512];
@@ -3194,7 +3368,7 @@ static void execute_opponent_move(Chess* env, ChessColor opp_color, Move chosen)
     env->selected_square[pidx] = SQ_NONE;
     env->valid_destinations[pidx].count = 0;
 
-    if (env->log_pgn && env->pgn_move_count < MAX_GAME_PLIES) {
+    if ((env->log_pgn || env->stockfish_bot) && env->pgn_move_count < MAX_GAME_PLIES) {
         env->pgn_moves[env->pgn_move_count++] = chosen;
     }
 
@@ -3263,6 +3437,41 @@ void random_bot_move(Chess* env) {
     execute_opponent_move(env, opp_color, chosen);
 }
 
+// Built-in 1-ply eval using the position's incrementally-maintained
+// materialScore + psqtScore.  Replaces Stockfish pipe I/O for training
+// (~1000x faster per move, no process overhead).
+static int builtin_select_move(Chess* env, Move* out_move) {
+    if (!out_move) return 0;
+    MoveList* ml = &env->legal_moves;
+    if (ml->count == 0) return 0;
+
+    ChessColor us = env->pos.sideToMove;
+    int sign = (us == CHESS_WHITE) ? 1 : -1;
+
+    UndoInfo local_undo[2];
+    int local_ptr = 0;
+
+    int best_score = -999999;
+    int best_idx = 0;
+
+    for (int i = 0; i < ml->count; i++) {
+        Move m = ml->moves[i].move;
+        local_ptr = 0;
+        do_move(&env->pos, m, local_undo, &local_ptr);
+        int score = sign * (env->pos.materialScore + env->pos.psqtScore);
+        undo_move(&env->pos, m, local_undo, &local_ptr);
+        // Noise band ±150 cp  ≈ ELO 1200-1400 play
+        score += (rand() % 301) - 150;
+        if (score > best_score) {
+            best_score = score;
+            best_idx = i;
+        }
+    }
+
+    *out_move = ml->moves[best_idx].move;
+    return 1;
+}
+
 void stockfish_bot_move(Chess* env) {
     if (!env->stockfish_bot) {
         return;
@@ -3283,7 +3492,13 @@ void stockfish_bot_move(Chess* env) {
     }
 
     Move chosen = MOVE_NONE;
-    if (!stockfish_select_move(env, &chosen)) {
+    int query_pct = env->stockfish_query_pct;
+    if (query_pct < 0) query_pct = 0;
+    if (query_pct > 100) query_pct = 100;
+    int random_pct = (_g_sf_random_pct >= 0) ? _g_sf_random_pct : env->stockfish_random_pct;
+    int do_query = (query_pct >= 100) ? 1 : ((query_pct > 0) && ((rand() % 100) < query_pct));
+    int use_random = !do_query || ((random_pct > 0) && ((rand() % 100) < random_pct));
+    if (use_random || !builtin_select_move(env, &chosen)) {
         int idx = rand() % env->legal_moves.count;
         chosen = env->legal_moves.moves[idx].move;
     }
@@ -3294,19 +3509,31 @@ void stockfish_bot_move(Chess* env) {
 void end_game(Chess* env){
     env->terminals[0] = 1.0f;
     float win_value = 0.0f;
-    if (env->game_result == 3) {
+    int is_draw_result = (env->game_result >= 3);
+
+    if (is_draw_result) {
+        // All draw types (3=stalemate, 4=insufficient, 5=50-move, 6=repetition)
         env->rewards[0] = env->reward_draw;
         win_value = 0.5f;
         env->log.draw_rate += 1.0f;
-        
+
+        // Track specific draw type
+        if (env->game_result == 3) env->log.draw_by_stalemate += 1.0f;
+        else if (env->game_result == 4) env->log.draw_by_insufficient += 1.0f;
+        else if (env->game_result == 5) env->log.draw_by_50move += 1.0f;
+        else if (env->game_result == 6) env->log.draw_by_repetition += 1.0f;
+
         env->white_score += 0.5f;
         env->black_score += 0.5f;
         env->learner_draws += 1.0f;
         strcpy(env->last_result, "Draw");
     } else if (env->game_result == 1) {
+        // Black wins (White checkmated)
         if (env->learner_color == CHESS_WHITE) {
             env->rewards[0] = -1.0f;
             win_value = 0.0f;
+            env->log.white_lossrate += 1.0f;
+            env->log.opponent_winrate += 1.0f;
         } else {
             env->rewards[0] = 1.0f;
             win_value = 1.0f;
@@ -3314,20 +3541,22 @@ void end_game(Chess* env){
         env->black_score += 1.0f;
         if (env->learner_color == CHESS_BLACK) {
             env->learner_wins += 1.0f;
-            env->log.black_winrate += win_value;
+            env->log.black_winrate += 1.0f;
         } else {
             env->learner_losses += 1.0f;
         }
         strcpy(env->last_result, "Black Wins");
-        env->log.draw_rate += 0.0f;
     } else if (env->game_result == 2) {
+        // White wins (Black checkmated)
         if (env->learner_color == CHESS_WHITE) {
             env->rewards[0] = 1.0f;
             win_value = 1.0f;
-            env->log.white_winrate += win_value;
+            env->log.white_winrate += 1.0f;
         } else {
             env->rewards[0] = -1.0f;
             win_value = 0.0f;
+            env->log.black_lossrate += 1.0f;
+            env->log.opponent_winrate += 1.0f;
         }
         env->white_score += 1.0f;
         if (env->learner_color == CHESS_WHITE) {
@@ -3336,13 +3565,12 @@ void end_game(Chess* env){
             env->learner_losses += 1.0f;
         }
         strcpy(env->last_result, "White Wins");
-        env->log.draw_rate += 0.0f;
     }
-        
+
     // Accumulate final reward and log episode return
     env->episode_reward += env->rewards[0];
     env->log.episode_return += env->episode_reward;
-    
+
     env->log.perf += win_value;
     env->log.timeout_rate += 0.0f;
     env->log.chess_moves += env->chess_moves;
@@ -3353,7 +3581,7 @@ void end_game(Chess* env){
     float length_score = fminf(1.0f, (float)env->chess_moves / 40.0f);
     env->log.game_length_score += length_score;
 
-    float is_draw = (env->game_result == 3) ? 1.0f : 0.0f;
+    float is_draw = is_draw_result ? 1.0f : 0.0f;
     env->log.score += win_value + 0.2f * length_score - 0.1f * is_draw;
     
     float mat = (float)env->pos.materialScore / 100.0f;
@@ -3363,7 +3591,44 @@ void end_game(Chess* env){
     env->log.positional_score += pst;
     
     env->log.n += 1.0f;
-    
+
+    // Log current random_pct and query_pct
+    env->log.stockfish_random_pct += _g_sf_random_pct_f;
+    env->log.stockfish_query_pct += (float)env->stockfish_query_pct;
+
+    // Smooth EMA curriculum annealing
+    if (env->stockfish_bot && _g_sf_random_pct_f > 0) {
+        float learner_won = 0.0f;
+        if (env->game_result == 2 && env->learner_color == CHESS_WHITE) learner_won = 1.0f;
+        if (env->game_result == 1 && env->learner_color == CHESS_BLACK) learner_won = 1.0f;
+
+        // Update EMA (warmup: simple average for first 1000 games, then EMA)
+        _g_annealing_games++;
+        if (_g_annealing_games <= 1000) {
+            _g_ema_wr += (learner_won - _g_ema_wr) / (float)_g_annealing_games;
+        } else {
+            _g_ema_wr = (1.0f - EMA_ALPHA) * _g_ema_wr + EMA_ALPHA * learner_won;
+        }
+
+        // Smooth annealing: decrease proportional to excess WR above threshold
+        if (_g_ema_wr > ANNEAL_WR_THRESHOLD) {
+            float excess = _g_ema_wr - ANNEAL_WR_THRESHOLD;
+            float old_pct = _g_sf_random_pct_f;
+            _g_sf_random_pct_f -= ANNEAL_RATE * excess;
+            if (_g_sf_random_pct_f < 0.0f) _g_sf_random_pct_f = 0.0f;
+            _g_sf_random_pct = (int)roundf(_g_sf_random_pct_f);
+
+            // Log at whole-number boundaries
+            if ((int)roundf(old_pct) != _g_sf_random_pct) {
+                printf("ANNEAL: ema_wr=%.4f random_pct=%.1f->%d%% (games=%d)\n",
+                       _g_ema_wr, old_pct, _g_sf_random_pct, _g_annealing_games);
+            }
+        }
+    }
+
+    // Log EMA for wandb tracking
+    env->log.ema_winrate += _g_ema_wr;
+
     if (env->human_play) {
         env->show_game_end_popup = 1;
     } else {
@@ -3512,12 +3777,7 @@ void c_step(Chess* env) {
         env->opp_in_check = 0;
     }
     
-    /*if (env->rewards[0] > 0.9f) {
-        env->rewards[0] = 0.9f;
-    }
-    if (env->rewards[0] < -0.9f) {
-        env->rewards[0] = -0.9f;
-    }*/
+    clip_rewards(env);
     if (move_completed) {
         if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
             generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
@@ -3525,7 +3785,25 @@ void c_step(Chess* env) {
             env->legal_moves_key = env->pos.key;
         }
     }
-    
+
+    // Tutor-only mode: end episode after first move attempt
+    if (move_completed && env->tutor_only_mode && env->tutor_phase == 2) {
+        env->terminals[0] = 1.0f;
+        env->episode_reward += env->rewards[0];
+        env->log.episode_return += env->episode_reward;
+        env->log.perf += 0.5f;
+        env->log.chess_moves += env->chess_moves;
+        env->log.episode_length += env->tick;
+        float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
+        env->log.invalid_action_rate += invalid_rate;
+        env->log.n += 1.0f;
+        env->log.stockfish_random_pct += _g_sf_random_pct_f;
+        env->log.stockfish_query_pct += (float)env->stockfish_query_pct;
+        env->log.ema_winrate += _g_ema_wr;
+        c_reset(env);
+        return;
+    }
+
     if (env->chess_moves >= env->max_moves || env->undo_stack_ptr >= MAX_GAME_PLIES - 2) {
         env->terminals[0] = 1.0f;
         env->rewards[0] = env->reward_draw;
@@ -3550,6 +3828,8 @@ void c_step(Chess* env) {
         env->log.positional_score += pst;
         
         env->log.n += 1.0f;
+        env->log.stockfish_random_pct += (float)_g_sf_random_pct;
+        env->log.stockfish_query_pct += (float)env->stockfish_query_pct;
         c_reset(env);
         return;
     }
@@ -3693,8 +3973,8 @@ void export_pgn_append(Chess* env, const char* filename, int append) {
         fprintf(f, "[Black \"%s\"]\n", env->human_color == CHESS_BLACK ? "Human" : "AI");
     } else {
         fprintf(f, "[Event \"Selfplay Eval Game %d\"]\n", env->pgn_game_number);
-        fprintf(f, "[White \"%s\"]\n", env->learner_color == CHESS_BLACK ? "Learner" : "Opponent");
-        fprintf(f, "[Black \"%s\"]\n", env->learner_color == CHESS_BLACK ? "Opponent" : "Learner");
+        fprintf(f, "[White \"%s\"]\n", env->learner_color == CHESS_WHITE ? "Learner" : "Opponent");
+        fprintf(f, "[Black \"%s\"]\n", env->learner_color == CHESS_BLACK ? "Learner" : "Opponent");
     }
     fprintf(f, "[Site \"PufferLib\"]\n");
     fprintf(f, "[Result \"%s\"]\n\n", env->last_result);

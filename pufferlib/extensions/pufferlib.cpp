@@ -241,6 +241,7 @@ typedef struct {
 
     // Self-play fields
     bool selfplay;
+    bool selfplay_external_opponent;  // Opponent moves come from env (stockfish/random), not policy
     int selfplay_obs_half;           // half of full obs size (learner portion)
     int selfplay_learner_atns;       // number of learner action heads (e.g. 3)
     int selfplay_cut;                // 80% split point per buffer
@@ -365,6 +366,18 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
         pufferl->act_sizes, pufferl->act_sizes_cpu,
         pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
 
+    // Fill learner actions into env buffer immediately.
+    Tensor env_actions = env.actions.narrow(0, start, block_size);  // [block_size, learner+opponent heads]
+    env_actions.narrow(1, 0, learner_atns).copy_(learner_actions, true);
+
+    // Fast path: opponent is controlled in-env (e.g., stockfish), so skip
+    // opponent-policy forward and sampling entirely.
+    if (pufferl->selfplay_external_opponent) {
+        env_actions.narrow(1, learner_atns, learner_atns).zero_();
+        profile_end(hypers.profile);
+        return;
+    }
+
     // 5. Opponent forward pass - first 80% (use current learner policy as opponent)
     Tensor& opp_state = pufferl->opponent_states[buf];
     Tensor& opp_actions = pufferl->sp_opp_actions[buf];
@@ -421,8 +434,7 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     }
 
     // 7. Interleave actions into env buffer: [learner(3) | opponent(3)] per agent
-    Tensor env_actions = env.actions.narrow(0, start, block_size);  // [block_size, 6]
-    env_actions.narrow(1, 0, learner_atns).copy_(learner_actions, true);
+    // learner actions already copied above
     env_actions.narrow(1, learner_atns, learner_atns).copy_(opp_actions, true);
 
     profile_end(hypers.profile);
@@ -476,6 +488,14 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
     Tensor actions = rollouts.actions.select(0, t).narrow(0, start, block_size);
     Tensor logprobs = rollouts.logprobs.select(0, t).narrow(0, start, block_size);
     Tensor values = rollouts.values.select(0, t).narrow(0, start, block_size);
+
+    // For chess in non-selfplay modes (e.g., human vs policy), apply the same
+    // legal-move masking used in selfplay so inference cannot get stuck on
+    // permanently invalid actions.
+    if (pufferl->chess_action_mask) {
+        apply_chess_mask(logits.mean, obs);
+    }
+
     sample_actions(logits, value, actions, logprobs, values,
         pufferl->act_sizes, pufferl->act_sizes_cpu,
         pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
@@ -771,10 +791,28 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     int hidden_size = hypers.hidden_size;
     int num_layers = hypers.num_layers;
     bool kernels = hypers.kernels;
+    int chess_encoder = 2;  // 1=fast ChessEncoder, 2=ChessTwo (default)
+    int stockfish_bot = 0;
+
+    if (env_name == "puffer_chess" && env_kwargs != nullptr) {
+        DictItem* ce = dict_get_unsafe(env_kwargs, "chess_encoder");
+        if (ce != nullptr) {
+            chess_encoder = (int)ce->value;
+            if (chess_encoder != 1 && chess_encoder != 2) {
+                chess_encoder = 2;
+            }
+        }
+        DictItem* sfb = dict_get_unsafe(env_kwargs, "stockfish_bot");
+        stockfish_bot = sfb ? (int)sfb->value : 0;
+        printf("Chess encoder: %s (%d)\n",
+            chess_encoder == 1 ? "ChessEncoder" : "ChessTwoEncoder",
+            chess_encoder);
+    }
 
     // Detect selfplay from env kwargs and StaticVec
     bool selfplay = vec->selfplay;
     pufferl->selfplay = selfplay;
+    pufferl->selfplay_external_opponent = false;
     pufferl->chess_action_mask = false;
     pufferl->opponent_pool = nullptr;
     pufferl->active_opponent_slot = -1;
@@ -803,9 +841,19 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
             printf("Chess action masking enabled (obs_half=1082)\n");
         }
 
+        if (env_name == "puffer_chess" && stockfish_bot > 0) {
+            pufferl->selfplay_external_opponent = true;
+            printf("Selfplay external opponent mode enabled (stockfish_bot=1)\n");
+        }
+
         printf("Selfplay enabled: obs_half=%d, learner_atns=%d, cut=%d/%d\n",
             pufferl->selfplay_obs_half, pufferl->selfplay_learner_atns,
             pufferl->selfplay_cut, block_size);
+    } else if (env_name == "puffer_chess") {
+        // Non-selfplay chess still uses the same action semantics and benefits
+        // from legality masking (notably human-vs-policy eval).
+        pufferl->chess_action_mask = true;
+        printf("Chess action masking enabled (non-selfplay)\n");
     }
 
     // Store (possibly narrowed) act_sizes
@@ -818,7 +866,8 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
 
     // Create fp32 master policy (for optimizer - precise gradient accumulation)
     Policy* policy_fp32 = create_policy(env_name, input_size, hidden_size,
-        decoder_output_size, num_layers, act_n, is_continuous, kernels);
+        decoder_output_size, num_layers, act_n, is_continuous, kernels,
+        chess_encoder);
     policy_fp32->to(torch::kCUDA);
     policy_fp32->to(torch::kFloat32);
     pufferl->policy_fp32 = policy_fp32;
@@ -826,7 +875,8 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     if (USE_BF16) {
         // create bf16 working policy (for fwd/bwd)
         Policy* policy_bf16 = create_policy(env_name, input_size, hidden_size,
-            decoder_output_size, num_layers, act_n, is_continuous, kernels);
+            decoder_output_size, num_layers, act_n, is_continuous, kernels,
+            chess_encoder);
         policy_bf16->to(torch::kCUDA);
         policy_bf16->to(torch::kBFloat16);
         pufferl->policy_bf16 = policy_bf16;
@@ -874,7 +924,8 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
         pufferl->opponent_pool->_rot_idx = 0;
         for (int i = 0; i < n_slots; i++) {
             Policy* opp = create_policy(env_name, input_size, hidden_size,
-                decoder_output_size, num_layers, act_n, is_continuous, kernels);
+                decoder_output_size, num_layers, act_n, is_continuous, kernels,
+                chess_encoder);
             opp->to(torch::kCUDA);
             opp->to(PRECISION_DTYPE);
             opp->eval();

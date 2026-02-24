@@ -9,6 +9,8 @@
 using namespace pufferlib;
 namespace py = pybind11;
 
+Dict* py_dict_to_c_dict(py::dict py_dict);
+
 // Wrapper functions for Python bindings
 pybind11::dict log_environments(pybind11::object pufferl_obj) {
     auto& pufferl = pufferl_obj.cast<PuffeRL&>();
@@ -134,6 +136,31 @@ void puf_close(pybind11::object pufferl_obj) {
     close_impl(pufferl);
 }
 
+void render(pybind11::object pufferl_obj, int env_id) {
+    auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+    if (!pufferl.vec) {
+        return;
+    }
+    static_vec_render(pufferl.vec, env_id);
+}
+
+pybind11::dict get_env_state(pybind11::object pufferl_obj) {
+    auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+    Dict* out = create_dict(64);
+    static_vec_get(pufferl.vec, out);
+    pybind11::dict py_out;
+    for (int i = 0; i < out->size; i++) {
+        py_out[out->items[i].key] = out->items[i].value;
+    }
+    return py_out;
+}
+
+void set_env_state(pybind11::object pufferl_obj, py::dict state) {
+    auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+    Dict* in = py_dict_to_c_dict(state);
+    static_vec_put(pufferl.vec, in);
+}
+
 double get_config(py::dict& kwargs, const char* key) {
     if (!kwargs.contains(key)) {
         throw std::runtime_error(std::string("Missing config key: ") + key);
@@ -238,6 +265,7 @@ PYBIND11_MODULE(_C, m) {
     m.def("rollouts", &rollouts);
     m.def("train", &train);
     m.def("close", &puf_close);
+    m.def("render", &render, py::arg("pufferl_obj"), py::arg("env_id") = 0);
     m.def("logcumsumexp_cuda", [](torch::Tensor x) { return LogCumsumExp::apply(x)[0]; });
     m.def("initial_state", &initial_state);
     m.def("mingru_gate", &mingru_gate);
@@ -249,9 +277,11 @@ PYBIND11_MODULE(_C, m) {
     m.def("env_buffers", &env_buffers);
     m.def("profiler_start", &profiler_start);
     m.def("profiler_stop", &profiler_stop);
+    m.def("get_env_state", &get_env_state);
+    m.def("set_env_state", &set_env_state);
 
     // Selfplay bindings
-    m.def("load_opponent_weights", [](py::object pufferl_obj, py::dict state_dict, int slot) {
+    m.def("load_opponent_weights", [](py::object pufferl_obj, py::dict state_dict, int slot, int policy_id) {
         auto& pufferl = pufferl_obj.cast<PuffeRL&>();
         TORCH_CHECK(pufferl.opponent_pool != nullptr, "No opponent pool (selfplay not enabled)");
         TORCH_CHECK(slot >= 0 && slot < pufferl.opponent_pool->n_slots, "Invalid pool slot");
@@ -267,11 +297,15 @@ PYBIND11_MODULE(_C, m) {
                 }
             }
         }
+        pufferl.opponent_pool->policy_ids[slot] = policy_id;
         opp->eval();
-    });
+    }, py::arg("pufferl_obj"), py::arg("state_dict"), py::arg("slot"), py::arg("policy_id") = 0);
 
     m.def("set_active_opponent", [](py::object pufferl_obj, int slot, int policy_id) {
         auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+        TORCH_CHECK(pufferl.opponent_pool != nullptr, "No opponent pool (selfplay not enabled)");
+        TORCH_CHECK(slot >= 0 && slot < pufferl.opponent_pool->n_slots, "Invalid pool slot");
+        pufferl.opponent_pool->policy_ids[slot] = policy_id;
         pufferl.active_opponent_slot = slot;
         // Zero opponent RNN states for the tail 20% when swapping
         int num_buffers = pufferl.hypers.num_buffers;
@@ -289,6 +323,12 @@ PYBIND11_MODULE(_C, m) {
         auto& pufferl = pufferl_obj.cast<PuffeRL&>();
         if (!pufferl.opponent_pool) return 0;
         return pufferl.opponent_pool->n_slots;
+    });
+
+    m.def("get_opponent_slot_policy_ids", [](py::object pufferl_obj) -> std::vector<int> {
+        auto& pufferl = pufferl_obj.cast<PuffeRL&>();
+        if (!pufferl.opponent_pool) return {};
+        return pufferl.opponent_pool->policy_ids;
     });
 
     py::class_<Muon>(m, "Muon")
@@ -351,7 +391,11 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("hypers", &PuffeRL::hypers)
         .def_readwrite("rollouts", &PuffeRL::rollouts)
         .def_readwrite("selfplay", &PuffeRL::selfplay)
-        .def_readwrite("active_opponent_slot", &PuffeRL::active_opponent_slot);
+        .def_readwrite("active_opponent_slot", &PuffeRL::active_opponent_slot)
+        .def_readwrite("epoch", &PuffeRL::epoch)
+        .def_readwrite("train_warmup", &PuffeRL::train_warmup)
+        .def_readwrite("rng_seed", &PuffeRL::rng_seed)
+        .def_readwrite("rng_offset", &PuffeRL::rng_offset);
 
     py::class_<PolicyLSTM, std::shared_ptr<PolicyLSTM>, torch::nn::Module> cls(m, "PolicyLSTM");
     cls.def(py::init<int, int, int>());

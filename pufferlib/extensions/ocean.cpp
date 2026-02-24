@@ -562,9 +562,115 @@ class ChessEncoder : public Encoder {
     }
 };
 
+// ChessTwo encoder: 4-layer residual CNN (256 channels) with scalar MLP
+// Matches Python ChessTwo architecture for ~8.5M param chess network
+// Obs layout identical to ChessEncoder (1082 bytes per player)
+class ChessTwoEncoder : public Encoder {
+    public:
+        static constexpr int CNN_CH = 256;
+        static constexpr int EMBED_DIM = 32;
+        static constexpr int SPATIAL_IN = 16; // 12 pieces + selected + valid_pieces + valid_dests + promos_padded
+
+        nn::Conv2d conv1{nullptr};  // (16, 256, 3x3)
+        nn::Conv2d conv2{nullptr};  // (256, 256, 3x3) - residual block
+        nn::Conv2d conv3{nullptr};  // (256, 256, 3x3) - residual block
+        nn::Conv2d conv4{nullptr};  // (256, hidden, 3x3)
+
+        nn::Embedding side_embed{nullptr};
+        nn::Embedding castle_embed{nullptr};
+        nn::Embedding ep_embed{nullptr};
+        nn::Embedding phase_embed{nullptr};
+
+        nn::Linear scalar_fc1{nullptr};
+        nn::Linear scalar_fc2{nullptr};
+
+        nn::Linear proj{nullptr};
+
+        int input, hidden;
+
+    ChessTwoEncoder(int input, int hidden) : input(input), hidden(hidden) {
+        conv1 = register_module("conv1", nn::Conv2d(nn::Conv2dOptions(SPATIAL_IN, CNN_CH, 3).padding(1)));
+        nn::init::orthogonal_(conv1->weight, std::sqrt(2.0));
+        nn::init::constant_(conv1->bias, 0.0);
+
+        conv2 = register_module("conv2", nn::Conv2d(nn::Conv2dOptions(CNN_CH, CNN_CH, 3).padding(1)));
+        nn::init::orthogonal_(conv2->weight, std::sqrt(2.0));
+        nn::init::constant_(conv2->bias, 0.0);
+
+        conv3 = register_module("conv3", nn::Conv2d(nn::Conv2dOptions(CNN_CH, CNN_CH, 3).padding(1)));
+        nn::init::orthogonal_(conv3->weight, std::sqrt(2.0));
+        nn::init::constant_(conv3->bias, 0.0);
+
+        conv4 = register_module("conv4", nn::Conv2d(nn::Conv2dOptions(CNN_CH, hidden, 3).padding(1)));
+        nn::init::orthogonal_(conv4->weight, std::sqrt(2.0));
+        nn::init::constant_(conv4->bias, 0.0);
+
+        side_embed = register_module("side_embed", nn::Embedding(2, EMBED_DIM));
+        castle_embed = register_module("castle_embed", nn::Embedding(16, EMBED_DIM));
+        ep_embed = register_module("ep_embed", nn::Embedding(65, EMBED_DIM));
+        phase_embed = register_module("phase_embed", nn::Embedding(2, EMBED_DIM));
+
+        scalar_fc1 = register_module("scalar_fc1", nn::Linear(5, hidden));
+        nn::init::orthogonal_(scalar_fc1->weight, std::sqrt(2.0));
+        nn::init::constant_(scalar_fc1->bias, 0.0);
+        scalar_fc2 = register_module("scalar_fc2", nn::Linear(hidden, hidden));
+        nn::init::orthogonal_(scalar_fc2->weight, std::sqrt(2.0));
+        nn::init::constant_(scalar_fc2->bias, 0.0);
+
+        // CNN flat: hidden*64, embeddings: 4*32=128, scalar: hidden
+        int cnn_flat = hidden * 64;
+        int total = cnn_flat + 4 * EMBED_DIM + hidden;
+        proj = register_module("proj", nn::Linear(total, hidden));
+        nn::init::orthogonal_(proj->weight, std::sqrt(2.0));
+        nn::init::constant_(proj->bias, 0.0);
+    }
+
+    Tensor forward(Tensor x) override {
+        int64_t B = x.size(0);
+        auto target_dtype = conv1->weight.dtype();
+
+        // Spatial: 12 piece planes + selected + valid_pieces + valid_dests + promos_padded = 16ch
+        Tensor board = x.narrow(1, 0, 768).view({B, 12, 8, 8}).to(target_dtype);
+        Tensor selected = x.narrow(1, 853, 64).view({B, 1, 8, 8}).to(target_dtype);
+        Tensor valid_pieces = x.narrow(1, 917, 64).view({B, 1, 8, 8}).to(target_dtype);
+        Tensor valid_dests = x.narrow(1, 981, 64).view({B, 1, 8, 8}).to(target_dtype);
+        // Pad promotions from (B,32) -> (B,1,4,8) -> (B,1,8,8)
+        Tensor promos_raw = x.narrow(1, 1045, 32).view({B, 1, 4, 8}).to(target_dtype);
+        Tensor promos_padded = torch::zeros({B, 1, 8, 8}, torch::TensorOptions().dtype(target_dtype).device(x.device()));
+        promos_padded.narrow(2, 0, 4) = promos_raw;
+
+        Tensor spatial = torch::cat({board, selected, valid_pieces, valid_dests, promos_padded}, 1);
+
+        // 4-layer residual CNN
+        Tensor h = torch::relu(conv1->forward(spatial));
+        Tensor residual = h;
+        h = torch::relu(conv2->forward(h));
+        h = conv3->forward(h);
+        h = torch::relu(h + residual);
+        h = torch::relu(conv4->forward(h));
+        Tensor cnn_features = h.flatten(1);  // (B, hidden*64)
+
+        // Categorical embeddings
+        Tensor side_f = side_embed->forward(x.narrow(1, 768, 2).argmax(1)).to(target_dtype);
+        Tensor castle_f = castle_embed->forward(x.narrow(1, 770, 16).argmax(1)).to(target_dtype);
+        Tensor ep_f = ep_embed->forward(x.narrow(1, 786, 65).argmax(1)).to(target_dtype);
+        Tensor phase_f = phase_embed->forward(x.narrow(1, 851, 2).argmax(1)).to(target_dtype);
+
+        // Scalar MLP
+        Tensor scalars = x.narrow(1, 1077, 5).to(target_dtype) / 255.0;
+        Tensor scalar_out = torch::relu(scalar_fc1->forward(scalars));
+        scalar_out = torch::relu(scalar_fc2->forward(scalar_out));
+
+        // Concatenate and project
+        Tensor features = torch::cat({cnn_features, side_f, castle_f, ep_f, phase_f, scalar_out}, 1);
+        return torch::relu(proj->forward(features));
+    }
+};
+
 // Create policy with env-specific encoder/decoder
 Policy* create_policy(const std::string& env_name, int input_size, int hidden_size,
-        int decoder_output_size, int num_layers, int act_n, bool is_continuous, bool kernels) {
+        int decoder_output_size, int num_layers, int act_n, bool is_continuous,
+        bool kernels, int chess_encoder) {
     shared_ptr<Encoder> enc;
     shared_ptr<Decoder> dec;
     if (env_name == "puffer_snake") {
@@ -581,7 +687,12 @@ Policy* create_policy(const std::string& env_name, int input_size, int hidden_si
         enc = std::make_shared<DriveEncoder>(input_size, hidden_size);
         dec = std::make_shared<DefaultDecoder>(hidden_size, decoder_output_size, is_continuous);
     } else if (env_name == "puffer_chess") {
-        enc = std::make_shared<ChessEncoder>(input_size, hidden_size);
+        // chess_encoder: 1=ChessEncoder (fast), 2=ChessTwoEncoder (stronger, default)
+        if (chess_encoder == 1) {
+            enc = std::make_shared<ChessEncoder>(input_size, hidden_size);
+        } else {
+            enc = std::make_shared<ChessTwoEncoder>(input_size, hidden_size);
+        }
         dec = std::make_shared<DefaultDecoder>(hidden_size, decoder_output_size, is_continuous);
     } else {
         enc = std::make_shared<DefaultEncoder>(input_size, hidden_size);

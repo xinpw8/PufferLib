@@ -111,6 +111,9 @@ enum EvalProfileIdx {
 // Functions implemented by env's static library
 StaticVec* create_static_vec(int total_agents, int num_buffers, Dict* vec_kwargs, Dict* env_kwargs);
 void static_vec_reset(StaticVec* vec);
+void static_vec_render(StaticVec* vec, int env_id);
+void static_vec_get(StaticVec* vec, Dict* out);
+int static_vec_put(StaticVec* vec, Dict* kwargs);
 void static_vec_close(StaticVec* vec);
 void static_vec_log(StaticVec* vec, Dict* out);
 void create_static_threads(StaticVec* vec, int num_threads, int horizon,

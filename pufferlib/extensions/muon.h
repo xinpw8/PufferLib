@@ -163,11 +163,37 @@ struct Muon {
     }
 
     void load_state_dict(const std::unordered_map<std::string, torch::Tensor>& state) {
+        torch::NoGradGuard no_grad;
         auto it = state.find("lr");
-        if (it != state.end()) lr.copy_(it->second);
+        if (it != state.end()) {
+            if (lr.defined()) {
+                lr.copy_(it->second.to(lr.device(), lr.dtype()));
+            } else {
+                lr = it->second.clone().to(torch::kCUDA).to(torch::kFloat32);
+            }
+        }
+
         it = state.find("weight_buffer");
-        if (it != state.end()) weight_buffer.copy_(it->second);
+        if (it != state.end()) {
+            if (weight_buffer.defined()) {
+                weight_buffer.copy_(it->second.to(weight_buffer.device(), weight_buffer.dtype()));
+            } else {
+                weight_buffer = it->second.clone().to(torch::kCUDA).to(torch::kFloat32);
+            }
+        }
+
         it = state.find("momentum_buffer");
-        if (it != state.end()) momentum_buffer.copy_(it->second);
+        if (it != state.end()) {
+            if (momentum_buffer.defined()) {
+                momentum_buffer.copy_(it->second.to(momentum_buffer.device(), momentum_buffer.dtype()));
+            } else {
+                momentum_buffer = it->second.clone();
+                if (weight_buffer.defined()) {
+                    momentum_buffer = momentum_buffer.to(weight_buffer.device(), weight_buffer.dtype());
+                } else {
+                    momentum_buffer = momentum_buffer.to(torch::kCUDA).to(torch::kFloat32);
+                }
+            }
+        }
     }
 };

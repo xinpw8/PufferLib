@@ -48,6 +48,15 @@ rich.traceback.install(show_locals=False)
 
 LN10_BY_400 = np.log(10) / 400.0
 
+def _torch_load(path, map_location='cpu', allow_pickle=False):
+    if allow_pickle:
+        try:
+            return torch.load(path, map_location=map_location, weights_only=False)
+        except TypeError:
+            # Older PyTorch versions don't expose weights_only.
+            return torch.load(path, map_location=map_location)
+    return torch.load(path, map_location=map_location)
+
 def softmax(x):
     e = np.exp(x - np.max(x))
     return e / e.sum()
@@ -132,10 +141,75 @@ class SelfplayManager:
             return
         slot = self._rot_idx
         weights = self.opponent_pool[policy_id]
-        _C.load_opponent_weights(self.pufferl_cpp, weights, slot)
+        _C.load_opponent_weights(self.pufferl_cpp, weights, slot, int(policy_id))
         _C.set_active_opponent(self.pufferl_cpp, slot, policy_id)
         self.cur_opp_id = policy_id
         self._rot_idx = (slot + 1) % self.n_slots
+
+    def state_dict(self):
+        return {
+            'total_agents': int(self.total_agents),
+            'num_buffers': int(self.num_buffers),
+            'block_size': int(self.block_size),
+            'cut': int(self.cut),
+            'tail': int(self.tail),
+            'n_slots': int(self.n_slots),
+            'rot_idx': int(self._rot_idx),
+            'saved_policy_count': int(self.saved_policy_count),
+            'max_opponent_history': int(self.max_opponent_history),
+            'opponent_pool_ids': [int(pid) for pid in self.opponent_pool_ids],
+            'opponent_qualities': {int(k): float(v) for k, v in self.opponent_qualities.items()},
+            'elos': [float(v) for v in self.elos],
+            'quality_lr': float(self.quality_lr),
+            'cur_opp_id': int(self.cur_opp_id),
+            'done_since_swap': int(self.done_since_swap),
+            'swap_quota': int(self.swap_quota),
+            'slot_policy_ids': [int(v) for v in _C.get_opponent_slot_policy_ids(self.pufferl_cpp)],
+            'active_opponent_slot': int(self.pufferl_cpp.active_opponent_slot),
+            'opponent_pool': {
+                int(pid): {k: v.detach().cpu() for k, v in weights.items()}
+                for pid, weights in self.opponent_pool.items()
+            },
+        }
+
+    def load_state_dict(self, state):
+        if not state:
+            return
+
+        self._rot_idx = int(state.get('rot_idx', self._rot_idx))
+        self.saved_policy_count = int(state.get('saved_policy_count', self.saved_policy_count))
+        self.max_opponent_history = int(state.get('max_opponent_history', self.max_opponent_history))
+        self.opponent_pool_ids = [int(pid) for pid in state.get('opponent_pool_ids', self.opponent_pool_ids)]
+        self.opponent_qualities = {
+            int(k): float(v) for k, v in state.get('opponent_qualities', self.opponent_qualities).items()
+        }
+        self.elos = [float(v) for v in state.get('elos', self.elos)]
+        self.quality_lr = float(state.get('quality_lr', self.quality_lr))
+        self.cur_opp_id = int(state.get('cur_opp_id', self.cur_opp_id))
+        self.done_since_swap = int(state.get('done_since_swap', self.done_since_swap))
+        self.swap_quota = int(state.get('swap_quota', self.swap_quota))
+
+        restored_pool = {}
+        for pid, weights in state.get('opponent_pool', {}).items():
+            restored_pool[int(pid)] = {k: v.cpu() for k, v in weights.items()}
+        self.opponent_pool = restored_pool
+
+        slot_policy_ids = [int(v) for v in state.get('slot_policy_ids', [])]
+        if slot_policy_ids:
+            for slot, policy_id in enumerate(slot_policy_ids[:self.n_slots]):
+                if policy_id <= 0:
+                    continue
+                weights = self.opponent_pool.get(policy_id)
+                if weights is None:
+                    continue
+                _C.load_opponent_weights(self.pufferl_cpp, weights, slot, policy_id)
+
+            active_slot = int(state.get('active_opponent_slot', -1))
+            if 0 <= active_slot < len(slot_policy_ids):
+                _C.set_active_opponent(self.pufferl_cpp, active_slot, int(slot_policy_ids[active_slot]))
+                self.cur_opp_id = int(slot_policy_ids[active_slot])
+            elif self.cur_opp_id > 0:
+                self.load_opponent(self.cur_opp_id)
 
     def update_from_rollout(self, rollouts):
         """Process rollout terminals/rewards for swap tracking and ELO updates.
@@ -273,6 +347,249 @@ class PuffeRL:
         self.start_time = time.time()
         self.print_dashboard(clear=True)
 
+    def _sync_bf16_from_fp32(self):
+        bf16 = self.pufferl_cpp.policy_bf16
+        fp32 = self.pufferl_cpp.policy_fp32
+        if bf16 is fp32:
+            return
+        with torch.no_grad():
+            for p_bf16, p_fp32 in zip(bf16.parameters(), fp32.parameters()):
+                p_bf16.data.copy_(p_fp32.data)
+
+    def _load_named_weights_into_muon(self, state_dict):
+        wb = self.pufferl_cpp.muon.weight_buffer
+        offset = 0
+        with torch.no_grad():
+            for name, param in self.policy_fp32.named_parameters():
+                if name not in state_dict:
+                    raise KeyError(f"Missing parameter '{name}' in checkpoint")
+                size = param.numel()
+                src = state_dict[name].view(-1).to(device=wb.device, dtype=wb.dtype)
+                wb.narrow(0, offset, size).copy_(src)
+                offset += size
+        self._sync_bf16_from_fp32()
+
+    def _checkpoint_dir(self):
+        run_id = self.logger.run_id
+        path = os.path.join(self.config['data_dir'], self.config["env"], run_id)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        return path
+
+    def _save_full_trainer_state(self, run_id, model_name):
+        muon_state = {}
+        for k, v in self.pufferl_cpp.muon.state_dict().items():
+            if torch.is_tensor(v):
+                muon_state[k] = v.detach().cpu()
+            else:
+                muon_state[k] = v
+
+        state = {
+            'schema_version': 2,
+            'run_id': run_id,
+            'model_name': model_name,
+            'global_step': int(self.global_step),
+            'epoch': int(self.epoch),
+            'last_log_step': int(self.last_log_step),
+            'saved_time': float(time.time()),
+            'pufferl_cpp_state': {
+                'epoch': int(self.pufferl_cpp.epoch),
+                'train_warmup': int(self.pufferl_cpp.train_warmup),
+                'rng_seed': int(self.pufferl_cpp.rng_seed),
+                'rng_offset': self.pufferl_cpp.rng_offset.detach().cpu(),
+                'active_opponent_slot': int(self.pufferl_cpp.active_opponent_slot),
+            },
+            'muon_state': muon_state,
+            'rng_state': {
+                'python': random.getstate(),
+                'numpy': np.random.get_state(),
+                'torch_cpu': torch.get_rng_state(),
+                'torch_cuda_all': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
+            },
+            'env_state': _C.get_env_state(self.pufferl_cpp),
+        }
+        if self.selfplay_mgr:
+            state['selfplay_state'] = self.selfplay_mgr.state_dict()
+        return state
+
+    def _restore_full_trainer_state(self, state):
+        muon_state = state.get('muon_state')
+        if muon_state:
+            with torch.no_grad():
+                self.pufferl_cpp.muon.load_state_dict(muon_state)
+            self._sync_bf16_from_fp32()
+        elif 'policy_state_dict' in state:
+            self._load_named_weights_into_muon(state['policy_state_dict'])
+
+        self.global_step = int(state.get('global_step', self.global_step))
+        self.epoch = int(state.get('epoch', self.epoch))
+        self.last_log_step = int(state.get('last_log_step', self.global_step))
+        self.last_log_time = time.time()
+        self.start_time = time.time()
+
+        cpp_state = state.get('pufferl_cpp_state', {})
+        if 'epoch' in cpp_state:
+            self.pufferl_cpp.epoch = int(cpp_state['epoch'])
+        else:
+            self.pufferl_cpp.epoch = int(self.epoch)
+        if 'train_warmup' in cpp_state:
+            self.pufferl_cpp.train_warmup = int(cpp_state['train_warmup'])
+        if 'rng_seed' in cpp_state:
+            self.pufferl_cpp.rng_seed = int(cpp_state['rng_seed'])
+        if 'rng_offset' in cpp_state:
+            with torch.no_grad():
+                self.pufferl_cpp.rng_offset.copy_(
+                    cpp_state['rng_offset'].to(
+                        device=self.pufferl_cpp.rng_offset.device,
+                        dtype=self.pufferl_cpp.rng_offset.dtype,
+                    )
+                )
+        if 'active_opponent_slot' in cpp_state:
+            self.pufferl_cpp.active_opponent_slot = int(cpp_state['active_opponent_slot'])
+
+        rng_state = state.get('rng_state', {})
+        if 'python' in rng_state:
+            random.setstate(rng_state['python'])
+        if 'numpy' in rng_state:
+            np.random.set_state(rng_state['numpy'])
+        if 'torch_cpu' in rng_state:
+            torch.set_rng_state(rng_state['torch_cpu'])
+        cuda_states = rng_state.get('torch_cuda_all')
+        if cuda_states:
+            torch.cuda.set_rng_state_all(cuda_states)
+
+        env_state = state.get('env_state')
+        if isinstance(env_state, dict) and env_state:
+            _C.set_env_state(self.pufferl_cpp, env_state)
+
+        if self.selfplay_mgr and 'selfplay_state' in state:
+            self.selfplay_mgr.load_state_dict(state['selfplay_state'])
+
+    def _restore_legacy_state(self, state_path, explicit_model_path=None):
+        state = _torch_load(state_path, map_location='cpu', allow_pickle=True)
+        model_name = state.get('model_name')
+
+        if explicit_model_path is None:
+            if model_name is None:
+                raise RuntimeError(f"Legacy trainer state missing model_name: {state_path}")
+            model_path = os.path.join(os.path.dirname(state_path), model_name)
+        else:
+            model_path = explicit_model_path
+
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Checkpoint model not found for resume: {model_path}")
+
+        weights = _torch_load(model_path, map_location='cpu')
+        self._load_named_weights_into_muon(weights)
+
+        self.global_step = int(state.get('global_step', state.get('agent_step', self.global_step)))
+        self.epoch = int(state.get('update', self.epoch))
+        self.last_log_step = int(self.global_step)
+        self.last_log_time = time.time()
+        self.start_time = time.time()
+        self.pufferl_cpp.epoch = int(self.epoch)
+
+    def _resolve_resume_target(self, load_path):
+        if load_path is None:
+            return None, None
+
+        if load_path == 'latest':
+            root = os.path.join(self.config['data_dir'], self.config["env"])
+            full = glob.glob(os.path.join(root, '*/trainer_state_full.pt'))
+            if full:
+                latest = max(full, key=os.path.getmtime)
+                return latest, 'full'
+            models = glob.glob(os.path.join(root, '*/model_*.pt'))
+            if models:
+                latest_model = max(models, key=os.path.getmtime)
+                sibling_full = os.path.join(os.path.dirname(latest_model), 'trainer_state_full.pt')
+                if os.path.exists(sibling_full):
+                    return sibling_full, 'full'
+                sibling_legacy = os.path.join(os.path.dirname(latest_model), 'trainer_state.pt')
+                if os.path.exists(sibling_legacy):
+                    return sibling_legacy, 'legacy_model'
+                return latest_model, 'model'
+            raise FileNotFoundError(f'No checkpoints found under {root}')
+
+        path = os.path.expanduser(load_path)
+        if os.path.isdir(path):
+            full = os.path.join(path, 'trainer_state_full.pt')
+            if os.path.exists(full):
+                return full, 'full'
+            legacy = os.path.join(path, 'trainer_state.pt')
+            if os.path.exists(legacy):
+                return legacy, 'legacy'
+            models = glob.glob(os.path.join(path, 'model_*.pt'))
+            if models:
+                return max(models, key=os.path.getmtime), 'model'
+            raise FileNotFoundError(f'No checkpoint files found in {path}')
+
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'Checkpoint path not found: {path}')
+
+        basename = os.path.basename(path)
+        if basename == 'trainer_state_full.pt':
+            return path, 'full'
+        if basename == 'trainer_state.pt':
+            return path, 'legacy'
+        if basename.startswith('model_') and basename.endswith('.pt'):
+            sibling_full = os.path.join(os.path.dirname(path), 'trainer_state_full.pt')
+            if os.path.exists(sibling_full):
+                return sibling_full, 'full'
+            sibling_legacy = os.path.join(os.path.dirname(path), 'trainer_state.pt')
+            if os.path.exists(sibling_legacy):
+                return sibling_legacy, 'legacy_model'
+            return path, 'model'
+        if basename.endswith('.pt'):
+            return path, 'full_or_model'
+
+        raise RuntimeError(f'Unsupported checkpoint path: {path}')
+
+    def load_training_state(self, load_path):
+        resolved, mode = self._resolve_resume_target(load_path)
+        if resolved is None:
+            return
+
+        if mode == 'full':
+            state = _torch_load(resolved, map_location='cpu', allow_pickle=True)
+            self._restore_full_trainer_state(state)
+            print(f'Resumed full trainer state from {resolved}')
+            return
+
+        if mode == 'legacy':
+            self._restore_legacy_state(resolved)
+            print(f'Resumed legacy trainer state from {resolved}')
+            return
+
+        if mode == 'legacy_model':
+            model_guess = max(
+                glob.glob(os.path.join(os.path.dirname(resolved), 'model_*.pt')),
+                key=os.path.getmtime,
+            )
+            self._restore_legacy_state(resolved, explicit_model_path=model_guess)
+            print(f'Resumed legacy trainer state from {resolved} with model {model_guess}')
+            return
+
+        if mode == 'model':
+            weights = _torch_load(resolved, map_location='cpu')
+            self._load_named_weights_into_muon(weights)
+            print(f'Loaded model weights from {resolved} (optimizer/trainer state not restored)')
+            return
+
+        if mode == 'full_or_model':
+            data = _torch_load(resolved, map_location='cpu', allow_pickle=True)
+            if isinstance(data, dict) and ('muon_state' in data or 'pufferl_cpp_state' in data):
+                self._restore_full_trainer_state(data)
+                print(f'Resumed full trainer state from {resolved}')
+            elif isinstance(data, dict):
+                self._load_named_weights_into_muon(data)
+                print(f'Loaded model weights from {resolved} (optimizer/trainer state not restored)')
+            else:
+                raise RuntimeError(f'Unrecognized checkpoint format at {resolved}')
+            return
+
+        raise RuntimeError(f'Unhandled resume mode: {mode}')
+
     @property
     def uptime(self):
         return time.time() - self.start_time
@@ -390,17 +707,12 @@ class PuffeRL:
             return
 
         run_id = self.logger.run_id
-        path = os.path.join(self.config['data_dir'],
-            self.config["env"], run_id)
-        if not os.path.exists(path):
-            os.makedirs(path)
+        path = self._checkpoint_dir()
 
         model_name = f'model_{self.config["env"]}_{self.epoch:06d}.pt'
         model_path = os.path.join(path, model_name)
-        if os.path.exists(model_path):
-            return model_path
-
-        torch.save(_get_trained_state_dict(self.policy_fp32, self.pufferl_cpp.muon), model_path)
+        if not os.path.exists(model_path):
+            torch.save(_get_trained_state_dict(self.policy_fp32, self.pufferl_cpp.muon), model_path)
 
         state = {
             #'optimizer_state_dict': self.optimizer.state_dict(),
@@ -413,6 +725,11 @@ class PuffeRL:
         state_path = os.path.join(path, 'trainer_state.pt')
         torch.save(state, state_path + '.tmp')
         os.replace(state_path + '.tmp', state_path)
+
+        full_state_path = os.path.join(path, 'trainer_state_full.pt')
+        full_state = self._save_full_trainer_state(run_id, model_name)
+        torch.save(full_state, full_state_path + '.tmp')
+        os.replace(full_state_path + '.tmp', full_state_path)
         return model_path
 
     def print_dashboard(self, clear=False, idx=[0],
@@ -658,6 +975,10 @@ def _train_rank(env_name, args=None, logger=None, verbose=True, early_stop_fn=No
     env_config = args['env']
     policy_config = args['policy']
     pufferl = PuffeRL(train_config, vec_config, env_config, policy_config, logger, verbose)
+
+    resume_path = args.get('load_model_path')
+    if resume_path is not None:
+        pufferl.load_training_state(resume_path)
 
     if train_config['profile']:
         _C.profiler_start()

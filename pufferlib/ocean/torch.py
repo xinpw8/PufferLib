@@ -127,6 +127,130 @@ class ChessSeven(nn.Module):
         return self.forward(observations, state)
 
 
+class ChessTwo(nn.Module):
+    def __init__(self, env, cnn_channels=256, hidden_size=512, embed_dim=32, use_action_masking=1, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        self.use_action_masking = bool(use_action_masking)
+        self.num_actions = env.single_action_space.n
+
+        self.conv1 = layer_init(nn.Conv2d(16, cnn_channels, kernel_size=3, stride=1, padding=1))
+        self.conv2 = layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1, padding=1))
+        self.conv3 = layer_init(nn.Conv2d(cnn_channels, cnn_channels, kernel_size=3, stride=1, padding=1))
+        self.conv4 = layer_init(nn.Conv2d(cnn_channels, hidden_size, kernel_size=3, stride=1, padding=1))
+
+        with torch.no_grad():
+            dummy = torch.zeros(1, 16, 8, 8)
+            x = nn.ReLU()(self.conv1(dummy))
+            residual = x
+            x = nn.ReLU()(self.conv2(x))
+            x = self.conv3(x)
+            x = x + residual
+            x = nn.ReLU()(x)
+            x = self.conv4(x)
+            x = nn.ReLU()(x)
+            cnn_flat_size = x.flatten(1).shape[1]
+
+        self.side_embed = nn.Embedding(2, embed_dim)
+        self.castle_embed = nn.Embedding(16, embed_dim)
+        self.ep_embed = nn.Embedding(65, embed_dim)
+        self.phase_embed = nn.Embedding(2, embed_dim)
+
+        self.scalar_size = 5
+        self.scalar_layer = nn.Sequential(
+            layer_init(nn.Linear(self.scalar_size, hidden_size)),
+            nn.ReLU(),
+            layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU(),
+        )
+        total_features = cnn_flat_size + 4 * embed_dim + hidden_size
+
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(total_features, hidden_size)),
+            nn.ReLU(),
+        )
+
+        self.actor = layer_init(nn.Linear(hidden_size, self.num_actions), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
+        self.current_mask = None
+
+    def encode_observations(self, observations, state=None):
+        B = observations.shape[0]
+        obs = observations.float()
+
+        board = obs[:, :768].view(B, 12, 8, 8)
+        selected_piece = obs[:, 853:917].view(B, 1, 8, 8)
+        valid_pieces = obs[:, 917:981].view(B, 1, 8, 8)
+        valid_dests = obs[:, 981:1045].view(B, 1, 8, 8)
+        valid_promos = obs[:, 1045:1077].view(B, 1, 4, 8)
+        valid_promos_padded = F.pad(valid_promos, (0, 0, 0, 4), value=0).view(B, 1, 8, 8)
+
+        spatial_input = torch.cat([
+            board, selected_piece, valid_pieces, valid_dests, valid_promos_padded
+        ], dim=1)
+
+        x = self.conv1(spatial_input)
+        x = nn.ReLU()(x)
+        residual = x
+        x = self.conv2(x)
+        x = nn.ReLU()(x)
+        x = self.conv3(x)
+        x = x + residual
+        x = nn.ReLU()(x)
+        x = self.conv4(x)
+        x = nn.ReLU()(x)
+        spatial_features = x.flatten(1)
+
+        side_features = self.side_embed(obs[:, 768:770].argmax(dim=1))
+        castle_features = self.castle_embed(obs[:, 770:786].argmax(dim=1))
+        ep_features = self.ep_embed(obs[:, 786:851].argmax(dim=1))
+        phase_features = self.phase_embed(obs[:, 851:853].argmax(dim=1))
+
+        self_check = obs[:, 1077:1078] / 255.0
+        opp_check = obs[:, 1078:1079] / 255.0
+        rule50_scalar = obs[:, 1079:1080] / 255.0
+        repetition_scalar = obs[:, 1080:1081] / 255.0
+        pass_valid = obs[:, 1081:1082] / 255.0
+        scalars = torch.cat([self_check, opp_check, rule50_scalar, repetition_scalar, pass_valid], dim=1)
+        scalars = self.scalar_layer(scalars)
+
+        if self.use_action_masking:
+            pick_phase = observations[:, 852] > 0
+            pass_valid_mask = observations[:, 1081] > 0
+            valid_pieces_mask = observations[:, 917:981] > 0
+            valid_dests_mask = observations[:, 981:1045] > 0
+            promos_mask = observations[:, 1045:1077] > 0
+
+            mask_squares = torch.where(pick_phase.unsqueeze(1), valid_dests_mask, valid_pieces_mask)
+            full_mask = torch.cat([mask_squares, promos_mask, pass_valid_mask.unsqueeze(1)], dim=1)
+            full_mask[:, :-1] = full_mask[:, :-1] & (~pass_valid_mask.unsqueeze(1))
+            all_masked = ~full_mask.any(dim=1, keepdim=True)
+            full_mask = full_mask | all_masked
+            self.current_mask = full_mask
+        else:
+            self.current_mask = None
+
+        x = torch.cat([spatial_features, side_features, castle_features, ep_features, phase_features, scalars], dim=1)
+        x = self.proj(x)
+        return x
+
+    def decode_actions(self, hidden, state=None):
+        logits = self.actor(hidden)
+        if self.use_action_masking and self.current_mask is not None:
+            logits.masked_fill_(~self.current_mask, -1e8)
+        value = self.value_head(hidden)
+        return logits, value
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        logits, value = self.decode_actions(hidden, state)
+        return logits, value
+
+    def forward_eval(self, observations, state=None):
+        return self.forward(observations, state)
+
+
 class Boids(nn.Module):
     def __init__(self, env, cnn_channels=32, hidden_size=128, **kwargs):
         super().__init__()

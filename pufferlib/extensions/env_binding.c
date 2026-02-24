@@ -283,6 +283,30 @@ void static_vec_reset(StaticVec* vec) {
     cudaDeviceSynchronize();
 }
 
+void static_vec_render(StaticVec* vec, int env_id) {
+    if (env_id < 0 || env_id >= vec->size) {
+        return;
+    }
+    Env* envs = (Env*)vec->envs;
+    c_render(&envs[env_id]);
+}
+
+void static_vec_get(StaticVec* vec, Dict* out) {
+    if (!vec || vec->size <= 0 || !out) {
+        return;
+    }
+    // Use env 0 as canonical holder for env-global state.
+    my_get(vec->envs, out);
+}
+
+int static_vec_put(StaticVec* vec, Dict* kwargs) {
+    if (!vec || vec->size <= 0 || !kwargs) {
+        return 0;
+    }
+    // Apply to env 0; env-specific handlers may write shared globals.
+    return my_put(vec->envs, kwargs);
+}
+
 void create_static_threads(StaticVec* vec, int num_threads, int horizon,
         void* ctx, net_callback_fn net_callback, thread_init_fn thread_init) {
     vec->threading = (StaticThreading*)calloc(1, sizeof(StaticThreading));
