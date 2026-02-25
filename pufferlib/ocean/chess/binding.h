@@ -377,6 +377,15 @@ void my_init(Env* env, Dict* kwargs) {
 
     DictItem* rchk = dict_get_unsafe(kwargs, "reward_check");
     env->reward_check = rchk ? (float)rchk->value : 0.01f;
+    DictItem* rmate = dict_get_unsafe(kwargs, "reward_mate");
+    env->reward_mate = rmate ? (float)rmate->value : 0.0f;
+    DictItem* rsyz = dict_get_unsafe(kwargs, "reward_syzygy");
+    env->reward_syzygy = rsyz ? (float)rsyz->value : 0.0f;
+    if (env->reward_syzygy != 0.0f) {
+        const char* syzygy_path = getenv("PUFFER_SYZYGY_PATH");
+        if (!syzygy_path) syzygy_path = "/home/spark-advantage/syzygy";
+        init_syzygy(syzygy_path);
+    }
 
     // Move tutor config
     DictItem* rtp = dict_get_unsafe(kwargs, "reward_tutor_piece");
@@ -468,4 +477,8 @@ void my_log(Log* log, Dict* out) {
         dict_set(out, "tutor_piece_rate", log->tutor_piece_match / log->tutor_total);
         dict_set(out, "tutor_move_rate", log->tutor_move_match / log->tutor_total);
     }
+    dict_set(out, "syzygy_probes", log->syzygy_probes);
+    dict_set(out, "syzygy_wins", log->syzygy_wins);
+    dict_set(out, "syzygy_draws", log->syzygy_draws);
+    dict_set(out, "syzygy_reward_total", log->syzygy_reward_total);
 }

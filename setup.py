@@ -352,7 +352,22 @@ def create_static_env_build_class(env_name):
             print(f'Building static env: {" ".join(clang_cmd)}')
             subprocess.check_call(clang_cmd)
 
-            ar_cmd = ['ar', 'rcs', static_lib, static_obj]
+            # Compile Fathom tbprobe.c for chess env (Syzygy tablebase support)
+            fathom_obj = f'pufferlib/extensions/libstatic_{env_name}_fathom.o'
+            fathom_src = f'pufferlib/ocean/{env_name}/fathom/tbprobe.c'
+            if os.path.exists(fathom_src):
+                fathom_cmd = [
+                    c_compiler, '-c', '-O2', '-DNDEBUG',
+                    '-I.', f'-Ipufferlib/ocean/{env_name}/fathom',
+                    '-fno-semantic-interposition', '-fvisibility=hidden',
+                    '-fPIC',
+                    fathom_src, '-o', fathom_obj
+                ]
+                print(f'Building Fathom: {" ".join(fathom_cmd)}')
+                subprocess.check_call(fathom_cmd)
+                ar_cmd = ['ar', 'rcs', static_lib, static_obj, fathom_obj]
+            else:
+                ar_cmd = ['ar', 'rcs', static_lib, static_obj]
             print(f'Creating static library: {" ".join(ar_cmd)}')
             subprocess.check_call(ar_cmd)
 

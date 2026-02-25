@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <spawn.h>
 #include "raylib.h"
+#include "fathom/tbprobe.h"
 
 // Curriculum annealing globals (shared across all envs)
 static int _g_sf_random_pct = -1;          // Integer used in game logic
@@ -556,6 +557,10 @@ typedef struct {
     float tutor_piece_match;
     float tutor_move_match;
     float tutor_total;
+    float syzygy_probes;
+    float syzygy_wins;
+    float syzygy_draws;
+    float syzygy_reward_total;
 } Log;
 
 typedef struct {
@@ -641,6 +646,9 @@ typedef struct {
     float reward_castling;
     float reward_repetition;
     float reward_check;
+    float reward_mate;
+    float reward_syzygy;
+    int syzygy_wdl_prev;  // previous WDL probe result for delta reward
     
     int last_see_value;
     Move last_move;
@@ -831,6 +839,70 @@ Bitboard LineBB[64][64];
 Zobrist zob;
 
 static bool bitboards_initialized = false;
+static bool syzygy_initialized = false;
+
+static void init_syzygy(const char* path) {
+    if (syzygy_initialized || path == NULL || path[0] == 0) return;
+    if (tb_init(path)) {
+        fprintf(stderr, "Syzygy tablebases loaded from %s (TB_LARGEST=%u)\n", path, TB_LARGEST);
+        syzygy_initialized = true;
+    } else {
+        fprintf(stderr, "WARNING: Failed to load Syzygy tablebases from %s\n", path);
+    }
+}
+
+// Probe Syzygy WDL for current position. Returns TB_WIN/TB_DRAW/TB_LOSS or -1 on failure.
+static int probe_syzygy_wdl(Position* pos) {
+    if (!syzygy_initialized) return -1;
+    // Fast checks first: most positions have >5 pieces or castling rights
+    int piece_count = popcount(pos->byTypeBB[0]);
+    if (piece_count > (int)TB_LARGEST) return -1;  // too many pieces
+    if (pos->castlingRights != NO_CASTLING) return -1;  // no castling in tablebases
+    // Fathom expects consistent bitboards and exactly one king per side.
+    Bitboard white = pos->byColorBB[CHESS_WHITE];
+    Bitboard black = pos->byColorBB[CHESS_BLACK];
+    Bitboard kings = pos->byTypeBB[KING];
+    Bitboard occ = white | black;
+    Bitboard occ_types = 0ULL;
+    for (int pt = PAWN; pt <= KING; pt++) {
+        occ_types |= pos->byTypeBB[pt];
+    }
+    if ((white & black) != 0ULL
+        || popcount(white & kings) != 1
+        || popcount(black & kings) != 1
+        || pos->byTypeBB[0] != occ
+        || occ_types != occ) {
+        static int syzygy_invalid_warns = 0;
+        if (syzygy_invalid_warns < 8) {
+            fprintf(stderr,
+                "WARNING: Skipping Syzygy probe on invalid position "
+                "(white=%llx black=%llx kings=%llx all=%llx)\n",
+                (unsigned long long)white,
+                (unsigned long long)black,
+                (unsigned long long)kings,
+                (unsigned long long)pos->byTypeBB[0]);
+            syzygy_invalid_warns++;
+        }
+        return -1;
+    }
+    unsigned ep = (pos->epSquare == SQ_NONE) ? 0 : pos->epSquare;
+    unsigned result = tb_probe_wdl(
+        pos->byColorBB[CHESS_WHITE],
+        pos->byColorBB[CHESS_BLACK],
+        pos->byTypeBB[KING],
+        pos->byTypeBB[QUEEN],
+        pos->byTypeBB[ROOK],
+        pos->byTypeBB[BISHOP],
+        pos->byTypeBB[KNIGHT],
+        pos->byTypeBB[PAWN],
+        pos->rule50,
+        pos->castlingRights,
+        ep,
+        pos->sideToMove == CHESS_WHITE
+    );
+    if (result == TB_RESULT_FAILED) return -1;
+    return (int)result;
+}
 
 static Bitboard index_to_occupancy(int index, Bitboard mask) {
     Bitboard occ = 0;
@@ -1235,7 +1307,8 @@ static void generate_pawn_moves(Position* pos, MoveList* ml, ChessColor us) {
     Bitboard pawnsOn7 = pawns & rank7;
     Bitboard pawnsNotOn7 = pawns & ~rank7;
     
-    Bitboard enemies = pieces_c(pos, them);
+    // King captures are illegal in chess; never generate moves to the king square.
+    Bitboard enemies = pieces_c(pos, them) & ~pieces_cp(pos, them, KING);
     Bitboard empty = ~pieces(pos);
     
     Bitboard b1 = shift_bb(up, pawnsNotOn7) & empty;
@@ -1309,8 +1382,10 @@ static void generate_pawn_moves(Position* pos, MoveList* ml, ChessColor us) {
 }
 
 static void generate_piece_moves(Position* pos, MoveList* ml, int pt, ChessColor us) {
+    ChessColor them = !us;
     Bitboard pieces_bb = pieces_cp(pos, us, pt);
-    Bitboard target = ~pieces_c(pos, us);
+    // Exclude opponent king square from all targets; checkmate is handled by no-legal-move logic.
+    Bitboard target = ~pieces_c(pos, us) & ~pieces_cp(pos, them, KING);
     Bitboard occupied = pieces(pos);
     
     while (pieces_bb) {
@@ -2609,6 +2684,7 @@ void c_reset(Chess* env) {
     }
 
     env->tutor_target = 0;
+    env->syzygy_wdl_prev = -99;
     env->tutor_phase = 0;
 
     if (env->fen_curriculum != NULL && env->num_fens > 0) {
@@ -3535,7 +3611,7 @@ void end_game(Chess* env){
             env->log.white_lossrate += 1.0f;
             env->log.opponent_winrate += 1.0f;
         } else {
-            env->rewards[0] = 1.0f;
+            env->rewards[0] = 1.0f + env->reward_mate;
             win_value = 1.0f;
         }
         env->black_score += 1.0f;
@@ -3549,7 +3625,7 @@ void end_game(Chess* env){
     } else if (env->game_result == 2) {
         // White wins (Black checkmated)
         if (env->learner_color == CHESS_WHITE) {
-            env->rewards[0] = 1.0f;
+            env->rewards[0] = 1.0f + env->reward_mate;
             win_value = 1.0f;
             env->log.white_winrate += 1.0f;
         } else {
@@ -3777,6 +3853,35 @@ void c_step(Chess* env) {
         env->opp_in_check = 0;
     }
     
+    // Syzygy tablebase reward: reward for improving WDL status
+    if (move_completed && mover == env->learner_color && env->reward_syzygy != 0.0f) {
+        int wdl = probe_syzygy_wdl(&env->pos);
+        if (wdl >= 0) {
+            env->log.syzygy_probes += 1.0f;
+            // Convert WDL to score from learner perspective
+            // TB result is from side-to-move perspective, but we just moved,
+            // so side-to-move is now the opponent. Flip the result.
+            int learner_wdl;
+            if (wdl == TB_WIN) learner_wdl = -2;       // opponent wins = we lose
+            else if (wdl == TB_CURSED_WIN) learner_wdl = -1;
+            else if (wdl == TB_DRAW) learner_wdl = 0;
+            else if (wdl == TB_BLESSED_LOSS) learner_wdl = 1;
+            else if (wdl == TB_LOSS) learner_wdl = 2;  // opponent loses = we win
+            else learner_wdl = 0;
+
+            if (learner_wdl > 0) env->log.syzygy_wins += 1.0f;
+            else if (learner_wdl == 0) env->log.syzygy_draws += 1.0f;
+
+            // Delta reward: improvement from previous probe
+            if (env->syzygy_wdl_prev != -99) {
+                int delta = learner_wdl - env->syzygy_wdl_prev;
+                float syzygy_reward = (float)delta * env->reward_syzygy;
+                env->rewards[0] += syzygy_reward;
+                env->log.syzygy_reward_total += syzygy_reward;
+            }
+            env->syzygy_wdl_prev = learner_wdl;
+        }
+    }
     clip_rewards(env);
     if (move_completed) {
         if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {

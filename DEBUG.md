@@ -1058,3 +1058,19 @@ needed — zero SPS cost.
 - `pufferlib/config/ocean/chess.ini` — fen_curric_pct=0.5, deepmind_fen_pct=1.0, tutor rewards
 
 ### Build: PASS (`python setup.py build_chess`)
+
+### v18 (mixed tutor + game): tutor signal drowned by game rewards
+- Tutor rates peaked ~0.285/0.181, then DECLINED as agent optimized for game wins
+- Killed at 847M steps
+
+### v19 (pure tutor, 2M dataset): proof of concept
+- Tutor rates climbed fast: 0.192→0.451 piece, 0.096→0.312 move in 3 minutes
+- Killed to re-extract full dataset
+
+### v20 (pure tutor, full 527M dataset): FIRST STOCKFISH WINS
+- 527M (FEN, move) pairs, 28GB file, 40.5GB RAM
+- Tutor rates plateaued at 0.514/0.380 (~epoch 1000, 4.2B steps)
+- **Eval: 50% win rate vs real Stockfish 1320 depth=1** (100 games)
+- ALL prior runs: 0% wins. This is the breakthrough.
+- 9.0B steps, epoch 2135, SPS 545K
+- Checkpoint: `experiments/puffer_chess/f3yt7aol/model_puffer_chess_002125.pt`
