@@ -216,6 +216,8 @@ StaticVec* create_static_vec(int total_agents, int num_buffers, Dict* vec_kwargs
     vec->agents_per_buffer = total_agents / num_buffers;
     vec->obs_size = OBS_SIZE;
     vec->num_atns = NUM_ATNS;
+    DictItem* sp_item = dict_get_unsafe(env_kwargs, "selfplay");
+    vec->selfplay = sp_item ? (int)sp_item->value : 0;
 
     vec->buffer_env_starts = (int*)calloc(num_buffers, sizeof(int));
     vec->buffer_env_counts = (int*)calloc(num_buffers, sizeof(int));

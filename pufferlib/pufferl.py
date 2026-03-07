@@ -128,6 +128,16 @@ class PuffeRL:
 
     def train(self):
         _C.train(self.pufferl_cpp)
+
+        # Selfplay: rotate learner weights into opponent pool periodically
+        if _C.is_selfplay(self.pufferl_cpp):
+            interval = self.config.get('selfplay_rotate_interval', 10)
+            if self.epoch > 0 and self.epoch % interval == 0:
+                _C.rotate_opponent(self.pufferl_cpp)
+                n_slots = _C.get_num_opponent_slots(self.pufferl_cpp)
+                if n_slots > 0:
+                    _C.set_active_opponent(self.pufferl_cpp, random.randint(0, n_slots - 1))
+
         logs = None
         self.epoch += 1
         done_training = self.global_step >= self.config['total_timesteps']

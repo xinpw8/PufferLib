@@ -114,6 +114,7 @@ typedef struct {
     Tensor terminals;
     Tensor ratio;
     Tensor importance;
+    Tensor turn_mask;
 } RolloutBuf;
 
 RolloutBuf create_rollouts(int horizon, int segments, int input_size, int num_atns) {
@@ -126,6 +127,7 @@ RolloutBuf create_rollouts(int horizon, int segments, int input_size, int num_at
         .terminals = torch::zeros({horizon, segments}, cuda_t),
         .ratio = torch::zeros({horizon, segments}, cuda_t),
         .importance = torch::zeros({horizon, segments}, cuda_t),
+        .turn_mask = torch::ones({horizon, segments}, cuda_f32),
     };
 }
 
@@ -202,6 +204,13 @@ typedef struct {
 } ProfileT;
 
 typedef struct {
+    vector<Policy*> policies;
+    vector<int> policy_ids;
+    int n_slots;
+    int rot_idx;
+} OpponentPool;
+
+typedef struct {
     Policy* policy_bf16;  // Working weights (bf16) - used for forward/backward
     Policy* policy_fp32;  // Master weights (fp32) - used for optimizer
     StaticVec* vec;
@@ -229,6 +238,16 @@ typedef struct {
     bool train_captured;
     uint64_t rng_seed;
     Tensor rng_offset;  // CUDA tensor so increment is graphable
+    bool selfplay;
+    int selfplay_obs_half;
+    int selfplay_learner_atns;
+    int selfplay_cut;
+    OpponentPool* opponent_pool;
+    int active_opponent_slot;
+    vector<Tensor> opponent_states;
+    vector<Tensor> sp_opp_actions;
+    vector<Tensor> sp_opp_logprobs;
+    vector<Tensor> sp_opp_values;
 } PuffeRL;
 
 Dict* log_environments_impl(PuffeRL& pufferl) {
@@ -256,10 +275,104 @@ extern "C" void thread_init_wrapper(void* ctx, int buf) {
     at::cuda::setCurrentCUDAStream(pufferl->torch_streams[buf]);
 }
 
-// Called by vecenv per buffer thread
-extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
+
+extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     torch::NoGradGuard no_grad;
     PuffeRL* pufferl = (PuffeRL*)ctx;
+    HypersT& hypers = pufferl->hypers;
+
+    RolloutBuf& rollouts = pufferl->rollouts;
+    EnvBuf& env = pufferl->env;
+    int block_size = pufferl->vec->total_agents / hypers.num_buffers;
+    int start = buf * block_size;
+    int obs_half = pufferl->selfplay_obs_half;
+    int cut = pufferl->selfplay_cut;
+    int tail = block_size - cut;
+    int learner_atns = pufferl->selfplay_learner_atns;
+
+    Tensor full_obs = env.obs.narrow(0, start, block_size);
+    Tensor learner_obs = full_obs.narrow(1, 0, obs_half);
+    Tensor opponent_obs = full_obs.narrow(1, obs_half, obs_half);
+
+    rollouts.observations.select(0, t).narrow(0, start, block_size).copy_(learner_obs, true);
+    Tensor rewards = env.rewards.narrow(0, start, block_size);
+    rollouts.rewards.select(0, t).narrow(0, start, block_size).copy_(rewards, true);
+    Tensor terminals = env.terminals.narrow(0, start, block_size);
+    rollouts.terminals.select(0, t).narrow(0, start, block_size).copy_(terminals, true);
+
+    // Learner forward pass
+    Tensor& state = pufferl->buffer_states[buf];
+    auto [logits, value, state_out] = pufferl->policy_bf16->forward(learner_obs, state);
+    state.copy_(state_out, false);
+
+    Tensor learner_actions = rollouts.actions.select(0, t).narrow(0, start, block_size);
+    Tensor logprobs = rollouts.logprobs.select(0, t).narrow(0, start, block_size);
+    Tensor values = rollouts.values.select(0, t).narrow(0, start, block_size);
+    sample_actions(logits, value, learner_actions, logprobs, values,
+        pufferl->act_sizes, pufferl->act_sizes_cpu,
+        pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+
+    Tensor env_actions = env.actions.narrow(0, start, block_size);
+    env_actions.narrow(1, 0, learner_atns).copy_(learner_actions, true);
+
+    // Opponent forward pass - first 80% (current policy)
+    Tensor& opp_state = pufferl->opponent_states[buf];
+    Tensor& opp_actions = pufferl->sp_opp_actions[buf];
+    Tensor& opp_logprobs = pufferl->sp_opp_logprobs[buf];
+    Tensor& opp_values = pufferl->sp_opp_values[buf];
+
+    if (cut > 0) {
+        Tensor opp_obs_80 = opponent_obs.narrow(0, 0, cut);
+        Tensor opp_state_80 = opp_state.narrow(1, 0, cut);
+        auto [opp_logits_80, opp_val_80, opp_state_out_80] =
+            pufferl->policy_bf16->forward(opp_obs_80, opp_state_80);
+        opp_state.narrow(1, 0, cut).copy_(opp_state_out_80, false);
+
+        Tensor opp_act_80 = opp_actions.narrow(0, 0, cut);
+        Tensor opp_lp_80 = opp_logprobs.narrow(0, 0, cut);
+        Tensor opp_v_80 = opp_values.narrow(0, 0, cut);
+        sample_actions(opp_logits_80, opp_val_80, opp_act_80, opp_lp_80, opp_v_80,
+            pufferl->act_sizes, pufferl->act_sizes_cpu,
+            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+    }
+
+    // Opponent forward pass - last 20% (historical pool)
+    if (tail > 0) {
+        Tensor opp_obs_20 = opponent_obs.narrow(0, cut, tail);
+        Tensor opp_state_20 = opp_state.narrow(1, cut, tail);
+
+        Policy* opp_policy;
+        int slot = pufferl->active_opponent_slot;
+        if (slot >= 0 && slot < pufferl->opponent_pool->n_slots
+                && pufferl->opponent_pool->policy_ids[slot] > 0) {
+            opp_policy = pufferl->opponent_pool->policies[slot];
+        } else {
+            opp_policy = pufferl->policy_bf16;
+        }
+
+        auto [opp_logits_20, opp_val_20, opp_state_out_20] =
+            opp_policy->forward(opp_obs_20, opp_state_20);
+        opp_state.narrow(1, cut, tail).copy_(opp_state_out_20, false);
+
+        Tensor opp_act_20 = opp_actions.narrow(0, cut, tail);
+        Tensor opp_lp_20 = opp_logprobs.narrow(0, cut, tail);
+        Tensor opp_v_20 = opp_values.narrow(0, cut, tail);
+        sample_actions(opp_logits_20, opp_val_20, opp_act_20, opp_lp_20, opp_v_20,
+            pufferl->act_sizes, pufferl->act_sizes_cpu,
+            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+    }
+
+    env_actions.narrow(1, learner_atns, learner_atns).copy_(opp_actions, true);
+}
+
+// Called by vecenv per buffer thread
+extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
+    PuffeRL* pufferl = (PuffeRL*)ctx;
+    if (pufferl->selfplay) {
+        net_callback_selfplay(ctx, buf, t);
+        return;
+    }
+    torch::NoGradGuard no_grad;
     HypersT& hypers = pufferl->hypers;
     profile_begin("fused_rollout", hypers.profile);
 
@@ -348,6 +461,10 @@ void train_impl(PuffeRL& pufferl) {
     rollouts.terminals = pufferl.rollouts.terminals.transpose(0, 1).contiguous();
     rollouts.ratio = pufferl.rollouts.ratio.transpose(0, 1).contiguous();
     rollouts.values = pufferl.rollouts.values.transpose(0, 1).contiguous();
+    Tensor turn_mask_t;
+    if (pufferl.selfplay) {
+        turn_mask_t = pufferl.rollouts.turn_mask.transpose(0, 1).contiguous();
+    }
     Tensor old_values = rollouts.values.clone();
 
     rollouts.rewards.clamp_(-1.0, 1.0);  // Clamp rewards here instead of in eval to save a kernel call per step
@@ -408,6 +525,10 @@ void train_impl(PuffeRL& pufferl) {
             graph.mb_obs, graph.mb_state, graph.mb_actions,
             graph.mb_logprobs, graph.mb_advantages, graph.mb_prio,
             graph.mb_values, graph.mb_returns);
+        if (pufferl.selfplay) {
+            Tensor mb_turn_mask = turn_mask_t.index_select(0, idx);
+            graph.mb_advantages.mul_(mb_turn_mask);
+        }
         profile_end(hypers.profile);
 
         cudaEventRecord(pufferl.profile.events[3]);  // end misc / start forward
@@ -587,6 +708,32 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     int num_layers = hypers.num_layers;
     bool kernels = hypers.kernels;
 
+    // Detect selfplay from StaticVec
+    bool selfplay = vec->selfplay;
+    pufferl->selfplay = selfplay;
+    pufferl->opponent_pool = nullptr;
+    pufferl->active_opponent_slot = -1;
+
+    if (selfplay) {
+        int full_obs_size = input_size;
+        pufferl->selfplay_obs_half = full_obs_size / 2;
+        input_size = pufferl->selfplay_obs_half;
+
+        pufferl->selfplay_learner_atns = num_action_heads / 2;
+        num_action_heads = pufferl->selfplay_learner_atns;
+        act_sizes = act_sizes.narrow(0, 0, num_action_heads);
+        act_n = act_sizes.sum().item<int>();
+
+        int block_size = hypers.total_agents / hypers.num_buffers;
+        pufferl->selfplay_cut = (int)(0.8f * block_size);
+
+        hypers.cudagraphs = -1;
+
+        printf("Selfplay enabled: obs_half=%d, learner_atns=%d, cut=%d/%d\n",
+            pufferl->selfplay_obs_half, pufferl->selfplay_learner_atns,
+            pufferl->selfplay_cut, block_size);
+    }
+
     // Decoder output size: discrete = act_n (sum of action sizes), continuous = num_action_heads
     bool is_continuous = pufferl->is_continuous;
     int decoder_output_size = is_continuous ? num_action_heads : act_n;
@@ -639,6 +786,35 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     pufferl->buffer_states.resize(num_buffers);
     for (int i = 0; i < num_buffers; i++) {
         pufferl->buffer_states[i] = pufferl->policy_bf16->initial_state(batch, torch::kCUDA);
+    }
+
+    if (selfplay) {
+        int n_slots = 6;
+        pufferl->opponent_pool = new OpponentPool();
+        pufferl->opponent_pool->n_slots = n_slots;
+        pufferl->opponent_pool->rot_idx = 0;
+        for (int i = 0; i < n_slots; i++) {
+            Policy* opp = create_policy(env_name, input_size, hidden_size,
+                decoder_output_size, num_layers, act_n, is_continuous, kernels);
+            opp->to(torch::kCUDA);
+            opp->to(PRECISION_DTYPE);
+            opp->eval();
+            for (auto& p : opp->parameters()) p.set_requires_grad(false);
+            pufferl->opponent_pool->policies.push_back(opp);
+            pufferl->opponent_pool->policy_ids.push_back(0);
+        }
+        printf("Selfplay: created opponent pool with %d slots\n", n_slots);
+
+        pufferl->opponent_states.resize(num_buffers);
+        pufferl->sp_opp_actions.resize(num_buffers);
+        pufferl->sp_opp_logprobs.resize(num_buffers);
+        pufferl->sp_opp_values.resize(num_buffers);
+        for (int i = 0; i < num_buffers; i++) {
+            pufferl->opponent_states[i] = pufferl->policy_bf16->initial_state(batch, torch::kCUDA);
+            pufferl->sp_opp_actions[i] = torch::zeros({batch, num_action_heads}, cuda_f64);
+            pufferl->sp_opp_logprobs[i] = torch::zeros({batch}, cuda_t);
+            pufferl->sp_opp_values[i] = torch::zeros({batch}, cuda_t);
+        }
     }
 
     if (hypers.cudagraphs >= 0) {
@@ -740,6 +916,19 @@ void close_impl(PuffeRL& pufferl) {
     pufferl.policy_bf16 = nullptr;
     pufferl.policy_fp32 = nullptr;
 
+    // Clean up selfplay resources
+    if (pufferl.opponent_pool) {
+        for (auto* p : pufferl.opponent_pool->policies) {
+            delete p;
+        }
+        delete pufferl.opponent_pool;
+        pufferl.opponent_pool = nullptr;
+    }
+    pufferl.opponent_states.clear();
+    pufferl.sp_opp_actions.clear();
+    pufferl.sp_opp_logprobs.clear();
+    pufferl.sp_opp_values.clear();
+
     // Clear buffer states (releases CUDA tensors)
     pufferl.buffer_states.clear();
 
@@ -752,6 +941,7 @@ void close_impl(PuffeRL& pufferl) {
     pufferl.rollouts.terminals = Tensor();
     pufferl.rollouts.ratio = Tensor();
     pufferl.rollouts.importance = Tensor();
+    pufferl.rollouts.turn_mask = Tensor();
 
     // Clear train buffers (releases CUDA tensors)
     pufferl.train_buf.mb_obs = Tensor();
@@ -794,6 +984,38 @@ void close_impl(PuffeRL& pufferl) {
     c10::cuda::CUDACachingAllocator::emptyCache();
     cudaDeviceSynchronize();
 
+}
+
+
+// ---- Selfplay opponent management ----
+void rotate_opponent(PuffeRL& pufferl) {
+    if (!pufferl.opponent_pool || !pufferl.selfplay) return;
+    OpponentPool* pool = pufferl.opponent_pool;
+    int slot = pool->rot_idx % pool->n_slots;
+    Policy* opp = pool->policies[slot];
+    auto learner_params = pufferl.policy_bf16->parameters();
+    auto opp_params = opp->parameters();
+    for (size_t i = 0; i < learner_params.size(); i++) {
+        opp_params[i].data().copy_(learner_params[i].data(), false);
+    }
+    pool->policy_ids[slot] = pool->rot_idx + 1;
+    pool->rot_idx++;
+    printf("Selfplay: rotated learner into slot %d (id=%d)\n", slot, pool->policy_ids[slot]);
+}
+
+void set_active_opponent(PuffeRL& pufferl, int slot) {
+    if (!pufferl.opponent_pool || !pufferl.selfplay) return;
+    if (slot < 0 || slot >= pufferl.opponent_pool->n_slots) return;
+    pufferl.active_opponent_slot = slot;
+}
+
+int get_num_opponent_slots(PuffeRL& pufferl) {
+    if (!pufferl.opponent_pool) return 0;
+    return pufferl.opponent_pool->n_slots;
+}
+
+bool is_selfplay(PuffeRL& pufferl) {
+    return pufferl.selfplay;
 }
 
 void profiler_start() {

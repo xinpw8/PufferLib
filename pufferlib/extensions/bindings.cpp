@@ -213,6 +213,27 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl(pybind11::dict kwargs, pybind
     return create_pufferl_impl(hypers, env_name, vec_dict, env_dict);
 }
 
+
+void puf_rotate_opponent(pybind11::object pufferl_obj) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    rotate_opponent(pufferl);
+}
+
+void puf_set_active_opponent(pybind11::object pufferl_obj, int slot) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    set_active_opponent(pufferl, slot);
+}
+
+int puf_get_num_opponent_slots(pybind11::object pufferl_obj) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    return get_num_opponent_slots(pufferl);
+}
+
+bool puf_is_selfplay(pybind11::object pufferl_obj) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    return is_selfplay(pufferl);
+}
+
 TORCH_LIBRARY(pufferlib, m) {
    m.def("compute_puff_advantage(Tensor(a!) values, Tensor(b!) rewards, Tensor(c!) dones, Tensor(d!) importance, Tensor(e!) advantages, float gamma, float lambda, float rho_clip, float c_clip) -> ()");
 }
@@ -249,6 +270,12 @@ PYBIND11_MODULE(_C, m) {
     m.def("env_buffers", &env_buffers);
     m.def("profiler_start", &profiler_start);
     m.def("profiler_stop", &profiler_stop);
+
+    // Selfplay
+    m.def("rotate_opponent", &puf_rotate_opponent);
+    m.def("set_active_opponent", &puf_set_active_opponent);
+    m.def("get_num_opponent_slots", &puf_get_num_opponent_slots);
+    m.def("is_selfplay", &puf_is_selfplay);
 
     py::class_<Muon>(m, "Muon")
         .def_readwrite("lr", &Muon::lr)
