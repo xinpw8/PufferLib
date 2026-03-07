@@ -670,8 +670,6 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     int act_n = act_sizes.sum().item<int>();
 
     pufferl->vec = vec;
-    pufferl->act_sizes = act_sizes.to(torch::kCUDA);
-    pufferl->act_sizes_cpu = act_sizes.to(torch::kInt64).contiguous();
     pufferl->losses = torch::zeros({NUM_LOSSES}, cuda_f32);
     for (int i = 0; i < NUM_TRAIN_EVENTS; i++) {
         cudaEventCreate(&pufferl->profile.events[i]);
@@ -733,6 +731,10 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
             pufferl->selfplay_obs_half, pufferl->selfplay_learner_atns,
             pufferl->selfplay_cut, block_size);
     }
+
+    // Store (possibly narrowed) act_sizes
+    pufferl->act_sizes = act_sizes.to(torch::kCUDA);
+    pufferl->act_sizes_cpu = act_sizes.to(torch::kInt64).contiguous();
 
     // Decoder output size: discrete = act_n (sum of action sizes), continuous = num_action_heads
     bool is_continuous = pufferl->is_continuous;
