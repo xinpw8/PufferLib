@@ -12,7 +12,6 @@ void my_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
     DictItem* mt = dict_get_unsafe(kwargs, "max_ticks");
     env->max_ticks = mt ? (int)mt->value : 100;
-    init(env);
 }
 
 void my_log(Log* log, Dict* out) {
