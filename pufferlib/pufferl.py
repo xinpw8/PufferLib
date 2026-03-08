@@ -57,6 +57,66 @@ from torch.utils.cpp_extension import (
 # and can find CUDA or HIP in the system
 ADVANTAGE_CUDA = bool(CUDA_HOME or ROCM_HOME)
 
+
+LN10_BY_400 = np.log(10) / 400.0
+
+class SelfplayTracker:
+    """Lightweight ELO and win-rate tracker for selfplay validation."""
+    def __init__(self):
+        self.elo = 1000.0
+        self.opp_elo = 1000.0
+        self.total_wins = 0
+        self.total_losses = 0
+        self.total_draws = 0
+        self.epoch_wins = 0
+        self.epoch_losses = 0
+        self.epoch_draws = 0
+        self.rotation_count = 0
+
+    def record_outcome(self, reward):
+        """Record a single game outcome from the learner's perspective."""
+        if reward > 0:
+            self.epoch_wins += 1
+            self.total_wins += 1
+        elif reward < 0:
+            self.epoch_losses += 1
+            self.total_losses += 1
+        else:
+            self.epoch_draws += 1
+            self.total_draws += 1
+
+    def update_elo(self):
+        """Update ELO based on epoch outcomes, then reset epoch counters."""
+        decisive = self.epoch_wins + self.epoch_losses
+        if decisive == 0:
+            self.epoch_wins = self.epoch_losses = self.epoch_draws = 0
+            return
+        score = self.epoch_wins / decisive
+        expected = 1.0 / (1.0 + np.exp((self.opp_elo - self.elo) * LN10_BY_400))
+        delta = 32.0 * (score - expected)
+        self.elo += delta
+        self.opp_elo -= delta
+        self.epoch_wins = self.epoch_losses = self.epoch_draws = 0
+
+    def on_rotate(self):
+        """Called when opponent pool rotates - reset opp ELO to current learner ELO."""
+        self.opp_elo = self.elo
+        self.rotation_count += 1
+
+    def get_logs(self):
+        total = self.total_wins + self.total_losses + self.total_draws
+        if total == 0:
+            return {}
+        return {
+            'selfplay/elo': self.elo,
+            'selfplay/opp_elo': self.opp_elo,
+            'selfplay/win_rate': self.total_wins / total,
+            'selfplay/loss_rate': self.total_losses / total,
+            'selfplay/draw_rate': self.total_draws / total,
+            'selfplay/total_games': total,
+            'selfplay/rotations': self.rotation_count,
+        }
+
 # DEBUG FLAG IS A BUG. FUCK THIS DO NOT NOT NOT ENABLE
 #torch.autograd.set_detect_anomaly(True)
 #torch._dynamo.config.capture_scalar_outputs = True
@@ -105,6 +165,7 @@ class PuffeRL:
         self.verbose = verbose
 
         self.policy_fp32 = self.pufferl_cpp.policy_fp32
+        self.selfplay_tracker = SelfplayTracker() if _C.is_selfplay(self.pufferl_cpp) else None
 
         # Dashboard
         self.model_size = sum(p.numel() for p in self.policy_fp32.parameters() if p.requires_grad)
@@ -137,6 +198,8 @@ class PuffeRL:
                 n_slots = _C.get_num_opponent_slots(self.pufferl_cpp)
                 if n_slots > 0:
                     _C.set_active_opponent(self.pufferl_cpp, random.randint(0, n_slots - 1))
+                if self.selfplay_tracker:
+                    self.selfplay_tracker.on_rotate()
 
         logs = None
         self.epoch += 1
@@ -145,6 +208,16 @@ class PuffeRL:
             torch.cuda.synchronize()
             logs = _C.log_environments(self.pufferl_cpp)
             self.stats = logs
+            if self.selfplay_tracker and 'score' in logs:
+                score = logs['score']
+                # score is the mean episode return; use it as a proxy
+                # Positive = learner winning, negative = losing
+                if score > 0.01:
+                    self.selfplay_tracker.record_outcome(1.0)
+                elif score < -0.01:
+                    self.selfplay_tracker.record_outcome(-1.0)
+                else:
+                    self.selfplay_tracker.record_outcome(0.0)
             self.losses = _C.log_losses(self.pufferl_cpp)
             self.profile = _C.log_profile(self.pufferl_cpp)
             self.utilization = _C.log_utilization(self.pufferl_cpp)
@@ -168,6 +241,10 @@ class PuffeRL:
         config = self.config
         device = config['device']
         agent_steps = int(self.global_step * config['gpus'])
+        selfplay_logs = {}
+        if self.selfplay_tracker:
+            self.selfplay_tracker.update_elo()
+            selfplay_logs = self.selfplay_tracker.get_logs()
         logs = {
             'SPS': int(self.sps * config['gpus']),
             'agent_steps': int(agent_steps * config['gpus']),
@@ -177,6 +254,7 @@ class PuffeRL:
             **{f'environment/{k}': v for k, v in logs.items()},
             **{f'losses/{k}': v for k, v in self.losses.items()},
             **{f'performance/{k}': v for k, v in self.profile.items()},
+            **selfplay_logs,
             #**{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
             #**{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
             #**{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},

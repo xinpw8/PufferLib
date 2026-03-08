@@ -1,16 +1,18 @@
 #include "connect4.h"
-#define OBS_SIZE 42
-#define NUM_ATNS 1
-#define ACT_SIZES {7}
+
+#define OBS_SIZE 84
+#define NUM_ATNS 2
+#define ACT_SIZES {7, 7}
 #define OBS_TYPE FLOAT
 #define ACT_TYPE DOUBLE
-
 #define Env CConnect4
 #include "env_binding.h"
 
 void my_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
-    init(env);
+    DictItem* sp = dict_get_unsafe(kwargs, "selfplay");
+    env->selfplay = sp ? (int)sp->value : 0;
+    // Don't call init() here - obs pointers not assigned yet
 }
 
 void my_log(Log* log, Dict* out) {

@@ -1,24 +1,14 @@
+#include <stdbool.h>
 #include <stdlib.h>
-#include <math.h>
-#include <stdio.h>
 #include <stdint.h>
-#include "raylib.h"
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
 
-#define WIN_CONDITION 4
-const int PLAYER_WIN = 1.0;
-const int ENV_WIN = -1.0;
-const unsigned char DONE = 1;
-const unsigned char NOT_DONE = 0;
-const int ROWS = 6;
-const int COLUMNS = 7;
-const int WIDTH = 672;
-const int HEIGHT = 576;
-const int PIECE_WIDTH = 96;
-const int PIECE_HEIGHT = 96;
-
-const float MAX_VALUE = 31;
-const float WIN_VALUE = 30;
-const float DRAW_VALUE = 0;
+#define ROWS 6
+#define COLS 7
+#define WIN_COND 4
+#define BOARD_SIZE (ROWS * COLS)
 
 typedef struct Log Log;
 struct Log {
@@ -32,7 +22,6 @@ struct Log {
 typedef struct Client Client;
 typedef struct CConnect4 CConnect4;
 struct CConnect4 {
-    // Pufferlib inputs / outputs
     float* observations;
     double* actions;
     float* rewards;
@@ -41,353 +30,305 @@ struct CConnect4 {
     Log log;
     Client* client;
 
-    // Bit string representation from:
-    //  https://towardsdatascience.com/creating-the-perfect-connect-four-ai-bot-c165115557b0
-    //  & http://blog.gamesolver.org/solving-connect-four/01-introduction/
     uint64_t player_pieces;
     uint64_t env_pieces;
+    int heights[COLS];
+    int num_moves;
+    float cumulative_reward;
 
-    int tick;
+    int selfplay;
+    int current_player;  // 0 = player 1 (first mover), 1 = player 2
 };
 
-void allocate_cconnect4(CConnect4* env) {
-    env->observations = (float*)calloc(42, sizeof(float));
-    env->actions = (double*)calloc(1, sizeof(double));
-    env->terminals = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
+// Bottom position bitmask for column-major bitboard (col 0 bits 0-5, col 1 bits 7-12, etc.)
+static inline uint64_t bottom_mask(int col) {
+    return 1ULL << (col * (ROWS + 1));
 }
 
-void free_allocated_cconnect4(CConnect4* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
+static inline uint64_t column_mask(int col) {
+    return ((1ULL << ROWS) - 1) << (col * (ROWS + 1));
 }
 
-void c_close(CConnect4* env) {
+static inline bool can_play(const CConnect4* env, int col) {
+    return (col >= 0 && col < COLS) &&
+           !((env->player_pieces | env->env_pieces) & (1ULL << (env->heights[col])));
 }
 
-void add_log(CConnect4* env) {
-    env->log.perf += (float)(env->rewards[0] == PLAYER_WIN);
-    env->log.score += env->rewards[0];
-    env->log.episode_return += env->rewards[0];
-    env->log.episode_length += env->log.episode_length;
-    env->log.n += 1;
+static inline void play_move(uint64_t* pieces, int* heights, int col) {
+    *pieces |= 1ULL << heights[col];
+    heights[col]++;
 }
 
-void init(CConnect4* env) {
-    env->log = (Log){0};
-    env->tick = 0;
-}
-
-// Get the bit at the top of 'column'. Column can be played if bit is 0
-uint64_t top_mask(uint64_t column) {
-    return (UINT64_C(1) << (ROWS - 1)) << column * (ROWS + 1);
-}
-
-// Get a bit mask for where a piece played at 'column' would end up.
-uint64_t bottom_mask(uint64_t column) {
-    return UINT64_C(1) << column * (ROWS + 1);
-}
-
-// A bit mask used to create unique representation of the game state.
-uint64_t c_bottom() {
-    return UINT64_C(1) << (COLUMNS - 1) * (ROWS + 1);
-}
-
-bool invalid_move(int column, uint64_t mask) {
-    return (mask & top_mask(column)) != 0;
-}
-
-uint64_t play(int column, uint64_t mask,  uint64_t other_pieces) {
-    mask |= mask + bottom_mask(column); // Somehow faster than |= bottom_mask(column)
-    return other_pieces ^ mask;
-}
-
-// A full board has this specifc value
-bool draw(uint64_t mask) {
-    return mask == 4432406249472;
-}
-
-// Determine if 'pieces' contains at least one line of connected pieces.
-bool won(uint64_t pieces) {
-    // Horizontal 
+static inline bool check_win(uint64_t pieces) {
+    // Horizontal
     uint64_t m = pieces & (pieces >> (ROWS + 1));
-    if(m & (m >> (2 * (ROWS + 1)))) {
-        return true;
-    }
-
-    // Diagonal 1
-    m = pieces & (pieces >> ROWS);
-    if(m & (m >> (2 * ROWS))) {
-        return true;
-    }
-
-    // Diagonal 2 
-    m = pieces & (pieces >> (ROWS + 2));
-    if(m & (m >> (2 * (ROWS + 2)))) {
-        return true;
-    }
-
-    // Vertical;
+    if (m & (m >> (2 * (ROWS + 1)))) return true;
+    // Vertical
     m = pieces & (pieces >> 1);
-    if(m & (m >> 2)) {
-        return true;
-    }
-
+    if (m & (m >> 2)) return true;
+    // Diagonal /
+    m = pieces & (pieces >> ROWS);
+    if (m & (m >> (2 * ROWS))) return true;
+    // Diagonal backslash
+    m = pieces & (pieces >> (ROWS + 2));
+    if (m & (m >> (2 * (ROWS + 2)))) return true;
     return false;
 }
 
-// https://en.wikipedia.org/wiki/Negamax#Negamax_variant_with_no_color_parameter
-float negamax(uint64_t pieces, uint64_t other_pieces, int depth) {
-    uint64_t piece_mask = pieces | other_pieces;
-    if (won(other_pieces)) {
-        return pow(10, depth);
-    }
-    if (won(pieces)) {
-        return 0;
-    }
-
-    if (depth == 0 || draw(piece_mask)) {
-        return 0;
-    }
-
-    float value = 0;
-    for (uint64_t column = 0; column < 7; column ++) {
-        if (invalid_move(column, piece_mask)) {
-            continue;
-        }
-        uint64_t child_pieces = play(column, piece_mask, other_pieces);
-        value -= negamax(other_pieces, child_pieces, depth - 1);
-    }
-    return value;
+static inline bool board_full(const CConnect4* env) {
+    return env->num_moves >= BOARD_SIZE;
 }
 
-int compute_env_move(CConnect4* env) {
-    uint64_t piece_mask = env->player_pieces | env->env_pieces;
-    uint64_t hash = env->player_pieces + piece_mask + c_bottom();
-
-    // Hard coded opening book to handle some early game traps
-    // TODO: Add more opening book moves
-    switch (hash) {
-        case 4398050705408:
-            // Respond to _ _ _ o _ _ _
-            // with       _ _ x o _ _ _
-            return 2;
-        case 4398583382016:
-            // Respond to _ _ _ _ o _ _
-            // with       _ _ _ x o _ _
-            return 3;
-    }
-
-    float best_value = 9999;
-    float values[7];
-    for (int i = 0; i < 7; i++) {
-        values[i] = 9999;
-    }
-    for (uint64_t column = 0; column < 7; column ++) {
-        if (invalid_move(column, piece_mask)) {
-            continue;
+// Write observation for a player: own pieces = 1.0, opponent pieces = -1.0
+static void write_obs(float* obs, uint64_t own_pieces, uint64_t opp_pieces) {
+    for (int col = 0; col < COLS; col++) {
+        for (int row = 0; row < ROWS; row++) {
+            int idx = col * ROWS + row;
+            uint64_t bit = 1ULL << (col * (ROWS + 1) + row);
+            if (own_pieces & bit) obs[idx] = 1.0f;
+            else if (opp_pieces & bit) obs[idx] = -1.0f;
+            else obs[idx] = 0.0f;
         }
-        uint64_t child_env_pieces = play(column, piece_mask, env->player_pieces);
-        if (won(child_env_pieces)) {
-            return column;
-        }
-        float val = -negamax(env->player_pieces, child_env_pieces, 3);
-        values[column] = val;
-        if (val < best_value) {
-            best_value = val;
-        }
-    }
-    int num_ties = 0;
-    for (uint64_t column = 0; column < 7; column ++) {
-        if (values[column] == best_value) {
-            num_ties++;
-        }
-    }
-    //printf("Values: %f, %f, %f, %f, %f, %f, %f\n", values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
-    int best_tie = rand() % num_ties;
-    for (uint64_t column = 0; column < 7; column ++) {
-        if (values[column] == best_value) {
-            if (best_tie == 0) {
-                return column;
-
-            }
-            best_tie--;
-        }
-    }
-    return 0;
-}
-
-void compute_observation(CConnect4* env) {
-    // Populate observations from bitstring game representation
-    // http://blog.gamesolver.org/solving-connect-four/06-bitboard/
-    uint64_t player_pieces = env->player_pieces;
-    uint64_t env_pieces = env->env_pieces;
-
-    int obs_idx = 0;
-    for (int i = 0; i < 49; i++) {
-        // Skip the sentinel row
-        if ((i + 1) % 7 == 0) {
-            continue;
-        }
-
-        int p0_bit = (player_pieces >> i) & 1;
-        if (p0_bit == 1) {
-            env->observations[obs_idx] = PLAYER_WIN;
-        }
-        int p1_bit = (env_pieces >> i) & 1;
-        if (p1_bit == 1) {
-            env->observations[obs_idx] = ENV_WIN;
-        }
-        obs_idx += 1;
     }
 }
 
-void c_reset(CConnect4* env) {
-    env->log = (Log){0};
-    env->terminals[0] = NOT_DONE;
+static void compute_observation(CConnect4* env) {
+    if (env->selfplay) {
+        write_obs(env->observations, env->player_pieces, env->env_pieces);
+        write_obs(env->observations + BOARD_SIZE, env->env_pieces, env->player_pieces);
+    } else {
+        write_obs(env->observations, env->player_pieces, env->env_pieces);
+        memset(env->observations + BOARD_SIZE, 0, BOARD_SIZE * sizeof(float));
+    }
+}
+
+static void finish_game(CConnect4* env, float reward) {
+    env->rewards[0] = reward;
+    env->terminals[0] = 1.0f;
+    env->cumulative_reward += reward;
+}
+
+// ---- Negamax AI (for non-selfplay mode) ----
+
+static int negamax(uint64_t player, uint64_t opponent, int heights[COLS],
+                   int depth, int alpha, int beta, int num_moves) {
+    if (num_moves >= BOARD_SIZE) return 0;
+    // Check if current player can win immediately
+    for (int col = 0; col < COLS; col++) {
+        if ((player | opponent) & (1ULL << heights[col])) continue;
+        if (heights[col] % (ROWS + 1) >= ROWS) continue;
+        uint64_t next = player | (1ULL << heights[col]);
+        if (check_win(next)) return (BOARD_SIZE + 1 - num_moves) / 2;
+    }
+    int max_score = (BOARD_SIZE - 1 - num_moves) / 2;
+    if (beta > max_score) {
+        beta = max_score;
+        if (alpha >= beta) return beta;
+    }
+    if (depth <= 0) return 0;
+    for (int col = 0; col < COLS; col++) {
+        if ((player | opponent) & (1ULL << heights[col])) continue;
+        if (heights[col] % (ROWS + 1) >= ROWS) continue;
+        int h[COLS];
+        memcpy(h, heights, sizeof(h));
+        uint64_t next_player = player | (1ULL << h[col]);
+        h[col]++;
+        int score = -negamax(opponent, next_player, h, depth - 1, -beta, -alpha, num_moves + 1);
+        if (score >= beta) return score;
+        if (score > alpha) alpha = score;
+    }
+    return alpha;
+}
+
+static int compute_env_move(CConnect4* env) {
+    // Opening book
+    if (env->num_moves == 1) {
+        if (can_play(env, 3)) return 3;
+    }
+    if (env->num_moves == 2) {
+        uint64_t center_bottom = 1ULL << (3 * (ROWS + 1));
+        if (env->player_pieces & center_bottom) return 3;
+    }
+
+    int best_col = -1;
+    int best_score = -1000;
+    for (int col = 0; col < COLS; col++) {
+        if (!can_play(env, col)) continue;
+        int h[COLS];
+        memcpy(h, env->heights, sizeof(h));
+        uint64_t next = env->env_pieces | (1ULL << h[col]);
+        h[col]++;
+        if (check_win(next)) return col;
+        int score = -negamax(env->player_pieces, next, h, 3, -1000, 1000, env->num_moves + 1);
+        if (score > best_score || best_col < 0) {
+            best_score = score;
+            best_col = col;
+        }
+    }
+    return best_col;
+}
+
+// ---- Core env functions ----
+
+static void init(CConnect4* env) {
     env->player_pieces = 0;
     env->env_pieces = 0;
-    for (int i = 0; i < 42; i ++) {
-        env->observations[i] = 0.0;
-    }
-}
-
-void finish_game(CConnect4* env, float reward) {
-    env->rewards[0] = reward;
-    env->terminals[0] = DONE;
-    add_log(env);
+    for (int col = 0; col < COLS; col++)
+        env->heights[col] = col * (ROWS + 1);
+    env->num_moves = 0;
+    env->cumulative_reward = 0.0f;
+    env->current_player = 0;
+    env->rewards[0] = 0.0f;
+    env->terminals[0] = 0;
     compute_observation(env);
 }
 
-void c_step(CConnect4* env) {
-    env->log.episode_length += 1;
-    env->rewards[0] = 0.0;
+void c_close(CConnect4* env) {}
 
-    if (env->terminals[0] == DONE) {
-        c_reset(env);
-        return;
-    }
-
-    // Player action (PLAYER_WIN)
-    uint64_t column = env->actions[0];
-    uint64_t piece_mask = env->player_pieces | env->env_pieces;
-    if (invalid_move(column, piece_mask)) {
-        finish_game(env, ENV_WIN);
-        return;
-    }
-
-    env->player_pieces = play(column, piece_mask, env->env_pieces);
-    if (won(env->player_pieces)) {
-        finish_game(env, PLAYER_WIN);
-        return;
-    }
-
-    // Environment action (ENV_WIN)
-    column = compute_env_move(env);
-    piece_mask = env->player_pieces | env->env_pieces;
-    if (invalid_move(column, piece_mask)) {
-        finish_game(env, PLAYER_WIN);
-        return;
-    }
-
-    env->env_pieces = play(column, piece_mask, env->player_pieces);
-    if (won(env->env_pieces)) {
-        finish_game(env, ENV_WIN);
-        return;
-    }
-
-    compute_observation(env);
+static void c_reset(CConnect4* env) {
+    env->log.score += env->cumulative_reward;
+    env->log.episode_return += env->cumulative_reward;
+    env->log.episode_length += (float)env->num_moves;
+    env->log.n += 1.0f;
+    init(env);
 }
 
-const Color PUFF_RED = (Color){187, 0, 0, 255};
-const Color PUFF_CYAN = (Color){0, 187, 187, 255};
-const Color PUFF_WHITE = (Color){241, 241, 241, 241};
-const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
+static void c_step(CConnect4* env) {
+    env->rewards[0] = 0.0f;
+    env->terminals[0] = 0;
 
-typedef struct Client Client;
-struct Client {
-    float width;
-    float height;
-    Texture2D puffers;
-};
+    if (env->selfplay) {
+        // In selfplay mode: current_player alternates
+        // actions[0] = player 1 action, actions[1] = player 2 action
+        int col = (int)env->actions[env->current_player];
 
-Client* make_client() {
-    Client* client = (Client*)calloc(1, sizeof(Client));
-    client->width = WIDTH;
-    client->height = HEIGHT;
+        uint64_t* current_pieces = (env->current_player == 0) ? &env->player_pieces : &env->env_pieces;
+        uint64_t* other_pieces = (env->current_player == 0) ? &env->env_pieces : &env->player_pieces;
 
-    InitWindow(WIDTH, HEIGHT, "PufferLib Ray Connect4");
-    SetTargetFPS(60);
+        if (!can_play(env, col)) {
+            // Invalid move: pick first valid column
+            for (int c = 0; c < COLS; c++) {
+                if (can_play(env, c)) { col = c; break; }
+            }
+        }
 
-    client->puffers = LoadTexture("resources/shared/puffers_128.png");
-    return client;
+        play_move(current_pieces, env->heights, col);
+        env->num_moves++;
+
+        if (check_win(*current_pieces)) {
+            float r = (env->current_player == 0) ? 1.0f : -1.0f;
+            finish_game(env, r);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        if (board_full(env)) {
+            finish_game(env, 0.0f);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        env->current_player = 1 - env->current_player;
+        compute_observation(env);
+    } else {
+        // Original single-agent mode vs scripted opponent
+        int col = (int)env->actions[0];
+        if (!can_play(env, col)) {
+            finish_game(env, -1.0f);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        play_move(&env->player_pieces, env->heights, col);
+        env->num_moves++;
+
+        if (check_win(env->player_pieces)) {
+            finish_game(env, 1.0f);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        if (board_full(env)) {
+            finish_game(env, 0.0f);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        int env_col = compute_env_move(env);
+        play_move(&env->env_pieces, env->heights, env_col);
+        env->num_moves++;
+
+        if (check_win(env->env_pieces)) {
+            finish_game(env, -1.0f);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        if (board_full(env)) {
+            finish_game(env, 0.0f);
+            compute_observation(env);
+            c_reset(env);
+            return;
+        }
+
+        compute_observation(env);
+    }
 }
 
-void c_render(CConnect4* env) {
-    if (IsKeyDown(KEY_ESCAPE)) {
-        exit(0);
-    }
+// ---- Raylib Rendering ----
+#ifdef RAYLIB_H
 
-    if (env->client == NULL) {
-        env->client = make_client();
-    }
+#define CELL_SIZE 80
+#define PADDING 10
+#define CIRCLE_RADIUS 30
+#define WINDOW_WIDTH (COLS * CELL_SIZE + 2 * PADDING)
+#define WINDOW_HEIGHT (ROWS * CELL_SIZE + 2 * PADDING + CELL_SIZE)
 
-    Client* client = env->client;
+typedef struct GameRenderer {
+    Texture2D puffer_red;
+    Texture2D puffer_yellow;
+} GameRenderer;
 
+static void init_renderer(GameRenderer* renderer) {
+    Image img_red = LoadImage("resources/puffer_red.png");
+    Image img_yellow = LoadImage("resources/puffer_yellow.png");
+    ImageResize(&img_red, CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2);
+    ImageResize(&img_yellow, CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2);
+    renderer->puffer_red = LoadTextureFromImage(img_red);
+    renderer->puffer_yellow = LoadTextureFromImage(img_yellow);
+    UnloadImage(img_red);
+    UnloadImage(img_yellow);
+}
+
+static void render(GameRenderer* renderer, CConnect4* env) {
     BeginDrawing();
-    ClearBackground(PUFF_BACKGROUND);
-    
-    int y_offset = client->height - PIECE_HEIGHT;
-    int obs_idx = 0;
-    for (int i = 0; i < 49; i++) {
-        // TODO: Simplify this by iterating over the observation more directly
-        if ((i + 1) % 7 == 0) {
-            continue;
+    ClearBackground(BLUE);
+    for (int col = 0; col < COLS; col++) {
+        for (int row = 0; row < ROWS; row++) {
+            int x = PADDING + col * CELL_SIZE + CELL_SIZE / 2;
+            int y = PADDING + (ROWS - 1 - row) * CELL_SIZE + CELL_SIZE / 2 + CELL_SIZE;
+            uint64_t bit = 1ULL << (col * (ROWS + 1) + row);
+            if (env->player_pieces & bit) {
+                DrawTexture(renderer->puffer_red, x - CIRCLE_RADIUS, y - CIRCLE_RADIUS, WHITE);
+            } else if (env->env_pieces & bit) {
+                DrawTexture(renderer->puffer_yellow, x - CIRCLE_RADIUS, y - CIRCLE_RADIUS, WHITE);
+            } else {
+                DrawCircle(x, y, CIRCLE_RADIUS, WHITE);
+            }
         }
-
-        int row = i % (ROWS + 1);
-        int column = i / (ROWS + 1);
-        int y = y_offset - row * PIECE_HEIGHT;
-        int x = column * PIECE_WIDTH;
-
-        Color piece_color=PURPLE;
-        int color_idx = 0;
-        if (env->observations[obs_idx] == 0.0) {
-            piece_color = BLACK;
-        } else if (env->observations[obs_idx]  == PLAYER_WIN) {
-            piece_color = PUFF_CYAN;
-            color_idx = 1;
-        } else if (env->observations[obs_idx]  == ENV_WIN) {
-            piece_color = PUFF_RED;
-            color_idx = 2;
-        }
-
-        obs_idx += 1;
-        Color board_color = (Color){0, 80, 80, 255};
-        DrawRectangle(x , y , PIECE_WIDTH, PIECE_WIDTH, board_color);
-        DrawCircle(x + PIECE_WIDTH/2, y + PIECE_WIDTH/2, PIECE_WIDTH/2, piece_color);
-        if (color_idx == 0) {
-            continue;
-        }
-
-        DrawTexturePro(
-            client->puffers,
-            (Rectangle){
-                (color_idx == 1) ? 0 : 128,
-                0, 128, 128,
-            },
-            (Rectangle){x+16, y+16, PIECE_WIDTH-32, PIECE_WIDTH-32},
-            (Vector2){0, 0},
-            0,
-            WHITE
-        );
     }
     EndDrawing();
 }
 
-void close_client(Client* client) {
-    CloseWindow();
-    free(client);
+static void close_renderer(GameRenderer* renderer) {
+    UnloadTexture(renderer->puffer_red);
+    UnloadTexture(renderer->puffer_yellow);
 }
+
+#endif
