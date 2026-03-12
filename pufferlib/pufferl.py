@@ -533,8 +533,11 @@ class PuffeRL:
                         profile('sp_forward',epoch)
                         if pid.item() != 0:
                             pid_int = int(pid.item())
-                            num = self.pool.policy_ids.index(pid_int)
-                            logits_sp, _ = self.pool.forward_eval(o_sp, state_sp, num)
+                            if pid_int in self.pool.policy_ids:
+                                num = self.pool.policy_ids.index(pid_int)
+                                logits_sp, _ = self.pool.forward_eval(o_sp, state_sp, num)
+                            else:
+                                logits_sp, _ = self.policy.forward_eval(o_sp, state_sp)
                         else: 
                             logits_sp, _ = self.policy.forward_eval(o_sp, state_sp)
                         if config['use_rnn']:

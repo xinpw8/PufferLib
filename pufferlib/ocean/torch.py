@@ -312,6 +312,127 @@ class ChessSeven(nn.Module):
 
 
 
+
+class ChessLight(nn.Module):
+    """Lightweight chess model: ChessSeven speed + real spatial reasoning.
+    
+    Key difference from ChessSeven: uses full 3x3 convolutions (not depthwise)
+    for cross-channel spatial interaction, and 3 spatial layers instead of 1.
+    """
+    def __init__(self, env, square_dim=64, proj_dim=32, hidden_size=256,
+                 embed_dim=32, num_spatial=3, use_action_masking=1, **kwargs):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        self.use_action_masking = bool(use_action_masking)
+        self.num_actions = env.single_action_space.n
+
+        sqs = torch.arange(64, dtype=torch.float32)
+        r, f = sqs // 8, sqs % 8
+        diag = (r + f) / 14.0
+        anti = (r - f + 7) / 14.0
+        cdist = (torch.where(r < 4, 3 - r, r - 4) + torch.where(f < 4, 3 - f, f - 4)) / 6.0
+        sq_color = ((r + f) % 2).float()
+        square_geo_planes = torch.stack([diag, anti, cdist, sq_color], dim=0).view(1, 4, 8, 8)
+        self.register_buffer('square_geo_planes', square_geo_planes)
+
+        # Project square features to working channels
+        self.square_embed = layer_init(nn.Conv2d(21, square_dim, kernel_size=1))
+        self.channel_proj = layer_init(nn.Conv2d(square_dim, proj_dim, kernel_size=1))
+        
+        # Full 3x3 spatial convolutions with residual connections
+        self.spatial_blocks = nn.ModuleList()
+        for _ in range(num_spatial):
+            self.spatial_blocks.append(nn.Sequential(
+                layer_init(nn.Conv2d(proj_dim, proj_dim, kernel_size=3, padding=1)),
+                nn.ReLU(),
+            ))
+
+        if embed_dim % 2 != 0:
+            raise ValueError(f'embed_dim must be even, got {embed_dim}')
+        self.side_embed = nn.Embedding(2, embed_dim // 2)
+        self.castle_embed = nn.Embedding(16, embed_dim)
+        self.ep_embed = nn.Embedding(65, embed_dim)
+        self.phase_embed = nn.Embedding(2, embed_dim // 2)
+
+        board_flat = 64 * proj_dim + 32
+        total_features = board_flat + (3 * embed_dim) + 5
+
+        self.proj = nn.Sequential(
+            layer_init(nn.Linear(total_features, hidden_size)),
+            nn.ReLU(),
+        )
+
+        self.actor = layer_init(nn.Linear(hidden_size, self.num_actions), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1)
+        self.current_mask = None
+
+    def load_state_dict(self, state_dict, strict=True):
+        super().load_state_dict(state_dict, strict=strict)
+        self.current_mask = None
+
+    def encode_observations(self, observations, state=None):
+        B = observations.shape[0]
+        obs = observations
+
+        squares_u8 = obs[:, :1088].view(B, 64, 17)
+        squares = squares_u8.float().view(B, 8, 8, 17).permute(0, 3, 1, 2)
+        geo = self.square_geo_planes.expand(B, -1, -1, -1)
+        x = torch.cat([squares, geo], dim=1)
+        x = F.relu(self.square_embed(x))
+        x = F.relu(self.channel_proj(x))
+        
+        # Spatial reasoning with residual connections
+        for block in self.spatial_blocks:
+            x = x + block(x)
+        
+        board_features = x.flatten(1)
+
+        promos_mask = obs[:, 1088:1120] > 0
+        promos = promos_mask.float()
+        side_features = self.side_embed(obs[:, 1120].long())
+        castle_features = self.castle_embed(obs[:, 1121].long())
+        ep_features = self.ep_embed(obs[:, 1122].long())
+        phase_features = self.phase_embed(obs[:, 1123].long())
+        scalars = obs[:, 1124:1129].float() / 255.0
+
+        if self.use_action_masking:
+            pick_phase = obs[:, 1123] > 0
+            pass_valid = obs[:, 1128] > 0
+            valid_pieces_mask = squares_u8[:, :, 13] > 0
+            valid_dests_mask = squares_u8[:, :, 14] > 0
+
+            mask_squares = torch.where(pick_phase.unsqueeze(1), valid_dests_mask, valid_pieces_mask)
+            full_mask = torch.cat([mask_squares, promos_mask, pass_valid.unsqueeze(1)], dim=1)
+            full_mask[:, :-1] = full_mask[:, :-1] & (~pass_valid.unsqueeze(1))
+            all_masked = ~full_mask.any(dim=1, keepdim=True)
+            full_mask = full_mask | all_masked
+            self.current_mask = full_mask
+        else:
+            self.current_mask = None
+
+        x = torch.cat([board_features, promos,
+                        side_features, castle_features, ep_features, phase_features,
+                        scalars], dim=1)
+        x = self.proj(x)
+        return x
+
+    def decode_actions(self, hidden, state=None):
+        logits = self.actor(hidden)
+        if self.use_action_masking and self.current_mask is not None:
+            logits.masked_fill_(~self.current_mask, -1e8)
+        value = self.value_head(hidden)
+        return logits, value
+
+    def forward(self, observations, state=None):
+        hidden = self.encode_observations(observations, state)
+        logits, value = self.decode_actions(hidden, state)
+        return logits, value
+
+    def forward_eval(self, observations, state=None):
+        return self.forward(observations, state)
+
+
 class ChessNNUE(nn.Module):
 
     def __init__(self, env, hidden_size=512, rel_embed_dim=256, meta_embed_dim=32, use_action_masking=1):
