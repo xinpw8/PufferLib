@@ -163,7 +163,7 @@ class PuffeRL:
             self.elos = [0]
             if pool is not None:
                 self.pool = pool
-                self.cut = int(np.floor(0.8*vecenv.agents_per_batch))
+                self.cut = int(np.floor(0.75*vecenv.agents_per_batch))
                 self.cur_opp_id = 0
                 self.cur_opp_slot = 0
                 self.new_opp_id = 0
@@ -341,6 +341,23 @@ class PuffeRL:
         #probs = softmax(qs)
         return int(new_id)
 
+    def _loaded_opponent_ids(self):
+        if not hasattr(self, 'pool'):
+            return []
+
+        loaded = set(self.pool.policy_ids)
+        return [pid for pid in self.opponent_pool_ids if pid in loaded and pid != 0]
+
+    def _sample_loaded_opponents(self, n):
+        loaded_ids = self._loaded_opponent_ids()
+        if len(loaded_ids) == 0:
+            return np.zeros(n, dtype=np.int32)
+
+        weights = np.arange(1, len(loaded_ids) + 1, dtype=np.float32)
+        weights = weights ** 2
+        weights /= weights.sum()
+        return np.random.choice(np.asarray(loaded_ids, dtype=np.int32), size=n, p=weights)
+
     def elo_batch_update(self, elos: np.ndarray, ap: np.ndarray, r: np.ndarray, d: np.ndarray, cut: int, k:float = 4.0):
         # Done games in the 20% tail
         done_idx = np.flatnonzero(d == 1)
@@ -415,60 +432,34 @@ class PuffeRL:
                 profile('sp_elo_update', epoch)
                 batch_rows = slice(self.ep_indices[env_id.start].item(), 1+self.ep_indices[env_id.stop - 1].item())
                 ap = self.active_policies[batch_rows]
-                boundaries = self.boundary_mask[batch_rows]
                 elos = np.asarray(self.elos, dtype=np.float32)
                 self.elo_batch_update(elos, ap, r, d, cut = self.cut, k=20) 
-                self._update_quality_score(r[self.cut:], d[self.cut:], self.cur_opp_id)
                 done_indices = np.flatnonzero(d == 1)
                 done_indices = done_indices[done_indices >= self.cut]
-                tail_first = slice(self.cut, self.vecenv.agents_per_batch)
-                tail_end = slice(self.vecenv.agents_per_batch + self.cut, 2*self.vecenv.agents_per_batch)
-                # update historical winrates
-                if(len(done_indices) > 0 and self.cur_opp_id != 0):
-                    new_games = len(done_indices)
-                    new_points = np.sum((r[done_indices] + 1.0) / 2.0)
-                    old_count = self.historical_gamecount
-                    self.historical_gamecount += len(done_indices)
-                    if self.historical_gamecount == new_games:
-                        self.historical_winrate = new_points / new_games if new_games > 0 else 0.5
+
+                if len(done_indices) > 0:
+                    done_opponents = ap[done_indices]
+                    historical_mask = done_opponents != 0
+                    if np.any(historical_mask):
+                        historical_rewards = r[done_indices][historical_mask]
+                        new_games = int(historical_mask.sum())
+                        new_points = np.sum((historical_rewards + 1.0) / 2.0)
                     else:
+                        new_games = 0
+                        new_points = 0.0
+
+                    # update historical winrates
+                    old_count = self.historical_gamecount
+                    self.historical_gamecount += new_games
+                    if self.historical_gamecount == new_games and new_games > 0:
+                        self.historical_winrate = new_points / new_games if new_games > 0 else 0.5
+                    elif new_games > 0:
                         self.historical_winrate = (
                             (self.historical_winrate * old_count) + new_points
                         ) / self.historical_gamecount
                 profile('sp_sampling', epoch)
-                # select new opponent
-                if(len(done_indices) > 0 and len(self.opponent_pool) > 0):
-                    self.done_since_swap += done_indices.size
-                    if self.swap_armed:
-                        boundaries[done_indices] = True
-                        ap[done_indices] = 0
-                    else:
-                        ap[done_indices] = self.cur_opp_id
-                    if (not self.swap_armed
-                        and self.done_since_swap >= self.swap_quota
-                        and len(self.opponent_pool_ids) > 0
-                        and (self.swapped_once == 0  # Bootstrap case: pure self-play warmup
-                        or (self.historical_winrate > 0.80 
-                             and self.historical_gamecount >= self.swap_quota))):
-
-                        self.swap_armed = True
-                        self.done_since_swap = 0
-                        self.boundary_mask[:] = False
-                        self.swapped_once = 1
-                        pool_ids = np.array(self.opponent_pool_ids, dtype=np.int32)
-                        self.new_opp_id = self._sample_new_opponent()
-                    if self.swap_armed and self.boundary_mask[tail_first].all() and self.boundary_mask[tail_end].all():
-                        self.swap_armed = False
-                        self.cur_opp_id = self.new_opp_id
-                        self.new_opp_id = 0
-                        self.historical_winrate = 0.5
-                        self.historical_gamecount = 0
-                        if self.cur_opp_id in self.opponent_pool:
-                            weights = self.opponent_pool[self.cur_opp_id]
-                            self.cur_opp_slot = self.pool.rotate_new_policy(weights, self.cur_opp_id)
-                            ap[done_indices] = self.cur_opp_id
-                        else:
-                            self.cur_opp_id = 0
+                if len(done_indices) > 0:
+                    ap[done_indices] = self._sample_loaded_opponents(done_indices.size)
             
             profile('eval_copy', epoch)
             o = torch.as_tensor(o)
@@ -523,8 +514,11 @@ class PuffeRL:
                         self.logits_full[batch_sz:batch_sz+cut] = logits_eighty
                     profile('sp_misc', epoch)
                     o20 = o_device[cut:, obs_shape:]
-                    h20 = self.lstm_h_opp[env_id.start][cut:]
-                    c20 = self.lstm_c_opp[env_id.start][cut:]
+                    h20 = None
+                    c20 = None
+                    if config['use_rnn']:
+                        h20 = self.lstm_h_opp[env_id.start][cut:]
+                        c20 = self.lstm_c_opp[env_id.start][cut:]
                     ap20 = torch.as_tensor(self.active_policies[batch_rows][cut:], device=device, dtype=torch.int)
                     state_sp = {}
                     pids = torch.unique(ap20)
@@ -653,6 +647,8 @@ class PuffeRL:
             self.opponent_qualities[self.saved_policy_count] = start_q
             self.opponent_pool_ids.append(self.saved_policy_count)
             self.elos.append(self.elos[0])
+            if hasattr(self, 'pool'):
+                self.pool.rotate_new_policy(snapshot, self.saved_policy_count)
             if (len(self.opponent_pool_ids) > self.max_opponent_history):
                 oldest_id  = self.opponent_pool_ids.pop(0)
                 if oldest_id in self.opponent_pool:
@@ -1268,15 +1264,34 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None, early_stop
 
     train_config = { **args['train'], 'env': env_name }
     if vecenv.selfplay:
-        pool = PolicyPool(lambda: load_policy(args, vecenv, env_name), train_config['device'],6) 
+        pool = PolicyPool(lambda: load_policy(args, vecenv, env_name), train_config['device'],6)
         pufferl = PuffeRL(train_config, vecenv, policy, logger, pool)
         copy_args = copy.deepcopy(args)
         backend = args['vec']['backend']
         copy_args['vec'] = dict(backend=backend, num_envs=1)
         #vecenv_eval = load_env(env_name, copy_args)
+
+        # Pre-seed opponent pool from checkpoint directory if resuming
+        load_path = args['load_model_path']
+        if load_path is not None:
+            ckpt_dir = os.path.dirname(load_path)
+            ckpt_files = sorted(glob.glob(os.path.join(ckpt_dir, 'model_*.pt')))
+            if len(ckpt_files) > 1:
+                print(f"Pre-seeding selfplay pool with {len(ckpt_files)} checkpoints from {ckpt_dir}")
+                for ckpt_path in ckpt_files:
+                    sd = torch.load(ckpt_path, map_location='cpu')
+                    sd = {k.replace('module.', ''): v for k, v in sd.items()}
+                    pufferl.saved_policy_count += 1
+                    pufferl.opponent_pool[pufferl.saved_policy_count] = sd
+                    pufferl.opponent_pool_ids.append(pufferl.saved_policy_count)
+                    pufferl.elos.append(0)
+                    pufferl.opponent_qualities[pufferl.saved_policy_count] = 0.0
+                for pid in pufferl.opponent_pool_ids[-pufferl.pool.n_slots:]:
+                    pufferl.pool.rotate_new_policy(pufferl.opponent_pool[pid], pid)
+                print(f"Seeded {len(pufferl.opponent_pool_ids)} opponents into pool")
     else:
 
-        pool = PolicyPool(lambda: load_policy(args, vecenv, env_name), train_config['device'],6) 
+        pool = PolicyPool(lambda: load_policy(args, vecenv, env_name), train_config['device'],6)
         pufferl = PuffeRL(train_config, vecenv, policy, logger, pool)
 
     # Sweep needs data for early stopped runs, so send data when steps > 100M

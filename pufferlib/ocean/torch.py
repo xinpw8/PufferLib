@@ -23,6 +23,189 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+CHESS_OBS_SIZE = 1129
+CHESS_SQUARE_FEATURES = 17
+CHESS_O_SQUARES = 0
+CHESS_O_VALID_PROMOS = 1088
+CHESS_O_SIDE = 1120
+CHESS_O_CASTLE = 1121
+CHESS_O_EP = 1122
+CHESS_O_PICK_PHASE = 1123
+CHESS_O_SELF_CHECK = 1124
+CHESS_O_OPP_CHECK = 1125
+CHESS_O_RULE50 = 1126
+CHESS_O_REPETITION = 1127
+CHESS_O_PASS_VALID = 1128
+
+
+def _chess_obs_view(observations):
+    if observations.shape[-1] > CHESS_OBS_SIZE:
+        observations = observations[..., :CHESS_OBS_SIZE]
+    return observations
+
+
+def _build_chess_mask(obs, squares_u8):
+    promos_mask = obs[:, CHESS_O_VALID_PROMOS:CHESS_O_SIDE] > 0
+    pick_phase = obs[:, CHESS_O_PICK_PHASE] > 0
+    pass_valid = obs[:, CHESS_O_PASS_VALID] > 0
+    valid_pieces_mask = squares_u8[:, :, 13] > 0
+    valid_dests_mask = squares_u8[:, :, 14] > 0
+
+    mask_squares = torch.where(pick_phase.unsqueeze(1), valid_dests_mask, valid_pieces_mask)
+    full_mask = torch.cat([mask_squares, promos_mask, pass_valid.unsqueeze(1)], dim=1)
+    full_mask[:, :-1] = full_mask[:, :-1] & (~pass_valid.unsqueeze(1))
+    all_masked = ~full_mask.any(dim=1, keepdim=True)
+    return full_mask | all_masked
+
+
+class ChessResidualBlock(nn.Module):
+    def __init__(self, channels, groups=8):
+        super().__init__()
+        self.norm1 = nn.GroupNorm(groups, channels)
+        self.norm2 = nn.GroupNorm(groups, channels)
+        self.conv1 = layer_init(nn.Conv2d(channels, channels, kernel_size=3, padding=1))
+        self.conv2 = layer_init(nn.Conv2d(channels, channels, kernel_size=3, padding=1))
+
+    def forward(self, x):
+        residual = x
+        x = self.conv1(F.silu(self.norm1(x)))
+        x = self.conv2(F.silu(self.norm2(x)))
+        return residual + x
+
+
+class ChessResNet(nn.Module):
+    def __init__(self, env, channels=128, num_blocks=6, hidden_size=256,
+                 meta_hidden=192, embed_dim=16, group_norm_groups=8,
+                 use_action_masking=1, **kwargs):
+        super().__init__()
+        if channels % group_norm_groups != 0:
+            raise ValueError('channels must be divisible by group_norm_groups')
+
+        self.hidden_size = hidden_size
+        self.is_continuous = False
+        self.use_action_masking = bool(use_action_masking)
+        self.num_actions = env.single_action_space.n
+        self.current_mask = None
+
+        sqs = torch.arange(64, dtype=torch.float32)
+        ranks = sqs // 8
+        files = sqs % 8
+        rank_plane = ranks / 7.0
+        file_plane = files / 7.0
+        diag = (ranks + files) / 14.0
+        anti = (ranks - files + 7) / 14.0
+        square_geo_planes = torch.stack(
+            [rank_plane, file_plane, diag, anti], dim=0).view(1, 4, 8, 8)
+        self.register_buffer('square_geo_planes', square_geo_planes)
+
+        self.input_proj = layer_init(nn.Conv2d(21, channels, kernel_size=3, padding=1))
+        self.blocks = nn.ModuleList([
+            ChessResidualBlock(channels, groups=group_norm_groups)
+            for _ in range(num_blocks)
+        ])
+        self.post_norm = nn.GroupNorm(group_norm_groups, channels)
+
+        self.side_embed = nn.Embedding(2, embed_dim // 2)
+        self.castle_embed = nn.Embedding(16, embed_dim)
+        self.ep_embed = nn.Embedding(65, embed_dim)
+        self.phase_embed = nn.Embedding(2, embed_dim // 2)
+
+        meta_in = 32 + (3 * embed_dim) + 5
+        self.meta_mlp = nn.Sequential(
+            layer_init(nn.Linear(meta_in, meta_hidden)),
+            nn.SiLU(),
+            layer_init(nn.Linear(meta_hidden, meta_hidden)),
+            nn.SiLU(),
+        )
+
+        trunk_in = (3 * channels) + meta_hidden
+        self.global_mlp = nn.Sequential(
+            layer_init(nn.Linear(trunk_in, hidden_size)),
+            nn.SiLU(),
+            layer_init(nn.Linear(hidden_size, hidden_size)),
+            nn.SiLU(),
+        )
+
+        self.source_head = layer_init(nn.Conv2d(channels, 1, kernel_size=1), std=0.01)
+        self.dest_head = layer_init(nn.Conv2d(channels, 1, kernel_size=1), std=0.01)
+        self.source_bias = layer_init(nn.Linear(hidden_size, 64), std=0.01)
+        self.dest_bias = layer_init(nn.Linear(hidden_size, 64), std=0.01)
+
+        self.promo_mlp = nn.Sequential(
+            layer_init(nn.Linear(channels + hidden_size, hidden_size)),
+            nn.SiLU(),
+            layer_init(nn.Linear(hidden_size, 4), std=0.01),
+        )
+        self.pass_head = layer_init(nn.Linear(hidden_size, 1), std=0.01)
+        self.value_head = layer_init(nn.Linear(hidden_size, 1), std=1.0)
+
+    def load_state_dict(self, state_dict, strict=True):
+        super().load_state_dict(state_dict, strict=strict)
+        self.current_mask = None
+
+    def _forward_impl(self, observations):
+        obs = _chess_obs_view(observations)
+        if obs.dtype != torch.uint8:
+            obs = obs.to(torch.uint8)
+
+        batch = obs.shape[0]
+        squares_u8 = obs[:, CHESS_O_SQUARES:CHESS_O_VALID_PROMOS].view(
+            batch, 64, CHESS_SQUARE_FEATURES)
+        squares = squares_u8.float().view(batch, 8, 8, CHESS_SQUARE_FEATURES).permute(0, 3, 1, 2)
+        geo = self.square_geo_planes.expand(batch, -1, -1, -1)
+
+        board = self.input_proj(torch.cat([squares, geo], dim=1))
+        for block in self.blocks:
+            board = block(board)
+        board = F.silu(self.post_norm(board))
+
+        promos = obs[:, CHESS_O_VALID_PROMOS:CHESS_O_SIDE].float()
+        side_features = self.side_embed(obs[:, CHESS_O_SIDE].long())
+        castle_features = self.castle_embed(obs[:, CHESS_O_CASTLE].long())
+        ep_features = self.ep_embed(obs[:, CHESS_O_EP].long())
+        phase_features = self.phase_embed(obs[:, CHESS_O_PICK_PHASE].long())
+        scalars = obs[:, CHESS_O_SELF_CHECK:CHESS_O_PASS_VALID + 1].float() / 255.0
+
+        meta = torch.cat(
+            [promos, side_features, castle_features, ep_features, phase_features, scalars], dim=1)
+        meta = self.meta_mlp(meta)
+
+        selected_plane = squares[:, 12:13]
+        selected_sum = selected_plane.sum(dim=(2, 3), keepdim=True).clamp_min_(1.0)
+        selected_context = (board * selected_plane).sum(dim=(2, 3)) / selected_sum.view(batch, 1)
+        pooled_mean = board.mean(dim=(2, 3))
+        pooled_max = board.amax(dim=(2, 3))
+        global_context = self.global_mlp(
+            torch.cat([pooled_mean, pooled_max, selected_context, meta], dim=1))
+
+        source_logits = self.source_head(board).flatten(1) + self.source_bias(global_context)
+        dest_logits = self.dest_head(board).flatten(1) + self.dest_bias(global_context)
+        pick_phase = obs[:, CHESS_O_PICK_PHASE].bool().unsqueeze(1)
+        square_logits = torch.where(pick_phase, dest_logits, source_logits)
+
+        promo_files = board[:, :, 7, :].transpose(1, 2)
+        promo_context = global_context.unsqueeze(1).expand(-1, 8, -1)
+        promo_logits = self.promo_mlp(torch.cat([promo_files, promo_context], dim=-1))
+        promo_logits = promo_logits.permute(0, 2, 1).reshape(batch, 32)
+
+        pass_logit = self.pass_head(global_context)
+        logits = torch.cat([square_logits, promo_logits, pass_logit], dim=1)
+
+        if self.use_action_masking:
+            self.current_mask = _build_chess_mask(obs, squares_u8)
+            logits = logits.masked_fill(~self.current_mask, -1e8)
+        else:
+            self.current_mask = None
+
+        value = self.value_head(global_context)
+        return logits, value
+
+    def forward(self, observations, state=None):
+        return self._forward_impl(observations)
+
+    def forward_eval(self, observations, state=None):
+        return self._forward_impl(observations)
+
 
 class ChessSeven(nn.Module):
     def __init__(self, env, square_dim=64, proj_dim=8, hidden_size=256,

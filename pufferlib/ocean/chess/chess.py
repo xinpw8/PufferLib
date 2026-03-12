@@ -1,6 +1,7 @@
 import gymnasium
 import numpy as np
 import os
+import random
 
 import pufferlib
 from pufferlib.ocean.chess import binding
@@ -17,6 +18,8 @@ class Chess(pufferlib.PufferEnv):
                  random_fen_pct=0,
                  fen_curric_pct=0,
                  fen_file=None,
+                 fen_file_dm=None,
+                 deepmind_fen_pct=0.0,
                  enable_50_move_rule=1, enable_threefold_repetition=1):
         
         self.render_mode = render_mode
@@ -26,10 +29,20 @@ class Chess(pufferlib.PufferEnv):
         self.tick = 0
         self.selfplay = selfplay
         self.random_fen_pct = random_fen_pct
-        
+
+        if fen_curric_pct <= 0:
+            fen_file = None
+        if deepmind_fen_pct <= 0:
+            fen_file_dm = None
+
         if fen_file and not os.path.isabs(fen_file):
             fen_file = os.path.join(CHESS_DIR, fen_file)
-        self.c_curriculum = binding.shared(fen_file=fen_file)
+        if fen_file_dm and not os.path.isabs(fen_file_dm):
+            fen_file_dm = os.path.join(CHESS_DIR, fen_file_dm)
+        self.c_curriculum = None
+        if fen_file is not None or fen_file_dm is not None:
+            self.c_curriculum = binding.shared(fen_file=fen_file, fen_file_dm=fen_file_dm)
+        self.deepmind_fen_pct = deepmind_fen_pct
         
         self.fen_curric_pct = fen_curric_pct
         factor = 2 if selfplay else 1
@@ -69,6 +82,7 @@ class Chess(pufferlib.PufferEnv):
                 random_fen=use_random_fen,
                 fen_curric_pct = fen_curric_pct,
                 fen_curriculum=self.c_curriculum,
+                deepmind_fen_pct=deepmind_fen_pct,
                 enable_50_move_rule=enable_50_move_rule,
                 enable_threefold_repetition=enable_threefold_repetition,
                 learner_color=i % 2,
