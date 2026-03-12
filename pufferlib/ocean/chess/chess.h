@@ -346,6 +346,10 @@ typedef struct {
     float fen_curric_pct;
     int num_fens;
     int random_fen;
+
+    char** fen_curriculum_dm;   // DeepMind FEN curriculum
+    int num_fens_dm;            // Count of DeepMind FENs
+    float deepmind_fen_pct;     // Fraction of curriculum resets that use DeepMind FENs
     
     UndoInfo undo_stack[MAX_GAME_PLIES];
     int undo_stack_ptr;
@@ -358,6 +362,8 @@ typedef struct {
     float reward_invalid_piece;
     float reward_invalid_move;
     float reward_repetition;
+    float reward_capture_scale;
+    float prev_material_balance;
     
     int enable_50_move_rule;
     int enable_threefold_repetition;
@@ -1758,6 +1764,26 @@ static void generate_random_fen(char* fen_out) {
     strcpy(ptr, " w - - 0 1");
 }
 
+
+static const float PIECE_VALUES[7] = {0.0f, 0.01f, 0.03f, 0.03f, 0.05f, 0.09f, 0.0f}; // none, pawn, knight, bishop, rook, queen, king
+
+static inline float compute_material_balance(Chess* env) {
+    // Returns material advantage for the learner (positive = learner ahead)
+    float balance = 0.0f;
+    for (int pt = PAWN; pt <= QUEEN; pt++) {
+        Piece w_pc = make_piece(CHESS_WHITE, pt);
+        Piece b_pc = make_piece(CHESS_BLACK, pt);
+        int w_count = env->pos.pieceCount[w_pc];
+        int b_count = env->pos.pieceCount[b_pc];
+        if (env->learner_color == CHESS_WHITE) {
+            balance += PIECE_VALUES[pt] * (w_count - b_count);
+        } else {
+            balance += PIECE_VALUES[pt] * (b_count - w_count);
+        }
+    }
+    return balance;
+}
+
 static inline int apply_move_to_env(Chess* env, Move chosen, int* is_timeout) {
     env->chess_moves++;
     
@@ -1831,6 +1857,16 @@ static inline int apply_move_to_env(Chess* env, Move chosen, int* is_timeout) {
         }
     }
 
+    // Material reward shaping
+    if (env->reward_capture_scale != 0.0f && game_result == 0) {
+        float current_balance = compute_material_balance(env);
+        float delta = current_balance - env->prev_material_balance;
+        if (delta != 0.0f) {
+            env->rewards[0] += env->reward_capture_scale * delta;
+        }
+        env->prev_material_balance = current_balance;
+    }
+
     populate_observations(env);
     return game_result;
 }
@@ -1853,6 +1889,7 @@ void c_reset(Chess* env) {
     
     memset(env->white_captured, 0, sizeof(env->white_captured));
     memset(env->black_captured, 0, sizeof(env->black_captured));
+    env->prev_material_balance = 0.0f;
     
     if (env->mode == CHESS_MODE_HUMAN) {
         env->human_color = -1;
@@ -1863,8 +1900,16 @@ void c_reset(Chess* env) {
     if (env->fen_curriculum != NULL && env->num_fens > 0) {
         float randvalue = (float)rand() / (float)(RAND_MAX);
         if(env->fen_curric_pct >= randvalue){
-            int idx = rand() % env->num_fens;
-            pos_set(&env->pos, env->fen_curriculum[idx]);
+            // Pick which curriculum: DeepMind or original
+            float dm_roll = (float)rand() / (float)(RAND_MAX);
+            if (env->fen_curriculum_dm != NULL && env->num_fens_dm > 0
+                && dm_roll < env->deepmind_fen_pct) {
+                int idx = rand() % env->num_fens_dm;
+                pos_set(&env->pos, env->fen_curriculum_dm[idx]);
+            } else {
+                int idx = rand() % env->num_fens;
+                pos_set(&env->pos, env->fen_curriculum[idx]);
+            }
         }
         else {
             pos_set(&env->pos, env->starting_fen);
@@ -2623,4 +2668,6 @@ void c_close(Chess* env) {
     }
     env->fen_curriculum = NULL;
     env->num_fens = 0;
+    env->fen_curriculum_dm = NULL;
+    env->num_fens_dm = 0;
 }

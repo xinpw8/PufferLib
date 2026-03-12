@@ -20,7 +20,8 @@ class Chess(pufferlib.PufferEnv):
                  fen_file=None,
                  fen_file_dm=None,
                  deepmind_fen_pct=0.0,
-                 enable_50_move_rule=1, enable_threefold_repetition=1):
+                 enable_50_move_rule=1, enable_threefold_repetition=1,
+                 reward_capture_scale=0.0):
         
         self.render_mode = render_mode
         self.num_agents = num_envs
@@ -85,6 +86,7 @@ class Chess(pufferlib.PufferEnv):
                 deepmind_fen_pct=deepmind_fen_pct,
                 enable_50_move_rule=enable_50_move_rule,
                 enable_threefold_repetition=enable_threefold_repetition,
+                reward_capture_scale=reward_capture_scale,
                 learner_color=i % 2,
                 seed=seed + i
             ))

@@ -7,6 +7,8 @@
 typedef struct {
     char** fens;
     int num_fens;
+    char** fens_dm;
+    int num_fens_dm;
 } FenCurriculum;
 
 static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
@@ -44,7 +46,9 @@ static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
     FenCurriculum* curriculum = malloc(sizeof(FenCurriculum));
     curriculum->fens = malloc(num_fens * sizeof(char*));
     curriculum->num_fens = num_fens;
-    
+    curriculum->fens_dm = NULL;
+    curriculum->num_fens_dm = 0;
+
     rewind(f);
     int idx = 0;
     while (fgets(line, sizeof(line), f) && idx < num_fens) {
@@ -57,8 +61,46 @@ static PyObject* my_shared(PyObject* self, PyObject* args, PyObject* kwargs) {
         }
     }
     fclose(f);
-    
+
     printf("Loaded %d FENs from %s\n", curriculum->num_fens, fen_file);
+
+    // Load DeepMind FEN curriculum if provided
+    PyObject* fen_file_dm_obj = PyDict_GetItemString(kwargs, "fen_file_dm");
+    if (fen_file_dm_obj != NULL && fen_file_dm_obj != Py_None) {
+        const char* fen_file_dm = PyUnicode_AsUTF8(fen_file_dm_obj);
+        if (fen_file_dm != NULL) {
+            FILE* f_dm = fopen(fen_file_dm, "r");
+            if (f_dm != NULL) {
+                int num_fens_dm = 0;
+                char line_dm[256];
+                while (fgets(line_dm, sizeof(line_dm), f_dm)) {
+                    if (line_dm[0] != '#' && line_dm[0] != '\n' && line_dm[0] != '\r') {
+                        num_fens_dm++;
+                    }
+                }
+                if (num_fens_dm > 0) {
+                    curriculum->fens_dm = malloc(num_fens_dm * sizeof(char*));
+                    curriculum->num_fens_dm = num_fens_dm;
+                    rewind(f_dm);
+                    int dm_idx = 0;
+                    while (fgets(line_dm, sizeof(line_dm), f_dm) && dm_idx < num_fens_dm) {
+                        if (line_dm[0] != '#' && line_dm[0] != '\n' && line_dm[0] != '\r') {
+                            size_t len = strlen(line_dm);
+                            while (len > 0 && (line_dm[len-1] == '\n' || line_dm[len-1] == '\r')) {
+                                line_dm[--len] = '\0';
+                            }
+                            curriculum->fens_dm[dm_idx++] = strdup(line_dm);
+                        }
+                    }
+                }
+                fclose(f_dm);
+                printf("Loaded %d DeepMind FENs from %s\n", curriculum->num_fens_dm, fen_file_dm);
+            } else {
+                fprintf(stderr, "WARNING: Could not open DeepMind FEN file: %s\n", fen_file_dm);
+            }
+        }
+    }
+
     return PyLong_FromVoidPtr(curriculum);
 }
 
@@ -69,6 +111,7 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->reward_draw = 0.0f;
     env->reward_invalid_piece = -0.1f;
     env->reward_invalid_move = -0.1f;
+    env->reward_capture_scale = 0.0f;
     env->reward_repetition = 0.0f;
     env->client = NULL;
     env->render_fps = 30;
@@ -80,6 +123,9 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
     env->human_color = -1;
     env->fen_curriculum = NULL;
     env->num_fens = 0;
+    env->fen_curriculum_dm = NULL;
+    env->num_fens_dm = 0;
+    env->deepmind_fen_pct = 0.0f;
     strcpy(env->starting_fen, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     
     env->log_pgn = 0;
@@ -120,6 +166,13 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
             env->reward_repetition = (float)PyFloat_AsDouble(reward_repetition_obj);
         } else if (reward_repetition_obj != NULL && PyLong_Check(reward_repetition_obj)) {
             env->reward_repetition = (float)PyLong_AsDouble(reward_repetition_obj);
+        }
+
+        PyObject* reward_capture_scale_obj = PyDict_GetItemString(kwargs, "reward_capture_scale");
+        if (reward_capture_scale_obj != NULL && PyFloat_Check(reward_capture_scale_obj)) {
+            env->reward_capture_scale = (float)PyFloat_AsDouble(reward_capture_scale_obj);
+        } else if (reward_capture_scale_obj != NULL && PyLong_Check(reward_capture_scale_obj)) {
+            env->reward_capture_scale = (float)PyLong_AsDouble(reward_capture_scale_obj);
         }
 
         PyObject* fps_obj = PyDict_GetItemString(kwargs, "render_fps");
@@ -180,7 +233,17 @@ static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
             if (curriculum != NULL) {
                 env->fen_curriculum = curriculum->fens;
                 env->num_fens = curriculum->num_fens;
+                env->fen_curriculum_dm = curriculum->fens_dm;
+                env->num_fens_dm = curriculum->num_fens_dm;
             }
+        }
+
+        env->deepmind_fen_pct = 0.0f;
+        PyObject* dm_pct_obj = PyDict_GetItemString(kwargs, "deepmind_fen_pct");
+        if (dm_pct_obj != NULL && PyFloat_Check(dm_pct_obj)) {
+            env->deepmind_fen_pct = (float)PyFloat_AsDouble(dm_pct_obj);
+        } else if (dm_pct_obj != NULL && PyLong_Check(dm_pct_obj)) {
+            env->deepmind_fen_pct = (float)PyLong_AsDouble(dm_pct_obj);
         }
         
         PyObject* fen_obj = PyDict_GetItemString(kwargs, "starting_fen");
