@@ -9,6 +9,7 @@
 using namespace pufferlib;
 namespace py = pybind11;
 
+
 Dict* py_dict_to_c_dict(py::dict py_dict);
 
 // Wrapper functions for Python bindings
@@ -213,6 +214,7 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl(pybind11::dict kwargs, pybind
     hypers.vf_clip_coef = get_config(kwargs, "vf_clip_coef");
     hypers.vf_coef = get_config(kwargs, "vf_coef");
     hypers.ent_coef = get_config(kwargs, "ent_coef");
+    hypers.reward_clip = kwargs.contains("reward_clip") ? kwargs["reward_clip"].cast<double>() : 1.0;
     // GAE
     hypers.gamma = get_config(kwargs, "gamma");
     hypers.gae_lambda = get_config(kwargs, "gae_lambda");
@@ -359,6 +361,7 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("vf_clip_coef", &HypersT::vf_clip_coef)
         .def_readwrite("vf_coef", &HypersT::vf_coef)
         .def_readwrite("ent_coef", &HypersT::ent_coef)
+        .def_readwrite("reward_clip", &HypersT::reward_clip)
         .def_readwrite("gamma", &HypersT::gamma)
         .def_readwrite("gae_lambda", &HypersT::gae_lambda)
         .def_readwrite("vtrace_rho_clip", &HypersT::vtrace_rho_clip)

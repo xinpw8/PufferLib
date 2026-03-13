@@ -114,6 +114,7 @@ typedef struct {
     Tensor terminals;
     Tensor ratio;
     Tensor importance;
+    Tensor turn_mask;  // 1.0=learner's turn, 0.0=opponent's turn (for training-side masking)
 } RolloutBuf;
 
 RolloutBuf create_rollouts(int horizon, int segments, int input_size, int num_atns) {
@@ -126,6 +127,7 @@ RolloutBuf create_rollouts(int horizon, int segments, int input_size, int num_at
         .terminals = torch::zeros({horizon, segments}, cuda_t),
         .ratio = torch::zeros({horizon, segments}, cuda_t),
         .importance = torch::zeros({horizon, segments}, cuda_t),
+        .turn_mask = torch::ones({horizon, segments}, cuda_f32),  // default 1.0 (all active)
     };
 }
 
@@ -156,6 +158,7 @@ typedef struct {
     float vf_clip_coef;
     float vf_coef;
     float ent_coef;
+    float reward_clip;
     // GAE
     float gamma;
     float gae_lambda;
@@ -232,6 +235,7 @@ typedef struct {
     ProfileT profile;
     nvmlDevice_t nvml_device;
     bool chess_action_mask; // Apply observation-based action masking for chess
+    bool chess_turn_gating; // Optional: only run opponent policy on opponent turns in chess selfplay
     int epoch;
     int train_warmup;
     bool rollout_captured;
@@ -253,10 +257,16 @@ typedef struct {
     vector<Tensor> sp_opp_actions;   // [num_buffers] each: {block_size, learner_atns}
     vector<Tensor> sp_opp_logprobs;  // [num_buffers] each: {block_size}
     vector<Tensor> sp_opp_values;    // [num_buffers] each: {block_size}
+
+    // Pre-allocated scratch buffers for turn-gated sample_actions (avoid per-step allocs)
+    // Shared between learner and opponent gating (used sequentially, never overlapping)
+    vector<Tensor> scratch_actions;   // [num_buffers] each: {block_size, learner_atns}
+    vector<Tensor> scratch_logprobs;  // [num_buffers] each: {block_size}
+    vector<Tensor> scratch_values;    // [num_buffers] each: {block_size}
 } PuffeRL;
 
 Dict* log_environments_impl(PuffeRL& pufferl) {
-    Dict* out = create_dict(32);
+    Dict* out = create_dict(64);
     static_vec_log(pufferl.vec, out);
     return out;
 }
@@ -320,6 +330,9 @@ static void apply_chess_mask(Tensor& logits, const Tensor& obs) {
     logits.masked_fill_(~mask, -1e9f);
 }
 
+static constexpr int CHESS_O_SIDE = 768;
+static constexpr int CHESS_PASS_ACTION = 96;
+
 // Selfplay inference callback: obs splitting, opponent forward, action interleaving
 extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     torch::NoGradGuard no_grad;
@@ -348,23 +361,69 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     Tensor terminals = env.terminals.narrow(0, start, block_size);
     rollouts.terminals.select(0, t).narrow(0, start, block_size).copy_(terminals, true);
 
-    // 3. Learner forward pass (all agents in buffer)
+    // 3. Learner forward pass — optionally gated by turn
     Tensor& state = pufferl->buffer_states[buf];
-    auto [logits, value, state_out] = pufferl->policy_bf16->forward(learner_obs, state);
-    state.copy_(state_out, false);
-
-    // 3b. Action masking: restrict to legal moves
-    if (pufferl->chess_action_mask) {
-        apply_chess_mask(logits.mean, learner_obs);
-    }
-
-    // 4. Sample learner actions into rollout buffer
     Tensor learner_actions = rollouts.actions.select(0, t).narrow(0, start, block_size);
     Tensor logprobs = rollouts.logprobs.select(0, t).narrow(0, start, block_size);
     Tensor values = rollouts.values.select(0, t).narrow(0, start, block_size);
-    sample_actions(logits, value, learner_actions, logprobs, values,
-        pufferl->act_sizes, pufferl->act_sizes_cpu,
-        pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+
+    if (pufferl->chess_turn_gating) {
+        // Detect which rows are the learner's turn from obs
+        Tensor learner_turn = learner_obs.narrow(1, CHESS_O_SIDE, 1).squeeze(1).gt(0);
+
+        // Store turn mask for training-side advantage masking
+        rollouts.turn_mask.select(0, t).narrow(0, start, block_size).copy_(
+            learner_turn.to(torch::kFloat32), true);
+
+        int n_active = learner_turn.sum().item<int>();
+
+        if (n_active == block_size) {
+            // All learner turns — normal path (no overhead)
+            auto [logits, value, state_out] = pufferl->policy_bf16->forward(learner_obs, state);
+            state.copy_(state_out, false);
+            if (pufferl->chess_action_mask) apply_chess_mask(logits.mean, learner_obs);
+            sample_actions(logits, value, learner_actions, logprobs, values,
+                pufferl->act_sizes, pufferl->act_sizes_cpu,
+                pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+        } else if (n_active > 0) {
+            // Mixed turns — sparse forward on learner-turn rows only
+            Tensor active_idx = torch::nonzero(learner_turn).squeeze(1);
+            Tensor active_obs = learner_obs.index_select(0, active_idx);
+            Tensor active_state = state.index_select(1, active_idx);
+            auto [logits, value, state_out] = pufferl->policy_bf16->forward(active_obs, active_state);
+            state.index_copy_(1, active_idx, state_out);
+            if (pufferl->chess_action_mask) apply_chess_mask(logits.mean, active_obs);
+
+            // Defaults for inactive (opponent-turn) rows
+            learner_actions.fill_(CHESS_PASS_ACTION);
+            logprobs.zero_();
+            values.zero_();
+
+            // Sample into pre-allocated scratch, then scatter back
+            Tensor act_scratch = pufferl->scratch_actions[buf].narrow(0, 0, n_active);
+            Tensor lp_scratch = pufferl->scratch_logprobs[buf].narrow(0, 0, n_active);
+            Tensor v_scratch = pufferl->scratch_values[buf].narrow(0, 0, n_active);
+            sample_actions(logits, value, act_scratch, lp_scratch, v_scratch,
+                pufferl->act_sizes, pufferl->act_sizes_cpu,
+                pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+            learner_actions.index_copy_(0, active_idx, act_scratch);
+            logprobs.index_copy_(0, active_idx, lp_scratch);
+            values.index_copy_(0, active_idx, v_scratch);
+        } else {
+            // All opponent turns — no forward pass needed
+            learner_actions.fill_(CHESS_PASS_ACTION);
+            logprobs.zero_();
+            values.zero_();
+        }
+    } else {
+        // No turn gating: unconditional forward pass on all rows
+        auto [logits, value, state_out] = pufferl->policy_bf16->forward(learner_obs, state);
+        state.copy_(state_out, false);
+        if (pufferl->chess_action_mask) apply_chess_mask(logits.mean, learner_obs);
+        sample_actions(logits, value, learner_actions, logprobs, values,
+            pufferl->act_sizes, pufferl->act_sizes_cpu,
+            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+    }
 
     // Fill learner actions into env buffer immediately.
     Tensor env_actions = env.actions.narrow(0, start, block_size);  // [block_size, learner+opponent heads]
@@ -384,53 +443,116 @@ extern "C" void net_callback_selfplay(void* ctx, int buf, int t) {
     Tensor& opp_logprobs = pufferl->sp_opp_logprobs[buf];
     Tensor& opp_values = pufferl->sp_opp_values[buf];
 
-    if (cut > 0) {
-        Tensor opp_obs_80 = opponent_obs.narrow(0, 0, cut);
-        Tensor opp_state_80 = opp_state.narrow(1, 0, cut);
-        auto [opp_logits_80, opp_val_80, opp_state_out_80] =
-            pufferl->policy_bf16->forward(opp_obs_80, opp_state_80);
-        opp_state.narrow(1, 0, cut).copy_(opp_state_out_80, false);
+    if (pufferl->chess_turn_gating && pufferl->chess_action_mask) {
+        // For turn-based chess, only infer opponent policy on rows where the learner is not to move.
+        // learner_turn was already computed in the learner gating block above.
+        Tensor learner_turn = learner_obs.narrow(1, CHESS_O_SIDE, 1).squeeze(1).gt(0);
+        Tensor opp_turn_idx = torch::nonzero(learner_turn.logical_not()).squeeze(1);
 
-        if (pufferl->chess_action_mask) {
-            apply_chess_mask(opp_logits_80.mean, opp_obs_80);
+        // Fill idle rows with PASS so full-head copy to env remains valid.
+        opp_actions.fill_(CHESS_PASS_ACTION);
+        opp_logprobs.zero_();
+        opp_values.zero_();
+
+        if (opp_turn_idx.numel() > 0) {
+            Tensor idx_80 = opp_turn_idx.masked_select(opp_turn_idx.lt(cut));
+            Tensor idx_20 = opp_turn_idx.masked_select(opp_turn_idx.ge(cut));
+
+            if (idx_80.numel() > 0) {
+                int n80 = idx_80.size(0);
+                Tensor opp_obs_80 = opponent_obs.index_select(0, idx_80);
+                Tensor opp_state_80 = opp_state.index_select(1, idx_80);
+                auto [opp_logits_80, opp_val_80, opp_state_out_80] =
+                    pufferl->policy_bf16->forward(opp_obs_80, opp_state_80);
+                opp_state.index_copy_(1, idx_80, opp_state_out_80);
+
+                apply_chess_mask(opp_logits_80.mean, opp_obs_80);
+
+                // Use pre-allocated scratch instead of per-step torch::empty
+                Tensor opp_act_80 = pufferl->scratch_actions[buf].narrow(0, 0, n80);
+                Tensor opp_lp_80 = pufferl->scratch_logprobs[buf].narrow(0, 0, n80);
+                Tensor opp_v_80 = pufferl->scratch_values[buf].narrow(0, 0, n80);
+                sample_actions(opp_logits_80, opp_val_80, opp_act_80, opp_lp_80, opp_v_80,
+                    pufferl->act_sizes, pufferl->act_sizes_cpu,
+                    pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+                opp_actions.index_copy_(0, idx_80, opp_act_80);
+                opp_logprobs.index_copy_(0, idx_80, opp_lp_80);
+                opp_values.index_copy_(0, idx_80, opp_v_80);
+            }
+
+            // Opponent forward pass on tail rows uses historical pool policy.
+            if (idx_20.numel() > 0) {
+                int n20 = idx_20.size(0);
+                Tensor opp_obs_20 = opponent_obs.index_select(0, idx_20);
+                Tensor opp_state_20 = opp_state.index_select(1, idx_20);
+
+                Policy* opp_policy;
+                int slot = pufferl->active_opponent_slot;
+                if (slot >= 0 && slot < pufferl->opponent_pool->n_slots
+                        && pufferl->opponent_pool->policy_ids[slot] > 0) {
+                    opp_policy = pufferl->opponent_pool->policies[slot];
+                } else {
+                    opp_policy = pufferl->policy_bf16;  // fallback to learner
+                }
+
+                auto [opp_logits_20, opp_val_20, opp_state_out_20] =
+                    opp_policy->forward(opp_obs_20, opp_state_20);
+                opp_state.index_copy_(1, idx_20, opp_state_out_20);
+
+                apply_chess_mask(opp_logits_20.mean, opp_obs_20);
+
+                Tensor opp_act_20 = pufferl->scratch_actions[buf].narrow(0, 0, n20);
+                Tensor opp_lp_20 = pufferl->scratch_logprobs[buf].narrow(0, 0, n20);
+                Tensor opp_v_20 = pufferl->scratch_values[buf].narrow(0, 0, n20);
+                sample_actions(opp_logits_20, opp_val_20, opp_act_20, opp_lp_20, opp_v_20,
+                    pufferl->act_sizes, pufferl->act_sizes_cpu,
+                    pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
+                opp_actions.index_copy_(0, idx_20, opp_act_20);
+                opp_logprobs.index_copy_(0, idx_20, opp_lp_20);
+                opp_values.index_copy_(0, idx_20, opp_v_20);
+            }
+        }
+    } else {
+        if (cut > 0) {
+            Tensor opp_obs_80 = opponent_obs.narrow(0, 0, cut);
+            Tensor opp_state_80 = opp_state.narrow(1, 0, cut);
+            auto [opp_logits_80, opp_val_80, opp_state_out_80] =
+                pufferl->policy_bf16->forward(opp_obs_80, opp_state_80);
+            opp_state.narrow(1, 0, cut).copy_(opp_state_out_80, false);
+
+            Tensor opp_act_80 = opp_actions.narrow(0, 0, cut);
+            Tensor opp_lp_80 = opp_logprobs.narrow(0, 0, cut);
+            Tensor opp_v_80 = opp_values.narrow(0, 0, cut);
+            sample_actions(opp_logits_80, opp_val_80, opp_act_80, opp_lp_80, opp_v_80,
+                pufferl->act_sizes, pufferl->act_sizes_cpu,
+                pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
         }
 
-        Tensor opp_act_80 = opp_actions.narrow(0, 0, cut);
-        Tensor opp_lp_80 = opp_logprobs.narrow(0, 0, cut);
-        Tensor opp_v_80 = opp_values.narrow(0, 0, cut);
-        sample_actions(opp_logits_80, opp_val_80, opp_act_80, opp_lp_80, opp_v_80,
-            pufferl->act_sizes, pufferl->act_sizes_cpu,
-            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
-    }
+        // 6. Opponent forward pass - last 20% (use historical pool policy)
+        if (tail > 0) {
+            Tensor opp_obs_20 = opponent_obs.narrow(0, cut, tail);
+            Tensor opp_state_20 = opp_state.narrow(1, cut, tail);
 
-    // 6. Opponent forward pass - last 20% (use historical pool policy)
-    if (tail > 0) {
-        Tensor opp_obs_20 = opponent_obs.narrow(0, cut, tail);
-        Tensor opp_state_20 = opp_state.narrow(1, cut, tail);
+            Policy* opp_policy;
+            int slot = pufferl->active_opponent_slot;
+            if (slot >= 0 && slot < pufferl->opponent_pool->n_slots
+                    && pufferl->opponent_pool->policy_ids[slot] > 0) {
+                opp_policy = pufferl->opponent_pool->policies[slot];
+            } else {
+                opp_policy = pufferl->policy_bf16;  // fallback to learner
+            }
 
-        Policy* opp_policy;
-        int slot = pufferl->active_opponent_slot;
-        if (slot >= 0 && slot < pufferl->opponent_pool->n_slots
-                && pufferl->opponent_pool->policy_ids[slot] > 0) {
-            opp_policy = pufferl->opponent_pool->policies[slot];
-        } else {
-            opp_policy = pufferl->policy_bf16;  // fallback to learner
+            auto [opp_logits_20, opp_val_20, opp_state_out_20] =
+                opp_policy->forward(opp_obs_20, opp_state_20);
+            opp_state.narrow(1, cut, tail).copy_(opp_state_out_20, false);
+
+            Tensor opp_act_20 = opp_actions.narrow(0, cut, tail);
+            Tensor opp_lp_20 = opp_logprobs.narrow(0, cut, tail);
+            Tensor opp_v_20 = opp_values.narrow(0, cut, tail);
+            sample_actions(opp_logits_20, opp_val_20, opp_act_20, opp_lp_20, opp_v_20,
+                pufferl->act_sizes, pufferl->act_sizes_cpu,
+                pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
         }
-
-        auto [opp_logits_20, opp_val_20, opp_state_out_20] =
-            opp_policy->forward(opp_obs_20, opp_state_20);
-        opp_state.narrow(1, cut, tail).copy_(opp_state_out_20, false);
-
-        if (pufferl->chess_action_mask) {
-            apply_chess_mask(opp_logits_20.mean, opp_obs_20);
-        }
-
-        Tensor opp_act_20 = opp_actions.narrow(0, cut, tail);
-        Tensor opp_lp_20 = opp_logprobs.narrow(0, cut, tail);
-        Tensor opp_v_20 = opp_values.narrow(0, cut, tail);
-        sample_actions(opp_logits_20, opp_val_20, opp_act_20, opp_lp_20, opp_v_20,
-            pufferl->act_sizes, pufferl->act_sizes_cpu,
-            pufferl->is_continuous, hypers.kernels, pufferl->rng_seed, pufferl->rng_offset);
     }
 
     // 7. Interleave actions into env buffer: [learner(3) | opponent(3)] per agent
@@ -545,9 +667,15 @@ void train_impl(PuffeRL& pufferl) {
     rollouts.terminals = pufferl.rollouts.terminals.transpose(0, 1).contiguous();
     rollouts.ratio = pufferl.rollouts.ratio.transpose(0, 1).contiguous();
     rollouts.values = pufferl.rollouts.values.transpose(0, 1).contiguous();
+    // Transpose turn_mask for training-side advantage masking (only used when turn_gating enabled)
+    Tensor turn_mask_t;
+    if (pufferl.chess_turn_gating) {
+        turn_mask_t = pufferl.rollouts.turn_mask.transpose(0, 1).contiguous();
+    }
     Tensor old_values = rollouts.values.clone();
 
-    rollouts.rewards.clamp_(-1.0, 1.0);  // Clamp rewards here instead of in eval to save a kernel call per step
+    // Note: PPO sees clamped rewards [-1,1], but episode_return logs raw env rewards
+    rollouts.rewards.clamp_(-hypers.reward_clip, hypers.reward_clip);
                                          
     // Inline any of these only used once
     int minibatch_size = hypers.minibatch_size;
@@ -605,6 +733,13 @@ void train_impl(PuffeRL& pufferl) {
             graph.mb_obs, graph.mb_state, graph.mb_actions,
             graph.mb_logprobs, graph.mb_advantages, graph.mb_prio,
             graph.mb_values, graph.mb_returns);
+
+        // Zero out advantages for opponent-turn timesteps to kill policy gradient
+        // while preserving value loss (mb_returns already computed with unmasked advantages)
+        if (pufferl.chess_turn_gating) {
+            Tensor mb_turn_mask = turn_mask_t.index_select(0, idx);
+            graph.mb_advantages.mul_(mb_turn_mask);
+        }
         profile_end(hypers.profile);
 
         cudaEventRecord(pufferl.profile.events[3]);  // end misc / start forward
@@ -793,6 +928,8 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     bool kernels = hypers.kernels;
     int chess_encoder = 2;  // 1=fast ChessEncoder, 2=ChessTwo (default)
     int stockfish_bot = 0;
+    int turn_gating = 0;
+    int random_bot = 0;
 
     if (env_name == "puffer_chess" && env_kwargs != nullptr) {
         DictItem* ce = dict_get_unsafe(env_kwargs, "chess_encoder");
@@ -804,6 +941,10 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
         }
         DictItem* sfb = dict_get_unsafe(env_kwargs, "stockfish_bot");
         stockfish_bot = sfb ? (int)sfb->value : 0;
+        DictItem* rb = dict_get_unsafe(env_kwargs, "random_bot");
+        random_bot = rb ? (int)rb->value : 0;
+        DictItem* tg = dict_get_unsafe(env_kwargs, "turn_gating");
+        turn_gating = tg ? (int)tg->value : 0;
         printf("Chess encoder: %s (%d)\n",
             chess_encoder == 1 ? "ChessEncoder" : "ChessTwoEncoder",
             chess_encoder);
@@ -814,6 +955,7 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     pufferl->selfplay = selfplay;
     pufferl->selfplay_external_opponent = false;
     pufferl->chess_action_mask = false;
+    pufferl->chess_turn_gating = false;
     pufferl->opponent_pool = nullptr;
     pufferl->active_opponent_slot = -1;
 
@@ -840,10 +982,15 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
         if (pufferl->chess_action_mask) {
             printf("Chess action masking enabled (obs_half=1082)\n");
         }
+        pufferl->chess_turn_gating = (env_name == "puffer_chess" && turn_gating > 0);
+        if (pufferl->chess_turn_gating) {
+            printf("Chess turn-gated selfplay enabled\n");
+        }
 
-        if (env_name == "puffer_chess" && stockfish_bot > 0) {
+        if (env_name == "puffer_chess" && (stockfish_bot > 0 || random_bot > 0)) {
             pufferl->selfplay_external_opponent = true;
-            printf("Selfplay external opponent mode enabled (stockfish_bot=1)\n");
+            printf("Selfplay external opponent mode enabled (%s)\n",
+                   stockfish_bot > 0 ? "stockfish_bot" : "random_bot");
         }
 
         printf("Selfplay enabled: obs_half=%d, learner_atns=%d, cut=%d/%d\n",
@@ -901,6 +1048,7 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
     int batch = total_agents / hypers.num_buffers;
     int num_buffers = hypers.num_buffers;
 
+    printf("Reward clamping: PPO training clamps rewards to [-%g, %g]; episode_return logs raw env rewards\n", hypers.reward_clip, hypers.reward_clip);
     printf("DEBUG: num_envs=%d, total_agents=%d, batch=%d, num_buffers=%d\n",
         vec->size, total_agents, batch, num_buffers);
 
@@ -940,11 +1088,18 @@ std::unique_ptr<pufferlib::PuffeRL> create_pufferl_impl(HypersT& hypers, const s
         pufferl->sp_opp_actions.resize(num_buffers);
         pufferl->sp_opp_logprobs.resize(num_buffers);
         pufferl->sp_opp_values.resize(num_buffers);
+        // Pre-allocated scratch for turn-gated sample_actions
+        pufferl->scratch_actions.resize(num_buffers);
+        pufferl->scratch_logprobs.resize(num_buffers);
+        pufferl->scratch_values.resize(num_buffers);
         for (int i = 0; i < num_buffers; i++) {
             pufferl->opponent_states[i] = pufferl->policy_bf16->initial_state(batch, torch::kCUDA);
             pufferl->sp_opp_actions[i] = torch::zeros({batch, num_action_heads}, cuda_f64);
             pufferl->sp_opp_logprobs[i] = torch::zeros({batch}, cuda_t);
             pufferl->sp_opp_values[i] = torch::zeros({batch}, cuda_t);
+            pufferl->scratch_actions[i] = torch::zeros({batch, num_action_heads}, cuda_f64);
+            pufferl->scratch_logprobs[i] = torch::zeros({batch}, cuda_t);
+            pufferl->scratch_values[i] = torch::zeros({batch}, cuda_t);
         }
     }
 
@@ -1049,6 +1204,9 @@ void close_impl(PuffeRL& pufferl) {
     pufferl.sp_opp_actions.clear();
     pufferl.sp_opp_logprobs.clear();
     pufferl.sp_opp_values.clear();
+    pufferl.scratch_actions.clear();
+    pufferl.scratch_logprobs.clear();
+    pufferl.scratch_values.clear();
 
     delete pufferl.muon;
     pufferl.muon = nullptr;
@@ -1072,6 +1230,7 @@ void close_impl(PuffeRL& pufferl) {
     pufferl.rollouts.terminals = Tensor();
     pufferl.rollouts.ratio = Tensor();
     pufferl.rollouts.importance = Tensor();
+    pufferl.rollouts.turn_mask = Tensor();
 
     // Clear train buffers (releases CUDA tensors)
     pufferl.train_buf.mb_obs = Tensor();
