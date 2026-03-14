@@ -1,5 +1,55 @@
 # Deep Dive Engineering Log
 
+## Session 22: Policy-vs-Policy Gold Standard Eval (2026-03-14)
+
+### SPC Change: Create eval_policy_vs_policy.py
+**Assumption:** The gold standard for selfplay is "can current policy beat past snapshotted policy?" Without this, we can't objectively measure whether training is producing stronger play.
+**Change:** Created `eval_policy_vs_policy.py` with:
+- `evaluate_policy()`: Plays latest checkpoint against selected historical snapshots (earliest, 25%/50%/75% through training, latest predecessor). Reports W/D/L, win rate, mean/median CP, ELO estimate per matchup.
+- `compute_verdict()`: PASS/FAIL/INCONCLUSIVE based on 4 criteria:
+  1. Beats earliest checkpoint with >60% WR
+  2. Beats midpoint checkpoint with >55% WR
+  3. Mean CP advantage across all matchups is positive
+  4. No regression (never loses >60% to any snapshot)
+- `run_tournament()`: Full round-robin tournament with iterative ELO computation, checks for monotonic ELO increase
+- CLI: `--quick` (10 games, depth 8, 4 opponents), `--tournament`, `--dir`, `--checkpoint`
+- Saves JSON results per evaluation for tracking over time
+- Uses `centipawn_eval.py` infrastructure (load_model with auto-detection, play_game_cp, evaluate_position_cp)
+**File:** eval_policy_vs_policy.py
+**Verification:** Imports successfully on Spark. Full test requires training checkpoints.
+**Status:** APPLIED
+
+---
+
+## Session 21: Mate-in-1 Detection Rewards (2026-03-13)
+
+### SPC Change: Add mate-in-1 detection rewards to chess selfplay
+**Assumption:** The agent lacks targeted incentives to create mating threats or avoid blundering into opponent mate threats during full selfplay games. Dense reward shaping for these tactical patterns should accelerate learning to close out winning positions and avoid fatal blunders.
+
+**Change:** Added three configurable reward signals that fire after the learner's move completes during full games (not puzzles or BC episodes):
+
+1. **reward_allowed_mate** (default -0.1): Penalty when, after the learner's move, the opponent has a forced mate-in-1. Uses `find_mate_in_1()` on the resulting position (opponent to move). Detects blunders that allow immediate checkmate.
+
+2. **reward_mate_threat** (default 0.1): Reward when the learner gives check and the opponent has 2 or fewer legal moves. This is a lightweight proxy for "we created a near-mate position" -- exact mate-in-1 threat detection from the learner's perspective would require checking all opponent responses (expensive).
+
+3. **reward_mate_defense** (default 0.05): Config field added but defense detection deferred -- tracking whether a mate threat existed before the learner's move requires cross-step state. Field is wired through init for future use.
+
+**Files modified:**
+- `pufferlib/ocean/chess/chess.h`: Chess struct (3 float fields), c_step() (mate detection block before clip_rewards)
+- `pufferlib/ocean/chess/binding.h`: my_init() (3 DictItem reads)
+- `pufferlib/config/ocean/chess.ini`: Added reward_mate_threat, reward_mate_defense, reward_allowed_mate
+- `pufferlib/config/ocean/chess_pure_selfplay.ini`: Same
+
+**Guard conditions:** Only fires when `move_completed && mover == learner_color && !puzzle_drill_mode && curriculum_episode_type != 0`. Rewards are subject to `clip_rewards()` (capped at 0.9).
+
+**Performance note:** `find_mate_in_1()` generates all legal moves and tries each one, which is O(moves * opponent_moves) per call. This runs once per learner move during full games. In typical middlegame positions (~30 legal moves), this is ~900 do_move/undo_move pairs -- lightweight compared to the existing mate-in-N solvers used for puzzle validation.
+
+**Verification:** Check that reward_allowed_mate fires when the learner blunders (should correlate with losses 1-2 moves later). Check that reward_mate_threat fires in winning endgames.
+
+**Status:** APPLIED, not yet verified via training
+
+---
+
 ## Session 20: Network Architecture Deep Dive (2026-03-14)
 
 ### SPC Change 1: Fix ChessSeven Spatial Architecture
@@ -27,10 +77,26 @@
 **Verification question:** Does SPS exceed 300K with 16384 agents? Measure: first 5 epochs SPS.
 **Status:** APPLIED, not yet verified
 
+### SPC Change 3: Fix centipawn_eval.py Architecture Auto-Detection (2026-03-13)
+**Problem:** centipawn_eval.py had a single hardcoded `ChessEncoderPy` matching the old 1x1 pointwise architecture. Loading checkpoints from other architectures caused size mismatches (`encoder.square_embed.weight` vs `conv1.weight` vs `conv4.weight`).
+**Change:** Added architecture auto-detection supporting three model variants:
+- `detect_architecture(state_dict)` inspects key names:
+  - `square_embed` in keys -> `old_1x1` (original ChessSeven)
+  - `conv4` + `scalar_fc` in keys -> `chess_two` (ChessTwo with 4x conv3x3, 256ch)
+  - `conv1` + `skip` in keys -> `new_3x3` (revised ChessSeven with 3x3 + residual)
+- `ChessPolicyOld` wraps old 1x1 encoder (renamed from `ChessPolicy`/`ChessEncoderPy`)
+- `ChessPolicyTwo` + `ChessTwoEncoder` mirrors ChessTwo exactly (conv1-4, scalar_fc1/fc2, 16 spatial channels)
+- `ChessPolicyNew` mirrors new ChessSeven's 3x3 architecture (conv1->conv2+skip->conv3->proj->actor)
+- `load_model()` loads state_dict once, auto-detects arch, infers hidden_size/cnn_channels for ChessTwo, loads weights
+- Backward-compatible aliases preserved: `ChessPolicy = ChessPolicyOld`, `ChessEncoderPy = ChessEncoderOld`
+**File:** centipawn_eval.py
+**Verification:** Tested on Spark -- all three architectures detected correctly, old_1x1 and chess_two checkpoints load and forward pass without errors.
+**Status:** APPLIED, VERIFIED
+
 ### SPC Changes Still Needed:
-- [ ] Fix centipawn_eval.py architecture auto-detection
-- [ ] Create eval_policy_vs_policy.py (gold-standard: current beats past snapshots)
-- [ ] Add mate-in-1 detection reward to c_step in chess.h
+- [x] Fix centipawn_eval.py architecture auto-detection
+- [x] Create eval_policy_vs_policy.py (gold-standard: current beats past snapshots) (Session 22)
+- [x] Add mate-in-1 detection reward to c_step in chess.h (Session 21)
 - [ ] Verify all above post-training
 
 ---

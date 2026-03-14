@@ -629,6 +629,16 @@ void my_init(Env* env, Dict* kwargs) {
     env->gpu_opponent = gpo ? (int)gpo->value : 0;
     env->gpu_opponent_pending = 0;
 
+    // Mate-in-1 detection rewards
+    DictItem* rmt = dict_get_unsafe(kwargs, "reward_mate_threat");
+    env->reward_mate_threat = rmt ? (float)rmt->value : 0.1f;
+
+    DictItem* rmd = dict_get_unsafe(kwargs, "reward_mate_defense");
+    env->reward_mate_defense = rmd ? (float)rmd->value : 0.05f;
+
+    DictItem* ram = dict_get_unsafe(kwargs, "reward_allowed_mate");
+    env->reward_allowed_mate = ram ? (float)ram->value : -0.1f;
+
     DictItem* bnc = dict_get_unsafe(kwargs, "builtin_noise_cp");
     env->builtin_noise_cp = bnc ? (int)bnc->value : 150;
 

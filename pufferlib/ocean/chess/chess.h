@@ -793,6 +793,11 @@ typedef struct {
     char*** mate_fens;             // array of MATE_LEVELS char** arrays
     int* mate_fen_counts;          // count per level
 
+    // Mate-in-1 detection rewards (selfplay full games only)
+    float reward_mate_threat;      // reward for creating mate-in-1 threat after our move
+    float reward_mate_defense;     // reward for defending against opponent mate-in-1
+    float reward_allowed_mate;     // penalty for allowing opponent mate-in-1
+
     // GPU-batched opponent mode
     int gpu_opponent;              // config: 1=use GPU batched opponent eval
     int gpu_opponent_pending;      // flag: 1=waiting for GPU eval result this step
@@ -4897,6 +4902,32 @@ void c_step(Chess* env) {
             env->syzygy_wdl_prev = learner_wdl;
         }
     }
+    // Mate-in-1 detection rewards (full games only, not puzzles)
+    if (move_completed && mover == env->learner_color
+        && !env->puzzle_drill_mode && env->curriculum_episode_type != 0) {
+        // After learner's move, side-to-move is the opponent.
+        // Check if the opponent now has a mate-in-1 threat against us.
+        if (env->reward_allowed_mate != 0.0f || env->reward_mate_defense != 0.0f) {
+            Move opp_mate = find_mate_in_1(&env->pos);
+            if (opp_mate != MOVE_NONE) {
+                // We allowed a mate-in-1 threat -- penalty
+                env->rewards[0] += env->reward_allowed_mate;
+            }
+        }
+        // Check if WE created a mate-in-1 threat.
+        // Proxy: opponent is in check and has very few legal moves (close to mating net).
+        if (env->reward_mate_threat != 0.0f
+            && is_check(&env->pos, env->pos.sideToMove)) {
+            // Generate opponent legal moves to count them
+            MoveList mate_ml;
+            UndoInfo mate_undo[4]; int mate_ptr = 0;
+            generate_legal(&env->pos, &mate_ml, mate_undo, &mate_ptr);
+            if (mate_ml.count <= 2) {
+                env->rewards[0] += env->reward_mate_threat;
+            }
+        }
+    }
+
     if (!env->puzzle_drill_mode) clip_rewards(env);
     if (move_completed) {
         if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
