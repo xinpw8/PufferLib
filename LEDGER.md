@@ -1626,3 +1626,356 @@ Enables syzygy reward shaping by default. Delta scheme:
 
 The .so is built and deployed. Config has `reward_syzygy=0.5`. Tables are loaded.
 Start training with: `python -m pufferlib.pufferl train puffer_chess --wandb`
+
+---
+
+## Session 17: Mate Curriculum Runs 4-5 & Diagnosis
+
+### Context
+
+Two Claude Code instances on spark-advantage implemented a mate curriculum system:
+- Phase 0: mate-in-1 puzzles (827K positions from Lichess)
+- Phase 1: mate-in-2 puzzles (755K positions)
+- Phase 2: mate-in-3 puzzles (184K positions)
+- Phase 3-4: mate-in-4, mate-in-5
+- Phase 5-6: midgame/endgame BC
+- Phase 7: full game play
+
+Gate: advance when curriculum_ema >= mate_advance_threshold (0.90).
+
+Config changes from prior sessions: mate_curriculum=1, reward_mate_fail=-2.0 (run4) / -0.5 (run5), reward_syzygy=0.5 (Syzygy now working), stockfish_query_pct=100.
+
+### Run 4 (wandb: fekuswpl)
+
+**Timeline (from monitor log):**
+- 01:24 — Phase 1, EMA 0.834, 1.6B steps, SPS 474
+- 02:10 — Phase 1, EMA 0.865, 3.0B steps, SPS 497 (peak)
+- 02:20 — **COLLAPSE**: EMA 0.209, vf_loss exploded, entropy doubled
+- 02:30 — EMA 0.002, entropy 0.196, SPS dropped to 281
+- 02:40 — EMA 0.003, entropy 0.031 (near-zero = policy dead)
+- 03:50 — Still dead, EMA 0.005, killed
+
+**Root cause of collapse (run 4):** Unclipped terminal rewards. Mate puzzle success gave
++6.0 reward (1.0 win + 5.0 mate bonus) and failure gave -2.0, on episodes lasting only
+2-4 ticks. The value function couldn't track these extreme per-tick reward densities,
+causing vf_loss to explode to 221,495 and cascading policy collapse.
+
+### Run 5 (PID 414669)
+
+**Fix applied:** Added clip_rewards() after terminal rewards in both mate timeout path
+(line 4058) and end_game for mate puzzles (line 3748). Reduced reward_mate_fail from
+-2.0 to -0.5.
+
+**Timeline (from monitor log):**
+- 12:30 — Phase 0 (mate-in-1), EMA 0.846, 122M steps, 10m in
+- 12:40 — Phase 1 (mate-in-2), EMA 0.793 (gated phase 0→1)
+- 12:50 — Phase 1, EMA 0.823, 680M steps
+- 13:00 — Phase 1, EMA 0.844, 977M steps
+- 13:20 — Phase 1, EMA 0.855, 1.6B steps
+- 13:30 — Phase 1, EMA 0.867, 1.9B steps
+- 13:40 — Phase 1, EMA 0.869, 2.2B steps (PLATEAU — stuck below 0.90)
+- 13:50 — **Phase 2** (mate-in-3), EMA 0.657, 2.5B steps (gated, threshold must have been lowered)
+- 14:00 — Phase 2, EMA 0.205, vf_loss 669.8 — **COLLAPSING AGAIN**
+- 14:10 — Phase 2, EMA 0.114, still falling
+- 14:30 — Phase 2, EMA 0.023, dead
+
+**Losses stable through phase 1:** vf_loss held at 0.021-0.024, entropy 0.19-0.24,
+approx_kl 0.007. The reward clipping fix worked for phase 1. Collapse occurred on
+phase 2 transition.
+
+### Diagnosis: Mate-in-2 Plateau at 82%
+
+Investigated why EMA plateaued at ~0.87 in phase 1 (mate-in-2):
+
+**1. Opponent response is NOT the issue.** Verified with python-chess on 100 random
+mate-in-2 positions: 100% are truly forced mates. After the correct first move, ANY
+opponent defense still allows mate-in-1. Pseudostockfish's non-optimal defense doesn't
+prevent the agent from finding mate.
+
+**2. All puzzles have exactly 1 correct first move.** Sampled 500 positions — every
+single one has exactly 1 legal move that forces mate-in-2 (out of many legal moves).
+
+**3. The action space is the bottleneck.** Statistics from 1000 sampled positions:
+- Average legal moves: 32.8 (range 6-62)
+- Average movable pieces: 7.3 (range 2-14)
+- 41% of positions have 30-40 legal moves
+- 23% have 40+ legal moves
+
+The agent must find 1 specific move out of ~33 candidates. At 82-87% success, it's
+solving the easier patterns but can't represent the hardest ~15% of positions with
+the current 256-channel CNN (392K params).
+
+**4. Invalid actions are NOT wasting budget.** invalid_action_rate = 0.000.
+
+**5. Move budget is sufficient.** Mate-in-2 gets 16 ticks (needs 10 minimum, 6 slack).
+
+### Diagnosis: Phase Transition Collapse
+
+Both runs collapsed when transitioning to a harder phase. The pattern:
+1. Model learns current phase well (EMA ~0.85-0.87)
+2. Phase advances, new puzzles are much harder
+3. Success rate drops sharply → large negative rewards dominate
+4. Value function cannot quickly recalibrate → vf_loss explodes
+5. Policy gradient becomes garbage → entropy collapses → irrecoverable
+
+The reward clipping in run 5 helped within a phase but didn't prevent the transition
+shock. The fundamental issue is that phase transitions create a non-stationary reward
+distribution that PPO's value function can't track.
+
+### Recommendations
+
+1. **Lower gate threshold** to 0.80 — the model physically can't reach 0.90 on mate-in-2
+   with current capacity. Waiting longer just wastes compute.
+2. **Smooth phase transitions** — don't hard-switch. Mix in the new phase gradually
+   (e.g., 80% current phase + 20% next phase, ramping over time).
+3. **Reset value function on phase transition** — or use a larger vf_clip_coef during
+   the transition window to allow faster recalibration.
+4. **Consider skipping to full game play** — the mate puzzles teach pattern recognition
+   but the phase transition instability may cost more than it teaches. An alternative is
+   to mix mate puzzles into regular training at a fixed percentage rather than using
+   sequential phases.
+
+### Key Insight
+
+The mate curriculum is a good idea but sequential gating is fragile with PPO. The value
+function's learned reward baseline becomes stale on phase transitions. This is a known
+problem in curriculum RL — the solution is either continuous mixing or very gentle
+transitions, not hard phase gates.
+
+### Files Referenced
+
+- `pufferlib/ocean/chess/fens_mate_in_2.txt` — 754,978 positions
+- `pufferlib/ocean/chess/chess.h` — mate curriculum logic at lines 2725-2800, success tracking at 3815-3870, timeout at 4058-4090
+- `pufferlib/ocean/chess/binding.h` — puzzle loading at lines 286-325
+- `data/curriculum_monitor.log` — full 10-min interval logs
+
+---
+
+## Session 18 — Run 6 Regression + Run 7 Fixes
+
+### Run 6 Timeline
+- Launched with Session 17 fixes (dense check reward, retry, annealed mixing, threshold 0.80)
+- Phase 0 (mate-in-1): gated quickly
+- Phase 1 (mate-in-2): reached EMA 0.742 at epoch 193 (809M steps, 35 min)
+- Phase 1 REGRESSION: dropped to EMA 0.598 by epoch 482 (2.0B steps, 1h20m)
+- vf_loss increased 8x: 0.039 → 0.326
+
+### Root Cause Analysis
+1. **Annealed mixing has no floor**: At EMA 0.742, mix_ratio = 0.742/0.80 * 0.30 = 0.278 (28% mate-in-3). Model cant solve mate-in-3 yet, so these all fail, dragging EMA down. Even as EMA drops to 0.598, mix_ratio = 0.224 (22%) — still significant drag.
+2. **Retry was broken**: Saved difficulty level only, not exact puzzle index. Agent got random new puzzles, not the one it failed.
+3. **No per-move reward for mate puzzles**: tutor_target was 0, so reward_tutor_piece/reward_tutor_move never fired.
+
+### Fixes for Run 7
+1. Exact puzzle retry (save and reuse FEN index on failure)
+2. Mixing floor at EMA 0.65 (no harder puzzles until 65% solve rate)
+3. Mate-in-1 tutor_target computation (dense piece + destination reward)
+
+### Run 7
+- wandb: ydqvxqyg
+- Hypothesis: with exact retry + mixing floor + dense reward, mate-in-2 should gate cleanly at 0.80 and phase transitions should be stable
+
+---
+
+## Session 18c — Puzzle Drill Mode Implementation
+
+### Objective
+Pure puzzle drill: 10K mate-in-1, 10K mate-in-2, 10K mate-in-3. All non-puzzle rewards disabled.
+Escalating piece/dest rewards (0.01/0.015 base, +0.01 increment per move). Wrong action = immediate
+terminal. Per-puzzle unique-solved tracking with phase gate on 100% coverage.
+
+### Implementation
+12 patches to chess.h, 4 to binding.h, 1 to chess.ini. See debug.md Session 18c for full list.
+Key features: puzzle_drill_mode flag, dynamic tutor_target solver (mate-in-1/2/3), per-puzzle
+solved tracking (_puzzle_solved[5][10000]), puzzle-only end handler (bypasses end_game()),
+per-level unique solved counts in wandb.
+
+### Initial Run
+- wandb: rxhlkbbd (kind-firefly-96)
+
+---
+
+## Session 19 — Dead Drill Run Diagnosis & 5-Bug Fix (2026-02-25)
+
+### Dead Run: qvvx6f5u
+- 184 epochs, 2.6B steps, 50 min
+- ALL losses = 0.000, no learning whatsoever
+- tutor_piece_rate = 1.000 (survivorship bias)
+- curriculum_phase = 1.000 (jumped past mate-in-1 in epoch 1)
+- puzzle metrics invisible in wandb (brace nesting bug)
+
+### 5 Bugs Found and Fixed
+
+| # | Bug | Symptom | Root Cause | Fix |
+|---|-----|---------|------------|-----|
+| 1 | tutor_total survivorship | tutor_piece_rate = 1.0 | Increment inside match branch only | Moved before match check |
+| 2 | Logging brace error | Puzzle metrics hidden | puzzle_n block nested inside curriculum_n block | Closed brace, independent blocks |
+| 3 | Rewards too small | All losses = 0.000 | 0.01/0.015 collapses under advantage normalization | 10x: 0.1/0.15/0.1 |
+| 4 | Phase gate too easy | Phase jumped to 1 instantly | 16K agents brute-force 10K unique puzzles | EMA solve-rate gate (0.80 threshold over 5K games) |
+| 5 | Failure logging absent | No failure breakdown | puzzle_fail_idx[100] circular buffer never exported | 3 per-level float counters + LOG_PUZZLE_FAIL macro at all 8 failure paths |
+
+Additional fixes:
+- Removed double-accumulation bug (`puzzle_reward_accum += env->rewards[0]` at 2 game-end sites)
+- Reduced CURRICULUM_WARMUP: 10000 → 5000 (drill episodes are ~2-4 ticks)
+- Dict capacity: 48 → 64 in pufferlib.cpp
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| chess.h | tutor_total placement, Log struct (fail counters), LOG_PUZZLE_FAIL macro, 8 failure paths, double-accum removed, phase gate → EMA, warmup reduction |
+| binding.h | Fixed brace nesting, added puzzle_fail_l1/l2/l3 export |
+| chess.ini | Reward scale 10x (0.01→0.1, 0.015→0.15, 0.01→0.1) |
+| pufferlib.cpp | Dict capacity 48→64 |
+
+### Reward Table (post-fix)
+
+| Action | Mate-in-1 | Mate-in-2 (move 1) | Mate-in-2 (move 2) |
+|--------|-----------|---------------------|---------------------|
+| Correct piece | 0.10 | 0.10 | 0.20 |
+| Correct dest | 0.15 | 0.15 | 0.25 |
+| Checkmate bonus | 0.25 | — | 0.70 |
+| **Total** | **0.50** | — | **1.40** |
+
+### Expected Stats Timeline
+
+**Epochs 1-5** (sanity check):
+- `puzzle_attempts` > 0, `puzzle_fail_l1` > 0
+- `curriculum_phase = 0` (NOT jumping)
+- `tutor_piece_rate < 1.0` (real accuracy, expect ~3-5% = 1/30 random baseline)
+- `pg_loss`, `vf_loss`, `entropy` all NON-ZERO
+- `puzzle_solve_rate` very low (random baseline ~0.1% for mate-in-1: 1/33 piece × 1/N dest)
+
+**Epochs 10-30** (learning signal):
+- `tutor_piece_rate` rising (agent discovering correct pieces)
+- `puzzle_piece_acc` climbing
+- `curriculum_ema` > 0, climbing
+- `vf_loss` may spike as value function calibrates to new reward scale
+
+**Epochs 30-100** (convergence on mate-in-1):
+- `puzzle_solve_rate` steadily climbing toward 0.80
+- `puzzle_fail_l1` decreasing
+- `curriculum_ema` approaching 0.80 threshold
+
+**Epochs ~100-200** (phase gate):
+- `curriculum_ema >= 0.80` sustained over 5K games → phase 0→1 transition
+- `curriculum_phase` changes to 1 (mate-in-2)
+- `puzzle_fail_l2` appears, `puzzle_solve_rate` drops temporarily
+
+### Bug 6: EMA Survivorship Bias (found during run 2jk4vaeu)
+
+First fix attempt (run 2jk4vaeu) still had `curriculum_phase = 1.448` at epoch 1. Root cause:
+curriculum EMA only updated in game-end handlers (checkmate), not in early-termination paths
+(wrong piece/dest). ~97% of episodes terminate early as failures but never update the EMA.
+The EMA only sees checkmate outcomes → nearly all wins → EMA ≈ 1.0 → gate trivially passes.
+
+Fix: Added `PUZZLE_DRILL_EMA_FAIL` macro to all 5 early-termination failure paths. EMA now
+reflects the TRUE solve rate across ALL episodes.
+
+### Run 8 (final fix)
+- wandb: y6x3d6yy (balmy-firebrand-100)
+- All 6 bugs fixed
+
+**Epoch 5 verified stats:**
+
+| Metric | Value | Expected | Status |
+|--------|-------|----------|--------|
+| curriculum_phase | 0.0 | 0 | PASS |
+| curriculum_ema | 0.323 | < 0.80 | PASS |
+| tutor_piece_rate | 0.566 | < 1.0 | PASS |
+| puzzle_solve_rate | 0.322 | > 0 | PASS |
+| puzzle_piece_acc | 0.566 | > 0 | PASS |
+| puzzle_fail_l1 | 0.678 | > 0 | PASS |
+| puzzle_fail_l2 | 0.0 | 0 (on level 0) | PASS |
+| pg_loss | 95.6 | ≠ 0 | PASS |
+| entropy | 0.819 | ≠ 0 | PASS |
+
+Learning speed: 32% solve rate at epoch 5 (up from ~0.1% random baseline). Much faster than
+expected — the 10x reward scale is providing strong gradient signal.
+
+### Run 8 Collapse — Double-Advance Race + Entropy Collapse
+
+**Full trajectory:**
+
+| Epoch | Phase | EMA | Solve% | Piece% | Entropy |
+|-------|-------|-----|--------|--------|---------|
+| 0 | 0 | 0.011 | 1.2% | 13.6% | 2.09 |
+| 3 | 0 | 0.157 | 15.7% | 38.4% | 1.30 |
+| 5 | 0 | 0.567 | 56.6% | 76.6% | 0.37 |
+| **6** | **1.89** | 0.143 | 16.1% | 44.4% | **0.024** |
+| 7 | 2.0 | 0.000 | 0.02% | 9.0% | 0.007 |
+| 8+ | dead | — | — | — | 0.000 |
+
+**Bug 7: Double-advance race condition in phase gate CAS**
+The gate does `CAS(0→1)` then resets `_g_curriculum_ema = 0.0f` AFTER the CAS. Window between
+CAS and reset: Thread B reads phase=1 + stale high EMA → CAS(1→2) succeeds. Phase jumps 0→2
+in nanoseconds. Fix: reset ema/games BEFORE CAS.
+
+**Bug 8: Entropy collapse — policy overfits to single phase**
+Entropy 2.09→0.37 in 5 epochs on mate-in-1 alone (ent_coef=0.02 too low for curriculum).
+On transition, entropy 0.37→0.024→0.0 = irrecoverable. Two fixes:
+1. Enable annealed mixing in puzzle drill handlers (was only computed in end_game(), never
+   called for puzzle drill mode)
+2. ent_coef 0.02→0.05
+
+### Run 9
+- wandb: TBD
+- Fixes: race-safe CAS, annealed mixing in drill mode, ent_coef=0.05
+
+## Session 19b — Critical Audit of Bug Fixes 5-9 (2026-02-26)
+
+### Objective
+Empirically verify every bug fix (5-9) made by prior Claude sessions. Map each fix to a specific drill run and prove/disprove it worked using wandb data.
+
+### Key Findings
+
+**Verified fixes (4/5)**:
+
+| Bug | Fix | Verdict | Evidence |
+|-----|-----|---------|----------|
+| 5 (failure logging) | per-level counters + LOG_PUZZLE_FAIL | PASS | drill7 wandb: puzzle_fail_l1 tracks correctly |
+| 6 (EMA survivorship) | PUZZLE_DRILL_EMA_FAIL macro at all early-term paths | PASS | drill6+: EMA starts at 0, tracks real solve rate |
+| 7 (double-advance race) | Reset counters BEFORE CAS | PASS | drill4/5 had phase jumps (1.448, 1.888); drill6+ stays at 0 |
+| 9 (atomic counters) | __sync_fetch_and_add on int counters | PASS | drill9: curriculum_ema = actual solve rate |
+
+**Unverified fix (1/5)**:
+
+| Bug | Fix | Verdict | Evidence |
+|-----|-----|---------|----------|
+| 8 (annealed mixing) | mate_mix_ratio in drill handlers | FAIL | mate_mix_ratio is DEAD CODE — computed but never read in puzzle selection |
+
+### NEW CRITICAL BUG: random_bot_move() NO-OP
+- `random_bot_move()` checks `if (\!env->random_bot) return;`
+- Config has `random_bot = 0`
+- Opponent NEVER MOVES in drill mode
+- PROOF: drill9 wandb shows `puzzle_unique_l2=0`, `puzzle_unique_l3=0` across ALL 37 epochs
+- Mate-in-2/3 puzzles are IMPOSSIBLE to solve (no opponent response)
+- Mate-in-1 unaffected (no opponent move needed)
+- Explains drill8 collapse: level 1 puzzles (mate-in-2) literally unsolvable
+
+### Additional Issues Found
+- `_puzzle_solved[]` race condition (128 threads, no atomics on read-test-write)
+- `mate_mix_ratio` dead code (set but never read in puzzle selection)
+- 4 log fields accumulated but never exported (curriculum_fail, mate_retry_count, mate_mix_count, mate_progress_count)
+- `reward_invalid_piece` leaks into drill mode (missing puzzle_drill_mode gate)
+- Full FEN files loaded (100K-800K) but only 10K tracking slots
+
+### Run Summary
+
+| Run | wandb | Epochs | Best solve% | Final entropy | Phase | Outcome |
+|-----|-------|--------|-------------|---------------|-------|---------|
+| drill3 | qvvx6f5u | 631 | 1.5% | 0.000 | 1 | Low reward (0.01), entropy collapse |
+| drill4 | 2jk4vaeu | 6 | 1.3% | 0.000 | 3 | Double-advance, instant collapse |
+| drill5 | y6x3d6yy | 432 | 56.6% | 0.000 | 2 | Learned then collapsed on advance |
+| drill6 | 4sk08pdq | 52 | 89.4% | 0.000 | 0 | Mastered m1, entropy collapsed |
+| drill7 | 1kcymi19 | 33 | 99.9% | 0.007 | 0 | BEST RUN — mastered m1, gate never fired |
+| drill8 | rlp2agqm | 82 | 83.8% | 0.000 | 1 | 86%→0.6% on level advance |
+| drill9 | 1t9jhl17 | 38 | 58.1% | 1.635 | 0 | All-mix, peaked then forgot |
+
+**Key insight**: NO run has ever transitioned phases and continued learning. The random_bot no-op bug means phase transitions were IMPOSSIBLE for mate-in-2+ regardless of other fixes.
+
+### Next Steps
+1. **Fix random_bot**: Set `env->random_bot = 1` when `puzzle_drill_mode`, or remove the early-return guard
+2. **Fix mate_mix_ratio dead code**: Wire it into puzzle selection so annealed mixing actually works
+3. **Train from scratch** with opponent actually moving
+4. **Single-level curriculum with fast gate**: Lower threshold to 0.50, single-level at a time (not all-mix), fast transition before entropy collapses
+5. Consider entropy reset/boost on phase transition

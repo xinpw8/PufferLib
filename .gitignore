@@ -162,3 +162,12 @@ pufferlib/ocean/impulse_wars/*-release/
 pufferlib/ocean/impulse_wars/debug-*/
 pufferlib/ocean/impulse_wars/release-*/
 pufferlib/ocean/impulse_wars/benchmark/
+*.pt
+data/
+experiments/
+wandb/
+box2d*
+__pycache__/
+*.so
+*.a
+*.o

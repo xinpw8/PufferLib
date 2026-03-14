@@ -327,6 +327,28 @@ class PuffeRL:
                 self.pufferl_cpp, vec_config['total_agents'],
                 vec_config['num_buffers'], n_slots)
 
+        # Centipawn progress monitor (background Stockfish eval)
+        self.centipawn_monitor = None
+        if self.selfplay:
+            try:
+                from centipawn_eval import CentipawnMonitor
+                stockfish_path = '/home/spark-advantage/Stockfish/src/stockfish'
+                if os.path.exists(stockfish_path):
+                    self.centipawn_monitor = CentipawnMonitor(
+                        stockfish_path=stockfish_path,
+                        experiment_dir=os.path.join(
+                            config['data_dir'], config['env'],
+                            str(logger.run_id) if logger else 'unknown'),
+                        hidden_size=config.get('hidden_size', 256),
+                        num_games=20,
+                        eval_depth=10,
+                        snapshot_gap=2,
+                        eval_interval_epochs=50,
+                    )
+                    print('[PufferRL] Centipawn monitor started')
+            except Exception as e:
+                print(f'[PufferRL] Centipawn monitor disabled: {e}')
+
         # Initializations
         self.config = config
         self.epoch = 0
@@ -665,6 +687,7 @@ class PuffeRL:
             **{f'losses/{k}': v for k, v in self.losses.items()},
             **{f'performance/{k}': v for k, v in self.profile.items()},
             **selfplay_logs,
+            **(self.centipawn_monitor.get_latest_metrics() if self.centipawn_monitor else {}),
             #**{f'environment/{k}': dist_mean(v, device) for k, v in self.stats.items()},
             #**{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
             #**{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
@@ -674,6 +697,9 @@ class PuffeRL:
         return logs
 
     def close(self):
+        if self.centipawn_monitor:
+            self.centipawn_monitor.stop()
+            self.centipawn_monitor = None
         model_path = self.save_checkpoint()
         # Clear Python references to C++ tensors BEFORE calling C++ close
         self.rollouts = None

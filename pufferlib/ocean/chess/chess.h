@@ -25,6 +25,52 @@ static int _g_annealing_games = 0;         // Total games (for warmup)
 #define ANNEAL_WR_THRESHOLD 0.15f           // Start annealing above this
 #define ANNEAL_RATE 0.0001f                 // Per-game decrease per unit excess WR
 
+// Multi-phase curriculum globals (shared across all envs)
+#define CURRICULUM_PHASES 8   // 0-4=mate-in-N, 5=midgame BC, 6=endgame BC, 7=full games
+static int _g_curriculum_phase = 0;
+static float _g_curriculum_ema = 0.0f;
+static int _g_curriculum_games = 0;
+static int _g_curriculum_advances = 0;
+static int _g_drill_successes = 0;   // atomic counter: puzzle solves since last phase advance
+static int _g_drill_attempts = 0;    // atomic counter: total puzzle attempts since last advance
+
+// Per-puzzle solve tracking for drill mode (10k per level, 3 levels)
+#define PUZZLE_DRILL_MAX 10000
+static int _puzzle_solved[5][PUZZLE_DRILL_MAX];  // 0=unsolved, 1=solved
+static int _puzzle_solved_count[5] = {0, 0, 0, 0, 0};  // unique solved per level
+
+#define CURRICULUM_EMA_ALPHA 0.0005f  // ~2000 game window
+#define CURRICULUM_WARMUP 10000       // min games before advancing
+#define DRILL_GATE_WARMUP 20000       // min attempts before drill phase gate can fire
+
+#define LOG_PUZZLE_FAIL(log, level) do { \
+    if ((level) == 0) (log)->puzzle_fail_l1 += 1.0f; \
+    else if ((level) == 1) (log)->puzzle_fail_l2 += 1.0f; \
+    else if ((level) == 2) (log)->puzzle_fail_l3 += 1.0f; \
+} while(0)
+
+// Track puzzle drill attempt (failure). Uses atomic int counters to avoid
+// non-atomic float EMA races with 128 threads.
+#define PUZZLE_DRILL_EMA_FAIL(log) do { \
+    __sync_fetch_and_add(&_g_drill_attempts, 1); \
+    (log)->curriculum_fail += 1.0f; \
+    (log)->curriculum_n += 1.0f; \
+    (log)->curriculum_phase += (float)_g_curriculum_phase; \
+    (log)->curriculum_ema += (_g_drill_attempts > 0 ? \
+        (float)_g_drill_successes / (float)_g_drill_attempts : 0.0f); \
+} while(0)
+
+// Track puzzle drill attempt (success). Called in game-end handlers.
+#define PUZZLE_DRILL_EMA_SUCCESS(log) do { \
+    __sync_fetch_and_add(&_g_drill_successes, 1); \
+    __sync_fetch_and_add(&_g_drill_attempts, 1); \
+    (log)->curriculum_success += 1.0f; \
+    (log)->curriculum_n += 1.0f; \
+    (log)->curriculum_phase += (float)_g_curriculum_phase; \
+    (log)->curriculum_ema += (_g_drill_attempts > 0 ? \
+        (float)_g_drill_successes / (float)_g_drill_attempts : 0.0f); \
+} while(0)
+
 typedef uint64_t Bitboard;
 typedef uint64_t Key;
 typedef uint32_t Square;
@@ -561,6 +607,29 @@ typedef struct {
     float syzygy_wins;
     float syzygy_draws;
     float syzygy_reward_total;
+    float curriculum_phase;
+    float curriculum_ema;
+    float curriculum_success;
+    float curriculum_fail;
+    float curriculum_n;
+    float mate_retry_count;       // how many times retry triggered
+    float mate_mix_count;         // how many times next-phase mixing applied
+    float mate_progress_count;    // how many times check reward fired during mate
+
+    // Puzzle drill stats
+    float puzzle_attempts;        // total puzzle attempts
+    float puzzle_solves;          // total successful checkmates
+    float puzzle_wrong_piece;     // terminated: wrong piece
+    float puzzle_wrong_dest;      // terminated: wrong destination
+    float puzzle_timeouts;        // terminated: ran out of moves
+    float puzzle_piece_correct;   // correct piece selections
+    float puzzle_dest_correct;    // correct dest selections (only when piece was correct)
+    float puzzle_reward_total;    // sum of all puzzle rewards given
+    float puzzle_level;           // sum of levels (for average)
+    float puzzle_n;               // puzzle episode count
+    float puzzle_fail_l1;       // failures on level 0 (mate-in-1)
+    float puzzle_fail_l2;       // failures on level 1 (mate-in-2)
+    float puzzle_fail_l3;       // failures on level 2 (mate-in-3)
 } Log;
 
 typedef struct {
@@ -647,6 +716,7 @@ typedef struct {
     float reward_repetition;
     float reward_check;
     float reward_mate;
+    float reward_mate_progress;    // reward for giving check during mate puzzles
     float reward_syzygy;
     int syzygy_wdl_prev;  // previous WDL probe result for delta reward
     
@@ -689,6 +759,45 @@ typedef struct {
     float reward_tutor_move;        // Bonus for matching expert's destination
     float reward_tutor_wrong;       // Penalty for wrong move (optional, default 0)
     int tutor_only_mode;            // If 1, episode ends after first move attempt
+
+    // Multi-phase curriculum
+    int mate_curriculum;           // config: enable curriculum system
+    int curriculum_episode_type;   // 0=mate puzzle, 1=midgame BC, 2=endgame BC, 3=full game
+    int mate_level;                // which mate-in-N (0-4) for mate puzzles
+    int mate_max_moves;            // move budget for mate puzzles (ticks, not chess moves)
+    float reward_mate_fail;        // penalty for failing mate puzzle
+    float mate_advance_threshold;  // success rate to advance phases
+    int mate_retry;                // if 1, retry same puzzle on failure
+    int mate_retry_idx;            // saved FEN index of failed puzzle (>= 0 = retry pending, -1 = none)
+    int mate_retry_level;          // level of last failed puzzle
+    int mate_current_idx;          // FEN index of current puzzle (for retry)
+    int mate_current_level;        // level of current puzzle (for retry)
+    float mate_mix_ratio;          // fraction of next-phase puzzles to mix in (annealing)
+    float mate_mix_floor;          // minimum EMA before mixing starts (default 0.65)
+
+    // Puzzle drill mode
+    int puzzle_drill_mode;         // if 1, only puzzle rewards, strict terminal on wrong action
+    float puzzle_piece_reward_0;   // base reward for correct piece selection (default 0.01)
+    float puzzle_dest_reward_0;    // base reward for correct dest selection (default 0.015)
+    float puzzle_reward_increment; // reward increment per subsequent move (default 0.01)
+    float puzzle_reward_accum;     // accumulated puzzle rewards this episode (for checkmate bonus)
+    int puzzle_move_num;           // which move we're on (0-indexed) within this puzzle episode
+    int puzzle_drill_levels;       // how many levels (3 = mate-in-1,2,3)
+
+    // Midgame curriculum data pointers (set from binding.h globals)
+    char** fen_curriculum_midgame;
+    uint16_t* tutor_moves_midgame;
+    int num_fens_midgame;
+
+    // Mate curriculum data pointers (set from binding.h globals)
+    char*** mate_fens;             // array of MATE_LEVELS char** arrays
+    int* mate_fen_counts;          // count per level
+
+    // GPU-batched opponent mode
+    int gpu_opponent;              // config: 1=use GPU batched opponent eval
+    int gpu_opponent_pending;      // flag: 1=waiting for GPU eval result this step
+    int builtin_noise_cp;          // noise band for builtin/GPU eval (default 150)
+    int builtin_depth;             // search depth for builtin opponent (default 2)
 
 #ifdef CHESS_DEBUG_BUILD
     int debug_paused;
@@ -2656,6 +2765,119 @@ void generate_random_fen(char* fen_out) {
     strcpy(ptr, " w - - 0 1");
 }
 
+
+// =====================================================================
+// Mate-in-N solvers for puzzle drill mode
+// Returns the Move that forces mate, or MOVE_NONE if no mate found.
+// =====================================================================
+
+static Move find_mate_in_1(Position* pos) {
+    MoveList ml;
+    UndoInfo undo[4]; int ptr = 0;
+    generate_legal(pos, &ml, undo, &ptr);
+    for (int i = 0; i < ml.count; i++) {
+        Move m = ml.moves[i].move;
+        UndoInfo u2[4]; int p2 = 0;
+        do_move(pos, m, u2, &p2);
+        MoveList opp;
+        UndoInfo u3[4]; int p3 = 0;
+        generate_legal(pos, &opp, u3, &p3);
+        int is_mate = (opp.count == 0 && is_check(pos, pos->sideToMove));
+        undo_move(pos, m, u2, &p2);
+        if (is_mate) return m;
+    }
+    return MOVE_NONE;
+}
+
+static Move find_mate_in_2(Position* pos) {
+    MoveList ml;
+    UndoInfo undo[4]; int ptr = 0;
+    generate_legal(pos, &ml, undo, &ptr);
+    for (int i = 0; i < ml.count; i++) {
+        Move m = ml.moves[i].move;
+        UndoInfo u2[4]; int p2 = 0;
+        do_move(pos, m, u2, &p2);
+        MoveList opp;
+        UndoInfo u3[4]; int p3 = 0;
+        generate_legal(pos, &opp, u3, &p3);
+        if (opp.count == 0) {
+            // Already checkmate or stalemate
+            int is_mate = is_check(pos, pos->sideToMove);
+            undo_move(pos, m, u2, &p2);
+            if (is_mate) return m; // mate-in-1 also works
+            continue;
+        }
+        // Check ALL opponent responses have a mate-in-1 reply
+        int all_mate = 1;
+        for (int j = 0; j < opp.count; j++) {
+            Move opp_m = opp.moves[j].move;
+            UndoInfo u4[4]; int p4 = 0;
+            do_move(pos, opp_m, u4, &p4);
+            Move reply = find_mate_in_1(pos);
+            undo_move(pos, opp_m, u4, &p4);
+            if (reply == MOVE_NONE) { all_mate = 0; break; }
+        }
+        undo_move(pos, m, u2, &p2);
+        if (all_mate) return m;
+    }
+    return MOVE_NONE;
+}
+
+static Move find_mate_in_3(Position* pos) {
+    MoveList ml;
+    UndoInfo undo[4]; int ptr = 0;
+    generate_legal(pos, &ml, undo, &ptr);
+    for (int i = 0; i < ml.count; i++) {
+        Move m = ml.moves[i].move;
+        UndoInfo u2[4]; int p2 = 0;
+        do_move(pos, m, u2, &p2);
+        MoveList opp;
+        UndoInfo u3[4]; int p3 = 0;
+        generate_legal(pos, &opp, u3, &p3);
+        if (opp.count == 0) {
+            int is_mate = is_check(pos, pos->sideToMove);
+            undo_move(pos, m, u2, &p2);
+            if (is_mate) return m;
+            continue;
+        }
+        int all_mate = 1;
+        for (int j = 0; j < opp.count; j++) {
+            Move opp_m = opp.moves[j].move;
+            UndoInfo u4[4]; int p4 = 0;
+            do_move(pos, opp_m, u4, &p4);
+            Move reply = find_mate_in_2(pos);
+            undo_move(pos, opp_m, u4, &p4);
+            if (reply == MOVE_NONE) { all_mate = 0; break; }
+        }
+        undo_move(pos, m, u2, &p2);
+        if (all_mate) return m;
+    }
+    return MOVE_NONE;
+}
+
+// Compute correct move for current position at given depth and set tutor_target
+static void set_puzzle_tutor_target(Chess* env, int depth) {
+    Move m = MOVE_NONE;
+    if (depth == 1) m = find_mate_in_1(&env->pos);
+    else if (depth == 2) m = find_mate_in_2(&env->pos);
+    else if (depth == 3) m = find_mate_in_3(&env->pos);
+
+    if (m != MOVE_NONE) {
+        uint16_t fsq = (uint16_t)from_sq(m);
+        uint16_t tsq = (uint16_t)to_sq(m);
+        uint16_t promo = (type_of_m(m) == PROMOTION) ? (uint16_t)((m >> 12) & 3) : 0;
+        // Mirror for Black
+        if (env->learner_color == CHESS_BLACK) {
+            fsq = fsq ^ 56;
+            tsq = tsq ^ 56;
+        }
+        env->tutor_target = fsq | (tsq << 6) | (promo << 12);
+    } else {
+        env->tutor_target = 0;  // solver failed, skip tutor for this puzzle
+    }
+    env->tutor_phase = 0;
+}
+
 void c_reset(Chess* env) {
     env->tick = 0;
     env->chess_moves = 0;
@@ -2686,6 +2908,137 @@ void c_reset(Chess* env) {
     env->tutor_target = 0;
     env->syzygy_wdl_prev = -99;
     env->tutor_phase = 0;
+    env->curriculum_episode_type = 3;  // default: full game
+
+    // Multi-phase curriculum: override episode setup based on current phase
+    // Skip curriculum in human_play mode — curriculum is for training only
+    if (env->mate_curriculum && !env->human_play) {
+        int phase = _g_curriculum_phase;
+
+        if (phase >= 0 && phase <= 4 && env->mate_fens != NULL && env->mate_fen_counts != NULL) {
+            // Phase 0-4: Mate-in-N puzzles
+            // Single-level curriculum: only present current phase's level
+            // Phase gate advances when solve rate >= threshold
+            int level = phase;
+            if (level < 0) level = 0;
+            if (level > 4) level = 4;
+
+            // Retry: if we failed the last puzzle, re-present the EXACT same puzzle
+            if (env->mate_retry && env->mate_retry_idx >= 0
+                && env->mate_retry_level >= 0 && env->mate_retry_level <= 4) {
+                level = env->mate_retry_level;
+                // Will use mate_retry_idx below instead of random
+            }
+
+            if (env->mate_fen_counts[level] > 0) {
+                int idx;
+                if (env->mate_retry && env->mate_retry_idx >= 0
+                    && level == env->mate_retry_level) {
+                    // Retry: reuse the EXACT same puzzle
+                    idx = env->mate_retry_idx;
+                    if (idx >= env->mate_fen_counts[level]) idx = 0; // safety
+                    env->mate_retry_idx = -1;  // clear retry flag
+                    env->log.mate_retry_count += 1.0f;
+                } else {
+                    idx = rand() % env->mate_fen_counts[level];
+                    env->mate_retry_idx = -1;  // no retry pending
+                }
+                env->mate_current_idx = idx;    // save for potential retry
+                env->mate_current_level = level;
+                pos_set(&env->pos, env->mate_fens[level][idx]);
+                env->learner_color = (int)env->pos.sideToMove;
+                env->curriculum_episode_type = 0;
+                env->mate_level = level;
+                // Budget: 2*(level+1) chess half-moves, converted to ticks
+                // Each chess move = 2 ticks (pick piece + pick dest), plus some slack
+                env->mate_max_moves = (2 * (level + 1) + 2) * 2 + 4;
+
+                // Puzzle drill: initialize per-episode state
+                if (env->puzzle_drill_mode) {
+                    env->puzzle_reward_accum = 0.0f;
+                    env->puzzle_move_num = 0;
+                    // Use solver for ALL levels
+                    set_puzzle_tutor_target(env, level + 1);
+                }
+                // Legacy: For mate-in-1 without drill mode
+                else if (level == 0) {
+                    MoveList sol_ml;
+                    UndoInfo sol_undo[4];
+                    int sol_ptr = 0;
+                    generate_legal(&env->pos, &sol_ml, sol_undo, &sol_ptr);
+                    for (int mi = 0; mi < sol_ml.count; mi++) {
+                        Move m = sol_ml.moves[mi].move;
+                        UndoInfo u2[4]; int p2 = 0;
+                        do_move(&env->pos, m, u2, &p2);
+                        MoveList opp_ml;
+                        UndoInfo u3[4]; int p3 = 0;
+                        generate_legal(&env->pos, &opp_ml, u3, &p3);
+                        int is_mate_result = (opp_ml.count == 0 && is_check(&env->pos, env->pos.sideToMove));
+                        undo_move(&env->pos, m, u2, &p2);
+                        if (is_mate_result) {
+                            uint16_t fsq = (uint16_t)from_sq(m);
+                            uint16_t tsq = (uint16_t)to_sq(m);
+                            uint16_t promo = (type_of_m(m) == PROMOTION) ? (uint16_t)((m >> 12) & 3) : 0;
+                            // Mirror for Black (same as BC tutor_target logic)
+                            if (env->learner_color == CHESS_BLACK) {
+                                fsq = fsq ^ 56;
+                                tsq = tsq ^ 56;
+                            }
+                            env->tutor_target = fsq | (tsq << 6) | (promo << 12);
+                            break;
+                        }
+                    }
+                }
+                goto curriculum_done;
+            }
+        }
+
+        if (phase == 5 && env->fen_curriculum_midgame != NULL && env->num_fens_midgame > 0) {
+            // Phase 5: Midgame BC (play from midgame position with tutor)
+            int idx = rand() % env->num_fens_midgame;
+            pos_set(&env->pos, env->fen_curriculum_midgame[idx]);
+            env->learner_color = (int)env->pos.sideToMove;
+            env->curriculum_episode_type = 1;
+
+            // Load tutor target if available
+            if (env->tutor_moves_midgame != NULL && env->tutor_moves_midgame[idx] != 0) {
+                uint16_t packed = env->tutor_moves_midgame[idx];
+                uint16_t from_abs = packed & 0x3F;
+                uint16_t to_abs = (packed >> 6) & 0x3F;
+                uint16_t promo = (packed >> 12) & 0xF;
+                if (env->learner_color == CHESS_BLACK) {
+                    from_abs = from_abs ^ 56;
+                    to_abs = to_abs ^ 56;
+                }
+                env->tutor_target = from_abs | (to_abs << 6) | (promo << 12);
+            }
+            goto curriculum_done;
+        }
+
+        if (phase == 6 && env->fen_curriculum_dm != NULL && env->num_fens_dm > 0) {
+            // Phase 6: Endgame BC (play from endgame position with tutor + Syzygy)
+            int idx = rand() % env->num_fens_dm;
+            pos_set(&env->pos, env->fen_curriculum_dm[idx]);
+            env->learner_color = (int)env->pos.sideToMove;
+            env->curriculum_episode_type = 2;
+
+            // Load tutor target if available
+            if (env->tutor_moves_dm != NULL && env->tutor_moves_dm[idx] != 0) {
+                uint16_t packed = env->tutor_moves_dm[idx];
+                uint16_t from_abs = packed & 0x3F;
+                uint16_t to_abs = (packed >> 6) & 0x3F;
+                uint16_t promo = (packed >> 12) & 0xF;
+                if (env->learner_color == CHESS_BLACK) {
+                    from_abs = from_abs ^ 56;
+                    to_abs = to_abs ^ 56;
+                }
+                env->tutor_target = from_abs | (to_abs << 6) | (promo << 12);
+            }
+            goto curriculum_done;
+        }
+
+        // Phase 7 (or fallthrough): full games — continue to existing logic below
+    }
 
     if (env->fen_curriculum != NULL && env->num_fens > 0) {
         float randvalue = (float)rand() / (float)(RAND_MAX);
@@ -2730,7 +3083,8 @@ void c_reset(Chess* env) {
     } else {
         pos_set(&env->pos, env->starting_fen);
     }
-    
+
+curriculum_done:
     generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
     env->legal_moves_side = env->pos.sideToMove;
     env->legal_moves_key = env->pos.key;
@@ -2814,25 +3168,94 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
             if (env->valid_destinations[pidx].count > 0) {
                 env->selected_square[pidx] = picked_sq;
                 env->pick_phase[pidx] = 1;
-                if (player == env->learner_color) env->rewards[0] += env->reward_valid_piece;
+                if (player == env->learner_color && !env->puzzle_drill_mode) env->rewards[0] += env->reward_valid_piece;
                 // Tutor: reward for matching expert's source square
                 if (player == env->learner_color && env->tutor_target != 0 && env->tutor_phase == 0) {
+                    env->log.tutor_total += 1.0f;  // Count ALL piece attempts (not just matches)
                     uint16_t tutor_from = env->tutor_target & 0x3F;
                     if ((uint16_t)action == tutor_from) {
-                        env->rewards[0] += env->reward_tutor_piece;
+                        if (env->puzzle_drill_mode) {
+                            // Puzzle drill: escalating piece reward
+                            float pr = env->puzzle_piece_reward_0 + env->puzzle_move_num * env->puzzle_reward_increment;
+                            env->rewards[0] = pr;  // ONLY this reward
+                            env->puzzle_reward_accum += pr;
+                            env->log.puzzle_piece_correct += 1.0f;
+                        } else {
+                            env->rewards[0] += env->reward_tutor_piece;
+                        }
                         env->log.tutor_piece_match += 1.0f;
+                    } else if (env->puzzle_drill_mode) {
+                        // WRONG PIECE in drill mode: immediate terminal
+                        env->rewards[0] = 0.0f;
+                        env->terminals[0] = 1.0f;
+                        env->log.puzzle_wrong_piece += 1.0f;
+                        env->log.puzzle_attempts += 1.0f;
+                        env->log.puzzle_level += (float)env->mate_level;
+                        env->log.puzzle_n += 1.0f;
+                        env->log.puzzle_reward_total += env->puzzle_reward_accum;
+                        LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+                        PUZZLE_DRILL_EMA_FAIL(&env->log);
+                        env->episode_reward += env->rewards[0];
+                        env->log.episode_return += env->episode_reward;
+                        env->log.n += 1.0f;
+                        if (env->mate_retry) {
+                            env->mate_retry_idx = env->mate_current_idx;
+                            env->mate_retry_level = env->mate_current_level;
+                        }
+                        c_reset(env);
+                        return false;
                     }
                     env->tutor_phase = 1;
-                    env->log.tutor_total += 1.0f;
                 }
             } else {
                 if (player == env->learner_color) {
+                    if (env->puzzle_drill_mode) {
+                        // Invalid piece in drill mode: terminal
+                        env->rewards[0] = 0.0f;
+                        env->terminals[0] = 1.0f;
+                        env->log.puzzle_wrong_piece += 1.0f;
+                        env->log.puzzle_attempts += 1.0f;
+                        env->log.puzzle_level += (float)env->mate_level;
+                        env->log.puzzle_n += 1.0f;
+                        env->log.puzzle_reward_total += env->puzzle_reward_accum;
+                        LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+                        PUZZLE_DRILL_EMA_FAIL(&env->log);
+                        env->episode_reward += env->rewards[0];
+                        env->log.episode_return += env->episode_reward;
+                        env->log.n += 1.0f;
+                        if (env->mate_retry) {
+                            env->mate_retry_idx = env->mate_current_idx;
+                            env->mate_retry_level = env->mate_current_level;
+                        }
+                        c_reset(env);
+                        return false;
+                    }
                     env->rewards[0] += env->reward_invalid_piece;
                     env->invalid_actions_this_episode++;
                 }
             }
         } else {
             if (player == env->learner_color) {
+                if (env->puzzle_drill_mode) {
+                    env->rewards[0] = 0.0f;
+                    env->terminals[0] = 1.0f;
+                    env->log.puzzle_wrong_piece += 1.0f;
+                    env->log.puzzle_attempts += 1.0f;
+                    env->log.puzzle_level += (float)env->mate_level;
+                    env->log.puzzle_n += 1.0f;
+                    env->log.puzzle_reward_total += env->puzzle_reward_accum;
+                    LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+                    PUZZLE_DRILL_EMA_FAIL(&env->log);
+                    env->episode_reward += env->rewards[0];
+                    env->log.episode_return += env->episode_reward;
+                    env->log.n += 1.0f;
+                    if (env->mate_retry) {
+                        env->mate_retry_idx = env->mate_current_idx;
+                        env->mate_retry_level = env->mate_current_level;
+                    }
+                    c_reset(env);
+                    return false;
+                }
                 env->rewards[0] += env->reward_invalid_piece;
                 env->invalid_actions_this_episode++;
             }
@@ -2886,6 +3309,30 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
     
     if (chosen_move == MOVE_NONE) {
         if (player == env->learner_color) {
+            if (env->puzzle_drill_mode) {
+                // Invalid dest in drill mode: terminal
+                env->rewards[0] = 0.0f;
+                env->terminals[0] = 1.0f;
+                env->log.puzzle_wrong_dest += 1.0f;
+                env->log.puzzle_attempts += 1.0f;
+                env->log.puzzle_level += (float)env->mate_level;
+                env->log.puzzle_n += 1.0f;
+                env->log.puzzle_reward_total += env->puzzle_reward_accum;
+                LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+                PUZZLE_DRILL_EMA_FAIL(&env->log);
+                env->episode_reward += env->rewards[0];
+                env->log.episode_return += env->episode_reward;
+                env->log.n += 1.0f;
+                if (env->mate_retry) {
+                    env->mate_retry_idx = env->mate_current_idx;
+                    env->mate_retry_level = env->mate_current_level;
+                }
+                env->pick_phase[pidx] = 0;
+                env->selected_square[pidx] = SQ_NONE;
+                env->valid_destinations[pidx].count = 0;
+                c_reset(env);
+                return false;
+            }
             env->rewards[0] += env->reward_invalid_move;
             env->invalid_actions_this_episode++;
         }
@@ -2899,7 +3346,7 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
         return false;
     }
 
-    if (player == env->learner_color) env->rewards[0] += env->reward_valid_move;
+    if (player == env->learner_color && !env->puzzle_drill_mode) env->rewards[0] += env->reward_valid_move;
 
     // Tutor: reward for matching expert's destination
     if (player == env->learner_color && env->tutor_target != 0 && env->tutor_phase == 1) {
@@ -2923,8 +3370,40 @@ bool process_player_action(Chess* env, int action, ChessColor player) {
             }
         }
         if (match) {
-            env->rewards[0] += env->reward_tutor_move;
+            if (env->puzzle_drill_mode) {
+                float dr = env->puzzle_dest_reward_0 + env->puzzle_move_num * env->puzzle_reward_increment;
+                env->rewards[0] = dr;  // ONLY this reward
+                env->puzzle_reward_accum += dr;
+                env->puzzle_move_num++;
+                env->log.puzzle_dest_correct += 1.0f;
+            } else {
+                env->rewards[0] += env->reward_tutor_move;
+            }
             env->log.tutor_move_match += 1.0f;
+        } else if (env->puzzle_drill_mode) {
+            // WRONG DEST in drill mode: immediate terminal
+            env->rewards[0] = 0.0f;
+            env->terminals[0] = 1.0f;
+            env->log.puzzle_wrong_dest += 1.0f;
+            env->log.puzzle_attempts += 1.0f;
+            env->log.puzzle_level += (float)env->mate_level;
+            env->log.puzzle_n += 1.0f;
+            env->log.puzzle_reward_total += env->puzzle_reward_accum;
+            LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+            PUZZLE_DRILL_EMA_FAIL(&env->log);
+            env->episode_reward += env->rewards[0];
+            env->log.episode_return += env->episode_reward;
+            env->log.n += 1.0f;
+            if (env->mate_retry) {
+                env->mate_retry_idx = env->mate_current_idx;
+                env->mate_retry_level = env->mate_current_level;
+            }
+            // Reset pick phase to avoid corrupted state
+            env->pick_phase[0] = 0;
+            env->selected_square[0] = SQ_NONE;
+            env->valid_destinations[0].count = 0;
+            c_reset(env);
+            return false;
         } else if (env->reward_tutor_wrong != 0.0f) {
             env->rewards[0] += env->reward_tutor_wrong;
         }
@@ -3339,6 +3818,285 @@ static void stockfish_stop(Chess* env) {
     env->stockfish_ready = 0;
 }
 
+// Forward declaration (defined below, needed by sf_pool_select_move)
+static void move_to_uci(Move m, char* buf);
+
+// ============================================================================
+// Shared Stockfish Process Pool
+// ============================================================================
+// Thread-indexed pool: each OMP thread gets its own SF process slot.
+// Zero contention — no locks, no atomics needed.
+
+#define SF_POOL_MAX 256
+
+typedef struct {
+    FILE* sf_in;        // stdin pipe to SF process
+    FILE* sf_out;       // stdout pipe from SF process
+    pid_t sf_pid;       // process ID
+    int ready;          // 1 = UCI handshake done
+    volatile int lock;  // spinlock for thread safety when pool_size < num_threads
+} SFSlot;
+
+typedef struct {
+    SFSlot slots[SF_POOL_MAX];
+    int size;           // actual pool size (e.g. 128)
+    int depth;          // search depth (e.g. 5)
+} SFPool;
+
+// Global singleton
+static SFPool* _g_sf_pool = NULL;
+static int _g_sf_pool_initialized = 0;
+
+static int sf_slot_start(SFSlot* slot) {
+    const char* path = getenv("PUFFER_STOCKFISH_PATH");
+    if (path == NULL || path[0] == '\0') {
+        path = "/usr/games/stockfish";
+        if (access(path, X_OK) != 0) {
+            path = "stockfish";
+        }
+    }
+
+    int to_child[2];
+    int from_child[2];
+    if (pipe(to_child) != 0 || pipe(from_child) != 0) {
+        fprintf(stderr, "WARNING: SFPool: Failed to create pipes (%s)\n", strerror(errno));
+        return 0;
+    }
+
+    posix_spawn_file_actions_t file_actions;
+    posix_spawn_file_actions_init(&file_actions);
+    posix_spawn_file_actions_adddup2(&file_actions, to_child[0], STDIN_FILENO);
+    posix_spawn_file_actions_adddup2(&file_actions, from_child[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&file_actions, from_child[1], STDERR_FILENO);
+    posix_spawn_file_actions_addclose(&file_actions, to_child[0]);
+    posix_spawn_file_actions_addclose(&file_actions, to_child[1]);
+    posix_spawn_file_actions_addclose(&file_actions, from_child[0]);
+    posix_spawn_file_actions_addclose(&file_actions, from_child[1]);
+
+    extern char **environ;
+    char* const argv[] = {(char*)path, NULL};
+    pid_t pid;
+    int spawn_rc = posix_spawnp(&pid, path, &file_actions, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&file_actions);
+
+    if (spawn_rc != 0) {
+        fprintf(stderr, "WARNING: SFPool: Failed to spawn Stockfish (%s)\n", strerror(spawn_rc));
+        close(to_child[0]); close(to_child[1]);
+        close(from_child[0]); close(from_child[1]);
+        return 0;
+    }
+
+    close(to_child[0]);
+    close(from_child[1]);
+
+    FILE* sf_in = fdopen(to_child[1], "w");
+    FILE* sf_out = fdopen(from_child[0], "r");
+    if (sf_in == NULL || sf_out == NULL) {
+        fprintf(stderr, "WARNING: SFPool: Failed to open streams\n");
+        if (sf_in) fclose(sf_in);
+        if (sf_out) fclose(sf_out);
+        kill(pid, SIGTERM);
+        waitpid(pid, NULL, 0);
+        return 0;
+    }
+
+    setvbuf(sf_in, NULL, _IOLBF, 0);
+    setvbuf(sf_out, NULL, _IOLBF, 0);
+
+    slot->sf_in = sf_in;
+    slot->sf_out = sf_out;
+    slot->sf_pid = pid;
+    slot->ready = 0;
+
+    // UCI handshake
+    char line[512];
+    fprintf(sf_in, "uci\n");
+    fflush(sf_in);
+
+    int got_uciok = 0;
+    for (int i = 0; i < 1024; i++) {
+        if (!fgets(line, sizeof(line), sf_out)) break;
+        if (strncmp(line, "uciok", 5) == 0) { got_uciok = 1; break; }
+    }
+    if (!got_uciok) {
+        fprintf(stderr, "WARNING: SFPool: Stockfish did not send uciok\n");
+        fclose(sf_in); fclose(sf_out);
+        kill(pid, SIGTERM); waitpid(pid, NULL, 0);
+        slot->sf_in = NULL; slot->sf_out = NULL; slot->sf_pid = -1;
+        return 0;
+    }
+
+    // Configure: 1 thread, minimal hash (each process is single-threaded)
+    fprintf(sf_in, "setoption name Threads value 1\n");
+    fprintf(sf_in, "setoption name Hash value 1\n");
+    fprintf(sf_in, "isready\n");
+    fflush(sf_in);
+
+    int got_readyok = 0;
+    for (int i = 0; i < 1024; i++) {
+        if (!fgets(line, sizeof(line), sf_out)) break;
+        if (strncmp(line, "readyok", 7) == 0) { got_readyok = 1; break; }
+    }
+    if (!got_readyok) {
+        fprintf(stderr, "WARNING: SFPool: Stockfish did not send readyok\n");
+        fprintf(sf_in, "quit\n"); fflush(sf_in);
+        fclose(sf_in); fclose(sf_out);
+        waitpid(pid, NULL, 0);
+        slot->sf_in = NULL; slot->sf_out = NULL; slot->sf_pid = -1;
+        return 0;
+    }
+
+    slot->ready = 1;
+    return 1;
+}
+
+static void sf_slot_stop(SFSlot* slot) {
+    if (slot->sf_in != NULL) {
+        fprintf(slot->sf_in, "quit\n");
+        fflush(slot->sf_in);
+        fclose(slot->sf_in);
+        slot->sf_in = NULL;
+    }
+    if (slot->sf_out != NULL) {
+        fclose(slot->sf_out);
+        slot->sf_out = NULL;
+    }
+    if (slot->sf_pid > 0) {
+        waitpid(slot->sf_pid, NULL, 0);
+        slot->sf_pid = -1;
+    }
+    slot->ready = 0;
+}
+
+static SFPool* sf_pool_create(int size, int depth) {
+    if (size <= 0 || size > SF_POOL_MAX) {
+        fprintf(stderr, "WARNING: SFPool: invalid size %d (max %d)\n", size, SF_POOL_MAX);
+        return NULL;
+    }
+
+    SFPool* pool = (SFPool*)calloc(1, sizeof(SFPool));
+    if (!pool) return NULL;
+    pool->size = size;
+    pool->depth = depth > 0 ? depth : 5;
+
+    fprintf(stderr, "SFPool: Spawning %d Stockfish processes (depth=%d)...\n", size, pool->depth);
+    int ok = 0;
+    for (int i = 0; i < size; i++) {
+        if (sf_slot_start(&pool->slots[i])) {
+            ok++;
+        }
+        // Print progress every 32 processes
+        if ((i + 1) % 32 == 0 || i == size - 1) {
+            fprintf(stderr, "SFPool: %d/%d processes started (%d ok)\n", i + 1, size, ok);
+        }
+    }
+
+    if (ok == 0) {
+        fprintf(stderr, "ERROR: SFPool: No Stockfish processes started!\n");
+        free(pool);
+        return NULL;
+    }
+
+    fprintf(stderr, "SFPool: Ready with %d/%d processes, depth=%d\n", ok, size, pool->depth);
+    return pool;
+}
+
+static void sf_pool_destroy(SFPool* pool) {
+    if (!pool) return;
+    fprintf(stderr, "SFPool: Shutting down %d processes...\n", pool->size);
+    for (int i = 0; i < pool->size; i++) {
+        sf_slot_stop(&pool->slots[i]);
+    }
+    free(pool);
+}
+
+// Select a move using the SF pool. Thread-safe: each OMP thread uses its own slot.
+// Returns 1 on success (out_move set), 0 on failure.
+static int sf_pool_select_move(SFPool* pool, Chess* env, Move* out_move) {
+    if (!pool || !env || !out_move) return 0;
+
+    // Get slot index from OMP thread number (falls back to 0 for non-OMP)
+#ifdef _OPENMP
+    int slot_idx = omp_get_thread_num();
+#else
+    int slot_idx = 0;
+#endif
+    if (slot_idx < 0 || slot_idx >= pool->size) {
+        // Thread ID exceeds pool size — shouldn't happen with correct config
+        slot_idx = slot_idx % pool->size;
+    }
+
+    SFSlot* slot = &pool->slots[slot_idx];
+    if (!slot->ready || !slot->sf_in || !slot->sf_out) return 0;
+
+    // Try-lock: if slot is busy (another thread using this SF process), skip SF
+    if (__sync_lock_test_and_set(&slot->lock, 1)) {
+        return 0;  // Slot busy — caller will fall back to builtin
+    }
+
+    // Ensure legal moves are generated
+    if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
+        generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
+        env->legal_moves_side = env->pos.sideToMove;
+        env->legal_moves_key = env->pos.key;
+    }
+    if (env->legal_moves.count == 0) return 0;
+
+    // Send position with full move history (for repetition detection)
+    if (env->pgn_move_count > 0) {
+        fprintf(slot->sf_in, "position fen %s moves", env->starting_fen);
+        char uci[8];
+        for (int i = 0; i < env->pgn_move_count; i++) {
+            move_to_uci(env->pgn_moves[i], uci);
+            fprintf(slot->sf_in, " %s", uci);
+        }
+        fprintf(slot->sf_in, "\n");
+    } else {
+        fprintf(slot->sf_in, "position fen %s\n", env->starting_fen);
+    }
+
+    // Search at configured depth
+    fprintf(slot->sf_in, "go depth %d\n", pool->depth);
+    fflush(slot->sf_in);
+
+    // Read bestmove response
+    char line[512];
+    Square from = SQ_NONE, to = SQ_NONE;
+    int promo_type = 0;
+    int got_move = 0;
+    for (int i = 0; i < 4096; i++) {
+        if (!fgets(line, sizeof(line), slot->sf_out)) break;
+        if (strncmp(line, "bestmove", 8) == 0) {
+            got_move = parse_bestmove_line(line, &from, &to, &promo_type);
+            break;
+        }
+    }
+    if (!got_move) goto sf_done;
+
+    // Match bestmove to a legal move
+    for (int i = 0; i < env->legal_moves.count; i++) {
+        Move m = env->legal_moves.moves[i].move;
+        if (from_sq(m) != from || to_sq(m) != to) continue;
+        if (promo_type != 0) {
+            if ((int)type_of_m(m) == PROMOTION && promotion_type(m) == promo_type) {
+                *out_move = m;
+                got_move = 1;
+                goto sf_done;
+            }
+            continue;
+        }
+        if ((int)type_of_m(m) == PROMOTION) continue;
+        *out_move = m;
+        got_move = 1;
+        goto sf_done;
+    }
+    got_move = 0;
+
+sf_done:
+    __sync_lock_release(&slot->lock);
+    return got_move ? 1 : 0;
+}
+
 // Convert a Move to UCI string (e.g. "e2e4", "e7e8q" for promotion)
 static void move_to_uci(Move m, char* buf) {
     const char files[] = "abcdefgh";
@@ -3513,31 +4271,112 @@ void random_bot_move(Chess* env) {
     execute_opponent_move(env, opp_color, chosen);
 }
 
-// Built-in 1-ply eval using the position's incrementally-maintained
-// materialScore + psqtScore.  Replaces Stockfish pipe I/O for training
-// (~1000x faster per move, no process overhead).
+// MVV-LVA move ordering: captures sorted by victim value (high first), then non-captures.
+static void order_moves_mvvlva(MoveList* ml, Position* pos) {
+    int scores[256];
+    for (int i = 0; i < ml->count; i++) {
+        Move m = ml->moves[i].move;
+        Piece cap = piece_on(pos, to_sq(m));
+        if (cap != NO_PIECE) {
+            // MVV-LVA: high victim value first, low attacker value first
+            scores[i] = PIECE_VALUES_CP[type_of_p(cap)] * 10
+                       - PIECE_VALUES_CP[type_of_p(piece_on(pos, from_sq(m)))]
+                       + 10000;  // Ensure captures sort above non-captures
+        } else if (type_of_m(m) == PROMOTION) {
+            scores[i] = 9000;  // Promotions high priority
+        } else {
+            scores[i] = 0;
+        }
+    }
+    // Insertion sort (move lists are small, ~30 moves)
+    for (int i = 1; i < ml->count; i++) {
+        int key = scores[i];
+        ExtMove mv = ml->moves[i];
+        int j = i - 1;
+        while (j >= 0 && scores[j] < key) {
+            scores[j+1] = scores[j];
+            ml->moves[j+1] = ml->moves[j];
+            j--;
+        }
+        scores[j+1] = key;
+        ml->moves[j+1] = mv;
+    }
+}
+
+// Alpha-beta negamax search. Returns score from side-to-move perspective.
+// depth=0 returns static eval (material + blended PST).
+static int builtin_negamax(Chess* env, int depth, int alpha, int beta,
+                           UndoInfo* undo, int* undo_ptr) {
+    // Leaf: static evaluation
+    if (depth <= 0) {
+        ChessColor us = env->pos.sideToMove;
+        int sign = (us == CHESS_WHITE) ? 1 : -1;
+        return sign * (env->pos.materialScore +
+                       blend_pst(env->pos.psqtScore_mg, env->pos.psqtScore_eg,
+                                 env->pos.gamePhase));
+    }
+
+    MoveList ml;
+    generate_legal(&env->pos, &ml, env->undo_stack, &env->undo_stack_ptr);
+
+    if (ml.count == 0) {
+        if (is_check(&env->pos, env->pos.sideToMove)) {
+            return -99999;  // Checkmated
+        }
+        return 0;  // Stalemate
+    }
+
+    order_moves_mvvlva(&ml, &env->pos);
+
+    for (int i = 0; i < ml.count; i++) {
+        Move m = ml.moves[i].move;
+        do_move(&env->pos, m, undo, undo_ptr);
+        int score = -builtin_negamax(env, depth - 1, -beta, -alpha, undo, undo_ptr);
+        undo_move(&env->pos, m, undo, undo_ptr);
+
+        if (score > alpha) {
+            alpha = score;
+            if (alpha >= beta) return alpha;  // Beta cutoff
+        }
+    }
+
+    return alpha;
+}
+
+// Alpha-beta search opponent. depth controlled by env->builtin_depth (default 2).
+// At depth 1: equivalent to old 1-ply eval (material + PST only).
+// At depth 2: sees opponent responses — avoids hanging pieces, finds basic tactics.
+// At depth 3: 2-move combinations (sacrifice + recapture, etc.)
 static int builtin_select_move(Chess* env, Move* out_move) {
     if (!out_move) return 0;
     MoveList* ml = &env->legal_moves;
     if (ml->count == 0) return 0;
 
-    ChessColor us = env->pos.sideToMove;
-    int sign = (us == CHESS_WHITE) ? 1 : -1;
+    int depth = env->builtin_depth > 0 ? env->builtin_depth : 2;
+    int noise_cp = env->builtin_noise_cp;
 
-    UndoInfo local_undo[2];
-    int local_ptr = 0;
+    UndoInfo search_undo[8];  // Enough for depth up to 8
+    int search_undo_ptr = 0;
+
+    // Order root moves for better alpha-beta pruning
+    order_moves_mvvlva(ml, &env->pos);
 
     int best_score = -999999;
     int best_idx = 0;
 
     for (int i = 0; i < ml->count; i++) {
         Move m = ml->moves[i].move;
-        local_ptr = 0;
-        do_move(&env->pos, m, local_undo, &local_ptr);
-        int score = sign * (env->pos.materialScore + env->pos.psqtScore);
-        undo_move(&env->pos, m, local_undo, &local_ptr);
-        // Noise band ±150 cp  ≈ ELO 1200-1400 play
-        score += (rand() % 301) - 150;
+        search_undo_ptr = 0;
+        do_move(&env->pos, m, search_undo, &search_undo_ptr);
+        int score = -builtin_negamax(env, depth - 1, -999999, 999999,
+                                     search_undo, &search_undo_ptr);
+        undo_move(&env->pos, m, search_undo, &search_undo_ptr);
+
+        // Noise at root only
+        if (noise_cp > 0) {
+            score += (rand() % (2 * noise_cp + 1)) - noise_cp;
+        }
+
         if (score > best_score) {
             best_score = score;
             best_idx = i;
@@ -3568,13 +4407,29 @@ void stockfish_bot_move(Chess* env) {
     }
 
     Move chosen = MOVE_NONE;
-    int query_pct = env->stockfish_query_pct;
-    if (query_pct < 0) query_pct = 0;
-    if (query_pct > 100) query_pct = 100;
     int random_pct = (_g_sf_random_pct >= 0) ? _g_sf_random_pct : env->stockfish_random_pct;
-    int do_query = (query_pct >= 100) ? 1 : ((query_pct > 0) && ((rand() % 100) < query_pct));
-    int use_random = !do_query || ((random_pct > 0) && ((rand() % 100) < random_pct));
-    if (use_random || !builtin_select_move(env, &chosen)) {
+    int use_random = (random_pct > 0) && ((rand() % 100) < random_pct);
+    if (use_random) {
+        // Random move (controlled by annealing random_pct)
+        int idx = rand() % env->legal_moves.count;
+        chosen = env->legal_moves.moves[idx].move;
+    } else if (_g_sf_pool != NULL) {
+        // SF pool available — use query_pct to control SF vs builtin mix
+        int query_pct = env->stockfish_query_pct;
+        if (query_pct < 0) query_pct = 0;
+        if (query_pct > 100) query_pct = 100;
+        int use_sf = (query_pct >= 100) || ((query_pct > 0) && ((rand() % 100) < query_pct));
+        if (use_sf && sf_pool_select_move(_g_sf_pool, env, &chosen)) {
+            // SF pool chose a move — real Stockfish NNUE
+        } else if (!builtin_select_move(env, &chosen)) {
+            // Builtin fallback
+            int idx = rand() % env->legal_moves.count;
+            chosen = env->legal_moves.moves[idx].move;
+        }
+    } else if (env->stockfish_limit_strength && stockfish_select_move(env, &chosen)) {
+        // Legacy per-env SF path (kept for compatibility)
+    } else if (!builtin_select_move(env, &chosen)) {
+        // Builtin 1-ply heuristic failed, fall back to random
         int idx = rand() % env->legal_moves.count;
         chosen = env->legal_moves.moves[idx].move;
     }
@@ -3643,6 +4498,10 @@ void end_game(Chess* env){
         strcpy(env->last_result, "White Wins");
     }
 
+    // Clip terminal rewards for mate puzzles (prevents value function instability
+    // from +6.0/-2.0 rewards on 2-tick episodes)
+    if (env->curriculum_episode_type == 0) clip_rewards(env);
+
     // Accumulate final reward and log episode return
     env->episode_reward += env->rewards[0];
     env->log.episode_return += env->episode_reward;
@@ -3705,6 +4564,73 @@ void end_game(Chess* env){
     // Log EMA for wandb tracking
     env->log.ema_winrate += _g_ema_wr;
 
+    // Multi-phase curriculum: track success and advance phases
+    if (env->mate_curriculum) {
+        int phase = _g_curriculum_phase;
+        float success = 0.0f;
+
+        if (phase >= 0 && phase <= 4) {
+            // Mate puzzles: success = learner delivered checkmate
+            int learner_checkmated = 0;
+            if (env->game_result == 1 && env->learner_color == CHESS_BLACK) learner_checkmated = 1;
+            if (env->game_result == 2 && env->learner_color == CHESS_WHITE) learner_checkmated = 1;
+            success = learner_checkmated ? 1.0f : 0.0f;
+        } else if (phase == 5 || phase == 6) {
+            // BC phases: success = tutor move match (tracked via tutor_phase reaching 2)
+            // tutor_phase==2 means learner completed both piece+dest selection
+            // We use a simplified metric: did the learner match the tutor move?
+            if (env->tutor_target != 0 && env->log.tutor_total > 0) {
+                // Success if tutor_move_match incremented this episode
+                // (approximate: check if last move matched)
+                success = (env->log.tutor_move_match > 0) ? 1.0f : 0.0f;
+            }
+        }
+        // Phase 7: no tracking needed (final phase)
+
+        if (phase < 7) {
+            _g_curriculum_games++;
+            if (_g_curriculum_games <= CURRICULUM_WARMUP) {
+                _g_curriculum_ema += (success - _g_curriculum_ema) / (float)_g_curriculum_games;
+            } else {
+                _g_curriculum_ema = (1.0f - CURRICULUM_EMA_ALPHA) * _g_curriculum_ema + CURRICULUM_EMA_ALPHA * success;
+            }
+
+            if (success > 0.5f) env->log.curriculum_success += 1.0f;
+            else env->log.curriculum_fail += 1.0f;
+            env->log.curriculum_n += 1.0f;
+            env->log.curriculum_phase += (float)phase;
+            env->log.curriculum_ema += _g_curriculum_ema;
+
+            // Anneal mix ratio: as EMA approaches threshold, increase next-phase mixing
+            // At EMA=0, mix=0. At EMA=threshold, mix=0.3 (30% next-phase puzzles)
+            if (phase >= 0 && phase <= 4) {
+                float threshold_for_mix = env->mate_advance_threshold;
+                if (threshold_for_mix > 0.0f) {
+                    float progress = _g_curriculum_ema / threshold_for_mix;
+                    if (progress < 0.0f) progress = 0.0f;
+                    if (progress > 1.0f) progress = 1.0f;
+                    env->mate_mix_ratio = progress * 0.3f;
+                }
+            }
+
+            // Gate: advance when EMA exceeds threshold after warmup
+            // Use atomic CAS to prevent multiple threads from advancing simultaneously
+            float threshold = env->mate_advance_threshold;
+            if (phase == 5 || phase == 6) threshold = 0.50f;  // BC phases use 50%
+
+            if (_g_curriculum_games >= CURRICULUM_WARMUP && _g_curriculum_ema >= threshold && !env->puzzle_drill_mode) {
+                int expected = phase;
+                if (__sync_bool_compare_and_swap(&_g_curriculum_phase, expected, phase + 1)) {
+                    _g_curriculum_ema = 0.0f;
+                    _g_curriculum_games = 0;
+                    __sync_fetch_and_add(&_g_curriculum_advances, 1);
+                    fprintf(stderr, "CURRICULUM: Phase %d -> %d (advances=%d)\n",
+                            phase, phase + 1, _g_curriculum_advances);
+                }
+            }
+        }
+    }
+
     if (env->human_play) {
         env->show_game_end_popup = 1;
     } else {
@@ -3717,6 +4643,40 @@ void end_game(Chess* env){
     return;
  
 }
+
+// Phase 3: Apply GPU-chosen opponent move and finalize step.
+// Called from env_binding.c after the GPU kernel picks the best move index.
+void c_step_apply_opponent(Chess* env, int move_idx) {
+    env->gpu_opponent_pending = 0;
+
+    ChessColor opp_color = !env->learner_color;
+
+    // Bounds check
+    if (move_idx < 0 || move_idx >= env->legal_moves.count) {
+        move_idx = 0;  // Fallback to first legal move
+    }
+
+    // Check random_pct: override with random move if dice says so
+    int random_pct = (_g_sf_random_pct >= 0) ? _g_sf_random_pct : env->stockfish_random_pct;
+    if (random_pct > 0 && (rand() % 100) < random_pct) {
+        move_idx = rand() % env->legal_moves.count;
+    }
+
+    Move chosen = env->legal_moves.moves[move_idx].move;
+    execute_opponent_move(env, opp_color, chosen);
+
+    // Check game result after opponent move
+    env->game_result = game_result_with_legal_count(&env->pos, env->legal_moves.count,
+        env->undo_stack, env->undo_stack_ptr,
+        env->enable_50_move_rule, env->enable_threefold_repetition);
+
+    if (env->game_result != 0) {
+        end_game(env);
+    }
+
+    populate_observations(env);
+}
+
 void c_step(Chess* env) {
     if (!env->selfplay && !env->human_play && !env->random_bot && !env->stockfish_bot) {
         fprintf(stderr, "FATAL: selfplay=0 AND human_play=0 and random_bot=0 and stockfish_bot=0 is invalid configuration\n");
@@ -3741,7 +4701,10 @@ void c_step(Chess* env) {
     env->tick++;
 
     if ((env->random_bot || env->stockfish_bot) && env->pos.sideToMove != env->learner_color) {
-        if (env->stockfish_bot) {
+        if (env->puzzle_drill_mode && env->curriculum_episode_type == 0) {
+            // Puzzle drill: always use random opponent
+            random_bot_move(env);
+        } else if (env->stockfish_bot) {
             stockfish_bot_move(env);
         } else {
             random_bot_move(env);
@@ -3752,7 +4715,43 @@ void c_step(Chess* env) {
             env->enable_50_move_rule, env->enable_threefold_repetition);
         
         if (env->game_result != 0) {
-            end_game(env);
+            if (env->puzzle_drill_mode && env->curriculum_episode_type == 0) {
+                // Puzzle drill: use puzzle end handler (same as PATCH 9)
+                env->terminals[0] = 1.0f;
+                int learner_won = 0;
+                if (env->game_result == 1 && env->learner_color == CHESS_BLACK) learner_won = 1;
+                if (env->game_result == 2 && env->learner_color == CHESS_WHITE) learner_won = 1;
+                if (learner_won) {
+                    env->rewards[0] = env->puzzle_reward_accum;
+                    env->log.puzzle_solves += 1.0f;
+                    int lvl = env->mate_current_level;
+                    int idx = env->mate_current_idx;
+                    if (lvl >= 0 && lvl < 5 && idx >= 0 && idx < PUZZLE_DRILL_MAX) {
+                        if (!_puzzle_solved[lvl][idx]) {
+                            _puzzle_solved[lvl][idx] = 1;
+                            __sync_fetch_and_add(&_puzzle_solved_count[lvl], 1);
+                        }
+                    }
+                } else {
+                    env->rewards[0] = 0.0f;
+                    LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+                }
+                env->episode_reward += env->rewards[0];
+                env->log.episode_return += env->episode_reward;
+                env->log.puzzle_attempts += 1.0f;
+                env->log.puzzle_level += (float)env->mate_level;
+                env->log.puzzle_n += 1.0f;
+                env->log.puzzle_reward_total += env->puzzle_reward_accum;
+                env->log.n += 1.0f;
+                if (learner_won) {
+                    PUZZLE_DRILL_EMA_SUCCESS(&env->log);
+                } else {
+                    PUZZLE_DRILL_EMA_FAIL(&env->log);
+                }
+                c_reset(env);
+            } else {
+                end_game(env);
+            }
         }
         
         populate_observations(env);
@@ -3787,7 +4786,9 @@ void c_step(Chess* env) {
         return;
     }
 
-    bool use_dense_rewards = (env->reward_material != 0.0f || env->reward_position != 0.0f);
+    // Skip material/position rewards during mate puzzles (sacrifices are often correct)
+    bool use_dense_rewards = (env->reward_material != 0.0f || env->reward_position != 0.0f)
+                             && env->curriculum_episode_type != 0;
     int16_t mat_before = 0, pst_before = 0;
     if (use_dense_rewards) {
         mat_before = env->pos.materialScore;
@@ -3836,26 +4837,40 @@ void c_step(Chess* env) {
             pos_reward = raw_pos;
         }
         
-        env->rewards[0] += mat_reward + pos_reward;
+        if (!env->puzzle_drill_mode) env->rewards[0] += mat_reward + pos_reward;
     }
     
-    if (move_completed && mover == env->learner_color && env->reward_material != 0.0f) {
+    if (move_completed && mover == env->learner_color && env->reward_material != 0.0f
+        && env->curriculum_episode_type != 0) {
         if (env->last_see_value < 0) {
             float hanging_penalty = (float)env->last_see_value / 900.0f * env->reward_material;
-            env->rewards[0] += hanging_penalty;
+            if (!env->puzzle_drill_mode) env->rewards[0] += hanging_penalty;
         }
     }
     if (move_completed && mover == env->learner_color && env->opp_in_check == 0 && is_check(&env->pos, !env->learner_color)){
         env->opp_in_check = 1;
-        env->rewards[0] += env->reward_check;
+        if (!env->puzzle_drill_mode) {
+            env->rewards[0] += env->reward_check;
+            if (env->curriculum_episode_type == 0 && env->reward_mate_progress != 0.0f) {
+                env->rewards[0] += env->reward_mate_progress;
+                env->log.mate_progress_count += 1.0f;
+            }
+        }
     }
     if (move_completed && mover == !env->learner_color){
         env->opp_in_check = 0;
+        // After opponent moves in puzzle drill, compute next correct move
+        if (env->puzzle_drill_mode && env->curriculum_episode_type == 0) {
+            int remaining_depth = (env->mate_level + 1) - env->puzzle_move_num;
+            if (remaining_depth > 0) {
+                set_puzzle_tutor_target(env, remaining_depth);
+            }
+        }
     }
     
     // Syzygy tablebase reward: reward for improving WDL status
     if (move_completed && mover == env->learner_color && env->reward_syzygy != 0.0f) {
-        int wdl = probe_syzygy_wdl(&env->pos);
+        int wdl = env->puzzle_drill_mode ? -1 : probe_syzygy_wdl(&env->pos);
         if (wdl >= 0) {
             env->log.syzygy_probes += 1.0f;
             // Convert WDL to score from learner perspective
@@ -3882,13 +4897,63 @@ void c_step(Chess* env) {
             env->syzygy_wdl_prev = learner_wdl;
         }
     }
-    clip_rewards(env);
+    if (!env->puzzle_drill_mode) clip_rewards(env);
     if (move_completed) {
         if (env->legal_moves_side != env->pos.sideToMove || env->legal_moves_key != env->pos.key) {
             generate_legal(&env->pos, &env->legal_moves, env->undo_stack, &env->undo_stack_ptr);
             env->legal_moves_side = env->pos.sideToMove;
             env->legal_moves_key = env->pos.key;
         }
+    }
+
+    // Mate puzzle timeout: ran out of move budget without delivering checkmate
+    if (env->curriculum_episode_type == 0 && env->tick >= env->mate_max_moves) {
+        env->terminals[0] = 1.0f;
+
+        if (env->puzzle_drill_mode) {
+            env->rewards[0] = 0.0f;  // No penalty, just 0
+            env->log.puzzle_timeouts += 1.0f;
+            env->episode_reward += env->rewards[0];
+            env->log.episode_return += env->episode_reward;
+            env->log.puzzle_attempts += 1.0f;
+            env->log.puzzle_level += (float)env->mate_level;
+            env->log.puzzle_n += 1.0f;
+            env->log.puzzle_reward_total += env->puzzle_reward_accum;
+            LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+        } else {
+            env->rewards[0] = env->reward_mate_fail;
+            clip_rewards(env);
+            env->episode_reward += env->rewards[0];
+            env->log.episode_return += env->episode_reward;
+            env->log.perf += 0.0f;
+            env->log.chess_moves += env->chess_moves;
+            env->log.episode_length += env->tick;
+            float invalid_rate = (env->tick > 0) ? ((float)env->invalid_actions_this_episode / (float)env->tick) : 0.0f;
+            env->log.invalid_action_rate += invalid_rate;
+            env->log.stockfish_random_pct += _g_sf_random_pct_f;
+            env->log.stockfish_query_pct += (float)env->stockfish_query_pct;
+            env->log.ema_winrate += _g_ema_wr;
+        }
+
+        env->log.n += 1.0f;
+        if (env->puzzle_drill_mode) {
+            PUZZLE_DRILL_EMA_FAIL(&env->log);
+        } else {
+            _g_curriculum_games++;
+            _g_curriculum_ema = (1.0f - CURRICULUM_EMA_ALPHA) * _g_curriculum_ema;
+            env->log.curriculum_fail += 1.0f;
+            env->log.curriculum_n += 1.0f;
+            env->log.curriculum_phase += (float)_g_curriculum_phase;
+            env->log.curriculum_ema += _g_curriculum_ema;
+        }
+
+        if (env->mate_retry) {
+            env->mate_retry_idx = env->mate_current_idx;
+            env->mate_retry_level = env->mate_current_level;
+        }
+
+        c_reset(env);
+        return;
     }
 
     // Tutor-only mode: end episode after first move attempt
@@ -3948,7 +5013,75 @@ void c_step(Chess* env) {
                                                      env->enable_50_move_rule, env->enable_threefold_repetition);
     
     if (env->game_result != 0) {
-        end_game(env);
+        if (env->puzzle_drill_mode && env->curriculum_episode_type == 0) {
+            // Puzzle drill: handle checkmate with puzzle-only logging
+            env->terminals[0] = 1.0f;
+            int learner_won = 0;
+            if (env->game_result == 1 && env->learner_color == CHESS_BLACK) learner_won = 1;
+            if (env->game_result == 2 && env->learner_color == CHESS_WHITE) learner_won = 1;
+
+            if (learner_won) {
+                // Checkmate bonus = sum of per-action rewards earned
+                env->rewards[0] = env->puzzle_reward_accum;
+                env->log.puzzle_solves += 1.0f;
+                // Mark puzzle as solved
+                int lvl = env->mate_current_level;
+                int idx = env->mate_current_idx;
+                if (lvl >= 0 && lvl < 5 && idx >= 0 && idx < PUZZLE_DRILL_MAX) {
+                    if (!_puzzle_solved[lvl][idx]) {
+                        _puzzle_solved[lvl][idx] = 1;
+                        __sync_fetch_and_add(&_puzzle_solved_count[lvl], 1);
+                    }
+                }
+            } else {
+                // Learner got mated (shouldn't happen in forced mate puzzles, but handle)
+                env->rewards[0] = 0.0f;
+                LOG_PUZZLE_FAIL(&env->log, env->mate_current_level);
+            }
+
+            env->episode_reward += env->rewards[0];
+            env->log.episode_return += env->episode_reward;
+            env->log.puzzle_attempts += 1.0f;
+            env->log.puzzle_level += (float)env->mate_level;
+            env->log.puzzle_n += 1.0f;
+            env->log.puzzle_reward_total += env->puzzle_reward_accum;
+            env->log.n += 1.0f;
+
+            // Update curriculum tracking (atomic counters, no float race)
+            if (learner_won) {
+                PUZZLE_DRILL_EMA_SUCCESS(&env->log);
+            } else {
+                PUZZLE_DRILL_EMA_FAIL(&env->log);
+            }
+
+            // Gate: sliding window — check solve rate over last DRILL_GATE_WARMUP
+            // attempts, then always reset for a fresh window. This prevents early
+            // failures from permanently diluting the rate (agent masters task in epoch
+            // 8 but cumulative rate stays low because of epoch 0-7 failures).
+            int phase = _g_curriculum_phase;
+            if (phase >= 0 && phase < env->puzzle_drill_levels) {
+                int attempts = _g_drill_attempts;
+                if (attempts >= DRILL_GATE_WARMUP) {
+                    float drill_rate = (float)_g_drill_successes / (float)attempts;
+                    // Always reset — start fresh window regardless of gate outcome
+                    _g_drill_successes = 0;
+                    _g_drill_attempts = 0;
+                    float threshold = env->mate_advance_threshold;
+                    if (drill_rate >= threshold) {
+                        int expected = phase;
+                        if (__sync_bool_compare_and_swap(&_g_curriculum_phase, expected, phase + 1)) {
+                            __sync_fetch_and_add(&_g_curriculum_advances, 1);
+                            fprintf(stderr, "PUZZLE DRILL: Phase %d -> %d (rate=%.3f, window=%d)\n",
+                                    phase, phase + 1, drill_rate, attempts);
+                        }
+                    }
+                }
+            }
+
+            c_reset(env);
+        } else {
+            end_game(env);
+        }
     } else {
         // Accumulate intermediate rewards (end_game handles its own accumulation)
         env->episode_reward += env->rewards[0];
@@ -4638,6 +5771,14 @@ void c_render(Chess* env) {
 
 void c_close(Chess* env) {
     stockfish_stop(env);
+
+    // Destroy shared SF pool once (first c_close call cleans it up)
+    if (_g_sf_pool != NULL) {
+        sf_pool_destroy(_g_sf_pool);
+        _g_sf_pool = NULL;
+        _g_sf_pool_initialized = 0;
+    }
+
     if (env->client != NULL) {
         if (env->client->use_unicode_pieces && env->client->piece_font.texture.id != 0) {
             UnloadFont(env->client->piece_font);

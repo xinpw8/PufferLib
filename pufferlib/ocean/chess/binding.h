@@ -1,5 +1,9 @@
 #include "chess.h"
 #include <libgen.h>
+#include <unistd.h>
+
+// Enable GPU-batched opponent support in env_binding.c
+#define GPU_OPPONENT_SUPPORT 1
 
 // Selfplay mode: doubled obs [learner(1082) | opponent(1082)], interleaved actions [learner(97) | opponent(97)]
 #define OBS_SIZE 2164
@@ -22,6 +26,22 @@ static int _num_fens_dm = 0;
 static int _fens_dm_loaded = 0;
 static int _g_color_counter = 0;
 
+// Mate-in-N curriculum data
+#define MATE_LEVELS 5
+static char** _mate_fens[MATE_LEVELS] = {NULL};
+static int _mate_fen_counts[MATE_LEVELS] = {0};
+static int _mate_fens_loaded = 0;
+
+// Midgame curriculum data (FEN + Stockfish best move)
+static char** _fen_curriculum_midgame = NULL;
+static uint16_t* _tutor_moves_midgame = NULL;
+static int _num_fens_midgame = 0;
+static int _fens_midgame_loaded = 0;
+
+// Cap loaded positions to avoid OOM on large datasets.
+// 10M positions ≈ 1GB RAM — plenty of diversity for training.
+#define MAX_CURRICULUM_POSITIONS 10000000
+
 #define MY_GET
 void* my_get(void* env_ptr, Dict* out) {
     (void)env_ptr;
@@ -30,6 +50,10 @@ void* my_get(void* env_ptr, Dict* out) {
     dict_set(out, "ema_winrate", (double)_g_ema_wr);
     dict_set(out, "annealing_games", (double)_g_annealing_games);
     dict_set(out, "color_counter", (double)_g_color_counter);
+    dict_set(out, "curriculum_phase", (double)_g_curriculum_phase);
+    dict_set(out, "curriculum_ema", (double)_g_curriculum_ema);
+    dict_set(out, "curriculum_games", (double)_g_curriculum_games);
+    dict_set(out, "curriculum_advances", (double)_g_curriculum_advances);
     return NULL;
 }
 
@@ -51,6 +75,18 @@ int my_put(void* env_ptr, Dict* kwargs) {
 
     i = dict_get_unsafe(kwargs, "color_counter");
     if (i) _g_color_counter = (int)i->value;
+
+    i = dict_get_unsafe(kwargs, "curriculum_phase");
+    if (i) _g_curriculum_phase = (int)i->value;
+
+    i = dict_get_unsafe(kwargs, "curriculum_ema");
+    if (i) _g_curriculum_ema = (float)i->value;
+
+    i = dict_get_unsafe(kwargs, "curriculum_games");
+    if (i) _g_curriculum_games = (int)i->value;
+
+    i = dict_get_unsafe(kwargs, "curriculum_advances");
+    if (i) _g_curriculum_advances = (int)i->value;
 
     // Keep int/float random pct in sync if only one was provided.
     if (_g_sf_random_pct >= 0 && _g_sf_random_pct_f < 0.0f) {
@@ -170,6 +206,31 @@ static uint16_t parse_uci_to_packed(const char* uci) {
     return from_sq | (to_sq << 6) | (promo << 12);
 }
 
+// Helper: add a FEN+move line to a curriculum array, with reservoir sampling if at capacity.
+// Returns 1 if added/replaced, 0 if skipped.
+static int _curriculum_add_line(char*** fens, uint16_t** moves, int* count,
+                                int max_cap, const char* fen_str, int fen_len,
+                                uint16_t packed_move, long total_seen) {
+    if (*count < max_cap) {
+        (*fens)[*count] = (char*)malloc(fen_len + 1);
+        strcpy((*fens)[*count], fen_str);
+        (*moves)[*count] = packed_move;
+        (*count)++;
+        return 1;
+    } else {
+        // Reservoir sampling: replace random element with probability max_cap/total_seen
+        long j = rand() % total_seen;
+        if (j < max_cap) {
+            free((*fens)[j]);
+            (*fens)[j] = (char*)malloc(fen_len + 1);
+            strcpy((*fens)[j], fen_str);
+            (*moves)[j] = packed_move;
+            return 1;
+        }
+        return 0;
+    }
+}
+
 void load_fen_curriculum_dm_with_moves(void) {
     if (_fens_dm_loaded) return;
     _fens_dm_loaded = 1;
@@ -191,10 +252,11 @@ void load_fen_curriculum_dm_with_moves(void) {
         return;
     }
 
-    int capacity = 65536;
+    int capacity = MAX_CURRICULUM_POSITIONS;
     _fen_curriculum_dm = (char**)malloc(capacity * sizeof(char*));
     _tutor_moves_dm = (uint16_t*)malloc(capacity * sizeof(uint16_t));
     _num_fens_dm = 0;
+    long total_lines = 0;
     char line[512];
     while (fgets(line, sizeof(line), f)) {
         int len = strlen(line);
@@ -202,40 +264,128 @@ void load_fen_curriculum_dm_with_moves(void) {
             line[--len] = '\0';
         }
         if (len == 0) continue;
+        total_lines++;
 
         // Split on tab
         char* tab = strchr(line, '\t');
         if (!tab) {
-            // No tab — treat as FEN-only line
-            if (_num_fens_dm >= capacity) {
-                capacity *= 2;
-                _fen_curriculum_dm = (char**)realloc(_fen_curriculum_dm, capacity * sizeof(char*));
-                _tutor_moves_dm = (uint16_t*)realloc(_tutor_moves_dm, capacity * sizeof(uint16_t));
-            }
-            _fen_curriculum_dm[_num_fens_dm] = (char*)malloc(len + 1);
-            strcpy(_fen_curriculum_dm[_num_fens_dm], line);
-            _tutor_moves_dm[_num_fens_dm] = 0;
-            _num_fens_dm++;
+            _curriculum_add_line(&_fen_curriculum_dm, &_tutor_moves_dm,
+                                &_num_fens_dm, capacity, line, len, 0, total_lines);
             continue;
         }
 
         *tab = '\0';
         const char* fen = line;
         const char* uci = tab + 1;
-
-        if (_num_fens_dm >= capacity) {
-            capacity *= 2;
-            _fen_curriculum_dm = (char**)realloc(_fen_curriculum_dm, capacity * sizeof(char*));
-            _tutor_moves_dm = (uint16_t*)realloc(_tutor_moves_dm, capacity * sizeof(uint16_t));
-        }
         int fen_len = strlen(fen);
-        _fen_curriculum_dm[_num_fens_dm] = (char*)malloc(fen_len + 1);
-        strcpy(_fen_curriculum_dm[_num_fens_dm], fen);
-        _tutor_moves_dm[_num_fens_dm] = parse_uci_to_packed(uci);
-        _num_fens_dm++;
+        uint16_t packed = parse_uci_to_packed(uci);
+        _curriculum_add_line(&_fen_curriculum_dm, &_tutor_moves_dm,
+                            &_num_fens_dm, capacity, fen, fen_len, packed, total_lines);
     }
     fclose(f);
-    fprintf(stderr, "Loaded DeepMind FEN+move curriculum: %d positions from %s\n", _num_fens_dm, path);
+    fprintf(stderr, "Loaded DeepMind FEN+move curriculum: %d positions (sampled from %ld) from %s\n",
+            _num_fens_dm, total_lines, path);
+}
+
+void load_mate_curriculum(void) {
+    if (_mate_fens_loaded) return;
+    _mate_fens_loaded = 1;
+
+    char dir[512];
+    strncpy(dir, __FILE__, sizeof(dir) - 1);
+    dir[sizeof(dir) - 1] = '\0';
+    char* d = dirname(dir);
+
+    for (int level = 0; level < MATE_LEVELS; level++) {
+        char path[1024];
+        // Prefer full puzzle files (100K-800K) over 10K subsets to prevent
+        // memorization with 16K agents (each puzzle seen 300x/epoch with 10K vs
+        // ~1x/epoch with full set → forces pattern learning, not memorization)
+        snprintf(path, sizeof(path), "%s/fens_mate_in_%d.txt", d, level + 1);
+        // Fallback to 10k subset if full file doesn't exist
+        if (access(path, F_OK) != 0) {
+            snprintf(path, sizeof(path), "%s/fens_mate_in_%d_10k.txt", d, level + 1);
+        }
+
+        FILE* f = fopen(path, "r");
+        if (!f) {
+            fprintf(stderr, "WARNING: Could not open mate FEN file at %s\n", path);
+            continue;
+        }
+
+        int capacity = 16384;
+        _mate_fens[level] = (char**)malloc(capacity * sizeof(char*));
+        _mate_fen_counts[level] = 0;
+        char line[256];
+        while (fgets(line, sizeof(line), f)) {
+            int len = strlen(line);
+            while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
+                line[--len] = '\0';
+            }
+            if (len == 0) continue;
+            if (_mate_fen_counts[level] >= capacity) {
+                capacity *= 2;
+                _mate_fens[level] = (char**)realloc(_mate_fens[level], capacity * sizeof(char*));
+            }
+            _mate_fens[level][_mate_fen_counts[level]] = (char*)malloc(len + 1);
+            strcpy(_mate_fens[level][_mate_fen_counts[level]], line);
+            _mate_fen_counts[level]++;
+        }
+        fclose(f);
+        fprintf(stderr, "Loaded mate-in-%d curriculum: %d positions from %s\n",
+                level + 1, _mate_fen_counts[level], path);
+    }
+}
+
+void load_midgame_curriculum(void) {
+    if (_fens_midgame_loaded) return;
+    _fens_midgame_loaded = 1;
+
+    char dir[512];
+    strncpy(dir, __FILE__, sizeof(dir) - 1);
+    dir[sizeof(dir) - 1] = '\0';
+    char* d = dirname(dir);
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/fens_moves_midgame.txt", d);
+
+    FILE* f = fopen(path, "r");
+    if (!f) {
+        fprintf(stderr, "WARNING: Could not open midgame FEN file at %s\n", path);
+        return;
+    }
+
+    int capacity = MAX_CURRICULUM_POSITIONS;
+    _fen_curriculum_midgame = (char**)malloc(capacity * sizeof(char*));
+    _tutor_moves_midgame = (uint16_t*)malloc(capacity * sizeof(uint16_t));
+    _num_fens_midgame = 0;
+    long total_lines = 0;
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        int len = strlen(line);
+        while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
+            line[--len] = '\0';
+        }
+        if (len == 0) continue;
+        total_lines++;
+
+        char* tab = strchr(line, '\t');
+        if (!tab) {
+            _curriculum_add_line(&_fen_curriculum_midgame, &_tutor_moves_midgame,
+                                &_num_fens_midgame, capacity, line, len, 0, total_lines);
+            continue;
+        }
+
+        *tab = '\0';
+        const char* fen = line;
+        const char* uci = tab + 1;
+        int fen_len = strlen(fen);
+        uint16_t packed = parse_uci_to_packed(uci);
+        _curriculum_add_line(&_fen_curriculum_midgame, &_tutor_moves_midgame,
+                            &_num_fens_midgame, capacity, fen, fen_len, packed, total_lines);
+    }
+    fclose(f);
+    fprintf(stderr, "Loaded midgame FEN+move curriculum: %d positions (sampled from %ld) from %s\n",
+            _num_fens_midgame, total_lines, path);
 }
 
 void my_init(Env* env, Dict* kwargs) {
@@ -403,6 +553,88 @@ void my_init(Env* env, Dict* kwargs) {
     env->tutor_target = 0;
     env->tutor_phase = 0;
 
+    // Multi-phase curriculum config
+    DictItem* mc = dict_get_unsafe(kwargs, "mate_curriculum");
+    env->mate_curriculum = mc ? (int)mc->value : 0;
+
+    DictItem* rmf = dict_get_unsafe(kwargs, "reward_mate_fail");
+    env->reward_mate_fail = rmf ? (float)rmf->value : -2.0f;
+
+    DictItem* mat = dict_get_unsafe(kwargs, "mate_advance_threshold");
+    env->mate_advance_threshold = mat ? (float)mat->value : 0.90f;
+
+    DictItem* rmp = dict_get_unsafe(kwargs, "reward_mate_progress");
+    env->reward_mate_progress = rmp ? (float)rmp->value : 0.5f;
+
+    DictItem* mretry = dict_get_unsafe(kwargs, "mate_retry");
+    env->mate_retry = mretry ? (int)mretry->value : 1;
+
+    env->mate_retry_idx = -1;      // -1 = no retry pending
+    env->mate_retry_level = -1;
+    env->mate_current_idx = 0;
+    env->mate_current_level = 0;
+    env->mate_mix_ratio = 0.0f;
+
+    DictItem* mmf = dict_get_unsafe(kwargs, "mate_mix_floor");
+    env->mate_mix_floor = mmf ? (float)mmf->value : 0.65f;
+
+    // Puzzle drill mode
+    DictItem* pdm = dict_get_unsafe(kwargs, "puzzle_drill_mode");
+    env->puzzle_drill_mode = pdm ? (int)pdm->value : 0;
+    DictItem* ppr = dict_get_unsafe(kwargs, "puzzle_piece_reward_0");
+    env->puzzle_piece_reward_0 = ppr ? (float)ppr->value : 0.01f;
+    DictItem* pdr = dict_get_unsafe(kwargs, "puzzle_dest_reward_0");
+    env->puzzle_dest_reward_0 = pdr ? (float)pdr->value : 0.015f;
+    DictItem* pri = dict_get_unsafe(kwargs, "puzzle_reward_increment");
+    env->puzzle_reward_increment = pri ? (float)pri->value : 0.01f;
+    DictItem* pdl = dict_get_unsafe(kwargs, "puzzle_drill_levels");
+    env->puzzle_drill_levels = pdl ? (int)pdl->value : 3;
+    env->puzzle_reward_accum = 0.0f;
+    if (env->puzzle_drill_mode) fprintf(stderr, "PUZZLE DRILL MODE ENABLED (piece=%.3f dest=%.3f inc=%.3f levels=%d)\n", env->puzzle_piece_reward_0, env->puzzle_dest_reward_0, env->puzzle_reward_increment, env->puzzle_drill_levels);
+    if (env->puzzle_drill_mode) env->random_bot = 1;
+    env->puzzle_move_num = 0;
+    env->curriculum_episode_type = 3;
+    env->mate_level = 0;
+    env->mate_max_moves = 0;
+
+    if (env->mate_curriculum) {
+        // Load mate FENs
+        load_mate_curriculum();
+        env->mate_fens = _mate_fens;
+        env->mate_fen_counts = _mate_fen_counts;
+
+        // Load midgame curriculum (for phase 5)
+        load_midgame_curriculum();
+        env->fen_curriculum_midgame = _fen_curriculum_midgame;
+        env->tutor_moves_midgame = _tutor_moves_midgame;
+        env->num_fens_midgame = _num_fens_midgame;
+
+        // Ensure endgame data is loaded for phase 6
+        if (env->fen_curriculum_dm == NULL) {
+            load_fen_curriculum_dm_with_moves();
+            env->fen_curriculum_dm = _fen_curriculum_dm;
+            env->num_fens_dm = _num_fens_dm;
+            env->tutor_moves_dm = _tutor_moves_dm;
+        }
+    } else {
+        env->mate_fens = NULL;
+        env->mate_fen_counts = NULL;
+        env->fen_curriculum_midgame = NULL;
+        env->tutor_moves_midgame = NULL;
+        env->num_fens_midgame = 0;
+    }
+
+    // GPU-batched opponent mode
+    DictItem* gpo = dict_get_unsafe(kwargs, "gpu_opponent");
+    env->gpu_opponent = gpo ? (int)gpo->value : 0;
+    env->gpu_opponent_pending = 0;
+
+    DictItem* bnc = dict_get_unsafe(kwargs, "builtin_noise_cp");
+    env->builtin_noise_cp = bnc ? (int)bnc->value : 150;
+
+    DictItem* bd = dict_get_unsafe(kwargs, "builtin_depth");
+    env->builtin_depth = bd ? (int)bd->value : 2;
+
     DictItem* e50 = dict_get_unsafe(kwargs, "enable_50_move_rule");
     env->enable_50_move_rule = e50 ? (int)e50->value : 1;
 
@@ -443,10 +675,16 @@ void my_init(Env* env, Dict* kwargs) {
     env->legal_moves_side = env->pos.sideToMove;
     env->legal_moves_key = env->pos.key;
 
-    // Stockfish processes are no longer needed for training - the built-in
-    // eval (builtin_select_move) replaces pipe-based Stockfish I/O.
-    // stockfish_start() is only called lazily from stockfish_select_move()
-    // for evaluation scripts that explicitly need it.
+    // Shared Stockfish process pool (one SF process per OMP thread)
+    DictItem* sfps = dict_get_unsafe(kwargs, "stockfish_pool_size");
+    int stockfish_pool_size = sfps ? (int)sfps->value : 0;  // 0=auto, -1=disabled
+
+    if (env->stockfish_bot && stockfish_pool_size != -1 && !_g_sf_pool_initialized) {
+        int pool_sz = (stockfish_pool_size > 0) ? stockfish_pool_size : 128;
+        int pool_depth = env->stockfish_depth > 0 ? env->stockfish_depth : 5;
+        _g_sf_pool = sf_pool_create(pool_sz, pool_depth);
+        _g_sf_pool_initialized = 1;
+    }
 }
 
 void my_log(Log* log, Dict* out) {
@@ -481,4 +719,31 @@ void my_log(Log* log, Dict* out) {
     dict_set(out, "syzygy_wins", log->syzygy_wins);
     dict_set(out, "syzygy_draws", log->syzygy_draws);
     dict_set(out, "syzygy_reward_total", log->syzygy_reward_total);
+    if (log->curriculum_n > 0) {
+        dict_set(out, "curriculum_phase", log->curriculum_phase / log->curriculum_n);
+        dict_set(out, "curriculum_ema", log->curriculum_ema / log->curriculum_n);
+        dict_set(out, "curriculum_success_rate", log->curriculum_success / log->curriculum_n);
+        dict_set(out, "curriculum_count", log->curriculum_n);
+    }
+
+    // Puzzle drill stats
+    if (log->puzzle_n > 0) {
+        dict_set(out, "puzzle_attempts", log->puzzle_attempts);
+        dict_set(out, "puzzle_solves", log->puzzle_solves);
+        dict_set(out, "puzzle_wrong_piece", log->puzzle_wrong_piece);
+        dict_set(out, "puzzle_wrong_dest", log->puzzle_wrong_dest);
+        dict_set(out, "puzzle_timeouts", log->puzzle_timeouts);
+        dict_set(out, "puzzle_piece_acc", log->puzzle_piece_correct / log->puzzle_n);
+        dict_set(out, "puzzle_dest_acc", log->puzzle_dest_correct / log->puzzle_n);
+        dict_set(out, "puzzle_solve_rate", log->puzzle_solves / log->puzzle_n);
+        dict_set(out, "puzzle_reward_total", log->puzzle_reward_total / log->puzzle_n);
+        dict_set(out, "puzzle_level", log->puzzle_level / log->puzzle_n);
+        dict_set(out, "puzzle_fail_l1", log->puzzle_fail_l1);
+        dict_set(out, "puzzle_fail_l2", log->puzzle_fail_l2);
+        dict_set(out, "puzzle_fail_l3", log->puzzle_fail_l3);
+    }
+    // Per-level unique solved counts
+    dict_set(out, "puzzle_unique_l1", (float)_puzzle_solved_count[0]);
+    dict_set(out, "puzzle_unique_l2", (float)_puzzle_solved_count[1]);
+    dict_set(out, "puzzle_unique_l3", (float)_puzzle_solved_count[2]);
 }
