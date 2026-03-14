@@ -40,10 +40,11 @@ class ChessSeven(nn.Module):
         self.register_buffer('square_geo_planes', square_geo_planes)
 
         # 15 spatial channels from obs + 4 geometric = 19
-        self.square_embed = layer_init(nn.Conv2d(19, square_dim, kernel_size=1))
-        self.channel_proj = layer_init(nn.Conv2d(square_dim, proj_dim, kernel_size=1))
-        self.spatial_mix = layer_init(nn.Conv2d(
-            proj_dim, proj_dim, kernel_size=3, padding=1, groups=proj_dim))
+        # 3x3 full convolutions for proper spatial processing (5x5 receptive field)
+        self.conv1 = layer_init(nn.Conv2d(19, 32, kernel_size=3, padding=1))
+        self.conv2 = layer_init(nn.Conv2d(32, 32, kernel_size=3, padding=1))
+        self.skip = layer_init(nn.Conv2d(19, 32, kernel_size=1))  # residual projection
+        self.conv3 = layer_init(nn.Conv2d(32, 16, kernel_size=3, padding=1))
 
         if embed_dim % 2 != 0:
             raise ValueError(f'embed_dim must be even, got {embed_dim}')
@@ -52,7 +53,7 @@ class ChessSeven(nn.Module):
         self.ep_embed = nn.Embedding(65, embed_dim)
         self.phase_embed = nn.Embedding(2, embed_dim // 2)
 
-        board_flat = 64 * proj_dim + 32
+        board_flat = 16 * 8 * 8 + 32  # conv3 output (16*8*8=1024) + promos (32)
         total_features = board_flat + (3 * embed_dim) + 5
 
         self.proj = nn.Sequential(
@@ -76,10 +77,10 @@ class ChessSeven(nn.Module):
         geo = self.square_geo_planes.expand(B, -1, -1, -1)
         x = torch.cat([board, selected, valid_pieces_sp, valid_dests_sp, geo], dim=1)
 
-        x = F.relu(self.square_embed(x))
-        x = F.relu(self.channel_proj(x))
-        x = x + F.relu(self.spatial_mix(x))
-        board_features = x.flatten(1)
+        h = F.relu(self.conv1(x))
+        h = F.relu(self.conv2(h) + self.skip(x))  # residual connection
+        h = F.relu(self.conv3(h))
+        board_features = h.flatten(1)
 
         promos_mask = obs[:, 1045:1077] > 0
         promos = promos_mask.float()
