@@ -3,11 +3,27 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 #include <chrono>
 #include "pufferlib.cpp"
 
 using namespace pufferlib;
 namespace py = pybind11;
+
+// Heatmap accessor (defined in env binding.h)
+extern "C" float* pfr_get_heatmap_ptr(void);
+extern "C" int pfr_get_heatmap_h(void);
+extern "C" int pfr_get_heatmap_w(void);
+
+py::object get_heatmap() {
+    float* ptr = pfr_get_heatmap_ptr();
+    if (!ptr) return py::none();
+    int h = pfr_get_heatmap_h();
+    int w = pfr_get_heatmap_w();
+    // Return numpy array viewing the C buffer (no copy)
+    auto capsule = py::capsule(ptr, [](void*) {}); // prevent dealloc
+    return py::array_t<float>({h, w}, {w * (int)sizeof(float), (int)sizeof(float)}, ptr, capsule);
+}
 
 // Wrapper functions for Python bindings
 pybind11::dict log_environments(pybind11::object pufferl_obj) {
@@ -249,6 +265,7 @@ PYBIND11_MODULE(_C, m) {
     m.def("env_buffers", &env_buffers);
     m.def("profiler_start", &profiler_start);
     m.def("profiler_stop", &profiler_stop);
+    m.def("get_heatmap", &get_heatmap);
 
     py::class_<Muon>(m, "Muon")
         .def_readwrite("lr", &Muon::lr)

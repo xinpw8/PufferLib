@@ -10,8 +10,14 @@ WEB_OUTPUT_DIR="build_web/$ENV"
 RAYLIB_NAME='raylib-5.5_macos'
 BOX2D_NAME='box2d-macos-arm64'
 if [ "$PLATFORM" = "Linux" ]; then
-    RAYLIB_NAME='raylib-5.5_linux_amd64'
-    BOX2D_NAME='box2d-linux-amd64'
+    ARCH="$(uname -m)"
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        RAYLIB_NAME='raylib-5.5_linux_aarch64'
+        BOX2D_NAME='box2d-linux-arm64'
+    else
+        RAYLIB_NAME='raylib-5.5_linux_amd64'
+        BOX2D_NAME='box2d-linux-amd64'
+    fi
 fi
 if [ "$MODE" = "web" ]; then
     RAYLIB_NAME='raylib-5.5_webassembly'
@@ -21,6 +27,9 @@ fi
 LINK_ARCHIVES="./$RAYLIB_NAME/lib/libraylib.a"
 if [ "$ENV" = "impulse_wars" ]; then
     LINK_ARCHIVES="$LINK_ARCHIVES ./$BOX2D_NAME/libbox2d.a"
+fi
+if [ -f "./pufferlib/extensions/libstatic_${ENV}.a" ]; then
+    LINK_ARCHIVES="$LINK_ARCHIVES ./pufferlib/extensions/libstatic_${ENV}.a"
 fi
 
 # Create build output directory

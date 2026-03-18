@@ -34,6 +34,8 @@ int main() {
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(PFR_WINDOW_W, PFR_WINDOW_H, "PufferLib PFR Native");
     SetTargetFPS(15);
+    pfr_load_world_map_texture();
+    pfr_load_player_sprite();
 
     while (!WindowShouldClose()) {
         if      (IsKeyDown(KEY_UP))        env.actions[0] = 1;

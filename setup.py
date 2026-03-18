@@ -378,7 +378,7 @@ if not NO_OCEAN:
 import torch
 cuda_home = os.environ.get('CUDA_HOME') or os.environ.get('CUDA_PATH') or torch.utils.cpp_extension.CUDA_HOME or '/usr/local/cuda'
 nvtx_lib_dir = os.path.join(cuda_home, 'lib64')  # Common on Linux; fall back to 'lib' if needed
-nvtx_lib = 'nvToolsExt'
+nvtx_lib = 'nvtx3interop' if os.path.exists(os.path.join(cuda_home, 'lib64', 'libnvtx3interop.so')) else 'nvToolsExt'
 torch_extensions = []
 if not NO_TRAIN:
     torch_sources = [
@@ -398,7 +398,8 @@ if not NO_TRAIN:
        extension(
             "pufferlib._C",
             torch_sources,
-            include_dirs=[pybind11.get_include(), torch.utils.cpp_extension.include_paths()[0]],
+            include_dirs=[pybind11.get_include(), torch.utils.cpp_extension.include_paths()[0],
+                         os.path.join(os.path.dirname(torch.__file__), '..', 'nvidia', 'nccl', 'include')],
             extra_compile_args = {
                 "cxx": extra_compile_args + cxx_args,
                 "nvcc": nvcc_args,
@@ -406,7 +407,8 @@ if not NO_TRAIN:
             extra_link_args=extra_link_args,
             extra_objects=[RAYLIB_A],
             libraries=[nvtx_lib, 'omp5', 'nccl', 'nvidia-ml'],
-            library_dirs=[nvtx_lib_dir],
+            library_dirs=[nvtx_lib_dir,
+                         os.path.join(os.path.dirname(torch.__file__), '..', 'nvidia', 'nccl', 'lib')],
         ),
     ]
 

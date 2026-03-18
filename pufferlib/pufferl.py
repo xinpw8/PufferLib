@@ -106,6 +106,15 @@ class PuffeRL:
 
         self.policy_fp32 = self.pufferl_cpp.policy_fp32
 
+        # Heatmap callback (pfr_native only — silently skipped for other envs)
+        self._heatmap_cb = None
+        if env_config.get('heatmap_interval'):
+            try:
+                from pufferlib.ocean.pfr_native.pfr_heatmap_callback import PfrHeatmapCallback
+                self._heatmap_cb = PfrHeatmapCallback(interval=int(env_config['heatmap_interval']))
+            except ImportError as e:
+                print(f'[heatmap] init failed: {e}')
+
         # Dashboard
         self.model_size = sum(p.numel() for p in self.policy_fp32.parameters() if p.requires_grad)
         self.start_time = time.time()
@@ -171,6 +180,19 @@ class PuffeRL:
             #**{f'losses/{k}': dist_mean(v, device) for k, v in self.losses.items()},
             #**{f'performance/{k}': dist_sum(v['elapsed'], device) for k, v in self.profile},
         }
+
+        if self._heatmap_cb and self.logger and getattr(self.logger, 'wandb', None):
+            try:
+                hm = _C.get_heatmap()
+                if hm is not None:
+                    stats = self._heatmap_cb.get_stats(hm)
+                    logs.update({f'environment/{k}': v for k, v in stats.items()})
+                    if self._heatmap_cb.should_render():
+                        img = self._heatmap_cb.render(hm)
+                        if img is not None:
+                            logs['environment/heatmap'] = self.logger.wandb.Image(img)
+            except Exception as e:
+                print(f'[heatmap] error: {e}')
 
         self.logger.log(logs, agent_steps)
         return logs

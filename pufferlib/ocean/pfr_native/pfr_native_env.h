@@ -174,16 +174,16 @@ static int pfr_map_visit_check_and_set(Env *env, uint16_t map_id)
     return 1;
 }
 
-/* ---- Snapshot log (called every step so trainer logs stay live) ---- */
+/* ---- Snapshot log (accumulates — vec_log zeros after reading) ---- */
 
 static void pfr_snapshot_log(Env *env)
 {
-    env->log.episode_return = env->episode_return;
-    env->log.episode_length = (float)env->step_count;
-    env->log.unique_tiles   = (float)env->visit_count;
-    env->log.unique_maps    = (float)env->map_count;
-    env->log.warps_taken    = (float)env->warp_count;
-    env->log.n              = 1.0f;
+    env->log.episode_return += env->episode_return;
+    env->log.episode_length += (float)env->step_count;
+    env->log.unique_tiles   += (float)env->visit_count;
+    env->log.unique_maps    += (float)env->map_count;
+    env->log.warps_taken    += (float)env->warp_count;
+    env->log.n              += 1.0f;
 }
 
 /* ---- Observation extraction (writes directly to numpy buffer) ---- */
@@ -335,6 +335,8 @@ static void c_step(Env *env)
     float reward = 0.0f;
     int action;
 
+    env->rewards[0] = 0.0f;
+
     /* 1. Read action */
     action = (int)env->actions[0];
     if (action < 0 || action >= PFR_NUM_ACTIONS)
@@ -378,12 +380,7 @@ static void c_step(Env *env)
     env->episode_return += reward;
     env->step_count++;
 
-    /* 8. Publish current episode stats continuously for dashboard/wandb. */
-    pfr_snapshot_log(env);
-
-    /* 9. Periodic episode reset to keep exploration reward flowing.
-     * Full reset: clear visits, warp back to Pallet Town, fresh episode.
-     * Heatmap accumulates across resets for visualization. */
+    /* 8. Terminal */
     if (env->step_count >= PFR_TRUNCATION_HORIZON) {
         pfr_snapshot_log(env);
         env->terminals[0] = 1;
@@ -397,6 +394,16 @@ static void c_step(Env *env)
 
 #ifdef PFR_STATIC_ENV
 #include "raylib.h"
+
+/* World map — full-res image kept in CPU RAM, viewport cropped each frame */
+static Image g_world_map_img = {0};
+static Texture2D g_world_map_tex = {0};  /* small viewport texture, updated per frame */
+#define PFR_MAP_TEX_PPT  16  /* pixels-per-tile in world_map_textured.png */
+
+/* Player sprite — 144x32 sheet: 9 frames of 16x32 (down0-2, up3-5, left6-8) */
+static Texture2D g_player_tex = {0};
+#define PFR_SPR_W  16
+#define PFR_SPR_H  32
 
 static void allocate(Env *env)
 {
@@ -416,6 +423,51 @@ static void free_allocated(Env *env)
     free(env->rewards);
     free(env->terminals);
     free(env->truncations);
+    if (g_world_map_tex.id) UnloadTexture(g_world_map_tex);
+    if (g_world_map_img.data) UnloadImage(g_world_map_img);
+    if (g_player_tex.id) UnloadTexture(g_player_tex);
+}
+
+/* Call after InitWindow — loads full-res image into CPU RAM */
+static void pfr_load_world_map_texture(void)
+{
+    const char *paths[] = {
+        "pufferlib/resources/pfr_native/world_map_textured.png",
+        "resources/pfr_native/world_map_textured.png",
+        "../pufferlib/resources/pfr_native/world_map_textured.png",
+        NULL
+    };
+    for (int i = 0; paths[i]; i++) {
+        if (FileExists(paths[i])) {
+            g_world_map_img = LoadImage(paths[i]);
+            if (g_world_map_img.data) {
+                TraceLog(LOG_INFO, "Loaded world map: %s (%dx%d)",
+                         paths[i], g_world_map_img.width, g_world_map_img.height);
+                return;
+            }
+        }
+    }
+    TraceLog(LOG_WARNING, "World map texture not found — using fallback tile colors");
+}
+
+static void pfr_load_player_sprite(void)
+{
+    const char *paths[] = {
+        "pufferlib/resources/pfr_native/player_red.png",
+        "resources/pfr_native/player_red.png",
+        "../pufferlib/resources/pfr_native/player_red.png",
+        NULL
+    };
+    for (int i = 0; paths[i]; i++) {
+        if (FileExists(paths[i])) {
+            g_player_tex = LoadTexture(paths[i]);
+            if (g_player_tex.id) {
+                TraceLog(LOG_INFO, "Loaded player sprite: %s", paths[i]);
+                return;
+            }
+        }
+    }
+    TraceLog(LOG_WARNING, "Player sprite not found — using yellow highlight");
 }
 #endif /* PFR_STATIC_ENV */
 
@@ -448,6 +500,63 @@ static void c_render(Env *env)
 
     /* --- Draw 9x9 tile grid --- */
     const unsigned char *tiles = obs + PFR_OBS_SCALAR_SIZE;
+
+    /* Try textured world map: crop viewport from full-res CPU image each frame */
+    int used_texture = 0;
+    if (g_world_map_img.data && map_id <= PFR_HEATMAP_MAX_MAP_ID) {
+        const PfrMapOffset *off = &pfr_map_offsets[map_id];
+        if (off->gx >= 0) {
+            int ppt = PFR_MAP_TEX_PPT;
+            int gx = (int)off->gx + player_x - PFR_OBS_TILE_RADIUS;
+            int gy = (int)off->gy + player_y - PFR_OBS_TILE_RADIUS;
+            int src_x = gx * ppt;
+            int src_y = gy * ppt;
+            int crop_w = PFR_OBS_TILE_DIM * ppt;  /* 144 */
+            int crop_h = PFR_OBS_TILE_DIM * ppt;
+
+            /* Clamp crop to image bounds */
+            int cx = src_x < 0 ? 0 : src_x;
+            int cy = src_y < 0 ? 0 : src_y;
+            int cr = (src_x + crop_w > g_world_map_img.width)
+                     ? g_world_map_img.width : src_x + crop_w;
+            int cb = (src_y + crop_h > g_world_map_img.height)
+                     ? g_world_map_img.height : src_y + crop_h;
+            int cw = cr - cx;
+            int ch = cb - cy;
+
+            if (cw > 0 && ch > 0) {
+                Image crop = ImageFromImage(g_world_map_img,
+                                            (Rectangle){cx, cy, cw, ch});
+
+                /* Reuse or create the viewport texture */
+                if (g_world_map_tex.id &&
+                    g_world_map_tex.width == cw && g_world_map_tex.height == ch) {
+                    UpdateTexture(g_world_map_tex, crop.data);
+                } else {
+                    if (g_world_map_tex.id) UnloadTexture(g_world_map_tex);
+                    g_world_map_tex = LoadTextureFromImage(crop);
+                }
+                UnloadImage(crop);
+
+                if (g_world_map_tex.id) {
+                    /* Map clamped region onto the grid area */
+                    float scale = (float)PFR_TILE_SIZE / (float)ppt;
+                    float dst_x = PFR_GRID_X + (float)(cx - src_x) * scale;
+                    float dst_y = PFR_GRID_Y + (float)(cy - src_y) * scale;
+                    float dst_w = (float)cw * scale;
+                    float dst_h = (float)ch * scale;
+
+                    Rectangle src_rect = {0, 0, (float)cw, (float)ch};
+                    Rectangle dst_rect = {dst_x, dst_y, dst_w, dst_h};
+                    DrawTexturePro(g_world_map_tex, src_rect, dst_rect,
+                                   (Vector2){0, 0}, 0.0f, WHITE);
+                    used_texture = 1;
+                }
+            }
+        }
+    }
+
+    /* Overlay collision borders + player highlight (always), and fallback colors if no texture */
     for (int dy = 0; dy < PFR_OBS_TILE_DIM; dy++) {
         for (int dx = 0; dx < PFR_OBS_TILE_DIM; dx++) {
             int idx = dy * PFR_OBS_TILE_DIM + dx;
@@ -455,37 +564,77 @@ static void c_render(Env *env)
             int px = PFR_GRID_X + dx * PFR_TILE_SIZE;
             int py = PFR_GRID_Y + dy * PFR_TILE_SIZE;
 
-            Color col;
-            if (tile == 0xFF) {
-                col = (Color){20, 20, 20, 255};  /* OOB */
-            } else {
-                unsigned char behavior = tile & 0x7F;
-                switch (behavior) {
-                    case 0x00: col = (Color){200, 200, 200, 255}; break; /* normal ground */
-                    case 0x04: col = (Color){60, 120, 220, 255};  break; /* surfable water */
-                    case 0x0C: col = (Color){30, 140, 40, 255};   break; /* tall grass */
-                    case 0x3B: col = (Color){160, 100, 50, 255};  break; /* ledge */
-                    case 0x01: col = (Color){180, 180, 180, 255}; break; /* wall/impassable */
-                    case 0x02: col = (Color){220, 200, 160, 255}; break; /* sand */
-                    case 0x08: col = (Color){100, 160, 100, 255}; break; /* short grass */
-                    case 0x09: col = (Color){70, 70, 70, 255};    break; /* cave floor */
-                    case 0x10: col = (Color){180, 180, 220, 255}; break; /* indoor floor */
-                    case 0x0A: col = (Color){50, 100, 180, 255};  break; /* deep water */
-                    default:   col = (Color){140, 140, 140, 255}; break; /* unknown */
+            /* Fallback colored tiles when texture unavailable */
+            if (!used_texture) {
+                Color col;
+                if (tile == 0xFF) {
+                    col = (Color){20, 20, 20, 255};
+                } else {
+                    unsigned char behavior = tile & 0x7F;
+                    switch (behavior) {
+                        case 0x00: col = (Color){200, 200, 200, 255}; break;
+                        case 0x04: col = (Color){60, 120, 220, 255};  break;
+                        case 0x0C: col = (Color){30, 140, 40, 255};   break;
+                        case 0x3B: col = (Color){160, 100, 50, 255};  break;
+                        case 0x01: col = (Color){180, 180, 180, 255}; break;
+                        case 0x02: col = (Color){220, 200, 160, 255}; break;
+                        case 0x08: col = (Color){100, 160, 100, 255}; break;
+                        case 0x09: col = (Color){70, 70, 70, 255};    break;
+                        case 0x10: col = (Color){180, 180, 220, 255}; break;
+                        case 0x0A: col = (Color){50, 100, 180, 255};  break;
+                        default:   col = (Color){140, 140, 140, 255}; break;
+                    }
                 }
+                DrawRectangle(px, py, PFR_TILE_SIZE - 1, PFR_TILE_SIZE - 1, col);
             }
-
-            DrawRectangle(px, py, PFR_TILE_SIZE - 1, PFR_TILE_SIZE - 1, col);
 
             /* Collision border (red) */
             if (tile != 0xFF && (tile & 0x80)) {
                 DrawRectangleLines(px, py, PFR_TILE_SIZE - 1, PFR_TILE_SIZE - 1, RED);
             }
 
-            /* Player highlight (center tile) */
+            /* Player sprite or highlight (center tile) */
+            /* Player sprite or highlight (center tile) */
             if (dx == PFR_OBS_TILE_RADIUS && dy == PFR_OBS_TILE_RADIUS) {
-                DrawRectangleLines(px + 2, py + 2, PFR_TILE_SIZE - 5, PFR_TILE_SIZE - 5, YELLOW);
-                DrawRectangleLines(px + 3, py + 3, PFR_TILE_SIZE - 7, PFR_TILE_SIZE - 7, YELLOW);
+                if (g_player_tex.id) {
+                    /* Sprite sheet: 0=south stand, 1=north stand, 2=west stand,
+                     * 3=south walk1, 4=south walk2, 5=north walk1, 6=north walk2,
+                     * 7=west walk1, 8=west walk2.  East = west frames h-flipped. */
+                    int stand_frame, walk1, walk2;
+                    switch (direction) {
+                        case 1: stand_frame = 1; walk1 = 5; walk2 = 6; break; /* north */
+                        case 3: stand_frame = 2; walk1 = 7; walk2 = 8; break; /* west */
+                        case 4: stand_frame = 2; walk1 = 7; walk2 = 8; break; /* east (flip) */
+                        default: stand_frame = 0; walk1 = 3; walk2 = 4; break; /* south */
+                    }
+
+                    /* Only animate when actually moving (position changed) */
+                    int moved = (player_x != env->last_x || player_y != env->last_y
+                                 || map_id != (int)env->last_map);
+                    int frame = stand_frame;
+                    if (moved) {
+                        /* Walk cycle: stand -> walk1 -> stand -> walk2 */
+                        int phase = (env->step_count / 2) % 4;
+                        if (phase == 1)      frame = walk1;
+                        else if (phase == 3) frame = walk2;
+                    }
+
+                    float src_w = (direction == 4) ? -(float)PFR_SPR_W : (float)PFR_SPR_W;
+                    Rectangle src = {(float)(frame * PFR_SPR_W), 0, src_w, (float)PFR_SPR_H};
+
+                    float scale = (float)PFR_TILE_SIZE / (float)PFR_SPR_W;
+                    float dst_w = PFR_SPR_W * scale;
+                    float dst_h = PFR_SPR_H * scale;
+                    Rectangle dst = {
+                        (float)px,
+                        (float)py + PFR_TILE_SIZE - dst_h,
+                        dst_w, dst_h
+                    };
+                    DrawTexturePro(g_player_tex, src, dst, (Vector2){0, 0}, 0.0f, WHITE);
+                } else {
+                    DrawRectangleLines(px + 2, py + 2, PFR_TILE_SIZE - 5, PFR_TILE_SIZE - 5, YELLOW);
+                    DrawRectangleLines(px + 3, py + 3, PFR_TILE_SIZE - 7, PFR_TILE_SIZE - 7, YELLOW);
+                }
             }
         }
     }
@@ -511,8 +660,8 @@ static void c_render(Env *env)
     }
 
     /* --- HUD --- */
-    const char *dir_names[] = {"Down", "Up", "Left", "Right"};
-    const char *dir_str = (direction < 4) ? dir_names[direction] : "?";
+    const char *dir_names[] = {"None", "Up", "Down", "Left", "Right"};
+    const char *dir_str = (direction <= 4) ? dir_names[direction] : "?";
 
     DrawText(TextFormat("Map: %d  Pos: (%d, %d)  Dir: %s  Mode: %d",
         map_id, player_x, player_y, dir_str, mode),
@@ -526,15 +675,17 @@ static void c_render(Env *env)
         env->rewards[0], env->episode_return),
         10, 60, 20, GREEN);
 
-    /* Direction indicator on player tile */
-    int cx = PFR_GRID_X + PFR_OBS_TILE_RADIUS * PFR_TILE_SIZE + PFR_TILE_SIZE / 2;
-    int cy = PFR_GRID_Y + PFR_OBS_TILE_RADIUS * PFR_TILE_SIZE + PFR_TILE_SIZE / 2;
-    int arrow_len = 12;
-    switch (direction) {
-        case 0: DrawLine(cx, cy, cx, cy + arrow_len, YELLOW); break; /* Down */
-        case 1: DrawLine(cx, cy, cx, cy - arrow_len, YELLOW); break; /* Up */
-        case 2: DrawLine(cx, cy, cx - arrow_len, cy, YELLOW); break; /* Left */
-        case 3: DrawLine(cx, cy, cx + arrow_len, cy, YELLOW); break; /* Right */
+    /* Direction arrow fallback (only when no sprite loaded) */
+    if (!g_player_tex.id) {
+        int cx = PFR_GRID_X + PFR_OBS_TILE_RADIUS * PFR_TILE_SIZE + PFR_TILE_SIZE / 2;
+        int cy = PFR_GRID_Y + PFR_OBS_TILE_RADIUS * PFR_TILE_SIZE + PFR_TILE_SIZE / 2;
+        int arrow_len = 12;
+        switch (direction) {
+            case 1: DrawLine(cx, cy, cx, cy - arrow_len, YELLOW); break;
+            case 2: DrawLine(cx, cy, cx, cy + arrow_len, YELLOW); break;
+            case 3: DrawLine(cx, cy, cx - arrow_len, cy, YELLOW); break;
+            case 4: DrawLine(cx, cy, cx + arrow_len, cy, YELLOW); break;
+        }
     }
 
     /* Controls help */
