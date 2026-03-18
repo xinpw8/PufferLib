@@ -48,7 +48,8 @@
 #define PFR_OBS_NPC_COUNT    8
 #define PFR_OBS_NPC_FEAT     5
 #define PFR_OBS_NPC_SIZE     (PFR_OBS_NPC_COUNT * PFR_OBS_NPC_FEAT)  /* 40 */
-#define PFR_OBS_SIZE         (PFR_OBS_SCALAR_SIZE + PFR_OBS_TILE_SIZE + PFR_OBS_NPC_SIZE)  /* 129 */
+#define PFR_OBS_GLOBAL_POS_SIZE 4
+#define PFR_OBS_SIZE         (PFR_OBS_SCALAR_SIZE + PFR_OBS_TILE_SIZE + PFR_OBS_NPC_SIZE + PFR_OBS_GLOBAL_POS_SIZE)  /* 133 */
 
 #define PFR_NUM_ACTIONS      9
 #define PFR_VISIT_HASH_SIZE  8192
@@ -285,6 +286,22 @@ static void pfr_extract_obs(Env *env)
             npc_obs += PFR_OBS_NPC_FEAT;
         }
     }
+
+    /* Global position from heatmap LUT */
+    {
+        unsigned char *gpos = obs + PFR_OBS_SCALAR_SIZE + PFR_OBS_TILE_SIZE + PFR_OBS_NPC_SIZE;
+        if (state->current_map <= PFR_HEATMAP_MAX_MAP_ID) {
+            const PfrMapOffset *off = &pfr_map_offsets[state->current_map];
+            if (off->gx >= 0) {
+                int gx = (int)state->player_x + (int)off->gx;
+                int gy = (int)state->player_y + (int)off->gy;
+                gpos[0] = (unsigned char)(gx & 0xFF);
+                gpos[1] = (unsigned char)((gx >> 8) & 0xFF);
+                gpos[2] = (unsigned char)(gy & 0xFF);
+                gpos[3] = (unsigned char)((gy >> 8) & 0xFF);
+            }
+        }
+    }
 }
 
 /* ---- c_soft_reset ---- */
@@ -403,7 +420,7 @@ static void c_step(Env *env)
     if (env->step_count >= PFR_TRUNCATION_HORIZON) {
         pfr_snapshot_log(env);
         env->terminals[0] = 1;
-        c_soft_reset(env);
+        c_reset(env);
     } else {
         env->terminals[0] = 0;
     }

@@ -191,6 +191,13 @@ class PuffeRL:
                         img = self._heatmap_cb.render(hm)
                         if img is not None:
                             logs['environment/heatmap'] = self.logger.wandb.Image(img)
+                        rows, n_visited = self._heatmap_cb.get_map_table(hm)
+                        if rows:
+                            logs['environment/heatmap/maps_with_visits'] = n_visited
+                            table = self.logger.wandb.Table(
+                                columns=["map_id", "name", "tiles_visited", "total_visits"],
+                                data=rows)
+                            logs['environment/map_visits'] = table
             except Exception as e:
                 print(f'[heatmap] error: {e}')
 
@@ -638,23 +645,51 @@ def eval(env_name, args=None, vecenv=None, policy=None):
             lstm_c=torch.zeros(num_agents, policy.hidden_size, device=device),
         )
 
+    # Heatmap overlay for pfr_native
+    heatmap_cb = None
+    heatmap_binding = None
+    if 'pfr_native' in env_name:
+        try:
+            from pufferlib.ocean.pfr_native.pfr_heatmap_callback import PfrHeatmapCallback
+            from pufferlib.ocean.pfr_native import binding as pfr_binding
+            heatmap_cb = PfrHeatmapCallback(interval=1)
+            heatmap_binding = pfr_binding
+        except ImportError:
+            pass
+
+    render_mode = getattr(driver, 'render_mode', None)
     frames = []
+    step_count = 0
     while True:
-        render = driver.render()
-        if len(frames) < args['save_frames']:
+        try:
+            render = driver.render()
+        except Exception:
+            render = None
+
+        if render is not None and len(frames) < args['save_frames']:
             frames.append(render)
 
-        # Screenshot Ocean envs with F12, gifs with control + F12
-        if driver.render_mode == 'ansi':
+        if render_mode == 'ansi' and render is not None:
             print('\033[0;0H' + render + '\n')
             time.sleep(1/args['fps'])
-        elif driver.render_mode == 'rgb_array':
-            pass
-            #import cv2
-            #render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
-            #cv2.imshow('frame', render)
-            #cv2.waitKey(1)
-            #time.sleep(1/args['fps'])
+
+        # Update heatmap overlay periodically
+        if heatmap_cb and heatmap_binding and step_count % 100 == 0:
+            try:
+                hmap = heatmap_binding.get_heatmap()
+                if hmap is not None:
+                    img = heatmap_cb.render(hmap)
+                    if img is not None:
+                        import cv2
+                        disp = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                        scale = max(1, 800 // max(disp.shape[0], disp.shape[1]))
+                        if scale > 1:
+                            disp = cv2.resize(disp, (disp.shape[1]*scale, disp.shape[0]*scale),
+                                              interpolation=cv2.INTER_NEAREST)
+                        cv2.imshow('PFR Heatmap', disp)
+                        cv2.waitKey(1)
+            except Exception:
+                pass
 
         with torch.no_grad():
             ob = torch.as_tensor(ob).to(device)
@@ -666,6 +701,7 @@ def eval(env_name, args=None, vecenv=None, policy=None):
             action = np.clip(action, vecenv.action_space.low, vecenv.action_space.high)
 
         ob = vecenv.step(action)[0]
+        step_count += 1
 
         if len(frames) > 0 and len(frames) == args['save_frames']:
             import imageio
@@ -975,7 +1011,11 @@ def load_policy(args, vecenv, env_name=''):
 
     load_path = args['load_model_path']
     if load_path == 'latest':
-        load_path = max(glob.glob(f"experiments/{env_name}*.pt"), key=os.path.getctime)
+        candidates = glob.glob(f"experiments/{env_name}*.pt") + \
+                     glob.glob(f"experiments/{env_name}/**/model_*.pt", recursive=True)
+        if not candidates:
+            raise FileNotFoundError(f"No checkpoints found for {env_name} in experiments/")
+        load_path = max(candidates, key=os.path.getctime)
 
     if load_path is not None:
         state_dict = torch.load(load_path, map_location=device)

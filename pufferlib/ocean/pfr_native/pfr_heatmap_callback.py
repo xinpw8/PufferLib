@@ -77,6 +77,47 @@ class PfrHeatmapCallback:
             "heatmap/unique_global_tiles": int(np.count_nonzero(heatmap_np)),
         }
 
+    @staticmethod
+    def get_map_table(heatmap_np):
+        """Build a list of [map_id, name, tiles_visited, total_visits] for maps with activity."""
+        try:
+            from pufferlib.ocean.pfr_native import binding
+        except ImportError:
+            return None, 0
+
+        import re
+        lut_path = Path(__file__).resolve().parent / "pfr_heatmap_lut.h"
+        if not lut_path.exists():
+            return None, 0
+
+        offsets = {}
+        for line in lut_path.read_text().splitlines():
+            m = re.match(r'\s*\[(\d+)\]\s*=.*gx\s*=\s*(-?\d+).*gy\s*=\s*(-?\d+)', line)
+            if m:
+                mid, gx, gy = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                if gx >= 0:
+                    offsets[mid] = (gx, gy)
+
+        rows = []
+        n_maps = binding.get_map_count()
+        for mid in range(n_maps):
+            if mid not in offsets:
+                continue
+            gx, gy = offsets[mid]
+            name, w, h, _ = binding.get_map_info(mid)
+            y1, y2 = max(0, gy), min(heatmap_np.shape[0], gy + h)
+            x1, x2 = max(0, gx), min(heatmap_np.shape[1], gx + w)
+            if y1 >= y2 or x1 >= x2:
+                continue
+            region = heatmap_np[y1:y2, x1:x2]
+            nz = int(np.count_nonzero(region))
+            total = int(np.sum(region))
+            if nz > 0:
+                rows.append([mid, name, nz, total])
+
+        rows.sort(key=lambda r: -r[3])
+        return rows, len(rows)
+
 
 def _hsv_to_rgb(h, s, v):
     i = (h * 6.0).astype(np.int32) % 6
