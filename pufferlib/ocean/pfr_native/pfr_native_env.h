@@ -56,11 +56,6 @@
 /* Map visit bitset — track which distinct maps the agent has entered */
 #define PFR_MAP_VISIT_MAX    512  /* covers all 425 maps */
 
-/* Episode truncation: reset exploration state every N steps to bound returns.
- * This prevents value function divergence while preserving the heatmap accumulation.
- * 4096 steps ≈ 68 seconds at 60fps — enough time to explore a few rooms.
- * Obviously this is stupid but I've left the clanker note to illustrate the point that
- * it has absolutely 0 idea about how this works. */
 #define PFR_TRUNCATION_HORIZON  65536
 
 /* ---- Global shared heatmap (allocated once, written atomically by all envs) ---- */
@@ -292,6 +287,35 @@ static void pfr_extract_obs(Env *env)
     }
 }
 
+/* ---- c_soft_reset ---- */
+/* Clears visit tracking but keeps position. Agent continues exploring
+ * from where it is — all tiles become "new" again for reward purposes. */
+
+static void c_soft_reset(Env *env)
+{
+    memset(env->visit_bits, 0, sizeof(env->visit_bits));
+    memset(env->map_bits, 0, sizeof(env->map_bits));
+    env->visit_count = 0;
+    env->map_count = 0;
+    env->step_count = 0;
+    env->warp_count = 0;
+    env->episode_return = 0.0f;
+
+    pfr_extract_obs(env);
+
+    {
+        const PfrNativeState *state = pfr_native_state(&env->core);
+        pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y);
+        pfr_map_visit_check_and_set(env, state->current_map);
+        env->last_x = state->player_x;
+        env->last_y = state->player_y;
+        env->last_map = state->current_map;
+    }
+
+    env->rewards[0] = 0.0f;
+    env->terminals[0] = 0;
+}
+
 /* ---- c_reset ---- */
 
 static void c_reset(Env *env)
@@ -345,7 +369,6 @@ static void c_step(Env *env)
     /* 2. Step engine */
     result = pfr_engine_step(&env->core, (PfrNativeAction)action);
 
-
     /* 3. Extract observation */
     pfr_extract_obs(env);
 
@@ -355,14 +378,10 @@ static void c_step(Env *env)
     /* 5. Record position in global heatmap */
     pfr_heatmap_record(state->current_map, state->player_x, state->player_y);
 
-    /* 5b. Movement reward: small reward for changing position */
-    if (state->player_x != env->last_x || state->player_y != env->last_y ||
-        state->current_map != env->last_map) {
-        reward += 0.01f;
-        env->last_x = state->player_x;
-        env->last_y = state->player_y;
-        env->last_map = state->current_map;
-    }
+    /* Track position for render (walk animation needs to know if we moved) */
+    env->last_x = state->player_x;
+    env->last_y = state->player_y;
+    env->last_map = state->current_map;
 
     /* 6. Exploration reward: new tile */
     if (pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y))
@@ -370,9 +389,9 @@ static void c_step(Env *env)
 
     /* 7. Track map visits + warp reward */
     if (pfr_map_visit_check_and_set(env, state->current_map))
-        reward += 0.1f;  /* reward for discovering a new map */
+        reward += 0.1f;
 
-    /* 7. Track warps */
+    /* 7b. Track warps */
     if (result.event == PFR_NATIVE_EVENT_WARPED)
         env->warp_count++;
 
@@ -380,11 +399,11 @@ static void c_step(Env *env)
     env->episode_return += reward;
     env->step_count++;
 
-    /* 8. Terminal */
+    /* 8. Terminal: soft reset keeps position, clears exploration tracking */
     if (env->step_count >= PFR_TRUNCATION_HORIZON) {
         pfr_snapshot_log(env);
         env->terminals[0] = 1;
-        c_reset(env);
+        c_soft_reset(env);
     } else {
         env->terminals[0] = 0;
     }
@@ -594,7 +613,6 @@ static void c_render(Env *env)
             }
 
             /* Player sprite or highlight (center tile) */
-            /* Player sprite or highlight (center tile) */
             if (dx == PFR_OBS_TILE_RADIUS && dy == PFR_OBS_TILE_RADIUS) {
                 if (g_player_tex.id) {
                     /* Sprite sheet: 0=south stand, 1=north stand, 2=west stand,
@@ -686,6 +704,21 @@ static void c_render(Env *env)
             case 3: DrawLine(cx, cy, cx - arrow_len, cy, YELLOW); break;
             case 4: DrawLine(cx, cy, cx + arrow_len, cy, YELLOW); break;
         }
+    }
+
+    /* Dialog box — shown when engine is in dialog mode */
+    if (mode == 1) {
+        int box_x = 10, box_y = PFR_WINDOW_H - 100, box_w = PFR_WINDOW_W - 20, box_h = 70;
+        DrawRectangle(box_x, box_y, box_w, box_h, (Color){0, 0, 0, 200});
+        DrawRectangleLines(box_x, box_y, box_w, box_h, WHITE);
+
+        const PfrNativeState *state = pfr_native_state(&env->core);
+        char dialog_buf[256];
+        pfr_native_format_dialog_page(&env->core, state->active_dialog_id,
+                                       state->dialog_page_index,
+                                       dialog_buf, sizeof(dialog_buf));
+        DrawText(dialog_buf, box_x + 12, box_y + 10, 18, WHITE);
+        DrawText("[Z/X to continue]", box_x + 12, box_y + 45, 14, GRAY);
     }
 
     /* Controls help */
