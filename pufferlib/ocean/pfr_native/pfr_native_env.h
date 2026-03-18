@@ -54,6 +54,11 @@
 #define PFR_NUM_ACTIONS      9
 #define PFR_VISIT_HASH_SIZE  8192
 
+/* ---- Reward tuning ---- */
+#define PFR_REWARD_NEW_TILE    0.02f
+#define PFR_REWARD_NEW_MAP     0.1f
+#define PFR_REWARD_MOVEMENT    0.01f
+
 /* Map visit bitset — track which distinct maps the agent has entered */
 #define PFR_MAP_VISIT_MAX    512  /* covers all 425 maps */
 
@@ -337,9 +342,25 @@ static void c_soft_reset(Env *env)
 
 static void c_reset(Env *env)
 {
-    memset(env->visit_bits, 0, sizeof(env->visit_bits));
+    /* Decay visit_bits: AND with random mask to clear ~half the bits.
+     * Recently visited tiles likely stay set (visited again next episode).
+     * Old frontier tiles gradually become "new" again, creating a rolling
+     * exploration reward window. Simple LCG RNG, no need for quality. */
+    {
+        uint32_t rng = env->visit_count ^ (uint32_t)(uintptr_t)env;
+        uint32_t *bits = env->visit_bits;
+        int i;
+        for (i = 0; i < PFR_VISIT_HASH_SIZE / 32; i++) {
+            rng = rng * 1664525u + 1013904223u;
+            bits[i] &= rng;  /* ~50% of set bits cleared */
+        }
+        /* Recount after decay */
+        env->visit_count = 0;
+        for (i = 0; i < PFR_VISIT_HASH_SIZE / 32; i++) {
+            env->visit_count += (uint32_t)__builtin_popcount(bits[i]);
+        }
+    }
     memset(env->map_bits, 0, sizeof(env->map_bits));
-    env->visit_count = 0;
     env->map_count = 0;
     env->step_count = 0;
     env->warp_count = 0;
@@ -395,18 +416,22 @@ static void c_step(Env *env)
     /* 5. Record position in global heatmap */
     pfr_heatmap_record(state->current_map, state->player_x, state->player_y);
 
-    /* Track position for render (walk animation needs to know if we moved) */
+    /* 5b. Movement reward */
+    if (state->player_x != env->last_x || state->player_y != env->last_y ||
+        state->current_map != env->last_map) {
+        reward += PFR_REWARD_MOVEMENT;
+    }
     env->last_x = state->player_x;
     env->last_y = state->player_y;
     env->last_map = state->current_map;
 
-    /* 6. Exploration reward: new tile */
+    /* 6. Exploration reward: new tile (persistent across episodes) */
     if (pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y))
-        reward += 0.02f;
+        reward += PFR_REWARD_NEW_TILE;
 
-    /* 7. Track map visits + warp reward */
+    /* 7. Track map visits + new map reward (resets per episode) */
     if (pfr_map_visit_check_and_set(env, state->current_map))
-        reward += 0.1f;
+        reward += PFR_REWARD_NEW_MAP;
 
     /* 7b. Track warps */
     if (result.event == PFR_NATIVE_EVENT_WARPED)

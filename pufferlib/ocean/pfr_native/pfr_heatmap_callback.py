@@ -48,18 +48,20 @@ class PfrHeatmapCallback:
         hh, hw = heatmap_np.shape
         bg = _load_world_map_bg(hh, hw)
 
-        log_c = np.log1p(heatmap_np)
-        log_mx = np.max(log_c)
-        scaled = log_c / log_mx
+        # sqrt scaling — shows gradient between light and heavy visits clearly
+        sqrt_c = np.sqrt(heatmap_np)
+        sqrt_mx = np.max(sqrt_c)
+        scaled = sqrt_c / sqrt_mx
         nz = (heatmap_np > 0).astype(np.float32)
 
-        # HSV heatmap: blue (low) -> red (high)
+        # HSV heatmap: blue (low visits) -> red (high visits)
         h = 2.0 * (1.0 - scaled) / 3.0
         heat_rgb = _hsv_to_rgb(h, nz, nz)
         heat_u8 = (255 * heat_rgb).astype(np.uint8)
 
         if bg is not None:
-            alpha = (0.7 * nz + 0.3 * scaled * nz)
+            # Lower base alpha so lightly visited areas are more visible
+            alpha = (0.5 * nz + 0.5 * scaled * nz)
             alpha_3 = alpha[:, :, np.newaxis]
 
             bg_f = bg.astype(np.float32)
