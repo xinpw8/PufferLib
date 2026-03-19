@@ -66,6 +66,7 @@ static PyObject* py_get_map_info(PyObject* self, PyObject* args) {
 static int my_init(Env *env, PyObject *args, PyObject *kwargs)
 {
     pfr_engine_init(&env->core);
+    pfr_engine_reset(&env->core, PFR_NATIVE_BOOTSTRAP_PALLET_TOWN, NULL);
     pfr_heatmap_ensure_alloc();
     c_reset(env);
     return 0;
@@ -78,5 +79,6 @@ static int my_log(PyObject *dict, Log *log)
     assign_to_dict(dict, "unique_tiles", log->unique_tiles);
     assign_to_dict(dict, "unique_maps", log->unique_maps);
     assign_to_dict(dict, "warps_taken", log->warps_taken);
+    assign_to_dict(dict, "badges_earned", log->badges_earned);
     return 0;
 }

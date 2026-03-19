@@ -83,7 +83,7 @@ class PfrHeatmapCallback:
     def get_map_table(heatmap_np):
         """Build a list of [map_id, name, tiles_visited, total_visits] for maps with activity."""
         try:
-            from pufferlib.ocean.pfr_native import binding
+            from pufferlib.ocean.pfr_native.pfr_map_info import MAP_COUNT, MAP_INFO
         except ImportError:
             return None, 0
 
@@ -101,12 +101,11 @@ class PfrHeatmapCallback:
                     offsets[mid] = (gx, gy)
 
         rows = []
-        n_maps = binding.get_map_count()
-        for mid in range(n_maps):
-            if mid not in offsets:
+        for mid in range(MAP_COUNT):
+            if mid not in offsets or mid not in MAP_INFO:
                 continue
             gx, gy = offsets[mid]
-            name, w, h, _ = binding.get_map_info(mid)
+            name, w, h = MAP_INFO[mid]
             y1, y2 = max(0, gy), min(heatmap_np.shape[0], gy + h)
             x1, x2 = max(0, gx), min(heatmap_np.shape[1], gx + w)
             if y1 >= y2 or x1 >= x2:

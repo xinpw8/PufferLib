@@ -4,10 +4,12 @@
  * Zero Python overhead: c_step extracts obs + computes reward entirely in C.
  * Each Env is ~1.6KB (545B core + 1KB visit hash). No global state.
  *
- * Observation (129 bytes uint8):
- *   [0:8]     scalars: player_x(2), player_y(2), map(2), dir(1), mode(1)
- *   [8:89]    9x9 tile grid: behavior | (collision << 7)
- *   [89:129]  8 NPCs x 5 bytes: dx, dy, graphics_id, facing, active
+ * Observation (137 bytes uint8):
+ *   [0:12]    scalars: player_x(2), player_y(2), map(2), dir(1), mode(1),
+ *             badges(1), party(1), flags_lo(1), flags_hi(1)
+ *   [12:93]   9x9 tile grid: behavior | (collision << 7)
+ *   [93:133]  8 NPCs x 5 bytes: dx, dy, graphics_id, facing, active
+ *   [133:137] global position: gx(2), gy(2)
  *
  * Action: Discrete(9)
  *   0=none, 1=up, 2=down, 3=left, 4=right, 5=A, 6=B, 7=start, 8=select
@@ -44,7 +46,7 @@
 #define PFR_OBS_TILE_RADIUS  4
 #define PFR_OBS_TILE_DIM     (2 * PFR_OBS_TILE_RADIUS + 1)  /* 9 */
 #define PFR_OBS_TILE_SIZE    (PFR_OBS_TILE_DIM * PFR_OBS_TILE_DIM)  /* 81 */
-#define PFR_OBS_SCALAR_SIZE  8
+#define PFR_OBS_SCALAR_SIZE  12
 #define PFR_OBS_NPC_COUNT    8
 #define PFR_OBS_NPC_FEAT     5
 #define PFR_OBS_NPC_SIZE     (PFR_OBS_NPC_COUNT * PFR_OBS_NPC_FEAT)  /* 40 */
@@ -55,14 +57,14 @@
 #define PFR_VISIT_HASH_SIZE  8192
 
 /* ---- Reward tuning ---- */
+/* Only exploration rewards active for baseline */
 #define PFR_REWARD_NEW_TILE    0.02f
 #define PFR_REWARD_NEW_MAP     0.1f
-#define PFR_REWARD_MOVEMENT    0.01f
 
 /* Map visit bitset — track which distinct maps the agent has entered */
 #define PFR_MAP_VISIT_MAX    512  /* covers all 425 maps */
 
-#define PFR_TRUNCATION_HORIZON  65536
+#define PFR_MAX_EPISODE_STEPS  16384
 
 /* ---- Global shared heatmap (allocated once, written atomically by all envs) ---- */
 static float *g_pfr_heatmap = NULL;
@@ -98,6 +100,7 @@ struct Log {
     float unique_tiles;
     float unique_maps;
     float warps_taken;
+    float badges_earned;
     float n;
 };
 
@@ -136,6 +139,10 @@ struct Env {
     int16_t last_x;
     int16_t last_y;
     uint16_t last_map;
+
+    /* Progression tracking */
+    uint8_t prev_badges;
+    uint8_t prev_has_starter;
 };
 
 /* ---- Tile hash for exploration ---- */
@@ -179,11 +186,13 @@ static int pfr_map_visit_check_and_set(Env *env, uint16_t map_id)
 
 static void pfr_snapshot_log(Env *env)
 {
+    const PfrNativeState *s = pfr_native_state(&env->core);
     env->log.episode_return += env->episode_return;
     env->log.episode_length += (float)env->step_count;
     env->log.unique_tiles   += (float)env->visit_count;
     env->log.unique_maps    += (float)env->map_count;
     env->log.warps_taken    += (float)env->warp_count;
+    env->log.badges_earned  += (float)pfrn_badge_count(s->flags, PFRN_BADGE_FLAG_START);
     env->log.n              += 1.0f;
 }
 
@@ -209,6 +218,10 @@ static void pfr_extract_obs(Env *env)
     obs[5] = (unsigned char)((state->current_map >> 8) & 0xFF);
     obs[6] = state->player_direction;
     obs[7] = state->mode;
+    obs[8] = (unsigned char)pfrn_badge_count(state->flags, PFRN_BADGE_FLAG_START);
+    obs[9] = state->party_count;
+    obs[10] = (unsigned char)(state->flags & 0xFF);
+    obs[11] = (unsigned char)((state->flags >> 8) & 0xFF);
 
     /* 9x9 tile grid centered on player */
     if (map != NULL)
@@ -309,22 +322,26 @@ static void pfr_extract_obs(Env *env)
     }
 }
 
-/* ---- c_soft_reset ---- */
-/* Clears visit tracking but keeps position. Agent continues exploring
- * from where it is — all tiles become "new" again for reward purposes. */
+/* ---- c_reset ---- */
+/* Clears per-episode tracking but keeps game position.
+ * Matches PokemonRed Puffer pattern: position persists across episodes,
+ * reward state (bitsets, counters) clears, game state untouched. */
 
-static void c_soft_reset(Env *env)
+static void c_reset(Env *env)
 {
     memset(env->visit_bits, 0, sizeof(env->visit_bits));
-    memset(env->map_bits, 0, sizeof(env->map_bits));
     env->visit_count = 0;
+    memset(env->map_bits, 0, sizeof(env->map_bits));
     env->map_count = 0;
     env->step_count = 0;
     env->warp_count = 0;
     env->episode_return = 0.0f;
 
+    /* DO NOT call pfr_engine_reset — position persists.
+     * The game continues from wherever the agent is. */
     pfr_extract_obs(env);
 
+    /* Snapshot baselines */
     {
         const PfrNativeState *state = pfr_native_state(&env->core);
         pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y);
@@ -332,56 +349,8 @@ static void c_soft_reset(Env *env)
         env->last_x = state->player_x;
         env->last_y = state->player_y;
         env->last_map = state->current_map;
-    }
-
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0;
-}
-
-/* ---- c_reset ---- */
-
-static void c_reset(Env *env)
-{
-    /* Decay visit_bits: AND with random mask to clear ~half the bits.
-     * Recently visited tiles likely stay set (visited again next episode).
-     * Old frontier tiles gradually become "new" again, creating a rolling
-     * exploration reward window. Simple LCG RNG, no need for quality. */
-    {
-        uint32_t rng = env->visit_count ^ (uint32_t)(uintptr_t)env;
-        uint32_t *bits = env->visit_bits;
-        int i;
-        for (i = 0; i < PFR_VISIT_HASH_SIZE / 32; i++) {
-            rng = rng * 1664525u + 1013904223u;
-            bits[i] &= rng;  /* ~50% of set bits cleared */
-        }
-        /* Recount after decay */
-        env->visit_count = 0;
-        for (i = 0; i < PFR_VISIT_HASH_SIZE / 32; i++) {
-            env->visit_count += (uint32_t)__builtin_popcount(bits[i]);
-        }
-    }
-    memset(env->map_bits, 0, sizeof(env->map_bits));
-    env->map_count = 0;
-    env->step_count = 0;
-    env->warp_count = 0;
-    env->episode_return = 0.0f;
-
-    pfr_engine_reset(&env->core, PFR_NATIVE_BOOTSTRAP_PALLET_TOWN, NULL);
-    pfr_extract_obs(env);
-
-    /* Mark starting tile and map visited */
-    {
-        const PfrNativeState *state = pfr_native_state(&env->core);
-        pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y);
-        pfr_map_visit_check_and_set(env, state->current_map);
-    }
-
-    /* Init position tracking */
-    {
-        const PfrNativeState *s = pfr_native_state(&env->core);
-        env->last_x = s->player_x;
-        env->last_y = s->player_y;
-        env->last_map = s->current_map;
+        env->prev_badges = (uint8_t)pfrn_badge_count(state->flags, PFRN_BADGE_FLAG_START);
+        env->prev_has_starter = (state->starter_mon != PFR_NATIVE_STARTER_NONE) ? 1 : 0;
     }
 
     env->rewards[0] = 0.0f;
@@ -416,20 +385,16 @@ static void c_step(Env *env)
     /* 5. Record position in global heatmap */
     pfr_heatmap_record(state->current_map, state->player_x, state->player_y);
 
-    /* 5b. Movement reward */
-    if (state->player_x != env->last_x || state->player_y != env->last_y ||
-        state->current_map != env->last_map) {
-        reward += PFR_REWARD_MOVEMENT;
-    }
+    /* 5b. Track position for logging (no movement reward) */
     env->last_x = state->player_x;
     env->last_y = state->player_y;
     env->last_map = state->current_map;
 
-    /* 6. Exploration reward: new tile (persistent across episodes) */
+    /* 6. Exploration reward: new tile */
     if (pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y))
         reward += PFR_REWARD_NEW_TILE;
 
-    /* 7. Track map visits + new map reward (resets per episode) */
+    /* 7. Track map visits + new map reward */
     if (pfr_map_visit_check_and_set(env, state->current_map))
         reward += PFR_REWARD_NEW_MAP;
 
@@ -437,12 +402,20 @@ static void c_step(Env *env)
     if (result.event == PFR_NATIVE_EVENT_WARPED)
         env->warp_count++;
 
+    /* 8. Track progression state (no reward — not yet implemented in game) */
+    {
+        uint8_t cur_badges = (uint8_t)pfrn_badge_count(state->flags, PFRN_BADGE_FLAG_START);
+        env->prev_badges = cur_badges;
+        uint8_t cur_starter = (state->starter_mon != PFR_NATIVE_STARTER_NONE) ? 1 : 0;
+        env->prev_has_starter = cur_starter;
+    }
+
     env->rewards[0] = reward;
     env->episode_return += reward;
     env->step_count++;
 
-    /* 8. Terminal: soft reset keeps position, clears exploration tracking */
-    if (env->step_count >= PFR_TRUNCATION_HORIZON) {
+    /* 10. Terminal: soft reset keeps position, clears exploration tracking */
+    if (env->step_count >= PFR_MAX_EPISODE_STEPS) {
         pfr_snapshot_log(env);
         env->terminals[0] = 1;
         c_reset(env);
@@ -466,6 +439,10 @@ static Texture2D g_player_tex = {0};
 #define PFR_SPR_W  16
 #define PFR_SPR_H  32
 
+/* NPC sprite atlas — all NPC sprites in one sheet */
+#include "npc_atlas.h"
+static Texture2D g_npc_atlas_tex = {0};
+
 static void allocate(Env *env)
 {
     env->observations = (unsigned char *)calloc(PFR_OBS_SIZE, sizeof(unsigned char));
@@ -475,6 +452,7 @@ static void allocate(Env *env)
     env->truncations = (float *)calloc(1, sizeof(float));
     env->num_agents = 1;
     pfr_engine_init(&env->core);
+    pfr_engine_reset(&env->core, PFR_NATIVE_BOOTSTRAP_PALLET_TOWN, NULL);
 }
 
 static void free_allocated(Env *env)
@@ -487,6 +465,7 @@ static void free_allocated(Env *env)
     if (g_world_map_tex.id) UnloadTexture(g_world_map_tex);
     if (g_world_map_img.data) UnloadImage(g_world_map_img);
     if (g_player_tex.id) UnloadTexture(g_player_tex);
+    if (g_npc_atlas_tex.id) UnloadTexture(g_npc_atlas_tex);
 }
 
 /* Call after InitWindow — loads full-res image into CPU RAM */
@@ -529,6 +508,27 @@ static void pfr_load_player_sprite(void)
         }
     }
     TraceLog(LOG_WARNING, "Player sprite not found — using yellow highlight");
+}
+
+static void pfr_load_npc_atlas(void)
+{
+    const char *paths[] = {
+        "pufferlib/resources/pfr_native/npc_atlas.png",
+        "resources/pfr_native/npc_atlas.png",
+        "../pufferlib/resources/pfr_native/npc_atlas.png",
+        NULL
+    };
+    for (int i = 0; paths[i]; i++) {
+        if (FileExists(paths[i])) {
+            g_npc_atlas_tex = LoadTexture(paths[i]);
+            if (g_npc_atlas_tex.id) {
+                TraceLog(LOG_INFO, "Loaded NPC atlas: %s (%dx%d)",
+                         paths[i], g_npc_atlas_tex.width, g_npc_atlas_tex.height);
+                return;
+            }
+        }
+    }
+    TraceLog(LOG_WARNING, "NPC atlas not found — using magenta circles");
 }
 #endif /* PFR_STATIC_ENV */
 
@@ -699,23 +699,59 @@ static void c_render(Env *env)
         }
     }
 
-    /* --- Draw NPC markers --- */
+    /* --- Draw NPC sprites (or fallback circles) --- */
     const unsigned char *npcs = obs + PFR_OBS_SCALAR_SIZE + PFR_OBS_TILE_SIZE;
     for (int i = 0; i < PFR_OBS_NPC_COUNT; i++) {
         int ndx    = (int)(int8_t)npcs[i * PFR_OBS_NPC_FEAT + 0];
         int ndy    = (int)(int8_t)npcs[i * PFR_OBS_NPC_FEAT + 1];
+        int gfx_id = npcs[i * PFR_OBS_NPC_FEAT + 2];
+        int npc_facing = npcs[i * PFR_OBS_NPC_FEAT + 3];
         int active = npcs[i * PFR_OBS_NPC_FEAT + 4];
         if (!active) continue;
 
         /* Map NPC relative position onto grid (centered on player tile) */
-        float nx = PFR_GRID_X + (PFR_OBS_TILE_RADIUS + ndx + 0.5f) * PFR_TILE_SIZE;
-        float ny = PFR_GRID_Y + (PFR_OBS_TILE_RADIUS + ndy + 0.5f) * PFR_TILE_SIZE;
+        int npx = PFR_GRID_X + (PFR_OBS_TILE_RADIUS + ndx) * PFR_TILE_SIZE;
+        int npy = PFR_GRID_Y + (PFR_OBS_TILE_RADIUS + ndy) * PFR_TILE_SIZE;
 
         /* Only draw if within the grid area */
-        if (nx >= PFR_GRID_X && nx < PFR_GRID_X + PFR_OBS_TILE_DIM * PFR_TILE_SIZE &&
-            ny >= PFR_GRID_Y && ny < PFR_GRID_Y + PFR_OBS_TILE_DIM * PFR_TILE_SIZE) {
-            DrawCircle((int)nx, (int)ny, 8, MAGENTA);
-            DrawCircleLines((int)nx, (int)ny, 8, WHITE);
+        if (npx < PFR_GRID_X || npx >= PFR_GRID_X + PFR_OBS_TILE_DIM * PFR_TILE_SIZE ||
+            npy < PFR_GRID_Y || npy >= PFR_GRID_Y + PFR_OBS_TILE_DIM * PFR_TILE_SIZE)
+            continue;
+
+        /* Try sprite from atlas */
+        if (g_npc_atlas_tex.id && gfx_id <= NPC_MAX_GFX_ID && npc_atlas[gfx_id].y >= 0) {
+            const NpcAtlasEntry *entry = &npc_atlas[gfx_id];
+            /* Atlas columns: 0=South, 1=North, 2=West. East = flip West. */
+            int col;
+            float flip = 1.0f;
+            switch (npc_facing) {
+                case 1: col = 1; break; /* north */
+                case 3: col = 2; break; /* west */
+                case 4: col = 2; flip = -1.0f; break; /* east = flip west */
+                default: col = 0; break; /* south */
+            }
+            Rectangle src = {
+                (float)(col * entry->w),
+                (float)entry->y,
+                (float)entry->w * flip,
+                (float)entry->h
+            };
+            /* Scale sprite to fill tile width, preserve aspect ratio */
+            float scale = (float)PFR_TILE_SIZE / (float)entry->w;
+            float dst_w = entry->w * scale;
+            float dst_h = entry->h * scale;
+            Rectangle dst = {
+                (float)npx,
+                (float)npy + PFR_TILE_SIZE - dst_h,
+                dst_w, dst_h
+            };
+            DrawTexturePro(g_npc_atlas_tex, src, dst, (Vector2){0, 0}, 0.0f, WHITE);
+        } else {
+            /* Fallback: magenta circle */
+            float cx = (float)npx + PFR_TILE_SIZE * 0.5f;
+            float cy = (float)npy + PFR_TILE_SIZE * 0.5f;
+            DrawCircle((int)cx, (int)cy, 8, MAGENTA);
+            DrawCircleLines((int)cx, (int)cy, 8, WHITE);
         }
     }
 
@@ -727,8 +763,10 @@ static void c_render(Env *env)
         map_id, player_x, player_y, dir_str, mode),
         10, 10, 20, RAYWHITE);
 
-    DrawText(TextFormat("Step: %u  Tiles: %u  Maps: %u  Warps: %u",
-        env->step_count, env->visit_count, env->map_count, env->warp_count),
+    int badges = obs[8];
+    int party = obs[9];
+    DrawText(TextFormat("Step: %u  Tiles: %u  Maps: %u  Warps: %u  Badges: %d  Party: %d",
+        env->step_count, env->visit_count, env->map_count, env->warp_count, badges, party),
         10, 35, 20, RAYWHITE);
 
     DrawText(TextFormat("Reward: %.2f  Episode Return: %.3f",

@@ -5,7 +5,7 @@
 #define PFR_STATIC_ENV 1
 #include "pfr_native_env.h"
 
-#define OBS_SIZE PFR_OBS_SIZE   /* 129 */
+#define OBS_SIZE PFR_OBS_SIZE   /* 137 */
 #define NUM_ATNS 1
 #define ACT_SIZES {PFR_NUM_ACTIONS}
 #define OBS_TYPE UNSIGNED_CHAR
@@ -16,6 +16,7 @@
 void my_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
     pfr_engine_init(&env->core);
+    pfr_engine_reset(&env->core, PFR_NATIVE_BOOTSTRAP_PALLET_TOWN, NULL);
     pfr_heatmap_ensure_alloc();
 }
 
@@ -42,4 +43,5 @@ void my_log(Log* log, Dict* out) {
     dict_set(out, "unique_tiles", log->unique_tiles);
     dict_set(out, "unique_maps", log->unique_maps);
     dict_set(out, "warps_taken", log->warps_taken);
+    dict_set(out, "badges_earned", log->badges_earned);
 }
