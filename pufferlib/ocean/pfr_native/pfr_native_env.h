@@ -134,15 +134,6 @@ struct Env {
     uint32_t step_count;
     uint32_t warp_count;
     float episode_return;
-
-    /* Position tracking for movement reward */
-    int16_t last_x;
-    int16_t last_y;
-    uint16_t last_map;
-
-    /* Progression tracking */
-    uint8_t prev_badges;
-    uint8_t prev_has_starter;
 };
 
 /* ---- Tile hash for exploration ---- */
@@ -341,16 +332,11 @@ static void c_reset(Env *env)
      * The game continues from wherever the agent is. */
     pfr_extract_obs(env);
 
-    /* Snapshot baselines */
+    /* Mark starting tile and map as visited */
     {
         const PfrNativeState *state = pfr_native_state(&env->core);
         pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y);
         pfr_map_visit_check_and_set(env, state->current_map);
-        env->last_x = state->player_x;
-        env->last_y = state->player_y;
-        env->last_map = state->current_map;
-        env->prev_badges = (uint8_t)pfrn_badge_count(state->flags, PFRN_BADGE_FLAG_START);
-        env->prev_has_starter = (state->starter_mon != PFR_NATIVE_STARTER_NONE) ? 1 : 0;
     }
 
     env->rewards[0] = 0.0f;
@@ -385,11 +371,6 @@ static void c_step(Env *env)
     /* 5. Record position in global heatmap */
     pfr_heatmap_record(state->current_map, state->player_x, state->player_y);
 
-    /* 5b. Track position for logging (no movement reward) */
-    env->last_x = state->player_x;
-    env->last_y = state->player_y;
-    env->last_map = state->current_map;
-
     /* 6. Exploration reward: new tile */
     if (pfr_visit_check_and_set(env, state->current_map, state->player_x, state->player_y))
         reward += PFR_REWARD_NEW_TILE;
@@ -401,14 +382,6 @@ static void c_step(Env *env)
     /* 7b. Track warps */
     if (result.event == PFR_NATIVE_EVENT_WARPED)
         env->warp_count++;
-
-    /* 8. Track progression state (no reward — not yet implemented in game) */
-    {
-        uint8_t cur_badges = (uint8_t)pfrn_badge_count(state->flags, PFRN_BADGE_FLAG_START);
-        env->prev_badges = cur_badges;
-        uint8_t cur_starter = (state->starter_mon != PFR_NATIVE_STARTER_NONE) ? 1 : 0;
-        env->prev_has_starter = cur_starter;
-    }
 
     env->rewards[0] = reward;
     env->episode_return += reward;
@@ -668,11 +641,9 @@ static void c_render(Env *env)
                         default: stand_frame = 0; walk1 = 3; walk2 = 4; break; /* south */
                     }
 
-                    /* Only animate when actually moving (position changed) */
-                    int moved = (player_x != env->last_x || player_y != env->last_y
-                                 || map_id != (int)env->last_map);
+                    /* Simple walk cycle based on step count */
                     int frame = stand_frame;
-                    if (moved) {
+                    {
                         /* Walk cycle: stand -> walk1 -> stand -> walk2 */
                         int phase = (env->step_count / 2) % 4;
                         if (phase == 1)      frame = walk1;
