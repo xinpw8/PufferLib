@@ -60,6 +60,7 @@ typedef struct {
     int difficulty_id; // 0=basic,1=easy,2=medium,3=hard,4=unfiltered
     Client* client;
     int win;
+    float epiosde_return;
 } Boxoban;
 
 void ensure_map_loaded(void);
@@ -126,9 +127,9 @@ void add_log(Boxoban* env) {
     float denom = (float)env->n_boxes;
     float num = (float)env->on_target;
     env->log.perf += (env->win== 1) ? 1.0 : num/denom;
-    env->log.score += env->rewards[0];
+    env->log.score += env->log.perf;
     env->log.episode_length += env->tick;
-    env->log.episode_return += env->rewards[0];
+    env->log.episode_return += env->episode_return;
     env->log.on_targets += env->on_target;
     env->log.n++;
 }
@@ -159,6 +160,7 @@ void c_reset(Boxoban* env) {
 
     env->tick = 0;
     env->win = 0;
+    env->episode_return = 0;
 
 }
 
@@ -250,6 +252,7 @@ void c_step(Boxoban* env) {
         env->terminals[0] = 1;
         env->rewards[0] += 1.0;
         env->win = 1;
+        env->episode_return += env->rewards[0];
         add_log(env);
         c_reset(env);
         return;
@@ -257,11 +260,13 @@ void c_step(Boxoban* env) {
 
     if (env->tick >= env->max_steps) {
         env->terminals[0] = 1;
-        env->rewards[0] -= 1.0;
+        env->rewards[0] -= 1.0; 
+        env->episode_return += env->rewards[0];
         add_log(env);
         c_reset(env);
         return;
     }
+    env->episode_return += env->rewards[0];
 
 }
 
