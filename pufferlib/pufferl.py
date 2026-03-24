@@ -366,6 +366,60 @@ class PuffeRL:
 
         print('\033[0;0H' + capture.get())
 
+        # Write stats to /tmp/pfr_dashboard/stats.json for live web dashboard
+        if 'pfr_native' in config.get('env', ''):
+            ds = dict(self.stats or self.last_stats)
+            self._write_pfr_dashboard(config, ds, sps, agent_steps)
+
+    def _write_pfr_dashboard(self, config, display_stats, sps, agent_steps):
+        import json as _json
+        dash_dir = '/tmp/pfr_dashboard'
+        os.makedirs(dash_dir, exist_ok=True)
+        stats_out = {
+            'env_name': config.get('env', ''),
+            'steps': int(agent_steps),
+            'sps': int(sps),
+            'epoch': int(self.epoch),
+            'uptime': self.uptime,
+        }
+        for k, v in display_stats.items():
+            try:
+                float(v)
+                stats_out[k] = round(float(v), 3)
+            except (ValueError, TypeError):
+                pass
+        if self.losses:
+            for k, v in self.losses.items():
+                stats_out[k] = round(float(v), 6)
+        try:
+            hm = _C.get_heatmap()
+            if hm is not None:
+                hm_np = np.asarray(hm)
+                total_nonzero = int(np.count_nonzero(hm_np))
+                stats_out['global_tiles'] = total_nonzero
+                stats_out['heatmap_coverage_pct'] = round(100.0 * total_nonzero / hm_np.size, 3)
+                if not hasattr(self, '_heatmap_cb'):
+                    from pufferlib.ocean.pfr_native.pfr_heatmap_callback import PfrHeatmapCallback
+                    self._heatmap_cb = PfrHeatmapCallback(interval=int(config.get('heatmap_interval', 50)))
+                if self._heatmap_cb.should_render():
+                    img = self._heatmap_cb.render(hm_np)
+                    if img is not None:
+                        from PIL import Image
+                        Image.fromarray(img).save(os.path.join(dash_dir, 'heatmap.png'))
+                        zoom = img[200:450, 25:220]
+                        zh, zw = zoom.shape[0]*3, zoom.shape[1]*3
+                        Image.fromarray(zoom).resize((zw, zh), Image.NEAREST).save(
+                            os.path.join(dash_dir, 'heatmap_zoom.png'))
+                    rows, _ = self._heatmap_cb.get_map_table(hm_np)
+                    if rows:
+                        stats_out['maps'] = rows
+        except Exception as e:
+            stats_out['_heatmap_error'] = str(e)
+        tmp = os.path.join(dash_dir, 'stats.json.tmp')
+        with open(tmp, 'w') as f:
+            _json.dump(stats_out, f)
+        os.replace(tmp, os.path.join(dash_dir, 'stats.json'))
+
 def abbreviate(num, b2, c2):
     if num < 1e3:
         return f'{b2}{num}{c2}'

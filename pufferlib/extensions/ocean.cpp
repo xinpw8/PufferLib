@@ -436,6 +436,56 @@ class G2048Decoder : public Decoder {
     }
 };
 
+/* PfrNative encoder: tile embed → CNN + flat scalars/NPCs → combine */
+class PfrNativeEncoder : public Encoder {
+public:
+    static constexpr int OBS_SCALAR = 12;
+    static constexpr int OBS_TILE   = 81;
+    static constexpr int OBS_NPC    = 40;
+    static constexpr int OBS_GPOS   = 4;
+    static constexpr int TILE_DIM   = 9;
+    static constexpr int EMBED_DIM  = 4;
+    static constexpr int CNN_CH1    = 32;
+    static constexpr int CNN_CH2    = 64;
+    static constexpr int CNN_FLAT   = CNN_CH2 * 4 * 4;
+    static constexpr int N_FLAT     = OBS_SCALAR + OBS_NPC + OBS_GPOS;
+
+    nn::Embedding tile_embed{nullptr};
+    nn::Conv2d conv1{nullptr}, conv2{nullptr};
+    nn::Linear flat_proj{nullptr}, combine{nullptr};
+    int hidden;
+
+    PfrNativeEncoder(int input, int hidden) : hidden(hidden) {
+        tile_embed = register_module("tile_embed", nn::Embedding(256, EMBED_DIM));
+        conv1 = register_module("conv1", nn::Conv2d(nn::Conv2dOptions(EMBED_DIM, CNN_CH1, 3).padding(1)));
+        nn::init::orthogonal_(conv1->weight, std::sqrt(2.0));
+        conv2 = register_module("conv2", nn::Conv2d(nn::Conv2dOptions(CNN_CH1, CNN_CH2, 3).stride(2)));
+        nn::init::orthogonal_(conv2->weight, std::sqrt(2.0));
+        flat_proj = register_module("flat_proj", nn::Linear(N_FLAT, 64));
+        nn::init::orthogonal_(flat_proj->weight, std::sqrt(2.0));
+        combine = register_module("combine", nn::Linear(CNN_FLAT + 64, hidden));
+        nn::init::orthogonal_(combine->weight, std::sqrt(2.0));
+    }
+
+    Tensor forward(Tensor x) override {
+        auto dtype = conv1->weight.dtype();
+        int B = x.size(0);
+        auto tile_bytes = x.narrow(1, OBS_SCALAR, OBS_TILE).to(torch::kLong);
+        auto tile_emb = tile_embed->forward(tile_bytes);
+        auto tile_grid = tile_emb.reshape({B, TILE_DIM, TILE_DIM, EMBED_DIM})
+                                  .permute({0, 3, 1, 2}).to(dtype);
+        auto h = torch::relu(conv1->forward(tile_grid));
+        h = torch::relu(conv2->forward(h));
+        auto cnn_out = h.reshape({B, CNN_FLAT});
+        auto scalars = x.narrow(1, 0, OBS_SCALAR).to(dtype);
+        auto npc_gpos = x.narrow(1, OBS_SCALAR + OBS_TILE, OBS_NPC + OBS_GPOS).to(dtype);
+        auto flat = torch::cat({scalars, npc_gpos}, 1);
+        auto flat_out = torch::relu(flat_proj->forward(flat));
+        auto combined = torch::cat({cnn_out, flat_out}, 1);
+        return torch::relu(combine->forward(combined));
+    }
+};
+
 // Create policy with env-specific encoder/decoder
 Policy* create_policy(const std::string& env_name, int input_size, int hidden_size,
         int decoder_output_size, int num_layers, int act_n, bool is_continuous, bool kernels) {
@@ -453,6 +503,9 @@ Policy* create_policy(const std::string& env_name, int input_size, int hidden_si
         dec = std::make_shared<NMMO3Decoder>(hidden_size, decoder_output_size);
     } else if (env_name == "puffer_drive") {
         enc = std::make_shared<DriveEncoder>(input_size, hidden_size);
+        dec = std::make_shared<DefaultDecoder>(hidden_size, decoder_output_size, is_continuous);
+    } else if (env_name == "puffer_pfr_native") {
+        enc = std::make_shared<PfrNativeEncoder>(input_size, hidden_size);
         dec = std::make_shared<DefaultDecoder>(hidden_size, decoder_output_size, is_continuous);
     } else {
         enc = std::make_shared<DefaultEncoder>(input_size, hidden_size);
