@@ -113,11 +113,15 @@ static inline const uint32_t get_random_puzzle_idx(const Boxoban *env) {
 
 
 void init (Boxoban* env) {
-    if (boxoban_configure_maps_from_env(env) != 0) {
-        fprintf(stderr, "Failed to configure Boxoban maps\n");
-        abort();
+    static int boxoban_maps_ready = 0;
+    if (!boxoban_maps_ready) {
+        if (boxoban_configure_maps_from_env(env) != 0) {
+            fprintf(stderr, "Failed to configure Boxoban maps\n");
+            abort();
+        }
+        ensure_map_loaded();
+        boxoban_maps_ready = 1;
     }
-    ensure_map_loaded();
     env->intermediate_rewards = calloc(env->size*env->size, sizeof(unsigned char));
     env->win = 0;
   }
