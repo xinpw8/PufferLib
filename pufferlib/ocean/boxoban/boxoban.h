@@ -60,7 +60,7 @@ typedef struct {
     int difficulty_id; // 0=basic,1=easy,2=medium,3=hard,4=unfiltered
     Client* client;
     int win;
-    float epiosde_return;
+    float episode_return;
 } Boxoban;
 
 void ensure_map_loaded(void);
@@ -126,8 +126,9 @@ void init (Boxoban* env) {
 void add_log(Boxoban* env) {
     float denom = (float)env->n_boxes;
     float num = (float)env->on_target;
-    env->log.perf += (env->win== 1) ? 1.0 : num/denom;
-    env->log.score += env->log.perf;
+    float perf = (env->win== 1) ? 1.0 : num/denom;
+    env->log.perf += perf;
+    env->log.score += perf;
     env->log.episode_length += env->tick;
     env->log.episode_return += env->episode_return;
     env->log.on_targets += env->on_target;
