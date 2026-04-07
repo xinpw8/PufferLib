@@ -333,8 +333,15 @@ def train(env_name, args=None, gpus=None, **kwargs):
         if rank == 0 and not subprocess:
             _train(env_name, worker_args, verbose=True)
         else:
+            # Spawn pickling uses CUDA IPC, unsupported on WSL2. Move to CPU first.
+            sweep_obj = kwargs.get('sweep_obj')
+            device = getattr(sweep_obj, 'device', None)
+            if device and device.type != 'cpu':
+                sweep_obj.to('cpu')
             ctx.Process(target=_train, args=(env_name, worker_args),
                 kwargs=kwargs).start()
+            if device and device.type != 'cpu':
+                sweep_obj.to(device)
 
 def sweep(env_name, args=None, pareto=False):
     '''Train entry point. Handles single-GPU, multi-GPU DDP, and sweeps.'''
