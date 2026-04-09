@@ -1,5 +1,5 @@
 #include "hex.h"
-#define OBS_SIZE TOTAL_CELLS
+#define OBS_SIZE 2*TOTAL_CELLS
 #define NUM_ATNS 1
 #define ACT_SIZES {TOTAL_CELLS}
 #define OBS_TENSOR_T FloatTensor

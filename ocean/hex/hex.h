@@ -1,11 +1,7 @@
-/* Squared: a sample single-agent grid env.
- * Use this as a tutorial and template for your first env.
- * See the Target env for a slightly more complex example.
- * Star PufferLib on GitHub to support. It really, really helps!
- */
-
 #include "raylib.h"
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,6 +9,13 @@
 #define TOTAL_CELLS (BOARD_SIZE * BOARD_SIZE)
 #define PLAYER_COLOR 1
 #define ENV_COLOR -1
+
+// Virtual nodes for incremental connection tracking
+#define TOP_NODE TOTAL_CELLS
+#define BOTTOM_NODE (TOTAL_CELLS + 1)
+#define LEFT_NODE (TOTAL_CELLS + 2)
+#define RIGHT_NODE (TOTAL_CELLS + 3)
+#define TOTAL_NODES (TOTAL_CELLS + 4)
 
 const int dr[] = { -1, -1, 0, 0, 1, 1 };
 const int dc[] = { 0, 1, -1, 1, -1, 0 };
@@ -30,8 +33,7 @@ typedef struct {
 // Required that you have some struct for your env
 typedef struct {
 	Log log; // Required field. Env binding code uses this to aggregate logs
-	float* observations; // Required. You can use any obs type, but make sure it
-						 // matches in Python!
+	float* observations; // Required. You can use any obs type, but make sure it matches in Python!
 	float* actions; // Required
 	float* rewards; // Required
 	float* terminals; // Required
@@ -40,16 +42,21 @@ typedef struct {
 	int current_player;
 	int8_t board[TOTAL_CELLS];
 
+	// Disjoint Set Union (Union-Find) tracking arrays
+	int parent[TOTAL_NODES];
+	int size[TOTAL_NODES];
+
 	unsigned int rng;
 } Hex;
 
 void allocate_chex(Hex* env)
 {
-	env->observations = (float*)calloc(TOTAL_CELLS, sizeof(float));
+	env->observations = (float*)calloc(2 * TOTAL_CELLS, sizeof(float));
 	env->actions = (float*)calloc(1, sizeof(float));
 	env->terminals = (float*)calloc(1, sizeof(float));
 	env->rewards = (float*)calloc(1, sizeof(float));
 }
+
 void free_allocated_chex(Hex* env)
 {
 	free(env->actions);
@@ -58,9 +65,7 @@ void free_allocated_chex(Hex* env)
 	free(env->rewards);
 }
 
-void init(Hex* env) {
-    env->tick = 0;
-}
+void init(Hex* env) { env->tick = 0; }
 
 void add_log(Hex* env)
 {
@@ -71,82 +76,62 @@ void add_log(Hex* env)
 	env->log.n++;
 }
 
+// --- Union-Find (Disjoint Set) Logic ---
+void uf_init(Hex* env)
+{
+	for (int i = 0; i < TOTAL_NODES; i++) {
+		env->parent[i] = i;
+		env->size[i] = 1;
+	}
+}
+
+int uf_find(Hex* env, int i)
+{
+	int root = i;
+	while (root != env->parent[root]) {
+		root = env->parent[root];
+	}
+	// Path compression
+	int curr = i;
+	while (curr != root) {
+		int nxt = env->parent[curr];
+		env->parent[curr] = root;
+		curr = nxt;
+	}
+	return root;
+}
+
+void uf_union(Hex* env, int i, int j)
+{
+	int root_i = uf_find(env, i);
+	int root_j = uf_find(env, j);
+	if (root_i != root_j) {
+		// Union by size
+		if (env->size[root_i] < env->size[root_j]) {
+			env->parent[root_i] = root_j;
+			env->size[root_j] += env->size[root_i];
+		} else {
+			env->parent[root_j] = root_i;
+			env->size[root_i] += env->size[root_j];
+		}
+	}
+}
+// --- End Union-Find Logic ---
+
 // Required function
 void c_reset(Hex* env)
 {
-
 	// set board to empty board
 	memset(env->board, 0, sizeof(env->board));
 	env->current_player = 0;
 	env->tick = 0;
 	env->terminals[0] = 0;
-	int target_idx = 0; // Deterministic for testing
 
-	for (int i = 0; i < TOTAL_CELLS; i++) {
-		env->observations[i] = (float)env->board[i];
+	uf_init(env);
+
+	for (int i = 0; i < 2 * TOTAL_CELLS; i++) {
+		env->observations[i] = 0;
 	}
-}
-// A recursive DFS function to find a path to the opposite edge
-bool dfs(const int8_t* board, bool* visited, int player, int r, int c)
-{
-	// Mark the current hex as visited
-	visited[r * BOARD_SIZE + c] = true;
-
-	// Did we reach the target edge?
-	if (player == PLAYER_COLOR && r == BOARD_SIZE - 1)
-		return true; // Reached bottom
-	if (player == ENV_COLOR && c == BOARD_SIZE - 1)
-		return true; // Reached right
-
-	// Check all 6 neighbors
-	for (int i = 0; i < 6; i++) {
-		int nr = r + dr[i];
-		int nc = c + dc[i];
-
-		// Is the neighbor inside the board?
-		if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-			int n_idx = nr * BOARD_SIZE + nc;
-
-			// If the neighbor belongs to the player and hasn't been visited
-			if (!visited[n_idx] && board[n_idx] == player) {
-				// Recursively search from that neighbor
-				if (dfs(board, visited, player, nr, nc)) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false; // No path found from this cell
-}
-
-
-bool is_player_winner(const int8_t* board, int player)
-{
-	bool visited[TOTAL_CELLS];
-
-	memset(visited, 0, sizeof(visited)); // Clear visited array
-
-	if (player == PLAYER_COLOR) {
-		for (int c = 0; c < BOARD_SIZE; c++) {
-			if (board[c] == PLAYER_COLOR && !visited[0 * BOARD_SIZE + c]) {
-				if (dfs(board, visited, player, 0, c)) {
-					return true;
-				}
-			}
-		}
-	} else {
-
-		for (int r = 0; r < BOARD_SIZE; r++) {
-			if (board[r * BOARD_SIZE] == ENV_COLOR && !visited[r * BOARD_SIZE]) {
-				if (dfs(board, visited, player, r, 0)) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
 }
 
 bool invalid_move(int action, const int8_t* board)
@@ -160,7 +145,7 @@ bool invalid_move(int action, const int8_t* board)
 	return false;
 }
 
-int compute_env_move(Hex* env)
+int compute_legal_move(Hex* env)
 {
 	// Naive random move for the environment
 	int action;
@@ -168,17 +153,110 @@ int compute_env_move(Hex* env)
 		action = rand_r(&env->rng) % TOTAL_CELLS;
 	} while (invalid_move(action, env->board));
 
-
-
 	return action;
+}
+
+
+int compute_env_move(Hex* env, int player_last_action)
+{
+
+    // Play the center if available
+    if (env->tick <= 1) { 
+        int center = (BOARD_SIZE / 2) * BOARD_SIZE + (BOARD_SIZE / 2);
+        if (env->board[center] == 0) {
+            return center;
+        }
+        else {
+            return center+1;
+        }
+    }
+
+    int best_action = -1;
+    int max_c = -1; // ENV (RED) wants to maximize column index (progress to the right).
+
+    // Get the coordinates of the player's last move.
+    int r = player_last_action / BOARD_SIZE;
+    int c = player_last_action % BOARD_SIZE;
+
+    for (int d = 0; d < 6; d++) {
+        int nr = r + dr[d];
+        int nc = c + dc[d];
+        // Check if the neighbor is on the board
+        if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            int n_idx = nr * BOARD_SIZE + nc;
+            
+            // Check if the neighbor is empty
+            if (env->board[n_idx] == 0) {
+                // Heuristic: Is this the best blocking move so far?
+                // "Best" is defined as making the most progress for us.
+                if (nc > max_c) {
+                    max_c = nc;
+                    best_action = n_idx;
+                }
+            }
+        }
+    }
+
+    // --- FALLBACK ---
+    // If best_action is still -1, it means all 6 neighbors were occupied.
+    // In this case, we just play random
+    if (best_action == -1) {
+        return compute_legal_move(env); 
+    }
+
+    return best_action;
+}
+
+// Places a stone, merges components, and returns true if the player won
+bool place_stone_and_check_win(Hex* env, int action, int player)
+{
+	env->board[action] = player;
+	int offset = 0;
+	if (player == ENV_COLOR) {
+		offset = TOTAL_CELLS;
+	}
+	env->observations[action + offset] = 1;
+
+	int r = action / BOARD_SIZE;
+	int c = action % BOARD_SIZE;
+
+	// 1. Connect to adjacent stones of the same color
+	for (int i = 0; i < 6; i++) {
+		int nr = r + dr[i];
+		int nc = c + dc[i];
+
+		if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+			int n_idx = nr * BOARD_SIZE + nc;
+			if (env->board[n_idx] == player) {
+				uf_union(env, action, n_idx);
+			}
+		}
+	}
+
+	// 2. Connect to virtual edges and check for a winner
+	if (player == PLAYER_COLOR) {
+		if (r == 0)
+			uf_union(env, action, TOP_NODE);
+		if (r == BOARD_SIZE - 1)
+			uf_union(env, action, BOTTOM_NODE);
+
+		return uf_find(env, TOP_NODE) == uf_find(env, BOTTOM_NODE);
+	} else {
+		if (c == 0)
+			uf_union(env, action, LEFT_NODE);
+		if (c == BOARD_SIZE - 1)
+			uf_union(env, action, RIGHT_NODE);
+
+		return uf_find(env, LEFT_NODE) == uf_find(env, RIGHT_NODE);
+	}
 }
 
 // Required function
 void c_step(Hex* env)
 {
-	
 	env->tick += 1;
 	int action = (int)env->actions[0];
+
 
 	if (invalid_move(action, env->board)) {
 		env->rewards[0] = -1;
@@ -188,37 +266,27 @@ void c_step(Hex* env)
 		return;
 	}
 
-	int r = action / BOARD_SIZE;
-	int c = action % BOARD_SIZE;
-
-	env->board[action] = PLAYER_COLOR;
-	env->observations[action] = (float)PLAYER_COLOR;
-
-    bool is_winner = is_player_winner(env->board, PLAYER_COLOR);
-
-    if (is_winner) {
-        env->rewards[0] = 1;
-        env->terminals[0] = 1;
-		add_log(env);
-		c_reset(env);
-        return;
-    }
-
-	action = compute_env_move(env);
-
-	env->board[action] = ENV_COLOR;
-	env->observations[action] = (float)ENV_COLOR;
-
-    is_winner = is_player_winner(env->board, ENV_COLOR);
-
-	if (is_winner) {
-		env->rewards[0] = -1;
+	// Player move and incremental win check
+	if (place_stone_and_check_win(env, action, PLAYER_COLOR)) {
+		env->rewards[0] = 1;
 		env->terminals[0] = 1;
+
 		add_log(env);
 		c_reset(env);
 		return;
 	}
 
+	// Env move and incremental win check
+	int env_action = compute_env_move(env, action);
+
+	if (place_stone_and_check_win(env, env_action, ENV_COLOR)) {
+		env->rewards[0] = -1;
+		env->terminals[0] = 1;
+
+		add_log(env);
+		c_reset(env);
+		return;
+	}
 }
 
 // Required function. Should handle creating the client on first call
@@ -237,7 +305,7 @@ void c_render(Hex* env)
 	}
 
 	BeginDrawing();
-	ClearBackground((Color){6, 24, 24, 255});
+	ClearBackground((Color) { 6, 24, 24, 255 });
 
 	float radius = 22.0f;
 	float sqrt3 = 1.73205f;
@@ -272,16 +340,18 @@ void c_render(Hex* env)
 		for (int c = 0; c < BOARD_SIZE; c++) {
 			int idx = r * BOARD_SIZE + c;
 			int owner = env->board[idx];
-			
+
 			Color color = DARKGRAY;
-			if (owner == PLAYER_COLOR) color = BLUE;
-			else if (owner == ENV_COLOR) color = RED;
+			if (owner == PLAYER_COLOR)
+				color = BLUE;
+			else if (owner == ENV_COLOR)
+				color = RED;
 
 			float cx = start_x + (c + r * 0.5f) * hex_width;
 			float cy = start_y + r * hex_height * 0.75f;
 
-			DrawPoly((Vector2){cx, cy}, 6, radius - 1.0f, 30.0f, color);
-			DrawPolyLines((Vector2){cx, cy}, 6, radius - 1.0f, 30.0f, BLACK);
+			DrawPoly((Vector2) { cx, cy }, 6, radius - 1.0f, 30.0f, color);
+			DrawPolyLines((Vector2) { cx, cy }, 6, radius - 1.0f, 30.0f, BLACK);
 		}
 	}
 
