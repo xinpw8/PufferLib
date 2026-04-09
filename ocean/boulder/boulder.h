@@ -24,7 +24,7 @@
 #define AGENT_MASS              1.0f
 #define BOULDER_MASS            20.0f
 
-#define AGENT_ACCEL             700.0f          // px/s² per directional action
+#define AGENT_ACCEL             1400.0f          // px/s² per directional action
 #define AGENT_DRAG              6.0f            // per-second linear velocity decay
 #define BOULDER_LINEAR_DRAG     0.4f
 #define BOULDER_ROLLING_DRAG    0.8f            // per-second angular velocity decay
@@ -91,6 +91,7 @@ typedef struct Boulder {
     float score;
     unsigned int rng;
     int* moving_boulder;
+    float dist_scale;
 } Boulder;
 
 // Helper functions 
@@ -377,8 +378,8 @@ void add_log(Boulder* env) {
 
 void compute_observations(Boulder* env) {
     float diag = hypotf((float)env->width, (float)env->height);
-    float dist_scale = env->width > env->height ? env->width: env->height;
-    dist_scale *= 0.5;
+    float dist_scale_init = env->width > env->height ? env->width: env->height;
+    dist_scale_init *= env->dist_scale;
     for (int i = 0; i < env->num_agents; i++) {
         float*  obs = env->observations + i * OBS_SIZE;
         Entity* a   = &env->agents[i];
@@ -397,8 +398,8 @@ void compute_observations(Boulder* env) {
         float bdy   = env->boulder.y - a->y;
         float bdist = hypotf(bdx, bdy);
         float bang  = atan2f(bdy, bdx);
-        obs[idx++] = clampf(bdx / dist_scale, -1.0f, 1.0f);
-        obs[idx++] = clampf(bdy / dist_scale, -1.0f, 1.0f);
+        obs[idx++] = clampf(bdx / dist_scale_init, -1.0f, 1.0f);
+        obs[idx++] = clampf(bdy / dist_scale_init, -1.0f, 1.0f);
         obs[idx++] = clampf(bdist / diag, 0.0f, 1.0f);
         obs[idx++] = sinf(bang);
         obs[idx++] = cosf(bang);
@@ -411,8 +412,8 @@ void compute_observations(Boulder* env) {
         float gdy   = env->goal_y - env->boulder.y;
         float gdist = hypotf(gdx, gdy);
         float gang  = atan2f(gdy, gdx);
-        obs[idx++] = clampf(gdx / dist_scale, -1.0f, 1.0f);
-        obs[idx++] = clampf(gdy / dist_scale, -1.0f, 1.0f);
+        obs[idx++] = clampf(gdx / dist_scale_init, -1.0f, 1.0f);
+        obs[idx++] = clampf(gdy / dist_scale_init, -1.0f, 1.0f);
         obs[idx++] = clampf(gdist / diag, 0.0f, 1.0f);
         obs[idx++] = sinf(gang);
         obs[idx++] = cosf(gang);
@@ -426,8 +427,8 @@ void compute_observations(Boulder* env) {
             float ody   = o->y - a->y;
             float odist = hypotf(odx, ody);
             float oang  = atan2f(ody, odx);
-            obs[idx++] = clampf(odx / dist_scale, -1.0f, 1.0f);
-            obs[idx++] = clampf(ody / dist_scale, -1.0f, 1.0f);
+            obs[idx++] = clampf(odx / dist_scale_init, -1.0f, 1.0f);
+            obs[idx++] = clampf(ody / dist_scale_init, -1.0f, 1.0f);
             obs[idx++] = clampf(odist / diag, 0.0f, 1.0f);
             obs[idx++] = sinf(oang);
             obs[idx++] = cosf(oang);
@@ -447,24 +448,28 @@ void c_reset(Boulder* env) {
     env->tick      = 0;
     env->goal_hold = 0;
 
-    entity_init(&env->boulder,env->width  * 0.5f,env->height * 0.5f,BOULDER_MASS, BOULDER_RADIUS);
+    // Boulder: random position with padding for its radius
+    float bx = BOULDER_RADIUS + randf(env) * (env->width  - 2.0f * BOULDER_RADIUS);
+    float by = BOULDER_RADIUS + randf(env) * (env->height - 2.0f * BOULDER_RADIUS);
+    entity_init(&env->boulder, bx, by, BOULDER_MASS, BOULDER_RADIUS);
 
-    float pi2 = 2.0f * 3.14159265f;
+    // Agents: random positions outside boulder radius
     for (int i = 0; i < env->num_agents; i++) {
         env->logs[i] = (Log){0};
-        float angle = (float)i * (pi2 / env->num_agents);
-        float dist  = BOULDER_RADIUS + AGENT_RADIUS + 24.0f;
-        float start_x = env->boulder.x + cosf(angle) * dist;
-        float start_y = env->boulder.y + sinf(angle) * dist;
-        entity_init(&env->agents[i], start_x, start_y, AGENT_MASS, AGENT_RADIUS);
+        float ax, ay;
+        do {
+            ax = AGENT_RADIUS + randf(env) * (env->width  - 2.0f * AGENT_RADIUS);
+            ay = AGENT_RADIUS + randf(env) * (env->height - 2.0f * AGENT_RADIUS);
+        } while (hypotf(ax - bx, ay - by) < BOULDER_RADIUS + AGENT_RADIUS);
+        entity_init(&env->agents[i], ax, ay, AGENT_MASS, AGENT_RADIUS);
     }
 
-    // Random goal far enough from the boulder start
+    // Goal: random position outside boulder radius * 3
     float gx, gy;
     do {
         gx = GOAL_RADIUS + randf(env) * (env->width  - 2.0f * GOAL_RADIUS);
         gy = GOAL_RADIUS + randf(env) * (env->height - 2.0f * GOAL_RADIUS);
-    } while (hypotf(gx - env->boulder.x, gy - env->boulder.y) < BOULDER_RADIUS * 3.0f);
+    } while (hypotf(gx - bx, gy - by) < BOULDER_RADIUS * 3.0f);
     env->goal_x = gx;
     env->goal_y = gy;
 

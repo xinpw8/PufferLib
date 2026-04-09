@@ -10,6 +10,7 @@ void my_init(Env* env, Dict* kwargs) {
     env->num_agents = dict_get(kwargs, "num_agents")->value;
     env->width = dict_get(kwargs, "width")->value;
     env->height = dict_get(kwargs, "height")->value;
+    env->dist_scale = dict_get(kwargs, "dist_scale")->value;
     init(env);
 }
 
