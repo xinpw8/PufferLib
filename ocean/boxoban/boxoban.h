@@ -277,11 +277,11 @@ void c_step(Boxoban* env) {
 
 Client* c_create(Boxoban* env) {
     Client* client = calloc(1,sizeof(Client));
-    client->wall = LoadTexture("resources/boxoban/Wall_Black.png");
-    client->box = LoadTexture("resources/boxoban/Crate_Black.png");
-    client->target = LoadTexture("resources/boxoban/EndPoint_Black.png");
-    client->floor = LoadTexture("resources/boxoban/GroundGravel_Concrete.png");
-    client->box_on_target = LoadTexture("resources/boxoban/EndPoint_Blue.png");
+    client->wall = LoadTexture("resources/boxoban/Wall_Black.jpg");
+    client->box = LoadTexture("resources/boxoban/Crate_Black.jpg");
+    client->target = LoadTexture("resources/boxoban/EndPoint_Black.jpg");
+    client->floor = LoadTexture("resources/boxoban/GroundGravel_Concrete.jpg");
+    client->box_on_target = LoadTexture("resources/boxoban/EndPoint_Blue.jpg");
     client->agent = LoadTexture("resources/shared/puffers_128.png");
     env-> client = client;
     return client;
