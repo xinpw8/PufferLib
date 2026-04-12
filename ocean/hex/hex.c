@@ -9,7 +9,7 @@ void demo()
 	allocate_chex(&env);
 	c_reset(&env);
 	c_render(&env);
-	env.random_opponent = true;
+	env.random_opponent = false;
 
 	int tick = 0;
 	while(!WindowShouldClose())
@@ -82,7 +82,7 @@ void speed_test()
 
 int main()
 {
-	// demo();
-	speed_test();
+	demo();
+	// speed_test();
 	return 0;
 }

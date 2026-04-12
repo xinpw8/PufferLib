@@ -160,50 +160,39 @@ int compute_legal_move(Hex* env)
 int compute_env_move(Hex* env, int player_last_action)
 {
 
-	// Play the center if available
-	if (env->tick <= 1) {
-		int center = (BOARD_SIZE / 2) * BOARD_SIZE + (BOARD_SIZE / 2);
-		if (env->board[center] == 0) {
-			return center;
-		} else {
-			return center + 1;
-		}
-	}
-
-	int best_action = -1;
-	int max_c = -1; // ENV (RED) wants to maximize column index (progress to the right).
-
 	// Get the coordinates of the player's last move.
 	int r = player_last_action / BOARD_SIZE;
 	int c = player_last_action % BOARD_SIZE;
 
-	for (int d = 0; d < 6; d++) {
-		int nr = r + dr[d];
-		int nc = c + dc[d];
-		// Check if the neighbor is on the board
-		if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-			int n_idx = nr * BOARD_SIZE + nc;
+	int arr[6];
+	for (int i = 0; i < 6; i++) {
+		arr[i] = i;
+	}
 
-			// Check if the neighbor is empty
+	for (int i = 6 - 1; i > 0; i--) {
+		int j = rand_r(&env->rng) % (i + 1);
+		int temp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = temp;
+	}
+
+	int action = -1;
+	for (int j = 0; j < 6; j++) {
+		int i = arr[j];
+		int nr = r + dr[i];
+		int nc = c + dc[i];
+		int n_idx = nr * BOARD_SIZE + nc;
+		if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
 			if (env->board[n_idx] == 0) {
-				// Heuristic: Is this the best blocking move so far?
-				// "Best" is defined as making the most progress for us.
-				if (nc > max_c) {
-					max_c = nc;
-					best_action = n_idx;
-				}
+				action = n_idx;
+				break;
 			}
 		}
 	}
-
-	// --- FALLBACK ---
-	// If best_action is still -1, it means all 6 neighbors were occupied.
-	// In this case, we just play random
-	if (best_action == -1) {
-		return compute_legal_move(env);
+	if (action == -1) {
+		action = compute_legal_move(env);
 	}
-
-	return best_action;
+	return action;
 }
 
 // Places a stone, merges components, and returns true if the player won
@@ -321,13 +310,13 @@ void c_render(Hex* env)
 	float start_x = screen_width / 2.0f - total_width / 2.0f + hex_width / 2.0f;
 	float start_y = screen_height / 2.0f - total_height / 2.0f + hex_height / 2.0f;
 
-	// Draw borders to show player targets (Blue connects Top/Bottom, Red connects Left/Right)
+	// Draw borders to show player targets (Red connects Top/Bottom, Blue connects Left/Right)
 	for (int r = 0; r < BOARD_SIZE; r++) {
 		float left_x = start_x + (0 + r * 0.5f) * hex_width - hex_width * 0.8f;
 		float right_x = start_x + (BOARD_SIZE - 1 + r * 0.5f) * hex_width + hex_width * 0.8f;
 		float cy = start_y + r * hex_height * 0.75f;
-		DrawCircle(left_x, cy, radius * 0.3f, RED);
-		DrawCircle(right_x, cy, radius * 0.3f, RED);
+		DrawCircle(left_x, cy, radius * 0.3f, BLUE);
+		DrawCircle(right_x, cy, radius * 0.3f, BLUE);
 	}
 
 	for (int c = 0; c < BOARD_SIZE; c++) {
@@ -335,8 +324,8 @@ void c_render(Hex* env)
 		float cy_top = start_y + 0 * hex_height * 0.75f - hex_height * 0.6f;
 		float cx_bot = start_x + (c + (BOARD_SIZE - 1) * 0.5f) * hex_width;
 		float cy_bot = start_y + (BOARD_SIZE - 1) * hex_height * 0.75f + hex_height * 0.6f;
-		DrawCircle(cx_top, cy_top, radius * 0.3f, BLUE);
-		DrawCircle(cx_bot, cy_bot, radius * 0.3f, BLUE);
+		DrawCircle(cx_top, cy_top, radius * 0.3f, RED);
+		DrawCircle(cx_bot, cy_bot, radius * 0.3f, RED);
 	}
 
 	for (int r = 0; r < BOARD_SIZE; r++) {
@@ -346,9 +335,9 @@ void c_render(Hex* env)
 
 			Color color = DARKGRAY;
 			if (owner == PLAYER_COLOR)
-				color = BLUE;
-			else if (owner == ENV_COLOR)
 				color = RED;
+			else if (owner == ENV_COLOR)
+				color = BLUE;
 
 			float cx = start_x + (c + r * 0.5f) * hex_width;
 			float cy = start_y + r * hex_height * 0.75f;
