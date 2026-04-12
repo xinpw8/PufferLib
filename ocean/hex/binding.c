@@ -9,6 +9,7 @@
 
 void my_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
+    env->random_opponent=dict_get(kwargs, "random_opponent")->value;
     init(env);
 }
 

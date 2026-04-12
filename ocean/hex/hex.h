@@ -41,6 +41,7 @@ typedef struct {
 	int tick;
 	int current_player;
 	int8_t board[TOTAL_CELLS];
+	bool random_opponent;
 
 	// Disjoint Set Union (Union-Find) tracking arrays
 	int parent[TOTAL_NODES];
@@ -156,55 +157,53 @@ int compute_legal_move(Hex* env)
 	return action;
 }
 
-
 int compute_env_move(Hex* env, int player_last_action)
 {
 
-    // Play the center if available
-    if (env->tick <= 1) { 
-        int center = (BOARD_SIZE / 2) * BOARD_SIZE + (BOARD_SIZE / 2);
-        if (env->board[center] == 0) {
-            return center;
-        }
-        else {
-            return center+1;
-        }
-    }
+	// Play the center if available
+	if (env->tick <= 1) {
+		int center = (BOARD_SIZE / 2) * BOARD_SIZE + (BOARD_SIZE / 2);
+		if (env->board[center] == 0) {
+			return center;
+		} else {
+			return center + 1;
+		}
+	}
 
-    int best_action = -1;
-    int max_c = -1; // ENV (RED) wants to maximize column index (progress to the right).
+	int best_action = -1;
+	int max_c = -1; // ENV (RED) wants to maximize column index (progress to the right).
 
-    // Get the coordinates of the player's last move.
-    int r = player_last_action / BOARD_SIZE;
-    int c = player_last_action % BOARD_SIZE;
+	// Get the coordinates of the player's last move.
+	int r = player_last_action / BOARD_SIZE;
+	int c = player_last_action % BOARD_SIZE;
 
-    for (int d = 0; d < 6; d++) {
-        int nr = r + dr[d];
-        int nc = c + dc[d];
-        // Check if the neighbor is on the board
-        if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-            int n_idx = nr * BOARD_SIZE + nc;
-            
-            // Check if the neighbor is empty
-            if (env->board[n_idx] == 0) {
-                // Heuristic: Is this the best blocking move so far?
-                // "Best" is defined as making the most progress for us.
-                if (nc > max_c) {
-                    max_c = nc;
-                    best_action = n_idx;
-                }
-            }
-        }
-    }
+	for (int d = 0; d < 6; d++) {
+		int nr = r + dr[d];
+		int nc = c + dc[d];
+		// Check if the neighbor is on the board
+		if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+			int n_idx = nr * BOARD_SIZE + nc;
 
-    // --- FALLBACK ---
-    // If best_action is still -1, it means all 6 neighbors were occupied.
-    // In this case, we just play random
-    if (best_action == -1) {
-        return compute_legal_move(env); 
-    }
+			// Check if the neighbor is empty
+			if (env->board[n_idx] == 0) {
+				// Heuristic: Is this the best blocking move so far?
+				// "Best" is defined as making the most progress for us.
+				if (nc > max_c) {
+					max_c = nc;
+					best_action = n_idx;
+				}
+			}
+		}
+	}
 
-    return best_action;
+	// --- FALLBACK ---
+	// If best_action is still -1, it means all 6 neighbors were occupied.
+	// In this case, we just play random
+	if (best_action == -1) {
+		return compute_legal_move(env);
+	}
+
+	return best_action;
 }
 
 // Places a stone, merges components, and returns true if the player won
@@ -257,7 +256,6 @@ void c_step(Hex* env)
 	env->tick += 1;
 	int action = (int)env->actions[0];
 
-
 	if (invalid_move(action, env->board)) {
 		env->rewards[0] = -1;
 		env->terminals[0] = 1;
@@ -275,9 +273,14 @@ void c_step(Hex* env)
 		c_reset(env);
 		return;
 	}
+	int env_action;
 
-	// Env move and incremental win check
-	int env_action = compute_env_move(env, action);
+	if (env->random_opponent) {
+		env_action = compute_legal_move(env);
+
+	} else {
+		env_action = compute_env_move(env, action);
+	}
 
 	if (place_stone_and_check_win(env, env_action, ENV_COLOR)) {
 		env->rewards[0] = -1;
