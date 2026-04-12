@@ -47,12 +47,6 @@ void demo()
 		if(move_made)
 		{
 			c_step(&env);
-			// printf("Observation at tick %d: \n", env.tick);
-			// for(int i = 0; i < 2 * TOTAL_CELLS; i++)
-			// {
-			// 	printf("%.1f ", env.observations[i]);
-			// }
-            // printf("\n");
 		}
 
 
