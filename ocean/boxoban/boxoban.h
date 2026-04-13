@@ -51,6 +51,7 @@ typedef struct {
     int max_steps;
     int agent_x;
     int agent_y;
+    bool initialized;
     unsigned char* intermediate_rewards;
     float int_r_coeff;
     float target_loss_pen_coeff;
@@ -107,7 +108,7 @@ static inline unsigned char get_intermediate_reward_status(Boxoban *env, int x, 
 }
 
 static inline const uint32_t get_random_puzzle_idx(const Boxoban *env) {
-    int idx = rand() % PUZZLE_COUNT;
+    int idx = rand_r(&env->rng) % PUZZLE_COUNT;
     return idx;
 }
 
@@ -124,13 +125,14 @@ void init (Boxoban* env) {
     }
     env->intermediate_rewards = calloc(env->size*env->size, sizeof(unsigned char));
     env->win = 0;
+    env->initialized = false;
   }
 
 
 void add_log(Boxoban* env) {
     float denom = (float)env->n_boxes;
     float num = (float)env->on_target;
-    float perf = (env->win== 1) ? 1.0 : num/denom;
+    float perf = (env->win== 1) ? 1.0f : 0.0f;
     env->log.perf += perf;
     env->log.score += perf;
     env->log.episode_length += env->tick;
@@ -167,6 +169,10 @@ void c_reset(Boxoban* env) {
     env->win = 0;
     env->episode_return = 0;
 
+    if (!env->initialized) {
+        env->tick = rand_r(&env->rng) % env->max_steps;
+        env->initialized = true;
+    }
 }
 
 //Updates OBS for moved entity
