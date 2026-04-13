@@ -29,19 +29,43 @@ typedef struct {
 } Log;
 
 // Required that you have some struct for your env
+
 typedef struct {
-    Log log; // Required field. Env binding code uses this to aggregate logs
-    unsigned char* observations; // Required. You can use any obs type, but make sure it matches in Python!
-    float* actions; // Required
-    float* rewards; // Required
-    float* terminals; // Required
-    int num_agents;
-    int size;
+    Client *client;
+    Log log;
+
+    float *observations;
+    float *actions;
+    float *rewards;
+    float *terminals;
+    int dim_obs;
+
+    int n_rows;
+    int n_cols;
+    int *grid;
+
+    int cap_color_a;
+    int cap_color_b;
+    int cap_orient;
+    int cap_row;
+    int cap_col;
+
     int tick;
-    int r;
-    int c;
+    int tick_fall;
+    int ticks_per_fall;
+
+    int viruses_remaining;
+    int n_init_viruses;
+
+    float episode_return;
+    int viruses_cleared;
+    int atn_count_soft_drop;
+    int atn_count_hard_drop;
+    int atn_count_rotate;
+
     unsigned int rng;
-} Squared;
+} DrMario;
+
 
 void add_log(Squared* env) {
     env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
@@ -52,7 +76,7 @@ void add_log(Squared* env) {
 }
 
 // Required function
-void c_reset(Squared* env) {
+void c_reset(DrMario* env) {
     int tiles = env->size*env->size;
     memset(env->observations, 0, tiles*sizeof(unsigned char));
     env->observations[tiles/2] = AGENT;
