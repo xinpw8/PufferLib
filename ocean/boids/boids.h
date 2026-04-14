@@ -39,16 +39,14 @@ typedef struct {
 
 typedef struct Client Client;
 typedef struct {
-    // Flat array of shape (num_boids * 8) values:
+    // Flat array of shape (num_agents * 8) values:
     // - Each boid has 8 values corresponding to (x, y, vx, vy, dx, dy, dvx, dvy)
     // - The first 8 values are for the boid itself
-    // - All the other 8 values for the other boids
+    // - All the other 8 values are for the other boids
     float* observations;
-    // an array of shape (num_boids, 2) with the 2 values correspoinding to (dvx, dvy)
-    float* actions;
-    // an array of shape (1) with the summed up reward for all boids
-    float* rewards;
-    unsigned char* terminals; // Not being used but is required by env_binding.h
+    float* actions; // size (num_agents, 2->(dvx, dvy)) 
+    float* rewards; // size (num_agents) with per-boid rewards
+    float* terminals;
     Boid* boids;
     unsigned num_agents;
     float margin_turn_factor;
