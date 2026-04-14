@@ -96,7 +96,7 @@ void init(Boids *env) {
 
 static void compute_observations(Boids *env) {
     int idx = 0;
-    float diff_x, diff_y, dist;
+    float diff_x, diff_y;
     for (unsigned i=0; i<env->num_agents; i++) {
         // observations for the current boid
         env->observations[idx++] = env->boids[i].x / WIDTH;
@@ -111,7 +111,6 @@ static void compute_observations(Boids *env) {
             if (i == j) continue;
             diff_x = env->boids[i].x - env->boids[j].x;
             diff_y = env->boids[i].y - env->boids[j].y;
-            dist = sqrtf(diff_x*diff_x + diff_y*diff_y);
 
             env->observations[idx++] = env->boids[j].x / WIDTH;
             env->observations[idx++] = env->boids[j].y / HEIGHT;
