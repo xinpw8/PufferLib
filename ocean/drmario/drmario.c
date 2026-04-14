@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #include "drmario.h" 
+=======
+#include "drmario.h"  
+>>>>>>> 632461ca34b799332dfac78ec330485bf1183dd8
 
 int main() {
     DrMario env = {0};
