@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
@@ -85,7 +86,7 @@ void init(DrMario *env)
 void allocate(DrMario *env)
 {
         init(env);
-        env->dim_obs = env->n_rows * env->n_cols + 5; // grid + capsule info
+        env->dim_obs = env->n_rows * env->n_cols + 5; 
         env->observations = (float *)calloc(env->dim_obs, sizeof(float));
         if(env->observations == NULL)
         {
@@ -136,11 +137,23 @@ void add_log(DrMario *env) {
 }
 
 void place_viruses(DrMario *env) {
-    for (int i = 0; i < env->n_init_viruses; i++) {
-        int r = rand_r(&env->rng) % 8 + 8;
+    env->viruses_remaining = 0;
+    int placed = 0;
+    int attempts = 0;
+    
+    while (placed < env->n_init_viruses && attempts < 1000) {
+        attempts++;
+        int r = (rand_r(&env->rng) % 8) + 8;
         int c = rand_r(&env->rng) % env->n_cols;
-        int color = rand_r(&env->rng) % 3 + 1;
-        env->grid[r * env->n_cols + c] = -color;
+        int idx = r * env->n_cols + c;
+        
+        // Scollision
+        if (env->grid[idx] != 0) continue;
+        
+        int color = (rand_r(&env->rng) % 3) + 1;
+        env->grid[idx] = -color;
+        placed++;
+        env->viruses_remaining++;
     }
 }
 
@@ -173,7 +186,6 @@ void c_step(DrMario *env) {
     env->tick += 1;
     env->terminals[0] = 0;
     env->rewards[0] = 0;
-    // movement logic tomorrow
 }
 
 void c_render(DrMario *env) {

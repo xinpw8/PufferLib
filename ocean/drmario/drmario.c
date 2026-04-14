@@ -1,10 +1,10 @@
-#include "drmario.h"  // or dr_mario.h depending on your filename
+#include "drmario.h" 
 
 int main() {
     DrMario env = {0};
     env.n_rows = 16;
     env.n_cols = 8;
-    env.n_init_viruses = 10;
+    env.n_init_viruses = 6;
     env.rng = (unsigned int)time(NULL);
     
     allocate(&env);
