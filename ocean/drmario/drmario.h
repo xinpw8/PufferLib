@@ -173,7 +173,6 @@ void c_step(DrMario *env) {
     env->tick += 1;
     env->terminals[0] = 0;
     env->rewards[0] = 0;
-    // movement logic tomorrow
 }
 
 void c_render(DrMario *env) {
