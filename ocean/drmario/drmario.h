@@ -1,22 +1,19 @@
-/* Squared: a sample single-agent grid env.
- * Use this as a tutorial and template for your first env.
- * See the Target env for a slightly more complex example.
- * Star PufferLib on GitHub to support. It really, really helps!
- */
-
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
+#include <stdbool.h>
+#include <time.h>
 
-const unsigned char NOOP = 0;
-const unsigned char DOWN = 1;
-const unsigned char UP = 2;
-const unsigned char LEFT = 3;
-const unsigned char RIGHT = 4;
-
-const unsigned char EMPTY = 0;
-const unsigned char AGENT = 1;
-const unsigned char TARGET = 2;
+#define SQUARE_SIZE 32
+#define INITIAL_TICKS_PER_FALL 6
+#define ORIENT_HORIZONTAL 0
+#define ORIENT_VERTICAL 1
+#define ACTION_NO_OP 0
+#define ACTION_LEFT 1
+#define ACTION_RIGHT 2
+#define ACTION_ROTATE 3
+#define ACTION_SOFT_DROP 4
+#define ACTION_HARD_DROP 5
 
 // Required struct. Only use floats!
 typedef struct {
@@ -25,10 +22,16 @@ typedef struct {
     float episode_return; // Recommended metric: sum of agent rewards over episode
     float episode_length; // Recommended metric: number of steps of agent episode
     // Any extra fields you add here may be exported in binding.c
+    float viruses_cleared;
+
     float n; // Required as the last field
 } Log;
 
 // Required that you have some struct for your env
+typedef struct {
+    int total_rows;
+    int total_columns;
+} Client;
 
 typedef struct {
     Client *client;
@@ -54,6 +57,8 @@ typedef struct {
     int tick_fall;
     int ticks_per_fall;
 
+    int score;
+
     int viruses_remaining;
     int n_init_viruses;
 
@@ -67,107 +72,154 @@ typedef struct {
 } DrMario;
 
 
-void add_log(Squared* env) {
-    env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
-    env->log.score += env->rewards[0];
+void init(DrMario *env)
+{
+    env->grid=(int*)calloc(env->n_rows*env->n_cols,sizeof(int));
+    if(env->grid==NULL)
+    {
+        exit(1);
+    }
+
+}
+
+void allocate(DrMario *env)
+{
+        init(env);
+        env->dim_obs = env->n_rows * env->n_cols + 5; // grid + capsule info
+        env->observations = (float *)calloc(env->dim_obs, sizeof(float));
+        if(env->observations == NULL)
+        {
+            exit(1);
+        }
+        env->actions = (float *)calloc(1, sizeof(float));
+        if(env->actions == NULL)
+        {
+            exit(1);
+        }
+        env->rewards = (float *)calloc(1, sizeof(float));
+        if(env->rewards == NULL)
+        {
+            exit(1);
+        }
+        env->terminals = (float *)calloc(1, sizeof(float));
+        if(env->terminals == NULL)
+        {
+            exit(1);
+        }
+}
+
+void c_close(DrMario *env)
+{
+    free(env->grid);
+     if(IsWindowReady())
+     {
+        CloseWindow();
+     }
+}
+
+void free_allocated(DrMario *env) {
+	free(env->actions);
+	free(env->observations);
+	free(env->terminals);
+	free(env->rewards);
+	c_close(env);
+}
+
+
+void add_log(DrMario *env) {
+    env->log.perf += env->viruses_cleared / (float)env->n_init_viruses;
+    env->log.score += env->score;
     env->log.episode_length += env->tick;
-    env->log.episode_return += env->rewards[0];
+    env->log.episode_return += env->episode_return;
+    env->log.viruses_cleared += env->viruses_cleared;
     env->log.n++;
 }
 
-// Required function
-void c_reset(DrMario* env) {
-    int tiles = env->size*env->size;
-    memset(env->observations, 0, tiles*sizeof(unsigned char));
-    env->observations[tiles/2] = AGENT;
-    env->r = env->size/2;
-    env->c = env->size/2;
-    env->tick = 0;
-    int target_idx = 0; // Deterministic for testing
-    do {
-        target_idx = rand_r(&env->rng) % tiles;
-    } while (target_idx == tiles/2);
-    env->observations[target_idx] = TARGET;
+void place_viruses(DrMario *env) {
+    for (int i = 0; i < env->n_init_viruses; i++) {
+        int r = rand_r(&env->rng) % 8 + 8;
+        int c = rand_r(&env->rng) % env->n_cols;
+        int color = rand_r(&env->rng) % 3 + 1;
+        env->grid[r * env->n_cols + c] = -color;
+    }
 }
 
-// Required function
-void c_step(Squared* env) {
-    env->tick += 1;
+void spawn_capsule(DrMario *env) {
+    env->cap_color_a = rand_r(&env->rng) % 3 + 1;
+    env->cap_color_b = rand_r(&env->rng) % 3 + 1;
+    env->cap_orient  = ORIENT_HORIZONTAL;
+    env->cap_row     = 0;
+    env->cap_col     = env->n_cols / 2;
+    env->tick_fall   = 0;
+}
 
-    int action = (int)env->actions[0];
+void c_reset(DrMario *env) {
+    memset(env->grid, 0, env->n_rows * env->n_cols * sizeof(int));
+    env->score = 0;
+    env->tick = 0;
+    env->tick_fall = 0;
+    env->ticks_per_fall = INITIAL_TICKS_PER_FALL;
+    env->viruses_remaining = env->n_init_viruses;
+    env->episode_return = 0;
+    env->viruses_cleared = 0;
+    env->atn_count_soft_drop = 0;
+    env->atn_count_hard_drop = 0;
+    env->atn_count_rotate = 0;
+    place_viruses(env);
+    spawn_capsule(env);
+}
+
+void c_step(DrMario *env) {
+    env->tick += 1;
     env->terminals[0] = 0;
     env->rewards[0] = 0;
-
-    env->observations[env->r*env->size + env->c] = EMPTY;
-
-    if (action == DOWN) {
-        env->r += 1;
-    } else if (action == RIGHT) {
-        env->c += 1;
-    } else if (action == UP) {
-        env->r -= 1;
-    } else if (action == LEFT) {
-        env->c -= 1;
-    }
-
-    if (env->tick > 3*env->size
-            || env->r < 0
-            || env->c < 0
-            || env->r >= env->size
-            || env->c >= env->size) {
-        env->terminals[0] = 1;
-        env->rewards[0] = -1.0;
-        add_log(env);
-        c_reset(env);
-        return;
-    }
-
-    int pos = env->r*env->size + env->c;
-    if (env->observations[pos] == TARGET) {
-        env->terminals[0] = 1;
-        env->rewards[0] = 1.0;
-        add_log(env);
-        c_reset(env);
-        return;
-    }
-
-    env->observations[pos] = AGENT;
+    // movement logic tomorrow
 }
 
-// Required function. Should handle creating the client on first call
-void c_render(Squared* env) {
+void c_render(DrMario *env) {
     if (!IsWindowReady()) {
-        InitWindow(64*env->size, 64*env->size, "PufferLib Squared");
-        SetTargetFPS(5);
+        InitWindow(SQUARE_SIZE * env->n_cols, SQUARE_SIZE * env->n_rows, "Dr Mario");
+        SetTargetFPS(30);
     }
-
-    // Standard across our envs so exiting is always the same
-    if (IsKeyDown(KEY_ESCAPE)) {
-        exit(0);
-    }
+    if (IsKeyDown(KEY_ESCAPE)) exit(0);
 
     BeginDrawing();
-    ClearBackground((Color){6, 24, 24, 255});
+    ClearBackground(BLACK);
 
-    int px = 64;
-    for (int i = 0; i < env->size; i++) {
-        for (int j = 0; j < env->size; j++) {
-            int tex = env->observations[i*env->size + j];
-            if (tex == EMPTY) {
-                continue;
+    for (int r = 0; r < env->n_rows; r++) {
+        for (int c = 0; c < env->n_cols; c++) {
+            int cell = env->grid[r * env->n_cols + c];
+            int x = c * SQUARE_SIZE;
+            int y = r * SQUARE_SIZE;
+            if (cell == 0) continue;
+
+            Color color;
+            if      (cell == 1 || cell == -1) color = RED;
+            else if (cell == 2 || cell == -2) color = BLUE;
+            else                              color = YELLOW;
+
+            if (cell < 0) {
+                DrawCircle(x + SQUARE_SIZE/2, y + SQUARE_SIZE/2, 
+                          SQUARE_SIZE/2 - 2, color);
+            } else {
+                DrawRectangle(x + 2, y + 2, 
+                             SQUARE_SIZE - 4, SQUARE_SIZE - 4, color);
             }
-            Color color = (tex == AGENT) ? (Color){0, 187, 187, 255} : (Color){187, 0, 0, 255};
-            DrawRectangle(j*px, i*px, px, px, color);
         }
     }
 
-    EndDrawing();
-}
+    // draw active capsule
+    int x = env->cap_col * SQUARE_SIZE;
+    int y = env->cap_row * SQUARE_SIZE;
+    Color ca = (env->cap_color_a == 1) ? RED : (env->cap_color_a == 2) ? BLUE : YELLOW;
+    Color cb = (env->cap_color_b == 1) ? RED : (env->cap_color_b == 2) ? BLUE : YELLOW;
 
-// Required function. Should clean up anything you allocated
-// Do not free env->observations, actions, rewards, terminals
-void c_close(Squared* env) {
-    if (IsWindowReady()) {
-        CloseWindow();
+    DrawRectangle(x + 2, y + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, ca);
+    if (env->cap_orient == ORIENT_HORIZONTAL) {
+        DrawRectangle(x + SQUARE_SIZE + 2, y + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, cb);
+    } else {
+        DrawRectangle(x + 2, y + SQUARE_SIZE + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, cb);
     }
+
+    EndDrawing();
 }
