@@ -1,21 +1,23 @@
 #include "boids.h"
+#define OBS_SIZE 256 // 20 boids * 8 obs per boid
+#define NUM_ATNS 2   // Two discrete actions per boid
+#define ACT_SIZES {5, 5}
+#define OBS_TENSOR_T FloatTensor
 
 #define Env Boids
-#include "../env_binding.h"
+#include "vecenv.h"
 
-static int my_init(Env* env, PyObject* args, PyObject* kwargs) {
-    env->num_boids = unpack(kwargs, "num_boids");
-    env->report_interval = unpack(kwargs, "report_interval");
-    env->margin_turn_factor = unpack(kwargs, "margin_turn_factor");
-    env->cohesion_factor = unpack(kwargs, "cohesion_factor");
-    env->separation_factor = unpack(kwargs, "separation_factor");
-    env->alignment_factor = unpack(kwargs, "alignment_factor");
+void my_init(Env* env, Dict* kwargs) {
+    env->num_agents = (unsigned int)dict_get(kwargs, "num_agents")->value;
+    env->report_interval = (unsigned)dict_get(kwargs, "report_interval")->value;
+    env->margin_turn_factor = (float)dict_get(kwargs, "margin_turn_factor")->value;
+    env->cohesion_factor = (float)dict_get(kwargs, "cohesion_factor")->value;
+    env->separation_factor = (float)dict_get(kwargs, "separation_factor")->value;
+    env->alignment_factor = (float)dict_get(kwargs, "alignment_factor")->value;
     init(env);
-    return 0;
 }
 
-static int my_log(PyObject* dict, Log* log) {
-    assign_to_dict(dict, "score", log->score);
-    assign_to_dict(dict, "n", log->n);
-    return 0;
+void my_log(Log* log, Dict* out) {
+    dict_set(out, "score", log->score);
+    dict_set(out, "n", log->n);
 }
