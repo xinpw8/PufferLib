@@ -147,6 +147,7 @@ void add_log(DrMario *env) {
     env->log.n++;
 }
 
+
 void compute_observations(DrMario *env)
  {
     for (int i = 0; i < env->n_rows * env->n_cols; i++) 
@@ -373,6 +374,7 @@ bool clear_lines(DrMario* env) {
             if (env->grid[i] < 0) {
                 env->viruses_remaining--;
                 env->viruses_cleared++;
+                env->rewards[0] += 0.1f;
             }
             env->grid[i] = 0;
         }
