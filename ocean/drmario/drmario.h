@@ -253,7 +253,9 @@ void rotate_cap(DrMario* env){
         env->cap_col_2 -= 1;
     }
 
-    if(env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2] != 0) {
+    if(env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2] != 0
+        || env->cap_row_2 < 0 || env->cap_row_2 >= env->n_rows
+        || env->cap_col_2 < 0 || env->cap_col_2 >= env->n_cols) {
         env->cap_orient = old_orient;
         env->cap_row_2 = old_cap_row_2;
         env->cap_col_2 = old_cap_col_2;
@@ -267,15 +269,20 @@ void move_cap(DrMario* env){
         env->tick_fall = 0;
         if(!env->cal_colliding_down) {
             env->cap_row_1 += 1;
+            env->cap_row_2 += 1;
         }
     }
 
     if(env->actions[0] == ACTION_LEFT && !env->cal_colliding_left) {
         env->cap_col_1 -= 1;
+        env->cap_col_2 -= 1;
     } else if(env->actions[0] == ACTION_RIGHT && !env->cal_colliding_right) {
         env->cap_col_1 += 1;
+        env->cap_col_2 += 1;
     } else if(env->actions[0] == ACTION_DOWN && !env->cal_colliding_down) {
         env->cap_row_1 += 1;
+        env->cap_row_2 += 1;
+
         env->atn_count_soft_drop += 1;
     }
 }
@@ -285,38 +292,51 @@ bool clear_lines(DrMario* env) {
     if (!to_clear) return false;
 
     for (int r = 0; r < env->n_rows; r++) {
-        int c = 0;
-        while (c < env->n_cols) {
+        for(int c = 0; c < env->n_cols; c++) {
             int cell = env->grid[r * env->n_cols + c];
-            if (cell == 0) { c++; continue; }
+            if (cell == 0) {
+                continue;
+            }
             int color = abs(cell);
-            int run_end = c + 1;
-            while (run_end < env->n_cols && abs(env->grid[r * env->n_cols + run_end]) == color)
-                run_end++;
-            if (run_end - c >= 4)
-                for (int k = c; k < run_end; k++) to_clear[r * env->n_cols + k] = true;
-            c = run_end;
+            int c_end = c + 1;
+            while(c_end < env->n_cols && abs(env->grid[r * env->n_cols + c_end]) == color) {
+                c_end += 1;
+            }
+            if(c_end - c >= 4){
+                for(int i = c; i < c_end; i++) {
+                    to_clear[r * env->n_cols + i] = true;
+                }
+            }
+            c = c_end-1;
         }
     }
 
-    for (int col = 0; col < env->n_cols; col++) {
-        int r = 0;
-        while (r < env->n_rows) {
-            int cell = env->grid[r * env->n_cols + col];
-            if (cell == 0) { r++; continue; }
+    for(int c = 0; c < env->n_cols; c++) {
+        for(int r = 0; r < env->n_rows; r++) {
+            int cell = env->grid[r * env->n_cols + c];
+            if (cell == 0) {
+                continue;
+            }
             int color = abs(cell);
-            int run_end = r + 1;
-            while (run_end < env->n_rows && abs(env->grid[run_end * env->n_cols + col]) == color)
-                run_end++;
-            if (run_end - r >= 4)
-                for (int k = r; k < run_end; k++) to_clear[k * env->n_cols + col] = true;
-            r = run_end;
+            int r_end = r + 1;
+            while(r_end < env->n_rows && abs(env->grid[r_end * env->n_cols + c]) == color) {
+                r_end += 1;
+            }
+            if(r_end - r >= 4){
+                for(int i = r; i < r_end; i++) {
+                    to_clear[i * env->n_cols + c] = true;
+                }
+            }
+            r = r_end-1;
         }
     }
 
     bool any_cleared = false;
     for (int i = 0; i < env->n_rows * env->n_cols; i++) {
-        if (to_clear[i]) { any_cleared = true; break; }
+        if (to_clear[i]) { 
+            any_cleared = true;
+            break; 
+        }
     }
 
     if (!any_cleared) {
@@ -333,7 +353,6 @@ bool clear_lines(DrMario* env) {
             env->grid[i] = 0;
         }
     }
-    free(to_clear);
 
     bool falling = true;
     while (falling) {
@@ -341,15 +360,27 @@ bool clear_lines(DrMario* env) {
         for (int r = env->n_rows - 2; r >= 0; r--) {
             for (int c = 0; c < env->n_cols; c++) {
                 int cell = env->grid[r * env->n_cols + c];
-                if (cell <= 0) continue;
-                if (env->grid[(r + 1) * env->n_cols + c] != 0) continue;
-                env->grid[(r + 1) * env->n_cols + c] = cell;
-                env->grid[r * env->n_cols + c] = 0;
-                falling = true;
+                if (cell <= 0 || env->grid[(r + 1) * env->n_cols + c] != 0){
+                    continue;
+                }
+                
+                if((r < env->n_rows - 2 && to_clear[(r+1) * env->n_cols + c])
+                    || (r > 0 && to_clear[(r-1) * env->n_cols + c])
+                    || (c < env->n_cols - 1 && to_clear[r * env->n_cols + c + 1])
+                    || (c > 0 && to_clear[r * env->n_cols + c - 1])) {
+                    to_clear[r * env->n_cols + c] = true;
+                }
+
+                if(to_clear[r * env->n_cols + c]) {
+                    env->grid[(r + 1) * env->n_cols + c] = cell;
+                    env->grid[r * env->n_cols + c] = 0;
+                    falling = true;   
+                }
             }
         }
     }
 
+    free(to_clear);
     clear_lines(env);
     return true;
 }
@@ -384,9 +415,9 @@ void c_step(DrMario *env) {
 
     get_collisions(env);
 
-    move_cap(env);
-
     rotate_cap(env);
+
+    move_cap(env);
 
     end_game_check(env);
 
