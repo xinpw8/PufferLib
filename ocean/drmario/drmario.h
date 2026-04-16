@@ -284,6 +284,15 @@ void move_cap(DrMario* env){
         env->cap_row_2 += 1;
 
         env->atn_count_soft_drop += 1;
+    } else if (env->actions[0] == ACTION_DROP) {
+        if(!env->cal_colliding_down) {
+            env->atn_count_hard_drop += 1;
+            do{
+                env->cap_row_1 += 1;
+                env->cap_row_2 += 1;
+                get_collisions(env);
+            } while (!env->cal_colliding_down);
+        }
     }
 }
 
