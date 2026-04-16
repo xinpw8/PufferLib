@@ -147,6 +147,20 @@ void add_log(DrMario *env) {
     env->log.n++;
 }
 
+void compute_observations(DrMario *env)
+ {
+    for (int i = 0; i < env->n_rows * env->n_cols; i++) 
+    {
+        env->observations[i] = (float)env->grid[i];
+    }
+    int offset = env->n_rows * env->n_cols;
+    env->observations[offset + 0] = (float)env->cap_color_a;
+    env->observations[offset + 1] = (float)env->cap_color_b;
+    env->observations[offset + 2] = (float)env->cap_orient;
+    env->observations[offset + 3] = (float)env->cap_row_1;
+    env->observations[offset + 4] = (float)env->cap_col_1;
+}
+
 void place_viruses(DrMario *env) {
     env->viruses_remaining = 0;
     int placed = 0;
@@ -193,6 +207,7 @@ void c_reset(DrMario *env) {
     env->atn_count_rotate = 0;
     place_viruses(env);
     spawn_capsule(env);
+    compute_observations(env);
 }
 
 void get_collisions(DrMario* env){
@@ -431,6 +446,7 @@ void c_step(DrMario *env) {
     end_game_check(env);
 
     spawn_new_cap(env);
+    compute_observations(env);
 }
 
 void c_render(DrMario *env) {
