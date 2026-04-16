@@ -26,11 +26,11 @@ int main() {
                 env.actions[0] = ACTION_RIGHT;
             } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
                 env.actions[0] = ACTION_DOWN;
-            } else if (IsKeyDown(KEY_Z)) {
+            } else if (IsKeyPressed(KEY_Z)) {
                 env.actions[0] = ACTION_ROTATE_LEFT;
-            } else if (IsKeyDown(KEY_X)) {
+            } else if (IsKeyPressed(KEY_X)) {
                 env.actions[0] = ACTION_ROTATE_RIGHT;
-            } else if (IsKeyDown(KEY_SPACE)) {
+            } else if (IsKeyPressed(KEY_SPACE)) {
                 env.actions[0] = ACTION_DROP;
             }
 
