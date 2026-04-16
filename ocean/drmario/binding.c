@@ -1,10 +1,10 @@
-#include "squared.h"
+#include "drmario.h"
 #define OBS_SIZE 121
 #define NUM_ATNS 1
 #define ACT_SIZES {5}
 #define OBS_TENSOR_T ByteTensor
 
-#define Env Squared
+#define Env DrMario
 #include "vecenv.h"
 
 void my_init(Env* env, Dict* kwargs) {

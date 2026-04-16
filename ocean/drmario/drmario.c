@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 #include "drmario.h" 
-=======
-#include "drmario.h"  
->>>>>>> 632461ca34b799332dfac78ec330485bf1183dd8
 
 int main() {
     DrMario env = {0};
@@ -14,10 +10,39 @@ int main() {
     allocate(&env);
     c_reset(&env);
     
+    env.actions[0] = 0;
+    int frame = 0;
+    bool processLogic;
     while (1) {
-        c_step(&env);
+        frame += 1;
+        processLogic = true;
+        
+        if(IsKeyDown(KEY_LEFT_SHIFT)){ 
+            processLogic = frame % 3 == 0;
+
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+                env.actions[0] = ACTION_LEFT;
+            } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                env.actions[0] = ACTION_RIGHT;
+            } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+                env.actions[0] = ACTION_DOWN;
+            } else if (IsKeyDown(KEY_Z)) {
+                env.actions[0] = ACTION_ROTATE_LEFT;
+            } else if (IsKeyDown(KEY_X)) {
+                env.actions[0] = ACTION_ROTATE_RIGHT;
+            } else if (IsKeyDown(KEY_SPACE)) {
+                env.actions[0] = ACTION_DROP;
+            }
+
+            if (IsKeyPressed(KEY_R)) c_reset(&env);
+        }
+        
+        if(processLogic){
+            c_step(&env);
+            env.actions[0] = 0;
+        }
         c_render(&env);
-        if (IsKeyPressed(KEY_R)) c_reset(&env);
+
     }
     
     free_allocated(&env);

@@ -7,14 +7,19 @@
 
 #define SQUARE_SIZE 32
 #define INITIAL_TICKS_PER_FALL 6
-#define ORIENT_HORIZONTAL 0
-#define ORIENT_VERTICAL 1
+
+#define ROTATION_0 0
+#define ROTATION_90 1
+#define ROTATION_180 2
+#define ROTATION_270 3
+
 #define ACTION_NO_OP 0
 #define ACTION_LEFT 1
 #define ACTION_RIGHT 2
-#define ACTION_ROTATE 3
-#define ACTION_SOFT_DROP 4
-#define ACTION_HARD_DROP 5
+#define ACTION_DOWN 3
+#define ACTION_ROTATE_LEFT 4
+#define ACTION_ROTATE_RIGHT 5
+#define ACTION_DROP 6
 
 // Required struct. Only use floats!
 typedef struct {
@@ -51,8 +56,14 @@ typedef struct {
     int cap_color_a;
     int cap_color_b;
     int cap_orient;
-    int cap_row;
-    int cap_col;
+    int cap_row_1;
+    int cap_col_1;
+    int cap_row_2;
+    int cap_col_2;
+    bool cal_colliding_left;
+    bool cal_colliding_right;
+    bool cal_colliding_down; 
+    bool cal_colliding_up;
 
     int tick;
     int tick_fall;
@@ -160,9 +171,11 @@ void place_viruses(DrMario *env) {
 void spawn_capsule(DrMario *env) {
     env->cap_color_a = rand_r(&env->rng) % 3 + 1;
     env->cap_color_b = rand_r(&env->rng) % 3 + 1;
-    env->cap_orient  = ORIENT_HORIZONTAL;
-    env->cap_row     = 0;
-    env->cap_col     = env->n_cols / 2;
+    env->cap_orient  = ROTATION_0;
+    env->cap_row_1     = 0;
+    env->cap_col_1     = env->n_cols / 2;
+    env->cap_row_2     = env->cap_row_1;
+    env->cap_col_2     = env->cap_col_1 + 1;
     env->tick_fall   = 0;
 }
 
@@ -182,10 +195,186 @@ void c_reset(DrMario *env) {
     spawn_capsule(env);
 }
 
+void get_collisions(DrMario* env){
+    env->cal_colliding_left = false;
+    env->cal_colliding_right = false;
+    env->cal_colliding_down = false;
+    env->cal_colliding_up = false;
+
+    if(env->grid[(env->cap_row_1+1) * env->n_cols + env->cap_col_1] != 0
+        || env->grid[(env->cap_row_2+1) * env->n_cols + env->cap_col_2] != 0
+        || env->cap_row_1 == env->n_rows - 1
+        || env->cap_row_2 == env->n_rows - 1) {
+        env->cal_colliding_down = true;
+    }
+
+    if(env->grid[(env->cap_row_1-1) * env->n_cols + env->cap_col_1] != 0
+        || env->grid[(env->cap_row_2-1) * env->n_cols + env->cap_col_2] != 0) {
+        env->cal_colliding_up = true;
+    }
+
+    if(env->grid[env->cap_row_1 * env->n_cols + env->cap_col_1 + 1] != 0
+        || env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2 + 1] != 0
+        || env->cap_col_1 == env->n_cols - 1
+        || env->cap_col_2 == env->n_cols - 1) {
+        env->cal_colliding_right = true;
+    }
+
+    if(env->grid[env->cap_row_1 * env->n_cols + env->cap_col_1 - 1] != 0
+        || env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2 - 1] != 0
+        || env->cap_col_1 == 0
+        || env->cap_col_2 == 0) {
+        env->cal_colliding_left = true;
+    }
+}
+
+void rotate_cap(DrMario* env){
+    int old_orient = env->cap_orient;
+    int old_cap_row_2 = env->cap_row_2;
+    int old_cap_col_2 = env->cap_col_2;
+
+    if(env->actions[0] == ACTION_ROTATE_LEFT) {
+        env->cap_orient = (env->cap_orient + 1) % 4;
+    } else if(env->actions[0] == ACTION_ROTATE_RIGHT) {
+        env->cap_orient = (env->cap_orient + 3) % 4;
+    }
+
+    env->cap_row_2 = env->cap_row_1;
+    if(env->cap_orient == ROTATION_90) {
+        env->cap_row_2 -= 1;
+    } else if(env->cap_orient == ROTATION_270) {
+        env->cap_row_2 += 1;
+    }
+
+    env->cap_col_2 = env->cap_col_1;
+    if(env->cap_orient == ROTATION_0) {
+        env->cap_col_2 += 1;
+    } else if(env->cap_orient == ROTATION_180) {
+        env->cap_col_2 -= 1;
+    }
+
+    if(env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2] != 0) {
+        env->cap_orient = old_orient;
+        env->cap_row_2 = old_cap_row_2;
+        env->cap_col_2 = old_cap_col_2;
+    }
+}
+
+void move_cap(DrMario* env){
+    env->tick_fall += 1;
+    if(env->tick_fall >= env->ticks_per_fall)
+    {
+        env->tick_fall = 0;
+        if(!env->cal_colliding_down) {
+            env->cap_row_1 += 1;
+        }
+    }
+
+    if(env->actions[0] == ACTION_LEFT && !env->cal_colliding_left) {
+        env->cap_col_1 -= 1;
+    } else if(env->actions[0] == ACTION_RIGHT && !env->cal_colliding_right) {
+        env->cap_col_1 += 1;
+    } else if(env->actions[0] == ACTION_DOWN && !env->cal_colliding_down) {
+        env->cap_row_1 += 1;
+        env->atn_count_soft_drop += 1;
+    }
+}
+
+bool clear_lines(DrMario* env) {
+    bool *to_clear = (bool*)calloc(env->n_rows * env->n_cols, sizeof(bool));
+    if (!to_clear) return false;
+
+    for (int r = 0; r < env->n_rows; r++) {
+        int c = 0;
+        while (c < env->n_cols) {
+            int cell = env->grid[r * env->n_cols + c];
+            if (cell == 0) { c++; continue; }
+            int color = abs(cell);
+            int run_end = c + 1;
+            while (run_end < env->n_cols && abs(env->grid[r * env->n_cols + run_end]) == color)
+                run_end++;
+            if (run_end - c >= 4)
+                for (int k = c; k < run_end; k++) to_clear[r * env->n_cols + k] = true;
+            c = run_end;
+        }
+    }
+
+    for (int col = 0; col < env->n_cols; col++) {
+        int r = 0;
+        while (r < env->n_rows) {
+            int cell = env->grid[r * env->n_cols + col];
+            if (cell == 0) { r++; continue; }
+            int color = abs(cell);
+            int run_end = r + 1;
+            while (run_end < env->n_rows && abs(env->grid[run_end * env->n_cols + col]) == color)
+                run_end++;
+            if (run_end - r >= 4)
+                for (int k = r; k < run_end; k++) to_clear[k * env->n_cols + col] = true;
+            r = run_end;
+        }
+    }
+
+    bool any_cleared = false;
+    for (int i = 0; i < env->n_rows * env->n_cols; i++) {
+        if (to_clear[i]) { any_cleared = true; break; }
+    }
+
+    if (!any_cleared) {
+        free(to_clear);
+        return false;
+    }
+
+    for (int i = 0; i < env->n_rows * env->n_cols; i++) {
+        if (to_clear[i]) {
+            if (env->grid[i] < 0) {
+                env->viruses_remaining--;
+                env->viruses_cleared++;
+            }
+            env->grid[i] = 0;
+        }
+    }
+    free(to_clear);
+
+    bool falling = true;
+    while (falling) {
+        falling = false;
+        for (int r = env->n_rows - 2; r >= 0; r--) {
+            for (int c = 0; c < env->n_cols; c++) {
+                int cell = env->grid[r * env->n_cols + c];
+                if (cell <= 0) continue;
+                if (env->grid[(r + 1) * env->n_cols + c] != 0) continue;
+                env->grid[(r + 1) * env->n_cols + c] = cell;
+                env->grid[r * env->n_cols + c] = 0;
+                falling = true;
+            }
+        }
+    }
+
+    clear_lines(env);
+    return true;
+}
+
+void spawn_new_cap(DrMario* env) {
+    if(env->cal_colliding_down) {
+        env->grid[env->cap_row_1 * env->n_cols + env->cap_col_1] = env->cap_color_a;
+        env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2] = env->cap_color_b;
+        clear_lines(env);
+        spawn_capsule(env);
+    }
+}
+
 void c_step(DrMario *env) {
     env->tick += 1;
     env->terminals[0] = 0;
     env->rewards[0] = 0;
+
+    get_collisions(env);
+
+    move_cap(env);
+
+    spawn_new_cap(env);
+
+    rotate_cap(env);
 }
 
 void c_render(DrMario *env) {
@@ -221,17 +410,15 @@ void c_render(DrMario *env) {
     }
 
     // draw active capsule
-    int x = env->cap_col * SQUARE_SIZE;
-    int y = env->cap_row * SQUARE_SIZE;
+    int x1 = env->cap_col_1 * SQUARE_SIZE;
+    int y1 = env->cap_row_1 * SQUARE_SIZE;
+    int x2 = env->cap_col_2 * SQUARE_SIZE;
+    int y2 = env->cap_row_2 * SQUARE_SIZE;
     Color ca = (env->cap_color_a == 1) ? RED : (env->cap_color_a == 2) ? BLUE : YELLOW;
     Color cb = (env->cap_color_b == 1) ? RED : (env->cap_color_b == 2) ? BLUE : YELLOW;
 
-    DrawRectangle(x + 2, y + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, ca);
-    if (env->cap_orient == ORIENT_HORIZONTAL) {
-        DrawRectangle(x + SQUARE_SIZE + 2, y + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, cb);
-    } else {
-        DrawRectangle(x + 2, y + SQUARE_SIZE + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, cb);
-    }
+    DrawRectangle(x1 + 2, y1 + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, ca);
+    DrawRectangle(x2 + 2, y2 + 2, SQUARE_SIZE - 4, SQUARE_SIZE - 4, cb);
 
     EndDrawing();
 }
