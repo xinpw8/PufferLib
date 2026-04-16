@@ -49,6 +49,8 @@ typedef struct {
     float *terminals;
     int dim_obs;
 
+    int num_agents;
+
     int n_rows;
     int n_cols;
     int *grid;
