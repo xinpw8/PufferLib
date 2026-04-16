@@ -9,7 +9,6 @@
 #include "vecenv.h"
 
 void my_init(Env* env, Dict* kwargs) {
-    env->num_agents = 1;
     env->n_rows = dict_get(kwargs, "n_rows")->value;
     env->n_cols = dict_get(kwargs, "n_cols")->value;
     env->n_init_viruses = dict_get(kwargs, "n_init_viruses")->value;
