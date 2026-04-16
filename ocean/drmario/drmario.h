@@ -219,6 +219,12 @@ void get_collisions(DrMario* env){
     env->cal_colliding_down = false;
     env->cal_colliding_up = false;
 
+    // Capsule is still spawning above the grid (row = -1) → skip everything
+    if (env->cap_row_1 < 0 || env->cap_row_2 < 0) {
+        return;
+    }
+
+    // DOWN collision
     if(env->grid[(env->cap_row_1+1) * env->n_cols + env->cap_col_1] != 0
         || env->grid[(env->cap_row_2+1) * env->n_cols + env->cap_col_2] != 0
         || env->cap_row_1 == env->n_rows - 1
@@ -226,11 +232,15 @@ void get_collisions(DrMario* env){
         env->cal_colliding_down = true;
     }
 
-    if(env->grid[(env->cap_row_1-1) * env->n_cols + env->cap_col_1] != 0
-        || env->grid[(env->cap_row_2-1) * env->n_cols + env->cap_col_2] != 0) {
-        env->cal_colliding_up = true;
+    // UP collision — protected against row == 0
+    if (env->cap_row_1 > 0 && env->cap_row_2 > 0) {
+        if(env->grid[(env->cap_row_1-1) * env->n_cols + env->cap_col_1] != 0
+            || env->grid[(env->cap_row_2-1) * env->n_cols + env->cap_col_2] != 0) {
+            env->cal_colliding_up = true;
+        }
     }
 
+    // RIGHT collision
     if(env->grid[env->cap_row_1 * env->n_cols + env->cap_col_1 + 1] != 0
         || env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2 + 1] != 0
         || env->cap_col_1 == env->n_cols - 1
@@ -238,6 +248,7 @@ void get_collisions(DrMario* env){
         env->cal_colliding_right = true;
     }
 
+    // LEFT collision
     if(env->grid[env->cap_row_1 * env->n_cols + env->cap_col_1 - 1] != 0
         || env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2 - 1] != 0
         || env->cap_col_1 == 0
