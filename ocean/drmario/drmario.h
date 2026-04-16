@@ -172,7 +172,7 @@ void spawn_capsule(DrMario *env) {
     env->cap_color_a = rand_r(&env->rng) % 3 + 1;
     env->cap_color_b = rand_r(&env->rng) % 3 + 1;
     env->cap_orient  = ROTATION_0;
-    env->cap_row_1     = 0;
+    env->cap_row_1     = -1;
     env->cap_col_1     = env->n_cols / 2;
     env->cap_row_2     = env->cap_row_1;
     env->cap_col_2     = env->cap_col_1 + 1;
@@ -363,6 +363,20 @@ void spawn_new_cap(DrMario* env) {
     }
 }
 
+void end_game_check(DrMario* env) {
+    if(env->viruses_remaining <= 0) {
+        env->terminals[0] = 1;
+        env->rewards[0] = 1;
+        c_reset(env);
+    }
+
+    if(env->cal_colliding_down && (env->cap_row_1 <= 0 || env->cap_row_2 <= 0)) {
+        env->terminals[0] = 1;
+        env->rewards[0] = -1;
+        c_reset(env);
+    }
+}
+
 void c_step(DrMario *env) {
     env->tick += 1;
     env->terminals[0] = 0;
@@ -372,9 +386,11 @@ void c_step(DrMario *env) {
 
     move_cap(env);
 
-    spawn_new_cap(env);
-
     rotate_cap(env);
+
+    end_game_check(env);
+
+    spawn_new_cap(env);
 }
 
 void c_render(DrMario *env) {
