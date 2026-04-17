@@ -13,7 +13,7 @@ void my_init(Env* env, Dict* kwargs) {
     env->n_rows = dict_get(kwargs, "n_rows")->value;
     env->n_cols = dict_get(kwargs, "n_cols")->value;
     env->n_init_viruses = dict_get(kwargs, "n_init_viruses")->value;
-        init(env);
+        c_init(env);
 }
 
 void my_log(Log* log, Dict* out) {
