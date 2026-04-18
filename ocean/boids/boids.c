@@ -3,8 +3,6 @@
 // Run with: ./boids
 
 
-// TODO: Make the actions as original boids, not just random action. The demo should show how normal boids works/behaves.
-
 #include <time.h>
 #include "boids.h"
 #include <stdlib.h>
@@ -18,11 +16,12 @@
 #define SEPARATION_FACTOR 0.0
 #define ALIGNMENT_FACTOR 0.0
 
-// Dummy action generation: random discrete values in [0, 4] for each boid action dim
 void generate_dummy_actions(Boids* env) {
     for (unsigned int i = 0; i < env->num_agents; ++i) {
-        env->actions[i * 2] = rand() % 5;
-        env->actions[i * 2 + 1] = rand() % 5;
+        float rand_vx = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
+        float rand_vy = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
+        env->actions[i * 2 + 0] = rand_vx * ACTION_SCALE;
+        env->actions[i * 2 + 1] = rand_vy * ACTION_SCALE;
     }
 }
 
