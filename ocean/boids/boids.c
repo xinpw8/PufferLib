@@ -12,10 +12,6 @@
 #define REPORT_INTERVAL_DEMO 1000 // Report interval for the demo
 #define MAX_STEPS_DEMO 10000 // Max steps per episode in the demo
 #define ACTION_SCALE 3.0f   // Corresponds to action space [-3.0, 3.0]
-#define MARGIN_TURN_FACTOR 1.0
-#define COHESION_FACTOR 0.0
-#define SEPARATION_FACTOR 0.0
-#define ALIGNMENT_FACTOR 0.0
 
 void generate_dummy_actions(Boids* env) {
     for (unsigned int i = 0; i < env->num_agents; ++i) {
@@ -30,10 +26,6 @@ void demo() {
     Boids env = {0}; 
     env.num_agents = num_agents_DEMO;
     env.report_interval = REPORT_INTERVAL_DEMO;
-    env.margin_turn_factor = MARGIN_TURN_FACTOR;
-    env.cohesion_factor = COHESION_FACTOR;
-    env.separation_factor = SEPARATION_FACTOR;
-    env.alignment_factor = ALIGNMENT_FACTOR;
     
     size_t obs_size = env.num_agents * env.num_agents * 8; // 8 = (x, y, vx, vy, dx, dy, dvx, dvy)
     size_t act_size = env.num_agents * 2; // the 2 = (dvx, dvy)
