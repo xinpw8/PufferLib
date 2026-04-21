@@ -617,7 +617,7 @@ void spawn_new_cap(DrMario* env) {
         env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2] = env->cap_color_b;
 
         int row = env->cap_row_1 > env->cap_row_2 ? env->cap_row_1 :env->cap_row_2;
-        env->rewards[0]= row * REWARD_HEIGHT;
+        env->rewards[0]+= row * REWARD_HEIGHT;
 
         get_color_collisions(env);
 
