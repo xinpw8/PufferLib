@@ -18,7 +18,7 @@ int main() {
         processLogic = true;
         
         if(IsKeyDown(KEY_LEFT_SHIFT)){ 
-            processLogic = frame % 3 == 0;
+            processLogic = frame % 2 == 0;
 
             if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
                 env.actions[0] = ACTION_LEFT;
