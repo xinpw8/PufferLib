@@ -4,7 +4,7 @@ int main() {
     DrMario env = {0};
     env.n_rows = 16;
     env.n_cols = 8;
-    env.n_init_viruses = 6;
+    env.n_init_viruses = 14;
     env.rng = (unsigned int)time(NULL);
     
     allocate(&env);
@@ -18,7 +18,7 @@ int main() {
         processLogic = true;
         
         if(IsKeyDown(KEY_LEFT_SHIFT)){ 
-            processLogic = frame % 2 == 0;
+            processLogic = frame % 3 == 0;
 
             if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
                 env.actions[0] = ACTION_LEFT;
