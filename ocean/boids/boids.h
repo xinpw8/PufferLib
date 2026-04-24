@@ -263,12 +263,12 @@ void c_step(Boids *env) {
             normal_vy = (normal_vy / n_mag) * VELOCITY_CAP;
         }
         angle_diff = velocity_angle_diff(normal_vx, normal_vy, current_boid->velocity.x, current_boid->velocity.y);
-        printf("%f, %f || %f, %f = %f\n", current_boid->velocity.x, current_boid->velocity.y, normal_vx, normal_vy, angle_diff);
+        // printf("%f, %f || %f, %f = %f\n", current_boid->velocity.x, current_boid->velocity.y, normal_vx, normal_vy, angle_diff);
 
         // Normalization
-        // env->rewards[current_indx] = current_boid_reward / 6.0f;
+        env->rewards[current_indx] = current_boid_reward / 5.0f;
         // env->rewards[current_indx] = current_boid_reward / 205.0f;
-        env->rewards[current_indx] = current_boid_reward / 10.0f;
+        // env->rewards[current_indx] = current_boid_reward / 10.0f;
 
         //log updates
         if (env->tick == env->report_interval) {
@@ -279,9 +279,9 @@ void c_step(Boids *env) {
     }
 
     if (env->tick == env->report_interval) env->tick = 0;
-    printf("===================================================================================\n");
-    printf("===================================================================================\n");
-    printf("===================================================================================\n");
+    // printf("===================================================================================\n");
+    // printf("===================================================================================\n");
+    // printf("===================================================================================\n");
     compute_observations(env);
 }
 
