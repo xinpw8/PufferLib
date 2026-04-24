@@ -79,7 +79,7 @@ static inline void craftax_update_mobs_set_block(
         )) {
         return;
     }
-    state->map[map_level][map_row][map_col] = block;
+    craftax_set_map_block(state, map_level, map_row, map_col, block);
 }
 
 static inline bool craftax_update_mobs_read_mob_map(
@@ -91,7 +91,7 @@ static inline bool craftax_update_mobs_read_mob_map(
     int32_t map_level = craftax_step_jax_index(level, CRAFTAX_NUM_LEVELS);
     int32_t map_row = craftax_step_jax_index(row, CRAFTAX_MAP_SIZE);
     int32_t map_col = craftax_step_jax_index(col, CRAFTAX_MAP_SIZE);
-    return state->mob_map[map_level][map_row][map_col];
+    return (state->mob_bits[map_level][map_row] >> map_col) & 1ULL;
 }
 
 static inline void craftax_update_mobs_set_mob_map(
@@ -121,7 +121,11 @@ static inline void craftax_update_mobs_set_mob_map(
         )) {
         return;
     }
-    state->mob_map[map_level][map_row][map_col] = value;
+    if (value) {
+        state->mob_bits[map_level][map_row] |= (1ULL << map_col);
+    } else {
+        state->mob_bits[map_level][map_row] &= ~(1ULL << map_col);
+    }
 }
 
 static inline void craftax_update_mobs_clear_old_map_entry(
@@ -421,22 +425,18 @@ static inline int32_t craftax_update_mobs_count_mob_projectiles(
     const CraftaxState* state,
     int32_t level
 ) {
-    int32_t count = 0;
-    for (int32_t i = 0; i < CRAFTAX_MAX_MOB_PROJECTILES; i++) {
-        count += (int32_t)state->mob_projectiles.mask[level][i];
-    }
-    return count;
+    const bool* mask = state->mob_projectiles.mask[level];
+    return (int32_t)mask[0] + (int32_t)mask[1] + (int32_t)mask[2];
 }
 
 static inline int32_t craftax_update_mobs_first_empty_mob_projectile(
     const CraftaxState* state,
     int32_t level
 ) {
-    for (int32_t i = 0; i < CRAFTAX_MAX_MOB_PROJECTILES; i++) {
-        if (!state->mob_projectiles.mask[level][i]) {
-            return i;
-        }
-    }
+    const bool* mask = state->mob_projectiles.mask[level];
+    if (!mask[0]) return 0;
+    if (!mask[1]) return 1;
+    if (!mask[2]) return 2;
     return 0;
 }
 
@@ -1094,27 +1094,26 @@ static inline void craftax_update_mobs_native(
     CraftaxThreefryKey unused;
 
     craftax_threefry_split(rng, &rng, &unused);
-    for (int32_t i = 0; i < CRAFTAX_MAX_MELEE_MOBS; i++) {
-        craftax_update_mobs_move_melee(state, &rng, i);
-    }
+    craftax_update_mobs_move_melee(state, &rng, 0);
+    craftax_update_mobs_move_melee(state, &rng, 1);
+    craftax_update_mobs_move_melee(state, &rng, 2);
 
     craftax_threefry_split(rng, &rng, &unused);
-    for (int32_t i = 0; i < CRAFTAX_MAX_PASSIVE_MOBS; i++) {
-        craftax_update_mobs_move_passive(state, &rng, i);
-    }
+    craftax_update_mobs_move_passive(state, &rng, 0);
+    craftax_update_mobs_move_passive(state, &rng, 1);
+    craftax_update_mobs_move_passive(state, &rng, 2);
 
     craftax_threefry_split(rng, &rng, &unused);
-    for (int32_t i = 0; i < CRAFTAX_MAX_RANGED_MOBS; i++) {
-        craftax_update_mobs_move_ranged(state, &rng, i);
-    }
+    craftax_update_mobs_move_ranged(state, &rng, 0);
+    craftax_update_mobs_move_ranged(state, &rng, 1);
 
     craftax_threefry_split(rng, &rng, &unused);
-    for (int32_t i = 0; i < CRAFTAX_MAX_MOB_PROJECTILES; i++) {
-        craftax_update_mobs_move_mob_projectile(state, i);
-    }
+    craftax_update_mobs_move_mob_projectile(state, 0);
+    craftax_update_mobs_move_mob_projectile(state, 1);
+    craftax_update_mobs_move_mob_projectile(state, 2);
 
     craftax_threefry_split(rng, &rng, &unused);
-    for (int32_t i = 0; i < CRAFTAX_MAX_PLAYER_PROJECTILES; i++) {
-        craftax_update_mobs_move_player_projectile(state, i);
-    }
+    craftax_update_mobs_move_player_projectile(state, 0);
+    craftax_update_mobs_move_player_projectile(state, 1);
+    craftax_update_mobs_move_player_projectile(state, 2);
 }

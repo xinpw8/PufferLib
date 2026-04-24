@@ -304,8 +304,13 @@ static inline void craftax_do_action_update_mob_map(
     );
     int32_t read_row = craftax_step_jax_index(row, CRAFTAX_MAP_SIZE);
     int32_t read_col = craftax_step_jax_index(col, CRAFTAX_MAP_SIZE);
-    state->mob_map[level][update_row][update_col] =
-        state->mob_map[level][read_row][read_col] && !did_kill_mob;
+    bool old_value = (state->mob_bits[level][read_row] >> read_col) & 1ULL;
+    bool new_value = old_value && !did_kill_mob;
+    if (new_value) {
+        state->mob_bits[level][update_row] |= (1ULL << update_col);
+    } else {
+        state->mob_bits[level][update_row] &= ~(1ULL << update_col);
+    }
 }
 
 static inline void craftax_do_action_attack_mob(
@@ -486,57 +491,57 @@ static inline void craftax_do_action_native(
                 : (is_block_fire_tree
                     ? CRAFTAX_BLOCK_FIRE_GRASS
                     : CRAFTAX_BLOCK_ICE_GRASS);
-            state->map[level][target_row][target_col] = replacement;
+            craftax_set_map_block(state, level, target_row, target_col, replacement);
             state->inventory.wood += 1;
         }
 
         bool is_mining_stone = target_block == CRAFTAX_BLOCK_STONE
             && state->inventory.pickaxe >= 1;
         if (is_mining_stone) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.stone += 1;
         }
 
         if (target_block == CRAFTAX_BLOCK_FURNACE) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
         }
 
         if (target_block == CRAFTAX_BLOCK_CRAFTING_TABLE) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
         }
 
         bool is_mining_coal = target_block == CRAFTAX_BLOCK_COAL
             && state->inventory.pickaxe >= 1;
         if (is_mining_coal) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.coal += 1;
         }
 
         bool is_mining_iron = target_block == CRAFTAX_BLOCK_IRON
             && state->inventory.pickaxe >= 2;
         if (is_mining_iron) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.iron += 1;
         }
 
         bool is_mining_diamond = target_block == CRAFTAX_BLOCK_DIAMOND
             && state->inventory.pickaxe >= 3;
         if (is_mining_diamond) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.diamond += 1;
         }
 
         bool is_mining_sapphire = target_block == CRAFTAX_BLOCK_SAPPHIRE
             && state->inventory.pickaxe >= 4;
         if (is_mining_sapphire) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.sapphire += 1;
         }
 
         bool is_mining_ruby = target_block == CRAFTAX_BLOCK_RUBY
             && state->inventory.pickaxe >= 4;
         if (is_mining_ruby) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.ruby += 1;
         }
 
@@ -557,7 +562,7 @@ static inline void craftax_do_action_native(
 
         bool is_eating_plant = target_block == CRAFTAX_BLOCK_RIPE_PLANT;
         if (is_eating_plant) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PLANT;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PLANT);
             state->player_food = craftax_step_mini32(
                 craftax_step_get_max_food(state),
                 state->player_food + 4
@@ -574,12 +579,12 @@ static inline void craftax_do_action_native(
         bool is_mining_stalagmite = target_block == CRAFTAX_BLOCK_STALAGMITE
             && state->inventory.pickaxe >= 1;
         if (is_mining_stalagmite) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             state->inventory.stone += 1;
         }
 
         if (is_opening_chest) {
-            state->map[level][target_row][target_col] = CRAFTAX_BLOCK_PATH;
+            craftax_set_map_block(state, level, target_row, target_col, CRAFTAX_BLOCK_PATH);
             craftax_add_items_from_chest_native(
                 state,
                 &state->inventory,
