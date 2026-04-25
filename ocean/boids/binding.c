@@ -1,5 +1,5 @@
 #include "boids.h"
-#define OBS_SIZE 256 // 20 boids * 8 obs per boid
+#define OBS_SIZE 512 // 64 boids * 8 obs per boid
 #define NUM_ATNS 2   // Two discrete actions per boid
 #define ACT_SIZES {5, 5}
 #define OBS_TENSOR_T FloatTensor
