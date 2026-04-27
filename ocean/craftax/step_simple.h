@@ -127,7 +127,7 @@ static inline bool craftax_step_is_in_mob(
     int32_t map_col = craftax_step_jax_index(col, CRAFTAX_MAP_SIZE);
     bool player_here = state->player_position[0] == row
         && state->player_position[1] == col;
-    return state->mob_map[level][map_row][map_col] || player_here;
+    return ((state->mob_bits[level][map_row] >> map_col) & 1ULL) || player_here;
 }
 
 static inline bool craftax_step_valid_land_position(
@@ -201,7 +201,7 @@ static inline void craftax_update_plants_native(CraftaxState* state) {
         int32_t new_block = finished_growing_plants[plant]
             ? CRAFTAX_BLOCK_RIPE_PLANT
             : state->map[0][row][col];
-        state->map[0][row][col] = new_block;
+        craftax_set_map_block(state, 0, row, col, new_block);
     }
 }
 
