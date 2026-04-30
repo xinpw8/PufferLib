@@ -4,6 +4,9 @@
 #include <math.h>
 #include "raylib.h"
 
+#define MAX_OBSTACLES 9
+#define OBS_SIZE (5 + 3 * 9)
+
 #define PLAYER_HEIGHT 48
 #define PLAYER_WIDTH 32
 #define PLAYER_JUMP 10.0f
@@ -17,9 +20,9 @@
 #define BIRD_WIDTH 48
 #define BIRD_Y 44
 
-const int NOOP = 0;
-const int JUMP = 1;
-const int CROUCH = 2;
+#define NOOP 0
+#define JUMP 1
+#define CROUCH 2
 
 typedef struct {
     float perf;
@@ -78,6 +81,7 @@ typedef struct {
     int spawn_rate;
     float gravity;
     int spawn_ticks;
+    int max_obstacles;
     /* Customizable */
     int width;
     int height;
@@ -86,7 +90,6 @@ typedef struct {
     int spawn_rate_min;
     int spawn_rate_max;
     int rate_increment_rate;
-    int max_obstacles;
 } Dinosaur;
 
 Client* make_client(Dinosaur* env){
@@ -102,10 +105,19 @@ Client* make_client(Dinosaur* env){
     return client;
 }
 
+void allocate(Dinosaur* env) {
+	env->observations = (float *)calloc(OBS_SIZE, sizeof(float));
+	env->actions = (float *)calloc(1, sizeof(float));
+	env->rewards = (float *)calloc(1, sizeof(float));
+	env->terminals = (float *)calloc(1, sizeof(float));
+}
+
 void c_init(Dinosaur* env){
+    allocate(env);
     env->gravity = GRAVITY;
     env->spawn_rate = 1;
     env->spawn_ticks = 0;
+    env->max_obstacles = MAX_OBSTACLES;
 
     env->agent = calloc(1, sizeof(Agent));
     env->agent->x = 0.0f + 2.0f * PLAYER_WIDTH;
@@ -113,25 +125,31 @@ void c_init(Dinosaur* env){
     env->agent->jump_strength = PLAYER_JUMP;
     env->agent->width = PLAYER_WIDTH;
     env->agent->height = PLAYER_HEIGHT;
+
+    env->num_agents = 1;
 }
 
 void compute_observations(Dinosaur* env) {
     int obs_idx = 0;
+
+    memset(env->observations, 0, OBS_SIZE * sizeof(float));
+
     env->observations[obs_idx++] = env->agent->y / (pow(env->agent->jump_strength, 2) / (2 * env->gravity));
-    env->observations[obs_idx++] = (env->agent->x + env->agent->x_offset) / env->width;
+    env->observations[obs_idx++] = env->agent->width / (PLAYER_WIDTH * 2.0f);
+    env->observations[obs_idx++] = env->agent->height / (float) PLAYER_HEIGHT;
     env->observations[obs_idx++] = (float) env->speed / 10.0f;
     env->observations[obs_idx++] = env->agent->ticks/100.0f;
 
     for(int o = 0; o < env->max_obstacles; o++){
         if (o < env->num_obstacles) {
             Obstacle* obstacle = &env->obstacles[o];
+            env->observations[obs_idx++] = obstacle->type == CACTUS ? 0.0f : 1.0f;
             env->observations[obs_idx++] = ((obstacle->x - env->agent->x) / env->width);
             env->observations[obs_idx++] = obstacle->y/(env->height / 2.0f);
-            env->observations[obs_idx++] = obstacle->type == CACTUS ? 0.0f : 1.0f;
         } else {
             env->observations[obs_idx++] = -1.0f;
-            env->observations[obs_idx++] = -1.0f;
-            env->observations[obs_idx++] = -1.0f;
+            env->observations[obs_idx++] = 0.0f;
+            env->observations[obs_idx++] = 0.0f;
         }
     }
 }

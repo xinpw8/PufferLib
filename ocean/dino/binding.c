@@ -1,6 +1,6 @@
 #include "dino.h"
 
-#define OBS_SIZE 4 + 3 * 10
+#define OBS_SIZE (5 + 3 * 9)
 #define NUM_ATNS 1
 #define ACT_SIZES {3}
 #define OBS_TENSOR_T FloatTensor
@@ -17,7 +17,6 @@ void my_init(Env* env, Dict* kwargs) {
     env->spawn_rate_min = dict_get(kwargs, "spawn_rate_min")->value;
     env->spawn_rate_max = dict_get(kwargs, "spawn_rate_max")->value;
     env->rate_increment_rate = dict_get(kwargs, "rate_increment_rate")->value;
-    env->max_obstacles = dict_get(kwargs, "max_obstacles")->value;
     c_init(env);
 }
 
