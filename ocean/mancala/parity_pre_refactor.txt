@@ -1,0 +1,21 @@
+PARITY reference — captures the deterministic 10000-step random-P0-vs-random-P1 sequence.
+Used for verifying any future refactor preserves training-time semantics byte-for-byte.
+
+# Captured 2026-04-29 pre c_step refactor (pre-Empty-Capture rule)
+PARITY 10000 steps
+BOARD: 5 0 6 5 5 1 2 5 5 5 4 4 0 1
+LOG: perf=207.000000 score=7.000000 margin=1.124999285 captures=1107.000000 extras=1391.000000 invalid=0.000000 n=440.000000 epret=7.000000 eplen=10000.000000
+RNG: 1215148675
+RAND: 768411804
+
+# Captured 2026-04-30 post c_step refactor + Empty-Capture rule
+PARITY 10000 steps
+BOARD: 1 0 4 2 4 0 7 8 0 11 7 1 0 3
+LOG: perf=242.000000 score=27.000000 margin=9.458339691 captures=1873.000000 extras=1408.000000 invalid=0.000000 n=489.000000 epret=27.000000 eplen=10000.000000
+RNG: 1226588518
+RAND: 768411804
+
+NOTE: BOARD/LOG differ between the two snapshots only because of the rule
+change (capture rule changed). The c_step refactor itself preserved the
+pre-rule-change parity exactly — both pre and post-refactor produced the
+first snapshot byte-for-byte before the Empty-Capture fix landed.
