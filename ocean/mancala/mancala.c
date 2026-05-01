@@ -274,23 +274,6 @@ static int rules_check_external_opponent(void) {
     return ok ? 0 : 1;
 }
 
-// ---------------------------------------------------------------------------
-// ASCII playback of a trained policy
-// ---------------------------------------------------------------------------
-//
-// Board layout printed (P1 on top, P0 on bottom — the agent):
-//
-//          [P1 pits, right→left so opposites line up vertically]
-//   ┌────┬───┬───┬───┬───┬───┬───┬────┐
-//   │P1  │ 5 │ 4 │ 3 │ 2 │ 1 │ 0 │ P0 │
-//   │  S │   │   │   │   │   │   │  S │
-//   │  6 │ 4 │ 4 │ 4 │ 4 │ 4 │ 4 │  0 │
-//   │    │ 4 │ 4 │ 4 │ 4 │ 4 │ 4 │    │
-//   └────┴───┴───┴───┴───┴───┴───┴────┘
-//             [P0 pits, left→right = local indices 0..5]
-//
-// Action choice = argmax of policy logits over P0's six pits.
-
 static const int MANCALA_HIDDEN_SIZE = 128;
 static const int MANCALA_NUM_LAYERS  = 4;
 
@@ -303,364 +286,6 @@ static long file_size_bytes(const char* path) {
     return n;
 }
 
-static void print_board(const CMancala* env, const char* annotation) {
-    printf("\n  %s\n", annotation);
-    printf("  ┌────┬────┬────┬────┬────┬────┬────┬────┐\n");
-    printf("  │ P1 │");
-    // top row = P1 pits indexed 5..0 (right→left so opposites align)
-    for (int i = NUM_PITS - 1; i >= 0; i--)
-        printf(" %2d │", env->board[P1_PITS_START + i]);
-    printf(" P0 │\n");
-    printf("  │ %2d │", env->board[P1_STORE]);
-    for (int i = 0; i < NUM_PITS; i++) printf("    │");
-    printf(" %2d │\n", env->board[P0_STORE]);
-    printf("  │    │");
-    // bottom row = P0 pits indexed 0..5 (left→right, local pit indices)
-    for (int i = 0; i < NUM_PITS; i++)
-        printf(" %2d │", env->board[P0_PITS_START + i]);
-    printf("    │\n");
-    printf("  └────┴────┴────┴────┴────┴────┴────┴────┘\n");
-}
-
-static int interactive_play(const char* weights_path, int num_episodes,
-                            int print_every_step) {
-    long bytes = file_size_bytes(weights_path);
-    if (bytes < 0) {
-        fprintf(stderr, "Could not open weights file: %s\n", weights_path);
-        return 1;
-    }
-    printf("Loading %ld bytes (%ld floats) from %s\n",
-           bytes, bytes / (long)sizeof(float), weights_path);
-    Weights* w = load_weights(weights_path);
-
-    int logit_sizes[1] = {NUM_PITS};
-    PufferNet* net = make_puffernet(w, /*num_agents=*/1, /*input_dim=*/OBS_DIM,
-                                    MANCALA_HIDDEN_SIZE, MANCALA_NUM_LAYERS,
-                                    logit_sizes, /*num_actions=*/1);
-
-    CMancala env = {0};
-    allocate_cmancala(&env);
-    init(&env);
-    env.rng = (unsigned int)time(NULL);
-    c_reset(&env);
-
-    float net_action[1] = {0};
-    int wins = 0, losses = 0, draws = 0;
-    int total_invalid = 0;
-    int total_captures = 0;
-    int total_extra_turns = 0;
-    int total_steps = 0;
-
-    for (int ep = 0; ep < num_episodes; ep++) {
-        c_reset(&env);
-        env.terminals[0] = NOT_DONE;
-        env.rewards[0] = 0.0f;
-        env.log = (Log){0};   // standalone playback owns the log lifetime; wipe per ep
-        printf("\n========== EPISODE %d ==========", ep + 1);
-        if (print_every_step) print_board(&env, "initial");
-        int step = 0;
-        while (env.terminals[0] != DONE) {
-            // Agent forward pass.
-            forward_puffernet(net, env.observations, net_action);
-            int act = (int)net_action[0];
-            // Argmax over policy logits (puffernet's softmax_multidiscrete already
-            // samples — net_action[0] is the sampled discrete action).
-            // Track pre-step state for annotation.
-            int pre_p0[NUM_PITS];
-            for (int i = 0; i < NUM_PITS; i++) pre_p0[i] = env.board[P0_PITS_START + i];
-            int pre_captures = env.ep_captures;
-            int pre_extras   = env.ep_extra_turns;
-            int pre_invalid  = env.ep_invalid;
-            int pre_p0_store = env.board[P0_STORE];
-            int pre_p1_store = env.board[P1_STORE];
-
-            env.actions[0] = (float)act;
-            c_step(&env);
-            step++;
-            total_steps++;
-
-            if (print_every_step) {
-                int captured = env.ep_captures - pre_captures;
-                int got_extra = env.ep_extra_turns - pre_extras;
-                int was_invalid = env.ep_invalid - pre_invalid;
-                int terminal = env.terminals[0] == DONE;
-                // Build the P1 chain string ("P1: pit 2 [ext], pit 1") if any.
-                char p1_chain[256] = "";
-                if (env.p1_last_count > 0) {
-                    int off = snprintf(p1_chain, sizeof(p1_chain), " | P1:");
-                    for (int j = 0; j < env.p1_last_count; j++) {
-                        off += snprintf(p1_chain + off, sizeof(p1_chain) - off,
-                            "%s pit %d%s%s",
-                            j == 0 ? "" : ",",
-                            env.p1_last_pits[j],
-                            env.p1_last_was_capture[j] ? " [CAP]" : "",
-                            env.p1_last_was_extra[j]   ? " [ext]" : "");
-                        if ((size_t)off >= sizeof(p1_chain)) break;
-                    }
-                }
-                char ann[512];
-                if (terminal) {
-                    snprintf(ann, sizeof(ann),
-                        "step %d | P0 pit %d (had %d)%s%s%s%s | GAME OVER (board auto-reset)",
-                        step, act, pre_p0[act],
-                        was_invalid ? " [INVALID → forfeit]" : "",
-                        captured    ? " [CAPTURE]"           : "",
-                        got_extra   ? " [extra turn]"        : "",
-                        p1_chain);
-                } else {
-                    int p0_gain = env.board[P0_STORE] - pre_p0_store;
-                    int p1_gain = env.board[P1_STORE] - pre_p1_store;
-                    snprintf(ann, sizeof(ann),
-                        "step %d | P0 pit %d (had %d)%s%s%s%s | stores P0+%d P1+%d",
-                        step, act, pre_p0[act],
-                        was_invalid ? " [INVALID → forfeit]" : "",
-                        captured    ? " [CAPTURE]"           : "",
-                        got_extra   ? " [extra turn]"        : "",
-                        p1_chain, p0_gain, p1_gain);
-                }
-                print_board(&env, ann);
-            }
-            if (env.terminals[0] == DONE) {
-                // Note: c_reset already auto-fired; stats from add_log are reflected
-                // in env.log but the per-episode counters were just reset. We
-                // consult the logged values via the just-completed episode's reward.
-                float r = env.rewards[0];
-                if      (r > 0.5f) { wins++;   printf("\n  >>> P0 WINS  (reward=+1)\n"); }
-                else if (r < -0.5f){ losses++; printf("\n  >>> P0 LOSES (reward=-1)\n"); }
-                else               { draws++;  printf("\n  >>> DRAW     (reward= 0)\n"); }
-                total_captures   += (int)env.log.captures;
-                total_extra_turns+= (int)env.log.extra_turns;
-                total_invalid    += (int)env.log.invalid_moves;
-                break;
-            }
-            if (step > 500) {  // safety
-                printf("\n  >>> step cap reached, breaking\n");
-                break;
-            }
-        }
-    }
-
-    printf("\n================ SUMMARY ================\n");
-    printf("Episodes:   %d  (W/L/D = %d/%d/%d, win rate = %.3f)\n",
-           num_episodes, wins, losses, draws,
-           (float)wins / (float)num_episodes);
-    printf("Avg steps/ep:    %.2f\n", (float)total_steps / num_episodes);
-    printf("Avg captures/ep: %.2f\n", (float)total_captures / num_episodes);
-    printf("Avg extras/ep:   %.2f\n", (float)total_extra_turns / num_episodes);
-    printf("Avg invalids/ep: %.2f\n", (float)total_invalid / num_episodes);
-
-    // Skip cleanup — process is exiting and puffernet's helpers don't expose
-    // matching free_* functions for every sub-allocation. Leaks at exit are
-    // harmless; manual frees here triggered an asan bad-free.
-    (void)net;
-    (void)w;
-    free_allocated_cmancala(&env);
-    return 0;
-}
-
-// ---------------------------------------------------------------------------
-// Chain-17 demo: hand-coded optimal sequence from [6,5,4,3,2,1] showing 17
-// consecutive extra-turn moves. Proves the env handles the chain end-to-end.
-// ---------------------------------------------------------------------------
-
-static void setup_chain17_board(CMancala* env) {
-    // P0 pits = [6,5,4,3,2,1] = 21 stones (the "send-to-store" pattern).
-    // P1 pits = [4,4,4,4,4,4] = 24 stones. We need 48 total stones in play
-    // (6 pits × 4 stones × 2 sides = 48 — Mancala conservation invariant), so
-    // park the missing 3 in P1's store. This represents a hypothetical
-    // mid-game state where P1 had captured 3 stones earlier. The chain only
-    // ever touches P0's pits + P0's store, so the 17-move sequence is
-    // unaffected by where the "balance" sits on P1's side.
-    for (int i = 0; i < BOARD_SIZE; i++) env->board[i] = 0;
-    env->board[P0_PITS_START + 0] = 6;
-    env->board[P0_PITS_START + 1] = 5;
-    env->board[P0_PITS_START + 2] = 4;
-    env->board[P0_PITS_START + 3] = 3;
-    env->board[P0_PITS_START + 4] = 2;
-    env->board[P0_PITS_START + 5] = 1;
-    for (int i = 0; i < NUM_PITS; i++)
-        env->board[P1_PITS_START + i] = INIT_STONES;  // standard P1 side
-    env->board[P1_STORE] = 3;                          // balance to 48
-    env->terminals[0] = NOT_DONE;
-    env->rewards[0] = 0.0f;
-    env->ep_captures = 0;
-    env->ep_extra_turns = 0;
-    env->ep_invalid = 0;
-    env->p1_last_count = 0;
-    env->log = (Log){0};
-    compute_observation(env);
-}
-
-static int chain17_demo(void) {
-    CMancala env = {0};
-    allocate_cmancala(&env);
-    init(&env);
-    setup_chain17_board(&env);
-
-    static const int seq[] = {5,4,5,3,5,2,5,4,5,1,5,0,5,4,5,3,5};
-    const int seq_len = (int)(sizeof(seq)/sizeof(seq[0]));
-
-    print_board(&env, "initial: hand-crafted [6,5,4,3,2,1] / P1=[4,4,4,4,4,4]");
-
-    int extras = 0;
-    for (int s = 0; s < seq_len; s++) {
-        int move = seq[s];
-        int pre_store = env.board[P0_STORE];
-        int pre_pit   = env.board[P0_PITS_START + move];
-        env.actions[0] = (float)move;
-        c_step(&env);
-
-        // p1_last_count == 0 after c_step iff P0 earned an extra turn
-        // (or game ended) — opponent never moved. We also check terminal.
-        int p0_extra = (env.p1_last_count == 0 && env.terminals[0] != DONE);
-        if (p0_extra) extras++;
-
-        char ann[256];
-        snprintf(ann, sizeof(ann),
-            "move %d/%d | P0 pit %d (had %d) | store %d → %d %s",
-            s + 1, seq_len, move, pre_pit, pre_store, env.board[P0_STORE],
-            p0_extra ? "[extra ✓]"
-            : env.terminals[0] == DONE ? "[GAME OVER — auto-reset]"
-            : "[chain BROKEN — opponent took over]");
-        print_board(&env, ann);
-        if (env.terminals[0] == DONE) break;
-        if (!p0_extra) {
-            printf("\n  Chain broke at move %d — expected extra turn, "
-                   "got opponent move(s).\n", s + 1);
-            break;
-        }
-    }
-
-    printf("\n================ CHAIN-17 DEMO SUMMARY ================\n");
-    printf("Hardcoded sequence length: %d\n", seq_len);
-    printf("Consecutive extras achieved: %d\n", extras);
-    printf("Final P0 store: %d (started at 0)\n", env.board[P0_STORE]);
-    printf("Verdict: %s\n",
-           extras == seq_len ? "PASS — env executes the full 17-move chain"
-                             : "FAIL — env diverged from the planned chain");
-    free_allocated_cmancala(&env);
-    return extras == seq_len ? 0 : 1;
-}
-
-// ---------------------------------------------------------------------------
-// Chain-from-setup playback: load trained weights, set the board to
-// [6,5,4,3,2,1], and let the policy decide. Shows whether the trained policy
-// (which only saw [4,4,4,4,4,4] starts during training) recognises the
-// extra-turn opportunity.
-// ---------------------------------------------------------------------------
-
-static int chain_policy_play(const char* weights_path) {
-    long bytes = file_size_bytes(weights_path);
-    if (bytes < 0) {
-        fprintf(stderr, "Could not open weights file: %s\n", weights_path);
-        return 1;
-    }
-    Weights* w = load_weights(weights_path);
-    int logit_sizes[1] = {NUM_PITS};
-    PufferNet* net = make_puffernet(w, 1, OBS_DIM,
-                                    MANCALA_HIDDEN_SIZE, MANCALA_NUM_LAYERS,
-                                    logit_sizes, 1);
-    CMancala env = {0};
-    allocate_cmancala(&env);
-    init(&env);
-    env.rng = (unsigned int)time(NULL);
-    setup_chain17_board(&env);
-
-    print_board(&env, "initial: hand-crafted [6,5,4,3,2,1] / P1=[4,4,4,4,4,4]"
-                       " (trained policy plays from here)");
-
-    int step = 0;
-    int p0_extras_in_a_row = 0;
-    int max_p0_extras_in_a_row = 0;
-    float net_action[1] = {0};
-    while (env.terminals[0] != DONE) {
-        int pre_store = env.board[P0_STORE];
-        forward_puffernet(net, env.observations, net_action);
-        int act = (int)net_action[0];
-        int pre_pit = env.board[P0_PITS_START + act];
-        env.actions[0] = (float)act;
-        c_step(&env);
-        step++;
-
-        int p0_extra = (env.p1_last_count == 0 && env.terminals[0] != DONE);
-        if (p0_extra) {
-            p0_extras_in_a_row++;
-            if (p0_extras_in_a_row > max_p0_extras_in_a_row)
-                max_p0_extras_in_a_row = p0_extras_in_a_row;
-        } else {
-            p0_extras_in_a_row = 0;
-        }
-
-        char ann[256];
-        if (env.terminals[0] == DONE) {
-            snprintf(ann, sizeof(ann),
-                "step %d | P0 pit %d (had %d) | store %d → %d | GAME OVER",
-                step, act, pre_pit, pre_store, env.board[P0_STORE]);
-        } else if (p0_extra) {
-            snprintf(ann, sizeof(ann),
-                "step %d | P0 pit %d (had %d) | store %d → %d [extra ✓]",
-                step, act, pre_pit, pre_store, env.board[P0_STORE]);
-        } else {
-            snprintf(ann, sizeof(ann),
-                "step %d | P0 pit %d (had %d) | store %d → %d | P1 took %d turn(s)",
-                step, act, pre_pit, pre_store, env.board[P0_STORE],
-                env.p1_last_count);
-        }
-        print_board(&env, ann);
-        if (step > 200) { printf("\n  step cap reached\n"); break; }
-    }
-
-    printf("\n================ POLICY DEMO SUMMARY ================\n");
-    printf("Total steps: %d\n", step);
-    printf("Best consecutive P0 extras observed: %d (vs theoretical max 17)\n",
-           max_p0_extras_in_a_row);
-    printf("Final reward: %+.0f (%s)\n", env.rewards[0],
-           env.rewards[0] > 0.5f ? "WIN" :
-           env.rewards[0] < -0.5f ? "LOSS" : "DRAW");
-    (void)net; (void)w;
-    free_allocated_cmancala(&env);
-    return 0;
-}
-
-// Render a single board snapshot to a PNG. Lets you preview the new puffer
-// look without an X display — the screenshot is saved relative to cwd.
-//
-// Usage:  ./mancala render <out.png> [preset]
-// Presets:
-//   initial   standard 4-stones-per-pit start (default)
-//   chain17   the constructed [6,5,4,3,2,1] / P1=[4,4,4,4,4,4] / P1_store=3 board
-//   midgame   a representative mid-game position
-static int render_screenshot(const char* out_png, const char* preset) {
-    CMancala env = {0};
-    allocate_cmancala(&env);
-    init(&env);
-    c_reset(&env);
-
-    if (preset && strcmp(preset, "chain17") == 0) {
-        setup_chain17_board(&env);
-    } else if (preset && strcmp(preset, "midgame") == 0) {
-        // A made-up but plausible mid-game state.
-        int p0[] = {2, 0, 5, 1, 3, 0}, p1[] = {4, 1, 0, 6, 2, 0};
-        for (int i = 0; i < NUM_PITS; i++) {
-            env.board[P0_PITS_START + i] = p0[i];
-            env.board[P1_PITS_START + i] = p1[i];
-        }
-        env.board[P0_STORE] = 8;
-        env.board[P1_STORE] = 7;
-        env.tick = 23;
-    }
-
-    // Render twice — raylib swaps buffers in EndDrawing(), TakeScreenshot
-    // reads the front buffer, so the first frame would be blank.
-    c_render(&env);
-    c_render(&env);
-    TakeScreenshot(out_png);
-
-    c_close(&env);
-    free_allocated_cmancala(&env);
-    printf("Wrote %s\n", out_png);
-    return 0;
-}
 
 // ---------------------------------------------------------------------------
 // Human vs trained policy with animated raylib graphics.
@@ -671,8 +296,7 @@ static int render_screenshot(const char* out_png, const char* preset) {
 // human-play loop alternates P0 (forward_puffernet) and P1 (input) and
 // animates each move stone-by-stone before settling to the post-state.
 //
-// Layout (flipped from c_render — human sits in front of the screen and gets
-// the bottom row; the AI faces them on top):
+// Layout (human sits at the bottom, AI faces from the top):
 //
 //   ┌───┬───────────────────────────────┬───┐
 //   │ P0│  [ 5 ][ 4 ][ 3 ][ 2 ][ 1 ][ 0 ]│   │   ← P0 (AI) pits, drawn right→left
@@ -680,10 +304,9 @@ static int render_screenshot(const char* out_png, const char* preset) {
 //   │   │  [ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ]│ S │   ← P1 (human) pits, left→right
 //   └───┴───────────────────────────────┴───┘
 //
-// Number keys 1-6 map LEFT→RIGHT directly to the bottom row's local indices
-// 0..5 (key 1 = local 0, key 6 = local 5). Labels under the bottom row read
-// 1-6 in screen order. The internal env (sowing direction, store assignment,
-// capture rule) is unchanged — this is purely a presentation flip.
+// Number keys 1-6 map left→right to the bottom row's local indices 0..5
+// (key 1 = local 0, key 6 = local 5). Labels under the bottom row read 1-6
+// in screen order.
 // ---------------------------------------------------------------------------
 
 #include <math.h>
@@ -731,10 +354,8 @@ typedef struct {
     int finished_game;     // 0 or 1 (whether this move ended the game)
 } Anim;
 
-// Pit-center geometry for the human-mode layout: P0 (AI) on top drawn
-// right→left, P1 (human) on bottom drawn left→right. P0_STORE on the left,
-// P1_STORE on the right. (c_render uses the opposite layout; this function
-// is human-mode-only.)
+// Pit-center geometry: P0 (AI) on top drawn right→left, P1 (human) on
+// bottom drawn left→right. P0_STORE on the left, P1_STORE on the right.
 static void pit_world_xy(const Client* cli, int board_idx, int* out_x, int* out_y) {
     int store_h = cli->height - 2 * MARGIN_Y;
     int pit_area_w = cli->width - 2 * MARGIN_X - 2 * STORE_W - 24;
@@ -1262,70 +883,15 @@ static int human_play(const char* weights_path) {
     return 0;
 }
 
-// ---------------------------------------------------------------------------
-// Parity capture: run a deterministic sequence of P0 actions (random valid
-// from a fixed seed) through c_step and dump the final board, log values,
-// and per-env RNG. Used to verify that the upcoming c_step refactor preserves
-// training-time behavior byte-for-byte under external_opponent=0.
-//
-// Usage: ./mancala parity   (always uses fixed seeds; output is reproducible)
-// ---------------------------------------------------------------------------
-
-static int parity_capture(void) {
-    CMancala env = {0};
-    allocate_cmancala(&env);
-    init(&env);
-    env.rng = 12345u;          // per-env scripted-opponent RNG
-    c_reset(&env);
-    srand(67890);              // global RNG for random_p0_action selection
-
-    const int N = 10000;       // long enough to span many episodes; cheap
-    for (int i = 0; i < N; i++) {
-        env.actions[0] = (float)random_p0_action(&env);
-        c_step(&env);
-    }
-
-    printf("PARITY %d steps\n", N);
-    printf("BOARD:");
-    for (int i = 0; i < BOARD_SIZE; i++) printf(" %d", env.board[i]);
-    printf("\n");
-    printf("LOG: perf=%.6f score=%.6f margin=%.9f captures=%.6f extras=%.6f "
-           "invalid=%.6f n=%.6f epret=%.6f eplen=%.6f\n",
-           env.log.perf, env.log.score, env.log.margin, env.log.captures,
-           env.log.extra_turns, env.log.invalid_moves, env.log.n,
-           env.log.episode_return, env.log.episode_length);
-    printf("RNG: %u\n", env.rng);
-    printf("RAND: %d\n", rand());  // global RNG state proxy
-
-    free_allocated_cmancala(&env);
-    return 0;
-}
-
 // Subcommand dispatch. Usage:
-//   ./mancala                                    rules_check + perf
-//   ./mancala p                                  perf only
-//   ./mancala parity                             deterministic refactor check
-//   ./mancala play     <weights.bin> [N] [silent|verbose]
-//   ./mancala chain                              hand-coded 17-extra demo
-//   ./mancala chainplay <weights.bin>
-//   ./mancala render   <out.png> [initial|chain17|midgame]
-//   ./mancala human    <weights.bin>             interactive raylib
+//   ./mancala                       rules_check + perf
+//   ./mancala p                     perf only (random actions, headless)
+//   ./mancala human <weights.bin>   interactive raylib play vs trained policy
 int main(int argc, char** argv) {
     srand(42);
     const char* cmd = (argc > 1) ? argv[1] : "";
-    if (strcmp(cmd, "parity") == 0)   return parity_capture();
-    if (strcmp(cmd, "chain") == 0)    return chain17_demo();
-    if (strcmp(cmd, "p") == 0)        { performance_test(); return 0; }
-    if (argc >= 3 && strcmp(cmd, "human")     == 0) return human_play(argv[2]);
-    if (argc >= 3 && strcmp(cmd, "chainplay") == 0) return chain_policy_play(argv[2]);
-    if (argc >= 3 && strcmp(cmd, "render")    == 0)
-        return render_screenshot(argv[2], argc > 3 ? argv[3] : "initial");
-    if (argc >= 3 && strcmp(cmd, "play")      == 0) {
-        int n = atoi(argv[3] ? argv[3] : "1");
-        if (n <= 0) n = 1;
-        int verbose = (argc > 4 && argv[4][0] == 'v') ? 1 : 0;
-        return interactive_play(argv[2], n, verbose);
-    }
+    if (strcmp(cmd, "p") == 0) { performance_test(); return 0; }
+    if (argc >= 3 && strcmp(cmd, "human") == 0) return human_play(argv[2]);
     int rc = rules_check();
     if (rc != 0) return rc;
     rc = rules_check_external_opponent();

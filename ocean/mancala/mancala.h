@@ -484,6 +484,9 @@ static void draw_store(Font f_big, Font f_small, int x, int y, int w, int h,
     draw_text_centered(f_big, buf, x + w / 2, y + h / 2, 44, PUFF_WHITE);
 }
 
+// Used by the framework's vec_render hook; the standalone --fast build
+// renders via human_render in mancala.c instead.
+__attribute__((unused))
 static void c_render(CMancala* env) {
     if (env->client == NULL) env->client = make_client();
     if (WindowShouldClose() || IsKeyDown(KEY_ESCAPE)) {
