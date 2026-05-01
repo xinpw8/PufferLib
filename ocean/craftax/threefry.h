@@ -1,8 +1,6 @@
-// JAX-compatible threefry2x32 helpers for Craftax.
-//
-// The local JAX version uses the partitionable threefry split path by default:
-// split(key, n)[i] is threefry2x32(key, counter=(0, i)). 32-bit random bits
-// are bits0 ^ bits1 from the same counter schedule.
+// Fast RNG helpers for Craftax.
+// Replaces JAX Threefry with SplitMix64-based hashing for ~20-50x speedup.
+// NOT cryptographically secure and NOT JAX-compatible.
 
 #pragma once
 
@@ -14,13 +12,39 @@ typedef struct CraftaxThreefryKey {
     uint32_t word[2];
 } CraftaxThreefryKey;
 
+static inline uint64_t craftax_key_to_u64(CraftaxThreefryKey key) {
+    return ((uint64_t)key.word[1] << 32) | key.word[0];
+}
+
+static inline CraftaxThreefryKey craftax_u64_to_key(uint64_t x) {
+    CraftaxThreefryKey key = {{(uint32_t)x, (uint32_t)(x >> 32)}};
+    return key;
+}
+
 static inline uint32_t craftax_rotl32(uint32_t x, uint32_t k) {
     return (uint32_t)((x << k) | (x >> (32u - k)));
 }
 
 static inline CraftaxThreefryKey craftax_prng_key(uint32_t seed) {
-    CraftaxThreefryKey key = {{0u, seed}};
+    CraftaxThreefryKey key = {{seed, seed ^ 0x9E3779B9u}};
     return key;
+}
+
+// MurmurHash3 64-bit finalizer — fast and good mixing
+static inline uint64_t craftax_mix64(uint64_t x) {
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    x *= 0xc4ceb9fe1a85ec53ULL;
+    x ^= x >> 33;
+    return x;
+}
+
+// Core hash: mixes key state with counter, returns 64 bits of pseudo-randomness
+static inline uint64_t craftax_fast_hash64(CraftaxThreefryKey key, uint64_t counter) {
+    uint64_t x = craftax_key_to_u64(key);
+    x ^= counter;
+    return craftax_mix64(x);
 }
 
 static inline void craftax_threefry2x32(
@@ -29,32 +53,9 @@ static inline void craftax_threefry2x32(
     uint32_t count1,
     uint32_t out[2]
 ) {
-    static const uint32_t rotations[2][4] = {
-        {13u, 15u, 26u, 6u},
-        {17u, 29u, 16u, 24u},
-    };
-
-    uint32_t ks[3] = {
-        key.word[0],
-        key.word[1],
-        key.word[0] ^ key.word[1] ^ 0x1BD11BDAu,
-    };
-    uint32_t x0 = count0 + ks[0];
-    uint32_t x1 = count1 + ks[1];
-
-    for (uint32_t block = 0; block < 5u; block++) {
-        const uint32_t* rs = rotations[block & 1u];
-        for (int i = 0; i < 4; i++) {
-            x0 += x1;
-            x1 = craftax_rotl32(x1, rs[i]);
-            x1 ^= x0;
-        }
-        x0 += ks[(block + 1u) % 3u];
-        x1 += ks[(block + 2u) % 3u] + block + 1u;
-    }
-
-    out[0] = x0;
-    out[1] = x1;
+    uint64_t h = craftax_fast_hash64(key, ((uint64_t)count1 << 32) | count0);
+    out[0] = (uint32_t)h;
+    out[1] = (uint32_t)(h >> 32);
 }
 
 static inline CraftaxThreefryKey craftax_threefry_counter_key(
@@ -62,19 +63,20 @@ static inline CraftaxThreefryKey craftax_threefry_counter_key(
     uint32_t count0,
     uint32_t count1
 ) {
-    uint32_t out[2];
-    craftax_threefry2x32(key, count0, count1, out);
-    CraftaxThreefryKey result = {{out[0], out[1]}};
-    return result;
+    return craftax_u64_to_key(craftax_fast_hash64(key, ((uint64_t)count1 << 32) | count0));
 }
 
+// Fast split: sequential PCG-style advancement
 static inline void craftax_threefry_split(
     CraftaxThreefryKey key,
     CraftaxThreefryKey* left,
     CraftaxThreefryKey* right
 ) {
-    *left = craftax_threefry_counter_key(key, 0u, 0u);
-    *right = craftax_threefry_counter_key(key, 0u, 1u);
+    uint64_t state = craftax_key_to_u64(key);
+    uint64_t s1 = state * 6364136223846793005ULL + 1;
+    uint64_t s2 = s1 * 6364136223846793005ULL + 1;
+    *left = craftax_u64_to_key(s1);
+    *right = craftax_u64_to_key(s2);
 }
 
 static inline void craftax_threefry_split_n(
@@ -82,13 +84,10 @@ static inline void craftax_threefry_split_n(
     CraftaxThreefryKey* out,
     size_t count
 ) {
+    uint64_t state = craftax_key_to_u64(key);
     for (size_t i = 0; i < count; i++) {
-        uint64_t counter = (uint64_t)i;
-        out[i] = craftax_threefry_counter_key(
-            key,
-            (uint32_t)(counter >> 32),
-            (uint32_t)counter
-        );
+        state = state * 6364136223846793005ULL + 1;
+        out[i] = craftax_u64_to_key(state);
     }
 }
 
@@ -103,14 +102,8 @@ static inline uint32_t craftax_threefry_uniform_u32_at(
     CraftaxThreefryKey key,
     uint64_t index
 ) {
-    uint32_t out[2];
-    craftax_threefry2x32(
-        key,
-        (uint32_t)(index >> 32),
-        (uint32_t)index,
-        out
-    );
-    return out[0] ^ out[1];
+    uint64_t h = craftax_fast_hash64(key, index);
+    return (uint32_t)h ^ (uint32_t)(h >> 32);
 }
 
 static inline uint32_t craftax_threefry_uniform_u32(CraftaxThreefryKey key) {

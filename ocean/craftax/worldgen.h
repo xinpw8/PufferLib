@@ -23,7 +23,99 @@
 #define CRAFTAX_WG_NUM_MOB_CLASSES 5
 #define CRAFTAX_WG_NUM_MOB_TYPES 8
 #define CRAFTAX_WG_INVENTORY_OBS_SIZE 51
-#define CRAFTAX_WG_OBS_SIZE 8268
+
+// Compact binary observation encoding.
+// Each cell uses binary channels instead of one-hot:
+//   6 bits: block type (0-63, covers 37 block types)
+//   3 bits: item type+1 (0=no item, 1-5=item types)
+//   4 bits per mob class: mob type+1 (0=no mob, 1-8=types) x 5 classes
+//   1 bit : visibility
+// Total: 30 binary channels per cell.
+#define CRAFTAX_WG_BINARY_BLOCK_BITS 6
+#define CRAFTAX_WG_BINARY_ITEM_BITS 3
+#define CRAFTAX_WG_BINARY_MOB_BITS 4
+#define CRAFTAX_WG_BINARY_VISIBILITY_BITS 1
+
+#define CRAFTAX_WG_BINARY_CHANNELS_PER_CELL ( \
+    CRAFTAX_WG_BINARY_BLOCK_BITS + \
+    CRAFTAX_WG_BINARY_ITEM_BITS + \
+    CRAFTAX_WG_NUM_MOB_CLASSES * CRAFTAX_WG_BINARY_MOB_BITS + \
+    CRAFTAX_WG_BINARY_VISIBILITY_BITS \
+)
+
+#define CRAFTAX_WG_BINARY_MAP_OBS_SIZE ( \
+    CRAFTAX_WG_OBS_ROWS * CRAFTAX_WG_OBS_COLS * CRAFTAX_WG_BINARY_CHANNELS_PER_CELL \
+)
+#define CRAFTAX_WG_OBS_WINDOW_CELLS (CRAFTAX_WG_OBS_ROWS * CRAFTAX_WG_OBS_COLS)
+#define CRAFTAX_WG_CELL_TEMPLATE_BYTES ( \
+    CRAFTAX_WG_BINARY_CHANNELS_PER_CELL * sizeof(float) \
+)
+#define CRAFTAX_WG_FULL_OBS_SIZE ( \
+    CRAFTAX_WG_BINARY_MAP_OBS_SIZE + CRAFTAX_WG_INVENTORY_OBS_SIZE \
+)
+
+// Moonshot symbolic observation. Each visible cell stores compact float IDs:
+// block, item+1, visible, and one mob type+1 slot for each mob class.
+// The 51 scalar channels remain exact floats for oracle-expandability.
+#define CRAFTAX_WG_PACKED_CHANNELS_PER_CELL (3 + CRAFTAX_WG_NUM_MOB_CLASSES)
+#define CRAFTAX_WG_PACKED_MAP_OBS_SIZE ( \
+    CRAFTAX_WG_OBS_ROWS * CRAFTAX_WG_OBS_COLS * CRAFTAX_WG_PACKED_CHANNELS_PER_CELL \
+)
+#define CRAFTAX_WG_PACKED_OBS_SIZE ( \
+    CRAFTAX_WG_PACKED_MAP_OBS_SIZE + CRAFTAX_WG_INVENTORY_OBS_SIZE \
+)
+
+// Lookup tables for fast binary bit writing (eliminates loops/branches)
+static const float CRAFTAX_WG_BLOCK_LUT[64][6] = {
+    {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f},{1.0f,0.0f,0.0f,0.0f,0.0f,0.0f},{0.0f,1.0f,0.0f,0.0f,0.0f,0.0f},{1.0f,1.0f,0.0f,0.0f,0.0f,0.0f},
+    {0.0f,0.0f,1.0f,0.0f,0.0f,0.0f},{1.0f,0.0f,1.0f,0.0f,0.0f,0.0f},{0.0f,1.0f,1.0f,0.0f,0.0f,0.0f},{1.0f,1.0f,1.0f,0.0f,0.0f,0.0f},
+    {0.0f,0.0f,0.0f,1.0f,0.0f,0.0f},{1.0f,0.0f,0.0f,1.0f,0.0f,0.0f},{0.0f,1.0f,0.0f,1.0f,0.0f,0.0f},{1.0f,1.0f,0.0f,1.0f,0.0f,0.0f},
+    {0.0f,0.0f,1.0f,1.0f,0.0f,0.0f},{1.0f,0.0f,1.0f,1.0f,0.0f,0.0f},{0.0f,1.0f,1.0f,1.0f,0.0f,0.0f},{1.0f,1.0f,1.0f,1.0f,0.0f,0.0f},
+    {0.0f,0.0f,0.0f,0.0f,1.0f,0.0f},{1.0f,0.0f,0.0f,0.0f,1.0f,0.0f},{0.0f,1.0f,0.0f,0.0f,1.0f,0.0f},{1.0f,1.0f,0.0f,0.0f,1.0f,0.0f},
+    {0.0f,0.0f,1.0f,0.0f,1.0f,0.0f},{1.0f,0.0f,1.0f,0.0f,1.0f,0.0f},{0.0f,1.0f,1.0f,0.0f,1.0f,0.0f},{1.0f,1.0f,1.0f,0.0f,1.0f,0.0f},
+    {0.0f,0.0f,0.0f,1.0f,1.0f,0.0f},{1.0f,0.0f,0.0f,1.0f,1.0f,0.0f},{0.0f,1.0f,0.0f,1.0f,1.0f,0.0f},{1.0f,1.0f,0.0f,1.0f,1.0f,0.0f},
+    {0.0f,0.0f,1.0f,1.0f,1.0f,0.0f},{1.0f,0.0f,1.0f,1.0f,1.0f,0.0f},{0.0f,1.0f,1.0f,1.0f,1.0f,0.0f},{1.0f,1.0f,1.0f,1.0f,1.0f,0.0f},
+    {0.0f,0.0f,0.0f,0.0f,0.0f,1.0f},{1.0f,0.0f,0.0f,0.0f,0.0f,1.0f},{0.0f,1.0f,0.0f,0.0f,0.0f,1.0f},{1.0f,1.0f,0.0f,0.0f,0.0f,1.0f},
+    {0.0f,0.0f,1.0f,0.0f,0.0f,1.0f},{1.0f,0.0f,1.0f,0.0f,0.0f,1.0f},{0.0f,1.0f,1.0f,0.0f,0.0f,1.0f},{1.0f,1.0f,1.0f,0.0f,0.0f,1.0f},
+    {0.0f,0.0f,0.0f,1.0f,0.0f,1.0f},{1.0f,0.0f,0.0f,1.0f,0.0f,1.0f},{0.0f,1.0f,0.0f,1.0f,0.0f,1.0f},{1.0f,1.0f,0.0f,1.0f,0.0f,1.0f},
+    {0.0f,0.0f,1.0f,1.0f,0.0f,1.0f},{1.0f,0.0f,1.0f,1.0f,0.0f,1.0f},{0.0f,1.0f,1.0f,1.0f,0.0f,1.0f},{1.0f,1.0f,1.0f,1.0f,0.0f,1.0f},
+    {0.0f,0.0f,0.0f,0.0f,1.0f,1.0f},{1.0f,0.0f,0.0f,0.0f,1.0f,1.0f},{0.0f,1.0f,0.0f,0.0f,1.0f,1.0f},{1.0f,1.0f,0.0f,0.0f,1.0f,1.0f},
+    {0.0f,0.0f,1.0f,0.0f,1.0f,1.0f},{1.0f,0.0f,1.0f,0.0f,1.0f,1.0f},{0.0f,1.0f,1.0f,0.0f,1.0f,1.0f},{1.0f,1.0f,1.0f,0.0f,1.0f,1.0f},
+    {0.0f,0.0f,0.0f,1.0f,1.0f,1.0f},{1.0f,0.0f,0.0f,1.0f,1.0f,1.0f},{0.0f,1.0f,0.0f,1.0f,1.0f,1.0f},{1.0f,1.0f,0.0f,1.0f,1.0f,1.0f},
+    {0.0f,0.0f,1.0f,1.0f,1.0f,1.0f},{1.0f,0.0f,1.0f,1.0f,1.0f,1.0f},{0.0f,1.0f,1.0f,1.0f,1.0f,1.0f},{1.0f,1.0f,1.0f,1.0f,1.0f,1.0f},
+};
+static const float CRAFTAX_WG_ITEM_LUT[8][3] = {
+    {0.0f,0.0f,0.0f},{1.0f,0.0f,0.0f},{0.0f,1.0f,0.0f},{1.0f,1.0f,0.0f},
+    {0.0f,0.0f,1.0f},{1.0f,0.0f,1.0f},{0.0f,1.0f,1.0f},{1.0f,1.0f,1.0f},
+};
+static const float CRAFTAX_WG_MOB_LUT[16][4] = {
+    {0.0f,0.0f,0.0f,0.0f},{1.0f,0.0f,0.0f,0.0f},{0.0f,1.0f,0.0f,0.0f},{1.0f,1.0f,0.0f,0.0f},
+    {0.0f,0.0f,1.0f,0.0f},{1.0f,0.0f,1.0f,0.0f},{0.0f,1.0f,1.0f,0.0f},{1.0f,1.0f,1.0f,0.0f},
+    {0.0f,0.0f,0.0f,1.0f},{1.0f,0.0f,0.0f,1.0f},{0.0f,1.0f,0.0f,1.0f},{1.0f,1.0f,0.0f,1.0f},
+    {0.0f,0.0f,1.0f,1.0f},{1.0f,0.0f,1.0f,1.0f},{0.0f,1.0f,1.0f,1.0f},{1.0f,1.0f,1.0f,1.0f},
+};
+static float CRAFTAX_WG_VISIBLE_CELL_TEMPLATE_LUT[64][8][CRAFTAX_WG_BINARY_CHANNELS_PER_CELL];
+static float CRAFTAX_WG_EMPTY_CELL_TEMPLATE[CRAFTAX_WG_BINARY_CHANNELS_PER_CELL];
+static bool CRAFTAX_WG_CELL_TEMPLATE_READY = false;
+
+static inline void craftax_wg_init_cell_templates(void) {
+    if (CRAFTAX_WG_CELL_TEMPLATE_READY) {
+        return;
+    }
+
+    for (int block = 0; block < 64; block++) {
+        for (int item = 0; item < 8; item++) {
+            float* cell = CRAFTAX_WG_VISIBLE_CELL_TEMPLATE_LUT[block][item];
+            memcpy(cell, CRAFTAX_WG_BLOCK_LUT[block], 6 * sizeof(float));
+            memcpy(cell + CRAFTAX_WG_BINARY_BLOCK_BITS, CRAFTAX_WG_ITEM_LUT[item], 3 * sizeof(float));
+            cell[CRAFTAX_WG_BINARY_CHANNELS_PER_CELL - 1] = 1.0f;
+        }
+    }
+
+    CRAFTAX_WG_CELL_TEMPLATE_READY = true;
+}
+
+#define CRAFTAX_WG_OBS_SIZE CRAFTAX_WG_PACKED_OBS_SIZE
 #define CRAFTAX_WG_NUM_ACHIEVEMENTS 67
 #define CRAFTAX_WG_MAX_MELEE_MOBS 3
 #define CRAFTAX_WG_MAX_PASSIVE_MOBS 3
@@ -86,9 +178,9 @@
 #define CRAFTAX_WG_PI 3.14159265358979323846f
 
 typedef struct CraftaxOverworldFloor {
-    int32_t map[CRAFTAX_OVERWORLD_SIZE][CRAFTAX_OVERWORLD_SIZE];
-    int32_t item_map[CRAFTAX_OVERWORLD_SIZE][CRAFTAX_OVERWORLD_SIZE];
-    float light_map[CRAFTAX_OVERWORLD_SIZE][CRAFTAX_OVERWORLD_SIZE];
+    uint8_t map[CRAFTAX_OVERWORLD_SIZE][CRAFTAX_OVERWORLD_SIZE];
+    uint8_t item_map[CRAFTAX_OVERWORLD_SIZE][CRAFTAX_OVERWORLD_SIZE];
+    uint8_t light_map[CRAFTAX_OVERWORLD_SIZE][CRAFTAX_OVERWORLD_SIZE];
     int32_t ladder_down[2];
     int32_t ladder_up[2];
 } CraftaxOverworldFloor;
@@ -129,15 +221,7 @@ typedef struct CraftaxWGMobs2 {
 } CraftaxWGMobs2;
 
 typedef struct CraftaxWorldState {
-    int32_t map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
-    int32_t item_map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
-    bool mob_map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
-    float light_map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
-    int32_t down_ladders[CRAFTAX_WG_NUM_LEVELS][2];
-    int32_t up_ladders[CRAFTAX_WG_NUM_LEVELS][2];
-    bool chests_opened[CRAFTAX_WG_NUM_LEVELS];
-    int32_t monsters_killed[CRAFTAX_WG_NUM_LEVELS];
-
+    // === Hot data (accessed every step) ===
     int32_t player_position[2];
     int32_t player_level;
     int32_t player_direction;
@@ -191,6 +275,22 @@ typedef struct CraftaxWorldState {
     uint32_t state_rng[2];
     int32_t timestep;
     int32_t fractal_noise_angles[4];
+
+    // === Medium-hot bitmaps ===
+    uint64_t mob_bits[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE];
+    uint64_t spawn_all_bits[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE];
+    uint64_t spawn_grave_bits[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE];
+    uint64_t spawn_water_bits[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE];
+
+    // === Cold data (large maps) ===
+    uint8_t map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
+    uint8_t item_map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
+    uint8_t light_map[CRAFTAX_WG_NUM_LEVELS][CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE];
+
+    int32_t down_ladders[CRAFTAX_WG_NUM_LEVELS][2];
+    int32_t up_ladders[CRAFTAX_WG_NUM_LEVELS][2];
+    bool chests_opened[CRAFTAX_WG_NUM_LEVELS];
+    int32_t monsters_killed[CRAFTAX_WG_NUM_LEVELS];
 } CraftaxWorldState;
 
 typedef struct CraftaxSmoothGenConfig {
@@ -460,20 +560,15 @@ static inline uint32_t craftax_randint_u32_at(
     uint32_t minval,
     uint32_t maxval
 ) {
-    CraftaxThreefryKey k1;
-    CraftaxThreefryKey k2;
-    craftax_threefry_split(key, &k1, &k2);
-
-    uint32_t higher_bits = craftax_threefry_uniform_u32_at(k1, index);
-    uint32_t lower_bits = craftax_threefry_uniform_u32_at(k2, index);
     uint32_t span = maxval > minval ? maxval - minval : 1u;
-    uint32_t multiplier = 65536u % span;
-    multiplier = (uint32_t)(((uint64_t)multiplier * (uint64_t)multiplier) % (uint64_t)span);
-    uint32_t random_offset = (uint32_t)(
-        (((uint64_t)(higher_bits % span) * (uint64_t)multiplier) + (uint64_t)(lower_bits % span))
-        % (uint64_t)span
-    );
-    return minval + random_offset;
+    // Fast path for power-of-2 spans: just mask
+    if ((span & (span - 1)) == 0) {
+        uint32_t bits = craftax_threefry_uniform_u32_at(key, index);
+        return minval + (bits & (span - 1));
+    }
+    // General path: use top-32 of hash, scale to span
+    uint64_t h = craftax_fast_hash64(key, index);
+    return minval + (uint32_t)(((h >> 32) * (uint64_t)span) >> 32);
 }
 
 static inline int32_t craftax_randint_i32_at(
@@ -529,7 +624,7 @@ static inline float craftax_torch_light_value(int row, int col, float default_li
 }
 
 static inline void craftax_apply_ladder_light(
-    float light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     const int32_t ladder_up[2],
     float default_light
 ) {
@@ -546,13 +641,13 @@ static inline void craftax_apply_ladder_light(
     for (int row = 0; row < 9; row++) {
         for (int col = 0; col < 9; col++) {
             light_map[start_row + row][start_col + col] =
-                craftax_torch_light_value(row, col, default_light);
+                (uint8_t)(craftax_torch_light_value(row, col, default_light) * 255.0f);
         }
     }
 }
 
 static inline void craftax_add_lava_light(
-    float light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     const bool lava_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     bool lava_emits_light
 ) {
@@ -582,7 +677,8 @@ static inline void craftax_add_lava_light(
                     add += lava_map[src_row][src_col] ? kernel[kr][kc] : 0.0f;
                 }
             }
-            light_map[row][col] = craftax_wg_clampf(light_map[row][col] + add, 0.0f, 1.0f);
+            float new_light = craftax_wg_clampf(light_map[row][col] / 255.0f + add, 0.0f, 1.0f);
+            light_map[row][col] = (uint8_t)(new_light * 255.0f);
         }
     }
 }
@@ -622,9 +718,9 @@ static inline int craftax_dungeon_config_index_for_floor(int floor_idx) {
 static inline void craftax_generate_smoothworld_config(
     CraftaxThreefryKey rng,
     int config_idx,
-    int32_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    int32_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    float light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     int32_t ladder_down[2],
     int32_t ladder_up[2]
 ) {
@@ -714,9 +810,9 @@ static inline void craftax_generate_smoothworld_config(
                 block = config->tree;
             }
 
-            map[row][col] = block;
+            map[row][col] = (uint8_t)block;
             item_map[row][col] = CRAFTAX_WG_ITEM_NONE;
-            light_map[row][col] = config->default_light;
+            light_map[row][col] = (uint8_t)(config->default_light * 255.0f);
         }
     }
 
@@ -731,7 +827,7 @@ static inline void craftax_generate_smoothworld_config(
                 bool is_ore = map[row][col] == config->ore_requirement_blocks[ore_index]
                     && craftax_threefry_uniform_f32_at(ore_key, idx) < config->ore_chances[ore_index];
                 if (is_ore) {
-                    map[row][col] = config->ores[ore_index];
+                    map[row][col] = (uint8_t)config->ores[ore_index];
                 }
             }
         }
@@ -742,7 +838,7 @@ static inline void craftax_generate_smoothworld_config(
             size_t idx = craftax_wg_index(row, col);
             lava_map[row][col] = mountain[idx] > 0.85f && tree_noise[idx] > 0.7f;
             if (lava_map[row][col]) {
-                map[row][col] = config->lava;
+                map[row][col] = (uint8_t)config->lava;
             }
         }
     }
@@ -755,9 +851,9 @@ static inline void craftax_generate_smoothworld_config(
         }
     }
     int diamond_index = craftax_choice_bool_flat(subkey, valid_diamond, (int)cells);
-    map[diamond_index / size][diamond_index % size] = CRAFTAX_WG_BLOCK_STONE;
+    map[diamond_index / size][diamond_index % size] = (uint8_t)CRAFTAX_WG_BLOCK_STONE;
 
-    map[player_row][player_col] = config->player_spawn;
+    map[player_row][player_col] = (uint8_t)config->player_spawn;
 
     bool valid_ladder[CRAFTAX_WG_MAP_CELLS];
     for (int row = 0; row < size; row++) {
@@ -790,17 +886,17 @@ static inline void craftax_generate_smoothworld_config(
 static inline void craftax_generate_smoothworld_floor(
     CraftaxThreefryKey seed_key,
     int floor_idx,
-    int32_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    int32_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    float light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     int32_t ladder_down[2],
     int32_t ladder_up[2]
 ) {
     int config_idx = craftax_smooth_config_index_for_floor(floor_idx);
     if (config_idx < 0) {
-        memset(map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(int32_t));
-        memset(item_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(int32_t));
-        memset(light_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(float));
+        memset(map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(uint8_t));
+        memset(item_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(uint8_t));
+        memset(light_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(uint8_t));
         ladder_down[0] = 0;
         ladder_down[1] = 0;
         ladder_up[0] = 0;
@@ -821,9 +917,9 @@ static inline void craftax_generate_smoothworld_floor(
 static inline void craftax_generate_dungeon_config(
     CraftaxThreefryKey rng,
     int config_idx,
-    int32_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    int32_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    float light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     int32_t ladder_down[2],
     int32_t ladder_up[2]
 ) {
@@ -835,8 +931,8 @@ static inline void craftax_generate_dungeon_config(
     const int max_room_size = 10;
     const int padded_size = CRAFTAX_WG_MAP_SIZE + 2 * max_room_size;
 
-    int32_t padded_map[68][68];
-    int32_t padded_item_map[68][68];
+    uint8_t padded_map[68][68];
+    uint8_t padded_item_map[68][68];
     bool room_occupancy_chunks[9];
     int32_t room_sizes[8][2];
     int32_t room_positions[8][2];
@@ -1005,7 +1101,7 @@ static inline void craftax_generate_dungeon_config(
             } else {
                 map[row][col] = path_map;
             }
-            light_map[row][col] = 1.0f;
+            light_map[row][col] = 255;
         }
     }
 
@@ -1034,17 +1130,17 @@ static inline void craftax_generate_dungeon_config(
 static inline void craftax_generate_dungeon_floor(
     CraftaxThreefryKey seed_key,
     int floor_idx,
-    int32_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    int32_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
-    float light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t item_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
+    uint8_t light_map[CRAFTAX_WG_MAP_SIZE][CRAFTAX_WG_MAP_SIZE],
     int32_t ladder_down[2],
     int32_t ladder_up[2]
 ) {
     int config_idx = craftax_dungeon_config_index_for_floor(floor_idx);
     if (config_idx < 0) {
-        memset(map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(int32_t));
-        memset(item_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(int32_t));
-        memset(light_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(float));
+        memset(map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(uint8_t));
+        memset(item_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(uint8_t));
+        memset(light_map, 0, CRAFTAX_WG_MAP_CELLS * sizeof(uint8_t));
         ladder_down[0] = 0;
         ladder_down[1] = 0;
         ladder_up[0] = 0;
@@ -1310,8 +1406,7 @@ static inline void craftax_encode_mobs3_observation(
             && world_row < CRAFTAX_WG_MAP_SIZE
             && world_col >= 0
             && world_col < CRAFTAX_WG_MAP_SIZE;
-        float light = in_bounds ? state->light_map[level][world_row][world_col] : 0.0f;
-        bool visible = light > 0.05f;
+        bool visible = in_bounds && state->light_map[level][world_row][world_col] > 12;
         int obs_base = (scatter_row * CRAFTAX_WG_OBS_COLS + scatter_col) * channels;
         int channel = mob_channels_offset
             + mob_class_index * CRAFTAX_WG_NUM_MOB_TYPES
@@ -1365,8 +1460,7 @@ static inline void craftax_encode_mobs2_observation(
             && world_row < CRAFTAX_WG_MAP_SIZE
             && world_col >= 0
             && world_col < CRAFTAX_WG_MAP_SIZE;
-        float light = in_bounds ? state->light_map[level][world_row][world_col] : 0.0f;
-        bool visible = light > 0.05f;
+        bool visible = in_bounds && state->light_map[level][world_row][world_col] > 12;
         int obs_base = (scatter_row * CRAFTAX_WG_OBS_COLS + scatter_col) * channels;
         int channel = mob_channels_offset
             + mob_class_index * CRAFTAX_WG_NUM_MOB_TYPES
@@ -1376,95 +1470,328 @@ static inline void craftax_encode_mobs2_observation(
     }
 }
 
-static inline void craftax_encode_reset_observation(
+static inline void craftax_write_binary_bits(
+    float* obs,
+    int base,
+    int value,
+    int num_bits
+) {
+    if (num_bits == 6) {
+        memcpy(obs + base, CRAFTAX_WG_BLOCK_LUT[value], 6 * sizeof(float));
+    } else if (num_bits == 3) {
+        memcpy(obs + base, CRAFTAX_WG_ITEM_LUT[value], 3 * sizeof(float));
+    } else if (num_bits == 4) {
+        memcpy(obs + base, CRAFTAX_WG_MOB_LUT[value], 4 * sizeof(float));
+    } else {
+        for (int i = 0; i < num_bits; i++) {
+            obs[base + i] = (value & (1 << i)) ? 1.0f : 0.0f;
+        }
+    }
+}
+
+static inline void craftax_encode_mobs3_binary(
+    const CraftaxWorldState* state,
+    const CraftaxWGMobs3* mobs,
+    int mob_class_index,
+    int channels_per_cell,
+    int mob_bits_offset,
+    float* obs
+) {
+    int level = craftax_wg_jax_index(state->player_level, CRAFTAX_WG_NUM_LEVELS);
+    for (int i = 0; i < 3; i++) {
+        int type_id = mobs->type_id[level][i];
+        if (type_id < 0 || type_id >= CRAFTAX_WG_NUM_MOB_TYPES
+            || !mobs->mask[level][i]) {
+            continue;
+        }
+
+        int local_row = mobs->position[level][i][0]
+            - state->player_position[0]
+            + CRAFTAX_WG_OBS_ROWS / 2;
+        int local_col = mobs->position[level][i][1]
+            - state->player_position[1]
+            + CRAFTAX_WG_OBS_COLS / 2;
+        if (local_row < 0 || local_row >= CRAFTAX_WG_OBS_ROWS
+            || local_col < 0 || local_col >= CRAFTAX_WG_OBS_COLS) {
+            continue;
+        }
+
+        int world_row = mobs->position[level][i][0];
+        int world_col = mobs->position[level][i][1];
+        if (world_row < 0 || world_row >= CRAFTAX_WG_MAP_SIZE
+            || world_col < 0 || world_col >= CRAFTAX_WG_MAP_SIZE
+            || state->light_map[level][world_row][world_col] <= 12) {
+            continue;
+        }
+
+        int obs_base = (local_row * CRAFTAX_WG_OBS_COLS + local_col)
+            * channels_per_cell;
+        int class_offset = mob_bits_offset
+            + mob_class_index * CRAFTAX_WG_BINARY_MOB_BITS;
+        memcpy(obs + obs_base + class_offset,
+               CRAFTAX_WG_MOB_LUT[type_id + 1],
+               CRAFTAX_WG_BINARY_MOB_BITS * sizeof(float));
+    }
+}
+
+static inline void craftax_encode_mobs2_binary(
+    const CraftaxWorldState* state,
+    const CraftaxWGMobs2* mobs,
+    int mob_class_index,
+    int channels_per_cell,
+    int mob_bits_offset,
+    float* obs
+) {
+    int level = craftax_wg_jax_index(state->player_level, CRAFTAX_WG_NUM_LEVELS);
+    for (int i = 0; i < 2; i++) {
+        int type_id = mobs->type_id[level][i];
+        if (type_id < 0 || type_id >= CRAFTAX_WG_NUM_MOB_TYPES
+            || !mobs->mask[level][i]) {
+            continue;
+        }
+
+        int local_row = mobs->position[level][i][0]
+            - state->player_position[0]
+            + CRAFTAX_WG_OBS_ROWS / 2;
+        int local_col = mobs->position[level][i][1]
+            - state->player_position[1]
+            + CRAFTAX_WG_OBS_COLS / 2;
+        if (local_row < 0 || local_row >= CRAFTAX_WG_OBS_ROWS
+            || local_col < 0 || local_col >= CRAFTAX_WG_OBS_COLS) {
+            continue;
+        }
+
+        int world_row = mobs->position[level][i][0];
+        int world_col = mobs->position[level][i][1];
+        if (world_row < 0 || world_row >= CRAFTAX_WG_MAP_SIZE
+            || world_col < 0 || world_col >= CRAFTAX_WG_MAP_SIZE
+            || state->light_map[level][world_row][world_col] <= 12) {
+            continue;
+        }
+
+        int obs_base = (local_row * CRAFTAX_WG_OBS_COLS + local_col)
+            * channels_per_cell;
+        int class_offset = mob_bits_offset
+            + mob_class_index * CRAFTAX_WG_BINARY_MOB_BITS;
+        memcpy(obs + obs_base + class_offset,
+               CRAFTAX_WG_MOB_LUT[type_id + 1],
+               CRAFTAX_WG_BINARY_MOB_BITS * sizeof(float));
+    }
+}
+
+static inline void craftax_encode_map_base_observation(
     const CraftaxWorldState* state,
     float* obs
 ) {
-    memset(obs, 0, CRAFTAX_WG_OBS_SIZE * sizeof(float));
+    const int channels = CRAFTAX_WG_BINARY_CHANNELS_PER_CELL;
+    const int top = state->player_position[0] - CRAFTAX_WG_OBS_ROWS / 2;
+    const int left = state->player_position[1] - CRAFTAX_WG_OBS_COLS / 2;
+    const int level = state->player_level;
+    const float* empty_cell = CRAFTAX_WG_EMPTY_CELL_TEMPLATE;
 
-    const int channels = CRAFTAX_WG_NUM_BLOCK_TYPES
-        + CRAFTAX_WG_NUM_ITEM_TYPES
-        + CRAFTAX_WG_NUM_MOB_CLASSES * CRAFTAX_WG_NUM_MOB_TYPES
-        + 1;
-    const int item_channels_offset = CRAFTAX_WG_NUM_BLOCK_TYPES;
-    const int mob_channels_offset = CRAFTAX_WG_NUM_BLOCK_TYPES + CRAFTAX_WG_NUM_ITEM_TYPES;
-    const int light_channel_offset = mob_channels_offset
-        + CRAFTAX_WG_NUM_MOB_CLASSES * CRAFTAX_WG_NUM_MOB_TYPES;
-    const int obs_map_size = CRAFTAX_WG_OBS_ROWS * CRAFTAX_WG_OBS_COLS * channels;
+    for (int row = 0; row < CRAFTAX_WG_OBS_ROWS; row++) {
+        int world_row = top + row;
+        bool row_in_bounds = world_row >= 0 && world_row < CRAFTAX_WG_MAP_SIZE;
+        for (int col = 0; col < CRAFTAX_WG_OBS_COLS; col++) {
+            int world_col = left + col;
+            int obs_base = (row * CRAFTAX_WG_OBS_COLS + col) * channels;
+            const float* cell = empty_cell;
+
+            if (row_in_bounds && world_col >= 0 && world_col < CRAFTAX_WG_MAP_SIZE
+                && state->light_map[level][world_row][world_col] > 12) {
+                uint8_t block = state->map[level][world_row][world_col];
+                uint8_t item = state->item_map[level][world_row][world_col];
+                cell = CRAFTAX_WG_VISIBLE_CELL_TEMPLATE_LUT[block][item + 1];
+            }
+
+            memcpy(obs + obs_base, cell, CRAFTAX_WG_CELL_TEMPLATE_BYTES);
+        }
+    }
+}
+
+static inline void craftax_encode_packed_map_base_observation(
+    const CraftaxWorldState* state,
+    float* obs
+) {
+    const int channels = CRAFTAX_WG_PACKED_CHANNELS_PER_CELL;
     const int top = state->player_position[0] - CRAFTAX_WG_OBS_ROWS / 2;
     const int left = state->player_position[1] - CRAFTAX_WG_OBS_COLS / 2;
     const int level = state->player_level;
 
+    memset(obs, 0, CRAFTAX_WG_PACKED_MAP_OBS_SIZE * sizeof(float));
     for (int row = 0; row < CRAFTAX_WG_OBS_ROWS; row++) {
+        int world_row = top + row;
+        bool row_in_bounds = world_row >= 0 && world_row < CRAFTAX_WG_MAP_SIZE;
         for (int col = 0; col < CRAFTAX_WG_OBS_COLS; col++) {
-            int world_row = top + row;
             int world_col = left + col;
             int obs_base = (row * CRAFTAX_WG_OBS_COLS + col) * channels;
-            bool in_bounds = world_row >= 0
-                && world_row < CRAFTAX_WG_MAP_SIZE
-                && world_col >= 0
-                && world_col < CRAFTAX_WG_MAP_SIZE;
-            float light = in_bounds ? state->light_map[level][world_row][world_col] : 0.0f;
-            bool visible = light > 0.05f;
-
-            if (visible) {
-                int block = state->map[level][world_row][world_col];
-                if (block >= 0 && block < CRAFTAX_WG_NUM_BLOCK_TYPES) {
-                    obs[obs_base + block] = 1.0f;
-                }
-
-                int item = state->item_map[level][world_row][world_col];
-                if (item >= 0 && item < CRAFTAX_WG_NUM_ITEM_TYPES) {
-                    obs[obs_base + item_channels_offset + item] = 1.0f;
-                }
+            if (row_in_bounds && world_col >= 0 && world_col < CRAFTAX_WG_MAP_SIZE
+                && state->light_map[level][world_row][world_col] > 12) {
+                obs[obs_base + 0] = (float)state->map[level][world_row][world_col];
+                obs[obs_base + 1] = (float)state->item_map[level][world_row][world_col] + 1.0f;
+                obs[obs_base + 2] = 1.0f;
             }
-
-            obs[obs_base + light_channel_offset] = visible ? 1.0f : 0.0f;
         }
     }
+}
 
-    craftax_encode_mobs3_observation(
+static inline void craftax_clear_mob_channels_observation(float* obs) {
+    const int channels = CRAFTAX_WG_BINARY_CHANNELS_PER_CELL;
+    const int mob_bits_offset = CRAFTAX_WG_BINARY_BLOCK_BITS + CRAFTAX_WG_BINARY_ITEM_BITS;
+    const size_t mob_channel_bytes =
+        CRAFTAX_WG_NUM_MOB_CLASSES * CRAFTAX_WG_BINARY_MOB_BITS * sizeof(float);
+
+    for (int cell = 0; cell < CRAFTAX_WG_OBS_WINDOW_CELLS; cell++) {
+        memset(obs + cell * channels + mob_bits_offset, 0, mob_channel_bytes);
+    }
+}
+
+static inline void craftax_encode_mobs3_packed(
+    const CraftaxWorldState* state,
+    const CraftaxWGMobs3* mobs,
+    int mob_class_index,
+    float* obs
+) {
+    const int level = craftax_wg_jax_index(state->player_level, CRAFTAX_WG_NUM_LEVELS);
+    const int mob_slot_offset = 3 + mob_class_index;
+    for (int i = 0; i < 3; i++) {
+        int type_id = mobs->type_id[level][i];
+        if (type_id < 0 || type_id >= CRAFTAX_WG_NUM_MOB_TYPES
+            || !mobs->mask[level][i]) {
+            continue;
+        }
+
+        int local_row = mobs->position[level][i][0]
+            - state->player_position[0]
+            + CRAFTAX_WG_OBS_ROWS / 2;
+        int local_col = mobs->position[level][i][1]
+            - state->player_position[1]
+            + CRAFTAX_WG_OBS_COLS / 2;
+        if (local_row < 0 || local_row >= CRAFTAX_WG_OBS_ROWS
+            || local_col < 0 || local_col >= CRAFTAX_WG_OBS_COLS) {
+            continue;
+        }
+
+        int world_row = mobs->position[level][i][0];
+        int world_col = mobs->position[level][i][1];
+        if (world_row < 0 || world_row >= CRAFTAX_WG_MAP_SIZE
+            || world_col < 0 || world_col >= CRAFTAX_WG_MAP_SIZE
+            || state->light_map[level][world_row][world_col] <= 12) {
+            continue;
+        }
+
+        int obs_base = (local_row * CRAFTAX_WG_OBS_COLS + local_col)
+            * CRAFTAX_WG_PACKED_CHANNELS_PER_CELL;
+        obs[obs_base + mob_slot_offset] = (float)(type_id + 1);
+    }
+}
+
+static inline void craftax_encode_mobs2_packed(
+    const CraftaxWorldState* state,
+    const CraftaxWGMobs2* mobs,
+    int mob_class_index,
+    float* obs
+) {
+    const int level = craftax_wg_jax_index(state->player_level, CRAFTAX_WG_NUM_LEVELS);
+    const int mob_slot_offset = 3 + mob_class_index;
+    for (int i = 0; i < 2; i++) {
+        int type_id = mobs->type_id[level][i];
+        if (type_id < 0 || type_id >= CRAFTAX_WG_NUM_MOB_TYPES
+            || !mobs->mask[level][i]) {
+            continue;
+        }
+
+        int local_row = mobs->position[level][i][0]
+            - state->player_position[0]
+            + CRAFTAX_WG_OBS_ROWS / 2;
+        int local_col = mobs->position[level][i][1]
+            - state->player_position[1]
+            + CRAFTAX_WG_OBS_COLS / 2;
+        if (local_row < 0 || local_row >= CRAFTAX_WG_OBS_ROWS
+            || local_col < 0 || local_col >= CRAFTAX_WG_OBS_COLS) {
+            continue;
+        }
+
+        int world_row = mobs->position[level][i][0];
+        int world_col = mobs->position[level][i][1];
+        if (world_row < 0 || world_row >= CRAFTAX_WG_MAP_SIZE
+            || world_col < 0 || world_col >= CRAFTAX_WG_MAP_SIZE
+            || state->light_map[level][world_row][world_col] <= 12) {
+            continue;
+        }
+
+        int obs_base = (local_row * CRAFTAX_WG_OBS_COLS + local_col)
+            * CRAFTAX_WG_PACKED_CHANNELS_PER_CELL;
+        obs[obs_base + mob_slot_offset] = (float)(type_id + 1);
+    }
+}
+
+static inline void craftax_encode_packed_mobs_observation(
+    const CraftaxWorldState* state,
+    float* obs
+) {
+    craftax_encode_mobs3_packed(state, &state->melee_mobs, 0, obs);
+    craftax_encode_mobs3_packed(state, &state->passive_mobs, 1, obs);
+    craftax_encode_mobs2_packed(state, &state->ranged_mobs, 2, obs);
+    craftax_encode_mobs3_packed(state, &state->mob_projectiles, 3, obs);
+    craftax_encode_mobs3_packed(state, &state->player_projectiles, 4, obs);
+}
+
+static inline void craftax_encode_mobs_observation(
+    const CraftaxWorldState* state,
+    float* obs
+) {
+    const int channels = CRAFTAX_WG_BINARY_CHANNELS_PER_CELL;
+    const int mob_bits_offset = CRAFTAX_WG_BINARY_BLOCK_BITS + CRAFTAX_WG_BINARY_ITEM_BITS;
+
+    craftax_encode_mobs3_binary(
         state,
         &state->melee_mobs,
         0,
         channels,
-        mob_channels_offset,
+        mob_bits_offset,
         obs
     );
-    craftax_encode_mobs3_observation(
+    craftax_encode_mobs3_binary(
         state,
         &state->passive_mobs,
         1,
         channels,
-        mob_channels_offset,
+        mob_bits_offset,
         obs
     );
-    craftax_encode_mobs2_observation(
+    craftax_encode_mobs2_binary(
         state,
         &state->ranged_mobs,
         2,
         channels,
-        mob_channels_offset,
+        mob_bits_offset,
         obs
     );
-    craftax_encode_mobs3_observation(
+    craftax_encode_mobs3_binary(
         state,
         &state->mob_projectiles,
         3,
         channels,
-        mob_channels_offset,
+        mob_bits_offset,
         obs
     );
-    craftax_encode_mobs3_observation(
+    craftax_encode_mobs3_binary(
         state,
         &state->player_projectiles,
         4,
         channels,
-        mob_channels_offset,
+        mob_bits_offset,
         obs
     );
+}
 
-    int index = obs_map_size;
+static inline void craftax_encode_scalar_observation_tail_at(
+    const CraftaxWorldState* state,
+    float* obs,
+    int index
+) {
+    const int level = state->player_level;
     obs[index++] = sqrtf((float)state->inventory.wood) / 10.0f;
     obs[index++] = sqrtf((float)state->inventory.stone) / 10.0f;
     obs[index++] = sqrtf((float)state->inventory.coal) / 10.0f;
@@ -1516,4 +1843,20 @@ static inline void craftax_encode_reset_observation(
     obs[index++] = (float)state->player_level / 10.0f;
     obs[index++] = state->monsters_killed[level] >= CRAFTAX_WG_MONSTERS_KILLED_TO_CLEAR_LEVEL ? 1.0f : 0.0f;
     obs[index++] = craftax_wg_is_boss_vulnerable(state) ? 1.0f : 0.0f;
+}
+
+static inline void craftax_encode_scalar_observation_tail(
+    const CraftaxWorldState* state,
+    float* obs
+) {
+    craftax_encode_scalar_observation_tail_at(state, obs, CRAFTAX_WG_BINARY_MAP_OBS_SIZE);
+}
+
+static inline void craftax_encode_reset_observation(
+    const CraftaxWorldState* state,
+    float* obs
+) {
+    craftax_encode_packed_map_base_observation(state, obs);
+    craftax_encode_packed_mobs_observation(state, obs);
+    craftax_encode_scalar_observation_tail_at(state, obs, CRAFTAX_WG_PACKED_MAP_OBS_SIZE);
 }

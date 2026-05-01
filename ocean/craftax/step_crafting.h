@@ -286,10 +286,10 @@ static inline void craftax_crafting_add_torch_light(
             if (map_col < 0 || map_col >= CRAFTAX_MAP_SIZE) {
                 continue;
             }
-            float light = state->light_map[level][map_row][map_col]
+            float light = state->light_map[level][map_row][map_col] / 255.0f
                 + craftax_crafting_torch_light(dr + 4, dc + 4);
             state->light_map[level][map_row][map_col] =
-                craftax_step_minf32(craftax_step_maxf32(light, 0.0f), 1.0f);
+                (uint8_t)(craftax_step_minf32(craftax_step_maxf32(light, 0.0f), 1.0f) * 255.0f);
         }
     }
 }
@@ -353,7 +353,7 @@ static inline void craftax_place_block_native(
         && !is_placement_on_solid_block_or_item
         && inventory->wood >= 2;
     if (is_placing_crafting_table) {
-        state->map[level][row][col] = CRAFTAX_BLOCK_CRAFTING_TABLE;
+        craftax_set_map_block(state, level, row, col, CRAFTAX_BLOCK_CRAFTING_TABLE);
     }
     inventory->wood -= 2 * (int32_t)is_placing_crafting_table;
     state->achievements[CRAFTAX_ACH_PLACE_TABLE] =
@@ -365,7 +365,7 @@ static inline void craftax_place_block_native(
         && !is_placement_on_solid_block_or_item
         && inventory->stone > 0;
     if (is_placing_furnace) {
-        state->map[level][row][col] = CRAFTAX_BLOCK_FURNACE;
+        craftax_set_map_block(state, level, row, col, CRAFTAX_BLOCK_FURNACE);
     }
     inventory->stone -= 1 * (int32_t)is_placing_furnace;
     state->achievements[CRAFTAX_ACH_PLACE_FURNACE] =
@@ -380,7 +380,7 @@ static inline void craftax_place_block_native(
         && is_placing_on_valid_stone_block
         && inventory->stone > 0;
     if (is_placing_stone) {
-        state->map[level][row][col] = CRAFTAX_BLOCK_STONE;
+        craftax_set_map_block(state, level, row, col, CRAFTAX_BLOCK_STONE);
     }
     inventory->stone -= 1 * (int32_t)is_placing_stone;
     state->achievements[CRAFTAX_ACH_PLACE_STONE] =
@@ -410,7 +410,7 @@ static inline void craftax_place_block_native(
         && state->item_map[level][row][col] == CRAFTAX_ITEM_NONE;
     if (is_placing_sapling) {
         int32_t position[2] = {row, col};
-        state->map[level][row][col] = CRAFTAX_BLOCK_PLANT;
+        craftax_set_map_block(state, level, row, col, CRAFTAX_BLOCK_PLANT);
         craftax_add_new_growing_plant_native(
             state,
             position,

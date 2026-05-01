@@ -109,8 +109,10 @@ def main() -> None:
         tiles.append(load_tile(f))
 
     # manual overrides to match upstream renderer
-    tiles[1] = np.full((TILE, TILE, 4), 128, dtype=np.uint8); tiles[1][..., 3] = 255  # out of bounds
-    tiles[18] = np.zeros((TILE, TILE, 4), dtype=np.uint8); tiles[18][..., 3] = 255    # darkness
+    tiles[1] = np.full((TILE, TILE, 4), 128, dtype=np.uint8)
+    tiles[1][..., 3] = 255  # out of bounds
+    tiles[18] = np.zeros((TILE, TILE, 4), dtype=np.uint8)
+    tiles[18][..., 3] = 255  # darkness
 
     for f in PLAYER_FILES:
         tiles.append(load_tile(f))
