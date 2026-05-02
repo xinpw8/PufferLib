@@ -16,8 +16,8 @@
 #define PROTECTED_RANGE 60
 #define WIDTH 1080
 #define HEIGHT 720
-#define BOID_WIDTH 32
-#define BOID_HEIGHT 32
+#define BOID_WIDTH 32.0f
+#define BOID_HEIGHT 32.0f
 #define BOID_TEXTURE_PATH "./resources/shared/puffers_128.png"
 #define MAX_DIST 2000
 #define EPS 1e-8f // avoids div by zero in angle calc
@@ -46,7 +46,7 @@ typedef struct {
     // - The first 8 values are for the boid itself
     // - All the other 8 values are for the other boids
     float* observations;
-    float* actions; // size (num_agents, 2->(dvx, dvy)) 
+    float* actions; // size (num_agents, 2->(dvx, dvy))
     float* rewards; // size (num_agents) with per-boid rewards
     float* terminals;
     Boid* boids;
@@ -171,8 +171,8 @@ void c_step(Boids *env) {
             current_boid->velocity.x = flclip(current_boid->velocity.x + (mouse_x - current_boid->x), -VELOCITY_CAP, VELOCITY_CAP);
             current_boid->velocity.y = flclip(current_boid->velocity.y + (mouse_y - current_boid->y), -VELOCITY_CAP, VELOCITY_CAP);
         } else {
-            current_boid->velocity.x = flclip(current_boid->velocity.x + (env->actions[current_indx*2] - 2.0f), -VELOCITY_CAP, VELOCITY_CAP);
-            current_boid->velocity.y = flclip(current_boid->velocity.y + (env->actions[current_indx*2 + 1] - 2.0f), -VELOCITY_CAP, VELOCITY_CAP);
+            current_boid->velocity.x = flclip(current_boid->velocity.x + (env->actions[current_indx*2] - 1.0f), -VELOCITY_CAP, VELOCITY_CAP);
+            current_boid->velocity.y = flclip(current_boid->velocity.y + (env->actions[current_indx*2 + 1] - 1.0f), -VELOCITY_CAP, VELOCITY_CAP);
         }
         current_boid->x = flclip(current_boid->x + current_boid->velocity.x, 0, WIDTH  - BOID_WIDTH);
         current_boid->y = flclip(current_boid->y + current_boid->velocity.y, 0, HEIGHT - BOID_HEIGHT);
@@ -266,9 +266,9 @@ void c_step(Boids *env) {
         // printf("%f, %f || %f, %f = %f\n", current_boid->velocity.x, current_boid->velocity.y, normal_vx, normal_vy, angle_diff);
 
         // Normalization
-        env->rewards[current_indx] = current_boid_reward / 5.0f;
+        // env->rewards[current_indx] = current_boid_reward / 5.0f;
         // env->rewards[current_indx] = current_boid_reward / 205.0f;
-        // env->rewards[current_indx] = current_boid_reward / 10.0f;
+        env->rewards[current_indx] = current_boid_reward / 50.0f;
 
         //log updates
         if (env->tick == env->report_interval) {
@@ -307,26 +307,26 @@ void c_close(Boids* env) {
 
 Client* make_client(Boids* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
-    
+
     client->width = WIDTH;
     client->height = HEIGHT;
-    
+
     InitWindow(WIDTH, HEIGHT, "PufferLib Boids");
     SetTargetFPS(60);
-    
+
     if (!IsWindowReady()) {
         TraceLog(LOG_ERROR, "Window failed to initialize\n");
         free(client);
         return NULL;
     }
-    
+
     client->boid_texture = LoadTexture(BOID_TEXTURE_PATH);
     if (client->boid_texture.id == 0) {
         TraceLog(LOG_ERROR, "Failed to load texture: %s", BOID_TEXTURE_PATH);
         c_close_client(client);
         return NULL;
     }
-    
+
     return client;
 }
 
@@ -338,7 +338,7 @@ void c_render(Boids* env) {
             return;
         }
     }
-    
+
     if (!WindowShouldClose() && IsWindowReady()) {
         if (IsKeyDown(KEY_ESCAPE)) {
             exit(0);
@@ -351,10 +351,10 @@ void c_render(Boids* env) {
             DrawTexturePro(
                 env->client->boid_texture,
                 (Rectangle){
-                    (env->boids[boid_indx].velocity.x > 0) ? 0 : 128,
-                    0,
-                    128,
-                    128,
+                    (env->boids[boid_indx].velocity.x > 0) ? 0.0f : 128.0f,
+                    0.0f,
+                    128.0f,
+                    128.0f,
                 },
                 (Rectangle){
                     env->boids[boid_indx].x,
@@ -362,7 +362,7 @@ void c_render(Boids* env) {
                     BOID_WIDTH,
                     BOID_HEIGHT
                 },
-                (Vector2){0, 0},
+                (Vector2){0.0f, 0.0f},
                 0,
                 WHITE
             );
