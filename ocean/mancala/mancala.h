@@ -1,18 +1,6 @@
-// Mancala (Kalah variant) — single-agent, turn-based, scripted opponent.
-//
-// Layout:                Index:  0  1  2  3  4  5   6   7  8  9 10 11 12  13
-//                                ────P0 pits──────  P0  ────P1 pits──────  P1
-//                                                  store                   store
-// Sowing direction: counter-clockwise = increasing index, modulo 14, skipping
-// the OPPONENT's store. Capture rule: "Empty Capture" variant — if the last
-// stone lands in the player's OWN previously-empty pit, that stone always
-// moves to the player's store, AND any stones in the opposite pit are taken
-// too. (Strictly-standard Kalah only captures when the opposite is non-empty;
-// the Empty Capture variant always at least claims the just-sown stone.)
-// Game ends when one side empties; the other side sweeps remaining stones
-// into its store. Winner = larger store.
-//
-// Agent always plays as P0; P1 is an internal random-valid opponent.
+// Mancala (Kalah, Empty Capture variant). Single-agent: P0 is the policy,
+// P1 is a scripted random-valid opponent (or an external driver when
+// external_opponent=1). See _design.md for rule and refactor notes.
 
 #include <stdlib.h>
 #include <string.h>
@@ -36,78 +24,42 @@ static const unsigned char DONE = 1;
 static const unsigned char NOT_DONE = 0;
 
 typedef struct Log {
-    float perf;             // 1 if last episode was a P0 win, else 0 (averaged → win rate)
-    float score;            // signed terminal reward (+1/0/-1)
-    float margin;           // (P0_store - P1_store) / TOTAL_STONES at end
-    float captures;         // # captures by P0 in episode
-    float extra_turns;      // # extra turns earned by P0 in episode
-    float invalid_moves;    // # illegal-pit attempts by P0 in episode
+    float perf;             // P0 win rate (1 on win, averaged across episodes)
+    float score;
+    float margin;           // (P0_store - P1_store) / TOTAL_STONES
+    float captures;
+    float extra_turns;
+    float invalid_moves;
     float episode_return;
     float episode_length;
-    float n;                // count — MUST be the last field (pufferlib aggregation convention)
+    float n;                // count — MUST be last (pufferlib aggregation)
 } Log;
 
 typedef struct Client Client;
 typedef struct CMancala CMancala;
 static void close_client(Client* client);  // forward — defined with the renderer
 struct CMancala {
-    // Pufferlib required fields (order matches connect4.h / breakout.h)
+    // pufferlib required fields
     float* observations;
-    float* actions;          // single discrete action: pit index 0..5
+    float* actions;
     float* rewards;
     float* terminals;
     int num_agents;
     Log log;
     Client* client;
 
-    // Per-env RNG (seeded by my_vec_init in vecenv.h; thread-safe via rand_r)
-    unsigned int rng;
+    unsigned int rng;        // per-env RNG, seeded by my_vec_init
 
-    // Game state
     int board[BOARD_SIZE];
     int tick;
+    int current_player;      // 0 = P0 next, 1 = P1 next; reset to 0 by c_reset
+    int external_opponent;   // 0 = c_step auto-plays random P1 (training default)
+    int pre_sweep_board[BOARD_SIZE];   // snapshot before terminal sweep
 
-    // Whose move c_step will play next: 0 (P0/agent) or 1 (P1/opponent).
-    // Reset to 0 by c_reset; flipped inside c_step when no extra turn is earned.
-    // Under external_opponent=0 (training default), c_step auto-cycles P1's
-    // random move(s) before returning, so this is always 0 at function entry/exit.
-    int current_player;
-
-    // 0 = scripted random P1 is auto-played inside c_step (training behavior).
-    // 1 = caller supplies P1's action via env->actions[0]; c_step returns after
-    //     a single player's move so the caller can interleave another agent
-    //     (human, second policy, etc.). Set by the caller AFTER init/c_reset;
-    //     not touched by c_reset.
-    int external_opponent;
-
-    // Snapshot of env->board immediately before sweep_remaining is applied at
-    // the end of an episode. Lets the human-play loop animate the sweep with
-    // real per-pit stone counts. Populated by c_step on terminal steps; junk
-    // value otherwise. Zero-init by c_reset for cleanliness.
-    int pre_sweep_board[BOARD_SIZE];
-
-    // Per-episode counters (folded into Log on episode end). All track P0
-    // (the agent) only; P1's actions do not update these regardless of mode.
     int ep_captures;
     int ep_extra_turns;
     int ep_invalid;
-
-    // Trace of opponent (P1) moves taken during the most recent c_step. Used
-    // by the standalone playback to show the chain of P1 moves between two
-    // consecutive P0 actions (P1 can take multiple turns when its sown stone
-    // lands in its own store). Sized at 64 — well above the longest chain
-    // I've been able to construct (17 from a contrived [6,5,4,3,2,1] board)
-    // and effectively unbounded for a uniform-random opponent, which rarely
-    // chains past 5.
-    int p1_last_pits[64];
-    int p1_last_was_extra[64];
-    int p1_last_was_capture[64];
-    int p1_last_count;
 };
-
-// ---------------------------------------------------------------------------
-// Allocation / lifecycle
-// ---------------------------------------------------------------------------
 
 static void allocate_cmancala(CMancala* env) {
     env->observations = (float*)calloc(OBS_DIM, sizeof(float));
@@ -135,10 +87,6 @@ static void c_close(CMancala* env) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Logging
-// ---------------------------------------------------------------------------
-
 static void add_log(CMancala* env) {
     float r = env->rewards[0];
     env->log.perf           += (r == PLAYER_WIN) ? 1.0f : 0.0f;
@@ -150,12 +98,7 @@ static void add_log(CMancala* env) {
     env->log.invalid_moves  += (float)env->ep_invalid;
     env->log.episode_return += r;
     env->log.n              += 1.0f;
-    // episode_length is incremented per step in c_step.
 }
-
-// ---------------------------------------------------------------------------
-// Game-logic helpers
-// ---------------------------------------------------------------------------
 
 static inline int store_of(int player)     { return (player == 0) ? P0_STORE : P1_STORE; }
 static inline int opp_store_of(int player) { return (player == 0) ? P1_STORE : P0_STORE; }
@@ -179,7 +122,6 @@ static int game_over(const int* board) {
 }
 
 static void sweep_remaining(int* board) {
-    // Whichever side still has stones sweeps them into its own store.
     for (int p = 0; p < 2; p++) {
         int start = pit_start_of(p);
         int total = 0;
@@ -191,8 +133,7 @@ static void sweep_remaining(int* board) {
     }
 }
 
-// Sow stones from player's local pit (0..NUM_PITS-1).
-// Returns the absolute board index where the LAST stone landed (0..13).
+// Sow from player's local pit; returns absolute index where the last stone lands.
 static int sow(CMancala* env, int player, int pit_local) {
     int idx = pit_start_of(player) + pit_local;
     int stones = env->board[idx];
@@ -209,17 +150,12 @@ static int sow(CMancala* env, int player, int pit_local) {
     return last;
 }
 
-// Capture rule — "Empty Capture" variant. If the last stone lands in the
-// player's own pit that was empty before this move (so it now holds exactly
-// 1), move that stone to the player's store. If the opposite pit is non-
-// empty, take those stones too. Returns the number of stones moved into the
-// store (>=1 on capture, 0 if not a capture situation). 12 - last_idx is the
-// mirror across the board: P0 pit i ↔ P1 pit (5-i) by index, since pits sit
-// symmetrically on either side of the two stores.
+// Empty Capture variant: last stone in own previously-empty pit always moves
+// to the player's store; opposite pit's stones go too if any.
 static int apply_capture(CMancala* env, int player, int last_idx) {
     if (!is_own_pit(player, last_idx)) return 0;
-    if (env->board[last_idx] != 1) return 0;          // landed in empty pit (now 1)
-    int opposite = 12 - last_idx;                     // mirror across the board
+    if (env->board[last_idx] != 1) return 0;
+    int opposite = 12 - last_idx;
     int taken = 0;
     if (opposite >= 0 && opposite < BOARD_SIZE
         && opposite != P0_STORE && opposite != P1_STORE) {
@@ -235,8 +171,7 @@ static inline int is_extra_turn(int player, int last_idx) {
     return last_idx == store_of(player);
 }
 
-// Random valid pit for player. Caller must ensure player has at least one
-// non-empty pit (i.e. game not over). Returns local pit index in [0, NUM_PITS).
+// Random valid pit for the scripted P1 opponent.
 static int scripted_opponent_move(CMancala* env) {
     int valid[NUM_PITS];
     int n = 0;
@@ -277,18 +212,12 @@ static void finish_game(CMancala* env, float r) {
     env->rewards[0] = r;
     env->terminals[0] = DONE;
     add_log(env);
-    // Canonical pufferlib pattern is to reset in the same c_step. We honour
-    // that for training (external_opponent=0). Under external_opponent=1, the
-    // caller (e.g. the human-play loop) wants to inspect the post-sweep board
-    // and the pre_sweep_board snapshot before the next episode starts, so the
-    // caller owns the explicit c_reset.
+    // Skip auto-reset under external_opponent=1 so the caller can inspect
+    // the terminal board (incl. pre_sweep_board) before resetting itself.
     if (env->external_opponent == 0) c_reset(env);
 }
 
 static void c_reset(CMancala* env) {
-    // c_reset only resets game state. The framework handles terminals/rewards;
-    // c_step zeroes them at its top. This lets finish_game set terminal=DONE
-    // and reward=±1, then call c_reset, without those getting clobbered.
     for (int i = 0; i < BOARD_SIZE; i++) env->board[i] = 0;
     for (int p = 0; p < 2; p++) {
         int start = pit_start_of(p);
@@ -299,31 +228,16 @@ static void c_reset(CMancala* env) {
     env->ep_invalid = 0;
     env->current_player = 0;
     for (int i = 0; i < BOARD_SIZE; i++) env->pre_sweep_board[i] = 0;
-    // external_opponent is caller-managed and intentionally NOT touched here.
-    // NOTE: don't reset env->log here. The framework (static_vec_log) wipes it
-    // after aggregation. Resetting here would erase add_log's contribution and
-    // make episodes invisible to the aggregator.
+    // external_opponent is caller-managed; don't touch.
+    // env->log is wiped by the framework after aggregation; don't reset here.
     env->tick = 0;
     compute_observation(env);
 }
 
-// c_step processes ONE player's move per call. The active player is
-// env->current_player. Reward semantics are unchanged: env->rewards[0] is
-// always P0's terminal reward (+1 win, -1 loss, 0 draw); that's what the
-// learning agent sees regardless of who holds env->current_player.
-//
-// Under env->external_opponent == 0 (the training default), if the active
-// player's move flips control to P1 without ending the game, c_step inlines
-// P1's scripted-random move(s) before returning — so to a training caller,
-// each c_step still "takes one P0 action and yields the next P0 observation",
-// byte-for-byte equivalent to the pre-refactor implementation. RNG sequence,
-// log counters, and trace buffers are populated identically.
-//
-// Under env->external_opponent == 1, c_step returns after the active player's
-// chain ends. The caller flips between P0 and P1 actions explicitly. The
-// caller is also responsible for c_reset after a terminal step (finish_game
-// skips it in this mode, so the caller can read env->board / pre_sweep_board
-// to render the final state).
+// One player's move per call. env->rewards[0] is always P0's terminal reward.
+// Under external_opponent=0 (training default), an active P0 move that flips
+// to P1 inlines P1's scripted-random chain before returning — equivalent to
+// the pre-refactor "one c_step = one P0 action" contract.
 static void c_step(CMancala* env) {
     env->terminals[0] = NOT_DONE;
     env->rewards[0] = 0.0f;
@@ -331,19 +245,9 @@ static void c_step(CMancala* env) {
     env->tick += 1;
 
     int p = env->current_player;
-
-    // The opponent trace is meaningful only for P1 chains played inline by
-    // c_step (external_opponent=0). Reset it whenever P0 starts a fresh move
-    // so a single P0 c_step boundary still corresponds to one trace slice.
-    if (p == 0) env->p1_last_count = 0;
-
-    // Validate active player's action.
     int act = (int)env->actions[0];
     if (act < 0 || act >= NUM_PITS || env->board[pit_start_of(p) + act] == 0) {
-        // Per-episode invalid counter tracks P0 only — that's the agent the
-        // log is about. P1 illegals are still a forfeit but not logged.
         if (p == 0) env->ep_invalid += 1;
-        // Reward is P0's outcome: P0 forfeits → P0 LOSS; P1 forfeits → P0 WIN.
         finish_game(env, (p == 0) ? PLAYER_LOSS : PLAYER_WIN);
         return;
     }
@@ -364,32 +268,20 @@ static void c_step(CMancala* env) {
     }
 
     if (extra) {
-        // Same player goes again on the next c_step.
         compute_observation(env);
         return;
     }
 
     env->current_player = 1 - p;
 
-    // Training-mode shortcut: auto-run P1's scripted random chain inline so
-    // each c_step still consumes exactly one P0 action. The body below is a
-    // verbatim port of the pre-refactor P1 loop; do not perturb it without
-    // re-running the parity check.
+    // Training-mode auto-P1: verbatim port of the pre-refactor loop. Don't
+    // perturb without re-running parity (see _design.md).
     if (env->external_opponent == 0 && env->current_player == 1) {
         while (1) {
             int omove = scripted_opponent_move(env);
             int olast = sow(env, 1, omove);
-            int ocaptured = apply_capture(env, 1, olast);
+            apply_capture(env, 1, olast);
             int oextra = is_extra_turn(1, olast);
-
-            if (env->p1_last_count < (int)(sizeof(env->p1_last_pits)/sizeof(env->p1_last_pits[0]))) {
-                int slot = env->p1_last_count;
-                env->p1_last_pits[slot]        = omove;
-                env->p1_last_was_extra[slot]   = oextra;
-                env->p1_last_was_capture[slot] = (ocaptured > 0);
-                env->p1_last_count++;
-            }
-
             if (game_over(env->board)) {
                 memcpy(env->pre_sweep_board, env->board, sizeof(env->pre_sweep_board));
                 sweep_remaining(env->board);
@@ -398,18 +290,14 @@ static void c_step(CMancala* env) {
             }
             if (!oextra) break;
         }
-        env->current_player = 0;  // P1 chain ended; back to P0
+        env->current_player = 0;
     }
 
     compute_observation(env);
 }
 
-// ---------------------------------------------------------------------------
-// Render (raylib) — puffer aesthetic: dark teal background, JetBrainsMono
-// text, rounded-rect pits + stores. P0 (agent) cyan along the bottom, P1
-// red along the top with pit indices mirrored so opposites line up
-// vertically (a captured pair sits in the same column).
-// ---------------------------------------------------------------------------
+// Render (raylib): puffer aesthetic, P0 cyan on top, P1 red on bottom with
+// pit indices mirrored so opposite pits align vertically.
 
 static const Color PUFF_RED        = (Color){187,   0,   0, 255};
 static const Color PUFF_CYAN       = (Color){  0, 187, 187, 255};
@@ -421,14 +309,14 @@ static const Color PIT_FILL        = (Color){  0,  38,  38, 255};
 #define MANCALA_HEIGHT   440
 #define MARGIN_X          32
 #define MARGIN_Y          64
-#define PIT_RADIUS        38   // half-side of each pit's rounded square
+#define PIT_RADIUS        38
 #define STORE_W           86
 
 struct Client {
     int width;
     int height;
-    Font font_big;     // JetBrainsMono SemiBold @ 36 — counts and store labels
-    Font font_small;   // JetBrainsMono Regular @ 14 — header, pit indices
+    Font font_big;
+    Font font_small;
     bool fonts_loaded;
 };
 
@@ -439,9 +327,6 @@ static Client* make_client(void) {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(c->width, c->height, "PufferLib Mancala");
     SetTargetFPS(30);
-    // LoadFontEx falls back to the default font if the file is missing, so it's
-    // safe to call unconditionally — but the puffer-style aesthetic depends on
-    // JetBrainsMono being present in resources/shared/.
     c->font_big   = LoadFontEx("resources/shared/JetBrainsMono-SemiBold.ttf", 36, NULL, 95);
     c->font_small = LoadFontEx("resources/shared/JetBrainsMono-Regular.ttf",  14, NULL, 95);
     c->fonts_loaded = true;
@@ -484,8 +369,88 @@ static void draw_store(Font f_big, Font f_small, int x, int y, int w, int h,
     draw_text_centered(f_big, buf, x + w / 2, y + h / 2, 44, PUFF_WHITE);
 }
 
-// Used by the framework's vec_render hook; the standalone --fast build
-// renders via human_render in mancala.c instead.
+typedef struct { int store_h, pit_pitch, pits_left, row_y_top, row_y_bot; } Layout;
+static Layout layout_for(const Client* cli) {
+    Layout L;
+    L.store_h    = cli->height - 2 * MARGIN_Y;
+    int area_w   = cli->width - 2 * MARGIN_X - 2 * STORE_W - 24;
+    L.pit_pitch  = area_w / NUM_PITS;
+    L.pits_left  = MARGIN_X + STORE_W + 12 + L.pit_pitch / 2;
+    L.row_y_top  = MARGIN_Y + 56;
+    L.row_y_bot  = cli->height - MARGIN_Y - 56;
+    return L;
+}
+
+// World coords of a pit/store: P0 top right→left, P1 bottom left→right.
+static void pit_center(const Client* cli, int board_idx, int* out_x, int* out_y) {
+    Layout L = layout_for(cli);
+    if (board_idx == P0_STORE) {
+        *out_x = MARGIN_X + STORE_W / 2;
+        *out_y = MARGIN_Y + L.store_h / 2;
+    } else if (board_idx == P1_STORE) {
+        *out_x = cli->width - MARGIN_X - STORE_W / 2;
+        *out_y = MARGIN_Y + L.store_h / 2;
+    } else if (board_idx >= P0_PITS_START && board_idx < P0_PITS_START + NUM_PITS) {
+        int local = board_idx - P0_PITS_START;
+        *out_x = L.pits_left + (NUM_PITS - 1 - local) * L.pit_pitch;
+        *out_y = L.row_y_top;
+    } else {
+        int local = board_idx - P1_PITS_START;
+        *out_x = L.pits_left + local * L.pit_pitch;
+        *out_y = L.row_y_bot;
+    }
+}
+
+// Draw the static board (header, frame, stores, pits, labels) reading counts
+// from `board`. Caller manages BeginDrawing/EndDrawing and any overlays.
+// active_alpha modulates the active player's store rim (1.0 = flat).
+static void c_draw(CMancala* env, const int* board, float active_alpha) {
+    Client* cli = env->client;
+    Layout L = layout_for(cli);
+
+    char header[160];
+    snprintf(header, sizeof(header),
+             "MANCALA   tick %-4d   P0 %2d  vs  %2d P1",
+             env->tick, board[P0_STORE], board[P1_STORE]);
+    DrawTextEx(cli->font_small, header, (Vector2){MARGIN_X, 22},
+               14, 0, Fade(PUFF_WHITE, 0.7f));
+
+    Rectangle frame = {MARGIN_X - 6, MARGIN_Y - 6,
+                       cli->width - 2 * (MARGIN_X - 6),
+                       cli->height - 2 * MARGIN_Y + 12};
+    DrawRectangleRoundedLines(frame, 0.04f, 8, Fade(PUFF_WHITE, 0.08f));
+
+    Color p0_rim = Fade(PUFF_CYAN, env->current_player == 0 ? active_alpha : 0.45f);
+    Color p1_rim = Fade(PUFF_RED,  env->current_player == 1 ? active_alpha : 0.45f);
+    draw_store(cli->font_big, cli->font_small,
+               MARGIN_X, MARGIN_Y, STORE_W, L.store_h,
+               board[P0_STORE], "P0", p0_rim);
+    draw_store(cli->font_big, cli->font_small,
+               cli->width - MARGIN_X - STORE_W, MARGIN_Y, STORE_W, L.store_h,
+               board[P1_STORE], "P1", p1_rim);
+
+    for (int i = 0; i < NUM_PITS; i++) {
+        int cx = L.pits_left + (NUM_PITS - 1 - i) * L.pit_pitch;
+        draw_pit(cli->font_big, cx, L.row_y_top, PIT_RADIUS,
+                 board[P0_PITS_START + i], PUFF_CYAN);
+        char lbl[4]; snprintf(lbl, sizeof(lbl), "%d", i);
+        draw_text_centered(cli->font_small, lbl,
+                           cx, L.row_y_top - PIT_RADIUS - 14, 12,
+                           Fade(PUFF_CYAN, 0.55f));
+    }
+    for (int i = 0; i < NUM_PITS; i++) {
+        int cx = L.pits_left + i * L.pit_pitch;
+        draw_pit(cli->font_big, cx, L.row_y_bot, PIT_RADIUS,
+                 board[P1_PITS_START + i], PUFF_RED);
+        char lbl[4]; snprintf(lbl, sizeof(lbl), "%d", i + 1);
+        draw_text_centered(cli->font_small, lbl,
+                           cx, L.row_y_bot + PIT_RADIUS + 14, 12,
+                           Fade(PUFF_RED, 0.55f));
+    }
+}
+
+// Framework's vec_render hook. The standalone calls c_draw directly so it
+// can use a different display board (animation) and stack overlays.
 __attribute__((unused))
 static void c_render(CMancala* env) {
     if (env->client == NULL) env->client = make_client();
@@ -494,61 +459,8 @@ static void c_render(CMancala* env) {
         env->client = NULL;
         return;
     }
-    Client* cli = env->client;
-
-    int store_h = cli->height - 2 * MARGIN_Y;
-    int pit_area_w = cli->width - 2 * MARGIN_X - 2 * STORE_W - 24;
-    int pit_pitch = pit_area_w / NUM_PITS;
-    int pits_left = MARGIN_X + STORE_W + 12 + pit_pitch / 2;
-    int row_y_top = MARGIN_Y + 56;
-    int row_y_bot = cli->height - MARGIN_Y - 56;
-
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
-
-    // Header — monospace status line. Tick first, then P1 / P0 score with the
-    // visual layout (P1 sits on the left of the board so it's listed first).
-    char header[160];
-    snprintf(header, sizeof(header),
-             "MANCALA   tick %-4d   P1 %2d  vs  %2d P0",
-             env->tick, env->board[P1_STORE], env->board[P0_STORE]);
-    DrawTextEx(cli->font_small, header, (Vector2){MARGIN_X, 22},
-               14, 0, Fade(PUFF_WHITE, 0.7f));
-
-    // Subtle outer frame around the play area.
-    Rectangle frame = {MARGIN_X - 6, MARGIN_Y - 6,
-                       cli->width - 2 * (MARGIN_X - 6),
-                       cli->height - 2 * MARGIN_Y + 12};
-    DrawRectangleRoundedLines(frame, 0.04f, 8, Fade(PUFF_WHITE, 0.08f));
-
-    // Stores: P1 (red) on the left, P0 (cyan) on the right.
-    draw_store(cli->font_big, cli->font_small,
-               MARGIN_X, MARGIN_Y, STORE_W, store_h,
-               env->board[P1_STORE], "P1", PUFF_RED);
-    draw_store(cli->font_big, cli->font_small,
-               cli->width - MARGIN_X - STORE_W, MARGIN_Y, STORE_W, store_h,
-               env->board[P0_STORE], "P0", PUFF_CYAN);
-
-    // P0 pits — bottom row, indices 0..5 left-to-right (agent's view).
-    for (int i = 0; i < NUM_PITS; i++) {
-        int cx = pits_left + i * pit_pitch;
-        draw_pit(cli->font_big, cx, row_y_bot, PIT_RADIUS,
-                 env->board[P0_PITS_START + i], PUFF_CYAN);
-        char lbl[4]; snprintf(lbl, sizeof(lbl), "%d", i);
-        draw_text_centered(cli->font_small, lbl,
-                           cx, row_y_bot + PIT_RADIUS + 14,
-                           12, Fade(PUFF_CYAN, 0.55f));
-    }
-    // P1 pits — top row, drawn right-to-left so capture-opposites line up.
-    for (int i = 0; i < NUM_PITS; i++) {
-        int cx = pits_left + (NUM_PITS - 1 - i) * pit_pitch;
-        draw_pit(cli->font_big, cx, row_y_top, PIT_RADIUS,
-                 env->board[P1_PITS_START + i], PUFF_RED);
-        char lbl[4]; snprintf(lbl, sizeof(lbl), "%d", i);
-        draw_text_centered(cli->font_small, lbl,
-                           cx, row_y_top - PIT_RADIUS - 14,
-                           12, Fade(PUFF_RED, 0.55f));
-    }
-
+    c_draw(env, env->board, 1.0f);
     EndDrawing();
 }

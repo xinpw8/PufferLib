@@ -172,3 +172,6 @@ pufferlib/ocean/impulse_wars/benchmark/
 resources/drive/data/*
 resources/drive/binaries/*
 
+
+# mancala env: dev-only files (rules tests, design notes — not for upstream)
+ocean/mancala/_*
