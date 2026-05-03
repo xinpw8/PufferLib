@@ -127,6 +127,14 @@ typedef struct {
     int finished_game;     // 0 or 1 (whether this move ended the game)
 } Anim;
 
+#define MOVE_LOG_CAP 96
+typedef struct {
+    int player;     // 0 = AI/P0, 1 = You/P1
+    int pit_label;  // displayed pit number (AI: local 0-5; You: visual key 1-6)
+    int captured;
+    int extra;      // earned an extra turn
+} MoveEntry;
+
 // Hover detection — returns local P1 pit index 0..5, or -1.
 static int hovered_p1_pit(const Client* cli, Vector2 mouse) {
     for (int i = 0; i < NUM_PITS; i++) {
@@ -293,9 +301,33 @@ static float smooth01(float t) {
 
 // Render the human-mode UI based on Anim.display_board and surrounding state.
 // Mirrors c_render's geometry exactly so animation and static frames align.
+// Draw the running move log as a single horizontal strip below the board.
+// Shows as many of the most recent moves as fit; older entries scroll off.
+static void draw_move_log(const Client* cli, const MoveEntry* moves, int n) {
+    if (n <= 0) return;
+    int y = cli->height - 42;   // between bottom labels and status strip
+    int avail = cli->width - 2 * (MARGIN_X + STORE_W + 12);
+    int slot_w = 56;                           // width per move entry, eyeballed
+    int max_show = avail / slot_w;
+    int start = (n > max_show) ? n - max_show : 0;
+    int total_w = (n - start) * slot_w;
+    int x = (cli->width - total_w) / 2;
+    for (int i = start; i < n; i++) {
+        char buf[12];
+        char tail = moves[i].captured ? '*' : (moves[i].extra ? '+' : ' ');
+        snprintf(buf, sizeof(buf), "%c%d%c",
+                 moves[i].player == 0 ? 'A' : 'Y',
+                 moves[i].pit_label, tail);
+        Color c = moves[i].player == 0 ? Fade(PUFF_CYAN, 0.85f) : Fade(PUFF_RED, 0.85f);
+        draw_text_centered(cli->font_small, buf, x + slot_w / 2, y, 14, c);
+        x += slot_w;
+    }
+}
+
 static void human_render(const CMancala* env, const Anim* a, HumanState state,
                          int hover_pit, int wins, int losses, int draws,
-                         int last_ai_move, float store_pulse_t) {
+                         int last_ai_move, float store_pulse_t,
+                         const MoveEntry* moves, int n_moves) {
     Client* cli = env->client;
     float pulse = 0.6f + 0.4f * (0.5f + 0.5f * sinf(store_pulse_t * 3.14159f));
 
@@ -340,6 +372,8 @@ static void human_render(const CMancala* env, const Anim* a, HumanState state,
         DrawCircle((int)x, (int)(y + arc), 7, PUFF_WHITE);
         DrawCircleLines((int)x, (int)(y + arc), 8, Fade(PUFF_WHITE, 0.4f));
     }
+
+    draw_move_log(cli, moves, n_moves);
 
     // Status strip
     char status[160] = {0};
@@ -441,6 +475,8 @@ static int demo(void) {
     memcpy(anim.display_board, env.board, sizeof(anim.display_board));
 
     int pre_board[BOARD_SIZE];
+    MoveEntry moves[MOVE_LOG_CAP];
+    int n_moves = 0;
 
     const char* shot_path = screenshot_path();
     int shot_frame = 0;
@@ -468,6 +504,13 @@ static int demo(void) {
                 env.actions[0] = (float)act;
                 c_step(&env);
                 anim_build(&anim, pre_board, 0, act, &env);
+                if (n_moves < MOVE_LOG_CAP) {
+                    moves[n_moves++] = (MoveEntry){
+                        .player = 0, .pit_label = act,
+                        .captured = anim.captured,
+                        .extra = (env.current_player == 0 && env.terminals[0] != DONE),
+                    };
+                }
                 state = HS_ANIM;
             }
             break;
@@ -493,6 +536,13 @@ static int demo(void) {
                 env.actions[0] = (float)chosen;
                 c_step(&env);
                 anim_build(&anim, pre_board, 1, chosen, &env);
+                if (n_moves < MOVE_LOG_CAP) {
+                    moves[n_moves++] = (MoveEntry){
+                        .player = 1, .pit_label = chosen + 1,
+                        .captured = anim.captured,
+                        .extra = (env.current_player == 1 && env.terminals[0] != DONE),
+                    };
+                }
                 state = HS_ANIM;
             }
             break;
@@ -524,6 +574,7 @@ static int demo(void) {
                 memcpy(anim.display_board, env.board, sizeof(anim.display_board));
                 anim.n = 0; anim.i = 0; anim.t = 0.0f; anim.lifted = 0;
                 last_ai_move = -1;
+                n_moves = 0;
                 state = HS_AI_THINKING;
                 ai_timer = 0.0f;
             }
@@ -533,7 +584,7 @@ static int demo(void) {
 
         // ---- render ----
         human_render(&env, &anim, state, hover_pit, wins, losses, draws,
-                     last_ai_move, store_pulse_t);
+                     last_ai_move, store_pulse_t, moves, n_moves);
 
         if (shot_path && ++shot_frame == 5) {
             TakeScreenshot(shot_path);
