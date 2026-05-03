@@ -351,36 +351,55 @@ static void draw_text_centered(Font f, const char* s, int cx, int cy, int sz, Co
 // Stone visual constants.
 #define STONE_R 5
 #define STONE_DRAW_CAP 16          // stones beyond this are summarised by the count badge
-static const Color STONE_FACE   = (Color){232, 226, 208, 255};   // warm bone
-static const Color STONE_HI     = (Color){255, 248, 230, 255};   // top highlight
-static const Color STONE_SHADOW = (Color){0, 0, 0, 110};
+static const Color STONE_HI     = (Color){255, 248, 230, 255};   // glint highlight
+static const Color STONE_SHADOW = (Color){0, 0, 0, 130};
+// Warm earth-tone palette — gives each pile some natural variation.
+static const Color STONE_PALETTE[5] = {
+    {232, 226, 208, 255},   // bone
+    {214, 198, 168, 255},   // sand
+    {180, 168, 150, 255},   // pebble
+    {156, 145, 132, 255},   // slate
+    {198, 178, 142, 255},   // ochre
+};
+
+// Cheap 1-shot integer hash used to pick a stable color per (pit, stone idx).
+static inline int stone_hash(int seed, int idx) {
+    unsigned int h = (unsigned int)(seed * 374761393u + idx * 668265263u);
+    h = (h ^ (h >> 13)) * 1274126177u;
+    return (int)(h >> 24);
+}
 
 // Golden-angle (Vogel) packing for n disks in a circle of radius R.
-// Deterministic per (idx, n) so stones don't shimmer between frames.
 static Vector2 stone_offset(int idx, int n, int outer_r) {
     if (n <= 1) return (Vector2){0, 0};
     int eff = (n > STONE_DRAW_CAP) ? STONE_DRAW_CAP : n;
     float t = ((float)idx + 0.5f) / (float)eff;
     float r = sqrtf(t) * (outer_r - STONE_R - 3);
-    float a = (float)idx * 2.39996323f;   // golden angle in radians
+    float a = (float)idx * 2.39996323f;
     return (Vector2){r * cosf(a), r * sinf(a)};
 }
 
-static void draw_stone(int cx, int cy) {
-    DrawCircle(cx + 1, cy + 2, STONE_R, STONE_SHADOW);   // soft drop shadow
-    DrawCircle(cx, cy, STONE_R, STONE_FACE);
-    DrawCircle(cx - 1, cy - 1, STONE_R / 2, Fade(STONE_HI, 0.55f));
+static void draw_stone_colored(int cx, int cy, Color face) {
+    DrawCircle(cx + 1, cy + 2, STONE_R + 1, STONE_SHADOW);          // soft drop shadow
+    DrawCircle(cx, cy, STONE_R, face);
+    DrawCircle(cx - 1, cy - 1, STONE_R / 2, Fade(STONE_HI, 0.55f));  // top-left glint
 }
 
-// Pile stones in a store using a tighter spiral so up to ~36 fit nicely.
-static void draw_store_stones(int cx, int cy, int n, int outer_r) {
+static void draw_stone(int cx, int cy) {
+    draw_stone_colored(cx, cy, STONE_PALETTE[0]);
+}
+
+// Pile stones in a store using a tighter spiral so up to ~36 fit nicely,
+// with per-stone color variation seeded by index.
+static void draw_store_stones(int cx, int cy, int n, int outer_r, int seed) {
     int eff = n;
     if (eff > 36) eff = 36;
     for (int i = 0; i < eff; i++) {
         float t = ((float)i + 0.5f) / (float)eff;
         float r = sqrtf(t) * (outer_r - STONE_R - 2);
         float a = (float)i * 2.39996323f;
-        draw_stone((int)(cx + r * cosf(a)), (int)(cy + r * sinf(a)));
+        Color face = STONE_PALETTE[stone_hash(seed, i) % 5];
+        draw_stone_colored((int)(cx + r * cosf(a)), (int)(cy + r * sinf(a)), face);
     }
 }
 
@@ -397,31 +416,48 @@ static void draw_count_badge(Font f, int cx, int cy, int n, int half) {
     DrawTextEx(f, buf, (Vector2){bx, by}, 13, 0, PUFF_WHITE);
 }
 
-// Round bowl pit with stones inside and a count badge in the corner.
+// Round bowl pit: deep gradient interior, soft outer rim, top inner glint to
+// suggest depth from above. Stones drawn over the bowl, count badge in the
+// bottom-right corner.
 static void draw_pit(Font f_badge, int cx, int cy, int half, int stones, Color rim) {
-    DrawCircleGradient(cx, cy, half - 2, PIT_FILL, (Color){0, 14, 14, 255});
+    // Outer drop shadow grounds the bowl on the board surface.
+    DrawCircle(cx + 2, cy + 3, half - 1, Fade(BLACK, 0.30f));
+    // Bowl interior: warmer dark at the rim → deeper at center.
+    DrawCircleGradient(cx, cy, half - 2, (Color){10, 32, 34, 255}, (Color){0, 10, 12, 255});
+    // Subtle top-inner highlight (light catching the front edge).
+    DrawRing((Vector2){cx, cy}, half - 5, half - 3, 200, 340, 28, Fade(STONE_HI, 0.10f));
+    // Rim
     Color edge = (stones == 0) ? Fade(rim, 0.30f) : rim;
     DrawCircleLines(cx, cy, half - 2, edge);
-    DrawCircleLines(cx, cy, half - 1, Fade(edge, 0.35f));
+    DrawCircleLines(cx, cy, half - 1, Fade(edge, 0.40f));
+
+    // Stones: per-stone color variation seeded by pit position.
     int draw_n = (stones > STONE_DRAW_CAP) ? STONE_DRAW_CAP : stones;
     for (int i = 0; i < draw_n; i++) {
         Vector2 o = stone_offset(i, stones, half);
-        draw_stone((int)(cx + o.x), (int)(cy + o.y));
+        Color face = STONE_PALETTE[stone_hash(cx * 31 + cy, i) % 5];
+        draw_stone_colored((int)(cx + o.x), (int)(cy + o.y), face);
     }
     draw_count_badge(f_badge, cx, cy, stones, half);
 }
 
-// Tall rounded "store" with a player label on top, stones piled in the
-// middle, and a big count number underneath.
+// Tall store: drop shadow + gradient interior + soft rim. Big count only
+// when non-empty, so empty stores read as "open and waiting."
 static void draw_store(Font f_big, Font f_small, int x, int y, int w, int h,
                        int stones, const char* label, Color rim) {
+    Rectangle outer = {x + 2, y + 3, w, h};
+    DrawRectangleRounded(outer, 0.30f, 12, Fade(BLACK, 0.30f));
     Rectangle r = {x, y, w, h};
-    DrawRectangleRounded(r, 0.30f, 12, PIT_FILL);
+    // Vertical gradient: lighter near the top rim, darker toward the base.
+    DrawRectangleGradientV(x, y, w, h, (Color){10, 32, 34, 255}, (Color){0, 8, 10, 255});
     DrawRectangleRoundedLines(r, 0.30f, 12, rim);
-    draw_text_centered(f_small, label, x + w / 2, y + 18, 14, rim);
-    if (stones > 0) draw_store_stones(x + w / 2, y + h / 2 - 8, stones, w / 2 - 6);
-    char buf[8]; snprintf(buf, sizeof(buf), "%d", stones);
-    draw_text_centered(f_big, buf, x + w / 2, y + h - 32, 32, PUFF_WHITE);
+
+    draw_text_centered(f_small, label, x + w / 2, y + 18, 13, Fade(rim, 0.85f));
+    if (stones > 0) {
+        draw_store_stones(x + w / 2, y + h / 2 - 4, stones, w / 2 - 6, x * 7 + y);
+        char buf[8]; snprintf(buf, sizeof(buf), "%d", stones);
+        draw_text_centered(f_big, buf, x + w / 2, y + h - 28, 28, PUFF_WHITE);
+    }
 }
 
 // Key-cap style label, used for the human's hotkey row.
@@ -471,20 +507,44 @@ static void c_draw(CMancala* env, const int* board, float active_alpha) {
     Client* cli = env->client;
     Layout L = layout_for(cli);
 
-    char header[160];
-    snprintf(header, sizeof(header),
-             "MANCALA   tick %-4d   P0 %2d  vs  %2d P1",
-             env->tick, board[P0_STORE], board[P1_STORE]);
-    DrawTextEx(cli->font_small, header, (Vector2){MARGIN_X, 22},
-               14, 0, Fade(PUFF_WHITE, 0.7f));
+    // Subtle radial vignette darkening the corners.
+    DrawCircleGradient(cli->width / 2, cli->height / 2,
+                       cli->width * 0.7f, BLANK, Fade(BLACK, 0.35f));
 
-    Rectangle frame = {MARGIN_X - 6, MARGIN_Y - 6,
-                       cli->width - 2 * (MARGIN_X - 6),
-                       cli->height - 2 * MARGIN_Y + 12};
-    DrawRectangleRoundedLines(frame, 0.04f, 8, Fade(PUFF_WHITE, 0.08f));
+    // Warm "board" panel that grounds the bowls. A few millimetres lighter
+    // than the background plus a soft gradient → the play area reads as a
+    // solid wooden table, not floating geometry.
+    Rectangle board_rect = {MARGIN_X - 12, MARGIN_Y - 14,
+                            cli->width - 2 * (MARGIN_X - 12),
+                            cli->height - 2 * MARGIN_Y + 28};
+    DrawRectangleRounded(board_rect, 0.10f, 16, (Color){12, 36, 38, 255});
+    // Darker top-edge band for the "lit-from-above" feel, applied as a thin
+    // gradient inside the panel.
+    DrawRectangleGradientV((int)board_rect.x + 3, (int)board_rect.y + 3,
+                           (int)board_rect.width - 6, 18,
+                           Fade(BLACK, 0.35f), BLANK);
+    DrawRectangleRoundedLines(board_rect, 0.10f, 16, Fade(PUFF_WHITE, 0.10f));
+
+    // Header — just the title and tally; per-store counts are visible in
+    // the stores themselves so the redundant "P0 X vs Y P1" is gone.
+    DrawTextEx(cli->font_big, "MANCALA",
+               (Vector2){MARGIN_X - 12, 12}, 24, 1, PUFF_WHITE);
+    char tickbuf[32]; snprintf(tickbuf, sizeof(tickbuf), "tick %d", env->tick);
+    DrawTextEx(cli->font_small, tickbuf,
+               (Vector2){MARGIN_X - 12 + 130, 22}, 13, 0, Fade(PUFF_WHITE, 0.55f));
 
     Color p0_rim = Fade(PUFF_CYAN, env->current_player == 0 ? active_alpha : 0.45f);
     Color p1_rim = Fade(PUFF_RED,  env->current_player == 1 ? active_alpha : 0.45f);
+
+    // Soft active-player halo behind the active store — pulses with active_alpha.
+    if (env->current_player == 0) {
+        DrawCircleGradient(MARGIN_X + STORE_W / 2, MARGIN_Y + L.store_h / 2,
+                           STORE_W * 1.1f, Fade(PUFF_CYAN, active_alpha * 0.35f), BLANK);
+    } else {
+        DrawCircleGradient(cli->width - MARGIN_X - STORE_W / 2, MARGIN_Y + L.store_h / 2,
+                           STORE_W * 1.1f, Fade(PUFF_RED, active_alpha * 0.35f), BLANK);
+    }
+
     draw_store(cli->font_big, cli->font_small,
                MARGIN_X, MARGIN_Y, STORE_W, L.store_h,
                board[P0_STORE], "P0", p0_rim);
