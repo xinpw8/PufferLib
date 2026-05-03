@@ -135,6 +135,22 @@ typedef struct {
     int extra;      // earned an extra turn
 } MoveEntry;
 
+// Snapshot captured right before each human move so the player can step
+// back one half-pair (human move + AI response) per undo press.
+typedef struct {
+    int board[BOARD_SIZE];
+    int current_player;
+    int ep_captures, ep_extra_turns, ep_invalid;
+    int tick;
+    int n_moves;
+} Snapshot;
+#define UNDO_STACK_CAP 64
+
+// Bottom-left UNDO button rect — shared by hit-test and renderer.
+static Rectangle undo_button_rect(const Client* cli) {
+    return (Rectangle){MARGIN_X, cli->height - 30, 72, 20};
+}
+
 // Hover detection — returns local P1 pit index 0..5, or -1.
 static int hovered_p1_pit(const Client* cli, Vector2 mouse) {
     for (int i = 0; i < NUM_PITS; i++) {
@@ -327,7 +343,8 @@ static void draw_move_log(const Client* cli, const MoveEntry* moves, int n) {
 static void human_render(const CMancala* env, const Anim* a, HumanState state,
                          int hover_pit, int wins, int losses, int draws,
                          int last_ai_move, float store_pulse_t,
-                         const MoveEntry* moves, int n_moves) {
+                         const MoveEntry* moves, int n_moves,
+                         int undo_enabled, int undo_hover) {
     Client* cli = env->client;
     float pulse = 0.6f + 0.4f * (0.5f + 0.5f * sinf(store_pulse_t * 3.14159f));
 
@@ -374,6 +391,20 @@ static void human_render(const CMancala* env, const Anim* a, HumanState state,
     }
 
     draw_move_log(cli, moves, n_moves);
+
+    // UNDO button (bottom-left).
+    {
+        Rectangle r = undo_button_rect(cli);
+        Color rim = !undo_enabled ? Fade(PUFF_WHITE, 0.20f)
+                  : undo_hover    ? PUFF_CYAN
+                  :                 Fade(PUFF_CYAN, 0.55f);
+        Color text = !undo_enabled ? Fade(PUFF_WHITE, 0.25f)
+                   :                 Fade(PUFF_WHITE, undo_hover ? 1.0f : 0.85f);
+        DrawRectangleRounded(r, 0.30f, 6, PIT_FILL);
+        DrawRectangleRoundedLines(r, 0.30f, 6, rim);
+        draw_text_centered(cli->font_small, "UNDO  U",
+                           r.x + r.width / 2, r.y + r.height / 2 + 1, 12, text);
+    }
 
     // Status strip
     char status[160] = {0};
@@ -477,6 +508,8 @@ static int demo(void) {
     int pre_board[BOARD_SIZE];
     MoveEntry moves[MOVE_LOG_CAP];
     int n_moves = 0;
+    Snapshot undo_stack[UNDO_STACK_CAP];
+    int n_undo = 0;
 
     const char* shot_path = screenshot_path();
     int shot_frame = 0;
@@ -488,6 +521,32 @@ static int demo(void) {
 
         Vector2 mouse = GetMousePosition();
         int hover_pit = (state == HS_INPUT) ? hovered_p1_pit(env.client, mouse) : -1;
+        int undo_enabled = n_undo > 0 && (state == HS_INPUT || state == HS_GAME_OVER);
+        Rectangle ub = undo_button_rect(env.client);
+        int undo_hover = undo_enabled
+            && mouse.x >= ub.x && mouse.x <= ub.x + ub.width
+            && mouse.y >= ub.y && mouse.y <= ub.y + ub.height;
+        int undo_pressed = undo_enabled && (
+            IsKeyPressed(KEY_U)
+            || (undo_hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)));
+        if (undo_pressed) {
+            Snapshot* s = &undo_stack[--n_undo];
+            memcpy(env.board, s->board, sizeof(s->board));
+            env.current_player = s->current_player;
+            env.ep_captures    = s->ep_captures;
+            env.ep_extra_turns = s->ep_extra_turns;
+            env.ep_invalid     = s->ep_invalid;
+            env.tick           = s->tick;
+            env.terminals[0]   = NOT_DONE;
+            env.rewards[0]     = 0.0f;
+            n_moves            = s->n_moves;
+            compute_observation(&env);
+            memcpy(anim.display_board, env.board, sizeof(anim.display_board));
+            anim.n = 0; anim.i = 0; anim.t = 0.0f; anim.lifted = 0;
+            last_ai_move = -1;
+            state = HS_INPUT;
+            ai_timer = 0.0f;
+        }
 
         // ---- update ----
         switch (state) {
@@ -532,6 +591,16 @@ static int demo(void) {
                 }
             }
             if (chosen >= 0) {
+                if (n_undo < UNDO_STACK_CAP) {
+                    Snapshot* s = &undo_stack[n_undo++];
+                    memcpy(s->board, env.board, sizeof(s->board));
+                    s->current_player  = env.current_player;
+                    s->ep_captures     = env.ep_captures;
+                    s->ep_extra_turns  = env.ep_extra_turns;
+                    s->ep_invalid      = env.ep_invalid;
+                    s->tick            = env.tick;
+                    s->n_moves         = n_moves;
+                }
                 memcpy(pre_board, env.board, sizeof(pre_board));
                 env.actions[0] = (float)chosen;
                 c_step(&env);
@@ -575,6 +644,7 @@ static int demo(void) {
                 anim.n = 0; anim.i = 0; anim.t = 0.0f; anim.lifted = 0;
                 last_ai_move = -1;
                 n_moves = 0;
+                n_undo = 0;
                 state = HS_AI_THINKING;
                 ai_timer = 0.0f;
             }
@@ -584,7 +654,8 @@ static int demo(void) {
 
         // ---- render ----
         human_render(&env, &anim, state, hover_pit, wins, losses, draws,
-                     last_ai_move, store_pulse_t, moves, n_moves);
+                     last_ai_move, store_pulse_t, moves, n_moves,
+                     undo_enabled, undo_hover);
 
         if (shot_path && ++shot_frame == 5) {
             TakeScreenshot(shot_path);
