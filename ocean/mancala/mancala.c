@@ -365,19 +365,19 @@ static void human_render(const CMancala* env, const Anim* a, HumanState state,
     if (state == HS_INPUT && hover_pit >= 0
         && a->display_board[P1_PITS_START + hover_pit] > 0) {
         int cx, cy; pit_center(cli, P1_PITS_START + hover_pit, &cx, &cy);
-        Rectangle r = {cx - PIT_RADIUS, cy - PIT_RADIUS, 2*PIT_RADIUS, 2*PIT_RADIUS};
-        DrawRectangleRoundedLines(r, 0.40f, 8, (Color){255, 100, 100, 255});
+        DrawCircleLines(cx, cy, PIT_RADIUS - 1, (Color){255, 100, 100, 255});
+        DrawCircleLines(cx, cy, PIT_RADIUS,     Fade((Color){255,100,100,255}, 0.5f));
     }
 
     // Highlight the AI's source pit during sow animation
     if (state == HS_ANIM && a->move_player == 0 && a->i < a->n
         && a->steps[a->i].phase == APH_SOW) {
         int cx, cy; pit_center(cli, P0_PITS_START + a->move_pit, &cx, &cy);
-        Rectangle r = {cx - PIT_RADIUS, cy - PIT_RADIUS, 2*PIT_RADIUS, 2*PIT_RADIUS};
-        DrawRectangleRoundedLines(r, 0.40f, 8, (Color){80, 220, 220, 255});
+        DrawCircleLines(cx, cy, PIT_RADIUS - 1, (Color){80, 220, 220, 255});
+        DrawCircleLines(cx, cy, PIT_RADIUS,     Fade((Color){80,220,220,255}, 0.5f));
     }
 
-    // In-flight stone
+    // In-flight stone (use the same draw_stone helper as the bowl stones).
     if (state == HS_ANIM && a->i < a->n) {
         int sx, sy, tx, ty;
         pit_center(cli, a->steps[a->i].source, &sx, &sy);
@@ -385,9 +385,8 @@ static void human_render(const CMancala* env, const Anim* a, HumanState state,
         float u = smooth01(a->t);
         float x = (1.0f - u) * sx + u * tx;
         float y = (1.0f - u) * sy + u * ty;
-        float arc = -18.0f * sinf(u * 3.14159f);  // arcs feel like a hand sowing
-        DrawCircle((int)x, (int)(y + arc), 7, PUFF_WHITE);
-        DrawCircleLines((int)x, (int)(y + arc), 8, Fade(PUFF_WHITE, 0.4f));
+        float arc = -22.0f * sinf(u * 3.14159f);
+        draw_stone((int)x, (int)(y + arc));
     }
 
     draw_move_log(cli, moves, n_moves);

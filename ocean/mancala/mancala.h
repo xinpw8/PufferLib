@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 #include "raylib.h"
 
 #define NUM_PITS 6
@@ -347,26 +348,88 @@ static void draw_text_centered(Font f, const char* s, int cx, int cy, int sz, Co
     DrawTextEx(f, s, (Vector2){cx - m.x / 2.0f, cy - m.y / 2.0f}, (float)sz, 0, c);
 }
 
-static void draw_pit(Font f, int cx, int cy, int half, int stones, Color rim) {
-    Rectangle r = {cx - half, cy - half, 2 * half, 2 * half};
-    DrawRectangleRounded(r, 0.40f, 8, PIT_FILL);
-    Color edge = (stones == 0) ? Fade(rim, 0.25f) : rim;
-    DrawRectangleRoundedLines(r, 0.40f, 8, edge);
-    char buf[8];
-    snprintf(buf, sizeof(buf), "%d", stones);
-    Color txt = (stones == 0) ? Fade(PUFF_WHITE, 0.30f) : PUFF_WHITE;
-    draw_text_centered(f, buf, cx, cy, 28, txt);
+// Stone visual constants.
+#define STONE_R 5
+#define STONE_DRAW_CAP 16          // stones beyond this are summarised by the count badge
+static const Color STONE_FACE   = (Color){232, 226, 208, 255};   // warm bone
+static const Color STONE_HI     = (Color){255, 248, 230, 255};   // top highlight
+static const Color STONE_SHADOW = (Color){0, 0, 0, 110};
+
+// Golden-angle (Vogel) packing for n disks in a circle of radius R.
+// Deterministic per (idx, n) so stones don't shimmer between frames.
+static Vector2 stone_offset(int idx, int n, int outer_r) {
+    if (n <= 1) return (Vector2){0, 0};
+    int eff = (n > STONE_DRAW_CAP) ? STONE_DRAW_CAP : n;
+    float t = ((float)idx + 0.5f) / (float)eff;
+    float r = sqrtf(t) * (outer_r - STONE_R - 3);
+    float a = (float)idx * 2.39996323f;   // golden angle in radians
+    return (Vector2){r * cosf(a), r * sinf(a)};
 }
 
+static void draw_stone(int cx, int cy) {
+    DrawCircle(cx + 1, cy + 2, STONE_R, STONE_SHADOW);   // soft drop shadow
+    DrawCircle(cx, cy, STONE_R, STONE_FACE);
+    DrawCircle(cx - 1, cy - 1, STONE_R / 2, Fade(STONE_HI, 0.55f));
+}
+
+// Pile stones in a store using a tighter spiral so up to ~36 fit nicely.
+static void draw_store_stones(int cx, int cy, int n, int outer_r) {
+    int eff = n;
+    if (eff > 36) eff = 36;
+    for (int i = 0; i < eff; i++) {
+        float t = ((float)i + 0.5f) / (float)eff;
+        float r = sqrtf(t) * (outer_r - STONE_R - 2);
+        float a = (float)i * 2.39996323f;
+        draw_stone((int)(cx + r * cosf(a)), (int)(cy + r * sinf(a)));
+    }
+}
+
+// Small "count badge" overlaid on the pit — keeps the exact count readable
+// without competing visually with the stones themselves.
+static void draw_count_badge(Font f, int cx, int cy, int n, int half) {
+    if (n <= 0) return;
+    char buf[8]; snprintf(buf, sizeof(buf), "%d", n);
+    Vector2 m = MeasureTextEx(f, buf, 13, 0);
+    int bx = cx + half - 8 - (int)m.x;
+    int by = cy + half - 8 - (int)m.y;
+    Rectangle r = {bx - 5, by - 2, m.x + 10, m.y + 4};
+    DrawRectangleRounded(r, 0.50f, 4, (Color){0, 0, 0, 170});
+    DrawTextEx(f, buf, (Vector2){bx, by}, 13, 0, PUFF_WHITE);
+}
+
+// Round bowl pit with stones inside and a count badge in the corner.
+static void draw_pit(Font f_badge, int cx, int cy, int half, int stones, Color rim) {
+    DrawCircleGradient(cx, cy, half - 2, PIT_FILL, (Color){0, 14, 14, 255});
+    Color edge = (stones == 0) ? Fade(rim, 0.30f) : rim;
+    DrawCircleLines(cx, cy, half - 2, edge);
+    DrawCircleLines(cx, cy, half - 1, Fade(edge, 0.35f));
+    int draw_n = (stones > STONE_DRAW_CAP) ? STONE_DRAW_CAP : stones;
+    for (int i = 0; i < draw_n; i++) {
+        Vector2 o = stone_offset(i, stones, half);
+        draw_stone((int)(cx + o.x), (int)(cy + o.y));
+    }
+    draw_count_badge(f_badge, cx, cy, stones, half);
+}
+
+// Tall rounded "store" with a player label on top, stones piled in the
+// middle, and a big count number underneath.
 static void draw_store(Font f_big, Font f_small, int x, int y, int w, int h,
                        int stones, const char* label, Color rim) {
     Rectangle r = {x, y, w, h};
     DrawRectangleRounded(r, 0.30f, 12, PIT_FILL);
     DrawRectangleRoundedLines(r, 0.30f, 12, rim);
     draw_text_centered(f_small, label, x + w / 2, y + 18, 14, rim);
-    char buf[8];
-    snprintf(buf, sizeof(buf), "%d", stones);
-    draw_text_centered(f_big, buf, x + w / 2, y + h / 2, 44, PUFF_WHITE);
+    if (stones > 0) draw_store_stones(x + w / 2, y + h / 2 - 8, stones, w / 2 - 6);
+    char buf[8]; snprintf(buf, sizeof(buf), "%d", stones);
+    draw_text_centered(f_big, buf, x + w / 2, y + h - 32, 32, PUFF_WHITE);
+}
+
+// Key-cap style label, used for the human's hotkey row.
+static void draw_keycap(Font f, int cx, int cy, const char* text, Color border) {
+    Rectangle k = {cx - 11, cy - 9, 22, 18};
+    DrawRectangleRounded(k, 0.32f, 4, (Color){12, 30, 30, 255});
+    DrawRectangleRoundedLines(k, 0.32f, 4, Fade(border, 0.85f));
+    draw_text_centered(f, text, cx, cy + 1, 12, PUFF_WHITE);
 }
 
 typedef struct { int store_h, pit_pitch, pits_left, row_y_top, row_y_bot; } Layout;
@@ -431,21 +494,19 @@ static void c_draw(CMancala* env, const int* board, float active_alpha) {
 
     for (int i = 0; i < NUM_PITS; i++) {
         int cx = L.pits_left + (NUM_PITS - 1 - i) * L.pit_pitch;
-        draw_pit(cli->font_big, cx, L.row_y_top, PIT_RADIUS,
+        draw_pit(cli->font_small, cx, L.row_y_top, PIT_RADIUS,
                  board[P0_PITS_START + i], PUFF_CYAN);
         char lbl[4]; snprintf(lbl, sizeof(lbl), "%d", i);
         draw_text_centered(cli->font_small, lbl,
-                           cx, L.row_y_top - PIT_RADIUS - 14, 12,
-                           Fade(PUFF_CYAN, 0.55f));
+                           cx, L.row_y_top - PIT_RADIUS - 14, 11,
+                           Fade(PUFF_CYAN, 0.45f));
     }
     for (int i = 0; i < NUM_PITS; i++) {
         int cx = L.pits_left + i * L.pit_pitch;
-        draw_pit(cli->font_big, cx, L.row_y_bot, PIT_RADIUS,
+        draw_pit(cli->font_small, cx, L.row_y_bot, PIT_RADIUS,
                  board[P1_PITS_START + i], PUFF_RED);
         char lbl[4]; snprintf(lbl, sizeof(lbl), "%d", i + 1);
-        draw_text_centered(cli->font_small, lbl,
-                           cx, L.row_y_bot + PIT_RADIUS + 14, 12,
-                           Fade(PUFF_RED, 0.55f));
+        draw_keycap(cli->font_small, cx, L.row_y_bot + PIT_RADIUS + 14, lbl, PUFF_RED);
     }
 }
 
