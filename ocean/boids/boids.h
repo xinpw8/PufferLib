@@ -26,10 +26,10 @@ typedef struct {
     float perf;
     float score;
     float n;
-    float margin_turn_reward;
-    float cohesion_reward;
-    float separation_reward;
-    float alignment_reward;
+    float t_margin_turn_reward;
+    float t_cohesion_reward;
+    float t_separation_reward;
+    float t_alignment_reward;
 } Log;
 
 typedef struct {
@@ -169,10 +169,10 @@ void c_step(Boids *env) {
     env->log.perf = 0;
     env->log.score = 0;
     env->log.n = 0;
-    env->log.margin_turn_reward = 0;
-    env->log.cohesion_reward = 0;
-    env->log.separation_reward = 0;
-    env->log.alignment_reward = 0;
+    env->log.t_margin_turn_reward = 0;
+    env->log.t_cohesion_reward = 0;
+    env->log.t_separation_reward = 0;
+    env->log.t_alignment_reward = 0;
     for (unsigned current_indx = 0; current_indx < env->num_agents; current_indx++) {
         // apply action
         current_boid = &env->boids[current_indx];
@@ -281,10 +281,10 @@ void c_step(Boids *env) {
         if (env->tick == env->report_interval) {
             env->log.perf               += angle_diff;
             env->log.score              += env->rewards[current_indx];
-            env->log.margin_turn_reward += margin_turn_reward;
-            env->log.cohesion_reward    += cohesion_reward;
-            env->log.separation_reward  += separation_reward;
-            env->log.alignment_reward   += alignment_reward;
+            env->log.t_margin_turn_reward += margin_turn_reward;
+            env->log.t_cohesion_reward    += cohesion_reward;
+            env->log.t_separation_reward  += separation_reward;
+            env->log.t_alignment_reward   += alignment_reward;
             env->log.n                  += 1.0f;
         }
     }
