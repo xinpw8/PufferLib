@@ -20,5 +20,9 @@ void my_init(Env* env, Dict* kwargs) {
 void my_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
     dict_set(out, "score", log->score);
+    dict_set(out, "margin_turn_reward", log->margin_turn_reward);
+    dict_set(out, "cohesion_reward", log->cohesion_reward);
+    dict_set(out, "separation_reward", log->separation_reward);
+    dict_set(out, "alignment_reward", log->alignment_reward);
     dict_set(out, "n", log->n);
 }

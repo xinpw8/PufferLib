@@ -26,6 +26,10 @@ typedef struct {
     float perf;
     float score;
     float n;
+    float margin_turn_reward;
+    float cohesion_reward;
+    float separation_reward;
+    float alignment_reward;
 } Log;
 
 typedef struct {
@@ -151,6 +155,7 @@ void c_step(Boids *env) {
     Boid observed_boid;
     float vis_vx_sum, vis_vy_sum, vis_x_sum, vis_y_sum, vis_x_avg, vis_y_avg, vis_vx_avg, vis_vy_avg;
     float diff_x, diff_y, dist, current_boid_reward;
+    float r_margin_turn, r_cohesion, r_separation, r_alignment;
     float protected_x_sum, protected_y_sum;
     float normal_vx, normal_vy, angle_diff;
     float rule_dx, rule_dy, rule_mag;
@@ -164,6 +169,10 @@ void c_step(Boids *env) {
     env->log.perf = 0;
     env->log.score = 0;
     env->log.n = 0;
+    env->log.margin_turn_reward = 0;
+    env->log.cohesion_reward = 0;
+    env->log.separation_reward = 0;
+    env->log.alignment_reward = 0;
     for (unsigned current_indx = 0; current_indx < env->num_agents; current_indx++) {
         // apply action
         current_boid = &env->boids[current_indx];
@@ -179,6 +188,10 @@ void c_step(Boids *env) {
 
         // reward calculation
         current_boid_reward = 0.0f;
+        r_margin_turn = 0.0f;
+        r_cohesion = 0.0f;
+        r_separation = 0.0f;
+        r_alignment = 0.0f;
         protected_count = 0;
         visual_count = 0;
         vis_vx_sum = 0.0f;
@@ -214,7 +227,7 @@ void c_step(Boids *env) {
             rule_mag = sqrtf(protected_x_sum*protected_x_sum + protected_y_sum*protected_y_sum) + EPS;
             normal_vx += (protected_x_sum / rule_mag) * env->separation_factor;
             normal_vy += (protected_y_sum / rule_mag) * env->separation_factor;
-            current_boid_reward -= rule_mag * env->separation_factor;
+            r_separation -= rule_mag * env->separation_factor;
         }
         if (visual_count) {
             vis_x_avg  = vis_x_sum  / visual_count;
@@ -222,16 +235,16 @@ void c_step(Boids *env) {
             vis_vx_avg = vis_vx_sum / visual_count;
             vis_vy_avg = vis_vy_sum / visual_count;
 
-            current_boid_reward -= fabsf(vis_x_avg  - current_boid->x) * env->cohesion_factor;
-            current_boid_reward -= fabsf(vis_y_avg  - current_boid->y) * env->cohesion_factor;
+            r_cohesion -= fabsf(vis_x_avg  - current_boid->x) * env->cohesion_factor;
+            r_cohesion -= fabsf(vis_y_avg  - current_boid->y) * env->cohesion_factor;
 
             rule_dx = vis_vx_avg - current_boid->velocity.x;
             rule_dy = vis_vy_avg - current_boid->velocity.y;
             rule_mag = sqrtf(rule_dx*rule_dx + rule_dy*rule_dy) + EPS;
             normal_vx += (rule_dx / rule_mag) * env->alignment_factor;
             normal_vy += (rule_dy / rule_mag) * env->alignment_factor;
-            current_boid_reward -= fabsf(vis_vx_avg - current_boid->velocity.x) * env->alignment_factor;
-            current_boid_reward -= fabsf(vis_vy_avg - current_boid->velocity.y) * env->alignment_factor;
+            r_alignment -= fabsf(vis_vx_avg - current_boid->velocity.x) * env->alignment_factor;
+            r_alignment -= fabsf(vis_vy_avg - current_boid->velocity.y) * env->alignment_factor;
 
             rule_dx = vis_x_avg - current_boid->x;
             rule_dy = vis_y_avg - current_boid->y;
@@ -244,8 +257,10 @@ void c_step(Boids *env) {
             || current_boid->x < LEFT_MARGIN
             || current_boid->x + BOID_WIDTH > WIDTH - RIGHT_MARGIN
         ) {
-            current_boid_reward -= env->margin_turn_factor;
+            r_margin_turn -= env->margin_turn_factor;
         }
+
+        current_boid_reward -= r_margin_turn + r_cohesion + r_separation + r_alignment;
 
         if (current_boid->y < TOP_MARGIN) {
             normal_vy += env->margin_turn_factor;
@@ -272,9 +287,13 @@ void c_step(Boids *env) {
 
         //log updates
         if (env->tick == env->report_interval) {
-            env->log.perf           += angle_diff;
-            env->log.score          += env->rewards[current_indx];
-            env->log.n              += 1.0f;
+            env->log.perf               += angle_diff;
+            env->log.score              += env->rewards[current_indx];
+            env->log.margin_turn_reward += r_margin_turn;
+            env->log.cohesion_reward    += r_cohesion;
+            env->log.separation_reward  += r_separation;
+            env->log.alignment_reward   += r_alignment;
+            env->log.n                  += 1.0f;
         }
     }
 
