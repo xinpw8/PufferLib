@@ -14,6 +14,7 @@ void demo() {
 
     Grid* env = (Grid*)calloc(1, sizeof(Grid));
     env->num_agents = 1;
+    env->rng = 73;
     env->observations = calloc(WINDOW*WINDOW, sizeof(unsigned char));
     env->actions = calloc(1, sizeof(float));
     env->rewards = calloc(1, sizeof(float));

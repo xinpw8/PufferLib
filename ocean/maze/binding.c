@@ -42,7 +42,6 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
         State* level = &levels[i];
         level->width = sz;
         level->height = sz;
-        level->rng = rand_r(&map_rng);
 
         float difficulty = (float)rand_r(&map_rng) / (float)(RAND_MAX);
         create_maze_level(level, difficulty, i);
@@ -56,11 +55,13 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
     buffer_env_starts[0] = 0;
     buffer_env_counts[0] = 0;
 
+    unsigned int env_rng = 42;
     for (int i = 0; i < num_envs; i++) {
         Env* env = &envs[i];
         env->num_levels = num_maps;
         env->num_agents = 1;
         env->levels = levels;
+        env->rng = rand_r(&env_rng);
 
         buf_agents += env->num_agents;
         buffer_env_counts[buf]++;

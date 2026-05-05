@@ -48,7 +48,6 @@ typedef struct {
     int y;
     int direction;
     unsigned char maze[MAX_SIZE*MAX_SIZE];
-    unsigned int rng;
 } State;
 
 typedef struct {
@@ -63,6 +62,7 @@ typedef struct {
     float* actions;
     float* rewards;
     float* terminals;
+    unsigned int rng;
 } Grid;
 
 void c_close(Grid* env) {}
@@ -124,7 +124,7 @@ void compute_observations(Grid* env) {
 
 void c_reset(Grid* env) {
     env->tick = 0;
-    int idx = rand_r(&env->state.rng) % env->num_levels;
+    int idx = rand_r(&env->rng) % env->num_levels;
     env->state = env->levels[idx];
     compute_observations(env);
 }
@@ -192,7 +192,7 @@ void c_step(Grid* env) {
 
     if (env->terminals[0]) {
         c_reset(env);
-        int idx = rand_r(&env->state.rng) % env->num_levels;
+        int idx = rand_r(&env->rng) % env->num_levels;
         env->state = env->levels[idx];
         compute_observations(env);
     }
