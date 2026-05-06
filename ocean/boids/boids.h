@@ -7,17 +7,17 @@
 
 #include "raylib.h"
 
+#define BOID_WIDTH 16.0f
+#define BOID_HEIGHT 16.0f
 #define TOP_MARGIN 50
 #define BOTTOM_MARGIN 50
 #define LEFT_MARGIN 50
 #define RIGHT_MARGIN 50
 #define VELOCITY_CAP 5
 #define VISUAL_RANGE 400
-#define PROTECTED_RANGE 60
+#define PROTECTED_RANGE ((int)(1.5f * BOID_WIDTH))
 #define WIDTH 1080
 #define HEIGHT 720
-#define BOID_WIDTH 32.0f
-#define BOID_HEIGHT 32.0f
 #define BOID_TEXTURE_PATH "./resources/shared/puffers_128.png"
 #define MAX_DIST 2000
 #define EPS 1e-8f // avoids div by zero in angle calc
@@ -261,8 +261,8 @@ void c_step(Boids *env) {
             || current_boid->x + BOID_WIDTH > WIDTH - RIGHT_MARGIN
         ) {
             normal_vy -= env->margin_turn_factor;
-        } else { margin_turn_reward = 0; }
-        current_boid_reward -= margin_turn_reward + cohesion_reward + separation_reward + alignment_reward;
+        } else { margin_turn_reward += env->margin_turn_factor; }
+        current_boid_reward = margin_turn_reward + cohesion_reward + separation_reward + alignment_reward;
 
         float n_mag = sqrtf(normal_vx*normal_vx + normal_vy*normal_vy);
         if (n_mag > VELOCITY_CAP) {
@@ -273,9 +273,9 @@ void c_step(Boids *env) {
         // printf("%f, %f || %f, %f = %f\n", current_boid->velocity.x, current_boid->velocity.y, normal_vx, normal_vy, angle_diff);
 
         // Normalization
-        // env->rewards[current_indx] = current_boid_reward / 5.0f;
+        env->rewards[current_indx] = current_boid_reward / 5.0f;
         // env->rewards[current_indx] = current_boid_reward / 205.0f;
-        env->rewards[current_indx] = current_boid_reward / 50.0f;
+        // env->rewards[current_indx] = current_boid_reward / 50.0f;
 
         //log updates
         if (env->tick == env->report_interval) {
