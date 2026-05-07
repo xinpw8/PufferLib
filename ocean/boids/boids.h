@@ -273,9 +273,9 @@ void c_step(Boids *env) {
         // printf("%f, %f || %f, %f = %f\n", current_boid->velocity.x, current_boid->velocity.y, normal_vx, normal_vy, angle_diff);
 
         // Normalization
-        env->rewards[current_indx] = current_boid_reward / 5.0f;
+        // env->rewards[current_indx] = current_boid_reward / 5.0f;
         // env->rewards[current_indx] = current_boid_reward / 205.0f;
-        // env->rewards[current_indx] = current_boid_reward / 50.0f;
+        env->rewards[current_indx] = current_boid_reward / 64.0f;
 
         //log updates
         if (env->tick == env->report_interval) {
