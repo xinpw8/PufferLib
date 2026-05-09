@@ -84,7 +84,7 @@ static inline float velocity_angle_diff(float ref_x, float ref_y, float actual_x
     return acosf(cos_theta);
 }
 
-static void respawn_boid(Boids *env, unsigned int i) {
+static void spawn_boid(Boids *env, unsigned int i) {
     env->boids[i].x = rndf(LEFT_MARGIN, WIDTH  - RIGHT_MARGIN);
     env->boids[i].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN);
     env->boids[i].velocity.x = 0;
@@ -105,7 +105,7 @@ void init(Boids *env) {
     env->tick = 0;
 
     for (unsigned current_idx = 0; current_idx < env->num_agents; current_idx++) {
-        respawn_boid(env, current_idx);
+        spawn_boid(env, current_idx);
     }
 }
 
@@ -144,7 +144,7 @@ void c_reset(Boids *env) {
     env->log = (Log){0};
     env->tick = 0;
     for (unsigned boid_indx = 0; boid_indx < env->num_agents; boid_indx++) {
-        respawn_boid(env, boid_indx);
+        spawn_boid(env, boid_indx);
     }
     compute_observations(env);
 }
