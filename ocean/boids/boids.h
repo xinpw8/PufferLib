@@ -138,7 +138,7 @@ static void compute_observations(Boids *env) {
     }
 }
 
-void apply_velocity(Boid* boid, float vx, float vy) {
+void apply_action(Boid* boid, float vx, float vy) {
     boid->velocity.x = flclip(boid->velocity.x + vx, -VELOCITY_CAP, VELOCITY_CAP);
     boid->velocity.y = flclip(boid->velocity.y + vy, -VELOCITY_CAP, VELOCITY_CAP);
     boid->x = flclip(boid->x + boid->velocity.x, 0, WIDTH  - BOID_WIDTH);
@@ -178,12 +178,11 @@ void c_step(Boids *env) {
     env->log.t_separation_reward = 0;
     env->log.t_alignment_reward = 0;
     for (unsigned current_indx = 0; current_indx < env->num_agents; current_indx++) {
-        // apply action
         current_boid = &env->boids[current_indx];
         if (manual_control) {
-            apply_velocity(current_boid, (mouse_x - current_boid->x), (mouse_y - current_boid->y));
+            apply_action(current_boid, (mouse_x - current_boid->x), (mouse_y - current_boid->y));
         } else {
-            apply_velocity(current_boid, (env->actions[current_indx*2] - 1.0f), (env->actions[current_indx*2 + 1] - 1.0f));
+            apply_action(current_boid, (env->actions[current_indx*2] - 1.0f), (env->actions[current_indx*2 + 1] - 1.0f));
         }
 
         // reward calculation
