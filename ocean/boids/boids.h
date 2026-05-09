@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
-#include <string.h>
-#include <limits.h>
 #include <stdbool.h>
 
 #include "raylib.h"
@@ -19,7 +17,6 @@
 #define WIDTH 1080
 #define HEIGHT 720
 #define BOID_TEXTURE_PATH "./resources/shared/puffers_128.png"
-#define MAX_DIST 2000
 #define EPS 1e-8f // avoids div by zero in angle calc
 
 typedef struct {
