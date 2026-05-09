@@ -104,11 +104,8 @@ void init(Boids *env) {
     env->log = (Log){0};
     env->tick = 0;
 
-    for (unsigned current_indx = 0; current_indx < env->num_agents; current_indx++) {
-        env->boids[current_indx].x = rndf(LEFT_MARGIN, WIDTH  - RIGHT_MARGIN);
-        env->boids[current_indx].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN);
-        env->boids[current_indx].velocity.x = 0;
-        env->boids[current_indx].velocity.y = 0;
+    for (unsigned current_idx = 0; current_idx < env->num_agents; current_idx++) {
+        respawn_boid(env, current_idx);
     }
 }
 
