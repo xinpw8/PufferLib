@@ -104,9 +104,7 @@ void init(Boids *env) {
     env->log = (Log){0};
     env->tick = 0;
 
-    for (unsigned current_idx = 0; current_idx < env->num_agents; current_idx++) {
-        spawn_boid(env, current_idx);
-    }
+    for (unsigned idx = 0; idx < env->num_agents; idx++) spawn_boid(env, idx);
 }
 
 
