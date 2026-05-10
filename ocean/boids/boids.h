@@ -20,7 +20,6 @@
 #define EPS 1e-8f // avoids div by zero in angle calc
 
 typedef struct {
-    float perf;
     float score;
     float n;
     float t_margin_turn_reward;
@@ -170,7 +169,6 @@ void c_step(Boids *env) {
 
     env->tick++;
     env->rewards[0] = 0.0;
-    env->log.perf = 0;
     env->log.score = 0;
     env->log.n = 0;
     env->log.t_margin_turn_reward = 0;
@@ -274,7 +272,6 @@ void c_step(Boids *env) {
 
         //log updates
         if (env->tick == env->report_interval) {
-            env->log.perf               += angle_diff;
             env->log.score              += env->rewards[current_indx];
             env->log.t_margin_turn_reward += margin_turn_reward;
             env->log.t_cohesion_reward    += cohesion_reward;
