@@ -46,6 +46,13 @@ typedef struct {
 } Client ;
 
 typedef struct {
+    float margin_turn;
+    float cohesion;
+    float separation;
+    float alignment;
+} Rewards;
+
+typedef struct {
     // Flat array of shape (num_agents * 8) values:
     // - Each boid has 8 values corresponding to (x, y, vx, vy, dx, dy, dvx, dvy)
     // - The first 8 values are for the boid itself
@@ -142,6 +149,10 @@ void apply_action(Boid* boid, float vx, float vy) {
     boid->velocity.y = flclip(boid->velocity.y + vy, -VELOCITY_CAP, VELOCITY_CAP);
     boid->x = flclip(boid->x + boid->velocity.x, 0, WIDTH  - BOID_WIDTH);
     boid->y = flclip(boid->y + boid->velocity.y, 0, HEIGHT - BOID_HEIGHT);
+}
+
+Rewards calc_rewards() {
+    Rewards rewards = {0};
 }
 
 void c_reset(Boids *env) {
