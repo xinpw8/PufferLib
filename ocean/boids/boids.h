@@ -220,9 +220,6 @@ void c_step(Boids *env) {
             }
         }
         if (protected_count > 0) {
-            // protected_range_diff = (float)(env->num_agents - protected_count) - protected_count;
-            // current_boid_reward += protected_range_diff * env->seperation_factor;
-
             rule_mag = sqrtf(protected_x_sum*protected_x_sum + protected_y_sum*protected_y_sum) + EPS;
             normal_vx += (protected_x_sum / rule_mag) * env->separation_factor;
             normal_vy += (protected_y_sum / rule_mag) * env->separation_factor;
