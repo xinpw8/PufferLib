@@ -1,6 +1,11 @@
 #include "docking.h"
+#include "puffernet.h"
 
 int main() {
+    Weights* weights = load_weights("resources/docking/docking_weights.bin");
+    int logit_sizes[1] = {5};
+    PufferNet* net = make_puffernet(weights, 1, DOCKING_OBS_SIZE, 128, 1, logit_sizes, 1);
+
     Docking env = {0};
     env.width = 256;
     env.height = 192;
@@ -25,15 +30,19 @@ int main() {
     c_render(&env);
 
     while (!WindowShouldClose()) {
-        env.actions[0] = DOCK_NOOP;
-        if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-            env.actions[0] = DOCK_TURN_LEFT;
-        } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-            env.actions[0] = DOCK_TURN_RIGHT;
-        } else if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
-            env.actions[0] = DOCK_THRUST;
-        } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-            env.actions[0] = DOCK_BRAKE;
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            env.actions[0] = DOCK_NOOP;
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+                env.actions[0] = DOCK_TURN_LEFT;
+            } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                env.actions[0] = DOCK_TURN_RIGHT;
+            } else if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+                env.actions[0] = DOCK_THRUST;
+            } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+                env.actions[0] = DOCK_BRAKE;
+            }
+        } else {
+            forward_puffernet(net, env.observations, env.actions);
         }
 
         if (IsKeyPressed(KEY_R)) {
@@ -44,6 +53,8 @@ int main() {
         c_render(&env);
     }
 
+    free_puffernet(net);
+    free(weights);
     free(env.observations);
     free(env.actions);
     free(env.rewards);
