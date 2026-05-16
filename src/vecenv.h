@@ -192,6 +192,11 @@ extern const char* cudaGetErrorString(cudaError_t);
 void my_init(Env* env, Dict* kwargs);
 void my_log(Log* log, Dict* out);
 
+#ifdef MY_VEC_STEP_RANGE
+void MY_VEC_STEP_RANGE(StaticVec* vec, int env_start, int env_count, int num_workers);
+#endif
+
+typedef struct StaticOMPArg StaticOMPArg;
 
 struct StaticThreading {
     atomic_int* buffer_states;
@@ -200,16 +205,17 @@ struct StaticThreading {
     int num_buffers;
     pthread_t* threads;
     float* accum;  // [num_buffers * NUM_EVAL_PROF] per-buffer timing in ms
+    StaticOMPArg* thread_args;
 };
 
-typedef struct StaticOMPArg {
+struct StaticOMPArg {
     StaticVec* vec;
     int buf;
     int horizon;
     void* ctx;
     net_callback_fn net_callback;
     thread_init_fn thread_init;
-} StaticOMPArg;
+};
 
 // OMP thread manager
 static void* static_omp_threadmanager(void* arg) {
@@ -233,8 +239,6 @@ static void* static_omp_threadmanager(void* arg) {
     atomic_int* buffer_states = threading->buffer_states;
     int num_workers = threading->num_threads / vec->buffers;
     if (num_workers < 1) num_workers = 1;
-
-    Env* envs = (Env*)vec->envs;
 
     printf("Num workers: %d\n", num_workers);
     while (true) {
@@ -264,10 +268,15 @@ static void* static_omp_threadmanager(void* arg) {
             memset(&vec->rewards[agent_start], 0, agents_per_buffer * sizeof(float));
             memset(&vec->terminals[agent_start], 0, agents_per_buffer * sizeof(float));
             clock_gettime(CLOCK_MONOTONIC, &t0);
+            #ifdef MY_VEC_STEP_RANGE
+            MY_VEC_STEP_RANGE(vec, env_start, env_count, num_workers);
+            #else
+            Env* envs = (Env*)vec->envs;
             #pragma omp parallel for schedule(static) num_threads(num_workers)
             for (int i = env_start; i < env_start + env_count; i++) {
                 c_step(&envs[i]);
             }
+            #endif
             clock_gettime(CLOCK_MONOTONIC, &t1);
             my_accum[EVAL_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
@@ -434,6 +443,7 @@ StaticVec* create_static_vec(int total_agents, int num_buffers, int gpu, Dict* v
             env->terminals = vec->terminals + slot;
             buf_agent += env->num_agents;
         }
+        assert(buf_agent == vec->agents_per_buffer && "buffer agents don't match total agents");
     }
 
     return vec;
@@ -468,7 +478,8 @@ void create_static_threads(StaticVec* vec, int num_threads, int horizon,
     // Streams are now created by pufferlib.cu (PyTorch-managed streams)
     // Do NOT create streams here - they've already been set up
 
-    StaticOMPArg* args = (StaticOMPArg*)calloc(vec->buffers, sizeof(StaticOMPArg));
+    vec->threading->thread_args = (StaticOMPArg*)calloc(vec->buffers, sizeof(StaticOMPArg));
+    StaticOMPArg* args = vec->threading->thread_args;
     for (int i = 0; i < vec->buffers; i++) {
         args[i].vec = vec;
         args[i].buf = i;
@@ -501,6 +512,7 @@ void static_vec_close(StaticVec* vec) {
         free(vec->threading->buffer_states);
         free(vec->threading->threads);
         free(vec->threading->accum);
+        free(vec->threading->thread_args);
         free(vec->threading);
     }
     free(vec->buffer_env_starts);
@@ -603,6 +615,12 @@ int get_num_act_sizes(void) { return (int)(sizeof(_act_sizes) / sizeof(_act_size
 const char* get_obs_dtype(void) { return dtype_symbol; }
 size_t get_obs_elem_size(void) { return obs_element_size(); }
 
+#ifdef MY_VEC_STEP
+void MY_VEC_STEP(StaticVec* vec);
+static inline void _static_vec_env_step(StaticVec* vec) {
+    MY_VEC_STEP(vec);
+}
+#else
 static inline void _static_vec_env_step(StaticVec* vec) {
     memset(vec->rewards, 0, vec->total_agents * sizeof(float));
     memset(vec->terminals, 0, vec->total_agents * sizeof(float));
@@ -612,6 +630,7 @@ static inline void _static_vec_env_step(StaticVec* vec) {
         c_step(&envs[i]);
     }
 }
+#endif
 
 void gpu_vec_step(StaticVec* vec) {
     assert(vec->buffers == 1);
