@@ -1,6 +1,6 @@
 #include "boids.h"
-#define OBS_SIZE 512 // 64 boids * 8 obs per boid
-#define NUM_ATNS 2   // Two discrete actions per boid
+#define OBS_SIZE BOIDS_OBS_SIZE
+#define NUM_ATNS 2
 #define ACT_SIZES {3, 3}
 #define OBS_TENSOR_T FloatTensor
 
@@ -23,5 +23,10 @@ void my_log(Log* log, Dict* out) {
     dict_set(out, "cohesion_reward", log->t_cohesion_reward);
     dict_set(out, "separation_reward", log->t_separation_reward);
     dict_set(out, "alignment_reward", log->t_alignment_reward);
+    dict_set(out, "speed_reward", log->t_speed_reward);
+    dict_set(out, "action_reward", log->t_action_reward);
+    dict_set(out, "avg_speed", log->avg_speed);
+    dict_set(out, "avg_visual_count", log->avg_visual_count);
+    dict_set(out, "avg_protected_count", log->avg_protected_count);
     dict_set(out, "n", log->n);
 }

@@ -52,8 +52,15 @@ fi
 
 # Linux/mac
 PLATFORM="$(uname -s)"
+ARCH_MACHINE="$(uname -m)"
+RAYLIB_FROM_SOURCE=0
 if [ "$PLATFORM" = "Linux" ]; then
-    RAYLIB_NAME='raylib-5.5_linux_amd64'
+    if [ "$ARCH_MACHINE" = "aarch64" ] || [ "$ARCH_MACHINE" = "arm64" ]; then
+        RAYLIB_NAME='raylib-5.5_source'
+        RAYLIB_FROM_SOURCE=1
+    else
+        RAYLIB_NAME='raylib-5.5_linux_amd64'
+    fi
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
@@ -90,12 +97,31 @@ RAYLIB_URL="https://github.com/raysan5/raylib/releases/download/5.5"
 if [ "$MODE" = "web" ]; then
     RAYLIB_NAME='raylib-5.5_webassembly'
     download "$RAYLIB_NAME" "$RAYLIB_URL/$RAYLIB_NAME.zip"
+elif [ "$RAYLIB_FROM_SOURCE" = "1" ]; then
+    if [ ! -d "$RAYLIB_NAME" ]; then
+        echo "Downloading raylib source for $ARCH_MACHINE..."
+        curl -sL "https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz" -o "$RAYLIB_NAME.tar.gz"
+        mkdir -p "$RAYLIB_NAME"
+        tar xf "$RAYLIB_NAME.tar.gz" --strip-components=1 -C "$RAYLIB_NAME"
+        rm "$RAYLIB_NAME.tar.gz"
+    fi
+    echo "Building raylib for $ARCH_MACHINE..."
+    cmake -S "$RAYLIB_NAME" -B "$RAYLIB_NAME/build" \
+        -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    cmake --build "$RAYLIB_NAME/build" --target raylib -j"$(nproc)"
 else
     download "$RAYLIB_NAME" "$RAYLIB_URL/$RAYLIB_NAME.tar.gz"
 fi
 
-RAYLIB_A="$RAYLIB_NAME/lib/libraylib.a"
-INCLUDES=(-I./$RAYLIB_NAME/include -I./src -I./vendor)
+if [ "$RAYLIB_FROM_SOURCE" = "1" ]; then
+    RAYLIB_A="$RAYLIB_NAME/build/raylib/libraylib.a"
+    RAYLIB_INCLUDE="$RAYLIB_NAME/src"
+else
+    RAYLIB_A="$RAYLIB_NAME/lib/libraylib.a"
+    RAYLIB_INCLUDE="$RAYLIB_NAME/include"
+fi
+INCLUDES=(-I./$RAYLIB_INCLUDE -I./src -I./vendor)
 LINK_ARCHIVES=("$RAYLIB_A")
 EXTRA_SRC=""
 
@@ -241,7 +267,7 @@ fi
 echo "Compiling static library for $ENV..."
 ${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
     -I. -Isrc -I$SRC_DIR -Ivendor \
-    -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
+    -I./$RAYLIB_INCLUDE -I$CUDA_HOME/include \
     -DPLATFORM_DESKTOP \
     -fno-semantic-interposition -fvisibility=hidden \
     -fPIC -fopenmp \
@@ -264,7 +290,7 @@ if [ -z "$MODE" ]; then
         -std=c++17 \
         -I. -Isrc \
         -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE -I$NUMPY_INCLUDE \
-        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_INCLUDE \
         -Xcompiler=-fopenmp \
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
@@ -310,7 +336,7 @@ elif [ "$MODE" = "profile" ]; then
     echo "Compiling profile binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
-        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_INCLUDE \
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         -Xcompiler=-DPLATFORM_DESKTOP \
