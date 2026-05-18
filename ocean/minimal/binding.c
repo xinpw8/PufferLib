@@ -6,6 +6,8 @@
 #define NUM_ATNS 2
 #define ACT_SIZES {9, 5}
 #define OBS_TENSOR_T FloatTensor
+#define PUFFER_HAS_STATE 1
+#define PUFFER_STATE_REFRESH(env) compute_observations(env)
 
 // You can macro your struct and function names here
 #define Env Env

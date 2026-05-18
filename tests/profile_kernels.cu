@@ -5,6 +5,10 @@
 #include <cmath>
 #include <chrono>
 
+#ifdef ENV_BINDING_SRC
+#include ENV_BINDING_SRC
+#endif
+
 #include "pufferlib.cu"
 #include "ini.h"
 
