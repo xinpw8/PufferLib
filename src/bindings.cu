@@ -151,6 +151,12 @@ void rollouts(pybind11::object pufferl_obj) {
         }
     }
 
+    if (pufferl.curriculum_enabled) {
+        curriculum_rollout_begin(&pufferl);
+    } else {
+        pufferl.vec->log_env_limit = 0;
+    }
+
     static_vec_omp_step(pufferl.vec);
     float sec = (float)(wall_clock() - t0);
     pufferl.profile.accum[PROF_ROLLOUT] += sec * 1000.0f;  // store as ms
@@ -430,6 +436,12 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     // Priority
     hypers.prio_alpha = get_config(train_kwargs, "prio_alpha");
     hypers.prio_beta0 = get_config(train_kwargs, "prio_beta0");
+    // Curriculum state buffer
+    hypers.state_buffer_size = get_config(train_kwargs, "state_buffer_size");
+    hypers.cl_frac = get_config(train_kwargs, "cl_frac");
+    hypers.warmup_states = get_config(train_kwargs, "warmup_states");
+    hypers.explore_alpha = get_config(train_kwargs, "explore_alpha");
+    hypers.explore_beta = get_config(train_kwargs, "explore_beta");
     hypers.reset_state = get_config(args, "reset_state");
     // Base-level config ([base] section becomes top-level in args)
     hypers.cudagraphs = get_config(args, "cudagraphs");
@@ -561,6 +573,11 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("vtrace_c_clip", &HypersT::vtrace_c_clip)
         .def_readwrite("prio_alpha", &HypersT::prio_alpha)
         .def_readwrite("prio_beta0", &HypersT::prio_beta0)
+        .def_readwrite("state_buffer_size", &HypersT::state_buffer_size)
+        .def_readwrite("cl_frac", &HypersT::cl_frac)
+        .def_readwrite("warmup_states", &HypersT::warmup_states)
+        .def_readwrite("explore_alpha", &HypersT::explore_alpha)
+        .def_readwrite("explore_beta", &HypersT::explore_beta)
         .def_readwrite("cudagraphs", &HypersT::cudagraphs)
         .def_readwrite("profile", &HypersT::profile)
         .def_readwrite("rank", &HypersT::rank)

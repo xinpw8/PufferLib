@@ -21,6 +21,8 @@
 #define VISION 5
 #define WINDOW (2*VISION + 1)
 #define MAX_SIZE 47
+#define INCREMENTAL_MIN_SIZE 5
+#define INCREMENTAL_NUM_LEVELS (((MAX_SIZE - INCREMENTAL_MIN_SIZE) / 2) + 1)
 
 typedef struct Log Log;
 struct Log {
@@ -47,6 +49,11 @@ typedef struct {
     int x;
     int y;
     int direction;
+    int tick;
+    int timeout_tick;
+    int episode_tick;
+    int largest_solved;
+    float episode_return;
     unsigned char maze[MAX_SIZE*MAX_SIZE];
 } State;
 
@@ -57,7 +64,6 @@ typedef struct {
     Log log;
     int num_levels;
     int num_agents;
-    int tick;
     unsigned char* observations;
     float* actions;
     float* rewards;
@@ -76,10 +82,13 @@ int maze_offset(int y, int x) {
 }
 
 void add_log(Grid* env, int idx) {
-    env->log.perf += env->rewards[idx];
-    env->log.score += env->rewards[idx];
-    env->log.episode_return += env->rewards[idx];
-    env->log.episode_length += env->tick;
+    (void)idx;
+    State* s = &env->state;
+    float score = (float)s->largest_solved;
+    env->log.perf += score / (float)MAX_SIZE;
+    env->log.score += score;
+    env->log.episode_return += s->episode_return;
+    env->log.episode_length += s->episode_tick;
     env->log.n += 1.0;
 }
  
@@ -122,10 +131,50 @@ void compute_observations(Grid* env) {
     }
 }
 
+void set_level(Grid* env, int level_idx, int reset_episode) {
+    assert(level_idx >= 0);
+    assert(level_idx < env->num_levels);
+    int tick = 0;
+    int episode_tick = 0;
+    int largest_solved = 0;
+    float episode_return = 0.0f;
+    if (!reset_episode) {
+        tick = env->state.tick;
+        episode_tick = env->state.episode_tick;
+        largest_solved = env->state.largest_solved;
+        episode_return = env->state.episode_return;
+    }
+
+    env->state = env->levels[level_idx];
+    env->state.tick = tick;
+    env->state.timeout_tick = tick + 2*env->state.width*env->state.height;
+    env->state.episode_tick = episode_tick;
+    env->state.largest_solved = largest_solved;
+    env->state.episode_return = episode_return;
+}
+
+int level_idx_from_state(Grid* env) {
+    int level_idx = (env->state.width - INCREMENTAL_MIN_SIZE) / 2;
+    if (level_idx < 0) {
+        return 0;
+    }
+    if (level_idx >= env->num_levels) {
+        return env->num_levels - 1;
+    }
+    return level_idx;
+}
+
+void advance_level(Grid* env) {
+    int level_idx = level_idx_from_state(env);
+    int next_level_idx = level_idx + 1;
+    if (next_level_idx >= env->num_levels) {
+        next_level_idx = env->num_levels - 1;
+    }
+    set_level(env, next_level_idx, 0);
+}
+
 void c_reset(Grid* env) {
-    env->tick = 0;
-    int idx = rand_r(&env->rng) % env->num_levels;
-    env->state = env->levels[idx];
+    set_level(env, 0, 1);
     compute_observations(env);
 }
 
@@ -141,8 +190,12 @@ int move_to(Grid* env, int agent_idx, float y, float x) {
         return 1;
     } else if (dest == GOAL) {
         env->rewards[agent_idx] = 1.0;
-        env->terminals[agent_idx] = 1.0f;
-        add_log(env, agent_idx);
+        s->episode_return += env->rewards[agent_idx];
+        if (s->width > s->largest_solved) {
+            s->largest_solved = s->width;
+        }
+        advance_level(env);
+        return 0;
     }
 
     int start_adr = maze_offset(s->y, s->x);
@@ -158,7 +211,8 @@ void c_step(Grid* env) {
     env->rewards[0] = 0.0f;
 
     State* s = &env->state;
-    env->tick++;
+    s->tick++;
+    s->episode_tick++;
 
     int atn = env->actions[0];
     int direction = s->direction;
@@ -185,16 +239,13 @@ void c_step(Grid* env) {
 
     compute_observations(env);
 
-    if (env->tick >= 2*s->width*s->height) {
+    if (s->tick >= s->timeout_tick) {
         env->terminals[0] = 1.0f;
         add_log(env, 0);
     }
 
     if (env->terminals[0]) {
         c_reset(env);
-        int idx = rand_r(&env->rng) % env->num_levels;
-        env->state = env->levels[idx];
-        compute_observations(env);
     }
 }
 

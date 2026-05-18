@@ -97,6 +97,9 @@ typedef struct StaticVec {
     // Optional permutation: agent_perm[slot] = physical agent index in global buffers.
     // NULL = identity (current behavior). Only valid when env defines MY_USES_PERM.
     int* agent_perm;
+    // 0 = aggregate logs from all envs. Curriculum sets this to the fresh-env
+    // prefix count so sampled curriculum envs do not report training logs.
+    int log_env_limit;
 } StaticVec;
 
 // Callback types
@@ -130,6 +133,15 @@ int* get_act_sizes(void);
 int get_num_act_sizes(void);
 const char* get_obs_dtype(void);
 size_t get_obs_elem_size(void);
+int get_state_size(void);
+
+// Optional direct env->state buffer support. Env bindings opt in with
+// PUFFER_STATE_T; otherwise these are no-ops and static_vec_has_state returns 0.
+int static_vec_has_state(StaticVec* vec);
+void static_vec_store_states(StaticVec* vec, void* states, const int* state_inds,
+    int env_start, int env_count);
+void static_vec_load_states(StaticVec* vec, const void* states, const int* state_inds,
+    int env_start, int env_count);
 
 // Synchronous single-step
 void static_vec_step(StaticVec* vec);
@@ -666,7 +678,11 @@ static inline float static_vec_aggregate_logs(StaticVec* vec, Log* out) {
     Env* envs = (Env*)vec->envs;
     memset(out, 0, sizeof(Log));
     int num_keys = sizeof(Log) / sizeof(float);
-    for (int i = 0; i < vec->size; i++) {
+    int limit = vec->size;
+    if (vec->log_env_limit > 0 && vec->log_env_limit < limit) {
+        limit = vec->log_env_limit;
+    }
+    for (int i = 0; i < limit; i++) {
         Env* env = &envs[i];
         if (env->log.n == 0) {
             continue;
@@ -737,6 +753,66 @@ int* get_act_sizes(void) { return _act_sizes; }
 int get_num_act_sizes(void) { return (int)(sizeof(_act_sizes) / sizeof(_act_sizes[0])); }
 const char* get_obs_dtype(void) { return dtype_symbol; }
 size_t get_obs_elem_size(void) { return obs_element_size(); }
+
+#ifdef PUFFER_STATE_T
+#ifndef PUFFER_STATE_SIZE
+#define PUFFER_STATE_SIZE ((int)sizeof(PUFFER_STATE_T))
+#endif
+
+int get_state_size(void) { return PUFFER_STATE_SIZE; }
+
+int static_vec_has_state(StaticVec* vec) {
+    (void)vec;
+    return 1;
+}
+
+void static_vec_store_states(StaticVec* vec, void* states, const int* state_inds,
+        int env_start, int env_count) {
+    Env* envs = (Env*)vec->envs;
+    PUFFER_STATE_T* state_buf = (PUFFER_STATE_T*)states;
+    for (int i = 0; i < env_count; i++) {
+        state_buf[state_inds[i]] = envs[env_start + i].state;
+    }
+}
+
+void static_vec_load_states(StaticVec* vec, const void* states, const int* state_inds,
+        int env_start, int env_count) {
+    Env* envs = (Env*)vec->envs;
+    const PUFFER_STATE_T* state_buf = (const PUFFER_STATE_T*)states;
+    for (int i = 0; i < env_count; i++) {
+        Env* env = &envs[env_start + i];
+        env->state = state_buf[state_inds[i]];
+#ifdef PUFFER_STATE_REFRESH
+        PUFFER_STATE_REFRESH(env);
+#endif
+    }
+}
+#else
+int get_state_size(void) { return 0; }
+
+int static_vec_has_state(StaticVec* vec) {
+    (void)vec;
+    return 0;
+}
+
+void static_vec_store_states(StaticVec* vec, void* states, const int* state_inds,
+        int env_start, int env_count) {
+    (void)vec;
+    (void)states;
+    (void)state_inds;
+    (void)env_start;
+    (void)env_count;
+}
+
+void static_vec_load_states(StaticVec* vec, const void* states, const int* state_inds,
+        int env_start, int env_count) {
+    (void)vec;
+    (void)states;
+    (void)state_inds;
+    (void)env_start;
+    (void)env_count;
+}
+#endif
 
 static inline void _static_vec_env_step(StaticVec* vec) {
     memset(vec->rewards, 0, vec->total_agents * sizeof(float));
