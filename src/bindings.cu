@@ -469,7 +469,7 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     }
 
     if (!pufferl) {
-        throw std::runtime_error("CUDA OOM: failed to allocate training buffers");
+        throw std::runtime_error("OOM: failed to allocate training or curriculum state buffers");
     }
 
     return pufferl;

@@ -1382,14 +1382,30 @@ static inline int clamp_int(int v, int lo, int hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
-void init_state_buffer(PuffeRL* pufferl) {
+int init_state_buffer(PuffeRL* pufferl) {
     StateBuffer* buf = &pufferl->state_buf;
     buf->state_size = get_state_size();
-    long state_bytes = (long)buf->capacity * buf->state_size;
-    buf->states = calloc(1, state_bytes);
-    buf->state_inds_host = (int*)calloc(pufferl->hypers.total_agents, sizeof(int));
-    assert(buf->states != NULL && "failed to allocate curriculum state buffer");
-    assert(buf->state_inds_host != NULL && "failed to allocate curriculum state indices");
+    size_t capacity = (size_t)buf->capacity;
+    size_t state_size = (size_t)buf->state_size;
+    if (state_size == 0 || capacity > ((size_t)-1) / state_size) {
+        fprintf(stderr, "Failed to allocate curriculum state buffer: invalid size\n");
+        return 0;
+    }
+
+    size_t state_bytes = capacity * state_size;
+    buf->states = malloc(state_bytes);
+    buf->state_inds_host = (int*)malloc((size_t)pufferl->hypers.total_agents * sizeof(int));
+    if (buf->states == NULL || buf->state_inds_host == NULL) {
+        fprintf(stderr,
+            "Failed to allocate curriculum state buffer: capacity=%d state_size=%d bytes=%zu\n",
+            buf->capacity, buf->state_size, state_bytes);
+        free(buf->states);
+        free(buf->state_inds_host);
+        buf->states = NULL;
+        buf->state_inds_host = NULL;
+        return 0;
+    }
+    return 1;
 }
 
 void close_state_buffer(PuffeRL* pufferl) {
@@ -2194,12 +2210,14 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
     StaticVec* vec = create_environments(hypers.num_buffers, hypers.total_agents,
         env_name, vec_kwargs, env_kwargs, pufferl->env);
     pufferl->vec = vec;
-    pufferl->curriculum_enabled = hypers.state_buffer_size > 0;
+    assert(hypers.cl_frac >= 0.0f && "cl_frac must be nonnegative");
+    assert(hypers.cl_frac <= 0.9f && "cl_frac must be <= 0.9");
+    int initial_num_cl_envs = clamp_int(
+        (int)(hypers.cl_frac * (float)hypers.total_agents), 0, hypers.total_agents);
+    pufferl->curriculum_enabled = hypers.state_buffer_size > 0 && initial_num_cl_envs > 0;
     if (pufferl->curriculum_enabled) {
         assert(static_vec_has_state(vec) && "state_buffer_size > 0 requires PUFFER_STATE_T env support");
         assert(get_state_size() > 0 && "state_buffer_size > 0 requires nonzero env state size");
-        assert(hypers.cl_frac >= 0.0f && "cl_frac must be nonnegative");
-        assert(hypers.cl_frac <= 0.9f && "cl_frac must be <= 0.9");
         assert(hypers.warmup_states >= 0 && "warmup_states must be nonnegative");
         assert(hypers.warmup_states <= hypers.state_buffer_size
             && "warmup_states must be <= state_buffer_size");
@@ -2321,7 +2339,12 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
     pufferl->grad_puf = {.data = (precision_t*)grads->mem, .shape = {grads->total_elems}};
     pufferl->param_puf = {.data = (precision_t*)params->mem, .shape = {params->total_elems}};
     if (pufferl->curriculum_enabled) {
-        init_state_buffer(pufferl.get());
+        if (!init_state_buffer(pufferl.get())) {
+            alloc_free(params);
+            alloc_free(grads);
+            alloc_free(acts);
+            return nullptr;
+        }
     }
 
     ulong init_seed = hypers.seed;
