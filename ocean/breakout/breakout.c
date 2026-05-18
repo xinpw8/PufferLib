@@ -12,7 +12,6 @@ void demo() {
         .width = 576,
         .height = 330,
         .initial_paddle_width = 62,
-        .paddle_width = 62,
         .paddle_height = 8,
         .ball_width = 32,
         .ball_height = 32,

@@ -12,6 +12,8 @@
 #define HALF_PADDLE_WIDTH 31
 #define Y_OFFSET 50
 #define TICK_RATE 1.0f/60.0f
+#define BREAKOUT_MAX_BRICKS 108
+#define BREAKOUT_OBS_SIZE (10 + BREAKOUT_MAX_BRICKS)
 
 #define BRICK_INDEX_NO_COLLISION -4
 #define BRICK_INDEX_SIDEWALL_COLLISION -3
@@ -36,6 +38,26 @@ typedef struct Client {
     Texture2D ball;
 } Client;
 
+typedef struct State {
+    int score;
+    int balls_fired;
+    int hits;
+    int num_balls;
+    int tick;
+    unsigned char hit_brick;
+
+    float paddle_x;
+    float paddle_y;
+    float ball_x;
+    float ball_y;
+    float ball_vx;
+    float ball_vy;
+    float ball_speed;
+    float paddle_width;
+
+    float brick_states[BREAKOUT_MAX_BRICKS];
+} State;
+
 typedef struct Breakout {
     Client* client;
     Log log;
@@ -43,26 +65,15 @@ typedef struct Breakout {
     float* actions;
     float* rewards;
     float* terminals;
+    State state;
     int num_agents;
-    int score;
-    float paddle_x;
-    float paddle_y;
-    float ball_x;
-    float ball_y;
-    float ball_vx;
-    float ball_vy;
     float* brick_x;
     float* brick_y;
-    float* brick_states;
-    int balls_fired;
     float initial_paddle_width;
-    float paddle_width;
     float paddle_height;
     float paddle_speed;
-    float ball_speed;
     float initial_ball_speed;
     float max_ball_speed;
-    int hits;
     int width;
     int height;
     int num_bricks;
@@ -72,12 +83,9 @@ typedef struct Breakout {
     int ball_height;
     int brick_width;
     int brick_height;
-    int num_balls;
     int max_score;
     int half_max_score;
-    int tick;
     int frameskip;
-    unsigned char hit_brick;
     int continuous;
     unsigned int rng;
 } Breakout;
@@ -107,20 +115,20 @@ void generate_brick_positions(Breakout* env) {
 }
 
 void init(Breakout* env) {
-    env->tick = 0;
+    env->state.tick = 0;
     env->num_bricks = env->brick_rows * env->brick_cols;
     assert(env->num_bricks > 0);
+    assert(env->num_bricks <= BREAKOUT_MAX_BRICKS);
 
     env->brick_x = (float*)calloc(env->num_bricks, sizeof(float));
     env->brick_y = (float*)calloc(env->num_bricks, sizeof(float));
-    env->brick_states = (float*)calloc(env->num_bricks, sizeof(float));
-    env->num_balls = -1;
+    env->state.num_balls = -1;
     generate_brick_positions(env);
 }
 
 void allocate(Breakout* env) {
     init(env);
-    env->observations = (float*)calloc(11 + env->num_bricks, sizeof(float));
+    env->observations = (float*)calloc(BREAKOUT_OBS_SIZE, sizeof(float));
     env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));
     env->terminals = (float*)calloc(1, sizeof(float));
@@ -129,7 +137,6 @@ void allocate(Breakout* env) {
 void c_close(Breakout* env) {
     free(env->brick_x);
     free(env->brick_y);
-    free(env->brick_states);
 }
 
 void free_allocated(Breakout* env) {
@@ -141,25 +148,27 @@ void free_allocated(Breakout* env) {
 }
 
 void add_log(Breakout* env) {
-    env->log.episode_length += env->tick;
-    env->log.episode_return += env->score;
-    env->log.score += env->score;
-    env->log.perf += env->score / (float)env->max_score;
+    State* s = &env->state;
+    env->log.episode_length += s->tick;
+    env->log.episode_return += s->score;
+    env->log.score += s->score;
+    env->log.perf += s->score / (float)env->max_score;
     env->log.n += 1;
 }
 
 void compute_observations(Breakout* env) {
-    env->observations[0] = env->paddle_x / env->width;
-    env->observations[1] = env->paddle_y / env->height;
-    env->observations[2] = env->ball_x / env->width;
-    env->observations[3] = env->ball_y / env->height;
-    env->observations[4] = env->ball_vx / 512.0f;
-    env->observations[5] = env->ball_vy / 512.0f;
-    env->observations[6] = env->balls_fired / 5.0f;
-    env->observations[7] = env->score / 864.0f;
-    env->observations[8] = env->num_balls / 5.0f;
-    env->observations[9] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
-    memcpy(env->observations + 10, env->brick_states, sizeof(float) * env->num_bricks);
+    State* s = &env->state;
+    env->observations[0] = s->paddle_x / env->width;
+    env->observations[1] = s->paddle_y / env->height;
+    env->observations[2] = s->ball_x / env->width;
+    env->observations[3] = s->ball_y / env->height;
+    env->observations[4] = s->ball_vx / 512.0f;
+    env->observations[5] = s->ball_vy / 512.0f;
+    env->observations[6] = s->balls_fired / 5.0f;
+    env->observations[7] = s->score / 864.0f;
+    env->observations[8] = s->num_balls / 5.0f;
+    env->observations[9] = s->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
+    memcpy(env->observations + 10, s->brick_states, sizeof(float) * env->num_bricks);
 }
 
 // Collision of a stationary vertical line segment (xw,yw) to (xw,yw+hw)
@@ -207,37 +216,38 @@ static inline bool calc_hline_collision(float xw, float yw, float ww,
 }
 static inline void calc_brick_collision(Breakout* env, int idx, 
         CollisionInfo* collision_info) {
+    State* s = &env->state;
     bool collision = false;
     // Brick left wall collides with ball right side
-    if (env->ball_vx > 0) {
+    if (s->ball_vx > 0) {
         if (calc_vline_collision(env->brick_x[idx], env->brick_y[idx], env->brick_height,
-                env->ball_x + env->ball_width, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height, collision_info)) {
+                s->ball_x + env->ball_width, s->ball_y, s->ball_vx, s->ball_vy, env->ball_height, collision_info)) {
             collision = true;
             collision_info->x -= env->ball_width;
         }
     }
 
     // Brick right wall collides with ball left side
-    if (env->ball_vx < 0) {
+    if (s->ball_vx < 0) {
         if (calc_vline_collision(env->brick_x[idx] + env->brick_width, env->brick_y[idx], env->brick_height,
-                env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height, collision_info)) {
+                s->ball_x, s->ball_y, s->ball_vx, s->ball_vy, env->ball_height, collision_info)) {
             collision = true;
         }
     }
 
     // Brick top wall collides with ball bottom side
-    if (env->ball_vy > 0) {
+    if (s->ball_vy > 0) {
         if (calc_hline_collision(env->brick_x[idx], env->brick_y[idx], env->brick_width,
-                env->ball_x, env->ball_y + env->ball_height, env->ball_vx, env->ball_vy, env->ball_width, collision_info)) {
+                s->ball_x, s->ball_y + env->ball_height, s->ball_vx, s->ball_vy, env->ball_width, collision_info)) {
             collision = true;
             collision_info->y -= env->ball_height;
         }
     }
 
     // Brick bottom wall collides with ball top side
-    if (env->ball_vy < 0) {
+    if (s->ball_vy < 0) {
         if (calc_hline_collision(env->brick_x[idx], env->brick_y[idx] + env->brick_height, env->brick_width,
-                env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_width, collision_info)) {
+                s->ball_x, s->ball_y, s->ball_vx, s->ball_vy, env->ball_width, collision_info)) {
             collision = true;
         }
     }
@@ -253,10 +263,11 @@ static inline int row_index(Breakout* env, float y) {
 }
 
 void calc_all_brick_collisions(Breakout* env, CollisionInfo* collision_info) {
-    float ball_x = env->ball_x;
-    float ball_x_dst = ball_x + env->ball_vx;
-    float ball_y = env->ball_y;
-    float ball_y_dst = ball_y + env->ball_vy;
+    State* s = &env->state;
+    float ball_x = s->ball_x;
+    float ball_x_dst = ball_x + s->ball_vx;
+    float ball_y = s->ball_y;
+    float ball_y_dst = ball_y + s->ball_vy;
     float ball_width = env->ball_width;
     float ball_height = env->ball_height;
 
@@ -291,25 +302,26 @@ void calc_all_brick_collisions(Breakout* env, CollisionInfo* collision_info) {
     for (int row = row_from; row <= row_to; row++) {
         for (int column = column_from; column <= column_to; column++) {
             int brick_index = row * env->brick_cols + column;
-            if (env->brick_states[brick_index] == 0.0f)
+            if (s->brick_states[brick_index] == 0.0f)
                 calc_brick_collision(env, brick_index, collision_info);
         }
     }
 }
 
 bool calc_paddle_ball_collisions(Breakout* env, CollisionInfo* collision_info) {
+    State* s = &env->state;
     float base_angle = M_PI / 4.0f;
 
     // Check if ball is above the paddle
-    if (env->ball_y + env->ball_height + env->ball_vy < env->paddle_y) {
+    if (s->ball_y + env->ball_height + s->ball_vy < s->paddle_y) {
         return false;
     }
 
     // Check for collision
     // If we've found another collision (eg the ball hits the wall before the paddle)
     // this correctly skips the paddle collision.
-    if (!calc_hline_collision(env->paddle_x, env->paddle_y, env->paddle_width,
-          env->ball_x, env->ball_y + env->ball_height, env->ball_vx, env->ball_vy, env->ball_width,
+    if (!calc_hline_collision(s->paddle_x, s->paddle_y, s->paddle_width,
+          s->ball_x, s->ball_y + env->ball_height, s->ball_vx, s->ball_vy, env->ball_width,
           collision_info) || collision_info->t > 1.0f) {
         return false;
     }
@@ -317,43 +329,44 @@ bool calc_paddle_ball_collisions(Breakout* env, CollisionInfo* collision_info) {
     collision_info->y -= env->ball_height;
     collision_info->brick_index = BRICK_INDEX_PADDLE_COLLISION;
 
-    env->hit_brick = false;
+    s->hit_brick = false;
     float relative_intersection = (
-        (env->ball_x + env->ball_width / 2) - env->paddle_x) / env->paddle_width;
+        (s->ball_x + env->ball_width / 2) - s->paddle_x) / s->paddle_width;
     float angle = -base_angle + relative_intersection * 2 * base_angle;
-    env->ball_vx = sinf(angle) * env->ball_speed * TICK_RATE;
-    env->ball_vy = -cosf(angle) * env->ball_speed * TICK_RATE;
-    env->hits += 1;
-    if (env->hits % 4 == 0 && env->ball_speed < env->max_ball_speed) {
-        env->ball_speed += 64;
+    s->ball_vx = sinf(angle) * s->ball_speed * TICK_RATE;
+    s->ball_vy = -cosf(angle) * s->ball_speed * TICK_RATE;
+    s->hits += 1;
+    if (s->hits % 4 == 0 && s->ball_speed < env->max_ball_speed) {
+        s->ball_speed += 64;
     }
-    if (env->score == env->half_max_score) {
+    if (s->score == env->half_max_score) {
         for (int i = 0; i < env->num_bricks; i++) {
-            env->brick_states[i] = 0.0;
+            s->brick_states[i] = 0.0;
         }
     }
     return true;
 }
 
 void calc_all_wall_collisions(Breakout* env, CollisionInfo* collision_info) {
-    if (env->ball_vx < 0) {
+    State* s = &env->state;
+    if (s->ball_vx < 0) {
         if (calc_vline_collision(0, 0, env->height,
-                env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height,
+                s->ball_x, s->ball_y, s->ball_vx, s->ball_vy, env->ball_height,
                 collision_info)) {
             collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
         }
     }
-    if (env->ball_vx > 0) {
+    if (s->ball_vx > 0) {
         if (calc_vline_collision(env->width, 0, env->height,
-                 env->ball_x + env->ball_width, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height,
+                 s->ball_x + env->ball_width, s->ball_y, s->ball_vx, s->ball_vy, env->ball_height,
                  collision_info)) {
             collision_info->x -= env->ball_width;
             collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
         }
     }
-    if (env->ball_vy < 0) {
+    if (s->ball_vy < 0) {
         if (calc_hline_collision(0, 0, env->width,
-                 env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_width,
+                 s->ball_x, s->ball_y, s->ball_vx, s->ball_vy, env->ball_width,
                  collision_info)) {
             collision_info->brick_index = BRICK_INDEX_BACKWALL_COLLISION;
         }
@@ -363,32 +376,35 @@ void calc_all_wall_collisions(Breakout* env, CollisionInfo* collision_info) {
 // With rare floating point conditions, the ball could escape the bounds.
 // Let's handle that explicitly.
 void check_wall_bounds(Breakout* env) {
+    State* s = &env->state;
     float offset = env->max_ball_speed * 1.1f * TICK_RATE;
-    if (env->ball_x < 0) {
-        env->ball_x += offset;
+    if (s->ball_x < 0) {
+        s->ball_x += offset;
     }
-    if (env->ball_x > env->width) {
-        env->ball_x -= offset;
+    if (s->ball_x > env->width) {
+        s->ball_x -= offset;
     }
-    if (env->ball_y < 0) {
-        env->ball_y += offset;
+    if (s->ball_y < 0) {
+        s->ball_y += offset;
     }
 }
 
 void destroy_brick(Breakout* env, int brick_idx) {
+    State* s = &env->state;
     float gained_points = 7 - 3 * ((brick_idx / env->brick_cols) / 2);
 
-    env->score += gained_points;
-    env->brick_states[brick_idx] = 1.0;
+    s->score += gained_points;
+    s->brick_states[brick_idx] = 1.0;
 
     env->rewards[0] += gained_points;
 
     if (brick_idx / env->brick_cols < 3) {
-        env->ball_speed = env->max_ball_speed;
+        s->ball_speed = env->max_ball_speed;
     }
 }
 
 bool handle_collisions(Breakout* env) {
+    State* s = &env->state;
     CollisionInfo collision_info = {
         .t = 2.0f,
         .overlap = -1.0f,
@@ -406,58 +422,56 @@ bool handle_collisions(Breakout* env) {
     calc_paddle_ball_collisions(env, &collision_info);
     if (collision_info.brick_index != BRICK_INDEX_PADDLE_COLLISION 
             && collision_info.t <= 1.0f) {
-        env->ball_x = collision_info.x;
-        env->ball_y = collision_info.y;
-        env->ball_vx = collision_info.vx;
-        env->ball_vy = collision_info.vy;
+        s->ball_x = collision_info.x;
+        s->ball_y = collision_info.y;
+        s->ball_vx = collision_info.vx;
+        s->ball_vy = collision_info.vy;
         if (collision_info.brick_index >= 0) {
             destroy_brick(env, collision_info.brick_index);
         }
         if (collision_info.brick_index == BRICK_INDEX_BACKWALL_COLLISION) {
-            env->paddle_width = HALF_PADDLE_WIDTH;
+            s->paddle_width = HALF_PADDLE_WIDTH;
         }
     }
     return collision_info.brick_index != BRICK_INDEX_NO_COLLISION;
 }
 
 void reset_round(Breakout* env) {
-    env->balls_fired = 0;
-    env->hit_brick = false;
-    env->hits = 0;
-    env->ball_speed = env->initial_ball_speed;
-    env->paddle_width = env->initial_paddle_width;
+    State* s = &env->state;
+    s->balls_fired = 0;
+    s->hit_brick = false;
+    s->hits = 0;
+    s->ball_speed = env->initial_ball_speed;
+    s->paddle_width = env->initial_paddle_width;
 
-    env->paddle_x = env->width / 2.0 - env->paddle_width / 2;
-    env->paddle_y = env->height - env->paddle_height - 10;
+    s->paddle_x = env->width / 2.0 - s->paddle_width / 2;
+    s->paddle_y = env->height - env->paddle_height - 10;
 
-    env->ball_x = env->paddle_x + (env->paddle_width / 2 - env->ball_width / 2);
-    env->ball_y = env->height / 2 - 30;
+    s->ball_x = s->paddle_x + (s->paddle_width / 2 - env->ball_width / 2);
+    s->ball_y = env->height / 2 - 30;
 
-    env->ball_vx = 0.0;
-    env->ball_vy = 0.0;
+    s->ball_vx = 0.0;
+    s->ball_vy = 0.0;
 }
 
 void c_reset(Breakout* env) {
-    env->score = 0;
-    env->num_balls = 5;
-    for (int i = 0; i < env->num_bricks; i++) {
-        env->brick_states[i] = 0.0;
-    }
+    memset(&env->state, 0, sizeof(State));
+    env->state.num_balls = 5;
     reset_round(env);
-    env->tick = 0;
     compute_observations(env);
 }
 
 void step_frame(Breakout* env, float action) {
+    State* s = &env->state;
     float act = 0.0;
-    if (env->balls_fired == 0) {
-        env->balls_fired = 1;
+    if (s->balls_fired == 0) {
+        s->balls_fired = 1;
         float direction = M_PI / 3.25f;
 
-        env->ball_vy = cosf(direction) * env->ball_speed * TICK_RATE;
-        env->ball_vx = sinf(direction) * env->ball_speed * TICK_RATE;
+        s->ball_vy = cosf(direction) * s->ball_speed * TICK_RATE;
+        s->ball_vx = sinf(direction) * s->ball_speed * TICK_RATE;
         if (rand_r(&env->rng) % 2 == 0) {
-            env->ball_vx = -env->ball_vx;
+            s->ball_vx = -s->ball_vx;
         }
     }   
      else if (action == LEFT) {
@@ -468,25 +482,25 @@ void step_frame(Breakout* env, float action) {
     if (env->continuous){
         act = action;
     }
-    env->paddle_x += act * env->paddle_speed * TICK_RATE;
-    if (env->paddle_x <= 0){
-        env->paddle_x = fmaxf(0, env->paddle_x);
+    s->paddle_x += act * env->paddle_speed * TICK_RATE;
+    if (s->paddle_x <= 0){
+        s->paddle_x = fmaxf(0, s->paddle_x);
     } else {
-        env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
+        s->paddle_x = fminf(env->width - s->paddle_width, s->paddle_x);
     }
 
     //Handle collisions. 
     //Regular timestepping is done only if there are no collisions.
     if(!handle_collisions(env)){
-        env->ball_x += env->ball_vx;
-        env->ball_y += env->ball_vy;
+        s->ball_x += s->ball_vx;
+        s->ball_y += s->ball_vy;
     }
 
-    if (env->ball_y >= env->paddle_y + env->paddle_height) {
-        env->num_balls -= 1;
+    if (s->ball_y >= s->paddle_y + env->paddle_height) {
+        s->num_balls -= 1;
         reset_round(env);
     }
-    if (env->num_balls < 0 || env->score == env->max_score) {
+    if (s->num_balls < 0 || s->score == env->max_score) {
         env->terminals[0] = 1;
         add_log(env);
         c_reset(env);
@@ -499,7 +513,7 @@ void c_step(Breakout* env) {
 
     float action = env->actions[0];
     for (int i = 0; i < env->frameskip; i++) {
-        env->tick += 1;
+        env->state.tick += 1;
         step_frame(env, action);
     }
 
@@ -512,7 +526,7 @@ Client* make_client(Breakout* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->width = env->width;
     client->height = env->height;
-    client->paddle_width = env->paddle_width;
+    client->paddle_width = env->initial_paddle_width;
     client->paddle_height = env->paddle_height;
     client->ball_width = env->ball_width;
     client->ball_height = env->ball_height;
@@ -534,6 +548,7 @@ void c_render(Breakout* env) {
         env->client = make_client(env);
     }
 
+    State* s = &env->state;
     Client* client = env->client;
 
     if (IsKeyDown(KEY_ESCAPE)) {
@@ -546,19 +561,19 @@ void c_render(Breakout* env) {
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
 
-    DrawRectangle(env->paddle_x, env->paddle_y,
-        env->paddle_width, env->paddle_height, (Color){0, 255, 255, 255});
+    DrawRectangle(s->paddle_x, s->paddle_y,
+        s->paddle_width, env->paddle_height, (Color){0, 255, 255, 255});
 
     // Draw ball
     DrawTexturePro(
         client->ball,
         (Rectangle){
-            (env->ball_vx > 0) ? 0 : 128,
+            (s->ball_vx > 0) ? 0 : 128,
             0, 128, 128,
         },
         (Rectangle){
-            env->ball_x,
-            env->ball_y,
+            s->ball_x,
+            s->ball_y,
             env->ball_width,
             env->ball_height
         },
@@ -570,7 +585,7 @@ void c_render(Breakout* env) {
     for (int row = 0; row < env->brick_rows; row++) {
         for (int col = 0; col < env->brick_cols; col++) {
             int brick_idx = row * env->brick_cols + col;
-            if (env->brick_states[brick_idx] == 1) {
+            if (s->brick_states[brick_idx] == 1) {
                 continue;
             }
             int x = env->brick_x[brick_idx];
@@ -580,8 +595,8 @@ void c_render(Breakout* env) {
         }
     }
 
-    DrawText(TextFormat("Score: %i", env->score), 10, 10, 20, WHITE);
-    DrawText(TextFormat("Balls: %i", env->num_balls), client->width - 80, 10, 20, WHITE);
+    DrawText(TextFormat("Score: %i", s->score), 10, 10, 20, WHITE);
+    DrawText(TextFormat("Balls: %i", s->num_balls), client->width - 80, 10, 20, WHITE);
     EndDrawing();
 
     //PlaySound(client->sound);

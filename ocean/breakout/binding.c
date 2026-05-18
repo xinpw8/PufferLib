@@ -1,8 +1,11 @@
 #include "breakout.h"
-#define OBS_SIZE 118
+#define OBS_SIZE BREAKOUT_OBS_SIZE
 #define NUM_ATNS 1
 #define ACT_SIZES {3}
 #define OBS_TENSOR_T FloatTensor
+#define PUFFER_STATE_T State
+#define PUFFER_STATE_SIZE ((int)sizeof(State))
+#define PUFFER_STATE_REFRESH(env) compute_observations(env)
 
 #define Env Breakout
 #include "vecenv.h"
