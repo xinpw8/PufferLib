@@ -3,8 +3,7 @@
 #define NUM_ATNS 1
 #define ACT_SIZES {5}
 #define OBS_TENSOR_T ByteTensor
-#define PUFFER_STATE_T State
-#define PUFFER_STATE_SIZE ((int)sizeof(State))
+#define PUFFER_HAS_STATE 1
 #define PUFFER_STATE_REFRESH(env) compute_observations(env)
 
 #define MY_VEC_INIT
@@ -29,7 +28,7 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
     }
 
     // Generate maze levels (shared across all envs)
-    State* levels = calloc(num_maps, sizeof(State));
+    State* levels = (State*)calloc(num_maps, sizeof(State));
 
     unsigned int map_rng = 42;
     for (int i = 0; i < num_maps; i++) {

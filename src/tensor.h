@@ -26,6 +26,8 @@ typedef struct {
 } IntTensor;
 
 #ifdef __CUDACC__
+#include "precision.h"
+
 typedef struct {
     precision_t* data;
     int64_t shape[PUF_MAX_DIMS];

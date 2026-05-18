@@ -57,7 +57,7 @@ if [ "$PLATFORM" = "Linux" ]; then
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
-    SHARED_LDFLAGS=(-Bsymbolic-functions)
+    SHARED_LDFLAGS=(-Bsymbolic-functions -Wl,--gc-sections)
 else
     RAYLIB_NAME='raylib-5.5_macos'
     OMP_LIB=-lomp
@@ -131,8 +131,8 @@ if [ -n "$DEBUG" ] || [ "$MODE" = "local" ]; then
     LINK_OPT="-g"
 else
     CLANG_OPT=(-O2 -DNDEBUG "${CLANG_WARN[@]}")
-    NVCC_OPT="-O2 --threads 0"
-    LINK_OPT="-O2"
+    NVCC_OPT="-O3 --threads 0"
+    LINK_OPT="-O3"
 fi
 if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
     FLAGS=(
@@ -238,42 +238,39 @@ if [ ! -f "$BINDING_SRC" ]; then
     exit 1
 fi
 
-echo "Compiling static library for $ENV..."
-${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
-    -I. -Isrc -I$SRC_DIR -Ivendor \
-    -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
-    -DPLATFORM_DESKTOP \
-    -fno-semantic-interposition -fvisibility=hidden \
-    -fPIC -fopenmp \
-    "$BINDING_SRC" -o "$STATIC_OBJ"
-ar rcs "$STATIC_LIB" "$STATIC_OBJ"
-
-# Brittle hack: have to extract the tensor type from the static lib to build trainer
-OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$BINDING_SRC")
-if [ -z "$OBS_TENSOR_T" ]; then
-    echo "Error: Could not find OBS_TENSOR_T in $BINDING_SRC"
-    exit 1
+if [ "$MODE" = "cpu" ]; then
+    echo "Compiling static library for $ENV..."
+    ${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
+        -I. -Isrc -I$SRC_DIR -Ivendor \
+        -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
+        -DPLATFORM_DESKTOP \
+        -fno-semantic-interposition -fvisibility=hidden \
+        -fPIC -fopenmp \
+        "$BINDING_SRC" -o "$STATIC_OBJ"
+    ar rcs "$STATIC_LIB" "$STATIC_OBJ"
 fi
 
 if [ -z "$MODE" ]; then
-    echo "Compiling CUDA ($ARCH) training backend..."
+    echo "Compiling CUDA ($ARCH) training backend with $ENV binding..."
     $NVCC -c -arch=$ARCH -Xcompiler -fPIC \
         -Xcompiler=-D_GLIBCXX_USE_CXX11_ABI=1 \
         -Xcompiler=-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION \
         -Xcompiler=-DPLATFORM_DESKTOP \
         -std=c++17 \
-        -I. -Isrc \
+        -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE -I$NUMPY_INCLUDE \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
         -Xcompiler=-fopenmp \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
+        -Xcompiler=-ffunction-sections \
+        -Xcompiler=-fdata-sections \
+        -DENV_BINDING_SRC=\"$BINDING_SRC\" \
         -DENV_NAME=$ENV \
         $PRECISION $NVCC_OPT \
         src/bindings.cu -o build/bindings.o
 
     LINK_CMD=(
         ${CXX:-g++} -shared -fPIC -fopenmp
-        build/bindings.o "$STATIC_LIB" "$RAYLIB_A"
+        build/bindings.o "$RAYLIB_A"
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG
         "${WHEEL_RPATH_FLAGS[@]}"
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn
@@ -292,7 +289,6 @@ elif [ "$MODE" = "cpu" ]; then
         -std=c++17 \
         -I. -Isrc \
         -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         $PRECISION $LINK_OPT \
         src/bindings_cpu.cpp -o build/bindings_cpu.o
@@ -311,13 +307,13 @@ elif [ "$MODE" = "profile" ]; then
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
+        -DENV_BINDING_SRC=\"$BINDING_SRC\" \
         -Xcompiler=-DPLATFORM_DESKTOP \
         $PRECISION \
         -Xcompiler=-fopenmp \
         tests/profile_kernels.cu vendor/ini.c \
-        "$STATIC_LIB" "$RAYLIB_A" \
+        "$RAYLIB_A" \
         -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn \
         -lGL -lm -lpthread $OMP_LIB \
         -o profile

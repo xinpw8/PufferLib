@@ -1,5 +1,9 @@
 // bindings.cpp - Python bindings for pufferlib (torch-free)
 
+#ifdef ENV_BINDING_SRC
+#include ENV_BINDING_SRC
+#endif
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
@@ -620,11 +624,11 @@ PYBIND11_MODULE(_C, m) {
         .def_readonly("obs_elem_size", &VecEnv::obs_elem_size)
         .def_readonly("gpu",           &VecEnv::gpu)
         // GPU buffer pointers — wrap with torch.from_blob(..., device='cuda')
-        .def_property_readonly("gpu_obs_ptr",       [](VecEnv& ve) { return (long long)ve.vec->gpu_observations; })
+        .def_property_readonly("gpu_obs_ptr",       [](VecEnv& ve) { return (long long)ve.vec->gpu_observations.data; })
         .def_property_readonly("gpu_rewards_ptr",   [](VecEnv& ve) { return (long long)ve.vec->gpu_rewards; })
         .def_property_readonly("gpu_terminals_ptr", [](VecEnv& ve) { return (long long)ve.vec->gpu_terminals; })
         // CPU buffer pointers (same as gpu_ in CPU mode since they alias)
-        .def_property_readonly("obs_ptr",       [](VecEnv& ve) { return (long long)ve.vec->observations; })
+        .def_property_readonly("obs_ptr",       [](VecEnv& ve) { return (long long)ve.vec->observations.data; })
         .def_property_readonly("rewards_ptr",   [](VecEnv& ve) { return (long long)ve.vec->rewards; })
         .def_property_readonly("terminals_ptr", [](VecEnv& ve) { return (long long)ve.vec->terminals; })
         .def("reset", &vec_reset)

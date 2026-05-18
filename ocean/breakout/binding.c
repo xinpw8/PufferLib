@@ -3,8 +3,7 @@
 #define NUM_ATNS 1
 #define ACT_SIZES {3}
 #define OBS_TENSOR_T FloatTensor
-#define PUFFER_STATE_T State
-#define PUFFER_STATE_SIZE ((int)sizeof(State))
+#define PUFFER_HAS_STATE 1
 #define PUFFER_STATE_REFRESH(env) compute_observations(env)
 
 #define Env Breakout

@@ -176,7 +176,7 @@ PYBIND11_MODULE(_C, m) {
         .def_readonly("obs_dtype", &VecEnv::obs_dtype)
         .def_readonly("obs_elem_size", &VecEnv::obs_elem_size)
         .def_property_readonly("gpu", [](VecEnv&) { return 0; })
-        .def_property_readonly("obs_ptr", [](VecEnv& ve) { return (long long)ve.vec->observations; })
+        .def_property_readonly("obs_ptr", [](VecEnv& ve) { return (long long)ve.vec->observations.data; })
         .def_property_readonly("rewards_ptr", [](VecEnv& ve) { return (long long)ve.vec->rewards; })
         .def_property_readonly("terminals_ptr", [](VecEnv& ve) { return (long long)ve.vec->terminals; })
         .def("reset", &vec_reset)

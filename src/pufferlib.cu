@@ -206,8 +206,7 @@ struct PrioBuffers {
 };
 
 struct StateBuffer {
-    void* states;              // CPU state_buffer_size * state_size bytes
-    int state_size;
+    PufferState* states;       // CPU state_buffer_size entries
     int capacity;
     int size;
     int write_pos;
@@ -272,10 +271,7 @@ struct EnvBuf {
 StaticVec* create_environments(int num_buffers, int total_agents,
         const std::string& env_name, Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
     StaticVec* vec = create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
-    env.obs = {
-        .data = (decltype(env.obs.data))vec->gpu_observations,
-        .shape = {total_agents, get_obs_size()},
-    };
+    env.obs = vec->gpu_observations;
     env.actions = { .data = (float*)vec->gpu_actions, .shape = {total_agents, get_num_atns()} };
     env.rewards = { .data = (float*)vec->gpu_rewards, .shape = {total_agents} };
     env.terminals = { .data = (float*)vec->gpu_terminals, .shape = {total_agents} };
@@ -1384,21 +1380,20 @@ static inline int clamp_int(int v, int lo, int hi) {
 
 int init_state_buffer(PuffeRL* pufferl) {
     StateBuffer* buf = &pufferl->state_buf;
-    buf->state_size = get_state_size();
     size_t capacity = (size_t)buf->capacity;
-    size_t state_size = (size_t)buf->state_size;
-    if (state_size == 0 || capacity > ((size_t)-1) / state_size) {
+    size_t state_size = sizeof(PufferState);
+    if (!PUFFER_HAS_STATE || state_size == 0 || capacity > ((size_t)-1) / state_size) {
         fprintf(stderr, "Failed to allocate curriculum state buffer: invalid size\n");
         return 0;
     }
 
     size_t state_bytes = capacity * state_size;
-    buf->states = malloc(state_bytes);
+    buf->states = (PufferState*)malloc(state_bytes);
     buf->state_inds_host = (int*)malloc((size_t)pufferl->hypers.total_agents * sizeof(int));
     if (buf->states == NULL || buf->state_inds_host == NULL) {
         fprintf(stderr,
             "Failed to allocate curriculum state buffer: capacity=%d state_size=%d bytes=%zu\n",
-            buf->capacity, buf->state_size, state_bytes);
+            buf->capacity, (int)state_size, state_bytes);
         free(buf->states);
         free(buf->state_inds_host);
         buf->states = NULL;
@@ -1414,6 +1409,44 @@ void close_state_buffer(PuffeRL* pufferl) {
     free(buf->state_inds_host);
     buf->states = NULL;
     buf->state_inds_host = NULL;
+}
+
+static inline void store_curriculum_states(StaticVec* vec, PufferState* states,
+        const int* state_inds, int env_start, int env_count) {
+#if PUFFER_HAS_STATE
+    Env* envs = vec->envs;
+    for (int i = 0; i < env_count; i++) {
+        states[state_inds[i]] = envs[env_start + i].state;
+    }
+#else
+    (void)vec;
+    (void)states;
+    (void)state_inds;
+    (void)env_start;
+    (void)env_count;
+    assert(0 && "state curriculum requires PUFFER_HAS_STATE");
+#endif
+}
+
+static inline void load_curriculum_states(StaticVec* vec, const PufferState* states,
+        const int* state_inds, int env_start, int env_count) {
+#if PUFFER_HAS_STATE
+    Env* envs = vec->envs;
+    for (int i = 0; i < env_count; i++) {
+        Env* env = &envs[env_start + i];
+        env->state = states[state_inds[i]];
+#ifdef PUFFER_STATE_REFRESH
+        PUFFER_STATE_REFRESH(env);
+#endif
+    }
+#else
+    (void)vec;
+    (void)states;
+    (void)state_inds;
+    (void)env_start;
+    (void)env_count;
+    assert(0 && "state curriculum requires PUFFER_HAS_STATE");
+#endif
 }
 
 void curriculum_rollout_begin(PuffeRL* pufferl) {
@@ -1454,10 +1487,10 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
             num_cl * sizeof(int), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
 
-        static_vec_load_states(vec, buf->states, buf->state_inds_host + num_fresh,
+        load_curriculum_states(vec, buf->states, buf->state_inds_host + num_fresh,
             num_fresh, num_cl);
         if (vec->gpu) {
-            cudaMemcpy(vec->gpu_observations, vec->observations,
+            cudaMemcpy(vec->gpu_observations.data, vec->observations.data,
                 (size_t)vec->total_agents * get_obs_size() * get_obs_elem_size(),
                 cudaMemcpyHostToDevice);
             if (vec->action_mask_size > 0) {
@@ -1472,7 +1505,7 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
         buf->state_inds_host[i] = (buf->write_pos + i) % buf->capacity;
     }
     if (num_fresh > 0) {
-        static_vec_store_states(vec, buf->states, buf->state_inds_host, 0, num_fresh);
+        store_curriculum_states(vec, buf->states, buf->state_inds_host, 0, num_fresh);
         buf->write_pos = (buf->write_pos + num_fresh) % buf->capacity;
         buf->size = clamp_int(buf->size + num_fresh, 0, buf->capacity);
     }
@@ -2216,8 +2249,8 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
         (int)(hypers.cl_frac * (float)hypers.total_agents), 0, hypers.total_agents);
     pufferl->curriculum_enabled = hypers.state_buffer_size > 0 && initial_num_cl_envs > 0;
     if (pufferl->curriculum_enabled) {
-        assert(static_vec_has_state(vec) && "state_buffer_size > 0 requires PUFFER_STATE_T env support");
-        assert(get_state_size() > 0 && "state_buffer_size > 0 requires nonzero env state size");
+        assert(PUFFER_HAS_STATE && "state_buffer_size > 0 requires env State support");
+        assert(sizeof(PufferState) > 0 && "state_buffer_size > 0 requires nonzero env state size");
         assert(hypers.warmup_states >= 0 && "warmup_states must be nonnegative");
         assert(hypers.warmup_states <= hypers.state_buffer_size
             && "warmup_states must be <= state_buffer_size");

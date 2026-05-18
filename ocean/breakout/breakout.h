@@ -520,6 +520,7 @@ void c_step(Breakout* env) {
     compute_observations(env);
 }
 
+#ifndef PUFFER_PERF_NO_RENDER
 Color BRICK_COLORS[6] = {RED, ORANGE, YELLOW, GREEN, SKYBLUE, BLUE};
 
 Client* make_client(Breakout* env) {
@@ -601,3 +602,4 @@ void c_render(Breakout* env) {
 
     //PlaySound(client->sound);
 }
+#endif

@@ -11,9 +11,9 @@
 #include <stdlib.h>
 
 #include <cuda_bf16.h>
+#include "precision.h"
 
 #ifdef PRECISION_FLOAT
-typedef float precision_t;
 constexpr bool USE_BF16 = false;
 constexpr int PRECISION_SIZE = 4;
 static constexpr cudaDataType_t CUBLAS_PRECISION = CUDA_R_32F;
@@ -22,7 +22,6 @@ static constexpr cublasComputeType_t CUBLAS_COMPUTE_PRECISION = CUBLAS_COMPUTE_3
 #define to_float(x) (x)
 #define from_float(x) (x)
 #else
-typedef __nv_bfloat16 precision_t;
 constexpr bool USE_BF16 = true;
 constexpr int PRECISION_SIZE = 2;
 static constexpr cudaDataType_t CUBLAS_PRECISION = CUDA_R_16BF;
