@@ -6,9 +6,9 @@ void demo() {
     int logit_sizes[1] = {4};
     PufferNet* net = make_puffernet(weights, 1, 16, 512, 4, logit_sizes, 1);
 
-    Game env = {
-        .scaffolding_ratio = 0.0,
-    };
+    Game env;
+    memset(&env, 0, sizeof(Game));
+    env.scaffolding_ratio = 0.0f;
     init(&env);
 
     unsigned char observations[16] = {0};

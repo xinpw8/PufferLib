@@ -144,7 +144,7 @@ def print_dashboard(args, model_size, flat_logs, clear=False, idx=[0],
 
     i = 0
     for k, v in flat_logs.items():
-        if k.startswith('env/') and k != 'env/n':
+        if k.startswith('env/'):
             u = left if i % 2 == 0 else right
             u.add_row(f'{b2}{k[4:]}', f'{b2}{v:.3f}')
             i += 1

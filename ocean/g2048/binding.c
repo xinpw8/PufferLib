@@ -3,6 +3,8 @@
 #define NUM_ATNS 1
 #define ACT_SIZES {4}
 #define OBS_TENSOR_T ByteTensor
+#define PUFFER_HAS_STATE 1
+#define PUFFER_STATE_REFRESH(env) refresh_state(env)
 
 #define Env Game
 #include "vecenv.h"

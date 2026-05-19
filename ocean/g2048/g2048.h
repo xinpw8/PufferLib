@@ -6,8 +6,8 @@
 #include <string.h>
 #include "raylib.h"
 
-static inline int min(int a, int b) { return a < b ? a : b; }
-static inline int max(int a, int b) { return a > b ? a : b; }
+static inline int g2048_min(int a, int b) { return a < b ? a : b; }
+static inline int g2048_max(int a, int b) { return a > b ? a : b; }
 
 #define SIZE 4
 #define EMPTY 0
@@ -50,17 +50,8 @@ typedef struct Log {
     float n;
 } Log;
 
-typedef struct Game {
-    Log log;                        // Required
-    unsigned char* observations;    // Cheaper in memory if encoded in uint_8
-    float* actions;                 // Required
-    float* rewards;                 // Required
-    float* terminals;               // Required
-    int num_agents;                 // Required for env_binding
-
-    float scaffolding_ratio;        // The ratio for "scaffolding" runs, in which higher blocks are spawned
+typedef struct State {
     bool is_scaffolding_episode;
-
     int score;
     int tick;
     unsigned char grid[SIZE][SIZE];
@@ -74,14 +65,26 @@ typedef struct Game {
     int empty_count;
     bool game_over_cached;
     bool grid_changed;
+} State;
+
+typedef struct Game {
+    Log log;                        // Required
+    unsigned char* observations;    // Cheaper in memory if encoded in uint_8
+    float* actions;                 // Required
+    float* rewards;                 // Required
+    float* terminals;               // Required
+    int num_agents;                 // Required for env_binding
+
+    float scaffolding_ratio;        // The ratio for "scaffolding" runs, in which higher blocks are spawned
+    State state;
     unsigned int rng;
 } Game;
 
 // Precomputed color table for rendering optimization
-const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
-const Color PUFF_WHITE = (Color){241, 241, 241, 241};
-const Color PUFF_RED = (Color){187, 0, 0, 255};
-const Color PUFF_CYAN = (Color){0, 187, 187, 255};
+static const Color PUFF_BACKGROUND = {6, 24, 24, 255};
+static const Color PUFF_WHITE = {241, 241, 241, 241};
+static const Color PUFF_RED = {187, 0, 0, 255};
+static const Color PUFF_CYAN = {0, 187, 187, 255};
 
 static Color tile_colors[17] = {
     {6, 24, 24, 255}, // Empty/background
@@ -111,35 +114,36 @@ void c_reset(Game* game);
 void c_step(Game* game);
 void c_render(Game* game);
 void c_close(Game* game);
+void refresh_state(Game* game);
 
 void init(Game* game) {
-    game->lifetime_max_tile = 0;
-    memset(game->grid, EMPTY, SIZE * SIZE);    
+    game->state.lifetime_max_tile = 0;
+    memset(game->state.grid, EMPTY, sizeof(game->state.grid));
 }
 
 void update_observations(Game* game) {
-    memcpy(game->observations, game->grid, SIZE * SIZE);
+    memcpy(game->observations, game->state.grid, SIZE * SIZE);
 }
 
 void add_log(Game* game) {
     // Scaffolding runs will distort stats, so skip logging
-    if (game->is_scaffolding_episode) return;
+    if (game->state.is_scaffolding_episode) return;
 
     // Update the lifetime best
-    if (game->max_tile > game->lifetime_max_tile) {
-        game->lifetime_max_tile = game->max_tile;
+    if (game->state.max_tile > game->state.lifetime_max_tile) {
+        game->state.lifetime_max_tile = game->state.max_tile;
     }
     
-    game->log.score += (float)(1 << game->max_tile);
-    game->log.perf += calculate_perf(game->max_tile);
-    game->log.merge_score += (float)game->score;
-    game->log.episode_length += game->tick;
-    game->log.episode_return += game->episode_reward;
-    game->log.lifetime_max_tile += (float)(1 << game->lifetime_max_tile);
-    game->log.reached_16384 += (game->max_tile >= 14);
-    game->log.reached_32768 += (game->max_tile >= 15);
-    game->log.reached_65536 += (game->max_tile >= 16);
-    game->log.reached_131072 += (game->max_tile >= 17);
+    game->log.score += (float)(1 << game->state.max_tile);
+    game->log.perf += calculate_perf(game->state.max_tile);
+    game->log.merge_score += (float)game->state.score;
+    game->log.episode_length += game->state.tick;
+    game->log.episode_return += game->state.episode_reward;
+    game->log.lifetime_max_tile += (float)(1 << game->state.lifetime_max_tile);
+    game->log.reached_16384 += (game->state.max_tile >= 14);
+    game->log.reached_32768 += (game->state.max_tile >= 15);
+    game->log.reached_65536 += (game->state.max_tile >= 16);
+    game->log.reached_131072 += (game->state.max_tile >= 17);
     game->log.n += 1;
 }
 
@@ -149,16 +153,16 @@ static inline unsigned char get_new_tile(Game* game) {
 }
 
 static inline void place_tile_at_random_cell(Game* game, unsigned char tile) {
-    if (game->empty_count == 0) return;
+    if (game->state.empty_count == 0) return;
 
-    int target = rand_r(&game->rng) % game->empty_count;
+    int target = rand_r(&game->rng) % game->state.empty_count;
     int pos = 0;
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            if (game->grid[i][j] == EMPTY) {
+            if (game->state.grid[i][j] == EMPTY) {
                 if (pos == target) {
-                    game->grid[i][j] = tile;
-                    game->empty_count--;
+                    game->state.grid[i][j] = tile;
+                    game->state.empty_count--;
                     return;
                 }
                 pos++;
@@ -168,16 +172,17 @@ static inline void place_tile_at_random_cell(Game* game, unsigned char tile) {
 }
 
 void set_scaffolding_curriculum(Game* game) {
-    if (game->lifetime_max_tile < 14) {
+    if (game->state.lifetime_max_tile < 14) {
         // Spawn one high tile from 8192 to 65536
         int curriculum = rand_r(&game->rng) % 5;
-        unsigned char high_tile = max(12 + curriculum, game->lifetime_max_tile);
+        unsigned char high_tile = (unsigned char)g2048_max(12 + curriculum,
+            game->state.lifetime_max_tile);
         place_tile_at_random_cell(game, high_tile);
 
     } else {
         // base=14 until 65536 reached, then base=15 for 131072 practice
         // All random placement, 1-2 tiles max
-        unsigned char base = (game->lifetime_max_tile >= 16) ? 15 : 14;
+        unsigned char base = (game->state.lifetime_max_tile >= 16) ? 15 : 14;
         int curriculum = rand_r(&game->rng) % 4;
 
         if (curriculum == 0) {
@@ -195,21 +200,21 @@ void set_scaffolding_curriculum(Game* game) {
 }
 
 void c_reset(Game* game) {
-    memset(game->grid, EMPTY, SIZE * SIZE);
-    game->score = 0;
-    game->tick = 0;
-    game->episode_reward = 0;
-    game->empty_count = SIZE * SIZE;
-    game->game_over_cached = false;
-    game->grid_changed = true;
-    game->moves_made = 0;
-    game->max_episode_ticks = BASE_MAX_TICKS;
-    game->max_tile = 0;
+    memset(game->state.grid, EMPTY, sizeof(game->state.grid));
+    game->state.score = 0;
+    game->state.tick = 0;
+    game->state.episode_reward = 0;
+    game->state.empty_count = SIZE * SIZE;
+    game->state.game_over_cached = false;
+    game->state.grid_changed = true;
+    game->state.moves_made = 0;
+    game->state.max_episode_ticks = BASE_MAX_TICKS;
+    game->state.max_tile = 0;
 
     // Higher tiles are spawned in scaffolding episodes
     // Having high tiles saves moves to get there, allowing agents to experience it faster
-    game->is_scaffolding_episode = (rand_r(&game->rng) / (float)RAND_MAX) < game->scaffolding_ratio;
-    if (game->is_scaffolding_episode) {
+    game->state.is_scaffolding_episode = (rand_r(&game->rng) / (float)RAND_MAX) < game->scaffolding_ratio;
+    if (game->state.is_scaffolding_episode) {
         set_scaffolding_curriculum(game);
 
     } else {
@@ -272,7 +277,7 @@ bool move(Game* game, int direction, float* reward, float* score_increase) {
             // Extract column
             for (int i = 0; i < SIZE; i++) {
                 int idx = (direction == UP) ? i : SIZE - 1 - i;
-                temp[i] = game->grid[idx][col];
+                temp[i] = game->state.grid[idx][col];
             }
             
             if (slide_and_merge(game, temp, reward, score_increase)) {
@@ -280,7 +285,7 @@ bool move(Game* game, int direction, float* reward, float* score_increase) {
                 // Write back column
                 for (int i = 0; i < SIZE; i++) {
                     int idx = (direction == UP) ? i : SIZE - 1 - i;
-                    game->grid[idx][col] = temp[i];
+                    game->state.grid[idx][col] = temp[i];
                 }
             }
         }
@@ -289,7 +294,7 @@ bool move(Game* game, int direction, float* reward, float* score_increase) {
             // Extract row
             for (int i = 0; i < SIZE; i++) {
                 int idx = (direction == LEFT) ? i : SIZE - 1 - i;
-                temp[i] = game->grid[row][idx];
+                temp[i] = game->state.grid[row][idx];
             }
             
             if (slide_and_merge(game, temp, reward, score_increase)) {
@@ -297,15 +302,15 @@ bool move(Game* game, int direction, float* reward, float* score_increase) {
                 // Write back row
                 for (int i = 0; i < SIZE; i++) {
                     int idx = (direction == LEFT) ? i : SIZE - 1 - i;
-                    game->grid[row][idx] = temp[i];
+                    game->state.grid[row][idx] = temp[i];
                 }
             }
         }
     }
 
     if (moved) {
-        game->grid_changed = true;
-        game->game_over_cached = false; // Invalidate cache
+        game->state.grid_changed = true;
+        game->state.game_over_cached = false; // Invalidate cache
     }
 
     return moved;
@@ -313,36 +318,36 @@ bool move(Game* game, int direction, float* reward, float* score_increase) {
 
 bool is_game_over(Game* game) {
     // Use cached result if grid hasn't changed
-    if (!game->grid_changed) {
-        return game->game_over_cached;
+    if (!game->state.grid_changed) {
+        return game->state.game_over_cached;
     }
     
     // Quick check: if there are empty cells, game is not over
-    if (game->empty_count > 0) {
-        game->game_over_cached = false;
-        game->grid_changed = false;
+    if (game->state.empty_count > 0) {
+        game->state.game_over_cached = false;
+        game->state.grid_changed = false;
         return false;
     }
     
     // Check for possible merges
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            unsigned char current = game->grid[i][j];
-            if (i < SIZE - 1 && current == game->grid[i + 1][j]) {
-                game->game_over_cached = false;
-                game->grid_changed = false;
+            unsigned char current = game->state.grid[i][j];
+            if (i < SIZE - 1 && current == game->state.grid[i + 1][j]) {
+                game->state.game_over_cached = false;
+                game->state.grid_changed = false;
                 return false;
             }
-            if (j < SIZE - 1 && current == game->grid[i][j + 1]) {
-                game->game_over_cached = false;
-                game->grid_changed = false;
+            if (j < SIZE - 1 && current == game->state.grid[i][j + 1]) {
+                game->state.game_over_cached = false;
+                game->state.grid_changed = false;
                 return false;
             }
         }
     }
     
-    game->game_over_cached = true;
-    game->grid_changed = false;
+    game->state.game_over_cached = true;
+    game->state.grid_changed = false;
     return true;
 }
 
@@ -352,7 +357,7 @@ void update_stats(Game* game) {
     
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            unsigned char val = game->grid[i][j];
+            unsigned char val = game->state.grid[i][j];
             // Update empty count and max tile
             if (val == EMPTY) empty_count++;
             if (val > max_tile) {
@@ -361,30 +366,37 @@ void update_stats(Game* game) {
         }
     }
 
-    game->empty_count = empty_count;
-    game->max_tile = max_tile;
+    game->state.empty_count = empty_count;
+    game->state.max_tile = max_tile;
+}
+
+void refresh_state(Game* game) {
+    update_stats(game);
+    game->state.game_over_cached = false;
+    game->state.grid_changed = true;
+    update_observations(game);
 }
 
 void c_step(Game* game) {
     float reward = 0.0f;
     float score_add = 0.0f;
     bool did_move = move(game, game->actions[0] + 1, &reward, &score_add);
-    game->tick++;
+    game->state.tick++;
 
     if (did_move) {
-        game->moves_made++;
+        game->state.moves_made++;
         // Refresh empty_count after merges so spawning uses the correct count.
         update_stats(game);
         place_tile_at_random_cell(game, get_new_tile(game));
-        game->score += score_add;
+        game->state.score += score_add;
 
         // Observations only change if the grid changes
         update_observations(game);
         
         // This is to limit infinite invalid moves during eval (happens for noob agents)
         // Don't need to be tight. Don't need to show to human player.
-        int tick_multiplier = max(1, game->lifetime_max_tile - 8); // practically no limit for competent agent
-        game->max_episode_ticks = max(BASE_MAX_TICKS * tick_multiplier, game->score / 4);
+        int tick_multiplier = g2048_max(1, game->state.lifetime_max_tile - 8); // practically no limit for competent agent
+        game->state.max_episode_ticks = g2048_max(BASE_MAX_TICKS * tick_multiplier, game->state.score / 4);
 
     } else {
         reward = INVALID_MOVE_PENALTY;
@@ -392,7 +404,7 @@ void c_step(Game* game) {
     }
 
     bool game_over = is_game_over(game);
-    bool max_ticks_reached = game->tick >= game->max_episode_ticks;
+    bool max_ticks_reached = game->state.tick >= game->state.max_episode_ticks;
     game->terminals[0] = (game_over || max_ticks_reached) ? 1 : 0;
 
     // Game over penalty overrides other rewards
@@ -401,7 +413,7 @@ void c_step(Game* game) {
     }
 
     game->rewards[0] = reward;
-    game->episode_reward += reward;
+    game->state.episode_reward += reward;
 
     if (game->terminals[0]) {
         add_log(game);
@@ -414,15 +426,15 @@ void step_without_reset(Game* game) {
     float score_add = 0.0f;
     float reward = 0.0f;
     bool did_move = move(game, game->actions[0] + 1, &reward, &score_add);
-    game->tick++;
+    game->state.tick++;
 
     if (did_move) {
-        game->moves_made++;
+        game->state.moves_made++;
 
         // Refresh empty_count after merges so spawning uses the correct count.
         update_stats(game);
         place_tile_at_random_cell(game, get_new_tile(game));
-        game->score += score_add;
+        game->state.score += score_add;
 
         // Observations only change if the grid changes
         update_observations(game);
@@ -455,10 +467,10 @@ void c_render(Game* game) {
     // Draw grid
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
-            int val = game->grid[i][j];
+            int val = game->state.grid[i][j];
             
             // Use precomputed colors
-            int color_idx = min(val, 16); // Cap at the max index of our color array
+            int color_idx = g2048_min(val, 16); // Cap at the max index of our color array
             Color color = tile_colors[color_idx];
             
             DrawRectangle(j * px, i * px, px - 5, px - 5, color);
@@ -486,10 +498,10 @@ void c_render(Game* game) {
     }
     
     // Draw score (format once per frame)
-    snprintf(score_text, sizeof(score_text), "Score: %d", game->score);
+    snprintf(score_text, sizeof(score_text), "Score: %d", game->state.score);
     DrawText(score_text, 10, px * SIZE + 10, 24, PUFF_WHITE);
 
-    snprintf(score_text, sizeof(score_text), "Moves: %d", game->moves_made);
+    snprintf(score_text, sizeof(score_text), "Moves: %d", game->state.moves_made);
     DrawText(score_text, 210, px * SIZE + 10, 24, PUFF_WHITE);
     
     EndDrawing();

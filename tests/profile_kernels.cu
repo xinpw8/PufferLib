@@ -41,6 +41,10 @@ void print_usage(const char* prog) {
     printf("  samplelogits   - Sample logits kernel only\n");
     printf("  ppoloss        - PPO loss fused fwd+bwd kernel\n");
     printf("  im2col         - im2col + col2im (nmmo3 conv sizes, B=1024)\n");
+    printf("  curriculum     - State-buffer curriculum kernels\n");
+    printf("    --state-buffer N - State buffer size (default: 100000)\n");
+    printf("    --cl-frac X      - Curriculum fraction (default: 0.8)\n");
+    printf("    --agents-per-env N - Agents per env (default: 1)\n");
     printf("  envspeed       - Environment step throughput\n");
     printf("    --buffers N  - Number of buffers (default: %d)\n", BUF);
     printf("    --threads N  - Number of threads (default: 16)\n");
@@ -92,6 +96,17 @@ inline float profile_kernel(kernel_fn fn, void* args) {
     cudaEventDestroy(stop);
     cudaDeviceSynchronize();
     return ms / TIMING_ITERS;
+}
+
+inline float profile_host(kernel_fn fn, void* args, int iters = TIMING_ITERS) {
+    for (int i = 0; i < WARMUP_ITERS; ++i) fn(args);
+    cudaDeviceSynchronize();
+
+    auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < iters; ++i) fn(args);
+    cudaDeviceSynchronize();
+    auto stop = std::chrono::steady_clock::now();
+    return std::chrono::duration<float, std::milli>(stop - start).count() / iters;
 }
 
 struct MingruGateProfile {
@@ -586,6 +601,200 @@ void profile_im2col(int B, int IC, int IH, int IW, int K, int S, int OH, int OW)
     free(p);
 }
 
+typedef struct {
+    PrecisionTensor state_advantages, rollout_advantages, importance;
+    FloatTensor prio_probs, cdf, cdf_block_sums;
+    IntTensor sample_idx, state_inds;
+    LongTensor rng_offset;
+    Allocator alloc;
+    int capacity;
+    int total_agents;
+    int num_envs;
+    int agents_per_env;
+    int num_cl_envs;
+    int num_fresh_envs;
+    int num_cl_agents;
+    int num_fresh_agents;
+    int horizon;
+    float alpha;
+    float beta;
+    int* sample_idx_host;
+} CurriculumProfile;
+
+__global__ void init_curriculum_profile_kernel(
+        precision_t* state_advantages,
+        precision_t* rollout_advantages,
+        int* state_inds,
+        int64_t* rng_offset,
+        int capacity, int total_agents, int horizon) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int n = capacity > total_agents * horizon ? capacity : total_agents * horizon;
+    if (idx < capacity) {
+        float v = 0.25f + (float)(idx % 257) * 0.001f;
+        state_advantages[idx] = from_float(v);
+    }
+    if (idx < total_agents) {
+        state_inds[idx] = idx % capacity;
+    }
+    if (idx < total_agents * horizon) {
+        float v = (float)((idx % 31) - 15) * 0.01f;
+        rollout_advantages[idx] = from_float(v);
+    }
+    if (idx == 0) {
+        *rng_offset = 0;
+    }
+}
+
+CurriculumProfile* create_curriculum_profile(
+        int capacity, int total_agents, int agents_per_env,
+        float cl_frac, int horizon) {
+    auto* p = (CurriculumProfile*)calloc(1, sizeof(CurriculumProfile));
+    p->capacity = capacity;
+    p->total_agents = total_agents;
+    p->agents_per_env = agents_per_env;
+    p->num_envs = total_agents / agents_per_env;
+    p->num_cl_envs = (int)(cl_frac * (float)p->num_envs);
+    if (p->num_cl_envs < 0) p->num_cl_envs = 0;
+    if (p->num_cl_envs > p->num_envs) p->num_cl_envs = p->num_envs;
+    p->num_fresh_envs = p->num_envs - p->num_cl_envs;
+    p->num_cl_agents = p->num_cl_envs * agents_per_env;
+    p->num_fresh_agents = p->num_fresh_envs * agents_per_env;
+    p->horizon = horizon;
+    p->alpha = 0.6f;
+    p->beta = 0.0f;
+
+    p->state_advantages = {.shape = {capacity}};
+    p->prio_probs = {.shape = {capacity}};
+    p->cdf = {.shape = {capacity}};
+    p->cdf_block_sums = {.shape = {cdf_scan_blocks(capacity)}};
+    p->sample_idx = {.shape = {p->num_cl_envs}};
+    p->state_inds = {.shape = {total_agents}};
+    p->importance = {.shape = {total_agents}};
+    p->rollout_advantages = {.shape = {total_agents, horizon}};
+    p->rng_offset = {.shape = {1}};
+    alloc_register(&p->alloc, &p->state_advantages);
+    alloc_register(&p->alloc, &p->prio_probs);
+    alloc_register(&p->alloc, &p->cdf);
+    alloc_register(&p->alloc, &p->cdf_block_sums);
+    alloc_register(&p->alloc, &p->sample_idx);
+    alloc_register(&p->alloc, &p->state_inds);
+    alloc_register(&p->alloc, &p->importance);
+    alloc_register(&p->alloc, &p->rollout_advantages);
+    alloc_register(&p->alloc, &p->rng_offset);
+    alloc_create(&p->alloc);
+    cudaHostAlloc((void**)&p->sample_idx_host,
+        (size_t)(p->num_cl_envs > 0 ? p->num_cl_envs : 1) * sizeof(int),
+        cudaHostAllocPortable);
+
+    int n = capacity > total_agents * horizon ? capacity : total_agents * horizon;
+    init_curriculum_profile_kernel<<<grid_size(n), BLOCK_SIZE>>>(
+        p->state_advantages.data, p->rollout_advantages.data,
+        p->state_inds.data, p->rng_offset.data,
+        capacity, total_agents, horizon);
+    compute_state_prio_abs<<<grid_size(capacity), BLOCK_SIZE>>>(
+        p->state_advantages.data, p->prio_probs.data, p->alpha, capacity);
+    compute_state_prio_normalize<<<1, PRIO_BLOCK_SIZE>>>(
+        p->prio_probs.data, capacity);
+    build_cdf_cuda(p->cdf.data, p->prio_probs.data, p->cdf_block_sums.data,
+        capacity, 0);
+    cudaDeviceSynchronize();
+    return p;
+}
+
+void run_state_prio_abs(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    compute_state_prio_abs<<<grid_size(p->capacity), BLOCK_SIZE>>>(
+        p->state_advantages.data, p->prio_probs.data, p->alpha, p->capacity);
+}
+
+void run_state_prio_normalize(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    compute_state_prio_normalize<<<1, PRIO_BLOCK_SIZE>>>(
+        p->prio_probs.data, p->capacity);
+}
+
+void run_build_cdf_profile(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    build_cdf_cuda(p->cdf.data, p->prio_probs.data, p->cdf_block_sums.data,
+        p->capacity, 0);
+}
+
+void run_multinomial_profile(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    int threads = 256;
+    int blocks = (p->num_cl_envs + threads - 1) / threads;
+    multinomial_sample<<<blocks, threads>>>(
+        p->sample_idx.data, p->cdf.data, p->capacity, p->num_cl_envs,
+        1234, p->rng_offset.data);
+}
+
+void run_advance_rng_profile(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    advance_rng_offset<<<1, 1>>>(p->rng_offset.data, (int64_t)p->num_cl_envs);
+}
+
+void run_state_importance_profile(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    build_state_importance<<<grid_size(p->total_agents), BLOCK_SIZE>>>(
+        p->importance.data, p->state_inds.data, p->prio_probs.data,
+        p->num_fresh_agents, p->num_cl_agents, p->capacity, p->beta);
+}
+
+void run_scatter_state_advantages_profile(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    scatter_state_advantages<<<1, 1>>>(
+        p->state_advantages.data, p->state_inds.data, p->rollout_advantages.data,
+        0, p->num_envs, p->agents_per_env, p->horizon);
+}
+
+void run_state_sample_total_profile(void* args) {
+    CurriculumProfile* p = (CurriculumProfile*)args;
+    run_state_prio_abs(args);
+    run_state_prio_normalize(args);
+    run_build_cdf_profile(args);
+    run_multinomial_profile(args);
+    run_advance_rng_profile(args);
+    cudaMemcpyAsync(p->sample_idx_host, p->sample_idx.data,
+        (size_t)p->num_cl_envs * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaStreamSynchronize(0);
+}
+
+void profile_curriculum(int capacity, int total_agents, int agents_per_env,
+        float cl_frac, int horizon) {
+    printf("curriculum (capacity=%d, total_agents=%d, agents_per_env=%d, cl_frac=%.3f, horizon=%d)\n",
+        capacity, total_agents, agents_per_env, cl_frac, horizon);
+    CurriculumProfile* p = create_curriculum_profile(
+        capacity, total_agents, agents_per_env, cl_frac, horizon);
+    printf("  num_envs=%d fresh_envs=%d cl_envs=%d fresh_agents=%d cl_agents=%d\n",
+        p->num_envs, p->num_fresh_envs, p->num_cl_envs,
+        p->num_fresh_agents, p->num_cl_agents);
+
+    float prio_abs = profile_kernel(run_state_prio_abs, p);
+    float prio_norm = profile_kernel(run_state_prio_normalize, p);
+    float cdf = profile_kernel(run_build_cdf_profile, p);
+    float sample = profile_kernel(run_multinomial_profile, p);
+    float rng = profile_kernel(run_advance_rng_profile, p);
+    float importance = profile_kernel(run_state_importance_profile, p);
+    float scatter = profile_kernel(run_scatter_state_advantages_profile, p);
+    float total_gpu = profile_kernel(run_state_sample_total_profile, p);
+    float total_host = profile_host(run_state_sample_total_profile, p, 200);
+
+    print_timing("state_prio_abs", prio_abs, capacity);
+    print_timing("state_prio_normalize", prio_norm, capacity);
+    print_timing("build_cdf", cdf, capacity);
+    print_timing("multinomial_sample", sample, p->num_cl_envs);
+    print_timing("advance_rng_offset", rng, 1);
+    print_timing("build_state_importance", importance, total_agents);
+    print_timing("scatter_state_advantages", scatter, p->num_envs);
+    printf("  %-28s %8.1f us\n", "state_sample_total_gpu", total_gpu * 1000);
+    printf("  %-28s %8.1f us\n", "state_sample_total_host", total_host * 1000);
+    printf("\n");
+
+    cudaFreeHost(p->sample_idx_host);
+    alloc_free(&p->alloc);
+    free(p);
+}
+
 static void empty_net_callback(void* ctx, int buf, int t) {
     (void)ctx; (void)buf; (void)t;
 }
@@ -703,11 +912,17 @@ int main(int argc, char** argv) {
     const char* profile = argv[1];
     int buffers = BUF, threads = 16, horizon = T_;
     int total_agents = BR * buffers;
+    int state_buffer = 100000;
+    int agents_per_env = 1;
+    float cl_frac = 0.8f;
     for (int i = 2; i < argc - 1; i++) {
         if (strcmp(argv[i], "--buffers") == 0) buffers = atoi(argv[++i]);
         else if (strcmp(argv[i], "--threads") == 0) threads = atoi(argv[++i]);
         else if (strcmp(argv[i], "--horizon") == 0) horizon = atoi(argv[++i]);
         else if (strcmp(argv[i], "--total-agents") == 0) total_agents = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--state-buffer") == 0) state_buffer = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--agents-per-env") == 0) agents_per_env = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--cl-frac") == 0) cl_frac = atof(argv[++i]);
     }
 
     warmup_gpu();
@@ -727,6 +942,8 @@ int main(int argc, char** argv) {
         profile_im2col(1024, N3_C1_IC, N3_MAP_H, N3_MAP_W, N3_C1_K, N3_C1_S, N3_C1_OH, N3_C1_OW);
         profile_im2col(1024, N3_C2_IC, N3_C1_OH, N3_C1_OW, N3_C2_K, N3_C2_S, N3_C2_OH, N3_C2_OW);
     }
+    if (strcmp(profile, "kernels") == 0 || strcmp(profile, "curriculum") == 0 || run_all)
+        profile_curriculum(state_buffer, total_agents, agents_per_env, cl_frac, horizon);
 
     if (strcmp(profile, "envspeed") == 0 || run_all)
         profile_envspeed(total_agents, buffers, threads, horizon);
@@ -739,6 +956,7 @@ int main(int argc, char** argv) {
         && strcmp(profile, "samplelogits") != 0
         && strcmp(profile, "ppoloss") != 0
         && strcmp(profile, "im2col") != 0
+        && strcmp(profile, "curriculum") != 0
         && strcmp(profile, "envspeed") != 0
     ) {
         printf("Unknown profile: %s\n\n", profile);

@@ -200,8 +200,13 @@ void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, i
 
 // Prioritized replay over single-epoch data. These kernels are
 // the least cleaned because we will likely have a better method in 5.0
+#define CDF_SCAN_BLOCK_SIZE 1024
+static inline int cdf_scan_blocks(int n) {
+    return (n + CDF_SCAN_BLOCK_SIZE - 1) / CDF_SCAN_BLOCK_SIZE;
+}
+
 struct PrioBuffers {
-    FloatTensor prio_probs, cdf, mb_prio;
+    FloatTensor prio_probs, cdf, cdf_block_sums, mb_prio;
     IntTensor idx;
 };
 
@@ -228,11 +233,13 @@ void register_prio_buffers(PrioBuffers& bufs, Allocator* alloc, int B, int minib
     bufs = (PrioBuffers){
         .prio_probs = {.shape = {B}},
         .cdf = {.shape = {B}},
+        .cdf_block_sums = {.shape = {cdf_scan_blocks(B)}},
         .mb_prio = {.shape = {minibatch_segments}},
         .idx = {.shape = {minibatch_segments}},
     };
     alloc_register(alloc, &bufs.prio_probs);
     alloc_register(alloc, &bufs.cdf);
+    alloc_register(alloc, &bufs.cdf_block_sums);
     alloc_register(alloc, &bufs.idx);
     alloc_register(alloc, &bufs.mb_prio);
 }
@@ -1326,15 +1333,63 @@ __global__ void build_state_importance(
     out[idx] = from_float(weight);
 }
 
-__global__ void build_cdf(
-    float* __restrict__ cdf, const float* __restrict__ probs, int B) {
-    if (blockIdx.x == 0 && threadIdx.x == 0) {
-        float cum = 0.0f;
-        for (int i = 0; i < B; i++) {
-            cum += probs[i];
-            cdf[i] = cum;
-        }
+__global__ void build_cdf_block_scan(
+        float* __restrict__ cdf, const float* __restrict__ probs,
+        float* __restrict__ block_sums, int B) {
+    __shared__ float scan[CDF_SCAN_BLOCK_SIZE];
+
+    int tx = threadIdx.x;
+    int idx = blockIdx.x * CDF_SCAN_BLOCK_SIZE + tx;
+    scan[tx] = idx < B ? probs[idx] : 0.0f;
+    __syncthreads();
+
+    for (int offset = 1; offset < CDF_SCAN_BLOCK_SIZE; offset <<= 1) {
+        float add = tx >= offset ? scan[tx - offset] : 0.0f;
+        __syncthreads();
+        scan[tx] += add;
+        __syncthreads();
     }
+
+    if (idx < B) {
+        cdf[idx] = scan[tx];
+    }
+    if (tx == CDF_SCAN_BLOCK_SIZE - 1) {
+        block_sums[blockIdx.x] = scan[tx];
+    }
+}
+
+__global__ void scan_cdf_block_sums(float* __restrict__ block_sums, int num_blocks) {
+    if (blockIdx.x != 0 || threadIdx.x != 0) {
+        return;
+    }
+    float cum = 0.0f;
+    for (int i = 0; i < num_blocks; i++) {
+        float block_sum = block_sums[i];
+        block_sums[i] = cum;
+        cum += block_sum;
+    }
+}
+
+__global__ void add_cdf_block_offsets(
+        float* __restrict__ cdf, const float* __restrict__ block_sums, int B) {
+    int idx = blockIdx.x * CDF_SCAN_BLOCK_SIZE + threadIdx.x;
+    if (idx < B) {
+        cdf[idx] += block_sums[blockIdx.x];
+    }
+}
+
+static inline void build_cdf_cuda(
+        float* cdf, const float* probs, float* block_sums,
+        int B, cudaStream_t stream) {
+    if (B <= 0) {
+        return;
+    }
+    int blocks = cdf_scan_blocks(B);
+    build_cdf_block_scan<<<blocks, CDF_SCAN_BLOCK_SIZE, 0, stream>>>(
+        cdf, probs, block_sums, B);
+    scan_cdf_block_sums<<<1, 1, 0, stream>>>(block_sums, blocks);
+    add_cdf_block_offsets<<<blocks, CDF_SCAN_BLOCK_SIZE, 0, stream>>>(
+        cdf, block_sums, B);
 }
 
 __global__ void advance_rng_offset(int64_t* __restrict__ offset_ptr, int64_t delta) {
@@ -1377,7 +1432,8 @@ void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
     compute_prio_normalize<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(
         bufs.prio_probs.data, B);
     //int block = fmaxf(((minibatch_segments + 31) / 32) * 32, 32);
-    build_cdf<<<1, 1, 0, stream>>>(bufs.cdf.data, bufs.prio_probs.data, B);
+    build_cdf_cuda(bufs.cdf.data, bufs.prio_probs.data,
+        bufs.cdf_block_sums.data, B, stream);
     int threads = 256;
     int blocks = (minibatch_segments + threads - 1) / threads;
     multinomial_sample<<<blocks, threads, 0, stream>>>(
@@ -1506,16 +1562,17 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
     int total_agents = h->total_agents;
     int total_envs = vec->size;
     int agents_per_env = buf->agents_per_env;
-    int configured_cl = clamp_int((int)(h->cl_frac * (float)total_envs), 0, total_envs);
+    int total_epochs = h->total_timesteps / (h->total_agents * h->horizon);
+    float progress = total_epochs > 0 ? (float)pufferl->epoch / (float)total_epochs : 1.0f;
+    progress = fminf(1.0f, fmaxf(0.0f, progress));
+    float current_cl_frac = h->cl_frac;
+    int configured_cl = clamp_int((int)(current_cl_frac * (float)total_envs), 0, total_envs);
     int do_warmup = (buf->size == 0 || buf->size < h->warmup_states);
     int num_cl_envs = do_warmup ? 0 : configured_cl;
     int num_fresh_envs = total_envs - num_cl_envs;
     int num_cl_agents = num_cl_envs * agents_per_env;
     int num_fresh_agents = num_fresh_envs * agents_per_env;
-    int total_epochs = h->total_timesteps / (h->total_agents * h->horizon);
-    float beta_progress = total_epochs > 0 ? (float)pufferl->epoch / (float)total_epochs : 1.0f;
-    beta_progress = fminf(1.0f, fmaxf(0.0f, beta_progress));
-    float beta = h->explore_beta + (1.0f - h->explore_beta) * beta_progress;
+    float beta = h->explore_beta;
 
     buf->num_cl_envs = num_cl_envs;
     buf->num_fresh_envs = num_fresh_envs;
@@ -1529,8 +1586,8 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
             h->explore_alpha, buf->size);
         compute_state_prio_normalize<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(
             buf->prio_bufs.prio_probs.data, buf->size);
-        build_cdf<<<1, 1, 0, stream>>>(
-            buf->prio_bufs.cdf.data, buf->prio_bufs.prio_probs.data, buf->size);
+        build_cdf_cuda(buf->prio_bufs.cdf.data, buf->prio_bufs.prio_probs.data,
+            buf->prio_bufs.cdf_block_sums.data, buf->size, stream);
         int threads = 256;
         int blocks = (num_cl_envs + threads - 1) / threads;
         long* rng_offset = pufferl->rng_offset_puf.data + h->num_buffers + 1;
