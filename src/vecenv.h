@@ -124,6 +124,7 @@ typedef struct StaticVec {
 
 // Callback types
 typedef void (*net_callback_fn)(void* ctx, int buf, int t);
+typedef void (*step_callback_fn)(void* ctx, int buf, int t);
 typedef void (*thread_init_fn)(void* ctx, int buf);
 typedef void (*step_fn)(void* env);
 
@@ -140,7 +141,8 @@ void static_vec_close(StaticVec* vec);
 void static_vec_log(StaticVec* vec, Dict* out);
 void static_vec_eval_log(StaticVec* vec, Dict* out);
 void create_static_threads(StaticVec* vec, int num_threads, int horizon,
-    void* ctx, net_callback_fn net_callback, thread_init_fn thread_init);
+    void* ctx, net_callback_fn net_callback, step_callback_fn step_callback,
+    thread_init_fn thread_init);
 void static_vec_omp_step(StaticVec* vec);
 void static_vec_seq_step(StaticVec* vec);
 void static_vec_render(StaticVec* vec, int env_id);
@@ -280,6 +282,7 @@ typedef struct StaticOMPArg {
     int horizon;
     void* ctx;
     net_callback_fn net_callback;
+    step_callback_fn step_callback;
     thread_init_fn thread_init;
 } StaticOMPArg;
 
@@ -292,6 +295,7 @@ static void* static_omp_threadmanager(void* arg) {
     int horizon = worker_arg->horizon;
     void* ctx = worker_arg->ctx;
     net_callback_fn net_callback = worker_arg->net_callback;
+    step_callback_fn step_callback = worker_arg->step_callback;
     thread_init_fn thread_init = worker_arg->thread_init;
 
     if (thread_init != NULL) {
@@ -344,11 +348,6 @@ static void* static_omp_threadmanager(void* arg) {
             my_accum[EVAL_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
             cudaMemcpyAsync(
-                vec->gpu_observations.data + agent_start * OBS_SIZE,
-                vec->observations.data + agent_start * OBS_SIZE,
-                agents_per_buffer * OBS_SIZE * obs_element_size(),
-                cudaMemcpyHostToDevice, stream);
-            cudaMemcpyAsync(
                 &vec->gpu_rewards[agent_start],
                 &vec->rewards[agent_start],
                 agents_per_buffer * sizeof(float),
@@ -357,6 +356,14 @@ static void* static_omp_threadmanager(void* arg) {
                 &vec->gpu_terminals[agent_start],
                 &vec->terminals[agent_start],
                 agents_per_buffer * sizeof(float),
+                cudaMemcpyHostToDevice, stream);
+            if (step_callback != NULL) {
+                step_callback(ctx, buf, t);
+            }
+            cudaMemcpyAsync(
+                vec->gpu_observations.data + agent_start * OBS_SIZE,
+                vec->observations.data + agent_start * OBS_SIZE,
+                agents_per_buffer * OBS_SIZE * obs_element_size(),
                 cudaMemcpyHostToDevice, stream);
 #ifdef MY_ACTION_MASK
             cudaMemcpyAsync(
@@ -638,7 +645,8 @@ void static_vec_reset(StaticVec* vec) {
 }
 
 void create_static_threads(StaticVec* vec, int num_threads, int horizon,
-        void* ctx, net_callback_fn net_callback, thread_init_fn thread_init) {
+        void* ctx, net_callback_fn net_callback, step_callback_fn step_callback,
+        thread_init_fn thread_init) {
     vec->threading = (StaticThreading*)calloc(1, sizeof(StaticThreading));
     vec->threading->num_threads = num_threads;
     vec->threading->num_buffers = vec->buffers;
@@ -656,6 +664,7 @@ void create_static_threads(StaticVec* vec, int num_threads, int horizon,
         args[i].horizon = horizon;
         args[i].ctx = ctx;
         args[i].net_callback = net_callback;
+        args[i].step_callback = step_callback;
         args[i].thread_init = thread_init;
         pthread_create(&vec->threading->threads[i], NULL, static_omp_threadmanager, &args[i]);
     }

@@ -40,6 +40,10 @@ pybind11::dict puf_log(pybind11::object pufferl_obj) {
     for (int i = 0; i < env_out->size; i++) {
         env_dict[env_out->items[i].key] = env_out->items[i].value;
     }
+    if (pufferl.curriculum_enabled) {
+        env_dict["state_size"] = pufferl.state_buf.size;
+        env_dict["state_max"] = pufferl.state_buf.max_priority;
+    }
     result["env"] = env_dict;
 
     // Losses
@@ -426,6 +430,7 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     hypers.max_grad_norm = get_config(train_kwargs, "max_grad_norm");
     // PPO
     hypers.clip_coef = get_config(train_kwargs, "clip_coef");
+    hypers.target_kl = get_config(train_kwargs, "target_kl");
     hypers.vf_clip_coef = get_config(train_kwargs, "vf_clip_coef");
     hypers.vf_coef = get_config(train_kwargs, "vf_coef");
     hypers.ent_coef = get_config(train_kwargs, "ent_coef");
@@ -443,6 +448,7 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     // Curriculum state buffer
     hypers.state_buffer_size = get_config(train_kwargs, "state_buffer_size");
     hypers.cl_frac = get_config(train_kwargs, "cl_frac");
+    hypers.anneal_cl = get_config(train_kwargs, "anneal_cl");
     hypers.warmup_states = get_config(train_kwargs, "warmup_states");
     hypers.explore_alpha = get_config(train_kwargs, "explore_alpha");
     hypers.explore_beta = get_config(train_kwargs, "explore_beta");
@@ -566,6 +572,7 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("total_timesteps", &HypersT::total_timesteps)
         .def_readwrite("max_grad_norm", &HypersT::max_grad_norm)
         .def_readwrite("clip_coef", &HypersT::clip_coef)
+        .def_readwrite("target_kl", &HypersT::target_kl)
         .def_readwrite("vf_clip_coef", &HypersT::vf_clip_coef)
         .def_readwrite("vf_coef", &HypersT::vf_coef)
         .def_readwrite("ent_coef", &HypersT::ent_coef)
@@ -579,6 +586,7 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("prio_beta0", &HypersT::prio_beta0)
         .def_readwrite("state_buffer_size", &HypersT::state_buffer_size)
         .def_readwrite("cl_frac", &HypersT::cl_frac)
+        .def_readwrite("anneal_cl", &HypersT::anneal_cl)
         .def_readwrite("warmup_states", &HypersT::warmup_states)
         .def_readwrite("explore_alpha", &HypersT::explore_alpha)
         .def_readwrite("explore_beta", &HypersT::explore_beta)

@@ -212,6 +212,10 @@ struct PrioBuffers {
 
 struct StateBuffer {
     PufferState* states;       // CPU state_buffer_size entries
+    float* scores_host;        // CPU state scores used for frontier sampling
+    int* score_counts_host;    // CPU count per integer score bucket
+    float* advantages_host;    // CPU mirror used by post-step state capture
+    float* advantages_tmp_host;
     int capacity;
     int size;
     int write_pos;
@@ -221,12 +225,15 @@ struct StateBuffer {
     int num_fresh_envs;
     int num_cl_agents;
     int num_fresh_agents;
+    float max_priority;
+    int score_count_capacity;
     int* env_state_inds_host;  // CPU scratch, length num_envs
     int* state_inds_host;      // CPU scratch, length total_agents
-    PrecisionTensor advantages; // GPU, shape {state_buffer_size}
+    FloatTensor advantages;    // GPU, shape {state_buffer_size}
     PrecisionTensor importance; // GPU, shape {total_agents}; fresh=1, CL=PER IS weight
     IntTensor state_inds;       // GPU, shape {total_agents}
     PrioBuffers prio_bufs;      // GPU CDF/probs/idx/weights for curriculum
+    pthread_mutex_t lock;
 };
 
 void register_prio_buffers(PrioBuffers& bufs, Allocator* alloc, int B, int minibatch_segments) {
@@ -325,6 +332,7 @@ typedef struct {
     float max_grad_norm;
     // PPO
     float clip_coef;
+    float target_kl;
     float vf_clip_coef;
     float vf_coef;
     float ent_coef;
@@ -345,6 +353,7 @@ typedef struct {
     // Curriculum state buffer
     int state_buffer_size;
     float cl_frac;
+    bool anneal_cl;
     int warmup_states;
     float explore_alpha;
     float explore_beta;
@@ -749,6 +758,65 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
         cudaDeviceSynchronize();
     }
     profile_end(hypers.profile);
+}
+
+static inline void update_curriculum_step_states(PuffeRL* pufferl, int buf_idx);
+
+__global__ void zero_terminal_states_kernel(
+        precision_t* __restrict__ states,
+        const float* __restrict__ terminals,
+        int num_layers, int batch, int hidden_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = num_layers * batch * hidden_size;
+    if (idx >= total) {
+        return;
+    }
+
+    int b = (idx / hidden_size) % batch;
+    if (terminals[b] != 0.0f) {
+        states[idx] = from_float(0.0f);
+    }
+}
+
+static inline void zero_terminal_states(
+        PrecisionTensor* states, const float* terminals,
+        int num_layers, int batch, int hidden_size, cudaStream_t stream) {
+    if (states == NULL || states->data == NULL || batch <= 0) {
+        return;
+    }
+    int total = num_layers * batch * hidden_size;
+    zero_terminal_states_kernel<<<grid_size(total), BLOCK_SIZE, 0, stream>>>(
+        states->data, terminals, num_layers, batch, hidden_size);
+}
+
+static inline void reset_terminated_recurrent_states(PuffeRL* pufferl, int buf) {
+    HypersT& hypers = pufferl->hypers;
+    int block_size = pufferl->vec->total_agents / hypers.num_buffers;
+    int start = buf * block_size;
+    int num_banks = 1 + pufferl->num_frozen_banks;
+    cudaStream_t stream = pufferl->vec->streams[buf];
+
+    for (int b = 0; b < num_banks; b++) {
+        int bank_off = pufferl->bank_layout ? pufferl->bank_layout[b] : 0;
+        int bank_end = pufferl->bank_layout ? pufferl->bank_layout[b + 1] : block_size;
+        int bank_size = bank_end - bank_off;
+        if (bank_size <= 0) {
+            continue;
+        }
+
+        PrecisionTensor* states = b == 0
+            ? &pufferl->buffer_states[buf]
+            : &pufferl->frozen_banks[b - 1].buffer_states[buf];
+        zero_terminal_states(states, pufferl->env.terminals.data + start + bank_off,
+            (int)states->shape[0], bank_size, (int)states->shape[2], stream);
+    }
+}
+
+extern "C" void post_step_callback_wrapper(void* ctx, int buf, int t) {
+    (void)t;
+    PuffeRL* pufferl = (PuffeRL*)ctx;
+    update_curriculum_step_states(pufferl, buf);
+    reset_terminated_recurrent_states(pufferl, buf);
 }
 
 
@@ -1175,7 +1243,7 @@ __global__ void compute_prio_adv_reduction(
 }
 
 __global__ void scatter_state_advantages(
-        precision_t* __restrict__ dst,
+        float* __restrict__ dst,
         const int* __restrict__ state_inds,
         const precision_t* __restrict__ advantages_bt,
         int env_start, int env_count, int agents_per_env, int horizon) {
@@ -1189,12 +1257,12 @@ __global__ void scatter_state_advantages(
         for (int a = 0; a < agents_per_env; a++) {
             sum_abs += fabsf(to_float(advantages_bt[(agent_start + a) * horizon]));
         }
-        dst[state_inds[agent_start]] = from_float(sum_abs / (float)agents_per_env);
+        dst[state_inds[agent_start]] = sum_abs / (float)agents_per_env;
     }
 }
 
 __global__ void compute_state_prio_abs(
-        const precision_t* __restrict__ advantages,
+        const float* __restrict__ advantages,
         float* __restrict__ prio_weights,
         float prio_alpha, int length) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1202,7 +1270,7 @@ __global__ void compute_state_prio_abs(
         return;
     }
 
-    float adv = fabsf(to_float(advantages[idx]));
+    float adv = fabsf(advantages[idx]);
     float pw;
     if (prio_alpha == 0.0f) {
         pw = 1.0f;
@@ -1461,29 +1529,55 @@ int init_state_buffer(PuffeRL* pufferl) {
 
     size_t state_bytes = capacity * state_size;
     buf->states = (PufferState*)malloc(state_bytes);
+    buf->scores_host = (float*)calloc(capacity, sizeof(float));
+    buf->score_count_capacity = 4096;
+    buf->score_counts_host = (int*)calloc(
+        (size_t)buf->score_count_capacity, sizeof(int));
+    buf->advantages_host = (float*)calloc(capacity, sizeof(float));
+    buf->advantages_tmp_host = (float*)calloc(capacity, sizeof(float));
     buf->env_state_inds_host = (int*)malloc((size_t)buf->num_envs * sizeof(int));
     buf->state_inds_host = (int*)malloc((size_t)pufferl->hypers.total_agents * sizeof(int));
-    if (buf->states == NULL || buf->env_state_inds_host == NULL || buf->state_inds_host == NULL) {
+    if (buf->states == NULL || buf->scores_host == NULL || buf->score_counts_host == NULL
+            || buf->advantages_host == NULL || buf->advantages_tmp_host == NULL
+            || buf->env_state_inds_host == NULL || buf->state_inds_host == NULL) {
         fprintf(stderr,
             "Failed to allocate curriculum state buffer: capacity=%d state_size=%d bytes=%zu\n",
             buf->capacity, (int)state_size, state_bytes);
         free(buf->states);
+        free(buf->scores_host);
+        free(buf->score_counts_host);
+        free(buf->advantages_host);
+        free(buf->advantages_tmp_host);
         free(buf->env_state_inds_host);
         free(buf->state_inds_host);
         buf->states = NULL;
+        buf->scores_host = NULL;
+        buf->score_counts_host = NULL;
+        buf->advantages_host = NULL;
+        buf->advantages_tmp_host = NULL;
         buf->env_state_inds_host = NULL;
         buf->state_inds_host = NULL;
         return 0;
     }
+    pthread_mutex_init(&buf->lock, NULL);
     return 1;
 }
 
 void close_state_buffer(PuffeRL* pufferl) {
     StateBuffer* buf = &pufferl->state_buf;
     free(buf->states);
+    free(buf->scores_host);
+    free(buf->score_counts_host);
+    free(buf->advantages_host);
+    free(buf->advantages_tmp_host);
     free(buf->env_state_inds_host);
     free(buf->state_inds_host);
+    pthread_mutex_destroy(&buf->lock);
     buf->states = NULL;
+    buf->scores_host = NULL;
+    buf->score_counts_host = NULL;
+    buf->advantages_host = NULL;
+    buf->advantages_tmp_host = NULL;
     buf->env_state_inds_host = NULL;
     buf->state_inds_host = NULL;
 }
@@ -1504,16 +1598,131 @@ static int fixed_agents_per_env(StaticVec* vec) {
     return agents_per_env;
 }
 
-static inline void store_curriculum_states(StaticVec* vec, PufferState* states,
-        const int* state_inds, int env_start, int env_count) {
+static inline float curriculum_state_priority(Env* env) {
+#if PUFFER_HAS_STATE
+#ifdef PUFFER_STATE_SCORE
+    float score = (float)PUFFER_STATE_SCORE(env);
+    return score > 0.0f ? score : 0.0f;
+#else
+    (void)env;
+    return 1.0f;
+#endif
+#else
+    (void)env;
+    return 0.0f;
+#endif
+}
+
+static inline int curriculum_score_bucket(StateBuffer* buf, float prio) {
+    int bucket = (int)floorf(prio + 0.5f);
+    if (bucket < 0 || bucket >= buf->score_count_capacity) {
+        return -1;
+    }
+    return bucket;
+}
+
+static inline int curriculum_score_count(StateBuffer* buf, float prio) {
+    int bucket = curriculum_score_bucket(buf, prio);
+    return bucket >= 0 ? buf->score_counts_host[bucket] : 0;
+}
+
+static inline int reserve_curriculum_state_slot(StateBuffer* buf, float prio) {
+    if (prio <= 0.0f || buf->capacity <= 0) {
+        return -1;
+    }
+
+    if (buf->size < buf->capacity) {
+        int state_idx = buf->write_pos;
+        buf->write_pos = (buf->write_pos + 1) % buf->capacity;
+        buf->size += 1;
+        return state_idx;
+    }
+
+    int same_score_idx = -1;
+    int duplicate_idx = -1;
+    float duplicate_prio = 1.0e30f;
+    int new_bucket = curriculum_score_bucket(buf, prio);
+    int probes = buf->capacity < 64 ? buf->capacity : 64;
+    for (int i = 0; i < probes; i++) {
+        int state_idx = (buf->write_pos + i) % buf->capacity;
+        float old_prio = buf->scores_host[state_idx];
+        int old_bucket = curriculum_score_bucket(buf, old_prio);
+        if (old_bucket == new_bucket) {
+            same_score_idx = state_idx;
+            break;
+        }
+
+        if (old_prio <= prio) {
+            if (curriculum_score_count(buf, old_prio) > 1 && old_prio < duplicate_prio) {
+                duplicate_prio = old_prio;
+                duplicate_idx = state_idx;
+            }
+        }
+    }
+
+    int best_idx = same_score_idx >= 0 ? same_score_idx
+        : duplicate_idx;
+    buf->write_pos = (buf->write_pos + probes) % buf->capacity;
+    return best_idx;
+}
+
+static inline int write_curriculum_state(StateBuffer* buf, Env* env, float prio) {
+#if PUFFER_HAS_STATE
+    int state_idx = reserve_curriculum_state_slot(buf, prio);
+    if (state_idx < 0) {
+        return -1;
+    }
+
+    int old_bucket = curriculum_score_bucket(buf, buf->scores_host[state_idx]);
+    if (old_bucket >= 0 && buf->score_counts_host[old_bucket] > 0) {
+        buf->score_counts_host[old_bucket] -= 1;
+    }
+    int new_bucket = curriculum_score_bucket(buf, prio);
+    if (new_bucket >= 0) {
+        buf->score_counts_host[new_bucket] += 1;
+    }
+    buf->states[state_idx] = env->state;
+    buf->scores_host[state_idx] = prio;
+    buf->advantages_host[state_idx] = prio;
+    buf->max_priority = fmaxf(buf->max_priority, prio);
+    return state_idx;
+#else
+    (void)buf;
+    (void)env;
+    (void)prio;
+    return -1;
+#endif
+}
+
+static inline int best_curriculum_state_slot(StateBuffer* buf) {
+    if (buf->size <= 0) {
+        return -1;
+    }
+
+    int best_idx = 0;
+    float best_score = buf->scores_host[0];
+    for (int i = 1; i < buf->size; i++) {
+        if (buf->scores_host[i] > best_score) {
+            best_score = buf->scores_host[i];
+            best_idx = i;
+        }
+    }
+    return best_idx;
+}
+
+static inline void store_curriculum_states(StaticVec* vec, StateBuffer* buf,
+        int* state_inds, int env_start, int env_count) {
 #if PUFFER_HAS_STATE
     Env* envs = vec->envs;
     for (int i = 0; i < env_count; i++) {
-        states[state_inds[i]] = envs[env_start + i].state;
+        Env* env = &envs[env_start + i];
+        float prio = curriculum_state_priority(env);
+        int state_idx = write_curriculum_state(buf, env, prio);
+        state_inds[i] = state_idx >= 0 ? state_idx : 0;
     }
 #else
     (void)vec;
-    (void)states;
+    (void)buf;
     (void)state_inds;
     (void)env_start;
     (void)env_count;
@@ -1542,6 +1751,152 @@ static inline void load_curriculum_states(StaticVec* vec, const PufferState* sta
 #endif
 }
 
+// Keep states reached by replayed curriculum slots from being overwritten before
+// they can seed new on-policy rollouts and enter the state buffer frontier.
+static inline void promote_curriculum_successors(StaticVec* vec,
+        int num_fresh_envs, int num_cl_envs, long epoch) {
+#if PUFFER_HAS_STATE
+    if (num_fresh_envs <= 0 || num_cl_envs <= 0) {
+        return;
+    }
+
+    Env* envs = vec->envs;
+    int offset = (int)((epoch * (long)num_fresh_envs) % (long)num_cl_envs);
+    for (int i = 0; i < num_fresh_envs; i++) {
+        int src = num_fresh_envs + ((offset + i) % num_cl_envs);
+        envs[i].state = envs[src].state;
+#ifdef PUFFER_STATE_REFRESH
+        PUFFER_STATE_REFRESH(&envs[i]);
+#endif
+    }
+#else
+    (void)vec;
+    (void)num_fresh_envs;
+    (void)num_cl_envs;
+    (void)epoch;
+#endif
+}
+
+static inline void sync_state_priorities_to_device(StateBuffer* buf, cudaStream_t stream) {
+    if (buf->size <= 0) {
+        return;
+    }
+    cudaMemcpyAsync(buf->advantages.data, buf->advantages_host,
+        (size_t)buf->size * sizeof(float), cudaMemcpyHostToDevice, stream);
+}
+
+static inline int fill_frontier_state_inds(StateBuffer* buf, int* out, int count) {
+    if (count <= 0 || buf->size <= 0 || buf->max_priority <= 0.0f) {
+        return 0;
+    }
+
+    int max_score = (int)floorf(buf->max_priority + 0.5f);
+    std::vector<int> by_score((size_t)max_score + 1, -1);
+    for (int i = 0; i < buf->size; i++) {
+        int score = (int)floorf(buf->scores_host[i] + 0.5f);
+        if (score > 0 && score <= max_score && by_score[(size_t)score] < 0) {
+            by_score[(size_t)score] = i;
+        }
+    }
+
+    std::vector<int> candidates;
+    candidates.reserve((size_t)max_score);
+    for (int score = 1; score <= max_score; score++) {
+        if (by_score[(size_t)score] >= 0) {
+            candidates.push_back(by_score[(size_t)score]);
+        }
+    }
+
+    if (candidates.empty()) {
+        int best_idx = 0;
+        float best_score = buf->scores_host[0];
+        for (int i = 1; i < buf->size; i++) {
+            if (buf->scores_host[i] > best_score) {
+                best_score = buf->scores_host[i];
+                best_idx = i;
+            }
+        }
+        for (int i = 0; i < count; i++) {
+            out[i] = best_idx;
+        }
+        return count;
+    }
+
+    int frontier_idx = candidates.back();
+    int frontier_count = count / 4;
+    for (int i = 0; i < frontier_count; i++) {
+        out[i] = frontier_idx;
+    }
+    int remaining = count - frontier_count;
+    for (int i = 0; i < remaining; i++) {
+        out[frontier_count + i] = candidates[(size_t)i % candidates.size()];
+    }
+    return count;
+}
+
+static inline void update_curriculum_step_states(PuffeRL* pufferl, int buf_idx) {
+#if PUFFER_HAS_STATE
+    if (!pufferl->curriculum_enabled) {
+        return;
+    }
+
+    StateBuffer* buf = &pufferl->state_buf;
+    StaticVec* vec = pufferl->vec;
+    if (buf->capacity <= 0) {
+        return;
+    }
+
+    int env_start = vec->buffer_env_starts[buf_idx];
+    int env_count = vec->buffer_env_counts[buf_idx];
+    int agents_per_env = buf->agents_per_env;
+    int first_cl_env = buf->num_fresh_envs;
+    int last_cl_env = first_cl_env + buf->num_cl_envs;
+    Env* envs = vec->envs;
+
+    pthread_mutex_lock(&buf->lock);
+    for (int i = 0; i < env_count; i++) {
+        Env* env = &envs[env_start + i];
+        float prio = curriculum_state_priority(env);
+        write_curriculum_state(buf, env, prio);
+    }
+
+    for (int i = 0; i < env_count; i++) {
+        int env_idx = env_start + i;
+        if (env_idx < first_cl_env || env_idx >= last_cl_env) {
+            continue;
+        }
+
+        int agent_idx = env_idx * agents_per_env;
+        if (vec->terminals[agent_idx] == 0.0f) {
+            continue;
+        }
+
+        int state_idx = buf->env_state_inds_host[env_idx];
+        if (state_idx < 0 || state_idx >= buf->size) {
+            state_idx = best_curriculum_state_slot(buf);
+        }
+        if (state_idx < 0) {
+            continue;
+        }
+
+        Env* env = &envs[env_idx];
+        env->state = buf->states[state_idx];
+#ifdef PUFFER_STATE_REFRESH
+        PUFFER_STATE_REFRESH(env);
+#endif
+    }
+    pthread_mutex_unlock(&buf->lock);
+#else
+    (void)pufferl;
+    (void)buf_idx;
+#endif
+}
+
+extern "C" void curriculum_step_callback_wrapper(void* ctx, int buf, int t) {
+    (void)t;
+    update_curriculum_step_states((PuffeRL*)ctx, buf);
+}
+
 static inline void expand_env_state_inds(StateBuffer* buf) {
     int num_envs = buf->num_fresh_envs + buf->num_cl_envs;
     int agents_per_env = buf->agents_per_env;
@@ -1565,7 +1920,7 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
     int total_epochs = h->total_timesteps / (h->total_agents * h->horizon);
     float progress = total_epochs > 0 ? (float)pufferl->epoch / (float)total_epochs : 1.0f;
     progress = fminf(1.0f, fmaxf(0.0f, progress));
-    float current_cl_frac = h->cl_frac;
+    float current_cl_frac = h->anneal_cl ? h->cl_frac * progress : h->cl_frac;
     int configured_cl = clamp_int((int)(current_cl_frac * (float)total_envs), 0, total_envs);
     int do_warmup = (buf->size == 0 || buf->size < h->warmup_states);
     int num_cl_envs = do_warmup ? 0 : configured_cl;
@@ -1581,11 +1936,17 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
     vec->log_env_limit = (num_cl_envs > 0) ? num_fresh_envs : 0;
 
     if (num_cl_envs > 0) {
+        sync_state_priorities_to_device(buf, stream);
+
         compute_state_prio_abs<<<grid_size(buf->size), BLOCK_SIZE, 0, stream>>>(
             buf->advantages.data, buf->prio_bufs.prio_probs.data,
             h->explore_alpha, buf->size);
         compute_state_prio_normalize<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(
             buf->prio_bufs.prio_probs.data, buf->size);
+#ifdef PUFFER_STATE_SCORE
+        fill_frontier_state_inds(buf, buf->env_state_inds_host + num_fresh_envs,
+            num_cl_envs);
+#else
         build_cdf_cuda(buf->prio_bufs.cdf.data, buf->prio_bufs.prio_probs.data,
             buf->prio_bufs.cdf_block_sums.data, buf->size, stream);
         int threads = 256;
@@ -1598,6 +1959,7 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
         cudaMemcpyAsync(buf->env_state_inds_host + num_fresh_envs, buf->prio_bufs.idx.data,
             num_cl_envs * sizeof(int), cudaMemcpyDeviceToHost, stream);
         cudaStreamSynchronize(stream);
+#endif
 
         load_curriculum_states(vec, buf->states, buf->env_state_inds_host + num_fresh_envs,
             num_fresh_envs, num_cl_envs);
@@ -1613,13 +1975,8 @@ void curriculum_rollout_begin(PuffeRL* pufferl) {
         }
     }
 
-    for (int i = 0; i < num_fresh_envs; i++) {
-        buf->env_state_inds_host[i] = (buf->write_pos + i) % buf->capacity;
-    }
     if (num_fresh_envs > 0) {
-        store_curriculum_states(vec, buf->states, buf->env_state_inds_host, 0, num_fresh_envs);
-        buf->write_pos = (buf->write_pos + num_fresh_envs) % buf->capacity;
-        buf->size = clamp_int(buf->size + num_fresh_envs, 0, buf->capacity);
+        store_curriculum_states(vec, buf, buf->env_state_inds_host, 0, num_fresh_envs);
     }
 
     expand_env_state_inds(buf);
@@ -1647,6 +2004,22 @@ void curriculum_update_advantages(PuffeRL* pufferl, PrecisionTensor* advantages,
         scatter_state_advantages<<<1, 1, 0, stream>>>(
             buf->advantages.data, buf->state_inds.data, advantages->data,
             0, num_fresh_envs, agents_per_env, horizon);
+    }
+
+    int total_envs = num_fresh_envs + num_cl_envs;
+    if (total_envs > 0 && buf->size > 0) {
+        cudaMemcpyAsync(buf->advantages_tmp_host, buf->advantages.data,
+            (size_t)buf->size * sizeof(float), cudaMemcpyDeviceToHost, stream);
+        cudaStreamSynchronize(stream);
+        for (int env_idx = 0; env_idx < total_envs; env_idx++) {
+            int agent_start = env_idx * agents_per_env;
+            int state_idx = buf->state_inds_host[agent_start];
+            if (state_idx >= 0 && state_idx < buf->size) {
+                buf->advantages_host[state_idx] = fmaxf(
+                    buf->advantages_host[state_idx],
+                    fabsf(buf->advantages_tmp_host[state_idx]));
+            }
+        }
     }
 }
 
@@ -1968,6 +2341,15 @@ void train_impl(PuffeRL& pufferl) {
     cudaEventRecord(pufferl.profile.events[1]);  // pre-loop end
 
     int total_minibatches = hypers.replay_ratio * batch_size / hypers.minibatch_size;
+    int completed_minibatches = 0;
+    float last_kl_sum = 0.0f;
+    float last_loss_n = 0.0f;
+    if (hypers.target_kl > 0.0f) {
+        cudaMemcpy(&last_kl_sum, pufferl.losses_puf.data + LOSS_APPROX_KL,
+            sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&last_loss_n, pufferl.losses_puf.data + LOSS_N,
+            sizeof(float), cudaMemcpyDeviceToHost);
+    }
     for (int mb = 0; mb < total_minibatches; ++mb) {
         cudaEventRecord(pufferl.profile.events[2]);  // start of misc (overwritten each iter)
         puf_zero(&advantages_puf, train_stream);
@@ -2024,7 +2406,9 @@ void train_impl(PuffeRL& pufferl) {
             cudaStream_t stream = train_stream;
             PrecisionTensor obs_puf = graph.mb_obs;
             PrecisionTensor state_puf = graph.mb_state;
-            PrecisionTensor dec_puf = policy_forward_train(&pufferl.policy, pufferl.weights, pufferl.train_activations, obs_puf, state_puf, stream);
+            PrecisionTensor dec_puf = policy_forward_train(&pufferl.policy,
+                pufferl.weights, pufferl.train_activations,
+                obs_puf, state_puf, stream);
             DecoderWeights* dw_train = (DecoderWeights*)pufferl.weights.decoder;
             PrecisionTensor p_logstd;
             if (dw_train->continuous) {
@@ -2079,22 +2463,39 @@ void train_impl(PuffeRL& pufferl) {
                 (const char*)graph.mb_newvalue.data, num_idx, row_bytes);
         }
         cudaEventRecord(pufferl.profile.events[4]);  // end forward
+        completed_minibatches += 1;
+
+        if (hypers.target_kl > 0.0f && mb + 1 < total_minibatches) {
+            float kl_sum = 0.0f;
+            float loss_n = 0.0f;
+            cudaMemcpy(&kl_sum, pufferl.losses_puf.data + LOSS_APPROX_KL,
+                sizeof(float), cudaMemcpyDeviceToHost);
+            cudaMemcpy(&loss_n, pufferl.losses_puf.data + LOSS_N,
+                sizeof(float), cudaMemcpyDeviceToHost);
+            float denom = loss_n - last_loss_n;
+            float mb_kl = denom > 0.0f ? (kl_sum - last_kl_sum) / denom : 0.0f;
+            last_kl_sum = kl_sum;
+            last_loss_n = loss_n;
+            if (mb_kl > hypers.target_kl) {
+                break;
+            }
+        }
     }
     pufferl.epoch += 1;
 
     cudaStreamSynchronize(pufferl.default_stream);
 
-    if (total_minibatches > 0) {
+    if (completed_minibatches > 0) {
         float ms;
         // Pre-loop setup (transpose, advantage, allocs)
         cudaEventElapsedTime(&ms, pufferl.profile.events[0], pufferl.profile.events[1]);
         pufferl.profile.accum[PROF_TRAIN_MISC] += ms;
         // In-loop misc (last iteration, representative) scaled by count
         cudaEventElapsedTime(&ms, pufferl.profile.events[2], pufferl.profile.events[3]);
-        pufferl.profile.accum[PROF_TRAIN_MISC] += ms * total_minibatches;
+        pufferl.profile.accum[PROF_TRAIN_MISC] += ms * completed_minibatches;
         // In-loop forward (last iteration, representative) scaled by count
         cudaEventElapsedTime(&ms, pufferl.profile.events[3], pufferl.profile.events[4]);
-        pufferl.profile.accum[PROF_TRAIN_FORWARD] += ms * total_minibatches;
+        pufferl.profile.accum[PROF_TRAIN_FORWARD] += ms * completed_minibatches;
     }
 
 }
@@ -2635,7 +3036,7 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
     }
 
     create_static_threads(vec, hypers.num_threads, horizon, pufferl.get(),
-        net_callback_wrapper, thread_init_wrapper);
+        net_callback_wrapper, post_step_callback_wrapper, thread_init_wrapper);
     static_vec_reset(vec);
 
     if (hypers.profile) {
@@ -2657,9 +3058,13 @@ void close_impl(PuffeRL& pufferl) {
         cudaProfilerStop();
     }
 
-    cudaGraphExecDestroy(pufferl.train_cudagraph);
-    for (int i = 0; i < pufferl.hypers.horizon * pufferl.hypers.num_buffers; i++) {
-        cudaGraphExecDestroy(pufferl.fused_rollout_cudagraphs[i]);
+    if (pufferl.train_captured) {
+        cudaGraphExecDestroy(pufferl.train_cudagraph);
+    }
+    if (pufferl.rollout_captured && pufferl.fused_rollout_cudagraphs != NULL) {
+        for (int i = 0; i < pufferl.hypers.horizon * pufferl.hypers.num_buffers; i++) {
+            cudaGraphExecDestroy(pufferl.fused_rollout_cudagraphs[i]);
+        }
     }
 
     policy_weights_free(&pufferl.policy, &pufferl.weights);

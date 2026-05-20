@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include "raylib.h"
 
-#define LENGTH 64
+#define LENGTH 128
 #define NUM_DIGITS 9
 #define PASSWORD_SEED 42u
-#define CORRECT_REWARD 0.1f
+#define CORRECT_REWARD 1.0f
 #define WRONG_REWARD -1.0f
 
 typedef struct {

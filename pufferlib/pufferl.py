@@ -617,7 +617,9 @@ def load_config(env_name):
         p = configparser.ConfigParser()
         p.read(puffer_default_config)
     else:
-        for path in glob.glob(puffer_config_dir, recursive=True):
+        paths = sorted(glob.glob(puffer_config_dir, recursive=True))
+        paths.sort(key=lambda path: os.path.splitext(os.path.basename(path))[0] != env_name)
+        for path in paths:
             p = configparser.ConfigParser()
             p.read([puffer_default_config, path])
             if env_name in p['base']['env_name'].split(): break

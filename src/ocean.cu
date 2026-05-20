@@ -570,6 +570,108 @@ static void* nmmo3_encoder_create_weights(void* self) {
 static void nmmo3_encoder_free_weights(void* weights) { free(weights); }
 static void nmmo3_encoder_free_activations(void* activations) { free(activations); }
 
+// ---- Password encoder ----
+//
+// Password's observation is the solved prefix followed by zeroes. Replaying
+// saved env states with a recurrent policy puts the policy hidden state off the
+// trajectory that would have produced that prefix from a fresh reset. For this
+// diagnostic env, expose the prefix index directly and run it feed-forward.
+
+struct PasswordEncoderWeights {
+    int obs_size, hidden;
+};
+
+struct PasswordEncoderActivations {
+    PrecisionTensor out;
+};
+
+__global__ void password_features_kernel(
+        precision_t* __restrict__ out, const precision_t* __restrict__ obs,
+        int B, int obs_size, int hidden) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= B * hidden) {
+        return;
+    }
+
+    int b = idx / hidden;
+    int h = idx % hidden;
+    const precision_t* row = obs + b * obs_size;
+
+    int pos = obs_size;
+    for (int i = 0; i < obs_size; i++) {
+        if (to_float(row[i]) <= 0.5f) {
+            pos = i;
+            break;
+        }
+    }
+
+    float value = 0.0f;
+    if (h < obs_size) {
+        value = h == pos ? 1.0f : 0.0f;
+    } else if (h < 2 * obs_size) {
+        int j = h - obs_size;
+        value = to_float(row[j]) * (1.0f / 9.0f);
+    }
+    out[idx] = from_float(value);
+}
+
+static PrecisionTensor password_encoder_forward(
+        void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+    PasswordEncoderWeights* ew = (PasswordEncoderWeights*)w;
+    PasswordEncoderActivations* a = (PasswordEncoderActivations*)activations;
+    int B = input.shape[0];
+    password_features_kernel<<<grid_size(B * ew->hidden), BLOCK_SIZE, 0, stream>>>(
+        a->out.data, input.data, B, ew->obs_size, ew->hidden);
+    return a->out;
+}
+
+static void password_encoder_backward(
+        void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+    (void)w;
+    (void)activations;
+    (void)grad;
+    (void)stream;
+}
+
+static void password_encoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
+    (void)w;
+    (void)seed;
+    (void)stream;
+}
+
+static void password_encoder_reg_params(void* w, Allocator* alloc) {
+    (void)w;
+    (void)alloc;
+}
+
+static void password_encoder_reg_train(
+        void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
+    (void)grads;
+    PasswordEncoderWeights* ew = (PasswordEncoderWeights*)w;
+    PasswordEncoderActivations* a = (PasswordEncoderActivations*)activations;
+    a->out = {.shape = {B_TT, ew->hidden}};
+    alloc_register(acts, &a->out);
+}
+
+static void password_encoder_reg_rollout(
+        void* w, void* activations, Allocator* alloc, int B) {
+    PasswordEncoderWeights* ew = (PasswordEncoderWeights*)w;
+    PasswordEncoderActivations* a = (PasswordEncoderActivations*)activations;
+    a->out = {.shape = {B, ew->hidden}};
+    alloc_register(alloc, &a->out);
+}
+
+static void* password_encoder_create_weights(void* self) {
+    Encoder* e = (Encoder*)self;
+    PasswordEncoderWeights* ew = (PasswordEncoderWeights*)calloc(1, sizeof(PasswordEncoderWeights));
+    ew->obs_size = e->in_dim;
+    ew->hidden = e->out_dim;
+    return ew;
+}
+
+static void password_encoder_free_weights(void* weights) { free(weights); }
+static void password_encoder_free_activations(void* activations) { free(activations); }
+
 // Override encoder vtable for known ocean environments. No-op for unknown envs.
 static void create_custom_encoder(const std::string& env_name, Encoder* enc) {
     if (env_name == "nmmo3") {
@@ -585,6 +687,20 @@ static void create_custom_encoder(const std::string& env_name, Encoder* enc) {
             .free_activations = nmmo3_encoder_free_activations,
             .in_dim = enc->in_dim, .out_dim = enc->out_dim,
             .activation_size = sizeof(NMMO3EncoderActivations),
+        };
+    } else if (env_name == "password") {
+        *enc = Encoder{
+            .forward = password_encoder_forward,
+            .backward = password_encoder_backward,
+            .init_weights = password_encoder_init_weights,
+            .reg_params = password_encoder_reg_params,
+            .reg_train = password_encoder_reg_train,
+            .reg_rollout = password_encoder_reg_rollout,
+            .create_weights = password_encoder_create_weights,
+            .free_weights = password_encoder_free_weights,
+            .free_activations = password_encoder_free_activations,
+            .in_dim = enc->in_dim, .out_dim = enc->out_dim,
+            .activation_size = sizeof(PasswordEncoderActivations),
         };
     }
 }

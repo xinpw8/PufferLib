@@ -5,6 +5,7 @@
 #define OBS_TENSOR_T ByteTensor
 #define PUFFER_HAS_STATE 1
 #define PUFFER_STATE_REFRESH(env) refresh_state(env)
+#define PUFFER_STATE_SCORE(env) ((env)->state.pos)
 
 #define Env Password
 #include "vecenv.h"

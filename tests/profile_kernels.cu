@@ -602,7 +602,8 @@ void profile_im2col(int B, int IC, int IH, int IW, int K, int S, int OH, int OW)
 }
 
 typedef struct {
-    PrecisionTensor state_advantages, rollout_advantages, importance;
+    FloatTensor state_advantages;
+    PrecisionTensor rollout_advantages, importance;
     FloatTensor prio_probs, cdf, cdf_block_sums;
     IntTensor sample_idx, state_inds;
     LongTensor rng_offset;
@@ -622,7 +623,7 @@ typedef struct {
 } CurriculumProfile;
 
 __global__ void init_curriculum_profile_kernel(
-        precision_t* state_advantages,
+        float* state_advantages,
         precision_t* rollout_advantages,
         int* state_inds,
         int64_t* rng_offset,
@@ -631,7 +632,7 @@ __global__ void init_curriculum_profile_kernel(
     int n = capacity > total_agents * horizon ? capacity : total_agents * horizon;
     if (idx < capacity) {
         float v = 0.25f + (float)(idx % 257) * 0.001f;
-        state_advantages[idx] = from_float(v);
+        state_advantages[idx] = v;
     }
     if (idx < total_agents) {
         state_inds[idx] = idx % capacity;
@@ -846,7 +847,7 @@ EnvSpeedArgs* create_envspeed(int total_agents, int num_buffers, int num_threads
         cudaStreamCreateWithFlags(&vec->streams[i], cudaStreamNonBlocking);
 
     printf("Created %d envs (%s) for %d total_agents\n", vec->size, TOSTRING(ENV_NAME), total_agents);
-    create_static_threads(vec, num_threads, horizon, nullptr, empty_net_callback, empty_thread_init);
+    create_static_threads(vec, num_threads, horizon, nullptr, empty_net_callback, nullptr, empty_thread_init);
     static_vec_reset(vec);
     cudaDeviceSynchronize();
 

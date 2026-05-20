@@ -18,6 +18,10 @@ if [ -z "$1" ]; then
 fi
 ENV=$1
 shift
+PYTHON_BIN="${PYTHON:-python}"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    PYTHON_BIN=python3
+fi
 
 for arg in "$@"; do
     case $arg in
@@ -52,9 +56,22 @@ fi
 
 # Linux/mac
 PLATFORM="$(uname -s)"
+ARCH_NAME="$(uname -m)"
 if [ "$PLATFORM" = "Linux" ]; then
-    RAYLIB_NAME='raylib-5.5_linux_amd64'
-    OMP_LIB=-lomp5
+    if [ "$ARCH_NAME" = "aarch64" ] || [ "$ARCH_NAME" = "arm64" ]; then
+        RAYLIB_NAME='raylib-5.5_linux_aarch64'
+    else
+        RAYLIB_NAME='raylib-5.5_linux_amd64'
+    fi
+    if ldconfig -p 2>/dev/null | grep -q 'libomp5\.so'; then
+        OMP_LIB=-lomp5
+    elif ldconfig -p 2>/dev/null | grep -q 'libomp\.so\.5'; then
+        OMP_LIB=-l:libomp.so.5
+    elif ldconfig -p 2>/dev/null | grep -q 'libomp\.so'; then
+        OMP_LIB=-lomp
+    else
+        OMP_LIB=-lgomp
+    fi
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
     SHARED_LDFLAGS=(-Bsymbolic-functions -Wl,--gc-sections)
@@ -79,10 +96,16 @@ CLANG_WARN=(
 download() {
     local name=$1 url=$2
     [ -d "$name" ] && return
+    for fallback in "$HOME/pufferlib/$name" "$HOME/pufferlib-4.0/$name"; do
+        if [ -d "$fallback" ]; then
+            ln -s "$fallback" "$name"
+            return
+        fi
+    done
     echo "Downloading $name..."
     case "$url" in
-        *.zip) curl -sL "$url" -o "$name.zip" && unzip -q "$name.zip" && rm "$name.zip" ;;
-        *)     curl -sL "$url" -o "$name.tar.gz" && tar xf "$name.tar.gz" && rm "$name.tar.gz" ;;
+        *.zip) curl -fLsS "$url" -o "$name.zip" && unzip -q "$name.zip" && rm "$name.zip" ;;
+        *)     curl -fLsS "$url" -o "$name.tar.gz" && tar xf "$name.tar.gz" && rm "$name.tar.gz" ;;
     esac
 }
 
@@ -172,6 +195,7 @@ fi
 CUDA_HOME=${CUDA_HOME:-${CUDA_PATH:-$(dirname "$(dirname "$(which nvcc)")")}}
 CUDNN_IFLAG=""
 CUDNN_LFLAG=""
+CUDNN_LIB="-lcudnn"
 for dir in /usr/local/cuda/include /usr/include; do
     if [ -f "$dir/cudnn.h" ]; then
         CUDNN_IFLAG="-I$dir"
@@ -185,10 +209,13 @@ for dir in /usr/local/cuda/lib64 /usr/lib/x86_64-linux-gnu; do
     fi
 done
 if [ -z "$CUDNN_IFLAG" ]; then
-    CUDNN_IFLAG=$(python -c "import nvidia.cudnn, os; print('-I' + os.path.join(nvidia.cudnn.__path__[0], 'include'))" 2>/dev/null || echo "")
+    CUDNN_IFLAG=$("$PYTHON_BIN" -c "import nvidia.cudnn, os; print('-I' + os.path.join(nvidia.cudnn.__path__[0], 'include'))" 2>/dev/null || echo "")
 fi
 if [ -z "$CUDNN_LFLAG" ]; then
-    CUDNN_LFLAG=$(python -c "import nvidia.cudnn, os; print('-L' + os.path.join(nvidia.cudnn.__path__[0], 'lib'))" 2>/dev/null || echo "")
+    CUDNN_LFLAG=$("$PYTHON_BIN" -c "import nvidia.cudnn, os; print('-L' + os.path.join(nvidia.cudnn.__path__[0], 'lib'))" 2>/dev/null || echo "")
+fi
+if [ -n "$CUDNN_LFLAG" ] && [ ! -f "${CUDNN_LFLAG#-L}/libcudnn.so" ] && [ -f "${CUDNN_LFLAG#-L}/libcudnn.so.9" ]; then
+    CUDNN_LIB="-l:libcudnn.so.9"
 fi
 
 # NCCL include/lib fallback (mirrors the cuDNN fallback above).
@@ -202,10 +229,10 @@ for dir in /usr/lib/x86_64-linux-gnu /usr/local/cuda/lib64; do
     if [ -f "$dir/libnccl.so" ] || [ -f "$dir/libnccl.so.2" ]; then NCCL_LFLAG="-L$dir"; break; fi
 done
 if [ -z "$NCCL_IFLAG" ]; then
-    NCCL_IFLAG=$(python -c "import nvidia.nccl, os; print('-I' + os.path.join(nvidia.nccl.__path__[0], 'include'))" 2>/dev/null || echo "")
+    NCCL_IFLAG=$("$PYTHON_BIN" -c "import nvidia.nccl, os; print('-I' + os.path.join(nvidia.nccl.__path__[0], 'include'))" 2>/dev/null || echo "")
 fi
 if [ -z "$NCCL_LFLAG" ]; then
-    NCCL_LFLAG=$(python -c "import nvidia.nccl, os; print('-L' + os.path.join(nvidia.nccl.__path__[0], 'lib'))" 2>/dev/null || echo "")
+    NCCL_LFLAG=$("$PYTHON_BIN" -c "import nvidia.nccl, os; print('-L' + os.path.join(nvidia.nccl.__path__[0], 'lib'))" 2>/dev/null || echo "")
 fi
 
 WHEEL_RPATH_FLAGS=()
@@ -218,14 +245,18 @@ done
 export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
 export CCACHE_BASEDIR="$(pwd)"
 export CCACHE_COMPILERCHECK=content
-NVCC="ccache $CUDA_HOME/bin/nvcc"
+if command -v ccache >/dev/null; then
+    NVCC="ccache $CUDA_HOME/bin/nvcc"
+else
+    NVCC="$CUDA_HOME/bin/nvcc"
+fi
 CC="${CC:-$(command -v ccache >/dev/null && echo 'ccache clang' || echo 'clang')}"
 ARCH=${NVCC_ARCH:-native}
 
-PYTHON_INCLUDE=$(python -c "import sysconfig; print(sysconfig.get_path('include'))")
-PYBIND_INCLUDE=$(python -c "import pybind11; print(pybind11.get_include())")
-NUMPY_INCLUDE=$(python -c "import numpy; print(numpy.get_include())")
-EXT_SUFFIX=$(python -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+PYTHON_INCLUDE=$("$PYTHON_BIN" -c "import sysconfig; print(sysconfig.get_path('include'))")
+PYBIND_INCLUDE=$("$PYTHON_BIN" -c "import pybind11; print(pybind11.get_include())")
+NUMPY_INCLUDE=$("$PYTHON_BIN" -c "import numpy; print(numpy.get_include())")
+EXT_SUFFIX=$("$PYTHON_BIN" -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
 OUTPUT="pufferlib/_C${EXT_SUFFIX}"
 
 BINDING_SRC="$SRC_DIR/binding.c"
@@ -273,7 +304,7 @@ if [ -z "$MODE" ]; then
         build/bindings.o "$RAYLIB_A"
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG
         "${WHEEL_RPATH_FLAGS[@]}"
-        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn
+        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand $CUDNN_LIB
         $OMP_LIB $LINK_OPT
         "${SHARED_LDFLAGS[@]}"
         -o "$OUTPUT"
@@ -314,7 +345,7 @@ elif [ "$MODE" = "profile" ]; then
         -Xcompiler=-fopenmp \
         tests/profile_kernels.cu vendor/ini.c \
         "$RAYLIB_A" \
-        -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn \
+        -lnccl -lnvidia-ml -lcublas -lcurand $CUDNN_LIB \
         -lGL -lm -lpthread $OMP_LIB \
         -o profile
     echo "Built: ./profile"
