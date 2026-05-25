@@ -125,12 +125,15 @@ fi
 OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
 
 # Standalone environment build
+# -mavx2 enables AVX2 intrinsics (__m256, _mm256_*) which drive.h and
+# src/bf16.h use directly. x86_64 only — strip if porting to ARM/Apple Silicon.
+SIMD_FLAGS=(-mavx2 -mfma)
 if [ -n "$DEBUG" ] || [ "$MODE" = "local" ]; then
-    CLANG_OPT=(-g -O0 "${CLANG_WARN[@]}" "${SANITIZE_FLAGS[@]}")
+    CLANG_OPT=(-g -O0 "${CLANG_WARN[@]}" "${SANITIZE_FLAGS[@]}" "${SIMD_FLAGS[@]}")
     NVCC_OPT="-O0 -g"
     LINK_OPT="-g"
 else
-    CLANG_OPT=(-O2 -DNDEBUG "${CLANG_WARN[@]}")
+    CLANG_OPT=(-O2 -DNDEBUG "${CLANG_WARN[@]}" "${SIMD_FLAGS[@]}")
     NVCC_OPT="-O2 --threads 0"
     LINK_OPT="-O2"
 fi

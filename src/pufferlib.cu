@@ -600,8 +600,7 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
     OBS_TENSOR_T& obs_env = env.obs;
     int n = block_size * obs_env.shape[1];
     PrecisionTensor obs_dst = puf_slice(rollouts.observations, t, start, block_size);
-    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
-        obs_dst.data, obs_env.data + (long)start*obs_env.shape[1], n);
+    cast_dispatch(obs_dst.data, obs_env.data + (long)start*obs_env.shape[1], n, stream);
 
     PrecisionTensor rew_dst = puf_slice(rollouts.rewards, t, start, block_size);
     n = block_size;
