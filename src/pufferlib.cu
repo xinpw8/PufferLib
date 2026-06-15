@@ -487,11 +487,13 @@ __global__ void sample_logits(
             float noise = curand_normal(&state);
             float action = mean + std * noise;
 
+            precision_t stored_action_p = from_float(action);
+            float stored_action = to_float(stored_action_p);
             // Log probability: -0.5 * ((action - mean) / std)^2 - 0.5 * log(2*pi) - log(std)
-            float normalized = (action - mean) / std;
+            float normalized = (stored_action - mean) / std;
             float log_prob = -0.5f * normalized * normalized - 0.5f * LOG_2PI - log_std;
 
-            actions[idx * num_atns + h] = from_float(action);
+            actions[idx * num_atns + h] = stored_action_p;
             total_log_prob += log_prob;
         }
     } else {
