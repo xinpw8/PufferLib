@@ -2,6 +2,8 @@
 
 #include "drone.h"
 
+// types
+
 #define HOVER_SCORE_DIST_SCALE 0.01f
 #define HOVER_SCORE_VEL_SCALE 0.01f
 #define HOVER_SCORE_OMEGA_SCALE 0.1f
@@ -25,6 +27,35 @@ typedef struct {
     float* ema_vel;
     float* ema_omega;
 } HoverState;
+
+// lifecycle
+
+static void hover_init(DroneEnv* env) {
+    HoverState* state = (HoverState*)calloc(1, sizeof(HoverState));
+    state->prev_potential = (float*)calloc(env->num_agents, sizeof(float));
+    state->score = (float*)calloc(env->num_agents, sizeof(float));
+    state->perf = (float*)calloc(env->num_agents, sizeof(float));
+    state->ema_dist = (float*)calloc(env->num_agents, sizeof(float));
+    state->ema_vel = (float*)calloc(env->num_agents, sizeof(float));
+    state->ema_omega = (float*)calloc(env->num_agents, sizeof(float));
+    env->task_state = state;
+}
+
+static void hover_close(DroneEnv* env) {
+    HoverState* state = (HoverState*)env->task_state;
+    if (state != NULL) {
+        free(state->prev_potential);
+        free(state->score);
+        free(state->perf);
+        free(state->ema_dist);
+        free(state->ema_vel);
+        free(state->ema_omega);
+        free(state);
+    }
+    free(env->task_config);
+}
+
+// helpers
 
 static inline void hover_set_target(unsigned int* rng, Drone* agent, float target_dist) {
     float u = rndf(0.0f, 1.0f, rng);
@@ -59,6 +90,8 @@ static inline float hover_score(float dist, float vel, float omega) {
     float penalty = 0.7f * d + 0.15f * v + 0.15f * w;
     return 1.0f / (1.0f + 0.05f * penalty);
 }
+
+// callbacks
 
 static void hover_reset(DroneEnv* env, Drone* agent, int idx) {
     HoverConfig* cfg = (HoverConfig*)env->task_config;
@@ -115,10 +148,14 @@ static void hover_log(DroneEnv* env, Drone* agent, int idx, Log* log, StepCache*
     log_task_add(log, 4, agent->episode_length >= HORIZON ? 1.0f : 0.0f);
 }
 
+// definition
+
 static const TaskDef TASK_HOVER = {
     .name = "hover",
     .log_keys = {"ema_dist", "ema_vel", "ema_omega", "oob", "timeout"},
     .num_log_keys = 5,
+    .init = hover_init,
+    .close = hover_close,
     .env_reset = NULL,
     .reset = hover_reset,
     .reward = hover_reward,

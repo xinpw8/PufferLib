@@ -46,6 +46,8 @@ typedef struct {
     const char* log_keys[MAX_TASK_LOG_ENTRIES];
     int num_log_keys;
 
+    void (*init)(DroneEnv* env);
+    void (*close)(DroneEnv* env);
     void (*env_reset)(DroneEnv* env);
     void (*reset)(DroneEnv* env, Drone* agent, int idx);
     float (*reward)(DroneEnv* env, Drone* agent, int idx, StepCache* cache);
@@ -154,6 +156,8 @@ void c_step(DroneEnv* env) {
 void c_close_client(Client* client);
 
 void c_close(DroneEnv* env) {
+    if (env->task != NULL && env->task->close != NULL) env->task->close(env);
+
     for (int i = 0; i < env->num_agents; i++)
         free(env->agents[i].target);
     free(env->agents);

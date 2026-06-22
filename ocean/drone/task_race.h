@@ -2,6 +2,8 @@
 
 #include "drone.h"
 
+// types
+
 typedef struct {
     int max_rings;
     float ring_reward;
@@ -16,6 +18,32 @@ typedef struct {
     int* rings_passed;
     float* collisions;
 } RaceState;
+
+// lifecycle
+
+static void race_init(DroneEnv* env) {
+    RaceConfig* cfg = (RaceConfig*)env->task_config;
+    RaceState* state = (RaceState*)calloc(1, sizeof(RaceState));
+    state->ring_buffer = (Target*)calloc(cfg->max_rings, sizeof(Target));
+    state->ring_idx = (int*)calloc(env->num_agents, sizeof(int));
+    state->rings_passed = (int*)calloc(env->num_agents, sizeof(int));
+    state->collisions = (float*)calloc(env->num_agents, sizeof(float));
+    env->task_state = state;
+}
+
+static void race_close(DroneEnv* env) {
+    RaceState* state = (RaceState*)env->task_state;
+    if (state != NULL) {
+        free(state->ring_buffer);
+        free(state->ring_idx);
+        free(state->rings_passed);
+        free(state->collisions);
+        free(state);
+    }
+    free(env->task_config);
+}
+
+// helpers
 
 static inline void reset_rings(unsigned int* rng, Target* ring_buffer, int num_rings) {
     ring_buffer[0] = rndring(rng, RING_RADIUS);
@@ -47,6 +75,8 @@ static inline int check_ring(Drone* drone, Target* ring) {
     }
     return 0;
 }
+
+// callbacks
 
 static void race_env_reset(DroneEnv* env) {
     RaceConfig* cfg = (RaceConfig*)env->task_config;
@@ -113,10 +143,14 @@ static void race_render(DroneEnv* env, Client* client) {
         DrawRing3D(state->ring_buffer[i], 0.2f, GREEN, BLUE);
 }
 
+// definition
+
 static const TaskDef TASK_RACE = {
     .name = "race",
     .log_keys = {"rings_passed", "ring_collisions", "completed"},
     .num_log_keys = 3,
+    .init = race_init,
+    .close = race_close,
     .env_reset = race_env_reset,
     .reset = race_reset,
     .reward = race_reward,
