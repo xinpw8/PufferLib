@@ -41,7 +41,7 @@ void my_init(Env* env, Dict* kwargs) {
     env->num_agents = (int)dict_get(kwargs, "num_drones")->value;
 
     int task = (int)dict_get(kwargs, "task")->value;
-    if (task == 7) {
+    if (task == 1) {
         env->task = &TASK_RACE;
         race_config(env, kwargs);
     } else {
