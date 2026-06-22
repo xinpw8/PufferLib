@@ -71,7 +71,6 @@ struct DroneEnv {
     void* task_config;
     void* task_state;
 
-    Target* ring_buffer;
     Client* client;
 };
 

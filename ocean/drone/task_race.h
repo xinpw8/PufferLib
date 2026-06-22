@@ -11,6 +11,7 @@ typedef struct {
 } RaceConfig;
 
 typedef struct {
+    Target* ring_buffer;
     int* ring_idx;
     int* rings_passed;
     float* collisions;
@@ -49,7 +50,8 @@ static inline int check_ring(Drone* drone, Target* ring) {
 
 static void race_env_reset(DroneEnv* env) {
     RaceConfig* cfg = (RaceConfig*)env->task_config;
-    reset_rings(&env->rng, env->ring_buffer, cfg->max_rings);
+    RaceState* state = (RaceState*)env->task_state;
+    reset_rings(&env->rng, state->ring_buffer, cfg->max_rings);
 }
 
 static void race_reset(DroneEnv* env, Drone* agent, int idx) {
@@ -57,12 +59,12 @@ static void race_reset(DroneEnv* env, Drone* agent, int idx) {
 
     do {
         agent->state.pos = random_pos(&env->rng);
-    } while (norm3(sub3(agent->state.pos, env->ring_buffer[0].pos)) < 2.0f * RING_RADIUS);
+    } while (norm3(sub3(agent->state.pos, state->ring_buffer[0].pos)) < 2.0f * RING_RADIUS);
 
     state->ring_idx[idx] = 0;
     state->rings_passed[idx] = 0;
     state->collisions[idx] = 0.0f;
-    *agent->target = env->ring_buffer[0];
+    *agent->target = state->ring_buffer[0];
 }
 
 static float race_reward(DroneEnv* env, Drone* agent, int idx, StepCache* cache) {
@@ -71,12 +73,12 @@ static float race_reward(DroneEnv* env, Drone* agent, int idx, StepCache* cache)
 
     float reward = cfg->alpha_dist * (cache->prev_dist - cache->dist);
 
-    int result = check_ring(agent, &env->ring_buffer[state->ring_idx[idx]]);
+    int result = check_ring(agent, &state->ring_buffer[state->ring_idx[idx]]);
     if (result == 1) {
         state->rings_passed[idx]++;
         state->ring_idx[idx]++;
         if (state->ring_idx[idx] < cfg->max_rings)
-            *agent->target = env->ring_buffer[state->ring_idx[idx]];
+            *agent->target = state->ring_buffer[state->ring_idx[idx]];
         reward += cfg->ring_reward;
     } else if (result == -1) {
         state->collisions[idx] += 1.0f;
@@ -106,8 +108,9 @@ static void race_log(DroneEnv* env, Drone* agent, int idx, Log* log, StepCache* 
 
 static void race_render(DroneEnv* env, Client* client) {
     RaceConfig* cfg = (RaceConfig*)env->task_config;
+    RaceState* state = (RaceState*)env->task_state;
     for (int i = 0; i < cfg->max_rings; i++)
-        DrawRing3D(env->ring_buffer[i], 0.2f, GREEN, BLUE);
+        DrawRing3D(state->ring_buffer[i], 0.2f, GREEN, BLUE);
 }
 
 static const TaskDef TASK_RACE = {

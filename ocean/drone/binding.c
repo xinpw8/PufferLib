@@ -44,9 +44,9 @@ static void race_init(DroneEnv* env, Dict* kwargs) {
     cfg->time_penalty = dict_get(kwargs, "time_penalty")->value;
     cfg->alpha_dist = dict_get(kwargs, "alpha_dist")->value;
     env->task_config = cfg;
-    env->ring_buffer = (Target*)calloc(cfg->max_rings, sizeof(Target));
 
     RaceState* state = (RaceState*)calloc(1, sizeof(RaceState));
+    state->ring_buffer = (Target*)calloc(cfg->max_rings, sizeof(Target));
     state->ring_idx = (int*)calloc(env->num_agents, sizeof(int));
     state->rings_passed = (int*)calloc(env->num_agents, sizeof(int));
     state->collisions = (float*)calloc(env->num_agents, sizeof(float));
