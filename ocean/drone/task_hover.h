@@ -145,15 +145,14 @@ static void hover_log(DroneEnv* env, Drone* agent, int idx, Log* log, StepCache*
     log_task_add(log, 1, state->ema_vel[idx]);
     log_task_add(log, 2, state->ema_omega[idx]);
     log_task_add(log, 3, cache->dist > (cfg->target_dist + 1.0f) ? 1.0f : 0.0f);
-    log_task_add(log, 4, agent->episode_length >= HORIZON ? 1.0f : 0.0f);
 }
 
 // definition
 
 static const TaskDef TASK_HOVER = {
     .name = "hover",
-    .log_keys = {"ema_dist", "ema_vel", "ema_omega", "oob", "timeout"},
-    .num_log_keys = 5,
+    .log_keys = {"ema_dist", "ema_vel", "ema_omega", "oob"},
+    .num_log_keys = 4,
     .init = hover_init,
     .close = hover_close,
     .env_reset = NULL,
