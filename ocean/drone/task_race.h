@@ -145,7 +145,7 @@ static void race_render(DroneEnv* env, Client* client) {
 
 // definition
 
-static const TaskDef TASK_RACE = {
+static const Task TASK_RACE = {
     .name = "race",
     .log_keys = {"rings_passed", "ring_collisions", "completed"},
     .num_log_keys = 3,

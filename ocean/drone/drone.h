@@ -55,7 +55,7 @@ typedef struct {
 
     void (*log)(DroneEnv* env, Drone* agent, int idx, Log* log, StepCache* cache);
     void (*render)(DroneEnv* env, Client* client);
-} TaskDef;
+} Task;
 
 struct DroneEnv {
     float* observations;
@@ -69,7 +69,7 @@ struct DroneEnv {
     Drone* agents;
     Log log;
 
-    const TaskDef* task;
+    const Task* task;
     void* task_config;
     void* task_state;
 

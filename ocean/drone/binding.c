@@ -12,7 +12,7 @@
 #include "task_hover.h"
 #include "task_race.h"
 
-static const TaskDef* LOG_TASK = NULL;
+static const Task* LOG_TASK = NULL;
 
 static void hover_config(DroneEnv* env, Dict* kwargs) {
     HoverConfig* cfg = (HoverConfig*)calloc(1, sizeof(HoverConfig));

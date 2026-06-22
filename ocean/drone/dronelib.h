@@ -119,7 +119,7 @@ typedef struct {
     int episode_length;
 } Drone;
 
-// --- math ---
+// math
 
 static inline float clampf(float v, float min, float max) {
     if (v < min) return min;
@@ -221,7 +221,7 @@ static inline Vec3 random_pos(unsigned int* rng) {
     };
 }
 
-// --- physics ---
+// physics
 
 static inline float rpm_hover(const Params* p) {
     return sqrtf((p->mass * p->gravity) / (4.0f * p->k_thrust));
@@ -371,7 +371,7 @@ static inline void move_drone(Drone* drone, float* actions) {
     }
 }
 
-// --- observations ---
+// observations
 
 void compute_drone_observations(Drone* agent, float* observations) {
     int idx = 0;

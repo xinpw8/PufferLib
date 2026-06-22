@@ -149,7 +149,7 @@ static void hover_log(DroneEnv* env, Drone* agent, int idx, Log* log, StepCache*
 
 // definition
 
-static const TaskDef TASK_HOVER = {
+static const Task TASK_HOVER = {
     .name = "hover",
     .log_keys = {"ema_dist", "ema_vel", "ema_omega", "oob"},
     .num_log_keys = 4,
