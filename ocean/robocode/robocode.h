@@ -109,6 +109,7 @@ struct Robocode {
 
     int num_agents;
     int num_bots;
+    int tick;
     int max_ticks;   // episode timeout; configured per-run via [env].max_ticks
     int width;
     int height;
@@ -418,6 +419,7 @@ void compute_observations(Robocode* env){
     }
 }
 void c_reset(Robocode* env) {
+    env->tick = 0;
     env->boundary_reached = 0;   // cleared so next episode-end can flip it back
     int total_robots = env->num_agents + env->num_bots;
     int idx = 0;
@@ -484,10 +486,12 @@ static inline void end_episode(Robocode* env, int outcome) {
 
 void c_step(Robocode* env) {
     // Timeout: all agents step in lockstep, so logs[0].episode_length is shared.
-    if (env->logs[0].episode_length >= (float)env->max_ticks) {
+    env->tick += 1;
+    if (env->tick > env->max_ticks) {
         end_episode(env, 0);  // draw
         return;
     }
+
     int total_robots = env->num_agents + env->num_bots;
     int total_bullets = total_robots * NUM_BULLETS;
 
@@ -740,6 +744,9 @@ void c_render(Robocode* env) {
         Vector2 bullet_pos = (Vector2){bullet.x, bullet.y};
         DrawCircleV(bullet_pos, 4, WHITE);
     }
+
+    const char* tick_text = TextFormat("%i", env->tick);
+    DrawText(tick_text, 10, 10, 10, WHITE);
 
     EndMode2D();
     EndDrawing();

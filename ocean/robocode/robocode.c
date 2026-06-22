@@ -11,6 +11,7 @@ void performance_test() {
         .reward_damage = 0.01f,
         .reward_spot = 0.001f,
         .bot_policy = 3,  // BOT_WAVE_SURFER
+        .max_ticks = 3000,
         .rng = 42,
     };
     allocate_env(&env);
@@ -33,16 +34,19 @@ void performance_test() {
 }
 
 void demo(void) {
-    Robocode env = {0};
-    env.num_agents = 1;
-    env.num_bots = 1;
-    env.reward_damage = 0.01;
-    env.width = 800;
-    env.height = 600;
+    Robocode env = {
+        .num_agents = 1,
+        .num_bots = 1,
+        .reward_damage = 0.01,
+        .width = 800,
+        .height = 600,
+        .max_ticks = 512,
+    };
     allocate_env(&env);
     c_reset(&env);
 
-    make_client(&env);
+    env.client = make_client(&env);
+    c_render(&env);
 
     while (!WindowShouldClose()) {
         env.actions[0] = 2;
@@ -70,7 +74,7 @@ void demo(void) {
 }
 
 int main() {
-    //demo();
-    performance_test();
+    demo();
+    //performance_test();
     return 0;
 }
