@@ -317,9 +317,11 @@ __global__ void cast(precision_t* __restrict__ dst,
     }
 }
 
+#ifndef PRECISION_FLOAT
 inline void cast_dispatch(precision_t* dst, const precision_t* src, int n, cudaStream_t stream) {
     cudaMemcpyAsync(dst, src, n * sizeof(precision_t), cudaMemcpyDeviceToDevice, stream);
 }
+#endif
 inline void cast_dispatch(precision_t* dst, const float* src, int n, cudaStream_t stream) {
     cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst, src, n);
 }

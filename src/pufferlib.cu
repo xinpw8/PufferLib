@@ -428,6 +428,24 @@ __device__ __forceinline__ float safe_logit(const precision_t* logits,
     return l;
 }
 
+__device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
+    if (isnan(x)) {
+        return 0.0f;
+    }
+    if (isinf(x)) {
+        return x > 0.0f ? hi : lo;
+    }
+    return fminf(hi, fmaxf(lo, x));
+}
+
+__device__ __forceinline__ float safe_continuous_mean(const precision_t* logits, int idx) {
+    return finite_or_clamp(to_float(logits[idx]), -1.0e6f, 1.0e6f);
+}
+
+__device__ __forceinline__ float safe_continuous_logstd(const precision_t* logstd, int idx) {
+    return finite_or_clamp(to_float(logstd[idx]), -20.0f, 2.0f);
+}
+
 __device__ __forceinline__ float masked_logit(const precision_t* logits,
         int logits_base, int logits_offset, int offset,
         const precision_t* mask, int mask_base) {
@@ -479,13 +497,13 @@ __global__ void sample_logits(
         int logstd_base = idx * logstd_stride;  // separate stride for logstd (may be 0 for broadcast)
 
         for (int h = 0; h < num_atns; ++h) {
-            float mean = to_float(logits[logits_base + h]);
-            float log_std = to_float(logstd[logstd_base + h]);
+            float mean = safe_continuous_mean(logits, logits_base + h);
+            float log_std = safe_continuous_logstd(logstd, logstd_base + h);
             float std = expf(log_std);
 
             // Sample from N(0,1) and transform: action = mean + std * noise
             float noise = curand_normal(&state);
-            float action = mean + std * noise;
+            float action = finite_or_clamp(mean + std * noise, -1.0e6f, 1.0e6f);
 
             precision_t stored_action_p = from_float(action);
             float stored_action = to_float(stored_action_p);
@@ -857,9 +875,9 @@ __global__ void ppo_loss_compute(
         }
     } else {
         for (int h = 0; h < a.num_atns; ++h) {
-            float mean = to_float(a.logits[logits_base + h * a.logits_stride_a]);
-            float log_std = to_float(a.logstd[h]);
-            float action = float(g.actions[nt * a.num_atns + h]);
+            float mean = safe_continuous_mean(a.logits, logits_base + h * a.logits_stride_a);
+            float log_std = safe_continuous_logstd(a.logstd, h);
+            float action = finite_or_clamp(float(g.actions[nt * a.num_atns + h]), -1.0e6f, 1.0e6f);
             float lp, ent;
             ppo_continuous_head(mean, log_std, action, &lp, &ent);
             total_log_prob += lp;
@@ -907,11 +925,11 @@ __global__ void ppo_loss_compute(
         }
     } else {
         for (int h = 0; h < a.num_atns; ++h) {
-            float mean = to_float(a.logits[logits_base + h * a.logits_stride_a]);
-            float log_std = to_float(a.logstd[h]);
+            float mean = safe_continuous_mean(a.logits, logits_base + h * a.logits_stride_a);
+            float log_std = safe_continuous_logstd(a.logstd, h);
             float std = __expf(log_std);
             float var = std * std;
-            float action = float(g.actions[nt * a.num_atns + h]);
+            float action = finite_or_clamp(float(g.actions[nt * a.num_atns + h]), -1.0e6f, 1.0e6f);
             float diff = action - mean;
 
             a.grad_logits[grad_logits_base + h] = d_new_logp * diff / var;
