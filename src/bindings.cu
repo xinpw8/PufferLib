@@ -443,8 +443,10 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     hypers.seed = get_config(args, "seed");
 
     int device_count = 0;
-    cudaGetDeviceCount(&device_count);
-    assert(device_count > 0 && "CUDA is not available");
+    int err = cudaGetDeviceCount(&device_count);
+    if (err != cudaSuccess) {
+        throw std::runtime_error("CUDA is not available");
+    }
 
     std::string env_name = args["env_name"].cast<std::string>();
     Dict* vec_dict = py_dict_to_c_dict(vec_kwargs.cast<py::dict>());
