@@ -50,7 +50,11 @@ void my_init(Env* env, Dict* kwargs) {
     }
 
     env->task->init(env);
+
+    // will need changes for multi-task
+    assert(LOG_TASK == NULL || LOG_TASK == env->task);
     LOG_TASK = env->task;
+
     init(env);
 }
 
