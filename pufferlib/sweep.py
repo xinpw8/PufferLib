@@ -146,7 +146,10 @@ def _params_from_puffer_sweep(sweep_config, only_include=None):
 
     for name, param in sweep_config.items():
         if name in ('method', 'metric', 'metric_distribution', 'goal', 'downsample', 'use_gpu', 'prune_pareto',
-                    'sweep_only', 'max_suggestion_cost', 'early_stop_quantile', 'gpus', 'max_runs'):
+                    'sweep_only', 'max_suggestion_cost', 'early_stop_quantile', 'gpus', 'max_runs',
+                    'match_enemy_model_path', 'match_num_games', 'match_max_ticks', 'match_enemy_hidden_size', 'match_enemy_num_layers',
+                    'bot_eval', 'bot_eval_episodes', 'bot_eval_envs', 'bot_eval_burnin_episodes',
+                    'bot_eval_policy', 'bot_eval_max_ticks'):
             continue
 
         assert isinstance(param, dict), f'Param {name} is not a dict'
@@ -957,15 +960,15 @@ class Protein:
         return score < threshold
 
     def early_stop(self, logs, target_key):
-        for k, v in logs['loss'].items():
-            if np.isnan(v):
+        for k, v in logs.items():
+            if k.startswith('loss/') and np.isnan(v):
                 logs['is_loss_nan'] = True
                 return True
 
         if 'uptime' not in logs or target_key not in logs:
             return False
 
-        metric_val, cost = logs['env'][target_key], logs['uptime']
+        metric_val, cost = logs[target_key], logs['uptime']
         self._running_target_buffer.append(metric_val)
         target_running_mean = np.mean(self._running_target_buffer)
         threshold = self.get_early_stop_threshold(cost)

@@ -8,7 +8,7 @@
 
 #define NUM_ACTIONS 5
 #define NUM_BULLETS 16
-#define EGO_FEATURES 8
+#define EGO_FEATURES 11
 #define OTHER_FEATURES 8
 
 static const float ACCEL_VALUES[4] = {
@@ -30,11 +30,11 @@ static const float FIREPOWER_VALUES[6] = {
     0, 0.1f, 0.5f, 1.0f, 2.0f, 3.0f
 };
 float cos_deg(float deg) {
-    return cos(deg * 3.14159265358979323846 / 180.0);
+    return cosf(deg * 3.14159265358979323846f / 180.0f);
 }
 
 float sin_deg(float deg) {
-    return sin(deg * 3.14159265358979323846 / 180.0);
+    return sinf(deg * 3.14159265358979323846f / 180.0f);
 }
 
 typedef struct BotMem BotMem;  // defined in bots.h
@@ -85,6 +85,9 @@ struct Robot {
     float gun_heading;
     float radar_heading_prev;
     float radar_heading;
+    float speed_mult;
+    float handling_mult;
+    float power_mult;
     int bullet_idx;
     float gun_heat;
     int energy;
@@ -119,6 +122,7 @@ struct Robocode {
     Log* logs;
     float reward_damage;
     float reward_spot;
+    float dr;
     int bot_policy;
     BotMem* bot_mems;        // per-bot scratch (allocated by bots.h)
 
@@ -245,18 +249,20 @@ void move(Robocode* env, Robot* robot, float distance) {
     float dy = sin_deg(robot->heading);
     //float accel = 1.0;//2.0*distance / (robot->v * robot->v);
     float accel = distance;
+    float handling = fmaxf(robot->handling_mult, 0.0f);
+    float max_speed = 8.0f * fmaxf(robot->speed_mult, 0.0f);
 
-    if (accel > 1.0) {
-        accel = 1.0;
-    } else if (accel < -2.0) {
-        accel = -2.0;
+    if (accel > handling) {
+        accel = handling;
+    } else if (accel < -2.0f * handling) {
+        accel = -2.0f * handling;
     }
 
     robot->v += accel;
-    if (robot->v > 8.0) {
-        robot->v = 8.0;
-    } else if (robot->v < -8.0) {
-        robot->v = -8.0;
+    if (robot->v > max_speed) {
+        robot->v = max_speed;
+    } else if (robot->v < -max_speed) {
+        robot->v = -max_speed;
     }
 
     float new_x = robot->x + dx * robot->v;
@@ -326,6 +332,35 @@ void fire(Robocode* env, Robot* robot, int robot_idx, float firepower) {
     bullet->live = true;
 }
 
+static inline float rand_unit(Robocode* env) {
+    return (float)rand_r(&env->rng) / ((float)RAND_MAX + 1.0f);
+}
+
+static inline void sample_agent_multipliers(Robocode* env, Robot* robot) {
+    robot->speed_mult = 1.0f;
+    robot->handling_mult = 1.0f;
+    robot->power_mult = 1.0f;
+
+    if (env->dr <= 0.0f) return;
+    float upper = 1.0f + env->dr;
+    if (upper <= 0.0f) return;
+    float lower = 1.0f / upper;
+    float width = upper - lower;
+    if (width <= 0.0f) return;
+
+    for (int tries = 0; tries < 64; tries++) {
+        float speed = lower + width * rand_unit(env);
+        float handling = lower + width * rand_unit(env);
+        float power = 3.0f - speed - handling;
+        if (power >= lower && power <= upper) {
+            robot->speed_mult = speed;
+            robot->handling_mult = handling;
+            robot->power_mult = power;
+            return;
+        }
+    }
+}
+
 int scan_area(Robocode* env, Robot* robot){
     // Sweep is the signed angle traversed from radar_heading_prev to
     // radar_heading, normalized to (-180, 180]. A robot is scanned if its
@@ -371,6 +406,9 @@ void compute_observations(Robocode* env){
         obs[5] = robot->radar_heading_prev * DEG2RAD;
         obs[6] = robot->v / 8.0f;
         obs[7] = robot->energy / 100.0f;
+        obs[8] = robot->speed_mult;
+        obs[9] = robot->power_mult;
+        obs[10] = robot->handling_mult;
 
         int scanned = scan_area(env, robot);
         if (scanned < 0) {
@@ -408,19 +446,20 @@ void compute_observations(Robocode* env){
         float aim_err = bearing - robot->gun_heading;
         if (aim_err >  180.0f) aim_err -= 360.0f;
         else if (aim_err < -180.0f) aim_err += 360.0f;
-        obs[8]  = dx_ego / 1200.0f;
-        obs[9]  = dy_ego / 1200.0f;
-        obs[10] = dh_body  * DEG2RAD;
-        obs[11] = dh_gun   * DEG2RAD;
-        obs[12] = dh_radar * DEG2RAD;
-        obs[13] = other->energy / 100.0f;
-        obs[14] = aim_err * DEG2RAD;
-        obs[15] = 1.0f;
+        int off = EGO_FEATURES;
+        obs[off + 0] = dx_ego / 1200.0f;
+        obs[off + 1] = dy_ego / 1200.0f;
+        obs[off + 2] = dh_body  * DEG2RAD;
+        obs[off + 3] = dh_gun   * DEG2RAD;
+        obs[off + 4] = dh_radar * DEG2RAD;
+        obs[off + 5] = other->energy / 100.0f;
+        obs[off + 6] = aim_err * DEG2RAD;
+        obs[off + 7] = 1.0f;
     }
 }
 void c_reset(Robocode* env) {
     env->tick = 0;
-    env->boundary_reached = 0;   // cleared so next episode-end can flip it back
+    // boundary_reached is owned by selfplay.py alignment; do not clear it here.
     int total_robots = env->num_agents + env->num_bots;
     int idx = 0;
     float x, y;
@@ -450,7 +489,12 @@ void c_reset(Robocode* env) {
             robot->gun_heat = 3;
             robot->bullet_idx = 0;
             if (idx < env->num_agents) {
+                sample_agent_multipliers(env, robot);
                 env->logs[idx] = (Log){0};
+            } else {
+                robot->speed_mult = 1.0f;
+                robot->handling_mult = 1.0f;
+                robot->power_mult = 1.0f;
             }
             idx += 1;
         }
@@ -615,27 +659,29 @@ void c_step(Robocode* env) {
         }
 
         // Move
-        float move_atn = ACCEL_VALUES[(int)atn[0]];
+        float handling = fmaxf(robot->handling_mult, 0.0f);
+        float move_atn = ACCEL_VALUES[(int)atn[0]] * handling;
         move(env, robot, move_atn);
 
         // Turn
-        float turn_atn = TURN_VALUES[(int)atn[1]];
+        float turn_atn = TURN_VALUES[(int)atn[1]] * handling;
 
         float abs_v = fabs(robot->v);
-        float max_turn = 10 - 0.75*abs_v;
+        float max_turn = (10 - 0.75*abs_v) * handling;
+        if (max_turn < 0.0f) max_turn = 0.0f;
         float body_turn_degrees = turn(&robot->heading, turn_atn, max_turn, 0);
 
         // Gun
-        float gun_atn = GUN_TURN_VALUES[(int)atn[2]];
-        float gun_degrees = turn(&robot->gun_heading, gun_atn, 20.0, body_turn_degrees);
+        float gun_atn = GUN_TURN_VALUES[(int)atn[2]] * handling;
+        float gun_degrees = turn(&robot->gun_heading, gun_atn, 20.0f * handling, body_turn_degrees);
 
         // Radar
-        float radar_atn = RADAR_TURN_VALUES[(int)atn[3]];
+        float radar_atn = RADAR_TURN_VALUES[(int)atn[3]] * handling;
         robot->radar_heading_prev = robot->radar_heading;
-        turn(&robot->radar_heading, radar_atn, 45.0, body_turn_degrees+gun_degrees);
+        turn(&robot->radar_heading, radar_atn, 45.0f * handling, body_turn_degrees+gun_degrees);
 
         // Fire
-        float firepower = FIREPOWER_VALUES[(int)atn[4]];
+        float firepower = FIREPOWER_VALUES[(int)atn[4]] * fmaxf(robot->power_mult, 0.0f);
         if (firepower > 0) {
             fire(env, robot,i, firepower);
         }

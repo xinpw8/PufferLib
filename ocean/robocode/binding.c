@@ -1,5 +1,5 @@
 #include "robocode.h"
-#define OBS_SIZE 16
+#define OBS_SIZE (EGO_FEATURES + OTHER_FEATURES)
 #define NUM_ATNS 5
 #define ACT_SIZES {4, 9, 11, 11, 6}
 #define OBS_TENSOR_T FloatTensor
@@ -31,6 +31,8 @@ void my_init(Env* env, Dict* kwargs) {
     env->max_ticks = (int)dict_get(kwargs, "max_ticks")->value;
     env->reward_damage = dict_get(kwargs, "reward_damage")->value;
     env->reward_spot = dict_get(kwargs, "reward_spot")->value;
+    DictItem* dr_item = dict_get_unsafe(kwargs, "dr");
+    env->dr = dr_item ? (float)dr_item->value : 0.0f;
     env->bot_policy = dict_get(kwargs, "bot_policy")->value;
     init(env);
 }
