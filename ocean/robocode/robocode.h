@@ -275,7 +275,7 @@ void move(Robocode* env, Robot* robot, float distance) {
         if (target == robot) {
             continue;
         }
-        if (target->energy < 0) {     // dead = phase-through; disabled = still solid
+        if (target->energy < 0) {
             continue;
         }
         float abs_x = fabsf(target->x - new_x);
@@ -374,7 +374,7 @@ int scan_area(Robocode* env, Robot* robot){
     for (int j = 0; j < total_robots; j++) {
         Robot* other = &env->robots[j];
         if (other == robot) continue;
-        if (other->energy < 0) continue;   // disabled (energy=0) is still scannable
+        if (other->energy < 0) continue;
 
         float dx = other->x - robot->x;
         float dy = other->y - robot->y;
@@ -506,8 +506,28 @@ void c_reset(Robocode* env) {
 
 #include "bots.h"
 
+// Agent matches end as soon as a slot reaches zero energy. If all slots are
+// disabled in the same tick, score the episode as a draw. Return 2 = no end.
+static inline int agent_terminal_outcome(Robocode* env) {
+    if (env->num_agents <= 0) return 2;
+    bool slot0_dead = env->robots[0].energy <= 0.0f;
+    if (env->num_agents == 1) return slot0_dead ? -1 : 2;
+
+    bool any_nonzero_dead = false;
+    bool any_nonzero_alive = false;
+    for (int a = 1; a < env->num_agents; a++) {
+        if (env->robots[a].energy <= 0.0f) any_nonzero_dead = true;
+        else any_nonzero_alive = true;
+    }
+
+    if (slot0_dead && !any_nonzero_alive) return 0;
+    if (slot0_dead) return -1;
+    if (any_nonzero_dead) return +1;
+    return 2;
+}
+
 // Helper for every episode-end path. outcome: +1 slot-0 won, -1 slot-0 lost,
-// 0 draw (timeout). Historical accounting only applies when env->tag > 0.
+// 0 draw. Historical accounting only applies when env->tag > 0.
 static inline void end_episode(Robocode* env, int outcome) {
     float s0_score = (outcome > 0) ? 1.0f : (outcome < 0) ? 0.0f : 0.5f;
     // Scale by num_agents so that (slot_0_score / n) where n increments by
@@ -545,12 +565,10 @@ void c_step(Robocode* env) {
         *env->reward_ptr[a]   = 0.0f;
         *env->terminal_ptr[a] = 0.0f;
     }
-    for (int a = 0; a < env->num_agents; a++) {
-        if (env->robots[a].energy < 0) {  // strict: death requires energy past 0
-            // Primary (slot 0) wins iff a non-zero slot died.
-            end_episode(env, (a == 0) ? -1 : +1);
-            return;
-        }
+    int agent_outcome = agent_terminal_outcome(env);
+    if (agent_outcome != 2) {
+        end_episode(env, agent_outcome);
+        return;
     }
     // move all bullets
     float prev_x[total_bullets], prev_y[total_bullets];
@@ -585,7 +603,7 @@ void c_step(Robocode* env) {
     bool any_bot_alive = (env->num_bots == 0);
     for (int shooter = 0; shooter < total_robots; shooter++) {
         Robot* robot = &env->robots[shooter];
-        if (shooter >= env->num_agents && robot->energy >= 0) any_bot_alive = true;  // disabled counts as alive
+        if (shooter >= env->num_agents && robot->energy > 0.0f) any_bot_alive = true;
         for (int blt = 0; blt < NUM_BULLETS; blt++) {
             int bi = shooter * NUM_BULLETS + blt;
             Bullet* bullet = &env->bullets[bi];
@@ -595,7 +613,7 @@ void c_step(Robocode* env) {
                 if (!bullet->live) break;  
                 if (j == shooter) continue;
                 Robot* target = &env->robots[j];
-                if (target->energy < 0) continue;   // disabled (=0) is still hittable
+                if (target->energy < 0) continue;
                 // Broad-phase: keep if EITHER endpoint of the swept segment is
                 // within 32 units of target center. Using only the end position
                 // would miss tunneling at firepower 0.1 (speed ~19.7/tick).
@@ -623,7 +641,7 @@ void c_step(Robocode* env) {
                 if (!t_agent && s_agent) {
                     bot_on_hit_by_bullet(env, j, bullet->heading, bullet->firepower);
                 }
-                bool killed = target->energy < 0;   // strict: brought past 0
+                bool killed = target->energy <= 0.0f;
                 float r = killed ? 1.0f : damage * env->reward_damage;
                 if (s_agent) {
                     *env->reward_ptr[shooter] += r;
@@ -642,14 +660,19 @@ void c_step(Robocode* env) {
         end_episode(env, +1);  // primary wiped all bots
         return;
     }
+    agent_outcome = agent_terminal_outcome(env);
+    if (agent_outcome != 2) {
+        end_episode(env, agent_outcome);
+        return;
+    }
     for (int i = 0; i < env->num_agents; i++) {
         Robot* robot = &env->robots[i];
         float* atn = env->action_ptr[i];
         env->logs[i].episode_length += 1.0f;
 
-        // Disabled (energy <= 0): no actions, velocity frozen to 0.
-        // Classic Robocode rule — alive but inert, can still be hit and killed.
-        if (robot->energy <= 0) {
+        // Defensive guard; agent_terminal_outcome should have already ended
+        // episodes for disabled agents.
+        if (robot->energy <= 0.0f) {
             robot->v = 0;
             continue;
         }
@@ -702,8 +725,27 @@ void c_step(Robocode* env) {
         robot->energy -= wall_dmg;
         robot->v = 0;
     }
+    agent_outcome = agent_terminal_outcome(env);
+    if (agent_outcome != 2) {
+        end_episode(env, agent_outcome);
+        return;
+    }
+
     // bot step
     for (int b = env->num_agents; b < total_robots; b++) bot_step(env, b);
+    if (env->num_bots > 0) {
+        any_bot_alive = false;
+        for (int b = env->num_agents; b < total_robots; b++) {
+            if (env->robots[b].energy > 0.0f) {
+                any_bot_alive = true;
+                break;
+            }
+        }
+        if (!any_bot_alive) {
+            end_episode(env, +1);
+            return;
+        }
+    }
     compute_observations(env);
 }
 
@@ -754,7 +796,7 @@ void c_render(Robocode* env) {
     int total_robots = env->num_agents + env->num_bots;
     for (int i = 0; i < total_robots; i++) {
         Robot robot = env->robots[i];
-        if (robot.energy < 0) continue;     // still draw disabled (energy=0) bots
+        if (robot.energy < 0) continue;
         bool is_agent = i < env->num_agents;
         Vector2 robot_pos = (Vector2){robot.x, robot.y};
 
