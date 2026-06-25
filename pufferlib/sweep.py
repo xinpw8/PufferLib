@@ -149,7 +149,10 @@ def _params_from_puffer_sweep(sweep_config, only_include=None):
                     'sweep_only', 'max_suggestion_cost', 'max_trial_seconds', 'early_stop_quantile', 'gpus', 'max_runs',
                     'match_enemy_model_path', 'match_num_games', 'match_max_ticks', 'match_enemy_hidden_size', 'match_enemy_num_layers',
                     'bot_eval', 'bot_eval_episodes', 'bot_eval_envs', 'bot_eval_burnin_episodes',
-                    'bot_eval_policy', 'bot_eval_max_ticks'):
+                    'bot_eval_policy', 'bot_eval_max_ticks',
+                    'league', 'league_train_gpus', 'league_match_gpus', 'league_match_games',
+                    'league_match_eval_agents', 'league_anchor_prob', 'league_opponent_frac',
+                    'league_opponent_swap_steps', 'league_state_path'):
             continue
 
         assert isinstance(param, dict), f'Param {name} is not a dict'
@@ -923,17 +926,38 @@ class Protein:
         logit = math.log(value / (1 - value))
         return np.clip(logit, -5, 100)
 
-    def observe(self, hypers, score, cost, is_failure=False):
-        params = self.hyperparameters.from_dict(hypers)
-
+    def _store_score(self, score):
         if self.metric_distribution == 'percentile':
-            score = self.logit_transform(score)
+            return self.logit_transform(score)
+        return score
+
+    def _rebuild_top_observations(self):
+        self.top_observations = sorted(
+            self.success_observations, key=lambda x: x['output'], reverse=True
+        )[:self.num_keep_top_obs]
+
+    def refresh_observations_by_run_id(self, scores_by_run_id):
+        updates = 0
+        for obs in self.success_observations:
+            run_id = obs.get('run_id')
+            if run_id is None or run_id not in scores_by_run_id:
+                continue
+            obs['output'] = self._store_score(scores_by_run_id[run_id])
+            updates += 1
+        if updates:
+            self._rebuild_top_observations()
+        return updates
+
+    def observe(self, hypers, score, cost, is_failure=False, run_id=None):
+        params = self.hyperparameters.from_dict(hypers)
+        score = self._store_score(score)
 
         new_observation = dict(
             input=params,
             output=score,
             cost=cost,
             is_failure=is_failure,
+            run_id=run_id,
         )
 
         if is_failure or not np.isfinite(score) or np.isnan(score):
@@ -941,12 +965,19 @@ class Protein:
             self.failure_observations.append(new_observation)
             return
 
-        if self.success_observations:
+        if run_id is not None:
+            for idx, obs in enumerate(self.success_observations):
+                if obs.get('run_id') == run_id:
+                    self.success_observations[idx] = new_observation
+                    self._rebuild_top_observations()
+                    return
+        elif self.success_observations:
             success_params = np.stack([e['input'] for e in self.success_observations])
             dist = np.linalg.norm(params - success_params, axis=1)
             same = np.where(dist < EPSILON)[0]
             if len(same) > 0:
                 self.success_observations[same[0]] = new_observation
+                self._rebuild_top_observations()
                 return
 
         # Ignore obs that are below the minimum cost

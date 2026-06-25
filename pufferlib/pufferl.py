@@ -12,6 +12,7 @@ import ast
 import time
 import argparse
 import configparser
+import random
 from collections import defaultdict
 import multiprocessing as mp
 from copy import deepcopy
@@ -26,6 +27,7 @@ except ImportError:
     raise ImportError('Failed to import PufferLib C++ backend. If you have non-default PyTorch, try installing with --no-build-isolation')
 
 from pufferlib import selfplay
+from pufferlib import league
 
 import rich
 import rich.traceback
@@ -214,12 +216,16 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
     # When sweeping, optionally score each trial with a final evaluator instead
     # of the training-time metric. Scripted-bot eval supersedes the older
-    # fixed-checkpoint match mode so trials do not pay for both.
-    bot_eval_mode = bool(args.get('sweep', {}).get('bot_eval', False))
+    # fixed-checkpoint match mode so trials do not pay for both. League sweeps
+    # are scored asynchronously by the shared match worker.
+    league_mode = bool(args.get('sweep', {}).get('league', False))
+    bot_eval_mode = bool(args.get('sweep', {}).get('bot_eval', False)) and not league_mode
     match_mode = (sweep_obj is not None
         and bool(args.get('sweep', {}).get('match_enemy_model_path'))
-        and not bot_eval_mode)
+        and not bot_eval_mode
+        and not league_mode)
     final_eval_mode = bot_eval_mode or match_mode
+    final_checkpoint_mode = final_eval_mode or league_mode
 
     checkpoint_dir = os.path.join(args['checkpoint_dir'], args['env_name'], run_id)
     if artifact_owner:
@@ -259,7 +265,7 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
     model_path = ''
     flat_logs = {}
     train_epochs = int(total_timesteps // (args['vec']['total_agents'] * args['train']['horizon']))
-    eval_epochs = train_epochs // 2
+    eval_epochs = 0 if league_mode else train_epochs // 2
     max_trial_seconds = float(args.get('sweep', {}).get('max_trial_seconds', 0) or 0)
     trial_start_time = time.time()
     for epoch in range(train_epochs + eval_epochs):
@@ -282,7 +288,7 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
         should_save = (epoch < train_epochs) and (
             (sweep_obj is None
                 and (epoch % args['checkpoint_interval'] == 0 or is_final))
-            or (final_eval_mode and is_final)
+            or (final_checkpoint_mode and is_final)
         )
         if should_save and artifact_owner:
             model_path = os.path.join(checkpoint_dir, f'{pufferl.global_step:016d}.bin')
@@ -305,7 +311,7 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
         if verbose:
             print_dashboard(args, model_size, flat_logs)
 
-        if target_key not in flat_logs and not final_eval_mode:
+        if target_key not in flat_logs and not final_eval_mode and not league_mode:
             continue
 
         if args['wandb'] and artifact_owner:
@@ -319,6 +325,7 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
             if (sweep_obj is not None
                     and not final_eval_mode
+                    and not league_mode
                     and pufferl.global_step > min(0.20*total_timesteps, 100_000_000) and
                     sweep_obj.early_stop(flat_logs, target_key)):
                 break
@@ -330,12 +337,37 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
         print_dashboard(args, model_size, flat_logs)
     # Final-score trials may have early-stopped before the in-loop save fired;
     # ensure we always have a checkpoint to feed the post-training evaluator.
-    if final_eval_mode and artifact_owner and not model_path:
+    if final_checkpoint_mode and artifact_owner and not model_path:
         model_path = os.path.join(checkpoint_dir, f'{pufferl.global_step:016d}.bin')
         backend.save_weights(pufferl, model_path)
+
+    if league_mode and artifact_owner:
+        if not all_logs:
+            all_logs.append(flat_logs)
+        metrics = {k: [v] for k, v in all_logs[-1].items()}
+        log_dir = os.path.join(args['log_dir'], args['env_name'])
+        os.makedirs(log_dir, exist_ok=True)
+        with open(os.path.join(log_dir, run_id + '.json'), 'w') as f:
+            json.dump({**args, 'metrics': metrics}, f)
+        if args['wandb']:
+            wandb.run.finish()
+        if result_queue is not None:
+            result_queue.put({
+                'gpu_id': args['gpu_id'],
+                'ok': bool(model_path),
+                'run_id': run_id,
+                'checkpoint_path': model_path,
+                'hypers': deepcopy(args),
+                'cost': float(metrics.get('uptime', [0.0])[-1]),
+                'timesteps': int(metrics.get('agent_steps', [0])[-1]),
+            })
+        else:
+            backend.close(pufferl)
+        return
+
     backend.close(pufferl)
 
-    if target_key not in flat_logs and not final_eval_mode:
+    if target_key not in flat_logs and not final_eval_mode and not league_mode:
         if artifact_owner and result_queue is not None:
             result_queue.put((args['gpu_id'], None, None, None))
         return
@@ -467,7 +499,17 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
         wandb.run.finish()
 
     if artifact_owner and result_queue is not None:
-        if bot_eval_mode and bot_perf is not None:
+        if league_mode:
+            result_queue.put({
+                'gpu_id': args['gpu_id'],
+                'ok': bool(model_path),
+                'run_id': run_id,
+                'checkpoint_path': model_path,
+                'hypers': deepcopy(args),
+                'cost': float(metrics.get('uptime', [0.0])[-1]),
+                'timesteps': int(metrics.get('agent_steps', [0])[-1]),
+            })
+        elif bot_eval_mode and bot_perf is not None:
             # One observation: final hypers -> scripted-bot perf, at total training cost.
             result_queue.put((args['gpu_id'], [bot_perf],
                 [metrics['uptime'][-1]], [metrics['agent_steps'][-1]]))
@@ -512,9 +554,354 @@ def train(env_name, args=None, gpus=None, **kwargs):
             ctx.Process(target=_train, args=(env_name, worker_args),
                 kwargs=kwargs).start()
 
+
+def _league_arch(args):
+    return {
+        'hidden_size': int(float(args['policy']['hidden_size'])),
+        'num_layers': int(float(args['policy']['num_layers'])),
+    }
+
+
+def _strip_league_arch_sweeps(sweep_config):
+    league.validate_no_arch_sweep_keys(sweep_config)
+
+    policy_sweep = sweep_config.get('policy')
+    if isinstance(policy_sweep, dict):
+        policy_sweep.pop('hidden_size', None)
+        policy_sweep.pop('num_layers', None)
+        if not policy_sweep:
+            sweep_config.pop('policy', None)
+
+
+def _league_state_path(env_name, args):
+    sweep_cfg = args['sweep']
+    configured = sweep_cfg.get('league_state_path') or ''
+    if configured:
+        sweep_id = os.path.basename(configured)
+        if sweep_id.endswith('_league.json'):
+            sweep_id = sweep_id[:-len('_league.json')]
+        else:
+            sweep_id = os.path.splitext(sweep_id)[0]
+    else:
+        sweep_id = str(args.get('run_id') or int(1000*time.time()))
+        configured = os.path.join(args['log_dir'], env_name, f'{sweep_id}_league.json')
+        sweep_cfg['league_state_path'] = configured
+    args['sweep_id'] = sweep_id
+    return configured, sweep_id
+
+
+def _validate_and_force_league_config(env_name, args, pareto=False):
+    if pareto:
+        raise ValueError('league mode does not support paretosweep')
+    if env_name != 'robocode':
+        raise ValueError('league sweep mode is currently implemented for robocode')
+    if int(args['train'].get('gpus', 1)) != 1:
+        raise ValueError('league sweep mode requires train.gpus = 1')
+    if not bool(args.get('selfplay', {}).get('enabled', 0)):
+        raise ValueError('league sweep mode requires selfplay.enabled = 1')
+    if int(args.get('env', {}).get('num_agents', 0)) != 2:
+        raise ValueError('league sweep mode requires env.num_agents = 2')
+    if int(args.get('env', {}).get('num_bots', 0)) != 0:
+        raise ValueError('league sweep mode requires env.num_bots = 0')
+
+    sweep_cfg = args['sweep']
+    _strip_league_arch_sweeps(sweep_cfg)
+    sweep_cfg['metric'] = 'elo'
+    sweep_cfg['downsample'] = 1
+    sweep_cfg['max_trial_seconds'] = 0
+    sweep_cfg['bot_eval'] = False
+    sweep_cfg['match_enemy_model_path'] = ''
+    sweep_cfg['match_enemy_hidden_size'] = 0
+    sweep_cfg['match_enemy_num_layers'] = 0
+
+    frac = float(sweep_cfg.get('league_opponent_frac', 0.20))
+    if not 0.0 < frac < 1.0:
+        raise ValueError('sweep.league_opponent_frac must be in (0, 1)')
+    if int(sweep_cfg.get('league_match_gpus', 1)) != 1:
+        raise ValueError('league sweep mode currently supports exactly one match GPU')
+
+
+def _configure_league_trial_args(args, state_path):
+    sweep_cfg = args['sweep']
+    frac = float(sweep_cfg.get('league_opponent_frac', 0.20))
+    args.setdefault('selfplay', {})['enabled'] = 1
+    args['selfplay']['external_opponent_state_path'] = state_path
+    args['selfplay']['snapshot_interval'] = 0
+    args['selfplay']['opp_timeout_steps'] = int(sweep_cfg.get('league_opponent_swap_steps', 100_000_000))
+    args['vec']['num_frozen_banks'] = 1
+    args['vec']['frozen_bank_pct'] = frac / 2.0
+    args['vec']['frozen_bank_hidden_size'] = int(float(args['policy']['hidden_size']))
+    args['vec']['frozen_bank_num_layers'] = int(float(args['policy']['num_layers']))
+    args.setdefault('env', {})['num_agents'] = 2
+    args['env']['num_bots'] = 0
+
+
+def _materialize_league_anchor(env_name, args, state_path, sweep_id, gpu_id):
+    arch = _league_arch(args)
+    state = league.read_state(state_path)
+    if state is not None:
+        for player in state.get('players', []):
+            if player.get('id') == league.ANCHOR_ID and player.get('checkpoint_path'):
+                if os.path.exists(player['checkpoint_path']):
+                    return player['checkpoint_path']
+
+    anchor_dir = os.path.join(args['checkpoint_dir'], env_name, f'{sweep_id}_league_anchor')
+    os.makedirs(anchor_dir, exist_ok=True)
+    anchor_path = os.path.join(anchor_dir,
+        f'random_h{arch["hidden_size"]}_l{arch["num_layers"]}.bin')
+    if not os.path.exists(anchor_path):
+        cfg = deepcopy(args)
+        cfg['reset_state'] = False
+        cfg['rank'] = 0
+        cfg['world_size'] = 1
+        cfg['gpu_id'] = gpu_id
+        cfg['nccl_id'] = b''
+        cfg.setdefault('selfplay', {})['enabled'] = 0
+        cfg['vec']['num_buffers'] = 1
+        cfg['vec']['total_agents'] = max(128, int(cfg.get('env', {}).get('num_agents', 2)))
+        cfg['vec']['num_frozen_banks'] = 0
+        cfg['vec']['frozen_bank_pct'] = 0.0
+        cfg.setdefault('env', {})['dr'] = 0.0
+        cfg['env']['num_agents'] = 2
+        cfg['env']['num_bots'] = 0
+        cfg['train']['horizon'] = 1
+        backend = _resolve_backend(cfg)
+        if backend is not _C:
+            raise RuntimeError('league random anchor creation requires the native CUDA backend')
+        pufferl = backend.create_pufferl(cfg)
+        backend.save_weights(pufferl, anchor_path)
+
+    league.ensure_anchor(state_path, anchor_path, arch, hypers={'policy': deepcopy(args['policy'])})
+    return anchor_path
+
+
+def _refresh_league_observations(sweep_obj, state_path):
+    state = league.read_state(state_path)
+    if state is None or not hasattr(sweep_obj, 'refresh_observations_by_run_id'):
+        return 0
+    return sweep_obj.refresh_observations_by_run_id(league.run_id_scores(state))
+
+
+def _league_match_once_child(env_name, player_a, player_b, games, args, result_queue):
+    try:
+        match_args = deepcopy(args)
+        match_args['match_eval_agents'] = int(args['sweep'].get('league_match_eval_agents', 8192))
+        match_args['skip_match_close'] = True
+        logs = match(env_name, player_a['path'], player_b['path'],
+            num_games=int(games), args=match_args, verbose=False)
+        result_queue.put({
+            'ok': True,
+            'score': float(logs.get('env/slot_0_score', 0.0)),
+            'draw': float(logs.get('env/draw_rate', 0.0)),
+            'games': int(logs.get('env/n', games)),
+        })
+    except BaseException as e:
+        result_queue.put({'ok': False, 'error': f'{type(e).__name__}: {e}'})
+
+
+def _league_match_once(env_name, player_a, player_b, games, args):
+    ctx = mp.get_context('spawn')
+    result_queue = ctx.SimpleQueue()
+    proc = ctx.Process(target=_league_match_once_child,
+        args=(env_name, player_a, player_b, int(games), args, result_queue))
+    proc.start()
+    proc.join(timeout=min(600, max(30, int(games) * 4)))
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(timeout=5)
+        raise RuntimeError(f'league match orientation timed out: {player_a["id"]} vs {player_b["id"]}')
+    if result_queue.empty():
+        raise RuntimeError(f'league match orientation exited without result: {player_a["id"]} vs {player_b["id"]}, exit={proc.exitcode}')
+    result = result_queue.get()
+    if not result.get('ok'):
+        raise RuntimeError(result.get('error', 'league match orientation failed'))
+    return result['score'], result['draw'], result['games']
+
+
+def _league_run_pair(env_name, player_a, player_b, games, args):
+    games = int(games)
+    if player_a['id'] == player_b['id']:
+        return 0.5, 1.0, games
+    if games < 2:
+        return _league_match_once(env_name, player_a, player_b, games, args)
+
+    games_ab = games // 2
+    games_ba = games - games_ab
+    score_ab, draw_ab, n_ab = _league_match_once(env_name, player_a, player_b, games_ab, args)
+    score_ba, draw_ba, n_ba = _league_match_once(env_name, player_b, player_a, games_ba, args)
+    total = max(n_ab + n_ba, 1)
+    a_score = (score_ab * n_ab + (1.0 - score_ba) * n_ba) / total
+    draw = (draw_ab * n_ab + draw_ba * n_ba) / total
+    return a_score, draw, total
+
+
+def _league_match_worker(env_name, args, state_path, gpu_id, stop_event):
+    worker_args = deepcopy(args)
+    worker_args['gpu_id'] = gpu_id
+    rng = random.Random(int(args.get('seed', 0)) + 1009 * (gpu_id + 1))
+    games = int(args['sweep'].get('league_match_games', 4096))
+    anchor_prob = float(args['sweep'].get('league_anchor_prob', 0.12))
+    while not stop_event.is_set():
+        try:
+            state = league.read_state(state_path)
+            if state is None:
+                if stop_event.wait(2.0):
+                    break
+                continue
+            player_a, player_b = league.choose_match_pair(
+                state, rng=rng, anchor_prob=anchor_prob)
+            a_score, draw, total = _league_run_pair(
+                env_name, player_a, player_b, games, worker_args)
+            ratings = league.record_match(
+                state_path, player_a['id'], player_b['id'], total, a_score, draw)
+            print(
+                f'league_match {player_a["id"]} vs {player_b["id"]} '
+                f'games={total} a_score={a_score:.4f} draw={draw:.4f} '
+                f'elo=({ratings.get(player_a["id"], 0.0):.1f}, '
+                f'{ratings.get(player_b["id"], 0.0):.1f})'
+            )
+        except RuntimeError as e:
+            print(f'league_match waiting: {e}')
+            if stop_event.wait(1.0):
+                break
+        except Exception as e:
+            print(f'WARNING: league match worker error: {e}')
+            if stop_event.wait(15.0):
+                break
+
+
+def _league_sweep(env_name, args=None, pareto=False):
+    args = args or load_config(env_name)
+    exp_gpus = int(args['train']['gpus'])
+    sweep_gpus = args['sweep']['gpus'] or len(os.listdir('/proc/driver/nvidia/gpus'))
+    _validate_and_force_league_config(env_name, args, pareto=pareto)
+
+    match_gpus = int(args['sweep'].get('league_match_gpus', 1))
+    train_slots_cfg = int(args['sweep'].get('league_train_gpus', 0) or (sweep_gpus - match_gpus))
+    if sweep_gpus <= match_gpus:
+        raise ValueError('league sweep requires at least one training GPU and one match GPU')
+    train_slots = min(train_slots_cfg, sweep_gpus - match_gpus)
+    if train_slots < 1:
+        raise ValueError('league sweep has no training GPU slots')
+
+    all_gpu_ids = list(range(sweep_gpus))
+    match_gpu_ids = all_gpu_ids[-match_gpus:]
+    train_gpu_ids = [gpu for gpu in all_gpu_ids if gpu not in match_gpu_ids][:train_slots]
+    args['vec']['num_threads'] = max(1, args['vec']['num_threads'] // max(train_slots, 1))
+    args['no_model_upload'] = True
+
+    state_path, sweep_id = _league_state_path(env_name, args)
+    arch = _league_arch(args)
+    state = league.load_or_create(state_path, sweep_id, arch=arch, config={
+        'env_name': env_name,
+        'league_match_games': int(args['sweep'].get('league_match_games', 4096)),
+        'league_opponent_frac': float(args['sweep'].get('league_opponent_frac', 0.20)),
+    })
+    state_arch = state.get('arch') or {}
+    if state_arch and state_arch != arch:
+        raise ValueError(f'league state arch {state_arch} does not match current arch {arch}')
+    _materialize_league_anchor(env_name, args, state_path, sweep_id, match_gpu_ids[0])
+    _configure_league_trial_args(args, state_path)
+
+    sweep_config = args['sweep']
+    method = sweep_config.pop('method')
+    import pufferlib.sweep
+    try:
+        sweep_cls = getattr(pufferlib.sweep, method)
+    except Exception:
+        raise ValueError(f'Invalid sweep method {method}. See pufferlib.sweep')
+    sweep_obj = sweep_cls(sweep_config)
+    num_experiments = int(args['sweep']['max_runs'])
+
+    ctx = mp.get_context('spawn')
+    result_queue = ctx.SimpleQueue()
+    stop_event = ctx.Event()
+    match_proc = ctx.Process(target=_league_match_worker,
+        args=(env_name, deepcopy(args), state_path, match_gpu_ids[0], stop_event))
+    match_proc.start()
+
+    active = {}
+    completed = 0
+    launched = 0
+
+    def collect_one():
+        nonlocal completed
+        result = result_queue.get()
+        if isinstance(result, dict):
+            gpu_id = result.get('gpu_id')
+            done_args = active.pop(gpu_id)
+            run_id = result.get('run_id') or done_args.get('run_id')
+            if not result.get('ok'):
+                sweep_obj.observe(done_args, 0, 0, is_failure=True, run_id=run_id)
+                return
+
+            timesteps = int(result.get('timesteps', done_args['train']['total_timesteps']))
+            cost = float(result.get('cost', 0.0))
+            done_args['train']['total_timesteps'] = timesteps
+            player_hypers = result.get('hypers', done_args)
+            player = league.register_player(
+                state_path, run_id, result['checkpoint_path'], player_hypers, cost, arch=arch)
+            sweep_obj.observe(done_args, float(player.get('elo', 0.0)), cost,
+                is_failure=False, run_id=run_id)
+            _refresh_league_observations(sweep_obj, state_path)
+            completed += 1
+            return
+
+        gpu_id, scores, costs, timesteps = result
+        done_args = active.pop(gpu_id)
+        sweep_obj.observe(done_args, 0, 0, is_failure=True, run_id=done_args.get('run_id'))
+
+    try:
+        while completed < num_experiments or active:
+            if active and (len(active) >= train_slots or completed + len(active) >= num_experiments):
+                collect_one()
+                continue
+            if completed + len(active) >= num_experiments:
+                continue
+
+            gpu_id = next(gpu for gpu in train_gpu_ids if gpu not in active)
+            idx = completed + len(active)
+            _refresh_league_observations(sweep_obj, state_path)
+            if idx > 1:
+                sweep_obj.suggest(args)
+            _configure_league_trial_args(args, state_path)
+            try:
+                validate_config(args)
+            except (AssertionError, ValueError) as e:
+                print(f'WARNING: {e}, skipping')
+                sweep_obj.observe(args, 0, 0, is_failure=True, run_id=None)
+                continue
+
+            exp_args = deepcopy(args)
+            exp_args['run_id'] = f'{sweep_id}_{launched:05d}'
+            exp_args['gpu_id'] = gpu_id
+            exp_args['sweep']['league_state_path'] = state_path
+            active[gpu_id] = exp_args
+            launched += 1
+            train(env_name, exp_args, range(gpu_id, gpu_id + exp_gpus),
+                sweep_obj=sweep_obj, result_queue=result_queue)
+    finally:
+        shutdown_timeout = min(600, max(30, int(args['sweep'].get('league_match_games', 4096)) * 2))
+        deadline = time.time() + shutdown_timeout
+        while match_proc.is_alive() and time.time() < deadline:
+            state = league.read_state(state_path)
+            policies = [p for p in state.get('players', []) if p.get('kind') == 'policy'] if state else []
+            if not policies or state.get('matches'):
+                break
+            time.sleep(1.0)
+
+        stop_event.set()
+        match_proc.join(timeout=shutdown_timeout)
+        if match_proc.is_alive():
+            match_proc.terminate()
+            match_proc.join(timeout=5)
+
 def sweep(env_name, args=None, pareto=False):
     '''Train entry point. Handles single-GPU, multi-GPU DDP, and sweeps.'''
     args = args or load_config(env_name)
+    if bool(args.get('sweep', {}).get('league', False)):
+        return _league_sweep(env_name, args=args, pareto=pareto)
+
     exp_gpus = args['train']['gpus']
     sweep_gpus = args['sweep']['gpus'] or len(os.listdir('/proc/driver/nvidia/gpus'))
     args['vec']['num_threads'] //= (sweep_gpus // exp_gpus)
@@ -668,7 +1055,8 @@ def eval_bot(env_name, policy_path, num_games=4096, eval_agents=0, burnin_games=
     if verbose:
         print()
 
-    backend.close(pufferl)
+    if not args.get('skip_match_close', False):
+        backend.close(pufferl)
     return logs
 
 def eval(env_name, args=None, load_path=None):
@@ -718,8 +1106,14 @@ def match(env_name, policy_a_path, policy_b_path, num_games=4096, args=None, ver
     # total_agents=4096 -> 819). Pin to a stable eval config that guarantees
     # clean slot-0/slot-1 split; ignores trial's vec tuning (eval, not train).
     args['vec']['num_buffers'] = 2
-    args['vec']['total_agents'] = 8192
+    eval_agents = int(args.get('match_eval_agents')
+        or args.get('sweep', {}).get('league_match_eval_agents', 8192)
+        or 8192)
+    args['vec']['total_agents'] = eval_agents
+    args.setdefault('selfplay', {})['enabled'] = 0
     args.setdefault('env', {})['dr'] = 0.0
+    args['env']['num_agents'] = 2
+    args['env']['num_bots'] = 0
     backend = _resolve_backend(args)
     if backend is not _C:
         raise RuntimeError('match() requires the native CUDA backend')
@@ -737,6 +1131,8 @@ def match(env_name, policy_a_path, policy_b_path, num_games=4096, args=None, ver
 
     total_agents = int(args['vec']['total_agents'])
     num_buffers = int(args['vec']['num_buffers'])
+    if total_agents % num_buffers != 0:
+        raise RuntimeError(f'total_agents ({total_agents}) must be divisible by num_buffers ({num_buffers})')
     agents_per_buffer = total_agents // num_buffers
     half = agents_per_buffer // 2
     if 2 * half != agents_per_buffer:
@@ -791,7 +1187,8 @@ def match(env_name, policy_a_path, policy_b_path, num_games=4096, args=None, ver
     if verbose:
         print()
 
-    backend.close(pufferl)
+    if not args.get('skip_match_close', False):
+        backend.close(pufferl)
     return logs
 
 def load_config(env_name):

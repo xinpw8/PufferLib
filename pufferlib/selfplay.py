@@ -21,6 +21,7 @@ import time
 import numpy as np
 
 from pufferlib import _C
+from pufferlib import league
 
 
 def sample_opponent(pool, rng):
@@ -212,6 +213,26 @@ def sync_shared_pool(pool_state):
     pool_state['shared_state_version'] = version
 
 
+def _pool_from_league_state(path):
+    state = league.read_state(path)
+    if state is None:
+        raise RuntimeError(f'league opponent state does not exist: {path}')
+    pool = league.opponent_pool(state)
+    if not pool:
+        raise RuntimeError(f'league opponent pool is empty: {path}')
+    return pool
+
+
+def sync_external_pool(pool_state):
+    pool = _pool_from_league_state(pool_state['external_opponent_state_path'])
+    pool_state['pool'] = pool
+    by_path = {entry['path']: entry for entry in pool}
+    for bank in pool_state['banks']:
+        entry = by_path.get(bank['cur_opp_path'])
+        if entry is not None:
+            bank['cur_opp_elo'] = float(entry.get('elo', bank['cur_opp_elo']))
+
+
 def setup(pufferl, backend, args, run_id, artifact_owner=True):
     '''Wire up agent_perm/tags and bootstrap the frozen bank with the current
     weights so historical envs have an opponent from rollout 1. Returns a
@@ -262,6 +283,9 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     backend.set_agent_perm(pufferl, perm)
     backend.set_env_tags(pufferl, tags)
 
+    external_state_path = sp.get('external_opponent_state_path') or ''
+    external_pool = bool(external_state_path)
+
     pool_dir = os.path.join(args['checkpoint_dir'], args['env_name'], run_id, 'pool')
     state_path = shared_state_path(pool_dir)
 
@@ -275,7 +299,15 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     pool = []
     banks_state = []
     shared_version = 0
-    if artifact_owner:
+    if external_pool:
+        pool = _pool_from_league_state(external_state_path)
+        for b in range(num_banks):
+            opp_entry = sample_opponent(pool, rng)
+            backend.load_frozen_bank(pufferl, b, opp_entry['path'])
+            banks_state.append(make_bank_state(
+                opp_entry['path'], float(opp_entry.get('elo', elo_init)),
+                current_agent_step, num_hist_envs_per_bank[b]))
+    elif artifact_owner:
         os.makedirs(pool_dir, exist_ok=True)
         bootstrap_path = os.path.join(pool_dir, f'{pufferl.global_step:016d}.bin')
         backend.save_weights(pufferl, bootstrap_path)
@@ -305,6 +337,8 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         'shared_state_version': shared_version,
         'artifact_owner': artifact_owner,
         'pool': pool,
+        'external_pool': external_pool,
+        'external_opponent_state_path': external_state_path,
         'rng': rng,
         'max_size': int(sp['max_size']),
         'min_games': int(sp['min_games']),
@@ -318,14 +352,19 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         'world_size': world_size,
         'last_snapshot_step': current_agent_step,
     }
-    if artifact_owner:
+    if artifact_owner and not external_pool:
         publish_shared_state(pool_state)
     return pool_state
 
 
 
 def sync(pufferl, backend, pool_state):
-    if pool_state is None or pool_state.get('artifact_owner', True):
+    if pool_state is None:
+        return
+    if pool_state.get('external_pool', False):
+        sync_external_pool(pool_state)
+        return
+    if pool_state.get('artifact_owner', True):
         return
     sync_shared_pool(pool_state)
 
@@ -339,7 +378,10 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
     current_agent_step = agent_step(pufferl, pool_state)
 
     artifact_owner = pool_state.get('artifact_owner', True)
-    if not artifact_owner:
+    external_pool = pool_state.get('external_pool', False)
+    if external_pool:
+        sync_external_pool(pool_state)
+    elif not artifact_owner:
         sync_shared_pool(pool_state)
 
     # 1. Per-bank Elo update from the most recent rollout window.
@@ -366,6 +408,7 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
     # 2. Global snapshot cadence (shared across banks).
     pool_changed = False
     if (artifact_owner
+            and not external_pool
             and pool_state['snapshot_interval'] > 0
             and current_agent_step - pool_state['last_snapshot_step']
                 >= pool_state['snapshot_interval']):
@@ -403,6 +446,8 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
                 bank['last_epochs_to_align'] = epoch - bank['epoch_armed']
                 opponent_changed = True
         elif timed_out:
+            if external_pool:
+                sync_external_pool(pool_state)
             opp_entry = sample_opponent(pool_state['pool'], pool_state['rng'])
             bank['pending_opp_path'] = opp_entry['path']
             bank['pending_opp_elo'] = opp_entry['elo']
@@ -411,7 +456,7 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
             # Start a fresh alignment window for the pending opponent.
             backend.count_aligned(pufferl, tag_value, 1)
 
-    if artifact_owner and (pool_changed or opponent_changed):
+    if artifact_owner and not external_pool and (pool_changed or opponent_changed):
         publish_shared_state(pool_state)
 
     # 4. Emit logs — per-bank and aggregate.
