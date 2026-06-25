@@ -90,7 +90,7 @@ struct Robot {
     float power_mult;
     int bullet_idx;
     float gun_heat;
-    int energy;
+    float energy;
 };
 
 typedef struct Client Client;
@@ -486,7 +486,7 @@ void c_reset(Robocode* env) {
             robot->gun_heading = 0;
             robot->radar_heading = 0;
             robot->radar_heading_prev = 0;
-            robot->energy = 100;
+            robot->energy = 100.0f;
             robot->gun_heat = 3;
             robot->bullet_idx = 0;
             if (idx < env->num_agents) {
@@ -780,7 +780,7 @@ void c_render(Robocode* env) {
         DrawTexturePro(client->atlas, radar_rect, dest_rect, origin, robot.radar_heading+90, WHITE);
         DrawTexturePro(client->atlas, gun_rect,   dest_rect, origin, robot.gun_heading+90,   WHITE);
 
-        DrawText(TextFormat("%i", robot.energy), robot.x-16, robot.y-48, 12, WHITE);
+        DrawText(TextFormat("%.1f", robot.energy), robot.x-16, robot.y-48, 12, WHITE);
     }
 
     for (int i = 0; i < (env->num_agents + env->num_bots)*NUM_BULLETS; i++) {

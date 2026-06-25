@@ -82,7 +82,7 @@ struct BotMem {
     // target this tick. Until first scan, last_scan_tick == 0 and decisions
     // are skipped.
     float  last_x, last_y, last_heading, last_v;
-    int    last_energy_seen;
+    float  last_energy_seen;
     int    last_scan_tick;
     int    radar_dir;            // ±1, the direction the radar is currently sweeping
     int    radar_reversals;      // beep-boop's lost-lock reversal counter
@@ -340,8 +340,8 @@ static void bot_step(Robocode* env, int bot_idx) {
     if (scanned == t) {
         Robot* tgt = &env->robots[t];
         // Detect target fire from energy drop BEFORE overwriting last_energy_seen.
-        int drop = m->last_scan_tick > 0 ? (m->last_energy_seen - tgt->energy) : 0;
-        bool fired = (drop > 0 && drop <= 3);
+        float drop = m->last_scan_tick > 0 ? (m->last_energy_seen - tgt->energy) : 0.0f;
+        bool fired = (drop > 0.0f && drop <= 3.0f);
         if (env->bot_policy == BOT_SURFER && fired) {
             m->orbit_dir = -m->orbit_dir;
             m->last_dir_change_tick = m->tick;
