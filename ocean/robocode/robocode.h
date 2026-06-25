@@ -461,6 +461,7 @@ void c_reset(Robocode* env) {
     env->tick = 0;
     // boundary_reached is owned by selfplay.py alignment; do not clear it here.
     int total_robots = env->num_agents + env->num_bots;
+    memset(env->bullets, 0, NUM_BULLETS * total_robots * sizeof(Bullet));
     int idx = 0;
     float x, y;
     while (idx < total_robots) {

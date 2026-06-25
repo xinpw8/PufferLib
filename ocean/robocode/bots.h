@@ -23,10 +23,12 @@
 #include <math.h>
 
 typedef enum {
-    BOT_STATIONARY  = 0,
-    BOT_MINIMAL     = 1,
-    BOT_SURFER      = 2,
-    BOT_WAVE_SURFER = 3,
+    BOT_STATIONARY    = 0,
+    BOT_MINIMAL       = 1,
+    BOT_SURFER        = 2,
+    BOT_WAVE_SURFER   = 3,
+    BOT_HAWK_ON_FIRE  = 4,
+    BOT_RAIKO         = 5,
 } BotPolicy;
 
 #define WS_NUM_WAVES        8
@@ -35,6 +37,12 @@ typedef enum {
 #define WS_NUM_FEATS        5
 #define WS_SCAN_WIDTH_DEG   5.625f  // beep-boop's SCAN_WIDTH = π/32 in degrees
 #define WS_MAX_REVERSALS    3       // reversals before falling back to full sweep
+
+#define RAIKO_GF_ZERO      15
+#define RAIKO_GF_BINS      31
+#define RAIKO_DIST_BINS     8
+#define RAIKO_WAVES        16
+#define RAIKO_BEST_DISTANCE 525.0f
 
 // Scale weights — bigger scale => feature contributes more to kNN distance.
 // Same trick as beep-boop's embedding (no normalization to [-1,1]).
@@ -56,6 +64,16 @@ typedef struct {
     int   active;
 } WSWave;
 
+typedef struct {
+    float x, y;
+    float abs_bearing;
+    float bearing_step;
+    float speed;
+    float distance;
+    int dist_bin;
+    int active;
+} RBRaikoWave;
+
 struct BotMem {
     int    tick;
     int    orbit_dir;            // -1, 0, +1
@@ -74,13 +92,38 @@ struct BotMem {
     int    knn_head;
     float  knn_feats[WS_KNN_CAP][WS_NUM_FEATS];
     float  knn_gf[WS_KNN_CAP];
+
+    // Shared source-port bot scratch. These are reset every episode.
+    int    dest_initialized;
+    float  dest_x, dest_y;
+    float  dest_last_x, dest_last_y;
+
+    // Raiko-style orbit movement + compact guess-factor gun. The original
+    // Java bot uses a much larger segmented table; this keeps vector-env
+    // memory bounded while preserving the online wave-update procedure.
+    int    raiko_initialized;
+    float  raiko_circle_dir;
+    float  raiko_bearing_dir;
+    float  raiko_enemy_energy;
+    float  raiko_enemy_firepower;
+    int    raiko_last_reverse_tick;
+    int    raiko_wave_head;
+    int    raiko_guess[RAIKO_DIST_BINS][RAIKO_GF_BINS];
+    RBRaikoWave raiko_waves[RAIKO_WAVES];
 };
+
+#include "agent_hawk_on_fire.h"
+#include "agent_raiko.h"
 
 // ---- Lifetime ---------------------------------------------------------------
 static inline void bot_mems_alloc(Robocode* env) {
     if (env->num_bots <= 0) { env->bot_mems = NULL; return; }
     env->bot_mems = (BotMem*)calloc(env->num_bots, sizeof(BotMem));
-    for (int i = 0; i < env->num_bots; i++) env->bot_mems[i].orbit_dir = 1;
+    for (int i = 0; i < env->num_bots; i++) {
+        env->bot_mems[i].orbit_dir = 1;
+        env->bot_mems[i].raiko_circle_dir = 1.0f;
+        env->bot_mems[i].raiko_bearing_dir = 1.0f;
+    }
 }
 static inline void bot_mems_free(Robocode* env) {
     if (env->bot_mems) free(env->bot_mems);
@@ -96,7 +139,14 @@ static inline void bot_mems_episode_reset(Robocode* env) {
         m->last_scan_tick = 0;
         m->radar_dir = 0;
         m->radar_reversals = 0;
+        m->dest_initialized = 0;
+        m->raiko_initialized = 0;
+        m->raiko_enemy_energy = 100.0f;
+        m->raiko_enemy_firepower = 2.0f;
+        m->raiko_circle_dir = m->raiko_circle_dir == 0.0f ? 1.0f : m->raiko_circle_dir;
+        m->raiko_bearing_dir = m->raiko_bearing_dir == 0.0f ? 1.0f : m->raiko_bearing_dir;
         for (int wi = 0; wi < WS_NUM_WAVES; wi++) m->waves[wi].active = 0;
+        for (int wi = 0; wi < RAIKO_WAVES; wi++) m->raiko_waves[wi].active = 0;
     }
 }
 
@@ -215,12 +265,24 @@ static void bot_step(Robocode* env, int bot_idx) {
     m->tick++;
     if (m->orbit_dir == 0) m->orbit_dir = 1;
 
-    // Pick a target index. In 1v1 there's only one agent; for melee we use
-    // true position to lock on — equivalent to "the only one we know about".
+    if (env->bot_policy == BOT_HAWK_ON_FIRE) {
+        bot_hawk_on_fire_step(env, bot_idx, m);
+        return;
+    }
+    if (env->bot_policy == BOT_RAIKO) {
+        bot_raiko_step(env, bot_idx, m);
+        return;
+    }
+
+    // Pick a target index. Normal training/eval bots target RL agents.
+    // Temporary bot-vs-bot harnesses use num_agents=0, where bots target
+    // other bots instead.
+    int total_robots = env->num_agents + env->num_bots;
+    int target_limit = env->num_agents > 0 ? env->num_agents : total_robots;
     int t = -1; float best = 1e18f;
-    for (int j = 0; j < env->num_agents; j++) {
+    for (int j = 0; j < target_limit; j++) {
         Robot* a = &env->robots[j];
-        if (a->energy < 0) continue;   // dead only — disabled is still a valid target
+        if (j == bot_idx || a->energy < 0) continue;   // disabled is still a valid target
         float dx = a->x - bot->x, dy = a->y - bot->y;
         float d2 = dx*dx + dy*dy;
         if (d2 < best) { best = d2; t = j; }

@@ -146,7 +146,7 @@ def _params_from_puffer_sweep(sweep_config, only_include=None):
 
     for name, param in sweep_config.items():
         if name in ('method', 'metric', 'metric_distribution', 'goal', 'downsample', 'use_gpu', 'prune_pareto',
-                    'sweep_only', 'max_suggestion_cost', 'early_stop_quantile', 'gpus', 'max_runs',
+                    'sweep_only', 'max_suggestion_cost', 'max_trial_seconds', 'early_stop_quantile', 'gpus', 'max_runs',
                     'match_enemy_model_path', 'match_num_games', 'match_max_ticks', 'match_enemy_hidden_size', 'match_enemy_num_layers',
                     'bot_eval', 'bot_eval_episodes', 'bot_eval_envs', 'bot_eval_burnin_episodes',
                     'bot_eval_policy', 'bot_eval_max_ticks'):
@@ -750,6 +750,16 @@ class Protein:
         target_ratio = np.clip(self.target_cost_ratio.pop() + 0.1 * np.random.randn(), 0, 1)
         return (1 + expansion_rate) * target_ratio
 
+    def _random_suggestion(self, fill, fixed_cost_norm=None):
+        zero_one = self.sobol.random(1)[0]
+        suggestion = 2*zero_one - 1
+        if fixed_cost_norm is not None:
+            suggestion[self.cost_param_idx] = fixed_cost_norm
+        elif self.cost_param_idx is not None:
+            cost_suggestion = self.cost_random_suggestion + 0.1 * np.random.randn()
+            suggestion[self.cost_param_idx] = np.clip(cost_suggestion, -1, 1)
+        return self.hyperparameters.to_dict(suggestion, fill)
+
     def suggest(self, fill, fixed_total_timesteps=None):
         info = {}
         self.suggestion_idx += 1
@@ -763,18 +773,15 @@ class Protein:
         #     return self.hyperparameters.to_dict(suggestion, fill), info
 
         if self.suggestion_idx <= self.num_random_samples:
-            # Suggest the next point in the Sobol sequence
-            zero_one = self.sobol.random(1)[0]
-            suggestion = 2*zero_one - 1  # Scale from [0, 1) to [-1, 1)
-            if fixed_cost_norm is not None:
-                suggestion[self.cost_param_idx] = fixed_cost_norm
-            elif self.cost_param_idx is not None:
-                cost_suggestion = self.cost_random_suggestion + 0.1 * np.random.randn()
-                suggestion[self.cost_param_idx] = np.clip(cost_suggestion, -1, 1)  # limit the cost
-            return self.hyperparameters.to_dict(suggestion, fill), info
+            return self._random_suggestion(fill, fixed_cost_norm), info
+
+        if len(self.success_observations) < 2:
+            return self._random_suggestion(fill, fixed_cost_norm), info
 
         elif self.resample_frequency and self.suggestion_idx % self.resample_frequency == 0:
             candidates, _ = pareto_points(self.success_observations)
+            if not candidates:
+                return self._random_suggestion(fill, fixed_cost_norm), info
             suggestions = np.stack([e['input'] for e in candidates])
             best_idx = np.random.randint(0, len(candidates))
             best = suggestions[best_idx]
@@ -788,14 +795,23 @@ class Protein:
             self.cost_opt = torch.optim.Adam(self.gp_cost.parameters(), lr=self.gp_learning_rate, amsgrad=True)
        
         pareto_front, pareto_idxs = pareto_points(self.success_observations)
-        pruned_front = prune_pareto_front(pareto_front)
-        pareto_observations = pruned_front if self.prune_pareto else pareto_front
+        if not pareto_front:
+            return self._random_suggestion(fill, fixed_cost_norm), info
 
-        # Use the max cost from the pruned pareto to avoid inefficiently long runs
+        pruned_front = prune_pareto_front(pareto_front)
+        if not pruned_front:
+            pruned_front = pareto_front
+        pareto_observations = pruned_front if self.prune_pareto else pareto_front
+        if not pareto_observations:
+            pareto_observations = self.success_observations
+
+        # Use the max cost from the pruned pareto to avoid inefficiently long runs.
+        # Empty fronts can happen early if prior trials failed or were filtered.
+        front_max_cost = pruned_front[-1]['cost']
         if self.upper_cost_threshold < 0:
-            self.upper_cost_threshold = pruned_front[-1]['cost']
+            self.upper_cost_threshold = front_max_cost
         # Try to change the threshold slowly
-        elif self.upper_cost_threshold < pruned_front[-1]['cost']:
+        elif self.upper_cost_threshold < front_max_cost:
             self.upper_cost_threshold *= 1.01
         self.stop_threshold_model.fit(self.success_observations, self.upper_cost_threshold)
 
@@ -815,7 +831,7 @@ class Protein:
         suggestions = suggestions[dedup_indices]
 
         if len(suggestions) == 0:
-            return self.suggest(fill) # Fallback to random if all suggestions are filtered
+            return self._random_suggestion(fill, fixed_cost_norm), info
 
         ### Predict scores and costs
         # Batch predictions to avoid GPU OOM for large number of suggestions

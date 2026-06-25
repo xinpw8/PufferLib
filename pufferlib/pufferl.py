@@ -260,6 +260,8 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
     flat_logs = {}
     train_epochs = int(total_timesteps // (args['vec']['total_agents'] * args['train']['horizon']))
     eval_epochs = train_epochs // 2
+    max_trial_seconds = float(args.get('sweep', {}).get('max_trial_seconds', 0) or 0)
+    trial_start_time = time.time()
     for epoch in range(train_epochs + eval_epochs):
         if epoch < train_epochs:
             selfplay.sync(pufferl, backend, pool_state)
@@ -267,6 +269,13 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
         if epoch < train_epochs:
             backend.train(pufferl)
+
+        time_capped = (
+            sweep_obj is not None
+            and epoch < train_epochs
+            and max_trial_seconds > 0
+            and time.time() - trial_start_time >= max_trial_seconds
+        )
 
         # In match-sweep mode we need the final checkpoint to feed into match().
         is_final = epoch == train_epochs - 1
@@ -279,12 +288,16 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
             model_path = os.path.join(checkpoint_dir, f'{pufferl.global_step:016d}.bin')
             backend.save_weights(pufferl, model_path)
 
-        # Rate limit, but always log for eval to maintain determinism
-        if time.time() < pufferl.last_log_time + 0.6 and epoch < train_epochs - 1:
+        # Rate limit, but always log for eval and time caps to maintain determinism
+        if (not time_capped
+                and time.time() < pufferl.last_log_time + 0.6
+                and epoch < train_epochs - 1):
             continue
 
         logs = backend.eval_log(pufferl) if epoch >= train_epochs else backend.log(pufferl)
         flat_logs = {**flat_logs, **dict(unroll_nested_dict(logs))}
+        if time_capped:
+            flat_logs['sweep/trial_time_capped'] = 1.0
 
         if epoch < train_epochs:
             selfplay.step(pufferl, backend, pool_state, flat_logs, epoch)
@@ -300,6 +313,9 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
         if epoch < train_epochs:
             all_logs.append(flat_logs)
+
+            if time_capped:
+                break
 
             if (sweep_obj is not None
                     and not final_eval_mode
@@ -582,7 +598,11 @@ def eval_bot(env_name, policy_path, num_games=4096, eval_agents=0, burnin_games=
         # Avoid scoring only the first wave of completed episodes. If env count
         # ~= game count, quick wins finish first and slow losses are censored.
         eval_agents = min(4096, max(1024, num_games // 8))
-    eval_agents = min(eval_agents, max(1024, num_games))
+        eval_agents = min(eval_agents, max(1024, num_games))
+    else:
+        # Explicit eval_agents means the caller is choosing the noise/runtime
+        # tradeoff, e.g. tiny validation evals during sweeps.
+        eval_agents = min(eval_agents, num_games)
     eval_agents += (-eval_agents) % args['vec']['num_buffers']
     args['vec']['total_agents'] = eval_agents
     args['vec']['num_frozen_banks'] = 0
