@@ -23,14 +23,35 @@ void my_setup_perm(StaticVec* vec, Env* env, int slot_base) {
     }
 }
 
+
+static inline float dict_get_float_default(Dict* kwargs, const char* key, float default_value) {
+    DictItem* item = dict_get_unsafe(kwargs, key);
+    return item ? (float)item->value : default_value;
+}
+
 void my_init(Env* env, Dict* kwargs) {
     env->width = dict_get(kwargs, "width")->value;
     env->height = dict_get(kwargs, "height")->value;
     env->num_agents = dict_get(kwargs, "num_agents")->value;
     env->num_bots = dict_get(kwargs, "num_bots")->value;
     env->max_ticks = (int)dict_get(kwargs, "max_ticks")->value;
-    env->reward_damage = dict_get(kwargs, "reward_damage")->value;
-    env->reward_spot = dict_get(kwargs, "reward_spot")->value;
+    env->reward_damage = dict_get_float_default(kwargs, "reward_damage", 0.0f);
+    env->reward_spot = dict_get_float_default(kwargs, "reward_spot", 0.0f);
+    env->reward_melee_damage_inflicted = dict_get_float_default(kwargs, "reward_melee_damage_inflicted", 0.0f);
+    env->reward_damage_taken = dict_get_float_default(kwargs, "reward_damage_taken", 0.0f);
+    env->reward_range_damage_inflicted = dict_get_float_default(kwargs, "reward_range_damage_inflicted", 0.0f);
+    env->reward_melee_damage_inflicted_slot_0 = dict_get_float_default(kwargs,
+        "reward_melee_damage_inflicted_slot_0", env->reward_melee_damage_inflicted);
+    env->reward_damage_taken_slot_0 = dict_get_float_default(kwargs,
+        "reward_damage_taken_slot_0", env->reward_damage_taken);
+    env->reward_range_damage_inflicted_slot_0 = dict_get_float_default(kwargs,
+        "reward_range_damage_inflicted_slot_0", env->reward_range_damage_inflicted);
+    env->reward_melee_damage_inflicted_slot_1 = dict_get_float_default(kwargs,
+        "reward_melee_damage_inflicted_slot_1", env->reward_melee_damage_inflicted);
+    env->reward_damage_taken_slot_1 = dict_get_float_default(kwargs,
+        "reward_damage_taken_slot_1", env->reward_damage_taken);
+    env->reward_range_damage_inflicted_slot_1 = dict_get_float_default(kwargs,
+        "reward_range_damage_inflicted_slot_1", env->reward_range_damage_inflicted);
     DictItem* dr_item = dict_get_unsafe(kwargs, "dr");
     env->dr = dr_item ? (float)dr_item->value : 0.0f;
     env->bot_policy = dict_get(kwargs, "bot_policy")->value;
@@ -41,6 +62,9 @@ void my_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
     dict_set(out, "score", log->score);
     dict_set(out, "damage_received", log->damage_received);
+    dict_set(out, "melee_damage_inflicted", log->melee_damage_inflicted);
+    dict_set(out, "damage_taken", log->damage_taken);
+    dict_set(out, "range_damage_inflicted", log->range_damage_inflicted);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
     // Historical-pool stats. selfplay.py reads hist_score_bank_<b> /

@@ -23,14 +23,10 @@ ARCH_SWEEP_KEYS = {'hidden_size', 'num_layers', 'policy.hidden_size', 'policy.nu
 
 
 def validate_no_arch_sweep_keys(sweep_config: dict[str, Any]) -> None:
-    sweep_only = str(sweep_config.get('sweep_only', ''))
-    sweep_only_tokens = {
-        p.strip().replace('/', '.').lower()
-        for p in sweep_only.split(',')
-        if p.strip()
-    }
-    if sweep_only_tokens & ARCH_SWEEP_KEYS:
-        raise ValueError('league sweeps require fixed policy.hidden_size and policy.num_layers')
+    # Compatibility shim. League sweeps now train independent historical-selfplay
+    # trials and instantiate match models from per-player hypers, so policy
+    # hidden_size / num_layers are allowed sweep dimensions.
+    return None
 
 
 def pair_key(a_id: str, b_id: str) -> str:
@@ -153,6 +149,7 @@ def ensure_anchor(path: str, checkpoint_path: str, arch: dict[str, int],
                 "kind": "anchor",
                 "checkpoint_path": checkpoint_path,
                 "hypers": deepcopy(hypers or {}),
+                "arch": deepcopy(arch),
                 "cost": 0.0,
                 "elo": 0.0,
                 "games": 0,
@@ -165,9 +162,10 @@ def ensure_anchor(path: str, checkpoint_path: str, arch: dict[str, int],
             anchor.update({
                 "checkpoint_path": checkpoint_path,
                 "hypers": deepcopy(hypers or anchor.get("hypers", {})),
+                "arch": deepcopy(arch),
                 "elo": 0.0,
             })
-        state["arch"] = deepcopy(arch)
+        state["arch"] = {"mode": "per_player", "anchor": deepcopy(arch)}
         recompute_ratings_in_state(state)
         return deepcopy(anchor)
 
@@ -221,6 +219,8 @@ def opponent_pool(state: dict[str, Any]) -> list[dict[str, Any]]:
             "path": checkpoint_path,
             "elo": float(player.get("elo", 0.0)),
             "kind": player.get("kind", "policy"),
+            "hypers": deepcopy(player.get("hypers", {})),
+            "arch": deepcopy(player.get("arch", {})),
         })
     return players
 

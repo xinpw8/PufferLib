@@ -5,9 +5,9 @@ snapshot, the rest are pure selfplay. Used by `_train` in pufferl.py — gated o
 Pool growth and opponent swaps are decoupled:
   - snapshot_interval: every N global steps, rank 0 saves primary weights as a
     new pool entry and publishes the pool. 0 disables interval snapshotting.
-  - opp_timeout_steps: every N global steps per bank, each rank independently
-    samples a new opponent uniformly from the shared pool and loads it after all
-    historical envs reach an episode boundary. 0 disables fixed-interval swapping.
+  - opp_timeout_steps: every N global steps per bank, ranks sample new opponents
+    on a fixed cadence and load them after all historical envs reach an episode
+    boundary. 0 disables fixed-interval swapping.
 
 Winrate and Elo are diagnostic only; they do not trigger snapshots or swaps.
 Pool storage is disk-only (paths held in memory; weights only on GPU when
@@ -28,6 +28,19 @@ def sample_opponent(pool, rng):
     if not pool:
         raise RuntimeError('selfplay opponent pool is empty')
     return pool[int(rng.integers(len(pool)))]
+
+
+def sample_external_opponent(pool, seed, rank, world_size, bank_idx, num_banks, sample_round):
+    if not pool:
+        raise RuntimeError('selfplay opponent pool is empty')
+
+    # External pools are shared by all ranks. Use a common per-round permutation
+    # and take each rank/bank's slot from it, so multi-GPU runs see distinct
+    # frozen opponents whenever the pool is large enough.
+    slot = int(rank) * int(num_banks) + int(bank_idx)
+    rng = np.random.default_rng(int(seed) + int(sample_round))
+    perm = rng.permutation(len(pool))
+    return pool[int(perm[slot % len(pool)])]
 
 
 def update_elo(primary_elo, opp_elo, score_rate, k):
@@ -118,7 +131,7 @@ def agent_step(pufferl, pool_state):
     return int(pufferl.global_step) * int(pool_state.get('world_size', 1))
 
 
-def make_bank_state(path, elo, current_agent_step, num_hist_envs):
+def make_bank_state(path, elo, current_agent_step, num_hist_envs, sample_round=0):
     return {
         'cur_opp_path': path,
         'cur_opp_elo': elo,
@@ -131,6 +144,7 @@ def make_bank_state(path, elo, current_agent_step, num_hist_envs):
         'num_hist_envs': num_hist_envs,
         'last_winrate_at_swap': 0.0,
         'last_epochs_to_align': 0,
+        'sample_round': int(sample_round),
     }
 
 
@@ -292,7 +306,8 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     elo_init = float(sp.get('elo_init', 0.0))
     elo_k    = float(sp.get('elo_k',    16.0))
     rank = int(args.get('rank', 0))
-    rng = np.random.default_rng(int(sp.get('seed', 0)) + rank)
+    seed = int(sp.get('seed', 0))
+    rng = np.random.default_rng(seed + rank)
     world_size = max(1, int(args.get('world_size', 1)))
     current_agent_step = int(pufferl.global_step) * world_size
 
@@ -302,11 +317,12 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     if external_pool:
         pool = _pool_from_league_state(external_state_path)
         for b in range(num_banks):
-            opp_entry = sample_opponent(pool, rng)
+            opp_entry = sample_external_opponent(
+                pool, seed, rank, world_size, b, num_banks, 0)
             backend.load_frozen_bank(pufferl, b, opp_entry['path'])
             banks_state.append(make_bank_state(
                 opp_entry['path'], float(opp_entry.get('elo', elo_init)),
-                current_agent_step, num_hist_envs_per_bank[b]))
+                current_agent_step, num_hist_envs_per_bank[b], sample_round=1))
     elif artifact_owner:
         os.makedirs(pool_dir, exist_ok=True)
         bootstrap_path = os.path.join(pool_dir, f'{pufferl.global_step:016d}.bin')
@@ -340,6 +356,8 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         'external_pool': external_pool,
         'external_opponent_state_path': external_state_path,
         'rng': rng,
+        'seed': seed,
+        'rank': rank,
         'max_size': int(sp['max_size']),
         'min_games': int(sp['min_games']),
         'swap_winrate': float(sp['swap_winrate']),
@@ -448,7 +466,18 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
         elif timed_out:
             if external_pool:
                 sync_external_pool(pool_state)
-            opp_entry = sample_opponent(pool_state['pool'], pool_state['rng'])
+                sample_round = int(bank.get('sample_round', 0))
+                opp_entry = sample_external_opponent(
+                    pool_state['pool'],
+                    pool_state['seed'],
+                    pool_state['rank'],
+                    pool_state['world_size'],
+                    b,
+                    num_banks,
+                    sample_round)
+                bank['sample_round'] = sample_round + 1
+            else:
+                opp_entry = sample_opponent(pool_state['pool'], pool_state['rng'])
             bank['pending_opp_path'] = opp_entry['path']
             bank['pending_opp_elo'] = opp_entry['elo']
             bank['epoch_armed'] = epoch

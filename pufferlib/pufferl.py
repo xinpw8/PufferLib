@@ -527,7 +527,6 @@ def train(env_name, args=None, gpus=None, **kwargs):
 
     subprocess = gpus is not None
     gpus = list(gpus or range(args['train']['gpus']))
-    args['train']['total_timesteps'] //= len(gpus)
     args['world_size'] = len(gpus)
     if not args.get('run_id'):
         if args.get('wandb'):
@@ -563,14 +562,10 @@ def _league_arch(args):
 
 
 def _strip_league_arch_sweeps(sweep_config):
-    league.validate_no_arch_sweep_keys(sweep_config)
-
-    policy_sweep = sweep_config.get('policy')
-    if isinstance(policy_sweep, dict):
-        policy_sweep.pop('hidden_size', None)
-        policy_sweep.pop('num_layers', None)
-        if not policy_sweep:
-            sweep_config.pop('policy', None)
+    # Historical-selfplay league trials do not load checkpoints from other
+    # trials during training, so model size can be swept safely. Kept as a
+    # compatibility shim for older call sites.
+    return None
 
 
 def _league_state_path(env_name, args):
@@ -595,8 +590,7 @@ def _validate_and_force_league_config(env_name, args, pareto=False):
         raise ValueError('league mode does not support paretosweep')
     if env_name != 'robocode':
         raise ValueError('league sweep mode is currently implemented for robocode')
-    if int(args['train'].get('gpus', 1)) != 1:
-        raise ValueError('league sweep mode requires train.gpus = 1')
+    args['train']['gpus'] = 1
     if not bool(args.get('selfplay', {}).get('enabled', 0)):
         raise ValueError('league sweep mode requires selfplay.enabled = 1')
     if int(args.get('env', {}).get('num_agents', 0)) != 2:
@@ -614,22 +608,15 @@ def _validate_and_force_league_config(env_name, args, pareto=False):
     sweep_cfg['match_enemy_hidden_size'] = 0
     sweep_cfg['match_enemy_num_layers'] = 0
 
-    frac = float(sweep_cfg.get('league_opponent_frac', 0.20))
-    if not 0.0 < frac < 1.0:
-        raise ValueError('sweep.league_opponent_frac must be in (0, 1)')
     if int(sweep_cfg.get('league_match_gpus', 1)) != 1:
         raise ValueError('league sweep mode currently supports exactly one match GPU')
 
 
-def _configure_league_trial_args(args, state_path):
-    sweep_cfg = args['sweep']
-    frac = float(sweep_cfg.get('league_opponent_frac', 0.20))
+def _configure_league_trial_args(args):
     args.setdefault('selfplay', {})['enabled'] = 1
-    args['selfplay']['external_opponent_state_path'] = state_path
-    args['selfplay']['snapshot_interval'] = 0
-    args['selfplay']['opp_timeout_steps'] = int(sweep_cfg.get('league_opponent_swap_steps', 100_000_000))
-    args['vec']['num_frozen_banks'] = 1
-    args['vec']['frozen_bank_pct'] = frac / 2.0
+    # League sweeps use the league only for post-hoc Elo scoring. Each trial
+    # remains a reproducible ordinary historical-selfplay run.
+    args['selfplay']['external_opponent_state_path'] = ''
     args['vec']['frozen_bank_hidden_size'] = int(float(args['policy']['hidden_size']))
     args['vec']['frozen_bank_num_layers'] = int(float(args['policy']['num_layers']))
     args.setdefault('env', {})['num_agents'] = 2
@@ -682,11 +669,62 @@ def _refresh_league_observations(sweep_obj, state_path):
     return sweep_obj.refresh_observations_by_run_id(league.run_id_scores(state))
 
 
+ROBOCODE_REWARD_CONDITIONING_KEYS = (
+    'reward_melee_damage_inflicted',
+    'reward_damage_taken',
+    'reward_range_damage_inflicted',
+)
+
+
+def _player_reward_conditioning(player):
+    env_cfg = (player.get('hypers') or {}).get('env') or {}
+    return {
+        key: float(env_cfg.get(key, 0.0) or 0.0)
+        for key in ROBOCODE_REWARD_CONDITIONING_KEYS
+    }
+
+
+def _apply_match_reward_conditioning(match_args, player_a, player_b):
+    env_cfg = match_args.setdefault('env', {})
+    for slot, player in ((0, player_a), (1, player_b)):
+        for key, value in _player_reward_conditioning(player).items():
+            env_cfg[f'{key}_slot_{slot}'] = value
+
+
+def _player_policy_arch(player, fallback_args=None):
+    fallback_policy = (fallback_args or {}).get('policy') or {}
+    player_arch = player.get('arch') or {}
+    player_policy = (player.get('hypers') or {}).get('policy') or {}
+    hidden = player_arch.get('hidden_size', player_policy.get(
+        'hidden_size', fallback_policy.get('hidden_size', 128)))
+    layers = player_arch.get('num_layers', player_policy.get(
+        'num_layers', fallback_policy.get('num_layers', 1)))
+    return {
+        'hidden_size': int(float(hidden)),
+        'num_layers': int(float(layers)),
+    }
+
+
+def _apply_match_policy_arch(match_args, player_a, player_b):
+    policy_cfg = match_args.setdefault('policy', {})
+    vec_cfg = match_args.setdefault('vec', {})
+    a_arch = _player_policy_arch(player_a, match_args)
+    b_arch = _player_policy_arch(player_b, match_args)
+    policy_cfg['hidden_size'] = a_arch['hidden_size']
+    policy_cfg['num_layers'] = a_arch['num_layers']
+    match_args['enemy_hidden_size'] = b_arch['hidden_size']
+    match_args['enemy_num_layers'] = b_arch['num_layers']
+    vec_cfg['frozen_bank_hidden_size'] = b_arch['hidden_size']
+    vec_cfg['frozen_bank_num_layers'] = b_arch['num_layers']
+
+
 def _league_match_once_child(env_name, player_a, player_b, games, args, result_queue):
     try:
         match_args = deepcopy(args)
         match_args['match_eval_agents'] = int(args['sweep'].get('league_match_eval_agents', 8192))
         match_args['skip_match_close'] = True
+        _apply_match_policy_arch(match_args, player_a, player_b)
+        _apply_match_reward_conditioning(match_args, player_a, player_b)
         logs = match(env_name, player_a['path'], player_b['path'],
             num_games=int(games), args=match_args, verbose=False)
         result_queue.put({
@@ -772,9 +810,9 @@ def _league_match_worker(env_name, args, state_path, gpu_id, stop_event):
 
 def _league_sweep(env_name, args=None, pareto=False):
     args = args or load_config(env_name)
-    exp_gpus = int(args['train']['gpus'])
     sweep_gpus = args['sweep']['gpus'] or len(os.listdir('/proc/driver/nvidia/gpus'))
     _validate_and_force_league_config(env_name, args, pareto=pareto)
+    exp_gpus = int(args['train']['gpus'])
 
     match_gpus = int(args['sweep'].get('league_match_gpus', 1))
     train_slots_cfg = int(args['sweep'].get('league_train_gpus', 0) or (sweep_gpus - match_gpus))
@@ -787,7 +825,6 @@ def _league_sweep(env_name, args=None, pareto=False):
     all_gpu_ids = list(range(sweep_gpus))
     match_gpu_ids = all_gpu_ids[-match_gpus:]
     train_gpu_ids = [gpu for gpu in all_gpu_ids if gpu not in match_gpu_ids][:train_slots]
-    args['vec']['num_threads'] = max(1, args['vec']['num_threads'] // max(train_slots, 1))
     args['no_model_upload'] = True
 
     state_path, sweep_id = _league_state_path(env_name, args)
@@ -795,13 +832,10 @@ def _league_sweep(env_name, args=None, pareto=False):
     state = league.load_or_create(state_path, sweep_id, arch=arch, config={
         'env_name': env_name,
         'league_match_games': int(args['sweep'].get('league_match_games', 4096)),
-        'league_opponent_frac': float(args['sweep'].get('league_opponent_frac', 0.20)),
+        'trial_opponents': 'historical_selfplay_only',
     })
-    state_arch = state.get('arch') or {}
-    if state_arch and state_arch != arch:
-        raise ValueError(f'league state arch {state_arch} does not match current arch {arch}')
     _materialize_league_anchor(env_name, args, state_path, sweep_id, match_gpu_ids[0])
-    _configure_league_trial_args(args, state_path)
+    _configure_league_trial_args(args)
 
     sweep_config = args['sweep']
     method = sweep_config.pop('method')
@@ -839,8 +873,9 @@ def _league_sweep(env_name, args=None, pareto=False):
             cost = float(result.get('cost', 0.0))
             done_args['train']['total_timesteps'] = timesteps
             player_hypers = result.get('hypers', done_args)
+            player_arch = _league_arch(player_hypers)
             player = league.register_player(
-                state_path, run_id, result['checkpoint_path'], player_hypers, cost, arch=arch)
+                state_path, run_id, result['checkpoint_path'], player_hypers, cost, arch=player_arch)
             sweep_obj.observe(done_args, float(player.get('elo', 0.0)), cost,
                 is_failure=False, run_id=run_id)
             _refresh_league_observations(sweep_obj, state_path)
@@ -864,7 +899,7 @@ def _league_sweep(env_name, args=None, pareto=False):
             _refresh_league_observations(sweep_obj, state_path)
             if idx > 1:
                 sweep_obj.suggest(args)
-            _configure_league_trial_args(args, state_path)
+            _configure_league_trial_args(args)
             try:
                 validate_config(args)
             except (AssertionError, ValueError) as e:
@@ -904,7 +939,6 @@ def sweep(env_name, args=None, pareto=False):
 
     exp_gpus = args['train']['gpus']
     sweep_gpus = args['sweep']['gpus'] or len(os.listdir('/proc/driver/nvidia/gpus'))
-    args['vec']['num_threads'] //= (sweep_gpus // exp_gpus)
     args['no_model_upload'] = True
 
     sweep_config = args['sweep']
