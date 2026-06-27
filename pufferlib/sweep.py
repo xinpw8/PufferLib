@@ -7,6 +7,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import pufferlib
+from pufferlib import league
 
 import torch
 import gpytorch
@@ -146,13 +147,8 @@ def _params_from_puffer_sweep(sweep_config, only_include=None):
 
     for name, param in sweep_config.items():
         if name in ('method', 'metric', 'metric_distribution', 'goal', 'downsample', 'use_gpu', 'prune_pareto',
-                    'sweep_only', 'max_suggestion_cost', 'max_trial_seconds', 'early_stop_quantile', 'gpus', 'max_runs',
-                    'match_enemy_model_path', 'match_num_games', 'match_max_ticks', 'match_enemy_hidden_size', 'match_enemy_num_layers',
-                    'bot_eval', 'bot_eval_episodes', 'bot_eval_envs', 'bot_eval_burnin_episodes',
-                    'bot_eval_policy', 'bot_eval_max_ticks',
-                    'league', 'league_train_gpus', 'league_match_gpus', 'league_match_games',
-                    'league_match_eval_agents', 'league_anchor_prob', 'league_opponent_frac',
-                    'league_opponent_swap_steps', 'league_state_path'):
+                    'sweep_only', 'max_suggestion_cost', 'early_stop_quantile', 'gpus', 'max_runs',
+                    *league.SWEEP_CONTROL_KEYS):
             continue
 
         assert isinstance(param, dict), f'Param {name} is not a dict'
@@ -927,26 +923,13 @@ class Protein:
         return np.clip(logit, -5, 100)
 
     def _store_score(self, score):
-        if self.metric_distribution == 'percentile':
-            return self.logit_transform(score)
-        return score
+        return league.store_protein_score(self, score)
 
     def _rebuild_top_observations(self):
-        self.top_observations = sorted(
-            self.success_observations, key=lambda x: x['output'], reverse=True
-        )[:self.num_keep_top_obs]
+        league.rebuild_protein_top_observations(self)
 
     def refresh_observations_by_run_id(self, scores_by_run_id):
-        updates = 0
-        for obs in self.success_observations:
-            run_id = obs.get('run_id')
-            if run_id is None or run_id not in scores_by_run_id:
-                continue
-            obs['output'] = self._store_score(scores_by_run_id[run_id])
-            updates += 1
-        if updates:
-            self._rebuild_top_observations()
-        return updates
+        return league.refresh_protein_observations_by_run_id(self, scores_by_run_id)
 
     def observe(self, hypers, score, cost, is_failure=False, run_id=None):
         params = self.hyperparameters.from_dict(hypers)

@@ -21,26 +21,12 @@ import time
 import numpy as np
 
 from pufferlib import _C
-from pufferlib import league
 
 
 def sample_opponent(pool, rng):
     if not pool:
         raise RuntimeError('selfplay opponent pool is empty')
     return pool[int(rng.integers(len(pool)))]
-
-
-def sample_external_opponent(pool, seed, rank, world_size, bank_idx, num_banks, sample_round):
-    if not pool:
-        raise RuntimeError('selfplay opponent pool is empty')
-
-    # External pools are shared by all ranks. Use a common per-round permutation
-    # and take each rank/bank's slot from it, so multi-GPU runs see distinct
-    # frozen opponents whenever the pool is large enough.
-    slot = int(rank) * int(num_banks) + int(bank_idx)
-    rng = np.random.default_rng(int(seed) + int(sample_round))
-    perm = rng.permutation(len(pool))
-    return pool[int(perm[slot % len(pool)])]
 
 
 def update_elo(primary_elo, opp_elo, score_rate, k):
@@ -127,11 +113,7 @@ def build_perm_tags(num_buffers, agents_per_buffer, agents_per_env, frozen_sizes
     return perm, tags, num_hist_envs_per_bank
 
 
-def agent_step(pufferl, pool_state):
-    return int(pufferl.global_step) * int(pool_state.get('world_size', 1))
-
-
-def make_bank_state(path, elo, current_agent_step, num_hist_envs, sample_round=0):
+def make_bank_state(path, elo, current_agent_step, num_hist_envs):
     return {
         'cur_opp_path': path,
         'cur_opp_elo': elo,
@@ -144,7 +126,6 @@ def make_bank_state(path, elo, current_agent_step, num_hist_envs, sample_round=0
         'num_hist_envs': num_hist_envs,
         'last_winrate_at_swap': 0.0,
         'last_epochs_to_align': 0,
-        'sample_round': int(sample_round),
     }
 
 
@@ -196,13 +177,9 @@ def wait_shared_state(path, timeout=300.0):
 
 
 def _pool_from_shared_state(state):
-    entries = state.get('pool')
-    if entries is None:
-        # Backward compatibility with older shared_opponent.json files.
-        entries = state.get('banks', [])
     pool = []
     seen = set()
-    for entry in entries:
+    for entry in state.get('pool', []):
         path = entry.get('path')
         if not path or path in seen:
             continue
@@ -225,26 +202,6 @@ def sync_shared_pool(pool_state):
     if pool:
         pool_state['pool'] = pool
     pool_state['shared_state_version'] = version
-
-
-def _pool_from_league_state(path):
-    state = league.read_state(path)
-    if state is None:
-        raise RuntimeError(f'league opponent state does not exist: {path}')
-    pool = league.opponent_pool(state)
-    if not pool:
-        raise RuntimeError(f'league opponent pool is empty: {path}')
-    return pool
-
-
-def sync_external_pool(pool_state):
-    pool = _pool_from_league_state(pool_state['external_opponent_state_path'])
-    pool_state['pool'] = pool
-    by_path = {entry['path']: entry for entry in pool}
-    for bank in pool_state['banks']:
-        entry = by_path.get(bank['cur_opp_path'])
-        if entry is not None:
-            bank['cur_opp_elo'] = float(entry.get('elo', bank['cur_opp_elo']))
 
 
 def setup(pufferl, backend, args, run_id, artifact_owner=True):
@@ -297,33 +254,20 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     backend.set_agent_perm(pufferl, perm)
     backend.set_env_tags(pufferl, tags)
 
-    external_state_path = sp.get('external_opponent_state_path') or ''
-    external_pool = bool(external_state_path)
-
     pool_dir = os.path.join(args['checkpoint_dir'], args['env_name'], run_id, 'pool')
     state_path = shared_state_path(pool_dir)
 
     elo_init = float(sp.get('elo_init', 0.0))
     elo_k    = float(sp.get('elo_k',    16.0))
     rank = int(args.get('rank', 0))
-    seed = int(sp.get('seed', 0))
-    rng = np.random.default_rng(seed + rank)
+    rng = np.random.default_rng(int(sp.get('seed', 0)) + rank)
     world_size = max(1, int(args.get('world_size', 1)))
     current_agent_step = int(pufferl.global_step) * world_size
 
     pool = []
     banks_state = []
     shared_version = 0
-    if external_pool:
-        pool = _pool_from_league_state(external_state_path)
-        for b in range(num_banks):
-            opp_entry = sample_external_opponent(
-                pool, seed, rank, world_size, b, num_banks, 0)
-            backend.load_frozen_bank(pufferl, b, opp_entry['path'])
-            banks_state.append(make_bank_state(
-                opp_entry['path'], float(opp_entry.get('elo', elo_init)),
-                current_agent_step, num_hist_envs_per_bank[b], sample_round=1))
-    elif artifact_owner:
+    if artifact_owner:
         os.makedirs(pool_dir, exist_ok=True)
         bootstrap_path = os.path.join(pool_dir, f'{pufferl.global_step:016d}.bin')
         backend.save_weights(pufferl, bootstrap_path)
@@ -353,14 +297,8 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         'shared_state_version': shared_version,
         'artifact_owner': artifact_owner,
         'pool': pool,
-        'external_pool': external_pool,
-        'external_opponent_state_path': external_state_path,
         'rng': rng,
-        'seed': seed,
-        'rank': rank,
         'max_size': int(sp['max_size']),
-        'min_games': int(sp['min_games']),
-        'swap_winrate': float(sp['swap_winrate']),
         'snapshot_interval': int(sp.get('snapshot_interval', 1_000_000_000)),
         'opp_timeout_steps': int(sp.get('opp_timeout_steps', 500_000_000)),
         'num_banks': num_banks,
@@ -370,7 +308,7 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         'world_size': world_size,
         'last_snapshot_step': current_agent_step,
     }
-    if artifact_owner and not external_pool:
+    if artifact_owner:
         publish_shared_state(pool_state)
     return pool_state
 
@@ -378,9 +316,6 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
 
 def sync(pufferl, backend, pool_state):
     if pool_state is None:
-        return
-    if pool_state.get('external_pool', False):
-        sync_external_pool(pool_state)
         return
     if pool_state.get('artifact_owner', True):
         return
@@ -393,13 +328,10 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
 
     n_window = float(flat_logs.get('env/n', 0.0))
     num_banks = pool_state['num_banks']
-    current_agent_step = agent_step(pufferl, pool_state)
+    current_agent_step = int(pufferl.global_step) * int(pool_state.get('world_size', 1))
 
     artifact_owner = pool_state.get('artifact_owner', True)
-    external_pool = pool_state.get('external_pool', False)
-    if external_pool:
-        sync_external_pool(pool_state)
-    elif not artifact_owner:
+    if not artifact_owner:
         sync_shared_pool(pool_state)
 
     # 1. Per-bank Elo update from the most recent rollout window.
@@ -426,7 +358,6 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
     # 2. Global snapshot cadence (shared across banks).
     pool_changed = False
     if (artifact_owner
-            and not external_pool
             and pool_state['snapshot_interval'] > 0
             and current_agent_step - pool_state['last_snapshot_step']
                 >= pool_state['snapshot_interval']):
@@ -464,20 +395,7 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
                 bank['last_epochs_to_align'] = epoch - bank['epoch_armed']
                 opponent_changed = True
         elif timed_out:
-            if external_pool:
-                sync_external_pool(pool_state)
-                sample_round = int(bank.get('sample_round', 0))
-                opp_entry = sample_external_opponent(
-                    pool_state['pool'],
-                    pool_state['seed'],
-                    pool_state['rank'],
-                    pool_state['world_size'],
-                    b,
-                    num_banks,
-                    sample_round)
-                bank['sample_round'] = sample_round + 1
-            else:
-                opp_entry = sample_opponent(pool_state['pool'], pool_state['rng'])
+            opp_entry = sample_opponent(pool_state['pool'], pool_state['rng'])
             bank['pending_opp_path'] = opp_entry['path']
             bank['pending_opp_elo'] = opp_entry['elo']
             bank['epoch_armed'] = epoch
@@ -485,7 +403,7 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
             # Start a fresh alignment window for the pending opponent.
             backend.count_aligned(pufferl, tag_value, 1)
 
-    if artifact_owner and not external_pool and (pool_changed or opponent_changed):
+    if artifact_owner and (pool_changed or opponent_changed):
         publish_shared_state(pool_state)
 
     # 4. Emit logs — per-bank and aggregate.

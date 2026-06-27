@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import math
+import multiprocessing as mp
 import os
 import random
 import time
@@ -17,16 +18,13 @@ import numpy as np
 STATE_VERSION = 1
 ANCHOR_ID = "random"
 LOGISTIC_TO_ELO = 400.0 / math.log(10.0)
-
-
-ARCH_SWEEP_KEYS = {'hidden_size', 'num_layers', 'policy.hidden_size', 'policy.num_layers'}
-
-
-def validate_no_arch_sweep_keys(sweep_config: dict[str, Any]) -> None:
-    # Compatibility shim. League sweeps now train independent historical-selfplay
-    # trials and instantiate match models from per-player hypers, so policy
-    # hidden_size / num_layers are allowed sweep dimensions.
-    return None
+SWEEP_CONTROL_KEYS = (
+    'league',
+    'league_match_games',
+    'league_match_eval_agents',
+    'league_anchor_prob',
+    'league_state_path',
+)
 
 
 def pair_key(a_id: str, b_id: str) -> str:
@@ -405,3 +403,407 @@ def choose_match_pair(state: dict[str, Any], rng: random.Random | None = None,
         count_w = 1.0 / math.sqrt(counts.get(pair_key(a["id"], b["id"]), 0) + 1.0)
         cand_weights.append(dist_w * count_w)
     return a, rng.choices(candidates, weights=cand_weights, k=1)[0]
+
+
+# Protein integration helpers. Kept here so league-specific mutable Elo refresh
+# logic is not embedded in the generic sweep optimizer implementation.
+def store_protein_score(protein, score):
+    if protein.metric_distribution == 'percentile':
+        return protein.logit_transform(score)
+    return score
+
+
+def rebuild_protein_top_observations(protein):
+    protein.top_observations = sorted(
+        protein.success_observations, key=lambda x: x['output'], reverse=True
+    )[:protein.num_keep_top_obs]
+
+
+def refresh_protein_observations_by_run_id(protein, scores_by_run_id):
+    updates = 0
+    for obs in protein.success_observations:
+        run_id = obs.get('run_id')
+        if run_id is None or run_id not in scores_by_run_id:
+            continue
+        obs['output'] = store_protein_score(protein, scores_by_run_id[run_id])
+        updates += 1
+    if updates:
+        rebuild_protein_top_observations(protein)
+    return updates
+
+
+def finish_trial(args, run_id, model_path, all_logs, flat_logs, result_queue):
+    if not all_logs:
+        all_logs.append(flat_logs)
+    metrics = {k: [v] for k, v in all_logs[-1].items()}
+    log_dir = os.path.join(args['log_dir'], args['env_name'])
+    os.makedirs(log_dir, exist_ok=True)
+    with open(os.path.join(log_dir, run_id + '.json'), 'w') as f:
+        json.dump({**args, 'metrics': metrics}, f)
+    if args['wandb']:
+        import wandb
+        wandb.run.finish()
+    if result_queue is not None:
+        result_queue.put({
+            'gpu_id': args['gpu_id'],
+            'ok': bool(model_path),
+            'run_id': run_id,
+            'checkpoint_path': model_path,
+            'hypers': deepcopy(args),
+            'cost': float(metrics.get('uptime', [0.0])[-1]),
+            'timesteps': int(metrics.get('agent_steps', [0])[-1]),
+        })
+
+def policy_arch(args):
+    return {
+        'hidden_size': int(float(args['policy']['hidden_size'])),
+        'num_layers': int(float(args['policy']['num_layers'])),
+    }
+
+
+def resolve_state_path(env_name, args):
+    sweep_cfg = args['sweep']
+    configured = sweep_cfg.get('league_state_path') or ''
+    if configured:
+        sweep_id = os.path.basename(configured)
+        if sweep_id.endswith('_league.json'):
+            sweep_id = sweep_id[:-len('_league.json')]
+        else:
+            sweep_id = os.path.splitext(sweep_id)[0]
+    else:
+        sweep_id = str(args.get('run_id') or int(1000*time.time()))
+        configured = os.path.join(args['log_dir'], env_name, f'{sweep_id}_league.json')
+        sweep_cfg['league_state_path'] = configured
+    args['sweep_id'] = sweep_id
+    return configured, sweep_id
+
+
+def validate_and_force_config(env_name, args, pareto=False):
+    if pareto:
+        raise ValueError('league mode does not support paretosweep')
+    if env_name != 'robocode':
+        raise ValueError('league sweep mode is currently implemented for robocode')
+    args['train']['gpus'] = 1
+    if not bool(args.get('selfplay', {}).get('enabled', 0)):
+        raise ValueError('league sweep mode requires selfplay.enabled = 1')
+    if int(args.get('env', {}).get('num_agents', 0)) != 2:
+        raise ValueError('league sweep mode requires env.num_agents = 2')
+    if int(args.get('env', {}).get('num_bots', 0)) != 0:
+        raise ValueError('league sweep mode requires env.num_bots = 0')
+
+    sweep_cfg = args['sweep']
+    sweep_cfg['metric'] = 'elo'
+    sweep_cfg['downsample'] = 1
+
+
+def configure_trial_args(args):
+    args.setdefault('selfplay', {})['enabled'] = 1
+    # League sweeps use the league only for post-hoc Elo scoring. Each trial
+    # remains a reproducible ordinary historical-selfplay run.
+    args['vec']['frozen_bank_hidden_size'] = int(float(args['policy']['hidden_size']))
+    args['vec']['frozen_bank_num_layers'] = int(float(args['policy']['num_layers']))
+    args.setdefault('env', {})['num_agents'] = 2
+    args['env']['num_bots'] = 0
+
+
+def materialize_anchor(env_name, args, state_path, sweep_id, gpu_id, resolve_backend, native_backend):
+    arch = policy_arch(args)
+    state = read_state(state_path)
+    if state is not None:
+        for player in state.get('players', []):
+            if player.get('id') == ANCHOR_ID and player.get('checkpoint_path'):
+                if os.path.exists(player['checkpoint_path']):
+                    return player['checkpoint_path']
+
+    anchor_dir = os.path.join(args['checkpoint_dir'], env_name, f'{sweep_id}_league_anchor')
+    os.makedirs(anchor_dir, exist_ok=True)
+    anchor_path = os.path.join(anchor_dir,
+        f'random_h{arch["hidden_size"]}_l{arch["num_layers"]}.bin')
+    if not os.path.exists(anchor_path):
+        cfg = deepcopy(args)
+        cfg['reset_state'] = False
+        cfg['rank'] = 0
+        cfg['world_size'] = 1
+        cfg['gpu_id'] = gpu_id
+        cfg['nccl_id'] = b''
+        cfg.setdefault('selfplay', {})['enabled'] = 0
+        cfg['vec']['num_buffers'] = 1
+        cfg['vec']['total_agents'] = max(128, int(cfg.get('env', {}).get('num_agents', 2)))
+        cfg['vec']['num_frozen_banks'] = 0
+        cfg['vec']['frozen_bank_pct'] = 0.0
+        cfg.setdefault('env', {})['dr'] = 0.0
+        cfg['env']['num_agents'] = 2
+        cfg['env']['num_bots'] = 0
+        cfg['train']['horizon'] = 1
+        backend = resolve_backend(cfg)
+        if backend is not native_backend:
+            raise RuntimeError('league random anchor creation requires the native CUDA backend')
+        pufferl = backend.create_pufferl(cfg)
+        backend.save_weights(pufferl, anchor_path)
+
+    ensure_anchor(state_path, anchor_path, arch, hypers={'policy': deepcopy(args['policy'])})
+    return anchor_path
+
+
+def refresh_observations(sweep_obj, state_path):
+    state = read_state(state_path)
+    if state is None or not hasattr(sweep_obj, 'refresh_observations_by_run_id'):
+        return 0
+    return sweep_obj.refresh_observations_by_run_id(run_id_scores(state))
+
+
+ROBOCODE_REWARD_CONDITIONING_KEYS = (
+    'reward_melee_damage_inflicted',
+    'reward_damage_taken',
+    'reward_range_damage_inflicted',
+)
+
+
+def _player_reward_conditioning(player):
+    env_cfg = (player.get('hypers') or {}).get('env') or {}
+    return {
+        key: float(env_cfg.get(key, 0.0) or 0.0)
+        for key in ROBOCODE_REWARD_CONDITIONING_KEYS
+    }
+
+
+def apply_match_reward_conditioning(match_args, player_a, player_b):
+    env_cfg = match_args.setdefault('env', {})
+    for slot, player in ((0, player_a), (1, player_b)):
+        for key, value in _player_reward_conditioning(player).items():
+            env_cfg[f'{key}_slot_{slot}'] = value
+
+
+def _player_policy_arch(player, fallback_args=None):
+    fallback_policy = (fallback_args or {}).get('policy') or {}
+    player_arch = player.get('arch') or {}
+    player_policy = (player.get('hypers') or {}).get('policy') or {}
+    hidden = player_arch.get('hidden_size', player_policy.get(
+        'hidden_size', fallback_policy.get('hidden_size', 128)))
+    layers = player_arch.get('num_layers', player_policy.get(
+        'num_layers', fallback_policy.get('num_layers', 1)))
+    return {
+        'hidden_size': int(float(hidden)),
+        'num_layers': int(float(layers)),
+    }
+
+
+def apply_match_policy_arch(match_args, player_a, player_b):
+    policy_cfg = match_args.setdefault('policy', {})
+    vec_cfg = match_args.setdefault('vec', {})
+    a_arch = _player_policy_arch(player_a, match_args)
+    b_arch = _player_policy_arch(player_b, match_args)
+    policy_cfg['hidden_size'] = a_arch['hidden_size']
+    policy_cfg['num_layers'] = a_arch['num_layers']
+    match_args['enemy_hidden_size'] = b_arch['hidden_size']
+    match_args['enemy_num_layers'] = b_arch['num_layers']
+    vec_cfg['frozen_bank_hidden_size'] = b_arch['hidden_size']
+    vec_cfg['frozen_bank_num_layers'] = b_arch['num_layers']
+
+
+def _match_once_child(env_name, player_a, player_b, games, args, result_queue, match_fn):
+    try:
+        match_args = deepcopy(args)
+        match_args['match_eval_agents'] = int(args['sweep'].get('league_match_eval_agents', 8192))
+        match_args['skip_match_close'] = True
+        apply_match_policy_arch(match_args, player_a, player_b)
+        apply_match_reward_conditioning(match_args, player_a, player_b)
+        logs = match_fn(env_name, player_a['path'], player_b['path'],
+            num_games=int(games), args=match_args, verbose=False)
+        result_queue.put({
+            'ok': True,
+            'score': float(logs.get('env/slot_0_score', 0.0)),
+            'draw': float(logs.get('env/draw_rate', 0.0)),
+            'games': int(logs.get('env/n', games)),
+        })
+    except BaseException as e:
+        result_queue.put({'ok': False, 'error': f'{type(e).__name__}: {e}'})
+
+
+def _match_once(env_name, player_a, player_b, games, args, match_fn):
+    ctx = mp.get_context('spawn')
+    result_queue = ctx.SimpleQueue()
+    proc = ctx.Process(target=_match_once_child,
+        args=(env_name, player_a, player_b, int(games), args, result_queue, match_fn))
+    proc.start()
+    proc.join(timeout=min(600, max(30, int(games) * 4)))
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(timeout=5)
+        raise RuntimeError(f'league match orientation timed out: {player_a["id"]} vs {player_b["id"]}')
+    if result_queue.empty():
+        raise RuntimeError(f'league match orientation exited without result: {player_a["id"]} vs {player_b["id"]}, exit={proc.exitcode}')
+    result = result_queue.get()
+    if not result.get('ok'):
+        raise RuntimeError(result.get('error', 'league match orientation failed'))
+    return result['score'], result['draw'], result['games']
+
+
+def _run_pair(env_name, player_a, player_b, games, args, match_fn):
+    games = int(games)
+    if player_a['id'] == player_b['id']:
+        return 0.5, 1.0, games
+    if games < 2:
+        return _match_once(env_name, player_a, player_b, games, args, match_fn)
+
+    games_ab = games // 2
+    games_ba = games - games_ab
+    score_ab, draw_ab, n_ab = _match_once(env_name, player_a, player_b, games_ab, args, match_fn)
+    score_ba, draw_ba, n_ba = _match_once(env_name, player_b, player_a, games_ba, args, match_fn)
+    total = max(n_ab + n_ba, 1)
+    a_score = (score_ab * n_ab + (1.0 - score_ba) * n_ba) / total
+    draw = (draw_ab * n_ab + draw_ba * n_ba) / total
+    return a_score, draw, total
+
+
+def _match_worker(env_name, args, state_path, gpu_id, stop_event, match_fn):
+    worker_args = deepcopy(args)
+    worker_args['gpu_id'] = gpu_id
+    rng = random.Random(int(args.get('seed', 0)) + 1009 * (gpu_id + 1))
+    games = int(args['sweep'].get('league_match_games', 4096))
+    anchor_prob = float(args['sweep'].get('league_anchor_prob', 0.12))
+    while not stop_event.is_set():
+        try:
+            state = read_state(state_path)
+            if state is None:
+                if stop_event.wait(2.0):
+                    break
+                continue
+            player_a, player_b = choose_match_pair(
+                state, rng=rng, anchor_prob=anchor_prob)
+            a_score, draw, total = _run_pair(
+                env_name, player_a, player_b, games, worker_args, match_fn)
+            ratings = record_match(
+                state_path, player_a['id'], player_b['id'], total, a_score, draw)
+            print(
+                f'league_match {player_a["id"]} vs {player_b["id"]} '
+                f'games={total} a_score={a_score:.4f} draw={draw:.4f} '
+                f'elo=({ratings.get(player_a["id"], 0.0):.1f}, '
+                f'{ratings.get(player_b["id"], 0.0):.1f})'
+            )
+        except RuntimeError as e:
+            print(f'league_match waiting: {e}')
+            if stop_event.wait(1.0):
+                break
+        except Exception as e:
+            print(f'WARNING: league match worker error: {e}')
+            if stop_event.wait(15.0):
+                break
+
+
+def sweep(env_name, args=None, pareto=False, *, load_config, validate_config, train, match, resolve_backend, native_backend):
+    args = args or load_config(env_name)
+    sweep_gpus = args['sweep']['gpus'] or len(os.listdir('/proc/driver/nvidia/gpus'))
+    validate_and_force_config(env_name, args, pareto=pareto)
+    exp_gpus = int(args['train']['gpus'])
+
+    if sweep_gpus <= 1:
+        raise ValueError('league sweep requires at least one training GPU and one match GPU')
+    train_slots = sweep_gpus - 1
+    train_gpu_ids = list(range(train_slots))
+    match_gpu_ids = [sweep_gpus - 1]
+    args['no_model_upload'] = True
+
+    state_path, sweep_id = resolve_state_path(env_name, args)
+    arch = policy_arch(args)
+    load_or_create(state_path, sweep_id, arch=arch, config={
+        'env_name': env_name,
+        'league_match_games': int(args['sweep'].get('league_match_games', 4096)),
+        'trial_opponents': 'historical_selfplay_only',
+    })
+    materialize_anchor(env_name, args, state_path, sweep_id, match_gpu_ids[0], resolve_backend, native_backend)
+    configure_trial_args(args)
+
+    sweep_config = args['sweep']
+    method = sweep_config.pop('method')
+    import pufferlib.sweep
+    try:
+        sweep_cls = getattr(pufferlib.sweep, method)
+    except Exception:
+        raise ValueError(f'Invalid sweep method {method}. See pufferlib.sweep')
+    sweep_obj = sweep_cls(sweep_config)
+    num_experiments = int(args['sweep']['max_runs'])
+
+    ctx = mp.get_context('spawn')
+    result_queue = ctx.SimpleQueue()
+    stop_event = ctx.Event()
+    match_proc = ctx.Process(target=_match_worker,
+        args=(env_name, deepcopy(args), state_path, match_gpu_ids[0], stop_event, match))
+    match_proc.start()
+
+    active = {}
+    completed = 0
+    launched = 0
+
+    def collect_one():
+        nonlocal completed
+        result = result_queue.get()
+        if isinstance(result, dict):
+            gpu_id = result.get('gpu_id')
+            done_args = active.pop(gpu_id)
+            run_id = result.get('run_id') or done_args.get('run_id')
+            if not result.get('ok'):
+                sweep_obj.observe(done_args, 0, 0, is_failure=True, run_id=run_id)
+                return
+
+            timesteps = int(result.get('timesteps', done_args['train']['total_timesteps']))
+            cost = float(result.get('cost', 0.0))
+            done_args['train']['total_timesteps'] = timesteps
+            player_hypers = result.get('hypers', done_args)
+            player_arch = policy_arch(player_hypers)
+            player = register_player(
+                state_path, run_id, result['checkpoint_path'], player_hypers, cost, arch=player_arch)
+            sweep_obj.observe(done_args, float(player.get('elo', 0.0)), cost,
+                is_failure=False, run_id=run_id)
+            refresh_observations(sweep_obj, state_path)
+            completed += 1
+            return
+
+        gpu_id, scores, costs, timesteps = result
+        done_args = active.pop(gpu_id)
+        sweep_obj.observe(done_args, 0, 0, is_failure=True, run_id=done_args.get('run_id'))
+
+    try:
+        while completed < num_experiments or active:
+            if active and (len(active) >= train_slots or completed + len(active) >= num_experiments):
+                collect_one()
+                continue
+            if completed + len(active) >= num_experiments:
+                continue
+
+            gpu_id = next(gpu for gpu in train_gpu_ids if gpu not in active)
+            idx = completed + len(active)
+            refresh_observations(sweep_obj, state_path)
+            if idx > 1:
+                sweep_obj.suggest(args)
+            configure_trial_args(args)
+            try:
+                validate_config(args)
+            except (AssertionError, ValueError) as e:
+                print(f'WARNING: {e}, skipping')
+                sweep_obj.observe(args, 0, 0, is_failure=True, run_id=None)
+                continue
+
+            exp_args = deepcopy(args)
+            exp_args['run_id'] = f'{sweep_id}_{launched:05d}'
+            exp_args['gpu_id'] = gpu_id
+            exp_args['sweep']['league_state_path'] = state_path
+            active[gpu_id] = exp_args
+            launched += 1
+            train(env_name, exp_args, range(gpu_id, gpu_id + exp_gpus),
+                sweep_obj=sweep_obj, result_queue=result_queue)
+    finally:
+        shutdown_timeout = min(600, max(30, int(args['sweep'].get('league_match_games', 4096)) * 2))
+        deadline = time.time() + shutdown_timeout
+        while match_proc.is_alive() and time.time() < deadline:
+            state = read_state(state_path)
+            policies = [p for p in state.get('players', []) if p.get('kind') == 'policy'] if state else []
+            if not policies or state.get('matches'):
+                break
+            time.sleep(1.0)
+
+        stop_event.set()
+        match_proc.join(timeout=shutdown_timeout)
+        if match_proc.is_alive():
+            match_proc.terminate()
+            match_proc.join(timeout=5)
