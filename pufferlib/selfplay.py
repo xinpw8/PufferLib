@@ -9,11 +9,12 @@ Pool growth and opponent swaps are decoupled:
     on a fixed cadence and load them after all historical envs reach an episode
     boundary. 0 disables fixed-interval swapping.
 
-Winrate and Elo are diagnostic only; they do not trigger snapshots or swaps.
+Winrate is diagnostic only; it does not trigger snapshots or swaps.
 Pool storage is disk-only (paths held in memory; weights only on GPU when
 loaded as the frozen bank). Stride-eviction preserves temporal coverage when
 the pool exceeds its cap.
 """
+import glob
 import json
 import os
 import time
@@ -29,10 +30,32 @@ def sample_opponent(pool, rng):
     return pool[int(rng.integers(len(pool)))]
 
 
-def update_elo(primary_elo, opp_elo, score_rate, k):
-    expected = 1.0 / (1.0 + 10.0 ** ((opp_elo - primary_elo) / 400.0))
-    delta = k * (score_rate - expected)
-    return primary_elo + delta, opp_elo - delta
+def resolve_opponent_pool(spec):
+    if not spec:
+        return []
+    if isinstance(spec, (list, tuple)):
+        candidates = []
+        for item in spec:
+            candidates.extend(resolve_opponent_pool(item))
+        return sorted(dict.fromkeys(candidates))
+
+    raw_spec = os.path.expanduser(str(spec))
+
+    def _expand(path_spec):
+        if os.path.isdir(path_spec):
+            return glob.glob(os.path.join(path_spec, '*.bin'))
+        candidates = glob.glob(path_spec)
+        if not candidates and os.path.isfile(path_spec):
+            candidates = [path_spec]
+        return candidates
+
+    candidates = _expand(raw_spec)
+    if not candidates and not os.path.isabs(raw_spec):
+        repo_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        candidates = _expand(os.path.join(repo_root, raw_spec))
+
+    return sorted(os.path.abspath(path) for path in candidates
+                  if path.endswith('.bin') and os.path.isfile(path))
 
 
 def evict(pool, max_size):
@@ -113,14 +136,12 @@ def build_perm_tags(num_buffers, agents_per_buffer, agents_per_env, frozen_sizes
     return perm, tags, num_hist_envs_per_bank
 
 
-def make_bank_state(path, elo, current_agent_step, num_hist_envs):
+def make_bank_state(path, current_agent_step, num_hist_envs):
     return {
         'cur_opp_path': path,
-        'cur_opp_elo': elo,
         'hist_score': 0.0,
         'hist_n': 0.0,
         'pending_opp_path': None,
-        'pending_opp_elo': None,
         'epoch_armed': 0,
         'opp_started_step': current_agent_step,
         'num_hist_envs': num_hist_envs,
@@ -141,16 +162,10 @@ def publish_shared_state(pool_state):
         'version': version,
         'agent_step': pool_state.get('last_snapshot_step', 0),
         'pool_size': len(pool),
-        'pool': [
-            {'path': entry['path'], 'elo': float(entry.get('elo', 0.0))}
-            for entry in pool
-        ],
+        'pool': [{'path': entry['path']} for entry in pool],
         # Diagnostic + bootstrap for ranks that are just starting. Followers do
         # not keep following rank 0's bank after setup; they sample locally.
-        'banks': [
-            {'path': bank['cur_opp_path'], 'elo': bank['cur_opp_elo']}
-            for bank in pool_state['banks']
-        ],
+        'banks': [{'path': bank['cur_opp_path']} for bank in pool_state['banks']],
     }
     tmp = f'{path}.tmp.{os.getpid()}'
     with open(tmp, 'w') as f:
@@ -184,8 +199,16 @@ def _pool_from_shared_state(state):
         if not path or path in seen:
             continue
         seen.add(path)
-        pool.append({'path': path, 'elo': float(entry.get('elo', 0.0))})
+        pool.append({'path': path})
     return pool
+
+
+def _external_pool_entries(sp):
+    spec = sp.get('opponent_pool', '')
+    paths = resolve_opponent_pool(spec)
+    if spec and not paths:
+        raise RuntimeError(f'selfplay.opponent_pool resolved no .bin files: {spec}')
+    return [{'path': path} for path in paths]
 
 
 def sync_shared_pool(pool_state):
@@ -257,8 +280,6 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     pool_dir = os.path.join(args['checkpoint_dir'], args['env_name'], run_id, 'pool')
     state_path = shared_state_path(pool_dir)
 
-    elo_init = float(sp.get('elo_init', 0.0))
-    elo_k    = float(sp.get('elo_k',    16.0))
     rank = int(args.get('rank', 0))
     rng = np.random.default_rng(int(sp.get('seed', 0)) + rank)
     world_size = max(1, int(args.get('world_size', 1)))
@@ -267,15 +288,20 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
     pool = []
     banks_state = []
     shared_version = 0
+    external_pool = _external_pool_entries(sp)
     if artifact_owner:
         os.makedirs(pool_dir, exist_ok=True)
-        bootstrap_path = os.path.join(pool_dir, f'{pufferl.global_step:016d}.bin')
-        backend.save_weights(pufferl, bootstrap_path)
+        if external_pool:
+            pool = external_pool
+        else:
+            bootstrap_path = os.path.join(pool_dir, f'{pufferl.global_step:016d}.bin')
+            backend.save_weights(pufferl, bootstrap_path)
+            pool = [{'path': bootstrap_path}]
         for b in range(num_banks):
-            backend.load_frozen_bank(pufferl, b, bootstrap_path)
+            opp_entry = sample_opponent(pool, rng)
+            backend.load_frozen_bank(pufferl, b, opp_entry['path'])
             banks_state.append(make_bank_state(
-                bootstrap_path, elo_init, current_agent_step, num_hist_envs_per_bank[b]))
-        pool = [{'path': bootstrap_path, 'elo': elo_init}]
+                opp_entry['path'], current_agent_step, num_hist_envs_per_bank[b]))
     else:
         state = wait_shared_state(state_path)
         shared_version = int(state.get('version', 0))
@@ -286,10 +312,9 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         for b in range(num_banks):
             entry = bank_entries[b]
             opp_path = entry['path']
-            opp_elo = float(entry.get('elo', elo_init))
             backend.load_frozen_bank(pufferl, b, opp_path)
             banks_state.append(make_bank_state(
-                opp_path, opp_elo, current_agent_step, num_hist_envs_per_bank[b]))
+                opp_path, current_agent_step, num_hist_envs_per_bank[b]))
 
     pool_state = {
         'pool_dir': pool_dir,
@@ -303,15 +328,12 @@ def setup(pufferl, backend, args, run_id, artifact_owner=True):
         'opp_timeout_steps': int(sp.get('opp_timeout_steps', 500_000_000)),
         'num_banks': num_banks,
         'banks': banks_state,
-        'primary_elo': elo_init,
-        'elo_k': elo_k,
         'world_size': world_size,
         'last_snapshot_step': current_agent_step,
     }
     if artifact_owner:
         publish_shared_state(pool_state)
     return pool_state
-
 
 
 def sync(pufferl, backend, pool_state):
@@ -334,7 +356,7 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
     if not artifact_owner:
         sync_shared_pool(pool_state)
 
-    # 1. Per-bank Elo update from the most recent rollout window.
+    # 1. Per-bank score accumulation from the most recent rollout window.
     for b in range(num_banks):
         bank = pool_state['banks'][b]
         hist_score_w = float(flat_logs.get(f'env/hist_score_bank_{b}', 0.0)) * n_window
@@ -342,18 +364,6 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
         if hist_n_w > 0.0:
             bank['hist_score'] += hist_score_w
             bank['hist_n']     += hist_n_w
-            score_rate = hist_score_w / hist_n_w
-            new_p, new_o = update_elo(pool_state['primary_elo'],
-                bank['cur_opp_elo'], score_rate, pool_state['elo_k'])
-            # All banks update the shared primary Elo. Multiple banks updating
-            # primary in one step is fine — Elo is symmetric, just a few more
-            # tiny adjustments per rollout window.
-            pool_state['primary_elo'] = new_p
-            bank['cur_opp_elo'] = new_o
-            for entry in pool_state['pool']:
-                if entry['path'] == bank['cur_opp_path']:
-                    entry['elo'] = new_o
-                    break
 
     # 2. Global snapshot cadence (shared across banks).
     pool_changed = False
@@ -361,10 +371,11 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
             and pool_state['snapshot_interval'] > 0
             and current_agent_step - pool_state['last_snapshot_step']
                 >= pool_state['snapshot_interval']):
+        os.makedirs(pool_state['pool_dir'], exist_ok=True)
         snap_path = os.path.join(pool_state['pool_dir'],
             f'{pufferl.global_step:016d}.bin')
         backend.save_weights(pufferl, snap_path)
-        pool_state['pool'].append({'path': snap_path, 'elo': pool_state['primary_elo']})
+        pool_state['pool'].append({'path': snap_path})
         pool_state['pool'] = evict(pool_state['pool'], pool_state['max_size'])
         pool_state['last_snapshot_step'] = current_agent_step
         pool_changed = True
@@ -386,9 +397,7 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
                 backend.load_frozen_bank(pufferl, b, bank['pending_opp_path'])
                 backend.count_aligned(pufferl, tag_value, 1)
                 bank['cur_opp_path'] = bank['pending_opp_path']
-                bank['cur_opp_elo'] = bank['pending_opp_elo']
                 bank['pending_opp_path'] = None
-                bank['pending_opp_elo'] = None
                 bank['hist_score'] = 0.0
                 bank['hist_n'] = 0.0
                 bank['opp_started_step'] = current_agent_step
@@ -397,7 +406,6 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
         elif timed_out:
             opp_entry = sample_opponent(pool_state['pool'], pool_state['rng'])
             bank['pending_opp_path'] = opp_entry['path']
-            bank['pending_opp_elo'] = opp_entry['elo']
             bank['epoch_armed'] = epoch
             bank['last_winrate_at_swap'] = winrate if winrate is not None else 0.0
             # Start a fresh alignment window for the pending opponent.
@@ -408,7 +416,6 @@ def step(pufferl, backend, pool_state, flat_logs, epoch):
 
     # 4. Emit logs — per-bank and aggregate.
     flat_logs['pool/size']     = len(pool_state['pool'])
-    flat_logs['env/elo']       = pool_state['primary_elo']
     flat_logs['pool/num_banks'] = num_banks
     total_score = 0.0
     total_n     = 0.0

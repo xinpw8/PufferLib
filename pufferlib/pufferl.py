@@ -507,8 +507,8 @@ def sweep(env_name, args=None, pareto=False):
             sweep_obj=sweep_obj, result_queue=result_queue)
 
 
-def eval_bot(env_name, policy_path, num_games=4096, eval_agents=0, burnin_games=0,
-        bot_policy=-1, max_ticks=0, args=None, verbose=True):
+def eval_bot(env_name, policy_path=None, num_games=16384, eval_agents=0, burnin_games=0,
+        bot_policy=1, max_ticks=0, args=None, verbose=True):
     '''Evaluate a trained policy against the env's scripted bot.'''
     args = args or load_config(env_name)
     args['reset_state'] = False
@@ -516,6 +516,7 @@ def eval_bot(env_name, policy_path, num_games=4096, eval_agents=0, burnin_games=
     args['world_size'] = 1
     args['rank'] = 0
     args.setdefault('nccl_id', b'')
+
 
     num_games = int(num_games)
     burnin_games = int(burnin_games)
@@ -553,7 +554,19 @@ def eval_bot(env_name, policy_path, num_games=4096, eval_agents=0, burnin_games=
         raise RuntimeError('eval_bot() requires the native CUDA backend')
 
     pufferl = backend.create_pufferl(args)
-    backend.load_weights(pufferl, policy_path)
+
+    load_path = policy_path or args.get('load_model_path')
+    if load_path == 'latest':
+        checkpoint_dir = args['checkpoint_dir']
+        pattern = os.path.join(checkpoint_dir, args['env_name'], '**', '*.bin')
+        candidates = glob.glob(pattern, recursive=True)
+        if not candidates:
+            raise FileNotFoundError(f'No .bin checkpoints found in {checkpoint_dir}/{args["env_name"]}/')
+        load_path = max(candidates, key=os.path.getctime)
+
+    if load_path is not None:
+        backend.load_weights(pufferl, load_path)
+        print(f'Loaded weights from {load_path}')
 
     def _delta_logs(current, baseline):
         if not baseline:
@@ -815,6 +828,8 @@ def main():
 
     if 'train' in mode:
         train(env_name=env_name, args=args)
+    elif 'eval_bot' in mode:
+        eval_bot(env_name=env_name, args=args)
     elif 'eval' in mode:
         eval(env_name=env_name, args=args)
     elif 'sweep' in mode:
