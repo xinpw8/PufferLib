@@ -3,6 +3,8 @@
 #include <nvtx3/nvToolsExt.h>
 #include <nvml.h>
 #include <nccl.h>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <time.h>
@@ -1923,9 +1925,20 @@ extern "C" int pufferl_num_envs(PuffeRL* pufferl) {
     return pufferl->vec->size;
 }
 
-std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
+static bool create_allocator_or_report(const char* name, Allocator* alloc) {
+    cudaError_t err = alloc_create(alloc);
+    if (err == cudaSuccess) {
+        return true;
+    }
+
+    fprintf(stderr, "create_pufferl: alloc_create(%s) failed for %ld bytes: %s\n",
+        name, alloc->total_bytes, cudaGetErrorString(err));
+    return false;
+}
+
+PuffeRL* create_pufferl_impl(HypersT& hypers,
         const std::string& env_name, Dict* vec_kwargs, Dict* env_kwargs) {
-    auto pufferl = std::make_unique<PuffeRL>();
+    PuffeRL* pufferl = new PuffeRL();
     pufferl->hypers = hypers;
     pufferl->nccl_comm = nullptr;
     pufferl->default_stream = 0;
@@ -2050,13 +2063,13 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
     pufferl->muon.world_size = hypers.world_size;
 
     // All buffers allocated here
-    if (alloc_create(params) != cudaSuccess) {
+    if (!create_allocator_or_report("params", params)) {
         return nullptr;
     }
-    if (alloc_create(grads) != cudaSuccess) {
+    if (!create_allocator_or_report("grads", grads)) {
         return nullptr;
     }
-    if (alloc_create(acts) != cudaSuccess) {
+    if (!create_allocator_or_report("acts", acts)) {
         return nullptr;
     }
 
@@ -2114,7 +2127,7 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
         }
         // add_frozen_bank auto-builds the sequential bank_layout.
         for (int b = 0; b < num_frozen; b++) {
-            pufferl_add_frozen_bank(pufferl.get(), frozen_size, frozen_hidden, frozen_layers);
+            pufferl_add_frozen_bank(pufferl, frozen_size, frozen_hidden, frozen_layers);
         }
     }
 
@@ -2150,7 +2163,7 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
             for (int i = 0; i < num_buffers * horizon; ++i) {
                 int buf = i % num_buffers;
                 tl_stream = pufferl->streams[buf];
-                net_callback_wrapper(pufferl.get(), buf, i / num_buffers);
+                net_callback_wrapper(pufferl, buf, i / num_buffers);
                 cudaDeviceSynchronize();
             }
         }
@@ -2198,7 +2211,7 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
         }
     }
 
-    create_static_threads(vec, hypers.num_threads, horizon, pufferl.get(),
+    create_static_threads(vec, hypers.num_threads, horizon, pufferl,
         net_callback_wrapper, thread_init_wrapper);
     static_vec_reset(vec);
 

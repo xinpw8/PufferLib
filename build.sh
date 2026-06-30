@@ -10,10 +10,11 @@ set -e
 #   ./build.sh breakout --fast       # Standalone executable (optimized)
 #   ./build.sh breakout --web        # Emscripten web build
 #   ./build.sh breakout --profile    # Kernel profiling binary
+#   ./build.sh breakout --native     # Full native train/eval binary
 #   ./build.sh all                   # Build all envs with default and --float
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--float] [--debug] [--local|--fast|--web|--profile|--cpu|--all]"
+    echo "Usage: ./build.sh ENV_NAME [--float] [--debug] [--local|--fast|--web|--profile|--native|--cpu|--all]"
     exit 1
 fi
 ENV=$1
@@ -27,6 +28,7 @@ for arg in "$@"; do
         --fast)  MODE=fast ;;
         --web)   MODE=web ;;
         --profile) MODE=profile ;;
+        --native) MODE=native ;;
         --cpu)   MODE=cpu; PRECISION="-DPRECISION_FLOAT" ;;
         *) echo "Error: unknown argument '$arg'" && exit 1 ;;
     esac
@@ -328,6 +330,25 @@ elif [ "$MODE" = "cpu" ]; then
     )
     "${LINK_CMD[@]}"
     echo "Built: $OUTPUT"
+
+elif [ "$MODE" = "native" ]; then
+    echo "Compiling native train/eval binary ($ARCH)..."
+    $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
+        -I. -Isrc -I$SRC_DIR -Ivendor \
+        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -DOBS_TENSOR_T=$OBS_TENSOR_T \
+        -DENV_NAME=$ENV \
+        -Xcompiler=-DPLATFORM_DESKTOP \
+        -Xcompiler=-fopenmp \
+        $PRECISION \
+        src/launcher.cu vendor/cJSON.c \
+        "$STATIC_LIB" "$RAYLIB_A" \
+        -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG \
+        "${EXTRA_LDFLAGS[@]}" \
+        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn \
+        -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
+        -o build_native
+    echo "Built: ./build_native"
 
 elif [ "$MODE" = "profile" ]; then
     echo "Compiling profile binary ($ARCH)..."

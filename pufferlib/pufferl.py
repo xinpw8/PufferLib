@@ -741,81 +741,9 @@ def match(env_name, policy_a_path, policy_b_path, num_games=4096, args=None, ver
         backend.close(pufferl)
     return logs
 
-def load_config(env_name):
-    parser = argparse.ArgumentParser(formatter_class=RichHelpFormatter, add_help=False)
-    parser.add_argument('--load-model-path', type=str, default=None,
-        help='Path to a pretrained checkpoint')
-    parser.add_argument('--load-enemy-model-path', type=str, default=None,
-        help='Path to opponent checkpoint for `puffer match` (slot 1 / black in chess)')
-    parser.add_argument('--num-games', type=int, default=4096,
-        help='Number of games to play in `puffer match`')
-    parser.add_argument('--enemy-hidden-size', type=int, default=None,
-        help='hidden_size of the enemy checkpoint (defaults to primary)')
-    parser.add_argument('--enemy-num-layers', type=int, default=None,
-        help='num_layers of the enemy checkpoint (defaults to primary)')
-    parser.add_argument('--load-id', type=str,
-        default=None, help='Kickstart/eval from from a finished Wandbrun')
-    parser.add_argument('--render-mode', type=str, default='auto',
-        choices=['auto', 'human', 'ansi', 'rgb_array', 'raylib', 'None'])
-    parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
-    parser.add_argument('--wandb-project', type=str, default='puffer4')
-    parser.add_argument('--wandb-group', type=str, default='debug')
-    parser.add_argument('--tag', type=str, default=None, help='Tag for experiment')
-    parser.add_argument('--slowly', action='store_true', help='Use PyTorch training backend')
-    parser.add_argument('--save-frames', type=int, default=0)
-    parser.add_argument('--gif-path', type=str, default='eval.gif')
-    parser.add_argument('--fps', type=float, default=15)
-    parser.description = f':blowfish: PufferLib [bright_cyan]{pufferlib.__version__}[/]' \
-        ' demo options. Shows valid args for your env and policy'
-
+def load_config(env_name, argv=None, **kwargs):
     repo_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    puffer_config_dir = os.path.join(repo_dir, 'config/**/*.ini')
-    puffer_default_config = os.path.join(repo_dir, 'config/default.ini')
-    #CC: Remove the default. Just raise an error on "puffer train" etc with no env (think we already do)
-    if env_name == 'default':
-        p = configparser.ConfigParser()
-        p.read(puffer_default_config)
-    else:
-        for path in glob.glob(puffer_config_dir, recursive=True):
-            p = configparser.ConfigParser()
-            p.read([puffer_default_config, path])
-            if env_name in p['base']['env_name'].split(): break
-        else:
-            raise ValueError('No config for env_name {}'.format(env_name))
-
-    for section in p.sections():
-        for key in p[section]:
-            try:
-                value = ast.literal_eval(p[section][key])
-            except:
-                value = p[section][key]
-
-            #TODO: Can clean up with default sections in 3.13+
-            fmt = f'--{key}' if section == 'base' else f'--{section}.{key}'
-            dtype = type(value)
-            parser.add_argument(
-                fmt.replace('_', '-'), default=value,
-                type=lambda v, t=dtype: v if v == 'auto' else t(v),
-            )
-
-    parser.add_argument('-h', '--help', default=argparse.SUPPRESS,
-        action='help', help='Show this help message and exit')
-
-    # Unpack to nested dict
-    parsed = vars(parser.parse_args())
-    args = defaultdict(dict)
-    for key, value in parsed.items():
-        nxt = args
-        for subkey in key.split('.'):
-            prev = nxt
-            nxt = nxt.setdefault(subkey, {})
-
-        prev[subkey] = value
-
-    args['env_name'] = env_name
-    for section in p.sections():
-        args.setdefault(section, {})
-    return dict(args)
+    return _C.load_config(env_name, list(argv or []), repo_dir)
 
 def main():
     err = 'Usage: puffer [train, eval, sweep, paretosweep, match] [env_name] [optional args]. --help for more info'
@@ -824,7 +752,7 @@ def main():
 
     mode = sys.argv.pop(1)
     env_name = sys.argv.pop(1)
-    args = load_config(env_name)
+    args = load_config(env_name, sys.argv[1:])
 
     if 'train' in mode:
         train(env_name=env_name, args=args)

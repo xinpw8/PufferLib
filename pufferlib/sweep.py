@@ -1007,3 +1007,9 @@ class Protein:
             logs['is_loss_nan'] = False
             return True
         return False
+
+try:
+    from pufferlib import _C
+    Protein = _C.Protein
+except (ImportError, AttributeError):
+    pass

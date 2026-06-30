@@ -3,12 +3,19 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include <set>
+#include <sstream>
+#include "config_loader.h"
 #include "pufferlib.cu"
+#include "gp_cuda.cu"
+#include "protein.cu"
 
 #define _PUFFER_STRINGIFY(x) #x
 #define PUFFER_STRINGIFY(x) _PUFFER_STRINGIFY(x)
 
 namespace py = pybind11;
+
+#include "protein_bindings.h"
 
 // Wrapper functions for Python bindings
 pybind11::dict puf_log(pybind11::object pufferl_obj) {
@@ -455,7 +462,7 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     std::unique_ptr<PuffeRL> pufferl;
     {
         pybind11::gil_scoped_release no_gil;
-        pufferl = create_pufferl_impl(hypers, env_name, vec_dict, env_dict);
+        pufferl.reset(create_pufferl_impl(hypers, env_name, vec_dict, env_dict));
     }
 
     if (!pufferl) {
@@ -507,6 +514,9 @@ PYBIND11_MODULE(_C, m) {
 
         return util_dict;
     });
+    m.def("load_config", &puf_cfg::py_load_config_native,
+        py::arg("env_name"), py::arg("argv") = py::list(),
+        py::arg("root_path") = "");
 
     m.attr("precision_bytes") = (int)sizeof(precision_t);
     m.attr("env_name") = PUFFER_STRINGIFY(ENV_NAME);
@@ -631,4 +641,14 @@ PYBIND11_MODULE(_C, m) {
         .def("num_params", [](PuffeRL& self) -> int64_t {
             return numel(self.master_weights.shape);
         });
+
+    py::class_<PyProtein>(m, "Protein")
+        .def(py::init<py::dict>(), py::arg("sweep_config"))
+        .def("suggest", &PyProtein::suggest,
+            py::arg("fill"), py::arg("fixed_total_timesteps") = py::none())
+        .def("observe", &PyProtein::observe,
+            py::arg("hypers"), py::arg("score"), py::arg("cost"),
+            py::arg("is_failure") = false)
+        .def("early_stop", &PyProtein::early_stop,
+            py::arg("logs"), py::arg("target_key"));
 }

@@ -2,6 +2,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include "config_loader.h"
 
 #define _PUFFER_STRINGIFY(x) #x
 #define PUFFER_STRINGIFY(x) _PUFFER_STRINGIFY(x)
@@ -167,6 +168,9 @@ PYBIND11_MODULE(_C, m) {
 
     m.def("puff_advantage_cpu", &py_puff_advantage_cpu);
     m.def("create_vec", &create_vec, py::arg("args"), py::arg("gpu") = 0);
+    m.def("load_config", &puf_cfg::py_load_config_native,
+        py::arg("env_name"), py::arg("argv") = py::list(),
+        py::arg("root_path") = "");
 
     py::class_<VecEnv, std::unique_ptr<VecEnv>>(m, "VecEnv")
         .def_readonly("total_agents", &VecEnv::total_agents)
