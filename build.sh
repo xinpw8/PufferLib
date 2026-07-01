@@ -4,7 +4,7 @@ set -e
 # Usage:
 #   ./build.sh breakout              # Build _C.so with breakout statically linked
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
-#   ./build.sh breakout --cpu        # CPU fallback, torch only
+#   ./build.sh breakout --cpu        # Tiny standalone CPU eval executable
 #   ./build.sh breakout --debug      # Debug build
 #   ./build.sh breakout --local      # Standalone executable (debug, sanitizers)
 #   ./build.sh breakout --fast       # Standalone executable (optimized)
@@ -29,7 +29,7 @@ for arg in "$@"; do
         --web)   MODE=web ;;
         --profile) MODE=profile ;;
         --native) MODE=native ;;
-        --cpu)   MODE=cpu; PRECISION="-DPRECISION_FLOAT" ;;
+        --cpu)   MODE=cpu ;;
         *) echo "Error: unknown argument '$arg'" && exit 1 ;;
     esac
 done
@@ -188,6 +188,27 @@ elif [ "$MODE" = "web" ]; then
         --preload-file resources/shared@resources/shared
     echo "Built: build/web/$ENV/game.html"
     exit 0
+elif [ "$MODE" = "cpu" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.h"
+    if ! grep -q '^#define OBS_TENSOR_T' "$ENV_HEADER" 2>/dev/null; then
+        echo "Error: $ENV_HEADER must define OBS_TENSOR_T for standalone eval"
+        exit 1
+    fi
+
+    echo "Compiling standalone CPU eval for $ENV..."
+    ${CC:-clang} "${CLANG_OPT[@]}" \
+        -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
+        -DPLATFORM_DESKTOP \
+        -DENV_HEADER=\"$ENV_HEADER\" \
+        -DENV_NAME=$ENV \
+        src/eval_cpu.c $EXTRA_SRC \
+        "${LINK_ARCHIVES[@]}" \
+        "${EXTRA_LDFLAGS[@]}" \
+        "${STANDALONE_LDFLAGS[@]}" \
+        -lm -lpthread -fopenmp \
+        -o build_cpu
+    echo "Built: ./build_cpu"
+    exit 0
 fi
 
 # Find cuDNN path
@@ -250,31 +271,40 @@ NUMPY_INCLUDE=$(python -c "import numpy; print(numpy.get_include())")
 EXT_SUFFIX=$(python -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
 OUTPUT="pufferlib/_C${EXT_SUFFIX}"
 
+ENV_HEADER="$SRC_DIR/$ENV.h"
 BINDING_SRC="$SRC_DIR/binding.c"
 mkdir -p build
 STATIC_OBJ="build/libstatic_${ENV}.o"
 STATIC_LIB="build/libstatic_${ENV}.a"
+STATIC_LINK=("$STATIC_LIB")
+ENV_COMPILE_FLAGS=()
 
-if [ ! -f "$BINDING_SRC" ]; then
-    echo "Error: $BINDING_SRC not found"
-    exit 1
+if [ -f "$ENV_HEADER" ] && grep -q '^#define OBS_TENSOR_T' "$ENV_HEADER"; then
+    ENV_COMPILE_FLAGS=(-DENV_HEADER=\"$ENV_HEADER\")
+    STATIC_LINK=()
+    OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$ENV_HEADER")
+else
+    if [ ! -f "$BINDING_SRC" ]; then
+        echo "Error: $BINDING_SRC not found"
+        exit 1
+    fi
+
+    echo "Compiling static library for $ENV..."
+    ${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
+        -I. -Isrc -I$SRC_DIR -Ivendor \
+        "${INCLUDES[@]}" \
+        -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
+        -DPLATFORM_DESKTOP \
+        -fno-semantic-interposition -fvisibility=hidden \
+        -fPIC -fopenmp \
+        "$BINDING_SRC" -o "$STATIC_OBJ"
+    ar rcs "$STATIC_LIB" "$STATIC_OBJ"
+
+    # Brittle hack: have to extract the tensor type from the static lib to build trainer
+    OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$BINDING_SRC")
 fi
-
-echo "Compiling static library for $ENV..."
-${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
-    -I. -Isrc -I$SRC_DIR -Ivendor \
-    "${INCLUDES[@]}" \
-    -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
-    -DPLATFORM_DESKTOP \
-    -fno-semantic-interposition -fvisibility=hidden \
-    -fPIC -fopenmp \
-    "$BINDING_SRC" -o "$STATIC_OBJ"
-ar rcs "$STATIC_LIB" "$STATIC_OBJ"
-
-# Brittle hack: have to extract the tensor type from the static lib to build trainer
-OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$BINDING_SRC")
 if [ -z "$OBS_TENSOR_T" ]; then
-    echo "Error: Could not find OBS_TENSOR_T in $BINDING_SRC"
+    echo "Error: Could not find OBS_TENSOR_T for $ENV"
     exit 1
 fi
 
@@ -289,6 +319,7 @@ if [ -z "$MODE" ]; then
         -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE -I$NUMPY_INCLUDE \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
         -Xcompiler=-fopenmp \
+        "${ENV_COMPILE_FLAGS[@]}" \
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         $PRECISION $NVCC_OPT \
@@ -296,7 +327,7 @@ if [ -z "$MODE" ]; then
 
     LINK_CMD=(
         ${CXX:-g++} -shared -fPIC -fopenmp
-        build/bindings.o "$STATIC_LIB" "$RAYLIB_A"
+        build/bindings.o "${STATIC_LINK[@]}" "$RAYLIB_A"
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG
         "${WHEEL_RPATH_FLAGS[@]}"
         "${EXTRA_LDFLAGS[@]}"
@@ -308,41 +339,19 @@ if [ -z "$MODE" ]; then
     "${LINK_CMD[@]}"
     echo "Built: $OUTPUT"
 
-elif [ "$MODE" = "cpu" ]; then
-    echo "Compiling CPU training backend..."
-    ${CXX:-g++} -c -fPIC -fopenmp \
-        -D_GLIBCXX_USE_CXX11_ABI=1 \
-        -DPLATFORM_DESKTOP \
-        -std=c++17 \
-        -I. -Isrc \
-        -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
-        -DENV_NAME=$ENV \
-        $PRECISION $LINK_OPT \
-        src/bindings_cpu.cpp -o build/bindings_cpu.o
-    LINK_CMD=(
-        ${CXX:-g++} -shared -fPIC -fopenmp
-        build/bindings_cpu.o "$STATIC_LIB" "$RAYLIB_A"
-        "${EXTRA_LDFLAGS[@]}"
-        -lm -lpthread $OMP_LIB $LINK_OPT
-        "${SHARED_LDFLAGS[@]}"
-        -o "$OUTPUT"
-    )
-    "${LINK_CMD[@]}"
-    echo "Built: $OUTPUT"
-
 elif [ "$MODE" = "native" ]; then
     echo "Compiling native train/eval binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        "${ENV_COMPILE_FLAGS[@]}" \
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         -Xcompiler=-DPLATFORM_DESKTOP \
         -Xcompiler=-fopenmp \
         $PRECISION \
         src/launcher.cu vendor/cJSON.c \
-        "$STATIC_LIB" "$RAYLIB_A" \
+        "${STATIC_LINK[@]}" "$RAYLIB_A" \
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn \
@@ -355,13 +364,14 @@ elif [ "$MODE" = "profile" ]; then
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        "${ENV_COMPILE_FLAGS[@]}" \
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         -Xcompiler=-DPLATFORM_DESKTOP \
         $PRECISION \
         -Xcompiler=-fopenmp \
         tests/profile_kernels.cu vendor/ini.c \
-        "$STATIC_LIB" "$RAYLIB_A" \
+        "${STATIC_LINK[@]}" "$RAYLIB_A" \
         -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn \
         -lGL -lm -lpthread $OMP_LIB \
         -o profile

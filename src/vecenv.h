@@ -1,6 +1,6 @@
 // vecenv.h - Static env binding: types + implementation
 // Types/declarations always available (for pufferlib.cu).
-// Implementations compiled only when OBS_SIZE is defined (by binding.c).
+// Implementations compiled only when OBS_SIZE is defined by an env header or binding.c.
 
 #pragma once
 
@@ -14,54 +14,13 @@ extern "C" {
 #endif
 
 #include "tensor.h"
+#include "dict.h"
 
-// Dict types
-typedef struct {
-    const char* key;
-    double value;
-    void* ptr;
-} DictItem;
-
-typedef struct {
-    DictItem* items;
-    int size;
-    int capacity;
-} Dict;
-
-static inline Dict* create_dict(int capacity) {
-    Dict* dict = (Dict*)calloc(1, sizeof(Dict));
-    dict->capacity = capacity;
-    dict->items = (DictItem*)calloc(capacity, sizeof(DictItem));
-    return dict;
-}
-
-static inline DictItem* dict_get_unsafe(Dict* dict, const char* key) {
-    for (int i = 0; i < dict->size; i++) {
-        if (strcmp(dict->items[i].key, key) == 0) {
-            return &dict->items[i];
-        }
-    }
-    return NULL;
-}
-
-static inline DictItem* dict_get(Dict* dict, const char* key) {
-    DictItem* item = dict_get_unsafe(dict, key);
-    if (item == NULL) printf("dict_get failed to find key: %s\n", key);
-    assert(item != NULL);
-    return item;
-}
-
-static inline void dict_set(Dict* dict, const char* key, double value) {
-    assert(dict->size < dict->capacity);
-    DictItem* item = dict_get_unsafe(dict, key);
-    if (item != NULL) {
-        item->value = value;
-        return;
-    }
-    dict->items[dict->size].key = key;
-    dict->items[dict->size].value = value;
-    dict->size++;
-}
+#ifdef ENV_HEADER
+#define PUFFER_VECENV_INCLUDE
+#include ENV_HEADER
+#undef PUFFER_VECENV_INCLUDE
+#endif
 
 // Forward declare CUDA stream type
 typedef struct CUstream_st* cudaStream_t;
@@ -158,7 +117,7 @@ int my_put(void* env, Dict* kwargs);
 #endif
 
 // ============================================================================
-// Implementation — only compiled when OBS_SIZE is defined (i.e. from binding.c)
+// Implementation — only compiled when OBS_SIZE is defined by the env.
 // ============================================================================
 
 #ifdef OBS_SIZE
@@ -174,12 +133,20 @@ static inline size_t obs_element_size(void) {
 const char dtype_symbol[] = STRINGIFY(OBS_TENSOR_T);
 
 #include <omp.h>
-#include <stdatomic.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <time.h>
 
-// Forward declare CUDA types and functions to avoid conflicts with raylib's float3
+#ifdef __cplusplus
+#include <atomic>
+typedef std::atomic<int> atomic_int;
+#define atomic_load(ptr) ((ptr)->load())
+#define atomic_store(ptr, val) ((ptr)->store(val))
+#else
+#include <stdatomic.h>
+#endif
+
+#ifndef __CUDACC__
 typedef int cudaError_t;
 typedef int cudaMemcpyKind;
 #define cudaSuccess 0
@@ -201,6 +168,7 @@ extern cudaError_t cudaStreamSynchronize(cudaStream_t);
 extern cudaError_t cudaStreamCreateWithFlags(cudaStream_t*, unsigned int);
 extern cudaError_t cudaStreamQuery(cudaStream_t);
 extern const char* cudaGetErrorString(cudaError_t);
+#endif
 
 #define OMP_WAITING 5
 #define OMP_RUNNING 6
@@ -474,7 +442,12 @@ StaticVec* create_static_vec(int total_agents, int num_buffers, int gpu, Dict* v
         for (int e = 0; e < env_count; e++) {
             Env* env = &envs[env_start + e];
             int slot = buf_start + buf_agent;
+#ifdef __cplusplus
+            env->observations = (decltype(env->observations))(
+                (char*)vec->observations + slot * OBS_SIZE * obs_elem_size);
+#else
             env->observations = (void*)((char*)vec->observations + slot * OBS_SIZE * obs_elem_size);
+#endif
             env->actions = vec->actions + slot * NUM_ATNS;
             env->rewards = vec->rewards + slot;
             env->terminals = vec->terminals + slot;

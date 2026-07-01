@@ -33,21 +33,7 @@ static void mkdir_p(const char* path) {
 }
 
 static void dict_set_copy(Dict* dict, const char* key, double val) {
-    DictItem* item = dict_get_unsafe(dict, key);
-    if (item) {
-        item->value = val;
-        return;
-    }
-
-    dict_set(dict, puf_config_strdup(key), val);
-}
-
-static void dict_free(Dict* dict) {
-    for (int i = 0; i < dict->size; i++) {
-        free((void*)dict->items[i].key);
-    }
-    free(dict->items);
-    free(dict);
+    dict_set(dict, key, val);
 }
 
 static void log_util(PuffeRL* p, Dict* out) {
