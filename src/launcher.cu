@@ -1,5 +1,9 @@
 // Native train/eval/sweep launcher. Built by ./build.sh ENV --native
 // Run: ./build_native train breakout train.total_timesteps=1_000_000
+#ifdef ENV_BINDING_SRC
+#include ENV_BINDING_SRC
+#endif
+
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -30,55 +34,39 @@ typedef struct {
     float steps;
 } TrainResult;
 
-static Dict* config_to_dict(PufConfig* cfg) {
-    Dict* out = create_dict(cfg->len);
-    for (int i = 0; i < cfg->len; i++) {
-        double val = 0;
-        if (puf_config_parse_val(cfg->items[i].val, &val)) {
-            dict_set(out, cfg->items[i].key, val);
-        }
-    }
-    return out;
-}
-
-static HypersT config_to_hypers(PufConfigFile* cfg, TrainContext* ctx) {
-    PufConfig* base = puf_config_get_section(cfg, "base");
-    PufConfig* vec = puf_config_get_section(cfg, "vec");
-    PufConfig* train = puf_config_get_section(cfg, "train");
-    PufConfig* policy = puf_config_get_section(cfg, "policy");
-
+static HypersT config_to_hypers(Dict* cfg, TrainContext* ctx) {
     HypersT h = {};
-    h.total_agents = (int)puf_config_val(vec, "total_agents");
-    h.num_buffers = (int)puf_config_val(vec, "num_buffers");
-    h.num_threads = (int)puf_config_val(vec, "num_threads");
-    h.horizon = (int)puf_config_val(train, "horizon");
-    h.hidden_size = (int)puf_config_val(policy, "hidden_size");
-    h.num_layers = (int)puf_config_val(policy, "num_layers");
-    h.lr = (float)puf_config_val(train, "learning_rate");
-    h.min_lr_ratio = (float)puf_config_val(train, "min_lr_ratio");
-    h.anneal_lr = (bool)puf_config_val(train, "anneal_lr");
-    h.beta1 = (float)puf_config_val(train, "beta1");
-    h.beta2 = (float)puf_config_val(train, "beta2");
-    h.eps = (float)puf_config_val(train, "eps");
-    h.minibatch_size = (int)puf_config_val(train, "minibatch_size");
-    h.replay_ratio = (float)puf_config_val(train, "replay_ratio");
-    h.total_timesteps = (long)puf_config_val(train, "total_timesteps");
-    h.max_grad_norm = (float)puf_config_val(train, "max_grad_norm");
-    h.clip_coef = (float)puf_config_val(train, "clip_coef");
-    h.vf_clip_coef = (float)puf_config_val(train, "vf_clip_coef");
-    h.vf_coef = (float)puf_config_val(train, "vf_coef");
-    h.ent_coef = (float)puf_config_val(train, "ent_coef");
-    h.min_ent_coef_ratio = (float)puf_config_val(train, "min_ent_coef_ratio");
-    h.anneal_ent_coef = (bool)puf_config_val(train, "anneal_ent_coef");
-    h.gamma = (float)puf_config_val(train, "gamma");
-    h.gae_lambda = (float)puf_config_val(train, "gae_lambda");
-    h.vtrace_rho_clip = (float)puf_config_val(train, "vtrace_rho_clip");
-    h.vtrace_c_clip = (float)puf_config_val(train, "vtrace_c_clip");
-    h.prio_alpha = (float)puf_config_val(train, "prio_alpha");
-    h.prio_beta0 = (float)puf_config_val(train, "prio_beta0");
-    h.reset_state = (bool)puf_config_val(base, "reset_state");
-    h.cudagraphs = (int)puf_config_val(base, "cudagraphs");
-    h.profile = (bool)puf_config_val(base, "profile");
+    h.total_agents = (int)puf_config_val(cfg, "vec.total_agents");
+    h.num_buffers = (int)puf_config_val(cfg, "vec.num_buffers");
+    h.num_threads = (int)puf_config_val(cfg, "vec.num_threads");
+    h.horizon = (int)puf_config_val(cfg, "train.horizon");
+    h.hidden_size = (int)puf_config_val(cfg, "policy.hidden_size");
+    h.num_layers = (int)puf_config_val(cfg, "policy.num_layers");
+    h.lr = (float)puf_config_val(cfg, "train.learning_rate");
+    h.min_lr_ratio = (float)puf_config_val(cfg, "train.min_lr_ratio");
+    h.anneal_lr = (bool)puf_config_val(cfg, "train.anneal_lr");
+    h.beta1 = (float)puf_config_val(cfg, "train.beta1");
+    h.beta2 = (float)puf_config_val(cfg, "train.beta2");
+    h.eps = (float)puf_config_val(cfg, "train.eps");
+    h.minibatch_size = (int)puf_config_val(cfg, "train.minibatch_size");
+    h.replay_ratio = (float)puf_config_val(cfg, "train.replay_ratio");
+    h.total_timesteps = (long)puf_config_val(cfg, "train.total_timesteps");
+    h.max_grad_norm = (float)puf_config_val(cfg, "train.max_grad_norm");
+    h.clip_coef = (float)puf_config_val(cfg, "train.clip_coef");
+    h.vf_clip_coef = (float)puf_config_val(cfg, "train.vf_clip_coef");
+    h.vf_coef = (float)puf_config_val(cfg, "train.vf_coef");
+    h.ent_coef = (float)puf_config_val(cfg, "train.ent_coef");
+    h.min_ent_coef_ratio = (float)puf_config_val(cfg, "train.min_ent_coef_ratio");
+    h.anneal_ent_coef = (bool)puf_config_val(cfg, "train.anneal_ent_coef");
+    h.gamma = (float)puf_config_val(cfg, "train.gamma");
+    h.gae_lambda = (float)puf_config_val(cfg, "train.gae_lambda");
+    h.vtrace_rho_clip = (float)puf_config_val(cfg, "train.vtrace_rho_clip");
+    h.vtrace_c_clip = (float)puf_config_val(cfg, "train.vtrace_c_clip");
+    h.prio_alpha = (float)puf_config_val(cfg, "train.prio_alpha");
+    h.prio_beta0 = (float)puf_config_val(cfg, "train.prio_beta0");
+    h.reset_state = (bool)puf_config_val(cfg, "base.reset_state");
+    h.cudagraphs = (int)puf_config_val(cfg, "base.cudagraphs");
+    h.profile = (bool)puf_config_val(cfg, "base.profile");
     h.rank = ctx->rank;
     h.world_size = ctx->world_size;
     h.gpu_id = ctx->gpu_id;
@@ -87,18 +75,15 @@ static HypersT config_to_hypers(PufConfigFile* cfg, TrainContext* ctx) {
     } else {
         h.nccl_id = "";
     }
-    h.seed = (int)puf_config_val(base, "seed");
+    h.seed = (int)puf_config_val(cfg, "base.seed");
     return h;
 }
 
-static PuffeRL* create_trainer(PufConfigFile* cfg, TrainContext* ctx) {
+static PuffeRL* create_trainer(Dict* cfg, TrainContext* ctx) {
     HypersT hypers = config_to_hypers(cfg, ctx);
-    PufConfig* base = puf_config_get_section(cfg, "base");
-    PufConfig* vec = puf_config_get_section(cfg, "vec");
-    PufConfig* env = puf_config_get_section(cfg, "env");
-    Dict* vec_kwargs = config_to_dict(vec);
-    Dict* env_kwargs = config_to_dict(env);
-    PuffeRL* pufferl = create_pufferl_impl(hypers, puf_config_str(base, "env_name"),
+    Dict* vec_kwargs = dict_copy_prefix(cfg, "vec.");
+    Dict* env_kwargs = dict_copy_prefix(cfg, "env.");
+    PuffeRL* pufferl = create_pufferl_impl(hypers, puf_config_str(cfg, "base.env_name"),
         vec_kwargs, env_kwargs);
     if (!pufferl) {
         fprintf(stderr, "create_pufferl_impl failed\n");
@@ -136,11 +121,9 @@ static void close_trainer(PuffeRL* p) {
     delete p;
 }
 
-static void run_eval(PufConfigFile* cfg, TrainContext* ctx) {
-    PufConfig* base = puf_config_get_section(cfg, "base");
-    PufConfig* train = puf_config_get_section(cfg, "train");
-    puf_config_put(base, "reset_state", "false");
-    puf_config_put(train, "horizon", "1");
+static void run_eval(Dict* cfg, TrainContext* ctx) {
+    puf_config_put(cfg, "base.reset_state", "false");
+    puf_config_put(cfg, "train.horizon", "1");
 
     PuffeRL* pufferl = create_trainer(cfg, ctx);
     char resolved_path[4096];
@@ -162,22 +145,17 @@ static void run_eval(PufConfigFile* cfg, TrainContext* ctx) {
     close_trainer(pufferl);
 }
 
-static TrainResult run_train(PufConfigFile* cfg, TrainContext* ctx) {
-    PufConfig* base = puf_config_get_section(cfg, "base");
-    PufConfig* train = puf_config_get_section(cfg, "train");
-    PufConfig* vec = puf_config_get_section(cfg, "vec");
-    PufConfig* selfplay = puf_config_get_section(cfg, "selfplay");
-
-    if (puf_config_val(selfplay, "enabled") == 0) {
-        puf_config_put(vec, "num_frozen_banks", "0");
-        puf_config_put(vec, "frozen_bank_pct", "0");
+static TrainResult run_train(Dict* cfg, TrainContext* ctx) {
+    if (puf_config_val(cfg, "selfplay.enabled") == 0) {
+        puf_config_put(cfg, "vec.num_frozen_banks", "0");
+        puf_config_put(cfg, "vec.frozen_bank_pct", "0");
     }
 
     char run_id[64];
-    const char* configured_run_id = puf_config_get(base, "run_id");
+    const char* configured_run_id = puf_config_get(cfg, "base.run_id");
     if (!configured_run_id || strcmp(configured_run_id, "None") == 0) {
         snprintf(run_id, sizeof(run_id), "%ld", (long)(1000.0 * wall_clock()));
-        puf_config_put(base, "run_id", run_id);
+        puf_config_put(cfg, "base.run_id", run_id);
     } else {
         snprintf(run_id, sizeof(run_id), "%s", configured_run_id);
     }
@@ -185,24 +163,26 @@ static TrainResult run_train(PufConfigFile* cfg, TrainContext* ctx) {
     char checkpoint_dir[2048];
     char log_dir[2048];
     snprintf(checkpoint_dir, sizeof(checkpoint_dir), "%s/%s/%s",
-        puf_config_str(base, "checkpoint_dir"), puf_config_str(base, "env_name"), run_id);
+        puf_config_str(cfg, "base.checkpoint_dir"), puf_config_str(cfg, "base.env_name"), run_id);
     snprintf(log_dir, sizeof(log_dir), "%s/%s",
-        puf_config_str(base, "log_dir"), puf_config_str(base, "env_name"));
+        puf_config_str(cfg, "base.log_dir"), puf_config_str(cfg, "base.env_name"));
     if (ctx->artifact_owner) {
         mkdir_p(checkpoint_dir);
         mkdir_p(log_dir);
     }
 
     PuffeRL* pufferl = create_trainer(cfg, ctx);
-    long total_timesteps = (long)puf_config_val(train, "total_timesteps");
-    long batch_size = (long)puf_config_val(vec, "total_agents") * (long)puf_config_val(train, "horizon");
+    long total_timesteps = (long)puf_config_val(cfg, "train.total_timesteps");
+    long batch_size = (long)puf_config_val(cfg, "vec.total_agents")
+        * (long)puf_config_val(cfg, "train.horizon");
     long local_timesteps = total_timesteps / ctx->world_size;
     long train_epochs = local_timesteps / batch_size;
     long eval_epochs = train_epochs / 2;
-    long checkpoint_interval = (long)puf_config_val(base, "checkpoint_interval");
-    long eval_episodes = (long)puf_config_val(base, "eval_episodes");
+    long checkpoint_interval = (long)puf_config_val(cfg, "base.checkpoint_interval");
+    long eval_episodes = (long)puf_config_val(cfg, "base.eval_episodes");
     const char* target_key = "env/score";
     Dict* last_log = create_dict(128);
+    PufLogHistory log_history = {0};
     TrainResult result = {0};
 
     for (long epoch = 0; epoch < train_epochs + eval_epochs; epoch++) {
@@ -223,19 +203,23 @@ static TrainResult run_train(PufConfigFile* cfg, TrainContext* ctx) {
             continue;
         }
 
-        dict_free(last_log);
-        last_log = create_dict(128);
+        Dict* new_log = create_dict(128);
         if (epoch >= train_epochs) {
-            trainer_eval_log(pufferl, last_log);
+            trainer_eval_log(pufferl, new_log);
         } else {
-            trainer_log(pufferl, last_log);
+            trainer_log(pufferl, new_log);
         }
+        dict_update(last_log, new_log);
+        dict_free(new_log);
         if (ctx->artifact_owner) {
             puf_dashboard_print(cfg, pufferl, last_log, (int)epoch);
         }
 
         if (puf_dict_get_or(last_log, target_key, -1) < 0) {
             continue;
+        }
+        if (epoch < train_epochs) {
+            puf_log_history_add(&log_history, last_log);
         }
         if (epoch >= train_epochs && puf_dict_get_or(last_log, "env/n", 0) > eval_episodes) {
             break;
@@ -246,10 +230,12 @@ static TrainResult run_train(PufConfigFile* cfg, TrainContext* ctx) {
     result.cost = (float)puf_dict_get_or(last_log, "uptime", 0);
     result.steps = (float)puf_dict_get_or(last_log, "agent_steps", 0);
     if (ctx->artifact_owner) {
+        puf_log_history_add(&log_history, last_log);
         char log_path[4096];
-        snprintf(log_path, sizeof(log_path), "%s/%s.json", log_dir, run_id);
-        puf_log_write_json(log_path, cfg, last_log);
+        snprintf(log_path, sizeof(log_path), "%s/%s.ini", log_dir, run_id);
+        puf_log_write(log_path, cfg, &log_history);
     }
+    puf_log_history_free(&log_history);
     dict_free(last_log);
     close_trainer(pufferl);
     return result;
@@ -276,9 +262,8 @@ static void wait_children(pid_t* pids, int num_pids) {
     }
 }
 
-static TrainResult launch_train(PufConfigFile* cfg) {
-    PufConfig* train = puf_config_get_section(cfg, "train");
-    int world_size = (int)puf_config_val(train, "gpus");
+static TrainResult launch_train(Dict* cfg) {
+    int world_size = (int)puf_config_val(cfg, "train.gpus");
     if (world_size < 1) {
         fprintf(stderr, "config error: [train] gpus must be >= 1\n");
         exit(1);
@@ -332,19 +317,18 @@ static TrainResult launch_train(PufConfigFile* cfg) {
     return result;
 }
 
-static void run_sweep(PufConfigFile* cfg) {
+static void run_sweep(Dict* cfg) {
     validate_sweep_support(cfg);
-    PufConfig* sweep = puf_config_get_section(cfg, "sweep");
     SweepParam* params = NULL;
     int num_params = 0;
     Hyperparameters* hypers = sweep_hypers_create(cfg, &params, &num_params);
 
-    int max_runs = (int)puf_config_val(sweep, "max_runs");
-    int downsample = (int)puf_config_val(sweep, "downsample");
-    int prune_pareto = (int)puf_config_val(sweep, "prune_pareto");
-    int use_logit = strcmp(puf_config_str(sweep, "metric_distribution"), "logit") == 0;
-    float max_cost = (float)puf_config_val(sweep, "max_suggestion_cost");
-    float early_stop_quantile = (float)puf_config_val(sweep, "early_stop_quantile");
+    int max_runs = (int)puf_config_val(cfg, "sweep.max_runs");
+    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
+    int prune_pareto = (int)puf_config_val(cfg, "sweep.prune_pareto");
+    int use_logit = strcmp(puf_config_str(cfg, "sweep.metric_distribution"), "logit") == 0;
+    float max_cost = (float)puf_config_val(cfg, "sweep.max_suggestion_cost");
+    float early_stop_quantile = (float)puf_config_val(cfg, "sweep.early_stop_quantile");
     int success_cap = max_runs * downsample * 2;
     if (success_cap < 8192) {
         success_cap = 8192;
@@ -360,13 +344,13 @@ static void run_sweep(PufConfigFile* cfg) {
     for (int run = 0; run < max_runs; run++) {
         ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
 
-        PufConfigFile trial = {0};
+        Dict trial = {0};
         puf_config_copy(&trial, cfg);
         sweep_apply(&trial, params, num_params, sample);
 
         char run_id[64];
         snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d", (long)(1000.0 * wall_clock()), run);
-        puf_config_put(puf_config_get_section(&trial, "base"), "run_id", run_id);
+        puf_config_put(&trial, "base.run_id", run_id);
         puf_config_validate_train(&trial);
 
         TrainResult result = launch_train(&trial);
@@ -393,7 +377,7 @@ int main(int argc, char** argv) {
 
     const char* mode = argv[1];
     const char* env_name = argv[2];
-    PufConfigFile cfg = {0};
+    Dict cfg = {0};
     puf_config_load_env(&cfg, env_name, argc - 3, argv + 3);
     puf_config_validate_train(&cfg);
 

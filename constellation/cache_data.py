@@ -50,6 +50,59 @@ def unroll_nested_dict(d):
         else:
             yield k, v
 
+def parse_scalar(raw):
+    raw = raw.strip()
+    if raw.lower() == 'none':
+        return None
+    if raw.lower() == 'true':
+        return True
+    if raw.lower() == 'false':
+        return False
+
+    compact = raw.replace('_', '')
+    try:
+        if any(c in compact for c in '.eE'):
+            return float(compact)
+        return int(compact)
+    except ValueError:
+        return raw
+
+def set_nested(root, section, key, value):
+    cur = root
+    if section != 'base':
+        for part in section.split('.'):
+            cur = cur.setdefault(part, {})
+    cur[key] = value
+
+def load_ini_log(fpath):
+    out = {}
+    section = 'base'
+    with open(fpath, 'r') as f:
+        for lineno, line in enumerate(f, 1):
+            line = line.split('#', 1)[0].split(';', 1)[0].strip()
+            if not line:
+                continue
+            if line.startswith('[') and line.endswith(']'):
+                section = line[1:-1].strip()
+                continue
+            if '=' not in line:
+                raise ValueError(f'{fpath}:{lineno}: expected key=value')
+
+            key, raw = line.split('=', 1)
+            key = key.strip()
+            raw = raw.strip()
+            if section == 'metrics':
+                metrics = out.setdefault('metrics', {})
+                metrics[key] = [float(v) for v in raw.split(',') if v.strip()]
+            else:
+                set_nested(out, section, key, parse_scalar(raw))
+    return out
+
+def load_experiment(fpath):
+    if fpath.endswith('.json'):
+        with open(fpath, 'r') as f:
+            return json.load(f)
+    return load_ini_log(fpath)
 
 def pareto_idx(steps, costs, scores):
     idxs = []
@@ -66,16 +119,18 @@ def cached_load(path, env_name, cache, full_dataset=False):
     data = {}
     num_metrics = 0
     metric_keys = []
-    for fpath in glob.glob(path):
+    for fpath in sorted(glob.glob(path)):
+        if os.path.isdir(fpath):
+            continue
+
         if fpath in cache:
             exp = cache[fpath]
         else:
-            with open(fpath, 'r') as f:
-                try:
-                    exp = json.load(f)
-                except json.decoder.JSONDecodeError:
-                    print(f'Skipping {fpath}')
-                    continue
+            try:
+                exp = load_experiment(fpath)
+            except (json.decoder.JSONDecodeError, ValueError):
+                print(f'Skipping {fpath}')
+                continue
 
         cache[fpath] = exp
 
@@ -135,7 +190,7 @@ def cached_load(path, env_name, cache, full_dataset=False):
 
         for hyper in HYPERS:
             prefix, suffix = hyper.split('/')
-            group = sweep_metadata[prefix]
+            group = sweep_metadata.get(prefix, {})
             key = f'{prefix}/{suffix}_norm'
             if key not in data:
                 data[key] = []
@@ -197,7 +252,7 @@ def compute_tsne(full_dataset=False):
     env_names = sorted(os.listdir('logs'))
     for env in env_names:
         print('Loading: ', env)
-        all_data[env] = cached_load(f'logs/{env}/*.json', env, cache, full_dataset)
+        all_data[env] = cached_load(f'logs/{env}/*', env, cache, full_dataset)
 
     with open(cache_file, 'w') as f:
         json.dump(cache, f)

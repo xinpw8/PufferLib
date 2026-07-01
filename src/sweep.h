@@ -38,8 +38,10 @@ static SpaceType sweep_space_type(const char* dist, int* is_integer) {
     exit(1);
 }
 
-static float sweep_scale(PufConfig* section, SpaceType type, float min_v, float max_v) {
-    const char* raw = puf_config_str(section, "scale");
+static float sweep_scale(Dict* cfg, const char* prefix, SpaceType type, float min_v, float max_v) {
+    char key[1024];
+    snprintf(key, sizeof(key), "%s.scale", prefix);
+    const char* raw = puf_config_str(cfg, key);
     if (strcmp(raw, "auto") == 0) {
         return 0.5f;
     }
@@ -55,23 +57,28 @@ static float sweep_scale(PufConfig* section, SpaceType type, float min_v, float 
     return (float)val;
 }
 
-static Hyperparameters* sweep_hypers_create(PufConfigFile* cfg,
+static Hyperparameters* sweep_hypers_create(Dict* cfg,
         SweepParam** params_out, int* num_out) {
-    SweepParam* params = (SweepParam*)calloc((size_t)cfg->len, sizeof(SweepParam));
-    Space* spaces = (Space*)calloc((size_t)cfg->len, sizeof(Space));
+    SweepParam* params = (SweepParam*)calloc((size_t)cfg->size, sizeof(SweepParam));
+    Space* spaces = (Space*)calloc((size_t)cfg->size, sizeof(Space));
     int n = 0;
     int cost_idx = -1;
 
-    for (int i = 0; i < cfg->len; i++) {
-        PufConfig* section = &cfg->sections[i];
-        if (strncmp(section->name, "sweep.", 6) != 0) {
+    for (int i = 0; i < cfg->size; i++) {
+        const char* key = cfg->items[i].key;
+        const char* suffix = ".distribution";
+        size_t suffix_len = strlen(suffix);
+        size_t key_len = strlen(key);
+        if (strncmp(key, "sweep.", 6) != 0 || key_len <= suffix_len) {
             continue;
         }
-        if (!puf_config_get(section, "distribution")) {
+        if (strcmp(key + key_len - suffix_len, suffix) != 0) {
             continue;
         }
 
-        const char* path = section->name + 6;
+        char prefix[512];
+        snprintf(prefix, sizeof(prefix), "%.*s", (int)(key_len - suffix_len), key);
+        const char* path = prefix + 6;
         const char* dot = strrchr(path, '.');
         if (!dot) {
             fprintf(stderr, "sweep error: expected section sweep.<section>.<key>\n");
@@ -85,10 +92,14 @@ static Hyperparameters* sweep_hypers_create(PufConfigFile* cfg,
             params[n].section, params[n].key);
 
         int is_integer = 0;
-        SpaceType type = sweep_space_type(puf_config_str(section, "distribution"), &is_integer);
-        float min_v = (float)puf_config_val(section, "min");
-        float max_v = (float)puf_config_val(section, "max");
-        float scale = sweep_scale(section, type, min_v, max_v);
+        char min_key[1024];
+        char max_key[1024];
+        snprintf(min_key, sizeof(min_key), "%s.min", prefix);
+        snprintf(max_key, sizeof(max_key), "%s.max", prefix);
+        SpaceType type = sweep_space_type(puf_config_str(cfg, key), &is_integer);
+        float min_v = (float)puf_config_val(cfg, min_key);
+        float max_v = (float)puf_config_val(cfg, max_key);
+        float scale = sweep_scale(cfg, prefix, type, min_v, max_v);
         space_init(&params[n].space, type, min_v, max_v, scale, is_integer);
         spaces[n] = params[n].space;
 
@@ -103,21 +114,21 @@ static Hyperparameters* sweep_hypers_create(PufConfigFile* cfg,
         exit(1);
     }
 
-    PufConfig* sweep = puf_config_get_section(cfg, "sweep");
-    int direction = strcmp(puf_config_str(sweep, "goal"), "minimize") == 0 ? -1 : 1;
+    int direction = strcmp(puf_config_str(cfg, "sweep.goal"), "minimize") == 0 ? -1 : 1;
     *params_out = params;
     *num_out = n;
     return hyperparameters_create(spaces, n, cost_idx, direction);
 }
 
-static void sweep_apply(PufConfigFile* cfg, SweepParam* params, int num_params,
+static void sweep_apply(Dict* cfg, SweepParam* params, int num_params,
         const float* sample) {
     for (int i = 0; i < num_params; i++) {
         float val = space_unnormalize(&params[i].space, sample[i]);
         char buf[64];
         snprintf(buf, sizeof(buf), "%.9g", val);
-        PufConfig* section = puf_config_get_section(cfg, params[i].section);
-        puf_config_put(section, params[i].key, buf);
+        char key[256];
+        snprintf(key, sizeof(key), "%s.%s", params[i].section, params[i].key);
+        puf_config_put(cfg, key, buf);
     }
 }
 
@@ -131,29 +142,26 @@ static int native_num_gpus(void) {
     return count;
 }
 
-static void validate_sweep_support(PufConfigFile* cfg) {
-    PufConfig* sweep = puf_config_get_section(cfg, "sweep");
-    PufConfig* train = puf_config_get_section(cfg, "train");
-
-    if (puf_config_val(sweep, "league") != 0) {
+static void validate_sweep_support(Dict* cfg) {
+    if (puf_config_val(cfg, "sweep.league") != 0) {
         fprintf(stderr, "sweep error: native league sweeps are not ported yet\n");
         exit(1);
     }
 
-    const char* metric = puf_config_str(sweep, "metric");
+    const char* metric = puf_config_str(cfg, "sweep.metric");
     if (strcmp(metric, "score") != 0) {
         fprintf(stderr, "sweep error: native sweep currently scores env/score, got env/%s\n", metric);
         exit(1);
     }
 
-    int downsample = (int)puf_config_val(sweep, "downsample");
+    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
     if (downsample != 1) {
         fprintf(stderr, "sweep error: native sweep currently observes final metrics only; set [sweep] downsample=1\n");
         exit(1);
     }
 
-    int train_gpus = (int)puf_config_val(train, "gpus");
-    int sweep_gpus = (int)puf_config_val(sweep, "gpus");
+    int train_gpus = (int)puf_config_val(cfg, "train.gpus");
+    int sweep_gpus = (int)puf_config_val(cfg, "sweep.gpus");
     if (sweep_gpus == 0) {
         sweep_gpus = native_num_gpus();
     }

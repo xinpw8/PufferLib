@@ -315,7 +315,7 @@ if [ -z "$MODE" ]; then
         -Xcompiler=-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION \
         -Xcompiler=-DPLATFORM_DESKTOP \
         -std=c++17 \
-        -I. -Isrc \
+        -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE -I$NUMPY_INCLUDE \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
         -Xcompiler=-fopenmp \
@@ -323,7 +323,7 @@ if [ -z "$MODE" ]; then
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         $PRECISION $NVCC_OPT \
-        src/bindings.cu -o build/bindings.o
+        pufferlib/bindings/bindings.cu -o build/bindings.o
 
     LINK_CMD=(
         ${CXX:-g++} -shared -fPIC -fopenmp

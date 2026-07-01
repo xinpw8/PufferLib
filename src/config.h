@@ -7,33 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-    char* key;
-    char* val;
-} PufConfigEntry;
-
-typedef struct {
-    char* name;
-    PufConfigEntry* items;
-    int len;
-    int cap;
-} PufConfig;
-
-typedef struct {
-    PufConfig* sections;
-    int len;
-    int cap;
-} PufConfigFile;
+#include "dict.h"
 
 static char* puf_config_strdup(const char* s) {
-    size_t n = strlen(s) + 1;
-    char* out = (char*)malloc(n);
-    if (!out) {
-        perror("malloc");
-        exit(1);
-    }
-    memcpy(out, s, n);
-    return out;
+    return dict_strdup(s);
 }
 
 static char* puf_config_trim(char* s) {
@@ -73,83 +50,10 @@ static void puf_config_strip_comment(char* s) {
 
 static void puf_config_strip_quotes(char* s) {
     size_t n = strlen(s);
-    if (n >= 2 && ((s[0] == '\'' && s[n-1] == '\'') || (s[0] == '"' && s[n-1] == '"'))) {
+    if (n >= 2 && ((s[0] == '\'' && s[n - 1] == '\'') || (s[0] == '"' && s[n - 1] == '"'))) {
         memmove(s, s + 1, n - 2);
         s[n - 2] = 0;
     }
-}
-
-static PufConfig* puf_config_section(PufConfigFile* f, const char* name) {
-    for (int i = 0; i < f->len; i++) {
-        if (strcmp(f->sections[i].name, name) == 0) {
-            return &f->sections[i];
-        }
-    }
-    return 0;
-}
-
-static PufConfig* puf_config_get_section(PufConfigFile* f, const char* name) {
-    PufConfig* cfg = puf_config_section(f, name);
-    if (cfg) {
-        return cfg;
-    }
-
-    if (f->len == f->cap) {
-        f->cap = f->cap ? 2 * f->cap : 16;
-        f->sections = (PufConfig*)realloc(f->sections, (size_t)f->cap * sizeof(PufConfig));
-        if (!f->sections) {
-            perror("realloc");
-            exit(1);
-        }
-    }
-
-    cfg = &f->sections[f->len++];
-    memset(cfg, 0, sizeof(*cfg));
-    cfg->name = puf_config_strdup(name);
-    return cfg;
-}
-
-static PufConfigEntry* puf_config_entry(PufConfig* cfg, const char* key) {
-    for (int i = 0; i < cfg->len; i++) {
-        if (strcmp(cfg->items[i].key, key) == 0) {
-            return &cfg->items[i];
-        }
-    }
-    return 0;
-}
-
-static void puf_config_put(PufConfig* cfg, const char* key, const char* val) {
-    PufConfigEntry* e = puf_config_entry(cfg, key);
-    if (!e) {
-        if (cfg->len == cfg->cap) {
-            cfg->cap = cfg->cap ? 2 * cfg->cap : 32;
-            cfg->items = (PufConfigEntry*)realloc(cfg->items, (size_t)cfg->cap * sizeof(PufConfigEntry));
-            if (!cfg->items) {
-                perror("realloc");
-                exit(1);
-            }
-        }
-        e = &cfg->items[cfg->len++];
-        e->key = puf_config_strdup(key);
-        e->val = 0;
-    } else {
-        free(e->val);
-    }
-    e->val = puf_config_strdup(val);
-}
-
-static const char* puf_config_get(PufConfig* cfg, const char* key) {
-    PufConfigEntry* e = puf_config_entry(cfg, key);
-    return e ? e->val : 0;
-}
-
-static const char* puf_config_str(PufConfig* cfg, const char* key) {
-    const char* out = puf_config_get(cfg, key);
-    if (!out) {
-        fprintf(stderr, "config error: [%s] %s missing\n", cfg->name, key);
-        exit(1);
-    }
-    return out;
 }
 
 static int puf_config_parse_val(const char* raw, double* out) {
@@ -181,18 +85,49 @@ static int puf_config_parse_val(const char* raw, double* out) {
     return 1;
 }
 
-static double puf_config_val(PufConfig* cfg, const char* key) {
+static const char* puf_config_get(Dict* cfg, const char* key) {
+    DictItem* item = dict_get_unsafe(cfg, key);
+    return item ? item->str : NULL;
+}
+
+static const char* puf_config_str(Dict* cfg, const char* key) {
+    const char* out = puf_config_get(cfg, key);
+    if (!out) {
+        fprintf(stderr, "config error: %s missing\n", key);
+        exit(1);
+    }
+    return out;
+}
+
+static void puf_config_put(Dict* cfg, const char* key, const char* val) {
+    dict_set_str(cfg, key, val);
+    double parsed = 0;
+    if (puf_config_parse_val(val, &parsed)) {
+        dict_get(cfg, key)->value = parsed;
+    }
+}
+
+static double puf_config_val(Dict* cfg, const char* key) {
     const char* raw = puf_config_str(cfg, key);
     double val = 0;
     if (!puf_config_parse_val(raw, &val)) {
-        fprintf(stderr, "config error: [%s] %s expected number, got \"%s\"\n",
-            cfg->name, key, raw);
+        fprintf(stderr, "config error: %s expected number, got \"%s\"\n", key, raw);
         exit(1);
     }
     return val;
 }
 
-static int puf_config_parse_kv(PufConfig* cfg, char* s, const char* src, int lineno) {
+static void puf_config_join_key(char* out, size_t out_size,
+        const char* section, const char* key) {
+    if (strcmp(section, "base") == 0 && strchr(key, '.')) {
+        snprintf(out, out_size, "%s", key);
+    } else {
+        snprintf(out, out_size, "%s.%s", section, key);
+    }
+}
+
+static int puf_config_parse_kv(Dict* cfg, const char* section,
+        char* s, const char* src, int lineno) {
     char* eq = strchr(s, '=');
     if (!eq) {
         fprintf(stderr, "%s:%d: expected key=value\n", src, lineno);
@@ -208,11 +143,13 @@ static int puf_config_parse_kv(PufConfig* cfg, char* s, const char* src, int lin
         return 0;
     }
 
-    puf_config_put(cfg, key, val);
+    char full_key[512];
+    puf_config_join_key(full_key, sizeof(full_key), section, key);
+    puf_config_put(cfg, full_key, val);
     return 1;
 }
 
-static int puf_config_load_file(PufConfigFile* f, const char* path, bool required) {
+static int puf_config_load_file(Dict* cfg, const char* path, bool required) {
     FILE* fp = fopen(path, "r");
     if (!fp) {
         if (required) {
@@ -221,7 +158,7 @@ static int puf_config_load_file(PufConfigFile* f, const char* path, bool require
         return !required;
     }
 
-    PufConfig* cur = puf_config_get_section(f, "base");
+    char section[256] = "base";
     char line[2048];
     for (int n = 1; fgets(line, sizeof(line), fp); n++) {
         if (!strchr(line, '\n') && !feof(fp)) {
@@ -239,11 +176,11 @@ static int puf_config_load_file(PufConfigFile* f, const char* path, bool require
         size_t len = strlen(s);
         if (s[0] == '[' && len >= 3 && s[len - 1] == ']') {
             s[len - 1] = 0;
-            cur = puf_config_get_section(f, puf_config_trim(s + 1));
+            snprintf(section, sizeof(section), "%s", puf_config_trim(s + 1));
             continue;
         }
 
-        if (!puf_config_parse_kv(cur, s, path, n)) {
+        if (!puf_config_parse_kv(cfg, section, s, path, n)) {
             fclose(fp);
             return 0;
         }
@@ -253,7 +190,7 @@ static int puf_config_load_file(PufConfigFile* f, const char* path, bool require
     return 1;
 }
 
-static int puf_config_apply_cli(PufConfigFile* f, const char* arg, int idx) {
+static int puf_config_apply_cli(Dict* cfg, const char* arg, int idx) {
     char* tmp = puf_config_strdup(arg);
     char* s = tmp;
     while (*s == '-') {
@@ -267,93 +204,70 @@ static int puf_config_apply_cli(PufConfigFile* f, const char* arg, int idx) {
         value = eq + 1;
     }
 
-    char* dot = strchr(s, '.');
-    const char* section = "base";
-    char* key = s;
-    if (dot) {
-        *dot = 0;
-        section = s;
-        key = dot + 1;
-    }
-
-    for (char* p = key; *p; p++) {
+    for (char* p = s; *p; p++) {
         if (*p == '-') {
             *p = '_';
         }
     }
 
-    if (!*key) {
+    if (!*s) {
         fprintf(stderr, "argv:%d: empty key\n", idx);
         free(tmp);
         return 0;
     }
 
-    puf_config_put(puf_config_get_section(f, section), key, value);
+    char full_key[512];
+    if (strchr(s, '.')) {
+        snprintf(full_key, sizeof(full_key), "%s", s);
+    } else {
+        snprintf(full_key, sizeof(full_key), "base.%s", s);
+    }
+
+    puf_config_put(cfg, full_key, value);
     free(tmp);
     return 1;
 }
 
-static void puf_config_load_env(PufConfigFile* f, const char* env_name, int argc, char** argv) {
-    if (!puf_config_load_file(f, "config/default.ini", true)) {
+static void puf_config_load_env(Dict* cfg, const char* env_name, int argc, char** argv) {
+    if (!puf_config_load_file(cfg, "config/default.ini", true)) {
         exit(1);
     }
 
     if (strcmp(env_name, "default") != 0) {
         char path[1024];
         snprintf(path, sizeof(path), "config/%s.ini", env_name);
-        if (!puf_config_load_file(f, path, true)) {
+        if (!puf_config_load_file(cfg, path, true)) {
             exit(1);
         }
     }
 
-    PufConfig* base = puf_config_get_section(f, "base");
-    puf_config_put(base, "env_name", env_name);
-
+    puf_config_put(cfg, "base.env_name", env_name);
     for (int i = 0; i < argc; i++) {
-        if (!puf_config_apply_cli(f, argv[i], i)) {
+        if (!puf_config_apply_cli(cfg, argv[i], i)) {
             exit(1);
         }
     }
 }
 
-static void puf_config_validate_train(PufConfigFile* f) {
-    PufConfig* train = puf_config_get_section(f, "train");
-    PufConfig* vec = puf_config_get_section(f, "vec");
-    long minibatch = (long)puf_config_val(train, "minibatch_size");
-    long horizon = (long)puf_config_val(train, "horizon");
-    long agents = (long)puf_config_val(vec, "total_agents");
+static void puf_config_validate_train(Dict* cfg) {
+    long minibatch = (long)puf_config_val(cfg, "train.minibatch_size");
+    long horizon = (long)puf_config_val(cfg, "train.horizon");
+    long agents = (long)puf_config_val(cfg, "vec.total_agents");
 
     if (minibatch % horizon != 0) {
-        fprintf(stderr, "config error: [train] minibatch_size must be divisible by horizon\n");
+        fprintf(stderr, "config error: train.minibatch_size must be divisible by train.horizon\n");
         exit(1);
     }
     if (minibatch > horizon * agents) {
-        fprintf(stderr, "config error: [train] minibatch_size > horizon * total_agents\n");
+        fprintf(stderr, "config error: train.minibatch_size > train.horizon * vec.total_agents\n");
         exit(1);
     }
 }
 
-static void puf_config_copy(PufConfigFile* dst, PufConfigFile* src) {
-    memset(dst, 0, sizeof(*dst));
-    for (int i = 0; i < src->len; i++) {
-        PufConfig* src_sec = &src->sections[i];
-        PufConfig* dst_sec = puf_config_get_section(dst, src_sec->name);
-        for (int j = 0; j < src_sec->len; j++) {
-            puf_config_put(dst_sec, src_sec->items[j].key, src_sec->items[j].val);
-        }
-    }
+static void puf_config_copy(Dict* dst, Dict* src) {
+    dict_copy(dst, src);
 }
 
-static void puf_config_free(PufConfigFile* f) {
-    for (int i = 0; i < f->len; i++) {
-        PufConfig* cfg = &f->sections[i];
-        free(cfg->name);
-        for (int j = 0; j < cfg->len; j++) {
-            free(cfg->items[j].key);
-            free(cfg->items[j].val);
-        }
-        free(cfg->items);
-    }
-    free(f->sections);
-    memset(f, 0, sizeof(*f));
+static void puf_config_free(Dict* cfg) {
+    dict_clear(cfg);
 }

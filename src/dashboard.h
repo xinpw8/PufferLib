@@ -156,18 +156,16 @@ static void puf_dashboard_rule(const char* left, const char* right) {
     puf_dashboard_eol();
 }
 
-static void puf_dashboard_print(PufConfigFile* cfg, PuffeRL* p, Dict* log, int epoch) {
-    PufConfig* base = puf_config_get_section(cfg, "base");
-    PufConfig* train = puf_config_get_section(cfg, "train");
+static void puf_dashboard_print(Dict* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_dashboard_tty = isatty(STDOUT_FILENO);
     if (puf_dashboard_tty) {
         printf("\033[?2026h\033[H");
     }
 
-    const char* env_name = puf_config_str(base, "env_name");
+    const char* env_name = puf_config_str(cfg, "base.env_name");
     double steps = puf_dict_get_or(log, "agent_steps", (double)p->global_step);
     double sps = puf_dict_get_or(log, "SPS", 0);
-    double target_steps = puf_config_val(train, "total_timesteps");
+    double target_steps = puf_config_val(cfg, "train.total_timesteps");
     double remaining_sec = sps > 0 ? (target_steps - steps) / sps : 0;
     double rollout = puf_dict_get_or(log, "perf/rollout", 0);
     double train_time = puf_dict_get_or(log, "perf/train", 0);

@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "../vendor/cJSON.h"
 #include "config.h"
 
 static void mkdir_p(const char* path) {
@@ -32,21 +31,17 @@ static void mkdir_p(const char* path) {
     }
 }
 
-static void dict_set_copy(Dict* dict, const char* key, double val) {
-    dict_set(dict, key, val);
-}
-
 static void log_util(PuffeRL* p, Dict* out) {
     nvmlUtilization_t util;
     nvmlDeviceGetUtilizationRates(p->nvml_device, &util);
-    dict_set_copy(out, "util/gpu_percent", (double)util.gpu);
+    dict_set(out, "util/gpu_percent", (double)util.gpu);
 
     size_t cuda_free;
     size_t cuda_total;
     cudaMemGetInfo(&cuda_free, &cuda_total);
-    dict_set_copy(out, "util/vram_used_gb",
+    dict_set(out, "util/vram_used_gb",
         (double)(cuda_total - cuda_free) / (1024.0 * 1024.0 * 1024.0));
-    dict_set_copy(out, "util/vram_total_gb",
+    dict_set(out, "util/vram_total_gb",
         (double)cuda_total / (1024.0 * 1024.0 * 1024.0));
 
     long rss_kb = 0;
@@ -60,7 +55,7 @@ static void log_util(PuffeRL* p, Dict* out) {
         }
         fclose(status);
     }
-    dict_set_copy(out, "util/cpu_mem_gb", (double)rss_kb / (1024.0 * 1024.0));
+    dict_set(out, "util/cpu_mem_gb", (double)rss_kb / (1024.0 * 1024.0));
 }
 
 static void trainer_log(PuffeRL* p, Dict* out) {
@@ -71,32 +66,31 @@ static void trainer_log(PuffeRL* p, Dict* out) {
     p->last_log_time = now;
     p->last_log_step = global_step;
 
-    dict_set_copy(out, "SPS", (double)sps * p->hypers.world_size);
-    dict_set_copy(out, "agent_steps", (double)global_step * p->hypers.world_size);
-    dict_set_copy(out, "uptime", now - p->start_time);
-    dict_set_copy(out, "epoch", (double)p->epoch);
+    dict_set(out, "SPS", (double)sps * p->hypers.world_size);
+    dict_set(out, "agent_steps", (double)global_step * p->hypers.world_size);
+    dict_set(out, "uptime", now - p->start_time);
+    dict_set(out, "epoch", (double)p->epoch);
 
     Dict* env_out = log_environments_impl(*p);
     for (int i = 0; i < env_out->size; i++) {
         char key[256];
         snprintf(key, sizeof(key), "env/%s", env_out->items[i].key);
-        dict_set_copy(out, key, env_out->items[i].value);
+        dict_set(out, key, env_out->items[i].value);
     }
-    free(env_out->items);
-    free(env_out);
+    dict_free(env_out);
 
     float losses_host[NUM_LOSSES];
     cudaMemcpy(losses_host, p->losses_puf.data, sizeof(losses_host), cudaMemcpyDeviceToHost);
     float loss_n = losses_host[LOSS_N];
     if (loss_n > 0) {
         float inv_n = 1.0f / loss_n;
-        dict_set_copy(out, "loss/policy", losses_host[LOSS_PG] * inv_n);
-        dict_set_copy(out, "loss/value", losses_host[LOSS_VF] * inv_n);
-        dict_set_copy(out, "loss/entropy", losses_host[LOSS_ENT] * inv_n);
-        dict_set_copy(out, "loss/total", losses_host[LOSS_TOTAL] * inv_n);
-        dict_set_copy(out, "loss/old_kl", losses_host[LOSS_OLD_APPROX_KL] * inv_n);
-        dict_set_copy(out, "loss/kl", losses_host[LOSS_APPROX_KL] * inv_n);
-        dict_set_copy(out, "loss/clipfrac", losses_host[LOSS_CLIPFRAC] * inv_n);
+        dict_set(out, "loss/policy", losses_host[LOSS_PG] * inv_n);
+        dict_set(out, "loss/value", losses_host[LOSS_VF] * inv_n);
+        dict_set(out, "loss/entropy", losses_host[LOSS_ENT] * inv_n);
+        dict_set(out, "loss/total", losses_host[LOSS_TOTAL] * inv_n);
+        dict_set(out, "loss/old_kl", losses_host[LOSS_OLD_APPROX_KL] * inv_n);
+        dict_set(out, "loss/kl", losses_host[LOSS_APPROX_KL] * inv_n);
+        dict_set(out, "loss/clipfrac", losses_host[LOSS_CLIPFRAC] * inv_n);
     }
     cudaMemset(p->losses_puf.data, 0, numel(p->losses_puf.shape) * sizeof(float));
 
@@ -107,12 +101,12 @@ static void trainer_log(PuffeRL* p, Dict* out) {
         float sec = p->profile.accum[i] / 1000.0f;
         char key[256];
         snprintf(key, sizeof(key), "perf/%s", PROF_NAMES[i]);
-        dict_set_copy(out, key, sec);
+        dict_set(out, key, sec);
         if (i >= PROF_TRAIN_MISC) {
             train_total += sec;
         }
     }
-    dict_set_copy(out, "perf/train", train_total);
+    dict_set(out, "perf/train", train_total);
     memset(p->profile.accum, 0, sizeof(p->profile.accum));
 }
 
@@ -127,10 +121,9 @@ static void trainer_eval_log(PuffeRL* p, Dict* out) {
     for (int i = 0; i < env_out->size; i++) {
         char key[256];
         snprintf(key, sizeof(key), "env/%s", env_out->items[i].key);
-        dict_set_copy(out, key, env_out->items[i].value);
+        dict_set(out, key, env_out->items[i].value);
     }
-    free(env_out->items);
-    free(env_out);
+    dict_free(env_out);
 }
 
 static void save_weights(PuffeRL* p, const char* path) {
@@ -214,9 +207,8 @@ static void find_latest_checkpoint(const char* dir, char* out, size_t out_size, 
     closedir(dp);
 }
 
-static const char* resolve_load_model_path(PufConfigFile* cfg, char* out, size_t out_size) {
-    PufConfig* base = puf_config_get_section(cfg, "base");
-    const char* load_path = puf_config_get(base, "load_model_path");
+static const char* resolve_load_model_path(Dict* cfg, char* out, size_t out_size) {
+    const char* load_path = puf_config_get(cfg, "base.load_model_path");
     if (!load_path || strcmp(load_path, "None") == 0) {
         return NULL;
     }
@@ -227,7 +219,7 @@ static const char* resolve_load_model_path(PufConfigFile* cfg, char* out, size_t
 
     char root[2048];
     snprintf(root, sizeof(root), "%s/%s",
-        puf_config_str(base, "checkpoint_dir"), puf_config_str(base, "env_name"));
+        puf_config_str(cfg, "base.checkpoint_dir"), puf_config_str(cfg, "base.env_name"));
 
     out[0] = 0;
     time_t best_time = 0;
@@ -239,114 +231,196 @@ static const char* resolve_load_model_path(PufConfigFile* cfg, char* out, size_t
     return out;
 }
 
-static cJSON* puf_log_json_value(const char* raw) {
-    if (puf_config_streq_ci(raw, "none")) {
-        return cJSON_CreateNull();
+typedef struct {
+    Dict* items;
+    int size;
+    int capacity;
+} PufLogHistory;
+
+static void dict_update(Dict* dst, Dict* src) {
+    for (int i = 0; i < src->size; i++) {
+        DictItem* item = &src->items[i];
+        if (item->str) {
+            dict_set_str(dst, item->key, item->str);
+            dict_get(dst, item->key)->value = item->value;
+        } else {
+            dict_set(dst, item->key, item->value);
+        }
+        dict_get(dst, item->key)->ptr = item->ptr;
     }
-    if (puf_config_streq_ci(raw, "true")) {
-        return cJSON_CreateTrue();
-    }
-    if (puf_config_streq_ci(raw, "false")) {
-        return cJSON_CreateFalse();
+}
+
+static void puf_log_history_add(PufLogHistory* history, Dict* log) {
+    if (history->size == history->capacity) {
+        history->capacity = history->capacity ? 2 * history->capacity : 64;
+        history->items = (Dict*)realloc(history->items, (size_t)history->capacity * sizeof(Dict));
+        if (!history->items) {
+            perror("realloc");
+            exit(1);
+        }
     }
 
-    char buf[256];
-    size_t j = 0;
-    int has_float = 0;
-    for (size_t i = 0; raw[i] && j + 1 < sizeof(buf); i++) {
-        if (raw[i] == '_' || isspace((unsigned char)raw[i])) {
+    dict_copy(&history->items[history->size], log);
+    history->size++;
+}
+
+static void puf_log_history_free(PufLogHistory* history) {
+    for (int i = 0; i < history->size; i++) {
+        dict_clear(&history->items[i]);
+    }
+    free(history->items);
+    memset(history, 0, sizeof(*history));
+}
+
+static int puf_log_key_index(Dict* keys, const char* key) {
+    for (int i = 0; i < keys->size; i++) {
+        if (strcmp(keys->items[i].key, key) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void puf_log_collect_keys(PufLogHistory* history, Dict* keys) {
+    for (int i = 0; i < history->size; i++) {
+        Dict* log = &history->items[i];
+        for (int j = 0; j < log->size; j++) {
+            if (puf_log_key_index(keys, log->items[j].key) < 0) {
+                dict_set(keys, log->items[j].key, 0);
+            }
+        }
+    }
+}
+
+static double puf_log_reduce(double* vals, int n, double fallback) {
+    if (n == 0) {
+        return fallback;
+    }
+
+    double sum = 0;
+    for (int i = 0; i < n; i++) {
+        sum += vals[i];
+    }
+    return sum / n;
+}
+
+static void puf_log_write_metric(FILE* fp, const char* key, double* values, int n) {
+    fprintf(fp, "%s = ", key);
+    for (int i = 0; i < n; i++) {
+        if (i > 0) {
+            fputc(',', fp);
+        }
+        fprintf(fp, "%.17g", values[i]);
+    }
+    fputc('\n', fp);
+}
+
+static void puf_log_write_config(FILE* fp, Dict* cfg) {
+    char section[256] = "";
+    for (int i = 0; i < cfg->size; i++) {
+        DictItem* item = &cfg->items[i];
+        if (!item->str) {
             continue;
         }
-        if (raw[i] == '.' || raw[i] == 'e' || raw[i] == 'E') {
-            has_float = 1;
-        }
-        buf[j++] = raw[i];
-    }
-    buf[j] = 0;
 
-    if (buf[0]) {
-        char* end = 0;
-        if (has_float) {
-            double v = strtod(buf, &end);
-            if (end && !*end) {
-                return cJSON_CreateNumber(v);
-            }
+        char sec[256];
+        char key[256];
+        const char* dot = strrchr(item->key, '.');
+        if (!dot) {
+            snprintf(sec, sizeof(sec), "base");
+            snprintf(key, sizeof(key), "%s", item->key);
         } else {
-            long long v = strtoll(buf, &end, 10);
-            if (end && !*end) {
-                return cJSON_CreateNumber((double)v);
-            }
+            snprintf(sec, sizeof(sec), "%.*s", (int)(dot - item->key), item->key);
+            snprintf(key, sizeof(key), "%s", dot + 1);
         }
-    }
 
-    return cJSON_CreateString(raw);
-}
-
-static cJSON* puf_log_object_child(cJSON* obj, const char* key) {
-    cJSON* child = cJSON_GetObjectItemCaseSensitive(obj, key);
-    if (child) {
-        return child;
-    }
-
-    child = cJSON_CreateObject();
-    cJSON_AddItemToObject(obj, key, child);
-    return child;
-}
-
-static void puf_log_add_section(cJSON* root, PufConfig* cfg) {
-    cJSON* section = root;
-    char name[256];
-    snprintf(name, sizeof(name), "%s", cfg->name);
-
-    if (strcmp(cfg->name, "base") != 0) {
-        char* start = name;
-        for (;;) {
-            char* dot = strchr(start, '.');
-            if (dot) {
-                *dot = 0;
-            }
-
-            section = puf_log_object_child(section, start);
-            if (!dot) {
-                break;
-            }
-            start = dot + 1;
+        if (strcmp(sec, section) != 0) {
+            snprintf(section, sizeof(section), "%s", sec);
+            fprintf(fp, "\n[%s]\n", section);
         }
-    }
-
-    for (int i = 0; i < cfg->len; i++) {
-        cJSON_AddItemToObject(section, cfg->items[i].key, puf_log_json_value(cfg->items[i].val));
+        fprintf(fp, "%s = %s\n", key, item->str);
     }
 }
 
-static void puf_log_add_metrics(cJSON* root, Dict* log) {
-    cJSON* metrics = cJSON_CreateObject();
-    cJSON_AddItemToObject(root, "metrics", metrics);
-
-    for (int i = 0; i < log->size; i++) {
-        cJSON* values = cJSON_CreateArray();
-        cJSON_AddItemToArray(values, cJSON_CreateNumber(log->items[i].value));
-        cJSON_AddItemToObject(metrics, log->items[i].key, values);
+static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
+    if (history->size == 0) {
+        fprintf(stderr, "cannot write empty log history\n");
+        exit(1);
     }
-}
 
-static void puf_log_write_json(const char* path, PufConfigFile* cfg, Dict* log) {
-    cJSON* root = cJSON_CreateObject();
-    for (int i = 0; i < cfg->len; i++) {
-        puf_log_add_section(root, &cfg->sections[i]);
-    }
-    puf_log_add_metrics(root, log);
-
-    char* json = cJSON_Print(root);
     FILE* fp = fopen(path, "w");
     if (!fp) {
         fprintf(stderr, "failed to write log %s\n", path);
         exit(1);
     }
-    fputs(json, fp);
-    fputc('\n', fp);
-    fclose(fp);
 
-    cJSON_free(json);
-    cJSON_Delete(root);
+    fprintf(fp, "# PufferLib log v1\n");
+    puf_log_write_config(fp, cfg);
+    fprintf(fp, "\n[metrics]\n");
+
+    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
+    Dict keys = {0};
+    puf_log_collect_keys(history, &keys);
+    int points = downsample <= 1 ? 1 : downsample;
+    double* out = (double*)calloc((size_t)points, sizeof(double));
+    double* bin = (double*)calloc((size_t)history->size, sizeof(double));
+    double final_steps = dict_get(&history->items[history->size - 1], "agent_steps")->value;
+
+    for (int k = 0; k < keys.size; k++) {
+        const char* key = keys.items[k].key;
+        if (strncmp(key, "loss/", 5) == 0) {
+            continue;
+        }
+
+        double first_value = 0;
+        for (int i = 0; i < history->size; i++) {
+            DictItem* item = dict_get_unsafe(&history->items[i], key);
+            if (item) {
+                first_value = item->value;
+                break;
+            }
+        }
+
+        if (points == 1) {
+            DictItem* item = dict_get_unsafe(&history->items[history->size - 1], key);
+            out[0] = item ? item->value : first_value;
+            puf_log_write_metric(fp, key, out, points);
+            continue;
+        }
+
+        int out_idx = 0;
+        int bin_n = 0;
+        double fallback = first_value;
+        double next_bin = final_steps / (points - 1);
+        for (int i = 0; i < history->size; i++) {
+            Dict* log = &history->items[i];
+            DictItem* item = dict_get_unsafe(log, key);
+            if (item) {
+                bin[bin_n++] = item->value;
+            }
+
+            double steps = dict_get(log, "agent_steps")->value;
+            if (steps < next_bin || out_idx >= points - 1) {
+                continue;
+            }
+
+            double reduced = puf_log_reduce(bin, bin_n, fallback);
+            out[out_idx++] = reduced;
+            fallback = reduced;
+            bin_n = 0;
+            next_bin += final_steps / (points - 1);
+        }
+
+        DictItem* final_item = dict_get_unsafe(&history->items[history->size - 1], key);
+        out[points - 1] = final_item ? final_item->value : puf_log_reduce(bin, bin_n, fallback);
+        while (out_idx < points - 1) {
+            out[out_idx++] = fallback;
+        }
+        puf_log_write_metric(fp, key, out, points);
+    }
+
+    free(bin);
+    free(out);
+    dict_clear(&keys);
+    fclose(fp);
 }
