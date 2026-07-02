@@ -571,8 +571,8 @@ static void nmmo3_encoder_free_weights(void* weights) { free(weights); }
 static void nmmo3_encoder_free_activations(void* activations) { free(activations); }
 
 // Override encoder vtable for known ocean environments. No-op for unknown envs.
-static void create_custom_encoder(const std::string& env_name, Encoder* enc) {
-    if (env_name == "nmmo3") {
+static void create_custom_encoder(const char* env_name, Encoder* enc) {
+    if (strcmp(env_name, "nmmo3") == 0) {
         *enc = Encoder{
             .forward = nmmo3_encoder_forward,
             .backward = nmmo3_encoder_backward,

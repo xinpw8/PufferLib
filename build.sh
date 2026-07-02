@@ -2,7 +2,7 @@
 set -e
 
 # Usage:
-#   ./build.sh breakout              # Build _C.so with breakout statically linked
+#   ./build.sh breakout              # Full native train/eval binary
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
 #   ./build.sh breakout --cpu        # Tiny standalone CPU eval executable
 #   ./build.sh breakout --debug      # Debug build
@@ -11,10 +11,10 @@ set -e
 #   ./build.sh breakout --web        # Emscripten web build
 #   ./build.sh breakout --profile    # Kernel profiling binary
 #   ./build.sh breakout --native     # Full native train/eval binary
-#   ./build.sh all                   # Build all envs with default and --float
+#   ./build.sh all                   # Build all envs native and native --float
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--float] [--debug] [--local|--fast|--web|--profile|--native|--cpu|--all]"
+    echo "Usage: ./build.sh ENV_NAME [--float] [--debug] [--local|--fast|--web|--profile|--native|--cpu]"
     exit 1
 fi
 ENV=$1
@@ -38,7 +38,7 @@ if [ "$ENV" = "all" ]; then
     FAILED=""
     for env_dir in ocean/*/; do
         env=$(basename "$env_dir")
-        if bash "$0" "$env" && bash "$0" "$env" --float; then
+        if bash "$0" "$env" --native && bash "$0" "$env" --native --float; then
             echo "OK: $env"
         else
             echo "FAIL: $env"
@@ -59,13 +59,11 @@ if [ "$PLATFORM" = "Linux" ]; then
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
-    SHARED_LDFLAGS=(-Bsymbolic-functions)
 else
     RAYLIB_NAME='raylib-5.5_macos'
     OMP_LIB=-lomp
     SANITIZE_FLAGS=()
     STANDALONE_LDFLAGS=(-framework Cocoa -framework IOKit -framework CoreVideo -framework OpenGL)
-    SHARED_LDFLAGS=(-framework Cocoa -framework OpenGL -framework IOKit -undefined dynamic_lookup)
 fi
 
 CLANG_WARN=(
@@ -251,13 +249,6 @@ if [ -z "$NCCL_LFLAG" ]; then
     NCCL_LFLAG=$(python -c "import nvidia.nccl, os; print('-L' + os.path.join(nvidia.nccl.__path__[0], 'lib'))" 2>/dev/null || echo "")
 fi
 
-WHEEL_RPATH_FLAGS=()
-for lib_flag in "$CUDNN_LFLAG" "$NCCL_LFLAG"; do
-    if [[ "$lib_flag" == -L* ]]; then
-        WHEEL_RPATH_FLAGS+=("-Wl,-rpath,${lib_flag#-L}")
-    fi
-done
-
 export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
 export CCACHE_BASEDIR="$(pwd)"
 export CCACHE_COMPILERCHECK=content
@@ -265,81 +256,23 @@ NVCC="ccache $CUDA_HOME/bin/nvcc"
 CC="${CC:-$(command -v ccache >/dev/null && echo 'ccache clang' || echo 'clang')}"
 ARCH=${NVCC_ARCH:-native}
 
-PYTHON_INCLUDE=$(python -c "import sysconfig; print(sysconfig.get_path('include'))")
-PYBIND_INCLUDE=$(python -c "import pybind11; print(pybind11.get_include())")
-NUMPY_INCLUDE=$(python -c "import numpy; print(numpy.get_include())")
-EXT_SUFFIX=$(python -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
-OUTPUT="pufferlib/_C${EXT_SUFFIX}"
-
 ENV_HEADER="$SRC_DIR/$ENV.h"
-BINDING_SRC="$SRC_DIR/binding.c"
 mkdir -p build
-STATIC_OBJ="build/libstatic_${ENV}.o"
-STATIC_LIB="build/libstatic_${ENV}.a"
-STATIC_LINK=("$STATIC_LIB")
-ENV_COMPILE_FLAGS=()
-
-if [ -f "$ENV_HEADER" ] && grep -q '^#define OBS_TENSOR_T' "$ENV_HEADER"; then
-    ENV_COMPILE_FLAGS=(-DENV_HEADER=\"$ENV_HEADER\")
-    STATIC_LINK=()
-    OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$ENV_HEADER")
-else
-    if [ ! -f "$BINDING_SRC" ]; then
-        echo "Error: $BINDING_SRC not found"
-        exit 1
-    fi
-
-    echo "Compiling static library for $ENV..."
-    ${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
-        -I. -Isrc -I$SRC_DIR -Ivendor \
-        "${INCLUDES[@]}" \
-        -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
-        -DPLATFORM_DESKTOP \
-        -fno-semantic-interposition -fvisibility=hidden \
-        -fPIC -fopenmp \
-        "$BINDING_SRC" -o "$STATIC_OBJ"
-    ar rcs "$STATIC_LIB" "$STATIC_OBJ"
-
-    # Brittle hack: have to extract the tensor type from the static lib to build trainer
-    OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$BINDING_SRC")
+if ! grep -q '^#define OBS_TENSOR_T' "$ENV_HEADER" 2>/dev/null; then
+    echo "Error: $ENV_HEADER must define OBS_TENSOR_T"
+    exit 1
 fi
+
+ENV_COMPILE_FLAGS=(-DENV_HEADER=\"$ENV_HEADER\")
+OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$ENV_HEADER")
 if [ -z "$OBS_TENSOR_T" ]; then
     echo "Error: Could not find OBS_TENSOR_T for $ENV"
     exit 1
 fi
 
-if [ -z "$MODE" ]; then
-    echo "Compiling CUDA ($ARCH) training backend..."
-    $NVCC -c -arch=$ARCH -Xcompiler -fPIC \
-        -Xcompiler=-D_GLIBCXX_USE_CXX11_ABI=1 \
-        -Xcompiler=-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION \
-        -Xcompiler=-DPLATFORM_DESKTOP \
-        -std=c++17 \
-        -I. -Isrc -I$SRC_DIR -Ivendor \
-        -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE -I$NUMPY_INCLUDE \
-        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
-        -Xcompiler=-fopenmp \
-        "${ENV_COMPILE_FLAGS[@]}" \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
-        -DENV_NAME=$ENV \
-        $PRECISION $NVCC_OPT \
-        pufferlib/bindings/bindings.cu -o build/bindings.o
+MODE=${MODE:-native}
 
-    LINK_CMD=(
-        ${CXX:-g++} -shared -fPIC -fopenmp
-        build/bindings.o "${STATIC_LINK[@]}" "$RAYLIB_A"
-        -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG
-        "${WHEEL_RPATH_FLAGS[@]}"
-        "${EXTRA_LDFLAGS[@]}"
-        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn
-        $OMP_LIB $LINK_OPT
-        "${SHARED_LDFLAGS[@]}"
-        -o "$OUTPUT"
-    )
-    "${LINK_CMD[@]}"
-    echo "Built: $OUTPUT"
-
-elif [ "$MODE" = "native" ]; then
+if [ "$MODE" = "native" ]; then
     echo "Compiling native train/eval binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
@@ -350,8 +283,8 @@ elif [ "$MODE" = "native" ]; then
         -Xcompiler=-DPLATFORM_DESKTOP \
         -Xcompiler=-fopenmp \
         $PRECISION \
-        src/launcher.cu vendor/cJSON.c \
-        "${STATIC_LINK[@]}" "$RAYLIB_A" \
+        src/launcher.cu \
+        "$RAYLIB_A" \
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn \
@@ -370,8 +303,8 @@ elif [ "$MODE" = "profile" ]; then
         -Xcompiler=-DPLATFORM_DESKTOP \
         $PRECISION \
         -Xcompiler=-fopenmp \
-        tests/profile_kernels.cu vendor/ini.c \
-        "${STATIC_LINK[@]}" "$RAYLIB_A" \
+        tests/profile_kernels.cu \
+        "$RAYLIB_A" \
         -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn \
         -lGL -lm -lpthread $OMP_LIB \
         -o profile

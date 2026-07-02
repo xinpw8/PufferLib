@@ -3,15 +3,15 @@
 #include <nvtx3/nvToolsExt.h>
 #include <nvml.h>
 #include <nccl.h>
-#include <stdexcept>
-#include <string>
-#include <vector>
 
 #include <time.h>
 #include "models.cu"
 #include "ocean.cu"
 #include "muon.cu"
 #include "vecenv.h"
+
+#define _PUFFER_STRINGIFY(x) #x
+#define PUFFER_STRINGIFY(x) _PUFFER_STRINGIFY(x)
 
 static double wall_clock() {
     struct timespec ts;
@@ -233,18 +233,20 @@ inline PrecisionTensor puf_slice(PrecisionTensor& p, int t, int start, int count
 }
 
 struct EnvBuf {
-    OBS_TENSOR_T obs;      // (total_agents, obs_size) - type defined per-env in binding.c
+    OBS_TENSOR_T obs;      // (total_agents, obs_size)
     FloatTensor actions;   // (total_agents, num_atns)
     FloatTensor rewards;   // (total_agents,)
     FloatTensor terminals; // (total_agents,)
     ByteTensor action_mask; // (total_agents, mask_size); .data=nullptr when env opts out
 };
 
+static int puf_act_sizes[] = ACT_SIZES;
+
 StaticVec* create_environments(int num_buffers, int total_agents,
-        const std::string& env_name, Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
-    StaticVec* vec = create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
+        Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
+    StaticVec* vec = create_static_vec(total_agents, num_buffers, vec_kwargs, env_kwargs);
     env.obs = vec->gpu_observations;
-    env.actions = { .data = (float*)vec->gpu_actions, .shape = {total_agents, get_num_atns()} };
+    env.actions = { .data = (float*)vec->gpu_actions, .shape = {total_agents, NUM_ATNS} };
     env.rewards = { .data = (float*)vec->gpu_rewards, .shape = {total_agents} };
     env.terminals = { .data = (float*)vec->gpu_terminals, .shape = {total_agents} };
     if (vec->action_mask_size > 0) {
@@ -305,7 +307,7 @@ typedef struct {
     int rank;
     int world_size;
     int gpu_id;
-    std::string nccl_id;  // raw bytes of ncclUniqueId (empty for single-GPU)
+    ncclUniqueId nccl_id;
     // Threading
     int num_threads;
     int seed;
@@ -374,7 +376,7 @@ typedef struct {
     // Optional frozen weight banks for match / league.
     WeightBank* frozen_banks;  // [num_frozen_banks]
     int num_frozen_banks;
-    std::string env_name;  // Kept for post-init bank adds (needs create_custom_encoder).
+    char env_name[64];  // Kept for post-init bank adds (needs create_custom_encoder).
     // Per-buffer-relative bank layout: bank_layout[b] = first agent within each
     // buffer chunk owned by bank b. Length num_banks+1; ends at agents_per_buffer.
     // Same shape applied to every buffer (each buffer hosts every bank), so each
@@ -403,7 +405,7 @@ inline void profile_end(bool enable) {
 static thread_local cudaStream_t tl_stream = 0;
 
 // Thread initialization callback - sets thread-local stream once per thread
-extern "C" void thread_init_wrapper(void* ctx, int buf) {
+void thread_init_wrapper(void* ctx, int buf) {
     PuffeRL* pufferl = (PuffeRL*)ctx;
     tl_stream = pufferl->streams[buf];
 }
@@ -589,7 +591,7 @@ __global__ void sample_logits(
 
 // Single step rollout forward pass. Called by each environment worker in their
 // own buffer thread. This operation is cudagraphed.
-extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
+void net_callback_wrapper(void* ctx, int buf, int t) {
     PuffeRL* pufferl = (PuffeRL*)ctx;
     HypersT& hypers = pufferl->hypers;
     int graph = t * hypers.num_buffers + buf;
@@ -1754,11 +1756,10 @@ static void weight_bank_create_for_pufferl(WeightBank* bank, PuffeRL* pufferl,
     // Rebuild arch-varying Policy from env metadata already on pufferl.
     int input_size = pufferl->env.obs.shape[1];
     int num_action_heads = pufferl->env.actions.shape[1];
-    int* raw_act_sizes = get_act_sizes();
     int act_n = 0;
-    for (int i = 0; i < num_action_heads; i++) act_n += raw_act_sizes[i];
+    for (int i = 0; i < num_action_heads; i++) act_n += puf_act_sizes[i];
     int decoder_output_size = pufferl->is_continuous ? num_action_heads : act_n;
-    bank->policy = build_policy(pufferl->env_name.c_str(), input_size, hidden_size,
+    bank->policy = build_policy(pufferl->env_name, input_size, hidden_size,
         num_layers, decoder_output_size, act_n, pufferl->is_continuous, pufferl->hypers.horizon);
     bank->hidden_size = hidden_size;
     bank->num_layers = num_layers;
@@ -1811,7 +1812,7 @@ static void weight_bank_destroy(WeightBank* bank, PuffeRL* pufferl) {
 // Append a fresh frozen bank with the given per-buffer slice size; returns its
 // index. Rebuilds bank_layout sequentially (primary first, then frozen banks in
 // add order). Must be called BEFORE cudagraph capture (pointers get baked in).
-extern "C" int pufferl_add_frozen_bank(PuffeRL* pufferl, int slice_size,
+int pufferl_add_frozen_bank(PuffeRL* pufferl, int slice_size,
         int hidden_size, int num_layers) {
     int idx = pufferl->num_frozen_banks;
     pufferl->frozen_banks = (WeightBank*)realloc(
@@ -1846,17 +1847,17 @@ extern "C" int pufferl_add_frozen_bank(PuffeRL* pufferl, int slice_size,
 // Load a frozen bank's weights from a file (same format as save_weights — flat fp32).
 // Safe to call between rollouts (in-place cudaMemcpy; cudagraphs hold the pointer,
 // not a copy of the data).
-extern "C" void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) {
+void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) {
     if (bank_idx < 0 || bank_idx >= pufferl->num_frozen_banks) {
         fprintf(stderr, "pufferl_load_frozen_bank: bank_idx %d out of range\n", bank_idx);
-        return;
+        exit(1);
     }
     WeightBank* bank = &pufferl->frozen_banks[bank_idx];
     int64_t nbytes = numel(bank->master_weights.shape) * sizeof(float);
     FILE* f = fopen(path, "rb");
     if (!f) {
         fprintf(stderr, "pufferl_load_frozen_bank: failed to open %s\n", path);
-        return;
+        exit(1);
     }
     fseek(f, 0, SEEK_END);
     long file_size = ftell(f);
@@ -1865,16 +1866,18 @@ extern "C" void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const c
         fprintf(stderr, "pufferl_load_frozen_bank: size mismatch (expected %lld, got %ld)\n",
             (long long)nbytes, file_size);
         fclose(f);
-        return;
+        exit(1);
     }
-    std::vector<char> buf(nbytes);
-    size_t nread = fread(buf.data(), 1, nbytes, f);
+    char* buf = (char*)malloc((size_t)nbytes);
+    size_t nread = fread(buf, 1, (size_t)nbytes, f);
     fclose(f);
     if ((int64_t)nread != nbytes) {
         fprintf(stderr, "pufferl_load_frozen_bank: short read on %s\n", path);
-        return;
+        free(buf);
+        exit(1);
     }
-    cudaMemcpy(bank->master_weights.data, buf.data(), nbytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(bank->master_weights.data, buf, (size_t)nbytes, cudaMemcpyHostToDevice);
+    free(buf);
     if (USE_BF16) {
         int n = numel(bank->param_puf.shape);
         cast<<<grid_size(n), BLOCK_SIZE, 0, pufferl->default_stream>>>(
@@ -1886,7 +1889,7 @@ extern "C" void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const c
 // Set the agent permutation. Validates that the perm respects buffer boundaries:
 // each buffer's range [buf_start, buf_start+buf_size) must map onto itself (no
 // cross-buffer writes, since each worker only owns its physical chunk).
-extern "C" void pufferl_set_agent_perm(PuffeRL* pufferl, const int* perm) {
+void pufferl_set_agent_perm(PuffeRL* pufferl, const int* perm) {
     int total = pufferl->vec->total_agents;
     int num_buffers = pufferl->hypers.num_buffers;
     int buf_size = total / num_buffers;
@@ -1907,18 +1910,18 @@ extern "C" void pufferl_set_agent_perm(PuffeRL* pufferl, const int* perm) {
 
 // Set per-env tags (e.g. selfplay vs historical). tags array length must equal
 // pufferl_num_envs(). Also clears each env's boundary_reached flag.
-extern "C" void pufferl_set_env_tags(PuffeRL* pufferl, const int* tags) {
+void pufferl_set_env_tags(PuffeRL* pufferl, const int* tags) {
     static_vec_set_env_tags(pufferl->vec, tags);
 }
 
 // Returns count of envs with tag == tag_value AND boundary_reached. If
 // reset_flags != 0, clears boundary_reached only on envs whose tag matches
 // tag_value (so multi-bank swaps don't trample each other's alignment).
-extern "C" int pufferl_count_aligned(PuffeRL* pufferl, int tag_value, int reset_flags) {
+int pufferl_count_aligned(PuffeRL* pufferl, int tag_value, int reset_flags) {
     return static_vec_count_aligned(pufferl->vec, tag_value, reset_flags);
 }
 
-extern "C" int pufferl_num_envs(PuffeRL* pufferl) {
+int pufferl_num_envs(PuffeRL* pufferl) {
     return pufferl->vec->size;
 }
 
@@ -1933,23 +1936,18 @@ static bool create_allocator_or_report(const char* name, Allocator* alloc) {
     return false;
 }
 
-PuffeRL* create_pufferl_impl(HypersT& hypers,
-        const std::string& env_name, Dict* vec_kwargs, Dict* env_kwargs) {
+PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs, Dict* env_kwargs) {
     PuffeRL* pufferl = new PuffeRL();
     pufferl->hypers = hypers;
     pufferl->nccl_comm = nullptr;
     pufferl->default_stream = 0;
-    pufferl->env_name = env_name;
+    snprintf(pufferl->env_name, sizeof(pufferl->env_name), "%s", PUFFER_STRINGIFY(ENV_NAME));
 
     cudaSetDevice(hypers.gpu_id);
 
     // Multi-GPU: initialize NCCL
     if (hypers.world_size > 1) {
-        if (hypers.nccl_id.size() != sizeof(ncclUniqueId))
-            throw std::runtime_error("nccl_id must be " + std::to_string(sizeof(ncclUniqueId)) + " bytes");
-        ncclUniqueId nccl_id;
-        memcpy(&nccl_id, hypers.nccl_id.data(), sizeof(nccl_id));
-        ncclCommInitRank(&pufferl->nccl_comm, hypers.world_size, nccl_id, hypers.rank);
+        ncclCommInitRank(&pufferl->nccl_comm, hypers.world_size, hypers.nccl_id, hypers.rank);
         printf("Rank %d/%d: NCCL initialized\n", hypers.rank, hypers.world_size);
     }
 
@@ -1959,17 +1957,16 @@ PuffeRL* create_pufferl_impl(HypersT& hypers,
     // Load environment first to get input_size and action info from env
     // Create environments and set up action sizes
     StaticVec* vec = create_environments(hypers.num_buffers, hypers.total_agents,
-        env_name, vec_kwargs, env_kwargs, pufferl->env);
+        vec_kwargs, env_kwargs, pufferl->env);
     pufferl->vec = vec;
 
     // Sanity check action space
     int num_action_heads = pufferl->env.actions.shape[1];
-    int* raw_act_sizes = get_act_sizes();  // CPU int32 pointer from env
     int act_n = 0;
     int num_continuous = 0;
     int num_discrete = 0;
     for (int i = 0; i < num_action_heads; i++) {
-        int val = raw_act_sizes[i];
+        int val = puf_act_sizes[i];
         if (val == 1) {
             num_continuous++;
         } else {
@@ -2008,7 +2005,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers,
     int batch = total_agents / hypers.num_buffers;
     int num_buffers = hypers.num_buffers;
 
-    pufferl->policy = build_policy(env_name.c_str(), input_size, hidden_size,
+    pufferl->policy = build_policy(pufferl->env_name, input_size, hidden_size,
         num_layers, decoder_output_size, act_n, is_continuous, hypers.horizon);
 
     // Create and allocate params
@@ -2094,7 +2091,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers,
     }
 
     // Post-create initialization
-    cudaMemcpy(pufferl->act_sizes_puf.data, raw_act_sizes, num_action_heads * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(pufferl->act_sizes_puf.data, puf_act_sizes, num_action_heads * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemset(pufferl->losses_puf.data, 0, NUM_LOSSES * sizeof(float));
     float one = 1.0f;
     cudaMemcpy(pufferl->ppo_bufs_puf.grad_loss.data, &one, sizeof(float), cudaMemcpyHostToDevice);

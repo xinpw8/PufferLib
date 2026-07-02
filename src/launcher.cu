@@ -1,9 +1,5 @@
 // Native train/eval/sweep launcher. Built by ./build.sh ENV --native
 // Run: ./build_native train breakout train.total_timesteps=1_000_000
-#ifdef ENV_BINDING_SRC
-#include ENV_BINDING_SRC
-#endif
-
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -27,12 +23,6 @@ typedef struct {
     int artifact_owner;
     ncclUniqueId* nccl_id;
 } TrainContext;
-
-typedef struct {
-    float score;
-    float cost;
-    float steps;
-} TrainResult;
 
 static HypersT config_to_hypers(Dict* cfg, TrainContext* ctx) {
     HypersT h = {};
@@ -71,9 +61,7 @@ static HypersT config_to_hypers(Dict* cfg, TrainContext* ctx) {
     h.world_size = ctx->world_size;
     h.gpu_id = ctx->gpu_id;
     if (ctx->world_size > 1) {
-        h.nccl_id = std::string((char*)ctx->nccl_id, sizeof(ncclUniqueId));
-    } else {
-        h.nccl_id = "";
+        h.nccl_id = *ctx->nccl_id;
     }
     h.seed = (int)puf_config_val(cfg, "base.seed");
     return h;
@@ -83,8 +71,7 @@ static PuffeRL* create_trainer(Dict* cfg, TrainContext* ctx) {
     HypersT hypers = config_to_hypers(cfg, ctx);
     Dict* vec_kwargs = dict_copy_prefix(cfg, "vec.");
     Dict* env_kwargs = dict_copy_prefix(cfg, "env.");
-    PuffeRL* pufferl = create_pufferl_impl(hypers, puf_config_str(cfg, "base.env_name"),
-        vec_kwargs, env_kwargs);
+    PuffeRL* pufferl = create_pufferl_impl(hypers, vec_kwargs, env_kwargs);
     if (!pufferl) {
         fprintf(stderr, "create_pufferl_impl failed\n");
         exit(1);
@@ -127,9 +114,9 @@ static void run_eval(Dict* cfg, TrainContext* ctx) {
 
     PuffeRL* pufferl = create_trainer(cfg, ctx);
     char resolved_path[4096];
-    const char* load_path = resolve_load_model_path(cfg, resolved_path, sizeof(resolved_path));
+    const char* load_path = puf_checkpoint_path(cfg, resolved_path, sizeof(resolved_path));
     if (load_path) {
-        load_weights(pufferl, load_path);
+        puf_load_weights(pufferl, load_path);
         printf("Loaded weights from %s\n", load_path);
     }
 
@@ -196,7 +183,7 @@ static TrainResult run_train(Dict* cfg, TrainContext* ctx) {
         if (should_save && ctx->artifact_owner) {
             char path[4096];
             snprintf(path, sizeof(path), "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
-            save_weights(pufferl, path);
+            puf_save_weights(pufferl, path);
         }
 
         if (wall_clock() < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
@@ -317,56 +304,6 @@ static TrainResult launch_train(Dict* cfg) {
     return result;
 }
 
-static void run_sweep(Dict* cfg) {
-    validate_sweep_support(cfg);
-    SweepParam* params = NULL;
-    int num_params = 0;
-    Hyperparameters* hypers = sweep_hypers_create(cfg, &params, &num_params);
-
-    int max_runs = (int)puf_config_val(cfg, "sweep.max_runs");
-    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
-    int prune_pareto = (int)puf_config_val(cfg, "sweep.prune_pareto");
-    int use_logit = strcmp(puf_config_str(cfg, "sweep.metric_distribution"), "logit") == 0;
-    float max_cost = (float)puf_config_val(cfg, "sweep.max_suggestion_cost");
-    float early_stop_quantile = (float)puf_config_val(cfg, "sweep.early_stop_quantile");
-    int success_cap = max_runs * downsample * 2;
-    if (success_cap < 8192) {
-        success_cap = 8192;
-    }
-
-    ProteinSweep* protein = protein_sweep_create(hypers,
-        10, 256, 50, 0.001f, 50, 750, 4096,
-        downsample == 1, prune_pareto, use_logit,
-        1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
-        success_cap, 1024, 5, 73ULL);
-
-    float* sample = (float*)calloc((size_t)num_params, sizeof(float));
-    for (int run = 0; run < max_runs; run++) {
-        ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
-
-        Dict trial = {0};
-        puf_config_copy(&trial, cfg);
-        sweep_apply(&trial, params, num_params, sample);
-
-        char run_id[64];
-        snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d", (long)(1000.0 * wall_clock()), run);
-        puf_config_put(&trial, "base.run_id", run_id);
-        puf_config_validate_train(&trial);
-
-        TrainResult result = launch_train(&trial);
-        protein_sweep_observe(protein, sample, result.score, result.cost, 0);
-        printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
-            run, result.score, result.cost, result.steps,
-            info.is_random, info.n_gp_obs, info.n_pareto);
-
-        puf_config_free(&trial);
-    }
-
-    free(sample);
-    free(params);
-    protein_sweep_destroy(protein);
-}
-
 int main(int argc, char** argv) {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -384,7 +321,7 @@ int main(int argc, char** argv) {
     if (strcmp(mode, "train") == 0) {
         launch_train(&cfg);
     } else if (strcmp(mode, "sweep") == 0) {
-        run_sweep(&cfg);
+        run_sweep(&cfg, launch_train);
     } else if (strcmp(mode, "eval") == 0) {
         TrainContext ctx = {
             .rank = 0,

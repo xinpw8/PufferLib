@@ -8,6 +8,14 @@
 #include "config.h"
 
 typedef struct {
+    float score;
+    float cost;
+    float steps;
+} TrainResult;
+
+typedef TrainResult (*TrainFn)(Dict* cfg);
+
+typedef struct {
     char section[64];
     char key[64];
     char path[128];
@@ -170,4 +178,54 @@ static void validate_sweep_support(Dict* cfg) {
             "sweep error: native sweep currently runs one trial at a time; set [sweep] gpus equal to [train] gpus\n");
         exit(1);
     }
+}
+
+static void run_sweep(Dict* cfg, TrainFn train) {
+    validate_sweep_support(cfg);
+    SweepParam* params = NULL;
+    int num_params = 0;
+    Hyperparameters* hypers = sweep_hypers_create(cfg, &params, &num_params);
+
+    int max_runs = (int)puf_config_val(cfg, "sweep.max_runs");
+    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
+    int prune_pareto = (int)puf_config_val(cfg, "sweep.prune_pareto");
+    int use_logit = strcmp(puf_config_str(cfg, "sweep.metric_distribution"), "logit") == 0;
+    float max_cost = (float)puf_config_val(cfg, "sweep.max_suggestion_cost");
+    float early_stop_quantile = (float)puf_config_val(cfg, "sweep.early_stop_quantile");
+    int success_cap = max_runs * downsample * 2;
+    if (success_cap < 8192) {
+        success_cap = 8192;
+    }
+
+    ProteinSweep* protein = protein_sweep_create(hypers,
+        10, 256, 50, 0.001f, 50, 750, 4096,
+        downsample == 1, prune_pareto, use_logit,
+        1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
+        success_cap, 1024, 5, 73ULL);
+
+    float* sample = (float*)calloc((size_t)num_params, sizeof(float));
+    for (int run = 0; run < max_runs; run++) {
+        ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
+
+        Dict trial = {0};
+        puf_config_copy(&trial, cfg);
+        sweep_apply(&trial, params, num_params, sample);
+
+        char run_id[64];
+        snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d", (long)(1000.0 * wall_clock()), run);
+        puf_config_put(&trial, "base.run_id", run_id);
+        puf_config_validate_train(&trial);
+
+        TrainResult result = train(&trial);
+        protein_sweep_observe(protein, sample, result.score, result.cost, 0);
+        printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
+            run, result.score, result.cost, result.steps,
+            info.is_random, info.n_gp_obs, info.n_pareto);
+
+        puf_config_free(&trial);
+    }
+
+    free(sample);
+    free(params);
+    protein_sweep_destroy(protein);
 }
