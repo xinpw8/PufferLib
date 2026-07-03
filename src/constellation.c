@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "config.h"
+#include "table.h"
 #include "raylib.h"
 
 #define RAYGUI_IMPLEMENTATION
@@ -118,19 +119,7 @@ typedef struct {
 } Tooltip;
 
 typedef struct {
-    char *key;
-    float *ary;
-    int n;
-} Hyper;
-
-typedef struct {
-    char *key;
-    Hyper *hypers;
-    int n;
-} Env;
-
-typedef struct {
-    Env *envs;
+    Table *tables;
     int n;
 } Dataset;
 
@@ -188,18 +177,13 @@ PlotArgs DEFAULT_PLOT_ARGS = {
 };
 
 
-Hyper* get_hyper(Dataset *data, char *env, char* hyper) {
+Table* dataset_table(Dataset *data, char *env) {
     for (int i = 0; i < data->n; i++) {
-        if (strcmp(data->envs[i].key, env) != 0) {
-            continue;
-        }
-        for (int j = 0; j < data->envs[i].n; j++) {
-            if (strcmp(data->envs[i].hypers[j].key, hyper) == 0) {
-                return &data->envs[i].hypers[j];
-            }
+        if (strcmp(data->tables[i].name, env) == 0) {
+            return &data->tables[i];
         }
     }
-    printf("Error: hyper %s not found in env %s\n", hyper, env);
+    printf("Error: env %s not found\n", env);
     exit(1);
     return NULL;
 }
@@ -363,7 +347,7 @@ void draw_axes3() {
     );
 }
 
-void boxplot(Hyper* hyper, int x_scale, int i, int hyper_count, PlotArgs args, Color color, bool* filter) {
+void boxplot(Table* table, int col, int x_scale, int i, int hyper_count, PlotArgs args, Color color, bool* filter) {
     int width = args.width;
     int height = args.height;
 
@@ -375,15 +359,15 @@ void boxplot(Hyper* hyper, int x_scale, int i, int hyper_count, PlotArgs args, C
 
     float dy = plot_height/((float)hyper_count);
 
-    float* ary = hyper->ary;
-    float mmin = ary[0];
-    float mmax = ary[0];
-    for (int j=0; j<hyper->n; j++) {
+    float mmin = table_get(table, 0, col);
+    float mmax = mmin;
+    for (int j=0; j<table->rows; j++) {
         if (filter != NULL && !filter[j]) {
             continue;
         }
-        mmin = fmin(mmin, ary[j]);
-        mmax = fmax(mmax, ary[j]);
+        float val = table_get(table, j, col);
+        mmin = fmin(mmin, val);
+        mmax = fmax(mmax, val);
     }
 
     mmin = scale_val(x_scale, mmin);
@@ -451,9 +435,9 @@ void GuiDropdownFilter(int x, int y, char* options, int *selection, bool *dropdo
     }
 }
 
-void apply_filter(bool* filter, Hyper* param, float min, float max) {
-    for (int i=0; i<param->n; i++) {
-        float val = param->ary[i];
+void apply_filter(bool* filter, Table* table, int col, float min, float max) {
+    for (int i=0; i<table->rows; i++) {
+        float val = table_get(table, i, col);
         if (val < min || val > max) {
             filter[i] = false;
         }
@@ -549,22 +533,22 @@ void update_closest(Tooltip* tooltip, Vector2 *indices, Glyph* glyphs, int size,
     }
 }
 
-void copy_hypers_to_clipboard(Env *env, char* buffer, int ary_idx) {
+void copy_hypers_to_clipboard(Table *table, char* buffer, int row) {
     char* start = buffer;
     char* prefix = NULL;
     int prefix_len = 0;
-    for (int hyper_idx = 0; hyper_idx < env->n; hyper_idx++) {
-        Hyper *hyper = &env->hypers[hyper_idx];
-        char *slash = strchr(hyper->key, '/');
-        if (!slash || ary_idx >= hyper->n) {
+    for (int col = 0; col < table->cols; col++) {
+        char *key = table->labels[col];
+        char *slash = strchr(key, '/');
+        if (!slash || row >= table->rows) {
             continue;
         }
 
-        if (prefix == NULL || strncmp(prefix, hyper->key, prefix_len) != 0) {
+        if (prefix == NULL || strncmp(prefix, key, prefix_len) != 0) {
             if (prefix != NULL) {
                 buffer += sprintf(buffer, "\n");
             }
-            prefix = hyper->key;
+            prefix = key;
             prefix_len = slash - prefix;
             buffer += sprintf(buffer, "[");
             snprintf(buffer, prefix_len+1, "%s", prefix);
@@ -573,15 +557,11 @@ void copy_hypers_to_clipboard(Env *env, char* buffer, int ary_idx) {
         }
 
         char* suffix = slash + 1;
-        double val = hyper->ary[ary_idx];
+        double val = table_get(table, row, col);
         if (strcmp(suffix, "total_timesteps") == 0) {
             // Use agent_steps (training-only) instead of total_timesteps (train+eval)
-            for (int k = 0; k < env->n; k++) {
-                if (strcmp(env->hypers[k].key, "agent_steps") == 0) {
-                    val = env->hypers[k].ary[ary_idx];
-                    break;
-                }
-            }
+            int agent_steps = table_require_col(table, "agent_steps");
+            val = table_get(table, row, agent_steps);
             buffer += sprintf(buffer, "%s = %lld\n", suffix, (long long)(val * 1e6));
         } else if (strcmp(suffix, "agent_steps") == 0) {
             buffer += sprintf(buffer, "%s = %lld\n", suffix, (long long)(val * 1e6));
@@ -631,36 +611,40 @@ float fast_atof(char **s) {
   return sign * val;
 }
 
-Env* dataset_env(Dataset* data, const char* key) {
+Table* dataset_get_table(Dataset* data, const char* key) {
     for (int i = 0; i < data->n; i++) {
-        if (strcmp(data->envs[i].key, key) == 0) {
-            return &data->envs[i];
+        if (strcmp(data->tables[i].name, key) == 0) {
+            return &data->tables[i];
         }
     }
-    data->envs = realloc(data->envs, (data->n + 1) * sizeof(Env));
-    Env* env = &data->envs[data->n++];
-    memset(env, 0, sizeof(*env));
-    env->key = strdup(key);
-    return env;
+    data->tables = realloc(data->tables, (data->n + 1) * sizeof(Table));
+    if (!data->tables) {
+        perror("realloc");
+        exit(1);
+    }
+    Table* table = &data->tables[data->n++];
+    memset(table, 0, sizeof(*table));
+    snprintf(table->name, sizeof(table->name), "%s", key);
+    return table;
 }
 
-void env_add_hyper(Env* env, const char* key, const char* values) {
-    env->hypers = realloc(env->hypers, (env->n + 1) * sizeof(Hyper));
-    Hyper* h = &env->hypers[env->n++];
-    memset(h, 0, sizeof(*h));
-    h->key = strdup(key);
-
+void table_add_values(Table* table, const char* key, const char* values) {
     int capacity = 1;
     for (char* p = values; *p; p++) {
         if (*p == ',') {
             capacity++;
         }
     }
-    h->ary = calloc(capacity, sizeof(float));
+    float* vals = calloc(capacity, sizeof(float));
+    if (!vals) {
+        perror("calloc");
+        exit(1);
+    }
 
+    int len = 0;
     char* s = (char*)values;
     while (*s) {
-        h->ary[h->n++] = fast_atof(&s);
+        vals[len++] = fast_atof(&s);
         if (*s == ',') {
             s++;
         } else {
@@ -672,6 +656,21 @@ void env_add_hyper(Env* env, const char* key, const char* values) {
             }
         }
     }
+
+    if (table->rows == 0) {
+        table_resize_rows(table, len);
+    }
+    if (table->rows != len) {
+        fprintf(stderr, "constellation error: column %s has %d values, expected %d\n",
+            key, len, table->rows);
+        exit(1);
+    }
+
+    int col = table_add_col(table, key);
+    for (int i = 0; i < len; i++) {
+        table_set(table, i, col, vals[i]);
+    }
+    free(vals);
 }
 
 Dataset load_dataset(const char* path) {
@@ -711,7 +710,7 @@ Dataset load_dataset(const char* path) {
         char* key = puf_config_trim(s);
         char* val = puf_config_trim(eq + 1);
         puf_config_strip_quotes(val);
-        env_add_hyper(dataset_env(&data, env_name), key, val);
+        table_add_values(dataset_get_table(&data, env_name), key, val);
     }
     fclose(fp);
     return data;
@@ -719,17 +718,14 @@ Dataset load_dataset(const char* path) {
 
 int main(void) {
     Dataset data = load_dataset("resources/constellation/experiments.ini");
-    Env *envs = data.envs;
     int max_data_points = 0;
     for (int i=0; i<data.n; i++) {
-        for (int j=0; j<envs[i].n; j++) {
-            max_data_points = envs[i].hypers[j].n > max_data_points ?
-                envs[i].hypers[j].n : max_data_points;
-        }
+        max_data_points = data.tables[i].rows > max_data_points ?
+            data.tables[i].rows : max_data_points;
     }
     int total_points = 0;
     for (int i=0; i<data.n; i++) {
-        total_points += envs[i].hypers[0].n;
+        total_points += data.tables[i].rows;
     }
 
     // Create options as a semicolon-separated string
@@ -753,14 +749,14 @@ int main(void) {
     // Env names as semi-colon-separated string
     size_t env_options_len = 4;
     for (int i = 0; i < data.n; i++) {
-        env_options_len += strlen(data.envs[i].key) + 1;
+        env_options_len += strlen(data.tables[i].name) + 1;
     }
     char *env_options = malloc(env_options_len);
     strcpy(env_options, "all;");
     env_options[4] = '\0';
     for (int i = 0; i < data.n; i++) {
         if (i > 0) strcat(env_options, ";");
-        strcat(env_options, data.envs[i].key);
+        strcat(env_options, data.tables[i].name);
     }
 
     char* clipboard = malloc(16384);
@@ -865,10 +861,10 @@ int main(void) {
     args4.top_margin = 10;
     args4.bottom_margin = 50;
 
-    Hyper* x;
-    Hyper* y;
-    Hyper* z;
-    Hyper* c;
+    int x;
+    int y;
+    int z;
+    int c;
     char* x_label;
     char* y_label;
     char* z_label;
@@ -915,30 +911,30 @@ int main(void) {
 
         int size = 0;
         for (int i=start; i<end; i++) {
-            char* env = data.envs[i].key;
-            x = get_hyper(&data, env, hyper_key[fig_x_idx]);
-            y = get_hyper(&data, env, hyper_key[fig_y_idx]);
-            z = get_hyper(&data, env, hyper_key[fig_z_idx]);
+            Table* table = &data.tables[i];
+            x = table_col(table, hyper_key[fig_x_idx]);
+            y = table_col(table, hyper_key[fig_y_idx]);
+            z = table_col(table, hyper_key[fig_z_idx]);
             if (fig_color_idx != 0) {
-                c = get_hyper(&data, env, hyper_key[fig_color_idx - 1]);
+                c = table_col(table, hyper_key[fig_color_idx - 1]);
             }
-            for (int j=0; j<x->n; j++) {
+            for (int j=0; j<table->rows; j++) {
                 filter[j] = true;
             }
-            Hyper* filter_param_1 = get_hyper(&data, env, hyper_key[fig_range1_idx]);
-            apply_filter(filter, filter_param_1, fig_range1_min_val, fig_range1_max_val);
-            Hyper* filter_param_2 = get_hyper(&data, env, hyper_key[fig_range2_idx]);
-            apply_filter(filter, filter_param_2, fig_range2_min_val, fig_range2_max_val);
+            int filter_param_1 = table_col(table, hyper_key[fig_range1_idx]);
+            apply_filter(filter, table, filter_param_1, fig_range1_min_val, fig_range1_max_val);
+            int filter_param_2 = table_col(table, hyper_key[fig_range2_idx]);
+            apply_filter(filter, table, filter_param_2, fig_range2_min_val, fig_range2_max_val);
 
-            for (int j=0; j<x->n; j++) {
+            for (int j=0; j<table->rows; j++) {
                 if (!filter[j]) {
                     continue;
                 }
                 points[size] = (Point){
-                    x->ary[j],
-                    y->ary[j],
-                    z->ary[j],
-                    (fig_color_idx == 0) ? i/(float)data.n : c->ary[j],
+                    table_get(table, j, x),
+                    table_get(table, j, y),
+                    table_get(table, j, z),
+                    (fig_color_idx == 0) ? i/(float)data.n : table_get(table, j, c),
                 };
                 env_indices[size] = (Vector2){i, j};
                 size++;
@@ -982,24 +978,24 @@ int main(void) {
         ClearBackground(PUFF_BACKGROUND);
         size = 0;
         for (int i=0; i<data.n; i++) {
-            char* env = data.envs[i].key;
-            x = get_hyper(&data, env, "tsne1");
-            y = get_hyper(&data, env, "tsne2");
-            for (int j=0; j<x->n; j++) {
+            Table* table = &data.tables[i];
+            x = table_col(table, "tsne1");
+            y = table_col(table, "tsne2");
+            for (int j=0; j<table->rows; j++) {
                 filter[j] = true;
             }
-            Hyper* filter_param_1 = get_hyper(&data, env, hyper_key[fig_range1_idx]);
-            apply_filter(filter, filter_param_1, fig_range1_min_val, fig_range1_max_val);
-            Hyper* filter_param_2 = get_hyper(&data, env, hyper_key[fig_range2_idx]);
-            apply_filter(filter, filter_param_2, fig_range2_min_val, fig_range2_max_val);
+            int filter_param_1 = table_col(table, hyper_key[fig_range1_idx]);
+            apply_filter(filter, table, filter_param_1, fig_range1_min_val, fig_range1_max_val);
+            int filter_param_2 = table_col(table, hyper_key[fig_range2_idx]);
+            apply_filter(filter, table, filter_param_2, fig_range2_min_val, fig_range2_max_val);
 
-            for (int j=0; j<x->n; j++) {
+            for (int j=0; j<table->rows; j++) {
                 if (!filter[j]) {
                     continue;
                 }
                 points[size] = (Point){
-                    x->ary[j],
-                    y->ary[j],
+                    table_get(table, j, x),
+                    table_get(table, j, y),
                     0.0f,
                     i/(float)data.n
                 };
@@ -1033,17 +1029,17 @@ int main(void) {
         BeginBlendMode(BLEND_CUSTOM_SEPARATE);
         Color color = Fade(PUFF_CYAN, 1.0f / (float)(end - start));
         for (int i=start; i<end; i++) {
-            Env* env = &data.envs[i];
-            Hyper* filter_param_1 = get_hyper(&data, env->key, hyper_key[fig_range1_idx]);
-            Hyper* filter_param_2 = get_hyper(&data, env->key, hyper_key[fig_range2_idx]);
+            Table* table = &data.tables[i];
+            int filter_param_1 = table_col(table, hyper_key[fig_range1_idx]);
+            int filter_param_2 = table_col(table, hyper_key[fig_range2_idx]);
             for (int j=0; j<hyper_count; j++) {
-                Hyper* hyper = get_hyper(&data, env->key, hyper_key[j]);
-                for (int k=0; k<hyper->n; k++) {
+                int col = table_col(table, hyper_key[j]);
+                for (int k=0; k<table->rows; k++) {
                     filter[k] = true;
                 }
-                apply_filter(filter, filter_param_1, fig_range1_min_val, fig_range1_max_val);
-                apply_filter(filter, filter_param_2, fig_range2_min_val, fig_range2_max_val);
-                boxplot(hyper, args4.scale[0], j, hyper_count, args4, color, filter);
+                apply_filter(filter, table, filter_param_1, fig_range1_min_val, fig_range1_max_val);
+                apply_filter(filter, table, filter_param_2, fig_range2_min_val, fig_range2_max_val);
+                boxplot(table, col, args4.scale[0], j, hyper_count, args4, color, filter);
             }
         }
         EndBlendMode();
@@ -1208,12 +1204,12 @@ int main(void) {
         // Tooltip
         int env_idx = tooltip.env_idx;
         int ary_idx = tooltip.ary_idx;
-        Env* env = &data.envs[env_idx];
-        char* env_key = env->key;
+        Table* table = &data.tables[env_idx];
+        char* env_key = table->name;
 
-        float cost = get_hyper(&data, env_key, "uptime")->ary[ary_idx];
-        float score = get_hyper(&data, env_key, "env/score")->ary[ary_idx];
-        float steps = get_hyper(&data, env_key, "agent_steps")->ary[ary_idx];
+        float cost = table_get(table, ary_idx, table_col(table, "uptime"));
+        float score = table_get(table, ary_idx, table_col(table, "env/score"));
+        float steps = table_get(table, ary_idx, table_col(table, "agent_steps"));
         if (tooltip.active) {
             const char* text = TextFormat("%s\nscore = %f\ncost = %f\nsteps = %f", env_key, score, cost, steps);
             Vector2 text_size = MeasureTextEx(args1.font_small, text, args1.axis_tick_font_size, 0);
@@ -1233,20 +1229,15 @@ int main(void) {
 
         // Copy hypers to clipboard
         if (right_clicked) {
-            copy_hypers_to_clipboard(env, clipboard, ary_idx);
+            copy_hypers_to_clipboard(table, clipboard, ary_idx);
         }
     }
 
     // Cleanup
     for (int i = 0; i < data.n; i++) {
-        for (int j = 0; j < envs[i].n; j++) {
-            free(envs[i].hypers[j].key);
-            free(envs[i].hypers[j].ary);
-        }
-        free(envs[i].key);
-        free(envs[i].hypers);
+        table_free(&data.tables[i]);
     }
-    free(envs);
+    free(data.tables);
     free(options);
     free(env_hyper_options);
     free(env_options);

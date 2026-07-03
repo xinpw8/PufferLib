@@ -2035,10 +2035,16 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs, Dict* env_kwargs
     int frozen_layers = num_layers;
     for (int i = 0; i < vec_kwargs->size; i++) {
         if (strcmp(vec_kwargs->items[i].key, "frozen_bank_hidden_size") == 0) {
-            frozen_hidden = (int)vec_kwargs->items[i].value;
+            int value = (int)vec_kwargs->items[i].value;
+            if (value > 0) {
+                frozen_hidden = value;
+            }
         }
         if (strcmp(vec_kwargs->items[i].key, "frozen_bank_num_layers") == 0) {
-            frozen_layers = (int)vec_kwargs->items[i].value;
+            int value = (int)vec_kwargs->items[i].value;
+            if (value > 0) {
+                frozen_layers = value;
+            }
         }
     }
     if (num_frozen > 0) {

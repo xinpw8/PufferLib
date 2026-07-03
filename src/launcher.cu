@@ -26,52 +26,67 @@ typedef struct {
     ncclUniqueId* nccl_id;
 } TrainContext;
 
+static int cfg_int(Config* cfg, const char* section, const char* key) {
+    return (int)puf_config_get(cfg, section, key);
+}
+
+static long cfg_long(Config* cfg, const char* section, const char* key) {
+    return (long)puf_config_get(cfg, section, key);
+}
+
+static float cfg_float(Config* cfg, const char* section, const char* key) {
+    return (float)puf_config_get(cfg, section, key);
+}
+
 static HypersT config_to_hypers(Config* cfg, TrainContext* ctx) {
     HypersT h = {};
-    h.total_agents = (int)puf_config_val(cfg, "vec.total_agents");
-    h.num_buffers = (int)puf_config_val(cfg, "vec.num_buffers");
-    h.num_threads = (int)puf_config_val(cfg, "vec.num_threads");
-    h.horizon = (int)puf_config_val(cfg, "train.horizon");
-    h.hidden_size = (int)puf_config_val(cfg, "policy.hidden_size");
-    h.num_layers = (int)puf_config_val(cfg, "policy.num_layers");
-    h.lr = (float)puf_config_val(cfg, "train.learning_rate");
-    h.min_lr_ratio = (float)puf_config_val(cfg, "train.min_lr_ratio");
-    h.anneal_lr = (bool)puf_config_val(cfg, "train.anneal_lr");
-    h.beta1 = (float)puf_config_val(cfg, "train.beta1");
-    h.beta2 = (float)puf_config_val(cfg, "train.beta2");
-    h.eps = (float)puf_config_val(cfg, "train.eps");
-    h.minibatch_size = (int)puf_config_val(cfg, "train.minibatch_size");
-    h.replay_ratio = (float)puf_config_val(cfg, "train.replay_ratio");
-    h.total_timesteps = (long)puf_config_val(cfg, "train.total_timesteps");
-    h.max_grad_norm = (float)puf_config_val(cfg, "train.max_grad_norm");
-    h.clip_coef = (float)puf_config_val(cfg, "train.clip_coef");
-    h.vf_clip_coef = (float)puf_config_val(cfg, "train.vf_clip_coef");
-    h.vf_coef = (float)puf_config_val(cfg, "train.vf_coef");
-    h.ent_coef = (float)puf_config_val(cfg, "train.ent_coef");
-    h.min_ent_coef_ratio = (float)puf_config_val(cfg, "train.min_ent_coef_ratio");
-    h.anneal_ent_coef = (bool)puf_config_val(cfg, "train.anneal_ent_coef");
-    h.gamma = (float)puf_config_val(cfg, "train.gamma");
-    h.gae_lambda = (float)puf_config_val(cfg, "train.gae_lambda");
-    h.vtrace_rho_clip = (float)puf_config_val(cfg, "train.vtrace_rho_clip");
-    h.vtrace_c_clip = (float)puf_config_val(cfg, "train.vtrace_c_clip");
-    h.prio_alpha = (float)puf_config_val(cfg, "train.prio_alpha");
-    h.prio_beta0 = (float)puf_config_val(cfg, "train.prio_beta0");
-    h.reset_state = (bool)puf_config_val(cfg, "base.reset_state");
-    h.cudagraphs = (int)puf_config_val(cfg, "base.cudagraphs");
-    h.profile = (bool)puf_config_val(cfg, "base.profile");
+    h.total_agents = cfg_int(cfg, "vec", "total_agents");
+    h.num_buffers = cfg_int(cfg, "vec", "num_buffers");
+    h.num_threads = cfg_int(cfg, "vec", "num_threads");
+    h.horizon = cfg_int(cfg, "train", "horizon");
+    h.hidden_size = cfg_int(cfg, "policy", "hidden_size");
+    h.num_layers = cfg_int(cfg, "policy", "num_layers");
+    h.lr = cfg_float(cfg, "train", "learning_rate");
+    h.min_lr_ratio = cfg_float(cfg, "train", "min_lr_ratio");
+    h.anneal_lr = cfg_int(cfg, "train", "anneal_lr");
+    h.beta1 = cfg_float(cfg, "train", "beta1");
+    h.beta2 = cfg_float(cfg, "train", "beta2");
+    h.eps = cfg_float(cfg, "train", "eps");
+    h.minibatch_size = cfg_int(cfg, "train", "minibatch_size");
+    h.replay_ratio = cfg_float(cfg, "train", "replay_ratio");
+    h.total_timesteps = cfg_long(cfg, "train", "total_timesteps");
+    h.max_grad_norm = cfg_float(cfg, "train", "max_grad_norm");
+    h.clip_coef = cfg_float(cfg, "train", "clip_coef");
+    h.vf_clip_coef = cfg_float(cfg, "train", "vf_clip_coef");
+    h.vf_coef = cfg_float(cfg, "train", "vf_coef");
+    h.ent_coef = cfg_float(cfg, "train", "ent_coef");
+    h.min_ent_coef_ratio = cfg_float(cfg, "train", "min_ent_coef_ratio");
+    h.anneal_ent_coef = cfg_int(cfg, "train", "anneal_ent_coef");
+    h.gamma = cfg_float(cfg, "train", "gamma");
+    h.gae_lambda = cfg_float(cfg, "train", "gae_lambda");
+    h.vtrace_rho_clip = cfg_float(cfg, "train", "vtrace_rho_clip");
+    h.vtrace_c_clip = cfg_float(cfg, "train", "vtrace_c_clip");
+    h.prio_alpha = cfg_float(cfg, "train", "prio_alpha");
+    h.prio_beta0 = cfg_float(cfg, "train", "prio_beta0");
+    h.reset_state = cfg_int(cfg, "base", "reset_state");
+    h.cudagraphs = cfg_int(cfg, "base", "cudagraphs");
+    h.profile = cfg_int(cfg, "base", "profile");
     h.rank = ctx->rank;
     h.world_size = ctx->world_size;
     h.gpu_id = ctx->gpu_id;
     if (ctx->world_size > 1) {
         h.nccl_id = *ctx->nccl_id;
     }
-    h.seed = (int)puf_config_val(cfg, "base.seed");
+    h.seed = cfg_int(cfg, "base", "seed");
     return h;
 }
 
 static PuffeRL* create_trainer(Config* cfg, TrainContext* ctx) {
     HypersT hypers = config_to_hypers(cfg, ctx);
-    PuffeRL* pufferl = create_pufferl_impl(hypers, &cfg->vec, &cfg->env);
+    Dict vec = {0};
+    dict_copy(&vec, puf_config_get_section(cfg, "vec"));
+    PuffeRL* pufferl = create_pufferl_impl(hypers, &vec, &cfg->env);
+    dict_clear(&vec);
     if (!pufferl) {
         fprintf(stderr, "create_pufferl_impl failed\n");
         exit(1);
@@ -129,7 +144,7 @@ static void train_result_fill(TrainResult* result, PufLogHistory* history,
     result->cost = (float)puf_log_get_or(last_log, "uptime", 0);
     result->steps = (float)puf_log_get_or(last_log, "agent_steps", 0);
 
-    int points = (int)puf_config_val(cfg, "sweep.downsample");
+    int points = cfg_int(cfg, "sweep", "downsample");
     if (points < 1) {
         points = 1;
     }
@@ -164,8 +179,8 @@ static void train_result_fill(TrainResult* result, PufLogHistory* history,
     result->step_points[points - 1] = result->steps;
 }
 
-static void run_eval(Config* cfg, TrainContext* ctx) {
-    puf_config_put(cfg, "base.reset_state", "false");
+void run_eval(Config* cfg, TrainContext* ctx) {
+    puf_config_put(cfg, "base.reset_state", "0");
     puf_config_put(cfg, "train.horizon", "1");
 
     PuffeRL* pufferl = create_trainer(cfg, ctx);
@@ -187,13 +202,14 @@ static void run_eval(Config* cfg, TrainContext* ctx) {
     close_trainer(pufferl);
 }
 
-static long config_long_or(Config* cfg, const char* key, long fallback) {
-    return puf_config_get(cfg, key) ? (long)puf_config_val(cfg, key) : fallback;
-}
-
 static const char* resolve_checkpoint_key(Config* cfg, const char* key,
         char* out, size_t out_size) {
-    const char* load_path = puf_config_get(cfg, key);
+    const char* load_path = NULL;
+    if (strcmp(key, "load_model_path") == 0) {
+        load_path = puf_config_str(cfg, "base", "load_model_path");
+    } else if (strcmp(key, "load_enemy_model_path") == 0) {
+        load_path = puf_config_str(cfg, "base", "load_enemy_model_path");
+    }
     if (!load_path || strcmp(load_path, "None") == 0) {
         return NULL;
     }
@@ -203,7 +219,8 @@ static const char* resolve_checkpoint_key(Config* cfg, const char* key,
 
     char root[2048];
     snprintf(root, sizeof(root), "%s/%s",
-        puf_config_str(cfg, "base.checkpoint_dir"), puf_config_str(cfg, "base.env_name"));
+        puf_config_str(cfg, "base", "checkpoint_dir"),
+        puf_config_str(cfg, "base", "env_name"));
     out[0] = 0;
     time_t best_time = 0;
     puf_find_latest_checkpoint(root, out, out_size, &best_time);
@@ -217,18 +234,20 @@ static const char* resolve_checkpoint_key(Config* cfg, const char* key,
 static void load_primary_if_configured(PuffeRL* pufferl, Config* cfg) {
     char resolved_path[4096];
     const char* load_path = resolve_checkpoint_key(cfg,
-        "base.load_model_path", resolved_path, sizeof(resolved_path));
+        "load_model_path", resolved_path, sizeof(resolved_path));
     if (load_path) {
         puf_load_weights(pufferl, load_path);
         printf("Loaded weights from %s\n", load_path);
     }
 }
 
-static void run_eval_bot(Config* cfg, TrainContext* ctx) {
-    long num_games = config_long_or(cfg, "base.num_games",
-        (long)puf_config_val(cfg, "base.eval_episodes"));
-    long burnin_games = config_long_or(cfg, "base.burnin_games", 0);
-    long eval_agents = config_long_or(cfg, "base.eval_agents", 0);
+void run_eval_bot(Config* cfg, TrainContext* ctx) {
+    long num_games = cfg_long(cfg, "base", "num_games");
+    if (!num_games) {
+        num_games = cfg_long(cfg, "base", "eval_episodes");
+    }
+    long burnin_games = cfg_long(cfg, "base", "burnin_games");
+    long eval_agents = cfg_long(cfg, "base", "eval_agents");
     if (num_games <= 0 || burnin_games < 0) {
         fprintf(stderr, "eval_bot requires positive num_games and nonnegative burnin_games\n");
         exit(1);
@@ -250,7 +269,7 @@ static void run_eval_bot(Config* cfg, TrainContext* ctx) {
     eval_agents += (-eval_agents) % 2;
 
     char buf[64];
-    puf_config_put(cfg, "base.reset_state", "false");
+    puf_config_put(cfg, "base.reset_state", "0");
     puf_config_put(cfg, "train.horizon", "1");
     puf_config_put(cfg, "vec.num_buffers", "2");
     snprintf(buf, sizeof(buf), "%ld", eval_agents);
@@ -275,11 +294,6 @@ static void run_eval_bot(Config* cfg, TrainContext* ctx) {
         long n = (long)puf_log_get_or(&log, "env/n", 0);
         if (burnin_games > 0 && !has_baseline && n >= burnin_games) {
             baseline = log;
-            for (int i = 0; i < baseline.size; i++) {
-                if (baseline.items[i].str) {
-                    baseline.items[i].str = baseline.items[i].str_buf;
-                }
-            }
             has_baseline = 1;
             baseline_n = n;
             printf("\rbot_eval_burnin=%ld/%ld", n, burnin_games);
@@ -305,12 +319,16 @@ static void run_eval_bot(Config* cfg, TrainContext* ctx) {
     close_trainer(pufferl);
 }
 
-static void run_match_eval(Config* cfg, TrainContext* ctx, int verbose,
+void run_match_eval(Config* cfg, TrainContext* ctx, int verbose,
         float* score_out, float* draw_out, int* games_out) {
-    long num_games = config_long_or(cfg, "base.num_games",
-        (long)puf_config_val(cfg, "base.eval_episodes"));
-    long eval_agents = config_long_or(cfg, "base.eval_agents",
-        (long)puf_config_val(cfg, "sweep.league_match_eval_agents"));
+    long num_games = cfg_long(cfg, "base", "num_games");
+    if (!num_games) {
+        num_games = cfg_long(cfg, "base", "eval_episodes");
+    }
+    long eval_agents = cfg_long(cfg, "base", "eval_agents");
+    if (!eval_agents) {
+        eval_agents = cfg_long(cfg, "sweep", "league_match_eval_agents");
+    }
     if (eval_agents <= 0) {
         eval_agents = 8192;
     }
@@ -319,16 +337,16 @@ static void run_match_eval(Config* cfg, TrainContext* ctx, int verbose,
     char a_path_buf[4096];
     char b_path_buf[4096];
     const char* a_path = resolve_checkpoint_key(cfg,
-        "base.load_model_path", a_path_buf, sizeof(a_path_buf));
+        "load_model_path", a_path_buf, sizeof(a_path_buf));
     const char* b_path = resolve_checkpoint_key(cfg,
-        "base.load_enemy_model_path", b_path_buf, sizeof(b_path_buf));
+        "load_enemy_model_path", b_path_buf, sizeof(b_path_buf));
     if (!a_path || !b_path) {
         fprintf(stderr, "match requires base.load_model_path and base.load_enemy_model_path\n");
         exit(1);
     }
 
     char buf[64];
-    puf_config_put(cfg, "base.reset_state", "false");
+    puf_config_put(cfg, "base.reset_state", "0");
     puf_config_put(cfg, "train.horizon", "1");
     puf_config_put(cfg, "vec.num_buffers", "2");
     snprintf(buf, sizeof(buf), "%ld", eval_agents);
@@ -369,18 +387,20 @@ static void run_match_eval(Config* cfg, TrainContext* ctx, int verbose,
     close_trainer(pufferl);
 }
 
-static void run_match(Config* cfg, TrainContext* ctx) {
+void run_match(Config* cfg, TrainContext* ctx) {
     float score = 0;
     float draw = 0;
     int games = 0;
     run_match_eval(cfg, ctx, 1, &score, &draw, &games);
 }
 
-static void run_league_match_worker(Config* cfg, TrainContext* ctx) {
-    const char* state_path = puf_config_str(cfg, "sweep.league_state_path");
-    long games = config_long_or(cfg, "base.num_games",
-        (long)puf_config_val(cfg, "sweep.league_match_games"));
-    unsigned int rng = (unsigned int)puf_config_val(cfg, "base.seed") + 1009U;
+void run_league_match_worker(Config* cfg, TrainContext* ctx) {
+    const char* state_path = puf_config_str(cfg, "sweep", "league_state_path");
+    long games = cfg_long(cfg, "base", "num_games");
+    if (!games) {
+        games = cfg_long(cfg, "sweep", "league_match_games");
+    }
+    unsigned int rng = (unsigned int)cfg_int(cfg, "base", "seed") + 1009U;
 
     for (;;) {
         LeaguePlayer a;
@@ -406,15 +426,15 @@ static void run_league_match_worker(Config* cfg, TrainContext* ctx) {
     }
 }
 
-static TrainResult run_train(Config* cfg, TrainContext* ctx) {
-    if (puf_config_val(cfg, "selfplay.enabled") == 0) {
+TrainResult run_train(Config* cfg, TrainContext* ctx) {
+    if (cfg_int(cfg, "selfplay", "enabled") == 0) {
         puf_config_put(cfg, "vec.num_frozen_banks", "0");
         puf_config_put(cfg, "vec.frozen_bank_pct", "0");
     }
 
     char run_id[64];
-    const char* configured_run_id = puf_config_get(cfg, "base.run_id");
-    if (!configured_run_id || strcmp(configured_run_id, "None") == 0) {
+    const char* configured_run_id = puf_config_str(cfg, "base", "run_id");
+    if (!configured_run_id[0] || strcmp(configured_run_id, "None") == 0) {
         snprintf(run_id, sizeof(run_id), "%ld", (long)(1000.0 * wall_clock()));
         puf_config_put(cfg, "base.run_id", run_id);
     } else {
@@ -424,9 +444,11 @@ static TrainResult run_train(Config* cfg, TrainContext* ctx) {
     char checkpoint_dir[2048];
     char log_dir[2048];
     snprintf(checkpoint_dir, sizeof(checkpoint_dir), "%s/%s/%s",
-        puf_config_str(cfg, "base.checkpoint_dir"), puf_config_str(cfg, "base.env_name"), run_id);
+        puf_config_str(cfg, "base", "checkpoint_dir"),
+        puf_config_str(cfg, "base", "env_name"), run_id);
     snprintf(log_dir, sizeof(log_dir), "%s/%s",
-        puf_config_str(cfg, "base.log_dir"), puf_config_str(cfg, "base.env_name"));
+        puf_config_str(cfg, "base", "log_dir"),
+        puf_config_str(cfg, "base", "env_name"));
     if (ctx->artifact_owner) {
         mkdir_p(checkpoint_dir);
         mkdir_p(log_dir);
@@ -435,14 +457,14 @@ static TrainResult run_train(Config* cfg, TrainContext* ctx) {
     PuffeRL* pufferl = create_trainer(cfg, ctx);
     Selfplay* selfplay = (Selfplay*)calloc(1, sizeof(Selfplay));
     selfplay_init(selfplay, cfg, pufferl, run_id, ctx->artifact_owner, ctx->world_size);
-    long total_timesteps = (long)puf_config_val(cfg, "train.total_timesteps");
-    long batch_size = (long)puf_config_val(cfg, "vec.total_agents")
-        * (long)puf_config_val(cfg, "train.horizon");
+    long total_timesteps = cfg_long(cfg, "train", "total_timesteps");
+    long batch_size = (long)cfg_int(cfg, "vec", "total_agents") *
+        (long)cfg_int(cfg, "train", "horizon");
     long local_timesteps = total_timesteps / ctx->world_size;
     long train_epochs = local_timesteps / batch_size;
     long eval_epochs = train_epochs / 2;
-    long checkpoint_interval = (long)puf_config_val(cfg, "base.checkpoint_interval");
-    long eval_episodes = (long)puf_config_val(cfg, "base.eval_episodes");
+    long checkpoint_interval = cfg_long(cfg, "base", "checkpoint_interval");
+    long eval_episodes = cfg_long(cfg, "base", "eval_episodes");
     const char* target_key = "env/score";
     Dict last_log = {0};
     PufLogHistory log_history = {0};
@@ -526,14 +548,13 @@ static void wait_children(pid_t* pids, int num_pids) {
     }
 }
 
-static TrainResult launch_train(Config* cfg) {
-    int world_size = (int)puf_config_val(cfg, "train.gpus");
+TrainResult launch_train(Config* cfg) {
+    int world_size = cfg_int(cfg, "train", "gpus");
     if (world_size < 1) {
         fprintf(stderr, "config error: [train] gpus must be >= 1\n");
         exit(1);
     }
-    const char* offset_item = puf_config_get(cfg, "base.gpu_offset");
-    int gpu_offset = offset_item ? (int)puf_config_val(cfg, "base.gpu_offset") : 0;
+    int gpu_offset = cfg_int(cfg, "base", "gpu_offset");
 
     ncclUniqueId nccl_id;
     ncclUniqueId* nccl_ptr = NULL;
@@ -593,15 +614,15 @@ int main(int argc, char** argv) {
 
     const char* mode = argv[1];
     const char* env_name = argv[2];
-    Config cfg = {0};
-    puf_config_load_env(&cfg, env_name, argc - 3, argv + 3);
-    puf_config_validate_train(&cfg);
+    Config* cfg = (Config*)calloc(1, sizeof(Config));
+    puf_config_load_env(cfg, env_name, argc - 3, argv + 3);
+    puf_config_validate_train(cfg);
 
     if (strcmp(mode, "train") == 0) {
-        TrainResult result = launch_train(&cfg);
-        const char* fd_item = puf_config_get(&cfg, "base.result_fd");
-        if (fd_item) {
-            int fd = (int)puf_config_val(&cfg, "base.result_fd");
+        TrainResult result = launch_train(cfg);
+        int result_fd = cfg_int(cfg, "base", "result_fd");
+        if (result_fd) {
+            int fd = result_fd;
             if (write(fd, &result, sizeof(result)) != sizeof(result)) {
                 fprintf(stderr, "failed to write train result\n");
                 exit(1);
@@ -609,7 +630,7 @@ int main(int argc, char** argv) {
             close(fd);
         }
     } else if (strcmp(mode, "sweep") == 0) {
-        run_sweep(&cfg, argv[0]);
+        run_sweep(cfg, argv[0]);
     } else if (strcmp(mode, "eval") == 0) {
         TrainContext ctx = {
             .rank = 0,
@@ -618,7 +639,7 @@ int main(int argc, char** argv) {
             .artifact_owner = 1,
             .nccl_id = NULL,
         };
-        run_eval(&cfg, &ctx);
+        run_eval(cfg, &ctx);
     } else if (strcmp(mode, "eval_bot") == 0) {
         TrainContext ctx = {
             .rank = 0,
@@ -627,7 +648,7 @@ int main(int argc, char** argv) {
             .artifact_owner = 1,
             .nccl_id = NULL,
         };
-        run_eval_bot(&cfg, &ctx);
+        run_eval_bot(cfg, &ctx);
     } else if (strcmp(mode, "match") == 0) {
         TrainContext ctx = {
             .rank = 0,
@@ -636,7 +657,7 @@ int main(int argc, char** argv) {
             .artifact_owner = 1,
             .nccl_id = NULL,
         };
-        run_match(&cfg, &ctx);
+        run_match(cfg, &ctx);
     } else if (strcmp(mode, "league_match_worker") == 0) {
         TrainContext ctx = {
             .rank = 0,
@@ -645,16 +666,17 @@ int main(int argc, char** argv) {
             .artifact_owner = 1,
             .nccl_id = NULL,
         };
-        const char* offset_item = puf_config_get(&cfg, "base.gpu_offset");
-        if (offset_item) {
-            ctx.gpu_id = (int)puf_config_val(&cfg, "base.gpu_offset");
+        int gpu_offset = cfg_int(cfg, "base", "gpu_offset");
+        if (gpu_offset) {
+            ctx.gpu_id = gpu_offset;
         }
-        run_league_match_worker(&cfg, &ctx);
+        run_league_match_worker(cfg, &ctx);
     } else {
         fprintf(stderr, "unknown mode: %s\n", mode);
         exit(1);
     }
 
-    puf_config_free(&cfg);
+    puf_config_free(cfg);
+    free(cfg);
     return 0;
 }

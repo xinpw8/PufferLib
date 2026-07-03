@@ -69,7 +69,7 @@ static void puf_find_latest_checkpoint(const char* dir,
 }
 
 static const char* puf_checkpoint_path(Config* cfg, char* out, size_t out_size) {
-    const char* load_path = puf_config_get(cfg, "base.load_model_path");
+    const char* load_path = puf_config_str(cfg, "base", "load_model_path");
     if (!load_path || strcmp(load_path, "None") == 0) {
         return NULL;
     }
@@ -80,7 +80,8 @@ static const char* puf_checkpoint_path(Config* cfg, char* out, size_t out_size) 
 
     char root[2048];
     snprintf(root, sizeof(root), "%s/%s",
-        puf_config_str(cfg, "base.checkpoint_dir"), puf_config_str(cfg, "base.env_name"));
+        puf_config_str(cfg, "base", "checkpoint_dir"),
+        puf_config_str(cfg, "base", "env_name"));
 
     out[0] = 0;
     time_t best_time = 0;

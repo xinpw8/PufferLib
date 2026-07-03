@@ -7,30 +7,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
-typedef struct {
-    char* key;
-    double* data;
-    int n;
-    int cap;
-} Series;
-
-typedef struct {
-    Series* items;
-    int n;
-    int cap;
-} Table;
-
-typedef struct {
-    char* key;
-    double value;
-} Scalar;
-
-typedef struct {
-    Scalar* scalars;
-    int num_scalars;
-    int cap_scalars;
-    Table metrics;
-} Experiment;
+#include "config.h"
+#include "table.h"
 
 static const char* EXTRA_KEYS[] = {
     "train/learning_rate",
@@ -57,256 +35,6 @@ static const char* EXTRA_KEYS[] = {
     "train/total_timesteps",
 };
 
-static char* xstrdup(const char* s) {
-    size_t n = strlen(s) + 1;
-    char* out = (char*)malloc(n);
-    if (!out) {
-        perror("malloc");
-        exit(1);
-    }
-    memcpy(out, s, n);
-    return out;
-}
-
-static char* trim(char* s) {
-    while (isspace((unsigned char)*s)) {
-        s++;
-    }
-    char* e = s + strlen(s);
-    while (e > s && isspace((unsigned char)e[-1])) {
-        *--e = 0;
-    }
-    return s;
-}
-
-static void strip_comment(char* s) {
-    int quote = 0;
-    for (char* p = s; *p; p++) {
-        if ((*p == '\'' || *p == '"') && (p == s || p[-1] != '\\')) {
-            quote = quote == *p ? 0 : quote ? quote : *p;
-        }
-        if ((*p == '#' || *p == ';') && !quote) {
-            *p = 0;
-            return;
-        }
-    }
-}
-
-static int parse_num(const char* raw, double* out) {
-    char buf[256];
-    int j = 0;
-    for (int i = 0; raw[i] && j + 1 < (int)sizeof(buf); i++) {
-        if (raw[i] != '_' && !isspace((unsigned char)raw[i])) {
-            buf[j++] = raw[i];
-        }
-    }
-    buf[j] = 0;
-    if (strcmp(buf, "True") == 0 || strcmp(buf, "true") == 0) {
-        *out = 1;
-        return 1;
-    }
-    if (strcmp(buf, "False") == 0 || strcmp(buf, "false") == 0) {
-        *out = 0;
-        return 1;
-    }
-
-    char* end = NULL;
-    double v = strtod(buf, &end);
-    if (!buf[0] || !end || *end) {
-        return 0;
-    }
-    *out = v;
-    return 1;
-}
-
-static Series* table_get(Table* t, const char* key) {
-    for (int i = 0; i < t->n; i++) {
-        if (strcmp(t->items[i].key, key) == 0) {
-            return &t->items[i];
-        }
-    }
-    if (t->n == t->cap) {
-        t->cap = t->cap ? 2 * t->cap : 32;
-        t->items = (Series*)realloc(t->items, (size_t)t->cap * sizeof(Series));
-        if (!t->items) {
-            perror("realloc");
-            exit(1);
-        }
-    }
-    Series* s = &t->items[t->n++];
-    memset(s, 0, sizeof(*s));
-    s->key = xstrdup(key);
-    return s;
-}
-
-static Series* table_find(Table* t, const char* key) {
-    for (int i = 0; i < t->n; i++) {
-        if (strcmp(t->items[i].key, key) == 0) {
-            return &t->items[i];
-        }
-    }
-    return NULL;
-}
-
-static void series_push(Series* s, double v) {
-    if (s->n == s->cap) {
-        s->cap = s->cap ? 2 * s->cap : 64;
-        s->data = (double*)realloc(s->data, (size_t)s->cap * sizeof(double));
-        if (!s->data) {
-            perror("realloc");
-            exit(1);
-        }
-    }
-    s->data[s->n++] = v;
-}
-
-static void table_add_values(Table* t, const char* key, double* values, int n) {
-    Series* s = table_get(t, key);
-    for (int i = 0; i < n; i++) {
-        series_push(s, values[i]);
-    }
-}
-
-static void table_add_const(Table* t, const char* key, double value, int n) {
-    Series* s = table_get(t, key);
-    for (int i = 0; i < n; i++) {
-        series_push(s, value);
-    }
-}
-
-static void exp_set_scalar(Experiment* e, const char* key, double value) {
-    for (int i = 0; i < e->num_scalars; i++) {
-        if (strcmp(e->scalars[i].key, key) == 0) {
-            e->scalars[i].value = value;
-            return;
-        }
-    }
-    if (e->num_scalars == e->cap_scalars) {
-        e->cap_scalars = e->cap_scalars ? 2 * e->cap_scalars : 64;
-        e->scalars = (Scalar*)realloc(e->scalars,
-            (size_t)e->cap_scalars * sizeof(Scalar));
-        if (!e->scalars) {
-            perror("realloc");
-            exit(1);
-        }
-    }
-    e->scalars[e->num_scalars].key = xstrdup(key);
-    e->scalars[e->num_scalars].value = value;
-    e->num_scalars++;
-}
-
-static int exp_get_scalar(Experiment* e, const char* key, double* out) {
-    for (int i = 0; i < e->num_scalars; i++) {
-        if (strcmp(e->scalars[i].key, key) == 0) {
-            *out = e->scalars[i].value;
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static void free_table(Table* t) {
-    for (int i = 0; i < t->n; i++) {
-        free(t->items[i].key);
-        free(t->items[i].data);
-    }
-    free(t->items);
-    memset(t, 0, sizeof(*t));
-}
-
-static void free_exp(Experiment* e) {
-    for (int i = 0; i < e->num_scalars; i++) {
-        free(e->scalars[i].key);
-    }
-    free(e->scalars);
-    free_table(&e->metrics);
-    memset(e, 0, sizeof(*e));
-}
-
-static int load_ini_log(const char* path, Experiment* e) {
-    FILE* fp = fopen(path, "r");
-    if (!fp) {
-        return 0;
-    }
-    char section[256] = "base";
-    char line[8192];
-    while (fgets(line, sizeof(line), fp)) {
-        strip_comment(line);
-        char* s = trim(line);
-        if (!*s) {
-            continue;
-        }
-        size_t len = strlen(s);
-        if (s[0] == '[' && len > 2 && s[len - 1] == ']') {
-            s[len - 1] = 0;
-            snprintf(section, sizeof(section), "%s", trim(s + 1));
-            continue;
-        }
-        char* eq = strchr(s, '=');
-        if (!eq) {
-            fclose(fp);
-            return 0;
-        }
-        *eq = 0;
-        char* key = trim(s);
-        char* val = trim(eq + 1);
-
-        if (strcmp(section, "metrics") == 0) {
-            if (strstr(key, "loss")) {
-                continue;
-            }
-            Series* series = table_get(&e->metrics, key);
-            char* p = val;
-            while (*p) {
-                char* end = NULL;
-                double x = strtod(p, &end);
-                if (end == p) {
-                    break;
-                }
-                series_push(series, x);
-                p = end;
-                while (*p == ',' || isspace((unsigned char)*p)) {
-                    p++;
-                }
-            }
-        } else {
-            double x = 0;
-            if (!parse_num(val, &x)) {
-                continue;
-            }
-            char full[512];
-            if (strcmp(section, "base") == 0) {
-                snprintf(full, sizeof(full), "%s", key);
-            } else {
-                snprintf(full, sizeof(full), "%s/%s", section, key);
-            }
-            exp_set_scalar(e, full, x);
-        }
-    }
-    fclose(fp);
-    return 1;
-}
-
-static int valid_experiment(Experiment* e) {
-    Series* steps = table_find(&e->metrics, "agent_steps");
-    if (!steps || steps->n == 0) {
-        return 0;
-    }
-    int n = steps->n;
-    for (int i = 0; i < e->metrics.n; i++) {
-        Series* s = &e->metrics.items[i];
-        if (s->n != n) {
-            return 0;
-        }
-        for (int j = 0; j < s->n; j++) {
-            if (isnan(s->data[j])) {
-                return 0;
-            }
-        }
-    }
-    return 1;
-}
-
 static int has_suffix(const char* s, const char* suffix) {
     size_t n = strlen(s);
     size_t m = strlen(suffix);
@@ -316,6 +44,152 @@ static int has_suffix(const char* s, const char* suffix) {
 static int is_dir(const char* path) {
     struct stat st;
     return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+static void key_to_cache(char* out, size_t out_size, const char* section, const char* key) {
+    if (strcmp(section, "config") == 0) {
+        if (strncmp(key, "base.", 5) == 0) {
+            snprintf(out, out_size, "%s", key + 5);
+        } else {
+            snprintf(out, out_size, "%s", key);
+        }
+    } else if (strcmp(section, "base") == 0) {
+        snprintf(out, out_size, "%s", key);
+    } else {
+        snprintf(out, out_size, "%s/%s", section, key);
+    }
+
+    for (char* p = out; *p; p++) {
+        if (*p == '.') {
+            *p = '/';
+        }
+    }
+}
+
+static int parse_list(char* raw, float** out, int* len) {
+    int cap = 16;
+    int n = 0;
+    float* vals = (float*)calloc((size_t)cap, sizeof(float));
+    if (!vals) {
+        perror("calloc");
+        exit(1);
+    }
+
+    char* p = raw;
+    while (*p) {
+        while (*p == ',' || isspace((unsigned char)*p)) {
+            p++;
+        }
+        if (!*p) {
+            break;
+        }
+
+        char* end = NULL;
+        float v = strtof(p, &end);
+        if (end == p) {
+            free(vals);
+            return 0;
+        }
+        if (n == cap) {
+            cap *= 2;
+            vals = (float*)realloc(vals, (size_t)cap * sizeof(float));
+            if (!vals) {
+                perror("realloc");
+                exit(1);
+            }
+        }
+        vals[n++] = v;
+        p = end;
+    }
+
+    *out = vals;
+    *len = n;
+    return n > 0;
+}
+
+static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        return 0;
+    }
+
+    char section[256] = "base";
+    char line[8192];
+    while (fgets(line, sizeof(line), fp)) {
+        puf_config_strip_comment(line);
+        char* s = puf_config_trim(line);
+        if (!*s) {
+            continue;
+        }
+
+        size_t len = strlen(s);
+        if (s[0] == '[' && len > 2 && s[len - 1] == ']') {
+            s[len - 1] = 0;
+            snprintf(section, sizeof(section), "%s", puf_config_trim(s + 1));
+            continue;
+        }
+
+        char* eq = strchr(s, '=');
+        if (!eq) {
+            fclose(fp);
+            return 0;
+        }
+        *eq = 0;
+        char* key = puf_config_trim(s);
+        char* val = puf_config_trim(eq + 1);
+        puf_config_strip_quotes(val);
+
+        if (strcmp(section, "metrics") == 0) {
+            if (strstr(key, "loss")) {
+                continue;
+            }
+            float* values = NULL;
+            int n = 0;
+            if (!parse_list(val, &values, &n)) {
+                fclose(fp);
+                return 0;
+            }
+            if (metrics->rows == 0) {
+                table_resize_rows(metrics, n);
+            } else if (metrics->rows != n) {
+                free(values);
+                fclose(fp);
+                return 0;
+            }
+            int col = table_ensure_col(metrics, key);
+            for (int r = 0; r < n; r++) {
+                table_set(metrics, r, col, values[r]);
+            }
+            free(values);
+        } else {
+            double value = 0;
+            if (!puf_config_parse_val(val, &value)) {
+                continue;
+            }
+            char full[512];
+            key_to_cache(full, sizeof(full), section, key);
+            dict_set(scalars, full, value);
+        }
+    }
+
+    fclose(fp);
+    return metrics->rows > 0;
+}
+
+static void table_copy_rows(Table* dst, int dst_row, Table* src) {
+    for (int c = 0; c < src->cols; c++) {
+        int out_col = table_ensure_col(dst, src->labels[c]);
+        for (int r = 0; r < src->rows; r++) {
+            table_set(dst, dst_row + r, out_col, table_get(src, r, c));
+        }
+    }
+}
+
+static void table_fill_scalar(Table* dst, int row, int rows, const char* key, float value) {
+    int col = table_ensure_col(dst, key);
+    for (int r = 0; r < rows; r++) {
+        table_set(dst, row + r, col, value);
+    }
 }
 
 static void load_env(const char* env, int full_dataset, Table* out) {
@@ -332,6 +206,7 @@ static void load_env(const char* env, int full_dataset, Table* out) {
             free(ents[i]);
             continue;
         }
+
         char path[2048];
         snprintf(path, sizeof(path), "%s/%s", dir, ents[i]->d_name);
         free(ents[i]);
@@ -339,109 +214,103 @@ static void load_env(const char* env, int full_dataset, Table* out) {
             continue;
         }
 
-        Experiment exp = {0};
-        if (!load_ini_log(path, &exp) || !valid_experiment(&exp)) {
-            free_exp(&exp);
+        Dict scalars = {0};
+        Table metrics = {0};
+        if (!load_ini_log(path, &scalars, &metrics)) {
+            dict_clear(&scalars);
+            table_free(&metrics);
             continue;
         }
-        int rows = table_find(&exp.metrics, "agent_steps")->n;
-        for (int m = 0; m < exp.metrics.n; m++) {
-            table_add_values(out, exp.metrics.items[m].key,
-                exp.metrics.items[m].data, rows);
-        }
-        for (int s = 0; s < exp.num_scalars; s++) {
-            table_add_const(out, exp.scalars[s].key, exp.scalars[s].value, rows);
+
+        int start = out->rows;
+        table_resize_rows(out, out->rows + metrics.rows);
+        table_copy_rows(out, start, &metrics);
+        for (int s = 0; s < scalars.size; s++) {
+            DictItem* item = &scalars.items[s];
+            table_fill_scalar(out, start, metrics.rows, item->key, (float)item->value);
         }
         for (int k = 0; k < (int)(sizeof(EXTRA_KEYS) / sizeof(EXTRA_KEYS[0])); k++) {
-            double v = 0;
-            if (!exp_get_scalar(&exp, EXTRA_KEYS[k], &v)) {
-                table_add_const(out, EXTRA_KEYS[k], 0, rows);
+            if (!dict_find(&scalars, EXTRA_KEYS[k])) {
+                table_fill_scalar(out, start, metrics.rows, EXTRA_KEYS[k], 0);
             }
         }
-        free_exp(&exp);
+
+        dict_clear(&scalars);
+        table_free(&metrics);
     }
     free(ents);
 
-    Series* steps = table_find(out, "agent_steps");
-    Series* total_steps = table_find(out, "train/total_timesteps");
-    if (steps) {
-        for (int i = 0; i < steps->n; i++) {
-            steps->data[i] /= 1e6;
+    int steps_col = table_col(out, "agent_steps");
+    int total_steps_col = table_col(out, "train/total_timesteps");
+    for (int r = 0; r < out->rows; r++) {
+        if (steps_col >= 0) {
+            table_set(out, r, steps_col, table_get(out, r, steps_col) / 1e6f);
         }
-    }
-    if (total_steps) {
-        for (int i = 0; i < total_steps->n; i++) {
-            total_steps->data[i] /= 1e6;
-        }
-    }
-
-    if (steps) {
-        Series* tsne1 = table_get(out, "tsne1");
-        Series* tsne2 = table_get(out, "tsne2");
-        for (int i = 0; i < steps->n; i++) {
-            series_push(tsne1, (double)(i % 997) / 997.0);
-            series_push(tsne2, (double)((i * 37) % 991) / 991.0);
+        if (total_steps_col >= 0) {
+            table_set(out, r, total_steps_col, table_get(out, r, total_steps_col) / 1e6f);
         }
     }
 
-    if (full_dataset || !steps) {
+    int tsne1 = table_ensure_col(out, "tsne1");
+    int tsne2 = table_ensure_col(out, "tsne2");
+    for (int r = 0; r < out->rows; r++) {
+        table_set(out, r, tsne1, (float)(r % 997) / 997.0f);
+        table_set(out, r, tsne2, (float)((r * 37) % 991) / 991.0f);
+    }
+
+    if (full_dataset || steps_col < 0) {
         return;
     }
 
-    Series* cost = table_find(out, "uptime");
-    Series* score = table_find(out, "env/score");
-    if (!cost || !score || cost->n != steps->n || score->n != steps->n) {
+    int cost_col = table_col(out, "uptime");
+    int score_col = table_col(out, "env/score");
+    if (cost_col < 0 || score_col < 0) {
         return;
     }
 
-    int n = steps->n;
+    int n = out->rows;
     unsigned char* keep = (unsigned char*)calloc((size_t)n, 1);
     for (int i = 0; i < n; i++) {
         keep[i] = 1;
         for (int j = 0; j < n; j++) {
-            if (score->data[j] >= score->data[i] &&
-                    cost->data[j] < cost->data[i] &&
-                    steps->data[j] < steps->data[i]) {
+            if (table_get(out, j, score_col) >= table_get(out, i, score_col) &&
+                    table_get(out, j, cost_col) < table_get(out, i, cost_col) &&
+                    table_get(out, j, steps_col) < table_get(out, i, steps_col)) {
                 keep[i] = 0;
                 break;
             }
         }
     }
-    for (int k = 0; k < out->n; k++) {
-        Series* s = &out->items[k];
-        if (s->n != n) {
+
+    int w = 0;
+    for (int r = 0; r < n; r++) {
+        if (!keep[r]) {
             continue;
         }
-        int w = 0;
-        for (int i = 0; i < n; i++) {
-            if (keep[i]) {
-                s->data[w++] = s->data[i];
-            }
+        for (int c = 0; c < out->cols; c++) {
+            table_set(out, w, c, table_get(out, r, c));
         }
-        s->n = w;
+        w++;
     }
+    out->rows = w;
     free(keep);
 }
 
-static void write_env(FILE* fp, const char* env, Table* t) {
-    Series* steps = table_find(t, "agent_steps");
-    if (!steps || steps->n == 0) {
+static void write_env(FILE* fp, const char* env, Table* table) {
+    if (table->rows == 0) {
         return;
     }
+
     fprintf(fp, "\n[%s]\n", env);
-    for (int i = 0; i < t->n; i++) {
-        Series* s = &t->items[i];
-        if (s->n != steps->n) {
-            continue;
-        }
-        fprintf(fp, "%s = ", s->key);
-        for (int j = 0; j < s->n; j++) {
-            if (j > 0) {
+    for (int c = 0; c < table->cols; c++) {
+        fprintf(fp, "%s = ", table->labels[c]);
+        for (int r = 0; r < table->rows; r++) {
+            if (r > 0) {
                 fputc(',', fp);
             }
-            fprintf(fp, "%.6g", s->data[j]);
+            fprintf(fp, "%.6g", table_get(table, r, c));
         }
-        fprintf(fp, "\n");
+        fputc('\n', fp);
     }
 }
 
@@ -472,13 +341,15 @@ int main(int argc, char** argv) {
                 free(ents[i]);
                 continue;
             }
+
             char path[1024];
             snprintf(path, sizeof(path), "logs/%s", ents[i]->d_name);
             if (is_dir(path)) {
-                Table t = {0};
-                load_env(ents[i]->d_name, full_dataset, &t);
-                write_env(fp, ents[i]->d_name, &t);
-                free_table(&t);
+                Table table = {0};
+                snprintf(table.name, sizeof(table.name), "%s", ents[i]->d_name);
+                load_env(ents[i]->d_name, full_dataset, &table);
+                write_env(fp, ents[i]->d_name, &table);
+                table_free(&table);
             }
             free(ents[i]);
         }

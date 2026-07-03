@@ -47,8 +47,8 @@ int main(int argc, char** argv) {
     int act_sizes[] = ACT_SIZES;
     int num_actions = (int)(sizeof(act_sizes) / sizeof(act_sizes[0]));
 
-    int hidden_size = (int)puf_config_val(&cfg, "policy.hidden_size");
-    int num_layers = (int)puf_config_val(&cfg, "policy.num_layers");
+    int hidden_size = cfg.hidden_size;
+    int num_layers = cfg.num_layers;
 
     Env env = {0};
     env.rng = 0;

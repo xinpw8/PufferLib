@@ -241,7 +241,7 @@ static void selfplay_init_bank_counts(Selfplay* sp, PuffeRL* p) {
 static void selfplay_init(Selfplay* sp, Config* cfg, PuffeRL* p,
         const char* run_id, int artifact_owner, int world_size) {
     memset(sp, 0, sizeof(*sp));
-    sp->enabled = (int)puf_config_val(cfg, "selfplay.enabled");
+    sp->enabled = (int)puf_config_get(cfg, "selfplay", "enabled");
     if (!sp->enabled) {
         return;
     }
@@ -253,21 +253,22 @@ static void selfplay_init(Selfplay* sp, Config* cfg, PuffeRL* p,
         fprintf(stderr, "selfplay requires 1..%d frozen banks\n", SELFPLAY_MAX_BANKS);
         exit(1);
     }
-    sp->max_size = (int)puf_config_val(cfg, "selfplay.max_size");
-    sp->snapshot_interval = (long)puf_config_val(cfg, "selfplay.snapshot_interval");
-    sp->opp_timeout_steps = (long)puf_config_val(cfg, "selfplay.opp_timeout_steps");
-    sp->rng = (unsigned int)puf_config_val(cfg, "selfplay.seed") + (unsigned int)p->hypers.rank;
+    sp->max_size = (int)puf_config_get(cfg, "selfplay", "max_size");
+    sp->snapshot_interval = (long)puf_config_get(cfg, "selfplay", "snapshot_interval");
+    sp->opp_timeout_steps = (long)puf_config_get(cfg, "selfplay", "opp_timeout_steps");
+    sp->rng = (unsigned int)puf_config_get(cfg, "selfplay", "seed") + (unsigned int)p->hypers.rank;
     long current_step = p->global_step * world_size;
     sp->last_snapshot_step = current_step;
     selfplay_init_bank_counts(sp, p);
 
     snprintf(sp->pool_dir, sizeof(sp->pool_dir), "%s/%s/%s/pool",
-        puf_config_str(cfg, "base.checkpoint_dir"), puf_config_str(cfg, "base.env_name"), run_id);
+        puf_config_str(cfg, "base", "checkpoint_dir"),
+        puf_config_str(cfg, "base", "env_name"), run_id);
     selfplay_join(sp->state_path, sizeof(sp->state_path), sp->pool_dir, "shared_opponents.txt");
 
     if (artifact_owner) {
         mkdir_p(sp->pool_dir);
-        const char* spec = puf_config_str(cfg, "selfplay.opponent_pool");
+        const char* spec = puf_config_str(cfg, "selfplay", "opponent_pool");
         selfplay_load_pool_spec(sp, spec);
         if (spec[0] != 0 && sp->pool_size == 0) {
             fprintf(stderr, "selfplay.opponent_pool resolved no .bin files: %s\n", spec);

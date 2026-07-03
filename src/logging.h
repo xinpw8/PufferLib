@@ -126,7 +126,6 @@ static void puf_log_update(Dict* dst, Dict* src) {
         } else {
             dict_set(dst, item->key, item->value);
         }
-        puf_log_find(dst, item->key)->ptr = item->ptr;
     }
 }
 
@@ -140,17 +139,14 @@ static void puf_log_history_add(PufLogHistory* history, Dict* log) {
         }
     }
 
-    history->items[history->size] = *log;
-    for (int i = 0; i < history->items[history->size].size; i++) {
-        if (history->items[history->size].items[i].str) {
-            history->items[history->size].items[i].str =
-                history->items[history->size].items[i].str_buf;
-        }
-    }
+    dict_copy(&history->items[history->size], log);
     history->size++;
 }
 
 static void puf_log_history_free(PufLogHistory* history) {
+    for (int i = 0; i < history->size; i++) {
+        dict_clear(&history->items[i]);
+    }
     free(history->items);
     memset(history, 0, sizeof(*history));
 }
@@ -189,17 +185,19 @@ static void puf_log_write_metric(FILE* fp, const char* key, double* values, int 
     fputc('\n', fp);
 }
 
-static void puf_log_write_config_item(const char* full_key, DictItem* item, void* ctx) {
-    if (!item->str) {
-        return;
-    }
-    FILE* fp = (FILE*)ctx;
-    fprintf(fp, "%s = %s\n", full_key, item->str);
-}
-
 static void puf_log_write_config(FILE* fp, Config* cfg) {
     fprintf(fp, "\n[config]\n");
-    puf_config_each(cfg, puf_log_write_config_item, fp);
+    for (int s = 0; s < cfg->num_sections; s++) {
+        Dict* dict = &cfg->sections[s];
+        for (int i = 0; i < dict->size; i++) {
+            DictItem* item = &dict->items[i];
+            if (item->str) {
+                fprintf(fp, "%s.%s = %s\n", dict->name, item->key, item->str);
+            } else {
+                fprintf(fp, "%s.%s = %.17g\n", dict->name, item->key, item->value);
+            }
+        }
+    }
 }
 
 static void puf_log_write(const char* path, Config* cfg, PufLogHistory* history) {
@@ -218,7 +216,7 @@ static void puf_log_write(const char* path, Config* cfg, PufLogHistory* history)
     puf_log_write_config(fp, cfg);
     fprintf(fp, "\n[metrics]\n");
 
-    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
+    int downsample = (int)puf_config_get(cfg, "sweep", "downsample");
     Dict keys = {0};
     puf_log_collect_keys(history, &keys);
     int points = downsample <= 1 ? 1 : downsample;

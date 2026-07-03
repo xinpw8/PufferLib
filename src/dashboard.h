@@ -167,10 +167,10 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
         printf("\033[?2026h\033[H");
     }
 
-    const char* env_name = puf_config_str(cfg, "base.env_name");
+    const char* env_name = puf_config_str(cfg, "base", "env_name");
     double steps = puf_log_get_or(log, "agent_steps", (double)p->global_step);
     double sps = puf_log_get_or(log, "SPS", 0);
-    double target_steps = puf_config_val(cfg, "train.total_timesteps");
+    double target_steps = puf_config_get(cfg, "train", "total_timesteps");
     double remaining_sec = sps > 0 ? (target_steps - steps) / sps : 0;
     double rollout = puf_log_get_or(log, "perf/rollout", 0);
     double train_time = puf_log_get_or(log, "perf/train", 0);
