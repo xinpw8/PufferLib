@@ -9,8 +9,25 @@
 
 #include "dict.h"
 
-static char* puf_config_strdup(const char* s) {
-    return dict_strdup(s);
+typedef struct {
+    Dict base;
+    Dict vec;
+    Dict selfplay;
+    Dict env;
+    Dict policy;
+    Dict train;
+    Dict sweep;
+    Dict sweep_space;
+    Dict torch;
+} Config;
+
+static DictItem* puf_config_find(Dict* dict, const char* key) {
+    for (int i = 0; i < dict->size; i++) {
+        if (strcmp(dict->items[i].key, key) == 0) {
+            return &dict->items[i];
+        }
+    }
+    return NULL;
 }
 
 static char* puf_config_trim(char* s) {
@@ -85,48 +102,114 @@ static int puf_config_parse_val(const char* raw, double* out) {
     return 1;
 }
 
-static const char* puf_config_get(Dict* cfg, const char* key) {
-    DictItem* item = dict_get_unsafe(cfg, key);
-    return item ? item->str : NULL;
+static Dict* puf_config_section(Config* cfg, const char* section) {
+    if (strcmp(section, "base") == 0) {
+        return &cfg->base;
+    }
+    if (strcmp(section, "vec") == 0) {
+        return &cfg->vec;
+    }
+    if (strcmp(section, "selfplay") == 0) {
+        return &cfg->selfplay;
+    }
+    if (strcmp(section, "env") == 0) {
+        return &cfg->env;
+    }
+    if (strcmp(section, "policy") == 0) {
+        return &cfg->policy;
+    }
+    if (strcmp(section, "train") == 0) {
+        return &cfg->train;
+    }
+    if (strcmp(section, "sweep") == 0) {
+        return &cfg->sweep;
+    }
+    if (strncmp(section, "sweep.", 6) == 0) {
+        return &cfg->sweep_space;
+    }
+    if (strcmp(section, "torch") == 0) {
+        return &cfg->torch;
+    }
+
+    fprintf(stderr, "config error: unknown section [%s]\n", section);
+    exit(1);
 }
 
-static const char* puf_config_str(Dict* cfg, const char* key) {
-    const char* out = puf_config_get(cfg, key);
-    if (!out) {
-        fprintf(stderr, "config error: %s missing\n", key);
+static Dict* puf_config_key(Config* cfg, const char* full_key,
+        char* key_out, size_t key_out_size) {
+    const char* dot = strchr(full_key, '.');
+    if (!dot) {
+        fprintf(stderr, "config error: expected section.key, got %s\n", full_key);
         exit(1);
     }
-    return out;
+
+    char section[64];
+    snprintf(section, sizeof(section), "%.*s", (int)(dot - full_key), full_key);
+    if (strcmp(section, "sweep") == 0 && strchr(dot + 1, '.')) {
+        snprintf(key_out, key_out_size, "%s", dot + 1);
+        return &cfg->sweep_space;
+    }
+
+    snprintf(key_out, key_out_size, "%s", dot + 1);
+    return puf_config_section(cfg, section);
 }
 
-static void puf_config_put(Dict* cfg, const char* key, const char* val) {
-    dict_set_str(cfg, key, val);
+static const char* puf_config_get(Config* cfg, const char* full_key) {
+    char key[PUF_DICT_MAX_KEY];
+    Dict* section = puf_config_key(cfg, full_key, key, sizeof(key));
+    DictItem* item = puf_config_find(section, key);
+    return item && item->str ? item->str : NULL;
+}
+
+static const char* puf_config_str(Config* cfg, const char* full_key) {
+    char key[PUF_DICT_MAX_KEY];
+    Dict* section = puf_config_key(cfg, full_key, key, sizeof(key));
+    return dict_get_str(section, key);
+}
+
+static void puf_config_put(Config* cfg, const char* full_key, const char* val) {
+    char key[PUF_DICT_MAX_KEY];
+    Dict* section = puf_config_key(cfg, full_key, key, sizeof(key));
+    dict_set_str(section, key, val);
     double parsed = 0;
     if (puf_config_parse_val(val, &parsed)) {
-        dict_get(cfg, key)->value = parsed;
+        DictItem* item = puf_config_find(section, key);
+        item->value = parsed;
     }
 }
 
-static double puf_config_val(Dict* cfg, const char* key) {
-    const char* raw = puf_config_str(cfg, key);
+static double puf_config_val(Config* cfg, const char* full_key) {
+    char key[PUF_DICT_MAX_KEY];
+    Dict* section = puf_config_key(cfg, full_key, key, sizeof(key));
+    DictItem* item = puf_config_find(section, key);
+    if (!item) {
+        fprintf(stderr, "config error: %s missing\n", full_key);
+        exit(1);
+    }
+    if (!item->str) {
+        return item->value;
+    }
+
     double val = 0;
-    if (!puf_config_parse_val(raw, &val)) {
-        fprintf(stderr, "config error: %s expected number, got \"%s\"\n", key, raw);
+    if (!puf_config_parse_val(item->str, &val)) {
+        fprintf(stderr, "config error: %s expected number, got \"%s\"\n", full_key, item->str);
         exit(1);
     }
     return val;
 }
 
-static void puf_config_join_key(char* out, size_t out_size,
-        const char* section, const char* key) {
-    if (strcmp(section, "base") == 0 && strchr(key, '.')) {
-        snprintf(out, out_size, "%s", key);
+static void puf_config_put_section(Config* cfg, const char* section_name,
+        const char* key, const char* val) {
+    char full_key[512];
+    if (strncmp(section_name, "sweep.", 6) == 0) {
+        snprintf(full_key, sizeof(full_key), "%s.%s", section_name, key);
     } else {
-        snprintf(out, out_size, "%s.%s", section, key);
+        snprintf(full_key, sizeof(full_key), "%s.%s", section_name, key);
     }
+    puf_config_put(cfg, full_key, val);
 }
 
-static int puf_config_parse_kv(Dict* cfg, const char* section,
+static int puf_config_parse_kv(Config* cfg, const char* section,
         char* s, const char* src, int lineno) {
     char* eq = strchr(s, '=');
     if (!eq) {
@@ -143,13 +226,11 @@ static int puf_config_parse_kv(Dict* cfg, const char* section,
         return 0;
     }
 
-    char full_key[512];
-    puf_config_join_key(full_key, sizeof(full_key), section, key);
-    puf_config_put(cfg, full_key, val);
+    puf_config_put_section(cfg, section, key, val);
     return 1;
 }
 
-static int puf_config_load_file(Dict* cfg, const char* path, bool required) {
+static int puf_config_load_file(Config* cfg, const char* path, bool required) {
     FILE* fp = fopen(path, "r");
     if (!fp) {
         if (required) {
@@ -177,6 +258,7 @@ static int puf_config_load_file(Dict* cfg, const char* path, bool required) {
         if (s[0] == '[' && len >= 3 && s[len - 1] == ']') {
             s[len - 1] = 0;
             snprintf(section, sizeof(section), "%s", puf_config_trim(s + 1));
+            puf_config_section(cfg, section);
             continue;
         }
 
@@ -190,8 +272,13 @@ static int puf_config_load_file(Dict* cfg, const char* path, bool required) {
     return 1;
 }
 
-static int puf_config_apply_cli(Dict* cfg, const char* arg, int idx) {
-    char* tmp = puf_config_strdup(arg);
+static int puf_config_apply_cli(Config* cfg, const char* arg, int idx) {
+    char tmp[2048];
+    if (strlen(arg) >= sizeof(tmp)) {
+        fprintf(stderr, "argv:%d: argument too long\n", idx);
+        return 0;
+    }
+    snprintf(tmp, sizeof(tmp), "%s", arg);
     char* s = tmp;
     while (*s == '-') {
         s++;
@@ -212,23 +299,28 @@ static int puf_config_apply_cli(Dict* cfg, const char* arg, int idx) {
 
     if (!*s) {
         fprintf(stderr, "argv:%d: empty key\n", idx);
-        free(tmp);
         return 0;
     }
 
-    char full_key[512];
+    char full_key[PUF_DICT_MAX_KEY * 2];
     if (strchr(s, '.')) {
+        if (strlen(s) >= sizeof(full_key)) {
+            fprintf(stderr, "argv:%d: key too long\n", idx);
+            return 0;
+        }
         snprintf(full_key, sizeof(full_key), "%s", s);
     } else {
+        if (strlen(s) + 5 >= sizeof(full_key)) {
+            fprintf(stderr, "argv:%d: key too long\n", idx);
+            return 0;
+        }
         snprintf(full_key, sizeof(full_key), "base.%s", s);
     }
-
     puf_config_put(cfg, full_key, value);
-    free(tmp);
     return 1;
 }
 
-static void puf_config_load_env(Dict* cfg, const char* env_name, int argc, char** argv) {
+static void puf_config_load_env(Config* cfg, const char* env_name, int argc, char** argv) {
     if (!puf_config_load_file(cfg, "config/default.ini", true)) {
         exit(1);
     }
@@ -249,7 +341,7 @@ static void puf_config_load_env(Dict* cfg, const char* env_name, int argc, char*
     }
 }
 
-static void puf_config_validate_train(Dict* cfg) {
+static void puf_config_validate_train(Config* cfg) {
     long minibatch = (long)puf_config_val(cfg, "train.minibatch_size");
     long horizon = (long)puf_config_val(cfg, "train.horizon");
     long agents = (long)puf_config_val(cfg, "vec.total_agents");
@@ -264,10 +356,50 @@ static void puf_config_validate_train(Dict* cfg) {
     }
 }
 
-static void puf_config_copy(Dict* dst, Dict* src) {
-    dict_copy(dst, src);
+static void puf_config_copy(Config* dst, Config* src) {
+    memcpy(dst, src, sizeof(*dst));
+    Dict* dicts[] = {
+        &dst->base, &dst->vec, &dst->selfplay, &dst->env, &dst->policy,
+        &dst->train, &dst->sweep, &dst->sweep_space, &dst->torch,
+    };
+    for (int d = 0; d < 9; d++) {
+        for (int i = 0; i < dicts[d]->size; i++) {
+            if (dicts[d]->items[i].str) {
+                dicts[d]->items[i].str = dicts[d]->items[i].str_buf;
+            }
+        }
+    }
 }
 
-static void puf_config_free(Dict* cfg) {
-    dict_clear(cfg);
+static int puf_config_count(Config* cfg) {
+    return cfg->base.size + cfg->vec.size + cfg->selfplay.size + cfg->env.size
+        + cfg->policy.size + cfg->train.size + cfg->sweep.size
+        + cfg->sweep_space.size + cfg->torch.size;
+}
+
+typedef void (*PufConfigEachFn)(const char* full_key, DictItem* item, void* ctx);
+
+static void puf_config_each_dict(const char* prefix, Dict* dict,
+        PufConfigEachFn fn, void* ctx) {
+    char full_key[PUF_DICT_MAX_KEY * 2];
+    for (int i = 0; i < dict->size; i++) {
+        snprintf(full_key, sizeof(full_key), "%s.%s", prefix, dict->items[i].key);
+        fn(full_key, &dict->items[i], ctx);
+    }
+}
+
+static void puf_config_each(Config* cfg, PufConfigEachFn fn, void* ctx) {
+    puf_config_each_dict("base", &cfg->base, fn, ctx);
+    puf_config_each_dict("vec", &cfg->vec, fn, ctx);
+    puf_config_each_dict("selfplay", &cfg->selfplay, fn, ctx);
+    puf_config_each_dict("env", &cfg->env, fn, ctx);
+    puf_config_each_dict("policy", &cfg->policy, fn, ctx);
+    puf_config_each_dict("train", &cfg->train, fn, ctx);
+    puf_config_each_dict("sweep", &cfg->sweep, fn, ctx);
+    puf_config_each_dict("sweep", &cfg->sweep_space, fn, ctx);
+    puf_config_each_dict("torch", &cfg->torch, fn, ctx);
+}
+
+static void puf_config_free(Config* cfg) {
+    memset(cfg, 0, sizeof(*cfg));
 }

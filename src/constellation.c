@@ -3,7 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "cJSON.h"
+#include "config.h"
 #include "raylib.h"
 
 #define RAYGUI_IMPLEMENTATION
@@ -631,77 +631,101 @@ float fast_atof(char **s) {
   return sign * val;
 }
 
+Env* dataset_env(Dataset* data, const char* key) {
+    for (int i = 0; i < data->n; i++) {
+        if (strcmp(data->envs[i].key, key) == 0) {
+            return &data->envs[i];
+        }
+    }
+    data->envs = realloc(data->envs, (data->n + 1) * sizeof(Env));
+    Env* env = &data->envs[data->n++];
+    memset(env, 0, sizeof(*env));
+    env->key = strdup(key);
+    return env;
+}
+
+void env_add_hyper(Env* env, const char* key, const char* values) {
+    env->hypers = realloc(env->hypers, (env->n + 1) * sizeof(Hyper));
+    Hyper* h = &env->hypers[env->n++];
+    memset(h, 0, sizeof(*h));
+    h->key = strdup(key);
+
+    int capacity = 1;
+    for (char* p = values; *p; p++) {
+        if (*p == ',') {
+            capacity++;
+        }
+    }
+    h->ary = calloc(capacity, sizeof(float));
+
+    char* s = (char*)values;
+    while (*s) {
+        h->ary[h->n++] = fast_atof(&s);
+        if (*s == ',') {
+            s++;
+        } else {
+            while (*s == ' ' || *s == '\t') {
+                s++;
+            }
+            if (*s && *s != ',') {
+                break;
+            }
+        }
+    }
+}
+
+Dataset load_dataset(const char* path) {
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        fprintf(stderr, "could not open %s\n", path);
+        exit(1);
+    }
+
+    Dataset data = {0};
+    char env_name[256] = "";
+    char line[4096];
+    for (int n = 1; fgets(line, sizeof(line), fp); n++) {
+        puf_config_strip_comment(line);
+        char* s = puf_config_trim(line);
+        if (!*s) {
+            continue;
+        }
+
+        size_t len = strlen(s);
+        if (s[0] == '[' && len >= 3 && s[len - 1] == ']') {
+            s[len - 1] = 0;
+            snprintf(env_name, sizeof(env_name), "%s", puf_config_trim(s + 1));
+            continue;
+        }
+
+        char* eq = strchr(s, '=');
+        if (!eq) {
+            fprintf(stderr, "%s:%d: expected key=value\n", path, n);
+            exit(1);
+        }
+        if (!env_name[0]) {
+            fprintf(stderr, "%s:%d: expected section before key=value\n", path, n);
+            exit(1);
+        }
+        *eq = 0;
+        char* key = puf_config_trim(s);
+        char* val = puf_config_trim(eq + 1);
+        puf_config_strip_quotes(val);
+        env_add_hyper(dataset_env(&data, env_name), key, val);
+    }
+    fclose(fp);
+    return data;
+}
+
 int main(void) {
-    FILE *file = fopen("resources/constellation/experiments.json", "r");
-    if (!file) {
-        printf("Error opening file\n");
-        return 1;
-    }
-
-    // Read in file
-    fseek(file, 0, SEEK_END);
-    long file_size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char *json_str = malloc(file_size + 1);
-    fread(json_str, 1, file_size, file);
-    json_str[file_size] = '\0';
-    fclose(file);
-    cJSON *root = cJSON_Parse(json_str);
-    if (!root) {
-        printf("JSON parse error: %.100s\n", cJSON_GetErrorPtr());
-        free(json_str);
-        return 1;
-    }
-    if (!cJSON_IsObject(root)) {
-        printf("Error: Root is not an object\n");
-        return 1;
-    }
-
-    // Load in dataset
-    Dataset data = {NULL, 0};
-    cJSON *json_env = root->child;
-    while (json_env) {
-        data.n++;
-        json_env = json_env->next;
-    }
-
-    Env *envs = calloc(data.n, sizeof(Env));
-    data.envs = envs;
-    json_env = root->child;
+    Dataset data = load_dataset("resources/constellation/experiments.ini");
+    Env *envs = data.envs;
     int max_data_points = 0;
     for (int i=0; i<data.n; i++) {
-        cJSON *json_hyper = json_env->child;
-        while (json_hyper) {
-            envs[i].n++;
-            json_hyper = json_hyper->next;
+        for (int j=0; j<envs[i].n; j++) {
+            max_data_points = envs[i].hypers[j].n > max_data_points ?
+                envs[i].hypers[j].n : max_data_points;
         }
-        envs[i].key = json_env->string;
-        envs[i].hypers = calloc(envs[i].n, sizeof(Hyper));
-        json_hyper = json_env->child;
-        for (int j=0; j<envs[i].n; j++, json_hyper=json_hyper->next) {
-            envs[i].hypers[j].key = json_hyper->string;
-            int capacity = 1;
-            for (char* p = json_hyper->valuestring; *p; p++) {
-                if (*p == ',') {
-                    capacity++;
-                }
-            }
-            if (capacity > max_data_points) {
-                max_data_points = capacity;
-            }
-            envs[i].hypers[j].ary = calloc(capacity, sizeof(float));
-
-            int n = 0;
-            char* s = json_hyper->valuestring;
-            while (*s) {
-                envs[i].hypers[j].ary[n++] = fast_atof(&s);
-                if (*s == ',') {
-                    s++;
-                }
-            }
-            envs[i].hypers[j].n = n;
-        }
-        json_env = json_env->next;
     }
     int total_points = 0;
     for (int i=0; i<data.n; i++) {
@@ -1216,13 +1240,13 @@ int main(void) {
     // Cleanup
     for (int i = 0; i < data.n; i++) {
         for (int j = 0; j < envs[i].n; j++) {
+            free(envs[i].hypers[j].key);
             free(envs[i].hypers[j].ary);
         }
+        free(envs[i].key);
         free(envs[i].hypers);
     }
     free(envs);
-    cJSON_Delete(root);
-    free(json_str);
     free(options);
     free(env_hyper_options);
     free(env_options);

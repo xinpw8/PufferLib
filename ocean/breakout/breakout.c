@@ -29,29 +29,34 @@ void demo() {
 
     env.client = make_client(&env);
 
-    c_reset(&env);
+    puf_reset(&env);
     int frame = 0;
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
+        float* actions = env.agents[0].actions;
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if(env.continuous) {
+            if (env.continuous) {
                 float move = GetMouseWheelMove();
                 float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
-                env.actions[0] = clamped_wheel;
+                actions[0] = clamped_wheel;
             } else {
-                env.actions[0] = 0.0;
-                if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 1;
-                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 2;
+                actions[0] = 0.0;
+                if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) {
+                    actions[0] = 1;
+                }
+                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                    actions[0] = 2;
+                }
             }
         } else if (frame % 4 == 0) {
             // Apply frameskip outside the env for smoother rendering
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, actions);
         }
 
         frame = (frame + 1) % 4;
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

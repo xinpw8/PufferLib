@@ -1,34 +1,12 @@
 #pragma once
 
-#include <ctype.h>
 #include <errno.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #include "config.h"
 #include "checkpoint.h"
-
-static void mkdir_p(const char* path) {
-    char tmp[1024];
-    snprintf(tmp, sizeof(tmp), "%s", path);
-    for (char* p = tmp + 1; *p; p++) {
-        if (*p == '/') {
-            *p = 0;
-            if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
-                fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
-                exit(1);
-            }
-            *p = '/';
-        }
-    }
-    if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
-        fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
-        exit(1);
-    }
-}
 
 static void log_util(PuffeRL* p, Dict* out) {
     nvmlUtilization_t util;
@@ -57,6 +35,14 @@ static void log_util(PuffeRL* p, Dict* out) {
     dict_set(out, "util/cpu_mem_gb", (double)rss_kb / (1024.0 * 1024.0));
 }
 
+static void puf_log_env(Dict* out, Dict* env_out) {
+    for (int i = 0; i < env_out->size; i++) {
+        char key[256];
+        snprintf(key, sizeof(key), "env/%s", env_out->items[i].key);
+        dict_set(out, key, env_out->items[i].value);
+    }
+}
+
 static void trainer_log(PuffeRL* p, Dict* out) {
     long global_step = p->global_step;
     double now = wall_clock();
@@ -70,13 +56,9 @@ static void trainer_log(PuffeRL* p, Dict* out) {
     dict_set(out, "uptime", now - p->start_time);
     dict_set(out, "epoch", (double)p->epoch);
 
-    Dict* env_out = log_environments_impl(*p);
-    for (int i = 0; i < env_out->size; i++) {
-        char key[256];
-        snprintf(key, sizeof(key), "env/%s", env_out->items[i].key);
-        dict_set(out, key, env_out->items[i].value);
-    }
-    dict_free(env_out);
+    Dict env_out = {0};
+    log_environments_impl(*p, &env_out);
+    puf_log_env(out, &env_out);
 
     float losses_host[NUM_LOSSES];
     cudaMemcpy(losses_host, p->losses_puf.data, sizeof(losses_host), cudaMemcpyDeviceToHost);
@@ -115,14 +97,9 @@ static void trainer_eval_log(PuffeRL* p, Dict* out) {
     p->last_log_step = p->global_step;
     log_util(p, out);
 
-    Dict* env_out = create_dict(64);
-    static_vec_eval_log(p->vec, env_out);
-    for (int i = 0; i < env_out->size; i++) {
-        char key[256];
-        snprintf(key, sizeof(key), "env/%s", env_out->items[i].key);
-        dict_set(out, key, env_out->items[i].value);
-    }
-    dict_free(env_out);
+    Dict env_out = {0};
+    vec_log(p->vec, &env_out, 0);
+    puf_log_env(out, &env_out);
 }
 
 typedef struct {
@@ -131,16 +108,25 @@ typedef struct {
     int capacity;
 } PufLogHistory;
 
-static void dict_update(Dict* dst, Dict* src) {
+static DictItem* puf_log_find(Dict* dict, const char* key) {
+    for (int i = 0; i < dict->size; i++) {
+        if (strcmp(dict->items[i].key, key) == 0) {
+            return &dict->items[i];
+        }
+    }
+    return NULL;
+}
+
+static void puf_log_update(Dict* dst, Dict* src) {
     for (int i = 0; i < src->size; i++) {
         DictItem* item = &src->items[i];
         if (item->str) {
             dict_set_str(dst, item->key, item->str);
-            dict_get(dst, item->key)->value = item->value;
+            puf_log_find(dst, item->key)->value = item->value;
         } else {
             dict_set(dst, item->key, item->value);
         }
-        dict_get(dst, item->key)->ptr = item->ptr;
+        puf_log_find(dst, item->key)->ptr = item->ptr;
     }
 }
 
@@ -154,32 +140,26 @@ static void puf_log_history_add(PufLogHistory* history, Dict* log) {
         }
     }
 
-    dict_copy(&history->items[history->size], log);
+    history->items[history->size] = *log;
+    for (int i = 0; i < history->items[history->size].size; i++) {
+        if (history->items[history->size].items[i].str) {
+            history->items[history->size].items[i].str =
+                history->items[history->size].items[i].str_buf;
+        }
+    }
     history->size++;
 }
 
 static void puf_log_history_free(PufLogHistory* history) {
-    for (int i = 0; i < history->size; i++) {
-        dict_clear(&history->items[i]);
-    }
     free(history->items);
     memset(history, 0, sizeof(*history));
-}
-
-static int puf_log_key_index(Dict* keys, const char* key) {
-    for (int i = 0; i < keys->size; i++) {
-        if (strcmp(keys->items[i].key, key) == 0) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 static void puf_log_collect_keys(PufLogHistory* history, Dict* keys) {
     for (int i = 0; i < history->size; i++) {
         Dict* log = &history->items[i];
         for (int j = 0; j < log->size; j++) {
-            if (puf_log_key_index(keys, log->items[j].key) < 0) {
+            if (!puf_log_find(keys, log->items[j].key)) {
                 dict_set(keys, log->items[j].key, 0);
             }
         }
@@ -209,34 +189,20 @@ static void puf_log_write_metric(FILE* fp, const char* key, double* values, int 
     fputc('\n', fp);
 }
 
-static void puf_log_write_config(FILE* fp, Dict* cfg) {
-    char section[256] = "";
-    for (int i = 0; i < cfg->size; i++) {
-        DictItem* item = &cfg->items[i];
-        if (!item->str) {
-            continue;
-        }
-
-        char sec[256];
-        char key[256];
-        const char* dot = strrchr(item->key, '.');
-        if (!dot) {
-            snprintf(sec, sizeof(sec), "base");
-            snprintf(key, sizeof(key), "%s", item->key);
-        } else {
-            snprintf(sec, sizeof(sec), "%.*s", (int)(dot - item->key), item->key);
-            snprintf(key, sizeof(key), "%s", dot + 1);
-        }
-
-        if (strcmp(sec, section) != 0) {
-            snprintf(section, sizeof(section), "%s", sec);
-            fprintf(fp, "\n[%s]\n", section);
-        }
-        fprintf(fp, "%s = %s\n", key, item->str);
+static void puf_log_write_config_item(const char* full_key, DictItem* item, void* ctx) {
+    if (!item->str) {
+        return;
     }
+    FILE* fp = (FILE*)ctx;
+    fprintf(fp, "%s = %s\n", full_key, item->str);
 }
 
-static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
+static void puf_log_write_config(FILE* fp, Config* cfg) {
+    fprintf(fp, "\n[config]\n");
+    puf_config_each(cfg, puf_log_write_config_item, fp);
+}
+
+static void puf_log_write(const char* path, Config* cfg, PufLogHistory* history) {
     if (history->size == 0) {
         fprintf(stderr, "cannot write empty log history\n");
         exit(1);
@@ -258,7 +224,7 @@ static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
     int points = downsample <= 1 ? 1 : downsample;
     double* out = (double*)calloc((size_t)points, sizeof(double));
     double* bin = (double*)calloc((size_t)history->size, sizeof(double));
-    double final_steps = dict_get(&history->items[history->size - 1], "agent_steps")->value;
+    double final_steps = dict_get(&history->items[history->size - 1], "agent_steps");
 
     for (int k = 0; k < keys.size; k++) {
         const char* key = keys.items[k].key;
@@ -268,7 +234,7 @@ static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
 
         double first_value = 0;
         for (int i = 0; i < history->size; i++) {
-            DictItem* item = dict_get_unsafe(&history->items[i], key);
+            DictItem* item = puf_log_find(&history->items[i], key);
             if (item) {
                 first_value = item->value;
                 break;
@@ -276,7 +242,7 @@ static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
         }
 
         if (points == 1) {
-            DictItem* item = dict_get_unsafe(&history->items[history->size - 1], key);
+            DictItem* item = puf_log_find(&history->items[history->size - 1], key);
             out[0] = item ? item->value : first_value;
             puf_log_write_metric(fp, key, out, points);
             continue;
@@ -288,12 +254,12 @@ static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
         double next_bin = final_steps / (points - 1);
         for (int i = 0; i < history->size; i++) {
             Dict* log = &history->items[i];
-            DictItem* item = dict_get_unsafe(log, key);
+            DictItem* item = puf_log_find(log, key);
             if (item) {
                 bin[bin_n++] = item->value;
             }
 
-            double steps = dict_get(log, "agent_steps")->value;
+            double steps = dict_get(log, "agent_steps");
             if (steps < next_bin || out_idx >= points - 1) {
                 continue;
             }
@@ -305,7 +271,7 @@ static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
             next_bin += final_steps / (points - 1);
         }
 
-        DictItem* final_item = dict_get_unsafe(&history->items[history->size - 1], key);
+        DictItem* final_item = puf_log_find(&history->items[history->size - 1], key);
         out[points - 1] = final_item ? final_item->value : puf_log_reduce(bin, bin_n, fallback);
         while (out_idx < points - 1) {
             out[out_idx++] = fallback;
@@ -315,6 +281,5 @@ static void puf_log_write(const char* path, Dict* cfg, PufLogHistory* history) {
 
     free(bin);
     free(out);
-    dict_clear(&keys);
     fclose(fp);
 }

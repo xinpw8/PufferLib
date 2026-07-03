@@ -31,8 +31,6 @@ static constexpr cublasComputeType_t CUBLAS_COMPUTE_PRECISION = CUBLAS_COMPUTE_3
 #define from_float(x) __float2bfloat16(x)
 #endif
 
-#include "tensor.h"
-
 __host__ __device__ inline int ndim(const int64_t* shape) {
     int n = 0; while (n < PUF_MAX_DIMS && shape[n] != 0) n++; return n;
 }

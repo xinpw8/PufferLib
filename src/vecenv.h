@@ -1,201 +1,118 @@
-// vecenv.h - Static vectorized env implementation.
-
 #pragma once
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#ifdef __CUDACC__
+#include <time.h>
 #include <cuda_runtime_api.h>
-#endif
+#include <omp.h>
+#include <pthread.h>
 
 #include "dict.h"
-#include "tensor.h"
+#include "precision.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef ENV_HEADER
 #define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER
 #undef PUFFER_VECENV_INCLUDE
-#endif
 
-typedef struct CUstream_st* cudaStream_t;
-typedef struct StaticThreading StaticThreading;
+typedef int atomic_int;
 
-#ifdef OBS_SIZE
-typedef Env StaticEnv;
-#else
-typedef void StaticEnv;
-#endif
+struct PuffeRL;
+void pufferl_thread_init(struct PuffeRL* pufferl, int buf);
+void pufferl_forward(struct PuffeRL* pufferl, int buf, int t);
 
-#ifdef OBS_TENSOR_T
-typedef OBS_TENSOR_T StaticObsTensor;
-#else
-typedef void* StaticObsTensor;
-#endif
+typedef struct ObsTensor {
+    obs_t* data;
+    int64_t shape[PUF_MAX_DIMS];
+} ObsTensor;
 
-typedef struct StaticVec {
-    StaticEnv* envs;
+static inline int atomic_load(const atomic_int* ptr) {
+    return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+}
+
+static inline void atomic_store(atomic_int* ptr, int value) {
+    __atomic_store_n(ptr, value, __ATOMIC_SEQ_CST);
+}
+
+enum VecProfileIdx {
+    VEC_GPU = 0,
+    VEC_ENV_STEP,
+    NUM_VEC_PROF,
+};
+
+#define OMP_WAITING 5
+#define OMP_RUNNING 6
+
+typedef struct VecWorker VecWorker;
+
+typedef struct VecEnv {
+    Env* envs;
     int size;
     int total_agents;
     int buffers;
     int agents_per_buffer;
     int* buffer_env_starts;
     int* buffer_env_counts;
-    StaticObsTensor observations;
+    obs_t* observations;
     float* actions;
     float* rewards;
     float* terminals;
-    unsigned char* action_mask;  // NULL unless env defines MY_ACTION_MASK
-    StaticObsTensor gpu_observations;
+    unsigned char* action_mask;
+    obs_t* gpu_observations;
     float* gpu_actions;
     float* gpu_rewards;
     float* gpu_terminals;
-    unsigned char* gpu_action_mask;  // NULL unless env defines MY_ACTION_MASK
+    unsigned char* gpu_action_mask;
     cudaStream_t* streams;
-    StaticThreading* threading;
-    int action_mask_size;        // 0 unless env defines MY_ACTION_MASK
-    int* agent_perm;
-} StaticVec;
-
-typedef void (*net_callback_fn)(void* ctx, int buf, int t);
-typedef void (*thread_init_fn)(void* ctx, int buf);
-
-enum EvalProfileIdx {
-    EVAL_GPU = 0,   // forward + D2H (everything before env step)
-    EVAL_ENV_STEP,  // OMP c_step (pure CPU)
-    NUM_EVAL_PROF,
-};
-
-StaticVec* create_static_vec(int total_agents, int num_buffers, Dict* vec_kwargs, Dict* env_kwargs);
-void static_vec_reset(StaticVec* vec);
-void static_vec_close(StaticVec* vec);
-void static_vec_log(StaticVec* vec, Dict* out);
-void static_vec_eval_log(StaticVec* vec, Dict* out);
-void create_static_threads(StaticVec* vec, int num_threads, int horizon,
-    void* ctx, net_callback_fn net_callback, thread_init_fn thread_init);
-void static_vec_omp_step(StaticVec* vec);
-void static_vec_render(StaticVec* vec, int env_id);
-void static_vec_read_profile(StaticVec* vec, float out[NUM_EVAL_PROF]);
-
-void static_vec_set_perm(StaticVec* vec, const int* perm);
-void static_vec_set_env_tags(StaticVec* vec, const int* tags);
-int static_vec_count_aligned(StaticVec* vec, int tag_value, int reset_flags);
-
-// Optional shared state functions
-void* my_shared(void* env, Dict* kwargs);
-void my_shared_close(void* env);
-void* my_get(void* env, Dict* out);
-int my_put(void* env, Dict* kwargs);
-
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef OBS_SIZE
-
-static inline size_t obs_element_size(void) {
-    OBS_TENSOR_T t;
-    return sizeof(*t.data);
-}
-
-static inline void static_obs_set(StaticObsTensor* obs, void* data, int total_agents) {
-#ifdef __cplusplus
-    obs->data = (decltype(obs->data))data;
-#else
-    obs->data = data;
-#endif
-    memset(obs->shape, 0, sizeof(obs->shape));
-    obs->shape[0] = total_agents;
-    obs->shape[1] = OBS_SIZE;
-}
-
-#include <omp.h>
-typedef int atomic_int;
-static inline int atomic_load(const atomic_int* ptr) {
-    return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
-}
-static inline void atomic_store(atomic_int* ptr, int value) {
-    __atomic_store_n(ptr, value, __ATOMIC_SEQ_CST);
-}
-#include <pthread.h>
-#include <stdbool.h>
-#include <time.h>
-
-#define OMP_WAITING 5
-#define OMP_RUNNING 6
-
-void my_init(Env* env, Dict* kwargs);
-void my_log(Log* log, Dict* out);
-
-#ifdef MY_USES_PERM
-void my_setup_perm(StaticVec* vec, Env* env, int slot_base);
-#endif
-
-
-struct StaticThreading {
     atomic_int* buffer_states;
     atomic_int shutdown;
-    int num_threads;
-    int num_buffers;
     pthread_t* threads;
-    float* accum;  // [num_buffers * NUM_EVAL_PROF] per-buffer timing in ms
-};
+    VecWorker* workers;
+    float* accum;
+    int num_workers;
+    int action_mask_size;
+    int num_banks;
+    int* bank_layout;
+} VecEnv;
 
-typedef struct StaticOMPArg {
-    StaticVec* vec;
+struct VecWorker {
+    VecEnv* vec;
     int buf;
     int horizon;
-    void* ctx;
-    net_callback_fn net_callback;
-    thread_init_fn thread_init;
-} StaticOMPArg;
+    struct PuffeRL* pufferl;
+};
 
-static void* static_omp_threadmanager(void* arg) {
-    StaticOMPArg* worker_arg = (StaticOMPArg*)arg;
-    StaticVec* vec = worker_arg->vec;
-    StaticThreading* threading = vec->threading;
+static void* vec_thread_main(void* arg) {
+    VecWorker* worker_arg = (VecWorker*)arg;
+    VecEnv* vec = worker_arg->vec;
     int buf = worker_arg->buf;
     int horizon = worker_arg->horizon;
-    void* ctx = worker_arg->ctx;
-    net_callback_fn net_callback = worker_arg->net_callback;
-    thread_init_fn thread_init = worker_arg->thread_init;
+    struct PuffeRL* pufferl = worker_arg->pufferl;
 
-    if (thread_init != NULL) {
-        thread_init(ctx, buf);
-    }
+    pufferl_thread_init(pufferl, buf);
 
     int agents_per_buffer = vec->agents_per_buffer;
     int agent_start = buf * agents_per_buffer;
     int env_start = vec->buffer_env_starts[buf];
     int env_count = vec->buffer_env_counts[buf];
-    atomic_int* buffer_states = threading->buffer_states;
-    int num_workers = threading->num_threads / vec->buffers;
-    if (num_workers < 1) {
-        num_workers = 1;
-    }
 
-    Env* envs = (Env*)vec->envs;
+    Env* envs = vec->envs;
 
-    printf("Num workers: %d\n", num_workers);
     while (true) {
-        while (atomic_load(&buffer_states[buf]) != OMP_RUNNING) {
-            if (atomic_load(&threading->shutdown)) {
+        while (atomic_load(&vec->buffer_states[buf]) != OMP_RUNNING) {
+            if (atomic_load(&vec->shutdown)) {
                 return NULL;
             }
         }
         cudaStream_t stream = vec->streams[buf];
 
-        float* my_accum = &threading->accum[buf * NUM_EVAL_PROF];
+        float* my_accum = &vec->accum[buf * NUM_VEC_PROF];
         struct timespec t0, t1;
 
         for (int t = 0; t < horizon; t++) {
             clock_gettime(CLOCK_MONOTONIC, &t0);
-            net_callback(ctx, buf, t);
+            pufferl_forward(pufferl, buf, t);
 
             cudaMemcpyAsync(
                 &vec->actions[agent_start * NUM_ATNS],
@@ -204,22 +121,22 @@ static void* static_omp_threadmanager(void* arg) {
                 cudaMemcpyDeviceToHost, stream);
             cudaStreamSynchronize(stream);
             clock_gettime(CLOCK_MONOTONIC, &t1);
-            my_accum[EVAL_GPU] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
+            my_accum[VEC_GPU] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
             memset(&vec->rewards[agent_start], 0, agents_per_buffer * sizeof(float));
             memset(&vec->terminals[agent_start], 0, agents_per_buffer * sizeof(float));
             clock_gettime(CLOCK_MONOTONIC, &t0);
-            #pragma omp parallel for schedule(static) num_threads(num_workers)
+            #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
             for (int i = env_start; i < env_start + env_count; i++) {
-                c_step(&envs[i]);
+                puf_step(&envs[i]);
             }
             clock_gettime(CLOCK_MONOTONIC, &t1);
-            my_accum[EVAL_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
+            my_accum[VEC_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
             cudaMemcpyAsync(
-                (char*)vec->gpu_observations.data + agent_start * OBS_SIZE * obs_element_size(),
-                (char*)vec->observations.data + agent_start * OBS_SIZE * obs_element_size(),
-                agents_per_buffer * OBS_SIZE * obs_element_size(),
+                vec->gpu_observations + (size_t)agent_start * OBS_SIZE,
+                vec->observations + (size_t)agent_start * OBS_SIZE,
+                (size_t)agents_per_buffer * OBS_SIZE * sizeof(obs_t),
                 cudaMemcpyHostToDevice, stream);
             cudaMemcpyAsync(
                 &vec->gpu_rewards[agent_start],
@@ -231,38 +148,33 @@ static void* static_omp_threadmanager(void* arg) {
                 &vec->terminals[agent_start],
                 agents_per_buffer * sizeof(float),
                 cudaMemcpyHostToDevice, stream);
-#ifdef MY_ACTION_MASK
-            cudaMemcpyAsync(
-                vec->gpu_action_mask + agent_start * MY_ACTION_MASK,
-                vec->action_mask     + agent_start * MY_ACTION_MASK,
-                agents_per_buffer * MY_ACTION_MASK * sizeof(unsigned char),
-                cudaMemcpyHostToDevice, stream);
-#endif
+            if (vec->action_mask_size > 0) {
+                cudaMemcpyAsync(
+                    vec->gpu_action_mask + agent_start * vec->action_mask_size,
+                    vec->action_mask     + agent_start * vec->action_mask_size,
+                    (size_t)agents_per_buffer * vec->action_mask_size * sizeof(unsigned char),
+                    cudaMemcpyHostToDevice, stream);
+            }
         }
         cudaStreamSynchronize(stream);
-        atomic_store(&buffer_states[buf], OMP_WAITING);
+        atomic_store(&vec->buffer_states[buf], OMP_WAITING);
     }
 }
 
-void static_vec_omp_step(StaticVec* vec) {
-    StaticThreading* threading = vec->threading;
+void vec_step(VecEnv* vec) {
     for (int buf = 0; buf < vec->buffers; buf++) {
-        atomic_store(&threading->buffer_states[buf], OMP_RUNNING);
+        atomic_store(&vec->buffer_states[buf], OMP_RUNNING);
     }
     for (int buf = 0; buf < vec->buffers; buf++) {
-        while (atomic_load(&threading->buffer_states[buf]) != OMP_WAITING) {}
+        while (atomic_load(&vec->buffer_states[buf]) != OMP_WAITING) {}
     }
 }
 
-#ifdef MY_VEC_INIT
-Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
-                 Dict* vec_kwargs, Dict* env_kwargs);
-#else
-Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+Env* vec_init_envs(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
                  Dict* vec_kwargs, Dict* env_kwargs) {
 
-    int total_agents = (int)dict_get(vec_kwargs, "total_agents")->value;
-    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers")->value;
+    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
+    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
     int agents_per_buffer = total_agents / num_buffers;
 
     Env* envs = (Env*)calloc(total_agents, sizeof(Env));
@@ -270,9 +182,8 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
     int num_envs = 0;
     int agents_created = 0;
     while (agents_created < total_agents) {
-        srand(num_envs);
         envs[num_envs].rng = num_envs;
-        my_init(&envs[num_envs], env_kwargs);
+        puf_init(&envs[num_envs], env_kwargs);
         agents_created += envs[num_envs].num_agents;
         num_envs++;
     }
@@ -297,239 +208,224 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
     *num_envs_out = num_envs;
     return envs;
 }
-#endif
 
-#ifdef MY_VEC_CLOSE
-void my_vec_close(Env* envs);
-#else
-void my_vec_close(Env* envs) {
-    return;
-}
-#endif
-
-StaticVec* create_static_vec(int total_agents, int num_buffers, Dict* vec_kwargs, Dict* env_kwargs) {
-    StaticVec* vec = (StaticVec*)calloc(1, sizeof(StaticVec));
+VecEnv* vec_create(Dict* vec_kwargs, Dict* env_kwargs) {
+    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
+    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
+    VecEnv* vec = (VecEnv*)calloc(1, sizeof(VecEnv));
     vec->total_agents = total_agents;
     vec->buffers = num_buffers;
     vec->agents_per_buffer = total_agents / num_buffers;
+    vec->num_workers = (int)dict_get(vec_kwargs, "num_threads") / num_buffers;
+    if (vec->num_workers < 1) {
+        vec->num_workers = 1;
+    }
+    int frozen_banks = (int)dict_get(vec_kwargs, "num_frozen_banks");
+    vec->num_banks = frozen_banks + 1;
+    vec->bank_layout = (int*)calloc(vec->num_banks + 1, sizeof(int));
 
     vec->buffer_env_starts = (int*)calloc(num_buffers, sizeof(int));
     vec->buffer_env_counts = (int*)calloc(num_buffers, sizeof(int));
 
     int num_envs = 0;
-    vec->envs = my_vec_init(&num_envs, vec->buffer_env_starts, vec->buffer_env_counts,
+    vec->envs = vec_init_envs(&num_envs, vec->buffer_env_starts, vec->buffer_env_counts,
                             vec_kwargs, env_kwargs);
     vec->size = num_envs;
 
-    size_t obs_elem_size = obs_element_size();
-    void* observations = NULL;
-    void* gpu_observations = NULL;
-    cudaHostAlloc(&observations, total_agents * OBS_SIZE * obs_elem_size, cudaHostAllocPortable);
+    obs_t* observations = NULL;
+    obs_t* gpu_observations = NULL;
+    cudaHostAlloc((void**)&observations,
+        (size_t)total_agents * OBS_SIZE * sizeof(obs_t), cudaHostAllocPortable);
     cudaHostAlloc((void**)&vec->actions, total_agents * NUM_ATNS * sizeof(float), cudaHostAllocPortable);
     cudaHostAlloc((void**)&vec->rewards, total_agents * sizeof(float), cudaHostAllocPortable);
     cudaHostAlloc((void**)&vec->terminals, total_agents * sizeof(float), cudaHostAllocPortable);
 
-    cudaMalloc(&gpu_observations, total_agents * OBS_SIZE * obs_elem_size);
+    cudaMalloc((void**)&gpu_observations,
+        (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
     cudaMalloc((void**)&vec->gpu_actions, total_agents * NUM_ATNS * sizeof(float));
     cudaMalloc((void**)&vec->gpu_rewards, total_agents * sizeof(float));
     cudaMalloc((void**)&vec->gpu_terminals, total_agents * sizeof(float));
 
-    static_obs_set(&vec->observations, observations, total_agents);
-    static_obs_set(&vec->gpu_observations, gpu_observations, total_agents);
+    vec->observations = observations;
+    vec->gpu_observations = gpu_observations;
 
-    cudaMemset(vec->gpu_observations.data, 0, total_agents * OBS_SIZE * obs_elem_size);
+    cudaMemset(vec->gpu_observations, 0,
+        (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
     cudaMemset(vec->gpu_actions, 0, total_agents * NUM_ATNS * sizeof(float));
     cudaMemset(vec->gpu_rewards, 0, total_agents * sizeof(float));
     cudaMemset(vec->gpu_terminals, 0, total_agents * sizeof(float));
 
-#ifdef MY_ACTION_MASK
-    vec->action_mask_size = MY_ACTION_MASK;
-    size_t mask_bytes = (size_t)total_agents * MY_ACTION_MASK * sizeof(unsigned char);
-    cudaHostAlloc((void**)&vec->action_mask, mask_bytes, cudaHostAllocPortable);
-    cudaMalloc((void**)&vec->gpu_action_mask, mask_bytes);
-    cudaMemset(vec->gpu_action_mask, 0, mask_bytes);
-#endif
+    vec->action_mask_size = (int)dict_get(vec_kwargs, "action_mask_size");
+    if (vec->action_mask_size > 0) {
+        size_t mask_bytes = (size_t)total_agents * vec->action_mask_size * sizeof(unsigned char);
+        cudaHostAlloc((void**)&vec->action_mask, mask_bytes, cudaHostAllocPortable);
+        cudaMalloc((void**)&vec->gpu_action_mask, mask_bytes);
+        cudaMemset(vec->gpu_action_mask, 0, mask_bytes);
+    }
     vec->streams = (cudaStream_t*)calloc(num_buffers, sizeof(cudaStream_t));
 
-    Env* envs = (Env*)vec->envs;
+    Env* envs = vec->envs;
     for (int buf = 0; buf < num_buffers; buf++) {
         int buf_start = buf * vec->agents_per_buffer;
-        int buf_agent = 0;
         int env_start = vec->buffer_env_starts[buf];
         int env_count = vec->buffer_env_counts[buf];
 
+        float frozen_pct = (float)dict_get(vec_kwargs, "frozen_bank_pct");
+        int frozen_envs = (int)(frozen_pct * env_count);
+        int frozen_start = env_count - frozen_envs;
+        if (frozen_banks == 0 || frozen_pct <= 0.0f) {
+            frozen_start = env_count;
+        }
+
+        int* counts = (int*)calloc(vec->num_banks, sizeof(int));
         for (int e = 0; e < env_count; e++) {
             Env* env = &envs[env_start + e];
-            int slot = buf_start + buf_agent;
-            env->observations = vec->observations.data + slot * OBS_SIZE;
-            env->actions = vec->actions + slot * NUM_ATNS;
-            env->rewards = vec->rewards + slot;
-            env->terminals = vec->terminals + slot;
-#ifdef MY_ACTION_MASK
-            env->action_mask = vec->action_mask + slot * MY_ACTION_MASK;
-#endif
-#ifdef MY_USES_PERM
-            my_setup_perm(vec, env, slot);
-#endif
-            buf_agent += env->num_agents;
+            for (int s = 0; s < env->num_agents; s++) {
+                int policy = e < frozen_start ? 0 : env->agents[s].policy;
+                if (policy < 0 || policy >= vec->num_banks) {
+                    fprintf(stderr, "Agent policy %d outside bank range [0, %d)\n",
+                        policy, vec->num_banks);
+                    exit(1);
+                }
+                counts[policy]++;
+            }
         }
+
+        int offset = 0;
+        for (int b = 0; b < vec->num_banks; b++) {
+            if (buf == 0) {
+                vec->bank_layout[b] = offset;
+            } else if (vec->bank_layout[b] != offset) {
+                fprintf(stderr, "Bank layout must match across buffers\n");
+                exit(1);
+            }
+            offset += counts[b];
+        }
+        if (offset != vec->agents_per_buffer) {
+            fprintf(stderr, "Buffer has %d agents, expected %d\n",
+                offset, vec->agents_per_buffer);
+            exit(1);
+        }
+        if (buf == 0) {
+            vec->bank_layout[vec->num_banks] = offset;
+        } else if (vec->bank_layout[vec->num_banks] != offset) {
+            fprintf(stderr, "Bank layout must match across buffers\n");
+            exit(1);
+        }
+
+        int* cursors = (int*)calloc(vec->num_banks, sizeof(int));
+        for (int b = 0; b < vec->num_banks; b++) {
+            cursors[b] = buf_start + vec->bank_layout[b];
+        }
+        for (int e = 0; e < env_count; e++) {
+            Env* env = &envs[env_start + e];
+            int tag = 0;
+            for (int s = 0; s < env->num_agents; s++) {
+                int policy = e < frozen_start ? 0 : env->agents[s].policy;
+                if (policy > tag) {
+                    tag = policy;
+                }
+                int phys = cursors[policy];
+                env->agents[s].observations = vec->observations + (size_t)phys * OBS_SIZE;
+                env->agents[s].actions = vec->actions + (size_t)phys * NUM_ATNS;
+                env->agents[s].rewards = vec->rewards + phys;
+                env->agents[s].terminals = vec->terminals + phys;
+                if (vec->action_mask_size > 0) {
+                    env->agents[s].action_mask =
+                        vec->action_mask + (size_t)phys * vec->action_mask_size;
+                } else {
+                    env->agents[s].action_mask = NULL;
+                }
+                cursors[policy]++;
+            }
+            env->tag = tag;
+            env->boundary_reached = 0;
+        }
+        free(cursors);
+        free(counts);
     }
 
     return vec;
 }
 
-void static_vec_set_perm(StaticVec* vec, const int* perm) {
-#ifndef MY_USES_PERM
-    (void)vec; (void)perm;
-    fprintf(stderr, "static_vec_set_perm: env did not opt in via MY_USES_PERM; ignoring.\n");
-    return;
-#else
-    int N = vec->total_agents;
-    if (vec->agent_perm == NULL) {
-        vec->agent_perm = (int*)malloc(N * sizeof(int));
-    }
-    memcpy(vec->agent_perm, perm, N * sizeof(int));
-
-    Env* envs = (Env*)vec->envs;
-    for (int buf = 0; buf < vec->buffers; buf++) {
-        int buf_start = buf * vec->agents_per_buffer;
-        int buf_agent = 0;
-        int env_start = vec->buffer_env_starts[buf];
-        int env_count = vec->buffer_env_counts[buf];
-        for (int e = 0; e < env_count; e++) {
-            Env* env = &envs[env_start + e];
-            my_setup_perm(vec, env, buf_start + buf_agent);
-            buf_agent += env->num_agents;
-        }
-    }
-#endif
-}
-
-#ifdef MY_USES_TAGS
-void static_vec_set_env_tags(StaticVec* vec, const int* tags) {
-    Env* envs = (Env*)vec->envs;
+void vec_reset(VecEnv* vec) {
+    Env* envs = vec->envs;
+    #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
     for (int i = 0; i < vec->size; i++) {
-        envs[i].tag = tags[i];
-        envs[i].boundary_reached = 0;
+        puf_reset(&envs[i]);
     }
-}
-
-int static_vec_count_aligned(StaticVec* vec, int tag_value, int reset_flags) {
-    Env* envs = (Env*)vec->envs;
-    int count = 0;
-    for (int i = 0; i < vec->size; i++) {
-        if (envs[i].tag == tag_value && envs[i].boundary_reached) {
-            count++;
-        }
-    }
-    if (reset_flags) {
-        for (int i = 0; i < vec->size; i++) {
-            if (envs[i].tag == tag_value) {
-                envs[i].boundary_reached = 0;
-            }
-        }
-    }
-    return count;
-}
-#else
-void static_vec_set_env_tags(StaticVec* vec, const int* tags) {
-    (void)vec; (void)tags;
-    fprintf(stderr, "static_vec_set_env_tags: env did not opt in via MY_USES_TAGS; ignoring.\n");
-}
-int static_vec_count_aligned(StaticVec* vec, int tag_value, int reset_flags) {
-    (void)vec; (void)tag_value; (void)reset_flags;
-    return 0;
-}
-#endif
-
-void static_vec_reset(StaticVec* vec) {
-    Env* envs = (Env*)vec->envs;
-    for (int i = 0; i < vec->size; i++) {
-        c_reset(&envs[i]);
-    }
-    cudaMemcpy(vec->gpu_observations.data, vec->observations.data,
-        vec->total_agents * OBS_SIZE * obs_element_size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(vec->gpu_observations, vec->observations,
+        (size_t)vec->total_agents * OBS_SIZE * sizeof(obs_t), cudaMemcpyHostToDevice);
     cudaMemset(vec->gpu_rewards,   0, vec->total_agents * sizeof(float));
     cudaMemset(vec->gpu_terminals, 0, vec->total_agents * sizeof(float));
-#ifdef MY_ACTION_MASK
-    cudaMemcpy(vec->gpu_action_mask, vec->action_mask,
-        (size_t)vec->total_agents * MY_ACTION_MASK * sizeof(unsigned char),
-        cudaMemcpyHostToDevice);
-#endif
+    if (vec->action_mask_size > 0) {
+        cudaMemcpy(vec->gpu_action_mask, vec->action_mask,
+            (size_t)vec->total_agents * vec->action_mask_size * sizeof(unsigned char),
+            cudaMemcpyHostToDevice);
+    }
     cudaDeviceSynchronize();
 }
 
-void create_static_threads(StaticVec* vec, int num_threads, int horizon,
-        void* ctx, net_callback_fn net_callback, thread_init_fn thread_init) {
-    vec->threading = (StaticThreading*)calloc(1, sizeof(StaticThreading));
-    vec->threading->num_threads = num_threads;
-    vec->threading->num_buffers = vec->buffers;
-    vec->threading->buffer_states = (atomic_int*)calloc(vec->buffers, sizeof(atomic_int));
-    vec->threading->threads = (pthread_t*)calloc(vec->buffers, sizeof(pthread_t));
-    vec->threading->accum = (float*)calloc(vec->buffers * NUM_EVAL_PROF, sizeof(float));
-
-    StaticOMPArg* args = (StaticOMPArg*)calloc(vec->buffers, sizeof(StaticOMPArg));
+void vec_create_threads(VecEnv* vec, int num_threads, int horizon, struct PuffeRL* pufferl) {
+    vec->buffer_states = (atomic_int*)calloc(vec->buffers, sizeof(atomic_int));
+    vec->threads = (pthread_t*)calloc(vec->buffers, sizeof(pthread_t));
+    vec->workers = (VecWorker*)calloc(vec->buffers, sizeof(VecWorker));
+    vec->accum = (float*)calloc(vec->buffers * NUM_VEC_PROF, sizeof(float));
     for (int i = 0; i < vec->buffers; i++) {
-        args[i].vec = vec;
-        args[i].buf = i;
-        args[i].horizon = horizon;
-        args[i].ctx = ctx;
-        args[i].net_callback = net_callback;
-        args[i].thread_init = thread_init;
-        pthread_create(&vec->threading->threads[i], NULL, static_omp_threadmanager, &args[i]);
+        vec->workers[i].vec = vec;
+        vec->workers[i].buf = i;
+        vec->workers[i].horizon = horizon;
+        vec->workers[i].pufferl = pufferl;
+        pthread_create(&vec->threads[i], NULL, vec_thread_main, &vec->workers[i]);
     }
 }
 
-void static_vec_close(StaticVec* vec) {
-    Env* envs = (Env*)vec->envs;
+void vec_close(VecEnv* vec) {
+    Env* envs = vec->envs;
 
-    if (vec->threading != NULL) {
-        atomic_store(&vec->threading->shutdown, 1);
+    if (vec->threads != NULL) {
+        atomic_store(&vec->shutdown, 1);
         for (int i = 0; i < vec->buffers; i++) {
-            pthread_join(vec->threading->threads[i], NULL);
+            pthread_join(vec->threads[i], NULL);
         }
     }
 
     for (int i = 0; i < vec->size; i++) {
         Env* env = &envs[i];
-        c_close(env);
+        puf_close(env);
     }
 
-    my_vec_close(envs);
     free(vec->envs);
-    if (vec->threading != NULL) {
-        free(vec->threading->buffer_states);
-        free(vec->threading->threads);
-        free(vec->threading->accum);
-        free(vec->threading);
-    }
+    free(vec->buffer_states);
+    free(vec->threads);
+    free(vec->workers);
+    free(vec->accum);
     free(vec->buffer_env_starts);
     free(vec->buffer_env_counts);
+    free(vec->bank_layout);
 
     cudaDeviceSynchronize();
-    cudaFree(vec->gpu_observations.data);
+    cudaFree(vec->gpu_observations);
     cudaFree(vec->gpu_actions);
     cudaFree(vec->gpu_rewards);
     cudaFree(vec->gpu_terminals);
-    cudaFreeHost(vec->observations.data);
+    cudaFreeHost(vec->observations);
     cudaFreeHost(vec->actions);
     cudaFreeHost(vec->rewards);
     cudaFreeHost(vec->terminals);
-#ifdef MY_ACTION_MASK
-    cudaFree(vec->gpu_action_mask);
-    cudaFreeHost(vec->action_mask);
-#endif
+    if (vec->action_mask_size > 0) {
+        cudaFree(vec->gpu_action_mask);
+        cudaFreeHost(vec->action_mask);
+    }
 
     free(vec->streams);
-    if (vec->agent_perm != NULL) {
-        free(vec->agent_perm);
-    }
     free(vec);
 }
 
-static inline float static_vec_aggregate_logs(StaticVec* vec, Log* out) {
-    Env* envs = (Env*)vec->envs;
-    memset(out, 0, sizeof(Log));
+void vec_log(VecEnv* vec, Dict* out, int clear) {
+    Env* envs = vec->envs;
+    Log aggregate;
+    memset(&aggregate, 0, sizeof(Log));
     int num_keys = sizeof(Log) / sizeof(float);
     for (int i = 0; i < vec->size; i++) {
         Env* env = &envs[i];
@@ -537,83 +433,22 @@ static inline float static_vec_aggregate_logs(StaticVec* vec, Log* out) {
             continue;
         }
         for (int j = 0; j < num_keys; j++) {
-            ((float*)out)[j] += ((float*)&env->log)[j];
+            ((float*)&aggregate)[j] += ((float*)&env->log)[j];
         }
     }
-    float n = out->n;
-    if (n == 0.0f) {
-        return 0;
+
+    float n = aggregate.n;
+    if (n == 0) {
+        return;
     }
     for (int i = 0; i < num_keys; i++) {
-        ((float*)out)[i] /= n;
+        ((float*)&aggregate)[i] /= n;
     }
-    return n;
-}
-
-void static_vec_log(StaticVec* vec, Dict* out) {
-    Env* envs = (Env*)vec->envs;
-    Log aggregate;
-    float n = static_vec_aggregate_logs(vec, &aggregate);
-    if (n == 0) {
-        return;
-    }
-    for (int i = 0; i < vec->size; i++) {
-        memset(&envs[i].log, 0, sizeof(Log));
-    }
-    my_log(&aggregate, out);
-    dict_set(out, "n", n);
-}
-
-void static_vec_eval_log(StaticVec* vec, Dict* out) {
-    Log aggregate;
-    float n = static_vec_aggregate_logs(vec, &aggregate);
-    if (n == 0) {
-        return;
-    }
-    my_log(&aggregate, out);
-    dict_set(out, "n", n);
-}
-
-void static_vec_read_profile(StaticVec* vec, float out[NUM_EVAL_PROF]) {
-    StaticThreading* threading = vec->threading;
-    memset(out, 0, NUM_EVAL_PROF * sizeof(float));
-    for (int buf = 0; buf < threading->num_buffers; buf++) {
-        float* src = &threading->accum[buf * NUM_EVAL_PROF];
-        for (int i = 0; i < NUM_EVAL_PROF; i++) {
-            out[i] += src[i];
+    if (clear) {
+        for (int i = 0; i < vec->size; i++) {
+            memset(&envs[i].log, 0, sizeof(Log));
         }
-        memset(src, 0, NUM_EVAL_PROF * sizeof(float));
     }
-    for (int i = 0; i < NUM_EVAL_PROF; i++) {
-        out[i] /= threading->num_buffers;
-    }
+    puf_log(&aggregate, out);
+    dict_set(out, "n", n);
 }
-
-void static_vec_render(StaticVec* vec, int env_id) {
-    Env* envs = (Env*)vec->envs;
-    c_render(&envs[env_id]);
-}
-
-#ifndef MY_SHARED
-void* my_shared(void* env, Dict* kwargs) {
-    return NULL;
-}
-#endif
-
-#ifndef MY_SHARED_CLOSE
-void my_shared_close(void* env) {}
-#endif
-
-#ifndef MY_GET
-void* my_get(void* env, Dict* out) {
-    return NULL;
-}
-#endif
-
-#ifndef MY_PUT
-int my_put(void* env, Dict* kwargs) {
-    return 0;
-}
-#endif
-
-#endif // OBS_SIZE

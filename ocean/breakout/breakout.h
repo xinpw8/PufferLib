@@ -12,6 +12,8 @@
 #define HALF_PADDLE_WIDTH 31
 #define Y_OFFSET 50
 #define TICK_RATE 1.0f/60.0f
+#define OBS_SIZE 118
+#define NUM_ATNS 1
 
 #define BRICK_INDEX_NO_COLLISION -4
 #define BRICK_INDEX_SIDEWALL_COLLISION -3
@@ -36,14 +38,18 @@ typedef struct Client {
     Texture2D ball;
 } Client;
 
-typedef struct Breakout {
+typedef float obs_t;
+typedef struct Breakout Breakout;
+#define Env Breakout
+#include "pufferenv.h"
+
+struct Breakout {
     Client* client;
     Log log;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
     int num_agents;
+    int tag;
+    int boundary_reached;
     int score;
     float paddle_x;
     float paddle_y;
@@ -80,38 +86,35 @@ typedef struct Breakout {
     unsigned char hit_brick;
     int continuous;
     unsigned int rng;
-} Breakout;
+};
 
 #ifdef PUFFER_VECENV_INCLUDE
-#define OBS_SIZE 118
-#define NUM_ATNS 1
 #define ACT_SIZES {3}
-#define OBS_TENSOR_T FloatTensor
-#define Env Breakout
 
 void init(Breakout* env);
 
-void my_init(Env* env, Dict* kwargs) {
+void puf_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
-    env->frameskip = dict_get(kwargs, "frameskip")->value;
-    env->width = dict_get(kwargs, "width")->value;
-    env->height = dict_get(kwargs, "height")->value;
-    env->initial_paddle_width = dict_get(kwargs, "paddle_width")->value;
-    env->paddle_height = dict_get(kwargs, "paddle_height")->value;
-    env->ball_width = dict_get(kwargs, "ball_width")->value;
-    env->ball_height = dict_get(kwargs, "ball_height")->value;
-    env->brick_width = dict_get(kwargs, "brick_width")->value;
-    env->brick_height = dict_get(kwargs, "brick_height")->value;
-    env->brick_rows = dict_get(kwargs, "brick_rows")->value;
-    env->brick_cols = dict_get(kwargs, "brick_cols")->value;
-    env->initial_ball_speed = dict_get(kwargs, "initial_ball_speed")->value;
-    env->max_ball_speed = dict_get(kwargs, "max_ball_speed")->value;
-    env->paddle_speed = dict_get(kwargs, "paddle_speed")->value;
-    env->continuous = dict_get(kwargs, "continuous")->value;
+    env->frameskip = dict_get(kwargs, "frameskip");
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->initial_paddle_width = dict_get(kwargs, "paddle_width");
+    env->paddle_height = dict_get(kwargs, "paddle_height");
+    env->ball_width = dict_get(kwargs, "ball_width");
+    env->ball_height = dict_get(kwargs, "ball_height");
+    env->brick_width = dict_get(kwargs, "brick_width");
+    env->brick_height = dict_get(kwargs, "brick_height");
+    env->brick_rows = dict_get(kwargs, "brick_rows");
+    env->brick_cols = dict_get(kwargs, "brick_cols");
+    env->initial_ball_speed = dict_get(kwargs, "initial_ball_speed");
+    env->max_ball_speed = dict_get(kwargs, "max_ball_speed");
+    env->paddle_speed = dict_get(kwargs, "paddle_speed");
+    env->continuous = dict_get(kwargs, "continuous");
+    env->agents[0].policy = 0;
     init(env);
 }
 
-void my_log(Log* log, Dict* out) {
+void puf_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
@@ -157,24 +160,26 @@ void init(Breakout* env) {
 
 void allocate(Breakout* env) {
     init(env);
-    env->observations = (float*)calloc(11 + env->num_bricks, sizeof(float));
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].observations = (obs_t*)calloc(OBS_SIZE, sizeof(obs_t));
+    env->agents[0].actions = (float*)calloc(NUM_ATNS, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
 }
 
-void c_close(Breakout* env) {
+void puf_close(Breakout* env) {
     free(env->brick_x);
     free(env->brick_y);
     free(env->brick_states);
 }
 
 void free_allocated(Breakout* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
-    c_close(env);
+    free(env->agents[0].actions);
+    free(env->agents[0].observations);
+    free(env->agents[0].terminals);
+    free(env->agents[0].rewards);
+    puf_close(env);
 }
 
 void add_log(Breakout* env) {
@@ -186,17 +191,18 @@ void add_log(Breakout* env) {
 }
 
 void compute_observations(Breakout* env) {
-    env->observations[0] = env->paddle_x / env->width;
-    env->observations[1] = env->paddle_y / env->height;
-    env->observations[2] = env->ball_x / env->width;
-    env->observations[3] = env->ball_y / env->height;
-    env->observations[4] = env->ball_vx / 512.0f;
-    env->observations[5] = env->ball_vy / 512.0f;
-    env->observations[6] = env->balls_fired / 5.0f;
-    env->observations[7] = env->score / 864.0f;
-    env->observations[8] = env->num_balls / 5.0f;
-    env->observations[9] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
-    memcpy(env->observations + 10, env->brick_states, sizeof(float) * env->num_bricks);
+    obs_t* obs = env->agents[0].observations;
+    obs[0] = env->paddle_x / env->width;
+    obs[1] = env->paddle_y / env->height;
+    obs[2] = env->ball_x / env->width;
+    obs[3] = env->ball_y / env->height;
+    obs[4] = env->ball_vx / 512.0f;
+    obs[5] = env->ball_vy / 512.0f;
+    obs[6] = env->balls_fired / 5.0f;
+    obs[7] = env->score / 864.0f;
+    obs[8] = env->num_balls / 5.0f;
+    obs[9] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
+    memcpy(obs + 10, env->brick_states, sizeof(float) * env->num_bricks);
 }
 
 // Collision of a stationary vertical line segment (xw,yw) to (xw,yw+hw)
@@ -418,7 +424,7 @@ void destroy_brick(Breakout* env, int brick_idx) {
     env->score += gained_points;
     env->brick_states[brick_idx] = 1.0;
 
-    env->rewards[0] += gained_points;
+    env->agents[0].rewards[0] += gained_points;
 
     if (brick_idx / env->brick_cols < 3) {
         env->ball_speed = env->max_ball_speed;
@@ -474,7 +480,7 @@ void reset_round(Breakout* env) {
     env->ball_vy = 0.0;
 }
 
-void c_reset(Breakout* env) {
+void puf_reset(Breakout* env) {
     env->score = 0;
     env->num_balls = 5;
     for (int i = 0; i < env->num_bricks; i++) {
@@ -524,17 +530,17 @@ void step_frame(Breakout* env, float action) {
         reset_round(env);
     }
     if (env->num_balls < 0 || env->score == env->max_score) {
-        env->terminals[0] = 1;
+        env->agents[0].terminals[0] = 1;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
     }
 }
 
-void c_step(Breakout* env) {
-    env->terminals[0] = 0;
-    env->rewards[0] = 0.0;
+void puf_step(Breakout* env) {
+    env->agents[0].terminals[0] = 0;
+    env->agents[0].rewards[0] = 0.0;
 
-    float action = env->actions[0];
+    float action = env->agents[0].actions[0];
     for (int i = 0; i < env->frameskip; i++) {
         env->tick += 1;
         step_frame(env, action);
@@ -566,7 +572,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void c_render(Breakout* env) {
+void puf_render(Breakout* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }

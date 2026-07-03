@@ -100,21 +100,14 @@ struct Robot {
 };
 
 typedef struct Client Client;
+typedef float obs_t;
 typedef struct Robocode Robocode;
+#define Env Robocode
+#include "pufferenv.h"
+
 struct Robocode {
     Client* client;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
-    // Per-slot pointers populated by my_setup_perm (MY_USES_PERM). Required for
-    // selfplay-pool mode where agent_perm reroutes logical slots into specific
-    // physical rows (primary vs frozen-bank). For non-selfplay (num_agents=1)
-    // these still point at the env's single slot.
-    float* obs_ptr[2];
-    float* action_ptr[2];
-    float* reward_ptr[2];
-    float* terminal_ptr[2];
+    Agent agents[2];
 
     int num_agents;
     int num_bots;
@@ -155,6 +148,74 @@ struct Robocode {
     unsigned int rng;
 };
 
+#ifdef PUFFER_VECENV_INCLUDE
+#define OBS_SIZE (EGO_FEATURES + OTHER_FEATURES)
+#define NUM_ATNS 5
+#define ACT_SIZES {4, 9, 11, 11, 6}
+
+void init(Robocode* env);
+
+static inline float robocode_get_float(Dict* kwargs, const char* key, float default_value) {
+    for (int i = 0; i < kwargs->size; i++) {
+        if (strcmp(kwargs->items[i].key, key) == 0) {
+            return (float)kwargs->items[i].value;
+        }
+    }
+    return default_value;
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->num_agents = dict_get(kwargs, "num_agents");
+    env->num_bots = dict_get(kwargs, "num_bots");
+    env->max_ticks = (int)dict_get(kwargs, "max_ticks");
+    env->reward_damage = robocode_get_float(kwargs, "reward_damage", 0.0f);
+    env->reward_spot = robocode_get_float(kwargs, "reward_spot", 0.0f);
+    env->reward_melee_damage_inflicted = robocode_get_float(kwargs, "reward_melee_damage_inflicted", 0.0f);
+    env->reward_damage_taken = robocode_get_float(kwargs, "reward_damage_taken", 0.0f);
+    env->reward_range_damage_inflicted = robocode_get_float(kwargs, "reward_range_damage_inflicted", 0.0f);
+    env->reward_melee_damage_inflicted_slot_0 = robocode_get_float(kwargs,
+        "reward_melee_damage_inflicted_slot_0", env->reward_melee_damage_inflicted);
+    env->reward_damage_taken_slot_0 = robocode_get_float(kwargs,
+        "reward_damage_taken_slot_0", env->reward_damage_taken);
+    env->reward_range_damage_inflicted_slot_0 = robocode_get_float(kwargs,
+        "reward_range_damage_inflicted_slot_0", env->reward_range_damage_inflicted);
+    env->reward_melee_damage_inflicted_slot_1 = robocode_get_float(kwargs,
+        "reward_melee_damage_inflicted_slot_1", env->reward_melee_damage_inflicted);
+    env->reward_damage_taken_slot_1 = robocode_get_float(kwargs,
+        "reward_damage_taken_slot_1", env->reward_damage_taken);
+    env->reward_range_damage_inflicted_slot_1 = robocode_get_float(kwargs,
+        "reward_range_damage_inflicted_slot_1", env->reward_range_damage_inflicted);
+    env->dr = robocode_get_float(kwargs, "dr", 0.0f);
+    env->bot_policy = dict_get(kwargs, "bot_policy");
+    env->agents[0].policy = 0;
+    env->agents[1].policy = 1;
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "damage_received", log->damage_received);
+    dict_set(out, "melee_damage_inflicted", log->melee_damage_inflicted);
+    dict_set(out, "damage_taken", log->damage_taken);
+    dict_set(out, "range_damage_inflicted", log->range_damage_inflicted);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "hist_score", log->hist_score);
+    dict_set(out, "hist_n", log->hist_n);
+    dict_set(out, "hist_score_bank_0", log->hist_score_bank[0]);
+    dict_set(out, "hist_score_bank_1", log->hist_score_bank[1]);
+    dict_set(out, "hist_n_bank_0", log->hist_n_bank[0]);
+    dict_set(out, "hist_n_bank_1", log->hist_n_bank[1]);
+    dict_set(out, "slot_0_score", log->slot_0_score);
+    dict_set(out, "slot_1_score", log->slot_1_score);
+    dict_set(out, "draw_rate", log->draw_rate);
+    dict_set(out, "n", log->n);
+}
+#endif
+
 static inline void bot_mems_alloc(Robocode* env);
 static inline void bot_mems_free(Robocode* env);
 static inline void bot_mems_episode_reset(Robocode* env);
@@ -168,24 +229,11 @@ void init(Robocode* env){
 }
 
 void allocate_env(Robocode* env) {
-    int obs_size = EGO_FEATURES + OTHER_FEATURES;
     init(env);
-    env->observations =(float*)calloc(obs_size*env->num_agents, sizeof(float));
-    env->actions = (float*)calloc(NUM_ACTIONS*env->num_agents, sizeof(float));
-    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->terminals = (float*)calloc(env->num_agents, sizeof(float));
-    // Standalone (non-vecenv) path: wire per-slot pointers to adjacent rows of
-    // the env-owned buffers. vecenv path overrides these via my_setup_perm.
-    for (int s = 0; s < env->num_agents; s++) {
-        env->obs_ptr[s]      = env->observations + s * obs_size;
-        env->action_ptr[s]   = env->actions + s * NUM_ACTIONS;
-        env->reward_ptr[s]   = env->rewards + s;
-        env->terminal_ptr[s] = env->terminals + s;
-    }
 }
 
 
-void c_close(Robocode* env) {
+void puf_close(Robocode* env) {
     free(env->robots);
     free(env->bullets);
     free(env->logs);
@@ -266,7 +314,7 @@ static bool bullets_collide(
 }
 
 static inline void add_agent_reward(Robocode* env, int agent_idx, float reward) {
-    *env->reward_ptr[agent_idx] += reward;
+    *env->agents[agent_idx].rewards += reward;
     env->logs[agent_idx].episode_return += reward;
 }
 
@@ -473,7 +521,7 @@ int scan_area(Robocode* env, Robot* robot){
 void compute_observations(Robocode* env){
     for(int i = 0; i < env->num_agents; i++){
         Robot* robot = &env->robots[i];
-        float* obs = env->obs_ptr[i];
+        obs_t* obs = env->agents[i].observations;
         obs[0] = robot->x / env->width;
         obs[1] = robot->y / env->height;
         // Absolute headings stored as degrees in [0, 360); convert to radians [0, 2π).
@@ -495,12 +543,12 @@ void compute_observations(Robocode* env){
             memset(&obs[EGO_FEATURES], 0, OTHER_FEATURES * sizeof(float));
             continue;
         }
-        *env->reward_ptr[i] += env->reward_spot;
+        *env->agents[i].rewards += env->reward_spot;
         env->logs[i].episode_return += env->reward_spot;
         // Zero-sum: penalize the scanned agent (being seen = bad).
         // Guarded so bots (j >= num_agents) don't trigger an OOB write.
         if (scanned < env->num_agents) {
-            *env->reward_ptr[scanned] -= env->reward_spot;
+            *env->agents[scanned].rewards -= env->reward_spot;
             env->logs[scanned].episode_return -= env->reward_spot;
         }
         Robot* other = &env->robots[scanned];
@@ -537,9 +585,9 @@ void compute_observations(Robocode* env){
         obs[off + 7] = 1.0f;
     }
 }
-void c_reset(Robocode* env) {
+void puf_reset(Robocode* env) {
     env->tick = 0;
-    // boundary_reached is owned by selfplay.py alignment; do not clear it here.
+    // boundary_reached is owned by selfplay alignment; do not clear it here.
     int total_robots = env->num_agents + env->num_bots;
     memset(env->bullets, 0, NUM_BULLETS * total_robots * sizeof(Bullet));
     int idx = 0;
@@ -628,12 +676,14 @@ static inline void end_episode(Robocode* env, int outcome) {
         env->log.hist_n                    += 1.0f;
         env->boundary_reached = 1;
     }
-    for (int a = 0; a < env->num_agents; a++) *env->terminal_ptr[a] = 1.0f;
+    for (int a = 0; a < env->num_agents; a++) {
+        *env->agents[a].terminals = 1.0f;
+    }
     add_log(env);
-    c_reset(env);
+    puf_reset(env);
 }
 
-void c_step(Robocode* env) {
+void puf_step(Robocode* env) {
     // Timeout: all agents step in lockstep, so logs[0].episode_length is shared.
     env->tick += 1;
     if (env->tick > env->max_ticks) {
@@ -646,8 +696,8 @@ void c_step(Robocode* env) {
 
     // Reset per-agent reward/terminal and short-circuit reset on agent death.
     for (int a = 0; a < env->num_agents; a++) {
-        *env->reward_ptr[a]   = 0.0f;
-        *env->terminal_ptr[a] = 0.0f;
+        *env->agents[a].rewards = 0.0f;
+        *env->agents[a].terminals = 0.0f;
     }
     int agent_outcome = agent_terminal_outcome(env);
     if (agent_outcome != 2) {
@@ -750,7 +800,7 @@ void c_step(Robocode* env) {
     }
     for (int i = 0; i < env->num_agents; i++) {
         Robot* robot = &env->robots[i];
-        float* atn = env->action_ptr[i];
+        float* atn = env->agents[i].actions;
         env->logs[i].episode_length += 1.0f;
 
         // Defensive guard; agent_terminal_outcome should have already ended
@@ -851,7 +901,7 @@ void close_client(Client* client) {
     CloseWindow();
 }
 
-void c_render(Robocode* env) {
+void puf_render(Robocode* env) {
     if(env->client == NULL){
         env->client = make_client(env);
     }

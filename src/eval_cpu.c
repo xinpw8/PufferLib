@@ -3,7 +3,7 @@
 #include <string.h>
 #include "config.h"
 #include "checkpoint.h"
-#include "tensor.h"
+#include "precision.h"
 
 #define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER
@@ -11,7 +11,7 @@
 
 #include "puffernet.h"
 
-static const char* model_path(Dict* cfg, const char* env_name,
+static const char* model_path(Config* cfg, const char* env_name,
         char* out, size_t out_size) {
     const char* path = puf_checkpoint_path(cfg, out, out_size);
     if (path) {
@@ -29,12 +29,11 @@ int main(int argc, char** argv) {
     }
 
     const char* env_name = argv[1];
-    Dict cfg = {0};
+    Config cfg = {0};
     puf_config_load_env(&cfg, env_name, argc - 2, argv + 2);
 
-    OBS_TENSOR_T obs_type;
-    if (sizeof(*obs_type.data) != sizeof(float)) {
-        fprintf(stderr, "cpu eval currently requires FloatTensor observations\n");
+    if (sizeof(obs_t) != sizeof(float)) {
+        fprintf(stderr, "cpu eval currently requires float observations\n");
         return 1;
     }
 
@@ -51,12 +50,11 @@ int main(int argc, char** argv) {
     int hidden_size = (int)puf_config_val(&cfg, "policy.hidden_size");
     int num_layers = (int)puf_config_val(&cfg, "policy.num_layers");
 
-    Dict* env_kwargs = dict_copy_prefix(&cfg, "env.");
     Env env = {0};
     env.rng = 0;
-    my_init(&env, env_kwargs);
+    puf_init(&env, &cfg.env);
 
-    float observations[env.num_agents * OBS_SIZE];
+    obs_t observations[env.num_agents * OBS_SIZE];
     float actions[env.num_agents * NUM_ATNS];
     float rewards[env.num_agents];
     float terminals[env.num_agents];
@@ -64,28 +62,31 @@ int main(int argc, char** argv) {
     memset(actions, 0, sizeof(actions));
     memset(rewards, 0, sizeof(rewards));
     memset(terminals, 0, sizeof(terminals));
-    env.observations = (void*)observations;
-    env.actions = actions;
-    env.rewards = rewards;
-    env.terminals = terminals;
-    c_reset(&env);
+    for (int i = 0; i < env.num_agents; i++) {
+        env.agents[i].observations = observations + i * OBS_SIZE;
+        env.agents[i].actions = actions + i * NUM_ATNS;
+        env.agents[i].rewards = rewards + i;
+        env.agents[i].terminals = terminals + i;
+        env.agents[i].action_mask = NULL;
+        env.agents[i].policy = 0;
+    }
+    puf_reset(&env);
 
     PufferNet* net = make_puffernet(weights, env.num_agents, OBS_SIZE,
         hidden_size, num_layers, act_sizes, num_actions);
 
     int frame = 0;
-    c_render(&env);
+    puf_render(&env);
     while (!WindowShouldClose()) {
         if (frame % 4 == 0) {
             forward_puffernet(net, observations, actions);
         }
         frame = (frame + 1) % 4;
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
 
-    c_close(&env);
-    dict_free(env_kwargs);
+    puf_close(&env);
     free_puffernet(net);
     free(weights);
     puf_config_free(&cfg);

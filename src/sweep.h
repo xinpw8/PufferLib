@@ -1,19 +1,43 @@
 #pragma once
 
 #include <math.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#include "config.h"
+#include "checkpoint.h"
+
+#define TRAIN_RESULT_MAX_POINTS 64
 
 typedef struct {
     float score;
     float cost;
     float steps;
+    int points;
+    char checkpoint_path[4096];
+    float scores[TRAIN_RESULT_MAX_POINTS];
+    float costs[TRAIN_RESULT_MAX_POINTS];
+    float step_points[TRAIN_RESULT_MAX_POINTS];
 } TrainResult;
 
-typedef TrainResult (*TrainFn)(Dict* cfg);
+extern char** environ;
+
+typedef struct {
+    int run;
+    int random;
+    int gp_obs;
+    int pareto;
+    int fd;
+    pid_t pid;
+    char run_id[128];
+    float* sample;
+    TrainResult result;
+} SweepJob;
 
 typedef struct {
     char section[64];
@@ -46,8 +70,8 @@ static SpaceType sweep_space_type(const char* dist, int* is_integer) {
     exit(1);
 }
 
-static float sweep_scale(Dict* cfg, const char* prefix, SpaceType type, float min_v, float max_v) {
-    char key[1024];
+static float sweep_scale(Config* cfg, const char* prefix, SpaceType type, float min_v, float max_v) {
+    char key[2048];
     snprintf(key, sizeof(key), "%s.scale", prefix);
     const char* raw = puf_config_str(cfg, key);
     if (strcmp(raw, "auto") == 0) {
@@ -65,19 +89,19 @@ static float sweep_scale(Dict* cfg, const char* prefix, SpaceType type, float mi
     return (float)val;
 }
 
-static Hyperparameters* sweep_hypers_create(Dict* cfg,
+static Hyperparameters* sweep_hypers_create(Config* cfg,
         SweepParam** params_out, int* num_out) {
-    SweepParam* params = (SweepParam*)calloc((size_t)cfg->size, sizeof(SweepParam));
-    Space* spaces = (Space*)calloc((size_t)cfg->size, sizeof(Space));
+    SweepParam* params = (SweepParam*)calloc((size_t)cfg->sweep_space.size, sizeof(SweepParam));
+    Space* spaces = (Space*)calloc((size_t)cfg->sweep_space.size, sizeof(Space));
     int n = 0;
     int cost_idx = -1;
 
-    for (int i = 0; i < cfg->size; i++) {
-        const char* key = cfg->items[i].key;
+    for (int i = 0; i < cfg->sweep_space.size; i++) {
+        const char* key = cfg->sweep_space.items[i].key;
         const char* suffix = ".distribution";
         size_t suffix_len = strlen(suffix);
         size_t key_len = strlen(key);
-        if (strncmp(key, "sweep.", 6) != 0 || key_len <= suffix_len) {
+        if (key_len <= suffix_len) {
             continue;
         }
         if (strcmp(key + key_len - suffix_len, suffix) != 0) {
@@ -86,15 +110,14 @@ static Hyperparameters* sweep_hypers_create(Dict* cfg,
 
         char prefix[512];
         snprintf(prefix, sizeof(prefix), "%.*s", (int)(key_len - suffix_len), key);
-        const char* path = prefix + 6;
-        const char* dot = strrchr(path, '.');
+        const char* dot = strrchr(prefix, '.');
         if (!dot) {
             fprintf(stderr, "sweep error: expected section sweep.<section>.<key>\n");
             exit(1);
         }
 
-        int section_len = (int)(dot - path);
-        snprintf(params[n].section, sizeof(params[n].section), "%.*s", section_len, path);
+        int section_len = (int)(dot - prefix);
+        snprintf(params[n].section, sizeof(params[n].section), "%.*s", section_len, prefix);
         snprintf(params[n].key, sizeof(params[n].key), "%s", dot + 1);
         snprintf(params[n].path, sizeof(params[n].path), "%s/%s",
             params[n].section, params[n].key);
@@ -102,12 +125,16 @@ static Hyperparameters* sweep_hypers_create(Dict* cfg,
         int is_integer = 0;
         char min_key[1024];
         char max_key[1024];
-        snprintf(min_key, sizeof(min_key), "%s.min", prefix);
-        snprintf(max_key, sizeof(max_key), "%s.max", prefix);
-        SpaceType type = sweep_space_type(puf_config_str(cfg, key), &is_integer);
+        char dist_key[1024];
+        snprintf(min_key, sizeof(min_key), "sweep.%s.min", prefix);
+        snprintf(max_key, sizeof(max_key), "sweep.%s.max", prefix);
+        snprintf(dist_key, sizeof(dist_key), "sweep.%s", key);
+        SpaceType type = sweep_space_type(puf_config_str(cfg, dist_key), &is_integer);
         float min_v = (float)puf_config_val(cfg, min_key);
         float max_v = (float)puf_config_val(cfg, max_key);
-        float scale = sweep_scale(cfg, prefix, type, min_v, max_v);
+        char scale_prefix[1024];
+        snprintf(scale_prefix, sizeof(scale_prefix), "sweep.%s", prefix);
+        float scale = sweep_scale(cfg, scale_prefix, type, min_v, max_v);
         space_init(&params[n].space, type, min_v, max_v, scale, is_integer);
         spaces[n] = params[n].space;
 
@@ -128,7 +155,7 @@ static Hyperparameters* sweep_hypers_create(Dict* cfg,
     return hyperparameters_create(spaces, n, cost_idx, direction);
 }
 
-static void sweep_apply(Dict* cfg, SweepParam* params, int num_params,
+static void sweep_apply(Config* cfg, SweepParam* params, int num_params,
         const float* sample) {
     for (int i = 0; i < num_params; i++) {
         float val = space_unnormalize(&params[i].space, sample[i]);
@@ -150,38 +177,256 @@ static int native_num_gpus(void) {
     return count;
 }
 
-static void validate_sweep_support(Dict* cfg) {
-    if (puf_config_val(cfg, "sweep.league") != 0) {
-        fprintf(stderr, "sweep error: native league sweeps are not ported yet\n");
-        exit(1);
-    }
-
+static void validate_sweep_support(Config* cfg) {
+    int league = (int)puf_config_val(cfg, "sweep.league");
     const char* metric = puf_config_str(cfg, "sweep.metric");
-    if (strcmp(metric, "score") != 0) {
+    if (!league && strcmp(metric, "score") != 0) {
         fprintf(stderr, "sweep error: native sweep currently scores env/score, got env/%s\n", metric);
         exit(1);
     }
 
-    int downsample = (int)puf_config_val(cfg, "sweep.downsample");
-    if (downsample != 1) {
-        fprintf(stderr, "sweep error: native sweep currently observes final metrics only; set [sweep] downsample=1\n");
+    int train_gpus = (int)puf_config_val(cfg, "train.gpus");
+    if (train_gpus < 1) {
+        fprintf(stderr, "sweep error: train.gpus must be >= 1\n");
         exit(1);
     }
 
-    int train_gpus = (int)puf_config_val(cfg, "train.gpus");
+    int total_gpus = native_num_gpus();
     int sweep_gpus = (int)puf_config_val(cfg, "sweep.gpus");
     if (sweep_gpus == 0) {
-        sweep_gpus = native_num_gpus();
+        sweep_gpus = total_gpus;
     }
-    if (sweep_gpus != train_gpus) {
-        fprintf(stderr,
-            "sweep error: native sweep currently runs one trial at a time; set [sweep] gpus equal to [train] gpus\n");
+    int needed_gpus = league ? train_gpus + 1 : train_gpus;
+    if (sweep_gpus < needed_gpus) {
+        fprintf(stderr, "sweep error: sweep.gpus must be >= train.gpus\n");
+        exit(1);
+    }
+    if (sweep_gpus > total_gpus) {
+        fprintf(stderr, "sweep error: sweep.gpus=%d but only %d CUDA devices are visible\n",
+            sweep_gpus, total_gpus);
         exit(1);
     }
 }
 
-static void run_sweep(Dict* cfg, TrainFn train) {
+static int sweep_read_result(int fd, TrainResult* out) {
+    char* dst = (char*)out;
+    size_t need = sizeof(*out);
+    while (need > 0) {
+        ssize_t n = read(fd, dst, need);
+        if (n < 0) {
+            return 0;
+        }
+        if (n == 0) {
+            return 0;
+        }
+        dst += n;
+        need -= (size_t)n;
+    }
+    return 1;
+}
+
+static char* sweep_arg_kv(const char* full_key, DictItem* item) {
+    char val[128];
+    const char* src = item->str;
+    if (!src) {
+        snprintf(val, sizeof(val), "%.17g", item->value);
+        src = val;
+    }
+
+    size_t n = strlen(full_key) + strlen(src) + 2;
+    char* out = (char*)malloc(n);
+    if (!out) {
+        perror("malloc");
+        exit(1);
+    }
+    snprintf(out, n, "%s=%s", full_key, src);
+    return out;
+}
+
+typedef struct {
+    char** argv;
+    int idx;
+} SweepArgv;
+
+static void sweep_add_arg(const char* full_key, DictItem* item, void* ctx) {
+    SweepArgv* args = (SweepArgv*)ctx;
+    args->argv[args->idx++] = sweep_arg_kv(full_key, item);
+}
+
+static void sweep_free_argv(char** argv, int argc) {
+    for (int i = 3; i < argc; i++) {
+        free(argv[i]);
+    }
+    free(argv);
+}
+
+static SweepJob sweep_start_job(Config* cfg, const char* exe_path,
+        SweepParam* params, int num_params, const float* sample,
+        ProteinSweepInfo info, int run, int gpu_offset, int league) {
+    SweepJob job = {0};
+    job.run = run;
+    job.random = info.is_random;
+    job.gp_obs = info.n_gp_obs;
+    job.pareto = info.n_pareto;
+    job.sample = (float*)calloc((size_t)num_params, sizeof(float));
+    memcpy(job.sample, sample, (size_t)num_params * sizeof(float));
+
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        perror("pipe");
+        exit(1);
+    }
+
+    Config trial = {0};
+    puf_config_copy(&trial, cfg);
+    sweep_apply(&trial, params, num_params, sample);
+    if (league) {
+        puf_config_put(&trial, "selfplay.enabled", "1");
+        puf_config_put(&trial, "env.num_agents", "2");
+        puf_config_put(&trial, "env.num_bots", "0");
+        puf_config_put(&trial, "vec.num_frozen_banks", "1");
+        puf_config_put(&trial, "vec.frozen_bank_pct", "0.1");
+        puf_config_put(&trial, "vec.frozen_bank_hidden_size",
+            puf_config_str(&trial, "policy.hidden_size"));
+        puf_config_put(&trial, "vec.frozen_bank_num_layers",
+            puf_config_str(&trial, "policy.num_layers"));
+    }
+
+    char run_id[64];
+    snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d",
+        (long)(1000.0 * wall_clock()), run);
+    snprintf(job.run_id, sizeof(job.run_id), "%s", run_id);
+    puf_config_put(&trial, "base.run_id", run_id);
+
+    char offset[32];
+    snprintf(offset, sizeof(offset), "%d", gpu_offset);
+    puf_config_put(&trial, "base.gpu_offset", offset);
+
+    char result_fd[32];
+    snprintf(result_fd, sizeof(result_fd), "%d", pipefd[1]);
+    puf_config_put(&trial, "base.result_fd", result_fd);
+    puf_config_validate_train(&trial);
+
+    int argc = puf_config_count(&trial) + 4;
+    char** argv = (char**)calloc((size_t)argc, sizeof(char*));
+    if (!argv) {
+        perror("calloc");
+        exit(1);
+    }
+    argv[0] = (char*)exe_path;
+    argv[1] = (char*)"train";
+    argv[2] = (char*)puf_config_str(&trial, "base.env_name");
+    SweepArgv args = {argv, 3};
+    puf_config_each(&trial, sweep_add_arg, &args);
+    argv[argc - 1] = NULL;
+
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_addclose(&actions, pipefd[0]);
+    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO,
+        "/dev/null", O_WRONLY, 0);
+    int err = posix_spawnp(&job.pid, exe_path, &actions, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&actions);
+    sweep_free_argv(argv, argc - 1);
+    puf_config_free(&trial);
+    if (err != 0) {
+        fprintf(stderr, "posix_spawn failed: %s\n", strerror(err));
+        exit(1);
+    }
+
+    close(pipefd[1]);
+    job.fd = pipefd[0];
+    return job;
+}
+
+static void sweep_wait_job(ProteinSweep* protein, SweepJob* job,
+        int league, const char* league_state_path) {
+    int ok = sweep_read_result(job->fd, &job->result);
+    close(job->fd);
+
+    int status = 0;
+    if (waitpid(job->pid, &status, 0) < 0) {
+        perror("waitpid");
+        exit(1);
+    }
+    if (!ok || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        fprintf(stderr, "sweep worker run=%d failed\n", job->run);
+        exit(1);
+    }
+
+    if (league) {
+        if (!job->result.checkpoint_path[0]) {
+            fprintf(stderr, "league trial run=%d did not produce a checkpoint\n", job->run);
+            exit(1);
+        }
+        league_register_player(league_state_path, job->run_id,
+            job->result.checkpoint_path, job->result.cost);
+        float elo = league_player_elo(league_state_path, job->run_id);
+        protein_sweep_observe(protein, job->sample, elo, job->result.cost, 0);
+        job->result.score = elo;
+    } else {
+        int points = job->result.points > 0 ? job->result.points : 1;
+        for (int i = 0; i < points; i++) {
+            protein_sweep_observe(protein, job->sample,
+                job->result.scores[i], job->result.costs[i], 0);
+        }
+    }
+    printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
+        job->run, job->result.score, job->result.cost, job->result.steps,
+        job->random, job->gp_obs, job->pareto);
+    free(job->sample);
+}
+
+static void sweep_state_path(Config* cfg, char* out, size_t out_size) {
+    const char* configured = puf_config_get(cfg, "sweep.league_state_path");
+    if (configured && configured[0]) {
+        snprintf(out, out_size, "%s", configured);
+        return;
+    }
+
+    char dir[2048];
+    snprintf(dir, sizeof(dir), "%s/%s",
+        puf_config_str(cfg, "base.log_dir"), puf_config_str(cfg, "base.env_name"));
+    mkdir_p(dir);
+    snprintf(out, out_size, "%s/%ld_league.txt",
+        dir, (long)(1000.0 * wall_clock()));
+    puf_config_put(cfg, "sweep.league_state_path", out);
+}
+
+static pid_t sweep_start_match_worker(Config* cfg, const char* exe_path,
+        const char* state_path, int gpu_id) {
+    Config worker = {0};
+    puf_config_copy(&worker, cfg);
+    puf_config_put(&worker, "sweep.league_state_path", state_path);
+    puf_config_put(&worker, "selfplay.enabled", "0");
+
+    char offset[32];
+    snprintf(offset, sizeof(offset), "%d", gpu_id);
+    puf_config_put(&worker, "base.gpu_offset", offset);
+
+    int argc = puf_config_count(&worker) + 4;
+    char** argv = (char**)calloc((size_t)argc, sizeof(char*));
+    argv[0] = (char*)exe_path;
+    argv[1] = (char*)"league_match_worker";
+    argv[2] = (char*)puf_config_str(&worker, "base.env_name");
+    SweepArgv args = {argv, 3};
+    puf_config_each(&worker, sweep_add_arg, &args);
+    argv[argc - 1] = NULL;
+
+    pid_t pid = 0;
+    int err = posix_spawnp(&pid, exe_path, NULL, NULL, argv, environ);
+    sweep_free_argv(argv, argc - 1);
+    puf_config_free(&worker);
+    if (err != 0) {
+        fprintf(stderr, "posix_spawn match worker failed: %s\n", strerror(err));
+        exit(1);
+    }
+    return pid;
+}
+
+static void run_sweep(Config* cfg, const char* exe_path) {
     validate_sweep_support(cfg);
+    int league = (int)puf_config_val(cfg, "sweep.league");
     SweepParam* params = NULL;
     int num_params = 0;
     Hyperparameters* hypers = sweep_hypers_create(cfg, &params, &num_params);
@@ -197,6 +442,35 @@ static void run_sweep(Dict* cfg, TrainFn train) {
         success_cap = 8192;
     }
 
+    int total_gpus = native_num_gpus();
+    int sweep_gpus = (int)puf_config_val(cfg, "sweep.gpus");
+    int train_gpus = (int)puf_config_val(cfg, "train.gpus");
+    if (sweep_gpus == 0) {
+        sweep_gpus = total_gpus;
+    }
+    int use_gpu = (int)puf_config_val(cfg, "sweep.use_gpu");
+    if (use_gpu) {
+        cudaSetDevice(sweep_gpus - 1);
+    }
+    char league_state_path[LEAGUE_PATH_MAX] = {0};
+    pid_t match_pid = 0;
+    int train_gpu_count = sweep_gpus;
+    if (league) {
+        if (strcmp(puf_config_str(cfg, "base.env_name"), "robocode") != 0) {
+            fprintf(stderr, "league sweep currently requires robocode\n");
+            exit(1);
+        }
+        train_gpu_count = sweep_gpus - 1;
+        sweep_state_path(cfg, league_state_path, sizeof(league_state_path));
+        match_pid = sweep_start_match_worker(cfg, exe_path,
+            league_state_path, sweep_gpus - 1);
+    }
+
+    int parallel = train_gpu_count / train_gpus;
+    if (parallel < 1) {
+        parallel = 1;
+    }
+
     ProteinSweep* protein = protein_sweep_create(hypers,
         10, 256, 50, 0.001f, 50, 750, 4096,
         downsample == 1, prune_pareto, use_logit,
@@ -204,27 +478,29 @@ static void run_sweep(Dict* cfg, TrainFn train) {
         success_cap, 1024, 5, 73ULL);
 
     float* sample = (float*)calloc((size_t)num_params, sizeof(float));
-    for (int run = 0; run < max_runs; run++) {
-        ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
+    SweepJob* jobs = (SweepJob*)calloc((size_t)parallel, sizeof(SweepJob));
+    for (int run = 0; run < max_runs;) {
+        int batch = max_runs - run;
+        if (batch > parallel) {
+            batch = parallel;
+        }
 
-        Dict trial = {0};
-        puf_config_copy(&trial, cfg);
-        sweep_apply(&trial, params, num_params, sample);
-
-        char run_id[64];
-        snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d", (long)(1000.0 * wall_clock()), run);
-        puf_config_put(&trial, "base.run_id", run_id);
-        puf_config_validate_train(&trial);
-
-        TrainResult result = train(&trial);
-        protein_sweep_observe(protein, sample, result.score, result.cost, 0);
-        printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
-            run, result.score, result.cost, result.steps,
-            info.is_random, info.n_gp_obs, info.n_pareto);
-
-        puf_config_free(&trial);
+        for (int i = 0; i < batch; i++) {
+            ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
+            jobs[i] = sweep_start_job(cfg, exe_path, params, num_params, sample,
+                info, run + i, i * train_gpus, league);
+        }
+        for (int i = 0; i < batch; i++) {
+            sweep_wait_job(protein, &jobs[i], league, league_state_path);
+        }
+        run += batch;
     }
 
+    if (match_pid > 0) {
+        kill(match_pid, SIGTERM);
+        waitpid(match_pid, NULL, 0);
+    }
+    free(jobs);
     free(sample);
     free(params);
     protein_sweep_destroy(protein);

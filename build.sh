@@ -101,9 +101,15 @@ EXTRA_SRC=""
 EXTRA_LDFLAGS=()
 
 if [ "$ENV" = "constellation" ]; then
-    SRC_DIR="constellation"
-    EXTRA_SRC="vendor/cJSON.c"
+    SRC_DIR="src"
     OUTPUT_NAME="seethestars"
+    MODE=${MODE:-fast}
+    CLANG_WARN+=(-Wno-unused-function)
+elif [ "$ENV" = "cache_data" ]; then
+    SRC_DIR="src"
+    OUTPUT_NAME="cache_data"
+    MODE=${MODE:-fast}
+    CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "trailer" ]; then
     SRC_DIR="trailer"
     OUTPUT_NAME="trailer/trailer"
@@ -188,8 +194,8 @@ elif [ "$MODE" = "web" ]; then
     exit 0
 elif [ "$MODE" = "cpu" ]; then
     ENV_HEADER="$SRC_DIR/$ENV.h"
-    if ! grep -q '^#define OBS_TENSOR_T' "$ENV_HEADER" 2>/dev/null; then
-        echo "Error: $ENV_HEADER must define OBS_TENSOR_T for standalone eval"
+    if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+        echo "Error: $ENV_HEADER must typedef obs_t for standalone eval"
         exit 1
     fi
 
@@ -258,17 +264,12 @@ ARCH=${NVCC_ARCH:-native}
 
 ENV_HEADER="$SRC_DIR/$ENV.h"
 mkdir -p build
-if ! grep -q '^#define OBS_TENSOR_T' "$ENV_HEADER" 2>/dev/null; then
-    echo "Error: $ENV_HEADER must define OBS_TENSOR_T"
+if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+    echo "Error: $ENV_HEADER must typedef obs_t"
     exit 1
 fi
 
 ENV_COMPILE_FLAGS=(-DENV_HEADER=\"$ENV_HEADER\")
-OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$ENV_HEADER")
-if [ -z "$OBS_TENSOR_T" ]; then
-    echo "Error: Could not find OBS_TENSOR_T for $ENV"
-    exit 1
-fi
 
 MODE=${MODE:-native}
 
@@ -278,7 +279,6 @@ if [ "$MODE" = "native" ]; then
         -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
         "${ENV_COMPILE_FLAGS[@]}" \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         -Xcompiler=-DPLATFORM_DESKTOP \
         -Xcompiler=-fopenmp \
@@ -298,7 +298,6 @@ elif [ "$MODE" = "profile" ]; then
         -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
         "${ENV_COMPILE_FLAGS[@]}" \
-        -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
         -Xcompiler=-DPLATFORM_DESKTOP \
         $PRECISION \

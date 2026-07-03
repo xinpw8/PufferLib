@@ -10,6 +10,25 @@
 
 #include "config.h"
 
+static inline void mkdir_p(const char* path) {
+    char tmp[1024];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    for (char* p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+                fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
+                exit(1);
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+        fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
+        exit(1);
+    }
+}
+
 static int puf_has_suffix(const char* s, const char* suffix) {
     size_t n = strlen(s);
     size_t m = strlen(suffix);
@@ -49,7 +68,7 @@ static void puf_find_latest_checkpoint(const char* dir,
     closedir(dp);
 }
 
-static const char* puf_checkpoint_path(Dict* cfg, char* out, size_t out_size) {
+static const char* puf_checkpoint_path(Config* cfg, char* out, size_t out_size) {
     const char* load_path = puf_config_get(cfg, "base.load_model_path");
     if (!load_path || strcmp(load_path, "None") == 0) {
         return NULL;
