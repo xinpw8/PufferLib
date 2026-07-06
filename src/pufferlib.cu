@@ -5,6 +5,7 @@
 #include <nccl.h>
 
 #include <time.h>
+#include "config.h"
 #include "models.cu"
 #include "ocean.cu"
 #include "muon.cu"
@@ -18,12 +19,6 @@ static double wall_clock() {
     clock_gettime(CLOCK_REALTIME, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
-
-enum LossIdx {
-    LOSS_PG = 0, LOSS_VF = 1, LOSS_ENT = 2, LOSS_TOTAL = 3,
-    LOSS_OLD_APPROX_KL = 4, LOSS_APPROX_KL = 5, LOSS_CLIPFRAC = 6,
-    LOSS_N = 7, NUM_LOSSES = 8,
-};
 
 enum ProfileIdx {
     PROF_ROLLOUT = 0,
@@ -139,66 +134,25 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
     }
 }
 
-// PPO buffers + args are quite complex. We do the entire
-// forward + backwards pass for the full loss function in one kernel
-struct PPOGraphArgs {
-    precision_t* out_ratio;
-    precision_t* out_newvalue;
-    const precision_t* actions;
-    const precision_t* old_logprobs;
-    const precision_t* advantages;
-    const precision_t* prio;
-    const precision_t* values;
-    const precision_t* returns;
-};
-
-struct PPOKernelArgs {
-    float* grad_logits;
-    float* grad_logstd; // For continuous actions
-    float* grad_values_pred;
-    const precision_t* logits;
-    const precision_t* logstd; // Continuous only
-    const precision_t* values_pred;
-    const float* adv_mean;
-    const float* adv_var;
-    const int* act_sizes;
-    const precision_t* action_mask; // (N, T, A_total) or nullptr
-    int mask_stride_n, mask_stride_t;
-    int num_atns;
-    float clip_coef, vf_clip_coef, vf_coef, ent_coef;
-    int T_seq, A_total, N;
-    int logits_stride_n, logits_stride_t, logits_stride_a;
-    int values_stride_n, values_stride_t;
-    bool is_continuous;
-};
-
-struct PPOBuffersPuf {
-    FloatTensor loss_output, grad_loss;
-    FloatTensor saved_for_bwd;
-    FloatTensor grad_logits, grad_values, grad_logstd, adv_scratch;
-};
-
-void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, int A_total, bool is_continuous) {
-    long total = (long)N * T;
-    bufs = (PPOBuffersPuf){
-        .loss_output = {.shape = {1}},
-        .grad_loss = {.shape = {1}},
-        .saved_for_bwd = {.shape = {total, 5}},
-        .grad_logits = {.shape = {N, T, A_total}},
-        .grad_values = {.shape = {N, T, 1}},
-        .grad_logstd = {.shape = {N, T, A_total}},
-        .adv_scratch = {.shape = {2}},
-    };
-    alloc_register(alloc, &bufs.loss_output);
-    alloc_register(alloc, &bufs.saved_for_bwd);
-    alloc_register(alloc, &bufs.grad_loss);
-    alloc_register(alloc, &bufs.grad_logits);
-    alloc_register(alloc, &bufs.grad_values);
-    if (is_continuous) {
-        alloc_register(alloc, &bufs.grad_logstd);
+__device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
+    if (isnan(x)) {
+        return 0.0f;
     }
-    alloc_register(alloc, &bufs.adv_scratch);
+    if (isinf(x)) {
+        return x > 0.0f ? hi : lo;
+    }
+    return fminf(hi, fmaxf(lo, x));
 }
+
+__device__ __forceinline__ float safe_continuous_mean(const precision_t* logits, int idx) {
+    return finite_or_clamp(to_float(logits[idx]), -1.0e6f, 1.0e6f);
+}
+
+__device__ __forceinline__ float safe_continuous_logstd(const precision_t* logstd, int idx) {
+    return finite_or_clamp(to_float(logstd[idx]), -20.0f, 2.0f);
+}
+
+#include "loss.cu"
 
 // Prioritized replay over single-epoch data. These kernels are
 // the least cleaned because we will likely have a better method in 5.0
@@ -257,61 +211,6 @@ VecEnv* create_environments(Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
     }
     return vec;
 }
-
-typedef struct {
-    // Layout
-    int horizon;
-    int total_agents;
-    int num_buffers;
-    // Model architecture
-    int num_atns;
-    int hidden_size;
-    int num_layers;
-    // Learning rate
-    float lr;
-    float min_lr_ratio;
-    bool anneal_lr;
-    // Optimizer
-    float beta1;
-    float beta2;
-    float eps;
-    // Training
-    int minibatch_size;
-    float replay_ratio;
-    long total_timesteps;
-    float max_grad_norm;
-    // PPO
-    float clip_coef;
-    float vf_clip_coef;
-    float vf_coef;
-    float ent_coef;
-    // Entropy coefficient anneal — mirrors lr annealing. When anneal_ent_coef
-    // is set, ent_coef cosine-decays from its base value to
-    // min_ent_coef_ratio * ent_coef over total_timesteps.
-    float min_ent_coef_ratio;
-    bool anneal_ent_coef;
-    // GAE
-    float gamma;
-    float gae_lambda;
-    // VTrace
-    float vtrace_rho_clip;
-    float vtrace_c_clip;
-    // Priority
-    float prio_alpha;
-    float prio_beta0;
-    // Flags
-    bool reset_state;
-    int cudagraphs;
-    bool profile;
-    // Multi-GPU
-    int rank;
-    int world_size;
-    int gpu_id;
-    ncclUniqueId nccl_id;
-    // Threading
-    int num_threads;
-    int seed;
-} HypersT;
 
 // A frozen weight bank: same shape as the primary, but its own params buffer
 // (and per-buffer rollout states/activations). Used for match (eval) and league
@@ -421,24 +320,6 @@ __device__ __forceinline__ float safe_logit(const precision_t* logits,
         l = (l > 0) ? 3.4028e+38f : -3.4028e+38f;
     }
     return l;
-}
-
-__device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
-    if (isnan(x)) {
-        return 0.0f;
-    }
-    if (isinf(x)) {
-        return x > 0.0f ? hi : lo;
-    }
-    return fminf(hi, fmaxf(lo, x));
-}
-
-__device__ __forceinline__ float safe_continuous_mean(const precision_t* logits, int idx) {
-    return finite_or_clamp(to_float(logits[idx]), -1.0e6f, 1.0e6f);
-}
-
-__device__ __forceinline__ float safe_continuous_logstd(const precision_t* logstd, int idx) {
-    return finite_or_clamp(to_float(logstd[idx]), -20.0f, 2.0f);
 }
 
 __device__ __forceinline__ float masked_logit(const precision_t* logits,
@@ -710,400 +591,6 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t) {
     profile_end(hypers.profile);
 }
 
-
-__device__ __forceinline__ float load_logit_masked(
-        const precision_t* __restrict__ logits, int logits_base,
-        int logits_stride_a, int logits_offset, int a,
-        const precision_t* __restrict__ mask, int mask_base) {
-    float l = to_float(logits[logits_base + (logits_offset + a) * logits_stride_a]);
-    if (mask != nullptr) {
-        float m = to_float(mask[mask_base + logits_offset + a]);
-        if (m == 0.0f) {
-            l = -1e4f;
-            return l;
-        }
-    }
-    return l;
-}
-
-__device__ __forceinline__ void ppo_discrete_head(
-        const precision_t* __restrict__ logits, int logits_base,
-        int logits_stride_a, int logits_offset, int A, int act,
-        const precision_t* __restrict__ mask, int mask_base,
-        float* out_logsumexp, float* out_entropy, float* out_logp) {
-    float max_logit = -INFINITY;
-    float sum = 0.0f;
-    float act_logit = 0.0f;
-
-    for (int a = 0; a < A; ++a) {
-        float l = load_logit_masked(logits, logits_base, logits_stride_a, logits_offset, a, mask, mask_base);
-        if (a == act) {
-            act_logit = l;
-        }
-        if (l > max_logit) {
-            sum *= __expf(max_logit - l);
-            max_logit = l;
-        }
-        sum += __expf(l - max_logit);
-    }
-    float logsumexp = max_logit + __logf(sum);
-
-    float ent = 0.0f;
-    for (int a = 0; a < A; ++a) {
-        float l = load_logit_masked(logits, logits_base, logits_stride_a, logits_offset, a, mask, mask_base);
-        float logp = l - logsumexp;
-        float p = __expf(logp);
-        ent -= p * logp;
-    }
-
-    *out_logsumexp = logsumexp;
-    *out_entropy = ent;
-    *out_logp = act_logit - logsumexp;
-}
-
-__device__ __forceinline__ void ppo_continuous_head(
-        float mean, float log_std, float action,
-        float* out_logp, float* out_entropy) {
-    constexpr float HALF_LOG_2PI = 0.9189385332046727f;
-    constexpr float HALF_1_PLUS_LOG_2PI = 1.4189385332046727f;
-    float std = __expf(log_std);
-    float normalized = (action - mean) / std;
-    *out_logp = -0.5f * normalized * normalized - HALF_LOG_2PI - log_std;
-    *out_entropy = HALF_1_PLUS_LOG_2PI + log_std;
-}
-
-__global__ void ppo_loss_compute(
-        float* __restrict__ ppo_partials,
-        PPOKernelArgs a, PPOGraphArgs g) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int tid = threadIdx.x;
-    int total_elements = a.N * a.T_seq;
-    float inv_NT = 1.0f / float(total_elements);
-
-    __shared__ float block_losses[LOSS_N][PPO_THREADS];
-    for (int c = 0; c < LOSS_N; c++) {
-        block_losses[c][tid] = 0.0f;
-    }
-
-    if (idx >= total_elements) {
-        goto reduce;
-    }
-
-    {
-    int n = idx / a.T_seq;
-    int t = idx % a.T_seq;
-    int nt = n * a.T_seq + t;
-
-    int logits_base = n * a.logits_stride_n + t * a.logits_stride_t;
-    int values_idx = n * a.values_stride_n + t * a.values_stride_t;
-    int grad_logits_base = nt * a.A_total;
-
-    // Shared computation (used by both forward and backward)
-
-    float old_logp = to_float(g.old_logprobs[nt]);
-    float adv = to_float(g.advantages[nt]);
-    float w = to_float(g.prio[n]);
-    float val = to_float(g.values[nt]);
-    float ret = to_float(g.returns[nt]);
-    float val_pred = to_float(a.values_pred[values_idx]);
-    g.out_newvalue[nt] = from_float(val_pred);
-
-    float adv_std = sqrtf(float(a.adv_var[0]));
-    float adv_normalized = (adv - float(a.adv_mean[0])) / (adv_std + 1e-8f);
-
-    // grad_loss is always 1.0 (set in post_create, never changes)
-    float dL = inv_NT;
-    float d_pg_loss = dL;
-    float d_entropy_term = dL * (-a.ent_coef);
-
-    // Value loss (forward) + value gradient (backward)
-
-    float v_error = val_pred - val;
-    float v_clipped = val + fmaxf(-a.vf_clip_coef, fminf(a.vf_clip_coef, v_error));
-    float v_loss_unclipped = (val_pred - ret) * (val_pred - ret);
-    float v_loss_clipped = (v_clipped - ret) * (v_clipped - ret);
-    float v_loss = 0.5f * fmaxf(v_loss_unclipped, v_loss_clipped);
-
-    // Value gradient
-    bool use_clipped_vf = (v_loss_clipped > v_loss_unclipped);
-    float d_val_pred = 0.0f;
-    if (use_clipped_vf) {
-        if (v_error >= -a.vf_clip_coef && v_error <= a.vf_clip_coef) {
-            d_val_pred = v_clipped - ret;
-        }
-    } else {
-        d_val_pred = val_pred - ret;
-    }
-    a.grad_values_pred[nt] = dL * a.vf_coef * d_val_pred;
-
-    // Policy loss + gradients
-
-    float pg_loss, total_entropy, logratio, ratio;
-    float total_log_prob = 0.0f;
-    total_entropy = 0.0f;
-
-    // Discrete-only: per-head arrays needed across forward + backward
-    float head_logsumexp[MAX_ATN_HEADS];
-    float head_entropy[MAX_ATN_HEADS];
-    int head_act[MAX_ATN_HEADS];
-
-    int mask_base = (a.action_mask != nullptr)
-        ? n * a.mask_stride_n + t * a.mask_stride_t : 0;
-
-    if (!a.is_continuous) {
-        int logits_offset = 0;
-        for (int h = 0; h < a.num_atns; ++h) {
-            int A = a.act_sizes[h];
-            int act = static_cast<int>(g.actions[nt * a.num_atns + h]);
-            head_act[h] = act;
-            float lse, ent, lp;
-            ppo_discrete_head(a.logits, logits_base, a.logits_stride_a, logits_offset, A, act,
-                              a.action_mask, mask_base, &lse, &ent, &lp);
-            head_logsumexp[h] = lse;
-            head_entropy[h] = ent;
-            total_log_prob += lp;
-            total_entropy += ent;
-            logits_offset += A;
-        }
-    } else {
-        for (int h = 0; h < a.num_atns; ++h) {
-            float mean = safe_continuous_mean(a.logits, logits_base + h * a.logits_stride_a);
-            float log_std = safe_continuous_logstd(a.logstd, h);
-            float action = finite_or_clamp(float(g.actions[nt * a.num_atns + h]), -1.0e6f, 1.0e6f);
-            float lp, ent;
-            ppo_continuous_head(mean, log_std, action, &lp, &ent);
-            total_log_prob += lp;
-            total_entropy += ent;
-        }
-    }
-
-    // Shared pg loss computation
-    logratio = total_log_prob - old_logp;
-    ratio = __expf(logratio);
-    g.out_ratio[nt] = from_float(ratio);
-    float ratio_clipped = fmaxf(1.0f - a.clip_coef, fminf(1.0f + a.clip_coef, ratio));
-    float wa = -w * adv_normalized;
-    float pg_loss1 = wa * ratio;
-    float pg_loss2 = wa * ratio_clipped;
-    pg_loss = fmaxf(pg_loss1, pg_loss2);
-
-    float d_ratio = wa * d_pg_loss;
-    if (pg_loss2 > pg_loss1) {
-        if (ratio <= (1.0f - a.clip_coef) || ratio >= (1.0f + a.clip_coef)) {
-            d_ratio = 0.0f;
-        }
-    }
-    float d_new_logp = d_ratio * ratio;
-
-    if (!a.is_continuous) {
-        int logits_offset = 0;
-        for (int h = 0; h < a.num_atns; ++h) {
-            int A = a.act_sizes[h];
-            int act = head_act[h];
-            float logsumexp = head_logsumexp[h];
-            float ent = head_entropy[h];
-
-            for (int j = 0; j < A; ++j) {
-                float l = load_logit_masked(a.logits, logits_base, a.logits_stride_a,
-                                            logits_offset, j, a.action_mask, mask_base);
-                float logp = l - logsumexp;
-                float p = __expf(logp);
-                float d_logit = (j == act) ? d_new_logp : 0.0f;
-                d_logit -= p * d_new_logp;
-                d_logit += d_entropy_term * p * (-ent - logp);
-                a.grad_logits[grad_logits_base + logits_offset + j] = d_logit;
-            }
-            logits_offset += A;
-        }
-    } else {
-        for (int h = 0; h < a.num_atns; ++h) {
-            float mean = safe_continuous_mean(a.logits, logits_base + h * a.logits_stride_a);
-            float log_std = safe_continuous_logstd(a.logstd, h);
-            float std = __expf(log_std);
-            float var = std * std;
-            float action = finite_or_clamp(float(g.actions[nt * a.num_atns + h]), -1.0e6f, 1.0e6f);
-            float diff = action - mean;
-
-            a.grad_logits[grad_logits_base + h] = d_new_logp * diff / var;
-            a.grad_logstd[nt * a.num_atns + h] = d_new_logp * (diff * diff / var - 1.0f) + d_entropy_term;
-        }
-    }
-
-    // Forward: loss partials
-    float thread_loss = (pg_loss + a.vf_coef * v_loss - a.ent_coef * total_entropy) * inv_NT;
-    block_losses[LOSS_PG][tid] = pg_loss * inv_NT;
-    block_losses[LOSS_VF][tid] = v_loss * inv_NT;
-    block_losses[LOSS_ENT][tid] = total_entropy * inv_NT;
-    block_losses[LOSS_TOTAL][tid] = thread_loss;
-    block_losses[LOSS_OLD_APPROX_KL][tid] = (-logratio) * inv_NT;
-    block_losses[LOSS_APPROX_KL][tid] = ((ratio - 1.0f) - logratio) * inv_NT;
-    block_losses[LOSS_CLIPFRAC][tid] = (fabsf(ratio - 1.0f) > a.clip_coef ? 1.0f : 0.0f) * inv_NT;
-    } // end if (idx < total_elements)
-
-// Deterministic aggregation
-reduce:
-    __syncthreads();
-
-    for (int stride = PPO_THREADS / 2; stride > 0; stride >>= 1) {
-        if (tid < stride) {
-            for (int c = 0; c < LOSS_N; c++) {
-                block_losses[c][tid] += block_losses[c][tid + stride];
-            }
-        }
-        __syncthreads();
-    }
-
-    if (tid == 0) {
-        int base = blockIdx.x * (LOSS_N + 1);
-        ppo_partials[base] = block_losses[LOSS_TOTAL][0];
-        for (int c = 0; c < LOSS_N; c++) {
-            ppo_partials[base + 1 + c] = block_losses[c][0];
-        }
-    }
-}
-
-// Deterministic reduction of per-block PPO loss partials + count increment
-__global__ void ppo_loss_reduce(
-        float* __restrict__ loss,
-        float* __restrict__ losses_acc,
-        const float* __restrict__ partials,
-        int num_blocks) {
-    int tid = threadIdx.x;
-    if (tid > LOSS_N) {
-        return;
-    }
-
-    float sum = 0.0f;
-    for (int b = 0; b < num_blocks; b++) {
-        sum += partials[b * (LOSS_N + 1) + tid];
-    }
-
-    if (tid == 0) {
-        *loss += sum;
-    } else {
-        losses_acc[tid - 1] += sum;
-    }
-
-    // Fold add_scalar: increment epoch count
-    if (tid == 0) {
-        losses_acc[LOSS_N] += 1.0f;
-    }
-}
-
-__global__ void ppo_var_mean(const precision_t* __restrict__ src,
-        float* __restrict__ var_out, float* __restrict__ mean_out, int n) {
-    __shared__ float sdata[256];
-    int tid = threadIdx.x;
-    float sum = 0.0f;
-    for (int i = tid; i < n; i += blockDim.x) {
-        sum += to_float(src[i]);
-    }
-    sdata[tid] = sum;
-    __syncthreads();
-    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            sdata[tid] += sdata[tid + s];
-        }
-        __syncthreads();
-    }
-    float mean = sdata[0] / (float)n;
-    if (tid == 0) {
-        *mean_out = mean;
-    }
-    __syncthreads();
-    float ss = 0.0f;
-    for (int i = tid; i < n; i += blockDim.x) {
-        float d = to_float(src[i]) - mean;
-        ss += d * d;
-    }
-    sdata[tid] = ss;
-    __syncthreads();
-    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            sdata[tid] += sdata[tid + s];
-        }
-        __syncthreads();
-    }
-    if (tid == 0) {
-        *var_out = sdata[0] / (float)(n - 1);
-    }
-}
-
-// This is a huge kernel for a relatively cheap operation. But without this,
-// it's death by a thousand cuts with repeated kernel launches. Even graphed, you
-// blow up the memory bandwidth.
-void ppo_loss_fwd_bwd(
-        PrecisionTensor& dec_out,    // (N, T, fused_cols) — fused logits+value from decoder
-        PrecisionTensor& logstd,     // continuous logstd or empty
-        TrainGraph& graph,
-        IntTensor& act_sizes, FloatTensor& losses_acc,
-        float clip_coef, float vf_clip_coef, float vf_coef, float ent_coef,
-        PPOBuffersPuf& bufs, bool is_continuous,
-        cudaStream_t stream) {
-    int N = dec_out.shape[0], T = dec_out.shape[1], fused_cols = dec_out.shape[2];
-    int A_total = fused_cols - 1;  // last column is value
-    int total = N * T;
-
-    // Pointers into fused decoder output
-    const precision_t* logits_ptr = dec_out.data;
-
-    float* adv_var_ptr = bufs.adv_scratch.data;
-    float* adv_mean_ptr = adv_var_ptr + 1;
-    ppo_var_mean<<<1, 256, 0, stream>>>(
-        graph.mb_advantages.data, adv_var_ptr, adv_mean_ptr, numel(graph.mb_advantages.shape));
-
-    int ppo_grid = (total + PPO_THREADS - 1) / PPO_THREADS;
-
-    static float* ppo_partials_buf = nullptr;
-    static int ppo_partials_capacity = 0;
-    int ppo_partials_needed = ppo_grid * (LOSS_N + 1);
-    if (!ppo_partials_buf || ppo_partials_needed > ppo_partials_capacity) {
-        if (ppo_partials_buf) cudaFree(ppo_partials_buf);
-        ppo_partials_capacity = ppo_partials_needed;
-        cudaMalloc(&ppo_partials_buf, ppo_partials_capacity * sizeof(float));
-    }
-
-    cudaMemsetAsync(bufs.loss_output.data, 0, sizeof(float), stream);
-
-    PPOGraphArgs graph_args = {
-        .out_ratio = graph.mb_ratio.data,
-        .out_newvalue = graph.mb_newvalue.data,
-        .actions = graph.mb_actions.data,
-        .old_logprobs = graph.mb_logprobs.data,
-        .advantages = graph.mb_advantages.data,
-        .prio = graph.mb_prio.data,
-        .values = graph.mb_values.data,
-        .returns = graph.mb_returns.data,
-    };
-
-    bool has_mask = (graph.mb_action_mask.data != nullptr);
-    PPOKernelArgs args = {
-        .grad_logits = bufs.grad_logits.data,
-        .grad_logstd = is_continuous ? bufs.grad_logstd.data : nullptr,
-        .grad_values_pred = bufs.grad_values.data,
-        .logits = logits_ptr,
-        .logstd = is_continuous ? logstd.data : nullptr,
-        .values_pred = logits_ptr + A_total,
-        .adv_mean = adv_mean_ptr,
-        .adv_var = adv_var_ptr,
-        .act_sizes = act_sizes.data,
-        .action_mask = has_mask ? graph.mb_action_mask.data : nullptr,
-        .mask_stride_n = has_mask ? T * A_total : 0,
-        .mask_stride_t = has_mask ? A_total : 0,
-        .num_atns = (int)numel(act_sizes.shape),
-        .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
-        .vf_coef = vf_coef, .ent_coef = ent_coef,
-        .T_seq = T, .A_total = A_total, .N = N,
-        .logits_stride_n = T * fused_cols, .logits_stride_t = fused_cols, .logits_stride_a = 1,
-        .values_stride_n = T * fused_cols, .values_stride_t = fused_cols,
-        .is_continuous = is_continuous,
-    };
-
-    ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(ppo_partials_buf, args, graph_args);
-
-    ppo_loss_reduce<<<1, LOSS_N + 1, 0, stream>>>(
-        bufs.loss_output.data, losses_acc.data, ppo_partials_buf, ppo_grid);
-}
 
 #define PRIO_WARP_SIZE 32
 #define PRIO_FULL_MASK 0xffffffff
@@ -1867,7 +1354,8 @@ static bool create_allocator_or_report(const char* name, Allocator* alloc) {
     return false;
 }
 
-PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs, Dict* env_kwargs) {
+PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
+        Dict* env_kwargs, ncclUniqueId* nccl_id) {
     PuffeRL* pufferl = new PuffeRL();
     pufferl->hypers = hypers;
     pufferl->nccl_comm = nullptr;
@@ -1878,7 +1366,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs, Dict* env_kwargs
 
     // Multi-GPU: initialize NCCL
     if (hypers.world_size > 1) {
-        ncclCommInitRank(&pufferl->nccl_comm, hypers.world_size, hypers.nccl_id, hypers.rank);
+        ncclCommInitRank(&pufferl->nccl_comm, hypers.world_size, *nccl_id, hypers.rank);
         printf("Rank %d/%d: NCCL initialized\n", hypers.rank, hypers.world_size);
     }
 
@@ -2208,3 +1696,403 @@ void close_impl(PuffeRL& pufferl) {
         ncclCommDestroy(pufferl.nccl_comm);
     }
 }
+
+#ifdef PUFFERLIB_BUILD_MAIN
+
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "protein.cu"
+#include "dashboard.h"
+#include "logging.h"
+
+typedef struct {
+    int rank;
+    int world_size;
+    int gpu_id;
+    int artifact_owner;
+    ncclUniqueId* nccl_id;
+} TrainContext;
+
+static PuffeRL* create_trainer(Config* cfg, TrainContext* ctx) {
+    HypersT hypers = puf_config_to_hypers(cfg,
+        ctx->rank, ctx->world_size, ctx->gpu_id);
+    Dict vec = {0};
+    dict_copy(&vec, puf_ini_section(&cfg->ini, "vec", 0));
+    PuffeRL* pufferl = create_pufferl_impl(hypers, &vec, &cfg->env, ctx->nccl_id);
+    dict_clear(&vec);
+    if (!pufferl) {
+        fprintf(stderr, "create_pufferl_impl failed\n");
+        exit(1);
+    }
+    return pufferl;
+}
+
+static void rollouts(PuffeRL* p) {
+    if (p->hypers.reset_state) {
+        for (int i = 0; i < p->hypers.num_buffers; i++) {
+            puf_zero(&p->buffer_states[i], p->default_stream);
+        }
+        for (int b = 0; b < p->num_frozen_banks; b++) {
+            for (int i = 0; i < p->hypers.num_buffers; i++) {
+                puf_zero(&p->frozen_banks[b].buffer_states[i], p->default_stream);
+            }
+        }
+    }
+
+    double t0 = wall_clock();
+    vec_step(p->vec);
+    float sec = (float)(wall_clock() - t0);
+    p->profile.accum[PROF_ROLLOUT] += sec * 1000.0f;
+
+    float eval_prof[NUM_VEC_PROF] = {0};
+    for (int buf = 0; buf < p->vec->buffers; buf++) {
+        float* src = &p->vec->accum[buf * NUM_VEC_PROF];
+        for (int i = 0; i < NUM_VEC_PROF; i++) {
+            eval_prof[i] += src[i];
+        }
+        memset(src, 0, NUM_VEC_PROF * sizeof(float));
+    }
+    p->profile.accum[PROF_EVAL_GPU] += eval_prof[VEC_GPU] / p->vec->buffers;
+    p->profile.accum[PROF_EVAL_ENV] += eval_prof[VEC_ENV_STEP] / p->vec->buffers;
+    p->global_step += p->hypers.horizon * p->hypers.total_agents;
+}
+
+static void close_trainer(PuffeRL* p) {
+    close_impl(*p);
+    delete p;
+}
+
+#include "selfplay.h"
+#include "sweep.h"
+
+static float log_value(Dict* log, const char* key, float fallback) {
+    for (int i = 0; i < log->size; i++) {
+        if (strcmp(log->items[i].key, key) == 0) {
+            return (float)log->items[i].value;
+        }
+    }
+    return fallback;
+}
+
+static void train_result_fill(TrainResult* result, PufLogHistory* history,
+        Dict* last_log, Config* cfg, const char* target_key) {
+    result->score = (float)puf_log_get_or(last_log, target_key, 0);
+    result->cost = (float)puf_log_get_or(last_log, "uptime", 0);
+    result->steps = (float)puf_log_get_or(last_log, "agent_steps", 0);
+
+    int points = puf_config_int(cfg, "sweep", "downsample");
+    if (points < 1) {
+        points = 1;
+    }
+    if (points > TRAIN_RESULT_MAX_POINTS) {
+        points = TRAIN_RESULT_MAX_POINTS;
+    }
+    result->points = points;
+
+    if (history->size == 0 || points == 1) {
+        result->scores[0] = result->score;
+        result->costs[0] = result->cost;
+        result->step_points[0] = result->steps;
+        return;
+    }
+
+    float final_steps = log_value(&history->items[history->size - 1],
+        "agent_steps", result->steps);
+    int cursor = 0;
+    for (int p = 0; p < points; p++) {
+        float target = final_steps * (float)p / (float)(points - 1);
+        while (cursor + 1 < history->size &&
+                log_value(&history->items[cursor], "agent_steps", 0) < target) {
+            cursor++;
+        }
+        Dict* log = &history->items[cursor];
+        result->scores[p] = log_value(log, target_key, result->score);
+        result->costs[p] = log_value(log, "uptime", result->cost);
+        result->step_points[p] = log_value(log, "agent_steps", target);
+    }
+    result->scores[points - 1] = result->score;
+    result->costs[points - 1] = result->cost;
+    result->step_points[points - 1] = result->steps;
+}
+
+void run_eval(Config* cfg, TrainContext* ctx) {
+    puf_config_put(cfg, "base.reset_state", "0");
+    puf_config_put(cfg, "train.horizon", "1");
+
+    PuffeRL* pufferl = create_trainer(cfg, ctx);
+    char resolved_path[4096];
+    const char* load_path = puf_checkpoint_path(cfg, resolved_path, sizeof(resolved_path));
+    if (load_path) {
+        puf_load_weights(pufferl, load_path);
+        printf("Loaded weights from %s\n", load_path);
+    }
+
+    for (;;) {
+        puf_render(&pufferl->vec->envs[0]);
+        rollouts(pufferl);
+        Dict log = {0};
+        trainer_eval_log(pufferl, &log);
+        puf_dashboard_print(cfg, pufferl, &log, 0);
+    }
+
+    close_trainer(pufferl);
+}
+
+TrainResult run_train(Config* cfg, TrainContext* ctx) {
+    if (puf_config_int(cfg, "selfplay", "enabled") == 0) {
+        puf_config_put(cfg, "vec.num_frozen_banks", "0");
+        puf_config_put(cfg, "vec.frozen_bank_pct", "0");
+    }
+
+    char run_id[64];
+    const char* configured_run_id = puf_config_str(cfg, "base", "run_id");
+    if (!configured_run_id[0] || strcmp(configured_run_id, "None") == 0) {
+        snprintf(run_id, sizeof(run_id), "%ld", (long)(1000.0 * wall_clock()));
+        puf_config_put(cfg, "base.run_id", run_id);
+    } else {
+        snprintf(run_id, sizeof(run_id), "%s", configured_run_id);
+    }
+
+    char checkpoint_dir[2048];
+    char log_dir[2048];
+    snprintf(checkpoint_dir, sizeof(checkpoint_dir), "%s/%s/%s",
+        puf_config_str(cfg, "base", "checkpoint_dir"),
+        puf_config_str(cfg, "base", "env_name"), run_id);
+    snprintf(log_dir, sizeof(log_dir), "%s/%s",
+        puf_config_str(cfg, "base", "log_dir"),
+        puf_config_str(cfg, "base", "env_name"));
+    if (ctx->artifact_owner) {
+        mkdir_p(checkpoint_dir);
+        mkdir_p(log_dir);
+    }
+
+    PuffeRL* pufferl = create_trainer(cfg, ctx);
+    Selfplay* selfplay = (Selfplay*)calloc(1, sizeof(Selfplay));
+    selfplay_init(selfplay, cfg, pufferl, run_id, ctx->artifact_owner, ctx->world_size);
+    long total_timesteps = puf_config_long(cfg, "train", "total_timesteps");
+    long batch_size = (long)puf_config_int(cfg, "vec", "total_agents") *
+        (long)puf_config_int(cfg, "train", "horizon");
+    long local_timesteps = total_timesteps / ctx->world_size;
+    long train_epochs = local_timesteps / batch_size;
+    long eval_epochs = train_epochs / 2;
+    long checkpoint_interval = puf_config_long(cfg, "base", "checkpoint_interval");
+    long eval_episodes = puf_config_long(cfg, "base", "eval_episodes");
+    const char* target_key = "env/score";
+    Dict last_log = {0};
+    PufLogHistory log_history = {0};
+    TrainResult result = {0};
+
+    for (long epoch = 0; epoch < train_epochs + eval_epochs; epoch++) {
+        rollouts(pufferl);
+        if (epoch < train_epochs) {
+            train_impl(*pufferl);
+        }
+
+        bool is_final = epoch == train_epochs - 1;
+        bool should_save = epoch < train_epochs && (epoch % checkpoint_interval == 0 || is_final);
+        if (should_save && ctx->artifact_owner) {
+            char path[4096];
+            snprintf(path, sizeof(path), "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
+            puf_save_weights(pufferl, path);
+            snprintf(result.checkpoint_path, sizeof(result.checkpoint_path), "%s", path);
+        }
+
+        if (wall_clock() < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
+            continue;
+        }
+
+        Dict new_log = {0};
+        if (epoch >= train_epochs) {
+            trainer_eval_log(pufferl, &new_log);
+        } else {
+            trainer_log(pufferl, &new_log);
+        }
+        puf_log_update(&last_log, &new_log);
+        if (epoch < train_epochs) {
+            selfplay_step(selfplay, pufferl, &last_log, (int)epoch);
+        }
+        if (ctx->artifact_owner) {
+            puf_dashboard_print(cfg, pufferl, &last_log, (int)epoch);
+        }
+
+        if (puf_log_get_or(&last_log, target_key, -1) < 0) {
+            continue;
+        }
+        if (epoch < train_epochs) {
+            puf_log_history_add(&log_history, &last_log);
+        }
+        if (epoch >= train_epochs && puf_log_get_or(&last_log, "env/n", 0) > eval_episodes) {
+            break;
+        }
+    }
+
+    train_result_fill(&result, &log_history, &last_log, cfg, target_key);
+    if (ctx->artifact_owner) {
+        puf_log_history_add(&log_history, &last_log);
+        char log_path[4096];
+        snprintf(log_path, sizeof(log_path), "%s/%s.ini", log_dir, run_id);
+        puf_log_write(log_path, cfg, &log_history);
+    }
+    puf_log_history_free(&log_history);
+    free(selfplay);
+    close_trainer(pufferl);
+    return result;
+}
+
+static int gpu_for_rank(int rank, int world_size) {
+    if (rank == 0) {
+        return world_size - 1;
+    }
+    return rank - 1;
+}
+
+static void wait_children(pid_t* pids, int num_pids) {
+    for (int i = 0; i < num_pids; i++) {
+        int status = 0;
+        if (waitpid(pids[i], &status, 0) < 0) {
+            fprintf(stderr, "waitpid failed for child %d: %s\n", (int)pids[i], strerror(errno));
+            exit(1);
+        }
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "worker pid %d failed\n", (int)pids[i]);
+            exit(1);
+        }
+    }
+}
+
+TrainResult launch_train(Config* cfg) {
+    int world_size = puf_config_int(cfg, "train", "gpus");
+    if (world_size < 1) {
+        fprintf(stderr, "config error: [train] gpus must be >= 1\n");
+        exit(1);
+    }
+    int gpu_offset = puf_config_int(cfg, "base", "gpu_offset");
+
+    ncclUniqueId nccl_id;
+    ncclUniqueId* nccl_ptr = NULL;
+    if (world_size > 1) {
+        ncclGetUniqueId(&nccl_id);
+        nccl_ptr = &nccl_id;
+    }
+
+    pid_t* pids = (pid_t*)calloc(world_size > 1 ? world_size - 1 : 1, sizeof(pid_t));
+    for (int rank = world_size - 1; rank >= 1; rank--) {
+        pid_t pid = fork();
+        if (pid < 0) {
+            fprintf(stderr, "fork failed: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        if (pid == 0) {
+            if (!freopen("/dev/null", "w", stdout)) {
+                fprintf(stderr, "failed to redirect child stdout: %s\n", strerror(errno));
+                exit(1);
+            }
+            TrainContext child = {
+                .rank = rank,
+                .world_size = world_size,
+                .gpu_id = gpu_offset + gpu_for_rank(rank, world_size),
+                .artifact_owner = 0,
+                .nccl_id = nccl_ptr,
+            };
+            run_train(cfg, &child);
+            puf_config_free(cfg);
+            exit(0);
+        }
+
+        pids[rank - 1] = pid;
+    }
+
+    TrainContext host = {
+        .rank = 0,
+        .world_size = world_size,
+        .gpu_id = gpu_offset + gpu_for_rank(0, world_size),
+        .artifact_owner = 1,
+        .nccl_id = nccl_ptr,
+    };
+    TrainResult result = run_train(cfg, &host);
+    wait_children(pids, world_size - 1);
+    free(pids);
+    return result;
+}
+
+int main(int argc, char** argv) {
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+    if (argc < 3) {
+        fprintf(stderr, "usage: %s train|eval|eval_bot|match|sweep ENV [section.key=value ...]\n", argv[0]);
+        exit(1);
+    }
+
+    const char* mode = argv[1];
+    const char* env_name = argv[2];
+    Config* cfg = (Config*)calloc(1, sizeof(Config));
+    puf_config_load_env(cfg, env_name, argc - 3, argv + 3);
+
+    if (strcmp(mode, "train") == 0) {
+        TrainResult result = launch_train(cfg);
+        int result_fd = puf_config_int(cfg, "base", "result_fd");
+        if (result_fd) {
+            int fd = result_fd;
+            if (write(fd, &result, sizeof(result)) != sizeof(result)) {
+                fprintf(stderr, "failed to write train result\n");
+                exit(1);
+            }
+            close(fd);
+        }
+    } else if (strcmp(mode, "sweep") == 0) {
+        run_sweep(cfg, argv[0]);
+    } else if (strcmp(mode, "eval") == 0) {
+        TrainContext ctx = {
+            .rank = 0,
+            .world_size = 1,
+            .gpu_id = 0,
+            .artifact_owner = 1,
+            .nccl_id = NULL,
+        };
+        run_eval(cfg, &ctx);
+    } else if (strcmp(mode, "eval_bot") == 0) {
+        TrainContext ctx = {
+            .rank = 0,
+            .world_size = 1,
+            .gpu_id = 0,
+            .artifact_owner = 1,
+            .nccl_id = NULL,
+        };
+        run_eval_bot(cfg, &ctx);
+    } else if (strcmp(mode, "match") == 0) {
+        TrainContext ctx = {
+            .rank = 0,
+            .world_size = 1,
+            .gpu_id = 0,
+            .artifact_owner = 1,
+            .nccl_id = NULL,
+        };
+        run_match(cfg, &ctx);
+    } else if (strcmp(mode, "league_match_worker") == 0) {
+        TrainContext ctx = {
+            .rank = 0,
+            .world_size = 1,
+            .gpu_id = 0,
+            .artifact_owner = 1,
+            .nccl_id = NULL,
+        };
+        int gpu_offset = puf_config_int(cfg, "base", "gpu_offset");
+        if (gpu_offset) {
+            ctx.gpu_id = gpu_offset;
+        }
+        run_league_match_worker(cfg, &ctx);
+    } else {
+        fprintf(stderr, "unknown mode: %s\n", mode);
+        exit(1);
+    }
+
+    puf_config_free(cfg);
+    free(cfg);
+    return 0;
+}
+
+#endif

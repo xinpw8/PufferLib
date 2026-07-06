@@ -70,42 +70,60 @@ static SpaceType sweep_space_type(const char* dist, int* is_integer) {
     exit(1);
 }
 
-static float sweep_scale(SweepParam* param, SpaceType type, float min_v, float max_v) {
-    if (param->scale == 0.5) {
+static float sweep_num(Dict* dict, const char* key) {
+    const char* raw = dict_get_str(dict, key);
+    double value = 0;
+    if (!puf_ini_parse_val(raw, &value)) {
+        fprintf(stderr, "sweep error: invalid numeric field [%s] %s = %s\n",
+            dict->name, key, raw);
+        exit(1);
+    }
+    return (float)value;
+}
+
+static float sweep_scale(Dict* dict, float min_v, float max_v) {
+    const char* raw = dict_get_str(dict, "scale");
+    if (strcmp(raw, "auto") == 0) {
         return 0.5f;
     }
-    if (param->scale < 0) {
+    if (strcmp(raw, "time") == 0) {
         return 1.0f / (log2f(max_v) - log2f(min_v));
     }
-    return (float)param->scale;
+    return sweep_num(dict, "scale");
 }
 
 static Hyperparameters* sweep_hypers_create(Config* cfg,
         SweepRuntimeParam** params_out, int* num_out) {
-    SweepRuntimeParam* params = (SweepRuntimeParam*)calloc((size_t)cfg->num_sweep_params, sizeof(SweepRuntimeParam));
-    Space* spaces = (Space*)calloc((size_t)cfg->num_sweep_params, sizeof(Space));
+    SweepRuntimeParam* params = (SweepRuntimeParam*)calloc((size_t)cfg->ini.num_sections,
+        sizeof(SweepRuntimeParam));
+    Space* spaces = (Space*)calloc((size_t)cfg->ini.num_sections, sizeof(Space));
     int n = 0;
     int cost_idx = -1;
 
-    for (int i = 0; i < cfg->num_sweep_params; i++) {
-        SweepParam* param = &cfg->sweep_params[i];
-        const char* dot = strrchr(param->key, '.');
+    for (int i = 0; i < cfg->ini.num_sections; i++) {
+        Dict* dict = &cfg->ini.sections[i];
+        if (strncmp(dict->name, "sweep.", 6) != 0) {
+            continue;
+        }
+
+        const char* sweep_key = dict->name + 6;
+        const char* dot = strrchr(sweep_key, '.');
         if (!dot) {
             fprintf(stderr, "sweep error: expected section sweep.<section>.<key>\n");
             exit(1);
         }
 
-        int section_len = (int)(dot - param->key);
-        snprintf(params[n].section, sizeof(params[n].section), "%.*s", section_len, param->key);
+        int section_len = (int)(dot - sweep_key);
+        snprintf(params[n].section, sizeof(params[n].section), "%.*s", section_len, sweep_key);
         snprintf(params[n].key, sizeof(params[n].key), "%s", dot + 1);
         snprintf(params[n].path, sizeof(params[n].path), "%s/%s",
             params[n].section, params[n].key);
 
         int is_integer = 0;
-        SpaceType type = sweep_space_type(param->distribution, &is_integer);
-        float min_v = (float)param->min;
-        float max_v = (float)param->max;
-        float scale = sweep_scale(param, type, min_v, max_v);
+        SpaceType type = sweep_space_type(dict_get_str(dict, "distribution"), &is_integer);
+        float min_v = sweep_num(dict, "min");
+        float max_v = sweep_num(dict, "max");
+        float scale = sweep_scale(dict, min_v, max_v);
         space_init(&params[n].space, type, min_v, max_v, scale, is_integer);
         spaces[n] = params[n].space;
 
@@ -223,16 +241,16 @@ static void sweep_free_argv(char** argv, int argc) {
 
 static int sweep_config_count(Config* cfg) {
     int count = 0;
-    for (int s = 0; s < cfg->num_sections; s++) {
-        count += cfg->sections[s].size;
+    for (int s = 0; s < cfg->ini.num_sections; s++) {
+        count += cfg->ini.sections[s].size;
     }
     return count;
 }
 
 static int sweep_fill_args(Config* cfg, char** argv, int idx) {
     char full_key[PUF_DICT_MAX_KEY * 2];
-    for (int s = 0; s < cfg->num_sections; s++) {
-        Dict* dict = &cfg->sections[s];
+    for (int s = 0; s < cfg->ini.num_sections; s++) {
+        Dict* dict = &cfg->ini.sections[s];
         for (int i = 0; i < dict->size; i++) {
             snprintf(full_key, sizeof(full_key), "%s.%s", dict->name, dict->items[i].key);
             argv[idx++] = sweep_arg_kv(full_key, &dict->items[i]);

@@ -1,0 +1,278 @@
+#pragma once
+
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "dict.h"
+
+typedef struct {
+    Dict* sections;
+    int num_sections;
+} Ini;
+
+static char* puf_ini_trim(char* s) {
+    while (isspace((unsigned char)*s)) {
+        s++;
+    }
+
+    char* e = s + strlen(s);
+    while (e > s && isspace((unsigned char)e[-1])) {
+        *--e = 0;
+    }
+    return s;
+}
+
+static int puf_ini_streq_ci(const char* a, const char* b) {
+    while (*a && *b) {
+        if (tolower((unsigned char)*a++) != tolower((unsigned char)*b++)) {
+            return 0;
+        }
+    }
+    return *a == *b;
+}
+
+static void puf_ini_strip_comment(char* s) {
+    char* prev = NULL;
+    char quote = 0;
+    for (; *s; s++) {
+        if ((*s == '\'' || *s == '"') && (!prev || *prev != '\\')) {
+            quote = quote == *s ? 0 : quote ? quote : *s;
+        } else if ((*s == '#' || *s == ';') && !quote) {
+            *s = 0;
+            return;
+        }
+        prev = s;
+    }
+}
+
+static void puf_ini_strip_quotes(char* s) {
+    size_t n = strlen(s);
+    if (n < 2) {
+        return;
+    }
+    if ((s[0] == '\'' && s[n - 1] == '\'') ||
+            (s[0] == '"' && s[n - 1] == '"')) {
+        memmove(s, s + 1, n - 2);
+        s[n - 2] = 0;
+    }
+}
+
+static int puf_ini_read_line(FILE* fp, char** line, int* cap) {
+    int n = 0;
+    for (;;) {
+        int c = fgetc(fp);
+        if (c == EOF && n == 0) {
+            return 0;
+        }
+        if (n + 1 >= *cap) {
+            *cap = *cap ? 2 * *cap : 256;
+            *line = (char*)realloc(*line, (size_t)*cap);
+            if (!*line) {
+                perror("realloc");
+                exit(1);
+            }
+        }
+        if (c == EOF || c == '\n') {
+            (*line)[n] = 0;
+            return 1;
+        }
+        (*line)[n++] = (char)c;
+    }
+}
+
+static int puf_ini_parse_val(const char* raw, double* out) {
+    if (puf_ini_streq_ci(raw, "true")) {
+        *out = 1.0;
+        return 1;
+    }
+    if (puf_ini_streq_ci(raw, "false")) {
+        *out = 0.0;
+        return 1;
+    }
+
+    char buf[256];
+    size_t j = 0;
+    for (size_t i = 0; raw[i] && j + 1 < sizeof(buf); i++) {
+        if (raw[i] != '_' && !isspace((unsigned char)raw[i])) {
+            buf[j++] = raw[i];
+        }
+    }
+    buf[j] = 0;
+
+    char* end = NULL;
+    double v = strtod(buf, &end);
+    if (!buf[0] || !end || *end) {
+        return 0;
+    }
+
+    *out = v;
+    return 1;
+}
+
+static int puf_ini_parse_list(const char* raw, double** out, int* len) {
+    int cap = 1;
+    for (const char* p = raw; *p; p++) {
+        if (*p == ',') {
+            cap++;
+        }
+    }
+
+    double* values = (double*)calloc((size_t)cap, sizeof(double));
+    if (!values) {
+        perror("calloc");
+        exit(1);
+    }
+
+    int n = 0;
+    const char* p = raw;
+    while (*p) {
+        while (isspace((unsigned char)*p)) {
+            p++;
+        }
+        if (!*p) {
+            break;
+        }
+        char* end = NULL;
+        values[n++] = strtod(p, &end);
+        if (end == p) {
+            free(values);
+            return 0;
+        }
+        p = end;
+        while (isspace((unsigned char)*p)) {
+            p++;
+        }
+        if (*p == ',') {
+            p++;
+        } else if (*p) {
+            free(values);
+            return 0;
+        }
+    }
+
+    if (n == 0) {
+        free(values);
+        return 0;
+    }
+    *out = values;
+    *len = n;
+    return 1;
+}
+
+static Dict* puf_ini_section(Ini* ini, const char* name, int add) {
+    for (int i = 0; i < ini->num_sections; i++) {
+        if (strcmp(ini->sections[i].name, name) == 0) {
+            return &ini->sections[i];
+        }
+    }
+
+    if (!add) {
+        fprintf(stderr, "config error: missing section [%s]\n", name);
+        exit(1);
+    }
+
+    ini->sections = (Dict*)realloc(ini->sections,
+        (size_t)(ini->num_sections + 1) * sizeof(Dict));
+    if (!ini->sections) {
+        perror("realloc");
+        exit(1);
+    }
+
+    Dict* dict = &ini->sections[ini->num_sections++];
+    memset(dict, 0, sizeof(*dict));
+    dict->name = dict_strdup(name);
+    return dict;
+}
+
+static void puf_ini_parse_item(DictItem* item, const char* raw) {
+    double value = 0;
+    double* values = NULL;
+    int len = 0;
+
+    if (puf_ini_parse_val(raw, &value)) {
+        item->value = value;
+    }
+    if (strchr(raw, ',') && puf_ini_parse_list(raw, &values, &len)) {
+        item->values = values;
+        item->len = len;
+        item->value = values[0];
+    }
+}
+
+static DictItem* puf_ini_set(Dict* dict, const char* key, const char* raw) {
+    DictItem* item = dict_set_str(dict, key, raw);
+    puf_ini_parse_item(item, raw);
+    return item;
+}
+
+static void puf_ini_load_file(Ini* ini, const char* path) {
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        fprintf(stderr, "could not open %s: %s\n", path, strerror(errno));
+        exit(1);
+    }
+
+    Dict* section = NULL;
+    char* line = NULL;
+    int cap = 0;
+    for (int n = 1; puf_ini_read_line(fp, &line, &cap); n++) {
+        puf_ini_strip_comment(line);
+        char* s = puf_ini_trim(line);
+        if (!*s) {
+            continue;
+        }
+
+        size_t len = strlen(s);
+        if (s[0] == '[' && len >= 3 && s[len - 1] == ']') {
+            s[len - 1] = 0;
+            section = puf_ini_section(ini, puf_ini_trim(s + 1), 1);
+            continue;
+        }
+        if (!section) {
+            fprintf(stderr, "%s:%d: expected section before key=value\n", path, n);
+            exit(1);
+        }
+
+        char* eq = strchr(s, '=');
+        if (!eq) {
+            fprintf(stderr, "%s:%d: expected key=value\n", path, n);
+            exit(1);
+        }
+        *eq = 0;
+        char* key = puf_ini_trim(s);
+        char* val = puf_ini_trim(eq + 1);
+        puf_ini_strip_quotes(val);
+        if (!*key) {
+            fprintf(stderr, "%s:%d: empty key\n", path, n);
+            exit(1);
+        }
+        puf_ini_set(section, key, val);
+    }
+
+    free(line);
+    fclose(fp);
+}
+
+static inline void puf_ini_write(FILE* fp, Ini* ini) {
+    for (int s = 0; s < ini->num_sections; s++) {
+        Dict* dict = &ini->sections[s];
+        fprintf(fp, "\n[%s]\n", dict->name);
+        for (int i = 0; i < dict->size; i++) {
+            DictItem* item = &dict->items[i];
+            fprintf(fp, "%s = ", item->key);
+            if (item->len > 0) {
+                for (int j = 0; j < item->len; j++) {
+                    fprintf(fp, "%s%.17g", j ? "," : "", item->values[j]);
+                }
+            } else if (item->str) {
+                fprintf(fp, "%s", item->str);
+            } else {
+                fprintf(fp, "%.17g", item->value);
+            }
+            fputc('\n', fp);
+        }
+    }
+}

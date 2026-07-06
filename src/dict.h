@@ -94,10 +94,11 @@ static inline double dict_get(Dict* dict, const char* key) {
     return item->value;
 }
 
-static inline void dict_set(Dict* dict, const char* key, double value) {
+static inline DictItem* dict_set(Dict* dict, const char* key, double value) {
     DictItem* item = dict_item(dict, key);
     dict_item_clear(item);
     item->value = value;
+    return item;
 }
 
 static inline const char* dict_get_str(Dict* dict, const char* key) {
@@ -109,10 +110,11 @@ static inline const char* dict_get_str(Dict* dict, const char* key) {
     return item->str;
 }
 
-static inline void dict_set_str(Dict* dict, const char* key, const char* value) {
+static inline DictItem* dict_set_str(Dict* dict, const char* key, const char* value) {
     DictItem* item = dict_item(dict, key);
     dict_item_clear(item);
     item->str = dict_strdup(value);
+    return item;
 }
 
 static inline void dict_copy(Dict* dst, Dict* src) {

@@ -1,13 +1,10 @@
-#include <ctype.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
-#include "config.h"
+#include "ini.h"
 #include "table.h"
 
 static const char* EXTRA_KEYS[] = {
@@ -67,44 +64,25 @@ static void key_to_cache(char* out, size_t out_size, const char* section, const 
 }
 
 static int parse_list(char* raw, float** out, int* len) {
-    int cap = 16;
+    double* parsed = NULL;
     int n = 0;
-    float* vals = (float*)calloc((size_t)cap, sizeof(float));
+    if (!puf_ini_parse_list(raw, &parsed, &n)) {
+        return 0;
+    }
+
+    float* vals = (float*)calloc((size_t)n, sizeof(float));
     if (!vals) {
         perror("calloc");
         exit(1);
     }
-
-    char* p = raw;
-    while (*p) {
-        while (*p == ',' || isspace((unsigned char)*p)) {
-            p++;
-        }
-        if (!*p) {
-            break;
-        }
-
-        char* end = NULL;
-        float v = strtof(p, &end);
-        if (end == p) {
-            free(vals);
-            return 0;
-        }
-        if (n == cap) {
-            cap *= 2;
-            vals = (float*)realloc(vals, (size_t)cap * sizeof(float));
-            if (!vals) {
-                perror("realloc");
-                exit(1);
-            }
-        }
-        vals[n++] = v;
-        p = end;
+    for (int i = 0; i < n; i++) {
+        vals[i] = (float)parsed[i];
     }
 
+    free(parsed);
     *out = vals;
     *len = n;
-    return n > 0;
+    return 1;
 }
 
 static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
@@ -114,10 +92,11 @@ static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
     }
 
     char section[256] = "base";
-    char line[8192];
-    while (fgets(line, sizeof(line), fp)) {
-        puf_config_strip_comment(line);
-        char* s = puf_config_trim(line);
+    char* line = NULL;
+    int cap = 0;
+    while (puf_ini_read_line(fp, &line, &cap)) {
+        puf_ini_strip_comment(line);
+        char* s = puf_ini_trim(line);
         if (!*s) {
             continue;
         }
@@ -125,19 +104,20 @@ static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
         size_t len = strlen(s);
         if (s[0] == '[' && len > 2 && s[len - 1] == ']') {
             s[len - 1] = 0;
-            snprintf(section, sizeof(section), "%s", puf_config_trim(s + 1));
+            snprintf(section, sizeof(section), "%s", puf_ini_trim(s + 1));
             continue;
         }
 
         char* eq = strchr(s, '=');
         if (!eq) {
+            free(line);
             fclose(fp);
             return 0;
         }
         *eq = 0;
-        char* key = puf_config_trim(s);
-        char* val = puf_config_trim(eq + 1);
-        puf_config_strip_quotes(val);
+        char* key = puf_ini_trim(s);
+        char* val = puf_ini_trim(eq + 1);
+        puf_ini_strip_quotes(val);
 
         if (strcmp(section, "metrics") == 0) {
             if (strstr(key, "loss")) {
@@ -146,6 +126,7 @@ static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
             float* values = NULL;
             int n = 0;
             if (!parse_list(val, &values, &n)) {
+                free(line);
                 fclose(fp);
                 return 0;
             }
@@ -153,6 +134,7 @@ static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
                 table_resize_rows(metrics, n);
             } else if (metrics->rows != n) {
                 free(values);
+                free(line);
                 fclose(fp);
                 return 0;
             }
@@ -163,7 +145,7 @@ static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
             free(values);
         } else {
             double value = 0;
-            if (!puf_config_parse_val(val, &value)) {
+            if (!puf_ini_parse_val(val, &value)) {
                 continue;
             }
             char full[512];
@@ -172,6 +154,7 @@ static int load_ini_log(const char* path, Dict* scalars, Table* metrics) {
         }
     }
 
+    free(line);
     fclose(fp);
     return metrics->rows > 0;
 }

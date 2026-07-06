@@ -2,6 +2,12 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/file.h>
 #include <unistd.h>
 
 #include "checkpoint.h"
@@ -396,4 +402,471 @@ static void selfplay_step(Selfplay* sp, PuffeRL* p, Dict* log, int epoch) {
         selfplay_publish(sp);
     }
     selfplay_log(sp, log);
+}
+
+#define LEAGUE_MAX_PLAYERS 2048
+#define LEAGUE_MAX_MATCHES 8192
+#define LEAGUE_ID_MAX 128
+#define LEAGUE_PATH_MAX 4096
+
+typedef struct {
+    char id[LEAGUE_ID_MAX];
+    char path[LEAGUE_PATH_MAX];
+    float elo;
+    float cost;
+    int games;
+    int matches;
+} LeaguePlayer;
+
+typedef struct {
+    char a[LEAGUE_ID_MAX];
+    char b[LEAGUE_ID_MAX];
+    int games;
+    float score;
+    float draw;
+} LeagueMatch;
+
+typedef struct {
+    LeaguePlayer players[LEAGUE_MAX_PLAYERS];
+    LeagueMatch matches[LEAGUE_MAX_MATCHES];
+    int num_players;
+    int num_matches;
+} LeagueState;
+
+static void league_lock_path(char* out, size_t out_size, const char* path) {
+    snprintf(out, out_size, "%s.lock", path);
+}
+
+static int league_lock(const char* path) {
+    char lock_path[LEAGUE_PATH_MAX];
+    league_lock_path(lock_path, sizeof(lock_path), path);
+    int fd = open(lock_path, O_CREAT | O_RDWR, 0666);
+    if (fd < 0) {
+        perror("open league lock");
+        exit(1);
+    }
+    if (flock(fd, LOCK_EX) != 0) {
+        perror("flock");
+        exit(1);
+    }
+    return fd;
+}
+
+static void league_unlock(int fd) {
+    flock(fd, LOCK_UN);
+    close(fd);
+}
+
+static int league_player_index(LeagueState* st, const char* id) {
+    for (int i = 0; i < st->num_players; i++) {
+        if (strcmp(st->players[i].id, id) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void league_load_unlocked(const char* path, LeagueState* st) {
+    memset(st, 0, sizeof(*st));
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        return;
+    }
+
+    char type[32];
+    while (fscanf(fp, "%31s", type) == 1) {
+        if (strcmp(type, "PLAYER") == 0) {
+            if (st->num_players >= LEAGUE_MAX_PLAYERS) {
+                fprintf(stderr, "league player cap exceeded\n");
+                exit(1);
+            }
+            LeaguePlayer* p = &st->players[st->num_players++];
+            if (fscanf(fp, "%127s %4095s %f %f %d %d",
+                    p->id, p->path, &p->elo, &p->cost,
+                    &p->games, &p->matches) != 6) {
+                fprintf(stderr, "malformed league PLAYER row in %s\n", path);
+                exit(1);
+            }
+        } else if (strcmp(type, "MATCH") == 0) {
+            if (st->num_matches >= LEAGUE_MAX_MATCHES) {
+                fprintf(stderr, "league match cap exceeded\n");
+                exit(1);
+            }
+            LeagueMatch* m = &st->matches[st->num_matches++];
+            if (fscanf(fp, "%127s %127s %d %f %f",
+                    m->a, m->b, &m->games, &m->score, &m->draw) != 5) {
+                fprintf(stderr, "malformed league MATCH row in %s\n", path);
+                exit(1);
+            }
+        } else {
+            char line[4096];
+            if (!fgets(line, sizeof(line), fp)) {
+                break;
+            }
+        }
+    }
+    fclose(fp);
+}
+
+static void league_write_unlocked(const char* path, LeagueState* st) {
+    char tmp[LEAGUE_PATH_MAX];
+    snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
+    FILE* fp = fopen(tmp, "w");
+    if (!fp) {
+        fprintf(stderr, "failed to write league state %s\n", tmp);
+        exit(1);
+    }
+    fprintf(fp, "# PufferLib native league v1\n");
+    for (int i = 0; i < st->num_players; i++) {
+        LeaguePlayer* p = &st->players[i];
+        fprintf(fp, "PLAYER %s %s %.9g %.9g %d %d\n",
+            p->id, p->path, p->elo, p->cost, p->games, p->matches);
+    }
+    for (int i = 0; i < st->num_matches; i++) {
+        LeagueMatch* m = &st->matches[i];
+        fprintf(fp, "MATCH %s %s %d %.9g %.9g\n",
+            m->a, m->b, m->games, m->score, m->draw);
+    }
+    fclose(fp);
+    if (rename(tmp, path) != 0) {
+        fprintf(stderr, "failed to publish league state %s\n", path);
+        exit(1);
+    }
+}
+
+static void league_recompute(LeagueState* st) {
+    for (int i = 0; i < st->num_players; i++) {
+        st->players[i].elo = 0;
+        st->players[i].games = 0;
+        st->players[i].matches = 0;
+    }
+    for (int iter = 0; iter < 100; iter++) {
+        for (int i = 0; i < st->num_matches; i++) {
+            LeagueMatch* m = &st->matches[i];
+            int ai = league_player_index(st, m->a);
+            int bi = league_player_index(st, m->b);
+            if (ai < 0 || bi < 0 || ai == bi || m->games <= 0) {
+                continue;
+            }
+            float ea = 1.0f / (1.0f + powf(10.0f,
+                (st->players[bi].elo - st->players[ai].elo) / 400.0f));
+            float delta = 0.02f * (float)m->games * (m->score - ea);
+            st->players[ai].elo += delta;
+            st->players[bi].elo -= delta;
+        }
+    }
+    for (int i = 0; i < st->num_matches; i++) {
+        LeagueMatch* m = &st->matches[i];
+        int ai = league_player_index(st, m->a);
+        int bi = league_player_index(st, m->b);
+        if (ai >= 0) {
+            st->players[ai].games += m->games;
+            st->players[ai].matches++;
+        }
+        if (bi >= 0) {
+            st->players[bi].games += m->games;
+            st->players[bi].matches++;
+        }
+    }
+}
+
+static void league_register_player(const char* path, const char* id,
+        const char* checkpoint, float cost) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    int idx = league_player_index(&st, id);
+    if (idx < 0) {
+        if (st.num_players >= LEAGUE_MAX_PLAYERS) {
+            fprintf(stderr, "league player cap exceeded\n");
+            exit(1);
+        }
+        idx = st.num_players++;
+    }
+    LeaguePlayer* p = &st.players[idx];
+    snprintf(p->id, sizeof(p->id), "%s", id);
+    snprintf(p->path, sizeof(p->path), "%s", checkpoint);
+    p->cost = cost;
+    league_recompute(&st);
+    league_write_unlocked(path, &st);
+    league_unlock(lock);
+}
+
+static float league_player_elo(const char* path, const char* id) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    league_recompute(&st);
+    int idx = league_player_index(&st, id);
+    float elo = idx >= 0 ? st.players[idx].elo : 0;
+    league_unlock(lock);
+    return elo;
+}
+
+static void league_record_match(const char* path, const char* a, const char* b,
+        int games, float score, float draw) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    if (st.num_matches >= LEAGUE_MAX_MATCHES) {
+        fprintf(stderr, "league match cap exceeded\n");
+        exit(1);
+    }
+    LeagueMatch* m = &st.matches[st.num_matches++];
+    snprintf(m->a, sizeof(m->a), "%s", a);
+    snprintf(m->b, sizeof(m->b), "%s", b);
+    m->games = games;
+    m->score = score;
+    m->draw = draw;
+    league_recompute(&st);
+    league_write_unlocked(path, &st);
+    league_unlock(lock);
+}
+
+static int league_choose_pair(const char* path, LeaguePlayer* a, LeaguePlayer* b,
+        unsigned int* rng) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    int n = st.num_players;
+    if (n < 2) {
+        league_unlock(lock);
+        return 0;
+    }
+    int ai = (int)(rand_r(rng) % (unsigned int)n);
+    int bi = ai;
+    for (int tries = 0; tries < 32 && bi == ai; tries++) {
+        bi = (int)(rand_r(rng) % (unsigned int)n);
+    }
+    if (bi == ai) {
+        bi = (ai + 1) % n;
+    }
+    *a = st.players[ai];
+    *b = st.players[bi];
+    league_unlock(lock);
+    return 1;
+}
+
+static const char* resolve_checkpoint_key(Config* cfg, const char* key,
+        char* out, size_t out_size) {
+    const char* load_path = NULL;
+    if (strcmp(key, "load_model_path") == 0) {
+        load_path = puf_config_str(cfg, "base", "load_model_path");
+    } else if (strcmp(key, "load_enemy_model_path") == 0) {
+        load_path = puf_config_str(cfg, "base", "load_enemy_model_path");
+    }
+    if (!load_path || strcmp(load_path, "None") == 0) {
+        return NULL;
+    }
+    if (strcmp(load_path, "latest") != 0) {
+        return load_path;
+    }
+
+    char root[2048];
+    snprintf(root, sizeof(root), "%s/%s",
+        puf_config_str(cfg, "base", "checkpoint_dir"),
+        puf_config_str(cfg, "base", "env_name"));
+    out[0] = 0;
+    time_t best_time = 0;
+    puf_find_latest_checkpoint(root, out, out_size, &best_time);
+    if (!out[0]) {
+        fprintf(stderr, "no .bin checkpoints found in %s\n", root);
+        exit(1);
+    }
+    return out;
+}
+
+static void load_primary_if_configured(PuffeRL* pufferl, Config* cfg) {
+    char resolved_path[4096];
+    const char* load_path = resolve_checkpoint_key(cfg,
+        "load_model_path", resolved_path, sizeof(resolved_path));
+    if (load_path) {
+        puf_load_weights(pufferl, load_path);
+        printf("Loaded weights from %s\n", load_path);
+    }
+}
+
+void run_eval_bot(Config* cfg, TrainContext* ctx) {
+    long num_games = puf_config_long(cfg, "base", "num_games");
+    if (!num_games) {
+        num_games = puf_config_long(cfg, "base", "eval_episodes");
+    }
+    long burnin_games = puf_config_long(cfg, "base", "burnin_games");
+    long eval_agents = puf_config_long(cfg, "base", "eval_agents");
+    if (num_games <= 0 || burnin_games < 0) {
+        fprintf(stderr, "eval_bot requires positive num_games and nonnegative burnin_games\n");
+        exit(1);
+    }
+    if (eval_agents <= 0) {
+        eval_agents = num_games / 8;
+        if (eval_agents < 1024) {
+            eval_agents = 1024;
+        }
+        if (eval_agents > 4096) {
+            eval_agents = 4096;
+        }
+        if (eval_agents > num_games && num_games >= 1024) {
+            eval_agents = num_games;
+        }
+    } else if (eval_agents > num_games) {
+        eval_agents = num_games;
+    }
+    eval_agents += (-eval_agents) % 2;
+
+    char buf[64];
+    puf_config_put(cfg, "base.reset_state", "0");
+    puf_config_put(cfg, "train.horizon", "1");
+    puf_config_put(cfg, "vec.num_buffers", "2");
+    snprintf(buf, sizeof(buf), "%ld", eval_agents);
+    puf_config_put(cfg, "vec.total_agents", buf);
+    puf_config_put(cfg, "vec.num_frozen_banks", "0");
+    puf_config_put(cfg, "vec.frozen_bank_pct", "0");
+    puf_config_put(cfg, "selfplay.enabled", "0");
+    puf_config_put(cfg, "env.dr", "0");
+    puf_config_put(cfg, "env.num_agents", "1");
+    puf_config_put(cfg, "env.num_bots", "1");
+
+    PuffeRL* pufferl = create_trainer(cfg, ctx);
+    load_primary_if_configured(pufferl, cfg);
+
+    Dict baseline = {0};
+    int has_baseline = 0;
+    long baseline_n = 0;
+    for (;;) {
+        rollouts(pufferl);
+        Dict log = {0};
+        trainer_eval_log(pufferl, &log);
+        long n = (long)puf_log_get_or(&log, "env/n", 0);
+        if (burnin_games > 0 && !has_baseline && n >= burnin_games) {
+            baseline = log;
+            has_baseline = 1;
+            baseline_n = n;
+            printf("\rbot_eval_burnin=%ld/%ld", n, burnin_games);
+            continue;
+        }
+
+        double scored_n = n - baseline_n;
+        double score = puf_log_get_or(&log, "env/score", 0);
+        double perf = puf_log_get_or(&log, "env/perf", 0);
+        if (has_baseline && scored_n > 0) {
+            double base_n = (double)baseline_n;
+            double cur_n = (double)n;
+            score = (score * cur_n - puf_log_get_or(&baseline, "env/score", 0) * base_n) / scored_n;
+            perf = (perf * cur_n - puf_log_get_or(&baseline, "env/perf", 0) * base_n) / scored_n;
+        }
+        printf("\rbot_eval=%.0f/%ld  perf=%.4f  score=%.3f",
+            scored_n, num_games, perf, score);
+        if ((n - baseline_n) >= num_games && (!burnin_games || has_baseline)) {
+            break;
+        }
+    }
+    printf("\n");
+    close_trainer(pufferl);
+}
+
+void run_match_eval(Config* cfg, TrainContext* ctx, int verbose,
+        float* score_out, float* draw_out, int* games_out) {
+    long num_games = puf_config_long(cfg, "base", "num_games");
+    if (!num_games) {
+        num_games = puf_config_long(cfg, "base", "eval_episodes");
+    }
+    long eval_agents = puf_config_long(cfg, "base", "eval_agents");
+    if (!eval_agents) {
+        eval_agents = puf_config_long(cfg, "sweep", "league_match_eval_agents");
+    }
+    if (eval_agents <= 0) {
+        eval_agents = 8192;
+    }
+    eval_agents += (-eval_agents) % 4;
+
+    char a_path_buf[4096];
+    char b_path_buf[4096];
+    const char* a_path = resolve_checkpoint_key(cfg,
+        "load_model_path", a_path_buf, sizeof(a_path_buf));
+    const char* b_path = resolve_checkpoint_key(cfg,
+        "load_enemy_model_path", b_path_buf, sizeof(b_path_buf));
+    if (!a_path || !b_path) {
+        fprintf(stderr, "match requires base.load_model_path and base.load_enemy_model_path\n");
+        exit(1);
+    }
+
+    char buf[64];
+    puf_config_put(cfg, "base.reset_state", "0");
+    puf_config_put(cfg, "train.horizon", "1");
+    puf_config_put(cfg, "vec.num_buffers", "2");
+    snprintf(buf, sizeof(buf), "%ld", eval_agents);
+    puf_config_put(cfg, "vec.total_agents", buf);
+    puf_config_put(cfg, "vec.num_frozen_banks", "1");
+    puf_config_put(cfg, "vec.frozen_bank_pct", "1");
+    puf_config_put(cfg, "selfplay.enabled", "0");
+    puf_config_put(cfg, "env.dr", "0");
+    puf_config_put(cfg, "env.num_agents", "2");
+    puf_config_put(cfg, "env.num_bots", "0");
+
+    PuffeRL* pufferl = create_trainer(cfg, ctx);
+    puf_load_weights(pufferl, a_path);
+    pufferl_load_frozen_bank(pufferl, 0, b_path);
+
+    for (;;) {
+        rollouts(pufferl);
+        Dict log = {0};
+        trainer_eval_log(pufferl, &log);
+        long n = (long)puf_log_get_or(&log, "env/n", 0);
+        double a = puf_log_get_or(&log, "env/slot_0_score", 0);
+        double b = puf_log_get_or(&log, "env/slot_1_score", 0);
+        double draw = puf_log_get_or(&log, "env/draw_rate", 0);
+        if (verbose) {
+            printf("\rgames=%ld/%ld  A=%.3f  B=%.3f  draw=%.3f",
+                n, num_games, a, b, draw);
+        }
+        if (n >= num_games) {
+            *score_out = (float)a;
+            *draw_out = (float)draw;
+            *games_out = (int)n;
+            break;
+        }
+    }
+    if (verbose) {
+        printf("\n");
+    }
+    close_trainer(pufferl);
+}
+
+void run_match(Config* cfg, TrainContext* ctx) {
+    float score = 0;
+    float draw = 0;
+    int games = 0;
+    run_match_eval(cfg, ctx, 1, &score, &draw, &games);
+}
+
+void run_league_match_worker(Config* cfg, TrainContext* ctx) {
+    const char* state_path = puf_config_str(cfg, "sweep", "league_state_path");
+    long games = puf_config_long(cfg, "base", "num_games");
+    if (!games) {
+        games = puf_config_long(cfg, "sweep", "league_match_games");
+    }
+    unsigned int rng = (unsigned int)puf_config_int(cfg, "base", "seed") + 1009U;
+
+    for (;;) {
+        LeaguePlayer a;
+        LeaguePlayer b;
+        if (!league_choose_pair(state_path, &a, &b, &rng)) {
+            usleep(500000);
+            continue;
+        }
+
+        char buf[64];
+        puf_config_put(cfg, "base.load_model_path", a.path);
+        puf_config_put(cfg, "base.load_enemy_model_path", b.path);
+        snprintf(buf, sizeof(buf), "%ld", games);
+        puf_config_put(cfg, "base.num_games", buf);
+
+        float score = 0;
+        float draw = 0;
+        int n = 0;
+        run_match_eval(cfg, ctx, 0, &score, &draw, &n);
+        league_record_match(state_path, a.id, b.id, n, score, draw);
+        printf("league_match %s vs %s games=%d score=%.4f draw=%.4f\n",
+            a.id, b.id, n, score, draw);
+    }
 }

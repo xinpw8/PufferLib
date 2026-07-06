@@ -185,21 +185,6 @@ static void puf_log_write_metric(FILE* fp, const char* key, double* values, int 
     fputc('\n', fp);
 }
 
-static void puf_log_write_config(FILE* fp, Config* cfg) {
-    fprintf(fp, "\n[config]\n");
-    for (int s = 0; s < cfg->num_sections; s++) {
-        Dict* dict = &cfg->sections[s];
-        for (int i = 0; i < dict->size; i++) {
-            DictItem* item = &dict->items[i];
-            if (item->str) {
-                fprintf(fp, "%s.%s = %s\n", dict->name, item->key, item->str);
-            } else {
-                fprintf(fp, "%s.%s = %.17g\n", dict->name, item->key, item->value);
-            }
-        }
-    }
-}
-
 static void puf_log_write(const char* path, Config* cfg, PufLogHistory* history) {
     if (history->size == 0) {
         fprintf(stderr, "cannot write empty log history\n");
@@ -213,7 +198,7 @@ static void puf_log_write(const char* path, Config* cfg, PufLogHistory* history)
     }
 
     fprintf(fp, "# PufferLib log v1\n");
-    puf_log_write_config(fp, cfg);
+    puf_ini_write(fp, &cfg->ini);
     fprintf(fp, "\n[metrics]\n");
 
     int downsample = (int)puf_config_get(cfg, "sweep", "downsample");

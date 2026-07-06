@@ -3,7 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "config.h"
+#include "ini.h"
 #include "table.h"
 #include "raylib.h"
 
@@ -575,42 +575,6 @@ void copy_hypers_to_clipboard(Table *table, char* buffer, int row) {
     SetClipboardText(start);
 }
 
-//strof bottlenecks loads
-float fast_atof(char **s) {
-    char *p = *s;
-    float sign = 1.0f;
-    if (*p == '-') {
-        sign = -1.0f; p++;
-    }
-    float val = 0.0f;
-    while (*p >= '0' && *p <= '9') {
-        val = val * 10.0f + (*p++ - '0');
-    }
-    if (*p == '.') {
-        p++;
-        float frac = 0.1f;
-        while (*p >= '0' && *p <= '9') {
-            val += (*p++ - '0') * frac; frac *= 0.1f;
-        }
-    }
-    if (*p == 'e' || *p == 'E') {
-      p++;
-      int esign = 1;
-      if (*p == '-') {
-          esign = -1; p++;
-      } else if (*p == '+') {
-          p++;
-      }
-      int exp = 0;
-      while (*p >= '0' && *p <= '9') {
-          exp = exp * 10 + (*p++ - '0');
-      }
-      val *= powf(10.0f, esign * exp);
-  }
-  *s = p;
-  return sign * val;
-}
-
 Table* dataset_get_table(Dataset* data, const char* key) {
     for (int i = 0; i < data->n; i++) {
         if (strcmp(data->tables[i].name, key) == 0) {
@@ -629,32 +593,11 @@ Table* dataset_get_table(Dataset* data, const char* key) {
 }
 
 void table_add_values(Table* table, const char* key, const char* values) {
-    int capacity = 1;
-    for (char* p = values; *p; p++) {
-        if (*p == ',') {
-            capacity++;
-        }
-    }
-    float* vals = calloc(capacity, sizeof(float));
-    if (!vals) {
-        perror("calloc");
-        exit(1);
-    }
-
+    double* vals = NULL;
     int len = 0;
-    char* s = (char*)values;
-    while (*s) {
-        vals[len++] = fast_atof(&s);
-        if (*s == ',') {
-            s++;
-        } else {
-            while (*s == ' ' || *s == '\t') {
-                s++;
-            }
-            if (*s && *s != ',') {
-                break;
-            }
-        }
+    if (!puf_ini_parse_list(values, &vals, &len)) {
+        fprintf(stderr, "constellation error: invalid values for %s\n", key);
+        exit(1);
     }
 
     if (table->rows == 0) {
@@ -668,7 +611,7 @@ void table_add_values(Table* table, const char* key, const char* values) {
 
     int col = table_add_col(table, key);
     for (int i = 0; i < len; i++) {
-        table_set(table, i, col, vals[i]);
+        table_set(table, i, col, (float)vals[i]);
     }
     free(vals);
 }
@@ -682,10 +625,11 @@ Dataset load_dataset(const char* path) {
 
     Dataset data = {0};
     char env_name[256] = "";
-    char line[4096];
-    for (int n = 1; fgets(line, sizeof(line), fp); n++) {
-        puf_config_strip_comment(line);
-        char* s = puf_config_trim(line);
+    char* line = NULL;
+    int cap = 0;
+    for (int n = 1; puf_ini_read_line(fp, &line, &cap); n++) {
+        puf_ini_strip_comment(line);
+        char* s = puf_ini_trim(line);
         if (!*s) {
             continue;
         }
@@ -693,7 +637,7 @@ Dataset load_dataset(const char* path) {
         size_t len = strlen(s);
         if (s[0] == '[' && len >= 3 && s[len - 1] == ']') {
             s[len - 1] = 0;
-            snprintf(env_name, sizeof(env_name), "%s", puf_config_trim(s + 1));
+            snprintf(env_name, sizeof(env_name), "%s", puf_ini_trim(s + 1));
             continue;
         }
 
@@ -707,11 +651,12 @@ Dataset load_dataset(const char* path) {
             exit(1);
         }
         *eq = 0;
-        char* key = puf_config_trim(s);
-        char* val = puf_config_trim(eq + 1);
-        puf_config_strip_quotes(val);
+        char* key = puf_ini_trim(s);
+        char* val = puf_ini_trim(eq + 1);
+        puf_ini_strip_quotes(val);
         table_add_values(dataset_get_table(&data, env_name), key, val);
     }
+    free(line);
     fclose(fp);
     return data;
 }

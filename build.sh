@@ -278,12 +278,13 @@ if [ "$MODE" = "native" ]; then
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
-        "${ENV_COMPILE_FLAGS[@]}" \
-        -DENV_NAME=$ENV \
-        -Xcompiler=-DPLATFORM_DESKTOP \
-        -Xcompiler=-fopenmp \
-        $PRECISION \
-        src/launcher.cu \
+	    "${ENV_COMPILE_FLAGS[@]}" \
+	    -DENV_NAME=$ENV \
+	    -DPUFFERLIB_BUILD_MAIN \
+	    -Xcompiler=-DPLATFORM_DESKTOP \
+	    -Xcompiler=-fopenmp \
+	    $PRECISION \
+	    src/pufferlib.cu \
         "$RAYLIB_A" \
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
