@@ -3,7 +3,6 @@
 #include <string.h>
 #include "config.h"
 #include "checkpoint.h"
-#include "precision.h"
 
 #define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER

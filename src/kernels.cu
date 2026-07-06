@@ -11,7 +11,39 @@
 #include <stdlib.h>
 
 #include <cuda_bf16.h>
-#include "precision.h"
+
+#define PUF_MAX_DIMS 8
+
+typedef struct {
+    float* data;
+    int64_t shape[PUF_MAX_DIMS];
+} FloatTensor;
+
+typedef struct {
+    unsigned char* data;
+    int64_t shape[PUF_MAX_DIMS];
+} ByteTensor;
+
+typedef struct {
+    long* data;
+    int64_t shape[PUF_MAX_DIMS];
+} LongTensor;
+
+typedef struct {
+    int* data;
+    int64_t shape[PUF_MAX_DIMS];
+} IntTensor;
+
+#ifdef PRECISION_FLOAT
+typedef float precision_t;
+#else
+typedef __nv_bfloat16 precision_t;
+#endif
+
+typedef struct {
+    precision_t* data;
+    int64_t shape[PUF_MAX_DIMS];
+} PrecisionTensor;
 
 #ifdef PRECISION_FLOAT
 constexpr bool USE_BF16 = false;

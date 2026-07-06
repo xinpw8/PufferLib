@@ -10,7 +10,6 @@
 #include <pthread.h>
 
 #include "dict.h"
-#include "precision.h"
 
 #define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER
@@ -24,7 +23,7 @@ void pufferl_forward(struct PuffeRL* pufferl, int buf, int t);
 
 typedef struct ObsTensor {
     obs_t* data;
-    int64_t shape[PUF_MAX_DIMS];
+    int64_t shape[8];
 } ObsTensor;
 
 static inline int atomic_load(const atomic_int* ptr) {

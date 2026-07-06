@@ -1,11 +1,14 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "ini.h"
+
+#define TRAIN_RESULT_MAX_POINTS 64
 
 typedef struct {
     Ini ini;
@@ -51,19 +54,29 @@ typedef struct {
     int seed;
 } HypersT;
 
+static void puf_config_assert(int ok, const char* fmt, ...) {
+    if (ok) {
+        return;
+    }
+
+    va_list args;
+    fprintf(stderr, "config error: ");
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 static void puf_config_set_raw(Config* cfg, Dict* dict, const char* key,
         const char* raw, int must_exist) {
-    if (must_exist && !dict_find(dict, key)) {
-        fprintf(stderr, "config error: missing key [%s] %s\n", dict->name, key);
-        exit(1);
-    }
+    puf_config_assert(!must_exist || dict_find(dict, key),
+        "missing key [%s] %s", dict->name, key);
 
     puf_ini_set(dict, key, raw);
     if (strcmp(dict->name, "env") == 0) {
-        if (must_exist && !dict_find(&cfg->env, key)) {
-            fprintf(stderr, "config error: missing env key %s\n", key);
-            exit(1);
-        }
+        puf_config_assert(!must_exist || dict_find(&cfg->env, key),
+            "missing env key %s", key);
         puf_ini_set(&cfg->env, key, raw);
     }
 }
@@ -71,10 +84,7 @@ static void puf_config_set_raw(Config* cfg, Dict* dict, const char* key,
 static double puf_config_get(Config* cfg, const char* section, const char* key) {
     Dict* dict = puf_ini_section(&cfg->ini, section, 0);
     DictItem* item = dict_find(dict, key);
-    if (!item) {
-        fprintf(stderr, "config error: missing key [%s] %s\n", section, key);
-        exit(1);
-    }
+    puf_config_assert(item != NULL, "missing key [%s] %s", section, key);
     return item->value;
 }
 
@@ -93,29 +103,114 @@ static inline float puf_config_float(Config* cfg, const char* section, const cha
 static const char* puf_config_str(Config* cfg, const char* section, const char* key) {
     Dict* dict = puf_ini_section(&cfg->ini, section, 0);
     DictItem* item = dict_find(dict, key);
-    if (!item || !item->str) {
-        fprintf(stderr, "config error: missing string [%s] %s\n", section, key);
-        exit(1);
-    }
+    puf_config_assert(item != NULL && item->str != NULL,
+        "missing string [%s] %s", section, key);
     return item->str;
 }
 
-static inline void puf_config_validate_train(Config* cfg) {
+static float puf_config_sweep_num(Dict* dict, const char* key) {
+    const char* raw = dict_get_str(dict, key);
+    double value = 0;
+    puf_config_assert(puf_ini_parse_val(raw, &value),
+        "invalid numeric field [%s] %s = %s", dict->name, key, raw);
+    return (float)value;
+}
+
+static int puf_config_sweep_space_type(Dict* dict, int* is_integer) {
+    const char* dist = dict_get_str(dict, "distribution");
+    *is_integer = 0;
+    if (strcmp(dist, "uniform") == 0) {
+        return 0;
+    }
+    if (strcmp(dist, "int_uniform") == 0) {
+        *is_integer = 1;
+        return 0;
+    }
+    if (strcmp(dist, "uniform_pow2") == 0) {
+        *is_integer = 1;
+        return 2;
+    }
+    if (strcmp(dist, "log_normal") == 0) {
+        return 1;
+    }
+    if (strcmp(dist, "logit_normal") == 0) {
+        return 3;
+    }
+
+    puf_config_assert(0, "invalid sweep distribution [%s] %s", dict->name, dist);
+    return 0;
+}
+
+static inline void puf_config_validate(Config* cfg) {
     int minibatch_size = puf_config_int(cfg, "train", "minibatch_size");
     int horizon = puf_config_int(cfg, "train", "horizon");
     int total_agents = puf_config_int(cfg, "vec", "total_agents");
-    if (minibatch_size % horizon != 0) {
-        fprintf(stderr, "config error: train.minibatch_size must be divisible by train.horizon\n");
-        exit(1);
-    }
-    if (minibatch_size > horizon * total_agents) {
-        fprintf(stderr, "config error: train.minibatch_size > train.horizon * vec.total_agents\n");
-        exit(1);
+    int train_gpus = puf_config_int(cfg, "train", "gpus");
+    puf_config_assert(train_gpus >= 1, "train.gpus must be >= 1");
+    puf_config_assert(minibatch_size % horizon == 0,
+        "train.minibatch_size must be divisible by train.horizon");
+    puf_config_assert(minibatch_size <= horizon * total_agents,
+        "train.minibatch_size > train.horizon * vec.total_agents");
+
+    int league = puf_config_int(cfg, "sweep", "league");
+    const char* metric = puf_config_str(cfg, "sweep", "metric");
+    puf_config_assert(league || strcmp(metric, "score") == 0,
+        "native sweep currently scores env/score, got env/%s", metric);
+
+    const char* metric_dist = puf_config_str(cfg, "sweep", "metric_distribution");
+    puf_config_assert(strcmp(metric_dist, "linear") == 0 || strcmp(metric_dist, "logit") == 0,
+        "sweep.metric_distribution must be linear or logit");
+
+    const char* goal = puf_config_str(cfg, "sweep", "goal");
+    puf_config_assert(strcmp(goal, "maximize") == 0 || strcmp(goal, "minimize") == 0,
+        "sweep.goal must be maximize or minimize");
+
+    int max_runs = puf_config_int(cfg, "sweep", "max_runs");
+    int downsample = puf_config_int(cfg, "sweep", "downsample");
+    int sweep_gpus = puf_config_int(cfg, "sweep", "gpus");
+    puf_config_assert(max_runs >= 1, "sweep.max_runs must be >= 1");
+    puf_config_assert(downsample >= 1 && downsample <= TRAIN_RESULT_MAX_POINTS,
+        "sweep.downsample must be in [1, %d]", TRAIN_RESULT_MAX_POINTS);
+    puf_config_assert(sweep_gpus >= 0, "sweep.gpus must be >= 0");
+    puf_config_assert(sweep_gpus == 0 || sweep_gpus >= train_gpus + league,
+        "sweep.gpus must be >= train.gpus%s", league ? " + 1 for league sweeps" : "");
+    puf_config_assert(puf_config_float(cfg, "sweep", "max_suggestion_cost") > 0,
+        "sweep.max_suggestion_cost must be > 0");
+
+    float q = puf_config_float(cfg, "sweep", "early_stop_quantile");
+    puf_config_assert(q > 0 && q < 1, "sweep.early_stop_quantile must be in (0, 1)");
+    puf_config_assert(!league || strcmp(puf_config_str(cfg, "base", "env_name"), "robocode") == 0,
+        "league sweep currently requires robocode");
+
+    for (int i = 0; i < cfg->ini.num_sections; i++) {
+        Dict* dict = &cfg->ini.sections[i];
+        if (strncmp(dict->name, "sweep.", 6) != 0) {
+            continue;
+        }
+
+        const char* sweep_key = dict->name + 6;
+        const char* dot = strrchr(sweep_key, '.');
+        puf_config_assert(dot && dot != sweep_key && dot[1],
+            "expected section [sweep.<section>.<key>]");
+
+        int is_integer = 0;
+        puf_config_sweep_space_type(dict, &is_integer);
+
+        float min_v = puf_config_sweep_num(dict, "min");
+        float max_v = puf_config_sweep_num(dict, "max");
+        puf_config_assert(max_v > min_v, "[%s] max must be greater than min", dict->name);
+
+        const char* scale = dict_get_str(dict, "scale");
+        if (strcmp(scale, "time") == 0) {
+            puf_config_assert(min_v > 0 && max_v > 0,
+                "[%s] scale=time requires positive min/max", dict->name);
+        } else if (strcmp(scale, "auto") != 0) {
+            puf_config_sweep_num(dict, "scale");
+        }
     }
 }
 
 static inline HypersT puf_config_to_hypers(Config* cfg, int rank, int world_size, int gpu_id) {
-    puf_config_validate_train(cfg);
     HypersT h = {0};
     h.total_agents = puf_config_int(cfg, "vec", "total_agents");
     h.num_buffers = puf_config_int(cfg, "vec", "num_buffers");
@@ -157,10 +252,7 @@ static inline HypersT puf_config_to_hypers(Config* cfg, int rank, int world_size
 
 static void puf_config_put(Config* cfg, const char* full_key, const char* raw) {
     const char* dot = strchr(full_key, '.');
-    if (!dot) {
-        fprintf(stderr, "config error: expected section.key, got %s\n", full_key);
-        exit(1);
-    }
+    puf_config_assert(dot != NULL, "expected section.key, got %s", full_key);
 
     const char* split = dot;
     if (strncmp(full_key, "sweep.", 6) == 0 && strchr(dot + 1, '.')) {
@@ -176,10 +268,7 @@ static void puf_config_put(Config* cfg, const char* full_key, const char* raw) {
 
 static void puf_config_apply_cli(Config* cfg, const char* arg, int idx) {
     char tmp[2048];
-    if (strlen(arg) >= sizeof(tmp)) {
-        fprintf(stderr, "argv:%d: argument too long\n", idx);
-        exit(1);
-    }
+    puf_config_assert(strlen(arg) < sizeof(tmp), "argv:%d: argument too long", idx);
     snprintf(tmp, sizeof(tmp), "%s", arg);
 
     char* s = tmp;
@@ -198,10 +287,7 @@ static void puf_config_apply_cli(Config* cfg, const char* arg, int idx) {
             *p = '_';
         }
     }
-    if (!*s) {
-        fprintf(stderr, "argv:%d: empty key\n", idx);
-        exit(1);
-    }
+    puf_config_assert(*s, "argv:%d: empty key", idx);
 
     char full_key[4096];
     if (strchr(s, '.')) {
@@ -227,6 +313,7 @@ static void puf_config_load_env(Config* cfg, const char* env_name, int argc, cha
     for (int i = 0; i < argc; i++) {
         puf_config_apply_cli(cfg, argv[i], i);
     }
+    puf_config_validate(cfg);
 }
 
 static inline void puf_config_copy(Config* dst, Config* src) {
