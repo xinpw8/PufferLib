@@ -99,6 +99,8 @@ INCLUDES=(-I./$RAYLIB_NAME/include -I./src -I./vendor)
 LINK_ARCHIVES=("$RAYLIB_A")
 EXTRA_SRC=""
 EXTRA_LDFLAGS=()
+EXTRA_CFLAGS=()
+SRC_FILE=""
 
 if [ "$ENV" = "constellation" ]; then
     SRC_DIR="src"
@@ -108,6 +110,8 @@ if [ "$ENV" = "constellation" ]; then
 elif [ "$ENV" = "cache_data" ]; then
     SRC_DIR="src"
     OUTPUT_NAME="cache_data"
+    SRC_FILE="src/constellation.c"
+    EXTRA_CFLAGS+=(-DPUFFER_CACHE_DATA)
     MODE=${MODE:-fast}
     CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "trailer" ]; then
@@ -145,10 +149,11 @@ else
 fi
 
 OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
+SRC_FILE=${SRC_FILE:-$SRC_DIR/$ENV.c}
 
 # Standalone environment build
 # -mavx2 enables AVX2 intrinsics (__m256, _mm256_*) which drive.h and
-# src/bf16.h use directly. x86_64 only — strip if porting to ARM/Apple Silicon.
+# src/pufferenv.h use directly. x86_64 only — strip if porting to ARM/Apple Silicon.
 SIMD_FLAGS=(-mavx2 -mfma)
 if [ -n "$DEBUG" ] || [ "$MODE" = "local" ]; then
     CLANG_OPT=(-g -O0 "${CLANG_WARN[@]}" "${SANITIZE_FLAGS[@]}" "${SIMD_FLAGS[@]}")
@@ -162,12 +167,13 @@ fi
 if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
     FLAGS=(
         "${INCLUDES[@]}"
-        "$SRC_DIR/$ENV.c" $EXTRA_SRC -o "$OUTPUT_NAME"
+        "$SRC_FILE" $EXTRA_SRC -o "$OUTPUT_NAME"
         "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         "${STANDALONE_LDFLAGS[@]}"
         -lm -lpthread -fopenmp
         -DPLATFORM_DESKTOP
+        "${EXTRA_CFLAGS[@]}"
     )
     echo "Compiling $ENV..."
     ${CC:-clang} "${CLANG_OPT[@]}" "${FLAGS[@]}"
@@ -178,7 +184,7 @@ elif [ "$MODE" = "web" ]; then
     echo "Compiling $ENV for web..."
     emcc \
         -o "build/web/$ENV/game.html" \
-        "$SRC_DIR/$ENV.c" $EXTRA_SRC \
+        "$SRC_FILE" $EXTRA_SRC \
         -O3 -Wall \
         "${LINK_ARCHIVES[@]}" \
         "${INCLUDES[@]}" \
@@ -189,7 +195,8 @@ elif [ "$MODE" = "web" ]; then
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
         -DNDEBUG -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
         --preload-file resources/$ENV@resources/$ENV \
-        --preload-file resources/shared@resources/shared
+        --preload-file resources/shared@resources/shared \
+        "${EXTRA_CFLAGS[@]}"
     echo "Built: build/web/$ENV/game.html"
     exit 0
 elif [ "$MODE" = "cpu" ]; then
@@ -215,30 +222,8 @@ elif [ "$MODE" = "cpu" ]; then
     exit 0
 fi
 
-# Find cuDNN path
 CUDA_HOME=${CUDA_HOME:-${CUDA_PATH:-$(dirname "$(dirname "$(which nvcc)")")}}
-CUDNN_IFLAG=""
-CUDNN_LFLAG=""
-for dir in /usr/local/cuda/include /usr/include; do
-    if [ -f "$dir/cudnn.h" ]; then
-        CUDNN_IFLAG="-I$dir"
-        break
-    fi
-done
-for dir in /usr/local/cuda/lib64 /usr/lib/x86_64-linux-gnu; do
-    if [ -f "$dir/libcudnn.so" ]; then
-        CUDNN_LFLAG="-L$dir"
-        break
-    fi
-done
-if [ -z "$CUDNN_IFLAG" ]; then
-    CUDNN_IFLAG=$(python -c "import nvidia.cudnn, os; print('-I' + os.path.join(nvidia.cudnn.__path__[0], 'include'))" 2>/dev/null || echo "")
-fi
-if [ -z "$CUDNN_LFLAG" ]; then
-    CUDNN_LFLAG=$(python -c "import nvidia.cudnn, os; print('-L' + os.path.join(nvidia.cudnn.__path__[0], 'lib'))" 2>/dev/null || echo "")
-fi
-
-# NCCL include/lib fallback (mirrors the cuDNN fallback above).
+# NCCL include/lib fallback.
 # Needed when NCCL is provided by the nvidia-nccl-cu12 wheel in the active venv.
 NCCL_IFLAG=""
 NCCL_LFLAG=""
@@ -277,7 +262,7 @@ if [ "$MODE" = "native" ]; then
     echo "Compiling native train/eval binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
-        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include $NCCL_IFLAG -I$RAYLIB_NAME/include \
 	    "${ENV_COMPILE_FLAGS[@]}" \
 	    -DENV_NAME=$ENV \
 	    -DPUFFERLIB_BUILD_MAIN \
@@ -286,9 +271,9 @@ if [ "$MODE" = "native" ]; then
 	    $PRECISION \
 	    src/pufferlib.cu \
         "$RAYLIB_A" \
-        -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG \
+        -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
-        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand -lcudnn \
+        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
         -o build_native
     echo "Built: ./build_native"
@@ -297,7 +282,7 @@ elif [ "$MODE" = "profile" ]; then
     echo "Compiling profile binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
-        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include $NCCL_IFLAG -I$RAYLIB_NAME/include \
         "${ENV_COMPILE_FLAGS[@]}" \
         -DENV_NAME=$ENV \
         -Xcompiler=-DPLATFORM_DESKTOP \
@@ -305,7 +290,7 @@ elif [ "$MODE" = "profile" ]; then
         -Xcompiler=-fopenmp \
         tests/profile_kernels.cu \
         "$RAYLIB_A" \
-        -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn \
+        -lnccl -lnvidia-ml -lcublas -lcurand \
         -lGL -lm -lpthread $OMP_LIB \
         -o profile
     echo "Built: ./profile"

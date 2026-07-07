@@ -262,9 +262,8 @@ static void sweep_wait_job(ProteinSweep* protein, SweepJob* job,
             fprintf(stderr, "league trial run=%d did not produce a checkpoint\n", job->run);
             exit(1);
         }
-        league_register_player(league_state_path, job->run_id,
-            job->result.checkpoint_path, job->result.cost);
-        float elo = league_player_elo(league_state_path, job->run_id);
+        float elo = league_register_player(league_state_path, job->run_id,
+            job->result.checkpoint_path);
         protein_sweep_observe(protein, job->sample, elo, job->result.cost, 0);
         job->result.score = elo;
     } else {

@@ -1,7 +1,42 @@
-// NMMO3 CUDA encoder: multihot, cuDNN conv, embedding, concat, projection
+// NMMO3 CUDA encoder: multihot, GEMM conv, embedding, concat, projection
 // Included by pufferlib.cu — requires precision_t, PrecisionTensor, Allocator, puf_mm, etc.
 
-#include "cudnn_conv2d.cu"
+struct ConvWeights {
+    PrecisionTensor w, b;
+    int IC, OC, K, S, IH, IW, OH, OW;
+    bool relu;
+};
+
+struct ConvActivations {
+    PrecisionTensor out, grad, saved_input;
+    PrecisionTensor wgrad, bgrad;
+};
+
+static void conv_init(ConvWeights* cw, int IC, int OC, int K, int S,
+        int IH, int IW, bool relu) {
+    cw->IC = IC;
+    cw->OC = OC;
+    cw->K = K;
+    cw->S = S;
+    cw->IH = IH;
+    cw->IW = IW;
+    cw->OH = (IH - K) / S + 1;
+    cw->OW = (IW - K) / S + 1;
+    cw->relu = relu;
+}
+
+static void conv_reg_params(ConvWeights* cw, Allocator* alloc) {
+    cw->w = {.shape = {cw->OC, cw->IC * cw->K * cw->K}};
+    cw->b = {.shape = {cw->OC}};
+    alloc_register(alloc, &cw->w);
+    alloc_register(alloc, &cw->b);
+}
+
+static void conv_init_weights(ConvWeights* cw, uint64_t* seed, cudaStream_t stream) {
+    PrecisionTensor wt = {.data = cw->w.data, .shape = {cw->OC, cw->IC * cw->K * cw->K}};
+    puf_kaiming_init(&wt, 1.0f, (*seed)++, stream);
+    cudaMemsetAsync(cw->b.data, 0, numel(cw->b.shape) * sizeof(precision_t), stream);
+}
 
 // ---- NMMO3 constants ----
 
@@ -19,10 +54,6 @@ static constexpr int N3_CONV_FLAT = N3_C2_OC * N3_C2_OH * N3_C2_OW;
 static constexpr int N3_CONCAT = N3_CONV_FLAT + N3_PLAYER_EMBED + N3_PLAYER + N3_REWARD;
 
 __constant__ int N3_OFFSETS[10] = {0, 4, 8, 25, 30, 33, 38, 43, 48, 55};
-
-static cudnnDataType_t n3_cudnn_dtype() {
-    return (PRECISION_SIZE == 2) ? CUDNN_DATA_BFLOAT16 : CUDNN_DATA_FLOAT;
-}
 
 // ---- NMMO3 kernels ----
 
@@ -332,7 +363,7 @@ static void gemm_conv_forward(
 
 // Backward: weight grad + optional input grad via im2col/col2im + cuBLAS.
 // grad_output is NCHW (B, OC, OH, OW). saved_input is NCHW.
-// Caller handles relu backward and bias grad (same as cuDNN path).
+// Caller handles relu backward and bias grad.
 static void gemm_conv_backward(
     PrecisionTensor* weight,
     precision_t* saved_input, precision_t* grad_output,
