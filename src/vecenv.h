@@ -9,7 +9,7 @@
 #include <omp.h>
 #include <pthread.h>
 
-#include "dict.h"
+#include "ini.h"
 
 #define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER

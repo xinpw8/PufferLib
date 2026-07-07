@@ -39,8 +39,6 @@ float sin_deg(float deg) {
 
 typedef struct BotMem BotMem;  // defined in bots.h
 
-#define ROBOCODE_MAX_BANKS 2
-
 typedef struct Log Log;
 struct Log {
     float perf;             // bots killed this episode
@@ -51,13 +49,6 @@ struct Log {
     float melee_damage_inflicted;
     float damage_taken;
     float range_damage_inflicted;
-    // Historical pool tracking (selfplay-pool mode). Per-bank score/games for
-    // matches against frozen historical opponents. hist_score / hist_n are
-    // legacy aggregates summed across all banks.
-    float hist_score;
-    float hist_n;
-    float hist_score_bank[ROBOCODE_MAX_BANKS];
-    float hist_n_bank[ROBOCODE_MAX_BANKS];
     // Per-slot scores for match() scoring + selfplay sanity-check. In selfplay
     // both should average to ~0.5; in match A=slot 0, B=slot 1, slot_0_score is
     // the win rate of policy A. Each game contributes 1.0 worth of credit total
@@ -138,10 +129,9 @@ struct Robocode {
     BotMem* bot_mems;        // per-bot scratch (allocated by bots.h)
 
     // Selfplay-pool tagging. tag = 0 means pure selfplay (both slots = primary
-    // policy). tag = 1..ROBOCODE_MAX_BANKS means historical: slot 0 = primary,
-    // slot 1 = frozen historical opponent from bank (tag - 1). boundary_reached
-    // is set on game-end so Python can detect when historical envs have all
-    // completed at least one game since the last swap arm.
+    // policy). tag > 0 means historical: slot 0 = primary, slot 1 = frozen
+    // historical opponent. boundary_reached is set on game-end so the trainer
+    // can swap frozen banks only between games.
     int tag;
     int boundary_reached;
 
@@ -203,12 +193,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "range_damage_inflicted", log->range_damage_inflicted);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
-    dict_set(out, "hist_score", log->hist_score);
-    dict_set(out, "hist_n", log->hist_n);
-    dict_set(out, "hist_score_bank_0", log->hist_score_bank[0]);
-    dict_set(out, "hist_score_bank_1", log->hist_score_bank[1]);
-    dict_set(out, "hist_n_bank_0", log->hist_n_bank[0]);
-    dict_set(out, "hist_n_bank_1", log->hist_n_bank[1]);
     dict_set(out, "slot_0_score", log->slot_0_score);
     dict_set(out, "slot_1_score", log->slot_1_score);
     dict_set(out, "draw_rate", log->draw_rate);
@@ -668,12 +652,7 @@ static inline void end_episode(Robocode* env, int outcome) {
     env->log.slot_0_score += s0_score * env->num_agents;
     env->log.slot_1_score += (1.0f - s0_score) * env->num_agents;
     if (outcome == 0) env->log.draw_rate += env->num_agents;
-    if (env->tag > 0 && env->tag <= ROBOCODE_MAX_BANKS) {
-        int bank_idx = env->tag - 1;
-        env->log.hist_score_bank[bank_idx] += s0_score;
-        env->log.hist_n_bank[bank_idx]     += 1.0f;
-        env->log.hist_score                += s0_score;
-        env->log.hist_n                    += 1.0f;
+    if (env->tag > 0) {
         env->boundary_reached = 1;
     }
     for (int a = 0; a < env->num_agents; a++) {

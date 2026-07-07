@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dict.h"
+#include "ini.h"
 #ifndef Env
 #error "Env must be defined before including pufferenv.h"
 #endif

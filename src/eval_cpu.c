@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
 #include "config.h"
-#include "checkpoint.h"
 
 #define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER
@@ -10,11 +12,64 @@
 
 #include "puffernet.h"
 
+static int has_suffix(const char* s, const char* suffix) {
+    size_t n = strlen(s);
+    size_t m = strlen(suffix);
+    return n >= m && strcmp(s + n - m, suffix) == 0;
+}
+
+static void find_latest_checkpoint(const char* dir,
+        char* out, size_t out_size, time_t* best_time) {
+    DIR* dp = opendir(dir);
+    if (!dp) {
+        return;
+    }
+
+    struct dirent* ent = NULL;
+    while ((ent = readdir(dp))) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+            continue;
+        }
+
+        char path[4096];
+        snprintf(path, sizeof(path), "%s/%s", dir, ent->d_name);
+
+        struct stat st;
+        if (stat(path, &st) != 0) {
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            find_latest_checkpoint(path, out, out_size, best_time);
+        } else if (S_ISREG(st.st_mode) && has_suffix(path, ".bin") &&
+                st.st_ctime >= *best_time) {
+            *best_time = st.st_ctime;
+            snprintf(out, out_size, "%s", path);
+        }
+    }
+
+    closedir(dp);
+}
+
 static const char* model_path(Config* cfg, const char* env_name,
         char* out, size_t out_size) {
-    const char* path = puf_checkpoint_path(cfg, out, out_size);
-    if (path) {
-        return path;
+    const char* path = puf_config_str(cfg, "base", "load_model_path");
+    if (path && strcmp(path, "None") != 0) {
+        if (strcmp(path, "latest") != 0) {
+            return path;
+        }
+
+        char root[2048];
+        snprintf(root, sizeof(root), "%s/%s",
+            puf_config_str(cfg, "base", "checkpoint_dir"), env_name);
+        out[0] = 0;
+        time_t best_time = 0;
+        find_latest_checkpoint(root, out, out_size, &best_time);
+        if (!out[0]) {
+            fprintf(stderr, "no .bin checkpoints found in %s\n", root);
+            exit(1);
+        }
+        return out;
     }
 
     snprintf(out, out_size, "resources/%s/%s_weights.bin", env_name, env_name);
