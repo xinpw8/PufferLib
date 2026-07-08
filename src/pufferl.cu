@@ -1,4 +1,346 @@
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
+#include <cstdint>
+#include <cublas_v2.h>
+#include <curand.h>
+#include <cassert>
+#include <cmath>
+#include <stdlib.h>
+#include <cuda_bf16.h>
+
+#define PUF_MAX_DIMS 8
+
+typedef struct {
+    float* data;
+    int64_t shape[PUF_MAX_DIMS];
+} FloatTensor;
+
+typedef struct {
+    unsigned char* data;
+    int64_t shape[PUF_MAX_DIMS];
+} ByteTensor;
+
+typedef struct {
+    long* data;
+    int64_t shape[PUF_MAX_DIMS];
+} LongTensor;
+
+typedef struct {
+    int* data;
+    int64_t shape[PUF_MAX_DIMS];
+} IntTensor;
+
+#ifdef PRECISION_FLOAT
+typedef float precision_t;
+#else
+typedef __nv_bfloat16 precision_t;
+#endif
+
+typedef struct {
+    precision_t* data;
+    int64_t shape[PUF_MAX_DIMS];
+} PrecisionTensor;
+
+#ifdef PRECISION_FLOAT
+constexpr bool USE_BF16 = false;
+static constexpr cudaDataType_t CUBLAS_PRECISION = CUDA_R_32F;
+static constexpr cublasComputeType_t CUBLAS_COMPUTE_PRECISION = CUBLAS_COMPUTE_32F;
+#define NCCL_PRECISION ncclFloat
+#define to_float(x) (x)
+#define from_float(x) (x)
+#else
+constexpr bool USE_BF16 = true;
+static constexpr cudaDataType_t CUBLAS_PRECISION = CUDA_R_16BF;
+static constexpr cublasComputeType_t CUBLAS_COMPUTE_PRECISION = CUBLAS_COMPUTE_32F;
+#define NCCL_PRECISION ncclBfloat16
+#define to_float(x) __bfloat162float(x)
+#define from_float(x) __float2bfloat16(x)
+#endif
+
+__host__ __device__ inline int ndim(const int64_t* shape) {
+    int n = 0; while (n < PUF_MAX_DIMS && shape[n] != 0) n++; return n;
+}
+
+__host__ __device__ inline int64_t numel(const int64_t* shape) {
+    int64_t n = 1; for (int i = 0; i < PUF_MAX_DIMS && shape[i] != 0; i++) n *= shape[i]; return n;
+}
+
+inline int64_t batch_size(const int64_t* shape) {
+    int n = ndim(shape);
+    int64_t b = 1;
+    for (int i = 0; i < n - 2; i++) b *= shape[i];
+    return b;
+}
+
+#define BLOCK_SIZE 256
+inline int grid_size(int N) {
+    return (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+}
+
+// Dense row-major GEMM: C(M,N) = alpha * op_a(A) @ op_b(B) + beta * C
+// Strides derived from M, N, K assuming tightly packed row-major storage.
+static const size_t CUBLAS_WS_BYTES = 32 * 1024 * 1024;
+
+static cublasHandle_t cublas_get_handle() {
+    static thread_local cublasHandle_t handle = nullptr;
+    if (!handle) {
+        cublasCreate(&handle);
+        void* ws = nullptr;
+        cudaMalloc(&ws, CUBLAS_WS_BYTES);
+        cublasSetWorkspace(handle, ws, CUBLAS_WS_BYTES);
+    }
+    return handle;
+}
+
+static inline void cublasGemmExDense(
+        cublasOperation_t op_a, cublasOperation_t op_b,
+        int M, int N, int K, void* A, void* B, void* C,
+        cudaStream_t stream, float alpha = 1.0f, float beta = 0.0f) {
+    int lda = (op_a == CUBLAS_OP_N) ? K : M;
+    int ldb = (op_b == CUBLAS_OP_N) ? N : K;
+
+    cublasHandle_t handle = cublas_get_handle();
+    cublasSetStream(handle, stream);
+    cublasGemmEx(handle, op_b, op_a, N, M, K, &alpha,
+        B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
+        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, CUBLAS_GEMM_DEFAULT);
+}
+
+// out(...,N) = a(...,K) @ b(N,K)^T  — leading dims folded into M
+void puf_mm(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
+    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int K = a->shape[ndim(a->shape)-1];
+    int N = b->shape[ndim(b->shape)-2];
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T, M, N, K,
+        a->data, b->data, out->data, stream);
+}
+
+// out(M,N) = a(...,M)^T @ b(...,N)  — leading dims folded into K
+void puf_mm_tn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
+    int M = a->shape[ndim(a->shape)-1];
+    int K = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int N = b->shape[ndim(b->shape)-1];
+    cublasGemmExDense(CUBLAS_OP_T, CUBLAS_OP_N, M, N, K,
+        a->data, b->data, out->data, stream);
+}
+
+// out(...,N) = a(...,K) @ b(K,N)  — leading dims folded into M
+void puf_mm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
+    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int K = a->shape[ndim(a->shape)-1];
+    int N = b->shape[ndim(b->shape)-1];
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, M, N, K,
+        a->data, b->data, out->data, stream);
+}
+
+
+
+__global__ void cast(precision_t* __restrict__ dst,
+        const float* __restrict__ src, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = from_float(src[idx]);
+    }
+}
+
+
+
+#ifndef PRECISION_FLOAT
+__global__ void cast(float* __restrict__ dst,
+        const precision_t* __restrict__ src, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = to_float(src[idx]);
+    }
+}
+#endif
+
+__global__ void cast(precision_t* __restrict__ dst,
+        const unsigned char* __restrict__ src, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = from_float((float)src[idx]);
+    }
+}
+
+__global__ void cast(unsigned char* __restrict__ dst,
+        const precision_t* __restrict__ src, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = to_float(src[idx]);
+    }
+}
+
+
+
+void puf_copy(PrecisionTensor* dst, const PrecisionTensor* src, cudaStream_t stream) {
+    assert(numel(dst->shape) == numel(src->shape) && "puf_copy: size mismatch");
+    cudaMemcpyAsync(dst->data, src->data, numel(dst->shape) * sizeof(precision_t), cudaMemcpyDeviceToDevice, stream);
+}
+
+
+
+__global__ void uniform_scale_kernel(float* data, float bound, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) data[idx] = data[idx] * 2.0f * bound - bound;
+}
+
+// Uniform(-1/sqrt(fan_in), 1/sqrt(fan_in))
+void puf_kaiming_init(PrecisionTensor* dst, float gain, ulong seed, cudaStream_t stream) {
+    assert(ndim(dst->shape) == 2);
+    long rows = dst->shape[0], cols = dst->shape[1];
+    assert(rows > 0 && cols > 0);
+    long n = rows * cols;
+    float bound = gain / std::sqrt((float)cols);
+    float* buf;
+    cudaMalloc(&buf, n * sizeof(float));
+    curandGenerator_t gen;
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    curandSetPseudoRandomGeneratorSeed(gen, seed);
+    curandGenerateUniform(gen, buf, n);
+    curandDestroyGenerator(gen);
+    uniform_scale_kernel<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(buf, bound, n);
+    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst->data, buf, n);
+    cudaFree(buf);
+}
+
+// Normal(0, std). Used for embeddings
+void puf_normal_init(PrecisionTensor* dst, float std, ulong seed, cudaStream_t stream) {
+    long n = numel(dst->shape);
+    assert(n > 0);
+    long rand_count = (n % 2 == 0) ? n : n + 1;
+    float* buf;
+    cudaMalloc(&buf, rand_count * sizeof(float));
+    curandGenerator_t gen;
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    curandSetPseudoRandomGeneratorSeed(gen, seed);
+    curandGenerateNormal(gen, buf, rand_count, 0.0f, std);
+    curandDestroyGenerator(gen);
+    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst->data, buf, n);
+    cudaFree(buf);
+}
+
+struct AllocEntry {
+    void** data_ptr;    // address of the tensor's data field
+    int64_t* shape;     // pointer to the tensor's shape array
+    int elem_size;      // sizeof element type
+};
+
+struct Allocator {
+    AllocEntry* regs = nullptr;
+    int num_regs = 0;
+    void* mem = nullptr;
+    long total_elems = 0;
+    long total_bytes = 0;
+};
+
+static void alloc_register_impl(Allocator* alloc, void** data_ptr, int64_t* shape, int elem_size) {
+    alloc->regs = (AllocEntry*)realloc(alloc->regs, (alloc->num_regs + 1) * sizeof(AllocEntry));
+    alloc->regs[alloc->num_regs++] = {data_ptr, shape, elem_size};
+    int64_t n = numel(shape);
+    alloc->total_elems += n;
+    alloc->total_bytes = (alloc->total_bytes + 15) & ~15;
+    alloc->total_bytes += n * elem_size;
+}
+void alloc_register(Allocator* a, PrecisionTensor* t) {
+    alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(precision_t));
+}
+void alloc_register(Allocator* a, FloatTensor* t) {
+    alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(float));
+}
+void alloc_register(Allocator* a, LongTensor* t) {
+    alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(long));
+}
+void alloc_register(Allocator* a, IntTensor* t) {
+    alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(int));
+}
+
+cudaError_t alloc_create(Allocator* alloc) {
+    if (alloc->total_bytes == 0) return cudaSuccess;
+    cudaError_t err = cudaMalloc(&alloc->mem, alloc->total_bytes);
+    if (err != cudaSuccess) return err;
+    cudaMemset(alloc->mem, 0, alloc->total_bytes);
+    long offset = 0;
+    for (int i = 0; i < alloc->num_regs; i++) {
+        offset = (offset + 15) & ~15;
+        *alloc->regs[i].data_ptr = (char*)alloc->mem + offset;
+        offset += numel(alloc->regs[i].shape) * alloc->regs[i].elem_size;
+    }
+    return cudaSuccess;
+}
+
+void alloc_free(Allocator* alloc) {
+    if (alloc->mem) { cudaFree(alloc->mem); alloc->mem = nullptr; }
+    if (alloc->regs) { free(alloc->regs); alloc->regs = nullptr; }
+    alloc->num_regs = 0;
+    alloc->total_elems = 0;
+    alloc->total_bytes = 0;
+}
+
+__device__ __forceinline__ void copy_bytes(
+        const char* __restrict__ src, char* __restrict__ dst,
+        int src_row, int dst_row, int row_bytes) {
+    const char* s = src + (int64_t)src_row * row_bytes;
+    char* d = dst + (int64_t)dst_row * row_bytes;
+    for (int i = threadIdx.x; i < row_bytes; i += blockDim.x) {
+        d[i] = s[i];
+    }
+}
+
+// Transpose dims 0,1: [A, B, C] -> [B, A, C]. For 2D, pass C=1.
+__global__ void transpose_102(precision_t* __restrict__ dst,
+        const precision_t* __restrict__ src, int A, int B, int C) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = A * B * C;
+    if (idx >= total) {
+        return;
+    }
+    int a = idx / (B * C);
+    int rem = idx % (B * C);
+    int b = rem / C;
+    int c = rem % C;
+    dst[b * A * C + a * C + c] = src[idx];
+}
+
+__global__ void fill_precision_kernel(precision_t* __restrict__ dst, precision_t val, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = val;
+    }
+}
+
+__global__ void clamp_precision_kernel(precision_t* __restrict__ dst, float lo, float hi, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        float v = to_float(dst[idx]);
+        dst[idx] = from_float(fminf(fmaxf(v, lo), hi));
+    }
+}
+
+#ifndef PRECISION_FLOAT
+inline void cast_dispatch(precision_t* dst, const precision_t* src, int n, cudaStream_t stream) {
+    cudaMemcpyAsync(dst, src, n * sizeof(precision_t), cudaMemcpyDeviceToDevice, stream);
+}
+#endif
+
+inline void cast_dispatch(precision_t* dst, const float* src, int n, cudaStream_t stream) {
+    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst, src, n);
+}
+
+inline void cast_dispatch(precision_t* dst, const unsigned char* src, int n, cudaStream_t stream) {
+    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst, src, n);
+}
+
+void puf_zero(PrecisionTensor* dst, cudaStream_t stream) {
+    cudaMemsetAsync(dst->data, 0, numel(dst->shape) * sizeof(precision_t), stream);
+}
+
+void puf_zero(FloatTensor* dst, cudaStream_t stream) {
+    cudaMemsetAsync(dst->data, 0, numel(dst->shape) * sizeof(float), stream);
+}
+
+#ifndef PUFFERLIB_KERNELS_ONLY
+
 #include <cuda_profiler_api.h>
 #include <nvtx3/nvToolsExt.h>
 #include <nvml.h>
@@ -6,14 +348,635 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <math.h>
+#include <stdarg.h>
+#include <omp.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#include "config.h"
-#include "models.cu"
-#include "ocean.cu"
-#include "muon.cu"
-#include "vecenv.h"
+#include "ini.h"
+
+#define TRAIN_RESULT_MAX_POINTS 64
+
+typedef struct {
+    Ini ini;
+    Dict env;
+} Config;
+
+typedef struct {
+    int horizon;
+    int total_agents;
+    int num_buffers;
+    int num_atns;
+    int hidden_size;
+    int num_layers;
+    float lr;
+    float min_lr_ratio;
+    bool anneal_lr;
+    float beta1;
+    float beta2;
+    float eps;
+    int minibatch_size;
+    float replay_ratio;
+    long total_timesteps;
+    float max_grad_norm;
+    float clip_coef;
+    float vf_clip_coef;
+    float vf_coef;
+    float ent_coef;
+    float min_ent_coef_ratio;
+    bool anneal_ent_coef;
+    float gamma;
+    float gae_lambda;
+    float vtrace_rho_clip;
+    float vtrace_c_clip;
+    float prio_alpha;
+    float prio_beta0;
+    bool reset_state;
+    int cudagraphs;
+    bool profile;
+    int rank;
+    int world_size;
+    int gpu_id;
+    int num_threads;
+    int seed;
+} HypersT;
+
+static void puf_config_assert(int ok, const char* fmt, ...) {
+    if (ok) {
+        return;
+    }
+
+    va_list args;
+    fprintf(stderr, "config error: ");
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
+static double puf_config_get(Config* cfg, const char* section, const char* key) {
+    Dict* dict = puf_ini_section(&cfg->ini, section, 0);
+    DictItem* item = dict_find(dict, key);
+    puf_config_assert(item != NULL, "missing key [%s] %s", section, key);
+    return item->value;
+}
+
+static inline int puf_config_int(Config* cfg, const char* section, const char* key) {
+    return (int)puf_config_get(cfg, section, key);
+}
+
+static inline long puf_config_long(Config* cfg, const char* section, const char* key) {
+    return (long)puf_config_get(cfg, section, key);
+}
+
+static inline float puf_config_float(Config* cfg, const char* section, const char* key) {
+    return (float)puf_config_get(cfg, section, key);
+}
+
+static const char* puf_config_str(Config* cfg, const char* section, const char* key) {
+    Dict* dict = puf_ini_section(&cfg->ini, section, 0);
+    DictItem* item = dict_find(dict, key);
+    puf_config_assert(item != NULL && item->str != NULL,
+        "missing string [%s] %s", section, key);
+    return item->str;
+}
+
+static void puf_config_put(Config* cfg, const char* full_key, const char* raw) {
+    const char* split = strrchr(full_key, '.');
+    puf_config_assert(split != NULL, "expected section.key, got %s", full_key);
+
+    char section[128];
+    char key[PUF_DICT_MAX_KEY];
+    snprintf(section, sizeof(section), "%.*s", (int)(split - full_key), full_key);
+    snprintf(key, sizeof(key), "%s", split + 1);
+
+    Dict* dict = puf_ini_section(&cfg->ini, section, 0);
+    puf_config_assert(dict_find(dict, key) != NULL, "missing key [%s] %s", section, key);
+    puf_ini_set(dict, key, raw);
+    if (strcmp(section, "env") == 0) {
+        puf_config_assert(dict_find(&cfg->env, key) != NULL, "missing env key %s", key);
+        puf_ini_set(&cfg->env, key, raw);
+    }
+}
+
+static inline HypersT puf_config_to_hypers(Config* cfg, int rank,
+        int world_size, int gpu_id) {
+    HypersT h = {0};
+    h.total_agents = puf_config_int(cfg, "vec", "total_agents");
+    h.num_buffers = puf_config_int(cfg, "vec", "num_buffers");
+    h.num_threads = puf_config_int(cfg, "vec", "num_threads");
+    h.horizon = puf_config_int(cfg, "train", "horizon");
+    h.hidden_size = puf_config_int(cfg, "policy", "hidden_size");
+    h.num_layers = puf_config_int(cfg, "policy", "num_layers");
+    h.lr = puf_config_float(cfg, "train", "learning_rate");
+    h.min_lr_ratio = puf_config_float(cfg, "train", "min_lr_ratio");
+    h.anneal_lr = puf_config_int(cfg, "train", "anneal_lr");
+    h.beta1 = puf_config_float(cfg, "train", "beta1");
+    h.beta2 = puf_config_float(cfg, "train", "beta2");
+    h.eps = puf_config_float(cfg, "train", "eps");
+    h.minibatch_size = puf_config_int(cfg, "train", "minibatch_size");
+    h.replay_ratio = puf_config_float(cfg, "train", "replay_ratio");
+    h.total_timesteps = puf_config_long(cfg, "train", "total_timesteps");
+    h.max_grad_norm = puf_config_float(cfg, "train", "max_grad_norm");
+    h.clip_coef = puf_config_float(cfg, "train", "clip_coef");
+    h.vf_clip_coef = puf_config_float(cfg, "train", "vf_clip_coef");
+    h.vf_coef = puf_config_float(cfg, "train", "vf_coef");
+    h.ent_coef = puf_config_float(cfg, "train", "ent_coef");
+    h.min_ent_coef_ratio = puf_config_float(cfg, "train", "min_ent_coef_ratio");
+    h.anneal_ent_coef = puf_config_int(cfg, "train", "anneal_ent_coef");
+    h.gamma = puf_config_float(cfg, "train", "gamma");
+    h.gae_lambda = puf_config_float(cfg, "train", "gae_lambda");
+    h.vtrace_rho_clip = puf_config_float(cfg, "train", "vtrace_rho_clip");
+    h.vtrace_c_clip = puf_config_float(cfg, "train", "vtrace_c_clip");
+    h.prio_alpha = puf_config_float(cfg, "train", "prio_alpha");
+    h.prio_beta0 = puf_config_float(cfg, "train", "prio_beta0");
+    h.reset_state = puf_config_int(cfg, "base", "reset_state");
+    h.cudagraphs = puf_config_int(cfg, "base", "cudagraphs");
+    h.profile = puf_config_int(cfg, "base", "profile");
+    h.rank = rank;
+    h.world_size = world_size;
+    h.gpu_id = gpu_id;
+    h.seed = puf_config_int(cfg, "base", "seed");
+    return h;
+}
+
+static void puf_config_load_env(Config* cfg, const char* env_name,
+        int argc, char** argv) {
+    puf_ini_load_env(&cfg->ini, env_name, argc, argv);
+    dict_clear(&cfg->env);
+    dict_copy(&cfg->env, puf_ini_section(&cfg->ini, "env", 0));
+}
+
+static inline void puf_config_copy(Config* dst, Config* src) {
+    memset(dst, 0, sizeof(*dst));
+    if (src->ini.num_sections) {
+        dst->ini.sections = (Dict*)calloc((size_t)src->ini.num_sections, sizeof(Dict));
+        if (!dst->ini.sections) {
+            perror("calloc");
+            exit(1);
+        }
+        dst->ini.num_sections = src->ini.num_sections;
+    }
+    for (int i = 0; i < src->ini.num_sections; i++) {
+        dict_copy(&dst->ini.sections[i], &src->ini.sections[i]);
+    }
+    dict_copy(&dst->env, &src->env);
+}
+
+static void puf_config_free(Config* cfg) {
+    puf_ini_free(&cfg->ini);
+    dict_clear(&cfg->env);
+    memset(cfg, 0, sizeof(*cfg));
+}
+
+#include "algo.cu"
+
+#define PUFFER_VECENV_INCLUDE
+#include ENV_HEADER
+#undef PUFFER_VECENV_INCLUDE
+
+typedef int atomic_int;
+
+struct PuffeRL;
+void pufferl_thread_init(struct PuffeRL* pufferl, int buf);
+void pufferl_forward(struct PuffeRL* pufferl, int buf, int t);
+
+typedef struct ObsTensor {
+    obs_t* data;
+    int64_t shape[8];
+} ObsTensor;
+
+static inline int atomic_load(const atomic_int* ptr) {
+    return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+}
+
+static inline void atomic_store(atomic_int* ptr, int value) {
+    __atomic_store_n(ptr, value, __ATOMIC_SEQ_CST);
+}
+
+enum VecProfileIdx {
+    VEC_GPU = 0,
+    VEC_ENV_STEP,
+    NUM_VEC_PROF,
+};
+
+#define OMP_WAITING 5
+#define OMP_RUNNING 6
+
+typedef struct VecWorker VecWorker;
+
+typedef struct VecEnv {
+    Env* envs;
+    int size;
+    int total_agents;
+    int buffers;
+    int agents_per_buffer;
+    int* buffer_env_starts;
+    int* buffer_env_counts;
+    obs_t* observations;
+    float* actions;
+    float* rewards;
+    float* terminals;
+    unsigned char* action_mask;
+    obs_t* gpu_observations;
+    float* gpu_actions;
+    float* gpu_rewards;
+    float* gpu_terminals;
+    unsigned char* gpu_action_mask;
+    cudaStream_t* streams;
+    atomic_int* buffer_states;
+    atomic_int shutdown;
+    pthread_t* threads;
+    VecWorker* workers;
+    float* accum;
+    int num_workers;
+    int action_mask_size;
+    int num_banks;
+    int* bank_layout;
+} VecEnv;
+
+struct VecWorker {
+    VecEnv* vec;
+    int buf;
+    int horizon;
+    struct PuffeRL* pufferl;
+};
+
+static void* vec_thread_main(void* arg) {
+    VecWorker* worker_arg = (VecWorker*)arg;
+    VecEnv* vec = worker_arg->vec;
+    int buf = worker_arg->buf;
+    int horizon = worker_arg->horizon;
+    struct PuffeRL* pufferl = worker_arg->pufferl;
+
+    pufferl_thread_init(pufferl, buf);
+
+    int agents_per_buffer = vec->agents_per_buffer;
+    int agent_start = buf * agents_per_buffer;
+    int env_start = vec->buffer_env_starts[buf];
+    int env_count = vec->buffer_env_counts[buf];
+
+    Env* envs = vec->envs;
+
+    while (true) {
+        while (atomic_load(&vec->buffer_states[buf]) != OMP_RUNNING) {
+            if (atomic_load(&vec->shutdown)) {
+                return NULL;
+            }
+        }
+        cudaStream_t stream = vec->streams[buf];
+
+        float* my_accum = &vec->accum[buf * NUM_VEC_PROF];
+        struct timespec t0, t1;
+
+        for (int t = 0; t < horizon; t++) {
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+            pufferl_forward(pufferl, buf, t);
+
+            cudaMemcpyAsync(
+                &vec->actions[agent_start * NUM_ATNS],
+                &vec->gpu_actions[agent_start * NUM_ATNS],
+                agents_per_buffer * NUM_ATNS * sizeof(float),
+                cudaMemcpyDeviceToHost, stream);
+            cudaStreamSynchronize(stream);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            my_accum[VEC_GPU] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
+
+            memset(&vec->rewards[agent_start], 0, agents_per_buffer * sizeof(float));
+            memset(&vec->terminals[agent_start], 0, agents_per_buffer * sizeof(float));
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+            #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
+            for (int i = env_start; i < env_start + env_count; i++) {
+                puf_step(&envs[i]);
+            }
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            my_accum[VEC_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
+
+            cudaMemcpyAsync(
+                vec->gpu_observations + (size_t)agent_start * OBS_SIZE,
+                vec->observations + (size_t)agent_start * OBS_SIZE,
+                (size_t)agents_per_buffer * OBS_SIZE * sizeof(obs_t),
+                cudaMemcpyHostToDevice, stream);
+            cudaMemcpyAsync(
+                &vec->gpu_rewards[agent_start],
+                &vec->rewards[agent_start],
+                agents_per_buffer * sizeof(float),
+                cudaMemcpyHostToDevice, stream);
+            cudaMemcpyAsync(
+                &vec->gpu_terminals[agent_start],
+                &vec->terminals[agent_start],
+                agents_per_buffer * sizeof(float),
+                cudaMemcpyHostToDevice, stream);
+            if (vec->action_mask_size > 0) {
+                cudaMemcpyAsync(
+                    vec->gpu_action_mask + agent_start * vec->action_mask_size,
+                    vec->action_mask     + agent_start * vec->action_mask_size,
+                    (size_t)agents_per_buffer * vec->action_mask_size * sizeof(unsigned char),
+                    cudaMemcpyHostToDevice, stream);
+            }
+        }
+        cudaStreamSynchronize(stream);
+        atomic_store(&vec->buffer_states[buf], OMP_WAITING);
+    }
+}
+
+void vec_step(VecEnv* vec) {
+    for (int buf = 0; buf < vec->buffers; buf++) {
+        atomic_store(&vec->buffer_states[buf], OMP_RUNNING);
+    }
+    for (int buf = 0; buf < vec->buffers; buf++) {
+        while (atomic_load(&vec->buffer_states[buf]) != OMP_WAITING) {}
+    }
+}
+
+Env* vec_init_envs(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+                 Dict* vec_kwargs, Dict* env_kwargs) {
+
+    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
+    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
+    int agents_per_buffer = total_agents / num_buffers;
+
+    Env* envs = (Env*)calloc(total_agents, sizeof(Env));
+
+    int num_envs = 0;
+    int agents_created = 0;
+    while (agents_created < total_agents) {
+        envs[num_envs].rng = num_envs;
+        puf_init(&envs[num_envs], env_kwargs);
+        agents_created += envs[num_envs].num_agents;
+        num_envs++;
+    }
+
+    envs = (Env*)realloc(envs, num_envs * sizeof(Env));
+
+    int buf = 0;
+    int buf_agents = 0;
+    buffer_env_starts[0] = 0;
+    buffer_env_counts[0] = 0;
+    for (int i = 0; i < num_envs; i++) {
+        buf_agents += envs[i].num_agents;
+        buffer_env_counts[buf]++;
+        if (buf_agents >= agents_per_buffer && buf < num_buffers - 1) {
+            buf++;
+            buffer_env_starts[buf] = i + 1;
+            buffer_env_counts[buf] = 0;
+            buf_agents = 0;
+        }
+    }
+
+    *num_envs_out = num_envs;
+    return envs;
+}
+
+VecEnv* vec_create(Dict* vec_kwargs, Dict* env_kwargs) {
+    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
+    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
+    VecEnv* vec = (VecEnv*)calloc(1, sizeof(VecEnv));
+    vec->total_agents = total_agents;
+    vec->buffers = num_buffers;
+    vec->agents_per_buffer = total_agents / num_buffers;
+    vec->num_workers = (int)dict_get(vec_kwargs, "num_threads") / num_buffers;
+    if (vec->num_workers < 1) {
+        vec->num_workers = 1;
+    }
+    int frozen_banks = (int)dict_get(vec_kwargs, "num_frozen_banks");
+    vec->num_banks = frozen_banks + 1;
+    vec->bank_layout = (int*)calloc(vec->num_banks + 1, sizeof(int));
+
+    vec->buffer_env_starts = (int*)calloc(num_buffers, sizeof(int));
+    vec->buffer_env_counts = (int*)calloc(num_buffers, sizeof(int));
+
+    int num_envs = 0;
+    vec->envs = vec_init_envs(&num_envs, vec->buffer_env_starts, vec->buffer_env_counts,
+                            vec_kwargs, env_kwargs);
+    vec->size = num_envs;
+
+    obs_t* observations = NULL;
+    obs_t* gpu_observations = NULL;
+    cudaHostAlloc((void**)&observations,
+        (size_t)total_agents * OBS_SIZE * sizeof(obs_t), cudaHostAllocPortable);
+    cudaHostAlloc((void**)&vec->actions, total_agents * NUM_ATNS * sizeof(float), cudaHostAllocPortable);
+    cudaHostAlloc((void**)&vec->rewards, total_agents * sizeof(float), cudaHostAllocPortable);
+    cudaHostAlloc((void**)&vec->terminals, total_agents * sizeof(float), cudaHostAllocPortable);
+
+    cudaMalloc((void**)&gpu_observations,
+        (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
+    cudaMalloc((void**)&vec->gpu_actions, total_agents * NUM_ATNS * sizeof(float));
+    cudaMalloc((void**)&vec->gpu_rewards, total_agents * sizeof(float));
+    cudaMalloc((void**)&vec->gpu_terminals, total_agents * sizeof(float));
+
+    vec->observations = observations;
+    vec->gpu_observations = gpu_observations;
+
+    cudaMemset(vec->gpu_observations, 0,
+        (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
+    cudaMemset(vec->gpu_actions, 0, total_agents * NUM_ATNS * sizeof(float));
+    cudaMemset(vec->gpu_rewards, 0, total_agents * sizeof(float));
+    cudaMemset(vec->gpu_terminals, 0, total_agents * sizeof(float));
+
+    vec->action_mask_size = (int)dict_get(vec_kwargs, "action_mask_size");
+    if (vec->action_mask_size > 0) {
+        size_t mask_bytes = (size_t)total_agents * vec->action_mask_size * sizeof(unsigned char);
+        cudaHostAlloc((void**)&vec->action_mask, mask_bytes, cudaHostAllocPortable);
+        cudaMalloc((void**)&vec->gpu_action_mask, mask_bytes);
+        cudaMemset(vec->gpu_action_mask, 0, mask_bytes);
+    }
+    vec->streams = (cudaStream_t*)calloc(num_buffers, sizeof(cudaStream_t));
+
+    Env* envs = vec->envs;
+    for (int buf = 0; buf < num_buffers; buf++) {
+        int buf_start = buf * vec->agents_per_buffer;
+        int env_start = vec->buffer_env_starts[buf];
+        int env_count = vec->buffer_env_counts[buf];
+
+        float frozen_pct = (float)dict_get(vec_kwargs, "frozen_bank_pct");
+        int frozen_envs = (int)(frozen_pct * env_count);
+        int frozen_start = env_count - frozen_envs;
+        if (frozen_banks == 0 || frozen_pct <= 0.0f) {
+            frozen_start = env_count;
+        }
+
+        int* counts = (int*)calloc(vec->num_banks, sizeof(int));
+        for (int e = 0; e < env_count; e++) {
+            Env* env = &envs[env_start + e];
+            for (int s = 0; s < env->num_agents; s++) {
+                int policy = e < frozen_start ? 0 : env->agents[s].policy;
+                if (policy < 0 || policy >= vec->num_banks) {
+                    fprintf(stderr, "Agent policy %d outside bank range [0, %d)\n",
+                        policy, vec->num_banks);
+                    exit(1);
+                }
+                counts[policy]++;
+            }
+        }
+
+        int offset = 0;
+        for (int b = 0; b < vec->num_banks; b++) {
+            if (buf == 0) {
+                vec->bank_layout[b] = offset;
+            } else if (vec->bank_layout[b] != offset) {
+                fprintf(stderr, "Bank layout must match across buffers\n");
+                exit(1);
+            }
+            offset += counts[b];
+        }
+        if (offset != vec->agents_per_buffer) {
+            fprintf(stderr, "Buffer has %d agents, expected %d\n",
+                offset, vec->agents_per_buffer);
+            exit(1);
+        }
+        if (buf == 0) {
+            vec->bank_layout[vec->num_banks] = offset;
+        } else if (vec->bank_layout[vec->num_banks] != offset) {
+            fprintf(stderr, "Bank layout must match across buffers\n");
+            exit(1);
+        }
+
+        int* cursors = (int*)calloc(vec->num_banks, sizeof(int));
+        for (int b = 0; b < vec->num_banks; b++) {
+            cursors[b] = buf_start + vec->bank_layout[b];
+        }
+        for (int e = 0; e < env_count; e++) {
+            Env* env = &envs[env_start + e];
+            int tag = 0;
+            for (int s = 0; s < env->num_agents; s++) {
+                int policy = e < frozen_start ? 0 : env->agents[s].policy;
+                if (policy > tag) {
+                    tag = policy;
+                }
+                int phys = cursors[policy];
+                env->agents[s].observations = vec->observations + (size_t)phys * OBS_SIZE;
+                env->agents[s].actions = vec->actions + (size_t)phys * NUM_ATNS;
+                env->agents[s].rewards = vec->rewards + phys;
+                env->agents[s].terminals = vec->terminals + phys;
+                if (vec->action_mask_size > 0) {
+                    env->agents[s].action_mask =
+                        vec->action_mask + (size_t)phys * vec->action_mask_size;
+                } else {
+                    env->agents[s].action_mask = NULL;
+                }
+                cursors[policy]++;
+            }
+            env->tag = tag;
+            env->boundary_reached = 0;
+        }
+        free(cursors);
+        free(counts);
+    }
+
+    return vec;
+}
+
+void vec_reset(VecEnv* vec) {
+    Env* envs = vec->envs;
+    #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
+    for (int i = 0; i < vec->size; i++) {
+        puf_reset(&envs[i]);
+    }
+    cudaMemcpy(vec->gpu_observations, vec->observations,
+        (size_t)vec->total_agents * OBS_SIZE * sizeof(obs_t), cudaMemcpyHostToDevice);
+    cudaMemset(vec->gpu_rewards,   0, vec->total_agents * sizeof(float));
+    cudaMemset(vec->gpu_terminals, 0, vec->total_agents * sizeof(float));
+    if (vec->action_mask_size > 0) {
+        cudaMemcpy(vec->gpu_action_mask, vec->action_mask,
+            (size_t)vec->total_agents * vec->action_mask_size * sizeof(unsigned char),
+            cudaMemcpyHostToDevice);
+    }
+    cudaDeviceSynchronize();
+}
+
+void vec_create_threads(VecEnv* vec, int num_threads, int horizon, struct PuffeRL* pufferl) {
+    vec->buffer_states = (atomic_int*)calloc(vec->buffers, sizeof(atomic_int));
+    vec->threads = (pthread_t*)calloc(vec->buffers, sizeof(pthread_t));
+    vec->workers = (VecWorker*)calloc(vec->buffers, sizeof(VecWorker));
+    vec->accum = (float*)calloc(vec->buffers * NUM_VEC_PROF, sizeof(float));
+    for (int i = 0; i < vec->buffers; i++) {
+        vec->workers[i].vec = vec;
+        vec->workers[i].buf = i;
+        vec->workers[i].horizon = horizon;
+        vec->workers[i].pufferl = pufferl;
+        pthread_create(&vec->threads[i], NULL, vec_thread_main, &vec->workers[i]);
+    }
+}
+
+void vec_close(VecEnv* vec) {
+    Env* envs = vec->envs;
+
+    if (vec->threads != NULL) {
+        atomic_store(&vec->shutdown, 1);
+        for (int i = 0; i < vec->buffers; i++) {
+            pthread_join(vec->threads[i], NULL);
+        }
+    }
+
+    for (int i = 0; i < vec->size; i++) {
+        Env* env = &envs[i];
+        puf_close(env);
+    }
+
+    free(vec->envs);
+    free(vec->buffer_states);
+    free(vec->threads);
+    free(vec->workers);
+    free(vec->accum);
+    free(vec->buffer_env_starts);
+    free(vec->buffer_env_counts);
+    free(vec->bank_layout);
+
+    cudaDeviceSynchronize();
+    cudaFree(vec->gpu_observations);
+    cudaFree(vec->gpu_actions);
+    cudaFree(vec->gpu_rewards);
+    cudaFree(vec->gpu_terminals);
+    cudaFreeHost(vec->observations);
+    cudaFreeHost(vec->actions);
+    cudaFreeHost(vec->rewards);
+    cudaFreeHost(vec->terminals);
+    if (vec->action_mask_size > 0) {
+        cudaFree(vec->gpu_action_mask);
+        cudaFreeHost(vec->action_mask);
+    }
+
+    free(vec->streams);
+    free(vec);
+}
+
+void vec_log(VecEnv* vec, Dict* out, int clear) {
+    Env* envs = vec->envs;
+    Log aggregate;
+    memset(&aggregate, 0, sizeof(Log));
+    int num_keys = sizeof(Log) / sizeof(float);
+    for (int i = 0; i < vec->size; i++) {
+        Env* env = &envs[i];
+        if (env->log.n == 0) {
+            continue;
+        }
+        for (int j = 0; j < num_keys; j++) {
+            ((float*)&aggregate)[j] += ((float*)&env->log)[j];
+        }
+    }
+
+    float n = aggregate.n;
+    if (n == 0) {
+        return;
+    }
+    for (int i = 0; i < num_keys; i++) {
+        ((float*)&aggregate)[i] /= n;
+    }
+    if (clear) {
+        for (int i = 0; i < vec->size; i++) {
+            memset(&envs[i].log, 0, sizeof(Log));
+        }
+    }
+    puf_log(&aggregate, out);
+    dict_set(out, "n", n);
+}
+
+
+#define SELECT_COPY_THREADS 256
 
 #define _PUFFER_STRINGIFY(x) #x
 #define PUFFER_STRINGIFY(x) _PUFFER_STRINGIFY(x)
@@ -48,7 +1011,7 @@ typedef struct {
 } ProfileT;
 
 // Data collected by parallel environment workers. Each worker handles
-// a constant subset of agents 
+// a constant subset of agents
 struct RolloutBuf {
     PrecisionTensor observations;  // (horizon, agents, input_size)
     PrecisionTensor actions;       // (horizon, agents, num_atns)
@@ -90,73 +1053,6 @@ void register_rollout_buffers(RolloutBuf& bufs, Allocator* alloc, int T, int B, 
     }
 }
 
-// Train data layout is transposed to (B, T) from rollouts layout (T, B)
-// This allows env workers to collect data with contiguous writes and
-// training to perform several (though not all) ops in contiguous memory
-struct TrainGraph {
-    PrecisionTensor mb_state;       // (layers, B, hidden)
-    PrecisionTensor mb_obs;         // (B, T, input_size)
-    PrecisionTensor mb_actions;     // (B, T, num_atns)
-    PrecisionTensor mb_logprobs;    // (B, T)
-    PrecisionTensor mb_advantages;  // ...
-    PrecisionTensor mb_values;
-    PrecisionTensor mb_returns;
-    PrecisionTensor mb_ratio;
-    PrecisionTensor mb_newvalue;
-    PrecisionTensor mb_prio;        // (B,)
-    PrecisionTensor mb_action_mask; // (B, T, mask_size); .data=nullptr when disabled
-};
-
-void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, int input_size,
-        int hidden_size, int num_atns, int num_layers, int mask_size) {
-    bufs = (TrainGraph){
-        .mb_state =         {.shape = {num_layers, B, hidden_size}},
-        .mb_obs =           {.shape = {B, T, input_size}},
-        .mb_actions =       {.shape = {B, T, num_atns}},
-        .mb_logprobs =      {.shape = {B, T}},
-        .mb_advantages =    {.shape = {B, T}},
-        .mb_values =        {.shape = {B, T}},
-        .mb_returns =       {.shape = {B, T}},
-        .mb_ratio =         {.shape = {B, T}},
-        .mb_newvalue =      {.shape = {B, T}},
-        .mb_prio =          {.shape = {B}},
-        .mb_action_mask =   {},
-    };
-    alloc_register(alloc, &bufs.mb_obs);
-    alloc_register(alloc, &bufs.mb_state);
-    alloc_register(alloc, &bufs.mb_actions);
-    alloc_register(alloc, &bufs.mb_logprobs);
-    alloc_register(alloc, &bufs.mb_advantages);
-    alloc_register(alloc, &bufs.mb_prio);
-    alloc_register(alloc, &bufs.mb_values);
-    alloc_register(alloc, &bufs.mb_returns);
-    alloc_register(alloc, &bufs.mb_ratio);
-    alloc_register(alloc, &bufs.mb_newvalue);
-    if (mask_size > 0) {
-        bufs.mb_action_mask = {.shape = {B, T, mask_size}};
-        alloc_register(alloc, &bufs.mb_action_mask);
-    }
-}
-
-__device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
-    if (isnan(x)) {
-        return 0.0f;
-    }
-    if (isinf(x)) {
-        return x > 0.0f ? hi : lo;
-    }
-    return fminf(hi, fmaxf(lo, x));
-}
-
-__device__ __forceinline__ float safe_continuous_mean(const precision_t* logits, int idx) {
-    return finite_or_clamp(to_float(logits[idx]), -1.0e6f, 1.0e6f);
-}
-
-__device__ __forceinline__ float safe_continuous_logstd(const precision_t* logstd, int idx) {
-    return finite_or_clamp(to_float(logstd[idx]), -20.0f, 2.0f);
-}
-
-#include "loss.cu"
 
 // Prioritized replay over single-epoch data. These kernels are
 // the least cleaned because we will likely have a better method in 5.0
@@ -279,7 +1175,7 @@ typedef struct PuffeRL {
     // Optional frozen weight banks for match / league.
     WeightBank* frozen_banks;  // [num_frozen_banks]
     int num_frozen_banks;
-    char env_name[64];  // Kept for post-init bank adds (needs create_custom_encoder).
+    char env_name[64];  // Kept for post-init bank adds.
     // Per-buffer-relative bank layout: bank_layout[b] = first agent within each
     // buffer chunk owned by bank b. Length num_banks+1; ends at agents_per_buffer.
     // Same shape applied to every buffer (each buffer hosts every bank), so each
@@ -744,7 +1640,243 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t) {
 }
 
 
-#include "advantage.cu"
+
+// Advantage and replay
+
+// Zero advantages on frozen-bank rows so prio_replay never samples them. Frozen
+// rollout rows hold actions/logprobs from the frozen policy; training the
+// primary's PPO on them produces garbage ratios and poisoned gradients.
+__global__ void zero_frozen_advantages_kernel(precision_t* advantages,
+        int agents_per_buffer, int primary_per_buffer, int total_rows, int horizon) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = total_rows * horizon;
+    if (idx >= total) {
+        return;
+    }
+    int row = idx / horizon;
+    int rel = row % agents_per_buffer;
+    if (rel >= primary_per_buffer) {
+        advantages[idx] = from_float(0.0f);
+    }
+}
+
+#define PRIO_WARP_SIZE 32
+#define PRIO_FULL_MASK 0xffffffff
+#define PRIO_BLOCK_SIZE 256
+#define PRIO_NUM_WARPS (PRIO_BLOCK_SIZE / PRIO_WARP_SIZE)
+
+__global__ void compute_prio_adv_reduction(
+        const precision_t* __restrict__ advantages,
+        float* prio_weights, float prio_alpha, int stride) {
+    int row = blockIdx.x;
+    int tx = threadIdx.x;
+    int offset = row * stride;
+
+    float local_sum = 0.0f;
+    for (int t = tx; t < stride; t += blockDim.x) {
+        local_sum += fabsf(to_float(advantages[offset + t]));
+    }
+
+    for (int s = PRIO_WARP_SIZE / 2; s >= 1; s /= 2) {
+        local_sum += __shfl_down_sync(PRIO_FULL_MASK, local_sum, s);
+    }
+    if (tx == 0) {
+        float pw = __powf(local_sum, prio_alpha);
+        if (isnan(pw) || isinf(pw)) {
+            pw = 0.0f;
+        }
+        prio_weights[row] = pw;
+    }
+}
+
+__global__ void compute_prio_normalize(float* prio_weights, int length) {
+    __shared__ float shmem[PRIO_NUM_WARPS];
+    __shared__ float block_sum;
+
+    int tx = threadIdx.x;
+    int lane = tx % PRIO_WARP_SIZE;
+    int warp_id = tx / PRIO_WARP_SIZE;
+    const float eps = 1e-6f;
+
+    float local_sum = 0.0f;
+    for (int t = tx; t < length; t += blockDim.x) {
+        local_sum += prio_weights[t];
+    }
+    for (int s = PRIO_WARP_SIZE / 2; s >= 1; s /= 2) {
+        local_sum += __shfl_down_sync(PRIO_FULL_MASK, local_sum, s);
+    }
+    if (lane == 0) {
+        shmem[warp_id] = local_sum;
+    }
+    __syncthreads();
+
+    if (warp_id == 0) {
+        float val = (lane < PRIO_NUM_WARPS) ? shmem[lane] : 0.0f;
+        for (int s = PRIO_NUM_WARPS / 2; s >= 1; s /= 2) {
+            val += __shfl_down_sync(PRIO_FULL_MASK, val, s);
+        }
+        if (tx == 0) {
+            block_sum = val + eps;
+        }
+    }
+    __syncthreads();
+
+    for (int t = tx; t < length; t += blockDim.x) {
+        prio_weights[t] = (prio_weights[t] + eps) / block_sum;
+    }
+}
+
+// mb_prio[i] = pow(total_agents * prio_probs[idx[i]], -anneal_beta)
+__global__ void compute_prio_imp_weights(
+        const int* __restrict__ indices,
+        const float* __restrict__ prio_probs,
+        float* mb_prio, int total_agents,
+        float anneal_beta, int minibatch_segments) {
+    int tx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tx < minibatch_segments) {
+        float value = prio_probs[indices[tx]] * (float)total_agents;
+        mb_prio[tx] = __powf(value, -anneal_beta);
+    }
+}
+
+__global__ void build_cdf(
+    float* __restrict__ cdf, const float* __restrict__ probs, int B) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        float cum = 0.0f;
+        for (int i = 0; i < B; i++) {
+            cum += probs[i];
+            cdf[i] = cum;
+        }
+    }
+}
+
+__global__ void advance_rng_offset(int64_t* __restrict__ offset_ptr, int64_t delta) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        *offset_ptr += delta;
+    }
+}
+
+// Multinomial with replacement (uses cuRAND)
+__global__ void multinomial_sample(int* __restrict__ out_idx, const float* __restrict__ cdf,
+        int B, int num_samples, uint64_t seed, const int64_t* __restrict__ offset_ptr) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= num_samples) {
+        return;
+    }
+
+    uint64_t base_off = (uint64_t)(*offset_ptr);
+    curandStatePhilox4_32_10_t rng_state;
+    curand_init(seed, base_off + tid, 0, &rng_state);
+    float u = curand_uniform(&rng_state);
+
+    int lo = 0;
+    int hi = B - 1;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (cdf[mid] < u) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    out_idx[tid] = lo;
+}
+
+// Prioritize high absolute advantage trajectories. This is a form of implicit
+// curriculum learning; sweep-found alpha/beta values decide whether it matters.
+void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
+        int minibatch_segments, int total_agents, float anneal_beta,
+        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
+    int B = advantages.shape[0];
+    int T = advantages.shape[1];
+    compute_prio_adv_reduction<<<B, PRIO_WARP_SIZE, 0, stream>>>(
+        advantages.data, bufs.prio_probs.data, prio_alpha, T);
+    compute_prio_normalize<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(
+        bufs.prio_probs.data, B);
+    build_cdf<<<1, 1, 0, stream>>>(bufs.cdf.data, bufs.prio_probs.data, B);
+    int threads = 256;
+    int blocks = (minibatch_segments + threads - 1) / threads;
+    multinomial_sample<<<blocks, threads, 0, stream>>>(
+        bufs.idx.data, bufs.cdf.data, B, minibatch_segments, seed, offset_ptr);
+    advance_rng_offset<<<1, 1, 0, stream>>>(offset_ptr, (int64_t)minibatch_segments);
+
+    int p3_blocks = (minibatch_segments + PRIO_BLOCK_SIZE - 1) / PRIO_BLOCK_SIZE;
+    compute_prio_imp_weights<<<p3_blocks, PRIO_BLOCK_SIZE, 0, stream>>>(
+        bufs.idx.data, bufs.prio_probs.data,
+        bufs.mb_prio.data, total_agents, anneal_beta, minibatch_segments);
+}
+
+
+__device__ __forceinline__ void copy_values_adv_returns(
+        const precision_t* __restrict__ src_values, precision_t* __restrict__ dst_values,
+        const precision_t* __restrict__ src_advantages, precision_t* __restrict__ dst_advantages,
+        precision_t* __restrict__ dst_returns,
+        int src_row, int dst_row, int horizon) {
+    int srh = (int64_t)src_row * horizon;
+    int drh = (int64_t)dst_row * horizon;
+    const precision_t* s_values = src_values + srh;
+    const precision_t* s_adv = src_advantages + srh;
+    precision_t* d_values = dst_values + drh;
+    precision_t* d_adv = dst_advantages + drh;
+    precision_t* d_returns = dst_returns + drh;
+    for (int i = threadIdx.x; i < horizon; i += blockDim.x) {
+        precision_t val = s_values[i];
+        precision_t adv = s_adv[i];
+        d_values[i] = val;
+        d_adv[i] = adv;
+        d_returns[i] = from_float(to_float(val) + to_float(adv));
+    }
+}
+
+__global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
+        const int* __restrict__ idx, const precision_t* __restrict__ advantages,
+        const float* __restrict__ mb_prio) {
+    int mb = blockIdx.x;
+    int ch = blockIdx.y;
+    int src_row = idx[mb];
+
+    int obs_row_bytes = (numel(rollouts.observations.shape)
+        / rollouts.observations.shape[0]) * sizeof(precision_t);
+    int act_row_bytes = (numel(rollouts.actions.shape)
+        / rollouts.actions.shape[0]) * sizeof(precision_t);
+    int lp_row_bytes = (numel(rollouts.logprobs.shape)
+        / rollouts.logprobs.shape[0]) * sizeof(precision_t);
+    int horizon = rollouts.values.shape[1];
+
+    switch (ch) {
+    case 0:
+        copy_bytes((const char*)rollouts.observations.data,
+            (char*)graph.mb_obs.data, src_row, mb, obs_row_bytes);
+        break;
+    case 1:
+        copy_bytes((const char*)rollouts.actions.data,
+            (char*)graph.mb_actions.data, src_row, mb, act_row_bytes);
+        break;
+    case 2:
+        copy_bytes((const char*)rollouts.logprobs.data,
+            (char*)graph.mb_logprobs.data, src_row, mb, lp_row_bytes);
+        break;
+    case 3:
+        copy_values_adv_returns(rollouts.values.data, graph.mb_values.data,
+            advantages, graph.mb_advantages.data,
+            graph.mb_returns.data, src_row, mb, horizon);
+        break;
+    case 4:
+        if (threadIdx.x == 0) {
+            graph.mb_prio.data[mb] = from_float(mb_prio[mb]);
+        }
+        break;
+    case 5:
+        if (graph.mb_action_mask.data != nullptr) {
+            int mask_row_bytes = (numel(rollouts.action_mask.shape)
+                / rollouts.action_mask.shape[0]) * sizeof(precision_t);
+            copy_bytes((const char*)rollouts.action_mask.data,
+                (char*)graph.mb_action_mask.data, src_row, mb, mask_row_bytes);
+        }
+        break;
+    }
+}
+
 
 // Minor copy bandwidth optimizations
 __global__ void index_copy(char* __restrict__ dst, const int* __restrict__ idx,
@@ -851,8 +1983,11 @@ void train_impl(PuffeRL& pufferl) {
             hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream);
         if (pufferl.num_frozen_banks > 0 && pufferl.bank_layout != NULL) {
             int apb = hypers.total_agents / hypers.num_buffers;
-            zero_frozen_advantages_cuda(advantages_puf, apb,
-                pufferl.bank_layout[1], train_stream);
+            int rows = advantages_puf.shape[0];
+            int horizon = advantages_puf.shape[1];
+            int total = rows * horizon;
+            zero_frozen_advantages_kernel<<<grid_size(total), BLOCK_SIZE, 0, train_stream>>>(
+                advantages_puf.data, apb, pufferl.bank_layout[1], rows, horizon);
         }
         profile_end(hypers.profile);
 
@@ -909,6 +2044,11 @@ void train_impl(PuffeRL& pufferl) {
             policy_backward(&pufferl.policy, pufferl.weights, pufferl.train_activations,
                 grad_logits_puf, grad_logstd_puf, grad_values_puf, stream);
 
+            if (pufferl.nccl_comm != nullptr && hypers.world_size > 1) {
+                ncclAllReduce(pufferl.grad_puf.data, pufferl.grad_puf.data,
+                    numel(pufferl.grad_puf.shape), NCCL_PRECISION, ncclAvg,
+                    pufferl.nccl_comm, stream);
+            }
             muon_step(&pufferl.muon, pufferl.master_weights, pufferl.grad_puf, hypers.max_grad_norm, stream);
             if (USE_BF16) {
                 int n = numel(pufferl.param_puf.shape);
@@ -966,57 +2106,6 @@ void train_impl(PuffeRL& pufferl) {
 
 }
 
-// Build a Policy value for a given env + arch. Encoder/decoder algorithms are
-// fixed by the env; hidden_size/num_layers/horizon parameterize shape. Policy
-// has no heap state so this returns by value; callers store it wherever.
-static Policy build_policy(const char* env_name, int input_size, int hidden_size,
-                           int num_layers, int decoder_output_size, int act_n,
-                           bool is_continuous, int horizon) {
-    Encoder encoder = {
-        .forward = encoder_forward,
-        .backward = encoder_backward,
-        .init_weights = encoder_init_weights,
-        .reg_params = encoder_reg_params,
-        .reg_train = encoder_reg_train,
-        .reg_rollout = encoder_reg_rollout,
-        .create_weights = encoder_create_weights,
-        .free_weights = encoder_free_weights,
-        .free_activations = encoder_free_activations,
-        .in_dim = input_size, .out_dim = hidden_size,
-        .activation_size = sizeof(EncoderActivations),
-    };
-    create_custom_encoder(env_name, &encoder);
-    Decoder decoder = {
-        .forward = decoder_forward,
-        .backward = decoder_backward,
-        .init_weights = decoder_init_weights,
-        .reg_params = decoder_reg_params,
-        .reg_train = decoder_reg_train,
-        .reg_rollout = decoder_reg_rollout,
-        .create_weights = decoder_create_weights,
-        .free_weights = decoder_free_weights,
-        .free_activations = decoder_free_activations,
-        .hidden_dim = hidden_size, .output_dim = decoder_output_size, .continuous = is_continuous,
-    };
-    Network network = {
-        .forward = mingru_forward,
-        .forward_train = mingru_forward_train,
-        .backward = mingru_backward,
-        .init_weights = mingru_init_weights,
-        .reg_params = mingru_reg_params,
-        .reg_train = mingru_reg_train,
-        .reg_rollout = mingru_reg_rollout,
-        .create_weights = mingru_create_weights,
-        .free_weights = mingru_free_weights,
-        .free_activations = mingru_free_activations,
-        .hidden = hidden_size, .num_layers = num_layers, .horizon = horizon,
-    };
-    return Policy{
-        .encoder = encoder, .decoder = decoder, .network = network,
-        .input_dim = input_size, .hidden_dim = hidden_size, .output_dim = decoder_output_size,
-        .num_atns = act_n,
-    };
-}
 
 // Allocate a fresh frozen WeightBank with its own Policy (may differ in
 // hidden_size/num_layers from primary). slice_size = how many agents per buffer
@@ -1238,8 +2327,6 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     alloc_register(acts, &pufferl->advantages_puf);
 
     muon_init(&pufferl->muon, params, hypers.lr, hypers.beta1, hypers.eps, 0.0, acts);
-    pufferl->muon.nccl_comm = pufferl->nccl_comm;
-    pufferl->muon.world_size = hypers.world_size;
 
     // All buffers allocated here
     if (!create_allocator_or_report("params", params)) {
@@ -1465,11 +2552,470 @@ void close_impl(PuffeRL& pufferl) {
 
 #ifdef PUFFERLIB_BUILD_MAIN
 
+#include <fcntl.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #include "protein.cu"
-#include "dashboard.h"
+static double puf_log_get_or(Dict* dict, const char* key, double fallback) {
+    for (int i = 0; i < dict->size; i++) {
+        if (strcmp(dict->items[i].key, key) == 0) {
+            return dict->items[i].value;
+        }
+    }
+    return fallback;
+}
+
+static int puf_dashboard_tty = 0;
+
+#define PUF_DASH_WIDTH 80
+
+static const char* puf_cyan(void) {
+    return puf_dashboard_tty ? "\033[36m" : "";
+}
+
+static const char* puf_bcyan(void) {
+    return puf_dashboard_tty ? "\033[96m" : "";
+}
+
+static const char* puf_white(void) {
+    return puf_dashboard_tty ? "\033[37m" : "";
+}
+
+static const char* puf_bwhite(void) {
+    return puf_dashboard_tty ? "\033[97m" : "";
+}
+
+static const char* puf_ansi_reset(void) {
+    return puf_dashboard_tty ? "\033[0m" : "";
+}
+
+static void puf_dashboard_eol(void) {
+    if (puf_dashboard_tty) {
+        printf("\033[K");
+    }
+    putchar('\n');
+}
+
+static void puf_abbrev(char* out, size_t out_len, double val) {
+    const char* suffix[] = {"", "K", "M", "B", "T"};
+    int i = 0;
+    while (val >= 1000.0 && i < 4) {
+        val /= 1000.0;
+        i++;
+    }
+    snprintf(out, out_len, "%.1f%s", val, suffix[i]);
+}
+
+static void puf_duration(char* out, size_t out_len, double seconds) {
+    if (seconds < 0) {
+        seconds = 0;
+    }
+    if (seconds < 1.0) {
+        snprintf(out, out_len, "%.0fms", seconds * 1000.0);
+        return;
+    }
+
+    long s = (long)seconds;
+    snprintf(out, out_len, "%ldd %ldh %ldm %lds",
+        s / 86400, (s / 3600) % 24, (s / 60) % 60, s % 60);
+}
+
+static void puf_perf_value(char* time_out, size_t time_len, char* pct_out, size_t pct_len,
+        double part, double total) {
+    int pct = total > 0 ? (int)(100.0 * part / total) : 0;
+    puf_duration(time_out, time_len, part);
+    snprintf(pct_out, pct_len, "%d%%", pct);
+}
+
+static void puf_strip_prefix(char* out, size_t out_len, const char* key, const char* prefix) {
+    size_t n = strlen(prefix);
+    if (strncmp(key, prefix, n) == 0) {
+        snprintf(out, out_len, "%s", key + n);
+    } else {
+        snprintf(out, out_len, "%s", key);
+    }
+}
+
+static int puf_loss_value(Dict* log, const char* key, char* out, size_t out_len) {
+    for (int i = 0; i < log->size; i++) {
+        if (strcmp(log->items[i].key, key) == 0) {
+            snprintf(out, out_len, "%.3f", log->items[i].value);
+            return 1;
+        }
+    }
+    if (out_len > 0) {
+        out[0] = 0;
+    }
+    return 0;
+}
+
+static void puf_panel_header(const char* eval_t, const char* eval_pct) {
+    printf("%s│", puf_bcyan());
+    printf("%s %-9s %13s%s    %s%-12s%s %s%6s %4s%s    %s%-10s %7s%s    ",
+        puf_cyan(), "Summary", "Value", puf_ansi_reset(),
+        puf_bcyan(), "Evaluate", puf_ansi_reset(), puf_bwhite(), eval_t, eval_pct, puf_ansi_reset(),
+        puf_cyan(), "Losses", "Value", puf_ansi_reset());
+    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    puf_dashboard_eol();
+}
+
+static void puf_panel_row(const char* s_name, const char* s_val,
+        const char* p_name, const char* p_time, const char* p_pct,
+        const char* l_name, const char* l_val, int emph_perf) {
+    const char* perf_color = emph_perf ? puf_bcyan() : puf_bwhite();
+    printf("%s│", puf_bcyan());
+    printf("%s %s%-9s%s %s%13s%s    %s%-12s%s %s%6s %4s%s    %s%-10s %7s%s    ",
+        puf_ansi_reset(),
+        puf_white(), s_name, puf_ansi_reset(), puf_bwhite(), s_val, puf_ansi_reset(),
+        perf_color, p_name, puf_ansi_reset(), puf_bwhite(), p_time, p_pct, puf_ansi_reset(),
+        puf_bwhite(), l_name, l_val, puf_ansi_reset());
+    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    puf_dashboard_eol();
+}
+
+static void puf_user_header(void) {
+    printf("%s│", puf_bcyan());
+    printf("%s %-23s %9s%s   %s%-23s %9s%s        ",
+        puf_cyan(), "User Stats", "Value", puf_ansi_reset(),
+        puf_cyan(), "User Stats", "Value", puf_ansi_reset());
+    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    puf_dashboard_eol();
+}
+
+static void puf_user_row(const char* left_key, double left_val,
+        const char* right_key, double right_val, int has_right) {
+    printf("%s│", puf_bcyan());
+    if (has_right) {
+        printf("%s %s%-23s %9.3f%s   %s%-23s %9.3f%s        ",
+            puf_ansi_reset(),
+            puf_bwhite(), left_key, left_val, puf_ansi_reset(),
+            puf_bwhite(), right_key, right_val, puf_ansi_reset());
+    } else {
+        printf("%s %s%-23s %9.3f%s   %-23s %9s        ",
+            puf_ansi_reset(),
+            puf_bwhite(), left_key, left_val, puf_ansi_reset(), "", "");
+    }
+    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    puf_dashboard_eol();
+}
+
+static void puf_dashboard_blank(void) {
+    printf("%s│%*s│%s", puf_bcyan(), PUF_DASH_WIDTH - 2, "", puf_ansi_reset());
+    puf_dashboard_eol();
+}
+
+static void puf_dashboard_rule(const char* left, const char* right) {
+    printf("%s%s", puf_bcyan(), left);
+    for (int i = 0; i < PUF_DASH_WIDTH - 2; i++) {
+        printf("─");
+    }
+    printf("%s%s", right, puf_ansi_reset());
+    puf_dashboard_eol();
+}
+
+static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
+    puf_dashboard_tty = isatty(STDOUT_FILENO);
+    if (puf_dashboard_tty) {
+        printf("\033[?2026h\033[H");
+    }
+
+    const char* env_name = puf_config_str(cfg, "base", "env_name");
+    double steps = puf_log_get_or(log, "agent_steps", (double)p->global_step);
+    double sps = puf_log_get_or(log, "SPS", 0);
+    double target_steps = puf_config_get(cfg, "train", "total_timesteps");
+    double remaining_sec = sps > 0 ? (target_steps - steps) / sps : 0;
+    double rollout = puf_log_get_or(log, "perf/rollout", 0);
+    double train_time = puf_log_get_or(log, "perf/train", 0);
+    double perf_total = rollout + train_time;
+
+    char params[32];
+    char steps_s[32];
+    char sps_s[32];
+    char uptime[64];
+    char remaining[64];
+    puf_abbrev(params, sizeof(params), (double)numel(p->master_weights.shape));
+    puf_abbrev(steps_s, sizeof(steps_s), steps);
+    puf_abbrev(sps_s, sizeof(sps_s), sps);
+    puf_duration(uptime, sizeof(uptime), puf_log_get_or(log, "uptime", 0));
+    puf_duration(remaining, sizeof(remaining), remaining_sec);
+
+    puf_dashboard_rule("╭", "╮");
+    printf("%s│", puf_bcyan());
+    printf("%s %sPufferLib %s4.0%s        %s🐡%s        %sGPU:%s %2.0f%%    %sVRAM:%s %.1f/%.0fG    %sRAM:%s %.1fG        ",
+        puf_ansi_reset(),
+        puf_bcyan(), puf_bwhite(), puf_ansi_reset(),
+        puf_bcyan(), puf_ansi_reset(),
+        puf_cyan(), puf_bwhite(),
+        puf_log_get_or(log, "util/gpu_percent", 0),
+        puf_cyan(), puf_bwhite(),
+        puf_log_get_or(log, "util/vram_used_gb", 0),
+        puf_log_get_or(log, "util/vram_total_gb", 0),
+        puf_cyan(), puf_bwhite(),
+        puf_log_get_or(log, "util/cpu_mem_gb", 0));
+    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    puf_dashboard_eol();
+    puf_dashboard_blank();
+
+    char epoch_s[32];
+    char eval_t[64];
+    char eval_pct[16];
+    char gpu_t[64];
+    char gpu_pct[16];
+    char env_t[64];
+    char env_pct[16];
+    char train_t[64];
+    char train_pct[16];
+    char misc_t[64];
+    char misc_pct[16];
+    char forward_t[64];
+    char forward_pct[16];
+    char loss_policy[32];
+    char loss_value[32];
+    char loss_entropy[32];
+    char loss_total[32];
+    char loss_old_kl[32];
+    char loss_kl[32];
+    char loss_clipfrac[32];
+    snprintf(epoch_s, sizeof(epoch_s), "%d", epoch);
+    puf_perf_value(eval_t, sizeof(eval_t), eval_pct, sizeof(eval_pct), rollout, perf_total);
+    puf_perf_value(gpu_t, sizeof(gpu_t), gpu_pct, sizeof(gpu_pct),
+        puf_log_get_or(log, "perf/eval_gpu", 0), perf_total);
+    puf_perf_value(env_t, sizeof(env_t), env_pct, sizeof(env_pct),
+        puf_log_get_or(log, "perf/eval_env", 0), perf_total);
+    puf_perf_value(train_t, sizeof(train_t), train_pct, sizeof(train_pct), train_time, perf_total);
+    puf_perf_value(misc_t, sizeof(misc_t), misc_pct, sizeof(misc_pct),
+        puf_log_get_or(log, "perf/train_misc", 0), perf_total);
+    puf_perf_value(forward_t, sizeof(forward_t), forward_pct, sizeof(forward_pct),
+        puf_log_get_or(log, "perf/train_forward", 0), perf_total);
+    puf_loss_value(log, "loss/policy", loss_policy, sizeof(loss_policy));
+    puf_loss_value(log, "loss/value", loss_value, sizeof(loss_value));
+    puf_loss_value(log, "loss/entropy", loss_entropy, sizeof(loss_entropy));
+    puf_loss_value(log, "loss/total", loss_total, sizeof(loss_total));
+    puf_loss_value(log, "loss/old_kl", loss_old_kl, sizeof(loss_old_kl));
+    puf_loss_value(log, "loss/kl", loss_kl, sizeof(loss_kl));
+    puf_loss_value(log, "loss/clipfrac", loss_clipfrac, sizeof(loss_clipfrac));
+
+    puf_panel_header(eval_t, eval_pct);
+    puf_panel_row("Env", env_name, "  GPU", gpu_t, gpu_pct, "policy", loss_policy, 0);
+    puf_panel_row("Params", params, "  Env", env_t, env_pct, "value", loss_value, 0);
+    puf_panel_row("Steps", steps_s, "Train", train_t, train_pct, "entropy", loss_entropy, 1);
+    puf_panel_row("SPS", sps_s, "  Misc", misc_t, misc_pct, "total", loss_total, 0);
+    puf_panel_row("Epoch", epoch_s, "  Forward", forward_t, forward_pct, "old_kl", loss_old_kl, 0);
+    puf_panel_row("Uptime", uptime, "", "", "", "kl", loss_kl, 0);
+    puf_panel_row("To go", remaining, "", "", "", "clipfrac", loss_clipfrac, 0);
+    puf_dashboard_blank();
+
+    puf_user_header();
+    char pending_key[128];
+    double pending_val = 0;
+    int pending = 0;
+    int n = 0;
+    for (int i = 0; i < log->size && n < 30; i++) {
+        const char* key = log->items[i].key;
+        if (strncmp(key, "env/", 4) != 0 || strcmp(key, "env/n") == 0) {
+            continue;
+        }
+
+        char short_key[128];
+        puf_strip_prefix(short_key, sizeof(short_key), key, "env/");
+        if (!pending) {
+            snprintf(pending_key, sizeof(pending_key), "%s", short_key);
+            pending_val = log->items[i].value;
+            pending = 1;
+        } else {
+            puf_user_row(pending_key, pending_val, short_key, log->items[i].value, 1);
+            pending = 0;
+        }
+        n++;
+    }
+    if (pending) {
+        puf_user_row(pending_key, pending_val, "", 0, 0);
+    }
+    puf_dashboard_rule("╰", "╯");
+    if (puf_dashboard_tty) {
+        printf("\033[J\033[?2026l");
+    }
+    fflush(stdout);
+}
+
+
+typedef struct {
+    char section[64];
+    char key[64];
+} SweepParam;
+
+static float puf_config_sweep_num(Dict* dict, const char* key) {
+    const char* raw = dict_get_str(dict, key);
+    double value = 0;
+    puf_config_assert(puf_ini_parse_val(raw, &value),
+        "invalid numeric field [%s] %s = %s", dict->name, key, raw);
+    return (float)value;
+}
+
+static SpaceType puf_config_sweep_space_type(Dict* dict, int* is_integer) {
+    const char* dist = dict_get_str(dict, "distribution");
+    *is_integer = 0;
+    if (strcmp(dist, "uniform") == 0) {
+        return SPACE_LINEAR;
+    }
+    if (strcmp(dist, "int_uniform") == 0) {
+        *is_integer = 1;
+        return SPACE_LINEAR;
+    }
+    if (strcmp(dist, "uniform_pow2") == 0) {
+        *is_integer = 1;
+        return SPACE_POW2;
+    }
+    if (strcmp(dist, "log_normal") == 0) {
+        return SPACE_LOG;
+    }
+    if (strcmp(dist, "logit_normal") == 0) {
+        return SPACE_LOGIT;
+    }
+
+    puf_config_assert(0, "invalid sweep distribution [%s] %s", dict->name, dist);
+    return SPACE_LINEAR;
+}
+
+static void puf_config_validate(Config* cfg) {
+    int minibatch_size = puf_config_int(cfg, "train", "minibatch_size");
+    int horizon = puf_config_int(cfg, "train", "horizon");
+    int total_agents = puf_config_int(cfg, "vec", "total_agents");
+    int train_gpus = puf_config_int(cfg, "train", "gpus");
+    puf_config_assert(train_gpus >= 1, "train.gpus must be >= 1");
+    puf_config_assert(minibatch_size % horizon == 0,
+        "train.minibatch_size must be divisible by train.horizon");
+    puf_config_assert(minibatch_size <= horizon * total_agents,
+        "train.minibatch_size > train.horizon * vec.total_agents");
+
+    int league = puf_config_int(cfg, "sweep", "league");
+    const char* metric = puf_config_str(cfg, "sweep", "metric");
+    puf_config_assert(league || strcmp(metric, "score") == 0,
+        "native sweep currently scores env/score, got env/%s", metric);
+
+    const char* metric_dist = puf_config_str(cfg, "sweep", "metric_distribution");
+    puf_config_assert(strcmp(metric_dist, "linear") == 0 ||
+            strcmp(metric_dist, "logit") == 0,
+        "sweep.metric_distribution must be linear or logit");
+
+    const char* goal = puf_config_str(cfg, "sweep", "goal");
+    puf_config_assert(strcmp(goal, "maximize") == 0 ||
+            strcmp(goal, "minimize") == 0,
+        "sweep.goal must be maximize or minimize");
+
+    int max_runs = puf_config_int(cfg, "sweep", "max_runs");
+    int downsample = puf_config_int(cfg, "sweep", "downsample");
+    int sweep_gpus = puf_config_int(cfg, "sweep", "gpus");
+    puf_config_assert(max_runs >= 1, "sweep.max_runs must be >= 1");
+    puf_config_assert(downsample >= 1 && downsample <= TRAIN_RESULT_MAX_POINTS,
+        "sweep.downsample must be in [1, %d]", TRAIN_RESULT_MAX_POINTS);
+    puf_config_assert(sweep_gpus >= 0, "sweep.gpus must be >= 0");
+    puf_config_assert(sweep_gpus == 0 || sweep_gpus >= train_gpus + league,
+        "sweep.gpus must be >= train.gpus%s",
+        league ? " + 1 for league sweeps" : "");
+    puf_config_assert(puf_config_float(cfg, "sweep", "max_suggestion_cost") > 0,
+        "sweep.max_suggestion_cost must be > 0");
+
+    float q = puf_config_float(cfg, "sweep", "early_stop_quantile");
+    puf_config_assert(q > 0 && q < 1, "sweep.early_stop_quantile must be in (0, 1)");
+    puf_config_assert(!league ||
+            strcmp(puf_config_str(cfg, "base", "env_name"), "robocode") == 0,
+        "league sweep currently requires robocode");
+
+    for (int i = 0; i < cfg->ini.num_sections; i++) {
+        Dict* dict = &cfg->ini.sections[i];
+        if (strncmp(dict->name, "sweep.", 6) != 0) {
+            continue;
+        }
+
+        const char* sweep_key = dict->name + 6;
+        const char* dot = strrchr(sweep_key, '.');
+        puf_config_assert(dot && dot != sweep_key && dot[1],
+            "expected section [sweep.<section>.<key>]");
+
+        int is_integer = 0;
+        puf_config_sweep_space_type(dict, &is_integer);
+
+        float min_v = puf_config_sweep_num(dict, "min");
+        float max_v = puf_config_sweep_num(dict, "max");
+        puf_config_assert(max_v > min_v, "[%s] max must be greater than min", dict->name);
+
+        const char* scale = dict_get_str(dict, "scale");
+        if (strcmp(scale, "time") == 0) {
+            puf_config_assert(min_v > 0 && max_v > 0,
+                "[%s] scale=time requires positive min/max", dict->name);
+        } else if (strcmp(scale, "auto") != 0) {
+            puf_config_sweep_num(dict, "scale");
+        }
+    }
+}
+
+static float puf_config_sweep_scale(Dict* dict, float min_v, float max_v) {
+    const char* raw = dict_get_str(dict, "scale");
+    if (strcmp(raw, "auto") == 0) {
+        return 0.5f;
+    }
+    if (strcmp(raw, "time") == 0) {
+        return 1.0f / (log2f(max_v) - log2f(min_v));
+    }
+    return puf_config_sweep_num(dict, "scale");
+}
+
+static SweepSpace* puf_config_sweep_space(Config* cfg, SweepParam** params_out) {
+    SweepParam* params = (SweepParam*)calloc((size_t)cfg->ini.num_sections,
+        sizeof(SweepParam));
+    int direction = strcmp(puf_config_str(cfg, "sweep", "goal"), "minimize") == 0 ?
+        -1 : 1;
+    SweepSpace* space = sweep_space_create(cfg->ini.num_sections, -1, direction);
+    int n = 0;
+
+    for (int i = 0; i < cfg->ini.num_sections; i++) {
+        Dict* dict = &cfg->ini.sections[i];
+        if (strncmp(dict->name, "sweep.", 6) != 0) {
+            continue;
+        }
+
+        const char* sweep_key = dict->name + 6;
+        const char* dot = strrchr(sweep_key, '.');
+        int section_len = (int)(dot - sweep_key);
+        snprintf(params[n].section, sizeof(params[n].section), "%.*s",
+            section_len, sweep_key);
+        snprintf(params[n].key, sizeof(params[n].key), "%s", dot + 1);
+
+        int is_integer = 0;
+        SpaceType type = puf_config_sweep_space_type(dict, &is_integer);
+        float min_v = puf_config_sweep_num(dict, "min");
+        float max_v = puf_config_sweep_num(dict, "max");
+        float scale = puf_config_sweep_scale(dict, min_v, max_v);
+        space_init(&space->spaces[n], type, min_v, max_v, scale, is_integer);
+
+        if (strcmp(params[n].section, "train") == 0 &&
+                strcmp(params[n].key, "total_timesteps") == 0) {
+            space->cost_idx = n;
+        }
+        n++;
+    }
+
+    space->num = n;
+    *params_out = params;
+    return space;
+}
+
+static void puf_config_sweep_apply(Config* cfg, SweepParam* params,
+        SweepSpace* space, const float* sample) {
+    for (int i = 0; i < space->num; i++) {
+        float val = space_unnormalize(&space->spaces[i], sample[i]);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%.9g", val);
+        char key[256];
+        snprintf(key, sizeof(key), "%s.%s", params[i].section, params[i].key);
+        puf_config_put(cfg, key, buf);
+    }
+}
 
 static void log_util(PuffeRL* p, Dict* out) {
     nvmlUtilization_t util;
@@ -1793,6 +3339,17 @@ typedef struct {
     int games;
 } EvalResult;
 
+typedef struct {
+    float score;
+    float cost;
+    float steps;
+    int points;
+    char checkpoint_path[4096];
+    float scores[TRAIN_RESULT_MAX_POINTS];
+    float costs[TRAIN_RESULT_MAX_POINTS];
+    float step_points[TRAIN_RESULT_MAX_POINTS];
+} TrainResult;
+
 #define EVAL_RENDER 0
 #define EVAL_SCORE 1
 #define EVAL_MATCH 2
@@ -1932,7 +3489,556 @@ static void selfplay_step(Selfplay* sp, PuffeRL* p, Dict* log) {
     dict_set(log, "pool/num_banks", sp->num_banks);
 }
 
-#include "sweep.h"
+#define LEAGUE_ID_MAX 128
+#define LEAGUE_PATH_MAX 4096
+
+typedef struct {
+    char id[LEAGUE_ID_MAX];
+    char path[LEAGUE_PATH_MAX];
+    float elo;
+} LeaguePlayer;
+
+typedef struct {
+    char a[LEAGUE_ID_MAX];
+    char b[LEAGUE_ID_MAX];
+    int games;
+    float score;
+    float draw;
+} LeagueMatch;
+
+typedef struct {
+    LeaguePlayer* players;
+    LeagueMatch* matches;
+    int num_players;
+    int num_matches;
+} LeagueState;
+
+static int league_lock(const char* path) {
+    char lock_path[LEAGUE_PATH_MAX];
+    snprintf(lock_path, sizeof(lock_path), "%s.lock", path);
+    int fd = open(lock_path, O_CREAT | O_RDWR, 0666);
+    if (fd < 0) {
+        perror("open league lock");
+        exit(1);
+    }
+    if (flock(fd, LOCK_EX) != 0) {
+        perror("flock");
+        exit(1);
+    }
+    return fd;
+}
+
+static void league_unlock(int fd) {
+    flock(fd, LOCK_UN);
+    close(fd);
+}
+
+static int league_player_index(LeagueState* st, const char* id) {
+    for (int i = 0; i < st->num_players; i++) {
+        if (strcmp(st->players[i].id, id) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void league_free(LeagueState* st) {
+    free(st->players);
+    free(st->matches);
+}
+
+static void league_load_unlocked(const char* path, LeagueState* st) {
+    memset(st, 0, sizeof(*st));
+    FILE* fp = fopen(path, "r");
+    if (!fp) {
+        return;
+    }
+
+    char type[32];
+    while (fscanf(fp, "%31s", type) == 1) {
+        if (strcmp(type, "PLAYER") == 0) {
+            st->players = (LeaguePlayer*)realloc(st->players,
+                (size_t)(st->num_players + 1) * sizeof(*st->players));
+            LeaguePlayer* p = &st->players[st->num_players++];
+            int n = fscanf(fp, "%127s %4095s", p->id, p->path);
+            (void)n;
+        } else if (strcmp(type, "MATCH") == 0) {
+            st->matches = (LeagueMatch*)realloc(st->matches,
+                (size_t)(st->num_matches + 1) * sizeof(*st->matches));
+            LeagueMatch* m = &st->matches[st->num_matches++];
+            int n = fscanf(fp, "%127s %127s %d %f %f",
+                m->a, m->b, &m->games, &m->score, &m->draw);
+            (void)n;
+        } else {
+            char line[4096];
+            if (!fgets(line, sizeof(line), fp)) {
+                break;
+            }
+        }
+    }
+    fclose(fp);
+}
+
+static void league_write_unlocked(const char* path, LeagueState* st) {
+    char tmp[LEAGUE_PATH_MAX];
+    snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
+    FILE* fp = fopen(tmp, "w");
+    if (!fp) {
+        fprintf(stderr, "failed to write league state %s\n", tmp);
+        exit(1);
+    }
+    fprintf(fp, "# PufferLib native league v1\n");
+    for (int i = 0; i < st->num_players; i++) {
+        LeaguePlayer* p = &st->players[i];
+        fprintf(fp, "PLAYER %s %s\n", p->id, p->path);
+    }
+    for (int i = 0; i < st->num_matches; i++) {
+        LeagueMatch* m = &st->matches[i];
+        fprintf(fp, "MATCH %s %s %d %.9g %.9g\n",
+            m->a, m->b, m->games, m->score, m->draw);
+    }
+    fclose(fp);
+    if (rename(tmp, path) != 0) {
+        fprintf(stderr, "failed to publish league state %s\n", path);
+        exit(1);
+    }
+}
+
+static void league_recompute(LeagueState* st) {
+    for (int i = 0; i < st->num_players; i++) {
+        st->players[i].elo = 0;
+    }
+    for (int iter = 0; iter < 100; iter++) {
+        for (int i = 0; i < st->num_matches; i++) {
+            LeagueMatch* m = &st->matches[i];
+            int ai = league_player_index(st, m->a);
+            int bi = league_player_index(st, m->b);
+            if (ai < 0 || bi < 0 || ai == bi || m->games <= 0) {
+                continue;
+            }
+            float ea = 1.0f / (1.0f + powf(10.0f,
+                (st->players[bi].elo - st->players[ai].elo) / 400.0f));
+            float delta = 0.02f * (float)m->games * (m->score - ea);
+            st->players[ai].elo += delta;
+            st->players[bi].elo -= delta;
+        }
+    }
+}
+
+static float league_register_player(const char* path, const char* id,
+        const char* checkpoint) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    int idx = league_player_index(&st, id);
+    if (idx < 0) {
+        st.players = (LeaguePlayer*)realloc(st.players,
+            (size_t)(st.num_players + 1) * sizeof(*st.players));
+        idx = st.num_players++;
+    }
+    LeaguePlayer* p = &st.players[idx];
+    snprintf(p->id, sizeof(p->id), "%s", id);
+    snprintf(p->path, sizeof(p->path), "%s", checkpoint);
+    league_recompute(&st);
+    float elo = st.players[idx].elo;
+    league_write_unlocked(path, &st);
+    league_free(&st);
+    league_unlock(lock);
+    return elo;
+}
+
+static void league_record_match(const char* path, const char* a, const char* b,
+        int games, float score, float draw) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    st.matches = (LeagueMatch*)realloc(st.matches,
+        (size_t)(st.num_matches + 1) * sizeof(*st.matches));
+    LeagueMatch* m = &st.matches[st.num_matches++];
+    snprintf(m->a, sizeof(m->a), "%s", a);
+    snprintf(m->b, sizeof(m->b), "%s", b);
+    m->games = games;
+    m->score = score;
+    m->draw = draw;
+    league_write_unlocked(path, &st);
+    league_free(&st);
+    league_unlock(lock);
+}
+
+static int league_choose_pair(const char* path, LeaguePlayer* a, LeaguePlayer* b,
+        unsigned int* rng) {
+    int lock = league_lock(path);
+    LeagueState st;
+    league_load_unlocked(path, &st);
+    int n = st.num_players;
+    if (n < 2) {
+        league_free(&st);
+        league_unlock(lock);
+        return 0;
+    }
+    int ai = (int)(rand_r(rng) % (unsigned int)n);
+    int bi = ai;
+    for (int tries = 0; tries < 32 && bi == ai; tries++) {
+        bi = (int)(rand_r(rng) % (unsigned int)n);
+    }
+    if (bi == ai) {
+        bi = (ai + 1) % n;
+    }
+    *a = st.players[ai];
+    *b = st.players[bi];
+    league_free(&st);
+    league_unlock(lock);
+    return 1;
+}
+
+static void run_league_match_worker(Config* cfg, TrainContext* ctx) {
+    const char* state_path = puf_config_str(cfg, "sweep", "league_state_path");
+    long games = puf_config_long(cfg, "base", "num_games");
+    if (!games) {
+        games = puf_config_long(cfg, "sweep", "league_match_games");
+    }
+    unsigned int rng = (unsigned int)puf_config_int(cfg, "base", "seed") + 1009U;
+
+    for (;;) {
+        LeaguePlayer a;
+        LeaguePlayer b;
+        if (!league_choose_pair(state_path, &a, &b, &rng)) {
+            usleep(500000);
+            continue;
+        }
+
+        char buf[64];
+        puf_config_put(cfg, "base.load_model_path", a.path);
+        puf_config_put(cfg, "base.load_enemy_model_path", b.path);
+        snprintf(buf, sizeof(buf), "%ld", games);
+        puf_config_put(cfg, "base.num_games", buf);
+
+        EvalResult result = run_eval(cfg, ctx, EVAL_MATCH, 0);
+        league_record_match(state_path, a.id, b.id,
+            result.games, result.score, result.draw);
+        printf("league_match %s vs %s games=%d score=%.4f draw=%.4f\n",
+            a.id, b.id, result.games, result.score, result.draw);
+    }
+}
+
+extern char** environ;
+
+typedef struct {
+    int run;
+    int random;
+    int gp_obs;
+    int pareto;
+    int fd;
+    pid_t pid;
+    char run_id[128];
+    float* sample;
+    TrainResult result;
+} SweepJob;
+
+static int native_num_gpus(void) {
+    int count = 0;
+    cudaError_t err = cudaGetDeviceCount(&count);
+    if (err != cudaSuccess || count < 1) {
+        fprintf(stderr, "sweep error: no CUDA devices available\n");
+        exit(1);
+    }
+    return count;
+}
+
+static int sweep_read_result(int fd, TrainResult* out) {
+    char* dst = (char*)out;
+    size_t need = sizeof(*out);
+    while (need > 0) {
+        ssize_t n = read(fd, dst, need);
+        if (n <= 0) {
+            return 0;
+        }
+        dst += n;
+        need -= (size_t)n;
+    }
+    return 1;
+}
+
+static char* sweep_arg_kv(const char* full_key, DictItem* item) {
+    char val[128];
+    const char* src = item->str;
+    if (!src) {
+        snprintf(val, sizeof(val), "%.17g", item->value);
+        src = val;
+    }
+
+    size_t n = strlen(full_key) + strlen(src) + 2;
+    char* out = (char*)malloc(n);
+    if (!out) {
+        perror("malloc");
+        exit(1);
+    }
+    snprintf(out, n, "%s=%s", full_key, src);
+    return out;
+}
+
+static void sweep_free_argv(char** argv, int argc) {
+    for (int i = 3; i < argc; i++) {
+        free(argv[i]);
+    }
+    free(argv);
+}
+
+static int sweep_config_count(Config* cfg) {
+    int count = 0;
+    for (int s = 0; s < cfg->ini.num_sections; s++) {
+        count += cfg->ini.sections[s].size;
+    }
+    return count;
+}
+
+static int sweep_fill_args(Config* cfg, char** argv, int idx) {
+    char full_key[PUF_DICT_MAX_KEY * 2];
+    for (int s = 0; s < cfg->ini.num_sections; s++) {
+        Dict* dict = &cfg->ini.sections[s];
+        for (int i = 0; i < dict->size; i++) {
+            snprintf(full_key, sizeof(full_key), "%s.%s",
+                dict->name, dict->items[i].key);
+            argv[idx++] = sweep_arg_kv(full_key, &dict->items[i]);
+        }
+    }
+    return idx;
+}
+
+static SweepJob sweep_start_job(Config* cfg, const char* exe_path,
+        SweepParam* params, SweepSpace* space, const float* sample,
+        ProteinSweepInfo info, int run, int gpu_offset) {
+    SweepJob job = {0};
+    job.run = run;
+    job.random = info.is_random;
+    job.gp_obs = info.n_gp_obs;
+    job.pareto = info.n_pareto;
+    job.sample = (float*)calloc((size_t)space->num, sizeof(float));
+    memcpy(job.sample, sample, (size_t)space->num * sizeof(float));
+
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        perror("pipe");
+        exit(1);
+    }
+
+    Config trial = {0};
+    puf_config_copy(&trial, cfg);
+    puf_config_sweep_apply(&trial, params, space, sample);
+    char offset[32];
+
+    char run_id[64];
+    snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d",
+        (long)(1000.0 * wall_clock()), run);
+    snprintf(job.run_id, sizeof(job.run_id), "%s", run_id);
+    puf_config_put(&trial, "base.run_id", run_id);
+
+    snprintf(offset, sizeof(offset), "%d", gpu_offset);
+    puf_config_put(&trial, "base.gpu_offset", offset);
+
+    char result_fd[32];
+    snprintf(result_fd, sizeof(result_fd), "%d", pipefd[1]);
+    puf_config_put(&trial, "base.result_fd", result_fd);
+    puf_config_validate(&trial);
+
+    int argc = sweep_config_count(&trial) + 4;
+    char** argv = (char**)calloc((size_t)argc, sizeof(char*));
+    if (!argv) {
+        perror("calloc");
+        exit(1);
+    }
+    argv[0] = (char*)exe_path;
+    argv[1] = (char*)"train";
+    argv[2] = (char*)puf_config_str(&trial, "base", "env_name");
+    sweep_fill_args(&trial, argv, 3);
+    argv[argc - 1] = NULL;
+
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_addclose(&actions, pipefd[0]);
+    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO,
+        "/dev/null", O_WRONLY, 0);
+    int err = posix_spawnp(&job.pid, exe_path, &actions, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&actions);
+    sweep_free_argv(argv, argc - 1);
+    puf_config_free(&trial);
+    if (err != 0) {
+        fprintf(stderr, "posix_spawn failed: %s\n", strerror(err));
+        exit(1);
+    }
+
+    close(pipefd[1]);
+    job.fd = pipefd[0];
+    return job;
+}
+
+static void sweep_wait_job(ProteinSweep* protein, SweepJob* job,
+        int league, const char* league_state_path) {
+    int ok = sweep_read_result(job->fd, &job->result);
+    close(job->fd);
+
+    int status = 0;
+    if (waitpid(job->pid, &status, 0) < 0) {
+        perror("waitpid");
+        exit(1);
+    }
+    if (!ok || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        fprintf(stderr, "sweep worker run=%d failed\n", job->run);
+        exit(1);
+    }
+
+    if (league) {
+        if (!job->result.checkpoint_path[0]) {
+            fprintf(stderr, "league trial run=%d did not produce a checkpoint\n", job->run);
+            exit(1);
+        }
+        float elo = league_register_player(league_state_path, job->run_id,
+            job->result.checkpoint_path);
+        protein_sweep_observe(protein, job->sample, elo, job->result.cost, 0);
+        job->result.score = elo;
+    } else {
+        int points = job->result.points > 0 ? job->result.points : 1;
+        for (int i = 0; i < points; i++) {
+            protein_sweep_observe(protein, job->sample,
+                job->result.scores[i], job->result.costs[i], 0);
+        }
+    }
+    printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
+        job->run, job->result.score, job->result.cost, job->result.steps,
+        job->random, job->gp_obs, job->pareto);
+    free(job->sample);
+}
+
+static void sweep_state_path(Config* cfg, char* out, size_t out_size) {
+    const char* configured = puf_config_str(cfg, "sweep", "league_state_path");
+    if (configured && configured[0]) {
+        snprintf(out, out_size, "%s", configured);
+        return;
+    }
+
+    char dir[2048];
+    snprintf(dir, sizeof(dir), "%s/%s",
+        puf_config_str(cfg, "base", "log_dir"),
+        puf_config_str(cfg, "base", "env_name"));
+    mkdir_p(dir);
+    snprintf(out, out_size, "%s/%ld_league.txt",
+        dir, (long)(1000.0 * wall_clock()));
+    puf_config_put(cfg, "sweep.league_state_path", out);
+}
+
+static pid_t sweep_start_match_worker(Config* cfg, const char* exe_path,
+        const char* state_path, int gpu_id) {
+    Config worker = {0};
+    puf_config_copy(&worker, cfg);
+    puf_config_put(&worker, "sweep.league_state_path", state_path);
+    puf_config_put(&worker, "selfplay.enabled", "0");
+
+    char offset[32];
+    snprintf(offset, sizeof(offset), "%d", gpu_id);
+    puf_config_put(&worker, "base.gpu_offset", offset);
+
+    int argc = sweep_config_count(&worker) + 4;
+    char** argv = (char**)calloc((size_t)argc, sizeof(char*));
+    argv[0] = (char*)exe_path;
+    argv[1] = (char*)"league_match_worker";
+    argv[2] = (char*)puf_config_str(&worker, "base", "env_name");
+    sweep_fill_args(&worker, argv, 3);
+    argv[argc - 1] = NULL;
+
+    pid_t pid = 0;
+    int err = posix_spawnp(&pid, exe_path, NULL, NULL, argv, environ);
+    sweep_free_argv(argv, argc - 1);
+    puf_config_free(&worker);
+    if (err != 0) {
+        fprintf(stderr, "posix_spawn match worker failed: %s\n", strerror(err));
+        exit(1);
+    }
+    return pid;
+}
+
+static void run_sweep(Config* cfg, const char* exe_path) {
+    int league = (int)puf_config_get(cfg, "sweep", "league");
+    SweepParam* params = NULL;
+    SweepSpace* space = puf_config_sweep_space(cfg, &params);
+
+    int max_runs = (int)puf_config_get(cfg, "sweep", "max_runs");
+    int downsample = (int)puf_config_get(cfg, "sweep", "downsample");
+    int prune_pareto = (int)puf_config_get(cfg, "sweep", "prune_pareto");
+    int use_logit = strcmp(puf_config_str(cfg, "sweep", "metric_distribution"),
+        "logit") == 0;
+    float max_cost = (float)puf_config_get(cfg, "sweep", "max_suggestion_cost");
+    float early_stop_quantile = (float)puf_config_get(cfg, "sweep", "early_stop_quantile");
+    int success_cap = max_runs * downsample * 2;
+    if (success_cap < 8192) {
+        success_cap = 8192;
+    }
+
+    int total_gpus = native_num_gpus();
+    int sweep_gpus = (int)puf_config_get(cfg, "sweep", "gpus");
+    int train_gpus = (int)puf_config_get(cfg, "train", "gpus");
+    if (sweep_gpus == 0) {
+        sweep_gpus = total_gpus;
+    }
+    if (sweep_gpus > total_gpus) {
+        fprintf(stderr, "sweep error: sweep.gpus=%d but only %d CUDA devices are visible\n",
+            sweep_gpus, total_gpus);
+        exit(1);
+    }
+    int use_gpu = (int)puf_config_get(cfg, "sweep", "use_gpu");
+    if (use_gpu) {
+        cudaSetDevice(sweep_gpus - 1);
+    }
+
+    char league_state_path[LEAGUE_PATH_MAX] = {0};
+    pid_t match_pid = 0;
+    int train_gpu_count = sweep_gpus;
+    if (league) {
+        train_gpu_count = sweep_gpus - 1;
+        sweep_state_path(cfg, league_state_path, sizeof(league_state_path));
+        match_pid = sweep_start_match_worker(cfg, exe_path,
+            league_state_path, sweep_gpus - 1);
+    }
+
+    int parallel = train_gpu_count / train_gpus;
+    if (parallel < 1) {
+        parallel = 1;
+    }
+
+    ProteinSweep* protein = protein_sweep_create(space,
+        10, 256, 50, 0.001f, 50, 750, 4096,
+        downsample == 1, prune_pareto, use_logit,
+        1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
+        success_cap, 1024, 5, 73ULL);
+
+    float* sample = (float*)calloc((size_t)space->num, sizeof(float));
+    SweepJob* jobs = (SweepJob*)calloc((size_t)parallel, sizeof(SweepJob));
+    for (int run = 0; run < max_runs;) {
+        int batch = max_runs - run;
+        if (batch > parallel) {
+            batch = parallel;
+        }
+
+        for (int i = 0; i < batch; i++) {
+            ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
+            jobs[i] = sweep_start_job(cfg, exe_path, params, space, sample,
+                info, run + i, i * train_gpus);
+        }
+        for (int i = 0; i < batch; i++) {
+            sweep_wait_job(protein, &jobs[i], league, league_state_path);
+        }
+        run += batch;
+    }
+
+    if (match_pid > 0) {
+        kill(match_pid, SIGTERM);
+        waitpid(match_pid, NULL, 0);
+    }
+    free(jobs);
+    free(sample);
+    free(params);
+    protein_sweep_destroy(protein);
+    sweep_space_destroy(space);
+}
 
 static float log_value(Dict* log, const char* key, float fallback) {
     for (int i = 0; i < log->size; i++) {
@@ -2340,6 +4446,7 @@ int main(int argc, char** argv) {
     const char* env_name = argv[2];
     Config* cfg = (Config*)calloc(1, sizeof(Config));
     puf_config_load_env(cfg, env_name, argc - 3, argv + 3);
+    puf_config_validate(cfg);
     TrainContext ctx = {
         .rank = 0,
         .world_size = 1,
@@ -2391,3 +4498,5 @@ int main(int argc, char** argv) {
 }
 
 #endif
+
+#endif // PUFFERLIB_KERNELS_ONLY

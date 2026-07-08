@@ -1,6 +1,6 @@
 #include <time.h>
 #include "breakout.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     Weights* weights = load_weights("resources/breakout/breakout_weights.bin");

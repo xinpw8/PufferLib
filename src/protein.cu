@@ -42,50 +42,65 @@ typedef struct {
     int is_integer;
 } Space;
 
-static float space_normalize(const Space *s, float value) {
-    float zero_one;
+typedef struct {
+    Space* spaces;
+    int num;
+    int cost_idx;
+    int optimize_direction;
+} SweepSpace;
+
+static inline float space_normalize(const Space* s, float value) {
+    float zero_one = 0;
     switch (s->type) {
     case SPACE_LINEAR:
         zero_one = (value - s->min) / (s->max - s->min);
         break;
     case SPACE_LOG:
-        zero_one = (log10f(value) - log10f(s->min)) / (log10f(s->max) - log10f(s->min));
+        zero_one = (log10f(value) - log10f(s->min)) /
+            (log10f(s->max) - log10f(s->min));
         break;
     case SPACE_POW2:
-        zero_one = (log2f(value) - log2f(s->min)) / (log2f(s->max) - log2f(s->min));
+        zero_one = (log2f(value) - log2f(s->min)) /
+            (log2f(s->max) - log2f(s->min));
         break;
     case SPACE_LOGIT: {
         float clamped = fmaxf(s->min, fminf(value, s->max));
-        zero_one = (log10f(1.0f - clamped) - log10f(1.0f - s->min)) / (log10f(1.0f - s->max) - log10f(1.0f - s->min));
+        zero_one = (log10f(1.0f - clamped) - log10f(1.0f - s->min)) /
+            (log10f(1.0f - s->max) - log10f(1.0f - s->min));
         break;
     }
     }
     return 2.0f * zero_one - 1.0f;
 }
 
-static float space_unnormalize(const Space *s, float norm) {
+static inline float space_unnormalize(const Space* s, float norm) {
     float zero_one = (norm + 1.0f) * 0.5f;
-    float val;
+    float val = 0;
     switch (s->type) {
     case SPACE_LINEAR:
         val = zero_one * (s->max - s->min) + s->min;
-        if (s->is_integer)
+        if (s->is_integer) {
             val = roundf(val);
+        }
         break;
     case SPACE_LOG: {
-        float log_val = zero_one * (log10f(s->max) - log10f(s->min)) + log10f(s->min);
+        float log_val = zero_one * (log10f(s->max) - log10f(s->min)) +
+            log10f(s->min);
         val = powf(10.0f, log_val);
-        if (s->is_integer)
+        if (s->is_integer) {
             val = roundf(val);
+        }
         break;
     }
     case SPACE_POW2: {
-        float log_val = zero_one * (log2f(s->max) - log2f(s->min)) + log2f(s->min);
+        float log_val = zero_one * (log2f(s->max) - log2f(s->min)) +
+            log2f(s->min);
         val = powf(2.0f, roundf(log_val));
         break;
     }
     case SPACE_LOGIT: {
-        float log_val = zero_one * (log10f(1.0f - s->max) - log10f(1.0f - s->min)) + log10f(1.0f - s->min);
+        float log_val = zero_one * (log10f(1.0f - s->max) -
+            log10f(1.0f - s->min)) + log10f(1.0f - s->min);
         val = 1.0f - powf(10.0f, log_val);
         break;
     }
@@ -93,7 +108,8 @@ static float space_unnormalize(const Space *s, float norm) {
     return val;
 }
 
-static void space_init(Space *s, SpaceType type, float min, float max, float scale, int is_integer) {
+static inline void space_init(Space* s, SpaceType type, float min, float max,
+        float scale, int is_integer) {
     s->type = type;
     s->min = min;
     s->max = max;
@@ -103,25 +119,20 @@ static void space_init(Space *s, SpaceType type, float min, float max, float sca
     s->norm_max = space_normalize(s, max);
 }
 
-typedef struct {
-    Space *spaces;
-    int num;
-    int cost_idx;
-    int optimize_direction;
-} SweepSpace;
-
-SweepSpace *sweep_space_create(int capacity, int cost_idx, int optimize_direction) {
-    SweepSpace *space = (SweepSpace *)calloc(1, sizeof(SweepSpace));
-    space->spaces = (Space *)calloc((size_t)capacity, sizeof(Space));
+static inline SweepSpace* sweep_space_create(int capacity, int cost_idx,
+        int optimize_direction) {
+    SweepSpace* space = (SweepSpace*)calloc(1, sizeof(SweepSpace));
+    space->spaces = (Space*)calloc((size_t)capacity, sizeof(Space));
     space->num = capacity;
     space->cost_idx = cost_idx;
     space->optimize_direction = optimize_direction;
     return space;
 }
 
-void sweep_space_destroy(SweepSpace *space) {
-    if (!space)
+static inline void sweep_space_destroy(SweepSpace* space) {
+    if (!space) {
         return;
+    }
     free(space->spaces);
     free(space);
 }

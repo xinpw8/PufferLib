@@ -360,6 +360,86 @@ static DictItem* puf_ini_set(Dict* dict, const char* key, const char* raw) {
     return item;
 }
 
+static inline double puf_ini_get(Ini* ini, const char* section, const char* key) {
+    return dict_get(puf_ini_section(ini, section, 0), key);
+}
+
+static inline int puf_ini_get_int(Ini* ini, const char* section, const char* key) {
+    return (int)puf_ini_get(ini, section, key);
+}
+
+static inline long puf_ini_get_long(Ini* ini, const char* section, const char* key) {
+    return (long)puf_ini_get(ini, section, key);
+}
+
+static inline float puf_ini_get_float(Ini* ini, const char* section, const char* key) {
+    return (float)puf_ini_get(ini, section, key);
+}
+
+static inline const char* puf_ini_get_str(Ini* ini, const char* section,
+        const char* key) {
+    return dict_get_str(puf_ini_section(ini, section, 0), key);
+}
+
+static inline void puf_ini_put(Ini* ini, const char* full_key, const char* raw) {
+    const char* split = strrchr(full_key, '.');
+    if (!split) {
+        fprintf(stderr, "expected section.key, got %s\n", full_key);
+        exit(1);
+    }
+
+    char section[128];
+    char key[PUF_DICT_MAX_KEY];
+    snprintf(section, sizeof(section), "%.*s", (int)(split - full_key), full_key);
+    snprintf(key, sizeof(key), "%s", split + 1);
+
+    Dict* dict = puf_ini_section(ini, section, 0);
+    if (!dict_find(dict, key)) {
+        fprintf(stderr, "missing key [%s] %s\n", section, key);
+        exit(1);
+    }
+    puf_ini_set(dict, key, raw);
+}
+
+static inline void puf_ini_apply_arg(Ini* ini, const char* default_section,
+        const char* arg, int idx) {
+    char tmp[2048];
+    if (strlen(arg) >= sizeof(tmp)) {
+        fprintf(stderr, "argv:%d: argument too long\n", idx);
+        exit(1);
+    }
+    snprintf(tmp, sizeof(tmp), "%s", arg);
+
+    char* s = tmp;
+    while (*s == '-') {
+        s++;
+    }
+
+    char* eq = strchr(s, '=');
+    const char* value = "true";
+    if (eq) {
+        *eq = 0;
+        value = eq + 1;
+    }
+    for (char* p = s; *p; p++) {
+        if (*p == '-') {
+            *p = '_';
+        }
+    }
+    if (!*s) {
+        fprintf(stderr, "argv:%d: empty key\n", idx);
+        exit(1);
+    }
+
+    char full_key[4096];
+    if (strchr(s, '.')) {
+        snprintf(full_key, sizeof(full_key), "%s", s);
+    } else {
+        snprintf(full_key, sizeof(full_key), "%s.%s", default_section, s);
+    }
+    puf_ini_put(ini, full_key, value);
+}
+
 static void puf_ini_load_file(Ini* ini, const char* path) {
     FILE* fp = fopen(path, "r");
     if (!fp) {
@@ -408,6 +488,22 @@ static void puf_ini_load_file(Ini* ini, const char* path) {
     fclose(fp);
 }
 
+static inline void puf_ini_load_env(Ini* ini, const char* env_name,
+        int argc, char** argv) {
+    puf_ini_load_file(ini, "config/default.ini");
+
+    if (strcmp(env_name, "default") != 0) {
+        char path[1024];
+        snprintf(path, sizeof(path), "config/%s.ini", env_name);
+        puf_ini_load_file(ini, path);
+    }
+
+    puf_ini_put(ini, "base.env_name", env_name);
+    for (int i = 0; i < argc; i++) {
+        puf_ini_apply_arg(ini, "base", argv[i], i);
+    }
+}
+
 static inline void puf_ini_write(FILE* fp, Ini* ini) {
     for (int s = 0; s < ini->num_sections; s++) {
         Dict* dict = &ini->sections[s];
@@ -427,4 +523,12 @@ static inline void puf_ini_write(FILE* fp, Ini* ini) {
             fputc('\n', fp);
         }
     }
+}
+
+static inline void puf_ini_free(Ini* ini) {
+    for (int i = 0; i < ini->num_sections; i++) {
+        dict_clear(&ini->sections[i]);
+    }
+    free(ini->sections);
+    memset(ini, 0, sizeof(*ini));
 }

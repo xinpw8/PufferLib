@@ -1,5 +1,5 @@
 // NMMO3 CUDA encoder: multihot, GEMM conv, embedding, concat, projection
-// Included by pufferlib.cu — requires precision_t, PrecisionTensor, Allocator, puf_mm, etc.
+// Included by pufferl.cu — requires precision_t, PrecisionTensor, Allocator, puf_mm, etc.
 
 struct ConvWeights {
     PrecisionTensor w, b;

@@ -10,11 +10,10 @@ set -e
 #   ./build.sh breakout --fast       # Standalone executable (optimized)
 #   ./build.sh breakout --web        # Emscripten web build
 #   ./build.sh breakout --profile    # Kernel profiling binary
-#   ./build.sh breakout --native     # Full native train/eval binary
-#   ./build.sh all                   # Build all envs native and native --float
+#   ./build.sh all                   # Build all envs native and native float32
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--float] [--debug] [--local|--fast|--web|--profile|--native|--cpu]"
+    echo "Usage: ./build.sh ENV_NAME [--float] [--debug] [--local|--fast|--web|--profile|--cpu]"
     exit 1
 fi
 ENV=$1
@@ -28,7 +27,6 @@ for arg in "$@"; do
         --fast)  MODE=fast ;;
         --web)   MODE=web ;;
         --profile) MODE=profile ;;
-        --native) MODE=native ;;
         --cpu)   MODE=cpu ;;
         *) echo "Error: unknown argument '$arg'" && exit 1 ;;
     esac
@@ -38,7 +36,7 @@ if [ "$ENV" = "all" ]; then
     FAILED=""
     for env_dir in ocean/*/; do
         env=$(basename "$env_dir")
-        if bash "$0" "$env" --native && bash "$0" "$env" --native --float; then
+        if bash "$0" "$env" && bash "$0" "$env" --float; then
             echo "OK: $env"
         else
             echo "FAIL: $env"
@@ -210,9 +208,9 @@ elif [ "$MODE" = "cpu" ]; then
     ${CC:-clang} "${CLANG_OPT[@]}" \
         -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
         -DPLATFORM_DESKTOP \
+        -DPUFFERCPU_EVAL_MAIN \
         -DENV_HEADER=\"$ENV_HEADER\" \
-        -DENV_NAME=$ENV \
-        src/eval_cpu.c $EXTRA_SRC \
+        -x c src/puffercpu.h -x none $EXTRA_SRC \
         "${LINK_ARCHIVES[@]}" \
         "${EXTRA_LDFLAGS[@]}" \
         "${STANDALONE_LDFLAGS[@]}" \
@@ -269,14 +267,14 @@ if [ "$MODE" = "native" ]; then
 	    -Xcompiler=-DPLATFORM_DESKTOP \
 	    -Xcompiler=-fopenmp \
 	    $PRECISION \
-	    src/pufferlib.cu \
+	    src/pufferl.cu \
         "$RAYLIB_A" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
-        -o build_native
-    echo "Built: ./build_native"
+        -o puffer
+    echo "Built: ./puffer"
 
 elif [ "$MODE" = "profile" ]; then
     echo "Compiling profile binary ($ARCH)..."
