@@ -1,6 +1,22 @@
 // NMMO3 CUDA encoder: multihot, GEMM conv, embedding, concat, projection
 // Included by pufferl.cu — requires precision_t, PrecisionTensor, Allocator, puf_mm, etc.
 
+// Normal(0, std). Used by custom ocean encoders for embeddings.
+void puf_normal_init(PrecisionTensor* dst, float std, ulong seed, cudaStream_t stream) {
+    long n = numel(dst->shape);
+    assert(n > 0);
+    long rand_count = (n % 2 == 0) ? n : n + 1;
+    float* buf;
+    cudaMalloc(&buf, rand_count * sizeof(float));
+    curandGenerator_t gen;
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    curandSetPseudoRandomGeneratorSeed(gen, seed);
+    curandGenerateNormal(gen, buf, rand_count, 0.0f, std);
+    curandDestroyGenerator(gen);
+    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst->data, buf, n);
+    cudaFree(buf);
+}
+
 struct ConvWeights {
     PrecisionTensor w, b;
     int IC, OC, K, S, IH, IW, OH, OW;

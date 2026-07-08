@@ -9,12 +9,11 @@
 #include "ini.h"
 #include "raylib.h"
 
-#ifndef Env
-#error "Env must be defined before including pufferenv.h"
-#endif
+typedef struct Env Env;
+typedef struct Log Log;
 
 typedef struct Agent {
-    obs_t* observations;
+    void* observations;
     float* actions;
     float* rewards;
     float* terminals;

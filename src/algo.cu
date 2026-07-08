@@ -1241,6 +1241,172 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
     }
 }
 
+// Prioritized replay over single-epoch data. These kernels are
+// the least cleaned because we will likely have a better method in 5.0.
+struct PrioBuffers {
+    FloatTensor prio_probs, cdf, mb_prio;
+    IntTensor idx;
+};
+
+void register_prio_buffers(PrioBuffers& bufs, Allocator* alloc, int B, int minibatch_segments) {
+    bufs = (PrioBuffers){
+        .prio_probs = {.shape = {B}},
+        .cdf = {.shape = {B}},
+        .mb_prio = {.shape = {minibatch_segments}},
+        .idx = {.shape = {minibatch_segments}},
+    };
+    alloc_register(alloc, &bufs.prio_probs);
+    alloc_register(alloc, &bufs.cdf);
+    alloc_register(alloc, &bufs.idx);
+    alloc_register(alloc, &bufs.mb_prio);
+}
+
+#define PRIO_WARP_SIZE 32
+#define PRIO_FULL_MASK 0xffffffff
+#define PRIO_BLOCK_SIZE 256
+#define PRIO_NUM_WARPS (PRIO_BLOCK_SIZE / PRIO_WARP_SIZE)
+
+__global__ void compute_prio_adv_reduction(
+        const precision_t* __restrict__ advantages,
+        float* prio_weights, float prio_alpha, int stride) {
+    int row = blockIdx.x;
+    int tx = threadIdx.x;
+    int offset = row * stride;
+
+    float local_sum = 0.0f;
+    for (int t = tx; t < stride; t += blockDim.x) {
+        local_sum += fabsf(to_float(advantages[offset + t]));
+    }
+
+    for (int s = PRIO_WARP_SIZE / 2; s >= 1; s /= 2) {
+        local_sum += __shfl_down_sync(PRIO_FULL_MASK, local_sum, s);
+    }
+    if (tx == 0) {
+        float pw = __powf(local_sum, prio_alpha);
+        if (isnan(pw) || isinf(pw)) {
+            pw = 0.0f;
+        }
+        prio_weights[row] = pw;
+    }
+}
+
+__global__ void compute_prio_normalize(float* prio_weights, int length) {
+    __shared__ float shmem[PRIO_NUM_WARPS];
+    __shared__ float block_sum;
+
+    int tx = threadIdx.x;
+    int lane = tx % PRIO_WARP_SIZE;
+    int warp_id = tx / PRIO_WARP_SIZE;
+    const float eps = 1e-6f;
+
+    float local_sum = 0.0f;
+    for (int t = tx; t < length; t += blockDim.x) {
+        local_sum += prio_weights[t];
+    }
+    for (int s = PRIO_WARP_SIZE / 2; s >= 1; s /= 2) {
+        local_sum += __shfl_down_sync(PRIO_FULL_MASK, local_sum, s);
+    }
+    if (lane == 0) {
+        shmem[warp_id] = local_sum;
+    }
+    __syncthreads();
+
+    if (warp_id == 0) {
+        float val = (lane < PRIO_NUM_WARPS) ? shmem[lane] : 0.0f;
+        for (int s = PRIO_NUM_WARPS / 2; s >= 1; s /= 2) {
+            val += __shfl_down_sync(PRIO_FULL_MASK, val, s);
+        }
+        if (tx == 0) {
+            block_sum = val + eps;
+        }
+    }
+    __syncthreads();
+
+    for (int t = tx; t < length; t += blockDim.x) {
+        prio_weights[t] = (prio_weights[t] + eps) / block_sum;
+    }
+}
+
+// mb_prio[i] = pow(total_agents * prio_probs[idx[i]], -anneal_beta)
+__global__ void compute_prio_imp_weights(
+        const int* __restrict__ indices,
+        const float* __restrict__ prio_probs,
+        float* mb_prio, int total_agents,
+        float anneal_beta, int minibatch_segments) {
+    int tx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tx < minibatch_segments) {
+        float value = prio_probs[indices[tx]] * (float)total_agents;
+        mb_prio[tx] = __powf(value, -anneal_beta);
+    }
+}
+
+__global__ void build_cdf(
+    float* __restrict__ cdf, const float* __restrict__ probs, int B) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        float cum = 0.0f;
+        for (int i = 0; i < B; i++) {
+            cum += probs[i];
+            cdf[i] = cum;
+        }
+    }
+}
+
+__global__ void advance_rng_offset(int64_t* __restrict__ offset_ptr, int64_t delta) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        *offset_ptr += delta;
+    }
+}
+
+// Multinomial with replacement (uses cuRAND)
+__global__ void multinomial_sample(int* __restrict__ out_idx, const float* __restrict__ cdf,
+        int B, int num_samples, uint64_t seed, const int64_t* __restrict__ offset_ptr) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= num_samples) {
+        return;
+    }
+
+    uint64_t base_off = (uint64_t)(*offset_ptr);
+    curandStatePhilox4_32_10_t rng_state;
+    curand_init(seed, base_off + tid, 0, &rng_state);
+    float u = curand_uniform(&rng_state);
+
+    int lo = 0;
+    int hi = B - 1;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (cdf[mid] < u) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    out_idx[tid] = lo;
+}
+
+// Prioritize high absolute advantage trajectories. This is a form of implicit
+// curriculum learning; sweep-found alpha/beta values decide whether it matters.
+void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
+        int minibatch_segments, int total_agents, float anneal_beta,
+        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
+    int B = advantages.shape[0];
+    int T = advantages.shape[1];
+    compute_prio_adv_reduction<<<B, PRIO_WARP_SIZE, 0, stream>>>(
+        advantages.data, bufs.prio_probs.data, prio_alpha, T);
+    compute_prio_normalize<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(
+        bufs.prio_probs.data, B);
+    build_cdf<<<1, 1, 0, stream>>>(bufs.cdf.data, bufs.prio_probs.data, B);
+    int threads = 256;
+    int blocks = (minibatch_segments + threads - 1) / threads;
+    multinomial_sample<<<blocks, threads, 0, stream>>>(
+        bufs.idx.data, bufs.cdf.data, B, minibatch_segments, seed, offset_ptr);
+    advance_rng_offset<<<1, 1, 0, stream>>>(offset_ptr, (int64_t)minibatch_segments);
+
+    int p3_blocks = (minibatch_segments + PRIO_BLOCK_SIZE - 1) / PRIO_BLOCK_SIZE;
+    compute_prio_imp_weights<<<p3_blocks, PRIO_BLOCK_SIZE, 0, stream>>>(
+        bufs.idx.data, bufs.prio_probs.data,
+        bufs.mb_prio.data, total_agents, anneal_beta, minibatch_segments);
+}
+
 // TODO: test whether these finite/clamp guards improve continuous-control stability
 // or just hide bad logits/actions.
 __device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
@@ -1251,6 +1417,18 @@ __device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
         return x > 0.0f ? hi : lo;
     }
     return fminf(hi, fmaxf(lo, x));
+}
+
+__device__ __forceinline__ float safe_logit(const precision_t* logits,
+        int logits_base, int logits_offset, int offset) {
+    float l = to_float(logits[logits_base + logits_offset + offset]);
+    if (isnan(l)) {
+        l = 0.0f;
+    }
+    if (isinf(l)) {
+        l = (l > 0) ? 3.4028e+38f : -3.4028e+38f;
+    }
+    return l;
 }
 
 __device__ __forceinline__ float safe_continuous_mean(const precision_t* logits, int idx) {

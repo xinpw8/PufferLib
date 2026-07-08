@@ -5,6 +5,11 @@
 #include <limits.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {3}
+typedef Env Breakout;
+typedef float obs_t;
 
 #define NOOP 0
 #define LEFT 1
@@ -20,13 +25,13 @@
 #define BRICK_INDEX_BACKWALL_COLLISION -2
 #define BRICK_INDEX_PADDLE_COLLISION -1
 
-typedef struct Log {
+struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
     float n;
-} Log;
+};
 
 typedef struct Client {
     float width;
@@ -38,12 +43,7 @@ typedef struct Client {
     Texture2D ball;
 } Client;
 
-typedef float obs_t;
-typedef struct Breakout Breakout;
-#define Env Breakout
-#include "pufferenv.h"
-
-struct Breakout {
+struct Env {
     Client* client;
     Log log;
     Agent agents[1];
@@ -88,9 +88,6 @@ struct Breakout {
     unsigned int rng;
 };
 
-#ifdef PUFFER_VECENV_INCLUDE
-#define ACT_SIZES {3}
-
 void init(Breakout* env);
 
 void puf_init(Env* env, Dict* kwargs) {
@@ -120,7 +117,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
 }
-#endif
 
 typedef struct CollisionInfo CollisionInfo;
 struct CollisionInfo {
@@ -191,7 +187,7 @@ void add_log(Breakout* env) {
 }
 
 void compute_observations(Breakout* env) {
-    obs_t* obs = env->agents[0].observations;
+    obs_t* obs = (obs_t*)env->agents[0].observations;
     obs[0] = env->paddle_x / env->width;
     obs[1] = env->paddle_y / env->height;
     obs[2] = env->ball_x / env->width;

@@ -1095,6 +1095,7 @@ void free_puffernet(PufferNet* net) {
 
 #ifdef PUFFERCPU_EVAL_MAIN
 
+#include "ini.h"
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -1103,9 +1104,7 @@ void free_puffernet(PufferNet* net) {
 #error "ENV_HEADER required for PUFFERCPU_EVAL_MAIN"
 #endif
 
-#define PUFFER_VECENV_INCLUDE
 #include ENV_HEADER
-#undef PUFFER_VECENV_INCLUDE
 
 static int puf_has_suffix(const char* s, const char* suffix) {
     size_t n = strlen(s);
