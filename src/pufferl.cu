@@ -430,6 +430,16 @@ static void puf_config_assert(int ok, const char* fmt, ...) {
     exit(1);
 }
 
+static int puf_config_error(char* out, size_t out_size, const char* fmt, ...) {
+    if (out && out_size > 0) {
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(out, out_size, fmt, args);
+        va_end(args);
+    }
+    return 0;
+}
+
 static double puf_config_get(Config* cfg, const char* section, const char* key) {
     Dict* dict = puf_ini_section(&cfg->ini, section, 0);
     DictItem* item = dict_find(dict, key);
@@ -586,16 +596,30 @@ static SpaceType puf_config_sweep_space_type(Dict* dict, int* is_integer) {
     return SPACE_LINEAR;
 }
 
-static void puf_config_validate(Config* cfg) {
+static int puf_config_train_valid(Config* cfg, char* err, size_t err_size) {
     int minibatch_size = puf_config_int(cfg, "train", "minibatch_size");
     int horizon = puf_config_int(cfg, "train", "horizon");
     int total_agents = puf_config_int(cfg, "vec", "total_agents");
     int train_gpus = puf_config_int(cfg, "train", "gpus");
-    puf_config_assert(train_gpus >= 1, "train.gpus must be >= 1");
-    puf_config_assert(minibatch_size % horizon == 0,
-        "train.minibatch_size must be divisible by train.horizon");
-    puf_config_assert(minibatch_size <= horizon * total_agents,
-        "train.minibatch_size > train.horizon * vec.total_agents");
+
+    if (train_gpus < 1) {
+        return puf_config_error(err, err_size, "train.gpus must be >= 1");
+    }
+    if (minibatch_size % horizon != 0) {
+        return puf_config_error(err, err_size,
+            "train.minibatch_size must be divisible by train.horizon");
+    }
+    if (minibatch_size > (long)horizon * total_agents) {
+        return puf_config_error(err, err_size,
+            "train.minibatch_size > train.horizon * vec.total_agents");
+    }
+    return 1;
+}
+
+static void puf_config_validate(Config* cfg) {
+    char err[256];
+    puf_config_assert(puf_config_train_valid(cfg, err, sizeof(err)), "%s", err);
+    int train_gpus = puf_config_int(cfg, "train", "gpus");
 
     int league = puf_config_int(cfg, "sweep", "league");
     const char* metric = puf_config_str(cfg, "sweep", "metric");
@@ -3604,6 +3628,16 @@ static int sweep_fill_args(Config* cfg, char** argv, int idx) {
     return idx;
 }
 
+static int sweep_sample_valid(Config* cfg, SweepParam* params,
+        SweepSpace* space, const float* sample, char* err, size_t err_size) {
+    Config trial = {0};
+    puf_config_copy(&trial, cfg);
+    puf_config_sweep_apply(&trial, params, space, sample);
+    int ok = puf_config_train_valid(&trial, err, err_size);
+    puf_config_free(&trial);
+    return ok;
+}
+
 static SweepJob sweep_start_job(Config* cfg, const char* exe_path,
         SweepParam* params, SweepSpace* space, const float* sample,
         ProteinSweepInfo info, int run, int gpu_offset) {
@@ -3811,6 +3845,7 @@ static void run_sweep(Config* cfg, const char* exe_path) {
 
     float* sample = (float*)calloc((size_t)space->num, sizeof(float));
     SweepJob* jobs = (SweepJob*)calloc((size_t)parallel, sizeof(SweepJob));
+    int invalid_samples = 0;
     for (int run = 0; run < max_runs;) {
         int batch = max_runs - run;
         if (batch > parallel) {
@@ -3818,7 +3853,25 @@ static void run_sweep(Config* cfg, const char* exe_path) {
         }
 
         for (int i = 0; i < batch; i++) {
-            ProteinSweepInfo info = protein_sweep_suggest(protein, sample, NAN);
+            ProteinSweepInfo info = {0};
+            char err[256];
+            for (;;) {
+                info = protein_sweep_suggest(protein, sample, NAN);
+                if (sweep_sample_valid(cfg, params, space, sample,
+                        err, sizeof(err))) {
+                    break;
+                }
+
+                protein_sweep_observe(protein, sample, NAN, max_cost, 1);
+                invalid_samples++;
+                if (invalid_samples <= 5 || invalid_samples % 100 == 0) {
+                    fprintf(stderr, "sweep skipped invalid sample: %s\n", err);
+                }
+                if (invalid_samples > 10000) {
+                    fprintf(stderr, "sweep error: too many invalid samples\n");
+                    exit(1);
+                }
+            }
             jobs[i] = sweep_start_job(cfg, exe_path, params, space, sample,
                 info, run + i, i * train_gpus);
         }
