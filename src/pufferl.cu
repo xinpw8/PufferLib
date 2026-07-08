@@ -339,6 +339,38 @@ void puf_zero(FloatTensor* dst, cudaStream_t stream) {
     cudaMemsetAsync(dst->data, 0, numel(dst->shape) * sizeof(float), stream);
 }
 
+inline PrecisionTensor* puf_squeeze(PrecisionTensor* t, int dim) {
+    int n = ndim(t->shape);
+    t->shape[dim] *= t->shape[dim + 1];
+    for (int i = dim + 1; i < n - 1; i++) {
+        t->shape[i] = t->shape[i + 1];
+    }
+    t->shape[n - 1] = 0;
+    return t;
+}
+
+inline FloatTensor* puf_squeeze(FloatTensor* t, int dim) {
+    int n = ndim(t->shape);
+    t->shape[dim] *= t->shape[dim + 1];
+    for (int i = dim + 1; i < n - 1; i++) {
+        t->shape[i] = t->shape[i + 1];
+    }
+    t->shape[n - 1] = 0;
+    return t;
+}
+
+inline PrecisionTensor* puf_unsqueeze(PrecisionTensor* t, int dim, int64_t d0, int64_t d1) {
+    int n = ndim(t->shape);
+    assert(n + 1 <= PUF_MAX_DIMS);
+    assert(t->shape[dim] == d0 * d1);
+    for (int i = n; i > dim; i--) {
+        t->shape[i] = t->shape[i - 1];
+    }
+    t->shape[dim] = d0;
+    t->shape[dim + 1] = d1;
+    return t;
+}
+
 #ifndef PUFFERLIB_KERNELS_ONLY
 
 #include <cuda_profiler_api.h>

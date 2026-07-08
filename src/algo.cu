@@ -1,31 +1,10 @@
 #ifndef PUFFERLIB_ALGO_CU
 #define PUFFERLIB_ALGO_CU
 
-// Trainer constants
 
-#ifndef CUDART_INF_F
-#define CUDART_INF_F __int_as_float(0x7f800000)
-#endif
-
-#define PPO_THREADS 256
-#define MAX_ATN_HEADS 16
-
-// Trainer activation helpers
-
-#define SOFTPLUS_BETA 1.0f
-#define SOFTPLUS_THRESHOLD 20.0f
+// Numerically sensitive activation functions
 __device__ __forceinline__ float softplus_fwd(float x) {
-    float x_scaled = x * SOFTPLUS_BETA;
-    return (x_scaled > SOFTPLUS_THRESHOLD) ? x : log1pf(expf(x_scaled)) / SOFTPLUS_BETA;
-}
-
-__device__ __forceinline__ float softplus_bwd(float grad_output, float x) {
-    float beta_x = SOFTPLUS_BETA * x;
-    if (beta_x > SOFTPLUS_THRESHOLD) {
-        return grad_output;
-    }
-    float exp_beta_x = expf(beta_x);
-    return grad_output * (exp_beta_x / (1.0f + exp_beta_x));
+    return (x > 20.0f) ? x : log1pf(expf(x));
 }
 
 __device__ __forceinline__ float relu(float x) {
@@ -41,12 +20,9 @@ __device__ __forceinline__ float sigmoid(float x) {
     return x >= 0.0f ? 1.0f / (1.0f + z) : z / (1.0f + z);
 }
 
-__device__ __forceinline__ float sigmoid_backward(float x, float grad_output) {
-    float sig = sigmoid(x);
-    return grad_output * sig * (1.0f - sig);
-}
-
-__device__ __inline__ float fast_tanh(float x) {
+__device__ __inline__ float fast_sigmoid(float x) {
+    // TODO: benchmark numeric/perf tradeoff against sigmoid() in MinGRU gates.
+    x *= 0.5f;
     float v1 = fminf(fmaxf(x, -9.0f), 9.0f);
     float v2 = v1 * v1;
     float p = v2 * -2.76076847742355e-16f + 2.00018790482477e-13f;
@@ -59,16 +35,7 @@ __device__ __inline__ float fast_tanh(float x) {
     float q = v2 * 1.19825839466702e-06f + 1.18534705686654e-04f;
     q = v2 * q + 2.26843463243900e-03f;
     q = v2 * q + 4.89352518554385e-03f;
-    return p / q;
-}
-
-__device__ __inline__ float fast_sigmoid(float x) {
-    return fminf(1.0f, fmaxf(0.0f, (fast_tanh(x * 0.5f) + 1.0f) * 0.5f));
-}
-
-__device__ __forceinline__ float lerp(float a, float b, float w) {
-    float diff = b - a;
-    return (fabsf(w) < 0.5f) ? a + w * diff : b - diff * (1.0f - w);
+    return fminf(1.0f, fmaxf(0.0f, (p / q + 1.0f) * 0.5f));
 }
 
 __device__ __forceinline__ float logaddexp(float a, float b) {
@@ -76,65 +43,15 @@ __device__ __forceinline__ float logaddexp(float a, float b) {
     return (diff < -88.0f) ? m : m + log1pf(__expf(diff));
 }
 
-__global__ void add_kernel(float* __restrict__ dst, const precision_t* __restrict__ src, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        dst[idx] += to_float(src[idx]);
-    }
+__device__ __forceinline__ float lerp(float a, float b, float w) {
+    float diff = b - a;
+    return (fabsf(w) < 0.5f) ? a + w * diff : b - diff * (1.0f - w);
 }
 
-#ifndef PRECISION_FLOAT
-__global__ void add_kernel(precision_t* __restrict__ dst, const precision_t* __restrict__ src, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        dst[idx] = from_float(to_float(dst[idx]) + to_float(src[idx]));
-    }
-}
-#endif
-
-// merge shape[dim] into shape[dim+1] ---
-inline PrecisionTensor* puf_squeeze(PrecisionTensor* t, int dim) {
-    int n = ndim(t->shape);
-    t->shape[dim + 1] *= t->shape[dim];
-    for (int i = dim; i < n - 1; i++) t->shape[i] = t->shape[i + 1];
-    t->shape[n - 1] = 0;
-    return t;
-}
-inline FloatTensor* puf_squeeze(FloatTensor* t, int dim) {
-    int n = ndim(t->shape);
-    t->shape[dim + 1] *= t->shape[dim];
-    for (int i = dim; i < n - 1; i++) t->shape[i] = t->shape[i + 1];
-    t->shape[n - 1] = 0;
-    return t;
-}
-
-// split shape[dim] into {d0, d1} ---
-inline PrecisionTensor* puf_unsqueeze(PrecisionTensor* t, int dim, int64_t d0, int64_t d1) {
-    assert(d0 * d1 == t->shape[dim] && "puf_unsqueeze: d0 * d1 must equal shape[dim]");
-    int n = ndim(t->shape);
-    for (int i = n; i > dim; i--) t->shape[i] = t->shape[i - 1];
-    t->shape[dim] = d0;
-    t->shape[dim + 1] = d1;
-    return t;
-}
-
-// Muon GEMM helper
-
-static void puf_addmm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
-        float alpha, float beta, cudaStream_t stream) {
-    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
-    int K = a->shape[ndim(a->shape)-1];
-    int N = b->shape[ndim(b->shape)-1];
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, M, N, K,
-        a->data, b->data, out->data, stream, alpha, beta);
-}
-
-// Models
-
-// Signatures used by encoder and decoder. Writing custom nets in 4.0 requires a fair bit of code,
-// because you are responsible for defining your own activation and gradient buffers.
-// In practice, this is fairly simple. See our Encoder and Decoder for examples.
-// You probably only ever need a custom Encoder
+// PufferNet model API + architecture
+// Writing custom nets in 4.0+ requires a fair bit of code because you are
+// responsible for defining your own activation and gradient buffers.
+// You usually only ever need a custom Encoder.
 typedef void (*init_weights_fn)(void* weights, ulong* seed, cudaStream_t stream);
 typedef void (*reg_params_fn)(void* weights, Allocator* alloc);
 typedef void (*reg_train_fn)(void* weights, void* buf, Allocator* acts, Allocator* grads, int B_TT);
@@ -205,7 +122,7 @@ struct EncoderActivations {
     PrecisionTensor out, saved_input, wgrad_scratch;
 };
 
-// The core of 4.0 is the MinGRU fused scan operation. This allows us to parallelize
+// The fused scan operation is the core of PufferNet. It parallelizes
 // training across the sequence dimension and scale to longer sequences
 __device__ __forceinline__ void log_coeffs_and_values_fwd(float gate, float hidden,
         float* log_coeff_out, float* log_value_out) {
@@ -357,7 +274,8 @@ __global__ void mingru_scan_forward(PrefixScan scan) {
     next_state[bH + h] = from_float(scan_result);
 }
 
-// Reads sparse checkpoints from forward pass, recomputes intermediate values in chunks
+// Reads sparse checkpoints from forward pass
+// Recomputes intermediate values in chunks (faster on benchmarks)
 __global__ void mingru_scan_backward(PrefixScan scan,
         const precision_t* __restrict__ grad_out,
         const precision_t* __restrict__ grad_next_state) {
@@ -858,6 +776,24 @@ static PrecisionTensor mingru_forward_train(void* w, PrecisionTensor x, Precisio
     return x;
 }
 
+__global__ void add_kernel(float* __restrict__ dst,
+        const precision_t* __restrict__ src, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] += to_float(src[idx]);
+    }
+}
+
+#ifndef PRECISION_FLOAT
+__global__ void add_kernel(precision_t* __restrict__ dst,
+        const precision_t* __restrict__ src, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = from_float(to_float(dst[idx]) + to_float(src[idx]));
+    }
+}
+#endif
+
 static PrecisionTensor mingru_backward(void* w, PrecisionTensor grad, void* activations, cudaStream_t stream) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
@@ -972,11 +908,66 @@ void policy_weights_free(Policy* p, PolicyWeights* w) {
     p->network.free_weights(w->network);
 }
 
-
+// Custom architectures for specific envs. Not yet
+// happy with the API, but we can't narrow it yet
+// because fast, general encoder arch is an
+// unsolved research problem.
 #include "ocean.cu"
 
-// Muon optimizer
+// Build a Policy value for a given env + arch. Encoder/decoder algorithms are
+// fixed by the env; hidden_size/num_layers/horizon parameterize shape. Policy
+// has no heap state so this returns by value; callers store it wherever.
+static Policy build_policy(const char* env_name, int input_size, int hidden_size,
+                           int num_layers, int decoder_output_size, int act_n,
+                           bool is_continuous, int horizon) {
+    Encoder encoder = {
+        .forward = encoder_forward,
+        .backward = encoder_backward,
+        .init_weights = encoder_init_weights,
+        .reg_params = encoder_reg_params,
+        .reg_train = encoder_reg_train,
+        .reg_rollout = encoder_reg_rollout,
+        .create_weights = encoder_create_weights,
+        .free_weights = encoder_free_weights,
+        .free_activations = encoder_free_activations,
+        .in_dim = input_size, .out_dim = hidden_size,
+        .activation_size = sizeof(EncoderActivations),
+    };
+    create_custom_encoder(env_name, &encoder);
+    Decoder decoder = {
+        .forward = decoder_forward,
+        .backward = decoder_backward,
+        .init_weights = decoder_init_weights,
+        .reg_params = decoder_reg_params,
+        .reg_train = decoder_reg_train,
+        .reg_rollout = decoder_reg_rollout,
+        .create_weights = decoder_create_weights,
+        .free_weights = decoder_free_weights,
+        .free_activations = decoder_free_activations,
+        .hidden_dim = hidden_size, .output_dim = decoder_output_size, .continuous = is_continuous,
+    };
+    Network network = {
+        .forward = mingru_forward,
+        .forward_train = mingru_forward_train,
+        .backward = mingru_backward,
+        .init_weights = mingru_init_weights,
+        .reg_params = mingru_reg_params,
+        .reg_train = mingru_reg_train,
+        .reg_rollout = mingru_reg_rollout,
+        .create_weights = mingru_create_weights,
+        .free_weights = mingru_free_weights,
+        .free_activations = mingru_free_activations,
+        .hidden = hidden_size, .num_layers = num_layers, .horizon = horizon,
+    };
+    return Policy{
+        .encoder = encoder, .decoder = decoder, .network = network,
+        .input_dim = input_size, .hidden_dim = hidden_size, .output_dim = decoder_output_size,
+        .num_atns = act_n,
+    };
+}
 
+// Muon optimizer. Our benchmarks show this is a major
+// upgrade over Adam (weight decay not needed in RL).
 __global__ void muon_norm_reduce(float* __restrict__ out, const float* __restrict__ partials, int num_blocks) {
     __shared__ float sdata[256];
     int tid = threadIdx.x;
@@ -1059,6 +1050,15 @@ static constexpr double ns_coeffs[5][3] = {
     {2.8769, -3.1427, 1.2046},
     {2.8366, -3.0525, 1.2012},
 };
+
+void puf_addmm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
+        float alpha, float beta, cudaStream_t stream) {
+    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int K = a->shape[ndim(a->shape)-1];
+    int N = b->shape[ndim(b->shape)-1];
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, M, N, K,
+        a->data, b->data, out->data, stream, alpha, beta);
+}
 
 struct Muon {
     double momentum, weight_decay, eps;
@@ -1241,6 +1241,8 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
     }
 }
 
+// TODO: test whether these finite/clamp guards improve continuous-control stability
+// or just hide bad logits/actions.
 __device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
     if (isnan(x)) {
         return 0.0f;
@@ -1259,8 +1261,9 @@ __device__ __forceinline__ float safe_continuous_logstd(const precision_t* logst
     return finite_or_clamp(to_float(logstd[idx]), -20.0f, 2.0f);
 }
 
-
-// Loss
+// Fused loss function. PPO clipped loss + value + entropy
+static constexpr int PPO_THREADS = 256;
+static constexpr int MAX_ATN_HEADS = 16; // TODO: use env atn dim directly
 
 enum LossIdx {
     LOSS_PG = 0, LOSS_VF = 1, LOSS_ENT = 2, LOSS_TOTAL = 3,
@@ -1725,8 +1728,8 @@ void ppo_loss_fwd_bwd(
         bufs.loss_output.data, losses_acc.data, ppo_partials_buf, ppo_grid);
 }
 
-// Experience the puffer advantage! Generalized advantage estimation + V-Trace
-// importance sampling correction in a single streamlined operation
+// Puffer advantage function based on our own research
+// This is a strict generalization of GAE and V-Trace
 __device__ void puff_advantage_row_scalar(
         const precision_t* values, const precision_t* rewards, const precision_t* dones,
         const precision_t* importance, precision_t* advantages, float gamma, float lambda,
@@ -1861,58 +1864,6 @@ void puff_advantage_cuda(PrecisionTensor& values, PrecisionTensor& rewards,
     kernel<<<blocks, 256, 0, stream>>>(
         values.data, rewards.data, dones.data, importance.data,
         advantages.data, gamma, lambda, rho_clip, c_clip, num_steps, horizon);
-}
-
-// Build a Policy value for a given env + arch. Encoder/decoder algorithms are
-// fixed by the env; hidden_size/num_layers/horizon parameterize shape. Policy
-// has no heap state so this returns by value; callers store it wherever.
-static Policy build_policy(const char* env_name, int input_size, int hidden_size,
-                           int num_layers, int decoder_output_size, int act_n,
-                           bool is_continuous, int horizon) {
-    Encoder encoder = {
-        .forward = encoder_forward,
-        .backward = encoder_backward,
-        .init_weights = encoder_init_weights,
-        .reg_params = encoder_reg_params,
-        .reg_train = encoder_reg_train,
-        .reg_rollout = encoder_reg_rollout,
-        .create_weights = encoder_create_weights,
-        .free_weights = encoder_free_weights,
-        .free_activations = encoder_free_activations,
-        .in_dim = input_size, .out_dim = hidden_size,
-        .activation_size = sizeof(EncoderActivations),
-    };
-    create_custom_encoder(env_name, &encoder);
-    Decoder decoder = {
-        .forward = decoder_forward,
-        .backward = decoder_backward,
-        .init_weights = decoder_init_weights,
-        .reg_params = decoder_reg_params,
-        .reg_train = decoder_reg_train,
-        .reg_rollout = decoder_reg_rollout,
-        .create_weights = decoder_create_weights,
-        .free_weights = decoder_free_weights,
-        .free_activations = decoder_free_activations,
-        .hidden_dim = hidden_size, .output_dim = decoder_output_size, .continuous = is_continuous,
-    };
-    Network network = {
-        .forward = mingru_forward,
-        .forward_train = mingru_forward_train,
-        .backward = mingru_backward,
-        .init_weights = mingru_init_weights,
-        .reg_params = mingru_reg_params,
-        .reg_train = mingru_reg_train,
-        .reg_rollout = mingru_reg_rollout,
-        .create_weights = mingru_create_weights,
-        .free_weights = mingru_free_weights,
-        .free_activations = mingru_free_activations,
-        .hidden = hidden_size, .num_layers = num_layers, .horizon = horizon,
-    };
-    return Policy{
-        .encoder = encoder, .decoder = decoder, .network = network,
-        .input_dim = input_size, .hidden_dim = hidden_size, .output_dim = decoder_output_size,
-        .num_atns = act_n,
-    };
 }
 
 #endif // PUFFERLIB_ALGO_CU
