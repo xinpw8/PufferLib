@@ -236,6 +236,316 @@ __device__ __forceinline__ void atomicAdd_precision(precision_t* addr, precision
 }
 #endif
 
+// ---- Minimal entity encoder ----
+
+static constexpr int ME_SELF_DIM = 2;
+static constexpr int ME_POINT_DIM = 4;
+static constexpr int ME_NUM_POINTS = 16;
+static constexpr int ME_ENTITY_IN = ME_SELF_DIM + ME_POINT_DIM;
+static constexpr int ME_ENTITY_HIDDEN = 16;
+static constexpr int ME_OBS_SIZE = ME_SELF_DIM + ME_NUM_POINTS * ME_POINT_DIM;
+static constexpr int ME_BATCH_TILE = 8;
+static constexpr int ME_HIDDEN_TILE = 32;
+static constexpr int ME_FC_THREADS = ME_BATCH_TILE * ME_HIDDEN_TILE;
+
+struct MinimalEntityEncoderWeights {
+    PrecisionTensor input_w, input_b;
+    PrecisionTensor output_w, output_b;
+    int obs_size, hidden;
+};
+
+struct MinimalEntityEncoderActivations {
+    PrecisionTensor entity_hidden, out, saved_obs, grad_entity;
+    PrecisionTensor input_wgrad, input_bgrad, output_wgrad, output_bgrad;
+    IntTensor argmax;
+};
+
+__device__ __forceinline__ float me_obs_value(
+        const precision_t* __restrict__ obs, int obs_size, int b, int point_idx, int d) {
+    int obs_idx = (d < ME_SELF_DIM)
+        ? d
+        : ME_SELF_DIM + point_idx * ME_POINT_DIM + (d - ME_SELF_DIM);
+    return to_float(obs[(int64_t)b * obs_size + obs_idx]);
+}
+
+__device__ __forceinline__ float me_block_reduce_sum(float sum) {
+    for (int offset = 16; offset > 0; offset >>= 1)
+        sum += __shfl_down_sync(0xffffffff, sum, offset);
+    __shared__ float sdata[32];
+    int lane = threadIdx.x % 32, warp = threadIdx.x / 32;
+    if (lane == 0) sdata[warp] = sum;
+    __syncthreads();
+    if (warp == 0) {
+        sum = (lane < (blockDim.x + 31) / 32) ? sdata[lane] : 0.0f;
+        for (int offset = 16; offset > 0; offset >>= 1)
+            sum += __shfl_down_sync(0xffffffff, sum, offset);
+    }
+    return sum;
+}
+
+__global__ void me_projection_relu_kernel(
+        precision_t* __restrict__ entity_hidden,
+        const precision_t* __restrict__ obs,
+        const precision_t* __restrict__ weight,
+        const precision_t* __restrict__ bias,
+        int B, int obs_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    if (idx >= total) return;
+
+    int h = idx % ME_ENTITY_HIDDEN;
+    int point_idx = (idx / ME_ENTITY_HIDDEN) % ME_NUM_POINTS;
+    int b = idx / (ME_NUM_POINTS * ME_ENTITY_HIDDEN);
+    const precision_t* row = weight + h * ME_ENTITY_IN;
+
+    float sum = to_float(bias[h]);
+    for (int d = 0; d < ME_ENTITY_IN; ++d) {
+        sum += to_float(row[d]) * me_obs_value(obs, obs_size, b, point_idx, d);
+    }
+    entity_hidden[idx] = from_float(fmaxf(0.0f, sum));
+}
+
+__global__ void me_linear_max_kernel(
+        precision_t* __restrict__ output,
+        int* __restrict__ argmax,
+        const precision_t* __restrict__ entity_hidden,
+        const precision_t* __restrict__ weight,
+        const precision_t* __restrict__ bias,
+        int B, int hidden) {
+    extern __shared__ precision_t shared[];
+    precision_t* point_tile = shared;
+    precision_t* weight_tile = point_tile + ME_BATCH_TILE * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+
+    int batch_base = blockIdx.x * ME_BATCH_TILE;
+    int hidden_base = blockIdx.y * ME_HIDDEN_TILE;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+    int tid = ty * ME_HIDDEN_TILE + tx;
+    int b = batch_base + ty;
+    int h = hidden_base + tx;
+
+    int point_values = ME_BATCH_TILE * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    for (int idx = tid; idx < point_values; idx += ME_FC_THREADS) {
+        int batch_tile_idx = idx / (ME_NUM_POINTS * ME_ENTITY_HIDDEN);
+        int rem = idx - batch_tile_idx * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+        int global_b = batch_base + batch_tile_idx;
+        point_tile[idx] = global_b < B
+            ? entity_hidden[(int64_t)global_b * ME_NUM_POINTS * ME_ENTITY_HIDDEN + rem]
+            : from_float(0.0f);
+    }
+
+    int weight_values = ME_HIDDEN_TILE * ME_ENTITY_HIDDEN;
+    for (int idx = tid; idx < weight_values; idx += ME_FC_THREADS) {
+        int d = idx / ME_HIDDEN_TILE;
+        int tile_h = idx - d * ME_HIDDEN_TILE;
+        int global_h = hidden_base + tile_h;
+        weight_tile[idx] = global_h < hidden
+            ? weight[(int64_t)global_h * ME_ENTITY_HIDDEN + d]
+            : from_float(0.0f);
+    }
+    __syncthreads();
+
+    if (b < B && h < hidden) {
+        float max_val = -3.4028234663852886e38f;
+        int best_point = 0;
+#pragma unroll
+        for (int point_idx = 0; point_idx < ME_NUM_POINTS; ++point_idx) {
+            const precision_t* point = point_tile
+                + ((int64_t)ty * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN;
+            float sum = to_float(bias[h]);
+#pragma unroll
+            for (int d = 0; d < ME_ENTITY_HIDDEN; ++d) {
+                sum += to_float(weight_tile[d * ME_HIDDEN_TILE + tx]) * to_float(point[d]);
+            }
+            if (sum > max_val) {
+                max_val = sum;
+                best_point = point_idx;
+            }
+        }
+        output[(int64_t)b * hidden + h] = from_float(max_val);
+        if (argmax) argmax[(int64_t)b * hidden + h] = best_point;
+    }
+}
+
+__global__ void me_output_wgrad_kernel(
+        precision_t* __restrict__ wgrad,
+        const precision_t* __restrict__ grad_out,
+        const precision_t* __restrict__ entity_hidden,
+        const int* __restrict__ argmax,
+        int B, int hidden) {
+    int h = blockIdx.x;
+    int k = blockIdx.y;
+    if (h >= hidden || k >= ME_ENTITY_HIDDEN) return;
+
+    float sum = 0.0f;
+    for (int b = threadIdx.x; b < B; b += blockDim.x) {
+        int point_idx = argmax[(int64_t)b * hidden + h];
+        sum += to_float(grad_out[(int64_t)b * hidden + h])
+            * to_float(entity_hidden[((int64_t)b * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN + k]);
+    }
+    sum = me_block_reduce_sum(sum);
+    if (threadIdx.x == 0) wgrad[(int64_t)h * ME_ENTITY_HIDDEN + k] = from_float(sum);
+}
+
+__global__ void me_grad_entity_kernel(
+        precision_t* __restrict__ grad_entity,
+        const precision_t* __restrict__ grad_out,
+        const precision_t* __restrict__ output_w,
+        const precision_t* __restrict__ entity_hidden,
+        const int* __restrict__ argmax,
+        int B, int hidden) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    if (idx >= total) return;
+
+    int k = idx % ME_ENTITY_HIDDEN;
+    int point_idx = (idx / ME_ENTITY_HIDDEN) % ME_NUM_POINTS;
+    int b = idx / (ME_NUM_POINTS * ME_ENTITY_HIDDEN);
+
+    float g = 0.0f;
+    for (int h = 0; h < hidden; ++h) {
+        if (argmax[(int64_t)b * hidden + h] == point_idx) {
+            g += to_float(grad_out[(int64_t)b * hidden + h])
+                * to_float(output_w[(int64_t)h * ME_ENTITY_HIDDEN + k]);
+        }
+    }
+    if (to_float(entity_hidden[idx]) <= 0.0f) g = 0.0f;
+    grad_entity[idx] = from_float(g);
+}
+
+__global__ void me_input_wgrad_kernel(
+        precision_t* __restrict__ wgrad,
+        const precision_t* __restrict__ grad_entity,
+        const precision_t* __restrict__ obs,
+        int B, int obs_size) {
+    int h = blockIdx.x;
+    int d = blockIdx.y;
+    if (h >= ME_ENTITY_HIDDEN || d >= ME_ENTITY_IN) return;
+
+    float sum = 0.0f;
+    int rows = B * ME_NUM_POINTS;
+    for (int row = threadIdx.x; row < rows; row += blockDim.x) {
+        int b = row / ME_NUM_POINTS;
+        int point_idx = row - b * ME_NUM_POINTS;
+        sum += to_float(grad_entity[(int64_t)row * ME_ENTITY_HIDDEN + h])
+            * me_obs_value(obs, obs_size, b, point_idx, d);
+    }
+    sum = me_block_reduce_sum(sum);
+    if (threadIdx.x == 0) wgrad[h * ME_ENTITY_IN + d] = from_float(sum);
+}
+
+static MinimalEntityEncoderWeights* me_encoder_create(int obs_size, int hidden) {
+    assert(obs_size == ME_OBS_SIZE && "minimal entity encoder expects the minimal observation layout");
+    MinimalEntityEncoderWeights* ew =
+        (MinimalEntityEncoderWeights*)calloc(1, sizeof(MinimalEntityEncoderWeights));
+    ew->obs_size = obs_size;
+    ew->hidden = hidden;
+    return ew;
+}
+
+static PrecisionTensor me_encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+    MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
+    MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
+    int B = input.shape[0];
+
+    if (a->saved_obs.data) puf_copy(&a->saved_obs, &input, stream);
+    me_projection_relu_kernel<<<grid_size(B * ME_NUM_POINTS * ME_ENTITY_HIDDEN), BLOCK_SIZE, 0, stream>>>(
+        a->entity_hidden.data, input.data, ew->input_w.data, ew->input_b.data, B, ew->obs_size);
+
+    dim3 block(ME_HIDDEN_TILE, ME_BATCH_TILE);
+    dim3 grid((B + ME_BATCH_TILE - 1) / ME_BATCH_TILE,
+        (ew->hidden + ME_HIDDEN_TILE - 1) / ME_HIDDEN_TILE);
+    size_t shared_bytes = (
+        (size_t)ME_BATCH_TILE * ME_NUM_POINTS * ME_ENTITY_HIDDEN +
+        (size_t)ME_HIDDEN_TILE * ME_ENTITY_HIDDEN) * sizeof(precision_t);
+    me_linear_max_kernel<<<grid, block, shared_bytes, stream>>>(
+        a->out.data, a->argmax.data, a->entity_hidden.data,
+        ew->output_w.data, ew->output_b.data, B, ew->hidden);
+    return a->out;
+}
+
+static void me_encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+    MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
+    MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
+    int B = grad.shape[0];
+
+    bias_grad_kernel<<<ew->hidden, 256, 0, stream>>>(
+        a->output_bgrad.data, grad.data, B, ew->hidden);
+    dim3 output_wgrid(ew->hidden, ME_ENTITY_HIDDEN);
+    me_output_wgrad_kernel<<<output_wgrid, 256, 0, stream>>>(
+        a->output_wgrad.data, grad.data, a->entity_hidden.data, a->argmax.data, B, ew->hidden);
+
+    me_grad_entity_kernel<<<grid_size(B * ME_NUM_POINTS * ME_ENTITY_HIDDEN), BLOCK_SIZE, 0, stream>>>(
+        a->grad_entity.data, grad.data, ew->output_w.data,
+        a->entity_hidden.data, a->argmax.data, B, ew->hidden);
+
+    bias_grad_kernel<<<ME_ENTITY_HIDDEN, 256, 0, stream>>>(
+        a->input_bgrad.data, a->grad_entity.data, B * ME_NUM_POINTS, ME_ENTITY_HIDDEN);
+    dim3 input_wgrid(ME_ENTITY_HIDDEN, ME_ENTITY_IN);
+    me_input_wgrad_kernel<<<input_wgrid, 256, 0, stream>>>(
+        a->input_wgrad.data, a->grad_entity.data, a->saved_obs.data, B, ew->obs_size);
+}
+
+static void me_encoder_init_weights(void* w, uint64_t* seed, cudaStream_t stream) {
+    MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
+    PrecisionTensor input_w = {.data = ew->input_w.data, .shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
+    PrecisionTensor output_w = {.data = ew->output_w.data, .shape = {ew->hidden, ME_ENTITY_HIDDEN}};
+    puf_kaiming_init(&input_w, std::sqrt(2.0f), (*seed)++, stream);
+    puf_kaiming_init(&output_w, 1.0f, (*seed)++, stream);
+    cudaMemsetAsync(ew->input_b.data, 0, numel(ew->input_b.shape) * sizeof(precision_t), stream);
+    cudaMemsetAsync(ew->output_b.data, 0, numel(ew->output_b.shape) * sizeof(precision_t), stream);
+}
+
+static void me_encoder_reg_params(void* w, Allocator* alloc) {
+    MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
+    ew->input_w = {.shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
+    ew->input_b = {.shape = {ME_ENTITY_HIDDEN}};
+    ew->output_w = {.shape = {ew->hidden, ME_ENTITY_HIDDEN}};
+    ew->output_b = {.shape = {ew->hidden}};
+    alloc_register(alloc, &ew->input_w);  alloc_register(alloc, &ew->input_b);
+    alloc_register(alloc, &ew->output_w); alloc_register(alloc, &ew->output_b);
+}
+
+static void me_encoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
+    MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
+    MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
+    *a = {};
+    a->entity_hidden = {.shape = {B_TT, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    a->out = {.shape = {B_TT, ew->hidden}};
+    a->saved_obs = {.shape = {B_TT, ew->obs_size}};
+    a->grad_entity = {.shape = {B_TT, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    a->argmax = {.shape = {B_TT, ew->hidden}};
+    alloc_register(acts, &a->entity_hidden);
+    alloc_register(acts, &a->out);
+    alloc_register(acts, &a->saved_obs);
+    alloc_register(acts, &a->grad_entity);
+    alloc_register(acts, &a->argmax);
+
+    a->input_wgrad = {.shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
+    a->input_bgrad = {.shape = {ME_ENTITY_HIDDEN}};
+    a->output_wgrad = {.shape = {ew->hidden, ME_ENTITY_HIDDEN}};
+    a->output_bgrad = {.shape = {ew->hidden}};
+    alloc_register(grads, &a->input_wgrad);  alloc_register(grads, &a->input_bgrad);
+    alloc_register(grads, &a->output_wgrad); alloc_register(grads, &a->output_bgrad);
+}
+
+static void me_encoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
+    MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
+    MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
+    *a = {};
+    a->entity_hidden = {.shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    a->out = {.shape = {B, ew->hidden}};
+    alloc_register(alloc, &a->entity_hidden);
+    alloc_register(alloc, &a->out);
+}
+
+static void* me_encoder_create_weights(void* self) {
+    Encoder* e = (Encoder*)self;
+    return me_encoder_create(e->in_dim, e->out_dim);
+}
+static void me_encoder_free_weights(void* weights) { free(weights); }
+static void me_encoder_free_activations(void* activations) { free(activations); }
+
 // ---- NCHW bias kernels for im2col conv path ----
 
 __global__ void conv_bias_kernel(precision_t* __restrict__ data,
@@ -632,6 +942,20 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
             .free_activations = nmmo3_encoder_free_activations,
             .in_dim = enc->in_dim, .out_dim = enc->out_dim,
             .activation_size = sizeof(NMMO3EncoderActivations),
+        };
+    } else if (strcmp(env_name, "minimal") == 0) {
+        *enc = Encoder{
+            .forward = me_encoder_forward,
+            .backward = me_encoder_backward,
+            .init_weights = me_encoder_init_weights,
+            .reg_params = me_encoder_reg_params,
+            .reg_train = me_encoder_reg_train,
+            .reg_rollout = me_encoder_reg_rollout,
+            .create_weights = me_encoder_create_weights,
+            .free_weights = me_encoder_free_weights,
+            .free_activations = me_encoder_free_activations,
+            .in_dim = enc->in_dim, .out_dim = enc->out_dim,
+            .activation_size = sizeof(MinimalEntityEncoderActivations),
         };
     }
 }
