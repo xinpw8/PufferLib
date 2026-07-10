@@ -907,6 +907,10 @@ void vec_step(VecEnv* vec) {
 Env* vec_init_envs(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
                  Dict* vec_kwargs, Dict* env_kwargs) {
 
+#ifdef MY_VEC_INIT
+    return my_vec_init(num_envs_out, buffer_env_starts, buffer_env_counts,
+        vec_kwargs, env_kwargs);
+#else
     int total_agents = (int)dict_get(vec_kwargs, "total_agents");
     int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
     int agents_per_buffer = total_agents / num_buffers;
@@ -941,6 +945,7 @@ Env* vec_init_envs(int* num_envs_out, int* buffer_env_starts, int* buffer_env_co
 
     *num_envs_out = num_envs;
     return envs;
+#endif
 }
 
 VecEnv* vec_create(Dict* vec_kwargs, Dict* env_kwargs) {
@@ -1128,6 +1133,10 @@ void vec_close(VecEnv* vec) {
         Env* env = &envs[i];
         puf_close(env);
     }
+
+#ifdef MY_VEC_CLOSE
+    my_vec_close(envs);
+#endif
 
     free(vec->envs);
     free(vec->buffer_states);

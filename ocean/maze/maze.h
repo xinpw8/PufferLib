@@ -5,6 +5,13 @@
 #include <assert.h>
 #include <math.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {5}
+#define MY_VEC_INIT
+#define MY_VEC_CLOSE
+typedef Env Grid;
+typedef unsigned char obs_t;
 
 #define TWO_PI 2.0*PI
 
@@ -21,6 +28,8 @@
 #define VISION 5
 #define WINDOW (2*VISION + 1)
 #define MAX_SIZE 47
+#define OBS_SIZE 121
+#define NUM_ATNS 1
 
 typedef struct Log Log;
 struct Log {
@@ -50,22 +59,34 @@ typedef struct {
     unsigned char maze[MAX_SIZE*MAX_SIZE];
 } State;
 
-typedef struct {
+struct Env {
     Renderer* renderer;
     State* levels;
     State state;
     Log log;
+    Agent agents[1];
     int num_levels;
     int num_agents;
+    int tag;
+    int boundary_reached;
+    int owns_levels;
     int tick;
     unsigned char* observations;
     float* actions;
     float* rewards;
     float* terminals;
     unsigned int rng;
-} Grid;
+};
 
-void c_close(Grid* env) {}
+static inline void sync_agent_buffers(Grid* env) {
+    if (env->agents[0].observations == NULL) {
+        return;
+    }
+    env->observations = (obs_t*)env->agents[0].observations;
+    env->actions = env->agents[0].actions;
+    env->rewards = env->agents[0].rewards;
+    env->terminals = env->agents[0].terminals;
+}
 
 bool in_bounds(State* s, int y, int c) {
     return (y >= 0 && y <= s->height && c >= 0 && c <= s->width);
@@ -122,12 +143,15 @@ void compute_observations(Grid* env) {
     }
 }
 
-void c_reset(Grid* env) {
+void puf_reset(Env* env) {
+    sync_agent_buffers(env);
     env->tick = 0;
     int idx = rand_r(&env->rng) % env->num_levels;
     env->state = env->levels[idx];
     compute_observations(env);
 }
+
+#define c_reset puf_reset
 
 int move_to(Grid* env, int agent_idx, float y, float x) {
     if (!in_bounds(&env->state, y, x)) {
@@ -153,7 +177,8 @@ int move_to(Grid* env, int agent_idx, float y, float x) {
     return 0;
 }
  
-void c_step(Grid* env) {
+void puf_step(Env* env) {
+    sync_agent_buffers(env);
     env->terminals[0] = 0.0f;
     env->rewards[0] = 0.0f;
 
@@ -191,12 +216,14 @@ void c_step(Grid* env) {
     }
 
     if (env->terminals[0]) {
-        c_reset(env);
+        puf_reset(env);
         int idx = rand_r(&env->rng) % env->num_levels;
         env->state = env->levels[idx];
         compute_observations(env);
     }
 }
+
+#define c_step puf_step
 
 Renderer* init_renderer(int cell_size, int width, int height) {
     Renderer* renderer = (Renderer*)calloc(1, sizeof(Renderer));
@@ -223,7 +250,20 @@ void close_renderer(Renderer* renderer) {
     free(renderer);
 }
 
-void c_render(Grid* env) {
+void puf_close(Env* env) {
+    if (env->renderer != NULL) {
+        close_renderer(env->renderer);
+        env->renderer = NULL;
+    }
+    if (env->owns_levels) {
+        free(env->levels);
+        env->levels = NULL;
+    }
+}
+
+#define c_close puf_close
+
+void puf_render(Env* env) {
     float overlay = 0.0;
     if (env->renderer == NULL) {
         env->renderer = init_renderer(16, MAX_SIZE, MAX_SIZE);
@@ -286,6 +326,8 @@ void c_render(Grid* env) {
 
     EndDrawing();
 }
+
+#define c_render puf_render
 
 void generate_growing_tree_maze(unsigned char* maze,
         int width, int height, int max_size, float difficulty, int seed) {
@@ -419,4 +461,89 @@ void create_maze_level(State* s, float difficulty, int seed) {
     spawn_agent(s, 0, 1, 1);
     int goal_adr = maze_offset(s->height - 2, s->width - 2);
     s->maze[goal_adr] = GOAL;
+}
+
+State* make_maze_levels(int num_maps, int map_size) {
+    State* levels = (State*)calloc(num_maps, sizeof(State));
+    unsigned int map_rng = 42;
+    for (int i = 0; i < num_maps; i++) {
+        int sz = map_size;
+        if (map_size == -1) {
+            sz = 5 + (rand_r(&map_rng) % (MAX_SIZE - 5));
+        }
+        if (sz % 2 == 0) {
+            sz -= 1;
+        }
+
+        State* level = &levels[i];
+        level->width = sz;
+        level->height = sz;
+
+        float difficulty = (float)rand_r(&map_rng) / (float)(RAND_MAX);
+        create_maze_level(level, difficulty, i);
+    }
+    return levels;
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    int num_maps = (int)dict_get(kwargs, "num_maps");
+    int map_size = (int)dict_get(kwargs, "map_size");
+    env->num_levels = num_maps;
+    env->num_agents = 1;
+    env->levels = make_maze_levels(num_maps, map_size);
+    env->owns_levels = 1;
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+}
+
+Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+                 Dict* vec_kwargs, Dict* env_kwargs) {
+    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
+    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
+    int agents_per_buffer = total_agents / num_buffers;
+    int num_envs = total_agents;
+
+    int num_maps = (int)dict_get(env_kwargs, "num_maps");
+    int map_size = (int)dict_get(env_kwargs, "map_size");
+    State* levels = make_maze_levels(num_maps, map_size);
+
+    Env* envs = (Env*)calloc(num_envs, sizeof(Env));
+    int buf = 0;
+    int buf_agents = 0;
+    buffer_env_starts[0] = 0;
+    buffer_env_counts[0] = 0;
+
+    unsigned int env_rng = 42;
+    for (int i = 0; i < num_envs; i++) {
+        Env* env = &envs[i];
+        env->num_levels = num_maps;
+        env->num_agents = 1;
+        env->levels = levels;
+        env->rng = rand_r(&env_rng);
+        env->agents[0].action_mask = NULL;
+        env->agents[0].policy = 0;
+
+        buf_agents += env->num_agents;
+        buffer_env_counts[buf]++;
+        if (buf_agents >= agents_per_buffer && buf < num_buffers - 1) {
+            buf++;
+            buffer_env_starts[buf] = i + 1;
+            buffer_env_counts[buf] = 0;
+            buf_agents = 0;
+        }
+    }
+
+    *num_envs_out = num_envs;
+    return envs;
+}
+
+void my_vec_close(Env* envs) {
+    free(envs[0].levels);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
 }
