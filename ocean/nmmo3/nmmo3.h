@@ -19,6 +19,13 @@
 #include "simplex.h"
 #include "tile_atlas.h"
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {26}
+#define OBS_SIZE 1707
+#define NUM_ATNS 1
+typedef Env MMO;
+typedef unsigned char obs_t;
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION 330
@@ -283,7 +290,7 @@ void flood_fill(unsigned char* input, char* output,
         }
     }
 
-    int* pos = calloc(width*height, sizeof(int));
+    int* pos = (int*)calloc(width*height, sizeof(int));
     range((int*)pos, width*height);
     shuffle((int*)pos, width*height, rng);
 
@@ -368,7 +375,7 @@ void flood_fill(unsigned char* input, char* output,
 void cellular_automata(char* grid,
         int width, int height, int colors, int max_fill, unsigned int* rng) {
 
-    int* pos = calloc(2*width*height, sizeof(int));
+    int* pos = (int*)calloc(2*width*height, sizeof(int));
     int pos_sz = 0;
     for (int r = 0; r < height; r++) {
         for (int c = 0; c < width; c++) {
@@ -472,20 +479,20 @@ void generate_terrain(char* terrain, unsigned char* rendered,
         int R, int C, int x_border, int y_border, unsigned int* rng) {
     // Perlin noise for the base terrain
     // TODO: Not handling octaves correctly
-    float* perlin_map = calloc(R*C, sizeof(float));
+    float* perlin_map = (float*)calloc(R*C, sizeof(float));
     int offset_x = rand_r(rng) % 100000;
     int offset_y = rand_r(rng) % 100000;
     perlin_noise(perlin_map, C, R, 1.0/64.0, 2, offset_x, offset_y);
  
     // Flood fill connected components to determine biomes
-    unsigned char* ridges = calloc(R*C, sizeof(unsigned char));
+    unsigned char* ridges = (unsigned char*)calloc(R*C, sizeof(unsigned char));
     for (int r = 0; r < R; r++) {
         for (int c = 0; c < C; c++) {
             int adr = r*C + c;
             ridges[adr] = (perlin_map[adr]>0.35) & (perlin_map[adr]<0.65);
         }
     }
-    char *biomes = calloc(R*C, sizeof(char));
+    char *biomes = (char*)calloc(R*C, sizeof(char));
     flood_fill(ridges, biomes, R, C, 4, 4000, rng);
 
     // Cellular automata to cover unfilled ridges
@@ -636,9 +643,9 @@ struct RespawnBuffer {
 };
 
 RespawnBuffer* make_respawn_buffer(int size, int ticks) {
-    RespawnBuffer* buffer = calloc(1, sizeof(RespawnBuffer));
-    buffer->data = calloc(ticks*size, sizeof(Respawnable));
-    buffer->lengths = calloc(ticks, sizeof(int));
+    RespawnBuffer* buffer = (RespawnBuffer*)calloc(1, sizeof(RespawnBuffer));
+    buffer->data = (Respawnable*)calloc(ticks*size, sizeof(Respawnable));
+    buffer->lengths = (int*)calloc(ticks, sizeof(int));
     buffer->ticks = ticks;
     buffer->size = size;
     return buffer;
@@ -675,8 +682,7 @@ Respawnable pop_from_buffer(RespawnBuffer* buffer, int tick) {
 }
 
 typedef struct Client Client;
-typedef struct MMO MMO;
-struct MMO {
+struct Env {
     Client* client;
     int width;
     int height;
@@ -714,6 +720,9 @@ struct MMO {
     RespawnBuffer* enemy_respawn_buffer;
     RespawnBuffer* drop_respawn_buffer;
     Log log;
+    Agent* agents;
+    int tag;
+    int boundary_reached;
     unsigned int rng;
     float reward_combat_level;
     float reward_prof_level;
@@ -721,6 +730,17 @@ struct MMO {
     float reward_market;
     float reward_death;
 };
+
+static inline void sync_mmo_agent_buffers(MMO* env) {
+    if (env->agents == NULL || env->num_agents <= 0 || env->agents[0].observations == NULL) {
+        return;
+    }
+
+    env->observations = (obs_t*)env->agents[0].observations;
+    env->actions = env->agents[0].actions;
+    env->rewards = env->agents[0].rewards;
+    env->terminals = env->agents[0].terminals;
+}
 
 Entity* get_entity(MMO* env, int pid) {
     if (pid < env->num_agents) {
@@ -768,12 +788,12 @@ void init(MMO* env) {
     init_items();
 
     int sz = env->width*env->height;
-    env->counts = calloc(sz, sizeof(unsigned char));
-    env->terrain = calloc(sz, sizeof(char));
-    env->rendered = calloc(sz*3, sizeof(unsigned char));
+    env->counts = (unsigned char*)calloc(sz, sizeof(unsigned char));
+    env->terrain = (char*)calloc(sz, sizeof(char));
+    env->rendered = (unsigned char*)calloc(sz*3, sizeof(unsigned char));
 
-    env->pids = calloc(sz, sizeof(short));
-    env->items = calloc(sz, sizeof(unsigned char));
+    env->pids = (short*)calloc(sz, sizeof(short));
+    env->items = (unsigned char*)calloc(sz, sizeof(unsigned char));
 
     // Circular buffers for respawning resources and enemies
     env->resource_respawn_buffer = make_respawn_buffer(2*env->num_resources
@@ -782,22 +802,80 @@ void init(MMO* env) {
         env->num_enemies, env->enemy_respawn_ticks);
     env->drop_respawn_buffer = make_respawn_buffer(2*env->num_enemies, 20);
 
-    env->returns = calloc(env->num_agents, sizeof(Reward));
-    env->reward_struct = calloc(env->num_agents, sizeof(Reward));
-    env->players = calloc(env->num_agents, sizeof(Entity));
-    env->enemies = calloc(env->num_enemies, sizeof(Entity));
+    env->returns = (Reward*)calloc(env->num_agents, sizeof(Reward));
+    env->reward_struct = (Reward*)calloc(env->num_agents, sizeof(Reward));
+    env->players = (Entity*)calloc(env->num_agents, sizeof(Entity));
+    env->enemies = (Entity*)calloc(env->num_enemies, sizeof(Entity));
 
     // TODO: Figure out how to cast to array. Size is static
     int num_market = (MAX_TIERS+1)*(I_N+1);
     env->market = (ItemMarket*)calloc(num_market, sizeof(ItemMarket));
 }
 
+void puf_init(Env* env, Dict* kwargs) {
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->num_agents = dict_get(kwargs, "num_agents");
+    env->num_enemies = dict_get(kwargs, "num_enemies");
+    env->num_resources = dict_get(kwargs, "num_resources");
+    env->num_weapons = dict_get(kwargs, "num_weapons");
+    env->num_gems = dict_get(kwargs, "num_gems");
+    env->tiers = dict_get(kwargs, "tiers");
+    env->levels = dict_get(kwargs, "levels");
+    env->teleportitis_prob = dict_get(kwargs, "teleportitis_prob");
+    env->enemy_respawn_ticks = dict_get(kwargs, "enemy_respawn_ticks");
+    env->item_respawn_ticks = dict_get(kwargs, "item_respawn_ticks");
+    env->x_window = dict_get(kwargs, "x_window");
+    env->y_window = dict_get(kwargs, "y_window");
+    env->reward_combat_level = dict_get(kwargs, "reward_combat_level");
+    env->reward_prof_level = dict_get(kwargs, "reward_prof_level");
+    env->reward_item_level = dict_get(kwargs, "reward_item_level");
+    env->reward_market = dict_get(kwargs, "reward_market");
+    env->reward_death = dict_get(kwargs, "reward_death");
+    env->agents = (Agent*)calloc(env->num_agents, sizeof(Agent));
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].action_mask = NULL;
+        env->agents[i].policy = 0;
+    }
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "return_comb_lvl", log->return_comb_lvl);
+    dict_set(out, "return_prof_lvl", log->return_prof_lvl);
+    dict_set(out, "return_item_atk_lvl", log->return_item_atk_lvl);
+    dict_set(out, "return_item_def_lvl", log->return_item_def_lvl);
+    dict_set(out, "return_market_buy", log->return_market_buy);
+    dict_set(out, "return_market_sell", log->return_market_sell);
+    dict_set(out, "return_death", log->return_death);
+    dict_set(out, "min_comb_prof", log->min_comb_prof);
+    dict_set(out, "purchases", log->purchases);
+    dict_set(out, "sales", log->sales);
+    dict_set(out, "equip_attack", log->equip_attack);
+    dict_set(out, "equip_defense", log->equip_defense);
+    dict_set(out, "r", log->r);
+    dict_set(out, "c", log->c);
+}
+
 void allocate_mmo(MMO* env) {
     // TODO: Not hardcode
-    env->observations = calloc(env->num_agents*(11*15*10+47+10), sizeof(unsigned char));
-    env->rewards = calloc(env->num_agents, sizeof(float));
-    env->terminals = calloc(env->num_agents, sizeof(float));
-    env->actions = calloc(env->num_agents, sizeof(float));
+    env->observations = (obs_t*)calloc(env->num_agents*OBS_SIZE, sizeof(obs_t));
+    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
+    env->terminals = (float*)calloc(env->num_agents, sizeof(float));
+    env->actions = (float*)calloc(env->num_agents*NUM_ATNS, sizeof(float));
+    env->agents = (Agent*)calloc(env->num_agents, sizeof(Agent));
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].observations = env->observations + i*OBS_SIZE;
+        env->agents[i].actions = env->actions + i*NUM_ATNS;
+        env->agents[i].rewards = env->rewards + i;
+        env->agents[i].terminals = env->terminals + i;
+        env->agents[i].action_mask = NULL;
+        env->agents[i].policy = 0;
+    }
     init(env);
 }
 
@@ -822,6 +900,16 @@ void free_allocated_mmo(MMO* env) {
     free(env->players);
     free(env->enemies);
     free(env->actions);
+    free(env->agents);
+    c_close(env);
+}
+
+void puf_close(Env* env) {
+    free(env->returns);
+    free(env->reward_struct);
+    free(env->players);
+    free(env->enemies);
+    free(env->agents);
     c_close(env);
 }
 
@@ -1636,7 +1724,9 @@ void enemy_ai(MMO* env, int pid) {
     wander(env, pid);
 }
 
-void c_reset(MMO* env) {
+void puf_reset(Env* env) {
+    sync_mmo_agent_buffers(env);
+
     env->tick = 0;
 
     env->market_sells = 0;
@@ -1668,7 +1758,7 @@ void c_reset(MMO* env) {
     int enemy_count = 0;
 
     // Randomly generate spawn candidates
-    int *spawn_cands = calloc(env->width*env->height, sizeof(int));
+    int *spawn_cands = (int*)calloc(env->width*env->height, sizeof(int));
     range((int*)spawn_cands, env->width*env->height);
     shuffle((int*)spawn_cands, env->width*env->height, &env->rng);
 
@@ -1839,7 +1929,11 @@ void c_reset(MMO* env) {
     compute_all_obs(env);
 }
 
-void c_step(MMO* env) {
+#define c_reset puf_reset
+
+void puf_step(Env* env) {
+    sync_mmo_agent_buffers(env);
+
     env->tick += 1;
     int tick = env->tick;
 
@@ -2130,6 +2224,8 @@ void c_step(MMO* env) {
         );
     }
 }
+
+#define c_step puf_step
 
 #define FRAME_RATE 60
 #define TICK_FRAMES 36
@@ -2457,12 +2553,12 @@ Client* make_client(MMO* env) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "NMMO3");
     SetTargetFPS(FRAME_RATE);
 
-    Client* client = calloc(1, sizeof(Client));
+    Client* client = (Client*)calloc(1, sizeof(Client));
     client->start_time = time(NULL);
     client->frame = 0;
     client->command_len = 0;
 
-    client->terrain = calloc(env->height*env->width, sizeof(int));
+    client->terrain = (int*)calloc(env->height*env->width, sizeof(int));
     render_conversion(env->terrain, client->terrain, env->height, env->width, &env->rng);
 
     client->shader = LoadShader("", TextFormat("resources/nmmo3/map_shader_%i.fs", GLSL_VERSION));
@@ -2480,7 +2576,7 @@ Client* make_client(MMO* env) {
     ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
     client->shader_terrain = LoadTextureFromImage(img);
     UnloadImage(img);
-    client->shader_terrain_data = malloc(env->width*env->height*4);
+    client->shader_terrain_data = (unsigned char*)malloc(env->width*env->height*4);
     //SetShaderValue(client->shader, client->shader_terrain_loc, &client->terrain, SHADER_UNIFORM_INT);
    
     for (int i = 0; i < env->width*env->height; i++) {
@@ -2516,8 +2612,8 @@ Client* make_client(MMO* env) {
 
     // TODO: Why do I need to cast here?
     client->camera = (Camera2D){
-        .target = {.x = env->width/2*TILE_SIZE, .y = env->height/2*TILE_SIZE},
         .offset = {.x = 0.0, .y = 0.0},
+        .target = {.x = env->width/2*TILE_SIZE, .y = env->height/2*TILE_SIZE},
         .rotation = 0.0,
         .zoom = 1.0,
     };
@@ -3171,4 +3267,6 @@ int c_render(MMO* env) {
     return action;
 }
 
-
+void puf_render(Env* env) {
+    c_render(env);
+}
