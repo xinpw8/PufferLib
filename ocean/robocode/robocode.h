@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <math.h>
 #include "raylib.h"
+#include "pufferenv.h"
 
 #define NUM_ACTIONS 5
 #define NUM_BULLETS 16
@@ -92,11 +93,13 @@ struct Robot {
 
 typedef struct Client Client;
 typedef float obs_t;
-typedef struct Robocode Robocode;
-#define Env Robocode
-#include "pufferenv.h"
+typedef Env Robocode;
 
-struct Robocode {
+#define OBS_SIZE (EGO_FEATURES + OTHER_FEATURES)
+#define NUM_ATNS 5
+#define ACT_SIZES {4, 9, 11, 11, 6}
+
+struct Env {
     Client* client;
     Agent agents[2];
 
@@ -137,11 +140,6 @@ struct Robocode {
 
     unsigned int rng;
 };
-
-#ifdef PUFFER_VECENV_INCLUDE
-#define OBS_SIZE (EGO_FEATURES + OTHER_FEATURES)
-#define NUM_ATNS 5
-#define ACT_SIZES {4, 9, 11, 11, 6}
 
 void init(Robocode* env);
 
@@ -198,7 +196,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "draw_rate", log->draw_rate);
     dict_set(out, "n", log->n);
 }
-#endif
 
 static inline void bot_mems_alloc(Robocode* env);
 static inline void bot_mems_free(Robocode* env);
@@ -505,7 +502,7 @@ int scan_area(Robocode* env, Robot* robot){
 void compute_observations(Robocode* env){
     for(int i = 0; i < env->num_agents; i++){
         Robot* robot = &env->robots[i];
-        obs_t* obs = env->agents[i].observations;
+        obs_t* obs = (obs_t*)env->agents[i].observations;
         obs[0] = robot->x / env->width;
         obs[1] = robot->y / env->height;
         // Absolute headings stored as degrees in [0, 360); convert to radians [0, 2π).
