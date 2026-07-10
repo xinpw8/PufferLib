@@ -249,60 +249,31 @@ static constexpr int ME_HIDDEN_TILE = 32;
 static constexpr int ME_FC_THREADS = ME_BATCH_TILE * ME_HIDDEN_TILE;
 
 struct MinimalEntityEncoderWeights {
-    PrecisionTensor input_w, input_b;
-    PrecisionTensor output_w, output_b;
+    PrecisionTensor input_w, output_w;
     int obs_size, hidden;
 };
 
 struct MinimalEntityEncoderActivations {
-    PrecisionTensor entity_hidden, out, saved_obs, grad_entity;
-    PrecisionTensor input_wgrad, input_bgrad, output_wgrad, output_bgrad;
+    PrecisionTensor point_input, entity_hidden, out, grad_entity;
+    PrecisionTensor input_wgrad, output_wgrad;
     IntTensor argmax;
 };
 
-__device__ __forceinline__ float me_obs_value(
-        const precision_t* __restrict__ obs, int obs_size, int b, int point_idx, int d) {
+__global__ void me_materialize_points_kernel(
+        precision_t* __restrict__ point_input,
+        const precision_t* __restrict__ obs,
+        int B, int obs_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = B * ME_NUM_POINTS * ME_ENTITY_IN;
+    if (idx >= total) return;
+
+    int d = idx % ME_ENTITY_IN;
+    int point_idx = (idx / ME_ENTITY_IN) % ME_NUM_POINTS;
+    int b = idx / (ME_NUM_POINTS * ME_ENTITY_IN);
     int obs_idx = (d < ME_SELF_DIM)
         ? d
         : ME_SELF_DIM + point_idx * ME_POINT_DIM + (d - ME_SELF_DIM);
-    return to_float(obs[(int64_t)b * obs_size + obs_idx]);
-}
-
-__device__ __forceinline__ float me_block_reduce_sum(float sum) {
-    for (int offset = 16; offset > 0; offset >>= 1)
-        sum += __shfl_down_sync(0xffffffff, sum, offset);
-    __shared__ float sdata[32];
-    int lane = threadIdx.x % 32, warp = threadIdx.x / 32;
-    if (lane == 0) sdata[warp] = sum;
-    __syncthreads();
-    if (warp == 0) {
-        sum = (lane < (blockDim.x + 31) / 32) ? sdata[lane] : 0.0f;
-        for (int offset = 16; offset > 0; offset >>= 1)
-            sum += __shfl_down_sync(0xffffffff, sum, offset);
-    }
-    return sum;
-}
-
-__global__ void me_projection_relu_kernel(
-        precision_t* __restrict__ entity_hidden,
-        const precision_t* __restrict__ obs,
-        const precision_t* __restrict__ weight,
-        const precision_t* __restrict__ bias,
-        int B, int obs_size) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
-    if (idx >= total) return;
-
-    int h = idx % ME_ENTITY_HIDDEN;
-    int point_idx = (idx / ME_ENTITY_HIDDEN) % ME_NUM_POINTS;
-    int b = idx / (ME_NUM_POINTS * ME_ENTITY_HIDDEN);
-    const precision_t* row = weight + h * ME_ENTITY_IN;
-
-    float sum = to_float(bias[h]);
-    for (int d = 0; d < ME_ENTITY_IN; ++d) {
-        sum += to_float(row[d]) * me_obs_value(obs, obs_size, b, point_idx, d);
-    }
-    entity_hidden[idx] = from_float(fmaxf(0.0f, sum));
+    point_input[idx] = obs[(int64_t)b * obs_size + obs_idx];
 }
 
 __global__ void me_linear_max_kernel(
@@ -310,7 +281,6 @@ __global__ void me_linear_max_kernel(
         int* __restrict__ argmax,
         const precision_t* __restrict__ entity_hidden,
         const precision_t* __restrict__ weight,
-        const precision_t* __restrict__ bias,
         int B, int hidden) {
     extern __shared__ precision_t shared[];
     precision_t* point_tile = shared;
@@ -330,7 +300,8 @@ __global__ void me_linear_max_kernel(
         int rem = idx - batch_tile_idx * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
         int global_b = batch_base + batch_tile_idx;
         point_tile[idx] = global_b < B
-            ? entity_hidden[(int64_t)global_b * ME_NUM_POINTS * ME_ENTITY_HIDDEN + rem]
+            ? from_float(fmaxf(0.0f, to_float(
+                entity_hidden[(int64_t)global_b * ME_NUM_POINTS * ME_ENTITY_HIDDEN + rem])))
             : from_float(0.0f);
     }
 
@@ -352,7 +323,7 @@ __global__ void me_linear_max_kernel(
         for (int point_idx = 0; point_idx < ME_NUM_POINTS; ++point_idx) {
             const precision_t* point = point_tile
                 + ((int64_t)ty * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN;
-            float sum = to_float(bias[h]);
+            float sum = 0.0f;
 #pragma unroll
             for (int d = 0; d < ME_ENTITY_HIDDEN; ++d) {
                 sum += to_float(weight_tile[d * ME_HIDDEN_TILE + tx]) * to_float(point[d]);
@@ -374,17 +345,45 @@ __global__ void me_output_wgrad_kernel(
         const int* __restrict__ argmax,
         int B, int hidden) {
     int h = blockIdx.x;
-    int k = blockIdx.y;
-    if (h >= hidden || k >= ME_ENTITY_HIDDEN) return;
+    if (h >= hidden) return;
 
-    float sum = 0.0f;
+    float sum[ME_ENTITY_HIDDEN];
+#pragma unroll
+    for (int k = 0; k < ME_ENTITY_HIDDEN; ++k) sum[k] = 0.0f;
+
     for (int b = threadIdx.x; b < B; b += blockDim.x) {
         int point_idx = argmax[(int64_t)b * hidden + h];
-        sum += to_float(grad_out[(int64_t)b * hidden + h])
-            * to_float(entity_hidden[((int64_t)b * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN + k]);
+        float g = to_float(grad_out[(int64_t)b * hidden + h]);
+        const precision_t* point = entity_hidden
+            + ((int64_t)b * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN;
+#pragma unroll
+        for (int k = 0; k < ME_ENTITY_HIDDEN; ++k) {
+            sum[k] += g * fmaxf(0.0f, to_float(point[k]));
+        }
     }
-    sum = me_block_reduce_sum(sum);
-    if (threadIdx.x == 0) wgrad[(int64_t)h * ME_ENTITY_HIDDEN + k] = from_float(sum);
+
+    __shared__ float warp_sums[ME_ENTITY_HIDDEN * 32];
+    int lane = threadIdx.x & 31;
+    int warp = threadIdx.x >> 5;
+    int num_warps = (blockDim.x + 31) >> 5;
+#pragma unroll
+    for (int k = 0; k < ME_ENTITY_HIDDEN; ++k) {
+        float s = sum[k];
+        for (int offset = 16; offset > 0; offset >>= 1)
+            s += __shfl_down_sync(0xffffffff, s, offset);
+        if (lane == 0) warp_sums[k * 32 + warp] = s;
+    }
+    __syncthreads();
+
+    if (warp == 0) {
+#pragma unroll
+        for (int k = 0; k < ME_ENTITY_HIDDEN; ++k) {
+            float s = lane < num_warps ? warp_sums[k * 32 + lane] : 0.0f;
+            for (int offset = 16; offset > 0; offset >>= 1)
+                s += __shfl_down_sync(0xffffffff, s, offset);
+            if (lane == 0) wgrad[(int64_t)h * ME_ENTITY_HIDDEN + k] = from_float(s);
+        }
+    }
 }
 
 __global__ void me_grad_entity_kernel(
@@ -394,44 +393,45 @@ __global__ void me_grad_entity_kernel(
         const precision_t* __restrict__ entity_hidden,
         const int* __restrict__ argmax,
         int B, int hidden) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
-    if (idx >= total) return;
+    int b = blockIdx.x;
+    if (b >= B) return;
 
-    int k = idx % ME_ENTITY_HIDDEN;
-    int point_idx = (idx / ME_ENTITY_HIDDEN) % ME_NUM_POINTS;
-    int b = idx / (ME_NUM_POINTS * ME_ENTITY_HIDDEN);
+    __shared__ float accum[ME_NUM_POINTS * ME_ENTITY_HIDDEN];
+    __shared__ int arg_s[BLOCK_SIZE];
+    __shared__ float grad_s[BLOCK_SIZE];
 
-    float g = 0.0f;
-    for (int h = 0; h < hidden; ++h) {
-        if (argmax[(int64_t)b * hidden + h] == point_idx) {
-            g += to_float(grad_out[(int64_t)b * hidden + h])
-                * to_float(output_w[(int64_t)h * ME_ENTITY_HIDDEN + k]);
+    for (int idx = threadIdx.x; idx < ME_NUM_POINTS * ME_ENTITY_HIDDEN; idx += blockDim.x) {
+        accum[idx] = 0.0f;
+    }
+    __syncthreads();
+
+    for (int base = 0; base < hidden; base += blockDim.x) {
+        int h = base + threadIdx.x;
+        if (h < hidden) {
+            arg_s[threadIdx.x] = argmax[(int64_t)b * hidden + h];
+            grad_s[threadIdx.x] = to_float(grad_out[(int64_t)b * hidden + h]);
         }
-    }
-    if (to_float(entity_hidden[idx]) <= 0.0f) g = 0.0f;
-    grad_entity[idx] = from_float(g);
-}
+        __syncthreads();
 
-__global__ void me_input_wgrad_kernel(
-        precision_t* __restrict__ wgrad,
-        const precision_t* __restrict__ grad_entity,
-        const precision_t* __restrict__ obs,
-        int B, int obs_size) {
-    int h = blockIdx.x;
-    int d = blockIdx.y;
-    if (h >= ME_ENTITY_HIDDEN || d >= ME_ENTITY_IN) return;
-
-    float sum = 0.0f;
-    int rows = B * ME_NUM_POINTS;
-    for (int row = threadIdx.x; row < rows; row += blockDim.x) {
-        int b = row / ME_NUM_POINTS;
-        int point_idx = row - b * ME_NUM_POINTS;
-        sum += to_float(grad_entity[(int64_t)row * ME_ENTITY_HIDDEN + h])
-            * me_obs_value(obs, obs_size, b, point_idx, d);
+        int tile = hidden - base;
+        if (tile > blockDim.x) tile = blockDim.x;
+        for (int idx = threadIdx.x; idx < tile * ME_ENTITY_HIDDEN; idx += blockDim.x) {
+            int j = idx / ME_ENTITY_HIDDEN;
+            int k = idx - j * ME_ENTITY_HIDDEN;
+            int point_idx = arg_s[j];
+            float g = grad_s[j] * to_float(output_w[(int64_t)(base + j) * ME_ENTITY_HIDDEN + k]);
+            atomicAdd(&accum[point_idx * ME_ENTITY_HIDDEN + k], g);
+        }
+        __syncthreads();
     }
-    sum = me_block_reduce_sum(sum);
-    if (threadIdx.x == 0) wgrad[h * ME_ENTITY_IN + d] = from_float(sum);
+
+    for (int idx = threadIdx.x; idx < ME_NUM_POINTS * ME_ENTITY_HIDDEN; idx += blockDim.x) {
+        int point_idx = idx / ME_ENTITY_HIDDEN;
+        int k = idx - point_idx * ME_ENTITY_HIDDEN;
+        int64_t offset = ((int64_t)b * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN + k;
+        float g = to_float(entity_hidden[offset]) > 0.0f ? accum[idx] : 0.0f;
+        grad_entity[offset] = from_float(g);
+    }
 }
 
 static MinimalEntityEncoderWeights* me_encoder_create(int obs_size, int hidden) {
@@ -448,9 +448,11 @@ static PrecisionTensor me_encoder_forward(void* w, void* activations, PrecisionT
     MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
     int B = input.shape[0];
 
-    if (a->saved_obs.data) puf_copy(&a->saved_obs, &input, stream);
-    me_projection_relu_kernel<<<grid_size(B * ME_NUM_POINTS * ME_ENTITY_HIDDEN), BLOCK_SIZE, 0, stream>>>(
-        a->entity_hidden.data, input.data, ew->input_w.data, ew->input_b.data, B, ew->obs_size);
+    me_materialize_points_kernel<<<grid_size(B * ME_NUM_POINTS * ME_ENTITY_IN), BLOCK_SIZE, 0, stream>>>(
+        a->point_input.data, input.data, B, ew->obs_size);
+    PrecisionTensor point_input = {.data = a->point_input.data, .shape = {B, ME_NUM_POINTS, ME_ENTITY_IN}};
+    PrecisionTensor entity_hidden = {.data = a->entity_hidden.data, .shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    puf_mm(&point_input, &ew->input_w, &entity_hidden, stream);
 
     dim3 block(ME_HIDDEN_TILE, ME_BATCH_TILE);
     dim3 grid((B + ME_BATCH_TILE - 1) / ME_BATCH_TILE,
@@ -460,7 +462,7 @@ static PrecisionTensor me_encoder_forward(void* w, void* activations, PrecisionT
         (size_t)ME_HIDDEN_TILE * ME_ENTITY_HIDDEN) * sizeof(precision_t);
     me_linear_max_kernel<<<grid, block, shared_bytes, stream>>>(
         a->out.data, a->argmax.data, a->entity_hidden.data,
-        ew->output_w.data, ew->output_b.data, B, ew->hidden);
+        ew->output_w.data, B, ew->hidden);
     return a->out;
 }
 
@@ -469,21 +471,14 @@ static void me_encoder_backward(void* w, void* activations, PrecisionTensor grad
     MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
     int B = grad.shape[0];
 
-    bias_grad_kernel<<<ew->hidden, 256, 0, stream>>>(
-        a->output_bgrad.data, grad.data, B, ew->hidden);
-    dim3 output_wgrid(ew->hidden, ME_ENTITY_HIDDEN);
-    me_output_wgrad_kernel<<<output_wgrid, 256, 0, stream>>>(
+    me_output_wgrad_kernel<<<ew->hidden, 256, 0, stream>>>(
         a->output_wgrad.data, grad.data, a->entity_hidden.data, a->argmax.data, B, ew->hidden);
 
-    me_grad_entity_kernel<<<grid_size(B * ME_NUM_POINTS * ME_ENTITY_HIDDEN), BLOCK_SIZE, 0, stream>>>(
+    me_grad_entity_kernel<<<B, BLOCK_SIZE, 0, stream>>>(
         a->grad_entity.data, grad.data, ew->output_w.data,
         a->entity_hidden.data, a->argmax.data, B, ew->hidden);
 
-    bias_grad_kernel<<<ME_ENTITY_HIDDEN, 256, 0, stream>>>(
-        a->input_bgrad.data, a->grad_entity.data, B * ME_NUM_POINTS, ME_ENTITY_HIDDEN);
-    dim3 input_wgrid(ME_ENTITY_HIDDEN, ME_ENTITY_IN);
-    me_input_wgrad_kernel<<<input_wgrid, 256, 0, stream>>>(
-        a->input_wgrad.data, a->grad_entity.data, a->saved_obs.data, B, ew->obs_size);
+    puf_mm_tn(&a->grad_entity, &a->point_input, &a->input_wgrad, stream);
 }
 
 static void me_encoder_init_weights(void* w, uint64_t* seed, cudaStream_t stream) {
@@ -492,49 +487,45 @@ static void me_encoder_init_weights(void* w, uint64_t* seed, cudaStream_t stream
     PrecisionTensor output_w = {.data = ew->output_w.data, .shape = {ew->hidden, ME_ENTITY_HIDDEN}};
     puf_kaiming_init(&input_w, std::sqrt(2.0f), (*seed)++, stream);
     puf_kaiming_init(&output_w, 1.0f, (*seed)++, stream);
-    cudaMemsetAsync(ew->input_b.data, 0, numel(ew->input_b.shape) * sizeof(precision_t), stream);
-    cudaMemsetAsync(ew->output_b.data, 0, numel(ew->output_b.shape) * sizeof(precision_t), stream);
 }
 
 static void me_encoder_reg_params(void* w, Allocator* alloc) {
     MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
     ew->input_w = {.shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
-    ew->input_b = {.shape = {ME_ENTITY_HIDDEN}};
     ew->output_w = {.shape = {ew->hidden, ME_ENTITY_HIDDEN}};
-    ew->output_b = {.shape = {ew->hidden}};
-    alloc_register(alloc, &ew->input_w);  alloc_register(alloc, &ew->input_b);
-    alloc_register(alloc, &ew->output_w); alloc_register(alloc, &ew->output_b);
+    alloc_register(alloc, &ew->input_w);
+    alloc_register(alloc, &ew->output_w);
 }
 
 static void me_encoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
     MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
     MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
     *a = {};
+    a->point_input = {.shape = {B_TT, ME_NUM_POINTS, ME_ENTITY_IN}};
     a->entity_hidden = {.shape = {B_TT, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
     a->out = {.shape = {B_TT, ew->hidden}};
-    a->saved_obs = {.shape = {B_TT, ew->obs_size}};
     a->grad_entity = {.shape = {B_TT, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
     a->argmax = {.shape = {B_TT, ew->hidden}};
+    alloc_register(acts, &a->point_input);
     alloc_register(acts, &a->entity_hidden);
     alloc_register(acts, &a->out);
-    alloc_register(acts, &a->saved_obs);
     alloc_register(acts, &a->grad_entity);
     alloc_register(acts, &a->argmax);
 
     a->input_wgrad = {.shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
-    a->input_bgrad = {.shape = {ME_ENTITY_HIDDEN}};
     a->output_wgrad = {.shape = {ew->hidden, ME_ENTITY_HIDDEN}};
-    a->output_bgrad = {.shape = {ew->hidden}};
-    alloc_register(grads, &a->input_wgrad);  alloc_register(grads, &a->input_bgrad);
-    alloc_register(grads, &a->output_wgrad); alloc_register(grads, &a->output_bgrad);
+    alloc_register(grads, &a->input_wgrad);
+    alloc_register(grads, &a->output_wgrad);
 }
 
 static void me_encoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
     MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
     MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
     *a = {};
+    a->point_input = {.shape = {B, ME_NUM_POINTS, ME_ENTITY_IN}};
     a->entity_hidden = {.shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
     a->out = {.shape = {B, ew->hidden}};
+    alloc_register(alloc, &a->point_input);
     alloc_register(alloc, &a->entity_hidden);
     alloc_register(alloc, &a->out);
 }

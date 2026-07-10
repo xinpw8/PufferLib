@@ -3,9 +3,10 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
+#include <cfloat>
 #include <chrono>
 
-#include "pufferlib.cu"
+#include "pufferl.cu"
 #include "ini.h"
 
 const int WARMUP_ITERS = 100;
@@ -37,6 +38,9 @@ void print_usage(const char* prog) {
     printf("  samplelogits   - Sample logits kernel only\n");
     printf("  ppoloss        - PPO loss fused fwd+bwd kernel\n");
     printf("  im2col         - im2col + col2im (nmmo3 conv sizes, B=1024)\n");
+    printf("  minimalenc     - Minimal entity encoder core ops vs cuBLAS\n");
+    printf("    --batch N    - Encoder batch size (default: %d)\n", BR);
+    printf("    --hidden N   - Encoder hidden size (default: %d)\n", H_);
     printf("  envspeed       - Environment step throughput\n");
     printf("    --buffers N  - Number of buffers (default: %d)\n", BUF);
     printf("    --threads N  - Number of threads (default: 16)\n");
@@ -46,6 +50,14 @@ void print_usage(const char* prog) {
 
 inline void print_timing(const char* name, float ms, int N) {
     printf("  %-28s %8.1f us  %8.2f M elem/s\n", name, ms * 1000, N / ms / 1e3);
+}
+
+inline void print_encoder_timing(const char* name, float ms, int B, double flops, double bytes) {
+    double samples_per_s_m = B / ms / 1e3;
+    double gflops = flops / ms / 1e6;
+    double gbps = bytes / ms / 1e6;
+    printf("  %-30s %8.1f us  %8.2f M samples/s  %8.1f GF/s  %8.1f GB/s\n",
+        name, ms * 1000, samples_per_s_m, gflops, gbps);
 }
 
 inline void warmup_gpu() {
@@ -582,6 +594,696 @@ void profile_im2col(int B, int IC, int IH, int IW, int K, int S, int OH, int OW)
     free(p);
 }
 
+__global__ void me_relu_kernel(
+        precision_t* __restrict__ data,
+        int rows, int cols) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = rows * cols;
+    if (idx >= total) return;
+
+    float val = to_float(data[idx]);
+    data[idx] = from_float(fmaxf(0.0f, val));
+}
+
+__global__ void me_point_max_kernel(
+        precision_t* __restrict__ output,
+        int* __restrict__ argmax,
+        const precision_t* __restrict__ point_logits,
+        int B, int hidden) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = B * hidden;
+    if (idx >= total) return;
+
+    int h = idx % hidden;
+    int b = idx / hidden;
+    float max_val = -FLT_MAX;
+    int best_point = 0;
+    for (int point_idx = 0; point_idx < ME_NUM_POINTS; ++point_idx) {
+        float val = to_float(point_logits[((int64_t)b * ME_NUM_POINTS + point_idx) * hidden + h]);
+        if (val > max_val) {
+            max_val = val;
+            best_point = point_idx;
+        }
+    }
+
+    output[idx] = from_float(max_val);
+    if (argmax) argmax[idx] = best_point;
+}
+
+static constexpr int ME_PROFILE_WGRAD_CHUNKS = 256;
+
+__device__ __forceinline__ float profile_me_obs_value(
+        const precision_t* __restrict__ obs, int obs_size, int b, int point_idx, int d) {
+    int obs_idx = (d < ME_SELF_DIM)
+        ? d
+        : ME_SELF_DIM + point_idx * ME_POINT_DIM + (d - ME_SELF_DIM);
+    return to_float(obs[(int64_t)b * obs_size + obs_idx]);
+}
+
+__device__ __forceinline__ float profile_me_block_reduce_sum(float sum) {
+    for (int offset = 16; offset > 0; offset >>= 1)
+        sum += __shfl_down_sync(0xffffffff, sum, offset);
+    __shared__ float sdata[32];
+    int lane = threadIdx.x % 32, warp = threadIdx.x / 32;
+    if (lane == 0) sdata[warp] = sum;
+    __syncthreads();
+    if (warp == 0) {
+        sum = (lane < (blockDim.x + 31) / 32) ? sdata[lane] : 0.0f;
+        for (int offset = 16; offset > 0; offset >>= 1)
+            sum += __shfl_down_sync(0xffffffff, sum, offset);
+    }
+    return sum;
+}
+
+__global__ void me_projection_relu_kernel(
+        precision_t* __restrict__ entity_hidden,
+        const precision_t* __restrict__ obs,
+        const precision_t* __restrict__ weight,
+        int B, int obs_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    if (idx >= total) return;
+
+    int h = idx % ME_ENTITY_HIDDEN;
+    int point_idx = (idx / ME_ENTITY_HIDDEN) % ME_NUM_POINTS;
+    int b = idx / (ME_NUM_POINTS * ME_ENTITY_HIDDEN);
+    const precision_t* row = weight + h * ME_ENTITY_IN;
+
+    float sum = 0.0f;
+    for (int d = 0; d < ME_ENTITY_IN; ++d) {
+        sum += to_float(row[d]) * profile_me_obs_value(obs, obs_size, b, point_idx, d);
+    }
+    entity_hidden[idx] = from_float(fmaxf(0.0f, sum));
+}
+
+__global__ void me_grad_entity_scan_kernel(
+        precision_t* __restrict__ grad_entity,
+        const precision_t* __restrict__ grad_out,
+        const precision_t* __restrict__ output_w,
+        const precision_t* __restrict__ entity_hidden,
+        const int* __restrict__ argmax,
+        int B, int hidden) {
+    int b = blockIdx.x;
+    if (b >= B) return;
+
+    __shared__ int arg_s[BLOCK_SIZE];
+    __shared__ float grad_s[BLOCK_SIZE];
+
+    int out_idx = threadIdx.x;
+    int point_idx = out_idx / ME_ENTITY_HIDDEN;
+    int k = out_idx - point_idx * ME_ENTITY_HIDDEN;
+    float acc = 0.0f;
+
+    for (int base = 0; base < hidden; base += blockDim.x) {
+        int h = base + threadIdx.x;
+        if (h < hidden) {
+            arg_s[threadIdx.x] = argmax[(int64_t)b * hidden + h];
+            grad_s[threadIdx.x] = to_float(grad_out[(int64_t)b * hidden + h]);
+        }
+        __syncthreads();
+
+        int tile = hidden - base;
+        if (tile > blockDim.x) tile = blockDim.x;
+        if (out_idx < ME_NUM_POINTS * ME_ENTITY_HIDDEN) {
+            for (int j = 0; j < tile; ++j) {
+                if (arg_s[j] == point_idx) {
+                    acc += grad_s[j] * to_float(output_w[(int64_t)(base + j) * ME_ENTITY_HIDDEN + k]);
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+    if (out_idx < ME_NUM_POINTS * ME_ENTITY_HIDDEN) {
+        int64_t offset = ((int64_t)b * ME_NUM_POINTS + point_idx) * ME_ENTITY_HIDDEN + k;
+        float g = to_float(entity_hidden[offset]) > 0.0f ? acc : 0.0f;
+        grad_entity[offset] = from_float(g);
+    }
+}
+
+__global__ void me_input_wgrad_partial_kernel(
+        float* __restrict__ partials,
+        const precision_t* __restrict__ grad_entity,
+        const precision_t* __restrict__ point_input,
+        int B) {
+    int h = blockIdx.x;
+    int chunk = blockIdx.y;
+    if (h >= ME_ENTITY_HIDDEN || chunk >= ME_PROFILE_WGRAD_CHUNKS) return;
+
+    float sum[ME_ENTITY_IN];
+#pragma unroll
+    for (int d = 0; d < ME_ENTITY_IN; ++d) sum[d] = 0.0f;
+
+    int rows = B * ME_NUM_POINTS;
+    int chunk_size = (rows + ME_PROFILE_WGRAD_CHUNKS - 1) / ME_PROFILE_WGRAD_CHUNKS;
+    int start = chunk * chunk_size;
+    int end = start + chunk_size;
+    if (end > rows) end = rows;
+
+    for (int row = start + threadIdx.x; row < end; row += blockDim.x) {
+        float g = to_float(grad_entity[(int64_t)row * ME_ENTITY_HIDDEN + h]);
+        const precision_t* point = point_input + (int64_t)row * ME_ENTITY_IN;
+#pragma unroll
+        for (int d = 0; d < ME_ENTITY_IN; ++d) {
+            sum[d] += g * to_float(point[d]);
+        }
+    }
+
+    __shared__ float warp_sums[ME_ENTITY_IN * 32];
+    int lane = threadIdx.x & 31;
+    int warp = threadIdx.x >> 5;
+    int num_warps = (blockDim.x + 31) >> 5;
+#pragma unroll
+    for (int d = 0; d < ME_ENTITY_IN; ++d) {
+        float s = sum[d];
+        for (int offset = 16; offset > 0; offset >>= 1)
+            s += __shfl_down_sync(0xffffffff, s, offset);
+        if (lane == 0) warp_sums[d * 32 + warp] = s;
+    }
+    __syncthreads();
+
+    if (warp == 0) {
+#pragma unroll
+        for (int d = 0; d < ME_ENTITY_IN; ++d) {
+            float s = lane < num_warps ? warp_sums[d * 32 + lane] : 0.0f;
+            for (int offset = 16; offset > 0; offset >>= 1)
+                s += __shfl_down_sync(0xffffffff, s, offset);
+            if (lane == 0) partials[((h * ME_PROFILE_WGRAD_CHUNKS) + chunk) * ME_ENTITY_IN + d] = s;
+        }
+    }
+}
+
+__global__ void me_input_wgrad_reduce_kernel(
+        precision_t* __restrict__ wgrad,
+        const float* __restrict__ partials) {
+    int h = blockIdx.x;
+    int d = blockIdx.y;
+    if (h >= ME_ENTITY_HIDDEN || d >= ME_ENTITY_IN) return;
+
+    float sum = 0.0f;
+    for (int chunk = threadIdx.x; chunk < ME_PROFILE_WGRAD_CHUNKS; chunk += blockDim.x) {
+        sum += partials[((h * ME_PROFILE_WGRAD_CHUNKS) + chunk) * ME_ENTITY_IN + d];
+    }
+    sum = profile_me_block_reduce_sum(sum);
+    if (threadIdx.x == 0) wgrad[h * ME_ENTITY_IN + d] = from_float(sum);
+}
+
+struct EncoderWork {
+    double flops;
+    double bytes;
+};
+
+inline int ceil_div_int(int x, int y) {
+    return (x + y - 1) / y;
+}
+
+EncoderWork work_flat_encoder(int B, int H) {
+    double p = sizeof(precision_t);
+    double flops = 2.0 * B * ME_OBS_SIZE * H;
+    double bytes = p * (B * ME_OBS_SIZE + H * ME_OBS_SIZE + B * H);
+    return {flops, bytes};
+}
+
+EncoderWork work_flat_encoder_bwd(int B, int H) {
+    double p = sizeof(precision_t);
+    double flops = 2.0 * B * H * ME_OBS_SIZE;
+    double bytes = p * ((double)B * H + (double)B * ME_OBS_SIZE + (double)H * ME_OBS_SIZE);
+    return {flops, bytes};
+}
+
+EncoderWork work_custom_projection(int B) {
+    double p = sizeof(precision_t);
+    double outputs = (double)B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    double flops = outputs * (2.0 * ME_ENTITY_IN + 1.0);
+    double bytes = p * outputs * (2.0 * ME_ENTITY_IN + 1.0);
+    return {flops, bytes};
+}
+
+EncoderWork work_custom_linear_max(int B, int H, bool write_argmax) {
+    double p = sizeof(precision_t);
+    double hidden_tiles = ceil_div_int(H, ME_HIDDEN_TILE);
+    double batch_tiles = ceil_div_int(B, ME_BATCH_TILE);
+    double flops = 2.0 * B * H * ME_NUM_POINTS * ME_ENTITY_HIDDEN
+        + (double)B * H * (ME_NUM_POINTS - 1)
+        + hidden_tiles * B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    double point_reads = hidden_tiles * B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    double weight_reads = batch_tiles * H * ME_ENTITY_HIDDEN;
+    double output_writes = (double)B * H;
+    double bytes = p * (point_reads + weight_reads + output_writes);
+    if (write_argmax) bytes += (double)B * H * sizeof(int);
+    return {flops, bytes};
+}
+
+EncoderWork work_materialize_points(int B) {
+    double p = sizeof(precision_t);
+    double elems = (double)B * ME_NUM_POINTS * ME_ENTITY_IN;
+    return {0.0, 2.0 * p * elems};
+}
+
+EncoderWork work_cublas_projection(int B) {
+    double p = sizeof(precision_t);
+    double rows = (double)B * ME_NUM_POINTS;
+    double gemm_flops = 2.0 * rows * ME_ENTITY_IN * ME_ENTITY_HIDDEN;
+    double bias_relu_flops = rows * ME_ENTITY_HIDDEN;
+    double gemm_bytes = p * (rows * ME_ENTITY_IN
+        + ME_ENTITY_HIDDEN * ME_ENTITY_IN
+        + rows * ME_ENTITY_HIDDEN);
+    double relu_bytes = p * rows * ME_ENTITY_HIDDEN * 2.0;
+    return {gemm_flops + bias_relu_flops, gemm_bytes + relu_bytes};
+}
+
+EncoderWork work_cublas_projection_preact(int B) {
+    double p = sizeof(precision_t);
+    double rows = (double)B * ME_NUM_POINTS;
+    double gemm_flops = 2.0 * rows * ME_ENTITY_IN * ME_ENTITY_HIDDEN;
+    double gemm_bytes = p * (rows * ME_ENTITY_IN
+        + ME_ENTITY_HIDDEN * ME_ENTITY_IN
+        + rows * ME_ENTITY_HIDDEN);
+    return {gemm_flops, gemm_bytes};
+}
+
+EncoderWork work_cublas_output_gemm(int B, int H) {
+    double p = sizeof(precision_t);
+    double rows = (double)B * ME_NUM_POINTS;
+    double flops = 2.0 * rows * ME_ENTITY_HIDDEN * H;
+    double bytes = p * (rows * ME_ENTITY_HIDDEN
+        + H * ME_ENTITY_HIDDEN
+        + rows * H);
+    return {flops, bytes};
+}
+
+EncoderWork work_cublas_point_max(int B, int H, bool write_argmax) {
+    double p = sizeof(precision_t);
+    double flops = (double)B * H * (ME_NUM_POINTS - 1);
+    double bytes = p * ((double)B * ME_NUM_POINTS * H + (double)B * H);
+    if (write_argmax) bytes += (double)B * H * sizeof(int);
+    return {flops, bytes};
+}
+
+EncoderWork work_custom_output_wgrad(int B, int H) {
+    double p = sizeof(precision_t);
+    double reductions = (double)B * H * ME_ENTITY_HIDDEN;
+    double flops = 2.0 * reductions;
+    double bytes = (double)B * H * (sizeof(int) + p)
+        + reductions * p
+        + p * H * ME_ENTITY_HIDDEN;
+    return {flops, bytes};
+}
+
+EncoderWork work_custom_grad_entity(int B, int H) {
+    double p = sizeof(precision_t);
+    double probes = (double)B * ME_NUM_POINTS * ME_ENTITY_HIDDEN * H;
+    double contribs = (double)B * H * ME_ENTITY_HIDDEN;
+    double relu = (double)B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    double flops = probes + 2.0 * contribs + relu;
+    double bytes = (double)B * H * (sizeof(int) + p)
+        + contribs * p
+        + relu * 2.0 * p;
+    return {flops, bytes};
+}
+
+EncoderWork work_atomic_grad_entity(int B, int H) {
+    double p = sizeof(precision_t);
+    double contribs = (double)B * H * ME_ENTITY_HIDDEN;
+    double relu = (double)B * ME_NUM_POINTS * ME_ENTITY_HIDDEN;
+    double flops = 2.0 * contribs + relu;
+    double bytes = (double)B * H * (sizeof(int) + p)
+        + contribs * p
+        + relu * 2.0 * p;
+    return {flops, bytes};
+}
+
+EncoderWork work_custom_input_wgrad(int B) {
+    double p = sizeof(precision_t);
+    double reductions = (double)B * ME_NUM_POINTS * ME_ENTITY_HIDDEN * ME_ENTITY_IN;
+    double flops = 2.0 * reductions;
+    double partials = (double)ME_ENTITY_HIDDEN * ME_PROFILE_WGRAD_CHUNKS * ME_ENTITY_IN;
+    double bytes = (double)B * ME_NUM_POINTS * ME_ENTITY_HIDDEN * p
+        + reductions * p
+        + partials * sizeof(float) * 2.0
+        + p * ME_ENTITY_HIDDEN * ME_ENTITY_IN;
+    return {flops, bytes};
+}
+
+EncoderWork work_puf_input_wgrad(int B) {
+    double p = sizeof(precision_t);
+    double rows = (double)B * ME_NUM_POINTS;
+    double flops = 2.0 * rows * ME_ENTITY_HIDDEN * ME_ENTITY_IN;
+    double bytes = p * (rows * ME_ENTITY_HIDDEN
+        + rows * ME_ENTITY_IN
+        + ME_ENTITY_HIDDEN * ME_ENTITY_IN);
+    return {flops, bytes};
+}
+
+inline EncoderWork add_work(EncoderWork a, EncoderWork b) {
+    return {a.flops + b.flops, a.bytes + b.bytes};
+}
+
+struct MinimalEncoderProfile {
+    PrecisionTensor obs;
+    PrecisionTensor flat_w, flat_out, flat_wgrad, grad_out;
+    MinimalEntityEncoderWeights me_w;
+    MinimalEntityEncoderActivations me_a;
+    FloatTensor input_wgrad_partials;
+    PrecisionTensor point_input, cublas_entity_hidden, point_logits, cublas_out;
+    Allocator alloc;
+    int B, H;
+};
+
+MinimalEncoderProfile* create_minimalenc(int B, int H) {
+    auto* p = (MinimalEncoderProfile*)calloc(1, sizeof(MinimalEncoderProfile));
+    p->B = B; p->H = H;
+
+    p->obs = {.shape = {B, ME_OBS_SIZE}};
+    p->flat_w = {.shape = {H, ME_OBS_SIZE}};
+    p->flat_out = {.shape = {B, H}};
+    p->flat_wgrad = {.shape = {H, ME_OBS_SIZE}};
+    p->grad_out = {.shape = {B, H}};
+
+    p->me_w.input_w = {.shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
+    p->me_w.output_w = {.shape = {H, ME_ENTITY_HIDDEN}};
+    p->me_w.obs_size = ME_OBS_SIZE;
+    p->me_w.hidden = H;
+
+    p->me_a.point_input = {.shape = {B, ME_NUM_POINTS, ME_ENTITY_IN}};
+    p->me_a.entity_hidden = {.shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    p->me_a.out = {.shape = {B, H}};
+    p->me_a.argmax = {.shape = {B, H}};
+    p->me_a.grad_entity = {.shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    p->me_a.input_wgrad = {.shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
+    p->me_a.output_wgrad = {.shape = {H, ME_ENTITY_HIDDEN}};
+    p->input_wgrad_partials = {.shape = {ME_ENTITY_HIDDEN, ME_PROFILE_WGRAD_CHUNKS, ME_ENTITY_IN}};
+
+    p->point_input = {.shape = {B * ME_NUM_POINTS, ME_ENTITY_IN}};
+    p->cublas_entity_hidden = {.shape = {B * ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    p->point_logits = {.shape = {B * ME_NUM_POINTS, H}};
+    p->cublas_out = {.shape = {B, H}};
+
+    p->alloc = {};
+    alloc_register(&p->alloc, &p->obs);
+    alloc_register(&p->alloc, &p->flat_w);
+    alloc_register(&p->alloc, &p->flat_out);
+    alloc_register(&p->alloc, &p->flat_wgrad);
+    alloc_register(&p->alloc, &p->grad_out);
+    alloc_register(&p->alloc, &p->me_w.input_w);
+    alloc_register(&p->alloc, &p->me_w.output_w);
+    alloc_register(&p->alloc, &p->me_a.point_input);
+    alloc_register(&p->alloc, &p->me_a.entity_hidden);
+    alloc_register(&p->alloc, &p->me_a.out);
+    alloc_register(&p->alloc, &p->me_a.argmax);
+    alloc_register(&p->alloc, &p->me_a.grad_entity);
+    alloc_register(&p->alloc, &p->me_a.input_wgrad);
+    alloc_register(&p->alloc, &p->me_a.output_wgrad);
+    alloc_register(&p->alloc, &p->input_wgrad_partials);
+    alloc_register(&p->alloc, &p->point_input);
+    alloc_register(&p->alloc, &p->cublas_entity_hidden);
+    alloc_register(&p->alloc, &p->point_logits);
+    alloc_register(&p->alloc, &p->cublas_out);
+    alloc_create(&p->alloc);
+
+    int64_t max_count = std::max<int64_t>({
+        numel(p->obs.shape),
+        numel(p->flat_w.shape),
+        numel(p->grad_out.shape),
+        numel(p->me_w.input_w.shape),
+        numel(p->me_w.output_w.shape),
+    });
+    float* buf = (float*)malloc(max_count * sizeof(float));
+
+    for (int64_t i = 0; i < numel(p->obs.shape); ++i) buf[i] = rand1();
+    float_to_device(p->obs.data, buf, numel(p->obs.shape));
+    for (int64_t i = 0; i < numel(p->flat_w.shape); ++i) buf[i] = rand1() * 0.1f;
+    float_to_device(p->flat_w.data, buf, numel(p->flat_w.shape));
+    for (int64_t i = 0; i < numel(p->grad_out.shape); ++i) buf[i] = rand1() * 0.1f;
+    float_to_device(p->grad_out.data, buf, numel(p->grad_out.shape));
+    for (int64_t i = 0; i < numel(p->me_w.input_w.shape); ++i) buf[i] = rand1() * 0.1f;
+    float_to_device(p->me_w.input_w.data, buf, numel(p->me_w.input_w.shape));
+    for (int64_t i = 0; i < numel(p->me_w.output_w.shape); ++i) buf[i] = rand1() * 0.1f;
+    float_to_device(p->me_w.output_w.data, buf, numel(p->me_w.output_w.shape));
+    free(buf);
+
+    return p;
+}
+
+void run_flat_encoder(MinimalEncoderProfile* p) {
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T,
+        p->B, p->H, ME_OBS_SIZE,
+        p->obs.data, p->flat_w.data, p->flat_out.data, 0);
+}
+
+void run_flat_encoder_bwd(MinimalEncoderProfile* p) {
+    puf_mm_tn(&p->grad_out, &p->obs, &p->flat_wgrad, 0);
+}
+
+void run_flat_encoder_fwd_bwd(MinimalEncoderProfile* p) {
+    run_flat_encoder(p);
+    run_flat_encoder_bwd(p);
+}
+
+void run_me_projection_kernel(MinimalEncoderProfile* p) {
+    me_projection_relu_kernel<<<grid_size(p->B * ME_NUM_POINTS * ME_ENTITY_HIDDEN), BLOCK_SIZE>>>(
+        p->me_a.entity_hidden.data, p->obs.data, p->me_w.input_w.data,
+        p->B, ME_OBS_SIZE);
+}
+
+void run_me_projection(MinimalEncoderProfile* p) {
+    me_materialize_points_kernel<<<grid_size(p->B * ME_NUM_POINTS * ME_ENTITY_IN), BLOCK_SIZE>>>(
+        p->me_a.point_input.data, p->obs.data, p->B, ME_OBS_SIZE);
+    PrecisionTensor point_input = {
+        .data = p->me_a.point_input.data,
+        .shape = {p->B, ME_NUM_POINTS, ME_ENTITY_IN},
+    };
+    PrecisionTensor entity_hidden = {
+        .data = p->me_a.entity_hidden.data,
+        .shape = {p->B, ME_NUM_POINTS, ME_ENTITY_HIDDEN},
+    };
+    puf_mm(&point_input, &p->me_w.input_w, &entity_hidden, 0);
+}
+
+void run_me_linearmax(MinimalEncoderProfile* p) {
+    dim3 block(ME_HIDDEN_TILE, ME_BATCH_TILE);
+    dim3 grid(ceil_div_int(p->B, ME_BATCH_TILE), ceil_div_int(p->H, ME_HIDDEN_TILE));
+    size_t shared_bytes = (
+        (size_t)ME_BATCH_TILE * ME_NUM_POINTS * ME_ENTITY_HIDDEN +
+        (size_t)ME_HIDDEN_TILE * ME_ENTITY_HIDDEN) * sizeof(precision_t);
+    me_linear_max_kernel<<<grid, block, shared_bytes>>>(
+        p->me_a.out.data, p->me_a.argmax.data, p->me_a.entity_hidden.data,
+        p->me_w.output_w.data, p->B, p->H);
+}
+
+void run_me_full(MinimalEncoderProfile* p) {
+    run_me_projection(p);
+    run_me_linearmax(p);
+}
+
+void run_me_projection_kernel_full(MinimalEncoderProfile* p) {
+    run_me_projection_kernel(p);
+    run_me_linearmax(p);
+}
+
+void run_me_output_wgrad(MinimalEncoderProfile* p) {
+    me_output_wgrad_kernel<<<p->H, 256>>>(
+        p->me_a.output_wgrad.data, p->grad_out.data,
+        p->me_a.entity_hidden.data, p->me_a.argmax.data, p->B, p->H);
+}
+
+void run_me_grad_entity(MinimalEncoderProfile* p) {
+    me_grad_entity_kernel<<<p->B, BLOCK_SIZE>>>(
+        p->me_a.grad_entity.data, p->grad_out.data, p->me_w.output_w.data,
+        p->me_a.entity_hidden.data, p->me_a.argmax.data, p->B, p->H);
+}
+
+void run_me_grad_entity_scan(MinimalEncoderProfile* p) {
+    me_grad_entity_scan_kernel<<<p->B, BLOCK_SIZE>>>(
+        p->me_a.grad_entity.data, p->grad_out.data, p->me_w.output_w.data,
+        p->me_a.entity_hidden.data, p->me_a.argmax.data, p->B, p->H);
+}
+
+void run_me_input_wgrad_kernel(MinimalEncoderProfile* p) {
+    dim3 input_wpartial_grid(ME_ENTITY_HIDDEN, ME_PROFILE_WGRAD_CHUNKS);
+    me_input_wgrad_partial_kernel<<<input_wpartial_grid, 256>>>(
+        p->input_wgrad_partials.data, p->me_a.grad_entity.data,
+        p->me_a.point_input.data, p->B);
+    dim3 input_wreduce_grid(ME_ENTITY_HIDDEN, ME_ENTITY_IN);
+    me_input_wgrad_reduce_kernel<<<input_wreduce_grid, 256>>>(
+        p->me_a.input_wgrad.data, p->input_wgrad_partials.data);
+}
+
+void run_me_input_wgrad(MinimalEncoderProfile* p) {
+    puf_mm_tn(&p->me_a.grad_entity, &p->me_a.point_input, &p->me_a.input_wgrad, 0);
+}
+
+void run_me_backward_full(MinimalEncoderProfile* p) {
+    run_me_output_wgrad(p);
+    run_me_grad_entity(p);
+    run_me_input_wgrad(p);
+}
+
+void run_me_fwd_bwd_full(MinimalEncoderProfile* p) {
+    run_me_full(p);
+    run_me_backward_full(p);
+}
+
+void run_materialize_points(MinimalEncoderProfile* p) {
+    me_materialize_points_kernel<<<grid_size(p->B * ME_NUM_POINTS * ME_ENTITY_IN), BLOCK_SIZE>>>(
+        p->point_input.data, p->obs.data, p->B, ME_OBS_SIZE);
+}
+
+void run_cublas_projection(MinimalEncoderProfile* p) {
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T,
+        p->B * ME_NUM_POINTS, ME_ENTITY_HIDDEN, ME_ENTITY_IN,
+        p->point_input.data, p->me_w.input_w.data,
+        p->cublas_entity_hidden.data, 0);
+    me_relu_kernel<<<grid_size(p->B * ME_NUM_POINTS * ME_ENTITY_HIDDEN), BLOCK_SIZE>>>(
+        p->cublas_entity_hidden.data, p->B * ME_NUM_POINTS, ME_ENTITY_HIDDEN);
+}
+
+void run_cublas_output_gemm(MinimalEncoderProfile* p) {
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T,
+        p->B * ME_NUM_POINTS, p->H, ME_ENTITY_HIDDEN,
+        p->cublas_entity_hidden.data, p->me_w.output_w.data,
+        p->point_logits.data, 0);
+}
+
+void run_cublas_point_max(MinimalEncoderProfile* p) {
+    me_point_max_kernel<<<grid_size(p->B * p->H), BLOCK_SIZE>>>(
+        p->cublas_out.data, p->me_a.argmax.data, p->point_logits.data,
+        p->B, p->H);
+}
+
+void run_cublas_output_max(MinimalEncoderProfile* p) {
+    run_cublas_output_gemm(p);
+    run_cublas_point_max(p);
+}
+
+void run_cublas_entity_full(MinimalEncoderProfile* p) {
+    run_materialize_points(p);
+    run_cublas_projection(p);
+    run_cublas_output_max(p);
+}
+
+void profile_minimalenc(int B, int H) {
+    printf("minimal_entity_encoder (B=%d, H=%d, obs=%d, points=%d, point_in=%d, entity_hidden=%d, precision=%s)\n",
+        B, H, ME_OBS_SIZE, ME_NUM_POINTS, ME_ENTITY_IN, ME_ENTITY_HIDDEN,
+        USE_BF16 ? "bf16" : "float32");
+    printf("  %-30s %8s  %19s  %12s  %12s\n",
+        "op", "time", "throughput", "math rate", "byte rate");
+
+    auto* p = create_minimalenc(B, H);
+
+    run_me_projection_kernel(p);
+    run_me_projection(p);
+    run_materialize_points(p);
+    run_cublas_projection(p);
+    run_cublas_output_gemm(p);
+    cudaDeviceSynchronize();
+
+    EncoderWork flat = work_flat_encoder(B, H);
+    float ms = profile_kernel((kernel_fn)run_flat_encoder, p);
+    print_encoder_timing("flat cuBLAS encoder", ms, B, flat.flops, flat.bytes);
+
+    EncoderWork custom_proj = work_custom_projection(B);
+    ms = profile_kernel((kernel_fn)run_me_projection_kernel, p);
+    print_encoder_timing("custom projection+ReLU", ms, B, custom_proj.flops, custom_proj.bytes);
+
+    EncoderWork materialize = work_materialize_points(B);
+    EncoderWork puf_proj = add_work(materialize, work_cublas_projection_preact(B));
+    ms = profile_kernel((kernel_fn)run_me_projection, p);
+    print_encoder_timing("puf_mm materialize+proj", ms, B, puf_proj.flops, puf_proj.bytes);
+
+    EncoderWork custom_lm = work_custom_linear_max(B, H, true);
+    ms = profile_kernel((kernel_fn)run_me_linearmax, p);
+    print_encoder_timing("custom fused ReLU+linear+max", ms, B, custom_lm.flops, custom_lm.bytes);
+
+    EncoderWork custom_full = add_work(puf_proj, custom_lm);
+    ms = profile_kernel((kernel_fn)run_me_full, p);
+    print_encoder_timing("custom full forward", ms, B, custom_full.flops, custom_full.bytes);
+
+    EncoderWork old_custom_full = add_work(custom_proj, custom_lm);
+    ms = profile_kernel((kernel_fn)run_me_projection_kernel_full, p);
+    print_encoder_timing("old custom-kernel full fwd", ms, B, old_custom_full.flops, old_custom_full.bytes);
+
+    ms = profile_kernel((kernel_fn)run_materialize_points, p);
+    print_encoder_timing("cuBLAS materialize points", ms, B, materialize.flops, materialize.bytes);
+
+    EncoderWork cublas_proj = work_cublas_projection(B);
+    ms = profile_kernel((kernel_fn)run_cublas_projection, p);
+    print_encoder_timing("cuBLAS projection+ReLU", ms, B, cublas_proj.flops, cublas_proj.bytes);
+
+    EncoderWork cublas_out = work_cublas_output_gemm(B, H);
+    ms = profile_kernel((kernel_fn)run_cublas_output_gemm, p);
+    print_encoder_timing("cuBLAS output GEMM", ms, B, cublas_out.flops, cublas_out.bytes);
+
+    EncoderWork cublas_max = work_cublas_point_max(B, H, true);
+    ms = profile_kernel((kernel_fn)run_cublas_point_max, p);
+    print_encoder_timing("cuBLAS point max", ms, B, cublas_max.flops, cublas_max.bytes);
+
+    EncoderWork cublas_output_max = add_work(cublas_out, cublas_max);
+    ms = profile_kernel((kernel_fn)run_cublas_output_max, p);
+    print_encoder_timing("cuBLAS output GEMM+max", ms, B, cublas_output_max.flops, cublas_output_max.bytes);
+
+    EncoderWork cublas_full = add_work(add_work(materialize, cublas_proj), cublas_output_max);
+    ms = profile_kernel((kernel_fn)run_cublas_entity_full, p);
+    print_encoder_timing("cuBLAS entity full", ms, B, cublas_full.flops, cublas_full.bytes);
+
+    printf("\n  Workload estimates include scalar comparisons and argmax writes.\n");
+    printf("  The custom linear+max estimate uses tiled global traffic: entity_hidden is reread per hidden tile,\n");
+    printf("  output_w is reread per batch tile, and the point-logit tensor is never materialized.\n");
+    printf("  The cuBLAS entity path materializes point_logits with %0.2f MiB of write+read traffic before max.\n\n",
+        (2.0 * sizeof(precision_t) * (double)B * ME_NUM_POINTS * H) / (1024.0 * 1024.0));
+
+    printf("  backward\n");
+
+    EncoderWork flat_bwd = work_flat_encoder_bwd(B, H);
+    ms = profile_kernel((kernel_fn)run_flat_encoder_bwd, p);
+    print_encoder_timing("flat cuBLAS backward", ms, B, flat_bwd.flops, flat_bwd.bytes);
+
+    EncoderWork flat_fwd_bwd = add_work(flat, flat_bwd);
+    ms = profile_kernel((kernel_fn)run_flat_encoder_fwd_bwd, p);
+    print_encoder_timing("flat fwd+bwd", ms, B, flat_fwd_bwd.flops, flat_fwd_bwd.bytes);
+
+    run_me_full(p);
+    cudaDeviceSynchronize();
+
+    EncoderWork output_wgrad = work_custom_output_wgrad(B, H);
+    ms = profile_kernel((kernel_fn)run_me_output_wgrad, p);
+    print_encoder_timing("custom output weight grad", ms, B, output_wgrad.flops, output_wgrad.bytes);
+
+    EncoderWork grad_entity_scan = work_custom_grad_entity(B, H);
+    ms = profile_kernel((kernel_fn)run_me_grad_entity_scan, p);
+    print_encoder_timing("custom grad entity scan", ms, B,
+        grad_entity_scan.flops, grad_entity_scan.bytes);
+
+    EncoderWork grad_entity = work_atomic_grad_entity(B, H);
+    ms = profile_kernel((kernel_fn)run_me_grad_entity, p);
+    print_encoder_timing("shared-atomic grad entity", ms, B, grad_entity.flops, grad_entity.bytes);
+
+    EncoderWork custom_input_wgrad = work_custom_input_wgrad(B);
+    ms = profile_kernel((kernel_fn)run_me_input_wgrad_kernel, p);
+    print_encoder_timing("custom input weight grad", ms, B,
+        custom_input_wgrad.flops, custom_input_wgrad.bytes);
+
+    EncoderWork input_wgrad = work_puf_input_wgrad(B);
+    ms = profile_kernel((kernel_fn)run_me_input_wgrad, p);
+    print_encoder_timing("puf_mm input weight grad", ms, B, input_wgrad.flops, input_wgrad.bytes);
+
+    EncoderWork custom_bwd = add_work(add_work(output_wgrad, grad_entity), input_wgrad);
+    ms = profile_kernel((kernel_fn)run_me_backward_full, p);
+    print_encoder_timing("custom full backward", ms, B, custom_bwd.flops, custom_bwd.bytes);
+
+    EncoderWork custom_fwd_bwd = add_work(custom_full, custom_bwd);
+    ms = profile_kernel((kernel_fn)run_me_fwd_bwd_full, p);
+    print_encoder_timing("custom fwd+bwd", ms, B, custom_fwd_bwd.flops, custom_fwd_bwd.bytes);
+
+    printf("\n  Backward estimates model the kernels as written. The scan grad_entity estimate counts\n");
+    printf("  one argmax probe per (batch, point, entity_hidden, hidden) tuple. The shared-atomic\n");
+    printf("  grad_entity estimate counts one routed contribution per (batch, hidden, entity_hidden).\n\n");
+
+    alloc_free(&p->alloc);
+    free(p);
+}
+
+#ifdef PUFFERLIB_BUILD_MAIN
 static void empty_net_callback(void* ctx, int buf, int t) {
     (void)ctx; (void)buf; (void)t;
 }
@@ -692,6 +1394,12 @@ void profile_envspeed(int total_agents, int num_buffers, int num_threads, int ho
     free(args);
     printf("\n");
 }
+#else
+void profile_envspeed(int total_agents, int num_buffers, int num_threads, int horizon) {
+    (void)total_agents; (void)num_buffers; (void)num_threads; (void)horizon;
+    printf("env_speed_static is unavailable in this profile build; rebuild with PUFFERLIB_BUILD_MAIN.\n\n");
+}
+#endif
 
 int main(int argc, char** argv) {
     if (argc < 2) { print_usage(argv[0]); return 1; }
@@ -699,11 +1407,14 @@ int main(int argc, char** argv) {
     const char* profile = argv[1];
     int buffers = BUF, threads = 16, horizon = T_;
     int total_agents = BR * buffers;
+    int encoder_batch = BR, encoder_hidden = H_;
     for (int i = 2; i < argc - 1; i++) {
         if (strcmp(argv[i], "--buffers") == 0) buffers = atoi(argv[++i]);
         else if (strcmp(argv[i], "--threads") == 0) threads = atoi(argv[++i]);
         else if (strcmp(argv[i], "--horizon") == 0) horizon = atoi(argv[++i]);
         else if (strcmp(argv[i], "--total-agents") == 0) total_agents = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--batch") == 0) encoder_batch = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--hidden") == 0) encoder_hidden = atoi(argv[++i]);
     }
 
     warmup_gpu();
@@ -723,6 +1434,8 @@ int main(int argc, char** argv) {
         profile_im2col(1024, N3_C1_IC, N3_MAP_H, N3_MAP_W, N3_C1_K, N3_C1_S, N3_C1_OH, N3_C1_OW);
         profile_im2col(1024, N3_C2_IC, N3_C1_OH, N3_C1_OW, N3_C2_K, N3_C2_S, N3_C2_OH, N3_C2_OW);
     }
+    if (strcmp(profile, "minimalenc") == 0 || run_all)
+        profile_minimalenc(encoder_batch, encoder_hidden);
 
     if (strcmp(profile, "envspeed") == 0 || run_all)
         profile_envspeed(total_agents, buffers, threads, horizon);
@@ -735,6 +1448,7 @@ int main(int argc, char** argv) {
         && strcmp(profile, "samplelogits") != 0
         && strcmp(profile, "ppoloss") != 0
         && strcmp(profile, "im2col") != 0
+        && strcmp(profile, "minimalenc") != 0
         && strcmp(profile, "envspeed") != 0
     ) {
         printf("Unknown profile: %s\n\n", profile);
