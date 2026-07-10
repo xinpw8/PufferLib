@@ -1235,6 +1235,7 @@ typedef struct {
 // a constant subset of agents
 struct RolloutBuf {
     PrecisionTensor observations;  // (horizon, agents, input_size)
+    PrecisionTensor initial_states; // (layers, agents, hidden), state before t=0
     PrecisionTensor actions;       // (horizon, agents, num_atns)
     PrecisionTensor values;        // (horizon, agents)
     PrecisionTensor logprobs;      // ...
@@ -1690,6 +1691,45 @@ __global__ void sample_logits(
     rng_states[idx] = state;
 }
 
+__global__ void snapshot_initial_state(PrecisionTensor dst, PrecisionTensor src,
+        int src_start, int dst_start, int count) {
+    int L = src.shape[0];
+    int H = src.shape[2];
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = L * count * H;
+    if (idx >= total) {
+        return;
+    }
+
+    int h = idx % H;
+    int rel = (idx / H) % count;
+    int layer = idx / (count * H);
+    long src_idx = ((long)layer * src.shape[1] + src_start + rel) * H + h;
+    long dst_idx = ((long)layer * dst.shape[1] + dst_start + rel) * H + h;
+    dst.data[dst_idx] = src.data[src_idx];
+}
+
+__global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor terminals,
+        int state_start, int terminal_start, int count) {
+    int L = state.shape[0];
+    int H = state.shape[2];
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = L * count * H;
+    if (idx >= total) {
+        return;
+    }
+
+    int h = idx % H;
+    int rel = (idx / H) % count;
+    if (terminals.data[terminal_start + rel] == 0.0f) {
+        return;
+    }
+
+    int layer = idx / (count * H);
+    long state_idx = ((long)layer * state.shape[1] + state_start + rel) * H + h;
+    state.data[state_idx] = from_float(0.0f);
+}
+
 void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     HypersT& hypers = pufferl->hypers;
     int graph = t * hypers.num_buffers + buf;
@@ -1712,6 +1752,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     EnvBuf& env = pufferl->env;
     int block_size = pufferl->vec->total_agents / hypers.num_buffers;
     int start = buf * block_size;
+
     // Copy observations, rewards, terminals from GPU env buffers to rollout buffer
     ObsTensor& obs_env = env.obs;
     int n = block_size * obs_env.shape[1];
@@ -1780,6 +1821,16 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         if (rollouts.action_mask.data != nullptr) {
             mask_b = puf_slice(rollouts.action_mask, t, sub_start, bank_size);
             mask_stride_b = mask_stride;
+        }
+
+        int state_start = (b == 0) ? bank_off : 0;
+        int state_n = s_bank->shape[0] * bank_size * s_bank->shape[2];
+        zero_state_on_terminal<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
+            *s_bank, env.terminals, state_start, sub_start, bank_size);
+
+        if (b == 0 && t == 0 && rollouts.initial_states.data != nullptr) {
+            snapshot_initial_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
+                rollouts.initial_states, *s_bank, state_start, sub_start, bank_size);
         }
 
         PrecisionTensor dec_puf = policy_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
@@ -1852,6 +1903,20 @@ __device__ __forceinline__ void copy_values_adv_returns(
     }
 }
 
+__device__ __forceinline__ void copy_initial_state(
+        PrecisionTensor states, PrecisionTensor mb_state, int src_row, int dst_row) {
+    int L = states.shape[0];
+    int H = states.shape[2];
+    int total = L * H;
+    for (int i = threadIdx.x; i < total; i += blockDim.x) {
+        int layer = i / H;
+        int h = i % H;
+        long src_idx = ((long)layer * states.shape[1] + src_row) * H + h;
+        long dst_idx = ((long)layer * mb_state.shape[1] + dst_row) * H + h;
+        mb_state.data[dst_idx] = states.data[src_idx];
+    }
+}
+
 __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         const int* __restrict__ idx, const precision_t* __restrict__ advantages,
         const float* __restrict__ mb_prio) {
@@ -1865,6 +1930,8 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         / rollouts.actions.shape[0]) * sizeof(precision_t);
     int lp_row_bytes = (numel(rollouts.logprobs.shape)
         / rollouts.logprobs.shape[0]) * sizeof(precision_t);
+    int term_row_bytes = (numel(rollouts.terminals.shape)
+        / rollouts.terminals.shape[0]) * sizeof(precision_t);
     int horizon = rollouts.values.shape[1];
 
     switch (ch) {
@@ -1891,11 +1958,22 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         }
         break;
     case 5:
+        copy_bytes((const char*)rollouts.terminals.data,
+            (char*)graph.mb_terminals.data, src_row, mb, term_row_bytes);
+        break;
+    case 6:
         if (graph.mb_action_mask.data != nullptr) {
             int mask_row_bytes = (numel(rollouts.action_mask.shape)
                 / rollouts.action_mask.shape[0]) * sizeof(precision_t);
             copy_bytes((const char*)rollouts.action_mask.data,
                 (char*)graph.mb_action_mask.data, src_row, mb, mask_row_bytes);
+        } else if (rollouts.initial_states.data != nullptr) {
+            copy_initial_state(rollouts.initial_states, graph.mb_state, src_row, mb);
+        }
+        break;
+    case 7:
+        if (rollouts.initial_states.data != nullptr) {
+            copy_initial_state(rollouts.initial_states, graph.mb_state, src_row, mb);
         }
         break;
     }
@@ -2025,8 +2103,11 @@ void train_impl(PuffeRL& pufferl) {
         {
             RolloutBuf sel_src = rollouts;
             sel_src.values = rollouts.values;
+            sel_src.initial_states = hypers.reset_state ? PrecisionTensor() : src.initial_states;
             int mb_segs = pufferl.prio_bufs.idx.shape[0];
-            int channels = (graph.mb_action_mask.data != nullptr) ? 6 : 5;
+            int channels = 6;
+            if (graph.mb_action_mask.data != nullptr) channels++;
+            if (!hypers.reset_state) channels++;
             select_copy<<<dim3(mb_segs, channels), SELECT_COPY_THREADS, 0, train_stream>>>(
                 sel_src, graph, pufferl.prio_bufs.idx.data,
                 advantages_puf.data, pufferl.prio_bufs.mb_prio.data);
@@ -2047,7 +2128,9 @@ void train_impl(PuffeRL& pufferl) {
             cudaStream_t stream = train_stream;
             PrecisionTensor obs_puf = graph.mb_obs;
             PrecisionTensor state_puf = graph.mb_state;
-            PrecisionTensor dec_puf = policy_forward_train(&pufferl.policy, pufferl.weights, pufferl.train_activations, obs_puf, state_puf, stream);
+            PrecisionTensor terminals_puf = graph.mb_terminals;
+            PrecisionTensor dec_puf = policy_forward_train(&pufferl.policy, pufferl.weights,
+                pufferl.train_activations, obs_puf, state_puf, terminals_puf, stream);
             DecoderWeights* dw_train = (DecoderWeights*)pufferl.weights.decoder;
             PrecisionTensor p_logstd;
             if (dw_train->continuous) {
@@ -2323,6 +2406,8 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     int mask_size = pufferl->vec->action_mask_size;
     register_rollout_buffers(pufferl->rollouts,
         acts, horizon, total_agents, input_size, num_action_heads, mask_size);
+    pufferl->rollouts.initial_states = {.shape = {num_layers, total_agents, hidden_size}};
+    alloc_register(acts, &pufferl->rollouts.initial_states);
     register_train_buffers(pufferl->train_buf,
         acts, minibatch_segments, horizon, input_size,
         hidden_size, num_action_heads, num_layers, mask_size);
@@ -2479,6 +2564,14 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
         for (int i = 0; i < num_buffers; i++) {
             rng_init<<<grid_size(agents_per_buf), BLOCK_SIZE>>>(
                 pufferl->rng_states[i], pufferl->seed + i, agents_per_buf);
+        }
+        for (int i = 0; i < num_buffers; i++) {
+            puf_zero(&pufferl->buffer_states[i], pufferl->default_stream);
+        }
+        for (int b = 0; b < pufferl->num_frozen_banks; b++) {
+            for (int i = 0; i < num_buffers; i++) {
+                puf_zero(&pufferl->frozen_banks[b].buffer_states[i], pufferl->default_stream);
+            }
         }
         cudaDeviceSynchronize();
 
