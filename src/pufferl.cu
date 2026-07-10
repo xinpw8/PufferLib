@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
+#include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -2568,8 +2569,54 @@ static double puf_log_get_or(Dict* dict, const char* key, double fallback) {
 }
 
 static int puf_dashboard_tty = 0;
+static int puf_dashboard_last_rows = 0;
+static int puf_dashboard_last_cols = 0;
 
 #define PUF_DASH_WIDTH 80
+#define PUF_DASH_BASE_ROWS 14
+#define PUF_DASH_MAX_USER_ROWS 15
+
+static void puf_term_size(int* rows, int* cols) {
+    *rows = 1000;
+    *cols = PUF_DASH_WIDTH;
+
+    if (!puf_dashboard_tty) {
+        return;
+    }
+
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
+        if (ws.ws_row > 0) {
+            *rows = ws.ws_row;
+        }
+        if (ws.ws_col > 0) {
+            *cols = ws.ws_col;
+        }
+    }
+}
+
+static void puf_dashboard_begin(int rows, int cols) {
+    if (!puf_dashboard_tty) {
+        return;
+    }
+
+    printf("\033[?2026h");
+    if (rows != puf_dashboard_last_rows || cols != puf_dashboard_last_cols) {
+        printf("\033[H\033[J");
+    } else {
+        printf("\033[H");
+    }
+
+    puf_dashboard_last_rows = rows;
+    puf_dashboard_last_cols = cols;
+}
+
+static void puf_dashboard_end(void) {
+    if (puf_dashboard_tty) {
+        printf("\033[J\033[?2026l");
+    }
+    fflush(stdout);
+}
 
 static const char* puf_cyan(void) {
     return puf_dashboard_tty ? "\033[36m" : "";
@@ -2653,7 +2700,7 @@ static int puf_loss_value(Dict* log, const char* key, char* out, size_t out_len)
 
 static void puf_panel_header(const char* eval_t, const char* eval_pct) {
     printf("%s│", puf_bcyan());
-    printf("%s %-9s %13s%s    %s%-12s%s %s%6s %4s%s    %s%-10s %7s%s    ",
+    printf("%s %-9.9s %13.13s%s    %s%-12.12s%s %s%6.6s %4.4s%s    %s%-10.10s %7.7s%s    ",
         puf_cyan(), "Summary", "Value", puf_ansi_reset(),
         puf_bcyan(), "Evaluate", puf_ansi_reset(), puf_bwhite(), eval_t, eval_pct, puf_ansi_reset(),
         puf_cyan(), "Losses", "Value", puf_ansi_reset());
@@ -2666,7 +2713,7 @@ static void puf_panel_row(const char* s_name, const char* s_val,
         const char* l_name, const char* l_val, int emph_perf) {
     const char* perf_color = emph_perf ? puf_bcyan() : puf_bwhite();
     printf("%s│", puf_bcyan());
-    printf("%s %s%-9s%s %s%13s%s    %s%-12s%s %s%6s %4s%s    %s%-10s %7s%s    ",
+    printf("%s %s%-9.9s%s %s%13.13s%s    %s%-12.12s%s %s%6.6s %4.4s%s    %s%-10.10s %7.7s%s    ",
         puf_ansi_reset(),
         puf_white(), s_name, puf_ansi_reset(), puf_bwhite(), s_val, puf_ansi_reset(),
         perf_color, p_name, puf_ansi_reset(), puf_bwhite(), p_time, p_pct, puf_ansi_reset(),
@@ -2677,7 +2724,7 @@ static void puf_panel_row(const char* s_name, const char* s_val,
 
 static void puf_user_header(void) {
     printf("%s│", puf_bcyan());
-    printf("%s %-23s %9s%s   %s%-23s %9s%s        ",
+    printf("%s %-23.23s %9.9s%s   %s%-23.23s %9.9s%s        ",
         puf_cyan(), "User Stats", "Value", puf_ansi_reset(),
         puf_cyan(), "User Stats", "Value", puf_ansi_reset());
     printf("%s│%s", puf_bcyan(), puf_ansi_reset());
@@ -2686,16 +2733,21 @@ static void puf_user_header(void) {
 
 static void puf_user_row(const char* left_key, double left_val,
         const char* right_key, double right_val, int has_right) {
+    char left_s[32];
+    char right_s[32];
+    snprintf(left_s, sizeof(left_s), "%.3f", left_val);
+    snprintf(right_s, sizeof(right_s), "%.3f", right_val);
+
     printf("%s│", puf_bcyan());
     if (has_right) {
-        printf("%s %s%-23s %9.3f%s   %s%-23s %9.3f%s        ",
+        printf("%s %s%-23.23s %9.9s%s   %s%-23.23s %9.9s%s        ",
             puf_ansi_reset(),
-            puf_bwhite(), left_key, left_val, puf_ansi_reset(),
-            puf_bwhite(), right_key, right_val, puf_ansi_reset());
+            puf_bwhite(), left_key, left_s, puf_ansi_reset(),
+            puf_bwhite(), right_key, right_s, puf_ansi_reset());
     } else {
-        printf("%s %s%-23s %9.3f%s   %-23s %9s        ",
+        printf("%s %s%-23.23s %9.9s%s   %-23.23s %9.9s        ",
             puf_ansi_reset(),
-            puf_bwhite(), left_key, left_val, puf_ansi_reset(), "", "");
+            puf_bwhite(), left_key, left_s, puf_ansi_reset(), "", "");
     }
     printf("%s│%s", puf_bcyan(), puf_ansi_reset());
     puf_dashboard_eol();
@@ -2717,9 +2769,9 @@ static void puf_dashboard_rule(const char* left, const char* right) {
 
 static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_dashboard_tty = isatty(STDOUT_FILENO);
-    if (puf_dashboard_tty) {
-        printf("\033[?2026h\033[H");
-    }
+    int term_rows = 1000;
+    int term_cols = PUF_DASH_WIDTH;
+    puf_term_size(&term_rows, &term_cols);
 
     const char* env_name = puf_config_str(cfg, "base", "env_name");
     double steps = puf_log_get_or(log, "agent_steps", (double)p->global_step);
@@ -2741,6 +2793,26 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_duration(uptime, sizeof(uptime), puf_log_get_or(log, "uptime", 0));
     puf_duration(remaining, sizeof(remaining), remaining_sec);
 
+    char epoch_s[32];
+    snprintf(epoch_s, sizeof(epoch_s), "%d", epoch);
+
+    puf_dashboard_begin(term_rows, term_cols);
+    if (puf_dashboard_tty && (term_cols < PUF_DASH_WIDTH || term_rows <= PUF_DASH_BASE_ROWS)) {
+        char compact[512];
+        snprintf(compact, sizeof(compact),
+            "PufferLib 4.0  env=%s  steps=%s  SPS=%s  score=%.3f  epoch=%s  to_go=%s",
+            env_name, steps_s, sps_s, puf_log_get_or(log, "env/score", 0), epoch_s, remaining);
+        int max_cols = term_cols > 1 ? term_cols - 1 : term_cols;
+        printf("%.*s", max_cols, compact);
+        if (term_rows > 1) {
+            puf_dashboard_eol();
+        } else if (puf_dashboard_tty) {
+            printf("\033[K");
+        }
+        puf_dashboard_end();
+        return;
+    }
+
     puf_dashboard_rule("╭", "╮");
     printf("%s│", puf_bcyan());
     printf("%s %sPufferLib %s4.0%s        %s🐡%s        %sGPU:%s %2.0f%%    %sVRAM:%s %.1f/%.0fG    %sRAM:%s %.1fG        ",
@@ -2758,7 +2830,6 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_dashboard_eol();
     puf_dashboard_blank();
 
-    char epoch_s[32];
     char eval_t[64];
     char eval_pct[16];
     char gpu_t[64];
@@ -2778,7 +2849,6 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     char loss_old_kl[32];
     char loss_kl[32];
     char loss_clipfrac[32];
-    snprintf(epoch_s, sizeof(epoch_s), "%d", epoch);
     puf_perf_value(eval_t, sizeof(eval_t), eval_pct, sizeof(eval_pct), rollout, perf_total);
     puf_perf_value(gpu_t, sizeof(gpu_t), gpu_pct, sizeof(gpu_pct),
         puf_log_get_or(log, "perf/eval_gpu", 0), perf_total);
@@ -2808,11 +2878,23 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_dashboard_blank();
 
     puf_user_header();
+    int user_rows = PUF_DASH_MAX_USER_ROWS;
+    if (puf_dashboard_tty) {
+        user_rows = term_rows - PUF_DASH_BASE_ROWS - 1;
+        if (user_rows < 0) {
+            user_rows = 0;
+        }
+        if (user_rows > PUF_DASH_MAX_USER_ROWS) {
+            user_rows = PUF_DASH_MAX_USER_ROWS;
+        }
+    }
+
     char pending_key[128];
     double pending_val = 0;
     int pending = 0;
     int n = 0;
-    for (int i = 0; i < log->size && n < 30; i++) {
+    int max_user_items = 2 * user_rows;
+    for (int i = 0; i < log->size && n < max_user_items; i++) {
         const char* key = log->items[i].key;
         if (strncmp(key, "env/", 4) != 0 || strcmp(key, "env/n") == 0) {
             continue;
@@ -2834,10 +2916,7 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
         puf_user_row(pending_key, pending_val, "", 0, 0);
     }
     puf_dashboard_rule("╰", "╯");
-    if (puf_dashboard_tty) {
-        printf("\033[J\033[?2026l");
-    }
-    fflush(stdout);
+    puf_dashboard_end();
 }
 
 static void log_util(PuffeRL* p, Dict* out) {
