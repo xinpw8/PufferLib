@@ -253,6 +253,10 @@ if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
 fi
 
 ENV_COMPILE_FLAGS=(-DENV_HEADER=\"$ENV_HEADER\")
+GPU_ENV_HEADER="$SRC_DIR/$ENV.cu"
+if [ -f "$GPU_ENV_HEADER" ]; then
+    ENV_COMPILE_FLAGS+=(-DGPU_ENV_HEADER=\"$GPU_ENV_HEADER\")
+fi
 
 MODE=${MODE:-native}
 
