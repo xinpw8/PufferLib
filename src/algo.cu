@@ -1088,7 +1088,7 @@ void puf_addmm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
 }
 
 struct Muon {
-    double momentum, weight_decay, eps;
+    double momentum, weight_decay;
     float lr_val_init;
     float* lr_ptr;
     float* lr_derived_ptr;
@@ -1103,11 +1103,9 @@ struct Muon {
 };
 
 void muon_init(Muon* m, Allocator* param_alloc, double lr_val,
-        double momentum, double eps, double weight_decay,
-        Allocator* alloc) {
+        double momentum, double weight_decay, Allocator* alloc) {
     m->momentum = momentum;
     m->weight_decay = weight_decay;
-    m->eps = eps;
     m->lr_val_init = (float)lr_val;
     m->lr_ptr = nullptr;
     m->lr_derived_ptr = nullptr;

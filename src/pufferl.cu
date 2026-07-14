@@ -127,7 +127,6 @@ static inline void cublasGemmExDense(
         B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
         C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, CUBLAS_GEMM_DEFAULT);
 }
-
 // out(...,N) = a(...,K) @ b(N,K)^T  — leading dims folded into M
 void puf_mm(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
     int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
@@ -382,15 +381,12 @@ typedef struct {
     int horizon;
     int total_agents;
     int num_buffers;
-    int num_atns;
     int hidden_size;
     int num_layers;
     float lr;
     float min_lr_ratio;
     bool anneal_lr;
-    float beta1;
-    float beta2;
-    float eps;
+    float momentum;
     int minibatch_size;
     float replay_ratio;
     long total_timesteps;
@@ -499,9 +495,7 @@ static inline HypersT puf_config_to_hypers(Config* cfg, int rank,
     h.lr = puf_config_float(cfg, "train", "learning_rate");
     h.min_lr_ratio = puf_config_float(cfg, "train", "min_lr_ratio");
     h.anneal_lr = puf_config_int(cfg, "train", "anneal_lr");
-    h.beta1 = puf_config_float(cfg, "train", "beta1");
-    h.beta2 = puf_config_float(cfg, "train", "beta2");
-    h.eps = puf_config_float(cfg, "train", "eps");
+    h.momentum = puf_config_float(cfg, "train", "momentum");
     h.minibatch_size = puf_config_int(cfg, "train", "minibatch_size");
     h.replay_ratio = puf_config_float(cfg, "train", "replay_ratio");
     h.total_timesteps = puf_config_long(cfg, "train", "total_timesteps");
@@ -1959,8 +1953,11 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
 
     if (capturing) {
         cudaGraph_t _graph;
-        assert(cudaStreamEndCapture(stream, &_graph) == cudaSuccess
-                && "cudaStreamEndCapture failed");
+        cudaError_t err = cudaStreamEndCapture(stream, &_graph);
+        if (err != cudaSuccess) {
+            fprintf(stderr, "cudaStreamEndCapture rollout failed: %s\n", cudaGetErrorString(err));
+            abort();
+        }
         assert(cudaGraphInstantiate(&pufferl->fused_rollout_cudagraphs[graph], _graph, 0) == cudaSuccess
                 && "cudaGraphInstantiate failed");
         assert(cudaGraphDestroy(_graph) == cudaSuccess && "cudaGraphDestroy failed");
@@ -2266,8 +2263,11 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
             }
             if (capturing) {
                 cudaGraph_t _graph;
-                assert(cudaStreamEndCapture(train_stream, &_graph) == cudaSuccess
-                        && "cudaStreamEndCapture failed");
+                cudaError_t err = cudaStreamEndCapture(train_stream, &_graph);
+                if (err != cudaSuccess) {
+                    fprintf(stderr, "cudaStreamEndCapture train failed: %s\n", cudaGetErrorString(err));
+                    abort();
+                }
                 assert(cudaGraphInstantiate(&pufferl.train_cudagraph, _graph, 0) == cudaSuccess
                         && "cudaGraphInstantiate failed");
                 assert(cudaGraphDestroy(_graph) == cudaSuccess && "cudaGraphDestroy failed");
@@ -2296,7 +2296,6 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         }
         cudaEventRecord(pufferl.profile.events[4], train_stream);  // end forward
     }
-    pufferl.epoch += 1;
 
     cudaStreamSynchronize(train_stream);
 
@@ -2312,7 +2311,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         cudaEventElapsedTime(&ms, pufferl.profile.events[3], pufferl.profile.events[4]);
         pufferl.profile.accum[PROF_TRAIN_FORWARD] += ms * total_minibatches;
     }
-
+    pufferl.epoch += 1;
 }
 
 
@@ -2557,7 +2556,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     pufferl->advantages_puf = {.shape = {total_agents, horizon}};
     alloc_register(acts, &pufferl->advantages_puf);
 
-    muon_init(&pufferl->muon, params, hypers.lr, hypers.beta1, hypers.eps, 0.0, acts);
+    muon_init(&pufferl->muon, params, hypers.lr, hypers.momentum, 0.0, acts);
 
     // All buffers allocated here
     if (!create_allocator_or_report("params", params)) {
@@ -2855,6 +2854,7 @@ static double puf_log_get_or(Dict* dict, const char* key, double fallback) {
 static int puf_dashboard_tty = 0;
 static int puf_dashboard_last_rows = 0;
 static int puf_dashboard_last_cols = 0;
+static int puf_dashboard_frame = 0;
 
 #define PUF_DASH_WIDTH 80
 #define PUF_DASH_BASE_ROWS 14
@@ -2902,16 +2902,12 @@ static void puf_dashboard_end(void) {
     fflush(stdout);
 }
 
-static const char* puf_cyan(void) {
-    return puf_dashboard_tty ? "\033[36m" : "";
-}
-
 static const char* puf_bcyan(void) {
     return puf_dashboard_tty ? "\033[96m" : "";
 }
 
 static const char* puf_white(void) {
-    return puf_dashboard_tty ? "\033[37m" : "";
+    return puf_dashboard_tty ? "\033[97m" : "";
 }
 
 static const char* puf_bwhite(void) {
@@ -2953,6 +2949,23 @@ static void puf_duration(char* out, size_t out_len, double seconds) {
         s / 86400, (s / 3600) % 24, (s / 60) % 60, s % 60);
 }
 
+static void puf_duration_ms(char* out, size_t out_len, double seconds) {
+    if (seconds < 0) {
+        seconds = 0;
+    }
+    long ms = (long)(seconds * 1000.0 + 0.5);
+    if (ms < 1000) {
+        snprintf(out, out_len, "%ldms", ms);
+    } else if (ms < 60000) {
+        snprintf(out, out_len, "%lds %03ldms", ms / 1000, ms % 1000);
+    } else if (ms < 3600000) {
+        snprintf(out, out_len, "%ldm %02lds %03ldms",
+            ms / 60000, (ms / 1000) % 60, ms % 1000);
+    } else {
+        puf_duration(out, out_len, seconds);
+    }
+}
+
 static void puf_perf_value(char* time_out, size_t time_len, char* pct_out, size_t pct_len,
         double part, double total) {
     int pct = total > 0 ? (int)(100.0 * part / total) : 0;
@@ -2982,36 +2995,50 @@ static int puf_loss_value(Dict* log, const char* key, char* out, size_t out_len)
     return 0;
 }
 
+static void puf_unit_value(const char* s, int width) {
+    int n = (int)strlen(s);
+    if (n > width) {
+        n = width;
+    }
+    printf("%s%*.*s%s", puf_white(), width, n, s, puf_ansi_reset());
+}
+
 static void puf_panel_header(const char* eval_t, const char* eval_pct) {
-    printf("%s│", puf_bcyan());
-    printf("%s %-9.9s %13.13s%s    %s%-12.12s%s %s%6.6s %4.4s%s    %s%-10.10s %7.7s%s    ",
-        puf_cyan(), "Summary", "Value", puf_ansi_reset(),
-        puf_bcyan(), "Evaluate", puf_ansi_reset(), puf_bwhite(), eval_t, eval_pct, puf_ansi_reset(),
-        puf_cyan(), "Losses", "Value", puf_ansi_reset());
-    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    printf("%s│", puf_white());
+    printf("%s %-9.9s %13.13s%s    %s%-12.12s%s ",
+        puf_bcyan(), "Summary", "Value", puf_ansi_reset(),
+        puf_bcyan(), "Evaluate", puf_ansi_reset());
+    puf_unit_value(eval_t, 6);
+    putchar(' ');
+    puf_unit_value(eval_pct, 4);
+    printf("    %s%-10.10s %7.7s%s    ",
+        puf_bcyan(), "Losses", "Value", puf_ansi_reset());
+    printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
 }
 
 static void puf_panel_row(const char* s_name, const char* s_val,
         const char* p_name, const char* p_time, const char* p_pct,
-        const char* l_name, const char* l_val, int emph_perf) {
-    const char* perf_color = emph_perf ? puf_bcyan() : puf_bwhite();
-    printf("%s│", puf_bcyan());
-    printf("%s %s%-9.9s%s %s%13.13s%s    %s%-12.12s%s %s%6.6s %4.4s%s    %s%-10.10s %7.7s%s    ",
-        puf_ansi_reset(),
-        puf_white(), s_name, puf_ansi_reset(), puf_bwhite(), s_val, puf_ansi_reset(),
-        perf_color, p_name, puf_ansi_reset(), puf_bwhite(), p_time, p_pct, puf_ansi_reset(),
-        puf_bwhite(), l_name, l_val, puf_ansi_reset());
-    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+        const char* l_name, const char* l_val) {
+    printf("%s│", puf_white());
+    printf("%s %s%-9.9s%s ", puf_ansi_reset(), puf_bcyan(), s_name, puf_ansi_reset());
+    puf_unit_value(s_val, 13);
+    printf("    %s%-12.12s%s ", puf_bcyan(), p_name, puf_ansi_reset());
+    puf_unit_value(p_time, 6);
+    putchar(' ');
+    puf_unit_value(p_pct, 4);
+    printf("    %s%-10.10s%s ", puf_bcyan(), l_name, puf_ansi_reset());
+    puf_unit_value(l_val, 7);
+    printf("    %s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
 }
 
 static void puf_user_header(void) {
-    printf("%s│", puf_bcyan());
-    printf("%s %-23.23s %9.9s%s   %s%-23.23s %9.9s%s        ",
-        puf_cyan(), "User Stats", "Value", puf_ansi_reset(),
-        puf_cyan(), "User Stats", "Value", puf_ansi_reset());
-    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    printf("%s│", puf_white());
+    printf("%s %-25.25s %9.9s%s   %s%-25.25s %9.9s%s    ",
+        puf_bcyan(), "User Stats", "Value", puf_ansi_reset(),
+        puf_bcyan(), "User Stats", "Value", puf_ansi_reset());
+    printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
 }
 
@@ -3022,28 +3049,28 @@ static void puf_user_row(const char* left_key, double left_val,
     snprintf(left_s, sizeof(left_s), "%.3f", left_val);
     snprintf(right_s, sizeof(right_s), "%.3f", right_val);
 
-    printf("%s│", puf_bcyan());
+    printf("%s│", puf_white());
     if (has_right) {
-        printf("%s %s%-23.23s %9.9s%s   %s%-23.23s %9.9s%s        ",
+        printf("%s %s%-25.25s%s %s%9.9s%s   %s%-25.25s%s %s%9.9s%s    ",
             puf_ansi_reset(),
-            puf_bwhite(), left_key, left_s, puf_ansi_reset(),
-            puf_bwhite(), right_key, right_s, puf_ansi_reset());
+            puf_bcyan(), left_key, puf_ansi_reset(), puf_bwhite(), left_s, puf_ansi_reset(),
+            puf_bcyan(), right_key, puf_ansi_reset(), puf_bwhite(), right_s, puf_ansi_reset());
     } else {
-        printf("%s %s%-23.23s %9.9s%s   %-23.23s %9.9s        ",
+        printf("%s %s%-25.25s%s %s%9.9s%s   %-25.25s %9.9s    ",
             puf_ansi_reset(),
-            puf_bwhite(), left_key, left_s, puf_ansi_reset(), "", "");
+            puf_bcyan(), left_key, puf_ansi_reset(), puf_bwhite(), left_s, puf_ansi_reset(), "", "");
     }
-    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+    printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
 }
 
 static void puf_dashboard_blank(void) {
-    printf("%s│%*s│%s", puf_bcyan(), PUF_DASH_WIDTH - 2, "", puf_ansi_reset());
+    printf("%s│%*s│%s", puf_white(), PUF_DASH_WIDTH - 2, "", puf_ansi_reset());
     puf_dashboard_eol();
 }
 
 static void puf_dashboard_rule(const char* left, const char* right) {
-    printf("%s%s", puf_bcyan(), left);
+    printf("%s%s", puf_white(), left);
     for (int i = 0; i < PUF_DASH_WIDTH - 2; i++) {
         printf("─");
     }
@@ -3060,8 +3087,12 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     const char* env_name = puf_config_str(cfg, "base", "env_name");
     double steps = puf_log_get_or(log, "agent_steps", (double)p->global_step);
     double sps = puf_log_get_or(log, "SPS", 0);
-    double target_steps = puf_config_get(cfg, "train", "total_timesteps");
-    double remaining_sec = sps > 0 ? (target_steps - steps) / sps : 0;
+    long configured_steps = (long)puf_config_get(cfg, "train", "total_timesteps");
+    long local_batch = (long)p->hypers.total_agents * p->hypers.horizon;
+    long local_steps = configured_steps / p->hypers.world_size;
+    double target_steps = (double)((local_steps / local_batch) * local_batch * p->hypers.world_size);
+    double remaining_steps = target_steps - steps;
+    double remaining_sec = sps > 0 && remaining_steps > 0 ? remaining_steps / sps : 0;
     double rollout = puf_log_get_or(log, "perf/rollout", 0);
     double train_time = puf_log_get_or(log, "perf/train", 0);
     double perf_total = rollout + train_time;
@@ -3074,7 +3105,7 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_abbrev(params, sizeof(params), (double)numel(p->master_weights.shape));
     puf_abbrev(steps_s, sizeof(steps_s), steps);
     puf_abbrev(sps_s, sizeof(sps_s), sps);
-    puf_duration(uptime, sizeof(uptime), puf_log_get_or(log, "uptime", 0));
+    puf_duration_ms(uptime, sizeof(uptime), puf_log_get_or(log, "uptime", 0));
     puf_duration(remaining, sizeof(remaining), remaining_sec);
 
     char epoch_s[32];
@@ -3084,7 +3115,7 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     if (puf_dashboard_tty && (term_cols < PUF_DASH_WIDTH || term_rows <= PUF_DASH_BASE_ROWS)) {
         char compact[512];
         snprintf(compact, sizeof(compact),
-            "PufferLib 4.0  env=%s  steps=%s  SPS=%s  score=%.3f  epoch=%s  to_go=%s",
+            "PufferLib 5.0  env=%s  steps=%s  SPS=%s  score=%.3f  epoch=%s  to_go=%s",
             env_name, steps_s, sps_s, puf_log_get_or(log, "env/score", 0), epoch_s, remaining);
         int max_cols = term_cols > 1 ? term_cols - 1 : term_cols;
         printf("%.*s", max_cols, compact);
@@ -3097,20 +3128,33 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
         return;
     }
 
-    puf_dashboard_rule("╭", "╮");
-    printf("%s│", puf_bcyan());
-    printf("%s %sPufferLib %s4.0%s        %s🐡%s        %sGPU:%s %2.0f%%    %sVRAM:%s %.1f/%.0fG    %sRAM:%s %.1fG        ",
-        puf_ansi_reset(),
-        puf_bcyan(), puf_bwhite(), puf_ansi_reset(),
-        puf_bcyan(), puf_ansi_reset(),
-        puf_cyan(), puf_bwhite(),
-        puf_log_get_or(log, "util/gpu_percent", 0),
-        puf_cyan(), puf_bwhite(),
+    char gpu_s[16];
+    char vram_s[32];
+    char ram_s[16];
+    snprintf(gpu_s, sizeof(gpu_s), "%3.0f%%", puf_log_get_or(log, "util/gpu_percent", 0));
+    snprintf(vram_s, sizeof(vram_s), "%.1f/%.0fG",
         puf_log_get_or(log, "util/vram_used_gb", 0),
-        puf_log_get_or(log, "util/vram_total_gb", 0),
-        puf_cyan(), puf_bwhite(),
-        puf_log_get_or(log, "util/cpu_mem_gb", 0));
-    printf("%s│%s", puf_bcyan(), puf_ansi_reset());
+        puf_log_get_or(log, "util/vram_total_gb", 0));
+    snprintf(ram_s, sizeof(ram_s), "%.1fG", puf_log_get_or(log, "util/cpu_mem_gb", 0));
+
+    int fish_span = 18;
+    int fish_pos = (fish_span - 3) - (puf_dashboard_frame % (fish_span - 2));
+    puf_dashboard_frame++;
+
+    puf_dashboard_rule("╭", "╮");
+    printf("%s│", puf_white());
+    printf("%s %sPufferLib %s5.0%s",
+        puf_ansi_reset(), puf_bcyan(), puf_bwhite(), puf_ansi_reset());
+    printf("%*s%s🐡%s%*s",
+        fish_pos, "", puf_bcyan(), puf_ansi_reset(), fish_span - 2 - fish_pos, "");
+    printf("%sGPU:%s ", puf_bcyan(), puf_ansi_reset());
+    puf_unit_value(gpu_s, 4);
+    printf("   %sVRAM:%s", puf_bcyan(), puf_ansi_reset());
+    puf_unit_value(vram_s, 10);
+    printf("    %sRAM:%s", puf_bcyan(), puf_ansi_reset());
+    puf_unit_value(ram_s, 6);
+    printf("     ");
+    printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
     puf_dashboard_blank();
 
@@ -3152,13 +3196,13 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_loss_value(log, "loss/clipfrac", loss_clipfrac, sizeof(loss_clipfrac));
 
     puf_panel_header(eval_t, eval_pct);
-    puf_panel_row("Env", env_name, "  GPU", gpu_t, gpu_pct, "policy", loss_policy, 0);
-    puf_panel_row("Params", params, "  Env", env_t, env_pct, "value", loss_value, 0);
-    puf_panel_row("Steps", steps_s, "Train", train_t, train_pct, "entropy", loss_entropy, 1);
-    puf_panel_row("SPS", sps_s, "  Misc", misc_t, misc_pct, "total", loss_total, 0);
-    puf_panel_row("Epoch", epoch_s, "  Forward", forward_t, forward_pct, "old_kl", loss_old_kl, 0);
-    puf_panel_row("Uptime", uptime, "", "", "", "kl", loss_kl, 0);
-    puf_panel_row("To go", remaining, "", "", "", "clipfrac", loss_clipfrac, 0);
+    puf_panel_row("Env", env_name, "  GPU", gpu_t, gpu_pct, "policy", loss_policy);
+    puf_panel_row("Params", params, "  Env", env_t, env_pct, "value", loss_value);
+    puf_panel_row("Steps", steps_s, "Train", train_t, train_pct, "entropy", loss_entropy);
+    puf_panel_row("SPS", sps_s, "  Misc", misc_t, misc_pct, "total", loss_total);
+    puf_panel_row("Epoch", epoch_s, "  Forward", forward_t, forward_pct, "old_kl", loss_old_kl);
+    puf_panel_row("Uptime", uptime, "", "", "", "kl", loss_kl);
+    puf_panel_row("To go", remaining, "", "", "", "clipfrac", loss_clipfrac);
     puf_dashboard_blank();
 
     puf_user_header();
@@ -4604,6 +4648,7 @@ TrainResult run_train(Config* cfg, TrainContext* ctx) {
     Dict last_log = {0};
     PufLogHistory log_history = {0};
     TrainResult result = {0};
+    double last_dashboard_time = 0;
 
     for (long epoch = 0; epoch < train_epochs + eval_epochs; epoch++) {
         if (epoch < train_epochs && pufferl->hypers.async) {
@@ -4633,31 +4678,39 @@ TrainResult run_train(Config* cfg, TrainContext* ctx) {
             selfplay_add_checkpoint(selfplay, saved_checkpoint);
         }
 
-        if (wall_clock() < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
+        int is_eval = epoch >= train_epochs;
+        if (!is_eval && last_log.size &&
+                wall_clock() < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
             continue;
         }
 
         Dict new_log = {0};
-        if (epoch >= train_epochs) {
+        if (is_eval) {
             trainer_eval_log(pufferl, &new_log);
         } else {
             trainer_log(pufferl, &new_log);
         }
         puf_log_update(&last_log, &new_log);
-        if (selfplay && epoch < train_epochs) {
+        if (selfplay && !is_eval) {
             selfplay_step(selfplay, pufferl, &last_log);
         }
-        if (ctx->artifact_owner) {
-            puf_dashboard_print(cfg, pufferl, &last_log, (int)epoch);
+
+        int eval_done = is_eval && puf_log_get_or(&last_log, "env/n", 0) > eval_episodes;
+        int loop_done = epoch == train_epochs + eval_epochs - 1;
+        double now = wall_clock();
+        int print_dashboard = !is_eval || eval_done || loop_done || now >= last_dashboard_time + 0.6;
+        if (ctx->artifact_owner && print_dashboard) {
+            puf_dashboard_print(cfg, pufferl, &last_log, (int)pufferl->epoch);
+            last_dashboard_time = now;
         }
 
         if (puf_log_get_or(&last_log, target_key, -1) < 0) {
             continue;
         }
-        if (epoch < train_epochs) {
+        if (!is_eval) {
             puf_log_history_add(&log_history, &last_log);
         }
-        if (epoch >= train_epochs && puf_log_get_or(&last_log, "env/n", 0) > eval_episodes) {
+        if (eval_done) {
             break;
         }
     }
