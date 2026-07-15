@@ -771,8 +771,9 @@ static inline void atomic_store(atomic_int* ptr, int value) {
 }
 
 enum VecProfileIdx {
-    VEC_GPU = 0,
+    VEC_MODEL = 0,
     VEC_ENV_STEP,
+    VEC_COPY,
     NUM_VEC_PROF,
 };
 
@@ -834,30 +835,48 @@ static void* vec_thread_main(void* arg) {
     int env_count = vec->buffer_env_counts[buf];
 
     Env* envs = vec->envs;
+    cudaStream_t stream = vec->streams[buf];
+    cudaEvent_t model_start, model_end, copy_end, h2d_start, h2d_end;
+    cudaEventCreate(&model_start);
+    cudaEventCreate(&model_end);
+    cudaEventCreate(&copy_end);
+    cudaEventCreate(&h2d_start);
+    cudaEventCreate(&h2d_end);
+
+    float* my_accum = &vec->accum[buf * NUM_VEC_PROF];
+    struct timespec t0, t1;
+    float ms = 0.0f;
 
     while (true) {
         while (atomic_load(&vec->buffer_states[buf]) != OMP_RUNNING) {
             if (atomic_load(&vec->shutdown)) {
-                return NULL;
+                goto done;
             }
         }
-        cudaStream_t stream = vec->streams[buf];
 
-        float* my_accum = &vec->accum[buf * NUM_VEC_PROF];
-        struct timespec t0, t1;
+        int h2d_pending = 0;
 
         for (int t = 0; t < horizon; t++) {
-            clock_gettime(CLOCK_MONOTONIC, &t0);
+            cudaEventRecord(model_start, stream);
             pufferl_forward(pufferl, buf, t, stream);
-
+            cudaEventRecord(model_end, stream);
             cudaMemcpyAsync(
                 &vec->actions[agent_start * NUM_ATNS],
                 &vec->gpu_actions[agent_start * NUM_ATNS],
                 agents_per_buffer * NUM_ATNS * sizeof(float),
                 cudaMemcpyDeviceToHost, stream);
+            cudaEventRecord(copy_end, stream);
             cudaStreamSynchronize(stream);
-            clock_gettime(CLOCK_MONOTONIC, &t1);
-            my_accum[VEC_GPU] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
+
+            cudaEventElapsedTime(&ms, model_start, model_end);
+            my_accum[VEC_MODEL] += ms;
+            cudaEventElapsedTime(&ms, model_end, copy_end);
+            my_accum[VEC_COPY] += ms;
+            if (h2d_pending) {
+                cudaEventElapsedTime(&ms, h2d_start, h2d_end);
+                my_accum[VEC_COPY] += ms;
+                h2d_pending = 0;
+            }
 
             memset(&vec->rewards[agent_start], 0, agents_per_buffer * sizeof(float));
             memset(&vec->terminals[agent_start], 0, agents_per_buffer * sizeof(float));
@@ -869,6 +888,7 @@ static void* vec_thread_main(void* arg) {
             clock_gettime(CLOCK_MONOTONIC, &t1);
             my_accum[VEC_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
+            cudaEventRecord(h2d_start, stream);
             cudaMemcpyAsync(
                 vec->gpu_observations + (size_t)agent_start * OBS_SIZE,
                 vec->observations + (size_t)agent_start * OBS_SIZE,
@@ -891,11 +911,24 @@ static void* vec_thread_main(void* arg) {
                     (size_t)agents_per_buffer * vec->action_mask_size * sizeof(unsigned char),
                     cudaMemcpyHostToDevice, stream);
             }
-
+            cudaEventRecord(h2d_end, stream);
+            h2d_pending = 1;
         }
         cudaStreamSynchronize(stream);
+        if (h2d_pending) {
+            cudaEventElapsedTime(&ms, h2d_start, h2d_end);
+            my_accum[VEC_COPY] += ms;
+        }
         atomic_store(&vec->buffer_states[buf], OMP_WAITING);
     }
+
+done:
+    cudaEventDestroy(model_start);
+    cudaEventDestroy(model_end);
+    cudaEventDestroy(copy_end);
+    cudaEventDestroy(h2d_start);
+    cudaEventDestroy(h2d_end);
+    return NULL;
 }
 
 void vec_step_start(VecEnv* vec) {
@@ -1260,19 +1293,21 @@ static double wall_clock() {
 
 enum ProfileIdx {
     PROF_ROLLOUT = 0,
-    PROF_EVAL_GPU,
+    PROF_EVAL_MODEL,
     PROF_EVAL_ENV,
+    PROF_EVAL_COPY,
     PROF_TRAIN_MISC,
-    PROF_TRAIN_FORWARD,
+    PROF_TRAIN_MODEL,
     NUM_PROF,
 };
 
 static const char* PROF_NAMES[NUM_PROF] = {
     "rollout",
-    "eval_gpu",
+    "eval_model",
     "eval_env",
+    "eval_copy",
     "train_misc",
-    "train_forward",
+    "train_model",
 };
 
 #define NUM_TRAIN_EVENTS 5
@@ -2309,7 +2344,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         pufferl.profile.accum[PROF_TRAIN_MISC] += ms * total_minibatches;
         // In-loop forward (last iteration, representative) scaled by count
         cudaEventElapsedTime(&ms, pufferl.profile.events[3], pufferl.profile.events[4]);
-        pufferl.profile.accum[PROF_TRAIN_FORWARD] += ms * total_minibatches;
+        pufferl.profile.accum[PROF_TRAIN_MODEL] += ms * total_minibatches;
     }
     pufferl.epoch += 1;
 }
@@ -2857,43 +2892,8 @@ static int puf_dashboard_last_cols = 0;
 static int puf_dashboard_frame = 0;
 
 #define PUF_DASH_WIDTH 80
-#define PUF_DASH_BASE_ROWS 14
+#define PUF_DASH_BASE_ROWS 12
 #define PUF_DASH_MAX_USER_ROWS 15
-
-static void puf_term_size(int* rows, int* cols) {
-    *rows = 1000;
-    *cols = PUF_DASH_WIDTH;
-
-    if (!puf_dashboard_tty) {
-        return;
-    }
-
-    struct winsize ws;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
-        if (ws.ws_row > 0) {
-            *rows = ws.ws_row;
-        }
-        if (ws.ws_col > 0) {
-            *cols = ws.ws_col;
-        }
-    }
-}
-
-static void puf_dashboard_begin(int rows, int cols) {
-    if (!puf_dashboard_tty) {
-        return;
-    }
-
-    printf("\033[?2026h");
-    if (rows != puf_dashboard_last_rows || cols != puf_dashboard_last_cols) {
-        printf("\033[H\033[J");
-    } else {
-        printf("\033[H");
-    }
-
-    puf_dashboard_last_rows = rows;
-    puf_dashboard_last_cols = cols;
-}
 
 static void puf_dashboard_end(void) {
     if (puf_dashboard_tty) {
@@ -2902,7 +2902,7 @@ static void puf_dashboard_end(void) {
     fflush(stdout);
 }
 
-static const char* puf_bcyan(void) {
+static const char* puf_accent(void) {
     return puf_dashboard_tty ? "\033[96m" : "";
 }
 
@@ -2910,8 +2910,8 @@ static const char* puf_white(void) {
     return puf_dashboard_tty ? "\033[97m" : "";
 }
 
-static const char* puf_bwhite(void) {
-    return puf_dashboard_tty ? "\033[97m" : "";
+static const char* puf_gray(void) {
+    return puf_dashboard_tty ? "\033[90m" : "";
 }
 
 static const char* puf_ansi_reset(void) {
@@ -2973,92 +2973,76 @@ static void puf_perf_value(char* time_out, size_t time_len, char* pct_out, size_
     snprintf(pct_out, pct_len, "%d%%", pct);
 }
 
-static void puf_strip_prefix(char* out, size_t out_len, const char* key, const char* prefix) {
-    size_t n = strlen(prefix);
-    if (strncmp(key, prefix, n) == 0) {
-        snprintf(out, out_len, "%s", key + n);
-    } else {
-        snprintf(out, out_len, "%s", key);
-    }
-}
-
-static int puf_loss_value(Dict* log, const char* key, char* out, size_t out_len) {
+static void puf_loss_value(Dict* log, const char* key, char* out, size_t out_len) {
+    out[0] = 0;
     for (int i = 0; i < log->size; i++) {
         if (strcmp(log->items[i].key, key) == 0) {
             snprintf(out, out_len, "%.3f", log->items[i].value);
-            return 1;
+            return;
         }
     }
-    if (out_len > 0) {
-        out[0] = 0;
-    }
-    return 0;
 }
 
-static void puf_unit_value(const char* s, int width) {
+static void puf_value(const char* s, int width) {
     int n = (int)strlen(s);
     if (n > width) {
         n = width;
     }
-    printf("%s%*.*s%s", puf_white(), width, n, s, puf_ansi_reset());
-}
 
-static void puf_panel_header(const char* eval_t, const char* eval_pct) {
-    printf("%s│", puf_white());
-    printf("%s %-9.9s %13.13s%s    %s%-12.12s%s ",
-        puf_bcyan(), "Summary", "Value", puf_ansi_reset(),
-        puf_bcyan(), "Evaluate", puf_ansi_reset());
-    puf_unit_value(eval_t, 6);
-    putchar(' ');
-    puf_unit_value(eval_pct, 4);
-    printf("    %s%-10.10s %7.7s%s    ",
-        puf_bcyan(), "Losses", "Value", puf_ansi_reset());
-    printf("%s│%s", puf_white(), puf_ansi_reset());
-    puf_dashboard_eol();
+    int numeric = 0;
+    for (int i = 0; i < n; i++) {
+        numeric |= s[i] >= '0' && s[i] <= '9';
+    }
+
+    printf("%s", puf_white());
+    for (int i = n; i < width; i++) {
+        putchar(' ');
+    }
+    int gray = 0;
+    for (int i = 0; i < n; i++) {
+        int unit = numeric && strchr("%KMBTGdhms", s[i]) != NULL;
+        if (unit != gray) {
+            printf("%s", unit ? puf_gray() : puf_white());
+            gray = unit;
+        }
+        putchar(s[i]);
+    }
+    printf("%s", puf_ansi_reset());
 }
 
 static void puf_panel_row(const char* s_name, const char* s_val,
         const char* p_name, const char* p_time, const char* p_pct,
         const char* l_name, const char* l_val) {
     printf("%s│", puf_white());
-    printf("%s %s%-9.9s%s ", puf_ansi_reset(), puf_bcyan(), s_name, puf_ansi_reset());
-    puf_unit_value(s_val, 13);
-    printf("    %s%-12.12s%s ", puf_bcyan(), p_name, puf_ansi_reset());
-    puf_unit_value(p_time, 6);
+    printf("%s %s%-9.9s%s ", puf_ansi_reset(), puf_accent(), s_name, puf_ansi_reset());
+    puf_value(s_val, 13);
+    printf("    %s%-12.12s%s ", puf_accent(), p_name, puf_ansi_reset());
+    puf_value(p_time, 6);
     putchar(' ');
-    puf_unit_value(p_pct, 4);
-    printf("    %s%-10.10s%s ", puf_bcyan(), l_name, puf_ansi_reset());
-    puf_unit_value(l_val, 7);
+    puf_value(p_pct, 4);
+    printf("    %s%-10.10s%s ", puf_accent(), l_name, puf_ansi_reset());
+    puf_value(l_val, 7);
     printf("    %s│%s", puf_white(), puf_ansi_reset());
-    puf_dashboard_eol();
-}
-
-static void puf_user_header(void) {
-    printf("%s│", puf_white());
-    printf("%s %-25.25s %9.9s%s   %s%-25.25s %9.9s%s    ",
-        puf_bcyan(), "User Stats", "Value", puf_ansi_reset(),
-        puf_bcyan(), "User Stats", "Value", puf_ansi_reset());
-    printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
 }
 
 static void puf_user_row(const char* left_key, double left_val,
         const char* right_key, double right_val, int has_right) {
     char left_s[32];
-    char right_s[32];
     snprintf(left_s, sizeof(left_s), "%.3f", left_val);
-    snprintf(right_s, sizeof(right_s), "%.3f", right_val);
 
     printf("%s│", puf_white());
     if (has_right) {
+        char right_s[32];
+        snprintf(right_s, sizeof(right_s), "%.3f", right_val);
         printf("%s %s%-25.25s%s %s%9.9s%s   %s%-25.25s%s %s%9.9s%s    ",
             puf_ansi_reset(),
-            puf_bcyan(), left_key, puf_ansi_reset(), puf_bwhite(), left_s, puf_ansi_reset(),
-            puf_bcyan(), right_key, puf_ansi_reset(), puf_bwhite(), right_s, puf_ansi_reset());
+            puf_accent(), left_key, puf_ansi_reset(), puf_white(), left_s, puf_ansi_reset(),
+            puf_accent(), right_key, puf_ansi_reset(), puf_white(), right_s, puf_ansi_reset());
     } else {
         printf("%s %s%-25.25s%s %s%9.9s%s   %-25.25s %9.9s    ",
             puf_ansi_reset(),
-            puf_bcyan(), left_key, puf_ansi_reset(), puf_bwhite(), left_s, puf_ansi_reset(), "", "");
+            puf_accent(), left_key, puf_ansi_reset(), puf_white(), left_s, puf_ansi_reset(), "", "");
     }
     printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
@@ -3082,7 +3066,13 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_dashboard_tty = isatty(STDOUT_FILENO);
     int term_rows = 1000;
     int term_cols = PUF_DASH_WIDTH;
-    puf_term_size(&term_rows, &term_cols);
+    if (puf_dashboard_tty) {
+        struct winsize ws;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
+            if (ws.ws_row > 0) term_rows = ws.ws_row;
+            if (ws.ws_col > 0) term_cols = ws.ws_col;
+        }
+    }
 
     const char* env_name = puf_config_str(cfg, "base", "env_name");
     double steps = puf_log_get_or(log, "agent_steps", (double)p->global_step);
@@ -3111,7 +3101,16 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     char epoch_s[32];
     snprintf(epoch_s, sizeof(epoch_s), "%d", epoch);
 
-    puf_dashboard_begin(term_rows, term_cols);
+    if (puf_dashboard_tty) {
+        printf("\033[?2026h");
+        if (term_rows != puf_dashboard_last_rows || term_cols != puf_dashboard_last_cols) {
+            printf("\033[H\033[J");
+        } else {
+            printf("\033[H");
+        }
+        puf_dashboard_last_rows = term_rows;
+        puf_dashboard_last_cols = term_cols;
+    }
     if (puf_dashboard_tty && (term_cols < PUF_DASH_WIDTH || term_rows <= PUF_DASH_BASE_ROWS)) {
         char compact[512];
         snprintf(compact, sizeof(compact),
@@ -3144,15 +3143,15 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_dashboard_rule("╭", "╮");
     printf("%s│", puf_white());
     printf("%s %sPufferLib %s5.0%s",
-        puf_ansi_reset(), puf_bcyan(), puf_bwhite(), puf_ansi_reset());
+        puf_ansi_reset(), puf_accent(), puf_white(), puf_ansi_reset());
     printf("%*s%s🐡%s%*s",
-        fish_pos, "", puf_bcyan(), puf_ansi_reset(), fish_span - 2 - fish_pos, "");
-    printf("%sGPU:%s ", puf_bcyan(), puf_ansi_reset());
-    puf_unit_value(gpu_s, 4);
-    printf("   %sVRAM:%s", puf_bcyan(), puf_ansi_reset());
-    puf_unit_value(vram_s, 10);
-    printf("    %sRAM:%s", puf_bcyan(), puf_ansi_reset());
-    puf_unit_value(ram_s, 6);
+        fish_pos, "", puf_accent(), puf_ansi_reset(), fish_span - 2 - fish_pos, "");
+    printf("%sGPU%s:%s ", puf_accent(), puf_gray(), puf_ansi_reset());
+    puf_value(gpu_s, 4);
+    printf("   %sVRAM%s:%s", puf_accent(), puf_gray(), puf_ansi_reset());
+    puf_value(vram_s, 10);
+    printf("    %sRAM%s:%s", puf_accent(), puf_gray(), puf_ansi_reset());
+    puf_value(ram_s, 6);
     printf("     ");
     printf("%s│%s", puf_white(), puf_ansi_reset());
     puf_dashboard_eol();
@@ -3160,16 +3159,18 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
 
     char eval_t[64];
     char eval_pct[16];
-    char gpu_t[64];
-    char gpu_pct[16];
+    char eval_model_t[64];
+    char eval_model_pct[16];
     char env_t[64];
     char env_pct[16];
+    char copy_t[64];
+    char copy_pct[16];
     char train_t[64];
     char train_pct[16];
+    char train_model_t[64];
+    char train_model_pct[16];
     char misc_t[64];
     char misc_pct[16];
-    char forward_t[64];
-    char forward_pct[16];
     char loss_policy[32];
     char loss_value[32];
     char loss_entropy[32];
@@ -3178,15 +3179,17 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     char loss_kl[32];
     char loss_clipfrac[32];
     puf_perf_value(eval_t, sizeof(eval_t), eval_pct, sizeof(eval_pct), rollout, perf_total);
-    puf_perf_value(gpu_t, sizeof(gpu_t), gpu_pct, sizeof(gpu_pct),
-        puf_log_get_or(log, "perf/eval_gpu", 0), perf_total);
+    puf_perf_value(eval_model_t, sizeof(eval_model_t), eval_model_pct, sizeof(eval_model_pct),
+        puf_log_get_or(log, "perf/eval_model", 0), perf_total);
     puf_perf_value(env_t, sizeof(env_t), env_pct, sizeof(env_pct),
         puf_log_get_or(log, "perf/eval_env", 0), perf_total);
+    puf_perf_value(copy_t, sizeof(copy_t), copy_pct, sizeof(copy_pct),
+        puf_log_get_or(log, "perf/eval_copy", 0), perf_total);
     puf_perf_value(train_t, sizeof(train_t), train_pct, sizeof(train_pct), train_time, perf_total);
+    puf_perf_value(train_model_t, sizeof(train_model_t), train_model_pct, sizeof(train_model_pct),
+        puf_log_get_or(log, "perf/train_model", 0), perf_total);
     puf_perf_value(misc_t, sizeof(misc_t), misc_pct, sizeof(misc_pct),
         puf_log_get_or(log, "perf/train_misc", 0), perf_total);
-    puf_perf_value(forward_t, sizeof(forward_t), forward_pct, sizeof(forward_pct),
-        puf_log_get_or(log, "perf/train_forward", 0), perf_total);
     puf_loss_value(log, "loss/policy", loss_policy, sizeof(loss_policy));
     puf_loss_value(log, "loss/value", loss_value, sizeof(loss_value));
     puf_loss_value(log, "loss/entropy", loss_entropy, sizeof(loss_entropy));
@@ -3195,17 +3198,25 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
     puf_loss_value(log, "loss/kl", loss_kl, sizeof(loss_kl));
     puf_loss_value(log, "loss/clipfrac", loss_clipfrac, sizeof(loss_clipfrac));
 
-    puf_panel_header(eval_t, eval_pct);
-    puf_panel_row("Env", env_name, "  GPU", gpu_t, gpu_pct, "policy", loss_policy);
-    puf_panel_row("Params", params, "  Env", env_t, env_pct, "value", loss_value);
-    puf_panel_row("Steps", steps_s, "Train", train_t, train_pct, "entropy", loss_entropy);
-    puf_panel_row("SPS", sps_s, "  Misc", misc_t, misc_pct, "total", loss_total);
-    puf_panel_row("Epoch", epoch_s, "  Forward", forward_t, forward_pct, "old_kl", loss_old_kl);
-    puf_panel_row("Uptime", uptime, "", "", "", "kl", loss_kl);
-    puf_panel_row("To go", remaining, "", "", "", "clipfrac", loss_clipfrac);
+    printf("%s│", puf_white());
+    printf("%s %s%-9.9s%s ", puf_ansi_reset(), puf_accent(), "Env", puf_ansi_reset());
+    puf_value(env_name, 13);
+    printf("    %s%-12.12s%s ", puf_accent(), "Evaluate", puf_ansi_reset());
+    puf_value(eval_t, 6);
+    putchar(' ');
+    puf_value(eval_pct, 4);
+    printf("    %s%-10.10s%s ", puf_accent(), "Losses", puf_ansi_reset());
+    puf_value(loss_total, 7);
+    printf("    %s│%s", puf_white(), puf_ansi_reset());
+    puf_dashboard_eol();
+    puf_panel_row("Params", params, "  Model", eval_model_t, eval_model_pct, "policy", loss_policy);
+    puf_panel_row("Steps", steps_s, "  Env", env_t, env_pct, "value", loss_value);
+    puf_panel_row("SPS", sps_s, "  Copy", copy_t, copy_pct, "entropy", loss_entropy);
+    puf_panel_row("Epoch", epoch_s, "Train", train_t, train_pct, "old_kl", loss_old_kl);
+    puf_panel_row("Uptime", uptime, "  Model", train_model_t, train_model_pct, "kl", loss_kl);
+    puf_panel_row("To go", remaining, "  Misc", misc_t, misc_pct, "clipfrac", loss_clipfrac);
     puf_dashboard_blank();
 
-    puf_user_header();
     int user_rows = PUF_DASH_MAX_USER_ROWS;
     if (puf_dashboard_tty) {
         user_rows = term_rows - PUF_DASH_BASE_ROWS - 1;
@@ -3228,8 +3239,7 @@ static void puf_dashboard_print(Config* cfg, PuffeRL* p, Dict* log, int epoch) {
             continue;
         }
 
-        char short_key[128];
-        puf_strip_prefix(short_key, sizeof(short_key), key, "env/");
+        const char* short_key = key + 4;
         if (!pending) {
             snprintf(pending_key, sizeof(pending_key), "%s", short_key);
             pending_val = log->items[i].value;
@@ -3584,7 +3594,7 @@ static void rollout_finish(PuffeRL* p, double t0) {
                 p->profile.rollout_gpu_end[t], p->profile.rollout_env_end[t]);
             env_ms += ms;
         }
-        p->profile.accum[PROF_EVAL_GPU] += gpu_ms;
+        p->profile.accum[PROF_EVAL_MODEL] += gpu_ms;
         p->profile.accum[PROF_EVAL_ENV] += env_ms;
         p->profile.accum[PROF_ROLLOUT] += gpu_ms + env_ms;
     } else {
@@ -3600,8 +3610,9 @@ static void rollout_finish(PuffeRL* p, double t0) {
             }
             memset(src, 0, NUM_VEC_PROF * sizeof(float));
         }
-        p->profile.accum[PROF_EVAL_GPU] += eval_prof[VEC_GPU] / p->vec->buffers;
+        p->profile.accum[PROF_EVAL_MODEL] += eval_prof[VEC_MODEL] / p->vec->buffers;
         p->profile.accum[PROF_EVAL_ENV] += eval_prof[VEC_ENV_STEP] / p->vec->buffers;
+        p->profile.accum[PROF_EVAL_COPY] += eval_prof[VEC_COPY] / p->vec->buffers;
     }
 }
 
