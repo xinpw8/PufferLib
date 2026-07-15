@@ -90,7 +90,8 @@ static inline void dict_item_clear(DictItem* item) {
 static inline double dict_get(Dict* dict, const char* key) {
     DictItem* item = dict_find(dict, key);
     if (!item) {
-        fprintf(stderr, "dict missing key: %s\n", key);
+        // Keys come from default.ini (+ env overlays); a miss is a bug, not a normal path.
+        fprintf(stderr, "missing key [%s] %s\n", dict->name ? dict->name : "?", key);
         exit(1);
     }
     return item->value;
@@ -106,7 +107,7 @@ static inline DictItem* dict_set(Dict* dict, const char* key, double value) {
 static inline const char* dict_get_str(Dict* dict, const char* key) {
     DictItem* item = dict_find(dict, key);
     if (!item || !item->str) {
-        fprintf(stderr, "dict missing string key: %s\n", key);
+        fprintf(stderr, "missing string [%s] %s\n", dict->name ? dict->name : "?", key);
         exit(1);
     }
     return item->str;
@@ -531,4 +532,20 @@ static inline void puf_ini_free(Ini* ini) {
     }
     free(ini->sections);
     memset(ini, 0, sizeof(*ini));
+}
+
+static inline void puf_ini_copy(Ini* dst, Ini* src) {
+    memset(dst, 0, sizeof(*dst));
+    if (!src->num_sections) {
+        return;
+    }
+    dst->sections = (Dict*)calloc((size_t)src->num_sections, sizeof(Dict));
+    if (!dst->sections) {
+        perror("calloc");
+        exit(1);
+    }
+    dst->num_sections = src->num_sections;
+    for (int i = 0; i < src->num_sections; i++) {
+        dict_copy(&dst->sections[i], &src->sections[i]);
+    }
 }

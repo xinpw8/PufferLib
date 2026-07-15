@@ -214,7 +214,7 @@ __global__ void mingru_scan_forward(PrefixScan scan) {
     int H3 = 3 * H;
     int H2 = 2 * H;
     int bHT = bH * T_seq;
-    int out_base = bHT + h;
+    const int out_base = bHT + h;
     int cbase = 3 * bHT;
 
     float a_star = 0.0f;
@@ -296,9 +296,9 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     const precision_t* __restrict__ state = scan.state_ptr;
     const precision_t* __restrict__ input = scan.input_ptr;
     const precision_t* __restrict__ terminals = scan.terminals_ptr;
-    const float* __restrict__ a_star_buf = scan.a_star.data;
-    const float* __restrict__ s_buf = scan.s_vals.data;
-    const float* __restrict__ log_values_buf = scan.log_values_buf.data;
+    float* __restrict__ a_star_buf = scan.a_star.data;
+    float* __restrict__ s_buf = scan.s_vals.data;
+    float* __restrict__ log_values_buf = scan.log_values_buf.data;
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= B * H) {
@@ -475,7 +475,7 @@ __global__ void assemble_decoder_grad(
     dst[idx] = from_float((col < od) ? grad_logits[row * od + col] : grad_value[row]);
 }
 
-static PrecisionTensor encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+PrecisionTensor encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
     EncoderWeights* ew = (EncoderWeights*)w;
     EncoderActivations* a = (EncoderActivations*)activations;
     if (a->saved_input.data) puf_copy(&a->saved_input, &input, stream);
@@ -483,12 +483,12 @@ static PrecisionTensor encoder_forward(void* w, void* activations, PrecisionTens
     return a->out;
 }
 
-static void encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+void encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
     EncoderActivations* a = (EncoderActivations*)activations;
     puf_mm_tn(&grad, &a->saved_input, &a->wgrad_scratch, stream);
 }
 
-static void encoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
+void encoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
     EncoderWeights* ew = (EncoderWeights*)w;
     PrecisionTensor wt = {
         .data = ew->weight.data,
@@ -497,13 +497,13 @@ static void encoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
     puf_kaiming_init(&wt, std::sqrt(2.0f), (*seed)++, stream);
 }
 
-static void encoder_reg_params(void* w, Allocator* alloc) {
+void encoder_reg_params(void* w, Allocator* alloc) {
     EncoderWeights* ew = (EncoderWeights*)w;
     ew->weight = {.shape = {ew->out_dim, ew->in_dim}};
     alloc_register(alloc,&ew->weight);
 }
 
-static void encoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
+void encoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
     EncoderWeights* ew = (EncoderWeights*)w;
     EncoderActivations* a = (EncoderActivations*)activations;
     *a = (EncoderActivations){
@@ -516,25 +516,25 @@ static void encoder_reg_train(void* w, void* activations, Allocator* acts, Alloc
     alloc_register(grads,&a->wgrad_scratch);
 }
 
-static void encoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
+void encoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
     EncoderWeights* ew = (EncoderWeights*)w;
     EncoderActivations* a = (EncoderActivations*)activations;
     a->out = {.shape = {B, ew->out_dim}};
     alloc_register(alloc,&a->out);
 }
 
-static void* encoder_create_weights(void* self) {
+void* encoder_create_weights(void* self) {
     Encoder* e = (Encoder*)self;
     EncoderWeights* ew = (EncoderWeights*)calloc(1, sizeof(EncoderWeights));
     ew->in_dim = e->in_dim; ew->out_dim = e->out_dim;
     return ew;
 }
 
-static void encoder_free_weights(void* weights) {
+void encoder_free_weights(void* weights) {
     free(weights);
 }
 
-static void encoder_free_activations(void* activations) {
+void encoder_free_activations(void* activations) {
     free(activations);
 }
 
@@ -548,7 +548,7 @@ struct DecoderActivations {
     PrecisionTensor out, grad_out, saved_input, grad_input, wgrad_scratch, logstd_scratch;
 };
 
-static PrecisionTensor decoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+PrecisionTensor decoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
     DecoderWeights* dw = (DecoderWeights*)w;
     DecoderActivations* a = (DecoderActivations*)activations;
     if (a->saved_input.data) {
@@ -558,7 +558,7 @@ static PrecisionTensor decoder_forward(void* w, void* activations, PrecisionTens
     return a->out;
 }
 
-static void decoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
+void decoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
     DecoderWeights* dw = (DecoderWeights*)w;
     PrecisionTensor wt = {
         .data = dw->weight.data,
@@ -567,7 +567,7 @@ static void decoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
     puf_kaiming_init(&wt, 1.0f, (*seed)++, stream);
 }
 
-static void decoder_reg_params(void* w, Allocator* alloc) {
+void decoder_reg_params(void* w, Allocator* alloc) {
     DecoderWeights* dw = (DecoderWeights*)w;
     dw->weight = {.shape = {dw->output_dim + 1, dw->hidden_dim}};
     alloc_register(alloc,&dw->weight);
@@ -577,7 +577,7 @@ static void decoder_reg_params(void* w, Allocator* alloc) {
     }
 }
 
-static void decoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
+void decoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
     DecoderWeights* dw = (DecoderWeights*)w;
     DecoderActivations* a = (DecoderActivations*)activations;
     int od1 = dw->output_dim + 1;
@@ -597,29 +597,29 @@ static void decoder_reg_train(void* w, void* activations, Allocator* acts, Alloc
     if (dw->continuous) alloc_register(grads,&a->logstd_scratch);
 }
 
-static void decoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
+void decoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
     DecoderWeights* dw = (DecoderWeights*)w;
     DecoderActivations* a = (DecoderActivations*)activations;
     a->out = {.shape = {B, dw->output_dim + 1}};
     alloc_register(alloc,&a->out);
 }
 
-static void* decoder_create_weights(void* self) {
+void* decoder_create_weights(void* self) {
     Decoder* d = (Decoder*)self;
     DecoderWeights* dw = (DecoderWeights*)calloc(1, sizeof(DecoderWeights));
     dw->hidden_dim = d->hidden_dim; dw->output_dim = d->output_dim; dw->continuous = d->continuous;
     return dw;
 }
 
-static void decoder_free_weights(void* weights) {
+void decoder_free_weights(void* weights) {
     free(weights);
 }
 
-static void decoder_free_activations(void* activations) {
+void decoder_free_activations(void* activations) {
     free(activations);
 }
 
-static PrecisionTensor decoder_backward(void* w, void* activations,
+PrecisionTensor decoder_backward(void* w, void* activations,
     FloatTensor grad_logits, FloatTensor grad_logstd, FloatTensor grad_value, cudaStream_t stream) {
     DecoderWeights* dw = (DecoderWeights*)w;
     DecoderActivations* a = (DecoderActivations*)activations;
@@ -664,12 +664,12 @@ struct MinGRUWeights {
     PrecisionTensor* weights;  // [num_layers]
 };
 
-static PrecisionTensor mingru_state_layer(MinGRUWeights* m, PrecisionTensor& state, int i) {
+PrecisionTensor mingru_state_layer(MinGRUWeights* m, PrecisionTensor& state, int i) {
     long B = state.shape[1], H = state.shape[2];
     return {.data = state.data + i * B * H, .shape = {B, H}};
 }
 
-static void mingru_init_weights(void* w, ulong* seed, cudaStream_t stream) {
+void mingru_init_weights(void* w, ulong* seed, cudaStream_t stream) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     for (int i = 0; i < m->num_layers; i++) {
         PrecisionTensor w2d = {
@@ -680,7 +680,7 @@ static void mingru_init_weights(void* w, ulong* seed, cudaStream_t stream) {
     }
 }
 
-static void mingru_reg_params(void* w, Allocator* alloc) {
+void mingru_reg_params(void* w, Allocator* alloc) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     for (int i = 0; i < m->num_layers; i++) {
         m->weights[i] = {.shape = {3 * m->hidden, m->hidden}};
@@ -688,7 +688,7 @@ static void mingru_reg_params(void* w, Allocator* alloc) {
     }
 }
 
-static void mingru_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
+void mingru_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
     int H = m->hidden, TT = m->horizon, B = B_TT / TT;
@@ -730,7 +730,7 @@ static void mingru_reg_train(void* w, void* activations, Allocator* acts, Alloca
     }
 }
 
-static void mingru_reg_rollout(void* weights, void* activations, Allocator* alloc, int B_inf) {
+void mingru_reg_rollout(void* weights, void* activations, Allocator* alloc, int B_inf) {
     MinGRUWeights* w = (MinGRUWeights*)weights;
     MinGRUActivations* a = (MinGRUActivations*)activations;
     int H = w->hidden;
@@ -746,7 +746,7 @@ static void mingru_reg_rollout(void* weights, void* activations, Allocator* allo
     alloc_register(alloc,&a->next_state);
 }
 
-static void* mingru_create_weights(void* self) {
+void* mingru_create_weights(void* self) {
     Network* n = (Network*)self;
     MinGRUWeights* mw = (MinGRUWeights*)calloc(1, sizeof(MinGRUWeights));
     mw->hidden = n->hidden; mw->num_layers = n->num_layers; mw->horizon = n->horizon;
@@ -754,19 +754,19 @@ static void* mingru_create_weights(void* self) {
     return mw;
 }
 
-static void mingru_free_weights(void* weights) {
+void mingru_free_weights(void* weights) {
     MinGRUWeights* mw = (MinGRUWeights*)weights;
     free(mw->weights);
     free(mw);
 }
 
-static void mingru_free_activations(void* activations) {
+void mingru_free_activations(void* activations) {
     MinGRUActivations* a = (MinGRUActivations*)activations;
     mingru_activations_free(a);
     free(a);
 }
 
-static PrecisionTensor mingru_forward(void* w, PrecisionTensor x, PrecisionTensor state,
+PrecisionTensor mingru_forward(void* w, PrecisionTensor x, PrecisionTensor state,
         void* activations, cudaStream_t stream) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
@@ -784,7 +784,7 @@ static PrecisionTensor mingru_forward(void* w, PrecisionTensor x, PrecisionTenso
     return x;
 }
 
-static PrecisionTensor mingru_forward_train(void* w, PrecisionTensor x, PrecisionTensor state,
+PrecisionTensor mingru_forward_train(void* w, PrecisionTensor x, PrecisionTensor state,
         PrecisionTensor terminals, void* activations, cudaStream_t stream) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
@@ -821,7 +821,7 @@ __global__ void add_kernel(precision_t* __restrict__ dst,
 }
 #endif
 
-static PrecisionTensor mingru_backward(void* w, PrecisionTensor grad, void* activations, cudaStream_t stream) {
+PrecisionTensor mingru_backward(void* w, PrecisionTensor grad, void* activations, cudaStream_t stream) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
     for (int i = m->num_layers - 1; i >= 0; i--) {
@@ -858,7 +858,7 @@ struct PolicyWeights {
     void* network;
 };
 
-static void policy_activations_free(Policy* p, PolicyActivations& a) {
+void policy_activations_free(Policy* p, PolicyActivations& a) {
     p->encoder.free_activations(a.encoder);
     p->decoder.free_activations(a.decoder);
     p->network.free_activations(a.network);
@@ -944,7 +944,7 @@ void policy_weights_free(Policy* p, PolicyWeights* w) {
 // Build a Policy value for a given env + arch. Encoder/decoder algorithms are
 // fixed by the env; hidden_size/num_layers/horizon parameterize shape. Policy
 // has no heap state so this returns by value; callers store it wherever.
-static Policy build_policy(const char* env_name, int input_size, int hidden_size,
+Policy build_policy(const char* env_name, int input_size, int hidden_size,
                            int num_layers, int decoder_output_size, int act_n,
                            bool is_continuous, int horizon) {
     Encoder encoder = {
@@ -1070,7 +1070,7 @@ __global__ void muon_clip_norm(precision_t* __restrict__ dst,
     }
 }
 
-static constexpr double ns_coeffs[5][3] = {
+constexpr double ns_coeffs[5][3] = {
     {4.0848, -6.8946, 2.9270},
     {3.9505, -6.3029, 2.6377},
     {3.7418, -5.5913, 2.3037},
@@ -1468,8 +1468,8 @@ __device__ __forceinline__ float safe_continuous_logstd(const precision_t* logst
 }
 
 // Fused loss function. PPO clipped loss + value + entropy
-static constexpr int PPO_THREADS = 256;
-static constexpr int MAX_ATN_HEADS = 16; // TODO: use env atn dim directly
+constexpr int PPO_THREADS = 256;
+constexpr int MAX_ATN_HEADS = 16; // TODO: use env atn dim directly
 
 enum LossIdx {
     LOSS_PG = 0, LOSS_VF = 1, LOSS_ENT = 2, LOSS_TOTAL = 3,

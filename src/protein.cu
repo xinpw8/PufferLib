@@ -110,6 +110,14 @@ static inline float space_unnormalize(const Space* s, float norm) {
 
 static inline void space_init(Space* s, SpaceType type, float min, float max,
         float scale, int is_integer) {
+    if (!(max > min)) {
+        fprintf(stderr, "protein: space requires max > min (got %g, %g)\n", min, max);
+        exit(1);
+    }
+    if (scale <= 0) {
+        fprintf(stderr, "protein: space scale must be > 0 (got %g)\n", scale);
+        exit(1);
+    }
     s->type = type;
     s->min = min;
     s->max = max;
@@ -1950,6 +1958,18 @@ ProteinSweep *protein_sweep_create(SweepSpace *space, int num_random_samples, in
                                    int use_logit, float global_search_scale, float max_suggestion_cost,
                                    float expansion_rate, float cost_random_suggestion, float early_stop_quantile,
                                    int success_cap, int failure_cap, int top_k, unsigned long long rng_seed) {
+    if (max_suggestion_cost <= 0) {
+        fprintf(stderr, "protein: max_suggestion_cost must be > 0\n");
+        exit(1);
+    }
+    if (early_stop_quantile <= 0 || early_stop_quantile >= 1) {
+        fprintf(stderr, "protein: early_stop_quantile must be in (0, 1)\n");
+        exit(1);
+    }
+    if (!space || space->num < 1) {
+        fprintf(stderr, "protein: sweep space is empty\n");
+        exit(1);
+    }
     int dim = space->num;
     ProteinSweep *sw = (ProteinSweep *)calloc(1, sizeof(ProteinSweep));
     sw->space = space;
