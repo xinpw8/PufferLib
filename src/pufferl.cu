@@ -57,6 +57,17 @@ constexpr cublasComputeType_t CUBLAS_COMPUTE_PRECISION = CUBLAS_COMPUTE_32F;
 #endif
 
 #define PUF_MAX_DIMS 8
+#define BLOCK_SIZE 256
+int grid_size(int N) {
+    return (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+}
+
+// Compile-time env: build.sh passes -DENV_HEADER="ocean/<env>/<env>.h"
+// (and GPU_ENV_HEADER when a .cu exists). Needs ini (Dict) + grid_size for GPU envs.
+#include ENV_HEADER
+#ifdef GPU_ENV_HEADER
+#include GPU_ENV_HEADER
+#endif
 
 typedef struct {
     float* data;
@@ -108,10 +119,6 @@ int64_t batch_size(int64_t* shape) {
     return b;
 }
 
-void puf_zero(PrecisionTensor* dst, cudaStream_t stream) {
-    cudaMemsetAsync(dst->data, 0, numel(dst->shape) * sizeof(precision_t), stream);
-}
-
 void puf_squeeze_shape(int64_t* shape, int dim) {
     int n = ndim(shape);
     shape[dim] *= shape[dim + 1];
@@ -143,51 +150,11 @@ PrecisionTensor* puf_unsqueeze(PrecisionTensor* t, int dim, int64_t d0, int64_t 
     return t;
 }
 
-// Transpose dims 0,1: [A, B, C] -> [B, A, C]. For 2D, pass C=1.
-__global__ void transpose_102(precision_t* dst,
-        precision_t* src, int A, int B, int C) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = A * B * C;
-    if (idx >= total) {
-        return;
-    }
-    int a = idx / (B * C);
-    int rem = idx % (B * C);
-    int b = rem / C;
-    int c = rem % C;
-    dst[b * A * C + a * C + c] = src[idx];
-}
-
 void puf_copy(PrecisionTensor* dst, PrecisionTensor* src, cudaStream_t stream) {
     assert(numel(dst->shape) == numel(src->shape) && "puf_copy: size mismatch");
     cudaMemcpyAsync(dst->data, src->data,
         numel(dst->shape) * sizeof(precision_t),
         cudaMemcpyDeviceToDevice, stream);
-}
-
-__device__ void copy_bytes(
-        const char* src, char* dst,
-        int src_row, int dst_row, int row_bytes) {
-    const char* s = src + (int64_t)src_row * row_bytes;
-    char* d = dst + (int64_t)dst_row * row_bytes;
-    for (int i = threadIdx.x; i < row_bytes; i += blockDim.x) {
-        d[i] = s[i];
-    }
-}
-
-__global__ void fill_precision_kernel(precision_t* dst, precision_t val, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        dst[idx] = val;
-    }
-}
-
-__global__ void clamp_precision_kernel(precision_t* dst, float lo, float hi, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        float v = to_float(dst[idx]);
-        dst[idx] = from_float(fminf(fmaxf(v, lo), hi));
-    }
 }
 
 __global__ void cast(precision_t* dst,
@@ -291,88 +258,10 @@ void alloc_free(Allocator* alloc) {
     alloc->total_bytes = 0;
 }
 
-#define BLOCK_SIZE 256
-int grid_size(int N) {
-    return (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-}
-
-const size_t CUBLAS_WS_BYTES = 32 * 1024 * 1024;
-thread_local cublasHandle_t g_cublas_handle = nullptr;
-thread_local void* g_cublas_workspace = nullptr;
-
-void cublas_init_handle() {
-    cublasCreate(&g_cublas_handle);
-    cudaMalloc(&g_cublas_workspace, CUBLAS_WS_BYTES);
-    cublasSetWorkspace(g_cublas_handle, g_cublas_workspace, CUBLAS_WS_BYTES);
-}
-
-// Dense row-major GEMM: C(M,N) = alpha * op_a(A) @ op_b(B) + beta * C
-// Strides derived from M, N, K assuming tightly packed row-major storage.
-void cublasGemmExDense(
-        cublasOperation_t op_a, cublasOperation_t op_b,
-        int M, int N, int K, void* A, void* B, void* C,
-        cudaStream_t stream, float alpha = 1.0f, float beta = 0.0f) {
-    int lda = (op_a == CUBLAS_OP_N) ? K : M;
-    int ldb = (op_b == CUBLAS_OP_N) ? N : K;
-
-    cublasSetStream(g_cublas_handle, stream);
-    cublasGemmEx(g_cublas_handle, op_b, op_a, N, M, K, &alpha,
-        B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
-        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, CUBLAS_GEMM_DEFAULT);
-}
-
-// out(...,N) = a(...,K) @ b(N,K)^T  — leading dims folded into M
-void puf_mm(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
-    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
-    int K = a->shape[ndim(a->shape)-1];
-    int N = b->shape[ndim(b->shape)-2];
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T, M, N, K,
-        a->data, b->data, out->data, stream);
-}
-
-// out(M,N) = a(...,M)^T @ b(...,N)  — leading dims folded into K
-void puf_mm_tn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
-    int M = a->shape[ndim(a->shape)-1];
-    int K = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
-    int N = b->shape[ndim(b->shape)-1];
-    cublasGemmExDense(CUBLAS_OP_T, CUBLAS_OP_N, M, N, K,
-        a->data, b->data, out->data, stream);
-}
-
-// out(...,N) = a(...,K) @ b(K,N)  — leading dims folded into M
-void puf_mm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
-    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
-    int K = a->shape[ndim(a->shape)-1];
-    int N = b->shape[ndim(b->shape)-1];
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, M, N, K,
-        a->data, b->data, out->data, stream);
-}
-
-__global__ void uniform_scale_kernel(float* data, float bound, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        data[idx] = data[idx] * 2.0f * bound - bound;
-    }
-}
-
-// Uniform(-1/sqrt(fan_in), 1/sqrt(fan_in))
-void puf_kaiming_init(PrecisionTensor* dst, float gain, ulong seed, cudaStream_t stream) {
-    assert(ndim(dst->shape) == 2);
-    long rows = dst->shape[0], cols = dst->shape[1];
-    assert(rows > 0 && cols > 0);
-    long n = rows * cols;
-    float bound = gain / std::sqrt((float)cols);
-    float* buf;
-    cudaMalloc(&buf, n * sizeof(float));
-    curandGenerator_t gen;
-    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
-    curandSetPseudoRandomGeneratorSeed(gen, seed);
-    curandGenerateUniform(gen, buf, n);
-    curandDestroyGenerator(gen);
-    uniform_scale_kernel<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(buf, bound, n);
-    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst->data, buf, n);
-    cudaFree(buf);
-}
+// Policy / optim / GEMM / encoders / weight init.
+// Needs tensors, Allocator, batch_size/ndim, grid_size, cast, CUBLAS_PRECISION*.
+#include "algo.cu"
+#include "protein.cu"
 
 typedef struct {
     int horizon;
@@ -410,26 +299,6 @@ typedef struct {
     int num_threads;
     int seed;
 } HypersT;
-
-void puf_die(const char* fmt, ...) {
-    va_list args;
-    fprintf(stderr, "config error: ");
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
-int puf_err(char* out, size_t out_size, const char* fmt, ...) {
-    if (out && out_size > 0) {
-        va_list args;
-        va_start(args, fmt);
-        vsnprintf(out, out_size, fmt, args);
-        va_end(args);
-    }
-    return 0;
-}
 
 HypersT puf_config_to_hypers(Ini* ini, int rank, int world_size, int gpu_id) {
     HypersT h = {0};
@@ -470,12 +339,25 @@ HypersT puf_config_to_hypers(Ini* ini, int rank, int world_size, int gpu_id) {
     return h;
 }
 
-#include "protein.cu"
+void puf_die(const char* fmt, ...) {
+    va_list args;
+    fprintf(stderr, "config error: ");
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    exit(1);
+}
 
-typedef struct {
-    char section[64];
-    char key[64];
-} SweepParam;
+int puf_err(char* out, size_t out_size, const char* fmt, ...) {
+    if (out && out_size > 0) {
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(out, out_size, fmt, args);
+        va_end(args);
+    }
+    return 0;
+}
 
 int puf_config_train_valid(Ini* ini, char* err, size_t err_size) {
     int mb = puf_ini_get(ini, "train", "minibatch_size");
@@ -494,203 +376,10 @@ int puf_config_train_valid(Ini* ini, char* err, size_t err_size) {
     return 1;
 }
 
-// Build SweepSpace + param map from [sweep.<section>.<key>] sections.
-// Dies on bad names / dist / min-max-scale. cost_idx set if timesteps is swept.
-SweepSpace* puf_config_sweep_space(Ini* ini, SweepParam** params_out) {
-    const char* goal = puf_ini_get_str(ini, "sweep", "goal");
-    int direction = 1;
-    if (strcmp(goal, "minimize") == 0) {
-        direction = -1;
-    } else if (strcmp(goal, "maximize") != 0) {
-        puf_die("sweep.goal must be maximize or minimize");
-    }
-
-    SweepSpace* space = sweep_space_create(ini->num_sections, -1, direction);
-    SweepParam* params = (SweepParam*)calloc((size_t)ini->num_sections,
-        sizeof(SweepParam));
-    int n = 0;
-
-    for (int i = 0; i < ini->num_sections; i++) {
-        Dict* dict = &ini->sections[i];
-        if (strncmp(dict->name, "sweep.", 6) != 0) {
-            continue;
-        }
-
-        // [sweep.train.lr] -> section=train, key=lr (last dot).
-        const char* path = dict->name + 6;
-        const char* dot = strrchr(path, '.');
-        if (!dot || dot == path || !dot[1]) {
-            puf_die("expected section [sweep.<section>.<key>], got [%s]",
-                dict->name);
-        }
-        snprintf(params[n].section, sizeof(params[n].section), "%.*s",
-            (int)(dot - path), path);
-        snprintf(params[n].key, sizeof(params[n].key), "%s", dot + 1);
-
-        const char* dist = dict_get_str(dict, "distribution");
-        SpaceType type;
-        int is_integer = 0;
-        if (strcmp(dist, "uniform") == 0) {
-            type = SPACE_LINEAR;
-        } else if (strcmp(dist, "int_uniform") == 0) {
-            type = SPACE_LINEAR;
-            is_integer = 1;
-        } else if (strcmp(dist, "uniform_pow2") == 0) {
-            type = SPACE_POW2;
-            is_integer = 1;
-        } else if (strcmp(dist, "log_normal") == 0) {
-            type = SPACE_LOG;
-        } else if (strcmp(dist, "logit_normal") == 0) {
-            type = SPACE_LOGIT;
-        } else {
-            puf_die("invalid sweep distribution [%s] %s", dict->name, dist);
-        }
-
-        float min_v = (float)dict_get(dict, "min");
-        float max_v = (float)dict_get(dict, "max");
-        const char* scale_s = dict_get_str(dict, "scale");
-        float scale;
-        if (strcmp(scale_s, "auto") == 0) {
-            scale = 0.5f;
-        } else if (strcmp(scale_s, "time") == 0) {
-            if (min_v <= 0 || max_v <= 0) {
-                puf_die("[%s] scale=time requires positive min/max", dict->name);
-            }
-            scale = 1.0f / (log2f(max_v) - log2f(min_v));
-        } else {
-            scale = (float)dict_get(dict, "scale");
-        }
-
-        space_init(&space->spaces[n], type, min_v, max_v, scale, is_integer);
-        // Budget lever for protein (observed cost is still wallclock).
-        if (strcmp(dict->name, "sweep.train.total_timesteps") == 0) {
-            space->cost_idx = n;
-        }
-        n++;
-    }
-
-    space->num = n;
-    *params_out = params;
-    return space;
-}
-
-// Likely gets cleaned up when we clean the sweep launch logic
-void puf_config_sweep_apply(Ini* ini, SweepParam* params,
-        SweepSpace* space, float* sample) {
-    for (int i = 0; i < space->num; i++) {
-        float val = space_unnormalize(&space->spaces[i], sample[i]);
-        char buf[64];
-        snprintf(buf, sizeof(buf), "%.9g", val);
-        char key[256];
-        snprintf(key, sizeof(key), "%s.%s", params[i].section, params[i].key);
-        puf_ini_put(ini, key, buf);
-    }
-}
-
-// Algo needs tensor, allocator, and GEMM helpers; envs can override encoders via ocean.cu.
-#include "algo.cu"
-
-// Compile-time env selection: build.sh passes -DENV_HEADER="ocean/<env>/<env>.h"
-// (and GPU_ENV_HEADER when a .cu exists). Not a runtime ifdef — the include path is the env.
-#include ENV_HEADER
-#ifdef GPU_ENV_HEADER
-#include GPU_ENV_HEADER
-#endif
-
-
-// --- Core structs (env-facing, then trainer) ---
 typedef struct ObsTensor {
     obs_t* data;
     int64_t shape[8];
 } ObsTensor;
-
-enum VecProfileIdx {
-    VEC_MODEL = 0,
-    VEC_ENV_STEP,
-    VEC_COPY,
-    NUM_VEC_PROF,
-};
-
-#define OMP_WAITING 5
-#define OMP_RUNNING 6
-
-struct VecEnv;
-struct PuffeRL;
-
-struct VecWorker {
-    VecEnv* vec;
-    int buf;
-    int horizon;
-    PuffeRL* pufferl;
-};
-
-struct VecEnv {
-    Env* envs;
-    int gpu_env;
-    void* gpu_envs;
-    float* gpu_log;
-    int size;
-    int total_agents;
-    int buffers;
-    int agents_per_buffer;
-    int* buffer_env_starts;
-    int* buffer_env_counts;
-    obs_t* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
-    unsigned char* action_mask;
-    obs_t* gpu_observations;
-    float* gpu_actions;
-    float* gpu_rewards;
-    float* gpu_terminals;
-    unsigned char* gpu_action_mask;
-    cudaStream_t* streams;
-    // Cross-thread flags: only accessed via __atomic_* at the few sites below.
-    int* buffer_states;
-    int shutdown;
-    pthread_t* threads;
-    VecWorker* workers;
-    float* accum;
-    int num_workers;
-    int action_mask_size;
-    int num_banks;
-    int* bank_layout;
-};
-
-double wall_clock() {
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    return ts.tv_sec + ts.tv_nsec * 1e-9;
-}
-
-enum ProfileIdx {
-    PROF_ROLLOUT = 0,
-    PROF_EVAL_MODEL,
-    PROF_EVAL_ENV,
-    PROF_EVAL_COPY,
-    PROF_TRAIN_MISC,
-    PROF_TRAIN_MODEL,
-};
-
-// Index must match ProfileIdx order.
-const char* PROF_NAMES[] = {
-    "rollout",
-    "eval_model",
-    "eval_env",
-    "eval_copy",
-    "train_misc",
-    "train_model",
-};
-
-typedef struct {
-    cudaEvent_t events[5];  // train_impl markers: pre-start, pre-end, misc, model-start, model-end
-    cudaEvent_t* rollout_gpu_start;
-    cudaEvent_t* rollout_gpu_end;
-    cudaEvent_t* rollout_env_end;
-    int rollout_horizon;
-    float accum[sizeof(PROF_NAMES) / sizeof(PROF_NAMES[0])];
-} ProfileT;
 
 // Data collected by parallel environment workers. Each worker handles
 // a constant subset of agents
@@ -733,18 +422,6 @@ void register_rollout_buffers(RolloutBuf& bufs, Allocator* alloc, int T, int B, 
     }
 }
 
-// Slice: select dim0 index t, then narrow dim0 from start for count.
-// 3D (T, B, F) -> (count, F); 2D (T, B) -> (count,)
-PrecisionTensor puf_slice(PrecisionTensor& p, int t, int start, int count) {
-    if (ndim(p.shape) == 3) {
-        long B = p.shape[1], F = p.shape[2];
-        return {.data = p.data + (t*B + start)*F, .shape = {count, F}};
-    } else {
-        long B = p.shape[1];
-        return {.data = p.data + (t*B + start), .shape = {count}};
-    }
-}
-
 PrecisionTensor puf_time_view(PrecisionTensor p, int start_t, int T) {
     if (p.data == NULL) {
         return p;
@@ -775,6 +452,48 @@ RolloutBuf rollout_time_view(RolloutBuf* base, int start_t, int T) {
     return view;
 }
 
+enum VecProfileIdx {
+    VEC_MODEL = 0,
+    VEC_ENV_STEP,
+    VEC_COPY,
+    NUM_VEC_PROF,
+};
+
+// Env batch + host/device buffers. Per-buffer worker threads are started later
+// with a PuffeRL* (see vec_create_threads); they are not isolated from the trainer.
+struct VecEnv {
+    Env* envs;
+    int gpu_env;
+    void* gpu_envs;
+    float* gpu_log;
+    int size;
+    int total_agents;
+    int buffers;
+    int agents_per_buffer;
+    int* buffer_env_starts;
+    int* buffer_env_counts;
+    obs_t* observations;
+    float* actions;
+    float* rewards;
+    float* terminals;
+    unsigned char* action_mask;
+    obs_t* gpu_observations;
+    float* gpu_actions;
+    float* gpu_rewards;
+    float* gpu_terminals;
+    unsigned char* gpu_action_mask;
+    // Cross-thread flags: only accessed via __atomic_* at the few sites below.
+    int* buffer_states;
+    int shutdown;
+    pthread_t* threads;
+    void* thread_args;  // VecThreadArg[buffers]; owned once threads exist
+    float* accum;
+    int num_workers;
+    int action_mask_size;
+    int num_banks;
+    int* bank_layout;  // per-buffer agent offsets; sole owner (not mirrored on PuffeRL)
+};
+
 struct EnvBuf {
     ObsTensor obs;         // (total_agents, obs_size)
     FloatTensor actions;   // (total_agents, num_atns)
@@ -782,8 +501,6 @@ struct EnvBuf {
     FloatTensor terminals; // (total_agents,)
     ByteTensor action_mask; // (total_agents, mask_size); .data=nullptr when env opts out
 };
-
-int puf_act_sizes[] = ACT_SIZES;
 
 // A frozen weight bank: same shape as the primary, but its own params buffer
 // (and per-buffer rollout states/activations). Used for match (eval) and league
@@ -801,6 +518,34 @@ typedef struct {
     int hidden_size;
     int num_layers;
 } WeightBank;
+
+enum ProfileIdx {
+    PROF_ROLLOUT = 0,
+    PROF_EVAL_MODEL,
+    PROF_EVAL_ENV,
+    PROF_EVAL_COPY,
+    PROF_TRAIN_MISC,
+    PROF_TRAIN_MODEL,
+};
+
+// Index must match ProfileIdx order.
+const char* PROF_NAMES[] = {
+    "rollout",
+    "eval_model",
+    "eval_env",
+    "eval_copy",
+    "train_misc",
+    "train_model",
+};
+
+typedef struct {
+    cudaEvent_t events[5];  // train_impl markers: pre-start, pre-end, misc, model-start, model-end
+    cudaEvent_t* rollout_gpu_start;
+    cudaEvent_t* rollout_gpu_end;
+    cudaEvent_t* rollout_env_end;
+    int rollout_horizon;
+    float accum[sizeof(PROF_NAMES) / sizeof(PROF_NAMES[0])];
+} ProfileT;
 
 typedef struct PuffeRL {
     Policy policy;
@@ -857,161 +602,9 @@ typedef struct PuffeRL {
     WeightBank* frozen_banks;  // [num_frozen_banks]
     int num_frozen_banks;
     char env_name[64];  // Kept for post-init bank adds.
-    // Per-buffer-relative bank layout: bank_layout[b] = first agent within each
-    // buffer chunk owned by bank b. Length num_banks+1; ends at agents_per_buffer.
-    // Same shape applied to every buffer (each buffer hosts every bank), so each
-    // worker thread only writes inside its own physical chunk.
-    // Bank 0 = primary (learner). NULL = no layout set (primary owns full chunk).
-    int* bank_layout;
 } PuffeRL;
 
-
-
-// --- Rollout kernels + fused forward ---
-void mkdir_p(const char* path) {
-    char tmp[1024];
-    snprintf(tmp, sizeof(tmp), "%s", path);
-    for (char* p = tmp + 1; *p; p++) {
-        if (*p == '/') {
-            *p = 0;
-            if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
-                fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
-                exit(1);
-            }
-            *p = '/';
-        }
-    }
-    if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
-        fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
-        exit(1);
-    }
-}
-
-int puf_has_suffix(const char* s, const char* suffix) {
-    size_t n = strlen(s);
-    size_t m = strlen(suffix);
-    return n >= m && strcmp(s + n - m, suffix) == 0;
-}
-
-void puf_find_latest_checkpoint(const char* dir,
-        char* out, size_t out_size, time_t* best_time) {
-    DIR* dp = opendir(dir);
-    if (!dp) {
-        return;
-    }
-
-    struct dirent* ent = NULL;
-    while ((ent = readdir(dp))) {
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
-            continue;
-        }
-
-        char path[4096];
-        snprintf(path, sizeof(path), "%s/%s", dir, ent->d_name);
-
-        struct stat st;
-        if (stat(path, &st) != 0) {
-            continue;
-        }
-
-        if (S_ISDIR(st.st_mode)) {
-            puf_find_latest_checkpoint(path, out, out_size, best_time);
-        } else if (S_ISREG(st.st_mode) && puf_has_suffix(path, ".bin") &&
-                st.st_ctime >= *best_time) {
-            *best_time = st.st_ctime;
-            snprintf(out, out_size, "%s", path);
-        }
-    }
-
-    closedir(dp);
-}
-
-const char* puf_checkpoint_path_key(Ini* ini, const char* key,
-        char* out, size_t out_size) {
-    const char* load_path = puf_ini_get_str(ini, "base", key);
-    if (!load_path || strcmp(load_path, "None") == 0) {
-        return NULL;
-    }
-
-    if (strcmp(load_path, "latest") != 0) {
-        return load_path;
-    }
-
-    char root[2048];
-    snprintf(root, sizeof(root), "%s/%s",
-        puf_ini_get_str(ini, "base", "checkpoint_dir"),
-        puf_ini_get_str(ini, "base", "env_name"));
-
-    out[0] = 0;
-    time_t best_time = 0;
-    puf_find_latest_checkpoint(root, out, out_size, &best_time);
-    if (!out[0]) {
-        fprintf(stderr, "no .bin checkpoints found in %s\n", root);
-        exit(1);
-    }
-    return out;
-}
-
-void puf_save_weights(PuffeRL* p, const char* path) {
-    int64_t nbytes = numel(p->master_weights.shape) * sizeof(float);
-    char* buf = (char*)malloc(nbytes);
-    cudaMemcpy(buf, p->master_weights.data, nbytes, cudaMemcpyDeviceToHost);
-    char tmp[4096];
-    snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
-    FILE* fp = fopen(tmp, "wb");
-    if (!fp) {
-        fprintf(stderr, "failed to open %s for writing\n", tmp);
-        free(buf);
-        exit(1);
-    }
-    if (fwrite(buf, 1, nbytes, fp) != (size_t)nbytes) {
-        fprintf(stderr, "failed to write weights to %s\n", tmp);
-        fclose(fp);
-        free(buf);
-        exit(1);
-    }
-    fclose(fp);
-    free(buf);
-    if (rename(tmp, path) != 0) {
-        fprintf(stderr, "failed to publish weights to %s\n", path);
-        exit(1);
-    }
-}
-
-void puf_load_weights_into(FloatTensor dst, PrecisionTensor params,
-        cudaStream_t stream, const char* path) {
-    int64_t nbytes = numel(dst.shape) * sizeof(float);
-    FILE* fp = fopen(path, "rb");
-    if (!fp) {
-        fprintf(stderr, "failed to open %s for reading\n", path);
-        exit(1);
-    }
-    char* buf = (char*)malloc(nbytes);
-    size_t nread = fread(buf, 1, nbytes, fp);
-    fclose(fp);
-    if ((int64_t)nread != nbytes) {
-        fprintf(stderr, "failed to read weights from %s\n", path);
-        free(buf);
-        exit(1);
-    }
-    cudaMemcpy(dst.data, buf, nbytes, cudaMemcpyHostToDevice);
-    free(buf);
-    if (USE_BF16) {
-        int n = numel(params.shape);
-        cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(params.data, dst.data, n);
-    }
-}
-
-void puf_load_primary_if_configured(PuffeRL* p, Ini* ini) {
-    char resolved_path[4096];
-    const char* load_path = puf_checkpoint_path_key(ini,
-        "load_model_path", resolved_path, sizeof(resolved_path));
-    if (load_path) {
-        puf_load_weights_into(p->master_weights, p->param_puf, p->default_stream, load_path);
-        printf("Loaded weights from %s\n", load_path);
-    }
-}
-
+// --- Infer path: sample + forward, then vec workers ---
 void profile_begin(const char* tag, bool enable) {
     if (enable) {
         nvtxRangePushA(tag);
@@ -1212,6 +805,18 @@ __global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor termin
     state.data[state_idx] = from_float(0.0f);
 }
 
+// Slice: select dim0 index t, then narrow dim0 from start for count.
+// 3D (T, B, F) -> (count, F); 2D (T, B) -> (count,)
+PrecisionTensor puf_slice(PrecisionTensor& p, int t, int start, int count) {
+    if (ndim(p.shape) == 3) {
+        long B = p.shape[1], F = p.shape[2];
+        return {.data = p.data + (t*B + start)*F, .shape = {count, F}};
+    } else {
+        long B = p.shape[1];
+        return {.data = p.data + (t*B + start), .shape = {count}};
+    }
+}
+
 void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     HypersT& hypers = pufferl->hypers;
     int graph_slot = hypers.async ? pufferl->rollout_write_slot : 0;
@@ -1238,8 +843,9 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     }
     EnvBuf& env = pufferl->env;
     VecEnv* vec = pufferl->vec;
-    int block_size = vec->total_agents / hypers.num_buffers;
+    int block_size = hypers.total_agents / hypers.num_buffers;
     int start = buf * block_size;
+    int* layout = vec->bank_layout;
 
     // Copy observations, rewards, terminals from GPU env buffers to rollout buffer
     ObsTensor& obs_env = env.obs;
@@ -1272,15 +878,12 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
             mask_n);
     }
 
-    // Per-bank policy forward + sampling. Each bank owns a contiguous sub-range
-    // [bank_layout[b], bank_layout[b+1]) within every buffer's chunk; layout is
-    // per-buffer-relative so each worker writes only inside its own chunk.
-    // Cudagraph capture absorbs the extra kernel launches.
+    // Per-bank forward: layout[b]..layout[b+1) within each buffer chunk.
     int num_banks = 1 + pufferl->num_frozen_banks;
     long act_cols = env.actions.shape[1];
     for (int b = 0; b < num_banks; b++) {
-        int bank_off = pufferl->bank_layout ? pufferl->bank_layout[b] : 0;
-        int bank_end = pufferl->bank_layout ? pufferl->bank_layout[b + 1] : block_size;
+        int bank_off = layout[b];
+        int bank_end = layout[b + 1];
         int bank_size = bank_end - bank_off;
         if (bank_size == 0) continue;
 
@@ -1359,13 +962,22 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
 }
 
 
-// --- VecEnv worker threads + lifecycle (needs pufferl_forward) ---
+// --- VecEnv worker threads + lifecycle (after pufferl_forward; needs PuffeRL) ---
+// One arg per buffer thread: trainer + which buffer. vec/horizon come from pufferl.
+typedef struct {
+    PuffeRL* pufferl;
+    int buf;
+} VecThreadArg;
+
+#define OMP_WAITING 5
+#define OMP_RUNNING 6
+
 void* vec_thread_main(void* arg) {
-    VecWorker* worker_arg = (VecWorker*)arg;
-    VecEnv* vec = worker_arg->vec;
-    int buf = worker_arg->buf;
-    int horizon = worker_arg->horizon;
-    struct PuffeRL* pufferl = worker_arg->pufferl;
+    VecThreadArg* a = (VecThreadArg*)arg;
+    PuffeRL* pufferl = a->pufferl;
+    VecEnv* vec = pufferl->vec;
+    int buf = a->buf;
+    int horizon = pufferl->hypers.horizon;
     cublas_init_handle();
 
     int agents_per_buffer = vec->agents_per_buffer;
@@ -1374,7 +986,7 @@ void* vec_thread_main(void* arg) {
     int env_count = vec->buffer_env_counts[buf];
 
     Env* envs = vec->envs;
-    cudaStream_t stream = vec->streams[buf];
+    cudaStream_t stream = pufferl->streams[buf];
     cudaEvent_t model_start, model_end, copy_end, h2d_start, h2d_end;
     cudaEventCreate(&model_start);
     cudaEventCreate(&model_end);
@@ -1602,8 +1214,6 @@ VecEnv* vec_create(Dict* vec_kwargs, Dict* env_kwargs) {
         cudaMalloc((void**)&vec->gpu_action_mask, mask_bytes);
         cudaMemset(vec->gpu_action_mask, 0, mask_bytes);
     }
-    vec->streams = (cudaStream_t*)calloc(num_buffers, sizeof(cudaStream_t));
-
     if (vec->gpu_env) {
         vec->bank_layout[0] = 0;
         vec->bank_layout[vec->num_banks] = vec->agents_per_buffer;
@@ -1694,8 +1304,6 @@ VecEnv* vec_create(Dict* vec_kwargs, Dict* env_kwargs) {
     return vec;
 }
 
-
-
 VecEnv* create_environments(Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
     VecEnv* vec = vec_create(vec_kwargs, env_kwargs);
     int total_agents = vec->total_agents;
@@ -1740,17 +1348,17 @@ void vec_reset(VecEnv* vec) {
     cudaDeviceSynchronize();
 }
 
-void vec_create_threads(VecEnv* vec, int num_threads, int horizon, struct PuffeRL* pufferl) {
+void vec_create_threads(PuffeRL* pufferl) {
+    VecEnv* vec = pufferl->vec;
     vec->buffer_states = (int*)calloc(vec->buffers, sizeof(int));
     vec->threads = (pthread_t*)calloc(vec->buffers, sizeof(pthread_t));
-    vec->workers = (VecWorker*)calloc(vec->buffers, sizeof(VecWorker));
+    VecThreadArg* args = (VecThreadArg*)calloc(vec->buffers, sizeof(VecThreadArg));
+    vec->thread_args = args;
     vec->accum = (float*)calloc(vec->buffers * NUM_VEC_PROF, sizeof(float));
     for (int i = 0; i < vec->buffers; i++) {
-        vec->workers[i].vec = vec;
-        vec->workers[i].buf = i;
-        vec->workers[i].horizon = horizon;
-        vec->workers[i].pufferl = pufferl;
-        pthread_create(&vec->threads[i], NULL, vec_thread_main, &vec->workers[i]);
+        args[i].pufferl = pufferl;
+        args[i].buf = i;
+        pthread_create(&vec->threads[i], NULL, vec_thread_main, &args[i]);
     }
 }
 
@@ -1776,7 +1384,7 @@ void vec_close(VecEnv* vec) {
     }
     free(vec->buffer_states);
     free(vec->threads);
-    free(vec->workers);
+    free(vec->thread_args);
     free(vec->accum);
     free(vec->buffer_env_starts);
     free(vec->buffer_env_counts);
@@ -1800,7 +1408,6 @@ void vec_close(VecEnv* vec) {
         cudaFreeHost(vec->action_mask);
     }
 
-    free(vec->streams);
     free(vec);
 }
 
@@ -1841,8 +1448,6 @@ void vec_log(VecEnv* vec, Dict* out, int clear) {
     puf_log(&aggregate, out);
     dict_set(out, "n", n);
 }
-
-
 
 // Zero advantages on frozen-bank rows so prio_replay never samples them. Frozen
 // rollout rows hold actions/logprobs from the frozen policy; training the
@@ -1896,8 +1501,17 @@ __device__ void copy_initial_state(
     }
 }
 
-#define SELECT_COPY_THREADS 256
+__device__ void copy_bytes(
+        const char* src, char* dst,
+        int src_row, int dst_row, int row_bytes) {
+    const char* s = src + (int64_t)src_row * row_bytes;
+    char* d = dst + (int64_t)dst_row * row_bytes;
+    for (int i = threadIdx.x; i < row_bytes; i += blockDim.x) {
+        d[i] = s[i];
+    }
+}
 
+#define SELECT_COPY_THREADS 256
 __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         int* idx, precision_t* advantages,
         float* mb_prio) {
@@ -1970,6 +1584,21 @@ __global__ void index_copy(char* dst, int* idx,
     }
 }
 
+// Transpose dims 0,1: [A, B, C] -> [B, A, C]. For 2D, pass C=1.
+__global__ void transpose_102(precision_t* dst,
+        precision_t* src, int A, int B, int C) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = A * B * C;
+    if (idx >= total) {
+        return;
+    }
+    int a = idx / (B * C);
+    int rem = idx % (B * C);
+    int b = rem / C;
+    int c = rem % C;
+    dst[b * A * C + a * C + c] = src[idx];
+}
+
 void puf_transpose_field(PrecisionTensor* dst, PrecisionTensor* src,
         int T, int B, int C, cudaStream_t stream) {
     transpose_102<<<grid_size(T * B * C), BLOCK_SIZE, 0, stream>>>(
@@ -1990,6 +1619,25 @@ float cosine_annealing(float lr_base, float lr_min, long t, long T) {
     float ratio = (double)t / (double)T;
     ratio = std::max(0.0f, std::min(1.0f, ratio));
     return lr_min + 0.5f * (lr_base - lr_min) * (1.0f + std::cos(M_PI * ratio));
+}
+
+__global__ void fill_precision_kernel(precision_t* dst, precision_t val, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        dst[idx] = val;
+    }
+}
+
+__global__ void clamp_precision_kernel(precision_t* dst, float lo, float hi, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        float v = to_float(dst[idx]);
+        dst[idx] = from_float(fminf(fmaxf(v, lo), hi));
+    }
+}
+
+void puf_zero(PrecisionTensor* dst, cudaStream_t stream) {
+    cudaMemsetAsync(dst->data, 0, numel(dst->shape) * sizeof(precision_t), stream);
 }
 
 void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
@@ -2070,13 +1718,13 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         puff_advantage_cuda(rollouts.values, rollouts.rewards, rollouts.terminals,
             rollouts.ratio, advantages_puf, hypers.gamma, hypers.gae_lambda,
             hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream);
-        if (pufferl.num_frozen_banks > 0 && pufferl.bank_layout != NULL) {
+        if (pufferl.num_frozen_banks > 0) {
             int apb = hypers.total_agents / hypers.num_buffers;
             int rows = advantages_puf.shape[0];
             int horizon = advantages_puf.shape[1];
             int total = rows * horizon;
             zero_frozen_advantages_kernel<<<grid_size(total), BLOCK_SIZE, 0, train_stream>>>(
-                advantages_puf.data, apb, pufferl.bank_layout[1], rows, horizon);
+                advantages_puf.data, apb, pufferl.vec->bank_layout[1], rows, horizon);
         }
         profile_end(hypers.profile);
 
@@ -2209,8 +1857,9 @@ void weight_bank_create_for_pufferl(WeightBank* bank, PuffeRL* pufferl,
     // Rebuild arch-varying Policy from env metadata already on pufferl.
     int input_size = pufferl->env.obs.shape[1];
     int num_action_heads = pufferl->env.actions.shape[1];
+    int act_sizes[] = ACT_SIZES;
     int act_n = 0;
-    for (int i = 0; i < num_action_heads; i++) act_n += puf_act_sizes[i];
+    for (int i = 0; i < num_action_heads; i++) act_n += act_sizes[i];
     int decoder_output_size = pufferl->is_continuous ? num_action_heads : act_n;
     bank->policy = build_policy(pufferl->env_name, input_size, hidden_size,
         num_layers, decoder_output_size, act_n, pufferl->is_continuous, pufferl->hypers.horizon);
@@ -2279,6 +1928,152 @@ int pufferl_add_frozen_bank(PuffeRL* pufferl, int slice_size,
 // Load a frozen bank's weights from a file (same format as save_weights — flat fp32).
 // Safe to call between rollouts (in-place cudaMemcpy; cudagraphs hold the pointer,
 // not a copy of the data).
+// --- Checkpoint I/O (load/save weights) ---
+void mkdir_p(const char* path) {
+    char tmp[1024];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    for (char* p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+                fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
+                exit(1);
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+        fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
+        exit(1);
+    }
+}
+
+int puf_has_suffix(const char* s, const char* suffix) {
+    size_t n = strlen(s);
+    size_t m = strlen(suffix);
+    return n >= m && strcmp(s + n - m, suffix) == 0;
+}
+
+void puf_find_latest_checkpoint(const char* dir,
+        char* out, size_t out_size, time_t* best_time) {
+    DIR* dp = opendir(dir);
+    if (!dp) {
+        return;
+    }
+
+    struct dirent* ent = NULL;
+    while ((ent = readdir(dp))) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+            continue;
+        }
+
+        char path[4096];
+        snprintf(path, sizeof(path), "%s/%s", dir, ent->d_name);
+
+        struct stat st;
+        if (stat(path, &st) != 0) {
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            puf_find_latest_checkpoint(path, out, out_size, best_time);
+        } else if (S_ISREG(st.st_mode) && puf_has_suffix(path, ".bin") &&
+                st.st_ctime >= *best_time) {
+            *best_time = st.st_ctime;
+            snprintf(out, out_size, "%s", path);
+        }
+    }
+
+    closedir(dp);
+}
+
+const char* puf_checkpoint_path_key(Ini* ini, const char* key,
+        char* out, size_t out_size) {
+    const char* load_path = puf_ini_get_str(ini, "base", key);
+    if (!load_path || strcmp(load_path, "None") == 0) {
+        return NULL;
+    }
+
+    if (strcmp(load_path, "latest") != 0) {
+        return load_path;
+    }
+
+    char root[2048];
+    snprintf(root, sizeof(root), "%s/%s",
+        puf_ini_get_str(ini, "base", "checkpoint_dir"),
+        puf_ini_get_str(ini, "base", "env_name"));
+
+    out[0] = 0;
+    time_t best_time = 0;
+    puf_find_latest_checkpoint(root, out, out_size, &best_time);
+    if (!out[0]) {
+        fprintf(stderr, "no .bin checkpoints found in %s\n", root);
+        exit(1);
+    }
+    return out;
+}
+
+void puf_save_weights(PuffeRL* p, const char* path) {
+    int64_t nbytes = numel(p->master_weights.shape) * sizeof(float);
+    char* buf = (char*)malloc(nbytes);
+    cudaMemcpy(buf, p->master_weights.data, nbytes, cudaMemcpyDeviceToHost);
+    char tmp[4096];
+    snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
+    FILE* fp = fopen(tmp, "wb");
+    if (!fp) {
+        fprintf(stderr, "failed to open %s for writing\n", tmp);
+        free(buf);
+        exit(1);
+    }
+    if (fwrite(buf, 1, nbytes, fp) != (size_t)nbytes) {
+        fprintf(stderr, "failed to write weights to %s\n", tmp);
+        fclose(fp);
+        free(buf);
+        exit(1);
+    }
+    fclose(fp);
+    free(buf);
+    if (rename(tmp, path) != 0) {
+        fprintf(stderr, "failed to publish weights to %s\n", path);
+        exit(1);
+    }
+}
+
+void puf_load_weights_into(FloatTensor dst, PrecisionTensor params,
+        cudaStream_t stream, const char* path) {
+    int64_t nbytes = numel(dst.shape) * sizeof(float);
+    FILE* fp = fopen(path, "rb");
+    if (!fp) {
+        fprintf(stderr, "failed to open %s for reading\n", path);
+        exit(1);
+    }
+    char* buf = (char*)malloc(nbytes);
+    size_t nread = fread(buf, 1, nbytes, fp);
+    fclose(fp);
+    if ((int64_t)nread != nbytes) {
+        fprintf(stderr, "failed to read weights from %s\n", path);
+        free(buf);
+        exit(1);
+    }
+    cudaMemcpy(dst.data, buf, nbytes, cudaMemcpyHostToDevice);
+    free(buf);
+    if (USE_BF16) {
+        int n = numel(params.shape);
+        cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(params.data, dst.data, n);
+    }
+}
+
+void puf_load_primary_if_configured(PuffeRL* p, Ini* ini) {
+    char resolved_path[4096];
+    const char* load_path = puf_checkpoint_path_key(ini,
+        "load_model_path", resolved_path, sizeof(resolved_path));
+    if (load_path) {
+        puf_load_weights_into(p->master_weights, p->param_puf, p->default_stream, load_path);
+        printf("Loaded weights from %s\n", load_path);
+    }
+}
+
+
 void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) {
     if (bank_idx < 0 || bank_idx >= pufferl->num_frozen_banks) {
         fprintf(stderr, "pufferl_load_frozen_bank: bank_idx %d out of range\n", bank_idx);
@@ -2312,16 +2107,22 @@ void zero_all_buffer_states(PuffeRL* p, cudaStream_t stream) {
     }
 }
 
-void create_buffer_streams(PuffeRL* pufferl, VecEnv* vec, int num_buffers, bool async) {
-    pufferl->streams = (cudaStream_t*)calloc(num_buffers, sizeof(cudaStream_t));
-    for (int i = 0; i < num_buffers; i++) {
-        if (async) {
+void create_buffer_streams(PuffeRL* pufferl) {
+    int n = pufferl->hypers.num_buffers;
+    pufferl->streams = (cudaStream_t*)calloc(n, sizeof(cudaStream_t));
+    for (int i = 0; i < n; i++) {
+        if (pufferl->hypers.async) {
             cudaStreamCreateWithFlags(&pufferl->streams[i], cudaStreamNonBlocking);
         } else {
             cudaStreamCreate(&pufferl->streams[i]);
         }
-        vec->streams[i] = pufferl->streams[i];
     }
+}
+
+double wall_clock() {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
 PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
@@ -2348,15 +2149,15 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     // Create environments and set up action sizes
     VecEnv* vec = create_environments(vec_kwargs, env_kwargs, pufferl->env);
     pufferl->vec = vec;
-    pufferl->bank_layout = vec->bank_layout;
 
     // Sanity check action space
     int num_action_heads = pufferl->env.actions.shape[1];
+    int act_sizes[] = ACT_SIZES;
     int act_n = 0;
     int num_continuous = 0;
     int num_discrete = 0;
     for (int i = 0; i < num_action_heads; i++) {
-        int val = puf_act_sizes[i];
+        int val = act_sizes[i];
         if (val == 1) {
             num_continuous++;
         } else {
@@ -2508,7 +2309,8 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     }
 
     // Post-create initialization
-    cudaMemcpy(pufferl->act_sizes_puf.data, puf_act_sizes, num_action_heads * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(pufferl->act_sizes_puf.data, act_sizes, num_action_heads * sizeof(int),
+        cudaMemcpyHostToDevice);
     cudaMemset(pufferl->losses_puf.data, 0, NUM_LOSSES * sizeof(float));
     float one = 1.0f;
     cudaMemcpy(pufferl->ppo_bufs_puf.grad_loss.data, &one, sizeof(float), cudaMemcpyHostToDevice);
@@ -2562,7 +2364,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
 
         // Create per-buffer streams before capture so graphs are
         // captured and replayed on the same streams.
-        create_buffer_streams(pufferl, vec, num_buffers, hypers.async);
+        create_buffer_streams(pufferl);
 
         cudaStream_t saved_default = pufferl->default_stream;
         cudaStream_t warmup_stream;
@@ -2623,11 +2425,11 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
 
     // Create per-buffer streams if not already created by cudagraph path
     if (!pufferl->streams) {
-        create_buffer_streams(pufferl, vec, num_buffers, hypers.async);
+        create_buffer_streams(pufferl);
     }
 
     if (!vec->gpu_env) {
-        vec_create_threads(vec, hypers.num_threads, horizon, pufferl);
+        vec_create_threads(pufferl);
     }
     vec_reset(vec);
 
@@ -3873,6 +3675,104 @@ void run_league_match_worker(Ini* ini, TrainContext* ctx) {
             result.games, result.score, result.draw);
         printf("league_match %s vs %s games=%d score=%.4f draw=%.4f\n",
             a.id, b.id, result.games, result.score, result.draw);
+    }
+}
+
+typedef struct {
+    char section[64];
+    char key[64];
+} SweepParam;
+
+// Build SweepSpace + param map from [sweep.<section>.<key>] sections.
+// Dies on bad names / dist / min-max-scale. cost_idx set if timesteps is swept.
+SweepSpace* puf_config_sweep_space(Ini* ini, SweepParam** params_out) {
+    const char* goal = puf_ini_get_str(ini, "sweep", "goal");
+    int direction = 1;
+    if (strcmp(goal, "minimize") == 0) {
+        direction = -1;
+    } else if (strcmp(goal, "maximize") != 0) {
+        puf_die("sweep.goal must be maximize or minimize");
+    }
+
+    SweepSpace* space = sweep_space_create(ini->num_sections, -1, direction);
+    SweepParam* params = (SweepParam*)calloc((size_t)ini->num_sections,
+        sizeof(SweepParam));
+    int n = 0;
+
+    for (int i = 0; i < ini->num_sections; i++) {
+        Dict* dict = &ini->sections[i];
+        if (strncmp(dict->name, "sweep.", 6) != 0) {
+            continue;
+        }
+
+        // [sweep.train.lr] -> section=train, key=lr (last dot).
+        const char* path = dict->name + 6;
+        const char* dot = strrchr(path, '.');
+        if (!dot || dot == path || !dot[1]) {
+            puf_die("expected section [sweep.<section>.<key>], got [%s]",
+                dict->name);
+        }
+        snprintf(params[n].section, sizeof(params[n].section), "%.*s",
+            (int)(dot - path), path);
+        snprintf(params[n].key, sizeof(params[n].key), "%s", dot + 1);
+
+        const char* dist = dict_get_str(dict, "distribution");
+        SpaceType type;
+        int is_integer = 0;
+        if (strcmp(dist, "uniform") == 0) {
+            type = SPACE_LINEAR;
+        } else if (strcmp(dist, "int_uniform") == 0) {
+            type = SPACE_LINEAR;
+            is_integer = 1;
+        } else if (strcmp(dist, "uniform_pow2") == 0) {
+            type = SPACE_POW2;
+            is_integer = 1;
+        } else if (strcmp(dist, "log_normal") == 0) {
+            type = SPACE_LOG;
+        } else if (strcmp(dist, "logit_normal") == 0) {
+            type = SPACE_LOGIT;
+        } else {
+            puf_die("invalid sweep distribution [%s] %s", dict->name, dist);
+        }
+
+        float min_v = (float)dict_get(dict, "min");
+        float max_v = (float)dict_get(dict, "max");
+        const char* scale_s = dict_get_str(dict, "scale");
+        float scale;
+        if (strcmp(scale_s, "auto") == 0) {
+            scale = 0.5f;
+        } else if (strcmp(scale_s, "time") == 0) {
+            if (min_v <= 0 || max_v <= 0) {
+                puf_die("[%s] scale=time requires positive min/max", dict->name);
+            }
+            scale = 1.0f / (log2f(max_v) - log2f(min_v));
+        } else {
+            scale = (float)dict_get(dict, "scale");
+        }
+
+        space_init(&space->spaces[n], type, min_v, max_v, scale, is_integer);
+        // Budget lever for protein (observed cost is still wallclock).
+        if (strcmp(dict->name, "sweep.train.total_timesteps") == 0) {
+            space->cost_idx = n;
+        }
+        n++;
+    }
+
+    space->num = n;
+    *params_out = params;
+    return space;
+}
+
+// Likely gets cleaned up when we clean the sweep launch logic
+void puf_config_sweep_apply(Ini* ini, SweepParam* params,
+        SweepSpace* space, float* sample) {
+    for (int i = 0; i < space->num; i++) {
+        float val = space_unnormalize(&space->spaces[i], sample[i]);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%.9g", val);
+        char key[256];
+        snprintf(key, sizeof(key), "%s.%s", params[i].section, params[i].key);
+        puf_ini_put(ini, key, buf);
     }
 }
 

@@ -1,6 +1,85 @@
 #ifndef PUFFERLIB_ALGO_CU
 #define PUFFERLIB_ALGO_CU
 
+// --- GEMM (needs batch_size/ndim, CUBLAS_PRECISION* from pufferl) ---
+const size_t CUBLAS_WS_BYTES = 32 * 1024 * 1024;
+thread_local cublasHandle_t g_cublas_handle = nullptr;
+thread_local void* g_cublas_workspace = nullptr;
+
+void cublas_init_handle() {
+    cublasCreate(&g_cublas_handle);
+    cudaMalloc(&g_cublas_workspace, CUBLAS_WS_BYTES);
+    cublasSetWorkspace(g_cublas_handle, g_cublas_workspace, CUBLAS_WS_BYTES);
+}
+
+// Dense row-major GEMM: C(M,N) = alpha * op_a(A) @ op_b(B) + beta * C
+// Strides derived from M, N, K assuming tightly packed row-major storage.
+void cublasGemmExDense(
+        cublasOperation_t op_a, cublasOperation_t op_b,
+        int M, int N, int K, void* A, void* B, void* C,
+        cudaStream_t stream, float alpha = 1.0f, float beta = 0.0f) {
+    int lda = (op_a == CUBLAS_OP_N) ? K : M;
+    int ldb = (op_b == CUBLAS_OP_N) ? N : K;
+
+    cublasSetStream(g_cublas_handle, stream);
+    cublasGemmEx(g_cublas_handle, op_b, op_a, N, M, K, &alpha,
+        B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
+        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, CUBLAS_GEMM_DEFAULT);
+}
+
+// out(...,N) = a(...,K) @ b(N,K)^T  — leading dims folded into M
+void puf_mm(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
+    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int K = a->shape[ndim(a->shape)-1];
+    int N = b->shape[ndim(b->shape)-2];
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T, M, N, K,
+        a->data, b->data, out->data, stream);
+}
+
+// out(M,N) = a(...,M)^T @ b(...,N)  — leading dims folded into K
+void puf_mm_tn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
+    int M = a->shape[ndim(a->shape)-1];
+    int K = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int N = b->shape[ndim(b->shape)-1];
+    cublasGemmExDense(CUBLAS_OP_T, CUBLAS_OP_N, M, N, K,
+        a->data, b->data, out->data, stream);
+}
+
+// out(...,N) = a(...,K) @ b(K,N)  — leading dims folded into M
+void puf_mm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cudaStream_t stream) {
+    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
+    int K = a->shape[ndim(a->shape)-1];
+    int N = b->shape[ndim(b->shape)-1];
+    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, M, N, K,
+        a->data, b->data, out->data, stream);
+}
+
+// Weight init (needs cast, grid_size, numel/ndim from pufferl substrate).
+__global__ void uniform_scale_kernel(float* data, float bound, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        data[idx] = data[idx] * 2.0f * bound - bound;
+    }
+}
+
+// Uniform(-1/sqrt(fan_in), 1/sqrt(fan_in))
+void puf_kaiming_init(PrecisionTensor* dst, float gain, ulong seed, cudaStream_t stream) {
+    assert(ndim(dst->shape) == 2);
+    long rows = dst->shape[0], cols = dst->shape[1];
+    assert(rows > 0 && cols > 0);
+    long n = rows * cols;
+    float bound = gain / std::sqrt((float)cols);
+    float* buf;
+    cudaMalloc(&buf, n * sizeof(float));
+    curandGenerator_t gen;
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    curandSetPseudoRandomGeneratorSeed(gen, seed);
+    curandGenerateUniform(gen, buf, n);
+    curandDestroyGenerator(gen);
+    uniform_scale_kernel<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(buf, bound, n);
+    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(dst->data, buf, n);
+    cudaFree(buf);
+}
 
 // Numerically sensitive activation functions
 __device__ __forceinline__ float softplus_fwd(float x) {
