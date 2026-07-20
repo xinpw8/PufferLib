@@ -291,7 +291,8 @@ typedef struct {
     float prio_beta0;
     bool async;
     bool reset_state;
-    int cudagraphs;
+    // true when base.cudagraphs >= 0: first real rollout/train use captures.
+    bool cudagraphs;
     bool profile;
     int rank;
     int world_size;
@@ -359,7 +360,9 @@ typedef struct ObsTensor {
 // a constant subset of agents
 struct RolloutBuf {
     PrecisionTensor observations;  // (horizon, agents, input_size)
-    PrecisionTensor initial_states; // (layers, agents, hidden), state before t=0
+    // (slots, layers, agents, hidden) when !reset_state; slots = async ? 2 : 1.
+    // Default path is carry + async: per-slot states for pipelined horizons.
+    PrecisionTensor initial_states;
     PrecisionTensor actions;       // (horizon, agents, num_atns)
     PrecisionTensor values;        // (horizon, agents)
     PrecisionTensor logprobs;      // ...
@@ -539,11 +542,11 @@ typedef struct PuffeRL {
     EnvBuf env;
     TrainGraph train_buf;
     PrecisionTensor advantages_puf;  // Pre-allocated for train_impl (B, T)
-    cudaGraphExec_t* fused_rollout_cudagraphs;  // [horizon][num_buffers]
-    cudaGraphExec_t train_cudagraph;
+    cudaGraphExec_t* fused_rollout_cudagraphs;  // [slots][horizon][num_buffers]; null if !cudagraphs
+    cudaGraphExec_t train_cudagraph;  // null until first-use capture
     cudaStream_t* streams;  // per-buffer raw CUDA streams
     cudaStream_t default_stream;  // main-thread stream (captured once at init)
-    cudaStream_t train_stream;    // async learner stream; 0 in sync mode
+    cudaStream_t train_stream;    // dedicated learner stream (always non-default)
     IntTensor act_sizes_puf;    // CUDA int32 tensor of action head sizes
     FloatTensor losses_puf;     // (NUM_LOSSES,) f32 accumulator
     PPOBuffersPuf ppo_bufs_puf; // Pre-allocated buffers for ppo_loss_fwd_bwd
@@ -560,9 +563,6 @@ typedef struct PuffeRL {
     double start_time;
     double last_log_time;
     long last_log_step;
-    int train_warmup;
-    bool rollout_captured;
-    bool train_captured;
     int rollout_write_slot;
     int async_ready_slot;
     int async_next_slot;
@@ -726,8 +726,9 @@ __global__ void sample_logits(
     rng_states[idx] = state;
 }
 
+// Primary bank state is contiguous from agent 0 in src; only dst_start needed.
 __global__ void snapshot_initial_state(PrecisionTensor dst, PrecisionTensor src,
-        int src_start, int dst_start, int count) {
+        int dst_start, int count) {
     int L = src.shape[0];
     int H = src.shape[2];
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -739,9 +740,18 @@ __global__ void snapshot_initial_state(PrecisionTensor dst, PrecisionTensor src,
     int h = idx % H;
     int rel = (idx / H) % count;
     int layer = idx / (count * H);
-    long src_idx = ((long)layer * src.shape[1] + src_start + rel) * H + h;
+    long src_idx = ((long)layer * src.shape[1] + rel) * H + h;
     long dst_idx = ((long)layer * dst.shape[1] + dst_start + rel) * H + h;
     dst.data[dst_idx] = src.data[src_idx];
+}
+
+// View slot of full (slots, L, A, H) as (L, A, H).
+static PrecisionTensor initial_states_slot(PrecisionTensor full, int slot) {
+    int L = (int)full.shape[1];
+    int A = (int)full.shape[2];
+    int H = (int)full.shape[3];
+    long stride = (long)L * A * H;
+    return {.data = full.data + (long)slot * stride, .shape = {L, A, H}};
 }
 
 __global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor terminals,
@@ -783,14 +793,15 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     int graph = (graph_slot * hypers.horizon + t) * hypers.num_buffers + buf;
     profile_begin("fused_rollout", hypers.profile);
 
-    if (pufferl->rollout_captured) {
+    if (pufferl->fused_rollout_cudagraphs != nullptr
+            && pufferl->fused_rollout_cudagraphs[graph] != nullptr) {
         assert(cudaGraphLaunch(pufferl->fused_rollout_cudagraphs[graph], stream) == cudaSuccess
                 && "cudaGraphLaunch failed");
         profile_end(hypers.profile);
         return;
     }
 
-    bool capturing = pufferl->epoch == hypers.cudagraphs;
+    bool capturing = hypers.cudagraphs;
     if (capturing) {
         assert(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal) == cudaSuccess
                 && "cudaStreamBeginCapture failed");
@@ -882,8 +893,10 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
             *s_bank, env.terminals, state_start, sub_start, bank_size);
 
         if (b == 0 && t == 0 && rollouts.initial_states.data != nullptr) {
+            PrecisionTensor init_slot = initial_states_slot(
+                rollouts.initial_states, graph_slot);
             snapshot_initial_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
-                rollouts.initial_states, *s_bank, state_start, sub_start, bank_size);
+                init_slot, *s_bank, sub_start, bank_size);
         }
 
         PrecisionTensor dec_puf = policy_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
@@ -916,6 +929,9 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         assert(cudaGraphInstantiate(&pufferl->fused_rollout_cudagraphs[graph], _graph, 0) == cudaSuccess
                 && "cudaGraphInstantiate failed");
         assert(cudaGraphDestroy(_graph) == cudaSuccess && "cudaGraphDestroy failed");
+        // Capture records without executing; run once so this step has effects.
+        assert(cudaGraphLaunch(pufferl->fused_rollout_cudagraphs[graph], stream) == cudaSuccess
+                && "cudaGraphLaunch failed");
         cudaDeviceSynchronize();
     }
     profile_end(hypers.profile);
@@ -1410,7 +1426,8 @@ __device__ void copy_bytes(
 
 #define SELECT_COPY_THREADS 256
 // One block per minibatch segment: copy all base train fields for idx[mb].
-// Row byte sizes are host-precomputed. Mask / initial-state are optional follow-ups.
+// Row byte sizes are host-precomputed. Mask is an optional follow-up kernel.
+// When initial_states.data is set (carry path), fold state gather here.
 __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         int* idx, precision_t* advantages, float* mb_prio,
         int obs_rb, int act_rb, int lp_rb, int term_rb, int horizon) {
@@ -1444,26 +1461,24 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
     }
     copy_bytes((const char*)rollouts.terminals.data,
         (char*)graph.mb_terminals.data, src_row, mb, term_rb);
+
+    if (rollouts.initial_states.data != nullptr) {
+        int L = (int)rollouts.initial_states.shape[0];
+        int H = (int)rollouts.initial_states.shape[2];
+        int total = L * H;
+        for (int i = threadIdx.x; i < total; i += blockDim.x) {
+            int layer = i / H;
+            int h = i % H;
+            long src_idx = ((long)layer * rollouts.initial_states.shape[1] + src_row) * H + h;
+            long dst_idx = ((long)layer * graph.mb_state.shape[1] + mb) * H + h;
+            graph.mb_state.data[dst_idx] = rollouts.initial_states.data[src_idx];
+        }
+    }
 }
 
 __global__ void select_copy_mask(const char* src, char* dst, int* idx, int row_bytes) {
     int mb = blockIdx.x;
     copy_bytes(src, dst, idx[mb], mb, row_bytes);
-}
-
-__global__ void select_copy_state(PrecisionTensor states, PrecisionTensor mb_state, int* idx) {
-    int mb = blockIdx.x;
-    int src_row = idx[mb];
-    int L = states.shape[0];
-    int H = states.shape[2];
-    int total = L * H;
-    for (int i = threadIdx.x; i < total; i += blockDim.x) {
-        int layer = i / H;
-        int h = i % H;
-        long src_idx = ((long)layer * states.shape[1] + src_row) * H + h;
-        long dst_idx = ((long)layer * mb_state.shape[1] + mb) * H + h;
-        mb_state.data[dst_idx] = states.data[src_idx];
-    }
 }
 
 // Transpose dims 0,1: [A, B, C] -> [B, A, C]. For 2D, pass C=1.
@@ -1521,7 +1536,7 @@ __global__ void clamp_precision_kernel(precision_t* dst, float lo, float hi, int
 void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
     HypersT& hypers = pufferl.hypers;
     RolloutBuf src = src_arg ? *src_arg : pufferl.rollouts;
-    cudaStream_t train_stream = hypers.async ? pufferl.train_stream : pufferl.default_stream;
+    cudaStream_t train_stream = pufferl.train_stream;
 
     cudaEventRecord(pufferl.profile.events[0], train_stream);  // pre-loop start
 
@@ -1589,6 +1604,9 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         current_ent_coef = cosine_annealing(hypers.ent_coef, ent_min,
                                             current_epoch, total_epochs);
     }
+    // Device ptr for ent_coef so CUDA graphs do not bake host by-value.
+    cudaMemcpyAsync(pufferl.ppo_bufs_puf.ent_coef.data, &current_ent_coef,
+        sizeof(float), cudaMemcpyHostToDevice, train_stream);
 
     // Annealed priority exponent
     float anneal_beta = prio_beta0 + (1.0f - prio_beta0) * prio_alpha * (float)current_epoch/(float)total_epochs;
@@ -1624,12 +1642,17 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         profile_end(hypers.profile);
 
         profile_begin("train_select_and_copy", hypers.profile);
+        RolloutBuf sel_src = rollouts;
         if (hypers.reset_state) {
             cudaMemsetAsync(graph.mb_state.data, 0,
                 numel(graph.mb_state.shape) * sizeof(precision_t), train_stream);
+            sel_src.initial_states = PrecisionTensor();
+        } else if (src.initial_states.data != nullptr) {
+            int slot = hypers.async ? pufferl.async_ready_slot : 0;
+            sel_src.initial_states = initial_states_slot(src.initial_states, slot);
+        } else {
+            sel_src.initial_states = PrecisionTensor();
         }
-        RolloutBuf sel_src = rollouts;
-        sel_src.initial_states = hypers.reset_state ? PrecisionTensor() : src.initial_states;
         int mb_segs = pufferl.prio_bufs.idx.shape[0];
         int* sel_idx = pufferl.prio_bufs.idx.data;
         int pe = (int)sizeof(precision_t);
@@ -1652,18 +1675,14 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
                 (const char*)rollouts.action_mask.data,
                 (char*)graph.mb_action_mask.data, sel_idx, mask_rb);
         }
-        if (!hypers.reset_state && sel_src.initial_states.data != nullptr) {
-            select_copy_state<<<mb_segs, SELECT_COPY_THREADS, 0, train_stream>>>(
-                sel_src.initial_states, graph.mb_state, sel_idx);
-        }
         profile_end(hypers.profile);
 
         cudaEventRecord(pufferl.profile.events[3], train_stream);  // end misc / start forward
         profile_begin("train_forward_backward", hypers.profile);
-        if (pufferl.train_captured) {
+        if (pufferl.train_cudagraph != nullptr) {
             cudaGraphLaunch(pufferl.train_cudagraph, train_stream);
         } else {
-            bool capturing = pufferl.train_warmup == hypers.cudagraphs;
+            bool capturing = hypers.cudagraphs;
             if (capturing) {
                 assert(cudaStreamBeginCapture(train_stream, cudaStreamCaptureModeGlobal) == cudaSuccess
                         && "cudaStreamBeginCapture failed");
@@ -1683,7 +1702,8 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
 
             ppo_loss_fwd_bwd(dec_puf, p_logstd, graph,
                 pufferl.act_sizes_puf, pufferl.losses_puf,
-                hypers.clip_coef, hypers.vf_clip_coef, hypers.vf_coef, current_ent_coef,
+                hypers.clip_coef, hypers.vf_clip_coef, hypers.vf_coef,
+                pufferl.ppo_bufs_puf.ent_coef.data,
                 pufferl.ppo_bufs_puf, pufferl.is_continuous, stream);
 
             FloatTensor grad_logits_puf = pufferl.ppo_bufs_puf.grad_logits;
@@ -1714,10 +1734,10 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
                     &pufferl.train_cudagraph, _graph, 0) == cudaSuccess
                     && "cudaGraphInstantiate failed");
                 assert(cudaGraphDestroy(_graph) == cudaSuccess && "cudaGraphDestroy failed");
+                // Capture records without executing; run once so this step has effects.
+                cudaGraphLaunch(pufferl.train_cudagraph, train_stream);
                 cudaDeviceSynchronize();
-                pufferl.train_captured = true;
             }
-            pufferl.train_warmup++;
         }
         profile_end(hypers.profile);
 
@@ -1754,7 +1774,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
 
 
 // Load frozen bank weights (flat fp32 checkpoint). Safe between rollouts —
-// cudagraphs hold the pointer, not a copy of the data.
+// graphs hold the pointer, not a copy of the data.
 // --- Checkpoint I/O (load/save weights) ---
 void mkdir_p(const char* path) {
     char tmp[1024];
@@ -1907,7 +1927,7 @@ void create_allocator_or_die(const char* name, Allocator* alloc) {
     }
 }
 
-// Zero primary + frozen per-buffer RNN states (used at reset and after cudagraph warmup).
+// Zero primary + frozen per-buffer RNN states (used at reset / reset_state).
 void zero_all_buffer_states(PuffeRL* p, cudaStream_t stream) {
     for (int i = 0; i < p->hypers.num_buffers; i++) {
         cudaMemsetAsync(p->buffer_states[i].data, 0,
@@ -1970,7 +1990,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     hypers.prio_beta0 = puf_ini_get(ini, "train", "prio_beta0");
     hypers.async = puf_ini_get(ini, "base", "async");
     hypers.reset_state = puf_ini_get(ini, "base", "reset_state");
-    hypers.cudagraphs = puf_ini_get(ini, "base", "cudagraphs");
+    hypers.cudagraphs = puf_ini_get(ini, "base", "cudagraphs") >= 0;
     hypers.profile = puf_ini_get(ini, "base", "profile");
     hypers.seed = puf_ini_get(ini, "base", "seed");
     hypers.rank = ctx->rank;
@@ -2077,8 +2097,11 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     pufferl->policy = build_policy(pufferl->env_name, input_size, hidden_size,
         num_layers, decoder_output_size, act_n, is_continuous, hypers.horizon);
 
+    // Dedicated learner stream (always non-default; nonblocking when async).
     if (hypers.async) {
         cudaStreamCreateWithFlags(&pufferl->train_stream, cudaStreamNonBlocking);
+    } else {
+        cudaStreamCreate(&pufferl->train_stream);
     }
 
     // Create and allocate params
@@ -2106,8 +2129,13 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     int rollout_horizon = hypers.async ? 2 * horizon : horizon;
     register_rollout_buffers(pufferl->rollouts,
         acts, rollout_horizon, total_agents, input_size, num_action_heads, mask_size);
-    pufferl->rollouts.initial_states = {.shape = {num_layers, total_agents, hidden_size}};
-    alloc_register(acts, &pufferl->rollouts.initial_states);
+    // Carry path: per-slot initial RNN states. reset_state zeros mb_state instead.
+    if (!hypers.reset_state) {
+        int slots = hypers.async ? 2 : 1;
+        pufferl->rollouts.initial_states = {
+            .shape = {slots, num_layers, total_agents, hidden_size}};
+        alloc_register(acts, &pufferl->rollouts.initial_states);
+    }
     register_train_buffers(pufferl->train_buf,
         acts, minibatch_segments, horizon, input_size,
         hidden_size, num_action_heads, num_layers, mask_size);
@@ -2183,7 +2211,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     muon_post_create(&pufferl->muon);
 
     // Frozen banks (selfplay/match opponents): rollout-only policy.
-    // Before cudagraphs. Arch comes from vec.frozen_bank_*; required when banks > 0.
+    // Arch comes from vec.frozen_bank_*; required when banks > 0.
     int num_frozen = vec->num_banks - 1;
     int frozen_hidden = (int)dict_get(&vec_kwargs, "frozen_bank_hidden_size");
     int frozen_layers = (int)dict_get(&vec_kwargs, "frozen_bank_num_layers");
@@ -2233,87 +2261,13 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         }
     }
 
-    // Cudagraph rolluts and entire training step
-    if (hypers.cudagraphs >= 0) {
+    // CUDA graphs: allocate graph array only; capture on first real use.
+    if (hypers.cudagraphs) {
         int rollout_graph_slots = hypers.async ? 2 : 1;
         pufferl->fused_rollout_cudagraphs = (cudaGraphExec_t*)calloc(
             rollout_graph_slots * horizon * num_buffers, sizeof(cudaGraphExec_t));
-        pufferl->train_warmup = 0;
-
-        // Snapshot weights + optimizer state before init-time capture
-        long wb_bytes = numel(pufferl->master_weights.shape) * sizeof(float);
-        void* saved_weights;
-        cudaMalloc(&saved_weights, wb_bytes);
-        cudaMemcpy(saved_weights, pufferl->master_weights.data, wb_bytes, cudaMemcpyDeviceToDevice);
-        void* saved_momentum;
-        cudaMalloc(&saved_momentum, wb_bytes);
-        cudaMemcpy(saved_momentum, pufferl->muon.mb_puf.data, wb_bytes, cudaMemcpyDeviceToDevice);
-
-        // Create per-buffer streams before capture so graphs are
-        // captured and replayed on the same streams.
-        create_buffer_streams(pufferl);
-
-        cudaStream_t saved_default = pufferl->default_stream;
-        cudaStream_t warmup_stream;
-        cudaStreamCreate(&warmup_stream);
-        pufferl->default_stream = warmup_stream;
-
-        for (pufferl->epoch = 0; pufferl->epoch <= hypers.cudagraphs; pufferl->epoch++) {
-            for (int slot = 0; slot < rollout_graph_slots; slot++) {
-                pufferl->rollout_write_slot = slot;
-                for (int i = 0; i < num_buffers * horizon; ++i) {
-                    int buf = i % num_buffers;
-                    pufferl_forward(pufferl, buf, i / num_buffers, pufferl->streams[buf]);
-                    cudaDeviceSynchronize();
-                }
-            }
-        }
-        pufferl->rollout_captured = true;
-
-        for (int i = 0; i <= hypers.cudagraphs; i++) {
-            if (hypers.async) {
-                RolloutBuf train_src = rollout_time_view(&pufferl->rollouts, 0, horizon);
-                train_impl(*pufferl, &train_src);
-            } else {
-                train_impl(*pufferl, NULL);
-            }
-        }
-
-        cudaStreamSynchronize(warmup_stream);
-        cudaDeviceSynchronize();
-        pufferl->default_stream = saved_default;
-        cudaStreamDestroy(warmup_stream);
-
-        // Restore weights + optimizer state corrupted by warmup/capture
-        cudaMemcpy(pufferl->master_weights.data, saved_weights, wb_bytes, cudaMemcpyDeviceToDevice);
-        cudaFree(saved_weights);
-        cudaMemcpy(pufferl->muon.mb_puf.data, saved_momentum, wb_bytes, cudaMemcpyDeviceToDevice);
-        cudaFree(saved_momentum);
-        if (USE_BF16) {
-            int n = numel(pufferl->param_puf.shape);
-            cast<<<grid_size(n), BLOCK_SIZE, 0, pufferl->default_stream>>>(
-                pufferl->param_puf.data, pufferl->master_weights.data, n);
-        }
-
-        // Re-init RNG states and offsets corrupted by warmup
-        for (int i = 0; i < num_buffers; i++) {
-            rng_init<<<grid_size(agents_per_buf), BLOCK_SIZE>>>(
-                pufferl->rng_states[i], pufferl->seed + i, agents_per_buf);
-        }
-        cudaMemsetAsync(pufferl->rng_offset_puf.data, 0,
-            numel(pufferl->rng_offset_puf.shape) * sizeof(long),
-            pufferl->default_stream);
-        zero_all_buffer_states(pufferl, pufferl->default_stream);
-        cudaDeviceSynchronize();
-
-        pufferl->epoch = 0;
-        pufferl->global_step = 0;
     }
-
-    // Create per-buffer streams if not already created by cudagraph path
-    if (!pufferl->streams) {
-        create_buffer_streams(pufferl);
-    }
+    create_buffer_streams(pufferl);
 
     if (!vec->gpu_env) {
         vec_create_threads(pufferl);
@@ -2341,12 +2295,16 @@ void close_pufferl(PuffeRL* p) {
         cudaProfilerStop();
     }
 
-    if (pufferl.hypers.cudagraphs >= 0) {
+    if (pufferl.train_cudagraph != nullptr) {
+        cudaGraphExecDestroy(pufferl.train_cudagraph);
+    }
+    if (pufferl.fused_rollout_cudagraphs != nullptr) {
         int slots = pufferl.hypers.async ? 2 : 1;
         int num_graphs = slots * pufferl.hypers.horizon * pufferl.hypers.num_buffers;
-        cudaGraphExecDestroy(pufferl.train_cudagraph);
         for (int i = 0; i < num_graphs; i++) {
-            cudaGraphExecDestroy(pufferl.fused_rollout_cudagraphs[i]);
+            if (pufferl.fused_rollout_cudagraphs[i] != nullptr) {
+                cudaGraphExecDestroy(pufferl.fused_rollout_cudagraphs[i]);
+            }
         }
     }
 

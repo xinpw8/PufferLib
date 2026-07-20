@@ -2,14 +2,25 @@
 #define PUFFERLIB_ALGO_CU
 
 // --- GEMM (needs batch_size/ndim, CUBLAS_PRECISION* from pufferl) ---
-const size_t CUBLAS_WS_BYTES = 32 * 1024 * 1024;
+// Override with -D at build if needed; sweeps on 5090/bf16 found no win vs these defaults.
+#ifndef CUBLAS_WS_BYTES
+#define CUBLAS_WS_BYTES (32 * 1024 * 1024)
+#endif
+#ifndef CUBLAS_MATH_MODE
+#define CUBLAS_MATH_MODE CUBLAS_DEFAULT_MATH
+#endif
+#ifndef CUBLAS_GEMM_ALGO
+#define CUBLAS_GEMM_ALGO CUBLAS_GEMM_DEFAULT
+#endif
+
 thread_local cublasHandle_t g_cublas_handle = nullptr;
 thread_local void* g_cublas_workspace = nullptr;
 
 void cublas_init_handle() {
     cublasCreate(&g_cublas_handle);
-    cudaMalloc(&g_cublas_workspace, CUBLAS_WS_BYTES);
-    cublasSetWorkspace(g_cublas_handle, g_cublas_workspace, CUBLAS_WS_BYTES);
+    cudaMalloc(&g_cublas_workspace, (size_t)CUBLAS_WS_BYTES);
+    cublasSetWorkspace(g_cublas_handle, g_cublas_workspace, (size_t)CUBLAS_WS_BYTES);
+    cublasSetMathMode(g_cublas_handle, (cublasMath_t)CUBLAS_MATH_MODE);
 }
 
 // Dense row-major GEMM: C(M,N) = alpha * op_a(A) @ op_b(B) + beta * C
@@ -24,7 +35,7 @@ void cublasGemmExDense(
     cublasSetStream(g_cublas_handle, stream);
     cublasGemmEx(g_cublas_handle, op_b, op_a, N, M, K, &alpha,
         B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
-        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, CUBLAS_GEMM_DEFAULT);
+        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, (cublasGemmAlgo_t)CUBLAS_GEMM_ALGO);
 }
 
 // out(...,N) = a(...,K) @ b(N,K)^T  — leading dims folded into M
@@ -1582,7 +1593,8 @@ struct PPOKernelArgs {
     const precision_t* action_mask; // (N, T, A_total) or nullptr
     int mask_stride_n, mask_stride_t;
     int num_atns;
-    float clip_coef, vf_clip_coef, vf_coef, ent_coef;
+    float clip_coef, vf_clip_coef, vf_coef;
+    const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
     int T_seq, A_total, N;
     int logits_stride_n, logits_stride_t, logits_stride_a;
     int values_stride_n, values_stride_t;
@@ -1593,10 +1605,13 @@ struct PPOBuffersPuf {
     FloatTensor loss_output, grad_loss;
     FloatTensor saved_for_bwd;
     FloatTensor grad_logits, grad_values, grad_logstd, adv_scratch;
+    FloatTensor ent_coef;
+    FloatTensor ppo_partials;
 };
 
 void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, int A_total, bool is_continuous) {
     long total = (long)N * T;
+    int ppo_grid = ((int)total + PPO_THREADS - 1) / PPO_THREADS;
     bufs = (PPOBuffersPuf){
         .loss_output = {.shape = {1}},
         .grad_loss = {.shape = {1}},
@@ -1605,6 +1620,8 @@ void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, i
         .grad_values = {.shape = {N, T, 1}},
         .grad_logstd = {.shape = {N, T, A_total}},
         .adv_scratch = {.shape = {2}},
+        .ent_coef = {.shape = {1}},
+        .ppo_partials = {.shape = {ppo_grid * (LOSS_N + 1)}},
     };
     alloc_register(alloc, &bufs.loss_output);
     alloc_register(alloc, &bufs.saved_for_bwd);
@@ -1615,6 +1632,8 @@ void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, i
         alloc_register(alloc, &bufs.grad_logstd);
     }
     alloc_register(alloc, &bufs.adv_scratch);
+    alloc_register(alloc, &bufs.ent_coef);
+    alloc_register(alloc, &bufs.ppo_partials);
 }
 
 __device__ __forceinline__ float load_logit_masked(
@@ -1720,7 +1739,8 @@ __global__ void ppo_loss_compute(
     // grad_loss is always 1.0 (set in post_create, never changes)
     float dL = inv_NT;
     float d_pg_loss = dL;
-    float d_entropy_term = dL * (-a.ent_coef);
+    float ent_coef = *a.ent_coef;
+    float d_entropy_term = dL * (-ent_coef);
 
     // Value loss (forward) + value gradient (backward)
 
@@ -1836,7 +1856,7 @@ __global__ void ppo_loss_compute(
     }
 
     // Forward: loss partials
-    float thread_loss = (pg_loss + a.vf_coef * v_loss - a.ent_coef * total_entropy) * inv_NT;
+    float thread_loss = (pg_loss + a.vf_coef * v_loss - ent_coef * total_entropy) * inv_NT;
     block_losses[LOSS_PG][tid] = pg_loss * inv_NT;
     block_losses[LOSS_VF][tid] = v_loss * inv_NT;
     block_losses[LOSS_ENT][tid] = total_entropy * inv_NT;
@@ -1943,7 +1963,7 @@ void ppo_loss_fwd_bwd(
         PrecisionTensor& logstd,     // continuous logstd or empty
         TrainGraph& graph,
         IntTensor& act_sizes, FloatTensor& losses_acc,
-        float clip_coef, float vf_clip_coef, float vf_coef, float ent_coef,
+        float clip_coef, float vf_clip_coef, float vf_coef, const float* ent_coef,
         PPOBuffersPuf& bufs, bool is_continuous,
         cudaStream_t stream) {
     int N = dec_out.shape[0], T = dec_out.shape[1], fused_cols = dec_out.shape[2];
@@ -1959,17 +1979,6 @@ void ppo_loss_fwd_bwd(
         graph.mb_advantages.data, adv_var_ptr, adv_mean_ptr, numel(graph.mb_advantages.shape));
 
     int ppo_grid = (total + PPO_THREADS - 1) / PPO_THREADS;
-
-    static float* ppo_partials_buf = nullptr;
-    static int ppo_partials_capacity = 0;
-    int ppo_partials_needed = ppo_grid * (LOSS_N + 1);
-    if (!ppo_partials_buf || ppo_partials_needed > ppo_partials_capacity) {
-        if (ppo_partials_buf) {
-            cudaFree(ppo_partials_buf);
-        }
-        ppo_partials_capacity = ppo_partials_needed;
-        cudaMalloc(&ppo_partials_buf, ppo_partials_capacity * sizeof(float));
-    }
 
     cudaMemsetAsync(bufs.loss_output.data, 0, sizeof(float), stream);
 
@@ -2007,10 +2016,10 @@ void ppo_loss_fwd_bwd(
         .is_continuous = is_continuous,
     };
 
-    ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(ppo_partials_buf, args, graph_args);
+    ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(bufs.ppo_partials.data, args, graph_args);
 
     ppo_loss_reduce<<<1, LOSS_N + 1, 0, stream>>>(
-        bufs.loss_output.data, losses_acc.data, ppo_partials_buf, ppo_grid);
+        bufs.loss_output.data, losses_acc.data, bufs.ppo_partials.data, ppo_grid);
 }
 
 // Puffer advantage function based on our own research
