@@ -300,44 +300,14 @@ typedef struct {
     int seed;
 } HypersT;
 
-HypersT puf_config_to_hypers(Ini* ini, int rank, int world_size, int gpu_id) {
-    HypersT h = {0};
-    h.total_agents = puf_ini_get(ini, "vec", "total_agents");
-    h.num_buffers = puf_ini_get(ini, "vec", "num_buffers");
-    h.num_threads = puf_ini_get(ini, "vec", "num_threads");
-    h.horizon = puf_ini_get(ini, "train", "horizon");
-    h.hidden_size = puf_ini_get(ini, "policy", "hidden_size");
-    h.num_layers = puf_ini_get(ini, "policy", "num_layers");
-    h.lr = puf_ini_get(ini, "train", "learning_rate");
-    h.min_lr_ratio = puf_ini_get(ini, "train", "min_lr_ratio");
-    h.anneal_lr = puf_ini_get(ini, "train", "anneal_lr");
-    h.momentum = puf_ini_get(ini, "train", "momentum");
-    h.minibatch_size = puf_ini_get(ini, "train", "minibatch_size");
-    h.replay_ratio = puf_ini_get(ini, "train", "replay_ratio");
-    h.total_timesteps = puf_ini_get(ini, "train", "total_timesteps");
-    h.max_grad_norm = puf_ini_get(ini, "train", "max_grad_norm");
-    h.clip_coef = puf_ini_get(ini, "train", "clip_coef");
-    h.vf_clip_coef = puf_ini_get(ini, "train", "vf_clip_coef");
-    h.vf_coef = puf_ini_get(ini, "train", "vf_coef");
-    h.ent_coef = puf_ini_get(ini, "train", "ent_coef");
-    h.min_ent_coef_ratio = puf_ini_get(ini, "train", "min_ent_coef_ratio");
-    h.anneal_ent_coef = puf_ini_get(ini, "train", "anneal_ent_coef");
-    h.gamma = puf_ini_get(ini, "train", "gamma");
-    h.gae_lambda = puf_ini_get(ini, "train", "gae_lambda");
-    h.vtrace_rho_clip = puf_ini_get(ini, "train", "vtrace_rho_clip");
-    h.vtrace_c_clip = puf_ini_get(ini, "train", "vtrace_c_clip");
-    h.prio_alpha = puf_ini_get(ini, "train", "prio_alpha");
-    h.prio_beta0 = puf_ini_get(ini, "train", "prio_beta0");
-    h.async = puf_ini_get(ini, "base", "async");
-    h.reset_state = puf_ini_get(ini, "base", "reset_state");
-    h.cudagraphs = puf_ini_get(ini, "base", "cudagraphs");
-    h.profile = puf_ini_get(ini, "base", "profile");
-    h.seed = puf_ini_get(ini, "base", "seed");
-    h.rank = rank;
-    h.world_size = world_size;
-    h.gpu_id = gpu_id;
-    return h;
-}
+// Rank / device context for one process in a multi-GPU train job.
+typedef struct {
+    int rank;
+    int world_size;
+    int gpu_id;
+    int artifact_owner;
+    ncclUniqueId* nccl_id;
+} TrainContext;
 
 void puf_die(const char* fmt, ...) {
     va_list args;
@@ -359,21 +329,25 @@ int puf_err(char* out, size_t out_size, const char* fmt, ...) {
     return 0;
 }
 
-int puf_config_train_valid(Ini* ini, char* err, size_t err_size) {
-    int mb = puf_ini_get(ini, "train", "minibatch_size");
-    int horizon = puf_ini_get(ini, "train", "horizon");
-    int agents = puf_ini_get(ini, "vec", "total_agents");
-    int gpus = puf_ini_get(ini, "train", "gpus");
-    if (gpus < 1) {
+// Shared by startup validation and sweep sample soft-check.
+static int train_shape_valid(int mb, int horizon, int agents, int gpus,
+        char* err, size_t err_size) {
+    if (gpus < 1)
         return puf_err(err, err_size, "train.gpus must be >= 1");
-    }
-    if (mb % horizon != 0) {
+    if (horizon <= 0 || mb % horizon != 0)
         return puf_err(err, err_size, "train.minibatch_size must be divisible by train.horizon");
-    }
-    if (mb > (long)horizon * agents) {
+    if (mb > (long)horizon * agents)
         return puf_err(err, err_size, "train.minibatch_size > train.horizon * vec.total_agents");
-    }
     return 1;
+}
+
+int puf_config_train_valid(Ini* ini, char* err, size_t err_size) {
+    return train_shape_valid(
+        (int)puf_ini_get(ini, "train", "minibatch_size"),
+        (int)puf_ini_get(ini, "train", "horizon"),
+        (int)puf_ini_get(ini, "vec", "total_agents"),
+        (int)puf_ini_get(ini, "train", "gpus"),
+        err, err_size);
 }
 
 typedef struct ObsTensor {
@@ -502,7 +476,7 @@ struct EnvBuf {
     ByteTensor action_mask; // (total_agents, mask_size); .data=nullptr when env opts out
 };
 
-// Frozen opponent bank (selfplay / league): rollout-only policy + params.
+// Frozen opponent bank (selfplay / match): rollout-only policy + params.
 // Same build_policy / weights_create path as primary, but no train acts, grads, or muon.
 // Optional different hidden/layers via frozen_bank_hidden_size / frozen_bank_num_layers.
 typedef struct {
@@ -595,10 +569,10 @@ typedef struct PuffeRL {
     bool async_bootstrapped;
     ulong seed;
     curandStatePhilox4_32_10_t** rng_states;  // per-buffer persistent RNG states [num_buffers]
-    // Optional frozen weight banks for match / league.
+    // Optional frozen weight banks for match / selfplay opponents.
     WeightBank* frozen_banks;  // [num_frozen_banks]
     int num_frozen_banks;
-    char env_name[64];  // Kept for post-init bank adds.
+    char env_name[64];  // For frozen-bank policy rebuild at create.
 } PuffeRL;
 
 // --- Infer path: sample + forward, then vec workers ---
@@ -1655,7 +1629,6 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
                 numel(graph.mb_state.shape) * sizeof(precision_t), train_stream);
         }
         RolloutBuf sel_src = rollouts;
-        sel_src.values = rollouts.values;
         sel_src.initial_states = hypers.reset_state ? PrecisionTensor() : src.initial_states;
         int mb_segs = pufferl.prio_bufs.idx.shape[0];
         int* sel_idx = pufferl.prio_bufs.idx.data;
@@ -1966,8 +1939,49 @@ double wall_clock() {
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
-PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
-        Dict* env_kwargs, ncclUniqueId* nccl_id) {
+// Build trainer from ini + rank context. (Former Python create_pufferl + impl.)
+PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
+    HypersT hypers = {0};
+    hypers.total_agents = puf_ini_get(ini, "vec", "total_agents");
+    hypers.num_buffers = puf_ini_get(ini, "vec", "num_buffers");
+    hypers.num_threads = puf_ini_get(ini, "vec", "num_threads");
+    hypers.horizon = puf_ini_get(ini, "train", "horizon");
+    hypers.hidden_size = puf_ini_get(ini, "policy", "hidden_size");
+    hypers.num_layers = puf_ini_get(ini, "policy", "num_layers");
+    hypers.lr = puf_ini_get(ini, "train", "learning_rate");
+    hypers.min_lr_ratio = puf_ini_get(ini, "train", "min_lr_ratio");
+    hypers.anneal_lr = puf_ini_get(ini, "train", "anneal_lr");
+    hypers.momentum = puf_ini_get(ini, "train", "momentum");
+    hypers.minibatch_size = puf_ini_get(ini, "train", "minibatch_size");
+    hypers.replay_ratio = puf_ini_get(ini, "train", "replay_ratio");
+    hypers.total_timesteps = puf_ini_get(ini, "train", "total_timesteps");
+    hypers.max_grad_norm = puf_ini_get(ini, "train", "max_grad_norm");
+    hypers.clip_coef = puf_ini_get(ini, "train", "clip_coef");
+    hypers.vf_clip_coef = puf_ini_get(ini, "train", "vf_clip_coef");
+    hypers.vf_coef = puf_ini_get(ini, "train", "vf_coef");
+    hypers.ent_coef = puf_ini_get(ini, "train", "ent_coef");
+    hypers.min_ent_coef_ratio = puf_ini_get(ini, "train", "min_ent_coef_ratio");
+    hypers.anneal_ent_coef = puf_ini_get(ini, "train", "anneal_ent_coef");
+    hypers.gamma = puf_ini_get(ini, "train", "gamma");
+    hypers.gae_lambda = puf_ini_get(ini, "train", "gae_lambda");
+    hypers.vtrace_rho_clip = puf_ini_get(ini, "train", "vtrace_rho_clip");
+    hypers.vtrace_c_clip = puf_ini_get(ini, "train", "vtrace_c_clip");
+    hypers.prio_alpha = puf_ini_get(ini, "train", "prio_alpha");
+    hypers.prio_beta0 = puf_ini_get(ini, "train", "prio_beta0");
+    hypers.async = puf_ini_get(ini, "base", "async");
+    hypers.reset_state = puf_ini_get(ini, "base", "reset_state");
+    hypers.cudagraphs = puf_ini_get(ini, "base", "cudagraphs");
+    hypers.profile = puf_ini_get(ini, "base", "profile");
+    hypers.seed = puf_ini_get(ini, "base", "seed");
+    hypers.rank = ctx->rank;
+    hypers.world_size = ctx->world_size;
+    hypers.gpu_id = ctx->gpu_id;
+
+    Dict vec_kwargs = {0};
+    dict_copy(&vec_kwargs, puf_ini_section(ini, "vec", 0));
+    Dict* env_kwargs = puf_ini_section(ini, "env", 0);
+    ncclUniqueId* nccl_id = ctx->nccl_id;
+
     PuffeRL* pufferl = new PuffeRL();
     pufferl->hypers = hypers;
     pufferl->nccl_comm = nullptr;
@@ -1987,7 +2001,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     pufferl->seed = seed;
 
     // Create environments and bind GPU buffers into EnvBuf views.
-    VecEnv* vec = vec_create(vec_kwargs, env_kwargs);
+    VecEnv* vec = vec_create(&vec_kwargs, env_kwargs);
     pufferl->vec = vec;
     int n_agents = vec->total_agents;
     EnvBuf& env = pufferl->env;
@@ -2168,17 +2182,17 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     cudaMemcpy(pufferl->ppo_bufs_puf.grad_loss.data, &one, sizeof(float), cudaMemcpyHostToDevice);
     muon_post_create(&pufferl->muon);
 
-    // Frozen banks (selfplay/league/match opponents): rollout-only policy.
+    // Frozen banks (selfplay/match opponents): rollout-only policy.
     // Before cudagraphs. Arch comes from vec.frozen_bank_*; required when banks > 0.
     int num_frozen = vec->num_banks - 1;
-    int frozen_hidden = (int)dict_get(vec_kwargs, "frozen_bank_hidden_size");
-    int frozen_layers = (int)dict_get(vec_kwargs, "frozen_bank_num_layers");
+    int frozen_hidden = (int)dict_get(&vec_kwargs, "frozen_bank_hidden_size");
+    int frozen_layers = (int)dict_get(&vec_kwargs, "frozen_bank_num_layers");
     if (num_frozen > 0 && (frozen_hidden <= 0 || frozen_layers <= 0)) {
         fprintf(stderr,
             "create_pufferl: num_frozen_banks=%d requires frozen_bank_hidden_size and "
             "frozen_bank_num_layers > 0 (got %d, %d)\n",
             num_frozen, frozen_hidden, frozen_layers);
-        return nullptr;
+        exit(1);
     }
     pufferl->num_frozen_banks = num_frozen;
     pufferl->frozen_banks = num_frozen
@@ -2187,7 +2201,7 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
         int slice = vec->bank_layout[b + 2] - vec->bank_layout[b + 1];
         if (slice <= 0) {
             fprintf(stderr, "create_pufferl: frozen bank %d has no agents\n", b);
-            return nullptr;
+            exit(1);
         }
         WeightBank* bank = &pufferl->frozen_banks[b];
         bank->policy = build_policy(pufferl->env_name, input_size, frozen_hidden,
@@ -2316,10 +2330,12 @@ PuffeRL* create_pufferl_impl(HypersT& hypers, Dict* vec_kwargs,
     pufferl->last_log_time = now;
     pufferl->last_log_step = 0;
 
+    dict_clear(&vec_kwargs);
     return pufferl;
 }
 
-void close_impl(PuffeRL& pufferl) {
+void close_pufferl(PuffeRL* p) {
+    PuffeRL& pufferl = *p;
     cudaDeviceSynchronize();
     if (pufferl.hypers.profile) {
         cudaProfilerStop();
@@ -2404,6 +2420,7 @@ void close_impl(PuffeRL& pufferl) {
     if (pufferl.nccl_comm != nullptr) {
         ncclCommDestroy(pufferl.nccl_comm);
     }
+    delete p;
 }
 
 DictItem* puf_log_find(Dict* dict, const char* key) {
@@ -2915,28 +2932,6 @@ void puf_log_write(const char* path, Ini* ini, PufLogHistory* history) {
     fclose(fp);
 }
 
-typedef struct {
-    int rank;
-    int world_size;
-    int gpu_id;
-    int artifact_owner;
-    ncclUniqueId* nccl_id;
-} TrainContext;
-
-PuffeRL* create_trainer(Ini* ini, TrainContext* ctx) {
-    HypersT hypers = puf_config_to_hypers(ini,
-        ctx->rank, ctx->world_size, ctx->gpu_id);
-    Dict vec = {0};
-    dict_copy(&vec, puf_ini_section(ini, "vec", 0));
-    PuffeRL* pufferl = create_pufferl_impl(hypers, &vec, puf_ini_section(ini, "env", 0), ctx->nccl_id);
-    dict_clear(&vec);
-    if (!pufferl) {
-        fprintf(stderr, "create_pufferl_impl failed\n");
-        exit(1);
-    }
-    return pufferl;
-}
-
 double rollout_start(PuffeRL* p, int slot) {
     p->rollout_write_slot = slot;
     if (p->hypers.async) {
@@ -3045,11 +3040,6 @@ void async_train_step(PuffeRL* p, int prefetch_next) {
         p->async_ready_slot = next_slot;
         p->async_next_slot = ready_slot;
     }
-}
-
-void close_trainer(PuffeRL* p) {
-    close_impl(*p);
-    delete p;
 }
 
 typedef struct {
@@ -3181,200 +3171,46 @@ void selfplay_step(Selfplay* sp, PuffeRL* p, Dict* log) {
     dict_set(log, "pool/num_banks", sp->num_banks);
 }
 
-// --- League: flock-protected PLAYER/MATCH file, simple Elo ---
-#define LEAGUE_ID_MAX 128
-#define LEAGUE_PATH_MAX 4096
+// End-of-train selfplay rating: sequential matches vs a small pool of saved
+// checkpoints. Metric is mean A winrate (not Elo) — cheap and good enough for
+// sweeps. Returns NAN if skipped so the caller can keep the train metric.
+float selfplay_pool_eval(Ini* ini, TrainContext* ctx, Selfplay* sp,
+        const char* our_ckpt) {
+    if (!sp || !our_ckpt || !our_ckpt[0]) return NAN;
+    int max_opp = (int)puf_ini_get(ini, "selfplay", "eval_pool_size");
+    long games = (long)puf_ini_get(ini, "selfplay", "eval_games");
+    if (max_opp <= 0 || games <= 0 || sp->pool_size <= 0) return NAN;
 
-typedef struct {
-    char id[LEAGUE_ID_MAX];
-    char path[LEAGUE_PATH_MAX];
-    float elo;
-} LeaguePlayer;
-
-typedef struct {
-    char a[LEAGUE_ID_MAX];
-    char b[LEAGUE_ID_MAX];
-    int games;
-    float score;
-    float draw;
-} LeagueMatch;
-
-typedef struct {
-    LeaguePlayer* players;
-    LeagueMatch* matches;
-    int num_players;
-    int num_matches;
-} LeagueState;
-
-static int league_find(LeagueState* st, const char* id) {
-    for (int i = 0; i < st->num_players; i++) {
-        if (strcmp(st->players[i].id, id) == 0) return i;
-    }
-    return -1;
-}
-
-// Exclusive lock + load state. Missing file → empty state.
-static int league_open(const char* path, LeagueState* st) {
-    memset(st, 0, sizeof(*st));
-    char lock_path[LEAGUE_PATH_MAX];
-    snprintf(lock_path, sizeof(lock_path), "%s.lock", path);
-    int fd = open(lock_path, O_CREAT | O_RDWR, 0666);
-    if (fd < 0) { perror("open league lock"); exit(1); }
-    if (flock(fd, LOCK_EX) != 0) { perror("flock"); exit(1); }
-
-    FILE* fp = fopen(path, "r");
-    if (!fp) return fd;
-    char type[32];
-    while (fscanf(fp, "%31s", type) == 1) {
-        if (strcmp(type, "PLAYER") == 0) {
-            st->players = (LeaguePlayer*)realloc(st->players,
-                (size_t)(st->num_players + 1) * sizeof(*st->players));
-            LeaguePlayer* p = &st->players[st->num_players++];
-            if (fscanf(fp, "%127s %4095s", p->id, p->path) != 2) break;
-            p->elo = 0;
-        } else if (strcmp(type, "MATCH") == 0) {
-            st->matches = (LeagueMatch*)realloc(st->matches,
-                (size_t)(st->num_matches + 1) * sizeof(*st->matches));
-            LeagueMatch* m = &st->matches[st->num_matches++];
-            if (fscanf(fp, "%127s %127s %d %f %f",
-                    m->a, m->b, &m->games, &m->score, &m->draw) != 5) break;
-        } else {
-            char line[4096];
-            if (!fgets(line, sizeof(line), fp)) break;
+    // Unique opponents from the pool, excluding our own checkpoint path.
+    char opp[SELFPLAY_MAX_POOL][SELFPLAY_PATH_MAX];
+    int n_opp = 0;
+    for (int i = 0; i < sp->pool_size && n_opp < max_opp; i++) {
+        if (strcmp(sp->pool[i], our_ckpt) == 0) continue;
+        int seen = 0;
+        for (int j = 0; j < n_opp; j++) {
+            if (strcmp(opp[j], sp->pool[i]) == 0) { seen = 1; break; }
         }
+        if (seen) continue;
+        snprintf(opp[n_opp++], SELFPLAY_PATH_MAX, "%s", sp->pool[i]);
     }
-    fclose(fp);
-    return fd;
-}
+    if (n_opp == 0) return NAN;
 
-// Optional write-back, free state, unlock.
-static void league_close(const char* path, LeagueState* st, int fd, int write) {
-    if (write) {
-        char tmp[LEAGUE_PATH_MAX];
-        snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
-        FILE* fp = fopen(tmp, "w");
-        if (!fp) {
-            fprintf(stderr, "failed to write league state %s\n", tmp);
-            exit(1);
-        }
-        fprintf(fp, "# PufferLib native league v1\n");
-        for (int i = 0; i < st->num_players; i++) {
-            fprintf(fp, "PLAYER %s %s\n", st->players[i].id, st->players[i].path);
-        }
-        for (int i = 0; i < st->num_matches; i++) {
-            LeagueMatch* m = &st->matches[i];
-            fprintf(fp, "MATCH %s %s %d %.9g %.9g\n",
-                m->a, m->b, m->games, m->score, m->draw);
-        }
-        fclose(fp);
-        if (rename(tmp, path) != 0) {
-            fprintf(stderr, "failed to publish league state %s\n", path);
-            exit(1);
-        }
+    char games_buf[32];
+    snprintf(games_buf, sizeof(games_buf), "%ld", games);
+    puf_ini_put(ini, "base.num_games", games_buf);
+    puf_ini_put(ini, "base.load_model_path", our_ckpt);
+
+    float sum = 0;
+    for (int i = 0; i < n_opp; i++) {
+        puf_ini_put(ini, "base.load_enemy_model_path", opp[i]);
+        EvalResult r = run_eval(ini, ctx, EVAL_MATCH, 0);
+        sum += r.score;
+        printf("selfplay_eval vs %s games=%d score=%.4f draw=%.4f\n",
+            opp[i], r.games, r.score, r.draw);
     }
-    free(st->players);
-    free(st->matches);
-    memset(st, 0, sizeof(*st));
-    flock(fd, LOCK_UN);
-    close(fd);
-}
-
-static void league_recompute(LeagueState* st) {
-    for (int i = 0; i < st->num_players; i++) st->players[i].elo = 0;
-    for (int iter = 0; iter < 100; iter++) {
-        for (int i = 0; i < st->num_matches; i++) {
-            LeagueMatch* m = &st->matches[i];
-            int ai = league_find(st, m->a);
-            int bi = league_find(st, m->b);
-            if (ai < 0 || bi < 0 || ai == bi || m->games <= 0) continue;
-            float ea = 1.0f / (1.0f + powf(10.0f,
-                (st->players[bi].elo - st->players[ai].elo) / 400.0f));
-            float delta = 0.02f * (float)m->games * (m->score - ea);
-            st->players[ai].elo += delta;
-            st->players[bi].elo -= delta;
-        }
-    }
-}
-
-float league_register_player(const char* path, const char* id,
-        const char* checkpoint) {
-    LeagueState st;
-    int fd = league_open(path, &st);
-    int idx = league_find(&st, id);
-    if (idx < 0) {
-        st.players = (LeaguePlayer*)realloc(st.players,
-            (size_t)(st.num_players + 1) * sizeof(*st.players));
-        idx = st.num_players++;
-        memset(&st.players[idx], 0, sizeof(st.players[idx]));
-    }
-    snprintf(st.players[idx].id, sizeof(st.players[idx].id), "%s", id);
-    snprintf(st.players[idx].path, sizeof(st.players[idx].path), "%s", checkpoint);
-    league_recompute(&st);
-    float elo = st.players[idx].elo;
-    league_close(path, &st, fd, 1);
-    return elo;
-}
-
-void league_record_match(const char* path, const char* a, const char* b,
-        int games, float score, float draw) {
-    LeagueState st;
-    int fd = league_open(path, &st);
-    st.matches = (LeagueMatch*)realloc(st.matches,
-        (size_t)(st.num_matches + 1) * sizeof(*st.matches));
-    LeagueMatch* m = &st.matches[st.num_matches++];
-    snprintf(m->a, sizeof(m->a), "%s", a);
-    snprintf(m->b, sizeof(m->b), "%s", b);
-    m->games = games;
-    m->score = score;
-    m->draw = draw;
-    league_close(path, &st, fd, 1);
-}
-
-int league_choose_pair(const char* path, LeaguePlayer* a, LeaguePlayer* b,
-        unsigned int* rng) {
-    LeagueState st;
-    int fd = league_open(path, &st);
-    int n = st.num_players;
-    if (n < 2) {
-        league_close(path, &st, fd, 0);
-        return 0;
-    }
-    int ai = (int)(rand_r(rng) % (unsigned int)n);
-    int bi = ai;
-    for (int t = 0; t < 32 && bi == ai; t++) {
-        bi = (int)(rand_r(rng) % (unsigned int)n);
-    }
-    if (bi == ai) bi = (ai + 1) % n;
-    *a = st.players[ai];
-    *b = st.players[bi];
-    league_close(path, &st, fd, 0);
-    return 1;
-}
-
-void run_league_match_worker(Ini* ini, TrainContext* ctx) {
-    const char* state_path = puf_ini_get_str(ini, "sweep", "league_state_path");
-    long games = puf_ini_get(ini, "base", "num_games");
-    if (!games) games = puf_ini_get(ini, "sweep", "league_match_games");
-    unsigned int rng = (unsigned int)puf_ini_get(ini, "base", "seed") + 1009U;
-
-    for (;;) {
-        LeaguePlayer a, b;
-        if (!league_choose_pair(state_path, &a, &b, &rng)) {
-            usleep(500000);
-            continue;
-        }
-        char buf[64];
-        puf_ini_put(ini, "base.load_model_path", a.path);
-        puf_ini_put(ini, "base.load_enemy_model_path", b.path);
-        snprintf(buf, sizeof(buf), "%ld", games);
-        puf_ini_put(ini, "base.num_games", buf);
-
-        EvalResult result = run_eval(ini, ctx, EVAL_MATCH, 0);
-        league_record_match(state_path, a.id, b.id,
-            result.games, result.score, result.draw);
-        printf("league_match %s vs %s games=%d score=%.4f draw=%.4f\n",
-            a.id, b.id, result.games, result.score, result.draw);
-    }
+    float mean = sum / (float)n_opp;
+    printf("selfplay_eval mean_score=%.4f n=%d\n", mean, n_opp);
+    return mean;
 }
 
 typedef struct {
@@ -3462,7 +3298,6 @@ SweepSpace* puf_config_sweep_space(Ini* ini, SweepParam** params_out) {
     return space;
 }
 
-// Likely gets cleaned up when we clean the sweep launch logic
 void puf_config_sweep_apply(Ini* ini, SweepParam* params,
         SweepSpace* space, float* sample) {
     for (int i = 0; i < space->num; i++) {
@@ -3541,37 +3376,22 @@ void sweep_free_argv(char** argv, int argc) {
 // Soft-check train combos after overlaying sample onto base keys (no full Ini copy).
 int sweep_sample_valid(Ini* ini, SweepParam* params,
         SweepSpace* space, float* sample, char* err, size_t err_size) {
-    int mb = puf_ini_get(ini, "train", "minibatch_size");
-    int horizon = puf_ini_get(ini, "train", "horizon");
-    int agents = puf_ini_get(ini, "vec", "total_agents");
-    int gpus = puf_ini_get(ini, "train", "gpus");
+    int mb = (int)puf_ini_get(ini, "train", "minibatch_size");
+    int horizon = (int)puf_ini_get(ini, "train", "horizon");
+    int agents = (int)puf_ini_get(ini, "vec", "total_agents");
+    int gpus = (int)puf_ini_get(ini, "train", "gpus");
     for (int i = 0; i < space->num; i++) {
         float val = space_unnormalize(&space->spaces[i], sample[i]);
         if (strcmp(params[i].section, "train") == 0) {
-            if (strcmp(params[i].key, "minibatch_size") == 0) {
-                mb = (int)val;
-            } else if (strcmp(params[i].key, "horizon") == 0) {
-                horizon = (int)val;
-            } else if (strcmp(params[i].key, "gpus") == 0) {
-                gpus = (int)val;
-            }
+            if (strcmp(params[i].key, "minibatch_size") == 0) mb = (int)val;
+            else if (strcmp(params[i].key, "horizon") == 0) horizon = (int)val;
+            else if (strcmp(params[i].key, "gpus") == 0) gpus = (int)val;
         } else if (strcmp(params[i].section, "vec") == 0 &&
                 strcmp(params[i].key, "total_agents") == 0) {
             agents = (int)val;
         }
     }
-    if (gpus < 1) {
-        return puf_err(err, err_size, "train.gpus must be >= 1");
-    }
-    if (horizon <= 0 || mb % horizon != 0) {
-        return puf_err(err, err_size,
-            "train.minibatch_size must be divisible by train.horizon");
-    }
-    if (mb > (long)horizon * agents) {
-        return puf_err(err, err_size,
-            "train.minibatch_size > train.horizon * vec.total_agents");
-    }
-    return 1;
+    return train_shape_valid(mb, horizon, agents, gpus, err, err_size);
 }
 
 // Flatten ini to argv: exe mode env section.key=value ...
@@ -3605,9 +3425,44 @@ char** sweep_make_argv(Ini* ini, const char* exe_path, const char* mode,
     return argv;
 }
 
+// Spawn a clean `train` process (needed after parent CUDA init for protein).
+// Child runs main→launch_train; train.gpus>1 DP-forks inside that process.
+// gpu_block_offset: first device of this trial's block (size train.gpus).
+// *read_fd receives the TrainResult pipe (caller closes after read).
+static pid_t spawn_train_process(Ini* trial, const char* exe_path,
+        int gpu_block_offset, int* read_fd) {
+    int pipefd[2];
+    if (pipe(pipefd) != 0) { perror("pipe"); exit(1); }
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%d", gpu_block_offset);
+    puf_ini_put(trial, "base.gpu_offset", buf);
+    snprintf(buf, sizeof(buf), "%d", pipefd[1]);
+    puf_ini_put(trial, "base.result_fd", buf);
+
+    int argc = 0;
+    char** argv = sweep_make_argv(trial, exe_path, "train", &argc);
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_addclose(&actions, pipefd[0]);
+    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+    pid_t pid = 0;
+    int err = posix_spawnp(&pid, exe_path, &actions, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&actions);
+    sweep_free_argv(argv, argc - 1);
+    if (err != 0) {
+        fprintf(stderr, "posix_spawn train failed: %s\n", strerror(err));
+        exit(1);
+    }
+    close(pipefd[1]);
+    *read_fd = pipefd[0];
+    return pid;
+}
+
+// One sweep trial: optional hyper overlay + spawn_train_process on a GPU block.
 SweepJob sweep_start_job(Ini* ini, const char* exe_path,
         SweepParam* params, SweepSpace* space, float* sample,
-        ProteinSweepInfo info, int run, int gpu_offset, int apply_sample) {
+        ProteinSweepInfo info, int run, int gpu_block_offset, int apply_sample) {
     SweepJob job = {0};
     job.run = run;
     job.random = info.is_random;
@@ -3616,64 +3471,28 @@ SweepJob sweep_start_job(Ini* ini, const char* exe_path,
     job.sample = (float*)calloc((size_t)space->num, sizeof(float));
     memcpy(job.sample, sample, (size_t)space->num * sizeof(float));
 
-    int pipefd[2];
-    if (pipe(pipefd) != 0) {
-        perror("pipe");
-        exit(1);
-    }
-
     Ini trial = {0};
     puf_ini_copy(&trial, ini);
-    if (apply_sample) {
-        puf_config_sweep_apply(&trial, params, space, sample);
-    }
-    char buf[64];
+    if (apply_sample) puf_config_sweep_apply(&trial, params, space, sample);
     snprintf(job.run_id, sizeof(job.run_id), "sweep_%ld_%04d",
         (long)(1000.0 * wall_clock()), run);
     puf_ini_put(&trial, "base.run_id", job.run_id);
-    snprintf(buf, sizeof(buf), "%d", gpu_offset);
-    puf_ini_put(&trial, "base.gpu_offset", buf);
-    snprintf(buf, sizeof(buf), "%d", pipefd[1]);
-    puf_ini_put(&trial, "base.result_fd", buf);
 
-    int argc = 0;
-    char** argv = sweep_make_argv(&trial, exe_path, "train", &argc);
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_addclose(&actions, pipefd[0]);
-    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO,
-        "/dev/null", O_WRONLY, 0);
-    int err = posix_spawnp(&job.pid, exe_path, &actions, NULL, argv, environ);
-    posix_spawn_file_actions_destroy(&actions);
-    sweep_free_argv(argv, argc - 1);
+    job.pid = spawn_train_process(&trial, exe_path, gpu_block_offset, &job.fd);
     puf_ini_free(&trial);
-    if (err != 0) {
-        fprintf(stderr, "posix_spawn failed: %s\n", strerror(err));
-        exit(1);
-    }
-
-    close(pipefd[1]);
-    job.fd = pipefd[0];
     return job;
 }
 
 // Returns 1 on success, 0 if the worker failed. Failures are observed as bad
 // samples so the sweep can keep going and fill the slot later.
-int sweep_wait_job(ProteinSweep* protein, SweepJob* job,
-        int league, const char* league_state_path, float max_cost) {
+int sweep_wait_job(ProteinSweep* protein, SweepJob* job, float max_cost) {
     int ok = sweep_read_result(job->fd, &job->result);
     close(job->fd);
 
     int status = 0;
     int wait_ok = waitpid(job->pid, &status, 0) >= 0;
-    if (!wait_ok) {
-        perror("waitpid");
-    }
+    if (!wait_ok) perror("waitpid");
     int good = wait_ok && ok && WIFEXITED(status) && WEXITSTATUS(status) == 0;
-    if (good && league && !job->result.checkpoint_path[0]) {
-        fprintf(stderr, "league trial run=%d did not produce a checkpoint\n", job->run);
-        good = 0;
-    }
 
     if (!good) {
         fprintf(stderr, "sweep worker run=%d failed; marking sample bad\n", job->run);
@@ -3683,17 +3502,12 @@ int sweep_wait_job(ProteinSweep* protein, SweepJob* job,
         return 0;
     }
 
-    if (league) {
-        float elo = league_register_player(league_state_path, job->run_id,
-            job->result.checkpoint_path);
-        protein_sweep_observe(protein, job->sample, elo, job->result.cost, 0);
-        job->result.score = elo;
-    } else {
-        int points = job->result.points > 0 ? job->result.points : 1;
-        for (int i = 0; i < points; i++) {
-            protein_sweep_observe(protein, job->sample,
-                job->result.scores[i], job->result.costs[i], 0);
-        }
+    // Non-selfplay: points[] is a downsampled learning curve.
+    // Selfplay: points==1 — final pool-eval winrate (or last train metric).
+    int points = job->result.points > 0 ? job->result.points : 1;
+    for (int i = 0; i < points; i++) {
+        protein_sweep_observe(protein, job->sample,
+            job->result.scores[i], job->result.costs[i], 0);
     }
     printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
         job->run, job->result.score, job->result.cost, job->result.steps,
@@ -3703,48 +3517,7 @@ int sweep_wait_job(ProteinSweep* protein, SweepJob* job,
     return 1;
 }
 
-void sweep_state_path(Ini* ini, char* out, size_t out_size) {
-    const char* configured = puf_ini_get_str(ini, "sweep", "league_state_path");
-    if (configured && configured[0]) {
-        snprintf(out, out_size, "%s", configured);
-        return;
-    }
-
-    char dir[2048];
-    snprintf(dir, sizeof(dir), "%s/%s",
-        puf_ini_get_str(ini, "base", "log_dir"),
-        puf_ini_get_str(ini, "base", "env_name"));
-    mkdir_p(dir);
-    snprintf(out, out_size, "%s/%ld_league.txt",
-        dir, (long)(1000.0 * wall_clock()));
-    puf_ini_put(ini, "sweep.league_state_path", out);
-}
-
-pid_t sweep_start_match_worker(Ini* ini, const char* exe_path,
-        const char* state_path, int gpu_id) {
-    Ini worker = {0};
-    puf_ini_copy(&worker, ini);
-    puf_ini_put(&worker, "sweep.league_state_path", state_path);
-    puf_ini_put(&worker, "selfplay.enabled", "0");
-    char offset[32];
-    snprintf(offset, sizeof(offset), "%d", gpu_id);
-    puf_ini_put(&worker, "base.gpu_offset", offset);
-
-    int argc = 0;
-    char** argv = sweep_make_argv(&worker, exe_path, "league_match_worker", &argc);
-    pid_t pid = 0;
-    int err = posix_spawnp(&pid, exe_path, NULL, NULL, argv, environ);
-    sweep_free_argv(argv, argc - 1);
-    puf_ini_free(&worker);
-    if (err != 0) {
-        fprintf(stderr, "posix_spawn match worker failed: %s\n", strerror(err));
-        exit(1);
-    }
-    return pid;
-}
-
 void run_sweep(Ini* ini, const char* exe_path) {
-    int league = (int)puf_ini_get(ini, "sweep", "league");
     SweepParam* params = NULL;
     SweepSpace* space = puf_config_sweep_space(ini, &params);
 
@@ -3758,55 +3531,39 @@ void run_sweep(Ini* ini, const char* exe_path) {
     int use_logit = strcmp(metric_dist, "logit") == 0;
     float max_cost = (float)puf_ini_get(ini, "sweep", "max_suggestion_cost");
     float early_stop_quantile = (float)puf_ini_get(ini, "sweep", "early_stop_quantile");
-    if (max_runs < 1) {
-        puf_die("sweep.max_runs must be >= 1");
-    }
+    if (max_runs < 1) puf_die("sweep.max_runs must be >= 1");
     if (downsample < 1 || downsample > TRAIN_RESULT_MAX_POINTS) {
         puf_die("sweep.downsample must be in [1, %d]", TRAIN_RESULT_MAX_POINTS);
     }
     int success_cap = max_runs * downsample * 2;
-    if (success_cap < 8192) {
-        success_cap = 8192;
-    }
+    if (success_cap < 8192) success_cap = 8192;
 
+    // GPU packing: each trial is a full train (launch_train) that may itself
+    // use train.gpus for NCCL DP. Concurrent trials = sweep_gpus / train_gpus
+    // on disjoint blocks [0,W), [W,2W), ...  e.g. 8 GPUs, train.gpus=2 → 4 trials.
     int total_gpus = native_num_gpus();
     int sweep_gpus = (int)puf_ini_get(ini, "sweep", "gpus");
     int train_gpus = (int)puf_ini_get(ini, "train", "gpus");
-    if (sweep_gpus < 0) {
-        puf_die("sweep.gpus must be >= 0");
-    }
-    if (sweep_gpus == 0) {
-        sweep_gpus = total_gpus;
-    }
+    if (sweep_gpus < 0) puf_die("sweep.gpus must be >= 0");
+    if (sweep_gpus == 0) sweep_gpus = total_gpus;
     if (sweep_gpus > total_gpus) {
         puf_die("sweep.gpus=%d but only %d CUDA devices are visible",
             sweep_gpus, total_gpus);
     }
-    if (sweep_gpus != 0 && sweep_gpus < train_gpus + league) {
-        puf_die("sweep.gpus must be >= train.gpus%s",
-            league ? " + 1 for league sweeps" : "");
+    if (train_gpus < 1) puf_die("train.gpus must be >= 1");
+    if (sweep_gpus < train_gpus) {
+        puf_die("sweep.gpus (%d) must be >= train.gpus (%d)", sweep_gpus, train_gpus);
     }
-    int use_gpu = (int)puf_ini_get(ini, "sweep", "use_gpu");
-    if (use_gpu) {
+    if ((int)puf_ini_get(ini, "sweep", "use_gpu")) {
         cudaSetDevice(sweep_gpus - 1);
     }
 
-    char league_state_path[LEAGUE_PATH_MAX] = {0};
-    pid_t match_pid = 0;
-    int train_gpu_count = sweep_gpus;
-    if (league) {
-        if (strcmp(puf_ini_get_str(ini, "base", "env_name"), "robocode") != 0) {
-            puf_die("league sweep currently requires robocode");
-        }
-        train_gpu_count = sweep_gpus - 1;
-        sweep_state_path(ini, league_state_path, sizeof(league_state_path));
-        match_pid = sweep_start_match_worker(ini, exe_path,
-            league_state_path, sweep_gpus - 1);
-    }
-
-    int parallel = train_gpu_count / train_gpus;
-    if (parallel < 1) {
-        parallel = 1;
+    int parallel = sweep_gpus / train_gpus;
+    if (parallel < 1) parallel = 1;
+    if (sweep_gpus % train_gpus != 0) {
+        fprintf(stderr, "sweep note: %d GPUs not divisible by train.gpus=%d; "
+            "using %d concurrent trials (%d GPUs idle)\n",
+            sweep_gpus, train_gpus, parallel, sweep_gpus - parallel * train_gpus);
     }
 
     ProteinSweep* protein = protein_sweep_create(space,
@@ -3824,9 +3581,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
     int used_default = 0;
     while (completed < max_runs) {
         int batch = max_runs - completed;
-        if (batch > parallel) {
-            batch = parallel;
-        }
+        if (batch > parallel) batch = parallel;
 
         for (int i = 0; i < batch; i++) {
             ProteinSweepInfo info = {0};
@@ -3844,8 +3599,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
                     }
                     sample[j] = norm;
                 }
-                if (!sweep_sample_valid(ini, params, space, sample,
-                        err, sizeof(err))) {
+                if (!sweep_sample_valid(ini, params, space, sample, err, sizeof(err))) {
                     puf_die("default sweep sample is invalid: %s", err);
                 }
                 used_default = 1;
@@ -3853,11 +3607,9 @@ void run_sweep(Ini* ini, const char* exe_path) {
             } else {
                 for (;;) {
                     info = protein_sweep_suggest(protein, sample, NAN);
-                    if (sweep_sample_valid(ini, params, space, sample,
-                            err, sizeof(err))) {
+                    if (sweep_sample_valid(ini, params, space, sample, err, sizeof(err))) {
                         break;
                     }
-
                     protein_sweep_observe(protein, sample, NAN, max_cost, 1);
                     invalid_samples++;
                     if (invalid_samples <= 5 || invalid_samples % 100 == 0) {
@@ -3869,11 +3621,12 @@ void run_sweep(Ini* ini, const char* exe_path) {
                     }
                 }
             }
+            // Trial i owns GPU block [i*train_gpus, (i+1)*train_gpus).
             jobs[i] = sweep_start_job(ini, exe_path, params, space, sample,
-                info, job_run, i * train_gpus, apply_sample);
+                info, job_run, /*gpu_block_offset=*/i * train_gpus, apply_sample);
         }
         for (int i = 0; i < batch; i++) {
-            if (sweep_wait_job(protein, &jobs[i], league, league_state_path, max_cost)) {
+            if (sweep_wait_job(protein, &jobs[i], max_cost)) {
                 completed++;
             } else {
                 failed_workers++;
@@ -3885,10 +3638,6 @@ void run_sweep(Ini* ini, const char* exe_path) {
         }
     }
 
-    if (match_pid > 0) {
-        kill(match_pid, SIGTERM);
-        waitpid(match_pid, NULL, 0);
-    }
     free(jobs);
     free(sample);
     free(params);
@@ -3896,22 +3645,20 @@ void run_sweep(Ini* ini, const char* exe_path) {
     sweep_space_destroy(space);
 }
 
-float log_value(Dict* log, const char* key, float fallback) {
-    return (float)puf_log_get_or(log, key, fallback);
-}
-
+// Fill TrainResult for protein. single_point=1: only the final score (selfplay —
+// expensive pool eval is the only signal). single_point=0: downsample the
+// learning curve so protein can multi-fidelity observe intermediate points.
 void train_result_fill(TrainResult* result, PufLogHistory* history,
-        Dict* last_log, Ini* ini, const char* target_key) {
+        Dict* last_log, Ini* ini, const char* target_key, int single_point) {
     result->score = (float)puf_log_get_or(last_log, target_key, 0);
     result->cost = (float)puf_log_get_or(last_log, "uptime", 0);
     result->steps = (float)puf_log_get_or(last_log, "agent_steps", 0);
 
-    int points = puf_ini_get(ini, "sweep", "downsample");
-    if (points < 1) {
-        points = 1;
-    }
-    if (points > TRAIN_RESULT_MAX_POINTS) {
-        points = TRAIN_RESULT_MAX_POINTS;
+    int points = 1;
+    if (!single_point) {
+        points = (int)puf_ini_get(ini, "sweep", "downsample");
+        if (points < 1) points = 1;
+        if (points > TRAIN_RESULT_MAX_POINTS) points = TRAIN_RESULT_MAX_POINTS;
     }
     result->points = points;
 
@@ -3922,29 +3669,23 @@ void train_result_fill(TrainResult* result, PufLogHistory* history,
         return;
     }
 
-    float final_steps = log_value(&history->items[history->size - 1],
+    float final_steps = (float)puf_log_get_or(&history->items[history->size - 1],
         "agent_steps", result->steps);
     int cursor = 0;
     for (int p = 0; p < points; p++) {
         float target = final_steps * (float)p / (float)(points - 1);
         while (cursor + 1 < history->size &&
-                log_value(&history->items[cursor], "agent_steps", 0) < target) {
+                (float)puf_log_get_or(&history->items[cursor], "agent_steps", 0) < target) {
             cursor++;
         }
         Dict* log = &history->items[cursor];
-        result->scores[p] = log_value(log, target_key, result->score);
-        result->costs[p] = log_value(log, "uptime", result->cost);
-        result->step_points[p] = log_value(log, "agent_steps", target);
+        result->scores[p] = (float)puf_log_get_or(log, target_key, result->score);
+        result->costs[p] = (float)puf_log_get_or(log, "uptime", result->cost);
+        result->step_points[p] = (float)puf_log_get_or(log, "agent_steps", target);
     }
     result->scores[points - 1] = result->score;
     result->costs[points - 1] = result->cost;
     result->step_points[points - 1] = result->steps;
-}
-
-void puf_ini_put_pairs(Ini* ini, const char* const pairs[][2], int n) {
-    for (int i = 0; i < n; i++) {
-        puf_ini_put(ini, pairs[i][0], pairs[i][1]);
-    }
 }
 
 EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
@@ -3963,7 +3704,7 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
     if (!render) {
         long eval_agents = puf_ini_get(ini, "base", "eval_agents");
         if (!eval_agents && match) {
-            eval_agents = puf_ini_get(ini, "sweep", "league_match_eval_agents");
+            eval_agents = puf_ini_get(ini, "selfplay", "eval_agents");
         }
         if (eval_agents <= 0 && match) {
             eval_agents = 8192;
@@ -4010,7 +3751,7 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
     };
     puf_ini_put_pairs(ini, eval_common, 2);
 
-    PuffeRL* pufferl = create_trainer(ini, ctx);
+    PuffeRL* pufferl = create_pufferl(ini, ctx);
     if (match) {
         char a_path_buf[4096];
         char b_path_buf[4096];
@@ -4099,13 +3840,8 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
     if (!render && verbose) {
         printf("\n");
     }
-    close_trainer(pufferl);
+    close_pufferl(pufferl);
     return result;
-}
-
-void train_checkpoint_path(PuffeRL* p, const char* dir,
-        char* out, size_t out_size) {
-    snprintf(out, out_size, "%s/%016ld.bin", dir, p->global_step);
 }
 
 TrainResult run_train(Ini* ini, TrainContext* ctx) {
@@ -4140,11 +3876,11 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         mkdir_p(log_dir);
     }
 
-    PuffeRL* pufferl = create_trainer(ini, ctx);
+    PuffeRL* pufferl = create_pufferl(ini, ctx);
     char initial_checkpoint[4096] = {0};
     if (use_selfplay) {
-        train_checkpoint_path(pufferl, checkpoint_dir,
-            initial_checkpoint, sizeof(initial_checkpoint));
+        snprintf(initial_checkpoint, sizeof(initial_checkpoint),
+            "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
         if (ctx->artifact_owner) {
             puf_save_weights(pufferl, initial_checkpoint);
         }
@@ -4193,8 +3929,8 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         bool should_save = epoch < train_epochs && (interval_save || is_final);
         char saved_checkpoint[4096] = {0};
         if (should_save) {
-            train_checkpoint_path(pufferl, checkpoint_dir,
-                saved_checkpoint, sizeof(saved_checkpoint));
+            snprintf(saved_checkpoint, sizeof(saved_checkpoint),
+                "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
             if (ctx->artifact_owner) {
                 puf_save_weights(pufferl, saved_checkpoint);
                 snprintf(result.checkpoint_path, sizeof(result.checkpoint_path),
@@ -4243,7 +3979,26 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         }
     }
 
-    train_result_fill(&result, &log_history, &last_log, ini, target_key);
+    // Selfplay: single final observation only (pool eval or last train metric).
+    // Normal sweeps: downsampled learning curve for multi-fidelity protein.
+    train_result_fill(&result, &log_history, &last_log, ini, target_key,
+        /*single_point=*/use_selfplay);
+    close_pufferl(pufferl);
+
+    // Selfplay end rating: match final checkpoint vs a small fixed opponent pool.
+    // Mean A winrate is the sole protein score when eval_games > 0.
+    if (selfplay && result.checkpoint_path[0] && ctx->artifact_owner) {
+        float pool_score = selfplay_pool_eval(ini, ctx, selfplay, result.checkpoint_path);
+        if (isfinite(pool_score)) {
+            result.score = pool_score;
+            result.points = 1;
+            result.scores[0] = pool_score;
+            result.costs[0] = result.cost;
+            result.step_points[0] = result.steps;
+            dict_set(&last_log, "selfplay/pool_score", pool_score);
+        }
+    }
+
     if (ctx->artifact_owner) {
         puf_log_history_add(&log_history, &last_log);
         char log_path[4096];
@@ -4252,38 +4007,48 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     }
     puf_log_history_free(&log_history);
     free(selfplay);
-    close_trainer(pufferl);
     return result;
 }
 
-int gpu_for_rank(int rank, int world_size) {
-    if (rank == 0) {
-        return world_size - 1;
-    }
-    return rank - 1;
+// --- Train launch: one DP job on a GPU block ---
+//
+// Device map within a block of size world_size starting at gpu_offset:
+//   rank 0 (artifact owner) → offset + world_size - 1
+//   rank r (r>=1)           → offset + r - 1
+// Sweep packing only sets base.gpu_offset; launch_train always does the rest.
+// Nested multi-GPU trials are free: each sweep slot is a full train process
+// that may fork NCCL ranks inside its block (train.gpus > 1).
+
+static int train_gpu_id(int rank, int world_size, int gpu_offset) {
+    int local = (rank == 0) ? world_size - 1 : rank - 1;
+    return gpu_offset + local;
 }
 
-void wait_children(pid_t* pids, int num_pids) {
-    for (int i = 0; i < num_pids; i++) {
+static void wait_train_ranks(pid_t* pids, int n) {
+    for (int i = 0; i < n; i++) {
         int status = 0;
         if (waitpid(pids[i], &status, 0) < 0) {
-            fprintf(stderr, "waitpid failed for child %d: %s\n", (int)pids[i], strerror(errno));
+            fprintf(stderr, "waitpid failed for rank worker %d: %s\n",
+                (int)pids[i], strerror(errno));
             exit(1);
         }
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "worker pid %d failed\n", (int)pids[i]);
+            fprintf(stderr, "train rank worker pid %d failed\n", (int)pids[i]);
             exit(1);
         }
     }
 }
 
+// Sole multi-GPU DP launcher. Forks ranks 1..W-1 (before CUDA init), parent is
+// rank 0. Reads train.gpus and base.gpu_offset. Optionally writes TrainResult
+// to base.result_fd (sweep child).
 TrainResult launch_train(Ini* ini) {
-    int world_size = puf_ini_get(ini, "train", "gpus");
+    int world_size = (int)puf_ini_get(ini, "train", "gpus");
     if (world_size < 1) {
         fprintf(stderr, "config error: [train] gpus must be >= 1\n");
         exit(1);
     }
-    int gpu_offset = puf_ini_get(ini, "base", "gpu_offset");
+    int gpu_offset = (int)puf_ini_get(ini, "base", "gpu_offset");
 
     ncclUniqueId nccl_id;
     ncclUniqueId* nccl_ptr = NULL;
@@ -4292,44 +4057,58 @@ TrainResult launch_train(Ini* ini) {
         nccl_ptr = &nccl_id;
     }
 
-    pid_t* pids = (pid_t*)calloc(world_size > 1 ? world_size - 1 : 1, sizeof(pid_t));
-    for (int rank = world_size - 1; rank >= 1; rank--) {
-        pid_t pid = fork();
-        if (pid < 0) {
-            fprintf(stderr, "fork failed: %s\n", strerror(errno));
-            exit(1);
-        }
-
-        if (pid == 0) {
-            if (!freopen("/dev/null", "w", stdout)) {
-                fprintf(stderr, "failed to redirect child stdout: %s\n", strerror(errno));
+    pid_t* pids = NULL;
+    int n_workers = world_size - 1;
+    if (n_workers > 0) {
+        pids = (pid_t*)calloc((size_t)n_workers, sizeof(pid_t));
+        for (int rank = world_size - 1; rank >= 1; rank--) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                fprintf(stderr, "fork failed: %s\n", strerror(errno));
                 exit(1);
             }
-            TrainContext child = {
-                .rank = rank,
-                .world_size = world_size,
-                .gpu_id = gpu_offset + gpu_for_rank(rank, world_size),
-                .artifact_owner = 0,
-                .nccl_id = nccl_ptr,
-            };
-            run_train(ini, &child);
-            puf_ini_free(ini);
-            exit(0);
+            if (pid == 0) {
+                if (!freopen("/dev/null", "w", stdout)) {
+                    fprintf(stderr, "failed to silence rank worker stdout\n");
+                    exit(1);
+                }
+                TrainContext child = {
+                    .rank = rank,
+                    .world_size = world_size,
+                    .gpu_id = train_gpu_id(rank, world_size, gpu_offset),
+                    .artifact_owner = 0,
+                    .nccl_id = nccl_ptr,
+                };
+                run_train(ini, &child);
+                puf_ini_free(ini);
+                exit(0);
+            }
+            pids[rank - 1] = pid;
         }
-
-        pids[rank - 1] = pid;
     }
 
     TrainContext host = {
         .rank = 0,
         .world_size = world_size,
-        .gpu_id = gpu_offset + gpu_for_rank(0, world_size),
+        .gpu_id = train_gpu_id(0, world_size, gpu_offset),
         .artifact_owner = 1,
         .nccl_id = nccl_ptr,
     };
     TrainResult result = run_train(ini, &host);
-    wait_children(pids, world_size - 1);
-    free(pids);
+    if (n_workers > 0) {
+        wait_train_ranks(pids, n_workers);
+        free(pids);
+    }
+
+    // Sweep parent reads this over the pipe; CLI train ignores (result_fd=0).
+    int result_fd = (int)puf_ini_get(ini, "base", "result_fd");
+    if (result_fd > 0) {
+        if (write(result_fd, &result, sizeof(result)) != (ssize_t)sizeof(result)) {
+            fprintf(stderr, "failed to write train result\n");
+            exit(1);
+        }
+        close(result_fd);
+    }
     return result;
 }
 
@@ -4359,16 +4138,7 @@ int main(int argc, char** argv) {
     };
 
     if (strcmp(mode, "train") == 0) {
-        TrainResult result = launch_train(ini);
-        int result_fd = puf_ini_get(ini, "base", "result_fd");
-        if (result_fd) {
-            int fd = result_fd;
-            if (write(fd, &result, sizeof(result)) != sizeof(result)) {
-                fprintf(stderr, "failed to write train result\n");
-                exit(1);
-            }
-            close(fd);
-        }
+        launch_train(ini);
     } else if (strcmp(mode, "sweep") == 0) {
         run_sweep(ini, argv[0]);
     } else if (strcmp(mode, "eval") == 0 || strcmp(mode, "eval_bot") == 0) {
@@ -4387,12 +4157,6 @@ int main(int argc, char** argv) {
         run_eval(ini, &ctx, bot ? EVAL_SCORE : EVAL_RENDER, 1);
     } else if (strcmp(mode, "match") == 0) {
         run_eval(ini, &ctx, EVAL_MATCH, 1);
-    } else if (strcmp(mode, "league_match_worker") == 0) {
-        int gpu_offset = puf_ini_get(ini, "base", "gpu_offset");
-        if (gpu_offset) {
-            ctx.gpu_id = gpu_offset;
-        }
-        run_league_match_worker(ini, &ctx);
     } else {
         fprintf(stderr, "unknown mode: %s\n", mode);
         exit(1);

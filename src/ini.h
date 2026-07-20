@@ -402,6 +402,12 @@ static inline void puf_ini_put(Ini* ini, const char* full_key, const char* raw) 
     puf_ini_set(dict, key, raw);
 }
 
+static inline void puf_ini_put_pairs(Ini* ini, const char* const pairs[][2], int n) {
+    for (int i = 0; i < n; i++) {
+        puf_ini_put(ini, pairs[i][0], pairs[i][1]);
+    }
+}
+
 static inline void puf_ini_apply_arg(Ini* ini, const char* default_section,
         const char* arg, int idx) {
     char tmp[2048];
