@@ -1614,31 +1614,35 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
     TrainGraph& graph = pufferl.train_buf;
     cudaEventRecord(pufferl.profile.events[1], train_stream);  // pre-loop end
 
+    // Advantages + prio CDF depend only on the rollout, not the minibatch index.
+    // Compute once; each minibatch only re-samples indices from the fixed CDF.
+    cudaMemsetAsync(advantages_puf.data, 0,
+        numel(advantages_puf.shape) * sizeof(precision_t), train_stream);
+    profile_begin("compute_advantage", hypers.profile);
+    puff_advantage_cuda(rollouts.values, rollouts.rewards, rollouts.terminals,
+        rollouts.ratio, advantages_puf, hypers.gamma, hypers.gae_lambda,
+        hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream);
+    if (pufferl.num_frozen_banks > 0) {
+        int apb = hypers.total_agents / hypers.num_buffers;
+        int rows = advantages_puf.shape[0];
+        int horizon = advantages_puf.shape[1];
+        int total = rows * horizon;
+        zero_frozen_advantages_kernel<<<grid_size(total), BLOCK_SIZE, 0, train_stream>>>(
+            advantages_puf.data, apb, pufferl.vec->bank_layout[1], rows, horizon);
+    }
+    profile_end(hypers.profile);
+
+    profile_begin("compute_prio", hypers.profile);
+    prio_build_cdf_cuda(advantages_puf, prio_alpha, pufferl.prio_bufs, train_stream);
+    profile_end(hypers.profile);
+
+    long* train_rng_offset = pufferl.rng_offset_puf.data + hypers.num_buffers;
     int total_minibatches = hypers.replay_ratio * batch_size / hypers.minibatch_size;
     for (int mb = 0; mb < total_minibatches; ++mb) {
         cudaEventRecord(pufferl.profile.events[2], train_stream);  // start of misc (overwritten each iter)
-        cudaMemsetAsync(advantages_puf.data, 0,
-            numel(advantages_puf.shape) * sizeof(precision_t), train_stream);
-
-        profile_begin("compute_advantage", hypers.profile);
-        puff_advantage_cuda(rollouts.values, rollouts.rewards, rollouts.terminals,
-            rollouts.ratio, advantages_puf, hypers.gamma, hypers.gae_lambda,
-            hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream);
-        if (pufferl.num_frozen_banks > 0) {
-            int apb = hypers.total_agents / hypers.num_buffers;
-            int rows = advantages_puf.shape[0];
-            int horizon = advantages_puf.shape[1];
-            int total = rows * horizon;
-            zero_frozen_advantages_kernel<<<grid_size(total), BLOCK_SIZE, 0, train_stream>>>(
-                advantages_puf.data, apb, pufferl.vec->bank_layout[1], rows, horizon);
-        }
-        profile_end(hypers.profile);
 
         profile_begin("compute_prio", hypers.profile);
-        // Use the training RNG offset slot (last slot, index num_buffers)
-        long* train_rng_offset = pufferl.rng_offset_puf.data + hypers.num_buffers;
-        prio_replay_cuda(advantages_puf, prio_alpha, minibatch_segments,
-            hypers.total_agents, anneal_beta,
+        prio_sample_cuda(minibatch_segments, hypers.total_agents, anneal_beta,
             pufferl.prio_bufs, pufferl.seed, train_rng_offset, train_stream);
         profile_end(hypers.profile);
 

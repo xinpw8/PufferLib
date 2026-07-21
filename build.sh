@@ -264,7 +264,7 @@ if [ "$MODE" = "native" ]; then
     echo "Compiling native train/eval binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
-        -I$CUDA_HOME/include $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include -I$CUDA_HOME/include/cccl $NCCL_IFLAG -I$RAYLIB_NAME/include \
 	    "${ENV_COMPILE_FLAGS[@]}" \
 	    -DENV_NAME=$ENV \
 	    -DPUFFER_ENV_NAME=\"$ENV\" \
@@ -276,7 +276,7 @@ if [ "$MODE" = "native" ]; then
         "$RAYLIB_A" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
-        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
+        -lcudart -lnccl -lnvidia-ml -lcublas -lcublasLt -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
         -o puffer
     echo "Built: ./puffer"
@@ -285,7 +285,7 @@ elif [ "$MODE" = "profile" ]; then
     echo "Compiling profile binary ($ARCH)..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
-        -I$CUDA_HOME/include $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include -I$CUDA_HOME/include/cccl $NCCL_IFLAG -I$RAYLIB_NAME/include \
         "${ENV_COMPILE_FLAGS[@]}" \
         -DENV_NAME=$ENV \
 	    -DPUFFER_ENV_NAME=\"$ENV\" \

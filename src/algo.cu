@@ -1,6 +1,8 @@
 #ifndef PUFFERLIB_ALGO_CU
 #define PUFFERLIB_ALGO_CU
 
+#include <cub/block/block_scan.cuh>
+
 // --- GEMM (needs batch_size/ndim, CUBLAS_PRECISION* from pufferl) ---
 // Override with -D at build if needed; sweeps on 5090/bf16 found no win vs these defaults.
 #ifndef CUBLAS_WS_BYTES
@@ -442,42 +444,29 @@ __global__ void mingru_gate(precision_t* out, precision_t* next_state,
     out[idx] = from_float(proj_sigmoid * mingru_out + (1.0f - proj_sigmoid) * x);
 }
 
-// Prefix scan buffers
+// Prefix scan buffers.
+// Numerics: minGRU is h_t = (1-z_t)*h_{t-1} + z_t*h_tilde_t (same as mingru_gate).
+// h is O(1) and safe in bf16. Old log-space caches (a_star, s, log_values) needed
+// precise cancellation in exp(a_star+s); storing those in bf16 destroyed that and
+// NaN'd training. We cache only scan_h (precision_t) and recompute a,z from gates.
 struct PrefixScan {
     precision_t* combined_ptr = nullptr;
     precision_t* state_ptr = nullptr;
     precision_t* input_ptr = nullptr;  // (B, T, H) original input before projection (for highway gate)
     precision_t* terminals_ptr = nullptr;  // (B, T), resets state before timestep t when nonzero
     int B = 0, T = 0, H = 0;
-    FloatTensor a_star, s_vals, log_values_buf;
+    PrecisionTensor scan_h;  // (B, T+1, H) h_0..h_T, bf16-safe
     PrecisionTensor out, next_state;
     PrecisionTensor grad_combined, grad_state;
     PrecisionTensor grad_input;        // (B, T, H) highway gate gradient w.r.t. input
 };
 
-// Scan mode: 1 = dense cache every t, 0 = sparse checkpoint + register recompute.
-// Microbench H=64 (breakout), fwd+bwd us (./profile fusedscan-sweep --hidden 64):
-//   train B=mb/T:  T=32 B=2048 dense 114 / sparse 94  (sparse +17%)
-//                  T=256 B=256  dense 357 / sparse 400 (dense +12%)
-//                  T=1024 B=64 dense 1267 / sparse 1453 (dense +15%)
-//   fixed B=512:   dense wins all of T=32/256/1024
-// Default dense: better on mid/long T where scan is the bulk of GPU time
-// (e2e nsys: scan ~16% @T=32, ~38% @T=256, ~62% @T=1024). Rebuild with
-// -DMINGRU_SCAN_DENSE=0 for the high-B short-T sparse path.
-#ifndef MINGRU_SCAN_DENSE
-#define MINGRU_SCAN_DENSE 1
-#endif
-#ifndef CHECKPOINT_INTERVAL
-#define CHECKPOINT_INTERVAL 4
-#endif
-
-__global__ void mingru_scan_forward(PrefixScan scan) {
+// Sequential train scan: linear recurrence in f32, store h in precision_t.
+__global__ void mingru_scan_forward_seq(PrefixScan scan) {
     int T_seq = scan.T, H = scan.H, B = scan.B;
     precision_t* __restrict__ out = scan.out.data;
     precision_t* __restrict__ next_state = scan.next_state.data;
-    float* __restrict__ a_star_buf = scan.a_star.data;
-    float* __restrict__ s_buf = scan.s_vals.data;
-    float* __restrict__ log_values_buf = scan.log_values_buf.data;
+    precision_t* __restrict__ scan_h = scan.scan_h.data;
     const precision_t* __restrict__ combined = scan.combined_ptr;
     const precision_t* __restrict__ state = scan.state_ptr;
     const precision_t* __restrict__ input = scan.input_ptr;
@@ -498,72 +487,188 @@ __global__ void mingru_scan_forward(PrefixScan scan) {
     const int out_base = bHT + h;
     int cbase = 3 * bHT;
 
-    float a_star = 0.0f;
-    float log_value = 0.0f;
-
-    float state0 = to_float(state[bH + h]);
-    float s = (state0 > 0.0f) ? __logf(state0) : -INFINITY;
-    log_value = s;
-
-    int T_out = T_seq + 1;
-    int buf_base = b * T_out * H + h;
-    int buf_curr = buf_base;
-    a_star_buf[buf_curr] = a_star;
-    s_buf[buf_curr] = s;
-    log_values_buf[buf_curr] = log_value;
+    // h_0
+    float h_t = to_float(state[bH + h]);
+    int h_base = b * (T_seq + 1) * H + h;
+    scan_h[h_base] = from_float(h_t);
 
     const precision_t* __restrict__ combined_h_base = &combined[cbase + h];
     const precision_t* __restrict__ combined_g_base = &combined[cbase + H + h];
     const precision_t* __restrict__ combined_p_base = &combined[cbase + H2 + h];
 
-    float scan_result = 0.0f;
     int out_curr = out_base;
     int t_offset = 0;
+    int h_curr = h_base;
 
-    for (int t = 1; t <= T_seq; t++) {
-        if (terminals != nullptr && to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
-            a_star = 0.0f;
-            s = -INFINITY;
-            log_value = 0.0f;
+    for (int t = 0; t < T_seq; t++) {
+        // Reset before step t if terminal at t-1 (same timing as old log path).
+        if (t > 0 && terminals != nullptr &&
+                to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
+            h_t = 0.0f;
         }
 
         float hidden_val = to_float(__ldg(&combined_h_base[t_offset]));
         float gate_val = to_float(__ldg(&combined_g_base[t_offset]));
         float proj_val = to_float(__ldg(&combined_p_base[t_offset]));
-        float x_val = to_float(__ldg(&input[out_base + (t - 1) * H]));
+        float x_val = to_float(__ldg(&input[out_base + t * H]));
 
-        float log_coeff_val;
-        log_coeffs_and_values_fwd(gate_val, hidden_val, &log_coeff_val, &log_value);
-        a_star += log_coeff_val;
+        // h = (1-z)*h + z*h_tilde  (exact sigmoid; matches prior train log-space)
+        float z = sigmoid(gate_val);
+        float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
+        h_t = lerp(h_t, h_tilde, z);
 
-        float z = log_value - a_star;
-        s = logaddexp(s, z);
+        h_curr += H;
+        scan_h[h_curr] = from_float(h_t);
 
-        scan_result = __expf(a_star + s);
         float proj_sigmoid = sigmoid(proj_val);
-        out[out_curr] = from_float(proj_sigmoid * scan_result + (1.0f - proj_sigmoid) * x_val);
+        out[out_curr] = from_float(proj_sigmoid * h_t + (1.0f - proj_sigmoid) * x_val);
 
-        buf_curr += H;
         out_curr += H;
         t_offset += H3;
-
-#if MINGRU_SCAN_DENSE
-        a_star_buf[buf_curr] = a_star;
-        s_buf[buf_curr] = s;
-        log_values_buf[buf_curr] = log_value;
-#else
-        // Sparse: every INTERVAL, and always final t (T % INTERVAL != 0).
-        if ((t % CHECKPOINT_INTERVAL) == 0 || t == T_seq) {
-            a_star_buf[buf_curr] = a_star;
-            s_buf[buf_curr] = s;
-            log_values_buf[buf_curr] = log_value;
-        }
-#endif
     }
 
-    next_state[bH + h] = from_float(scan_result);
+    next_state[bH + h] = from_float(h_t);
 }
 
+// Affine pair for parallel linear scan: h |-> a*h + b with a=1-z, b=z*h_tilde.
+// Still materializes scan_h (bf16) for bwd — stacks with the new checkpoints.
+struct MingruAffine {
+    float a, b;
+};
+struct MingruAffineOp {
+    __device__ __forceinline__ MingruAffine operator()(
+            const MingruAffine& L, const MingruAffine& R) const {
+        return {R.a * L.a, R.a * L.b + R.b};
+    }
+};
+
+// One (b,h) sequence per block. No-terminal fast path via CUB; any reset → seq in-block.
+template <int BLOCK, int IPT>
+__global__ void mingru_scan_forward_par(PrefixScan scan) {
+    const int T_seq = scan.T, H = scan.H, B = scan.B;
+    const int seq = blockIdx.x;
+    if (seq >= B * H) {
+        return;
+    }
+    const int b = seq / H, h = seq % H;
+
+    precision_t* __restrict__ out = scan.out.data;
+    precision_t* __restrict__ next_state = scan.next_state.data;
+    precision_t* __restrict__ scan_h = scan.scan_h.data;
+    const precision_t* __restrict__ combined = scan.combined_ptr;
+    const precision_t* __restrict__ state = scan.state_ptr;
+    const precision_t* __restrict__ input = scan.input_ptr;
+    const precision_t* __restrict__ terminals = scan.terminals_ptr;
+
+    const int bH = b * H;
+    const int H3 = 3 * H;
+    const int H2 = 2 * H;
+    const int bHT = bH * T_seq;
+    const int out_base = bHT + h;
+    const int cbase = 3 * bHT;
+    const int h_base = b * (T_seq + 1) * H + h;
+
+    const precision_t* __restrict__ combined_h_base = &combined[cbase + h];
+    const precision_t* __restrict__ combined_g_base = &combined[cbase + H + h];
+    const precision_t* __restrict__ combined_p_base = &combined[cbase + H2 + h];
+
+    // Detect episode cuts — fall back to sequential (same as train seq kernel).
+    __shared__ int any_reset;
+    if (threadIdx.x == 0) {
+        any_reset = 0;
+    }
+    __syncthreads();
+    if (terminals != nullptr) {
+        for (int t = threadIdx.x; t < T_seq; t += blockDim.x) {
+            if (to_float(terminals[b * T_seq + t]) != 0.0f) {
+                any_reset = 1;
+            }
+        }
+    }
+    __syncthreads();
+
+    float h0 = to_float(state[bH + h]);
+    if (threadIdx.x == 0) {
+        scan_h[h_base] = from_float(h0);
+    }
+
+    if (any_reset) {
+        if (threadIdx.x == 0) {
+            float h_t = h0;
+            for (int t = 0; t < T_seq; t++) {
+                if (t > 0 && to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
+                    h_t = 0.0f;
+                }
+                float hidden_val = to_float(combined_h_base[t * H3]);
+                float gate_val = to_float(combined_g_base[t * H3]);
+                float proj_val = to_float(combined_p_base[t * H3]);
+                float x_val = to_float(input[out_base + t * H]);
+                float z = sigmoid(gate_val);
+                float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
+                h_t = lerp(h_t, h_tilde, z);
+                scan_h[h_base + (t + 1) * H] = from_float(h_t);
+                float ps = sigmoid(proj_val);
+                out[out_base + t * H] = from_float(ps * h_t + (1.0f - ps) * x_val);
+            }
+            next_state[bH + h] = from_float(h_t);
+        }
+        return;
+    }
+
+    // ---- No resets: CUB inclusive affine scan, then h_t = A*h0 + B ----
+    MingruAffine pairs[IPT];
+    float proj_s[IPT], x_v[IPT];
+    #pragma unroll
+    for (int i = 0; i < IPT; i++) {
+        int t0 = threadIdx.x * IPT + i;
+        if (t0 < T_seq) {
+            int t_offset = t0 * H3;
+            float hidden_val = to_float(__ldg(&combined_h_base[t_offset]));
+            float gate_val = to_float(__ldg(&combined_g_base[t_offset]));
+            float proj_val = to_float(__ldg(&combined_p_base[t_offset]));
+            x_v[i] = to_float(__ldg(&input[out_base + t0 * H]));
+            float z = sigmoid(gate_val);
+            float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
+            pairs[i] = {1.0f - z, z * h_tilde};  // a, b
+            proj_s[i] = sigmoid(proj_val);
+        } else {
+            pairs[i] = {1.0f, 0.0f};  // identity
+            proj_s[i] = 0.0f;
+            x_v[i] = 0.0f;
+        }
+    }
+
+    typedef cub::BlockScan<MingruAffine, BLOCK> BlockScanA;
+    __shared__ typename BlockScanA::TempStorage cub_ts;
+
+    MingruAffine excl[IPT], composed[IPT];
+    {
+        MingruAffine identity{1.0f, 0.0f};
+        BlockScanA(cub_ts).ExclusiveScan(pairs, excl, MingruAffineOp(), identity);
+    }
+    __syncthreads();
+    #pragma unroll
+    for (int i = 0; i < IPT; i++) {
+        composed[i] = MingruAffineOp()(excl[i], pairs[i]);
+    }
+
+    #pragma unroll
+    for (int i = 0; i < IPT; i++) {
+        int t0 = threadIdx.x * IPT + i;
+        if (t0 >= T_seq) {
+            continue;
+        }
+        float h_t = composed[i].a * h0 + composed[i].b;
+        scan_h[h_base + (t0 + 1) * H] = from_float(h_t);
+        float ps = proj_s[i];
+        out[out_base + t0 * H] = from_float(ps * h_t + (1.0f - ps) * x_v[i]);
+        if (t0 == T_seq - 1) {
+            next_state[bH + h] = from_float(h_t);
+        }
+    }
+}
+
+// Linear reverse scan. Cache is bf16 h only; a,z,h_tilde recomputed from gates in f32.
 __global__ void mingru_scan_backward(PrefixScan scan,
         const precision_t* __restrict__ grad_out,
         const precision_t* __restrict__ grad_next_state) {
@@ -572,12 +677,9 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     precision_t* __restrict__ grad_state = scan.grad_state.data;
     precision_t* __restrict__ grad_input = scan.grad_input.data;
     const precision_t* __restrict__ combined = scan.combined_ptr;
-    const precision_t* __restrict__ state = scan.state_ptr;
     const precision_t* __restrict__ input = scan.input_ptr;
     const precision_t* __restrict__ terminals = scan.terminals_ptr;
-    float* __restrict__ a_star_buf = scan.a_star.data;
-    float* __restrict__ s_buf = scan.s_vals.data;
-    float* __restrict__ log_values_buf = scan.log_values_buf.data;
+    const precision_t* __restrict__ scan_h = scan.scan_h.data;
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= B * H) {
@@ -593,6 +695,7 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     int H2 = 2 * H;
     const int state_idx = b * H + h;
     const int out_base = bHT + h;
+    const int h_base = b * (T_seq + 1) * H + h;
 
     const precision_t* __restrict__ combined_h_base = &combined[cbase + h];
     const precision_t* __restrict__ combined_g_base = &combined[cbase + H + h];
@@ -602,181 +705,98 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     precision_t* __restrict__ grad_combined_g_base = &grad_combined[cbase + H + h];
     precision_t* __restrict__ grad_combined_p_base = &grad_combined[cbase + H2 + h];
 
-    int T_out = T_seq + 1;
-    int buf_base = b * T_out * H + h;
+    // dh flowing into h_t from the future (and grad_next at t=T)
+    float dh = to_float(grad_next_state[state_idx]);
 
-    float acc = 0.0f;
-    float s_val_next = 0.0f;
-    float carry_grad_a = 0.0f;
-    bool acc_valid = false;
+    for (int t = T_seq; t >= 1; --t) {
+        int t0 = t - 1;  // 0-based step
+        int t_offset = t0 * H3;
+        int input_idx = out_base + t0 * H;
 
-#if MINGRU_SCAN_DENSE
-    for (int t = T_seq; t > 0; --t) {
-        int t_offset = (t - 1) * H3;
-        int buf_idx = buf_base + t * H;
+        float h_t = to_float(__ldg(&scan_h[h_base + t * H]));
+        float h_prev = to_float(__ldg(&scan_h[h_base + (t - 1) * H]));
 
-        float a_star_t = __ldg(&a_star_buf[buf_idx]);
-        float s_t = __ldg(&s_buf[buf_idx]);
-        float log_value_t = __ldg(&log_values_buf[buf_idx]);
         float hidden_val = to_float(__ldg(&combined_h_base[t_offset]));
         float gate_val = to_float(__ldg(&combined_g_base[t_offset]));
         float proj_val = to_float(__ldg(&combined_p_base[t_offset]));
-
-        int input_idx = out_base + (t - 1) * H;
         float x_val = to_float(__ldg(&input[input_idx]));
         float grad_out_val = to_float(__ldg(&grad_out[input_idx]));
 
-        float scan_result = __expf(a_star_t + s_t);
-        float z = log_value_t - a_star_t;
+        float z = sigmoid(gate_val);
+        float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
         float proj_sigmoid = sigmoid(proj_val);
 
-        float grad_scan_from_next = (t == T_seq) ? to_float(grad_next_state[state_idx]) : 0.0f;
-        float grad_scan_result = grad_scan_from_next + grad_out_val * proj_sigmoid;
-        float grad_proj = grad_out_val * (scan_result - x_val) * proj_sigmoid * (1.0f - proj_sigmoid);
+        // highway: out = s*h + (1-s)*x
+        float dh_from_out = grad_out_val * proj_sigmoid;
+        float grad_proj = grad_out_val * (h_t - x_val) * proj_sigmoid * (1.0f - proj_sigmoid);
         grad_input[input_idx] = from_float(grad_out_val * (1.0f - proj_sigmoid));
-
-        float grad_log_h = grad_scan_result * scan_result;
-        float grad_s = grad_log_h;
-
-        if (!acc_valid) {
-            acc = grad_s;
-        } else {
-            acc = grad_s + acc * __expf(s_t - s_val_next);
-        }
-        float grad_z = acc * __expf(z - s_t);
-        s_val_next = s_t;
-
-        float grad_a = grad_log_h + carry_grad_a - grad_z;
-        carry_grad_a = grad_a;
-
-        float grad_g, grad_h;
-        log_coeffs_and_values_bwd(grad_a, grad_z, gate_val, hidden_val, &grad_g, &grad_h);
-
-        grad_combined_h_base[t_offset] = from_float(grad_h);
-        grad_combined_g_base[t_offset] = from_float(grad_g);
         grad_combined_p_base[t_offset] = from_float(grad_proj);
 
-        acc_valid = true;
-        if (terminals != nullptr && to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
-            acc = 0.0f;
-            carry_grad_a = 0.0f;
-            s_val_next = 0.0f;
-            acc_valid = false;
+        float dh_total = dh + dh_from_out;
+
+        // h = (1-z)*h_prev + z*h_tilde
+        float d_h_prev = dh_total * (1.0f - z);
+        float d_h_tilde = dh_total * z;
+        float d_z = dh_total * (h_tilde - h_prev);
+
+        // z = sigmoid(gate)
+        float d_gate = d_z * z * (1.0f - z);
+        // h_tilde = hidden+0.5  or  sigmoid(hidden)
+        float d_hidden = (hidden_val >= 0.0f)
+            ? d_h_tilde
+            : d_h_tilde * h_tilde * (1.0f - h_tilde);
+
+        grad_combined_h_base[t_offset] = from_float(d_hidden);
+        grad_combined_g_base[t_offset] = from_float(d_gate);
+
+        // terminal before this step zeroed h_prev contribution into this step;
+        // after bwd through the step, cut gradient flow into pre-reset state.
+        dh = d_h_prev;
+        if (t0 > 0 && terminals != nullptr &&
+                to_float(terminals[b * T_seq + (t0 - 1)]) != 0.0f) {
+            dh = 0.0f;
         }
     }
-#else
-    // Sparse: recompute each checkpoint chunk into registers, then reverse bwd.
-    for (int chunk_end = T_seq; chunk_end > 0; ) {
-        int rem = chunk_end % CHECKPOINT_INTERVAL;
-        int span = (rem == 0) ? CHECKPOINT_INTERVAL : rem;
-        int chunk_start = chunk_end - span;
-        if (chunk_start < 0) {
-            chunk_start = 0;
-        }
-        int chunk_len = chunk_end - chunk_start;
 
-        float chunk_a_star[CHECKPOINT_INTERVAL];
-        float chunk_s[CHECKPOINT_INTERVAL];
-        float chunk_log_values[CHECKPOINT_INTERVAL];
-        float chunk_hidden[CHECKPOINT_INTERVAL];
-        float chunk_gate[CHECKPOINT_INTERVAL];
+    grad_state[state_idx] = from_float(dh);
+}
 
-        int ckpt_buf_idx = buf_base + chunk_start * H;
-        float recomp_a_star = __ldg(&a_star_buf[ckpt_buf_idx]);
-        float recomp_s = __ldg(&s_buf[ckpt_buf_idx]);
-        float recomp_log_value = __ldg(&log_values_buf[ckpt_buf_idx]);
-
-        for (int i = 0; i < chunk_len; ++i) {
-            int t = chunk_start + 1 + i;
-            int t_offset = (t - 1) * H3;
-            float hv = to_float(__ldg(&combined_h_base[t_offset]));
-            float gv = to_float(__ldg(&combined_g_base[t_offset]));
-
-            if (terminals != nullptr && to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
-                recomp_a_star = 0.0f;
-                recomp_s = -INFINITY;
-                recomp_log_value = 0.0f;
-            }
-
-            float lc;
-            log_coeffs_and_values_fwd(gv, hv, &lc, &recomp_log_value);
-            recomp_a_star += lc;
-            float z = recomp_log_value - recomp_a_star;
-            recomp_s = logaddexp(recomp_s, z);
-
-            chunk_a_star[i] = recomp_a_star;
-            chunk_s[i] = recomp_s;
-            chunk_log_values[i] = recomp_log_value;
-            chunk_hidden[i] = hv;
-            chunk_gate[i] = gv;
-        }
-
-        for (int i = chunk_len - 1; i >= 0; --i) {
-            int t = chunk_start + 1 + i;
-            int t_offset = (t - 1) * H3;
-
-            float a_star_t = chunk_a_star[i];
-            float s_t = chunk_s[i];
-            float log_value_t = chunk_log_values[i];
-            float hidden_val = chunk_hidden[i];
-            float gate_val = chunk_gate[i];
-
-            float proj_val = to_float(__ldg(&combined_p_base[t_offset]));
-            int input_idx = out_base + (t - 1) * H;
-            float x_val = to_float(__ldg(&input[input_idx]));
-            float grad_out_val = to_float(__ldg(&grad_out[input_idx]));
-
-            float scan_result = __expf(a_star_t + s_t);
-            float z = log_value_t - a_star_t;
-            float proj_sigmoid = sigmoid(proj_val);
-
-            float grad_scan_from_next = (t == T_seq) ? to_float(grad_next_state[state_idx]) : 0.0f;
-            float grad_scan_result = grad_scan_from_next + grad_out_val * proj_sigmoid;
-            float grad_proj = grad_out_val * (scan_result - x_val) * proj_sigmoid * (1.0f - proj_sigmoid);
-            grad_input[input_idx] = from_float(grad_out_val * (1.0f - proj_sigmoid));
-
-            float grad_log_h = grad_scan_result * scan_result;
-            float grad_s = grad_log_h;
-
-            if (!acc_valid) {
-                acc = grad_s;
-            } else {
-                acc = grad_s + acc * __expf(s_t - s_val_next);
-            }
-            float grad_z = acc * __expf(z - s_t);
-            s_val_next = s_t;
-
-            float grad_a = grad_log_h + carry_grad_a - grad_z;
-            carry_grad_a = grad_a;
-
-            float grad_g, grad_h;
-            log_coeffs_and_values_bwd(grad_a, grad_z, gate_val, hidden_val, &grad_g, &grad_h);
-
-            grad_combined_h_base[t_offset] = from_float(grad_h);
-            grad_combined_g_base[t_offset] = from_float(grad_g);
-            grad_combined_p_base[t_offset] = from_float(grad_proj);
-
-            acc_valid = true;
-            if (terminals != nullptr && to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
-                acc = 0.0f;
-                carry_grad_a = 0.0f;
-                s_val_next = 0.0f;
-                acc_valid = false;
-            }
-        }
-        chunk_end = chunk_start;
-    }
+// Parallel CUB affine scan (h=a*h+b). Same bf16 scan_h writes as seq — bwd unchanged.
+// Microbench fixed B*T=65536 H=64, terminals=null:
+//   par fwd ~flat 240–255µs (T≥128); seq ~linear; crossover ~T=768 (clear at 1024).
+// E2E: any terminal in a sequence → in-block seq fallback (mostly-idle blocks),
+// which is slower than the multi-thread seq grid — keep PARALLEL off until
+// segmented resets. Override: -DMINGRU_SCAN_PARALLEL=1 -DMINGRU_SCAN_PAR_MIN_T=768
+#ifndef MINGRU_SCAN_PARALLEL
+#define MINGRU_SCAN_PARALLEL 0
+#endif
+#ifndef MINGRU_SCAN_PAR_MIN_T
+#define MINGRU_SCAN_PAR_MIN_T 768
 #endif
 
-    float a_star_0 = __ldg(&a_star_buf[buf_base]);
-    float s_0 = __ldg(&s_buf[buf_base]);
-    float log_value_0 = __ldg(&log_values_buf[buf_base]);
-    float z_0 = log_value_0 - a_star_0;
-    acc = acc_valid ? acc * __expf(s_0 - s_val_next) : 0.0f;
-    float grad_z_0 = acc * __expf(z_0 - s_0);
-
-    float state_val = to_float(state[state_idx]);
-    grad_state[state_idx] = (state_val > 0.0f) ? from_float(grad_z_0 / state_val) : from_float(0.0f);
+static void mingru_scan_forward_launch(PrefixScan& scan, cudaStream_t stream) {
+    const int nseq = scan.B * scan.H;
+    const int T = scan.T;
+#if MINGRU_SCAN_PARALLEL
+    // One block per sequence; good when T is large and #seqs is modest.
+    // Fine-tuned by T only for now (B*H effect secondary at fixed mb).
+    if (T >= MINGRU_SCAN_PAR_MIN_T && T <= 2048) {
+        if (T <= 128) {
+            mingru_scan_forward_par<128, 1><<<nseq, 128, 0, stream>>>(scan);
+        } else if (T <= 256) {
+            mingru_scan_forward_par<256, 1><<<nseq, 256, 0, stream>>>(scan);
+        } else if (T <= 512) {
+            mingru_scan_forward_par<256, 2><<<nseq, 256, 0, stream>>>(scan);
+        } else if (T <= 1024) {
+            mingru_scan_forward_par<256, 4><<<nseq, 256, 0, stream>>>(scan);
+        } else {
+            mingru_scan_forward_par<256, 8><<<nseq, 256, 0, stream>>>(scan);
+        }
+        return;
+    }
+#endif
+    (void)T;
+    mingru_scan_forward_seq<<<grid_size(nseq), BLOCK_SIZE, 0, stream>>>(scan);
 }
 
 __global__ void sum_rows_to_precision_kernel(precision_t* __restrict__ dst,
@@ -1034,9 +1054,7 @@ void mingru_reg_train(void* w, void* activations, Allocator* acts, Allocator* gr
     for (int i = 0; i < m->num_layers; i++) {
         a->scan_bufs[i] = {
             .B = B, .T = TT, .H = H,
-            .a_star =           {.shape = {B, TT + 1, H}},
-            .s_vals =           {.shape = {B, TT + 1, H}},
-            .log_values_buf =   {.shape = {B, TT + 1, H}},
+            .scan_h =           {.shape = {B, TT + 1, H}},
             .out =              {.shape = {B, TT, H}},
             .next_state =       {.shape = {B, 1, H}},
             .grad_combined =    {.shape = {B, TT, 3 * H}},
@@ -1050,9 +1068,7 @@ void mingru_reg_train(void* w, void* activations, Allocator* acts, Allocator* gr
         alloc_register(acts,&a->combined_bufs[i]);
         alloc_register(acts,&a->scan_bufs[i].out);
         alloc_register(acts,&a->scan_bufs[i].next_state);
-        alloc_register(acts,&a->scan_bufs[i].a_star);
-        alloc_register(acts,&a->scan_bufs[i].s_vals);
-        alloc_register(acts,&a->scan_bufs[i].log_values_buf);
+        alloc_register(acts,&a->scan_bufs[i].scan_h);
         alloc_register(acts,&a->scan_bufs[i].grad_combined);
         alloc_register(acts,&a->scan_bufs[i].grad_state);
         alloc_register(acts,&a->scan_bufs[i].grad_input);
@@ -1127,7 +1143,7 @@ PrecisionTensor mingru_forward_train(void* w, PrecisionTensor x, PrecisionTensor
         a->scan_bufs[i].state_ptr = state_i.data;
         a->scan_bufs[i].input_ptr = a->saved_inputs[i].data;
         a->scan_bufs[i].terminals_ptr = terminals.data;
-        mingru_scan_forward<<<grid_size(B*m->hidden), BLOCK_SIZE, 0, stream>>>(a->scan_bufs[i]);
+        mingru_scan_forward_launch(a->scan_bufs[i], stream);
         x = a->scan_bufs[i].out;
     }
     return x;
@@ -1702,13 +1718,32 @@ __global__ void compute_prio_imp_weights(
     }
 }
 
+// Inclusive prefix sum of probs → cdf. Was <<<1,1>>> serial (B=8192 ≈ 100µs,
+// ~8% of train GPU). Single-block chunked scan is ~6µs on the same size.
 __global__ void build_cdf(
-    float* __restrict__ cdf, const float* __restrict__ probs, int B) {
-    if (blockIdx.x == 0 && threadIdx.x == 0) {
-        float cum = 0.0f;
-        for (int i = 0; i < B; i++) {
-            cum += probs[i];
-            cdf[i] = cum;
+        float* __restrict__ cdf, const float* __restrict__ probs, int B) {
+    typedef cub::BlockScan<float, PRIO_BLOCK_SIZE> BlockScan;
+    __shared__ typename BlockScan::TempStorage temp_storage;
+
+    const int tid = threadIdx.x;
+    // Contiguous chunk per thread so the second pass is sequential + coalesced.
+    const int chunk = (B + PRIO_BLOCK_SIZE - 1) / PRIO_BLOCK_SIZE;
+    const int start = tid * chunk;
+    const int end = min(start + chunk, B);
+
+    float run = 0.0f;
+    for (int i = start; i < end; i++) {
+        run += probs[i];
+        cdf[i] = run;
+    }
+    float my_total = (start < B) ? run : 0.0f;
+
+    float exclusive = 0.0f;
+    BlockScan(temp_storage).ExclusiveSum(my_total, exclusive);
+
+    if (exclusive != 0.0f) {
+        for (int i = start; i < end; i++) {
+            cdf[i] += exclusive;
         }
     }
 }
@@ -1745,18 +1780,23 @@ __global__ void multinomial_sample(int* __restrict__ out_idx, const float* __res
     out_idx[tid] = lo;
 }
 
-// Prioritize high absolute advantage trajectories. This is a form of implicit
-// curriculum learning; sweep-found alpha/beta values decide whether it matters.
-void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
-        int minibatch_segments, int total_agents, float anneal_beta,
-        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
+// Build per-trajectory prio probs + CDF from advantages. Independent of the
+// minibatch sample — call once per train_impl, not once per minibatch.
+void prio_build_cdf_cuda(PrecisionTensor& advantages, float prio_alpha,
+        PrioBuffers& bufs, cudaStream_t stream) {
     int B = advantages.shape[0];
     int T = advantages.shape[1];
     compute_prio_adv_reduction<<<B, PRIO_WARP_SIZE, 0, stream>>>(
         advantages.data, bufs.prio_probs.data, prio_alpha, T);
     compute_prio_normalize<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(
         bufs.prio_probs.data, B);
-    build_cdf<<<1, 1, 0, stream>>>(bufs.cdf.data, bufs.prio_probs.data, B);
+    build_cdf<<<1, PRIO_BLOCK_SIZE, 0, stream>>>(bufs.cdf.data, bufs.prio_probs.data, B);
+}
+
+// Draw a minibatch index set from a prebuilt CDF and importance weights.
+void prio_sample_cuda(int minibatch_segments, int total_agents, float anneal_beta,
+        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
+    int B = (int)bufs.cdf.shape[0];
     int threads = 256;
     int blocks = (minibatch_segments + threads - 1) / threads;
     multinomial_sample<<<blocks, threads, 0, stream>>>(
@@ -1767,6 +1807,17 @@ void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
     compute_prio_imp_weights<<<p3_blocks, PRIO_BLOCK_SIZE, 0, stream>>>(
         bufs.idx.data, bufs.prio_probs.data,
         bufs.mb_prio.data, total_agents, anneal_beta, minibatch_segments);
+}
+
+// Prioritize high absolute advantage trajectories. This is a form of implicit
+// curriculum learning; sweep-found alpha/beta values decide whether it matters.
+// Convenience wrapper: full rebuild + one sample (tests / one-shot callers).
+void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
+        int minibatch_segments, int total_agents, float anneal_beta,
+        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
+    prio_build_cdf_cuda(advantages, prio_alpha, bufs, stream);
+    prio_sample_cuda(minibatch_segments, total_agents, anneal_beta,
+        bufs, seed, offset_ptr, stream);
 }
 
 // TODO: test whether these finite/clamp guards improve continuous-control stability
