@@ -950,7 +950,7 @@ void forward_convlstm(ConvLSTM* net, float* observations, float* actions) {
     softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
 }
 
-// MinGRU: inference-only single-step recurrent layer (no parallel scan).
+// MinGRU: inference-only single-step recurrent layer.
 // Matches the fused gate + highway connection in models.cu mingru_gate kernel.
 // Each layer has a bias-free projection (hidden -> 3*hidden).
 // State layout: (num_layers, batch_size, hidden_size).

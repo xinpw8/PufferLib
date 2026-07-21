@@ -530,144 +530,6 @@ __global__ void mingru_scan_forward_seq(PrefixScan scan) {
     next_state[bH + h] = from_float(h_t);
 }
 
-// Affine pair for parallel linear scan: h |-> a*h + b with a=1-z, b=z*h_tilde.
-// Still materializes scan_h (bf16) for bwd — stacks with the new checkpoints.
-struct MingruAffine {
-    float a, b;
-};
-struct MingruAffineOp {
-    __device__ __forceinline__ MingruAffine operator()(
-            const MingruAffine& L, const MingruAffine& R) const {
-        return {R.a * L.a, R.a * L.b + R.b};
-    }
-};
-
-// One (b,h) sequence per block. No-terminal fast path via CUB; any reset → seq in-block.
-template <int BLOCK, int IPT>
-__global__ void mingru_scan_forward_par(PrefixScan scan) {
-    const int T_seq = scan.T, H = scan.H, B = scan.B;
-    const int seq = blockIdx.x;
-    if (seq >= B * H) {
-        return;
-    }
-    const int b = seq / H, h = seq % H;
-
-    precision_t* __restrict__ out = scan.out.data;
-    precision_t* __restrict__ next_state = scan.next_state.data;
-    precision_t* __restrict__ scan_h = scan.scan_h.data;
-    const precision_t* __restrict__ combined = scan.combined_ptr;
-    const precision_t* __restrict__ state = scan.state_ptr;
-    const precision_t* __restrict__ input = scan.input_ptr;
-    const precision_t* __restrict__ terminals = scan.terminals_ptr;
-
-    const int bH = b * H;
-    const int H3 = 3 * H;
-    const int H2 = 2 * H;
-    const int bHT = bH * T_seq;
-    const int out_base = bHT + h;
-    const int cbase = 3 * bHT;
-    const int h_base = b * (T_seq + 1) * H + h;
-
-    const precision_t* __restrict__ combined_h_base = &combined[cbase + h];
-    const precision_t* __restrict__ combined_g_base = &combined[cbase + H + h];
-    const precision_t* __restrict__ combined_p_base = &combined[cbase + H2 + h];
-
-    // Detect episode cuts — fall back to sequential (same as train seq kernel).
-    __shared__ int any_reset;
-    if (threadIdx.x == 0) {
-        any_reset = 0;
-    }
-    __syncthreads();
-    if (terminals != nullptr) {
-        for (int t = threadIdx.x; t < T_seq; t += blockDim.x) {
-            if (to_float(terminals[b * T_seq + t]) != 0.0f) {
-                any_reset = 1;
-            }
-        }
-    }
-    __syncthreads();
-
-    float h0 = to_float(state[bH + h]);
-    if (threadIdx.x == 0) {
-        scan_h[h_base] = from_float(h0);
-    }
-
-    if (any_reset) {
-        if (threadIdx.x == 0) {
-            float h_t = h0;
-            for (int t = 0; t < T_seq; t++) {
-                if (t > 0 && to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
-                    h_t = 0.0f;
-                }
-                float hidden_val = to_float(combined_h_base[t * H3]);
-                float gate_val = to_float(combined_g_base[t * H3]);
-                float proj_val = to_float(combined_p_base[t * H3]);
-                float x_val = to_float(input[out_base + t * H]);
-                float z = sigmoid(gate_val);
-                float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
-                h_t = lerp(h_t, h_tilde, z);
-                scan_h[h_base + (t + 1) * H] = from_float(h_t);
-                float ps = sigmoid(proj_val);
-                out[out_base + t * H] = from_float(ps * h_t + (1.0f - ps) * x_val);
-            }
-            next_state[bH + h] = from_float(h_t);
-        }
-        return;
-    }
-
-    // ---- No resets: CUB inclusive affine scan, then h_t = A*h0 + B ----
-    MingruAffine pairs[IPT];
-    float proj_s[IPT], x_v[IPT];
-    #pragma unroll
-    for (int i = 0; i < IPT; i++) {
-        int t0 = threadIdx.x * IPT + i;
-        if (t0 < T_seq) {
-            int t_offset = t0 * H3;
-            float hidden_val = to_float(__ldg(&combined_h_base[t_offset]));
-            float gate_val = to_float(__ldg(&combined_g_base[t_offset]));
-            float proj_val = to_float(__ldg(&combined_p_base[t_offset]));
-            x_v[i] = to_float(__ldg(&input[out_base + t0 * H]));
-            float z = sigmoid(gate_val);
-            float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
-            pairs[i] = {1.0f - z, z * h_tilde};  // a, b
-            proj_s[i] = sigmoid(proj_val);
-        } else {
-            pairs[i] = {1.0f, 0.0f};  // identity
-            proj_s[i] = 0.0f;
-            x_v[i] = 0.0f;
-        }
-    }
-
-    typedef cub::BlockScan<MingruAffine, BLOCK> BlockScanA;
-    __shared__ typename BlockScanA::TempStorage cub_ts;
-
-    MingruAffine excl[IPT], composed[IPT];
-    {
-        MingruAffine identity{1.0f, 0.0f};
-        BlockScanA(cub_ts).ExclusiveScan(pairs, excl, MingruAffineOp(), identity);
-    }
-    __syncthreads();
-    #pragma unroll
-    for (int i = 0; i < IPT; i++) {
-        composed[i] = MingruAffineOp()(excl[i], pairs[i]);
-    }
-
-    #pragma unroll
-    for (int i = 0; i < IPT; i++) {
-        int t0 = threadIdx.x * IPT + i;
-        if (t0 >= T_seq) {
-            continue;
-        }
-        float h_t = composed[i].a * h0 + composed[i].b;
-        scan_h[h_base + (t0 + 1) * H] = from_float(h_t);
-        float ps = proj_s[i];
-        out[out_base + t0 * H] = from_float(ps * h_t + (1.0f - ps) * x_v[i]);
-        if (t0 == T_seq - 1) {
-            next_state[bH + h] = from_float(h_t);
-        }
-    }
-}
-
 // Linear reverse scan. Cache is bf16 h only; a,z,h_tilde recomputed from gates in f32.
 __global__ void mingru_scan_backward(PrefixScan scan,
         const precision_t* __restrict__ grad_out,
@@ -762,44 +624,6 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     }
 
     grad_state[state_idx] = from_float(dh);
-}
-
-// Parallel CUB affine scan (h=a*h+b). Same bf16 scan_h writes as seq — bwd unchanged.
-// Microbench fixed B*T=65536 H=64, terminals=null:
-//   par fwd ~flat 240–255µs (T≥128); seq ~linear; crossover ~T=768 (clear at 1024).
-// E2E: any terminal in a sequence → in-block seq fallback (mostly-idle blocks),
-// which is slower than the multi-thread seq grid — keep PARALLEL off until
-// segmented resets. Override: -DMINGRU_SCAN_PARALLEL=1 -DMINGRU_SCAN_PAR_MIN_T=768
-#ifndef MINGRU_SCAN_PARALLEL
-#define MINGRU_SCAN_PARALLEL 0
-#endif
-#ifndef MINGRU_SCAN_PAR_MIN_T
-#define MINGRU_SCAN_PAR_MIN_T 768
-#endif
-
-static void mingru_scan_forward_launch(PrefixScan& scan, cudaStream_t stream) {
-    const int nseq = scan.B * scan.H;
-    const int T = scan.T;
-#if MINGRU_SCAN_PARALLEL
-    // One block per sequence; good when T is large and #seqs is modest.
-    // Fine-tuned by T only for now (B*H effect secondary at fixed mb).
-    if (T >= MINGRU_SCAN_PAR_MIN_T && T <= 2048) {
-        if (T <= 128) {
-            mingru_scan_forward_par<128, 1><<<nseq, 128, 0, stream>>>(scan);
-        } else if (T <= 256) {
-            mingru_scan_forward_par<256, 1><<<nseq, 256, 0, stream>>>(scan);
-        } else if (T <= 512) {
-            mingru_scan_forward_par<256, 2><<<nseq, 256, 0, stream>>>(scan);
-        } else if (T <= 1024) {
-            mingru_scan_forward_par<256, 4><<<nseq, 256, 0, stream>>>(scan);
-        } else {
-            mingru_scan_forward_par<256, 8><<<nseq, 256, 0, stream>>>(scan);
-        }
-        return;
-    }
-#endif
-    (void)T;
-    mingru_scan_forward_seq<<<grid_size(nseq), BLOCK_SIZE, 0, stream>>>(scan);
 }
 
 __global__ void sum_rows_to_precision_kernel(precision_t* __restrict__ dst,
@@ -1137,17 +961,17 @@ PrecisionTensor mingru_forward_train(void* w, PrecisionTensor x, PrecisionTensor
         PrecisionTensor terminals, void* activations, cudaStream_t stream) {
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
-    int B = x.shape[0];
     for (int i = 0; i < m->num_layers; i++) {
         puf_copy(&a->saved_inputs[i], &x, stream);
         PrecisionTensor state_i = mingru_state_layer(m, state, i);
         puf_mm(&x, &m->weights[i], &a->combined_bufs[i], stream);
-        a->scan_bufs[i].combined_ptr = a->combined_bufs[i].data;
-        a->scan_bufs[i].state_ptr = state_i.data;
-        a->scan_bufs[i].input_ptr = a->saved_inputs[i].data;
-        a->scan_bufs[i].terminals_ptr = terminals.data;
-        mingru_scan_forward_launch(a->scan_bufs[i], stream);
-        x = a->scan_bufs[i].out;
+        PrefixScan& scan = a->scan_bufs[i];
+        scan.combined_ptr = a->combined_bufs[i].data;
+        scan.state_ptr = state_i.data;
+        scan.input_ptr = a->saved_inputs[i].data;
+        scan.terminals_ptr = terminals.data;
+        mingru_scan_forward_seq<<<grid_size(scan.B * scan.H), BLOCK_SIZE, 0, stream>>>(scan);
+        x = scan.out;
     }
     return x;
 }
