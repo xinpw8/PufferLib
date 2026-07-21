@@ -3,6 +3,7 @@
 #include <cuda_bf16.h>
 #include <cuda_profiler_api.h>
 #include <cublas_v2.h>
+#include <cublasLt.h>
 #include <curand.h>
 #include <curand_kernel.h>
 #include <nccl.h>
@@ -1519,15 +1520,15 @@ float cosine_annealing(float lr_base, float lr_min, long t, long T) {
 }
 
 __global__ void fill_precision_kernel(precision_t* dst, precision_t val, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
+    for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n;
+            idx += blockDim.x * gridDim.x) {
         dst[idx] = val;
     }
 }
 
 __global__ void clamp_precision_kernel(precision_t* dst, float lo, float hi, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
+    for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < n;
+            idx += blockDim.x * gridDim.x) {
         float v = to_float(dst[idx]);
         dst[idx] = from_float(fminf(fmaxf(v, lo), hi));
     }
