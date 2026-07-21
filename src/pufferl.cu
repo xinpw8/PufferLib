@@ -3,7 +3,6 @@
 #include <cuda_bf16.h>
 #include <cuda_profiler_api.h>
 #include <cublas_v2.h>
-#include <cublasLt.h>
 #include <curand.h>
 #include <curand_kernel.h>
 #include <nccl.h>
@@ -192,8 +191,7 @@ __global__ void cast(unsigned char* dst,
     }
 }
 
-// Fuse rew+term (and optional act) float↔precision copies that are launch-bound
-// as separate tiny kernels (~0.8µs each, far above their DRAM SoL).
+// Fused rew+term cast (two tiny launches were launch-bound).
 __global__ void cast_rew_term(
         precision_t* __restrict__ rew_dst, const float* __restrict__ rew_src,
         precision_t* __restrict__ term_dst, const float* __restrict__ term_src,
@@ -799,9 +797,7 @@ static PrecisionTensor initial_states_slot(PrecisionTensor full, int slot) {
     return {.data = full.data + (long)slot * stride, .shape = {L, A, H}};
 }
 
-// One thread per agent (not per state element). Old grid was L*count*H ≈ 1M
-// threads for breakout, almost all early-out after a terminal check — pure
-// launch/occupancy waste vs DRAM SoL of ~1µs.
+// One thread per agent; zeros all layers/H when that agent is terminal.
 __global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor terminals,
         int state_start, int terminal_start, int count) {
     int rel = blockIdx.x * blockDim.x + threadIdx.x;
@@ -938,7 +934,6 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         }
 
         int state_start = (b == 0) ? bank_off : 0;
-        // One thread per agent (see kernel). Old grid used L*agents*H threads.
         zero_state_on_terminal<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
             *s_bank, env.terminals, state_start, sub_start, bank_size);
 
@@ -1464,14 +1459,12 @@ __global__ void zero_frozen_advantages_kernel(precision_t* advantages,
     }
 }
 
-// Cooperative row copy: threads of one block cover row_bytes for one (src_row → dst_row).
-// Vectorized int4 path when the row is 16-byte aligned (train rows usually are).
+// Cooperative row copy (int4 when 16-byte aligned).
 __device__ void copy_bytes(
         const char* src, char* dst,
         int src_row, int dst_row, int row_bytes) {
     const char* s = src + (int64_t)src_row * row_bytes;
     char* d = dst + (int64_t)dst_row * row_bytes;
-    // 16-byte vectorized bulk when both sides are aligned (always for our tensors).
     if (((uintptr_t)s & 15) == 0 && ((uintptr_t)d & 15) == 0 && row_bytes >= 16) {
         int n16 = row_bytes >> 4;
         const int4* __restrict__ s4 = reinterpret_cast<const int4*>(s);
@@ -1682,8 +1675,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
     TrainGraph& graph = pufferl.train_buf;
     cudaEventRecord(pufferl.profile.events[1], train_stream);  // pre-loop end
 
-    // Advantages + prio CDF depend only on the rollout, not the minibatch index.
-    // Compute once; each minibatch only re-samples indices from the fixed CDF.
+    // Advantage + prio CDF once per train; minibatches only re-sample indices.
     cudaMemsetAsync(advantages_puf.data, 0,
         numel(advantages_puf.shape) * sizeof(precision_t), train_stream);
     profile_begin("compute_advantage", hypers.profile);

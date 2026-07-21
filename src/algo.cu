@@ -4,7 +4,6 @@
 #include <cub/block/block_scan.cuh>
 
 // --- GEMM (needs batch_size/ndim, CUBLAS_PRECISION* from pufferl) ---
-// Override with -D at build if needed; sweeps on 5090/bf16 found no win vs these defaults.
 #ifndef CUBLAS_WS_BYTES
 #define CUBLAS_WS_BYTES (32 * 1024 * 1024)
 #endif
@@ -14,63 +13,30 @@
 #ifndef CUBLAS_GEMM_ALGO
 #define CUBLAS_GEMM_ALGO CUBLAS_GEMM_DEFAULT
 #endif
-// 0 = cublasGemmEx (default), 1 = cublasLtMatmul with heuristic cache
-#ifndef USE_CUBLASLT
-#define USE_CUBLASLT 0
-#endif
-// Overlap dW (mm_tn) and dX (mm_nn) GEMMs on a side stream during linear bwd.
-#ifndef OVERLAP_DW_DX
-#define OVERLAP_DW_DX 1
-#endif
 
 thread_local cublasHandle_t g_cublas_handle = nullptr;
 thread_local void* g_cublas_workspace = nullptr;
-#if OVERLAP_DW_DX
-// Separate handle + workspace so dW can run concurrent with dX on the main stream.
+// Side-stream dW (mm_tn) overlaps dX (mm_nn) on main during linear bwd.
 thread_local cublasHandle_t g_cublas_dw_handle = nullptr;
 thread_local void* g_cublas_dw_workspace = nullptr;
 thread_local cudaStream_t g_dw_stream = nullptr;
 thread_local cudaEvent_t g_dw_done = nullptr;
-#endif
-#if USE_CUBLASLT
-thread_local cublasLtHandle_t g_cublaslt_handle = nullptr;
 
-// Cache Lt descriptors + heuristic algo for repeated (M,N,K,op) shapes.
-struct CublasLtGemmKey {
-    int M, N, K;
-    cublasOperation_t op_a, op_b;
-};
-struct CublasLtGemmEntry {
-    CublasLtGemmKey key;
-    cublasLtMatmulDesc_t op_desc;
-    cublasLtMatrixLayout_t a_desc, b_desc, c_desc;
-    cublasLtMatmulAlgo_t algo;
-    bool valid;
-};
-static constexpr int CUBLASLT_CACHE_CAP = 64;
-thread_local CublasLtGemmEntry g_lt_cache[CUBLASLT_CACHE_CAP];
-thread_local int g_lt_cache_n = 0;
-#endif
-
-void cublas_init_handle() {
-    cublasCreate(&g_cublas_handle);
-    cudaMalloc(&g_cublas_workspace, (size_t)CUBLAS_WS_BYTES);
-    cublasSetWorkspace(g_cublas_handle, g_cublas_workspace, (size_t)CUBLAS_WS_BYTES);
-    cublasSetMathMode(g_cublas_handle, (cublasMath_t)CUBLAS_MATH_MODE);
-#if OVERLAP_DW_DX
-    cublasCreate(&g_cublas_dw_handle);
-    cudaMalloc(&g_cublas_dw_workspace, (size_t)CUBLAS_WS_BYTES);
-    cublasSetWorkspace(g_cublas_dw_handle, g_cublas_dw_workspace, (size_t)CUBLAS_WS_BYTES);
-    cublasSetMathMode(g_cublas_dw_handle, (cublasMath_t)CUBLAS_MATH_MODE);
-    cudaStreamCreateWithFlags(&g_dw_stream, cudaStreamNonBlocking);
-    cudaEventCreateWithFlags(&g_dw_done, cudaEventDisableTiming);
-#endif
-#if USE_CUBLASLT
-    cublasLtCreate(&g_cublaslt_handle);
-#endif
+static void cublas_init_one(cublasHandle_t* handle, void** workspace) {
+    cublasCreate(handle);
+    cudaMalloc(workspace, (size_t)CUBLAS_WS_BYTES);
+    cublasSetWorkspace(*handle, *workspace, (size_t)CUBLAS_WS_BYTES);
+    cublasSetMathMode(*handle, (cublasMath_t)CUBLAS_MATH_MODE);
 }
 
-// Issue GEMM on an explicit handle/stream (for concurrent dW/dX).
+void cublas_init_handle() {
+    cublas_init_one(&g_cublas_handle, &g_cublas_workspace);
+    cublas_init_one(&g_cublas_dw_handle, &g_cublas_dw_workspace);
+    cudaStreamCreateWithFlags(&g_dw_stream, cudaStreamNonBlocking);
+    cudaEventCreateWithFlags(&g_dw_done, cudaEventDisableTiming);
+}
+
+// Dense row-major GEMM on an explicit handle/stream: C = alpha * op_a(A) @ op_b(B) + beta * C
 static void cublasGemmExDenseOn(
         cublasHandle_t handle,
         cublasOperation_t op_a, cublasOperation_t op_b,
@@ -84,106 +50,11 @@ static void cublasGemmExDenseOn(
         C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, (cublasGemmAlgo_t)CUBLAS_GEMM_ALGO);
 }
 
-// Dense row-major GEMM: C(M,N) = alpha * op_a(A) @ op_b(B) + beta * C
-// Strides derived from M, N, K assuming tightly packed row-major storage.
 void cublasGemmExDense(
         cublasOperation_t op_a, cublasOperation_t op_b,
         int M, int N, int K, void* A, void* B, void* C,
         cudaStream_t stream, float alpha = 1.0f, float beta = 0.0f) {
-    int lda = (op_a == CUBLAS_OP_N) ? K : M;
-    int ldb = (op_b == CUBLAS_OP_N) ? N : K;
-
-#if USE_CUBLASLT
-    // Row-major via same column-major transpose trick as GemmEx:
-    // C_col(N,M) = op_b(B) @ op_a(A)  <=>  C_row(M,N) = op_a(A) @ op_b(B).
-    // Lt operand A = our B, Lt operand B = our A, m=N, n=M, k=K.
-    CublasLtGemmKey key = {M, N, K, op_a, op_b};
-    CublasLtGemmEntry* ent = nullptr;
-    for (int i = 0; i < g_lt_cache_n; i++) {
-        CublasLtGemmEntry* e = &g_lt_cache[i];
-        if (e->valid && e->key.M == key.M && e->key.N == key.N && e->key.K == key.K
-                && e->key.op_a == key.op_a && e->key.op_b == key.op_b) {
-            ent = e;
-            break;
-        }
-    }
-    if (!ent) {
-        if (g_lt_cache_n >= CUBLASLT_CACHE_CAP) {
-            // Fallback if cache full (shouldn't happen for our policy shapes).
-            cublasSetStream(g_cublas_handle, stream);
-            cublasGemmEx(g_cublas_handle, op_b, op_a, N, M, K, &alpha,
-                B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
-                C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION,
-                (cublasGemmAlgo_t)CUBLAS_GEMM_ALGO);
-            return;
-        }
-        ent = &g_lt_cache[g_lt_cache_n++];
-        ent->key = key;
-        ent->valid = false;
-
-        cublasLtMatmulDescCreate(&ent->op_desc, CUBLAS_COMPUTE_PRECISION, CUDA_R_32F);
-        cublasLtMatmulDescSetAttribute(ent->op_desc, CUBLASLT_MATMUL_DESC_TRANSA,
-            &op_b, sizeof(op_b));
-        cublasLtMatmulDescSetAttribute(ent->op_desc, CUBLASLT_MATMUL_DESC_TRANSB,
-            &op_a, sizeof(op_a));
-
-        // A_lt = B: rows/cols before TRANS are (N,K) if op_b=N else (K,N)
-        int a_rows = (op_b == CUBLAS_OP_N) ? N : K;
-        int a_cols = (op_b == CUBLAS_OP_N) ? K : N;
-        cublasLtMatrixLayoutCreate(&ent->a_desc, CUBLAS_PRECISION, a_rows, a_cols, ldb);
-        // B_lt = A
-        int b_rows = (op_a == CUBLAS_OP_N) ? K : M;
-        int b_cols = (op_a == CUBLAS_OP_N) ? M : K;
-        cublasLtMatrixLayoutCreate(&ent->b_desc, CUBLAS_PRECISION, b_rows, b_cols, lda);
-        cublasLtMatrixLayoutCreate(&ent->c_desc, CUBLAS_PRECISION, N, M, N);
-
-        cublasLtMatmulPreference_t pref;
-        cublasLtMatmulPreferenceCreate(&pref);
-        size_t ws = (size_t)CUBLAS_WS_BYTES;
-        cublasLtMatmulPreferenceSetAttribute(pref,
-            CUBLASLT_MATMUL_PREF_MAX_WORKSPACE_BYTES, &ws, sizeof(ws));
-        cublasLtMatmulHeuristicResult_t heur;
-        int returned = 0;
-        cublasStatus_t st = cublasLtMatmulAlgoGetHeuristic(
-            g_cublaslt_handle, ent->op_desc,
-            ent->a_desc, ent->b_desc, ent->c_desc, ent->c_desc,
-            pref, 1, &heur, &returned);
-        cublasLtMatmulPreferenceDestroy(pref);
-        if (st != CUBLAS_STATUS_SUCCESS || returned == 0) {
-            fprintf(stderr, "cublasLt heuristic failed st=%d returned=%d (M=%d N=%d K=%d)\n",
-                (int)st, returned, M, N, K);
-            // Destroy partial entry and fall back
-            cublasLtMatmulDescDestroy(ent->op_desc);
-            cublasLtMatrixLayoutDestroy(ent->a_desc);
-            cublasLtMatrixLayoutDestroy(ent->b_desc);
-            cublasLtMatrixLayoutDestroy(ent->c_desc);
-            g_lt_cache_n--;
-            cublasSetStream(g_cublas_handle, stream);
-            cublasGemmEx(g_cublas_handle, op_b, op_a, N, M, K, &alpha,
-                B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
-                C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION,
-                (cublasGemmAlgo_t)CUBLAS_GEMM_ALGO);
-            return;
-        }
-        ent->algo = heur.algo;
-        ent->valid = true;
-    }
-
-    cublasStatus_t st = cublasLtMatmul(
-        g_cublaslt_handle, ent->op_desc,
-        &alpha, B, ent->a_desc, A, ent->b_desc,
-        &beta, C, ent->c_desc, C, ent->c_desc,
-        &ent->algo, g_cublas_workspace, (size_t)CUBLAS_WS_BYTES, stream);
-    if (st != CUBLAS_STATUS_SUCCESS) {
-        fprintf(stderr, "cublasLtMatmul failed st=%d (M=%d N=%d K=%d)\n", (int)st, M, N, K);
-        abort();
-    }
-#else
-    cublasSetStream(g_cublas_handle, stream);
-    cublasGemmEx(g_cublas_handle, op_b, op_a, N, M, K, &alpha,
-        B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
-        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, (cublasGemmAlgo_t)CUBLAS_GEMM_ALGO);
-#endif
+    cublasGemmExDenseOn(g_cublas_handle, op_a, op_b, M, N, K, A, B, C, stream, alpha, beta);
 }
 
 // out(...,N) = a(...,K) @ b(N,K)^T  — leading dims folded into M
@@ -213,10 +84,8 @@ void puf_mm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cud
         a->data, b->data, out->data, stream);
 }
 
-#if OVERLAP_DW_DX
-// dW (mm_tn) on a side stream once main has produced grad. Overlaps with dX on main.
-// Per-layer wgrad buffers are disjoint, so multiple dWs can queue on g_dw_stream.
-// Call puf_dw_join(main) before anything that reads accumulated weight grads (muon).
+// dW on side stream after main has produced grad. Per-layer wgrad buffers are
+// disjoint so multiple dWs can queue. Join before muon reads weight grads.
 void puf_mm_tn_async_after(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
         cudaStream_t main_stream) {
     static thread_local cudaEvent_t main_ready = nullptr;
@@ -236,13 +105,6 @@ void puf_mm_tn_async_after(PrecisionTensor* a, PrecisionTensor* b, PrecisionTens
 void puf_dw_join(cudaStream_t consumer) {
     cudaStreamWaitEvent(consumer, g_dw_done, 0);
 }
-#else
-void puf_mm_tn_async_after(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
-        cudaStream_t main_stream) {
-    puf_mm_tn(a, b, out, main_stream);
-}
-void puf_dw_join(cudaStream_t consumer) { (void)consumer; }
-#endif
 
 // Weight init (needs cast, grid_size, numel/ndim from pufferl substrate).
 __global__ void uniform_scale_kernel(float* data, float bound, int n) {
@@ -271,45 +133,9 @@ void puf_kaiming_init(PrecisionTensor* dst, float gain, ulong seed, cudaStream_t
     cudaFree(buf);
 }
 
-// Numerically sensitive activation functions
-__device__ __forceinline__ float softplus_fwd(float x) {
-    return (x > 20.0f) ? x : log1pf(expf(x));
-}
-
-__device__ __forceinline__ float relu(float x) {
-    return fmaxf(0.0f, x);
-}
-
-__device__ __forceinline__ float relu_backward(float x, float grad_output) {
-    return (x > 0.0f) ? grad_output : 0.0f;
-}
-
 __device__ __forceinline__ float sigmoid(float x) {
     float z = expf(-fabsf(x));
     return x >= 0.0f ? 1.0f / (1.0f + z) : z / (1.0f + z);
-}
-
-__device__ __inline__ float fast_sigmoid(float x) {
-    // TODO: benchmark numeric/perf tradeoff against sigmoid() in MinGRU gates.
-    x *= 0.5f;
-    float v1 = fminf(fmaxf(x, -9.0f), 9.0f);
-    float v2 = v1 * v1;
-    float p = v2 * -2.76076847742355e-16f + 2.00018790482477e-13f;
-    p = v2 * p + -8.60467152213735e-11f;
-    p = v2 * p + 5.12229709037114e-08f;
-    p = v2 * p + 1.48572235717979e-05f;
-    p = v2 * p + 6.37261928875436e-04f;
-    p = v2 * p + 4.89352455891786e-03f;
-    p = v1 * p;
-    float q = v2 * 1.19825839466702e-06f + 1.18534705686654e-04f;
-    q = v2 * q + 2.26843463243900e-03f;
-    q = v2 * q + 4.89352518554385e-03f;
-    return fminf(1.0f, fmaxf(0.0f, (p / q + 1.0f) * 0.5f));
-}
-
-__device__ __forceinline__ float logaddexp(float a, float b) {
-    float m = fmaxf(a, b), diff = fminf(a, b) - m;
-    return (diff < -88.0f) ? m : m + log1pf(__expf(diff));
 }
 
 __device__ __forceinline__ float lerp(float a, float b, float w) {
@@ -391,26 +217,7 @@ struct EncoderActivations {
     PrecisionTensor out, saved_input, wgrad_scratch;
 };
 
-// The fused scan operation is the core of PufferNet. It parallelizes
-// training across the sequence dimension and scale to longer sequences
-__device__ __forceinline__ void log_coeffs_and_values_fwd(float gate, float hidden,
-        float* log_coeff_out, float* log_value_out) {
-    float abs_gate = fabsf(gate);
-    float sp_neg = log1pf(expf(-abs_gate));
-    float softplus_gate = (gate >= 0.0f) ? gate + sp_neg : sp_neg;
-    float softplus_neg_gate = (gate >= 0.0f) ? sp_neg : -gate + sp_neg;
-    *log_coeff_out = -softplus_gate;
-    float log_tilde_h = (hidden >= 0.0f) ? logf(hidden + 0.5f) : -softplus_fwd(-hidden);
-    *log_value_out = -softplus_neg_gate + log_tilde_h;
-}
-
-__device__ __forceinline__ void log_coeffs_and_values_bwd(float grad_log_coeffs, float grad_log_values,
-        float gate, float hidden, float* grad_gate_out, float* grad_hidden_out) {
-    float sig_gate = sigmoid(gate);
-    *grad_gate_out = -grad_log_coeffs * sig_gate + grad_log_values * (1.0f - sig_gate);
-    *grad_hidden_out = (hidden >= 0.0f) ? grad_log_values / (hidden + 0.5f) : grad_log_values * sigmoid(-hidden);
-}
-
+// Rollout MinGRU step: h = (1-z)*h + z*h_tilde, highway out = s*h + (1-s)*x.
 __global__ void mingru_gate(precision_t* out, precision_t* next_state,
         const precision_t* combined, const precision_t* state_in,
         const precision_t* x_in, int H, int B) {
@@ -423,7 +230,6 @@ __global__ void mingru_gate(precision_t* out, precision_t* next_state,
     int b = idx / H;
     int h = idx % H;
 
-    // combined = linear(x_in) = (B, H) -> (B, 3*H)
     int combined_base = b * 3 * H;
     float hidden = to_float(combined[combined_base + h]);
     float gate = to_float(combined[combined_base + H + h]);
@@ -431,37 +237,29 @@ __global__ void mingru_gate(precision_t* out, precision_t* next_state,
     float state = to_float(state_in[idx]);
     float x = to_float(x_in[idx]);
 
-    // mingru_gate computation
-    float gate_sigmoid = sigmoid(gate);
-    float hidden_tilde = (hidden >= 0.0f) ? hidden + 0.5f : fast_sigmoid(hidden);
-    float mingru_out = lerp(state, hidden_tilde, gate_sigmoid);
+    float z = sigmoid(gate);
+    float h_tilde = (hidden >= 0.0f) ? hidden + 0.5f : sigmoid(hidden);
+    float h_out = lerp(state, h_tilde, z);
+    next_state[idx] = from_float(h_out);
 
-    // next_state is mingru_out (for recurrence)
-    next_state[idx] = from_float(mingru_out);
-
-    // Highway connection: sigmoid(proj) * mingru_out + (1 - sigmoid(proj)) * x (highway gate)
-    float proj_sigmoid = sigmoid(proj);
-    out[idx] = from_float(proj_sigmoid * mingru_out + (1.0f - proj_sigmoid) * x);
+    float s = sigmoid(proj);
+    out[idx] = from_float(s * h_out + (1.0f - s) * x);
 }
 
-// Prefix scan buffers.
-// Numerics: minGRU is h_t = (1-z_t)*h_{t-1} + z_t*h_tilde_t (same as mingru_gate).
-// h is O(1) and safe in bf16. Old log-space caches (a_star, s, log_values) needed
-// precise cancellation in exp(a_star+s); storing those in bf16 destroyed that and
-// NaN'd training. We cache only scan_h (precision_t) and recompute a,z from gates.
+// Train scan buffers. Cache h in precision_t; recompute z/h_tilde from gates in bwd.
 struct PrefixScan {
     precision_t* combined_ptr = nullptr;
     precision_t* state_ptr = nullptr;
-    precision_t* input_ptr = nullptr;  // (B, T, H) original input before projection (for highway gate)
-    precision_t* terminals_ptr = nullptr;  // (B, T), resets state before timestep t when nonzero
+    precision_t* input_ptr = nullptr;  // (B, T, H) pre-projection input (highway)
+    precision_t* terminals_ptr = nullptr;  // (B, T), reset before step t if terminal[t-1]
     int B = 0, T = 0, H = 0;
-    PrecisionTensor scan_h;  // (B, T+1, H) h_0..h_T, bf16-safe
+    PrecisionTensor scan_h;  // (B, T+1, H) h_0..h_T
     PrecisionTensor out, next_state;
     PrecisionTensor grad_combined, grad_state;
-    PrecisionTensor grad_input;        // (B, T, H) highway gate gradient w.r.t. input
+    PrecisionTensor grad_input;
 };
 
-// Sequential train scan: linear recurrence in f32, store h in precision_t.
+// Train scan: linear recurrence in f32, store h in precision_t.
 __global__ void mingru_scan_forward_seq(PrefixScan scan) {
     int T_seq = scan.T, H = scan.H, B = scan.B;
     precision_t* __restrict__ out = scan.out.data;
