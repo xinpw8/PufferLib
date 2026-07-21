@@ -192,6 +192,19 @@ __global__ void cast(unsigned char* dst,
     }
 }
 
+// Fuse rew+term (and optional act) float↔precision copies that are launch-bound
+// as separate tiny kernels (~0.8µs each, far above their DRAM SoL).
+__global__ void cast_rew_term(
+        precision_t* __restrict__ rew_dst, const float* __restrict__ rew_src,
+        precision_t* __restrict__ term_dst, const float* __restrict__ term_src,
+        int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        rew_dst[idx] = from_float(rew_src[idx]);
+        term_dst[idx] = from_float(term_src[idx]);
+    }
+}
+
 struct AllocEntry {
     void** data_ptr;    // address of the tensor's data field
     int64_t* shape;     // pointer to the tensor's shape array
@@ -653,8 +666,39 @@ __global__ void sample_logits(
             actions[idx * num_atns + h] = stored_action_p;
             total_log_prob += log_prob;
         }
+    } else if (num_atns == 1 && action_mask == nullptr && act_sizes[0] <= 8) {
+        // Fast path: single discrete head, no mask (breakout A=3). Logits in
+        // regs, one curand — general path re-reads logits 2–3× via masked_logit.
+        int A = act_sizes[0];
+        float logit_reg[8];
+        float max_val = -INFINITY;
+        for (int a = 0; a < A; ++a) {
+            float l = to_float(logits[logits_base + a]);
+            if (isnan(l)) {
+                l = 0.0f;
+            }
+            logit_reg[a] = l;
+            max_val = fmaxf(max_val, l);
+        }
+        float sum_exp = 0.0f;
+        for (int a = 0; a < A; ++a) {
+            sum_exp += expf(logit_reg[a] - max_val);
+        }
+        float logsumexp = max_val + logf(sum_exp);
+        float rand_val = curand_uniform(&state);
+        float cumsum = 0.0f;
+        int sampled_action = A - 1;
+        for (int a = 0; a < A; ++a) {
+            cumsum += expf(logit_reg[a] - logsumexp);
+            if (rand_val < cumsum) {
+                sampled_action = a;
+                break;
+            }
+        }
+        actions[idx] = from_float((float)sampled_action);
+        total_log_prob = logit_reg[sampled_action] - logsumexp;
     } else {
-        // Discrete action sampling (original multinomial logic)
+        // Discrete action sampling (general multi-head / masked)
         int logits_offset = 0;  // offset within row for current action head
         int mask_base = (action_mask != nullptr) ? idx * mask_stride : 0;
 
@@ -755,25 +799,27 @@ static PrecisionTensor initial_states_slot(PrecisionTensor full, int slot) {
     return {.data = full.data + (long)slot * stride, .shape = {L, A, H}};
 }
 
+// One thread per agent (not per state element). Old grid was L*count*H ≈ 1M
+// threads for breakout, almost all early-out after a terminal check — pure
+// launch/occupancy waste vs DRAM SoL of ~1µs.
 __global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor terminals,
         int state_start, int terminal_start, int count) {
-    int L = state.shape[0];
-    int H = state.shape[2];
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = L * count * H;
-    if (idx >= total) {
+    int rel = blockIdx.x * blockDim.x + threadIdx.x;
+    if (rel >= count) {
         return;
     }
-
-    int h = idx % H;
-    int rel = (idx / H) % count;
     if (terminals.data[terminal_start + rel] == 0.0f) {
         return;
     }
-
-    int layer = idx / (count * H);
-    long state_idx = ((long)layer * state.shape[1] + state_start + rel) * H + h;
-    state.data[state_idx] = from_float(0.0f);
+    int L = state.shape[0];
+    int H = state.shape[2];
+    int agents_stride = state.shape[1];
+    for (int layer = 0; layer < L; layer++) {
+        long base = ((long)layer * agents_stride + state_start + rel) * H;
+        for (int h = 0; h < H; h++) {
+            state.data[base + h] = from_float(0.0f);
+        }
+    }
 }
 
 // Slice: select dim0 index t, then narrow dim0 from start for count.
@@ -823,18 +869,21 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     ObsTensor& obs_env = env.obs;
     int n = block_size * obs_env.shape[1];
     PrecisionTensor obs_dst = puf_slice(rollouts.observations, t, start, block_size);
-    // obs_t → precision_t (overloads: float or uchar src; float-mode cast is a cheap convert/no-op path)
+#ifdef OBS_MATCHES_PRECISION
+    // Env already wrote precision_t (e.g. breakout bf16) — D2D copy, no float cast.
+    cudaMemcpyAsync(obs_dst.data, obs_env.data + (long)start * obs_env.shape[1],
+        (size_t)n * sizeof(precision_t), cudaMemcpyDeviceToDevice, stream);
+#else
+    // obs_t → precision_t (float/uchar → bf16/float)
     cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
         obs_dst.data, obs_env.data + (long)start * obs_env.shape[1], n);
+#endif
 
     PrecisionTensor rew_dst = puf_slice(rollouts.rewards, t, start, block_size);
-    n = block_size;
-    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
-        rew_dst.data, env.rewards.data + start, n);
-
     PrecisionTensor term_dst = puf_slice(rollouts.terminals, t, start, block_size);
-    cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
-        term_dst.data, env.terminals.data + start, n);
+    cast_rew_term<<<grid_size(block_size), BLOCK_SIZE, 0, stream>>>(
+        rew_dst.data, env.rewards.data + start,
+        term_dst.data, env.terminals.data + start, block_size);
 
     // Copy action mask from env into rollout buffer (if env opted in)
     PrecisionTensor mask_slice = {};
@@ -889,11 +938,12 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         }
 
         int state_start = (b == 0) ? bank_off : 0;
-        int state_n = s_bank->shape[0] * bank_size * s_bank->shape[2];
-        zero_state_on_terminal<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
+        // One thread per agent (see kernel). Old grid used L*agents*H threads.
+        zero_state_on_terminal<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
             *s_bank, env.terminals, state_start, sub_start, bank_size);
 
         if (b == 0 && t == 0 && rollouts.initial_states.data != nullptr) {
+            int state_n = s_bank->shape[0] * bank_size * s_bank->shape[2];
             PrecisionTensor init_slot = initial_states_slot(
                 rollouts.initial_states, graph_slot);
             snapshot_initial_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
@@ -1415,13 +1465,27 @@ __global__ void zero_frozen_advantages_kernel(precision_t* advantages,
 }
 
 // Cooperative row copy: threads of one block cover row_bytes for one (src_row → dst_row).
+// Vectorized int4 path when the row is 16-byte aligned (train rows usually are).
 __device__ void copy_bytes(
         const char* src, char* dst,
         int src_row, int dst_row, int row_bytes) {
     const char* s = src + (int64_t)src_row * row_bytes;
     char* d = dst + (int64_t)dst_row * row_bytes;
-    for (int i = threadIdx.x; i < row_bytes; i += blockDim.x) {
-        d[i] = s[i];
+    // 16-byte vectorized bulk when both sides are aligned (always for our tensors).
+    if (((uintptr_t)s & 15) == 0 && ((uintptr_t)d & 15) == 0 && row_bytes >= 16) {
+        int n16 = row_bytes >> 4;
+        const int4* __restrict__ s4 = reinterpret_cast<const int4*>(s);
+        int4* __restrict__ d4 = reinterpret_cast<int4*>(d);
+        for (int i = threadIdx.x; i < n16; i += blockDim.x) {
+            d4[i] = s4[i];
+        }
+        for (int i = (n16 << 4) + threadIdx.x; i < row_bytes; i += blockDim.x) {
+            d[i] = s[i];
+        }
+    } else {
+        for (int i = threadIdx.x; i < row_bytes; i += blockDim.x) {
+            d[i] = s[i];
+        }
     }
 }
 
@@ -1454,7 +1518,11 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         precision_t adv = s_adv[i];
         d_values[i] = val;
         d_adv[i] = adv;
-        d_returns[i] = from_float(to_float(val) + to_float(adv));
+#ifndef PRECISION_FLOAT
+        d_returns[i] = __hadd(val, adv);
+#else
+        d_returns[i] = val + adv;
+#endif
     }
 
     if (threadIdx.x == 0) {

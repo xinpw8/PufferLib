@@ -9,7 +9,15 @@
 
 #define ACT_SIZES {3}
 typedef Env Breakout;
+// Native bf16 train (pufferl defines from_float + precision_t before including this
+// header): write obs as precision_t so the env→rollout path skips float cast.
+// Standalone CPU / float builds keep float obs_t.
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#define OBS_MATCHES_PRECISION 1
+#else
 typedef float obs_t;
+#endif
 
 #define NOOP 0
 #define LEFT 1

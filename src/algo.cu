@@ -705,15 +705,17 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     precision_t* __restrict__ grad_combined_g_base = &grad_combined[cbase + H + h];
     precision_t* __restrict__ grad_combined_p_base = &grad_combined[cbase + H2 + h];
 
-    // dh flowing into h_t from the future (and grad_next at t=T)
+    // dh flowing into h_t from the future (and grad_next at t=T).
+    // Carry h_t in a register while walking t backward so each scan_h element is
+    // loaded once (was twice: as h_t then as h_prev on the next iteration).
     float dh = to_float(grad_next_state[state_idx]);
+    float h_t = to_float(__ldg(&scan_h[h_base + T_seq * H]));
 
     for (int t = T_seq; t >= 1; --t) {
         int t0 = t - 1;  // 0-based step
         int t_offset = t0 * H3;
         int input_idx = out_base + t0 * H;
 
-        float h_t = to_float(__ldg(&scan_h[h_base + t * H]));
         float h_prev = to_float(__ldg(&scan_h[h_base + (t - 1) * H]));
 
         float hidden_val = to_float(__ldg(&combined_h_base[t_offset]));
@@ -756,6 +758,7 @@ __global__ void mingru_scan_backward(PrefixScan scan,
                 to_float(terminals[b * T_seq + (t0 - 1)]) != 0.0f) {
             dh = 0.0f;
         }
+        h_t = h_prev;
     }
 
     grad_state[state_idx] = from_float(dh);

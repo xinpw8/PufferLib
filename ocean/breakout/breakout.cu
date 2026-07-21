@@ -1,52 +1,65 @@
-// LLM gen crap. Just an unoptimized GPU breakout for testing this training path.
+// GPU Breakout: optimized port of the CPU env for massively parallel rollouts.
+//
+// Key opts vs naive AoS port:
+//   - Static config in __constant__ (shared by all envs; not duplicated per agent)
+//   - Dynamic state slimmed to ~92B (was ~1188B; brick float[256] was 1024B alone)
+//   - Brick alive/dead as bitset (4x uint32 for up to 128 bricks)
+//   - Step kernel: lane-0 physics in-place; 8 threads/env coalesced obs write
+//     (AoS obs[env*118+i] is 472B-strided from 1 thread — was ~80% of kernel time)
+//   - Cheap xorshift RNG (only needs a coin flip)
+//   - Early-out brick collision when ball is below the field
 #ifndef PUFFER_BREAKOUT_GPU_CU
 #define PUFFER_BREAKOUT_GPU_CU
 
 #define PUFFER_GPU_ENV_AVAILABLE 1
-#define BREAKOUT_GPU_MAX_BRICKS 256
+#define BREAKOUT_GPU_MAX_BRICKS 128
+#define BREAKOUT_GPU_BRICK_WORDS ((BREAKOUT_GPU_MAX_BRICKS + 31) / 32)
 #define BREAKOUT_GPU_PI 3.14159265358979323846f
+// Threads cooperating on one env's observation write (coalesced AoS stores).
+// 8 is enough to turn 472B-strided 1-thread stores into near-peak write BW.
+#define BREAKOUT_THREADS_PER_ENV 8
 
+// Immutable / shared-across-envs config. Copied once to constant memory.
+typedef struct GpuBreakoutConfig {
+    int width;
+    int height;
+    int brick_width;
+    int brick_height;
+    int brick_rows;
+    int brick_cols;
+    int num_bricks;
+    int ball_width;
+    int ball_height;
+    float paddle_height;
+    float paddle_speed;
+    float initial_paddle_width;
+    float initial_ball_speed;
+    float max_ball_speed;
+    int max_score;
+    int half_max_score;
+    int frameskip;
+    int continuous;
+} GpuBreakoutConfig;
+
+// Per-env dynamic state only. Log first for the parallel log reduction.
 typedef struct GpuBreakout {
     Log log;
-    int num_agents;
-    int tag;
-    int boundary_reached;
-    int score;
     float paddle_x;
     float paddle_y;
     float ball_x;
     float ball_y;
     float ball_vx;
     float ball_vy;
-    float brick_x[BREAKOUT_GPU_MAX_BRICKS];
-    float brick_y[BREAKOUT_GPU_MAX_BRICKS];
-    float brick_states[BREAKOUT_GPU_MAX_BRICKS];
-    int balls_fired;
-    float initial_paddle_width;
     float paddle_width;
-    float paddle_height;
-    float paddle_speed;
     float ball_speed;
-    float initial_ball_speed;
-    float max_ball_speed;
+    int score;
+    int balls_fired;
     int hits;
-    int width;
-    int height;
-    int num_bricks;
-    int brick_rows;
-    int brick_cols;
-    int ball_width;
-    int ball_height;
-    int brick_width;
-    int brick_height;
     int num_balls;
-    int max_score;
-    int half_max_score;
     int tick;
-    int frameskip;
-    unsigned char hit_brick;
-    int continuous;
     unsigned int rng;
+    // bit set = destroyed (was float 1.0); clear = alive (was float 0.0)
+    unsigned int brick_mask[BREAKOUT_GPU_BRICK_WORDS];
 } GpuBreakout;
 
 typedef struct GpuBreakoutCollisionInfo {
@@ -59,62 +72,109 @@ typedef struct GpuBreakoutCollisionInfo {
     int brick_index;
 } GpuBreakoutCollisionInfo;
 
-__host__ __device__ static inline void gpu_breakout_generate_brick_positions(GpuBreakout* env) {
-    env->half_max_score = 0;
-    for (int row = 0; row < env->brick_rows; row++) {
-        for (int col = 0; col < env->brick_cols; col++) {
-            int idx = row * env->brick_cols + col;
-            env->brick_x[idx] = col * env->brick_width;
-            env->brick_y[idx] = row * env->brick_height + Y_OFFSET;
-            env->half_max_score += 7 - 3 * (idx / env->brick_cols / 2);
-        }
-    }
-    env->max_score = 2 * env->half_max_score;
+__constant__ GpuBreakoutConfig d_bcfg;
+
+// ---- brick bitset helpers ----
+__device__ __host__ static inline int gpu_brick_alive(const unsigned int* mask, int i) {
+    return (mask[i >> 5] & (1u << (i & 31))) == 0u;
 }
 
-__device__ static inline unsigned int gpu_breakout_rand_r(unsigned int* seed) {
-    unsigned int next = *seed;
-    int result;
+__device__ __host__ static inline void gpu_brick_destroy(unsigned int* mask, int i) {
+    mask[i >> 5] |= (1u << (i & 31));
+}
 
-    next *= 1103515245U;
-    next += 12345U;
-    result = (unsigned int)(next / 65536U) % 2048U;
+__device__ __host__ static inline void gpu_brick_clear_all(unsigned int* mask) {
+    #pragma unroll
+    for (int w = 0; w < BREAKOUT_GPU_BRICK_WORDS; w++) {
+        mask[w] = 0u;
+    }
+}
 
-    next *= 1103515245U;
-    next += 12345U;
-    result <<= 10;
-    result ^= (unsigned int)(next / 65536U) % 1024U;
+__host__ static int gpu_breakout_compute_half_max_score(int brick_rows, int brick_cols) {
+    int half = 0;
+    for (int row = 0; row < brick_rows; row++) {
+        for (int col = 0; col < brick_cols; col++) {
+            int idx = row * brick_cols + col;
+            half += 7 - 3 * (idx / brick_cols / 2);
+        }
+    }
+    return half;
+}
 
-    next *= 1103515245U;
-    next += 12345U;
-    result <<= 10;
-    result ^= (unsigned int)(next / 65536U) % 1024U;
-
-    *seed = next;
-    return (unsigned int)result;
+// Cheap xorshift32 — only used for a coin flip on ball launch.
+__device__ static inline unsigned int gpu_breakout_xorshift(unsigned int* seed) {
+    unsigned int x = *seed;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *seed = x ? x : 0xA341316Cu; // never stick at 0
+    return *seed;
 }
 
 __device__ static inline void gpu_breakout_add_log(GpuBreakout* env) {
     env->log.episode_length += env->tick;
     env->log.episode_return += env->score;
     env->log.score += env->score;
-    env->log.perf += env->score / (float)env->max_score;
+    env->log.perf += env->score / (float)d_bcfg.max_score;
     env->log.n += 1.0f;
 }
 
-__device__ static inline void gpu_breakout_compute_observations(GpuBreakout* env, obs_t* obs) {
-    obs[0] = env->paddle_x / env->width;
-    obs[1] = env->paddle_y / env->height;
-    obs[2] = env->ball_x / env->width;
-    obs[3] = env->ball_y / env->height;
-    obs[4] = env->ball_vx / 512.0f;
-    obs[5] = env->ball_vy / 512.0f;
-    obs[6] = env->balls_fired / 5.0f;
-    obs[7] = env->score / 864.0f;
-    obs[8] = env->num_balls / 5.0f;
-    obs[9] = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH);
-    for (int i = 0; i < env->num_bricks; i++) {
-        obs[10 + i] = env->brick_states[i];
+// Store obs feature: float compute, then to obs_t (bf16 under native train).
+__device__ __forceinline__ void gpu_breakout_store_obs(obs_t* dst, float v) {
+#ifdef OBS_MATCHES_PRECISION
+    *dst = from_float(v);
+#else
+    *dst = v;
+#endif
+}
+
+// Single-thread obs write (reset path / fallback). Prefer coop variant in step.
+__device__ static inline void gpu_breakout_compute_observations(const GpuBreakout* env, obs_t* obs) {
+    const GpuBreakoutConfig* c = &d_bcfg;
+    gpu_breakout_store_obs(&obs[0], env->paddle_x / (float)c->width);
+    gpu_breakout_store_obs(&obs[1], env->paddle_y / (float)c->height);
+    gpu_breakout_store_obs(&obs[2], env->ball_x / (float)c->width);
+    gpu_breakout_store_obs(&obs[3], env->ball_y / (float)c->height);
+    gpu_breakout_store_obs(&obs[4], env->ball_vx / 512.0f);
+    gpu_breakout_store_obs(&obs[5], env->ball_vy / 512.0f);
+    gpu_breakout_store_obs(&obs[6], env->balls_fired / 5.0f);
+    gpu_breakout_store_obs(&obs[7], env->score / 864.0f);
+    gpu_breakout_store_obs(&obs[8], env->num_balls / 5.0f);
+    gpu_breakout_store_obs(&obs[9], env->paddle_width / (2.0f * HALF_PADDLE_WIDTH));
+
+    const unsigned int* mask = env->brick_mask;
+    int n = c->num_bricks;
+    for (int i = 0; i < n; i++) {
+        gpu_breakout_store_obs(&obs[10 + i], gpu_brick_alive(mask, i) ? 0.0f : 1.0f);
+    }
+}
+
+// Multi-lane coalesced obs write. `lane` in [0, nlanes). Adjacent lanes store
+// adjacent elements so a warp's stores hit contiguous 128B segments.
+__device__ static inline void gpu_breakout_compute_observations_coop(
+        const GpuBreakout* env, obs_t* obs, int lane, int nlanes) {
+    const GpuBreakoutConfig* c = &d_bcfg;
+    // 10 scalar features
+    if (lane < 10) {
+        float v;
+        switch (lane) {
+            case 0: v = env->paddle_x / (float)c->width; break;
+            case 1: v = env->paddle_y / (float)c->height; break;
+            case 2: v = env->ball_x / (float)c->width; break;
+            case 3: v = env->ball_y / (float)c->height; break;
+            case 4: v = env->ball_vx / 512.0f; break;
+            case 5: v = env->ball_vy / 512.0f; break;
+            case 6: v = env->balls_fired / 5.0f; break;
+            case 7: v = env->score / 864.0f; break;
+            case 8: v = env->num_balls / 5.0f; break;
+            default: v = env->paddle_width / (2.0f * HALF_PADDLE_WIDTH); break;
+        }
+        gpu_breakout_store_obs(&obs[lane], v);
+    }
+    const unsigned int* mask = env->brick_mask;
+    int n = c->num_bricks;
+    for (int i = lane; i < n; i += nlanes) {
+        gpu_breakout_store_obs(&obs[10 + i], gpu_brick_alive(mask, i) ? 0.0f : 1.0f);
     }
 }
 
@@ -158,39 +218,35 @@ __device__ static inline bool gpu_breakout_calc_hline_collision(float xw, float 
     return false;
 }
 
-__device__ static inline void gpu_breakout_calc_brick_collision(GpuBreakout* env, int idx,
+__device__ static inline void gpu_breakout_calc_brick_collision(
+        float brick_x, float brick_y, float bw, float bh,
+        float ball_x, float ball_y, float ball_vx, float ball_vy,
+        float ball_w, float ball_h, int idx,
         GpuBreakoutCollisionInfo* collision_info) {
     bool collision = false;
-    if (env->ball_vx > 0) {
-        if (gpu_breakout_calc_vline_collision(env->brick_x[idx], env->brick_y[idx], env->brick_height,
-                env->ball_x + env->ball_width, env->ball_y, env->ball_vx, env->ball_vy,
-                env->ball_height, collision_info)) {
-            collision = true;
-            collision_info->x -= env->ball_width;
-        }
-    }
 
-    if (env->ball_vx < 0) {
-        if (gpu_breakout_calc_vline_collision(env->brick_x[idx] + env->brick_width,
-                env->brick_y[idx], env->brick_height, env->ball_x, env->ball_y,
-                env->ball_vx, env->ball_vy, env->ball_height, collision_info)) {
+    if (ball_vx > 0.0f) {
+        if (gpu_breakout_calc_vline_collision(brick_x, brick_y, bh,
+                ball_x + ball_w, ball_y, ball_vx, ball_vy, ball_h, collision_info)) {
+            collision = true;
+            collision_info->x -= ball_w;
+        }
+    } else if (ball_vx < 0.0f) {
+        if (gpu_breakout_calc_vline_collision(brick_x + bw, brick_y, bh,
+                ball_x, ball_y, ball_vx, ball_vy, ball_h, collision_info)) {
             collision = true;
         }
     }
 
-    if (env->ball_vy > 0) {
-        if (gpu_breakout_calc_hline_collision(env->brick_x[idx], env->brick_y[idx], env->brick_width,
-                env->ball_x, env->ball_y + env->ball_height, env->ball_vx, env->ball_vy,
-                env->ball_width, collision_info)) {
+    if (ball_vy > 0.0f) {
+        if (gpu_breakout_calc_hline_collision(brick_x, brick_y, bw,
+                ball_x, ball_y + ball_h, ball_vx, ball_vy, ball_w, collision_info)) {
             collision = true;
-            collision_info->y -= env->ball_height;
+            collision_info->y -= ball_h;
         }
-    }
-
-    if (env->ball_vy < 0) {
-        if (gpu_breakout_calc_hline_collision(env->brick_x[idx], env->brick_y[idx] + env->brick_height,
-                env->brick_width, env->ball_x, env->ball_y, env->ball_vx, env->ball_vy,
-                env->ball_width, collision_info)) {
+    } else if (ball_vy < 0.0f) {
+        if (gpu_breakout_calc_hline_collision(brick_x, brick_y + bh, bw,
+                ball_x, ball_y, ball_vx, ball_vy, ball_w, collision_info)) {
             collision = true;
         }
     }
@@ -199,56 +255,61 @@ __device__ static inline void gpu_breakout_calc_brick_collision(GpuBreakout* env
     }
 }
 
-__device__ static inline int gpu_breakout_column_index(GpuBreakout* env, float x) {
-    return (int)(x / env->brick_width);
-}
-
-__device__ static inline int gpu_breakout_row_index(GpuBreakout* env, float y) {
-    return (int)((y - Y_OFFSET) / env->brick_height);
-}
-
 __device__ static inline void gpu_breakout_calc_all_brick_collisions(GpuBreakout* env,
         GpuBreakoutCollisionInfo* collision_info) {
+    const GpuBreakoutConfig* c = &d_bcfg;
     float ball_x = env->ball_x;
-    float ball_x_dst = ball_x + env->ball_vx;
+    float ball_vx = env->ball_vx;
     float ball_y = env->ball_y;
-    float ball_y_dst = ball_y + env->ball_vy;
-    float ball_width = env->ball_width;
-    float ball_height = env->ball_height;
+    float ball_vy = env->ball_vy;
+    float ball_w = (float)c->ball_width;
+    float ball_h = (float)c->ball_height;
+    float ball_x_dst = ball_x + ball_vx;
+    float ball_y_dst = ball_y + ball_vy;
+    int bw = c->brick_width;
+    int bh = c->brick_height;
+    int rows = c->brick_rows;
+    int cols = c->brick_cols;
 
-    int row_from = gpu_breakout_row_index(env, ball_y < ball_y_dst ? ball_y : ball_y_dst);
-    if (row_from < 0) {
-        row_from = 0;
-    }
-
-    if (row_from > env->brick_rows) {
+    // Early-out: ball fully below the brick field and moving down can't hit bricks.
+    float brick_bottom = (float)(Y_OFFSET + rows * bh);
+    float ball_top = fminf(ball_y, ball_y_dst);
+    if (ball_top >= brick_bottom) {
         return;
     }
 
-    int column_from = gpu_breakout_column_index(env, ball_x < ball_x_dst ? ball_x : ball_x_dst);
-    if (column_from < 0) {
-        column_from = 0;
-    }
+    int row_from = (int)((fminf(ball_y, ball_y_dst) - Y_OFFSET) / (float)bh);
+    if (row_from < 0) row_from = 0;
+    if (row_from >= rows) return;
 
-    float ball_x_end = ball_x + ball_width;
-    float ball_x_dst_end = ball_x_dst + ball_width;
-    int column_to = gpu_breakout_column_index(env, ball_x_dst_end > ball_x_end ? ball_x_dst_end : ball_x_end);
-    if (column_to >= env->brick_cols) {
-        column_to = env->brick_cols - 1;
-    }
+    int column_from = (int)(fminf(ball_x, ball_x_dst) / (float)bw);
+    if (column_from < 0) column_from = 0;
 
-    float ball_y_end = ball_y + ball_height;
-    float ball_y_dst_end = ball_y_dst + ball_height;
-    int row_to = gpu_breakout_row_index(env, ball_y_dst_end > ball_y_end ? ball_y_dst_end : ball_y_end);
-    if (row_to >= env->brick_rows) {
-        row_to = env->brick_rows - 1;
-    }
+    float ball_x_end = ball_x + ball_w;
+    float ball_x_dst_end = ball_x_dst + ball_w;
+    int column_to = (int)(fmaxf(ball_x_end, ball_x_dst_end) / (float)bw);
+    if (column_to >= cols) column_to = cols - 1;
+
+    float ball_y_end = ball_y + ball_h;
+    float ball_y_dst_end = ball_y_dst + ball_h;
+    int row_to = (int)((fmaxf(ball_y_end, ball_y_dst_end) - Y_OFFSET) / (float)bh);
+    if (row_to >= rows) row_to = rows - 1;
+
+    const unsigned int* mask = env->brick_mask;
+    float bwf = (float)bw;
+    float bhf = (float)bh;
 
     for (int row = row_from; row <= row_to; row++) {
+        float brick_y = (float)(row * bh + Y_OFFSET);
+        int row_base = row * cols;
         for (int column = column_from; column <= column_to; column++) {
-            int brick_index = row * env->brick_cols + column;
-            if (env->brick_states[brick_index] == 0.0f) {
-                gpu_breakout_calc_brick_collision(env, brick_index, collision_info);
+            int brick_index = row_base + column;
+            if (gpu_brick_alive(mask, brick_index)) {
+                float brick_x = (float)(column * bw);
+                gpu_breakout_calc_brick_collision(
+                    brick_x, brick_y, bwf, bhf,
+                    ball_x, ball_y, ball_vx, ball_vy, ball_w, ball_h,
+                    brick_index, collision_info);
             }
         }
     }
@@ -256,87 +317,97 @@ __device__ static inline void gpu_breakout_calc_all_brick_collisions(GpuBreakout
 
 __device__ static inline bool gpu_breakout_calc_paddle_ball_collisions(GpuBreakout* env,
         GpuBreakoutCollisionInfo* collision_info) {
+    const GpuBreakoutConfig* c = &d_bcfg;
     float base_angle = BREAKOUT_GPU_PI / 4.0f;
+    float ball_h = (float)c->ball_height;
+    float ball_w = (float)c->ball_width;
 
-    if (env->ball_y + env->ball_height + env->ball_vy < env->paddle_y) {
+    if (env->ball_y + ball_h + env->ball_vy < env->paddle_y) {
         return false;
     }
 
     if (!gpu_breakout_calc_hline_collision(env->paddle_x, env->paddle_y, env->paddle_width,
-            env->ball_x, env->ball_y + env->ball_height, env->ball_vx, env->ball_vy,
-            env->ball_width, collision_info) || collision_info->t > 1.0f) {
+            env->ball_x, env->ball_y + ball_h, env->ball_vx, env->ball_vy,
+            ball_w, collision_info) || collision_info->t > 1.0f) {
         return false;
     }
 
-    collision_info->y -= env->ball_height;
+    collision_info->y -= ball_h;
     collision_info->brick_index = BRICK_INDEX_PADDLE_COLLISION;
 
-    env->hit_brick = false;
-    float relative_intersection = ((env->ball_x + env->ball_width / 2) - env->paddle_x) / env->paddle_width;
+    float relative_intersection =
+        ((env->ball_x + ball_w * 0.5f) - env->paddle_x) / env->paddle_width;
     float angle = -base_angle + relative_intersection * 2.0f * base_angle;
-    env->ball_vx = sinf(angle) * env->ball_speed * TICK_RATE;
-    env->ball_vy = -cosf(angle) * env->ball_speed * TICK_RATE;
+    float speed_tick = env->ball_speed * TICK_RATE;
+    env->ball_vx = sinf(angle) * speed_tick;
+    env->ball_vy = -cosf(angle) * speed_tick;
     env->hits += 1;
-    if (env->hits % 4 == 0 && env->ball_speed < env->max_ball_speed) {
+    if (env->hits % 4 == 0 && env->ball_speed < c->max_ball_speed) {
         env->ball_speed += 64;
     }
-    if (env->score == env->half_max_score) {
-        for (int i = 0; i < env->num_bricks; i++) {
-            env->brick_states[i] = 0.0f;
-        }
+    if (env->score == c->half_max_score) {
+        gpu_brick_clear_all(env->brick_mask);
     }
     return true;
 }
 
 __device__ static inline void gpu_breakout_calc_all_wall_collisions(GpuBreakout* env,
         GpuBreakoutCollisionInfo* collision_info) {
-    if (env->ball_vx < 0) {
-        if (gpu_breakout_calc_vline_collision(0, 0, env->height,
-                env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_height,
-                collision_info)) {
+    const GpuBreakoutConfig* c = &d_bcfg;
+    float ball_x = env->ball_x;
+    float ball_y = env->ball_y;
+    float ball_vx = env->ball_vx;
+    float ball_vy = env->ball_vy;
+    float ball_w = (float)c->ball_width;
+    float ball_h = (float)c->ball_height;
+    float width = (float)c->width;
+    float height = (float)c->height;
+
+    if (ball_vx < 0.0f) {
+        if (gpu_breakout_calc_vline_collision(0.0f, 0.0f, height,
+                ball_x, ball_y, ball_vx, ball_vy, ball_h, collision_info)) {
+            collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
+        }
+    } else if (ball_vx > 0.0f) {
+        if (gpu_breakout_calc_vline_collision(width, 0.0f, height,
+                ball_x + ball_w, ball_y, ball_vx, ball_vy, ball_h, collision_info)) {
+            collision_info->x -= ball_w;
             collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
         }
     }
-    if (env->ball_vx > 0) {
-        if (gpu_breakout_calc_vline_collision(env->width, 0, env->height,
-                env->ball_x + env->ball_width, env->ball_y, env->ball_vx, env->ball_vy,
-                env->ball_height, collision_info)) {
-            collision_info->x -= env->ball_width;
-            collision_info->brick_index = BRICK_INDEX_SIDEWALL_COLLISION;
-        }
-    }
-    if (env->ball_vy < 0) {
-        if (gpu_breakout_calc_hline_collision(0, 0, env->width,
-                env->ball_x, env->ball_y, env->ball_vx, env->ball_vy, env->ball_width,
-                collision_info)) {
+    if (ball_vy < 0.0f) {
+        if (gpu_breakout_calc_hline_collision(0.0f, 0.0f, width,
+                ball_x, ball_y, ball_vx, ball_vy, ball_w, collision_info)) {
             collision_info->brick_index = BRICK_INDEX_BACKWALL_COLLISION;
         }
     }
 }
 
 __device__ static inline void gpu_breakout_check_wall_bounds(GpuBreakout* env) {
-    float offset = env->max_ball_speed * 1.1f * TICK_RATE;
-    if (env->ball_x < 0) {
+    float offset = d_bcfg.max_ball_speed * 1.1f * TICK_RATE;
+    float width = (float)d_bcfg.width;
+    if (env->ball_x < 0.0f) {
         env->ball_x += offset;
     }
-    if (env->ball_x > env->width) {
+    if (env->ball_x > width) {
         env->ball_x -= offset;
     }
-    if (env->ball_y < 0) {
+    if (env->ball_y < 0.0f) {
         env->ball_y += offset;
     }
 }
 
 __device__ static inline void gpu_breakout_destroy_brick(GpuBreakout* env, int brick_idx,
         float* reward) {
-    float gained_points = 7 - 3 * ((brick_idx / env->brick_cols) / 2);
+    const GpuBreakoutConfig* c = &d_bcfg;
+    float gained_points = 7 - 3 * ((brick_idx / c->brick_cols) / 2);
 
-    env->score += gained_points;
-    env->brick_states[brick_idx] = 1.0f;
+    env->score += (int)gained_points;
+    gpu_brick_destroy(env->brick_mask, brick_idx);
     *reward += gained_points;
 
-    if (brick_idx / env->brick_cols < 3) {
-        env->ball_speed = env->max_ball_speed;
+    if (brick_idx / c->brick_cols < 3) {
+        env->ball_speed = c->max_ball_speed;
     }
 }
 
@@ -372,17 +443,17 @@ __device__ static inline bool gpu_breakout_handle_collisions(GpuBreakout* env, f
 }
 
 __device__ static inline void gpu_breakout_reset_round(GpuBreakout* env) {
+    const GpuBreakoutConfig* c = &d_bcfg;
     env->balls_fired = 0;
-    env->hit_brick = false;
     env->hits = 0;
-    env->ball_speed = env->initial_ball_speed;
-    env->paddle_width = env->initial_paddle_width;
+    env->ball_speed = c->initial_ball_speed;
+    env->paddle_width = c->initial_paddle_width;
 
-    env->paddle_x = env->width / 2.0f - env->paddle_width / 2.0f;
-    env->paddle_y = env->height - env->paddle_height - 10;
+    env->paddle_x = c->width / 2.0f - env->paddle_width / 2.0f;
+    env->paddle_y = c->height - c->paddle_height - 10;
 
-    env->ball_x = env->paddle_x + (env->paddle_width / 2.0f - env->ball_width / 2.0f);
-    env->ball_y = env->height / 2.0f - 30;
+    env->ball_x = env->paddle_x + (env->paddle_width / 2.0f - c->ball_width / 2.0f);
+    env->ball_y = c->height / 2.0f - 30;
 
     env->ball_vx = 0.0f;
     env->ball_vy = 0.0f;
@@ -391,23 +462,23 @@ __device__ static inline void gpu_breakout_reset_round(GpuBreakout* env) {
 __device__ static inline void gpu_breakout_reset_state(GpuBreakout* env) {
     env->score = 0;
     env->num_balls = 5;
-    for (int i = 0; i < env->num_bricks; i++) {
-        env->brick_states[i] = 0.0f;
-    }
+    gpu_brick_clear_all(env->brick_mask);
     gpu_breakout_reset_round(env);
     env->tick = 0;
 }
 
 __device__ static inline void gpu_breakout_step_frame(GpuBreakout* env, float action,
         float* reward, float* terminal) {
+    const GpuBreakoutConfig* c = &d_bcfg;
     float act = 0.0f;
     if (env->balls_fired == 0) {
         env->balls_fired = 1;
         float direction = BREAKOUT_GPU_PI / 3.25f;
+        float speed_tick = env->ball_speed * TICK_RATE;
 
-        env->ball_vy = cosf(direction) * env->ball_speed * TICK_RATE;
-        env->ball_vx = sinf(direction) * env->ball_speed * TICK_RATE;
-        if (gpu_breakout_rand_r(&env->rng) % 2 == 0) {
+        env->ball_vy = cosf(direction) * speed_tick;
+        env->ball_vx = sinf(direction) * speed_tick;
+        if ((gpu_breakout_xorshift(&env->rng) & 1u) == 0u) {
             env->ball_vx = -env->ball_vx;
         }
     } else if (action == LEFT) {
@@ -415,26 +486,22 @@ __device__ static inline void gpu_breakout_step_frame(GpuBreakout* env, float ac
     } else if (action == RIGHT) {
         act = 1.0f;
     }
-    if (env->continuous) {
+    if (c->continuous) {
         act = action;
     }
-    env->paddle_x += act * env->paddle_speed * TICK_RATE;
-    if (env->paddle_x <= 0) {
-        env->paddle_x = fmaxf(0, env->paddle_x);
-    } else {
-        env->paddle_x = fminf(env->width - env->paddle_width, env->paddle_x);
-    }
+    env->paddle_x = fminf((float)c->width - env->paddle_width,
+        fmaxf(0.0f, env->paddle_x + act * c->paddle_speed * TICK_RATE));
 
     if (!gpu_breakout_handle_collisions(env, reward)) {
         env->ball_x += env->ball_vx;
         env->ball_y += env->ball_vy;
     }
 
-    if (env->ball_y >= env->paddle_y + env->paddle_height) {
+    if (env->ball_y >= env->paddle_y + c->paddle_height) {
         env->num_balls -= 1;
         gpu_breakout_reset_round(env);
     }
-    if (env->num_balls < 0 || env->score == env->max_score) {
+    if (env->num_balls < 0 || env->score == c->max_score) {
         *terminal = 1.0f;
         gpu_breakout_add_log(env);
         gpu_breakout_reset_state(env);
@@ -443,47 +510,71 @@ __device__ static inline void gpu_breakout_step_frame(GpuBreakout* env, float ac
 
 __global__ void gpu_breakout_reset_kernel(GpuBreakout* envs, obs_t* observations,
         float* rewards, float* terminals, int num_envs) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= num_envs) {
-        return;
+    // BREAKOUT_THREADS_PER_ENV threads per env (coalesced obs).
+    // No early-return before __syncwarp — partial warps would deadlock.
+    int thr = blockIdx.x * blockDim.x + threadIdx.x;
+    int rel = thr / BREAKOUT_THREADS_PER_ENV;
+    int lane = thr - rel * BREAKOUT_THREADS_PER_ENV;
+    int active = rel < num_envs;
+
+    if (active && lane == 0) {
+        gpu_breakout_reset_state(&envs[rel]);
+        rewards[rel] = 0.0f;
+        terminals[rel] = 0.0f;
     }
-    gpu_breakout_reset_state(&envs[idx]);
-    rewards[idx] = 0.0f;
-    terminals[idx] = 0.0f;
-    gpu_breakout_compute_observations(&envs[idx], observations + (long)idx * OBS_SIZE);
+    __syncwarp();
+    if (active) {
+        gpu_breakout_compute_observations_coop(
+            &envs[rel], observations + (long)rel * OBS_SIZE, lane, BREAKOUT_THREADS_PER_ENV);
+    }
 }
 
-__global__ void gpu_breakout_step_kernel(GpuBreakout* envs, const float* actions,
-        obs_t* observations, float* rewards, float* terminals, int start, int count) {
-    int rel = blockIdx.x * blockDim.x + threadIdx.x;
-    if (rel >= count) {
-        return;
-    }
+// Lane 0: in-place physics for frameskip frames (no full-struct local copy / stack).
+// All lanes: coalesced AoS obs write (1-thread AoS was ~80% of kernel time on 5090).
+__global__ void gpu_breakout_step_kernel(GpuBreakout* __restrict__ envs,
+        const float* __restrict__ actions, obs_t* __restrict__ observations,
+        float* __restrict__ rewards, float* __restrict__ terminals, int start, int count) {
+    // No early-return before __syncwarp — partial warps would deadlock.
+    int thr = blockIdx.x * blockDim.x + threadIdx.x;
+    int rel = thr / BREAKOUT_THREADS_PER_ENV;
+    int lane = thr - rel * BREAKOUT_THREADS_PER_ENV;
+    int active = rel < count;
     int idx = start + rel;
-    GpuBreakout* env = &envs[idx];
-    rewards[idx] = 0.0f;
-    terminals[idx] = 0.0f;
 
-    float action = actions[(long)idx * NUM_ATNS];
-    for (int i = 0; i < env->frameskip; i++) {
-        env->tick += 1;
-        gpu_breakout_step_frame(env, action, &rewards[idx], &terminals[idx]);
+    if (active && lane == 0) {
+        GpuBreakout* env = &envs[idx];
+        float reward = 0.0f;
+        float terminal = 0.0f;
+        float action = actions[(long)idx * NUM_ATNS];
+        int frameskip = d_bcfg.frameskip;
+        for (int i = 0; i < frameskip; i++) {
+            env->tick += 1;
+            gpu_breakout_step_frame(env, action, &reward, &terminal);
+        }
+        rewards[idx] = reward;
+        terminals[idx] = terminal;
     }
-
-    gpu_breakout_compute_observations(env, observations + (long)idx * OBS_SIZE);
+    // Reconv + visibility: other lanes must see lane-0's stores before reading state.
+    __syncwarp();
+    if (active) {
+        gpu_breakout_compute_observations_coop(
+            &envs[idx], observations + (long)idx * OBS_SIZE, lane, BREAKOUT_THREADS_PER_ENV);
+    }
 }
 
-__global__ void gpu_breakout_log_kernel(GpuBreakout* envs, float* out, int num_envs, int clear) {
-    if (blockIdx.x != 0 || threadIdx.x != 0) {
-        return;
-    }
+// Parallel reduction over env logs (was a single-thread serial loop — multi-ms).
+__global__ void gpu_breakout_log_kernel(GpuBreakout* __restrict__ envs, float* __restrict__ out,
+        int num_envs, int clear) {
+    __shared__ float sh[5][256];
+    int tid = threadIdx.x;
+    float local[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
-    float aggregate[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    for (int i = 0; i < num_envs; i++) {
+    for (int i = tid; i < num_envs; i += blockDim.x) {
         float* env_log = (float*)&envs[i].log;
         if (envs[i].log.n != 0.0f) {
+            #pragma unroll
             for (int j = 0; j < 5; j++) {
-                aggregate[j] += env_log[j];
+                local[j] += env_log[j];
             }
         }
         if (clear) {
@@ -494,71 +585,102 @@ __global__ void gpu_breakout_log_kernel(GpuBreakout* envs, float* out, int num_e
             envs[i].log.n = 0.0f;
         }
     }
+
+    #pragma unroll
     for (int j = 0; j < 5; j++) {
-        out[j] = aggregate[j];
+        sh[j][tid] = local[j];
+    }
+    __syncthreads();
+
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) {
+            #pragma unroll
+            for (int j = 0; j < 5; j++) {
+                sh[j][tid] += sh[j][tid + stride];
+            }
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        #pragma unroll
+        for (int j = 0; j < 5; j++) {
+            out[j] = sh[j][0];
+        }
     }
 }
 
-static void gpu_breakout_host_init(GpuBreakout* env, Dict* kwargs, int idx) {
-    memset(env, 0, sizeof(GpuBreakout));
-    env->num_agents = 1;
-    env->frameskip = dict_get(kwargs, "frameskip");
-    env->width = dict_get(kwargs, "width");
-    env->height = dict_get(kwargs, "height");
-    env->initial_paddle_width = dict_get(kwargs, "paddle_width");
-    env->paddle_height = dict_get(kwargs, "paddle_height");
-    env->ball_width = dict_get(kwargs, "ball_width");
-    env->ball_height = dict_get(kwargs, "ball_height");
-    env->brick_width = dict_get(kwargs, "brick_width");
-    env->brick_height = dict_get(kwargs, "brick_height");
-    env->brick_rows = dict_get(kwargs, "brick_rows");
-    env->brick_cols = dict_get(kwargs, "brick_cols");
-    env->initial_ball_speed = dict_get(kwargs, "initial_ball_speed");
-    env->max_ball_speed = dict_get(kwargs, "max_ball_speed");
-    env->paddle_speed = dict_get(kwargs, "paddle_speed");
-    env->continuous = dict_get(kwargs, "continuous");
-    env->rng = (unsigned int)idx;
-    env->num_bricks = env->brick_rows * env->brick_cols;
-    if (env->num_bricks <= 0 || env->num_bricks > BREAKOUT_GPU_MAX_BRICKS || env->num_bricks > OBS_SIZE - 10) {
+static void gpu_breakout_host_fill_config(GpuBreakoutConfig* cfg, Dict* kwargs) {
+    memset(cfg, 0, sizeof(*cfg));
+    cfg->frameskip = dict_get(kwargs, "frameskip");
+    cfg->width = dict_get(kwargs, "width");
+    cfg->height = dict_get(kwargs, "height");
+    cfg->initial_paddle_width = dict_get(kwargs, "paddle_width");
+    cfg->paddle_height = dict_get(kwargs, "paddle_height");
+    cfg->ball_width = dict_get(kwargs, "ball_width");
+    cfg->ball_height = dict_get(kwargs, "ball_height");
+    cfg->brick_width = dict_get(kwargs, "brick_width");
+    cfg->brick_height = dict_get(kwargs, "brick_height");
+    cfg->brick_rows = dict_get(kwargs, "brick_rows");
+    cfg->brick_cols = dict_get(kwargs, "brick_cols");
+    cfg->initial_ball_speed = dict_get(kwargs, "initial_ball_speed");
+    cfg->max_ball_speed = dict_get(kwargs, "max_ball_speed");
+    cfg->paddle_speed = dict_get(kwargs, "paddle_speed");
+    cfg->continuous = dict_get(kwargs, "continuous");
+    cfg->num_bricks = cfg->brick_rows * cfg->brick_cols;
+    if (cfg->num_bricks <= 0 || cfg->num_bricks > BREAKOUT_GPU_MAX_BRICKS ||
+            cfg->num_bricks > OBS_SIZE - 10) {
         fprintf(stderr, "Breakout GPU env supports 1..%d bricks and OBS_SIZE-10 slots; got %d\n",
-            BREAKOUT_GPU_MAX_BRICKS, env->num_bricks);
+            BREAKOUT_GPU_MAX_BRICKS, cfg->num_bricks);
         exit(1);
     }
-    env->num_balls = -1;
-    gpu_breakout_generate_brick_positions(env);
+    cfg->half_max_score = gpu_breakout_compute_half_max_score(cfg->brick_rows, cfg->brick_cols);
+    cfg->max_score = 2 * cfg->half_max_score;
 }
 
 static void* puf_gpu_env_create(int total_agents, Dict* env_kwargs) {
+    GpuBreakoutConfig cfg;
+    gpu_breakout_host_fill_config(&cfg, env_kwargs);
+    cudaMemcpyToSymbol(d_bcfg, &cfg, sizeof(GpuBreakoutConfig));
+
     GpuBreakout* host_envs = (GpuBreakout*)calloc((size_t)total_agents, sizeof(GpuBreakout));
     for (int i = 0; i < total_agents; i++) {
-        gpu_breakout_host_init(&host_envs[i], env_kwargs, i);
+        host_envs[i].rng = (unsigned int)(i + 1); // nonzero seed
+        host_envs[i].num_balls = -1;
     }
 
     GpuBreakout* gpu_envs = NULL;
     cudaMalloc((void**)&gpu_envs, (size_t)total_agents * sizeof(GpuBreakout));
     cudaMemcpy(gpu_envs, host_envs, (size_t)total_agents * sizeof(GpuBreakout), cudaMemcpyHostToDevice);
     free(host_envs);
+
+    // One-time stderr breadcrumb so we can confirm the slim layout landed.
+    fprintf(stderr, "[breakout-gpu] sizeof(GpuBreakout)=%zu sizeof(cfg)=%zu agents=%d bricks=%d\n",
+        sizeof(GpuBreakout), sizeof(GpuBreakoutConfig), total_agents, cfg.num_bricks);
     return gpu_envs;
 }
 
 static void puf_gpu_env_reset(void* raw_envs, obs_t* observations, float* rewards,
         float* terminals, int total_agents) {
     GpuBreakout* envs = (GpuBreakout*)raw_envs;
-    gpu_breakout_reset_kernel<<<grid_size(total_agents), BLOCK_SIZE>>>(
+    int threads = total_agents * BREAKOUT_THREADS_PER_ENV;
+    gpu_breakout_reset_kernel<<<grid_size(threads), BLOCK_SIZE>>>(
         envs, observations, rewards, terminals, total_agents);
 }
 
 static void puf_gpu_env_step(void* raw_envs, const float* actions, obs_t* observations,
         float* rewards, float* terminals, int start, int count, cudaStream_t stream) {
     GpuBreakout* envs = (GpuBreakout*)raw_envs;
-    gpu_breakout_step_kernel<<<grid_size(count), BLOCK_SIZE, 0, stream>>>(
+    int threads = count * BREAKOUT_THREADS_PER_ENV;
+    gpu_breakout_step_kernel<<<grid_size(threads), BLOCK_SIZE, 0, stream>>>(
         envs, actions, observations, rewards, terminals, start, count);
 }
 
 static int puf_gpu_env_log(void* raw_envs, int total_agents, float* gpu_log, Dict* out, int clear) {
     GpuBreakout* envs = (GpuBreakout*)raw_envs;
     float host_log[5] = {0};
-    gpu_breakout_log_kernel<<<1, 1>>>(envs, gpu_log, total_agents, clear);
+    // 256-thread block: shared array is sized for 256.
+    gpu_breakout_log_kernel<<<1, 256>>>(envs, gpu_log, total_agents, clear);
     cudaMemcpy(host_log, gpu_log, sizeof(host_log), cudaMemcpyDeviceToHost);
 
     float n = host_log[4];
