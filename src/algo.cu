@@ -152,8 +152,6 @@ typedef void (*reg_params_fn)(void* weights, Allocator* alloc);
 typedef void (*reg_train_fn)(void* weights, void* buf, Allocator* acts, Allocator* grads, int B_TT);
 typedef void (*reg_rollout_fn)(void* weights, void* buf, Allocator* alloc, int B);
 typedef void* (*create_weights_fn)(void* self);
-typedef void  (*free_weights_fn)(void* weights);
-typedef void  (*free_activations_fn)(void* activations);
 typedef PrecisionTensor (*forward_fn)(void* weights, void* activations, PrecisionTensor input, cudaStream_t stream);
 typedef void (*encoder_backward_fn)(void* weights, void* activations,
     PrecisionTensor grad, cudaStream_t stream);
@@ -174,8 +172,6 @@ struct Encoder {
     reg_train_fn reg_train;
     reg_rollout_fn reg_rollout;
     create_weights_fn create_weights;
-    free_weights_fn free_weights;
-    free_activations_fn free_activations;
     int in_dim, out_dim;
     size_t activation_size;  // sizeof(EncoderActivations) or custom override
 };
@@ -188,8 +184,6 @@ struct Decoder {
     reg_train_fn reg_train;
     reg_rollout_fn reg_rollout;
     create_weights_fn create_weights;
-    free_weights_fn free_weights;
-    free_activations_fn free_activations;
     int hidden_dim, output_dim;
     bool continuous;
 };
@@ -203,8 +197,6 @@ struct Network {
     reg_train_fn reg_train;
     reg_rollout_fn reg_rollout;
     create_weights_fn create_weights;
-    free_weights_fn free_weights;
-    free_activations_fn free_activations;
     int hidden, num_layers, horizon;
 };
 
@@ -504,14 +496,6 @@ void* encoder_create_weights(void* self) {
     return ew;
 }
 
-void encoder_free_weights(void* weights) {
-    free(weights);
-}
-
-void encoder_free_activations(void* activations) {
-    free(activations);
-}
-
 struct DecoderWeights {
     PrecisionTensor weight, logstd;
     int hidden_dim, output_dim;
@@ -585,14 +569,6 @@ void* decoder_create_weights(void* self) {
     return dw;
 }
 
-void decoder_free_weights(void* weights) {
-    free(weights);
-}
-
-void decoder_free_activations(void* activations) {
-    free(activations);
-}
-
 PrecisionTensor decoder_backward(void* w, void* activations,
     FloatTensor grad_logits, FloatTensor grad_logstd, FloatTensor grad_value, cudaStream_t stream) {
     DecoderWeights* dw = (DecoderWeights*)w;
@@ -625,14 +601,6 @@ struct MinGRUActivations {
     PrecisionTensor grad_input_buf;  // (B*TT, T)
     PrecisionTensor grad_next_state; // (B, 1, T)
 };
-
-void mingru_activations_free(MinGRUActivations* a) {
-    free(a->combined);
-    free(a->saved_inputs);
-    free(a->scan_bufs);
-    free(a->combined_bufs);
-    free(a->wgrad_scratch);
-}
 
 struct MinGRUWeights {
     int hidden, num_layers, horizon;
@@ -723,18 +691,6 @@ void* mingru_create_weights(void* self) {
     mw->hidden = n->hidden; mw->num_layers = n->num_layers; mw->horizon = n->horizon;
     mw->weights = (PrecisionTensor*)calloc(n->num_layers, sizeof(PrecisionTensor));
     return mw;
-}
-
-void mingru_free_weights(void* weights) {
-    MinGRUWeights* mw = (MinGRUWeights*)weights;
-    free(mw->weights);
-    free(mw);
-}
-
-void mingru_free_activations(void* activations) {
-    MinGRUActivations* a = (MinGRUActivations*)activations;
-    mingru_activations_free(a);
-    free(a);
 }
 
 PrecisionTensor mingru_forward(void* w, PrecisionTensor x, PrecisionTensor state,
@@ -831,12 +787,6 @@ struct PolicyWeights {
     void* network;
 };
 
-void policy_activations_free(Policy* p, PolicyActivations& a) {
-    p->encoder.free_activations(a.encoder);
-    p->decoder.free_activations(a.decoder);
-    p->network.free_activations(a.network);
-}
-
 PrecisionTensor policy_forward(Policy* p, PolicyWeights& w, PolicyActivations& activations,
         PrecisionTensor obs, PrecisionTensor state, cudaStream_t stream) {
     PrecisionTensor enc_out = p->encoder.forward(w.encoder, activations.encoder, obs, stream);
@@ -904,12 +854,6 @@ PolicyWeights policy_weights_create(Policy* p, Allocator* params) {
     return w;
 }
 
-void policy_weights_free(Policy* p, PolicyWeights* w) {
-    p->encoder.free_weights(w->encoder);
-    p->decoder.free_weights(w->decoder);
-    p->network.free_weights(w->network);
-}
-
 // Custom architectures for specific envs. Not yet
 // happy with the API, but we can't narrow it yet
 // because fast, general encoder arch is an
@@ -930,8 +874,6 @@ Policy build_policy(const char* env_name, int input_size, int hidden_size,
         .reg_train = encoder_reg_train,
         .reg_rollout = encoder_reg_rollout,
         .create_weights = encoder_create_weights,
-        .free_weights = encoder_free_weights,
-        .free_activations = encoder_free_activations,
         .in_dim = input_size, .out_dim = hidden_size,
         .activation_size = sizeof(EncoderActivations),
     };
@@ -944,8 +886,6 @@ Policy build_policy(const char* env_name, int input_size, int hidden_size,
         .reg_train = decoder_reg_train,
         .reg_rollout = decoder_reg_rollout,
         .create_weights = decoder_create_weights,
-        .free_weights = decoder_free_weights,
-        .free_activations = decoder_free_activations,
         .hidden_dim = hidden_size, .output_dim = decoder_output_size, .continuous = is_continuous,
     };
     Network network = {
@@ -957,8 +897,6 @@ Policy build_policy(const char* env_name, int input_size, int hidden_size,
         .reg_train = mingru_reg_train,
         .reg_rollout = mingru_reg_rollout,
         .create_weights = mingru_create_weights,
-        .free_weights = mingru_free_weights,
-        .free_activations = mingru_free_activations,
         .hidden = hidden_size, .num_layers = num_layers, .horizon = horizon,
     };
     return Policy{

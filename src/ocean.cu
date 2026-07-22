@@ -723,9 +723,6 @@ static void* me_encoder_create_weights(void* self) {
     Encoder* e = (Encoder*)self;
     return me_encoder_create(e->in_dim, e->out_dim);
 }
-static void me_encoder_free_weights(void* weights) { free(weights); }
-static void me_encoder_free_activations(void* activations) { free(activations); }
-
 // ---- NCHW bias kernels for im2col conv path ----
 
 __global__ void conv_bias_kernel(precision_t* __restrict__ data,
@@ -1257,9 +1254,6 @@ static void* nmmo3_encoder_create_weights(void* self) {
     Encoder* e = (Encoder*)self;
     return nmmo3_encoder_create(e->in_dim, e->out_dim);
 }
-static void nmmo3_encoder_free_weights(void* weights) { free(weights); }
-static void nmmo3_encoder_free_activations(void* activations) { free(activations); }
-
 // Override encoder vtable for known ocean environments. No-op for unknown envs.
 static void create_custom_encoder(const char* env_name, Encoder* enc) {
     if (strcmp(env_name, "nmmo3") == 0) {
@@ -1271,8 +1265,6 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
             .reg_train = nmmo3_encoder_reg_train,
             .reg_rollout = nmmo3_encoder_reg_rollout,
             .create_weights = nmmo3_encoder_create_weights,
-            .free_weights = nmmo3_encoder_free_weights,
-            .free_activations = nmmo3_encoder_free_activations,
             .in_dim = enc->in_dim, .out_dim = enc->out_dim,
             .activation_size = sizeof(NMMO3EncoderActivations),
         };
@@ -1285,8 +1277,6 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
             .reg_train = me_encoder_reg_train,
             .reg_rollout = me_encoder_reg_rollout,
             .create_weights = me_encoder_create_weights,
-            .free_weights = me_encoder_free_weights,
-            .free_activations = me_encoder_free_activations,
             .in_dim = enc->in_dim, .out_dim = enc->out_dim,
             .activation_size = sizeof(MinimalEntityEncoderActivations),
         };
