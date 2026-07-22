@@ -158,7 +158,8 @@ if [ -n "$DEBUG" ] || [ "$MODE" = "local" ]; then
     NVCC_OPT="-O0 -g"
     LINK_OPT="-g"
 else
-    CLANG_OPT=(-O2 -DNDEBUG "${CLANG_WARN[@]}" "${SIMD_FLAGS[@]}")
+# No -DNDEBUG: keep assert() active (train/sweep fail-fast with messages).
+    CLANG_OPT=(-O2 "${CLANG_WARN[@]}" "${SIMD_FLAGS[@]}")
     NVCC_OPT="-O2 --threads 0"
     LINK_OPT="-O2"
 fi
@@ -191,7 +192,7 @@ elif [ "$MODE" = "web" ]; then
         -sUSE_GLFW=3 -sUSE_WEBGL2=1 -sASYNCIFY -sFILESYSTEM -sFORCE_FILESYSTEM=1 \
         --shell-file vendor/minshell.html \
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
-        -DNDEBUG -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
+        -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
         --preload-file resources/$ENV@resources/$ENV \
         --preload-file resources/shared@resources/shared \
         "${EXTRA_CFLAGS[@]}"
