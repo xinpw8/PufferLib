@@ -3921,6 +3921,14 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     long local_timesteps = total_timesteps / ctx->world_size;
     long train_epochs = local_timesteps / batch_size;
     long eval_epochs = train_epochs / 2;
+    // Optional multiplier for longer post-train eval (noise studies). Default 1.
+    double eval_epoch_mult = puf_ini_get(ini, "base", "eval_epoch_mult");
+    if (eval_epoch_mult > 1.0) {
+        eval_epochs = (long)((double)eval_epochs * eval_epoch_mult);
+        if (eval_epochs < 1) {
+            eval_epochs = 1;
+        }
+    }
     long checkpoint_interval = puf_ini_get(ini, "base", "checkpoint_interval");
     long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
     // Sweep objective: bare names → env/<name>; keys with '/' used as-is.
@@ -4177,7 +4185,8 @@ int main(int argc, char** argv) {
             };
             puf_ini_put_pairs(ini, bot_puts, 6);
         }
-        run_eval(ini, &ctx, bot ? EVAL_SCORE : EVAL_RENDER, 1);
+        // Headless score eval (use a separate interactive path if you need render).
+        run_eval(ini, &ctx, EVAL_SCORE, 1);
     } else if (strcmp(mode, "match") == 0) {
         run_eval(ini, &ctx, EVAL_MATCH, 1);
     } else {

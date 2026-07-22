@@ -276,7 +276,7 @@ if [ "$MODE" = "native" ]; then
         "$RAYLIB_A" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
-        -lcudart -lnccl -lnvidia-ml -lcublas -lcublasLt -lcusolver -lcurand \
+        -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
         -o puffer
     echo "Built: ./puffer"

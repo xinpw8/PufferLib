@@ -1,13 +1,4 @@
-// GPU Breakout: optimized port of the CPU env for massively parallel rollouts.
-//
-// Key opts vs naive AoS port:
-//   - Static config in __constant__ (shared by all envs; not duplicated per agent)
-//   - Dynamic state slimmed to ~92B (was ~1188B; brick float[256] was 1024B alone)
-//   - Brick alive/dead as bitset (4x uint32 for up to 128 bricks)
-//   - Step kernel: lane-0 physics in-place; 8 threads/env coalesced obs write
-//     (AoS obs[env*118+i] is 472B-strided from 1 thread — was ~80% of kernel time)
-//   - Cheap xorshift RNG (only needs a coin flip)
-//   - Early-out brick collision when ball is below the field
+// GPU Breakout for massively parallel rollouts.
 #ifndef PUFFER_BREAKOUT_GPU_CU
 #define PUFFER_BREAKOUT_GPU_CU
 
@@ -15,11 +6,9 @@
 #define BREAKOUT_GPU_MAX_BRICKS 128
 #define BREAKOUT_GPU_BRICK_WORDS ((BREAKOUT_GPU_MAX_BRICKS + 31) / 32)
 #define BREAKOUT_GPU_PI 3.14159265358979323846f
-// Threads cooperating on one env's observation write (coalesced AoS stores).
-// 8 is enough to turn 472B-strided 1-thread stores into near-peak write BW.
-#define BREAKOUT_THREADS_PER_ENV 8
+#define BREAKOUT_THREADS_PER_ENV 8  // coop lanes for coalesced obs write
 
-// Immutable / shared-across-envs config. Copied once to constant memory.
+// Shared config (constant mem).
 typedef struct GpuBreakoutConfig {
     int width;
     int height;
