@@ -5,9 +5,20 @@
 #include <math.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
 
-static inline int min(int a, int b) { return a < b ? a : b; }
-static inline int max(int a, int b) { return a > b ? a : b; }
+static inline int g2048_min(int a, int b) { return a < b ? a : b; }
+static inline int g2048_max(int a, int b) { return a > b ? a : b; }
+
+#define ACT_SIZES {4}
+#define OBS_SIZE 16
+#define NUM_ATNS 1
+// float obs for native trainer (bf16 cast path + CUDA graphs). Grid still stored as uchar.
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define SIZE 4
 #define EMPTY 0
@@ -50,15 +61,19 @@ typedef struct Log {
     float n;
 } Log;
 
-typedef struct Game {
-    Log log;                        // Required
-    unsigned char* observations;    // Cheaper in memory if encoded in uint_8
-    float* actions;                 // Required
-    float* rewards;                 // Required
-    float* terminals;               // Required
-    int num_agents;                 // Required for env_binding
+struct Env {
+    Log log;
+    Agent agents[1];
+    int num_agents;
+    int tag;
+    int boundary_reached;
+    // Aliases into agents[0] after vec wiring (demo may set these directly).
+    obs_t* observations;
+    float* actions;
+    float* rewards;
+    float* terminals;
 
-    float scaffolding_ratio;        // The ratio for "scaffolding" runs, in which higher blocks are spawned
+    float scaffolding_ratio;  // fraction of episodes that spawn high curriculum tiles
     bool is_scaffolding_episode;
 
     int score;
@@ -66,16 +81,26 @@ typedef struct Game {
     unsigned char grid[SIZE][SIZE];
     unsigned char lifetime_max_tile;
     unsigned char max_tile;         // Episode max tile
-    float episode_reward;           // Accumulate episode reward
+    float episode_reward;
     int moves_made;
-    int max_episode_ticks;          // Dynamic max_ticks based on score
+    int max_episode_ticks;
 
-    // Cached values to avoid recomputation
     int empty_count;
     bool game_over_cached;
     bool grid_changed;
     unsigned int rng;
-} Game;
+};
+typedef Env Game;
+
+static inline void sync_agent_buffers(Env* env) {
+    if (env->agents[0].observations == NULL) {
+        return;
+    }
+    env->observations = (obs_t*)env->agents[0].observations;
+    env->actions = env->agents[0].actions;
+    env->rewards = env->agents[0].rewards;
+    env->terminals = env->agents[0].terminals;
+}
 
 // Precomputed color table for rendering optimization
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
@@ -118,7 +143,14 @@ void init(Game* game) {
 }
 
 void update_observations(Game* game) {
-    memcpy(game->observations, game->grid, SIZE * SIZE);
+    for (int i = 0; i < SIZE * SIZE; i++) {
+        unsigned char v = ((unsigned char*)game->grid)[i];
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+        game->observations[i] = from_float((float)v);
+#else
+        game->observations[i] = (obs_t)v;
+#endif
+    }
 }
 
 void add_log(Game* game) {
@@ -171,7 +203,7 @@ void set_scaffolding_curriculum(Game* game) {
     if (game->lifetime_max_tile < 14) {
         // Spawn one high tile from 8192 to 65536
         int curriculum = rand_r(&game->rng) % 5;
-        unsigned char high_tile = max(12 + curriculum, game->lifetime_max_tile);
+        unsigned char high_tile = g2048_max(12 + curriculum, game->lifetime_max_tile);
         place_tile_at_random_cell(game, high_tile);
 
     } else {
@@ -383,8 +415,8 @@ void c_step(Game* game) {
         
         // This is to limit infinite invalid moves during eval (happens for noob agents)
         // Don't need to be tight. Don't need to show to human player.
-        int tick_multiplier = max(1, game->lifetime_max_tile - 8); // practically no limit for competent agent
-        game->max_episode_ticks = max(BASE_MAX_TICKS * tick_multiplier, game->score / 4);
+        int tick_multiplier = g2048_max(1, game->lifetime_max_tile - 8); // practically no limit for competent agent
+        game->max_episode_ticks = g2048_max(BASE_MAX_TICKS * tick_multiplier, game->score / 4);
 
     } else {
         reward = INVALID_MOVE_PENALTY;
@@ -458,7 +490,7 @@ void c_render(Game* game) {
             int val = game->grid[i][j];
             
             // Use precomputed colors
-            int color_idx = min(val, 16); // Cap at the max index of our color array
+            int color_idx = g2048_min(val, 16); // Cap at the max index of our color array
             Color color = tile_colors[color_idx];
             
             DrawRectangle(j * px, i * px, px - 5, px - 5, color);
@@ -499,4 +531,45 @@ void c_close(Game* game) {
     if (IsWindowReady()) {
         CloseWindow();
     }
+}
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "merge_score", log->merge_score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "lifetime_max_tile", log->lifetime_max_tile);
+    dict_set(out, "reached_16384", log->reached_16384);
+    dict_set(out, "reached_32768", log->reached_32768);
+    dict_set(out, "reached_65536", log->reached_65536);
+    dict_set(out, "reached_131072", log->reached_131072);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->scaffolding_ratio = (float)dict_get(kwargs, "scaffolding_ratio");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+
+void puf_reset(Env* env) {
+    sync_agent_buffers(env);
+    c_reset(env);
+}
+
+void puf_step(Env* env) {
+    sync_agent_buffers(env);
+    c_step(env);
+}
+
+void puf_render(Env* env) {
+    sync_agent_buffers(env);
+    c_render(env);
+}
+
+void puf_close(Env* env) {
+    c_close(env);
 }

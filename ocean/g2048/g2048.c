@@ -11,7 +11,7 @@ void demo() {
     };
     init(&env);
 
-    unsigned char observations[16] = {0};
+    float observations[16] = {0};
     float actions[1] = {0};
     float rewards[1] = {0};
     float terminals[1] = {0};
@@ -37,9 +37,7 @@ void demo() {
                 c_step(&env);
             }
         } else {
-            float obs_f[16];
-            for (int i = 0; i < 16; i++) obs_f[i] = (float)env.observations[i];
-            forward_puffernet(net, obs_f, env.actions);
+            forward_puffernet(net, env.observations, env.actions);
             c_step(&env);
         }
 

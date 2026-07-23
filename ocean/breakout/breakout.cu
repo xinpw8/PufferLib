@@ -1,8 +1,10 @@
 // GPU Breakout for massively parallel rollouts.
 #ifndef PUFFER_BREAKOUT_GPU_CU
 #define PUFFER_BREAKOUT_GPU_CU
+#ifndef PUFFER_GPU_ENV
+#error "breakout.cu requires -DPUFFER_GPU_ENV (build with --gpu)"
+#endif
 
-#define PUFFER_GPU_ENV_AVAILABLE 1
 #define BREAKOUT_GPU_MAX_BRICKS 128
 #define BREAKOUT_GPU_BRICK_WORDS ((BREAKOUT_GPU_MAX_BRICKS + 31) / 32)
 #define BREAKOUT_GPU_PI 3.14159265358979323846f
@@ -31,7 +33,7 @@ typedef struct GpuBreakoutConfig {
 } GpuBreakoutConfig;
 
 // Per-env dynamic state only. Log first for the parallel log reduction.
-typedef struct GpuBreakout {
+typedef struct Env {
     Log log;
     float paddle_x;
     float paddle_y;
@@ -49,7 +51,7 @@ typedef struct GpuBreakout {
     unsigned int rng;
     // bit set = destroyed (was float 1.0); clear = alive (was float 0.0)
     unsigned int brick_mask[BREAKOUT_GPU_BRICK_WORDS];
-} GpuBreakout;
+} Env;
 
 typedef struct GpuBreakoutCollisionInfo {
     float t;
@@ -100,7 +102,7 @@ __device__ static inline unsigned int gpu_breakout_xorshift(unsigned int* seed) 
     return *seed;
 }
 
-__device__ static inline void gpu_breakout_add_log(GpuBreakout* env) {
+__device__ static inline void gpu_breakout_add_log(Env* env) {
     env->log.episode_length += env->tick;
     env->log.episode_return += env->score;
     env->log.score += env->score;
@@ -108,9 +110,9 @@ __device__ static inline void gpu_breakout_add_log(GpuBreakout* env) {
     env->log.n += 1.0f;
 }
 
-// Store obs feature: float compute, then to obs_t (bf16 under native train).
+// Store obs feature: float compute → obs_t (from_float is identity in float builds).
 __device__ __forceinline__ void gpu_breakout_store_obs(obs_t* dst, float v) {
-#ifdef OBS_MATCHES_PRECISION
+#if defined(from_float)
     *dst = from_float(v);
 #else
     *dst = v;
@@ -118,7 +120,7 @@ __device__ __forceinline__ void gpu_breakout_store_obs(obs_t* dst, float v) {
 }
 
 // Single-thread obs write (reset path / fallback). Prefer coop variant in step.
-__device__ static inline void gpu_breakout_compute_observations(const GpuBreakout* env, obs_t* obs) {
+__device__ static inline void gpu_breakout_compute_observations(const Env* env, obs_t* obs) {
     const GpuBreakoutConfig* c = &d_bcfg;
     gpu_breakout_store_obs(&obs[0], env->paddle_x / (float)c->width);
     gpu_breakout_store_obs(&obs[1], env->paddle_y / (float)c->height);
@@ -141,7 +143,7 @@ __device__ static inline void gpu_breakout_compute_observations(const GpuBreakou
 // Multi-lane coalesced obs write. `lane` in [0, nlanes). Adjacent lanes store
 // adjacent elements so a warp's stores hit contiguous 128B segments.
 __device__ static inline void gpu_breakout_compute_observations_coop(
-        const GpuBreakout* env, obs_t* obs, int lane, int nlanes) {
+        const Env* env, obs_t* obs, int lane, int nlanes) {
     const GpuBreakoutConfig* c = &d_bcfg;
     // 10 scalar features
     if (lane < 10) {
@@ -244,7 +246,7 @@ __device__ static inline void gpu_breakout_calc_brick_collision(
     }
 }
 
-__device__ static inline void gpu_breakout_calc_all_brick_collisions(GpuBreakout* env,
+__device__ static inline void gpu_breakout_calc_all_brick_collisions(Env* env,
         GpuBreakoutCollisionInfo* collision_info) {
     const GpuBreakoutConfig* c = &d_bcfg;
     float ball_x = env->ball_x;
@@ -304,7 +306,7 @@ __device__ static inline void gpu_breakout_calc_all_brick_collisions(GpuBreakout
     }
 }
 
-__device__ static inline bool gpu_breakout_calc_paddle_ball_collisions(GpuBreakout* env,
+__device__ static inline bool gpu_breakout_calc_paddle_ball_collisions(Env* env,
         GpuBreakoutCollisionInfo* collision_info) {
     const GpuBreakoutConfig* c = &d_bcfg;
     float base_angle = BREAKOUT_GPU_PI / 4.0f;
@@ -340,7 +342,7 @@ __device__ static inline bool gpu_breakout_calc_paddle_ball_collisions(GpuBreako
     return true;
 }
 
-__device__ static inline void gpu_breakout_calc_all_wall_collisions(GpuBreakout* env,
+__device__ static inline void gpu_breakout_calc_all_wall_collisions(Env* env,
         GpuBreakoutCollisionInfo* collision_info) {
     const GpuBreakoutConfig* c = &d_bcfg;
     float ball_x = env->ball_x;
@@ -372,7 +374,7 @@ __device__ static inline void gpu_breakout_calc_all_wall_collisions(GpuBreakout*
     }
 }
 
-__device__ static inline void gpu_breakout_check_wall_bounds(GpuBreakout* env) {
+__device__ static inline void gpu_breakout_check_wall_bounds(Env* env) {
     float offset = d_bcfg.max_ball_speed * 1.1f * TICK_RATE;
     float width = (float)d_bcfg.width;
     if (env->ball_x < 0.0f) {
@@ -386,7 +388,7 @@ __device__ static inline void gpu_breakout_check_wall_bounds(GpuBreakout* env) {
     }
 }
 
-__device__ static inline void gpu_breakout_destroy_brick(GpuBreakout* env, int brick_idx,
+__device__ static inline void gpu_breakout_destroy_brick(Env* env, int brick_idx,
         float* reward) {
     const GpuBreakoutConfig* c = &d_bcfg;
     float gained_points = 7 - 3 * ((brick_idx / c->brick_cols) / 2);
@@ -400,7 +402,7 @@ __device__ static inline void gpu_breakout_destroy_brick(GpuBreakout* env, int b
     }
 }
 
-__device__ static inline bool gpu_breakout_handle_collisions(GpuBreakout* env, float* reward) {
+__device__ static inline bool gpu_breakout_handle_collisions(Env* env, float* reward) {
     GpuBreakoutCollisionInfo collision_info = {
         .t = 2.0f,
         .overlap = -1.0f,
@@ -431,7 +433,7 @@ __device__ static inline bool gpu_breakout_handle_collisions(GpuBreakout* env, f
     return collision_info.brick_index != BRICK_INDEX_NO_COLLISION;
 }
 
-__device__ static inline void gpu_breakout_reset_round(GpuBreakout* env) {
+__device__ static inline void gpu_breakout_reset_round(Env* env) {
     const GpuBreakoutConfig* c = &d_bcfg;
     env->balls_fired = 0;
     env->hits = 0;
@@ -448,7 +450,7 @@ __device__ static inline void gpu_breakout_reset_round(GpuBreakout* env) {
     env->ball_vy = 0.0f;
 }
 
-__device__ static inline void gpu_breakout_reset_state(GpuBreakout* env) {
+__device__ static inline void gpu_breakout_reset_state(Env* env) {
     env->score = 0;
     env->num_balls = 5;
     gpu_brick_clear_all(env->brick_mask);
@@ -456,7 +458,7 @@ __device__ static inline void gpu_breakout_reset_state(GpuBreakout* env) {
     env->tick = 0;
 }
 
-__device__ static inline void gpu_breakout_step_frame(GpuBreakout* env, float action,
+__device__ static inline void gpu_breakout_step_frame(Env* env, float action,
         float* reward, float* terminal) {
     const GpuBreakoutConfig* c = &d_bcfg;
     float act = 0.0f;
@@ -497,7 +499,7 @@ __device__ static inline void gpu_breakout_step_frame(GpuBreakout* env, float ac
     }
 }
 
-__global__ void gpu_breakout_reset_kernel(GpuBreakout* envs, obs_t* observations,
+__global__ void gpu_breakout_reset_kernel(Env* envs, obs_t* observations,
         float* rewards, float* terminals, int num_envs) {
     // BREAKOUT_THREADS_PER_ENV threads per env (coalesced obs).
     // No early-return before __syncwarp — partial warps would deadlock.
@@ -520,7 +522,7 @@ __global__ void gpu_breakout_reset_kernel(GpuBreakout* envs, obs_t* observations
 
 // Lane 0: in-place physics for frameskip frames (no full-struct local copy / stack).
 // All lanes: coalesced AoS obs write (1-thread AoS was ~80% of kernel time on 5090).
-__global__ void gpu_breakout_step_kernel(GpuBreakout* __restrict__ envs,
+__global__ void gpu_breakout_step_kernel(Env* __restrict__ envs,
         const float* __restrict__ actions, obs_t* __restrict__ observations,
         float* __restrict__ rewards, float* __restrict__ terminals, int start, int count) {
     // No early-return before __syncwarp — partial warps would deadlock.
@@ -531,7 +533,7 @@ __global__ void gpu_breakout_step_kernel(GpuBreakout* __restrict__ envs,
     int idx = start + rel;
 
     if (active && lane == 0) {
-        GpuBreakout* env = &envs[idx];
+        Env* env = &envs[idx];
         float reward = 0.0f;
         float terminal = 0.0f;
         float action = actions[(long)idx * NUM_ATNS];
@@ -551,53 +553,6 @@ __global__ void gpu_breakout_step_kernel(GpuBreakout* __restrict__ envs,
     }
 }
 
-// Parallel reduction over env logs (was a single-thread serial loop — multi-ms).
-__global__ void gpu_breakout_log_kernel(GpuBreakout* __restrict__ envs, float* __restrict__ out,
-        int num_envs, int clear) {
-    __shared__ float sh[5][256];
-    int tid = threadIdx.x;
-    float local[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-
-    for (int i = tid; i < num_envs; i += blockDim.x) {
-        float* env_log = (float*)&envs[i].log;
-        if (envs[i].log.n != 0.0f) {
-            #pragma unroll
-            for (int j = 0; j < 5; j++) {
-                local[j] += env_log[j];
-            }
-        }
-        if (clear) {
-            envs[i].log.perf = 0.0f;
-            envs[i].log.score = 0.0f;
-            envs[i].log.episode_return = 0.0f;
-            envs[i].log.episode_length = 0.0f;
-            envs[i].log.n = 0.0f;
-        }
-    }
-
-    #pragma unroll
-    for (int j = 0; j < 5; j++) {
-        sh[j][tid] = local[j];
-    }
-    __syncthreads();
-
-    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-        if (tid < stride) {
-            #pragma unroll
-            for (int j = 0; j < 5; j++) {
-                sh[j][tid] += sh[j][tid + stride];
-            }
-        }
-        __syncthreads();
-    }
-
-    if (tid == 0) {
-        #pragma unroll
-        for (int j = 0; j < 5; j++) {
-            out[j] = sh[j][0];
-        }
-    }
-}
 
 static void gpu_breakout_host_fill_config(GpuBreakoutConfig* cfg, Dict* kwargs) {
     memset(cfg, 0, sizeof(*cfg));
@@ -627,67 +582,47 @@ static void gpu_breakout_host_fill_config(GpuBreakoutConfig* cfg, Dict* kwargs) 
     cfg->max_score = 2 * cfg->half_max_score;
 }
 
-static void* puf_gpu_env_create(int total_agents, Dict* env_kwargs) {
+static Env* puf_envs_create(int total_agents, Dict* env_kwargs) {
     GpuBreakoutConfig cfg;
     gpu_breakout_host_fill_config(&cfg, env_kwargs);
     cudaMemcpyToSymbol(d_bcfg, &cfg, sizeof(GpuBreakoutConfig));
 
-    GpuBreakout* host_envs = (GpuBreakout*)calloc((size_t)total_agents, sizeof(GpuBreakout));
+    Env* host_envs = (Env*)calloc((size_t)total_agents, sizeof(Env));
     for (int i = 0; i < total_agents; i++) {
         host_envs[i].rng = (unsigned int)(i + 1); // nonzero seed
         host_envs[i].num_balls = -1;
     }
 
-    GpuBreakout* gpu_envs = NULL;
-    cudaMalloc((void**)&gpu_envs, (size_t)total_agents * sizeof(GpuBreakout));
-    cudaMemcpy(gpu_envs, host_envs, (size_t)total_agents * sizeof(GpuBreakout), cudaMemcpyHostToDevice);
+    Env* envs = NULL;
+    cudaMalloc((void**)&envs, (size_t)total_agents * sizeof(Env));
+    cudaMemcpy(envs, host_envs, (size_t)total_agents * sizeof(Env), cudaMemcpyHostToDevice);
     free(host_envs);
-
-    // One-time stderr breadcrumb so we can confirm the slim layout landed.
-    fprintf(stderr, "[breakout-gpu] sizeof(GpuBreakout)=%zu sizeof(cfg)=%zu agents=%d bricks=%d\n",
-        sizeof(GpuBreakout), sizeof(GpuBreakoutConfig), total_agents, cfg.num_bricks);
-    return gpu_envs;
+    return envs;
 }
 
-static void puf_gpu_env_reset(void* raw_envs, obs_t* observations, float* rewards,
+
+static void puf_envs_reset(Env* envs, obs_t* observations, float* rewards,
         float* terminals, int total_agents) {
-    GpuBreakout* envs = (GpuBreakout*)raw_envs;
     int threads = total_agents * BREAKOUT_THREADS_PER_ENV;
     gpu_breakout_reset_kernel<<<grid_size(threads), BLOCK_SIZE>>>(
         envs, observations, rewards, terminals, total_agents);
 }
 
-static void puf_gpu_env_step(void* raw_envs, const float* actions, obs_t* observations,
+static void puf_envs_step(Env* envs, const float* actions, obs_t* observations,
         float* rewards, float* terminals, int start, int count, cudaStream_t stream) {
-    GpuBreakout* envs = (GpuBreakout*)raw_envs;
     int threads = count * BREAKOUT_THREADS_PER_ENV;
     gpu_breakout_step_kernel<<<grid_size(threads), BLOCK_SIZE, 0, stream>>>(
         envs, actions, observations, rewards, terminals, start, count);
 }
 
-static int puf_gpu_env_log(void* raw_envs, int total_agents, float* gpu_log, Dict* out, int clear) {
-    GpuBreakout* envs = (GpuBreakout*)raw_envs;
-    float host_log[5] = {0};
-    // 256-thread block: shared array is sized for 256.
-    gpu_breakout_log_kernel<<<1, 256>>>(envs, gpu_log, total_agents, clear);
-    cudaMemcpy(host_log, gpu_log, sizeof(host_log), cudaMemcpyDeviceToHost);
 
-    float n = host_log[4];
-    if (n == 0.0f) {
-        return 0;
-    }
-    for (int i = 0; i < 5; i++) {
-        host_log[i] /= n;
-    }
-    Log aggregate;
-    memcpy(&aggregate, host_log, sizeof(aggregate));
-    puf_log(&aggregate, out);
-    dict_set(out, "n", n);
-    return 1;
+static void puf_envs_close(Env* envs) {
+    cudaFree(envs);
 }
 
-static void puf_gpu_env_close(void* raw_envs) {
-    cudaFree(raw_envs);
+// Host render not available for device Env; keep symbol for eval paths.
+void puf_render(Env* env) {
+    (void)env;
 }
 
 #endif

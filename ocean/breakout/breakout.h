@@ -9,12 +9,11 @@
 
 #define ACT_SIZES {3}
 typedef Env Breakout;
-// Native bf16 train (pufferl defines from_float + precision_t before including this
-// header): write obs as precision_t so the env→rollout path skips float cast.
-// Standalone CPU / float builds keep float obs_t.
+// Native bf16 train (pufferl defines from_float + precision_t before including
+// this header): store obs as precision_t so env→rollout is a D2D copy. Standalone
+// CPU / float builds keep float obs_t.
 #if defined(from_float) && !defined(PRECISION_FLOAT)
 typedef precision_t obs_t;
-#define OBS_MATCHES_PRECISION 1
 #else
 typedef float obs_t;
 #endif
@@ -51,6 +50,8 @@ typedef struct Client {
     Texture2D ball;
 } Client;
 
+// CPU Env (host). GPU builds define Env in breakout.cu (device agent, Log first).
+#ifndef PUFFER_GPU_ENV
 struct Env {
     Client* client;
     Log log;
@@ -118,6 +119,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->agents[0].policy = 0;
     init(env);
 }
+#endif  // !PUFFER_GPU_ENV
 
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
@@ -125,6 +127,9 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
 }
+
+#ifndef PUFFER_GPU_ENV
+// ---- CPU env implementation ----
 
 typedef struct CollisionInfo CollisionInfo;
 struct CollisionInfo {
@@ -633,3 +638,4 @@ void puf_render(Breakout* env) {
 
     //PlaySound(client->sound);
 }
+#endif  // !PUFFER_GPU_ENV
