@@ -402,12 +402,6 @@ static inline void puf_ini_put(Ini* ini, const char* full_key, const char* raw) 
     puf_ini_set(dict, key, raw);
 }
 
-static inline void puf_ini_put_pairs(Ini* ini, const char* const pairs[][2], int n) {
-    for (int i = 0; i < n; i++) {
-        puf_ini_put(ini, pairs[i][0], pairs[i][1]);
-    }
-}
-
 static inline void puf_ini_apply_arg(Ini* ini, const char* default_section,
         const char* arg, int idx) {
     char tmp[2048];
@@ -538,20 +532,4 @@ static inline void puf_ini_free(Ini* ini) {
     }
     free(ini->sections);
     memset(ini, 0, sizeof(*ini));
-}
-
-static inline void puf_ini_copy(Ini* dst, Ini* src) {
-    memset(dst, 0, sizeof(*dst));
-    if (!src->num_sections) {
-        return;
-    }
-    dst->sections = (Dict*)calloc((size_t)src->num_sections, sizeof(Dict));
-    if (!dst->sections) {
-        perror("calloc");
-        exit(1);
-    }
-    dst->num_sections = src->num_sections;
-    for (int i = 0; i < src->num_sections; i++) {
-        dict_copy(&dst->sections[i], &src->sections[i]);
-    }
 }

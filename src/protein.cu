@@ -26,7 +26,6 @@
 #define PROTEIN_CLF_ITERS 100
 #define PROTEIN_THRESHOLD_COST_CAP 1.2f
 #define PROTEIN_THRESHOLD_FALLBACK 0.9f
-#define PROTEIN_RUNNING_BUF_CAP 30
 
 typedef enum {
     SPACE_LINEAR,
@@ -110,14 +109,6 @@ static inline float space_unnormalize(const Space* s, float norm) {
 
 static inline void space_init(Space* s, SpaceType type, float min, float max,
         float scale, int is_integer) {
-    if (!(max > min)) {
-        fprintf(stderr, "protein: space requires max > min (got %g, %g)\n", min, max);
-        exit(1);
-    }
-    if (scale <= 0) {
-        fprintf(stderr, "protein: space scale must be > 0 (got %g)\n", scale);
-        exit(1);
-    }
     s->type = type;
     s->min = min;
     s->max = max;
@@ -138,9 +129,6 @@ static inline SweepSpace* sweep_space_create(int capacity, int cost_idx,
 }
 
 static inline void sweep_space_destroy(SweepSpace* space) {
-    if (!space) {
-        return;
-    }
     free(space->spaces);
     free(space);
 }
@@ -258,24 +246,6 @@ static void nelder_mead_2d(float (*f)(float, float, const void *), const void *d
 
 #undef SWAP_F
 
-static void polyfit_1d(const float *x, const float *y, int n, float *intercept, float *slope) {
-    float sx = 0, sy = 0, sxx = 0, sxy = 0;
-    for (int i = 0; i < n; i++) {
-        sx += x[i];
-        sy += y[i];
-        sxx += x[i] * x[i];
-        sxy += x[i] * y[i];
-    }
-    float det = (float)n * sxx - sx * sx;
-    if (fabsf(det) < 1e-10f) {
-        *intercept = sy / fmaxf((float)n, 1.0f);
-        *slope = 0.0f;
-        return;
-    }
-    *slope = ((float)n * sxy - sx * sy) / det;
-    *intercept = (sy - *slope * sx) / (float)n;
-}
-
 typedef struct {
     float A, B;
     float max_score;
@@ -288,8 +258,6 @@ typedef struct {
 void protein_cost_model_fit(ProteinCostModel *m, const float *scores, const float *costs, int n,
                             float upper_cost_threshold) {
     m->is_fitted = 0;
-    if (n == 0)
-        return;
 
     float s_max = scores[0];
     for (int i = 1; i < n; i++)
@@ -306,8 +274,8 @@ void protein_cost_model_fit(ProteinCostModel *m, const float *scores, const floa
     if (n_valid < m->min_samples)
         return;
 
-    float *x = (float *)malloc((size_t)n_valid * sizeof(float));
-    float *y = (float *)malloc((size_t)n_valid * sizeof(float));
+    float *x = (float *)malloc((size_t)2 * n_valid * sizeof(float));
+    float *y = x + n_valid;
     int j = 0;
     for (int i = 0; i < n; i++) {
         if (costs[i] > PROTEIN_EPSILON && isfinite(scores[i])) {
@@ -317,14 +285,24 @@ void protein_cost_model_fit(ProteinCostModel *m, const float *scores, const floa
         }
     }
 
-    float a_init, b_init;
-    polyfit_1d(x, y, n_valid, &a_init, &b_init);
+    float sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (int i = 0; i < n_valid; i++) {
+        sx += x[i];
+        sy += y[i];
+        sxx += x[i] * x[i];
+        sxy += x[i] * y[i];
+    }
+    float det = (float)n_valid * sxx - sx * sx;
+    float a_init = sy / fmaxf((float)n_valid, 1.0f), b_init = 0.0f;
+    if (fabsf(det) >= 1e-10f) {
+        b_init = ((float)n_valid * sxy - sx * sy) / det;
+        a_init = (sy - b_init * sx) / (float)n_valid;
+    }
 
     PinballData pd = {x, y, n_valid, m->quantile};
     nelder_mead_2d(pinball_loss, &pd, &m->A, &m->B, a_init, b_init, 500, 1e-7f);
 
     free(x);
-    free(y);
     m->is_fitted = 1;
 }
 
@@ -348,8 +326,6 @@ static int protein_pareto_cmp(const void *a, const void *b) {
 }
 
 int protein_pareto_front(const float *scores, const float *costs, int n, int *out_indices) {
-    if (n == 0)
-        return 0;
 
     int *sorted = (int *)malloc((size_t)n * sizeof(int));
     for (int i = 0; i < n; i++)
@@ -401,8 +377,6 @@ int protein_prune_pareto(const float *scores, const float *costs, int *indices, 
         float nc = (costs[indices[i]] - costs[indices[i - 1]]) / c_range;
         float eff = ng / (nc + PROTEIN_EPSILON);
         if (eff < eff_threshold) {
-            for (int j = i; j < pruned - 1; j++)
-                indices[j] = indices[j + 1];
             pruned--;
         } else {
             break;
@@ -467,7 +441,6 @@ static float protein_logit_transform(float value) {
     return fmaxf(-5.0f, fminf(100.0f, logit));
 }
 
-
 // Exact GP regression, CUDA (cuBLAS/cuSOLVER).
 
 // clang-format off
@@ -493,10 +466,8 @@ typedef struct GPKernel GPKernel;
 struct GPKernel {
     int n_params;
     float *raw_params;
-    char tag[4];
 };
 
-#define GP_KERNEL_TAG_MATERN32_LINEAR "M32L"
 #define SF_IDX(np) ((np)-2)
 #define OFF_IDX(np) ((np)-1)
 #define GP_BLOCK 16
@@ -579,31 +550,13 @@ __global__ void matern32lin_k_fill(float *v, int n, float val) {
         v[i] = val;
 }
 
-__global__ void matern32lin_k_kself_batch(const float *__restrict__ X, float *__restrict__ out, int m, int d,
-                                          float sigma_f, float offset) {
-    int row = blockIdx.x * BLOCK_SIZE + threadIdx.x;
-    if (row >= m)
-        return;
-    float norm2 = 0.0;
-    for (int k = 0; k < d; k++) {
-        float v = X[row * d + k];
-        norm2 += v * v;
-    }
-    out[row] = sigma_f * (norm2 + offset + 1.0);
-}
-
-static float *h2d(const float *h, int n, cudaStream_t stream) {
-    float *d;
-    CUDA_CHECK(cudaMallocAsync(&d, (size_t)n * sizeof(float), stream));
-    CUDA_CHECK(cudaMemcpyAsync(d, h, (size_t)n * sizeof(float), cudaMemcpyHostToDevice, stream));
-    return d;
-}
-
 static float *device_inv_ells(const GPKernel *k, int d, cudaStream_t stream) {
     float *h = (float *)malloc(d * sizeof(float));
     for (int i = 0; i < d; i++)
         h[i] = 1.0 / softplus(k->raw_params[i]);
-    float *dev = h2d(h, d, stream);
+    float *dev;
+    CUDA_CHECK(cudaMallocAsync(&dev, (size_t)d * sizeof(float), stream));
+    CUDA_CHECK(cudaMemcpyAsync(dev, h, (size_t)d * sizeof(float), cudaMemcpyHostToDevice, stream));
     free(h);
     return dev;
 }
@@ -626,22 +579,6 @@ static void matern32lin_build_Ks(const GPKernel *k, const float *d_Xtr, const fl
     matern32lin_k_kernel<<<grid, block, 0, stream>>>(d_Xtr, d_Xte, d_Ks, d_inv, n, m, d, p.sigma_f, 0.0, p.offset);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaFreeAsync(d_inv, stream));
-}
-
-static float matern32lin_k_self(const GPKernel *k, const float *x, int d) {
-    KParams p = kernel_params(k);
-    float norm2 = 0.0;
-    for (int i = 0; i < d; i++)
-        norm2 += x[i] * x[i];
-    return p.sigma_f * (norm2 + p.offset + 1.0);
-}
-
-static void matern32lin_build_kself_batch(const GPKernel *k, const float *d_X, int m, int d, float *d_out,
-                                          cudaStream_t stream) {
-    KParams p = kernel_params(k);
-    matern32lin_k_kself_batch<<<(m + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, stream>>>(d_X, d_out, m, d, p.sigma_f,
-                                                                                            p.offset);
-    CUDA_CHECK(cudaGetLastError());
 }
 
 static void matern32lin_mll_grad(const GPKernel *k, const float *d_X, int n, int d, cublasHandle_t cublas,
@@ -702,21 +639,12 @@ GPKernel *gp_kernel_matern32_linear(int dim, float lengthscale, float outputscal
     GPKernel *k = (GPKernel *)malloc(sizeof(GPKernel) + (size_t)n_params * sizeof(float));
     k->n_params = n_params;
     k->raw_params = (float *)(k + 1);
-    memcpy(k->tag, GP_KERNEL_TAG_MATERN32_LINEAR, 4);
     for (int i = 0; i < dim; i++)
         k->raw_params[i] = inv_softplus(lengthscale);
     k->raw_params[SF_IDX(n_params)] = inv_softplus(outputscale);
     k->raw_params[OFF_IDX(n_params)] = inv_softplus(offset);
     return k;
 }
-
-float gp_kernel_get_lengthscale(const GPKernel *k, int d) { return softplus(k->raw_params[d]); }
-float gp_kernel_get_outputscale(const GPKernel *k) { return softplus(k->raw_params[SF_IDX(k->n_params)]); }
-float gp_kernel_get_offset(const GPKernel *k) { return softplus(k->raw_params[OFF_IDX(k->n_params)]); }
-void gp_kernel_set_lengthscale(GPKernel *k, int d, float v) { k->raw_params[d] = inv_softplus(v); }
-void gp_kernel_set_outputscale(GPKernel *k, float v) { k->raw_params[SF_IDX(k->n_params)] = inv_softplus(v); }
-void gp_kernel_set_offset(GPKernel *k, float v) { k->raw_params[OFF_IDX(k->n_params)] = inv_softplus(v); }
-
 
 // clang-format off
 static inline void _cusolver_check(cusolverStatus_t s, const char* f, int l) {
@@ -735,7 +663,6 @@ typedef struct {
     int lwork;
     int *d_info;
     float raw_noise;
-    float dedup_threshold;
     cublasHandle_t cublas;
     cusolverDnHandle_t cusolver;
     GPKernel *kernel;
@@ -753,18 +680,6 @@ __global__ void gp_k_extract_diag(const float *A, float *d, int n) {
         d[i] = A[(size_t)i * (n + 1)];
 }
 
-__global__ void gp_k_var_from_chol(float *vars, const float *V, int n, int m) {
-    int j = blockIdx.x * BLOCK_SIZE + threadIdx.x;
-    if (j >= m)
-        return;
-    float sq = 0.0;
-    const float *col = V + (size_t)j * n;
-    for (int i = 0; i < n; i++)
-        sq += col[i] * col[i];
-    float v = vars[j] - sq;
-    vars[j] = v > 0.0 ? v : 0.0;
-}
-
 #define KD_LEAF 16
 
 typedef struct {
@@ -773,7 +688,7 @@ typedef struct {
 } KDNode;
 typedef struct {
     const float *X;
-    int n, dim, n_nodes;
+    int dim, n_nodes;
     int *idx;
     KDNode *nodes;
 } KDTree;
@@ -827,7 +742,7 @@ static void kd_build(KDTree *t, int node, int lo, int hi) {
 }
 
 static KDTree kd_create(const float *X, int n, int dim) {
-    KDTree t = {.X = X, .n = n, .dim = dim, .n_nodes = 1};
+    KDTree t = {.X = X, .dim = dim, .n_nodes = 1};
     t.idx = (int *)malloc(n * sizeof(int));
     t.nodes = (KDNode *)malloc(2 * n * sizeof(KDNode));
     for (int i = 0; i < n; i++)
@@ -836,7 +751,7 @@ static KDTree kd_create(const float *X, int n, int dim) {
     return t;
 }
 
-static void kd_query_ball(const KDTree *t, int node, const float *q, float r, float r2, int *out, int *cnt) {
+static void kd_remove_near(const KDTree *t, int node, const float *q, float r, float r2, int self, int *keep) {
     const KDNode *nd = &t->nodes[node];
     if (nd->split_dim < 0) {
         for (int i = nd->lo; i < nd->hi; i++) {
@@ -846,29 +761,21 @@ static void kd_query_ball(const KDTree *t, int node, const float *q, float r, fl
                 float df = q[k] - t->X[p * t->dim + k];
                 sq += df * df;
             }
-            if (sq <= r2)
-                out[(*cnt)++] = p;
+            if (p != self && sq <= r2)
+                keep[p] = 0;
         }
         return;
     }
     float dv = q[nd->split_dim] - nd->split_val;
     if (nd->left >= 0 && dv <= r)
-        kd_query_ball(t, nd->left, q, r, r2, out, cnt);
+        kd_remove_near(t, nd->left, q, r, r2, self, keep);
     if (nd->right >= 0 && dv >= -r)
-        kd_query_ball(t, nd->right, q, r, r2, out, cnt);
+        kd_remove_near(t, nd->right, q, r, r2, self, keep);
 }
 
 static int gp_filter_near_duplicates(const float *X, int n, int dim, float threshold, int *kept_indices) {
-    if (n <= 0)
-        return 0;
-    if (n == 1) {
-        kept_indices[0] = 0;
-        return 1;
-    }
-
     KDTree tree = kd_create(X, n, dim);
     int *keep = (int *)malloc(n * sizeof(int));
-    int *nearby = (int *)malloc(n * sizeof(int));
     float r2 = threshold * threshold;
     for (int i = 0; i < n; i++)
         keep[i] = 1;
@@ -876,11 +783,7 @@ static int gp_filter_near_duplicates(const float *X, int n, int dim, float thres
     for (int i = n - 1; i >= 0; i--) {
         if (!keep[i])
             continue;
-        int cnt = 0;
-        kd_query_ball(&tree, 0, &X[(size_t)i * dim], threshold, r2, nearby, &cnt);
-        for (int j = 0; j < cnt; j++)
-            if (nearby[j] != i)
-                keep[nearby[j]] = 0;
+        kd_remove_near(&tree, 0, &X[(size_t)i * dim], threshold, r2, i, keep);
     }
 
     int count = 0;
@@ -888,22 +791,18 @@ static int gp_filter_near_duplicates(const float *X, int n, int dim, float thres
         if (keep[i])
             kept_indices[count++] = i;
 
-    free(nearby);
     free(keep);
     free(tree.idx);
     free(tree.nodes);
     return count;
 }
 
-float gp_get_noise(const GaussianProcess *gp) { return softplus(gp->raw_noise); }
-void gp_set_noise(GaussianProcess *gp, float v) { gp->raw_noise = inv_softplus(v); }
-
 GaussianProcess *gp_create(int dim, int cap, GPKernel *kernel, float noise) {
     GaussianProcess *gp = (GaussianProcess *)calloc(1, sizeof(GaussianProcess));
     gp->dim = dim;
     gp->cap = cap;
     gp->kernel = kernel;
-    gp_set_noise(gp, noise);
+    gp->raw_noise = inv_softplus(noise);
     CUDA_CHECK(cudaMalloc(&gp->d_X, (size_t)cap * dim * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&gp->d_y, (size_t)cap * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&gp->d_L, (size_t)cap * cap * sizeof(float)));
@@ -915,8 +814,6 @@ GaussianProcess *gp_create(int dim, int cap, GPKernel *kernel, float noise) {
 }
 
 void gp_destroy(GaussianProcess *gp) {
-    if (!gp)
-        return;
     cudaFree(gp->d_X);
     cudaFree(gp->d_y);
     cudaFree(gp->d_L);
@@ -948,14 +845,13 @@ static int run_potrf(GaussianProcess *gp, float *d_K, int n, cudaStream_t stream
 
 int gp_recompute(GaussianProcess *gp, cudaStream_t stream) {
     int n = gp->n;
-    if (n == 0)
-        return 0;
+    float noise = softplus(gp->raw_noise);
 
-    matern32lin_build_K(gp->kernel, gp->d_X, n, gp->dim, gp_get_noise(gp), gp->d_L, stream);
+    matern32lin_build_K(gp->kernel, gp->d_X, n, gp->dim, noise, gp->d_L, stream);
 
     int info = run_potrf(gp, gp->d_L, n, stream);
     if (info != 0) {
-        matern32lin_build_K(gp->kernel, gp->d_X, n, gp->dim, gp_get_noise(gp), gp->d_L, stream);
+        matern32lin_build_K(gp->kernel, gp->d_X, n, gp->dim, noise, gp->d_L, stream);
         gp_k_add_diag<<<(n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, stream>>>(gp->d_L, n, 1e-8);
         CUDA_CHECK(cudaGetLastError());
         info = run_potrf(gp, gp->d_L, n, stream);
@@ -973,35 +869,14 @@ int gp_recompute(GaussianProcess *gp, cudaStream_t stream) {
 }
 
 int gp_fit(GaussianProcess *gp, const float *X, const float *y, int n, cudaStream_t stream) {
-    if (n > gp->cap)
-        return -1;
-
-    if (gp->dedup_threshold > 0.0 && n > 1) {
-        int *idx = (int *)malloc(n * sizeof(int));
-        int n_kept = gp_filter_near_duplicates(X, n, gp->dim, gp->dedup_threshold, idx);
-        float *X_c = (float *)malloc((size_t)n_kept * gp->dim * sizeof(float));
-        float *y_c = (float *)malloc((size_t)n_kept * sizeof(float));
-        for (int i = 0; i < n_kept; i++) {
-            memcpy(&X_c[i * gp->dim], &X[idx[i] * gp->dim], gp->dim * sizeof(float));
-            y_c[i] = y[idx[i]];
-        }
-        free(idx);
-        CUDA_CHECK(
-            cudaMemcpyAsync(gp->d_X, X_c, (size_t)n_kept * gp->dim * sizeof(float), cudaMemcpyHostToDevice, stream));
-        CUDA_CHECK(cudaMemcpyAsync(gp->d_y, y_c, (size_t)n_kept * sizeof(float), cudaMemcpyHostToDevice, stream));
-        free(X_c);
-        free(y_c);
-        gp->n = n_kept;
-    } else {
-        CUDA_CHECK(cudaMemcpyAsync(gp->d_X, X, (size_t)n * gp->dim * sizeof(float), cudaMemcpyHostToDevice, stream));
-        CUDA_CHECK(cudaMemcpyAsync(gp->d_y, y, (size_t)n * sizeof(float), cudaMemcpyHostToDevice, stream));
-        gp->n = n;
-    }
+    CUDA_CHECK(cudaMemcpyAsync(gp->d_X, X, (size_t)n * gp->dim * sizeof(float), cudaMemcpyHostToDevice, stream));
+    CUDA_CHECK(cudaMemcpyAsync(gp->d_y, y, (size_t)n * sizeof(float), cudaMemcpyHostToDevice, stream));
+    gp->n = n;
     return gp_recompute(gp, stream);
 }
 
-static void predict_dev(const GaussianProcess *gp, const float *d_Xte, float *d_means, float *d_vars, int m,
-                        cudaStream_t stream) {
+static void gp_predict_d(const GaussianProcess *gp, const float *d_Xte, float *d_means, int m,
+                         cudaStream_t stream) {
     int n = gp->n, d = gp->dim;
     const float one = 1.0, zero = 0.0;
     CUBLAS_CHECK(cublasSetStream(gp->cublas, stream));
@@ -1011,62 +886,11 @@ static void predict_dev(const GaussianProcess *gp, const float *d_Xte, float *d_
     matern32lin_build_Ks(gp->kernel, gp->d_X, d_Xte, n, m, d, d_Ks, stream);
     CUBLAS_CHECK(cublasSgemv(gp->cublas, CUBLAS_OP_T, n, m, &one, d_Ks, n, gp->d_alpha, 1, &zero, d_means, 1));
 
-    if (d_vars) {
-        matern32lin_build_kself_batch(gp->kernel, d_Xte, m, d, d_vars, stream);
-        CUBLAS_CHECK(cublasStrsm(gp->cublas, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
-                                 CUBLAS_DIAG_NON_UNIT, n, m, &one, gp->d_L, n, d_Ks, n));
-        gp_k_var_from_chol<<<(m + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, stream>>>(d_vars, d_Ks, n, m);
-        CUDA_CHECK(cudaGetLastError());
-    }
     CUDA_CHECK(cudaFreeAsync(d_Ks, stream));
-}
-
-void gp_predict(const GaussianProcess *gp, const float *Xs, float *means, float *vars, int m, cudaStream_t stream) {
-    int n = gp->n;
-    if (n == 0) {
-        for (int j = 0; j < m; j++) {
-            means[j] = 0.0;
-            if (vars)
-                vars[j] = matern32lin_k_self(gp->kernel, &Xs[j * gp->dim], gp->dim);
-        }
-        return;
-    }
-
-    float *d_Xte;
-    CUDA_CHECK(cudaMallocAsync(&d_Xte, (size_t)m * gp->dim * sizeof(float), stream));
-    CUDA_CHECK(cudaMemcpyAsync(d_Xte, Xs, (size_t)m * gp->dim * sizeof(float), cudaMemcpyHostToDevice, stream));
-
-    float *d_means, *d_vars = NULL;
-    CUDA_CHECK(cudaMallocAsync(&d_means, (size_t)m * sizeof(float), stream));
-    if (vars)
-        CUDA_CHECK(cudaMallocAsync(&d_vars, (size_t)m * sizeof(float), stream));
-
-    predict_dev(gp, d_Xte, d_means, d_vars, m, stream);
-    CUDA_CHECK(cudaFreeAsync(d_Xte, stream));
-    CUDA_CHECK(cudaMemcpyAsync(means, d_means, (size_t)m * sizeof(float), cudaMemcpyDeviceToHost, stream));
-    CUDA_CHECK(cudaFreeAsync(d_means, stream));
-    if (vars) {
-        CUDA_CHECK(cudaMemcpyAsync(vars, d_vars, (size_t)m * sizeof(float), cudaMemcpyDeviceToHost, stream));
-        CUDA_CHECK(cudaFreeAsync(d_vars, stream));
-    }
-    CUDA_CHECK(cudaStreamSynchronize(stream));
-}
-
-void gp_predict_d(const GaussianProcess *gp, const float *d_Xs, float *d_means, float *d_vars, int m,
-                  cudaStream_t stream) {
-    if (gp->n == 0) {
-        CUDA_CHECK(cudaMemsetAsync(d_means, 0, (size_t)m * sizeof(float), stream));
-        if (d_vars)
-            matern32lin_build_kself_batch(gp->kernel, d_Xs, m, gp->dim, d_vars, stream);
-        return;
-    }
-    predict_dev(gp, d_Xs, d_means, d_vars, m, stream);
 }
 
 float gp_marginal_log_likelihood(const GaussianProcess *gp) {
     int n = gp->n;
-    if (n == 0)
-        return 0.0;
 
     CUBLAS_CHECK(cublasSetStream(gp->cublas, 0));
     float data_fit;
@@ -1091,15 +915,6 @@ float gp_marginal_log_likelihood(const GaussianProcess *gp) {
 
 void gp_mll_grad(const GaussianProcess *gp, float *d_raw_noise, float *kernel_grads, cudaStream_t stream) {
     int n = gp->n;
-    if (n == 0) {
-        if (d_raw_noise)
-            *d_raw_noise = 0.0;
-        if (kernel_grads)
-            for (int i = 0; i < gp->kernel->n_params; i++)
-                kernel_grads[i] = 0.0;
-        return;
-    }
-
     CUSOLVER_CHECK(cusolverDnSetStream(gp->cusolver, stream));
     CUBLAS_CHECK(cublasSetStream(gp->cublas, stream));
 
@@ -1110,129 +925,15 @@ void gp_mll_grad(const GaussianProcess *gp, float *d_raw_noise, float *kernel_gr
     CUDA_CHECK(cudaGetLastError());
     CUSOLVER_CHECK(cusolverDnSpotrs(gp->cusolver, CUBLAS_FILL_MODE_LOWER, n, n, gp->d_L, n, d_Kinv, n, gp->d_info));
 
-    if (d_raw_noise) {
-        float term1, term2;
-        CUBLAS_CHECK(cublasSdot(gp->cublas, n, gp->d_alpha, 1, gp->d_alpha, 1, &term1));
-        CUBLAS_CHECK(cublasSasum(gp->cublas, n, d_Kinv, n + 1, &term2));
-        *d_raw_noise = 0.5 * (term1 - term2) * softplus_grad(gp->raw_noise) / n;
-    }
+    float term1, term2;
+    CUBLAS_CHECK(cublasSdot(gp->cublas, n, gp->d_alpha, 1, gp->d_alpha, 1, &term1));
+    CUBLAS_CHECK(cublasSasum(gp->cublas, n, d_Kinv, n + 1, &term2));
+    *d_raw_noise = 0.5 * (term1 - term2) * softplus_grad(gp->raw_noise) / n;
 
-    if (kernel_grads) {
-        for (int i = 0; i < gp->kernel->n_params; i++)
-            kernel_grads[i] = 0.0;
-        matern32lin_mll_grad(gp->kernel, gp->d_X, n, gp->dim, gp->cublas, stream, gp->d_alpha, d_Kinv,
-                             kernel_grads);
-        for (int i = 0; i < gp->kernel->n_params; i++)
-            kernel_grads[i] /= n;
-    }
+    matern32lin_mll_grad(gp->kernel, gp->d_X, n, gp->dim, gp->cublas, stream, gp->d_alpha, d_Kinv, kernel_grads);
+    for (int i = 0; i < gp->kernel->n_params; i++)
+        kernel_grads[i] /= n;
     CUDA_CHECK(cudaFreeAsync(d_Kinv, stream));
-}
-
-static GPKernel *kernel_from_tag(const char *tag, float *rp, int np) {
-    if (memcmp(tag, GP_KERNEL_TAG_MATERN32_LINEAR, 4) != 0) {
-        return NULL;
-    }
-    GPKernel *k = gp_kernel_matern32_linear(np - 2, 1.0, 1.0, 1.0);
-    memcpy(k->raw_params, rp, (size_t)np * sizeof(float));
-    return k;
-}
-
-int gp_save(const GaussianProcess *gp, const char *path) {
-    if (gp->n == 0)
-        return -1;
-    CUDA_CHECK(cudaDeviceSynchronize());
-    FILE *f = fopen(path, "wb");
-    if (!f)
-        return -1;
-
-    int n = gp->n, dim = gp->dim, np = gp->kernel->n_params;
-    fwrite("GC04", 1, 4, f);
-    fwrite(&dim, sizeof(int), 1, f);
-    fwrite(&n, sizeof(int), 1, f);
-    fwrite(&gp->raw_noise, sizeof(float), 1, f);
-    fwrite(gp->kernel->tag, 1, 4, f);
-    fwrite(&np, sizeof(int), 1, f);
-    fwrite(gp->kernel->raw_params, sizeof(float), np, f);
-
-    const float *d_ptrs[] = {gp->d_X, gp->d_y, gp->d_L, gp->d_alpha};
-    const size_t sizes[] = {(size_t)n * dim, (size_t)n, (size_t)n * n, (size_t)n};
-    for (int i = 0; i < 4; i++) {
-        float *h = (float *)malloc(sizes[i] * sizeof(float));
-        CUDA_CHECK(cudaMemcpy(h, d_ptrs[i], sizes[i] * sizeof(float), cudaMemcpyDeviceToHost));
-        fwrite(h, sizeof(float), sizes[i], f);
-        free(h);
-    }
-
-    fclose(f);
-    return 0;
-}
-
-GaussianProcess *gp_load(const char *path, int extra_cap) {
-    GaussianProcess *gp = NULL;
-    FILE *f = fopen(path, "rb");
-    if (!f)
-        return NULL;
-
-#define RD(ptr, sz, cnt)                                                                                               \
-    if (fread(ptr, sz, cnt, f) != (size_t)(cnt))                                                                       \
-    break
-
-    do {
-        char magic[4], ktag[4];
-        int dim, n, np;
-        float rn;
-
-        RD(magic, 1, 4);
-        if (memcmp(magic, "GC04", 4) != 0)
-            break;
-        RD(&dim, sizeof(int), 1);
-        RD(&n, sizeof(int), 1);
-        RD(&rn, sizeof(float), 1);
-        RD(ktag, 1, 4);
-        RD(&np, sizeof(int), 1);
-
-        float *rp = (float *)malloc((size_t)np * sizeof(float));
-        if (!rp)
-            break;
-        if (fread(rp, sizeof(float), np, f) != (size_t)np) {
-            free(rp);
-            break;
-        }
-        GPKernel *k = kernel_from_tag(ktag, rp, np);
-        free(rp);
-        if (!k)
-            break;
-
-        int cap = n + (extra_cap > 0 ? extra_cap : 0);
-        gp = gp_create(dim, cap, k, 1.0);
-        gp->raw_noise = rn;
-        gp->n = n;
-
-        float *d_ptrs[] = {gp->d_X, gp->d_y, gp->d_L, gp->d_alpha};
-        const size_t sizes[] = {(size_t)n * dim, (size_t)n, (size_t)n * n, (size_t)n};
-        int ok = 1;
-        for (int i = 0; i < 4 && ok; i++) {
-            float *h = (float *)malloc(sizes[i] * sizeof(float));
-            if (fread(h, sizeof(float), sizes[i], f) != sizes[i]) {
-                free(h);
-                ok = 0;
-            } else {
-                CUDA_CHECK(cudaMemcpy(d_ptrs[i], h, sizes[i] * sizeof(float), cudaMemcpyHostToDevice));
-                free(h);
-            }
-        }
-        if (!ok)
-            break;
-
-        fclose(f);
-        return gp;
-    } while (0);
-
-#undef RD
-    if (gp)
-        gp_destroy(gp);
-    fclose(f);
-    return NULL;
 }
 
 // clang-format off
@@ -1245,8 +946,6 @@ static inline void _curand_check(curandStatus_t s, const char* f, int l) {
 typedef struct {
     int dim;
     int capacity;
-    float *d_bounds_min;
-    float *d_bounds_max;
     float *d_scales;
     float *d_candidates;
     float *d_pred_y;
@@ -1289,11 +988,6 @@ typedef struct {
     float log_c_min, log_c_max;
 } ProteinObs;
 
-typedef struct {
-    curandGenerator_t gen;
-    int dim;
-} Sobol;
-
 __global__ void protein_k_init_rng(curandStatePhilox4_32_10_t *states, int n, unsigned long long seed) {
     int i = blockIdx.x * BLOCK_SIZE + threadIdx.x;
     if (i < n)
@@ -1301,7 +995,6 @@ __global__ void protein_k_init_rng(curandStatePhilox4_32_10_t *states, int n, un
 }
 
 __global__ void protein_k_sample(float *__restrict__ candidates, const float *__restrict__ centers,
-                                 const float *__restrict__ bounds_min, const float *__restrict__ bounds_max,
                                  const float *__restrict__ scales, curandStatePhilox4_32_10_t *__restrict__ rng,
                                  int n_candidates, int n_centers, int dim, float global_scale, int cost_dim,
                                  float fixed_cost) {
@@ -1315,7 +1008,7 @@ __global__ void protein_k_sample(float *__restrict__ candidates, const float *__
     for (int d = 0; d < dim; d++) {
         float s = scales[d] * global_scale;
         float val = s * (2.0f * curand_uniform(&state) - 1.0f) + centers[center * dim + d];
-        val = fmaxf(bounds_min[d], fminf(bounds_max[d], val));
+        val = fmaxf(-1.0f, fminf(1.0f, val));
         candidates[i * dim + d] = val;
     }
 
@@ -1395,14 +1088,12 @@ __global__ void protein_k_classifier_predict(const float *__restrict__ X, const 
 ProteinClassifier *protein_classifier_create(int dim) {
     ProteinClassifier *clf = (ProteinClassifier *)calloc(1, sizeof(ProteinClassifier));
     clf->dim = dim;
-    clf->weights = (float *)calloc((size_t)dim, sizeof(float));
+    clf->weights = (float *)calloc((size_t)2 * dim, sizeof(float));
     CUDA_CHECK(cudaMalloc(&clf->d_weights, (size_t)dim * sizeof(float)));
     return clf;
 }
 
 void protein_classifier_destroy(ProteinClassifier *clf) {
-    if (!clf)
-        return;
     free(clf->weights);
     cudaFree(clf->d_weights);
     free(clf);
@@ -1425,7 +1116,7 @@ void protein_classifier_fit(ProteinClassifier *clf, const float *X, const int *y
 
     memset(clf->weights, 0, (size_t)dim * sizeof(float));
     clf->bias = 0.0f;
-    float *grad = (float *)calloc((size_t)dim, sizeof(float));
+    float *grad = clf->weights + dim;
 
     for (int iter = 0; iter < max_iter; iter++) {
         float lr = 0.1f / (1.0f + 0.01f * (float)iter);
@@ -1452,7 +1143,6 @@ void protein_classifier_fit(ProteinClassifier *clf, const float *X, const int *y
         clf->bias -= lr * grad_b;
     }
 
-    free(grad);
     clf->is_fitted = 1;
 
     CUDA_CHECK(cudaMemcpy(clf->d_weights, clf->weights, (size_t)dim * sizeof(float), cudaMemcpyHostToDevice));
@@ -1470,29 +1160,19 @@ ProteinAcq *protein_acq_create(int dim, int capacity, const Space *spaces, unsig
     acq->dim = dim;
     acq->capacity = capacity;
 
-    float *bounds = (float *)malloc((size_t)3 * dim * sizeof(float));
-    float *bounds_min = bounds;
-    float *bounds_max = bounds + dim;
-    float *scales = bounds + 2 * dim;
-    for (int i = 0; i < dim; i++) {
-        bounds_min[i] = spaces[i].norm_min;
-        bounds_max[i] = spaces[i].norm_max;
+    float *scales = (float *)malloc((size_t)dim * sizeof(float));
+    for (int i = 0; i < dim; i++)
         scales[i] = spaces[i].scale;
-    }
 
-    CUDA_CHECK(cudaMalloc(&acq->d_bounds_min, (size_t)dim * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&acq->d_bounds_max, (size_t)dim * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&acq->d_scales, (size_t)dim * sizeof(float)));
-    CUDA_CHECK(cudaMemcpy(acq->d_bounds_min, bounds_min, (size_t)dim * sizeof(float), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(acq->d_bounds_max, bounds_max, (size_t)dim * sizeof(float), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(acq->d_scales, scales, (size_t)dim * sizeof(float), cudaMemcpyHostToDevice));
-    free(bounds);
+    free(scales);
 
     CUDA_CHECK(cudaMalloc(&acq->d_candidates, (size_t)capacity * dim * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&acq->d_pred_y, (size_t)capacity * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&acq->d_pred_c, (size_t)capacity * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&acq->d_scores, (size_t)capacity * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&acq->d_success_prob, (size_t)capacity * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&acq->d_pred_y, (size_t)4 * capacity * sizeof(float)));
+    acq->d_pred_c = acq->d_pred_y + capacity;
+    acq->d_scores = acq->d_pred_c + capacity;
+    acq->d_success_prob = acq->d_scores + capacity;
     CUDA_CHECK(cudaMalloc(&acq->d_best_idx, sizeof(int)));
     CUDA_CHECK(cudaMalloc(&acq->d_rng, (size_t)capacity * sizeof(curandStatePhilox4_32_10_t)));
 
@@ -1504,11 +1184,8 @@ ProteinAcq *protein_acq_create(int dim, int capacity, const Space *spaces, unsig
 }
 
 void protein_acq_destroy(ProteinAcq *acq) {
-    if (!acq)
-        return;
-    void *ptrs[] = {acq->d_bounds_min, acq->d_bounds_max, acq->d_scales,       acq->d_candidates, acq->d_pred_y,
-                    acq->d_pred_c,     acq->d_scores,     acq->d_success_prob, acq->d_best_idx,   acq->d_rng};
-    for (int i = 0; i < 10; i++)
+    void *ptrs[] = {acq->d_scales, acq->d_candidates, acq->d_pred_y, acq->d_best_idx, acq->d_rng};
+    for (int i = 0; i < 5; i++)
         cudaFree(ptrs[i]);
     free(acq);
 }
@@ -1525,8 +1202,8 @@ int protein_acq_sample(ProteinAcq *acq, const float *centers, int n_centers, int
         cudaMemcpyAsync(d_centers, centers, (size_t)n_centers * dim * sizeof(float), cudaMemcpyHostToDevice, stream));
 
     protein_k_sample<<<(n_total + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, stream>>>(
-        acq->d_candidates, d_centers, acq->d_bounds_min, acq->d_bounds_max, acq->d_scales, acq->d_rng, n_total,
-        n_centers, dim, global_scale, cost_dim, fixed_cost_norm);
+        acq->d_candidates, d_centers, acq->d_scales, acq->d_rng, n_total, n_centers, dim, global_scale, cost_dim,
+        fixed_cost_norm);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaFreeAsync(d_centers, stream));
 
@@ -1535,26 +1212,23 @@ int protein_acq_sample(ProteinAcq *acq, const float *centers, int n_centers, int
         return n_total;
     }
 
-    float *h_cands = (float *)malloc((size_t)n_total * dim * sizeof(float));
+    float *h_cands = (float *)malloc((size_t)n_total * (dim * sizeof(float) + sizeof(int)));
     CUDA_CHECK(cudaMemcpyAsync(h_cands, acq->d_candidates, (size_t)n_total * dim * sizeof(float),
                                cudaMemcpyDeviceToHost, stream));
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    int *kept = (int *)malloc((size_t)n_total * sizeof(int));
+    int *kept = (int *)(h_cands + (size_t)n_total * dim);
     int n_kept = gp_filter_near_duplicates(h_cands, n_total, dim, dedup_threshold, kept);
 
-    if (n_kept > 0 && n_kept < n_total) {
-        float *h_compact = (float *)malloc((size_t)n_kept * dim * sizeof(float));
+    if (n_kept < n_total) {
         for (int i = 0; i < n_kept; i++)
-            memcpy(&h_compact[(size_t)i * dim], &h_cands[(size_t)kept[i] * dim], (size_t)dim * sizeof(float));
-        CUDA_CHECK(cudaMemcpyAsync(acq->d_candidates, h_compact, (size_t)n_kept * dim * sizeof(float),
+            memmove(&h_cands[(size_t)i * dim], &h_cands[(size_t)kept[i] * dim], (size_t)dim * sizeof(float));
+        CUDA_CHECK(cudaMemcpyAsync(acq->d_candidates, h_cands, (size_t)n_kept * dim * sizeof(float),
                                    cudaMemcpyHostToDevice, stream));
         CUDA_CHECK(cudaStreamSynchronize(stream));
-        free(h_compact);
     }
 
     free(h_cands);
-    free(kept);
     return n_kept;
 }
 
@@ -1563,8 +1237,8 @@ ProteinAcqResult protein_acq_suggest(ProteinAcq *acq, int m, const GaussianProce
                                      float log_c_max, float max_suggestion_cost, float target_cost_ratio,
                                      int optimize_direction, int fixed_cost, const float *d_success_prob,
                                      cudaStream_t stream) {
-    gp_predict_d(gp_score, acq->d_candidates, acq->d_pred_y, NULL, m, stream);
-    gp_predict_d(gp_cost, acq->d_candidates, acq->d_pred_c, NULL, m, stream);
+    gp_predict_d(gp_score, acq->d_candidates, acq->d_pred_y, m, stream);
+    gp_predict_d(gp_cost, acq->d_candidates, acq->d_pred_c, m, stream);
 
     protein_k_score<<<(m + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, stream>>>(
         acq->d_pred_y, acq->d_pred_c, d_success_prob, acq->d_scores, m, min_score, max_score, log_c_min, log_c_max,
@@ -1596,7 +1270,7 @@ ProteinAcqResult protein_acq_suggest(ProteinAcq *acq, int m, const GaussianProce
 
 typedef struct {
     float *m, *v, *v_max;
-    float lr, beta1, beta2, eps;
+    float lr;
     int t, n;
 } Adam;
 
@@ -1605,38 +1279,20 @@ Adam *adam_create(int n_kernel_params, float lr) {
     Adam *opt = (Adam *)calloc(1, sizeof(Adam));
     opt->n = n;
     opt->lr = lr;
-    opt->beta1 = 0.9f;
-    opt->beta2 = 0.999f;
-    opt->eps = 1e-8f;
-    opt->m = (float *)calloc((size_t)n, sizeof(float));
-    opt->v = (float *)calloc((size_t)n, sizeof(float));
-    opt->v_max = (float *)calloc((size_t)n, sizeof(float));
+    opt->m = (float *)calloc((size_t)3 * n, sizeof(float));
+    opt->v = opt->m + n;
+    opt->v_max = opt->v + n;
     return opt;
 }
 
 void adam_destroy(Adam *opt) {
-    if (!opt)
-        return;
     free(opt->m);
-    free(opt->v);
-    free(opt->v_max);
     free(opt);
 }
 
 void adam_reset(Adam *opt) {
-    memset(opt->m, 0, (size_t)opt->n * sizeof(float));
-    memset(opt->v, 0, (size_t)opt->n * sizeof(float));
-    memset(opt->v_max, 0, (size_t)opt->n * sizeof(float));
+    memset(opt->m, 0, (size_t)3 * opt->n * sizeof(float));
     opt->t = 0;
-}
-
-static float noise_log_prior_grad(float raw_noise) {
-    float sig = softplus_grad(raw_noise);
-    float noise = softplus(raw_noise);
-    float log_noise = logf(noise);
-    float d_log_p = (-(log_noise - NOISE_PRIOR_MU) / (NOISE_PRIOR_SIGMA * NOISE_PRIOR_SIGMA) - 1.0f) * sig / noise;
-    float d_log_jac = 1.0f - sig;
-    return d_log_p + d_log_jac;
 }
 
 float protein_train_gp(GaussianProcess *gp, Adam *opt, const float *X, const float *y, int n_data, int training_iter,
@@ -1649,6 +1305,7 @@ float protein_train_gp(GaussianProcess *gp, Adam *opt, const float *X, const flo
     float *kg = (float *)malloc((size_t)n_kp * sizeof(float));
     float loss = 0.0f;
 
+    const float beta1 = 0.9f, beta2 = 0.999f;
     for (int iter = 0; iter < training_iter; iter++) {
         rc = gp_recompute(gp, stream);
         if (rc != 0)
@@ -1659,28 +1316,29 @@ float protein_train_gp(GaussianProcess *gp, Adam *opt, const float *X, const flo
         gp_mll_grad(gp, &d_noise, kg, stream);
         cudaStreamSynchronize(stream);
 
-        float np_grad = noise_log_prior_grad(gp->raw_noise);
-
         float noise_val = softplus(gp->raw_noise);
         float ln_noise = logf(noise_val);
+        float sig = softplus_grad(gp->raw_noise);
+        float np_grad = (-(ln_noise - NOISE_PRIOR_MU) / (NOISE_PRIOR_SIGMA * NOISE_PRIOR_SIGMA) - 1.0f) * sig / noise_val;
+        np_grad += 1.0f - sig;
         float lp =
             -0.5f * powf((ln_noise - NOISE_PRIOR_MU) / NOISE_PRIOR_SIGMA, 2.0f) - ln_noise - logf(NOISE_PRIOR_SIGMA);
         float lj = -log1pf(expf(-gp->raw_noise));
         loss = -mll - (lp + lj);
 
         opt->t++;
-        float bc1 = 1.0f - powf(opt->beta1, (float)opt->t);
-        float bc2 = 1.0f - powf(opt->beta2, (float)opt->t);
+        float bc1 = 1.0f - powf(beta1, (float)opt->t);
+        float bc2 = 1.0f - powf(beta2, (float)opt->t);
 
         for (int i = 0; i < opt->n; i++) {
             float g = (i < n_kp) ? -kg[i] : -d_noise - np_grad;
-            opt->m[i] = opt->beta1 * opt->m[i] + (1.0f - opt->beta1) * g;
-            opt->v[i] = opt->beta2 * opt->v[i] + (1.0f - opt->beta2) * g * g;
+            opt->m[i] = beta1 * opt->m[i] + (1.0f - beta1) * g;
+            opt->v[i] = beta2 * opt->v[i] + (1.0f - beta2) * g * g;
             float m_hat = opt->m[i] / bc1;
             float v_hat = opt->v[i] / bc2;
             if (v_hat > opt->v_max[i])
                 opt->v_max[i] = v_hat;
-            float step = opt->lr * m_hat / (sqrtf(opt->v_max[i]) + opt->eps);
+            float step = opt->lr * m_hat / (sqrtf(opt->v_max[i]) + 1e-8f);
             if (i < n_kp)
                 gp->kernel->raw_params[i] -= step;
             else
@@ -1693,22 +1351,6 @@ float protein_train_gp(GaussianProcess *gp, Adam *opt, const float *X, const flo
     return loss;
 }
 
-Sobol *sobol_create(int dim, unsigned long long seed) {
-    Sobol *sob = (Sobol *)calloc(1, sizeof(Sobol));
-    sob->dim = dim;
-    CURAND_CHECK(curandCreateGeneratorHost(&sob->gen, CURAND_RNG_QUASI_SCRAMBLED_SOBOL32));
-    CURAND_CHECK(curandSetQuasiRandomGeneratorDimensions(sob->gen, dim));
-    CURAND_CHECK(curandSetGeneratorOffset(sob->gen, seed));
-    return sob;
-}
-
-void sobol_destroy(Sobol *sob) {
-    if (!sob)
-        return;
-    curandDestroyGenerator(sob->gen);
-    free(sob);
-}
-
 ProteinObs *protein_obs_create(int dim, int success_cap, int failure_cap, int top_k, int cost_dim) {
     ProteinObs *obs = (ProteinObs *)calloc(1, sizeof(ProteinObs));
     obs->dim = dim;
@@ -1719,26 +1361,20 @@ ProteinObs *protein_obs_create(int dim, int success_cap, int failure_cap, int to
     obs->max_score = -FLT_MAX;
     obs->log_c_min = FLT_MAX;
     obs->log_c_max = -FLT_MAX;
-    obs->success.params = (float *)calloc((size_t)success_cap * dim, sizeof(float));
-    obs->success.scores = (float *)calloc((size_t)success_cap, sizeof(float));
-    obs->success.costs = (float *)calloc((size_t)success_cap, sizeof(float));
+    obs->success.params = (float *)calloc((size_t)success_cap * (dim + 2), sizeof(float));
+    obs->success.scores = obs->success.params + (size_t)success_cap * dim;
+    obs->success.costs = obs->success.scores + success_cap;
     obs->success.cap = success_cap;
-    obs->failure.params = (float *)calloc((size_t)failure_cap * dim, sizeof(float));
-    obs->failure.scores = (float *)calloc((size_t)failure_cap, sizeof(float));
-    obs->failure.costs = (float *)calloc((size_t)failure_cap, sizeof(float));
+    obs->failure.params = (float *)calloc((size_t)failure_cap * (dim + 2), sizeof(float));
+    obs->failure.scores = obs->failure.params + (size_t)failure_cap * dim;
+    obs->failure.costs = obs->failure.scores + failure_cap;
     obs->failure.cap = failure_cap;
     return obs;
 }
 
 void protein_obs_destroy(ProteinObs *obs) {
-    if (!obs)
-        return;
     free(obs->success.params);
-    free(obs->success.scores);
-    free(obs->success.costs);
     free(obs->failure.params);
-    free(obs->failure.scores);
-    free(obs->failure.costs);
     free(obs->top_idx);
     free(obs);
 }
@@ -1746,7 +1382,7 @@ void protein_obs_destroy(ProteinObs *obs) {
 void protein_obs_add(ProteinObs *obs, const float *params, float score, float cost, int is_failure) {
     int dim = obs->dim;
 
-    if (is_failure || !isfinite(score) || isnan(score)) {
+    if (is_failure || !isfinite(score)) {
         ProteinObsList *f = &obs->failure;
         if (f->n < f->cap) {
             int i = f->n++;
@@ -1801,19 +1437,10 @@ void protein_obs_add(ProteinObs *obs, const float *params, float score, float co
     }
 }
 
-static void protein_obs_extract(const float *ext, int ext_dim, int dim, int idx, float *out_params, float *out_score,
-                                float *out_cost) {
-    memcpy(out_params, &ext[(size_t)idx * ext_dim], (size_t)dim * sizeof(float));
-    *out_score = ext[(size_t)idx * ext_dim + dim];
-    *out_cost = ext[(size_t)idx * ext_dim + dim + 1];
-}
-
 int protein_obs_sample_for_gp(ProteinObs *obs, int max_size, float recent_ratio, float *out_params, float *out_scores,
                               float *out_costs) {
     ProteinObsList *s = &obs->success;
     int dim = obs->dim;
-    if (s->n == 0)
-        return 0;
 
     obs->min_score = s->scores[0];
     obs->max_score = s->scores[0];
@@ -1859,45 +1486,28 @@ int protein_obs_sample_for_gp(ProteinObs *obs, int max_size, float recent_ratio,
     int *kept = (int *)malloc((size_t)combined_n * sizeof(int));
     int n_kept = gp_filter_near_duplicates(ext, combined_n, ext_dim, PROTEIN_EPSILON, kept);
 
-    if (n_kept <= max_size) {
-        for (int i = 0; i < n_kept; i++)
-            protein_obs_extract(ext, ext_dim, dim, kept[i], &out_params[(size_t)i * dim], &out_scores[i],
-                                &out_costs[i]);
-        free(kept);
-        free(ext);
-        return n_kept;
+    if (n_kept > max_size) {
+        int recent_size = (int)(recent_ratio * (float)max_size);
+        int older_size = n_kept - recent_size;
+        int num_sample = max_size - recent_size;
+        for (int i = 0; i < num_sample; i++) {
+            int j = i + rand() % (older_size - i);
+            int tmp = kept[i];
+            kept[i] = kept[j];
+            kept[j] = tmp;
+        }
+        memmove(kept + num_sample, kept + older_size, (size_t)recent_size * sizeof(int));
+        n_kept = max_size;
     }
-
-    int recent_size = (int)(recent_ratio * (float)max_size);
-    int older_size = n_kept - recent_size;
-    int num_sample = max_size - recent_size;
-
-    int *sample_idx = (int *)malloc((size_t)older_size * sizeof(int));
-    for (int i = 0; i < older_size; i++)
-        sample_idx[i] = i;
-    for (int i = 0; i < num_sample && i < older_size; i++) {
-        int j = i + rand() % (older_size - i);
-        int tmp = sample_idx[i];
-        sample_idx[i] = sample_idx[j];
-        sample_idx[j] = tmp;
+    for (int i = 0; i < n_kept; i++) {
+        int idx = kept[i];
+        memcpy(&out_params[(size_t)i * dim], &ext[(size_t)idx * ext_dim], (size_t)dim * sizeof(float));
+        out_scores[i] = ext[(size_t)idx * ext_dim + dim];
+        out_costs[i] = ext[(size_t)idx * ext_dim + dim + 1];
     }
-
-    int out_n = 0;
-    for (int i = 0; i < num_sample && i < older_size; i++) {
-        protein_obs_extract(ext, ext_dim, dim, kept[sample_idx[i]], &out_params[(size_t)out_n * dim],
-                            &out_scores[out_n], &out_costs[out_n]);
-        out_n++;
-    }
-    for (int i = n_kept - recent_size; i < n_kept; i++) {
-        protein_obs_extract(ext, ext_dim, dim, kept[i], &out_params[(size_t)out_n * dim], &out_scores[out_n],
-                            &out_costs[out_n]);
-        out_n++;
-    }
-
-    free(sample_idx);
     free(kept);
     free(ext);
-    return out_n;
+    return n_kept;
 }
 
 typedef struct {
@@ -1918,7 +1528,7 @@ typedef struct {
     ProteinAcq *acq;
     ProteinCostModel cost_model;
     ProteinClassifier *clf;
-    Sobol *sobol;
+    curandGenerator_t sobol;
     GaussianProcess *gp_score;
     GaussianProcess *gp_cost;
     Adam *opt_score;
@@ -1940,16 +1550,12 @@ typedef struct {
     float upper_cost_threshold;
     float ratio_pool[PROTEIN_NUM_COST_RATIOS];
     int pool_remaining;
-    float running_buf[PROTEIN_RUNNING_BUF_CAP];
-    int running_pos;
-    int running_len;
     float *gp_train_params;
     float *gp_train_y;
     float *gp_train_c;
     int *pareto_buf;
     int *pruned_buf;
     float *centers_buf;
-    int obs_cap, centers_cap;
 } ProteinSweep;
 
 ProteinSweep *protein_sweep_create(SweepSpace *space, int num_random_samples, int suggestions_per_pareto,
@@ -1958,18 +1564,6 @@ ProteinSweep *protein_sweep_create(SweepSpace *space, int num_random_samples, in
                                    int use_logit, float global_search_scale, float max_suggestion_cost,
                                    float expansion_rate, float cost_random_suggestion, float early_stop_quantile,
                                    int success_cap, int failure_cap, int top_k, unsigned long long rng_seed) {
-    if (max_suggestion_cost <= 0) {
-        fprintf(stderr, "protein: max_suggestion_cost must be > 0\n");
-        exit(1);
-    }
-    if (early_stop_quantile <= 0 || early_stop_quantile >= 1) {
-        fprintf(stderr, "protein: early_stop_quantile must be in (0, 1)\n");
-        exit(1);
-    }
-    if (!space || space->num < 1) {
-        fprintf(stderr, "protein: sweep space is empty\n");
-        exit(1);
-    }
     int dim = space->num;
     ProteinSweep *sw = (ProteinSweep *)calloc(1, sizeof(ProteinSweep));
     sw->space = space;
@@ -2002,20 +1596,20 @@ ProteinSweep *protein_sweep_create(SweepSpace *space, int num_random_samples, in
     sw->cost_model.quantile = early_stop_quantile;
     sw->cost_model.min_samples = 30;
     sw->clf = protein_classifier_create(dim);
-    sw->sobol = sobol_create(dim, rng_seed);
+    CURAND_CHECK(curandCreateGeneratorHost(&sw->sobol, CURAND_RNG_QUASI_SCRAMBLED_SOBOL32));
+    CURAND_CHECK(curandSetQuasiRandomGeneratorDimensions(sw->sobol, dim));
+    CURAND_CHECK(curandSetGeneratorOffset(sw->sobol, rng_seed));
 
     sw->gp_score = gp_create(dim, gp_max_obs, gp_kernel_matern32_linear(dim, 1.0f, 1.0f, 1.0f), 0.01f);
     sw->gp_cost = gp_create(dim, gp_max_obs, gp_kernel_matern32_linear(dim, 1.0f, 1.0f, 1.0f), 0.01f);
     sw->opt_score = adam_create(sw->gp_score->kernel->n_params, gp_learning_rate);
     sw->opt_cost = adam_create(sw->gp_cost->kernel->n_params, gp_learning_rate);
 
-    sw->obs_cap = success_cap;
-    sw->centers_cap = max_centers;
-    sw->gp_train_params = (float *)malloc((size_t)gp_max_obs * dim * sizeof(float));
-    sw->gp_train_y = (float *)malloc((size_t)gp_max_obs * sizeof(float));
-    sw->gp_train_c = (float *)malloc((size_t)gp_max_obs * sizeof(float));
-    sw->pareto_buf = (int *)malloc((size_t)success_cap * sizeof(int));
-    sw->pruned_buf = (int *)malloc((size_t)success_cap * sizeof(int));
+    sw->gp_train_params = (float *)malloc((size_t)gp_max_obs * (dim + 2) * sizeof(float));
+    sw->gp_train_y = sw->gp_train_params + (size_t)gp_max_obs * dim;
+    sw->gp_train_c = sw->gp_train_y + gp_max_obs;
+    sw->pareto_buf = (int *)malloc((size_t)2 * success_cap * sizeof(int));
+    sw->pruned_buf = sw->pareto_buf + success_cap;
     sw->centers_buf = (float *)malloc((size_t)max_centers * dim * sizeof(float));
 
     CUDA_CHECK(cudaStreamCreate(&sw->stream));
@@ -2023,23 +1617,17 @@ ProteinSweep *protein_sweep_create(SweepSpace *space, int num_random_samples, in
 }
 
 void protein_sweep_destroy(ProteinSweep *sw) {
-    if (!sw)
-        return;
     protein_obs_destroy(sw->obs);
     protein_acq_destroy(sw->acq);
     protein_classifier_destroy(sw->clf);
-    sobol_destroy(sw->sobol);
+    curandDestroyGenerator(sw->sobol);
     gp_destroy(sw->gp_score);
     gp_destroy(sw->gp_cost);
     adam_destroy(sw->opt_score);
     adam_destroy(sw->opt_cost);
-    if (sw->stream)
-        cudaStreamDestroy(sw->stream);
+    cudaStreamDestroy(sw->stream);
     free(sw->gp_train_params);
-    free(sw->gp_train_y);
-    free(sw->gp_train_c);
     free(sw->pareto_buf);
-    free(sw->pruned_buf);
     free(sw->centers_buf);
     free(sw);
 }
@@ -2048,22 +1636,6 @@ void protein_sweep_observe(ProteinSweep *sw, const float *norm_params, float sco
     if (sw->use_logit)
         score = protein_logit_transform(score);
     protein_obs_add(sw->obs, norm_params, score, cost, is_failure);
-}
-
-void protein_sweep_add_running(ProteinSweep *sw, float val) {
-    sw->running_buf[sw->running_pos] = val;
-    sw->running_pos = (sw->running_pos + 1) % PROTEIN_RUNNING_BUF_CAP;
-    if (sw->running_len < PROTEIN_RUNNING_BUF_CAP)
-        sw->running_len++;
-}
-
-float protein_sweep_running_mean(const ProteinSweep *sw) {
-    if (sw->running_len == 0)
-        return 0.0f;
-    float sum = 0.0f;
-    for (int i = 0; i < sw->running_len; i++)
-        sum += sw->running_buf[i];
-    return sum / (float)sw->running_len;
 }
 
 float protein_sweep_get_threshold(const ProteinSweep *sw, float cost) {
@@ -2080,7 +1652,7 @@ int protein_sweep_should_stop(const ProteinSweep *sw, float score, float cost) {
 static void protein_sobol_fallback(ProteinSweep *sw, float *out, int is_fixed_cost, float fixed_cost_norm) {
     int dim = sw->space->num;
     int cost_dim = sw->space->cost_idx;
-    CURAND_CHECK(curandGenerateUniform(sw->sobol->gen, out, sw->sobol->dim));
+    CURAND_CHECK(curandGenerateUniform(sw->sobol, out, dim));
     for (int d = 0; d < dim; d++)
         out[d] = 2.0f * out[d] - 1.0f;
     if (is_fixed_cost && cost_dim >= 0) {

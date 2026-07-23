@@ -1342,9 +1342,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
     fill_precision_kernel<<<grid_size(numel(rollouts.ratio.shape)), BLOCK_SIZE, 0, train_stream>>>(
         rollouts.ratio.data, from_float(1.0f), numel(rollouts.ratio.shape));
 
-    int minibatch_size = hypers.minibatch_size;
     int batch_size = hypers.total_agents * hypers.horizon;
-    int minibatch_segments = minibatch_size / hypers.horizon;
     float prio_beta0 = hypers.prio_beta0;
     float prio_alpha = hypers.prio_alpha;
     bool anneal_lr = hypers.anneal_lr;
@@ -1355,7 +1353,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
     if (anneal_lr) {
         float lr_min = hypers.min_lr_ratio * hypers.lr;
         float lr = cosine_annealing(hypers.lr, lr_min, current_epoch, total_epochs);
-        cudaMemcpy(muon->lr_ptr, &lr, sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(muon->lr_puf.data, &lr, sizeof(float), cudaMemcpyHostToDevice);
     }
 
     // Annealed entropy coefficient — same cosine shape as lr. With PG signal
@@ -1404,8 +1402,8 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         cudaEventRecord(pufferl.profile.events[2], train_stream);  // start of misc (overwritten each iter)
 
         profile_begin("compute_prio", hypers.profile);
-        prio_sample_cuda(minibatch_segments, hypers.total_agents, anneal_beta,
-            pufferl.prio_bufs, pufferl.seed, train_rng_offset, train_stream);
+        prio_sample_cuda(anneal_beta, pufferl.prio_bufs, pufferl.seed,
+            train_rng_offset, train_stream);
         profile_end(hypers.profile);
 
         profile_begin("train_select_and_copy", hypers.profile);
@@ -1669,10 +1667,6 @@ void puf_load_weights_into(FloatTensor dst, PrecisionTensor params,
 }
 
 void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) {
-    if (bank_idx < 0 || bank_idx >= pufferl->num_frozen_banks) {
-        fprintf(stderr, "pufferl_load_frozen_bank: bank_idx %d out of range\n", bank_idx);
-        exit(1);
-    }
     WeightBank* bank = &pufferl->frozen_banks[bank_idx];
     puf_load_weights_into(bank->master_weights, bank->param_puf,
         pufferl->default_stream, path);
@@ -1970,7 +1964,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     int batch = total_agents / num_buffers;
 
     pufferl->policy = build_policy(pufferl->env_name, input_size, hidden_size,
-        num_layers, decoder_output_size, act_n, is_continuous, hypers.horizon);
+        num_layers, decoder_output_size, is_continuous, hypers.horizon);
 
     // Dedicated learner stream (always non-default; nonblocking when async).
     if (hypers.async) {
@@ -2035,7 +2029,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     pufferl->advantages_puf = {.shape = {total_agents, horizon}};
     alloc_register(acts, &pufferl->advantages_puf);
 
-    muon_init(&pufferl->muon, params, hypers.lr, hypers.momentum, 0.0, acts);
+    muon_init(&pufferl->muon, params, hypers.momentum, acts);
 
     // All buffers allocated here
     create_allocator_or_die("params", params);
@@ -2082,9 +2076,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     cudaMemcpy(pufferl->act_sizes_puf.data, act_sizes, num_action_heads * sizeof(int),
         cudaMemcpyHostToDevice);
     cudaMemset(pufferl->losses_puf.data, 0, NUM_LOSSES * sizeof(float));
-    float one = 1.0f;
-    cudaMemcpy(pufferl->ppo_bufs_puf.grad_loss.data, &one, sizeof(float), cudaMemcpyHostToDevice);
-    muon_post_create(&pufferl->muon);
+    cudaMemcpy(pufferl->muon.lr_puf.data, &hypers.lr, sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemset(pufferl->muon.mb_puf.data, 0, numel(pufferl->muon.mb_puf.shape) * sizeof(float));
 
     // Frozen banks (selfplay/match opponents): rollout-only policy.
     // Arch comes from vec.frozen_bank_*; required when banks > 0.
@@ -2102,7 +2095,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         assert(slice > 0 && "frozen bank has no agents");
         WeightBank* bank = &pufferl->frozen_banks[b];
         bank->policy = build_policy(pufferl->env_name, input_size, frozen_hidden,
-            frozen_layers, decoder_output_size, act_n, is_continuous, hypers.horizon);
+            frozen_layers, decoder_output_size, is_continuous, hypers.horizon);
         bank->weights = policy_weights_create(&bank->policy, &bank->params_alloc);
         bank->buffer_activations = (PolicyActivations*)xcalloc((size_t)num_buffers * sizeof(PolicyActivations));
         bank->buffer_states = (PrecisionTensor*)xcalloc((size_t)num_buffers * sizeof(PrecisionTensor));
@@ -2541,30 +2534,6 @@ void puf_log_history_add(PufLogHistory* history, Dict* log) {
     history->size++;
 }
 
-double puf_log_reduce(double* vals, int n, double fallback) {
-    if (n == 0) {
-        return fallback;
-    }
-
-    double sum = 0;
-    for (int i = 0; i < n; i++) {
-        sum += vals[i];
-    }
-    return sum / n;
-}
-
-void puf_log_write_metric(FILE* fp, const char* key, double* values, int n) {
-    fprintf(fp, "%s = ", key);
-    for (int i = 0; i < n; i++) {
-        if (i > 0) {
-            fputc(',', fp);
-        }
-        fprintf(fp, "%.17g", values[i]);
-    }
-    fputc('\n', fp);
-}
-
-
 double rollout_start(PuffeRL* p, int slot) {
     p->rollout_write_slot = slot;
     if (p->hypers.async) {
@@ -2667,7 +2636,6 @@ typedef struct {
     float cost;
     float steps;
     int points;
-    char checkpoint_path[4096];
     float scores[TRAIN_RESULT_MAX_POINTS];
     float costs[TRAIN_RESULT_MAX_POINTS];
     float step_points[TRAIN_RESULT_MAX_POINTS];
@@ -2680,7 +2648,6 @@ typedef struct {
 EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose);
 
 #define SELFPLAY_MAX_BANKS 8
-#define SELFPLAY_MAX_POOL 1024
 #define SELFPLAY_PATH_MAX 4096
 
 typedef struct {
@@ -2694,7 +2661,7 @@ typedef struct {
     int max_size;
     long opp_timeout_steps;
     unsigned int rng;
-    char pool[SELFPLAY_MAX_POOL][SELFPLAY_PATH_MAX];
+    char (*pool)[SELFPLAY_PATH_MAX];
     int pool_size;
     SelfplayBank banks[SELFPLAY_MAX_BANKS];
 } Selfplay;
@@ -2704,27 +2671,18 @@ void selfplay_add_checkpoint(Selfplay* sp, const char* path) {
     for (int i = 0; i < sp->pool_size; i++) {
         if (strcmp(sp->pool[i], path) == 0) return;
     }
-    if (sp->pool_size >= SELFPLAY_MAX_POOL) {
-        fprintf(stderr, "selfplay pool exceeds SELFPLAY_MAX_POOL\n");
-        exit(1);
+    if (sp->pool_size == sp->max_size) {
+        memmove(sp->pool, sp->pool + 1,
+            (size_t)(sp->max_size - 1) * sizeof(*sp->pool));
+        sp->pool_size--;
     }
     snprintf(sp->pool[sp->pool_size++], sizeof(sp->pool[0]), "%s", path);
-    if (sp->pool_size > sp->max_size) {
-        int start = sp->pool_size - sp->max_size;
-        memmove(sp->pool, sp->pool + start, (size_t)sp->max_size * sizeof(sp->pool[0]));
-        sp->pool_size = sp->max_size;
-    }
 }
 
 const char* selfplay_sample(Selfplay* sp) {
-    if (sp->pool_size == 0) {
-        fprintf(stderr, "selfplay opponent pool is empty\n");
-        exit(1);
-    }
     int idx = (int)(rand_r(&sp->rng) % (unsigned int)sp->pool_size);
     return sp->pool[idx];
 }
-
 
 typedef struct {
     char section[64];
@@ -2740,7 +2698,6 @@ typedef struct {
     int pareto;
     int fd;
     pid_t pid;
-    char run_id[128];
     float* sample;
     TrainResult result;
 } SweepJob;
@@ -2748,13 +2705,9 @@ typedef struct {
 void run_sweep(Ini* ini, const char* exe_path) {
     // Build SweepSpace + param map from [sweep.<section>.<key>] sections.
     const char* goal = puf_ini_get_str(ini, "sweep", "goal");
-    int direction = 1;
-    if (strcmp(goal, "minimize") == 0) {
-        direction = -1;
-    } else {
-        assert(strcmp(goal, "maximize") == 0
-            && "sweep.goal must be maximize or minimize");
-    }
+    assert((strcmp(goal, "maximize") == 0 || strcmp(goal, "minimize") == 0)
+        && "sweep.goal must be maximize or minimize");
+    int direction = strcmp(goal, "minimize") == 0 ? -1 : 1;
 
     SweepParam* params = (SweepParam*)calloc((size_t)ini->num_sections, sizeof(SweepParam));
     SweepSpace* space = sweep_space_create(ini->num_sections, -1, direction);
@@ -2775,7 +2728,6 @@ void run_sweep(Ini* ini, const char* exe_path) {
         const char* dist = dict_get_str(dict, "distribution");
         SpaceType type = SPACE_LINEAR;
         int is_integer = 0;
-        int known_dist = 1;
         if (strcmp(dist, "uniform") == 0) {
             type = SPACE_LINEAR;
         } else if (strcmp(dist, "int_uniform") == 0) {
@@ -2789,10 +2741,9 @@ void run_sweep(Ini* ini, const char* exe_path) {
         } else if (strcmp(dist, "logit_normal") == 0) {
             type = SPACE_LOGIT;
         } else {
-            known_dist = 0;
+            assert(0 && "invalid sweep distribution (use uniform/int_uniform/"
+                "uniform_pow2/log_normal/logit_normal)");
         }
-        assert(known_dist && "invalid sweep distribution (use uniform/"
-            "int_uniform/uniform_pow2/log_normal/logit_normal)");
 
         float min_v = (float)dict_get(dict, "min");
         float max_v = (float)dict_get(dict, "max");
@@ -2856,12 +2807,6 @@ void run_sweep(Ini* ini, const char* exe_path) {
     }
 
     int parallel = sweep_gpus / train_gpus;
-    if (parallel < 1) parallel = 1;
-    if (sweep_gpus % train_gpus != 0) {
-        fprintf(stderr, "sweep note: %d GPUs not divisible by train.gpus=%d; "
-            "using %d concurrent trials (%d GPUs idle)\n",
-            sweep_gpus, train_gpus, parallel, sweep_gpus - parallel * train_gpus);
-    }
 
     ProteinSweep* protein = protein_sweep_create(space,
         10, 256, 50, 0.001f, 50, 750, 4096,
@@ -2869,21 +2814,19 @@ void run_sweep(Ini* ini, const char* exe_path) {
         1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
         success_cap, 1024, 5, 73ULL);
 
-    float* sample = (float*)calloc((size_t)space->num, sizeof(float));
+    float* samples = (float*)calloc((size_t)(parallel + 1) * space->num, sizeof(float));
+    float* sample = samples;
     SweepJob* jobs = (SweepJob*)calloc((size_t)parallel, sizeof(SweepJob));
     int failed_workers = 0;
     int next_run_id = 0;
     int completed = 0;
-    int used_default = 0;
     while (completed < max_runs) {
         int batch = max_runs - completed;
         if (batch > parallel) batch = parallel;
 
         for (int i = 0; i < batch; i++) {
             ProteinSweepInfo info = {0};
-            int job_run = next_run_id++;
-            int apply_sample = 1;
-            if (!used_default) {
+            if (!next_run_id) {
                 for (int j = 0; j < space->num; j++) {
                     float val = (float)puf_ini_get(ini, params[j].section, params[j].key);
                     float norm = space_normalize(&space->spaces[j], val);
@@ -2891,63 +2834,58 @@ void run_sweep(Ini* ini, const char* exe_path) {
                         && "default sweep value outside its sweep range");
                     sample[j] = norm;
                 }
-                used_default = 1;
-                apply_sample = 0;
             } else {
                 // Invalid train shapes die in the worker (launch_train asserts);
                 // failed workers are observed as bad samples below.
                 info = protein_sweep_suggest(protein, sample, NAN);
             }
 
-            int gpu_block_offset = i * train_gpus;
             SweepJob job = {0};
-            job.run = job_run;
+            job.run = next_run_id++;
             job.random = info.is_random;
             job.gp_obs = info.n_gp_obs;
             job.pareto = info.n_pareto;
-            job.sample = (float*)calloc((size_t)space->num, sizeof(float));
+            job.sample = samples + (size_t)(i + 1) * space->num;
             memcpy(job.sample, sample, (size_t)space->num * sizeof(float));
 
-            Ini trial = {0};
-            puf_ini_copy(&trial, ini);
-            if (apply_sample) {
+            if (job.run) {
                 for (int p = 0; p < space->num; p++) {
                     float val = space_unnormalize(&space->spaces[p], sample[p]);
                     char buf[64];
                     snprintf(buf, sizeof(buf), "%.9g", val);
                     char key[256];
                     snprintf(key, sizeof(key), "%s.%s", params[p].section, params[p].key);
-                    puf_ini_put(&trial, key, buf);
+                    puf_ini_put(ini, key, buf);
                 }
             }
-            snprintf(job.run_id, sizeof(job.run_id), "sweep_%ld_%04d",
-                (long)(1000.0 * wall_clock()), job_run);
-            puf_ini_put(&trial, "base.run_id", job.run_id);
+            char run_id[128];
+            snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d",
+                (long)(1000.0 * wall_clock()), job.run);
+            puf_ini_put(ini, "base.run_id", run_id);
 
             // Spawn clean train process (after parent CUDA init for protein).
             // Child runs main→launch_train; train.gpus>1 DP-forks inside that process.
             int pipefd[2];
-            if (pipe(pipefd) != 0) { perror("pipe"); exit(1); }
+            assert(pipe(pipefd) == 0);
             char buf[64];
-            snprintf(buf, sizeof(buf), "%d", gpu_block_offset);
-            puf_ini_put(&trial, "base.gpu_offset", buf);
+            snprintf(buf, sizeof(buf), "%d", i * train_gpus);
+            puf_ini_put(ini, "base.gpu_offset", buf);
             snprintf(buf, sizeof(buf), "%d", pipefd[1]);
-            puf_ini_put(&trial, "base.result_fd", buf);
+            puf_ini_put(ini, "base.result_fd", buf);
 
             int nkeys = 0;
-            for (int s = 0; s < trial.num_sections; s++) {
-                nkeys += trial.sections[s].size;
+            for (int s = 0; s < ini->num_sections; s++) {
+                nkeys += ini->sections[s].size;
             }
             int argc = nkeys + 4;
             char** argv = (char**)calloc((size_t)argc, sizeof(char*));
-            if (!argv) { perror("calloc"); exit(1); }
             argv[0] = (char*)exe_path;
             argv[1] = (char*)"train";
-            argv[2] = (char*)puf_ini_get_str(&trial, "base", "env_name");
+            argv[2] = (char*)puf_ini_get_str(ini, "base", "env_name");
             int idx = 3;
             char full_key[PUF_DICT_MAX_KEY * 2];
-            for (int s = 0; s < trial.num_sections; s++) {
-                Dict* dict = &trial.sections[s];
+            for (int s = 0; s < ini->num_sections; s++) {
+                Dict* dict = &ini->sections[s];
                 for (int k = 0; k < dict->size; k++) {
                     snprintf(full_key, sizeof(full_key), "%s.%s",
                         dict->name, dict->items[k].key);
@@ -2960,7 +2898,6 @@ void run_sweep(Ini* ini, const char* exe_path) {
                     }
                     size_t n = strlen(full_key) + strlen(src) + 2;
                     char* out = (char*)malloc(n);
-                    if (!out) { perror("malloc"); exit(1); }
                     snprintf(out, n, "%s=%s", full_key, src);
                     argv[idx++] = out;
                 }
@@ -2985,61 +2922,41 @@ void run_sweep(Ini* ini, const char* exe_path) {
             close(pipefd[1]);
             job.fd = pipefd[0];
             job.pid = pid;
-            puf_ini_free(&trial);
             jobs[i] = job;
         }
 
         for (int i = 0; i < batch; i++) {
             SweepJob* job = &jobs[i];
-            int ok = 1;
-            char* dst = (char*)&job->result;
-            size_t need = sizeof(job->result);
-            while (need > 0) {
-                ssize_t nrd = read(job->fd, dst, need);
-                if (nrd <= 0) {
-                    ok = 0;
-                    break;
-                }
-                dst += nrd;
-                need -= (size_t)nrd;
-            }
+            int ok = read(job->fd, &job->result, sizeof(job->result)) == sizeof(job->result);
             close(job->fd);
-
             int status = 0;
-            int wait_ok = waitpid(job->pid, &status, 0) >= 0;
-            if (!wait_ok) perror("waitpid");
-            int good = wait_ok && ok && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+            waitpid(job->pid, &status, 0);
+            int good = ok && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 
             if (!good) {
                 fprintf(stderr, "sweep worker run=%d failed; marking sample bad\n", job->run);
                 protein_sweep_observe(protein, job->sample, NAN, max_cost, 1);
-                free(job->sample);
-                job->sample = NULL;
-                failed_workers++;
-                if (failed_workers > 10000) {
+                if (++failed_workers > 1000) {
                     fprintf(stderr, "sweep error: too many failed workers\n");
                     exit(1);
                 }
             } else {
                 // Non-selfplay: points[] is a downsampled learning curve.
                 // Selfplay: points==1 — final pool-eval winrate (or last train metric).
-                int points = job->result.points > 0 ? job->result.points : 1;
-                for (int pi = 0; pi < points; pi++) {
+                for (int pi = 0; pi < job->result.points; pi++) {
                     protein_sweep_observe(protein, job->sample,
                         job->result.scores[pi], job->result.costs[pi], 0);
                 }
                 printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
                     job->run, job->result.score, job->result.cost, job->result.steps,
                     job->random, job->gp_obs, job->pareto);
-                free(job->sample);
-                job->sample = NULL;
                 completed++;
             }
         }
     }
 
     free(jobs);
-    free(sample);
+    free(samples);
     free(params);
     protein_sweep_destroy(protein);
     sweep_space_destroy(space);
@@ -3102,11 +3019,8 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
         puf_ini_put(ini, "env.num_agents", "2");
         puf_ini_put(ini, "env.num_bots", "0");
     }
-    static const char* const eval_common[][2] = {
-        {"base.reset_state", "0"},
-        {"train.horizon", "1"},
-    };
-    puf_ini_put_pairs(ini, eval_common, 2);
+    puf_ini_put(ini, "base.reset_state", "0");
+    puf_ini_put(ini, "train.horizon", "1");
 
     PuffeRL* pufferl = create_pufferl(ini, ctx);
     if (match) {
@@ -3136,7 +3050,7 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
 
     Dict baseline = {0};
     long baseline_n = 0;
-    for (;;) {
+    while (true) {
         if (render) {
             puf_render(&pufferl->vec->envs[0]);
         }
@@ -3208,11 +3122,8 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     assert(!use_selfplay && "selfplay not supported with --gpu (PUFFER_GPU_ENV)");
 #endif
     if (!use_selfplay) {
-        static const char* const off[][2] = {
-            {"vec.num_frozen_banks", "0"},
-            {"vec.frozen_bank_pct", "0"},
-        };
-        puf_ini_put_pairs(ini, off, 2);
+        puf_ini_put(ini, "vec.num_frozen_banks", "0");
+        puf_ini_put(ini, "vec.frozen_bank_pct", "0");
     }
 
     char run_id[64];
@@ -3238,27 +3149,25 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     }
 
     PuffeRL* pufferl = create_pufferl(ini, ctx);
-    char initial_checkpoint[4096] = {0};
+    Selfplay selfplay = {0};
     if (use_selfplay) {
+        char initial_checkpoint[4096];
         snprintf(initial_checkpoint, sizeof(initial_checkpoint),
             "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
         if (ctx->artifact_owner) {
             puf_save_weights(pufferl, initial_checkpoint);
         }
-    }
-
-    Selfplay* selfplay = NULL;
-    if (use_selfplay) {
-        selfplay = (Selfplay*)calloc(1, sizeof(Selfplay));
-        memset(selfplay, 0, sizeof(*selfplay));
-        selfplay->num_banks = pufferl->num_frozen_banks;
-        if (selfplay->num_banks <= 0 || selfplay->num_banks > SELFPLAY_MAX_BANKS) {
+        selfplay.num_banks = pufferl->num_frozen_banks;
+        if (selfplay.num_banks <= 0 || selfplay.num_banks > SELFPLAY_MAX_BANKS) {
             fprintf(stderr, "selfplay requires 1..%d frozen banks\n", SELFPLAY_MAX_BANKS);
             exit(1);
         }
-        selfplay->max_size = (int)puf_ini_get(ini, "selfplay", "max_size");
-        selfplay->opp_timeout_steps = (long)puf_ini_get(ini, "selfplay", "opp_timeout_steps");
-        selfplay->rng = (unsigned int)puf_ini_get(ini, "selfplay", "seed")
+        selfplay.max_size = (int)puf_ini_get(ini, "selfplay", "max_size");
+        assert(selfplay.max_size > 0 && "selfplay.max_size must be positive");
+        selfplay.pool = (char (*)[SELFPLAY_PATH_MAX])calloc(
+            (size_t)selfplay.max_size, sizeof(*selfplay.pool));
+        selfplay.opp_timeout_steps = (long)puf_ini_get(ini, "selfplay", "opp_timeout_steps");
+        selfplay.rng = (unsigned int)puf_ini_get(ini, "selfplay", "seed")
             + (unsigned int)pufferl->hypers.rank;
         long current_step = pufferl->global_step * pufferl->hypers.world_size;
 
@@ -3266,16 +3175,16 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         Env* envs = pufferl->vec->envs;
         for (int i = 0; i < pufferl->vec->size; i++) {
             int tag = envs[i].tag;
-            if (tag > 0 && tag <= selfplay->num_banks) {
-                selfplay->banks[tag - 1].num_envs++;
+            if (tag > 0 && tag <= selfplay.num_banks) {
+                selfplay.banks[tag - 1].num_envs++;
             }
         }
 #endif
 
-        selfplay_add_checkpoint(selfplay, initial_checkpoint);
-        for (int b = 0; b < selfplay->num_banks; b++) {
-            pufferl_load_frozen_bank(pufferl, b, selfplay_sample(selfplay));
-            selfplay->banks[b].opp_started_step = current_step;
+        selfplay_add_checkpoint(&selfplay, initial_checkpoint);
+        for (int b = 0; b < selfplay.num_banks; b++) {
+            pufferl_load_frozen_bank(pufferl, b, selfplay_sample(&selfplay));
+            selfplay.banks[b].opp_started_step = current_step;
         }
     }
 
@@ -3288,24 +3197,19 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     // Optional multiplier for longer post-train eval (noise studies). Default 1.
     double eval_epoch_mult = puf_ini_get(ini, "base", "eval_epoch_mult");
     if (eval_epoch_mult > 1.0) {
-        eval_epochs = (long)((double)eval_epochs * eval_epoch_mult);
-        if (eval_epochs < 1) {
-            eval_epochs = 1;
-        }
+        eval_epochs = (long)fmax(1, (double)eval_epochs * eval_epoch_mult);
     }
     long checkpoint_interval = puf_ini_get(ini, "base", "checkpoint_interval");
     long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
     // Sweep objective: bare names → env/<name>; keys with '/' used as-is.
     char target_key[128];
     const char* metric = puf_ini_get_str(ini, "sweep", "metric");
-    if (strchr(metric, '/')) {
-        snprintf(target_key, sizeof(target_key), "%s", metric);
-    } else {
-        snprintf(target_key, sizeof(target_key), "env/%s", metric);
-    }
+    snprintf(target_key, sizeof(target_key), "%s%s",
+        strchr(metric, '/') ? "" : "env/", metric);
     Dict last_log = {0};
     PufLogHistory log_history = {0};
     TrainResult result = {0};
+    char final_checkpoint[4096] = {0};
     double last_dashboard_time = 0;
 
     for (long epoch = 0; epoch < train_epochs + eval_epochs; epoch++) {
@@ -3353,12 +3257,12 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
                 "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
             if (ctx->artifact_owner) {
                 puf_save_weights(pufferl, saved_checkpoint);
-                snprintf(result.checkpoint_path, sizeof(result.checkpoint_path),
+                snprintf(final_checkpoint, sizeof(final_checkpoint),
                     "%s", saved_checkpoint);
             }
         }
-        if (selfplay && saved_checkpoint[0]) {
-            selfplay_add_checkpoint(selfplay, saved_checkpoint);
+        if (use_selfplay && saved_checkpoint[0]) {
+            selfplay_add_checkpoint(&selfplay, saved_checkpoint);
         }
 
         int is_eval = epoch >= train_epochs;
@@ -3419,21 +3323,15 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         }
         for (int i = 0; i < new_log.size; i++) {
             DictItem* item = &new_log.items[i];
-            if (item->str) {
-                dict_set_str(&last_log, item->key, item->str);
-                dict_find(&last_log, item->key)->value = item->value;
-            } else {
-                dict_set(&last_log, item->key, item->value);
-            }
+            dict_set(&last_log, item->key, item->value);
         }
+        dict_clear(&new_log);
 #ifndef PUFFER_GPU_ENV
-        if (selfplay && !is_eval) {
+        if (use_selfplay && !is_eval) {
             long current_step = pufferl->global_step * pufferl->hypers.world_size;
             Env* envs = pufferl->vec->envs;
-            for (int b = 0; b < selfplay->num_banks; b++) {
-                SelfplayBank* bank = &selfplay->banks[b];
-                int timed_out = selfplay->opp_timeout_steps > 0 &&
-                    current_step - bank->opp_started_step >= selfplay->opp_timeout_steps;
+            for (int b = 0; b < selfplay.num_banks; b++) {
+                SelfplayBank* bank = &selfplay.banks[b];
                 int tag = b + 1;
                 if (bank->pending_path[0]) {
                     int aligned = 0;
@@ -3448,16 +3346,16 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
                         bank->pending_path[0] = 0;
                         bank->opp_started_step = current_step;
                     }
-                } else if (timed_out) {
-                    const char* path = selfplay_sample(selfplay);
-                    snprintf(bank->pending_path, sizeof(bank->pending_path), "%s", path);
+                } else if (selfplay.opp_timeout_steps > 0 &&
+                        current_step - bank->opp_started_step >= selfplay.opp_timeout_steps) {
+                    snprintf(bank->pending_path, sizeof(bank->pending_path), "%s", selfplay_sample(&selfplay));
                     for (int i = 0; i < pufferl->vec->size; i++) {
                         if (envs[i].tag == tag) envs[i].boundary_reached = 0;
                     }
                 }
             }
-            dict_set(&last_log, "pool/size", selfplay->pool_size);
-            dict_set(&last_log, "pool/num_banks", selfplay->num_banks);
+            dict_set(&last_log, "pool/size", selfplay.pool_size);
+            dict_set(&last_log, "pool/num_banks", selfplay.num_banks);
         }
 #endif
 
@@ -3491,12 +3389,9 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     DictItem* target = dict_find(&last_log, target_key);
     result.score = target ? (float)target->value : 0;
 
-    int points = 1;
-    if (!use_selfplay) {
-        points = (int)puf_ini_get(ini, "sweep", "downsample");
-        if (points < 1) points = 1;
-        if (points > TRAIN_RESULT_MAX_POINTS) points = TRAIN_RESULT_MAX_POINTS;
-    }
+    int points = use_selfplay ? 1 : (int)puf_ini_get(ini, "sweep", "downsample");
+    assert(points >= 1 && points <= TRAIN_RESULT_MAX_POINTS
+        && "sweep.downsample must be in [1, TRAIN_RESULT_MAX_POINTS]");
     result.points = points;
 
     if (log_history.size == 0 || points == 1) {
@@ -3527,49 +3422,37 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
 
     // Selfplay end rating: match final checkpoint vs a small fixed opponent pool.
     // Mean A winrate is the sole protein score when eval_games > 0.
-    if (selfplay && result.checkpoint_path[0] && ctx->artifact_owner) {
-        float pool_score = NAN;
+    if (use_selfplay && final_checkpoint[0] && ctx->artifact_owner) {
         int max_opp = (int)puf_ini_get(ini, "selfplay", "eval_pool_size");
         long games = (long)puf_ini_get(ini, "selfplay", "eval_games");
-        if (max_opp > 0 && games > 0 && selfplay->pool_size > 0) {
-            // Unique opponents from the pool, excluding our own checkpoint path.
-            char opp[SELFPLAY_MAX_POOL][SELFPLAY_PATH_MAX];
+        if (max_opp > 0 && games > 0) {
             int n_opp = 0;
-            const char* our_ckpt = result.checkpoint_path;
-            for (int i = 0; i < selfplay->pool_size && n_opp < max_opp; i++) {
-                if (strcmp(selfplay->pool[i], our_ckpt) == 0) continue;
-                int seen = 0;
-                for (int j = 0; j < n_opp; j++) {
-                    if (strcmp(opp[j], selfplay->pool[i]) == 0) { seen = 1; break; }
-                }
-                if (seen) continue;
-                snprintf(opp[n_opp++], SELFPLAY_PATH_MAX, "%s", selfplay->pool[i]);
-            }
-            if (n_opp > 0) {
-                char games_buf[32];
-                snprintf(games_buf, sizeof(games_buf), "%ld", games);
-                puf_ini_put(ini, "base.num_games", games_buf);
-                puf_ini_put(ini, "base.load_model_path", our_ckpt);
+            char games_buf[32];
+            snprintf(games_buf, sizeof(games_buf), "%ld", games);
+            puf_ini_put(ini, "base.num_games", games_buf);
+            puf_ini_put(ini, "base.load_model_path", final_checkpoint);
 
-                float sum = 0;
-                for (int i = 0; i < n_opp; i++) {
-                    puf_ini_put(ini, "base.load_enemy_model_path", opp[i]);
-                    EvalResult r = run_eval(ini, ctx, EVAL_MATCH, 0);
-                    sum += r.score;
-                    printf("selfplay_eval vs %s games=%d score=%.4f draw=%.4f\n",
-                        opp[i], r.games, r.score, r.draw);
-                }
-                pool_score = sum / (float)n_opp;
-                printf("selfplay_eval mean_score=%.4f n=%d\n", pool_score, n_opp);
+            float sum = 0;
+            for (int i = 0; i < selfplay.pool_size && n_opp < max_opp; i++) {
+                const char* opponent = selfplay.pool[i];
+                if (strcmp(opponent, final_checkpoint) == 0) continue;
+                puf_ini_put(ini, "base.load_enemy_model_path", opponent);
+                EvalResult r = run_eval(ini, ctx, EVAL_MATCH, 0);
+                sum += r.score;
+                n_opp++;
+                printf("selfplay_eval vs %s games=%d score=%.4f draw=%.4f\n",
+                    opponent, r.games, r.score, r.draw);
             }
-        }
-        if (isfinite(pool_score)) {
-            result.score = pool_score;
-            result.points = 1;
-            result.scores[0] = pool_score;
-            result.costs[0] = result.cost;
-            result.step_points[0] = result.steps;
-            dict_set(&last_log, "selfplay/pool_score", pool_score);
+            if (n_opp) {
+                float pool_score = sum / n_opp;
+                printf("selfplay_eval mean_score=%.4f n=%d\n", pool_score, n_opp);
+                result.score = pool_score;
+                result.points = 1;
+                result.scores[0] = pool_score;
+                result.costs[0] = result.cost;
+                result.step_points[0] = result.steps;
+                dict_set(&last_log, "selfplay/pool_score", pool_score);
+            }
         }
     }
 
@@ -3577,10 +3460,6 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         puf_log_history_add(&log_history, &last_log);
         char log_path[4096];
         snprintf(log_path, sizeof(log_path), "%s/%s.ini", log_dir, run_id);
-        if (log_history.size == 0) {
-            fprintf(stderr, "cannot write empty log history\n");
-            exit(1);
-        }
 
         FILE* fp = fopen(log_path, "w");
         if (!fp) {
@@ -3604,7 +3483,6 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         }
         int metric_points = downsample <= 1 ? 1 : downsample;
         double* out = (double*)calloc((size_t)metric_points, sizeof(double));
-        double* bin = (double*)calloc((size_t)log_history.size, sizeof(double));
         double final_steps = dict_get(
             &log_history.items[log_history.size - 1], "agent_steps");
 
@@ -3627,19 +3505,21 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             if (metric_points == 1) {
                 DictItem* item = dict_find(&log_history.items[log_history.size - 1], key);
                 out[0] = item ? item->value : first_value;
-                puf_log_write_metric(fp, key, out, metric_points);
+                fprintf(fp, "%s = %.17g\n", key, out[0]);
                 continue;
             }
 
             int out_idx = 0;
             int bin_n = 0;
             double fallback = first_value;
+            double bin_sum = 0;
             double next_bin = final_steps / (metric_points - 1);
             for (int i = 0; i < log_history.size; i++) {
                 Dict* log = &log_history.items[i];
                 DictItem* item = dict_find(log, key);
                 if (item) {
-                    bin[bin_n++] = item->value;
+                    bin_sum += item->value;
+                    bin_n++;
                 }
 
                 double steps = dict_get(log, "agent_steps");
@@ -3647,10 +3527,11 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
                     continue;
                 }
 
-                double reduced = puf_log_reduce(bin, bin_n, fallback);
+                double reduced = bin_n ? bin_sum / bin_n : fallback;
                 out[out_idx++] = reduced;
                 fallback = reduced;
                 bin_n = 0;
+                bin_sum = 0;
                 next_bin += final_steps / (metric_points - 1);
             }
 
@@ -3658,14 +3539,17 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
                 &log_history.items[log_history.size - 1], key);
             out[metric_points - 1] = final_item
                 ? final_item->value
-                : puf_log_reduce(bin, bin_n, fallback);
+                : bin_n ? bin_sum / bin_n : fallback;
             while (out_idx < metric_points - 1) {
                 out[out_idx++] = fallback;
             }
-            puf_log_write_metric(fp, key, out, metric_points);
+            fprintf(fp, "%s = ", key);
+            for (int i = 0; i < metric_points; i++) {
+                fprintf(fp, "%s%.17g", i ? "," : "", out[i]);
+            }
+            fputc('\n', fp);
         }
 
-        free(bin);
         free(out);
         fclose(fp);
     }
@@ -3673,42 +3557,23 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         dict_clear(&log_history.items[i]);
     }
     free(log_history.items);
-    free(selfplay);
+    free(selfplay.pool);
     return result;
 }
 
-// --- Train launch: one DP job on a GPU block ---
-//
-// Device map within a block of size world_size starting at gpu_offset:
-//   rank 0 (artifact owner) → offset + world_size - 1
-//   rank r (r>=1)           → offset + r - 1
-// Sweep packing only sets base.gpu_offset; launch_train always does the rest.
-// Nested multi-GPU trials are free: each sweep slot is a full train process
-// that may fork NCCL ranks inside its block (train.gpus > 1).
-
-static int train_gpu_id(int rank, int world_size, int gpu_offset) {
-    int local = (rank == 0) ? world_size - 1 : rank - 1;
-    return gpu_offset + local;
-}
-
-// Sole multi-GPU DP launcher. Forks ranks 1..W-1 (before CUDA init), parent is
-// rank 0. Reads train.gpus and base.gpu_offset. Optionally writes TrainResult
-// to base.result_fd (sweep child).
-// Fail-fast train shape: sweep parent does not soft-check samples — invalid
-// hypers die here; sweep parent marks failed workers as bad samples. Asserts stay enabled
-// (build.sh does not define NDEBUG).
+// Fork DP workers before CUDA initialization. Sweep trials occupy contiguous GPU
+// blocks; rank 0 owns the last GPU and writes TrainResult to base.result_fd.
 TrainResult launch_train(Ini* ini) {
     int mb = (int)puf_ini_get(ini, "train", "minibatch_size");
     int horizon = (int)puf_ini_get(ini, "train", "horizon");
     int agents = (int)puf_ini_get(ini, "vec", "total_agents");
-    int gpus = (int)puf_ini_get(ini, "train", "gpus");
-    assert(gpus >= 1 && "train.gpus must be >= 1");
+    int world_size = (int)puf_ini_get(ini, "train", "gpus");
+    assert(world_size >= 1 && "train.gpus must be >= 1");
     assert(horizon > 0 && mb % horizon == 0
         && "train.minibatch_size must be divisible by train.horizon");
     assert((long)mb <= (long)horizon * agents
         && "train.minibatch_size must be <= train.horizon * vec.total_agents");
 
-    int world_size = gpus;
     int gpu_offset = (int)puf_ini_get(ini, "base", "gpu_offset");
 
     ncclUniqueId nccl_id;
@@ -3718,67 +3583,52 @@ TrainResult launch_train(Ini* ini) {
         nccl_ptr = &nccl_id;
     }
 
-    pid_t* pids = NULL;
     int n_workers = world_size - 1;
-    if (n_workers > 0) {
-        pids = (pid_t*)calloc((size_t)n_workers, sizeof(pid_t));
-        for (int rank = world_size - 1; rank >= 1; rank--) {
-            pid_t pid = fork();
-            if (pid < 0) {
-                fprintf(stderr, "fork failed: %s\n", strerror(errno));
-                exit(1);
-            }
-            if (pid == 0) {
-                if (!freopen("/dev/null", "w", stdout)) {
-                    fprintf(stderr, "failed to silence rank worker stdout\n");
-                    exit(1);
-                }
-                TrainContext child = {
-                    .rank = rank,
-                    .world_size = world_size,
-                    .gpu_id = train_gpu_id(rank, world_size, gpu_offset),
-                    .artifact_owner = 0,
-                    .nccl_id = nccl_ptr,
-                };
-                run_train(ini, &child);
-                puf_ini_free(ini);
-                exit(0);
-            }
-            pids[rank - 1] = pid;
+    pid_t* pids = (pid_t*)calloc((size_t)n_workers, sizeof(pid_t));
+    for (int rank = world_size - 1; rank >= 1; rank--) {
+        pid_t pid = fork();
+        if (pid < 0) {
+            fprintf(stderr, "fork failed: %s\n", strerror(errno));
+            exit(1);
         }
+        if (pid == 0) {
+            assert(freopen("/dev/null", "w", stdout) == stdout);
+            TrainContext child = {
+                .rank = rank,
+                .world_size = world_size,
+                .gpu_id = gpu_offset + rank - 1,
+                .artifact_owner = 0,
+                .nccl_id = nccl_ptr,
+            };
+            run_train(ini, &child);
+            puf_ini_free(ini);
+            exit(0);
+        }
+        pids[rank - 1] = pid;
     }
 
     TrainContext host = {
         .rank = 0,
         .world_size = world_size,
-        .gpu_id = train_gpu_id(0, world_size, gpu_offset),
+        .gpu_id = gpu_offset + world_size - 1,
         .artifact_owner = 1,
         .nccl_id = nccl_ptr,
     };
     TrainResult result = run_train(ini, &host);
-    if (n_workers > 0) {
-        for (int i = 0; i < n_workers; i++) {
-            int status = 0;
-            if (waitpid(pids[i], &status, 0) < 0) {
-                fprintf(stderr, "waitpid failed for rank worker %d: %s\n",
-                    (int)pids[i], strerror(errno));
-                exit(1);
-            }
-            if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                fprintf(stderr, "train rank worker pid %d failed\n", (int)pids[i]);
-                exit(1);
-            }
+    for (int i = 0; i < n_workers; i++) {
+        int status = 0;
+        waitpid(pids[i], &status, 0);
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "train rank worker pid %d failed\n", (int)pids[i]);
+            exit(1);
         }
-        free(pids);
     }
+    free(pids);
 
     // Sweep parent reads this over the pipe; CLI train ignores (result_fd=0).
     int result_fd = (int)puf_ini_get(ini, "base", "result_fd");
     if (result_fd > 0) {
-        if (write(result_fd, &result, sizeof(result)) != (ssize_t)sizeof(result)) {
-            fprintf(stderr, "failed to write train result\n");
-            exit(1);
-        }
+        assert(write(result_fd, &result, sizeof(result)) == sizeof(result));
         close(result_fd);
     }
     return result;
@@ -3794,46 +3644,33 @@ int main(int argc, char** argv) {
     }
 
     const char* mode = argv[1];
-    const char* env_name = argv[2];
-    Ini* ini = (Ini*)calloc(1, sizeof(Ini));
-    puf_ini_load_env(ini, env_name, argc - 3, argv + 3);
-    // Train shape asserts run in launch_train (CLI train + each sweep worker).
-    TrainContext ctx = {
-        .rank = 0,
-        .world_size = 1,
-        .gpu_id = 0,
-        .artifact_owner = 1,
-        .nccl_id = NULL,
-    };
+    Ini ini = {0};
+    puf_ini_load_env(&ini, argv[2], argc - 3, argv + 3);
+    TrainContext ctx = {.world_size = 1, .artifact_owner = 1};
 
     if (strcmp(mode, "train") == 0) {
-        launch_train(ini);
+        launch_train(&ini);
     } else if (strcmp(mode, "sweep") == 0) {
-        run_sweep(ini, argv[0]);
+        run_sweep(&ini, argv[0]);
     } else if (strcmp(mode, "eval") == 0 || strcmp(mode, "eval_bot") == 0) {
-        int bot = strcmp(mode, "eval_bot") == 0;
-        if (bot) {
-            static const char* const bot_puts[][2] = {
-                {"vec.num_frozen_banks", "0"},
-                {"vec.frozen_bank_pct", "0"},
-                {"selfplay.enabled", "0"},
-                {"env.dr", "0"},
-                {"env.num_agents", "1"},
-                {"env.num_bots", "1"},
-            };
-            puf_ini_put_pairs(ini, bot_puts, 6);
+        if (strcmp(mode, "eval_bot") == 0) {
+            puf_ini_put(&ini, "vec.num_frozen_banks", "0");
+            puf_ini_put(&ini, "vec.frozen_bank_pct", "0");
+            puf_ini_put(&ini, "selfplay.enabled", "0");
+            puf_ini_put(&ini, "env.dr", "0");
+            puf_ini_put(&ini, "env.num_agents", "1");
+            puf_ini_put(&ini, "env.num_bots", "1");
         }
         // Headless score eval (use a separate interactive path if you need render).
-        run_eval(ini, &ctx, EVAL_SCORE, 1);
+        run_eval(&ini, &ctx, EVAL_SCORE, 1);
     } else if (strcmp(mode, "match") == 0) {
-        run_eval(ini, &ctx, EVAL_MATCH, 1);
+        run_eval(&ini, &ctx, EVAL_MATCH, 1);
     } else {
         fprintf(stderr, "unknown mode: %s\n", mode);
         exit(1);
     }
 
-    puf_ini_free(ini);
-    free(ini);
+    puf_ini_free(&ini);
     return 0;
 }
 

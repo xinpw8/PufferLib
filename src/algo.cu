@@ -18,6 +18,7 @@ thread_local cublasHandle_t g_cublas_handle = nullptr;
 thread_local void* g_cublas_workspace = nullptr;
 // Side-stream dW (mm_tn) overlaps dX (mm_nn) on main during linear bwd.
 thread_local cublasHandle_t g_cublas_dw_handle = nullptr;
+thread_local cudaEvent_t g_main_ready = nullptr;
 thread_local void* g_cublas_dw_workspace = nullptr;
 thread_local cudaStream_t g_dw_stream = nullptr;
 thread_local cudaEvent_t g_dw_done = nullptr;
@@ -34,6 +35,7 @@ void cublas_init_handle() {
     cublas_init_one(&g_cublas_dw_handle, &g_cublas_dw_workspace);
     cudaStreamCreateWithFlags(&g_dw_stream, cudaStreamNonBlocking);
     cudaEventCreateWithFlags(&g_dw_done, cudaEventDisableTiming);
+    cudaEventCreateWithFlags(&g_main_ready, cudaEventDisableTiming);
 }
 
 // Dense row-major GEMM on an explicit handle/stream: C = alpha * op_a(A) @ op_b(B) + beta * C
@@ -88,12 +90,8 @@ void puf_mm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out, cud
 // disjoint so multiple dWs can queue. Join before muon reads weight grads.
 void puf_mm_tn_async_after(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
         cudaStream_t main_stream) {
-    static thread_local cudaEvent_t main_ready = nullptr;
-    if (!main_ready) {
-        cudaEventCreateWithFlags(&main_ready, cudaEventDisableTiming);
-    }
-    cudaEventRecord(main_ready, main_stream);
-    cudaStreamWaitEvent(g_dw_stream, main_ready, 0);
+    cudaEventRecord(g_main_ready, main_stream);
+    cudaStreamWaitEvent(g_dw_stream, g_main_ready, 0);
     int M = a->shape[ndim(a->shape)-1];
     int K = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
     int N = b->shape[ndim(b->shape)-1];
@@ -588,7 +586,6 @@ PrecisionTensor decoder_backward(void* w, void* activations,
 }
 
 struct MinGRUActivations {
-    int num_layers;
     // Rollout
     PrecisionTensor* combined;       // (B rollout, 3*T)[num_layers]
     PrecisionTensor out;             // (B rollout, T)
@@ -635,7 +632,6 @@ void mingru_reg_train(void* w, void* activations, Allocator* acts, Allocator* gr
     MinGRUWeights* m = (MinGRUWeights*)w;
     MinGRUActivations* a = (MinGRUActivations*)activations;
     int H = m->hidden, TT = m->horizon, B = B_TT / TT;
-    a->num_layers = m->num_layers;
     a->saved_inputs = (PrecisionTensor*)calloc(m->num_layers, sizeof(PrecisionTensor));
     a->scan_bufs = (PrefixScan*)calloc(m->num_layers, sizeof(PrefixScan));
     a->combined_bufs = (PrecisionTensor*)calloc(m->num_layers, sizeof(PrecisionTensor));
@@ -673,7 +669,6 @@ void mingru_reg_rollout(void* weights, void* activations, Allocator* alloc, int 
     MinGRUWeights* w = (MinGRUWeights*)weights;
     MinGRUActivations* a = (MinGRUActivations*)activations;
     int H = w->hidden;
-    a->num_layers = w->num_layers;
     a->combined = (PrecisionTensor*)calloc(w->num_layers, sizeof(PrecisionTensor));
     for (int i = 0; i < w->num_layers; i++) {
         a->combined[i] = {.shape = {B_inf, 3 * H}};
@@ -771,8 +766,6 @@ struct Policy {
     Encoder encoder;
     Decoder decoder;
     Network network;
-    int input_dim, hidden_dim, output_dim;
-    int num_atns;
 };
 
 struct PolicyActivations {
@@ -864,8 +857,8 @@ PolicyWeights policy_weights_create(Policy* p, Allocator* params) {
 // fixed by the env; hidden_size/num_layers/horizon parameterize shape. Policy
 // has no heap state so this returns by value; callers store it wherever.
 Policy build_policy(const char* env_name, int input_size, int hidden_size,
-                           int num_layers, int decoder_output_size, int act_n,
-                           bool is_continuous, int horizon) {
+        int num_layers, int decoder_output_size, bool is_continuous,
+        int horizon) {
     Encoder encoder = {
         .forward = encoder_forward,
         .backward = encoder_backward,
@@ -901,8 +894,6 @@ Policy build_policy(const char* env_name, int input_size, int hidden_size,
     };
     return Policy{
         .encoder = encoder, .decoder = decoder, .network = network,
-        .input_dim = input_size, .hidden_dim = hidden_size, .output_dim = decoder_output_size,
-        .num_atns = act_n,
     };
 }
 
@@ -991,47 +982,21 @@ constexpr double ns_coeffs[5][3] = {
     {2.8366, -3.0525, 1.2012},
 };
 
-void puf_addmm_nn(PrecisionTensor* a, PrecisionTensor* b, PrecisionTensor* out,
-        float alpha, float beta, cudaStream_t stream) {
-    int M = batch_size(a->shape) * a->shape[ndim(a->shape)-2];
-    int K = a->shape[ndim(a->shape)-1];
-    int N = b->shape[ndim(b->shape)-1];
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, M, N, K,
-        a->data, b->data, out->data, stream, alpha, beta);
-}
-
 struct Muon {
-    double momentum, weight_decay;
-    float lr_val_init;
-    float* lr_ptr;
-    float* lr_derived_ptr;
-    float* norm_ptr;
-    float* grad_norm_ptr;
-    FloatTensor lr_puf, lr_derived_puf, ns_norm_puf, grad_norm_puf;
-    FloatTensor mb_puf;
+    double momentum;
+    FloatTensor lr_puf, ns_norm_puf, grad_norm_puf, mb_puf, norm_partials;
     PrecisionTensor gram, gram_buf, x_buf;
-    FloatTensor norm_partials;
-    long max_M, max_N;
     Allocator* param_alloc;  // params allocator — shapes used by muon_step
 };
 
-void muon_init(Muon* m, Allocator* param_alloc, double lr_val,
-        double momentum, double weight_decay, Allocator* alloc) {
+void muon_init(Muon* m, Allocator* param_alloc, double momentum, Allocator* alloc) {
     m->momentum = momentum;
-    m->weight_decay = weight_decay;
-    m->lr_val_init = (float)lr_val;
-    m->lr_ptr = nullptr;
-    m->lr_derived_ptr = nullptr;
     m->param_alloc = param_alloc;
-    m->max_M = 0; m->max_N = 0;
-    long n = param_alloc->total_elems;
     m->lr_puf =         {.shape = {1}};
-    m->lr_derived_puf = {.shape = {2}};
-    m->mb_puf =         {.shape = {n}};
+    m->mb_puf =         {.shape = {param_alloc->total_elems}};
     m->norm_partials =  {.shape = {256}};
     m->grad_norm_puf =  {.shape = {1}};
     alloc_register(alloc, &m->lr_puf);
-    alloc_register(alloc, &m->lr_derived_puf);
     alloc_register(alloc, &m->mb_puf);
     alloc_register(alloc, &m->norm_partials);
     alloc_register(alloc, &m->grad_norm_puf);
@@ -1044,27 +1009,14 @@ void muon_init(Muon* m, Allocator* param_alloc, double lr_val,
             max_N = max(max_N, max(R, C));
         }
     }
-    if (max_M > 0) {
-        m->max_M = max_M; m->max_N = max_N;
-        m->gram =        {.shape = {max_M, max_M}};
-        m->gram_buf =    {.shape = {max_M, max_M}};
-        m->x_buf =       {.shape = {max_M, max_N}};
-        m->ns_norm_puf = {.shape = {1}};
-        alloc_register(alloc, &m->gram);
-        alloc_register(alloc, &m->gram_buf);
-        alloc_register(alloc, &m->x_buf);
-        alloc_register(alloc, &m->ns_norm_puf);
-    }
-}
-
-void muon_post_create(Muon* m) {
-    m->lr_ptr = m->lr_puf.data;
-    m->lr_derived_ptr = m->lr_derived_puf.data;
-    m->grad_norm_ptr = m->grad_norm_puf.data;
-    if (m->ns_norm_puf.data) m->norm_ptr = m->ns_norm_puf.data;
-    cudaMemcpy(m->lr_ptr, &m->lr_val_init, sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemset(m->lr_derived_ptr, 0, 2 * sizeof(float));
-    cudaMemset(m->mb_puf.data, 0, numel(m->mb_puf.shape) * sizeof(float));
+    m->gram =        {.shape = {max_M, max_M}};
+    m->gram_buf =    {.shape = {max_M, max_M}};
+    m->x_buf =       {.shape = {max_M, max_N}};
+    m->ns_norm_puf = {.shape = {1}};
+    alloc_register(alloc, &m->gram);
+    alloc_register(alloc, &m->gram_buf);
+    alloc_register(alloc, &m->x_buf);
+    alloc_register(alloc, &m->ns_norm_puf);
 }
 
 void muon_step(Muon* m, FloatTensor weights, PrecisionTensor grads, float max_grad_norm, cudaStream_t stream = 0) {
@@ -1072,9 +1024,9 @@ void muon_step(Muon* m, FloatTensor weights, PrecisionTensor grads, float max_gr
     int clip_blocks = min((int)grid_size(numel(grads.shape)), 256);
     muon_norm_partials<<<clip_blocks, 256, 0, stream>>>(
         m->norm_partials.data, grads.data, numel(grads.shape));
-    muon_norm_reduce<<<1, 256, 0, stream>>>(m->grad_norm_ptr, m->norm_partials.data, clip_blocks);
+    muon_norm_reduce<<<1, 256, 0, stream>>>(m->grad_norm_puf.data, m->norm_partials.data, clip_blocks);
     muon_clip_norm<<<grid_size(numel(grads.shape)), BLOCK_SIZE, 0, stream>>>(
-        grads.data, m->grad_norm_ptr, max_grad_norm, 1e-6f, numel(grads.shape));
+        grads.data, m->grad_norm_puf.data, max_grad_norm, 1e-6f, numel(grads.shape));
 
     // Nesterov momentum
     muon_nesterov<<<grid_size(numel(m->mb_puf.shape)), BLOCK_SIZE, 0, stream>>>(
@@ -1102,9 +1054,9 @@ void muon_step(Muon* m, FloatTensor weights, PrecisionTensor grads, float max_gr
             int nblk = min((int)grid_size(numel(x.shape)), 256);
             muon_norm_partials<<<nblk, 256, 0, stream>>>(
                 m->norm_partials.data, x.data, numel(x.shape));
-            muon_norm_reduce<<<1, 256, 0, stream>>>(m->norm_ptr, m->norm_partials.data, nblk);
+            muon_norm_reduce<<<1, 256, 0, stream>>>(m->ns_norm_puf.data, m->norm_partials.data, nblk);
             muon_norm_apply<<<grid_size(numel(x.shape)), BLOCK_SIZE, 0, stream>>>(
-                x.data, m->norm_ptr, 1e-7f, numel(x.shape));
+                x.data, m->ns_norm_puf.data, 1e-7f, numel(x.shape));
 
             cublasOperation_t gram_op_a = tall ? CUBLAS_OP_T : CUBLAS_OP_N;
             cublasOperation_t gram_op_b = tall ? CUBLAS_OP_N : CUBLAS_OP_T;
@@ -1114,7 +1066,9 @@ void muon_step(Muon* m, FloatTensor weights, PrecisionTensor grads, float max_gr
                 cublasGemmExDense(gram_op_a, gram_op_b, (int)M, (int)M, (int)N,
                     src.data, src.data, gram.data, stream);
                 puf_copy(&gram_buf, &gram, stream);
-                puf_addmm_nn(&gram, &gram, &gram_buf, ns_coeffs[i][2], ns_coeffs[i][1], stream);
+                cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, (int)M, (int)M, (int)M,
+                    gram.data, gram.data, gram_buf.data, stream,
+                    ns_coeffs[i][2], ns_coeffs[i][1]);
                 puf_copy(&dst, &src, stream);
                 cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_N, (int)R, (int)C, (int)M,
                     tall ? src.data : gram_buf.data, tall ? gram_buf.data : src.data, dst.data,
@@ -1126,7 +1080,7 @@ void muon_step(Muon* m, FloatTensor weights, PrecisionTensor grads, float max_gr
         }
 
         muon_weight_update<<<grid_size(ne), BLOCK_SIZE, 0, stream>>>(
-            wb_ptr, update_ptr, m->lr_ptr, (float)m->weight_decay, scale, (int)ne);
+            wb_ptr, update_ptr, m->lr_puf.data, 0.0f, scale, (int)ne);
         offset += ne;
     }
 }
@@ -1357,30 +1311,17 @@ void prio_build_cdf_cuda(PrecisionTensor& advantages, float prio_alpha,
 }
 
 // Draw a minibatch index set from a prebuilt CDF and importance weights.
-void prio_sample_cuda(int minibatch_segments, int total_agents, float anneal_beta,
-        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
+void prio_sample_cuda(float anneal_beta, PrioBuffers& bufs, ulong seed,
+        long* offset_ptr, cudaStream_t stream) {
     int B = (int)bufs.cdf.shape[0];
-    int threads = 256;
-    int blocks = (minibatch_segments + threads - 1) / threads;
-    multinomial_sample<<<blocks, threads, 0, stream>>>(
-        bufs.idx.data, bufs.cdf.data, B, minibatch_segments, seed, offset_ptr);
-    advance_rng_offset<<<1, 1, 0, stream>>>(offset_ptr, (int64_t)minibatch_segments);
-
-    int p3_blocks = (minibatch_segments + PRIO_BLOCK_SIZE - 1) / PRIO_BLOCK_SIZE;
-    compute_prio_imp_weights<<<p3_blocks, PRIO_BLOCK_SIZE, 0, stream>>>(
+    int N = (int)bufs.idx.shape[0];
+    int blocks = (N + PRIO_BLOCK_SIZE - 1) / PRIO_BLOCK_SIZE;
+    multinomial_sample<<<blocks, PRIO_BLOCK_SIZE, 0, stream>>>(
+        bufs.idx.data, bufs.cdf.data, B, N, seed, offset_ptr);
+    advance_rng_offset<<<1, 1, 0, stream>>>(offset_ptr, N);
+    compute_prio_imp_weights<<<blocks, PRIO_BLOCK_SIZE, 0, stream>>>(
         bufs.idx.data, bufs.prio_probs.data,
-        bufs.mb_prio.data, total_agents, anneal_beta, minibatch_segments);
-}
-
-// Prioritize high absolute advantage trajectories. This is a form of implicit
-// curriculum learning; sweep-found alpha/beta values decide whether it matters.
-// Convenience wrapper: full rebuild + one sample (tests / one-shot callers).
-void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
-        int minibatch_segments, int total_agents, float anneal_beta,
-        PrioBuffers& bufs, ulong seed, long* offset_ptr, cudaStream_t stream) {
-    prio_build_cdf_cuda(advantages, prio_alpha, bufs, stream);
-    prio_sample_cuda(minibatch_segments, total_agents, anneal_beta,
-        bufs, seed, offset_ptr, stream);
+        bufs.mb_prio.data, B, anneal_beta, N);
 }
 
 // TODO: test whether these finite/clamp guards improve continuous-control stability
@@ -1449,19 +1390,14 @@ struct PPOKernelArgs {
     const float* adv_var;
     const int* act_sizes;
     const precision_t* action_mask; // (N, T, A_total) or nullptr
-    int mask_stride_n, mask_stride_t;
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
     int T_seq, A_total, N;
-    int logits_stride_n, logits_stride_t, logits_stride_a;
-    int values_stride_n, values_stride_t;
     bool is_continuous;
 };
 
 struct PPOBuffersPuf {
-    FloatTensor loss_output, grad_loss;
-    FloatTensor saved_for_bwd;
     FloatTensor grad_logits, grad_values, grad_logstd, adv_scratch;
     FloatTensor ent_coef;
     FloatTensor ppo_partials;
@@ -1471,20 +1407,14 @@ void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, i
     long total = (long)N * T;
     int ppo_grid = ((int)total + PPO_THREADS - 1) / PPO_THREADS;
     bufs = (PPOBuffersPuf){
-        .loss_output = {.shape = {1}},
-        .grad_loss = {.shape = {1}},
-        .saved_for_bwd = {.shape = {total, 5}},
         .grad_logits = {.shape = {N, T, A_total}},
         .grad_values = {.shape = {N, T, 1}},
         .grad_logstd = {.shape = {N, T, A_total}},
         // [0]=var, [1]=mean, [2..)= partials (sums then sumsq, up to 1024 each)
         .adv_scratch = {.shape = {2 + 2 * 1024}},
         .ent_coef = {.shape = {1}},
-        .ppo_partials = {.shape = {ppo_grid * (LOSS_N + 1)}},
+        .ppo_partials = {.shape = {ppo_grid * LOSS_N}},
     };
-    alloc_register(alloc, &bufs.loss_output);
-    alloc_register(alloc, &bufs.saved_for_bwd);
-    alloc_register(alloc, &bufs.grad_loss);
     alloc_register(alloc, &bufs.grad_logits);
     alloc_register(alloc, &bufs.grad_values);
     if (is_continuous) {
@@ -1497,14 +1427,13 @@ void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, i
 
 __device__ __forceinline__ float load_logit_masked(
         const precision_t* __restrict__ logits, int logits_base,
-        int logits_stride_a, int logits_offset, int a,
+        int logits_offset, int a,
         const precision_t* __restrict__ mask, int mask_base) {
-    float l = to_float(logits[logits_base + (logits_offset + a) * logits_stride_a]);
+    float l = to_float(logits[logits_base + logits_offset + a]);
     if (mask != nullptr) {
         float m = to_float(mask[mask_base + logits_offset + a]);
         if (m == 0.0f) {
             l = -1e4f;
-            return l;
         }
     }
     return l;
@@ -1512,7 +1441,7 @@ __device__ __forceinline__ float load_logit_masked(
 
 __device__ __forceinline__ void ppo_discrete_head(
         const precision_t* __restrict__ logits, int logits_base,
-        int logits_stride_a, int logits_offset, int A, int act,
+        int logits_offset, int A, int act,
         const precision_t* __restrict__ mask, int mask_base,
         float* out_logsumexp, float* out_entropy, float* out_logp) {
     float max_logit = -INFINITY;
@@ -1520,7 +1449,7 @@ __device__ __forceinline__ void ppo_discrete_head(
     float act_logit = 0.0f;
 
     for (int a = 0; a < A; ++a) {
-        float l = load_logit_masked(logits, logits_base, logits_stride_a, logits_offset, a, mask, mask_base);
+        float l = load_logit_masked(logits, logits_base, logits_offset, a, mask, mask_base);
         if (a == act) {
             act_logit = l;
         }
@@ -1534,7 +1463,7 @@ __device__ __forceinline__ void ppo_discrete_head(
 
     float ent = 0.0f;
     for (int a = 0; a < A; ++a) {
-        float l = load_logit_masked(logits, logits_base, logits_stride_a, logits_offset, a, mask, mask_base);
+        float l = load_logit_masked(logits, logits_base, logits_offset, a, mask, mask_base);
         float logp = l - logsumexp;
         float p = __expf(logp);
         ent -= p * logp;
@@ -1578,8 +1507,7 @@ __global__ void ppo_loss_compute(
     int t = idx % a.T_seq;
     int nt = n * a.T_seq + t;
 
-    int logits_base = n * a.logits_stride_n + t * a.logits_stride_t;
-    int values_idx = n * a.values_stride_n + t * a.values_stride_t;
+    int logits_base = nt * (a.A_total + 1);
     int grad_logits_base = nt * a.A_total;
 
     // Shared computation (used by both forward and backward)
@@ -1589,15 +1517,13 @@ __global__ void ppo_loss_compute(
     float w = to_float(g.prio[n]);
     float val = to_float(g.values[nt]);
     float ret = to_float(g.returns[nt]);
-    float val_pred = to_float(a.values_pred[values_idx]);
+    float val_pred = to_float(a.values_pred[logits_base]);
     g.out_newvalue[nt] = from_float(val_pred);
 
     float adv_std = sqrtf(float(a.adv_var[0]));
     float adv_normalized = (adv - float(a.adv_mean[0])) / (adv_std + 1e-8f);
 
-    // grad_loss is always 1.0 (set in post_create, never changes)
     float dL = inv_NT;
-    float d_pg_loss = dL;
     float ent_coef = *a.ent_coef;
     float d_entropy_term = dL * (-ent_coef);
 
@@ -1632,8 +1558,7 @@ __global__ void ppo_loss_compute(
     float head_entropy[MAX_ATN_HEADS];
     int head_act[MAX_ATN_HEADS];
 
-    int mask_base = (a.action_mask != nullptr)
-        ? n * a.mask_stride_n + t * a.mask_stride_t : 0;
+    int mask_base = a.action_mask ? nt * a.A_total : 0;
 
     if (!a.is_continuous) {
         int logits_offset = 0;
@@ -1642,7 +1567,7 @@ __global__ void ppo_loss_compute(
             int act = static_cast<int>(g.actions[nt * a.num_atns + h]);
             head_act[h] = act;
             float lse, ent, lp;
-            ppo_discrete_head(a.logits, logits_base, a.logits_stride_a, logits_offset, A, act,
+            ppo_discrete_head(a.logits, logits_base, logits_offset, A, act,
                               a.action_mask, mask_base, &lse, &ent, &lp);
             head_logsumexp[h] = lse;
             head_entropy[h] = ent;
@@ -1652,7 +1577,7 @@ __global__ void ppo_loss_compute(
         }
     } else {
         for (int h = 0; h < a.num_atns; ++h) {
-            float mean = safe_continuous_mean(a.logits, logits_base + h * a.logits_stride_a);
+            float mean = safe_continuous_mean(a.logits, logits_base + h);
             float log_std = safe_continuous_logstd(a.logstd, h);
             float action = finite_or_clamp(float(g.actions[nt * a.num_atns + h]), -1.0e6f, 1.0e6f);
             float lp, ent;
@@ -1672,7 +1597,7 @@ __global__ void ppo_loss_compute(
     float pg_loss2 = wa * ratio_clipped;
     pg_loss = fmaxf(pg_loss1, pg_loss2);
 
-    float d_ratio = wa * d_pg_loss;
+    float d_ratio = wa * dL;
     if (pg_loss2 > pg_loss1) {
         if (ratio <= (1.0f - a.clip_coef) || ratio >= (1.0f + a.clip_coef)) {
             d_ratio = 0.0f;
@@ -1689,7 +1614,7 @@ __global__ void ppo_loss_compute(
             float ent = head_entropy[h];
 
             for (int j = 0; j < A; ++j) {
-                float l = load_logit_masked(a.logits, logits_base, a.logits_stride_a,
+                float l = load_logit_masked(a.logits, logits_base,
                                             logits_offset, j, a.action_mask, mask_base);
                 float logp = l - logsumexp;
                 float p = __expf(logp);
@@ -1702,7 +1627,7 @@ __global__ void ppo_loss_compute(
         }
     } else {
         for (int h = 0; h < a.num_atns; ++h) {
-            float mean = safe_continuous_mean(a.logits, logits_base + h * a.logits_stride_a);
+            float mean = safe_continuous_mean(a.logits, logits_base + h);
             float log_std = safe_continuous_logstd(a.logstd, h);
             float std = __expf(log_std);
             float var = std * std;
@@ -1739,37 +1664,24 @@ reduce:
     }
 
     if (tid == 0) {
-        int base = blockIdx.x * (LOSS_N + 1);
-        ppo_partials[base] = block_losses[LOSS_TOTAL][0];
+        int base = blockIdx.x * LOSS_N;
         for (int c = 0; c < LOSS_N; c++) {
-            ppo_partials[base + 1 + c] = block_losses[c][0];
+            ppo_partials[base + c] = block_losses[c][0];
         }
     }
 }
 
 // Deterministic reduction of per-block PPO loss partials + count increment
 __global__ void ppo_loss_reduce(
-        float* __restrict__ loss,
         float* __restrict__ losses_acc,
         const float* __restrict__ partials,
         int num_blocks) {
     int tid = threadIdx.x;
-    if (tid > LOSS_N) {
-        return;
-    }
-
     float sum = 0.0f;
     for (int b = 0; b < num_blocks; b++) {
-        sum += partials[b * (LOSS_N + 1) + tid];
+        sum += partials[b * LOSS_N + tid];
     }
-
-    if (tid == 0) {
-        *loss += sum;
-    } else {
-        losses_acc[tid - 1] += sum;
-    }
-
-    // Fold add_scalar: increment epoch count
+    losses_acc[tid] += sum;
     if (tid == 0) {
         losses_acc[LOSS_N] += 1.0f;
     }
@@ -1833,7 +1745,7 @@ __global__ void ppo_adv_finalize(const float* __restrict__ partial,
         float mean = bs / (float)n;
         *mean_out = mean;
         // sample var; clamp tiny negatives from fp noise
-        *var_out = (n > 1) ? fmaxf(0.0f, (bq - bs * mean) / (float)(n - 1)) : 0.0f;
+        *var_out = fmaxf(0.0f, (bq - bs * mean) / (float)(n - 1));
     }
 }
 
@@ -1852,23 +1764,18 @@ void ppo_loss_fwd_bwd(
     int A_total = fused_cols - 1;  // last column is value
     int total = N * T;
 
-    // Pointers into fused decoder output
-    const precision_t* logits_ptr = dec_out.data;
-
     float* adv_var = bufs.adv_scratch.data;
     float* adv_mean = adv_var + 1;
     float* adv_partials = adv_var + 2;
     int adv_n = (int)numel(graph.mb_advantages.shape);
     int adv_blocks = (adv_n + PPO_VM_THREADS - 1) / PPO_VM_THREADS;
-    adv_blocks = adv_blocks < 1 ? 1 : (adv_blocks > PPO_VM_MAX_BLOCKS ? PPO_VM_MAX_BLOCKS : adv_blocks);
+    adv_blocks = min(adv_blocks, PPO_VM_MAX_BLOCKS);
     ppo_adv_moments<<<adv_blocks, PPO_VM_THREADS, 0, stream>>>(
         graph.mb_advantages.data, adv_partials, adv_n);
     ppo_adv_finalize<<<1, PPO_VM_THREADS, 0, stream>>>(
         adv_partials, adv_var, adv_mean, adv_blocks, adv_n);
 
     int ppo_grid = (total + PPO_THREADS - 1) / PPO_THREADS;
-
-    cudaMemsetAsync(bufs.loss_output.data, 0, sizeof(float), stream);
 
     PPOGraphArgs graph_args = {
         .out_ratio = graph.mb_ratio.data,
@@ -1881,33 +1788,28 @@ void ppo_loss_fwd_bwd(
         .returns = graph.mb_returns.data,
     };
 
-    bool has_mask = (graph.mb_action_mask.data != nullptr);
     PPOKernelArgs args = {
         .grad_logits = bufs.grad_logits.data,
         .grad_logstd = is_continuous ? bufs.grad_logstd.data : nullptr,
         .grad_values_pred = bufs.grad_values.data,
-        .logits = logits_ptr,
+        .logits = dec_out.data,
         .logstd = is_continuous ? logstd.data : nullptr,
-        .values_pred = logits_ptr + A_total,
+        .values_pred = dec_out.data + A_total,
         .adv_mean = adv_mean,
         .adv_var = adv_var,
         .act_sizes = act_sizes.data,
-        .action_mask = has_mask ? graph.mb_action_mask.data : nullptr,
-        .mask_stride_n = has_mask ? T * A_total : 0,
-        .mask_stride_t = has_mask ? A_total : 0,
+        .action_mask = graph.mb_action_mask.data,
         .num_atns = (int)numel(act_sizes.shape),
         .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
         .vf_coef = vf_coef, .ent_coef = ent_coef,
         .T_seq = T, .A_total = A_total, .N = N,
-        .logits_stride_n = T * fused_cols, .logits_stride_t = fused_cols, .logits_stride_a = 1,
-        .values_stride_n = T * fused_cols, .values_stride_t = fused_cols,
         .is_continuous = is_continuous,
     };
 
     ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(bufs.ppo_partials.data, args, graph_args);
 
-    ppo_loss_reduce<<<1, LOSS_N + 1, 0, stream>>>(
-        bufs.loss_output.data, losses_acc.data, bufs.ppo_partials.data, ppo_grid);
+    ppo_loss_reduce<<<1, LOSS_N, 0, stream>>>(
+        losses_acc.data, bufs.ppo_partials.data, ppo_grid);
 }
 
 // Puffer advantage function based on our own research
