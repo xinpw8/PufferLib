@@ -2820,11 +2820,14 @@ void run_sweep(Ini* ini, const char* exe_path) {
     int failed_workers = 0;
     int next_run_id = 0;
     int completed = 0;
-    while (completed < max_runs) {
-        int batch = max_runs - completed;
-        if (batch > parallel) batch = parallel;
+    int active = 0;
+    // Free-list: slot i owns GPUs [i*train_gpus, (i+1)*train_gpus). Refill as
+    // soon as any trial exits (waitpid -1), so finished GPUs are never idle
+    // while more runs remain.
+    while (completed < max_runs || active > 0) {
+        for (int i = 0; i < parallel; i++) {
+            if (jobs[i].pid || completed + active >= max_runs) continue;
 
-        for (int i = 0; i < batch; i++) {
             ProteinSweepInfo info = {0};
             if (!next_run_id) {
                 for (int j = 0; j < space->num; j++) {
@@ -2923,35 +2926,41 @@ void run_sweep(Ini* ini, const char* exe_path) {
             job.fd = pipefd[0];
             job.pid = pid;
             jobs[i] = job;
+            active++;
         }
+        if (!active) break;
 
-        for (int i = 0; i < batch; i++) {
-            SweepJob* job = &jobs[i];
-            int ok = read(job->fd, &job->result, sizeof(job->result)) == sizeof(job->result);
-            close(job->fd);
-            int status = 0;
-            waitpid(job->pid, &status, 0);
-            int good = ok && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+        int status = 0;
+        pid_t done = waitpid(-1, &status, 0);
+        assert(done > 0 && "sweep waitpid failed");
+        int i = 0;
+        for (; i < parallel && jobs[i].pid != done; i++) {}
+        assert(i < parallel && "waitpid reaped unknown child");
+        SweepJob* job = &jobs[i];
+        int ok = read(job->fd, &job->result, sizeof(job->result)) == sizeof(job->result);
+        close(job->fd);
+        job->pid = 0;
+        active--;
+        int good = ok && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 
-            if (!good) {
-                fprintf(stderr, "sweep worker run=%d failed; marking sample bad\n", job->run);
-                protein_sweep_observe(protein, job->sample, NAN, max_cost, 1);
-                if (++failed_workers > 1000) {
-                    fprintf(stderr, "sweep error: too many failed workers\n");
-                    exit(1);
-                }
-            } else {
-                // Non-selfplay: points[] is a downsampled learning curve.
-                // Selfplay: points==1 — final pool-eval winrate (or last train metric).
-                for (int pi = 0; pi < job->result.points; pi++) {
-                    protein_sweep_observe(protein, job->sample,
-                        job->result.scores[pi], job->result.costs[pi], 0);
-                }
-                printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
-                    job->run, job->result.score, job->result.cost, job->result.steps,
-                    job->random, job->gp_obs, job->pareto);
-                completed++;
+        if (!good) {
+            fprintf(stderr, "sweep worker run=%d failed; marking sample bad\n", job->run);
+            protein_sweep_observe(protein, job->sample, NAN, max_cost, 1);
+            if (++failed_workers > 1000) {
+                fprintf(stderr, "sweep error: too many failed workers\n");
+                exit(1);
             }
+        } else {
+            // Non-selfplay: points[] is a downsampled learning curve.
+            // Selfplay: points==1 — final pool-eval winrate (or last train metric).
+            for (int pi = 0; pi < job->result.points; pi++) {
+                protein_sweep_observe(protein, job->sample,
+                    job->result.scores[pi], job->result.costs[pi], 0);
+            }
+            printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
+                job->run, job->result.score, job->result.cost, job->result.steps,
+                job->random, job->gp_obs, job->pareto);
+            completed++;
         }
     }
 
