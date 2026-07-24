@@ -319,7 +319,7 @@ typedef struct {
     float prio_alpha;
     float prio_beta0;
     bool async;
-    bool reset_state;
+    bool reset_every_horizon;
     // true when base.cudagraphs >= 0: first real rollout/train use captures.
     bool cudagraphs;
     bool profile;
@@ -348,7 +348,7 @@ typedef struct ObsTensor {
 // a constant subset of agents
 struct RolloutBuf {
     PrecisionTensor observations;  // (horizon, agents, input_size)
-    // (slots, layers, agents, hidden) when !reset_state; slots = async ? 2 : 1.
+    // (slots, layers, agents, hidden) when !reset_every_horizon; slots = async ? 2 : 1.
     // Default path is carry + async: per-slot states for pipelined horizons.
     PrecisionTensor initial_states;
     PrecisionTensor actions;       // (horizon, agents, num_atns)
@@ -1407,10 +1407,10 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         profile_end(hypers.profile);
 
         profile_begin("train_select_and_copy", hypers.profile);
-        // reset_state: train from zeros, no carry buffer. Else: gather from
-        // initial_states slot (always allocated when !reset_state).
+        // reset_every_horizon: train from zeros, no carry buffer. Else: gather from
+        // initial_states slot (always allocated when !reset_every_horizon).
         RolloutBuf sel_src = rollouts;
-        if (hypers.reset_state) {
+        if (hypers.reset_every_horizon) {
             cudaMemsetAsync(graph.mb_state.data, 0,
                 numel(graph.mb_state.shape) * sizeof(precision_t), train_stream);
             sel_src.initial_states = PrecisionTensor();
@@ -1717,7 +1717,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         .prio_alpha = puf_ini_get_float(ini, "train", "prio_alpha"),
         .prio_beta0 = puf_ini_get_float(ini, "train", "prio_beta0"),
         .async = puf_ini_get_int(ini, "base", "async") != 0,
-        .reset_state = puf_ini_get_int(ini, "base", "reset_state") != 0,
+        .reset_every_horizon = puf_ini_get_int(ini, "base", "reset_every_horizon") != 0,
         .cudagraphs = puf_ini_get(ini, "base", "cudagraphs") >= 0,
         .profile = puf_ini_get_int(ini, "base", "profile") != 0,
         .rank = ctx->rank,
@@ -1999,8 +1999,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     int rollout_horizon = hypers.async ? 2 * horizon : horizon;
     register_rollout_buffers(pufferl->rollouts,
         acts, rollout_horizon, total_agents, input_size, num_action_heads, mask_size);
-    // Carry path: per-slot initial RNN states. reset_state zeros mb_state instead.
-    if (!hypers.reset_state) {
+    // Carry path: per-slot initial RNN states. reset_every_horizon zeros mb_state instead.
+    if (!hypers.reset_every_horizon) {
         int slots = hypers.async ? 2 : 1;
         pufferl->rollouts.initial_states = {
             .shape = {slots, num_layers, total_agents, hidden_size}};
@@ -2542,7 +2542,7 @@ double rollout_start(PuffeRL* p, int slot) {
             n * sizeof(precision_t), cudaMemcpyDeviceToDevice, p->default_stream);
         cudaStreamSynchronize(p->default_stream);
     }
-    if (p->hypers.reset_state) {
+    if (p->hypers.reset_every_horizon) {
         for (int i = 0; i < p->hypers.num_buffers; i++) {
             cudaMemsetAsync(p->buffer_states[i].data, 0,
                 numel(p->buffer_states[i].shape) * sizeof(precision_t), p->default_stream);
@@ -3019,7 +3019,7 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
         puf_ini_put(ini, "env.num_agents", "2");
         puf_ini_put(ini, "env.num_bots", "0");
     }
-    puf_ini_put(ini, "base.reset_state", "0");
+    puf_ini_put(ini, "base.reset_every_horizon", "0");
     puf_ini_put(ini, "train.horizon", "1");
 
     PuffeRL* pufferl = create_pufferl(ini, ctx);
@@ -3078,6 +3078,9 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
             result.draw = (float)dict_get(&log, "env/draw_rate");
             result.games = (int)n;
             break;
+        }
+        if (n == 0) {
+            continue;
         }
 
         if (burnin_games > 0 && baseline_n == 0 && n >= burnin_games) {

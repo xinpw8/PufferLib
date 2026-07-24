@@ -184,6 +184,7 @@ struct Decoder {
     create_weights_fn create_weights;
     int hidden_dim, output_dim;
     bool continuous;
+    size_t activation_size;
 };
 
 struct Network {
@@ -236,20 +237,20 @@ __global__ void mingru_gate(precision_t* out, precision_t* next_state,
     out[idx] = from_float(s * h_out + (1.0f - s) * x);
 }
 
-// Train scan buffers. Cache h in precision_t; recompute z/h_tilde from gates in bwd.
+// Train scan buffers. Cache post-reset h inputs; recompute outputs in bwd.
 struct PrefixScan {
     precision_t* combined_ptr = nullptr;
     precision_t* state_ptr = nullptr;
     precision_t* input_ptr = nullptr;  // (B, T, H) pre-projection input (highway)
-    precision_t* terminals_ptr = nullptr;  // (B, T), reset before step t if terminal[t-1]
+    precision_t* terminals_ptr = nullptr;  // (B, T), reset before step t if terminal[t]
     int B = 0, T = 0, H = 0;
-    PrecisionTensor scan_h;  // (B, T+1, H) h_0..h_T
+    PrecisionTensor scan_h;  // (B, T, H), recurrent input to each step
     PrecisionTensor out, next_state;
     PrecisionTensor grad_combined, grad_state;
     PrecisionTensor grad_input;
 };
 
-// Train scan: linear recurrence in f32, store h in precision_t.
+// Train scan: match rollout's precision_t recurrent state between steps.
 __global__ void mingru_scan_forward_seq(PrefixScan scan) {
     int T_seq = scan.T, H = scan.H, B = scan.B;
     precision_t* __restrict__ out = scan.out.data;
@@ -277,8 +278,7 @@ __global__ void mingru_scan_forward_seq(PrefixScan scan) {
 
     // h_0
     float h_t = to_float(state[bH + h]);
-    int h_base = b * (T_seq + 1) * H + h;
-    scan_h[h_base] = from_float(h_t);
+    int h_base = b * T_seq * H + h;
 
     const precision_t* __restrict__ combined_h_base = &combined[cbase + h];
     const precision_t* __restrict__ combined_g_base = &combined[cbase + H + h];
@@ -286,14 +286,13 @@ __global__ void mingru_scan_forward_seq(PrefixScan scan) {
 
     int out_curr = out_base;
     int t_offset = 0;
-    int h_curr = h_base;
 
     for (int t = 0; t < T_seq; t++) {
-        // Reset before step t if terminal at t-1 (same timing as old log path).
-        if (t > 0 && terminals != nullptr &&
-                to_float(terminals[b * T_seq + (t - 1)]) != 0.0f) {
+        // terminal[t] and observation[t] are emitted together after the prior step.
+        if (terminals != nullptr && to_float(terminals[b * T_seq + t]) != 0.0f) {
             h_t = 0.0f;
         }
+        scan_h[h_base + t * H] = from_float(h_t);
 
         float hidden_val = to_float(__ldg(&combined_h_base[t_offset]));
         float gate_val = to_float(__ldg(&combined_g_base[t_offset]));
@@ -305,11 +304,9 @@ __global__ void mingru_scan_forward_seq(PrefixScan scan) {
         float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
         h_t = lerp(h_t, h_tilde, z);
 
-        h_curr += H;
-        scan_h[h_curr] = from_float(h_t);
-
         float proj_sigmoid = sigmoid(proj_val);
         out[out_curr] = from_float(proj_sigmoid * h_t + (1.0f - proj_sigmoid) * x_val);
+        h_t = to_float(from_float(h_t));
 
         out_curr += H;
         t_offset += H3;
@@ -345,7 +342,7 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     int H2 = 2 * H;
     const int state_idx = b * H + h;
     const int out_base = bHT + h;
-    const int h_base = b * (T_seq + 1) * H + h;
+    const int h_base = b * T_seq * H + h;
 
     const precision_t* __restrict__ combined_h_base = &combined[cbase + h];
     const precision_t* __restrict__ combined_g_base = &combined[cbase + H + h];
@@ -356,10 +353,7 @@ __global__ void mingru_scan_backward(PrefixScan scan,
     precision_t* __restrict__ grad_combined_p_base = &grad_combined[cbase + H2 + h];
 
     // dh flowing into h_t from the future (and grad_next at t=T).
-    // Carry h_t in a register while walking t backward so each scan_h element is
-    // loaded once (was twice: as h_t then as h_prev on the next iteration).
     float dh = to_float(grad_next_state[state_idx]);
-    float h_t = to_float(__ldg(&scan_h[h_base + T_seq * H]));
 
     for (int t = T_seq; t >= 1; --t) {
         int t0 = t - 1;  // 0-based step
@@ -376,6 +370,7 @@ __global__ void mingru_scan_backward(PrefixScan scan,
 
         float z = sigmoid(gate_val);
         float h_tilde = (hidden_val >= 0.0f) ? hidden_val + 0.5f : sigmoid(hidden_val);
+        float h_t = lerp(h_prev, h_tilde, z);
         float proj_sigmoid = sigmoid(proj_val);
 
         // highway: out = s*h + (1-s)*x
@@ -404,11 +399,10 @@ __global__ void mingru_scan_backward(PrefixScan scan,
         // terminal before this step zeroed h_prev contribution into this step;
         // after bwd through the step, cut gradient flow into pre-reset state.
         dh = d_h_prev;
-        if (t0 > 0 && terminals != nullptr &&
-                to_float(terminals[b * T_seq + (t0 - 1)]) != 0.0f) {
+        if (terminals != nullptr &&
+                to_float(terminals[b * T_seq + t0]) != 0.0f) {
             dh = 0.0f;
         }
-        h_t = h_prev;
     }
 
     grad_state[state_idx] = from_float(dh);
@@ -643,7 +637,7 @@ void mingru_reg_train(void* w, void* activations, Allocator* acts, Allocator* gr
     for (int i = 0; i < m->num_layers; i++) {
         a->scan_bufs[i] = {
             .B = B, .T = TT, .H = H,
-            .scan_h =           {.shape = {B, TT + 1, H}},
+            .scan_h =           {.shape = {B, TT, H}},
             .out =              {.shape = {B, TT, H}},
             .next_state =       {.shape = {B, 1, H}},
             .grad_combined =    {.shape = {B, TT, 3 * H}},
@@ -811,7 +805,7 @@ PolicyActivations policy_reg_train(Policy* p, PolicyWeights& w,
         Allocator* acts, Allocator* grads, int B_TT) {
     PolicyActivations a;
     a.encoder = calloc(1, p->encoder.activation_size);
-    a.decoder = calloc(1, sizeof(DecoderActivations));
+    a.decoder = calloc(1, p->decoder.activation_size);
     a.network = calloc(1, sizeof(MinGRUActivations));
     p->encoder.reg_train(w.encoder, a.encoder, acts, grads, B_TT);
     p->decoder.reg_train(w.decoder, a.decoder, acts, grads, B_TT);
@@ -822,7 +816,7 @@ PolicyActivations policy_reg_train(Policy* p, PolicyWeights& w,
 PolicyActivations policy_reg_rollout(Policy* p, PolicyWeights& w, Allocator* acts, int B_inf) {
     PolicyActivations a;
     a.encoder = calloc(1, p->encoder.activation_size);
-    a.decoder = calloc(1, sizeof(DecoderActivations));
+    a.decoder = calloc(1, p->decoder.activation_size);
     a.network = calloc(1, sizeof(MinGRUActivations));
     p->encoder.reg_rollout(w.encoder, a.encoder, acts, B_inf);
     p->decoder.reg_rollout(w.decoder, a.decoder, acts, B_inf);
@@ -880,7 +874,9 @@ Policy build_policy(const char* env_name, int input_size, int hidden_size,
         .reg_rollout = decoder_reg_rollout,
         .create_weights = decoder_create_weights,
         .hidden_dim = hidden_size, .output_dim = decoder_output_size, .continuous = is_continuous,
+        .activation_size = sizeof(DecoderActivations),
     };
+    create_custom_decoder(env_name, &decoder);
     Network network = {
         .forward = mingru_forward,
         .forward_train = mingru_forward_train,

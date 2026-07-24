@@ -1254,8 +1254,16 @@ static void* nmmo3_encoder_create_weights(void* self) {
     Encoder* e = (Encoder*)self;
     return nmmo3_encoder_create(e->in_dim, e->out_dim);
 }
+
+#ifdef PUFFER_NETHACK
+#include "nethack.cu"
+#endif
+
 // Override encoder vtable for known ocean environments. No-op for unknown envs.
 static void create_custom_encoder(const char* env_name, Encoder* enc) {
+#ifdef PUFFER_NETHACK
+    if (strcmp(env_name, "nethack") == 0) { create_nethack_encoder(enc); return; }
+#endif
     if (strcmp(env_name, "nmmo3") == 0) {
         *enc = Encoder{
             .forward = nmmo3_encoder_forward,
@@ -1281,4 +1289,13 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
             .activation_size = sizeof(MinimalEntityEncoderActivations),
         };
     }
+}
+
+static void create_custom_decoder(const char* env_name, Decoder* dec) {
+#ifdef PUFFER_NETHACK
+    if (strcmp(env_name, "nethack") == 0) {
+        create_nethack_decoder(dec);
+        return;
+    }
+#endif
 }
