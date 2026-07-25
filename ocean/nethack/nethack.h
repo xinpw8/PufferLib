@@ -1,4 +1,4 @@
-// NetHack env, obs layout mirrored by src/nethack.cu
+// NetHack env, obs layout mirrored by ocean/nethack/nethack.cu
 // One env per agent, each owning an nle_ctx_t and a private vardir on tmpfs.
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

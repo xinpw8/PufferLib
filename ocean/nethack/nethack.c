@@ -31,7 +31,7 @@ static void env_close(Nethack* env) {
     free(env->action_mask);
 }
 
-// CPU port of the CUDA encoder (src/nethack.cu) + puffernet MinGRU/decoder;
+// CPU port of the CUDA encoder (ocean/nethack/nethack.cu) + puffernet MinGRU/decoder;
 // weight order matches param registration: encoder, decoder, mingru
 #define DEMO_VOCAB   5977
 #define DEMO_EMBED   32
@@ -57,7 +57,7 @@ static void env_close(Nethack* env) {
 #define DEMO_P1      16
 #define DEMO_GLB_IN  (DEMO_PCELLS * DEMO_EMBED)         // per-patch flatten (glyph slice)
 #define DEMO_GLB_HID 128
-// trigram message branch, mirroring NH_MSG_* in src/nethack.cu
+// trigram message branch, mirroring NH_MSG_* in ocean/nethack/nethack.cu
 #define DEMO_MSG_LEN   NETHACK_MSG_LEN
 #define DEMO_MSG_VOCAB 4096
 #define DEMO_MSG_LOG2V 12
@@ -65,7 +65,7 @@ static void env_close(Nethack* env) {
 #define DEMO_MSG_CONCAT_OFF (DEMO_LOC_HID + DEMO_GLB_HID + DEMO_INV_POOL + 64 + DEMO_BL_FEAT)
 #define DEMO_CONCAT  (DEMO_MSG_CONCAT_OFF + DEMO_MSG_HID)
 
-// per-blstat normalization, mirroring NH_BL_SCALE / NH_BL_ISLOG in src/nethack.cu
+// per-blstat normalization, mirroring NH_BL_SCALE / NH_BL_ISLOG in ocean/nethack/nethack.cu
 static const float DEMO_BL_SCALE[27] = {
     1.f/79, 1.f/21,
     1.f/25, 1.f/125, 1.f/25, 1.f/25, 1.f/25, 1.f/25, 1.f/25,

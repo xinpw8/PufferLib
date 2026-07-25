@@ -3,7 +3,7 @@
 PufferLib environment for NetHack 3.6.6 over
 [fast-nle](https://github.com/FinlaySanders/fast-nle): 22-verb factored
 action space (verb, item slot, direction), legality masking,
-decomposed-score reward, custom CUDA encoder/decoder (`src/nethack.cu`).
+decomposed-score reward, custom CUDA encoder/decoder (`ocean/nethack/nethack.cu`).
 
 ## Setup
 

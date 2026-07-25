@@ -5,7 +5,7 @@
 
 // object-type -> armor slot (ARM_SUIT=0..ARM_SHIRT=6, -1 = not armor), indexed
 // by otyp = glyph - NH_GLYPH_OBJ_OFF; generated from the engine's objects[]
-// (gen_obj_armcat, NetHack 3.6.6). Device copy inlined in src/nethack.cu.
+// (gen_obj_armcat, NetHack 3.6.6). Device copy inlined in ocean/nethack/nethack.cu.
 #define NH_NUM_OBJECTS 453
 #define NH_GLYPH_OBJ_OFF 1906
 static const signed char nh_obj_armcat[NH_NUM_OBJECTS] = {
@@ -58,7 +58,7 @@ static const signed char nh_obj_armcat[NH_NUM_OBJECTS] = {
 #define NETHACK_INV_SLOTS   NLE_INVENTORY_SIZE
 #define NETHACK_OFF_INV     (NETHACK_OFF_EXTRA + NETHACK_EXTRA_INTS * 4)
 #define NETHACK_OFF_INVST   (NETHACK_OFF_INV + NETHACK_INV_SLOTS * 2)
-// raw topline chars, null-padded; must match NH_MSG_LEN in src/nethack.cu
+// raw topline chars, null-padded; must match NH_MSG_LEN in ocean/nethack/nethack.cu
 #define NETHACK_OFF_MSG     (NETHACK_OFF_INVST + NETHACK_INV_SLOTS * NLE_INV_STATE_FIELDS)
 #define NETHACK_MSG_LEN     128
 #define NETHACK_OBS_SIZE    (NETHACK_OFF_MSG + NETHACK_MSG_LEN)

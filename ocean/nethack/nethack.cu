@@ -1,7 +1,7 @@
 // NetHack CUDA encoder: one shared glyph embedding feeding two views of the
 // full 79x21 map — an egocentric 9x9 crop at per-cell detail (flatten-linear)
 // and a global 5x5-patch view (fused embed+flatten->16->128 max over 16x5 = 80 tokens) — plus
-// the blstats MLP. Included by ocean.cu — requires kernels.cu, models.cu.
+// the blstats MLP. Included by src/ocean.cu — requires trainer kernels/models.
 // Bit-deterministic backward: scatter/bias sums via fixed-point integer
 // atomics; GEMMs through the shared puf_mm cublas path.
 
@@ -110,7 +110,7 @@ static constexpr int NH_HOT_T = 16;                // hot-glyph smem rows (16x32
 // rare forms inherit what common forms learn. Zero-init factors make the
 // initial function identical to the unfactorized baseline.
 #define NH_GM_QUAL static __device__ const
-#include "../ocean/nethack/glyph_map.h"
+#include "glyph_map.h"
 #undef NH_GM_QUAL
 
 // armor slot per otyp (ARM_SUIT=0..ARM_SHIRT=6, -1 not armor), device copy of
@@ -984,7 +984,7 @@ struct NethackEncoderActivations {
 static NethackEncoderWeights* nethack_encoder_create(int obs_size, int hidden) {
     if (obs_size != NH_OBS_SIZE) {
         fprintf(stderr, "nethack encoder: obs size %d != expected %d "
-            "(env obs layout out of sync with src/nethack.cu?)\n",
+            "(env obs layout out of sync with ocean/nethack/nethack.cu?)\n",
             obs_size, NH_OBS_SIZE);
         exit(1);
     }
