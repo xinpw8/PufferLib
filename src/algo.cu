@@ -118,7 +118,7 @@ void puf_kaiming_init(PrecisionTensor* dst, float gain, ulong seed, cudaStream_t
     long rows = dst->shape[0], cols = dst->shape[1];
     assert(rows > 0 && cols > 0);
     long n = rows * cols;
-    float bound = gain / std::sqrt((float)cols);
+    float bound = gain / sqrtf((float)cols);
     float* buf;
     cudaMalloc(&buf, n * sizeof(float));
     curandGenerator_t gen;
@@ -435,7 +435,10 @@ __global__ void assemble_decoder_grad(
 PrecisionTensor encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
     EncoderWeights* ew = (EncoderWeights*)w;
     EncoderActivations* a = (EncoderActivations*)activations;
-    if (a->saved_input.data) puf_copy(&a->saved_input, &input, stream);
+    // Train acts register saved_input; rollout acts leave it null.
+    if (a->saved_input.data) {
+        puf_copy(&a->saved_input, &input, stream);
+    }
     puf_mm(&input, &ew->weight, &a->out, stream);
     return a->out;
 }
@@ -452,7 +455,7 @@ void encoder_init_weights(void* w, ulong* seed, cudaStream_t stream) {
         .data = ew->weight.data,
         .shape = {ew->out_dim, ew->in_dim},
     };
-    puf_kaiming_init(&wt, std::sqrt(2.0f), (*seed)++, stream);
+    puf_kaiming_init(&wt, sqrtf(2.0f), (*seed)++, stream);
 }
 
 void encoder_reg_params(void* w, Allocator* alloc) {
@@ -544,7 +547,9 @@ void decoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* g
     alloc_register(acts,&a->grad_out);
     alloc_register(acts,&a->grad_input);
     alloc_register(grads,&a->wgrad_scratch);
-    if (dw->continuous) alloc_register(grads,&a->logstd_scratch);
+    if (dw->continuous) {
+        alloc_register(grads, &a->logstd_scratch);
+    }
 }
 
 void decoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
@@ -1096,7 +1101,7 @@ struct TrainGraph {
     PrecisionTensor mb_ratio;
     PrecisionTensor mb_newvalue;
     PrecisionTensor mb_prio;        // (B,)
-    PrecisionTensor mb_action_mask; // (B, T, mask_size); .data=nullptr when disabled
+    PrecisionTensor mb_action_mask; // (B, T, mask_size); always allocated
 };
 
 void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, int input_size,
@@ -1113,7 +1118,7 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
         .mb_ratio =         {.shape = {B, T}},
         .mb_newvalue =      {.shape = {B, T}},
         .mb_prio =          {.shape = {B}},
-        .mb_action_mask =   {},
+        .mb_action_mask =   {.shape = {B, T, mask_size}},
     };
     alloc_register(alloc, &bufs.mb_obs);
     alloc_register(alloc, &bufs.mb_state);
@@ -1126,10 +1131,7 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
     alloc_register(alloc, &bufs.mb_returns);
     alloc_register(alloc, &bufs.mb_ratio);
     alloc_register(alloc, &bufs.mb_newvalue);
-    if (mask_size > 0) {
-        bufs.mb_action_mask = {.shape = {B, T, mask_size}};
-        alloc_register(alloc, &bufs.mb_action_mask);
-    }
+    alloc_register(alloc, &bufs.mb_action_mask);
 }
 
 // Prioritized replay over single-epoch data. These kernels are
@@ -1332,18 +1334,6 @@ __device__ __forceinline__ float finite_or_clamp(float x, float lo, float hi) {
     return fminf(hi, fmaxf(lo, x));
 }
 
-__device__ __forceinline__ float safe_logit(const precision_t* logits,
-        int logits_base, int logits_offset, int offset) {
-    float l = to_float(logits[logits_base + logits_offset + offset]);
-    if (isnan(l)) {
-        l = 0.0f;
-    }
-    if (isinf(l)) {
-        l = (l > 0) ? 3.4028e+38f : -3.4028e+38f;
-    }
-    return l;
-}
-
 __device__ __forceinline__ float safe_continuous_mean(const precision_t* logits, int idx) {
     return finite_or_clamp(to_float(logits[idx]), -1.0e6f, 1.0e6f);
 }
@@ -1385,7 +1375,7 @@ struct PPOKernelArgs {
     const float* adv_mean;
     const float* adv_var;
     const int* act_sizes;
-    const precision_t* action_mask; // (N, T, A_total) or nullptr
+    const precision_t* action_mask; // (N, T, A_total); always present
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
@@ -1421,16 +1411,15 @@ void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, i
     alloc_register(alloc, &bufs.ppo_partials);
 }
 
+// Discrete only. mask is always present (env mask or synthetic all-ones).
 __device__ __forceinline__ float load_logit_masked(
         const precision_t* __restrict__ logits, int logits_base,
         int logits_offset, int a,
         const precision_t* __restrict__ mask, int mask_base) {
     float l = to_float(logits[logits_base + logits_offset + a]);
-    if (mask != nullptr) {
-        float m = to_float(mask[mask_base + logits_offset + a]);
-        if (m == 0.0f) {
-            l = -1e4f;
-        }
+    float m = to_float(mask[mask_base + logits_offset + a]);
+    if (m == 0.0f) {
+        l = -1e4f;
     }
     return l;
 }
@@ -1554,7 +1543,8 @@ __global__ void ppo_loss_compute(
     float head_entropy[MAX_ATN_HEADS];
     int head_act[MAX_ATN_HEADS];
 
-    int mask_base = a.action_mask ? nt * a.A_total : 0;
+    // Discrete always registers mb_action_mask; continuous never uses this arm.
+    int mask_base = nt * a.A_total;
 
     if (!a.is_continuous) {
         int logits_offset = 0;
@@ -1808,30 +1798,10 @@ void ppo_loss_fwd_bwd(
         losses_acc.data, bufs.ppo_partials.data, ppo_grid);
 }
 
-// Puffer advantage function based on our own research
-// This is a strict generalization of GAE and V-Trace
-__device__ void puff_advantage_row_scalar(
-        const precision_t* values, const precision_t* rewards, const precision_t* dones,
-        const precision_t* importance, precision_t* advantages, float gamma, float lambda,
-        float rho_clip, float c_clip, int horizon) {
-    float lastpufferlam = 0;
-    for (int t = horizon - 2; t >= 0; t--) {
-        int t_next = t + 1;
-        float nextnonterminal = 1.0f - to_float(dones[t_next]);
-        float imp = to_float(importance[t]);
-        float rho_t = fminf(imp, rho_clip);
-        float c_t = fminf(imp, c_clip);
-        float r_nxt = to_float(rewards[t_next]);
-        float v = to_float(values[t]);
-        float v_nxt = to_float(values[t_next]);
-        float delta = rho_t*r_nxt + gamma*v_nxt*nextnonterminal - v;
-        lastpufferlam = delta + gamma*lambda*c_t*lastpufferlam*nextnonterminal;
-        advantages[t] = from_float(lastpufferlam);
-    }
-}
+// Puffer advantage (GAE/V-Trace generalization). Horizon must be a multiple of
+// ADV_VEC_WIDTH (asserted at create) so rows vectorize with 128-bit loads.
+constexpr int ADV_VEC_WIDTH = 16 / (int)sizeof(precision_t);
 
-// These loading fns just optimize bandwidth for advantage since we call it on all
-// the data every minibatch. This should change in 5.0
 __device__ __forceinline__ void adv_vec_load(const float* ptr, float* out) {
     float4 v = *reinterpret_cast<const float4*>(ptr);
     out[0] = v.x;
@@ -1849,13 +1819,11 @@ __device__ __forceinline__ void adv_vec_load(const __nv_bfloat16* ptr, float* ou
     }
 }
 
-// Store N floats as precision_t via 128-bit writes (float4 for f32, uint4 for bf16)
 __device__ __forceinline__ void adv_vec_store(float* ptr, const float* vals) {
     *reinterpret_cast<float4*>(ptr) = make_float4(vals[0], vals[1], vals[2], vals[3]);
 }
 
 __device__ __forceinline__ void adv_vec_store(__nv_bfloat16* ptr, const float* vals) {
-    // N=8 for bf16: all 8 elements fit in one uint4 (128 bits)
     __nv_bfloat16 tmp[8];
     #pragma unroll
     for (int i = 0; i < 8; i++) {
@@ -1864,33 +1832,31 @@ __device__ __forceinline__ void adv_vec_store(__nv_bfloat16* ptr, const float* v
     *reinterpret_cast<uint4*>(ptr) = *reinterpret_cast<const uint4*>(tmp);
 }
 
-__device__ __forceinline__ void puff_advantage_row_vec(
+__device__ __forceinline__ void puff_advantage_row(
         const precision_t* values, const precision_t* rewards, const precision_t* dones,
         const precision_t* importance, precision_t* advantages, float gamma, float lambda,
         float rho_clip, float c_clip, int horizon) {
-    constexpr int N = 16 / sizeof(precision_t);
-
     float lastpufferlam = 0.0f;
-    int num_chunks = horizon / N;
+    int num_chunks = horizon / ADV_VEC_WIDTH;
 
     float next_value = to_float(values[horizon - 1]);
     float next_done = to_float(dones[horizon - 1]);
     float next_reward = to_float(rewards[horizon - 1]);
 
     for (int chunk = num_chunks - 1; chunk >= 0; chunk--) {
-        int base = chunk * N;
+        int base = chunk * ADV_VEC_WIDTH;
 
-        float v[N];
-        float r[N];
-        float d[N];
-        float imp[N];
+        float v[ADV_VEC_WIDTH];
+        float r[ADV_VEC_WIDTH];
+        float d[ADV_VEC_WIDTH];
+        float imp[ADV_VEC_WIDTH];
         adv_vec_load(values + base, v);
         adv_vec_load(rewards + base, r);
         adv_vec_load(dones + base, d);
         adv_vec_load(importance + base, imp);
 
-        float adv[N] = {0};
-        int start_idx = (chunk == num_chunks - 1) ? (N - 2) : (N - 1);
+        float adv[ADV_VEC_WIDTH] = {0};
+        int start_idx = (chunk == num_chunks - 1) ? (ADV_VEC_WIDTH - 2) : (ADV_VEC_WIDTH - 1);
 
         #pragma unroll
         for (int i = start_idx; i >= 0; i--) {
@@ -1912,24 +1878,12 @@ __device__ __forceinline__ void puff_advantage_row_vec(
 __global__ void puff_advantage(const precision_t* values, const precision_t* rewards,
         const precision_t* dones, const precision_t* importance, precision_t* advantages, float gamma,
         float lambda, float rho_clip, float c_clip, int num_steps, int horizon) {
-    int row = blockIdx.x*blockDim.x + threadIdx.x;
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
     if (row >= num_steps) {
         return;
     }
-    int offset = row*horizon;
-    puff_advantage_row_vec(values + offset, rewards + offset, dones + offset,
-        importance + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon);
-}
-
-__global__ void puff_advantage_scalar(const precision_t* values, const precision_t* rewards,
-        const precision_t* dones, const precision_t* importance, precision_t* advantages, float gamma,
-        float lambda, float rho_clip, float c_clip, int num_steps, int horizon) {
-    int row = blockIdx.x*blockDim.x + threadIdx.x;
-    if (row >= num_steps) {
-        return;
-    }
-    int offset = row*horizon;
-    puff_advantage_row_scalar(values + offset, rewards + offset, dones + offset,
+    int offset = row * horizon;
+    puff_advantage_row(values + offset, rewards + offset, dones + offset,
         importance + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon);
 }
 
@@ -1938,10 +1892,7 @@ void puff_advantage_cuda(PrecisionTensor& values, PrecisionTensor& rewards,
         float gamma, float lambda, float rho_clip, float c_clip, cudaStream_t stream) {
     int num_steps = values.shape[0];
     int horizon = values.shape[1];
-    int blocks = grid_size(num_steps);
-    constexpr int N = 16 / sizeof(precision_t);
-    auto kernel = (horizon % N == 0) ? puff_advantage : puff_advantage_scalar;
-    kernel<<<blocks, 256, 0, stream>>>(
+    puff_advantage<<<grid_size(num_steps), 256, 0, stream>>>(
         values.data, rewards.data, dones.data, importance.data,
         advantages.data, gamma, lambda, rho_clip, c_clip, num_steps, horizon);
 }
