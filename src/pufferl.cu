@@ -596,7 +596,9 @@ __global__ void sample_logits(
         precision_t* value_out,               // (B,)
         curandStatePhilox4_32_10_t* rng_states,
         precision_t* action_mask,             // (B, A_total); always allocated
-        int mask_stride) {
+        int mask_stride,                      // 0 when unused
+        const signed char* head_consume,      // (nverbs, num_atns) or nullptr
+        int hc_stride) {
     int B = dec_out.shape[0];
     int fused_cols = dec_out.shape[1];
     int num_atns = numel(act_sizes_puf.shape);
@@ -669,7 +671,12 @@ __global__ void sample_logits(
             float sampled_logit = use_cache ? cache[sampled] : load_logit_masked(
                 logits, logits_base, logits_offset, sampled, action_mask, mask_base);
             actions[idx * num_atns + h] = from_float((float)sampled);
-            total_log_prob += sampled_logit - logsumexp;
+            // consumed-head gating: only heads the sampled verb uses count
+            float log_prob = sampled_logit - logsumexp;
+            int verb = (int)to_float(actions[idx * num_atns]);
+            int used = (head_consume == nullptr || h == 0)
+                     ? 1 : (int)head_consume[verb * hc_stride + h];
+            if (used) total_log_prob += log_prob;
             logits_offset += A;
         }
     }
@@ -861,11 +868,13 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         }
 
         // Offset RNG by bank_off so banks don't collide on per-buffer rng slots.
+        int hc_stride_s = 0;
+        const signed char* hc_dev_s = get_head_consume_dev(&hc_stride_s);
         sample_logits<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
             dec_puf, p_logstd, pufferl->act_sizes_puf,
             act_b.data, lp_b.data, val_b.data,
             pufferl->rng_states[buf] + bank_off,
-            mask_b.data, mask_stride);
+            mask_b.data, mask_stride, hc_dev_s, hc_stride_s);
 
         cast<<<grid_size(numel(act_b.shape)), BLOCK_SIZE, 0, stream>>>(
                 env.actions.data + (long)sub_start * act_cols,
@@ -2088,6 +2097,9 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         master_weights_setup(&bank->master_weights, &bank->param_puf, false,
             pufferl->default_stream);
     }
+
+    // Upload head-consume map before any stream capture (see init_head_consume_map).
+    init_head_consume_map();
 
     // CUDA graphs: allocate graph array only; capture on first real use.
     if (hypers.cudagraphs) {

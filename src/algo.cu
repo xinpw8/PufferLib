@@ -1376,12 +1376,53 @@ struct PPOKernelArgs {
     const float* adv_var;
     const int* act_sizes;
     const precision_t* action_mask; // (N, T, A_total); always present
+    const signed char* head_consume; // (nverbs, num_atns) or nullptr
+    int hc_stride;
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
     int T_seq, A_total, N;
     bool is_continuous;
 };
+
+// ---- consumed-head gating (opt-in via PUFFER_HEAD_GATING) ----
+// Env may define env_head_consume_map (e.g. nethack). Weak when absent so
+// other envs leave gating disabled.
+//
+// Must be initialized *before* CUDA graph capture: cudaMalloc/Memcpy are
+// illegal during stream capture, and the device pointer is baked into the
+// captured sample_logits / ppo_loss kernels as a by-value arg.
+#ifndef PUFFER_PROVIDES_HEAD_CONSUME_MAP
+extern "C" __attribute__((weak)) const signed char* env_head_consume_map(int*, int*);
+#endif
+static const signed char* g_hc_dev = nullptr;
+static int g_hc_stride = 0;
+static bool g_hc_init = false;
+
+// Eager host->device upload. Call from create_pufferl (never during capture).
+static void init_head_consume_map(void) {
+    if (g_hc_init) return;
+    g_hc_init = true;
+    const char* hg = getenv("PUFFER_HEAD_GATING");
+    if (!(hg && hg[0] && hg[0] != '0' && env_head_consume_map)) return;
+    int nv = 0, na = 0;
+    const signed char* host = env_head_consume_map(&nv, &na);
+    if (!(host && nv > 0 && na > 0)) return;
+    signed char* dev = nullptr;
+    assert(cudaMalloc(&dev, (size_t)nv * na) == cudaSuccess
+            && "head_consume cudaMalloc failed");
+    assert(cudaMemcpy(dev, host, (size_t)nv * na, cudaMemcpyHostToDevice) == cudaSuccess
+            && "head_consume cudaMemcpy failed");
+    g_hc_dev = dev;
+    g_hc_stride = na;
+}
+
+static const signed char* get_head_consume_dev(int* stride) {
+    // Lazy path for non-cudagraph / tests; create_pufferl pre-inits for graphs.
+    if (!g_hc_init) init_head_consume_map();
+    *stride = g_hc_stride;
+    return g_hc_dev;
+}
 
 struct PPOBuffersPuf {
     FloatTensor grad_logits, grad_values, grad_logstd, adv_scratch;
@@ -1542,23 +1583,29 @@ __global__ void ppo_loss_compute(
     float head_logsumexp[MAX_ATN_HEADS];
     float head_entropy[MAX_ATN_HEADS];
     int head_act[MAX_ATN_HEADS];
+    int head_used[MAX_ATN_HEADS];
 
     // Discrete always registers mb_action_mask; continuous never uses this arm.
     int mask_base = nt * a.A_total;
 
     if (!a.is_continuous) {
+        // consumed-head gating: heads the sampled verb (head 0) does not use
+        // contribute no logprob/entropy/gradient (see env_head_consume_map)
+        int verb = static_cast<int>(g.actions[nt * a.num_atns]);
         int logits_offset = 0;
         for (int h = 0; h < a.num_atns; ++h) {
             int A = a.act_sizes[h];
             int act = static_cast<int>(g.actions[nt * a.num_atns + h]);
             head_act[h] = act;
+            int used = (a.head_consume == nullptr || h == 0)
+                     ? 1 : (int)a.head_consume[verb * a.hc_stride + h];
+            head_used[h] = used;
             float lse, ent, lp;
             ppo_discrete_head(a.logits, logits_base, logits_offset, A, act,
                               a.action_mask, mask_base, &lse, &ent, &lp);
             head_logsumexp[h] = lse;
             head_entropy[h] = ent;
-            total_log_prob += lp;
-            total_entropy += ent;
+            if (used) { total_log_prob += lp; total_entropy += ent; }
             logits_offset += A;
         }
     } else {
@@ -1595,6 +1642,12 @@ __global__ void ppo_loss_compute(
         int logits_offset = 0;
         for (int h = 0; h < a.num_atns; ++h) {
             int A = a.act_sizes[h];
+            if (!head_used[h]) {           // gated head: no gradient
+                for (int j = 0; j < A; ++j)
+                    a.grad_logits[grad_logits_base + logits_offset + j] = 0.0f;
+                logits_offset += A;
+                continue;
+            }
             int act = head_act[h];
             float logsumexp = head_logsumexp[h];
             float ent = head_entropy[h];
@@ -1774,6 +1827,8 @@ void ppo_loss_fwd_bwd(
         .returns = graph.mb_returns.data,
     };
 
+    int hc_stride_l = 0;
+    const signed char* hc_dev_l = get_head_consume_dev(&hc_stride_l);
     PPOKernelArgs args = {
         .grad_logits = bufs.grad_logits.data,
         .grad_logstd = is_continuous ? bufs.grad_logstd.data : nullptr,
@@ -1785,6 +1840,8 @@ void ppo_loss_fwd_bwd(
         .adv_var = adv_var,
         .act_sizes = act_sizes.data,
         .action_mask = graph.mb_action_mask.data,
+        .head_consume = hc_dev_l,
+        .hc_stride = hc_stride_l,
         .num_atns = (int)numel(act_sizes.shape),
         .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
         .vf_coef = vf_coef, .ent_coef = ent_coef,
