@@ -721,3 +721,29 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "max_xp_level", log->max_xp_level);
     dict_set(out, "truncated", log->truncated);
 }
+
+// Per-(verb,head) consumption map for PPO consumed-head gating (weak symbol
+// read by src/algo.cu / src/pufferl.cu). heads: [0]=verb, [1..12]=slot heads 0..11,
+// [13]=direction. A head is "consumed" iff the sampled verb actually uses it.
+#define PUFFER_PROVIDES_HEAD_CONSUME_MAP 1
+const signed char* env_head_consume_map(int* n_verbs, int* n_atns) {
+    static signed char map[NETHACK_NUM_ACTIONS * NUM_ATNS];
+    static int built = 0;
+    if (!built) {
+        memset(map, 0, sizeof(map));
+        for (int v = 0; v < NETHACK_NUM_ACTIONS; v++) {
+            signed char* row = map + v * NUM_ATNS;
+            row[0] = 1;                                   // verb head: always
+            int sh = NETHACK_VERBS[v].head;               // slot head 0..11 or -1
+            if (sh >= 0) row[1 + sh] = 1;
+            if (v == NETHACK_ACT_MOVE || v == NETHACK_ACT_RUN
+                || v == NETHACK_ACT_KICK || v == NETHACK_ACT_THROW
+                || v == NETHACK_ACT_ZAP || v == NETHACK_ACT_APPLY)
+                row[NUM_ATNS - 1] = 1;                    // direction head
+        }
+        built = 1;
+    }
+    *n_verbs = NETHACK_NUM_ACTIONS;
+    *n_atns = NUM_ATNS;
+    return map;
+}
