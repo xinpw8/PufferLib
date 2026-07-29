@@ -1723,6 +1723,7 @@ __global__ void ppo_loss_reduce(
 constexpr int PPO_VM_THREADS = 256;
 constexpr int PPO_VM_MAX_BLOCKS = 1024;
 
+// Just a mean and adv. Naive impl is annoyingly high overhead on small nets
 __global__ void ppo_adv_mean_var(const precision_t* __restrict__ src,
         float* __restrict__ partial, float* __restrict__ var_out,
         float* __restrict__ mean_out, int* __restrict__ flag, int n) {
@@ -1833,9 +1834,8 @@ void ppo_loss_fwd_bwd(
         .T_seq = T, .A_total = A_total, .N = N,
         .is_continuous = is_continuous,
     };
-
-    ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(bufs.ppo_partials.data, args, graph_args);
-
+    ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(
+            bufs.ppo_partials.data, args, graph_args);
     ppo_loss_reduce<<<1, LOSS_N, 0, stream>>>(
         losses_acc.data, bufs.ppo_partials.data, ppo_grid);
 }
@@ -1867,9 +1867,11 @@ __device__ __forceinline__ void adv_st(precision_t* p, const float* o) {
     }
 }
 
-__global__ void puff_advantage(const precision_t* values, const precision_t* rewards,
-        const precision_t* dones, const precision_t* importance, precision_t* advantages,
-        float gamma, float lambda, float rho_clip, float c_clip, int num_steps, int horizon) {
+__global__ void puff_advantage(const precision_t* values,
+        const precision_t* rewards, const precision_t* dones,
+        const precision_t* importance, precision_t* advantages,
+        float gamma, float lambda, float rho_clip, float c_clip,
+        int num_steps, int horizon) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     if (row >= num_steps) return;
     int off = row * horizon;
@@ -1887,6 +1889,8 @@ __global__ void puff_advantage(const precision_t* values, const precision_t* rew
         adv_ld(dones + base, d);
         adv_ld(importance + base, imp);
         int i0 = (seg + 1 == horizon / ADV_VEC_WIDTH) ? ADV_VEC_WIDTH - 2 : ADV_VEC_WIDTH - 1;
+        // This is the simple puffer_advantage function. All the
+        // vec load/stores are minor perf optimizations
         #pragma unroll
         for (int i = i0; i >= 0; i--) {
             float nnt = 1.f - next_d;
