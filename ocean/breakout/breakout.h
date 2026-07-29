@@ -50,8 +50,7 @@ typedef struct Client {
     Texture2D ball;
 } Client;
 
-// CPU Env (host). GPU builds define Env in breakout.cu (device agent, Log first).
-#ifndef PUFFER_GPU_ENV
+// CPU Env. GPU breakout is a separate source: ocean/breakout/breakout.cu
 struct Env {
     Client* client;
     Log log;
@@ -119,7 +118,6 @@ void puf_init(Env* env, Dict* kwargs) {
     env->agents[0].policy = 0;
     init(env);
 }
-#endif  // !PUFFER_GPU_ENV
 
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
@@ -127,9 +125,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
 }
-
-#ifndef PUFFER_GPU_ENV
-// ---- CPU env implementation ----
 
 typedef struct CollisionInfo CollisionInfo;
 struct CollisionInfo {
@@ -638,4 +633,3 @@ void puf_render(Breakout* env) {
 
     //PlaySound(client->sound);
 }
-#endif  // !PUFFER_GPU_ENV

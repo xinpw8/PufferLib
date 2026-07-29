@@ -1,14 +1,59 @@
-// GPU Breakout for massively parallel rollouts.
+// GPU Breakout — standalone env source for --gpu builds.
+// Completely separate from breakout.h (CPU). No trainer macros
+// (precision_t / from_float / BLOCK_SIZE / grid_size). Obs is always bf16;
+// pufferl casts to train precision when they differ.
 #ifndef PUFFER_BREAKOUT_GPU_CU
 #define PUFFER_BREAKOUT_GPU_CU
-#ifndef PUFFER_GPU_ENV
-#error "breakout.cu requires -DPUFFER_GPU_ENV (build with --gpu)"
-#endif
+
+// Device Env* batch backend (see pufferenv.h PUF_BACKEND).
+#define PUF_BACKEND PUF_GPU
+
+#include <cuda_bf16.h>
+#include <cuda_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "pufferenv.h"
+
+#define ACT_SIZES {3}
+#define NUM_ATNS 1
+#define OBS_SIZE 118
+#define HALF_PADDLE_WIDTH 31
+#define Y_OFFSET 50
+#define TICK_RATE (1.0f / 60.0f)
+#define LEFT 1
+#define RIGHT 2
+#define BRICK_INDEX_NO_COLLISION -4
+#define BRICK_INDEX_SIDEWALL_COLLISION -3
+#define BRICK_INDEX_BACKWALL_COLLISION -2
+#define BRICK_INDEX_PADDLE_COLLISION -1
+
+// Fixed env obs dtype (not tied to train precision build flags).
+typedef __nv_bfloat16 obs_t;
+
+struct Log {
+    float perf;
+    float score;
+    float episode_return;
+    float episode_length;
+    float n;
+};
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
 
 #define BREAKOUT_GPU_MAX_BRICKS 128
 #define BREAKOUT_GPU_BRICK_WORDS ((BREAKOUT_GPU_MAX_BRICKS + 31) / 32)
 #define BREAKOUT_GPU_PI 3.14159265358979323846f
 #define BREAKOUT_THREADS_PER_ENV 8  // coop lanes for coalesced obs write
+#define BREAKOUT_BLOCK 256
+static int breakout_grid(int n) {
+    return (n + BREAKOUT_BLOCK - 1) / BREAKOUT_BLOCK;
+}
 
 // Shared config (constant mem).
 typedef struct GpuBreakoutConfig {
@@ -32,9 +77,15 @@ typedef struct GpuBreakoutConfig {
     int continuous;
 } GpuBreakoutConfig;
 
-// Per-env dynamic state only. Log first for the parallel log reduction.
+// Per-env state. Log first for parallel log reduce. Trainer-facing fields
+// (agents, num_agents, tag, boundary_reached) match CPU Env contract; GPU
+// kernels ignore them. Selfplay not wired for GPU yet.
 typedef struct Env {
     Log log;
+    Agent agents[1];
+    int num_agents;
+    int tag;
+    int boundary_reached;
     float paddle_x;
     float paddle_y;
     float ball_x;
@@ -110,13 +161,9 @@ __device__ static inline void gpu_breakout_add_log(Env* env) {
     env->log.n += 1.0f;
 }
 
-// Store obs feature: float compute → obs_t (from_float is identity in float builds).
+// Store obs feature: float compute → bf16 obs.
 __device__ __forceinline__ void gpu_breakout_store_obs(obs_t* dst, float v) {
-#if defined(from_float)
-    *dst = from_float(v);
-#else
-    *dst = v;
-#endif
+    *dst = __float2bfloat16(v);
 }
 
 // Single-thread obs write (reset path / fallback). Prefer coop variant in step.
@@ -582,45 +629,85 @@ static void gpu_breakout_host_fill_config(GpuBreakoutConfig* cfg, Dict* kwargs) 
     cfg->max_score = 2 * cfg->half_max_score;
 }
 
-static Env* puf_envs_create(int total_agents, Dict* env_kwargs) {
+// Bound EnvBuf + device Env array. Same puf_reset/step/close(Env*) sig as CPU:
+// Env* is the device base; step/reset always run the full batch (env handles the loop).
+static struct {
+    Env* envs;
+    int n;
+    obs_t* observations;
+    float* actions;
+    float* rewards;
+    float* terminals;
+    cudaStream_t stream;
+} g_gpu;
+
+// Trainer create: returns device Env base (also stored in g_gpu).
+Env* puf_vec_create(int n, Dict* env_kwargs,
+        obs_t* observations, float* actions, float* rewards, float* terminals) {
     GpuBreakoutConfig cfg;
     gpu_breakout_host_fill_config(&cfg, env_kwargs);
     cudaMemcpyToSymbol(d_bcfg, &cfg, sizeof(GpuBreakoutConfig));
 
-    Env* host_envs = (Env*)calloc((size_t)total_agents, sizeof(Env));
-    for (int i = 0; i < total_agents; i++) {
-        host_envs[i].rng = (unsigned int)(i + 1); // nonzero seed
+    Env* host_envs = (Env*)calloc((size_t)n, sizeof(Env));
+    for (int i = 0; i < n; i++) {
+        host_envs[i].rng = (unsigned int)(i + 1);
         host_envs[i].num_balls = -1;
+        host_envs[i].num_agents = 1;
+        host_envs[i].tag = 0;
+        host_envs[i].boundary_reached = 0;
+        host_envs[i].agents[0].policy = 0;
+        host_envs[i].agents[0].observations = NULL;
+        host_envs[i].agents[0].actions = NULL;
+        host_envs[i].agents[0].rewards = NULL;
+        host_envs[i].agents[0].terminals = NULL;
+        host_envs[i].agents[0].action_mask = NULL;
     }
-
     Env* envs = NULL;
-    cudaMalloc((void**)&envs, (size_t)total_agents * sizeof(Env));
-    cudaMemcpy(envs, host_envs, (size_t)total_agents * sizeof(Env), cudaMemcpyHostToDevice);
+    cudaMalloc((void**)&envs, (size_t)n * sizeof(Env));
+    cudaMemcpy(envs, host_envs, (size_t)n * sizeof(Env), cudaMemcpyHostToDevice);
     free(host_envs);
+
+    g_gpu.envs = envs;
+    g_gpu.n = n;
+    g_gpu.observations = observations;
+    g_gpu.actions = actions;
+    g_gpu.rewards = rewards;
+    g_gpu.terminals = terminals;
+    g_gpu.stream = 0;
     return envs;
 }
 
-
-static void puf_envs_reset(Env* envs, obs_t* observations, float* rewards,
-        float* terminals, int total_agents) {
-    int threads = total_agents * BREAKOUT_THREADS_PER_ENV;
-    gpu_breakout_reset_kernel<<<grid_size(threads), BLOCK_SIZE>>>(
-        envs, observations, rewards, terminals, total_agents);
+void puf_bind_stream(cudaStream_t stream) {
+    g_gpu.stream = stream;
 }
 
-static void puf_envs_step(Env* envs, const float* actions, obs_t* observations,
-        float* rewards, float* terminals, int start, int count, cudaStream_t stream) {
-    int threads = count * BREAKOUT_THREADS_PER_ENV;
-    gpu_breakout_step_kernel<<<grid_size(threads), BLOCK_SIZE, 0, stream>>>(
-        envs, actions, observations, rewards, terminals, start, count);
+// Same signatures as CPU. GPU path uses batch base; puf_init is unused (create fills).
+void puf_init(Env* env, Dict* kwargs) {
+    (void)env;
+    (void)kwargs;
 }
 
-
-static void puf_envs_close(Env* envs) {
-    cudaFree(envs);
+void puf_reset(Env* env) {
+    (void)env;
+    int threads = g_gpu.n * BREAKOUT_THREADS_PER_ENV;
+    gpu_breakout_reset_kernel<<<breakout_grid(threads), BREAKOUT_BLOCK>>>(
+        g_gpu.envs, g_gpu.observations, g_gpu.rewards, g_gpu.terminals, g_gpu.n);
 }
 
-// Host render not available for device Env; keep symbol for eval paths.
+void puf_step(Env* env) {
+    (void)env;
+    int threads = g_gpu.n * BREAKOUT_THREADS_PER_ENV;
+    gpu_breakout_step_kernel<<<breakout_grid(threads), BREAKOUT_BLOCK, 0, g_gpu.stream>>>(
+        g_gpu.envs, g_gpu.actions, g_gpu.observations, g_gpu.rewards, g_gpu.terminals,
+        0, g_gpu.n);
+}
+
+void puf_close(Env* env) {
+    (void)env;
+    cudaFree(g_gpu.envs);
+    g_gpu.envs = NULL;
+}
+
 void puf_render(Env* env) {
     (void)env;
 }

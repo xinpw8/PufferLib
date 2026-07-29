@@ -2,7 +2,7 @@
 #define OBS_SIZE 118
 #define NUM_ATNS 1
 #define ACT_SIZES {3}
-#define OBS_TENSOR_T FloatTensor
+#define OBS_TENSOR_T Float
 
 #define Env Breakout
 #include "vecenv.h"

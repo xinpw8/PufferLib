@@ -75,14 +75,14 @@ struct Network {
     int hidden, num_layers, horizon;
 };
 
-thread_local cublasHandle_t g_cublas_handle = nullptr;
-thread_local void* g_cublas_workspace = nullptr;
+thread_local cublasHandle_t g_cublas_handle = NULL;
+thread_local void* g_cublas_workspace = NULL;
 // Side-stream dW (mm_tn) overlaps dX (mm_nn) on main during linear bwd.
-thread_local cublasHandle_t g_cublas_dw_handle = nullptr;
-thread_local cudaEvent_t g_main_ready = nullptr;
-thread_local void* g_cublas_dw_workspace = nullptr;
-thread_local cudaStream_t g_dw_stream = nullptr;
-thread_local cudaEvent_t g_dw_done = nullptr;
+thread_local cublasHandle_t g_cublas_dw_handle = NULL;
+thread_local cudaEvent_t g_main_ready = NULL;
+thread_local void* g_cublas_dw_workspace = NULL;
+thread_local cudaStream_t g_dw_stream = NULL;
+thread_local cudaEvent_t g_dw_done = NULL;
 
 static void cublas_init_one(cublasHandle_t* handle, void** workspace) {
     const size_t ws_bytes = 32 * 1024 * 1024;
@@ -110,7 +110,7 @@ static void cublasGemmExDense(cublasHandle_t handle,
     cublasSetStream(handle, stream);
     cublasGemmEx(handle, op_b, op_a, N, M, K, &alpha,
         B, CUBLAS_PRECISION, ldb, A, CUBLAS_PRECISION, lda, &beta,
-        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE_PRECISION, CUBLAS_GEMM_DEFAULT);
+        C, CUBLAS_PRECISION, N, CUBLAS_COMPUTE, CUBLAS_GEMM_DEFAULT);
 }
 
 // out(...,N) = alpha * a(...,K) @ b(N,K)^T + beta * out  — leading dims folded into M
@@ -195,6 +195,26 @@ __device__ __forceinline__ float lerp(float a, float b, float w) {
     return (fabsf(w) < 0.5f) ? a + w * diff : b - diff * (1.0f - w);
 }
 
+// Deterministic block tree-reduce. smem layout: smem[c * nthreads + tid].
+// Caller fills smem; tid 0 writes nchan results to out[0..nchan).
+__device__ __forceinline__ void block_reduce_sum(
+        float* smem, float* out, int tid, int nthreads, int nchan) {
+    __syncthreads();
+    for (int s = nthreads / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            for (int c = 0; c < nchan; c++) {
+                smem[c * nthreads + tid] += smem[c * nthreads + tid + s];
+            }
+        }
+        __syncthreads();
+    }
+    if (tid == 0) {
+        for (int c = 0; c < nchan; c++) {
+            out[c] = smem[c * nthreads];
+        }
+    }
+}
+
 // Rollout MinGRU step: h = (1-z)*h + z*h_tilde, highway out = s*h + (1-s)*x.
 __global__ void mingru_gate(precision_t* out, precision_t* next_state,
         const precision_t* combined, const precision_t* state_in,
@@ -226,10 +246,10 @@ __global__ void mingru_gate(precision_t* out, precision_t* next_state,
 
 // Train scan buffers. Cache post-reset h inputs; recompute outputs in bwd.
 struct PrefixScan {
-    precision_t* combined_ptr = nullptr;
-    precision_t* state_ptr = nullptr;
-    precision_t* input_ptr = nullptr;  // (B, T, H) pre-projection input (highway)
-    precision_t* terminals_ptr = nullptr;  // (B, T), reset before step t if terminal[t]
+    precision_t* combined_ptr = NULL;
+    precision_t* state_ptr = NULL;
+    precision_t* input_ptr = NULL;  // (B, T, H) pre-projection input (highway)
+    precision_t* terminals_ptr = NULL;  // (B, T), reset before step t if terminal[t]
     int B = 0, T = 0, H = 0;
     Prec scan_h;  // (B, T, H), recurrent input to each step
     Prec out, next_state;
@@ -276,7 +296,7 @@ __global__ void mingru_scan_forward_seq(PrefixScan scan) {
 
     for (int t = 0; t < T_seq; t++) {
         // terminal[t] and observation[t] are emitted together after the prior step.
-        if (terminals != nullptr && to_float(terminals[b * T_seq + t]) != 0.0f) {
+        if (terminals != NULL && to_float(terminals[b * T_seq + t]) != 0.0f) {
             h_t = 0.0f;
         }
         scan_h[h_base + t * H] = from_float(h_t);
@@ -386,7 +406,7 @@ __global__ void mingru_scan_backward(PrefixScan scan,
         // terminal before this step zeroed h_prev contribution into this step;
         // after bwd through the step, cut gradient flow into pre-reset state.
         dh = d_h_prev;
-        if (terminals != nullptr &&
+        if (terminals != NULL &&
                 to_float(terminals[b * T_seq + t0]) != 0.0f) {
             dh = 0.0f;
         }
@@ -557,7 +577,7 @@ Prec decoder_backward(void* w, void* activations, Float grad_logits,
         a->grad_out.data, grad_logits.data, grad_value.data, B_TT, od, od1);
     // dW // dX: weight grad on side stream, dX on main (needed for residual chain).
     puf_mm_tn_async_after(&a->grad_out, &a->saved_input, &a->wgrad_scratch, stream);
-    if (dw->continuous && grad_logstd.data != nullptr) {
+    if (dw->continuous && grad_logstd.data != NULL) {
         sum_rows_to_precision_kernel<<<grid_size(dw->output_dim), BLOCK_SIZE, 0, stream>>>(
             a->logstd_scratch.data, grad_logstd.data, B_TT, dw->output_dim);
     }
@@ -896,16 +916,7 @@ __global__ void muon_sum_sq_partials(float* __restrict__ partials,
         sum += v * v;
     }
     sdata[tid] = sum;
-    __syncthreads();
-    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            sdata[tid] += sdata[tid + s];
-        }
-        __syncthreads();
-    }
-    if (tid == 0) {
-        partials[blockIdx.x] = sdata[0];
-    }
+    block_reduce_sum(sdata, &partials[blockIdx.x], tid, blockDim.x, 1);
 }
 
 __global__ void muon_sum_sq_reduce(float* __restrict__ out,
@@ -913,16 +924,7 @@ __global__ void muon_sum_sq_reduce(float* __restrict__ out,
     __shared__ float sdata[256];
     int tid = threadIdx.x;
     sdata[tid] = (tid < num_blocks) ? partials[tid] : 0.0f;
-    __syncthreads();
-    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            sdata[tid] += sdata[tid + s];
-        }
-        __syncthreads();
-    }
-    if (tid == 0) {
-        *out = sdata[0];
-    }
+    block_reduce_sum(sdata, out, tid, blockDim.x, 1);
 }
 
 // Global grad clip by L2, then Nesterov into f32 momentum buffer.
@@ -982,7 +984,12 @@ constexpr double ns_coeffs[5][3] = {
 // upgrade over Adam (weight decay not needed in RL).
 struct Muon {
     double momentum;
-    Float lr_puf, ns_norm_puf, grad_norm_puf, mb_puf, norm_partials;
+    // Scalars / scratch: raw device ptrs. Tensors: allocator.
+    float* lr;
+    float* grad_norm;
+    float* ns_norm;
+    float* norm_partials;  // 256
+    Float mb;              // flat momentum buffer (param-sized)
     Prec gram, gram_buf, x_buf;
     Allocator* param_alloc;
 };
@@ -990,14 +997,12 @@ struct Muon {
 void muon_init(Muon* m, Allocator* param_alloc, double momentum, Allocator* alloc) {
     m->momentum = momentum;
     m->param_alloc = param_alloc;
-    m->lr_puf =         {.shape = {1}};
-    m->mb_puf =         {.shape = {param_alloc->total_elems}};
-    m->norm_partials =  {.shape = {256}};
-    m->grad_norm_puf =  {.shape = {1}};
-    alloc_register(alloc, &m->lr_puf);
-    alloc_register(alloc, &m->mb_puf);
-    alloc_register(alloc, &m->norm_partials);
-    alloc_register(alloc, &m->grad_norm_puf);
+    cudaMalloc((void**)&m->lr, sizeof(float));
+    cudaMalloc((void**)&m->grad_norm, sizeof(float));
+    cudaMalloc((void**)&m->ns_norm, sizeof(float));
+    cudaMalloc((void**)&m->norm_partials, 256 * sizeof(float));
+    m->mb = {.shape = {param_alloc->total_elems}};
+    alloc_register(alloc, &m->mb);
     long max_M = 0, max_N = 0;
     for (int _i = 0; _i < param_alloc->num_regs; _i++) {
         AllocEntry& e = param_alloc->regs[_i];
@@ -1007,14 +1012,12 @@ void muon_init(Muon* m, Allocator* param_alloc, double momentum, Allocator* allo
             max_N = max(max_N, max(R, C));
         }
     }
-    m->gram =        {.shape = {max_M, max_M}};
-    m->gram_buf =    {.shape = {max_M, max_M}};
-    m->x_buf =       {.shape = {max_M, max_N}};
-    m->ns_norm_puf = {.shape = {1}};
+    m->gram =     {.shape = {max_M, max_M}};
+    m->gram_buf = {.shape = {max_M, max_M}};
+    m->x_buf =    {.shape = {max_M, max_N}};
     alloc_register(alloc, &m->gram);
     alloc_register(alloc, &m->gram_buf);
     alloc_register(alloc, &m->x_buf);
-    alloc_register(alloc, &m->ns_norm_puf);
 }
 
 void muon_step(Muon* m, Float weights, Prec grads,
@@ -1022,11 +1025,11 @@ void muon_step(Muon* m, Float weights, Prec grads,
     int n_grad = (int)numel(grads.shape);
     int sum_blocks = min((int)grid_size(n_grad), 256);
     muon_sum_sq_partials<<<sum_blocks, 256, 0, stream>>>(
-        m->norm_partials.data, grads.data, n_grad);
+        m->norm_partials, grads.data, n_grad);
     muon_sum_sq_reduce<<<1, 256, 0, stream>>>(
-        m->grad_norm_puf.data, m->norm_partials.data, sum_blocks);
+        m->grad_norm, m->norm_partials, sum_blocks);
     muon_clip_nesterov<<<grid_size(n_grad), BLOCK_SIZE, 0, stream>>>(
-        m->mb_puf.data, grads.data, m->grad_norm_puf.data,
+        m->mb.data, grads.data, m->grad_norm,
         max_grad_norm, 1e-6f, (float)m->momentum, n_grad);
 
     // Per-param NS into workspace; write scaled update back into flat grads.
@@ -1051,11 +1054,11 @@ void muon_step(Muon* m, Float weights, Prec grads,
 
         int nblk = min((int)grid_size(ne), 256);
         muon_sum_sq_partials<<<nblk, 256, 0, stream>>>(
-            m->norm_partials.data, x.data, (int)ne);
+            m->norm_partials, x.data, (int)ne);
         muon_sum_sq_reduce<<<1, 256, 0, stream>>>(
-            m->ns_norm_puf.data, m->norm_partials.data, nblk);
+            m->ns_norm, m->norm_partials, nblk);
         muon_l2_normalize<<<grid_size(ne), BLOCK_SIZE, 0, stream>>>(
-            x.data, m->ns_norm_puf.data, 1e-7f, (int)ne);
+            x.data, m->ns_norm, 1e-7f, (int)ne);
 
         // 5 steps land in x_buf. 4 = you break it.
         for (int i = 0; i < 5; ++i) {
@@ -1083,7 +1086,7 @@ void muon_step(Muon* m, Float weights, Prec grads,
             gc_ptr, x_buf.data, scale, (int)ne);
     }
     muon_weight_update<<<grid_size(n_grad), BLOCK_SIZE, 0, stream>>>(
-        weights.data, grads.data, m->lr_puf.data, 0.0f, n_grad);
+        weights.data, grads.data, m->lr, 0.0f, n_grad);
 }
 
 // Train data layout is transposed to (B, T) from rollouts layout (T, B)
@@ -1370,7 +1373,7 @@ enum LossIdx {
 #ifndef PUFFER_PROVIDES_HEAD_CONSUME_MAP
 extern "C" __attribute__((weak)) const signed char* env_head_consume_map(int*, int*);
 #endif
-static const signed char* g_hc_dev = nullptr;
+static const signed char* g_hc_dev = NULL;
 static int g_hc_stride = 0;
 static bool g_hc_init = false;
 
@@ -1383,7 +1386,7 @@ static void init_head_consume_map(void) {
     int nv = 0, na = 0;
     const signed char* host = env_head_consume_map(&nv, &na);
     if (!(host && nv > 0 && na > 0)) return;
-    signed char* dev = nullptr;
+    signed char* dev = NULL;
     assert(cudaMalloc(&dev, (size_t)nv * na) == cudaSuccess
             && "head_consume cudaMalloc failed");
     assert(cudaMemcpy(dev, host, (size_t)nv * na, cudaMemcpyHostToDevice) == cudaSuccess
@@ -1446,7 +1449,7 @@ struct PPOKernelArgs {
     const float* adv_var;
     const int* act_sizes;
     const precision_t* action_mask; // (N, T, A_total); always present
-    const signed char* head_consume; // (nverbs, num_atns) or nullptr
+    const signed char* head_consume; // (nverbs, num_atns) or NULL
     int hc_stride;
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
@@ -1455,32 +1458,35 @@ struct PPOKernelArgs {
     bool is_continuous;
 };
 
-struct PPOBuffersPuf {
-    Float grad_logits, grad_values, grad_logstd, adv_scratch;
-    Float ent_coef;
+// adv_scratch layout: [var, mean, 2*PPO_VM_MAX_BLOCKS partials, flag-as-float-slot]
+#define PPO_ADV_SCRATCH_N (2 + 2 * 1024 + 1)
+
+struct PPOBufs {
+    Float grad_logits, grad_values, grad_logstd;
     Float ppo_partials;
+    float* ent_coef;     // device scalar (graphs cannot bake host by-value)
+    float* adv_scratch;  // raw workspace, not a real tensor
 };
 
-void register_ppo_buffers(PPOBuffersPuf& bufs, Allocator* alloc, int N, int T, int A_total, bool is_continuous) {
+void register_ppo_buffers(PPOBufs& bufs, Allocator* alloc, int N, int T, int A_total, bool is_continuous) {
     long total = (long)N * T;
     int ppo_grid = ((int)total + PPO_THREADS - 1) / PPO_THREADS;
-    bufs = (PPOBuffersPuf){
+    bufs = (PPOBufs){
         .grad_logits = {.shape = {N, T, A_total}},
         .grad_values = {.shape = {N, T, 1}},
         .grad_logstd = {.shape = {N, T, A_total}},
-        // [0]=var, [1]=mean, [2..2+2B)=partials, last int-slot = completion flag
-        .adv_scratch = {.shape = {2 + 2 * 1024 + 1}},
-        .ent_coef = {.shape = {1}},
         .ppo_partials = {.shape = {ppo_grid * LOSS_N}},
+        .ent_coef = NULL,
+        .adv_scratch = NULL,
     };
     alloc_register(alloc, &bufs.grad_logits);
     alloc_register(alloc, &bufs.grad_values);
     if (is_continuous) {
         alloc_register(alloc, &bufs.grad_logstd);
     }
-    alloc_register(alloc, &bufs.adv_scratch);
-    alloc_register(alloc, &bufs.ent_coef);
     alloc_register(alloc, &bufs.ppo_partials);
+    cudaMalloc((void**)&bufs.ent_coef, sizeof(float));
+    cudaMalloc((void**)&bufs.adv_scratch, PPO_ADV_SCRATCH_N * sizeof(float));
 }
 
 // Discrete only. mask is always present (env mask or synthetic all-ones).
@@ -1599,7 +1605,7 @@ __global__ void ppo_loss_compute(
                 int A = a.act_sizes[h];
                 int act = (int)to_float(g.actions[nt * a.num_atns + h]);
                 head_act[h] = act;
-                head_used[h] = (a.head_consume == nullptr || h == 0)
+                head_used[h] = (a.head_consume == NULL || h == 0)
                     ? 1 : (int)a.head_consume[verb * a.hc_stride + h];
                 float* cache = logit_cache[h];
                 float lse = ppo_discrete_logsumexp(
@@ -1684,21 +1690,8 @@ __global__ void ppo_loss_compute(
             (fabsf(ratio - 1.0f) > a.clip_coef ? 1.0f : 0.0f) * inv_NT;
     }
 
-    __syncthreads();
-    for (int stride = PPO_THREADS / 2; stride > 0; stride >>= 1) {
-        if (tid < stride) {
-            for (int c = 0; c < LOSS_N; c++) {
-                block_losses[c][tid] += block_losses[c][tid + stride];
-            }
-        }
-        __syncthreads();
-    }
-    if (tid == 0) {
-        int base = blockIdx.x * LOSS_N;
-        for (int c = 0; c < LOSS_N; c++) {
-            ppo_partials[base + c] = block_losses[c][0];
-        }
-    }
+    block_reduce_sum(&block_losses[0][0], &ppo_partials[blockIdx.x * LOSS_N],
+        tid, PPO_THREADS, LOSS_N);
 }
 
 // Deterministic reduction of per-block PPO loss partials + count increment
@@ -1781,17 +1774,15 @@ void ppo_loss_fwd_bwd(
         Prec& dec_out,    // (N, T, fused_cols) - fused logits+value from decoder
         Prec& logstd,     // continuous logstd or empty
         TrainGraph& graph,
-        Int& act_sizes, Float& losses_acc,
+        int* act_sizes, float* losses_acc,
         float clip_coef, float vf_clip_coef, float vf_coef, const float* ent_coef,
-        PPOBuffersPuf& bufs, bool is_continuous,
+        PPOBufs& bufs, bool is_continuous,
         cudaStream_t stream) {
     int N = dec_out.shape[0], T = dec_out.shape[1], fused_cols = dec_out.shape[2];
     int A_total = fused_cols - 1;  // last column is value
     int total = N * T;
-    assert((int)numel(act_sizes.shape) == NUM_ATNS
-        && "act_sizes length must match env NUM_ATNS");
 
-    float* adv_var = bufs.adv_scratch.data;
+    float* adv_var = bufs.adv_scratch;
     float* adv_mean = adv_var + 1;
     float* adv_partials = adv_var + 2;
     int* adv_flag = (int*)(adv_var + 2 + 2 * PPO_VM_MAX_BLOCKS);
@@ -1817,18 +1808,18 @@ void ppo_loss_fwd_bwd(
     const signed char* hc_dev_l = get_head_consume_dev(&hc_stride_l);
     PPOKernelArgs args = {
         .grad_logits = bufs.grad_logits.data,
-        .grad_logstd = is_continuous ? bufs.grad_logstd.data : nullptr,
+        .grad_logstd = is_continuous ? bufs.grad_logstd.data : NULL,
         .grad_values_pred = bufs.grad_values.data,
         .logits = dec_out.data,
-        .logstd = is_continuous ? logstd.data : nullptr,
+        .logstd = is_continuous ? logstd.data : NULL,
         .values_pred = dec_out.data + A_total,
         .adv_mean = adv_mean,
         .adv_var = adv_var,
-        .act_sizes = act_sizes.data,
+        .act_sizes = act_sizes,
         .action_mask = graph.mb_action_mask.data,
         .head_consume = hc_dev_l,
         .hc_stride = hc_stride_l,
-        .num_atns = (int)numel(act_sizes.shape),
+        .num_atns = NUM_ATNS,
         .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
         .vf_coef = vf_coef, .ent_coef = ent_coef,
         .T_seq = T, .A_total = A_total, .N = N,
@@ -1837,7 +1828,7 @@ void ppo_loss_fwd_bwd(
     ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(
             bufs.ppo_partials.data, args, graph_args);
     ppo_loss_reduce<<<1, LOSS_N, 0, stream>>>(
-        losses_acc.data, bufs.ppo_partials.data, ppo_grid);
+        losses_acc, bufs.ppo_partials.data, ppo_grid);
 }
 
 // Puffer advantage (GAE + V-trace ρ/c clips). One thread per row.

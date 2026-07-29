@@ -215,7 +215,7 @@ static void puf_ini_strip_quotes(char* s) {
 
 static int puf_ini_read_line(FILE* fp, char** line, int* cap) {
     int n = 0;
-    for (;;) {
+    while (1) {
         int c = fgetc(fp);
         if (c == EOF && n == 0) {
             return 0;
