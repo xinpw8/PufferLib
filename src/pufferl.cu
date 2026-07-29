@@ -1471,7 +1471,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
     if (anneal_lr) {
         float lr_min = hypers->min_lr_ratio * hypers->lr;
         float lr = cosine_annealing(hypers->lr, lr_min, current_epoch, total_epochs);
-        cudaMemcpy(pufferl->muon->lr, &lr, sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(pufferl->muon.lr, &lr, sizeof(float), cudaMemcpyHostToDevice);
     }
 
     // Annealed entropy coefficient — same cosine shape as lr. With PG signal
@@ -1873,7 +1873,6 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     pufferl->seed = (ulong)hypers.seed + hypers.rank;
 
     // GPU tensors allocated into pufferl->env; vec aliases them.
-
     int total_agents = (int)dict_get(&vec_kwargs, "total_agents");
     int num_buffers = (int)dict_get(&vec_kwargs, "num_buffers");
     VecEnv* vec = (VecEnv*)calloc(1, sizeof(VecEnv));
@@ -1881,8 +1880,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     vec->buffers = num_buffers;
     vec->agents_per_buf = total_agents / num_buffers;
     int frozen_banks = (int)dict_get(&vec_kwargs, "num_frozen_banks");
-    int mask_size = (int)dict_get(&vec_kwargs, "action_mask_size");
-    // Discrete action layout (needed before mask alloc). Continuous dims are size 1.
+
+    // Discrete action layout. Continuous dims are size 1. Mask width is act_n.
     int num_action_heads = NUM_ATNS;
     int act_sizes[] = ACT_SIZES;
     int act_n = 0;
@@ -1900,34 +1899,30 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         && "mixed continuous/discrete action spaces not supported");
     bool is_continuous = n_cont > 0;
     pufferl->is_continuous = is_continuous;
-    // Always allocate a mask of width act_n: env-written or synthetic all-ones.
-    // Continuous ignores it in sample/PPO; one host path for every env.
-    if (mask_size == 0) {
-        mask_size = act_n;
-    }
-    assert(mask_size == act_n
-        && "vec.action_mask_size must match sum(ACT_SIZES)");
     vec->num_banks = frozen_banks + 1;
     vec->bank_layout = (int*)calloc(1, (size_t)(vec->num_banks + 1) * sizeof(int));
-    vec->mask_size = mask_size;
+    vec->mask_size = act_n;
 
     // Device env IO (EnvBuf).
-    pufferl->env.obs = { .shape = {total_agents, OBS_SIZE} };
-    pufferl->env.actions = { .shape = {total_agents, NUM_ATNS} };
-    pufferl->env.rewards = { .shape = {total_agents} };
-    pufferl->env.terminals = { .shape = {total_agents} };
-    pufferl->env.action_mask = { .shape = {total_agents, mask_size} };
-    size_t mask_bytes = (size_t)total_agents * mask_size * sizeof(unsigned char);
-    cudaMalloc((void**)&pufferl->env.obs.data, (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
-    cudaMalloc((void**)&pufferl->env.actions.data, (size_t)total_agents * NUM_ATNS * sizeof(float));
-    cudaMalloc((void**)&pufferl->env.rewards.data, (size_t)total_agents * sizeof(float));
-    cudaMalloc((void**)&pufferl->env.terminals.data, (size_t)total_agents * sizeof(float));
-    cudaMalloc((void**)&pufferl->env.action_mask.data, mask_bytes);
-    cudaMemset(pufferl->env.obs.data, 0, (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
-    cudaMemset(pufferl->env.actions.data, 0, (size_t)total_agents * NUM_ATNS * sizeof(float));
-    cudaMemset(pufferl->env.rewards.data, 0, (size_t)total_agents * sizeof(float));
-    cudaMemset(pufferl->env.terminals.data, 0, (size_t)total_agents * sizeof(float));
-    cudaMemset(pufferl->env.action_mask.data, 1, mask_bytes);
+    pufferl->env = {
+        .obs =         {.shape = {total_agents, OBS_SIZE}},
+        .actions =     {.shape = {total_agents, NUM_ATNS}},
+        .rewards =     {.shape = {total_agents}},
+        .terminals =   {.shape = {total_agents}},
+        .action_mask = {.shape = {total_agents, act_n}},
+    };
+    EnvBuf* env = &pufferl->env;
+    size_t mask_bytes = (size_t)total_agents * act_n * sizeof(unsigned char);
+    cudaMalloc((void**)&env->obs.data, (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
+    cudaMalloc((void**)&env->actions.data, (size_t)total_agents * NUM_ATNS * sizeof(float));
+    cudaMalloc((void**)&env->rewards.data, (size_t)total_agents * sizeof(float));
+    cudaMalloc((void**)&env->terminals.data, (size_t)total_agents * sizeof(float));
+    cudaMalloc((void**)&env->action_mask.data, mask_bytes);
+    cudaMemset(env->obs.data, 0, (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
+    cudaMemset(env->actions.data, 0, (size_t)total_agents * NUM_ATNS * sizeof(float));
+    cudaMemset(env->rewards.data, 0, (size_t)total_agents * sizeof(float));
+    cudaMemset(env->terminals.data, 0, (size_t)total_agents * sizeof(float));
+    cudaMemset(env->action_mask.data, 1, mask_bytes);
 
     env_setup(pufferl, vec, &vec_kwargs, env_kwargs, frozen_banks);
     pufferl->vec = vec;
@@ -1961,8 +1956,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
 
     // Dedicated learner stream (always non-default; nonblocking when async).
     if (hypers.async) {
-        assert(cudaStreamCreateWithFlags(&pufferl->train_stream, cudaStreamNonBlocking)
-            == cudaSuccess);
+        assert(cudaStreamCreateWithFlags(
+            &pufferl->train_stream, cudaStreamNonBlocking) == cudaSuccess);
     } else {
         assert(cudaStreamCreate(&pufferl->train_stream) == cudaSuccess);
     }
@@ -1975,10 +1970,13 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     // Buffers for weights, grads, and activations
     pufferl->weights = policy_weights_create(&pufferl->policy, params);
     if (hypers.async) {
-        pufferl->actor_weights = policy_weights_create(&pufferl->policy, &pufferl->weight_alloc);
+        pufferl->actor_weights = policy_weights_create(
+            &pufferl->policy, &pufferl->weight_alloc);
     }
-    pufferl->train_activs = policy_reg_train(&pufferl->policy, pufferl->weights, acts, grads, B_TT);
-    pufferl->buf_acts = (PolicyActivations*)calloc(1, (size_t)num_buffers * sizeof(PolicyActivations));
+    pufferl->train_activs = policy_reg_train(
+        &pufferl->policy, pufferl->weights, acts, grads, B_TT);
+    pufferl->buf_acts = (PolicyActivations*)calloc(
+        1, (size_t)num_buffers * sizeof(PolicyActivations));
     pufferl->buffer_states = (Prec*)calloc(1, (size_t)num_buffers * sizeof(Prec));
     for (int i = 0; i < num_buffers; i++) {
         pufferl->buf_acts[i] = policy_reg_rollout(
@@ -1990,7 +1988,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     }
     int rollout_horizon = hypers.async ? 2 * horizon : horizon;
     register_rollout_buffers(&pufferl->rollouts,
-        acts, rollout_horizon, total_agents, input_size, num_action_heads, mask_size);
+        acts, rollout_horizon, total_agents, input_size, num_action_heads, act_n);
     // Carry path: per-slot initial RNN states. reset_every_horizon zeros mb_state instead.
     if (!hypers.reset_every_horizon) {
         int slots = hypers.async ? 2 : 1;
@@ -2000,19 +1998,17 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     }
     register_train_buffers(pufferl->train_buf,
         acts, minibatch_segments, horizon, input_size,
-        hidden_size, num_action_heads, num_layers, mask_size);
+        hidden_size, num_action_heads, num_layers, act_n);
     register_rollout_buffers(&pufferl->train_rollouts,
-        acts, total_agents, horizon, input_size, num_action_heads, mask_size);
+        acts, total_agents, horizon, input_size, num_action_heads, act_n);
     register_ppo_buffers(pufferl->ppo_bufs,
         acts, minibatch_segments, hypers.horizon, decoder_output_size, is_continuous);
     register_prio_buffers(pufferl->prio_bufs,
         acts, hypers.total_agents, minibatch_segments);
 
-    // Real tensors on acts arena (OOM guard in alloc_create).
     pufferl->advantages = {.shape = {total_agents, horizon}};
     alloc_register(acts, &pufferl->advantages);
 
-    // Non-tensor device data: bare cudaMalloc (not wrapped as tensors).
     cudaMalloc((void**)&pufferl->rng_offset,
         (size_t)(num_buffers + 1) * sizeof(long));
     cudaMemset(pufferl->rng_offset, 0, (size_t)(num_buffers + 1) * sizeof(long));
@@ -2039,9 +2035,10 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     }
 
     ulong init_seed = hypers.seed;
-    policy_init_weights(&pufferl->policy, pufferl->weights, &init_seed, pufferl->default_stream);
-    master_weights_setup(&pufferl->master_weights, &pufferl->param, true,
-        pufferl->default_stream);
+    policy_init_weights(&pufferl->policy,
+        pufferl->weights, &init_seed, pufferl->default_stream);
+    master_weights_setup(&pufferl->master_weights,
+        &pufferl->param, true, pufferl->default_stream);
     if (hypers.async) {
         puf_copy(&pufferl->actor_param, &pufferl->param, pufferl->default_stream);
         cudaStreamSynchronize(pufferl->default_stream);
@@ -2049,10 +2046,13 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
 
     // Per-buffer persistent RNG states
     int agents_per_buf = total_agents / num_buffers;
-    pufferl->rng_states = (curandStatePhilox4_32_10_t**)calloc(1, (size_t)num_buffers * sizeof(curandStatePhilox4_32_10_t*));
+    pufferl->rng_states = (curandStatePhilox4_32_10_t**)calloc(
+        1, (size_t)num_buffers * sizeof(curandStatePhilox4_32_10_t*));
     for (int i = 0; i < num_buffers; i++) {
-        cudaMalloc((void**)&pufferl->rng_states[i], (size_t)agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
-        cudaMemset(pufferl->rng_states[i], 0, (size_t)agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
+        cudaMalloc((void**)&pufferl->rng_states[i],
+            (size_t)agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
+        cudaMemset(pufferl->rng_states[i], 0,
+            (size_t)agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
         rng_init<<<grid_size(agents_per_buf), BLOCK_SIZE>>>(
             pufferl->rng_states[i], pufferl->seed + i, agents_per_buf);
     }
@@ -2073,7 +2073,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         && "num_frozen_banks requires frozen_bank_hidden_size and frozen_bank_num_layers > 0");
     pufferl->num_frozen_banks = num_frozen;
     if (num_frozen > 0) {
-        pufferl->frozen_banks = (WeightBank*)calloc(1, (size_t)num_frozen * sizeof(WeightBank));
+        pufferl->frozen_banks = (WeightBank*)calloc(1,
+            (size_t)num_frozen * sizeof(WeightBank));
     }
     for (int b = 0; b < num_frozen; b++) {
         int slice = vec->bank_layout[b + 2] - vec->bank_layout[b + 1];
@@ -2082,7 +2083,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         bank->policy = build_policy(pufferl->env_name, input_size, frozen_hidden,
             frozen_layers, decoder_output_size, is_continuous, hypers.horizon);
         bank->weights = policy_weights_create(&bank->policy, &bank->params_alloc);
-        bank->buf_acts = (PolicyActivations*)calloc(1, (size_t)num_buffers * sizeof(PolicyActivations));
+        bank->buf_acts = (PolicyActivations*)calloc(1,
+            (size_t)num_buffers * sizeof(PolicyActivations));
         bank->buffer_states = (Prec*)calloc(1, (size_t)num_buffers * sizeof(Prec));
         for (int i = 0; i < num_buffers; i++) {
             bank->buf_acts[i] = policy_reg_rollout(
@@ -2107,13 +2109,14 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     // CUDA graphs: allocate graph array only; capture on first real use.
     if (hypers.cudagraphs) {
         int rollout_graph_slots = hypers.async ? 2 : 1;
-        pufferl->rollout_graphs = (cudaGraphExec_t*)calloc(1, (size_t)rollout_graph_slots * horizon * num_buffers * sizeof(cudaGraphExec_t));
+        pufferl->rollout_graphs = (cudaGraphExec_t*)calloc(1,
+            (size_t)rollout_graph_slots*horizon*num_buffers*sizeof(cudaGraphExec_t));
     }
     pufferl->streams = (cudaStream_t*)calloc(1, (size_t)num_buffers * sizeof(cudaStream_t));
     for (int i = 0; i < num_buffers; i++) {
         if (hypers.async) {
-            assert(cudaStreamCreateWithFlags(&pufferl->streams[i], cudaStreamNonBlocking)
-                == cudaSuccess);
+            assert(cudaStreamCreateWithFlags(
+                &pufferl->streams[i], cudaStreamNonBlocking) == cudaSuccess);
         } else {
             assert(cudaStreamCreate(&pufferl->streams[i]) == cudaSuccess);
         }
