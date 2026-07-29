@@ -2,7 +2,7 @@
 // Per-env nets live under ocean/<env>/<env>.cu and are pulled in below.
 
 // Normal(0, std). Used by custom ocean encoders for embeddings.
-void puf_normal_init(PrecisionTensor* dst, float std, ulong seed, cudaStream_t stream) {
+void puf_normal_init(Prec* dst, float std, ulong seed, cudaStream_t stream) {
     long n = numel(dst->shape);
     assert(n > 0);
     long rand_count = (n % 2 == 0) ? n : n + 1;

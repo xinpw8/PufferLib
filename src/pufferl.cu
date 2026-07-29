@@ -75,27 +75,27 @@ int grid_size(int N) {
 typedef struct {
     float* data;
     int64_t shape[PUF_MAX_DIMS];
-} FloatTensor;
+} Float;
 
 typedef struct {
     unsigned char* data;
     int64_t shape[PUF_MAX_DIMS];
-} ByteTensor;
+} Byte;
 
 typedef struct {
     long* data;
     int64_t shape[PUF_MAX_DIMS];
-} LongTensor;
+} Long;
 
 typedef struct {
     int* data;
     int64_t shape[PUF_MAX_DIMS];
-} IntTensor;
+} Int;
 
 typedef struct {
     precision_t* data;
     int64_t shape[PUF_MAX_DIMS];
-} PrecisionTensor;
+} Prec;
 
 __host__ __device__ int ndim(int64_t* shape) {
     int n = 0;
@@ -131,17 +131,17 @@ void puf_squeeze_shape(int64_t* shape, int dim) {
     shape[n - 1] = 0;
 }
 
-PrecisionTensor* puf_squeeze(PrecisionTensor* t, int dim) {
+Prec* puf_squeeze(Prec* t, int dim) {
     puf_squeeze_shape(t->shape, dim);
     return t;
 }
 
-FloatTensor* puf_squeeze(FloatTensor* t, int dim) {
+Float* puf_squeeze(Float* t, int dim) {
     puf_squeeze_shape(t->shape, dim);
     return t;
 }
 
-PrecisionTensor* puf_unsqueeze(PrecisionTensor* t, int dim, int64_t d0, int64_t d1) {
+Prec* puf_unsqueeze(Prec* t, int dim, int64_t d0, int64_t d1) {
     int n = ndim(t->shape);
     assert(n + 1 <= PUF_MAX_DIMS);
     assert(t->shape[dim] == d0 * d1);
@@ -153,7 +153,7 @@ PrecisionTensor* puf_unsqueeze(PrecisionTensor* t, int dim, int64_t d0, int64_t 
     return t;
 }
 
-void puf_copy(PrecisionTensor* dst, PrecisionTensor* src, cudaStream_t stream) {
+void puf_copy(Prec* dst, Prec* src, cudaStream_t stream) {
     assert(numel(dst->shape) == numel(src->shape) && "puf_copy: size mismatch");
     cudaMemcpyAsync(dst->data, src->data,
         numel(dst->shape) * sizeof(precision_t),
@@ -237,16 +237,16 @@ void alloc_register_impl(Allocator* alloc, void** data_ptr, int64_t* shape, int 
     alloc->total_bytes = (alloc->total_bytes + 15) & ~15;
     alloc->total_bytes += n * elem_size;
 }
-void alloc_register(Allocator* a, PrecisionTensor* t) {
+void alloc_register(Allocator* a, Prec* t) {
     alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(precision_t));
 }
-void alloc_register(Allocator* a, FloatTensor* t) {
+void alloc_register(Allocator* a, Float* t) {
     alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(float));
 }
-void alloc_register(Allocator* a, LongTensor* t) {
+void alloc_register(Allocator* a, Long* t) {
     alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(long));
 }
-void alloc_register(Allocator* a, IntTensor* t) {
+void alloc_register(Allocator* a, Int* t) {
     alloc_register_impl(a, (void**)&t->data, t->shape, sizeof(int));
 }
 
@@ -347,18 +347,18 @@ typedef struct ObsTensor {
 // Data collected by parallel environment workers. Each worker handles
 // a constant subset of agents
 struct RolloutBuf {
-    PrecisionTensor observations;  // (horizon, agents, input_size)
+    Prec observations;  // (horizon, agents, input_size)
     // (slots, layers, agents, hidden) when !reset_every_horizon; slots = async ? 2 : 1.
     // Default path is carry + async: per-slot states for pipelined horizons.
-    PrecisionTensor initial_states;
-    PrecisionTensor actions;       // (horizon, agents, num_atns)
-    PrecisionTensor values;        // (horizon, agents)
-    PrecisionTensor logprobs;      // ...
-    PrecisionTensor rewards;
-    PrecisionTensor terminals;
-    PrecisionTensor ratio;
-    PrecisionTensor importance;
-    PrecisionTensor action_mask;   // (horizon, agents, mask_size); always allocated
+    Prec initial_states;
+    Prec actions;       // (horizon, agents, num_atns)
+    Prec values;        // (horizon, agents)
+    Prec logprobs;      // ...
+    Prec rewards;
+    Prec terminals;
+    Prec ratio;
+    Prec importance;
+    Prec action_mask;   // (horizon, agents, mask_size); always allocated
 };
 
 // Buffers are initialized as raw structs with only shape information. alloc_register
@@ -375,7 +375,7 @@ void register_rollout_buffers(RolloutBuf& bufs, Allocator* alloc, int T, int B, 
     bufs.ratio = {.shape = {T, B}};
     bufs.importance = {.shape = {T, B}};
     bufs.action_mask = {.shape = {T, B, mask_size}};
-    PrecisionTensor* fields[] = {
+    Prec* fields[] = {
         &bufs.observations, &bufs.actions, &bufs.values, &bufs.logprobs,
         &bufs.rewards, &bufs.terminals, &bufs.ratio, &bufs.importance,
         &bufs.action_mask,
@@ -387,7 +387,7 @@ void register_rollout_buffers(RolloutBuf& bufs, Allocator* alloc, int T, int B, 
 
 // Rank-2 or rank-3 time-major tensor. F==0 means rank-2 (zero-terminated shape);
 // stride still multiplies by max(F, 1).
-PrecisionTensor puf_time_view(PrecisionTensor p, int start_t, int T) {
+Prec puf_time_view(Prec p, int start_t, int T) {
     long B = p.shape[1];
     long F = p.shape[2];
     long stride_f = F > 1 ? F : 1;
@@ -462,10 +462,10 @@ struct VecEnv {
 
 struct EnvBuf {
     ObsTensor obs;         // (total_agents, obs_size)
-    FloatTensor actions;   // (total_agents, num_atns)
-    FloatTensor rewards;   // (total_agents,)
-    FloatTensor terminals; // (total_agents,)
-    ByteTensor action_mask; // (total_agents, mask_size); always allocated
+    Float actions;   // (total_agents, num_atns)
+    Float rewards;   // (total_agents,)
+    Float terminals; // (total_agents,)
+    Byte action_mask; // (total_agents, mask_size); always allocated
 };
 
 // Frozen opponent bank (selfplay / match): rollout-only policy + params.
@@ -476,9 +476,9 @@ typedef struct {
     PolicyWeights weights;
     Allocator params_alloc;
     Allocator acts_alloc;
-    PrecisionTensor param_puf;
-    FloatTensor master_weights;
-    PrecisionTensor* buffer_states;         // [num_buffers]
+    Prec param_puf;
+    Float master_weights;
+    Prec* buffer_states;         // [num_buffers]
     PolicyActivations* buffer_activations;  // [num_buffers]
 } WeightBank;
 
@@ -524,27 +524,27 @@ typedef struct PuffeRL {
     ncclComm_t nccl_comm;  // NCCL communicator for multi-GPU
     HypersT hypers;
     bool is_continuous;  // True if all action dimensions are continuous (size==1)
-    PrecisionTensor* buffer_states;  // Per-buffer states for contiguous access
+    Prec* buffer_states;  // Per-buffer states for contiguous access
     PolicyActivations* buffer_activations;  // Per-buffer inference activations
     RolloutBuf rollouts;
     RolloutBuf train_rollouts;  // Pre-allocated transposed copy for train_impl
     EnvBuf env;
     TrainGraph train_buf;
-    PrecisionTensor advantages_puf;  // Pre-allocated for train_impl (B, T)
+    Prec advantages_puf;  // Pre-allocated for train_impl (B, T)
     cudaGraphExec_t* fused_rollout_cudagraphs;  // [slots][horizon][num_buffers]; null if !cudagraphs
     cudaGraphExec_t train_cudagraph;  // null until first-use capture
     cudaStream_t* streams;  // per-buffer raw CUDA streams
     cudaStream_t default_stream;  // main-thread stream (captured once at init)
     cudaStream_t train_stream;    // dedicated learner stream (always non-default)
-    IntTensor act_sizes_puf;    // CUDA int32 tensor of action head sizes
-    FloatTensor losses_puf;     // (NUM_LOSSES,) f32 accumulator
+    Int act_sizes_puf;    // CUDA int32 tensor of action head sizes
+    Float losses_puf;     // (NUM_LOSSES,) f32 accumulator
     PPOBuffersPuf ppo_bufs_puf; // Pre-allocated buffers for ppo_loss_fwd_bwd
     PrioBuffers prio_bufs;      // Pre-allocated buffers for prio_replay
-    FloatTensor master_weights;  // fp32 master weights (flat); same buffer as param_puf in fp32 mode
-    PrecisionTensor param_puf;
-    PrecisionTensor actor_param_puf;
-    PrecisionTensor grad_puf;
-    LongTensor rng_offset_puf;   // (num_buffers+1,) int64 CUDA device counters
+    Float master_weights;  // fp32 master weights (flat); same buffer as param_puf in fp32 mode
+    Prec param_puf;
+    Prec actor_param_puf;
+    Prec grad_puf;
+    Long rng_offset_puf;   // (num_buffers+1,) int64 CUDA device counters
     ProfileT profile;
     nvmlDevice_t nvml_device;
     long epoch;
@@ -585,12 +585,12 @@ __global__ void rng_init(curandStatePhilox4_32_10_t* states, uint64_t seed, int 
 }
 
 // Action logits and value share one row: [logits..., value]. logstd empty ⇒ discrete.
-// Discrete: logsumexp + inverse-CDF with always-present mask (all-ones if env has none).
-// Continuous: ignores mask. Small heads (A<=16) cache logits; large heads re-read.
+// Discrete: always-cache logsumexp + inverse-CDF; mask always present (all-ones if env has none).
+// Continuous: ignores mask.
 __global__ void sample_logits(
-        PrecisionTensor dec_out,              // (B, logits_dim + 1)
-        PrecisionTensor logstd_puf,           // (1, od) continuous only; .data null if discrete
-        IntTensor act_sizes_puf,              // (num_atns,)
+        Prec dec_out,              // (B, logits_dim + 1)
+        Prec logstd_puf,           // (1, od) continuous only; .data null if discrete
+        Int act_sizes_puf,              // (num_atns,)
         precision_t* actions,                 // (B, num_atns)
         precision_t* logprobs,                // (B,)
         precision_t* value_out,               // (B,)
@@ -631,52 +631,32 @@ __global__ void sample_logits(
             actions[idx * num_atns + h] = stored_p;
         }
     } else {
-        constexpr int LOGIT_CACHE = 16;
         int logits_offset = 0;
         int mask_base = idx * mask_stride;
         for (int h = 0; h < num_atns; h++) {
             int A = act_sizes[h];
-            float cache[LOGIT_CACHE];
-            int use_cache = A <= LOGIT_CACHE;
-            float max_val = -INFINITY;
-            for (int a = 0; a < A; a++) {
-                float l = load_logit_masked(
-                    logits, logits_base, logits_offset, a, action_mask, mask_base);
-                if (use_cache) {
-                    cache[a] = l;
-                }
-                max_val = fmaxf(max_val, l);
-            }
-            float sum_exp = 0.0f;
-            for (int a = 0; a < A; a++) {
-                float l = use_cache ? cache[a] : load_logit_masked(
-                    logits, logits_base, logits_offset, a, action_mask, mask_base);
-                sum_exp += expf(l - max_val);
-            }
-            float logsumexp = max_val + logf(sum_exp);
+            float cache[PPO_MAX_HEAD_A];
+            float logsumexp = ppo_discrete_logsumexp(
+                logits, logits_base, logits_offset, A, action_mask, mask_base, cache);
 
             float rand_val = curand_uniform(&state);
             float cumsum = 0.0f;
             int sampled = A - 1;
             for (int a = 0; a < A; a++) {
-                float l = use_cache ? cache[a] : load_logit_masked(
-                    logits, logits_base, logits_offset, a, action_mask, mask_base);
-                cumsum += expf(l - logsumexp);
+                cumsum += expf(cache[a] - logsumexp);
                 if (rand_val < cumsum) {
                     sampled = a;
                     break;
                 }
             }
-
-            float sampled_logit = use_cache ? cache[sampled] : load_logit_masked(
-                logits, logits_base, logits_offset, sampled, action_mask, mask_base);
             actions[idx * num_atns + h] = from_float((float)sampled);
             // consumed-head gating: only heads the sampled verb uses count
-            float log_prob = sampled_logit - logsumexp;
             int verb = (int)to_float(actions[idx * num_atns]);
             int used = (head_consume == nullptr || h == 0)
                      ? 1 : (int)head_consume[verb * hc_stride + h];
-            if (used) total_log_prob += log_prob;
+            if (used) {
+                total_log_prob += cache[sampled] - logsumexp;
+            }
             logits_offset += A;
         }
     }
@@ -695,7 +675,7 @@ static __device__ long state_elem_idx(
 
 // Copy buffer RNN state into rollout initial_states at t=0 (carry path).
 // Primary bank only; src agents are 0..count, dst at dst_start.
-__global__ void snapshot_initial_state(PrecisionTensor dst, PrecisionTensor src,
+__global__ void snapshot_initial_state(Prec dst, Prec src,
         int dst_start, int count) {
     int L = src.shape[0];
     int H = src.shape[2];
@@ -713,7 +693,7 @@ __global__ void snapshot_initial_state(PrecisionTensor dst, PrecisionTensor src,
 }
 
 // View slot of full (slots, L, A, H) as (L, A, H).
-static PrecisionTensor initial_states_slot(PrecisionTensor full, int slot) {
+static Prec initial_states_slot(Prec full, int slot) {
     int L = (int)full.shape[1];
     int A = (int)full.shape[2];
     int H = (int)full.shape[3];
@@ -723,7 +703,7 @@ static PrecisionTensor initial_states_slot(PrecisionTensor full, int slot) {
 
 // Zero RNN state for agents that just terminated. Same grid as snapshot
 // (L*count*H); non-terminal threads return after one terminal load.
-__global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor terminals,
+__global__ void zero_state_on_terminal(Prec state, Float terminals,
         int state_start, int terminal_start, int count) {
     int L = state.shape[0];
     int H = state.shape[2];
@@ -744,7 +724,7 @@ __global__ void zero_state_on_terminal(PrecisionTensor state, FloatTensor termin
 
 // Select time t, then agents [start, start+count). Rank-2 has F==0 (zero-term shape);
 // stride uses max(F, 1). Out shape {count, F} keeps ndim 1 when F==0.
-PrecisionTensor puf_slice(PrecisionTensor& p, int t, int start, int count) {
+Prec puf_slice(Prec& p, int t, int start, int count) {
     long B = p.shape[1];
     long F = p.shape[2];
     long stride_f = F > 1 ? F : 1;
@@ -786,7 +766,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     // Copy observations, rewards, terminals from GPU env buffers to rollout buffer
     ObsTensor& obs_env = env.obs;
     int n = block_size * obs_env.shape[1];
-    PrecisionTensor obs_dst = puf_slice(rollouts.observations, t, start, block_size);
+    Prec obs_dst = puf_slice(rollouts.observations, t, start, block_size);
     // Env obs → rollout: D2D if same type, else cast (float/uchar → precision_t).
     if (sizeof(obs_t) == sizeof(precision_t)) {
         cudaMemcpyAsync(obs_dst.data, obs_env.data + (long)start * obs_env.shape[1],
@@ -796,8 +776,8 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
             obs_dst.data, obs_env.data + (long)start * obs_env.shape[1], n);
     }
 
-    PrecisionTensor rew_dst = puf_slice(rollouts.rewards, t, start, block_size);
-    PrecisionTensor term_dst = puf_slice(rollouts.terminals, t, start, block_size);
+    Prec rew_dst = puf_slice(rollouts.rewards, t, start, block_size);
+    Prec term_dst = puf_slice(rollouts.terminals, t, start, block_size);
     cast_rew_term<<<grid_size(block_size), BLOCK_SIZE, 0, stream>>>(
         rew_dst.data, env.rewards.data + start,
         term_dst.data, env.terminals.data + start, block_size);
@@ -805,7 +785,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     // Mask always allocated (env-written or synthetic all-ones). Continuous ignores it in sample.
     int mask_size = rollouts.action_mask.shape[2];
     int mask_stride = mask_size;
-    PrecisionTensor mask_slice = puf_slice(rollouts.action_mask, t, start, block_size);
+    Prec mask_slice = puf_slice(rollouts.action_mask, t, start, block_size);
     cast<<<grid_size(block_size * mask_size), BLOCK_SIZE, 0, stream>>>(
         mask_slice.data,
         env.action_mask.data + (long)start * mask_size,
@@ -825,7 +805,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         Policy* p_bank;
         PolicyWeights* w_bank;
         PolicyActivations* a_bank;
-        PrecisionTensor* s_bank;
+        Prec* s_bank;
         if (b == 0) {
             p_bank = &pufferl->policy;
             w_bank = hypers.async ? &pufferl->actor_weights : &pufferl->weights;
@@ -840,11 +820,11 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         }
 
         int sub_start = start + bank_off;
-        PrecisionTensor obs_b  = puf_slice(rollouts.observations, t, sub_start, bank_size);
-        PrecisionTensor act_b  = puf_slice(rollouts.actions,      t, sub_start, bank_size);
-        PrecisionTensor lp_b   = puf_slice(rollouts.logprobs,     t, sub_start, bank_size);
-        PrecisionTensor val_b  = puf_slice(rollouts.values,       t, sub_start, bank_size);
-        PrecisionTensor mask_b = puf_slice(rollouts.action_mask,  t, sub_start, bank_size);
+        Prec obs_b  = puf_slice(rollouts.observations, t, sub_start, bank_size);
+        Prec act_b  = puf_slice(rollouts.actions,      t, sub_start, bank_size);
+        Prec lp_b   = puf_slice(rollouts.logprobs,     t, sub_start, bank_size);
+        Prec val_b  = puf_slice(rollouts.values,       t, sub_start, bank_size);
+        Prec mask_b = puf_slice(rollouts.action_mask,  t, sub_start, bank_size);
 
         int state_start = (b == 0) ? bank_off : 0;
         int state_n = (int)s_bank->shape[0] * bank_size * (int)s_bank->shape[2];
@@ -853,15 +833,15 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
 
         // Carry path: snapshot primary buffer state into per-slot initial_states.
         if (b == 0 && t == 0 && rollouts.initial_states.data != nullptr) {
-            PrecisionTensor init_slot = initial_states_slot(
+            Prec init_slot = initial_states_slot(
                 rollouts.initial_states, graph_slot);
             snapshot_initial_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
                 init_slot, *s_bank, sub_start, bank_size);
         }
 
-        PrecisionTensor dec_puf = policy_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
+        Prec dec_puf = policy_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
 
-        PrecisionTensor p_logstd = {};
+        Prec p_logstd = {};
         DecoderWeights* dw = (DecoderWeights*)w_bank->decoder;
         if (dw->continuous) {
             p_logstd = dw->logstd;
@@ -1277,7 +1257,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
 
     // Transpose from rollout layout (T, B, ...) to train layout (B, T, ...)
     RolloutBuf& rollouts = pufferl.train_rollouts;
-    PrecisionTensor& advantages_puf = pufferl.advantages_puf;
+    Prec& advantages_puf = pufferl.advantages_puf;
 
     int T = src.observations.shape[0];
     int B = src.observations.shape[1];
@@ -1348,9 +1328,19 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
     cudaMemsetAsync(advantages_puf.data, 0,
         numel(advantages_puf.shape) * sizeof(precision_t), train_stream);
     profile_begin("compute_advantage", hypers.profile);
-    puff_advantage_cuda(rollouts.values, rollouts.rewards, rollouts.terminals,
-        rollouts.ratio, advantages_puf, hypers.gamma, hypers.gae_lambda,
-        hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream);
+    {
+        // 64 threads/block: better occupancy than 256 for this heavy-per-thread scan
+        // (bench_puff_advantage launch sweep; breakout 4096×32 ~2× faster).
+        constexpr int ADV_THREADS = 64;
+        int rows = rollouts.values.shape[0];
+        int horizon = rollouts.values.shape[1];
+        int grid = (rows + ADV_THREADS - 1) / ADV_THREADS;
+        puff_advantage<<<grid, ADV_THREADS, 0, train_stream>>>(
+            rollouts.values.data, rollouts.rewards.data, rollouts.terminals.data,
+            rollouts.ratio.data, advantages_puf.data,
+            hypers.gamma, hypers.gae_lambda,
+            hypers.vtrace_rho_clip, hypers.vtrace_c_clip, rows, horizon);
+    }
     if (pufferl.num_frozen_banks > 0) {
         int apb = hypers.total_agents / hypers.num_buffers;
         int rows = advantages_puf.shape[0];
@@ -1382,7 +1372,7 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
         if (hypers.reset_every_horizon) {
             cudaMemsetAsync(graph.mb_state.data, 0,
                 numel(graph.mb_state.shape) * sizeof(precision_t), train_stream);
-            sel_src.initial_states = PrecisionTensor();
+            sel_src.initial_states = Prec();
         } else {
             int slot = hypers.async ? pufferl.async_ready_slot : 0;
             sel_src.initial_states = initial_states_slot(src.initial_states, slot);
@@ -1420,13 +1410,13 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
             }
 
             cudaStream_t stream = train_stream;
-            PrecisionTensor obs_puf = graph.mb_obs;
-            PrecisionTensor state_puf = graph.mb_state;
-            PrecisionTensor terminals_puf = graph.mb_terminals;
-            PrecisionTensor dec_puf = policy_forward_train(&pufferl.policy, pufferl.weights,
+            Prec obs_puf = graph.mb_obs;
+            Prec state_puf = graph.mb_state;
+            Prec terminals_puf = graph.mb_terminals;
+            Prec dec_puf = policy_forward_train(&pufferl.policy, pufferl.weights,
                 pufferl.train_activations, obs_puf, state_puf, terminals_puf, stream);
             DecoderWeights* dw_train = (DecoderWeights*)pufferl.weights.decoder;
-            PrecisionTensor p_logstd;
+            Prec p_logstd;
             if (dw_train->continuous) {
                 p_logstd = dw_train->logstd;
             }
@@ -1437,9 +1427,9 @@ void train_impl(PuffeRL& pufferl, RolloutBuf* src_arg) {
                 pufferl.ppo_bufs_puf.ent_coef.data,
                 pufferl.ppo_bufs_puf, pufferl.is_continuous, stream);
 
-            FloatTensor grad_logits_puf = pufferl.ppo_bufs_puf.grad_logits;
-            FloatTensor grad_logstd_puf = pufferl.is_continuous ? pufferl.ppo_bufs_puf.grad_logstd : FloatTensor();
-            FloatTensor grad_values_puf = pufferl.ppo_bufs_puf.grad_values;
+            Float grad_logits_puf = pufferl.ppo_bufs_puf.grad_logits;
+            Float grad_logstd_puf = pufferl.is_continuous ? pufferl.ppo_bufs_puf.grad_logstd : Float();
+            Float grad_values_puf = pufferl.ppo_bufs_puf.grad_values;
             policy_backward(&pufferl.policy, pufferl.weights, pufferl.train_activations,
                 grad_logits_puf, grad_logstd_puf, grad_values_puf, stream);
 
@@ -1609,7 +1599,7 @@ void puf_save_weights(PuffeRL* p, const char* path) {
     }
 }
 
-void puf_load_weights_into(FloatTensor dst, PrecisionTensor params,
+void puf_load_weights_into(Float dst, Prec params,
         cudaStream_t stream, const char* path) {
     int64_t nbytes = numel(dst.shape) * sizeof(float);
     FILE* fp = fopen(path, "rb");
@@ -1643,17 +1633,17 @@ void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) 
 // Die on OOM in the train worker. Sweep observes failed workers as bad samples and continues.
 // fp32 master weights: alias param buffer in float mode; separate fp32 copy in bf16.
 // cast_now: copy param→master now (primary after init). Frozen banks load later.
-static void master_weights_setup(FloatTensor* mw, PrecisionTensor* param,
+static void master_weights_setup(Float* mw, Prec* param,
         bool cast_now, cudaStream_t stream) {
     long n = numel(param->shape);
     if (USE_BF16) {
-        *mw = (FloatTensor){.shape = {n}};
+        *mw = (Float){.shape = {n}};
         mw->data = (float*)xcuda((size_t)n * sizeof(float));
         if (cast_now) {
             cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(mw->data, param->data, n);
         }
     } else {
-        *mw = (FloatTensor){.data = (float*)param->data, .shape = {n}};
+        *mw = (Float){.data = (float*)param->data, .shape = {n}};
     }
 }
 
@@ -1920,10 +1910,6 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
 #endif
     pufferl->vec = vec;
 
-    // Vec advantage kernel: 128-bit loads need horizon % ADV_VEC_WIDTH == 0
-    // (float: 4, bf16: 8). See puff_advantage in algo.cu.
-    assert(hypers.horizon % ADV_VEC_WIDTH == 0
-        && "train.horizon must be a multiple of ADV_VEC_WIDTH (4 float / 8 bf16)");
 
     // Profile events: fixed train markers + one block of 3*H rollout events.
     int H = hypers.horizon;
@@ -1974,7 +1960,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     }
     pufferl->train_activations = policy_reg_train(&pufferl->policy, pufferl->weights, acts, grads, B_TT);
     pufferl->buffer_activations = (PolicyActivations*)xcalloc((size_t)num_buffers * sizeof(PolicyActivations));
-    pufferl->buffer_states = (PrecisionTensor*)xcalloc((size_t)num_buffers * sizeof(PrecisionTensor));
+    pufferl->buffer_states = (Prec*)xcalloc((size_t)num_buffers * sizeof(Prec));
     for (int i = 0; i < num_buffers; i++) {
         pufferl->buffer_activations[i] = policy_reg_rollout(
             &pufferl->policy, pufferl->weights, acts, inf_batch);
@@ -2080,7 +2066,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
             frozen_layers, decoder_output_size, is_continuous, hypers.horizon);
         bank->weights = policy_weights_create(&bank->policy, &bank->params_alloc);
         bank->buffer_activations = (PolicyActivations*)xcalloc((size_t)num_buffers * sizeof(PolicyActivations));
-        bank->buffer_states = (PrecisionTensor*)xcalloc((size_t)num_buffers * sizeof(PrecisionTensor));
+        bank->buffer_states = (Prec*)xcalloc((size_t)num_buffers * sizeof(Prec));
         for (int i = 0; i < num_buffers; i++) {
             bank->buffer_activations[i] = policy_reg_rollout(
                 &bank->policy, bank->weights, &bank->acts_alloc, slice);
@@ -2554,7 +2540,7 @@ double rollout_start(PuffeRL* p, int slot) {
         }
         for (int b = 0; b < p->num_frozen_banks; b++) {
             for (int i = 0; i < p->hypers.num_buffers; i++) {
-                PrecisionTensor* st = &p->frozen_banks[b].buffer_states[i];
+                Prec* st = &p->frozen_banks[b].buffer_states[i];
                 cudaMemsetAsync(st->data, 0, numel(st->shape) * sizeof(precision_t),
                     p->default_stream);
             }
@@ -3590,6 +3576,8 @@ TrainResult launch_train(Ini* ini) {
         && "train.minibatch_size must be divisible by train.horizon");
     assert((long)mb <= (long)horizon * agents
         && "train.minibatch_size must be <= train.horizon * vec.total_agents");
+    assert(horizon % ADV_VEC_WIDTH == 0
+        && "train.horizon must be a multiple of ADV_VEC_WIDTH (4 float / 8 bf16)");
 
     int gpu_offset = (int)puf_ini_get(ini, "base", "gpu_offset");
 
