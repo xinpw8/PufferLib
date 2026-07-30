@@ -2401,10 +2401,8 @@ void log_util(PuffeRL* p, Dict* out) {
     dict_set(out, "util/cpu_mem_gb", (double)rss_kb / (1024.0 * 1024.0));
 }
 
-// Eval cadence: util + env only (no train SPS/losses/perf).
 void trainer_eval_log(PuffeRL* p, Dict* out) {
-    double now = wall_clock();
-    p->last_log_time = now;
+    p->last_log_time = wall_clock();
     p->last_log_step = p->global_step;
     log_util(p, out);
     vec_log(p->vec, out, 0);
@@ -2820,93 +2818,114 @@ void run_sweep(Ini* ini, const char* exe_path) {
     }
 }
 
-// Standard eval (parallel envs + log accum), live render, or match (two policies).
-// Env layout (agents/bots/DR/etc.) comes from ini — not hard-coded here.
-EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
+// board!=NULL: merge env/* into train last_log (uptime + util/* stay frozen).
+static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
+        long eval_episodes, Dict* board, int epoch) {
     int render = mode == EVAL_RENDER;
     int match = mode == EVAL_MATCH;
     EvalResult result = {0};
-    long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
-    assert((render || eval_episodes > 0)
-        && "eval requires positive base.eval_episodes");
+    if (!render) {
+        Dict wipe = {0};
+        vec_log(p->vec, &wipe, 1);
+        dict_clear(&wipe);
+    }
+    double last_dash = 0;
+    while (true) {
+        if (render) {
+            puf_render(p->vec->envs);
+        }
+        rollouts(p);
+        Dict el = {0};
+        trainer_eval_log(p, &el);
+        if (board) {
+            for (int i = 0; i < el.size; i++) {
+                const char* k = el.items[i].key;
+                if (strncmp(k, "util/", 5) == 0) {
+                    continue;
+                }
+                dict_set(board, k, el.items[i].value);
+            }
+        }
+        Dict* show = board ? board : &el;
+        double now = wall_clock();
+        if (render || (verbose && now - last_dash >= 0.6)) {
+            puf_dashboard_print(ini, p, show, board ? epoch : 0);
+            last_dash = now;
+        }
+        if (render) {
+            dict_clear(&el);
+            continue;
+        }
+        long n = dict_get(&el, "env/n");
+        if (n < eval_episodes) {
+            dict_clear(&el);
+            continue;
+        }
+        if (verbose) {
+            puf_dashboard_print(ini, p, show, board ? epoch : 0);
+        }
+        result.score = match ? dict_get(&el, "env/policy_0_score")
+            : dict_get(&el, "env/score");
+        if (match) {
+            result.draw = dict_get(&el, "env/draw_rate");
+        }
+        result.games = (int)n;
+        dict_clear(&el);
+        return result;
+    }
+}
+
+static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode) {
+    int render = mode == EVAL_RENDER;
+    int match = mode == EVAL_MATCH;
     long eval_agents = puf_ini_get(ini, "base", "eval_agents");
     if (!render && eval_agents != -1) {
-        char agents_buf[64];
-        snprintf(agents_buf, sizeof(agents_buf), "%ld", eval_agents);
-        puf_ini_put(ini, "vec.total_agents", agents_buf);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%ld", eval_agents);
+        puf_ini_put(ini, "vec.total_agents", buf);
     }
     if (match) {
-        // One frozen opponent; arch matches primary unless ini overrides.
-        // Assign to int first — varargs don't convert double→int for %d.
-        int match_hidden = puf_ini_get(ini, "policy", "hidden_size");
-        int match_layers = puf_ini_get(ini, "policy", "num_layers");
-        char hidden_buf[32], layers_buf[32];
-        snprintf(hidden_buf, sizeof(hidden_buf), "%d", match_hidden);
-        snprintf(layers_buf, sizeof(layers_buf), "%d", match_layers);
+        int h = puf_ini_get(ini, "policy", "hidden_size");
+        int L = puf_ini_get(ini, "policy", "num_layers");
+        char hb[32], lb[32];
+        snprintf(hb, sizeof(hb), "%d", h);
+        snprintf(lb, sizeof(lb), "%d", L);
         puf_ini_put(ini, "vec.num_policies", "2");
         puf_ini_put(ini, "vec.hist_policy_percent", "1");
-        puf_ini_put(ini, "vec.hist_policy_hidden_size", hidden_buf);
-        puf_ini_put(ini, "vec.hist_policy_num_layers", layers_buf);
+        puf_ini_put(ini, "vec.hist_policy_hidden_size", hb);
+        puf_ini_put(ini, "vec.hist_policy_num_layers", lb);
         puf_ini_put(ini, "selfplay.enabled", "0");
     }
     puf_ini_put(ini, "base.reset_every_horizon", "0");
-    puf_ini_put(ini, "train.horizon", "1");
-
-    PuffeRL* pufferl = create_pufferl(ini, ctx);
+    if (render) {
+        puf_ini_put(ini, "train.horizon", "1");
+    }
+    PuffeRL* p = create_pufferl(ini, ctx);
     if (match) {
-        char a_path_buf[4096];
-        char b_path_buf[4096];
-        const char* a_path = puf_checkpoint_path_key(ini,
-            "load_model_path", a_path_buf, sizeof(a_path_buf));
-        const char* b_path = puf_checkpoint_path_key(ini,
-            "load_enemy_model_path", b_path_buf, sizeof(b_path_buf));
-        assert(a_path && b_path
-            && "match requires base.load_model_path and base.load_enemy_model_path");
-        pufferl_load_policy(pufferl, 0, a_path);
-        pufferl_load_policy(pufferl, 1, b_path);
+        char a_buf[4096], b_buf[4096];
+        const char* a = puf_checkpoint_path_key(ini, "load_model_path", a_buf, sizeof(a_buf));
+        const char* b = puf_checkpoint_path_key(ini,
+            "load_enemy_model_path", b_buf, sizeof(b_buf));
+        assert(a && b && "match requires load_model_path and load_enemy_model_path");
+        pufferl_load_policy(p, 0, a);
+        pufferl_load_policy(p, 1, b);
     } else {
-        char resolved_path[4096];
-        const char* load_path = puf_checkpoint_path_key(ini,
-            "load_model_path", resolved_path, sizeof(resolved_path));
-        if (load_path) {
-            pufferl_load_policy(pufferl, 0, load_path);
-            if (verbose) {
-                printf("Loaded weights from %s\n", load_path);
-            }
+        char buf[4096];
+        const char* path = puf_checkpoint_path_key(ini, "load_model_path", buf, sizeof(buf));
+        if (path) {
+            pufferl_load_policy(p, 0, path);
         }
     }
+    return p;
+}
 
-    while (true) {
-        if (render) {
-            puf_render(pufferl->vec->envs);
-        }
-        rollouts(pufferl);
-        Dict log = {0};
-        trainer_eval_log(pufferl, &log);
-        if (verbose || render) {
-            puf_dashboard_print(ini, pufferl, &log, 0);
-        }
-        if (render) {
-            dict_clear(&log);
-            continue;
-        }
-
-        long n = dict_get(&log, "env/n");
-        if (n >= eval_episodes) {
-            if (match) {
-                result.score = dict_get(&log, "env/policy_0_score");
-                result.draw = dict_get(&log, "env/draw_rate");
-            } else {
-                result.score = dict_get(&log, "env/score");
-            }
-            result.games = (int)n;
-            dict_clear(&log);
-            break;
-        }
-        dict_clear(&log);
-    }
-    close_pufferl(pufferl);
-    return result;
+EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
+    long n = puf_ini_get(ini, "base", "eval_episodes");
+    assert((mode == EVAL_RENDER || n > 0) && "eval requires positive base.eval_episodes");
+    PuffeRL* p = eval_make(ini, ctx, mode);
+    EvalResult r = eval_loop(ini, p, mode, verbose, n, NULL, 0);
+    close_pufferl(p);
+    return r;
 }
 
 TrainResult run_train(Ini* ini, TrainContext* ctx) {
@@ -3018,11 +3037,9 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             train_impl(pufferl, NULL);
         }
 
-        bool is_final = epoch == train_epochs - 1;
-        bool interval_save = checkpoint_interval > 0 &&
-            (epoch + 1) % checkpoint_interval == 0;
         char saved_checkpoint[4096] = {0};
-        if (interval_save || is_final) {
+        if (epoch == train_epochs - 1 || (checkpoint_interval > 0
+                && (epoch + 1) % checkpoint_interval == 0)) {
             snprintf(saved_checkpoint, sizeof(saved_checkpoint),
                 "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
             if (ctx->artifact_owner) {
@@ -3035,11 +3052,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             selfplay_add_checkpoint(&selfplay, saved_checkpoint);
         }
 
-        // Resample frozen opponents on a fixed global-step interval. Episode-aligned
-        // swaps are not doable in general (async envs, different episode lengths,
-        // no single "all games ended" barrier). Waiting on env boundary flags was a
-        // dead end. Correct mid-swap handling would mark those steps truncated in
-        // advantage and reset the swapped envs — not wait for natural episode ends.
+        // Opponent swap mid-episode: treat as truncate + reset (not boundary wait).
         if (use_selfplay && selfplay.opp_timeout_steps > 0) {
             long step = pufferl->global_step * pufferl->hypers.world_size;
             for (int s = 0; s < selfplay.num_hist; s++) {
@@ -3119,7 +3132,6 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     }
 
     // TrainResult curve: bin-mean over log_history (same as artifact metrics).
-    // Final score is overwritten below by post-train run_eval when possible.
     result.cost = dict_get(&last_log, "uptime");
     result.steps = dict_get(&last_log, "agent_steps");
     DictItem* target = dict_find(&last_log, target_key);
@@ -3152,50 +3164,42 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         result.costs[points - 1] = result.cost;
         result.step_points[points - 1] = result.steps;
     }
+
+    int max_opp = use_selfplay ? puf_ini_get(ini, "selfplay", "eval_pool_size") : 0;
+    long pool_games = use_selfplay ? puf_ini_get(ini, "selfplay", "eval_games") : 0;
+    int pool_eval = use_selfplay && max_opp > 0 && pool_games > 0 && final_checkpoint[0];
+    long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
+    if (ctx->artifact_owner && !pool_eval && eval_episodes > 0) {
+        EvalResult r = eval_loop(ini, pufferl, EVAL_SCORE, 1, eval_episodes,
+            &last_log, (int)pufferl->epoch);
+        result.score = result.scores[result.points - 1] = r.score;
+    }
     close_pufferl(pufferl);
 
-    // Post-train eval via run_eval (fresh env stack). Selfplay with eval_games>0
-    // rates the final checkpoint vs the pool; otherwise standard score eval.
-    if (final_checkpoint[0] && ctx->artifact_owner) {
+    if (pool_eval && ctx->artifact_owner) {
         puf_ini_put(ini, "base.load_model_path", final_checkpoint);
-        int max_opp = use_selfplay
-            ? (int)puf_ini_get(ini, "selfplay", "eval_pool_size") : 0;
-        long games = use_selfplay
-            ? (long)puf_ini_get(ini, "selfplay", "eval_games") : 0;
-        if (use_selfplay && max_opp > 0 && games > 0) {
-            char games_buf[32];
-            snprintf(games_buf, sizeof(games_buf), "%ld", games);
-            puf_ini_put(ini, "base.eval_episodes", games_buf);
-            int n_opp = 0;
-            float sum = 0;
-            for (int i = 0; i < selfplay.pool_size && n_opp < max_opp; i++) {
-                const char* opponent = selfplay.pool[i];
-                if (strcmp(opponent, final_checkpoint) == 0) {
-                    continue;
-                }
-                puf_ini_put(ini, "base.load_enemy_model_path", opponent);
-                EvalResult r = run_eval(ini, ctx, EVAL_MATCH, 1);
-                sum += r.score;
-                n_opp++;
-                printf("selfplay_eval vs %s games=%d score=%.4f draw=%.4f\n",
-                    opponent, r.games, r.score, r.draw);
+        int n_opp = 0;
+        float sum = 0;
+        for (int i = 0; i < selfplay.pool_size && n_opp < max_opp; i++) {
+            if (strcmp(selfplay.pool[i], final_checkpoint) == 0) {
+                continue;
             }
-            if (n_opp) {
-                float pool_score = sum / n_opp;
-                printf("selfplay_eval mean_score=%.4f n=%d\n", pool_score, n_opp);
-                result.score = pool_score;
-                result.points = 1;
-                result.scores[0] = pool_score;
-                result.costs[0] = result.cost;
-                result.step_points[0] = result.steps;
-                dict_set(&last_log, "selfplay/pool_score", pool_score);
-            }
-        } else if (puf_ini_get(ini, "base", "eval_episodes") > 0) {
-            EvalResult r = run_eval(ini, ctx, EVAL_SCORE, 1);
-            result.score = r.score;
-            result.scores[result.points - 1] = r.score;
-            dict_set(&last_log, target_key, r.score);
-            dict_set(&last_log, "env/n", r.games);
+            puf_ini_put(ini, "base.load_enemy_model_path", selfplay.pool[i]);
+            PuffeRL* ep = eval_make(ini, ctx, EVAL_MATCH);
+            EvalResult r = eval_loop(ini, ep, EVAL_MATCH, 0, pool_games, NULL, 0);
+            close_pufferl(ep);
+            sum += r.score;
+            n_opp++;
+            printf("selfplay_eval vs %s games=%d score=%.4f draw=%.4f\n",
+                selfplay.pool[i], r.games, r.score, r.draw);
+        }
+        if (n_opp) {
+            result.score = result.scores[0] = sum / n_opp;
+            result.points = 1;
+            result.costs[0] = result.cost;
+            result.step_points[0] = result.steps;
+            dict_set(&last_log, "selfplay/pool_score", result.score);
+            printf("selfplay_eval mean_score=%.4f n=%d\n", result.score, n_opp);
         }
     }
 

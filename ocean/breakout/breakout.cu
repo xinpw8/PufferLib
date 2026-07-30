@@ -631,6 +631,12 @@ static void gpu_breakout_host_fill_config(GpuBreakoutConfig* cfg, Dict* kwargs) 
 
 // Bound EnvBuf + device Env array. Same puf_reset/step/close(Env*) sig as CPU:
 // Env* is the device base; step/reset always run the full batch (env handles the loop).
+typedef struct BreakoutClient {
+    int width;
+    int height;
+    Texture2D ball;
+} BreakoutClient;
+
 static struct {
     Env* envs;
     int n;
@@ -639,16 +645,21 @@ static struct {
     float* rewards;
     float* terminals;
     cudaStream_t stream;
+    GpuBreakoutConfig cfg;
+    BreakoutClient* client;
 } g_gpu;
+
+static Color BREAKOUT_BRICK_COLORS[6] = {
+    RED, ORANGE, YELLOW, GREEN, SKYBLUE, BLUE,
+};
 
 // Trainer create: returns device Env base (also stored in g_gpu).
 Env* puf_vec_create(int n, Dict* env_kwargs,
         obs_t* observations, float* actions, float* rewards, float* terminals) {
-    GpuBreakoutConfig cfg;
-    gpu_breakout_host_fill_config(&cfg, env_kwargs);
-    cudaMemcpyToSymbol(d_bcfg, &cfg, sizeof(GpuBreakoutConfig));
+    gpu_breakout_host_fill_config(&g_gpu.cfg, env_kwargs);
+    cudaMemcpyToSymbol(d_bcfg, &g_gpu.cfg, sizeof(GpuBreakoutConfig));
 
-    Env* host_envs = (Env*)calloc((size_t)n, sizeof(Env));
+    Env* host_envs = (Env*)calloc(n, sizeof(Env));
     for (int i = 0; i < n; i++) {
         host_envs[i].rng = (unsigned int)(i + 1);
         host_envs[i].num_balls = -1;
@@ -663,8 +674,8 @@ Env* puf_vec_create(int n, Dict* env_kwargs,
         host_envs[i].agents[0].action_mask = NULL;
     }
     Env* envs = NULL;
-    cudaMalloc((void**)&envs, (size_t)n * sizeof(Env));
-    cudaMemcpy(envs, host_envs, (size_t)n * sizeof(Env), cudaMemcpyHostToDevice);
+    cudaMalloc((void**)&envs, n * sizeof(Env));
+    cudaMemcpy(envs, host_envs, n * sizeof(Env), cudaMemcpyHostToDevice);
     free(host_envs);
 
     g_gpu.envs = envs;
@@ -674,6 +685,7 @@ Env* puf_vec_create(int n, Dict* env_kwargs,
     g_gpu.rewards = rewards;
     g_gpu.terminals = terminals;
     g_gpu.stream = 0;
+    g_gpu.client = NULL;
     return envs;
 }
 
@@ -704,12 +716,87 @@ void puf_step(Env* env) {
 
 void puf_close(Env* env) {
     (void)env;
+    if (g_gpu.client) {
+        UnloadTexture(g_gpu.client->ball);
+        CloseWindow();
+        free(g_gpu.client);
+        g_gpu.client = NULL;
+    }
     cudaFree(g_gpu.envs);
     g_gpu.envs = NULL;
 }
 
+// D2H env 0 and draw (same layout as breakout.h). env is device batch base.
 void puf_render(Env* env) {
     (void)env;
+    if (!g_gpu.envs || g_gpu.n < 1) {
+        return;
+    }
+    if (g_gpu.stream) {
+        cudaStreamSynchronize(g_gpu.stream);
+    }
+    Env h;
+    cudaMemcpy(&h, g_gpu.envs, sizeof(Env), cudaMemcpyDeviceToHost);
+    GpuBreakoutConfig* c = &g_gpu.cfg;
+
+    if (!g_gpu.client) {
+        BreakoutClient* client = (BreakoutClient*)calloc(1, sizeof(BreakoutClient));
+        client->width = c->width;
+        client->height = c->height;
+        InitWindow(c->width, c->height, "PufferLib Breakout (GPU)");
+        SetTargetFPS(60 / (c->frameskip > 0 ? c->frameskip : 1));
+        client->ball = LoadTexture("resources/shared/puffers_128.png");
+        g_gpu.client = client;
+    }
+    BreakoutClient* client = g_gpu.client;
+
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
+    }
+    if (IsKeyPressed(KEY_TAB)) {
+        ToggleFullscreen();
+    }
+
+    BeginDrawing();
+    ClearBackground((Color){6, 24, 24, 255});
+
+    DrawRectangle(
+        (int)h.paddle_x, (int)h.paddle_y,
+        (int)h.paddle_width, (int)c->paddle_height,
+        (Color){0, 255, 255, 255});
+
+    DrawTexturePro(
+        client->ball,
+        (Rectangle){
+            (h.ball_vx > 0) ? 0.0f : 128.0f,
+            0, 128, 128,
+        },
+        (Rectangle){
+            h.ball_x,
+            h.ball_y,
+            (float)c->ball_width,
+            (float)c->ball_height,
+        },
+        (Vector2){0, 0},
+        0,
+        WHITE);
+
+    for (int row = 0; row < c->brick_rows; row++) {
+        for (int col = 0; col < c->brick_cols; col++) {
+            int brick_idx = row * c->brick_cols + col;
+            if (!gpu_brick_alive(h.brick_mask, brick_idx)) {
+                continue;
+            }
+            int x = col * c->brick_width;
+            int y = row * c->brick_height + Y_OFFSET;
+            Color brick_color = BREAKOUT_BRICK_COLORS[row % 6];
+            DrawRectangle(x, y, c->brick_width, c->brick_height, brick_color);
+        }
+    }
+
+    DrawText(TextFormat("Score: %i", h.score), 10, 10, 20, WHITE);
+    DrawText(TextFormat("Balls: %i", h.num_balls), client->width - 80, 10, 20, WHITE);
+    EndDrawing();
 }
 
 #endif
