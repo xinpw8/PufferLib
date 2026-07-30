@@ -2401,8 +2401,7 @@ void log_util(PuffeRL* p, Dict* out) {
     dict_set(out, "util/cpu_mem_gb", (double)rss_kb / (1024.0 * 1024.0));
 }
 
-// Eval only refreshes util + env. Do not write SPS/uptime/perf/losses: merging
-// into last_log would overwrite the last train snapshot and zero the dashboard.
+// Eval cadence: util + env only (no train SPS/losses/perf).
 void trainer_eval_log(PuffeRL* p, Dict* out) {
     double now = wall_clock();
     p->last_log_time = now;
@@ -2884,40 +2883,27 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
         rollouts(pufferl);
         Dict log = {0};
         trainer_eval_log(pufferl, &log);
-        if (render) {
+        if (verbose || render) {
             puf_dashboard_print(ini, pufferl, &log, 0);
+        }
+        if (render) {
+            dict_clear(&log);
             continue;
         }
 
         long n = dict_get(&log, "env/n");
-        if (verbose && n > 0) {
+        if (n >= eval_episodes) {
             if (match) {
-                printf("\rgames=%ld/%ld  A=%.3f  B=%.3f  draw=%.3f",
-                    n, eval_episodes,
-                    dict_get(&log, "env/policy_0_score"),
-                    dict_get(&log, "env/policy_1_score"),
-                    dict_get(&log, "env/draw_rate"));
+                result.score = dict_get(&log, "env/policy_0_score");
+                result.draw = dict_get(&log, "env/draw_rate");
             } else {
-                printf("\rgames=%ld/%ld  score=%.3f  perf=%.4f",
-                    n, eval_episodes,
-                    dict_get(&log, "env/score"),
-                    dict_get(&log, "env/perf"));
+                result.score = dict_get(&log, "env/score");
             }
+            result.games = (int)n;
+            dict_clear(&log);
+            break;
         }
-        if (n < eval_episodes) {
-            continue;
-        }
-        if (match) {
-            result.score = dict_get(&log, "env/policy_0_score");
-            result.draw = dict_get(&log, "env/draw_rate");
-        } else {
-            result.score = dict_get(&log, "env/score");
-        }
-        result.games = (int)n;
-        break;
-    }
-    if (!render && verbose) {
-        printf("\n");
+        dict_clear(&log);
     }
     close_pufferl(pufferl);
     return result;
@@ -2986,9 +2972,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         puf_ini_get(ini, "train", "horizon");
     long local_timesteps = total_timesteps / ctx->world_size;
     long train_epochs = local_timesteps / batch_size;
-    long eval_epochs = train_epochs / 2;
     long checkpoint_interval = puf_ini_get(ini, "base", "checkpoint_interval");
-    long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
     // Sweep objective: bare names → env/<name>; keys with '/' used as-is.
     char target_key[128];
     const char* metric = puf_ini_get_str(ini, "sweep", "metric");
@@ -3001,8 +2985,8 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     TrainResult result = {0};
     char final_checkpoint[4096] = {0};
 
-    for (long epoch = 0; epoch < train_epochs + eval_epochs; epoch++) {
-        if (epoch < train_epochs && pufferl->hypers.async) {
+    for (long epoch = 0; epoch < train_epochs; epoch++) {
+        if (pufferl->hypers.async) {
             int prefetch_next = epoch + 1 < train_epochs;
             if (!pufferl->async_boot) {
                 double t0 = rollout_start(pufferl, 0);
@@ -3031,17 +3015,14 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             }
         } else {
             rollouts(pufferl);
-            if (epoch < train_epochs) {
-                train_impl(pufferl, NULL);
-            }
+            train_impl(pufferl, NULL);
         }
 
         bool is_final = epoch == train_epochs - 1;
         bool interval_save = checkpoint_interval > 0 &&
             (epoch + 1) % checkpoint_interval == 0;
-        bool should_save = epoch < train_epochs && (interval_save || is_final);
         char saved_checkpoint[4096] = {0};
-        if (should_save) {
+        if (interval_save || is_final) {
             snprintf(saved_checkpoint, sizeof(saved_checkpoint),
                 "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
             if (ctx->artifact_owner) {
@@ -3054,13 +3035,12 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             selfplay_add_checkpoint(&selfplay, saved_checkpoint);
         }
 
-        int is_eval = epoch >= train_epochs;
         // Resample frozen opponents on a fixed global-step interval. Episode-aligned
         // swaps are not doable in general (async envs, different episode lengths,
         // no single "all games ended" barrier). Waiting on env boundary flags was a
         // dead end. Correct mid-swap handling would mark those steps truncated in
         // advantage and reset the swapped envs — not wait for natural episode ends.
-        if (use_selfplay && !is_eval && selfplay.opp_timeout_steps > 0) {
+        if (use_selfplay && selfplay.opp_timeout_steps > 0) {
             long step = pufferl->global_step * pufferl->hypers.world_size;
             for (int s = 0; s < selfplay.num_hist; s++) {
                 SelfplayHist* hist = &selfplay.hist[s];
@@ -3072,67 +3052,61 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             }
         }
 
-        if (!is_eval && last_log.size && wall_clock()
+        if (last_log.size && wall_clock()
                 < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
             continue;
         }
 
         Dict new_log = {0};
-        if (is_eval) {
-            trainer_eval_log(pufferl, &new_log);
-        } else {
-            long global_step = pufferl->global_step;
-            double now = wall_clock();
-            double dt = now - pufferl->last_log_time;
-            double sps = dt > 0 ? (double)(global_step -
-                pufferl->last_log_step) / dt * pufferl->hypers.world_size : 0;
-            pufferl->last_log_time = now;
-            pufferl->last_log_step = global_step;
+        long global_step = pufferl->global_step;
+        double now = wall_clock();
+        double dt = now - pufferl->last_log_time;
+        double sps = dt > 0 ? (double)(global_step -
+            pufferl->last_log_step) / dt * pufferl->hypers.world_size : 0;
+        pufferl->last_log_time = now;
+        pufferl->last_log_step = global_step;
 
-            dict_set(&new_log, "SPS", sps);
-            dict_set(&new_log, "agent_steps", (double)global_step * pufferl->hypers.world_size);
-            dict_set(&new_log, "uptime", now - pufferl->start_time);
-            dict_set(&new_log, "epoch", (double)pufferl->epoch);
+        dict_set(&new_log, "SPS", sps);
+        dict_set(&new_log, "agent_steps", (double)global_step * pufferl->hypers.world_size);
+        dict_set(&new_log, "uptime", now - pufferl->start_time);
+        dict_set(&new_log, "epoch", (double)pufferl->epoch);
 
-            vec_log(pufferl->vec, &new_log, 1);
+        vec_log(pufferl->vec, &new_log, 1);
 
-            float losses_host[NUM_LOSSES];
-            cudaMemcpy(losses_host, pufferl->losses, sizeof(losses_host),
-                cudaMemcpyDeviceToHost);
-            float inv_n = losses_host[LOSS_N] > 0 ? 1.0f / losses_host[LOSS_N] : 0.0f;
-            for (int i = 0; i < LOSS_N; i++) {
-                dict_set(&new_log, LOSS_NAMES[i], losses_host[i] * inv_n);
+        float losses_host[NUM_LOSSES];
+        cudaMemcpy(losses_host, pufferl->losses, sizeof(losses_host),
+            cudaMemcpyDeviceToHost);
+        float inv_n = losses_host[LOSS_N] > 0 ? 1.0f / losses_host[LOSS_N] : 0.0f;
+        for (int i = 0; i < LOSS_N; i++) {
+            dict_set(&new_log, LOSS_NAMES[i], losses_host[i] * inv_n);
+        }
+        cudaMemset(pufferl->losses, 0, NUM_LOSSES * sizeof(float));
+
+        log_util(pufferl, &new_log);
+
+        float train_total = 0;
+        for (int i = 0; i < NUM_PROF; i++) {
+            float sec = pufferl->profile.accum[i] / 1000.0f;
+            char key[256];
+            snprintf(key, sizeof(key), "perf/%s", PROF_NAMES[i]);
+            dict_set(&new_log, key, sec);
+            if (i >= PROF_TRAIN_MISC) {
+                train_total += sec;
             }
-            cudaMemset(pufferl->losses, 0, NUM_LOSSES * sizeof(float));
+        }
+        dict_set(&new_log, "perf/train", train_total);
+        memset(pufferl->profile.accum, 0, sizeof(pufferl->profile.accum));
 
-            log_util(pufferl, &new_log);
-
-            float train_total = 0;
-            for (int i = 0; i < NUM_PROF; i++) {
-                float sec = pufferl->profile.accum[i] / 1000.0f;
-                char key[256];
-                snprintf(key, sizeof(key), "perf/%s", PROF_NAMES[i]);
-                dict_set(&new_log, key, sec);
-                if (i >= PROF_TRAIN_MISC) {
-                    train_total += sec;
-                }
-            }
-            dict_set(&new_log, "perf/train", train_total);
-            memset(pufferl->profile.accum, 0, sizeof(pufferl->profile.accum));
-
-            if (use_selfplay) {
-                dict_set(&new_log, "pool/size", selfplay.pool_size);
-                dict_set(&new_log, "pool/num_hist", selfplay.num_hist);
-                dict_set(&new_log, "pool/num_policies", pufferl->num_policies);
-            }
+        if (use_selfplay) {
+            dict_set(&new_log, "pool/size", selfplay.pool_size);
+            dict_set(&new_log, "pool/num_hist", selfplay.num_hist);
+            dict_set(&new_log, "pool/num_policies", pufferl->num_policies);
         }
         // Dense keys: replace last_log wholesale.
         dict_clear(&last_log);
         dict_copy(&last_log, &new_log);
         dict_clear(&new_log);
 
-        int eval_done = is_eval && dict_get(&last_log, "env/n") > eval_episodes;
-        // Same cadence as log throttle: print when we build a log (train ~0.6s).
         if (ctx->artifact_owner) {
             puf_dashboard_print(ini, pufferl, &last_log, (int)pufferl->epoch);
         }
@@ -3141,15 +3115,11 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         if (!dict_find(&last_log, target_key)) {
             continue;
         }
-        if (!is_eval) {
-            puf_log_history_add(&log_history, &last_log);
-        }
-        if (eval_done) {
-            break;
-        }
+        puf_log_history_add(&log_history, &last_log);
     }
 
     // TrainResult curve: bin-mean over log_history (same as artifact metrics).
+    // Final score is overwritten below by post-train run_eval when possible.
     result.cost = dict_get(&last_log, "uptime");
     result.steps = dict_get(&last_log, "agent_steps");
     DictItem* target = dict_find(&last_log, target_key);
@@ -3184,24 +3154,27 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     }
     close_pufferl(pufferl);
 
-    // Selfplay end rating: match final checkpoint vs a small fixed opponent pool.
-    // Mean A winrate is the sole protein score when eval_games > 0.
-    if (use_selfplay && final_checkpoint[0] && ctx->artifact_owner) {
-        int max_opp = puf_ini_get(ini, "selfplay", "eval_pool_size");
-        long games = puf_ini_get(ini, "selfplay", "eval_games");
-        if (max_opp > 0 && games > 0) {
-            int n_opp = 0;
+    // Post-train eval via run_eval (fresh env stack). Selfplay with eval_games>0
+    // rates the final checkpoint vs the pool; otherwise standard score eval.
+    if (final_checkpoint[0] && ctx->artifact_owner) {
+        puf_ini_put(ini, "base.load_model_path", final_checkpoint);
+        int max_opp = use_selfplay
+            ? (int)puf_ini_get(ini, "selfplay", "eval_pool_size") : 0;
+        long games = use_selfplay
+            ? (long)puf_ini_get(ini, "selfplay", "eval_games") : 0;
+        if (use_selfplay && max_opp > 0 && games > 0) {
             char games_buf[32];
             snprintf(games_buf, sizeof(games_buf), "%ld", games);
             puf_ini_put(ini, "base.eval_episodes", games_buf);
-            puf_ini_put(ini, "base.load_model_path", final_checkpoint);
-
+            int n_opp = 0;
             float sum = 0;
             for (int i = 0; i < selfplay.pool_size && n_opp < max_opp; i++) {
                 const char* opponent = selfplay.pool[i];
-                if (strcmp(opponent, final_checkpoint) == 0) continue;
+                if (strcmp(opponent, final_checkpoint) == 0) {
+                    continue;
+                }
                 puf_ini_put(ini, "base.load_enemy_model_path", opponent);
-                EvalResult r = run_eval(ini, ctx, EVAL_MATCH, 0);
+                EvalResult r = run_eval(ini, ctx, EVAL_MATCH, 1);
                 sum += r.score;
                 n_opp++;
                 printf("selfplay_eval vs %s games=%d score=%.4f draw=%.4f\n",
@@ -3217,6 +3190,12 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
                 result.step_points[0] = result.steps;
                 dict_set(&last_log, "selfplay/pool_score", pool_score);
             }
+        } else if (puf_ini_get(ini, "base", "eval_episodes") > 0) {
+            EvalResult r = run_eval(ini, ctx, EVAL_SCORE, 1);
+            result.score = r.score;
+            result.scores[result.points - 1] = r.score;
+            dict_set(&last_log, target_key, r.score);
+            dict_set(&last_log, "env/n", r.games);
         }
     }
 
@@ -3364,4 +3343,3 @@ int main(int argc, char** argv) {
 }
 
 #endif
-
