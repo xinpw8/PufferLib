@@ -439,13 +439,7 @@ typedef struct {
     PolicyActivations* buf_acts;  // [num_buffers]
 } WeightBank;
 
-// Trainer + worker profiling.
-// PROF_* — accum buckets (trainer + CPU worker per-buffer).
-// Event slots — CPU worker: local ev[NUM_EV]; GPU rollout: rollout_ev[t*NUM_RO_EV+k];
-//               train_impl: profile.events[TE_*].
-//   MODEL_START → MODEL_END → model
-//   MODEL_END → COPY_END/ENV_END → CPU action D2H / GPU env step (same index)
-//   H2D_START → H2D_END → CPU obs upload (worker only)
+// PROF_* accum; MODEL_*/H2D_* worker+GPU rollout events; TE_* train_impl events.
 enum {
     PROF_ROLLOUT,
     PROF_MODEL,
@@ -454,7 +448,6 @@ enum {
     PROF_TRAIN_MISC,
     PROF_TRAIN_MODEL,
     NUM_PROF,
-    // cudaEvent indices (shared CPU worker + GPU rollout)
     MODEL_START = 0,
     MODEL_END,
     COPY_END,
@@ -462,12 +455,11 @@ enum {
     H2D_START,
     H2D_END,
     NUM_EV,
-    NUM_RO_EV = ENV_END + 1,  // GPU: 3 events per horizon step
-    // train_impl profile.events[]: setup, then per-mb misc → forward
+    EV_T = ENV_END + 1,
     TE_S = 0,
     TE_E,
     TE_MS,
-    TE_ME,  // end misc / start fwd+bwd
+    TE_ME,
     TE_FE,
     NUM_TE,
 };
@@ -484,8 +476,7 @@ const char* PROF_NAMES[] = {
 
 typedef struct {
     cudaEvent_t events[NUM_TE];
-    // GPU rollout: NUM_RO_EV events per step (MODEL_*/ENV_END). Null on CPU.
-    cudaEvent_t* rollout_ev;  // [NUM_RO_EV * horizon] or null
+    cudaEvent_t* rollout_ev;  // GPU [EV_T * horizon]; null on CPU
     float accum[NUM_PROF];
 } Profile;
 
@@ -751,7 +742,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     if (sizeof(obs_t) == sizeof(precision_t)) {
         cudaMemcpyAsync(obs_dst.data,
             obs_env->data + (long)start * obs_env->shape[1],
-            (size_t)n * sizeof(precision_t), cudaMemcpyDeviceToDevice, stream);
+            n * sizeof(precision_t), cudaMemcpyDeviceToDevice, stream);
     } else {
         cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
             obs_dst.data, obs_env->data + (long)start * obs_env->shape[1], n);
@@ -936,8 +927,8 @@ static void env_setup(PuffeRL* p, VecEnv* vec,
     if (vec->num_workers < 1) {
         vec->num_workers = 1;
     }
-    vec->env_starts = (int*)calloc(1, (size_t)num_buffers * sizeof(int));
-    vec->env_counts = (int*)calloc(1, (size_t)num_buffers * sizeof(int));
+    vec->env_starts = (int*)calloc(1, num_buffers * sizeof(int));
+    vec->env_counts = (int*)calloc(1, num_buffers * sizeof(int));
     int num_envs = 0;
 #ifdef MY_VEC_INIT
     vec->envs = my_vec_init(&num_envs, vec->env_starts,
@@ -966,14 +957,14 @@ static void env_setup(PuffeRL* p, VecEnv* vec,
 #endif
     vec->size = num_envs;
 
-    size_t obs_bytes = (size_t)total_agents * OBS_SIZE * sizeof(obs_t);
-    size_t mask_bytes = (size_t)total_agents * vec->mask_size * sizeof(unsigned char);
+    size_t obs_bytes = total_agents * OBS_SIZE * sizeof(obs_t);
+    size_t mask_bytes = total_agents * vec->mask_size * sizeof(unsigned char);
     cudaHostAlloc((void**)&vec->observations, obs_bytes, cudaHostAllocPortable);
-    cudaHostAlloc((void**)&vec->actions, (size_t)total_agents * NUM_ATNS * sizeof(float),
+    cudaHostAlloc((void**)&vec->actions, total_agents * NUM_ATNS * sizeof(float),
         cudaHostAllocPortable);
-    cudaHostAlloc((void**)&vec->rewards, (size_t)total_agents * sizeof(float),
+    cudaHostAlloc((void**)&vec->rewards, total_agents * sizeof(float),
         cudaHostAllocPortable);
-    cudaHostAlloc((void**)&vec->terminals, (size_t)total_agents * sizeof(float),
+    cudaHostAlloc((void**)&vec->terminals, total_agents * sizeof(float),
         cudaHostAllocPortable);
     cudaHostAlloc((void**)&vec->action_mask, mask_bytes, cudaHostAllocPortable);
     memset(vec->action_mask, 1, mask_bytes);
@@ -1042,14 +1033,14 @@ static void cpu_upload(PuffeRL* p, int start, int n, cudaStream_t stream) {
     long mask = v->mask_size;
     cudaMemcpyAsync(e->obs.data + (size_t)start * OBS_SIZE,
         v->observations + (size_t)start * OBS_SIZE,
-        (size_t)n * OBS_SIZE * sizeof(obs_t), cudaMemcpyHostToDevice, stream);
+        n * OBS_SIZE * sizeof(obs_t), cudaMemcpyHostToDevice, stream);
     cudaMemcpyAsync(e->rewards.data + start, v->rewards + start,
-        (size_t)n * sizeof(float), cudaMemcpyHostToDevice, stream);
+        n * sizeof(float), cudaMemcpyHostToDevice, stream);
     cudaMemcpyAsync(e->terminals.data + start, v->terminals + start,
-        (size_t)n * sizeof(float), cudaMemcpyHostToDevice, stream);
+        n * sizeof(float), cudaMemcpyHostToDevice, stream);
     cudaMemcpyAsync(e->action_mask.data + (size_t)start * mask,
         v->action_mask + (size_t)start * mask,
-        (size_t)n * mask * sizeof(unsigned char), cudaMemcpyHostToDevice, stream);
+        n * mask * sizeof(unsigned char), cudaMemcpyHostToDevice, stream);
 }
 
 // CPU worker handshake. Atomic on worker_state[]; calloc leaves BUF_STARTING.
@@ -1148,11 +1139,11 @@ static void env_start(PuffeRL* p) {
         return;
     }
     VecEnv* vec = p->vec;
-    vec->worker_state = (int*)calloc(1, (size_t)vec->buffers * sizeof(int));
-    vec->threads = (pthread_t*)calloc(1, (size_t)vec->buffers * sizeof(pthread_t));
+    vec->worker_state = (int*)calloc(1, vec->buffers * sizeof(int));
+    vec->threads = (pthread_t*)calloc(1, vec->buffers * sizeof(pthread_t));
     VecThreadArg* args = (VecThreadArg*)calloc(1,
-        (size_t)vec->buffers * sizeof(VecThreadArg));
-    vec->accum = (float*)calloc(1, (size_t)vec->buffers * NUM_PROF * sizeof(float));
+        vec->buffers * sizeof(VecThreadArg));
+    vec->accum = (float*)calloc(1, vec->buffers * NUM_PROF * sizeof(float));
     #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
     for (int i = 0; i < vec->size; i++) {
         puf_reset(&vec->envs[i]);
@@ -1177,7 +1168,7 @@ static void rollout_start(PuffeRL* p) {
         cudaEvent_t* ev = p->profile.rollout_ev;
         int H = p->hypers.horizon;
         for (int t = 0; t < H; t++) {
-            int base = t * NUM_RO_EV;
+            int base = t * EV_T;
             cudaEventRecord(ev[base + MODEL_START], stream);
             pufferl_forward(p, 0, t, stream);
             cudaEventRecord(ev[base + MODEL_END], stream);
@@ -1199,7 +1190,7 @@ void rollout_finish(PuffeRL* p, double t0) {
         cudaEvent_t* ev = p->profile.rollout_ev;
         int H = p->hypers.horizon;
         for (int t = 0; t < H; t++) {
-            int base = t * NUM_RO_EV;
+            int base = t * EV_T;
             cudaEventElapsedTime(&ms, ev[base + MODEL_START], ev[base + MODEL_END]);
             model_ms += ms;
             cudaEventElapsedTime(&ms, ev[base + MODEL_END], ev[base + ENV_END]);
@@ -1463,6 +1454,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
     float prio_alpha = hypers->prio_alpha;
     bool anneal_lr = hypers->anneal_lr;
     int current_epoch = pufferl->epoch;
+    Muon* muon = &pufferl->muon;
 
     // Schedule over this rank's train epochs (same as outer loop), not global
     // total_timesteps/batch — multi-GPU would otherwise only traverse 1/W of the
@@ -1471,7 +1463,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
     if (anneal_lr) {
         float lr_min = hypers->min_lr_ratio * hypers->lr;
         float lr = cosine_annealing(hypers->lr, lr_min, current_epoch, total_epochs);
-        cudaMemcpy(pufferl->muon.lr, &lr, sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(muon->lr, &lr, sizeof(float), cudaMemcpyHostToDevice);
     }
 
     // Annealed entropy coefficient — same cosine shape as lr. With PG signal
@@ -1605,7 +1597,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
                     numel(pufferl->grad.shape), NCCL_PRECISION, ncclAvg,
                     pufferl->nccl_comm, stream);
             }
-            muon_step(&pufferl->muon, pufferl->master_weights,
+            muon_step(muon, pufferl->master_weights,
                 pufferl->grad, hypers->max_grad_norm, stream);
             if (USE_BF16) {
                 int n = numel(pufferl->param.shape);
@@ -1806,7 +1798,7 @@ static void master_weights_setup(Float* mw, Prec* param,
     long n = numel(param->shape);
     if (USE_BF16) {
         *mw = (Float){.shape = {n}};
-        cudaMalloc((void**)&mw->data, (size_t)n * sizeof(float));
+        cudaMalloc((void**)&mw->data, n * sizeof(float));
         if (cast_now) {
             cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(mw->data, param->data, n);
         }
@@ -1900,7 +1892,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     bool is_continuous = n_cont > 0;
     pufferl->is_continuous = is_continuous;
     vec->num_banks = frozen_banks + 1;
-    vec->bank_layout = (int*)calloc(1, (size_t)(vec->num_banks + 1) * sizeof(int));
+    vec->bank_layout = (int*)calloc(1, (vec->num_banks + 1) * sizeof(int));
     vec->mask_size = act_n;
 
     // Device env IO (EnvBuf).
@@ -1912,16 +1904,16 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         .action_mask = {.shape = {total_agents, act_n}},
     };
     EnvBuf* env = &pufferl->env;
-    size_t mask_bytes = (size_t)total_agents * act_n * sizeof(unsigned char);
-    cudaMalloc((void**)&env->obs.data, (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
-    cudaMalloc((void**)&env->actions.data, (size_t)total_agents * NUM_ATNS * sizeof(float));
-    cudaMalloc((void**)&env->rewards.data, (size_t)total_agents * sizeof(float));
-    cudaMalloc((void**)&env->terminals.data, (size_t)total_agents * sizeof(float));
+    size_t mask_bytes = total_agents * act_n * sizeof(unsigned char);
+    cudaMalloc((void**)&env->obs.data, total_agents * OBS_SIZE * sizeof(obs_t));
+    cudaMalloc((void**)&env->actions.data, total_agents * NUM_ATNS * sizeof(float));
+    cudaMalloc((void**)&env->rewards.data, total_agents * sizeof(float));
+    cudaMalloc((void**)&env->terminals.data, total_agents * sizeof(float));
     cudaMalloc((void**)&env->action_mask.data, mask_bytes);
-    cudaMemset(env->obs.data, 0, (size_t)total_agents * OBS_SIZE * sizeof(obs_t));
-    cudaMemset(env->actions.data, 0, (size_t)total_agents * NUM_ATNS * sizeof(float));
-    cudaMemset(env->rewards.data, 0, (size_t)total_agents * sizeof(float));
-    cudaMemset(env->terminals.data, 0, (size_t)total_agents * sizeof(float));
+    cudaMemset(env->obs.data, 0, total_agents * OBS_SIZE * sizeof(obs_t));
+    cudaMemset(env->actions.data, 0, total_agents * NUM_ATNS * sizeof(float));
+    cudaMemset(env->rewards.data, 0, total_agents * sizeof(float));
+    cudaMemset(env->terminals.data, 0, total_agents * sizeof(float));
     cudaMemset(env->action_mask.data, 1, mask_bytes);
 
     env_setup(pufferl, vec, &vec_kwargs, env_kwargs, frozen_banks);
@@ -1933,8 +1925,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     if (PUF_BACKEND == PUF_GPU) {
         int H = hypers.horizon;
         pufferl->profile.rollout_ev = (cudaEvent_t*)calloc(
-            1, (size_t)NUM_RO_EV * H * sizeof(cudaEvent_t));
-        for (int i = 0; i < NUM_RO_EV * H; i++) {
+            1, EV_T * H * sizeof(cudaEvent_t));
+        for (int i = 0; i < EV_T * H; i++) {
             assert(cudaEventCreate(&pufferl->profile.rollout_ev[i]) == cudaSuccess);
         }
     }
@@ -1976,8 +1968,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     pufferl->train_activs = policy_reg_train(
         &pufferl->policy, pufferl->weights, acts, grads, B_TT);
     pufferl->buf_acts = (PolicyActivations*)calloc(
-        1, (size_t)num_buffers * sizeof(PolicyActivations));
-    pufferl->buffer_states = (Prec*)calloc(1, (size_t)num_buffers * sizeof(Prec));
+        1, num_buffers * sizeof(PolicyActivations));
+    pufferl->buffer_states = (Prec*)calloc(1, num_buffers * sizeof(Prec));
     for (int i = 0; i < num_buffers; i++) {
         pufferl->buf_acts[i] = policy_reg_rollout(
             &pufferl->policy, pufferl->weights, acts, inf_batch);
@@ -2001,18 +1993,17 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         hidden_size, num_action_heads, num_layers, act_n);
     register_rollout_buffers(&pufferl->train_rollouts,
         acts, total_agents, horizon, input_size, num_action_heads, act_n);
-    register_ppo_buffers(pufferl->ppo_bufs,
-        acts, minibatch_segments, hypers.horizon, decoder_output_size, is_continuous);
+    register_ppo_buffers(pufferl->ppo_bufs, acts, minibatch_segments,
+        hypers.horizon, decoder_output_size, is_continuous);
     register_prio_buffers(pufferl->prio_bufs,
         acts, hypers.total_agents, minibatch_segments);
 
     pufferl->advantages = {.shape = {total_agents, horizon}};
     alloc_register(acts, &pufferl->advantages);
 
-    cudaMalloc((void**)&pufferl->rng_offset,
-        (size_t)(num_buffers + 1) * sizeof(long));
-    cudaMemset(pufferl->rng_offset, 0, (size_t)(num_buffers + 1) * sizeof(long));
-    cudaMalloc((void**)&pufferl->act_sizes, (size_t)num_action_heads * sizeof(int));
+    cudaMalloc((void**)&pufferl->rng_offset, (num_buffers + 1) * sizeof(long));
+    cudaMemset(pufferl->rng_offset, 0, (num_buffers + 1) * sizeof(long));
+    cudaMalloc((void**)&pufferl->act_sizes, num_action_heads * sizeof(int));
     cudaMalloc((void**)&pufferl->losses, NUM_LOSSES * sizeof(float));
 
     muon_init(&pufferl->muon, params, hypers.momentum, acts);
@@ -2047,19 +2038,19 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     // Per-buffer persistent RNG states
     int agents_per_buf = total_agents / num_buffers;
     pufferl->rng_states = (curandStatePhilox4_32_10_t**)calloc(
-        1, (size_t)num_buffers * sizeof(curandStatePhilox4_32_10_t*));
+        1, num_buffers * sizeof(curandStatePhilox4_32_10_t*));
     for (int i = 0; i < num_buffers; i++) {
         cudaMalloc((void**)&pufferl->rng_states[i],
-            (size_t)agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
+            agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
         cudaMemset(pufferl->rng_states[i], 0,
-            (size_t)agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
+            agents_per_buf * sizeof(curandStatePhilox4_32_10_t));
         rng_init<<<grid_size(agents_per_buf), BLOCK_SIZE>>>(
             pufferl->rng_states[i], pufferl->seed + i, agents_per_buf);
     }
 
     // Post-create initialization
-    cudaMemcpy(pufferl->act_sizes, act_sizes, num_action_heads * sizeof(int),
-        cudaMemcpyHostToDevice);
+    cudaMemcpy(pufferl->act_sizes, act_sizes,
+        num_action_heads*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemset(pufferl->losses, 0, NUM_LOSSES * sizeof(float));
     cudaMemcpy(pufferl->muon.lr, &hypers.lr, sizeof(float), cudaMemcpyHostToDevice);
     cudaMemset(pufferl->muon.mb.data, 0, numel(pufferl->muon.mb.shape) * sizeof(float));
@@ -2074,7 +2065,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     pufferl->num_frozen_banks = num_frozen;
     if (num_frozen > 0) {
         pufferl->frozen_banks = (WeightBank*)calloc(1,
-            (size_t)num_frozen * sizeof(WeightBank));
+            num_frozen * sizeof(WeightBank));
     }
     for (int b = 0; b < num_frozen; b++) {
         int slice = vec->bank_layout[b + 2] - vec->bank_layout[b + 1];
@@ -2084,8 +2075,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
             frozen_layers, decoder_output_size, is_continuous, hypers.horizon);
         bank->weights = policy_weights_create(&bank->policy, &bank->params_alloc);
         bank->buf_acts = (PolicyActivations*)calloc(1,
-            (size_t)num_buffers * sizeof(PolicyActivations));
-        bank->buffer_states = (Prec*)calloc(1, (size_t)num_buffers * sizeof(Prec));
+            num_buffers * sizeof(PolicyActivations));
+        bank->buffer_states = (Prec*)calloc(1, num_buffers * sizeof(Prec));
         for (int i = 0; i < num_buffers; i++) {
             bank->buf_acts[i] = policy_reg_rollout(
                 &bank->policy, bank->weights, &bank->activ_alloc, slice);
@@ -2110,9 +2101,9 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     if (hypers.cudagraphs) {
         int rollout_graph_slots = hypers.async ? 2 : 1;
         pufferl->rollout_graphs = (cudaGraphExec_t*)calloc(1,
-            (size_t)rollout_graph_slots*horizon*num_buffers*sizeof(cudaGraphExec_t));
+            rollout_graph_slots*horizon*num_buffers*sizeof(cudaGraphExec_t));
     }
-    pufferl->streams = (cudaStream_t*)calloc(1, (size_t)num_buffers * sizeof(cudaStream_t));
+    pufferl->streams = (cudaStream_t*)calloc(1, num_buffers * sizeof(cudaStream_t));
     for (int i = 0; i < num_buffers; i++) {
         if (hypers.async) {
             assert(cudaStreamCreateWithFlags(
@@ -2183,7 +2174,7 @@ static void dash_end(void) {
     fflush(stdout);
 }
 
-// Right-align into w cols (truncate if long). Unit letters gray when value looks numeric.
+// Right-align into w cols (truncate if long). Gray unit letters
 static void dash_cell(const char* s, int w) {
     int n = (int)strlen(s);
     if (n > w) {
@@ -2208,19 +2199,8 @@ static void dash_rule(const char* left, const char* right) {
     dash_eol();
 }
 
-// Stats | Perf | Losses  — fixed field widths sum to 80 with borders/spacing.
-static void dash_row(const char* a, const char* av,
-        const char* b, const char* bt, const char* bp,
-        const char* c, const char* cv) {
-    printf("%s│%s %s%-9.9s%s ", PUF_W, PUF_R, PUF_A, a, PUF_R);
-    dash_cell(av, 13);
-    printf("    %s%-12.12s%s ", PUF_A, b, PUF_R);
-    dash_cell(bt, 6);
-    putchar(' ');
-    dash_cell(bp, 4);
-    printf("    %s%-10.10s%s ", PUF_A, c, PUF_R);
-    dash_cell(cv, 7);
-    printf("    %s│%s", PUF_W, PUF_R);
+static void dash_blank(void) {
+    printf("%s│%*s│%s", PUF_W, PUF_DASH_W - 2, "", PUF_R);
     dash_eol();
 }
 
@@ -2234,39 +2214,30 @@ static void dash_abbrev(char* out, size_t n, double val) {
     snprintf(out, n, "%.1f%s", val, suf[i]);
 }
 
-// Sub-second → ms; else d/h/m/s (zeros allowed, e.g. "0d 0h 5m 3s").
+// <1s = ms; sub-hour keeps ms; longer → d/h/m/s.
 static void dash_duration(char* out, size_t n, double sec) {
     if (sec < 0) {
         sec = 0;
     }
-    if (sec < 1.0) {
-        snprintf(out, n, "%.0fms", sec * 1000.0);
-        return;
+    long ms = (long)(sec * 1000.0 + 0.5);
+    if (ms < 1000) {
+        snprintf(out, n, "%ldms", ms);
+    } else if (ms < 60000) {
+        snprintf(out, n, "%lds %03ldms", ms / 1000, ms % 1000);
+    } else if (ms < 3600000) {
+        snprintf(out, n, "%ldm %02lds %03ldms",
+            ms / 60000, (ms / 1000) % 60, ms % 1000);
+    } else {
+        long s = ms / 1000;
+        snprintf(out, n, "%ldd %ldh %ldm %lds",
+            s / 86400, (s / 3600) % 24, (s / 60) % 60, s % 60);
     }
-    long s = (long)sec;
-    snprintf(out, n, "%ldd %ldh %ldm %lds",
-        s / 86400, (s / 3600) % 24, (s / 60) % 60, s % 60);
 }
 
-static void dash_perf(char* t, size_t tn, char* p, size_t pn, double part, double total) {
-    dash_duration(t, tn, part);
-    snprintf(p, pn, "%d%%", total > 0 ? (int)(100.0 * part / total) : 0);
-}
-
-// Train-only metrics are absent on pure eval logs; keep last train values when
-// present (merge into last_log does not clear missing keys).
+// Missing keys keep last train values when merged into last_log.
 static double dash_num(Dict* log, const char* key, double fallback) {
     DictItem* it = dict_find(log, key);
     return it ? it->value : fallback;
-}
-
-static void dash_loss(Dict* log, const char* key, char* out, size_t n) {
-    DictItem* it = dict_find(log, key);
-    if (it) {
-        snprintf(out, n, "%.3f", it->value);
-    } else {
-        out[0] = 0;
-    }
 }
 
 void puf_dashboard_print(Ini* ini, PuffeRL* p, Dict* log, int epoch) {
@@ -2297,22 +2268,8 @@ void puf_dashboard_print(Ini* ini, PuffeRL* p, Dict* log, int epoch) {
     dash_abbrev(params, sizeof(params), (double)numel(p->master_weights.shape));
     dash_abbrev(steps_s, sizeof(steps_s), steps);
     dash_abbrev(sps_s, sizeof(sps_s), sps);
-    // Uptime keeps sub-hour ms precision; longer runs use d/h/m/s.
     double up = dash_num(log, "uptime", wall_clock() - p->start_time);
-    if (up < 0) {
-        up = 0;
-    }
-    long ms = (long)(up * 1000.0 + 0.5);
-    if (ms < 1000) {
-        snprintf(uptime, sizeof(uptime), "%ldms", ms);
-    } else if (ms < 60000) {
-        snprintf(uptime, sizeof(uptime), "%lds %03ldms", ms / 1000, ms % 1000);
-    } else if (ms < 3600000) {
-        snprintf(uptime, sizeof(uptime), "%ldm %02lds %03ldms",
-            ms / 60000, (ms / 1000) % 60, ms % 1000);
-    } else {
-        dash_duration(uptime, sizeof(uptime), up);
-    }
+    dash_duration(uptime, sizeof(uptime), up);
     dash_duration(remaining, sizeof(remaining), remain_sec);
     snprintf(epoch_s, sizeof(epoch_s), "%d", epoch);
 
@@ -2363,36 +2320,51 @@ void puf_dashboard_print(Ini* ini, PuffeRL* p, Dict* log, int epoch) {
     dash_cell(ram, 6);
     printf("     %s│%s", PUF_W, PUF_R);
     dash_eol();
-    printf("%s│%*s│%s", PUF_W, PUF_DASH_W - 2, "", PUF_R);
-    dash_eol();
+    dash_blank();
 
-    char et[64], ep[16], emt[64], emp[16], evt[64], evp[16], ct[64], cp[16];
-    char tt[64], tp[16], tmt[64], tmp[16], mt[64], mp[16];
-    char lp[32], lv[32], le[32], lt[32], lok[32], lkl[32], lcf[32];
-    dash_perf(et, sizeof(et), ep, sizeof(ep), rollout, perf_total);
-    dash_perf(emt, sizeof(emt), emp, sizeof(emp), dash_num(log, "perf/eval_model", 0), perf_total);
-    dash_perf(evt, sizeof(evt), evp, sizeof(evp), dash_num(log, "perf/eval_env", 0), perf_total);
-    dash_perf(ct, sizeof(ct), cp, sizeof(cp), dash_num(log, "perf/eval_copy", 0), perf_total);
-    dash_perf(tt, sizeof(tt), tp, sizeof(tp), train_time, perf_total);
-    dash_perf(tmt, sizeof(tmt), tmp, sizeof(tmp), dash_num(log, "perf/train_model", 0), perf_total);
-    dash_perf(mt, sizeof(mt), mp, sizeof(mp), dash_num(log, "perf/train_misc", 0), perf_total);
-    dash_loss(log, "loss/policy", lp, sizeof(lp));
-    dash_loss(log, "loss/value", lv, sizeof(lv));
-    dash_loss(log, "loss/entropy", le, sizeof(le));
-    dash_loss(log, "loss/total", lt, sizeof(lt));
-    dash_loss(log, "loss/old_kl", lok, sizeof(lok));
-    dash_loss(log, "loss/kl", lkl, sizeof(lkl));
-    dash_loss(log, "loss/clipfrac", lcf, sizeof(lcf));
-
-    dash_row("Env", env_name, "Evaluate", et, ep, "Losses", lt);
-    dash_row("Params", params, "  Model", emt, emp, "policy", lp);
-    dash_row("Steps", steps_s, "  Env", evt, evp, "value", lv);
-    dash_row("SPS", sps_s, "  Copy", ct, cp, "entropy", le);
-    dash_row("Epoch", epoch_s, "Train", tt, tp, "old_kl", lok);
-    dash_row("Uptime", uptime, "  Model", tmt, tmp, "kl", lkl);
-    dash_row("To go", remaining, "  Misc", mt, mp, "clipfrac", lcf);
-    printf("%s│%*s│%s", PUF_W, PUF_DASH_W - 2, "", PUF_R);
-    dash_eol();
+    // Stats | Perf | Losses — fixed widths sum to 80 with borders/spacing.
+    struct {
+        const char* a;
+        const char* av;
+        const char* b;
+        const char* perf_key;  // null → use perf_sec
+        double perf_sec;
+        const char* c;
+        const char* loss_key;
+    } rows[] = {
+        {"Env", env_name, "Evaluate", NULL, rollout, "Losses", "loss/total"},
+        {"Params", params, "  Model", "perf/eval_model", 0, "policy", "loss/policy"},
+        {"Steps", steps_s, "  Env", "perf/eval_env", 0, "value", "loss/value"},
+        {"SPS", sps_s, "  Copy", "perf/eval_copy", 0, "entropy", "loss/entropy"},
+        {"Epoch", epoch_s, "Train", NULL, train_time, "old_kl", "loss/old_kl"},
+        {"Uptime", uptime, "  Model", "perf/train_model", 0, "kl", "loss/kl"},
+        {"To go", remaining, "  Misc", "perf/train_misc", 0, "clipfrac", "loss/clipfrac"},
+    };
+    for (int i = 0; i < (int)(sizeof(rows) / sizeof(rows[0])); i++) {
+        char bt[64], bp[16], cv[32];
+        double sec = rows[i].perf_key
+            ? dash_num(log, rows[i].perf_key, 0) : rows[i].perf_sec;
+        dash_duration(bt, sizeof(bt), sec);
+        snprintf(bp, sizeof(bp), "%d%%",
+            perf_total > 0 ? (int)(100.0 * sec / perf_total) : 0);
+        DictItem* lit = dict_find(log, rows[i].loss_key);
+        if (lit) {
+            snprintf(cv, sizeof(cv), "%.3f", lit->value);
+        } else {
+            cv[0] = 0;
+        }
+        printf("%s│%s %s%-9.9s%s ", PUF_W, PUF_R, PUF_A, rows[i].a, PUF_R);
+        dash_cell(rows[i].av, 13);
+        printf("    %s%-12.12s%s ", PUF_A, rows[i].b, PUF_R);
+        dash_cell(bt, 6);
+        putchar(' ');
+        dash_cell(bp, 4);
+        printf("    %s%-10.10s%s ", PUF_A, rows[i].c, PUF_R);
+        dash_cell(cv, 7);
+        printf("    %s│%s", PUF_W, PUF_R);
+        dash_eol();
+    }
+    dash_blank();
 
     int user_rows = PUF_DASH_MAX_USER_ROWS;
     if (puf_dashboard_tty) {
@@ -2428,7 +2400,8 @@ void puf_dashboard_print(Ini* ini, PuffeRL* p, Dict* log, int epoch) {
         char ls[32];
         snprintf(ls, sizeof(ls), "%.3f", pending_val);
         printf("%s│%s %s%-25.25s%s %s%9.9s%s   %-25.25s %9.9s    %s│%s",
-            PUF_W, PUF_R, PUF_A, pending_key, PUF_R, PUF_W, ls, PUF_R, "", "", PUF_W, PUF_R);
+            PUF_W, PUF_R, PUF_A, pending_key,
+            PUF_R, PUF_W, ls, PUF_R, "", "", PUF_W, PUF_R);
         dash_eol();
     }
     dash_rule("╰", "╯");
@@ -2472,24 +2445,24 @@ void trainer_eval_log(PuffeRL* p, Dict* out) {
     vec_log(p->vec, out, 0);
 }
 
+// One dict copy per train log (+ optional final snapshot). Capacity fixed at
+// train start: ≤ train_epochs + 1 final append.
 typedef struct {
     Dict* items;
     int size;
     int capacity;
 } PufLogHistory;
 
-void puf_log_history_add(PufLogHistory* history, Dict* log) {
-    if (history->size == history->capacity) {
-        history->capacity = history->capacity ? 2 * history->capacity : 64;
-        history->items = (Dict*)realloc(history->items, (size_t)history->capacity * sizeof(Dict));
-        if (!history->items) {
-            perror("realloc");
-            exit(1);
-        }
-    }
+static void puf_log_history_init(PufLogHistory* h, int capacity) {
+    h->size = 0;
+    h->capacity = capacity;
+    h->items = (Dict*)calloc(capacity, sizeof(Dict));
+}
 
-    dict_copy(&history->items[history->size], log);
-    history->size++;
+static void puf_log_history_add(PufLogHistory* h, Dict* log) {
+    assert(h->size < h->capacity);
+    dict_copy(&h->items[h->size], log);
+    h->size++;
 }
 
 double rollout_start(PuffeRL* p, int slot) {
@@ -2572,7 +2545,7 @@ void selfplay_add_checkpoint(Selfplay* sp, const char* path) {
     }
     if (sp->pool_size == sp->max_size) {
         memmove(sp->pool, sp->pool + 1,
-            (size_t)(sp->max_size - 1) * sizeof(*sp->pool));
+            (sp->max_size - 1) * sizeof(*sp->pool));
         sp->pool_size--;
     }
     snprintf(sp->pool[sp->pool_size++], sizeof(sp->pool[0]), "%s", path);
@@ -2608,7 +2581,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
         && "sweep.goal must be maximize or minimize");
     int direction = strcmp(goal, "minimize") == 0 ? -1 : 1;
 
-    SweepParam* params = (SweepParam*)calloc((size_t)ini->num_sections, sizeof(SweepParam));
+    SweepParam* params = (SweepParam*)calloc(ini->num_sections, sizeof(SweepParam));
     SweepSpace* space = sweep_space_create(ini->num_sections, -1, direction);
     int n_params = 0;
     for (int i = 0; i < ini->num_sections; i++) {
@@ -2713,9 +2686,9 @@ void run_sweep(Ini* ini, const char* exe_path) {
         1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
         success_cap, 1024, 5, 73ULL);
 
-    float* samples = (float*)calloc((size_t)(parallel + 1) * space->num, sizeof(float));
+    float* samples = (float*)calloc((parallel + 1) * space->num, sizeof(float));
     float* sample = samples;
-    SweepJob* jobs = (SweepJob*)calloc((size_t)parallel, sizeof(SweepJob));
+    SweepJob* jobs = (SweepJob*)calloc(parallel, sizeof(SweepJob));
     int failed_workers = 0;
     int next_run_id = 0;
     int completed = 0;
@@ -2748,7 +2721,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
             job.gp_obs = info.n_gp_obs;
             job.pareto = info.n_pareto;
             job.sample = samples + (size_t)(i + 1) * space->num;
-            memcpy(job.sample, sample, (size_t)space->num * sizeof(float));
+            memcpy(job.sample, sample, space->num * sizeof(float));
 
             if (job.run) {
                 for (int p = 0; p < space->num; p++) {
@@ -2780,7 +2753,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
                 nkeys += ini->sections[s].size;
             }
             int argc = nkeys + 4;
-            char** argv = (char**)calloc((size_t)argc, sizeof(char*));
+            char** argv = (char**)calloc(argc, sizeof(char*));
             argv[0] = (char*)exe_path;
             argv[1] = (char*)"train";
             argv[2] = (char*)puf_ini_get_str(ini, "base", "env_name");
@@ -3072,7 +3045,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         selfplay.max_size = (int)puf_ini_get(ini, "selfplay", "max_size");
         assert(selfplay.max_size > 0 && "selfplay.max_size must be positive");
         selfplay.pool = (char (*)[SELFPLAY_PATH_MAX])calloc(
-            (size_t)selfplay.max_size, sizeof(*selfplay.pool));
+            selfplay.max_size, sizeof(*selfplay.pool));
         selfplay.opp_timeout_steps = (long)puf_ini_get(ini, "selfplay", "opp_timeout_steps");
         selfplay.rng = (unsigned int)puf_ini_get(ini, "selfplay", "seed")
             + (unsigned int)pufferl->hypers.rank;
@@ -3114,7 +3087,9 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     snprintf(target_key, sizeof(target_key), "%s%s",
         strchr(metric, '/') ? "" : "env/", metric);
     Dict last_log = {0};
-    PufLogHistory log_history = {0};
+    // At most one history entry per train epoch (+1 final snapshot for log dump).
+    PufLogHistory log_history;
+    puf_log_history_init(&log_history, (int)train_epochs + 1);
     TrainResult result = {0};
     char final_checkpoint[4096] = {0};
     double last_dashboard_time = 0;
@@ -3393,7 +3368,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             }
         }
         int metric_points = downsample <= 1 ? 1 : downsample;
-        double* out = (double*)calloc((size_t)metric_points, sizeof(double));
+        double* out = (double*)calloc(metric_points, sizeof(double));
         double final_steps = dict_get(
             &log_history.items[log_history.size - 1], "agent_steps");
 
@@ -3497,7 +3472,7 @@ TrainResult launch_train(Ini* ini) {
     }
 
     int n_workers = world_size - 1;
-    pid_t* pids = (pid_t*)calloc((size_t)n_workers, sizeof(pid_t));
+    pid_t* pids = (pid_t*)calloc(n_workers, sizeof(pid_t));
     for (int rank = world_size - 1; rank >= 1; rank--) {
         pid_t pid = fork();
         if (pid < 0) {
