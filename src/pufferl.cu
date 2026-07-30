@@ -399,7 +399,7 @@ struct VecEnv {
     int agents_per_buf;
     int mask_size;
     int num_policies;
-    int* bank_layout;
+    int* policy_layout;
     // CPU pins / workers (unused on GPU)
     int* env_starts;
     int* env_counts;
@@ -427,8 +427,8 @@ struct EnvBuf {
 
 // Owned runnable policy instance. policies[0] is trainable; policies[i>0] are
 // frozen opponents (selfplay/match). Frozen policies are rollout-only (no train
-// acts/grads/muon) and may use a different arch via frozen_bank_hidden_size /
-// frozen_bank_num_layers. Primary registers rollout acts into PuffeRL.activ_alloc
+// acts/grads/muon) and may use a different arch via hist_policy_hidden_size /
+// hist_policy_num_layers. Primary registers rollout acts into PuffeRL.activ_alloc
 // (shared with train); frozen policies use their own activ_alloc.
 typedef struct {
     bool frozen;
@@ -475,6 +475,17 @@ const char* PROF_NAMES[] = {
     "eval_copy",
     "train_misc",
     "train_model",
+};
+
+// Index must match LossIdx 0..LOSS_N-1 in algo.cu (not LOSS_N counter).
+const char* LOSS_NAMES[] = {
+    "loss/policy",
+    "loss/value",
+    "loss/entropy",
+    "loss/total",
+    "loss/old_kl",
+    "loss/kl",
+    "loss/clipfrac",
 };
 
 typedef struct {
@@ -526,7 +537,7 @@ typedef struct PuffeRL {
     bool async_boot;
     ulong seed;
     curandStatePhilox4_32_10_t** rng_states;  // per-buffer persistent RNG states [num_buffers]
-    char env_name[64];  // For bank policy rebuild at create.
+    char env_name[64];  // For policy arch rebuild at create.
 } PuffeRL;
 
 // --- Infer path: sample + forward, then vec workers ---
@@ -638,7 +649,7 @@ static __device__ long state_elem_idx(
 }
 
 // Copy buffer RNN state into rollout initial_states at t=0 (carry path).
-// Primary bank only; src agents are 0..count, dst at dst_start.
+// Trainable policy only; src agents are 0..count, dst at dst_start.
 __global__ void snapshot_state(Prec dst, Prec src,
         int dst_start, int count) {
     int L = src.shape[0];
@@ -727,7 +738,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     VecEnv* vec = pufferl->vec;
     int block_size = hypers->total_agents / hypers->num_buffers;
     int start = buf * block_size;
-    int* layout = vec->bank_layout;
+    int* layout = vec->policy_layout;
 
     // Copy observations, rewards, terminals from GPU env buffers to rollout buffer
     ObsTensor* obs_env = &env->obs;
@@ -761,59 +772,56 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
     // Per-policy forward: layout[b]..layout[b+1) within each buffer chunk.
     long act_cols = env->actions.shape[1];
     for (int b = 0; b < pufferl->num_policies; b++) {
-        int bank_off = layout[b];
-        int bank_end = layout[b + 1];
-        int bank_size = bank_end - bank_off;
-        if (bank_size == 0) {
+        int off = layout[b];
+        int n = layout[b + 1] - off;
+        if (n == 0) {
             continue;
         }
 
         Policy* pol = &pufferl->policies[b];
-        Arch* p_bank = &pol->arch;
-        Weights* w_bank = (!pol->frozen && hypers->async)
+        Weights* w = (!pol->frozen && hypers->async)
             ? &pufferl->actor_weights : &pol->weights;
-        Activations* a_bank = &pol->buf_acts[buf];
-        Prec* s_bank = &pol->buffer_states[buf];
+        Activations* acts = &pol->buf_acts[buf];
+        Prec* st = &pol->buffer_states[buf];
 
-        int sub_start = start + bank_off;
-        Prec obs_b  = puf_slice(rollouts.observations, t, sub_start, bank_size);
-        Prec act_b  = puf_slice(rollouts.actions,      t, sub_start, bank_size);
-        Prec lp_b   = puf_slice(rollouts.logprobs,     t, sub_start, bank_size);
-        Prec val_b  = puf_slice(rollouts.values,       t, sub_start, bank_size);
-        Prec mask_b = puf_slice(rollouts.action_mask,  t, sub_start, bank_size);
+        int sub = start + off;
+        Prec obs_b  = puf_slice(rollouts.observations, t, sub, n);
+        Prec act_b  = puf_slice(rollouts.actions,      t, sub, n);
+        Prec lp_b   = puf_slice(rollouts.logprobs,     t, sub, n);
+        Prec val_b  = puf_slice(rollouts.values,       t, sub, n);
+        Prec mask_b = puf_slice(rollouts.action_mask,  t, sub, n);
 
-        // Primary keeps full-buffer states (state_start=bank_off); frozen is compact.
-        int state_start = pol->frozen ? 0 : bank_off;
-        int state_n = (int)s_bank->shape[0] * bank_size * (int)s_bank->shape[2];
+        // Per-policy state is compact (n agents); local index 0..n-1.
+        int state_n = (int)st->shape[0] * n * (int)st->shape[2];
         zero_term_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
-            *s_bank, env->terminals, state_start, sub_start, bank_size);
+            *st, env->terminals, 0, sub, n);
 
         // Carry path: snapshot trainable policy state into per-slot initial_states.
         if (!pol->frozen && t == 0 && rollouts.initial_states.data != NULL) {
             Prec slot_st = init_slot(rollouts.initial_states, graph_slot);
             snapshot_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
-                slot_st, *s_bank, sub_start, bank_size);
+                slot_st, *st, sub, n);
         }
 
-        Prec dec = arch_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
+        Prec dec = arch_forward(&pol->arch, *w, *acts, obs_b, *st, stream);
 
         Prec p_logstd = {};
-        DecoderWeights* dw = (DecoderWeights*)w_bank->decoder;
+        DecoderWeights* dw = (DecoderWeights*)w->decoder;
         if (dw->continuous) {
             p_logstd = dw->logstd;
         }
 
-        // Offset RNG by bank_off so policies don't collide on per-buffer rng slots.
+        // Offset RNG by off so policies don't collide on per-buffer rng slots.
         int hc_stride_s = 0;
         const signed char* hc_dev_s = get_head_consume_dev(&hc_stride_s);
-        sample_logits<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
+        sample_logits<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
             dec, p_logstd, pufferl->act_sizes,
             act_b.data, lp_b.data, val_b.data,
-            pufferl->rng_states[buf] + bank_off,
+            pufferl->rng_states[buf] + off,
             mask_b.data, mask_stride, hc_dev_s, hc_stride_s);
 
         cast<<<grid_size(numel(act_b.shape)), BLOCK_SIZE, 0, stream>>>(
-                env->actions.data + (long)sub_start * act_cols,
+                env->actions.data + (long)sub * act_cols,
                 act_b.data, numel(act_b.shape));
     }
 
@@ -890,25 +898,23 @@ static Env* puf_vec_create(int, Dict*, obs_t*, float*, float*, float*) {
 }
 #endif
 
-static void env_setup(PuffeRL* p, VecEnv* vec,
-        Dict* vk, Dict* ek, int frozen_banks) {
+static void env_setup(PuffeRL* p, VecEnv* vec, Dict* vk, Dict* ek) {
     if (PUF_BACKEND == PUF_GPU) {
         assert(vec->buffers == 1 && "GPU env: num_buffers must be 1");
-        assert(frozen_banks == 0 && "GPU env: no frozen banks");
         vec->size = vec->total_agents;
         vec->envs = puf_vec_create(vec->total_agents, ek,
             p->env.obs.data, p->env.actions.data,
             p->env.rewards.data, p->env.terminals.data);
         cudaMalloc((void**)&vec->log_scratch, sizeof(Log));
         cudaMemset(vec->log_scratch, 0, sizeof(Log));
-        vec->bank_layout[0] = 0;
-        vec->bank_layout[1] = vec->agents_per_buf;
+        vec->policy_layout[0] = 0;
+        vec->policy_layout[1] = vec->agents_per_buf;
         return;
     }
     int total_agents = vec->total_agents;
     int num_buffers = vec->buffers;
     int apb = vec->agents_per_buf;
-    vec->num_workers = (int)dict_get(vk, "num_threads") / num_buffers;
+    vec->num_workers = dict_get(vk, "num_threads") / num_buffers;
     if (vec->num_workers < 1) {
         vec->num_workers = 1;
     }
@@ -954,13 +960,13 @@ static void env_setup(PuffeRL* p, VecEnv* vec,
     cudaHostAlloc((void**)&vec->action_mask, mask_bytes, cudaHostAllocPortable);
     memset(vec->action_mask, 1, mask_bytes);
 
-    float frozen_pct = (float)dict_get(vk, "frozen_bank_pct");
+    float frozen_pct = dict_get(vk, "hist_policy_percent");
     for (int buf = 0; buf < num_buffers; buf++) {
         int buf_start = buf * apb;
         int env_start = vec->env_starts[buf];
         int env_count = vec->env_counts[buf];
         int frozen_start = env_count;
-        if (frozen_banks > 0 && frozen_pct > 0.0f) {
+        if (vec->num_policies > 1 && frozen_pct > 0.0f) {
             frozen_start = env_count - (int)(frozen_pct * env_count);
         }
         int* counts = (int*)calloc(vec->num_policies, sizeof(int));
@@ -975,9 +981,9 @@ static void env_setup(PuffeRL* p, VecEnv* vec,
         int offset = 0;
         for (int b = 0; b <= vec->num_policies; b++) {
             if (buf == 0) {
-                vec->bank_layout[b] = offset;
+                vec->policy_layout[b] = offset;
             } else {
-                assert(vec->bank_layout[b] == offset);
+                assert(vec->policy_layout[b] == offset);
             }
             if (b < vec->num_policies) {
                 offset += counts[b];
@@ -986,7 +992,7 @@ static void env_setup(PuffeRL* p, VecEnv* vec,
         assert(offset == apb);
         int* cursors = (int*)calloc(vec->num_policies, sizeof(int));
         for (int b = 0; b < vec->num_policies; b++) {
-            cursors[b] = buf_start + vec->bank_layout[b];
+            cursors[b] = buf_start + vec->policy_layout[b];
         }
         for (int e = 0; e < env_count; e++) {
             Env* eptr = &vec->envs[env_start + e];
@@ -1245,9 +1251,9 @@ void vec_log(VecEnv* vec, Dict* out, int clear) {
     dict_clear(&env_out);
 }
 
-// Zero advantages on frozen-bank rows so prio_replay never samples them. Frozen
-// rollout rows hold actions/logprobs from the frozen policy; training the
-// primary's PPO on them produces garbage ratios and poisoned gradients.
+// Zero advantages on frozen-policy rows so prio_replay never samples them.
+// Those rows hold actions/logprobs from a frozen policy; training primary PPO
+// on them produces garbage ratios and poisoned gradients.
 __global__ void zero_frozen_advantages_kernel(precision_t* advantages,
         int agents_per_buf, int primary_per_buffer, int total_rows, int horizon) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1491,7 +1497,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
         int total = rows * horizon;
         zero_frozen_advantages_kernel<<<
             grid_size(total), BLOCK_SIZE, 0, train_stream>>>(
-            advantages->data, apb, pufferl->vec->bank_layout[1], rows, horizon);
+            advantages->data, apb, pufferl->vec->policy_layout[1], rows, horizon);
     }
     profile_end(hypers->profile);
 
@@ -1637,7 +1643,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
     pufferl->epoch += 1;
 }
 
-// Load frozen bank weights (flat fp32 checkpoint). Safe between rollouts —
+// Load policy weights (flat fp32 checkpoint). Safe between rollouts —
 // graphs hold the pointer, not a copy of the data.
 // --- Checkpoint I/O (load/save weights) ---
 void mkdir_p(const char* path) {
@@ -1646,17 +1652,13 @@ void mkdir_p(const char* path) {
     for (char* p = tmp + 1; *p; p++) {
         if (*p == '/') {
             *p = 0;
-            if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
-                fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
-                exit(1);
-            }
+            assert((mkdir(tmp, 0777) == 0 || errno == EEXIST)
+                && "failed to create directory");
             *p = '/';
         }
     }
-    if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
-        fprintf(stderr, "failed to create directory %s: %s\n", tmp, strerror(errno));
-        exit(1);
-    }
+    assert((mkdir(tmp, 0777) == 0 || errno == EEXIST)
+        && "failed to create directory");
 }
 
 void puf_find_latest_checkpoint(const char* dir,
@@ -1713,10 +1715,7 @@ const char* puf_checkpoint_path_key(Ini* ini, const char* key,
     out[0] = 0;
     time_t best_time = 0;
     puf_find_latest_checkpoint(root, out, out_size, &best_time);
-    if (!out[0]) {
-        fprintf(stderr, "no .bin checkpoints found in %s\n", root);
-        exit(1);
-    }
+    assert(out[0] && "no .bin checkpoints found");
     return out;
 }
 
@@ -1728,41 +1727,23 @@ void puf_save_weights(PuffeRL* p, const char* path) {
     char tmp[4096];
     snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
     FILE* fp = fopen(tmp, "wb");
-    if (!fp) {
-        fprintf(stderr, "failed to open %s for writing\n", tmp);
-        free(buf);
-        exit(1);
-    }
-    if (fwrite(buf, 1, nbytes, fp) != (size_t)nbytes) {
-        fprintf(stderr, "failed to write weights to %s\n", tmp);
-        fclose(fp);
-        free(buf);
-        exit(1);
-    }
+    assert(fp && "failed to open weights for writing");
+    assert(fwrite(buf, 1, nbytes, fp) == (size_t)nbytes
+        && "failed to write weights");
     fclose(fp);
     free(buf);
-    if (rename(tmp, path) != 0) {
-        fprintf(stderr, "failed to publish weights to %s\n", path);
-        exit(1);
-    }
+    assert(rename(tmp, path) == 0 && "failed to publish weights");
 }
 
 void puf_load_weights_into(Float dst, Prec params,
         cudaStream_t stream, const char* path) {
     int64_t nbytes = numel(dst.shape) * sizeof(float);
     FILE* fp = fopen(path, "rb");
-    if (!fp) {
-        fprintf(stderr, "failed to open %s for reading\n", path);
-        exit(1);
-    }
+    assert(fp && "failed to open weights for reading");
     char* buf = (char*)malloc(nbytes);
     size_t nread = fread(buf, 1, nbytes, fp);
     fclose(fp);
-    if ((int64_t)nread != nbytes) {
-        fprintf(stderr, "failed to read weights from %s\n", path);
-        free(buf);
-        exit(1);
-    }
+    assert((int64_t)nread == nbytes && "failed to read weights");
     cudaMemcpy(dst.data, buf, nbytes, cudaMemcpyHostToDevice);
     free(buf);
     if (USE_BF16) {
@@ -1771,11 +1752,10 @@ void puf_load_weights_into(Float dst, Prec params,
     }
 }
 
-// bank_idx is the frozen index (0..num_policies-2), maps to policies[bank_idx+1].
-void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) {
-    assert(bank_idx >= 0 && bank_idx + 1 < pufferl->num_policies);
-    Policy* pol = &pufferl->policies[bank_idx + 1];
-    assert(pol->frozen);
+// Load weights into policies[i] (full index; 0 = trainable, i>0 = frozen).
+void pufferl_load_policy(PuffeRL* pufferl, int i, const char* path) {
+    assert(i >= 0 && i < pufferl->num_policies);
+    Policy* pol = &pufferl->policies[i];
     puf_load_weights_into(pol->master_weights, pol->param,
         pufferl->default_stream, path);
     cudaDeviceSynchronize();
@@ -1799,40 +1779,40 @@ static void master_weights_setup(Float* mw, Prec* param,
 
 PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     Hypers hypers = {
-        .horizon = puf_ini_get_int(ini, "train", "horizon"),
-        .total_agents = puf_ini_get_int(ini, "vec", "total_agents"),
-        .num_buffers = puf_ini_get_int(ini, "vec", "num_buffers"),
-        .hidden_size = puf_ini_get_int(ini, "policy", "hidden_size"),
-        .num_layers = puf_ini_get_int(ini, "policy", "num_layers"),
-        .lr = puf_ini_get_float(ini, "train", "learning_rate"),
-        .min_lr_ratio = puf_ini_get_float(ini, "train", "min_lr_ratio"),
-        .anneal_lr = puf_ini_get_int(ini, "train", "anneal_lr") != 0,
-        .momentum = puf_ini_get_float(ini, "train", "momentum"),
-        .minibatch_size = puf_ini_get_int(ini, "train", "minibatch_size"),
-        .replay_ratio = puf_ini_get_float(ini, "train", "replay_ratio"),
-        .total_timesteps = puf_ini_get_long(ini, "train", "total_timesteps"),
-        .max_grad_norm = puf_ini_get_float(ini, "train", "max_grad_norm"),
-        .clip_coef = puf_ini_get_float(ini, "train", "clip_coef"),
-        .vf_clip_coef = puf_ini_get_float(ini, "train", "vf_clip_coef"),
-        .vf_coef = puf_ini_get_float(ini, "train", "vf_coef"),
-        .ent_coef = puf_ini_get_float(ini, "train", "ent_coef"),
-        .min_ent_coef_ratio = puf_ini_get_float(ini, "train", "min_ent_coef_ratio"),
-        .anneal_ent_coef = puf_ini_get_int(ini, "train", "anneal_ent_coef") != 0,
-        .gamma = puf_ini_get_float(ini, "train", "gamma"),
-        .gae_lambda = puf_ini_get_float(ini, "train", "gae_lambda"),
-        .vtrace_rho_clip = puf_ini_get_float(ini, "train", "vtrace_rho_clip"),
-        .vtrace_c_clip = puf_ini_get_float(ini, "train", "vtrace_c_clip"),
-        .prio_alpha = puf_ini_get_float(ini, "train", "prio_alpha"),
-        .prio_beta0 = puf_ini_get_float(ini, "train", "prio_beta0"),
-        .async = puf_ini_get_int(ini, "base", "async") != 0,
-        .reset_every_horizon = puf_ini_get_int(ini, "base", "reset_every_horizon") != 0,
+        .horizon = puf_ini_get(ini, "train", "horizon"),
+        .total_agents = puf_ini_get(ini, "vec", "total_agents"),
+        .num_buffers = puf_ini_get(ini, "vec", "num_buffers"),
+        .hidden_size = puf_ini_get(ini, "policy", "hidden_size"),
+        .num_layers = puf_ini_get(ini, "policy", "num_layers"),
+        .lr = puf_ini_get(ini, "train", "learning_rate"),
+        .min_lr_ratio = puf_ini_get(ini, "train", "min_lr_ratio"),
+        .anneal_lr = puf_ini_get(ini, "train", "anneal_lr") != 0,
+        .momentum = puf_ini_get(ini, "train", "momentum"),
+        .minibatch_size = puf_ini_get(ini, "train", "minibatch_size"),
+        .replay_ratio = puf_ini_get(ini, "train", "replay_ratio"),
+        .total_timesteps = puf_ini_get(ini, "train", "total_timesteps"),
+        .max_grad_norm = puf_ini_get(ini, "train", "max_grad_norm"),
+        .clip_coef = puf_ini_get(ini, "train", "clip_coef"),
+        .vf_clip_coef = puf_ini_get(ini, "train", "vf_clip_coef"),
+        .vf_coef = puf_ini_get(ini, "train", "vf_coef"),
+        .ent_coef = puf_ini_get(ini, "train", "ent_coef"),
+        .min_ent_coef_ratio = puf_ini_get(ini, "train", "min_ent_coef_ratio"),
+        .anneal_ent_coef = puf_ini_get(ini, "train", "anneal_ent_coef") != 0,
+        .gamma = puf_ini_get(ini, "train", "gamma"),
+        .gae_lambda = puf_ini_get(ini, "train", "gae_lambda"),
+        .vtrace_rho_clip = puf_ini_get(ini, "train", "vtrace_rho_clip"),
+        .vtrace_c_clip = puf_ini_get(ini, "train", "vtrace_c_clip"),
+        .prio_alpha = puf_ini_get(ini, "train", "prio_alpha"),
+        .prio_beta0 = puf_ini_get(ini, "train", "prio_beta0"),
+        .async = puf_ini_get(ini, "base", "async") != 0,
+        .reset_every_horizon = puf_ini_get(ini, "base", "reset_every_horizon") != 0,
         .cudagraphs = puf_ini_get(ini, "base", "cudagraphs") >= 0,
-        .profile = puf_ini_get_int(ini, "base", "profile") != 0,
+        .profile = puf_ini_get(ini, "base", "profile") != 0,
         .rank = ctx->rank,
         .world_size = ctx->world_size,
         .gpu_id = ctx->gpu_id,
-        .num_threads = puf_ini_get_int(ini, "vec", "num_threads"),
-        .seed = puf_ini_get_int(ini, "base", "seed"),
+        .num_threads = puf_ini_get(ini, "vec", "num_threads"),
+        .seed = puf_ini_get(ini, "base", "seed"),
     };
 
     Dict vec_kwargs = {0};
@@ -1855,13 +1835,21 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     pufferl->seed = (ulong)hypers.seed + hypers.rank;
 
     // GPU tensors allocated into pufferl->env; vec aliases them.
-    int total_agents = (int)dict_get(&vec_kwargs, "total_agents");
-    int num_buffers = (int)dict_get(&vec_kwargs, "num_buffers");
+    int total_agents = dict_get(&vec_kwargs, "total_agents");
+    int num_buffers = dict_get(&vec_kwargs, "num_buffers");
     VecEnv* vec = (VecEnv*)calloc(1, sizeof(VecEnv));
     vec->total_agents = total_agents;
     vec->buffers = num_buffers;
     vec->agents_per_buf = total_agents / num_buffers;
-    int frozen_banks = (int)dict_get(&vec_kwargs, "num_frozen_banks");
+    // Total policies including trainable policies[0]. Default 1 = train only.
+    int num_policies = dict_get(&vec_kwargs, "num_policies");
+    if (num_policies < 1) {
+        num_policies = 1;
+    }
+    // GPU envs have no per-env tags / frozen layout — selfplay and match stay CPU-only.
+    assert(!(PUF_BACKEND == PUF_GPU
+            && (num_policies > 1 || puf_ini_get(ini, "selfplay", "enabled")))
+        && "GPU env backend does not support selfplay or multi-policy (match)");
 
     // Discrete action layout. Continuous dims are size 1. Mask width is act_n.
     int num_action_heads = NUM_ATNS;
@@ -1881,8 +1869,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         && "mixed continuous/discrete action spaces not supported");
     bool is_continuous = n_cont > 0;
     pufferl->is_continuous = is_continuous;
-    vec->num_policies = frozen_banks + 1;
-    vec->bank_layout = (int*)calloc(1, (vec->num_policies + 1) * sizeof(int));
+    vec->num_policies = num_policies;
+    vec->policy_layout = (int*)calloc(1, (vec->num_policies + 1) * sizeof(int));
     vec->mask_size = act_n;
 
     // Device env IO (EnvBuf).
@@ -1906,7 +1894,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     cudaMemset(env->terminals.data, 0, total_agents * sizeof(float));
     cudaMemset(env->action_mask.data, 1, mask_bytes);
 
-    env_setup(pufferl, vec, &vec_kwargs, env_kwargs, frozen_banks);
+    env_setup(pufferl, vec, &vec_kwargs, env_kwargs);
     pufferl->vec = vec;
 
     for (int i = 0; i < NUM_TE; i++) {
@@ -1928,10 +1916,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     int num_layers = hypers.num_layers;
     int decoder_output_size = is_continuous ? num_action_heads : act_n;
     int minibatch_segments = hypers.minibatch_size / hypers.horizon;
-    int inf_batch = total_agents / num_buffers;
     int B_TT = minibatch_segments * hypers.horizon;
     int horizon = hypers.horizon;
-    int batch = total_agents / num_buffers;
     int agents_per_buf = total_agents / num_buffers;
 
     // Dedicated learner stream (always non-default; nonblocking when async).
@@ -1945,24 +1931,21 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     Allocator* acts = &pufferl->activ_alloc;
     Allocator* grads = &pufferl->grads_alloc;
 
-    // All policies: policies[0] trainable, rest frozen (rollout-only).
-    int frozen_hidden = (int)dict_get(&vec_kwargs, "frozen_bank_hidden_size");
-    int frozen_layers = (int)dict_get(&vec_kwargs, "frozen_bank_num_layers");
+    // All policies: policies[0] trainable, rest historical/frozen (rollout-only).
+    int hist_hidden = dict_get(&vec_kwargs, "hist_policy_hidden_size");
+    int hist_layers = dict_get(&vec_kwargs, "hist_policy_num_layers");
     pufferl->num_policies = vec->num_policies;
-    assert(!(pufferl->num_policies > 1 && (frozen_hidden <= 0 || frozen_layers <= 0))
-        && "num_frozen_banks requires frozen_bank_hidden_size and frozen_bank_num_layers > 0");
+    assert(!(pufferl->num_policies > 1 && (hist_hidden <= 0 || hist_layers <= 0))
+        && "num_policies > 1 requires hist_policy_hidden_size and hist_policy_num_layers > 0");
     pufferl->policies = (Policy*)calloc(1, pufferl->num_policies * sizeof(Policy));
 
     for (int b = 0; b < pufferl->num_policies; b++) {
         Policy* pol = &pufferl->policies[b];
         pol->frozen = (b > 0);
-        int h = pol->frozen ? frozen_hidden : hidden_size;
-        int L = pol->frozen ? frozen_layers : num_layers;
-        int slice = vec->bank_layout[b + 1] - vec->bank_layout[b];
+        int h = pol->frozen ? hist_hidden : hidden_size;
+        int L = pol->frozen ? hist_layers : num_layers;
+        int slice = vec->policy_layout[b + 1] - vec->policy_layout[b];
         assert(slice > 0 && "policy has no agents");
-        // Primary keeps full-buffer act/state capacity (state_start=bank_off in forward).
-        int act_batch = pol->frozen ? slice : inf_batch;
-        int state_agents = pol->frozen ? slice : batch;
 
         pol->arch = build_arch(pufferl->env_name, input_size, h, L,
             decoder_output_size, is_continuous, hypers.horizon);
@@ -1973,8 +1956,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         pol->buffer_states = (Prec*)calloc(1, num_buffers * sizeof(Prec));
         for (int i = 0; i < num_buffers; i++) {
             pol->buf_acts[i] = arch_reg_rollout(
-                &pol->arch, pol->weights, aalloc, act_batch);
-            pol->buffer_states[i] = {.shape = {L, state_agents, h}};
+                &pol->arch, pol->weights, aalloc, slice);
+            pol->buffer_states[i] = {.shape = {L, slice, h}};
             alloc_register(aalloc, &pol->buffer_states[i]);
         }
     }
@@ -2047,7 +2030,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     ulong init_seed = hypers.seed;
     weights_init(&primary->arch,
         primary->weights, &init_seed, pufferl->default_stream);
-    // Primary: cast param→master now. Frozen: load later via pufferl_load_frozen_bank.
+    // Primary: cast param→master now. Frozen: load later via pufferl_load_policy.
     for (int b = 0; b < pufferl->num_policies; b++) {
         Policy* pol = &pufferl->policies[b];
         master_weights_setup(&pol->master_weights, &pol->param,
@@ -2238,7 +2221,7 @@ void puf_dashboard_print(Ini* ini, PuffeRL* p, Dict* log, int epoch) {
     double steps = dash_num(log, "agent_steps",
         (double)p->global_step * p->hypers.world_size);
     double sps = dash_num(log, "SPS", 0);
-    long configured = (long)puf_ini_get(ini, "train", "total_timesteps");
+    long configured = puf_ini_get(ini, "train", "total_timesteps");
     long local_batch = (long)p->hypers.total_agents * p->hypers.horizon;
     long local_steps = configured / p->hypers.world_size;
     double target = (double)((local_steps / local_batch) * local_batch * p->hypers.world_size);
@@ -2448,6 +2431,41 @@ static void puf_log_history_add(PufLogHistory* h, Dict* log) {
     h->size++;
 }
 
+// Bin-mean of history[key] over agent_steps into out[0..points-1]. Dense keys.
+// points==1 → last value only. Last bin forced to final sample.
+static void log_history_bin_mean(PufLogHistory* h, const char* key,
+        int points, double* out) {
+    assert(h->size > 0 && points >= 1);
+    if (points == 1) {
+        out[0] = dict_get(&h->items[h->size - 1], key);
+        return;
+    }
+    double final_steps = dict_get(&h->items[h->size - 1], "agent_steps");
+    int out_idx = 0;
+    int bin_n = 0;
+    double bin_sum = 0;
+    double fallback = dict_get(&h->items[0], key);
+    double next_bin = final_steps / (points - 1);
+    for (int i = 0; i < h->size; i++) {
+        Dict* log = &h->items[i];
+        bin_sum += dict_get(log, key);
+        bin_n++;
+        double steps = dict_get(log, "agent_steps");
+        if (steps < next_bin || out_idx >= points - 1) {
+            continue;
+        }
+        fallback = bin_n ? bin_sum / bin_n : fallback;
+        out[out_idx++] = fallback;
+        bin_n = 0;
+        bin_sum = 0;
+        next_bin += final_steps / (points - 1);
+    }
+    out[points - 1] = dict_get(&h->items[h->size - 1], key);
+    while (out_idx < points - 1) {
+        out[out_idx++] = fallback;
+    }
+}
+
 double rollout_start(PuffeRL* p, int slot) {
     p->write_slot = slot;
     if (p->hypers.async) {
@@ -2499,23 +2517,23 @@ typedef struct {
 #define EVAL_SCORE 1
 #define EVAL_MATCH 2
 
-#define SELFPLAY_MAX_BANKS 8
+#define SELFPLAY_MAX_HIST 8
 #define SELFPLAY_PATH_MAX 4096
 
+// One historical opponent ↔ policies[policy_idx] (env tag == policy_idx).
 typedef struct {
-    char pending_path[SELFPLAY_PATH_MAX];
+    int policy_idx;
     long opp_started_step;
-    int num_envs;
-} SelfplayBank;
+} SelfplayHist;
 
 typedef struct {
-    int num_banks;
+    int num_hist;
     int max_size;
     long opp_timeout_steps;
     unsigned int rng;
     char (*pool)[SELFPLAY_PATH_MAX];
     int pool_size;
-    SelfplayBank banks[SELFPLAY_MAX_BANKS];
+    SelfplayHist hist[SELFPLAY_MAX_HIST];
 } Selfplay;
 
 void selfplay_add_checkpoint(Selfplay* sp, const char* path) {
@@ -2524,8 +2542,7 @@ void selfplay_add_checkpoint(Selfplay* sp, const char* path) {
         if (strcmp(sp->pool[i], path) == 0) return;
     }
     if (sp->pool_size == sp->max_size) {
-        memmove(sp->pool, sp->pool + 1,
-            (sp->max_size - 1) * sizeof(*sp->pool));
+        memmove(sp->pool, sp->pool + 1, (sp->max_size - 1) * sizeof(*sp->pool));
         sp->pool_size--;
     }
     snprintf(sp->pool[sp->pool_size++], sizeof(sp->pool[0]), "%s", path);
@@ -2573,8 +2590,8 @@ void run_sweep(Ini* ini, const char* exe_path) {
         const char* dot = strrchr(path, '.');
         assert(dot && dot != path && dot[1]
             && "expected section [sweep.<section>.<key>]");
-        snprintf(params[n_params].section, sizeof(params[n_params].section), "%.*s",
-            (int)(dot - path), path);
+        snprintf(params[n_params].section, sizeof(params[n_params].section),
+            "%.*s", (int)(dot - path), path);
         snprintf(params[n_params].key, sizeof(params[n_params].key), "%s", dot + 1);
 
         const char* dist = dict_get_str(dict, "distribution");
@@ -2597,8 +2614,8 @@ void run_sweep(Ini* ini, const char* exe_path) {
                 "uniform_pow2/log_normal/logit_normal)");
         }
 
-        float min_v = (float)dict_get(dict, "min");
-        float max_v = (float)dict_get(dict, "max");
+        float min_v = dict_get(dict, "min");
+        float max_v = dict_get(dict, "max");
         const char* scale_s = dict_get_str(dict, "scale");
         float scale;
         if (strcmp(scale_s, "auto") == 0) {
@@ -2608,7 +2625,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
                 && "scale=time requires positive min/max");
             scale = 1.0f / (log2f(max_v) - log2f(min_v));
         } else {
-            scale = (float)dict_get(dict, "scale");
+            scale = dict_get(dict, "scale");
         }
 
         space_init(&space->spaces[n_params], type, min_v, max_v, scale, is_integer);
@@ -2619,46 +2636,32 @@ void run_sweep(Ini* ini, const char* exe_path) {
     }
     space->num = n_params;
 
-    int max_runs = (int)puf_ini_get(ini, "sweep", "max_runs");
-    int downsample = (int)puf_ini_get(ini, "sweep", "downsample");
-    int prune_pareto = (int)puf_ini_get(ini, "sweep", "prune_pareto");
+    int max_runs = puf_ini_get(ini, "sweep", "max_runs");
+    int downsample = puf_ini_get(ini, "sweep", "downsample");
+    int prune_pareto = puf_ini_get(ini, "sweep", "prune_pareto");
     const char* metric_dist = puf_ini_get_str(ini, "sweep", "metric_distribution");
     assert((strcmp(metric_dist, "linear") == 0 || strcmp(metric_dist, "logit") == 0)
         && "sweep.metric_distribution must be linear or logit");
     int use_logit = strcmp(metric_dist, "logit") == 0;
-    float max_cost = (float)puf_ini_get(ini, "sweep", "max_suggestion_cost");
-    float early_stop_quantile = (float)puf_ini_get(ini, "sweep", "early_stop_quantile");
+    float max_cost = puf_ini_get(ini, "sweep", "max_suggestion_cost");
+    float early_stop_quantile = puf_ini_get(ini, "sweep", "early_stop_quantile");
     assert(max_runs >= 1 && "sweep.max_runs must be >= 1");
     assert(downsample >= 1 && downsample <= TRAIN_RESULT_MAX_POINTS
         && "sweep.downsample must be in [1, TRAIN_RESULT_MAX_POINTS]");
-    int success_cap = max_runs * downsample * 2;
-    if (success_cap < 8192) success_cap = 8192;
+    int success_cap = (int)fmaxf((float)(max_runs * downsample * 2), 8192.0f);
 
     // GPU packing: each trial is a full train (launch_train) that may itself
     // use train.gpus for NCCL DP. Concurrent trials = sweep_gpus / train_gpus
     // on disjoint blocks [0,W), [W,2W), ...  e.g. 8 GPUs, train.gpus=2 → 4 trials.
     int total_gpus = 0;
-    cudaError_t err = cudaGetDeviceCount(&total_gpus);
-    if (err != cudaSuccess || total_gpus < 1) {
-        fprintf(stderr, "sweep error: no CUDA devices available\n");
-        exit(1);
-    }
-    int sweep_gpus = (int)puf_ini_get(ini, "sweep", "gpus");
-    int train_gpus = (int)puf_ini_get(ini, "train", "gpus");
-    assert(sweep_gpus >= 0 && "sweep.gpus must be >= 0");
-    if (sweep_gpus == 0) {
+    assert(cudaGetDeviceCount(&total_gpus) == cudaSuccess && total_gpus >= 1);
+    int train_gpus = puf_ini_get(ini, "train", "gpus");
+    int sweep_gpus = puf_ini_get(ini, "sweep", "gpus");
+    if (sweep_gpus == -1) {
         sweep_gpus = total_gpus;
     }
-    assert(sweep_gpus <= total_gpus
-        && "sweep.gpus exceeds visible CUDA devices");
-    assert(train_gpus >= 1 && "train.gpus must be >= 1");
-    assert(sweep_gpus >= train_gpus
-        && "sweep.gpus must be >= train.gpus");
-    if ((int)puf_ini_get(ini, "sweep", "use_gpu")) {
-        cudaSetDevice(sweep_gpus - 1);
-    }
-
-    int parallel = sweep_gpus / train_gpus;
+    assert(train_gpus >= 1 && (float)sweep_gpus == fminf(
+        fmaxf((float)sweep_gpus, (float)train_gpus), (float)total_gpus));
 
     ProteinSweep* protein = protein_sweep_create(space,
         10, 256, 50, 0.001f, 50, 750, 4096,
@@ -2666,8 +2669,9 @@ void run_sweep(Ini* ini, const char* exe_path) {
         1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
         success_cap, 1024, 5, 73ULL);
 
+    int parallel = sweep_gpus / train_gpus;
+    // Row 0 = staging for suggest; rows 1..parallel = per-slot copies for observe.
     float* samples = (float*)calloc((parallel + 1) * space->num, sizeof(float));
-    float* sample = samples;
     SweepJob* jobs = (SweepJob*)calloc(parallel, sizeof(SweepJob));
     int failed_workers = 0;
     int next_run_id = 0;
@@ -2678,48 +2682,49 @@ void run_sweep(Ini* ini, const char* exe_path) {
     // while more runs remain.
     while (completed < max_runs || active > 0) {
         for (int i = 0; i < parallel; i++) {
-            if (jobs[i].pid || completed + active >= max_runs) continue;
+            if (jobs[i].pid || completed + active >= max_runs) {
+                continue;
+            }
 
             ProteinSweepInfo info = {0};
             if (!next_run_id) {
                 for (int j = 0; j < space->num; j++) {
-                    float val = (float)puf_ini_get(ini, params[j].section, params[j].key);
+                    float val = puf_ini_get(ini, params[j].section, params[j].key);
                     float norm = space_normalize(&space->spaces[j], val);
                     assert(isfinite(norm) && norm >= -1.0f && norm <= 1.0f
                         && "default sweep value outside its sweep range");
-                    sample[j] = norm;
+                    samples[j] = norm;
                 }
             } else {
-                // Invalid train shapes die in the worker (launch_train asserts);
-                // failed workers are observed as bad samples below.
-                info = protein_sweep_suggest(protein, sample, NAN);
+                // Invalid jobs die and produce "fail" obs
+                info = protein_sweep_suggest(protein, samples, NAN);
             }
 
-            SweepJob job = {0};
-            job.run = next_run_id++;
-            job.random = info.is_random;
-            job.gp_obs = info.n_gp_obs;
-            job.pareto = info.n_pareto;
-            job.sample = samples + (size_t)(i + 1) * space->num;
-            memcpy(job.sample, sample, space->num * sizeof(float));
+            SweepJob job = {
+                .run = next_run_id++,
+                .random = info.is_random,
+                .gp_obs = info.n_gp_obs,
+                .pareto = info.n_pareto,
+                .sample = samples + (size_t)(i + 1) * space->num,
+            };
+            memcpy(job.sample, samples, space->num * sizeof(float));
 
-            if (job.run) {
-                for (int p = 0; p < space->num; p++) {
-                    float val = space_unnormalize(&space->spaces[p], sample[p]);
-                    char buf[64];
-                    snprintf(buf, sizeof(buf), "%.9g", val);
-                    char key[256];
-                    snprintf(key, sizeof(key), "%s.%s", params[p].section, params[p].key);
-                    puf_ini_put(ini, key, buf);
-                }
+            for (int p = 0; p < space->num; p++) {
+                float val = space_unnormalize(&space->spaces[p], samples[p]);
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%.9g", val);
+                char key[256];
+                snprintf(key, sizeof(key), "%s.%s",
+                    params[p].section, params[p].key);
+                puf_ini_put(ini, key, buf);
             }
             char run_id[128];
             snprintf(run_id, sizeof(run_id), "sweep_%ld_%04d",
                 (long)(1000.0 * wall_clock()), job.run);
             puf_ini_put(ini, "base.run_id", run_id);
 
-            // Spawn clean train process (after parent CUDA init for protein).
-            // Child runs main→launch_train; train.gpus>1 DP-forks inside that process.
+            // Spawn train: result pipe + full ini as section.key=value argv.
+            // Child may NCCL-fork again if train.gpus > 1.
             int pipefd[2];
             assert(pipe(pipefd) == 0);
             char buf[64];
@@ -2732,153 +2737,118 @@ void run_sweep(Ini* ini, const char* exe_path) {
             for (int s = 0; s < ini->num_sections; s++) {
                 nkeys += ini->sections[s].size;
             }
-            int argc = nkeys + 4;
-            char** argv = (char**)calloc(argc, sizeof(char*));
+            char** argv = (char**)calloc(nkeys + 4, sizeof(char*));
             argv[0] = (char*)exe_path;
             argv[1] = (char*)"train";
             argv[2] = (char*)puf_ini_get_str(ini, "base", "env_name");
-            int idx = 3;
+            int argc = 3;
             char full_key[PUF_DICT_MAX_KEY * 2];
+            char val[128];
             for (int s = 0; s < ini->num_sections; s++) {
                 Dict* dict = &ini->sections[s];
                 for (int k = 0; k < dict->size; k++) {
-                    snprintf(full_key, sizeof(full_key), "%s.%s",
-                        dict->name, dict->items[k].key);
                     DictItem* item = &dict->items[k];
-                    char val[128];
                     const char* src = item->str;
                     if (!src) {
                         snprintf(val, sizeof(val), "%.17g", item->value);
                         src = val;
                     }
+                    snprintf(full_key, sizeof(full_key), "%s.%s",
+                        dict->name, item->key);
                     size_t n = strlen(full_key) + strlen(src) + 2;
-                    char* out = (char*)malloc(n);
-                    snprintf(out, n, "%s=%s", full_key, src);
-                    argv[idx++] = out;
+                    argv[argc] = (char*)malloc(n);
+                    snprintf(argv[argc], n, "%s=%s", full_key, src);
+                    argc++;
                 }
             }
-            argv[argc - 1] = NULL;
+            argv[argc] = NULL;
 
             posix_spawn_file_actions_t actions;
             posix_spawn_file_actions_init(&actions);
             posix_spawn_file_actions_addclose(&actions, pipefd[0]);
-            posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
-            pid_t pid = 0;
-            int err = posix_spawnp(&pid, exe_path, &actions, NULL, argv, environ);
+            posix_spawn_file_actions_addopen(
+                &actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+            assert(posix_spawnp(&job.pid, exe_path, &actions, NULL, argv, environ) == 0
+                && "posix_spawn train failed");
             posix_spawn_file_actions_destroy(&actions);
-            for (int a = 3; a < argc - 1; a++) {
+            for (int a = 3; a < argc; a++) {
                 free(argv[a]);
             }
             free(argv);
-            if (err != 0) {
-                fprintf(stderr, "posix_spawn train failed: %s\n", strerror(err));
-                exit(1);
-            }
             close(pipefd[1]);
             job.fd = pipefd[0];
-            job.pid = pid;
             jobs[i] = job;
             active++;
         }
-        if (!active) break;
+        if (!active) {
+            break;
+        }
 
+        // Reap one finished worker and feed protein (curve points or a fail obs).
         int status = 0;
         pid_t done = waitpid(-1, &status, 0);
         assert(done > 0 && "sweep waitpid failed");
-        int i = 0;
-        for (; i < parallel && jobs[i].pid != done; i++) {}
-        assert(i < parallel && "waitpid reaped unknown child");
-        SweepJob* job = &jobs[i];
-        int ok = read(job->fd, &job->result, sizeof(job->result)) == sizeof(job->result);
+        SweepJob* job = NULL;
+        for (int j = 0; j < parallel; j++) {
+            if (jobs[j].pid == done) {
+                job = &jobs[j];
+                break;
+            }
+        }
+        assert(job && "waitpid reaped unknown child");
+        int nread = (int)read(job->fd, &job->result, sizeof(job->result));
         close(job->fd);
         job->pid = 0;
         active--;
-        int good = ok && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 
-        if (!good) {
-            fprintf(stderr, "sweep worker run=%d failed; marking sample bad\n", job->run);
+        if (nread != (int)sizeof(job->result)
+                || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "sweep worker run=%d failed; marking sample bad\n",
+                job->run);
             protein_sweep_observe(protein, job->sample, NAN, max_cost, 1);
-            if (++failed_workers > 1000) {
-                fprintf(stderr, "sweep error: too many failed workers\n");
-                exit(1);
-            }
-        } else {
-            // Non-selfplay: points[] is a downsampled learning curve.
-            // Selfplay: points==1 — final pool-eval winrate (or last train metric).
-            for (int pi = 0; pi < job->result.points; pi++) {
-                protein_sweep_observe(protein, job->sample,
-                    job->result.scores[pi], job->result.costs[pi], 0);
-            }
-            printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
-                job->run, job->result.score, job->result.cost, job->result.steps,
-                job->random, job->gp_obs, job->pareto);
-            completed++;
+            assert(++failed_workers <= 1000 && "too many failed sweep workers");
+            continue;
         }
+        // points[]: learning-curve downsample, or 1 final score (e.g. selfplay).
+        for (int pi = 0; pi < job->result.points; pi++) {
+            protein_sweep_observe(protein, job->sample,
+                job->result.scores[pi], job->result.costs[pi], 0);
+        }
+        printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
+            job->run, job->result.score, job->result.cost, job->result.steps,
+            job->random, job->gp_obs, job->pareto);
+        completed++;
     }
-
-    free(jobs);
-    free(samples);
-    free(params);
-    protein_sweep_destroy(protein);
-    sweep_space_destroy(space);
 }
 
+// Standard eval (parallel envs + log accum), live render, or match (two policies).
+// Env layout (agents/bots/DR/etc.) comes from ini — not hard-coded here.
 EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
     int render = mode == EVAL_RENDER;
     int match = mode == EVAL_MATCH;
     EvalResult result = {0};
-    long num_games = puf_ini_get(ini, "base", "num_games");
-    if (!num_games) {
-        num_games = puf_ini_get(ini, "base", "eval_episodes");
-    }
-    long burnin_games = puf_ini_get(ini, "base", "burnin_games");
-    if (!render && (num_games <= 0 || burnin_games < 0)) {
-        fprintf(stderr, "eval requires positive num_games and nonnegative burnin_games\n");
-        exit(1);
-    }
-    if (!render) {
-        long eval_agents = puf_ini_get(ini, "base", "eval_agents");
-        if (!eval_agents && match) {
-            eval_agents = puf_ini_get(ini, "selfplay", "eval_agents");
-        }
-        if (eval_agents <= 0 && match) {
-            eval_agents = 8192;
-        } else if (eval_agents <= 0) {
-            eval_agents = num_games / 8;
-            if (eval_agents < 1024) {
-                eval_agents = 1024;
-            }
-            if (eval_agents > 4096) {
-                eval_agents = 4096;
-            }
-            if (eval_agents > num_games && num_games >= 1024) {
-                eval_agents = num_games;
-            }
-        } else if (eval_agents > num_games) {
-            eval_agents = num_games;
-        }
-        eval_agents += (-eval_agents) % (match ? 4 : 2);
-
+    long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
+    assert((render || eval_episodes > 0)
+        && "eval requires positive base.eval_episodes");
+    long eval_agents = puf_ini_get(ini, "base", "eval_agents");
+    if (!render && eval_agents != -1) {
         char agents_buf[64];
         snprintf(agents_buf, sizeof(agents_buf), "%ld", eval_agents);
-        puf_ini_put(ini, "vec.num_buffers", "2");
         puf_ini_put(ini, "vec.total_agents", agents_buf);
     }
     if (match) {
-        // Enemy bank uses same arch as policy (match loads both checkpoints).
+        // One frozen opponent; arch matches primary unless ini overrides.
+        // Assign to int first — varargs don't convert double→int for %d.
+        int match_hidden = puf_ini_get(ini, "policy", "hidden_size");
+        int match_layers = puf_ini_get(ini, "policy", "num_layers");
         char hidden_buf[32], layers_buf[32];
-        snprintf(hidden_buf, sizeof(hidden_buf), "%d",
-            (int)puf_ini_get(ini, "policy", "hidden_size"));
-        snprintf(layers_buf, sizeof(layers_buf), "%d",
-            (int)puf_ini_get(ini, "policy", "num_layers"));
-        puf_ini_put(ini, "vec.num_frozen_banks", "1");
-        puf_ini_put(ini, "vec.frozen_bank_pct", "1");
-        puf_ini_put(ini, "vec.frozen_bank_hidden_size", hidden_buf);
-        puf_ini_put(ini, "vec.frozen_bank_num_layers", layers_buf);
+        snprintf(hidden_buf, sizeof(hidden_buf), "%d", match_hidden);
+        snprintf(layers_buf, sizeof(layers_buf), "%d", match_layers);
+        puf_ini_put(ini, "vec.num_policies", "2");
+        puf_ini_put(ini, "vec.hist_policy_percent", "1");
+        puf_ini_put(ini, "vec.hist_policy_hidden_size", hidden_buf);
+        puf_ini_put(ini, "vec.hist_policy_num_layers", layers_buf);
         puf_ini_put(ini, "selfplay.enabled", "0");
-        puf_ini_put(ini, "env.dr", "0");
-        puf_ini_put(ini, "env.num_agents", "2");
-        puf_ini_put(ini, "env.num_bots", "0");
     }
     puf_ini_put(ini, "base.reset_every_horizon", "0");
     puf_ini_put(ini, "train.horizon", "1");
@@ -2891,29 +2861,25 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
             "load_model_path", a_path_buf, sizeof(a_path_buf));
         const char* b_path = puf_checkpoint_path_key(ini,
             "load_enemy_model_path", b_path_buf, sizeof(b_path_buf));
-        if (!a_path || !b_path) {
-            fprintf(stderr, "match requires base.load_model_path and base.load_enemy_model_path\n");
-            exit(1);
-        }
-        puf_load_weights_into(pufferl->policies[0].master_weights,
-            pufferl->policies[0].param, pufferl->default_stream, a_path);
-        pufferl_load_frozen_bank(pufferl, 0, b_path);
+        assert(a_path && b_path
+            && "match requires base.load_model_path and base.load_enemy_model_path");
+        pufferl_load_policy(pufferl, 0, a_path);
+        pufferl_load_policy(pufferl, 1, b_path);
     } else {
         char resolved_path[4096];
         const char* load_path = puf_checkpoint_path_key(ini,
             "load_model_path", resolved_path, sizeof(resolved_path));
         if (load_path) {
-            puf_load_weights_into(pufferl->policies[0].master_weights,
-                pufferl->policies[0].param, pufferl->default_stream, load_path);
-            printf("Loaded weights from %s\n", load_path);
+            pufferl_load_policy(pufferl, 0, load_path);
+            if (verbose) {
+                printf("Loaded weights from %s\n", load_path);
+            }
         }
     }
 
-    Dict baseline = {0};
-    long baseline_n = 0;
     while (true) {
         if (render) {
-            puf_render(PUF_BACKEND == PUF_GPU ? NULL : &pufferl->vec->envs[0]);
+            puf_render(pufferl->vec->envs);
         }
         rollouts(pufferl);
         Dict log = {0};
@@ -2923,54 +2889,32 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
             continue;
         }
 
-        long n = (long)dict_get(&log, "env/n");
+        long n = dict_get(&log, "env/n");
+        if (verbose && n > 0) {
+            if (match) {
+                printf("\rgames=%ld/%ld  A=%.3f  B=%.3f  draw=%.3f",
+                    n, eval_episodes,
+                    dict_get(&log, "env/policy_0_score"),
+                    dict_get(&log, "env/policy_1_score"),
+                    dict_get(&log, "env/draw_rate"));
+            } else {
+                printf("\rgames=%ld/%ld  score=%.3f  perf=%.4f",
+                    n, eval_episodes,
+                    dict_get(&log, "env/score"),
+                    dict_get(&log, "env/perf"));
+            }
+        }
+        if (n < eval_episodes) {
+            continue;
+        }
         if (match) {
-            if (n < num_games) {
-                if (verbose && n > 0) {
-                    printf("\rgames=%ld/%ld  A=%.3f  B=%.3f  draw=%.3f",
-                        n, num_games,
-                        dict_get(&log, "env/slot_0_score"),
-                        dict_get(&log, "env/slot_1_score"),
-                        dict_get(&log, "env/draw_rate"));
-                }
-                continue;
-            }
-            result.score = (float)dict_get(&log, "env/slot_0_score");
-            result.draw = (float)dict_get(&log, "env/draw_rate");
-            result.games = (int)n;
-            break;
+            result.score = dict_get(&log, "env/policy_0_score");
+            result.draw = dict_get(&log, "env/draw_rate");
+        } else {
+            result.score = dict_get(&log, "env/score");
         }
-        if (n == 0) {
-            continue;
-        }
-
-        if (burnin_games > 0 && baseline_n == 0 && n >= burnin_games) {
-            baseline = log;
-            baseline_n = n;
-            if (verbose) {
-                printf("\rbot_eval_burnin=%ld/%ld", n, burnin_games);
-            }
-            continue;
-        }
-
-        double scored_n = n - baseline_n;
-        double score = dict_get(&log, "env/score");
-        double perf = dict_get(&log, "env/perf");
-        if (baseline_n > 0 && scored_n > 0) {
-            double base_n = (double)baseline_n;
-            double cur_n = (double)n;
-            score = (score * cur_n - dict_get(&baseline, "env/score") * base_n) / scored_n;
-            perf = (perf * cur_n - dict_get(&baseline, "env/perf") * base_n) / scored_n;
-        }
-        if (verbose) {
-            printf("\rbot_eval=%.0f/%ld  perf=%.4f  score=%.3f",
-                scored_n, num_games, perf, score);
-        }
-        if ((n - baseline_n) >= num_games && (!burnin_games || baseline_n > 0)) {
-            result.score = (float)score;
-            result.games = (int)scored_n;
-            break;
-        }
+        result.games = (int)n;
+        break;
     }
     if (!render && verbose) {
         printf("\n");
@@ -2981,9 +2925,9 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
 
 TrainResult run_train(Ini* ini, TrainContext* ctx) {
     int use_selfplay = puf_ini_get(ini, "selfplay", "enabled");
-        if (!use_selfplay) {
-        puf_ini_put(ini, "vec.num_frozen_banks", "0");
-        puf_ini_put(ini, "vec.frozen_bank_pct", "0");
+    if (!use_selfplay) {
+        puf_ini_put(ini, "vec.num_policies", "1");
+        puf_ini_put(ini, "vec.hist_policy_percent", "0");
     }
 
     char run_id[64];
@@ -3017,48 +2961,32 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         if (ctx->artifact_owner) {
             puf_save_weights(pufferl, initial_checkpoint);
         }
-        selfplay.num_banks = pufferl->num_policies - 1;
-        if (selfplay.num_banks <= 0 || selfplay.num_banks > SELFPLAY_MAX_BANKS) {
-            fprintf(stderr, "selfplay requires 1..%d frozen banks\n", SELFPLAY_MAX_BANKS);
-            exit(1);
-        }
-        selfplay.max_size = (int)puf_ini_get(ini, "selfplay", "max_size");
+        selfplay.num_hist = pufferl->num_policies - 1;
+        assert(selfplay.num_hist > 0 && selfplay.num_hist <= SELFPLAY_MAX_HIST
+            && "selfplay requires num_policies in 2..SELFPLAY_MAX_HIST+1");
+        selfplay.max_size = puf_ini_get(ini, "selfplay", "max_size");
         assert(selfplay.max_size > 0 && "selfplay.max_size must be positive");
         selfplay.pool = (char (*)[SELFPLAY_PATH_MAX])calloc(
             selfplay.max_size, sizeof(*selfplay.pool));
-        selfplay.opp_timeout_steps = (long)puf_ini_get(ini, "selfplay", "opp_timeout_steps");
-        selfplay.rng = (unsigned int)puf_ini_get(ini, "selfplay", "seed")
-            + (unsigned int)pufferl->hypers.rank;
+        selfplay.opp_timeout_steps = puf_ini_get(ini, "selfplay", "opp_timeout_steps");
+        selfplay.rng = puf_ini_get(ini, "selfplay", "seed") + pufferl->hypers.rank;
         long current_step = pufferl->global_step * pufferl->hypers.world_size;
 
-        if (PUF_BACKEND != PUF_GPU) {
-            Env* envs = pufferl->vec->envs;
-            for (int i = 0; i < pufferl->vec->size; i++) {
-                int tag = envs[i].tag;
-                if (tag > 0 && tag <= selfplay.num_banks) {
-                    selfplay.banks[tag - 1].num_envs++;
-                }
-            }
-        }
-
         selfplay_add_checkpoint(&selfplay, initial_checkpoint);
-        for (int b = 0; b < selfplay.num_banks; b++) {
-            pufferl_load_frozen_bank(pufferl, b, selfplay_sample(&selfplay));
-            selfplay.banks[b].opp_started_step = current_step;
+        for (int s = 0; s < selfplay.num_hist; s++) {
+            SelfplayHist* hist = &selfplay.hist[s];
+            hist->policy_idx = s + 1;
+            pufferl_load_policy(pufferl, hist->policy_idx, selfplay_sample(&selfplay));
+            hist->opp_started_step = current_step;
         }
     }
 
     long total_timesteps = puf_ini_get(ini, "train", "total_timesteps");
-    long batch_size = (long)puf_ini_get(ini, "vec", "total_agents") *
-        (long)puf_ini_get(ini, "train", "horizon");
+    long batch_size = puf_ini_get(ini, "vec", "total_agents") *
+        puf_ini_get(ini, "train", "horizon");
     long local_timesteps = total_timesteps / ctx->world_size;
     long train_epochs = local_timesteps / batch_size;
     long eval_epochs = train_epochs / 2;
-    // Optional multiplier for longer post-train eval (noise studies). Default 1.
-    double eval_epoch_mult = puf_ini_get(ini, "base", "eval_epoch_mult");
-    if (eval_epoch_mult > 1.0) {
-        eval_epochs = (long)fmax(1, (double)eval_epochs * eval_epoch_mult);
-    }
     long checkpoint_interval = puf_ini_get(ini, "base", "checkpoint_interval");
     long eval_episodes = puf_ini_get(ini, "base", "eval_episodes");
     // Sweep objective: bare names → env/<name>; keys with '/' used as-is.
@@ -3072,7 +3000,6 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     puf_log_history_init(&log_history, (int)train_epochs + 1);
     TrainResult result = {0};
     char final_checkpoint[4096] = {0};
-    double last_dashboard_time = 0;
 
     for (long epoch = 0; epoch < train_epochs + eval_epochs; epoch++) {
         if (epoch < train_epochs && pufferl->hypers.async) {
@@ -3128,8 +3055,25 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         }
 
         int is_eval = epoch >= train_epochs;
-        if (!is_eval && last_log.size &&
-                wall_clock() < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
+        // Resample frozen opponents on a fixed global-step interval. Episode-aligned
+        // swaps are not doable in general (async envs, different episode lengths,
+        // no single "all games ended" barrier). Waiting on env boundary flags was a
+        // dead end. Correct mid-swap handling would mark those steps truncated in
+        // advantage and reset the swapped envs — not wait for natural episode ends.
+        if (use_selfplay && !is_eval && selfplay.opp_timeout_steps > 0) {
+            long step = pufferl->global_step * pufferl->hypers.world_size;
+            for (int s = 0; s < selfplay.num_hist; s++) {
+                SelfplayHist* hist = &selfplay.hist[s];
+                if (step - hist->opp_started_step >= selfplay.opp_timeout_steps) {
+                    pufferl_load_policy(pufferl, hist->policy_idx,
+                        selfplay_sample(&selfplay));
+                    hist->opp_started_step = step;
+                }
+            }
+        }
+
+        if (!is_eval && last_log.size && wall_clock()
+                < pufferl->last_log_time + 0.6 && epoch < train_epochs - 1) {
             continue;
         }
 
@@ -3140,9 +3084,8 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             long global_step = pufferl->global_step;
             double now = wall_clock();
             double dt = now - pufferl->last_log_time;
-            double sps = dt > 0
-                ? (double)(global_step - pufferl->last_log_step) / dt * pufferl->hypers.world_size
-                : 0;
+            double sps = dt > 0 ? (double)(global_step -
+                pufferl->last_log_step) / dt * pufferl->hypers.world_size : 0;
             pufferl->last_log_time = now;
             pufferl->last_log_step = global_step;
 
@@ -3156,21 +3099,16 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             float losses_host[NUM_LOSSES];
             cudaMemcpy(losses_host, pufferl->losses, sizeof(losses_host),
                 cudaMemcpyDeviceToHost);
-            float loss_n = losses_host[LOSS_N];
-            float inv_n = loss_n > 0 ? 1.0f / loss_n : 0.0f;
-            dict_set(&new_log, "loss/policy", losses_host[LOSS_PG] * inv_n);
-            dict_set(&new_log, "loss/value", losses_host[LOSS_VF] * inv_n);
-            dict_set(&new_log, "loss/entropy", losses_host[LOSS_ENT] * inv_n);
-            dict_set(&new_log, "loss/total", losses_host[LOSS_TOTAL] * inv_n);
-            dict_set(&new_log, "loss/old_kl", losses_host[LOSS_OLD_APPROX_KL] * inv_n);
-            dict_set(&new_log, "loss/kl", losses_host[LOSS_APPROX_KL] * inv_n);
-            dict_set(&new_log, "loss/clipfrac", losses_host[LOSS_CLIPFRAC] * inv_n);
+            float inv_n = losses_host[LOSS_N] > 0 ? 1.0f / losses_host[LOSS_N] : 0.0f;
+            for (int i = 0; i < LOSS_N; i++) {
+                dict_set(&new_log, LOSS_NAMES[i], losses_host[i] * inv_n);
+            }
             cudaMemset(pufferl->losses, 0, NUM_LOSSES * sizeof(float));
 
             log_util(pufferl, &new_log);
 
             float train_total = 0;
-            for (int i = 0; i < (int)(sizeof(PROF_NAMES) / sizeof(PROF_NAMES[0])); i++) {
+            for (int i = 0; i < NUM_PROF; i++) {
                 float sec = pufferl->profile.accum[i] / 1000.0f;
                 char key[256];
                 snprintf(key, sizeof(key), "perf/%s", PROF_NAMES[i]);
@@ -3181,57 +3119,22 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             }
             dict_set(&new_log, "perf/train", train_total);
             memset(pufferl->profile.accum, 0, sizeof(pufferl->profile.accum));
-        }
-        for (int i = 0; i < new_log.size; i++) {
-            DictItem* item = &new_log.items[i];
-            dict_set(&last_log, item->key, item->value);
-        }
-        dict_clear(&new_log);
-        if (use_selfplay && !is_eval && PUF_BACKEND != PUF_GPU) {
-            long current_step = pufferl->global_step * pufferl->hypers.world_size;
-            Env* envs = pufferl->vec->envs;
-            for (int b = 0; b < selfplay.num_banks; b++) {
-                SelfplayBank* bank = &selfplay.banks[b];
-                int tag = b + 1;
-                if (bank->pending_path[0]) {
-                    int aligned = 0;
-                    for (int i = 0; i < pufferl->vec->size; i++) {
-                        if (envs[i].tag == tag && envs[i].boundary_reached) {
-                            aligned++;
-                        }
-                    }
-                    if (aligned >= bank->num_envs) {
-                        pufferl_load_frozen_bank(pufferl, b, bank->pending_path);
-                        for (int i = 0; i < pufferl->vec->size; i++) {
-                            if (envs[i].tag == tag) {
-                                envs[i].boundary_reached = 0;
-                            }
-                        }
-                        bank->pending_path[0] = 0;
-                        bank->opp_started_step = current_step;
-                    }
-                } else if (selfplay.opp_timeout_steps > 0 &&
-                        current_step - bank->opp_started_step >= selfplay.opp_timeout_steps) {
-                    snprintf(bank->pending_path, sizeof(bank->pending_path), "%s",
-                        selfplay_sample(&selfplay));
-                    for (int i = 0; i < pufferl->vec->size; i++) {
-                        if (envs[i].tag == tag) {
-                            envs[i].boundary_reached = 0;
-                        }
-                    }
-                }
+
+            if (use_selfplay) {
+                dict_set(&new_log, "pool/size", selfplay.pool_size);
+                dict_set(&new_log, "pool/num_hist", selfplay.num_hist);
+                dict_set(&new_log, "pool/num_policies", pufferl->num_policies);
             }
-            dict_set(&last_log, "pool/size", selfplay.pool_size);
-            dict_set(&last_log, "pool/num_banks", selfplay.num_banks);
         }
+        // Dense keys: replace last_log wholesale.
+        dict_clear(&last_log);
+        dict_copy(&last_log, &new_log);
+        dict_clear(&new_log);
 
         int eval_done = is_eval && dict_get(&last_log, "env/n") > eval_episodes;
-        int loop_done = epoch == train_epochs + eval_epochs - 1;
-        double now = wall_clock();
-        int print_dashboard = !is_eval || eval_done || loop_done || now >= last_dashboard_time + 0.6;
-        if (ctx->artifact_owner && print_dashboard) {
+        // Same cadence as log throttle: print when we build a log (train ~0.6s).
+        if (ctx->artifact_owner) {
             puf_dashboard_print(ini, pufferl, &last_log, (int)pufferl->epoch);
-            last_dashboard_time = now;
         }
 
         // Wait until the objective appears; do not treat negative values as missing.
@@ -3246,16 +3149,13 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         }
     }
 
-    // Selfplay: single final observation only (pool eval or last train metric).
-    // Normal sweeps: downsampled learning curve for multi-fidelity protein.
-    // uptime/agent_steps always from the train log path. target_key only after the
-    // train loop has seen at least one objective sample (else leave 0).
-    result.cost = (float)dict_get(&last_log, "uptime");
-    result.steps = (float)dict_get(&last_log, "agent_steps");
+    // TrainResult curve: bin-mean over log_history (same as artifact metrics).
+    result.cost = dict_get(&last_log, "uptime");
+    result.steps = dict_get(&last_log, "agent_steps");
     DictItem* target = dict_find(&last_log, target_key);
     result.score = target ? (float)target->value : 0;
 
-    int points = use_selfplay ? 1 : (int)puf_ini_get(ini, "sweep", "downsample");
+    int points = use_selfplay ? 1 : puf_ini_get(ini, "sweep", "downsample");
     assert(points >= 1 && points <= TRAIN_RESULT_MAX_POINTS
         && "sweep.downsample must be in [1, TRAIN_RESULT_MAX_POINTS]");
     result.points = points;
@@ -3265,20 +3165,18 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         result.costs[0] = result.cost;
         result.step_points[0] = result.steps;
     } else {
-        // History entries are only added after target_key appears, so all keys exist.
-        float final_steps = (float)dict_get(
-            &log_history.items[log_history.size - 1], "agent_steps");
-        int cursor = 0;
+        double tmp[TRAIN_RESULT_MAX_POINTS];
+        log_history_bin_mean(&log_history, target_key, points, tmp);
         for (int p = 0; p < points; p++) {
-            float step_target = final_steps * (float)p / (float)(points - 1);
-            while (cursor + 1 < log_history.size &&
-                    (float)dict_get(&log_history.items[cursor], "agent_steps") < step_target) {
-                cursor++;
-            }
-            Dict* log = &log_history.items[cursor];
-            result.scores[p] = (float)dict_get(log, target_key);
-            result.costs[p] = (float)dict_get(log, "uptime");
-            result.step_points[p] = (float)dict_get(log, "agent_steps");
+            result.scores[p] = (float)tmp[p];
+        }
+        log_history_bin_mean(&log_history, "uptime", points, tmp);
+        for (int p = 0; p < points; p++) {
+            result.costs[p] = (float)tmp[p];
+        }
+        log_history_bin_mean(&log_history, "agent_steps", points, tmp);
+        for (int p = 0; p < points; p++) {
+            result.step_points[p] = (float)tmp[p];
         }
         result.scores[points - 1] = result.score;
         result.costs[points - 1] = result.cost;
@@ -3289,13 +3187,13 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     // Selfplay end rating: match final checkpoint vs a small fixed opponent pool.
     // Mean A winrate is the sole protein score when eval_games > 0.
     if (use_selfplay && final_checkpoint[0] && ctx->artifact_owner) {
-        int max_opp = (int)puf_ini_get(ini, "selfplay", "eval_pool_size");
-        long games = (long)puf_ini_get(ini, "selfplay", "eval_games");
+        int max_opp = puf_ini_get(ini, "selfplay", "eval_pool_size");
+        long games = puf_ini_get(ini, "selfplay", "eval_games");
         if (max_opp > 0 && games > 0) {
             int n_opp = 0;
             char games_buf[32];
             snprintf(games_buf, sizeof(games_buf), "%ld", games);
-            puf_ini_put(ini, "base.num_games", games_buf);
+            puf_ini_put(ini, "base.eval_episodes", games_buf);
             puf_ini_put(ini, "base.load_model_path", final_checkpoint);
 
             float sum = 0;
@@ -3328,95 +3226,31 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         snprintf(log_path, sizeof(log_path), "%s/%s.ini", log_dir, run_id);
 
         FILE* fp = fopen(log_path, "w");
-        if (!fp) {
-            fprintf(stderr, "failed to write log %s\n", log_path);
-            exit(1);
-        }
+        assert(fp && "failed to open log for writing");
 
         fprintf(fp, "# PufferLib log v1\n");
         puf_ini_write(fp, ini);
         fprintf(fp, "\n[metrics]\n");
 
-        int downsample = (int)puf_ini_get(ini, "sweep", "downsample");
-        Dict keys = {0};
-        for (int i = 0; i < log_history.size; i++) {
-            Dict* log = &log_history.items[i];
-            for (int j = 0; j < log->size; j++) {
-                if (!dict_find(&keys, log->items[j].key)) {
-                    dict_set(&keys, log->items[j].key, 0);
-                }
-            }
-        }
-        int metric_points = downsample <= 1 ? 1 : downsample;
-        double* out = (double*)calloc(metric_points, sizeof(double));
-        double final_steps = dict_get(
-            &log_history.items[log_history.size - 1], "agent_steps");
-
-        for (int k = 0; k < keys.size; k++) {
-            const char* key = keys.items[k].key;
-            if (strncmp(key, "loss/", 5) == 0) {
-                continue;
-            }
-
-            // Keys may be sparse across history (e.g. env/* only after first episode).
-            double first_value = 0;
-            for (int i = 0; i < log_history.size; i++) {
-                DictItem* item = dict_find(&log_history.items[i], key);
-                if (item) {
-                    first_value = item->value;
-                    break;
-                }
-            }
-
-            if (metric_points == 1) {
-                DictItem* item = dict_find(&log_history.items[log_history.size - 1], key);
-                out[0] = item ? item->value : first_value;
-                fprintf(fp, "%s = %.17g\n", key, out[0]);
-                continue;
-            }
-
-            int out_idx = 0;
-            int bin_n = 0;
-            double fallback = first_value;
-            double bin_sum = 0;
-            double next_bin = final_steps / (metric_points - 1);
-            for (int i = 0; i < log_history.size; i++) {
-                Dict* log = &log_history.items[i];
-                DictItem* item = dict_find(log, key);
-                if (item) {
-                    bin_sum += item->value;
-                    bin_n++;
-                }
-
-                double steps = dict_get(log, "agent_steps");
-                if (steps < next_bin || out_idx >= metric_points - 1) {
+        // Dense keys from first history row; bin-mean same as TrainResult curve.
+        if (log_history.size > 0) {
+            int metric_points = points;
+            double* out = (double*)calloc(metric_points, sizeof(double));
+            Dict* key_src = &log_history.items[0];
+            for (int k = 0; k < key_src->size; k++) {
+                const char* key = key_src->items[k].key;
+                if (strncmp(key, "loss/", 5) == 0) {
                     continue;
                 }
-
-                double reduced = bin_n ? bin_sum / bin_n : fallback;
-                out[out_idx++] = reduced;
-                fallback = reduced;
-                bin_n = 0;
-                bin_sum = 0;
-                next_bin += final_steps / (metric_points - 1);
+                log_history_bin_mean(&log_history, key, metric_points, out);
+                fprintf(fp, "%s = ", key);
+                for (int i = 0; i < metric_points; i++) {
+                    fprintf(fp, "%s%.17g", i ? "," : "", out[i]);
+                }
+                fputc('\n', fp);
             }
-
-            DictItem* final_item = dict_find(
-                &log_history.items[log_history.size - 1], key);
-            out[metric_points - 1] = final_item
-                ? final_item->value
-                : bin_n ? bin_sum / bin_n : fallback;
-            while (out_idx < metric_points - 1) {
-                out[out_idx++] = fallback;
-            }
-            fprintf(fp, "%s = ", key);
-            for (int i = 0; i < metric_points; i++) {
-                fprintf(fp, "%s%.17g", i ? "," : "", out[i]);
-            }
-            fputc('\n', fp);
+            free(out);
         }
-
-        free(out);
         fclose(fp);
     }
     for (int i = 0; i < log_history.size; i++) {
@@ -3430,10 +3264,11 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
 // Fork DP workers before CUDA initialization. Sweep trials occupy contiguous GPU
 // blocks; rank 0 owns the last GPU and writes TrainResult to base.result_fd.
 TrainResult launch_train(Ini* ini) {
-    int mb = (int)puf_ini_get(ini, "train", "minibatch_size");
-    int horizon = (int)puf_ini_get(ini, "train", "horizon");
-    int agents = (int)puf_ini_get(ini, "vec", "total_agents");
-    int world_size = (int)puf_ini_get(ini, "train", "gpus");
+    int mb = puf_ini_get(ini, "train", "minibatch_size");
+    int horizon = puf_ini_get(ini, "train", "horizon");
+    int agents = puf_ini_get(ini, "vec", "total_agents");
+    int world_size = puf_ini_get(ini, "train", "gpus");
+    int gpu_offset = puf_ini_get(ini, "base", "gpu_offset");
     assert(world_size >= 1 && "train.gpus must be >= 1");
     assert(horizon > 0 && mb % horizon == 0
         && "train.minibatch_size must be divisible by train.horizon");
@@ -3441,8 +3276,6 @@ TrainResult launch_train(Ini* ini) {
         && "train.minibatch_size must be <= train.horizon * vec.total_agents");
     assert(horizon % ADV_VEC_WIDTH == 0
         && "train.horizon must be a multiple of ADV_VEC_WIDTH (4 float / 8 bf16)");
-
-    int gpu_offset = (int)puf_ini_get(ini, "base", "gpu_offset");
 
     ncclUniqueId nccl_id;
     ncclUniqueId* nccl_ptr = NULL;
@@ -3455,10 +3288,7 @@ TrainResult launch_train(Ini* ini) {
     pid_t* pids = (pid_t*)calloc(n_workers, sizeof(pid_t));
     for (int rank = world_size - 1; rank >= 1; rank--) {
         pid_t pid = fork();
-        if (pid < 0) {
-            fprintf(stderr, "fork failed: %s\n", strerror(errno));
-            exit(1);
-        }
+        assert(pid >= 0 && "fork failed");
         if (pid == 0) {
             assert(freopen("/dev/null", "w", stdout) == stdout);
             TrainContext child = {
@@ -3486,15 +3316,13 @@ TrainResult launch_train(Ini* ini) {
     for (int i = 0; i < n_workers; i++) {
         int status = 0;
         waitpid(pids[i], &status, 0);
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "train rank worker pid %d failed\n", (int)pids[i]);
-            exit(1);
-        }
+        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0
+            && "train rank worker failed");
     }
     free(pids);
 
     // Sweep parent reads this over the pipe; CLI train ignores (result_fd=0).
-    int result_fd = (int)puf_ini_get(ini, "base", "result_fd");
+    int result_fd = puf_ini_get(ini, "base", "result_fd");
     if (result_fd > 0) {
         assert(write(result_fd, &result, sizeof(result)) == sizeof(result));
         close(result_fd);
@@ -3507,9 +3335,12 @@ int main(int argc, char** argv) {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
     if (argc < 3) {
-        fprintf(stderr, "usage: %s train|eval|eval_bot|match|sweep ENV [section.key=value ...]\n", argv[0]);
+        fprintf(stderr, "usage: %s train|eval|match|sweep ENV [section.key=value ...]\n", argv[0]);
         exit(1);
     }
+    int total_gpus = 0;
+    assert(cudaGetDeviceCount(&total_gpus) == cudaSuccess && total_gpus >= 1
+        && "no CUDA devices available");
 
     const char* mode = argv[1];
     Ini ini = {0};
@@ -3520,22 +3351,12 @@ int main(int argc, char** argv) {
         launch_train(&ini);
     } else if (strcmp(mode, "sweep") == 0) {
         run_sweep(&ini, argv[0]);
-    } else if (strcmp(mode, "eval") == 0 || strcmp(mode, "eval_bot") == 0) {
-        if (strcmp(mode, "eval_bot") == 0) {
-            puf_ini_put(&ini, "vec.num_frozen_banks", "0");
-            puf_ini_put(&ini, "vec.frozen_bank_pct", "0");
-            puf_ini_put(&ini, "selfplay.enabled", "0");
-            puf_ini_put(&ini, "env.dr", "0");
-            puf_ini_put(&ini, "env.num_agents", "1");
-            puf_ini_put(&ini, "env.num_bots", "1");
-        }
-        // Headless score eval (use a separate interactive path if you need render).
+    } else if (strcmp(mode, "eval") == 0) {
         run_eval(&ini, &ctx, EVAL_SCORE, 1);
     } else if (strcmp(mode, "match") == 0) {
         run_eval(&ini, &ctx, EVAL_MATCH, 1);
     } else {
-        fprintf(stderr, "unknown mode: %s\n", mode);
-        exit(1);
+        assert(0 && "unknown mode (train|eval|match|sweep)");
     }
 
     puf_ini_free(&ini);

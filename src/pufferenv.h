@@ -35,6 +35,7 @@ typedef struct Agent {
 void puf_init(Env* env, Dict* kwargs);
 void puf_reset(Env* env);
 void puf_step(Env* env);
+// CPU: host Env*. GPU: device batch base; implementation D2Hs what it needs and draws.
 void puf_render(Env* env);
 void puf_close(Env* env);
 void puf_log(Log* log, Dict* out);

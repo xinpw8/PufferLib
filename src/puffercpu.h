@@ -833,8 +833,8 @@ int main(int argc, char** argv) {
     int act_sizes[] = ACT_SIZES;
     int num_actions = (int)(sizeof(act_sizes) / sizeof(act_sizes[0]));
 
-    int hidden_size = (int)puf_ini_get(&ini, "policy", "hidden_size");
-    int num_layers = (int)puf_ini_get(&ini, "policy", "num_layers");
+    int hidden_size = puf_ini_get(&ini, "policy", "hidden_size");
+    int num_layers = puf_ini_get(&ini, "policy", "num_layers");
 
     Env env = {0};
     env.rng = 0;

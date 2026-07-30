@@ -365,18 +365,6 @@ static inline double puf_ini_get(Ini* ini, const char* section, const char* key)
     return dict_get(puf_ini_section(ini, section, 0), key);
 }
 
-static inline int puf_ini_get_int(Ini* ini, const char* section, const char* key) {
-    return (int)puf_ini_get(ini, section, key);
-}
-
-static inline long puf_ini_get_long(Ini* ini, const char* section, const char* key) {
-    return (long)puf_ini_get(ini, section, key);
-}
-
-static inline float puf_ini_get_float(Ini* ini, const char* section, const char* key) {
-    return (float)puf_ini_get(ini, section, key);
-}
-
 static inline const char* puf_ini_get_str(Ini* ini, const char* section,
         const char* key) {
     return dict_get_str(puf_ini_section(ini, section, 0), key);
