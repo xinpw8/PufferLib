@@ -653,9 +653,9 @@ void free_mingru(MinGRU* layer) {
     free(layer);
 }
 
-// PufferNet: default policy matching the native backend Policy in models.cu.
+// PufferNet: default policy matching the native backend Arch in algo.cu.
 // Architecture: Linear encoder -> N x MinGRU -> Linear decoder (fused value).
-// Weight file order (matches policy_weights_create reg_params call order):
+// Weight file order (matches weights_create reg_params call order):
 //   encoder weight (hidden_dim x input_dim)
 //   decoder weight ((atn_sum+1) x hidden_dim, last output is value)
 //   decoder logstd (1 x num_actions) IF continuous

@@ -756,25 +756,25 @@ Prec mingru_backward(void* w, Prec grad, void* activations, cudaStream_t stream)
     return grad;
 }
 
-struct Policy {
+struct Arch {
     Encoder encoder;
     Decoder decoder;
     Network network;
 };
 
-struct PolicyActivations {
+struct Activations {
     void* encoder;
     void* decoder;
     void* network;
 };
 
-struct PolicyWeights {
+struct Weights {
     void* encoder;
     void* decoder;
     void* network;
 };
 
-Prec policy_forward(Policy* p, PolicyWeights& w, PolicyActivations& activations,
+Prec arch_forward(Arch* p, Weights& w, Activations& activations,
         Prec obs, Prec state, cudaStream_t stream) {
     Prec enc_out = p->encoder.forward(
         w.encoder, activations.encoder, obs, stream);
@@ -783,8 +783,8 @@ Prec policy_forward(Policy* p, PolicyWeights& w, PolicyActivations& activations,
     return p->decoder.forward(w.decoder, activations.decoder, h, stream);
 }
 
-Prec policy_forward_train(Policy* p, PolicyWeights& w,
-        PolicyActivations& activations, Prec x,
+Prec arch_forward_train(Arch* p, Weights& w,
+        Activations& activations, Prec x,
         Prec state, Prec terminals, cudaStream_t stream) {
     int B = x.shape[0], TT = x.shape[1];
     Prec h = p->encoder.forward(w.encoder,
@@ -796,8 +796,8 @@ Prec policy_forward_train(Policy* p, PolicyWeights& w,
     return *puf_unsqueeze(&dec_out, 0, B, TT);
 }
 
-void policy_backward(Policy* p, PolicyWeights& w,
-        PolicyActivations& activations, Float grad_logits,
+void arch_backward(Arch* p, Weights& w,
+        Activations& activations, Float grad_logits,
         Float grad_logstd, Float grad_value, cudaStream_t stream) {
     int B = grad_logits.shape[0], TT = grad_logits.shape[1];
     Prec grad_h = p->decoder.backward(w.decoder,
@@ -809,9 +809,9 @@ void policy_backward(Policy* p, PolicyWeights& w,
     puf_dw_join(stream); // sycn dW GEMMs before muon reads weight grads.
 }
 
-PolicyActivations policy_reg_train(Policy* p, PolicyWeights& w,
+Activations arch_reg_train(Arch* p, Weights& w,
         Allocator* acts, Allocator* grads, int B_TT) {
-    PolicyActivations a;
+    Activations a;
     a.encoder = calloc(1, p->encoder.activation_size);
     a.decoder = calloc(1, p->decoder.activation_size);
     a.network = calloc(1, sizeof(MinGRUActivations));
@@ -821,9 +821,9 @@ PolicyActivations policy_reg_train(Policy* p, PolicyWeights& w,
     return a;
 }
 
-PolicyActivations policy_reg_rollout(Policy* p, PolicyWeights& w,
+Activations arch_reg_rollout(Arch* p, Weights& w,
         Allocator* acts, int B_inf) {
-    PolicyActivations a;
+    Activations a;
     a.encoder = calloc(1, p->encoder.activation_size);
     a.decoder = calloc(1, p->decoder.activation_size);
     a.network = calloc(1, sizeof(MinGRUActivations));
@@ -833,15 +833,15 @@ PolicyActivations policy_reg_rollout(Policy* p, PolicyWeights& w,
     return a;
 }
 
-void policy_init_weights(Policy* p, PolicyWeights& w,
+void weights_init(Arch* p, Weights& w,
         uint64_t* seed, cudaStream_t stream) {
     p->encoder.init_weights(w.encoder, seed, stream);
     p->decoder.init_weights(w.decoder, seed, stream);
     p->network.init_weights(w.network, seed, stream);
 }
 
-PolicyWeights policy_weights_create(Policy* p, Allocator* params) {
-    PolicyWeights w;
+Weights weights_create(Arch* p, Allocator* params) {
+    Weights w;
     w.encoder = p->encoder.create_weights(&p->encoder);
     w.decoder = p->decoder.create_weights(&p->decoder);
     w.network = p->network.create_weights(&p->network);
@@ -857,10 +857,10 @@ PolicyWeights policy_weights_create(Policy* p, Allocator* params) {
 // unsolved research problem.
 #include "ocean.cu"
 
-// Build a Policy value for a given env + arch. Encoder/decoder algorithms are
-// fixed by the env; hidden_size/num_layers/horizon parameterize shape. Policy
+// Build an Arch (ops + dims) for a given env. Encoder/decoder algorithms are
+// fixed by the env; hidden_size/num_layers/horizon parameterize shape. Arch
 // has no heap state so this returns by value; callers store it wherever.
-Policy build_policy(const char* env_name, int input_size, int hidden_size,
+Arch build_arch(const char* env_name, int input_size, int hidden_size,
         int num_layers, int decoder_output_size, bool is_continuous, int horizon) {
     Encoder encoder = {
         .forward = encoder_forward,
@@ -901,7 +901,7 @@ Policy build_policy(const char* env_name, int input_size, int hidden_size,
         .num_layers = num_layers,
         .horizon = horizon,
     };
-    return Policy{
+    return Arch{
         .encoder = encoder, .decoder = decoder, .network = network,
     };
 }

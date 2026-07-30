@@ -398,7 +398,7 @@ struct VecEnv {
     int buffers;
     int agents_per_buf;
     int mask_size;
-    int num_banks;
+    int num_policies;
     int* bank_layout;
     // CPU pins / workers (unused on GPU)
     int* env_starts;
@@ -425,19 +425,22 @@ struct EnvBuf {
     Byte action_mask; // (total_agents, mask_size); always allocated
 };
 
-// Frozen opponent bank (selfplay / match): rollout-only policy + params.
-// Same build_policy / weights_create path as primary, but no train acts, grads, or muon.
-// Optional different hidden/layers via frozen_bank_hidden_size / frozen_bank_num_layers.
+// Owned runnable policy instance. policies[0] is trainable; policies[i>0] are
+// frozen opponents (selfplay/match). Frozen policies are rollout-only (no train
+// acts/grads/muon) and may use a different arch via frozen_bank_hidden_size /
+// frozen_bank_num_layers. Primary registers rollout acts into PuffeRL.activ_alloc
+// (shared with train); frozen policies use their own activ_alloc.
 typedef struct {
-    Policy policy;
-    PolicyWeights weights;
+    bool frozen;
+    Arch arch;
+    Weights weights;
     Allocator params_alloc;
     Allocator activ_alloc;
     Prec param;
     Float master_weights;
     Prec* buffer_states;         // [num_buffers]
-    PolicyActivations* buf_acts;  // [num_buffers]
-} WeightBank;
+    Activations* buf_acts;  // [num_buffers]
+} Policy;
 
 // PROF_* accum; MODEL_*/H2D_* worker+GPU rollout events; TE_* train_impl events.
 enum {
@@ -481,21 +484,18 @@ typedef struct {
 } Profile;
 
 typedef struct PuffeRL {
-    Policy policy;
-    PolicyWeights weights;       // current precision_t weights (structured)
-    PolicyWeights actor_weights; // async rollout snapshot; unused when async=0
-    PolicyActivations train_activs;
-    Allocator params_alloc;
-    Allocator weight_alloc;
+    Policy* policies;        // [num_policies]; policies[0] trainable, rest frozen
+    int num_policies;
+    Weights actor_weights; // async rollout snapshot of policies[0]; unused when async=0
+    Activations train_activs;
+    Allocator weight_alloc;      // async actor weights
     Allocator grads_alloc;
-    Allocator activ_alloc;
+    Allocator activ_alloc;       // train + primary rollout (shared)
     VecEnv* vec;
     Muon muon;
     ncclComm_t nccl_comm;  // NCCL communicator for multi-GPU
     Hypers hypers;
     bool is_continuous;  // True if all action dimensions are continuous (size==1)
-    Prec* buffer_states;  // Per-buffer states for contiguous access
-    PolicyActivations* buf_acts;  // Per-buffer inference activations
     RolloutBuf rollouts;
     RolloutBuf train_rollouts;  // Pre-allocated transposed copy for train_impl
     EnvBuf env;
@@ -510,9 +510,7 @@ typedef struct PuffeRL {
     float* losses;         // device loss accumulator (NUM_LOSSES)
     PPOBufs ppo_bufs; // Pre-allocated buffers for ppo_loss_fwd_bwd
     PrioBuffers prio_bufs;      // Pre-allocated buffers for prio_replay
-    Float master_weights;  // fp32 master weights (flat); same buffer as param in fp32 mode
-    Prec param;
-    Prec actor_param;
+    Prec actor_param;      // async flat actor params
     Prec grad;
     long* rng_offset;      // device counters (num_buffers+1)
     Profile profile;
@@ -528,10 +526,7 @@ typedef struct PuffeRL {
     bool async_boot;
     ulong seed;
     curandStatePhilox4_32_10_t** rng_states;  // per-buffer persistent RNG states [num_buffers]
-    // Optional frozen weight banks for match / selfplay opponents.
-    WeightBank* frozen_banks;  // [num_frozen_banks]
-    int num_frozen_banks;
-    char env_name[64];  // For frozen-bank policy rebuild at create.
+    char env_name[64];  // For bank policy rebuild at create.
 } PuffeRL;
 
 // --- Infer path: sample + forward, then vec workers ---
@@ -763,10 +758,9 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         env->action_mask.data + (long)start * mask_size,
         block_size * mask_size);
 
-    // Per-bank forward: layout[b]..layout[b+1) within each buffer chunk.
-    int num_banks = 1 + pufferl->num_frozen_banks;
+    // Per-policy forward: layout[b]..layout[b+1) within each buffer chunk.
     long act_cols = env->actions.shape[1];
-    for (int b = 0; b < num_banks; b++) {
+    for (int b = 0; b < pufferl->num_policies; b++) {
         int bank_off = layout[b];
         int bank_end = layout[b + 1];
         int bank_size = bank_end - bank_off;
@@ -774,22 +768,12 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
             continue;
         }
 
-        Policy* p_bank;
-        PolicyWeights* w_bank;
-        PolicyActivations* a_bank;
-        Prec* s_bank;
-        if (b == 0) {
-            p_bank = &pufferl->policy;
-            w_bank = hypers->async ? &pufferl->actor_weights : &pufferl->weights;
-            a_bank = &pufferl->buf_acts[buf];
-            s_bank = &pufferl->buffer_states[buf];
-        } else {
-            WeightBank* fb = &pufferl->frozen_banks[b - 1];
-            p_bank = &fb->policy;
-            w_bank = &fb->weights;
-            a_bank = &fb->buf_acts[buf];
-            s_bank = &fb->buffer_states[buf];
-        }
+        Policy* pol = &pufferl->policies[b];
+        Arch* p_bank = &pol->arch;
+        Weights* w_bank = (!pol->frozen && hypers->async)
+            ? &pufferl->actor_weights : &pol->weights;
+        Activations* a_bank = &pol->buf_acts[buf];
+        Prec* s_bank = &pol->buffer_states[buf];
 
         int sub_start = start + bank_off;
         Prec obs_b  = puf_slice(rollouts.observations, t, sub_start, bank_size);
@@ -798,19 +782,20 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         Prec val_b  = puf_slice(rollouts.values,       t, sub_start, bank_size);
         Prec mask_b = puf_slice(rollouts.action_mask,  t, sub_start, bank_size);
 
-        int state_start = (b == 0) ? bank_off : 0;
+        // Primary keeps full-buffer states (state_start=bank_off); frozen is compact.
+        int state_start = pol->frozen ? 0 : bank_off;
         int state_n = (int)s_bank->shape[0] * bank_size * (int)s_bank->shape[2];
         zero_term_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
             *s_bank, env->terminals, state_start, sub_start, bank_size);
 
-        // Carry path: snapshot primary buffer state into per-slot initial_states.
-        if (b == 0 && t == 0 && rollouts.initial_states.data != NULL) {
+        // Carry path: snapshot trainable policy state into per-slot initial_states.
+        if (!pol->frozen && t == 0 && rollouts.initial_states.data != NULL) {
             Prec slot_st = init_slot(rollouts.initial_states, graph_slot);
             snapshot_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
                 slot_st, *s_bank, sub_start, bank_size);
         }
 
-        Prec dec = policy_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
+        Prec dec = arch_forward(p_bank, *w_bank, *a_bank, obs_b, *s_bank, stream);
 
         Prec p_logstd = {};
         DecoderWeights* dw = (DecoderWeights*)w_bank->decoder;
@@ -818,7 +803,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
             p_logstd = dw->logstd;
         }
 
-        // Offset RNG by bank_off so banks don't collide on per-buffer rng slots.
+        // Offset RNG by bank_off so policies don't collide on per-buffer rng slots.
         int hc_stride_s = 0;
         const signed char* hc_dev_s = get_head_consume_dev(&hc_stride_s);
         sample_logits<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
@@ -978,29 +963,29 @@ static void env_setup(PuffeRL* p, VecEnv* vec,
         if (frozen_banks > 0 && frozen_pct > 0.0f) {
             frozen_start = env_count - (int)(frozen_pct * env_count);
         }
-        int* counts = (int*)calloc(vec->num_banks, sizeof(int));
+        int* counts = (int*)calloc(vec->num_policies, sizeof(int));
         for (int e = 0; e < env_count; e++) {
             Env* eptr = &vec->envs[env_start + e];
             for (int s = 0; s < eptr->num_agents; s++) {
                 int policy = e < frozen_start ? 0 : eptr->agents[s].policy;
-                assert(policy >= 0 && policy < vec->num_banks);
+                assert(policy >= 0 && policy < vec->num_policies);
                 counts[policy]++;
             }
         }
         int offset = 0;
-        for (int b = 0; b <= vec->num_banks; b++) {
+        for (int b = 0; b <= vec->num_policies; b++) {
             if (buf == 0) {
                 vec->bank_layout[b] = offset;
             } else {
                 assert(vec->bank_layout[b] == offset);
             }
-            if (b < vec->num_banks) {
+            if (b < vec->num_policies) {
                 offset += counts[b];
             }
         }
         assert(offset == apb);
-        int* cursors = (int*)calloc(vec->num_banks, sizeof(int));
-        for (int b = 0; b < vec->num_banks; b++) {
+        int* cursors = (int*)calloc(vec->num_policies, sizeof(int));
+        for (int b = 0; b < vec->num_policies; b++) {
             cursors[b] = buf_start + vec->bank_layout[b];
         }
         for (int e = 0; e < env_count; e++) {
@@ -1501,7 +1486,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
         rollouts->ratio.data, advantages->data,
         hypers->gamma, hypers->gae_lambda,
         hypers->vtrace_rho_clip, hypers->vtrace_c_clip, rows, horizon);
-    if (pufferl->num_frozen_banks > 0) {
+    if (pufferl->num_policies > 1) {
         int apb = hypers->total_agents / hypers->num_buffers;
         int total = rows * horizon;
         zero_frozen_advantages_kernel<<<
@@ -1569,12 +1554,13 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
             }
 
             cudaStream_t stream = train_stream;
+            Policy* primary = &pufferl->policies[0];
             Prec obs = graph->mb_obs;
             Prec state = graph->mb_state;
             Prec terminals = graph->mb_terminals;
-            Prec dec = policy_forward_train(&pufferl->policy, pufferl->weights,
+            Prec dec = arch_forward_train(&primary->arch, primary->weights,
                 pufferl->train_activs, obs, state, terminals, stream);
-            DecoderWeights* dw_train = (DecoderWeights*)pufferl->weights.decoder;
+            DecoderWeights* dw_train = (DecoderWeights*)primary->weights.decoder;
             Prec p_logstd;
             if (dw_train->continuous) {
                 p_logstd = dw_train->logstd;
@@ -1589,7 +1575,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
             Float grad_logits = pufferl->ppo_bufs.grad_logits;
             Float grad_logstd = pufferl->is_continuous ? pufferl->ppo_bufs.grad_logstd : Float();
             Float grad_values = pufferl->ppo_bufs.grad_values;
-            policy_backward(&pufferl->policy, pufferl->weights, pufferl->train_activs,
+            arch_backward(&primary->arch, primary->weights, pufferl->train_activs,
                 grad_logits, grad_logstd, grad_values, stream);
 
             if (pufferl->nccl_comm != NULL && hypers->world_size > 1) {
@@ -1597,12 +1583,12 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
                     numel(pufferl->grad.shape), NCCL_PRECISION, ncclAvg,
                     pufferl->nccl_comm, stream);
             }
-            muon_step(muon, pufferl->master_weights,
+            muon_step(muon, primary->master_weights,
                 pufferl->grad, hypers->max_grad_norm, stream);
             if (USE_BF16) {
-                int n = numel(pufferl->param.shape);
+                int n = numel(primary->param.shape);
                 cast<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
-                    pufferl->param.data, pufferl->master_weights.data, n);
+                    primary->param.data, primary->master_weights.data, n);
             }
             if (hypers->cudagraphs) {
                 cudaGraph_t _graph;
@@ -1735,9 +1721,10 @@ const char* puf_checkpoint_path_key(Ini* ini, const char* key,
 }
 
 void puf_save_weights(PuffeRL* p, const char* path) {
-    int64_t nbytes = numel(p->master_weights.shape) * sizeof(float);
+    Float mw = p->policies[0].master_weights;
+    int64_t nbytes = numel(mw.shape) * sizeof(float);
     char* buf = (char*)malloc(nbytes);
-    cudaMemcpy(buf, p->master_weights.data, nbytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(buf, mw.data, nbytes, cudaMemcpyDeviceToHost);
     char tmp[4096];
     snprintf(tmp, sizeof(tmp), "%s.tmp.%d", path, getpid());
     FILE* fp = fopen(tmp, "wb");
@@ -1784,15 +1771,18 @@ void puf_load_weights_into(Float dst, Prec params,
     }
 }
 
+// bank_idx is the frozen index (0..num_policies-2), maps to policies[bank_idx+1].
 void pufferl_load_frozen_bank(PuffeRL* pufferl, int bank_idx, const char* path) {
-    WeightBank* bank = &pufferl->frozen_banks[bank_idx];
-    puf_load_weights_into(bank->master_weights, bank->param,
+    assert(bank_idx >= 0 && bank_idx + 1 < pufferl->num_policies);
+    Policy* pol = &pufferl->policies[bank_idx + 1];
+    assert(pol->frozen);
+    puf_load_weights_into(pol->master_weights, pol->param,
         pufferl->default_stream, path);
     cudaDeviceSynchronize();
 }
 
 // fp32 master weights: alias param buffer in float mode; separate fp32 copy in bf16.
-// cast_now: copy param→master now (primary after init). Frozen banks load later.
+// cast_now: copy param→master now (primary after init). Frozen policies load later.
 static void master_weights_setup(Float* mw, Prec* param,
         bool cast_now, cudaStream_t stream) {
     long n = numel(param->shape);
@@ -1891,8 +1881,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         && "mixed continuous/discrete action spaces not supported");
     bool is_continuous = n_cont > 0;
     pufferl->is_continuous = is_continuous;
-    vec->num_banks = frozen_banks + 1;
-    vec->bank_layout = (int*)calloc(1, (vec->num_banks + 1) * sizeof(int));
+    vec->num_policies = frozen_banks + 1;
+    vec->bank_layout = (int*)calloc(1, (vec->num_policies + 1) * sizeof(int));
     vec->mask_size = act_n;
 
     // Device env IO (EnvBuf).
@@ -1942,9 +1932,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     int B_TT = minibatch_segments * hypers.horizon;
     int horizon = hypers.horizon;
     int batch = total_agents / num_buffers;
-
-    pufferl->policy = build_policy(pufferl->env_name, input_size, hidden_size,
-        num_layers, decoder_output_size, is_continuous, hypers.horizon);
+    int agents_per_buf = total_agents / num_buffers;
 
     // Dedicated learner stream (always non-default; nonblocking when async).
     if (hypers.async) {
@@ -1954,30 +1942,52 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         assert(cudaStreamCreate(&pufferl->train_stream) == cudaSuccess);
     }
 
-    // Create and allocate params
-    Allocator* params = &pufferl->params_alloc;
     Allocator* acts = &pufferl->activ_alloc;
     Allocator* grads = &pufferl->grads_alloc;
 
-    // Buffers for weights, grads, and activations
-    pufferl->weights = policy_weights_create(&pufferl->policy, params);
+    // All policies: policies[0] trainable, rest frozen (rollout-only).
+    int frozen_hidden = (int)dict_get(&vec_kwargs, "frozen_bank_hidden_size");
+    int frozen_layers = (int)dict_get(&vec_kwargs, "frozen_bank_num_layers");
+    pufferl->num_policies = vec->num_policies;
+    assert(!(pufferl->num_policies > 1 && (frozen_hidden <= 0 || frozen_layers <= 0))
+        && "num_frozen_banks requires frozen_bank_hidden_size and frozen_bank_num_layers > 0");
+    pufferl->policies = (Policy*)calloc(1, pufferl->num_policies * sizeof(Policy));
+
+    for (int b = 0; b < pufferl->num_policies; b++) {
+        Policy* pol = &pufferl->policies[b];
+        pol->frozen = (b > 0);
+        int h = pol->frozen ? frozen_hidden : hidden_size;
+        int L = pol->frozen ? frozen_layers : num_layers;
+        int slice = vec->bank_layout[b + 1] - vec->bank_layout[b];
+        assert(slice > 0 && "policy has no agents");
+        // Primary keeps full-buffer act/state capacity (state_start=bank_off in forward).
+        int act_batch = pol->frozen ? slice : inf_batch;
+        int state_agents = pol->frozen ? slice : batch;
+
+        pol->arch = build_arch(pufferl->env_name, input_size, h, L,
+            decoder_output_size, is_continuous, hypers.horizon);
+        pol->weights = weights_create(&pol->arch, &pol->params_alloc);
+        Allocator* aalloc = pol->frozen ? &pol->activ_alloc : acts;
+        pol->buf_acts = (Activations*)calloc(
+            1, num_buffers * sizeof(Activations));
+        pol->buffer_states = (Prec*)calloc(1, num_buffers * sizeof(Prec));
+        for (int i = 0; i < num_buffers; i++) {
+            pol->buf_acts[i] = arch_reg_rollout(
+                &pol->arch, pol->weights, aalloc, act_batch);
+            pol->buffer_states[i] = {.shape = {L, state_agents, h}};
+            alloc_register(aalloc, &pol->buffer_states[i]);
+        }
+    }
+
+    // Train-only extras on policies[0] (trainable).
+    Policy* primary = &pufferl->policies[0];
     if (hypers.async) {
-        pufferl->actor_weights = policy_weights_create(
-            &pufferl->policy, &pufferl->weight_alloc);
+        pufferl->actor_weights = weights_create(
+            &primary->arch, &pufferl->weight_alloc);
     }
-    pufferl->train_activs = policy_reg_train(
-        &pufferl->policy, pufferl->weights, acts, grads, B_TT);
-    pufferl->buf_acts = (PolicyActivations*)calloc(
-        1, num_buffers * sizeof(PolicyActivations));
-    pufferl->buffer_states = (Prec*)calloc(1, num_buffers * sizeof(Prec));
-    for (int i = 0; i < num_buffers; i++) {
-        pufferl->buf_acts[i] = policy_reg_rollout(
-            &pufferl->policy, pufferl->weights, acts, inf_batch);
-        pufferl->buffer_states[i] = {
-            .shape = {num_layers, batch, hidden_size},
-        };
-        alloc_register(acts, &pufferl->buffer_states[i]);
-    }
+    pufferl->train_activs = arch_reg_train(
+        &primary->arch, primary->weights, acts, grads, B_TT);
+
     int rollout_horizon = hypers.async ? 2 * horizon : horizon;
     register_rollout_buffers(&pufferl->rollouts,
         acts, rollout_horizon, total_agents, input_size, num_action_heads, act_n);
@@ -2006,10 +2016,20 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     cudaMalloc((void**)&pufferl->act_sizes, num_action_heads * sizeof(int));
     cudaMalloc((void**)&pufferl->losses, NUM_LOSSES * sizeof(float));
 
-    muon_init(&pufferl->muon, params, hypers.momentum, acts);
+    muon_init(&pufferl->muon, &primary->params_alloc, hypers.momentum, acts);
 
-    // All buffers allocated here
-    alloc_create(params);
+    // Allocate all policy param/activ pools, then train grads + shared acts.
+    for (int b = 0; b < pufferl->num_policies; b++) {
+        Policy* pol = &pufferl->policies[b];
+        alloc_create(&pol->params_alloc);
+        if (pol->frozen) {
+            alloc_create(&pol->activ_alloc);
+        }
+        pol->param = {
+            .data = (precision_t*)pol->params_alloc.mem,
+            .shape = {pol->params_alloc.total_elems},
+        };
+    }
     if (hypers.async) {
         alloc_create(&pufferl->weight_alloc);
     }
@@ -2017,7 +2037,6 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     alloc_create(acts);
 
     pufferl->grad = {.data = (precision_t*)grads->mem, .shape = {grads->total_elems}};
-    pufferl->param = {.data = (precision_t*)params->mem, .shape = {params->total_elems}};
     if (hypers.async) {
         pufferl->actor_param = {
             .data = (precision_t*)pufferl->weight_alloc.mem,
@@ -2026,17 +2045,20 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     }
 
     ulong init_seed = hypers.seed;
-    policy_init_weights(&pufferl->policy,
-        pufferl->weights, &init_seed, pufferl->default_stream);
-    master_weights_setup(&pufferl->master_weights,
-        &pufferl->param, true, pufferl->default_stream);
+    weights_init(&primary->arch,
+        primary->weights, &init_seed, pufferl->default_stream);
+    // Primary: cast param→master now. Frozen: load later via pufferl_load_frozen_bank.
+    for (int b = 0; b < pufferl->num_policies; b++) {
+        Policy* pol = &pufferl->policies[b];
+        master_weights_setup(&pol->master_weights, &pol->param,
+            !pol->frozen, pufferl->default_stream);
+    }
     if (hypers.async) {
-        puf_copy(&pufferl->actor_param, &pufferl->param, pufferl->default_stream);
+        puf_copy(&pufferl->actor_param, &primary->param, pufferl->default_stream);
         cudaStreamSynchronize(pufferl->default_stream);
     }
 
     // Per-buffer persistent RNG states
-    int agents_per_buf = total_agents / num_buffers;
     pufferl->rng_states = (curandStatePhilox4_32_10_t**)calloc(
         1, num_buffers * sizeof(curandStatePhilox4_32_10_t*));
     for (int i = 0; i < num_buffers; i++) {
@@ -2054,45 +2076,6 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     cudaMemset(pufferl->losses, 0, NUM_LOSSES * sizeof(float));
     cudaMemcpy(pufferl->muon.lr, &hypers.lr, sizeof(float), cudaMemcpyHostToDevice);
     cudaMemset(pufferl->muon.mb.data, 0, numel(pufferl->muon.mb.shape) * sizeof(float));
-
-    // Frozen banks (selfplay/match opponents): rollout-only policy.
-    // Arch comes from vec.frozen_bank_*; required when banks > 0.
-    int num_frozen = vec->num_banks - 1;
-    int frozen_hidden = (int)dict_get(&vec_kwargs, "frozen_bank_hidden_size");
-    int frozen_layers = (int)dict_get(&vec_kwargs, "frozen_bank_num_layers");
-    assert(!(num_frozen > 0 && (frozen_hidden <= 0 || frozen_layers <= 0))
-        && "num_frozen_banks requires frozen_bank_hidden_size and frozen_bank_num_layers > 0");
-    pufferl->num_frozen_banks = num_frozen;
-    if (num_frozen > 0) {
-        pufferl->frozen_banks = (WeightBank*)calloc(1,
-            num_frozen * sizeof(WeightBank));
-    }
-    for (int b = 0; b < num_frozen; b++) {
-        int slice = vec->bank_layout[b + 2] - vec->bank_layout[b + 1];
-        assert(slice > 0 && "frozen bank has no agents");
-        WeightBank* bank = &pufferl->frozen_banks[b];
-        bank->policy = build_policy(pufferl->env_name, input_size, frozen_hidden,
-            frozen_layers, decoder_output_size, is_continuous, hypers.horizon);
-        bank->weights = policy_weights_create(&bank->policy, &bank->params_alloc);
-        bank->buf_acts = (PolicyActivations*)calloc(1,
-            num_buffers * sizeof(PolicyActivations));
-        bank->buffer_states = (Prec*)calloc(1, num_buffers * sizeof(Prec));
-        for (int i = 0; i < num_buffers; i++) {
-            bank->buf_acts[i] = policy_reg_rollout(
-                &bank->policy, bank->weights, &bank->activ_alloc, slice);
-            bank->buffer_states[i] = {.shape = {frozen_layers, slice, frozen_hidden}};
-            alloc_register(&bank->activ_alloc, &bank->buffer_states[i]);
-        }
-        alloc_create(&bank->params_alloc);
-        alloc_create(&bank->activ_alloc);
-        bank->param = {
-            .data = (precision_t*)bank->params_alloc.mem,
-            .shape = {bank->params_alloc.total_elems},
-        };
-        // Weights loaded later via pufferl_load_frozen_bank; no cast yet.
-        master_weights_setup(&bank->master_weights, &bank->param, false,
-            pufferl->default_stream);
-    }
 
     // Upload head-consume map before any stream capture (see init_head_consume_map).
     init_head_consume_map();
@@ -2265,7 +2248,7 @@ void puf_dashboard_print(Ini* ini, PuffeRL* p, Dict* log, int epoch) {
     double perf_total = rollout + train_time;
 
     char params[32], steps_s[32], sps_s[32], uptime[64], remaining[64], epoch_s[32];
-    dash_abbrev(params, sizeof(params), (double)numel(p->master_weights.shape));
+    dash_abbrev(params, sizeof(params), (double)numel(p->policies[0].master_weights.shape));
     dash_abbrev(steps_s, sizeof(steps_s), steps);
     dash_abbrev(sps_s, sizeof(sps_s), sps);
     double up = dash_num(log, "uptime", wall_clock() - p->start_time);
@@ -2468,19 +2451,16 @@ static void puf_log_history_add(PufLogHistory* h, Dict* log) {
 double rollout_start(PuffeRL* p, int slot) {
     p->write_slot = slot;
     if (p->hypers.async) {
-        int64_t n = numel(p->param.shape);
-        cudaMemcpyAsync(p->actor_param.data, p->param.data,
+        Prec* param = &p->policies[0].param;
+        int64_t n = numel(param->shape);
+        cudaMemcpyAsync(p->actor_param.data, param->data,
             n * sizeof(precision_t), cudaMemcpyDeviceToDevice, p->default_stream);
         cudaStreamSynchronize(p->default_stream);
     }
     if (p->hypers.reset_every_horizon) {
-        for (int i = 0; i < p->hypers.num_buffers; i++) {
-            cudaMemsetAsync(p->buffer_states[i].data, 0,
-                numel(p->buffer_states[i].shape) * sizeof(precision_t), p->default_stream);
-        }
-        for (int b = 0; b < p->num_frozen_banks; b++) {
+        for (int b = 0; b < p->num_policies; b++) {
             for (int i = 0; i < p->hypers.num_buffers; i++) {
-                Prec* st = &p->frozen_banks[b].buffer_states[i];
+                Prec* st = &p->policies[b].buffer_states[i];
                 cudaMemsetAsync(st->data, 0, numel(st->shape) * sizeof(precision_t),
                     p->default_stream);
             }
@@ -2915,16 +2895,16 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
             fprintf(stderr, "match requires base.load_model_path and base.load_enemy_model_path\n");
             exit(1);
         }
-        puf_load_weights_into(pufferl->master_weights,
-            pufferl->param, pufferl->default_stream, a_path);
+        puf_load_weights_into(pufferl->policies[0].master_weights,
+            pufferl->policies[0].param, pufferl->default_stream, a_path);
         pufferl_load_frozen_bank(pufferl, 0, b_path);
     } else {
         char resolved_path[4096];
         const char* load_path = puf_checkpoint_path_key(ini,
             "load_model_path", resolved_path, sizeof(resolved_path));
         if (load_path) {
-            puf_load_weights_into(pufferl->master_weights, pufferl->param,
-                pufferl->default_stream, load_path);
+            puf_load_weights_into(pufferl->policies[0].master_weights,
+                pufferl->policies[0].param, pufferl->default_stream, load_path);
             printf("Loaded weights from %s\n", load_path);
         }
     }
@@ -3037,7 +3017,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         if (ctx->artifact_owner) {
             puf_save_weights(pufferl, initial_checkpoint);
         }
-        selfplay.num_banks = pufferl->num_frozen_banks;
+        selfplay.num_banks = pufferl->num_policies - 1;
         if (selfplay.num_banks <= 0 || selfplay.num_banks > SELFPLAY_MAX_BANKS) {
             fprintf(stderr, "selfplay requires 1..%d frozen banks\n", SELFPLAY_MAX_BANKS);
             exit(1);
