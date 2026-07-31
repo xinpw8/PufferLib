@@ -3,7 +3,7 @@ set -e
 
 # Usage:
 #   ./build.sh breakout              # Full native train/eval binary (CPU envs)
-#   ./build.sh breakout --gpu        # GPU env path (Env* on device; requires ocean/ENV/ENV.cu)
+#   ./build.sh breakout --gpu        # GPU env (ENV_HEADER=ocean/ENV/ENV.cu; exclusive vs .h)
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
 #   ./build.sh breakout --cpu        # Tiny standalone CPU eval executable
 #   ./build.sh breakout --debug      # Debug build
@@ -69,6 +69,7 @@ fi
 
 CLANG_WARN=(
     -Wall
+    -Wno-narrowing
     -ferror-limit=3
     -Werror=incompatible-pointer-types
     -Werror=return-type
@@ -153,6 +154,15 @@ else
     echo "Error: environment '$ENV' not found" && exit 1
 fi
 
+case "$ENV" in
+    osrs_*)
+        python3 ocean/osrs/scripts/osrs_asset_manifest.py generate-c-header \
+            ocean/osrs/asset_manifest.json \
+            --output ocean/osrs/osrs_assets_generated.h
+        bash ocean/osrs/scripts/setup-data.sh
+        ;;
+esac
+
 OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
 SRC_FILE=${SRC_FILE:-$SRC_DIR/$ENV.c}
 
@@ -191,7 +201,7 @@ elif [ "$MODE" = "web" ]; then
     emcc \
         -o "build/web/$ENV/game.html" \
         "$SRC_FILE" $EXTRA_SRC \
-        -O3 -Wall \
+        -O3 -Wall -Wno-narrowing \
         "${LINK_ARCHIVES[@]}" \
         "${INCLUDES[@]}" \
         -L. -L./$RAYLIB_NAME/lib \
@@ -253,7 +263,17 @@ NVCC="ccache $CUDA_HOME/bin/nvcc"
 CC="${CC:-$(command -v ccache >/dev/null && echo 'ccache clang' || echo 'clang')}"
 ARCH=${NVCC_ARCH:-native}
 
-ENV_HEADER="$SRC_DIR/$ENV.h"
+# CPU and GPU envs are separate sources. --gpu selects the .cu; default is .h.
+# Only one is compiled in (never both).
+if [ "$USE_GPU_ENV" = "1" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.cu"
+    if [ ! -f "$ENV_HEADER" ]; then
+        echo "Error: --gpu requires $ENV_HEADER"
+        exit 1
+    fi
+else
+    ENV_HEADER="$SRC_DIR/$ENV.h"
+fi
 mkdir -p build
 if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
     echo "Error: $ENV_HEADER must typedef obs_t"
@@ -261,17 +281,11 @@ if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
 fi
 
 ENV_COMPILE_FLAGS=(-DENV_HEADER=\"$ENV_HEADER\")
-# GPU env is compile-time exclusive (not a runtime dual path with CPU workers).
-if [ "$USE_GPU_ENV" = "1" ]; then
-    GPU_ENV_HEADER="$SRC_DIR/$ENV.cu"
-    if [ ! -f "$GPU_ENV_HEADER" ]; then
-        echo "Error: --gpu requires $GPU_ENV_HEADER"
-        exit 1
-    fi
-    ENV_COMPILE_FLAGS+=(-DPUFFER_GPU_ENV -DGPU_ENV_HEADER=\"$GPU_ENV_HEADER\")
-fi
 
 MODE=${MODE:-native}
+
+# Allow double→int/float in brace-init (host -Wno-narrowing + nvcc #2361).
+NVCC_NARROW=(-Xcompiler=-Wno-narrowing --diag-suppress=2361)
 
 if [ "$MODE" = "native" ]; then
     echo "Compiling native train/eval binary ($ARCH)..."
@@ -285,6 +299,7 @@ if [ "$MODE" = "native" ]; then
 	    -DPUFFERLIB_BUILD_MAIN \
 	    -Xcompiler=-DPLATFORM_DESKTOP \
 	    -Xcompiler=-fopenmp \
+	    "${NVCC_NARROW[@]}" \
 	    "${EXTRA_CFLAGS[@]}" \
 	    $PRECISION \
 	    src/pufferl.cu \
@@ -306,6 +321,7 @@ elif [ "$MODE" = "profile" ]; then
         -DENV_NAME=$ENV \
 	    -DPUFFER_ENV_NAME=\"$ENV\" \
         -Xcompiler=-DPLATFORM_DESKTOP \
+	    "${NVCC_NARROW[@]}" \
 	    "${EXTRA_CFLAGS[@]}" \
         $PRECISION \
         -Xcompiler=-fopenmp \
