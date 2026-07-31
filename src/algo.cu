@@ -195,26 +195,6 @@ __device__ __forceinline__ float lerp(float a, float b, float w) {
     return (fabsf(w) < 0.5f) ? a + w * diff : b - diff * (1.0f - w);
 }
 
-// Deterministic block tree-reduce. smem layout: smem[c * nthreads + tid].
-// Caller fills smem; tid 0 writes nchan results to out[0..nchan).
-__device__ __forceinline__ void block_reduce_sum(
-        float* smem, float* out, int tid, int nthreads, int nchan) {
-    __syncthreads();
-    for (int s = nthreads / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            for (int c = 0; c < nchan; c++) {
-                smem[c * nthreads + tid] += smem[c * nthreads + tid + s];
-            }
-        }
-        __syncthreads();
-    }
-    if (tid == 0) {
-        for (int c = 0; c < nchan; c++) {
-            out[c] = smem[c * nthreads];
-        }
-    }
-}
-
 // Rollout MinGRU step: h = (1-z)*h + z*h_tilde, highway out = s*h + (1-s)*x.
 __global__ void mingru_gate(precision_t* out, precision_t* next_state,
         const precision_t* combined, const precision_t* state_in,

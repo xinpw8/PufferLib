@@ -267,6 +267,29 @@ void alloc_create(Allocator* alloc) {
     }
 }
 
+// Deterministic block tree-reduce. smem layout: smem[c * nthreads + tid].
+// Caller fills smem; tid 0 writes nchan results to out[0..nchan).
+#ifndef PUF_BLOCK_REDUCE_SUM
+#define PUF_BLOCK_REDUCE_SUM
+__device__ __forceinline__ void block_reduce_sum(
+        float* smem, float* out, int tid, int nthreads, int nchan) {
+    __syncthreads();
+    for (int s = nthreads / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            for (int c = 0; c < nchan; c++) {
+                smem[c * nthreads + tid] += smem[c * nthreads + tid + s];
+            }
+        }
+        __syncthreads();
+    }
+    if (tid == 0) {
+        for (int c = 0; c < nchan; c++) {
+            out[c] = smem[c * nthreads];
+        }
+    }
+}
+#endif
+
 // Algo + sweeps only depend on basic tensor types and utilities
 #include "algo.cu"
 #include "protein.cu"
@@ -2576,7 +2599,10 @@ void run_sweep(Ini* ini, const char* exe_path) {
     int direction = strcmp(goal, "minimize") == 0 ? -1 : 1;
 
     SweepParam* params = (SweepParam*)calloc(ini->num_sections, sizeof(SweepParam));
-    SweepSpace* space = sweep_space_create(ini->num_sections, -1, direction);
+    SweepSpace* space = (SweepSpace*)calloc(1, sizeof(SweepSpace));
+    space->spaces = (Space*)calloc((size_t)ini->num_sections, sizeof(Space));
+    space->cost_idx = -1;
+    space->optimize_direction = direction;
     int n_params = 0;
     for (int i = 0; i < ini->num_sections; i++) {
         Dict* dict = &ini->sections[i];
@@ -2625,7 +2651,8 @@ void run_sweep(Ini* ini, const char* exe_path) {
             scale = dict_get(dict, "scale");
         }
 
-        space_init(&space->spaces[n_params], type, min_v, max_v, scale, is_integer);
+        space->spaces[n_params] = (Space){
+            .type = type, .min = min_v, .max = max_v, .scale = scale, .is_integer = is_integer};
         if (strcmp(dict->name, "sweep.train.total_timesteps") == 0) {
             space->cost_idx = n_params;
         }
@@ -2660,11 +2687,28 @@ void run_sweep(Ini* ini, const char* exe_path) {
     assert(train_gpus >= 1 && (float)sweep_gpus == fminf(
         fmaxf((float)sweep_gpus, (float)train_gpus), (float)total_gpus));
 
-    ProteinSweep* protein = protein_sweep_create(space,
-        10, 256, 50, 0.001f, 50, 750, 4096,
-        downsample == 1, prune_pareto, use_logit,
-        1.0f, max_cost, 0.1f, -0.8f, early_stop_quantile,
-        success_cap, 1024, 5, 73ULL);
+    ProteinSweep* protein = protein_sweep_create((ProteinSweep){
+        .space = space,
+        .num_random_samples = 10,
+        .suggestions_per_pareto = 256,
+        .gp_training_iter = 50,
+        .gp_learning_rate = 0.001f,
+        .optimizer_reset_frequency = 50,
+        .gp_max_obs = 750,
+        .infer_batch_size = 4096,
+        .use_success_prob = downsample == 1,
+        .prune_pareto = prune_pareto,
+        .use_logit = use_logit,
+        .global_search_scale = 1.0f,
+        .max_suggestion_cost = max_cost,
+        .expansion_rate = 0.1f,
+        .cost_random_suggestion = -0.8f,
+        .early_stop_quantile = early_stop_quantile,
+        .success_cap = success_cap,
+        .failure_cap = 1024,
+        .top_k = 5,
+        .rng_seed = 73ULL,
+    });
 
     int parallel = sweep_gpus / train_gpus;
     // Row 0 = staging for suggest; rows 1..parallel = per-slot copies for observe.
